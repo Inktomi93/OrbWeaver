@@ -4,6 +4,10 @@
 // report prints "no findings — clean". That is the most dangerous zero in the fleet: a blank mount, a
 // swallowed error boundary, or a route that rendered nothing at all audits as the cleanest page in the
 // product. The census below is the denominator that verdict rests on.
+//
+// AT THE CAP (449/450): the next addition lands as a SIBLING module — evidence-viewport-frame.ts is the
+// precedent — never as an arm here, and never by deleting a comment to buy its line
+// (docs/architecture/core/Core-Tooling-Law.md §4.3).
 
 import type { SettingsShimEvidence, ThemeResolutionEvidence } from "@orb/tooling/_shared/appearance";
 import type { EvidenceGap } from "@orb/tooling/_shared/evidence";

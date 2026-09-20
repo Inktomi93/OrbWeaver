@@ -315,13 +315,19 @@ auditRuleTest(
   },
 );
 
-// ── #1077 (orb-ui audit F5): a rest-hidden reveal cluster is WITHHELD by name at fine pointer ────────
+// ── #1077 (orb-ui audit F5): a rest-hidden reveal cluster is NAMED at fine pointer ───────────────────
 //
 // ROW_REVEAL (opacity-0 at rest, group-hover/focus-within/pointer-coarse:opacity-100 revealed) fails
 // `isVisible`'s opacity gate at fine-pointer rest and was silently dropped from every offered-control
 // census with no accounting reason at all. `reveal-coverage` is accounting-only (no Finding, no
-// severity ever fires) — its job is to name the gap: present with a WITHHELD count when a rest-hidden
-// reveal control exists, absent entirely when none does.
+// severity ever fires) — its job is to name the gap: present with a count when a rest-hidden reveal
+// control exists, absent entirely when none does.
+//
+// THE COUNT IS AN EXCLUSION, NOT A WITHHOLDING (#2468). It shipped as withheld, and since ROW_REVEAL is
+// the house row-actions idiom that made EVERY list surface a permanent fine-pointer NO VERDICT — 30 of
+// them on `--goto characters`, recoverable by no operator action. The third assertion in the firing arm
+// is the defect proof: naming the cluster must cost the run nothing. See census-collision.ts's emit
+// site for why the fine REST regime is a closed negative rather than missing evidence.
 
 auditRuleTest(
   [
@@ -329,10 +335,10 @@ auditRuleTest(
       rule: "reveal-coverage",
       kind: "fires",
       reason:
-        "an opacity-0-at-rest control (the ROW_REVEAL shape — real geometry, zero paint, hover/coarse-revealed) must be named as a withheld reveal-coverage candidate instead of vanishing from the census with no reason",
+        "an opacity-0-at-rest control (the ROW_REVEAL shape — real geometry, zero paint, hover/coarse-revealed) must be named as an excluded reveal-coverage candidate instead of vanishing from the census with no reason",
     },
   ],
-  "a rest-hidden reveal cluster produces a reveal-coverage WITHHELD row",
+  "a rest-hidden reveal cluster produces a reveal-coverage EXCLUDED row and keeps the verdict",
   async ({ runCli, scratch }) => {
     // The stray labeled control gives the walker something ELSE to censuse (evidence.ts's own
     // `censusTotal` doctrine): the subject under test is entirely invisible by design, so without it
@@ -341,7 +347,8 @@ auditRuleTest(
       '<label for="anchor">Anchor</label><input id="anchor" style="width:64px;height:32px" />' +
       '<div class="group"><button id="reveal-btn" style="opacity:0;width:40px;height:40px">Reveal</button></div>';
     const report = await auditFixture(scratch, runCli, "reveal-coverage-fires", body);
-    expect(report.populationAccounting?.["reveal-coverage"]).toMatchObject({ candidates: 1, judged: 0, withheld: { restHiddenReveal: 1 } });
+    expect(report.populationAccounting?.["reveal-coverage"]).toMatchObject({ candidates: 1, judged: 0, excluded: { restHiddenReveal: 1 } });
+    expect(report.populationAccounting?.["reveal-coverage"]?.withheld, "the cluster is a CLOSED negative — it must not hold the run's verdict").toEqual({});
   },
 );
 
@@ -363,6 +370,6 @@ auditRuleTest(
     // The JSON accounting record is always present (every family carries its own zero); the row this
     // test names is the PRINTED `POPULATION reveal-coverage …` line, which report.ts folds a
     // zero-candidate rule into the `nothing-to-judge` summary instead of printing on its own.
-    expect(report.populationAccounting?.["reveal-coverage"]).toMatchObject({ candidates: 0, withheld: {} });
+    expect(report.populationAccounting?.["reveal-coverage"]).toMatchObject({ candidates: 0, withheld: {}, excluded: {} });
   },
 );

@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-19
+updated: 2026-09-20
 ---
 
 # Authoring a mechanism-matched ui-audit rule
@@ -100,9 +100,9 @@ Finding at all and their control is the printed population row.
 | rule | what its candidate selection READS | collection site | verdict site | planted RENDERED control |
 | - | - | - | - | - |
 | tap-target | offered interactive controls, extent from a compositor `elementFromPoint` ring probe (not the border box) | `w/census-interactive` + `w/hit-extent` + `w/target-identity` | `lib/checks-a11y` | `T/tooling/ui-audit/ops/walker/hit-extent.int.test.ts` · `target-identity.int.test.ts` · `T/tooling/design-audit-walker.ct.tsx` |
-| reveal-coverage | rest-hidden reveal clusters (opacity 0 at rest, real geometry) — accounting only, never a Finding | `w/census-interactive` | `lib/collect-families` (census row) | `T/…/census-interactive.int.test.ts` (withheld row + its silent twin) |
+| reveal-coverage | rest-hidden reveal clusters (opacity 0 at rest, real geometry) — accounting only, never a Finding; `excluded(restHiddenReveal)` since #2468, because the fine REST regime does not offer them and the coarse one judges them directly | `w/census-interactive` | `lib/collect-families` (census row) | `T/…/census-interactive.int.test.ts` (excluded row + its keeps-the-verdict assertion + its silent twin) |
 | control-aspect | offered controls' rendered w/h ratio against the role's silhouette | `w/census-interactive` (`controlAspects`) | `lib/checks-a11y` | `T/tooling/ui-audit/index.int.test.ts` (planted 1.09 aspect + shipped 64x44 twin) |
-| obscured-target | a painted element whose OWN centre hit-tests to a local neighbour (`ownsPoint`) | `w/census-collision` + `w/census-occlusion` | `lib/checks-a11y` | `T/…/census-collision.int.test.ts` · `index.int.test.ts` · walker CT |
+| obscured-target | a painted element whose OWN centre hit-tests to a local neighbour (`ownsPoint`) | `w/obscured-reach` (split out of `w/census-collision` at #2491) + `w/census-occlusion` | `lib/checks-a11y` | `T/…/obscured-reach.int.test.ts` · `index.int.test.ts` · walker CT |
 | aria-name | presence of any accname source, keyed spec-order (`aria-labelledby` before `aria-label`, plus `el.labels`) | `w/accessible-name` + `w/census-interactive` | `lib/checks-a11y` | `T/…/census-interactive.int.test.ts` (four-arm, #1009) |
 | border-contrast | a control's DECLARED border colour vs `resolveBackdropUnder(el)` (WCAG 1.4.11) | `w/census-border` | `lib/checks-border` | `T/tooling/ui-audit/index.int.test.ts` (1.1:1 boundary + its 3:1 twin) |
 | landmark-missing | presence of a `<main>`/`role=main` landmark on the document | `w/census-interactive` (`mainLandmarkPresent`) | `lib/checks-a11y` | `T/tooling/ui-audit/index.int.test.ts` (both directions) |
