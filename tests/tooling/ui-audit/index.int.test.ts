@@ -2228,11 +2228,16 @@ auditRuleTest(
   },
 );
 
-test("a tooltip that only repeats the control's own name is excluded, and a FINE pointer withholds the whole population", async ({ runCli, scratch }) => {
+test("a name-repeating tooltip is excluded, and a FINE pointer excludes the population without costing the verdict", async ({ runCli, scratch }) => {
   // The two remaining dispositions, both of which would otherwise read as a clean zero. `name` is the
   // seal's own verdict that the tooltip adds nothing (most icon-only controls in this app); a fine-pointer
   // pass is a pointer the defect cannot exist on, and saying so by name is what keeps a desktop run from
   // claiming it checked a touch affordance.
+  //
+  // THE FINE ARM IS AN EXCLUSION (#2468). It landed as a WITHHOLDING, which made every desktop audit of
+  // every surface carrying a visible tooltip trigger a NO VERDICT — measured `finePointer=17` on
+  // `--goto characters`. The second assertion pair below is the defect proof and the reason this arm
+  // cannot silently regress: naming the pointer must cost the run nothing.
   const trigger = '<button type="button" aria-label="Notifications" data-base-ui-tooltip-trigger data-tooltip-describes="name"></button>';
   await writeFile(join(scratch, "hint-name.html"), tooltipTriggerPage(trigger));
   const named = await runCli("snap", ["--file", join(scratch, "hint-name.html"), "--mobile", ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
@@ -2245,7 +2250,9 @@ test("a tooltip that only repeats the control's own name is excluded, and a FINE
   );
   const fine = await runCli("snap", ["--file", join(scratch, "hint-fine.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
   expect(findingRows(fine.stdout, "unreachable-hint"), "the SAME page that fires at coarse must not fire at fine").toEqual([]);
-  expect(fine.stdout).toContain("finePointer");
+  expect(fine.stdout).toContain("excluded(finePointer=1)");
+  expect(fine.stdout, "naming the pointer is a CLOSED negative — it must not cost the run its verdict").toContain("population-verdict=complete");
+  expect(fine.stdout).not.toContain("withheld(finePointer");
 });
 
 test("a tooltip trigger OUTSIDE the @orb/ui seal is WITHHELD by name, never counted as clean", async ({ runCli, scratch }) => {
