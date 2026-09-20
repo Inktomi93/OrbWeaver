@@ -861,7 +861,7 @@ rename gloss is where a user with several models on one server learns why the ro
 | Tier | Fields | Default state |
 | - | - | - |
 | **Essential** | provider · key (pasted inline — the credential row is minted behind it with its `label` copied from the connection's, which is what "Saved keys" shows; a second inline paste on the same `(owner, provider)` mints a NEW labelled row rather than overwriting — the `(owner, provider, label)` slot key, verify9 L6) or URL · model (listed; typed fallback with its copy) | open |
-| **Purpose** | kind, rendered as an INFERRED verdict in task words ("This looks like a **chat & writing** model — change ▾"; options *Chat & writing* / *Search vectors* / *Reranking search results*), never a bare "what is this model for?" (`*-embed*`/`*rerank*` id heuristics beside `families.ts`); the task-requirement badges | open |
+| **Purpose** | kind, rendered as an INFERRED verdict in task words ("This looks like a **chat & writing** model — change ▾"; options *Chat & writing* / *Search vectors* / *Reranking search results*), never a bare "what is this model for?" (`*-embed*`/`*rerank*` id heuristics beside `families.ts`); the task-requirement badges — **a row's rail states every clause of every task riding its slot THAT A USER CAN ACT ON by picking differently.** An earlier draft said "Chat has no `requires` block at all"; that is FALSE on the tree (`contracts/inference/tasks.ts:56` — `agent` rides the chat binding and `requires: { tools: true }`), and `generateImage` carries one too (`:61`, `output: ["image"]`). `agent`'s clause is deliberately NOT badged because `agent` is served only by the `agent-sdk` wire, so a `✗ tools` would paint every ordinary chat model red — unactionable, and the same wall of destructive pills side-eye struck off the editor rail. The exemption is asserted with its reason in the unit test, so adding a new chat-riding clause or removing this one REDS rather than silently widening the hole | open |
 | **Advanced** | "What this server accepts" (= `declared`, a capability STATEMENT never a setting — keeps it off D154's turf) · "Endpoint quirks" (= `features`, READ-ONLY by default, each field showing its resolved value + source — "`prefill: continue-final-message` — from the vLLM provider row" — with one Override affordance per field; a diagnostics surface, not a setup step. A quirk key stays in the WIRE's spelling only when that exact string IS the wire's; a key that is our own `features` schema property name is written in plain words with the wire's string left in the VALUE — `prefill`/`continue-final-message` is the first case, `reasoningKeys` → "reasoning fields" over an unchanged `reasoning, reasoning_content` the second. The matchability argument is about the string a reader greps the server's docs for, and that string is the value, not the key) | collapsed, badge |
 | **Diagnostics** | "Extra request fields" (= `extras`, a row editor step 9 BUILDS — row identity by id, autosave-holding unfinished rows, a per-belt-key gloss at authoring time against the eight keys at `contracts/inference/features.ts`; a lane that ships a textarea has regressed three properties. An earlier draft said to MOVE `preset/components/custom-parameters-editor.tsx` here — **that file no longer exists**: the same cut-over deleted the preset `customParameters` editor, so there is no prior art to regress from and the three properties above are the target. Its `SCOPE_GLOSS` copy is written fresh from the transport, not recovered) · "Request & response shaping" (= `transport`, endpoint rows only; a "paste a sample response" preview that shows the map resolving live is the one authoring aid the dot-path map needs) · reachability · wake | collapsed, badge |
 
@@ -883,7 +883,7 @@ through the existing `requirementMet` — eleven consumers ride this slot across
 what a turn resolves TODAY, against the PERSISTED read, never the form state** — the 2026-08-01 incident
 (`connections-model.ts` header: two hours of a NULL `roleDefaults` under a "Saved" chip) paid for
 the "Not applied yet — a turn still uses …" readout, and the rebuild keeps it. (That readout is INLINE at
-`connections-roles-section.tsx`; the `role-slot-row.tsx:123-152` this doc used to cite does not exist —
+`connections-roles-section.tsx`; the the inline readout in `connections-roles-section.tsx` this doc used to cite does not exist —
 `146f71cd5` landed the section before these mocks were drawn.) **It has FOUR arms**, each with its own
 condition and sentence: **steady** (bound and running) *"A turn uses {X}."* · **divergence** (draft ≠
 persisted, info colour) *"Not applied yet — a turn still uses {X}."* · **unset** *"Nothing — no connection
@@ -919,12 +919,19 @@ carries a copyable `claude setup-token` plus "run this on the machine you use Cl
 **Where it lives.** Connections moves from the `app` shelf (`config-group-ids.ts:26-29`, beside Automation
 and Admin — correct today, wrong once every row is the member's own) to the **`user` shelf** beside
 Personas / Appearance / Chat behavior; the group description is rewritten in the user's words. "Saved keys"
-becomes a reuse view: each row shows the key's label, a COUNT line ("used by 3 connections"), and TWO
-explicit subject-bearing actions — **Replace the `<provider>` "`<label>`" key** and **Revoke the
-`<provider>` "`<label>`" key**. Revoke opens the house `ConfirmDialog` whose description names the count,
-because a key is shared across connections. It is read-only about the key's VALUE, not about the row.
-(An earlier draft wrote the two verbs INTO the metadata string — the render proved a metadata line cannot
-carry a destructive action, side-eye F4.) A credential is minted inline
+is read-only about the key's VALUE, not about the row. Each row carries a COUNT line ("used by 3
+connections") and **two named, subject-bearing actions CHOSEN BY ITS STATE**: an active key offers
+**Replace the `<provider>` "`<label>`" key** and **Revoke the `<provider>` "`<label>`" key**; a revoked
+key offers **Clear revoked** and **Remove the `<provider>` "`<label>`" key**. Both destructive verbs open
+the house `ConfirmDialog` whose description names the reuse count — a key is shared across connections.
+**"Two actions" is a rule about NAMING, never a cap on the row's capabilities:** rendering literally two
+would delete the only door to `remove`, and `revoke` must keep its own recorded meaning
+(`markRevokedByUser`, recoverable, invariant #6) rather than being re-pointed at the destructive verb.
+**Replace needs NO new server verb** — `domain/credentials/verbs/add.ts` already rotates the existing
+`(owner, provider, label)` row in place and clears its revocation, so Replace is a paste dialog onto the
+existing mutation. (Two earlier drafts of this paragraph were wrong: the first wrote the verbs INTO the
+metadata string, which the render proved cannot carry a destructive action (side-eye F4); the second read
+"two actions" as a cap.) A credential is minted inline
 from the connection form, so the user's noun count is three (connections · model roles · presets), not four.
 
 **Inside a room.** The composer carries a quiet **"running on \<your connection · model>"** readout (the #54
@@ -2724,7 +2731,7 @@ it is a SERVER-side fetch inside the F12 admission — the pane calls a `connect
         `preset-editor-model` arms. REWRITTEN (`features/credentials/`, the directory name kept for now):
         `connections-model.ts` = `ROLE_ROWS` keyed on `RoutableTask` (client render order; the Utility row
         copy), `providerPickerItems(available)` grouped by the row's `auth` with an unavailable row DISABLED
-        - its reason, `showsApiControl` (`apis.length > 1`), `bindRefusal`/`persistedRoleLabel`; a NEW
+        - its reason, `showsApiControl` (`apis.length > 1`), `bindRefusal` (and a `persistedRoleLabel` that step 9 REPLACED with the four-arm `roleReadout`); a NEW
           Connections LIST section (rows: label · provider · model · task badges · the `allowBackground`
           switch · "Use for everything it can serve" · confirmed remove) + an "Add a connection" dialog
           (provider → URL and/or key → model with the SERVER-SIDE `listEndpointModels` "List models" arm and
