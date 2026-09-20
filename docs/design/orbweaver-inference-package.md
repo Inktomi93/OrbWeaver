@@ -2557,9 +2557,32 @@ it is a SERVER-side fetch inside the F12 admission — the pane calls a `connect
           `@orb/inference`); `@openrouter/sdk` leaves the catalog + `allowBuilds` (§8.2's three sites); the
           knip `nvidia-smi`/`ss` binaries row moved from the server to tooling with the fleet;
           `tests/support/matchers.ts` imports `ProviderError` from `@orb/inference`.
-      - *Still open on this landing*: step 9 proper (above), the test tree (~1,100 stale pins across
-        chat/credentials/settings/embeddings/discovery/refinery/compose + the deleted client modules'
-        specs), the D-ledger amendments, and the vocabulary-map edit.
+      - *THE TEST-TREE CUT-OVER (2026-09-20, WIP at `dd39b45bd`; four worktree lanes finishing the ~127-error
+        residual)*. What worked: a DIAGNOSTIC-DRIVEN codemod (`scripts/codemods/inference-test-cutover.ts`)
+        run off a `tsc -p tsconfig.json --noEmit --pretty false` LOG by line/column — NOT off the codemod kit's
+        own ts-morph project, whose glob-built resolution (no vitest globals, looser subpath resolution) hides
+        most of the funder/ProviderId sites. It filled `funderUserId`/`hostUserId`/`ownerId`/`modalities` from
+        the nearest in-scope funder identifier (with a describe-level `let owner` fallback), deleted retired
+        properties by (name × receiving type) allowlist, cast `ProviderId` literals and repointed the deleted
+        `infra/providers` imports: ~290 edits over ~70 files in four rounds, each round re-measured. Two
+        lessons paid for: every plan's TRANSFORM runs at the plan boundary, so every diagnostic must be
+        resolved to its node BEFORE the first `ctx.plan` (round three aborted on a shifted position); and a
+        text insertion into a literal that already ends with a comma must strip it (a `,,` shipped once).
+        The hand pass: `tests/support/factories/resolved-connection.ts` is `makeResolved` /
+        `makeCapability` / `makeGenerationCapability` / `makeResolvedSecret` / `makeApiKeySecret` /
+        `makeResolvedView`; `tests/support/factories/role-clients.ts` is the ONE scripted `RoleClients`
+        (with `structured` + `resolved(task)`) every domain harness hands through `roleClientsFor`; chat's
+        `asSummarizeOp(fn)` lifts a `(inputs, opts)` fake onto the funder-keyed op. DELETED, subjects gone:
+        the backend-matrix + memory-recall live e2e, the four-layer wire-capture fidelity harness (it pinned
+        the deleted backends' bytes — the re-home under `tests/inference/backends/openai-compat` is owed),
+        the vLLM gen-window parity + admin vllm + `tests/contracts/connection` suites, every
+        `customParameters` / consent-belt / budget / `routing`-blob / OR-skin / resolver-heal pin, the
+        credentials router inspector test and the six client CT/model specs of the deleted components.
+        REWRITTEN: credentials `resolve` (by-id semantics), the client connections model, the local-light
+        prefetch planner, the db-schema + contracts credentials suites. `MessageView.connectionId` and the
+        `listBindings` one-view-per-routable-task change rode this pass.
+      - *Still open on this landing*: step 9 proper (above), the runtime (vitest/CT) verdict on the rewritten
+        tree, the D-ledger amendments, and the vocabulary-map edit.
 19. **A destination file named in a scope sentence owes its own behaviour rows.** §8.1b named
     `{embed,rerank,image-embed}.ts` as the surviving trio and then cited only two of them; the third had a
     different request shape, its own retry site and NO clamp, and no pass caught it until a scout read the file
