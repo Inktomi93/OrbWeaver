@@ -88,7 +88,7 @@ describe("tokenMatches", () => {
 
 /** The refusal clauses the gate composes. Spelled out here rather than imported: a test that borrows the
  *  implementation's own constant cannot notice the sentence going silently blank. */
-const ADMIN_REFUSED = "the admin-session arm refused this request (no admin or owner session on it)";
+const ADMIN_REFUSED = "the admin-session arm refused this request (/api/_debug is owner-only, and this request carries no owner session)";
 
 describe("createDebugAuthMiddleware (token tier)", () => {
   test("no token configured + no admin checker → 404 (debug API disabled), and says only what is true", async () => {

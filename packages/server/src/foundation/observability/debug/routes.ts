@@ -5,10 +5,18 @@
 //
 // THIS GATE IS THE ENTIRE BOUNDARY for every route below. The probes are deliberately principal-BLIND
 // whole-db reads (`@owner-scope-ok`, D20) — they take ids from QUERY PARAMS, never from auth — so whatever
-// this middleware admits reads the whole deployment. Two credentials pass and nothing else: an admin/owner
+// this middleware admits reads the whole deployment. Two credentials pass and nothing else: an OWNER
 // SESSION (`AdminAuthChecker`) or the `x-debug-token` operator secret. An un-credentialed caller must never
 // pass in any AUTH_MODE, with or without a configured token; that invariant's enforcer is
 // `tests/server/entry/debug-gate.suite.test.ts` (AUTHFIX-2 — it did not hold until 2026-08-07).
+//
+// A DELEGATED `admin` IS NOT ADMITTED (2026-09-20, D17): this is BOX-OPERATOR scope. The session arm's
+// verdict (`entry/auth/seam.ts::debugGateAdmits`) asks `can(p,'owner',global)`, one rung narrower than every
+// other privileged surface in the app — because these reads cross the membership plane the app's own owner
+// cannot cross over tRPC, and `/wire/captures` in particular serves the literal assembled prompt of every
+// user's turn (plus the model's reply bytes under `WIRE_CAPTURE_REPLY`). The port is still named
+// `AdminAuthChecker`/`isAdmin` because it is a STRUCTURAL port foundation cannot type against a domain
+// verdict; its contract below states the rule the impl must satisfy.
 
 import { Buffer } from "node:buffer";
 import { timingSafeEqual } from "node:crypto";
@@ -46,6 +54,7 @@ import {
   userSettingsRows,
 } from "./inspect/index.ts";
 import { ERROR_LEVEL, levelValue, parseLogRingLine, ringLineLevel } from "./log-ring-read.ts";
+import type { WireCaptureFilter } from "./wire-capture.ts";
 import { isWireCaptureEnabled, recentTurnOutcomes, recentWireCaptures } from "./wire-capture.ts";
 
 const MAX_RING_READ = 2000;
@@ -94,7 +103,7 @@ const bugReportInput = z.object({
  * this belt a `text/plain` POST carrying a JSON body ran the handler.
  *
  * WHY THAT IS A CSRF AND NOT A CURIOSITY. The gate above admits two credentials and one of them is
- * AMBIENT: an admin/owner SESSION — `via:"cookie"` (the browser auto-attaches it) and, wherever
+ * AMBIENT: an OWNER SESSION — `via:"cookie"` (the browser auto-attaches it) and, wherever
  * `AUTH_FALLBACK=owner` is live (every dev stack, which is exactly where this button exists), the loopback
  * owner `fallback` arm, whose "credential" is the socket the owner's own browser already speaks from. The
  * other, `x-debug-token`, is a custom header a cross-site page cannot set without a preflight and is
@@ -210,12 +219,15 @@ export interface AssetInspector {
   fsck: () => Promise<object>;
 }
 
-/** Admin-auth gate — structural-injection so foundation accepts the entry auth verdict without importing
+/** Session-auth gate — structural-injection so foundation accepts the entry auth verdict without importing
  *  it. Consulted before the token check. `isAdmin` must never throw (the middleware catches anyway: a
- *  misbehaving seam falls through to the token check, it never opens the gate).
+ *  misbehaving seam falls through to the token check, it never opens the gate). The METHOD keeps its
+ *  historical name because renaming a structural port renames it at the wiring site too; the CONTRACT below
+ *  is the truth, and it is owner-only.
  *
  *  THE IMPLEMENTOR'S CONTRACT, and the one this port cannot check for itself: `true` means the caller
- *  PRESENTED an admin credential. Because this arm short-circuits BOTH the token comparison and the
+ *  PRESENTED a credential AND that credential's principal is the box OWNER (D17 — a delegated `admin` is
+ *  refused here; see the file header). Because this arm short-circuits BOTH the token comparison and the
  *  `expectedToken === undefined` → 404 branch, an impl that returns `true` for a merely-inferred principal
  *  opens the entire surface unconditionally — which is exactly what the production impl did until
  *  AUTHFIX-2 (`entry/auth/seam.ts::debugGateCredentialed`). An ORIGIN is not a credential.
@@ -294,7 +306,7 @@ export interface DebugRoutesOptions {
  *  owner's dev bug button reported exactly that for months while the session arm was the one refusing
  *  (#1193). These name WHICH arm said no — and nothing about the principal, which an unauthenticated
  *  response has no business describing. */
-const ADMIN_ARM_REFUSED = "the admin-session arm refused this request (no admin or owner session on it)";
+const ADMIN_ARM_REFUSED = "the admin-session arm refused this request (/api/_debug is owner-only, and this request carries no owner session)";
 const TOKEN_UNSET = "and DEBUG_TOKEN is not configured on this server";
 const TOKEN_ABSENT = "and no x-debug-token header was sent";
 const TOKEN_MISMATCH = "and the x-debug-token sent did not match";
@@ -443,13 +455,21 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {})
   // (an honest zero), and `wire-tap captures` could only print a caveat and exit clean either way. It is the
   // REQUEST-SINK decision (compose: env OR the force flag), not a re-derivation — see `wireCaptureEnabled`.
   app.get("/api/_debug/wire/captures", (c) => {
+    // THE FILTER IS BUILT AS AN ANNOTATED LITERAL, NOT A CONDITIONAL SPREAD, AND THAT IS THE ENFORCER.
+    // `?backend=` is the QUERY vocabulary (the axis a reader and `wire-tap --backend` both say); the ring's
+    // field is `providerId`. Until 2026-09-20 the route spread `{ backend }` into `recentWireCaptures` — and
+    // a SPREAD is exempt from TypeScript's excess-property check, so a filter key the ring has never heard of
+    // type-checked clean and every `?backend=` read silently returned the WHOLE ring. A filter that answers
+    // "everything" to a narrowing ask is a lying instrument, which is worse than an absent one. Spelling the
+    // object as `WireCaptureFilter` makes the next divergence a COMPILE error rather than a silent superset;
+    // the behavioural half is pinned in `tests/server/foundation/observability/debug/routes.int.test.ts`.
     const chatId = c.req.query("chatId");
-    const backend = c.req.query("backend");
-    const captures = recentWireCaptures({
-      ...(chatId !== undefined ? { chatId: castId<ChatId>(chatId) } : {}),
-      ...(backend !== undefined ? { backend } : {}),
+    const filter: WireCaptureFilter = {
+      chatId: chatId === undefined ? undefined : castId<ChatId>(chatId),
+      providerId: c.req.query("backend"),
       limit: toDebugLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT),
-    });
+    };
+    const captures = recentWireCaptures(filter);
     return c.json({ enabled: wireCaptureEnabled(), count: captures.length, captures });
   });
 

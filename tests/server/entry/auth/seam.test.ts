@@ -395,7 +395,7 @@ test("the CSRF header presence is surfaced as a signal (the ladder gates, not th
   expect(without.csrfHeaderPresent).toBe(false);
 });
 
-test("debugGateAdmits requires a CREDENTIAL as well as the admin role", async () => {
+test("debugGateAdmits requires a CREDENTIAL as well as the OWNER role", async () => {
   // ⚠ DO NOT "RESTORE" THE OLD ASSERTION HERE. Until 2026-08-07 this test asserted that an un-credentialed
   // caller was admitted — i.e. it PINNED the AUTHFIX-2 hole as if it were behaviour. It was not: this
   // verdict's only consumer is the /api/_debug admin arm, which short-circuits the DEBUG_TOKEN check (and the
@@ -418,8 +418,11 @@ test("debugGateAdmits requires a CREDENTIAL as well as the admin role", async ()
     ownerFallbackIsOperatorCredential: true,
   });
   expect(operatorSeam.debugGateAdmits(owner, new Headers())).toBe(true);
-  // The ROLE half is still required on that arm: a loopback caller whose row is a plain user is refused.
+  // The ROLE half is still required on that arm, and since 2026-09-20 it is OWNER-only (D17 — this door is
+  // box-operator scope, and behind it sit principal-blind whole-deployment reads including the provider
+  // wire ring). A loopback caller whose row is a plain user is refused; so is a DELEGATED admin.
   expect(operatorSeam.debugGateAdmits({ ...(owner as NonNullable<typeof owner>), role: "user" }, new Headers())).toBe(false);
+  expect(operatorSeam.debugGateAdmits({ ...(owner as NonNullable<typeof owner>), role: "admin" }, new Headers())).toBe(false);
 
   const cookiePrincipal = async (role: UserRole): Promise<Principal | null> => {
     const seam = createAuthSeam({
@@ -439,7 +442,9 @@ test("debugGateAdmits requires a CREDENTIAL as well as the admin role", async ()
     return (await seam.resolvePrincipal(new Headers({ cookie: "__Host-orb_session=t" }))).principal;
   };
   const cookieSeam = createAuthSeam({ config: baseConfig({ mode: "local" }), sessions: stubSessions({}) });
-  expect(cookieSeam.debugGateAdmits(await cookiePrincipal("admin"), new Headers())).toBe(true);
+  expect(cookieSeam.debugGateAdmits(await cookiePrincipal("owner"), new Headers())).toBe(true);
+  // A credential the whole app honours as an admin, refused at THIS door — the D17 narrowing.
+  expect(cookieSeam.debugGateAdmits(await cookiePrincipal("admin"), new Headers())).toBe(false);
   expect(cookieSeam.debugGateAdmits(await cookiePrincipal("user"), new Headers())).toBe(false);
   // No principal at all (anonymous, or a context the auth middleware never ran on) → refused.
   expect(cookieSeam.debugGateAdmits(null, new Headers())).toBe(false);
@@ -448,13 +453,15 @@ test("debugGateAdmits requires a CREDENTIAL as well as the admin role", async ()
 test("debugGateAdmits takes a VERIFIED SSO identity, never a proxy-asserted one", async () => {
   // `via:"header"` covers both forward-header sub-paths, and only one of them is a credential at this door:
   // the JWT the deployment verified. The unsigned path is the trusted-proxy allowlist's word about a raw
-  // `Remote-User:` header — enough to run the app as that admin, not enough to hand over whole-db reads.
+  // `Remote-User:` header — enough to run the app as that identity, not enough to hand over whole-db reads.
+  // Driven at role OWNER because the door is owner-only (D17): at role `admin` every assertion here would
+  // pass for the wrong reason and the CREDENTIAL axis this test exists for would go untested.
   const signedConfig = baseConfig({ mode: "forward-header", verifyForwardJwt: true, jwksAllowlist: ["idp.example.test"] });
   const seam = createAuthSeam({
     config: signedConfig,
     sessions: stubSessions({
       provisionIdentity: () =>
-        Promise.resolve({ outcome: "provisioned" as const, userId: HEADER_UID, role: "admin" as UserRole, enabled: true, identityChanged: false }),
+        Promise.resolve({ outcome: "provisioned" as const, userId: HEADER_UID, role: "owner" as UserRole, enabled: true, identityChanged: false }),
     }),
     verifyForwardJwt: {
       verify: () => Promise.resolve({ handle: castId<Handle>("sso-admin"), externalId: castId<ExternalId>("ext-1"), groups: [], email: null }),
@@ -466,8 +473,10 @@ test("debugGateAdmits takes a VERIFIED SSO identity, never a proxy-asserted one"
   expect(signed?.via).toBe("header");
   expect(seam.debugGateAdmits(signed, signedHeaders)).toBe(true);
 
-  // The SAME admin principal, on a request that carried no JWT — the unsigned (proxy-asserted) shape.
+  // The SAME owner principal, on a request that carried no JWT — the unsigned (proxy-asserted) shape.
   expect(seam.debugGateAdmits(signed, new Headers({ "remote-user": "sso-admin" }))).toBe(false);
+  // …and the ROLE axis on the credentialed arm: a delegated admin with a verified JWT is still refused.
+  expect(seam.debugGateAdmits({ ...(signed as NonNullable<typeof signed>), role: "admin" }, signedHeaders)).toBe(false);
 });
 
 test("createHostPrincipalResolver mints the host Principal from the LIVE row (real role carried)", async () => {

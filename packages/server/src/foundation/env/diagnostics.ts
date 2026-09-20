@@ -12,14 +12,15 @@
 //                                               which is exactly why it belongs in this story: it is the
 //                                               only plane that bounds who may even ATTEMPT the other two.
 //
-//   CREDENTIAL  `DEBUG_TOKEN` (+ an admin SESSION)   WHO MAY OPEN THE DIAGNOSTICS DOOR. `/api/_debug/*` takes
-//               (`observability/debug/routes.ts`)     exactly two credentials: an admin/owner session, or the
-//                                               `x-debug-token` operator secret. TOKEN UNSET ⇒ the token arm
-//                                               404s; the SESSION arm still opens the door (that is the
-//                                               designed headless-vs-human split, not a gap). The token is a
-//                                               bearer secret with no expiry and no per-caller identity —
-//                                               its only lifecycle is rotation. WHICH admissions count as
-//                                               "an admin SESSION" is the rule below
+//   CREDENTIAL  `DEBUG_TOKEN` (+ an OWNER SESSION)   WHO MAY OPEN THE DIAGNOSTICS DOOR. `/api/_debug/*` takes
+//               (`observability/debug/routes.ts`)     exactly two credentials: an OWNER session (D17 — a
+//                                               DELEGATED `admin` is refused at this door; it is box-operator
+//                                               scope), or the `x-debug-token` operator secret. TOKEN UNSET
+//                                               ⇒ the token arm 404s; the SESSION arm still opens the door
+//                                               (that is the designed headless-vs-human split, not a gap).
+//                                               The token is a bearer secret with no expiry and no
+//                                               per-caller identity — its only lifecycle is rotation. WHICH
+//                                               admissions count as "an owner SESSION" is the rule below
 //                                               ({@link resolveOwnerFallbackCredential}) — on a DEV box the
 //                                               operator's session IS the loopback owner fallback, and
 //                                               excluding it closed the door to its only user (#1193).

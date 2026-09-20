@@ -3,8 +3,9 @@
 // same-origin debug-route read the bridge performs itself. Split out of `agent-bridge.ts` at the component-size
 // cap (the `state/section-ids.ts` extraction precedent); `agent-bridge.ts` re-imports what it installs.
 //
-// `readAutomationFires` reads `/api/_debug/automation/fires`, an OPERATOR surface behind its own gate (admin
-// session or `x-debug-token`) with no tRPC twin by design — the debug probes are principal-blind
+// `readAutomationFires` reads `/api/_debug/automation/fires`, an OPERATOR surface behind its own gate (an
+// OWNER session — a delegated `admin` is refused, D17 — or `x-debug-token`) with no tRPC twin by design —
+// the debug probes are principal-blind
 // whole-deployment reads. A same-origin fetch from the dev-only bridge is the honest spelling: a `data/` fetch
 // fn would advertise the route to features, which must never read it (the `fetch-fn-in-features` wall is about
 // features; `lib/` is where the bridge already lives). A refused read answers `{ok:false, reason}` with the
