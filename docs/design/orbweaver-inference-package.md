@@ -2102,6 +2102,82 @@ for a gen setting beside the preset, folded silently beneath it) and is therefor
 is, it is an owner fork against D154, not a lane default. The same tension, same answer: `replyMedia` is
 global-only under D154 though a per-room desire is obvious (F23).
 
+### 8.8 Reasoning CARRY — replaying the model's own thinking back to it (owner ask 2026-09-20)
+
+We already PRESERVE reasoning (the `message_variants.reasoning` column, the reasoning bus channel, the
+host-only visibility gate on a deception game). We have never REPLAYED it: `domain/chat/substrate/wire-history.ts`
+carries zero reasoning references, so no prior thinking has ever reached a wire, in any form. The wire lane's
+A1 fix (2026-09-20) built the in-turn half — `ChatContentPart` gained `{type:"reasoning", text, meta}` with
+`ReasoningPartMeta` closed per wire, and the V4 reducer folds provider metadata across THREE stream parts —
+but a turn's parts die with the turn until persistence and a carry policy land. This section is that policy.
+
+**TWO DIFFERENT QUESTIONS, and conflating them is the defect.** (1) INSIDE one turn, across tool hops, a
+model that signed its thinking wants that signature back or it loses its verified reasoning every hop — a
+CORRECTNESS property, not a preference. (2) ACROSS turns, putting a previous reply's thinking into the next
+prompt is a USER preference, and most providers advise against it. SillyTavern models these as two unrelated
+controls in two different panels; we model them as one ordered knob whose upper rungs the capability gates.
+
+**The SillyTavern receipts** (local checkout read 2026-09-20, `~/inktomi-stack/SillyTavern`) — cited because
+it is the only mature implementation of this and its shape is worth borrowing, its gating is not:
+
+- `power_user.reasoning.add_to_prompts` (`public/scripts/power-user.js:277`, default FALSE, `max_additions: 1`):
+  the CROSS-TURN arm. Pure text re-injection — prior reasoning wrapped in the configured `<think>`/`</think>`
+  and glued into the message CONTENT string (`public/scripts/reasoning.js:729-760`). Provider-blind.
+- `oai_settings.tool_reasoning_mode` ("Interleaved Thinking", `public/index.html:2035-2042`, default
+  `disabled`, values `disabled | since_last_user | active_chain`): the IN-LOOP arm. Gated THREE ways —
+  the source must be in `interleaved_reasoning_providers` (`public/scripts/openai.js:262`, which is
+  OpenRouter and Custom ONLY, so direct Claude never gets it), `show_thoughts` must be on
+  (`getEffectiveToolReasoningMode`, `:6463`), and eligibility is `promptIdx > lastUserIdx` (`:998`) — that
+  last line IS the in-loop fence, and it is the good idea. The two live modes are a real axis:
+  `since_last_user` carries every assistant reasoning in the current chain; `active_chain` walks back
+  skipping tool and tool-call rows and stops at the first assistant text boundary (`:1002-1010`).
+- `isReasoningSignatureSupported()` (`:6476`): the SIGNED arm, and it is a hardcoded predicate — Google
+  Vertex/Makersuite, or OpenRouter with a `google/gemini` model id. Claude is excluded on both routes even
+  though their OpenRouter converter carries an `anthropic-claude-v1` format arm (`prompt-converters.js:1397-1450`).
+- `gemini.thoughtSignatures` in `config.yaml` + the `skip_thought_signature_validator` bypass string
+  (`prompt-converters.js:34,578`): a deployment kill switch and a missing-signature escape.
+
+There is no capability ladder anywhere in it: every gate is a source list or a model-id regex, hand-kept.
+
+**OURS — one capability cell, one preset knob, one converter.** Rule 1 (§6.6) assigns each piece:
+
+1. **What the model will ACCEPT back is a CAPABILITY cell**, not an `EndpointFeatures` quirk — §8.1b is
+   explicit that features is the openai-compat chat body/stream schema, and this fact must hold for the
+   `anthropic-messages` wire and `agent-sdk` too. `GenerationCapability.reasoning` gains
+   `replay?: "signed" | "text" | "none"`: `signed` = the wire round-trips an opaque signature/encrypted
+   block (Anthropic thinking blocks, OR `reasoning_details`, Gemini thought signatures); `text` = only
+   prose can ride back, with no provenance; `none` = do not send it at all. It rides `EVIDENCE_TIERS`
+   like every other cell, so a curated family default is overridable by a dated `measured/*` entry and by
+   a user's own `declared` block (the top rung — their box, their truth). Read through ONE helper in
+   `contracts/inference/capability/reads.ts` per §2.7's migration, never re-spelled at a call site.
+2. **What the USER wants is ONE preset knob** (D154: gen settings are preset-owned and global),
+   `UserIntent.carryReasoning: "off" | "tool-chain" | "conversation"`, default `off`. `tool-chain` carries
+   within the ACTIVE tool chain only — ST's `promptIdx > lastUserIdx` fence, which is the honest boundary
+   because a tool chain is one logical turn; `conversation` additionally carries prior turns' reasoning.
+   The knob is ORDERED, so a capability that says `none` drops it to `off` and one that says `text` still
+   honours both rungs in prose form. Adding it is §8.7's FOUR-site rule: the `UserIntent` member,
+   `ADJUSTED_KNOBS`, the `keyof UserIntent` pin in `tests/contracts/chat/index.test-d.ts`, and the client
+   copy mapper.
+3. **How it is SPELLED is the wire converter**, already built: `v4/prompt.ts` emits the V4 `reasoning` part
+   with part-level `providerOptions`, the anthropic converter turns that into a `thinking` block with its
+   signature, the openrouter transport into `reasoning_details`. Nothing per-provider is added here.
+
+**The coherence rule, from ST and kept**: carry above `off` requires reasoning to be ENABLED for the turn —
+a carry knob on a non-reasoning turn has nothing to carry. The funnel drops it with the ordinary
+`sampling_knob_dropped` warning rather than greying a control the user cannot reason about, exactly as
+every other unsupported knob behaves (§8.7-3).
+
+**What it costs to persist.** `tool-chain` needs the parts only for the life of the turn, so the engine's
+in-memory chain is enough and NOTHING is persisted. `conversation` needs them durable — a
+`message_variants` column or a `variantMetadataSchema` field — AND the assembly must materialize them onto
+the assistant history row IN STREAM ORDER, ahead of the tool-call part, because Anthropic requires the
+thinking block first in an assistant turn. That is the one real cost, and it is why `tool-chain` is the
+rung to ship first: it buys the correctness property with no schema change.
+
+**Stated consequence.** A room whose members run different connections may carry reasoning on one member's
+turn and not another's — correct under §8.4-3 (your connection, your turn), and invisible to the room
+because reasoning is already a host-only channel on a deception game.
+
 ---
 
 ## 9. Streaming — in and out
