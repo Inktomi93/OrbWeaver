@@ -3419,7 +3419,9 @@ it is a SERVER-side fetch inside the F12 admission — the pane calls a `connect
       SIX-root list (`tooling/src/verify/contract/population.ts:14-19`). `@inference` is its own root at
       `:40` — so 113 files carrying the tree's primary credentialed-egress surface were judged by that
       policy not at all. The symptom was a "stale waiver" alarm; the cause was a coverage hole (#2477).
-    - FOUR dep-cruiser stanzas kept passing after `packages/server/src/infra/providers/` ceased to exist.
+    - FOUR dep-cruiser stanzas kept passing after packages/server/src/infra/providers/ ceased to exist
+      (un-backticked deliberately, the §15c `responses` idiom: the directory is gone — that is the whole
+      point of the sentence — and `146f71cd5^` is where to read it).
       The credential firewall policed **exactly one module** — proven by re-running the narrow rule against
       a planted transitive chain. Three of them were what the OLD `Tier-3b-Providers.md` cited as the
       enforcers for its own invariants.
