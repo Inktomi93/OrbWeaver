@@ -134,6 +134,7 @@ const messageViewSelection = {
   contextWindow: messageVariants.contextWindow,
   contextBoundaryMessageId: messageVariants.contextBoundaryMessageId,
   costUsd: messageVariants.costUsd,
+  costProvenance: messageVariants.costProvenance,
   ttftMs: messageVariants.ttftMs,
   genStartedAt: messageVariants.genStartedAt,
   genFinishedAt: messageVariants.genFinishedAt,
