@@ -55,10 +55,12 @@ export const ARM_FACT_DATA_SCHEMAS = {
     p3: count,
     census: count,
     failOn: z.enum(DESIGN_AUDIT_SEVERITIES),
-    // THE FIVE NAMED CHANNELS (#1087 F1), all of them (#1538). The fact carried `populationVerdict`
-    // alone, so a fact-only consumer could not tell a truncated census from a broken forced-state pass —
-    // exactly the distinction the five channels exist to make, and the JSON artifact has carried all
-    // five since #1087. A terminal run stamps its own gap into every one.
+    // THE SIX NAMED CHANNELS (#1087 F1), all of them (#1538; the sixth by lane cb-audit-viewport,
+    // 2026-09-20). The fact carried `populationVerdict` alone, so a fact-only consumer could not tell a
+    // truncated census from a broken forced-state pass — exactly the distinction the channels exist to
+    // make, and the JSON artifact has carried them since #1087. A terminal run stamps its own gap into
+    // every one.
+    viewportFrameVerdict: verdict,
     censusCapVerdict: verdict,
     populationVerdict: verdict,
     hoverVerdict: verdict,

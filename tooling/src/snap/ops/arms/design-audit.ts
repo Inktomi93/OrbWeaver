@@ -123,10 +123,16 @@ async function writeAuditArtifact(name: string, opts: Args, measurement: DesignA
         hoverPass: measurement.hover,
         populationAccounting: measurement.populationAccounting,
         censusCaps: caps,
-        // THE FIVE NAMED CHANNELS (#1087 F1). One field per channel, because "NO VERDICT" without
-        // WHICH-half is not actionable: a truncated census is repaired by raising a bound, a broken
-        // forced-state pass by fixing the harness. `complete` is only ever written over a channel the
-        // walk actually reached — a terminal run stamps its own gap into all five.
+        // The page's own frame against the viewport it was judged at — carried whether or not it
+        // refused, because a JSON consumer reading a CLEAN geometry verdict is entitled to the numbers
+        // that made it clean (ui-audit/contract/samples-evidence.ts `DocumentFrameInput`).
+        documentFrame: measurement.samples === null ? null : measurement.samples.documentFrame,
+        // THE SIX NAMED CHANNELS (#1087 F1; the sixth by lane cb-audit-viewport). One field per channel,
+        // because "NO VERDICT" without WHICH-half is not actionable: a truncated census is repaired by
+        // raising a bound, a broken forced-state pass by fixing the harness, a crushed frame by auditing
+        // at a wider viewport. `complete` is only ever written over a channel the walk actually reached —
+        // a terminal run stamps its own gap into all six.
+        viewportFrameVerdict: verdictField(measurement.verdicts.viewportFrame),
         censusCapVerdict: verdictField(measurement.verdicts.censusCap),
         populationVerdict: verdictField(measurement.verdicts.population),
         hoverVerdict: verdictField(measurement.verdicts.hover),
@@ -277,9 +283,11 @@ export const DESIGN_AUDIT_ARM = {
                 p3: measurement?.counts.P3 ?? 0,
                 census: measurement?.census ?? 0,
                 failOn: opts.failOn,
-                // ALL FIVE CHANNELS (#1538) — a fact-only consumer must be able to tell a truncated
-                // census from a broken forced-state pass, which one boolean cannot say. A measurement
-                // that does not exist is `no-verdict` on every channel, not silently complete.
+                // ALL SIX CHANNELS (#1538) — a fact-only consumer must be able to tell a truncated
+                // census from a broken forced-state pass from a crushed frame, which one boolean cannot
+                // say. A measurement that does not exist is `no-verdict` on every channel, not silently
+                // complete.
+                viewportFrameVerdict: factVerdict(measurement, "viewportFrame"),
                 censusCapVerdict: factVerdict(measurement, "censusCap"),
                 populationVerdict: factVerdict(measurement, "population"),
                 hoverVerdict: factVerdict(measurement, "hover"),
