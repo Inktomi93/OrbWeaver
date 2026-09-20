@@ -40,7 +40,7 @@ export const multiUserSection: ConfigSectionContribution = {
   id: MULTI_USER_ID,
   anchor: "admin",
   nav: MULTI_USER_SUBCATEGORY,
-  owns: { tier: "app", keys: ["localMultiUser", "discreetLogin"] },
+  owns: { tier: "app", keys: ["localMultiUser", "discreetLogin", "privateEndpointAllowlist"] },
   body: () => <MultiUserSection sectionId={MULTI_USER_ID} />,
 };
 
