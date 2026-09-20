@@ -2167,12 +2167,18 @@ a carry knob on a non-reasoning turn has nothing to carry. The funnel drops it w
 `sampling_knob_dropped` warning rather than greying a control the user cannot reason about, exactly as
 every other unsupported knob behaves (§8.7-3).
 
-**What it costs to persist.** `tool-chain` needs the parts only for the life of the turn, so the engine's
-in-memory chain is enough and NOTHING is persisted. `conversation` needs them durable — a
-`message_variants` column or a `variantMetadataSchema` field — AND the assembly must materialize them onto
-the assistant history row IN STREAM ORDER, ahead of the tool-call part, because Anthropic requires the
-thinking block first in an assistant turn. That is the one real cost, and it is why `tool-chain` is the
-rung to ship first: it buys the correctness property with no schema change.
+**What it costs to persist, and BOTH RUNGS SHIP (owner ruling 2026-09-20).** `tool-chain` needs the parts
+only for the life of the turn, so the engine's in-memory chain is enough and NOTHING is persisted — it buys
+the correctness property with no schema change. `conversation` needs them durable (a `message_variants`
+column or a `variantMetadataSchema` field) AND the assembly must materialize them onto the assistant history
+row IN STREAM ORDER, ahead of the tool-call part, because Anthropic requires the thinking block first in an
+assistant turn. An earlier draft shipped `tool-chain` first and refused `conversation` with a warning; the
+owner ruled BOTH, so the knob is never partly inert. The build SPLITS by seam, not by rung: the STORAGE (the
+durable home + the canon-write path) is one lane's, and the POLICY (the knob, the funnel resolution, the
+converter carry, and the `wire-history.ts` materialization that reads the parts back) is the other's.
+`wire-history.ts` carries zero reasoning references today, and `buildWireHistory` has no db handle — the
+same plumbing shape §6.7's inline-image re-attachment needs, so the two are designed together or one of
+them re-invents the seam.
 
 **Stated consequence.** A room whose members run different connections may carry reasoning on one member's
 turn and not another's — correct under §8.4-3 (your connection, your turn), and invisible to the room
@@ -2349,6 +2355,8 @@ today's tree; step 4 is the pivot and everything after it is written against con
 | F22 | The ALT-MINT POLICY for a model-generated inline image | none — `contracts/chat/content-blocks.ts:38` is `alt: z.string()` with no `.min(1)`, so `""` already parses (verify9 M1; an earlier draft called this a schema change — it is not) | prefer the model's caption, else the preceding prose sentence, else `""`; never a counter (side-eye 8 P1-9 — baked into canon, unfixable at render). The §6.7 reducer's rule, no zod edit. |
 | F23 | `replyMedia` is global-only under D154, and it is the one gen knob whose per-room desire is strongest (an RPG room wants pictures, a help room does not) | D154 | **Global-only now** (the ruling holds); recorded as a known tension beside the per-connection-override fork in §8.7 so the first "let me turn pictures on for this room" request is a fork, not a surprise (side-eye 8 P3-4). |
 | F24 | `image-embed.ts` sends the pair's TEXT part to the wire with no window clamp while `embed.ts`/`rerank.ts` clamp (#165/#173); the tree neither justifies nor flags the gap | the #165 owner ruling (clamp memory-feeding embeds only with a logged receipt) | **Clamp the text part exactly as `embed` does; images keep rerank's fast-400 backstop** (§8.1b). Two surfaces already carry the rule, so the third gets it — not a new mechanism. If the owner wants image-embed text uncapped, it is one arm of a wire-level pin, not a lane default (scout-surfaces 1). |
+| F25 | **Compaction GENERATION is api-axis gated to `agent-sdk`** — `engine.ts:801-805`, a recorded owner ruling: "Stateless apis (chat-completions/responses) NEVER generate a marker — the history-budget fit hard-cap is their only trim". Under this program the fleet is gone, `anthropic-messages` is a first-class wire and most users will be on openai-compat, so the gate means the MAJORITY of connections have no compaction at all, only truncation. The marker itself is already portable (chat canon, survives an api swap; the read side is source-agnostic, D25) — only the WRITE is gated. | the api-axis ruling at `engine.ts:801-805`; D25; PD-140 | **UN-GATE (owner ruling 2026-09-20).** Marker generation fires on every wire, not just `agent-sdk`. Its own lane: the trigger is already api-agnostic in shape (context-usage pct + fit-dropped-rows), so the work is removing the gate, deciding the ceiling source per wire (PROVIDER-truth usage where the wire reports it, fit estimate otherwise), and proving a stateless chat compacts. PD-140 (the marker silently dropped when the preset has no `compact_summary` section) is in scope for the same lane — an ungated writer with a dropped reader is worse than the gate. |
+| F26 | Anthropic Message Batches for the background `summarize`/`structured` rail (half price, experimental `ai`-core import) | none — audit row C7 | **DROPPED PERMANENTLY (owner ruling 2026-09-20).** We will not batch. The per-item `doGenerate` runner stays and the experimental import is not taken; C7 is recorded as decided so it is not re-opened from the SDK docs. |
 | F21 | `extras` precedence on the openai-compatible transport: modelled-wins (D143(b)/D156) vs passthrough-wins | D143(b), D156, `VLLM_BELT_OWNED_PARAMETER_KEYS` (`contracts/preset/index.ts:687-696`) | **MODELLED WINS, unchanged** (§8.1; ground5 H1 caught an earlier draft reversing it with no fork). Custom-byo's passthrough inverse is retired with that backend; `transport.excludeBody` is the user's door for a rejected modelled key. Flip only by an explicit owner word. |
 
 ---
@@ -2657,6 +2665,18 @@ it is a SERVER-side fetch inside the F12 admission — the pane calls a `connect
         REWRITTEN: credentials `resolve` (by-id semantics), the client connections model, the local-light
         prefetch planner, the db-schema + contracts credentials suites. `MessageView.connectionId` and the
         `listBindings` one-view-per-routable-task change rode this pass.
+      - *OWNER RULINGS 2026-09-20 (posed after the three audit lanes were cut, folded here + into the audit)*:
+        (1) **A1 re-rated P1 → P2 and re-worded** — its 400 symptom was refuted by four live probes; the
+        replay defect was real and shipped. A stickler row's SYMPTOM is as re-derivable as its mechanism,
+        and inheriting a severity without probing it is how a non-blocker becomes a launch blocker.
+        (2) **`carryReasoning` ships BOTH rungs** (§8.8), split by SEAM — storage in one lane, policy +
+        the `wire-history.ts` materialization in the other — not by rung.
+        (3) **C6's premise was the owner's correction, not the audit's finding**: compaction GENERATION is
+        api-axis gated to `agent-sdk` (`engine.ts:801-805`), so the Anthropic wire has no compaction at
+        all. Both arms taken — expose Anthropic's `contextManagement` as an extras key (cb-audit-doors)
+        AND un-gate our own generation (fork F25, its own lane, PD-140 in scope with it).
+        (4) **C7 Message Batches DROPPED permanently** (fork F26) — recorded as decided, not deleted, so
+        the SDK docs do not re-open it.
       - *Still open on this landing*: step 9 proper (above), the runtime (vitest/CT) verdict on the rewritten
         tree, the D-ledger amendments, and the vocabulary-map edit.
       - *REASONING IS A CONTENT PART NOW* (2026-09-20, audit A1/H4): `ChatContentPart` gained
