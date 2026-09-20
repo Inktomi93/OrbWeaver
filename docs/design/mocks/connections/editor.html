@@ -65,8 +65,9 @@ h2{font-size:1rem;margin:42px 0 10px;letter-spacing:-.01em}
 .tier.open .tierhead .chev{transform:rotate(0)}
 .tierhead h3{font-size:13px;font-weight:650;margin:0;letter-spacing:-.004em}
 .tierhead .grow{flex:1}
-.tierhead .kicker{font-size:11px;color:var(--color-muted-foreground)}
-.cbadge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:var(--radius-full);white-space:nowrap;
+.tierhead .kicker{font-size:11px;color:var(--color-muted-foreground);min-width:0;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;text-align:right}
+.cbadge{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:var(--radius-full);white-space:nowrap;
   border:1px solid color-mix(in oklab,var(--color-info) 45%,transparent);color:var(--color-info)}
 .tierbody{display:flex;flex-direction:column;gap:14px;padding-bottom:6px}
 
@@ -105,10 +106,15 @@ h2{font-size:1rem;margin:42px 0 10px;letter-spacing:-.01em}
 .sw.on::after{left:22px;background:var(--color-primary-foreground)}
 .swfld{display:flex;gap:12px;align-items:flex-start}
 .swfld .swtext{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:4px}
-.badge{font-size:10px;font-weight:600;padding:2px 7px;border-radius:var(--radius-full);white-space:nowrap;
+.badge{font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:var(--radius-full);white-space:nowrap;
   border:1px solid var(--color-border);color:var(--color-muted-foreground);display:inline-flex;align-items:center;gap:4px}
 .badge.ok{border-color:color-mix(in oklab,var(--color-success) 48%,transparent);color:var(--color-success)}
-.badge.no{border-color:color-mix(in oklab,var(--color-destructive) 50%,transparent);color:var(--color-destructive)}
+/* DESTRUCTIVE red is reserved for a bound role that has actually BROKEN. A chat model that cannot embed is
+   not broken — it is a normal property of every chat model in existence, so "can't serve" is MUTED with an
+   ✗ glyph, the same pass/fail grammar `model-roles.html`'s `Needs:` rail already uses. Four red pills out
+   of six on a healthy connection spends the pane's scarcest colour on its least actionable information. */
+.badge.cant{border-color:var(--color-border);color:var(--color-muted-foreground)}
+.badge .bi{width:9px;height:9px;stroke:currentColor;stroke-width:3.2;fill:none;stroke-linecap:round;stroke-linejoin:round;flex:none}
 .badge.warn{border-color:color-mix(in oklab,var(--color-warning) 48%,transparent);color:var(--color-warning)}
 .badge.on{border-color:color-mix(in oklab,var(--color-primary) 45%,transparent);color:var(--color-primary);background:var(--ember-tint)}
 .badgerail{display:flex;gap:6px;flex-wrap:wrap}
@@ -141,7 +147,14 @@ h2{font-size:1rem;margin:42px 0 10px;letter-spacing:-.01em}
 .xrow .xk{flex:0 0 210px}
 .xrow .xv{flex:1 1 200px}
 .xrow .xd{flex:none}
-.body.w486 .xrow .xk,.body.w486 .xrow .xv{flex:1 1 100%}
+.body.w486 .xrow .xk{flex:1 1 100%}
+.body.w486 .xrow .xv{flex:1 1 calc(100% - 42px)}
+.body.w486 .xrow .xd{align-self:flex-end}
+/* A COLUMN header cannot survive a column that stacks — at 486 the grid labels each field in place. */
+.xlab{display:none}
+.body.w486 .xrow.xhead{display:none}
+.body.w486 .xlab{display:block;font-size:10.5px;font-weight:620;color:var(--color-muted-foreground);
+  margin-bottom:3px;letter-spacing:.01em}
 .xnote{font-size:10.8px;line-height:1.5;flex:1 1 100%;color:var(--color-muted-foreground);padding-left:2px}
 .xnote.bad{color:var(--color-warning)}
 .xnote.draft{color:var(--color-info)}
@@ -166,7 +179,7 @@ h2{font-size:1rem;margin:42px 0 10px;letter-spacing:-.01em}
 .picker{position:absolute;left:0;top:calc(100% + 4px);z-index:6;width:100%;max-width:430px;background:var(--color-popover);
   border:1px solid var(--color-border);border-radius:var(--radius-card);padding:5px;box-shadow:0 16px 44px rgb(0 0 0 / .5);
   display:flex;flex-direction:column;gap:1px}
-.pgroup{font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--color-muted-foreground);font-weight:700;
+.pgroup{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--color-muted-foreground);font-weight:700;
   padding:9px 10px 4px}
 .popt{display:flex;flex-direction:column;gap:2px;padding:7px 10px;border-radius:var(--radius-control);cursor:pointer;min-height:32px;justify-content:center}
 .popt:hover{background:color-mix(in oklab,var(--color-foreground) 8%,transparent)}
@@ -198,12 +211,40 @@ h2{font-size:1rem;margin:42px 0 10px;letter-spacing:-.01em}
 .st.today{color:var(--color-success);border-color:color-mix(in oklab,var(--color-success) 45%,transparent)}
 .st.changed{color:var(--color-warning);border-color:color-mix(in oklab,var(--color-warning) 45%,transparent)}
 .st.new{color:var(--color-primary);border-color:color-mix(in oklab,var(--color-primary) 50%,transparent);background:var(--ember-tint)}
+
+.xrow.xhead{gap:8px;padding-bottom:1px;padding-right:42px}
+
+/* ═══ the COARSE-POINTER hit floor — the SAME mechanism the shipped primitives use ═══
+   `--spacing-touch-target` is 44px by default (coarse/unknown pointers) and narrows to 28px under
+   `@media (pointer:fine)` (`tokens.json` spacing.touch-target); Button / Checkbox / Radio / Switch lift the
+   hit area to that square through a CENTRED `::before`, never by growing the visible box
+   (`packages/ui/src/lib/selection-control.ts` TOUCH_TARGET_PSEUDO). A FORM CONTROL instead carries the floor
+   on its own box (`--spacing-control-*` is pointer-conditional, 44px coarse / 32-34px fine), and the Switch
+   track is 64x44 coarse / 48x32 fine. The mock inherits all three, so a coarse render measures the REAL
+   target and the fine-pointer drawing above is unchanged. */
+:root{--spacing-touch-target:2.75rem}
+@media (pointer:fine){:root{--spacing-touch-target:1.75rem}}
+.btn,.iconbtn,.changelink,.band .back{position:relative}
+.btn::before,.iconbtn::before,.changelink::before,.band .back::before{content:"";position:absolute;top:50%;left:50%;
+  width:var(--spacing-touch-target);height:var(--spacing-touch-target);transform:translate(-50%,-50%)}
+@media (pointer:coarse){
+  .input,.select{min-height:44px}
+  .popt{min-height:44px}
+  .tierhead{min-height:44px}
+  .iconbtn{width:44px;height:44px}
+  .sw{width:64px;height:44px}
+  .sw::after{top:9px;left:9px;width:26px;height:26px}
+  .sw.on::after{left:29px}
+}
 </style></head>
 <body>
 
 <h1>The connection editor — four disclosure tiers</h1>
 <p class="lede">Mock 2 of 3 for <b>§13 step 3b</b>. §5.3a's schemas imply ~40 leaf fields on one endpoint form; this is the
-shape that keeps a user who has touched nothing looking at <b>three fields and a &ldquo;how it&rsquo;s used&rdquo; line</b>.
+shape that keeps a user who has touched nothing looking at <b>four fields and a &ldquo;how it&rsquo;s used&rdquo; line</b>
+&mdash; provider, the key-or-URL, model, and the <code>label</code> the same paragraph of &sect;5.3a mandates. &sect;5.3a
+says &ldquo;three&rdquo;; it counts its own field list and forgets the name it requires one paragraph later, so the SENTENCE
+is owed a correction, not the drawing.
 It answers four of §5.3a's open questions — <b>whether the editor fits the settings body at 486px with the context panel
 open</b>, the <code>modelListed: false</code> copy, the read-only-with-per-field-Override shape of &ldquo;Endpoint
 quirks&rdquo;, the inferred-kind verdict and the grouped provider picker. <b>Nothing in this mock exists on the tree</b> —
@@ -262,14 +303,14 @@ panel closed and open. This set does not re-derive them; it renders at them.</p>
         <div class="fld">
           <span class="flabel">What it can be used for</span>
           <div class="badgerail">
-            <span class="badge ok">Chat</span>
-            <span class="badge ok">Utility model</span>
-            <span class="badge no">Image generation — no image output</span>
-            <span class="badge no">Text embedding — wrong kind</span>
-            <span class="badge no">Image embedding — wrong kind</span>
-            <span class="badge no">Rerank — wrong kind</span>
+            <span class="badge ok"><svg class="bi" viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg>Chat</span>
+            <span class="badge ok"><svg class="bi" viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg>Utility model</span>
+            <span class="badge cant"><svg class="bi" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>Image generation — no image output</span>
+            <span class="badge cant"><svg class="bi" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>Text embedding — wrong kind</span>
+            <span class="badge cant"><svg class="bi" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>Image embedding — wrong kind</span>
+            <span class="badge cant"><svg class="bi" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>Rerank — wrong kind</span>
           </div>
-          <span class="fdesc">A role you can't fill from here is greyed out in Model roles too, with the same reason.</span>
+          <span class="fdesc">This connection is greyed out in Model roles for a role it can't serve, with the same reason.</span>
         </div>
         <div class="fld swfld">
           <div class="swtext">
@@ -342,37 +383,37 @@ cheap and a user does not have to be careful here.</p>
             <div class="fact">
               <span class="fk">context window</span>
               <span class="fv"><span class="fvv">32,768 tokens</span><span class="fsrc">reported by the server</span></span>
-              <span class="fact-act"><button class="btn sm ghost" type="button">Override</button></span>
+              <span class="fact-act"><button class="btn sm ghost" type="button" aria-label="Override context window">Override</button></span>
             </div>
             <div class="fact overridden">
               <span class="fk">max output</span>
               <span class="fv"><span class="fvv">8,192 tokens</span><span class="fsrc">your override — the server reported 4,096</span></span>
-              <span class="fact-act"><button class="btn sm ghost" type="button">Reset</button></span>
+              <span class="fact-act"><button class="btn sm ghost" type="button" aria-label="Reset max output">Reset</button></span>
             </div>
             <div class="fact">
               <span class="fk">takes</span>
               <span class="fv"><span class="fvv">text</span><span class="fsrc">measured on the first turn</span></span>
-              <span class="fact-act"><button class="btn sm ghost" type="button">Override</button></span>
+              <span class="fact-act"><button class="btn sm ghost" type="button" aria-label="Override takes">Override</button></span>
             </div>
             <div class="fact">
               <span class="fk">gives back</span>
               <span class="fv"><span class="fvv">text</span><span class="fsrc">measured on the first turn</span></span>
-              <span class="fact-act"><button class="btn sm ghost" type="button">Override</button></span>
+              <span class="fact-act"><button class="btn sm ghost" type="button" aria-label="Override gives back">Override</button></span>
             </div>
             <div class="fact overridden">
               <span class="fk">thinking</span>
               <span class="fv"><span class="fvv">visible, budget in tokens</span><span class="fsrc">your override — nothing was reported</span></span>
-              <span class="fact-act"><button class="btn sm ghost" type="button">Reset</button></span>
+              <span class="fact-act"><button class="btn sm ghost" type="button" aria-label="Reset thinking">Reset</button></span>
             </div>
             <div class="fact">
               <span class="fk">tools</span>
               <span class="fv"><span class="fvv">yes, parallel calls</span><span class="fsrc">reported by the server</span></span>
-              <span class="fact-act"><button class="btn sm ghost" type="button">Override</button></span>
+              <span class="fact-act"><button class="btn sm ghost" type="button" aria-label="Override tools">Override</button></span>
             </div>
             <div class="fact">
               <span class="fk">price</span>
               <span class="fv"><span class="fvv">not billed</span><span class="fsrc">from the vLLM provider row</span></span>
-              <span class="fact-act"><button class="btn sm ghost" type="button">Override</button></span>
+              <span class="fact-act"><button class="btn sm ghost" type="button" aria-label="Override price">Override</button></span>
             </div>
           </div>
         </div>
@@ -385,37 +426,37 @@ cheap and a user does not have to be careful here.</p>
             <div class="fact">
               <span class="fk">prefill</span>
               <span class="fv"><span class="fvv">continue-final-message</span><span class="fsrc">from the vLLM provider row</span></span>
-              <span class="fact-act"><button class="btn sm ghost" type="button">Override</button></span>
+              <span class="fact-act"><button class="btn sm ghost" type="button" aria-label="Override prefill">Override</button></span>
             </div>
             <div class="fact overridden">
-              <span class="fk">strictJson</span>
+              <span class="fk">strict JSON</span>
               <span class="fv"><span class="fvv">declared-only</span><span class="fsrc">your override — the vLLM provider row says <code>default-on</code></span></span>
-              <span class="fact-act"><button class="btn sm ghost" type="button">Reset</button></span>
+              <span class="fact-act"><button class="btn sm ghost" type="button" aria-label="Reset strict JSON">Reset</button></span>
             </div>
             <div class="fact">
-              <span class="fk">effort</span>
+              <span class="fk">effort field</span>
               <span class="fv"><span class="fvv">reasoning_effort</span><span class="fsrc">from the vLLM provider row</span></span>
-              <span class="fact-act"><button class="btn sm ghost" type="button">Override</button></span>
+              <span class="fact-act"><button class="btn sm ghost" type="button" aria-label="Override effort field">Override</button></span>
             </div>
             <div class="fact">
-              <span class="fk">reasoningKeys</span>
+              <span class="fk">reasoning fields</span>
               <span class="fv"><span class="fvv">reasoning, reasoning_content</span><span class="fsrc">from the vLLM provider row</span></span>
-              <span class="fact-act"><button class="btn sm ghost" type="button">Override</button></span>
+              <span class="fact-act"><button class="btn sm ghost" type="button" aria-label="Override reasoning fields">Override</button></span>
             </div>
             <div class="fact">
-              <span class="fk">prefillSuppressesThinking</span>
+              <span class="fk">prefill suppresses thinking</span>
               <span class="fv"><span class="fvv">true</span><span class="fsrc">from the vLLM provider row</span></span>
-              <span class="fact-act"><button class="btn sm ghost" type="button">Override</button></span>
+              <span class="fact-act"><button class="btn sm ghost" type="button" aria-label="Override prefill suppresses thinking">Override</button></span>
             </div>
             <div class="fact">
-              <span class="fk">rerankPath</span>
+              <span class="fk">rerank path</span>
               <span class="fv"><span class="fvv">/rerank</span><span class="fsrc">from the vLLM provider row</span></span>
-              <span class="fact-act"><button class="btn sm ghost" type="button">Override</button></span>
+              <span class="fact-act"><button class="btn sm ghost" type="button" aria-label="Override rerank path">Override</button></span>
             </div>
             <div class="fact">
-              <span class="fk">sleep</span>
+              <span class="fk">sleep endpoints</span>
               <span class="fv"><span class="fvv">/is_sleeping · /wake_up</span><span class="fsrc">from the vLLM provider row</span></span>
-              <span class="fact-act"><button class="btn sm ghost" type="button">Override</button></span>
+              <span class="fact-act"><button class="btn sm ghost" type="button" aria-label="Override sleep endpoints">Override</button></span>
             </div>
           </div>
         </div>
@@ -442,7 +483,16 @@ equivalents that lose nothing (<code>window</code> → <i>context window</i>, <c
 <i>gives back</i>, <code>pricing</code> → <i>price</i>), so it uses them. A quirk does not: <code>prefill:
 continue-final-message</code> IS the vocabulary of the server's own docs, and translating it would make the one block whose
 whole purpose is matching a server's documentation impossible to match against it. §5.3a already calls Endpoint quirks
-&ldquo;a diagnostics surface, not a setup step&rdquo; — this is that sentence in layout.</p>
+&ldquo;a diagnostics surface, not a setup step&rdquo; — this is that sentence in layout.
+<b>But the rationale reaches the VALUE, not the key, and the key column is corrected accordingly.</b> An earlier draft
+rendered seven raw camelCase identifiers (<code>prefillSuppressesThinking</code>, <code>reasoningKeys</code>,
+<code>rerankPath</code>…) and justified them with matchability — which those exact rows falsify, because they are our own
+<code>features</code> schema's TypeScript property names and vLLM's documentation contains no such string. <b>The rule: a
+quirk key stays RAW only when that exact string is the wire's; otherwise it is written in plain words and the wire's string
+stays where it always was, in the value.</b> So <code>prefill</code> survives verbatim — it is &sect;5.3a's worked example
+and a real wire technique — and its value is still <code>continue-final-message</code>; <code>reasoningKeys</code> becomes
+<b>reasoning fields</b> over the unchanged value <code>reasoning, reasoning_content</code>, which is what a reader actually
+greps a server's docs for. Nothing matchable was lost; seven schema identifiers left the user surface.</p>
 </div><div class="col">
 <p class="note"><b>Why read-only-by-default is the right default and not timidity.</b> Every line in both blocks has a
 correct value already — measured, reported, or from the provider row. An editable field invites the user to answer a
@@ -477,21 +527,25 @@ rather than letting the source line collapse.</p>
           <span class="fdesc">Sent with every request on this connection, merged last. Use it for a field your server takes
             and we don't send. Sampling knobs belong to the preset, not here.</span>
           <div class="xrows">
+            <div class="xrow xhead">
+              <div class="xk"><span class="flabel">Field</span></div>
+              <div class="xv"><span class="flabel">Value</span></div>
+            </div>
             <div class="xrow">
-              <div class="xk"><div class="input mono"><span class="val">top_k</span></div></div>
-              <div class="xv"><div class="input mono"><span class="val">40</span></div></div>
+              <div class="xk"><span class="xlab">Field</span><div class="input mono"><span class="val">top_k</span></div></div>
+              <div class="xv"><span class="xlab">Value</span><div class="input mono"><span class="val">40</span></div></div>
               <div class="xd"><button class="iconbtn" type="button" aria-label="Remove the top_k field"><svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button></div>
             </div>
             <div class="xrow">
-              <div class="xk"><div class="input mono"><span class="val">stream</span></div></div>
-              <div class="xv"><div class="input mono"><span class="val">false</span></div></div>
+              <div class="xk"><span class="xlab">Field</span><div class="input mono"><span class="val">stream</span></div></div>
+              <div class="xv"><span class="xlab">Value</span><div class="input mono"><span class="val">false</span></div></div>
               <div class="xd"><button class="iconbtn" type="button" aria-label="Remove the stream field"><svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button></div>
               <span class="xnote bad">We own <code>stream</code> — it is how the reply is read back as it arrives. This row
                 is dropped before the request is sent.</span>
             </div>
             <div class="xrow">
-              <div class="xk"><div class="input mono"><span class="ph">key</span></div></div>
-              <div class="xv"><div class="input mono"><span class="ph">value</span></div></div>
+              <div class="xk"><span class="xlab">Field</span><div class="input mono"><span class="ph">key</span></div></div>
+              <div class="xv"><span class="xlab">Value</span><div class="input mono"><span class="ph">value</span></div></div>
               <div class="xd"><button class="iconbtn" type="button" aria-label="Remove this field"><svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button></div>
               <span class="xnote draft">Empty rows stay while you're typing; nothing is saved until the row has a key.</span>
             </div>
@@ -564,8 +618,10 @@ we cannot normalize is the failure this catches, and it catches it at authoring 
 </div></div>
 
 <h2>Board D — <b>486px</b>, default state (context panel open)</h2>
-<h2 style="margin-top:0;font-size:.82rem;font-weight:500;color:var(--color-muted-foreground)">…and Board E, the same
-  editor at 486 with Advanced expanded — the width answer is in these two.</h2>
+<h2 style="margin-top:0;font-size:.82rem;font-weight:500;color:var(--color-muted-foreground)">…and Board E (Advanced
+  expanded) and <b>Board F (Diagnostics expanded)</b> — the width answer is in these three. Board F exists because
+  Diagnostics holds the editor's two widest elements, and an earlier draft of this set collapsed it at BOTH 486 widths, so
+  the CSS that answers them was never exercised by any board.</h2>
 <div class="stage">
 
 <div class="body w486">
@@ -598,9 +654,8 @@ we cannot normalize is the failure this catches, and it catches it at authoring 
         <span class="verdict">This looks like a <b>chat &amp; writing</b> model —
           <button class="changelink" type="button">change <svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button></span>
         <div class="fld"><span class="flabel">What it can be used for</span>
-          <div class="badgerail"><span class="badge ok">Chat</span><span class="badge ok">Utility model</span>
-            <span class="badge no">Image generation — no image output</span><span class="badge no">Text embedding — wrong kind</span></div>
-          <span class="fdesc">…and 2 more it can't serve.</span></div>
+          <div class="badgerail"><span class="badge ok"><svg class="bi" viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg>Chat</span><span class="badge ok"><svg class="bi" viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg>Utility model</span></div>
+          <span class="fdesc">…and 4 more it can't serve.</span></div>
       </div>
     </div>
     <div class="tier"><div class="tierhead"><svg class="chev" viewBox="0 0 24 24" style="transform:rotate(-90deg)"><path d="M6 9l6 6 6-6"/></svg><h3>Advanced</h3><span class="cbadge">3 overridden</span></div></div>
@@ -614,8 +669,8 @@ we cannot normalize is the failure this catches, and it catches it at authoring 
     <span class="ttl">vLLM · Qwen3-32B</span><span class="grow"></span><button class="btn sm" type="button">Done</button>
   </div>
   <div class="bodyscroll">
-    <div class="tier"><div class="tierhead"><svg class="chev" viewBox="0 0 24 24" style="transform:rotate(-90deg)"><path d="M6 9l6 6 6-6"/></svg><h3>Essential</h3></div></div>
-    <div class="tier"><div class="tierhead"><svg class="chev" viewBox="0 0 24 24" style="transform:rotate(-90deg)"><path d="M6 9l6 6 6-6"/></svg><h3>Purpose</h3></div></div>
+    <div class="tier"><div class="tierhead"><svg class="chev" viewBox="0 0 24 24" style="transform:rotate(-90deg)"><path d="M6 9l6 6 6-6"/></svg><h3>Essential</h3><span class="grow"></span><span class="kicker">vLLM · 127.0.0.1:8000</span></div></div>
+    <div class="tier"><div class="tierhead"><svg class="chev" viewBox="0 0 24 24" style="transform:rotate(-90deg)"><path d="M6 9l6 6 6-6"/></svg><h3>Purpose</h3><span class="grow"></span><span class="kicker">Chat &amp; writing</span></div></div>
     <div class="tier open">
       <div class="tierhead"><svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg><h3>Advanced</h3><span class="cbadge">3 overridden</span></div>
       <div class="tierbody">
@@ -626,22 +681,22 @@ we cannot normalize is the failure this catches, and it catches it at authoring 
             <div class="fact">
               <span class="fk">prefill</span>
               <span class="fv"><span class="fvv">continue-final-message</span><span class="fsrc">from the vLLM provider row</span></span>
-              <span class="fact-act"><button class="btn sm ghost" type="button">Override</button></span>
+              <span class="fact-act"><button class="btn sm ghost" type="button" aria-label="Override prefill">Override</button></span>
             </div>
             <div class="fact overridden">
-              <span class="fk">strictJson</span>
+              <span class="fk">strict JSON</span>
               <span class="fv"><span class="fvv">declared-only</span><span class="fsrc">your override — the vLLM provider row says <code>default-on</code></span></span>
-              <span class="fact-act"><button class="btn sm ghost" type="button">Reset</button></span>
+              <span class="fact-act"><button class="btn sm ghost" type="button" aria-label="Reset strict JSON">Reset</button></span>
             </div>
             <div class="fact">
-              <span class="fk">reasoningKeys</span>
+              <span class="fk">reasoning fields</span>
               <span class="fv"><span class="fvv">reasoning, reasoning_content</span><span class="fsrc">from the vLLM provider row</span></span>
-              <span class="fact-act"><button class="btn sm ghost" type="button">Override</button></span>
+              <span class="fact-act"><button class="btn sm ghost" type="button" aria-label="Override reasoning fields">Override</button></span>
             </div>
             <div class="fact">
-              <span class="fk">sleep</span>
+              <span class="fk">sleep endpoints</span>
               <span class="fv"><span class="fvv">/is_sleeping · /wake_up</span><span class="fsrc">from the vLLM provider row</span></span>
-              <span class="fact-act"><button class="btn sm ghost" type="button">Override</button></span>
+              <span class="fact-act"><button class="btn sm ghost" type="button" aria-label="Override sleep endpoints">Override</button></span>
             </div>
           </div>
         </div>
@@ -651,22 +706,109 @@ we cannot normalize is the failure this catches, and it catches it at authoring 
   </div>
 </div>
 
+<div class="body w486">
+  <div class="band">
+    <button class="back" type="button" aria-label="Back to Connections"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button>
+    <span class="ttl">vLLM · Qwen3-32B</span><span class="grow"></span><button class="btn sm" type="button">Done</button>
+  </div>
+  <div class="bodyscroll">
+    <div class="tier"><div class="tierhead"><svg class="chev" viewBox="0 0 24 24" style="transform:rotate(-90deg)"><path d="M6 9l6 6 6-6"/></svg><h3>Essential</h3><span class="grow"></span><span class="kicker">vLLM · 127.0.0.1:8000</span></div></div>
+    <div class="tier"><div class="tierhead"><svg class="chev" viewBox="0 0 24 24" style="transform:rotate(-90deg)"><path d="M6 9l6 6 6-6"/></svg><h3>Purpose</h3><span class="grow"></span><span class="kicker">Chat &amp; writing</span></div></div>
+    <div class="tier"><div class="tierhead"><svg class="chev" viewBox="0 0 24 24" style="transform:rotate(-90deg)"><path d="M6 9l6 6 6-6"/></svg><h3>Advanced</h3><span class="cbadge">3 overridden</span></div></div>
+
+    <div class="tier open">
+      <div class="tierhead"><svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg><h3>Diagnostics</h3><span class="cbadge">2 set</span></div>
+      <div class="tierbody">
+
+        <div class="fld">
+          <span class="flabel">Extra request fields</span>
+          <span class="fdesc">Sent with every request on this connection, merged last. Sampling knobs belong to the preset,
+            not here.</span>
+          <div class="xrows">
+            <div class="xrow xhead">
+              <div class="xk"><span class="flabel">Field</span></div>
+              <div class="xv"><span class="flabel">Value</span></div>
+            </div>
+            <div class="xrow">
+              <div class="xk"><span class="xlab">Field</span><div class="input mono"><span class="val">top_k</span></div></div>
+              <div class="xv"><span class="xlab">Value</span><div class="input mono"><span class="val">40</span></div></div>
+              <div class="xd"><button class="iconbtn" type="button" aria-label="Remove the top_k field"><svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button></div>
+            </div>
+            <div class="xrow">
+              <div class="xk"><span class="xlab">Field</span><div class="input mono"><span class="val">stream</span></div></div>
+              <div class="xv"><span class="xlab">Value</span><div class="input mono"><span class="val">false</span></div></div>
+              <div class="xd"><button class="iconbtn" type="button" aria-label="Remove the stream field"><svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button></div>
+              <span class="xnote bad">We own <code>stream</code> — it is how the reply is read back as it arrives. This row
+                is dropped before the request is sent.</span>
+            </div>
+          </div>
+          <span><button class="btn sm" type="button"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add a field</button></span>
+        </div>
+
+        <div class="fld">
+          <span class="flabel">Request &amp; response shaping</span>
+          <span class="fdesc">For a server that doesn't speak plain OpenAI.</span>
+          <div class="inline2">
+            <div class="fld"><span class="flabel">Extra headers</span><div class="input mono"><span class="val">X-Tenant: research</span></div></div>
+            <div class="fld"><span class="flabel">Don't send these fields</span><div class="input mono"><span class="val">logprobs, seed</span></div></div>
+          </div>
+          <div class="fld">
+            <span class="flabel">Where the reply keeps its parts</span>
+            <div class="facts">
+              <div class="fact"><span class="fk">text</span><span class="fv"><div class="maprow"><span>result.output[0].text</span></div></span></div>
+              <div class="fact"><span class="fk">finish reason</span><span class="fv"><div class="maprow"><span>result.stop</span></div></span></div>
+            </div>
+          </div>
+          <div class="fld">
+            <span class="flabel">Paste a sample response</span>
+            <div class="codeblock">{ "result": { "output": [ { "text": "Hello." } ], "stop": "stop" } }</div>
+            <div class="notice info"><div class="dot"></div><div class="nb">
+              <div class="maprow"><span>text</span><span class="arrow">→</span><span class="resolved">"Hello."</span></div>
+              <div class="maprow"><span>finish reason</span><span class="arrow">→</span><span class="resolved">"stop"</span> <span class="badge ok">reads as <b>stop</b></span></div>
+            </div></div>
+          </div>
+        </div>
+
+        <div class="fld">
+          <span class="flabel">Reachability</span>
+          <div class="notice warn"><div class="dot"></div><div class="nb">
+            <span>Can't reach <code>127.0.0.1:8000</code> — the server may be down.</span>
+            <span class="copyrow"><button class="btn sm" type="button">Check again</button>
+              <button class="btn sm" type="button">Wake it</button></span>
+          </div></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
 </div>
 
 <p class="note"><b>THE 486 ANSWER: yes, the editor fits — because the editor is ONE COLUMN at both widths and the tiers do
-the work.</b> Nothing reflows between 870 and 486 except three things. (1) The fact ROW stacks: the mono key takes its own
-line, the value and source follow, and the Override button moves to a right-aligned line of its own — the row's flex-basis
-of 172px for the key plus a mono value plus a 26px-tall button cannot share a 462px content line without the source line
-wrapping to three. (2) The two-up transport pair (<code>Extra headers</code> / <code>Don't send these fields</code>)
-becomes one-up — its <code>flex: 1 1 240px</code> crosses at 498px of content, so 486 is already below the crossover and
-above it nothing moves. (3) The capability badge rail truncates to four with an <b>…and 2 more it can't serve</b> line.
-<b>The tier count badge shortens</b> — <code>3 fields overridden</code> → <code>3 overridden</code>, because the header has
-to hold a chevron, a title and a badge on one line and the long form pushes the badge to a second row.
-<b>What does NOT change is the important part</b>: the default state at 486 is still three fields and one verdict line,
+the work.</b> <b>FIVE things reflow, each drawn in boards D–F</b> (an earlier draft of this note claimed three, counted two
+of them as one, and never drew the last two at all):
+(1) the resolved-fact ROW stacks — the mono key takes its own line, the value and source follow, and the Override button
+moves to a right-aligned line of its own, because the row's 172px key basis plus a mono value plus a 26px-tall button
+cannot share a 462px content line without the source wrapping to three (Board E);
+(2) the EXTRAS key/value pair stacks, which is why the grid carries visible <b>Field</b> / <b>Value</b> column headers —
+two identical mono boxes one above the other are unreadable without them (Board F);
+(3) the two-up transport pair (<code>Extra headers</code> / <code>Don't send these fields</code>) becomes one-up — its
+<code>flex: 1 1 240px</code> crossover is at <b>490px of content</b> (measured by sweeping the body 900→380px in 4px steps:
+side-by-side down to a 532px body, one-up at 528px), so 486 is comfortably below it and above it nothing moves (Board F);
+(4) the capability badge rail truncates — <b>greens first</b>, so the rail shows what the connection CAN do and summarises
+the rest as <b>…and 4 more it can't serve</b> (Board D);
+(5) the tier count badge shortens, <code>3 fields overridden</code> → <code>3 overridden</code>, because the header has to
+hold a chevron, a title and a badge on one line and the long form pushes the badge to a second row.
+<b>A collapsed tier keeps its kicker summary at 486</b> — abbreviated (<code>vLLM · 127.0.0.1:8000</code> rather than the
+870 form with the model), truncating rather than pushing, and dropped entirely on a tier that carries a count badge, which
+is the denser summary. 486 is the width WITH the context panel open, i.e. where a user is comparing this pane against a
+room; a collapsed tier that is a bare word and a chevron is exactly the wrong thing there.
+<b>What does NOT change is the important part</b>: the default state at 486 is still four fields and one verdict line,
 because the two heavy tiers are collapsed, and collapsing is width-independent. The editor fits at 486 by construction,
 not by squeezing — which is the whole reason §5.3a specified the tiers before the schema.</p>
 
-<h2>Board F — the grouped provider picker, and the subscription arm</h2>
+<h2>Board G — the grouped provider picker, and the subscription arm</h2>
 <div class="stage">
 
 <div class="body w870 nocrop" style="margin-bottom:220px">
@@ -682,22 +824,30 @@ not by squeezing — which is the whole reason §5.3a specified the tiers before
           <span class="flabel">Provider</span>
           <div class="pickwrap">
             <div class="input combo" aria-expanded="true"><span class="ph">Pick a provider</span><span class="grow"></span><svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div>
-            <div class="picker" role="listbox">
-              <div class="pgroup">Hosted (key)</div>
-              <div class="popt" role="option"><span class="pt">OpenRouter</span></div>
-              <div class="popt" role="option"><span class="pt">Anthropic</span></div>
-              <div class="popt" role="option"><span class="pt">OpenAI</span></div>
-              <div class="pgroup">Your own server (URL)</div>
-              <div class="popt" role="option"><span class="pt">vLLM</span></div>
-              <div class="popt" role="option"><span class="pt">LM Studio</span></div>
-              <div class="popt" role="option"><span class="pt">Ollama</span></div>
-              <div class="popt" role="option"><span class="pt">Custom OpenAI-compatible</span></div>
-              <div class="pgroup">Subscription</div>
-              <div class="popt disabled" role="option" aria-disabled="true"><span class="pt">Claude subscription</span>
-                <span class="pd">The Claude runtime isn't installed on this server.</span></div>
-              <div class="pgroup">Built-in</div>
-              <div class="popt" role="option"><span class="pt">Built-in (this device)</span>
-                <span class="pd">Runs here. Embeddings and reranking only.</span></div>
+            <div class="picker" role="listbox" aria-label="Provider">
+              <div role="group" aria-labelledby="pg-hosted">
+                <div class="pgroup" id="pg-hosted">Hosted (key)</div>
+                <div class="popt" role="option"><span class="pt">OpenRouter</span></div>
+                <div class="popt" role="option"><span class="pt">Anthropic</span></div>
+                <div class="popt" role="option"><span class="pt">OpenAI</span></div>
+              </div>
+              <div role="group" aria-labelledby="pg-url">
+                <div class="pgroup" id="pg-url">Your own server (URL)</div>
+                <div class="popt" role="option"><span class="pt">vLLM</span></div>
+                <div class="popt" role="option"><span class="pt">LM Studio</span></div>
+                <div class="popt" role="option"><span class="pt">Ollama</span></div>
+                <div class="popt" role="option"><span class="pt">Custom OpenAI-compatible</span></div>
+              </div>
+              <div role="group" aria-labelledby="pg-sub">
+                <div class="pgroup" id="pg-sub">Subscription</div>
+                <div class="popt disabled" role="option" aria-disabled="true"><span class="pt">Claude subscription</span>
+                  <span class="pd">The Claude runtime isn't installed on this server.</span></div>
+              </div>
+              <div role="group" aria-labelledby="pg-builtin">
+                <div class="pgroup" id="pg-builtin">Built-in</div>
+                <div class="popt" role="option"><span class="pt">Built-in (this device)</span>
+                  <span class="pd">Runs here. Embeddings and reranking only.</span></div>
+              </div>
             </div>
           </div>
           <span class="fdesc">Four groups, nine rows — never twelve options flat.</span>
@@ -727,6 +877,7 @@ not by squeezing — which is the whole reason §5.3a specified the tiers before
             <div class="codeblock">claude setup-token</div>
             <button class="btn sm" type="button">Copy</button>
           </div>
+          <span class="flabel">Token</span>
           <div class="input"><span class="ph">Paste the token</span></div>
         </div>
         <div class="fld">
@@ -751,9 +902,16 @@ a URL, a sign-in, or nothing. Nine built-in rows in four groups; a plugin provid
 its reason as the gloss, never hidden</b> — §5.3a's point about <code>runtime-missing</code> is that a cause code is not a
 sentence a person can act on, so the row says &ldquo;The Claude runtime isn't installed on this server.&rdquo;, which is
 the string <code>connections-model.ts:79</code> already ships. Hiding the row instead would leave a subscription user
-looking for an option that is not there and no way to learn why.</p>
+looking for an option that is not there and no way to learn why.
+<b>The grouping is a REAL group, not a visual one.</b> Four <code>div</code>s styled as headings inside a
+<code>role="listbox"</code> give a screen-reader user nine flat options — the exact outcome &sect;5.3a wrote the grouping to
+prevent — and, being non-<code>option</code> children of a listbox, they get folded into the listbox's own accessible name
+(measured: <code>listbox &ldquo;Hosted (key) OpenRouter Anthropic OpenAI Your own server (URL)…&rdquo;</code>). Each group is
+a <code>role="group"</code> with <code>aria-labelledby</code> pointing at its heading, the listbox carries an explicit
+<code>aria-label="Provider"</code>, and the heading sits at the ratified <code>text.micro</code> floor of 10.5px rather than
+the 9.5px it was drawn at — which is below the ramp and is the weakest channel the grouping had.</p>
 
-<h2>Board G — the delta: everything here is new</h2>
+<h2>Board H — the delta: everything here is new</h2>
 <table class="delta">
   <thead><tr><th>Element</th><th>Status</th><th>What it is, and where it stands today</th></tr></thead>
   <tbody>
