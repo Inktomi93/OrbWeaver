@@ -43,7 +43,7 @@ export { createExamplePluginSeeder } from "./seed-example-plugins.ts";
 export type { SeedExamplePluginsDeps } from "./seed-example-plugins-step.ts";
 export { seedExamplePlugins } from "./seed-example-plugins-step.ts";
 export type { SeedLocalLightDeps } from "./seed-local-light.ts";
-export { seedLocalLightOnBoot } from "./seed-local-light.ts";
+export { createLocalLightUserSeed, seedLocalLightOnBoot } from "./seed-local-light.ts";
 export type { SeedOwnerDeps } from "./seed-owner.ts";
 export { seedOwner } from "./seed-owner.ts";
 export type { SeedThemesDeps } from "./seed-themes.ts";

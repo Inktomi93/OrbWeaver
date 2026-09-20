@@ -7,8 +7,9 @@ import type { Db } from "@orb/db";
 import { userConnections, users } from "@orb/db";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { sql } from "drizzle-orm";
-import { seedLocalLightOnBoot } from "../../../../packages/server/src/entry/boot/seed-local-light.ts";
+import { createSessionsService } from "@orb/server/domain/sessions";
+import { eq, sql } from "drizzle-orm";
+import { createLocalLightUserSeed, seedLocalLightOnBoot } from "../../../../packages/server/src/entry/boot/seed-local-light.ts";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -52,4 +53,37 @@ test("one user's failure does NOT abort boot — every remaining user is still a
   await db.run(sql`drop table connection_bindings`);
   await expect(seedLocalLightOnBoot({ db, now: (): number => FROZEN_AT_MS })).resolves.toBe(0);
   expect(await db.select().from(userConnections), "both users were attempted, not just the first").toHaveLength(4);
+});
+
+// ── THE POST-BOOT MINT (#2481) ──────────────────────────────────────────────────────────────────────
+// The sweep above covers the users that exist AT BOOT. Every account minted after it — every SSO/JIT login
+// and every admin mint — waited for the next restart, so its `embed`/`rerank` resolved `no-connection` and
+// search read empty for the whole life of the process. These pin the OTHER half: the per-user seed the mint
+// sites call through an injected op.
+const POST_BOOT_PEPPER = "test-session-secret-at-least-32-chars-long";
+
+test("a user minted AFTER the boot sweep still carries the vector floor", async () => {
+  const db = await freshDb();
+  const now = (): number => FROZEN_AT_MS;
+  // The boot the account misses: the sweep enumerates the users that exist right now, and there are none.
+  expect(await seedLocalLightOnBoot({ db, now }), "the sweep runs with no users on the box").toBe(0);
+
+  const sessions = createSessionsService({ db, now, sessionSecret: POST_BOOT_PEPPER, seedUserConnections: createLocalLightUserSeed({ db, now }) });
+  const userId = await sessions.ensureUser(castId<Handle>("post_boot"));
+
+  expect(await db.select().from(userConnections).where(eq(userConnections.ownerId, userId)), "seeded at the mint, not at the next restart").toHaveLength(2);
+  // And the NEXT boot converges rather than duplicating — both halves key on the same `(owner_id, label)`.
+  expect(await seedLocalLightOnBoot({ db, now }), "the sweep after a mint re-seeds nothing").toBe(0);
+});
+
+test("a FAILING per-user seed is a warning, never a failed mint (\u00a75.3b)", async () => {
+  const db = await freshDb();
+  const now = (): number => FROZEN_AT_MS;
+  // The seed's SECOND statement dies for every user, with the first already applied — the mint must still
+  // return the account. An un-seedable vector floor is repairable; an un-created account is not.
+  await db.run(sql`drop table connection_bindings`);
+  const sessions = createSessionsService({ db, now, sessionSecret: POST_BOOT_PEPPER, seedUserConnections: createLocalLightUserSeed({ db, now }) });
+
+  const userId = await sessions.ensureUser(castId<Handle>("survivor"));
+  expect(await db.select().from(users).where(eq(users.id, userId)), "the account exists despite the failed seed").toHaveLength(1);
 });

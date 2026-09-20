@@ -46,6 +46,10 @@ export function createEnsureUser(ctx: SessionsContext): Pick<SessionsService, "e
       );
     }
     getLog().info({ handle }, "user: created tenant row");
+    // #2481 — the new account's local-light vector floor, AFTER the row has settled and outside any batch
+    // (§5.3b). Injected, total, and idempotent: when this call LOST the `onConflictDoNothing` race, `settled`
+    // is the winner's id and the `(owner_id, label)` unique makes seeding it again a no-op.
+    await ctx.seedUserConnections(settled);
     return settled;
   }
   return { ensureUser };

@@ -22,7 +22,16 @@ import { chatParticipants, chats, createDb, preCloseHousekeeping } from "@orb/db
 import type { CharacterHandle, CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createSessionsService, ownerHandles } from "@orb/server/domain/sessions";
-import { DB_LAUNCHED, runBootMigrations, seedDefaultCharacters, seedDefaultPersona, seedDefaultPreset, seedOwner, seedThemes } from "@orb/server/entry/boot";
+import {
+  createLocalLightUserSeed,
+  DB_LAUNCHED,
+  runBootMigrations,
+  seedDefaultCharacters,
+  seedDefaultPersona,
+  seedDefaultPreset,
+  seedOwner,
+  seedThemes,
+} from "@orb/server/entry/boot";
 import { createServices } from "@orb/server/entry/compose";
 import { env } from "@orb/server/foundation/env";
 import { and, desc, eq } from "drizzle-orm";
@@ -94,7 +103,9 @@ export async function runChatSeed(argv: readonly string[]): Promise<ExitCode> {
 
   const sessionSecret = env.SESSION_SECRET ?? CHAT_SEED_SESSION_SECRET;
   const handles = ownerHandles();
-  const bootSessions = createSessionsService({ db, now, sessionSecret });
+  // #2481 — the owner is minted through `ensureUser` below, and this CLI never runs the boot sweep, so
+  // the per-user seed is the only thing that gives the seeded owner its local-light vector floor.
+  const bootSessions = createSessionsService({ db, now, sessionSecret, seedUserConnections: createLocalLightUserSeed({ db, now }) });
   const ownerIds = await seedOwner({ db, sessions: bootSessions, ownerHandles: handles, now });
   const ownerId = ownerIds[0];
   if (ownerId === undefined) {

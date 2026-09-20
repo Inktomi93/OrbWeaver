@@ -1,5 +1,5 @@
 import type { Db } from "@orb/db";
-import { users } from "@orb/db";
+import { userConnections, users } from "@orb/db";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
@@ -57,6 +57,23 @@ describe("sessions.ensureUser", () => {
     const normal = (await db.select().from(users).where(eq(users.id, userId)))[0];
     expect(owner?.role).toBe("owner");
     expect(normal?.role).toBe("user");
+  });
+
+  // #2481 — the JIT mint is one of the three user-create sites the local-light convenience seed (inference
+  // program §7.2 / §5.3b) rides. Before this the seed ran ONLY as a boot sweep over the users alive at boot,
+  // so every account minted after the listener bound resolved `embed`/`rerank` to `no-connection` until the
+  // next restart. The seed is an INJECTED op (`domain/sessions` may not import `domain/connection`) and it
+  // runs only once the row has SETTLED — the `onConflictDoNothing` loser seeds the WINNER's id, which the
+  // `(owner_id, label)` unique absorbs.
+  test("seeds the new account's local-light vector floor (#2481)", async () => {
+    const id = await svc.ensureUser(castId<Handle>("alice"));
+    expect(await db.select().from(userConnections).where(eq(userConnections.ownerId, id))).toHaveLength(2);
+  });
+
+  test("an EXISTING handle re-resolves without a second seed pass", async () => {
+    const id = await svc.ensureUser(castId<Handle>("alice"));
+    await svc.ensureUser(castId<Handle>("alice"));
+    expect(await db.select().from(userConnections).where(eq(userConnections.ownerId, id)), "idempotent by the (owner_id, label) unique").toHaveLength(2);
   });
 
   // THE PHANTOM-ID ARM. `insertUser` is `onConflictDoNothing`, which swallows a collision on ANY unique

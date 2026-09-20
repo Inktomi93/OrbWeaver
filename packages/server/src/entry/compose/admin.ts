@@ -30,6 +30,9 @@ export interface AdminComposeDeps {
   readonly now: () => number;
   readonly newUserId: () => UserId;
   readonly hashPassword: (password: string) => Promise<string>;
+  /** #2481 — the per-user local-light seed `admin.createUser` runs after its audited batch commits.
+   *  The SAME op `domain/sessions` gets, built once in `createServices`. */
+  readonly seedUserConnections: (userId: UserId) => Promise<void>;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   readonly sessions: Pick<
     SessionsService,
@@ -67,6 +70,7 @@ export function buildAdmin(deps: AdminComposeDeps): AdminComposeResult {
     now,
     newUserId: deps.newUserId,
     hashPassword: deps.hashPassword,
+    seedUserConnections: deps.seedUserConnections,
     audit,
     // #1691 — the ATOMIC audit channel for the privileged writes (create/reset-password/set-role/
     // set-enabled). `audit` above stays `logAudit` (best-effort, suppress → count → drop) for the advisory

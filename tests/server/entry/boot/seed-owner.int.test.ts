@@ -15,7 +15,7 @@ import { users } from "@orb/db";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createSessionsService } from "@orb/server/domain/sessions";
-import { seedOwner } from "@orb/server/entry/boot";
+import { createLocalLightUserSeed, seedOwner } from "@orb/server/entry/boot";
 import { createPasswordHasher } from "@orb/server/infra/auth";
 import { eq } from "drizzle-orm";
 import { afterEach, vi } from "vitest";
@@ -129,7 +129,7 @@ test("leaves a non-OWNER-handle row untouched (stays role=user)", async ({ clock
 test("AUTH_MODE=local: a fresh owner is form-loginable via the real authenticate path", async ({ clock }) => {
   const db = await freshDb();
   // Real sessions service = real ensureUser (JIT-create) + real scrypt verify over the same pepper.
-  const sessions = createSessionsService({ db, now: clock.now, sessionSecret: PEPPER });
+  const sessions = createSessionsService({ db, now: clock.now, sessionSecret: PEPPER, seedUserConnections: createLocalLightUserSeed({ db, now: clock.now }) });
 
   const [ownerId] = await seedOwner({
     db,
@@ -156,7 +156,7 @@ test("AUTH_MODE=local: a fresh owner is form-loginable via the real authenticate
 
 test("re-boot does NOT clobber a subsequently-rotated owner password", async ({ clock }) => {
   const db = await freshDb();
-  const sessions = createSessionsService({ db, now: clock.now, sessionSecret: PEPPER });
+  const sessions = createSessionsService({ db, now: clock.now, sessionSecret: PEPPER, seedUserConnections: createLocalLightUserSeed({ db, now: clock.now }) });
   const hasher = createPasswordHasher(PEPPER);
 
   await seedOwner({
@@ -209,7 +209,7 @@ test("re-boot does NOT clobber a subsequently-rotated owner password", async ({ 
 //   non-existent, non-owner principal.
 test("the ADOPTED OIDC owner survives a re-boot: same owner id, same row, no phantom", async ({ clock }) => {
   const db = await freshDb();
-  const sessions = createSessionsService({ db, now: clock.now, sessionSecret: PEPPER });
+  const sessions = createSessionsService({ db, now: clock.now, sessionSecret: PEPPER, seedUserConnections: createLocalLightUserSeed({ db, now: clock.now }) });
   vi.stubEnv("OWNER_HANDLES", "owner");
 
   const firstBootOwner = (await seedOwner({ db, sessions, ownerHandles: ["owner"], now: clock.now }))[0];
@@ -253,7 +253,7 @@ test("the ADOPTED OIDC owner survives a re-boot: same owner id, same row, no pha
 // made `provision-identity`'s "the rename then lands the row back onto the new one" a promise nothing kept.
 test("an operator who MOVES OWNER_HANDLES: the owner row follows the new key, boot survives, role/subject intact", async ({ clock }) => {
   const db = await freshDb();
-  const sessions = createSessionsService({ db, now: clock.now, sessionSecret: PEPPER });
+  const sessions = createSessionsService({ db, now: clock.now, sessionSecret: PEPPER, seedUserConnections: createLocalLightUserSeed({ db, now: clock.now }) });
   vi.stubEnv("OWNER_HANDLES", "owner");
 
   const firstBootOwner = (await seedOwner({ db, sessions, ownerHandles: ["owner"], now: clock.now }))[0];
@@ -283,7 +283,7 @@ test("an operator who MOVES OWNER_HANDLES: the owner row follows the new key, bo
 // `users_single_owner_unique` would reject as an opaque SQLITE_CONSTRAINT — the pre-fix failure).
 test("moving OWNER_HANDLES onto a handle a MEMBER already holds refuses loudly and touches NEITHER row", async ({ clock }) => {
   const db = await freshDb();
-  const sessions = createSessionsService({ db, now: clock.now, sessionSecret: PEPPER });
+  const sessions = createSessionsService({ db, now: clock.now, sessionSecret: PEPPER, seedUserConnections: createLocalLightUserSeed({ db, now: clock.now }) });
   vi.stubEnv("OWNER_HANDLES", "owner");
   await seedOwner({ db, sessions, ownerHandles: ["owner"], now: clock.now });
   await db.insert(users).values({ id: OTHER_ID, handle: castId<Handle>("alex"), role: "user" });
@@ -300,7 +300,7 @@ test("moving OWNER_HANDLES onto a handle a MEMBER already holds refuses loudly a
 
 test("no initialPassword (single-user / SSO): the owner row is seeded WITHOUT a password", async ({ clock }) => {
   const db = await freshDb();
-  const sessions = createSessionsService({ db, now: clock.now, sessionSecret: PEPPER });
+  const sessions = createSessionsService({ db, now: clock.now, sessionSecret: PEPPER, seedUserConnections: createLocalLightUserSeed({ db, now: clock.now }) });
 
   await seedOwner({ db, sessions, ownerHandles: ["owner"], now: clock.now });
 

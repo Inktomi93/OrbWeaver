@@ -27,10 +27,14 @@ interface SessionsServiceDeps {
   db: Db;
   now: () => number;
   sessionSecret: string | null;
+  /** #2481 — the injected per-user local-light seed (`SessionsContext.seedUserConnections`). Required on
+   *  purpose: a composition root that forgets it mints accounts with no vector floor, silently, which is the
+   *  defect this closes. Build it with `createLocalLightUserSeed` at `entry/boot/seed-local-light.ts`. */
+  seedUserConnections: (userId: UserId) => Promise<void>;
 }
 
 export function createSessionsService(deps: SessionsServiceDeps): SessionsService {
-  const ctx = createSessionsContext(deps.db, deps.now, deps.sessionSecret);
+  const ctx = createSessionsContext(deps.db, deps.now, deps.sessionSecret, deps.seedUserConnections);
   return {
     ...createCreate(ctx),
     ...createValidate(ctx),
