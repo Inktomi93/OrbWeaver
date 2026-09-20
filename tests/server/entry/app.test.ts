@@ -7,6 +7,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { PortableEntity, PortableFile } from "@orb/contracts/portability";
 import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
+import { ProviderError } from "@orb/inference";
 import { DomainOperationError, DomainRateLimitError } from "@orb/kit/errors";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -188,6 +189,56 @@ describe("createApp", () => {
     expect(Object.keys(body.error.data)).not.toContain("stack");
     // The whole serialized envelope, not just the data bag: no host path may appear anywhere in it.
     expect(JSON.stringify(body)).not.toContain("/packages/server/src/");
+  });
+
+  // THE UNCLASSIFIED-MESSAGE BELT, proven on the BYTES THAT LEAVE THE PROCESS (2026-09-20). `getErrorShape`
+  // sets `shape.message = error.message` and `TRPCError` inherits its cause's message, so until the
+  // formatter's substitution an unmodelled throw published its own raw text — and 37 server files / 64 call
+  // sites hand an `@orb/inference` failure straight through, where "raw text" has meant an absolute host
+  // cache path (`local-light/model-cache.ts`) and an uncapped unsanitized upstream body (`kit/fetch-json.ts`).
+  // `createCaller` re-throws the raw TRPCError and never runs the formatter at all, which is why this proof
+  // lives here rather than beside the classifier.
+  describe("the unclassified-500 message belt (wire bytes)", () => {
+    /** Drive `persona.list` as the owner against an injected verb that throws `err`; return the body text. */
+    async function bodyOfFailedQuery(err: unknown): Promise<{ readonly text: string; readonly status: number }> {
+      const app = createApp(
+        deps({
+          seam: fakeSeam(OWNER),
+          services: testServices({ persona: { list: (): Promise<never> => Promise.reject(err) } }),
+        }),
+      );
+      const res = await hit(app, new Request("http://localhost/api/trpc/persona.list"));
+      return { text: await res.text(), status: res.status };
+    }
+
+    test("CONTROL A — an UNMODELLED throw's own message never leaves the process", async () => {
+      const raw = "ENOENT: permission denied, mkdir '/home/opuser/orbweaver/.cache/models' — <html>502 upstream</html>";
+      const { text, status } = await bodyOfFailedQuery(new Error(raw));
+      expect(status).toBe(INTERNAL_ERROR);
+      expect(text).not.toContain("/home/opuser");
+      expect(text).not.toContain("<html>");
+      expect(text).not.toContain("permission denied");
+    });
+
+    test("CONTROL B — a CLASSIFIED refusal still publishes its own message and its reason", async () => {
+      // The belt must be keyed on the CODE, not blanket: a blanket collapse passes CONTROL A while
+      // silently degrading every typed refusal in the product into "something went wrong".
+      const { text, status } = await bodyOfFailedQuery(new DomainOperationError("owner_not_present", "the agent's owner is not a present member"));
+      expect(status).toBe(400);
+      expect(text).toContain("the agent's owner is not a present member");
+      expect(text).toContain("owner_not_present");
+    });
+
+    test("a PROVIDER failure publishes an honest status + a provider_<kind> reason, never the upstream prose", async () => {
+      // Before the ProviderError arm in `error-mapping.ts` this was a 500 whose body carried the upstream
+      // sentence verbatim — the whole channel this lane closed.
+      const { text, status } = await bodyOfFailedQuery(
+        new ProviderError({ kind: "rate_limit", retryable: true, message: "openrouter chat: HTTP 429 — free-models-per-day exceeded", apiErrorStatus: 429 }),
+      );
+      expect(status).toBe(TOO_MANY_REQUESTS);
+      expect(text).toContain("provider_rate_limit");
+      expect(text).not.toContain("free-models-per-day");
+    });
   });
 
   test("the seam resolves the principal EXACTLY ONCE per request", async () => {

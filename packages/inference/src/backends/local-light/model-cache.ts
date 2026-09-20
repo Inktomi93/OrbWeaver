@@ -278,19 +278,35 @@ function createMemo<T>(load: (id: string) => Promise<T>, dispose: (value: T) => 
   return memo;
 }
 
-function cacheDirError(dir: string, cause: unknown): ProviderError {
+/**
+ * THE RESOLVED PATH GOES TO THE LOG, NEVER INTO THE MESSAGE (2026-09-20).
+ *
+ * This message used to interpolate `dir` — the RESOLVED absolute host path — plus node's mkdir errno,
+ * which repeats that path a second time. A `ProviderError.message` reaches the tRPC wire (it is the
+ * message the transport classifier may carry, and before that classifier existed it rode every unmapped
+ * 500 verbatim), and an absolute host path is the same information-disclosure class as the absolute stack
+ * frames the 2026-08-09 incident put in front of anonymous callers — it discloses the deployment layout
+ * and, under `/home/<user>/…`, the OS account.
+ *
+ * The caller keeps the ACTIONABLE half: which env var to set, and to what. The operator keeps the
+ * DIAGNOSTIC half on the log line {@link ensureCacheDir} writes beside the throw, and `cause` stays
+ * attached so an err-serializing logger further up loses nothing either.
+ */
+function cacheDirError(cause: unknown): ProviderError {
   return new ProviderError({
     kind: "server",
     retryable: false,
-    message: `local-light model cache directory "${dir}" is not creatable (${cause instanceof Error ? cause.message : String(cause)}) — set LOCAL_LIGHT_CACHE_DIR to a writable path under the data root`,
+    message: "local-light: the model cache directory is not creatable — set LOCAL_LIGHT_CACHE_DIR to a writable path under the data root",
     cause,
   });
 }
 
-// Creating the root up front turns the read-only-rootfs case into one typed failure that names the path.
-async function ensureCacheDir(dir: string): Promise<void> {
+// Creating the root up front turns the read-only-rootfs case into one typed failure. The path it failed on
+// is operator-only and is logged here rather than carried on the error — see cacheDirError.
+async function ensureCacheDir(dir: string, log: InferenceLog): Promise<void> {
   await mkdir(dir, { recursive: true }).catch((err: unknown) => {
-    throw cacheDirError(dir, err);
+    log.error({ err, cacheDir: dir }, "local-light: the model cache directory is not creatable");
+    throw cacheDirError(err);
   });
 }
 
@@ -308,7 +324,7 @@ export function createModelCache(config: ModelCacheConfig): LocalLightModelCache
         mod.env.allowRemoteModels = config.allowRemoteModels;
       }
       if (cacheDir !== undefined) {
-        await ensureCacheDir(cacheDir);
+        await ensureCacheDir(cacheDir, config.log);
         mod.env.cacheDir = cacheDir;
       }
     }
