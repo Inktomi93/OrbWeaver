@@ -4,6 +4,7 @@
 // awake — nothing here knows the word vLLM. The cache is per base URL with a short TTL so a burst of
 // availability reads (every composer render) shares one probe; a wake invalidates it.
 
+import { setTimeout as sleep } from "node:timers/promises";
 import type { Reachability } from "../../resolve/availability.ts";
 import { authHeaders, fetchJson, openAiPath } from "../kit/fetch-json.ts";
 import { NO_PROVIDER_SECRETS } from "../kit/sanitize.ts";
@@ -127,7 +128,7 @@ export function createReachabilityProber(deps: ReachabilityDeps): ReachabilityPr
       if (state === "up") {
         return true;
       }
-      await new Promise((resolve) => setTimeout(resolve, WAKE_POLL_MS));
+      await sleep(WAKE_POLL_MS);
     }
     return false;
   };

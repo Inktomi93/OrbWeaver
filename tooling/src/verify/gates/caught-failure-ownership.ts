@@ -97,6 +97,16 @@
 // The legacy `caught-failure-ownership` descriptor (5f4d2703d15b930afbadbeb7fb8d77a6178c85a4) carried
 // the `@orb-gate-ignore` grammar named above and its own inline three-arm reader before this conversion
 // extracted `lib/caught-failure.ts`.
+//
+// RE-SPELLED 2026-09-20 (lane cb-population-truth, #2488): `["@packages", "@showcase",
+// "@default-content", "@inference", "@tooling"]` → `["@product", "@showcase", "@default-content",
+// "@tooling"]`. SET-IDENTICAL, not a widening: `@product` IS `@packages` + `@inference`, and the run proves
+// it — population 4,804 and 614 waived findings, byte-for-byte before and after (`pnpm check:structure
+// --check caught-failure-ownership`, whole tree). The three-explicit-package spelling above was the right
+// answer with the vocabulary that existed; `@product` is the same answer said once, so the NEXT product
+// package is a classification decision in `contract/population.ts` rather than a fifth root here. The two
+// remaining explicit roots are the ones `PRODUCT_MEMBERSHIP` holds OUTSIDE the set as a recorded open
+// question, so naming them stays load-bearing.
 import { SyntaxKind } from "ts-morph";
 import type { CaughtFailureArm } from "../contract/caught-failure.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
@@ -135,7 +145,7 @@ export const gate = defineGate({
   family: "caught-failure-ownership",
   authority: "ordinary",
   severity: "error",
-  population: ["@packages", "@showcase", "@default-content", "@inference", "@tooling"],
+  population: ["@product", "@showcase", "@default-content", "@tooling"],
   analysis: "types",
   execution: "selected-files",
   facts: [],
