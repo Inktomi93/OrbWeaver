@@ -12,10 +12,11 @@ import type { ConfigSectionContribution } from "@orb/client/state";
 import { useAggregateSaveStatus } from "@orb/client/state";
 import type { CredRevokedReason } from "@orb/contracts/credentials";
 import type { ProviderId } from "@orb/contracts/inference";
-import type { UserCredentialId } from "@orb/kit/ids";
+import type { UserConnectionId, UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { ConnectionEditor } from "../../../../packages/client/src/features/credentials/components/connection-editor.tsx";
 import { CredentialKeyRow } from "../../../../packages/client/src/features/credentials/components/credential-key-row.tsx";
 import { CtConfigGroupBody, CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
 
@@ -280,4 +281,38 @@ export function ConnectionsPaneWideStory(): ReactElement {
  *  pane against a room. No copy is cut here: a row gloss WRAPS, and the F20 sentence is never dropped. */
 export function ConnectionsPaneNarrowStory(): ReactElement {
   return connectionsPaneAtWidth(486);
+}
+
+/** THE CONNECTION EDITOR at the same two load-bearing widths. Mounted DIRECTLY rather than through the
+ *  config host, because here the width is the SUBJECT: the story fixes the box and the editor's own
+ *  `@container` decides every reflow inside it — which is also what makes the pair a proof of the mechanism,
+ *  since the VIEWPORT is identical in both arms and a `@media` rule could not tell them apart. Every read
+ *  (`connection.get`, `connection.providersAvailable`, `connection.capabilities`, `connection.catalogModels`,
+ *  `sessions.me`, `settings.getAppSettingsWithOverrides`) and every write (`connection.update`,
+ *  `connection.probe`, `settings.updateAppSettings`) is stubbed per-test via routeTrpc. */
+function ConnectionEditorInner({ connectionId }: { readonly connectionId: string }): ReactElement {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  return <ConnectionEditor connectionId={castId<UserConnectionId>(connectionId)} invalidation={invalidation} onDone={(): void => undefined} trpc={trpc} />;
+}
+
+export function ConnectionEditorStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ overflow: "auto", width: 870 }}>
+        <ConnectionEditorInner connectionId="user_connection_cteditor0001" />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The SAME editor in the 486 box — the width WITH the context panel open. */
+export function ConnectionEditorNarrowStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ overflow: "auto", width: 486 }}>
+        <ConnectionEditorInner connectionId="user_connection_cteditor0001" />
+      </div>
+    </CtDataProviders>
+  );
 }
