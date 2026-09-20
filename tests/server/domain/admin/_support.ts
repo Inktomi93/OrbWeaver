@@ -25,6 +25,7 @@ import { castId } from "@orb/kit/ids";
 import type { AdminService } from "@orb/server/domain/admin";
 import { createAdminService } from "@orb/server/domain/admin";
 import { createSessionsService } from "@orb/server/domain/sessions";
+import { createLocalLightUserSeed } from "@orb/server/entry/boot";
 import { buildAuditStatementIfPrecedingWrote } from "@orb/server/foundation/observability";
 import { and, asc, eq, isNull } from "drizzle-orm";
 import type { AdminContext } from "../../../../packages/server/src/domain/admin/context.ts";
@@ -196,13 +197,23 @@ export function makeHarness(db: Db): AdminHarness {
 
   // #1707 — the REAL link capability over the same test db (see the header): the bind statement rides the
   // verb's audited batch and the settlement is read back from durable state.
-  const sessionsSvc = createSessionsService({ db, now: () => clock.now(), sessionSecret: HARNESS_PEPPER });
+  const sessionsSvc = createSessionsService({
+    db,
+    now: () => clock.now(),
+    sessionSecret: HARNESS_PEPPER,
+    seedUserConnections: createLocalLightUserSeed({ db, now: () => clock.now() }),
+  });
 
   const ctx: AdminContext = {
     db,
     now: (): number => clock.now(),
     newUserId: (): UserId => castId<UserId>(ids.next("user")),
     hashPassword: (plain: string): Promise<string> => Promise.resolve(`scrypt$test$${plain}`),
+    // #2481 — REAL, for the same reason the batch-riding statements above are (see the header): the
+    // property under test is that a minted account ends up holding `user_connections` rows, so a
+    // recorder here would pass while the seed it stands for was gone. Same op the composition root
+    // builds.
+    seedUserConnections: createLocalLightUserSeed({ db, now: () => clock.now() }),
     audit: (entry: AuditCall["entry"], at: number): Promise<void> => {
       audits.push({ entry, at });
       return Promise.resolve();

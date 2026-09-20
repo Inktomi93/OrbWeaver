@@ -116,7 +116,7 @@ import type { SocketRegistry } from "../../transport/trpc/stream/socket-registry
 import { createSocketRegistry } from "../../transport/trpc/stream/socket-registry.ts";
 import { createHostPrincipalResolver } from "../auth/index.ts";
 import type { DefaultPersonaSeeder, DistributedPluginApplier, ExamplePluginSeeder } from "../boot/index.ts";
-import { createDistributedPluginApplier, createExamplePluginSeeder } from "../boot/index.ts";
+import { createDistributedPluginApplier, createExamplePluginSeeder, createLocalLightUserSeed } from "../boot/index.ts";
 import type { ImportWorldInfoPort } from "../import/index.ts";
 import { buildImportContext } from "../import/index.ts";
 import { buildAdmin } from "./admin.ts";
@@ -300,7 +300,12 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const newUserId = (): UserId => newId<UserId>();
   const eventBus = createDomainEventBus();
 
-  const sessions = createSessionsService({ db, now, sessionSecret: deps.sessionSecret });
+  // #2481 — the per-user half of the local-light seed (§7.2/§5.3b). The boot SWEEP covers the accounts
+  // alive at boot; this op is what covers every account minted afterwards, and it is threaded into both
+  // user-minting domains (sessions below, admin further down) rather than called from one of them —
+  // neither may import `domain/connection`.
+  const seedUserConnections = createLocalLightUserSeed({ db, now });
+  const sessions = createSessionsService({ db, now, sessionSecret: deps.sessionSecret, seedUserConnections });
   // PD-139(a) RE-RAISED (§10-4): a connection/binding write that changes an owner's embed or imageEmbed SPACE
   // must enqueue the purge+reindex. `workloads` is built far below (the search-discovery seam), so this holder
   // is late-bound after it exists; the connection ctx derefs it at request time (a pane write), never during
@@ -695,6 +700,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     now,
     newUserId,
     hashPassword: passwordHasher.hash,
+    seedUserConnections,
     audit,
     sessions,
     // W7a — an admin revoke ends the streams those sessions opened, not just the cookies. The registry is

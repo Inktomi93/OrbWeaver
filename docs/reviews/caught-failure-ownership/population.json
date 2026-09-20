@@ -5244,7 +5244,7 @@
     {
       "siteId": "tooling/src/seed/ops/demo.ts::err::1",
       "path": "tooling/src/seed/ops/demo.ts",
-      "line": 140,
+      "line": 149,
       "column": 12,
       "grammar": "empty",
       "position": "err",
@@ -5252,12 +5252,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "the JSDoc above states the intent directly — a best-effort seeded turn where the greeting transcript is already committed, so an offline-model failure is logged with the honest limitation and the demo db stays valid. Ends if the failure stops being logged.",
-      "markerLine": 136
+      "markerLine": 145
     },
     {
       "siteId": "tooling/src/seed/ops/demo.ts::error::1",
       "path": "tooling/src/seed/ops/demo.ts",
-      "line": 315,
+      "line": 327,
       "column": 12,
       "grammar": "empty",
       "position": "error",
@@ -5265,7 +5265,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "the message is warned to the operator and the function returns EXIT.toolError — propagated through both channels, not dropped. Ends if either the warn or the return code is removed.",
-      "markerLine": 312
+      "markerLine": 324
     },
     {
       "siteId": "tooling/src/snap/lib/browser-evidence-redaction.ts::catch::1",

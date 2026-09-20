@@ -74,6 +74,15 @@ export interface AdminContext {
   readonly now: () => number;
   readonly newUserId: () => UserId;
   readonly hashPassword: (plain: string) => Promise<string>;
+  /** #2481 / inference program §5.3b — the minted account's local-light vector floor, as an INJECTED op:
+   *  `domain/admin` may not import `domain/connection`. Called by `createUser` AFTER `commitAuditedWrite`'s
+   *  batch commits, NEVER inside it — a failed convenience seed must not un-create an account (which is the
+   *  exact inverse of the {@link AdminContext.auditStatementAfterWrite} bargain one field below, and the two
+   *  are different on purpose: an unauditable privileged mint must not happen, an unseeded one merely needs
+   *  repairing). TOTAL by contract — the composition root owns the degrade and logs the warning the
+   *  connection pane repairs. Required, not optional: a compose site that forgets it mints accounts with no
+   *  vector floor and nothing fails. */
+  readonly seedUserConnections: (userId: UserId) => Promise<void>;
   /** The BEST-EFFORT audit channel (`logAudit`: suppress → count → drop) — correct for the read-ish and
    *  advisory verbs (`listSessions`/`revokeSession`/`embed`), where a degraded audit channel must not
    *  break the action. NOT for a privileged durable write: those take

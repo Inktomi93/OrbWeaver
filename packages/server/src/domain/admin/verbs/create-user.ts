@@ -137,6 +137,12 @@ export function createCreateUser(ctx: AdminContext): AdminService["createUser"] 
 
     const passwordHash = await ctx.hashPassword(params.password);
     const at = ctx.now();
-    return await insertLocalUser(ctx, { handle, role, passwordHash, at }, params.principal.userId);
+    const view = await insertLocalUser(ctx, { handle, role, passwordHash, at }, params.principal.userId);
+    // #2481 — the new account's local-light vector floor (§5.3b), AFTER the audited batch has committed and
+    // deliberately OUTSIDE it: the batch's bargain is that a mint which cannot be recorded must not happen,
+    // and the inverse bargain here is that a mint whose convenience seed fails must still happen. Total by
+    // contract, so there is nothing to catch — see `AdminContext.seedUserConnections`.
+    await ctx.seedUserConnections(view.id);
+    return view;
   };
 }

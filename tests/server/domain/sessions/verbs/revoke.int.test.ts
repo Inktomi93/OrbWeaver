@@ -5,6 +5,7 @@ import type { ExternalId, Handle, SessionId, SessionToken, UserId } from "@orb/k
 import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
 import { createSessionsService } from "@orb/server/domain/sessions";
+import { createLocalLightUserSeed } from "@orb/server/entry/boot";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
@@ -204,7 +205,12 @@ describe("sessions.revokeByToken — the OIDC end-session hint (#141)", () => {
     // The realistic operational cause of a decrypt failure: SESSION_SECRET changed, so the HKDF key moved
     // and every id_token already at rest is unopenable. The session must still end.
     const stale = await svc.create({ userId: USER_ID, oidcIdToken: ID_TOKEN });
-    const rotated = createSessionsService({ db, now: (): number => FROZEN_AT_MS, sessionSecret: `${PEPPER}-rotated` });
+    const rotated = createSessionsService({
+      db,
+      now: (): number => FROZEN_AT_MS,
+      sessionSecret: `${PEPPER}-rotated`,
+      seedUserConnections: createLocalLightUserSeed({ db, now: (): number => FROZEN_AT_MS }),
+    });
     // Mint the cookie under the ROTATED service so its token hash resolves, then plant the OLD service's
     // sealed blob on that row — exactly the state a rotation leaves behind.
     const after = await rotated.create({ userId: USER_ID });
