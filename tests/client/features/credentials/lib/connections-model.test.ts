@@ -73,8 +73,18 @@ test("an empty group is omitted (never a heading over nothing)", () => {
 });
 
 test("the api control renders only when the provider lists more than one protocol", () => {
-  expect(showsApiControl(builtinProvider("openrouter"))).toBe(true);
-  expect(showsApiControl(builtinProvider("vllm"))).toBe(false);
+  // NO SHIPPED ROW lists two apis any more: `openrouter` was the last one, and `responses` was retired from
+  // `CHAT_APIS` on 2026-09-20 (the OpenRouter Responses runner was demolished with `@openrouter/sdk` in
+  // 146f71cd5 and never replaced). So the control renders for nothing built in — that is the pin. The >1 arm
+  // stays proven on a synthetic row, which is the shape a plugin/admin row listing two would have.
+  for (const row of BUILTIN_PROVIDERS) {
+    expect(showsApiControl(row), `"${row.id}" must not raise a one-option protocol combobox`).toBe(false);
+  }
+  const openrouter = builtinProvider("openrouter");
+  if (openrouter === undefined) {
+    throw new Error("no built-in provider openrouter");
+  }
+  expect(showsApiControl({ ...openrouter, apis: ["chat-completions", "agent-sdk"] })).toBe(true);
   expect(showsApiControl(undefined)).toBe(false);
 });
 

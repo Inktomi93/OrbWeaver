@@ -249,22 +249,6 @@ export const anthropicRows = [
   },
   {
     match: {
-      model: "^(anthropic/)?claude[-/].*(opus-4[-.]5|haiku-4[-.]5)",
-      api: "responses",
-    },
-    generation: {
-      turns: {
-        assistantPrefill: true,
-      },
-    },
-    evidence: {
-      tier: "curated",
-      dated: "2026-09-19",
-      cite: "turns.ts anthropicPrefill on the responses shape",
-    },
-  },
-  {
-    match: {
       model: "^(anthropic/)?claude[-/].*opus-4[-.]8",
       api: "agent-sdk",
     },

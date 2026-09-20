@@ -73,7 +73,7 @@ export interface WireCapture {
   /** The chat this send belongs to — the harness's correlation key (it opens unique-title chats). Absent on
    *  a chatless probe turn. */
   readonly chatId?: ChatId | undefined;
-  /** The axis the request rode: "agent-sdk" (SDK-input shape) | "chat-completions"/"responses"
+  /** The axis the request rode: "agent-sdk" (SDK-input shape) | "chat-completions"
    *  (openai-compat body shape) | "summarize" (the chatless summarization role) | "structured" (the chatless
    *  schema-constrained-generation role — the rpg structured extraction / the split-out structured surface; both
    *  vLLM + OR capture their per-item bodies under the summarize/structured tag matching the role served). */
