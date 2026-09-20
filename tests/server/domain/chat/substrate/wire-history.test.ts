@@ -8,7 +8,7 @@
 // themselves are pinned through the pipeline (`tests/server/domain/chat/engine/pipeline.test.ts`); this file
 // pins the COST projection and the index alignment the fit's `droppedCount` slice relies on.
 
-import type { MessageView } from "@orb/contracts/chat";
+import type { ChatReasoningPart, MessageView } from "@orb/contracts/chat";
 import type { ContentImageRef } from "@orb/kit/content";
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -40,6 +40,8 @@ const env = {
   resolveImageUrl: (_ref: ContentImageRef): Promise<null> => Promise.reject(new Error("resolveImageUrl must not be reached")),
   cardKeepLastX: undefined,
   canon: NO_CANON,
+  // §8.8: empty = the `off`/`tool-chain` rungs (the engine performs no read below `conversation`).
+  reasoningByMessage: new Map<MessageId, readonly ChatReasoningPart[]>(),
 };
 
 const CARD = ':::card title="Ashfell Market"\n<div>'.concat("blob ".repeat(400), "</div>\n:::");
@@ -81,4 +83,59 @@ test("the cost row KEEPS the canon identity — the id the fit turns into a cont
   expect(cost).toHaveLength(2);
   expect(cost[0]?.messageId).toBeUndefined();
   expect(cost[1]?.messageId).toBe(castId<MessageId>("message_7"));
+});
+
+// ── §8.8 `conversation` carry: a prior turn's own thinking materialized back onto its assistant row ──────
+// The load-bearing property is ORDER. Anthropic requires the `thinking` block at the HEAD of an assistant
+// turn and both hosted converters emit parts in array order, so thinking behind the prose is not the turn the
+// model signed. These pins are at the CONVERT seam; the wire bytes that order produces are pinned against the
+// real Anthropic converter in `tests/inference/backends/anthropic-messages/chat.test.ts`.
+
+const SIGNED: ChatReasoningPart = { type: "reasoning", text: "she is lying about the map", meta: { anthropic: { signature: "SIG-9" } } };
+
+const carried = (id: string): ReadonlyMap<MessageId, readonly ChatReasoningPart[]> => new Map([[castId<MessageId>(id), [SIGNED] as readonly ChatReasoningPart[]]]);
+
+test("the stored thinking rides FIRST on its assistant row — ahead of every body part", async () => {
+  const converted = await buildWireHistory({ ...env, canon: [canonRow("message_1", "assistant")], reasoningByMessage: carried("message_1") }, [
+    row("assistant", "The map is genuine.", "message_1"),
+  ]);
+
+  expect(converted[0]?.row.content).toEqual([SIGNED, { type: "text", text: "The map is genuine." }]);
+});
+
+test("an EMPTY carry map leaves the row byte-identical — the `off`/`tool-chain` rungs change nothing here", async () => {
+  const converted = await buildWireHistory({ ...env, canon: [canonRow("message_1", "assistant")] }, [row("assistant", "The map is genuine.", "message_1")]);
+
+  expect(converted[0]?.row.content).toEqual([{ type: "text", text: "The map is genuine." }]);
+});
+
+test("a USER row never receives thinking, even when the map names its id (the scoped-fold demotion)", async () => {
+  // `shape.scopeToSpeaker` re-roles another character's assistant line to a `Name: ...` USER line. Its stored
+  // thinking is still the ASSISTANT's, and replaying it on a row the wire delivers as the user speaking would
+  // put the model's own reasoning in the user's mouth.
+  const converted = await buildWireHistory({ ...env, canon: [canonRow("message_1", "assistant")], reasoningByMessage: carried("message_1") }, [
+    row("user", "Bran: The map is genuine.", "message_1"),
+  ]);
+
+  expect(converted[0]?.row.content).toEqual([{ type: "text", text: "Bran: The map is genuine." }]);
+});
+
+test("a row whose body converted to NOTHING is not resurrected as a turn made of pure thinking", async () => {
+  // A choices-only row converts to one empty text part and `dropEmptyWireRows` deletes it. Prepending
+  // thinking would keep it alive as an assistant turn with a signature and no content -- which every
+  // converter refuses (and which would change what the model believes it said).
+  const converted = await buildWireHistory({ ...env, canon: [canonRow("message_1", "assistant")], reasoningByMessage: carried("message_1") }, [
+    row("assistant", ":::choices\n1. north\n:::", "message_1"),
+  ]);
+
+  expect(converted[0]?.row.content).toEqual([{ type: "text", text: "" }]);
+});
+
+test("replayed thinking PROSE is priced by the fit — it is real prompt bytes, unlike a media URL", async () => {
+  const converted = await buildWireHistory({ ...env, canon: [canonRow("message_1", "assistant")], reasoningByMessage: carried("message_1") }, [
+    row("assistant", "The map is genuine.", "message_1"),
+  ]);
+
+  // A `conversation` carry the fitter priced at zero would silently overflow the window it was fitted to.
+  expect(wireCostRows(converted)[0]?.content).toBe("she is lying about the mapThe map is genuine.");
 });

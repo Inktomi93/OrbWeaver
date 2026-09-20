@@ -1,7 +1,7 @@
 // engine/pipeline — the per-turn execution pipeline: assemble→shape→fit→request→reduce. Pins the stream
 // reduce (deltas → final text + economics), the shaped request, the §8 fit, and ctx immutability.
 
-import type { AssembleContext, ChatDeltaEvent, ChatInjection, MessageView, ToolCallRecord } from "@orb/contracts/chat";
+import type { AssembleContext, ChatDeltaEvent, ChatInjection, ChatReasoningPart, MessageView, ToolCallRecord } from "@orb/contracts/chat";
 import { CONTENT_CLASS_POLICY, contentSpansToBlocks } from "@orb/contracts/chat";
 import type { GenerationCapability } from "@orb/contracts/inference";
 import type { PromptConfig, UserIntent } from "@orb/contracts/preset";
@@ -19,7 +19,7 @@ import { describe, vi } from "vitest";
 import { buildTurnUserMacros } from "../../../../../packages/server/src/domain/chat/assembly/user-macros.ts";
 import type { ChatToolOps, RunChatTurnOp } from "../../../../../packages/server/src/domain/chat/contract/context.ts";
 import { CHAT_OP_CODES, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
-import type { HistoryMacroNames, TurnRequest, TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
+import type { HistoryMacroNames, TurnMessage, TurnRequest, TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
 import { runTurnPipeline } from "../../../../../packages/server/src/domain/chat/engine/pipeline.ts";
 // The span→wire-part dispatch moved to `substrate/wire-history.ts` with the rest of CONVERT (#1540): the read
 // verb's previews must price the SAME converted rows this pipeline prices, so the conversion is no longer an
@@ -113,6 +113,9 @@ function baseArgs(over: Partial<PipelineArgs> = {}): {
       },
     ]),
     resolveImageUrl: (ref) => Promise.resolve({ url: ref.kind === "asset" ? `https://cas.test/${ref.assetId}` : ref.url, media: "image" as const }),
+    // §8.8: the `conversation` carry source. Default EMPTY and THROWS if reached — every test below runs
+    // the `off`/`tool-chain` rungs, where the pipeline must not perform this read at all.
+    loadReasoningParts: (): Promise<ReadonlyMap<MessageId, readonly ChatReasoningPart[]>> => Promise.reject(new Error("loadReasoningParts must not be reached")),
     assembleContext: ctxOf(),
     canon: [userRow("u1")],
     connection: CONNECTION,
@@ -1800,6 +1803,110 @@ const STRUCTURED_CONNECTION: Resolved<"chat"> = {
   ...CONNECTION,
   capability: makeCapability(makeGenerationCapability({ ...CAPABILITY, output: { ...CAPABILITY.output, structured: true } })),
 };
+
+describe("runTurnPipeline — §8.8 reasoning CARRY across a tool chain", () => {
+  // A model that reasons AND round-trips its own signed thinking — the only shape where the carry knob has
+  // anything to do. `replay: "signed"` is the capability cell; `effort` is what turns reasoning ON.
+  const CARRY_CAPABILITY: GenerationCapability = makeGenerationCapability({
+    ...CAPABILITY,
+    tools: { parallel: true },
+    reasoning: { mode: "adaptive", enabled: true, effortLevels: ["low", "medium", "high"], replay: "signed" },
+  });
+  const CARRY_CONNECTION: Resolved<"chat"> = { ...CONNECTION, capability: makeCapability(CARRY_CAPABILITY) };
+
+  const SIGNED: ChatReasoningPart = { type: "reasoning", text: "I should tick the clock.", meta: { anthropic: { signature: "SIG-1" } } };
+
+  /** Leg 1 emits a signed thinking block + a tool call; leg 2 answers. The parts ride the FINAL chunk, which
+   *  is how a real wire hands them over (`ChatResult.reasoningParts` → `finalTurnChunk`). */
+  const legs = (requests: TurnRequest[]): RunChatTurnOp =>
+    scriptedDepths(
+      [
+        [
+          {
+            kind: "final",
+            economics: {
+              content: "Let me check. ",
+              finishReason: "tool",
+              toolCalls: [{ toolCallId: "c1", name: "tick_clock", arguments: "{}" }],
+              reasoningParts: [SIGNED],
+            },
+          },
+        ],
+        [doneFinal("Half an hour passes.")],
+      ],
+      requests,
+    );
+
+  const carryArgs = (carryReasoning: UserIntent["carryReasoning"], requests: TurnRequest[]): PipelineArgs =>
+    baseArgs({
+      connection: CARRY_CONNECTION,
+      tools: fakeToolOps([]),
+      attachedToolNames: ["tick_clock"],
+      intent: { effort: "high", ...(carryReasoning === undefined ? {} : { carryReasoning }) } satisfies UserIntent,
+      runChatTurn: legs(requests),
+    }).args;
+
+  /** The assistant row the loop appended for the next leg — the one the converter turns into wire blocks. */
+  const appendedAssistantRow = (requests: readonly TurnRequest[]): TurnMessage | undefined => {
+    const second = requests[1]?.history ?? [];
+    return second.slice((requests[0]?.history ?? []).length).at(0);
+  };
+
+  test("`tool-chain`: leg 2's assistant row carries the signed thinking FIRST, ahead of the prose and the tool call", async () => {
+    const requests: TurnRequest[] = [];
+    await runTurnPipeline(carryArgs("tool-chain", requests));
+
+    const row = appendedAssistantRow(requests);
+    expect(row?.role).toBe("assistant");
+    // ORDER IS THE PIN: Anthropic requires the thinking block at the head of an assistant turn, and the
+    // converter emits parts in array order — a signature behind the tool_use is not the turn the model signed.
+    expect(row?.content.map((part) => part.type)).toEqual(["reasoning", "text", "tool-call"]);
+    expect(row?.content[0]).toEqual(SIGNED);
+  });
+
+  test("`off` (the default): the same loop hands leg 2 NO thinking — the model sees an amnesiac chain", async () => {
+    const requests: TurnRequest[] = [];
+    await runTurnPipeline(carryArgs(undefined, requests));
+
+    const row = appendedAssistantRow(requests);
+    expect(row?.content.map((part) => part.type)).toEqual(["text", "tool-call"]);
+  });
+
+  test("the COHERENCE rule: a carry knob on a turn with reasoning OFF drops back to `off`", async () => {
+    const requests: TurnRequest[] = [];
+    // Same capability, but `effort: "none"` turns reasoning off for the turn — so there is nothing to carry
+    // and the rung collapses, exactly as §8.8 states (the funnel raises the drop warning on the wire side).
+    const { args } = baseArgs({
+      connection: CARRY_CONNECTION,
+      tools: fakeToolOps([]),
+      attachedToolNames: ["tick_clock"],
+      intent: { effort: "none", carryReasoning: "tool-chain" } satisfies UserIntent,
+      runChatTurn: legs(requests),
+    });
+    await runTurnPipeline(args);
+
+    expect(appendedAssistantRow(requests)?.content.map((part) => part.type)).toEqual(["text", "tool-call"]);
+  });
+
+  test("the CAPABILITY gate: a model that accepts no replayed thinking (`replay` absent ⇒ the `none` floor) drops it", async () => {
+    const requests: TurnRequest[] = [];
+    const noReplay: GenerationCapability = makeGenerationCapability({
+      ...CAPABILITY,
+      tools: { parallel: true },
+      reasoning: { mode: "adaptive", enabled: true, effortLevels: ["high"] },
+    });
+    const { args } = baseArgs({
+      connection: { ...CONNECTION, capability: makeCapability(noReplay) },
+      tools: fakeToolOps([]),
+      attachedToolNames: ["tick_clock"],
+      intent: { effort: "high", carryReasoning: "tool-chain" } satisfies UserIntent,
+      runChatTurn: legs(requests),
+    });
+    await runTurnPipeline(args);
+
+    expect(appendedAssistantRow(requests)?.content.map((part) => part.type)).toEqual(["text", "tool-call"]);
+  });
+});
 
 describe("runTurnPipeline — the D79 structured-output gate (04 §7)", () => {
   test("responseFormat requested but capability.output.structured absent → dropped + flagged; free-text proceeds", async () => {

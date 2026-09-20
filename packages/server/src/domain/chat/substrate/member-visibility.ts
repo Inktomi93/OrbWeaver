@@ -78,6 +78,10 @@ export function stripHiddenForMember(view: MessageView): MessageView {
 /** P3 (§3.6): withhold the whole REASONING channel from a member of a deception-active game. Nulls
  *  `view.reasoning` (identity when it is already null — the common non-reasoning row allocates nothing). The
  *  BODY is left to {@link stripHiddenForMember}; a caller applies BOTH when the game is deception-active.
+ *
+ *  THE §8.8 REPLAY PARTS NEED NO ARM HERE, and that is by construction rather than by omission: they are
+ *  deliberately absent from `MessageView` (see `contracts/chat/messages.ts`), read host-side through the
+ *  engine's own `loadReasoningParts` op, and therefore never reach a member's wire at all.
  * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
 export function stripReasoningFromView(view: MessageView): MessageView {

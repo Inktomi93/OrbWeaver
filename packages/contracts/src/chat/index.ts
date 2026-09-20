@@ -165,6 +165,7 @@ export type {
 } from "./messages.ts";
 export {
   CHAT_MESSAGE_LIST_MAX_LIMIT,
+  chatReasoningPartSchema,
   combineTokenProvenance,
   MESSAGE_ASSET_ORIGINS,
   macroFreezeRecordSchema,

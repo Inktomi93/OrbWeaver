@@ -7,6 +7,7 @@
 import type { CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
+import { jsonValueSchema } from "@orb/kit/json";
 import type { MacroFreeze, VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import { z } from "zod";
@@ -66,10 +67,15 @@ export const CHAT_MESSAGE_LIST_MAX_LIMIT = 100;
  *    OR provider re-validates it and strips entries whose signature is missing, so round-tripping the exact
  *    bytes is the whole contract. `JsonValue` (not `unknown`) keeps it serializable and re-parsable.
  *
- *  HOMED HERE, not in `bus.ts`, because `MessageView` below carries the parts for the `conversation` rung and
- *  the import may only run bus → messages (bus already reads `MessageView`; the reverse is a cycle three
- *  gates refuse). `bus.ts` imports {@link ChatReasoningPart} as the `ChatContentPart` reasoning arm, so there
- *  is still exactly ONE spelling of the shape. */
+ *  HOMED HERE, beside the variant DTO whose `reasoning_parts` column persists them, rather than in `bus.ts`
+ *  where the content-part union lives: this module also owns {@link chatReasoningPartSchema}, the read seam
+ *  for that column, and the import may only run bus → messages (bus already reads `MessageView`; the reverse
+ *  is a cycle three gates refuse). `bus.ts` imports {@link ChatReasoningPart} as the `ChatContentPart`
+ *  reasoning arm, so there is still exactly ONE spelling of the shape.
+ *
+ *  DELIBERATELY NOT ON `MessageView`: the parts are HOST-SIDE replay material, not a render surface, and a
+ *  signature / encrypted-reasoning blob has no business crossing to a browser. The assembly reads them
+ *  through the engine's own `loadReasoningParts` op instead (§8.8). */
 export interface ReasoningPartMeta {
   readonly anthropic?: { readonly signature?: string | undefined; readonly redactedData?: string | undefined } | undefined;
   readonly openrouter?: { readonly reasoningDetails: readonly JsonValue[] } | undefined;
@@ -83,6 +89,21 @@ export interface ChatReasoningPart {
   readonly text: string;
   readonly meta?: ReasoningPartMeta | undefined;
 }
+
+/** The PARSE-ON-READ seam for `message_variants.reasoning_parts` (the `toolCalls` / `variableDelta` idiom — a
+ *  malformed or absent blob degrades, never throws and never a drizzle `$type` cast). The provenance bodies
+ *  stay `jsonValueSchema`-shaped: this layer re-serialises the provider's own bytes and never interprets
+ *  them, so tightening them here would only invent a schema the provider does not owe us. */
+export const chatReasoningPartSchema = z.object({
+  type: z.literal("reasoning"),
+  text: z.string(),
+  meta: z
+    .object({
+      anthropic: z.object({ signature: z.string().optional(), redactedData: z.string().optional() }).optional(),
+      openrouter: z.object({ reasoningDetails: z.array(jsonValueSchema) }).optional(),
+    })
+    .optional(),
+});
 
 /** THE ONE SPELLING of the `message_variants.metadata` key carrying a generation's REASONING TIME in ms.
  *
@@ -310,16 +331,6 @@ export interface MessageView {
   hasContinuation: boolean;
   content: string;
   reasoning: string | null;
-  /** The model's own thinking as REPLAYABLE parts, in stream order, each carrying the wire's opaque
-   *  provenance (§8.8 / audit A1). Distinct from `reasoning`, which is the RENDERED prose a reader sees:
-   *  these exist only so the assembly can materialize a prior turn's verified thinking back onto its
-   *  assistant row under `carryReasoning: "conversation"`. NOT A RENDER SURFACE — a client must never draw
-   *  them (an Anthropic signature / an OpenAI encrypted-reasoning blob is not prose). Absent on every row
-   *  whose wire surfaced no per-part provenance, and on every user/system/imported row.
-   *
-   *  THE WRITE HALF IS THE RECORD LANE'S (the durable home on `message_variants` + the canon-write that
-   *  stamps it); this field is the READ contract the assembly materializes from. */
-  reasoningParts?: readonly ChatReasoningPart[] | undefined;
   model: string | null;
   provider: string | null;
   /** The NORMALIZED reason (`NORMALIZED_FINISH_REASONS`); `stopReason`/`terminalReason` are the raw upstream
