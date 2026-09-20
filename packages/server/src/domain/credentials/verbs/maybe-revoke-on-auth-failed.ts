@@ -76,6 +76,19 @@ export function createMaybeRevokeOnAuthFailed(ctx: CredentialContext): Credentia
         await reportOwnerMismatch(ctx, { ownerId, credentialId, now });
         return;
       }
+      // No Principal exists at this runner seam, so the successful automatic revoke is system-attributed.
+      // `audit` is the db-bound best-effort writer in production; keeping it inside this passenger's catch
+      // preserves the generation error even if a test or alternate composition supplies a rejecting sink.
+      await ctx.audit(
+        {
+          actorUserId: null,
+          action: "credential.markRevoked",
+          entityType: "credential",
+          entityId: credentialId,
+          metadata: { reason: params.errorMessage, path: "auth_failed" },
+        },
+        now,
+      );
       securityEvent(
         "credential_revoked",
         { credentialId, ownerId, reason: params.errorMessage, path: "auth_failed" },
