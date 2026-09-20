@@ -336,7 +336,15 @@ export const appSettingsSchema = z.object({
   /** GOVERNANCE (inference program F12): the PRIVATE-range hosts/CIDRs an `auth: endpoint` connection may dial
    *  (`127.0.0.1`, `::1`, `192.168.1.0/24`…). Per DEPLOYMENT, never per principal — the same SSRF guard with a
    *  data input. Env floor `PRIVATE_ENDPOINT_ALLOWLIST`; DB override wins; born `[127.0.0.1, ::1]` under
-   *  `AUTH_MODE=single-user`, empty on a multi-user install (hosted providers only). */
+   *  `AUTH_MODE=single-user`, empty on a multi-user install (hosted providers only).
+   *
+   *  An entry MAY carry a PORT (`127.0.0.1:8703`, `[::1]:8703`, `ollama.lan:11434`) and then admits that host
+   *  at those ports ONLY — the least-privilege spelling for a shared box, where a bare `127.0.0.1` also hands
+   *  out `:22` and `:5432`. A port on a CIDR is refused. The NARROWER spelling wins when both are listed.
+   *  ENTRY SYNTAX IS VALIDATED AT THE BELT, NOT HERE, deliberately: this field is `.catch(undefined)`, so a
+   *  per-entry refinement would drop the operator's WHOLE list back to the born default over one typo. The
+   *  belt (`infra/network/egress.ts::publishPrivateEndpointAllowlist`) refuses the single bad entry, keeps the
+   *  rest, and logs the refusal COUNT at warn — an entry list would put the LAN topology in every boot log. */
   privateEndpointAllowlist: z.array(z.string().min(1)).nullable().optional().catch(undefined),
   localMultiUser: z.boolean().nullable().optional().catch(undefined),
   discreetLogin: z.boolean().nullable().optional().catch(undefined),
