@@ -651,8 +651,8 @@ describe("store — chunk (document_chunks, the 5th arm — databank-design/05 �
 // THE DTYPE IS PART OF THE SPACE (owner ruling 2026-09-19, #2417). A re-quantised local-light encoder
 // produces different vectors, so flipping `LOCAL_LIGHT_EMBED_DTYPE` must make the corpus STALE rather than
 // quietly mixing two geometries under one name. The mechanism is deliberately NOT a new column: the dtype
-// rides inside the `(model, dim)` space tag that every upsert already keys on and that `purgeStaleVectors`
-// already compares. This case drives it with the REAL infra derivation rather than an invented string, so
+// rides inside the `(model, dim)` space tag that every upsert already keys on and that the generation id is
+// minted from. This case drives it with the REAL infra derivation rather than an invented string, so
 // dropping the dtype from the tag — the one way to silently re-introduce the mix — reds here.
 describe("store — a local-light dtype change is a space change (#2417)", () => {
   test("the same content under a re-quantised encoder does NOT satisfy the staleness gate", async () => {
@@ -682,8 +682,8 @@ describe("store — a local-light dtype change is a space change (#2417)", () =>
 
     expect(reindexed.outcome).toBe("written");
     expect(h.roleClients.embed).toHaveBeenCalledTimes(2);
-    // Additive, never overwritten in place — the retired space stays reclaimable by `purgeStaleVectors`
-    // (PD-104), exactly as a model change is.
+    // Additive, never overwritten in place — the retired space survives until its generation is promoted
+    // away (PD-104), exactly as a model change is.
     const rows = await db.select().from(characterEmbeddings).where(eq(characterEmbeddings.characterId, characterId));
     expect(rows.map((r) => r.model).toSorted()).toEqual([fp32Space, q8Space].toSorted());
   });

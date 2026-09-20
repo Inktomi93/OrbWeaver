@@ -8,8 +8,8 @@
 // re-quantised encoder is a different geometry (#2417). The READ side derives its tag from the resolved
 // connection. If those two derivations disagree the tree is silently, permanently broken in the worst
 // possible shape: every write succeeds, `nearest.ts` filters on a tag no row carries so search answers
-// EMPTY forever, and `purgeStaleVectors` — whose predicate is `model != activeModel` — reclaims the
-// owner's ENTIRE live corpus on the next bulk sweep. Nothing throws, nothing logs.
+// EMPTY forever, and the promotion retire — whose predicate is `generation_id != <promoted>` — reclaims
+// the owner's ENTIRE live corpus on the next bulk sweep. Nothing throws, nothing logs.
 //
 // A tag-equality unit test cannot see that: it asserts the string, not the round trip. So this drive
 // WRITES through the production store verb, READS BACK through `nearest.ts` with the production space
@@ -27,7 +27,7 @@ import { EMBED_SPACE_DIMS } from "@orb/contracts/inference";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
 import { characterEmbeddings, documentChunks } from "@orb/db";
-import type { CharacterId, UserConnectionId } from "@orb/kit/ids";
+import type { CharacterId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { eq } from "drizzle-orm";
@@ -37,7 +37,7 @@ import type { EmbeddingsService } from "../../../../packages/server/src/domain/e
 import { requireTaskModel } from "../../../../packages/server/src/domain/embeddings/substrate/task-model.ts";
 import { SEARCH_SPACE_REINDEXING } from "../../../../packages/server/src/domain/search/contract/errors.ts";
 import { nearestCharacters, nearestDocumentChunks } from "../../../../packages/server/src/domain/search/persistence/nearest.ts";
-import { requireSpaceModel } from "../../../../packages/server/src/domain/search/substrate/space.ts";
+import { withActiveQuerySpace } from "../../../../packages/server/src/domain/search/substrate/space.ts";
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import type { ConnectionHarness } from "../connection/_support.ts";
@@ -117,6 +117,11 @@ async function driveOwnerWithBoundEncoder(db: Db, sources: StoreHarnessSources =
   return { harness, principal, userId, connectionId: connection.id, svc: createEmbeddingsService(ctx), ctx, roleClients };
 }
 
+/** The settled read tag, taken through the ONE door every query verb calls (`withActiveQuerySpace`). */
+async function spaceModel(ctx: EmbeddingsContext, ownerId: UserId, task: "embed" | "imageEmbed"): Promise<string> {
+  return await withActiveQuerySpace(ctx, ownerId, task, (space) => Promise.resolve(space.model));
+}
+
 /** The three sweep terminals that between them cover the `embed` space (§10-5's scopes `cards`, `memory`,
  *  `documents`). Running the REAL verbs is the point: the completion rows only exist because work finished. */
 async function runEmbedSweeps(drive: Drive): Promise<void> {
@@ -154,7 +159,7 @@ describe("the embed space round trip — write tag === read tag (§10-2)", () =>
     await runEmbedSweeps(drive);
 
     // The READ side derives its own tag from the same resolved connection, through search's substrate.
-    const readTag = await requireSpaceModel(drive.ctx, drive.userId, "embed");
+    const readTag = await spaceModel(drive.ctx, drive.userId, "embed");
     // THE DEFECT, stated as the thing it actually breaks: the stored row must be in the space the
     // retrieval scan filters on. Asserted on the row, not on two derivations agreeing in the abstract.
     expect(rows[0]?.model).toBe(readTag);
@@ -180,8 +185,8 @@ describe("the embed space round trip — write tag === read tag (§10-2)", () =>
     });
     expect(await db.select().from(documentChunks)).toHaveLength(1);
 
-    // `purgeStaleVectors` deletes every row whose `model != activeModel`. When the write tag and the
-    // read tag disagree, THE LIVE ROW IS THE STALE ROW and the owner's corpus is eaten silently.
+    // Promotion deletes every row whose `generation_id` is not the promoted one. When the write tag and
+    // the read tag disagree, THE LIVE ROW IS THE STALE ROW and the owner's corpus is eaten silently.
     const generation = await drive.svc.resolveGeneration(drive.userId, "embed");
     if (generation === null) {
       throw new Error("expected generation");
@@ -191,7 +196,7 @@ describe("the embed space round trip — write tag === read tag (§10-2)", () =>
     expect(await db.select().from(documentChunks)).toHaveLength(1);
     await runEmbedSweeps(drive);
 
-    const readTag = await requireSpaceModel(drive.ctx, drive.userId, "embed");
+    const readTag = await spaceModel(drive.ctx, drive.userId, "embed");
     const hits = await nearestDocumentChunks(db, {
       documentIds: [documentId],
       queryVector: queryVector(),
@@ -270,7 +275,7 @@ describe("the embed space round trip — write tag === read tag (§10-2)", () =>
       }),
     ).rejects.toMatchObject({ kind: "invalid" });
     await expect(drive.svc.resolveGeneration(drive.userId, "embed")).rejects.toMatchObject({ kind: "invalid" });
-    await expect(requireSpaceModel(drive.ctx, drive.userId, "embed")).rejects.toMatchObject({ code: "search_space_reindexing" });
+    await expect(spaceModel(drive.ctx, drive.userId, "embed")).rejects.toMatchObject({ code: "search_space_reindexing" });
     expect(await db.select().from(documentChunks)).toHaveLength(1);
   });
 
@@ -298,7 +303,7 @@ describe("the embed space round trip — write tag === read tag (§10-2)", () =>
 
     // ── STEP 1: the steady state. The real sweeps run, record their completions, and the read answers.
     await runEmbedSweeps(drive);
-    const oldTag = await requireSpaceModel(drive.ctx, drive.userId, "embed");
+    const oldTag = await spaceModel(drive.ctx, drive.userId, "embed");
     const rows = await db.select().from(characterEmbeddings).where(eq(characterEmbeddings.characterId, characterId));
     expect(rows).toHaveLength(1);
     expect(rows[0]?.model).toBe(oldTag);
@@ -334,12 +339,12 @@ describe("the embed space round trip — write tag === read tag (§10-2)", () =>
 
     // …and the read REFUSES rather than scanning the new space (which holds nothing) or the old one with a
     // new-model query vector (which would rank garbage — both spaces are 1024-wide, so nothing throws).
-    await expect(requireSpaceModel(drive.ctx, drive.userId, "embed")).rejects.toMatchObject({ code: SEARCH_SPACE_REINDEXING });
+    await expect(spaceModel(drive.ctx, drive.userId, "embed")).rejects.toMatchObject({ code: SEARCH_SPACE_REINDEXING });
 
     // ── STEP 3: the reindex lands. Every scope records the new space and the read resumes — on the NEW tag,
     // finding the SAME card. The swap is complete and nothing was lost on the way through.
     await runEmbedSweeps(drive);
-    const settled = await requireSpaceModel(drive.ctx, drive.userId, "embed");
+    const settled = await spaceModel(drive.ctx, drive.userId, "embed");
     expect(settled).toBe(newTag);
     expect((await nearestCharacters(db, { ownerId: drive.userId, queryVector: queryVector(), model: settled, limit: 5 })).map((h) => h.characterId)).toEqual([
       characterId,
@@ -398,7 +403,7 @@ describe("the embed space round trip — write tag === read tag (§10-2)", () =>
   test("the derived read tag carries the encoder's curated dtype — the fact the backend stamps", async () => {
     const db = await freshDb();
     const drive = await driveOwnerWithBoundEncoder(db);
-    const readTag = await requireSpaceModel(drive.ctx, drive.userId, "embed");
+    const readTag = await spaceModel(drive.ctx, drive.userId, "embed");
     // Not a string literal: the ASSERTION is that the space tag is not merely the row's model column,
     // because a re-quantised encoder is a different geometry (#2417). A tag equal to the bare model id
     // is the pre-fix shape.

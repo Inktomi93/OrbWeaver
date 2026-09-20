@@ -29,7 +29,7 @@ import type { EmbeddingConnectionSnapshot } from "../../../../../packages/server
 import { markGenerationComplete } from "../../../../../packages/server/src/domain/embeddings/persistence/space-state.ts";
 import { resolveTargetGeneration } from "../../../../../packages/server/src/domain/embeddings/substrate/generation.ts";
 import { SEARCH_NO_SPACE, SEARCH_SPACE_REINDEXING } from "../../../../../packages/server/src/domain/search/contract/errors.ts";
-import { requireImageSpace, requireSpaceModel } from "../../../../../packages/server/src/domain/search/substrate/space.ts";
+import { withActiveQuerySpace } from "../../../../../packages/server/src/domain/search/substrate/space.ts";
 import { freshDb } from "../../../../support/db.ts";
 import type { FakeRoleClientControls } from "../../../../support/factories/role-clients.ts";
 import { makeFakeRoleClients } from "../../../../support/factories/role-clients.ts";
@@ -108,6 +108,18 @@ async function target(db: Db, ownerId: UserId, clients: RoleClients, task: "embe
   return generation;
 }
 
+type SpaceCtx = Awaited<ReturnType<typeof drive>>["ctx"];
+
+/** The module's ONE exported door, projected to the two facts each case asserts. `withActiveQuerySpace` is
+ *  what every query verb calls, so reading through it keeps these receipts on the production path. */
+async function spaceModel(ctx: SpaceCtx, ownerId: UserId, task: "embed" | "imageEmbed"): Promise<string> {
+  return await withActiveQuerySpace(ctx, ownerId, task, (space) => Promise.resolve(space.model));
+}
+
+async function imageSpace(ctx: SpaceCtx, ownerId: UserId): Promise<{ via: "embed" | "imageEmbed"; model: string }> {
+  return await withActiveQuerySpace(ctx, ownerId, "imageEmbed", (space) => Promise.resolve({ via: space.via, model: space.model }));
+}
+
 async function complete(db: Db, ownerId: UserId, generation: GenerationReceipt): Promise<void> {
   for (const scope of VECTOR_SCOPES_BY_TASK[generation.task]) {
     await markGenerationComplete(db, { ownerId, scope, generation, now: NOW });
@@ -116,48 +128,48 @@ async function complete(db: Db, ownerId: UserId, generation: GenerationReceipt):
 
 test("answers the bound model for each vector task", async () => {
   const { ctx, ownerId } = await drive();
-  expect(await requireSpaceModel(ctx, ownerId, "embed")).toBe("test-embed-model");
-  expect(await requireSpaceModel(ctx, ownerId, "imageEmbed")).toBe("test-image-embed-model");
+  expect(await spaceModel(ctx, ownerId, "embed")).toBe("test-embed-model");
+  expect(await spaceModel(ctx, ownerId, "imageEmbed")).toBe("test-image-embed-model");
 });
 
 test("no binding is a TYPED refusal, not a skip — a query is never embedded in nobody's space", async () => {
   const { ctx, ownerId } = await drive({ unbound: ["embed"] });
-  await expect(requireSpaceModel(ctx, ownerId, "embed")).rejects.toMatchObject({ code: SEARCH_NO_SPACE });
+  await expect(spaceModel(ctx, ownerId, "embed")).rejects.toMatchObject({ code: SEARCH_NO_SPACE });
   // The positive control in the same wiring: the OTHER task still answers, so the refusal is the binding's
   // doing and not a broken fixture.
-  expect(await requireSpaceModel(ctx, ownerId, "imageEmbed")).toBe("test-image-embed-model");
+  expect(await spaceModel(ctx, ownerId, "imageEmbed")).toBe("test-image-embed-model");
 });
 
 test("an owner with NO vector connection at all cannot search images — the fallback has nothing to fall to", async () => {
   const { ctx, ownerId } = await drive({ unbound: ["imageEmbed", "embed"] });
-  await expect(requireImageSpace(ctx, ownerId)).rejects.toMatchObject({ code: SEARCH_NO_SPACE });
+  await expect(imageSpace(ctx, ownerId)).rejects.toMatchObject({ code: SEARCH_NO_SPACE });
 });
 
 test("§10-3 an image-capable embedder keeps the image arm — the query rides imageEmbed", async () => {
   const { ctx, ownerId } = await drive();
-  expect(await requireImageSpace(ctx, ownerId)).toEqual({ via: "imageEmbed", model: "test-image-embed-model" });
+  expect(await imageSpace(ctx, ownerId)).toEqual({ via: "imageEmbed", model: "test-image-embed-model" });
 });
 
 test("§10-3 NO imageEmbed binding falls back to the captioned-text lens in the owner's EMBED space", async () => {
   const { ctx, ownerId } = await drive({ unbound: ["imageEmbed"] });
-  expect(await requireImageSpace(ctx, ownerId)).toEqual({ via: "embed", model: "test-embed-model" });
+  expect(await imageSpace(ctx, ownerId)).toEqual({ via: "embed", model: "test-embed-model" });
 });
 
 test("§10-3 a BOUND imageEmbed model that takes no image input falls back the same way", async () => {
   // The second cause, and the one a bare "is it bound?" check misses entirely: the slot is filled, the
   // resolve succeeds, and the model still cannot accept a picture.
   const { ctx, ownerId } = await drive({ imageEmbedVision: false });
-  expect(await requireImageSpace(ctx, ownerId)).toEqual({ via: "embed", model: "test-embed-model" });
+  expect(await imageSpace(ctx, ownerId)).toEqual({ via: "embed", model: "test-embed-model" });
 });
 
 test("§10-5 an active generation whose recorded connection fingerprints differently is a named refusal", async () => {
   const { db, ctx, ownerId } = await drive();
   const oldClients = makeFakeRoleClients({ embedModel: "older-embed-model" });
   await complete(db, ownerId, await target(db, ownerId, oldClients, "embed"));
-  await expect(requireSpaceModel(ctx, ownerId, "embed")).rejects.toMatchObject({ code: SEARCH_SPACE_REINDEXING });
+  await expect(spaceModel(ctx, ownerId, "embed")).rejects.toMatchObject({ code: SEARCH_SPACE_REINDEXING });
   // POSITIVE CONTROL in the same db: `imageEmbed` is still an unrecorded bootstrap, so it answers from the
   // live binding. The refusal is about THIS task's active connection fingerprint, not the generation table.
-  expect(await requireSpaceModel(ctx, ownerId, "imageEmbed")).toBe("test-image-embed-model");
+  expect(await spaceModel(ctx, ownerId, "imageEmbed")).toBe("test-image-embed-model");
 });
 
 test("§10-5 a PARTLY-moved corpus also refuses — one lagging scope is enough", async () => {
@@ -167,18 +179,18 @@ test("§10-5 a PARTLY-moved corpus also refuses — one lagging scope is enough"
   await markGenerationComplete(db, { ownerId, scope: "memory", generation, now: NOW });
   // `documents` is still absent. A per-task completion flag would serve a first-build corpus that silently
   // misses every document; readGeneration must keep the task in the named moving state.
-  await expect(requireSpaceModel(ctx, ownerId, "embed")).rejects.toMatchObject({ code: SEARCH_SPACE_REINDEXING });
+  await expect(spaceModel(ctx, ownerId, "embed")).rejects.toMatchObject({ code: SEARCH_SPACE_REINDEXING });
 });
 
 test("§10-5 once every scope has landed in the live space the read resumes — the swap completes", async () => {
   const { db, ctx, ownerId, clients } = await drive();
   await complete(db, ownerId, await target(db, ownerId, clients, "embed"));
-  expect(await requireSpaceModel(ctx, ownerId, "embed")).toBe("test-embed-model");
+  expect(await spaceModel(ctx, ownerId, "embed")).toBe("test-embed-model");
 });
 
 test("§10-5 a box that has never completed a sweep serves the live space — bootstrap, not a silent fallback", async () => {
   const { ctx, ownerId } = await drive();
   // No `embed_space_state` rows at all: everything that exists was written in the live space, so there is
   // nothing to be mid-move between. Refusing here would break every fresh install.
-  expect(await requireSpaceModel(ctx, ownerId, "embed")).toBe("test-embed-model");
+  expect(await spaceModel(ctx, ownerId, "embed")).toBe("test-embed-model");
 });

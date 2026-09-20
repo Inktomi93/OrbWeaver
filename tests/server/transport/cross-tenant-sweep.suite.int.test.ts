@@ -1826,7 +1826,7 @@ const EXEMPT: Readonly<Record<string, string>> = {
   // tests/server/domain/search/verbs/search.int.test.ts (foreign character id → [], foreign chatId → []).
   // RECLASSIFIED 2026-09-20 (the @orb/inference cut-over). It was PROBED with A's characterId as the seed.
   // The verb now resolves the CALLER's own `imageEmbed` binding FIRST (`verbs/similar-art.ts:22-23` —
-  // `roleClientsFor(ownerId)` + `requireSpaceModel`, where `ownerId` IS `ctx.auth.userId`, router:68), and
+  // `roleClientsFor(ownerId)` + `withActiveQuerySpace`, where `ownerId` IS `ctx.auth.userId`, router:68), and
   // this harness runs with no embedder and no bindings, so the stranger is refused
   // `SEARCH_NO_SPACE` → BAD_REQUEST before the seed read. That is a CALLER precondition, not a verdict about
   // the target: it is byte-identical for A's characterId, the stranger's own, and one that does not exist,
