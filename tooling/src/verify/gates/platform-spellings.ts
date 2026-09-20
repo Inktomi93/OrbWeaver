@@ -18,6 +18,13 @@
 // Authority is the central ordinary positional waiver. Findings name exact authored positions: Promise for
 // sleep/deferred, the array expression for spread-sort, and the declared escape function name.
 //
+// WIDENED 2026-09-20 (lane cb-population-truth, #2488): `@packages` → `@product` — the Node 26 adoption
+// ratchet's subject is authored product code, and 112 files of it were outside the declaration. NOT FREE.
+// MEASURED (`pnpm check:structure --check platform-spellings`, whole tree): population 3,316 → 3,428,
+// findings 0 → 1. `backends/openai-compat/reachability.ts` built its wake-poll sleep by hand
+// (`new Promise((resolve) => setTimeout(resolve, ms))`); FIXED IN THIS COMMIT to `node:timers/promises`
+// rather than waived — the package already imports `node:*` freely and no browser bundle reaches it, so the
+// client/UI carve-out stated above does not apply to it.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { resolveLexicalValueDeclaration } from "../../_shared/reference-fact.ts";
@@ -532,7 +539,7 @@ export const gate = defineGate({
   family: "platform-spellings",
   authority: "ordinary",
   severity: "error",
-  population: ["@packages", "@showcase"],
+  population: ["@product", "@showcase"],
   analysis: "types",
   execution: "selected-files",
   facts: [],

@@ -31,7 +31,9 @@ const rowsSchema = z.array(capabilityOverrideSchema);
 export function compileRows(file: string, raw: unknown): readonly CompiledRow[] {
   const parsed = rowsSchema.safeParse(raw);
   if (!parsed.success) {
-    throw new Error(`${file} is malformed: ${parsed.error.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`).join("; ")}`);
+    // `z.prettifyError` rather than a hand-flattened `issues` join: this is a BOOT failure an operator reads,
+    // and prettify carries the path that names the offending row and field (zod-error-issues-home).
+    throw new Error(`${file} is malformed:\n${z.prettifyError(parsed.error)}`);
   }
   return parsed.data.map((row) => ({
     row,

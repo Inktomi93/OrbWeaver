@@ -42,6 +42,12 @@
 // sole-argument test → `[13]`. The ONE residual clean cut is the `candidateCall` name prefilter, which is
 // MUTUALLY REDUNDANT with `isZodCall`'s own `terminal === method` test: the prefilter decides whether an
 // origin is worth resolving and never whether the call is a zod call, so cutting it alone changes nothing.
+//
+// WIDENED 2026-09-20 (lane cb-population-truth, #2488): `@packages` → `@product` — the package is a heavy
+// zod consumer (`registry/`, `capability/`, `contract/`), so all three superseded spellings were reachable in
+// it and no policy was watching. MEASURED (`pnpm check:structure --check zod-modern-spellings`, whole tree):
+// population 3,315 → 3,427, findings 0 → 0 — a SEAL, and exactly what an anti-backslide ratchet is for: its
+// value is the copy-paste it refuses tomorrow, not the sites it finds today.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { readMemberReference, resolveModuleMemberOrigin } from "../../_shared/reference-fact.ts";
@@ -175,7 +181,7 @@ export const gate = defineGate({
   severity: "error",
   // `packages/**` only, exactly as legacy scanned: `scripts/` and `tests/` are OUT because dev tooling is
   // KISS by doctrine and a test may plant an old spelling deliberately as a fixture.
-  population: "@packages",
+  population: "@product",
   analysis: "types",
   execution: "selected-files",
   facts: [],

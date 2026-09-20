@@ -1799,7 +1799,7 @@
     {
       "siteId": "packages/inference/src/backends/openai-compat/reachability.ts::catch::1",
       "path": "packages/inference/src/backends/openai-compat/reachability.ts",
-      "line": 77,
+      "line": 78,
       "column": 5,
       "grammar": "empty",
       "position": "catch",
@@ -1807,12 +1807,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "every probe failure is owned by the returned `down` state; reachability is advisory and never authorizes a request. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if callers need the failure cause.",
-      "markerLine": 76
+      "markerLine": 77
     },
     {
       "siteId": "packages/inference/src/backends/openai-compat/reachability.ts::fetch::1",
       "path": "packages/inference/src/backends/openai-compat/reachability.ts",
-      "line": 121,
+      "line": 122,
       "column": 8,
       "grammar": "promise",
       "position": "fetch",
@@ -1820,7 +1820,7 @@
       "snippet": ".fetch(sleepUrl(target.baseUrl, target.wakePath), { method: \"POST\", headers, redirect: \"manual\", signal: withTimeout(PROBE_TIMEOUT_MS) })",
       "verdict": "deliberate-absorb",
       "reason": "wake POST failure falls through to the bounded probe loop, whose final false is the wake verdict. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if the following loop stops deciding success or timeout.",
-      "markerLine": 119
+      "markerLine": 120
     },
     {
       "siteId": "packages/inference/src/backends/v4/fetch.ts::catch::1",

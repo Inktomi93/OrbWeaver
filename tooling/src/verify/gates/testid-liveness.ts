@@ -29,6 +29,15 @@
 // `@packages`) plus `@tests`. Measured admitted-set equality is recorded in the family test. `scripts/` is
 // deliberately OUT — the gate corpus spells `data-testid` in its own examples.
 //
+// RE-DERIVED 2026-09-20 (lane cb-population-truth, #2488), and DELIBERATELY NOT WIDENED to `@product`.
+// "byte-identical" above is an UNDATED claim that stopped being true when `packages/inference/src/` and
+// `packages/default-content/src/` landed (the legacy `packages/` + `/src/` predicate matches both, the
+// declaration admits neither). It is kept narrow on purpose, and the direction is the reason: this policy's
+// population is not only its SUBJECT but its PRODUCER CENSUS — rules (1)–(3) above read producers out of the
+// same admitted set — so widening it can only ever ADD producers, and adding producers can only ever make a
+// consumer finding disappear. A liveness census gets blinder as it grows, which is the opposite of what a
+// widening buys everywhere else. `packages/inference/src/` holds 112 `.ts` files and ZERO `.tsx`, mints no
+// DOM and carries no `data-testid`, so the widening would trade a real weakening for no coverage.
 // THE ORDINARY DOOR (§3, and the 9/9 base rate): every finding is anchored through `lib/caught-failure.ts`'s
 // waiver-anchor contract (`firstAnchor`), which rejects a token carrying a paren, a newline or a solidus —
 // exactly the shapes that make a position unwaivable. The reported position is therefore the SELECTED VALUE

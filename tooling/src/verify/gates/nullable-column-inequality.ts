@@ -68,7 +68,16 @@ const FIX =
  *  expression admits 6,112. The single dropped path is `packages/showcase-plugins/src/index.ts` — the
  *  `@packages` set names the six cake packages and showcase-plugins is not one of them. It admits nothing:
  *  that package is ONE file with ZERO `drizzle-orm` references (rg, with a packages/server positive
- *  control), and guest showcase code has no db reach through the plugin membrane to acquire one. */
+ *  control), and guest showcase code has no db reach through the plugin membrane to acquire one.
+ *
+ *  RE-DERIVED 2026-09-20 (lane cb-population-truth, #2488), and DELIBERATELY NOT WIDENED to `@product`. The
+ *  delta above is no longer a SINGLE dropped path — `packages/default-content/src/` and
+ *  `packages/inference/src/` joined the tree after it was measured, and the legacy `packages/` prefix would
+ *  match both. Keeping `@packages` is still right, and for a durable reason rather than an arithmetic one:
+ *  the subject is a drizzle predicate, and none of the three omitted packages can import `@orb/db` (each
+ *  declares `@orb/kit` + `@orb/contracts` at most), so the shape is unreachable at RESOLVE time — package
+ *  physics one rung above this gate. `@product` is for policies whose subject is any authored product
+ *  source; this one's subject is a schema read, so it declares the roots that can reach the schema. */
 const NULLABLE_INEQUALITY_POPULATION = { in: ["@packages", "@tests"] } as const;
 
 interface Operand {

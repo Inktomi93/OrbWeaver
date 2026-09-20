@@ -23,6 +23,7 @@ test.describe("population vocabulary", () => {
       "@frontend": ["@client", "@ui"],
       "@backend": ["@server", "@db", "@contracts"],
       "@packages": ["@client", "@ui", "@server", "@db", "@contracts", "@kit"],
+      "@product": ["@client", "@ui", "@server", "@db", "@contracts", "@kit", "@inference"],
       "@authored": ["@client", "@ui", "@server", "@db", "@contracts", "@kit", "@inference", "@tooling", "@tests", "@scripts"],
     });
   });

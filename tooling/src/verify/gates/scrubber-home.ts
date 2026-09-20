@@ -46,6 +46,12 @@
 // `contract/population.ts`); a one-file NARROWING. final − legacy = ∅. Controls: inside
 // `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
 // `scripts/codemods/__cbbhr_out_rename-roster-participants.ts` (virtual) rejected by both.
+//
+// WIDENED 2026-09-20 (lane cb-population-truth, #2488): `@packages` → `@product` — the sealed factory lives in
+// `@orb/kit/content` and `packages/inference/src/` imports kit, so the breach this policy exists to catch was
+// reachable there and judged by nothing — and that package is now the tree's primary credentialed-egress
+// surface. MEASURED (`pnpm check:structure --check scrubber-home`, whole tree): population 3,315 → 3,427,
+// findings 0 → 0, grant consumption unchanged at 1. A security SEAL over a clean tree.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { readMemberReference } from "../../_shared/reference-fact.ts";
@@ -89,7 +95,7 @@ export const gate = defineGate({
   family: "scrubber-home",
   authority: "reviewed-grant",
   severity: "error",
-  population: "@packages",
+  population: "@product",
   analysis: "types",
   execution: "entire-population",
   facts: [],

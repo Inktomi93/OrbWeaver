@@ -31,6 +31,16 @@
 // root and `packages/showcase-plugins/src/` (the `@showcase` root, #1980) — and admit no path the legacy
 // predicate rejected. The tooling exclusion is now the absence of `@tooling` from the root list rather than
 // a hand-written prefix test, which is the difference from this policy's `no-raw-random` sibling.
+//
+// WIDENED 2026-09-20 (lane cb-population-truth, #2488): `@packages` → `@product` — a package that talks to
+// providers is precisely where an ambient clock read appears, and it was outside every clock policy.
+// MEASURED (`pnpm check:structure --check no-raw-clock`, whole tree): population 3,315 → 3,427, findings
+// 0 → 0, grant consumption unchanged at 2 — a SEAL over a clean tree.
+// A REPORTED BLIND SPOT THAT WAS NOT ONE, recorded so it is not re-filed: #2488 cited
+// `backends/agent-sdk/session/frames.ts:125` as a live violation hidden by the narrow population. It is
+// `new Date(<ms expression>)` — one argument — which this policy PASSES by the rule stated in line 3 and
+// pinned by the `parse.ts` mustPass row. The package holds no `Date.now()` and no zero-argument `new Date()`
+// at all.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { readMemberReference } from "../../_shared/reference-fact.ts";
@@ -94,7 +104,7 @@ export const gate = defineGate({
   family: "ambient-determinism",
   authority: "reviewed-grant",
   severity: "error",
-  population: { in: ["@packages"], notNamed: ["*.test.*"] },
+  population: { in: ["@product"], notNamed: ["*.test.*"] },
   analysis: "types",
   execution: "entire-population",
   facts: [],
