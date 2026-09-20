@@ -71,9 +71,9 @@ export const CONNECTIONS_ROLES_SUBCATEGORY: ConfigSubcategory = {
 export const CONNECTIONS_KEYS_SUBCATEGORY: ConfigSubcategory = {
   id: "saved-keys",
   label: "Saved keys",
-  keywords: ["credential", "api key", "provider", "revoke", "remove"],
+  keywords: ["credential", "api key", "provider", "replace", "revoke", "remove"],
   teach: {
-    summary: "The keys your connections reuse. A key is added from a connection; here you can revoke or remove it.",
+    summary: "The keys your connections reuse. A key is added from a connection; here you can replace or revoke it.",
     affects: ["every connection that uses that key"],
   },
 };
