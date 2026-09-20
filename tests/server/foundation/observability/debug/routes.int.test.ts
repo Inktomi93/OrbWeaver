@@ -13,9 +13,9 @@
 import { automationFires, automationRules, chats, users } from "@orb/db";
 import type { AutomationFireId, AutomationRuleId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { BUG_REPORT_MAX_BODY_BYTES, registerDebugRoutes } from "@orb/server/foundation/observability/debug";
+import { BUG_REPORT_MAX_BODY_BYTES, recordWireCapture, registerDebugRoutes, resetWireCaptures } from "@orb/server/foundation/observability/debug";
 import { Hono } from "hono";
-import { describe } from "vitest";
+import { afterEach, describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
@@ -109,6 +109,64 @@ describe("/api/_debug/wire — the recorder-state field (#412)", () => {
     // `recordTurnOutcome` early-returns on `isWireCaptureEnabled()` alone, so a forced-on compose records
     // requests and NO outcomes. Publishing the injected flag here would tell a reader to trust an empty ring.
     expect(await readWire("/api/_debug/wire/outcomes", { wireCaptureEnabled: () => true })).toMatchObject({ enabled: false, count: 0 });
+  });
+
+  // THE `?backend=` PASSTHROUGH (the 2026-09-20 dead-filter fix). The route's query vocabulary is `backend`;
+  // the ring's field is `providerId`. It used to spread `{ backend }` — a key `WireCaptureFilter` has never
+  // declared — into `recentWireCaptures`, and because a CONDITIONAL SPREAD is exempt from TypeScript's
+  // excess-property check, tsc saw nothing and every `?backend=` read silently returned the WHOLE ring.
+  //
+  // The compile-time enforcer is the annotated `WireCaptureFilter` literal in the handler (a renamed or
+  // misspelled field is now a tsc error). THIS is the behavioural half: it drives the real registrar over a
+  // real two-provider ring and asserts the OTHER provider's row is absent. It cannot pass vacuously — the
+  // unfiltered read below proves both rows were in the ring, so an empty ring would red the control, not the
+  // pin. `wire-tap captures --backend <b>` is the coupled reader that sends this query key.
+  describe("/api/_debug/wire/captures — the ?backend= filter (a narrowing ask must narrow)", () => {
+    const vllmMarker = "cb-debug-gate-vllm-body";
+    const openrouterMarker = "cb-debug-gate-openrouter-body";
+
+    function seedTwoProviders(): void {
+      resetWireCaptures();
+      for (const [providerId, marker] of [
+        ["vllm", vllmMarker],
+        ["openrouter", openrouterMarker],
+      ] as const) {
+        recordWireCapture({
+          chatId: castId<ChatId>("chat_filter_probe"),
+          api: "chat-completions",
+          wire: "openai-compat",
+          providerId,
+          model: "m",
+          at: 1,
+          body: { marker },
+        });
+      }
+    }
+
+    afterEach(resetWireCaptures);
+
+    test("?backend=vllm returns ONLY the vllm capture — the openrouter row is filtered out", async () => {
+      seedTwoProviders();
+      const payload = await readWire("/api/_debug/wire/captures?backend=vllm");
+      expect(JSON.stringify(payload)).not.toContain(openrouterMarker);
+      expect(payload).toMatchObject({ count: 1, captures: [{ providerId: "vllm", body: { marker: vllmMarker } }] });
+    });
+
+    // THE ANTI-VACUITY CONTROL: the same ring, unfiltered, holds BOTH rows. Without this, a broken seed (or a
+    // ring some sibling cleared) would make the pin above pass by returning nothing at all.
+    test("the SAME ring unfiltered returns both — so the pin above is about the filter, not an empty ring", async () => {
+      seedTwoProviders();
+      const payload = await readWire("/api/_debug/wire/captures");
+      const text = JSON.stringify(payload);
+      expect(text).toContain(vllmMarker);
+      expect(text).toContain(openrouterMarker);
+      expect(payload).toMatchObject({ count: 2 });
+    });
+
+    test("an unknown backend is an honest ZERO, not the whole ring", async () => {
+      seedTwoProviders();
+      expect(await readWire("/api/_debug/wire/captures?backend=no-such-provider")).toMatchObject({ count: 0, captures: [] });
+    });
   });
 });
 

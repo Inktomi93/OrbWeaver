@@ -7,7 +7,7 @@ import type { UserRole } from "@orb/contracts/identity";
 import { DomainForbiddenError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { can, isAdmin, requireAdmin, requireOwner } from "@orb/server/domain/admin";
+import { can, isAdmin, isOwner, requireAdmin, requireOwner } from "@orb/server/domain/admin";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 import { principal } from "./_support.ts";
@@ -44,12 +44,25 @@ describe("requireAdmin (owner ∪ admin)", () => {
   });
 });
 
-// The BOOLEAN form (F3 role-aware scoping) — the same owner∪admin decision, caught into a verdict.
+// The BOOLEAN forms (F3 role-aware scoping) — the same `can()` decisions, caught into verdicts. Both go
+// through the ONE kernel, so this matrix is also the pin that the two booleans do not collapse onto each
+// other: the `admin` row is where `isAdmin` and `isOwner` MUST disagree, and it is the whole reason
+// `/api/_debug` can be owner-only while the app's admin surfaces stay delegated (D17).
 describe("isAdmin (owner ∪ admin, boolean)", () => {
   test("true for owner and admin, false for a plain user", () => {
     expect(isAdmin(pr("owner"))).toBe(true);
     expect(isAdmin(pr("admin"))).toBe(true);
     expect(isAdmin(pr("user"))).toBe(false);
+  });
+});
+
+describe("isOwner (owner-only, boolean)", () => {
+  test("true for the owner ONLY — a delegated admin is false, which is where it parts from isAdmin", () => {
+    expect(isOwner(pr("owner"))).toBe(true);
+    expect(isOwner(pr("admin"))).toBe(false);
+    expect(isOwner(pr("user"))).toBe(false);
+    // The disagreement, asserted as such: a collapse in either direction is what this row catches.
+    expect(isAdmin(pr("admin"))).not.toBe(isOwner(pr("admin")));
   });
 });
 

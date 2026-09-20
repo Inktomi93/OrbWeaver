@@ -14,3 +14,7 @@ export type RequireOwner = (principal: Principal) => UserId;
 
 /** Boolean form of the owner∪admin gate, for role-aware scoping where a throw would be control flow. */
 export type IsAdmin = (principal: Principal) => boolean;
+
+/** Boolean form of the OWNER-only gate — one rung narrower than {@link IsAdmin}, for a gate that must answer
+ *  true/false rather than throw (the /api/_debug admission arm). */
+export type IsOwner = (principal: Principal) => boolean;

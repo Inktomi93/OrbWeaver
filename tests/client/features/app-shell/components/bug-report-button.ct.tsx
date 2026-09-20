@@ -224,7 +224,8 @@ test("a refused capture SAYS SO, and names WHICH ARM refused (#1193)", async ({ 
       contentType: "application/json",
       body: JSON.stringify({
         error: "unauthorized",
-        reason: "the admin-session arm refused this request (no admin or owner session on it), and no x-debug-token header was sent",
+        reason:
+          "the admin-session arm refused this request (/api/_debug is owner-only, and this request carries no owner session), and no x-debug-token header was sent",
       }),
     });
   });
