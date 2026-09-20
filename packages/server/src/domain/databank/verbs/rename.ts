@@ -26,7 +26,11 @@ export function createRename(ctx: DatabankContext): DatabankService["rename"] {
     }
     await ctx.audit({ actorUserId: ownerId, action: "databank.rename", entityType: "document", entityId: id, metadata: { name } }, at);
     // Announced after the RETURNING proved the row was the caller's and was written; a not-owned/not-found
-    // rename threw above, so a refused write announces nothing (survey H3).
+    // rename threw above, so a refused write announces nothing (survey H3). The NAME is what the per-chat
+    // rack renders, so this is the §8 half of the #2471 gap: every room crediting this document through any
+    // of the three D85 scope junctions repaints. All three junctions survive a rename, so the document's own
+    // full reach is resolvable after the write.
+    await ctx.fanDatabankRoomsForDocument(id);
     ctx.emitUserEvent(ownerId, { type: "databankChanged", documentId: id });
     const counts = await ctx.countChunks({ documentIds: [id], model: await activeSpaceModel(ctx, ownerId) });
     return toDocumentView(

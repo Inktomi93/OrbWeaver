@@ -18,11 +18,14 @@
 // POPULATION: NEW policy, no legacy predecessor and therefore no port. `@server` under `domain/**` MINUS
 // `domain/chat/**`: inside chat the stronger `membership-fan-guard` bans the identifier outright, and both
 // policies reporting one site would be two findings for one predicate.
-// AUTHORITY: `reviewed-grant`. The two live sites are an OWNER-DEFERRED gap, not fixable debt — the databank
-// room-reach row is a named candidate on the entity→room bridge (bridge design §8 + fork F-E, 2026-08-14),
-// recorded identically in `domain-freshness-plane`'s `databank` row. Each carries its `why` + `endsWhen` in
-// `lib/reviewed-grants-membership-write-fan.ts`; central liveness reports the row stale the day the bridge
-// row lands, which is the tripwire a prose deferral cannot give.
+// AUTHORITY: `reviewed-grant`, and the table is currently EMPTY — the policy has no exempted site. At
+// landing it held two rows for ONE owner-deferred gap (the databank chat attach/detach pair, the named
+// `bridge` candidate held out of the entity→room wave, bridge design §8 + fork F-E). Both `endsWhen` strings
+// named "databank joins the bridge"; the owner closed that fork on 2026-09-20 (#2471), the verbs gained
+// `emitRoomDatabankChanged`, the policy stopped finding them, and the rows were retired in the same commit.
+// That is the mechanism working as designed, and it is the tripwire a prose deferral cannot give: a grant
+// whose condition has fired alarms `stale-reviewed-grant` instead of quietly outliving its reason.
+// `lib/reviewed-grants-membership-write-fan.ts` remains this policy's grant home.
 import type { CallExpression, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

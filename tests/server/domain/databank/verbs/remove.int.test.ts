@@ -8,7 +8,7 @@ import { DocumentNotFoundError } from "@orb/server/domain/databank";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { makeDatabankHarness, principalFor, seedChat, seedUser } from "../_support.ts";
+import { makeDatabankHarness, principalFor, seedChat, seedChatHost, seedUser } from "../_support.ts";
 
 test("removing a document cascades its chunks and junction rows away", async () => {
   const db = await freshDb();
@@ -50,4 +50,43 @@ test("a non-owner's remove throws DocumentNotFoundError (nothing deleted)", asyn
   expect(await db.select().from(documents).where(eq(documents.id, document.id))).toHaveLength(1);
   // Nothing was deleted, so nothing is announced — only the create's event stands.
   expect(h.userEvents).toEqual([{ userId: owner, event: { type: "databankChanged", documentId: document.id } }]);
+});
+
+// ── #2471 — the DELETE arm, and the reason it needs a PRE-WRITE capture ───────────────────────
+// All three D85 scope junctions CASCADE with the `documents` row, so a reach resolved AFTER the delete
+// answers ∅ always — a post-write fan would be a dead wire that READS as coverage. The verb snapshots the
+// rooms before the DELETE and fans the thunk only once RETURNING confirms the row was the caller's.
+test("#2471 removing an attached document fans the room it was attached to — the junctions are gone by then", async () => {
+  const db = await freshDb();
+  const h = makeDatabankHarness(db);
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const member = await seedUser(db, { handle: castId<Handle>("member") });
+  const chatId = await seedChat(db, "chat_room");
+  await seedChatHost(db, chatId, owner);
+  await seedChatHost(db, chatId, member, "member");
+  const { document } = await h.service.createFromText({ principal: principalFor(owner), name: "d.md", text: "canon" });
+  await h.service.attachToChat({ principal: principalFor(owner), documentId: document.id, chatId });
+  h.roomFans.length = 0;
+
+  await h.service.remove({ principal: principalFor(owner), id: document.id });
+
+  expect(h.roomFans).toEqual([{ type: "roomEntityChanged", chatId, entity: "databank" }]);
+  // The co-member's rack is empty — and it is the FAN that tells their device to go and find that out.
+  expect(await h.service.listActiveForChat({ principal: principalFor(member), chatId })).toEqual([]);
+});
+
+test("#2471 a REFUSED remove (foreign document) fans nothing — the captured thunk is discarded", async () => {
+  const db = await freshDb();
+  const h = makeDatabankHarness(db);
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const attacker = await seedUser(db, { handle: castId<Handle>("attacker") });
+  const chatId = await seedChat(db, "chat_room");
+  await seedChatHost(db, chatId, owner);
+  const { document } = await h.service.createFromText({ principal: principalFor(owner), name: "d.md", text: "canon" });
+  await h.service.attachToChat({ principal: principalFor(owner), documentId: document.id, chatId });
+  h.roomFans.length = 0;
+
+  await expect(h.service.remove({ principal: principalFor(attacker), id: document.id })).rejects.toBeInstanceOf(DocumentNotFoundError);
+
+  expect(h.roomFans).toEqual([]);
 });

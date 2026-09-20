@@ -162,6 +162,15 @@ export const ROOM_ENTITY_FILTERS: { readonly [K in RoomEntityKind]: (chatId: Cha
     trpc.chat.previewContextFit.pathFilter(),
     ...promptPreviewReads(trpc),
   ],
+  // #2471 — the room's per-chat document RACK. TWO reads and no more: the member-readable rack itself
+  // (`databank.listActiveForChat`, member-gated by design — room-public prompt context) and the fit budget,
+  // because an attached document feeds the turn's retrieval and therefore the reserve the divider draws
+  // against. NO `promptPreviewReads`: the databank slot is a RETRIEVAL gather resolved per turn against the
+  // live question, so a preview built now would not be the assembly the next turn runs — the rack's own
+  // contents are what the member can actually see change. NO `trpc.databank.*` root: every other databank
+  // read is OWNER-scoped, so a co-member holds no cache entry for them, and the owner's own devices already
+  // ride the user-bus `databankChanged` (the same argument the `world-info` and `regex` rows make).
+  databank: (chatId, trpc) => [trpc.databank.listActiveForChat.queryFilter({ chatId }), trpc.chat.previewContextFit.pathFilter()],
 };
 
 // ── THE RPG BUS's event→filter map ──────────────────────────────────────────────────────────────────────

@@ -25,7 +25,10 @@ export function createDetachFromCharacter(ctx: DatabankContext): DatabankService
       { actorUserId: ownerId, action: "databank.detachFromCharacter", entityType: "document", entityId: documentId, metadata: { characterId } },
       ctx.now(),
     );
-    // Owner-scoped on both sides — real detach only (see `attach-to-character`).
+    // Owner-scoped on both sides on the USER plane; the room plane is the seated character's rooms, which
+    // resolve AFTER this delete because the key is the characterId, not the junction row we just removed
+    // (see `attach-to-character`). Real detach only.
+    await ctx.fanDatabankRoomsForCharacter(characterId);
     ctx.emitUserEvent(ownerId, { type: "databankChanged", documentId });
   };
 }

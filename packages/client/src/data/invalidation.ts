@@ -295,10 +295,17 @@ const USER_BUS_FILTERS: UserBusFilterMap = {
   // subset (event-bus coverage survey H3). The `documentId` hint is deliberately UNUSED here — a root
   // path-invalidate is what the surface needs and it costs one refetch either way.
   //
-  // Note what this row does NOT do: repaint the chat rack for a NON-owner participant. A user-bus event
-  // reaches one user's channel by construction, so the host's attach repaints the host; the room's view of
-  // what feeds its prompts is member-visible state and rides `chatUpdated` on the chat bus (see
-  // `BUS_FILTERS`, and `membership-fan-guard` for why widening this member would be the wrong fix).
+  // Note what this row does NOT do, and this is the correction #2471 was filed for: it does not repaint the
+  // chat rack for a NON-OWNER participant, and it never could — a user-bus event reaches ONE user's channel
+  // by construction, so a host's attach repaints the HOST. The wording here used to say the room's half
+  // "rides `chatUpdated`", which was true of only PART of it: `chatUpdated` carries the rack for MEMBERSHIP
+  // and the D85 visibility write (see `BUS_FILTERS`), and the attach/detach/rename themselves fanned nothing
+  // to the room at all — a co-member sat on the pre-attach rack until an unrelated `chatUpdated` landed.
+  //
+  // The room half is now its OWN driver: `roomEntityChanged{entity:"databank"}`, fanned by the databank
+  // junction and library writes through `entry/compose/room-reach.ts` (bridge fork F-E closed by owner
+  // ruling 2026-09-20). Widening THIS member to the room was never the alternative — `membership-fan-guard`
+  // bans exactly that.
   databankChanged: (_e, trpc) => [trpc.databank.pathFilter()],
   // The corpus analytics — the discovery ROOT (all 27 dashboard reads) plus `search.similarArt`, which lives
   // under the search router but is pure image-vector cosine written by the same passes. These reads had NO

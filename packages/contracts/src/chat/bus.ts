@@ -414,8 +414,17 @@ export interface PromptTransform {
  *  consequence is in THAT room. Before it, those three verbs emitted a `regexChanged` USER event only — the
  *  host's own devices repainted and every other member of the room kept a stale rack until they reloaded. The
  *  reach table's `regex` resolver serves the OTHER half (a library row's `enabled`/name changing under every
- *  room that attaches it), which is the same staleness one plane up. */
-export const ROOM_ENTITY_KINDS = ["character", "persona", "world-info", "regex"] as const;
+ *  room that attaches it), which is the same staleness one plane up.
+ *
+ *  `databank` joined 2026-09-20 (#2471, owner ruling "im not locked in on three" — the wave's owner-named
+ *  three was never a ceiling, and bridge design §8 / fork F-E is CLOSED). It takes BOTH `regex` shapes,
+ *  because the per-chat document rack has both inputs: the ROOM's own junction moved (`attachToChat` /
+ *  `detachFromChat` — the verb already holds the `chatId`), or a LIBRARY row / a non-chat D85 scope junction
+ *  moved under every room that credits it (`rename`, the character- and global-scope attach/detach, and a
+ *  document DELETE, whose junctions cascade and therefore needs the pre-write capture). Before it, all of
+ *  those emitted a per-person `databankChanged` only: the host's own devices repainted and every co-member's
+ *  rack stayed pre-attach until an unrelated `chatUpdated` happened to land. */
+export const ROOM_ENTITY_KINDS = ["character", "persona", "world-info", "regex", "databank"] as const;
 export type RoomEntityKind = (typeof ROOM_ENTITY_KINDS)[number];
 
 /** The chat bus union — the room-public event stream (the `chat` ROOM fans these out; the durable log

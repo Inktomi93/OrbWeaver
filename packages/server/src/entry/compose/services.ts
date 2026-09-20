@@ -753,6 +753,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     search,
     workloads,
     loadUserSettings: settings.loadUserSettings,
+    emitChatEventLive,
   });
 
   // The host's REAL principal by userId — shared by chat compose and rpg's lite capability resolve (a game turn

@@ -15,7 +15,7 @@ import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
 import type { RpgBusEvent } from "@orb/contracts/rpg";
 import { RPG_BUS_EVENT_TYPES } from "@orb/contracts/rpg";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
-import type { CharacterId, ChatId, ChatTurnId, MessageId, PluginId, PresetId, RpgSheetId, RpgSnapshotId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ChatTurnId, DocumentId, MessageId, PluginId, PresetId, RpgSheetId, RpgSnapshotId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { QueryClient } from "@tanstack/react-query";
 import { describe, vi } from "vitest";
@@ -775,5 +775,58 @@ describe("invalidation — the mutation half (invalidateFilters)", () => {
     invalidateFilters([]);
 
     expect(isInvalidated(queryClient, listTagsKey)).toBe(false);
+  });
+});
+
+// ── #2471 — the per-chat document RACK's room-plane freshness ──────────────────────────────────
+// `databank.listActiveForChat` is member-readable by design (room-public prompt context), so it has TWO
+// room-plane drivers and they cover different halves: `chatUpdated` carries MEMBERSHIP and the D85
+// visibility write, and `roomEntityChanged{entity:"databank"}` carries the junction/library writes
+// themselves. Before the second one existed a host's attach reached the host only and every co-member sat
+// on the pre-attach rack until an unrelated `chatUpdated` happened to land.
+describe("invalidation — the per-chat databank rack (#2471)", () => {
+  test("the rack repaints on chatUpdated — membership + the D85 visibility write", () => {
+    const { invalidate, queryClient, trpc } = setup();
+    const rack = trpc.databank.listActiveForChat.queryKey({ chatId: CHAT_ID });
+    seedReads(queryClient, [rack]);
+
+    invalidate({ type: "chatUpdated", chatId: CHAT_ID });
+
+    expect(isInvalidated(queryClient, rack)).toBe(true);
+  });
+
+  test("roomEntityChanged{entity:databank} repaints the rack and the fit budget — and NOTHING else", () => {
+    const { invalidate, queryClient, trpc } = setup();
+    const keys = {
+      rack: trpc.databank.listActiveForChat.queryKey({ chatId: CHAT_ID }),
+      previewContextFit: trpc.chat.previewContextFit.queryKey({ chatId: CHAT_ID }),
+      // The reads the row deliberately does NOT name. `databankList` is the owner-scoped library (a
+      // co-member holds no cache entry for it and the owner rides `databankChanged`); `previewAssembly` is
+      // the preview family the other bridge kinds carry and this one does not, because the databank slot is
+      // a per-turn RETRIEVAL gather against the live question, not a static pool.
+      databankList: trpc.databank.list.queryKey({}),
+      previewAssembly: trpc.chat.previewAssembly.queryKey({ chatId: CHAT_ID }),
+      getChat: trpc.chat.getChat.queryKey({ chatId: CHAT_ID }),
+      listMessages: trpc.chat.listMessages.queryKey({ chatId: CHAT_ID }),
+    };
+    seedReads(queryClient, Object.values(keys));
+
+    invalidate({ type: "roomEntityChanged", chatId: CHAT_ID, entity: "databank" });
+
+    const hit = Object.entries(keys)
+      .filter(([, key]) => isInvalidated(queryClient, key))
+      .map(([name]) => name)
+      .sort();
+    expect(hit).toEqual(["previewContextFit", "rack"]);
+  });
+
+  test("the per-person databankChanged still covers the OWNER's own devices — both planes, neither replacing the other", () => {
+    const { invalidateUser, queryClient, trpc } = setup();
+    const rack = trpc.databank.listActiveForChat.queryKey({ chatId: CHAT_ID });
+    seedReads(queryClient, [rack]);
+
+    invalidateUser({ type: "databankChanged", documentId: castId<DocumentId>("document_invalidationtest") });
+
+    expect(isInvalidated(queryClient, rack)).toBe(true);
   });
 });

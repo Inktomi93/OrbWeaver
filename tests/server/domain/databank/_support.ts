@@ -5,6 +5,7 @@
 // the "fake at the edges, inject at the root" doctrine. Reuses the embeddings harness's FK-parent seeders
 // (users/chats/characters) + the frozen clock + seeded ids so ingest is byte-deterministic.
 
+import type { LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import { databankSettingsSchema } from "@orb/contracts/databank";
 import type { ExtractionResult, ExtractTextOp } from "@orb/contracts/extraction";
 import type { ParticipantRole, Principal } from "@orb/contracts/identity";
@@ -19,6 +20,13 @@ import type { DatabankContext, DatabankIngest, DatabankService } from "../../../
 import { createDatabankService } from "../../../../packages/server/src/domain/databank/index.ts";
 import { createDatabankIngest } from "../../../../packages/server/src/domain/databank/ingest/index.ts";
 import { createEmbeddingsService } from "../../../../packages/server/src/domain/embeddings/index.ts";
+import {
+  createDeleteReachCapture,
+  createEmitRoomDatabankChanged,
+  createFanDatabankCharacterRooms,
+  createFanDatabankDocumentRooms,
+  createFanDatabankMemberRooms,
+} from "../../../../packages/server/src/entry/compose/room-reach.ts";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
 import { createSeededIds } from "../../../support/ids.ts";
 import { EMBED_DIM, EMBED_MODEL, makeStoreHarness } from "../embeddings/_support.ts";
@@ -94,6 +102,11 @@ export interface DatabankHarness {
    *  coverage survey H3). Shared by the service AND the ingest product, exactly as compose wires one
    *  publisher for both. */
   readonly userEvents: UserEventCall[];
+  /** Every `roomEntityChanged` the REAL room-reach factories fanned, in order (#2471). The five room ops are
+   *  wired through `entry/compose/room-reach.ts` itself rather than faked, so a test asserting this array is
+   *  asserting the ACTUAL D85 reach SQL against the real db — which rooms credit this document — and not a
+   *  restatement of it. Only the terminal publish is a recorder, exactly as compose's is the live chat bus. */
+  readonly roomFans: LiveOnlyChatBusEvent[];
   readonly advance: (ms: number) => void;
 }
 
@@ -143,6 +156,10 @@ export function makeDatabankHarness(db: Db, options: DatabankHarnessOptions = {}
 
   const settings = databankSettingsSchema.parse(options.settings ?? { chunk: {}, retrieval: {} });
   const userEvents: UserEventCall[] = [];
+  const roomFans: LiveOnlyChatBusEvent[] = [];
+  const emitRoomEvent = (event: LiveOnlyChatBusEvent): void => {
+    roomFans.push(event);
+  };
 
   const ctx: DatabankContext = {
     db,
@@ -152,6 +169,12 @@ export function makeDatabankHarness(db: Db, options: DatabankHarnessOptions = {}
     emitUserEvent: (userId: UserId, event: UserBusEvent): void => {
       userEvents.push({ userId, event });
     },
+    // THE ROOM PLANE (#2471) — the REAL compose factories over the real db; only the publish is recorded.
+    emitRoomDatabankChanged: createEmitRoomDatabankChanged(emitRoomEvent),
+    fanDatabankRoomsForDocument: createFanDatabankDocumentRooms(db, emitRoomEvent),
+    fanDatabankRoomsForCharacter: createFanDatabankCharacterRooms(db, emitRoomEvent),
+    fanDatabankRoomsForMember: createFanDatabankMemberRooms(db, emitRoomEvent),
+    captureRoomReachForDelete: createDeleteReachCapture(db, emitRoomEvent).databank,
     assetsStore,
     loadAssetBytes: (assetId) => Promise.resolve(storedBytes.get(assetId)),
     embeddingsStore: embeddings.store,
@@ -187,6 +210,7 @@ export function makeDatabankHarness(db: Db, options: DatabankHarnessOptions = {}
     assetsStore,
     storedBytes,
     userEvents,
+    roomFans,
     advance: (ms) => clock.advance(ms),
   };
 }

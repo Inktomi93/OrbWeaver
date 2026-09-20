@@ -164,11 +164,8 @@ const DOMAIN_FRESHNESS: Readonly<Record<string, FreshnessRow>> = {
   },
   databank: {
     plane: "user-bus:databankChanged",
-    roomReach: {
-      lane: "seated-exempt",
-      why: "SEATED — `chat_documents` FKs `documents.id`, and the per-chat rack IS member-visible. THIS IS A KNOWN GAP, DEFERRED BY OWNER RULING (bridge design §8 + fork F-E, 2026-08-14): an owner RENAME emits only `databankChanged` (editor-only), so co-members see the stale title until reload — and #1734 measured the same gap on the ATTACH/DETACH half, where no room fan is emitted either. The wave shipped the owner-named three kinds; databank is the deferred `bridge` candidate (entity `databank`, reach = the D85 scope junctions). ITS DURABLE TRACKER IS NOT AN ISSUE NUMBER, it is the pair of exact reviewed grants `membership-write-fan:databank-{attach-to-chat,detach-from-chat}` (tooling/src/verify/lib/reviewed-grants-membership-write-fan.ts), each carrying this ruling as its `why` and 'databank joins the bridge' as its `endsWhen` — central liveness reports them stale the day the fan lands, which is also when this arm becomes RED-if-not-updated by the bridge's own tsc belts (#1965: the phantom 'candidate row' this string used to promise never existed as a work item).",
-    },
-    why: "the CRUD/scrape/reindex verbs and the upload terminal emit databankChanged (bus wave 2, 2026-08-14; the four databank STATIC rows were deleted with it).",
+    roomReach: { lane: "bridge", entity: "databank" },
+    why: "the CRUD/scrape/reindex verbs and the upload terminal emit databankChanged (bus wave 2, 2026-08-14; the four databank STATIC rows were deleted with it); the member-visible per-chat rack rides the entity→room bridge as of #2471 (owner ruling 2026-09-20 closed bridge fork F-E — the eight junction/library writes fan roomEntityChanged{entity:'databank'} through entry/compose/room-reach.ts).",
   },
   discovery: {
     plane: "user-bus:corpusRecomputed",
