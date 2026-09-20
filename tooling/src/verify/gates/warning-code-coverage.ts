@@ -165,8 +165,9 @@ function bindsLocalValue(receiver: MorphNode): boolean {
  *  THE FIELD ARM (2026-09-20). Until the `@orb/inference` extraction this reader required a BARE identifier,
  *  with the stated reason that "a member merely named `warnings` does not prove that local binding". The
  *  reason is sound and the narrowing is kept for an IMPORTED member; what changed is the corpus. The package's
- *  body shapers thread the accumulator as a field of their own options object — `args.warnings.push({ code,
- *  message })` at `packages/inference/src/backends/openai-compat/body.ts` — so on the first run after the
+ *  body shapers thread the accumulator as a field of their own options object —
+ *  `args.warnings.push({ code, message })` at `packages/inference/src/backends/openai-compat/body.ts` — so
+ *  on the first run after the
  *  population widening the bare-identifier requirement produced a FALSE ACCUSATION on a live emit
  *  (`reasoning_dropped_for_prefill`). A false accusation on a real emit is not the safe side of this policy's
  *  fail-direction: it pushes an author toward deleting a working warning code. The field arm therefore admits
@@ -238,9 +239,6 @@ function callInSameScope(object: MorphNode): CallExpression | undefined {
  *  ReturnStatement-only test therefore could not see)? */
 function isFunctionResult(object: ObjectLiteralExpression): boolean {
   const parent = object.getParent();
-  if (parent === undefined) {
-    return false;
-  }
   if (Node.isReturnStatement(parent) || Node.isArrowFunction(parent)) {
     return true;
   }
@@ -248,7 +246,7 @@ function isFunctionResult(object: ObjectLiteralExpression): boolean {
     return false;
   }
   const grandparent = parent.getParent();
-  return grandparent !== undefined && (Node.isArrowFunction(grandparent) || Node.isReturnStatement(grandparent));
+  return Node.isArrowFunction(grandparent) || Node.isReturnStatement(grandparent);
 }
 
 /** An EXECUTABLE warning record — never an arbitrary object that happens to carry a `code`. */
@@ -334,8 +332,9 @@ function inEmitScope(candidate: Candidate, channel: Channel): boolean {
 }
 
 /** Every code ONE `code:` initializer can carry. A conditional picks between static spellings at runtime and
- *  BOTH are emitted — `result.ts`'s `isToolFeature(warning.feature) ? "sdk_unsupported_tool" :
- *  "sdk_unsupported_setting"` is the live shape, and it is the ONLY emit site either member has. Reading it
+ *  BOTH are emitted — in `result.ts` the live shape is
+ *  `isToolFeature(warning.feature) ? "sdk_unsupported_tool" : "sdk_unsupported_setting"`, and it is the ONLY
+ *  emit site either member has. Reading it
  *  with a single-value scalar reader answered `undefined` and accused `sdk_unsupported_setting` of being dead
  *  wire on the first run after the population widening. Recursive, so a nested conditional is total too; a
  *  branch that is not a static string contributes nothing rather than silencing its sibling. */
