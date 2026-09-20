@@ -10,7 +10,7 @@ import { DatabankCharacterNotFoundError, DocumentNotFoundError } from "@orb/serv
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../../../../support/db.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
-import { makeDatabankHarness, principalFor, seedCharacter, seedUser } from "../../_support.ts";
+import { makeDatabankHarness, principalFor, seedCharacter, seedChat, seedChatHost, seedRosterCharacter, seedUser } from "../../_support.ts";
 
 test("owner attaches an owned document to an owned character; re-attach idempotent; detach removes it", async () => {
   const db = await freshDb();
@@ -85,4 +85,40 @@ test("listAttachments surfaces the character binding (reverse view)", async () =
   const after = await h.service.listAttachments({ principal: principalFor(owner), id: document.id });
   // NAMED (#276): the card's own name rides the reverse view, so the CONTEXT roster needs no second read.
   expect(after).toEqual({ global: false, chats: [], characters: [{ id: characterId, name: expect.any(String) }] });
+});
+
+// ── #2471 — the CHARACTER-scope room fan ─────────────────────────────────────────────
+// A PRESENT roster character credits its attached documents to every co-member's rack (D85 / DB8), so this
+// junction write is member-visible even though both of its own rows are the caller's. Keyed on the
+// characterId (`chat_participants`, untouched by the write), which is how the detach twin resolves the same
+// rooms after its junction row is gone. A DEPARTED character credits nothing and is not reached.
+test("#2471 a character attach/detach fans the rooms SEATING that character, and not a room it has left", async () => {
+  const db = await freshDb();
+  const h = makeDatabankHarness(db);
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const member = await seedUser(db, { handle: castId<Handle>("member") });
+  const characterId = await seedCharacter(db, owner, { id: "char_seated" });
+  const seated = await seedChat(db, "chat_seated");
+  const departed = await seedChat(db, "chat_departed");
+  await seedChatHost(db, seated, owner);
+  await seedChatHost(db, seated, member, "member");
+  await seedChatHost(db, departed, owner);
+  await seedRosterCharacter(db, seated, characterId);
+  await seedRosterCharacter(db, departed, characterId, 7); // leftSeq set — no longer credits the room
+  const { document } = await h.service.createFromText({ principal: principalFor(owner), name: "d.md", text: "canon" });
+  h.roomFans.length = 0;
+
+  await h.service.attachToCharacter({ principal: principalFor(owner), documentId: document.id, characterId });
+  expect(h.roomFans).toEqual([{ type: "roomEntityChanged", chatId: seated, entity: "databank" }]);
+  const asMember = await h.service.listActiveForChat({ principal: principalFor(member), chatId: seated });
+  expect(asMember.map((row) => row.id)).toEqual([document.id]);
+
+  h.roomFans.length = 0;
+  await h.service.detachFromCharacter({ principal: principalFor(owner), documentId: document.id, characterId });
+  expect(h.roomFans).toEqual([{ type: "roomEntityChanged", chatId: seated, entity: "databank" }]);
+
+  // Idempotent re-detach: no junction row removed, nothing announced.
+  h.roomFans.length = 0;
+  await h.service.detachFromCharacter({ principal: principalFor(owner), documentId: document.id, characterId });
+  expect(h.roomFans).toEqual([]);
 });

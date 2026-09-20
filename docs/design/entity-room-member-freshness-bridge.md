@@ -1,7 +1,7 @@
 ---
 kind: spec
 status: draft
-updated: 2026-09-13
+updated: 2026-09-20
 ---
 
 # Entity→room member-freshness bridge — design + build plan
@@ -358,11 +358,16 @@ two-sided receipts, six-case marker probes and conformance-row retargeting—rem
 - **Presets** (owner word): members never fetch them; a "host changed the model" room notice is ONE
   future `roomEntityChanged`-class emit at the preset write + one client toast row — a product choice,
   not freshness infrastructure. Recorded as the `preset` registry row's `roomReach: none` end condition.
-- **Databank document rename:** the per-chat rack is member-visible and rides `chatUpdated` for
-  membership/visibility (`invalidation.ts:188-198`), but an owner's RENAME emits only `databankChanged`
-  (editor-only) — same defect class. Candidate `bridge` row (`entity: "databank"` + the D85 scope
-  junctions as reach); deferred to keep this wave at the owner-named three. SEATED-red (§7.3) will hold
-  the row honest.
+- **Databank document rename: BUILT (#2471, 2026-09-20) — this bullet is no longer a non-goal.** The
+  owner closed fork F-E ("im not locked in on three"); `databank` joined `ROOM_ENTITY_KINDS` and all EIGHT
+  junction/library writes fan `roomEntityChanged{entity:"databank"}` — the chat-scope attach/detach (the
+  verb holds the `chatId`), the character- and global-scope attach/detach (keyed on the characterId /
+  ownerId, since `chat_participants` survives the write and therefore serves both directions), `rename`
+  (the document's full three-junction reach, resolvable after the write), and `remove` (the §3.6 PRE-WRITE
+  capture — all three D85 junctions CASCADE, so a post-write reach is ∅ always). Reach mirrors
+  `domain/databank/persistence/scope.ts::resolveChatDocumentSources` run backwards; note the deliberate
+  asymmetry with §3.5's world-info global arm, which is HOST-scoped where D85 credits EVERY present human
+  member. The two `membership-write-fan` reviewed grants retired in the same commit.
 - **Regex display scripts:** chat-scoped display-tier scripts can change member-rendered transcript
   bytes (`chat/substrate/regex-tier.ts`); whether script CONTENT edits need a room fan needs its own
   read of the display path. Candidate row; the registry's `regex` row documents the open question in its
@@ -428,7 +433,7 @@ two-sided receipts, six-case marker probes and conformance-row retargeting—rem
 | F-B | Does a bulk quiet window silence the room fan (§5) | (a) yes, coarse terminal per (room, kind) · (b) no, per-item room fans | **(a)** — the W8 storm math applies identically; under-announcing is impossible (the terminal is derived from what was silenced) |
 | F-C | Event grain (§3.3) | (a) one `roomEntityChanged` with an `entity` enum · (b) three members (`seatedCharacterChanged`…) | **(a)** — one seq-guard exemption, one reducer arm, one filter row dispatching a Record over the SAME union the reach table and gate lane key on; (b) triples the coupled sites for zero narrower targeting (filters are path-level either way) |
 | F-D | Migrate the built character fan in LANE 1 (§3.8) | (a) same wave · (b) leave the durable `chatUpdated` fan beside the bridge | **(a)** — (b) double-fans every card edit and keeps the durable-row cost; leaving the old structure beside the new is the banned half-migration |
-| F-E | Databank rename + regex display scripts (§8) | (a) rows in this wave · (b) candidate rows, SEATED-red keeps them honest | **(b)** — owner named three kinds; both candidates need their own read receipts; the gate lane is precisely what stops them rotting silently |
+| F-E | Databank rename + regex display scripts (§8) | (a) rows in this wave · (b) candidate rows, SEATED-red keeps them honest | **RULED (b), THEN REOPENED AND RULED (a) PER KIND.** regex landed as a bridge kind at #1733/#1746; databank landed at #2471 on the owner's 2026-09-20 word "im not locked in on three" — so the wave's three was never a ceiling, and the deferral mechanism (the grants + the `seated-exempt` row) did exactly its job: it made the reopening a deliberate act with a receipt instead of silent rot |
 | F-F | Preset "host changed the model" notice (§8) | (a) never · (b) one emit when the product wants it | **(b) recorded as the row's end condition** — no build now |
 | F-G | Rename `withQuietUserEvents` when it learns room pairs (§5) | (a) rename (`withQuietBulkFanout`) · (b) keep | **(a)** — 3 prod call sites + tests; a name that claims user-only while silencing two planes is a lying comment in function form |
 

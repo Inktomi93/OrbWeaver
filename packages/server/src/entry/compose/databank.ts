@@ -5,6 +5,7 @@
 // (the same predicates chat's own seam wraps). Owns no business logic — it only threads the already-built infra
 // handles + sibling service front doors onto the `DatabankContext`.
 
+import type { LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import { EMBED_SPACE_DIMS, embedDtypeOf, embedSpaceOf } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import type { RoleClientsWithSignal } from "@orb/inference";
@@ -23,6 +24,13 @@ import { fetchWebDocument } from "#infra/network";
 import { requireHost, requireParticipant } from "../../domain/chat/index.ts";
 import { publishUserEvent } from "../../transport/trpc/index.ts";
 import { minter } from "./minter.ts";
+import {
+  createDeleteReachCapture,
+  createEmitRoomDatabankChanged,
+  createFanDatabankCharacterRooms,
+  createFanDatabankDocumentRooms,
+  createFanDatabankMemberRooms,
+} from "./room-reach.ts";
 import { createResolveVisibleRooms } from "./visible-rooms.ts";
 
 /** What the databank seam needs from the composition root: infra handles + the already-built sibling service
@@ -43,6 +51,11 @@ export interface DatabankComposeDeps {
   /** The per-user settings loader — `getDatabankSettings(ownerId)` reads the user's `databank` section
    *  (chunk params for ingest + retrieval params for gather), replacing the schema-default stub. */
   readonly loadUserSettings: SettingsService["loadUserSettings"];
+  /** chat's DURABLE-APPEND-FREE live fan — the entity→room bridge's emit surface (the regex precedent).
+   *  Threaded here for #2471: every databank junction write has a member-visible projection in the rooms
+   *  that credit the document (the D85 rack), and `databankChanged` is a per-USER channel that never
+   *  reaches them. */
+  readonly emitChatEventLive: (event: LiveOnlyChatBusEvent) => void;
 }
 
 /** The databank compose product: the retrieval/producer service + the chunk-embed ingest subsystem. */
@@ -79,6 +92,15 @@ export function buildDatabank(deps: DatabankComposeDeps): DatabankComposeResult 
     // transport, D38): every persisting verb fans `databankChanged`, and the ingest subsystem fans it once
     // per touched owner at a pass terminal (event-bus coverage survey H3).
     emitUserEvent: publishUserEvent,
+    // THE ROOM PLANE (#2471) — the OTHER audience the user bus structurally cannot reach. The resolvers and
+    // their SQL live in `room-reach.ts`; databank declares the ops it needs and knows nothing about the chat
+    // bus or chat's roster tables. Four post-write fans + the pre-write delete capture, one per input the
+    // rack has (the contract's `emitRoomDatabankChanged` doc states which write takes which).
+    emitRoomDatabankChanged: createEmitRoomDatabankChanged(deps.emitChatEventLive),
+    fanDatabankRoomsForDocument: createFanDatabankDocumentRooms(db, deps.emitChatEventLive),
+    fanDatabankRoomsForCharacter: createFanDatabankCharacterRooms(db, deps.emitChatEventLive),
+    fanDatabankRoomsForMember: createFanDatabankMemberRooms(db, deps.emitChatEventLive),
+    captureRoomReachForDelete: createDeleteReachCapture(db, deps.emitChatEventLive).databank,
     assetsStore: deps.assetsStore,
     loadAssetBytes: async (assetId): Promise<Uint8Array | undefined> => (await deps.loadAssetBytes(assetId)) ?? undefined,
     embeddingsStore: embeddings.store,
