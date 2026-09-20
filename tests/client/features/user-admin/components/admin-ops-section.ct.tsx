@@ -14,15 +14,17 @@ test("each ops section stamps its OWN admin anchor (the ids the nav + search jum
   await expect(page.locator("#config-anchor-admin-card-embeddings")).toBeVisible();
 });
 
-test("the catalog refreshers fire their admin-gated verbs", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, {
-    "connection.refreshCatalog": () => ({ ok: true }),
-    "connection.refreshAgentSdkCatalog": () => ({ ok: true }),
-  });
+// ONE refresher since the `@orb/inference` cut-over: the agent-sdk daemon list is warmed under each user's
+// own `claude-sub` row, so `connection.refreshAgentSdkCatalog` is gone and OpenRouter is the only row with an
+// admin-refreshed enriched catalog. The provider id is asserted, not just the call — a refresher that fired
+// against the wrong row would satisfy a count-only pin.
+test("the catalog refresher fires its admin-gated verb for the OpenRouter row", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, { "connection.refreshCatalog": () => ({ ok: true }) });
   const component = await mount(<AdminOpsSectionsStory />);
 
-  await component.getByRole("button", { name: "Refresh model catalog" }).click();
+  await component.getByRole("button", { name: "Refresh OpenRouter catalog" }).click();
   await expect.poll(() => trpc.count("connection.refreshCatalog"), { intervals: [20, 50, 100] }).toBe(1);
+  expect(trpc.lastInput("connection.refreshCatalog")).toEqual({ providerId: "openrouter" });
 });
 
 test("the inline card embed is gated on a non-empty id and sends it verbatim", async ({ mount, page }) => {

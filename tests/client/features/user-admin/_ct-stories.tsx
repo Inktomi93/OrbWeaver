@@ -152,7 +152,6 @@ export function GovernanceSectionsStory(): ReactElement {
   );
 }
 
-/** The Operations SECTION (SET-SEAMS stage 4) in isolation — corpusAutoindex + logLevel. */
 /** The About SECTION in isolation (owner ask 2026-09-18) — `settings.getVersion` on mount and, ONLY on the
  *  button, `settings.checkForUpdate`. Narrow on purpose (480px): the version line and the verdict row live
  *  in the config pane's right column, which is the tightest real mount they get. */
@@ -168,6 +167,7 @@ export function AboutSectionStory(): ReactElement {
   );
 }
 
+/** The Operations SECTION (SET-SEAMS stage 4) in isolation — corpusAutoindex + logLevel. */
 export function OperationsSectionStory(): ReactElement {
   return (
     <CtDataProviders>

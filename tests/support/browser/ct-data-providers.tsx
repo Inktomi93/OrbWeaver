@@ -68,8 +68,11 @@ import { refinerySection } from "@orb/client/features/refinery";
 import { savedRostersModal } from "@orb/client/features/roster-preset";
 import { analyticsSection } from "@orb/client/features/stats";
 import {
+  aboutSection,
+  adminApprovalsSection,
   adminCatalogSection,
   adminEmbeddingsSection,
+  adminLinkSsoSection,
   adminUsersSection,
   mediaTrustSection,
   memoryTuningSection,
@@ -305,12 +308,18 @@ const realSettingsSections: ContributorRegistry<ConfigSectionContribution> = cre
   multiUserSection,
   operationsSection,
   adminUsersSection,
+  // A2/B5 — Approvals and Link-SSO follow Users at the door; they were MISSING here until 2026-09-20 and
+  // the admin pane rendered three sections short in every shell CT (exactly the omission the note above
+  // warns about, realised). `aboutSection` is last at this anchor, by owner ask.
+  adminApprovalsSection,
+  adminLinkSsoSection,
   adminCatalogSection,
   adminEmbeddingsSection,
   memoryTuningSection,
   rateLimitsSection,
   systemTuningSection,
   structuredOutputSection,
+  aboutSection,
   // workloads ← the DECOMPOSED pane (SET-SEAMS stage 3), in the door's render order.
   workloadsJobsSection,
   workloadsSchedulesSection,

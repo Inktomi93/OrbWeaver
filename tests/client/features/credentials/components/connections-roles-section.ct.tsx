@@ -1,380 +1,303 @@
-// CT: Settings → Connections → Model roles, the LIVE-vs-DRAFT contract (the 2026-08-01 owner incident).
-// The pane is autosaved, so what it renders is FORM state: for two hours it showed a full
-// "OpenRouter · Claude Sonnet 5 · Protocol Auto" row under a "Saved" chip while `roleDefaults` was NULL in
-// the DB and every turn resolved the owner fallback. A row must therefore disclose, per row, whether it is
-// showing the persisted connection or an unsaved draft — and name what a turn resolves meanwhile.
+// CT: Settings → Connections → Model roles — one row per ROUTABLE TASK, each a Select over the user's
+// COMPATIBLE connections writing `connection.setBinding`, beside the readout of what a turn resolves TODAY.
 //
-// Drives the PRODUCTION path: the real surface over the real data layer, with the reads + the
-// `settings.updateUserSettingsSection` write stubbed at the network (routeTrpc). The write is GATED (held
-// open) so the drafting states are observable rather than inferred. The bus is absent in CT, so the
-// story's "refetch settings" button stands in for the `settingsChanged` refetch that `busDriven: true`
-// mutations rely on.
+// REWRITTEN at the `@orb/inference` cut-over (2026-09-20). The surface this file used to drive is gone: the
+// autosaved `routing.roleDefaults` blob, the per-role SOURCE picker, the Protocol select, the model cell,
+// the app-default hint and the per-row "drafted vs live" sync chip (`role-slot-row`, `model-picker`,
+// `use-role-source-models`, `use-connections-form` were all deleted). A role is a BINDING to one of the
+// user's own connection rows now, written immediately, and `listBindings` returns one view per routable
+// task carrying what resolves against the PERSISTED read.
+//
+// THE 2026-08-01 OWNER INCIDENT IS STILL THE POINT OF THIS FILE, and the claim survives the rewrite intact:
+// for two hours the pane showed a full "OpenRouter · Claude Sonnet 5" row under a "Saved" chip while the DB
+// held nothing and every turn resolved something else. So the readout must come from the PERSISTED read and
+// never from what the picker is currently showing — pinned below with the write HELD OPEN, which is the only
+// window in which the two can disagree.
+//
+// Drives the PRODUCTION path: the real contributed sections through the config host's own resolver, with
+// every read and the write stubbed at the network (routeTrpc).
 
-import type { ProviderId } from "@orb/contracts/inference";
-import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
-import type { ModelId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { Page } from "@playwright/test";
-import { makeResolvedView } from "../../../../support/factories/resolved-connection.ts";
+import type { Locator, Page } from "@playwright/test";
+// The row labels + render order are read from their ONE home rather than re-typed — a re-spelled literal is
+// how a copy change goes green against a string nobody ships. A deep relative import (the `test-ids.ts`
+// precedent in the sibling key-row CT): this module is pure `.ts`, so it is safe in a node-side CT spec,
+// while the feature's own front door is a barrel that would pull `.tsx` in with it.
+import { ROLE_ROWS_ORDERED } from "../../../../../packages/client/src/features/credentials/lib/connections-model.ts";
 import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ConnectionsSettingsHostedStory, ConnectionsSettingsStory } from "../_ct-stories.tsx";
 
-const SYNC_CHIP = '[data-slot="role-row-sync"]';
-const APP_DEFAULT = '[data-slot="role-app-default"]';
 const AUTOSAVE_STATUS = '[data-slot="autosave-status"]';
-const COMMAND_ITEM = '[data-slot="command-item"]';
-const SAVE_ROUTE = /updateUserSettingsSection/;
+const SET_BINDING_ROUTE = /setBinding/;
 
-const LIVE_MODEL = "anthropic/claude-sonnet-5";
-const DRAFT_MODEL = "openai/gpt-5";
-/** What a SECOND device persists under a live pane — never this session's own pick. */
-const FOREIGN_MODEL = "anthropic/claude-opus-5";
+const CHAT_CONNECTION_ID = "user_connection_ctroles00001";
+const UTILITY_CONNECTION_ID = "user_connection_ctroles00002";
+const EMBED_CONNECTION_ID = "user_connection_ctroles00003";
 
-/** The per-source facade the model cell + status dot read (connection.getModelsForSource). */
-const OR_MODELS = {
-  state: "ok",
-  models: [
-    { id: LIVE_MODEL, label: "Claude Sonnet 5", origin: "catalog" },
-    { id: DRAFT_MODEL, label: "GPT-5", origin: "catalog" },
-  ],
-  fetchedAt: 1_700_000_000_000,
-  defaultModelId: LIVE_MODEL,
-  allowsFreeText: false,
-};
-
-/** The vLLM facade: the engine serves exactly the model it was LAUNCHED with, so the arm carries ONE
- *  config-origin entry and that id is the row's `defaultModelId` (get-models-for-source's vllm arm). */
-const VLLM_MODEL = "Qwen/Qwen3-VL-8B-Instruct";
-const VLLM_MODELS = {
-  state: "ok",
-  models: [{ id: VLLM_MODEL, label: VLLM_MODEL, origin: "config" }],
-  fetchedAt: null,
-  defaultModelId: VLLM_MODEL,
-  allowsFreeText: false,
-};
-
-/** The settings stub's handle: the recorder plus a FOREIGN-write hook (another device/tab moving the stored
- *  row under a live pane — the case that decides whether the disclosure names the CURRENT persisted pair). */
-interface SettingsStub {
-  readonly recorder: TrpcRecorder;
-  readonly setStored: (next: Record<string, unknown>) => void;
-}
-
-/** A stateful stub of the user-settings tier: the write stores the patch, the read serves it back — so the
- *  "did the pane go back to LIVE after the save landed?" arm runs against a real echo, not a scripted one. */
-/** The unconfigured chat default as the SERVER resolves it (resolve-role.ts: chat-completions × local vLLM
- *  for EVERY principal role since #196 — the sub is reached only by picking it) — what the never-saved chat
- *  row names. `resolveFails` scripts the no-chat-connection rejection. */
-const RESOLVED_CHAT = makeResolvedView({ api: "chat-completions", providerId: castId<ProviderId>("vllm"), model: castId<ModelId>(VLLM_MODEL) });
-
-async function stubSettings(page: Page, roleDefaults: Record<string, unknown>, opts: { readonly resolveFails?: boolean } = {}): Promise<SettingsStub> {
-  let stored = roleDefaults;
-  const view = (): unknown => ({
-    userId: "user_ct_connections",
-    schemaVersion: 1,
-    config: { ...DEFAULT_USER_SETTINGS, routing: { roleDefaults: stored } },
-    updatedAt: 0,
-  });
-  const recorder = await routeTrpc(page, {
-    "settings.getUserSettings": () => view(),
-    "sessions.me": () => ({ userId: "user_ct_connections", handle: "owner", globalRole: "owner" }),
-    "credentials.list": () => [],
-    // Per-SOURCE, like the real verb — a vllm row must not be handed the OpenRouter catalog's default.
-    "connection.getModelsForSource": (input: unknown): unknown => ((input as { readonly source: string }).source === "vllm" ? VLLM_MODELS : OR_MODELS),
-    "connection.resolveChatCapability": () => (opts.resolveFails === true ? trpcError({ message: "no chat connection configured" }) : RESOLVED_CHAT),
-    "settings.updateUserSettingsSection": (input: unknown): unknown => {
-      stored = (input as { readonly patch: { readonly roleDefaults: Record<string, unknown> } }).patch.roleDefaults;
-      return view();
-    },
-  });
+/** A `connection.list` row — `UserConnection` plus the two derived fields the pane renders beside it
+ *  (`ConnectionView`: the provider's label and the tasks this row may be bound to). */
+function connectionRow(over: Record<string, unknown>): Record<string, unknown> {
   return {
-    recorder,
-    setStored: (next: Record<string, unknown>): void => {
-      stored = next;
-    },
+    id: CHAT_CONNECTION_ID,
+    ownerId: "user_ct_connections",
+    label: "OpenRouter · Claude Sonnet 5",
+    providerId: "openrouter",
+    providerLabel: "OpenRouter",
+    credentialId: null,
+    baseUrl: null,
+    model: "anthropic/claude-sonnet-5",
+    api: "auto",
+    declared: null,
+    extras: null,
+    transport: null,
+    modelListed: true,
+    allowBackground: true,
+    tasks: ["chat"],
+    createdAt: 0,
+    updatedAt: 0,
+    ...over,
   };
 }
 
-/** Hold `updateUserSettingsSection` open; the returned fn lets it through. Registered AFTER routeTrpc so it
- *  wins the route, then `fallback()`s into the stub once released. */
-async function gateTheSave(page: Page): Promise<() => void> {
+const CHAT_ROW = connectionRow({});
+const UTILITY_ROW = connectionRow({
+  id: UTILITY_CONNECTION_ID,
+  label: "Cheap utility",
+  model: "openai/gpt-5-mini",
+  // The row a background task may NOT be bound to — the inline refusal's subject (§5.3a).
+  allowBackground: false,
+  tasks: ["chat", "summarize", "structured"],
+});
+const EMBED_ROW = connectionRow({
+  id: EMBED_CONNECTION_ID,
+  label: "Local embedder",
+  providerId: "custom-openai",
+  providerLabel: "Your own server",
+  model: "Qwen/Qwen3-VL-Embedding-2B",
+  tasks: ["embed"],
+});
+
+/** One `listBindings` view — one per ROUTABLE task, bound or not. */
+function bindingView(task: string, over: Record<string, unknown> = {}): Record<string, unknown> {
+  return { task, binding: null, resolved: null, unavailableCause: null, ...over };
+}
+
+/** A view whose binding RESOLVES — what a turn runs on today. */
+function resolvedView(task: string, connectionId: string, providerId: string, model: string): Record<string, unknown> {
+  return bindingView(task, {
+    binding: { id: `connection_binding_ct${task}`, actorKind: "user", userId: "user_ct_connections", ruleId: null, pluginId: null, task, connectionId },
+    resolved: { task, connectionId, providerId, model },
+  });
+}
+
+/** Every routable task unbound — the never-configured pane (there is no default connection, §7.2). */
+const UNBOUND = ROLE_ROWS_ORDERED.map((row) => bindingView(row.task));
+
+interface RolesStub {
+  readonly recorder: TrpcRecorder;
+}
+
+async function stubPane(
+  page: Page,
+  opts: {
+    readonly connections?: readonly Record<string, unknown>[];
+    readonly bindings?: readonly Record<string, unknown>[];
+  } = {},
+): Promise<RolesStub> {
+  const recorder = await routeTrpc(page, {
+    "sessions.me": () => ({ userId: "user_ct_connections", handle: "owner", globalRole: "owner" }),
+    "connection.list": () => opts.connections ?? [CHAT_ROW, UTILITY_ROW, EMBED_ROW],
+    "connection.listBindings": () => opts.bindings ?? UNBOUND,
+    "credentials.list": () => [],
+    "connection.setBinding": () => ({ ok: true }),
+  });
+  return { recorder };
+}
+
+/** Hold `connection.setBinding` open; the returned fn lets it through. Registered AFTER routeTrpc so it wins
+ *  the route, then `fallback()`s into the stub once released. */
+async function gateTheWrite(page: Page): Promise<() => void> {
   let release = (): void => undefined;
   const held = new Promise<void>((resolve) => {
     release = resolve;
   });
-  await page.route(SAVE_ROUTE, async (route) => {
+  await page.route(SET_BINDING_ROUTE, async (route) => {
     await held;
     await route.fallback();
   });
   return release;
 }
 
-test("a drafted row says so and names what a turn still resolves; it reads LIVE again only once the save lands", async ({ mount, page }) => {
-  const { recorder } = await stubSettings(page, { chat: { source: "openrouter", model: LIVE_MODEL, api: "chat-completions" } });
-  const release = await gateTheSave(page);
+/** The pane's Select for one role row, by the label the component gives it. */
+function roleSelect(page: Page, label: string): Locator {
+  return page.getByRole("combobox", { name: `${label} connection` });
+}
+
+// Every ROUTABLE task gets a slot — a task with no row is a capability the user can never point anywhere,
+// and the render ORDER is the client's own decision (`ROLE_ROWS_ORDERED`), not the contract tuple's.
+test("every routable task gets a row, in the pane's own render order", async ({ mount, page }) => {
+  await stubPane(page);
+  const component = await mount(<ConnectionsSettingsStory />);
+
+  await expect(component.getByRole("heading", { name: "Model roles" })).toBeVisible();
+  const labels = ROLE_ROWS_ORDERED.map((row) => row.label);
+  await expect(page.getByRole("combobox")).toHaveCount(labels.length);
+  await expect
+    .poll(async () => await page.getByRole("combobox").evaluateAll((nodes) => nodes.map((node) => node.getAttribute("aria-label"))))
+    .toStrictEqual(labels.map((label) => `${label} connection`));
+  // The Utility row's §5.3a copy names all three of its consumers — a cheap text-only model bound here
+  // silently breaks captioning, so the row may not read as "summaries" alone.
+  await expect(page.getByText("Summaries, structured extraction and image captions.", { exact: false })).toBeVisible();
+});
+
+// A slot only ever offers what it can actually use: `connection.tasks` is the compatibility fact, and a row
+// offered for a task it cannot serve is a binding that resolves to nothing on the first turn.
+test("a row offers only the connections that can serve ITS task, plus the unset item", async ({ mount, page }) => {
+  await stubPane(page);
   await mount(<ConnectionsSettingsStory />);
 
-  // The persisted pane: every row IS the live connection, so nothing is disclosed and the status is honest.
-  await expect(page.getByRole("button", { name: "Chat model" })).toContainText("Claude Sonnet 5");
-  await expect(page.locator(SYNC_CHIP)).toHaveCount(0);
-  await expect(page.locator(AUTOSAVE_STATUS).first()).toHaveText("Saved");
+  await roleSelect(page, "Chat").click();
+  // chat: the chat row and the utility row (both carry `chat`), never the embed-only row.
+  await expect(page.getByRole("option", { name: "OpenRouter · Claude Sonnet 5 · anthropic/claude-sonnet-5" })).toBeVisible();
+  await expect(page.getByRole("option", { name: "Cheap utility · openai/gpt-5-mini" })).toBeVisible();
+  await expect(page.getByRole("option", { name: /Local embedder/ })).toHaveCount(0);
+  // A REQUIRED row's unset item says "Not set"; the optional (vector-space) rows say "None" — leaving one
+  // unset means search reads nothing, which is not the same sentence as "no default".
+  await expect(page.getByRole("option", { name: "Not set" })).toBeVisible();
+  await page.keyboard.press("Escape");
 
-  // Pick a different model — an edit, not a save.
-  await page.getByRole("button", { name: "Chat model" }).click();
-  await page.locator(COMMAND_ITEM).filter({ hasText: "GPT-5" }).click();
+  await roleSelect(page, "Image embedding").click();
+  await expect(page.getByRole("option", { name: "None" })).toBeVisible();
+});
 
-  // THE PIN: the row immediately admits it is a draft AND names the connection turns still use. The pane
-  // header may not read "Saved" while a draft is on screen (the phantom the owner debugged from).
-  await expect(page.locator(SYNC_CHIP)).toHaveCount(1);
-  await expect(page.locator(SYNC_CHIP)).toContainText(`a turn still uses OpenRouter · ${LIVE_MODEL}`);
-  await expect(page.locator(AUTOSAVE_STATUS).first()).not.toHaveText("Saved");
+// §5.3a — the SLOT is the first enforcement point for `canFund`: a background task on a row whose
+// `allowBackground` is off is refused INLINE, with the reason, at authoring time. Otherwise a user binds
+// Utility to a row that cannot fund it and ten consumers go quietly silent.
+test("a background task refuses a row with background work off — disabled, with the reason as its description", async ({ mount, page }) => {
+  await stubPane(page);
+  await mount(<ConnectionsSettingsStory />);
 
-  // ONE WORD ACROSS BOTH PHASES, from #81 P0 onward. This block used to read "Unsaved" here and escalate to
-  // "Saving…" once the debounce fired into the held mutation — the row saw the RAW driver lifecycle, whose
-  // `saved` during a queued write is the very lie the factory fold now kills (`foldSaveState`), so a drifted
-  // row can no longer be handed `saved` at all. The bit that is gone is queued-vs-in-flight, a ~500ms label
-  // nuance; what the chip is FOR — "not applied yet, a turn still uses X" — is unchanged and asserted above,
-  // and the row now speaks the same word as the header, which this pane's own header comment names as the
-  // goal ("two homes and two wordings for one fact"). The `pending`/"Unsaved" arm this test pinned as
-  // surviving "for the just-landed/echo-pending frame" was retired in #85: the `save` echo seeds `persisted`
-  // from the SAME mutation resolution that re-baselines the session, so that frame never occurs in this
-  // wired pane — drifted+`saved` is now a `null` render, not a label.
-  await expect(page.locator(SYNC_CHIP)).toContainText("Saving…");
-  await expect(page.locator(AUTOSAVE_STATUS).first()).toHaveText("Saving…");
+  await roleSelect(page, "Utility model").click();
+  const refused = page.getByRole("option", { name: "Cheap utility · openai/gpt-5-mini" });
+  await expect(refused).toBeDisabled();
+  await expect(refused).toHaveAccessibleDescription("This connection doesn't allow background work — turn it on to use it here.");
+  await page.keyboard.press("Escape");
 
-  // Let the write through, then replay the bus-driven settings refetch.
+  // The SAME row on an attended task is bindable — the refusal is about the task's spend, not the row.
+  await roleSelect(page, "Chat").click();
+  await expect(page.getByRole("option", { name: "Cheap utility · openai/gpt-5-mini" })).toBeEnabled();
+});
+
+test("picking a connection writes EXACTLY that task's binding", async ({ mount, page }) => {
+  const { recorder } = await stubPane(page);
+  await mount(<ConnectionsSettingsStory />);
+
+  await roleSelect(page, "Text embedding").click();
+  await page.getByRole("option", { name: "Local embedder · Qwen/Qwen3-VL-Embedding-2B" }).click();
+
+  await expect
+    .poll(() => recorder.lastInput("connection.setBinding"), { intervals: [20, 50, 100] })
+    .toEqual({ task: "embed", connectionId: EMBED_CONNECTION_ID });
+  // One row's pick is one write — a slot that patched its neighbours would be the roleDefaults blob again.
+  expect(recorder.count("connection.setBinding")).toBe(1);
+});
+
+// THE 2026-08-01 INCIDENT, re-pointed at the surface that replaced it. That pane rendered FORM state, so an
+// in-flight (or never-landed) pick was painted as though it were live. This one has no form state at all:
+// BOTH the picker's value and the readout come from the persisted `listBindings`, and the row goes
+// non-interactive while its write is in flight. So the phantom's whole window is closed by construction —
+// held write, so the window is observable rather than inferred, and this arm pins that the row says exactly
+// ONE thing during it.
+test("nothing in the row moves ahead of the write — the pick is never painted as live", async ({ mount, page }) => {
+  await stubPane(page, { bindings: [resolvedView("chat", CHAT_CONNECTION_ID, "openrouter", "anthropic/claude-sonnet-5"), ...UNBOUND.slice(1)] });
+  const release = await gateTheWrite(page);
+  await mount(<ConnectionsSettingsStory />);
+
+  const persisted = page.getByText("A turn uses openrouter · anthropic/claude-sonnet-5.");
+  const chat = roleSelect(page, "Chat");
+  await expect(persisted).toBeVisible();
+  await expect(chat).toContainText("OpenRouter · Claude Sonnet 5");
+
+  await chat.click();
+  await page.getByRole("option", { name: "Cheap utility · openai/gpt-5-mini" }).click();
+
+  // IN FLIGHT: the trigger is disabled (no second pick can race the first) and it still names the PERSISTED
+  // row — not the one just clicked. The readout agrees with it, because both read the same persisted view.
+  await expect(chat).toBeDisabled();
+  await expect(chat).toContainText("OpenRouter · Claude Sonnet 5");
+  await expect(chat).not.toContainText("Cheap utility");
+  await expect(persisted).toBeVisible();
+
   release();
-  await expect.poll(() => recorder.count("settings.updateUserSettingsSection")).toBe(1);
-  // @orb-waive ct-no-oneshot-live-read-assert(expect): the poll above settled the recorder at exactly one recorded call — this reads THAT input.
-  expect(recorder.lastInput("settings.updateUserSettingsSection")).toMatchObject({
-    section: "routing",
-    patch: { roleDefaults: { chat: { source: "openrouter", model: DRAFT_MODEL, api: "chat-completions" } } },
+});
+
+// The unconfigured pane has no default to name (§7.2 — there is no default connection), and it must SAY so
+// rather than rendering a blank that reads like a value.
+test("an unbound row says a turn uses nothing, and names no model", async ({ mount, page }) => {
+  await stubPane(page);
+  await mount(<ConnectionsSettingsStory />);
+
+  await expect(page.getByText("A turn uses nothing — no connection is set.").first()).toBeVisible();
+  await expect(page.getByText("A turn uses nothing — no connection is set.")).toHaveCount(ROLE_ROWS_ORDERED.length);
+});
+
+// A binding that no longer resolves is NOT healed away and NOT rendered as if it worked: the row keeps the
+// selection, names the CAUSE in words, and badges it. Silently showing the picked row would send the reader
+// looking for a bug in the model instead of at their own unreachable server.
+test("a bound row that cannot resolve names its cause, and badges it", async ({ mount, page }) => {
+  await stubPane(page, {
+    bindings: [
+      bindingView("chat", {
+        binding: {
+          id: "connection_binding_ctchat",
+          actorKind: "user",
+          userId: "user_ct_connections",
+          ruleId: null,
+          pluginId: null,
+          task: "chat",
+          connectionId: CHAT_CONNECTION_ID,
+        },
+        unavailableCause: "endpoint-unreachable",
+      }),
+      ...UNBOUND.slice(1),
+    ],
   });
-  await page.getByRole("button", { name: "refetch settings" }).click();
-
-  // Persisted at last: the disclosure retires itself and the pane reads Saved — the row IS the truth again.
-  await expect(page.locator(SYNC_CHIP)).toHaveCount(0);
-  await expect(page.locator(AUTOSAVE_STATUS).first()).toHaveText("Saved");
-});
-
-// THE 2026-08-02 STUCK-CHIP REGRESSION. The pane's whole honesty is computed against `settings.
-// getUserSettings`, and the write that invalidates it is `busDriven: true` — so before this pin the
-// disclosure could only retire when a `settingsChanged` bus tick came back and refetched the read. With the
-// user-bus stream dropped/late (a reconnect gap, a coalesced invalidate), the owner's five 200-OK saves left
-// the row stuck on "Not applied yet — a turn still uses OpenRouter · anthropic/claude-sonnet-…" over a
-// selection the DB already held, and the pane's status stuck on "Saving…". A confirmed write is strictly
-// newer than the snapshot it was computed from: the pane must trust its own landed save. NO refetch is
-// replayed here — that is the point of the test.
-test("a landed save retires the disclosure with NO refetch — a persisted selection is never called 'not applied'", async ({ mount, page }) => {
-  const { recorder } = await stubSettings(page, { chat: { source: "openrouter", model: LIVE_MODEL, api: "chat-completions" } });
   await mount(<ConnectionsSettingsStory />);
 
-  await page.getByRole("button", { name: "Chat model" }).click();
-  await page.locator(COMMAND_ITEM).filter({ hasText: "GPT-5" }).click();
-  // The drafted-row barrier (its word is "Saving…" from #81 P0 on — see the block in the test above).
-  await expect(page.locator(SYNC_CHIP)).toContainText("Saving…");
-
-  await expect.poll(() => recorder.count("settings.updateUserSettingsSection")).toBe(1);
-
-  await expect(page.locator(SYNC_CHIP)).toHaveCount(0);
-  await expect(page.locator(AUTOSAVE_STATUS).first()).toHaveText("Saved");
-  await expect(page.getByRole("button", { name: "Chat model" })).toContainText("GPT-5");
+  await expect(page.getByText("A turn uses nothing — endpoint-unreachable.")).toBeVisible();
+  await expect(page.getByText("endpoint-unreachable", { exact: true })).toBeVisible();
+  // …and the picker still shows the row the user chose — the store's value, never a healed substitute.
+  await expect(roleSelect(page, "Chat")).toContainText("Claude Sonnet 5");
 });
 
-// The disclosure's OTHER failure direction: naming a stale pair. "A turn still uses X" is a claim about the
-// SERVER's row right now, so it must track the live read — never the snapshot the editing session mounted
-// on. A second device moving the stored row under a dirty pane must re-aim the sentence at the new pair.
-test("a drafted row names the CURRENT persisted pair, not the baseline its session mounted on", async ({ mount, page }) => {
-  const { setStored } = await stubSettings(page, { chat: { source: "openrouter", model: LIVE_MODEL, api: "chat-completions" } });
-  const release = await gateTheSave(page);
-  await mount(<ConnectionsSettingsStory />);
-
-  await page.getByRole("button", { name: "Chat model" }).click();
-  await page.locator(COMMAND_ITEM).filter({ hasText: "GPT-5" }).click();
-  await expect(page.locator(SYNC_CHIP)).toContainText(`a turn still uses OpenRouter · ${LIVE_MODEL}`);
-
-  // Another device rewrites the row; the pane's read refetches while this session's edit is still in flight.
-  setStored({ chat: { source: "openrouter", model: FOREIGN_MODEL, api: "chat-completions" } });
-  await page.getByRole("button", { name: "refetch settings" }).click();
-
-  await expect(page.locator(SYNC_CHIP)).toContainText(`a turn still uses OpenRouter · ${FOREIGN_MODEL}`);
-  // Still a draft (the held save never landed) — the disclosure re-aimed, it did not retire.
-  await expect(page.getByRole("button", { name: "Chat model" })).toContainText("GPT-5");
-  release();
-});
-
-// The other half of the incident — the owner picked a model and hit REFRESH — is NOT closed by a flush: a
-// reload never unmounts React, and a `pagehide` handler was measured to dispatch nothing before teardown
-// (create-autosave-entity-form.tsx documents the rejection). What IS closed is the honesty: a reload mid-edit
-// re-seeds from the server, and the pane shows the PERSISTED row, never the lost draft dressed as saved.
-test("a reload mid-edit shows the persisted connection again — the lost draft is not re-rendered as live", async ({ mount, page }) => {
-  await stubSettings(page, { chat: { source: "openrouter", model: LIVE_MODEL, api: "chat-completions" } });
-  await mount(<ConnectionsSettingsStory />);
-
-  await page.getByRole("button", { name: "Chat model" }).click();
-  await page.locator(COMMAND_ITEM).filter({ hasText: "GPT-5" }).click();
-  // The drafted-row barrier (its word is "Saving…" from #81 P0 on — see the first test's block).
-  await expect(page.locator(SYNC_CHIP)).toContainText("Saving…");
-
-  await page.reload();
-  await mount(<ConnectionsSettingsStory />);
-
-  await expect(page.getByRole("button", { name: "Chat model" })).toContainText("Claude Sonnet 5");
-  await expect(page.locator(SYNC_CHIP)).toHaveCount(0);
-});
-
-// THE PROTOCOL-PAIR TURN-BREAKER. `(api, source)` is ONE selection server-side: `assertCoherent`
-// (resolve-role.ts) THROWS on an incoherent pair at turn time. Switching the source used to clear only the
-// MODEL, so OpenRouter × agent-sdk → vLLM persisted `{api:"agent-sdk", source:"vllm"}` — a chat that could
-// not take a turn — while the picker healed the display to "Auto" and showed nothing wrong.
-test("switching the source re-derives the protocol in the SAME patch — no incoherent pair is ever persisted", async ({ mount, page }) => {
-  const { recorder } = await stubSettings(page, { chat: { source: "openrouter", model: LIVE_MODEL, api: "agent-sdk" } });
-  await mount(<ConnectionsSettingsStory />);
-  await expect(page.getByRole("combobox", { name: "Chat protocol" })).toContainText("Agent SDK");
-
-  await page.getByRole("combobox", { name: "Chat provider" }).click();
-  await page.getByRole("option", { name: "Local vLLM (GPU)" }).click();
-
-  // The display and the store agree: vLLM cannot take agent-sdk, so the protocol is genuinely cleared.
-  await expect(page.getByRole("combobox", { name: "Chat protocol" })).toContainText("Auto");
-  await expect.poll(() => recorder.count("settings.updateUserSettingsSection")).toBe(1);
-  // @orb-waive ct-no-oneshot-live-read-assert(expect): the poll settled the recorder at exactly one recorded call — this reads THAT input.
-  expect(recorder.lastInput("settings.updateUserSettingsSection")).toMatchObject({
-    section: "routing",
-    patch: { roleDefaults: { chat: { source: "vllm", model: null, api: null } } },
-  });
-});
-
-// The display half of the same pin: the picker renders the STORED protocol, never a healed stand-in. The old
-// `value={legal ? stored : ""}` fallback is exactly why the incoherent pair survived unnoticed — the pane
-// read "Auto" over a store that held agent-sdk. Data written before the fix must SHOW its illegal pair.
-test("an incoherent stored pair is displayed, not healed away — the picker never shows a value the store lacks", async ({ mount, page }) => {
-  await stubSettings(page, { chat: { source: "vllm", model: "", api: "agent-sdk" } });
-  await mount(<ConnectionsSettingsStory />);
-
-  const protocol = page.getByRole("combobox", { name: "Chat protocol" });
-  await expect(protocol).toContainText("Agent SDK");
-  await expect(protocol).toContainText("not supported by this provider");
-  // No draft chip: nothing was edited — the pane is faithfully showing what the server holds.
-  await expect(page.locator(SYNC_CHIP)).toHaveCount(0);
-});
-
-// THE MODEL-PAIR TURN-BREAKER (the owner's live row, 2026-07-31). `{source:"vllm",
-// model:"anthropic/claude-sonnet-5"}` 404s every local turn — and the pane showed nothing wrong: the static
-// vllm cell rendered the STORED id under a "server config" chip, so a foreign pin read as the engine's own
-// configuration. The cell now renders what a turn actually SENDS (the configured model, which is what the
-// resolver heals to) and calls the ignored pin out by name, so the store is on screen either way.
-test("a stored model a server-configured source cannot serve is NOT rendered as the server config", async ({ mount, page }) => {
-  await stubSettings(page, { chat: { source: "vllm", model: LIVE_MODEL, api: "chat-completions" } });
-  await mount(<ConnectionsSettingsStory />);
-
-  const chatRow = page.locator('[data-slot="role-slot-row"]').first();
-  // What a turn sends — the engine's launch model, never the pin.
-  await expect(chatRow).toContainText(VLLM_MODEL);
-  // The pin is disclosed, not silently displayed-as-truth.
-  const pinAlert = chatRow.locator('[data-slot="ignored-model-pin"]');
-  await expect(pinAlert).toBeVisible();
-  await expect(pinAlert).toContainText(LIVE_MODEL);
-  await expect(pinAlert).toContainText("only serves its configured model");
-});
-
-test("a config-derived row with NO stored pin shows the configured model plainly — no false alarm", async ({ mount, page }) => {
-  await stubSettings(page, { chat: { source: "vllm", model: "", api: "chat-completions" } });
-  await mount(<ConnectionsSettingsStory />);
-
-  const chatRow = page.locator('[data-slot="role-slot-row"]').first();
-  await expect(chatRow).toContainText(VLLM_MODEL);
-  await expect(chatRow.locator('[data-slot="ignored-model-pin"]')).toHaveCount(0);
-});
-
-test("a NEVER-SAVED pane does not read as configured — the rows name the app default, not a selection", async ({ mount, page }) => {
-  // roleDefaults NULL in the DB: exactly the owner's 08:43–10:27 state.
-  await stubSettings(page, {});
-  await mount(<ConnectionsSettingsStory />);
-
-  await expect(page.getByText("Uses the app default").first()).toBeVisible();
-  // Nothing is drafted, so nothing is disclosed — and no row claims a provider/model it never had.
-  await expect(page.locator(SYNC_CHIP)).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Chat model" })).toHaveCount(0);
-});
-
-// "Uses the app default" named NOTHING: the pane that configures the connection could not tell the owner
-// which connection a turn would actually take. The chat row now names the RESOLVER's answer
-// (`connection.resolveChatCapability` — the caller's own resolution, identity included).
-test("the never-saved CHAT row NAMES the resolved fallback a turn would use", async ({ mount, page }) => {
-  await stubSettings(page, {});
-  await mount(<ConnectionsSettingsStory />);
-
-  // api × source × model, exactly as the server resolved it (the story's stub: the shipped born default —
-  // local vLLM on chat-completions, #196). The model prints through `modelDisplayName` (the org prefix goes).
-  await expect(page.locator(APP_DEFAULT).first()).toHaveText("Uses the app default: Local vLLM (GPU) · Qwen3-VL-8B-Instruct · Chat Completions");
-  // The roles with no such one-hop read stay honest rather than guess — they name nothing.
-  await expect(page.locator(APP_DEFAULT).last()).toHaveText("Uses the app default");
-});
-
-test("an unresolvable chat connection degrades to the bare line — never a fabricated name", async ({ mount, page }) => {
-  await stubSettings(page, {}, { resolveFails: true });
-  await mount(<ConnectionsSettingsStory />);
-
-  await expect(page.locator(APP_DEFAULT).first()).toHaveText("Uses the app default");
-});
-
-// ── side-eye 2026-08-06 ────────────────────────────────────────────────────────────────────────────
-// P3: the resolved chat default is the ONE informative hint on this pane, and it was `truncate`d — in the
-// real settings modal it read "…Claude subscription (host) · cl…" (the default of the day), eating the model name, which is the whole
-// reason the row resolves anything. The text is in the DOM either way (`truncate` clips by overflow), so the
-// assertion above cannot see it; this reads the RESOLVED property that decides whether it can clip at all.
-test("the resolved app-default hint WRAPS — it is the one line on this pane that must be readable in full", async ({ mount, page }) => {
-  await stubSettings(page, {});
-  await mount(<ConnectionsSettingsStory />);
-
-  const hint = page.locator(APP_DEFAULT).first();
-  await expect(hint).toBeVisible();
-  await expect(hint).not.toHaveCSS("white-space", "nowrap");
-  await expect(hint).not.toHaveCSS("text-overflow", "ellipsis");
-});
-
-// P3: the chat row's Protocol sub-select sat ~40px right of the six source selects it belongs under — the
-// one control on the pane that did not line up, because the sub-row inset by the label column and THEN spent
-// the word "Protocol" out of the source column's width.
-test("the chat row's Protocol select shares the SOURCE column's left edge", async ({ mount, page }) => {
-  await stubSettings(page, { chat: { source: "openrouter", model: LIVE_MODEL, api: "chat-completions" } });
-  await mount(<ConnectionsSettingsStory />);
-
-  const source = page.getByRole("combobox", { name: "Chat provider" });
-  const protocol = page.getByRole("combobox", { name: "Chat protocol" });
-  await expect(source).toBeVisible();
-  await expect(protocol).toBeVisible();
-  const [sourceBox, protocolBox] = await Promise.all([source.boundingBox(), protocol.boundingBox()]);
-  expect(sourceBox).not.toBeNull();
-  expect(protocolBox).not.toBeNull();
-  expect(sourceBox === null || protocolBox === null ? 999 : Math.abs(sourceBox.x - protocolBox.x)).toBeLessThan(1.5);
-});
-
-// P2: under an aggregate save-status HOST (how the settings shell mounts every pane) this one used to add a
-// SECOND home and a second wording for "Saved" — a bare chip top-right against the shell's one bottom-left
-// "Saved · Synced across your devices." It now REPORTS through the §3 seam: nothing inline at rest, and the
-// aggregate carries the state. The unhosted arm (every test above) is unchanged — a section with no host
-// still renders its own status, which is what the seam's degrade arm is for.
-test("hosted: Model roles reports into the aggregate instead of painting its own 'Saved'", async ({ mount, page }) => {
-  await stubSettings(page, { chat: { source: "openrouter", model: LIVE_MODEL, api: "chat-completions" } });
+// P2, RE-DERIVED: this pane used to add a SECOND home and a second wording for "Saved" (a bare chip
+// top-right against the shell's one bottom-left "Saved · Synced across your devices."). Every role write is
+// an immediate mutation now, so the pane has no save state of its own to report at all. HONESTLY LABELLED —
+// this is a FENCE, not a defect proof: it passes on today's tree by construction. What it guards is the
+// re-introduction of a per-section status chip at this anchor.
+test("hosted: the Connections pane paints no save status of its own", async ({ mount, page }) => {
+  await stubPane(page, { bindings: [resolvedView("chat", CHAT_CONNECTION_ID, "openrouter", "anthropic/claude-sonnet-5"), ...UNBOUND.slice(1)] });
   await mount(<ConnectionsSettingsHostedStory />);
 
   // Barrier on a SETTLED rendered arm of the pane before reading the status seam.
-  await expect(page.getByRole("button", { name: "Chat model" })).toContainText("Claude Sonnet 5");
-  await expect(page.getByTestId("aggregate")).toHaveText("saved");
+  await expect(page.getByText("A turn uses openrouter · anthropic/claude-sonnet-5.")).toBeVisible();
+  await expect(page.getByTestId("aggregate")).toHaveText("none");
   await expect(page.locator(AUTOSAVE_STATUS)).toHaveCount(0);
 });
 
-// P2: two "Add key" primaries in one viewport — the section header's and the empty state's — 60px apart,
-// neither obviously the next click. The empty state owns the verb while there is nothing to list.
-test("with no keys saved there is exactly ONE 'Add key' — the empty state's", async ({ mount, page }) => {
-  await stubSettings(page, {});
+// P2, RE-DERIVED: two primaries of the same verb in one viewport, ~60px apart, neither obviously the next
+// click. The "Add key" pair is gone with the keys section's add affordance (a key is minted from the
+// connection form now), so the live instance of the same claim is the Connections list's "Add connection":
+// the empty state owns the verb while there is nothing to list.
+test("with nothing saved there is exactly ONE 'Add connection' — the empty state's", async ({ mount, page }) => {
+  await stubPane(page, { connections: [] });
   await mount(<ConnectionsSettingsStory />);
 
   // EmptyState's title is a `<p>`, not a heading — barrier on the settled empty arm before the count.
+  await expect(page.getByText("No connections yet", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Add connection" })).toHaveCount(1);
+  // And the saved-key view offers no add at all — its empty state teaches where a key comes from instead.
   await expect(page.getByText("No keys yet", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Add key" })).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Add key" })).toHaveCount(0);
 });

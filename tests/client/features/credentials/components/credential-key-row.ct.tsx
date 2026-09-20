@@ -3,11 +3,12 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { testId } from "../../../../../packages/client/src/lib/test-ids.ts";
-import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import {
   CredentialKeyRowStory,
   CustomCredentialKeyRowStory,
   ReasonlessRevokedCredentialKeyRowStory,
+  ReusedCredentialKeyRowStory,
   RevokedCredentialKeyRowStory,
   UnreachableRevokedCredentialKeyRowStory,
   UserRevokedCredentialKeyRowStory,
@@ -59,35 +60,36 @@ test("mark-revoked is confirm-gated: cancel fires nothing, confirm fires credent
   expect((trpc.lastInput("credentials.markRevokedByUser") as { credentialId: string }).credentialId).toBe("user_credential_ctstory0001");
 });
 
-test("a custom_openai row's Test button fires the honest credentials.testHealth probe, never fetchModels", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, {
-    "credentials.testHealth": () => ({ status: "ok", checkedAt: 0 }),
-  });
-
+// THE HEALTH PROBE LEFT THIS ROW (`@orb/inference` cut-over, 2026-09-20). "Saved keys" is the read-only
+// REUSE view now (§5.3a): a key is minted inline from the connection form, and a health probe is a property
+// of the CONNECTION that dials (`connection.probe`), never of the key alone — there is nothing on a bare
+// credential to dial. So the two `credentials.testHealth` specs are DELETED (subject gone) rather than
+// re-pointed, and what replaces them pins what the row BECAME: its reuse line, and the absence of the three
+// affordances that left (no Test, no Set active, no Add).
+test("the row names its provider and how many connections reuse the key", async ({ mount, page }) => {
   await mount(<CustomCredentialKeyRowStory />);
 
-  await page.getByRole("button", { name: "Test", exact: true }).click();
-  await expect.poll(() => trpc.lastInput("credentials.testHealth"), { intervals: [20, 50, 100] }).toEqual({ credentialId: "user_credential_ctstory0002" });
-  // @orb-waive ct-no-oneshot-live-read-assert(expect): the code path completed (testHealth's input was polled to arrival above), so this 'never fired' fetchModels count is settled (#SID-01/#9 — the reachability shortcut is retired).
-  expect(trpc.count("credentials.fetchModels")).toBe(0);
-  await expect(page.getByText("ok", { exact: true })).toBeVisible();
+  await expect(page.getByText("custom-openai · used by 0 connections")).toBeVisible();
 });
 
-test("a rejected health probe keeps an explicit error and retry affordance", async ({ mount, page }) => {
-  let attempts = 0;
-  const trpc = await routeTrpc(page, {
-    "credentials.testHealth": () => {
-      attempts += 1;
-      return trpcError({ message: "provider unavailable" });
-    },
-  });
+test("the reuse count reads as a SENTENCE at one — a key used by 1 connection never says '1 connections'", async ({ mount, page }) => {
+  await mount(<ReusedCredentialKeyRowStory />);
 
+  await expect(page.getByText("openrouter · used by 1 connection")).toBeVisible();
+});
+
+// Stated POSITIVELY so a re-add is caught: these three affordances are gone from the ROW on purpose, and a
+// row that grew one back would otherwise only be noticed as a surprise in the pane.
+test("the row offers no Test, no Set active and no Add — a key is minted from the connection form", async ({ mount, page }) => {
   await mount(<CredentialKeyRowStory />);
-  await page.getByRole("button", { name: "Test", exact: true }).click();
-  await expect(page.getByRole("alert")).toContainText("Test failed");
-  await page.getByRole("button", { name: "Retry" }).click();
-  await expect.poll(() => trpc.count("credentials.testHealth"), { intervals: [20, 50, 100] }).toBe(2);
-  expect(attempts).toBe(2);
+
+  await expect(page.getByRole("button", { name: "Test", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Set active", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Add key", exact: true })).toHaveCount(0);
+  // …and the affordances that STAYED are still there, so the assertions above are a claim about the row's
+  // contents rather than about a row that failed to render at all.
+  await expect(page.getByTestId(testId("credentialMarkRevoked"))).toBeVisible();
+  await expect(page.getByRole("button", { name: "Remove the prod key key" })).toBeVisible();
 });
 
 // #1373 — WHY the key is revoked, not just THAT it is. The bare Revoked chip could not tell a key the

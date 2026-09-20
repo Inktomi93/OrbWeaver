@@ -85,29 +85,7 @@ const APP_CONFIG = {
   memoryDefaults: {},
   memorySummarizer: {},
   rateLimits: { login: 10, aiTurn: 10, publicIp: 50, authed: 200 },
-  vllmConcurrency: { embed: 4, summarize: 2 },
   agentSdkConcurrency: { summarize: 4 },
-  engineLaunch: {
-    embedModel: "Qwen/Qwen3-VL-Embedding-2B",
-    rerankModel: "Qwen/Qwen3-VL-Reranker-2B",
-    genModel: "Qwen/Qwen3-VL-8B-Instruct",
-    embedMaxModelLen: 8192,
-    rerankMaxModelLen: 8192,
-    genMaxModelLen: 32_768,
-    embedGpuUtil: 0.14,
-    rerankGpuUtilMulti: 0.16,
-    rerankGpuUtilSingle: 0.22,
-    genGpuUtilMulti: 0.28,
-    genGpuUtilSingle: 0.5,
-    poolingMaxPixels: 1_843_200,
-    genMaxPixels: 4_194_304,
-    genRepetitionPenalty: 1.05,
-    genPresencePenalty: 1.5,
-  },
-  allowNonOwnerLocalCompute: true,
-  nonOwnerLocalComputeBudget: null,
-  nonOwnerLocalComputeBudgetWindowMs: 86_400_000,
-  allowNonOwnerMaxProSub: false,
   localMultiUser: false,
   discreetLogin: false,
   maxImageBytes: 5_000_000,
@@ -115,6 +93,7 @@ const APP_CONFIG = {
   promptTransformDeadlineMs: 250,
   catalogRefreshIntervalMs: 86_400_000,
   imageVariantQuality: 80,
+  promptCacheMinDepth: 0,
   structuredOutputShape: "as-projected",
 };
 const OWNER_VIEWER = { userId: "user_owner", handle: "owner", globalRole: "owner" };
@@ -148,6 +127,13 @@ const HOST_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
   "workloads.list": [],
   "workloads.listSchedules": [],
   "connection.resolveChatCapability": makeResolvedView(),
+  // The Connections group's three sections (list · model roles · saved keys) all suspend on these two —
+  // unfed, `routeTrpc` answers them `null`, which is not a view, and the whole group runs INERT behind a
+  // QueryErrorState while the LIST band outside the boundary still passes (#629 / the unfed-read ratchet).
+  "connection.list": [],
+  "connection.listBindings": [],
+  // About (last at the `admin` anchor) suspends on the version identity.
+  "settings.getVersion": { version: "0.4.1", commit: "823d76f4343a1cea086b17a1b5bf212b44c17a7d", short: "823d76f4343a", source: "checkout" },
   "plugin.list": [],
   "plugin.listDistributed": [],
   "automation.listOwnerRules": [],
@@ -250,7 +236,10 @@ test("renders the four shelves as NAMED groups, labelled by their own kicker, wi
   await expect(list.getByRole("group", { exact: true, name: "Extensions" })).toBeVisible();
   // The bands live INSIDE their shelf, which is the whole point — a group nobody is in is decoration.
   await expect(list.getByRole("group", { exact: true, name: "User" }).getByRole("button", { name: "Appearance" })).toBeVisible();
-  await expect(list.getByRole("group", { exact: true, name: "App" }).getByRole("button", { name: "Connections" })).toBeVisible();
+  // Connections is a USER-shelf group since the `@orb/inference` cut-over (every row is the member's own,
+  // §5.3a) — it sits beside Personas / Appearance / Chat behavior, not beside Automation and Admin.
+  await expect(list.getByRole("group", { exact: true, name: "User" }).locator(`${BAND}[data-config-group="connections"]`)).toBeVisible();
+  await expect(list.getByRole("group", { exact: true, name: "App" }).getByRole("button", { name: "Automation" })).toBeVisible();
   await expect(list.getByRole("group", { exact: true, name: "Extensions" }).getByRole("button", { name: "Plugins" })).toBeVisible();
 });
 
@@ -324,9 +313,13 @@ test("the active group expands into its section rows; an untouched sibling's row
   await expect(component.getByRole("button", { name: "Reading typography", exact: true })).toBeVisible();
   // Connections was never opened → none of its rows are painted.
   await expect(component.getByRole("button", { name: "Model roles", exact: true })).toHaveCount(0);
-  await component.getByRole("button", { name: "Connections", exact: true }).click();
+  // The BAND by slot, not by name: the group's FIRST section row is itself called "Connections" since the
+  // cut-over (§5.3a's connection rows lead the group), so the accessible name resolves to both the band and
+  // that row the moment the group is open — a strict-mode violation, not a defect.
+  const connectionsBand = component.locator(`${BAND}[data-config-group="connections"]`);
+  await connectionsBand.click();
   await expect(component.getByRole("button", { name: "Model roles", exact: true })).toBeVisible();
-  await expect(component.getByRole("button", { name: "Connections", exact: true })).toHaveAttribute("aria-expanded", "true");
+  await expect(connectionsBand).toHaveAttribute("aria-expanded", "true");
   // …and Appearance, opened by the deep link, is REMEMBERED open beside it (C-12), no longer active.
   await expect(component.getByRole("button", { name: "Avatars", exact: true })).toBeVisible();
   await expect(component.getByRole("button", { name: "Appearance", exact: true })).toHaveAttribute("aria-expanded", "true");
@@ -384,7 +377,6 @@ test("Admin absorbed the System sections; Connections and Automation are real gr
   await stub(page, {
     "sessions.me": () => OWNER_VIEWER,
     "admin.listUsers": () => [],
-    "admin.vllmEngines": () => ({}),
   });
   const component = await mount(<ConfigHostStory />);
 
@@ -393,30 +385,23 @@ test("Admin absorbed the System sections; Connections and Automation are real gr
   await expect(component.getByRole("heading", { name: "Media & trust" })).toBeVisible();
   await expect(component.locator("#config-anchor-admin-media-trust")).toBeVisible();
 
-  // Connections → the real role-slot + key-library sections, at connections-keyed anchors.
-  await component.getByRole("button", { name: "Connections" }).click();
+  // Connections → the real connection-list + role-slot + key-library sections, at connections-keyed anchors.
+  // Clicked by SLOT: the group's first section row carries the group's own word (see the disclosure test).
+  await component.locator(`${BAND}[data-config-group="connections"]`).click();
   await expect(component.getByRole("heading", { name: "Model roles" })).toBeVisible();
   await expect(component.locator("#config-anchor-connections-model-roles")).toBeVisible();
   await expect(component.getByRole("heading", { name: "Saved keys" })).toBeVisible();
-  // The OWNER-only host-Claude probe is a `when`-gated section: present for this owner viewer, in the LIST
-  // and in the body alike (one predicate, three consumers).
-  await expect(component.getByRole("heading", { name: "Host Claude" })).toBeVisible();
-  await expect(component.getByRole("button", { name: "Host Claude" })).toBeVisible();
+  await expect(component.locator("#config-anchor-connections-connections")).toBeVisible();
 
   await component.getByRole("button", { name: "Automation" }).click();
   await expect(component.getByText(AUTOMATION_GLOSS)).toBeVisible();
 });
 
-// The §6.8 `when` on the host-Claude section: a plain user gets neither its LIST row nor its heading — the old
-// `surface` rendered `null` for a non-owner under a row that scrolled to nothing.
-test("a plain user sees NO Host Claude row and no Host Claude section on Connections", async ({ mount, page }) => {
-  await stub(page);
-  const component = await mount(<ConfigHostStory target="connections" />);
-
-  await expect(component.getByRole("heading", { name: "Model roles" })).toBeVisible();
-  await expect(component.getByRole("button", { name: "Host Claude" })).toHaveCount(0);
-  await expect(component.getByRole("heading", { name: "Host Claude" })).toHaveCount(0);
-});
+// THE HOST-CLAUDE SECTION IS DELETED (`@orb/inference` cut-over, 2026-09-20): `claude-sub` is a PROVIDER a
+// member picks on their own connection now, not an owner-gated probe pane, so the spec that pinned its
+// `when` parity ("a plain user sees NO Host Claude row and no Host Claude section") is deleted with its
+// subject rather than re-pointed. The `when`-parity CLAIM itself is not orphaned — the Plugins group's
+// Distribute section pins both sides of the same one-predicate-three-consumers rule further down this file.
 
 // The admin gate (the group's `when` — UX honesty over the server's adminProcedure floor): the Admin band
 // exists ONLY for owner ∪ admin viewers.
@@ -492,13 +477,14 @@ test("an admin viewer sees the Admin band and it mounts the REAL group", async (
   await stub(page, {
     "sessions.me": () => ({ userId: "user_admin", handle: "admin", globalRole: "admin" }),
     "admin.listUsers": () => [],
-    "admin.vllmEngines": () => ({}),
   });
   const component = await mount(<ConfigHostStory />);
 
   await component.getByRole("button", { name: "Admin" }).click();
   await expect(component.getByRole("button", { name: "Users" })).toBeVisible();
-  await expect(component.getByRole("button", { name: "Engines" })).toBeVisible();
+  // "Engines" left the pane with the in-server vLLM fleet; "Model catalog" is the surviving contributed row
+  // this arm names — the claim (the band mounts the REAL group, not an empty shell) is unchanged.
+  await expect(component.getByRole("button", { name: "Model catalog" })).toBeVisible();
 });
 
 // The deep-link-to-when-gated-group race: a COLD `openConfigTo("admin")` resolves while the non-suspense
@@ -508,7 +494,6 @@ test("a deep link to a when-gated group lands on it once the viewer probe resolv
   await stub(page, {
     "sessions.me": () => ({ userId: "user_admin", handle: "admin", globalRole: "admin" }),
     "admin.listUsers": () => [],
-    "admin.vllmEngines": () => ({}),
   });
   const component = await mount(<ConfigHostStory target="admin" />);
 
@@ -756,7 +741,6 @@ test("no section row clips at the LIST column, in ANY group", async ({ mount, pa
   await stub(page, {
     "sessions.me": () => OWNER_VIEWER,
     "admin.listUsers": () => [],
-    "admin.vllmEngines": () => ({}),
   });
   const component = await mount(<ConfigHostStory />);
   const list = component.getByRole("region", { name: LIST_REGION });
