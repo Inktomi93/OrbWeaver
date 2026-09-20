@@ -6,6 +6,8 @@ import { Button } from "@orb/ui/button";
 import { ListRow } from "@orb/ui/list-row";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Page } from "@playwright/test";
+import type { ReactElement } from "react";
 
 test("clickable body is a NATIVE <button> element (side-eye item 13), not a role='button' div", async ({ mount, page }) => {
   await mount(<ListRow clickable={true} title="Elara" />);
@@ -378,6 +380,109 @@ test("a FLOATED cluster is inert over the text at rest and comes live on the row
   await page.locator('[data-slot="list-row-root"]').hover();
   await expect(kebab).toHaveCSS("pointer-events", "auto");
   expect(await hitAt()).toBe("button");
+});
+
+// ── #2486: THE STACKING ARM, AND THE PROOF THAT IT IS A **CONTAINER** QUERY ──────────────────────────
+// A row whose controls are REST-VISIBLE cannot buy its identity any width by hiding them (that is
+// `actionsFloat`, above). Below ~2x the cluster's own width the name and the cluster stop fitting on one
+// line and the NAME is what loses — measured on the connections pane at the 486px settings body, where a
+// 52-character label truncated to "local-light · encoder · jinaai…" while the switch beside it spelled its
+// own label in full. `stackActions` drops the cluster to its own line instead (`list.html` Board D: "the
+// 486 arm is a STACK, not a squeeze").
+//
+// THE TWO ARMS ARE MOUNTED AT THE SAME VIEWPORT, ON PURPOSE. The threshold is the ROW'S box, not the
+// window's: the same settings pane is ~830px wide with one panel open and ~440px with two, at ONE viewport
+// size. A `@media` rule cannot tell those apart, so an identical-viewport pair is the only thing that
+// distinguishes a container query from a viewport one — a media-query implementation makes both arms agree
+// and fails this test. The container ancestor is not assumed either: `list-row`'s own root declares
+// `@container/list-row`, which this asserts before reading any geometry.
+const STACK_CLUSTER = (
+  <>
+    <Button aria-label="Star" intent="ghost" size="icon" />
+    <Button aria-label="Actions" intent="ghost" size="icon" />
+  </>
+);
+
+/** One `stackActions` row at an EXACT mounted width — the narrowest real production mount, not a
+ *  content-sized root (a content-sized root agrees with the bug). */
+function stackedRowAt(width: number): ReactElement {
+  return (
+    <div style={{ width }}>
+      <ListRow
+        actions={STACK_CLUSTER}
+        clickable={true}
+        stackActions={true}
+        subtitle="OpenRouter · anthropic/claude-sonnet-5 · key “work”"
+        title="OpenRouter · Claude Sonnet 5 · anthropic/claude-sonnet-5"
+      />
+    </div>
+  );
+}
+
+/** The mounted row's stacking geometry. STACKED means the cluster's box starts below the identity block's,
+ *  which is the rendered fact the arm is about; `spread` is the gap between the cluster's FIRST and LAST
+ *  control — the mock's stacked line is "left-aligned switch + right-aligned kebab", so a stacked cluster
+ *  that hugs its own start edge is the wrong rendering even though it stacked. */
+function stackGeometry(page: Page): Promise<{ stacked: boolean; identityWidth: number; actionsWidth: number; spread: number }> {
+  return page.locator('[data-slot="list-row-root"]').evaluate((root: HTMLElement) => {
+    const body = root.querySelector('[data-slot="list-row-body"]');
+    const actions = root.querySelector('[data-slot="list-row-actions"]');
+    if (body === null || actions === null) {
+      return { stacked: false, identityWidth: 0, actionsWidth: 0, spread: 0 };
+    }
+    const bodyBox = body.getBoundingClientRect();
+    const actionsBox = actions.getBoundingClientRect();
+    const controls = [...actions.children].map((child) => child.getBoundingClientRect());
+    const first = controls.at(0);
+    const last = controls.at(-1);
+    const spread = first === undefined || last === undefined ? 0 : last.right - first.left;
+    return { stacked: actionsBox.top >= bodyBox.bottom, identityWidth: bodyBox.width, actionsWidth: actionsBox.width, spread };
+  });
+}
+
+test("stackActions drops the cluster to its own line by the ROW's width, not the viewport's", async ({ mount, page }) => {
+  // THE ANCESTOR PREMISE: a container query with no `container-type` ancestor never matches and would make
+  // both arms below read "inline" — a false clean. The row's own root IS the container.
+  const narrow = await mount(stackedRowAt(440));
+  await expect(page.locator('[data-slot="list-row-root"]')).toHaveCSS("container-type", "inline-size");
+
+  const viewport = page.viewportSize();
+  const stackedGeometry = await stackGeometry(page);
+  expect(stackedGeometry.stacked, "a 440px row must put its controls on their own line").toBe(true);
+  // …and the identity gets the WHOLE line, which is the point: it no longer competes with the cluster for
+  // width at all. Both boxes are the row's full width because they are on lines of their own.
+  expect(stackedGeometry.identityWidth).toBeGreaterThan(400);
+  expect(stackedGeometry.actionsWidth).toBe(stackedGeometry.identityWidth);
+  // …and the cluster SPANS that line — left-aligned first control, right-aligned last, which is what the
+  // mock's stacked arm draws. A stacked cluster hugging its own start edge stacks and still reads wrong:
+  // MEASURED on the isolated stage before this was pinned, the connections row's kebab sat glued to the
+  // switch's gloss because the caller had wrapped both in ONE child and `justify-between` had nothing to
+  // push apart.
+  expect(stackedGeometry.spread).toBeCloseTo(stackedGeometry.actionsWidth, 0);
+  await narrow.unmount();
+
+  // THE SAME VIEWPORT, A WIDER ROW. Nothing about the window changed between these two mounts — only the
+  // box the row was given.
+  await mount(stackedRowAt(700));
+  expect(page.viewportSize(), "the viewport must be IDENTICAL across the pair or this proves nothing").toStrictEqual(viewport);
+  const inline = await stackGeometry(page);
+  expect(inline.stacked, "a 700px row keeps its controls on the identity's line").toBe(false);
+  expect(inline.identityWidth).toBeLessThan(700);
+  // …and the inline cluster is INTRINSIC — the controls stay adjacent at the row's end rather than being
+  // pushed apart, so the wide arm is untouched by the stacked arm's `justify-between`.
+  expect(inline.spread).toBeCloseTo(inline.actionsWidth, 0);
+  expect(inline.actionsWidth).toBeLessThan(200);
+});
+
+// THE ARM IS OPT-IN: a row that did not ask for it keeps the shipped in-flow cluster at every width, so
+// landing this variant cannot restyle the nine list surfaces that never mentioned it.
+test("a row WITHOUT stackActions never stacks, at the same 440px box", async ({ mount, page }) => {
+  await mount(
+    <div style={{ width: 440 }}>
+      <ListRow actions={STACK_CLUSTER} clickable={true} subtitle="the pitch" title="Elara" />
+    </div>,
+  );
+  expect((await stackGeometry(page)).stacked).toBe(false);
 });
 
 // A RESERVED in-flow cluster is a sibling OUTSIDE the body, so the default body-painted hover tint stops

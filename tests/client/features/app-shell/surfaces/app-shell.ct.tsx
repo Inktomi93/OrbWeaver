@@ -3837,6 +3837,12 @@ function installDoorSampler(page: Page): Promise<void> {
     // @orb-waive no-test-fabrication(unknown): a browser-context probe slot, written and read in this block alone. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const bag = globalThis as unknown as { __doorXs: Record<string, number>[] };
     bag.__doorXs = [];
+    /** One box's WIDTH, or NaN when it is not on the page — the two width readings below share it so the
+     *  sampler stays inside its complexity budget with the #2474 pane reading added. */
+    const widthOf = (selector: string): number => {
+      const el = document.querySelector(selector);
+      return el === null ? Number.NaN : Math.round(el.getBoundingClientRect().width);
+    };
     const tick = (): void => {
       if (bag.__doorXs.length > 60) {
         return;
@@ -3846,8 +3852,11 @@ function installDoorSampler(page: Page): Promise<void> {
         const el = document.querySelector(selector);
         frame[name] = el === null ? Number.NaN : Math.round(el.getBoundingClientRect().x * 10) / 10;
       }
-      const mainEl = document.querySelector(".shell-main");
-      frame["mainWidth"] = mainEl === null ? Number.NaN : Math.round(mainEl.getBoundingClientRect().width);
+      frame["mainWidth"] = widthOf(".shell-main");
+      // #2474: the LIST pane's own WIDTH. Every other number in this frame is an `x`, and an x cannot see
+      // this defect at all — the pane is anchored to the rail, so its start edge does not move when its
+      // width does; the change lands on the trailing edge.
+      frame["listPanelWidth"] = widthOf('.shell-panel[data-panel-side="list"]');
       bag.__doorXs.push(frame);
       requestAnimationFrame(tick);
     };
@@ -3865,6 +3874,8 @@ function readDoorBoxes(page: Page): Promise<Record<string, number>> {
     }
     const mainEl = document.querySelector(".shell-main");
     frame["mainWidth"] = mainEl === null ? Number.NaN : Math.round(mainEl.getBoundingClientRect().width);
+    const listEl = document.querySelector('.shell-panel[data-panel-side="list"]');
+    frame["listPanelWidth"] = listEl === null ? Number.NaN : Math.round(listEl.getBoundingClientRect().width);
     return frame;
   }, DOOR_BOXES);
 }
@@ -4105,6 +4116,151 @@ test.describe("#2456 the shell doors on a coarse pointer", () => {
       const census = await driveDoor(shell, page, leg);
       expect(census.samples.length, `the rAF sampler must have run on "${leg}" at coarse`).toBeGreaterThan(2);
       assertDoorHeld(census, `${leg} @coarse`, boxes);
+    }
+  });
+});
+
+// ── #2474: THE COLLAPSING LIST PANE KEEPS THE WIDTH IT HAD ───────────────────────────────────────────
+// The #2463 census found it and #2456 left it STATED: a collapsing LIST pane swapped its docked (squeezed)
+// width for the unsqueezed `--panel-w` in the same frame its exit transition started — the box GREW 35px at
+// 1280x800 as it began to leave. The pane is anchored to the rail, so that change lands on its TRAILING
+// edge, which is why the whole `DOOR_BOXES` census above is blind to it: every other number there is an `x`,
+// and this pane's `x` is correct throughout. The ring now carries `listPanelWidth` for exactly that reason.
+//
+// THE DEFECT IS A WIDTH, SO THE FIX IS NOT A COUNTER-TRANSLATE. Nothing can cancel a reflow from outside
+// (shell.css says so for the band's action, one box over); what CAN be done is to stop making the change at
+// that moment — the exiting pane holds `--list-collapsed-w-was` and the regime change happens after the
+// animation, off-screen. Against the unmodified shell.css the first leg below reports 307 against a 272
+// rest on its first flipped frame.
+
+/** The FLIP's contract for the LIST pane's own WIDTH: the frame the track resized in still shows the width
+ *  the pane had, and nothing afterwards leaves the corridor between the two resting widths. */
+function assertListPaneWidthHeld(census: { rest: Record<string, number>; samples: Record<string, number>[]; end: Record<string, number> }, leg: string): void {
+  const { rest, samples, end } = census;
+  const ring = samples.map((sample) => sample["listPanelWidth"]).join(" ");
+  const restWidth: number | undefined = rest["mainWidth"];
+  const flipIndex = samples.findIndex((sample) => Math.abs((sample["mainWidth"] ?? Number.NaN) - (restWidth ?? Number.NaN)) > 2);
+  expect(flipIndex, `the ring must contain the frame the track resized in on "${leg}" — pane widths ${ring}`).toBeGreaterThan(-1);
+  // The annotations are load-bearing for the same reason the `restWidth` one above is: `noUncheckedIndexedAccess`
+  // makes these `number | undefined` for tsc while biome's own type service does not model the flag and calls
+  // the coalesce unreachable. Stating the type makes the two agree.
+  const restPaneRead: number | undefined = rest["listPanelWidth"];
+  const endPaneRead: number | undefined = end["listPanelWidth"];
+  const restPane = restPaneRead ?? Number.NaN;
+  const endPane = endPaneRead ?? Number.NaN;
+  expect(
+    Math.abs((samples[flipIndex]?.["listPanelWidth"] ?? Number.NaN) - restPane),
+    `the LIST pane changed WIDTH on the first painted frame of "${leg}" (rest ${restPane}, frame ${samples[flipIndex]?.["listPanelWidth"]}) — ring ${ring}`,
+  ).toBeLessThanOrEqual(2);
+  const low = Math.min(restPane, endPane) - 2;
+  const high = Math.max(restPane, endPane) + 2;
+  const strays = samples
+    .slice(flipIndex)
+    .map((sample) => sample["listPanelWidth"] ?? Number.NaN)
+    .filter((width) => width < low || width > high);
+  expect(strays, `the LIST pane left its ${low}…${high} width corridor on "${leg}": ${strays.join(", ")} — ring ${ring}`).toEqual([]);
+}
+
+/** `--panel-w` resolved to REAL px by the engine (it is a `round()` expression, so `parseFloat` of the
+ *  custom property's own computed value is NaN). The probe is absolute so it moves no geometry. */
+function panelClampPx(page: Page): Promise<number> {
+  return page.locator(".shell-grid").evaluate((grid: HTMLElement) => {
+    const probe = grid.ownerDocument.createElement("div");
+    probe.style.position = "absolute";
+    probe.style.paddingTop = "var(--panel-w)";
+    grid.append(probe);
+    const px = Number.parseFloat(getComputedStyle(probe).paddingTop);
+    probe.remove();
+    return px;
+  });
+}
+
+test("#2474 a collapsing LIST pane keeps its squeezed width for the whole exit, and re-enters at it", async ({ mount, page }) => {
+  await page.setViewportSize(WIDE);
+  await emulateMediaFeatures(page, [
+    ["prefers-reduced-motion", "no-preference"],
+    ["prefers-reduced-transparency", "no-preference"],
+    ["prefers-contrast", "no-preference"],
+  ]);
+  const shell = await mount(<AppShellTrackDoorsStory />);
+  await landDoorsStory(shell, page);
+  // BOTH DOCKED is the state this is about: with only the list docked its track IS the clamp, the pane's
+  // width never changes across the door, and every assertion below would be a fence over a point.
+  await driveDoor(shell, page, "Show details");
+  await expect(page.locator('.shell-panel[data-panel-side="context"]')).toHaveAttribute("data-panel-mode", "docked");
+
+  // THE NON-VACUITY PREMISE, MEASURED RATHER THAN ASSUMED: the docked pane must really be narrower than the
+  // clamp it used to swap to, or there is no width step for this arm to catch.
+  const clamp = await panelClampPx(page);
+  const docked = (await readDoorBoxes(page))["listPanelWidth"] ?? Number.NaN;
+  expect(docked, `the #242 squeeze must be live here (pane ${docked} vs clamp ${clamp}) or this arm is a fence`).toBeLessThan(clamp - 2);
+
+  for (const leg of ["Hide list panel", "Show list panel"] as const) {
+    const census = await driveDoor(shell, page, leg);
+    assertListPaneWidthHeld(census, leg);
+    // …and the pane's ENTRANCE CORNER is the same fix's other half: it reads the width the collapsed pane
+    // RESTED at, so docking from a squeezed layout no longer starts a whole squeeze too far out.
+    assertDoorHeld(census, leg, LIST_DOOR_BOXES);
+  }
+});
+
+// THE OWNER'S OWN APPEARANCE, and a `rem`-based media query cannot see it: every shell dimension grows with
+// the root font, so the squeeze, the clamp and the crossover all move together at `--font-scale: 1.25`.
+// 1680 for the same reason the #2456 rem-20 arm uses it — at 1280 the context pane resolves to an overlay
+// and there is no both-docked layout to leave.
+test("#2474 the exit width holds at rem 20, where the clamp and the squeeze have both moved", async ({ mount, page }) => {
+  await page.setViewportSize(WIDE_REM20);
+  await emulateMediaFeatures(page, [
+    ["prefers-reduced-motion", "no-preference"],
+    ["prefers-reduced-transparency", "no-preference"],
+    ["prefers-contrast", "no-preference"],
+  ]);
+  await routeTrpc(page, {
+    ...SHELL_AMBIENT_ROUTES,
+    "settings.getUserSettings": () => ({
+      userId: "user_ct_shell_list_exit_scale",
+      schemaVersion: 1,
+      config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, fontScale: 1.25 } },
+      updatedAt: 0,
+    }),
+  });
+  const shell = await mount(<AppShellTrackDoorsStory />);
+  await landDoorsStory(shell, page);
+  await expect
+    .poll(() => page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).fontSize)), { intervals: [20, 50, 100] })
+    .toBeCloseTo(UA_ROOT_PX * 1.25, 0);
+  await driveDoor(shell, page, "Show details");
+  await expect(page.locator('.shell-panel[data-panel-side="context"]')).toHaveAttribute("data-panel-mode", "docked");
+
+  const clamp = await panelClampPx(page);
+  const docked = (await readDoorBoxes(page))["listPanelWidth"] ?? Number.NaN;
+  expect(docked, `the squeeze must be live at rem 20 (pane ${docked} vs clamp ${clamp}) or this arm is a fence`).toBeLessThan(clamp - 2);
+
+  for (const leg of ["Hide list panel", "Show list panel", "Enter focus mode"] as const) {
+    assertListPaneWidthHeld(await driveDoor(shell, page, leg), `${leg} @rem20`);
+  }
+});
+
+// THE COARSE ARM. The doors are width-driven rather than pointer-driven, so this is a FENCE — for the
+// regression where a touch-only floor changes an intrinsic width and with it the premise the hold rests on.
+test.describe("#2474 the list pane's exit width on a coarse pointer", () => {
+  test.use({ hasTouch: true });
+
+  test("#2474 the collapsing pane holds its width with touch emulation on", async ({ mount, page }) => {
+    await page.setViewportSize(WIDE);
+    await emulateMediaFeatures(page, [
+      ["prefers-reduced-motion", "no-preference"],
+      ["prefers-reduced-transparency", "no-preference"],
+      ["prefers-contrast", "no-preference"],
+    ]);
+    const coarse = await page.evaluate(() => matchMedia("(pointer: coarse)").matches);
+    expect(coarse, "hasTouch must flip the coarse-pointer branch — otherwise this arm measures nothing new").toBe(true);
+    const shell = await mount(<AppShellTrackDoorsStory />);
+    await landDoorsStory(shell, page);
+    await driveDoor(shell, page, "Show details");
+
+    for (const leg of ["Hide list panel", "Show list panel"] as const) {
+      assertListPaneWidthHeld(await driveDoor(shell, page, leg), `${leg} @coarse`);
     }
   });
 });

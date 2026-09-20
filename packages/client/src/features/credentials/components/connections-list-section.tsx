@@ -46,12 +46,6 @@ type ConnectionListItem = inferOutput<Trpc["connection"]["list"]>[number];
 type BindingView = inferOutput<Trpc["connection"]["listBindings"]>[number];
 type CredentialListItem = inferOutput<Trpc["credentials"]["list"]>[number];
 
-/** The ROW width below which the background switch drops its visible gloss (its accessible name keeps the
- *  whole sentence). Measured, not guessed: the 486 settings body renders this row at ~440px, and at 870 it
- *  renders at ~830 — so the crossover sits between them and the label is present at one end and gone at the
- *  other. `ListRow` observes the row's own box, which is what a container query would key on. */
-const COLLAPSE_SWITCH_LABEL_BELOW_PX = 520;
-
 export function ConnectionsListSection(): ReactElement {
   return (
     // RESERVED (#1098) — a config section that settles into one row per connection.
@@ -205,16 +199,25 @@ function ConnectionRow({
         onClick={(): void => onEdit(connection.id)}
         title={name}
         subtitle={subtitle}
-        // THE ROW'S NAME OUTRANKS THE SWITCH'S GLOSS BELOW ~480px (measured: at the 486 settings body the
-        // in-flow cluster truncated the identity to "local-light · encoder · jinaai…" while spelling the
-        // switch's label in full — snap `config_to_connections`, 486x1700). The gloss is the one element
-        // here that is REDUNDANT: the Switch's own accessible name already carries "Allow background work
-        // on <connection>", so dropping the visible text costs a screen-reader user nothing and buys the
-        // name ~130px. Nothing else in the cluster collapses — a control that disappears is a capability
-        // that disappears.
-        collapseBelow={COLLAPSE_SWITCH_LABEL_BELOW_PX}
-        renderActions={(collapsed): ReactElement => (
-          <Row gap="field" align="center">
+        // THE ROW STACKS INSTEAD OF SQUEEZING (#2486). Dropping the switch's visible gloss below ~480px
+        // bought the name ~130px and still was not enough: a 52-character auto-minted label truncated to
+        // "local-light · encoder · jinaai…" at the 486 settings body (snap `config_to_connections`,
+        // 486x1700) while the cluster beside it kept its full intrinsic width — which is why the CT could
+        // only pin "the identity is never narrower than its controls" rather than the layout. `list.html`
+        // Board D answers with a STACK: identity full width, switch and kebab on their own line, the switch
+        // keeping its shipped silhouette and its label "on a single line beside it". So the gloss comes back
+        // at every width and the name never yields to its own controls. The mechanism is the PRIMITIVE's
+        // (`@container/list-row` on the row's own box), never this call site's — every list surface in the
+        // app has this shape and three of them solving it three ways is the drift `ListRow` exists to
+        // prevent.
+        // TWO SIBLINGS IN THE SLOT, NOT ONE WRAPPER ROW, AND THAT IS THE STACK'S DOING. The `actions` slot
+        // is itself the flex row (`gap-field`, `items-center`), so an outer `<Row>` here rendered
+        // identically inline — and in the STACKED arm it collapsed the slot to ONE child, which makes
+        // `justify-between` a no-op: MEASURED on the isolated stage at 486x1700, the kebab sat glued to the
+        // switch's gloss instead of at the row's end, where Board D draws it.
+        stackActions={true}
+        actions={
+          <>
             <Row gap="field" align="center">
               <Switch
                 aria-label={switchName}
@@ -222,11 +225,9 @@ function ConnectionRow({
                 disabled={update.isPending}
                 onCheckedChange={(checked): void => update.mutate({ connectionId: connection.id, patch: { allowBackground: checked } })}
               />
-              {collapsed ? null : (
-                <Text voice="gloss" as="span">
-                  {switchLabel}
-                </Text>
-              )}
+              <Text voice="gloss" as="span">
+                {switchLabel}
+              </Text>
             </Row>
             <RowActionsMenu
               label={`More actions for ${name}`}
@@ -251,8 +252,8 @@ function ConnectionRow({
                 </Text>
               </MenuItem>
             </RowActionsMenu>
-          </Row>
-        )}
+          </>
+        }
       />
       <ConnectionBadges connection={connection} />
     </Stack>

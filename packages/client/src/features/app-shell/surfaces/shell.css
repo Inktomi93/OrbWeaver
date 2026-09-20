@@ -331,6 +331,33 @@
     var(--context-docked-was) *
     (var(--panel-context-w) + var(--list-docked-was) * (var(--both-docked-context-track) - var(--panel-context-w)))
   );
+  /* THE COLLAPSED LIST PANE'S WIDTH, IN BOTH LAYOUTS (#2474). The two tracks above are 0 for a pane that is
+   * not docked, which is exactly right for a TRACK and useless for the PANE: a collapsed list pane still has
+   * a width, it is simply out of the grid. That width is the same conditional the docked track uses — the
+   * clamp, or the #242 squeezed width when the context pane is docked — so it is spelled with the same 0/1
+   * product, once per layout. `--list-track-docked` IS the `now` arm (the mode rule below sets it off the
+   * same `[data-context-mode="docked"]` attribute that publishes `--context-docked`, so the two can never
+   * disagree), and this is its `was` twin.
+   *
+   * WHAT IT IS FOR: a collapsing list pane USED TO swap its squeezed docked width for the unsqueezed clamp
+   * in the same frame its exit transition started — the pane is anchored to the rail, so that change lands
+   * on its TRAILING edge, 35px of width appearing at 1280x800 exactly as the box began to leave (#2463's
+   * census named it and left it stated). It is not a translate and no counter can cancel it; what CAN be
+   * done is to stop making the change at that moment at all. The rule below holds the exiting pane at the
+   * width it had, and the regime change happens after the animation, fully off-screen.
+   *
+   * IT IS ALSO THE PANE'S ENTRANCE CORNER. The collapsed pane rests at `-(its own width)` (inset `--rail-w`
+   * plus `translateX(-100% - --rail-w)`), so the FLIP that docks it must start there — and `--panel-w` was
+   * that corner only while the context pane was undocked. With context docked the old spelling threw the
+   * entrance a full squeeze too far out, the same class of error as the `-100%` spelling it replaced. */
+  --list-collapsed-w-was: calc(var(--panel-w) + var(--context-docked-was) * (var(--both-docked-list-track) - var(--panel-w)));
+  /* WHAT THE COLLAPSED PANE ACTUALLY WEARS. At rest it is the `now` arm — which is `--list-track-docked`
+   * itself, because that var is the same conditional resolved off the same `[data-context-mode="docked"]`
+   * attribute. The `out` rule below swaps in the `was` arm for the one commit where the two disagree: the
+   * FOCUS door undocks BOTH panes together, so by the time this pane starts leaving the `now` arm has
+   * already stopped being squeezed. Gated on the LIST's own direction because that is the only one where
+   * this pane has a previous width at all (docking, it is in `docked` mode and wears its track). */
+  --list-panel-collapsed-w: var(--list-track-docked);
 
   /* ── THE COMPOSED `from` CORNERS, ONE PER ALIGNMENT CLASS ──────────────────────────────────────────
    * `.shell-main` holds its old START edge — which is the rail plus the LIST track, so its whole travel
@@ -420,13 +447,18 @@
    * its `--context-track-was` of 0 would otherwise throw it a full width further off-screen.
    *
    * The LIST pane's is NOT a track difference: collapsed it is translated `-100% - --rail-w` from the
-   * rail, so it rests at `-(--panel-w)` (its CLAMP width, not the squeezed track) and docks at
-   * `--rail-w`. The distance is therefore the clamp plus the rail — which the old `-100%` spelling
-   * under-stated by exactly the rail on every dock, and by the squeeze as well whenever the context pane
-   * was docked (measured: it entered from -251 and from -216 against a true -307). `max(0, dir)` makes
-   * it a DOCKING-only corner: the undock direction rests at 0 here and is carried by the collapsed
-   * mode's own transform transition. */
-  --list-panel-flip-from: calc(-1 * max(0, var(--list-flip-dir)) * (var(--panel-w) + var(--rail-w)));
+   * rail, so it rests at `-(its collapsed width)` and docks at `--rail-w`. The distance is therefore that
+   * width plus the rail — which the old `-100%` spelling under-stated by exactly the rail on every dock
+   * (measured: it entered from -251 and from -216 against a true -307). `max(0, dir)` makes it a
+   * DOCKING-only corner: the undock direction rests at 0 here and is carried by the collapsed mode's own
+   * transform transition.
+   *
+   * THE WIDTH IS `--list-collapsed-w-was`, NOT `--panel-w` (#2474). The clamp is the collapsed pane's width
+   * only while the CONTEXT pane is undocked; with both panes in play the pane rests at its #242 squeezed
+   * width, and naming the clamp threw the entrance a whole squeeze further out than the corner it was
+   * supposed to hold. The `was` arm is the one that answers on the FOCUS door too, where the context pane's
+   * own mode changes in the very commit whose old layout this has to name. */
+  --list-panel-flip-from: calc(-1 * max(0, var(--list-flip-dir)) * (var(--list-collapsed-w-was) + var(--rail-w)));
   --context-panel-flip-from: calc((100% - var(--context-track-was)) * max(var(--context-docked), var(--context-docked-was)));
 }
 .shell-grid[data-context-mode="docked"] {
@@ -500,6 +532,13 @@
 }
 .shell-grid:is([data-context-flip="out"], [data-context-settle="out"]) {
   --context-flip-dir: -1;
+}
+/* THE EXIT-WIDTH HOLD (#2474), declared beside the signs because it is the same kind of fact: for the one
+ * commit in which the LIST pane is leaving, the collapsed pane wears the width it HAD rather than the one
+ * the new layout gives it. Both arms of the direction feed it, exactly as the signs above are fed, so the
+ * FLIP and the reduced-motion SETTLE can never disagree about the pane's held width. */
+.shell-grid:is([data-list-flip="out"], [data-list-settle="out"]) {
+  --list-panel-collapsed-w: var(--list-collapsed-w-was);
 }
 
 /* ── ONE KEYFRAME PER MOVING ELEMENT, BOTH TRACKS SUMMED INTO IT (#2456) ─────────────────────────────
@@ -936,6 +975,25 @@
 .shell-panel[data-panel-side="context"][data-panel-mode="overlay"],
 .shell-panel[data-panel-side="context"][data-panel-mode="collapsed"] {
   width: var(--panel-context-w);
+}
+/* ── A COLLAPSED LIST PANE IS AS WIDE AS THE TRACK IT LEFT, NOT AS WIDE AS THE CLAMP (#2474) ──────────
+ * The list pane is anchored to the RAIL, so its width change lands on its TRAILING edge — the one edge no
+ * translate can counter (the same physics as the band's action, #2463). `--panel-w` here therefore made the
+ * pane 35px wider (1280x800, both panes docked) in the very frame its exit began: the box grew as it left.
+ * `--list-panel-collapsed-w` is the width it actually had, declared with the other composed distances on
+ * the grid, so at rest there is no discontinuity for the exit to animate away.
+ *
+ * OVERLAY IS DELIBERATELY NOT INCLUDED. An overlay pane is a SHEET over the content, in a regime where no
+ * track exists and nothing is squeezed; it is also on-screen, so holding a previous width there would trade
+ * an invisible step for a visible one. This rule is the collapsed (off-screen) arm only.
+ *
+ * THE DIRECTION LIVES IN THE VALUE, NEVER IN A SECOND RULE — the same discipline every distance above
+ * keeps, and here it is load-bearing twice over: the phone block's own `width: 100dvw` for this pane is
+ * (0,3,0) and later in source, so this rule yields to it exactly as the shared collapsed-width rule above
+ * does. A flip-gated `width` on the PANEL would have outranked it (five simple selectors against three) —
+ * the #2442 trap, reopened — and it would have spelled a second raw sheet length to cancel itself with. */
+.shell-panel[data-panel-side="list"][data-panel-mode="collapsed"] {
+  width: var(--list-panel-collapsed-w);
 }
 /* A CLOSED (collapsed) panel is off-screen regardless of block inset, so it only needs the full-height
  * box; an OPEN overlay must clear the topbar row (mirrors the mobile overlay rule below) so it never
