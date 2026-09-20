@@ -51,7 +51,7 @@ import type { ReactElement } from "react";
 import { Fragment } from "react";
 import { cn, timeLib } from "#lib";
 import { durationLabel, genDurationLabel } from "../lib/gen-duration.ts";
-import { cacheTokensLabel } from "../lib/message-readout.ts";
+import { cacheTokensLabel, canRevealGenerationCost } from "../lib/message-readout.ts";
 import { MessageCostReadout } from "./message-cost-readout.tsx";
 
 /** The metadata-datum subset of the appearance prefs (mirrors `useMessageAppearance`'s row-display
@@ -146,9 +146,12 @@ export function MessageMetadataRow({ message, visibility, backingClass }: Messag
   if (visibility.showGenerationTimer && message.ttftMs !== null) {
     items.push(<Fragment key="ttft">{metadatum("message-metadata-ttft", `${durationLabel(message.ttftMs)} to first token`)}</Fragment>);
   }
-  // PD-137 — the on-demand settled-cost readout (renders its own null-guard for a non-OR row); the paid
-  // fetch fires only on the user's reveal click, never here.
-  if (visibility.showGenerationCost && message.generationId !== null && message.connectionId !== null) {
+  // PD-137 — the on-demand settled-cost readout; the paid fetch fires only on the user's reveal click,
+  // never here. The slot gate is the readout's OWN predicate rather than a second spelling of it: since
+  // `generationId` became the provider's response id on every hosted wire (inference audit B7), the id's
+  // presence no longer means "this swipe can be settled" and a row-side id check would push an item whose
+  // child renders null — a `·` separator with nothing after it.
+  if (visibility.showGenerationCost && canRevealGenerationCost(message)) {
     items.push(
       <Fragment key="gen-cost">
         <MessageCostReadout message={message} />

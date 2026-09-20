@@ -225,6 +225,10 @@ interface TurnPipelineResult {
    *  warnings (`toChatWarning`) and emits one `warning` event per surfaced degrade. Distinct from the boolean
    *  capability-drop flags above: those are the DOMAIN's own gates, these are the runner's. */
   readonly runnerWarnings: readonly ResolvedWarning[];
+  /** True when ANY depth of this turn came back as a provider REFUSAL (a content-filter finish) — the engine
+   *  emits `provider_refused` off it. A boolean like the capability-drop flags beside it, not a list: one
+   *  turn's author is owed one notice, and the refusal's provider-side detail is not carryable to the bus. */
+  readonly providerRefused: boolean;
   /** The id of the earliest message actually included in the assembled history this turn, or null. */
   readonly contextBoundaryMessageId: MessageId | null;
   /** The turn's TOTAL estimated context consumption (kept history + system prompt + reserved output) — the
@@ -312,10 +316,18 @@ function reasoningClock(now: () => number): {
 async function reduceStream(
   stream: AsyncIterable<{ kind: string }>,
   args: RunTurnPipelineArgs,
-): Promise<{ content: string; reasoning: string | null; economics: TurnEconomics | null; warnings: readonly ResolvedWarning[]; reasoningMs: number | null }> {
+): Promise<{
+  content: string;
+  reasoning: string | null;
+  economics: TurnEconomics | null;
+  warnings: readonly ResolvedWarning[];
+  refused: boolean;
+  reasoningMs: number | null;
+}> {
   let text = "";
   let reasoning = "";
   let economics: TurnEconomics | null = null;
+  let refused = false;
   const warnings: ResolvedWarning[] = [];
   const clock = reasoningClock(args.now);
   for await (const chunk of stream as AsyncIterable<TurnStreamChunk>) {
@@ -330,13 +342,15 @@ async function reduceStream(
     } else if (chunk.kind === "warning") {
       const { kind: _kind, ...warning } = chunk;
       warnings.push(warning);
+    } else if (chunk.kind === "refusal") {
+      refused = true;
     } else {
       economics = chunk.economics;
     }
   }
   const content = economics?.content ?? text;
   const finalReasoning = economics?.reasoning ?? (reasoning.length > 0 ? reasoning : null);
-  return { content, reasoning: finalReasoning, economics, warnings, reasoningMs: clock.elapsedMs() };
+  return { content, reasoning: finalReasoning, economics, warnings, refused, reasoningMs: clock.elapsedMs() };
 }
 
 /** Strips a per-speaker canon row down to only its own speaker's content: removes a leaked leading
@@ -736,6 +750,7 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     worldInfoEntryIds: (ctx.wiTrace?.activated ?? []).map((e) => e.id),
     guidedPlacedAsInjection: ctx.guidedPlacedAsInjection === true,
     runnerWarnings: loop.warnings,
+    providerRefused: loop.refused,
   };
 }
 
@@ -936,6 +951,7 @@ async function runRecurseLoop(input: {
   records: readonly ToolCallRecord[];
   terminalCalls: readonly ToolCallInput[];
   warnings: readonly ResolvedWarning[];
+  refused: boolean;
   reasoningMs: number | null;
 }> {
   const { args, set, terminalNames } = input;
@@ -955,11 +971,16 @@ async function runRecurseLoop(input: {
   // KEYED ON THE WHOLE WARNING (#1440): the structured half now distinguishes two drops that share a code
   // (two different sampling knobs), so a code-keyed set would surface one of them and swallow the other.
   const warnings = new Map<string, ResolvedWarning>();
+  // ORed across depths, never counted: a tool loop refused at depth 2 was still ONE refused turn. Collected
+  // as a list and folded at the return rather than `refused ||= …` in the loop, because this function sits
+  // ON the cognitive-complexity cap and a logical operator in the loop body is what pushes it over.
+  const refusedByDepth: boolean[] = [];
   let depth = 0;
   for (;;) {
     // Sequential by design: each recursion depends on the previous depth's executed results.
     const reduced = await reduceStream(args.runChatTurn({ ...input.request, history }), args);
     content += reduced.content;
+    refusedByDepth.push(reduced.refused);
     for (const warning of reduced.warnings) {
       warnings.set(JSON.stringify(warning), warning);
     }
@@ -986,7 +1007,16 @@ async function runRecurseLoop(input: {
     history = [...history, ...toolExchangeMessages(reduced.content, batch, carriedReasoning(reduced.economics, input.carryReasoning))];
     depth += 1;
   }
-  return { content, reasoning, economics, records, terminalCalls, warnings: [...warnings.values()], reasoningMs };
+  return {
+    content,
+    reasoning,
+    economics,
+    records,
+    terminalCalls,
+    warnings: [...warnings.values()],
+    refused: refusedByDepth.includes(true),
+    reasoningMs,
+  };
 }
 
 /** Splits ONE depth's model-emitted calls into the two tool classes by NAME (#1404) — the ONE place the

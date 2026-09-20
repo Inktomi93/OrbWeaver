@@ -65,10 +65,6 @@ export const CHAT_OP_CODES = {
    *  asset (unreachable / not an image / too large — side-eye F-P0-2). A validation refusal (BAD_REQUEST); the
    *  message carries the honest reason (`backgroundMaterializeMessage`), never the URL or any internal detail. */
   backgroundUnavailable: "background_unavailable",
-  /** A non-owner-triggered `max-pro-sub` turn without explicit owner consent (by-proxy refused, fail-closed,
-   *  default OFF). */
-  /** The per-member turn/request COUNT budget is exhausted (debited in-lock). */
-  budgetExceeded: "budget_exceeded",
   /** `requestTurn` was asked to stamp a reply DEEPER than `AUTOMATION_DEPTH_HARD_CAP` (automation-design/03 §4).
    *  The WRITE-side belt for the runaway-cascade guard: automation's dispatch gate already refuses an event at
    *  depth ≥ cap, so this bites only a mis-behaving non-dispatch caller (the plugin membrane) — fail-closed. */

@@ -2109,6 +2109,7 @@ export async function emitCapabilityDropWarnings(
     readonly structuredOutputUnsupported: boolean;
     readonly guidedPlacedAsInjection: boolean;
     readonly runnerWarnings: readonly ResolvedWarning[];
+    readonly providerRefused: boolean;
   },
 ): Promise<void> {
   if (result.imageDropped) {
@@ -2127,6 +2128,12 @@ export async function emitCapabilityDropWarnings(
   // not lost, and said so loudly (D41).
   if (result.guidedPlacedAsInjection) {
     await emit({ type: "warning", chatId, code: "guided_placed_as_injection" });
+  }
+  // The provider DECLINED (a content-filter finish on the wire). Not a capability drop like the five above —
+  // nothing of ours was dropped — but the same obligation: a refusal that surfaces as a blank or truncated
+  // reply with no reason is exactly the silent degrade D41 exists to forbid.
+  if (result.providerRefused) {
+    await emit({ type: "warning", chatId, code: "provider_refused" });
   }
   // The infra runners' own drops (D41 read end). Deduped upstream; independent of each other, so they fan
   // concurrently — all awaited here, which is what keeps them BEFORE the turn's terminal bus event. TOTAL

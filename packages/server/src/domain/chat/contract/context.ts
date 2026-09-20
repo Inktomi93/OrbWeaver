@@ -662,13 +662,14 @@ export interface RpgTurnTranscriptMessage {
   readonly tokens: number;
 }
 
-/** The character turn's RESOLVED route + consent verdict + its OWN canon transcript, handed to
- *  {@link ChatRpgOps.onTurnCompleted} so the post-commit rpg state round rides the EXACT connection +
- *  owner-consent the engine already resolved + enforced for THIS turn AND reasons from the story it just
- *  told — the [foreign-inputs-seam] shape (already-resolved values threaded IN, never re-derived).
- *  The connection/consent are the F1 fix: without them the state round resolved the host's GLOBAL chat default
- *  (`resolveRole`) and force-stamped `ownerConsented:true`, so a room pinned to vllm could fire a metered-sub
- *  round the turn's consent belt never approved. `connection.capability` also gates the round's readonly
+/** The character turn's RESOLVED route + its OWN canon transcript, handed to
+ *  {@link ChatRpgOps.onTurnCompleted} so the post-commit rpg state round rides the EXACT connection the engine
+ *  already resolved for THIS turn AND reasons from the story it just told — the [foreign-inputs-seam] shape
+ *  (already-resolved values threaded IN, never re-derived).
+ *  The connection is the F1 fix: without it the state round resolved the host's GLOBAL chat default
+ *  (`resolveRole`), so a room pinned to vllm could fire its round somewhere else entirely. (F1's second half
+ *  was an `ownerConsented` verdict threaded beside the connection; the owner-consent belt itself left with
+ *  the inference program §14 F13, so only the route survives.) `connection.capability` also gates the round's readonly
  *  verdict (F2). The `transcript` is the §1.3 fix: the extraction was CONTEXT-BLIND (state JSON + one beat), so
  *  deep in a story it forgot fields and never reconciled inventory/quests against what happened — now it rides
  *  the turn's own loaded canon (zero extra model reads, §1.4). */
@@ -718,7 +719,7 @@ export interface RpgTurnContext {
    *  home; on a game turn that preset is the game's GM preset, via the redirect `buildTurnContext` runs before
    *  its foreign read). The post-commit state round resolves its extraction prompts through it.
    *
-   *  CAPTURED, NEVER RE-RESOLVED — the same reason `connection` and `ownerConsented` ride here (the
+   *  CAPTURED, NEVER RE-RESOLVED — the same reason `connection` rides here (the
    *  [foreign-inputs-seam] shape: already-resolved values threaded IN). The round runs AFTER the turn's own
    *  prompt was assembled and after the reply committed, so resolving the preset a second time at round time
    *  would open a window where the extractor is taught a different vocabulary than the narrator was — a
