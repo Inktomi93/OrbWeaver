@@ -60,6 +60,10 @@ export type {
   LocalLightPrefetchTarget,
 } from "./backends/local-light/index.ts";
 export { DEFAULT_EMBED_MODEL, DEFAULT_MATTE_MODEL, DEFAULT_RERANK_MODEL, LOCAL_LIGHT_MODEL_SLOTS } from "./backends/local-light/index.ts";
+// The space TAG derivation + the HTTP error classifier are test-visible seams: the embeddings suites derive the
+// tag the way compose does, and the transport suites build a classified `ProviderError` the way a runner does.
+export { localLightEmbedSpaceTag } from "./backends/local-light/model-cache.ts";
+export { providerErrorFromHttp } from "./backends/kit/error-classify.ts";
 export { curatedKind } from "./capability/sources/curated/loader.ts";
 export * from "./contract/index.ts";
 export type { ResolvedWarning } from "./contract/resolve.ts";
