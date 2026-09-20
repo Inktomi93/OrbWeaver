@@ -109,10 +109,74 @@ export function gitChangedPaths(root: string = ROOT): readonly string[] {
 // so a working-tree read selects nothing and the stage passes vacuously, which is the #1967 defect in a
 // new costume. Restored verbatim from `8d9f25183`, including its `null`-is-not-empty contract.
 
-/** The refs a branch's merge base is taken against, in order of preference. `origin/main` is the real
- *  base for a lane; local `main` is the fallback for a checkout with no remote (the owner pushes by hand,
- *  so `origin/main` can also be far behind — the union with the working tree below covers that). */
+/** The candidate mainline refs a branch's merge base is taken against. THE ORDER IS A TIE-BREAK, NOT A
+ *  PREFERENCE — see `resolveMergeBase`. */
 const MERGE_BASE_REFS = ["origin/main", "main"] as const;
+
+const MERGE_BASE_SHA_RE = /^[0-9a-f]{7,64}$/u;
+
+/** The branch point this checkout is measured from: WHICH ref answered, and the commit it resolved to. The
+ *  ref is DERIVED from `MERGE_BASE_REFS` rather than re-spelled, so adding a candidate cannot leave a
+ *  stale union behind; the policy receipt's own `mergeBase.ref` literal (`contract/policy-scope.ts`) is
+ *  the wire shape this must stay assignable to, and tsc is the thing that notices when it stops being. */
+export interface MergeBaseResolution {
+  readonly ref: (typeof MERGE_BASE_REFS)[number];
+  readonly commit: string;
+  /** True when the base IS HEAD — this checkout sits ON the mainline tip, so there is no branch to measure
+   *  and an empty committed diff is a fact about the CHECKOUT, not a clean bill of health. A caller whose
+   *  selection came back empty must say which of the two it is (`ops/instrument-affected.ts` does). */
+  readonly isHead: boolean;
+}
+
+/** THE ONE MERGE-BASE RESOLVER (#2472), shared with `lib/policy-repo-inventory.ts` — two copies of this
+ *  question is how the two halves of "what changed" drift apart.
+ *
+ *  IT IS DERIVED, NOT ORDERED, AND THAT IS THE FIX. Both copies used to take the FIRST ref that resolved,
+ *  with `origin/main` hardcoded ahead of `main`. In THIS repo the owner pushes by hand and rarely
+ *  (`.claude/rules/orchestration.md`: "local `main` is the worktree base — the owner pushes manually, so
+ *  `origin/main` can be far behind"), so that base is routinely tens of commits behind the branch point.
+ *  Measured 2026-09-20 on a CLEAN local main: `origin/main` was 280 commits back and the "changed set" was
+ *  **2932 files, 488 of them `tooling/src/**`** — the whole backlog, every run, wearing the word "changed".
+ *
+ *  THE OLD COMMENT'S SAFETY ARGUMENT WAS STRUCTURALLY INCAPABLE OF BEING ONE and has been deleted rather
+ *  than softened: it said the union with the working tree "covers that". A union only ADDS paths. Nothing
+ *  downstream of a stale base can shrink it.
+ *
+ *  THE RULE: of the candidate bases, take the one CLOSEST TO HEAD — the one every other candidate base is
+ *  an ancestor of. That keeps the recorded ruling in `policy-repo-inventory.ts` intact instead of
+ *  reversing it ("the remote-tracking ref is the durable published baseline"): whenever `origin/main` is
+ *  NOT behind, its base is the closest one and it still wins, and an exact tie keeps it as the NAMED ref
+ *  by `MERGE_BASE_REFS` order. Only when it has fallen behind does local `main` — the actual branch point
+ *  — answer. Unrelated histories (neither base an ancestor of the other) keep the declared order.
+ *
+ *  `null` is "the question could not be answered", never "nothing changed": no candidate ref exists, or
+ *  git failed. Callers must fail SAFE on it, never clean. */
+export function resolveMergeBase(root: string = ROOT): MergeBaseResolution | null {
+  const git = (args: readonly string[]): { readonly status: number; readonly stdout: string } => {
+    const res = runNicedSync("git", [...GIT_READ_PREFIX, ...args], { cwd: root, env: repoGitEnvironment() });
+    return { status: res.status ?? 1, stdout: res.stdout.trim() };
+  };
+  const candidates: { ref: (typeof MERGE_BASE_REFS)[number]; commit: string }[] = [];
+  for (const ref of MERGE_BASE_REFS) {
+    const result = git(["merge-base", "HEAD", ref]);
+    if (result.status === 0 && MERGE_BASE_SHA_RE.test(result.stdout)) {
+      candidates.push({ ref, commit: result.stdout });
+    }
+  }
+  const closest = candidates.reduce<{ ref: (typeof MERGE_BASE_REFS)[number]; commit: string } | null>((best, candidate) => {
+    if (best === null) {
+      return candidate;
+    }
+    // `merge-base --is-ancestor A B` exits 0 iff A is an ancestor of B: the candidate is strictly closer
+    // to HEAD. An exact tie is not "closer" and must not displace the earlier-declared ref.
+    return candidate.commit !== best.commit && git(["merge-base", "--is-ancestor", best.commit, candidate.commit]).status === 0 ? candidate : best;
+  }, null);
+  if (closest === null) {
+    return null;
+  }
+  const head = git(["rev-parse", "HEAD"]);
+  return { ...closest, isHead: head.status === 0 && head.stdout === closest.commit };
+}
 
 /** EVERY PATH THIS BRANCH TOUCHED: the merge-base diff UNIONED with the working tree vs HEAD (#1523).
  *
@@ -127,11 +191,11 @@ export function branchChangedPaths(root: string = ROOT): readonly string[] | nul
     const res = runNicedSync("git", [...GIT_READ_PREFIX, ...args], { cwd: root, env: repoGitEnvironment() });
     return res.status === 0 ? res.stdout : null;
   };
-  const base = MERGE_BASE_REFS.map((ref) => git(["merge-base", "HEAD", ref])?.trim()).find((sha) => sha !== undefined && /^[0-9a-f]{7,40}$/u.test(sha));
-  if (base === undefined) {
+  const base = resolveMergeBase(root);
+  if (base === null) {
     return null;
   }
-  const committed = git(["diff", "--name-only", "-z", base, "HEAD"]);
+  const committed = git(["diff", "--name-only", "-z", base.commit, "HEAD"]);
   const working = git(["diff", "--name-only", "-z", "HEAD"]);
   if (committed === null || working === null) {
     return null;

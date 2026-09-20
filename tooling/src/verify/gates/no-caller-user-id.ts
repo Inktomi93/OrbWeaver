@@ -28,7 +28,14 @@ export const gate = defineGate({
   authority: "ordinary",
   severity: "error",
   population: {
-    in: ["@client", "@ui", "@server", "@db", "@contracts", "@kit", "@tooling", "@tests", "@scripts"],
+    // `@inference` ADDED 2026-09-20 (lane cb-gate-reach, the §12 EXTRACTION AUDIT of
+    // `docs/design/orbweaver-inference-package.md`). ~104 source files left `packages/server/src/infra/providers/`
+    // for the new `@orb/inference` workspace package, and every `@server`-scoped policy stopped judging them the
+    // day they moved, silently. This population was already every authored root; `@inference` is the one the extraction added and nobody
+    // joined. D19's conflation is LIVE here — the package resolves a connection for a `funder` and an `actor` and
+    // hands a credential to a backend, which is the exact `resolveCredential`-gets-the-caller's-id bug class the
+    // name ban exists to keep out. Measured at the widening: ZERO findings.
+    in: ["@client", "@ui", "@server", "@db", "@contracts", "@kit", "@inference", "@tooling", "@tests", "@scripts"],
     notUnder: ["tooling/src/verify/gates/**"],
   },
   analysis: "syntax",
