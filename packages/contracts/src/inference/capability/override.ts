@@ -6,8 +6,9 @@
 // `match` exists because two live curated cells are functions of (id × wire-shape), not of id alone —
 // `anthropicPrefill` is false on the CLI transport, `midConversationSystem` true ONLY there — so a model row
 // may repeat per (wire, api) arm. A connection's `declared` block carries NO `match` (it is that row's).
-// `match.model` is a regex SOURCE string; the package's loader is the ONLY place it is compiled
-// (the `inference-model-regex-fence` gate's one allowed home besides `families.ts`).
+// `match.model` is a regex SOURCE string; the package's shared row compiler (`capability/sources/rows.ts`, serving
+// the curated AND measured tiers) is the ONLY place it is compiled, beside `families.ts` — a prose fence today (no
+// gate on the tree spells it).
 
 import { z } from "zod";
 import { chatApiSchema } from "../apis.ts";

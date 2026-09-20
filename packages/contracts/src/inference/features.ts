@@ -36,10 +36,18 @@ export type EffortSpelling = (typeof EFFORT_SPELLINGS)[number];
 export const IMAGE_ARMS = ["images-api", "chat-modalities"] as const;
 export type ImageArm = (typeof IMAGE_ARMS)[number];
 
+/** How the output cap is spelled on this server's chat-completions body. The SDK writes `max_tokens`;
+ *  OpenAI's reasoning models 400 on it (`unsupported_parameter … Use 'max_completion_tokens'`, measured
+ *  2026-09-20 on gpt-5-mini) and every current OpenAI chat model takes the new word, so the `openai` row
+ *  declares it and the body shaper renames. Absent ⇒ the SDK's spelling stands. */
+export const OUTPUT_CAP_FIELDS = ["max_tokens", "max_completion_tokens"] as const;
+export type OutputCapField = (typeof OUTPUT_CAP_FIELDS)[number];
+
 export const endpointFeaturesSchema = z.object({
   prefill: z.enum(PREFILL_MODES).optional(),
   strictJson: z.enum(STRICT_JSON_MODES).optional(),
   effort: z.enum(EFFORT_SPELLINGS).optional(),
+  outputCapField: z.enum(OUTPUT_CAP_FIELDS).optional(),
   images: z.enum(IMAGE_ARMS).optional(),
   /** A rerank endpoint path relative to `baseUrl` (vLLM `/rerank`); absent ⇒ the wire serves no rerank. */
   rerankPath: z.string().optional(),

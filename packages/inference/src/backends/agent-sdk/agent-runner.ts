@@ -144,7 +144,12 @@ export async function runAgentTurn(req: AgentTurnRequest, deps: AgentSdkDeps, lo
       ...(req.signal !== undefined ? { abortController } : {}),
     },
   });
-  const result = await consumeTurnStream(stream, { model: connection.model, providerId: connection.providerId, resumed: false, now: deps.now }, log);
+  // The agent task spells no effort/thinking knob — the runtime's own default ran, which is unrecorded (null).
+  const result = await consumeTurnStream(
+    stream,
+    { model: connection.model, providerId: connection.providerId, resumed: false, now: deps.now, appliedEffort: null },
+    log,
+  );
   const mcpServerHealth = await probeMcpHealth(stream, deps, log);
   return mcpServerHealth !== undefined ? { ...result, mcpServerHealth } : result;
 }

@@ -415,6 +415,7 @@ describe("createRunChatTurnBridge — the runner-warning carry", () => {
     durationApiMs: null,
     apiErrorStatus: null,
     numTurns: 1,
+    appliedEffort: null,
     usage: {
       model: castId<ModelId>("test-model"),
       tokensIn: 1,
@@ -499,6 +500,30 @@ describe("createRunChatTurnBridge — the runner-warning carry", () => {
     }
     const final = chunks.find((c) => c.kind === "final");
     expect(final?.kind === "final" && final.economics.modelCalls).toBe(4);
+  });
+
+  // B1 (the audit's recorded lie): the variant's `reasoning_effort` used to be the REQUESTED intent, so a row
+  // whose transport dropped the effort — or a mandatory clamp that raised it — persisted a value the wire never
+  // carried. The runner now reports what it APPLIED on `ChatResult.appliedEffort`; the bridge folds THAT onto the
+  // economics and the requested value stays where it already lives (`params`).
+  test("the final economics carry the APPLIED effort off the runner, never the requested intent", async () => {
+    const bridge = createRunChatTurnBridge({
+      runChatTurn: (): Promise<ChatResult> => Promise.resolve({ ...baseResult, appliedEffort: "low", events: [] }),
+    });
+    const chunks: TurnStreamChunk[] = [];
+    for await (const chunk of bridge({ ...wireRequest, intent: { effort: "high" } })) {
+      chunks.push(chunk);
+    }
+    const final = chunks.find((c) => c.kind === "final");
+    expect(final?.kind === "final" && final.economics.reasoningEffort).toBe("low");
+    // A runner that applied no effort axis (a budget, a transport that spells none) records null, not the ask.
+    const none = createRunChatTurnBridge({ runChatTurn: (): Promise<ChatResult> => Promise.resolve({ ...baseResult, appliedEffort: null, events: [] }) });
+    const noneChunks: TurnStreamChunk[] = [];
+    for await (const chunk of none({ ...wireRequest, intent: { effort: "high" } })) {
+      noneChunks.push(chunk);
+    }
+    const noneFinal = noneChunks.find((c) => c.kind === "final");
+    expect(noneFinal?.kind === "final" && noneFinal.economics.reasoningEffort).toBeNull();
   });
 
   // The bridge's push→pull pump ends the stream on the leaf's rejection. It used to decide "did it fail?" by

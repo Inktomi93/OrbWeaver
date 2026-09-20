@@ -2736,6 +2736,44 @@ it is a SERVER-side fetch inside the F12 admission — the pane calls a `connect
         `deprecated` warning nobody read. Its pin is therefore a defect proof only in that order, verified by
         reverting the key with A3 in place (the turn then carries `the provider reports "providerOptions key
         'custom-openai'" as deprecated: Use 'customOpenai' instead.`).
+      - *BUILD LOG, 2026-09-20 (lane cb-audit-record — the RECORD-TRUTH rows of the AI-SDK integration audit;
+        design, receipts and rejected arms in `../design/inference-record-truth-2026-09-20.md`)*: (1) `sampling`
+        is a REPLACE key in the fold — a stated SET, never a patch: an empty measured `{}` could not subtract an
+        advertised range under the one-level merge (B3; the same rule makes a `declared.sampling` the whole list);
+        (2) the measured tier has a `match`-based loader (`capability/sources/measured/loader.ts` over the shared
+        `sources/rows.ts` compiler — `resolve-task.ts` used to hand `MEASURED_ANTHROPIC` WHOLESALE to every
+        anthropic-family id, so a per-model measurement was inexpressible) and its first rows are
+        `measured/openrouter.ts` (opus-5, opus-4.8: OR advertises `temperature` and strips it upstream, measured
+        by `echo_upstream_body`); (3) a curated `claude-opus-5` row now exists — before it the id resolved as
+        NON-reasoning on the direct wire; the SDK-table ids carry `sampling: {}` and the fable/mythos cell
+        `reasoning.mandatory: true` (A8, a measured 400); (4) `verbosity` is never derived from OR's
+        `supported_parameters` (inverted on that knob, H1a) — it is a curated/measured statement; (5)
+        `message_variants.{reasoning_tokens, cost_details}` land by FORWARD migration `0002` (two `ADD COLUMN`s,
+        the launched-regime procedure, never a regenerated baseline); `costDetailsSchema` is zod-first in
+        `contracts/inference/usage.ts` with an OPTIONAL phase split — Anthropic reports a total only, and a
+        required split would fabricate a `0` into a `measured` record (a deviation from the brief's spelling) —
+        and the BYOK arm keys on OR's `usage.raw.is_byok` (A4: `cost` is the gateway fee there); (6)
+        `ChatResult.appliedEffort` (REQUIRED) is what the wire CARRIED in the preset vocabulary, read back off
+        the built options on every wire; compose folds it onto `reasoningEffort`, the requested value stays in
+        `params` (B1); (7) `generation_id` is the provider's response id on every hosted wire (Anthropic `msg_…`,
+        B7) — the client cost-readout gate (`message-metadata-row.tsx:151`, `message-cost-readout.tsx:42`) is the
+        orchestrator's follow-up; (8) rate-limit headers → `ChatResult.rateLimit` through ONE kit parser over the
+        two OBSERVED families (Anthropic per-axis / OpenAI-style suffixed) plus `retry-after`; OpenRouter sent no
+        rate-limit header on a 200, so its unsuffixed family is documented, not parsed (B6); (9) A5 rides the
+        EXISTING `refusal` ChatEvent member (`contract/events.ts` — the audit's "new member" premise was stale)
+        from the anthropic call site via `anthropic-messages/refusal.ts`; (10) H2 measured on gpt-5-mini (400 on
+        `max_tokens`, 400 on `temperature ≠ 1`, 200 with `max_completion_tokens` + `reasoning_effort`): arm (a) —
+        `EndpointFeatures.outputCapField` + body-shaper rule 8 on the `openai` row and a curated `sampling: {}`
+        gpt-5/o-series row; the `@ai-sdk/openai` `.responses()` transport stays a written fork; (11) the
+        `inference-model-regex-fence` gate two comments cited does not exist on the tree — the one-compile-home
+        rule is prose, now spelled at `sources/rows.ts`; (12) A1's STORAGE landed (owner scope ruling: the
+        record lane owns the durable home, `carryReasoning` owns the read path): a `message_variants.reasoning_parts`
+        typed-JSON column in the same `0002` migration — replay MATERIAL the assembly reads back, not
+        provider-opaque provenance, so a column and not the `metadata` sidecar — threaded
+        `ChatResult.reasoningParts` → `TurnEconomics` → compose → engine → canon-write (NULL when nothing
+        replayable; a continue REPLACES them with the continuation's, only the last generation's signed blocks
+        replay; fork class `member-projected`, the P3 cut `reasoning` takes). The funnel knob, the converter
+        carry and `wire-history.ts`'s re-materialization ahead of the tool-call part are the doors lane's.
 19. **A destination file named in a scope sentence owes its own behaviour rows.** §8.1b named
     `{embed,rerank,image-embed}.ts` as the surviving trio and then cited only two of them; the third had a
     different request shape, its own retry site and NO clamp, and no pass caught it until a scout read the file
