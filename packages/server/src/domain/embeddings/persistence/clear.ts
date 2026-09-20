@@ -5,9 +5,9 @@
 // added, this comment is the tripwire: a bare DELETE would then desync the shadow index.
 
 import type { Db } from "@orb/db";
-import { characterEmbeddings, chatDigests, chatSegments, documentChunks, imageEmbeddings } from "@orb/db";
-import type { CharacterId, ChatId, DocumentId } from "@orb/kit/ids";
-import { and, eq, gte, ne, notInArray, or } from "drizzle-orm";
+import { assets, characterEmbeddings, characters, chatDigests, chatParticipants, chatSegments, documentChunks, documents, imageEmbeddings } from "@orb/db";
+import type { CharacterId, ChatId, DocumentId, UserId } from "@orb/kit/ids";
+import { and, eq, gte, inArray, isNull, ne, notInArray, or } from "drizzle-orm";
 import type { VectorTable } from "../contract/params.ts";
 
 function assertNever(value: never): never {
@@ -42,38 +42,66 @@ export async function clearVectorTable(db: Db, table: VectorTable): Promise<void
   }
 }
 
-/** PD-104 — the OLD-vector-space reclaim half of purge+reindex. Deletes every row in `table` whose `model`
- *  differs from `activeModel` (the box's single active embed/imageEmbed model — a stale-space row is stale
- *  for every owner, so the purge is global). Returns the number of rows purged. The reindex half writes the
- *  new space FIRST (uniform `(…, model)` upsert keys, so the two spaces coexist), then this reclaims the old
- *  one — no row is ever stranded. Exhaustive over {@link VectorTable} (a new table fails tsc until its arm
- *  lands). Called in BULK mode only (a model change is a box-level event → a bulk reindex; a singular
- *  per-owner catch-up must not delete the global old space). */
-export async function purgeStaleVectors(db: Db, table: VectorTable, activeModel: string): Promise<number> {
+/** PD-104 — the OLD-vector-space reclaim half of purge+reindex, PER OWNER. Deletes every row in `table` that
+ *  belongs to `ownerId`'s entity tree (a card, an asset, a document, a chat the owner HOSTS) and whose `model`
+ *  differs from that owner's `activeModel`. Vector tasks are owner-scoped (inference program §7.5): two owners
+ *  may legitimately run two embedders, so a global `model != x` delete would reclaim a neighbour's live space —
+ *  the row is stale only relative to ITS owner's binding. Returns the number of rows purged. The reindex half
+ *  writes the new space FIRST (uniform `(…, model)` upsert keys, so the two spaces coexist), then this reclaims
+ *  the old one — no row is ever stranded. Exhaustive over {@link VectorTable} (a new table fails tsc until its
+ *  arm lands). Chat rows scope through the PRESENT host row (`role = 'host'`, `left_seq IS NULL` — the #390
+ *  one-present-host index), the same owner the digest/segment WRITE seam resolves. */
+export async function purgeStaleVectors(db: Db, table: VectorTable, ownerId: UserId, activeModel: string): Promise<number> {
   switch (table) {
     case "character_embeddings": {
-      const rows = await db.delete(characterEmbeddings).where(ne(characterEmbeddings.model, activeModel)).returning({ id: characterEmbeddings.id });
+      const owned = db.select({ id: characters.id }).from(characters).where(eq(characters.ownerId, ownerId));
+      const rows = await db
+        .delete(characterEmbeddings)
+        .where(and(ne(characterEmbeddings.model, activeModel), inArray(characterEmbeddings.characterId, owned)))
+        .returning({ id: characterEmbeddings.id });
       return rows.length;
     }
     case "image_embeddings": {
-      const rows = await db.delete(imageEmbeddings).where(ne(imageEmbeddings.model, activeModel)).returning({ id: imageEmbeddings.id });
+      const owned = db.select({ id: assets.id }).from(assets).where(eq(assets.ownerId, ownerId));
+      const rows = await db
+        .delete(imageEmbeddings)
+        .where(and(ne(imageEmbeddings.model, activeModel), inArray(imageEmbeddings.assetId, owned)))
+        .returning({ id: imageEmbeddings.id });
       return rows.length;
     }
     case "chat_digests": {
-      const rows = await db.delete(chatDigests).where(ne(chatDigests.model, activeModel)).returning({ id: chatDigests.id });
+      const rows = await db
+        .delete(chatDigests)
+        .where(and(ne(chatDigests.model, activeModel), inArray(chatDigests.chatId, hostedChats(db, ownerId))))
+        .returning({ id: chatDigests.id });
       return rows.length;
     }
     case "chat_segments": {
-      const rows = await db.delete(chatSegments).where(ne(chatSegments.model, activeModel)).returning({ id: chatSegments.id });
+      const rows = await db
+        .delete(chatSegments)
+        .where(and(ne(chatSegments.model, activeModel), inArray(chatSegments.chatId, hostedChats(db, ownerId))))
+        .returning({ id: chatSegments.id });
       return rows.length;
     }
     case "document_chunks": {
-      const rows = await db.delete(documentChunks).where(ne(documentChunks.model, activeModel)).returning({ id: documentChunks.id });
+      const owned = db.select({ id: documents.id }).from(documents).where(eq(documents.ownerId, ownerId));
+      const rows = await db
+        .delete(documentChunks)
+        .where(and(ne(documentChunks.model, activeModel), inArray(documentChunks.documentId, owned)))
+        .returning({ id: documentChunks.id });
       return rows.length;
     }
     default:
       return assertNever(table);
   }
+}
+
+/** The chats `ownerId` currently hosts — the subquery both chat-memory arms scope on. */
+function hostedChats(db: Db, ownerId: UserId) {
+  return db
+    .select({ id: chatParticipants.chatId })
+    .from(chatParticipants)
+    .where(and(eq(chatParticipants.userId, ownerId), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq)));
 }
 
 /** The chat-memory SHRINK seam (stickler 2026-08-08 canon-message-identity, leg-2 refutation) — the

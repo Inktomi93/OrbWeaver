@@ -7,6 +7,7 @@
 import "../../../support/composed-real.ts";
 import { tmpdir } from "node:os";
 import { automationActionSchema } from "@orb/contracts/automation";
+import { EMBED_SPACE_DIMS } from "@orb/contracts/inference";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { Db } from "@orb/db";
 import { characterEmbeddings, characters as charactersTable, characterTags, chatParticipants, chats, tags, workloads } from "@orb/db";
@@ -19,9 +20,11 @@ import { CARD_PACK_VERSION, createCharacterService, DEFAULT_CHARACTER_CARDS, WEL
 import { DEMO_CHAT_PACK_VERSION, DEMO_CHATS } from "@orb/server/domain/chat";
 import type { EmbeddingsService } from "@orb/server/domain/embeddings";
 import { createEmbeddingsIndexer } from "@orb/server/domain/embeddings";
+import { seedLocalLightOnBoot } from "@orb/server/entry/boot";
 import { createDomainEventBus, createServices } from "@orb/server/entry/compose";
 import { logger } from "@orb/server/foundation/observability";
 import type { SocketListener } from "@orb/server/transport/trpc";
+import { fakeLocalLightCache } from "@orb/tooling/seed";
 import { eq } from "drizzle-orm";
 import type { Mock } from "vitest";
 import { describe, onTestFinished, vi } from "vitest";
@@ -421,10 +424,11 @@ describe("embeddings indexer bus subscription (PD-48)", () => {
 
 // ── The corpusAutoindex indexer GATE (Piece D) ───────────────────────────────────────────────────────────
 // The composition root subscribes the indexer to the bus ONLY when the effective-config `corpusAutoindex` is
-// true. These build the FULL graph vLLM-ENABLED with a deterministic fake engine client (so the embed path is
-// offline + cheap — vllmAvailable=true ⇒ NO local-light load), create a character (whose `character.updated`
-// emit rides the same bus), drain the fire-and-forget dispatch, and assert a card-text embedding row is
-// persisted (ON) / never written (OFF). The tests/e2e default is OFF (vitest env CORPUS_AUTOINDEX=false); the
+// true. These build the FULL graph over a SCRIPTED local-light model cache (the embed path is offline + cheap —
+// the seed tooling's fake, injected through the `localLight.cache` seam), seed the owner's local-light rows +
+// `embed` binding exactly as boot does (the funder's own connection is the only embed route), create a
+// character (whose `character.updated` emit rides the same bus), drain the fire-and-forget dispatch, and
+// assert a card-text embedding row is persisted (ON) / never written (OFF). The tests/e2e default is OFF (vitest env CORPUS_AUTOINDEX=false); the
 // ON case flips it via a stored AppSettings override the boot reload resolves.
 
 function buildGatedGraph(db: Db): ReturnType<typeof createServices> {
@@ -436,9 +440,7 @@ function buildGatedGraph(db: Db): ReturnType<typeof createServices> {
     casDir: tmpdir(),
     variantDir: tmpdir(),
     sessionSecret: "test-session-secret-at-least-32-chars",
-    // vLLM ENABLED with the fake client → embed routes to vLLM (vllmAvailable=true), not local-light.
-
-    providerSeams: {},
+    providerSeams: { localLight: { cache: fakeLocalLightCache(EMBED_SPACE_DIMS) } },
   });
 }
 
@@ -744,6 +746,7 @@ describe("corpusAutoindex indexer gate (Piece D)", () => {
     await writeAppOverride(db, { corpusAutoindex: true, schemaVersion: 2 }, createFrozenClock().now());
     const result = await buildGatedGraph(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    await seedLocalLightOnBoot({ db, now: createFrozenClock().now });
 
     const created = await result.services.character.create({
       principal: principal(owner),

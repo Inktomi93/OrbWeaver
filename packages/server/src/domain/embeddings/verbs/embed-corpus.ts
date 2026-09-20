@@ -6,11 +6,13 @@
 // PD-104 — this is the REINDEX half of purge+reindex. After a full BULK sweep re-embeds every card into the
 // box's active `(model, dim)` space, it PURGES `character_embeddings` rows left in any OTHER space (an
 // old-model change strands them; the uniform `(characterId, model)` upsert key means the new space was
-// written additively beside the old, never overwriting it). Purge is BULK-ONLY (ownerId === null): a model
-// change is a box-level event, so a singular per-owner catch-up must not delete the global old space. On an
-// abort the purge is skipped — the space stays a strict superset (never a gap); the rerun reclaims it.
+// written additively beside the old, never overwriting it). The purge is PER OWNER (vector tasks are
+// owner-scoped, §7.5): every owner the sweep touched has their own stale rows reclaimed against their own
+// `embed` binding — a bulk pass covers every owner, a singular pass exactly one, and neither can reach a
+// neighbour's live space. On an abort the purge is skipped — the space stays a strict superset (never a gap);
+// the rerun reclaims it.
 
-import type { CharacterId } from "@orb/kit/ids";
+import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { EmbeddingsContext } from "../context.ts";
 import type { EmbedPassParams } from "../contract/params.ts";
 import type { BulkEmbedResult } from "../contract/results.ts";
@@ -25,6 +27,7 @@ async function embedOneCard(
   deps: { readonly store: EmbeddingsService["store"] },
   characterId: CharacterId,
   force: boolean | undefined,
+  spaces: Map<UserId, string>,
 ): Promise<"written" | "skipped"> {
   const text = await ctx.loadCardText(characterId);
   if (text === undefined || text.length === 0) {
@@ -35,6 +38,7 @@ async function embedOneCard(
   if (cardOwnerId === null || embedModel === null) {
     return "skipped";
   }
+  spaces.set(cardOwnerId, embedModel);
   const result = await deps.store({
     kind: "card",
     lens: "card-text",
@@ -52,23 +56,24 @@ export function createEmbedCorpus(ctx: EmbeddingsContext, deps: { readonly store
   return async ({ force, signal, ownerId }: EmbedPassParams): Promise<BulkEmbedResult> => {
     let embedded = 0;
     let skipped = 0;
+    // Every owner the sweep resolved, with the space it embedded into — the purge set.
+    const spaces = new Map<UserId, string>();
     for (const characterId of await ctx.listCharacterIds(ownerId)) {
       if (signal.aborted) {
         break;
       }
-      if ((await embedOneCard(ctx, deps, characterId, force)) === "written") {
+      if ((await embedOneCard(ctx, deps, characterId, force, spaces)) === "written") {
         embedded += 1;
       } else {
         skipped += 1;
       }
     }
-    // PD-104 purge (reclaim the old space) — only after a complete bulk sweep, never on abort or a
-    // singular per-owner pass. A no-op unless the box embed model changed since the last index.
-    // PD-104 purge — the WORKLOAD principal's space is the reference (step 8 owes the per-owner join; until
-    // then a whole-corpus sweep purges against the caller's own embed model, stated in §15c).
-    const purgeModel = ownerId === null ? null : await requireTaskModel(ctx, ownerId, "embed");
-    if (purgeModel !== null && !signal.aborted) {
-      await purgeStaleVectors(ctx.db, "character_embeddings", purgeModel);
+    // PD-104 purge (reclaim each touched owner's old space) — only after a complete sweep, never on abort.
+    // A no-op for an owner whose embed binding did not change since the last index.
+    if (!signal.aborted) {
+      for (const [spaceOwnerId, model] of spaces) {
+        await purgeStaleVectors(ctx.db, "character_embeddings", spaceOwnerId, model);
+      }
     }
     return { embedded, skipped };
   };

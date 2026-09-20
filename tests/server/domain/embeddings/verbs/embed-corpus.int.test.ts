@@ -177,19 +177,26 @@ describe("embedCorpus — PD-104 purge+reindex of the old vector space", () => {
     expect(rows[0]?.model).toBe(EMBED_MODEL);
   });
 
-  test("a SINGULAR per-owner sweep re-embeds but does NOT purge the global old space (bulk-only reclaim)", async () => {
+  test("a SINGULAR per-owner sweep purges ONLY that owner's stale rows — a neighbour's old space survives", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const neighbour = await seedUser(db, { handle: castId<Handle>("neighbour") });
     const characterId = await seedCharacter(db, owner, { id: "character_a", name: "Aria" });
-    await upsertCharacterEmbedding(db, {
-      id: castId<CharacterEmbeddingId>("character_embedding_stale"),
-      characterId,
-      embedding: fakeVector(EMBED_DIM, 9),
-      contentHash: "stale",
-      model: STALE_MODEL,
-      dim: EMBED_DIM,
-      now: NOW,
-    });
+    const neighbourCard = await seedCharacter(db, neighbour, { id: "character_n", name: "Nils" });
+    for (const [id, card] of [
+      ["character_embedding_stale", characterId],
+      ["character_embedding_neighbour", neighbourCard],
+    ] as const) {
+      await upsertCharacterEmbedding(db, {
+        id: castId<CharacterEmbeddingId>(id),
+        characterId: card,
+        embedding: fakeVector(EMBED_DIM, 9),
+        contentHash: "stale",
+        model: STALE_MODEL,
+        dim: EMBED_DIM,
+        now: NOW,
+      });
+    }
     const h = makeStoreHarness(db, {
       characterIds: [characterId],
       cardTexts: new Map([[characterId, "Aria — a curious traveler."]]),
@@ -198,9 +205,14 @@ describe("embedCorpus — PD-104 purge+reindex of the old vector space", () => {
 
     await svc.embedCorpus({ ownerId: owner, force: false, signal: signal() });
 
-    // The active-space row was written, but the stale row SURVIVES — a per-owner pass must not delete the
-    // box-global old space (a model change is a box-level event → a bulk reindex reclaims it).
-    const models = (await db.select().from(characterEmbeddings)).map((r) => r.model).sort();
-    expect(models).toEqual([EMBED_MODEL, STALE_MODEL].sort());
+    // The owner's card is in the active space and their stale row is gone; the neighbour's stale row SURVIVES —
+    // vector spaces are per owner, so one owner's reclaim can never reach another's (§7.5).
+    const rows = await db.select().from(characterEmbeddings);
+    expect(rows.map((r) => [r.characterId, r.model]).sort()).toEqual(
+      [
+        [characterId, EMBED_MODEL],
+        [neighbourCard, STALE_MODEL],
+      ].sort(),
+    );
   });
 });
