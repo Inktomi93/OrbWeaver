@@ -34,9 +34,9 @@ async function embedOneAsset(
   ctx: EmbeddingsContext,
   deps: EmbedAssetsDeps,
   assetId: AssetId,
-  force: boolean,
-  spaces: Map<UserId, string>,
+  sweep: { readonly force: boolean; readonly spaces: Map<UserId, string> },
 ): Promise<"embedded" | "skipped"> {
+  const { force } = sweep;
   // ADMISSION FLOOR (recorded skip, read FIRST): an asset already refused by the dimension floor is honored
   // here — no byte load, no caption, no embed — so a re-index does not re-attempt it. `force` still bypasses
   // it (a deliberate re-index of everything), mirroring how `force` bypasses the hash/facet pre-check below.
@@ -59,7 +59,7 @@ async function embedOneAsset(
   if (ownerId === null || model === null) {
     return "skipped"; // no owner / no imageEmbed binding — nothing funds the embed (§7.5-2)
   }
-  spaces.set(ownerId, model);
+  sweep.spaces.set(ownerId, model);
   // Both lenses share the bytes' hash — pre-check them so a current asset skips before the expensive
   // analysis call ever runs.
   const hash = contentHash(bytes);
@@ -116,7 +116,7 @@ export function createEmbedAssets(ctx: EmbeddingsContext, deps: EmbedAssetsDeps)
       if (signal.aborted) {
         break; // cooperative abort between assets — every completed embed is durable + idempotent
       }
-      const outcome = await embedOneAsset(ctx, deps, assetId, force, spaces);
+      const outcome = await embedOneAsset(ctx, deps, assetId, { force, spaces });
       if (outcome === "embedded") {
         embedded += 1;
       } else {
