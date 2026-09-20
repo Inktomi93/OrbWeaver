@@ -1,5 +1,19 @@
 // Reviewed grants: depcruise-grant-liveness, eslint-grant-liveness, firehose-import-allowlist, json-column-write-parity, knob-wire-coverage....
 // Split from reviewed-grants.ts — see that file for the central home comment.
+//
+// TWO `knob-wire-coverage` ROWS RETIRED 2026-09-20 (lane cb-gate-reach, the @orb/inference §12 extraction
+// audit), both because their SUBJECT was deleted by the program, which is exactly the condition each row's
+// own `endsWhen` named:
+//   · `config-allow-non-owner-local-compute` — `EffectiveAppConfig.allowNonOwnerLocalCompute` no longer
+//     exists anywhere under `packages/` (the consent belt went with the per-user agent-sdk cut-over, step 6,
+//     and the governance trio with the fleet yeet, step 6b). Its tracker #2283 asked for the flag to be READ;
+//     it was deleted instead, which discharges the debt rather than fixing it.
+//   · `metadata-provider-routing` — `chatMetadataSchema.providerRouting` was deleted with
+//     `RouteChatAssignment` and the three compose reads (§7.1: a routing preference is a connection binding,
+//     not a property of a room). The row called itself 'THE ONE SANCTIONED DOORWAY … only stale-checked',
+//     and this is that stale check firing.
+// Both were live stale-grant ALARMS on `pnpm check:structure`, not findings — which is why nothing failed
+// loudly for the week between the deletions and this commit.
 import type { ReviewedGateGrant } from "../contract/gate-authority.ts";
 
 export const REVIEWED_GRANTS_DEPCRUISE_TO_EGRESS: readonly ReviewedGateGrant[] = [
@@ -191,15 +205,6 @@ export const REVIEWED_GRANTS_DEPCRUISE_TO_EGRESS: readonly ReviewedGateGrant[] =
     endsWhen: "domain/import consumes getEffectiveConfig().importSkipCharacters — central liveness then reports this row stale. Tracker: #2283.",
   },
   {
-    id: "knob-wire-coverage:config-allow-non-owner-local-compute",
-    policyId: "knob-wire-coverage",
-    subject: "EffectiveAppConfig.allowNonOwnerLocalCompute",
-    operation: "unread-config-field",
-    why: "D107 triage — the resolved compute-permission flag is read by no behavior outside the resolver, so the admin override governs nothing today. Tracked debt, not a sanctioned doorway.",
-    endsWhen:
-      "the non-owner local-compute gate reads getEffectiveConfig().allowNonOwnerLocalCompute — central liveness then reports this row stale. Tracker: #2283.",
-  },
-  {
     id: "knob-wire-coverage:section-profile",
     policyId: "knob-wire-coverage",
     subject: "USER_SETTINGS_SECTIONS.profile",
@@ -222,15 +227,6 @@ export const REVIEWED_GRANTS_DEPCRUISE_TO_EGRESS: readonly ReviewedGateGrant[] =
     operation: "unwritten-admin-key",
     why: "D107 — the admin-editor wave of the settings-wiring program; verified UI-less 2026-07-25 with zero write field anywhere in the admin surfaces (features/settings, which folded into features/config at #2447) ∪ features/user-admin. Tracked debt, not a sanctioned doorway.",
     endsWhen: "an admin surface gains an importSkipCharacters write field — central liveness then reports this row stale. Tracker: #2283.",
-  },
-  {
-    id: "knob-wire-coverage:metadata-provider-routing",
-    policyId: "knob-wire-coverage",
-    subject: "chatMetadataSchema.providerRouting",
-    operation: "unwritten-metadata-field",
-    why: "THE ONE SANCTIONED DOORWAY, not debt (the legacy DOORWAY table's only row): the field is read live at entry/compose/chat.ts (meta.providerRouting → RouteChatAssignment) but no verb or router writes it, and domain/connection/verbs/resolve-chat.ts's header states that middle hop is INTENTIONALLY NOT WIRED. A per-chat connection-overlay writer is the intended graft (D107, audit Q2), so this seam is never re-litigated — only stale-checked.",
-    endsWhen:
-      "a per-chat connection-overlay writer lands in domain/chat/verbs or transport/trpc, or the field is removed — central liveness then reports this row stale (D107 audit Q2).",
   },
   {
     id: "macro-resolution-home:ghost-message-row",
@@ -397,28 +393,22 @@ export const REVIEWED_GRANTS_DEPCRUISE_TO_EGRESS: readonly ReviewedGateGrant[] =
       "the time engine moves out of this module or stops defaulting to the ambient clock; the row is then consumed zero times and reds at its dead subject.",
   },
   {
-    id: "no-raw-egress:agent-sdk-host-token",
+    id: "no-raw-egress:inference-runtime-sdk-fetch-default",
     policyId: "no-raw-egress",
-    subject: "packages/server/src/infra/providers/backends/agent-sdk/host-token.ts",
+    subject: "packages/inference/src/index.ts",
     operation: "raw-fetch",
-    why: "the ambient default of this module's INJECTED fetch port (`deps.fetch ?? fetch`), used for the Claude Agent SDK host-credential refresh — a fixed vendor endpoint reached with the operator's own credential, not a user-influenced URL. NEW EVIDENCE from the conversion: the legacy directory zone licensed the whole of infra/providers, and the legacy identifier-CALLEE check could not have seen a bare reference in a default position either.",
-    endsWhen: "the port stops carrying an ambient default (the composition root always injects one), which is the honest fix and makes this row stale.",
+    why: "the ambient DEFAULT of the runtime's injected `sdkFetch` port (`deps.sdkFetch ?? globalThis.fetch` in `createInferenceRuntime`), handed to the catalog readers. Same class and same shape as the `agent-sdk-host-token` row it replaces — the reference sits in a `??` DEFAULT position, not at a call site. THE BELT IS THE GLOBAL DISPATCHER, NOT `safeFetch`, and that is deliberate: `@orb/inference` is node-only and declares only `@orb/kit` + `@orb/contracts`, so importing `infra/network` would be an upward import (constitution §2) — and it does not need to, because `installEgressFirewall()` swaps undici's GLOBAL dispatcher at boot (`entry/lifecycle.ts:330`, unconditional; `EGRESS_FIREWALL` is `envBool(true)` at `foundation/env/index.ts:448`), gating every outbound `fetch` in the process through a DNS-lookup override for hostname targets and a connector pre-check for IP literals. `infra/network/egress.ts:8-16` names this class by name — 'the global dispatcher stays the defense-in-depth backstop for non-safeFetch egress (PROVIDER CALLS, OIDC)' — and `:36-39` records that the rebinding TOCTOU stays closed because the decision keys on the ORIGINAL caller-supplied host:port. THE RESIDUAL, stated rather than hidden: that backstop is a TOGGLE (a no-op under `EGRESS_FIREWALL=false`) where `safeFetch` is self-enforcing, so these two sites are defense-in-depth-guarded, not guard-independent.",
+    endsWhen:
+      "the composition root always injects `sdkFetch` and the `?? globalThis.fetch` default is deleted, at which point this row is consumed zero times and reds. That is the honest fix and it is small: `packages/server/src/entry/compose/services.ts` already constructs every other seam the runtime receives, and a root that injects the api is the same shape as `no-raw-clock:entry-lifecycle`. It leaves ONE grant at the composition root instead of two inside the package, and it is the precondition for ever putting a guarded fetch on this path.",
   },
   {
-    id: "no-raw-egress:custom-byo-chat",
+    id: "no-raw-egress:inference-backend-registry-sdk-fetch-default",
     policyId: "no-raw-egress",
-    subject: "packages/server/src/infra/providers/backends/custom-byo/runners/chat.ts",
+    subject: "packages/inference/src/registry/backends.ts",
     operation: "raw-fetch",
-    why: "the BYO CHAT runner, the streaming twin of the inspect probe and host-pinned the same way (#25, mirrors inspect.ts #21) — an operator-configured endpoint reached with the operator's own key.",
-    endsWhen: "the BYO runner routes through `safeFetch` with an ANY_HOST escape that preserves the manual-redirect pin.",
-  },
-  {
-    id: "no-raw-egress:custom-byo-inspect",
-    policyId: "no-raw-egress",
-    subject: "packages/server/src/infra/providers/backends/custom-byo/inspect.ts",
-    operation: "raw-fetch",
-    why: 'the BYO endpoint INSPECT probe: an operator-configured endpoint reached with the operator\'s own key, host-pinned by `redirect: "manual"` so the key never follows a redirect off it (#21). The URL is a stored connection setting, not user-influenced input, and the request/response are redacted before they are recorded.',
-    endsWhen: "the BYO probe routes through `safeFetch` with an ANY_HOST escape that preserves the manual-redirect pin.",
+    why: "the SECOND spelling of the same ambient default (`fetchOf(deps)` = `deps.sdkFetch ?? globalThis.fetch`), handed to every constructed backend as its `fetch` transport port — so this is the live hosted-wire transport, gated by the same boot-installed global dispatcher the sibling row cites. It is its own row rather than a directory permission BECAUSE there are two: one `infra/providers`-style zone would have licensed both and any third, which is the failure the zone-to-row conversion fixed. A DIVERGENCE WORTH KNOWING, since it is what makes a reader look for the belt in the wrong place: `orbweaver-inference-package.md` §11 calls `sdkFetch` 'the egress-guarded fetch every provider instance receives', but `InferenceSeams` at `entry/compose/services.ts:157` makes it a TEST-ONLY override and the production `createInferenceRuntime` call at `:371` passes none — the doc points at a seam that is not wired while the actual belt is one layer down.",
+    endsWhen:
+      "the same fix as the sibling row: `sdkFetch` becomes a required `InferenceDeps` field and `fetchOf` returns it unconditionally. Both rows go stale together, which is why they are written as a pair.",
   },
   {
     id: "no-raw-egress:egress-hop",
@@ -427,13 +417,5 @@ export const REVIEWED_GRANTS_DEPCRUISE_TO_EGRESS: readonly ReviewedGateGrant[] =
     operation: "raw-fetch",
     why: "`safeFetch`'s own home: `fetchHop` IS the guarded request every other server call is routed through. The guard cannot be built without the one raw fetch it wraps, and the scheme pin, host allowlist, resolve→validate→pin and deadline all run around this exact line.",
     endsWhen: "the guard stops issuing the request itself (a lower transport primitive takes over), at which point this row is consumed zero times and reds.",
-  },
-  {
-    id: "no-raw-egress:vllm-engine-client",
-    policyId: "no-raw-egress",
-    subject: "packages/server/src/infra/providers/vllm/engine/client.ts",
-    operation: "raw-fetch",
-    why: "the vLLM engine client's POST to a LOOPBACK engine this process supervises: the base URL is derived from the engine record rather than from any request, and the call is always signalled with the caller's derived deadline.",
-    endsWhen: "engine traffic leaves loopback (a remote engine becomes addressable), at which point it needs the SSRF guard rather than this row.",
   },
 ];
