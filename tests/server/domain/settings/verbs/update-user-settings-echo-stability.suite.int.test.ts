@@ -172,7 +172,8 @@ describe("updateUserSettingsSection — echo-stability fixed points (#16)", () =
 
     // The first read lifts v1→v4 (in-blob probe = 1). The value it produces is the resolved truth.
     const firstRead = (await h.svc.getUserSettings({ principal: principal(userId, "user") })).config;
-    expect(firstRead.routing.roleDefaults.chat?.model).toBe("legacy-model");
+    // The v1 `defaultModel` leaf lifted into `routing`, which v9 then DROPS (per-task picks are bindings now).
+    expect("routing" in firstRead).toBe(false);
     expect(firstRead.memory.enabled).toBe(true);
 
     // Any write re-stamps the column to v4 (writeUserConfig), so the row is now stored at the current

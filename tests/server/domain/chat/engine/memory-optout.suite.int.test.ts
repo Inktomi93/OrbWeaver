@@ -101,14 +101,14 @@ async function groupHarness(): Promise<{
     runChatTurn: OK_TURN,
     mintSyntheticGroupCharacter: () => Promise.resolve({ characterId: synthetic }),
     findSyntheticGroupCharacter: () => Promise.resolve({ characterId: synthetic }),
-    summarize: summarize.fn,
+    summarize: summarize.op,
     embeddingsStore: store.store,
     embeddingsStoreSegments: store.storeSegments,
   });
   const engine = createTurnEngine(ctx, {
     emit: (): Promise<void> => Promise.resolve(),
-    debitBudget: (): Promise<void> => Promise.resolve(),
-    resolveTurnPolicy: () => Promise.resolve({ budget: null, allowNonOwnerMaxProSub: false }),
+
+
     holder: "replica-1",
     lockTtlMs: 60_000,
     // The REAL build front doors — exactly what the composition root injects (engine.ts §3a threads

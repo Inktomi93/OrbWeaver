@@ -4,6 +4,7 @@ import type { PersonaId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { resolveRowMacros } from "@orb/kit/macro";
 import { expect, test } from "../../support/fixtures.ts";
+import type { ProviderId } from "@orb/contracts/inference";
 
 // Type-level pins (D26 slot-has-no-content / view-has-content, the ChatBusEvent secret-unrepresentable
 // allowlist, and the InviteView no-token-leak pin) live in `index.test-d.ts` (core/Spine-Testing.md §1). This
@@ -94,7 +95,7 @@ test("a representative ChatBusEvent round-trips its public, secret-free shape", 
     chatId: SAMPLE_CHAT_ID,
     intent: "send",
     api: "chat-completions",
-    source: "openrouter",
+provider: castId<ProviderId>("custom-openai"),
     model: "claude-sonnet",
     speakerCharacterId: null,
     targetMessageId: null,

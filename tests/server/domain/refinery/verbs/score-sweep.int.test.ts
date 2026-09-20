@@ -38,7 +38,7 @@ test("the sweep scores every card in the library and stamps the score into canon
   h.queueReply(scoreReply({ overallScore: 3 }));
   const sink = reporter();
 
-  const result = await sweep({ ownerId: owner, rescoreAll: false, report: sink.report, signal: undefined });
+  const result = await sweep({ ownerId: owner, rescoreAll: false, report: sink.report, signal: undefined, funderUserId: owner });
 
   expect(result).toEqual({ scanned: 2, scored: 2, skipped: 0, failed: 0 });
   // CANON: the scores landed on the rows, in card order, through the same op a session's score run uses.
@@ -65,16 +65,21 @@ test("the initial model submission is bounded instead of flooding the whole libr
   }
   const batchSizes: number[] = [];
   const deps = refineryWorkloadDepsOf(db, h);
-  const summarize = deps.summarize;
   const sweep = createScoreSweep({
     ...deps,
-    summarize: (inputs, opts) => {
-      batchSizes.push(inputs.length);
-      return summarize(inputs, opts);
+    roleClientsFor: async (funder) => {
+      const rc = await deps.roleClientsFor(funder);
+      return {
+        ...rc,
+        structured: (inputs, opts) => {
+          batchSizes.push(inputs.length);
+          return rc.structured(inputs, opts);
+        },
+      };
     },
   });
 
-  const result = await sweep({ ownerId: owner, rescoreAll: false, report: reporter().report, signal: undefined });
+  const result = await sweep({ ownerId: owner, rescoreAll: false, report: reporter().report, signal: undefined, funderUserId: owner });
 
   expect(result.scored).toBe(9);
   expect(batchSizes.length).toBeGreaterThan(1);
@@ -113,7 +118,7 @@ test("the batch's output cap is PAYLOAD-AWARE and covers the hungriest card, not
   h.queueReply(scoreReply());
   h.queueReply(scoreReply());
 
-  await sweep({ ownerId: owner, rescoreAll: false, report: reporter().report, signal: undefined });
+  await sweep({ ownerId: owner, rescoreAll: false, report: reporter().report, signal: undefined, funderUserId: owner });
 
   const cap = h.summarizeCalls[0]?.opts?.maxTokens ?? 0;
   expect(cap).toBeGreaterThanOrEqual(SIDE_GEN_POSTURES.refine_score.maxOutputTokens);
@@ -137,12 +142,12 @@ test("the FILL arm skips already-scored cards; rescoreAll re-scores them", async
   // Pass 1 fills both.
   h.queueReply(scoreReply({ overallScore: 7 }));
   h.queueReply(scoreReply({ overallScore: 7 }));
-  await sweep({ ownerId: owner, rescoreAll: false, report: reporter().report, signal: undefined });
+  await sweep({ ownerId: owner, rescoreAll: false, report: reporter().report, signal: undefined, funderUserId: owner });
   const callsAfterFill = h.summarizeCalls.length;
 
   // Pass 2, FILL again: nothing is unscored, so the pass must spend ZERO model calls — the arithmetic the
   // arm exists for (a 500-card library must not pay 500 calls to re-learn what it knows).
-  const refill = await sweep({ ownerId: owner, rescoreAll: false, report: reporter().report, signal: undefined });
+  const refill = await sweep({ ownerId: owner, rescoreAll: false, report: reporter().report, signal: undefined, funderUserId: owner });
   // The counts stay HONEST about the library: two cards were in scope and both were skipped as already
   // scored — never "scanned 0", which would read as an empty library.
   expect(refill).toEqual({ scanned: 2, scored: 0, skipped: 2, failed: 0 });
@@ -151,7 +156,7 @@ test("the FILL arm skips already-scored cards; rescoreAll re-scores them", async
   // Pass 3, REFRESH: every card is back in scope and the new score replaces the old one.
   h.queueReply(scoreReply({ overallScore: 2 }));
   h.queueReply(scoreReply({ overallScore: 2 }));
-  const refresh = await sweep({ ownerId: owner, rescoreAll: true, report: reporter().report, signal: undefined });
+  const refresh = await sweep({ ownerId: owner, rescoreAll: true, report: reporter().report, signal: undefined, funderUserId: owner });
   expect(refresh).toEqual({ scanned: 2, scored: 2, skipped: 0, failed: 0 });
   const [row] = await db.select({ refinery: characters.refinery }).from(characters).where(eq(characters.id, first));
   expect(row?.refinery?.score).toBe(2);
@@ -170,7 +175,7 @@ test("per-card containment: one card's unusable reply fails ALONE — the rest s
   h.queueReply("still not json");
   const sink = reporter();
 
-  const result = await sweep({ ownerId: owner, rescoreAll: false, report: sink.report, signal: undefined });
+  const result = await sweep({ ownerId: owner, rescoreAll: false, report: sink.report, signal: undefined, funderUserId: owner });
 
   expect(result).toEqual({ scanned: 2, scored: 1, skipped: 0, failed: 1 });
   const rows = await db.select({ id: characters.id, refinery: characters.refinery }).from(characters).where(eq(characters.ownerId, owner));
@@ -180,7 +185,7 @@ test("per-card containment: one card's unusable reply fails ALONE — the rest s
   expect(scoreOf.get(bad)).toBeNull();
   // …and the next FILL run picks it back up, which is what makes containment recoverable rather than lossy.
   h.queueReply(scoreReply({ overallScore: 5 }));
-  const retryPass = await sweep({ ownerId: owner, rescoreAll: false, report: reporter().report, signal: undefined });
+  const retryPass = await sweep({ ownerId: owner, rescoreAll: false, report: reporter().report, signal: undefined, funderUserId: owner });
   expect(retryPass).toEqual({ scanned: 2, scored: 1, skipped: 1, failed: 0 });
 });
 
@@ -199,7 +204,7 @@ test("batch containment: an infra rejection on the batch fetch fails those cards
   // still resolves. Under the pre-fix code this `await sweep(...)` would REJECT; it must now resolve.
   const sink = reporter();
 
-  const result = await sweep({ ownerId: owner, rescoreAll: false, report: sink.report, signal: undefined });
+  const result = await sweep({ ownerId: owner, rescoreAll: false, report: sink.report, signal: undefined, funderUserId: owner });
 
   // Resolves (no throw): both cards counted failed, the four counts still partition the candidate set.
   expect(result).toEqual({ scanned: 2, scored: 0, skipped: 0, failed: 2 });
@@ -222,7 +227,7 @@ test("the CONTENT FLOOR counts a name-only card as skipped, never as scored or f
   h.queueReply(scoreReply({ overallScore: 6 }));
   const sink = reporter();
 
-  const result = await sweep({ ownerId: owner, rescoreAll: false, report: sink.report, signal: undefined });
+  const result = await sweep({ ownerId: owner, rescoreAll: false, report: sink.report, signal: undefined, funderUserId: owner });
 
   expect(result).toEqual({ scanned: 2, scored: 1, skipped: 1, failed: 0 });
   // Exactly ONE model call was made — the skipped card never reached the tape.
@@ -239,7 +244,7 @@ test("a sweep is OWNER-SCOPED: another owner's cards are neither read nor stampe
   const sweep = createScoreSweep(refineryWorkloadDepsOf(db, h));
   h.queueReply(scoreReply({ overallScore: 4 }));
 
-  const result = await sweep({ ownerId: mine, rescoreAll: false, report: reporter().report, signal: undefined });
+  const result = await sweep({ ownerId: mine, rescoreAll: false, report: reporter().report, signal: undefined, funderUserId: mine });
 
   expect(result).toEqual({ scanned: 1, scored: 1, skipped: 0, failed: 0 });
   const rows = await db.select({ id: characters.id, refinery: characters.refinery }).from(characters);
@@ -264,7 +269,7 @@ test("the BULK arm (ownerId null) sweeps every owner, stamping each card under I
   h.queueReply(scoreReply({ overallScore: 6 }));
   h.queueReply(scoreReply({ overallScore: 6 }));
 
-  const result = await sweep({ ownerId: null, rescoreAll: false, report: reporter().report, signal: undefined });
+  const result = await sweep({ ownerId: null, rescoreAll: false, report: reporter().report, signal: undefined, funderUserId: alpha });
 
   expect(result).toEqual({ scanned: 2, scored: 2, skipped: 0, failed: 0 });
   // The stamp op carries the OWNER PREDICATE in its WHERE, so a mixed-owner sweep only lands because each
@@ -291,7 +296,7 @@ test("an aborted sweep stops before spending a model call", async () => {
   const controller = new AbortController();
   controller.abort();
 
-  await expect(sweep({ ownerId: owner, rescoreAll: false, report: reporter().report, signal: controller.signal })).rejects.toThrow();
+  await expect(sweep({ ownerId: owner, rescoreAll: false, report: reporter().report, signal: controller.signal, funderUserId: owner })).rejects.toThrow();
   expect(h.summarizeCalls).toHaveLength(0);
   // Nothing was stamped, so nothing is announced — the terminal fan's audience is the owners whose cards
   // actually took a score, never "whoever the pass was pointed at". (An abort AFTER some stamps does fan:

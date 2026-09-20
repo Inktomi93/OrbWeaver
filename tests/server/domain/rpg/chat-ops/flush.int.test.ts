@@ -16,7 +16,6 @@ import type { RpgRecordedToolCall } from "@orb/contracts/rpg";
 import type { ChatId, ChatTurnId, Handle, MessageVariantId, RpgQuestId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
-import { resolveModelCapability } from "../../../../../packages/server/src/domain/connection/catalog/resolve-model-capability.ts";
 import type { RpgParticipantActor } from "../../../../../packages/server/src/domain/rpg/index.ts";
 import { rpgToolDefinitions } from "../../../../../packages/server/src/domain/rpg/index.ts";
 import { listJournalByVariant } from "../../../../../packages/server/src/domain/rpg/persistence/journal.ts";
@@ -26,10 +25,12 @@ import { defaultSnapshotState } from "../../../../../packages/server/src/domain/
 import { buildActorRefIndex, extractionToStateDelta } from "../../../../../packages/server/src/domain/rpg/tools/apply.ts";
 import type { ToolExecutionContext } from "../../../../../packages/server/src/domain/tool-use/index.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { makeGenerationCapability, makeResolvedConnection } from "../../../../support/factories/resolved-connection.ts";
+import { makeGenerationCapability, makeResolved } from "../../../../support/factories/resolved-connection.ts";
 import { expect, pinExtractionMode, principal, seedLiteGame, seedMessage, test, turnConnection } from "../_support.ts";
 
 const TURN: ChatTurnId = castId<ChatTurnId>("chat_turn_t1");
+/** The seeded host\'s id (`seedUser(db, "host")` mints `user_host`). */
+const HOST_ID = castId<UserId>("user_host");
 const POOLS_MAX_RE = /pools|max/i;
 
 function exec(chatId: ChatId, turnId: ChatTurnId): ToolExecutionContext {
@@ -132,7 +133,7 @@ test("F2 (readonly gate): a turn connection without the mode's writer capability
   h.fakes.busEvents.length = 0;
 
   const readonlyConn = turnConnection({
-    connection: makeResolved({ generation: makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true } }) }), // tools ABSENT
+    connection: makeResolved({ generation: makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true, modalities: ["text"] } }) }), // tools ABSENT
   });
   await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, readonlyConn);
 
@@ -284,7 +285,7 @@ test("#1493 SETTLE is TOTAL: the F2 readonly game settles immediately — it wil
   h.fakes.busEvents.length = 0;
 
   const readonlyConn = turnConnection({
-    connection: makeResolved({ generation: makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true } }) }), // tools ABSENT
+    connection: makeResolved({ generation: makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true, modalities: ["text"] } }) }), // tools ABSENT
   });
   await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, readonlyConn);
 
@@ -428,7 +429,7 @@ test("FLUSH BARRIER: a fast re-send BLOCKS on the prior in-flight flush, then as
 
   // Turn 2's gather starts while turn 1's flush is STILL in flight. It must block on the barrier.
   let gatherResolved = false;
-  const gather2 = h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false }).then((result) => {
+  const gather2 = h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false, funderUserId: HOST_ID }).then((result) => {
     gatherResolved = true;
     return result;
   });
@@ -468,7 +469,7 @@ test("FLUSH BARRIER: register is SYNCHRONOUS — an IMMEDIATE re-send (no await 
   // before onTurnCompleted's first await) so the gather kicked off on the very next line sees the entry.
   const flush1 = h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection());
   let gatherResolved = false;
-  const gather2 = h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false }).then((r) => {
+  const gather2 = h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false, funderUserId: HOST_ID }).then((r) => {
     gatherResolved = true;
     return r;
   });
@@ -666,7 +667,7 @@ test("R1 folded FALLBACK: a null terminal channel runs cheap's tool round and NA
   const agentSdk = turnConnection({
     connection: makeResolved({
       api: "agent-sdk",
-      capability: resolveModelCapability("claude-sonnet-5", "max-pro-sub", "agent-sdk"),
+      generation: { tools: { parallel: true }, output: { maxTokens: { min: 1, max: 4096 }, modalities: ["text"], structured: true } },
     }),
     terminalToolCalls: null,
   });
@@ -731,10 +732,10 @@ test("D112 fold guard: a folded game on the LOCAL engine rounds instead — name
   await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, extractionMode: "folded" });
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
 
-  // The REAL local-engine capability (the resolver's own vllm arm), so the reason is read off the wire the turn
-  // actually ran on — not off a synthetic literal that could drift from what the connection domain declares.
+  // A local endpoint's declared capability: tools present but UNMEASURED for co-emitted prose, which is the
+  // generation floor's `silencesProse: true` (§6.4) — the reason is read off the connection's capability.
   const local = turnConnection({
-    connection: makeResolved({ generation: resolveModelCapability("Qwen/Qwen3-VL-8B-Instruct", "vllm", "chat-completions") }),
+    connection: makeResolved({ generation: { tools: { parallel: true, silencesProse: true }, output: { maxTokens: { min: 1, max: 4096 }, modalities: ["text"], structured: true } } }),
     terminalToolCalls: null, // the gather withheld the mount; the engine attached nothing
   });
   await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, local);
@@ -756,7 +757,7 @@ test("R1 folded: the readonly gate still wins — a tools-incapable connection f
   // Structured-only capability: folded has no write path ⇒ manual-steering (honest arms), so even a populated
   // terminal channel is not folded — the game is READ-ONLY and the host hand-edits.
   const readonly = turnConnection({
-    connection: makeResolved({ generation: makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true } }) }),
+    connection: makeResolved({ generation: makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true, modalities: ["text"] } }) }),
     terminalToolCalls: FOLDED_CALLS,
   });
   await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, readonly);
@@ -809,7 +810,7 @@ test("R1: a turn whose fold-mount failed lands its state via the fallback round 
   const toolRoundDelta = { statePatch: { location: "the ford" }, journal: [] };
   const { chatId, h } = await seedLiteGame(db, { toolRoundDelta, foldedToolsThrow: true });
   await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, extractionMode: "folded" });
-  await h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false }); // the mount throws + is swallowed here
+  await h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false, funderUserId: HOST_ID }); // the mount throws + is swallowed here
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
 
   await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection({ terminalToolCalls: null }));

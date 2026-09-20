@@ -111,7 +111,7 @@ describe("updateAppSettings — admin tier", () => {
   });
 });
 
-describe("updateAppSettings — D17 owner-box governance split", () => {
+describe("updateAppSettings — the owner-box governance split (F12: the private-endpoint allowlist)", () => {
   test("a delegated admin touching a governance field is REFUSED (requireOwner)", async () => {
     const db = await freshDb();
     const h = makeHarness(db);
@@ -119,7 +119,7 @@ describe("updateAppSettings — D17 owner-box governance split", () => {
     await expect(
       h.svc.updateAppSettings({
         principal: principal(a, "admin"),
-        partial: { allowNonOwnerMaxProSub: true },
+        partial: { privateEndpointAllowlist: ["10.0.0.0/8"] },
       }),
     ).rejects.toThrow(DomainForbiddenError);
   });
@@ -131,7 +131,7 @@ describe("updateAppSettings — D17 owner-box governance split", () => {
     await expect(
       h.svc.updateAppSettings({
         principal: principal(a, "admin"),
-        partial: { allowNonOwnerLocalCompute: null },
+        partial: { privateEndpointAllowlist: null },
       }),
     ).rejects.toThrow(DomainForbiddenError);
   });
@@ -142,10 +142,9 @@ describe("updateAppSettings — D17 owner-box governance split", () => {
     const o = await seedUser(db, { id: "user_owner", role: "owner" });
     const resolved = await h.svc.updateAppSettings({
       principal: principal(o, "owner"),
-      partial: { allowNonOwnerMaxProSub: true, nonOwnerLocalComputeBudget: 5 },
+      partial: { privateEndpointAllowlist: ["10.0.0.0/8", "127.0.0.1"] },
     });
-    expect(resolved.allowNonOwnerMaxProSub).toBe(true);
-    expect(resolved.nonOwnerLocalComputeBudget).toBe(5);
+    expect(resolved.privateEndpointAllowlist).toEqual(["10.0.0.0/8", "127.0.0.1"]);
     expect(h.audits.map((x) => x.entry.action)).toContain("settings.updateAppSettings");
   });
 

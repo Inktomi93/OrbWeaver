@@ -11,11 +11,11 @@
 import type { SpeakerRef } from "@orb/contracts/chat";
 import { PROSE_SLOTS } from "@orb/contracts/prose";
 import type { SummarizeResult } from "@orb/contracts/providers";
+import type { RoleClientsWithSignal } from "@orb/inference";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe, vi } from "vitest";
 import type { ArbiterCandidate } from "../../../../../packages/server/src/domain/chat/contract/arbitration.ts";
-import type { SummarizeOp } from "../../../../../packages/server/src/domain/chat/contract/context.ts";
 import { smartArbitrate } from "../../../../../packages/server/src/domain/chat/engine/smart-arbitrate.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
@@ -33,7 +33,7 @@ function candidate(k: string, over: Partial<ArbiterCandidate> = {}): ArbiterCand
 }
 
 /** A scripted summarize op returning `text` as the single item. */
-function summarizeReturning(text: string): SummarizeOp {
+function summarizeReturning(text: string): RoleClientsWithSignal["summarize"] {
   return vi.fn(
     (): Promise<SummarizeResult> =>
       Promise.resolve({
@@ -142,7 +142,7 @@ describe("smartArbitrate — the deterministic fallback", () => {
   });
 
   test("an op throw degrades to the fallback, never throws", async () => {
-    const summarize: SummarizeOp = vi.fn(() => Promise.reject(new Error("side-LLM down")));
+    const summarize: RoleClientsWithSignal["summarize"] = vi.fn(() => Promise.reject(new Error("side-LLM down")));
     const out = await smartArbitrate({
       summarize,
       candidates: CANDIDATES,
@@ -162,7 +162,7 @@ describe("smartArbitrate — the deterministic fallback", () => {
   // dispatcher fail-closes SYNCHRONOUSLY (`requireBackend` throws before any promise). The call sits inside
   // the try, so a sync throw degrades exactly like a rejection — the round still happens.
   test("an unwired summarize backend (sync throw) degrades to the fallback", async () => {
-    const summarize: SummarizeOp = vi.fn(() => {
+    const summarize: RoleClientsWithSignal["summarize"] = vi.fn(() => {
       throw new Error('provider "vllm" is not wired for the "summarize" role');
     });
     const out = await smartArbitrate({
@@ -181,7 +181,7 @@ describe("smartArbitrate — the deterministic fallback", () => {
   });
 
   test("an EMPTY reply (no items / blank text) degrades to the fallback", async () => {
-    const empty: SummarizeOp = vi.fn((): Promise<SummarizeResult> => Promise.resolve({ items: [], model: "fake" }));
+    const empty: RoleClientsWithSignal["summarize"] = vi.fn((): Promise<SummarizeResult> => Promise.resolve({ items: [], model: "fake" }));
     const out = await smartArbitrate({
       summarize: empty,
       candidates: CANDIDATES,
@@ -310,7 +310,7 @@ describe("smartArbitrate — cancellation (a HANG is not a failure)", () => {
   test("threads the turn's AbortSignal into the summarize call", async () => {
     const controller = new AbortController();
     const seen: (AbortSignal | undefined)[] = [];
-    const summarize: SummarizeOp = vi.fn((_inputs, opts): Promise<SummarizeResult> => {
+    const summarize: RoleClientsWithSignal["summarize"] = vi.fn((_inputs, opts): Promise<SummarizeResult> => {
       seen.push(opts?.signal);
       return Promise.resolve({ items: [{ text: "Bran", usage: { tokensIn: 1, tokensOut: 1, costUsd: null } }], model: "fake" });
     });
@@ -336,7 +336,7 @@ describe("smartArbitrate — cancellation (a HANG is not a failure)", () => {
   test("an abort mid-call terminates the arbitration with aborted:true (no speaker, no degrade)", async () => {
     const controller = new AbortController();
     let observed: AbortSignal | undefined;
-    const summarize: SummarizeOp = vi.fn((_inputs, opts): Promise<SummarizeResult> => {
+    const summarize: RoleClientsWithSignal["summarize"] = vi.fn((_inputs, opts): Promise<SummarizeResult> => {
       observed = opts?.signal;
       // The hanging box: settles ONLY on abort, the way a real provider fetch rejects on its signal.
       return new Promise((_resolve, reject) => {
@@ -386,7 +386,7 @@ describe("smartArbitrate — cancellation (a HANG is not a failure)", () => {
   // still a degrade (fallback + `degraded:true`), never an abort. Distinguishing them is the whole point.
   test("a NON-abort failure with a LIVE signal still degrades (never aborts)", async () => {
     const controller = new AbortController();
-    const summarize: SummarizeOp = vi.fn(() => Promise.reject(new Error("side-LLM down")));
+    const summarize: RoleClientsWithSignal["summarize"] = vi.fn(() => Promise.reject(new Error("side-LLM down")));
     const out = await smartArbitrate({
       summarize,
       candidates: CANDIDATES,

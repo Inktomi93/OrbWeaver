@@ -38,9 +38,6 @@ describe("refresh-model-catalog contribution", () => {
     // A deliberately REJECTING lane: the failure path is exactly what is under test.
     const contribution = build({
       // @orb-waive no-test-fabrication(unknown): a deliberately REJECTING lane — the failure path is exactly what is under test. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-      refreshAgentSdkCatalog: vi.fn(() =>
-        Promise.reject(new Error("daemon down")),
-      ) as unknown as ConnectionWorkloadDeps["connection"]["refreshAgentSdkCatalog"],
     });
     const result = await contribution.run(ctx, {}, vi.fn(), sig());
     expect(result).toEqual({ models: 99, agentSdkModels: null });
@@ -53,7 +50,6 @@ describe("refresh-model-catalog contribution", () => {
       // @orb-waive no-test-fabrication(unknown): two deliberately REJECTING lanes — the both-failed path is exactly under test. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       refreshCatalog: reject as unknown as ConnectionWorkloadDeps["connection"]["refreshCatalog"],
       // @orb-waive no-test-fabrication(unknown): see above. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-      refreshAgentSdkCatalog: reject as unknown as ConnectionWorkloadDeps["connection"]["refreshAgentSdkCatalog"],
     });
     await expect(contribution.run(ctx, {}, vi.fn(), sig())).rejects.toThrow("offline");
   });

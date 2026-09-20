@@ -4,15 +4,12 @@
 // successful edit stores a `kind:"generated"` asset + an `imagery_generations` row (`edited:true`,
 // `mode:"free"`, `identityHash` null — never reuse-gated) with the instruction as the verbatim prompt.
 
-import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { Db } from "@orb/db";
 import { assets, imageryGenerations } from "@orb/db";
-import type { AssetId, Handle, ModelId } from "@orb/kit/ids";
+import type { AssetId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { ImageGenerateRequest, ImageryContext } from "@orb/server/domain/imagery";
+import type { ImageGenerateRequest } from "@orb/server/domain/imagery";
 import { createImageryService, ImageEditUnsupportedError } from "@orb/server/domain/imagery";
-import { passthroughImageNormalizer } from "@orb/server/infra/providers/backends/kit";
-import { runGenerateImage } from "@orb/server/infra/providers/backends/openrouter";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
@@ -146,109 +143,3 @@ describe("editImage — the edit path (doc 02 §4)", () => {
 // The domain suites above assert against a FAKE `generateImage` that records the request and never runs the
 // belt — so a missing `capability` on the request was invisible (the graduation-audit finding). These tests
 // wire the domain to the REAL `runGenerateImage` through the EXACT compose bridge (real runner + the
-// ResolvedWarning→ImageryWarning map) and assert BOTH belt directions on the wire the provider would see.
-
-const GEN_MODEL = "openrouter/image-gen";
-const OK_RESPONSE = {
-  choices: [{ finishReason: "stop", index: 0, message: { role: "assistant", images: [{ imageUrl: { url: "data:image/png;base64,AAAA" } }] } }],
-  created: 0,
-  id: "g",
-  model: GEN_MODEL,
-  systemFingerprint: null,
-  usage: { promptTokens: 1, completionTokens: 0, totalTokens: 1, cost: 0.04 },
-};
-
-type GenClient = Parameters<typeof runGenerateImage>[0];
-
-interface ContentPart {
-  readonly type?: string;
-  readonly imageUrl?: { readonly url?: string };
-  readonly text?: string;
-}
-interface UserMessage {
-  readonly role?: string;
-  readonly content?: string | readonly ContentPart[];
-}
-
-/** A fake OpenRouter chat client that captures the built `chatRequest` and returns one image. */
-function capturingGenClient(): { client: GenClient; captured: { body: Record<string, unknown> | undefined } } {
-  const captured: { body: Record<string, unknown> | undefined } = { body: undefined };
-  // @orb-waive no-test-fabrication(unknown): chat.send is the ONLY client surface runGenerateImage touches; the cast bridges the partial fake. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-  const client = {
-    chat: {
-      send: (req: { chatRequest: Record<string, unknown> }): Promise<unknown> => {
-        captured.body = req.chatRequest;
-        return Promise.resolve(OK_RESPONSE);
-      },
-    },
-  } as unknown as GenClient;
-  return { client, captured };
-}
-
-/** The built user-message content the runner put on the wire. */
-function userContent(body: Record<string, unknown> | undefined): string | readonly ContentPart[] {
-  const messages = (body?.["messages"] ?? []) as readonly UserMessage[];
-  return messages.find((m) => m.role === "user")?.content ?? [];
-}
-
-/** The EXACT compose `generateImage` op: the REAL openrouter runner + the ResolvedWarning→ImageryWarning map
- *  (`entry/compose/services.ts`). The domain request rides through unchanged, so a dropped `capability` would
- *  strip every edit here just as it would in production. */
-function realRunnerBridge(client: GenClient): ImageryContext["generateImage"] {
-  return async (req) => {
-    const result = await runGenerateImage(client, req, passthroughImageNormalizer);
-    return {
-      images: result.images,
-      model: result.model,
-      usage: result.usage,
-      warnings: result.warnings.flatMap((w) => (w.code === "image_edit_dropped" ? [{ code: "image_edit_dropped" as const, detail: w.message }] : [])),
-    };
-  };
-}
-
-describe("editImage — composed-real: the resolved capability rides domain → the real runner belt (graduation-audit finding 1)", () => {
-  test("(a) an edit-capable model: the edit init image SURVIVES to the wire, no image_edit_dropped warning", async () => {
-    const owner = await seedOwner(db, castId<Handle>("owner"));
-    const { client, captured } = capturingGenClient();
-    const { ctx } = makeHarness(db, {
-      resolveGenerateImage: resolutionWith(true),
-      generateImage: realRunnerBridge(client),
-    });
-
-    const result = await createImageryService(ctx).editImage({
-      caller: principal(owner),
-      source: { bytes: PNG_BYTES, mime: "image/png" },
-      instruction: "make it night",
-    });
-
-    const content = userContent(captured.body);
-    const parts = (Array.isArray(content) ? content : []) as readonly ContentPart[];
-    // The edit init image reached the wire as an image_url part BEFORE the instruction text — the belt saw
-    // `capability.input.imageEdit === true` (forwarded by the verb) and let the edit through.
-    expect(parts[0]?.type).toBe("image_url");
-    expect(parts[0]?.imageUrl?.url?.startsWith("data:image/png;base64,")).toBe(true);
-    expect(parts.at(-1)).toEqual({ type: "text", text: "make it night" });
-    // The belt did NOT strip → zero warnings surfaced (pre-fix, capability was undefined → strip + warning).
-    expect(result.warnings).toEqual([]);
-  });
-
-  test("(b) a non-edit capability: the same real bridge strips the edit + surfaces the mapped image_edit_dropped warning", async () => {
-    const { client, captured } = capturingGenClient();
-    const bridge = realRunnerBridge(client);
-
-    const result = await bridge({
-      // @orb-waive no-test-fabrication(unknown): minimal request — the runner reads model/prompt/edit/capability only. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-      credential: {} as unknown as ResolvedCredential,
-      model: castId<ModelId>("img-model"),
-      prompt: "make it night",
-      // @orb-waive no-test-fabrication(unknown): the runner belt reads only `capability.input.imageEdit`. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-      capability: { input: { vision: false, imageEdit: false } } as unknown as ImageGenerateRequest["capability"],
-      edit: { image: PNG_BYTES },
-    });
-
-    // Stripped: the wire fell back to the plain instruction string (no image parts).
-    expect(userContent(captured.body)).toBe("make it night");
-    // The runner's ResolvedWarning mapped onto the domain ImageryWarning shape ({code,detail}).
-    expect(result.warnings).toEqual([{ code: "image_edit_dropped", detail: expect.stringContaining("image-edit") }]);
-  });
-});

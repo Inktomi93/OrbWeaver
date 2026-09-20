@@ -9,10 +9,10 @@
 //     persisted only on the captioned lens.
 
 import { characterEmbeddings, chatDigestSpeakers, chatDigests, documentChunks, imageEmbeddings } from "@orb/db";
+import { DEFAULT_EMBED_MODEL, localLightEmbedSpaceTag } from "@orb/inference";
 import type { CharacterId, ChatDigestId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createEmbeddingsService, EmbedFailedError, SpaceMismatchError } from "@orb/server/domain/embeddings";
-import { localLightEmbedSpace } from "@orb/server/infra/providers";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
@@ -48,7 +48,7 @@ describe("store — card-text (character_embeddings)", () => {
       usage: { promptTokens: null, totalTokens: null },
     });
 
-    await svc.store({ kind: "card", lens: "card-text", characterId, content: CARD_TEXT, model: "stale-snapshot-model", dim: EMBED_DIM });
+    await svc.store({ kind: "card", lens: "card-text", characterId, content: CARD_TEXT, model: "stale-snapshot-model", dim: EMBED_DIM, ownerId: owner });
 
     const row = (await db.select().from(characterEmbeddings).where(eq(characterEmbeddings.characterId, characterId)))[0];
     expect(row?.model).toBe("actual-live-model");
@@ -68,6 +68,7 @@ describe("store — card-text (character_embeddings)", () => {
       content: CARD_TEXT,
       model: EMBED_MODEL,
       dim: EMBED_DIM,
+      ownerId: owner,
     });
 
     expect(result.outcome).toBe("written");
@@ -125,6 +126,7 @@ describe("store — card-text (character_embeddings)", () => {
       content: CARD_TEXT,
       model: EMBED_MODEL,
       dim: EMBED_DIM,
+      ownerId: owner,
     });
     const second = await svc.store({
       kind: "card",
@@ -133,6 +135,7 @@ describe("store — card-text (character_embeddings)", () => {
       content: `${CARD_TEXT} (edited)`,
       model: EMBED_MODEL,
       dim: EMBED_DIM,
+      ownerId: owner,
     });
 
     expect(second.outcome).toBe("written");
@@ -163,6 +166,7 @@ describe("store — card-text (character_embeddings)", () => {
         content: CARD_TEXT,
         model: EMBED_MODEL,
         dim: EMBED_DIM,
+        ownerId: owner,
       }),
     ).rejects.toBeInstanceOf(SpaceMismatchError);
 
@@ -190,6 +194,7 @@ describe("store — card-text (character_embeddings)", () => {
         content: CARD_TEXT,
         model: EMBED_MODEL,
         dim: EMBED_DIM,
+        ownerId: owner,
       }),
     ).rejects.toBeInstanceOf(EmbedFailedError);
     const rows = await db.select().from(characterEmbeddings);
@@ -209,6 +214,7 @@ describe("store — card-text (character_embeddings)", () => {
       content: CARD_TEXT,
       model: EMBED_MODEL,
       dim: EMBED_DIM,
+      ownerId: owner,
     });
     const written = (await db.select().from(characterEmbeddings).where(eq(characterEmbeddings.characterId, characterId)))[0];
     // discovery writes a hub score through the only permitted seam…
@@ -224,6 +230,7 @@ describe("store — card-text (character_embeddings)", () => {
       content: `${CARD_TEXT} (edited again)`,
       model: EMBED_MODEL,
       dim: EMBED_DIM,
+      ownerId: owner,
     });
     const after = (await db.select().from(characterEmbeddings).where(eq(characterEmbeddings.characterId, characterId)))[0];
     expect(after?.hubScore).toBe(0.87);
@@ -245,6 +252,7 @@ describe("store — image lenses (image_embeddings)", () => {
       content: IMG,
       model: IMAGE_EMBED_MODEL,
       dim: EMBED_DIM,
+      ownerId: owner,
     });
 
     expect(result.outcome).toBe("written");
@@ -270,6 +278,7 @@ describe("store — image lenses (image_embeddings)", () => {
       content: IMG,
       model: IMAGE_EMBED_MODEL,
       dim: EMBED_DIM,
+      ownerId: owner,
     });
     await svc.store({
       kind: "avatar",
@@ -279,6 +288,7 @@ describe("store — image lenses (image_embeddings)", () => {
       caption: TEST_CAPTION,
       model: IMAGE_EMBED_MODEL,
       dim: EMBED_DIM,
+      ownerId: owner,
     });
 
     expect(h.roleClients.imageEmbed).toHaveBeenCalledWith({
@@ -311,6 +321,7 @@ describe("store — image lenses (image_embeddings)", () => {
       caption: "   \n  ", // whitespace-only ≡ empty (the summarizer produced nothing usable)
       model: IMAGE_EMBED_MODEL,
       dim: EMBED_DIM,
+      ownerId: owner,
     });
 
     expect(skipped.outcome).toBe("noop");
@@ -328,6 +339,7 @@ describe("store — image lenses (image_embeddings)", () => {
       caption: TEST_CAPTION,
       model: IMAGE_EMBED_MODEL,
       dim: EMBED_DIM,
+      ownerId: owner,
     });
     expect(written.outcome).toBe("written");
     expect(h.roleClients.imageEmbed).toHaveBeenCalledTimes(1);
@@ -364,6 +376,7 @@ describe("store — the chat-block digest lens", () => {
       contentHash: "precomputed-digest-hash",
       model: EMBED_MODEL,
       dim: EMBED_DIM,
+      ownerId: owner,
     });
 
     expect(result.outcome).toBe("written");
@@ -420,15 +433,15 @@ describe("store — the chat-block digest lens", () => {
       return s.map((x) => x.characterId).sort();
     };
 
-    await svc.store({ ...base, speakerCharacterIds: [aria, bram], contentHash: "h1" });
+    await svc.store({ ...base, speakerCharacterIds: [aria, bram], contentHash: "h1", ownerId: owner });
     expect(await speakerSet()).toEqual([aria, bram].sort());
 
     // re-digest (changed hash) with a different speaker set → REPLACED, not appended.
-    await svc.store({ ...base, speakerCharacterIds: [aria], contentHash: "h2" });
+    await svc.store({ ...base, speakerCharacterIds: [aria], contentHash: "h2", ownerId: owner });
     expect(await speakerSet()).toEqual([aria]);
 
     // re-digest with no speakers → join cleared.
-    await svc.store({ ...base, speakerCharacterIds: [], contentHash: "h3" });
+    await svc.store({ ...base, speakerCharacterIds: [], contentHash: "h3", ownerId: owner });
     expect(await speakerSet()).toEqual([]);
   });
 
@@ -454,13 +467,14 @@ describe("store — the chat-block digest lens", () => {
       dim: EMBED_DIM,
     } as const;
 
-    await svc.store({ ...base, speakerCharacterIds: [scoped], contentHash: "before-failure" });
+    await svc.store({ ...base, speakerCharacterIds: [scoped], contentHash: "before-failure", ownerId: owner });
 
     await expect(
       svc.store({
         ...base,
         speakerCharacterIds: [castId<CharacterId>("character_missing")],
         contentHash: "after-failure",
+        ownerId: owner,
       }),
     ).rejects.toThrow();
 
@@ -494,8 +508,8 @@ describe("store — the chat-block digest lens", () => {
       dim: EMBED_DIM,
     } as const;
 
-    await svc.store({ ...base, scopedCharacterId: aria, contentHash: "h-aria" });
-    await svc.store({ ...base, scopedCharacterId: bram, contentHash: "h-bram" });
+    await svc.store({ ...base, scopedCharacterId: aria, contentHash: "h-aria", ownerId: owner });
+    await svc.store({ ...base, scopedCharacterId: bram, contentHash: "h-bram", ownerId: owner });
 
     // distinct scopedCharacterId ⇒ no collision under the (chat, scope, tier, block) UNIQUE.
     const rows = await db.select().from(chatDigests).where(eq(chatDigests.chatId, chatId));
@@ -558,8 +572,8 @@ describe("store — chunk (document_chunks, the 5th arm — databank-design/05 �
       fkRefs: { documentId, chunkIdx: 0, charStart: 0, charEnd: 5 },
     } as const;
 
-    await svc.store({ ...base, content: "alpha" });
-    const changed = await svc.store({ ...base, content: "bravo" });
+    await svc.store({ ...base, content: "alpha", ownerId: owner });
+    const changed = await svc.store({ ...base, content: "bravo", ownerId: owner });
     expect(changed.outcome).toBe("written");
 
     const rows = await db.select().from(documentChunks).where(eq(documentChunks.documentId, documentId));
@@ -587,6 +601,7 @@ describe("store — chunk (document_chunks, the 5th arm — databank-design/05 �
         model: EMBED_MODEL,
         dim: EMBED_DIM,
         fkRefs: { documentId, chunkIdx: 0, charStart: 0, charEnd: 1 },
+        ownerId: owner,
       }),
     ).rejects.toBeInstanceOf(SpaceMismatchError);
     expect(await db.select().from(documentChunks)).toHaveLength(0);
@@ -608,14 +623,14 @@ describe("store — a local-light dtype change is a space change (#2417)", () =>
     const characterId = await seedCharacter(db, owner);
 
     // The box's CURRENT space, derived the way the composition root derives it.
-    const q8Space = localLightEmbedSpace("");
+    const q8Space = localLightEmbedSpaceTag(DEFAULT_EMBED_MODEL, "q8");
     expect(q8Space).toContain("@"); // the tag CARRIES its dtype — the premise this whole case rests on
     embedAs(h, q8Space);
-    await svc.store({ kind: "card", lens: "card-text", characterId, content: CARD_TEXT, model: q8Space, dim: EMBED_DIM });
+    await svc.store({ kind: "card", lens: "card-text", characterId, content: CARD_TEXT, model: q8Space, dim: EMBED_DIM, ownerId: owner });
     expect(h.roleClients.embed).toHaveBeenCalledTimes(1);
 
     // Re-running in the SAME space short-circuits: identical bytes, identical geometry, nothing to redo.
-    await svc.store({ kind: "card", lens: "card-text", characterId, content: CARD_TEXT, model: q8Space, dim: EMBED_DIM });
+    await svc.store({ kind: "card", lens: "card-text", characterId, content: CARD_TEXT, model: q8Space, dim: EMBED_DIM, ownerId: owner });
     expect(h.roleClients.embed).toHaveBeenCalledTimes(1);
 
     // Now the operator selects fp32. Same character, same text — different encoder, so the gate must NOT
@@ -623,7 +638,7 @@ describe("store — a local-light dtype change is a space change (#2417)", () =>
     const fp32Space = `${q8Space.split("@")[0] ?? ""}@fp32`;
     expect(fp32Space).not.toBe(q8Space);
     embedAs(h, fp32Space);
-    const reindexed = await svc.store({ kind: "card", lens: "card-text", characterId, content: CARD_TEXT, model: fp32Space, dim: EMBED_DIM });
+    const reindexed = await svc.store({ kind: "card", lens: "card-text", characterId, content: CARD_TEXT, model: fp32Space, dim: EMBED_DIM, ownerId: owner });
 
     expect(reindexed.outcome).toBe("written");
     expect(h.roleClients.embed).toHaveBeenCalledTimes(2);

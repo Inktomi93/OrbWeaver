@@ -38,6 +38,7 @@ import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 import { makeFakeRoleClients } from "../../../support/factories/role-clients.ts";
 import { createSeededIds } from "../../../support/ids.ts";
+import { eq } from "drizzle-orm";
 
 const FROZEN_AT = FROZEN_AT_MS;
 
@@ -149,6 +150,16 @@ export function makeRoleClients(vision = true): FakeRoleClients {
   return { ...base, embed, imageEmbed, rerank, summarize, structured };
 }
 
+/** The seeded entity's owner from the real table — the indexer/sweeps read it the way compose wires it. */
+async function loadOwnerOf(db: Db, kind: "character" | "asset", id: CharacterId | AssetId): Promise<UserId | null> {
+  if (kind === "character") {
+    const rows = await db.select({ ownerId: characters.ownerId }).from(characters).where(eq(characters.id, id as CharacterId));
+    return rows[0]?.ownerId ?? null;
+  }
+  const rows = await db.select({ ownerId: assets.ownerId }).from(assets).where(eq(assets.id, id as AssetId));
+  return rows[0]?.ownerId ?? null;
+}
+
 export interface StoreHarness {
   readonly ctx: EmbeddingsContext;
   readonly roleClients: FakeRoleClients;
@@ -203,6 +214,10 @@ export function makeStoreHarness(db: Db, sources: StoreHarnessSources = {}): Sto
   const ctx: EmbeddingsContext = {
     db,
     roleClientsFor: () => Promise.resolve(roleClients),
+    // The entity OWNER reads (the funder of every sweep) — the harness's seeded rows all belong to whoever the
+    // test seeded; a null answer means "row gone", which the sweeps skip.
+    loadCharacterOwner: (characterId) => loadOwnerOf(db, "character", characterId),
+    loadAssetOwner: (assetId) => loadOwnerOf(db, "asset", assetId),
     now: (): number => clock.now(),
     newCharacterEmbeddingId: (): CharacterEmbeddingId => castId<CharacterEmbeddingId>(ids.next("character_embedding")),
     newImageEmbeddingId: (): ImageEmbeddingId => castId<ImageEmbeddingId>(ids.next("image_embedding")),
@@ -263,6 +278,8 @@ export function makeIndexerHarness(
     loadCardText,
     loadAssetMime,
     loadAssetBytes,
+    loadCharacterOwner: (characterId) => loadOwnerOf(db, "character", characterId),
+    loadAssetOwner: (assetId) => loadOwnerOf(db, "asset", assetId),
     roleClientsFor: () => Promise.resolve(roleClients),
     embedDim: EMBED_DIM,
     imageEmbedDim: EMBED_DIM,

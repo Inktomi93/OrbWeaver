@@ -11,19 +11,17 @@
 
 import type { AssembleContext, ChatBusEvent } from "@orb/contracts/chat";
 import { VARIANT_METADATA_REASONING_MS_KEY } from "@orb/contracts/chat";
-import type { Resolved } from "@orb/inference";
-import type { ResolvedCredential } from "@orb/contracts/credentials";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { characterStats, dailyStats, messageVariants, modelStats, ownerStats } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
+import type { ChatCompletionResult, Resolved } from "@orb/inference";
+import { mapChatCompletionToTurnResult } from "@orb/inference";
 import type { CharacterId, ChatId, Handle, ModelId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createRunChatTurnBridge } from "@orb/server/entry/compose";
-import type { ChatCompletionResult } from "@orb/server/infra/providers/backends/kit";
-import { mapChatCompletionToTurnResult } from "@orb/server/infra/providers/backends/kit/openai-compat";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context.ts";
@@ -36,7 +34,7 @@ import { applyStatsDelta } from "../../../../../packages/server/src/domain/stats
 import { reconcileStats } from "../../../../../packages/server/src/domain/stats/write/rebuild-from-canon.ts";
 import { createFrozenClock } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { makeOpenRouterCredential } from "../../../../support/factories/resolved-connection.ts";
+import { makeApiKeySecret, makeResolved } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import {
   FROZEN_AT,
@@ -52,13 +50,7 @@ import {
 
 const HOST = castId<UserId>("user_host");
 
-const CONNECTION: ResolvedConnection = {
-  api: "chat-completions",
-  model: castId<ModelId>("gpt"),
-  // @orb-waive no-test-fabrication(unknown): a stub ResolvedCredential — the engine reads only credential.source for the §9 belt. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-  credential: { source: "vllm", credentialId: null } as unknown as ResolvedCredential,
-  capability: TEST_CAPABILITY,
-};
+const CONNECTION: Resolved<"chat"> = makeResolved({ api: "chat-completions", model: castId<ModelId>("gpt"), capability: TEST_CAPABILITY });
 
 const ASSEMBLE_CTX: AssembleContext = {
   character: { name: "Aria", description: "a bold knight" },
@@ -177,9 +169,8 @@ function engineFor(database: Db, deltas: StatsDelta[], queue: readonly RunChatTu
   });
   return createTurnEngine(ctx, {
     emit: (_event: ChatBusEvent): Promise<void> => Promise.resolve(),
-    debitBudget: (): Promise<void> => Promise.resolve(),
-    resolveTurnPolicy: (): Promise<{ budget: number | null; allowNonOwnerMaxProSub: boolean }> =>
-      Promise.resolve({ budget: null, allowNonOwnerMaxProSub: false }),
+
+
     holder: "replica-1",
     lockTtlMs: 60_000,
     generateSegments: async () => ({ written: 0, skipped: 0 }),
@@ -394,7 +385,7 @@ describe("engine stats — provider-reported OpenRouter cost reaches model_stats
     readonly variant: typeof messageVariants.$inferSelect;
     readonly model: typeof modelStats.$inferSelect;
   }> {
-    const openRouterConnection: ResolvedConnection = {
+    const openRouterConnection: Resolved<"chat"> = {
       ...CONNECTION,
       credential: makeApiKeySecret("sk-or-test"),
     };
@@ -409,7 +400,6 @@ describe("engine stats — provider-reported OpenRouter cost reaches model_stats
             maxOutputTokens: 100,
           }),
         ),
-      getOrSkinTierModels: (() => Promise.resolve([])) as never,
     });
     const deltas: StatsDelta[] = [];
     const ctx = makeChatContext(db, {
@@ -420,8 +410,8 @@ describe("engine stats — provider-reported OpenRouter cost reaches model_stats
     });
     const engine = createTurnEngine(ctx, {
       emit: (): Promise<void> => Promise.resolve(),
-      debitBudget: (): Promise<void> => Promise.resolve(),
-      resolveTurnPolicy: () => Promise.resolve({ budget: null, allowNonOwnerMaxProSub: false }),
+
+
       holder: "replica-1",
       lockTtlMs: 60_000,
       generateSegments: async () => ({ written: 0, skipped: 0 }),
@@ -520,8 +510,8 @@ describe("engine stats — gen-time is populated on the live path (F2)", () => {
     });
     const engine = createTurnEngine(ctx, {
       emit: (): Promise<void> => Promise.resolve(),
-      debitBudget: (): Promise<void> => Promise.resolve(),
-      resolveTurnPolicy: () => Promise.resolve({ budget: null, allowNonOwnerMaxProSub: false }),
+
+
       holder: "replica-1",
       lockTtlMs: 60_000,
       generateSegments: async () => ({ written: 0, skipped: 0 }),
@@ -593,8 +583,8 @@ describe("engine stats — the live turn stamps the reasoning window (#184)", ()
     });
     const engine = createTurnEngine(ctx, {
       emit: (): Promise<void> => Promise.resolve(),
-      debitBudget: (): Promise<void> => Promise.resolve(),
-      resolveTurnPolicy: () => Promise.resolve({ budget: null, allowNonOwnerMaxProSub: false }),
+
+
       holder: "replica-1",
       lockTtlMs: 60_000,
       generateSegments: async () => ({ written: 0, skipped: 0 }),

@@ -29,6 +29,7 @@ async function seedOneEmbedding(db: Awaited<ReturnType<typeof freshDb>>): Promis
     content: CARD_TEXT,
     model: EMBED_MODEL,
     dim: EMBED_DIM,
+    ownerId: owner,
   });
   const row = (await db.select().from(characterEmbeddings).where(eq(characterEmbeddings.characterId, characterId)))[0];
   if (row === undefined) {

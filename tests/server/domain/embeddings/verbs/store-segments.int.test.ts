@@ -15,6 +15,8 @@ import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { EMBED_DIM, EMBED_MODEL, fakeVector, makeStoreHarness, seedChat } from "../_support.ts";
+import { castId } from "@orb/kit/ids";
+import type { UserId } from "@orb/kit/ids";
 
 const SEGMENT_TEXT = "Alice: meet me at the docks.\nBob: I'll bring the relic.";
 
@@ -25,6 +27,7 @@ function segment(chatId: SegmentStoreParams["chatId"], over: Partial<SegmentStor
   return {
     kind: "chat-block",
     lens: "segment",
+    ownerId: castId<UserId>("user_owner"),
     chatId,
     blockIdx: 0,
     chunkIdx: 0,

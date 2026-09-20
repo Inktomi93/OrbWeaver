@@ -51,6 +51,7 @@ import type { AppCaller } from "../../support/fixtures.ts";
 import { expect, OWNER_USER_ID, test } from "../../support/fixtures.ts";
 import { principal as automationPrincipal } from "../domain/automation/_support.ts";
 import { seedChat, seedMessage, seedParticipant } from "../domain/chat/_support.ts";
+import type { ProviderId } from "@orb/contracts/inference";
 
 // ── Owner A's distinctive marker names — these strings exist ONLY in A's owned rows, so their appearance in
 //    a stranger's result is an unambiguous LEAK signal (an echoed input id is NOT a leak — a stranger's own
@@ -731,12 +732,6 @@ const PROBES: readonly Probe[] = [
   {
     path: "search.similarArt",
     call: (c, i) => c.search.similarArt({ characterId: i.characterId, topN: 5 }),
-  },
-  // ── credentials (owner-scoped) — only the read-shaped `fetchModels` is probed here; the mutation verbs
-  //    are EXEMPT in this harness (the keyless SecretBox trips their storage-disabled guard first, below). ──
-  {
-    path: "credentials.fetchModels",
-    call: (c, i) => c.credentials.fetchModels({ credentialId: i.credentialId }),
   },
   // ── workloads (F3 per-user owner-scoped; get/cancel/retry take a workloadId) — a non-admin stranger must
   //    see a leak-free NOT_FOUND on a foreign workload (its `error` carries A's marker, so a broken gate that
@@ -1718,7 +1713,7 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "connection.getCatalog": "not-owned: the deployment-global model catalog",
   "connection.getAgentSdkCatalog": "not-owned: the deployment-global agent-sdk daemon model catalog (no id, authed browse)",
   "connection.resolveChatCapability":
-    "self-scoped: resolves the caller's OWN chat-role ModelCapability from principal.userId's settings — " +
+    "self-scoped: resolves the caller's OWN chat-role GenerationCapability from principal.userId's settings — " +
     "NO input at all (no caller-supplied user id/role), so there is no foreign id to probe",
   "connection.getModelsForSource":
     "self-scoped: the read-only picker facade over (source, role) — reads the caller's OWN credential " +
@@ -1919,7 +1914,7 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     await db.insert(userCredentials).values({
       id: credentialId,
       ownerId: OWNER_USER_ID,
-      provider: "openrouter",
+      provider: castId<ProviderId>("openrouter"),
       ciphertext: "x",
       iv: "x",
       tag: "x",

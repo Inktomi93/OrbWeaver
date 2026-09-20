@@ -90,7 +90,7 @@ describe("purgeMemoryVectors — PD-139(b) chat-memory old-space reclaim", () =>
     // The harness's roleClients.embedModel is EMBED_MODEL — the active space the purge scopes against.
     const svc = createEmbeddingsService(makeStoreHarness(db).ctx);
 
-    const purged = await svc.purgeMemoryVectors();
+    const purged = await svc.purgeMemoryVectors({ ownerId: owner });
 
     expect(purged).toEqual({ segments: 1, digests: 1 });
     expect((await db.select().from(chatSegments)).map((r) => r.model)).toEqual([EMBED_MODEL]);
@@ -135,7 +135,7 @@ describe("purgeMemoryVectors — PD-139(b) chat-memory old-space reclaim", () =>
     });
     const svc = createEmbeddingsService(makeStoreHarness(db).ctx);
 
-    const purged = await svc.purgeMemoryVectors();
+    const purged = await svc.purgeMemoryVectors({ ownerId: owner });
 
     expect(purged).toEqual({ segments: 0, digests: 0 });
     expect(await db.select().from(chatSegments)).toHaveLength(1);

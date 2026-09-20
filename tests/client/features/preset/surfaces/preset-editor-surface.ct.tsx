@@ -162,7 +162,7 @@ function updatesAgainst(trpc: TrpcRecorder, presetId: PresetId): UpdateCall[] {
 // own message is shown verbatim); after the event the second resolve succeeds and the OUTPUT KnobRows render
 // — each GHOSTED at its effective value (the twin's blank-means-default placeholder, redesign §4.1) with the
 // provenance gloss under the track.
-// The read returns the descriptor PLUS the identity it resolved for (`ResolvedChatCapability`); this panel
+// The read returns the descriptor PLUS the identity it resolved for (`ResolvedConnectionView`); this panel
 // reads the descriptor half only.
 //
 // THE BARRIER IS THE RENDERED FAILURE ARM, not the request count (lane FLK, 2026-08-02). This pin used to

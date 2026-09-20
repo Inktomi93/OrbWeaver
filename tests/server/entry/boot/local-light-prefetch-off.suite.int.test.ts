@@ -10,7 +10,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { LocalLightModelCache } from "@orb/server/infra/providers";
+import type { LocalLightModelCache } from "@orb/inference";
 import { afterAll, vi } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 
@@ -49,7 +49,7 @@ const { createLifecycle } = await import("../../../../packages/server/src/entry/
   throw error;
 });
 
-const lifecycle = createLifecycle({ listenPort: 0, providerSeams: { localLightCache: recordingCache } });
+const lifecycle = createLifecycle({ listenPort: 0, providerSeams: { localLight: { cache: recordingCache } } });
 
 afterAll(async () => {
   try {

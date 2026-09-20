@@ -170,6 +170,7 @@ describe("embedAssets — the bulk image sweep", () => {
       content: IMG,
       model: IMAGE_EMBED_MODEL,
       dim: EMBED_DIM,
+      ownerId: owner,
     });
 
     const result = await svc.embedAssets({ ownerId: null, force: false, signal: signal() });

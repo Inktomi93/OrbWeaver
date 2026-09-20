@@ -7,10 +7,8 @@
 import type { CharacterCard } from "@orb/contracts/character";
 import type { AssemblePersona, ChatBusEvent } from "@orb/contracts/chat";
 import { AUTOMATION_DEPTH_HARD_CAP } from "@orb/contracts/chat";
-import type { GenerationCapability } from "@orb/contracts/inference";
-import type { Resolved } from "@orb/inference";
 import type { Can, Principal } from "@orb/contracts/identity";
-import type { NormalizedFinishReason } from "@orb/contracts/inference";
+import type { GenerationCapability, NormalizedFinishReason } from "@orb/contracts/inference";
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { PromptConfig, PromptSection, UserMacroSpec } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
@@ -21,6 +19,7 @@ import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { chats, personaBooks, personas, statsCanonVersions, worldBooks, worldEntries } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
+import type { Resolved } from "@orb/inference";
 import { DomainRateLimitError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, Handle, MessageId, PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -170,7 +169,7 @@ function harness(
     rpg?: ChatContext["rpg"];
     /** Override the resolved connection wholesale (the R1 pin needs a TOOLS-capable capability, which
      *  `testConnection`'s minimal descriptor deliberately lacks). */
-    connection?: ResolvedConnection;
+    connection?: Resolved<"chat">;
     /** The S2 teaching registry (default = the composition root's own: chat's rpg-gather projection). The R2
      *  attach-matrix pins add a contribution that DECLARES a registry tool name. */
     teaching?: ChatContext["teaching"];
@@ -229,8 +228,8 @@ function harness(
   };
   const engine = createTurnEngine(ctx, {
     emit,
-    debitBudget: over.debitBudget ?? (() => Promise.resolve()),
-    resolveTurnPolicy: () => Promise.resolve({ budget: null, allowNonOwnerMaxProSub: false }),
+
+
     holder: "replica-1",
     lockTtlMs: 60_000,
     generateSegments: async () => ({ written: 0, skipped: 0 }),
@@ -2950,12 +2949,12 @@ const RPG_TOOLS = [{ name: "update_scene", description: "the scene", parameters:
 
 /** A TOOLS-capable connection — `testConnection`'s minimal descriptor has no `tools` axis, and the pipeline's
  *  terminal-tool gate keys on its presence (an incapable model gets a byte-identical tool-less request). */
-// Partial ModelCapability — only the belt-read fields (TEST_CAPABILITY, see _support.ts) plus the tools
+// Partial GenerationCapability — only the belt-read fields (TEST_CAPABILITY, see _support.ts) plus the tools
 // axis under test are set.
-const TOOLS_CONNECTION: ResolvedConnection = {
+const TOOLS_CONNECTION: Resolved<"chat"> = {
   ...testConnection("vllm"),
   // @orb-waive no-test-fabrication(unknown): see above. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-  capability: { ...TEST_CAPABILITY, tools: { parallel: true } } as unknown as ModelCapability,
+  capability: { ...TEST_CAPABILITY, tools: { parallel: true } } as unknown as GenerationCapability,
 };
 
 /** A minimal `ctx.rpg` whose GATHER contributes terminal tools (a `folded` game), recording what the FLUSH

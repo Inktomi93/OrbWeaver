@@ -26,25 +26,19 @@ describe("exportUserSettings", () => {
     const owner = await seedUser(db, { id: "user_owner" });
     const p = principal(owner, "user");
 
-    // Store a SHARE-SAFE pref (appearance) AND a fenced-out connection assignment (routing.chat.source/model).
+    // Store a SHARE-SAFE pref (appearance). Connection config left the settings blob with the inference program
+    // (per-task picks are `connection_bindings` rows), so the export can no longer carry it by construction —
+    // the fence below pins that the retired `routing` key never re-appears in the shared file.
     await h.svc.updateUserSettingsSection({
       principal: p,
       input: { section: "appearance", patch: { fontScale: 1.25 } },
-    });
-    await h.svc.updateUserSettingsSection({
-      principal: p,
-      input: {
-        section: "routing",
-        patch: { roleDefaults: { chat: { source: "openrouter", model: "fenced-model-xyz" } } },
-      },
     });
 
     const file = await createExportUserSettings(ctx)(owner);
     expect(file.filename).toBe("user-settings.json");
 
-    // The fenced connection config never appears in the exported bytes.
+    // No connection config in the exported bytes.
     const text = new TextDecoder().decode(file.bytes);
-    expect(text).not.toContain("fenced-model-xyz");
     expect(text).not.toContain("roleDefaults");
 
     const parsed = must(parseUserSettingsBackup(file.bytes));

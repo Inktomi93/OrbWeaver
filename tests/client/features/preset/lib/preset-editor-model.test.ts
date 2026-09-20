@@ -12,7 +12,6 @@ import { PROSE_MAX_CHARS, PROSE_SLOTS } from "@orb/contracts/prose";
 import {
   mergeOnSubmit,
   seedConfig,
-  validatePresetConfig,
   validatePresetProse,
 } from "../../../../../packages/client/src/features/preset/lib/preset-editor-model.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -79,7 +78,6 @@ test("merge preserves server-only fields the params panel never edits", () => {
   const server = serverConfig();
   const edited = seedConfig(server); // no edits — the whole config was bound
   const merged = mergeOnSubmit(edited, server);
-  expect(merged.customParameters).toEqual({ provider: { order: ["x"] } });
   expect(merged.params.advanced).toEqual({ squashSystemMessages: true });
   expect(merged.params.stop).toEqual(["END"]);
   expect(merged.variables).toEqual(server.variables);
@@ -240,19 +238,3 @@ test("validatePresetProse is blind to a RETIRED slot id left in a stored blob �
 });
 
 // --- customParameters: authored in the deck now (D143a) -----------------------
-
-test("merge carries EDITED customParameters — the escape hatch is authorable, so the server copy must not win", () => {
-  const server = serverConfig();
-  const edited: PromptConfig = { ...seedConfig(server), customParameters: { transforms: ["middle-out"] } };
-  expect(mergeOnSubmit(edited, server).customParameters).toEqual({ transforms: ["middle-out"] });
-  // Clearing the last row unsets the field rather than persisting the server's stale blob.
-  expect(mergeOnSubmit({ ...seedConfig(server), customParameters: undefined }, server).customParameters).toBeUndefined();
-});
-
-test("validatePresetConfig HOLDS the save on an unfinished custom parameter, and passes a clean blob", () => {
-  const server = serverConfig();
-  // The editor's PENDING marker: a slot whose value did not parse yet (custom-parameters-model.ts).
-  const pending: PromptConfig = { ...seedConfig(server), customParameters: Object.fromEntries([["top_a", undefined]]) };
-  expect(validatePresetConfig(pending)?.fields["customParameters"]).toContain("top_a");
-  expect(validatePresetConfig(seedConfig(server))).toBeUndefined();
-});

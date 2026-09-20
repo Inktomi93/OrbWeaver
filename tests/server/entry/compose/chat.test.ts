@@ -4,14 +4,15 @@
 // (a history with no trailing USER row — continue-mode, or a transcript ending in tool results), and the tail
 // join must match the backend comparator's user-run joiner.
 
+import type { ChatEvent, ChatRequest, ChatResult, OrSkinTierModels, WarningCode } from "@orb/inference";
+import { AGENT_CONTINUATION_PROMPT_STUB, AGENT_PROMPT_TAIL_JOINER } from "@orb/inference";
 import type { ChatId, ModelId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { TurnMessage, TurnRequest, TurnStreamChunk } from "@orb/server/domain/chat";
 import { activePersonaIdFor, createRunChatTurnBridge, extractTrailingSystemRows, splitAgentHistory } from "@orb/server/entry/compose";
-import type { ChatEvent, ChatRequest, ChatResult, OrSkinTierModels, WarningCode } from "@orb/server/infra/providers";
-import { AGENT_CONTINUATION_PROMPT_STUB, AGENT_PROMPT_TAIL_JOINER } from "@orb/server/infra/providers";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
+import { makeResolved } from "../../../support/factories/resolved-connection.ts";
 
 function row(role: TurnMessage["role"], text: string, name?: string): TurnMessage {
   const content: TurnMessage["content"] = [{ type: "text", text }];
@@ -420,29 +421,26 @@ describe("createRunChatTurnBridge — the runner-warning carry", () => {
       tokensOut: 1,
       cacheReadTokens: 0,
       cacheWriteTokens: 0,
-      cacheCreation5mTokens: null,
-      cacheCreation1hTokens: null,
       reasoningTokens: null,
       contextWindow: null,
       maxOutputTokens: null,
-      webSearchRequests: 0,
       costUsd: 0,
       costDetails: null,
-      isByok: null,
+      costProvenance: "measured",
     },
     rateLimit: null,
   } as const;
 
   const wireRequest: TurnRequest = {
     // @orb-waive no-test-fabrication(unknown): minimal ResolvedCredential/capability doubles — the bridge reads only `connection.api`. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-    connection: { api: "chat-completions", model: castId<ModelId>("test-model"), credential: {}, capability: {} } as unknown as TurnRequest["connection"],
+    connection: makeResolved({ api: "chat-completions", model: castId<ModelId>("test-model") }),
     chatId: castId<ChatId>("chat_bridgewarn"),
     // @orb-waive no-test-fabrication(unknown): the bridge reads only prompt.static + prompt.dynamic. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     prompt: { static: "sys", dynamic: "" } as unknown as TurnRequest["prompt"],
     history: [],
     intent: {},
     kind: "auto",
-    ownerConsented: false,
+
     cacheBreakpointFromEnd: null,
   };
 
@@ -450,7 +448,6 @@ describe("createRunChatTurnBridge — the runner-warning carry", () => {
   async function chunksFor(events: readonly ChatEvent[]): Promise<TurnStreamChunk[]> {
     const bridge = createRunChatTurnBridge({
       runChatTurn: (): Promise<ChatResult> => Promise.resolve({ ...baseResult, events }),
-      getOrSkinTierModels: (): Promise<OrSkinTierModels> => Promise.resolve({ opus: "o", sonnet: "s", haiku: "h" }),
     });
     const out: TurnStreamChunk[] = [];
     for await (const chunk of bridge(wireRequest)) {
@@ -495,7 +492,6 @@ describe("createRunChatTurnBridge — the runner-warning carry", () => {
   test("the provider's per-turn MODEL-CALL count rides the final economics as `modelCalls`", async () => {
     const bridge = createRunChatTurnBridge({
       runChatTurn: (): Promise<ChatResult> => Promise.resolve({ ...baseResult, numTurns: 4, events: [] }),
-      getOrSkinTierModels: (): Promise<OrSkinTierModels> => Promise.resolve({ opus: "o", sonnet: "s", haiku: "h" }),
     });
     const chunks: TurnStreamChunk[] = [];
     for await (const chunk of bridge(wireRequest)) {
@@ -513,7 +509,6 @@ describe("createRunChatTurnBridge — the runner-warning carry", () => {
     const bridge = createRunChatTurnBridge({
       // A non-Error rejection IS the case under test — a vendor SDK / abort path that rejects with nothing.
       runChatTurn: (): Promise<ChatResult> => Promise.reject(undefined),
-      getOrSkinTierModels: (): Promise<OrSkinTierModels> => Promise.resolve({ opus: "o", sonnet: "s", haiku: "h" }),
     });
     const chunks: TurnStreamChunk[] = [];
     let failed = false;
@@ -548,7 +543,7 @@ describe("createRunChatTurnBridge — the runner-warning carry", () => {
         seen = "historyCacheBreakpointFromEnd" in req ? req.historyCacheBreakpointFromEnd : undefined;
         return Promise.resolve({ ...baseResult, events: [] });
       },
-      getOrSkinTierModels: (): Promise<OrSkinTierModels> => Promise.resolve({ opus: "o", sonnet: "s", haiku: "h" }),
+
       ...(promptCacheMinDepth === undefined ? {} : { promptCacheMinDepth }),
     });
     for await (const _chunk of bridge({ ...wireRequest, cacheBreakpointFromEnd })) {
@@ -605,7 +600,6 @@ describe("createRunChatTurnBridge — the runner-warning carry", () => {
           seen = req;
           return Promise.resolve({ ...baseResult, events: [] });
         },
-        getOrSkinTierModels: (): Promise<OrSkinTierModels> => Promise.resolve({ opus: "o", sonnet: "s", haiku: "h" }),
       });
       for await (const _chunk of bridge({ ...wireRequest, connection: agentConnection, history })) {
         // drain

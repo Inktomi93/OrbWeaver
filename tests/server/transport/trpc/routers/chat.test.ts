@@ -62,6 +62,7 @@ const MESSAGE: MessageView = {
   genStartedAt: null,
   genFinishedAt: null,
   generationId: null,
+  connectionId: null,
   contextBoundaryMessageId: null,
   toolCalls: [],
 };

@@ -5,7 +5,7 @@
 
 import type { RefineryAnalyzePayload, RefineryRewritePayload, RefineryScorePayload } from "@orb/contracts/refinery";
 import type { SummarizeResult } from "@orb/contracts/providers";
-import type { RoleClients, SummarizeInput, SummarizeOptions } from "@orb/contracts/role-clients";
+import type { ResponseFormat, RoleClients, SummarizeInput, SummarizeOptions } from "@orb/contracts/role-clients";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { CharacterHandle, CharacterId, RefineryRunId, RefinerySchemaId, RefinerySessionId, UserId } from "@orb/kit/ids";
@@ -30,7 +30,8 @@ export { principal, seedUser } from "../character/_support.ts";
 interface SummarizeCall {
   readonly system: string;
   readonly user: string;
-  readonly opts: SummarizeOptions | undefined;
+  /** The tape serves `summarize` AND `structured`; a structured call's opts carry the `responseFormat`. */
+  readonly opts: (SummarizeOptions & { readonly responseFormat?: ResponseFormat | undefined }) | undefined;
 }
 
 /** One recorded user-bus emit — the per-user freshness plane the verbs fan `refineryChanged` on (and the

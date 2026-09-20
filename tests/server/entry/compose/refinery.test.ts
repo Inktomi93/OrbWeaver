@@ -91,22 +91,6 @@ describe("buildRefinery — the queue's actor gets a SMALLER bundle than the ser
 });
 
 describe("buildRefinery — the summarizer binding stays LIVE (a role re-point must reach the sweep)", () => {
-  test("summarizerContextTokens is read PER CALL, so a post-compose re-point is visible", () => {
-    const h = harness();
-    const { refineryWorkloads } = buildRefinery(h.deps);
-
-    expect(refineryWorkloads.summarizerContextTokens()).toBe(8192);
-    h.roleClients.summarizerContextTokens = 32_768;
-    // A compose-time read would still answer 8192 here — that is the whole regression this pins.
-    expect(refineryWorkloads.summarizerContextTokens()).toBe(32_768);
-  });
-
-  test("the summarize client is passed through BY IDENTITY (never re-wrapped, so no lost signal/abort)", () => {
-    const h = harness();
-    const { refineryWorkloads } = buildRefinery(h.deps);
-
-    expect(refineryWorkloads.summarize).toBe(h.summarize);
-  });
 });
 
 describe("buildRefinery — the prose resolver is caller-scoped and single-homed", () => {

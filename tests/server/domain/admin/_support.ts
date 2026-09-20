@@ -29,7 +29,7 @@ import { buildAuditStatementIfPrecedingWrote } from "@orb/server/foundation/obse
 import { and, asc, eq, isNull } from "drizzle-orm";
 import type { AdminContext } from "../../../../packages/server/src/domain/admin/context.ts";
 import type { UnclaimedLinkOutcome } from "../../../../packages/server/src/domain/admin/contract/results.ts";
-import type { AdminEngineStatus, SessionAdminView } from "../../../../packages/server/src/domain/admin/contract/views.ts";
+import type { SessionAdminView } from "../../../../packages/server/src/domain/admin/contract/views.ts";
 import { insertSession, revokeAllForUserStatement } from "../../../../packages/server/src/domain/sessions/persistence/sessions.ts";
 import { createFrozenClock } from "../../../support/clock.ts";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
@@ -193,14 +193,9 @@ export function makeHarness(db: Db): AdminHarness {
   const evictedSockets: UserId[] = [];
   const revokedSessions: string[] = [];
   const userEvents: { userId: UserId; event: UserBusEvent }[] = [];
-  const restarted: string[] = [];
-  let restartError: unknown;
   const embedded: { principal: Principal; characterId: CharacterId }[] = [];
   let embedOwned = true;
   const sessionList: SessionAdminView[] = [];
-  const engineStatuses: Record<string, AdminEngineStatus> = {
-    chat: { status: "owned", detail: "ok", updatedAt: FROZEN_AT, port: 8701, storePath: "/srv/orb/store" },
-  };
 
   // #1707 — the REAL link capability over the same test db (see the header): the bind statement rides the
   // verb's audited batch and the settlement is read back from durable state.
@@ -242,16 +237,7 @@ export function makeHarness(db: Db): AdminHarness {
       settleUnclaimedLink: (userId: UserId, externalId: ExternalId, failure?: unknown): Promise<UnclaimedLinkOutcome> =>
         sessionsSvc.settleUnclaimedLink(userId, externalId, failure),
     },
-    vllm: {
-      allEngineStatuses: (): Record<string, AdminEngineStatus> => engineStatuses,
-      restartEngine: (engine: string): Promise<string> => {
-        if (restartError !== undefined) {
-          return Promise.reject(restartError);
-        }
-        restarted.push(engine);
-        return Promise.resolve(`restarting ${engine}`);
-      },
-    },
+
     embed: {
       embedCharacterCard: (caller: Principal, characterId: CharacterId): Promise<boolean> => {
         if (!embedOwned) {
@@ -270,10 +256,7 @@ export function makeHarness(db: Db): AdminHarness {
     evictedSockets,
     revokedSessions,
     userEvents,
-    restarted,
-    setRestartError: (err: unknown): void => {
-      restartError = err;
-    },
+
     embedded,
     setEmbedOwned: (owned: boolean): void => {
       embedOwned = owned;

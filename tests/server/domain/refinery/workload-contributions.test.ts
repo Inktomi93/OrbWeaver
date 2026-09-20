@@ -26,10 +26,9 @@ function fakeDeps(): RefineryWorkloadDeps {
   // The `summarize` role client is a wide provider surface this suite deliberately never reaches (no
   // targets ⇒ no prompt, no call); the REAL bundle drives the real chain in `verbs/score-sweep.int.test.ts`.
   // @orb-waive no-test-fabrication(unknown): an unreached role-client stub — the suite asserts the ENUMERATION's arguments, not a turn. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-  const summarize = vi.fn() as unknown as RefineryWorkloadDeps["summarize"];
+  const roleClientsFor = vi.fn() as unknown as RefineryWorkloadDeps["roleClientsFor"];
   return {
-    summarize,
-    summarizerContextTokens: () => 8192,
+    roleClientsFor,
     resolveUserPresetParams: vi.fn(async () => ({})),
     resolveUserProse: vi.fn(async () => ({})),
     listRefineryScoreTargets: vi.fn(async () => ({ targets: [], inScope: 0 })),

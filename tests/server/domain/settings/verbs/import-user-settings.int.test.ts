@@ -59,8 +59,9 @@ describe("importUserSettings", () => {
 
     const view = await h.svc.getUserSettings({ principal: p });
     expect(view.config.appearance.fontScale).toBe(1.1); // the allowlisted pref applied
-    // routing untouched — the crafted connection assignment never landed (still the empty default).
-    expect(view.config.routing.roleDefaults.chat).toBeUndefined();
+    // The crafted connection assignment never landed: `routing` is not a section any more (inference program
+    // §13 step 4), so the parsed config carries no such key at all.
+    expect("routing" in view.config).toBe(false);
   });
 
   test("a non-settings file returns {ok:false} without throwing", async () => {

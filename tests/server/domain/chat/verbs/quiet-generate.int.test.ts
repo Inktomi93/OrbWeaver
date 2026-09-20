@@ -23,7 +23,7 @@ beforeEach(async () => {
   db = await freshDb();
 });
 
-const CONNECTION: ResolvedConnection = testConnection("vllm", "agent-sdk");
+const CONNECTION: Resolved<"chat"> = testConnection("vllm", "agent-sdk");
 
 /** A `runChatTurn` that records its request into `sink` then yields the given stream (the verb's only dep). */
 function scriptedRun(sink: TurnRequest[], chunks: readonly TurnStreamChunk[]): ChatContext["runChatTurn"] {

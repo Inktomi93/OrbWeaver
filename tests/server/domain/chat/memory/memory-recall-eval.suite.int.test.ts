@@ -132,7 +132,7 @@ function contextFor(controls: FakeRoleClientControls): ChatContext {
     // (it keeps the vector order and fires this), but for an EVAL that silent fallback is the worst failure
     // mode there is: a dead reranker makes the run report mixB numbers under a mixC label with no tell.
     // An eval measures what it says it measures or it fails loudly.
-    searchDigests: (query: MemoryQueryOptions): Promise<readonly ScoredBlock[]> =>
+    searchDigests: (query: Omit<MemoryQueryOptions, "ownerId">): Promise<readonly ScoredBlock[]> =>
       search
         .digests(query, {
           onRerankUnavailable: (): never => {

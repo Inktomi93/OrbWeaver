@@ -21,6 +21,7 @@ import { castId } from "@orb/kit/ids";
 import { describe, vi } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 import { makeMessageView } from "../../features/chat/fixtures.ts";
+import type { ProviderId } from "@orb/contracts/inference";
 
 // ── Harness: real store, spy-wrapped deps ──────────────────────────────────────────────────────────
 
@@ -129,7 +130,7 @@ function turnStartedEvent(overrides: {
     chatId: overrides.chatId,
     intent: overrides.intent,
     api: "chat-completions",
-    source: "openrouter",
+provider: castId<ProviderId>("custom-openai"),
     model: "test-model",
     speakerCharacterId: overrides.speakerCharacterId,
     targetMessageId: overrides.targetMessageId,

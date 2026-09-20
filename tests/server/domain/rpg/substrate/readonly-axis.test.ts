@@ -8,11 +8,12 @@ import { deriveEffectiveDelivery, deriveTrackersReadOnly, hasStructuredWriter } 
 import { expect, test } from "../../../../support/fixtures.ts";
 
 /** A minimal capability with the two write-relevant axes toggleable. */
-function capability(over: { tools?: boolean; structured?: boolean }): ModelCapability {
+function capability(over: { tools?: boolean; structured?: boolean }): GenerationCapability {
   return {
     reasoning: { mode: "none", enabled: false },
     sampling: {},
-    output: { maxTokens: { min: 1, max: 4096 }, ...(over.structured !== undefined ? { structured: over.structured } : {}) },
+    input: ["text"],
+    output: { maxTokens: { min: 1, max: 4096 }, modalities: ["text"], ...(over.structured !== undefined ? { structured: over.structured } : {}) },
     context: { window: 8192 },
     ...(over.tools !== undefined && over.tools ? { tools: { parallel: false } } : {}),
   };

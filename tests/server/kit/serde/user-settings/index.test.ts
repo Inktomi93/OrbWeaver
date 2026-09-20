@@ -39,7 +39,7 @@ function must<T>(result: PortableParse<T>): T {
 function settingsWithSecrets(): UserSettings {
   return {
     ...DEFAULT_USER_SETTINGS,
-    routing: { roleDefaults: { chat: { source: "openrouter", model: "fenced-model-xyz" } } },
+
     seeds: { ...DEFAULT_USER_SETTINGS.seeds, defaultPersonaId: "persona_fenced_id" },
     appearance: { ...DEFAULT_USER_SETTINGS.appearance, fontScale: 1.3 },
     theme: { selectedThemeId: "theme_keepme" },

@@ -417,7 +417,6 @@ describe("P-8: the full-library bundle round-trips into a fresh box, self-contai
         casDir,
         variantDir,
         sessionSecret: "test-session-secret-at-least-32-chars",
-        vllmDisabled: true,
       });
 
       // The route is WORKLOAD-BACKED (#113): POST stages the zip + starts a SINGULAR `import-bundle` run,
@@ -912,7 +911,6 @@ describe("P-8: the full-library bundle round-trips into a fresh box, self-contai
         casDir,
         variantDir,
         sessionSecret: "test-session-secret-at-least-32-chars",
-        vllmDisabled: true,
       });
 
       const importH = bundleHandler({ workloads: fresh.services.workloads });

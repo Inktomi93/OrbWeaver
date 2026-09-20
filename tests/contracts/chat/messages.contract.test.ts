@@ -139,6 +139,7 @@ test("MessageView is the slot joined with its selected variant (content + econom
     genStartedAt: 1000,
     genFinishedAt: 4400,
     generationId: null,
+    connectionId: null,
     contextBoundaryMessageId: null,
     toolCalls: [],
   };

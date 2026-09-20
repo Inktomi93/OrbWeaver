@@ -13,37 +13,37 @@ import { isWireCaptureEnabled, recentWireCaptures, recordWireCapture, resetWireC
 import { beforeEach, describe } from "vitest";
 import { expect, test } from "../../../../support/fixtures.ts";
 
-function capture(chatId: ChatId, backend: "vllm" | "agent-sdk", body: Record<string, unknown> = {}): void {
-  recordWireCapture({ chatId, api: backend === "vllm" ? "chat-completions" : "agent-sdk", backend, model: "m", at: 0, body });
+function capture(chatId: ChatId, wire: "openai-compat" | "agent-sdk", body: Record<string, unknown> = {}): void {
+  recordWireCapture({ chatId, api: wire === "openai-compat" ? "chat-completions" : "agent-sdk", wire, providerId: wire === "openai-compat" ? "openai-compat" : "claude-sub", model: "m", at: 0, body });
 }
 
 describe("wire-capture recorder", () => {
   beforeEach(() => resetWireCaptures());
 
   test("records and reads newest-first", () => {
-    capture(castId<ChatId>("chat_a"), "vllm", { n: 1 });
-    capture(castId<ChatId>("chat_a"), "vllm", { n: 2 });
+    capture(castId<ChatId>("chat_a"), "openai-compat", { n: 1 });
+    capture(castId<ChatId>("chat_a"), "openai-compat", { n: 2 });
     const got = recentWireCaptures({ chatId: castId<ChatId>("chat_a") });
     expect(got.map((c) => c.body["n"])).toEqual([2, 1]);
   });
 
   test("filters by chatId — a foreign chat's capture is excluded", () => {
-    capture(castId<ChatId>("chat_a"), "vllm");
-    capture(castId<ChatId>("chat_b"), "vllm");
+    capture(castId<ChatId>("chat_a"), "openai-compat");
+    capture(castId<ChatId>("chat_b"), "openai-compat");
     expect(recentWireCaptures({ chatId: castId<ChatId>("chat_a") })).toHaveLength(1);
     expect(recentWireCaptures({ chatId: castId<ChatId>("chat_a") })[0]?.chatId).toBe("chat_a");
   });
 
-  test("filters by backend", () => {
-    capture(castId<ChatId>("chat_a"), "vllm");
+  test("filters by provider id", () => {
+    capture(castId<ChatId>("chat_a"), "openai-compat");
     capture(castId<ChatId>("chat_a"), "agent-sdk");
-    expect(recentWireCaptures({ chatId: castId<ChatId>("chat_a"), backend: "agent-sdk" })).toHaveLength(1);
-    expect(recentWireCaptures({ chatId: castId<ChatId>("chat_a"), backend: "agent-sdk" })[0]?.backend).toBe("agent-sdk");
+    expect(recentWireCaptures({ chatId: castId<ChatId>("chat_a"), providerId: "claude-sub" })).toHaveLength(1);
+    expect(recentWireCaptures({ chatId: castId<ChatId>("chat_a"), providerId: "claude-sub" })[0]?.wire).toBe("agent-sdk");
   });
 
   test("respects the read limit", () => {
     for (let i = 0; i < 5; i += 1) {
-      capture(castId<ChatId>("chat_a"), "vllm", { n: i });
+      capture(castId<ChatId>("chat_a"), "openai-compat", { n: i });
     }
     expect(recentWireCaptures({ chatId: castId<ChatId>("chat_a"), limit: 2 })).toHaveLength(2);
   });
@@ -55,7 +55,7 @@ describe("wire-capture recorder", () => {
   test("EVICTION: pushing past the ring capacity drops the OLDEST captures and the tail stays newest-first", () => {
     const chat = castId<ChatId>("chat_evict");
     for (let i = 0; i < 300; i += 1) {
-      capture(chat, "vllm", { n: i });
+      capture(chat, "openai-compat", { n: i });
     }
     const all = recentWireCaptures({ chatId: chat, limit: 10_000 });
     expect(all.length).toBeLessThan(300); // the ring is BOUNDED — it did not grow to hold every push
@@ -69,14 +69,14 @@ describe("wire-capture recorder", () => {
     const other = castId<ChatId>("chat_o");
     // Interleave so the newest 20 records contain only 10 matches — a pre-sliced tail would under-report.
     for (let i = 0; i < 10; i += 1) {
-      capture(wanted, "vllm", { n: i });
-      capture(other, "vllm", { n: i });
+      capture(wanted, "openai-compat", { n: i });
+      capture(other, "openai-compat", { n: i });
     }
     expect(recentWireCaptures({ chatId: wanted, limit: 10 }).map((c) => c.body["n"])).toEqual([9, 8, 7, 6, 5, 4, 3, 2, 1, 0]);
   });
 
   test("resetWireCaptures clears the ring (test isolation — no cross-row bleed)", () => {
-    capture(castId<ChatId>("chat_a"), "vllm");
+    capture(castId<ChatId>("chat_a"), "openai-compat");
     resetWireCaptures();
     expect(recentWireCaptures({ chatId: castId<ChatId>("chat_a") })).toHaveLength(0);
   });

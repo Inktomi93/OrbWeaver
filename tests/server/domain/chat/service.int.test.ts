@@ -131,8 +131,8 @@ function makeService(
         scanDepth: 6,
         injectionTokenBudget: 0,
       }),
-    debitBudget: () => Promise.resolve(),
-    resolveTurnPolicy: () => Promise.resolve({ budget: null, allowNonOwnerMaxProSub: false }),
+
+
     holder: "replica-test",
     lockTtlMs: 60_000,
   };

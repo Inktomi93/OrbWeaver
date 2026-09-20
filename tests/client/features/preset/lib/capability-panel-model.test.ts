@@ -23,13 +23,15 @@ import { expect, test } from "../../../../support/fixtures.ts";
 const R = (min: number, max: number): Range => ({ min, max });
 
 /** A minimal capability with everything empty/off — override the axes a test exercises. */
-function capability(overrides: Partial<ModelCapability> = {}): ModelCapability {
+function capability(overrides: Partial<GenerationCapability> = {}): GenerationCapability {
   return {
     reasoning: { mode: "none", enabled: false },
     sampling: {},
     output: { maxTokens: R(1, 4096) },
     context: { window: 200_000 },
     ...overrides,
+    modalities: ["text"],
+    modalities: ["text"],
   };
 }
 

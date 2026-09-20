@@ -5,7 +5,7 @@
 // own scope-gating is proven in the search-domain gate-8 test; here we drive the fit/format/null logic.
 
 import { databankRetrievalSettingsSchema } from "@orb/contracts/databank";
-import type { ChatId, DocumentId } from "@orb/kit/ids";
+import type { ChatId, DocumentId , UserId} from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { estimateTokens } from "@orb/kit/tokens";
 import { describe } from "vitest";
@@ -16,6 +16,7 @@ import { expect, test } from "../../../../support/fixtures.ts";
 import { makeDatabankHarness } from "../_support.ts";
 
 const CHAT = castId<ChatId>("chat_gather");
+const HOST = castId<UserId>("user_host");
 
 /** A DocumentChunkHit fixture (the score is irrelevant to fit/format — the lens already ranked). */
 function hit(documentId: DocumentId, name: string, chunkIdx: number, content: string): DocumentChunkHit {
@@ -40,7 +41,7 @@ describe("gatherRetrieval", () => {
     ];
     const { service } = makeDatabankHarness(db, { searchDocuments: () => Promise.resolve(hits) });
 
-    const result = await service.gatherRetrieval({ chatId: CHAT, queryText: "q", tokenBudget: 10_000 });
+    const result = await service.gatherRetrieval({ chatId: CHAT, hostUserId: HOST, queryText: "q", tokenBudget: 10_000 });
 
     expect(result?.text).toBe("# Alpha\na0\na1\n\n# Beta\nb0");
     expect(result?.hits).toEqual([
@@ -54,7 +55,7 @@ describe("gatherRetrieval", () => {
     const db = await freshDb();
     const { service } = makeDatabankHarness(db, { searchDocuments: () => Promise.resolve([]) });
 
-    const result = await service.gatherRetrieval({ chatId: CHAT, queryText: "q", tokenBudget: 10_000 });
+    const result = await service.gatherRetrieval({ chatId: CHAT, hostUserId: HOST, queryText: "q", tokenBudget: 10_000 });
 
     expect(result).toBeNull();
   });
@@ -69,7 +70,7 @@ describe("gatherRetrieval", () => {
       },
     });
 
-    await service.gatherRetrieval({ chatId: CHAT, queryText: "q", tokenBudget: 10_000, k: 3, minScore: 0.4, rerank: true });
+    await service.gatherRetrieval({ chatId: CHAT, hostUserId: HOST, queryText: "q", tokenBudget: 10_000, k: 3, minScore: 0.4, rerank: true });
 
     expect(seen).toEqual([{ k: 3, minScore: 0.4, rerank: true }]);
   });
@@ -84,7 +85,7 @@ describe("gatherRetrieval", () => {
       },
     });
 
-    await service.gatherRetrieval({ chatId: CHAT, queryText: "q", tokenBudget: 10_000 });
+    await service.gatherRetrieval({ chatId: CHAT, hostUserId: HOST, queryText: "q", tokenBudget: 10_000 });
 
     expect(seen).toEqual([{ k: undefined, minScore: undefined, rerank: undefined }]);
   });
@@ -107,7 +108,7 @@ describe("gatherRetrieval", () => {
     const hits = [hit(castId<DocumentId>("document_a"), "Alpha", 0, "a very long chunk that will not fit a tiny budget at all")];
     const { service } = makeDatabankHarness(db, { searchDocuments: () => Promise.resolve(hits) });
 
-    const result = await service.gatherRetrieval({ chatId: CHAT, queryText: "q", tokenBudget: 1 });
+    const result = await service.gatherRetrieval({ chatId: CHAT, hostUserId: HOST, queryText: "q", tokenBudget: 1 });
 
     expect(result).toBeNull();
   });
@@ -121,7 +122,7 @@ describe("gatherRetrieval", () => {
 
     // A budget that seats exactly the header + the first chunk — the second would overflow the rendered text.
     const budget = estimateTokens(`# Alpha\n${c0}`);
-    const result = await service.gatherRetrieval({ chatId: CHAT, queryText: "q", tokenBudget: budget });
+    const result = await service.gatherRetrieval({ chatId: CHAT, hostUserId: HOST, queryText: "q", tokenBudget: budget });
 
     expect(result?.text).toBe(`# Alpha\n${c0}`);
     expect(result?.hits).toEqual([{ documentId: castId<DocumentId>("document_a"), chunkIdx: 0, score: 0 }]);

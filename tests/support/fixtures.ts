@@ -136,7 +136,6 @@ export const test = base.extend<Fixtures>({
       casDir,
       variantDir,
       sessionSecret: TEST_SESSION_SECRET,
-      vllmDisabled: true,
     });
     await use(result);
     await rm(casDir, { recursive: true, force: true });

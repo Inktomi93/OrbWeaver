@@ -36,12 +36,8 @@ const noopRoleClients: RoleClients = {
   rerank: (): Promise<RerankResult> => Promise.resolve(sampleRerankResult),
   imageEmbed: (): Promise<ImageEmbedResult> => Promise.resolve(sampleImageEmbedResult),
   summarize: (): Promise<SummarizeResult> => Promise.resolve(sampleSummarizeResult),
-  embedModel: "qwen3-vl-embedding",
-  rerankModel: "qwen3-vl-reranker",
-  imageEmbedModel: "qwen3-vl-embedding",
-  summarizerModel: "qwen3-summarizer",
-  summarizerContextTokens: 32_000,
-  summarizerVision: true,
+  structured: (): Promise<SummarizeResult> => Promise.resolve(sampleSummarizeResult),
+  resolved: (): Promise<null> => Promise.resolve(null),
 };
 
 test("a no-op object satisfies RoleClients: four derive callables + four model-provenance strings", () => {
@@ -64,9 +60,9 @@ test("a no-op object satisfies RoleClients: four derive callables + four model-p
   expect("chat" in noopRoleClients).toBe(false);
   expect("agent" in noopRoleClients).toBe(false);
   expect("generateImage" in noopRoleClients).toBe(false);
-  // The *Model provenance fields are plain strings.
-  expect(typeof noopRoleClients.embedModel).toBe("string");
-  expect(typeof noopRoleClients.summarizerModel).toBe("string");
+  // The six per-role getters collapsed into ONE `resolved(task)` read (inference program §7.5-1b).
+  expect("embedModel" in noopRoleClients).toBe(false);
+  expect("summarizerModel" in noopRoleClients).toBe(false);
 });
 
 test("each callable's result is the matching @orb/contracts/providers shape (parses + round-trips)", async () => {

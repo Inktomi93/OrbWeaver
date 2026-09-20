@@ -195,7 +195,7 @@ describe("compose/assets-character.ts — resolveGreetingTemplate narrows to Pre
     });
     const dbDown = new Error("preset store unreachable");
     vi.spyOn(services.preset, "get").mockRejectedValueOnce(dbDown);
-    const summarizeSpy = vi.spyOn(app.roleClients, "summarize").mockResolvedValue(fakeSummary);
+    const summarizeSpy = vi.spyOn(await app.roleClientsFor(owner), "summarize").mockResolvedValue(fakeSummary);
 
     await expect(services.character.generateGreeting({ principal, characterId: created.id, steer: "cheerful" })).rejects.toBe(dbDown);
     // The propagation happened BEFORE the completion — the fallback-and-continue defect would have reached it.
@@ -210,7 +210,7 @@ describe("compose/assets-character.ts — resolveGreetingTemplate narrows to Pre
       principal,
       input: { section: "seeds", patch: { defaultPresetId: castId<PresetId>("preset_greet_gone_forever") } },
     });
-    vi.spyOn(app.roleClients, "summarize").mockResolvedValue(fakeSummary);
+    vi.spyOn(await app.roleClientsFor(owner), "summarize").mockResolvedValue(fakeSummary);
 
     const result = await services.character.generateGreeting({ principal, characterId: created.id, steer: "cheerful" });
     expect(result.text).toBe(fakeSummary.items.at(0)?.text);

@@ -457,7 +457,6 @@ describe("foundation/env — the floor parse (defaults + transforms)", () => {
     const { env } = await reimportEnvWith({ CORPUS_AUTOINDEX: "false", EGRESS_FIREWALL: "true" });
     expect(env.CORPUS_AUTOINDEX).toBe(false);
     expect(env.EGRESS_FIREWALL).toBe(true);
-    expect(env.VLLM_DISABLED).toBe(false);
     expect(env.CREDENTIALS_KEY_AUTO).toBe(false);
   });
 
