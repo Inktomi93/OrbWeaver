@@ -35,6 +35,7 @@ export {
   catalogIndexIsStale,
   catalogInputDirt,
   catalogSourcesMatchIndex,
+  expectedCatalog,
   offCanonicalPaths,
   readCatalog,
   scopedCatalog,
