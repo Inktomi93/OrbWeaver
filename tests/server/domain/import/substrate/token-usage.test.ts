@@ -19,8 +19,14 @@ describe("recordedTokenCountFromMetadata", () => {
     // biome-ignore lint/style/useNamingConvention: the ST wire field `token_count` appears verbatim in test fixtures.
     expect(recordedTokenCountFromMetadata({ token_count: -1 })).toBeNull();
     // biome-ignore lint/style/useNamingConvention: the ST wire field `token_count` appears verbatim in test fixtures.
-    expect(recordedTokenCountFromMetadata({ token_count: "42" })).toBeNull();
+    expect(recordedTokenCountFromMetadata({ token_count: 1.5 })).toBeNull();
   });
+
+  // The retired `{ token_count: "42" }` case is GONE because it is now UNREPRESENTABLE, which is the point of
+  // closing the column (§5.3c class 3): the sidecar is `VariantMetadata`, so a string in that slot fails
+  // `tsc` here and is filtered at the two real doors instead — the ST producer
+  // (`kit/serde/chat` `importedNumber` leaves a non-measurement in `importResidue`) and the read seam
+  // (`parseVariantMetadata`). Both are pinned in tests/contracts/chat/variant-metadata.contract.test.ts.
 });
 
 describe("resolveImportedTokenUsage", () => {

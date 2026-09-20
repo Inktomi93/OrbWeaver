@@ -2,14 +2,16 @@
 // An inspected source count wins and remains measured; otherwise the existing kit estimator measures the
 // raw imported text and the result stays visibly estimated. This module never manufactures dollar cost.
 
-import type { ImportedTokenUsageResolution } from "@orb/contracts/chat";
+import type { ImportedTokenUsageResolution, VariantMetadata } from "@orb/contracts/chat";
+import { VARIANT_METADATA_TOKEN_COUNT_KEY } from "@orb/contracts/chat";
 import type { MessageRole } from "@orb/kit/message-role";
 import { estimateTokens } from "@orb/kit/tokens";
 
-/** Accept only the exact ST shape established by the inspected export/source versions. */
-export function recordedTokenCountFromMetadata(metadata: Record<string, unknown> | null): number | null {
-  const value = metadata?.["token_count"];
-  const count = typeof value === "number" ? value : Number.NaN;
+/** Accept only the exact ST shape established by the inspected export/source versions. The blob arrives
+ *  PARSED (§5.3c class 3), so the key is already `number | undefined` and this guard is about the VALUE — a
+ *  negative or fractional count is not a token count — never about the type. */
+export function recordedTokenCountFromMetadata(metadata: VariantMetadata | null): number | null {
+  const count = metadata?.[VARIANT_METADATA_TOKEN_COUNT_KEY] ?? Number.NaN;
   return Number.isSafeInteger(count) && count >= 0 ? count : null;
 }
 

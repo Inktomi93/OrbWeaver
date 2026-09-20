@@ -16,7 +16,16 @@
 // The chat bus emit, the per-member budget debit, and the per-turn host policy are not ChatContext ops —
 // they're injected as engine deps wired at the entry composition root.
 
-import type { AssembleContext, ChatReasoningPart, ChatWarning, DurableChatBusEvent, MessageView, TokenProvenance, TurnAbortReason } from "@orb/contracts/chat";
+import type {
+  AssembleContext,
+  ChatReasoningPart,
+  ChatWarning,
+  DurableChatBusEvent,
+  MessageView,
+  TokenProvenance,
+  TurnAbortReason,
+  VariantMetadata,
+} from "@orb/contracts/chat";
 import { buildIdentityNameContext, DEFAULT_MESSAGE_KIND, INLINE_REPLY_ORIGIN, VARIANT_METADATA_REASONING_MS_KEY } from "@orb/contracts/chat";
 import type { NormalizedFinishReason } from "@orb/contracts/inference";
 
@@ -218,16 +227,17 @@ async function readCommittedView(ctx: ChatContext, messageId: MessageId): Promis
 }
 
 /**
- * The variant's `metadata` sidecar for a LIVE generation (#184). The column is an OPEN blob whose readers
- * address it BY PATH, so the live turn writes the same ONE key the ST import writes and the three stats
- * readers extract — `VARIANT_METADATA_REASONING_MS_KEY`. Until this existed the key had a single producer
+ * The variant's `metadata` sidecar for a LIVE generation (#184). The column is a CLOSED shape
+ * (`VariantMetadata`, §5.3c class 3) whose SQL rollup readers still address it BY PATH, so the live turn
+ * builds the same ONE key the ST import writes and the three stats readers extract —
+ * `VARIANT_METADATA_REASONING_MS_KEY`. Until this existed the key had a single producer
  * (the import), which is why `owner_stats.reasoning_ms` was pure archaeology: every turn this app generated
  * itself counted 0ms.
  *
  * Null (not `{}`) when the turn never reasoned: an empty blob would make the column's "has a sidecar"
  * question a lie and costs a row of JSON for nothing.
  */
-function liveVariantMetadata(reasoningMs: number | null): Record<string, unknown> | null {
+function liveVariantMetadata(reasoningMs: number | null): VariantMetadata | null {
   return reasoningMs === null ? null : { [VARIANT_METADATA_REASONING_MS_KEY]: reasoningMs };
 }
 
@@ -295,7 +305,7 @@ function generatedRowEconomics(
   genFinishedAt: number;
   model: string | null;
   provider: string | null;
-  metadata: Record<string, unknown> | null;
+  metadata: VariantMetadata | null;
 } {
   const e = result.economics;
   const tokensIn = e?.tokensIn ?? null;

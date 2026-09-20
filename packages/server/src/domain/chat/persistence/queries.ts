@@ -20,6 +20,7 @@ import type {
   ToolCallRecord,
   TurnOrigin,
   UserMacroDraws,
+  VariantMetadata,
 } from "@orb/contracts/chat";
 import {
   chatReasoningPartSchema,
@@ -27,6 +28,7 @@ import {
   INLINE_REPLY_ORIGIN,
   macroFreezeRecordSchema,
   NO_HANDOFF_OFFER,
+  parseVariantMetadata,
   sentPromptSchema,
   standaloneVariableDeltasSchema,
   toolCallRecordSchema,
@@ -761,7 +763,9 @@ interface CanonStatRow {
   model: string | null;
   provider: string | null;
   reasoning: string | null;
-  metadata: Record<string, unknown> | null;
+  /** The variant's sidecar, PARSED at this seam (never the drizzle `$type` cast). An absent/corrupt blob
+   *  degrades to `{}` — a stats delta must not fail on one unmodelled row (§5.3c class 3). */
+  metadata: VariantMetadata;
   selectedIdx: number;
   variantCount: number;
 }
@@ -780,7 +784,8 @@ interface SwipeStatRow {
   model: string | null;
   provider: string | null;
   reasoning: string | null;
-  metadata: Record<string, unknown> | null;
+  /** The variant's sidecar, PARSED at this seam — the {@link CanonStatRow.metadata} twin. */
+  metadata: VariantMetadata;
 }
 
 const canonStatSelection = {
@@ -801,6 +806,7 @@ const canonStatSelection = {
   model: messageVariants.model,
   provider: messageVariants.provider,
   reasoning: messageVariants.reasoning,
+  // Raw JSON blob — parsed by `loadCanonStatRows` with `parseVariantMetadata` (never the `$type` cast).
   metadata: messageVariants.metadata,
   selectedIdx: messageVariants.idx,
   variantCount: sql<number>`(select count(*) from ${messageVariants} where ${messageVariants.messageId} = ${messages.id})`,
@@ -809,11 +815,12 @@ const canonStatSelection = {
 /** The stats-contribution rows (slot ⋈ selected variant) for a set of slots in one chat — the
  *  delete-messages delta input. Chat-scoped: a foreign id from another chat matches nothing. */
 export async function loadCanonStatRows(db: Db, chatId: ChatId, messageIds: readonly MessageId[]): Promise<CanonStatRow[]> {
-  return await db
+  const rows = await db
     .select(canonStatSelection)
     .from(messages)
     .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
     .where(and(eq(messages.chatId, chatId), inArray(messages.id, [...messageIds])));
+  return rows.map((r) => ({ ...r, metadata: parseVariantMetadata(r.metadata) }));
 }
 
 /** The non-selected variants (swipes) of a slot set, joined to the slot's attribution — the
@@ -824,7 +831,7 @@ export async function loadCanonStatRows(db: Db, chatId: ChatId, messageIds: read
  *  pointer, silently dropping ALL of that slot's variants from the delta. `or(isNull(…), ne(…))` is the
  *  total reading of "not the selected one": when nothing is selected, every variant is a swipe. */
 export async function loadSwipeStatRows(db: Db, chatId: ChatId, messageIds: readonly MessageId[]): Promise<SwipeStatRow[]> {
-  return await db
+  const rows = await db
     .select({
       messageId: messageVariants.messageId,
       characterId: messages.characterId,
@@ -838,6 +845,7 @@ export async function loadSwipeStatRows(db: Db, chatId: ChatId, messageIds: read
       model: messageVariants.model,
       provider: messageVariants.provider,
       reasoning: messageVariants.reasoning,
+      // Raw JSON blob — parsed below with `parseVariantMetadata` (never the drizzle `$type` cast).
       metadata: messageVariants.metadata,
     })
     .from(messageVariants)
@@ -849,6 +857,7 @@ export async function loadSwipeStatRows(db: Db, chatId: ChatId, messageIds: read
         or(isNull(messages.selectedVariantId), ne(messageVariants.id, messages.selectedVariantId)),
       ),
     );
+  return rows.map((r) => ({ ...r, metadata: parseVariantMetadata(r.metadata) }));
 }
 
 // The append-variant/continue write target — the slot's attribution + seq joined to its selected
