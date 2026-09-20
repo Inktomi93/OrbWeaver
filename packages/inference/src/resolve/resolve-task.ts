@@ -25,6 +25,7 @@ import type {
 } from "@orb/contracts/inference";
 import { canFund, connectionTasks, foldFeatures, requirementMet, taskDef } from "@orb/contracts/inference";
 import type { ModelId } from "@orb/kit/ids";
+import { resolveEmbedDtype } from "../backends/local-light/model-cache.ts";
 import { detectModelFamily } from "../capability/families.ts";
 import { applyEndpointPosture } from "../capability/floor.ts";
 import { advertisedFromAgentSdk, agentSdkRowFor } from "../capability/sources/advertised/agent-sdk.ts";
@@ -177,6 +178,25 @@ function withWireRequirement(base: RequirementVerdict, task: Task, provider: Pro
   return { ok: false, missing };
 }
 
+/** The local-light encoder's deployment dtype is execution truth. An omitted declaration inherits that
+ * truth (including a non-default deployment override); an explicit declaration must match or resolution
+ * refuses before a writer, reader, or purge can act on a vector-space tag the encoder does not produce. */
+function withLocalLightEmbedDtype(capability: Capability, provider: ProviderDef, connection: UserConnection, configuredDtype: string | undefined): Capability {
+  if (provider.wire !== "local-light" || capability.kind !== "embedding") {
+    return capability;
+  }
+  const servedDtype = resolveEmbedDtype(configuredDtype);
+  const declaredDtype = connection.declared?.embedding?.dtype;
+  if (declaredDtype !== undefined && declaredDtype !== servedDtype) {
+    throw new ProviderError({
+      kind: "invalid",
+      retryable: false,
+      message: `local-light embedding dtype "${declaredDtype}" is not served by this deployment (served dtype: "${servedDtype}")`,
+    });
+  }
+  return { ...capability, embedding: { ...capability.embedding, dtype: servedDtype } };
+}
+
 export async function resolveTask(ctx: ResolverContext, args: ResolveArgs): Promise<ResolveOutcome> {
   const connection = await connectionFor(ctx, args);
   const provider = ctx.registry.get(connection.providerId);
@@ -208,7 +228,12 @@ export async function resolveTask(ctx: ResolverContext, args: ResolveArgs): Prom
     curated: curatedRows(rowQuery),
   };
   const synthesized = synthesizeCapability(kind, family, evidence);
-  const capability: Capability = applyEndpointPosture(provider, synthesized.capability, declared?.generation?.input !== undefined);
+  const capability = withLocalLightEmbedDtype(
+    applyEndpointPosture(provider, synthesized.capability, declared?.generation?.input !== undefined),
+    provider,
+    connection,
+    ctx.deps.localLight?.embedDtype,
+  );
   const features = foldFeatures(provider.features, declared?.features);
   const requirement = withWireRequirement(requirementMet(capability, taskDef(args.task).requires), args.task, provider, features);
   const resolved: Resolved = {

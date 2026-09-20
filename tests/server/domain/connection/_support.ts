@@ -60,6 +60,8 @@ export interface HarnessOptions {
    *  derivation included — without loading ONNX weights. OFF (the default) leaves `localLight` absent, which
    *  is what every resolve-only scenario wants. */
   readonly localLight?: boolean | undefined;
+  /** The scripted local-light deployment's actual encoder precision. Omitted exercises the shipped q8 default. */
+  readonly localLightEmbedDtype?: string | undefined;
 }
 
 export interface ConnectionHarness {
@@ -189,7 +191,9 @@ export async function makeHarness(db: Db, options: HarnessOptions = {}): Promise
     agentSdk: { summarizeConcurrency: (): number => 1 },
     userRuntimeDir: (ownerId): string => `/tmp/orb-test/${ownerId}/claude`,
     embedSpace: { dims: 1024 },
-    ...(options.localLight === true ? { localLight: { cache: fakeModelCache(1024) } } : {}),
+    ...(options.localLight === true
+      ? { localLight: { cache: fakeModelCache(1024), ...(options.localLightEmbedDtype === undefined ? {} : { embedDtype: options.localLightEmbedDtype }) } }
+      : {}),
     sdkFetch: fakeFetch(options.routes ?? [], requests),
   };
   const runtime = await createInferenceRuntime(deps);
