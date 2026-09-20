@@ -368,13 +368,14 @@ const APP_SETTINGS_LIFTS: Record<number, (config: Record<string, unknown>) => Re
     }
     return { ...config, schemaVersion: 2 };
   },
-  // v2→v3: the `engineLaunch` LAUNCH-config section (#14) is purely additive/optional — no field moved or
-  // renamed. Stamp the version so a v2 row stops re-running the lift chain; the absent section reads back
-  // as the env floor.
+  // v2→v3: the `engineLaunch` LAUNCH-config section (#14, since RETIRED with the vLLM fleet — inference
+  // program F11) was purely additive/optional — no field moved or renamed. Stamp the version so a v2 row
+  // stops re-running the lift chain; the absent section reads back as the env floor.
   2: (config) => ({ ...config, schemaVersion: 3 }),
-  // v3→v4: the Phase B ⑩ admin-tier fields (agentSdkConcurrency, nonOwnerLocalComputeBudgetWindowMs,
-  // maxDatabankBytes, promptTransformDeadlineMs, catalogRefreshIntervalMs, imageVariantQuality, and
-  // engineLaunch.genPresencePenalty) are purely additive/optional — an absent field reads back as its floor.
+  // v3→v4: the Phase B ⑩ admin-tier fields (agentSdkConcurrency, maxDatabankBytes, promptTransformDeadlineMs,
+  // catalogRefreshIntervalMs, imageVariantQuality, and engineLaunch.genPresencePenalty — the last, like
+  // nonOwnerLocalComputeBudgetWindowMs beside it, since RETIRED, F11) were purely additive/optional — an
+  // absent field reads back as its floor.
   3: (config) => ({ ...config, schemaVersion: 4 }),
   // v4→v5: `structuredOutputShape` (D126) is purely additive/optional — an absent field reads back as its
   // born-in-DB floor (`as-projected`), so no stored blob changes meaning. Same shape as the two lifts above.
