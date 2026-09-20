@@ -89,5 +89,6 @@ export const WALKER_RETURNS = `  var pendingWalkMutations = walkObserver.takeRec
     emptyStates: emptyStates,
     relationalAccounting: relationalAccounting,
     censusCaps: censusCaps,
+    documentFrame: documentFrame,
   };
 `;

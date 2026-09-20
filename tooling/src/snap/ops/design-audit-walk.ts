@@ -63,6 +63,7 @@ import {
   SAMPLE_COLLECTION_PREFIX,
   shellStateSnapshot,
   themeProvenanceGap,
+  viewportFrameGap,
   walkFailureGap,
 } from "../../ui-audit/index.ts";
 import type { Args } from "../contract/types.ts";
@@ -92,14 +93,19 @@ interface DesignAuditHoverReceipt {
   readonly label: string;
 }
 
-/** THE FIVE PARTIAL-VERDICT CHANNELS, EACH NAMED (#1038 · #1031 · #1087 F1 · #1317 item 1). `gaps`
- *  above is their filtered concatenation — what the printed receipt and the exit code ride — but a JSON
- *  consumer needs to know WHICH half of the run is unproven, and a flat list cannot answer that: a
- *  truncated census and a broken forced-state pass are both "NO VERDICT" and require different repairs.
- *  A `null` channel means COMPLETE. On a terminal run (`terminalGap`) every channel carries that gap:
- *  the walk never reached any of them, and "complete" over an unwalked page is the exact lie #1087 F1
- *  was minted to end. */
+/** THE SIX PARTIAL-VERDICT CHANNELS, EACH NAMED (#1038 · #1031 · #1087 F1 · #1317 item 1; the sixth by
+ *  lane cb-audit-viewport, 2026-09-20). `gaps` above is their filtered concatenation — what the printed
+ *  receipt and the exit code ride — but a JSON consumer needs to know WHICH half of the run is unproven,
+ *  and a flat list cannot answer that: a truncated census and a broken forced-state pass are both
+ *  "NO VERDICT" and require different repairs. A `null` channel means COMPLETE. On a terminal run
+ *  (`terminalGap`) every channel carries that gap: the walk never reached any of them, and "complete"
+ *  over an unwalked page is the exact lie #1087 F1 was minted to end. */
 interface DesignAuditVerdicts {
+  /** The page did not fit the width it was laid out at, so every geometry verdict describes a
+   *  compressed layout (ui-audit/lib/evidence-viewport-frame.ts owns the whole argument). FIRST in the
+   *  printed order on purpose: it reframes every row under it, and a reader who meets it last has
+   *  already calibrated on rows it explains away. */
+  readonly viewportFrame: EvidenceGap | null;
   readonly population: EvidenceGap | null;
   readonly censusCap: EvidenceGap | null;
   readonly hover: EvidenceGap | null;
@@ -180,7 +186,7 @@ function terminalMeasurement(url: string, gap: EvidenceGap, input: Pick<WalkInpu
     navError: input.navError,
     actionsFailed: input.actionsFailed,
     gaps: [gap],
-    verdicts: { population: gap, censusCap: gap, hover: gap, force: gap, instrumentPageError: gap },
+    verdicts: { viewportFrame: gap, population: gap, censusCap: gap, hover: gap, force: gap, instrumentPageError: gap },
     selectorProof: [],
     selectorsUnproven: 0,
   };
@@ -311,13 +317,14 @@ export async function walkDesignAudit(input: WalkInput): Promise<DesignAuditMeas
           detail: `${String(hover.forceFailedGroups)} state group(s) failed to force or read (${hover.forceFailures.join("; ")}) — their members' hover paint and state-gated glow were never measured, so hover-contrast and the state glow arms are partial on this surface`,
         };
   const verdicts: DesignAuditVerdicts = {
+    viewportFrame: viewportFrameGap(samples),
     population: populationGap,
     censusCap: censusCapGap(samples),
     hover: hoverGap,
     force: forceGap,
     instrumentPageError: instrumentPageErrorGap(session.pageErrors.filter((error) => error.kind === "instrument").map(pageErrorText)),
   };
-  const gaps = [verdicts.population, verdicts.censusCap, verdicts.hover, verdicts.force, verdicts.instrumentPageError].filter(
+  const gaps = [verdicts.viewportFrame, verdicts.population, verdicts.censusCap, verdicts.hover, verdicts.force, verdicts.instrumentPageError].filter(
     (gap): gap is EvidenceGap => gap !== null,
   );
   const proven = await proveSelectors(page, findings);
