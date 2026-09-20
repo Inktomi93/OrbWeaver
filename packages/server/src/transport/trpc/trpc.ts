@@ -12,7 +12,7 @@ import { initTRPC, TRPCError } from "@trpc/server";
 import { requireAdmin } from "#domain/admin";
 import { getLog, securityEvent, setSpanAttrs, span } from "#foundation/observability";
 import type { Context } from "./context.ts";
-import { classifyDomainError, domainReason } from "./error-mapping.ts";
+import { classifyDomainError, domainReason, providerFaultOf } from "./error-mapping.ts";
 
 // SSE heartbeat (SSE-1 §8) — the deployment-wide subscription liveness policy, set once here because
 // `initTRPC.create` is the ONE home for it. tRPC ships ping DISABLED by default and no client inactivity
@@ -25,9 +25,41 @@ import { classifyDomainError, domainReason } from "./error-mapping.ts";
 const SSE_PING_MS = 15_000;
 const SSE_RECONNECT_AFTER_INACTIVITY_MS = 45_000;
 
-// The error formatter rides the honest domain reason code on `data.reason` (only a DomainOperationError
-// carries one — see domainReason). Additive: `data.reason` is typed `string | undefined` end-to-end, so
-// the inferred client error shape gains the optional field; a codeless error serialises without the key.
+/**
+ * THE MESSAGE EVERY UNCLASSIFIED THROW GETS, in place of its own.
+ *
+ * `getErrorShape` builds `shape.message` as `error.message`, and `TRPCError`'s constructor inherits the
+ * CAUSE's message when no explicit one is given — so a throw nothing modelled put its raw text on the wire.
+ * The surveyed reach: 37 server files / 64 call sites hand an `@orb/inference` failure straight through,
+ * and before the ProviderError arm in `error-mapping.ts` every one of them answered a 500 carrying
+ * whatever string the throw happened to hold (an absolute host cache path from `local-light`, an
+ * uncapped unsanitized upstream HTML body from `fetchJson` — both since fixed at their mint sites, both
+ * found only because the channel was audited, which is the argument for closing the channel rather than
+ * auditing the messages).
+ *
+ * SO THE BELT IS ABOUT THE CLASS, NOT THOSE TWO. An unclassified error is by definition one no author
+ * reasoned about at this boundary; its message is an unreviewed string of unknown provenance, and the next
+ * one will arrive from a `catch` nobody has written yet. It is also the EXACT rule the room path already
+ * obeys — `stream/socket.ts::roomFailure` collapses a non-domain throw to "The room stopped unexpectedly."
+ * with the comment "internals never reach a subscriber". This generalises that ratified rule from the room
+ * to every procedure.
+ *
+ * STRUCTURAL, not conditional: `message` is destructured OUT of `shape` below, exactly as `stack` is out of
+ * `shape.data`, so the spread CANNOT carry it and a wire message only exists where one is written by hand.
+ *
+ * Nothing is lost server-side: `domainErrorMiddleware` logs the real error (with the procedure that
+ * produced it) to pino + the log ring + `/api/_debug/errors`, which is where an operator-facing string
+ * belongs. Nothing is lost client-side either, for anything MODELLED: a classified error keeps its own
+ * message and rides `data.reason`.
+ */
+const UNCLASSIFIED_FAULT_MESSAGE = "The server hit an unexpected error. It was logged server-side.";
+
+// The error formatter rides the honest domain reason code on `data.reason` (a DomainOperationError's
+// `.code`, or `provider_<kind>` for a classified provider failure — see domainReason). Additive:
+// `data.reason` is typed `string | undefined` end-to-end, so the inferred client error shape gains the
+// optional field; a codeless error serialises without the key.
+//
+// IT ALSO SUBSTITUTES THE MESSAGE OF EVERY INTERNAL_SERVER_ERROR (see UNCLASSIFIED_FAULT_MESSAGE above).
 //
 // IT ALSO STRIPS `stack` — UNCONDITIONALLY, in every env. tRPC's `getErrorShape` attaches the raw
 // `Error.stack` to `shape.data` whenever `config.isDev`, and `isDev` defaults to
@@ -42,7 +74,12 @@ const SSE_RECONNECT_AFTER_INACTIVITY_MS = 45_000;
 export const t = initTRPC.context<Context>().create({
   errorFormatter: ({ shape, error }) => {
     const { stack: _neverOnTheWire, ...data } = shape.data;
-    return { ...shape, data: { ...data, reason: domainReason(error) } };
+    const { message: onlyWhenClassified, ...envelope } = shape;
+    return {
+      ...envelope,
+      message: data.code === "INTERNAL_SERVER_ERROR" ? UNCLASSIFIED_FAULT_MESSAGE : onlyWhenClassified,
+      data: { ...data, reason: domainReason(error) },
+    };
   },
   sse: {
     ping: { enabled: true, intervalMs: SSE_PING_MS },
@@ -85,6 +122,20 @@ const domainErrorMiddleware = t.middleware(async ({ path, type, next }) => {
   if (!result.ok) {
     const mapped = classifyDomainError(result.error);
     if (mapped !== null) {
+      // A CLASSIFIED PROVIDER FAULT STILL OWES A TRACE, and this is now the ONLY place its real message
+      // exists: most `ProviderErrorKind`s send fixed host copy instead of the error's own text
+      // (error-mapping.ts's header states the rule), so without this line a rate-limit, a dead key or an
+      // upstream 5xx would leave nothing behind anywhere. `toLog()` is the error's own contractually
+      // secret-free record. WARN, not error: a provider refusing us is not a bug of ours — the `error`
+      // level below stays reserved for faults nobody modelled.
+      //
+      // SUBSCRIPTIONS ARE THE SIBLING SITE: a generator throws long after this middleware returned, so
+      // `withSubscriptionErrors` carries the same three lines. Two call sites of one log line, not two
+      // policies — keep them in step.
+      const provider = providerFaultOf(mapped);
+      if (provider !== null) {
+        getLog().warn({ ...provider.toLog(), event: "trpc.provider", path, type }, `trpc: provider failure on ${path} (${provider.kind})`);
+      }
       throw mapped;
     }
     if (result.error.code === "INTERNAL_SERVER_ERROR") {
