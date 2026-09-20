@@ -51,9 +51,6 @@ beforeEach(async () => {
 function upsertingStore(database: Db): { store: EmbeddingsStoreOp; digests: StoreDigestParams[] } {
   const digests: StoreDigestParams[] = [];
   const store: EmbeddingsStoreOp = async (params) => {
-    if (params.lens !== "digest") {
-      return; // these tests build digests only
-    }
     digests.push(params);
     const id = castId<ChatDigestId>(`chat_digest_${params.key.chatId}_${params.key.scopedCharacterId}_${params.key.tier}_${params.key.blockIdx}`);
     await database.delete(chatDigestSpeakers).where(eq(chatDigestSpeakers.digestId, id));
@@ -70,6 +67,7 @@ function upsertingStore(database: Db): { store: EmbeddingsStoreOp; digests: Stor
       isGroup: params.isGroup,
       speakers: [...params.speakerCharacterIds],
     });
+    return { ownerId: params.ownerId, model: params.model };
   };
   return { store, digests };
 }
@@ -889,7 +887,7 @@ describe("memory/build/digests — adversarial (self-heal re-digest, tiering, to
     const cfg = { blockSize: 2, verbatimWindow: 0, fanOut: 4, maxTier: 1 } as const;
     const pass1 = upsertingStore(db);
     await generateDigests(ctx1(pass1.store), { scope: sharedScope(chatId), config: cfg, funderUserId: owner });
-    expect((await loadDigestsForScope(db, chatId, GROUP_CHAR, 0)).map((d) => d.blockIdx)).toEqual([0, 1]);
+    expect((await loadDigestsForScope(db, chatId, GROUP_CHAR, { tier: 0 })).map((d) => d.blockIdx)).toEqual([0, 1]);
 
     // EDIT block 0 → its content hash changes, which is the build PROVING the stored digest stale. The
     // re-summarize then fails (whitespace): the block is skipped, and the digest summarized from the
@@ -906,7 +904,7 @@ describe("memory/build/digests — adversarial (self-heal re-digest, tiering, to
       funderUserId: owner,
     });
     expect(counts.written).toBe(0);
-    const surviving = await loadDigestsForScope(db, chatId, GROUP_CHAR, 0);
+    const surviving = await loadDigestsForScope(db, chatId, GROUP_CHAR, { tier: 0 });
     // Block 0's known-stale row is GONE; block 1 (never re-queued, still current) is untouched.
     expect(surviving.map((d) => d.blockIdx)).toEqual([1]);
 
@@ -918,7 +916,7 @@ describe("memory/build/digests — adversarial (self-heal re-digest, tiering, to
       config: cfg,
       funderUserId: owner,
     });
-    expect((await loadDigestsForScope(db, chatId, GROUP_CHAR, 0)).map((d) => d.blockIdx)).toEqual([0, 1]);
+    expect((await loadDigestsForScope(db, chatId, GROUP_CHAR, { tier: 0 })).map((d) => d.blockIdx)).toEqual([0, 1]);
   });
 
   test("mode 'off' logs the zero-work note (observability)", async () => {

@@ -183,6 +183,7 @@ export function fakeEmbeddingsStore(db: Db): {
       isGroup: params.isGroup,
       speakers: [...params.speakerCharacterIds],
     });
+    return { ownerId: params.ownerId, model: params.model };
   };
   const storeSegments: EmbeddingsStoreSegmentsOp = async (batch) => {
     segmentBatchSizes.push(batch.length);
@@ -198,6 +199,7 @@ export function fakeEmbeddingsStore(db: Db): {
         contentHash: params.contentHash,
       });
     }
+    return batch.map((params) => ({ ownerId: params.ownerId, model: params.model }));
   };
   return { store, storeSegments, digests, segments, segmentBatchSizes };
 }

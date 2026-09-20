@@ -15,7 +15,7 @@ import {
 import { freshDb } from "../../../../../support/db.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
 import { seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../../_support.ts";
-import { GROUP_CHAR, seedDigest, seedSegment } from "../_support.ts";
+import { GROUP_CHAR, MODEL, seedDigest, seedSegment } from "../_support.ts";
 
 const aria = castId<CharacterId>("character_aria");
 
@@ -85,11 +85,11 @@ describe("memory/persistence/queries", () => {
       blockIdx: 0,
       contentHash: "ego",
     });
-    const shared = await loadDigestHashes(db, chatId, GROUP_CHAR);
+    const shared = await loadDigestHashes(db, chatId, GROUP_CHAR, MODEL);
     expect(shared.get("0:0")).toBe("h00");
     expect(shared.get("0:1")).toBe("h01");
     expect(shared.size).toBe(2); // the aria-scoped digest is NOT in the shared bucket
-    expect((await loadDigestHashes(db, chatId, aria)).get("0:0")).toBe("ego");
+    expect((await loadDigestHashes(db, chatId, aria, MODEL)).get("0:0")).toBe("ego");
   });
 
   test("loadSegmentHashes maps `blockIdx:chunkIdx` → content hash (a block is a ROW SET, #172)", async () => {
@@ -97,7 +97,7 @@ describe("memory/persistence/queries", () => {
     await seedSegment(db, { chatId, blockIdx: 0, seqStart: 1, seqEnd: 16, contentHash: "s0" });
     await seedSegment(db, { chatId, blockIdx: 1, chunkIdx: 0, seqStart: 17, seqEnd: 17, contentHash: "s1c0" });
     await seedSegment(db, { chatId, blockIdx: 1, chunkIdx: 1, seqStart: 17, seqEnd: 17, contentHash: "s1c1" });
-    const map = await loadSegmentHashes(db, chatId);
+    const map = await loadSegmentHashes(db, chatId, MODEL);
     expect(map.get("0:0")).toBe("s0");
     // The two chunks of block 1 are DISTINCT gate entries — the per-chunk key is what lets a half-written
     // block self-heal (a missing chunk has no row, so nothing skips it).
@@ -125,7 +125,7 @@ describe("memory/persistence/queries", () => {
       [0, 1],
       [1, 0],
     ]);
-    const tier0 = await loadDigestsForScope(db, chatId, GROUP_CHAR, 0);
+    const tier0 = await loadDigestsForScope(db, chatId, GROUP_CHAR, { tier: 0 });
     expect(tier0.map((d) => d.blockIdx)).toEqual([0, 1]);
   });
 

@@ -12,7 +12,7 @@
 //      search knob — the shipped character-fan ruling). "OFF" accidentally unsubscribing the room fan would
 //      stop every open room repainting on an entity edit, with no error anywhere.
 //   3. THE EMBED-MODEL-CHANGE REINDEX IS A TRUSTED SYSTEM TRIGGER. `caller: null` bypasses the workloads
-//      mode gate and `mode:"bulk"` spans every owner — so it must stay exactly two enqueues, both bulk,
+//      mode gate and `mode:"bulk"` spans every owner — so it must stay exactly three enqueues, both bulk,
 //      both owner-less. A `caller`/`ownerId` that drifted here would either scope the sweep to one account
 //      (leaving every other owner's vectors in the OLD embed space) or run a per-user job as nobody.
 //
@@ -148,7 +148,7 @@ describe("buildSearchDiscovery — the indexer's bus routing table (a closed swi
 });
 
 describe("buildSearchDiscovery — the embed-model-change reindex is a BOX-WIDE, owner-less system trigger", () => {
-  test("enqueues exactly two BULK sweeps — the vector index and the databank chunk re-embed", async () => {
+  test("enqueues all three BULK embed-space sweeps", async () => {
     const built = build(true, capturingBus().bus);
     // @orb-waive no-test-fabrication(Awaited<ReturnType<typeof built.workloads.start>>): the enqueue RESULT is never read by this seam — only the arguments are asserted. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const started = { id: "wl_1" } as Awaited<ReturnType<typeof built.workloads.start>>;
@@ -156,11 +156,11 @@ describe("buildSearchDiscovery — the embed-model-change reindex is a BOX-WIDE,
 
     built.enqueueEmbedReindex();
     await vi.waitFor(() => {
-      expect(start).toHaveBeenCalledTimes(2);
+      expect(start).toHaveBeenCalledTimes(3);
     });
 
     const calls = start.mock.calls.map((c) => c[0]);
-    expect(calls.map((c) => c.input.kind).sort()).toStrictEqual(["databank-reindex", "index"]);
+    expect(calls.map((c) => c.input.kind).sort()).toStrictEqual(["databank-reindex", "index", "memory-backfill"]);
     for (const call of calls) {
       // `caller: null` is the trusted-system bypass of the mode gate, and bulk/ownerId:null is what makes
       // the sweep span every owner — a per-owner scope here strands everyone else in the OLD embed space.
@@ -180,7 +180,7 @@ describe("buildSearchDiscovery — the embed-model-change reindex is a BOX-WIDE,
       built.enqueueEmbedReindex();
     }).not.toThrow();
     await vi.waitFor(() => {
-      expect(start).toHaveBeenCalledTimes(2);
+      expect(start).toHaveBeenCalledTimes(3);
     });
   });
 });

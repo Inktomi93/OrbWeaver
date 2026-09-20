@@ -99,7 +99,7 @@ export interface SearchDiscoveryComposeDeps {
 }
 
 /** The cluster compose product. `enqueueEmbedReindex` is returned so the keystone can bind it onto its
- *  late-bound `onEmbedModelChanged` holder (the PD-139(a) trigger). */
+ *  late-bound embed-space-change holder (the PD-139(a) trigger). */
 export interface SearchDiscoveryComposeResult {
   readonly embeddings: EmbeddingsService;
   readonly indexer: EmbeddingsIndexer;
@@ -347,16 +347,14 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     isAdmin,
   });
 
-  // PD-139(a): the embed-model-change → bulk purge+reindex enqueue. A box-level trigger: purge+reindex ALL
-  // sources (force) as a GLOBAL BULK sweep. `caller: null` is a trusted system trigger (bypasses the mode gate);
-  // `ownerId` is unused in bulk mode (the sweep spans every owner). The `index` runner covers character/image/
-  // memory chunks; DOCUMENT chunks live in `document_chunks` and are re-embedded by a separate bulk
-  // `databank-reindex` (chunk-embed) sweep — without it a model change strands every document chunk in the OLD
-  // embed space (DBK-B(b)). Both are enqueued together; each is independent. Fire-and-forget: a duplicate run (a
-  // kind is already active → DomainConflictError) or any enqueue failure must never fail the settings write
-  // that triggered it. Each enqueue uses the supervised-detach boundary: it opens its own root span, owns a
-  // rejection with structured operator telemetry, and preserves the workload kind needed to retry from the
-  // existing workload surface. The settings write receives no completion or ordering guarantee.
+  // PD-139(a): an embed binding change enqueues three independent GLOBAL BULK sweeps: `index` for card/image
+  // vectors, `databank-reindex` for document chunks, and `memory-backfill` for chat segments/digests.
+  // `caller: null` is the trusted-system mode-gate bypass; `ownerId: null` spans every owner. Fire-and-forget:
+  // a duplicate run (a kind is already active → DomainConflictError) or any enqueue failure must never fail
+  // the connection/binding write that triggered it. Each enqueue uses the supervised-detach boundary: it opens
+  // its own root span, owns a rejection with structured operator telemetry, and preserves the workload kind
+  // needed to retry from the existing workload surface. The binding write receives no completion or ordering
+  // guarantee.
   const enqueueEmbedReindex = (): void => {
     const at = now();
     superviseDetached(`embed-reindex:index:${at}`, EMBED_REINDEX_SPAN, { workloadKind: "index" }, () =>
@@ -369,6 +367,9 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
         mode: "bulk",
         ownerId: null,
       }),
+    );
+    superviseDetached(`embed-reindex:memory:${at}`, EMBED_REINDEX_SPAN, { workloadKind: "memory-backfill" }, () =>
+      workloads.start({ input: { kind: "memory-backfill", params: {} }, caller: null, mode: "bulk", ownerId: null }),
     );
   };
 

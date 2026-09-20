@@ -90,7 +90,7 @@ async function flood(
 
 export function createStoreSegments(ctx: EmbeddingsContext): EmbeddingsService["storeSegments"] {
   return async (params: readonly SegmentStoreParams[]): Promise<readonly StoreResult[]> => {
-    const results: StoreResult[] = params.map((p) => ({ outcome: "noop", contentHash: p.contentHash }));
+    const results: StoreResult[] = params.map((p) => ({ outcome: "noop", contentHash: p.contentHash, model: p.model }));
     const pending = params.length === 0 ? [] : await gate(ctx, params);
     if (pending.length === 0) {
       return results;
@@ -116,7 +116,7 @@ export function createStoreSegments(ctx: EmbeddingsContext): EmbeddingsService["
         dim: p.dim,
         now: ctx.now(),
       });
-      results[item.index] = { outcome: "written", contentHash: p.contentHash };
+      results[item.index] = { outcome: "written", contentHash: p.contentHash, model: embedded.model };
     }
     return results;
   };
