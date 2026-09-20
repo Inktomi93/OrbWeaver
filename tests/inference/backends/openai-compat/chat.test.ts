@@ -14,6 +14,7 @@
 // row that spells it records the word the body carries. B6: the OpenAI-style rate-limit headers on the
 // response become `rateLimit`. B7: the endpoint's own response id is the row's `generationId`.
 
+import type { EFFORT_SPELLINGS } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import type { JsonValue } from "@orb/kit/json";
 import { runOpenAiCompatChatTurn } from "../../../../packages/inference/src/backends/openai-compat/chat.ts";
@@ -144,7 +145,7 @@ const RATE_HEADERS = {
 };
 
 /** An openai-compatible ENDPOINT row (effort mode) whose folded features come from `declaredFeatures`. */
-function endpointRequest(effort: "none" | "reasoning_effort"): OpenAiCompatChatRequest {
+function endpointRequest(effort: (typeof EFFORT_SPELLINGS)[number]): OpenAiCompatChatRequest {
   const connection = fakeResolved({
     task: "chat",
     providerId: "custom-openai",

@@ -59,7 +59,9 @@ export async function seedLocalLightConnections(deps: LocalLightSeedDeps, ownerI
     .select({ task: connectionBindings.task })
     .from(connectionBindings)
     .where(and(eq(connectionBindings.actorKind, "user"), eq(connectionBindings.userId, ownerId), inArray(connectionBindings.task, SEED_TASKS)));
+  // @orb-waive persistence-no-in-memory-state(Set): query-local membership set over the binding rows this query just returned. Ends if it outlives the call.
   const boundTasks = new Set(bound.map((row) => row.task));
+  // @orb-waive persistence-no-in-memory-state(Map): query-local label→id index over the row set this query just returned. Ends if it outlives the call.
   const idByLabel = new Map(rows.map((row) => [row.label, row.id]));
   const missing = LOCAL_LIGHT_SEED_ROWS.flatMap((seed) => {
     const connectionId = idByLabel.get(seed.label);

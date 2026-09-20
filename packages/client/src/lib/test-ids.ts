@@ -59,9 +59,6 @@ export const TEST_IDS = {
   // affordance shown on a revoked row (→ credentials.clearRevoked).
   credentialMarkRevoked: "credential-mark-revoked",
   credentialClearRevoked: "credential-clear-revoked",
-  // The model picker's honest cold-cache marker — shown while the server serves its curated shortlist
-  // instead of a real catalog (`origin: "curated"`), so the menu never silently differs run-to-run.
-  modelPickerCuratedNotice: "model-picker-curated-notice",
   composer: "composer",
   composerSend: "composer-send",
   // W-D — the guided cluster's four dual-mode icons + the ✨ utility menu (replaces the old composer-wand).

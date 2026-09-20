@@ -31,7 +31,7 @@ import type { ApplyStatsDelta, BumpStatsCanonVersion } from "@orb/contracts/stat
 import type { MaterializeBackgroundOp, ThemeBackground, ThemeOverride } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
-import type { GeneratedImage, ProviderErrorKind, Resolved, RoleClientsWithSignal, ToolCallInput, WireTool } from "@orb/inference";
+import type { GeneratedImage, ProviderErrorKind, Resolved, RoleClientsWithSignal, SummarizeResult, ToolCallInput, WireTool } from "@orb/inference";
 import type { ContentImageRef } from "@orb/kit/content";
 import type {
   AssetId,
@@ -304,7 +304,7 @@ type BumpStatsCanonVersionOp = BumpStatsCanonVersion<unknown, Db>;
  *  cancellation — the turn's active-turn `AbortSignal` — and a side-LLM call that cannot be cancelled hangs
  *  the whole turn when the box accepts the socket and never answers.
  *  @public Test-anchored module surface; the chat/memory test harnesses type their fake summarizers with it. */
-export type SummarizeOp = (funderUserId: UserId, ...args: Parameters<RoleClientsWithSignal["summarize"]>) => ReturnType<RoleClientsWithSignal["summarize"]>;
+export type SummarizeOp = (funderUserId: UserId, ...args: Parameters<RoleClientsWithSignal["summarize"]>) => Promise<SummarizeResult>;
 
 /** The side-gen sampling ladder's middle rung for a chat-scoped side-gen call — the chat host's default-preset
  *  generation params. Resolved at the entry root (chat never reads the preset domain); a hostless/stale room

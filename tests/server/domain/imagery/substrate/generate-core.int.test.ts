@@ -16,10 +16,17 @@ import { makeResolved } from "../../../../support/factories/resolved-connection.
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, PNG_BYTES, principal, seedOwner } from "../_support.ts";
 
-// @orb-waive no-test-fabrication(Parameters<typeof runGeneration>[1]): a minimal runGeneration request double — this file pins the spend/persist tail only, which never reads credential/capability internals. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-const REQ = { connection: makeResolved({ task: "generateImage", providerId: "openrouter" }), model: "img-model", prompt: "test", capability: {} } as Parameters<
-  typeof runGeneration
->[1];
+/** The request shape `runGeneration` takes, named so the deliberate fabrication below has a ONE-LINE
+ *  assertion position the waiver can anchor on (a multi-line `Parameters<…>` slice cannot be a marker). */
+type GenerationRequest = Parameters<typeof runGeneration>[1];
+
+// @orb-waive no-test-fabrication(GenerationRequest): a minimal runGeneration request double — this file pins the spend/persist tail only, which never reads credential/capability internals. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+const REQ = {
+  connection: makeResolved({ task: "generateImage", providerId: "openrouter" }),
+  model: "img-model",
+  prompt: "test",
+  capability: {},
+} as GenerationRequest;
 const PROV = {
   chatId: null,
   mode: "free" as const,

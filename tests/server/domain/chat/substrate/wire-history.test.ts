@@ -165,8 +165,8 @@ const mediaEnv = (inlineReply: ReadonlyMap<MessageId, ReadonlySet<AssetId>>, can
   loadInlineReplyAssetIds: () => Promise.resolve(inlineReply),
 });
 
-const linked = (messageId: string, ...assetIds: readonly AssetId[]): ReadonlyMap<MessageId, ReadonlySet<AssetId>> =>
-  new Map<MessageId, ReadonlySet<AssetId>>([[castId<MessageId>(messageId), new Set(assetIds)]]);
+const linked = (messageId: MessageId, ...assetIds: readonly AssetId[]): ReadonlyMap<MessageId, ReadonlySet<AssetId>> =>
+  new Map<MessageId, ReadonlySet<AssetId>>([[messageId, new Set(assetIds)]]);
 
 const imageMarkdown = (alt: string, assetId: AssetId): string => `![${alt}](asset:${assetId})`;
 
@@ -175,7 +175,7 @@ test("§6.7 BOTH DIRECTIONS: the model's own inline-reply picture RIDES, an /ima
   const shaped = [row("assistant", `She draws the map.\n\n${imageMarkdown("She draws the map", PICTURE)}`, "message_1")];
 
   // ARM A — the link for THIS slot and THIS asset says `inline-reply`: a real vision part.
-  const rides = await buildWireHistory(mediaEnv(linked("message_1", PICTURE), canon), shaped);
+  const rides = await buildWireHistory(mediaEnv(linked(castId<MessageId>("message_1"), PICTURE), canon), shaped);
   expect(rides[0]?.row.content).toContainEqual({ type: "image", url: `https://cas.test/${PICTURE}` });
 
   // ARM B — byte-identical row, byte-identical asset, and the ONLY difference is that the link is absent
@@ -191,7 +191,7 @@ test("§6.7 the fence is PER-ASSET, not per-row: one linked picture rides while 
   // after an edit merged both refs onto one slot. A per-ROW relaxation would ship both.
   const canon = [canonRow("message_1", "assistant")];
   const body = `${imageMarkdown("the map", PICTURE)}\n\n${imageMarkdown("illustration", ILLUSTRATION)}`;
-  const converted = await buildWireHistory(mediaEnv(linked("message_1", PICTURE), canon), [row("assistant", body, "message_1")]);
+  const converted = await buildWireHistory(mediaEnv(linked(castId<MessageId>("message_1"), PICTURE), canon), [row("assistant", body, "message_1")]);
 
   const parts = converted[0]?.row.content ?? [];
   expect(parts).toContainEqual({ type: "image", url: `https://cas.test/${PICTURE}` });
@@ -208,7 +208,9 @@ test("§6.7 an asset linked to ANOTHER slot cannot be laundered by spelling its 
   // otherwise name a picture the model really did generate elsewhere and ride it back as model input.
   // The link row is the generation's own receipt and authored prose cannot forge one.
   const canon = [canonRow("message_1", "assistant"), canonRow("message_2", "assistant")];
-  const converted = await buildWireHistory(mediaEnv(linked("message_1", PICTURE), canon), [row("assistant", imageMarkdown("the map", PICTURE), "message_2")]);
+  const converted = await buildWireHistory(mediaEnv(linked(castId<MessageId>("message_1"), PICTURE), canon), [
+    row("assistant", imageMarkdown("the map", PICTURE), "message_2"),
+  ]);
 
   expect(converted[0]?.row.content).toEqual([{ type: "text", text: "[image: the map]" }]);
 });
@@ -217,7 +219,9 @@ test("§6.7 a SYNTHETIC assistant row (no canon slot) never rides, even naming a
   // Id-less rows are spliced injections and the regen/continue turn — authored text with no generation
   // behind it, so there is no slot whose link could vouch for the picture.
   const canon = [canonRow("message_1", "assistant")];
-  const converted = await buildWireHistory(mediaEnv(linked("message_1", PICTURE), canon), [row("assistant", imageMarkdown("the map", PICTURE))]);
+  const converted = await buildWireHistory(mediaEnv(linked(castId<MessageId>("message_1"), PICTURE), canon), [
+    row("assistant", imageMarkdown("the map", PICTURE)),
+  ]);
 
   expect(converted[0]?.row.content).toEqual([{ type: "text", text: "[image: the map]" }]);
 });
@@ -227,7 +231,7 @@ test("§6.7 the SCOPED-FOLD demotion closes the fence: a linked picture on a row
   // not the speaker's own generation any more, and the user-attachment arm requires a HUMAN author — so the
   // demotion lands in neither class. The whole reason `userAuthored` exists beside `role`.
   const canon = [canonRow("message_1", "assistant")];
-  const converted = await buildWireHistory(mediaEnv(linked("message_1", PICTURE), canon), [
+  const converted = await buildWireHistory(mediaEnv(linked(castId<MessageId>("message_1"), PICTURE), canon), [
     row("user", `Bran: ${imageMarkdown("the map", PICTURE)}`, "message_1"),
   ]);
 
@@ -238,7 +242,7 @@ test("§6.7 a HUMAN-authored row delivered as `assistant` does not ride — the 
   // The belt that survives a SHAPE change: `userAuthored` is read on the assistant arm too, so a canon USER
   // row delivered under an assistant role (a prefill/impersonate re-role) cannot reach class 2 even with a
   // link present. Without this pin the clause is untestable and the next refactor deletes it as dead.
-  const converted = await buildWireHistory(mediaEnv(linked("message_1", PICTURE), [canonRow("message_1", "user")]), [
+  const converted = await buildWireHistory(mediaEnv(linked(castId<MessageId>("message_1"), PICTURE), [canonRow("message_1", "user")]), [
     row("assistant", imageMarkdown("the map", PICTURE), "message_1"),
   ]);
 
@@ -249,7 +253,7 @@ test("§6.7 an EXTERNAL http ref never rides, on an assistant row, whatever the 
   // The scheme gate is unconditional: riding one makes the PROVIDER fetch a third-party URL (the
   // tracking-pixel/exfil vector `forbidExternalMedia` exists for) for content that can change under us.
   const canon = [canonRow("message_1", "assistant")];
-  const converted = await buildWireHistory(mediaEnv(linked("message_1", PICTURE), canon), [
+  const converted = await buildWireHistory(mediaEnv(linked(castId<MessageId>("message_1"), PICTURE), canon), [
     row("assistant", "![a map](https://evil.test/track.png)", "message_1"),
   ]);
 

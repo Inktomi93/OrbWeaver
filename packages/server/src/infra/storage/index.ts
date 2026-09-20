@@ -7,8 +7,9 @@
 export type { Cas, PutResult } from "./cas.ts";
 export { createCas } from "./cas.ts";
 
+export type { RuntimeTool } from "./contract.ts";
 export { stageDirectory } from "./stage-dir.ts";
-export type { RuntimeTool, UserRuntimeDirs } from "./user-runtime-dir.ts";
+export type { UserRuntimeDirs } from "./user-runtime-dir.ts";
 export { createUserRuntimeDirs } from "./user-runtime-dir.ts";
 export type { VariantCache } from "./variant-cache.ts";
 export { createVariantCache } from "./variant-cache.ts";
