@@ -119,10 +119,11 @@ describe("generateImage", () => {
       mode: "free",
       prompt: "a dragon",
       n: 2,
+      size: "portrait",
     });
 
     expect(calls).toHaveLength(1);
-    expect(calls[0]).toMatchObject({ chatId, mode: "free", prompt: "a dragon", n: 2 });
+    expect(calls[0]).toMatchObject({ chatId, mode: "free", prompt: "a dragon", n: 2, size: "portrait" });
 
     expect(view.role).toBe("user");
     expect(view.authorUserId).toBe(host);

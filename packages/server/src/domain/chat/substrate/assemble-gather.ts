@@ -45,6 +45,8 @@ interface SendRegexSink {
   memoryRecall?: MemoryRecallInputs | null;
 }
 
+type GatherDatabankParams = Parameters<NonNullable<ChatContext["gatherDatabank"]>>[0];
+
 // ── the {{databank}} slot GATHER (DB6, databank-design/07 §4/§6) ──────────────────────────────────────────
 /** The retrieval query = pending + the last N committed turns (databank-design/07 §4). LEAN: code constants
  *  until retrieval complaints trace to query construction. */
@@ -92,7 +94,9 @@ async function gatherDatabank(
     hostUserId: args.hostUserId,
     queryText,
     tokenBudget: args.foreign.databankSlotTokenBudget ?? DATABANK_SLOT_TOKEN_BUDGET,
-    ...(retrieval !== undefined ? { k: retrieval.k, minScore: retrieval.minScore, rerank: retrieval.rerank } : {}),
+    ...(retrieval !== undefined
+      ? ({ k: retrieval.k, minScore: retrieval.minScore, rerank: retrieval.rerank } satisfies Pick<GatherDatabankParams, "k" | "minScore" | "rerank">)
+      : {}),
   });
   return result === null ? undefined : result.text;
 }
