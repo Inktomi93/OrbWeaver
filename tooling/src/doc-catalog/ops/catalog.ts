@@ -95,6 +95,37 @@ function catalogRows(contents: string): readonly CatalogDocumentRow[] | null {
   return Array.isArray(documents) ? (documents as readonly CatalogDocumentRow[]) : null;
 }
 
+/** Place rows the base has NEVER SEEN where a whole-tree run would put them, without re-ordering a single
+ *  row the base already carried (#2473).
+ *
+ *  THE RULING ABOVE SURVIVES — ITS INPUT CHANGED. "Row order is the base's, not a fresh sort" was minted
+ *  because re-sorting the whole union with `localeCompare` turned a one-document write into a 4141-line
+ *  diff, and that is still forbidden: existing rows keep their committed positions, whatever they are.
+ *  What was wrong is the case the base has NO OPINION about. A brand-new row was pushed onto the END, so
+ *  `doc-catalog:write --paths` produced a catalog that `check:doc-catalog` — which compares against
+ *  `expectedCatalog` over `documents()`, i.e. tracked order — immediately called STALE. A writer whose
+ *  own checker rejects its output leaves the operator no green door but `--barrier`, the whole-tree
+ *  regenerator the scoped form exists to avoid running.
+ *
+ *  `treeOrdered` is `documents()` — `git ls-files -- docs`, sorted — so an addition is inserted before the
+ *  first surviving row that follows it on the tree, and appended when none does. A row NOT on the tree
+ *  (one the base kept and nobody named) carries no position and is simply scanned past. When the base's
+ *  order agrees with the tree's, which is what a catalog off a whole run always carries, the result is
+ *  byte-identical to that whole run. */
+function withAdditionsPlaced(kept: readonly Doc[], additions: readonly Doc[], treeOrdered: readonly Doc[]): readonly Doc[] {
+  const treeIndex = new Map(treeOrdered.map((doc, index) => [doc.path, index] as const));
+  const placed = [...kept];
+  for (const addition of [...additions].toSorted((left, right) => (treeIndex.get(left.path) ?? 0) - (treeIndex.get(right.path) ?? 0))) {
+    const at = treeIndex.get(addition.path) as number;
+    const before = placed.findIndex((doc) => {
+      const index = treeIndex.get(doc.path);
+      return index !== undefined && index > at;
+    });
+    placed.splice(before === -1 ? placed.length : before, 0, addition);
+  }
+  return placed;
+}
+
 /** THE SCOPED WRITE (#2165). The whole-tree form regenerates every row from the working tree; run on a
  *  shared tree after a ONE-FILE re-attest it produced 184 insertions across every document that had
  *  changed that day, exit 1, and a written file — a blast radius the operator had to catch by reading
@@ -140,18 +171,20 @@ export function scopedCatalog(input: {
   // order (`docs/Mission.md` before `docs/architecture/…`, capital-M first) and a locale sort is
   // case-insensitive. A scoped write whose diff is the whole file is not a scoped write.
   // A named document absent from the tree is a DELETION: its row simply does not join the union, and a
-  // named document with no row yet is an ADDITION, appended where a fresh whole run would eventually
-  // place it — the base has no opinion about where a row it has never seen belongs.
+  // named document with no row yet is an ADDITION, placed by `withAdditionsPlaced` at the position a
+  // whole run would give it — the base has no opinion about where a row it has never seen belongs, and
+  // until #2473 that silence was read as "the end", which made the write instantly stale to its checker.
   const rowAsDoc = (row: CatalogDocumentRow): readonly Doc[] => {
     if (!named.has(row.path)) {
       return [{ path: row.path, lines: row.lines, bytes: row.bytes, sha256: row.sha256, canonicalSha256: null, frontmatter: row.frontmatter }];
     }
     return freshByPath.has(row.path) ? [freshByPath.get(row.path) as Doc] : [];
   };
-  const docs = [
-    ...rows.flatMap(rowAsDoc),
-    ...[...named].filter((path) => !rowByPath.has(path) && freshByPath.has(path)).map((path) => freshByPath.get(path) as Doc),
-  ];
+  const docs = withAdditionsPlaced(
+    rows.flatMap(rowAsDoc),
+    [...named].filter((path) => !rowByPath.has(path) && freshByPath.has(path)).map((path) => freshByPath.get(path) as Doc),
+    input.docs,
+  );
   const freshEntries = new Map(input.receipts.flatMap((receipt) => receipt.entries.map((entry) => [entry.path, entry] as const)));
   const entries = docs.flatMap((doc) => {
     const entry = named.has(doc.path) ? freshEntries.get(doc.path) : (rowByPath.get(doc.path)?.receipt ?? undefined);

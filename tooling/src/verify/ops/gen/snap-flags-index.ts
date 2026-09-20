@@ -65,13 +65,34 @@ function groupTable(group: string, rows: readonly SnapFlagDescriptor[]): string 
   return `## ${group}\n\n| Flag | What it does |\n| - | - |\n${body}`;
 }
 
+/** One hand-written tail row: the first table cell verbatim, and its summary. */
+interface StaticIndexRow {
+  readonly cell: string;
+  readonly summary: string;
+}
+
+/** The rows with NO registry descriptor behind them (this file's header says why). EXPORTED because the
+ *  index's row census is a RELATIONSHIP, never a number: the derived file carries exactly one row per
+ *  `snapFlagDescriptors()` entry PLUS these, and a pin that spells the sum as a literal goes stale the day
+ *  a flag lands. #2492: it did — `--tap` (#2445) made the file 124 rows while the pin still said 123, so
+ *  the suite sat red on a tree where nothing was wrong, and the only repair the number offers is the bump
+ *  that re-arms it. Add a tail row here and the pin names it; add a flag to the registry and the pin
+ *  follows, while `ledgers:fresh` owns the separate question of whether the COMMITTED file was
+ *  regenerated. */
+export const SNAP_FLAGS_INDEX_STATIC_ROWS: readonly StaticIndexRow[] = [
+  { cell: "`[route]` positional", summary: "the app route to load — not a flag; the app has TWO url routes (`/`, `/login`)" },
+  {
+    cell: "`--report <run.json path\\|run-id\\|latest>`",
+    summary: "replay one immutable run index (`lib/run-report-query.ts` intercepts this before the flag registry)",
+  },
+  { cell: "`--reports`", summary: "list every indexed run across registered worktrees" },
+];
+
 const STATIC_TAIL = `## Read back (browser-free — parsed OUTSIDE the flag registry, see this file's header)
 
 | Flag | What it does |
 | - | - |
-| \`[route]\` positional | the app route to load — not a flag; the app has TWO url routes (\`/\`, \`/login\`) |
-| \`--report <run.json path\\|run-id\\|latest>\` | replay one immutable run index (\`lib/run-report-query.ts\` intercepts this before the flag registry) |
-| \`--reports\` | list every indexed run across registered worktrees |
+${SNAP_FLAGS_INDEX_STATIC_ROWS.map((row) => `| ${row.cell} | ${row.summary} |`).join("\n")}
 
 ## Regenerate this file
 
