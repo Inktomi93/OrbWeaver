@@ -25,7 +25,7 @@
 import type { ChatContentPart, ChatReasoningPart, MessageView } from "@orb/contracts/chat";
 import type { ContentImageRef, ContentSpan, ContentSpanKind } from "@orb/kit/content";
 import { cardWireStub, tokenizeContent } from "@orb/kit/content";
-import type { MessageId } from "@orb/kit/ids";
+import type { AssetId, MessageId } from "@orb/kit/ids";
 import type { ResolvedMediaRef, TurnMessage } from "../contract/results.ts";
 import type { shapeTurn } from "./assembly-access.ts";
 
@@ -48,25 +48,58 @@ function displayOnlyImageText(alt: string): string {
   return alt.length > 0 ? `[image: ${alt}]` : "[image]";
 }
 
-/** Is this image span a deliberate USER ATTACHMENT — the one image class that may become a model-visible
- *  image part (owner ruling, ST parity)?
+/** MAY this image span become a model-visible image part? There are exactly TWO admitted classes, and
+ *  everything else is DISPLAY-ONLY: it renders in the transcript forever and never rides as an image part.
  *
- *  BOTH halves are required, and both are structural:
- *   • the ref is an owned-CAS `asset:<id>` — the ONLY thing the attachment machinery ever mints
- *     (`composeBodyWithAttachments`, verbs/turn). An `external` http(s) ref is authored bytes: a character
- *     card's greeting image, a world-info illustration, a pasted link. It also makes the PROVIDER fetch a
- *     third-party URL (the same tracking-pixel/exfil vector `forbidExternalMedia` exists for), for content
- *     that can change under us.
- *   • the row is USER-authored. `role` is the delivered wire role, so it already covers the id-less rows
- *     (the regen/continue synthetic user turn, injections); the `userAuthored` predicate additionally
- *     rejects the SCOPED-FOLD demotion — `shape.scopeToSpeaker` re-roles another character's assistant row
- *     to a `Name: …` USER line, and those images are still character-authored (a narrator/`/imagine` post
- *     carries real `asset:` refs, so the scheme alone would let them through).
+ *  THE SCHEME GATE IS UNCONDITIONAL — an `external` http(s) ref NEVER rides, on any row. Those are authored
+ *  bytes (a character card's greeting image, a world-info illustration, a pasted link) and riding one makes
+ *  the PROVIDER fetch a third-party URL — the same tracking-pixel/exfil vector `forbidExternalMedia` exists
+ *  for — for content that can change under us. Only an owned-CAS `asset:<id>` is a candidate.
  *
- *  Everything else is DISPLAY-ONLY: it renders in the transcript forever and never rides as an image part. */
-function isUserAttachment(span: { readonly ref: ContentImageRef }, role: TurnMessage["role"], userAuthored: boolean): boolean {
-  return span.ref.kind === "asset" && role === "user" && userAuthored;
+ *  CLASS 1 — a deliberate USER ATTACHMENT (the owner ruling, ST parity). `role` is the DELIVERED wire role,
+ *  so it already covers the id-less rows (the regen/continue synthetic user turn, injections); the
+ *  `userAuthored` predicate additionally rejects the SCOPED-FOLD demotion — `shape.scopeToSpeaker` re-roles
+ *  another character's assistant row to a `Name: …` USER line, and those images are still character-authored
+ *  (a narrator/`/imagine` post carries real `asset:` refs, so the scheme alone would let them through).
+ *
+ *  CLASS 2 — THE MODEL'S OWN INLINE REPLY PICTURE (§6.7), and this relaxation is PER-ASSET, never per-row.
+ *  The row it admits is the very row class the old rule refused wholesale, and that refusal was not
+ *  conservatism: an `/imagine` illustration post is an ASSISTANT row that carries REAL `asset:` refs today
+ *  (`verbs/post-narrator-message.ts`), so "assistant rows may now carry assets" would hand the model every
+ *  picture anyone in the room ever generated. The discriminator is the `message_assets` link's `origin`
+ *  column — minted for exactly this (§5.3b) — and the question asked is the narrowest one the column can
+ *  answer: does the link for THIS slot and THIS asset say `inline-reply`?
+ *
+ *  KEYED ON THE (slot, asset) PAIR for the same reason. A chat-wide id set would admit any
+ *  assistant-delivered row that merely SPELLS `![x](asset:<id>)` — a world-info entry, an author's note, a
+ *  card greeting, a spliced injection — and those bodies are authored text whose ids are readable straight
+ *  off the transcript. The link row is the generation's own receipt; authored prose cannot forge one.
+ *
+ *  A row delivered as `user` is judged by class 1 ALONE even when its slot has inline-reply links: the
+ *  scoped-fold demotion is precisely the case §6.7 names, and a picture that stops riding when another
+ *  character's line folds into the user channel is a bounded fidelity loss, not a leak. */
+function ridesAsModelMedia(span: { readonly ref: ContentImageRef }, row: WireRowFacts, inlineReply: InlineReplyAssets): boolean {
+  if (span.ref.kind !== "asset") {
+    return false;
+  }
+  if (row.role === "user") {
+    return row.userAuthored;
+  }
+  if (row.role !== "assistant" || row.userAuthored || row.messageId === undefined) {
+    return false;
+  }
+  return inlineReply.get(row.messageId)?.has(span.ref.assetId) === true;
 }
+
+/** THE §6.7 EXFIL FENCE'S ONE INPUT: for each canon slot, the asset ids whose `message_assets` link is
+ *  stamped `inline-reply` — pictures the model emitted inside that slot's own generation. Loaded per chat by
+ *  `persistence/queries.loadInlineReplyAssetIds` (the tenancy belt is its `messages` join) and handed in,
+ *  because this module holds no db handle. EMPTY is the safe value: no asset rides off an assistant row. */
+type InlineReplyAssets = ReadonlyMap<MessageId, ReadonlySet<AssetId>>;
+
+/** The `InlineReplyAssets` a history with no assistant-row `asset:` span needs — nobody is asked, nothing
+ *  is loaded, and the predicate answers `false` for every assistant row. */
+const NO_INLINE_REPLY_ASSETS: InlineReplyAssets = new Map<MessageId, ReadonlySet<AssetId>>();
 
 /** One dropped attachment: its alt text + which media kind the drop was (drives the per-kind warning
  *  flags and the honest placeholder label). */
@@ -83,15 +116,21 @@ interface WirePartsEnv {
   readonly resolveImageUrl: (ref: ContentImageRef) => Promise<ResolvedMediaRef | null>;
   /** The card spans riding FULL this assembly (the M2 keep-last-X window; empty = every card stubs). */
   readonly fullCards: ReadonlySet<ContentSpan>;
+  /** §6.7's per-(slot, asset) inline-reply set — see {@link ridesAsModelMedia}. */
+  readonly inlineReply: InlineReplyAssets;
 }
 
-/** The PER-ROW facts the projection needs (only the image arm reads them — see `isUserAttachment`). */
+/** The PER-ROW facts the projection needs (only the image arm reads them — see {@link ridesAsModelMedia}). */
 interface WireRowFacts {
   /** The DELIVERED wire role. */
   readonly role: TurnMessage["role"];
   /** The row's bytes were authored by a human user: it is not a canon ASSISTANT row (an id-less shaped row —
    *  the synthetic regen/continue user turn, a spliced injection — is judged by `role` alone). */
   readonly userAuthored: boolean;
+  /** The row's canon slot id, or `undefined` for a SYNTHETIC row (a spliced injection, the regen/continue
+   *  turn). §6.7's inline-reply lookup is keyed on it, which is what stops an authored body that merely
+   *  spells another slot's `asset:<id>` from laundering that picture onto the wire. */
+  readonly messageId: MessageId | undefined;
 }
 
 /** The M2 keep-last-X window: the LAST X card spans across the fitted history (document order, counted from
@@ -101,7 +140,7 @@ interface WireRowFacts {
  *
  *  A CARD IN A SYNTHETIC ROW IS INSTRUCTION, NOT CONTENT — it never stubs and never consumes the window.
  *  A synthetic row is id-less by construction (a spliced injection or the regen/continue user turn; canon
- *  rows always carry a `messageId` — the same discriminator `isUserAttachment` reads two functions down).
+ *  rows always carry a `messageId` — the same discriminator {@link ridesAsModelMedia} reads two functions up).
  *  The rpg card-teach block embeds a literal `:::card` worked example, so under the old rule the default
  *  `cardKeepLastX = 0` collapsed the model's own teaching example to `[card: Crossing sign]` before it was
  *  ever sent: the one measured intervention that pins the opener's exact bytes, deleted by the wire seam on
@@ -172,7 +211,7 @@ const WIRE_PART_HANDLERS: { readonly [K in ContentSpanKind]: WirePartHandler<K> 
   // (`input.vision` for images, `input.video` for mp4/webm/animated-gif — #317). The KIND is only known
   // after resolve (it is the asset row's stored fact), so the kind-gate runs on the resolver's answer.
   image: async (span, env, row) => {
-    if (!isUserAttachment(span, row.role, row.userAuthored)) {
+    if (!ridesAsModelMedia(span, row, env.inlineReply)) {
       // DISPLAY-ONLY, unconditionally — not a capability drop, so it never flags `imageDropped` (the
       // `image_dropped` warning means "your model can't see the image you attached", and nagging it on
       // every turn of a chat whose greeting embeds a picture would be a lie).
@@ -337,17 +376,30 @@ export async function buildWireHistory(
      *  engine's in-turn loop and never reaches the persisted history. A map rather than a `MessageView` field
      *  because these blobs are host-side replay material that must not cross to a client. */
     readonly reasoningByMessage: ReadonlyMap<MessageId, readonly ChatReasoningPart[]>;
+    /** §6.7's INLINE-REPLY ORIGIN SET, LAZY — awaited at most ONCE per build, and only when some
+     *  assistant-delivered row actually carries an `asset:` span. A history with no model-emitted picture
+     *  (every history today, and every history on a text-only model forever) performs NO read, the same
+     *  posture the §8.8 carry takes. Both callers close it over their own chat id; the query is the ONE home
+     *  (`persistence/queries.loadInlineReplyAssetIds`) so the fence cannot be re-derived differently on the
+     *  turn path and the preview path. */
+    readonly loadInlineReplyAssetIds: () => Promise<InlineReplyAssets>;
   },
   shapedHistory: readonly ShapedHistoryRow[],
 ): Promise<WireRow[]> {
   // COMMITTED canon (the shaped history is stored rows, never the in-flight stream), so an unterminated
   // card closes at EOF and STUBS like any other card instead of riding the wire as a multi-KB raw blob.
   const tokenized = shapedHistory.map((h) => ({ h, spans: tokenizeContent(h.content, { committed: true }) }));
+  // The §6.7 origin read is DEMAND-DRIVEN: only an assistant-delivered row bearing an `asset:` span can ever
+  // reach class 2 of `ridesAsModelMedia`, so a history without one asks nothing and pays nothing. The probe
+  // is deliberately WIDER than the predicate (it ignores `userAuthored`, which needs the canon fold below):
+  // over-loading costs one indexed query, under-loading would silently drop a real picture.
+  const mayCarryInlineReply = tokenized.some(({ h, spans }) => h.role === "assistant" && spans.some((s) => s.kind === "image" && s.ref.kind === "asset"));
   const partsEnv: WirePartsEnv = {
     visionOk: env.visionOk,
     videoOk: env.videoOk,
     resolveImageUrl: env.resolveImageUrl,
     fullCards: resolveFullCards(tokenized, env.cardKeepLastX),
+    inlineReply: mayCarryInlineReply ? await env.loadInlineReplyAssetIds() : NO_INLINE_REPLY_ASSETS,
   };
   // The canon rows a SHAPE fold may have re-roled to `user` (`scopeToSpeaker` stamps another character's
   // assistant line as `Name: …`) — their images stay character-authored, so they never count as attachments.
@@ -355,7 +407,7 @@ export async function buildWireHistory(
   return await Promise.all(
     tokenized.map(async ({ h, spans }): Promise<WireRow> => {
       const userAuthored = h.messageId === undefined || !assistantMessageIds.has(h.messageId);
-      const { parts: bodyParts, imageDropped, videoDropped } = await toContentParts(spans, partsEnv, { role: h.role, userAuthored });
+      const { parts: bodyParts, imageDropped, videoDropped } = await toContentParts(spans, partsEnv, { role: h.role, userAuthored, messageId: h.messageId });
       // A SHAPE fold may have re-roled a character's assistant line to `user` (`scopeToSpeaker`); its thinking
       // must not ride back on a row the wire will deliver as the user speaking.
       const parts = h.role === "assistant" && h.messageId !== undefined ? carryReasoningParts(bodyParts, env.reasoningByMessage.get(h.messageId)) : bodyParts;

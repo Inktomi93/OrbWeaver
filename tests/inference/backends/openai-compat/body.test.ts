@@ -172,6 +172,10 @@ test("prefill pair only when the row, the capability and the array all agree; th
 test("replyImages spells modalities; an effort the row cannot spell is stripped with effort_dropped", () => {
   const withImages = shapeOutboundBody(RAW, args({ replyImages: true }));
   expect(withImages["modalities"]).toEqual(["text", "image"]);
+  // THE OTHER HALF (§6.7, receipt 4): the funnel drops the knob on a text-only model, and the drop must
+  // reach the wire as ABSENCE. A body that asked for images anyway is what a text-only endpoint 400s on,
+  // so "no warning" and "no field" are one claim.
+  expect("modalities" in shapeOutboundBody(RAW, args({ replyImages: false }))).toBe(false);
   expect(withImages["reasoning_effort"]).toBe("high");
   const a = args({ features: { ...WIRE_DEFAULT_FEATURES, effort: "none" } });
   const stripped = shapeOutboundBody(RAW, a);

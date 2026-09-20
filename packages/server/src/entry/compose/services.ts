@@ -121,6 +121,7 @@ import { createEffectiveConfigWiring } from "./effective-config.ts";
 import type { DomainEventBus } from "./event-bus.ts";
 import { createDomainEventBus } from "./event-bus.ts";
 import { buildImagery } from "./imagery.ts";
+import { createStoreInlineReplyImage } from "./inline-reply-image.ts";
 import { minter } from "./minter.ts";
 import { buildPortabilityRunner } from "./portability-runner.ts";
 import { buildRefinery } from "./refinery.ts";
@@ -727,6 +728,21 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     search,
     assets,
     materializeBackground,
+    // §6.7: the inline-reply picture store. Built HERE rather than inside `buildChatService` because the
+    // per-image byte cap is a boot dep, and it is the exact `materializeBackground` shape one line up — the
+    // same egress + magic belts over a response-controlled URL, only the asset `kind` differs.
+    storeInlineReplyImage: createStoreInlineReplyImage({
+      storeGenerated: async (ownerId, bytes, mime) =>
+        assets.store({
+          principal: await resolveHostPrincipal(ownerId),
+          bytes,
+          kind: "generated",
+          mime,
+          enforceMagic: true,
+          maxBytes: effectiveConfig.getEffectiveConfig().maxImageBytes,
+        }),
+      maxBytes: () => effectiveConfig.getEffectiveConfig().maxImageBytes,
+    }),
     embeddings,
     resolveHandle: (handle) => sessions.resolveHandle(handle),
     runChatTurn: executor.runChatTurn,

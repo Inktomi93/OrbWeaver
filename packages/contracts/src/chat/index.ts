@@ -167,6 +167,7 @@ export {
   CHAT_MESSAGE_LIST_MAX_LIMIT,
   chatReasoningPartSchema,
   combineTokenProvenance,
+  INLINE_REPLY_ORIGIN,
   MESSAGE_ASSET_ORIGINS,
   macroFreezeRecordSchema,
   macroFreezeSchema,

@@ -97,6 +97,13 @@ function plainNotice(code: PlainChatWarningCode): NotifyNotice {
         description: "Its safety filter stopped this one. Editing the last message or swiping again usually gets past it.",
         title: "The provider declined to write this reply",
       };
+    // The model DID draw something and we couldn't keep it. Says so plainly and offers the one thing that
+    // actually helps — the words are still there, and another swipe re-draws.
+    case "reply_image_failed":
+      return {
+        description: "The words came through, but the picture didn't save. Swiping again usually redraws it.",
+        title: "A picture in this reply couldn't be saved",
+      };
     default:
       return assertNeverCode(code);
   }

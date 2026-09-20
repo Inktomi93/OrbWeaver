@@ -146,6 +146,13 @@ export const PLAIN_CHAT_WARNING_CODES = [
   // bus-payload allowlist + the `index.test-d.ts` anchor pins). That detail stays where it already lives —
   // the infra `refusal` ChatEvent and the wire-outcome ring — and this is the user's half.
   "provider_refused",
+  // §6.7 — the model DID emit a picture inside its reply and we could not keep it: the provider's payload
+  // carried neither bytes nor a URL, the URL was refused by the SSRF-safe egress belt, the bytes were not a
+  // real image, or they blew the per-image cap. The PROSE still committed (the reply is the product), and no
+  // `asset:` span was written, so canon never names a blob that does not exist. Degraded-and-loud (D41):
+  // without it a captioned-but-pictureless reply reads as the model babbling about an image nobody sent.
+  // COUNT-FREE like every other plain code — one notice per turn, not one per lost picture.
+  "reply_image_failed",
 ] as const;
 export type PlainChatWarningCode = (typeof PLAIN_CHAT_WARNING_CODES)[number];
 
