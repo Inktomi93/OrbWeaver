@@ -9,7 +9,7 @@
 
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
 import "../../../support/composed-real.ts";
-import { providerErrorFromHttp } from "@orb/inference";
+import { providerErrorFromHttp, resolvedScrubSet } from "@orb/inference";
 import { DomainOperationError, DomainRateLimitError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, ChatInviteId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -387,7 +387,7 @@ describe("errorFormatter — `stack` never reaches the wire (PROD-LEAK belt)", (
     const providerError = providerErrorFromHttp(
       Object.assign(new Error(`upstream rejected ${secret}`), { statusCode: 401, body: `{"error":"${secret}"}` }),
       "openrouter chat",
-      [secret],
+      resolvedScrubSet({ credential: { secret }, transport: null }),
     );
     // The formatter only reads `error` for the optional domain reason; the actual client-visible provider
     // bytes are the `shape` produced by tRPC's getErrorShape immediately before this callback.
