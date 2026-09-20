@@ -48,6 +48,33 @@ describe("memory/build/segments", () => {
     expect(first?.contentHash).toHaveLength(64);
   });
 
+  test("rejects a batch-store receipt for a different generation principal", async () => {
+    const chatId = await seedChat(db, "receipt-owner");
+    await seedTurns(db, chatId, aria, 2);
+    const store = fakeEmbeddingsStore(db);
+    const otherOwner = castId<UserId>("user_other_generation_owner");
+    const ctx = makeChatContext(db, {
+      embeddingsStore: store.store,
+      embeddingsStoreSegments: (params) =>
+        Promise.resolve(
+          params.map((param) => ({
+            ownerId: otherOwner,
+            model: param.model,
+            generationId: param.generationId,
+            generationEpoch: param.generationEpoch,
+          })),
+        ),
+    });
+
+    await expect(
+      generateSegments(ctx, {
+        chatId,
+        config: { blockSize: 2, verbatimWindow: 0 },
+        funderUserId: owner,
+      }),
+    ).rejects.toThrow("memory segment embed space changed during sweep");
+  });
+
   // OWNER RULING (#165, ruled arm built in #172): "if we are skimping out on messages that's a no go since
   // this feeds the memory system." A block too big for the embed model is CHUNKED into in-budget pieces —
   // full fidelity, nothing truncated, nothing dropped. The corpus's real case is a coding-helper chat's
