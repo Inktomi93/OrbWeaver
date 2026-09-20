@@ -16,7 +16,7 @@ import type { UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { CONNECTION_OP_CODES, ConnectionNotFoundError } from "../contract/errors.ts";
 import type { CreateConnectionParams, UpdateConnectionParams } from "../contract/params.ts";
-import type { ConnectionView } from "../contract/results.ts";
+import type { ConnectionView, EmbedSpaces } from "../contract/results.ts";
 import type { ConnectionContext, ConnectionService } from "../contract/service.ts";
 import { listBindingsForActor } from "../persistence/bindings.ts";
 import {
@@ -27,7 +27,6 @@ import {
   listOwnedLabels,
   updateOwnedConnection,
 } from "../persistence/connections.ts";
-import type { EmbedSpaces } from "../substrate/embed-space.ts";
 import { spacesDiffer, VECTOR_TASKS, vectorSpacesOf } from "../substrate/embed-space.ts";
 import { curatedKindOf } from "../substrate/kind.ts";
 

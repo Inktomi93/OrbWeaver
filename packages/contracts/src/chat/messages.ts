@@ -32,7 +32,6 @@ const SEQ_MIN = 0;
  *  default — every writer stamps it. */
 export const MESSAGE_ASSET_ORIGINS = ["attached", "illustration", "inline-reply"] as const;
 export type MessageAssetOrigin = (typeof MESSAGE_ASSET_ORIGINS)[number];
-export const messageAssetOriginSchema = z.enum(MESSAGE_ASSET_ORIGINS);
 
 /** The ONE origin `substrate/wire-history` rides back to the model as an assistant image part (§6.7) —
  *  named because three sites must agree on it exactly: the commit that STAMPS it (the turn's inline-reply
@@ -147,14 +146,21 @@ export const variantProviderMetadataSchema = z.discriminatedUnion("provider", [
   z.object({ provider: z.literal("anthropic"), cacheReadTokens: z.number().optional(), cacheWriteTokens: z.number().optional() }),
   z.object({ provider: z.string().regex(/^plugin:[a-z0-9-]+\/[a-z0-9-]+$/u), raw: z.unknown() }),
 ]);
+/** @public future: the §5.3c class-3 parse-on-read seam for `message_variants.metadata` (UNBUILT — the
+ *  column is still `$type<Record<string, unknown>>` and `queries.ts`'s variant selections hand the raw bag
+ *  through; `stats-delta.ts` reads the one key by hand). This is the shape that seam parses to. */
 export type VariantProviderMetadata = z.infer<typeof variantProviderMetadataSchema>;
 
 /** `message_variants.metadata` PARSED (never cast) at the read seam: the measured reasoning window under
- *  {@link VARIANT_METADATA_REASONING_MS_KEY} and the provider sidecar. `.catch` → `{}` at the reader. */
+ *  {@link VARIANT_METADATA_REASONING_MS_KEY} and the provider sidecar. `.catch` → `{}` at the reader.
+ *  The seam itself is UNBUILT (§5.3c class 3): today every variant read hands the raw bag through. */
 export const variantMetadataSchema = z.object({
   [VARIANT_METADATA_REASONING_MS_KEY]: z.number().optional(),
   providerMetadata: variantProviderMetadataSchema.optional(),
 });
+/** @public future: the §5.3c class-3 parse-on-read seam for `message_variants.metadata` (UNBUILT — the
+ *  column is still `$type<Record<string, unknown>>` and `queries.ts`'s variant selections hand the raw bag
+ *  through; `stats-delta.ts` reads the one key by hand). This is the shape that seam parses to. */
 export type VariantMetadata = z.infer<typeof variantMetadataSchema>;
 
 /** The `messages` SLOT (D26): identity + attribution + selection ONLY — NO content, NO economics. A swipe

@@ -274,7 +274,6 @@ export type CompactionMode = (typeof COMPACTION_MODES)[number];
 // only then; on a text-only model the knob drops with `sampling_knob_dropped`). GLOBAL like every gen
 // setting (D154) — the per-room desire is a recorded fork (F23), not a knob.
 export const REPLY_MEDIA = ["text", "text+image"] as const;
-export type ReplyMedia = (typeof REPLY_MEDIA)[number];
 
 // REASONING CARRY (inference program §8.8) — how much of the model's OWN prior thinking rides back into the
 // next request. ORDERED, and the order is the point: `capability.reasoning.replay` gates the rungs from the

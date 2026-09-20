@@ -171,7 +171,6 @@ export {
   MESSAGE_ASSET_ORIGINS,
   macroFreezeRecordSchema,
   macroFreezeSchema,
-  messageAssetOriginSchema,
   messageSlotSchema,
   reattributeScopeSchema,
   standaloneVariableDeltaSchema,

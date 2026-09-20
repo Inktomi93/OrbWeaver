@@ -302,7 +302,8 @@ type BumpStatsCanonVersionOp = BumpStatsCanonVersion<unknown, Db>;
 /** The memory summarizer + the smart-arbitrate side-LLM. The SIGNAL-BEARING variant of the isomorphic
  *  `RoleClients["summarize"]` (`RoleClientsWithSignal`): chat is the one caller that already owns a
  *  cancellation — the turn's active-turn `AbortSignal` — and a side-LLM call that cannot be cancelled hangs
- *  the whole turn when the box accepts the socket and never answers. */
+ *  the whole turn when the box accepts the socket and never answers.
+ *  @public Test-anchored module surface; the chat/memory test harnesses type their fake summarizers with it. */
 export type SummarizeOp = (funderUserId: UserId, ...args: Parameters<RoleClientsWithSignal["summarize"]>) => ReturnType<RoleClientsWithSignal["summarize"]>;
 
 /** The side-gen sampling ladder's middle rung for a chat-scoped side-gen call — the chat host's default-preset
