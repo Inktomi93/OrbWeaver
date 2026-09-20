@@ -28,7 +28,6 @@ export function ConnectionsKeysSection(): ReactElement {
   );
 }
 
-/** The saved-key library — add + per-key set-active/remove/health. */
 function SavedKeysSection(): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
