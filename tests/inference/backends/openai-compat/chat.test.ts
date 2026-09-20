@@ -259,6 +259,59 @@ test("C3: a MALFORMED plugin block is dropped whole, loudly — never sent half-
   expect(events).toContain("custom_parameters_ignored");
 });
 
+// ── E1/§15c: the wire-capture BYTE-EQUALITY pin, one per DIALECT — a caret bump of `@ai-sdk/openai-
+// compatible` or `@openrouter/ai-sdk-provider` that reshapes ANY field of the converted request fails
+// here, where every other pin in this file only checks the fields it names.
+
+test("byte-equality (openai-compatible dialect): the FULL request body for a minimal deterministic turn", async () => {
+  const connection = fakeResolved({
+    task: "chat",
+    providerId: "custom-openai",
+    model: "qwen3",
+    capability: generationCapability({ reasoning: { mode: "effort", enabled: true, effortLevels: ["low", "medium", "high"] } }),
+    baseUrl: "https://box.local/v1",
+    secret: fakeApiKeySecret("sk-box-probe-not-a-real-key"),
+    declaredFeatures: { effort: "reasoning_effort" },
+  });
+  const recorded: RecordedRequest[] = [];
+  await runOpenAiCompatChatTurn(orRequest({ connection, tools: undefined }), turnDeps(scriptedSseFetch([openAiTextStream("ok")], recorded)));
+  expect(recorded[0]?.body).toEqual({
+    model: "qwen3",
+    reasoning_effort: "high",
+    messages: [
+      { role: "system", content: "You are a helpful assistant." },
+      { role: "user", content: "What is the weather in Paris?" },
+    ],
+    stream: true,
+    stream_options: { include_usage: true },
+  });
+});
+
+test("byte-equality (openrouter dialect): the FULL request body for a minimal deterministic turn", async () => {
+  const connection = fakeResolved({
+    task: "chat",
+    providerId: "openrouter",
+    model: "anthropic/claude-opus-4-5",
+    capability: generationCapability(),
+    secret: fakeApiKeySecret("sk-or-probe-not-a-real-key"),
+  });
+  const recorded: RecordedRequest[] = [];
+  await runOpenAiCompatChatTurn(orRequest({ connection, tools: undefined }), turnDeps(scriptedSseFetch([openAiTextStream("ok")], recorded)));
+  expect(recorded[0]?.body).toEqual({
+    model: "anthropic/claude-opus-4-5",
+    messages: [
+      { role: "system", content: [{ type: "text", text: "You are a helpful assistant.", cache_control: { type: "ephemeral", ttl: "1h" } }] },
+      { role: "user", content: "What is the weather in Paris?" },
+    ],
+    reasoning: { effort: "high" },
+    usage: { include: true },
+    stream: true,
+    stream_options: { include_usage: true },
+    provider: { order: ["Anthropic"], allow_fallbacks: false },
+    plugins: [{ id: "context-compression", enabled: false }],
+  });
+});
+
 test("C3: `web_search_options` rides when declared, and the body carries nothing when it is not", async () => {
   const withOptions = await sentBody(orRequest({ tools: undefined, connection: extrasConnection({ web_search_options: { max_results: 5, engine: "exa" } }) }));
   expect(withOptions["web_search_options"]).toMatchObject({ max_results: 5, engine: "exa" });
