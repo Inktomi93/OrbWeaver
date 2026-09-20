@@ -49,7 +49,14 @@ export const gate = defineGate({
   family: "one-principal-mint-population",
   authority: "ordinary",
   severity: "error",
-  population: "@server",
+  // `@inference` ADDED 2026-09-20 (lane cb-gate-reach, the §12 EXTRACTION AUDIT of
+  // `docs/design/orbweaver-inference-package.md`). ~104 source files left `packages/server/src/infra/providers/`
+  // for the new `@orb/inference` workspace package, and every `@server`-scoped policy stopped judging them the
+  // day they moved, silently. A fabricated Principal is a security surface wherever it is minted, and the inference package RECEIVES one
+  // on every `resolve`/`availability`/`roleClientsFor` call — its build log claims outright that no `isOwner` or
+  // `role === "owner"` read exists inside it. That claim had no enforcer. Measured at the widening: ZERO of the
+  // five discriminators match anywhere under `packages/inference/src/`, so this seals a clean tree.
+  population: { in: ["@server", "@inference"] },
   analysis: "syntax",
   execution: "selected-files",
   facts: [],

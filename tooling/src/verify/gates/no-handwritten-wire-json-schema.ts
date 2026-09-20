@@ -44,7 +44,14 @@ const FIX =
 
 /** Legacy `scanRoot` admitted `packages/{server,contracts,kit}/src` minus every `.test.` and `.test-d.`
  *  path (its `scripts/` clause was already unreachable under those three prefixes). */
-const WIRE_HOME_POPULATION = { in: ["@server", "@contracts", "@kit"], notNamed: ["*.test.*", "*.test-d.*"] } as const;
+// `@inference` ADDED 2026-09-20 (lane cb-gate-reach, the §12 EXTRACTION AUDIT of
+// `docs/design/orbweaver-inference-package.md`). ~104 source files left `packages/server/src/infra/providers/`
+// for the new `@orb/inference` workspace package, and every `@server`-scoped policy stopped judging them the
+// day they moved, silently. D79's T6 seal is about the wire `schema` field, and EVERY wire is in this package now — the only live
+// writer of that field is `backends/kit/openai-body.ts`, which passes the projected `format.schema` through.
+// Leaving the package out let a hand-authored JSON-Schema literal land in the one place the field is written.
+// Measured at the widening: ZERO findings.
+const WIRE_HOME_POPULATION = { in: ["@server", "@contracts", "@kit", "@inference"], notNamed: ["*.test.*", "*.test-d.*"] } as const;
 
 /** The terminal expression a value names, following stable bindings through consts and imports. A value the
  *  shared reader refuses (a call, a member read) is returned unchanged, which is what keeps a projected
