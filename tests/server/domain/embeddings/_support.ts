@@ -30,15 +30,15 @@ import type {
   UserId,
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { eq } from "drizzle-orm";
 import type { Mock } from "vitest";
 import { vi } from "vitest";
 import type { EmbeddingsContext } from "../../../../packages/server/src/domain/embeddings/context.ts";
 import type { EmbeddingsIndexerContext, EmbeddingsService } from "../../../../packages/server/src/domain/embeddings/contract/service.ts";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
-import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 import { makeFakeRoleClients } from "../../../support/factories/role-clients.ts";
+import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 import { createSeededIds } from "../../../support/ids.ts";
-import { eq } from "drizzle-orm";
 
 const FROZEN_AT = FROZEN_AT_MS;
 
@@ -46,7 +46,7 @@ const FROZEN_AT = FROZEN_AT_MS;
 export const EMBED_DIM = 8;
 export const EMBED_MODEL = "qwen3-embed-test";
 export const IMAGE_EMBED_MODEL = "qwen3-vl-test";
-const SUMMARIZER_MODEL = "qwen3-summarize-test";
+export const SUMMARIZER_MODEL = "qwen3-summarize-test";
 export const TEST_CAPTION = "a deterministic test caption";
 
 /**
@@ -146,17 +146,36 @@ export function makeRoleClients(vision = true): FakeRoleClients {
   const structured: Mock<RoleClients["structured"]> = vi.fn<RoleClients["structured"]>((inputs, opts) => summarize(inputs, opts));
   // The caption lens reads `resolved("structured").capability` for the image-input fact (#2422): the scripted
   // view carries `input: ["text", "image"]` when `vision` is on and text-only otherwise.
-  const base = makeFakeRoleClients({ embed, imageEmbed, rerank, summarize, structured, summarizerVision: vision, summarizerContextTokens: 32_000, embedDim: EMBED_DIM });
+  const base = makeFakeRoleClients({
+    embed,
+    imageEmbed,
+    rerank,
+    summarize,
+    structured,
+    summarizerVision: vision,
+    summarizerContextTokens: 32_000,
+    embedDim: EMBED_DIM,
+    embedModel: EMBED_MODEL,
+    imageEmbedModel: IMAGE_EMBED_MODEL,
+    summarizeModel: SUMMARIZER_MODEL,
+    structuredModel: SUMMARIZER_MODEL,
+  });
   return { ...base, embed, imageEmbed, rerank, summarize, structured };
 }
 
 /** The seeded entity's owner from the real table — the indexer/sweeps read it the way compose wires it. */
 async function loadOwnerOf(db: Db, kind: "character" | "asset", id: CharacterId | AssetId): Promise<UserId | null> {
   if (kind === "character") {
-    const rows = await db.select({ ownerId: characters.ownerId }).from(characters).where(eq(characters.id, id as CharacterId));
+    const rows = await db
+      .select({ ownerId: characters.ownerId })
+      .from(characters)
+      .where(eq(characters.id, id as CharacterId));
     return rows[0]?.ownerId ?? null;
   }
-  const rows = await db.select({ ownerId: assets.ownerId }).from(assets).where(eq(assets.id, id as AssetId));
+  const rows = await db
+    .select({ ownerId: assets.ownerId })
+    .from(assets)
+    .where(eq(assets.id, id as AssetId));
   return rows[0]?.ownerId ?? null;
 }
 

@@ -60,7 +60,7 @@ test("a manual CLEAR entry rides the cleared arm; a model run beside it still re
   // A model run still records its model (the null is manual-only — the honest-null contract).
   h.queueReply(scoreReply());
   const scored = await h.svc.runStage({ principal: p, sessionId: session.id, stage: "score" });
-  expect(scored.model).toBe("test-summarizer");
+  expect(scored.model).toBe("test-summarize-model");
 });
 
 test("the run insert and the session status flip are ONE batch (issue #794) — a mid-batch failure leaves neither landed", async () => {
