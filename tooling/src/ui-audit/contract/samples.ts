@@ -4,7 +4,7 @@ import type { InactiveKind, Rgb } from "@orb/tooling/_shared/wcag";
 // `Backdrop` MOVED to contract/backdrop.ts (see its header). Imported locally because the shapes below
 // USE it, and re-exported below so its consumers keep one import.
 import type { Backdrop, GlowShadowInput, RadialGlowInput } from "./backdrop.ts";
-import type { ObscuredScanInput, SubjectAccountingInput, ThemeRenderInput } from "./samples-evidence.ts";
+import type { DocumentFrameInput, ObscuredScanInput, SubjectAccountingInput, ThemeRenderInput } from "./samples-evidence.ts";
 // `RawSamples` at the bottom COMPOSES the split families' shapes, so they are imported here as well as
 // re-exported below: a bare `export … from` re-exports a name without binding it locally (tsc catches
 // that; biome's type service does not).
@@ -446,4 +446,5 @@ export interface RawSamples extends RelationalSamples {
    *  silence the ledger exists to end, so a walker that omits it is an instrument error at the seam
    *  (ops/page-validate.ts) rather than a run that reads uncapped-clean. */
   readonly censusCaps: CensusCapAccountingInput;
+  readonly documentFrame: DocumentFrameInput;
 }

@@ -16,6 +16,9 @@ import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const EMPTY_SAMPLES: RawSamples = {
   censusCaps: {},
+  // A frame that FITS: these fixtures are about their own family, and a crushed-frame refusal here
+  // would be a second, unrelated verdict riding along (contract/samples-evidence.ts DocumentFrameInput).
+  documentFrame: { viewportWidth: 800, contentWidth: 800, viewportHeight: 600, contentHeight: 600, tolerancePx: 2, carriers: { total: 0, worst: [] } },
   subjectAccounting: {
     observed: 3,
     settled: 3,

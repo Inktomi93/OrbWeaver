@@ -37,6 +37,7 @@ import { WALKER_CENSUS_BORDER } from "./walker/census-border.ts";
 import { WALKER_CENSUS_COHORT } from "./walker/census-cohort.ts";
 import { WALKER_CENSUS_COLLISION } from "./walker/census-collision.ts";
 import { WALKER_CENSUS_DECOR } from "./walker/census-decor.ts";
+import { WALKER_CENSUS_FRAME } from "./walker/census-frame.ts";
 import { WALKER_CENSUS_GLOW } from "./walker/census-glow.ts";
 import { WALKER_CENSUS_GRID } from "./walker/census-grid.ts";
 import { WALKER_CENSUS_INTERACTIVE } from "./walker/census-interactive.ts";
@@ -111,10 +112,14 @@ ${WALKER_MUTATION_CARRIES}  var preWalkObserver = new MutationObserver(function 
   };
 `;
 
+// WALKER_CENSUS_FRAME sits immediately after WALKER_CORE and before every census that scrolls: it
+// measures the page's RESTING frame against the viewport, and it reads only CORE's primitives, so its
+// placement owes nothing to a later segment's `var` vocabulary (its own header carries the ruling).
+//
 // WALKER_STATE_PAINT sits immediately after WALKER_RESOLVE in BOTH compositions (here and
 // ops/hover.ts): its functions call RESOLVE's `parseRgb`/`resolveBackdrop` and CORE's `describe`
 // (call-time resolution — safe), and its `var` vocabulary (STATE_PAINT_ATTRS, PSEUDOS,
 // STATE_VARIANT_TRANSFORM_RE) must be INITIALIZED before WALKER_CENSUS_DECOR and
 // WALKER_CENSUS_GLOW read it — the exact "var hoists UNDEFINED" ordering rule stated above.
 export const COLLECT_SAMPLES_JS = `(async () => {
-${PRE_WALK_SETTLE}${WALKER_CORE}${WALKER_TARGET_IDENTITY}${WALKER_RESOLVE}${WALKER_STATE_PAINT}${WALKER_CENSUS_TEXT}${WALKER_HIT_EXTENT}${WALKER_ACCESSIBLE_NAME}${WALKER_CENSUS_INTERACTIVE}${WALKER_CENSUS_INTERACTIVE_NAVIGABILITY}${WALKER_CENSUS_BORDER}${WALKER_CENSUS_DECOR}${WALKER_CENSUS_ACCENT}${WALKER_CENSUS_GLOW}${WALKER_CENSUS_QUALITY}${WALKER_CENSUS_COLLISION}${WALKER_CENSUS_OCCLUSION}${WALKER_CENSUS_COHORT}${WALKER_CENSUS_SELECTION}${WALKER_CENSUS_REGION}${WALKER_CENSUS_TIER}${WALKER_CENSUS_GRID}${WALKER_RETURNS}})()`;
+${PRE_WALK_SETTLE}${WALKER_CORE}${WALKER_CENSUS_FRAME}${WALKER_TARGET_IDENTITY}${WALKER_RESOLVE}${WALKER_STATE_PAINT}${WALKER_CENSUS_TEXT}${WALKER_HIT_EXTENT}${WALKER_ACCESSIBLE_NAME}${WALKER_CENSUS_INTERACTIVE}${WALKER_CENSUS_INTERACTIVE_NAVIGABILITY}${WALKER_CENSUS_BORDER}${WALKER_CENSUS_DECOR}${WALKER_CENSUS_ACCENT}${WALKER_CENSUS_GLOW}${WALKER_CENSUS_QUALITY}${WALKER_CENSUS_COLLISION}${WALKER_CENSUS_OCCLUSION}${WALKER_CENSUS_COHORT}${WALKER_CENSUS_SELECTION}${WALKER_CENSUS_REGION}${WALKER_CENSUS_TIER}${WALKER_CENSUS_GRID}${WALKER_RETURNS}})()`;
