@@ -36,14 +36,14 @@ describe("memory-backfill", () => {
   test("runs the corpus sweep with the enumeration scope and returns its folded counts", async () => {
     const { deps, contributions } = build();
     const result = await contributions[0].run(ctx, {}, vi.fn(), sig());
-    expect(deps.backfillMemory).toHaveBeenCalledWith({ ownerId: OWNER_ID, signal: expect.any(AbortSignal) });
+    expect(deps.backfillMemory).toHaveBeenCalledWith({ funderUserId: OWNER_ID, ownerId: OWNER_ID, signal: expect.any(AbortSignal) });
     expect(result).toEqual({ segments: { scanned: 4, changed: 2 }, digests: { scanned: 6, changed: 3 }, segmentsSkippedOverWindow: 0, failed: 0 });
   });
 
   test("a BULK run (ownerId===null) reclaims the old chat-memory space after the sweep", async () => {
     const { deps, contributions } = build();
     await contributions[0].run(bulkCtx, {}, vi.fn(), sig());
-    expect(deps.backfillMemory).toHaveBeenCalledWith({ ownerId: null, signal: expect.any(AbortSignal) });
+    expect(deps.backfillMemory).toHaveBeenCalledWith({ funderUserId: OWNER_ID, ownerId: null, signal: expect.any(AbortSignal) });
     expect(deps.purgeMemoryVectors).toHaveBeenCalledTimes(1);
   });
 
@@ -138,7 +138,7 @@ describe("group-character-backfill", () => {
   test("sweeps group rooms with the enumeration scope and projects the mint counts", async () => {
     const { deps, contributions } = build();
     const result = await contributions[1].run(ctx, {}, vi.fn(), sig());
-    expect(deps.backfillGroupCharacters).toHaveBeenCalledWith({ ownerId: OWNER_ID, signal: expect.any(AbortSignal) });
+    expect(deps.backfillGroupCharacters).toHaveBeenCalledWith({ funderUserId: OWNER_ID, ownerId: OWNER_ID, signal: expect.any(AbortSignal) });
     expect(result).toEqual({ scanned: 5, changed: 1 });
   });
 });
