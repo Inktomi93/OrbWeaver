@@ -607,7 +607,8 @@ for the owner's dev fleet; `substrate/config-model.ts`'s vllm arm and `isConfigD
 owner-saved-endpoint admission (`egress.ts:91-183` + the purged `domain/credentials/substrate/egress-admission.ts`, a
 derivation that publishes the single `users.role='owner'` row's endpoints — a my-box rule: it assumes one
 privileged human whose LAN is the LAN) are BOTH DELETED and replaced by ONE deployment setting,
-`AppSettings.privateEndpointAllowlist: string[]` (hosts and CIDRs; env floor `PRIVATE_ENDPOINT_ALLOWLIST`, DB
+`AppSettings.privateEndpointAllowlist: string[]` (hosts, CIDRs, and optionally `host:port`; env floor
+`PRIVATE_ENDPOINT_ALLOWLIST`, DB
 override wins per the settings tiers; DEFAULT EMPTY on a multi-user install, so it admits hosted providers
 only; BORN `[127.0.0.1, ::1]` under `AUTH_MODE=single-user` — one spelling, repeated in F12 and pinned in
 step 6b; verify9 M4). The rule:
@@ -617,7 +618,30 @@ per-DEPLOYMENT, not per-principal — the self-hoster who runs vLLM on `127.0.0.
 that once in Governance, and every user's endpoint connection is judged against the same set, owner or not
 (F12 rewritten; `security-executor` scope; the fetch guard still sees only host/port/address and still never a
 principal — the allowlist is a second input to the same guard, not a new door). A member who wants their own
-LAN box admitted needs the admin to add it, which is the honest multi-tenant posture. FIRST-RUN (side-eye 8
+LAN box admitted needs the admin to add it, which is the honest multi-tenant posture.
+THE PORT ARM (owner-approved, landed 2026-09-20, `security-executor`): an entry MAY carry a port —
+`127.0.0.1:8703`, `[::1]:8703`, `ollama.lan:11434` — and then admits that host at those ports and NO other.
+Strictly additive: a BARE entry still admits its subject at every port, so no deployment that never writes a
+port changes behaviour. It restores the least-privilege half the retired `internalBackendHostPorts` had
+(its own header: *"only the exact declared ports (e.g. `127.0.0.1:22` stays BLOCKED)"*) and which F12's
+host/CIDR-only replacement dropped — on a multi-user box, admitting `127.0.0.1` so a member can reach Ollama
+also admits `:22` and `:5432` to anyone who can author an endpoint connection. Three rules, stated rather
+than emergent, and all three are in the `egress.ts` header, which is this feature's law: (a) PRECEDENCE —
+the narrower spelling is the host's last word, so listing `127.0.0.1` beside `127.0.0.1:8703` admits :8703
+only, and so does a containing CIDR; (b) a port on a CIDR is REFUSED, because the only gate that consults
+ranges for a hostname target is the DNS lookup override and node's `dns.lookup` never sees a port — the
+port-scoped decision therefore lives in the connect wrapper, where `options.port` exists; (c) an entry that
+cannot match is REFUSED at publish and COUNTED at warn, never stored as an unmatchable key — before this,
+`127.0.0.1:8703` parsed as a hostname no host could equal, so a runbook migrated from the port-scoped model
+admitted nothing and said nothing.
+CONTAINERS DO NOT FORCE HOST-SCOPING, checked rather than assumed — do not "simplify" the port arm away
+believing it breaks Docker. The container accommodation is ONE hostname and THREE ports
+(`tooling/src/stack/lib/engines-compose.ts:19-26`: `VLLM_ENGINE_HOST=vllm-gen`, with `vllm-embed`/
+`vllm-rerank` joining gen's network namespace — *"the container shape of loopback-with-three-ports"*), and
+the retired port-scoped mechanism covered it through that same env. The inversion worth holding: Docker is
+where the widening is LEAST harmful (a private container network that publishes no engine port, so "every
+port on `vllm-gen`" is just the three engines); loopback is where it bites. Port-scoping costs the container
+case nothing. FIRST-RUN (side-eye 8
 P0-1 — the single most likely early adopter is one human, one box, on `127.0.0.1`): (a) the setting's BORN
 value is loopback (`127.0.0.1`, `::1`) when `AUTH_MODE=single-user` — one principal, so the "member wants
 their LAN box admitted" threat F12 exists for does not exist; multi-user installs are born empty; (b) the
@@ -2376,7 +2400,7 @@ today's tree; step 4 is the pivot and everything after it is written against con
 | F9 | Which SDK carries the hosted wires: TanStack AI vs Vercel AI SDK vs hand-rolled | none | **VERCEL, DECIDED** (owner word 2026-09-19): `@ai-sdk/openai-compatible` + `@ai-sdk/anthropic` + the official `@openrouter/ai-sdk-provider`, pinned to an exact version; never its loop, UI hooks or gateway (§8.0); the SDK converters' dropped assistant `file` part is re-attached by OUR hook (verify4 H1). `@openrouter/sdk` dropped (§8.2). `agent-sdk` and `local-light` stay ours. |
 | F10 | Multi-tenant tool execution under the host principal for non-owner `agent` turns | D152, D60 | sandbox + capability-factor ceiling mandatory (§8.4-2); a stricter ruling welcome |
 | F11 | D17's "local compute shared with authenticated principals, count-budgeted + concurrency-capped" clause and the governance trio | D17, `entry/compose/chat.ts:1555-1660`, `transport/rate-limit.ts:44`, Governance pane | **RETIRE** — there is no owner compute; a member on the owner's URL was handed the URL. Owner word 2026-09-19. Amend D17 in the lane. |
-| F12 | Private-range `baseUrl` on a per-user endpoint row (any `auth: endpoint` provider) | the egress SSRF guard (`egress.ts:14-39`); the SHIPPED owner-saved admission (`egress.ts:91-183`, `egress-admission.ts`, owner-only, no `can()` by design) | **REPLACE the owner-row derivation with a deployment allowlist** (`AppSettings.privateEndpointAllowlist` — default EMPTY on multi-user, BORN loopback under `AUTH_MODE=single-user`; §4). The owner-only derivation was a one-box premise (owner word 2026-09-19: "not specific to my box"); a per-deployment host set is the same guard with a data input and no principal comparison. `security-executor`. |
+| F12 | Private-range `baseUrl` on a per-user endpoint row (any `auth: endpoint` provider) | the egress SSRF guard (`egress.ts:14-39`); the SHIPPED owner-saved admission (`egress.ts:91-183`, `egress-admission.ts`, owner-only, no `can()` by design) | **REPLACE the owner-row derivation with a deployment allowlist** (`AppSettings.privateEndpointAllowlist` — hosts, CIDRs, and optionally `host:port`; default EMPTY on multi-user, BORN loopback under `AUTH_MODE=single-user`; §4). The owner-only derivation was a one-box premise (owner word 2026-09-19: "not specific to my box"); a per-deployment host set is the same guard with a data input and no principal comparison. `security-executor`. **LANDED, then AMENDED 2026-09-20 (owner-approved):** the first cut was host/CIDR-only, which dropped the least-privilege half the retired `internalBackendHostPorts` had and made a migrated `host:port` runbook entry SILENTLY INERT. The optional port arm restores it, strictly additively — precedence, the CIDR refusal and the no-tell rule are in the `egress.ts` header (§4). Containers were checked and do not force host-scoping. |
 | F13 | By-proxy funding in group chats (D19 host-funds-the-room) and its consent belt | D17, D19, D109(2), `turn-identity.ts:47-57` | **FLIPPED** (owner word 2026-09-19): the triggering principal funds every turn; the belt is deleted (§8.4-3). Amend D19/D109(2) in the lane. |
 | F14 | D39's hand-kept firewall mirror beside the derived table | D39, `firewall.ts:11-26` | **FLIPPED**: one derived table (§5.7). Amend D39 in the lane. |
 | F15 | The vLLM-specific turns floor, thinking door and reasoning cell (`VLLM_TURNS`, `VLLM_REASONING`, the template door, the prefill measurement) | D143 (errs-open cells), D69 (measure-then-declare), the 2026-08-18/19 probe receipts | **DELETE** (owner word 2026-09-19: "the vllm floor has never really worked"). A user's row DECLARES turns/reasoning; template toggles ride `extras` as plain JSON, exactly like today's `customParameters` (§8.1c); effort → `reasoning_effort` iff `features.effort` says so. No vLLM-named code survives (§8.1). |

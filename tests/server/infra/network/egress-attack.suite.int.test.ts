@@ -13,10 +13,12 @@
 // only thing that can widen it — so the adversarial question this file now has to answer is not "can an
 // attacker reach the engine ports" but:
 //     GIVEN one private host is admitted, what ELSE becomes reachable?
-// The answer this file pins: nothing. An entry admits its own host (at any port — F12 is host/CIDR-scoped,
-// the egress.int.test companion pins that widening) and NOTHING else — not a neighbouring private address,
-// not a suffix-confusable name, not the never-admissible link-local class, and above all NOT the
-// self-enforcing `safeFetch` path, whose unconditional private-range denial never consults the allowlist.
+// The answer this file pins: nothing. An entry admits its own host and NOTHING else — not a neighbouring
+// private address, not a suffix-confusable name, not the never-admissible link-local class, and above all
+// NOT the self-enforcing `safeFetch` path, whose unconditional private-range denial never consults the
+// allowlist. "Its own host" is at EVERY port for a bare entry (the widening the egress.int.test companion
+// pins) and at exactly the named port(s) for the OPTIONAL `host:port` spelling (2026-09-20) — so the
+// operator who needs one engine port can stop handing out `:22` and `:5432` along with it.
 
 import {
   __setEgressResolverForTest,
@@ -173,14 +175,46 @@ describe("egress firewall — adversarial SSRF bypass matrix (task #55)", () => 
     expect(await probe("http://[::1]:8703/x")).not.toBe("BLOCKED");
     // …and the v4 loopback is a DIFFERENT entry: `::1` does not carry it.
     expect(endpointAdmission("http://127.0.0.1:8703")).toBe("refused");
+    // The BRACKETED port spelling round-trips too — `[::1]:8703` is the authority form a user types, and
+    // the entry parser must unbracket the address WITHOUT eating the port.
+    publishPrivateEndpointAllowlist(["[::1]:8703"]);
+    expect(endpointAdmission("http://[::1]:8703")).toBe("admitted");
+    expect(endpointAdmission("http://[::1]:9998")).toBe("refused");
+    expect(await probe("http://[::1]:8703/x")).not.toBe("BLOCKED");
   });
 
-  // An operator who writes a host:PORT entry gets NOTHING admitted — the entry parses as a hostname key that
-  // no host can equal, so it is inert. That is the safe direction (fail-closed), and it is pinned because
-  // the model it replaced WAS host:port-scoped: a runbook carried over from it silently admits nothing.
-  test("a host:PORT entry is INERT, never a port grant — the fail-closed direction", () => {
+  // A host:PORT entry is a NARROWER grant, not a hostname key. Until 2026-09-20 the belt parsed
+  // `127.0.0.1:8703` as an unmatchable hostname — fail-closed, but SILENT, so a runbook carried over from
+  // the retired host:PORT-scoped model admitted nothing and said nothing. It now means what it says.
+  // Both directions in ONE run: the named port is dialled (the control) and every other port is refused.
+  test("a host:PORT entry admits exactly that port — never the whole host", async () => {
     publishPrivateEndpointAllowlist(["127.0.0.1:8703"]);
-    expect(endpointAdmission("http://127.0.0.1:8703")).toBe("refused");
+    expect(endpointAdmission("http://127.0.0.1:8703")).toBe("admitted");
+    expect(await probe("http://127.0.0.1:8703/x")).not.toBe("BLOCKED");
+    // `:22` and `:5432` are the whole point — the services a host-scoped entry handed out for free. The
+    // DIAL assertion uses 5432/9998: fetch refuses port 22 itself (the WHATWG bad-port list), before our
+    // connector, so a `:22` probe would prove nothing about this belt.
+    for (const port of ["22", "5432", "9998"]) {
+      expect(endpointAdmission(`http://127.0.0.1:${port}`), port).toBe("refused");
+    }
+    for (const port of ["5432", "9998"]) {
+      expect(await probe(`http://127.0.0.1:${port}/x`), port).toBe("BLOCKED");
+    }
+    // …and the containment property is unchanged by the narrowing: nothing else opened either.
+    const results = await Promise.all(NEIGHBOURS_OF_LOOPBACK.map(async (url) => [url, await probe(url)] as const));
+    expect(results.filter(([, r]) => r !== "BLOCKED")).toEqual([]);
+  });
+
+  // A BROAD operator CIDR must not launder the never-admissible class. The publish-time check sees the
+  // ENTRY, so `169.254.0.0/16` is refused outright (above) — but a CIDR that merely CONTAINS link-local
+  // (`0.0.0.0/0` in the limit) passes that check, and an IP-LITERAL target never runs a lookup, so it
+  // never meets the resolved-address half either. The subtraction is therefore re-applied at the READ, to
+  // the literal as well as the resolved address. Control in the same run: the /0 really did take effect.
+  test("a broad CIDR entry does not launder cloud metadata past the publish-time literal check", async () => {
+    publishPrivateEndpointAllowlist(["0.0.0.0/0"]);
+    expect(await probe("http://127.0.0.1:8703/x")).not.toBe("BLOCKED");
+    expect(await probe("http://169.254.169.254/latest/meta-data/")).toBe("BLOCKED");
+    expect(endpointAdmission("http://169.254.169.254")).toBe("refused");
   });
 
   // THE FENCE THAT MATTERS MOST: the allowlist is an input to the GLOBAL backstop only. safeFetch is
