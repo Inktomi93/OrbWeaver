@@ -71,6 +71,12 @@ export type WireCaptureSink = (entry: {
   readonly providerId: string;
   readonly model: string;
   readonly body: Record<string, unknown>;
+  /** WHAT CAME BACK'S envelope (§D1): the response headers, lower-cased, secret-scrubbed by value like the
+   *  body. This is where the support handle and the rate-limit budget live — Anthropic's `request-id` +
+   *  `anthropic-ratelimit-*`, OpenRouter's `x-openrouter-*` routing trail — and without them a captured
+   *  request cannot be correlated with anything the provider logged. Absent when the transport never
+   *  produced a response (a socket failure still records the request that caused it). */
+  readonly responseHeaders?: Readonly<Record<string, string>> | undefined;
 }) => void;
 
 /** The registry the runtime builds: one entry per wire whose `needs` were present at construction. A task

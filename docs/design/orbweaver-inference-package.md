@@ -2583,6 +2583,63 @@ it is a SERVER-side fetch inside the F12 admission — the pane calls a `connect
         `listBindings` one-view-per-routable-task change rode this pass.
       - *Still open on this landing*: step 9 proper (above), the runtime (vitest/CT) verdict on the rewritten
         tree, the D-ledger amendments, and the vocabulary-map edit.
+      - *REASONING IS A CONTENT PART NOW* (2026-09-20, audit A1/H4): `ChatContentPart` gained
+        `{ type:"reasoning", text, meta }` where `meta` is a CLOSED per-wire object in contracts
+        (`ReasoningPartMeta`: `anthropic.{signature,redactedData}` · `openrouter.reasoningDetails`), the V4
+        reducer accumulates one block per SDK part `id`, `ChatResult.reasoningParts` carries them out, and
+        `v4/prompt.ts` writes them back as a V4 `reasoning` part with the PART-LEVEL `providerOptions` each
+        converter reads. THREE stream parts carry provenance, not the two the audit named — `reasoning-start`
+        is where `@ai-sdk/anthropic` puts `redactedData` (dist `index.js:5133-5145`), `reasoning-delta` the
+        `signature` (`:5639-5651`), `reasoning-end` the OR `reasoning_details` (OR dist `:4070-4080`) — so the
+        reducer folds metadata on all three. A block with NO provenance is DROPPED rather than replayed: both
+        converters refuse one (the anthropic converter warns and discards, the OR converter strips an unsigned
+        entry), so carrying it would manufacture a part that cannot ride. The SDK's `JSONValue` admits
+        `undefined`-valued properties and ours does not, so the OR details list crosses the seam through
+        `jsonValueSchema` (parse-on-read), never a cast. PERSISTENCE of `reasoningParts` is the record lane's.
+      - *A1's 400 DID NOT REPRODUCE, and the fix landed anyway* (live probes 2026-09-20, `ANTHROPIC_PROBE_KEY`
+        / `OPENROUTER_PROBE_KEY`). A thinking+tool loop whose second leg OMITS the thinking block answered
+        **200** on every arm probed: `claude-opus-4-5` + `thinking.enabled` (req_011CfEBGcgbeHUCTihPoc661),
+        the same under `interleaved-thinking-2025-05-14` (req_011CfEBJjtkANdE67dtK7fqZ), `claude-opus-5`
+        adaptive (req_011CfEBJZyw7WGC6JV6dSP4n), and `google/gemini-3-flash-preview` via OR
+        (`gen-1789883934-f8FjzXjAcKdw3R1KliDg`). So the audit's "400s on both Anthropic paths" is REFUTED as a
+        symptom. The defect is still real and still P1-shaped: the replay is what the providers' own SDKs are
+        built to carry (OR strips unsigned entries and warns), and the measured behavioural delta is that a
+        replayed leg CONTINUES THINKING (req_011CfEBJoxZy8KZifA8xi4Br returns a fresh signed thinking block)
+        while the amnesiac leg does not. Treat A1 as "the model loses its verified reasoning every tool hop",
+        not "the turn 400s".
+      - *A7 IS REFUTED — the anthropic transport gets NO assistant-image `shapeBody`* (live probe 2026-09-20).
+        The audit is right that the header's stated reason was false (`wrapFetch.shapeBody` IS a post-convert
+        hook), but the FIX would ship a guaranteed 400: `messages.1.content: 'image' blocks are not permitted
+        within assistant turns` (req_011CfEBBYooCmJyWSAv45UPL; the identical body without the block is 200,
+        req_011CfEBBZzjfJ88KQ58U3qzi). The drop + `image_edit_dropped` stay; only the false premise was
+        rewritten, with the request ids in the file header. Second-order finding the audit row also assumed
+        away: the anthropic converter GROUPS consecutive same-role rows into ONE wire message
+        (`groupIntoBlocks`, dist `index.js:3585`) and hoists the leading system block out of `messages[]`, so
+        the openai-compat `reattachRows` plan-index walk is not transferable to this wire in any case.
+      - *D1 landed in `wrapFetch`, not at the `doStream` result.* The `init.body` that wrapper parses IS the
+        post-`transformRequestBody` payload AND is downstream of our own `shapeBody`, so it is strictly more
+        faithful than the SDK result's `request.body`; and the wrapper holds the `Response`, so
+        `responseHeaders` rides the SAME ring entry rather than a second correlated row. The capture moved
+        from before the send to after the attempt; a transport failure still records the request with no
+        headers to claim.
+      - *The three new `WARNING_CODES` do not all MATCH a chat kind.* `sdk_unsupported_tool` → the existing
+        `tools_unsupported`; `sdk_unsupported_setting` → the existing `sampling_knob_dropped` adjustment (same
+        user sentence, `knob` riding through); `sdk_compatibility` needed a NEW
+        `PROVIDER_ADJUSTMENT_KINDS` member, `provider_compatibility_mode`, because "the provider substituted
+        its own value" is not the "wasn't used" sentence the ten drop classes share. That makes it the first
+        chat adjustment kind with no identically-spelled infra twin, so `engine.test.ts`'s match census now
+        excludes it by name and pins the translation instead. Also fixed in passing there: the "EVERY infra
+        code reaches the bus" census expected an event for `declared_overrides_measured`, which
+        `emitCapabilityDropWarnings` has always filtered by the §5.3a ruling — an inherited red, now an
+        explicit "must stay off the turn stream" assertion.
+      - *B4's display default lives in the FUNNEL* (`resolveChat`), not in the anthropic transport: the funnel
+        is the one place reasoning policy is decided ("the policy already ran in the funnel"), and the default
+        is inert on the OR route because that transport spells no display at all. `reasoningRedacted` now
+        derives ONLY from a real `redactedData` part.
+      - *E2's camel `providerOptions` key is only OBSERVABLE once A3 lands* — the SDK's deprecation is a
+        `deprecated` warning nobody read. Its pin is therefore a defect proof only in that order, verified by
+        reverting the key with A3 in place (the turn then carries `the provider reports "providerOptions key
+        'custom-openai'" as deprecated: Use 'customOpenai' instead.`).
 19. **A destination file named in a scope sentence owes its own behaviour rows.** §8.1b named
     `{embed,rerank,image-embed}.ts` as the surviving trio and then cited only two of them; the third had a
     different request shape, its own retry site and NO clamp, and no pass caught it until a scout read the file

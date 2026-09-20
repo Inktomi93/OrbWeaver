@@ -40,6 +40,23 @@ export const WARNING_CODES = [
   "smart_arbitration_degraded",
   // A background task (digests/caption/…) had no fundable row: the shared "nothing ran" notice.
   "background_task_degraded",
+  // ── the SDK's OWN drops (§A3) ───────────────────────────────────────────────────────────────────────
+  // These three carry what the Vercel provider stripped AFTER our funnel ran, which is a SECOND gate the
+  // capability fold does not model: the funnel can resolve `temperature` from a measured range and the
+  // provider still refuse it for this model. Distinct codes (not the funnel's `sampling_knob_dropped`) so a
+  // receipt says WHO dropped the knob — ours or the SDK's — which is the difference between a wrong curated
+  // cell and a wrong model id.
+  //
+  // A setting the provider does not support for this model (`SharedV4Warning.type: "unsupported"` on a
+  // non-tool feature). Carries `knob` when the SDK's feature name is one of ours.
+  "sdk_unsupported_setting",
+  // A TOOL the provider refused: an unknown provider-defined tool, or `strict` on a tool the provider has no
+  // strict mode for (`unsupported` with a `tool …` / `provider-defined tool …` feature).
+  "sdk_unsupported_tool",
+  // The provider ran in a COMPATIBILITY mode or used a deprecated spelling — a default thinking budget, an
+  // output cap guessed for an unknown model, a `providerOptions` key it wants spelled differently. Suboptimal
+  // rather than dropped, and the one class that is usually OUR configuration to fix.
+  "sdk_compatibility",
 ] as const;
 export type WarningCode = (typeof WARNING_CODES)[number];
 

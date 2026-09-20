@@ -138,6 +138,10 @@ type TurnContentPart = TurnMessage["content"][number];
 const DROPPED_PART_TEXT: Record<Exclude<TurnContentPart, { type: "text" }>["type"], string> = {
   image: "[image omitted]",
   video: "[video omitted]",
+  // The agent-sdk wire is a subprocess with no reasoning-replay channel, so a replayed thinking part cannot
+  // ride here. Named rather than blank for the same reason as the rest: a silent drop tells the model the
+  // turn had no reasoning, which is a false statement about the transcript.
+  reasoning: "[reasoning omitted]",
   "tool-call": "[tool call omitted]",
   "tool-result": "[tool result omitted]",
 };

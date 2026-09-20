@@ -39,6 +39,7 @@ export type {
   ContextUsage,
   HistoryRole,
   OpenAiCompatChatRequest,
+  ReasoningContentPart,
   ResponseFormat,
   ToolCallInput,
   ToolChoice,
