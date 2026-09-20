@@ -1784,10 +1784,21 @@ a llama.cpp text model), so `catalogs.models(connection)` for a local-light conn
   box) but the prefetch fires only for the slots a task has ACTUALLY resolved to (embed/imageEmbed → the
   encoder; rerank → MiniLM; the matte only when imagery is used), never all three unconditionally.
 - **Its status surface was the admin Engines panel** (`prefetch.ts:2`, `LOCAL_LIGHT_STATUS_PREFIX` read by
-  `entry/compose/admin.ts`), which this program deletes. The prefetch registry re-homes as a `downloading /
-  ready / failed` state on each local-light CONNECTION row in the pane (ordinary rows, §7.2 — the state is
-  per model, so the encoder row and the reranker row show their own). `engine-status.ts` and the admin verbs go; the process-local
-  registry stays inside the backend.
+  `entry/compose/admin.ts`), which this program deletes. `engine-status.ts` and the admin verbs go; the
+  process-local registry stays inside the backend.
+  **IT GETS NO REPLACEMENT SURFACE (owner ruling 2026-09-20).** An earlier draft of this section re-homed the
+  registry as a `downloading / ready / failed` state on each local-light CONNECTION row, and step 9 was owed a
+  pane for it. STRUCK, on the code's own behaviour: the prefetch is a pure LATENCY optimisation with a fully
+  automatic fallback — `backends/local-light/prefetch.ts:6-7` "a failure is a WARN, never a crash — the lazy
+  path is untouched", and the failure log says so to the operator ("the weights will download lazily on first
+  use instead", `:78-79`). It is scheduled non-blocking after the listener binds (`:106-107`). So there is no
+  user-ACTIONABLE state to render: a `retry()` affordance is meaningless because the lazy path already retries
+  by construction, and a progress readout would show work the user never asked for and is not waiting on. The
+  honest surface is the one that already exists — an operator WARN in the log. The runtime keeps
+  `prefetch.status()`/`retry()` as an in-process handle (the composition root calls `start(targets)`, §15c);
+  neither is owed a tRPC route, and the absence of one is DELIBERATE, not a gap. If a local-light task ever
+  fails in a way the LAZY path cannot recover, that is a failure at the point of USE and belongs in that
+  call's error, never in a boot-progress pane.
 
 ### 8.4 The `agent-sdk` wire (today's `agent-sdk` backend, per-user, subscription only)
 

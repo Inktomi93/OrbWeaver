@@ -2,9 +2,11 @@
 // GPU-less box this tier exists for that makes the FIRST search stall for minutes. The prefetch moves the
 // download to just after the listener binds — but fires ONLY for the slots a task has ACTUALLY resolved to
 // (§8.3: embed/imageEmbed → the encoder; rerank → MiniLM; matte only when imagery is used), never all three.
-// State is PER BACKEND INSTANCE (not module globals): a `downloading / ready / failed` record per slot, which
-// the Connections pane renders on the local-light rows. ONE attempt per slot per boot; a failure is a WARN,
-// never a crash — the lazy path is untouched.
+// State is PER BACKEND INSTANCE (not module globals): a `downloading / ready / failed` record per slot, read
+// in-process by the composition root. It has NO tRPC route and is owed none (owner ruling 2026-09-20, §8.3):
+// the prefetch is a latency optimisation whose failure path is automatic, so there is no user-actionable
+// state to render — an earlier draft promised a Connections-pane readout and that surface was struck.
+// ONE attempt per slot per boot; a failure is a WARN, never a crash — the lazy path is untouched.
 
 import { formatBytes } from "@orb/kit/strings";
 import type { InferenceLog } from "../../deps.ts";
