@@ -1,7 +1,8 @@
 // `InferenceDeps` — everything the runtime needs from the world, injected once by the composition root
 // (§11). No `#foundation`, no `@orb/db`: observability is a structural port, persistence is FOUR ports the
 // server wires to drizzle (connections · bindings · provider rows · catalog snapshots), the child-env
-// allowlist is a getter, the egress-guarded `fetch` is handed in. No posture, no engine launch, no repo root,
+// allowlist is a getter, the provider TRANSPORT is a required handed-in `fetch` (the SSRF belt is the
+// server-side global dispatcher over it, not this field). No posture, no engine launch, no repo root,
 // no host-claude detection — the owner-engine premise left with the fleet code.
 
 import type { ResolvedSecret } from "@orb/contracts/credentials";
@@ -123,7 +124,12 @@ export interface InferenceDeps {
         readonly cache?: unknown;
       }
     | undefined;
-  /** The egress-guarded `fetch` every SDK provider instance receives; absent ⇒ `globalThis.fetch`. */
-  readonly sdkFetch?: typeof fetch | undefined;
+  /** The transport every SDK provider instance and every catalog read issues its request on — REQUIRED, so
+   *  there is no ambient fallback to fall through to. The composition root injects the deployment's real
+   *  `fetch` (the SSRF belt is the boot-installed global undici dispatcher over it, `infra/network/egress.ts`
+   *  — never a property of this reference), and a test injects a fake, which is the whole point: the runtime
+   *  resolves this ONCE at construction, so a `vi.spyOn(globalThis, "fetch")` installed later could never
+   *  have reached it. */
+  readonly sdkFetch: typeof fetch;
   readonly random?: (() => number) | undefined;
 }

@@ -3,6 +3,18 @@
 // injected role op → assert the produced vector's dim matches the declared space (else
 // `SpaceMismatchError`) → upsert (never touches `hub_score`).
 //
+// THE STAMPED TAG IS THE PROVIDER'S, NOT THE CALLER'S, and that is a recorded ruling (issue 724,
+// `0fed0b3ee`): a request-time snapshot can go stale between parameter construction and the live role call,
+// so `EmbedResult.model` is the honest answer for which geometry the vector is actually in. The pin is
+// `store.int.test.ts` "stamps the model that actually produced the vector when the live role changed".
+//
+// WHAT THAT RULING ASSUMES, and what §10-2 had to repair: the caller's `p.model` and the provider's answer
+// are the SAME derivation. They were not — the read side spelled the bare model id while every backend
+// stamps `embedSpaceOf(model, dtype)` — so the corpus was written into one space and searched in another,
+// silently (empty results forever, and `purgeStaleVectors` reclaiming the live rows). That is fixed at the
+// DERIVATION (`@orb/contracts/inference` `embedSpaceOf`, the one home both sides now call), not by a
+// write-time refusal here: refusing would reverse 724's ruling on exactly the race it was minted for.
+//
 // The `switch (params.lens)` is exhaustive (the `assertNever` default arm): a new lens fails tsc until its
 // arm is added. `digest` carries a precomputed `contentHash` (memory folds it; not recomputed here). There is
 // no principal/ownership check — the substrate FKs to its producer only.

@@ -36,7 +36,13 @@ export const gate = defineGate({
   family: "wire-schema-vocab-one-home",
   authority: "reviewed-grant",
   severity: "error",
-  population: { in: ["@server", "@kit"], notUnder: ["**/*.test.ts", "**/*.test.tsx"] },
+  // `@inference` ADDED 2026-09-20 (lane cb-gate-reach, the §12 EXTRACTION AUDIT of
+  // `docs/design/orbweaver-inference-package.md`). ~104 source files left `packages/server/src/infra/providers/`
+  // for the new `@orb/inference` workspace package, and every `@server`-scoped policy stopped judging them the
+  // day they moved, silently. D93 keeps the JSON-Schema keyword table in the wire-subset engine and its inverse lift reader. The
+  // backends that CONSUME the projected schema moved into this package, which is where a second copy of the
+  // keyword table would be written if anyone wrote one. Measured at the widening: ZERO findings.
+  population: { in: ["@server", "@kit", "@inference"], notUnder: ["**/*.test.ts", "**/*.test.tsx"] },
   analysis: "types",
   execution: "entire-population",
   facts: [wireSchemaVocabularyFact],

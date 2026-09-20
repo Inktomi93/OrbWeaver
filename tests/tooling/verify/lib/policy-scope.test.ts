@@ -255,19 +255,42 @@ test("changed falls back from missing local main to origin/main", ({ scratch }) 
   expect(changed.inventory.mergeBase).toEqual({ ref: "origin/main", commit: base });
 });
 
-test("changed uses origin/main for an ahead main checkout and local main for an offline linked worktree", ({ scratch }) => {
+// RULING FORK, STATED (#2472, 2026-09-20). This arm's first half used to read "changed uses origin/main for
+// an AHEAD main checkout", and asserted that a commit sitting on local main but not yet pushed WAS part of
+// the changed set. That was the recorded ruling ("the remote-tracking ref is the durable published
+// baseline even on a local main checkout") expressed as a test, and it passed for as long as it existed.
+//
+// THE NEW FINDING IS THAT THE ASSERTION WAS THE DEFECT. The owner of this repository pushes `origin` by
+// hand and rarely, so an "ahead main checkout" is not an edge case here — it is the steady state, and it
+// was 280 commits deep on 2026-09-20. Under the old rule `pnpm verify --changed` on a clean main selected
+// 2932 files: every scoped inner loop was a whole-tree run wearing a scoped label.
+//
+// THE MECHANISM SURVIVES; ITS INPUT CHANGED. "Prefer the published baseline" is still true and is still
+// pinned — by the arm above (`changed falls back from missing local main to origin/main`) and by
+// `tests/tooling/verify/lib/merge-base.test.ts`, which proves origin/main still WINS whenever it is not
+// behind, and still wins an exact tie. What changed is that the base is DERIVED (the candidate closest to
+// HEAD) rather than assumed. The consequence asserted below — on the mainline tip the base IS HEAD and the
+// scope is empty — is the honest answer to "what did this checkout change", and callers who must not read
+// that emptiness as coverage are told so explicitly (`ops/instrument-affected.ts`'s `[verify-notice]`).
+test("changed measures a main checkout against HEAD, not against a behind origin/main, and an offline linked worktree against local main", ({ scratch }) => {
   const mainAhead = join(scratch, "main-ahead");
   mkdirSync(mainAhead);
   plantRepo(mainAhead);
-  const published = git(mainAhead, "rev-parse", "HEAD");
-  git(mainAhead, "update-ref", "refs/remotes/origin/main", published);
+  git(mainAhead, "update-ref", "refs/remotes/origin/main", git(mainAhead, "rev-parse", "HEAD"));
   writeFileSync(join(mainAhead, "committed.ts"), "export const committed = true;\n");
   git(mainAhead, "add", "committed.ts");
   git(mainAhead, "commit", "--quiet", "-m", "local main ahead");
 
   const changedMain = resolvePolicyScope(mainAhead, { kind: "changed" });
-  expect(changedMain.inventory.mergeBase).toEqual({ ref: "origin/main", commit: published });
-  expect(changedMain.semanticPaths).toContainEqual({ path: "committed.ts", status: "added", previousPath: null });
+  expect(changedMain.inventory.mergeBase).toEqual({ ref: "main", commit: git(mainAhead, "rev-parse", "HEAD") });
+  expect(changedMain.semanticPaths, "an unpushed commit already on main is not something this checkout CHANGED").not.toContainEqual({
+    path: "committed.ts",
+    status: "added",
+    previousPath: null,
+  });
+  // …and the scope still SEES an actual edit, so the arm above is a narrowing and not a blinding.
+  writeFileSync(join(mainAhead, "committed.ts"), "export const committed = false;\n");
+  expect(resolvePolicyScope(mainAhead, { kind: "changed" }).semanticPaths).toContainEqual({ path: "committed.ts", status: "modified", previousPath: null });
 
   const source = join(scratch, "worktree-source");
   const linked = join(scratch, "offline-worktree");

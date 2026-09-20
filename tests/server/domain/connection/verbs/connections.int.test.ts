@@ -5,13 +5,16 @@
 // the two reads' owner fence (a stranger's row is `not found`, never `forbidden` — no existence oracle), the
 // FIELD-WISE patch (an absent key is NOT overwritten), and the PD-139a embed-space trigger's exact condition.
 
+import type { Principal } from "@orb/contracts/identity";
 import type { UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { CONNECTION_OP_CODES } from "@orb/server/domain/connection";
+import { endpointAdmission, publishPrivateEndpointAllowlist } from "@orb/server/infra/network";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+import { principal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { BYO_BASE_URL, BYO_PROVIDER, makeHarness, seedOwner } from "../_support.ts";
+import { BYO_BASE_URL, BYO_PROVIDER, makeHarness, seedOwner, seedUser } from "../_support.ts";
 
 const CREDENTIAL_ID = castId<UserCredentialId>("user_credential_000001");
 
@@ -52,6 +55,32 @@ describe("create", () => {
     await expect(
       h.svc.create({ principal: owner.principal, providerId: BYO_PROVIDER, credentialId: null, baseUrl: "ftp://box/v1", model: "m" }),
     ).rejects.toMatchObject({ code: CONNECTION_OP_CODES.baseUrlInvalid });
+  });
+
+  // F12's whole point, and the half no infra-tier test can state: the admission is per-DEPLOYMENT, so it is
+  // judged the SAME for every principal. What it replaced was an owner-ROW derivation that published
+  // whatever endpoints the `users.role='owner'` row had saved — a one-box premise (owner word 2026-09-19,
+  // "not specific to my box"). This arm runs the REAL `endpointAdmission` against the REAL published set
+  // with two principals that differ only in `role`, so a future "…unless they are the owner" shortcut at
+  // this seam is a RED here rather than a quiet re-privileging of one human.
+  test("the F12 admission is per-DEPLOYMENT, not per-principal — the box OWNER is refused exactly what a member is", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db, { admission: endpointAdmission });
+    const owner = principal(await seedUser(db, "user_box_owner"), { role: "owner" });
+    const member = principal(await seedUser(db, "user_member"));
+    const create = (who: Principal): ReturnType<typeof h.svc.create> =>
+      h.svc.create({ principal: who, providerId: BYO_PROVIDER, credentialId: null, baseUrl: "http://127.0.0.1:8703/v1", model: "qwen3" });
+
+    // A fresh multi-user install admits nothing — including to the box owner.
+    publishPrivateEndpointAllowlist([]);
+    await expect(create(owner)).rejects.toMatchObject({ code: CONNECTION_OP_CODES.baseUrlRefused });
+    await expect(create(member)).rejects.toMatchObject({ code: CONNECTION_OP_CODES.baseUrlRefused });
+
+    // The admin admits the host once, and BOTH principals may author the row — no per-principal arm either way.
+    publishPrivateEndpointAllowlist(["127.0.0.1"]);
+    expect((await create(owner)).baseUrl).toBe("http://127.0.0.1:8703/v1");
+    expect((await create(member)).baseUrl).toBe("http://127.0.0.1:8703/v1");
+    publishPrivateEndpointAllowlist([]); // module state — leave the guard as this file found it
   });
 
   test("a credential the caller does not hold is refused", async () => {
@@ -181,6 +210,45 @@ describe("update", () => {
     expect(h.embedSpaceChanges, "a label change is not a space change").toEqual([]);
     await h.svc.update({ principal: owner.principal, connectionId: vector.id, patch: { model: "bge-m3-v2" } });
     expect(h.embedSpaceChanges).toEqual([owner.userId]);
+  });
+
+  // THE TRIGGER'S CONDITION IS THE RESOLVED SPACE TAG, not a column diff (§10-4). The predicate this
+  // replaced was `model changed || declared !== undefined`, which is wrong in BOTH directions: any
+  // `declared` edit forced a full box-wide purge+reindex, and a `declared` edit that genuinely moved the
+  // space was indistinguishable from one that did not. Both arms are pinned here because the expensive
+  // mistake (over-firing) and the silent one (under-firing) have opposite fixes.
+  test("a `declared` edit fires the embed-space trigger only when it MOVES the resolved space", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    const owner = await seedOwner(db);
+    const vector = await h.svc.create({
+      principal: owner.principal,
+      providerId: BYO_PROVIDER,
+      credentialId: null,
+      baseUrl: BYO_BASE_URL,
+      model: "bge-m3",
+      declared: { kind: "embedding", embedding: { dtype: "q8" } },
+      allowBackground: true,
+    });
+    await h.svc.setBinding({ principal: owner.principal, task: "embed", connectionId: vector.id });
+    h.embedSpaceChanges.length = 0;
+
+    // An axis the space tag does not read. Same model, same dtype — nothing to re-embed.
+    await h.svc.update({
+      principal: owner.principal,
+      connectionId: vector.id,
+      patch: { declared: { kind: "embedding", embedding: { dtype: "q8", maxInputTokens: 4096 } } },
+    });
+    expect(h.embedSpaceChanges, "a declared edit that leaves the space tag alone is not a space change").toEqual([]);
+
+    // The dtype IS the space (#2417): a re-quantised encoder produces different vectors, so the corpus is
+    // stale even though `model` never moved — the case the column diff could not see.
+    await h.svc.update({
+      principal: owner.principal,
+      connectionId: vector.id,
+      patch: { declared: { kind: "embedding", embedding: { dtype: "fp16", maxInputTokens: 4096 } } },
+    });
+    expect(h.embedSpaceChanges, "a dtype flip IS a space change, with no model change to betray it").toEqual([owner.userId]);
   });
 });
 
