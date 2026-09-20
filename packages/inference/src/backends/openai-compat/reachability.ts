@@ -73,6 +73,7 @@ async function probeOnce(deps: ReachabilityDeps, target: ProbeTarget): Promise<R
       signal: withTimeout(PROBE_TIMEOUT_MS),
     });
     return "up";
+    // @orb-waive caught-failure-ownership(catch): every probe failure is owned by the returned `down` state; reachability is advisory and never authorizes a request. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if callers need the failure cause.
   } catch {
     return "down";
   }
@@ -115,6 +116,7 @@ export function createReachabilityProber(deps: ReachabilityDeps): ReachabilityPr
   const wake = async (target: ProbeTarget & { readonly wakePath: string }): Promise<boolean> => {
     invalidate(target.baseUrl);
     const headers = authHeaders(target.secret, target.headers);
+    // @orb-waive caught-failure-ownership(fetch): wake POST failure falls through to the bounded probe loop, whose final false is the wake verdict. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if the following loop stops deciding success or timeout.
     await deps
       .fetch(sleepUrl(target.baseUrl, target.wakePath), { method: "POST", headers, redirect: "manual", signal: withTimeout(PROBE_TIMEOUT_MS) })
       .catch(() => undefined);

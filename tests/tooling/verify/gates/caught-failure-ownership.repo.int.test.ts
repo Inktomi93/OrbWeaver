@@ -8,7 +8,7 @@
 //      keys. That reduction was the WIP's defect: duplicate same-line positions collapsed into one, so a
 //      census could "agree" with a population it had silently deduplicated.
 //   2. MARKER HYGIENE ON THE REAL TREE. `caught-failure-ownership` green on its own proves nothing about its
-//      574 WAIVERS: malformed / unknown / stale / dead-position / over-broad / duplicate markers are the
+//      waivers: malformed / unknown / stale / dead-position / over-broad / duplicate markers are the
 //      CENTRAL ordinary-waiver engine's verdict, delivered as `authority.authorityAlarms`, and they are
 //      asserted empty for this policy. (Before the #1584 conversion this was `gate-ignore-inventory`'s
 //      verdict over the whole legacy corpus; the central engine reaches it for one policy in one pass, so
@@ -106,6 +106,7 @@ describe("caught-failure-ownership — census bijection and exemption hygiene", 
     expect(owner, `${GATE} must be loaded`).toBeDefined();
     expect(owner?.owner.status, "an incomplete owner withholds reconciliation, so its zero proves nothing").toBe("success");
     expect(owner?.population.effectiveSourcePaths.length ?? 0).toBeGreaterThan(MIN_SCANNED_FILES);
+    expect(owner?.population.effectiveSourcePaths.some((path) => path.startsWith("packages/inference/src/"))).toBe(true);
 
     const live = result.authority.effectiveFindings.map((finding) => `${finding.file}|${finding.line}|${finding.token ?? ""}`).sort();
     const unproven = census.rows
