@@ -10,13 +10,10 @@ import type {
   PolicySemanticPath,
   PolicyWorkspacePackage,
 } from "../contract/policy-scope.ts";
-import { GIT_READ_PREFIX, repoGitEnvironment } from "./repo-paths.ts";
+import { GIT_READ_PREFIX, repoGitEnvironment, resolveMergeBase } from "./repo-paths.ts";
 
 const TRACKED_ARGS = [...GIT_READ_PREFIX, "ls-files", "-z"] as const;
 const UNTRACKED_ARGS = [...GIT_READ_PREFIX, "ls-files", "--others", "--exclude-standard", "-z"] as const;
-// The remote-tracking ref is the durable published baseline even on a local main checkout; linked/offline
-// worktrees fall back to their shared local main ref without any network access.
-const MERGE_BASE_REFS = ["origin/main", "main"] as const;
 const ASCII_C0_MAX = 0x1f;
 const ASCII_DELETE = 0x7f;
 const SHA_RE = /^[0-9a-f]{7,64}$/u;
@@ -228,15 +225,24 @@ export function readPolicyWorkspacePackages(inventory: PolicyRepositoryInventory
   return packages;
 }
 
+/** THE RULING HERE SURVIVED #2472; ITS INPUT CHANGED. The deleted comment said "the remote-tracking ref is
+ *  the durable published baseline even on a local main checkout", and hardcoded `origin/main` ahead of
+ *  `main` accordingly. That was safe when written — it assumes a checkout whose remote tracks its work —
+ *  and it is FALSE HERE: the owner pushes by hand and rarely, so `origin/main` measured 280 commits behind
+ *  local main on 2026-09-20 and this `changed` scope selected 2932 files on a CLEAN tree. Every "scoped,
+ *  fast inner loop" `pnpm verify --changed` on this checkout was a whole-tree run wearing a scoped label.
+ *  The baseline preference is preserved and no longer assumed: `resolveMergeBase` DERIVES the closest base
+ *  to HEAD, so `origin/main` still answers whenever it is not behind, and a tie still names it. */
 function mergeBase(root: string): NonNullable<PolicyScopeInventoryReceipt["mergeBase"]> {
-  for (const ref of MERGE_BASE_REFS) {
-    const result = runNicedSync("git", [...GIT_READ_PREFIX, "merge-base", "HEAD", ref], { cwd: root, env: repoGitEnvironment() });
-    const commit = result.status === 0 ? result.stdout.trim() : "";
-    if (SHA_RE.test(commit)) {
-      return { ref, commit };
-    }
+  const base = resolveMergeBase(root);
+  if (base === null || !SHA_RE.test(base.commit)) {
+    throw new Error("changed scope could not resolve a merge base from main or origin/main");
   }
-  throw new Error("changed scope could not resolve a merge base from main or origin/main");
+  // Destructured, NOT spread: the resolver's `isHead` is `ops/instrument-affected.ts`'s concern (it decides
+  // whether an empty selection is "on the mainline tip" or "nothing changed"), and the scope receipt is a
+  // declared wire shape. Passing the whole object through would smuggle an undeclared field into it —
+  // TypeScript permits that through a variable, so the contract is the only thing that says no.
+  return { ref: base.ref, commit: base.commit };
 }
 
 function semanticPath(path: string, status: PolicySemanticPath["status"], previousPath: string | null = null): PolicySemanticPath {

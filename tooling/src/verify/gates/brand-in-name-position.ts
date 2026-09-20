@@ -87,6 +87,14 @@ const MESSAGE =
   "a parameter or field uses bare `string` even though @orb/kit/ids owns the same name as a canonical brand — every other id brand is assignable to it, so a wrong-id value type-checks wherever this declaration is read.";
 const FIX =
   "use the canonical branded type and mint or parse it at the owning boundary. For a foreign wire that only shares the name, add `@orb-waive brand-in-name-position(<position>): <whose id + end condition>` on the exact declaration.";
+// `@inference` ADDED 2026-09-20 (lane cb-gate-reach, the §12 EXTRACTION AUDIT of
+// `docs/design/orbweaver-inference-package.md`). The extraction moved ~104 files out of
+// `packages/server/src/infra/providers/` into a package no root here reached, and the code that moved is
+// dense in exactly this policy's subject: `ownerId`, `connectionId`, `credentialId` and `userId` appear in the
+// runtime's port signatures, the resolver's arguments and every backend's request shape. MEASURED BEFORE
+// WIDENING: zero bare-`string` declarations at any canonical-brand name under `packages/inference/src/` — the
+// extraction kept the brands — so this is a SEAL over a clean tree, not a debt discovery, and the cost of
+// leaving it out was that the next port added there would have been free to spell its id `string`.
 const POPULATION = ["@client", "@ui", "@server", "@db", "@contracts", "@kit", "@tests"] as const;
 interface BrandPosition {
   readonly typeName: string;

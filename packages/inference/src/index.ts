@@ -180,7 +180,7 @@ function requireOwned(connection: UserConnection, principal: Principal): void {
 export async function createInferenceRuntime(deps: InferenceDeps): Promise<InferenceRuntime> {
   const registry = await createProviderRegistry(deps.providerStore);
   const built = buildBackends(deps);
-  const fetchImpl = deps.sdkFetch ?? globalThis.fetch;
+  const fetchImpl = deps.sdkFetch;
   const mirrorDeps: MirrorDeps = { now: deps.now, snapshotStore: deps.snapshotStore, addSpanEvent: deps.addSpanEvent, warn: deps.log.warn };
 
   const openRouterCatalog = createMirror<ModelCatalogEntry[]>({ key: OPENROUTER_CATALOG_KEY, schema: z.array(modelCatalogEntrySchema), deps: mirrorDeps });

@@ -35,6 +35,8 @@ const REQUEST_KEYS = {
 } as const satisfies Readonly<Record<PolicyScopeRequest["kind"], ReadonlySet<string>>>;
 const ASCII_C0_MAX = 0x1f;
 const ASCII_DELETE = 0x7f;
+/** Enough merge-base sha for a human to resolve it; the full commit stays in the receipt. */
+const SHORT_SHA = 12;
 
 function compare(left: string, right: string): number {
   if (left === right) {
@@ -360,12 +362,19 @@ function selectRequest(
   }
 }
 
-function scopeLabel(request: PolicyScopeRequest, count: number): string {
+/** THE CHANGED LABEL NAMES ITS BASE (#2472). A count alone is unreadable: `changed (2932 paths)` and
+ *  `changed (0 paths)` are the SAME sentence about two completely different questions, and for two years
+ *  the first one was what `--changed` actually measured on this checkout — the base was a far-behind
+ *  `origin/main`. A scope is only interpretable beside the ref and commit it was taken from, so the label
+ *  every policy pass prints carries them. This is the policy half of the same visibility rule
+ *  `ops/instrument-affected.ts` satisfies through the `[verify-notice]` channel; a pure resolver has no
+ *  business writing to stdout, so its channel is the label it already returns. */
+function scopeLabel(request: PolicyScopeRequest, count: number, mergeBase: PolicyScopeInventoryReceipt["mergeBase"]): string {
   switch (request.kind) {
     case "whole":
       return "whole repository";
     case "changed":
-      return `changed (${String(count)} paths)`;
+      return `changed (${String(count)} paths since ${mergeBase === null ? "an unresolved base" : `${mergeBase.ref} @ ${mergeBase.commit.slice(0, SHORT_SHA)}`})`;
     case "file":
       return `files (${String(count)})`;
     case "folder":
@@ -386,7 +395,7 @@ export function resolvePolicyScope(root: string, input: PolicyScopeRequest): Pol
   const resolution: PolicyScopeResolution = {
     request,
     kind: request.kind,
-    label: scopeLabel(request, selected.semanticPaths.length),
+    label: scopeLabel(request, selected.semanticPaths.length, selected.receipt.mergeBase),
     requestedPaths: request.kind === "whole" ? null : selected.semanticPaths,
     currentPaths: selected.currentPaths,
     semanticPaths: selected.semanticPaths,

@@ -1784,10 +1784,21 @@ a llama.cpp text model), so `catalogs.models(connection)` for a local-light conn
   box) but the prefetch fires only for the slots a task has ACTUALLY resolved to (embed/imageEmbed → the
   encoder; rerank → MiniLM; the matte only when imagery is used), never all three unconditionally.
 - **Its status surface was the admin Engines panel** (`prefetch.ts:2`, `LOCAL_LIGHT_STATUS_PREFIX` read by
-  `entry/compose/admin.ts`), which this program deletes. The prefetch registry re-homes as a `downloading /
-  ready / failed` state on each local-light CONNECTION row in the pane (ordinary rows, §7.2 — the state is
-  per model, so the encoder row and the reranker row show their own). `engine-status.ts` and the admin verbs go; the process-local
-  registry stays inside the backend.
+  `entry/compose/admin.ts`), which this program deletes. `engine-status.ts` and the admin verbs go; the
+  process-local registry stays inside the backend.
+  **IT GETS NO REPLACEMENT SURFACE (owner ruling 2026-09-20).** An earlier draft of this section re-homed the
+  registry as a `downloading / ready / failed` state on each local-light CONNECTION row, and step 9 was owed a
+  pane for it. STRUCK, on the code's own behaviour: the prefetch is a pure LATENCY optimisation with a fully
+  automatic fallback — `backends/local-light/prefetch.ts:6-7` "a failure is a WARN, never a crash — the lazy
+  path is untouched", and the failure log says so to the operator ("the weights will download lazily on first
+  use instead", `:78-79`). It is scheduled non-blocking after the listener binds (`:106-107`). So there is no
+  user-ACTIONABLE state to render: a `retry()` affordance is meaningless because the lazy path already retries
+  by construction, and a progress readout would show work the user never asked for and is not waiting on. The
+  honest surface is the one that already exists — an operator WARN in the log. The runtime keeps
+  `prefetch.status()`/`retry()` as an in-process handle (the composition root calls `start(targets)`, §15c);
+  neither is owed a tRPC route, and the absence of one is DELIBERATE, not a gap. If a local-light task ever
+  fails in a way the LAZY path cannot recover, that is a failure at the point of USE and belongs in that
+  call's error, never in a boot-progress pane.
 
 ### 8.4 The `agent-sdk` wire (today's `agent-sdk` backend, per-user, subscription only)
 
@@ -2254,7 +2265,7 @@ export interface InferenceDeps {
   openaiCompat?: { fetch?; chunkSize?; concurrencyFloors: { embed; summarize } };   // everything else rides the connection + provider row
   providerStore: ProviderStore;                                  // list/put/delete runtime provider rows (`provider_rows`; port; server wires drizzle) — F9
   connections: ConnectionStore;                                  // read/write user_connections (port; server wires drizzle)
-  sdkFetch?: typeof fetch;                                       // the egress-guarded fetch every `createOpenAICompatible`/`createAnthropic`/`createOpenRouter` receives (§8.0)
+  sdkFetch: typeof fetch;                                        // REQUIRED — the transport every `createOpenAICompatible`/`createAnthropic`/`createOpenRouter` and every catalog read issues on (§8.0). No ambient fallback: the root injects it
   // no posture, no engineLaunch, no engineHost, no repoRoot, no superviseDetached — 9 of the 26 providers foundation sites die with the fleet code
   // no OR client seam (the purged `OpenRouterBackendDeps.getClient`, `infra/providers/index.ts:68`) — the raw SDK is dropped (§8.2); the OR provider is built per connection from `sdkFetch` + the credential
   concurrency?; random?;
@@ -2266,6 +2277,26 @@ edges resolve by moving those modules to `@orb/kit`; the `backends/agent-sdk/log
 re-spelled relative. `domain/connection/workload-contributions.ts` stays in server and wraps
 `runtime.catalogs.refresh` (D117). `entry/compose/services.ts` builds `InferenceDeps` and calls
 `createInferenceRuntime`; the purged `entry/compose/role-clients.ts` becomes `runtime.roleClientsFor`.
+
+**`sdkFetch` IS REQUIRED, AND THE SSRF BELT IS NOT IT.** An earlier draft of this section called `sdkFetch`
+"the egress-guarded fetch every provider receives", which sent at least one reader looking for the guard in
+the wrong layer. The tree: `sdkFetch` is the provider TRANSPORT and nothing more. It carries no guard of its
+own, and the SSRF belt over provider egress is the boot-installed global undici dispatcher
+(`packages/server/src/infra/network/egress.ts` `installEgressFirewall` → `setGlobalDispatcher`, installed from
+`packages/server/src/entry/lifecycle.ts`, `EGRESS_FIREWALL` defaulting true), whose DNS-lookup override closes
+the rebinding TOCTOU; a user-influenced URL never rides this transport at all, it goes through `safeFetch`,
+which runs its own resolve→validate→pin independent of that toggle.
+
+The field is REQUIRED so that statement stays true. While it was optional, `createInferenceRuntime` and
+`buildBackends` each resolved `deps.sdkFetch ?? globalThis.fetch`, production never injected it, and an
+ambient fallback inside a package below `@server` is an egress door no `@server`-population gate can see.
+`entry/compose/services.ts` now reads the ambient transport ONCE and injects it — the
+`no-raw-clock:entry-lifecycle` shape, licensed by its own reviewed grant `no-raw-egress:entry-compose-transport`
+— and `ServicesDeps.providerSeams.sdkFetch` overrides it. That is also the determinism fix: the runtime
+resolves the transport synchronously during `createServices`, so a `vi.spyOn(globalThis, "fetch")` installed
+in a test body was always too late, and the shared `app` fixture (`tests/support/fixtures.ts`) now defaults its
+`providerFetch` to a REFUSING fake so an unscripted provider call fails loudly instead of reaching whatever is
+listening on the box.
 
 ---
 
@@ -2961,17 +2992,136 @@ it is a SERVER-side fetch inside the F12 admission — the pane calls a `connect
         DOC-VS-TREE divergence and a test-determinism hazard, NOT an SSRF hole. The clean fix is to make
         `sdkFetch` REQUIRED and inject it at the composition root (the `no-raw-clock:entry-lifecycle`
         precedent); until then every composed-real test is one missing seam away from live inference.
+        *LANDED, 2026-09-20 (lane cb-sdk-fetch).* `sdkFetch` is required, the two `?? globalThis.fetch`
+        fallbacks are gone, the root injects the ambient transport under the reviewed grant
+        `no-raw-egress:entry-compose-transport`, and the shared `app` fixture defaults `providerFetch` to a
+        refusing fake. The type change surfaced exactly ONE construction site — the composition root; both
+        test harnesses (`tests/inference/_support.ts`, `tests/server/domain/connection/_support.ts`) already
+        passed one. §11 above is corrected accordingly.
         (3) The two boot suites polled `admin.vllmEngines`, deleted with the admin Engines surface. The
         tRPC-round-trip half now polls the pre-existing PUBLIC `health` procedure (`router.ts:44`) and the
         download-in-flight half reads the injected cache double's own `preloads` record — the literal
         call the runtime made, which is a STRONGER proof than the deleted admin read-model ever was.
-        **FINDING, filed not fixed: `runtime.localLight.prefetch.status()`/`retry()` has NO tRPC route
-        post-cutover** (census over `domain/admin`, `transport`, `foundation` came back clean), yet
-        `entry/boot/local-light-prefetch.ts`'s own header still promises "which the Connections pane
-        renders on the local-light rows" and §8.3 specifies exactly that per-row `downloading / ready /
-        failed` state. So step 9 owes a surface its §13 row never enumerated. Same drift class as the
-        chat-reds lane's stale JSDoc residue: `entry/compose/admin.ts`'s docstring still describes a
-        `vllmEngine`/`localLightPrefetch` dep the real `AdminComposeDeps` no longer has.
+        **FINDING, since RULED ON (2026-09-20, `2fb1a8e8d`): `runtime.localLight.prefetch.status()`/`retry()`
+        has NO tRPC route post-cutover** (census over `domain/admin`, `transport`, `foundation` came back
+        clean). The lane filed it as a step-9 gap because §8.3 then specified a per-row `downloading / ready /
+        failed` readout and `entry/boot/local-light-prefetch.ts`'s header promised the pane rendered it. The
+        owner questioned whether the prefetch needs a surface at all, and the code settled it — the prefetch
+        is a non-blocking latency optimisation whose failure path is automatic, so there is no user-actionable
+        state. §8.3's pane line is STRUCK and the absence of a route is now deliberate; see that section. The
+        lane was right about the tree and right to file it; the answer was to delete the requirement rather
+        than build it. Its SECOND half stands unfixed: same drift class as the chat-reds lane's stale JSDoc
+        residue, `entry/compose/admin.ts`'s docstring still describes a `vllmEngine`/`localLightPrefetch` dep
+        the real `AdminComposeDeps` no longer has.
+
+      - *BUILD LOG, 2026-09-20 (lane cb-gate-reach — §12's EXTRACTION AUDIT, the step-7 deliverable that was
+        never done; it closes every gate-side debt the cb-barrier-cites bullet above lists).* `@inference`
+        already existed as a population root (`tooling/src/verify/contract/population.ts`, landed with the
+        cut-over `146f71cd5`, classified `authored: true`, a member of `@authored`) — so policies scoped
+        `@authored` were never blind, and the hole was exactly the `"@server"`-scoped set, **73 gate files**
+        (`/usr/bin/grep -rln '"@server"' tooling/src/verify/gates/*.ts`; §12 said 72, measured 73 on this tree).
+        Each was classified on WHAT IT ENFORCES, from its header, never batched. **WIDENED — 13** (12 of the 73
+        plus `content-part-seam`, whose population is `@packages`, not `@server`): `assumes-single-replica`
+        (§12 named it), `content-part-seam`, `entry-synthetic-role-is-user`,
+        `no-caller-user-id`, `no-handwritten-wire-json-schema`, `no-manual-token-estimate`, `no-raw-egress`,
+        `no-rejected-cors-proxy`, `one-principal-mint-population`, `owner-role-split`, `sole-env-reader`,
+        `warning-code-coverage`, `wire-schema-vocab-one-home`. **RETIRED — 1**: `providers-runner-seal`.
+        **WIDEN-BLOCKED, reported not done — 5**: `brand-in-name-position`, `no-inline-types`,
+        `detached-work-traced` (+ its `-health` sibling), `test-presence`. **SERVER-ONLY — 55**, in four reason classes, each class a property of the
+        PACKAGE rather than of the gate: (A) the policy is fenced by `under:` to a server TIER directory the
+        package has no analogue of — `bus-channel-primitive`, `chat-viewer-plane-canon-reads` (+`-health`),
+        `contract-derives-not-respells`, `contract-verb-presence`, `discovery-no-stats-rollups`,
+        `domain-freshness-plane`, `infra-auth-no-userid`, `membership-enforcer`, `membership-fan-guard`,
+        `membership-write-fan`, `no-direct-users-read`, `no-hardcoded-side-gen-sampling`,
+        `no-inline-domain-interface`, `own-tables-only`, `plugin-dump-guard`, `public-route-body-cap`
+        (+`-health`), `single-stream-transport`, `turn-identity`, `two-class-role-authority`,
+        `types-in-contract`, `untrusted-regex-safe-exec`, `verb-naming`; (B) the subject is a DRIZZLE fact and
+        `@orb/inference` declares no `@orb/db`, so it is unreachable at RESOLVE time — physics one rung above a
+        gate — `assets-single-writer`, `json-column-write-parity` (+`-health`), `lifecycle-portability`,
+        `open-json-column-key-parity` (+`-health`, +`-deferred`), `owner-scoped-reads`, `owner-scoped-upserts`,
+        `owner-scoped-writes`, `vector-scope-derived`; (C) the subject is a symbol or vocabulary declared ABOVE
+        the package, which it cannot import without an upward dependency — `bounded-list-limit` (a tRPC list
+        input), `bus-belt-total`, `bus-consumer-belt`, `bus-definition-belts`, `bus-fact-health`,
+        `bus-producer-coverage`, `user-bus-deferred-member` (the package emits through injected ops and names
+        no bus union — measured zero), `external-id-single-writer` (+`-health`), `firehose-import-allowlist`
+        (+`-health`), `injected-op-caller-param` (+`-health`), `knob-wire-coverage`,
+        `message-kind-policy-coverage`, `no-default-props` (no React), `serde-core-definition-uniqueness`,
+        `serde-core-seal` (+`-health`, the package does no card serde — measured zero); (D) the selector can
+        never match a path under `packages/inference/src/` — `test-factory-contract` (`under:
+        tests/support/factories/**`). EVERY widening was MEASURED by a real `pnpm check:structure` run and kept only on the
+        result — which is how `brand-in-name-position` ended up in the BLOCKED column: a source grep said zero,
+        the RUN said 32, and a grep is not a measurement. Eleven of the thirteen that stayed land at ZERO new
+        findings, so they are SEALS over a clean tree rather than debt discoveries — worth exactly as much as
+        the day their subject arrives. **The three that were not free:**
+        · `warning-code-coverage` needed THREE coupled sites, and no one of them works alone: the policy's own
+        population, the SHARED `tupleVocabularyFact` population (without it the index never sees the
+        declaration to answer with), and the channel row's `home`/`emitScope`. Its 14 fixture paths moved too —
+        a fixture under the dead directory admits zero paths and REFUSES for empty population, which proves
+        nothing. Un-blinded, it then produced FOUR findings of which THREE were its own reader lying, each a
+        shape the extraction made dominant: `args.warnings.push(…)` (the accumulator as a parameter FIELD; the
+        reader demanded a bare identifier), `.map((f) => ({ code, message }))` (the object is an arrow's
+        concise body and `getFirstAncestorByKind(CallExpression)` found the `.map` on the far side of a function
+        boundary), and `code: isTool ? "a" : "b"` (a ternary, the ONLY emit site either `sdk_unsupported_tool`
+        or `sdk_unsupported_setting` has). All three are fixed with a `mustPass` row that dies if the fix is
+        cut, plus a `mustFlag` narrowing control proving an IMPORTED bag named `warnings` is still not the
+        accumulator. The FOURTH was REAL: `smart_arbitration_degraded` sat in `WARNING_CODES` with no emitter
+        anywhere in the package — arbitration is a chat concern, the chat vocabulary already carries and emits
+        the code directly, and the inference member existed only to be mapped. Deleted, with its now-impossible
+        `toChatWarning` arm (`engine.ts`), which `tsc` couples.
+        · `no-raw-egress` — the security half. `packages/inference/src/backends/**` became the tree's primary
+        credentialed-egress surface and was judged by NOTHING; SEVEN of its eight grants went stale in the same
+        move, and a stale-grant ALARM is not a finding, so nothing failed loudly. Re-pointed: the two ambient
+        `deps.sdkFetch ?? globalThis.fetch` defaults (`index.ts`, `registry/backends.ts`). Retired: the two
+        `custom-byo` rows and `agent-sdk-host-token` (modules deleted), and the three vLLM engine-plane rows —
+        NOT re-pointed, because that plane moved to `tooling/src/stack/lib/engine-fleet/` and following it would
+        have widened an SSRF policy into the instrument tree by side effect. RECORDED, because a reader will
+        otherwise look for the belt in the wrong place: §11 above calls `sdkFetch` "the egress-guarded fetch
+        every provider instance receives", but `InferenceSeams` (`entry/compose/services.ts:157`) makes it a
+        TEST-ONLY override and the production `createInferenceRuntime` call passes none. The actual belt is one
+        layer down and is live — `installEgressFirewall()` swaps undici's GLOBAL dispatcher at
+        `entry/lifecycle.ts:330` with `EGRESS_FIREWALL` defaulting true, and `infra/network/egress.ts:8-16`
+        names PROVIDER CALLS as exactly the class it backstops. The doc-vs-tree divergence is the finding; the
+        clean-up is to make `sdkFetch` required and inject at the composition root.
+        · `providers-runner-seal` RETIRED rather than re-aimed, a five-site edit (module · the
+        `origin-server-family` conformance suite · the `Core-Enforcement-Active-Gates.md` row AND its count
+        344→343 · a Retired row in `history/Core-Enforcement-Deferred-Dropped.md` · the `provider-vocab`
+        deferred row that claimed to be HELD BY it), plus three prose sweeps. Its four sealed symbols and their
+        declaration home ceased to exist, so it passed VACUOUSLY — a false clean. **The seal moved UP the
+        ladder, which is where constitution §2.2 wants it:** `@orb/inference`'s exports map is `{".":
+        "./src/index.ts", "./*": "./src/*/index.ts"}` and `src/registry/` has no `index.ts`, so `BACKEND_DEFS`
+        is unreachable from any package. Control, both directions in ONE run: a throwaway module under
+        `packages/server/src/domain/` importing `@orb/inference/registry/backends.ts` went
+        RED at TWO tiers — `tsc TS2307 Cannot find module` and dependency-cruiser `not-to-unresolvable` — while
+        `import { WARNING_CODES } from "@orb/inference"` in the SAME file resolved clean.
+        **The four WIDEN-BLOCKED rows, each a fileable question rather than a note:** (0) `brand-in-name-position`
+        — widened, MEASURED at 32 findings under `packages/inference/src/`, reverted in the same lane. ELEVEN are
+        `sessionId`, a pure NAME COLLISION the census cannot see past: kit's `SessionId` is `TypeIdOf<"session">`,
+        the BFF session ROW id, while the package's is the Claude Agent SDK daemon's chat-session handle — two
+        vocabularies the constitution separates by name (§5.1) and one brand. TWENTY-ONE are `modelId`, a genuine
+        gap (`ModelId` is `Branded<"ModelId">` and means exactly these values) that this program's own §4 step 4
+        complicates by deleting the adjacent `ChatModelId` brand with the curated shortlist. The ruling that
+        unblocks it covers both halves: do the daemon's session handle and the provider's model id carry kit
+        brands, or are they foreign ids waived once per declaration? Until it is taken, a widening could only
+        land as 32 waivers, and a waiver added to make a gate pass is the banned escape hatch. (1)
+        `no-inline-types` —
+        `packages/inference/src/` is not a type home under Spine §7.4's structural list, so widening reds every
+        exported type alias outside `src/contract/` (`InferenceDeps`, `BackendDef`, `BuiltBackends`, …). The
+        ruling that unblocks it: is a below-server package's own `contract/` directory a §7.4 type home? (2)
+        `detached-work-traced` (+`-health`) — the package DOES carry the A1 shape twice
+        (`backends/local-light/model-cache.ts:235`, `backends/openai-compat/reachability.ts:120`), but the
+        remedy is a supervised-detach boundary declared in `#foundation/observability`, which the package cannot
+        import. The ruling that unblocks it: does the package get a detach boundary through `deps.span`, and is
+        that shape derivable by `lib/detached-work.ts`? (3) `test-presence` — its ARMS are keyed on the server
+        TIER vocabulary (`domain/<d>/verbs/`, `persistence/`, `contract/`, `infra/`), and the package uses
+        `backends/ capability/ catalog/ contract/ funnel/ registry/ resolve/ roles/`. Adding the root would
+        admit ~104 files no arm recognizes — a no-op widening that LOOKS like coverage, which is worse than
+        none. What it needs is a sibling policy with inference-tier arms, sized against `tests/inference/`.
+        **Also cleared, same class, found by this lane rather than briefed:** `content-part-seam`'s six per-file
+        grants (four of the old runner subjects no longer exist at all; the survivors became
+        `inference-contract-chat`, `inference-backend-kit-history`, and a NEW `inference-v4-prompt` for the V4
+        prompt converter's media lift), and two `knob-wire-coverage` rows whose subjects the program deleted
+        (`EffectiveAppConfig.allowNonOwnerLocalCompute`, `chatMetadataSchema.providerRouting`) — each retired at
+        exactly the condition its own `endsWhen` named.
 19. **A destination file named in a scope sentence owes its own behaviour rows.** §8.1b named
     `{embed,rerank,image-embed}.ts` as the surviving trio and then cited only two of them; the third had a
     different request shape, its own retry site and NO clamp, and no pass caught it until a scout read the file

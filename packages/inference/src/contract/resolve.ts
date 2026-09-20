@@ -37,8 +37,6 @@ export const WARNING_CODES = [
   // The CONNECTION's `declared` block overrode a dated measurement on the named field (§6.2). NEVER on the turn
   // stream — a badge on the connection row (the user asked for it).
   "declared_overrides_measured",
-  // Smart arbitration ran with no `summarize` binding ⇒ the deterministic `natural` fallback (D41).
-  "smart_arbitration_degraded",
   // A background task (digests/caption/…) had no fundable row: the shared "nothing ran" notice.
   "background_task_degraded",
   // ── the SDK's OWN drops (§A3) ───────────────────────────────────────────────────────────────────────
