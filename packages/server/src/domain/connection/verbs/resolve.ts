@@ -55,6 +55,6 @@ export function createCapabilities(ctx: ConnectionContext): ConnectionService["c
       throw new ConnectionNotFoundError(params.connectionId);
     }
     const read = await ctx.runtime.capabilities.for({ connectionId: params.connectionId, principal: params.principal });
-    return { capability: read.capability, warnings: read.warnings, tasks: read.tasks };
+    return { capability: read.capability, baseline: read.baseline, warnings: read.warnings, tasks: read.tasks };
   };
 }
