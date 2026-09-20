@@ -2,6 +2,7 @@
 // the room gate is the INJECTED `ensureChatHost` (host authority — attaching injects content into every
 // participant's prompts on the host's dime; member-initiated attach would be prompt injection by junction).
 // The document gate stays ownership (`loadOwnedMeta` — the host shares THEIR document). Idempotent re-attach.
+// Announces on BOTH planes: the host's own bank (user bus) and the ROOM's rack (chat bus, #2471).
 
 import { chatDocuments } from "@orb/db";
 import { DocumentNotFoundError } from "../../contract/errors.ts";
@@ -25,17 +26,12 @@ export function createAttachToChat(ctx: DatabankContext): DatabankService["attac
       return; // already attached — idempotent
     }
     await ctx.audit({ actorUserId: ownerId, action: "databank.attachToChat", entityType: "document", entityId: documentId, metadata: { chatId } }, ctx.now());
-    // The HOST's own bank view (the attachment chips) announces itself here, on a real attach only. The
-    // ROOM's view of what feeds its prompts (`listActiveForChat`) is member-visible state and must NOT ride
-    // this user-bus member — widening a per-person channel to the room is the exact leak `membership-fan-guard`
-    // bans. WHAT IS AND IS NOT ENFORCED, stated plainly (the previous wording claimed "the rack already rides
-    // `chatUpdated`", which is true only of the rack's MEMBERSHIP/VISIBILITY half — roster changes and the D85
-    // visibility write emit that event; THIS write emits no room fan at all, so a co-member's rack stays
-    // pre-attach until some other `chatUpdated` arrives): the gap is the OWNER-DEFERRED databank `bridge` row
-    // (bridge design §8 + fork F-E, 2026-08-14), and it is now held by an exact reviewed grant with its end
-    // condition — `membership-write-fan:databank-attach-to-chat` in
-    // tooling/src/verify/lib/reviewed-grants-membership-write-fan.ts. The day this verb gains a room fan,
-    // central liveness reports that row stale; nothing else enforces the claim.
+    // TWO PLANES, one write, and they are not interchangeable (#2471). The HOST's own bank view (the
+    // attachment chips) is per-person and announces on the user bus; the ROOM's view of what feeds its
+    // prompts (`listActiveForChat`) is MEMBER-VISIBLE and announces on the chat bus through the injected
+    // room fan — widening the per-person member to the room is the exact leak `membership-fan-guard` bans,
+    // and it was never the fix. This verb holds the `chatId`, so its reach is that one room; no lookup.
+    ctx.emitRoomDatabankChanged(chatId);
     ctx.emitUserEvent(ownerId, { type: "databankChanged", documentId });
   };
 }

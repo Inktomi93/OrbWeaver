@@ -154,44 +154,54 @@ test("RATCHET SIDE 2 — a registry row the schema no longer declares is reporte
 });
 
 // ---------------------------------------------------------------------------------------------------
-// `membership-write-fan` (#1734) — THE REAL CENTRAL GRANT TABLE. The policy's declared `grant:` witness is
-// a SYNTHETIC row conformance builds from authored strings, which proves the emitted `(subject, operation)`
-// is bindable but says nothing about `lib/reviewed-grants.ts` actually carrying it (§6.2). These two arms
-// drive the REAL table through `reviewedGrantsFor`, at the REAL authored path of the owner-deferred site —
-// so deleting or misspelling either committed row reds here rather than silently un-licensing a live
-// finding at the next whole run.
+// `membership-write-fan` (#1734) — THE REAL CENTRAL GRANT TABLE, now EMPTY (#2471). The policy's declared
+// `grant:` witness is a SYNTHETIC row conformance builds from authored strings, which proves the emitted
+// `(subject, operation)` is bindable but says nothing about `lib/reviewed-grants.ts` actually carrying it
+// (§6.2). These arms drive the REAL table through `reviewedGrantsFor`, at the REAL authored path of the
+// site that table used to license.
+//
+// RETARGETED FROM THE GRANT TO ITS RETIREMENT. Until 2026-09-20 the table carried
+// `membership-write-fan:databank-{attach-to-chat,detach-from-chat}` — one owner-deferred gap (bridge design
+// §8 + fork F-E). The owner closed the fork, both verbs gained `emitRoomDatabankChanged`, and the two rows
+// were retired in the same commit. So the pair below pins the state that REPLACED the grant: the SHIPPED
+// shape (a room fan beside the per-person emit) is ACQUITTED and needs no grant, and the PRE-FIX shape at
+// the same real path is now an EFFECTIVE finding that nothing licenses. Re-committing either row without a
+// live finding would red these arms rather than quietly outliving its reason.
 // ---------------------------------------------------------------------------------------------------
 const CHAT_DOCUMENTS_SCHEMA =
   'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const chatDocuments = sqliteTable("chat_documents", { chatId: text("chat_id"), documentId: text("document_id") });\n';
 const DATABANK_ATTACH = "packages/server/src/domain/databank/verbs/attach/attach-to-chat.ts";
-const DATABANK_ATTACH_SOURCE =
+/** The PRE-#2471 shape: a membership-class write whose only announcement is the per-person emit. */
+const DATABANK_ATTACH_UNFANNED =
   'import { chatDocuments } from "@orb/db";\nexport function attach(ctx: C) {\n  return async ({ ownerId, chatId, documentId }: P) => {\n    await ctx.db.insert(chatDocuments).values({ chatId, documentId }).returning({ documentId: chatDocuments.documentId });\n    ctx.emitUserEvent(ownerId, { type: "databankChanged", documentId });\n  };\n}\n';
+/** The SHIPPED shape: the room fan beside it — the acquittal this policy's own FIX string describes. */
+const DATABANK_ATTACH_FANNED = DATABANK_ATTACH_UNFANNED.replace(
+  "    ctx.emitUserEvent(ownerId,",
+  "    ctx.emitRoomDatabankChanged(chatId);\n    ctx.emitUserEvent(ownerId,",
+);
 
-test("membership-write-fan: the COMMITTED grant licenses the owner-deferred databank attach exactly once", () => {
+test("membership-write-fan: the SHIPPED databank attach is acquitted by its ROOM FAN — no finding, no grant", () => {
   const { authority } = passOf(
     membershipWriteFan,
-    { "packages/db/src/schema/databank.ts": CHAT_DOCUMENTS_SCHEMA, [DATABANK_ATTACH]: DATABANK_ATTACH_SOURCE },
+    { "packages/db/src/schema/databank.ts": CHAT_DOCUMENTS_SCHEMA, [DATABANK_ATTACH]: DATABANK_ATTACH_FANNED },
     reviewedGrantsFor([membershipWriteFan]),
   );
 
   expect(authority.effectiveFindings).toEqual([]);
-  expect(authority.grantedFindings.map((granted) => granted.grantId)).toEqual(["membership-write-fan:databank-attach-to-chat"]);
-  // EXACTLY ONE consumption: a grant matching two candidates licenses NEITHER and alarms over-broad, which
-  // is why the policy reports once per FILE rather than once per per-person emit.
-  expect(authority.reviewedGrantConsumption.filter((row) => row.count > 0).map((row) => row.count)).toEqual([1]);
+  expect(authority.grantedFindings).toEqual([]);
+  // The acquittal is the ROOM FAN, not an exemption: the central table carries no row that could license
+  // this site, so a regression that dropped the fan lands in the arm below rather than staying silent here.
+  expect(authority.authorityAlarms).toEqual([]);
 });
 
-test("membership-write-fan: the same site at ANOTHER path is NOT licensed — the grant is path-exact", () => {
-  // The acquittal's falsifier. Without it the first arm passes just as well against a grant that licenses
-  // the whole policy, and the deferral would quietly become a blanket exemption for every domain.
-  const neighbour = "packages/server/src/domain/databank/verbs/attach/attach-to-other-chat.ts";
+test("membership-write-fan: the PRE-FIX shape at the same real path is EFFECTIVE — the retired grant licenses nothing", () => {
   const { authority } = passOf(
     membershipWriteFan,
-    { "packages/db/src/schema/databank.ts": CHAT_DOCUMENTS_SCHEMA, [neighbour]: DATABANK_ATTACH_SOURCE },
+    { "packages/db/src/schema/databank.ts": CHAT_DOCUMENTS_SCHEMA, [DATABANK_ATTACH]: DATABANK_ATTACH_UNFANNED },
     reviewedGrantsFor([membershipWriteFan]),
   );
 
-  expect(authority.effectiveFindings.map((finding) => finding.subject)).toEqual([`${neighbour}#chatDocuments`]);
+  expect(authority.effectiveFindings.map((finding) => finding.subject)).toEqual([`${DATABANK_ATTACH}#chatDocuments`]);
   expect(authority.grantedFindings).toEqual([]);
-  expect(authority.authorityAlarms.map((alarm) => alarm.kind)).toEqual(["stale-reviewed-grant", "stale-reviewed-grant"]);
+  expect(authority.authorityAlarms).toEqual([]);
 });
