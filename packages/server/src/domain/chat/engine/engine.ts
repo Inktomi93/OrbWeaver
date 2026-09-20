@@ -52,10 +52,11 @@ import type { RowMacroNameContext } from "@orb/kit/macro";
 import { estimateTokens } from "@orb/kit/tokens";
 import { getLog, recordTurnOutcome, withRequestSpan } from "#foundation/observability";
 import type { ChatContext } from "../context.ts";
-import type { MemoryEmbedSpace, RpgTurnContext, RpgTurnTranscriptMessage } from "../contract/context.ts";
+import type { RpgTurnContext, RpgTurnTranscriptMessage } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import type {
   MemoryConfig,
+  MemoryEmbedSpace,
   MemoryPassCounts,
   MemoryRecallResult,
   MemoryRecallWarningEpisode,

@@ -8,6 +8,7 @@ export type {
   BlockSpan,
   DigestRow,
   MemoryConfig,
+  MemoryEmbedSpace,
   MemoryPassCounts,
   MemoryRecallFilter,
   MemoryRecallRecord,
