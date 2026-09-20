@@ -92,6 +92,7 @@ export async function probeOpenAiCompat(req: ProbeRequest, deps: DiagnosticsDeps
   try {
     await authenticatedRead(deps, { connection, path, label: "credential probe", signal: req.signal });
     return { status: "ok", checkedAt };
+    // @orb-waive caught-failure-ownership(err): credential probes own failures as typed revoked/unreachable health with a sanitized reason. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if the returned health stops carrying that disposition.
   } catch (err) {
     const reason = sanitizeApiError(redactSecretsFromText(errorMessage(err), resolvedScrubSet(connection)));
     return AUTH_FAILURE_RE.test(reason) ? { status: "revoked", checkedAt, reason } : { status: "unreachable", checkedAt, reason };
@@ -149,6 +150,7 @@ export async function listOpenAiCompatModels(req: ListModelsRequest, deps: Diagn
             reasoning: null,
           }));
     return { listed: models.length > 0, models };
+    // @orb-waive caught-failure-ownership(catch): optional model discovery owns refusal as `listed:false`; generation remains usable with an explicit model. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if callers require a successful catalog.
   } catch {
     return { listed: false, models: [] };
   }
@@ -217,6 +219,7 @@ export async function inspectOpenAiCompatEndpoint(req: InspectRequest, deps: Dia
       redirect: "manual",
       ...(req.signal !== undefined ? { signal: req.signal } : {}),
     });
+    // @orb-waive caught-failure-ownership(readBodyPreview): a preview read failure degrades to an explicit empty preview while status and headers remain inspectable. Precedent: the gate mustPass fixture tooling/src/probe/unproven-outcome.ts proves the same degraded inspection result. Ends if preview bytes become authoritative.
     const text = await readBodyPreview(res, secretScrubOverhang(secrets)).catch((): string => "");
     return {
       ok: res.ok,
