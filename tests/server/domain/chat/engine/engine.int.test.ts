@@ -11,9 +11,10 @@ import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { characterStats, chatLocks, chats, dailyStats, messages, messageVariants, ownerStats } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
-import type { ChatResult } from "@orb/inference";
+import type { ChatEvent, ChatResult } from "@orb/inference";
+import { generationOf, resolveChat } from "@orb/inference";
 import { DomainRateLimitError } from "@orb/kit/errors";
-import type { CharacterId, ChatId, Handle, MessageId, MessageVariantId, UserId, WorldEntryId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, Handle, MessageId, MessageVariantId, ModelId, UserId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { applyStatsDelta } from "@orb/server/domain/stats";
@@ -32,8 +33,8 @@ import { createMemoryRecallWarningEpisode } from "../../../../../packages/server
 import type { WitnessInterval } from "../../../../../packages/server/src/domain/chat/memory/types.ts";
 import { tryAcquireLock } from "../../../../../packages/server/src/domain/chat/persistence/lock.ts";
 import { loadCanonHistory, loadMaxMessageSeq, loadTurnOrigin } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
-import { resolveChat } from "@orb/inference";
 import { freshDb } from "../../../../support/db.ts";
+import { makeCapability } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import {
   FROZEN_AT,
@@ -150,7 +151,6 @@ function harness(
       events.push(event);
       return over.emit?.(event) ?? Promise.resolve();
     },
-
 
     holder: "replica-1",
     lockTtlMs: over.lockTtlMs ?? 60_000,
@@ -542,7 +542,6 @@ describe("createTurnEngine — happy path", () => {
     const history = await loadCanonHistory(db, chatId);
     expect(history.map((m) => m.seq)).toEqual([1, 2]);
   });
-
 });
 
 describe("createTurnEngine — R3 stats real-wire (the REAL applyStatsDelta lands rollup rows)", () => {
@@ -566,7 +565,6 @@ describe("createTurnEngine — R3 stats real-wire (the REAL applyStatsDelta land
     });
     const engine = createTurnEngine(ctx, {
       emit: () => Promise.resolve(),
-
 
       holder: "replica-1",
       lockTtlMs: 60_000,
@@ -675,7 +673,6 @@ describe("createTurnEngine — post-turn memory build (fire-and-forget, §3a)", 
         events.push(event);
         return Promise.resolve();
       },
-
 
       holder: "replica-1",
       lockTtlMs: 60_000,
@@ -1970,7 +1967,7 @@ describe("createTurnEngine — VER-1b: a prose-less generation is a FAILURE, nev
 describe("createTurnEngine — an infra runner warning reaches the chat bus (D41 read end)", () => {
   /** FABRICATION-OK: a minimal successful `ChatResult` — the assertion is on `events`, which the leaf below
    *  builds with the REAL OpenRouter drop belt. */
-  const orLeafResult = {
+  const orLeafResult: Omit<ChatResult, "events"> = {
     reply: "Hi there",
     reasoning: "",
     reasoningRedacted: false,
@@ -1978,37 +1975,39 @@ describe("createTurnEngine — an infra runner warning reaches the chat bus (D41
     terminalReason: null,
     finishReason: null,
     ttftMs: null,
-    warmSpareClaimed: null,
     durationApiMs: null,
     apiErrorStatus: null,
     numTurns: 1,
     usage: {
-      model: "test-model",
+      model: castId<ModelId>("test-model"),
       tokensIn: 4,
       tokensOut: 2,
       cacheReadTokens: 0,
       cacheWriteTokens: 0,
-      cacheCreation5mTokens: null,
-      cacheCreation1hTokens: null,
       reasoningTokens: null,
       contextWindow: null,
       maxOutputTokens: null,
-      webSearchRequests: 0,
       costUsd: 0,
       costDetails: null,
-      isByok: null,
+      costProvenance: "measured",
     },
     rateLimit: null,
-  } as const;
+  };
 
   /** A model that exposes NO sampling range — the production shape behind `sampling_knob_dropped`.
    *  FABRICATION-OK: `resolveChat` reads only these axes. */
   const NoSamplingCapability: GenerationCapability = {
     reasoning: { mode: "none", enabled: false },
     sampling: {},
+    input: ["text"],
     output: { maxTokens: { min: 1, max: 4096 }, modalities: ["text"] },
     context: { window: 200_000 },
   };
+
+  /** The infra→chat warning bridge, inlined here (`@orb/inference` keeps the mapper backend-internal). */
+  function warningEvents(warnings: ReturnType<typeof resolveChat>["warnings"], at: number): ChatEvent[] {
+    return warnings.map((warning) => ({ kind: "warning", at, ...warning }));
+  }
 
   // THE RULING THIS ARM REPLACES (#1440, owner 2026-09-05). Until now this test asserted the OPPOSITE — that
   // `sampling_knob_dropped` must NEVER reach the bus, because `toChatWarningCode` mapped it (and nine
@@ -2037,7 +2036,6 @@ describe("createTurnEngine — an infra runner warning reaches the chat bus (D41
     expect(emitted).toContain('"adjustment":"sampling_knob_dropped"');
     expect(emitted).toContain('"knob":"temperature"');
   });
-
 });
 
 // ── EMPTYGEN-REASONING: the prose-less RECOVERY pass (owner ruling 2026-08-07 — RECOVER, don't discard) ──
@@ -2055,8 +2053,7 @@ describe("createTurnEngine — a prose-less completion with tool calls is RECOVE
    *  exactly `capability.tools` present + not `silencesProse`. */
   const toolConnection = (): ReturnType<typeof testConnection> => {
     const base = testConnection();
-    // @orb-waive no-test-fabrication(typeof base.capability): `GenerationCapability.tools` is a wide resolved cell, the gate reads two fields, TEST_CAPABILITY is built the same way Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-    return { ...base, capability: { ...base.capability, tools: { silencesProse: false } } as typeof base.capability };
+    return { ...base, capability: makeCapability({ ...generationOf(base), tools: { parallel: true, silencesProse: false } }) };
   };
 
   const terminalToolSet = [{ name: "update_scene", description: "the scene", parameters: { type: "object" as const } }];
