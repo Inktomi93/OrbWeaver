@@ -65,16 +65,18 @@
 //
 // ── POPULATION PORT ─────────────────────────────────────────────────────────────────────────────────────
 // Legacy `scanRoot` was `/^packages\/[^/]+\/src\//.test(path) || path.startsWith("tooling/src/")` — every
-// package's `src`, plus `tooling/src`. `["@packages", "@tooling"]` is NOT that set: `@packages` is an
-// explicit six-root list that omits `packages/showcase-plugins/src`, where the census records four live
-// sites, so the obvious spelling would have silently narrowed the policy and dead-lettered four markers.
+// package's `src`, plus `tooling/src`. `["@packages", "@tooling"]` is NOT that set: `@packages` is a
+// frozen explicit root list that omits `packages/showcase-plugins/src`, `packages/default-content/src`,
+// and `packages/inference/src`. The current census records governed sites in those omitted packages, so
+// the obvious spelling would silently narrow the policy and dead-letter their markers.
 // The `@showcase` ROOT was therefore added to the population vocabulary (contract/population.ts — §12.4
 // admits an independently selectable workspace package; it is deliberately NOT folded into `@packages`,
-// which would widen every existing policy). `["@packages", "@showcase", "@default-content", "@tooling"]` is
-// byte-identical to the legacy predicate — `@default-content` joined 2026-09-18 with the package of that name
-// (D160's avatars + demo-chat transcripts), whose reader carries two `optional-read-as-absent` waivers; without
-// the root those markers bind to no finding and the policy reports a stale-waiver alarm over an ungoverned
-// package, which is the same narrowing `@showcase` was added to prevent.
+// which would widen every existing policy). The declared population therefore names all five current roots:
+// `["@packages", "@showcase", "@default-content", "@inference", "@tooling"]`. The three explicit package
+// roots restore today's legacy-regex corpus coverage without claiming the frozen list will automatically
+// admit a future package. `@default-content` joined 2026-09-18 with the package of that name (D160's avatars
+// + demo-chat transcripts), and `@inference` restores the inference package's governed sites; without
+// either root, markers there bind to no finding and become stale-waiver alarms over ungoverned source.
 // The `{ of: "all", notUnder: [...] }` spelling was tried FIRST and rejected as
 // dishonest: `of: "all"` admits whatever the invocation's candidate set happens to hold, which on the real
 // tree excludes `packages/client/vite.config.ts` only because `harnessGlobs` never loads it — the declared

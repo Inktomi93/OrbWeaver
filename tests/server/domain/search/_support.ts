@@ -31,6 +31,7 @@ import {
   embedSpaceState,
   globalDocuments,
   imageEmbeddings,
+  userConnections,
   users,
 } from "@orb/db";
 import type {
@@ -44,6 +45,7 @@ import type {
   ChatSegmentId,
   DocumentChunkId,
   DocumentId,
+  EmbedGenerationId,
   Handle,
   ImageEmbeddingId,
   UserConnectionId,
@@ -68,7 +70,7 @@ export const EMBED_MODEL = "test-embed-model-1024";
 /** The default IMAGE-embed model the harness scopes the cross-modal `images` scan to. */
 export const IMAGE_EMBED_MODEL = "test-image-embed-model-1024";
 
-async function seedGeneration(db: Db, ownerId: UserId, task: "embed" | "imageEmbed", model: string): Promise<string> {
+async function seedGeneration(db: Db, ownerId: UserId, task: "embed" | "imageEmbed", model: string): Promise<EmbedGenerationId> {
   const roleClients = makeSearchRoleClients(task === "embed" ? { embedModel: model } : { imageEmbedModel: model });
   const resolved = await roleClients.resolved(task);
   if (resolved === null) {
@@ -87,6 +89,10 @@ async function seedGeneration(db: Db, ownerId: UserId, task: "embed" | "imageEmb
     imageEmbed: roleClients.imageEmbed,
   } as const;
   const id = generationIdOf({ ownerId, task, via: task, connection, space: model });
+  await db
+    .insert(userConnections)
+    .values({ id: connection.connectionId, ownerId, label: `Test ${task}`, providerId: connection.providerId, model: connection.model })
+    .onConflictDoNothing();
   await db
     .insert(embedGenerations)
     .values({

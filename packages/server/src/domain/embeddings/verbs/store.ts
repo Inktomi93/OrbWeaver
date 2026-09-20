@@ -24,6 +24,7 @@
 // space tripwire, same single write path — a batch shape, because its producer holds a batch of work.
 
 import type { EmbedResult, ImageEmbedResult } from "@orb/contracts/providers";
+import type { EmbedGenerationId } from "@orb/kit/ids";
 import type { EmbeddingsContext } from "../context.ts";
 import { EmbedFailedError, SpaceMismatchError } from "../contract/errors.ts";
 import type {
@@ -118,7 +119,7 @@ async function isImageLensCurrent(
   ctx: EmbeddingsContext,
   p: ImageRawStoreParams | ImageCaptionedStoreParams,
   hash: string,
-  generationId: string,
+  generationId: EmbedGenerationId,
 ): Promise<boolean> {
   if (p.lens === "image-raw") {
     return (await existingImageHash(ctx.db, p.assetId, p.lens, generationId)) === hash;

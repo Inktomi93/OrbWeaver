@@ -1,5 +1,7 @@
 // Stable, non-secret identity for the concrete encoder configuration that produced a vector generation.
 
+import type { EmbedGenerationId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { stableStringify } from "@orb/kit/stable-stringify";
 import { sha256Hex } from "#kit/content-hash";
 
@@ -57,7 +59,9 @@ export function generationIdOf(params: {
   readonly via: "embed" | "imageEmbed";
   readonly connection: EmbeddingConnectionIdentity;
   readonly space: string;
-}): string {
+}): EmbedGenerationId {
   const { ownerId, task, via, connection, space } = params;
-  return sha256Hex(stableStringify({ ownerId, task, via, connectionId: connection.connectionId, fingerprint: connectionFingerprint(connection), space }));
+  return castId<EmbedGenerationId>(
+    sha256Hex(stableStringify({ ownerId, task, via, connectionId: connection.connectionId, fingerprint: connectionFingerprint(connection), space })),
+  );
 }

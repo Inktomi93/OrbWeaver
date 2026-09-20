@@ -4,7 +4,7 @@
 
 import type { Db } from "@orb/db";
 import { embedGenerations, embedGenerationTargets, embedSpaceState } from "@orb/db";
-import type { Handle, UserId } from "@orb/kit/ids";
+import type { EmbedGenerationId, Handle, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import type { GenerationReceipt, GenerationTask } from "../../../../../packages/server/src/domain/embeddings/contract/generation.ts";
@@ -18,10 +18,21 @@ const T0 = 1_700_000_000_000;
 const T1 = T0 + 60_000;
 
 async function seedTarget(db: Db, ownerId: UserId, input: { task: GenerationTask; id: string; space: string; epoch: number }): Promise<GenerationReceipt> {
-  const { task, id, space, epoch } = input;
+  const { task, space, epoch } = input;
+  const id = castId<EmbedGenerationId>(input.id);
   await db
     .insert(embedGenerations)
-    .values({ id, ownerId, task, via: task, connectionId: null, connectionRef: `connection:${id}`, fingerprint: `fingerprint:${id}`, space, createdAt: T0 })
+    .values({
+      id,
+      ownerId,
+      task,
+      via: task,
+      connectionId: null,
+      connectionRef: castId<UserConnectionId>(`connection:${id}`),
+      fingerprint: `fingerprint:${id}`,
+      space,
+      createdAt: T0,
+    })
     .onConflictDoNothing();
   await db
     .insert(embedGenerationTargets)

@@ -4,8 +4,8 @@
 // representative), the empty-allowlist ZERO-embed short-circuit (the trigger-discipline mirror), and THE
 // flagship gate-8 owner/host-scope no-leak pin (two users share one chat; no cross-tenant chunk surfaces).
 
-import { documentChunks, embedGenerations } from "@orb/db";
-import type { Handle } from "@orb/kit/ids";
+import { documentChunks, embedGenerations, userConnections } from "@orb/db";
+import type { EmbedGenerationId, Handle, UserConnectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
@@ -135,12 +135,21 @@ describe("documents", () => {
     }
     expect(alphaGeneration.connectionId).not.toBe(betaGeneration.connectionId);
     expect(alphaGeneration.fingerprint).toBe(betaGeneration.fingerprint);
-    const pendingGenerationId = "generation_beta_pending";
+    if (betaGeneration.connectionId === null) {
+      throw new Error("expected beta's generation to retain its connection parent");
+    }
+    const [betaConnection] = await db.select().from(userConnections).where(eq(userConnections.id, betaGeneration.connectionId));
+    if (betaConnection === undefined) {
+      throw new Error("expected beta's generation connection parent");
+    }
+    const pendingConnectionId = castId<UserConnectionId>("user_connection_beta_pending");
+    await db.insert(userConnections).values({ ...betaConnection, id: pendingConnectionId, label: "Beta pending" });
+    const pendingGenerationId = castId<EmbedGenerationId>("generation_beta_pending");
     await db.insert(embedGenerations).values({
       ...betaGeneration,
       id: pendingGenerationId,
-      connectionId: "connection_beta_pending",
-      connectionRef: "connection_beta_pending",
+      connectionId: pendingConnectionId,
+      connectionRef: pendingConnectionId,
     });
     await db.update(documentChunks).set({ generationId: pendingGenerationId }).where(eq(documentChunks.id, pendingChunk));
     await db.update(embedGenerations).set({ fingerprint: "incompatible-vector-geometry" }).where(eq(embedGenerations.id, gammaGeneration.id));

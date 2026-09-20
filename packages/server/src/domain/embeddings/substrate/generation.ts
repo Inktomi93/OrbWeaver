@@ -7,8 +7,8 @@ import { embedGenerations, embedGenerationTargets } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 import { connectionFingerprint, generationIdOf, vectorSpaceFingerprint } from "#kit/embedding-generation";
-import type { GenerationTask, PinnedGeneration } from "../contract/generation.ts";
-import type { EmbeddingsContext } from "../contract/service.ts";
+import type { GenerationTask } from "../contract/generation.ts";
+import type { EmbeddingsContext, PinnedGeneration } from "../contract/service.ts";
 
 export async function resolveTargetGeneration(
   ctx: Pick<EmbeddingsContext, "db" | "now" | "resolveEmbeddingConnection">,

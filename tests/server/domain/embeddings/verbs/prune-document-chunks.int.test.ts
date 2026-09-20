@@ -3,17 +3,33 @@
 // rows in a retired (model) space, scoped to the one document. Load-bearing: it is the ONLY non-store write
 // to document_chunks the databank domain reaches (via injection), and it must never touch another document.
 
-import { documentChunks } from "@orb/db";
-import type { DocumentId, Handle, UserId } from "@orb/kit/ids";
+import type { Db } from "@orb/db";
+import { documentChunks, userConnections } from "@orb/db";
+import type { DocumentId, Handle, ModelId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { eq } from "drizzle-orm";
-import { describe } from "vitest";
+import { describe, vi } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import type { StoreHarness } from "../_support.ts";
 import { EMBED_DIM, EMBED_MODEL, embedAs, makeStoreHarness, seedDocument, seedUser } from "../_support.ts";
 
 const OLD_MODEL = "old-embed-model-v1";
+
+async function seedHarnessConnection(db: Db, ownerId: UserId, harness: StoreHarness): Promise<void> {
+  const resolved = await harness.roleClients.resolved("embed");
+  if (resolved === null) {
+    throw new Error("the document fixture needs an embed connection");
+  }
+  await db.insert(userConnections).values({
+    id: resolved.connectionId,
+    ownerId,
+    label: "document prune embed",
+    providerId: resolved.providerId,
+    model: resolved.model,
+  });
+}
 
 /** Store `count` chunks (idx 0..count-1) for `documentId` in `model` via the ONE write path. Distinct
  *  chunkIdx keys ⇒ no upsert contention, so the inserts run concurrently. */
@@ -40,8 +56,10 @@ function storeChunks(
 describe("pruneDocumentChunks (databank-design/05 §2.4)", () => {
   test("shrinks the tail: keepCount deletes exactly chunkIdx >= keepCount, survivors intact", async () => {
     const db = await freshDb();
-    const svc = createEmbeddingsService(makeStoreHarness(db).ctx);
+    const harness = makeStoreHarness(db);
+    const svc = createEmbeddingsService(harness.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    await seedHarnessConnection(db, owner, harness);
     const documentId = await seedDocument(db, owner);
     await storeChunks(svc, { documentId, count: 5, model: EMBED_MODEL, ownerId: owner }); // idx 0..4
 
@@ -52,30 +70,47 @@ describe("pruneDocumentChunks (databank-design/05 §2.4)", () => {
     expect(rows.map((r) => r.chunkIdx).sort((a, b) => a - b)).toEqual([0, 1, 2]);
   });
 
-  test("reclaims a retired (model) space regardless of keepCount", async () => {
+  test("retains the retired generation while pruning the pending generation's tail", async () => {
     const db = await freshDb();
     const harness = makeStoreHarness(db);
     const svc = createEmbeddingsService(harness.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    await seedHarnessConnection(db, owner, harness);
     const documentId = await seedDocument(db, owner);
-    // The retired space must come from the PROVIDER, not the params — see embedAs.
+    // The retired generation comes from the connection snapshot, while the stored model comes from the
+    // provider reply. Move both together to model the same connection changing models between sweeps.
+    const resolve = harness.roleClients.resolved.bind(harness.roleClients);
+    const active = await resolve("embed");
+    if (active === null) {
+      throw new Error("the document fixture needs an embed connection");
+    }
+    const resolved = vi
+      .spyOn(harness.roleClients, "resolved")
+      .mockImplementation((task) => (task === "embed" ? Promise.resolve({ ...active, model: castId<ModelId>(OLD_MODEL) }) : resolve(task)));
+    await db.update(userConnections).set({ model: OLD_MODEL }).where(eq(userConnections.id, active.connectionId));
     embedAs(harness, OLD_MODEL);
     await storeChunks(svc, { documentId, count: 3, model: OLD_MODEL, ownerId: owner }); // the old space
+    resolved.mockImplementation(resolve);
+    await db.update(userConnections).set({ model: EMBED_MODEL }).where(eq(userConnections.id, active.connectionId));
     embedAs(harness, EMBED_MODEL);
-    await storeChunks(svc, { documentId, count: 3, model: EMBED_MODEL, ownerId: owner }); // the active space
+    await storeChunks(svc, { documentId, count: 4, model: EMBED_MODEL, ownerId: owner }); // the pending space
 
-    // keepCount high enough to keep every active-space tail — only the retired space is reclaimed.
+    // Promotion owns retired-generation reclamation. This post-ingest prune may delete only the pending
+    // generation's surplus tail; the still-active old generation remains readable until the joint swap.
     const { rowsDeleted } = await svc.pruneDocumentChunks({ documentId, keepCount: 3, model: EMBED_MODEL });
 
-    expect(rowsDeleted).toBe(3); // all OLD_MODEL rows
+    expect(rowsDeleted).toBe(1); // pending generation idx 3 only
     const rows = await db.select().from(documentChunks).where(eq(documentChunks.documentId, documentId));
-    expect(rows.map((r) => r.model)).toEqual([EMBED_MODEL, EMBED_MODEL, EMBED_MODEL]);
+    expect(rows.filter((row) => row.model === OLD_MODEL)).toHaveLength(3);
+    expect(rows.filter((row) => row.model === EMBED_MODEL)).toHaveLength(3);
   });
 
   test("never touches another document's chunks", async () => {
     const db = await freshDb();
-    const svc = createEmbeddingsService(makeStoreHarness(db).ctx);
+    const harness = makeStoreHarness(db);
+    const svc = createEmbeddingsService(harness.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    await seedHarnessConnection(db, owner, harness);
     const docA = await seedDocument(db, owner, { id: "document_a" });
     const docB = await seedDocument(db, owner, { id: "document_b" });
     await storeChunks(svc, { documentId: docA, count: 4, model: EMBED_MODEL, ownerId: owner });

@@ -5,10 +5,10 @@ import { embedDtypeOf, embedSpaceOf, servesImageVectors } from "@orb/contracts/i
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { EmbeddingConnectionSnapshot } from "#domain/embeddings";
 import { generationIdOf, vectorSpaceFingerprint } from "#kit/embedding-generation";
-import type { EmbeddingConnectionSnapshot } from "../../embeddings/contract/service.ts";
 import { SEARCH_NO_SPACE, SEARCH_SPACE_REINDEXING, SearchError } from "../contract/errors.ts";
-import type { ImageQuerySpace, SearchContext } from "../contract/service.ts";
+import type { ActiveQuerySpace, ImageQuerySpace, SearchContext } from "../contract/service.ts";
 import { readActiveGeneration, readGeneration } from "../persistence/active-space.ts";
 
 type SpaceContext = Pick<SearchContext, "db"> & {
@@ -23,6 +23,7 @@ async function resolveConnection(
   connectionId?: UserConnectionId,
 ): Promise<EmbeddingConnectionSnapshot | null> {
   if (ctx.resolveEmbeddingConnection !== undefined) {
+    // @orb-waive caught-failure-ownership(catch): same leak-free collapse ownership as entry/http/plugin-frame.ts — by-id resolution fails closed and the public require*Space boundary turns null into a named SearchError. Ends if null can leave this module without that refusal.
     try {
       return await ctx.resolveEmbeddingConnection(ownerId, task, connectionId);
     } catch {
@@ -48,13 +49,6 @@ async function resolveConnection(
         imageEmbed: rc.imageEmbed,
       };
 }
-export interface ActiveQuerySpace {
-  readonly generationId: string;
-  readonly fingerprint: string;
-  readonly model: string;
-  readonly via: "embed" | "imageEmbed";
-  readonly connection: EmbeddingConnectionSnapshot;
-}
 
 /** Run a complete query against one active generation. A promotion may delete the selected rows between
  * remote query embedding and the SQL scan, so a changed generation discards the result and retries once. */
@@ -67,7 +61,7 @@ export async function withActiveQuerySpace<T>(
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const space = task === "imageEmbed" ? await requireImageQuerySpace(ctx, ownerId) : await requireQuerySpace(ctx, ownerId, task);
     const result = await query(space);
-    if (space.generationId === "") {
+    if (space.generationId === undefined) {
       return result;
     }
     const after = await readActiveGeneration(ctx.db, ownerId, task);
@@ -89,7 +83,6 @@ export async function requireQuerySpace(ctx: SpaceContext, ownerId: UserId, task
       throw new SearchError(SEARCH_NO_SPACE, `no ${task} connection is bound for this user — bind one in Connections`);
     }
     return {
-      generationId: "",
       fingerprint: vectorSpaceFingerprint(connection),
       model: embedSpaceOf(connection.model, embedDtypeOf(connection.capability)),
       via: task,
@@ -123,7 +116,6 @@ export async function requireImageQuerySpace(ctx: SpaceContext, ownerId: UserId)
   const image = await resolveConnection(ctx, ownerId, "imageEmbed");
   if (image !== null && servesImageVectors(image.capability)) {
     return {
-      generationId: "",
       fingerprint: vectorSpaceFingerprint(image),
       model: embedSpaceOf(image.model, embedDtypeOf(image.capability)),
       via: "imageEmbed",
@@ -135,7 +127,6 @@ export async function requireImageQuerySpace(ctx: SpaceContext, ownerId: UserId)
     throw new SearchError(SEARCH_NO_SPACE, "no imageEmbed or embed connection is bound for this user — bind one in Connections");
   }
   return {
-    generationId: "",
     fingerprint: vectorSpaceFingerprint(embed),
     model: embedSpaceOf(embed.model, embedDtypeOf(embed.capability)),
     via: "embed",

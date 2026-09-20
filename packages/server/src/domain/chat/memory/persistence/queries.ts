@@ -10,7 +10,7 @@ import { MEMORY_INGEST_KINDS } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { chatDigestSpeakers, chatDigests, chatParticipants, chatSegments, messages, messageVariants } from "@orb/db";
 import { projectBodyForSummary } from "@orb/kit/content";
-import type { CharacterId, ChatDigestId, ChatId } from "@orb/kit/ids";
+import type { CharacterId, ChatDigestId, ChatId, EmbedGenerationId } from "@orb/kit/ids";
 import { and, asc, eq, inArray, lte, max, min } from "drizzle-orm";
 import type { DigestRow, MsgRow, WitnessInterval } from "../types.ts";
 
@@ -85,7 +85,7 @@ export async function loadCanonThroughSeq(db: Db, chatId: ChatId, throughSeq: nu
 
 /** The `(tier:blockIdx) → content_hash` map for one scope bucket (the digest staleness gate — re-summarize a
  *  block iff missing or its hash changed). Keyed by the `${tier}:${blockIdx}` string the build looks up. */
-export async function loadDigestHashes(db: Db, chatId: ChatId, scopedCharacterId: CharacterId, generationId: string): Promise<Map<string, string>> {
+export async function loadDigestHashes(db: Db, chatId: ChatId, scopedCharacterId: CharacterId, generationId: EmbedGenerationId): Promise<Map<string, string>> {
   const rows = await db
     .select({
       tier: chatDigests.tier,
@@ -106,7 +106,7 @@ export async function loadDigestHashes(db: Db, chatId: ChatId, scopedCharacterId
  *  keyed by the same string the build looks up — the `loadDigestHashes` idiom. Segments are NOT scope-keyed
  *  (shared per chat), and since #172 a block is a ROW SET: the gate is per CHUNK, which is also what makes a
  *  half-written block self-heal (the chunks that never landed have no row, so nothing skips them). */
-export async function loadSegmentHashes(db: Db, chatId: ChatId, generationId: string): Promise<Map<string, string>> {
+export async function loadSegmentHashes(db: Db, chatId: ChatId, generationId: EmbedGenerationId): Promise<Map<string, string>> {
   const rows = await db
     .select({ blockIdx: chatSegments.blockIdx, chunkIdx: chatSegments.chunkIdx, contentHash: chatSegments.contentHash })
     .from(chatSegments)

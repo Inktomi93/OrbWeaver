@@ -16,7 +16,7 @@ import type { MemoryLogEntry, MsgRow } from "../../../../../../packages/server/s
 import { freshDb } from "../../../../../support/db.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
 import { asSummarizeOp, makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedPersona, seedUser } from "../../_support.ts";
-import { fakeEmbeddingsStore, fakeSummarize, GROUP_CHAR, MODEL, seedDigest, seedTurns, sharedScope } from "../_support.ts";
+import { fakeEmbeddingsStore, fakeSummarize, GROUP_CHAR, MODEL, seedDigest, seedTurns, sharedScope, testGenerationId } from "../_support.ts";
 
 // PROSE-1 S1: the consolidation system prompt is a slot resolved off the ROOM HOST. The harness's chat ctx
 // carries no override, so the discriminator these tests key on is the resolved shipped default.
@@ -68,7 +68,7 @@ function upsertingStore(database: Db): { store: EmbeddingsStoreOp; digests: Stor
       speakers: [...params.speakerCharacterIds],
       ownerId: params.ownerId,
     });
-    return { ownerId: params.ownerId, model: params.model, generationId: "test-generation", generationEpoch: 1 };
+    return { ownerId: params.ownerId, model: params.model, generationId: testGenerationId(params.ownerId), generationEpoch: 1 };
   };
   return { store, digests };
 }

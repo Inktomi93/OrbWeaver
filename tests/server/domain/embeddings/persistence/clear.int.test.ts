@@ -5,8 +5,19 @@
 // (chat_segments/chat_digests, which now key on model too), a new `(model, dim)` space is written
 // ADDITIVELY beside the old one, and the purge reclaims the old space leaving zero stale-space rows.
 
-import { characterEmbeddings, chatDigests, chatSegments, documentChunks, imageEmbeddings } from "@orb/db";
-import type { CharacterEmbeddingId, ChatDigestId, ChatSegmentId, DocumentChunkId, Handle, ImageEmbeddingId } from "@orb/kit/ids";
+import type { Db } from "@orb/db";
+import { characterEmbeddings, chatDigests, chatSegments, documentChunks, embedGenerations, imageEmbeddings } from "@orb/db";
+import type {
+  CharacterEmbeddingId,
+  ChatDigestId,
+  ChatSegmentId,
+  DocumentChunkId,
+  EmbedGenerationId,
+  Handle,
+  ImageEmbeddingId,
+  UserConnectionId,
+  UserId,
+} from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { clearVectorTable, purgeStaleVectors } from "../../../../../packages/server/src/domain/embeddings/persistence/clear.ts";
@@ -25,17 +36,38 @@ const NOW = 1_750_000_000_000;
 const OLD_MODEL = "old-embed-model-v1";
 const OLD_IMAGE_MODEL = "old-image-model-v1";
 
+async function seedGeneration(db: Db, ownerId: UserId, model: string, task: "embed" | "imageEmbed" = "embed"): Promise<EmbedGenerationId> {
+  const id = castId<EmbedGenerationId>(`embed_generation_${ownerId}_${task}_${model}`);
+  await db
+    .insert(embedGenerations)
+    .values({
+      id,
+      ownerId,
+      task,
+      via: task,
+      connectionId: null,
+      connectionRef: castId<UserConnectionId>(`fixture:${model}`),
+      fingerprint: `fixture:${model}`,
+      space: model,
+      createdAt: NOW,
+    })
+    .onConflictDoNothing();
+  return id;
+}
+
 describe("clearVectorTable", () => {
   test("empties the named table", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const characterId = await seedCharacter(db, owner);
+    const generationId = await seedGeneration(db, owner, EMBED_MODEL);
     await upsertCharacterEmbedding(db, {
       id: castId<CharacterEmbeddingId>("character_embedding_a"),
       characterId,
       embedding: fakeVector(EMBED_DIM, 1),
       contentHash: "h",
       model: EMBED_MODEL,
+      generationId,
       dim: EMBED_DIM,
       now: NOW,
     });
@@ -52,6 +84,8 @@ describe("purgeStaleVectors (PD-104 model-change purge+reindex)", () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const characterId = await seedCharacter(db, owner);
+    const oldGenerationId = await seedGeneration(db, owner, OLD_MODEL);
+    const generationId = await seedGeneration(db, owner, EMBED_MODEL);
     // Space A (the old model), then space B (the new model). The upsert keys on (characterId, model), so
     // B INSERTS beside A rather than replacing it — the "orphan" the ORIGINAL bug stranded forever.
     await upsertCharacterEmbedding(db, {
@@ -60,6 +94,7 @@ describe("purgeStaleVectors (PD-104 model-change purge+reindex)", () => {
       embedding: fakeVector(EMBED_DIM, 1),
       contentHash: "h1",
       model: OLD_MODEL,
+      generationId: oldGenerationId,
       dim: EMBED_DIM,
       now: NOW,
     });
@@ -69,6 +104,7 @@ describe("purgeStaleVectors (PD-104 model-change purge+reindex)", () => {
       embedding: fakeVector(EMBED_DIM, 2),
       contentHash: "h2",
       model: EMBED_MODEL,
+      generationId,
       dim: EMBED_DIM,
       now: NOW,
     });
@@ -86,6 +122,8 @@ describe("purgeStaleVectors (PD-104 model-change purge+reindex)", () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const chatId = await seedChat(db, "chat_test", owner);
+    const oldGenerationId = await seedGeneration(db, owner, OLD_MODEL);
+    const generationId = await seedGeneration(db, owner, EMBED_MODEL);
     // The SAME (chatId, blockIdx) in two models. BEFORE PD-104 the key omitted `model`, so the second
     // upsert OVERWROTE the first in place (silently corrupting a mixed-space table); now `model` is in the
     // key so both coexist — the uniform behaviour the fix guarantees.
@@ -100,6 +138,7 @@ describe("purgeStaleVectors (PD-104 model-change purge+reindex)", () => {
       embedding: fakeVector(EMBED_DIM, 1),
       contentHash: "h1",
       model: OLD_MODEL,
+      generationId: oldGenerationId,
       dim: EMBED_DIM,
       now: NOW,
     });
@@ -114,6 +153,7 @@ describe("purgeStaleVectors (PD-104 model-change purge+reindex)", () => {
       embedding: fakeVector(EMBED_DIM, 2),
       contentHash: "h2",
       model: EMBED_MODEL,
+      generationId,
       dim: EMBED_DIM,
       now: NOW,
     });
@@ -133,6 +173,10 @@ describe("purgeStaleVectors (PD-104 model-change purge+reindex)", () => {
     const assetId = await seedAsset(db, owner);
     const chatId = await seedChat(db, "chat_test", owner);
     const documentId = await seedDocument(db, owner);
+    const oldGenerationId = await seedGeneration(db, owner, OLD_MODEL);
+    const generationId = await seedGeneration(db, owner, EMBED_MODEL);
+    const oldImageGenerationId = await seedGeneration(db, owner, OLD_IMAGE_MODEL, "imageEmbed");
+    const imageGenerationId = await seedGeneration(db, owner, IMAGE_EMBED_MODEL, "imageEmbed");
 
     // Seed one OLD-space + one NEW-space row in every table (image on its own model axis).
     await upsertCharacterEmbedding(db, {
@@ -141,6 +185,7 @@ describe("purgeStaleVectors (PD-104 model-change purge+reindex)", () => {
       embedding: fakeVector(EMBED_DIM, 1),
       contentHash: "h1",
       model: OLD_MODEL,
+      generationId: oldGenerationId,
       dim: EMBED_DIM,
       now: NOW,
     });
@@ -150,6 +195,7 @@ describe("purgeStaleVectors (PD-104 model-change purge+reindex)", () => {
       embedding: fakeVector(EMBED_DIM, 2),
       contentHash: "h2",
       model: EMBED_MODEL,
+      generationId,
       dim: EMBED_DIM,
       now: NOW,
     });
@@ -162,6 +208,7 @@ describe("purgeStaleVectors (PD-104 model-change purge+reindex)", () => {
       embedding: fakeVector(EMBED_DIM, 1),
       contentHash: "h1",
       model: OLD_IMAGE_MODEL,
+      generationId: oldImageGenerationId,
       dim: EMBED_DIM,
       now: NOW,
     });
@@ -174,6 +221,7 @@ describe("purgeStaleVectors (PD-104 model-change purge+reindex)", () => {
       embedding: fakeVector(EMBED_DIM, 2),
       contentHash: "h2",
       model: IMAGE_EMBED_MODEL,
+      generationId: imageGenerationId,
       dim: EMBED_DIM,
       now: NOW,
     });
@@ -188,6 +236,7 @@ describe("purgeStaleVectors (PD-104 model-change purge+reindex)", () => {
       embedding: fakeVector(EMBED_DIM, 1),
       contentHash: "h1",
       model: OLD_MODEL,
+      generationId: oldGenerationId,
       dim: EMBED_DIM,
       now: NOW,
     });
@@ -202,6 +251,7 @@ describe("purgeStaleVectors (PD-104 model-change purge+reindex)", () => {
       embedding: fakeVector(EMBED_DIM, 2),
       contentHash: "h2",
       model: EMBED_MODEL,
+      generationId,
       dim: EMBED_DIM,
       now: NOW,
     });
@@ -218,6 +268,7 @@ describe("purgeStaleVectors (PD-104 model-change purge+reindex)", () => {
       embedding: fakeVector(EMBED_DIM, 1),
       contentHash: "h1",
       model: OLD_MODEL,
+      generationId: oldGenerationId,
       dim: EMBED_DIM,
       now: NOW,
       speakerCharacterIds: [],
@@ -235,6 +286,7 @@ describe("purgeStaleVectors (PD-104 model-change purge+reindex)", () => {
       embedding: fakeVector(EMBED_DIM, 2),
       contentHash: "h2",
       model: EMBED_MODEL,
+      generationId,
       dim: EMBED_DIM,
       now: NOW,
       speakerCharacterIds: [],
@@ -250,6 +302,7 @@ describe("purgeStaleVectors (PD-104 model-change purge+reindex)", () => {
       embedding: fakeVector(EMBED_DIM, 1),
       contentHash: "h1",
       model: OLD_MODEL,
+      generationId: oldGenerationId,
       dim: EMBED_DIM,
       now: NOW,
     });
@@ -263,6 +316,7 @@ describe("purgeStaleVectors (PD-104 model-change purge+reindex)", () => {
       embedding: fakeVector(EMBED_DIM, 2),
       contentHash: "h2",
       model: EMBED_MODEL,
+      generationId,
       dim: EMBED_DIM,
       now: NOW,
     });

@@ -9,14 +9,13 @@ import type { SearchContext } from "../context.ts";
 import { SEARCH_EMPTY_QUERY, SearchError } from "../contract/errors.ts";
 import type { DiscoverParams } from "../contract/params.ts";
 import type { DiscoverCharacter, DiscoverSegment } from "../contract/results.ts";
-import type { SearchService } from "../contract/service.ts";
+import type { ActiveQuerySpace, SearchService } from "../contract/service.ts";
 import { nearestSegments, ownedChatIds } from "../persistence/digest-rows.ts";
 import { resolveChatDisplay, resolveSegmentDisplay } from "../persistence/display.ts";
 import { DISCOVER_SEGMENT_POOL_CAP, DISCOVER_SEGMENT_POOL_FACTOR, DISCOVER_SEGMENTS_PER_CHAR, SNIPPET_CHARS } from "../substrate/constants.ts";
 import { compareCslsBy, cslsAdjust, relevanceOf } from "../substrate/csls.ts";
 import { collapseSegmentChunks } from "../substrate/dedupe.ts";
 import { applyRerank } from "../substrate/rerank.ts";
-import type { ActiveQuerySpace } from "../substrate/space.ts";
 import { withActiveQuerySpace } from "../substrate/space.ts";
 import { requirePositiveTopN } from "../substrate/top-n.ts";
 

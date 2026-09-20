@@ -1,5 +1,5 @@
 import type { Db } from "@orb/db";
-import type { CharacterId, Handle } from "@orb/kit/ids";
+import type { CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
 import {
@@ -15,15 +15,16 @@ import {
 import { freshDb } from "../../../../../support/db.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
 import { seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../../_support.ts";
-import { GROUP_CHAR, MODEL, seedDigest, seedSegment } from "../_support.ts";
+import { GROUP_CHAR, seedDigest, seedSegment, testGenerationId } from "../_support.ts";
 
 const aria = castId<CharacterId>("character_aria");
 
 let db: Db;
+let owner: UserId;
 beforeEach(async () => {
   db = await freshDb();
   // FK parents for the digest `scopedCharacterId` (the synthetic group char + aria — inv 8, real CharacterIds).
-  const owner = await seedUser(db, castId<Handle>("owner"));
+  owner = await seedUser(db, castId<Handle>("owner"));
   await seedCharacter(db, owner, "group"); // id === GROUP_CHAR
   await seedCharacter(db, owner, "aria");
 });
@@ -85,19 +86,19 @@ describe("memory/persistence/queries", () => {
       blockIdx: 0,
       contentHash: "ego",
     });
-    const shared = await loadDigestHashes(db, chatId, GROUP_CHAR, MODEL);
+    const shared = await loadDigestHashes(db, chatId, GROUP_CHAR, testGenerationId(owner));
     expect(shared.get("0:0")).toBe("h00");
     expect(shared.get("0:1")).toBe("h01");
     expect(shared.size).toBe(2); // the aria-scoped digest is NOT in the shared bucket
-    expect((await loadDigestHashes(db, chatId, aria, MODEL)).get("0:0")).toBe("ego");
+    expect((await loadDigestHashes(db, chatId, aria, testGenerationId(owner))).get("0:0")).toBe("ego");
   });
 
   test("loadSegmentHashes maps `blockIdx:chunkIdx` → content hash (a block is a ROW SET, #172)", async () => {
     const chatId = await seedChat(db, "s");
-    await seedSegment(db, { chatId, blockIdx: 0, seqStart: 1, seqEnd: 16, contentHash: "s0" });
-    await seedSegment(db, { chatId, blockIdx: 1, chunkIdx: 0, seqStart: 17, seqEnd: 17, contentHash: "s1c0" });
-    await seedSegment(db, { chatId, blockIdx: 1, chunkIdx: 1, seqStart: 17, seqEnd: 17, contentHash: "s1c1" });
-    const map = await loadSegmentHashes(db, chatId, MODEL);
+    await seedSegment(db, { chatId, blockIdx: 0, seqStart: 1, seqEnd: 16, contentHash: "s0", ownerId: owner });
+    await seedSegment(db, { chatId, blockIdx: 1, chunkIdx: 0, seqStart: 17, seqEnd: 17, contentHash: "s1c0", ownerId: owner });
+    await seedSegment(db, { chatId, blockIdx: 1, chunkIdx: 1, seqStart: 17, seqEnd: 17, contentHash: "s1c1", ownerId: owner });
+    const map = await loadSegmentHashes(db, chatId, testGenerationId(owner));
     expect(map.get("0:0")).toBe("s0");
     // The two chunks of block 1 are DISTINCT gate entries — the per-chunk key is what lets a half-written
     // block self-heal (a missing chunk has no row, so nothing skips it).
@@ -107,8 +108,8 @@ describe("memory/persistence/queries", () => {
 
   test("loadSegmentSpans folds a chunked block to its WHOLE span (min start, max end)", async () => {
     const chatId = await seedChat(db, "spans");
-    await seedSegment(db, { chatId, blockIdx: 0, chunkIdx: 0, seqStart: 1, seqEnd: 4 });
-    await seedSegment(db, { chatId, blockIdx: 0, chunkIdx: 1, seqStart: 5, seqEnd: 8 });
+    await seedSegment(db, { chatId, blockIdx: 0, chunkIdx: 0, seqStart: 1, seqEnd: 4, ownerId: owner });
+    await seedSegment(db, { chatId, blockIdx: 0, chunkIdx: 1, seqStart: 5, seqEnd: 8, ownerId: owner });
     const spans = await loadSegmentSpans(db, chatId);
     // Reading one arbitrary chunk would shrink the witnessing window and hide real digests.
     expect(spans.get(0)).toEqual({ seqStart: 1, seqEnd: 8 });
@@ -159,8 +160,8 @@ describe("memory/persistence/queries", () => {
 
   test("loadSegmentSpans maps blockIdx → its seq-span (the recall witnessing filter's seq resolver)", async () => {
     const chatId = await seedChat(db, "ss");
-    await seedSegment(db, { chatId, blockIdx: 0, seqStart: 1, seqEnd: 8 });
-    await seedSegment(db, { chatId, blockIdx: 1, seqStart: 9, seqEnd: 16 });
+    await seedSegment(db, { chatId, blockIdx: 0, seqStart: 1, seqEnd: 8, ownerId: owner });
+    await seedSegment(db, { chatId, blockIdx: 1, seqStart: 9, seqEnd: 16, ownerId: owner });
     const spans = await loadSegmentSpans(db, chatId);
     expect(spans.get(0)).toEqual({ seqStart: 1, seqEnd: 8 });
     expect(spans.get(1)).toEqual({ seqStart: 9, seqEnd: 16 });
