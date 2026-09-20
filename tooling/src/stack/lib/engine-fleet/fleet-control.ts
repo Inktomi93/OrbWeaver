@@ -10,9 +10,10 @@
 // A marker FILE (not a server API) so the verbs work with the server down — the actual tenant workflow — and
 // both owners (the standalone verb + the in-server supervisor tick) see one truth.
 
-import { execFile } from "node:child_process";
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { budget } from "../../../_shared/load-budget.ts";
+import { spawnNiced } from "../../../_shared/proc.ts";
 import { engineBaseUrl } from "./engine-url.ts";
 import { VLLM_ENGINES } from "./engines.ts";
 import { fleetEnv as env } from "./env.ts";
@@ -99,17 +100,26 @@ export function decideWake(engine: VllmEngine, opts: { held: boolean; gpuCount: 
   if (opts.held) {
     return { ok: false, heldMarker: true, reason: "engines held — `pnpm engines wake` releases the manual hold (then re-checks VRAM headroom)" };
   }
-  const budget: WakeBudgetVerdict = decideWakeBudget(engine, engineVramNeed(engine, opts.gpuCount, opts.util), opts.gpus);
-  return budget.ok ? { ok: true } : { ok: false, heldMarker: false, reason: budget.message };
+  // Named `vram`, not `budget`: the module-level `budget()` is the LOAD budget (wall clocks) and this is the
+  // VRAM headroom verdict — two different budgets, and one shadowing the other reads as the same thing.
+  const vram: WakeBudgetVerdict = decideWakeBudget(engine, engineVramNeed(engine, opts.gpuCount, opts.util), opts.gpus);
+  return vram.ok ? { ok: true } : { ok: false, heldMarker: false, reason: vram.message };
 }
 
 // ── sleep / wake HTTP (loopback, works while the server is down) ──────────────────────────────────────────
 
 const SLEEP_LEVEL_1 = "1";
-// Full wake readiness poll bound — wake measures in seconds; 30s is a generous ceiling (B.6).
-export const WAKE_READY_TIMEOUT_MS = 30_000;
+// Full wake readiness poll bound — wake measures in seconds; 30s is a generous ceiling (B.6) on a QUIET
+// box, which is the only box a hand-typed ceiling is ever a statement about. Both clocks are DERIVED
+// through the one load budget (`_shared/load-budget.ts`, policy `tooling-clock-budget`): the fleet moved
+// into `tooling/` with the inference extraction and joined the population that judges wall clocks, and a
+// wake that times out under homelab contention is a false "engine did not wake", not a verdict. The
+// quiet-box value is byte-identical to the base.
+const WAKE_READY_TIMEOUT_BASE_MS = 30_000;
+export const WAKE_READY_TIMEOUT_MS = budget(WAKE_READY_TIMEOUT_BASE_MS);
 const WAKE_POLL_INTERVAL_MS = 500;
-const HTTP_TIMEOUT_MS = 5000;
+const HTTP_TIMEOUT_BASE_MS = 5000;
+const HTTP_TIMEOUT_MS = budget(HTTP_TIMEOUT_BASE_MS);
 
 /** POST /sleep?level=1 to an engine (mode default `abort` — the idle gate guarantees no in-flight requests).
  *  Level 1 = weights→CPU, KV discarded. Returns true on a 2xx. */
@@ -426,9 +436,10 @@ const SS_PID_RE = /pid=(\d+)/;
 /** The pid bound to an engine's loopback port (via `ss -tlnp`), or null. Used by `engines status` to show
  *  the APIServer pid per engine without importing the supervisor's process-local registry (works server-down). */
 export async function enginePortPid(engine: VllmEngine): Promise<number | null> {
-  const out = await new Promise<string>((resolve) => {
-    execFile("ss", ["-tlnp"], (err, stdout) => resolve(err ? "" : stdout));
-  });
+  // @orb-waive caught-failure-ownership(catch): a failed `ss` listing yields "" and the probe answers null (pid unknown) — a read-only local socket listing for a status display, no auth/credential/network. Ends if the pid this returns ever authorizes a signal.
+  const out = await spawnNiced("ss", ["-tlnp"])
+    .then((res) => (res.code === 0 ? res.stdout : ""))
+    .catch(() => "");
   const port = new URL(engineBaseUrl(engine)).port;
   for (const line of out.split("\n")) {
     if (!line.includes(`:${port} `)) {

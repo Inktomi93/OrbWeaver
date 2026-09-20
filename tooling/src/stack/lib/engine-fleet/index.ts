@@ -4,6 +4,7 @@
 // `baseUrl` + `features`; `pnpm engines` owns spawn, hold/stop and auto-sleep, `pnpm engines compose` the
 // container overlay. One barrel so every stack op + the compose generator import ONE path.
 
+export type { EngineGroupAdoption, EngineLaunchMarker } from "../../contract/engine-ownership.ts";
 export type { EngineArgvContext, EngineLaunchConfig, EngineLaunchEnvFloor, EngineLaunchOverride } from "./build-argv.ts";
 export { buildEngineArgv, engineCudaVisibleDevices, resolveEngineLaunchConfig } from "./build-argv.ts";
 export { engineBaseUrl } from "./engine-url.ts";
@@ -37,21 +38,23 @@ export {
   writeStopped,
 } from "./fleet-control.ts";
 export { countGpus, detectGpu } from "./gpu.ts";
-export type { EngineGroupAdoption, EngineLaunchMarker } from "./launch-ownership.ts";
-export type { EngineIdentityFile, EngineLaunchIdentity, EngineStopOutcome, ObservedEngineProcess } from "./process-identity.ts";
+export type { ObservedEngineProcess } from "./proc-observe.ts";
+export {
+  ENGINE_LAUNCH_MARKER_ENV,
+  engineGroupMembers,
+  mintEngineLaunchMarker,
+  parseProcIdentityStat,
+  readEngineProcessLaunchMarker,
+  readObservedEngineProcess,
+} from "./proc-observe.ts";
+export type { EngineIdentityFile, EngineLaunchIdentity, EngineStopOutcome } from "./process-identity.ts";
 export {
   adoptEngineGroup,
   captureEngineLaunchIdentity,
-  ENGINE_LAUNCH_MARKER_ENV,
   engineAdoptionText,
-  engineGroupMembers,
   engineIdentityFilePath,
-  mintEngineLaunchMarker,
   parseEngineIdentityFile,
-  parseProcIdentityStat,
   readEngineIdentityFile,
-  readEngineProcessLaunchMarker,
-  readObservedEngineProcess,
   serializeEngineIdentityFile,
   signalAdoptedEngineGroup,
   signalEngineLaunchIdentity,
