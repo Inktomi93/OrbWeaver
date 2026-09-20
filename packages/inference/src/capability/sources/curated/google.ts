@@ -18,6 +18,9 @@ export const googleRows = [
           min: 1024,
           max: 32_000,
         },
+        // Gemini's thought signatures are the same replay contract under a different name, and the OpenRouter
+        // provider's `reasoning_details` covers them (audit H4 — A1 is not Anthropic-only on that route).
+        replay: "signed",
       },
       tools: {
         parallel: true,

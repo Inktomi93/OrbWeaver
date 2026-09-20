@@ -43,6 +43,12 @@ export const openaiRows = [
       // omits temperature for gpt-5.4 (consistent with the upstream strip measured in H3). Stated and cited so
       // nobody re-derives the fail-closed floor as an accident.
       sampling: {},
+      // The REASONING ids only: via OpenRouter these route to the Responses API with
+      // `include: ["reasoning.encrypted_content"]` (measured, H3), which is the same signed-replay contract.
+      // The broader non-reasoning GPT row below deliberately does NOT carry it — there is nothing to replay.
+      reasoning: {
+        replay: "signed",
+      },
     },
     evidence: {
       tier: "curated",
