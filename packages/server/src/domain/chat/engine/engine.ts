@@ -17,7 +17,7 @@
 // they're injected as engine deps wired at the entry composition root.
 
 import type { AssembleContext, ChatReasoningPart, ChatWarning, DurableChatBusEvent, MessageView, TokenProvenance, TurnAbortReason } from "@orb/contracts/chat";
-import { buildIdentityNameContext, DEFAULT_MESSAGE_KIND, VARIANT_METADATA_REASONING_MS_KEY } from "@orb/contracts/chat";
+import { buildIdentityNameContext, DEFAULT_MESSAGE_KIND, INLINE_REPLY_ORIGIN, VARIANT_METADATA_REASONING_MS_KEY } from "@orb/contracts/chat";
 import type { NormalizedFinishReason } from "@orb/contracts/inference";
 
 import type { ContinuePostfix, UserIntent } from "@orb/contracts/preset";
@@ -38,7 +38,7 @@ import { batchMany, isConstraintViolation } from "@orb/db/kit";
 // `infra-below-domain` bans.
 import type { Resolved, ResolvedWarning } from "@orb/inference";
 import { generationOf, ProviderError } from "@orb/inference";
-import type { CharacterId, ChatId, ChatTurnId, MessageId, UserConnectionId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, ChatTurnId, MessageId, UserConnectionId, UserId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { estimateTokens } from "@orb/kit/tokens";
 import { getLog, recordTurnOutcome, withRequestSpan } from "#foundation/observability";
@@ -55,7 +55,17 @@ import type {
   WitnessInterval,
 } from "../contract/memory.ts";
 import { resolveToolRecurseLimit } from "../contract/metadata.ts";
-import type { GeneratedText, HistoryMacroNames, ResolvedMediaRef, TurnEconomics, TurnEngine, TurnOutcome, TurnPersist, TurnPrep } from "../contract/results.ts";
+import type {
+  GeneratedText,
+  HistoryMacroNames,
+  PlacedInlineImage,
+  ResolvedMediaRef,
+  TurnEconomics,
+  TurnEngine,
+  TurnOutcome,
+  TurnPersist,
+  TurnPrep,
+} from "../contract/results.ts";
 import { KIND_TO_INTENT } from "../contract/results.ts";
 import {
   appendVariantStatements,
@@ -63,6 +73,7 @@ import {
   combineReasoning,
   continueVariantStatements,
   insertCanonMessageStatements,
+  insertMessageAssetStatements,
 } from "../persistence/canon-write.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { holdsLock, refreshLock, releaseLock, tryAcquireLock } from "../persistence/lock.ts";
@@ -73,12 +84,14 @@ import {
   loadCanonReasoningParts,
   loadCanonStatRows,
   loadChatRow,
+  loadInlineReplyAssetIds,
   loadMaxMessageSeq,
   loadMessageView,
   loadSlotTarget,
   loadVariableDeltas,
 } from "../persistence/queries.ts";
 import { resolveGroupBucketCharacterId } from "../substrate/group-bucket.ts";
+import { spliceInlineReplyImages } from "../substrate/inline-reply-images.ts";
 import { projectRpgTranscript } from "../substrate/rpg-transcript.ts";
 import { foldChain, runtimeVariablesUpdateStatement } from "../substrate/runtime-variables.ts";
 import { assistantTurnDelta, canonMessageDelta, swipeVariantDelta } from "../substrate/stats-delta.ts";
@@ -465,6 +478,10 @@ function buildCommitPlan(args: {
 }): {
   statements: BatchStmt[];
   speakerCharacterId: CharacterId | null;
+  /** THE SLOT this generation lands in — freshly minted for `new-slot`, the target's for a swipe/continue.
+   *  §6.7's `message_assets` links are keyed on it, and on the seq-RETRY path the new-slot id is re-minted,
+   *  so the links must be built from THIS value and never from a cached one. */
+  messageId: MessageId;
   loadView: () => Promise<MessageView>;
 } {
   const { ctx, prep, persist, target, result, variant, now, seq } = args;
@@ -496,6 +513,7 @@ function buildCommitPlan(args: {
     return {
       statements: insertCanonMessageStatements(ctx.db, insertParams),
       speakerCharacterId: characterId,
+      messageId: insertParams.messageId,
       loadView: (): Promise<MessageView> => Promise.resolve(view),
     };
   }
@@ -512,6 +530,7 @@ function buildCommitPlan(args: {
         variant,
       }),
       speakerCharacterId: target.characterId,
+      messageId: target.messageId,
       loadView: (): Promise<MessageView> => readCommittedView(ctx, target.messageId),
     };
   }
@@ -531,6 +550,7 @@ function buildCommitPlan(args: {
       lastContinuationReasoning: result.reasoning,
     }),
     speakerCharacterId: target.characterId,
+    messageId: target.messageId,
     loadView: (): Promise<MessageView> => readCommittedView(ctx, target.messageId),
   };
 }
@@ -547,13 +567,20 @@ async function commitGeneration(args: {
   readonly nextSeq: number;
   readonly genStartedAt: number;
   readonly genFinishedAt: number;
+  /** §6.7 — the CAS ids of the pictures this generation emitted and the engine already stored, in the order
+   *  their spans were spliced into `result.content`. Each gets a `message_assets` link stamped
+   *  `inline-reply`, in THIS batch: the body's `asset:` spans are invisible to `asset-refs.ts`
+   *  (`db/schema/chat.ts` header), so the link is the ONLY reference GC can see and a missing one gets the
+   *  blob reaped out from under a live transcript. It is also what the wire-history fence reads to let the
+   *  model see its own picture next turn — one row, two jobs, both load-bearing. */
+  readonly inlineReplyAssetIds: readonly AssetId[];
 }): Promise<MessageView> {
   const { ctx, deps, prep, persist, target, result, nextSeq, genStartedAt, genFinishedAt } = args;
   const now = ctx.now();
   const variant = variantPayloadOf(prep, result, genStartedAt, genFinishedAt);
 
   const attempt = async (seq: number): Promise<MessageView> => {
-    const { statements, speakerCharacterId, loadView } = buildCommitPlan({
+    const { statements, speakerCharacterId, messageId, loadView } = buildCommitPlan({
       ctx,
       prep,
       persist,
@@ -563,6 +590,17 @@ async function commitGeneration(args: {
       now,
       seq,
     });
+    // The retaining links ride the SAME atomic batch as the slot/variant, keyed on THIS attempt's slot id so
+    // a seq-retry re-links against the re-minted row. A swipe links onto the SLOT (the table's grain), so a
+    // swiped-away variant's blob is retained with no rendered reference — wasteful and correct; §6.7 rules a
+    // variant-scoped GC pass a later fork.
+    statements.push(
+      ...insertMessageAssetStatements(ctx.db, {
+        rows: args.inlineReplyAssetIds.map((assetId) => ({ id: ctx.newMessageAssetId(), messageId, assetId })),
+        origin: INLINE_REPLY_ORIGIN,
+        now,
+      }),
+    );
 
     const deltas = await buildTurnStatsDeltas({
       ctx,
@@ -1415,6 +1453,53 @@ function captureTurnFault(prep: TurnPrep, err: unknown, reason: TurnAbortReason,
   }
 }
 
+/** §6.7 — ABSORB the pictures the model emitted inside its own reply: store each under the ROOM HOST, then
+ *  splice its `![alt](asset:<id>)` span into the body where it arrived. Returns the turn result the commit
+ *  persists plus the ids that commit must link.
+ *
+ *  IT RUNS BEFORE {@link assertGeneratedContent}, and that ordering is the feature: a picture-only reply
+ *  (bytes, no prose) is a real answer from an image-output model, and the spans ARE its body — the same rule
+ *  `verbs/post-narrator-message.ts` states for a media-only illustration post (D124: media-only counts). Run
+ *  after the assert, the turn would be refused as prose-less with the pictures already paid for.
+ *
+ *  SEQUENTIAL, not `Promise.all`: each store is a CAS write, the count is small (a picture or two per reply),
+ *  and arrival order is what the splice depends on.
+ *
+ *  A STORE THAT REFUSES LOSES THAT PICTURE ONLY. No span is emitted for it, so canon never names an asset
+ *  that does not exist, and the prose — which is the product — commits untouched. The user is told ONCE per
+ *  turn (`reply_image_failed`), never once per picture: one turn's author is owed one notice.
+ *
+ *  STORE-THEN-LINK, and a crash between them leaves an UNREFERENCED blob rather than a link pointing at
+ *  nothing — the deliberate direction, and the same one `imagery/substrate/generate-core.ts` states for its
+ *  own pair. The orphan is swept by the weekly `assets-gc` past its put→link grace; the inverse would be a
+ *  message whose body names an asset that was never written. */
+async function absorbInlineReplyImages(
+  ctx: ChatContext,
+  deps: EngineDeps,
+  prep: TurnPrep,
+  result: Awaited<ReturnType<typeof runTurnPipeline>>,
+): Promise<{ result: Awaited<ReturnType<typeof runTurnPipeline>>; assetIds: readonly AssetId[] }> {
+  if (result.replyImages.length === 0) {
+    return { result, assetIds: [] };
+  }
+  const placed: PlacedInlineImage[] = [];
+  let refused = 0;
+  for (const image of result.replyImages) {
+    // The HOST owns the bytes (§6.7): `GET /api/blob/:hash` is owner-gated (D21), so a picture stored under a
+    // member funder would render for that member alone in a shared room.
+    const stored = await ctx.storeInlineReplyImage(prep.runAsUserId, image);
+    if (stored === null) {
+      refused += 1;
+      continue;
+    }
+    placed.push({ assetId: stored.assetId, atChars: image.atChars ?? result.content.length });
+  }
+  if (refused > 0) {
+    await deps.emit({ type: "warning", chatId: prep.chatId, code: "reply_image_failed" });
+  }
+  return { result: { ...result, content: spliceInlineReplyImages(result.content, placed) }, assetIds: placed.map((p) => p.assetId) };
+}
+
 function assertGeneratedContent(result: Awaited<ReturnType<typeof runTurnPipeline>>, chatId: ChatId): void {
   if (result.content.trim().length > 0) {
     return;
@@ -1663,6 +1748,9 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
       resolveImageUrl: (ref): Promise<ResolvedMediaRef | null> => ctx.resolveImageUrl({ ownerId: prep.runAsUserId, chatId: prep.chatId, ref }),
       // §8.8: the `conversation` carry source, LAZY — the pipeline calls it only on that rung.
       loadReasoningParts: (): Promise<ReadonlyMap<MessageId, readonly ChatReasoningPart[]>> => loadCanonReasoningParts(ctx.db, prep.chatId),
+      // §6.7: the inline-reply origin set the CONVERT seam's media fence reads, LAZY and chat-scoped — the
+      // pipeline asks only when an assistant row actually carries an `asset:` span.
+      loadInlineReplyAssetIds: (): Promise<ReadonlyMap<MessageId, ReadonlySet<AssetId>>> => loadInlineReplyAssetIds(ctx.db, prep.chatId),
       assembleContext: speakerAssembleContext,
       canon: scopeCanon(canonAll, persist, target),
       historyMacroNames,
@@ -1723,10 +1811,14 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
     await deltaTail;
     const genFinishedAt = ctx.now();
     await emitCapabilityDropWarnings(deps.emit, prep.chatId, result);
+    // §6.7 — the model's own pictures become canon HERE: stored under the host, spliced into the body as
+    // `![alt](asset:<id>)` spans, and handed to the commit as the ids it must link `inline-reply`. It runs
+    // AHEAD of the prose-less refusal below because those spans ARE the body of a picture-only reply.
+    const absorbed = await absorbInlineReplyImages(ctx, deps, prep, result);
     // VER-1b — refuse a prose-less generation BEFORE any canon write (see `assertGeneratedContent`). Placed
     // after the drop warnings on purpose: those name WHY the prose is missing (tools dropped, image dropped),
     // and everything below this line is about a reply that does not exist.
-    assertGeneratedContent(result, prep.chatId);
+    assertGeneratedContent(absorbed.result, prep.chatId);
     // A display affordance only, distinct from turnCompleted (fires after persist below).
     if (result.reasoning !== null) {
       await deps.emit({ type: "reasoningStreamDone", chatId: prep.chatId });
@@ -1749,7 +1841,8 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
       prep,
       persist,
       target,
-      result,
+      result: absorbed.result,
+      inlineReplyAssetIds: absorbed.assetIds,
       nextSeq: maxSeq + 1,
       genStartedAt,
       genFinishedAt,
@@ -2017,6 +2110,9 @@ async function generateTextUnpersisted(ctx: ChatContext, prep: TurnPrep, onText:
       resolveImageUrl: (ref) => ctx.resolveImageUrl({ ownerId: prep.runAsUserId, chatId: prep.chatId, ref }),
       // §8.8: the `conversation` carry source, LAZY — the pipeline calls it only on that rung.
       loadReasoningParts: (): Promise<ReadonlyMap<MessageId, readonly ChatReasoningPart[]>> => loadCanonReasoningParts(ctx.db, prep.chatId),
+      // §6.7: the inline-reply origin set the CONVERT seam's media fence reads, LAZY and chat-scoped — the
+      // pipeline asks only when an assistant row actually carries an `asset:` span.
+      loadInlineReplyAssetIds: (): Promise<ReadonlyMap<MessageId, ReadonlySet<AssetId>>> => loadInlineReplyAssetIds(ctx.db, prep.chatId),
       assembleContext: prep.assembleContext,
       canon: canonAll,
       historyMacroNames,

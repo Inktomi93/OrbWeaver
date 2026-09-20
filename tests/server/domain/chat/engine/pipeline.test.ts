@@ -11,7 +11,7 @@ import { regexScriptSchema } from "@orb/contracts/regex";
 import type { Resolved } from "@orb/inference";
 import type { ContentImageRef, ContentSpan } from "@orb/kit/content";
 import { tokenizeContent } from "@orb/kit/content";
-import type { CharacterId, ChatId, ChatTurnId, MessageId, ModelId, PersonaId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, ChatTurnId, MessageId, ModelId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { executeRegexScripts } from "@orb/kit/regex";
 import { getLog } from "@orb/server/foundation/observability";
@@ -104,6 +104,9 @@ function baseArgs(over: Partial<PipelineArgs> = {}): {
     now: () => FROZEN_AT_MS,
     // Default = the native replace (no node:vm) — a RECEIVE-watchdog test overrides with a throwing fake.
     applyRegexReplace: (text, regex, replacer) => text.replace(regex, replacer),
+    // §6.7: the fence's origin set. Empty ⇒ CLOSED — no assistant-row asset is model-visible, which is what
+    // every test in this file assumes; the relaxation is proven at the substrate seam instead.
+    loadInlineReplyAssetIds: () => Promise.resolve(new Map<MessageId, ReadonlySet<AssetId>>()),
     runChatTurn: scriptedTurn([
       { kind: "text", text: "Hel" },
       { kind: "text", text: "lo" },
@@ -2559,8 +2562,16 @@ describe("runTurnPipeline — terminal tools (R1 fold)", () => {
 // embedded image is DISPLAY-ONLY and never rides the wire plane at all (see `WIRE_PART_HANDLERS`'s `image`
 // comment in `pipeline.ts`).
 describe("spanToWirePart — CONTENT_CLASS_POLICY binding", () => {
-  const wireEnv = { visionOk: true, videoOk: false, resolveImageUrl: async () => null, fullCards: new Set<ContentSpan>() };
-  const wireRow = { role: "assistant" as const, userAuthored: false };
+  // Empty inline-reply set = §6.7's fence CLOSED: no assistant-row asset rides. The relaxation's own
+  // both-directions proof lives in `tests/server/domain/chat/substrate/wire-history.test.ts`.
+  const wireEnv = {
+    visionOk: true,
+    videoOk: false,
+    resolveImageUrl: async () => null,
+    fullCards: new Set<ContentSpan>(),
+    inlineReply: new Map<MessageId, ReadonlySet<AssetId>>(),
+  };
+  const wireRow = { role: "assistant" as const, userAuthored: false, messageId: undefined };
 
   test('wire:"full" classes (text/hidden/unknown-directive) ride VERBATIM', async () => {
     expect(CONTENT_CLASS_POLICY.text.wire).toBe("full");

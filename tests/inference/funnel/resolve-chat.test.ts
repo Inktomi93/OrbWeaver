@@ -117,3 +117,31 @@ test("carry: the mandatory clamp's own warning is raised ONCE, not twice (one de
   );
   expect(knobs.warnings.filter((w) => w.code === "reasoning_mandatory_clamp")).toHaveLength(1);
 });
+
+// ── §6.7 `replyMedia` — the ask for pictures inside an ordinary chat turn ────────────────────────────────
+// The knob is the ONLY thing that puts `modalities` on the wire, so both arms matter: a model that produces
+// images must get the field, and a text-only model must get an HONEST DROP rather than a request it will
+// reject. Silent is the failure mode this pins against — the user set a switch and is owed an answer.
+
+const IMAGE_OUT: GenerationCapability["output"] = { maxTokens: { min: 1, max: 8192 }, modalities: ["text", "image"] };
+
+test("replyMedia: text+image on an image-output model resolves replyImages with NO warning", () => {
+  const knobs = resolveChat({ replyMedia: "text+image" } satisfies UserIntent, generation({ output: IMAGE_OUT }));
+  expect(knobs.replyImages).toBe(true);
+  expect(knobs.warnings.filter((w) => w.code === "sampling_knob_dropped")).toEqual([]);
+});
+
+test("replyMedia: text+image on a TEXT-ONLY model drops the knob BY NAME — the user is told which switch didn't apply", () => {
+  const knobs = resolveChat({ replyMedia: "text+image" } satisfies UserIntent, generation());
+  expect(knobs.replyImages).toBe(false);
+  // `knob` is what the client's copy mapper renders ("This model writes text only…"); a code-only warning
+  // would put an unnamed setting in front of a user who set several.
+  expect(knobs.warnings.filter((w) => w.code === "sampling_knob_dropped").map((w) => w.knob)).toEqual(["replyMedia"]);
+});
+
+test("replyMedia: the DEFAULT (absent / text) asks for nothing and warns about nothing, on either model", () => {
+  expect(resolveChat({} satisfies UserIntent, generation({ output: IMAGE_OUT })).replyImages).toBe(false);
+  const textOnly = resolveChat({ replyMedia: "text" } satisfies UserIntent, generation());
+  expect(textOnly.replyImages).toBe(false);
+  expect(textOnly.warnings.filter((w) => w.code === "sampling_knob_dropped")).toEqual([]);
+});

@@ -31,7 +31,7 @@ import type { ApplyStatsDelta, BumpStatsCanonVersion } from "@orb/contracts/stat
 import type { MaterializeBackgroundOp, ThemeBackground, ThemeOverride } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
-import type { ProviderErrorKind, Resolved, RoleClientsWithSignal, ToolCallInput, WireTool } from "@orb/inference";
+import type { GeneratedImage, ProviderErrorKind, Resolved, RoleClientsWithSignal, ToolCallInput, WireTool } from "@orb/inference";
 import type { ContentImageRef } from "@orb/kit/content";
 import type {
   AssetId,
@@ -265,6 +265,22 @@ type ResolveAssetHashOp = (assetId: AssetId | null) => Promise<string | null>;
 /** The send-attach trust boundary: given the acting principal's userId + claimed attachment ids, returns
  *  the subset they actually own. The verb rejects a send whose claimed ids aren't all returned. */
 type FilterOwnedAssetIdsOp = (userId: UserId, assetIds: readonly AssetId[]) => Promise<readonly AssetId[]>;
+
+/** §6.7 — store ONE picture a chat model emitted inside its own reply under `owner`'s CAS, and hand back the
+ *  id canon will spell. The provider's payload is either inline base64 or a URL ON THE PROVIDER'S OWN CDN,
+ *  which is a response-controlled address: the impl fetches it through the SSRF-safe egress belt and verifies
+ *  the BYTES with the magic-sniff belt exactly as `materializeBackground` does for a user-pasted URL (the
+ *  domain never imports infra, so both live at the composition root).
+ *
+ *  `ownerId` is the ROOM HOST, never the funder, and that is a deliberate consequence rather than an oversight:
+ *  `GET /api/blob/:hash` is owner-gated (D21), so a member-funded picture stored under that member would
+ *  render for them alone in a shared room. A member-funded generation's bytes landing in the host's CAS is
+ *  the stated, accepted cost (§6.7).
+ *
+ *  `null` = the picture could not be stored (egress refused, not an image, over the byte cap, or a payload
+ *  carrying neither bytes nor a URL). The turn's PROSE is the product, so a refusal drops that one picture
+ *  and never the reply — and no span is emitted, so canon never names an asset that does not exist. */
+type StoreInlineReplyImageOp = (ownerId: UserId, image: GeneratedImage) => Promise<{ readonly assetId: AssetId } | null>;
 
 /** A handle to a synthetic group-character identity row, declared structurally so chat takes no cross-domain edge. */
 interface GroupCharacterRef {
@@ -1328,6 +1344,8 @@ export interface ChatContext {
   readonly resolveImageUrl: ResolveImageUrlOp;
   readonly resolveAssetHash: ResolveAssetHashOp;
   readonly filterOwnedAssetIds: FilterOwnedAssetIdsOp;
+  /** §6.7's inline-reply picture store — see {@link StoreInlineReplyImageOp}. */
+  readonly storeInlineReplyImage: StoreInlineReplyImageOp;
   /** Materialize a user-pasted external background URL into an owned CAS asset (side-eye F-P0-2) — the
    *  `setChatBackground` verb runs it for a `kind:"external"` source so a persisted carried background is
    *  always same-origin-paintable (an external URL is CSP-blocked). Compose-built from infra + assets.store. */

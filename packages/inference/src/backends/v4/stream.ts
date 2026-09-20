@@ -153,8 +153,13 @@ function applyContentPart(acc: Accumulator, part: LanguageModelV4StreamPart, cal
   } else if (part.type === "file") {
     const image = generatedImageOf(part);
     if (image !== null) {
-      acc.images.push(image);
-      callbacks.onImage?.(image);
+      // STAMP THE ARRIVAL POINT (§6.7): the reply text accumulated SO FAR is where this picture sat in the
+      // model's own output, and it is the only moment that offset is knowable — the drain is the one place
+      // text and file parts are still interleaved in stream order. The chat reducer splices the span there
+      // and mints the alt from the prose in front of it.
+      const placed: GeneratedImage = { ...image, atChars: acc.reply.length };
+      acc.images.push(placed);
+      callbacks.onImage?.(placed);
     }
   }
 }

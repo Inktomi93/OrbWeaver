@@ -43,7 +43,7 @@ export interface ContentClassPolicy {
  *  EVERY other embedded image — a character card's greeting picture, a
  *  world-info illustration, narrator/`/imagine` media, a pasted link — is DISPLAY-ONLY: it renders in the
  *  transcript forever and rides as a short `[image: alt]` marker, never as a model-visible image part (the
- *  gate is `isUserAttachment` in the chat engine's pipeline); `hidden` hide/full — `<lie>`/`<ofilter>`: the reader never sees it, the model
+ *  gate is `ridesAsModelMedia` in `domain/chat/substrate/wire-history`); `hidden` hide/full — `<lie>`/`<ofilter>`: the reader never sees it, the model
  *  MUST remember its own lie/the true event; `card` show/stub — the reader keeps the rich card forever,
  *  the model gets `[card: title]` not the multi-KB blob (keep-last-X excepts the newest X); `choices`
  *  show/drop — buttons for the reader, but the CYOA fence is STRIPPED from the model wire on later turns

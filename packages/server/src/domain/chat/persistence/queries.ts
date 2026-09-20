@@ -24,6 +24,7 @@ import type {
 import {
   chatReasoningPartSchema,
   handoffOfferSchema,
+  INLINE_REPLY_ORIGIN,
   macroFreezeRecordSchema,
   NO_HANDOFF_OFFER,
   sentPromptSchema,
@@ -36,10 +37,10 @@ import type { ParticipantRole } from "@orb/contracts/identity";
 import type { UserMacroValues } from "@orb/contracts/preset";
 import { userIntentSchema, userMacroValuesSchema } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
-import { characters, chatEvents, chatInjections, chatParticipants, chatStreamEvents, chats, messages, messageVariants } from "@orb/db";
+import { characters, chatEvents, chatInjections, chatParticipants, chatStreamEvents, chats, messageAssets, messages, messageVariants } from "@orb/db";
 import { chatRecencyExpr, memberVisibleChatScope } from "@orb/db/kit";
 import { HIDDEN_TAGS } from "@orb/kit/content";
-import type { CharacterId, ChatEventId, ChatId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatEventId, ChatId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { SQL } from "drizzle-orm";
@@ -644,6 +645,38 @@ export async function loadCanonHistory(db: Db, chatId: ChatId): Promise<MessageV
     .where(eq(messages.chatId, chatId))
     .orderBy(asc(messages.seq));
   return rows.map(toMessageView);
+}
+
+/** THE §6.7 INLINE-REPLY ORIGIN SET — the (slot → asset ids) pairs whose `message_assets` link was stamped
+ *  `inline-reply`, i.e. pictures THIS model emitted inside its own turn. It is the ONE input that lets
+ *  `substrate/wire-history`'s media predicate relax for an assistant row without opening the row wholesale:
+ *  an `/imagine` illustration on the very same kind of row is stamped `illustration` and is absent here, so
+ *  it stays display-only (`verbs/post-narrator-message.ts` is that writer).
+ *
+ *  KEYED ON THE PAIR, never on the asset id alone. A chat-wide id set would let ANY assistant-delivered row
+ *  that merely spells `![x](asset:<id>)` ride that asset back — a world-info entry, an author's note, a card
+ *  greeting, a spliced injection — because those bodies are authored text and the id is guessable from the
+ *  transcript the author can already read. The link row is per (message, asset), so the predicate asks the
+ *  question the origin column actually answers: did THIS slot's own generation produce this picture?
+ *
+ *  Chat-scoped through the `messages` join (the tenancy belt: `message_assets` has no chat column of its
+ *  own), so an id from another room can never enter the map. */
+export async function loadInlineReplyAssetIds(db: Db, chatId: ChatId): Promise<ReadonlyMap<MessageId, ReadonlySet<AssetId>>> {
+  const rows = await db
+    .select({ messageId: messageAssets.messageId, assetId: messageAssets.assetId })
+    .from(messageAssets)
+    .innerJoin(messages, eq(messages.id, messageAssets.messageId))
+    .where(and(eq(messages.chatId, chatId), eq(messageAssets.origin, INLINE_REPLY_ORIGIN)));
+  const out = new Map<MessageId, Set<AssetId>>();
+  for (const row of rows) {
+    const existing = out.get(row.messageId);
+    if (existing === undefined) {
+      out.set(row.messageId, new Set([row.assetId]));
+    } else {
+      existing.add(row.assetId);
+    }
+  }
+  return out;
 }
 
 /** THE §8.8 `conversation` CARRY SOURCE: every canon slot's persisted replayable thinking, keyed by slot id.

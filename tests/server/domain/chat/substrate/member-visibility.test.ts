@@ -136,6 +136,26 @@ test("scrubDeltaEventForMember: a reasoning-channel delta passes through unchang
   expect(scrubDeltaEventForMember(reasoning)).toBe(reasoning);
 });
 
+test("scrubDeltaEventForMember: an UNMODELLED delta kind is WITHHELD — growing the union is a decision, not an accident", () => {
+  // THE FAIL-OPEN THAT WAS (fixed alongside §6.7's inline-reply work): the verdict used to be
+  // `if (kind !== "text") return reasoningHostOnly ? null : event`, so every FUTURE channel reached a
+  // non-host member by omission — through a line nobody would re-read while adding it. The dispatch is now
+  // total over `ChatDeltaEvent["kind"]` (a new arm fails `tsc`), and this is the RUNTIME half of the belt:
+  // the durable replay feeds this function `chat_events.payload` rows that are drizzle-`$type`-CAST and
+  // never parsed, so a row written by another build of this schema really can arrive as an unknown kind.
+  // @orb-waive no-test-fabrication(unknown): the point IS a kind the union does not admit — it is unbuildable in-type by construction. Ends when the durable replay parses its payload instead of casting it.
+  const unmodelled = { type: "delta", chatId, slotSeq: 1, delta: { chatId, kind: "image", url: "https://cas.test/a" } } as unknown as Extract<
+    ChatBusEvent,
+    { type: "delta" }
+  >;
+
+  // BOTH DIRECTIONS IN ONE RUN: the known-safe channel still reaches the member…
+  const stamper = createMemberDeltaStamper();
+  expect(scrubDeltaEventForMember(stamped(stamper, "He nods."))).not.toBeNull();
+  // …and the unmodelled one does not.
+  expect(scrubDeltaEventForMember(unmodelled)).toBeNull();
+});
+
 // ── The MID-SLOT COLD START — the leak that motivated moving the scrub state to the producer ──────────
 // A `<lie …/>` open spans many ticks. Any reader that begins mid-tag sees a continuation with no `<` in it
 // (`1234"/> …`), calls it all safe, and forwards the secret's tail. These pin that NO reader can be in that
