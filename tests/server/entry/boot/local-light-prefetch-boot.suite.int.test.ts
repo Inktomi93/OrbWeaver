@@ -104,28 +104,31 @@ test(
     expect(healthz.status).toBe(OK);
     expect(await healthz.json()).toMatchObject({ status: "ok" });
 
-    // (2) AND A REAL REQUEST IS SERVED, not merely the health probe: the tRPC query below answers 200 over
-    // HTTP while the download is pending. The single-user loopback owner fallback authorizes this admin
-    // query, which is also the surface the download reports its progress on.
-    // (3) AND THE WARM-UP IS VISIBLY IN FLIGHT on that same read. `rerank` is first (smallest weights). The
-    // post-bind schedule is deliberately detached, so the row appears a beat AFTER boot() resolves — which is
-    // itself the property under test, hence a poll rather than a same-tick read.
-    const rows = await pollUntil(async () => {
-      const res = await fetch(`${base}/api/trpc/admin.vllmEngines`);
-      if (res.status !== OK) {
+    // (2) AND A REAL REQUEST IS SERVED, not merely the health probe: the PUBLIC `health` tRPC query answers
+    // 200 over HTTP while the download is pending. `admin.vllmEngines` — this test's former combined probe
+    // (a real round trip AND the download's progress row in one read) — is DELETED with the vLLM fleet (§4).
+    // Its read-model half has no successor: `runtime.localLight.prefetch.status()` (the per-slot
+    // queued/downloading/ready state the file header describes) is a pure in-process read with no tRPC
+    // surface wired to it yet (`entry/boot/local-light-prefetch.ts` header — step 9's Connections-pane rows
+    // are unbuilt). So this half only proves the server answers real requests; (3) below proves the download
+    // is in flight through the surface that actually carries that fact today — the injected cache double.
+    const trpc = await pollUntil(async () => {
+      try {
+        const res = await fetch(`${base}/api/trpc/health`);
+        return res.status === OK ? res : null;
+      } catch {
         return null;
       }
-      const body = (await res.json()) as { result?: { data?: Record<string, { status: string; port: number; storePath: string }> } };
-      const data = body.result?.data ?? {};
-      return data["local-light:rerank"] === undefined ? null : data;
     });
-    expect(rows["local-light:rerank"]?.status).toBe("downloading");
-    // A slot behind the in-flight one is published as the plan, never as finished work.
-    expect(rows["local-light:embed"]?.status).toBe("queued");
-    // The in-process tier has no port — the row says so rather than inventing one — and its one real
-    // deployment fact is the weights cache this box was pointed at.
-    expect(rows["local-light:rerank"]?.port).toBe(0);
-    expect(rows["local-light:rerank"]?.storePath).toBe(CACHE_DIR);
+    expect(await trpc.json()).toMatchObject({ result: { data: { ok: true } } });
+
+    // (3) AND THE WARM-UP IS VISIBLY IN FLIGHT: `rerank` is first (smallest weights), and its `preload()`
+    // call is recorded by the composition-root-INJECTED cache double (`providerSeams.localLight.cache`) —
+    // the real production wiring calling the real seam, not an internals mock. The post-bind schedule is
+    // deliberately detached, so the record appears a beat AFTER boot() resolves — which is itself the
+    // property under test, hence a poll rather than a same-tick read. `held.promise` never settles, so by
+    // construction the slot is still mid-download at the moment this resolves.
+    await pollUntil(async () => (preloads.includes("rerank") ? true : null));
 
     // (4) ONE download in flight: the walk is sequential, so nothing raced ahead of the pending slot.
     expect(preloads).toEqual(["rerank"]);

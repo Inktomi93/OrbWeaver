@@ -22,14 +22,16 @@
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
 import "../../../support/composed-real.ts";
 import type { Principal } from "@orb/contracts/identity";
+import { providerIdSchema } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
-import { characters, chatParticipants } from "@orb/db";
-import type { ChatId, Handle, PersonaId, UserId } from "@orb/kit/ids";
+import { characters, chatParticipants, connectionBindings, userConnections } from "@orb/db";
+import type { ChatId, ConnectionBindingId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Services } from "@orb/server/transport/trpc";
 import { and, eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
+import { TEST_CONNECTION_ID, TEST_PROVIDER_ID } from "../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { seedCharacter, seedChat, seedParticipant, seedPersona, seedUser } from "../../domain/chat/_support.ts";
 
@@ -53,6 +55,26 @@ interface Room {
 async function seedRoom(db: Db, opts: { readonly hostActive: boolean; readonly anchor: "member" | "host" | null }): Promise<Room> {
   const host = await seedUser(db, castId<Handle>("mh_host"));
   const member = await seedUser(db, castId<Handle>("mh_member"));
+  // §8.4-3/§8.5b — `peekPrompt` resolves the connection "as their turn would run", through the REAL
+  // per-funder `roleClientsFor`-adjacent `connection.resolve({task:"chat"})` fold; NO default connection
+  // exists any more (F2/F16/D142 retired), so the host's preview needs a real `chat` binding to reach the
+  // persona-resolution assertions this suite actually pins.
+  await db.insert(userConnections).values({
+    id: TEST_CONNECTION_ID,
+    ownerId: host,
+    label: "multihuman test connection",
+    providerId: providerIdSchema.parse(TEST_PROVIDER_ID),
+    model: "test-model",
+  });
+  await db.insert(connectionBindings).values({
+    id: castId<ConnectionBindingId>("connection_binding_mh_host"),
+    actorKind: "user",
+    userId: host,
+    ruleId: null,
+    pluginId: null,
+    task: "chat",
+    connectionId: TEST_CONNECTION_ID,
+  });
   const hostPersona = await seedPersona(db, host, "Hostina", { description: "the host's own persona" });
   const memberPersona = await seedPersona(db, member, "Zara", { description: "a wandering cartographer" });
   const characterId = await seedCharacter(db, host, "mary");
