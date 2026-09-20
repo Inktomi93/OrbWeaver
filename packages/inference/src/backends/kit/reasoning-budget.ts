@@ -71,7 +71,14 @@ export function effortToOpenAIReasoning(req: ReasoningRequest): ChatCompletionsR
   return { effort: effortLevelToWire(req.effort) ?? DEFAULT_WIRE_EFFORT };
 }
 
-/** Build the OR responses `reasoning` block, enforcing the effort/maxTokens XOR. Off →
+/** @public future: the unbuilt `responses` transport. The `responses` api is a live `CHAT_APIS` member
+ *  (`@orb/contracts/inference`) that NO wire serves yet — `backends/openai-compat/chat.ts` answers it with a
+ *  typed refusal ("needs a responses transport"), which is why this builder has no call site. It is the
+ *  enforcement point Tier-3b-Providers.md §8 names for the OR-responses effort/max_tokens XOR, so it is kept
+ *  whole rather than re-derived when that transport lands. Head of this module's chain: every declaration
+ *  below it is reachable only through here.
+ *
+ *  Build the OR responses `reasoning` block, enforcing the effort/maxTokens XOR. Off →
  *  `{ effort:"none", enabled:false }`; an explicit budget → `{ maxTokens }` ONLY (budget is the more
  *  specific signal, and OR 400s on both fields); otherwise the effort dial (same shape as
  *  chat-completions). The return NEVER carries both `effort` and `maxTokens`. */

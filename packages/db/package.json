@@ -8,7 +8,8 @@
   },
   "exports": {
     ".": "./src/index.ts",
-    "./*": "./src/*/index.ts"
+    "./kit": "./src/kit/index.ts",
+    "./schema": "./src/schema/index.ts"
   },
   "imports": {
     "#*": "./src/*/index.ts"
