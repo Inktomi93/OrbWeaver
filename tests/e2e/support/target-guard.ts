@@ -1,10 +1,12 @@
 // The E2E TARGET GUARD — the harness refuses to seed/drive a stack it does not own.
 //
 // WHY (the incident, 2026-08-01): `global-setup.ts` seeds KNOWN state over the target's tRPC API, and its
-// `pinRouting` step is UNCONDITIONAL — it rewrites `routing.roleDefaults` for every role. The single-user
-// project used to sit on the DEV ports (8788/5173) with NO isolated `DATABASE_URL`, so a local `pnpm e2e` /
-// `pnpm e2e:smoke` (the `verify --push` browser lane) reused the operator's running dev stack and wrote the
-// seed into the LIVE dev DB — the owner's `roleDefaults` were found flipped to the seed's vLLM pins verbatim.
+// `pinChatConnection` step is UNCONDITIONAL — it authors a `user_connections` row and re-points the `chat`
+// (and `summarize`) Model roles at it. The single-user project used to sit on the DEV ports (8788/5173) with
+// NO isolated `DATABASE_URL`, so a local `pnpm e2e` / `pnpm e2e:smoke` (the `verify --push` browser lane)
+// reused the operator's running dev stack and wrote the seed into the LIVE dev DB — the owner's model routing
+// was found flipped to the seed's local-engine pins verbatim. (The step spelled that pin as a
+// `routing.roleDefaults` settings patch back then; the settings section is gone, the exposure is identical.)
 // A seed that cannot AIM at your data cannot corrupt it, so the fix is a target check, not a gentler seed.
 //
 // THE CHECK, in two arms (both must pass before a single seed write):
@@ -47,8 +49,9 @@ function devPortOf(target: Target): string | undefined {
 
 const HOW_TO_FIX =
   "The e2e harness only seeds stacks IT booted (they carry E2E_HARNESS=on and an isolated DATABASE_URL). " +
-  "If you really mean to drive the running dev stack — and accept that globalSetup will REWRITE its " +
-  `routing.roleDefaults and may author a character/chat in your real DB — re-run with ${ALLOW_DEV_TARGET_ENV}=1.`;
+  "If you really mean to drive the running dev stack — and accept that globalSetup will ADD a connection " +
+  "row, RE-POINT its chat + summarize Model roles at the local engine, and may author a character/chat in " +
+  `your real DB — re-run with ${ALLOW_DEV_TARGET_ENV}=1.`;
 
 /** The pure verdict: a refusal message, or `undefined` when the target is safe to seed. Only ever called for a
  *  REACHABLE target — an unreachable origin means that mode's webServer never booted, which is a skip. */

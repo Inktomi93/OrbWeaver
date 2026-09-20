@@ -8,7 +8,7 @@
 // THE DETERMINISTIC INPUT (the legit way, no product backdoor): reasoning is MODEL-GENERATED — there is no
 // product surface to plant it (`chat.editReasoning` is deliberately unwired; `reasoningHostOnly` lives only in
 // the chat room source). So the deterministic source is a SCRIPTED OpenAI-compatible PROVIDER
-// (support/fixture-provider.ts) the app talks to through its REAL `custom_openai` (BYO) backend — the same
+// (support/fixture-provider.ts) the app talks to through a REAL `custom-openai` (BYO endpoint) connection — the same
 // product path a user gets pointing orbweaver at any OpenAI-compatible endpoint. The fixture streams a known
 // `reasoning` channel (spelling the lie's truth) + a `<lie>` body span, so a real `chat.send` turn produces
 // both hidden-class channels deterministically. This is harness test infra (like a mock IdP), NOT a product
@@ -87,7 +87,7 @@ test("P3 reasoning host-only: a deception turn's reasoning channel is withheld f
   });
 
   try {
-    // HOST: point the chat role at the scripted fixture (the real custom_openai BYO path), a lite game with
+    // HOST: point the chat Model role at the scripted fixture (a real `custom-openai` connection), a lite game with
     // deception active, and seat the member.
     await configureCustomProvider(host, fixture.baseUrl, "fixture-model");
     const started = await host.mutation<StartedChat>("chat.startChat", { characterIds: [character.id] });
