@@ -30,6 +30,7 @@
 // `--checkpoint` coincidence is a coincidence. A pin asserting the two agree was CONSIDERED AND REFUSED:
 // it would assert a property that is already false for three of the four. What a MEANING change owes is
 // both surfaces — the flag spellings and grammar codes are what `cli-truth.suite.int.test.ts` holds.
+import { GOTO_TARGET_GRAMMAR } from "../../_shared/argv.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { armFlags } from "./arms/registry.ts";
 import { OPTIONAL_NAME_FLAGS, REQUIRED_VALUE_FLAGS } from "./flags-classes.ts";
@@ -85,7 +86,11 @@ const NON_ARM_FLAG_SUMMARIES: Readonly<Record<string, NonArmFlagMeta>> = {
   "--drop-files": { group: "Reach", summary: "`selector=path[,path]` — dispatch dragenter/dragover/drop with a real DataTransfer" },
   "--goto": {
     group: "Reach",
-    summary: "SPA navigation through `__orb.nav` — a section id, a dotted settings address group.sub.setting, or a modal slot",
+    // DERIVED, NEVER RE-SPELLED (#2482): the one home is `_shared/argv.ts`'s GOTO_TARGET_GRAMMAR, the same
+    // string `parseGotoTarget` refuses with. The hand-spelled copy this replaced promised "a dotted settings
+    // address group.sub.setting", a form the parser has never accepted (and whose `settings` word retired at
+    // #2447), and a lane that followed it lost the time to the section arm's unrelated refusal.
+    summary: `SPA navigation through \`__orb.nav\` — ${GOTO_TARGET_GRAMMAR}`,
   },
   "--open-chat": { group: "Reach", summary: "open a room by id, exact title, latest, or current" },
   "--open-character": { group: "Reach", summary: "Characters section + select by id or name" },

@@ -228,11 +228,23 @@ loss of the theme verdict when its stage edge was cut, and malformed-token refus
 not final integration acceptance; the dated evidence and code/data limitation are in
 [the theme-freshness disposition](../reviews/gate-runtime/theme-freshness-doc-disposition-2026-09-13.md).
 
-The only sanctioned non-derivable cardinality guard is `depcruise-grant-liveness.BACKREF_BUDGET = 16`. It covers the
-sixteen `$1` backreference dependency-cruiser rules whose bound member set exists only at cruise time and cannot be
+The only sanctioned non-derivable cardinality guard is `depcruise-grant-liveness-health.BACKREF_BUDGET`. It covers the
+`$1` backreference dependency-cruiser rules whose bound member set exists only at cruise time and cannot be
 derived by a static reader. This named exception guards silent growth of an unreviewable population; it is not a
 generic ratchet license. A new numeric exception requires an owner ruling and proof that no source-derived equality is
 possible.
+
+THE RULING SURVIVES; TWO OF ITS INPUTS CHANGED, and both are recorded here because a reader who finds a different
+number owes the reason rather than an edit. (1) The VALUE was `16` and is `14` since the 2026-09-20 `@orb/inference`
+extraction, which deleted `vllm-surface-isolation`'s `surfaces/$1` with its rule and collapsed
+`infra-strategy-isolation`'s paired captures onto a single `backends/$1/` — the shrink direction the guard's own
+message names, committed rather than left as a budget nobody trusts. This paragraph therefore names no count: the
+constant is the number's one home, and a prose copy of a machine's answer rots the moment the answer changes (§7).
+(2) The HOME moved with the arm at #2485. The budget lived in the `reviewed-grant` policy
+`depcruise-grant-liveness`, where every finding owes a `(subject, operation)` a central row could name; this one has
+none and must not acquire one, since a grantable budget is a central door to move the number without touching it —
+the precise failure this exception exists to prevent. Reporting it therefore requires `hard` authority, and one
+policy carries one authority, so the arm is now the sibling `depcruise-grant-liveness-health` under the same family.
 
 ## 6. Proof law
 

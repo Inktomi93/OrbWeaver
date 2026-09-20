@@ -55,7 +55,7 @@ argv is wrong; nothing ran; the `ARG ERROR` line names the fix).
 | `--fill [@N] <value>` | selector=value — type into a field; the selector may be an engine form |
 | `--focus [@N] <value>` | the shell's zen/focus-mode toggle |
 | `--force-click [@N] <value>` | hover-then-forced pointer click for hover-revealed/overlaid controls |
-| `--goto [@N] <value>` | SPA navigation through `__orb.nav` — a section id, a dotted settings address group.sub.setting, or a modal slot |
+| `--goto [@N] <value>` | SPA navigation through `__orb.nav` — a bare rail section id, `config:<group>[.<sub>[.<setting>]]`, or `modal:<slot>` |
 | `--hover [@N] <value>` | synthetic hover (loses :hover on any list re-render) |
 | `--idle` | bounded network-idle settle instead of the default fixed mount settle |
 | `--key [@N] <value>` | Key or selector=Key — the bare form walks focus without re-focusing; the selector form focuses then presses |

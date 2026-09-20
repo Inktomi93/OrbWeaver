@@ -12,6 +12,7 @@ import { vi } from "vitest";
 // browser driver at collection. Measured on this box at loadavg ~30 (node, type-stripped, 5 runs each):
 // the barrel 0.86-2.05s vs the three own modules 0.73-0.76s. Both doors have a module of their own, so
 // the cheap seam is simply naming them (`ops/flags-handlers.ts` was already named this way below).
+import { parseGotoTarget } from "../../../../tooling/src/_shared/argv.ts";
 import { snapFlagDescriptors } from "../../../../tooling/src/snap/ops/flag-grammar.ts";
 import { FLAG_HANDLERS } from "../../../../tooling/src/snap/ops/flags-handlers.ts";
 import { parseSnapArgs } from "../../../../tooling/src/snap/ops/parse.ts";
@@ -125,6 +126,27 @@ test("every accepted public Snap flag derives exactly one grammar descriptor, in
     expect(liveHelp.stdout, flag).toMatch(new RegExp(`${flag}(?![a-z0-9-])`, "u"));
   }
   expect(liveHelp.stdout).toContain("developer fixture stack");
+});
+
+test("--goto's help summary names only target forms the parser accepts, and the refused form is gone (#2482)", () => {
+  // AN INSTRUMENT MAY NOT PRINT A CAPABILITY IT DOES NOT HAVE. The summary is the text `pnpm snap --help`
+  // renders and the generated `.claude/skills/snap-driving/reference/flags.md` row copies, and it promised
+  // "a dotted settings address group.sub.setting" — a bare dotted form `parseGotoTarget` has never accepted,
+  // carrying the `settings` word that retired at #2447. The forms are extracted from the summary's own code
+  // spans and each is PARSED, so the help cannot drift from the grammar again without this going red.
+  const goto = snapFlagDescriptors().find((row) => row.flag === "--goto");
+  expect(goto, "--goto has no descriptor row").toBeDefined();
+  const summary = goto?.summary ?? "";
+  const forms = [...summary.matchAll(/`(?<span>[^`]+)`/gu)].map((m) => m.groups?.["span"] ?? "").filter((span) => !span.startsWith("__orb"));
+  // A ZERO HERE IS "I COULD NOT MEASURE", never "nothing to check": a summary that spells its grammar as
+  // bare prose (exactly how the lying one was written) extracts no forms, and that must fail, not pass.
+  expect(forms.length, `no code-spanned target form in --goto's summary: ${summary}`).toBeGreaterThanOrEqual(2);
+  for (const form of forms) {
+    expect(() => parseGotoTarget(form), form).not.toThrow();
+  }
+  // The retired promise, and the refusal that replaced the section arm's misleading answer.
+  expect(summary).not.toContain("group.sub.setting");
+  expect(() => parseGotoTarget("connections.connections.add-connection")).toThrow("dotted address with no namespace");
 });
 
 // ── the design-audit arm's grammar (#1315) ───────────────────────────────────────────────────────────

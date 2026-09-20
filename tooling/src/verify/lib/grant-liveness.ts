@@ -146,8 +146,10 @@ export interface PatternLivenessMessages {
   readonly staleRatified: string;
   /** A RATIFIED row whose cited producer no longer resolves. */
   readonly deadCite: string;
-  /** The irreducible BUDGET moved. `{actual}`/`{budget}` are substituted. */
-  readonly budgetMoved: string;
+  // `budgetMoved` LEFT THIS SHAPE WITH THE ARM (#2485). It was never read by `patternLivenessFindings` —
+  // `irreducibleBudgetFindings` below takes its message as an argument — so the key survived only as a
+  // required blank in three callers, two of which never had a budget at all. The one policy that does owns
+  // its own message: `gates/depcruise-grant-liveness-health.ts`.
 }
 
 /** The two member sources a pattern may live against. Both are derived from TRACKED files only, so the
