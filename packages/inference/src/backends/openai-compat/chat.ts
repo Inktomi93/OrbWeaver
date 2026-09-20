@@ -33,11 +33,11 @@ import { NO_PROVIDER_SECRETS, resolvedScrubSet } from "../kit/sanitize.ts";
 import { functionTools, jsonResponseFormat, samplingExtras, standardSampling, toolChoiceOf, wireEffortOf } from "../v4/options.ts";
 import type { WirePlan } from "../v4/prompt.ts";
 import { buildWirePlan, withMessageOptions } from "../v4/prompt.ts";
-import { measuredCostOf, toChatResult } from "../v4/result.ts";
+import { appliedSampling, DROPPED_SAMPLING_CODES, measuredCostOf, sdkWarnings, toChatResult } from "../v4/result.ts";
 import type { StreamDrain } from "../v4/stream.ts";
 import { drainStream } from "../v4/stream.ts";
 import type { ModelCall, TransportDeps } from "./model.ts";
-import { languageModelFor } from "./model.ts";
+import { languageModelFor, providerOptionsKey } from "./model.ts";
 
 const MANDATORY_REASONING_RE = /reasoning is mandatory/iu;
 const CONTEXT_COMPRESSION_PLUGIN = "context-compression";
@@ -218,12 +218,16 @@ function openRouterExtras(
 
 /** The openrouter transport: reasoning nested under `providerOptions.openrouter`, routing + the fallback
  *  chain off `extras`, the managed context-compression plugin, `parallel_tool_calls` beside a tools request,
- *  the hosted-common schema subset, `strict` caller-set only (STRICTFMT). Verbosity has no slot. */
+ *  the hosted-common schema subset, `strict` caller-set only (STRICTFMT).
+ *
+ *  VERBOSITY RIDES `extraBody` (§H1(b)). The OR provider models no verbosity option, but OR FORWARDS an
+ *  unmodelled body field to the upstream — MEASURED 2026-09-19 via `debug.echo_upstream_body`:
+ *  `openai/gpt-5.4` with `extraBody: { verbosity: "low" }` produced an upstream Responses body carrying
+ *  `text: { verbosity: "low" }`. The funnel has already gated it (`knobs.verbosity` is present only when the
+ *  resolved capability advertises the level), so the old unconditional `verbosity_dropped` was a lie on
+ *  every OR turn. */
 function openRouterShape(req: OpenAiCompatChatRequest, knobs: ResolvedChatKnobs, warnings: ResolvedWarning[], includeReasoning: boolean): TurnShape {
   const { connection } = req;
-  if (knobs.verbosity !== undefined) {
-    warnings.push({ code: "verbosity_dropped", message: "verbosity ignored: the openrouter chat-completions wire has no verbosity field" });
-  }
   const { routing, models } = openRouterExtras(connection, warnings);
   const parallel = req.params.advanced?.parallelToolCalls;
   const compression =
@@ -248,6 +252,7 @@ function openRouterShape(req: OpenAiCompatChatRequest, knobs: ResolvedChatKnobs,
     },
     extraBody: {
       ...samplingExtras(knobs.sampling),
+      ...(knobs.verbosity !== undefined ? { verbosity: knobs.verbosity } : {}),
       ...(routing !== undefined ? { provider: routing } : {}),
       plugins: [compression],
     },
@@ -337,10 +342,8 @@ function emitReceipts(args: {
   log.sampling({
     turnId: knobs.turnId,
     requested: { ...req.params },
-    applied: { ...knobs.sampling, ...(knobs.verbosity !== undefined ? { verbosity: knobs.verbosity } : {}) },
-    dropped: warnings
-      .filter((w) => w.code === "sampling_knob_dropped" || w.code === "verbosity_dropped")
-      .map((w) => ({ knob: w.knob ?? w.code, reason: w.message })),
+    applied: { ...appliedSampling(knobs.sampling, warnings), ...(knobs.verbosity !== undefined ? { verbosity: knobs.verbosity } : {}) },
+    dropped: warnings.filter((w) => DROPPED_SAMPLING_CODES.has(w.code)).map((w) => ({ knob: w.knob ?? w.code, reason: w.message })),
   });
 }
 
@@ -410,7 +413,7 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
         const shape =
           dialect === "openrouter"
             ? openRouterShape(req, knobs, warnings, includeReasoning)
-            : openAiCompatibleShape(req, knobs, warnings, connection.providerId);
+            : openAiCompatibleShape(req, knobs, warnings, providerOptionsKey(connection.providerId));
         const call: ModelCall = {
           connection,
           deps: deps.transport,
@@ -441,6 +444,8 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
     );
 
   const drain = await drainWithReplay(run, dialect === "openrouter" && !knobs.reasoning.enabled);
+  // The SDK's OWN drops (§A3), folded into the same array as the funnel's before the result is built.
+  warnings.push(...sdkWarnings(drain.warnings));
   const turn = toChatResult(drain, {
     model: connection.model,
     providerId: connection.providerId,

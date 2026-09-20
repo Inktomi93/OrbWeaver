@@ -10,13 +10,13 @@
 //
 // Pure: no db, no clock, no lock. `emitCapabilityDropWarnings` is the engine's own exported seam.
 
-import type { DurableChatBusEvent } from "@orb/contracts/chat";
+import type { DurableChatBusEvent, ProviderAdjustmentKind } from "@orb/contracts/chat";
 import { PROVIDER_ADJUSTMENT_KINDS } from "@orb/contracts/chat";
+import type { ResolvedWarning, WarningCode } from "@orb/inference";
+import { WARNING_CODES } from "@orb/inference";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { emitCapabilityDropWarnings } from "../../../../../packages/server/src/domain/chat/engine/engine.ts";
-import type { ResolvedWarning, WarningCode } from "@orb/inference";
-import { WARNING_CODES } from "@orb/inference";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const CHAT = castId<ChatId>("chat_warnmap");
@@ -47,18 +47,46 @@ async function busEventsFor(...runnerWarnings: readonly ResolvedWarning[]): Prom
 /** The two codes chat spells identically in its OWN vocabulary — they pass through as themselves. */
 const PASSTHROUGH: readonly WarningCode[] = ["custom_parameters_ignored", "image_edit_dropped"];
 
+/** The ONE infra code deliberately kept off the turn stream (inference program §5.3a): a connection's
+ *  `declared` block overriding a dated measurement renders as a badge on the connection ROW, because the
+ *  user asked for that override — so `emitCapabilityDropWarnings` filters it BEFORE the fold. The census
+ *  below excludes it by name rather than expecting an event that the ruling says must not exist; it is still
+ *  translated (`toChatWarning` lists it) so the `assertNever` tail stays total. */
+const FILTERED_BEFORE_THE_BUS: readonly WarningCode[] = ["declared_overrides_measured"];
+
 test("EVERY infra warning code reaches the bus — none is silently filtered (#1440)", async () => {
-  for (const code of WARNING_CODES) {
+  for (const code of WARNING_CODES.filter((c) => !FILTERED_BEFORE_THE_BUS.includes(c))) {
     const events = await busEventsFor({ code, message: `${code} happened` });
     expect(events, `infra code ${code} produced no bus warning`).toHaveLength(1);
   }
+  for (const code of FILTERED_BEFORE_THE_BUS) {
+    expect(await busEventsFor({ code, message: `${code} happened` }), `${code} must stay off the turn stream`).toHaveLength(0);
+  }
 });
 
-test("the ten degradation classes ride the settings_adjusted carrier, each naming its own class", async () => {
-  for (const kind of PROVIDER_ADJUSTMENT_KINDS) {
+/** The chat kinds with NO identically-spelled infra twin — raised by TRANSLATION rather than by a match.
+ *  `provider_compatibility_mode` is the SDK's compatibility class (infra `sdk_compatibility`): chat does not
+ *  spell "sdk" in its own vocabulary, so the match rule cannot cover it and the mapping is pinned below. */
+type MatchedAdjustmentKind = Exclude<ProviderAdjustmentKind, "provider_compatibility_mode">;
+
+function isMatched(kind: ProviderAdjustmentKind): kind is MatchedAdjustmentKind {
+  return kind !== "provider_compatibility_mode";
+}
+
+test("the matched degradation classes ride the settings_adjusted carrier, each naming its own class", async () => {
+  for (const kind of PROVIDER_ADJUSTMENT_KINDS.filter(isMatched)) {
     const [event] = await busEventsFor({ code: kind, message: `${kind} happened` });
     expect(event).toMatchObject({ type: "warning", chatId: CHAT, code: "settings_adjusted", adjustment: kind });
   }
+});
+
+test("the SDK's own second gate translates onto the chat vocabulary rather than matching it", async () => {
+  const [dropped] = await busEventsFor({ code: "sdk_unsupported_setting", knob: "temperature", message: "the provider refused temperature" });
+  expect(dropped).toMatchObject({ type: "warning", chatId: CHAT, code: "settings_adjusted", adjustment: "sampling_knob_dropped", knob: "temperature" });
+  const [compat] = await busEventsFor({ code: "sdk_compatibility", message: "ran in compatibility mode" });
+  expect(compat).toMatchObject({ type: "warning", chatId: CHAT, code: "settings_adjusted", adjustment: "provider_compatibility_mode" });
+  const [tool] = await busEventsFor({ code: "sdk_unsupported_tool", message: "the provider refused a tool" });
+  expect(tool).toMatchObject({ type: "warning", chatId: CHAT, code: "tools_unsupported" });
 });
 
 test("the two codes chat spells itself pass through under their OWN code, never the carrier", async () => {

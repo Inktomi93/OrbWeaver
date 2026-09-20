@@ -5,7 +5,11 @@
 //   3. Error bodies are read capped at 64 KiB with `reader.cancel()` past it, then handed to the SDK as a
 //      re-framed `Response` so its own failed-response handler classifies the (scrubbed) text.
 //   4. Wire-capture bodies are SECRET-SCRUBBED BY VALUE before the ring (`transport.includeBody` can carry
-//      key-in-body auth).
+//      key-in-body auth), and the entry is emitted AFTER the attempt so the RESPONSE HEADERS ride with it
+//      (§D1: Anthropic's `request-id` + rate-limit budget, OpenRouter's `x-openrouter-*` routing trail).
+//      Here rather than at the `doStream` result because the bytes this file holds are the FINAL ones —
+//      after `transformRequestBody` AND after our own `shapeBody` — while the SDK result's `request.body`
+//      is an earlier copy that predates the shaping.
 //   • `transport.responseMap` + `features.reasoningKeys`: each SSE chunk / the JSON body is reshaped through
 //     the user's dot paths BEFORE the SDK parses it (today's `reshapeChunk`), so a non-OpenAI reply still
 //     lands on the SDK's chunk schema. Only when a map or key list is set — the untouched stream passes
@@ -279,27 +283,65 @@ function scrubCapturedBody(body: Record<string, unknown>, secrets: ProviderScrub
   return isRecord(scrubbed) ? scrubbed : {};
 }
 
-function outbound(args: WrapFetchArgs, init: RequestInit | undefined): RequestInit {
+/** The shaped outbound init, plus the scrubbed body the capture will record once the response is in hand. */
+interface Outbound {
+  readonly init: RequestInit;
+  readonly capturedBody: Record<string, unknown> | null;
+}
+
+function outbound(args: WrapFetchArgs, init: RequestInit | undefined): Outbound {
   const parsed = parseBody(init);
   if (parsed === null) {
-    return { ...init, redirect: "manual" };
+    return { init: { ...init, redirect: "manual" }, capturedBody: null };
   }
   const shaped = args.shapeBody === undefined ? parsed : args.shapeBody(parsed);
-  args.capture?.sink({
+  return {
+    init: { ...init, ...(shaped === parsed ? {} : { body: JSON.stringify(shaped) }), redirect: "manual" },
+    capturedBody: args.capture === undefined ? null : scrubCapturedBody(shaped, args.secrets),
+  };
+}
+
+/** Response headers → a plain record, secret-scrubbed by value like the body (a header is not a place we
+ *  expect a credential, but the sink's contract is "scrubbed", and a contract with an exception is not one). */
+function capturedHeaders(headers: Headers, secrets: ProviderScrubSet): Record<string, string> {
+  const out: Record<string, string> = {};
+  headers.forEach((value, key) => {
+    out[key] = redactSecretsFromText(value, secrets);
+  });
+  return out;
+}
+
+/** Record ONE send. Emitted AFTER the attempt rather than before it, so the request and what came back ride
+ *  the same ring entry (§D1) — a request row whose response is a separate row cannot be correlated, and the
+ *  bytes here are the FINAL ones (post-`transformRequestBody`, post-`shapeBody`), which is strictly more
+ *  faithful than the SDK result's own `request.body`. A failed attempt still records, with no headers. */
+function emitCapture(args: WrapFetchArgs, body: Record<string, unknown> | null, headers: Headers | undefined): void {
+  if (args.capture === undefined || body === null) {
+    return;
+  }
+  args.capture.sink({
     chatId: args.capture.chatId,
     api: args.capture.api,
     wire: args.capture.wire,
     providerId: args.capture.providerId,
     model: args.capture.model,
-    body: scrubCapturedBody(shaped, args.secrets),
+    body,
+    ...(headers !== undefined ? { responseHeaders: capturedHeaders(headers, args.secrets) } : {}),
   });
-  return { ...init, ...(shaped === parsed ? {} : { body: JSON.stringify(shaped) }), redirect: "manual" };
 }
 
 /** The wrapped `fetch`: host-pinned, error-body-capped, response-reshaped, wire-captured. */
 export function wrapFetch(args: WrapFetchArgs): typeof fetch {
   return async (input, init): Promise<Response> => {
-    const res = await args.fetch(input, outbound(args, init));
+    const prepared = outbound(args, init);
+    let res: Response;
+    try {
+      res = await args.fetch(input, prepared.init);
+    } catch (err) {
+      emitCapture(args, prepared.capturedBody, undefined);
+      throw err;
+    }
+    emitCapture(args, prepared.capturedBody, res.headers);
     if (isRedirect(res)) {
       throw new ProviderError({
         kind: "invalid",

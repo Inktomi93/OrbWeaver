@@ -2153,6 +2153,10 @@ function toChatWarning(warning: ResolvedWarning): ChatWarning {
       return { code: "image_edit_dropped" };
     case "smart_arbitration_degraded":
       return { code: "smart_arbitration_degraded" };
+    // The SDK refused a TOOL (an unknown provider-defined tool, or `strict` on a provider with no strict
+    // mode): the turn ran tool-less, which is exactly what the existing chat code already means.
+    case "sdk_unsupported_tool":
+      return { code: "tools_unsupported" };
     case "background_task_degraded":
       return { code: "background_task_degraded" };
     // Filtered upstream (§5.3a — a connection-row badge, never the turn stream); listed so the tail stays total.
@@ -2175,6 +2179,16 @@ function toChatWarning(warning: ResolvedWarning): ChatWarning {
       // them, and re-deriving them in the domain would be inventing a fact. `undefined` is the honest absent
       // (optional on both sides; JSON drops it on the durable log).
       return { adjustment: code, appliedEffort: warning.appliedEffort, appliedBudget: warning.appliedBudget, code: "settings_adjusted", knob: warning.knob };
+    // The SDK's own second gate (#A3), setting half: the provider refused a knob AFTER our funnel resolved
+    // it. The ONE pair of arms where the two spellings deliberately differ — the infra code records WHO
+    // dropped it (the SDK's gate, not our capability fold), while the user sentence is identical to the
+    // funnel's own drop, so it carries the chat vocabulary's existing class with `knob` riding through.
+    case "sdk_unsupported_setting":
+      return { adjustment: "sampling_knob_dropped", code: "settings_adjusted", knob: warning.knob };
+    // The compatibility half: the provider SUBSTITUTED a value rather than dropping one, which is a
+    // different sentence ("it ran, but not as asked") and therefore its own chat kind.
+    case "sdk_compatibility":
+      return { adjustment: "provider_compatibility_mode", code: "settings_adjusted", knob: warning.knob };
     default:
       return assertNeverWarningCode(code);
   }

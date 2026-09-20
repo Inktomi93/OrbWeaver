@@ -117,7 +117,9 @@ function settingsAdjustedNotice(warning: ChatSettingsAdjustedWarning): NotifyNot
       const knob = warning.knob;
       return {
         description: "This model rejects that setting together with another one you set, so the other one was kept.",
-        title: knob === undefined ? "A generation setting wasn't used for this reply" : `${KNOB_LABELS[knob]} conflicted with another setting`,
+        // The knob-less title must differ from `sampling_knob_dropped`'s (the distinct-title pin forbids the
+        // collapse, and "wasn't used" hides that the cause was a CONFLICT the user can resolve).
+        title: knob === undefined ? "Two generation settings conflicted" : `${KNOB_LABELS[knob]} conflicted with another setting`,
       };
     }
     case "effort_dropped":
@@ -164,6 +166,16 @@ function settingsAdjustedNotice(warning: ChatSettingsAdjustedWarning): NotifyNot
       return {
         description: "You gave the model text to continue, which it can't do while reasoning — so it continued your text instead.",
         title: "Reasoning was skipped for this reply",
+      };
+    // NOT a "wasn't used" sentence: the setting DID apply, with the provider's own value in place of the one
+    // this model spells differently. Naming the knob when it is known keeps the notice actionable.
+    case "provider_compatibility_mode":
+      return {
+        description:
+          warning.knob === undefined
+            ? "This model spells one of your settings differently, so the provider used its own value for this reply."
+            : `This model spells ${KNOB_LABELS[warning.knob]} differently, so the provider used its own value for this reply.`,
+        title: "The provider adjusted a setting for this model",
       };
     default:
       return assertNeverAdjustment(kind);

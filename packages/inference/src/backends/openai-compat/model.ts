@@ -91,6 +91,15 @@ function fetchArgs(call: ModelCall, shapeBody: WrapFetchArgs["shapeBody"]): Wrap
   };
 }
 
+/** The `providerOptions` key the openai-compatible SDK reads for a provider named `name` (§E2). The SDK
+ *  accepts BOTH the raw name and its camel form, but pushes a `deprecated` warning on EVERY call when the
+ *  raw form differs and is the one present (`to-camel-case.ts` + `warnIfDeprecatedProviderOptionsKey`, dist
+ *  `index.js:25-45`) — and our provider ids are hyphenated (`custom-openai`, `lm-studio`). The camel form is
+ *  the non-deprecated spelling, so it is the only one we write. */
+export function providerOptionsKey(providerId: string): string {
+  return providerId.replace(/[_-]([a-z])/gu, (_match, letter: string) => letter.toUpperCase());
+}
+
 /** The row's base URL, which the resolve guarantees for an HTTP wire; a `null` here is an operator error. */
 function baseUrlOf(call: ModelCall): string {
   const baseUrl = call.connection.baseUrl;

@@ -18,7 +18,7 @@ import type { ProviderLogger } from "../kit/provider-log.ts";
 import { providerLogger } from "../kit/provider-log.ts";
 import { resolvedScrubSet } from "../kit/sanitize.ts";
 import { mediaFilePart } from "./prompt.ts";
-import { measuredCostOf } from "./result.ts";
+import { measuredCostOf, sdkWarnings } from "./result.ts";
 
 /** A PROSE summary must never carry `<think>…</think>` scaffolding; the STRUCTURED task SKIPS the strip
  *  (constrained output is pure JSON, and a literal `<think>` inside a string value is real content). */
@@ -120,6 +120,12 @@ async function runItem(run: BatchRun, log: ProviderLogger, item: SummarizeReques
       prompt: [{ role: "system", content: item.systemPrompt }, await userMessage(item, run.normalize)],
       ...(req.signal !== undefined ? { abortSignal: req.signal } : {}),
     });
+    // §A3, the batch half: `doGenerate().warnings` is the SAME second gate the streaming path surfaces, and
+    // it was read by nobody. A side-generation turn has no bus to carry a `warning` event, so the honest
+    // surface is the item's own log line — one per dropped setting, named and greppable.
+    for (const warning of sdkWarnings(result.warnings)) {
+      log.emit("warn", "provider.sdk-warning", { ...base, code: warning.code, reason: warning.message });
+    }
     const refusal = run.refusalOf(result);
     if (refusal !== "") {
       throw new ProviderError({ kind: "refused", retryable: false, message: `the model refused: ${refusal}`, model: req.connection.model });

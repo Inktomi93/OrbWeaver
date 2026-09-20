@@ -101,6 +101,7 @@ export type {
   PromptTransformPoint,
   PromptTransformResult,
   ProviderAdjustmentKind,
+  ReasoningPartMeta,
   RoomEntityKind,
   TurnAbortedOpCode,
   TurnAbortReason,
