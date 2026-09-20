@@ -19,6 +19,7 @@ import type {
   TurnInitiator,
   TurnIntent,
   UserMacroDraws,
+  VariantProviderMetadata,
 } from "@orb/contracts/chat";
 import type { ChatMembership } from "@orb/contracts/identity";
 import type { CostDetails, NormalizedFinishReason } from "@orb/contracts/inference";
@@ -285,6 +286,13 @@ export interface TurnEconomics {
   /** The upstream OpenRouter generation handle (`gen-…`) this turn billed under — the PD-137 cost key,
    *  folded onto the variant. Absent/null on a backend that doesn't surface one (agent-sdk / responses). */
   readonly generationId?: string | null;
+  /** The wire-opaque facts the normalized fields above cannot carry, ALREADY narrowed by the runtime to the
+   *  closed per-provider union (§5.3c class 3): the ephemeral cache-creation TTL split, the subscription's
+   *  warm-spare receipt, OpenRouter's upstream vendor and its pre-fee charge. Persisted under
+   *  `message_variants.metadata.providerMetadata`; absent on a provider with no first-party arm. This is
+   *  STATS-PLANE provenance and is deliberately NOT projected onto `MessageView` — a history read must not
+   *  ship it to every client; a reader that wants it takes its own query. */
+  readonly providerMetadata?: VariantProviderMetadata | null;
   /** The reducer-assembled model-emitted calls; the loop pivots on finishReason === "tool" and reads these. */
   readonly toolCalls?: readonly ToolCallInput[] | undefined;
   /** §6.7 INLINE REPLY PICTURES — what a chat model whose `output.modalities ∋ image` emitted BESIDE its
