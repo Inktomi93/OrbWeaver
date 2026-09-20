@@ -12,8 +12,19 @@
 // (`^…$`) and carries no surviving metacharacter after unescaping `\.`/`\/`. That classifier is deliberately
 // CONSERVATIVE in the direction that matters: these lists are load-bearing import law, so an ambiguous
 // pattern becomes a declared SKIP, never a RED. Arms: DEAD · DEAD-PATTERN · NO-ROWS (the §4.6 blindness
-// tripwire) · the irreducible BACKREF BUDGET. MISSING/UNPARSEABLE-CONFIG are
-// no longer a reportable arm of THIS policy: a `native-config` resource that cannot resolve makes population
+// tripwire).
+//
+// THE IRREDUCIBLE BACKREF BUDGET LEFT THIS MODULE (#2485, 2026-09-20) for the `hard` sibling
+// `depcruise-grant-liveness-health.ts`, which owns the whole rationale. In one line: this policy is
+// `reviewed-grant`, where EVERY finding owes a `(subject, operation)` a central row could name, and the
+// budget arm had none to give — so each drift it tried to report became
+// `⚠ authority [invalid-reviewed-grant-identity]`, withheld THIS policy's other findings and exited 2. The
+// arm must not acquire an identity either (a grantable budget is a central door to move the number without
+// touching it, which is what standing law §5's sanctioned exception exists to prevent), so it moved to the
+// authority that admits it. `BACKREF_RE` stays here because the pattern arm must still exclude those rows
+// from a member test it cannot perform; their COUNT is the sibling's.
+//
+// MISSING/UNPARSEABLE-CONFIG are no longer a reportable arm of THIS policy: a `native-config` resource that cannot resolve makes population
 // resolution itself throw (`resolveResourceDeclarations`), which withholds the whole run as a TOOL ERROR —
 // the fail-LOUD requirement is now the runtime's own refusal, proven at `runPolicyPass` level, not by a
 // `mustFlag` row (the proof harness has no "expect a tool error" arm — see the permanent-pin test).
@@ -24,7 +35,8 @@
 // echarts). Zero members in either = the same loaded-gun class one level up: import law aimed at nothing, or
 // an exemption for a class that no longer exists. One family cannot be judged at all and carries a no-growth
 // BUDGET instead: a `$1` BACKREFERENCE, whose member set is bound by the paired rule's capture at cruise
-// time rather than by the tree.
+// time rather than by the tree. That budget is `depcruise-grant-liveness-health`'s since #2485 (above); this
+// policy only keeps those rows OUT of the member test that cannot judge them.
 //
 // AUTHORITY — REVIEWED GRANT, MIGRATED FROM TWO GATE-LOCAL TABLES (#1922 / #2147, closed by #2176 Phase F).
 // This policy was the LAST of the four config-liveness siblings still `hard` with its own `ExemptionTable`s:
@@ -54,7 +66,7 @@ import { defineGate } from "../contract/policy.ts";
 import type { PackageResourceId } from "../contract/resource-config.ts";
 import { PACKAGE_RESOURCE_PATHS } from "../contract/resource-config.ts";
 import type { PatternLivenessMessages, PatternRow } from "../lib/grant-liveness.ts";
-import { deadExactFindings, dependencyModulesFromManifests, irreducibleBudgetFindings, patternLivenessFindings } from "../lib/grant-liveness.ts";
+import { deadExactFindings, dependencyModulesFromManifests, patternLivenessFindings } from "../lib/grant-liveness.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
 
 const CONFIG_REL = ".dependency-cruiser.cjs";
@@ -68,23 +80,10 @@ const REGEX_META_RE = /[|()[\]{}*+?^$\\]/u;
 const REAL_CONFIG_MIN_CANDIDATES = 80;
 
 /** A `$1`/`$2` capture BACKREFERENCE: dep-cruiser binds it from the paired `path`'s capture at cruise time,
- *  so the pattern denotes a different set per matched file and has no member set of its own to test. */
+ *  so the pattern denotes a different set per matched file and has no member set of its own to test. Still
+ *  read HERE only to keep those rows out of the pattern-liveness arm, which cannot judge them; their COUNT
+ *  is `depcruise-grant-liveness-health`'s (#2485 — see this file's header). */
 const BACKREF_RE = /\$\d/u;
-/** The committed count of irreducible backreference rows. Two-sided: growth adds unreviewed authority, and
- *  an uncommitted shrink leaves a budget nobody can trust (#973 — never a silent counter). */
-// The helper-world rule adds one paired capture to permit same-world edges while refusing upward ones.
-// dependency-cruiser-worlds.int.test.ts proves that distinction, including transitive and type-only edges.
-// 16 → 14, 2026-09-20 (the `@orb/inference` extraction): the fleet yeet took `vllm-surface-isolation`'s
-// `surfaces/$1` with the rule the program deleted, and re-pointing `infra-strategy-isolation` onto
-// `packages/inference/src/backends/` collapsed its paired `infra/$1/([^/]+)/` + `infra/$1/$2/` into a
-// single `backends/$1/` — the group axis is gone, so only the strategy capture survives. This is the
-// SHRINK direction the arm's own message names, committed here rather than left as a budget nobody trusts.
-const BACKREF_BUDGET = 14;
-
-/** The BUDGET arm's own real-tree anchor — a fact about the REAL config set, so it is judged only where the
- *  enforcement ledger lives. A resource proof carries its own rows and would (correctly for itself, wrongly
- *  for this repo) disagree with a committed budget it knows nothing about. */
-const BUDGET_ANCHOR = "docs/architecture/core/Core-Enforcement-Active-Gates.md";
 
 const PATTERN_MESSAGES: PatternLivenessMessages = {
   deadPattern:
@@ -106,13 +105,6 @@ const PATTERN_MESSAGES: PatternLivenessMessages = {
   // keys until its last legacy replay retires with the runtime (#2176 commit 3).
   staleRatified: "",
   deadCite: "",
-  budgetMoved:
-    "the count of IRREDUCIBLE `$1`-backreference patterns in .dependency-cruiser.cjs is {actual}, but the " +
-    "committed budget is {budget}. These are the rows whose member set dep-cruiser binds from the paired " +
-    "rule's capture at cruise time, so no static reader can test them — the budget is what keeps that " +
-    "population from growing silently. GROWTH: justify the new pair or express it without a capture. " +
-    "SHRINK: commit it, by lowering BACKREF_BUDGET in " +
-    "tooling/src/verify/gates/depcruise-grant-liveness.ts.",
 };
 
 const MSG_DEAD =
@@ -154,13 +146,16 @@ interface GrantIdentity {
 }
 
 /** Map a shared-core `GrantFinding` (file/line/column/token?/message?) onto the final contract's
- *  `report.file`, never handing `exactOptionalPropertyTypes` an explicit `token: undefined`. An arm that
- *  can be licensed passes its `(subject, operation)`; the BUDGET arm cannot and passes none. */
-function reportFinding(ctx: GatePolicyContext, finding: GrantFinding, message?: string, identity?: GrantIdentity): void {
-  const base: GatePolicyFileFindingDetails = { line: 1, column: 1 };
-  const withMessage: GatePolicyFileFindingDetails = message === undefined ? base : { ...base, message };
-  const withIdentity: GatePolicyFileFindingDetails = identity === undefined ? withMessage : { ...withMessage, ...identity };
-  ctx.report.file(finding.file, finding.token === undefined ? withIdentity : { ...withIdentity, token: finding.token });
+ *  `report.file`, never handing `exactOptionalPropertyTypes` an explicit `token: undefined`.
+ *
+ *  THE IDENTITY IS REQUIRED, and that is the #2485 lesson made structural: under `reviewed-grant` a finding
+ *  with no `(subject, operation)` is not a finding at all — the runtime raises
+ *  `invalid-reviewed-grant-identity` and withholds this whole policy, so the message never reaches a reader.
+ *  It used to be optional for the BUDGET arm, which had none to give; that arm now lives under `hard`
+ *  authority in `depcruise-grant-liveness-health.ts` and every arm left here can name what it accuses. */
+function reportFinding(ctx: GatePolicyContext, finding: GrantFinding, message: string, identity: GrantIdentity): void {
+  const details: GatePolicyFileFindingDetails = { line: 1, column: 1, message, ...identity };
+  ctx.report.file(finding.file, finding.token === undefined ? details : { ...details, token: finding.token });
 }
 
 /** A dep-cruiser pattern is REGEX SOURCE matched against a module path. An unparseable source is treated as
@@ -233,8 +228,13 @@ function reportExactRows(ctx: GatePolicyContext, exact: readonly NativeGrantRow[
   for (const finding of findings) {
     const row = exact.find((candidate) => candidate.path === finding.token);
     if (row === undefined) {
-      reportFinding(ctx, finding, finding.message);
-      continue;
+      // UNREACHABLE while `deadExactFindings` keeps its token contract (the token IS the authored path this
+      // loop passed in), and a REFUSAL rather than an identity-less report if that ever changes: #2485 is
+      // what an unnameable reviewed-grant finding costs — the whole policy withheld behind a diagnostic
+      // that names nothing. "The run is not a verdict" is the honest verdict here.
+      throw new Error(
+        `depcruise-grant-liveness: dead-exact finding token ${JSON.stringify(finding.token)} matches no authored selector; the reader's token contract changed`,
+      );
     }
     const subject = selectorIdentity(row);
     const operation = `${OPERATION_EXACT}${JSON.stringify(row.path)}`;
@@ -248,9 +248,8 @@ interface PatternRowsInput {
   readonly dependencyModules: readonly string[];
 }
 
-function reportPatternRows(ctx: GatePolicyContext, input: PatternRowsInput): number {
+function reportPatternRows(ctx: GatePolicyContext, input: PatternRowsInput): void {
   const { skipped, repoPaths, dependencyModules } = input;
-  const backrefs = skipped.filter((row) => BACKREF_RE.test(row.value));
   const judgeable = skipped.filter((row) => !BACKREF_RE.test(row.value));
   const rows: readonly PatternRow[] = judgeable.map((row) => ({ file: CONFIG_REL, pattern: row.value, line: 0, matches: regexMatcher(row.value) }));
   const outcome = patternLivenessFindings({
@@ -267,8 +266,10 @@ function reportPatternRows(ctx: GatePolicyContext, input: PatternRowsInput): num
   for (const finding of outcome.findings) {
     const row = judgeable.find((candidate) => candidate.value === finding.token);
     if (row === undefined) {
-      reportFinding(ctx, finding, finding.message);
-      continue;
+      // The pattern twin of the refusal above, same reason (#2485).
+      throw new Error(
+        `depcruise-grant-liveness: zero-member pattern token ${JSON.stringify(finding.token)} matches no authored selector; the reader's token contract changed`,
+      );
     }
     const subject = selectorIdentity(row);
     const operation = `${OPERATION_PATTERN}${JSON.stringify(row.value)}`;
@@ -284,16 +285,6 @@ function reportPatternRows(ctx: GatePolicyContext, input: PatternRowsInput): num
       subject,
       operation,
     });
-  }
-  return backrefs.length;
-}
-
-function reportBudget(ctx: GatePolicyContext, irreducibleCount: number, budgetAnchorTracked: boolean): void {
-  if (!budgetAnchorTracked) {
-    return;
-  }
-  for (const finding of irreducibleBudgetFindings(CONFIG_REL, irreducibleCount, BACKREF_BUDGET, PATTERN_MESSAGES.budgetMoved)) {
-    reportFinding(ctx, finding, finding.message);
   }
 }
 
@@ -340,8 +331,7 @@ export const gate = defineGate({
       }
       reportExactRows(ctx, exact, exists);
       const dependencyModules = dependencyModulesFromManifests(manifests.map((facts) => facts.dependencies));
-      const irreducibleCount = reportPatternRows(ctx, { skipped, repoPaths, dependencyModules });
-      reportBudget(ctx, irreducibleCount, exists(BUDGET_ANCHOR));
+      reportPatternRows(ctx, { skipped, repoPaths, dependencyModules });
     },
   }),
   mustFlag: [

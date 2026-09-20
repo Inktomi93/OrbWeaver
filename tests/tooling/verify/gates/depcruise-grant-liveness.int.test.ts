@@ -11,8 +11,11 @@
 //      ERROR — the fail-LOUD requirement is now the runtime's own refusal (`resolveResourceDeclarations`
 //      throws on a non-ready declared resource), which the final proof harness has no "expect a tool error"
 //      arm to express;
-//   2. the irreducible BACKREFERENCE budget is two-sided (unit-pinned directly — the arm is guarded by the
-//      real-tree BUDGET_ANCHOR, which no resource proof carries).
+//   2. (RETIRED HERE, #2485) the irreducible BACKREFERENCE budget. The arm left this policy for the `hard`
+//      sibling `depcruise-grant-liveness-health` — under `reviewed-grant` its identity-less finding could
+//      only ever raise `invalid-reviewed-grant-identity` and withhold this policy's OTHER findings — and its
+//      proofs went with it: `depcruise-grant-liveness-health.int.test.ts` now owns the two-sided unit pin,
+//      the real-tree count and the proof that the message actually prints.
 //
 // THE REAL-ROOT ARM IS BACK (#1947, 2026-09-11) — the full reconstruction is in the twin header at
 // `eslint-grant-liveness.int.test.ts`. In short: the #1932 lane's measurement and diagnosis were right (the
@@ -33,7 +36,6 @@
 // receipt in the deleting commit. The runnability arms stay.
 import { Project } from "ts-morph";
 import { classifyRegex, gate } from "../../../../tooling/src/verify/gates/depcruise-grant-liveness.ts";
-import { irreducibleBudgetFindings } from "../../../../tooling/src/verify/lib/grant-liveness.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
@@ -50,13 +52,6 @@ test("classifyRegex — the CONSERVATIVE direction (import law must never false-
     expect(classifyRegex(pattern)).toBeUndefined();
   }
   expect(classifyRegex(String.raw`^packages/ui/src/live\.ts$`)).toBe("packages/ui/src/live.ts");
-});
-
-test("the irreducible BUDGET is two-sided — growth AND an uncommitted shrink both RED", () => {
-  const message = "actual {actual} budget {budget}";
-  expect(irreducibleBudgetFindings(".dependency-cruiser.cjs", 15, 15, message)).toEqual([]);
-  expect(irreducibleBudgetFindings(".dependency-cruiser.cjs", 16, 15, message)[0]?.message).toBe("actual 16 budget 15");
-  expect(irreducibleBudgetFindings(".dependency-cruiser.cjs", 14, 15, message)[0]?.message).toBe("actual 14 budget 15");
 });
 
 test("a MISSING .dependency-cruiser.cjs refuses the whole run as a population-phase TOOL ERROR", ({ scratch }) => {
