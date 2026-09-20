@@ -712,12 +712,13 @@ CREATE TABLE `character_embeddings` (
 	`content_hash` text NOT NULL,
 	`hub_score` real,
 	`model` text NOT NULL,
+	`generation_id` text NOT NULL,
 	`dim` integer NOT NULL,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`character_id`) REFERENCES `characters`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `character_embeddings_character_model_unique` ON `character_embeddings` (`character_id`,`model`);--> statement-breakpoint
+CREATE UNIQUE INDEX `character_embeddings_character_generation_unique` ON `character_embeddings` (`character_id`,`generation_id`);--> statement-breakpoint
 CREATE TABLE `chat_digest_speakers` (
 	`digest_id` text NOT NULL,
 	`character_id` text NOT NULL,
@@ -741,13 +742,14 @@ CREATE TABLE `chat_digests` (
 	`topic_anchor` text,
 	`keywords` text DEFAULT '[]' NOT NULL,
 	`model` text NOT NULL,
+	`generation_id` text NOT NULL,
 	`dim` integer NOT NULL,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`chat_id`) REFERENCES `chats`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`scoped_character_id`) REFERENCES `characters`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `chat_digests_scope_unique` ON `chat_digests` (`chat_id`,`scoped_character_id`,`tier`,`block_idx`,`model`);--> statement-breakpoint
+CREATE UNIQUE INDEX `chat_digests_scope_unique` ON `chat_digests` (`chat_id`,`scoped_character_id`,`tier`,`block_idx`,`generation_id`);--> statement-breakpoint
 CREATE INDEX `chat_digests_chat_idx` ON `chat_digests` (`chat_id`);--> statement-breakpoint
 CREATE INDEX `chat_digests_scoped_character_idx` ON `chat_digests` (`scoped_character_id`);--> statement-breakpoint
 CREATE TABLE `chat_segments` (
@@ -762,13 +764,14 @@ CREATE TABLE `chat_segments` (
 	`content_hash` text NOT NULL,
 	`hub_score` real,
 	`model` text NOT NULL,
+	`generation_id` text NOT NULL,
 	`dim` integer NOT NULL,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`chat_id`) REFERENCES `chats`(`id`) ON UPDATE no action ON DELETE cascade,
 	CONSTRAINT "chat_segments_span_check" CHECK(block_idx >= 0 and chunk_idx >= 0 and seq_start >= 0 and seq_end >= seq_start)
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `chat_segments_chat_block_chunk_unique` ON `chat_segments` (`chat_id`,`block_idx`,`chunk_idx`,`model`);--> statement-breakpoint
+CREATE UNIQUE INDEX `chat_segments_chat_block_chunk_unique` ON `chat_segments` (`chat_id`,`block_idx`,`chunk_idx`,`generation_id`);--> statement-breakpoint
 CREATE TABLE `document_chunks` (
 	`id` text PRIMARY KEY NOT NULL,
 	`document_id` text NOT NULL,
@@ -780,21 +783,54 @@ CREATE TABLE `document_chunks` (
 	`content_hash` text NOT NULL,
 	`hub_score` real,
 	`model` text NOT NULL,
+	`generation_id` text NOT NULL,
 	`dim` integer NOT NULL,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`document_id`) REFERENCES `documents`(`id`) ON UPDATE no action ON DELETE cascade,
 	CONSTRAINT "document_chunks_span_check" CHECK(chunk_idx >= 0 and char_start >= 0 and char_end >= char_start)
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `document_chunks_doc_chunk_model_unique` ON `document_chunks` (`document_id`,`chunk_idx`,`model`);--> statement-breakpoint
+CREATE UNIQUE INDEX `document_chunks_doc_chunk_generation_unique` ON `document_chunks` (`document_id`,`chunk_idx`,`generation_id`);--> statement-breakpoint
 CREATE INDEX `document_chunks_document_idx` ON `document_chunks` (`document_id`);--> statement-breakpoint
+CREATE TABLE `embed_generation_targets` (
+	`owner_id` text NOT NULL,
+	`task` text NOT NULL,
+	`generation_id` text NOT NULL,
+	`epoch` integer NOT NULL,
+	`updated_at` integer NOT NULL,
+	PRIMARY KEY(`owner_id`, `task`),
+	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,
+	CONSTRAINT "embed_generation_targets_task_check" CHECK(task in ('embed', 'imageEmbed'))
+);
+--> statement-breakpoint
+CREATE TABLE `embed_generations` (
+	`id` text PRIMARY KEY NOT NULL,
+	`owner_id` text NOT NULL,
+	`task` text NOT NULL,
+	`via` text NOT NULL,
+	`connection_id` text,
+	`connection_ref` text NOT NULL,
+	`fingerprint` text NOT NULL,
+	`space` text NOT NULL,
+	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,
+	CONSTRAINT "embed_generations_task_check" CHECK(task in ('embed', 'imageEmbed')),
+	CONSTRAINT "embed_generations_via_check" CHECK(via in ('embed', 'imageEmbed'))
+);
+--> statement-breakpoint
+CREATE INDEX `embed_generations_owner_task_idx` ON `embed_generations` (`owner_id`,`task`);--> statement-breakpoint
+CREATE INDEX `embed_generations_connection_idx` ON `embed_generations` (`connection_id`);--> statement-breakpoint
 CREATE TABLE `embed_space_state` (
 	`owner_id` text NOT NULL,
 	`scope` text NOT NULL,
-	`space` text NOT NULL,
+	`active_generation_id` text,
+	`candidate_generation_id` text,
+	`candidate_epoch` integer,
 	`completed_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	PRIMARY KEY(`owner_id`, `scope`),
 	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`active_generation_id`) REFERENCES `embed_generations`(`id`) ON UPDATE no action ON DELETE set null,
+	FOREIGN KEY (`candidate_generation_id`) REFERENCES `embed_generations`(`id`) ON UPDATE no action ON DELETE set null,
 	CONSTRAINT "embed_space_state_scope_check" CHECK(scope in ('cards', 'memory', 'documents', 'images'))
 );
 --> statement-breakpoint
@@ -808,13 +844,14 @@ CREATE TABLE `image_embeddings` (
 	`content_hash` text NOT NULL,
 	`hub_score` real,
 	`model` text NOT NULL,
+	`generation_id` text NOT NULL,
 	`dim` integer NOT NULL,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`asset_id`) REFERENCES `assets`(`id`) ON UPDATE no action ON DELETE cascade,
 	CONSTRAINT "image_embeddings_lens_check" CHECK(lens in ('image-raw', 'image-captioned'))
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `image_embeddings_asset_model_lens_unique` ON `image_embeddings` (`asset_id`,`model`,`lens`);--> statement-breakpoint
+CREATE UNIQUE INDEX `image_embeddings_asset_generation_lens_unique` ON `image_embeddings` (`asset_id`,`generation_id`,`lens`);--> statement-breakpoint
 CREATE TABLE `image_index_skips` (
 	`asset_id` text PRIMARY KEY NOT NULL,
 	`reason` text NOT NULL,

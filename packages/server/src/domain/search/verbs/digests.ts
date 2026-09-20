@@ -30,7 +30,7 @@ import { compareCslsBy, cslsAdjust, relevanceOf } from "../substrate/csls.ts";
 import { blockKeyStr } from "../substrate/dedupe.ts";
 import { SCOPE_INSTRUCTIONS } from "../substrate/instructions.ts";
 import { applyRerank } from "../substrate/rerank.ts";
-import { requireSpaceModel } from "../substrate/space.ts";
+import { withActiveQuerySpace } from "../substrate/space.ts";
 
 const MIN_TERM_LEN = 3;
 // SPLIT ON "NOT A LETTER OR DIGIT", NOT ON "NOT ASCII". `[^a-z0-9]+` treated every Cyrillic, Greek, CJK and
@@ -73,7 +73,7 @@ const RERANK_ROLE: Task = "rerank";
  *  classification + provenance field forward, so `kind`/`retryable`/`apiErrorStatus` still read true
  *  downstream. A non-provider failure (a db fault, a bug of ours) is NOT ours to re-frame and passes through
  *  untouched. */
-async function embedQuery(rc: RoleClients, text: string): Promise<EmbedResult> {
+async function embedQuery(rc: Pick<RoleClients, "embed">, text: string): Promise<EmbedResult> {
   try {
     return await rc.embed(text, { inputType: "query", instruction: SCOPE_INSTRUCTIONS.digests.query });
   } catch (err) {
@@ -125,59 +125,61 @@ export function createDigests(ctx: SearchContext): SearchService["digests"] {
     }
 
     const rc = await ctx.roleClientsFor(params.ownerId);
-    const embedModel = await requireSpaceModel(ctx, params.ownerId, "embed");
-    const embedded = await embedQuery(rc, text);
-    const queryVector = embedded.vectors[0];
-    if (queryVector === null || queryVector === undefined) {
-      throw new SearchError(SEARCH_EMPTY_QUERY, "the query embedded to no vector — nothing to scan");
-    }
+    return await withActiveQuerySpace(ctx, params.ownerId, "embed", async (space) => {
+      const embedded = await embedQuery(space.connection, text);
+      const queryVector = embedded.vectors[0];
+      if (queryVector === null || queryVector === undefined) {
+        throw new SearchError(SEARCH_EMPTY_QUERY, "the query embedded to no vector — nothing to scan");
+      }
 
-    const pool = await nearestDigests(ctx.db, {
-      queryVector,
-      model: embedModel,
-      chatIds: [params.scope.chat],
-      scopedCharacterId: params.scopedCharacterId,
-      candidates: params.candidates,
-      limit: params.candidates === undefined ? SCOPED_POOL_K : params.candidates.length,
+      const pool = await nearestDigests(ctx.db, {
+        queryVector,
+        model: space.model,
+        generationId: space.generationId,
+        chatIds: [params.scope.chat],
+        scopedCharacterId: params.scopedCharacterId,
+        candidates: params.candidates,
+        limit: params.candidates === undefined ? SCOPED_POOL_K : params.candidates.length,
+      });
+
+      const terms = params.keywordMatch ? queryTerms(text) : null;
+      const ranked = pool
+        .filter((r) => 1 - r.distance >= params.minScore || (terms !== null && keywordHit(r.keywords, terms)))
+        .map((r) => {
+          const blockKey = {
+            chatId: r.chatId,
+            tier: r.tier,
+            blockIdx: r.blockIdx,
+            scopedCharacterId: r.scopedCharacterId,
+          };
+          return {
+            id: blockKeyStr(blockKey),
+            blockKey,
+            sourceText: r.text,
+            distance: r.distance,
+            hubScore: r.hubScore,
+            score: cslsAdjust(r.distance, r.hubScore),
+          };
+        })
+        .sort(
+          compareCslsBy(
+            (c) => c.distance,
+            (c) => c.hubScore,
+          ),
+        );
+
+      // The "top retrieveK" retrieval cut: keep the head of the ranked, floor-passing pool. In mixC this is
+      // the candidate pool the cross-encoder reranks, then rerankTo caps the reranked result.
+      const retrieved = ranked.slice(0, params.retrieveK);
+      // Instruction-aware rerankers key off the scope <Instruct> prefix; text-only families ignore it (the same
+      // shape the corpus digest scan uses — #330 P3).
+      // Retrieval already completed successfully. A failed rerank keeps that exact vector/CSLS order intact
+      // and lets the caller surface the narrower outage through its own user-facing channel.
+      const ordered = await rerankOrKeep({ rc, params, text, retrieved, events });
+
+      // `relevance` is the same `1 − distance` this verb's own minScore floor already compares against — one
+      // definition of "how close is this", never a second.
+      return ordered.map((c) => ({ blockKey: c.blockKey, score: c.score, relevance: relevanceOf(c.distance), text: c.sourceText }));
     });
-
-    const terms = params.keywordMatch ? queryTerms(text) : null;
-    const ranked = pool
-      .filter((r) => 1 - r.distance >= params.minScore || (terms !== null && keywordHit(r.keywords, terms)))
-      .map((r) => {
-        const blockKey = {
-          chatId: r.chatId,
-          tier: r.tier,
-          blockIdx: r.blockIdx,
-          scopedCharacterId: r.scopedCharacterId,
-        };
-        return {
-          id: blockKeyStr(blockKey),
-          blockKey,
-          sourceText: r.text,
-          distance: r.distance,
-          hubScore: r.hubScore,
-          score: cslsAdjust(r.distance, r.hubScore),
-        };
-      })
-      .sort(
-        compareCslsBy(
-          (c) => c.distance,
-          (c) => c.hubScore,
-        ),
-      );
-
-    // The "top retrieveK" retrieval cut: keep the head of the ranked, floor-passing pool. In mixC this is
-    // the candidate pool the cross-encoder reranks, then rerankTo caps the reranked result.
-    const retrieved = ranked.slice(0, params.retrieveK);
-    // Instruction-aware rerankers key off the scope <Instruct> prefix; text-only families ignore it (the same
-    // shape the corpus digest scan uses — #330 P3).
-    // Retrieval already completed successfully. A failed rerank keeps that exact vector/CSLS order intact
-    // and lets the caller surface the narrower outage through its own user-facing channel.
-    const ordered = await rerankOrKeep({ rc, params, text, retrieved, events });
-
-    // `relevance` is the same `1 − distance` this verb's own minScore floor already compares against — one
-    // definition of "how close is this", never a second.
-    return ordered.map((c) => ({ blockKey: c.blockKey, score: c.score, relevance: relevanceOf(c.distance), text: c.sourceText }));
   };
 }

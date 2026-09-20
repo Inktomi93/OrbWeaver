@@ -35,6 +35,8 @@ export type {
   GetPendingUserText,
   HandoffCardCopy,
   HandoffHealArgs,
+  MemoryEmbedSpace,
+  MemoryStoreReceipt,
   PostNarratorMessage,
   PostNarratorMessageDeps,
   PresenceReadOp,

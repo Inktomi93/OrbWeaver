@@ -28,7 +28,7 @@ import { createResolveStandingAsks } from "#domain/chat";
 import { resolveActiveDocumentIds } from "#domain/databank";
 import type { DiscoveryContext, DiscoveryService } from "#domain/discovery";
 import { createDiscoveryService, distinctCorpusOwners } from "#domain/discovery";
-import type { EmbeddingsIndexer, EmbeddingsService } from "#domain/embeddings";
+import type { EmbeddingsIndexer, EmbeddingsService, ResolveEmbeddingConnection } from "#domain/embeddings";
 import { createEmbeddingsIndexer, createEmbeddingsService } from "#domain/embeddings";
 import type { NotificationsService } from "#domain/notifications";
 import { createNotificationsService } from "#domain/notifications";
@@ -72,6 +72,7 @@ export interface SearchDiscoveryComposeDeps {
   /** The per-FUNDER role-client binder (§8.5b): embeddings/search/discovery resolve the entity OWNER's rows
    *  (vector tasks are owner-scoped, §7.5) and the workload's acting user for the summarize passes. */
   readonly roleClientsFor: (funderUserId: UserId) => Promise<RoleClientsWithSignal>;
+  readonly resolveEmbeddingConnection: ResolveEmbeddingConnection;
   readonly eventBus: DomainEventBus;
   readonly attachCardTagByName: TagService["attachCardTagByName"];
   /** The card owner's default-preset params (the side-gen sampling ladder's middle rung — distill + analyze). */
@@ -137,6 +138,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
   const embeddings = createEmbeddingsService({
     db,
     roleClientsFor,
+    resolveEmbeddingConnection: deps.resolveEmbeddingConnection,
     now,
     newCharacterEmbeddingId: minter(ID_PREFIX.characterEmbedding),
     newImageEmbeddingId: minter(ID_PREFIX.imageEmbedding),
@@ -289,7 +291,13 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
   const stats = createStatsService(db, now);
   // `resolveActiveDocumentIds` is databank's ONE scope-union home, injected into search — the
   // documents lens never re-derives which documents a scope may see.
-  const search = createSearchService({ db, roleClientsFor, now, resolveActiveDocumentIds: (scope) => resolveActiveDocumentIds(db, scope) });
+  const search = createSearchService({
+    db,
+    roleClientsFor,
+    resolveEmbeddingConnection: deps.resolveEmbeddingConnection,
+    now,
+    resolveActiveDocumentIds: (scope) => resolveActiveDocumentIds(db, scope),
+  });
   const discovery = createDiscoveryService({
     db,
     now,

@@ -6,6 +6,7 @@
 // chat_digests / chat_segments / assets / image_embeddings).
 
 import type { ImageLens } from "@orb/contracts/embeddings";
+import { VECTOR_SCOPES_BY_TASK } from "@orb/contracts/embeddings";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
 import {
@@ -16,6 +17,9 @@ import {
   chatParticipants,
   chatSegments,
   chats,
+  embedGenerations,
+  embedGenerationTargets,
+  embedSpaceState,
   imageEmbeddings,
   messages,
   messageVariants,
@@ -40,7 +44,7 @@ import type {
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { resolveTier0Range } from "../../../../packages/server/src/domain/chat/index.ts";
 import type { DiscoveryContext } from "../../../../packages/server/src/domain/discovery/index.ts";
 import { createStatsService } from "../../../../packages/server/src/domain/stats/service.ts";
@@ -60,6 +64,57 @@ export const FROZEN_AT = FROZEN_AT_MS;
 const VECTOR_DIM = 1024;
 /** The default embed model the seeders tag rows with (the `(model)` space tag). */
 export const EMBED_MODEL = "test-embed-model-1024";
+
+async function seedGeneration(db: Db, ownerId: UserId, task: "embed" | "imageEmbed", model: string): Promise<string> {
+  const id = `embed_generation_${ownerId}_${task}_${model}`;
+  await db
+    .insert(embedGenerations)
+    .values({
+      id,
+      ownerId,
+      task,
+      via: task,
+      connectionId: null,
+      connectionRef: `test:${task}`,
+      fingerprint: `test:${task}:${model}`,
+      space: model,
+      createdAt: FROZEN_AT,
+    })
+    .onConflictDoNothing();
+  await db.insert(embedGenerationTargets).values({ ownerId, task, generationId: id, epoch: 1, updatedAt: FROZEN_AT }).onConflictDoNothing();
+  await db
+    .insert(embedSpaceState)
+    .values(
+      VECTOR_SCOPES_BY_TASK[task].map((scope) => ({
+        ownerId,
+        scope,
+        activeGenerationId: id,
+        candidateGenerationId: null,
+        candidateEpoch: null,
+        completedAt: FROZEN_AT,
+      })),
+    )
+    .onConflictDoNothing();
+  return id;
+}
+
+function requiredOwner(rows: readonly { readonly ownerId: UserId | null }[], subject: string): UserId {
+  const ownerId = rows[0]?.ownerId;
+  if (ownerId === undefined || ownerId === null) {
+    throw new Error(`missing owner for ${subject}`);
+  }
+  return ownerId;
+}
+
+async function chatOwner(db: Db, chatId: ChatId): Promise<UserId> {
+  return requiredOwner(
+    await db
+      .select({ ownerId: chatParticipants.userId })
+      .from(chatParticipants)
+      .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.kind, "human"), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq))),
+    chatId,
+  );
+}
 
 /** Build a 1024-dim vector with the given leading components (rest zero) — enough for deterministic cosine
  *  (e.g. `vec(1)` vs `vec(0, 1)` orthogonal; `vec(1)` matches `vec(1)` exactly). */
@@ -256,13 +311,20 @@ export async function seedCharacterEmbedding(
     readonly hubScore?: number | null;
   },
 ): Promise<void> {
+  const model = overrides.model ?? EMBED_MODEL;
+  const ownerId = requiredOwner(
+    await db.select({ ownerId: characters.ownerId }).from(characters).where(eq(characters.id, overrides.characterId)),
+    overrides.characterId,
+  );
+  const generationId = await seedGeneration(db, ownerId, "embed", model);
   await db.insert(characterEmbeddings).values({
     id: castId(`character_embedding_${overrides.characterId}`),
     characterId: overrides.characterId,
     embedding: overrides.embedding,
     contentHash: overrides.contentHash ?? `hash_${overrides.characterId}`,
     hubScore: overrides.hubScore ?? null,
-    model: overrides.model ?? EMBED_MODEL,
+    model,
+    generationId,
     dim: VECTOR_DIM,
     createdAt: FROZEN_AT,
   });
@@ -377,6 +439,8 @@ export async function seedChatDigest(
   },
 ): Promise<void> {
   await ensureGroupChar(db);
+  const model = overrides.model ?? EMBED_MODEL;
+  const generationId = await seedGeneration(db, await chatOwner(db, overrides.chatId), "embed", model);
   await db.insert(chatDigests).values({
     id: castId(overrides.id),
     chatId: overrides.chatId,
@@ -388,7 +452,8 @@ export async function seedChatDigest(
     embedding: overrides.embedding,
     contentHash: overrides.contentHash ?? `hash_${overrides.id}`,
     keywords: overrides.keywords ?? [],
-    model: overrides.model ?? EMBED_MODEL,
+    model,
+    generationId,
     dim: VECTOR_DIM,
     createdAt: FROZEN_AT,
   });
@@ -410,6 +475,8 @@ export async function seedChatSegment(
     readonly contentHash?: string;
   },
 ): Promise<void> {
+  const model = overrides.model ?? EMBED_MODEL;
+  const generationId = await seedGeneration(db, await chatOwner(db, overrides.chatId), "embed", model);
   await db.insert(chatSegments).values({
     id: castId(overrides.id),
     chatId: overrides.chatId,
@@ -420,7 +487,8 @@ export async function seedChatSegment(
     text: overrides.text ?? `segment ${overrides.id}`,
     embedding: overrides.embedding,
     contentHash: overrides.contentHash ?? `hash_${overrides.id}`,
-    model: overrides.model ?? EMBED_MODEL,
+    model,
+    generationId,
     dim: VECTOR_DIM,
     createdAt: FROZEN_AT,
   });
@@ -532,6 +600,9 @@ export async function seedImageEmbedding(
     readonly captionMeta?: Record<string, unknown>;
   },
 ): Promise<void> {
+  const model = overrides.model ?? EMBED_MODEL;
+  const ownerId = requiredOwner(await db.select({ ownerId: assets.ownerId }).from(assets).where(eq(assets.id, overrides.assetId)), overrides.assetId);
+  const generationId = await seedGeneration(db, ownerId, "imageEmbed", model);
   await db.insert(imageEmbeddings).values({
     id: castId<ImageEmbeddingId>(overrides.id),
     assetId: overrides.assetId,
@@ -540,7 +611,8 @@ export async function seedImageEmbedding(
     ...(overrides.caption !== undefined ? { caption: overrides.caption } : {}),
     ...(overrides.captionMeta !== undefined ? { captionMeta: overrides.captionMeta } : {}),
     contentHash: overrides.contentHash ?? `hash_${overrides.id}`,
-    model: overrides.model ?? EMBED_MODEL,
+    model,
+    generationId,
     dim: VECTOR_DIM,
     createdAt: FROZEN_AT,
   });

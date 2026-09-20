@@ -6,6 +6,10 @@ export interface StoreResult {
   readonly contentHash: string;
   /** The concrete space of the row that satisfied this write (provider-stamped for a write). */
   readonly model: string;
+  /** Immutable encoder generation that satisfied this write/noop. Sweep terminals use it as their receipt. */
+  readonly generationId?: string;
+  readonly generationEpoch?: number;
+  readonly generationVia?: "embed" | "imageEmbed";
 }
 
 export interface WriteHubScoresResult {

@@ -1061,6 +1061,8 @@ export interface StoreSegmentParams {
   readonly lens: "segment";
   readonly ownerId: UserId;
   readonly model: string;
+  readonly generationId: string;
+  readonly generationEpoch: number;
   readonly chatId: ChatId;
   readonly blockIdx: number;
   readonly chunkIdx: number;
@@ -1074,6 +1076,8 @@ export interface StoreSegmentParams {
 export interface MemoryEmbedSpace {
   readonly ownerId: UserId;
   readonly model: string;
+  readonly generationId: string;
+  readonly generationEpoch: number;
 }
 
 /** The space the embeddings boundary actually stamped. */

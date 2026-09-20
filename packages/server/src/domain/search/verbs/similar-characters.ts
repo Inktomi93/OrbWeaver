@@ -11,6 +11,7 @@ import { resolveCharacterDisplay } from "../persistence/display.ts";
 import { nearestCharacters, readSeedCharacterVector } from "../persistence/nearest.ts";
 import { OWNER_OVERFETCH } from "../substrate/constants.ts";
 import { compareCslsBy, cslsAdjust, relevanceOf } from "../substrate/csls.ts";
+import { withActiveQuerySpace } from "../substrate/space.ts";
 import { requirePositiveTopN } from "../substrate/top-n.ts";
 
 export function createSimilarCharacters(ctx: SearchContext): SearchService["similarCharacters"] {
@@ -18,58 +19,61 @@ export function createSimilarCharacters(ctx: SearchContext): SearchService["simi
     const { ownerId, characterId, topN } = params;
     requirePositiveTopN(topN, "similarCharacters");
 
-    const seed = await readSeedCharacterVector(ctx.db, ownerId, characterId);
-    if (seed === null) {
-      return [];
-    }
-
-    const pool = await nearestCharacters(ctx.db, {
-      ownerId,
-      queryVector: seed.embedding,
-      model: seed.model,
-      excludeCharacterId: characterId,
-      limit: OWNER_OVERFETCH * topN,
-    });
-
-    const ranked = pool
-      .map((c) => ({
-        characterId: c.characterId,
-        distance: c.distance,
-        hubScore: c.hubScore,
-        score: cslsAdjust(c.distance, c.hubScore),
-      }))
-      .sort(
-        compareCslsBy(
-          (c) => c.distance,
-          (c) => c.hubScore,
-        ),
-      )
-      .slice(0, topN);
-
-    const displays = await resolveCharacterDisplay(
-      ctx.db,
-      ownerId,
-      ranked.map((r) => r.characterId),
-    );
-    const byId = new Map(displays.map((d) => [d.characterId, d]));
-
-    return ranked.flatMap((r) => {
-      const display = byId.get(r.characterId);
-      if (display === undefined) {
+    return await withActiveQuerySpace(ctx, ownerId, "embed", async (space) => {
+      const seed = await readSeedCharacterVector(ctx.db, ownerId, characterId, space.generationId);
+      if (seed === null) {
         return [];
       }
-      return [
-        {
-          characterId: r.characterId,
-          score: r.score,
-          relevance: relevanceOf(r.distance),
-          name: display.name,
-          avatarHash: display.avatarHash,
-          genre: display.genre,
-          tone: display.tone,
-          elevatorPitch: display.elevatorPitch,
-        },
-      ];
+
+      const pool = await nearestCharacters(ctx.db, {
+        ownerId,
+        queryVector: seed.embedding,
+        model: seed.model,
+        generationId: space.generationId,
+        excludeCharacterId: characterId,
+        limit: OWNER_OVERFETCH * topN,
+      });
+
+      const ranked = pool
+        .map((c) => ({
+          characterId: c.characterId,
+          distance: c.distance,
+          hubScore: c.hubScore,
+          score: cslsAdjust(c.distance, c.hubScore),
+        }))
+        .sort(
+          compareCslsBy(
+            (c) => c.distance,
+            (c) => c.hubScore,
+          ),
+        )
+        .slice(0, topN);
+
+      const displays = await resolveCharacterDisplay(
+        ctx.db,
+        ownerId,
+        ranked.map((r) => r.characterId),
+      );
+      const byId = new Map(displays.map((d) => [d.characterId, d]));
+
+      return ranked.flatMap((r) => {
+        const display = byId.get(r.characterId);
+        if (display === undefined) {
+          return [];
+        }
+        return [
+          {
+            characterId: r.characterId,
+            score: r.score,
+            relevance: relevanceOf(r.distance),
+            name: display.name,
+            avatarHash: display.avatarHash,
+            genre: display.genre,
+            tone: display.tone,
+            elevatorPitch: display.elevatorPitch,
+          },
+        ];
+      });
     });
   };
 }
