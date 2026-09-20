@@ -9,7 +9,7 @@
 //   • a vanished asset row is a skip, not an error;
 //   • cooperative abort: an aborted signal does no work.
 
-import { imageEmbeddings, imageIndexSkips } from "@orb/db";
+import { embedSpaceState, imageEmbeddings, imageIndexSkips } from "@orb/db";
 import type { AssetId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
@@ -17,7 +17,7 @@ import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { EMBED_DIM, IMAGE_EMBED_MODEL, makeStoreHarness, pngBytes, seedAsset, seedUser, TEST_CAPTION } from "../_support.ts";
+import { EMBED_DIM, EMBED_MODEL, IMAGE_EMBED_MODEL, makeStoreHarness, pngBytes, seedAsset, seedUser, TEST_CAPTION } from "../_support.ts";
 
 const IMG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 1, 2, 3, 4]);
 const signal = (): AbortSignal => new AbortController().signal;
@@ -75,6 +75,57 @@ describe("embedAssets — the bulk image sweep", () => {
     // The SAME call also produced the structured breakdown (issue #164) — a caption without facets is the
     // state the whole visual-families pipeline starved on.
     expect(rows.find((r) => r.lens === "image-captioned")?.captionMeta).toMatchObject({ artStyle: "anime", palette: "warm", mood: "cheerful" });
+  });
+
+  // §10-3 + §10-5 in the sweep, in one drive: the joint-space fallback on the WRITE side, and the completion
+  // mark the read side later folds. Both matter here rather than only in the on-write handler, because a
+  // whole-corpus reindex is exactly when an owner's space changes — the sweep IS the reindex.
+  test("§10-3/§10-5 an owner with no image embedder is swept into the TEXT space and RECORDED as complete there", async () => {
+    const db = await freshDb();
+    const seeded = await seedOneAsset(db);
+    const h = makeStoreHarness(db, { imageAssetIds: seeded.ids, assetBytes: seeded.bytes }, "no-binding");
+    const svc = createEmbeddingsService(h.ctx);
+
+    const result = await svc.embedAssets({ ownerId: null, force: false, signal: signal() });
+
+    // The asset is EMBEDDED, not skipped — the pre-§10-3 sweep counted it as `skipped` and moved on.
+    expect(result).toEqual({ embedded: 1, skipped: 0 });
+    const rows = await db.select().from(imageEmbeddings).where(eq(imageEmbeddings.assetId, seeded.assetId));
+    expect(rows.map((r) => r.lens)).toEqual(["image-captioned"]);
+    expect(rows[0]?.model).toBe(EMBED_MODEL);
+    expect(h.roleClients.imageEmbed).not.toHaveBeenCalled();
+
+    // …and the sweep's terminal recorded WHERE it left this owner's images, which is what makes the read
+    // side's `activeSpace` a fact about finished work rather than about a settings row.
+    const state = await db.select().from(embedSpaceState).where(eq(embedSpaceState.ownerId, seeded.owner));
+    expect(state).toEqual([expect.objectContaining({ scope: "images", space: EMBED_MODEL })]);
+  });
+
+  test("§10-5 the ordinary image arm records its own space — the mark follows the arm, not a constant", async () => {
+    const db = await freshDb();
+    const seeded = await seedOneAsset(db);
+    const h = makeStoreHarness(db, { imageAssetIds: seeded.ids, assetBytes: seeded.bytes });
+    const svc = createEmbeddingsService(h.ctx);
+
+    await svc.embedAssets({ ownerId: null, force: false, signal: signal() });
+
+    const state = await db.select().from(embedSpaceState).where(eq(embedSpaceState.ownerId, seeded.owner));
+    expect(state).toEqual([expect.objectContaining({ scope: "images", space: IMAGE_EMBED_MODEL })]);
+  });
+
+  test("§10-5 an ABORTED sweep records nothing — a half-moved corpus must never read as complete", async () => {
+    const db = await freshDb();
+    const seeded = await seedOneAsset(db);
+    const h = makeStoreHarness(db, { imageAssetIds: seeded.ids, assetBytes: seeded.bytes });
+    const svc = createEmbeddingsService(h.ctx);
+    const aborted = new AbortController();
+    aborted.abort();
+
+    await svc.embedAssets({ ownerId: null, force: false, signal: aborted.signal });
+
+    // This is the whole reason the mark lives at the terminal behind the abort guard: a completion written
+    // by a pass that did not finish would tell every later read that a partly-migrated corpus is settled.
+    expect(await db.select().from(embedSpaceState)).toEqual([]);
   });
 
   // ── issue #164: the facet backfill's run door ──────────────────────────────────────────────────────

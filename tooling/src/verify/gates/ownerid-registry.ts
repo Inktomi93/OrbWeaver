@@ -90,6 +90,9 @@ export const OWNERID_CLASSIFICATIONS: Readonly<Record<string, OwnershipClassific
     why: "D23 parentless per-user aggregate + D46 — C5's owner-GLOBAL fire-rate ceiling. It is the SIBLING of automation_budgets (chatId PK) and it exists BECAUSE that key cannot express a chat-less rule's scope: a NULL-scope row is unrepresentable on a chat-keyed PK, and a synthetic sentinel chat id would be the D24 soft-ref class. The owner IS the scope here — the row has no parent to derive one from — so the stamp is the identity, not a redundant denormalization (interaction-direction-spec §3-S3)",
   },
   daily_stats: { why: "D23 parentless per-user aggregate (×day)" },
+  embed_space_state: {
+    why: "D23 parentless per-user aggregate (×vector scope) — the last COMPLETE embed space per (owner, scope) (inference program §10-5). There is no parent to derive through: the row's SUBJECT is the owner's corpus as a whole, not any one vector row, and a vector table cannot carry it (those are keyed per producer and deliberately ownerless, D20). The owner IS the identity here, exactly as owner_stats is",
+  },
   model_stats: { why: "D23 parentless per-user aggregate (×model)" },
   keyword_cooccurrence: { why: "D23 parentless per-user aggregate (×keyword-pair)" },
   theme_clusters: { why: "D23 parentless per-user aggregate (×cluster)" },

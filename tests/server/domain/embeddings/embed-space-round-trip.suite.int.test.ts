@@ -27,6 +27,7 @@ import { EMBED_SPACE_DIMS } from "@orb/contracts/inference";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
 import { characterEmbeddings, documentChunks } from "@orb/db";
+import type { CharacterId, UserConnectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { eq } from "drizzle-orm";
@@ -34,17 +35,24 @@ import { describe } from "vitest";
 import type { EmbeddingsContext } from "../../../../packages/server/src/domain/embeddings/context.ts";
 import type { EmbeddingsService } from "../../../../packages/server/src/domain/embeddings/contract/service.ts";
 import { requireTaskModel } from "../../../../packages/server/src/domain/embeddings/substrate/task-model.ts";
+import { SEARCH_SPACE_REINDEXING } from "../../../../packages/server/src/domain/search/contract/errors.ts";
 import { nearestCharacters, nearestDocumentChunks } from "../../../../packages/server/src/domain/search/persistence/nearest.ts";
 import { requireSpaceModel } from "../../../../packages/server/src/domain/search/substrate/space.ts";
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import type { ConnectionHarness } from "../connection/_support.ts";
 import { makeHarness, seedOwner } from "../connection/_support.ts";
+import type { StoreHarnessSources } from "./_support.ts";
 import { makeStoreHarness, seedCharacter, seedDocument } from "./_support.ts";
 
 const LOCAL_LIGHT = castId<ProviderId>("local-light");
 /** The curated local-light encoder — the row `entry/boot/seed-local-light.ts` seeds on every fresh box. */
 const ENCODER = "jinaai/jina-clip-v2";
+/** A SECOND encoder the owner re-binds to mid-drive. The model id differs, so the `(model[@dtype])` space
+ *  differs; the dtype matches the deployment's served precision so the backend's stamp and the read side's
+ *  derivation agree about the NEW space exactly as they do about the old one (§10-2). */
+const SECOND_ENCODER = "jinaai/jina-clip-v2-q4";
+const SECOND_ENCODER_DTYPE = "q8";
 const CARD_TEXT = "a seeded card, embedded through the real local-light connection";
 const CHUNK_TEXT = "a seeded document slice";
 
@@ -61,6 +69,7 @@ interface Drive {
   readonly harness: ConnectionHarness;
   readonly principal: Principal;
   readonly userId: Principal["userId"];
+  readonly connectionId: UserConnectionId;
   readonly svc: EmbeddingsService;
   readonly ctx: EmbeddingsContext;
   readonly roleClients: () => Promise<RoleClients>;
@@ -68,7 +77,7 @@ interface Drive {
 
 /** The whole graph one drive needs: a real runtime over a real db, an owner holding a bound `local-light`
  *  encoder connection, and an embeddings service whose role clients come from THAT runtime. */
-async function driveOwnerWithBoundEncoder(db: Db): Promise<Drive> {
+async function driveOwnerWithBoundEncoder(db: Db, sources: StoreHarnessSources = {}): Promise<Drive> {
   const harness = await makeHarness(db, { localLight: true });
   const { userId, principal } = await seedOwner(db, "user_roundtrip");
   const connection = await harness.svc.create({
@@ -81,9 +90,17 @@ async function driveOwnerWithBoundEncoder(db: Db): Promise<Drive> {
   });
   await harness.svc.setBinding({ principal, task: "embed", connectionId: connection.id });
   const roleClients = (): Promise<RoleClients> => Promise.resolve(harness.runtime.roleClientsFor(principal));
-  const store = makeStoreHarness(db);
+  const store = makeStoreHarness(db, sources);
   const ctx: EmbeddingsContext = { ...store.ctx, roleClientsFor: roleClients, embedDim: EMBED_SPACE_DIMS, imageEmbedDim: EMBED_SPACE_DIMS };
-  return { harness, principal, userId, svc: createEmbeddingsService(ctx), ctx, roleClients };
+  return { harness, principal, userId, connectionId: connection.id, svc: createEmbeddingsService(ctx), ctx, roleClients };
+}
+
+/** The three sweep terminals that between them cover the `embed` space (§10-5's scopes `cards`, `memory`,
+ *  `documents`). Running the REAL verbs is the point: the completion rows only exist because work finished. */
+async function runEmbedSweeps(drive: Drive): Promise<void> {
+  await drive.svc.embedCorpus({ force: false, signal: new AbortController().signal, ownerId: drive.userId });
+  await drive.svc.purgeMemoryVectors({ ownerId: drive.userId });
+  await drive.svc.purgeDocumentVectors({ ownerId: drive.userId });
 }
 
 describe("the embed space round trip — write tag === read tag (§10-2)", () => {
@@ -111,7 +128,7 @@ describe("the embed space round trip — write tag === read tag (§10-2)", () =>
     expect(rows).toHaveLength(1);
 
     // The READ side derives its own tag from the same resolved connection, through search's substrate.
-    const readTag = await requireSpaceModel(await drive.roleClients(), "embed");
+    const readTag = await requireSpaceModel(drive.ctx, drive.userId, "embed");
     // THE DEFECT, stated as the thing it actually breaks: the stored row must be in the space the
     // retrieval scan filters on. Asserted on the row, not on two derivations agreeing in the abstract.
     expect(rows[0]?.model).toBe(readTag);
@@ -143,7 +160,7 @@ describe("the embed space round trip — write tag === read tag (§10-2)", () =>
     expect(chunks).toBe(0);
     expect(await db.select().from(documentChunks)).toHaveLength(1);
 
-    const readTag = await requireSpaceModel(await drive.roleClients(), "embed");
+    const readTag = await requireSpaceModel(drive.ctx, drive.userId, "embed");
     const hits = await nearestDocumentChunks(db, {
       documentIds: [documentId],
       queryVector: queryVector(),
@@ -154,10 +171,82 @@ describe("the embed space round trip — write tag === read tag (§10-2)", () =>
     expect(hits).toHaveLength(1);
   });
 
+  // ── §10-5: the transition, driven end to end ────────────────────────────────────────────────────────
+  //
+  // THE DEFECT: between a binding change and the reindex finishing, the READ side points at the new space
+  // while the corpus is still in the old one. A tag-equality unit test cannot see it — both halves are
+  // individually correct at every instant; only the ORDER of two real events produces the state. So this
+  // drives the real events: a real connection write moves the space (it also fires the §10-4 PD-139a
+  // trigger), and the assertions are what a user would experience at each step.
+  //
+  // THE PLANTED CONTROL is step 2's row count taken in the same breath as the refusal: the vectors are
+  // provably still there and still findable in the space they were written in, so the refusal is about the
+  // TRANSITION and not about an empty corpus, a wrong principal, or a broken fixture. Delete the refusal in
+  // `search/substrate/space.ts` and step 2 goes green while step 3's "answers the NEW tag" stays green —
+  // which is exactly the silent-empty shipping shape this exists to stop.
+  test("a binding change does not serve a foreign space: reads refuse until the reindex lands, then swap", async () => {
+    const db = await freshDb();
+    const characterId = castId<CharacterId>("character_transition");
+    const drive = await driveOwnerWithBoundEncoder(db, {
+      characterIds: [characterId],
+      cardTexts: new Map([[characterId, CARD_TEXT]]),
+    });
+    await seedCharacter(db, drive.userId, { id: characterId, name: "transition card" });
+
+    // ── STEP 1: the steady state. The real sweeps run, record their completions, and the read answers.
+    await runEmbedSweeps(drive);
+    const oldTag = await requireSpaceModel(drive.ctx, drive.userId, "embed");
+    const rows = await db.select().from(characterEmbeddings).where(eq(characterEmbeddings.characterId, characterId));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.model).toBe(oldTag);
+    expect((await nearestCharacters(db, { ownerId: drive.userId, queryVector: queryVector(), model: oldTag, limit: 5 })).map((h) => h.characterId)).toEqual([
+      characterId,
+    ]);
+
+    // ── STEP 2: the space MOVES under a real connection write. `declared.embedding.dtype` is the top
+    // evidence tier (§6.2), so this is a user re-declaring their own box's precision — the same class of
+    // change as re-pointing the binding, and it moves the `(model[@dtype])` tag without touching `model`.
+    const second = await drive.harness.svc.create({
+      principal: drive.principal,
+      providerId: LOCAL_LIGHT,
+      model: SECOND_ENCODER,
+      baseUrl: null,
+      credentialId: null,
+      allowBackground: true,
+      // `declared` is the TOP evidence tier (§6.2) — the user telling us what their own box serves. It is
+      // what makes a model the shipped catalog has never heard of pickable, which is exactly the shape of
+      // "I swapped my encoder" that this whole transition exists for.
+      declared: { kind: "embedding", embedding: { dims: EMBED_SPACE_DIMS, dtype: SECOND_ENCODER_DTYPE, input: ["text", "image"] } },
+    });
+    await drive.harness.svc.setBinding({ principal: drive.principal, task: "embed", connectionId: second.id });
+    const newTag = await requireTaskModel(drive.ctx, drive.userId, "embed");
+    expect(newTag, "the live space moved").not.toBe(oldTag);
+
+    // THE VECTORS ARE STILL THERE, in the space they were written in — this is the control that makes the
+    // refusal below mean "mid-move" rather than "nothing to find". The principal is the connection row's
+    // OWNER, the same one every read above was taken as.
+    const stillThere = await db.select().from(characterEmbeddings).where(eq(characterEmbeddings.characterId, characterId));
+    expect(stillThere).toHaveLength(1);
+    expect(stillThere[0]?.model).toBe(oldTag);
+
+    // …and the read REFUSES rather than scanning the new space (which holds nothing) or the old one with a
+    // new-model query vector (which would rank garbage — both spaces are 1024-wide, so nothing throws).
+    await expect(requireSpaceModel(drive.ctx, drive.userId, "embed")).rejects.toMatchObject({ code: SEARCH_SPACE_REINDEXING });
+
+    // ── STEP 3: the reindex lands. Every scope records the new space and the read resumes — on the NEW tag,
+    // finding the SAME card. The swap is complete and nothing was lost on the way through.
+    await runEmbedSweeps(drive);
+    const settled = await requireSpaceModel(drive.ctx, drive.userId, "embed");
+    expect(settled).toBe(newTag);
+    expect((await nearestCharacters(db, { ownerId: drive.userId, queryVector: queryVector(), model: settled, limit: 5 })).map((h) => h.characterId)).toEqual([
+      characterId,
+    ]);
+  });
+
   test("the derived read tag carries the encoder's curated dtype — the fact the backend stamps", async () => {
     const db = await freshDb();
     const drive = await driveOwnerWithBoundEncoder(db);
-    const readTag = await requireSpaceModel(await drive.roleClients(), "embed");
+    const readTag = await requireSpaceModel(drive.ctx, drive.userId, "embed");
     // Not a string literal: the ASSERTION is that the space tag is not merely the row's model column,
     // because a re-quantised encoder is a different geometry (#2417). A tag equal to the bare model id
     // is the pre-fix shape.

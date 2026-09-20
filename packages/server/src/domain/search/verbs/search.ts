@@ -65,7 +65,7 @@ interface DigestScanArgs {
  *  `scopedCharacterId` narrows to one egocentric POV. Consumes SCOPE_INSTRUCTIONS for embed + rerank. */
 async function digestScan(ctx: SearchContext, args: DigestScanArgs): Promise<DigestSourceHit[]> {
   const rc = await ctx.roleClientsFor(args.ownerId);
-  const embedModel = await requireSpaceModel(rc, "embed");
+  const embedModel = await requireSpaceModel(ctx, args.ownerId, "embed");
   const embedded = await rc.embed(args.query, {
     inputType: "query",
     instruction: SCOPE_INSTRUCTIONS.digests.query,
@@ -160,7 +160,7 @@ async function dispatchSegments(ctx: SearchContext, verbs: DelegateVerbs, params
     throw new SearchError(SEARCH_SCOPE_REQUIRED, "segments needs an egocentric scopedCharacterId on the chat scope");
   }
   // Owner belt: a chat the principal produced no digests in is not theirs to search (a foreign chatId → []).
-  const owned = await ownedChatIds(ctx.db, ownerId, await requireSpaceModel(await ctx.roleClientsFor(ownerId), "embed"));
+  const owned = await ownedChatIds(ctx.db, ownerId, await requireSpaceModel(ctx, ownerId, "embed"));
   if (!owned.includes(scope.chatId)) {
     return [];
   }

@@ -286,6 +286,7 @@ describe("store — image lenses (image_embeddings)", () => {
       lens: "image-captioned",
       assetId,
       content: IMG,
+      via: "imageEmbed",
       caption: TEST_CAPTION,
       model: IMAGE_EMBED_MODEL,
       dim: EMBED_DIM,
@@ -301,6 +302,41 @@ describe("store — image lenses (image_embeddings)", () => {
     expect(rows).toHaveLength(2);
     const captioned = rows.find((r) => r.lens === "image-captioned");
     expect(captioned?.caption).toBe(TEST_CAPTION);
+  });
+
+  // §10-3 — THE CAPTIONED-TEXT ARM. `via: "embed"` is the store's half of the joint-space rule: the owner has
+  // no image-capable embedder, so the caption is embedded as TEXT through the `embed` role and the picture
+  // lands in their text space. The assertion is on WHICH ROLE OP RAN, because that is the whole difference
+  // between a findable picture and a vector in a geometry nothing queries — and the pre-§10-3 tree never
+  // reached this call at all (the indexer dropped the asset before the store).
+  test("via:'embed' embeds the CAPTION through the text role — the picture lands in the owner's embed space", async () => {
+    const db = await freshDb();
+    const h = makeStoreHarness(db);
+    const svc = createEmbeddingsService(h.ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner-caption-fallback") });
+    const assetId = await seedAsset(db, owner);
+
+    const written = await svc.store({
+      kind: "avatar",
+      lens: "image-captioned",
+      assetId,
+      content: IMG,
+      via: "embed",
+      caption: TEST_CAPTION,
+      model: EMBED_MODEL,
+      dim: EMBED_DIM,
+      ownerId: owner,
+    });
+
+    expect(written.outcome).toBe("written");
+    expect(h.roleClients.embed).toHaveBeenCalledWith(TEST_CAPTION);
+    // The image embedder is never reached in this arm — asking it would be the bug, not the fallback.
+    expect(h.roleClients.imageEmbed).not.toHaveBeenCalled();
+    const rows = await db.select().from(imageEmbeddings).where(eq(imageEmbeddings.assetId, assetId));
+    expect(rows).toHaveLength(1);
+    // The row is tagged with the TEXT space, which is where a text query will scan for it.
+    expect(rows[0]?.model).toBe(EMBED_MODEL);
+    expect(rows[0]?.lens).toBe("image-captioned");
   });
 
   // F8 — an EMPTY caption (the summarizer returned no item) must NOT be written to the captioned lens:
@@ -319,6 +355,7 @@ describe("store — image lenses (image_embeddings)", () => {
       lens: "image-captioned",
       assetId,
       content: IMG,
+      via: "imageEmbed",
       caption: "   \n  ", // whitespace-only ≡ empty (the summarizer produced nothing usable)
       model: IMAGE_EMBED_MODEL,
       dim: EMBED_DIM,
@@ -337,6 +374,7 @@ describe("store — image lenses (image_embeddings)", () => {
       lens: "image-captioned",
       assetId,
       content: IMG,
+      via: "imageEmbed",
       caption: TEST_CAPTION,
       model: IMAGE_EMBED_MODEL,
       dim: EMBED_DIM,

@@ -7,7 +7,8 @@ import { getLog } from "#foundation/observability";
 import type { EmbeddingsIndexerContext } from "../contract/service.ts";
 import { existingImageSkip, insertImageSkip } from "../persistence/queries.ts";
 import { imageBelowFloor } from "../substrate/image-admission.ts";
-import { requireTaskModel } from "../substrate/task-model.ts";
+import { reportImageSpaceDegrade } from "../substrate/image-space-degrade.ts";
+import { requireTaskModel, resolveImageSpace } from "../substrate/task-model.ts";
 import { analyzeAvatarImage } from "./caption.ts";
 
 /** `character.updated` → re-embed the card text (`store(kind='card', lens='card-text')`). Idempotent: the
@@ -98,22 +99,35 @@ export async function onAssetCreated(ctx: EmbeddingsIndexerContext, event: Asset
   if (ownerId === null) {
     return;
   }
-  const model = await requireTaskModel(ctx, ownerId, "imageEmbed");
-  if (model === null) {
-    getLog().debug({ assetId: event.assetId, ownerId }, "embeddings indexer: the owner has no imageEmbed connection — skipped");
+  // THE JOINT-SPACE RULE (§10-3). Before it, an owner with no `imageEmbed` binding lost the asset here to a
+  // debug line: the picture was never searchable and nothing at any readable level said so. Now the space
+  // resolver answers with the arm that IS available — the joint image lens, or the captioned-TEXT fallback
+  // in the owner's `embed` space — and only a total absence of any vector connection is a skip.
+  const space = await resolveImageSpace(ctx, ownerId);
+  if (space === null) {
+    getLog().warn(
+      { assetId: event.assetId, ownerId },
+      "embeddings indexer: this owner has NO vector connection at all (neither imageEmbed nor embed) - the image cannot be indexed and will not be searchable until one is bound",
+    );
     return;
   }
-  await ctx.store({
-    kind: "avatar",
-    lens: "image-raw",
-    ownerId,
-    assetId: event.assetId,
-    content: bytes,
-    model,
-    dim: ctx.imageEmbedDim,
-  });
+  if (space.via === "embed") {
+    reportImageSpaceDegrade(ownerId, space.model, space.degraded);
+  } else {
+    // Pixels only reach a vector through an image embedder, so the raw lens exists in the joint arm alone.
+    await ctx.store({
+      kind: "avatar",
+      lens: "image-raw",
+      ownerId,
+      assetId: event.assetId,
+      content: bytes,
+      model: space.model,
+      dim: ctx.imageEmbedDim,
+    });
+  }
   // ONE vision call yields the caption AND the grammar-enforced facet breakdown (issue #164) — the row is
-  // born analysed, so the catch-up sweep never has to revisit it.
+  // born analysed, so the catch-up sweep never has to revisit it. It rides the SUMMARIZE role, so it is
+  // available in BOTH arms: the fallback's whole premise is that the caption is the signal that survives.
   const analysis = await analyzeAvatarImage(await ctx.roleClientsFor(ownerId), bytes);
   await ctx.store({
     kind: "avatar",
@@ -123,7 +137,8 @@ export async function onAssetCreated(ctx: EmbeddingsIndexerContext, event: Asset
     content: bytes,
     caption: analysis.caption,
     captionMeta: analysis.captionMeta,
-    model,
+    via: space.via,
+    model: space.model,
     dim: ctx.imageEmbedDim,
   });
 }

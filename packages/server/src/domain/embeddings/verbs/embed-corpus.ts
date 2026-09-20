@@ -18,6 +18,7 @@ import type { EmbedPassParams } from "../contract/params.ts";
 import type { BulkEmbedResult } from "../contract/results.ts";
 import type { EmbeddingsService } from "../contract/service.ts";
 import { purgeStaleVectors } from "../persistence/clear.ts";
+import { upsertCompletedSpace } from "../persistence/space-state.ts";
 import { requireTaskModel } from "../substrate/task-model.ts";
 
 /** One card's sweep step: no text or no owner/embed binding ⇒ skipped (a card whose owner has no `embed`
@@ -71,6 +72,11 @@ export function createEmbedCorpus(ctx: EmbeddingsContext, deps: { readonly store
     // A no-op for an owner whose embed binding did not change since the last index.
     if (!signal.aborted) {
       for (const [spaceOwnerId, model] of spaces) {
+        // THE COMPLETION MARK (§10-5), recorded BEFORE the purge and only on a complete, non-aborted sweep:
+        // this owner's card corpus is now entirely in `model`. The read side's `activeSpace` folds this row
+        // with `memory` and `documents` — the other two halves of the same `embed` space — and calls the
+        // space complete only when all three agree.
+        await upsertCompletedSpace(ctx.db, { ownerId: spaceOwnerId, scope: "cards", space: model, now: ctx.now() });
         await purgeStaleVectors(ctx.db, "character_embeddings", spaceOwnerId, model);
       }
     }

@@ -7,11 +7,17 @@
 // verb only dispatches the owner-scoped purge over `document_chunks`. The active model is the owner's resolved
 // `embed` binding, the SAME space tag the chunk embed writes key on. BULK-ONLY + skip-on-abort is the
 // CALLER's guard (the databank-reindex runner), mirroring `purgeMemoryVectors` / the embedCorpus purge exactly.
+//
+// IT ALSO RECORDS THE COMPLETION (§10-5, `embed_space_state` scope `documents`), for exactly the reason
+// `purgeMemoryVectors` does: the caller's BULK + non-aborted guard means every owner reaching this verb is
+// an owner whose document chunks the sweep just re-embedded. The mark lands BEFORE the purge and the purge
+// deletes around the recorded space, so "what completed" and "what survived" are one value.
 
 import type { EmbeddingsContext } from "../context.ts";
 import type { PurgeDocumentVectorsResult } from "../contract/results.ts";
 import type { EmbeddingsService } from "../contract/service.ts";
 import { purgeStaleVectors } from "../persistence/clear.ts";
+import { upsertCompletedSpace } from "../persistence/space-state.ts";
 import { requireTaskModel } from "../substrate/task-model.ts";
 
 export function createPurgeDocumentVectors(ctx: EmbeddingsContext): EmbeddingsService["purgeDocumentVectors"] {
@@ -20,6 +26,7 @@ export function createPurgeDocumentVectors(ctx: EmbeddingsContext): EmbeddingsSe
     if (activeModel === null) {
       return { chunks: 0 };
     }
+    await upsertCompletedSpace(ctx.db, { ownerId, scope: "documents", space: activeModel, now: ctx.now() });
     const chunks = await purgeStaleVectors(ctx.db, "document_chunks", ownerId, activeModel);
     return { chunks };
   };

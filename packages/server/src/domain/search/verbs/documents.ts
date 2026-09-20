@@ -72,7 +72,7 @@ export function createDocuments(ctx: SearchContext): SearchService["documents"] 
   return async (params: DocumentSearchParams): Promise<DocumentChunkHit[]> => {
     const queryText = params.queryText;
     const rc = await ctx.roleClientsFor(params.ownerId);
-    const embedModel = await requireSpaceModel(rc, "embed");
+    const embedModel = await requireSpaceModel(ctx, params.ownerId, "embed");
     if (queryText.trim().length === 0) {
       throw new SearchError(SEARCH_EMPTY_QUERY, "documents requires a queryText to embed + scan");
     }

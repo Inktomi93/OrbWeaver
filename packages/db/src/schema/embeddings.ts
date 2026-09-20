@@ -42,7 +42,7 @@
 // identity-keyed join (composite PK — there is no TypeID brand for it).
 
 import type { ImageCaptionMeta } from "@orb/contracts/embeddings";
-import { IMAGE_LENSES, IMAGE_SKIP_REASONS } from "@orb/contracts/embeddings";
+import { IMAGE_LENSES, IMAGE_SKIP_REASONS, VECTOR_SCOPES } from "@orb/contracts/embeddings";
 import type {
   AssetId,
   CharacterEmbeddingId,
@@ -53,6 +53,7 @@ import type {
   DocumentChunkId,
   DocumentId,
   ImageEmbeddingId,
+  UserId,
 } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import {
@@ -72,6 +73,7 @@ import { assets } from "./assets.ts";
 import { characters } from "./character.ts";
 import { chats } from "./chat.ts";
 import { documents } from "./databank.ts";
+import { users } from "./users.ts";
 
 // The one 1024-dim space (Qwen3-VL, text↔image cosine-comparable — core/Knowledge-Cluster.md §1). Every
 // `embedding` column is F32_BLOB(1024); the row's `dim` column records it for the `(model, dim)` space tag.
@@ -426,5 +428,55 @@ export const imageIndexSkips = sqliteTable(
   () => [
     // SQL-side enum enforcement derived from the tuple (mirrors the drizzle `{ enum }` type-side).
     check("image_index_skips_reason_check", sql.raw(`reason in (${IMAGE_SKIP_REASON_CHECK_LIST})`)),
+  ],
+);
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// embed_space_state — the LAST COMPLETE `(model[@dtype])` space per `(owner, vector scope)` (inference
+// program §10-5, the `activeSpace` getter). NOT a vector table and not a cache: it is the only durable
+// answer to "has this owner's corpus actually finished moving into the space their binding resolves to?"
+//
+// WHY IT EXISTS. A binding change re-points the READ side at the new space instantly while the corpus is
+// still in the old one, so retrieval answers empty until four independent sweeps finish — and the PD-104
+// purge, whose predicate is `model != <the live space>`, would meanwhile reclaim the live corpus. Rows here
+// are written ONLY at a sweep's completed, non-aborted terminal, so "the space the last completed sweep
+// wrote" is a fact about work that actually happened rather than about a settings row someone edited.
+//
+// WHY `(owner, scope)` AND NOT `(owner, task)`. A space change fans out to four sweeps with four aborts
+// (`VECTOR_SCOPES`, @orb/contracts/embeddings): cards, memory, documents, images. Three of them write the
+// `embed` space, so a per-task row would have to claim completion while a third of the geometry is stale.
+// The getter folds scopes → task through `VECTOR_SCOPES_BY_TASK` and calls the space complete only when
+// every scope of that task agrees.
+//
+// NO `dim` COLUMN, deliberately: the width is the DEPLOYMENT's (`EMBED_SPACE_DIMS`, the §10-1 admission
+// rule — every admitted embedder is 1024), never a per-owner fact. The tag is the whole per-owner axis.
+// `ownerId` IS a real column here (not a D20 violation): the row's subject IS the owner — there is no
+// producer FK to derive scope from, and a per-user embedder makes completion a per-user fact.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+// CHECK list derived from the canonical tuple (NOT re-spelled): `scope in ('cards', 'memory', …)`.
+const VECTOR_SCOPE_CHECK_LIST = checkList(VECTOR_SCOPES);
+
+export const embedSpaceState = sqliteTable(
+  "embed_space_state",
+  {
+    // The owner whose corpus this is. CASCADE: a deleted user's completion state goes with their vectors.
+    ownerId: text("owner_id")
+      .$type<UserId>()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    // Which half of the corpus — derives VECTOR_SCOPES (D34, as `image_embeddings.lens` derives
+    // IMAGE_LENSES). The `enum` option is type-only; the CHECK below is the SQL-level guard.
+    scope: text("scope", { enum: VECTOR_SCOPES }).notNull(),
+    // The `(model[@dtype])` space tag (`embedSpaceOf`) the last COMPLETED sweep of this scope wrote — the
+    // exact string `nearest.ts` filters on and `purgeStaleVectors` compares against.
+    space: text("space").notNull(),
+    completedAt: integer("completed_at").notNull().default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [
+    // One row per owner per scope — the mark verb's ON CONFLICT target (a completion OVERWRITES, it never
+    // accretes: only the latest completed space is a true statement).
+    primaryKey({ columns: [t.ownerId, t.scope] }),
+    check("embed_space_state_scope_check", sql.raw(`scope in (${VECTOR_SCOPE_CHECK_LIST})`)),
   ],
 );

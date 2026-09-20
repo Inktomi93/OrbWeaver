@@ -1,6 +1,9 @@
-// domain/search/substrate/constants — numeric pool-sizing tunables. Pure constants, no I/O. Tightening any
-// constant trades recall for latency: over-fetch a wider pool than topN, hub-adjust it, then optionally
-// rerank a budget-capped slice before capping to topN.
+// domain/search/substrate/constants — the retrieval tunables. Pure constants, no I/O. Tightening any
+// pool-sizing constant trades recall for latency: over-fetch a wider pool than topN, hub-adjust it, then
+// optionally rerank a budget-capped slice before capping to topN. `CAPTION_LENS` at the foot is the one
+// non-numeric member: the lens the joint-space fallback forces, homed here because two verbs read it.
+
+import type { ImageLens } from "@orb/contracts/embeddings";
 
 /** Over-fetch multiplier for the initial owner-scoped vector scan. */
 export const OWNER_OVERFETCH = 4;
@@ -28,3 +31,9 @@ export const SNIPPET_CHARS = 280;
  *  The real caller passes settings values; these keep the verb total when `k`/`minScore` are omitted. */
 export const DEFAULT_DOCUMENT_K = 5;
 export const DEFAULT_DOCUMENT_MIN_SCORE = 0.25;
+
+/** THE ONLY LENS THAT EXISTS IN THE CAPTIONED-TEXT FALLBACK SPACE (§10-3). When an owner has no
+ *  image-capable embedder their pictures are caption vectors in their TEXT space — no `image-raw` row was
+ *  ever written — so both image-reading verbs force this lens rather than scanning a table that cannot have
+ *  a matching row. One home, because a second spelling is how the two verbs would drift apart. */
+export const CAPTION_LENS: ImageLens = "image-captioned";

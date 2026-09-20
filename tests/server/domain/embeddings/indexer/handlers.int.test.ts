@@ -184,6 +184,54 @@ describe("onAssetCreated", () => {
     expect(rows.find((r) => r.lens === "image-captioned")?.caption).toBe(TEST_CAPTION);
   });
 
+  // §10-3 — THE DEFECT THIS REPLACES, stated as what a user lost: an owner with no `imageEmbed` binding had
+  // every image DROPPED here behind `getLog().debug(...)`. Zero rows, zero errors, and their pictures were
+  // permanently unsearchable with nothing anywhere saying so. The fallback embeds the VL caption as TEXT
+  // into their `embed` space, so a text query reaches the picture — one lens instead of two, which is a
+  // degrade, not a silence.
+  test("§10-3 NO imageEmbed binding → the caption lands in the TEXT space instead of the asset being dropped", async () => {
+    const db = await freshDb();
+    const storeH = makeStoreHarness(db, {}, "no-binding");
+    const svc = createEmbeddingsService(storeH.ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner-no-image-embed") });
+    const assetId = await seedAsset(db, owner);
+    const ih = makeIndexerHarness(db, svc.store, storeH.roleClients, { assetBytes: IMG });
+    const indexer = createEmbeddingsIndexer(ih.ctx);
+
+    await indexer.onAssetCreated({ type: "asset.created", assetId });
+
+    // The picture IS indexed — the whole point. One row, the captioned lens, in the owner's TEXT space.
+    const rows = await db.select().from(imageEmbeddings).where(eq(imageEmbeddings.assetId, assetId));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.lens).toBe("image-captioned");
+    expect(rows[0]?.model).toBe(EMBED_MODEL);
+    expect(rows[0]?.caption).toBe(TEST_CAPTION);
+    // The caption still costs its one vision call, and the image embedder is never asked (there is none).
+    expect(storeH.roleClients.summarize).toHaveBeenCalledTimes(1);
+    expect(storeH.roleClients.imageEmbed).not.toHaveBeenCalled();
+    expect(storeH.roleClients.embed).toHaveBeenCalledWith(TEST_CAPTION);
+  });
+
+  // The second cause, and the one a bare "is the slot filled?" check cannot see: the binding EXISTS and
+  // resolves, and the model still declares no image input. `canEmbedImages` is the read that separates them.
+  test("§10-3 a BOUND imageEmbed model that takes no image input degrades the same way", async () => {
+    const db = await freshDb();
+    const storeH = makeStoreHarness(db, {}, "no-image-input");
+    const svc = createEmbeddingsService(storeH.ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner-text-only-embedder") });
+    const assetId = await seedAsset(db, owner);
+    const ih = makeIndexerHarness(db, svc.store, storeH.roleClients, { assetBytes: IMG });
+    const indexer = createEmbeddingsIndexer(ih.ctx);
+
+    await indexer.onAssetCreated({ type: "asset.created", assetId });
+
+    const rows = await db.select().from(imageEmbeddings).where(eq(imageEmbeddings.assetId, assetId));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.lens).toBe("image-captioned");
+    expect(rows[0]?.model).toBe(EMBED_MODEL);
+    expect(storeH.roleClients.imageEmbed).not.toHaveBeenCalled();
+  });
+
   test("a deleted asset (loader → undefined) is a silent skip — no store", async () => {
     const db = await freshDb();
     const storeH = makeStoreHarness(db);
