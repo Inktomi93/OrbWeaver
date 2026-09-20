@@ -9,6 +9,8 @@ export { createEffectiveConfigWiring } from "./effective-config.ts";
 export { createChatChangedEmitter } from "./emit-chat-changed.ts";
 export type { DomainEventBus } from "./event-bus.ts";
 export { createDomainEventBus } from "./event-bus.ts";
+export type { InlineReplyImageDeps } from "./inline-reply-image.ts";
+export { createStoreInlineReplyImage } from "./inline-reply-image.ts";
 export type { MaterializeBackgroundDeps } from "./materialize-background.ts";
 export { createMaterializeBackground } from "./materialize-background.ts";
 export type { ImageRefAssets } from "./resolve-image-ref.ts";

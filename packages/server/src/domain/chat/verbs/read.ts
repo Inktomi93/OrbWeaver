@@ -127,6 +127,7 @@ import {
   loadChatParticipantCharacterIds,
   loadChatRow,
   loadForkChildren,
+  loadInlineReplyAssetIds,
   loadMessagesPage,
   loadMessageVariantSummaries,
   loadStreamBounds,
@@ -1176,6 +1177,10 @@ async function fitShapedHistory(args: {
         args.capability !== undefined && resolveCarryReasoning(params, args.capability, []) === "conversation"
           ? await loadCanonReasoningParts(args.ctx.db, args.convert.chatId)
           : new Map<MessageId, readonly ChatReasoningPart[]>(),
+      // §6.7: the SAME fence input the turn passes, from the SAME query — a preview that priced an
+      // assistant-row picture differently from the turn would put the transcript divider in the wrong place
+      // on exactly the chats this feature creates. LAZY: untouched on a history with no model-emitted image.
+      loadInlineReplyAssetIds: () => loadInlineReplyAssetIds(args.ctx.db, args.convert.chatId),
     },
     args.shaped.history,
   );

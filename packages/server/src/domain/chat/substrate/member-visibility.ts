@@ -235,22 +235,46 @@ export function stripChatEventForMember(event: ChatBusEvent, reasoningHostOnly =
  * passes through unchanged (a non-deception game keeps reasoning member-visible, and the hidden BODY grammar
  * rides the text channel, not reasoning). The re-emitted delta drops `memberText`: a member's wire carries the
  * member bytes ONCE, in `delta.text`, exactly as it did before the stamp existed.
+ *
+ * THE VERDICT IS A TOTAL DISPATCH, NOT A DEFAULT (§5.5). It used to read `if (kind !== "text") { … }`, which
+ * made every FUTURE channel member-visible by omission — the §6.7 inline-reply `image` delta would have
+ * reached a non-host member through a line nobody re-read, because a union grows in the commit that needs it
+ * to pass. A channel now earns its member verdict by appearing in {@link MEMBER_DELTA_CHANNELS} or the build
+ * fails; the runtime `undefined` arm below is fail-closed for the ONE way an unmodelled kind can still arrive.
  */
 export function scrubDeltaEventForMember(event: Extract<ChatBusEvent, { type: "delta" }>, reasoningHostOnly = false): ChatBusEvent | null {
-  if (event.delta.kind !== "text") {
-    // A reasoning-channel delta: withheld entirely on a deception game (host-only reasoning); passed on otherwise.
-    return reasoningHostOnly ? null : event;
-  }
-  if (event.memberText === undefined) {
-    return null;
-  }
-  const safe = event.memberText ?? event.delta.text;
-  if (safe.length === 0) {
-    return null;
-  }
-  const delta: ChatDeltaEvent = { chatId: event.delta.chatId, kind: "text", text: safe };
-  return { type: event.type, chatId: event.chatId, slotSeq: event.slotSeq, delta };
+  // FAIL-CLOSED on a kind the Record does not model. `tsc` says this cannot happen for a LIVE event, and for
+  // a live event it cannot — but the durable replay (`scrubChatEventReplayForMember`) feeds this function
+  // `chat_events.payload` rows that are drizzle-`$type`-CAST, never parsed (`queries.ts` `ChatEventLogRow`),
+  // so a row written by another build of this schema reaches here as an unmodelled kind. Withholding it from
+  // the member is the only answer that is right in both readings.
+  const channel = MEMBER_DELTA_CHANNELS[event.delta.kind] as MemberDeltaVerdict | undefined;
+  return channel === undefined ? null : channel(event, reasoningHostOnly);
 }
+
+/** One channel's member verdict: the event to forward, or `null` to withhold it entirely. */
+type MemberDeltaVerdict = (event: Extract<ChatBusEvent, { type: "delta" }>, reasoningHostOnly: boolean) => ChatBusEvent | null;
+
+/** THE PER-CHANNEL MEMBER VERDICT — one arm per `ChatDeltaEvent` kind, keyed by the discriminant so a new
+ *  channel fails to build until somebody DECIDES what a non-host member may see of it. That decision is the
+ *  point: the mid-stream stream is the one member surface with no at-commit strip behind it, so a channel
+ *  admitted by accident leaks for the whole turn and again on every durable resume. */
+const MEMBER_DELTA_CHANNELS: { readonly [K in ChatDeltaEvent["kind"]]: MemberDeltaVerdict } = {
+  // The BODY channel: exactly the bytes the producer stamped, or nothing.
+  text: (event) => {
+    if (event.memberText === undefined) {
+      return null;
+    }
+    const safe = event.memberText ?? event.delta.text;
+    if (safe.length === 0) {
+      return null;
+    }
+    const delta: ChatDeltaEvent = { chatId: event.delta.chatId, kind: "text", text: safe };
+    return { type: event.type, chatId: event.chatId, slotSeq: event.slotSeq, delta };
+  },
+  // The THINKING channel: withheld entirely on a deception game (host-only reasoning), verbatim otherwise.
+  reasoning: (event, reasoningHostOnly) => (reasoningHostOnly ? null : event),
+};
 
 /** The PRODUCER-side mid-stream scrub state (§3.6 — the file header's "the scrub state is the producer's").
  *  One stateful scrubber per streaming slot, fed every `text` delta IN EMIT ORDER and retired when the slot's

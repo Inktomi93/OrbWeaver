@@ -43,10 +43,10 @@ import {
 import type { CarryReasoning, UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_NAMES_BEHAVIOR } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
-import type { Resolved, ResolvedWarning, ToolCallInput, WireTool } from "@orb/inference";
+import type { GeneratedImage, Resolved, ResolvedWarning, ToolCallInput, WireTool } from "@orb/inference";
 import { generationOf, resolveCarryReasoning } from "@orb/inference";
 import type { ContentImageRef } from "@orb/kit/content";
-import type { CharacterId, ChatId, MessageId, PersonaId, WorldEntryId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, MessageId, PersonaId, WorldEntryId } from "@orb/kit/ids";
 import type { MacroRegistry, RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { executeRegexScripts } from "@orb/kit/regex";
 import { cleanPerSpeakerReply } from "@orb/kit/speaker-label";
@@ -96,6 +96,13 @@ interface RunTurnPipelineArgs {
    *  Injected (the domain holds no db handle) and LAZY — called only when the resolved rung is
    *  `conversation`, so a turn that carries nothing performs no read. */
   readonly loadReasoningParts: () => Promise<ReadonlyMap<MessageId, readonly ChatReasoningPart[]>>;
+  /** §6.7's INLINE-REPLY ORIGIN SET: for each canon slot of THIS chat, the asset ids whose `message_assets`
+   *  link says the model emitted that picture inside that slot's own generation. It is the sole thing that
+   *  lets `substrate/wire-history` ride an assistant row's picture back as an image part — an `/imagine`
+   *  illustration on the same row class is stamped `illustration` and stays display-only. Injected (the
+   *  domain holds no db handle) and LAZY, exactly like the carry source: CONVERT asks only when some
+   *  assistant row actually carries an `asset:` span. */
+  readonly loadInlineReplyAssetIds: () => Promise<ReadonlyMap<MessageId, ReadonlySet<AssetId>>>;
   /** The immutable assemble ctx (never mutated here). */
   readonly assembleContext: AssembleContext;
   readonly canon: readonly MessageView[];
@@ -197,6 +204,12 @@ interface TurnPipelineResult {
   readonly videoDropped: boolean;
   /** The turn's cumulative tool exchange across every recursion depth. */
   readonly toolRecords: readonly ToolCallRecord[];
+  /** §6.7 — the pictures the model emitted inside its own prose this turn, in arrival order, each carrying
+   *  the (depth-rebased) reply offset it arrived at. RAW provider payloads: the engine materializes them
+   *  through the SSRF-safe belt, stores them under the room HOST, splices the `![alt](asset:id)` spans and
+   *  writes the `origin:"inline-reply"` links. Empty on every text-only turn, which is every turn whose
+   *  preset did not ask for `replyMedia: "text+image"` on a model that produces images. */
+  readonly replyImages: readonly GeneratedImage[];
   /** The calls the TERMINAL tools (R1) drew off this completion, or `null` when there is NO usable channel —
    *  the tools didn't ride (none requested / the connection can't carry wire `tools[]`), or the turn produced
    *  no terminal economics at all. An EMPTY array is the honest "they rode, the wire answered, and the model
@@ -650,7 +663,8 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
   // REQUEST (conversion half) — the one seam where the shaped string body becomes content-parts (§3.5, the WIRE plane of the
   // content-class visibility registry): tokenize each row's spans, resolve USER-ATTACHMENT media refs by
   // the asset's kind — input.vision for images, input.video for mp4/webm/animated-gif (#317); every other
-  // embedded image is display-only and collapses to its marker (`isUserAttachment`),
+  // embedded image is display-only and collapses to its marker (`ridesAsModelMedia`, whose §6.7 second arm
+  // also rides back a picture the MODEL itself drew, per its own `message_assets` inline-reply link),
   // ride hidden/choices/unknown spans VERBATIM ({wire: full} — the model keeps its own memory), and collapse
   // card spans to the deterministic stub (except the M2 keep-last-X newest). This runs DOWNSTREAM of SHAPE
   // (squash joins with `\n\n` before tokenization — fences/tags survive the join) and of every string-body
@@ -674,6 +688,7 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
       // The `conversation` rung's source, read ONLY on that rung — the op is injected (the domain holds no
       // db handle) and lazy, so every other turn pays nothing for a feature it did not ask for.
       reasoningByMessage: carryReasoning === "conversation" ? await args.loadReasoningParts() : EMPTY_REASONING_BY_MESSAGE,
+      loadInlineReplyAssetIds: args.loadInlineReplyAssetIds,
     },
     shaped.history,
   );
@@ -743,6 +758,7 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     // Array-wire records come from the recurse loop; stateful (agent-sdk) records from the MCP onRecord
     // side-channel — mutually exclusive by construction, concatenated so persistence is arm-agnostic.
     toolRecords: [...loop.records, ...attach.mcpRecords],
+    replyImages: loop.replyImages,
     terminalToolCalls: terminalCallsOf(terminal.attached, loop.economics, loop.terminalCalls),
     terminalToolsCollided: terminal.collided,
     toolsUnsupported: attach.unsupported,
@@ -950,6 +966,7 @@ async function runRecurseLoop(input: {
   economics: TurnEconomics | null;
   records: readonly ToolCallRecord[];
   terminalCalls: readonly ToolCallInput[];
+  replyImages: readonly GeneratedImage[];
   warnings: readonly ResolvedWarning[];
   refused: boolean;
   reasoningMs: number | null;
@@ -966,6 +983,10 @@ async function runRecurseLoop(input: {
   // Collected AT THE DEPTH THEY WERE EMITTED: the aggregate keeps only the last depth's `toolCalls`, so a
   // terminal call co-emitted with a registry call would otherwise be erased by the recursion it triggered.
   const terminalCalls: ToolCallInput[] = [];
+  // §6.7: the turn's inline pictures across every recursion depth. Each depth's `atChars` is an offset into
+  // THAT depth's reply, and `content` is the depth-cumulative prose, so the offset is REBASED by the length
+  // already accumulated — otherwise a picture emitted at depth 1 would splice into depth 0's text.
+  const replyImages: GeneratedImage[] = [];
   // Deduped across depths: the same request-level degrade (a customParameters blob, a dropped knob) re-fires at
   // every recursion, but it is ONE degrade and the user gets ONE notice (the `image_dropped` "once" precedent).
   // KEYED ON THE WHOLE WARNING (#1440): the structured half now distinguishes two drops that share a code
@@ -979,6 +1000,7 @@ async function runRecurseLoop(input: {
   for (;;) {
     // Sequential by design: each recursion depends on the previous depth's executed results.
     const reduced = await reduceStream(args.runChatTurn({ ...input.request, history }), args);
+    replyImages.push(...rebaseReplyImages(reduced.economics?.replyImages, reduced.content.length, content.length));
     content += reduced.content;
     refusedByDepth.push(reduced.refused);
     for (const warning of reduced.warnings) {
@@ -1013,10 +1035,19 @@ async function runRecurseLoop(input: {
     economics,
     records,
     terminalCalls,
+    replyImages,
     warnings: [...warnings.values()],
     refused: refusedByDepth.includes(true),
     reasoningMs,
   };
+}
+
+/** §6.7 — one depth's inline pictures rebased onto the DEPTH-CUMULATIVE reply. `atChars` is an offset into
+ *  this depth's own reply text, and the loop concatenates depths into one variant body, so every offset
+ *  shifts by what came before. A picture whose wire carried no offset is pinned at this depth's TAIL (the
+ *  honest "after everything it said here"), never at 0 — which would put it in front of prose it followed. */
+function rebaseReplyImages(images: readonly GeneratedImage[] | undefined, depthLength: number, alreadyAccumulated: number): readonly GeneratedImage[] {
+  return (images ?? []).map((image) => ({ ...image, atChars: (image.atChars ?? depthLength) + alreadyAccumulated }));
 }
 
 /** Splits ONE depth's model-emitted calls into the two tool classes by NAME (#1404) — the ONE place the

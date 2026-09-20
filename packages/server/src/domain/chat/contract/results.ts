@@ -24,8 +24,8 @@ import type { ChatMembership } from "@orb/contracts/identity";
 import type { CostDetails, NormalizedFinishReason } from "@orb/contracts/inference";
 import type { EffortLevel, UserIntent } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
-import type { HistoryRole, ReasoningContentPart, Resolved, ResolvedWarning, ToolCallInput, ToolChoice, WireTool } from "@orb/inference";
-import type { CharacterId, ChatId, MessageId, PersonaId, UserConnectionId, UserId } from "@orb/kit/ids";
+import type { GeneratedImage, HistoryRole, ReasoningContentPart, Resolved, ResolvedWarning, ToolCallInput, ToolChoice, WireTool } from "@orb/inference";
+import type { AssetId, CharacterId, ChatId, MessageId, PersonaId, UserConnectionId, UserId } from "@orb/kit/ids";
 import type { MacroRegistry, RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { MemoryConfig, MemoryRecallInputs } from "./memory.ts";
@@ -287,6 +287,22 @@ export interface TurnEconomics {
   readonly generationId?: string | null;
   /** The reducer-assembled model-emitted calls; the loop pivots on finishReason === "tool" and reads these. */
   readonly toolCalls?: readonly ToolCallInput[] | undefined;
+  /** §6.7 INLINE REPLY PICTURES — what a chat model whose `output.modalities ∋ image` emitted BESIDE its
+   *  prose this depth, in arrival order, each carrying the reply-text offset it arrived at. Still the raw
+   *  provider payload (a data-URI/base64 blob or a provider URL): the bytes are not ours until the engine
+   *  materializes them through the SSRF-safe belt and stores them in the host's CAS, which is also the only
+   *  moment an `asset:` id exists to spell into the body. Absent on every text-only turn. */
+  readonly replyImages?: readonly GeneratedImage[] | undefined;
+}
+
+/** §6.7 — the PLACED twin of a `TurnEconomics.replyImages` entry: one picture the engine has already
+ *  materialized and stored, ready to become an `![alt](asset:<id>)` span. The `atChars` offset rides
+ *  through from the provider's raw reply and is CLAMPED at the splice (`substrate/inline-reply-images`),
+ *  because the receive tier rewrites those bytes in between. It lives here rather than beside the splice
+ *  because a domain-internal shape's home is `contract/` (`no-inline-domain-interface`). */
+export interface PlacedInlineImage {
+  readonly assetId: AssetId;
+  readonly atChars: number;
 }
 
 /**
