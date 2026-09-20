@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-08-22
+updated: 2026-09-20
 ---
 
 # Orbweaver — structure & enforcement (the constitution)
@@ -270,7 +270,9 @@ from the path alone.
 tooling.** Primary enforcement is resolver physics (no package declares the dep, so the import cannot
 resolve); the `packages-no-tooling` dep-cruiser stanza is the deep-relative-escape backstop, the `ui-cake`
 posture. The one surface still sealed AGAINST tooling is the provider FAMILIES
-(`infra/providers/backends/<x>`, where the credential firewall lives) — `tooling-no-provider-families`.
+(`packages/inference/src/backends/<x>`, where the agent-sdk credential firewall lives) plus the package's
+contract internals — `tooling-no-provider-families`, re-pointed there on 2026-09-20 with the
+`@orb/inference` extraction. The package FRONT DOOR is legal; its families are not.
 
 **The five-slot tool template** (`tooling/src/<tool>/` — the domain template's tooling twin; learn one,
 know all):
