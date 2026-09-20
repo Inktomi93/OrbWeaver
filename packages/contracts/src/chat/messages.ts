@@ -297,6 +297,11 @@ export interface MessageView {
    *  a client "last-in-context boundary" divider. */
   contextBoundaryMessageId: MessageId | null;
   costUsd: number | null;
+  /** WHERE `costUsd` came from — the SAME tuple as {@link tokenProvenance} (§5.3c never mints a second
+   *  accounting vocabulary). `measured` = the wire reported a figure, `estimated` = catalog/declared pricing
+   *  × normalized tokens, `unrecorded` = neither. The cost pill needs it to say whether its number is a
+   *  receipt or an estimate, and the commit-time view has always carried it — this is the read half. */
+  costProvenance: TokenProvenance;
   ttftMs: number | null;
   /** Generation-window bounds (epoch-ms) for this swipe — the wall time the turn engine began/finished
    *  the model call. Both null on a non-generated row (user/system/draft-greeting). `gf − gs` (when both

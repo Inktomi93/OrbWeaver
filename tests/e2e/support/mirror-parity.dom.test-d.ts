@@ -269,7 +269,6 @@ test("CanonMessage mirrors MessageView (the canon rows every honesty spec reads)
       | "generationId"
       | "toolCalls"
       | "connectionId"
-      | "costProvenance"
     >
   >(keys<CanonMessage, MessageView>());
   expectTypeOf<MessageView>().toExtend<CanonMessage>();
