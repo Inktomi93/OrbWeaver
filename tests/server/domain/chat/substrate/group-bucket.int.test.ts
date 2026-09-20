@@ -6,7 +6,7 @@
 // that the fabricated handle FK-throws (the original silent killer).
 
 import type { Db } from "@orb/db";
-import { chatDigests } from "@orb/db";
+import { chatDigests, embedGenerations } from "@orb/db";
 import type { CharacterId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
@@ -91,6 +91,17 @@ describe("group memory build↔recall round-trip (F1 regression)", () => {
     const host = await seedUser(db, castId<Handle>("host"));
     await seedCharacter(db, host, "aria");
     const chatId = await seedChat(db, "grp");
+    const generationId = "embed_generation_group_bucket_bad";
+    await db.insert(embedGenerations).values({
+      id: generationId,
+      ownerId: host,
+      task: "embed",
+      via: "embed",
+      connectionId: null,
+      connectionRef: "test:embed",
+      fingerprint: "test:group-bucket",
+      space: "m",
+    });
     // A direct insert with the fabricated handle (what engine.ts:477 / backfill.ts:50 did) violates the
     // `chat_digests.scopedCharacterId → characters.id` FK — this is the throw the engine silently swallowed.
     await expect(
@@ -108,6 +119,7 @@ describe("group memory build↔recall round-trip (F1 regression)", () => {
         keywords: [],
         topicAnchor: null,
         model: "m",
+        generationId,
         dim: 1024,
       } as never),
     ).rejects.toThrow();

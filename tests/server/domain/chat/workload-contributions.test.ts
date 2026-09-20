@@ -29,7 +29,7 @@ function build(
       digests: { scanned: 6, changed: 3 },
       segmentsSkippedOverWindow,
       failed,
-      completedSpaces: [{ ownerId: OWNER_ID, model: "embed-space" }],
+      completedSpaces: [{ ownerId: OWNER_ID, model: "embed-space", generationId: "test-generation", generationEpoch: 1 }],
     })),
     backfillGroupCharacters: vi.fn(async () => ({ scanned: 5, changed: 1 })),
     purgeMemoryVectors: vi.fn(async () => undefined),
@@ -51,7 +51,7 @@ describe("memory-backfill", () => {
     await contributions[0].run(bulkCtx, {}, vi.fn(), sig());
     expect(deps.backfillMemory).toHaveBeenCalledWith({ funderUserId: OWNER_ID, ownerId: null, signal: expect.any(AbortSignal) });
     expect(deps.purgeMemoryVectors).toHaveBeenCalledTimes(1);
-    expect(deps.purgeMemoryVectors).toHaveBeenCalledWith([{ ownerId: OWNER_ID, model: "embed-space" }]);
+    expect(deps.purgeMemoryVectors).toHaveBeenCalledWith([{ ownerId: OWNER_ID, model: "embed-space", generationId: "test-generation", generationEpoch: 1 }]);
   });
 
   test("a SINGULAR per-owner run does NOT purge (a model change is box-level)", async () => {

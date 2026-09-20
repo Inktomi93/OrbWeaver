@@ -242,6 +242,22 @@ export function makeStoreHarness(db: Db, sources: StoreHarnessSources = {}, imag
   const ctx: EmbeddingsContext = {
     db,
     roleClientsFor: () => Promise.resolve(roleClients),
+    resolveEmbeddingConnection: async (_ownerId, task) => {
+      const resolved = await roleClients.resolved(task);
+      return resolved === null
+        ? null
+        : {
+            ...resolved,
+            api: "test",
+            wire: "test",
+            baseUrl: null,
+            features: {},
+            extras: null,
+            transport: null,
+            embed: roleClients.embed,
+            imageEmbed: roleClients.imageEmbed,
+          };
+    },
     // The entity OWNER reads (the funder of every sweep) — the harness's seeded rows all belong to whoever the
     // test seeded; a null answer means "row gone", which the sweeps skip.
     loadCharacterOwner: (characterId) => loadOwnerOf(db, "character", characterId),

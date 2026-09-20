@@ -26,7 +26,7 @@ import { compareCslsBy, cslsAdjust, relevanceOf } from "../substrate/csls.ts";
 import { blockKeyStr } from "../substrate/dedupe.ts";
 import { SCOPE_INSTRUCTIONS } from "../substrate/instructions.ts";
 import { applyRerank } from "../substrate/rerank.ts";
-import { requireSpaceModel } from "../substrate/space.ts";
+import { withActiveQuerySpace } from "../substrate/space.ts";
 
 /** The sibling verbs the dispatch delegates to for the owner-wide card/corpus/image surfaces + the
  *  (owner-gated) within-chat verbatim `segments`. Digests are NOT delegated — every digest scope routes
@@ -65,66 +65,68 @@ interface DigestScanArgs {
  *  `scopedCharacterId` narrows to one egocentric POV. Consumes SCOPE_INSTRUCTIONS for embed + rerank. */
 async function digestScan(ctx: SearchContext, args: DigestScanArgs): Promise<DigestSourceHit[]> {
   const rc = await ctx.roleClientsFor(args.ownerId);
-  const embedModel = await requireSpaceModel(ctx, args.ownerId, "embed");
-  const embedded = await rc.embed(args.query, {
-    inputType: "query",
-    instruction: SCOPE_INSTRUCTIONS.digests.query,
+  return await withActiveQuerySpace(ctx, args.ownerId, "embed", async (space) => {
+    const embedded = await space.connection.embed(args.query, {
+      inputType: "query",
+      instruction: SCOPE_INSTRUCTIONS.digests.query,
+    });
+    const queryVector = embedded.vectors[0];
+    if (queryVector === null || queryVector === undefined) {
+      throw new SearchError(SEARCH_EMPTY_QUERY, "the query embedded to no vector — nothing to scan");
+    }
+    const pool = await nearestDigests(ctx.db, {
+      queryVector,
+      model: space.model,
+      generationId: space.generationId,
+      ownerId: args.ownerId,
+      ...(args.chatId !== undefined ? { chatIds: [args.chatId] } : {}),
+      ...(args.scopedCharacterId !== undefined ? { scopedCharacterId: args.scopedCharacterId } : {}),
+      ...(args.speakerCharacterId !== undefined ? { speakerCharacterId: args.speakerCharacterId } : {}),
+      limit: Math.min(args.topN * OWNER_OVERFETCH, SCOPED_POOL_K),
+    });
+    const ranked = pool
+      .map((r) => {
+        const blockKey = {
+          chatId: r.chatId,
+          tier: r.tier,
+          blockIdx: r.blockIdx,
+          scopedCharacterId: r.scopedCharacterId,
+        };
+        return {
+          id: blockKeyStr(blockKey),
+          blockKey,
+          sourceText: r.text,
+          distance: r.distance,
+          hubScore: r.hubScore,
+          score: cslsAdjust(r.distance, r.hubScore),
+        };
+      })
+      .sort(
+        compareCslsBy(
+          (c) => c.distance,
+          (c) => c.hubScore,
+        ),
+      );
+    // Instruction-aware rerankers key off the scope <Instruct>; text-only families ignore the prefix.
+    const ordered = args.rerank ? await applyRerank(`${SCOPE_INSTRUCTIONS.digests.rerank}\n${args.query}`, ranked, rc.rerank, ranked.length) : ranked;
+    const top = ordered.slice(0, args.topN);
+    // The DESTINATION vocabulary (R1a), resolved for the SURVIVORS only — the same rank-then-enrich shape
+    // discover uses, so an 80-row pool never pays for 60 display joins it throws away.
+    const [chatDisplays, characterDisplays] = await Promise.all([
+      resolveChatDisplay(ctx.db, [...new Set(top.map((c) => c.blockKey.chatId))]),
+      resolveCharacterDisplay(ctx.db, args.ownerId, [...new Set(top.map((c) => c.blockKey.scopedCharacterId))]),
+    ]);
+    const titleByChat = new Map(chatDisplays.map((d) => [d.chatId, d.title]));
+    const nameByCharacter = new Map(characterDisplays.map((d) => [d.characterId, d.name]));
+    return top.map((c) => ({
+      blockKey: c.blockKey,
+      score: c.score,
+      relevance: relevanceOf(c.distance),
+      text: c.sourceText,
+      chatTitle: titleByChat.get(c.blockKey.chatId) ?? null,
+      scopedCharacterName: nameByCharacter.get(c.blockKey.scopedCharacterId) ?? null,
+    }));
   });
-  const queryVector = embedded.vectors[0];
-  if (queryVector === null || queryVector === undefined) {
-    throw new SearchError(SEARCH_EMPTY_QUERY, "the query embedded to no vector — nothing to scan");
-  }
-  const pool = await nearestDigests(ctx.db, {
-    queryVector,
-    model: embedModel,
-    ownerId: args.ownerId,
-    ...(args.chatId !== undefined ? { chatIds: [args.chatId] } : {}),
-    ...(args.scopedCharacterId !== undefined ? { scopedCharacterId: args.scopedCharacterId } : {}),
-    ...(args.speakerCharacterId !== undefined ? { speakerCharacterId: args.speakerCharacterId } : {}),
-    limit: Math.min(args.topN * OWNER_OVERFETCH, SCOPED_POOL_K),
-  });
-  const ranked = pool
-    .map((r) => {
-      const blockKey = {
-        chatId: r.chatId,
-        tier: r.tier,
-        blockIdx: r.blockIdx,
-        scopedCharacterId: r.scopedCharacterId,
-      };
-      return {
-        id: blockKeyStr(blockKey),
-        blockKey,
-        sourceText: r.text,
-        distance: r.distance,
-        hubScore: r.hubScore,
-        score: cslsAdjust(r.distance, r.hubScore),
-      };
-    })
-    .sort(
-      compareCslsBy(
-        (c) => c.distance,
-        (c) => c.hubScore,
-      ),
-    );
-  // Instruction-aware rerankers key off the scope <Instruct>; text-only families ignore the prefix.
-  const ordered = args.rerank ? await applyRerank(`${SCOPE_INSTRUCTIONS.digests.rerank}\n${args.query}`, ranked, rc.rerank, ranked.length) : ranked;
-  const top = ordered.slice(0, args.topN);
-  // The DESTINATION vocabulary (R1a), resolved for the SURVIVORS only — the same rank-then-enrich shape
-  // discover uses, so an 80-row pool never pays for 60 display joins it throws away.
-  const [chatDisplays, characterDisplays] = await Promise.all([
-    resolveChatDisplay(ctx.db, [...new Set(top.map((c) => c.blockKey.chatId))]),
-    resolveCharacterDisplay(ctx.db, args.ownerId, [...new Set(top.map((c) => c.blockKey.scopedCharacterId))]),
-  ]);
-  const titleByChat = new Map(chatDisplays.map((d) => [d.chatId, d.title]));
-  const nameByCharacter = new Map(characterDisplays.map((d) => [d.characterId, d.name]));
-  return top.map((c) => ({
-    blockKey: c.blockKey,
-    score: c.score,
-    relevance: relevanceOf(c.distance),
-    text: c.sourceText,
-    chatTitle: titleByChat.get(c.blockKey.chatId) ?? null,
-    scopedCharacterName: nameByCharacter.get(c.blockKey.scopedCharacterId) ?? null,
-  }));
 }
 
 /** digests honors all three scopes, ALL owner-belted: `chat` → one chat; `character` → the cross-chat
@@ -160,21 +162,23 @@ async function dispatchSegments(ctx: SearchContext, verbs: DelegateVerbs, params
     throw new SearchError(SEARCH_SCOPE_REQUIRED, "segments needs an egocentric scopedCharacterId on the chat scope");
   }
   // Owner belt: a chat the principal produced no digests in is not theirs to search (a foreign chatId → []).
-  const owned = await ownedChatIds(ctx.db, ownerId, await requireSpaceModel(ctx, ownerId, "embed"));
-  if (!owned.includes(scope.chatId)) {
-    return [];
-  }
-  return await verbs.segments({
-    scope: { chat: scope.chatId },
-    ownerId,
-    scopedCharacterId: scope.scopedCharacterId,
-    queryText: query,
-    mode: memoryMode(rerank),
-    keywordMatch: false,
-    minScore: 0,
-    // The omnibox asks for `topN` — so the retrieval cut and the mixC rerank cut are both the caller's topN.
-    retrieveK: topN,
-    rerankTo: topN,
+  return await withActiveQuerySpace(ctx, ownerId, "embed", async (space) => {
+    const owned = await ownedChatIds(ctx.db, ownerId, space.model, space.generationId);
+    if (!owned.includes(scope.chatId)) {
+      return [];
+    }
+    return await verbs.segments({
+      scope: { chat: scope.chatId },
+      ownerId,
+      scopedCharacterId: scope.scopedCharacterId,
+      queryText: query,
+      mode: memoryMode(rerank),
+      keywordMatch: false,
+      minScore: 0,
+      // The omnibox asks for `topN` — so the retrieval cut and the mixC rerank cut are both the caller's topN.
+      retrieveK: topN,
+      rerankTo: topN,
+    });
   });
 }
 

@@ -1,85 +1,149 @@
-// The retrieval-side SPACE read: which `(model[@dtype])` space a scan filters on, and — for images — which
-// role op embeds the query into it.
-//
-// THE TAG IS `embedSpaceOf`, NOT `resolved.model` (§10-2), and it must stay byte-identical to the tag
-// `embeddings.store` wrote: `nearest.ts` filters `model = <this string>`, so a bare model id here answers
-// EMPTY against a corpus stored under `<model>@<dtype>` — no error, no log, forever.
-//
-// ── THE TRANSITION REFUSAL (§10-5) ────────────────────────────────────────────────────────────────────
-// A retrieval does TWO things with the space: it FILTERS the scan, and it EMBEDS THE QUERY through the
-// owner's live connection. Between a binding change and the reindex completing those disagree — the corpus
-// is still in the last COMPLETE space (`embed_space_state`) while the query can only be embedded by the new
-// model. Every admitted embedder is 1024-wide (the §10-1 admission rule), so nothing throws: cosine across
-// two models' vectors is dimensionally valid and semantically meaningless. Serving the old space with a new
-// model's query vector would return confidently-ranked GARBAGE where the pre-§10-5 tree returned nothing.
-//
-// So a retrieval scans the live space only while it IS the last complete one, and otherwise REFUSES with
-// `SEARCH_SPACE_REINDEXING` — a state the user can be told about ("re-indexing your library; search resumes
-// when it finishes") instead of an empty result list that looks like an empty library. This is deliberately
-// NOT the whole of §10-5's "the swap is invisible": making it invisible additionally requires embedding the
-// query through the OLD connection, which means persisting the connection id and a resolve-by-connection
-// door in the runtime — and that arm still needs THIS refusal as its fallback, because `connection_bindings`
-// is FK SET NULL and the old connection is frequently the one the user just deleted.
-//
-// A NULL active space means no sweep has ever completed (a virgin box, or a corpus predating the state
-// table): the live space is then the only answer there is, and it is also where everything was written, so
-// it is served without a refusal. This is the bootstrap arm, not a silent fallback.
-//
-// A retrieval over an owner with NO binding for the task is `SearchError(SEARCH_NO_SPACE)` — the composer's
-// "no connection" refusal, never a query embedded in nobody's space.
+// Active embedding generation selection. Reads always query through the connection that produced the
+// last jointly-complete corpus; missing or drifted provenance takes the named reindex refusal.
 
-import { foldActiveSpace } from "@orb/contracts/embeddings";
 import { embedDtypeOf, embedSpaceOf, servesImageVectors } from "@orb/contracts/inference";
-import type { UserId } from "@orb/kit/ids";
+import type { RoleClients } from "@orb/contracts/role-clients";
+import type { UserConnectionId, UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
+import { generationIdOf, vectorSpaceFingerprint } from "#kit/embedding-generation";
+import type { EmbeddingConnectionSnapshot } from "../../embeddings/contract/service.ts";
 import { SEARCH_NO_SPACE, SEARCH_SPACE_REINDEXING, SearchError } from "../contract/errors.ts";
 import type { ImageQuerySpace, SearchContext } from "../contract/service.ts";
-import { readCompletedSpaces } from "../persistence/active-space.ts";
+import { readActiveGeneration, readGeneration } from "../persistence/active-space.ts";
 
-/** The TEXT space every `embed`-backed scan filters on. Throws `SEARCH_NO_SPACE` when nothing is bound and
- *  `SEARCH_SPACE_REINDEXING` while the corpus is mid-move. */
-export async function requireSpaceModel(ctx: Pick<SearchContext, "db" | "roleClientsFor">, ownerId: UserId, task: "embed" | "imageEmbed"): Promise<string> {
-  const rc = await ctx.roleClientsFor(ownerId);
-  const resolved = await rc.resolved(task);
-  if (resolved === null) {
-    throw new SearchError(SEARCH_NO_SPACE, `no ${task} connection is bound for this user — bind one in Connections`);
+type SpaceContext = Pick<SearchContext, "db"> & {
+  readonly resolveEmbeddingConnection?: SearchContext["resolveEmbeddingConnection"] | undefined;
+  readonly roleClientsFor?: ((ownerId: UserId) => Promise<RoleClients>) | undefined;
+};
+
+async function resolveConnection(
+  ctx: SpaceContext,
+  ownerId: UserId,
+  task: "embed" | "imageEmbed",
+  connectionId?: UserConnectionId,
+): Promise<EmbeddingConnectionSnapshot | null> {
+  if (ctx.resolveEmbeddingConnection !== undefined) {
+    try {
+      return await ctx.resolveEmbeddingConnection(ownerId, task, connectionId);
+    } catch {
+      return null;
+    }
   }
-  return await settledSpace(ctx, ownerId, task, embedSpaceOf(resolved.model, embedDtypeOf(resolved.capability)));
+  const rc = await ctx.roleClientsFor?.(ownerId);
+  if (rc === undefined) {
+    return null;
+  }
+  const resolved = await rc.resolved(task);
+  return resolved === null
+    ? null
+    : {
+        ...resolved,
+        api: "compat",
+        wire: "compat",
+        baseUrl: null,
+        features: {},
+        extras: null,
+        transport: null,
+        embed: rc.embed,
+        imageEmbed: rc.imageEmbed,
+      };
+}
+export interface ActiveQuerySpace {
+  readonly generationId: string;
+  readonly fingerprint: string;
+  readonly model: string;
+  readonly via: "embed" | "imageEmbed";
+  readonly connection: EmbeddingConnectionSnapshot;
 }
 
-/** THE IMAGE QUERY SPACE — the joint-space rule (§10-3) on the READ side, and the exact mirror of the
- *  indexer's write-side `resolveImageSpace`.
- *
- *  An owner with an image-capable embedder searches their image space with an image-embedded query and both
- *  lenses. An owner without one has their pictures in the TEXT space under the `image-captioned` lens alone
- *  (the caption was embedded as text), so the query must be embedded as text too and the lens is forced —
- *  scanning `image-raw` there would scan rows that do not exist, and embedding the query through
- *  `imageEmbed` would be a different geometry. The two sides deriving this separately is precisely the class
- *  of bug §10-2 was minted for, which is why both call the same `servesImageVectors` read. */
-export async function requireImageSpace(ctx: Pick<SearchContext, "db" | "roleClientsFor">, ownerId: UserId): Promise<ImageQuerySpace> {
-  const rc = await ctx.roleClientsFor(ownerId);
-  const imageEmbed = await rc.resolved("imageEmbed");
-  if (imageEmbed !== null && servesImageVectors(imageEmbed.capability)) {
-    const live = embedSpaceOf(imageEmbed.model, embedDtypeOf(imageEmbed.capability));
-    return { via: "imageEmbed", model: await settledSpace(ctx, ownerId, "imageEmbed", live) };
+/** Run a complete query against one active generation. A promotion may delete the selected rows between
+ * remote query embedding and the SQL scan, so a changed generation discards the result and retries once. */
+export async function withActiveQuerySpace<T>(
+  ctx: SpaceContext,
+  ownerId: UserId,
+  task: "embed" | "imageEmbed",
+  query: (space: ActiveQuerySpace) => Promise<T>,
+): Promise<T> {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const space = task === "imageEmbed" ? await requireImageQuerySpace(ctx, ownerId) : await requireQuerySpace(ctx, ownerId, task);
+    const result = await query(space);
+    if (space.generationId === "") {
+      return result;
+    }
+    const after = await readActiveGeneration(ctx.db, ownerId, task);
+    if (after?.id === space.generationId) {
+      return result;
+    }
   }
-  const embed = await rc.resolved("embed");
+  throw new SearchError(SEARCH_SPACE_REINDEXING, "your embedding index changed twice during this search — retry after re-indexing settles");
+}
+
+export async function requireQuerySpace(ctx: SpaceContext, ownerId: UserId, task: "embed" | "imageEmbed"): Promise<ActiveQuerySpace> {
+  const read = await readGeneration(ctx.db, ownerId, task);
+  if (read.status === "moving") {
+    throw new SearchError(SEARCH_SPACE_REINDEXING, "your embedding index is being rebuilt — retry after re-indexing settles");
+  }
+  if (read.status === "unrecorded") {
+    const connection = await resolveConnection(ctx, ownerId, task);
+    if (connection === null) {
+      throw new SearchError(SEARCH_NO_SPACE, `no ${task} connection is bound for this user — bind one in Connections`);
+    }
+    return {
+      generationId: "",
+      fingerprint: vectorSpaceFingerprint(connection),
+      model: embedSpaceOf(connection.model, embedDtypeOf(connection.capability)),
+      via: task,
+      connection,
+    };
+  }
+  const active = read.generation;
+  if (active.connectionId === null) {
+    throw new SearchError(SEARCH_SPACE_REINDEXING, "the connection for your indexed library no longer exists — re-indexing is required");
+  }
+  const connection = await resolveConnection(ctx, ownerId, active.via, castId<UserConnectionId>(active.connectionId));
+  if (connection === null || generationIdOf({ ownerId, task, via: active.via, connection, space: active.space }) !== active.id) {
+    throw new SearchError(SEARCH_SPACE_REINDEXING, "the connection for your indexed library changed — re-indexing is required");
+  }
+  return { generationId: active.id, fingerprint: active.fingerprint, model: active.space, via: active.via, connection };
+}
+
+/** Compatibility read for callers that only need the settled tag. Query verbs use {@link requireQuerySpace}. */
+export async function requireSpaceModel(ctx: SpaceContext, ownerId: UserId, task: "embed" | "imageEmbed"): Promise<string> {
+  return (await requireQuerySpace(ctx, ownerId, task)).model;
+}
+
+export async function requireImageQuerySpace(ctx: SpaceContext, ownerId: UserId): Promise<ActiveQuerySpace> {
+  const read = await readGeneration(ctx.db, ownerId, "imageEmbed");
+  if (read.status === "ready") {
+    return await requireQuerySpace(ctx, ownerId, "imageEmbed");
+  }
+  if (read.status === "moving") {
+    throw new SearchError(SEARCH_SPACE_REINDEXING, "your image embedding index is being rebuilt — retry after re-indexing settles");
+  }
+  const image = await resolveConnection(ctx, ownerId, "imageEmbed");
+  if (image !== null && servesImageVectors(image.capability)) {
+    return {
+      generationId: "",
+      fingerprint: vectorSpaceFingerprint(image),
+      model: embedSpaceOf(image.model, embedDtypeOf(image.capability)),
+      via: "imageEmbed",
+      connection: image,
+    };
+  }
+  const embed = await resolveConnection(ctx, ownerId, "embed");
   if (embed === null) {
     throw new SearchError(SEARCH_NO_SPACE, "no imageEmbed or embed connection is bound for this user — bind one in Connections");
   }
-  const live = embedSpaceOf(embed.model, embedDtypeOf(embed.capability));
-  return { via: "embed", model: await settledSpace(ctx, ownerId, "imageEmbed", live) };
+  return {
+    generationId: "",
+    fingerprint: vectorSpaceFingerprint(embed),
+    model: embedSpaceOf(embed.model, embedDtypeOf(embed.capability)),
+    via: "embed",
+    connection: embed,
+  };
 }
 
-/** The transition gate: return `live` when the corpus has settled there (or has never recorded a completion
- *  at all), else refuse. One home, so no reader can accidentally scan a space its query cannot reach. */
-async function settledSpace(ctx: Pick<SearchContext, "db">, ownerId: UserId, task: "embed" | "imageEmbed", live: string): Promise<string> {
-  const active = foldActiveSpace(task, await readCompletedSpaces(ctx.db, ownerId));
-  // `unrecorded` is the bootstrap arm, NOT a fallback: with no completion on record, everything that exists
-  // was written in the live space. `moving` is a partly-migrated corpus and refuses even though no single
-  // recorded space can be named — half the scan would be in a foreign geometry, which is the same defect.
-  if (active.kind === "unrecorded" || (active.kind === "complete" && active.space === live)) {
-    return live;
-  }
-  const where = active.kind === "complete" ? `it is still in ${active.space}` : "part of it has already moved";
-  throw new SearchError(SEARCH_SPACE_REINDEXING, `your library is being re-indexed into ${live} (${where}) — search resumes when the re-index finishes`);
+export async function requireImageSpace(ctx: SpaceContext, ownerId: UserId): Promise<ImageQuerySpace> {
+  const space = await requireImageQuerySpace(ctx, ownerId);
+  return { via: space.via, model: space.model };
 }

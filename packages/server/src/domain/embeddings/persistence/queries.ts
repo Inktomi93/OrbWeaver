@@ -35,31 +35,31 @@ const LIMIT_ONE = 1;
 const IMAGE_CAPTION_LENS: ImageLens = "image-captioned";
 
 /** The stored `content_hash` for `(characterId, model)`, or `undefined` when no row exists yet. */
-export async function existingCharacterHash(db: Db, characterId: CharacterId, model: string): Promise<string | undefined> {
+export async function existingCharacterHash(db: Db, characterId: CharacterId, generationId: string): Promise<string | undefined> {
   const rows = await db
     .select({ hash: characterEmbeddings.contentHash })
     .from(characterEmbeddings)
-    .where(and(eq(characterEmbeddings.characterId, characterId), eq(characterEmbeddings.model, model)))
+    .where(and(eq(characterEmbeddings.characterId, characterId), eq(characterEmbeddings.generationId, generationId)))
     .limit(LIMIT_ONE);
   return rows[0]?.hash;
 }
 
 /** The stored `content_hash` for `(assetId, model, lens)`, or `undefined` when no row exists yet. */
-export async function existingImageHash(db: Db, assetId: AssetId, lens: ImageLens, model: string): Promise<string | undefined> {
+export async function existingImageHash(db: Db, assetId: AssetId, lens: ImageLens, generationId: string): Promise<string | undefined> {
   const rows = await db
     .select({ hash: imageEmbeddings.contentHash })
     .from(imageEmbeddings)
-    .where(and(eq(imageEmbeddings.assetId, assetId), eq(imageEmbeddings.model, model), eq(imageEmbeddings.lens, lens)))
+    .where(and(eq(imageEmbeddings.assetId, assetId), eq(imageEmbeddings.generationId, generationId), eq(imageEmbeddings.lens, lens)))
     .limit(LIMIT_ONE);
   return rows[0]?.hash;
 }
 
 /** The captioned-lens row for `(assetId, model)` — hash + facet presence — or `undefined` when none exists. */
-export async function existingCaptionedRow(db: Db, assetId: AssetId, model: string): Promise<ExistingCaptionedRow | undefined> {
+export async function existingCaptionedRow(db: Db, assetId: AssetId, generationId: string): Promise<ExistingCaptionedRow | undefined> {
   const rows = await db
     .select({ hash: imageEmbeddings.contentHash, captionMeta: imageEmbeddings.captionMeta })
     .from(imageEmbeddings)
-    .where(and(eq(imageEmbeddings.assetId, assetId), eq(imageEmbeddings.model, model), eq(imageEmbeddings.lens, IMAGE_CAPTION_LENS)))
+    .where(and(eq(imageEmbeddings.assetId, assetId), eq(imageEmbeddings.generationId, generationId), eq(imageEmbeddings.lens, IMAGE_CAPTION_LENS)))
     .limit(LIMIT_ONE);
   const row = rows[0];
   // Provenance-only (`{model}`) is NOT a breakdown — any other key means the analysis ran.
@@ -103,6 +103,7 @@ interface UpsertCharacterInput {
   readonly embedding: Float32Array;
   readonly contentHash: string;
   readonly model: string;
+  readonly generationId?: string | undefined;
   readonly dim: number;
   /** Epoch-ms from the injected clock — the insert's `created_at` (kept on a conflict update). */
   readonly now: number;
@@ -119,11 +120,12 @@ export async function upsertCharacterEmbedding(db: Db, input: UpsertCharacterInp
       embedding: input.embedding,
       contentHash: input.contentHash,
       model: input.model,
+      generationId: input.generationId ?? input.model,
       dim: input.dim,
       createdAt: input.now,
     })
     .onConflictDoUpdate({
-      target: [characterEmbeddings.characterId, characterEmbeddings.model],
+      target: [characterEmbeddings.characterId, characterEmbeddings.generationId],
       set: {
         embedding: input.embedding,
         contentHash: input.contentHash,
@@ -145,6 +147,7 @@ interface UpsertImageInput {
   readonly embedding: Float32Array;
   readonly contentHash: string;
   readonly model: string;
+  readonly generationId?: string | undefined;
   readonly dim: number;
   readonly now: number;
 }
@@ -163,11 +166,12 @@ export async function upsertImageEmbedding(db: Db, input: UpsertImageInput): Pro
       embedding: input.embedding,
       contentHash: input.contentHash,
       model: input.model,
+      generationId: input.generationId ?? input.model,
       dim: input.dim,
       createdAt: input.now,
     })
     .onConflictDoUpdate({
-      target: [imageEmbeddings.assetId, imageEmbeddings.model, imageEmbeddings.lens],
+      target: [imageEmbeddings.assetId, imageEmbeddings.generationId, imageEmbeddings.lens],
       set: {
         embedding: input.embedding,
         caption: input.caption,
@@ -183,7 +187,10 @@ export async function upsertImageEmbedding(db: Db, input: UpsertImageInput): Pro
  *  also what makes a half-written block self-heal: the chunks that never landed have no row, so they are not
  *  hash-skipped. `model` is part of the key (PD-104) — the read scopes to the active space so the staleness
  *  short-circuit never compares against a different model's row. */
-export async function existingSegmentHash(db: Db, key: { chatId: ChatId; blockIdx: number; chunkIdx: number; model: string }): Promise<string | undefined> {
+export async function existingSegmentHash(
+  db: Db,
+  key: { chatId: ChatId; blockIdx: number; chunkIdx: number; generationId: string },
+): Promise<string | undefined> {
   const rows = await db
     .select({ hash: chatSegments.contentHash })
     .from(chatSegments)
@@ -192,7 +199,7 @@ export async function existingSegmentHash(db: Db, key: { chatId: ChatId; blockId
         eq(chatSegments.chatId, key.chatId),
         eq(chatSegments.blockIdx, key.blockIdx),
         eq(chatSegments.chunkIdx, key.chunkIdx),
-        eq(chatSegments.model, key.model),
+        eq(chatSegments.generationId, key.generationId),
       ),
     )
     .limit(LIMIT_ONE);
@@ -209,7 +216,7 @@ export async function existingDigestHash(
     scopedCharacterId: CharacterId;
     tier: number;
     blockIdx: number;
-    model: string;
+    generationId: string;
   },
 ): Promise<string | undefined> {
   const rows = await db
@@ -221,7 +228,7 @@ export async function existingDigestHash(
         eq(chatDigests.scopedCharacterId, key.scopedCharacterId),
         eq(chatDigests.tier, key.tier),
         eq(chatDigests.blockIdx, key.blockIdx),
-        eq(chatDigests.model, key.model),
+        eq(chatDigests.generationId, key.generationId),
       ),
     )
     .limit(LIMIT_ONE);
@@ -240,6 +247,7 @@ interface UpsertSegmentInput {
   readonly embedding: Float32Array;
   readonly contentHash: string;
   readonly model: string;
+  readonly generationId?: string | undefined;
   readonly dim: number;
   readonly now: number;
 }
@@ -262,11 +270,12 @@ export async function upsertChatSegment(db: Db, input: UpsertSegmentInput): Prom
       embedding: input.embedding,
       contentHash: input.contentHash,
       model: input.model,
+      generationId: input.generationId ?? input.model,
       dim: input.dim,
       createdAt: input.now,
     })
     .onConflictDoUpdate({
-      target: [chatSegments.chatId, chatSegments.blockIdx, chatSegments.chunkIdx, chatSegments.model],
+      target: [chatSegments.chatId, chatSegments.blockIdx, chatSegments.chunkIdx, chatSegments.generationId],
       set: {
         seqStart: input.seqStart,
         seqEnd: input.seqEnd,
@@ -292,6 +301,7 @@ interface UpsertDigestInput {
   readonly embedding: Float32Array;
   readonly contentHash: string;
   readonly model: string;
+  readonly generationId?: string | undefined;
   readonly dim: number;
   readonly now: number;
   /** The complete speaker projection for this digest. Replaced in the same atomic batch as the digest. */
@@ -308,7 +318,7 @@ export async function upsertChatDigest(db: Db, input: UpsertDigestInput): Promis
     eq(chatDigests.scopedCharacterId, input.scopedCharacterId),
     eq(chatDigests.tier, input.tier),
     eq(chatDigests.blockIdx, input.blockIdx),
-    eq(chatDigests.model, input.model),
+    eq(chatDigests.generationId, input.generationId ?? input.model),
   );
   const upsert = db
     .insert(chatDigests)
@@ -325,11 +335,12 @@ export async function upsertChatDigest(db: Db, input: UpsertDigestInput): Promis
       embedding: input.embedding,
       contentHash: input.contentHash,
       model: input.model,
+      generationId: input.generationId ?? input.model,
       dim: input.dim,
       createdAt: input.now,
     })
     .onConflictDoUpdate({
-      target: [chatDigests.chatId, chatDigests.scopedCharacterId, chatDigests.tier, chatDigests.blockIdx, chatDigests.model],
+      target: [chatDigests.chatId, chatDigests.scopedCharacterId, chatDigests.tier, chatDigests.blockIdx, chatDigests.generationId],
       set: {
         text: input.text,
         topicAnchor: input.topicAnchor,
@@ -367,11 +378,11 @@ export async function upsertChatDigest(db: Db, input: UpsertDigestInput): Promis
 /** The stored `content_hash` for a document chunk `(documentId, chunkIdx, model)`, or `undefined` when no row
  *  exists in that space. `model` scopes the read to the active `(model, dim)` space (PD-104 uniformity — the
  *  staleness short-circuit never compares against a different model's row). */
-export async function existingChunkHash(db: Db, documentId: DocumentId, chunkIdx: number, model: string): Promise<string | undefined> {
+export async function existingChunkHash(db: Db, documentId: DocumentId, chunkIdx: number, generationId: string): Promise<string | undefined> {
   const rows = await db
     .select({ hash: documentChunks.contentHash })
     .from(documentChunks)
-    .where(and(eq(documentChunks.documentId, documentId), eq(documentChunks.chunkIdx, chunkIdx), eq(documentChunks.model, model)))
+    .where(and(eq(documentChunks.documentId, documentId), eq(documentChunks.chunkIdx, chunkIdx), eq(documentChunks.generationId, generationId)))
     .limit(LIMIT_ONE);
   return rows[0]?.hash;
 }
@@ -422,6 +433,7 @@ interface UpsertDocumentChunkInput {
   readonly embedding: Float32Array;
   readonly contentHash: string;
   readonly model: string;
+  readonly generationId?: string | undefined;
   readonly dim: number;
   readonly now: number;
 }
@@ -442,11 +454,12 @@ export async function upsertDocumentChunk(db: Db, input: UpsertDocumentChunkInpu
       embedding: input.embedding,
       contentHash: input.contentHash,
       model: input.model,
+      generationId: input.generationId ?? input.model,
       dim: input.dim,
       createdAt: input.now,
     })
     .onConflictDoUpdate({
-      target: [documentChunks.documentId, documentChunks.chunkIdx, documentChunks.model],
+      target: [documentChunks.documentId, documentChunks.chunkIdx, documentChunks.generationId],
       set: {
         content: input.content,
         charStart: input.charStart,

@@ -9,6 +9,7 @@ import type { EmbeddingsContext } from "./context.ts";
 import type { AvatarAnalysis } from "./contract/results.ts";
 import type { EmbeddingsService } from "./contract/service.ts";
 import { analyzeAvatarImage } from "./indexer/caption.ts";
+import { resolveTargetGeneration } from "./substrate/generation.ts";
 import { createClearTable } from "./verbs/clear-table.ts";
 import { createCountDocumentChunks } from "./verbs/count-document-chunks.ts";
 import { createCountDocumentChunksByOwner } from "./verbs/count-document-chunks-by-owner.ts";
@@ -25,6 +26,7 @@ import { createWriteHubScores } from "./verbs/write-hub-scores.ts";
 export function createEmbeddingsService(ctx: EmbeddingsContext): EmbeddingsService {
   const store = createStore(ctx);
   return {
+    resolveGeneration: (ownerId, task, via) => resolveTargetGeneration(ctx, ownerId, task, via),
     store,
     storeSegments: createStoreSegments(ctx),
     writeHubScores: createWriteHubScores(ctx),

@@ -120,14 +120,27 @@ function presentHost(ownerId: UserId): SQL | undefined {
  *
  *  Scope-keyed (`scopedCharacterId`), because a shrink is per-bucket: the witnessing filter means two buckets
  *  legitimately hold different block sets. Returns the count deleted. Store-then-prune, like its sibling. */
-export async function pruneChatDigests(db: Db, chatId: ChatId, scopedCharacterId: CharacterId, keepPerTier: readonly number[]): Promise<number> {
+export async function pruneChatDigests(
+  db: Db,
+  chatId: ChatId,
+  scopedCharacterId: CharacterId,
+  target: { readonly keepPerTier: readonly number[]; readonly generationId?: string },
+): Promise<number> {
+  const { keepPerTier, generationId } = target;
   if (keepPerTier.length === 0) {
     return 0;
   }
   const beyondCanon = keepPerTier.map((keep, tier) => and(eq(chatDigests.tier, tier), gte(chatDigests.blockIdx, keep)));
   const rows = await db
     .delete(chatDigests)
-    .where(and(eq(chatDigests.chatId, chatId), eq(chatDigests.scopedCharacterId, scopedCharacterId), or(...beyondCanon)))
+    .where(
+      and(
+        eq(chatDigests.chatId, chatId),
+        eq(chatDigests.scopedCharacterId, scopedCharacterId),
+        generationId === undefined ? undefined : eq(chatDigests.generationId, generationId),
+        or(...beyondCanon),
+      ),
+    )
     .returning({ id: chatDigests.id });
   return rows.length;
 }
@@ -157,15 +170,26 @@ export async function dropChatDigestKeys(
   db: Db,
   chatId: ChatId,
   scopedCharacterId: CharacterId,
-  keys: readonly { readonly tier: number; readonly blockIdx: number; readonly staleHash: string }[],
+  target: {
+    readonly keys: readonly { readonly tier: number; readonly blockIdx: number; readonly staleHash: string }[];
+    readonly generationId?: string;
+  },
 ): Promise<number> {
+  const { keys, generationId } = target;
   if (keys.length === 0) {
     return 0;
   }
   const targeted = keys.map((k) => and(eq(chatDigests.tier, k.tier), eq(chatDigests.blockIdx, k.blockIdx), eq(chatDigests.contentHash, k.staleHash)));
   const rows = await db
     .delete(chatDigests)
-    .where(and(eq(chatDigests.chatId, chatId), eq(chatDigests.scopedCharacterId, scopedCharacterId), or(...targeted)))
+    .where(
+      and(
+        eq(chatDigests.chatId, chatId),
+        eq(chatDigests.scopedCharacterId, scopedCharacterId),
+        generationId === undefined ? undefined : eq(chatDigests.generationId, generationId),
+        or(...targeted),
+      ),
+    )
     .returning({ id: chatDigests.id });
   return rows.length;
 }
@@ -184,9 +208,13 @@ export async function dropChatDigestKeys(
 export async function pruneChatSegments(
   db: Db,
   chatId: ChatId,
-  keepBlockCount: number,
-  chunkCounts: readonly { readonly blockIdx: number; readonly chunkCount: number }[],
+  target: {
+    readonly keepBlockCount: number;
+    readonly chunkCounts: readonly { readonly blockIdx: number; readonly chunkCount: number }[];
+    readonly generationId?: string;
+  },
 ): Promise<number> {
+  const { keepBlockCount, chunkCounts, generationId } = target;
   const exceptions = chunkCounts.map((c) => and(eq(chatSegments.blockIdx, c.blockIdx), gte(chatSegments.chunkIdx, c.chunkCount)));
   const singleChunkBlocks =
     chunkCounts.length === 0
@@ -200,7 +228,13 @@ export async function pruneChatSegments(
         );
   const rows = await db
     .delete(chatSegments)
-    .where(and(eq(chatSegments.chatId, chatId), or(gte(chatSegments.blockIdx, keepBlockCount), singleChunkBlocks, ...exceptions)))
+    .where(
+      and(
+        eq(chatSegments.chatId, chatId),
+        generationId === undefined ? undefined : eq(chatSegments.generationId, generationId),
+        or(gte(chatSegments.blockIdx, keepBlockCount), singleChunkBlocks, ...exceptions),
+      ),
+    )
     .returning({ id: chatSegments.id });
   return rows.length;
 }
@@ -210,10 +244,10 @@ export async function pruneChatSegments(
  *  chunk set) AND rows in a retired `(model)` space (`model != activeModel`), scoped to the one document.
  *  Returns the count deleted. Store-then-prune (never clear-then-store) preserves the no-op economy — a
  *  re-extract with unchanged text re-embeds nothing; the prune is one bounded DELETE. */
-export async function pruneDocumentChunks(db: Db, documentId: DocumentId, keepCount: number, activeModel: string): Promise<number> {
+export async function pruneDocumentChunks(db: Db, documentId: DocumentId, keepCount: number, generationId: string): Promise<number> {
   const rows = await db
     .delete(documentChunks)
-    .where(and(eq(documentChunks.documentId, documentId), or(gte(documentChunks.chunkIdx, keepCount), ne(documentChunks.model, activeModel))))
+    .where(and(eq(documentChunks.documentId, documentId), eq(documentChunks.generationId, generationId), gte(documentChunks.chunkIdx, keepCount)))
     .returning({ id: documentChunks.id });
   return rows.length;
 }

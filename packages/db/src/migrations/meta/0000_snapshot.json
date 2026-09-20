@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "4373c870-c8ce-4650-b989-48907d5a9b57",
+  "id": "1f6e2289-2830-4919-88a1-1fe16cf47ab7",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -4571,6 +4571,13 @@
           "notNull": true,
           "autoincrement": false
         },
+        "generation_id": {
+          "name": "generation_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
         "dim": {
           "name": "dim",
           "type": "integer",
@@ -4588,9 +4595,9 @@
         }
       },
       "indexes": {
-        "character_embeddings_character_model_unique": {
-          "name": "character_embeddings_character_model_unique",
-          "columns": ["character_id", "model"],
+        "character_embeddings_character_generation_unique": {
+          "name": "character_embeddings_character_generation_unique",
+          "columns": ["character_id", "generation_id"],
           "isUnique": true
         }
       },
@@ -4759,6 +4766,13 @@
           "notNull": true,
           "autoincrement": false
         },
+        "generation_id": {
+          "name": "generation_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
         "dim": {
           "name": "dim",
           "type": "integer",
@@ -4778,7 +4792,7 @@
       "indexes": {
         "chat_digests_scope_unique": {
           "name": "chat_digests_scope_unique",
-          "columns": ["chat_id", "scoped_character_id", "tier", "block_idx", "model"],
+          "columns": ["chat_id", "scoped_character_id", "tier", "block_idx", "generation_id"],
           "isUnique": true
         },
         "chat_digests_chat_idx": {
@@ -4896,6 +4910,13 @@
           "notNull": true,
           "autoincrement": false
         },
+        "generation_id": {
+          "name": "generation_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
         "dim": {
           "name": "dim",
           "type": "integer",
@@ -4915,7 +4936,7 @@
       "indexes": {
         "chat_segments_chat_block_chunk_unique": {
           "name": "chat_segments_chat_block_chunk_unique",
-          "columns": ["chat_id", "block_idx", "chunk_idx", "model"],
+          "columns": ["chat_id", "block_idx", "chunk_idx", "generation_id"],
           "isUnique": true
         }
       },
@@ -5012,6 +5033,13 @@
           "notNull": true,
           "autoincrement": false
         },
+        "generation_id": {
+          "name": "generation_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
         "dim": {
           "name": "dim",
           "type": "integer",
@@ -5029,9 +5057,9 @@
         }
       },
       "indexes": {
-        "document_chunks_doc_chunk_model_unique": {
-          "name": "document_chunks_doc_chunk_model_unique",
-          "columns": ["document_id", "chunk_idx", "model"],
+        "document_chunks_doc_chunk_generation_unique": {
+          "name": "document_chunks_doc_chunk_generation_unique",
+          "columns": ["document_id", "chunk_idx", "generation_id"],
           "isUnique": true
         },
         "document_chunks_document_idx": {
@@ -5060,6 +5088,175 @@
         }
       }
     },
+    "embed_generation_targets": {
+      "name": "embed_generation_targets",
+      "columns": {
+        "owner_id": {
+          "name": "owner_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "task": {
+          "name": "task",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "generation_id": {
+          "name": "generation_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "epoch": {
+          "name": "epoch",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "embed_generation_targets_owner_id_users_id_fk": {
+          "name": "embed_generation_targets_owner_id_users_id_fk",
+          "tableFrom": "embed_generation_targets",
+          "tableTo": "users",
+          "columnsFrom": ["owner_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "embed_generation_targets_owner_id_task_pk": {
+          "columns": ["owner_id", "task"],
+          "name": "embed_generation_targets_owner_id_task_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "embed_generation_targets_task_check": {
+          "name": "embed_generation_targets_task_check",
+          "value": "task in ('embed', 'imageEmbed')"
+        }
+      }
+    },
+    "embed_generations": {
+      "name": "embed_generations",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "owner_id": {
+          "name": "owner_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "task": {
+          "name": "task",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "via": {
+          "name": "via",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "connection_id": {
+          "name": "connection_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "connection_ref": {
+          "name": "connection_ref",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "fingerprint": {
+          "name": "fingerprint",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "space": {
+          "name": "space",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
+        }
+      },
+      "indexes": {
+        "embed_generations_owner_task_idx": {
+          "name": "embed_generations_owner_task_idx",
+          "columns": ["owner_id", "task"],
+          "isUnique": false
+        },
+        "embed_generations_connection_idx": {
+          "name": "embed_generations_connection_idx",
+          "columns": ["connection_id"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "embed_generations_owner_id_users_id_fk": {
+          "name": "embed_generations_owner_id_users_id_fk",
+          "tableFrom": "embed_generations",
+          "tableTo": "users",
+          "columnsFrom": ["owner_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "embed_generations_task_check": {
+          "name": "embed_generations_task_check",
+          "value": "task in ('embed', 'imageEmbed')"
+        },
+        "embed_generations_via_check": {
+          "name": "embed_generations_via_check",
+          "value": "via in ('embed', 'imageEmbed')"
+        }
+      }
+    },
     "embed_space_state": {
       "name": "embed_space_state",
       "columns": {
@@ -5077,11 +5274,25 @@
           "notNull": true,
           "autoincrement": false
         },
-        "space": {
-          "name": "space",
+        "active_generation_id": {
+          "name": "active_generation_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "candidate_generation_id": {
+          "name": "candidate_generation_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "candidate_epoch": {
+          "name": "candidate_epoch",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
           "autoincrement": false
         },
         "completed_at": {
@@ -5102,6 +5313,24 @@
           "columnsFrom": ["owner_id"],
           "columnsTo": ["id"],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "embed_space_state_active_generation_id_embed_generations_id_fk": {
+          "name": "embed_space_state_active_generation_id_embed_generations_id_fk",
+          "tableFrom": "embed_space_state",
+          "tableTo": "embed_generations",
+          "columnsFrom": ["active_generation_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "embed_space_state_candidate_generation_id_embed_generations_id_fk": {
+          "name": "embed_space_state_candidate_generation_id_embed_generations_id_fk",
+          "tableFrom": "embed_space_state",
+          "tableTo": "embed_generations",
+          "columnsFrom": ["candidate_generation_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
@@ -5185,6 +5414,13 @@
           "notNull": true,
           "autoincrement": false
         },
+        "generation_id": {
+          "name": "generation_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
         "dim": {
           "name": "dim",
           "type": "integer",
@@ -5202,9 +5438,9 @@
         }
       },
       "indexes": {
-        "image_embeddings_asset_model_lens_unique": {
-          "name": "image_embeddings_asset_model_lens_unique",
-          "columns": ["asset_id", "model", "lens"],
+        "image_embeddings_asset_generation_lens_unique": {
+          "name": "image_embeddings_asset_generation_lens_unique",
+          "columns": ["asset_id", "generation_id", "lens"],
           "isUnique": true
         }
       },
