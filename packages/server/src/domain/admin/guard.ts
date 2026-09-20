@@ -7,7 +7,7 @@
 
 import type { Can, ChatAction, ChatMembership, GlobalAction, Principal, ResourceRef, UserRole } from "@orb/contracts/identity";
 import { DomainForbiddenError } from "@orb/kit/errors";
-import type { IsAdmin, RequireAdmin, RequireOwner } from "./contract/guard.ts";
+import type { IsAdmin, IsOwner, RequireAdmin, RequireOwner } from "./contract/guard.ts";
 
 // The role set that satisfies each global action — the sole encoding of `owner ⊇ admin`. Exhaustive: a new
 // `GlobalAction` member fails tsc here.
@@ -70,16 +70,33 @@ export const requireOwner: RequireOwner = (principal) => {
   return principal.userId;
 };
 
-// The boolean form of the global admin gate — the same `can()` decision, caught into a verdict so a
-// role-aware scoping caller can branch without a throw being control flow.
-export const isAdmin: IsAdmin = (principal) => {
+// The boolean form of a GLOBAL gate — the same `can()` decision, caught into a verdict so a caller that
+// must branch (rather than throw) can ask it. ONE catch serves both exported gates below: a second copy
+// would be a second place the role ladder could be mis-spelled, which is what this file exists to prevent.
+function allowsGlobal(principal: Principal, action: GlobalAction): boolean {
   // @orb-waive caught-failure-ownership(catch): FAIL-CLOSED — the ONE `can()` kernel's refusal
-  // collapses to a boolean verdict for a role-aware scoping caller; a denied `can()` can never read as admin.
+  // collapses to a boolean verdict for a role-aware caller; a denied `can()` can never read as allowed.
   // Ends if `can()` grows a distinct infra-error class this boolean must stop swallowing.
   try {
-    can(principal, "admin", { kind: "global" });
+    can(principal, action, { kind: "global" });
     return true;
   } catch {
     return false;
   }
-};
+}
+
+/** owner ∪ admin, as a verdict — for role-aware SCOPING (workloads widens a listing for an admin). */
+export const isAdmin: IsAdmin = (principal) => allowsGlobal(principal, "admin");
+
+/**
+ * OWNER-only, as a verdict. Its consumer is `entry/auth/seam.ts::debugGateAdmits` — the /api/_debug
+ * admission arm, which cannot throw (it short-circuits a hono middleware's token check).
+ *
+ * WHY THAT DOOR IS OWNER AND NOT `isAdmin` (D17): behind it sit principal-BLIND whole-deployment reads —
+ * any room's message content, every user's config rows, and the provider wire-capture ring (the literal
+ * assembled prompt of every user's turn, plus the model's reply bytes under `WIRE_CAPTURE_REPLY`). D17 makes
+ * `owner` the single box holder and `admin` DELEGATED in-app authority that cannot reach owner-only
+ * resources, and it puts an actor's inference connections under the principal who configured them with no
+ * owner credential inherited by another principal. Box diagnostics are the owner's, not a delegate's.
+ */
+export const isOwner: IsOwner = (principal) => allowsGlobal(principal, "owner");

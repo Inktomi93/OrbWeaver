@@ -1,7 +1,7 @@
 ---
 kind: design
 status: draft
-updated: 2026-09-18
+updated: 2026-09-20
 ---
 
 # Production container image + deployment spec (all auth modes)
@@ -221,7 +221,8 @@ invariant across all four: a stranger who picks the mode and sets nothing exotic
   TO BOOT with `AUTH_FALLBACK=owner` — set `AUTH_FALLBACK=deny` for any public multi-user local deploy.
 - **Container posture:** set `SESSION_SECRET` + `LOCAL_INITIAL_PASSWORD` via secrets; multi-user is a runtime
   admin setting (`localMultiUser` → `MULTI_HUMAN_CAPABLE.local`, `entry/app.ts:154-156`), not env.
-- **Debug gate:** an admin/owner session cookie passes (`debugGateCredentialed().cookie = true`), else
+- **Debug gate:** an OWNER session cookie passes (`debugGateCredentialed().cookie = true` is the CREDENTIAL
+  half; `debugGateAdmits` then requires `can(p,'owner',global)` — a delegated `admin` is refused, D17), else
   `DEBUG_TOKEN`.
 
 ### 3.3 `oidc` (the app is an OIDC client — the owner's live mode, and the most complex)
