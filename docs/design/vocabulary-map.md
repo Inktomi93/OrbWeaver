@@ -157,30 +157,38 @@ on-stage set is **the present characters**.
 **False stems — not this vocabulary:** `third-party` / `first-party`, `broadcast` / `forecast` /
 `podcast`, and `castId`. Any sweep or gate over these stems must fence them explicitly.
 
-## The connection register (D109's 6-mode canon)
+## The connection register (REWRITTEN 2026-09-19 — `orbweaver-inference-package.md` F7/F6/F18)
 
-A connection is named by its `(api × source)` pair, never by a marketing word. `deriveRunner`
-(`infra/providers/roles/dispatch.ts`) IS the authority — it is exhaustive and fail-closed, so an
-unlisted pairing is a typed `ProviderError`, not a mode. These are the words to use in a brief, an
-issue or a review when naming which mode a receipt was taken on; the runner/backend column is
-infra-internal vocabulary and **never appears inside the server domain tier or in user-facing copy**
-(`Tier-3b-Providers.md` — `runner`/`family` stay sealed in infra).
+**The `source` axis is RETIRED and D109's 6-mode canon with it.** A connection is named by its
+`(provider × api)` pair, never by a marketing word, and the provider is a REGISTRY ROW, not a union
+member — built-in rows live in `packages/contracts/src/inference/builtin-providers.ts` and a plugin or
+admin may add one. Authority is DATA: a connection's `api` must be one its provider row lists
+(`resolveApi`, `packages/inference/src/resolve/coherence.ts`), so an unlisted pairing is a typed
+`ProviderError`, not a mode. These are the words to use in a brief, an
+issue or a review when naming which connection a receipt was taken on; the WIRE column is
+package-internal vocabulary and **never appears inside the server domain tier or in user-facing copy**
+(`Tier-3b-Providers.md` — the wire/family words stay sealed inside `@orb/inference`).
 
-| The spoken name | `api` | `source` | backend (infra-internal) |
+| The spoken name | provider id | `api` | wire (package-internal) |
 | - | - | - | - |
-| claude code sub | `agent-sdk` | `max-pro-sub` | `agent-sdk` |
-| claude code via openrouter key | `agent-sdk` | `openrouter` | `agent-sdk` |
-| chat complete openrouter | `chat-completions` | `openrouter` | `openrouter` |
-| vllm chat complete | `chat-completions` | `vllm` | `vllm` |
-| custom byo endpoint | `chat-completions` | `custom_openai` | `custom-openai` |
-| openrouter responses | `responses` | `openrouter` | `openrouter` |
+| claude code sub | `claude-sub` | `agent-sdk` | `agent-sdk` |
+| anthropic direct | `anthropic` | `anthropic-messages` | `anthropic-messages` |
+| chat complete openrouter | `openrouter` | `chat-completions` | `openai-compat` |
+| openrouter responses | `openrouter` | `responses` | `openai-compat` |
+| openai direct | `openai` | `chat-completions` | `openai-compat` |
+| vllm endpoint | `vllm` | `chat-completions` | `openai-compat` |
+| lm studio endpoint | `lm-studio` | `chat-completions` | `openai-compat` |
+| ollama endpoint | `ollama` | `chat-completions` | `openai-compat` |
+| custom byo endpoint | `custom-openai` | `chat-completions` | `openai-compat` |
+| built-in on this device | `local-light` | — (no chat api) | `local-light` |
 
-Standing confusion-killers, all fail-closed in the same switch: `agent-sdk` is the only stateful
-backend and the only `max-pro-sub` path; `responses` is OpenRouter-only; `local-light` never serves a
-chat turn; `max-pro-sub` never speaks chat-completions; and **local vLLM is chat-completions-ONLY**
-(the `agent-sdk × vllm` loopback skin was retired by owner ruling 2026-07-27 and now throws). The
-purged `anthropic-messages` api and the first-party `anthropic` source are not members of either
-axis — do not resurrect either word.
+Standing confusion-killers: `agent-sdk` is the only stateful wire and the only subscription path, and
+since 2026-09-19 (F18) it is the SUBSCRIPTION's wire and nothing else's — **"claude code via openrouter
+key" is a retired word, do not resurrect it**; `responses` is OpenRouter's alone among the built-in
+rows; `local-light` never serves a chat turn. `anthropic-messages` is now a LIVE api and `anthropic` a
+live provider (F6 flipped the 2026-07-24 ruling that purged them) — it is the first-party API-key wire
+over `@ai-sdk/anthropic` and is NOT the subscription's subprocess, which is a different wire. The old
+`source` words (`max-pro-sub`, `custom_openai`) are retired spellings of provider ids, not axes.
 
 ## Enforcement
 

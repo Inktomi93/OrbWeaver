@@ -107,9 +107,11 @@ replaces the deploy output's copied `@orb/*` dirs with SYMLINKS to those tree so
      exports map `"./*": "./src/*/index.ts"` then resolves both).
    - `build-argv.ts` references the three `qwen3_*_serve.jinja` chat templates relative to repoRoot.
      They are server RUNTIME data; they stayed in `scripts/dev/` when the tool fleet moved (#393 P5) and
-     were RE-HOMED under `packages/server/src/infra/providers/vllm/engine/templates/` on 2026-08-22
-     (#415), so the gpu image now gets them for free from the app-files `packages/server/src` copy and
-     the Dockerfile carries no per-template line. What the gpu image still copies by hand: the stack
+     were RE-HOMED under the server's providers tier on 2026-08-22 (#415) and moved AGAIN on 2026-09-19
+     with the fleet yeet (`orbweaver-inference-package.md` F1) to
+     `tooling/src/stack/lib/engine-fleet/templates/`, beside the argv builder that reads them — so they
+     are no longer app files at all and the "free from the `packages/server/src` copy" arrangement below
+     is history along with the gpu image. What the gpu image still copies by hand: the stack
      tool's `engines.sh`/`vllm-setup.sh`/`ops/engines.ts`/`ops/engines-ctl.ts` from `tooling/src/stack/`
      (`vllm-setup.sh` re-homed there from `scripts/dev/` on 2026-08-22, #421 — it is the venv bootstrap
      `engines.sh` calls as its sibling, not research); the rest of both trees stays out.
@@ -122,8 +124,11 @@ replaces the deploy output's copied `@orb/*` dirs with SYMLINKS to those tree so
    leaves `supervisor.ts:291`'s unconditional `if (!detectGpu())` idling the supervisor on a GPU-less
    box ("no GPU on this host", all engines down) — D2 external-engine would register the backend and
    then never probe/adopt. Both sites gate the local-GPU requirement on the MANAGING posture. The
-   lifecycle formula is extracted to `effectiveVllmDisabled(posture, gpuPresent)` in
-   `foundation/env/posture.ts` (pure, truth-table-testable; the inline boot expression was untestable).
+   lifecycle formula is extracted to `effectiveVllmDisabled(posture, gpuPresent)` in a pure
+   `foundation/env` posture module (truth-table-testable; the inline boot expression was untestable).
+   **HISTORY as of 2026-09-19 (F1): the posture module, `ENGINES_POSTURE`, `effectiveVllmDisabled` and
+   the supervisor are all deleted — there is no posture axis in the server, so this item cannot be
+   re-derived against the tree.**
 4. **`pnpm install` in a git-less build stage fails**: the root `prepare` script is `lefthook install`,
    which hard-exits 128→1 outside a git repo (probed on this box; `LEFTHOOK=0` does NOT rescue it). The
    deps stage runs `git init .` before install (git ships in `node:26-bookworm`; the throwaway `.git`
@@ -152,10 +157,10 @@ replaces the deploy output's copied `@orb/*` dirs with SYMLINKS to those tree so
 | Change | Site | Test (suite, red-first mechanism) |
 | - | - | - |
 | `VLLM_ENGINE_HOST` env key, default `127.0.0.1`, host-only | `foundation/env/index.ts` (beside the port floor) | covered via the two consumers below |
-| `engineBaseUrl` reads the host | `infra/providers/vllm/engine/engine-url.ts:17-20` | `tests/server/infra/providers/vllm/engine/engine-url.test.ts` — new re-import describe (the `reimportEnvWith` house pattern from `tests/server/foundation/env/index.test.ts:45-69`); red on old source (URL stays loopback). Stale test 3 ("never a routable host") truth-repaired to a default-env pin. |
+| `engineBaseUrl` reads the host | `tooling/src/stack/lib/engine-fleet/engine-url.ts` (moved out of the server on 2026-09-19, F1) | `tests/tooling/stack/lib/engine-fleet/engine-url.test.ts` — new re-import describe (the `reimportEnvWith` house pattern from `tests/server/foundation/env/index.test.ts:45-69`); red on old source (URL stays loopback). Stale test 3 ("never a routable host") truth-repaired to a default-env pin. |
 | `internalBackendHostPorts` keys off the host | `infra/network/egress.ts:81-83` | `tests/server/infra/network/egress.int.test.ts` — new describe: relocated host `127.0.0.2` ⇒ `127.0.0.2:8701` passes, `127.0.0.2:9998` blocked, `127.0.0.1:8701` blocked (the set READS env, never accumulates). Red on old source (first arm SSRF_BLOCKED). |
-| `effectiveVllmDisabled(posture, gpuPresent)` | `foundation/env/posture.ts` (new pure fn) + `entry/lifecycle.ts:201-203` uses it | `tests/server/foundation/env/posture.test.ts` — 6-row truth table; red via a cp-scratch of posture.ts carrying the OLD formula (`!(registers && gpu)`) — the `adopt-only × no-GPU` row flips. |
-| Supervisor idle-gate manages-scoped | `infra/providers/vllm/engine/supervisor.ts:291` | `tests/server/infra/providers/vllm/engine/supervisor.test.ts` — harness gains a `gpuAbsent` switch on the existing `execFileSync` mock; adopt-only × no-GPU must NOT idle (statuses probe-driven), manager × no-GPU still idles. Red on old source (adopt-only arm reads "no GPU on this host"). |
+| ~~`effectiveVllmDisabled(posture, gpuPresent)`~~ | RETIRED 2026-09-19 (F1): there is no posture module, no `ENGINES_POSTURE` and no engine boot arm in the server | its 6-row truth-table pin went with it |
+| ~~Supervisor idle-gate manages-scoped~~ | RETIRED 2026-09-19 (F1): the supervisor loop was not moved, it was deleted — nothing in the server manages an engine | its pin went with it |
 | `engines.sh` tsx→node fallback | `tooling/src/stack/engines.sh:33` | dev tooling (constitution's KISS carve-out); shellcheck + unchanged-dev-path reasoning; no vitest suite exists for the shim |
 
 Shared-value sweep: `VLLM_ENGINE_HOST` has zero pre-existing test references; the default keeps every

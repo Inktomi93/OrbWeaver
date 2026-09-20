@@ -828,13 +828,13 @@
     },
     {
       "path": "docs/reviews/gate-runtime/home-server-family-1584.md",
-      "assignedSha256": "54caf22566a81b4a4379d31d0fdbe92ea238e1a4c0931c4877ce9004e818e56a",
+      "assignedSha256": "bc8419aaca0b3752a2d8c9d9bcc2f9eb689090365c583a04a0dcd882bff54793",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "54caf22566a81b4a4379d31d0fdbe92ea238e1a4c0931c4877ce9004e818e56a",
-      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
-      "verifiedAt": "2026-09-19",
+      "verifiedSha256": "bc8419aaca0b3752a2d8c9d9bcc2f9eb689090365c583a04a0dcd882bff54793",
+      "verifiedCommit": "fd3c84456025412565dc40dc16f08194226de8c2",
+      "verifiedAt": "2026-09-20",
       "evidence": [
         "docs/reviews/gate-runtime/home-server-family-1584.md:1",
         "git log --oneline -5 -- docs/reviews/gate-runtime",
@@ -852,7 +852,7 @@
           ]
         }
       ],
-      "verifiedCanonicalSha256": "54caf22566a81b4a4379d31d0fdbe92ea238e1a4c0931c4877ce9004e818e56a"
+      "verifiedCanonicalSha256": "bc8419aaca0b3752a2d8c9d9bcc2f9eb689090365c583a04a0dcd882bff54793"
     },
     {
       "path": "docs/reviews/gate-runtime/id-brand-family-1584.md",

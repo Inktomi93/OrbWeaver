@@ -76,15 +76,6 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
       "the analyzer stops mis-reading this shape — an upgrade whose `lint/suspicious/noUnnecessaryConditions` understands it — or the last governed source site under the rule disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
   },
   {
-    id: "suppressions:source-lint-suspicious-use-await",
-    policyId: "suppressions",
-    subject: "lint/suspicious/useAwait",
-    operation: "source",
-    why: "RULING — a buffered replay generator has nothing to await but must remain async to implement the AsyncIterable contract (Carried VERBATIM from the legacy RATIFIED_RULES table at 02382639e; 1 live site(s) under governed source at conversion.)",
-    endsWhen:
-      "the ruling itself is reversed, or the last governed source site under `lint/suspicious/useAwait` disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
-  },
-  {
     id: "suppressions:source-react-hooks-exhaustive-deps",
     policyId: "suppressions",
     subject: "react-hooks/exhaustive-deps",

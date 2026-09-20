@@ -328,9 +328,13 @@ validation main-era D93 records).
    existing `summarizeQuiet` op WIDENED into the generic quiet-LLM op its header declares
    (`contract/ops.ts:176-182`), gaining a structured variant on the AUTHOR's own role-resolved
    connection (`bindRoleClients(authorUserId)`, the autobg precedent, `entry/compose/
-   automation-plugin.ts:183-189`) routed to the `structured` role (D109-4; its firewall row
-   excludes the metered sub — `infra/providers/roles/firewall.ts:24,46-48` — hosted-cred
-   laundering structurally closed). WHY author-scoped rather than D109-2 turn-inheritance: an
+   automation-plugin.ts:183-189`) routed to the `structured` task (D109-4). **AMENDED 2026-09-19 (F5/F14):** there is no firewall
+   file and no hand-kept per-role source table — which wires serve a task is derived from
+   `WIRE_DEFS[…].serves` (`packages/contracts/src/inference/wires.ts`), and the subscription wire
+   DOES serve `structured`, so the original "its firewall row excludes the metered sub" sentence is
+   no longer what closes hosted-cred laundering. What closes it is FUNDING: the call runs on the
+   author's own binding and a background task is refused unless that row's `allowBackground` is on
+   (`canFund`, `packages/contracts/src/inference/policy.ts`). WHY author-scoped rather than D109-2 turn-inheritance: an
    automation arm is the author's standing side generation (it can fire with no committed turn —
    `runRuleNow`); the author funds their own call under their own consent; no by-proxy triple
    exists. *(Rejected: a bare `runStructuredTurn` import into automation — a second quiet-LLM

@@ -6,7 +6,7 @@ updated: 2026-08-19
 
 # Orbweaver — `infra`: the sealed I/O adapters (auth · crypto · network · storage · image)
 
-**infra is a sealed executor.** Each adapter is a thin I/O handle a domain *injects* and calls; none reaches UP into a domain, and — the load-bearing physics — **none imports `@orb/db`** (db-dependent steps are injected in). `infra/providers` (the execution tier) has its own law: `core/Tier-3b-Providers.md`.
+**infra is a sealed executor.** Each adapter is a thin I/O handle a domain *injects* and calls; none reaches UP into a domain, and — the load-bearing physics — **none imports `@orb/db`** (db-dependent steps are injected in). The execution tier that used to sit here as the providers adapter is now the `@orb/inference` package (extracted 2026-09-19); its law is `core/Tier-3b-Providers.md`.
 
 ## What this tier owns
 

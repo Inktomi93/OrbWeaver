@@ -460,7 +460,7 @@ wrong.** The gen engine launches with
 `--default-chat-template-kwargs {"enable_thinking": false, "preserve_thinking": true}`
 (`build-argv.ts:286`). Two independent gates read that value:
 
-- the CHAT TEMPLATE (`packages/server/src/infra/providers/vllm/engine/templates/qwen3_gen_thinking_serve.jinja:6/:18`, prefill at `:324-329`), and
+- the CHAT TEMPLATE (`tooling/src/stack/lib/engine-fleet/templates/qwen3_gen_thinking_serve.jinja` `:6`/`:18`, prefill at `:324-329` — the fleet's templates moved out of the server on 2026-09-19, F1), and
 - the REASONING PARSER: `vllm/parser/qwen3.py:226` —
   `self.thinking_enabled = chat_kwargs.get("enable_thinking", True)` — with `:252`
   `if not self.thinking_enabled: return None, model_output`.
@@ -674,11 +674,11 @@ Flip applied through the app's own API — `settings.updateUserSettingsSection({
 `chat-completions/openrouter/deepseek/deepseek-v4-flash` with
 `reasoning:{mode:"effort", enabled:true, effortLevels:["xhigh","high"], defaultEffort:"high"}`. No preset
 was needed: OR advertises `default_effort:"high"` with no `defaultEnabled:false`, so
-`infra/providers/resolve-chat.ts:58-68`'s `effectiveEffort` fills the effort from the capability itself.
+`packages/inference/src/funnel/resolve-chat.ts`'s `effectiveEffort` (the providers tier's own resolve-chat when this was measured) fills the effort from the capability itself.
 
 Wire receipts from `/api/_debug/wire/outcomes` on the measured turns — the thing §7 could not get:
 `reasoningChars: 998` / `1280` against `contentChars: 305` / `299`. Reasoning bytes are on the wire and
-`infra/providers/backends/kit/openai-compat/stream.ts:127-139` maps them to `kind:"reasoning"` exactly as
+the wire's stream reducer — `packages/inference/src/backends/v4/stream.ts` today, `backends/kit/openai-compat/stream.ts` when this was measured — maps them to `kind:"reasoning"` exactly as
 predicted.
 
 Room: a SCRATCH plain chat (`chat.startChat`, no rpg game — so no tool folding to confound §7.3's
@@ -748,7 +748,7 @@ is untouched by this section.
 
 **ARM 8 (the refinery structured-on-OpenRouter fact the refinery-e2e lane left BLOCKED): routing WORKS,
 execution FAILS.** `structured` is not its own routing role — it rides the resolved `summarize` connection
-(`entry/compose/role-clients.ts:121-123`), so the lever is `roleDefaults.summarize`. With it pointed at
+(measured in the purged `entry/compose/role-clients.ts:121-123`; the binder is `entry/compose/services.ts` now and the lever is the principal's `summarize` binding, not a settings blob). With it pointed at
 OpenRouter, one `refinery.generateSchema` produced a real capture:
 
 ```json

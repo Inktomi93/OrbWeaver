@@ -251,7 +251,7 @@ Promoted here from code comments so they are discoverable; the code stays the so
 
 | Invariant | Home / detail |
 | - | - |
-| **ONE credential-mint site** — a `ResolvedCredential` is constructed ONLY in `credentials/substrate/mint.ts`; the brand is otherwise unforgeable. | `domain/credentials/substrate/mint.ts` |
+| **ONE credential-mint site** — the brand-protected secret is constructed ONLY in the credentials substrate's mint (renamed with the brand it guards: `ResolvedCredential` became `ResolvedSecret` in the 2026-09-19 connection re-key); the brand is otherwise unforgeable. | `domain/credentials/substrate/mint-secret.ts` |
 | **Notifications are durable-first** — INSERT the inbox row, THEN publish to the bus; a crash between the two never loses a delivered notification (the inbox is truth, the bus is best-effort). | `domain/notifications` |
 | **`notifications.record` is the ONE recipient chokepoint** — every producer routes through it, and it REFUSES an agent-principal recipient (agents never hold an inbox). Enforced once, inherited by all producers. | `domain/notifications` |
 | **Wire event unions are secret-unrepresentable** — the chat/notification event unions are closed discriminated unions of strict objects carrying only ids + literals; a secret/credential field is not expressible, so it cannot leak onto the bus. | `@orb/contracts/{chat,notifications}` |

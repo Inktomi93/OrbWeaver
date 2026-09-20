@@ -5,13 +5,13 @@
   "entries": [
     {
       "path": "docs/architecture/core/AGENTS.md",
-      "assignedSha256": "93eda6dcb8d999c8c33fcdda5f1bcfa00164e20988830829e356f626b8516d6b",
+      "assignedSha256": "e7998873cd76fc33f074f9f76d99aa5657779a78eee89b4f2b10cf070b57ffc2",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "93eda6dcb8d999c8c33fcdda5f1bcfa00164e20988830829e356f626b8516d6b",
-      "verifiedCommit": "92fe26becaa4055b6d7cc10c85cb7d9cde6c75b6",
-      "verifiedAt": "2026-09-19",
+      "verifiedSha256": "e7998873cd76fc33f074f9f76d99aa5657779a78eee89b4f2b10cf070b57ffc2",
+      "verifiedCommit": "fd3c84456025412565dc40dc16f08194226de8c2",
+      "verifiedAt": "2026-09-20",
       "evidence": [
         "Owner ruling 2026-09-10: lanes may commit normally in their assigned worktree or clone, including configured hook checks. Explicit iteration stays scoped; hook bypass requires a specific user/coordinator exception with its reason and executed or owed checks. Main integration and push remain coordinator/owner operations. Coupled doctrine, role and runbook guidance was reconciled without changing hook commands.",
         "#1842 (cb-push-tier): tests:tooling is --full-only; tooling-serial lane; SERIAL_INT_PRODUCT/TOOLING; push = product node tests",
@@ -60,7 +60,7 @@
         }
       ],
       "summary": "Constitution with configured-hook commits in assigned lane checkouts, scoped explicit iteration, and specifically authorized recorded bypass exceptions; integrated verification and push ownership remain separate.",
-      "verifiedCanonicalSha256": "93eda6dcb8d999c8c33fcdda5f1bcfa00164e20988830829e356f626b8516d6b"
+      "verifiedCanonicalSha256": "e7998873cd76fc33f074f9f76d99aa5657779a78eee89b4f2b10cf070b57ffc2"
     },
     {
       "path": "docs/architecture/core/Chat-Macro-Resolution.md",
@@ -93,13 +93,13 @@
     },
     {
       "path": "docs/architecture/core/Core-0-Architecture-and-Structure.md",
-      "assignedSha256": "4717ca80f330c7a12bb73fc3343dda8a48e792ddf7a74d0402d1a0b73d12cece",
+      "assignedSha256": "76b82ac2e6f79bb0c6f2cf8d0a1f676e8673a7e0876768fa7af243914c651878",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "4717ca80f330c7a12bb73fc3343dda8a48e792ddf7a74d0402d1a0b73d12cece",
-      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
-      "verifiedAt": "2026-09-19",
+      "verifiedSha256": "76b82ac2e6f79bb0c6f2cf8d0a1f676e8673a7e0876768fa7af243914c651878",
+      "verifiedCommit": "fd3c84456025412565dc40dc16f08194226de8c2",
+      "verifiedAt": "2026-09-20",
       "evidence": [
         "re-attested at eb01a72ab (#1055): §7 row 11 names the real enforcer for exhaustive dispatch (compile-time by construction; no `exhaustive-dispatch` gate exists)",
         "re-attested at 7b7eb54b2 under #950 — full-file/delta read; the one sanctioned revisioned non-TS runtime-data exception is Snap's manifest-closed official DevTools frontend asset root",
@@ -123,7 +123,7 @@
         }
       ],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed.",
-      "verifiedCanonicalSha256": "4717ca80f330c7a12bb73fc3343dda8a48e792ddf7a74d0402d1a0b73d12cece"
+      "verifiedCanonicalSha256": "76b82ac2e6f79bb0c6f2cf8d0a1f676e8673a7e0876768fa7af243914c651878"
     },
     {
       "path": "docs/architecture/core/Core-Audits-and-Debt.md",
@@ -176,13 +176,13 @@
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-      "assignedSha256": "4396bc4239af792e294f7f2433943373ff6146861e022ca6fd7de95c53b651ea",
+      "assignedSha256": "56e15f706f72e4fc103ceed572d8d6f700a708402c6cfba2afeb15150f5e88a4",
       "disposition": "current",
       "authority": "operational",
       "fullRead": true,
-      "verifiedSha256": "4396bc4239af792e294f7f2433943373ff6146861e022ca6fd7de95c53b651ea",
-      "verifiedCommit": "92fe26becaa4055b6d7cc10c85cb7d9cde6c75b6",
-      "verifiedAt": "2026-09-19",
+      "verifiedSha256": "56e15f706f72e4fc103ceed572d8d6f700a708402c6cfba2afeb15150f5e88a4",
+      "verifiedCommit": "fd3c84456025412565dc40dc16f08194226de8c2",
+      "verifiedAt": "2026-09-20",
       "evidence": [
         "Bounded #2312 citation correction; existing reviewed CSS-family changes and earlier evidence remain attributable to their own receipts. Selected dangling-refs drive clean over199 docs: reports/runs/structure/main-72765-2026-09-13T06-11-26-874Z/check-structure.json. This receipt does not certify the whole gate roster or close ongoing CSS verification.",
         "Full document read by the registration lane; changed rows reviewed against source by the orchestrator. Browser-contract real-tree fixture red/clean, 15 behavioral tests and independent semantic review; hook/router/config snapshot 137 behavioral tests and security approval. Full legacy structure still refuses the separate mixed-descriptor cutover.",
@@ -350,7 +350,7 @@
         }
       ],
       "summary": "Active enforcement catalog, fully read as text; current Q11 health-row correction verified against canonical generation and namespace-health ownership. Prior per-row evidence remains attributed; no new whole-roster implementation certification.",
-      "verifiedCanonicalSha256": "4396bc4239af792e294f7f2433943373ff6146861e022ca6fd7de95c53b651ea"
+      "verifiedCanonicalSha256": "56e15f706f72e4fc103ceed572d8d6f700a708402c6cfba2afeb15150f5e88a4"
     },
     {
       "path": "docs/architecture/core/Core-Laws-and-Precedents.md",
@@ -401,13 +401,13 @@
     },
     {
       "path": "docs/architecture/core/Core-Path-Registry.md",
-      "assignedSha256": "eb0d95523bfaa9efe3f6ea2ce1b0ffb63026d5a453a3869df520bad71191ef9c",
+      "assignedSha256": "6a053c8cf671e46f0c7d96118b887a349ad48bd95beeac68d1c0f42d54280ee8",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "eb0d95523bfaa9efe3f6ea2ce1b0ffb63026d5a453a3869df520bad71191ef9c",
-      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
-      "verifiedAt": "2026-09-19",
+      "verifiedSha256": "6a053c8cf671e46f0c7d96118b887a349ad48bd95beeac68d1c0f42d54280ee8",
+      "verifiedCommit": "fd3c84456025412565dc40dc16f08194226de8c2",
+      "verifiedAt": "2026-09-20",
       "evidence": [
         "Bounded D61 repair independently investigated under #2312; root read the complete relevant entry and exact diff. Prior whole-document read and claims below are retained, not repeated. Final selected dangling-refs drive over199 docs was clean: reports/runs/structure/main-72765-2026-09-13T06-11-26-874Z/check-structure.json. Historical note is a separate line so it does not suppress current citations.",
         "bounded re-attestation at 0f28e6b15: the existing full-read 174cc2961 receipt covers #1351's helper-world path move; current source retains tests/support/browser/ct-data-providers.tsx and the old tests/support/ct path is absent; #1351 remains the live program",
@@ -494,7 +494,7 @@
         }
       ],
       "summary": "D61 distinguishes the proposed hub feature from its removed implementation while preserving existing egress and roster claims.",
-      "verifiedCanonicalSha256": "eb0d95523bfaa9efe3f6ea2ce1b0ffb63026d5a453a3869df520bad71191ef9c"
+      "verifiedCanonicalSha256": "6a053c8cf671e46f0c7d96118b887a349ad48bd95beeac68d1c0f42d54280ee8"
     },
     {
       "path": "docs/architecture/core/Core-Planning-and-Checklists.md",
@@ -695,13 +695,13 @@
     },
     {
       "path": "docs/architecture/core/Spine-Config-and-Serialization.md",
-      "assignedSha256": "680e2bf232b15507d375016663edffcb70232f09506216381de4a1d46ceb9cd7",
+      "assignedSha256": "7b9682e7f26702d77a431f53175e9d9972ada0d9f3a1b842fe9b2bb9f63eac0d",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "680e2bf232b15507d375016663edffcb70232f09506216381de4a1d46ceb9cd7",
-      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
-      "verifiedAt": "2026-09-19",
+      "verifiedSha256": "7b9682e7f26702d77a431f53175e9d9972ada0d9f3a1b842fe9b2bb9f63eac0d",
+      "verifiedCommit": "fd3c84456025412565dc40dc16f08194226de8c2",
+      "verifiedAt": "2026-09-20",
       "evidence": [
         "re-attested at a718abf09 by the orchestrator after reading the #1026 diff in full (cb-preset-writers): the #471 'degrading is a read-only privilege' clause's guard pointer moves with the one-home relocation of requireIntactStoredConfig from domain/settings/substrate/stored-config.ts to packages/server/src/kit/stored-config/index.ts; the preset update verb now takes the same refusal, the reseed/import/reset writers are recorded as the guard-exempt class; no other prose changed.",
         "docs/architecture/core/Spine-Config-and-Serialization.md:1 (full read; header/status evaluated)",
@@ -744,17 +744,17 @@
         }
       ],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed. Re-attested 2026-08-22 after the #471 degrade-vs-write law was added to the Settings/config section.",
-      "verifiedCanonicalSha256": "680e2bf232b15507d375016663edffcb70232f09506216381de4a1d46ceb9cd7"
+      "verifiedCanonicalSha256": "7b9682e7f26702d77a431f53175e9d9972ada0d9f3a1b842fe9b2bb9f63eac0d"
     },
     {
       "path": "docs/architecture/core/Spine-Identity-and-Auth.md",
-      "assignedSha256": "59941cc8dab46fa5e32dbb130d475ef233f09eafc4235a97e504834550dbe941",
+      "assignedSha256": "30dba3ae8d2da80186fe19a84309190b1ab04b92ea535818b133fc08db901da1",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "59941cc8dab46fa5e32dbb130d475ef233f09eafc4235a97e504834550dbe941",
-      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
-      "verifiedAt": "2026-09-19",
+      "verifiedSha256": "30dba3ae8d2da80186fe19a84309190b1ab04b92ea535818b133fc08db901da1",
+      "verifiedCommit": "fd3c84456025412565dc40dc16f08194226de8c2",
+      "verifiedAt": "2026-09-20",
       "evidence": [
         "re-attested after #1010 (three cites of the moved roster files repaired) at 532758261",
         "docs/architecture/core/Spine-Identity-and-Auth.md:1 (full read, 2026-08-19; FRESH fact-check — not the authoring lane — after the tRPC content-type belt landed at 621ac2218 and rewrote invariant #9 open->closed; every claim re-derived against merged packages/server/src)",
@@ -828,17 +828,17 @@
         }
       ],
       "summary": "Active core reference re-attested at the #969 implementation: D71 now requires a total accepted-base foreground contract without narrowing custom themes; the derivation, ThemeScope, token, rendered, and import homes carry the proof.",
-      "verifiedCanonicalSha256": "59941cc8dab46fa5e32dbb130d475ef233f09eafc4235a97e504834550dbe941"
+      "verifiedCanonicalSha256": "30dba3ae8d2da80186fe19a84309190b1ab04b92ea535818b133fc08db901da1"
     },
     {
       "path": "docs/architecture/core/Spine-Testing.md",
-      "assignedSha256": "fde9bf9984af7516ec1869cc53ea61c48b6647f6666914e234806130f68cd463",
+      "assignedSha256": "77d7111451383a5fd22b4ac891ac5d7ba15c5de94264ed74e16ae10cb141df81",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "fde9bf9984af7516ec1869cc53ea61c48b6647f6666914e234806130f68cd463",
-      "verifiedCommit": "335cf5004086687fdc9de52d273074ee4d4479a3",
-      "verifiedAt": "2026-09-19",
+      "verifiedSha256": "77d7111451383a5fd22b4ac891ac5d7ba15c5de94264ed74e16ae10cb141df81",
+      "verifiedCommit": "fd3c84456025412565dc40dc16f08194226de8c2",
+      "verifiedAt": "2026-09-20",
       "evidence": [
         "Full document read by the scoped documentation lane; current changes checked against cfb9cea2fea7a109cd65c44485ada4d30437fc5c. Repository-resource citations and native execution guidance reflect 46b658696/cfb9cea2f; independent scheduling and compiler-executor controls passed. Exact ambient enforcement and remaining native-config integration are still separate program requirements.",
         "Full current 277-line document read by the orchestrator; registered test kinds and phase-4 native reclassification receipts checked against f6c2ae500. Remaining serial lists, tags and predictive ownership are explicitly transitional; this receipt does not claim those migrations complete.",
@@ -876,7 +876,7 @@
         }
       ],
       "summary": "Test layout and current scheduling policy; structural browser suites run in parallel and rate validity remains separate from deadlines.",
-      "verifiedCanonicalSha256": "fde9bf9984af7516ec1869cc53ea61c48b6647f6666914e234806130f68cd463"
+      "verifiedCanonicalSha256": "77d7111451383a5fd22b4ac891ac5d7ba15c5de94264ed74e16ae10cb141df81"
     },
     {
       "path": "docs/architecture/core/Spine-TypeScript-and-Patterns.md",
@@ -953,13 +953,13 @@
     },
     {
       "path": "docs/architecture/core/Tier-2-Foundation.md",
-      "assignedSha256": "70a16120a7d2cfd01eb663d119f4401efde56547dbb725d592e291dad04cc1f0",
+      "assignedSha256": "422b9082ffe3ffdeadfcbc5f266c7e3b1f96f18e6677e05cf41c2668c1ec348c",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "70a16120a7d2cfd01eb663d119f4401efde56547dbb725d592e291dad04cc1f0",
-      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
-      "verifiedAt": "2026-09-19",
+      "verifiedSha256": "422b9082ffe3ffdeadfcbc5f266c7e3b1f96f18e6677e05cf41c2668c1ec348c",
+      "verifiedCommit": "fd3c84456025412565dc40dc16f08194226de8c2",
+      "verifiedAt": "2026-09-20",
       "evidence": [
         "docs/architecture/core/Tier-2-Foundation.md:1 (full read; header/status evaluated)",
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
@@ -978,17 +978,17 @@
         }
       ],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed.",
-      "verifiedCanonicalSha256": "70a16120a7d2cfd01eb663d119f4401efde56547dbb725d592e291dad04cc1f0"
+      "verifiedCanonicalSha256": "422b9082ffe3ffdeadfcbc5f266c7e3b1f96f18e6677e05cf41c2668c1ec348c"
     },
     {
       "path": "docs/architecture/core/Tier-3-Infra.md",
-      "assignedSha256": "c6dccb253d4a3799d571634d6c936562df2d26c00419f259afe5f35f5bc39b6f",
+      "assignedSha256": "c6d789d462a4b1ab38f7464ffff981ced26a97071b45639b5bd8e4a6ce8fb75f",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "c6dccb253d4a3799d571634d6c936562df2d26c00419f259afe5f35f5bc39b6f",
-      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
-      "verifiedAt": "2026-08-30",
+      "verifiedSha256": "c6d789d462a4b1ab38f7464ffff981ced26a97071b45639b5bd8e4a6ce8fb75f",
+      "verifiedCommit": "fd3c84456025412565dc40dc16f08194226de8c2",
+      "verifiedAt": "2026-09-20",
       "evidence": [
         "docs/architecture/core/Tier-3-Infra.md:1 (full read, 2026-08-19; re-attested after #298 f2 merged at 6ef448dd6)",
         "infra/auth surface re-derived in full (dispatch/index/contract/csrf/host/config/modes) plus infra/network ingress + ip-ranges",
@@ -1024,7 +1024,8 @@
           ]
         }
       ],
-      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed.",
+      "verifiedCanonicalSha256": "c6d789d462a4b1ab38f7464ffff981ced26a97071b45639b5bd8e4a6ce8fb75f"
     },
     {
       "path": "docs/architecture/core/Tier-3b-Providers.md",
@@ -1413,13 +1414,13 @@
     },
     {
       "path": "docs/architecture/core/client-architecture-lockdown.md",
-      "assignedSha256": "2effba02fca446ca970e733295cb20604e5a59fe4778d190654aae4517457b70",
+      "assignedSha256": "1a6040e18ba6b4ddfcdb1b5249e10f0ef1b93d7a9c1e6f6570894fa8199e2419",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "61a42fdad37c7512f3eb738dd88280bba30d22ed6774f56db7dff17ec2e90502",
-      "verifiedCommit": "370243fe7a30d10328d9ba98d766731688fe074f",
-      "verifiedAt": "2026-09-08",
+      "verifiedSha256": "1a6040e18ba6b4ddfcdb1b5249e10f0ef1b93d7a9c1e6f6570894fa8199e2419",
+      "verifiedCommit": "fd3c84456025412565dc40dc16f08194226de8c2",
+      "verifiedAt": "2026-09-20",
       "evidence": [
         "Full document read by component-owner doc lane and current ownership edits reviewed at 370243fe7a30d10328d9ba98d766731688fe074f; current source/test pointers resolve. Component CT11/11, policy12/12 and20gate controls pass. Whole gate-runtime cutover remains separate; this is not a composed enforcement-green claim.",
         "type-worlds phase 1 (#1351): `tests/support/ct/<file>` spellings repointed to `tests/support/{browser,node}/<file>` after the helper split",
@@ -1475,7 +1476,8 @@
           ]
         }
       ],
-      "summary": "Active client architecture re-attested for #995: app-ready-signal.ts owns production readiness while agent-bridge.ts remains DEV-only and shares the same state."
+      "summary": "Active client architecture re-attested for #995: app-ready-signal.ts owns production readiness while agent-bridge.ts remains DEV-only and shares the same state.",
+      "verifiedCanonicalSha256": "1a6040e18ba6b4ddfcdb1b5249e10f0ef1b93d7a9c1e6f6570894fa8199e2419"
     },
     {
       "path": "docs/architecture/core/motion-and-animation-guide.md",
