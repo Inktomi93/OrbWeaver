@@ -33,7 +33,6 @@ import { wireSchema } from "../../../../support/wire-ready.ts";
 const CAPABILITY: GenerationCapability = makeGenerationCapability({
   output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"] },
   context: { window: 200_000 },
-  modalities: ["text"],
 });
 
 const CONNECTION: Resolved<"chat"> = makeResolved({ api: "chat-completions", model: castId<ModelId>("test-model"), capability: makeCapability(CAPABILITY) });
@@ -418,12 +417,13 @@ describe("runTurnPipeline — request shaping + fit", () => {
   test("#317: a video-capable model receives a VIDEO part for a video attachment", async () => {
     const videoCapable = {
       ...CONNECTION,
-      capability: makeGenerationCapability({
-        input: ["text", "image", "video"],
-        output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"] },
-        context: { window: 200_000 },
-        modalities: ["text"],
-      }),
+      capability: makeCapability(
+        makeGenerationCapability({
+          input: ["text", "image", "video"],
+          output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"] },
+          context: { window: 200_000 },
+        }),
+      ),
     };
     const { args } = baseArgs({
       connection: videoCapable,
@@ -442,7 +442,13 @@ describe("runTurnPipeline — request shaping + fit", () => {
   test("#317: a vision-only model (no input.video) DROPS the video part + flags videoDropped — never junk on the wire", async () => {
     const visionOnly = {
       ...CONNECTION,
-      capability: makeCapability(makeGenerationCapability({ input: ["text", "image"], output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"] }, context: { window: 200_000 } })),
+      capability: makeCapability(
+        makeGenerationCapability({
+          input: ["text", "image"],
+          output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"] },
+          context: { window: 200_000 },
+        }),
+      ),
     };
     const { args } = baseArgs({
       connection: visionOnly,
@@ -461,7 +467,13 @@ describe("runTurnPipeline — request shaping + fit", () => {
   test("#317: a video-only user row whose part drops keeps the honest `[video: alt]` placeholder", async () => {
     const visionOnly = {
       ...CONNECTION,
-      capability: makeCapability(makeGenerationCapability({ input: ["text", "image"], output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"] }, context: { window: 200_000 } })),
+      capability: makeCapability(
+        makeGenerationCapability({
+          input: ["text", "image"],
+          output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"] },
+          context: { window: 200_000 },
+        }),
+      ),
     };
     const { args } = baseArgs({
       connection: visionOnly,
@@ -509,7 +521,7 @@ describe("runTurnPipeline — request shaping + fit", () => {
       id: castId<MessageId>(`message_parity_${i}`),
     });
     const canon = Array.from({ length: 11 }, (_, i) => idRowOf(i)); // 0..10, last (10) is a USER row
-    const mid = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 400 }, modalities: ["text"], modalities: ["text"] });
+    const mid = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"] }, context: { window: 400 } });
     const result = await runTurnPipeline(baseArgs({ canon, connection: { ...CONNECTION, capability: makeCapability(mid) } }).args);
     expect(result.droppedCount).toBeGreaterThan(0);
     expect(result.droppedCount).toBeLessThan(11); // real rows survive → the boundary is a real id
@@ -526,7 +538,9 @@ describe("runTurnPipeline — request shaping + fit", () => {
 // gets a short marker instead of both the image part AND the raw URL bytes.
 const VISION: Resolved<"chat"> = {
   ...CONNECTION,
-  capability: makeCapability(makeGenerationCapability({ input: ["text", "image"], output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"] }, context: { window: 200_000 } })),
+  capability: makeCapability(
+    makeGenerationCapability({ input: ["text", "image"], output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"] }, context: { window: 200_000 } }),
+  ),
 };
 /** The real Azarael card's greeting image target (external, empty alt) — the bug's exact shape. */
 const CARD_IMAGE_URL = "https://files.catbox.moe/2dxdt9.png";
@@ -724,7 +738,7 @@ describe("runTurnPipeline — <speaker> markers convert to plain attribution in 
 // response length, NOT the window.
 describe("runTurnPipeline — token-budget reserve (single source of truth)", () => {
   // A vLLM-shaped descriptor: the output cap equals the window (the exact condition that caused amnesia).
-  const vllmShape = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 32_768 } }, context: { window: 32_768 }, modalities: ["text"], modalities: ["text"] });
+  const vllmShape = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 32_768 }, modalities: ["text"] }, context: { window: 32_768 } });
   const vllmConnection: Resolved<"chat"> = { ...CONNECTION, capability: makeCapability(vllmShape) };
 
   // A handful of short alternating turns — comfortably inside the window once the reserve is a response
@@ -778,7 +792,9 @@ describe("runTurnPipeline — token-budget reserve (single source of truth)", ()
     // rows that a ~200-token ceiling can't hold them all.
     const wideConnection: Resolved<"chat"> = {
       ...CONNECTION,
-      capability: makeCapability(makeGenerationCapability({ output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"] }, context: { window: 1_000_000 } })),
+      capability: makeCapability(
+        makeGenerationCapability({ output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"] }, context: { window: 1_000_000 } }),
+      ),
     };
     const chat = Array.from({ length: 12 }, (_, i) => rowOf(i % 2 === 0 ? "user" : "assistant", `turn ${i} carrying several words to burn some tokens`));
     const uncapped = await runTurnPipeline(baseArgs({ intent: { maxOutputTokens: 100 } satisfies UserIntent, connection: wideConnection, canon: chat }).args);
@@ -1897,9 +1913,14 @@ describe("runTurnPipeline — the §3 content-class wire plane", () => {
     const huge = ':::card title="c1"\n<div>'.concat("x".repeat(200_000), "</div>\n:::");
     const canon = [userRow(huge), rowOf("assistant", "the reply that matters"), userRow("and the follow-up"), rowOf("assistant", "the newest beat")];
     // A window that comfortably fits four short turns and could never fit 200KB of html.
-    const capability = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 8192 }, modalities: ["text"], modalities: ["text"] });
+    const capability = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"] }, context: { window: 8192 } });
     const result = await runTurnPipeline(
-      baseArgs({ canon, ...stub0, connection: { ...CONNECTION, capability: makeCapability(capability) }, intent: { maxOutputTokens: 128 } satisfies UserIntent }).args,
+      baseArgs({
+        canon,
+        ...stub0,
+        connection: { ...CONNECTION, capability: makeCapability(capability) },
+        intent: { maxOutputTokens: 128 } satisfies UserIntent,
+      }).args,
     );
     // Nothing was evicted, and the card is on the wire as its stub — the two halves of the same claim.
     expect(result.droppedCount).toBe(0);
@@ -2235,7 +2256,7 @@ describe("runTurnPipeline — terminal tools (R1 fold)", () => {
     const local = makeGenerationCapability({ ...CAPABILITY, tools: { parallel: true, silencesProse: true } });
     expect(local.tools).toBeDefined();
     const { args } = baseArgs({
-      connection: { ...CONNECTION, capability: local },
+      connection: { ...CONNECTION, capability: makeCapability(local) },
       terminalTools: RPG_TERMINAL_TOOLS,
       runChatTurn: scriptedDepths([[doneFinal("She fords the river, and the water takes her boots.")]], requests),
     });

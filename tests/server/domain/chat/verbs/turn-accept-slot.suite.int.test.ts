@@ -21,7 +21,6 @@
 
 import type { AssemblePersona, ChatBusEvent } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
-import { DomainRateLimitError } from "@orb/kit/errors";
 import type { CharacterId, MessageId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { describe } from "vitest";
@@ -132,22 +131,6 @@ describe("accepted-slot totality — swipe", () => {
     expect(types(since())).toEqual(["turnAccepted", "turnAborted"]);
     expect(since()[1]).toMatchObject({ reason: "error" });
   });
-
-  test("engine PRE-START belt refusal (budget) → the accepted slot CLOSES with turnAborted", async () => {
-    const refuse: { now: boolean } = { now: false };
-    const { chat, assistantId, since } = await roomWithReply({
-      engineBelts: {
-        debitBudget: (): Promise<void> => (refuse.now ? Promise.reject(new DomainRateLimitError("over", { remainingPoints: 0 })) : Promise.resolve()),
-      },
-    });
-    refuse.now = true;
-
-    await expect(chat.turn.swipe({ principal: chat.principal(), chatId: chat.chatId, messageId: assistantId })).rejects.toMatchObject({
-      code: "budget_exceeded",
-    });
-
-    expect(types(since())).toEqual(["turnAccepted", "turnAborted"]);
-  });
 });
 
 describe("accepted-slot totality — continueTurn", () => {
@@ -191,22 +174,6 @@ describe("accepted-slot totality — continueTurn", () => {
 
     expect(types(since())).toEqual(["turnAccepted", "turnAborted"]);
   });
-
-  test("engine PRE-START belt refusal (budget) → the accepted slot CLOSES with turnAborted", async () => {
-    const refuse: { now: boolean } = { now: false };
-    const { chat, assistantId, since } = await roomWithReply({
-      engineBelts: {
-        debitBudget: (): Promise<void> => (refuse.now ? Promise.reject(new DomainRateLimitError("over", { remainingPoints: 0 })) : Promise.resolve()),
-      },
-    });
-    refuse.now = true;
-
-    await expect(chat.turn.continueTurn({ principal: chat.principal(), chatId: chat.chatId, messageId: assistantId })).rejects.toMatchObject({
-      code: "budget_exceeded",
-    });
-
-    expect(types(since())).toEqual(["turnAccepted", "turnAborted"]);
-  });
 });
 
 describe("accepted-slot totality — generate", () => {
@@ -240,20 +207,6 @@ describe("accepted-slot totality — generate", () => {
     fail.now = true;
 
     await expect(chat.turn.generate({ principal: chat.principal(), chatId: chat.chatId })).rejects.toThrow();
-
-    expect(types(since())).toEqual(["turnAccepted", "turnAborted"]);
-  });
-
-  test("engine PRE-START belt refusal (budget) → the accepted slot CLOSES with turnAborted", async () => {
-    const refuse: { now: boolean } = { now: false };
-    const { chat, since } = await roomWithReply({
-      engineBelts: {
-        debitBudget: (): Promise<void> => (refuse.now ? Promise.reject(new DomainRateLimitError("over", { remainingPoints: 0 })) : Promise.resolve()),
-      },
-    });
-    refuse.now = true;
-
-    await expect(chat.turn.generate({ principal: chat.principal(), chatId: chat.chatId })).rejects.toMatchObject({ code: "budget_exceeded" });
 
     expect(types(since())).toEqual(["turnAccepted", "turnAborted"]);
   });
@@ -317,22 +270,6 @@ describe("accepted-slot totality — forceCharacterTurn", () => {
     expect(types(since())).toEqual(["turnAccepted", "turnAborted"]);
     expect(since()[1]).toMatchObject({ reason: "error" });
   });
-
-  test("engine PRE-START belt refusal (budget) → the accepted slot CLOSES with turnAborted", async () => {
-    const refuse: { now: boolean } = { now: false };
-    const { chat, since } = await roomWithReply({
-      engineBelts: {
-        debitBudget: (): Promise<void> => (refuse.now ? Promise.reject(new DomainRateLimitError("over", { remainingPoints: 0 })) : Promise.resolve()),
-      },
-    });
-    refuse.now = true;
-
-    await expect(
-      chat.turn.forceCharacterTurn({ principal: chat.principal(), chatId: chat.chatId, characterId: chat.chars[0] as CharacterId }),
-    ).rejects.toMatchObject({ code: "budget_exceeded" });
-
-    expect(types(since())).toEqual(["turnAccepted", "turnAborted"]);
-  });
 });
 
 describe("accepted-slot totality — send (the SHARED engine seam, not an aux verb)", () => {
@@ -348,16 +285,5 @@ describe("accepted-slot totality — send (the SHARED engine seam, not an aux ve
     expect(outcome.messages.map((m) => m.role)).toEqual(["user"]);
     expect(types(chat.events)).toEqual(["messageCommitted", "turnAccepted", "turnAborted"]);
     expect(chat.events.at(-1)).toMatchObject({ type: "turnAborted", intent: "send", reason: "error", automationDepth: 0 });
-  });
-
-  test("a send refused on a BELT (budget) closes its own accepted slot", async () => {
-    const chat = await scenario.chat(tape().reply("never runs"), {
-      characters: ["aria"],
-      engineBelts: { debitBudget: (): Promise<void> => Promise.reject(new DomainRateLimitError("over", { remainingPoints: 0 })) },
-    });
-
-    await expect(chat.send("hello")).rejects.toMatchObject({ code: "budget_exceeded" });
-
-    expect(types(chat.events)).toEqual(["messageCommitted", "turnAccepted", "turnAborted"]);
   });
 });

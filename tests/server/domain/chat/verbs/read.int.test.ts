@@ -8,7 +8,7 @@ import type { CharacterCard } from "@orb/contracts/character";
 import type { AssemblePersona, ChatListCursor, MemberCardVisibility } from "@orb/contracts/chat";
 import { characterRegexTierKey } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
-import type { GenerationCapability } from "@orb/contracts/inference";
+import type { GenerationCapability, ProviderId } from "@orb/contracts/inference";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_GUIDED_ACTIONS, DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_PROMPT_CONFIG, TEMPLATE_DEFS } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
@@ -27,9 +27,8 @@ import {
   worldBooks,
   worldEntries,
 } from "@orb/db";
-import type { Resolved } from "@orb/inference";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { CharacterId, ChatId, ChatInviteId, Handle, PersonaId, PresetId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ChatInviteId, Handle, ModelId, PersonaId, PresetId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { resolvePersonaDescriptionPlacement } from "@orb/kit/persona";
 import { activePersonaIdFor } from "@orb/server/entry/compose";
@@ -49,7 +48,7 @@ import { createRead } from "../../../../../packages/server/src/domain/chat/verbs
 import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { makeGenerationCapability, makeResolved } from "../../../../support/factories/resolved-connection.ts";
-import { expect, test } from "../../../../support/fixtures.ts";import type { ProviderId } from "@orb/contracts/inference";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 import {
   addVariant,
@@ -93,8 +92,7 @@ function principal(userId: UserId): Principal {
 function makeDeps(overrides?: Partial<Parameters<typeof createRead>[1]>): Parameters<typeof createRead>[1] {
   return {
     loadParticipantViews,
-    // @orb-waive no-test-fabrication(unknown): minimal Resolved<"chat"> double — the read paths under test only touch `model`. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-    resolveConnection: () => Promise.resolve({ model: "test-model" } as unknown as Resolved<"chat">),
+    resolveConnection: () => Promise.resolve(makeResolved({ model: castId<ModelId>("test-model") })),
     checkSendAvailability: () => Promise.resolve({ available: true }),
     resolveForeignInputs: () =>
       Promise.resolve({
@@ -1472,7 +1470,10 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     await seedMessage(db, chatId, 2, { role: "assistant", content: "a reply worth some tokens" });
 
     const capability = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"] }, context: { window: 8192 } });
-    const { previewAssembly } = createRead(makeChatContext(db), makeDeps({ resolveConnection: () => Promise.resolve(makeResolved({ capability })) }));
+    const { previewAssembly } = createRead(
+      makeChatContext(db),
+      makeDeps({ resolveConnection: () => Promise.resolve(makeResolved({ generation: capability })) }),
+    );
     const { budget, prompt } = await previewAssembly({ principal: principal(me), chatId });
 
     expect(budget.sources.reduce((sum, s) => sum + s.tokens, 0)).toBe(budget.totalTokens);
@@ -1684,7 +1685,10 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
 
     // The SAME window, but the capability marks it a guess (cold catalog): the number still drives the fit,
     // and the wire flags it so the surface says "unknown".
-    const guessed = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, modalities: ["text"] }, context: { window: 200_000, windowEstimated: true } });
+    const guessed = makeGenerationCapability({
+      output: { maxTokens: { min: 1, max: 4096 }, modalities: ["text"] },
+      context: { window: 200_000, windowEstimated: true },
+    });
     const { previewAssembly: previewGuessed } = createRead(
       makeChatContext(db),
       makeDeps({ resolveConnection: () => Promise.resolve(makeResolved({ generation: guessed })) }),
@@ -1699,7 +1703,10 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     // is what actually bounds the context and the user declared it — the ratio is honest again.
     const me = await seedUser(db, castId<Handle>("cap_host"));
     const chatId = await seedRoom("cap", me);
-    const guessed = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, modalities: ["text"] }, context: { window: 200_000, windowEstimated: true } });
+    const guessed = makeGenerationCapability({
+      output: { maxTokens: { min: 1, max: 4096 }, modalities: ["text"] },
+      context: { window: 200_000, windowEstimated: true },
+    });
     const { previewAssembly } = createRead(
       makeChatContext(db),
       makeDeps({
@@ -2622,7 +2629,7 @@ describe("read — durable chat-bus log (the chat room SSE resume)", () => {
       chatId,
       intent: "send",
       api: "chat-completions",
-provider: castId<ProviderId>("custom-openai"),
+      provider: castId<ProviderId>("custom-openai"),
       model: "test-model",
       speakerCharacterId: null,
       targetMessageId: null,
@@ -2659,7 +2666,7 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
   function makeFitDeps(capability: GenerationCapability): Parameters<typeof createRead>[1] {
     return {
       loadParticipantViews,
-      resolveConnection: () => Promise.resolve(makeResolved({ capability })),
+      resolveConnection: () => Promise.resolve(makeResolved({ generation: capability })),
       checkSendAvailability: () => Promise.resolve({ available: true }),
       resolveForeignInputs: () =>
         Promise.resolve({

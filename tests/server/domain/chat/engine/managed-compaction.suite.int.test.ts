@@ -16,6 +16,7 @@ import { DEFAULT_COMPACT_INSTRUCTIONS, DEFAULT_PROMPT_CONFIG } from "@orb/contra
 import type { Db } from "@orb/db";
 import { chats } from "@orb/db";
 import type { Resolved } from "@orb/inference";
+import { generationOf } from "@orb/inference";
 import type { ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { initTracing, recentTraces, withRequestSpan } from "@orb/server/foundation/observability";
@@ -32,9 +33,9 @@ import { recallMemory } from "../../../../../packages/server/src/domain/chat/mem
 import { createCompaction } from "../../../../../packages/server/src/domain/chat/verbs/compaction.ts";
 import { createQuietGenerate } from "../../../../../packages/server/src/domain/chat/verbs/quiet-generate.ts";
 import { freshDb } from "../../../../support/db.ts";
+import { makeCapability } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeChatContext, seedChat, seedMessage, seedParticipant, seedUser, testConnection } from "../_support.ts";
-import { generationOf } from "@orb/inference";
 
 const HOST = castId<UserId>("user_host");
 
@@ -143,7 +144,6 @@ function buildEngine(turnRunChatTurn: ChatContext["runChatTurn"] = turnWithUsage
   });
   return createTurnEngine(ctx, {
     emit: () => Promise.resolve(),
-
 
     holder: "replica-1",
     lockTtlMs: 60_000,
@@ -304,7 +304,6 @@ describe("fireManagedCompaction — the managed-compaction post-turn hook (#9 A)
     const engine = createTurnEngine(ctx, {
       emit: () => Promise.resolve(),
 
-
       holder: "r1",
       lockTtlMs: 60_000,
       generateSegments,
@@ -348,7 +347,6 @@ describe("fireManagedCompaction — the managed-compaction post-turn hook (#9 A)
         emitted.push(e);
         return Promise.resolve();
       },
-
 
       holder: "r1",
       lockTtlMs: 60_000,
@@ -422,7 +420,6 @@ describe("fireManagedCompaction — the managed-compaction post-turn hook (#9 A)
     const engine = createTurnEngine(ctx, {
       emit: () => Promise.resolve(),
 
-
       holder: "r1",
       lockTtlMs: 60_000,
       generateSegments,
@@ -488,7 +485,6 @@ describe("fireManagedCompaction — the managed-compaction post-turn hook (#9 A)
     });
     const engine = createTurnEngine(ctx, {
       emit: () => Promise.resolve(),
-
 
       holder: "r1",
       lockTtlMs: 60_000,
@@ -563,7 +559,6 @@ describe("fireManagedCompaction — the managed-compaction post-turn hook (#9 A)
     const engine = createTurnEngine(ctx, {
       emit: () => Promise.resolve(),
 
-
       holder: "r1",
       lockTtlMs: 60_000,
       generateSegments,
@@ -612,7 +607,6 @@ describe("fireManagedCompaction — the managed-compaction post-turn hook (#9 A)
     });
     const engine = createTurnEngine(ctx, {
       emit: () => Promise.resolve(),
-
 
       holder: "r1",
       lockTtlMs: 60_000,

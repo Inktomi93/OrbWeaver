@@ -8,7 +8,7 @@ import type { CharacterCard } from "@orb/contracts/character";
 import type { AssemblePersona, ChatBusEvent } from "@orb/contracts/chat";
 import { AUTOMATION_DEPTH_HARD_CAP } from "@orb/contracts/chat";
 import type { Can, Principal } from "@orb/contracts/identity";
-import type { GenerationCapability, NormalizedFinishReason } from "@orb/contracts/inference";
+import type { NormalizedFinishReason } from "@orb/contracts/inference";
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { PromptConfig, PromptSection, UserMacroSpec } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
@@ -20,6 +20,7 @@ import type { Db } from "@orb/db";
 import { chats, personaBooks, personas, statsCanonVersions, worldBooks, worldEntries } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import type { Resolved } from "@orb/inference";
+import { generationOf } from "@orb/inference";
 import { DomainRateLimitError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, Handle, MessageId, PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -51,6 +52,7 @@ import { bumpStatsCanonVersion } from "../../../../../packages/server/src/domain
 import { createToolUseService, createToolUseTeachingContributions } from "../../../../../packages/server/src/domain/tool-use/index.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
+import { makeCapability } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import {
   FROZEN_AT,
@@ -62,7 +64,6 @@ import {
   seedPendingTurn,
   seedUser,
   stubRunCompaction,
-  TEST_CAPABILITY,
   testConnection,
 } from "../_support.ts";
 
@@ -228,7 +229,6 @@ function harness(
   };
   const engine = createTurnEngine(ctx, {
     emit,
-
 
     holder: "replica-1",
     lockTtlMs: 60_000,
@@ -909,7 +909,7 @@ describe("send — the smart policy (side-LLM turn arbiter + its visible fallbac
       },
       // The non-responsive box: settles ONLY when the injected signal fires, exactly like a real provider
       // fetch that got a socket and no bytes.
-      summarize: (_inputs, opts): Promise<SummarizeResult> =>
+      summarize: (_funderUserId, _inputs, opts): Promise<SummarizeResult> =>
         new Promise((_resolve, reject) => {
           opts?.signal?.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
           arbiterEntered();
@@ -1131,7 +1131,7 @@ describe("send — auto-mode AI→AI chain", () => {
     const arrived = new Promise<void>((resolve) => {
       hungEntered = resolve;
     });
-    const summarize: ChatContext["summarize"] = (_inputs, opts): Promise<SummarizeResult> => {
+    const summarize: ChatContext["summarize"] = (_funderUserId, _inputs, opts): Promise<SummarizeResult> => {
       calls += 1;
       const pick = calls === 1 ? "aria" : "bryn";
       if (calls <= 2) {
@@ -2953,8 +2953,7 @@ const RPG_TOOLS = [{ name: "update_scene", description: "the scene", parameters:
 // axis under test are set.
 const TOOLS_CONNECTION: Resolved<"chat"> = {
   ...testConnection("vllm"),
-  // @orb-waive no-test-fabrication(unknown): see above. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-  capability: { ...TEST_CAPABILITY, tools: { parallel: true } } as unknown as GenerationCapability,
+  capability: makeCapability({ ...generationOf(testConnection("vllm")), tools: { parallel: true } }),
 };
 
 /** A minimal `ctx.rpg` whose GATHER contributes terminal tools (a `folded` game), recording what the FLUSH

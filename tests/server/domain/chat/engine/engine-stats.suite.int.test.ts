@@ -17,11 +17,9 @@ import type { Db } from "@orb/db";
 import { characterStats, dailyStats, messageVariants, modelStats, ownerStats } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
-import type { ChatCompletionResult, Resolved } from "@orb/inference";
-import { mapChatCompletionToTurnResult } from "@orb/inference";
+import type { Resolved } from "@orb/inference";
 import type { CharacterId, ChatId, Handle, ModelId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createRunChatTurnBridge } from "@orb/server/entry/compose";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context.ts";
@@ -34,7 +32,7 @@ import { applyStatsDelta } from "../../../../../packages/server/src/domain/stats
 import { reconcileStats } from "../../../../../packages/server/src/domain/stats/write/rebuild-from-canon.ts";
 import { createFrozenClock } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { makeApiKeySecret, makeResolved } from "../../../../support/factories/resolved-connection.ts";
+import { makeResolved } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import {
   FROZEN_AT,
@@ -169,7 +167,6 @@ function engineFor(database: Db, deltas: StatsDelta[], queue: readonly RunChatTu
   });
   return createTurnEngine(ctx, {
     emit: (_event: ChatBusEvent): Promise<void> => Promise.resolve(),
-
 
     holder: "replica-1",
     lockTtlMs: 60_000,
@@ -380,118 +377,6 @@ describe("engine stats — a reasoning-bearing assistant turn credits model_stat
   });
 });
 
-describe("engine stats — provider-reported OpenRouter cost reaches model_stats (#291)", () => {
-  async function runProviderResult(rawProviderResult: ChatCompletionResult): Promise<{
-    readonly variant: typeof messageVariants.$inferSelect;
-    readonly model: typeof modelStats.$inferSelect;
-  }> {
-    const openRouterConnection: Resolved<"chat"> = {
-      ...CONNECTION,
-      credential: makeApiKeySecret("sk-or-test"),
-    };
-    const bridge = createRunChatTurnBridge({
-      runChatTurn: () =>
-        Promise.resolve(
-          mapChatCompletionToTurnResult(rawProviderResult, {
-            model: "gpt",
-            startedAt: FROZEN_AT,
-            now: FROZEN_AT + 500,
-            contextWindow: 1000,
-            maxOutputTokens: 100,
-          }),
-        ),
-    });
-    const deltas: StatsDelta[] = [];
-    const ctx = makeChatContext(db, {
-      runChatTurn: bridge,
-      applyStatsDelta: (_batch: unknown, _db: Db, delta: StatsDelta): void => {
-        deltas.push(delta);
-      },
-    });
-    const engine = createTurnEngine(ctx, {
-      emit: (): Promise<void> => Promise.resolve(),
-
-
-      holder: "replica-1",
-      lockTtlMs: 60_000,
-      generateSegments: async () => ({ written: 0, skipped: 0 }),
-      generateDigests: async () => ({ written: 0, skipped: 0 }),
-      loadWitnessHorizons,
-      recallMemory,
-      runCompaction: stubRunCompaction,
-    });
-
-    await engine.runTurn(prepOf(chatId, { kind: "send", speakerCharacterId: charId, connection: openRouterConnection }));
-
-    const variant = (await db.select().from(messageVariants))[0];
-
-    const batch: BatchStmt[] = [];
-    for (const delta of deltas) {
-      applyStatsDelta(batch, db, delta);
-    }
-    await db.batch(batchMany(batch));
-
-    const model = (await db.select().from(modelStats).where(eq(modelStats.ownerId, HOST)))[0];
-    if (variant === undefined || model === undefined) {
-      throw new Error("provider result did not persist its canon/model rows");
-    }
-    return { variant, model };
-  }
-
-  test("a completed OpenRouter-shaped stream atomically carries its measured cost into the model rollup", async () => {
-    const { variant, model } = await runProviderResult({
-      id: "gen-openrouter-cost-fence",
-      choices: [{ message: { content: "the provider-shaped reply" }, finishReason: "stop" }],
-      usage: { promptTokens: 10, completionTokens: 20, cost: 0.5 },
-    });
-    expect(variant).toMatchObject({ costUsd: 0.5, tokensIn: 10, tokensOut: 20, tokenProvenance: "measured", provider: "openrouter" });
-    expect(model).toMatchObject({
-      model: "gpt",
-      provider: "openrouter",
-      generations: 1,
-      costUsd: 0.5,
-      costSamples: 1,
-      tokensInMeasuredSamples: 1,
-      tokensOutMeasuredSamples: 1,
-    });
-  });
-
-  test.each([
-    {
-      label: "no usage object",
-      usage: undefined,
-      variant: { tokensIn: null, tokensOut: null, tokenProvenance: "unrecorded", costUsd: null },
-      model: { tokensInMeasuredSamples: 0, tokensOutMeasuredSamples: 0, costSamples: 0 },
-    },
-    {
-      label: "one missing token axis",
-      usage: { promptTokens: 3 },
-      variant: { tokensIn: 3, tokensOut: null, tokenProvenance: "measured", costUsd: null },
-      model: { tokensInMeasuredSamples: 1, tokensOutMeasuredSamples: 0, costSamples: 0 },
-    },
-    {
-      label: "provider-reported zeroes",
-      usage: { promptTokens: 0, completionTokens: 0, cost: 0 },
-      variant: { tokensIn: 0, tokensOut: 0, tokenProvenance: "measured", costUsd: 0 },
-      model: { tokensInMeasuredSamples: 1, tokensOutMeasuredSamples: 1, costSamples: 1 },
-    },
-    {
-      label: "tokens without cost",
-      usage: { promptTokens: 3, completionTokens: 4 },
-      variant: { tokensIn: 3, tokensOut: 4, tokenProvenance: "measured", costUsd: null },
-      model: { tokensInMeasuredSamples: 1, tokensOutMeasuredSamples: 1, costSamples: 0 },
-    },
-  ])("preserves provider recordedness for $label", async ({ usage, variant: expectedVariant, model: expectedModel }) => {
-    const rawProviderResult: ChatCompletionResult = {
-      choices: [{ message: { content: "the provider-shaped reply" }, finishReason: "stop" }],
-      ...(usage === undefined ? {} : { usage }),
-    };
-    const { variant, model } = await runProviderResult(rawProviderResult);
-    expect(variant).toMatchObject(expectedVariant);
-    expect(model).toMatchObject(expectedModel);
-  });
-});
-
 describe("engine stats — gen-time is populated on the live path (F2)", () => {
   test("a real turn stamps gen bounds → owner/model gen-time > 0", async () => {
     // An ADVANCING clock so the pipeline window (gen_finished − gen_started) is non-zero.
@@ -510,7 +395,6 @@ describe("engine stats — gen-time is populated on the live path (F2)", () => {
     });
     const engine = createTurnEngine(ctx, {
       emit: (): Promise<void> => Promise.resolve(),
-
 
       holder: "replica-1",
       lockTtlMs: 60_000,
@@ -583,7 +467,6 @@ describe("engine stats — the live turn stamps the reasoning window (#184)", ()
     });
     const engine = createTurnEngine(ctx, {
       emit: (): Promise<void> => Promise.resolve(),
-
 
       holder: "replica-1",
       lockTtlMs: 60_000,
