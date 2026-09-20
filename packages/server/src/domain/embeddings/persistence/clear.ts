@@ -7,6 +7,7 @@
 import type { Db } from "@orb/db";
 import { assets, characterEmbeddings, characters, chatDigests, chatParticipants, chatSegments, documentChunks, documents, imageEmbeddings } from "@orb/db";
 import type { CharacterId, ChatId, DocumentId, UserId } from "@orb/kit/ids";
+import type { SQL } from "drizzle-orm";
 import { and, eq, gte, inArray, isNull, ne, notInArray, or } from "drizzle-orm";
 import type { VectorTable } from "../contract/params.ts";
 
@@ -70,16 +71,18 @@ export async function purgeStaleVectors(db: Db, table: VectorTable, ownerId: Use
       return rows.length;
     }
     case "chat_digests": {
+      const hosted = db.select({ id: chatParticipants.chatId }).from(chatParticipants).where(presentHost(ownerId));
       const rows = await db
         .delete(chatDigests)
-        .where(and(ne(chatDigests.model, activeModel), inArray(chatDigests.chatId, hostedChats(db, ownerId))))
+        .where(and(ne(chatDigests.model, activeModel), inArray(chatDigests.chatId, hosted)))
         .returning({ id: chatDigests.id });
       return rows.length;
     }
     case "chat_segments": {
+      const hosted = db.select({ id: chatParticipants.chatId }).from(chatParticipants).where(presentHost(ownerId));
       const rows = await db
         .delete(chatSegments)
-        .where(and(ne(chatSegments.model, activeModel), inArray(chatSegments.chatId, hostedChats(db, ownerId))))
+        .where(and(ne(chatSegments.model, activeModel), inArray(chatSegments.chatId, hosted)))
         .returning({ id: chatSegments.id });
       return rows.length;
     }
@@ -96,12 +99,9 @@ export async function purgeStaleVectors(db: Db, table: VectorTable, ownerId: Use
   }
 }
 
-/** The chats `ownerId` currently hosts — the subquery both chat-memory arms scope on. */
-function hostedChats(db: Db, ownerId: UserId) {
-  return db
-    .select({ id: chatParticipants.chatId })
-    .from(chatParticipants)
-    .where(and(eq(chatParticipants.userId, ownerId), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq)));
+/** The PRESENT host predicate — the row both chat-memory arms scope their subquery on. */
+function presentHost(ownerId: UserId): SQL | undefined {
+  return and(eq(chatParticipants.userId, ownerId), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq));
 }
 
 /** The chat-memory SHRINK seam (stickler 2026-08-08 canon-message-identity, leg-2 refutation) — the
