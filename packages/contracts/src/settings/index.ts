@@ -336,7 +336,15 @@ export const appSettingsSchema = z.object({
   /** GOVERNANCE (inference program F12): the PRIVATE-range hosts/CIDRs an `auth: endpoint` connection may dial
    *  (`127.0.0.1`, `::1`, `192.168.1.0/24`…). Per DEPLOYMENT, never per principal — the same SSRF guard with a
    *  data input. Env floor `PRIVATE_ENDPOINT_ALLOWLIST`; DB override wins; born `[127.0.0.1, ::1]` under
-   *  `AUTH_MODE=single-user`, empty on a multi-user install (hosted providers only). */
+   *  `AUTH_MODE=single-user`, empty on a multi-user install (hosted providers only).
+   *
+   *  An entry MAY carry a PORT (`127.0.0.1:8703`, `[::1]:8703`, `ollama.lan:11434`) and then admits that host
+   *  at those ports ONLY — the least-privilege spelling for a shared box, where a bare `127.0.0.1` also hands
+   *  out `:22` and `:5432`. A port on a CIDR is refused. The NARROWER spelling wins when both are listed.
+   *  ENTRY SYNTAX IS VALIDATED AT THE BELT, NOT HERE, deliberately: this field is `.catch(undefined)`, so a
+   *  per-entry refinement would drop the operator's WHOLE list back to the born default over one typo. The
+   *  belt (`infra/network/egress.ts::publishPrivateEndpointAllowlist`) refuses the single bad entry, keeps the
+   *  rest, and logs the refusal COUNT at warn — an entry list would put the LAN topology in every boot log. */
   privateEndpointAllowlist: z.array(z.string().min(1)).nullable().optional().catch(undefined),
   localMultiUser: z.boolean().nullable().optional().catch(undefined),
   discreetLogin: z.boolean().nullable().optional().catch(undefined),
@@ -360,13 +368,14 @@ const APP_SETTINGS_LIFTS: Record<number, (config: Record<string, unknown>) => Re
     }
     return { ...config, schemaVersion: 2 };
   },
-  // v2→v3: the `engineLaunch` LAUNCH-config section (#14) is purely additive/optional — no field moved or
-  // renamed. Stamp the version so a v2 row stops re-running the lift chain; the absent section reads back
-  // as the env floor.
+  // v2→v3: the `engineLaunch` LAUNCH-config section (#14, since RETIRED with the vLLM fleet — inference
+  // program F11) was purely additive/optional — no field moved or renamed. Stamp the version so a v2 row
+  // stops re-running the lift chain; the absent section reads back as the env floor.
   2: (config) => ({ ...config, schemaVersion: 3 }),
-  // v3→v4: the Phase B ⑩ admin-tier fields (agentSdkConcurrency, nonOwnerLocalComputeBudgetWindowMs,
-  // maxDatabankBytes, promptTransformDeadlineMs, catalogRefreshIntervalMs, imageVariantQuality, and
-  // engineLaunch.genPresencePenalty) are purely additive/optional — an absent field reads back as its floor.
+  // v3→v4: the Phase B ⑩ admin-tier fields (agentSdkConcurrency, maxDatabankBytes, promptTransformDeadlineMs,
+  // catalogRefreshIntervalMs, imageVariantQuality, and engineLaunch.genPresencePenalty — the last, like
+  // nonOwnerLocalComputeBudgetWindowMs beside it, since RETIRED, F11) were purely additive/optional — an
+  // absent field reads back as its floor.
   3: (config) => ({ ...config, schemaVersion: 4 }),
   // v4→v5: `structuredOutputShape` (D126) is purely additive/optional — an absent field reads back as its
   // born-in-DB floor (`as-projected`), so no stored blob changes meaning. Same shape as the two lifts above.

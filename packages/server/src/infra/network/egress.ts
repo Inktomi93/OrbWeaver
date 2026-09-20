@@ -15,28 +15,23 @@ import { DEFAULT_TRUSTED_RANGES, isInRanges } from "./ip-ranges.ts";
 // global firewall disabled. The global dispatcher stays the defense-in-depth backstop for
 // non-safeFetch egress (provider calls, OIDC).
 //
-// DECLARED-INTENT AUTO-ALLOW, PORT-SCOPED least-privilege, in TWO classes: the box's own env-declared
-// deployment's private-endpoint allowlist (`publishPrivateEndpointAllowlist`, the
-// second block further down). Both are operator intent, never attacker input, and both are admitted only at
-// an EXACT host:port.
-//
-// INTERNAL-BACKEND AUTO-ALLOW (installEgressFirewall), PORT-SCOPED least-privilege: the box's OWN inference
-// backends live on loopback (vLLM engines at http://127.0.0.1:<VLLM_*_PORT>). Their server-initiated calls are
-// plain fetch()/ownerConfiguredEndpoint safeFetch → the global dispatcher, so a bare allowlist SSRF-blocks
-// the server's own inference and the vLLM supervisor never leaves stack-pending. A connect to a
-// private-range address is ALLOWED iff its ORIGINAL destination host:port is one of these exact configured
-// backends, OR its ORIGINAL host is in the host-keyed allowlist (OIDC issuer + operator EGRESS_ALLOWLIST,
-// any-port — unchanged, backward compat). The internal-backend set is host:PORT-scoped: only the exact
-// declared ports (e.g. 127.0.0.1:22 stays BLOCKED), analogous to the OIDC-issuer auto-add — declared
-// internal INTENT, not attacker input.
+// DECLARED-INTENT AUTO-ALLOW, in TWO classes, both operator intent and neither ever attacker input:
+//   (1) the env belt — `EGRESS_ALLOWLIST` plus the OIDC issuer host, read once at install
+//       (`shouldBlockEgress`). HOST-keyed, ANY PORT. Unchanged.
+//   (2) the deployment's private-endpoint allowlist (`publishPrivateEndpointAllowlist`, the second block
+//       further down — inference program F12). Hosts, CIDRs, and OPTIONALLY host:PORT.
+// Without one of them a bare private-range block SSRF-refuses the box's own loopback inference backend,
+// whose server-initiated calls are plain fetch()/ownerConfiguredEndpoint safeFetch → the global dispatcher.
 //   SECURITY INVARIANT — this does NOT weaken SSRF protection on any attacker-influenceable path.
 //   User-influenced URLs go through safeFetch, whose resolveValidatePin enforces an UNCONDITIONAL
-//   private-range denial that NEVER consults this allowlist. The global firewall + allowlist is only the
-//   defense-in-depth backstop for NON-safeFetch, server-initiated egress to configured backends; the
-//   allowlist is only reachable there. DNS-rebinding stays closed: the decision keys on the ORIGINAL
-//   caller-supplied host(:port), so a hostname that RESOLVES private but whose original host:port isn't
-//   a configured backend still hits the guarded lookup gate and is blocked. This change NARROWS the global
-//   backstop for server-initiated calls from "any loopback port" to "exactly the configured backend ports."
+//   private-range denial that NEVER consults either allowlist. The global firewall + allowlists are only
+//   the defense-in-depth backstop for NON-safeFetch, server-initiated egress to declared endpoints; the
+//   allowlists are only reachable there. DNS-rebinding stays closed: the decision keys on the ORIGINAL
+//   caller-supplied host AND PORT (`options.hostname` / `options.port` at the connect wrapper, which is
+//   why the port-scoped decision lives there and not in the lookup override — node's `dns.lookup` never
+//   sees a port), so a hostname that RESOLVES private but whose original host(:port) is not declared still
+//   hits the guarded lookup gate and is blocked. A resolved address can only ever SUBTRACT admission
+//   (`NEVER_ADMISSIBLE_RANGES` is re-checked on it); it can never add one the original host did not have.
 
 const OK_STATUS_MIN = 200;
 const REDIRECT_STATUS_MIN = 300;
@@ -99,12 +94,40 @@ export function shouldBlockEgress(address: string, hostname: string, allowlist: 
 // The guard still sees only host/port/address and never a principal; the allowlist is a second INPUT to the
 // same guard, not a new door.
 //
-// ENTRIES are exact hostnames (`ollama.lan`, lower-cased), IP literals, or CIDRs (`192.168.1.0/24`). A
-// hostname entry admits that name; an IP/CIDR entry admits any target whose LITERAL or RESOLVED address is
-// inside it — the DNS-rebind gate still runs, so a declared name that resolves outside the admitted set is
-// refused at connect. Published whole-set by the settings domain (boot + every Governance write): a removed
-// entry closes by its ABSENCE from the next publish, never persisted into env, and a replica that has not
-// published yet fails CLOSED (empty admits nothing).
+// ENTRIES are exact hostnames (`ollama.lan`, lower-cased), IP literals, or CIDRs (`192.168.1.0/24`), each
+// optionally carrying a PORT (`127.0.0.1:8703`, `[::1]:8703`, `ollama.lan:11434` — not on a CIDR, see
+// below). A hostname entry admits that name; an IP/CIDR entry admits any target whose LITERAL or RESOLVED
+// address is inside it — the DNS-rebind gate still runs, so a declared name that resolves outside the
+// admitted set is refused at connect. Published whole-set by the settings domain (boot + every Governance
+// write): a removed entry closes by its ABSENCE from the next publish, never persisted into env, and a
+// replica that has not published yet fails CLOSED (empty admits nothing).
+//
+// THE PORT ARM — least privilege, strictly additive (2026-09-20). A BARE entry admits its subject at EVERY
+// port, exactly as before: no deployment that never writes a port changes behaviour. An entry that DOES
+// name a port admits that host at those ports and no other, which is what an operator needs on a shared
+// box — admitting `127.0.0.1` so a member can reach Ollama also admits `:22` and `:5432` to anyone who can
+// author an endpoint connection, and `127.0.0.1:11434` does not.
+//   PRECEDENCE is decided here, not left emergent: THE NARROWER SPELLING IS THE HOST'S LAST WORD. If any
+//   port-scoped entry exists for an exact host, that host is admitted at those ports ONLY — a bare entry
+//   or a containing CIDR listed beside it does not re-widen it. An operator who wrote the port said it out
+//   loud, and the safe reading of a contradictory pair is the smaller grant.
+//   TWO enforcers, covering DIFFERENT inputs (measured with a planted control, not assumed): `publish`
+//   drops the IDENTICAL bare spelling, so the read never sees it and the drop is COUNTED; a CONTAINING
+//   CIDR survives that drop untouched, and only `admittedByAllowlist`'s EARLY RETURN keeps it from
+//   re-widening the port-scoped host. Neither alone is the whole rule.
+//   A PORT ON A CIDR IS REFUSED. The only gate that consults ranges for a hostname target is the DNS
+//   lookup override, and node's `dns.lookup` never sees a port — so `192.168.1.0/24:8080` would be a
+//   promise this belt could keep for IP literals and silently break for names. Refused outright instead.
+//   THE NO-TELL RULE: an entry that cannot match is REFUSED at publish and counted, never stored as an
+//   unmatchable key. Before the port arm, `127.0.0.1:8703` parsed as a hostname no host could equal — it
+//   admitted nothing and said nothing, which is exactly how an operator migrating a runbook from the
+//   retired host:PORT-scoped internal-backend rule got a silently dead deployment.
+//   CONTAINERS DO NOT FORCE HOST-SCOPING — checked, not assumed, so do not "simplify" the port arm away
+//   believing it breaks Docker. The container accommodation is ONE hostname and THREE ports
+//   (`tooling/src/stack/lib/engines-compose.ts` §"THE THREE DEPARTURES" 2: engine host `vllm-gen`, with
+//   embed/rerank joining gen's network namespace — "the container shape of loopback-with-three-ports"),
+//   and the retired port-scoped mechanism covered it through that same env. Docker is where the widening
+//   is LEAST harmful (a private network publishing no engine port); loopback is where it bites.
 //
 // WHAT IS NEVER ADMISSIBLE, however the operator spells it ({@link NEVER_ADMISSIBLE_RANGES}): link-local (the
 // 169.254.169.254 cloud-metadata class this belt exists for), multicast, the RFC2544 benchmark block, and
@@ -120,54 +143,218 @@ const NEVER_ADMISSIBLE_RANGES: readonly string[] = [
 ];
 
 interface PrivateEndpointAllowlist {
+  /** Exact host keys (hostname or IP literal) admitted at EVERY port. */
   readonly hosts: ReadonlySet<string>;
+  /** Exact host keys admitted ONLY at the listed ports — the narrowing arm, and the host's last word. */
+  readonly hostPorts: ReadonlyMap<string, ReadonlySet<number>>;
+  /** CIDRs (and the /32 or /128 a bare IP literal becomes). ANY port, always: the DNS gate is port-blind. */
   readonly ranges: readonly string[];
 }
 
 /** LIVE module state, EMPTY until the settings domain publishes. ASSUMES(single-replica) — per-process BY
  *  CONSTRUCTION: it gates THIS process's undici dispatcher; a second replica publishes its own copy from the
  *  same AppSettings row at its own boot, and one that has not yet fails CLOSED. */
-let privateEndpointAllowlist: PrivateEndpointAllowlist = { hosts: new Set<string>(), ranges: [] };
+let privateEndpointAllowlist: PrivateEndpointAllowlist = { hosts: new Set<string>(), hostPorts: new Map<string, ReadonlySet<number>>(), ranges: [] };
+
+const MIN_PORT = 1;
+const MAX_PORT = 65_535;
+const V4_PREFIX_BITS = 32;
+const V6_PREFIX_BITS = 128;
+const HOSTNAME_MAX_LENGTH = 253;
+const HOSTNAME_LABEL_MAX_LENGTH = 63;
+/** An allowlist/URL port: 1–5 digits, nothing else (no sign, no whitespace, no empty string). */
+const PORT_RE = /^\d{1,5}$/;
+/** A CIDR prefix: 1–3 digits, nothing else (an empty one is `Number("") === 0`, i.e. a silent /0). */
+const PREFIX_RE = /^\d{1,3}$/;
+/** `[<v6>]` with an OPTIONAL `:<port>` — the authority spelling of an IPv6 endpoint. */
+const BRACKETED_V6_RE = /^\[([^\]]+)\](?::(\d+))?$/;
+/** One DNS label's charset. `_` is admitted because internal names use it; `-` may not lead or trail. */
+const HOSTNAME_LABEL_RE = /^[a-z0-9_-]+$/;
+/** The port a URL that states none actually dials, by scheme. */
+const DEFAULT_PORT_BY_PROTOCOL: Readonly<Record<string, number>> = { "http:": 80, "https:": 443 };
+
+/** `1`–`65535` as a number, or `null` for anything else — the fail-closed direction for both an operator's
+ *  typo in an entry and a URL/connector port this belt cannot read. */
+function parsePort(text: string): number | null {
+  if (!PORT_RE.test(text)) {
+    return null;
+  }
+  const port = Number.parseInt(text, 10);
+  return port >= MIN_PORT && port <= MAX_PORT ? port : null;
+}
+
+/** The port a connect target will actually dial: the explicit one, else the scheme's default. `null` means
+ *  "unreadable" — a port-scoped entry can never admit that, by construction. */
+function effectivePort(protocol: string, port: string): number | null {
+  return port === "" ? (DEFAULT_PORT_BY_PROTOCOL[protocol] ?? null) : parsePort(port);
+}
+
+/** A syntactically admissible hostname ENTRY. Without this a typo (`http://127.0.0.1:8703`, a trailing dot,
+ *  a stray path) became an unmatchable host key that admitted nothing and said nothing — the no-tell rule. */
+function isHostnameEntry(host: string): boolean {
+  if (host.length === 0 || host.length > HOSTNAME_MAX_LENGTH) {
+    return false;
+  }
+  return host
+    .split(".")
+    .every(
+      (label) =>
+        label.length > 0 && label.length <= HOSTNAME_LABEL_MAX_LENGTH && HOSTNAME_LABEL_RE.test(label) && !label.startsWith("-") && !label.endsWith("-"),
+    );
+}
+
+/** Split an OPTIONAL `:port` suffix off an entry. Order matters: the bracketed IPv6 form first (its address
+ *  is full of colons), then a CIDR (whose port could only follow the prefix — `fc00::/7` must not have its
+ *  `/7` read as a port), then a BARE IP literal (`::1`, `fe80::1` — an unbracketed v6 with a port is
+ *  indistinguishable from a longer v6 address, so it is read as the address, the fail-closed way), and only
+ *  then a `host:port`. `null` = the port is present but unreadable, i.e. the whole entry is refused. */
+function splitEntryPort(raw: string): { readonly subject: string; readonly port: number | null } | null {
+  const bracketed = BRACKETED_V6_RE.exec(raw);
+  if (bracketed !== null) {
+    const subject = bracketed[1] ?? "";
+    const portText = bracketed[2];
+    if (portText === undefined) {
+      return { subject, port: null };
+    }
+    const port = parsePort(portText);
+    return port === null ? null : { subject, port };
+  }
+  const slash = raw.indexOf("/");
+  if (slash !== -1) {
+    const colon = raw.indexOf(":", slash);
+    if (colon === -1) {
+      return { subject: raw, port: null };
+    }
+    const port = parsePort(raw.slice(colon + 1));
+    return port === null ? null : { subject: raw.slice(0, colon), port };
+  }
+  if (isIP(raw) !== 0) {
+    return { subject: raw, port: null };
+  }
+  const lastColon = raw.lastIndexOf(":");
+  if (lastColon === -1) {
+    return { subject: raw, port: null };
+  }
+  const port = parsePort(raw.slice(lastColon + 1));
+  return port === null ? null : { subject: raw.slice(0, lastColon), port };
+}
+
+/** ONE classified allowlist entry. A port-scoped subject is always an exact HOST key (never a range): the
+ *  port decision has to be made where the port exists, which is the connect wrapper, never the port-blind
+ *  DNS lookup override that is the only reader of `ranges` for a hostname target. */
+type ClassifiedEntry =
+  | { readonly kind: "host"; readonly host: string; readonly port: number | null }
+  | {
+      readonly kind: "range";
+      readonly range: string;
+      /** The exact host key this range IS, when the entry was a bare IP literal (a /32 or /128) — the
+       *  subject a port-scoped entry NARROWS. `null` for a real CIDR, which nothing narrows. */
+      readonly literal: string | null;
+    };
 
 /** Classify ONE allowlist entry: a CIDR / IP literal becomes a range (an IP is a /32 or /128), a hostname an
- *  exact host key; `null` when it is not admissible (empty, or an address inside {@link NEVER_ADMISSIBLE_RANGES}). */
-function classifyAllowlistEntry(entry: string): { readonly kind: "host"; readonly host: string } | { readonly kind: "range"; readonly range: string } | null {
-  const raw = unbracket(entry.trim()).toLowerCase();
+ *  exact host key, and either host form may carry a port. `null` = REFUSED (and counted by the caller): an
+ *  empty entry, an address inside {@link NEVER_ADMISSIBLE_RANGES}, a port on a CIDR, a bad CIDR prefix, an
+ *  out-of-range port, or a string that is not a hostname at all. */
+function classifyAllowlistEntry(entry: string): ClassifiedEntry | null {
+  const raw = entry.trim().toLowerCase();
   if (raw === "") {
     return null;
   }
-  const [address, prefix] = raw.split("/");
-  if (address !== undefined && isIP(address) !== 0) {
-    if (isInRanges(address, NEVER_ADMISSIBLE_RANGES)) {
-      return null;
-    }
-    const bits = prefix ?? (isIP(address) === NODE_IP_FAMILY_V4 ? "32" : "128");
-    return { kind: "range", range: `${address}/${bits}` };
+  const split = splitEntryPort(raw);
+  if (split === null) {
+    return null;
   }
-  return { kind: "host", host: raw };
+  const { subject, port } = split;
+  const slash = subject.indexOf("/");
+  const address = slash === -1 ? subject : subject.slice(0, slash);
+  if (isIP(address) === 0) {
+    return isHostnameEntry(subject) ? { kind: "host", host: subject, port } : null;
+  }
+  if (isInRanges(address, NEVER_ADMISSIBLE_RANGES)) {
+    return null;
+  }
+  const maxBits = isIP(address) === NODE_IP_FAMILY_V4 ? V4_PREFIX_BITS : V6_PREFIX_BITS;
+  if (slash === -1) {
+    return port === null ? { kind: "range", range: `${address}/${String(maxBits)}`, literal: address } : { kind: "host", host: address, port };
+  }
+  // A strict digit read, never `Number()`: `Number("")` is 0 (a /0 that would admit the whole family) and
+  // `Number("0x18")` is 24. Either would be an entry meaning something other than what the operator wrote.
+  const prefix = subject.slice(slash + 1);
+  if (port !== null || !PREFIX_RE.test(prefix) || Number.parseInt(prefix, 10) > maxBits) {
+    return null;
+  }
+  return { kind: "range", range: subject, literal: null };
+}
+
+/** PASS 1 of a publish — the port-scoped subjects, gathered first because they NARROW their own bare
+ *  spelling and pass 2 needs to know which subjects those are. */
+function collectHostPorts(classified: readonly ClassifiedEntry[]): Map<string, Set<number>> {
+  const hostPorts = new Map<string, Set<number>>();
+  for (const one of classified) {
+    if (one.kind === "host" && one.port !== null) {
+      const ports = hostPorts.get(one.host) ?? new Set<number>();
+      ports.add(one.port);
+      hostPorts.set(one.host, ports);
+    }
+  }
+  return hostPorts;
+}
+
+/** PASS 2 of a publish — the any-port entries, minus every exact subject a port-scoped entry has narrowed.
+ *  `narrowed` is the count of bare spellings a port entry overrode (reported, never named). */
+function collectAnyPortEntries(
+  classified: readonly ClassifiedEntry[],
+  hostPorts: ReadonlyMap<string, ReadonlySet<number>>,
+): { readonly hosts: Set<string>; readonly ranges: string[]; readonly narrowed: number } {
+  const hosts = new Set<string>();
+  const ranges: string[] = [];
+  let narrowed = 0;
+  for (const one of classified) {
+    const subject = one.kind === "host" ? one.host : one.literal;
+    if (one.kind === "host" && one.port !== null) {
+      continue;
+    }
+    if (subject !== null && hostPorts.has(subject)) {
+      narrowed += 1;
+    } else if (one.kind === "host") {
+      hosts.add(one.host);
+    } else {
+      ranges.push(one.range);
+    }
+  }
+  return { hosts, ranges, narrowed };
 }
 
 /** Replace the deployment's private-endpoint admission set (the whole set every time — a removed entry is
- *  closed by its ABSENCE from the next publish). Called on boot and after every Governance write. The log
- *  states COUNTS only; an entry list would put the operator's LAN topology in every boot log. */
+ *  closed by its ABSENCE from the next publish). Called on boot and after every Governance write.
+ *
+ *  The log states COUNTS only; an entry list would put the operator's LAN topology in every boot log. It
+ *  goes out at WARN when anything was refused, because a refused entry admits NOTHING and the operator has
+ *  no other tell that the line they wrote is dead. */
 export function publishPrivateEndpointAllowlist(entries: readonly string[]): void {
-  const hosts = new Set<string>();
-  const ranges: string[] = [];
+  const classified: ClassifiedEntry[] = [];
   let refused = 0;
   for (const entry of entries) {
-    const classified = classifyAllowlistEntry(entry);
-    if (classified === null) {
+    const one = classifyAllowlistEntry(entry);
+    if (one === null) {
       refused += 1;
-      continue;
-    }
-    if (classified.kind === "host") {
-      hosts.add(classified.host);
     } else {
-      ranges.push(classified.range);
+      classified.push(one);
     }
   }
-  privateEndpointAllowlist = { hosts, ranges };
-  getLog().info({ hosts: hosts.size, ranges: ranges.length, refused }, "security: egress belt admits the deployment's private-endpoint allowlist");
+  const hostPorts = collectHostPorts(classified);
+  const { hosts, ranges, narrowed } = collectAnyPortEntries(classified, hostPorts);
+  privateEndpointAllowlist = { hosts, hostPorts, ranges };
+  const counts = { hosts: hosts.size, hostPorts: hostPorts.size, ranges: ranges.length, narrowed, refused };
+  if (refused > 0) {
+    getLog().warn(
+      counts,
+      "security: egress belt admits the deployment's private-endpoint allowlist — REFUSED entries admit nothing (unparseable, a port on a CIDR, or a never-admissible range)",
+    );
+  } else {
+    getLog().info(counts, "security: egress belt admits the deployment's private-endpoint allowlist");
+  }
 }
 
 /** The WRITE-TIME admission read the connection domain runs before it saves an endpoint row (the guard above
@@ -180,10 +367,13 @@ export function endpointAdmission(baseUrl: string): "public" | "admitted" | "ref
   if (url === null || (url.protocol !== "http:" && url.protocol !== "https:")) {
     return "invalid";
   }
+  // The port the browser/server would actually dial — an explicit one, else the scheme's default, so an
+  // entry written `ollama.lan:80` matches the `http://ollama.lan` a user types.
+  const port = effectivePort(url.protocol, url.port);
   const host = unbracket(url.hostname).toLowerCase();
   const literal = host === "localhost" ? "127.0.0.1" : host;
   if (isIP(literal) === 0) {
-    return privateEndpointAllowlist.hosts.has(host) ? "admitted" : "public";
+    return admittedByAllowlist(host, port) ? "admitted" : "public";
   }
   if (isInRanges(literal, NEVER_ADMISSIBLE_RANGES)) {
     return "refused";
@@ -191,18 +381,35 @@ export function endpointAdmission(baseUrl: string): "public" | "admitted" | "ref
   if (!isInRanges(literal, privateEgressRanges())) {
     return "public";
   }
-  return admittedByAllowlist(host) || (host === "localhost" && admittedByAllowlist(literal)) ? "admitted" : "refused";
+  return admittedByAllowlist(host, port) || (host === "localhost" && admittedByAllowlist(literal, port)) ? "admitted" : "refused";
 }
 
-/** Is this connect target admitted by the deployment allowlist — by exact hostname, or by a literal address
- *  inside an admitted range? A hostname that is NOT listed but resolves inside an admitted range is judged at
- *  the DNS gate (`allowlistedConnect`), where the resolved address is in hand. */
-function admittedByAllowlist(hostname: string): boolean {
+/** Is this RESOLVED or literal address inside an admitted range? `NEVER_ADMISSIBLE_RANGES` is subtracted
+ *  HERE, not only at publish: the publish-time check sees the ENTRY, so a broad operator CIDR
+ *  (`0.0.0.0/0`, `128.0.0.0/1`) would otherwise swallow the link-local metadata class it can never state
+ *  directly. One home for "inside the admitted ranges", used by both gates. */
+function addressInAdmittedRanges(address: string): boolean {
+  return isInRanges(address, privateEndpointAllowlist.ranges) && !isInRanges(address, NEVER_ADMISSIBLE_RANGES);
+}
+
+/** Is this connect target admitted by the deployment allowlist — by exact host(:port), or by a literal
+ *  address inside an admitted range? A hostname that is NOT listed but resolves inside an admitted range is
+ *  judged at the DNS gate (`allowlistedConnect`), where the resolved address is in hand.
+ *
+ *  The port-scoped arm returns EARLY — it is the half of the precedence rule (block comment above) that
+ *  `publish` cannot enforce: a CONTAINING CIDR survives the publish untouched, and this early return is
+ *  what keeps it from re-widening a port-scoped host. `port` is `null` when this belt cannot read the
+ *  target's port, which a port-scoped entry can never admit. */
+function admittedByAllowlist(hostname: string, port: number | null): boolean {
   const host = unbracket(hostname).toLowerCase();
+  const ports = privateEndpointAllowlist.hostPorts.get(host);
+  if (ports !== undefined) {
+    return port !== null && ports.has(port);
+  }
   if (privateEndpointAllowlist.hosts.has(host)) {
     return true;
   }
-  return isIP(host) !== 0 && isInRanges(host, privateEndpointAllowlist.ranges);
+  return isIP(host) !== 0 && addressInAdmittedRanges(host);
 }
 
 export function installEgressFirewall(): void {
@@ -235,7 +442,10 @@ export function installEgressFirewall(): void {
         }
         // node:dns: {all:true} yields LookupAddress[]; the default yields a single address string.
         const addrs: string[] = Array.isArray(address) ? address.map((a) => String((a as { address?: unknown }).address ?? a)) : [String(address)];
-        const blocked = addrs.find((a) => shouldBlockEgress(a, hostname, allowlist, ranges) && !isInRanges(a, privateEndpointAllowlist.ranges));
+        // A hostname NOT listed by name, whose RESOLVED address lands inside an admitted RANGE, is admitted
+        // here — the one gate where the address is in hand. It is PORT-BLIND by construction (no port
+        // reaches a dns.lookup override), which is exactly why `ranges` only ever holds any-port entries.
+        const blocked = addrs.find((a) => shouldBlockEgress(a, hostname, allowlist, ranges) && !addressInAdmittedRanges(a));
         if (blocked !== undefined) {
           securityEvent("egress_blocked", { hostname, address: blocked }, "security: egress SSRF blocked (private address)");
           callback(new Error(`SSRF_BLOCKED: ${hostname} → ${blocked}`), address as string, family);
@@ -275,11 +485,12 @@ export function installEgressFirewall(): void {
   });
 
   const connect: buildConnector.connector = (options, callback): void => {
-    // Port is available HERE (undici passes options.port to the connector) but NOT reliably in the lookup
-    // override — so the port-scoped backend bypass decision must live in the connect wrapper.
+    // Port is available HERE (undici passes options.port to the connector) but NOT in the lookup override
+    // (node's `dns.lookup` never sees one) — so the port-scoped decision MUST live in the connect wrapper,
+    // and a port-scoped entry is therefore keyed on an exact host, never on a range.
     // The deployment's admitted private endpoints (F12) — read LIVE so a Governance edit is honoured on the
     // very next connect.
-    if (admittedByAllowlist(options.hostname)) {
+    if (admittedByAllowlist(options.hostname, effectivePort(options.protocol, options.port))) {
       allowlistedConnect(options, callback);
       return;
     }

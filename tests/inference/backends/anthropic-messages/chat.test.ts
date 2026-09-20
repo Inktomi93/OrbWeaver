@@ -16,11 +16,12 @@
 import type { GenerationCapability } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import { runAnthropicChatTurn } from "../../../../packages/inference/src/backends/anthropic-messages/chat.ts";
+import { anthropicUserIdDigest } from "../../../../packages/inference/src/backends/anthropic-messages/extras.ts";
 import type { AnthropicChatRequest, ChatResult } from "../../../../packages/inference/src/contract/chat.ts";
 import { ProviderError } from "../../../../packages/inference/src/contract/errors.ts";
 import type { InferenceLog } from "../../../../packages/inference/src/deps.ts";
 import { expect, test } from "../../../support/fixtures.ts";
-import { fakeApiKeySecret, fakeResolved } from "../../_support.ts";
+import { fakeApiKeySecret, fakeResolved, newUserId } from "../../_support.ts";
 import type { RecordedRequest, SseEvent } from "../_hosted-support.ts";
 import {
   anthropicRedactedStream,
@@ -368,4 +369,35 @@ test("D4: the turn emits first-delta, finish and cache events — the three a sp
   expect(names).toContain("provider.cache");
   // The finish carries the NORMALIZED member (anything may branch on it) beside the raw upstream word.
   expect(events.find((e) => e.name === "provider.finish")?.attrs).toMatchObject({ finishReason: "stop", stopReason: "end_turn" });
+});
+
+// ── E1/§15c: the wire-capture BYTE-EQUALITY pin — a caret bump of `@ai-sdk/anthropic` that reshapes ANY
+// field of the converted request (renames a key, drops a default, restructures `thinking`) fails this
+// test, where every other pin in this file only checks the fields it names. `owner` is minted per-run so
+// the abuse-attribution digest is computed from the SAME production function (`anthropicUserIdDigest`)
+// rather than hand-copied — a change to the digest's domain string or algorithm still fails here.
+test("byte-equality: the FULL request body for a minimal deterministic turn — a caret SDK bump fails visibly", async () => {
+  const owner = newUserId();
+  const connection = fakeResolved({
+    task: "chat",
+    providerId: "anthropic",
+    model: "claude-opus-4-5-20251101",
+    capability: generationCapability(),
+    baseUrl: "https://api.anthropic.com",
+    secret: fakeApiKeySecret("sk-ant-probe-not-a-real-key"),
+    ownerId: owner,
+  });
+  const recorded: RecordedRequest[] = [];
+  const fetchImpl = scriptedSseFetch([anthropicTextStream("ok")], recorded);
+  await runAnthropicChatTurn(turnRequest({ connection, tools: undefined }), deps(fetchImpl));
+  expect(recorded[0]?.body).toEqual({
+    model: "claude-opus-4-5-20251101",
+    max_tokens: 64_000,
+    thinking: { type: "adaptive", display: "summarized" },
+    output_config: { effort: "high" },
+    metadata: { user_id: anthropicUserIdDigest(owner) },
+    system: [{ type: "text", text: "You are a helpful assistant.", cache_control: { type: "ephemeral", ttl: "1h" } }],
+    messages: [{ role: "user", content: [{ type: "text", text: "What is the weather in Paris?" }] }],
+    stream: true,
+  });
 });

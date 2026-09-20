@@ -25,9 +25,13 @@
 //      and nothing else — there is no seam an "…unless they are the owner" branch could hide in. The
 //      owner-vs-member half is proven where principals EXIST, at the write seam that calls this:
 //      tests/server/domain/connection/verbs/connections.int.test.ts ("per-DEPLOYMENT, not per-principal").
-//   2. It is HOST/CIDR-scoped, NOT host:PORT-scoped. The retired internal-backend rule admitted exactly
-//      three ports; an F12 entry admits its host at EVERY port. That is the widening an operator buys, and
-//      it is pinned below so the next person to edit the allowlist meets it as a stated fact.
+//   2. It is HOST/CIDR-scoped by default and OPTIONALLY host:PORT-scoped (the port arm, 2026-09-20). A
+//      BARE entry (`127.0.0.1`, `ollama.lan`, `192.168.1.0/24`) admits its subject at EVERY port —
+//      unchanged, and pinned below so the next person to edit the allowlist meets that widening as a
+//      stated fact. An entry MAY instead carry a port (`127.0.0.1:8703`, `[::1]:8703`, `ollama.lan:11434`)
+//      and then that host is admitted at those ports and NO other. Precedence is stated, not emergent:
+//      the NARROWER spelling is the host's last word — listing `127.0.0.1` beside `127.0.0.1:8703` admits
+//      :8703 only. A port on a CIDR is REFUSED (the DNS gate that consults ranges is port-blind).
 //   3. Nothing the operator can spell reaches link-local/multicast/6to4/Teredo (`NEVER_ADMISSIBLE_RANGES`),
 //      enforced twice — on the literal at publish, and on the RESOLVED address at the DNS gate.
 // The safeFetch path is untouched by all of it: its unconditional private-range denial never consults the
@@ -160,14 +164,94 @@ describe("publishPrivateEndpointAllowlist — the deployment's private-endpoint 
     expect(await dialVerdict("http://127.0.0.1:8703/v1/models")).toBe("attempted");
   });
 
-  // THE WIDENING, stated rather than discovered: F12 entries are hosts and CIDRs, so an admitted host is
-  // admitted at EVERY port. The retired internal-backend rule was host:PORT-scoped (three declared engine
-  // ports; 127.0.0.1:22 stayed blocked) and that least-privilege half did NOT survive the replacement. An
-  // operator who admits `127.0.0.1` on a multi-user box has admitted every service on it to any member who
-  // can author an endpoint connection. If a future change re-narrows this, this is the pin it must flip.
-  test("an admitted host is admitted at EVERY port — F12 is host/CIDR-scoped, not host:port-scoped", async () => {
+  // THE WIDENING A BARE ENTRY BUYS, stated rather than discovered, and the BACKWARD-COMPATIBILITY pin for
+  // the port arm: a bare host/CIDR entry still admits its subject at EVERY port, exactly as before
+  // 2026-09-20. An operator who admits `127.0.0.1` on a multi-user box has admitted every service on it to
+  // any member who can author an endpoint connection — which is precisely why the port spelling now exists
+  // (the two arms below). This pin is what proves the port arm is STRICTLY ADDITIVE: no deployment that
+  // never writes a port changes behaviour.
+  test("a BARE entry still admits its host at EVERY port — the port arm is strictly additive", async () => {
     publishPrivateEndpointAllowlist(["127.0.0.1"]);
     expect(await dialVerdict("http://127.0.0.1:9998/x")).toBe("attempted");
+  });
+
+  // THE PORT ARM. Both directions in ONE invocation: the named port is really dialled AND a neighbouring
+  // port on the SAME admitted host is really refused. A one-sided arm would pass just as well on a belt
+  // that admits nothing at all, so the positive half is the planted control for the negative half.
+  test("a host:PORT entry admits ONLY that port on that host", async () => {
+    publishPrivateEndpointAllowlist(["127.0.0.1:8703"]);
+    expect(endpointAdmission("http://127.0.0.1:8703")).toBe("admitted");
+    expect(await dialVerdict("http://127.0.0.1:8703/v1/models")).toBe("attempted");
+    // The ports the host-scoped spelling silently handed out — `:22` is the one the retired
+    // internal-backend rule named explicitly as staying blocked.
+    expect(endpointAdmission("http://127.0.0.1:22")).toBe("refused");
+    expect(endpointAdmission("http://127.0.0.1:9998")).toBe("refused");
+    expect(await dialVerdict("http://127.0.0.1:9998/x")).toBe("BLOCKED");
+  });
+
+  // PRECEDENCE, decided rather than emergent: the NARROWER spelling wins. An operator who writes the port
+  // has said it out loud, and the safe reading of a contradictory pair is the smaller grant. Order-free —
+  // it is a property of the published SET, not of which line came first.
+  test("a port entry NARROWS its own bare spelling — the narrower wins, in either order", async () => {
+    publishPrivateEndpointAllowlist(["127.0.0.1", "127.0.0.1:8703"]);
+    expect(endpointAdmission("http://127.0.0.1:8703")).toBe("admitted");
+    expect(endpointAdmission("http://127.0.0.1:9998")).toBe("refused");
+    publishPrivateEndpointAllowlist(["127.0.0.1:8703", "127.0.0.1"]);
+    expect(endpointAdmission("http://127.0.0.1:8703")).toBe("admitted");
+    expect(endpointAdmission("http://127.0.0.1:9998")).toBe("refused");
+    expect(await dialVerdict("http://127.0.0.1:9998/x")).toBe("BLOCKED");
+  });
+
+  // The narrowing has TWO enforcers and they cover different inputs — measured with a planted control, not
+  // assumed. The identical bare spelling is dropped at PUBLISH (so the read never sees it); a CONTAINING
+  // CIDR survives the publish untouched, and only `admittedByAllowlist`'s early return stops it re-widening
+  // the port-scoped host. Removing that early return leaves the arm above green and reds THIS one.
+  test("a containing CIDR does NOT re-widen a port-scoped host — and still covers its other addresses", async () => {
+    publishPrivateEndpointAllowlist(["127.0.0.0/8", "127.0.0.1:8703"]);
+    expect(endpointAdmission("http://127.0.0.1:8703")).toBe("admitted");
+    expect(endpointAdmission("http://127.0.0.1:9998")).toBe("refused");
+    expect(await dialVerdict("http://127.0.0.1:9998/x")).toBe("BLOCKED");
+    // …and the CIDR is not revoked for everyone else: a DIFFERENT address inside it keeps every port.
+    expect(endpointAdmission("http://127.0.0.9:9998")).toBe("admitted");
+    expect(await dialVerdict("http://127.0.0.9:9998/x")).toBe("attempted");
+  });
+
+  // The port a URL does not state is the SCHEME's default, on both sides of the comparison — otherwise an
+  // entry written `ollama.lan:80` would never match `http://ollama.lan`, the URL a user actually types.
+  test("a port entry is judged against the scheme's default when the URL states none", () => {
+    publishPrivateEndpointAllowlist(["ollama.lan:80"]);
+    expect(endpointAdmission("http://ollama.lan")).toBe("admitted");
+    expect(endpointAdmission("https://ollama.lan")).toBe("public"); // :443 is a different port
+  });
+
+  // A CIDR cannot carry a port: the gate that consults ranges is the DNS lookup override, and node's
+  // `dns.lookup` never sees one. Accepting `192.168.1.0/24:8080` would be a promise the belt cannot keep
+  // for a HOSTNAME target, so it is refused outright rather than honoured for literals only.
+  test("a port on a CIDR is REFUSED — the range gate is port-blind by construction", () => {
+    publishPrivateEndpointAllowlist(["192.168.1.0/24:8080"]);
+    expect(endpointAdmission("http://192.168.1.10:8080")).toBe("refused");
+    publishPrivateEndpointAllowlist(["192.168.1.0/24"]); // the control: the same CIDR without a port works
+    expect(endpointAdmission("http://192.168.1.10:8080")).toBe("admitted");
+  });
+
+  // THE NO-TELL HALF, which matters as much as the feature. An entry that can never match must not sit
+  // there silently: the publish REFUSES it (it never becomes an unmatchable key) and SAYS SO at warn —
+  // with COUNTS only, because an entry list would put the operator's LAN topology in every boot log.
+  test("an unmatchable entry is refused and COUNTED at warn — never a silently inert key", async () => {
+    const warn = vi.fn();
+    const log = (await import("@orb/server/foundation/observability")).getLog();
+    const prior = log.warn;
+    log.warn = warn;
+    try {
+      // one good entry + three that can never match: an out-of-range port, a whole URL, a bad prefix.
+      publishPrivateEndpointAllowlist(["127.0.0.1:8703", "127.0.0.1:99999", "http://127.0.0.1:8703", "192.168.1.0/99"]);
+    } finally {
+      log.warn = prior;
+    }
+    const counts = warn.mock.calls[0]?.[0] as { refused?: number; hostPorts?: number } | undefined;
+    expect(counts?.refused).toBe(3);
+    expect(counts?.hostPorts).toBe(1);
+    expect(endpointAdmission("http://127.0.0.1:8703")).toBe("admitted"); // the good entry still lands
   });
 
   test("a private address OUTSIDE the set stays blocked while a sibling is admitted", async () => {
@@ -286,6 +370,8 @@ describe("the BORN private-endpoint allowlist — single-user admits its own box
     network.installEgressFirewall();
     return network;
   }
+  // biome-ignore-end lint/style/noProcessEnv: the crafted-env helpers above end here; the arms below read
+  // only what `freshInstall` published. An unclosed range silently extends to END OF FILE.
 
   test("AUTH_MODE=single-user is born with loopback admitted — one human, one box, nothing to protect from", async () => {
     const network = await freshInstall("single-user");
@@ -312,5 +398,17 @@ describe("the BORN private-endpoint allowlist — single-user admits its own box
     // so the born loopback default does NOT re-appear under it.
     const emptied = await freshInstall("single-user", [["PRIVATE_ENDPOINT_ALLOWLIST", ""]]);
     expect(emptied.endpointAdmission("http://127.0.0.1:8703")).toBe("refused");
+  });
+
+  // The port spelling through the REAL floor resolver, not a copied literal: an operator migrating a
+  // runbook from the retired host:PORT-scoped model writes exactly this in `PRIVATE_ENDPOINT_ALLOWLIST`,
+  // and it now means what it says — the engine port and nothing else on that box.
+  test("a PORT-scoped env floor survives end to end — the operator's runbook spelling means its port", async () => {
+    const box = await freshInstall("local", [SESSION_SECRET, ["PRIVATE_ENDPOINT_ALLOWLIST", "127.0.0.1:8703, [::1]:8703"]]);
+    expect(box.endpointAdmission("http://127.0.0.1:8703")).toBe("admitted");
+    expect(box.endpointAdmission("http://[::1]:8703")).toBe("admitted");
+    expect(box.endpointAdmission("http://127.0.0.1:22")).toBe("refused");
+    expect(await dialVerdict("http://127.0.0.1:8703/v1/models")).toBe("attempted");
+    expect(await dialVerdict("http://127.0.0.1:9998/x")).toBe("BLOCKED");
   });
 });
