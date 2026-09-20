@@ -50,9 +50,7 @@ describe("put / list", () => {
     expect(await db.select().from(providerRows)).toMatchObject([{ originKind: "admin", originUserId: admin, originPluginId: null }]);
     // The FK is the enforcement: a plugin-origin row for an uninstalled plugin cannot exist at rest, which
     // is what "drop everything this plugin added" later depends on.
-    await expect(
-      putProviderRow(db, { ...ACME, id: castId<ProviderId>("plugin-provider") }, { plugin: PLUGIN_ID }, FROZEN_AT_MS),
-    ).rejects.toThrow();
+    await expect(putProviderRow(db, { ...ACME, id: castId<ProviderId>("plugin-provider") }, { plugin: PLUGIN_ID }, FROZEN_AT_MS)).rejects.toThrow();
     expect(await listProviderRows(db)).toHaveLength(1);
   });
 

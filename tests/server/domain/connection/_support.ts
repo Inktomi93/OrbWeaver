@@ -23,13 +23,13 @@ import { principal } from "../../../support/factories/principal.ts";
 import { makeResolvedSecret } from "../../../support/factories/resolved-connection.ts";
 
 /** A recorded `audit` op call — every connection mutation owes a durable row. */
-export interface AuditCall {
+interface AuditCall {
   readonly entry: AuditEntry;
   readonly at: number;
 }
 
 /** One `fetch` the runtime made, as the harness saw it (the wire assertions read this). */
-export interface RecordedRequest {
+interface RecordedRequest {
   readonly url: string;
   readonly method: string;
   readonly headers: Record<string, string>;
@@ -37,7 +37,7 @@ export interface RecordedRequest {
 }
 
 /** A canned response keyed by a substring of the URL; the first match wins. */
-export interface FakeRoute {
+interface FakeRoute {
   readonly match: string;
   readonly status?: number | undefined;
   readonly json?: unknown;
