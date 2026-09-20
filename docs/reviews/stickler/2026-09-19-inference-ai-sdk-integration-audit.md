@@ -26,7 +26,7 @@ swallowed signal · **P3** a capability the SDK exposes that the package leaves 
 | A3 | P1 | **SDK `stream-start` warnings are collected and discarded.** `drainStream` accumulates them into `drain.warnings`; `toChatResult` emits only `ctx.warnings`; nothing reads `drain.warnings`. Same for `doGenerate` results in the batch runner. These are the SDK's `unsupported` (frequencyPenalty/presencePenalty/seed on every Anthropic model; temperature/topK/topP on Opus 4.7+/Opus 5/Fable 5/Sonnet 5), `compatibility` (default thinking budget 1024, maxOutputTokens capped for unknown model), and dropped `clearAt`/`toolChanges` on the leading system row. | `backends/v4/result.ts:92`; `backends/v4/stream.ts:88`; `backends/v4/batch.ts` (no `warnings` read); anthropic dist `index.js:3981-3987`, `:4046-4070`, `:5949-5959` | Map `SharedV4Warning` → `ResolvedWarning` (new codes `sdk_unsupported_setting`, `sdk_unsupported_tool`, `sdk_compatibility`) in `result.ts` and the batch runner; feed them into `log.sampling.dropped` and the turn's `warning` events. Every downstream row in section B depends on this. |
 | A4 | P2 | **BYOK cost read wrong on OpenRouter.** `measuredCostOf` reads `providerMetadata.openrouter.usage.cost` only; for a BYOK connection that is the OR credits charge, the upstream spend is `usage.costDetails.upstreamInferenceCost`. `costProvenance: measured` is then wrong for BYOK. | `backends/v4/result.ts` `measuredCostOf`; `docs/vendor/ai-sdk/openrouter/README.md:416-449` | Read `costDetails.upstreamInferenceCost` when present, keep `cost` as the OR fee; record both in `costDetails` (`{ totalUsd, promptUsd, completionUsd, upstreamUsd?, gatewayUsd? }`). |
 | A5 | P2 | **Anthropic classifier-block details are dropped.** Fable 5 refusals are a `200` with `content-filter` finish and the category on `providerMetadata.anthropic.stopDetails`; `fallbacks` can retry server-side and `providerMetadata.anthropic.iterations` records that a fallback served the turn. The fold maps the finish reason and reads neither. | `docs/vendor/ai-sdk/providers/01-ai-sdk-providers/05-anthropic.md:311-386`; `contract/chat.ts:150-157` | Surface `stopDetails` as a `refusal` event with `category`/`explanation`; expose `fallbacks` as a connection extras key (see C2) and mark `providerMetadata.anthropic.iterations` fallback on the turn. |
-| A7 | P2 | **Assistant-image re-attach is dropped on the Anthropic wire with a false premise.** The header says "the SDK exposes no post-convert hook"; the package ALREADY has one — `wrapFetch.shapeBody` is exactly how the openrouter transport re-attaches (the OR provider has no `transformRequestBody` either). The anthropic wire passes `shapeBody: undefined` and warns `image_edit_dropped`. Anthropic's body is `messages[].content[]` blocks; an image block is `{ type:"image", source:{ type:"url"|"base64", … } }`. | `backends/anthropic-messages/chat.ts:4-6,280-285`; `backends/anthropic-messages/model.ts:46-64` (no `shapeBody`); `backends/v4/fetch.ts:41-42,287` | Give the anthropic transport a `shapeBody` that walks `plan.assistantMedia` by wire index and appends Anthropic image blocks (same length guard as `reattachRows`); retire the warning. |
+| A7 | P2 | **Assistant-image re-attach is dropped on the Anthropic wire with a false premise.** The header says "the SDK exposes no post-convert hook"; the package ALREADY has one — `wrapFetch.shapeBody` is exactly how the openrouter transport re-attaches (the OR provider has no `transformRequestBody` either). The anthropic wire passes `shapeBody: undefined` and warns `image_edit_dropped`. Anthropic's body is `messages[].content[]` blocks; an image block is `{ type:"image", source:{ type:"url" or "base64", … } }`. | `backends/anthropic-messages/chat.ts:4-6,280-285`; `backends/anthropic-messages/model.ts:46-64` (no `shapeBody`); `backends/v4/fetch.ts:41-42,287` | Give the anthropic transport a `shapeBody` that walks `plan.assistantMedia` by wire index and appends Anthropic image blocks (same length guard as `reattachRows`); retire the warning. |
 | A6 | P2 | **Structured-output fallback vehicle can 400 on Fable.** `forced-tool` is chosen whenever the capability says not-structured; Fable 5.1 rejects forced tool use and supports native `output_format`. A curated cell that under-declares `structured` on a Fable id sends a request the API rejects. | `roles/role-clients.ts:53`; `05-anthropic.md:200-203` | Curated cells for `claude-fable-*`/`opus-4-7+`/`sonnet-5` carry `structured: true`; add a table pin asserting no Fable id resolves `forced-tool`. |
 
 ## B. Recorded lies and unification (the DB must say the same thing on every wire)
@@ -83,8 +83,59 @@ swallowed signal · **P3** a capability the SDK exposes that the package leaves 
 - Effort vocabulary (`max`→`xhigh` on openai-compat, native on Anthropic, `minimal` dropped loudly on Anthropic), verbosity, thinking display: single-wire knobs drop loudly elsewhere. Finish reasons fold correctly with the raw kept.
 - Vehicle selection (`response-format` when structured, else `forced-tool`) and `structuredOutputMode: "outputFormat"` on the batch wire are right, modulo A6.
 - Role handling / system-row demotion live in `assembly/shape.ts`; the SDK's Anthropic same-role merge is a no-op after the floor. Correct split.
+- The funnel's `dynamicContextChannel` (`funnel/resolve-chat.ts:292`) and the assembly's mid-conversation gate (`chat/engine/pipeline.ts:613` → `acceptsMidConversationSystem`, `contracts/inference/capability/reads.ts:60`) read the SAME `turns.midConversationSystem` cell, so the `message-tail` row is only emitted where the assembly also keeps depth-0 system rows. Verified by `pnpm ast ident midConversationSystem` (14 hits, 8 files).
+
+## Structural confirmation (2026-09-19, `pnpm ast`, corpus `packages/inference/src` = 104 files unless noted)
+
+Every negative claim below carries a non-zero scanned count; a `0` is a confirmed absence, not a failed search.
+
+| Row | Lens | Result |
+| - | - | - |
+| A1 | `ident signature`, `literal reasoning_details`, `literal reasoning --in …/v4/prompt.ts` | 0 · 0 · 0 — no signature/reasoning_details/reasoning-part anywhere in the package; `ident providerMetadata --in …/v4/stream.ts` = 5 hits, all the `finish`-part slot (`:94`), none on reasoning parts |
+| A2 | `ident endsOnAssistant` | 3 hits in 2 files: `prompt.ts:46,244` (defined) + `openai-compat/body.ts:133` (vLLM prefill only); ZERO in `anthropic-messages/` |
+| A3 | `ident warnings --in …/v4/result.ts` · `--in …/v4/batch.ts` | result.ts: 4 hits, all `ctx.warnings`, `drain.warnings` never read; batch.ts: 0 — `doGenerate().warnings` never read |
+| A4 | `literal upstreamInferenceCost --in packages` (3406 files) | 0 |
+| A5 | `literal stopDetails --in packages` · `literal fallbacks` | 0 · 0 |
+| A7 | `ident assistantMedia` | 8 hits: built in `prompt.ts`, consumed in `openai-compat/body.ts:118,128`, only WARNED on in `anthropic-messages/chat.ts:280` |
+| B1 | `ident reasoningEffort --in packages/server/src/domain/chat` (138 files) | 8 hits; the value source is `engine.ts:1399` `prep.intent.effort` — the REQUESTED intent, confirmed |
+| B4 | `ident reasoningRedacted --in packages` | 3 hits; `v4/result.ts:79` is the `length === 0 && reasoningTokens > 0` heuristic; agent-sdk derives it from actual redacted blocks (`runner.ts:507`) — the two wires disagree on what the flag MEANS |
+| B5 | `ident reasoningTokens --in packages` | 9 hits, none in `packages/db`; sole product consumer `compose/rpg.ts:990` |
+| B6 | `ident rateLimit`, `literal rate_limit` | agent-sdk populates a real `RateLimitSnapshot` (`runner.ts:677`) and the bus has the `rate_limit` event (`contract/events.ts:44`); `v4/result.ts:93` hard-codes `null` — the field is LIVE on one wire and dead on two |
+| B7 | `ident responseId`, `ident generationId --in …/anthropic-messages/chat.ts` | `responseId` captured in `stream.ts:90`, consumed only at `openai-compat/chat.ts:454` (OR-gated); anthropic `chat.ts:320` = `null` |
+| B8 | `ident costDetails --in packages` | 5 hits, none in `packages/db` or `packages/server` |
+| C1 | `ident strict` · `ident inputExamples --in packages` | `strict` appears 9× but every hit is RESPONSE-FORMAT strictness; none on a tool; `inputExamples` 0 in 3401 files |
+| C2 | `literal userId` | 0 |
+| C3 | `literal response-healing --in packages` · `literal plugins` | 0 · 0 (the hard-coded plugin id is spelled via the `CONTEXT_COMPRESSION_PLUGIN` const, so the literal lens is blind to it by design — `openai-compat/chat.ts:43,229-232` is the receipt) |
+| C4 | `ident cacheControl --in …/v4/options.ts` | 0 — `functionTools` sets no per-tool provider options |
+| C5/C6 | `literal toolChanges` · `literal contextManagement --in packages` | 0 · 0 |
+| D2 | `ident includeRawChunks --in packages` · `literal raw --in …/v4/stream.ts` | 0 · 0 |
+| D3 | `literal echo_upstream_body --in packages` | 0 |
+| D4 | `callers addSpanEvent` | 8 call sites: 2 retry (`kit/retry.ts:134,140`) + 6 catalog-cache (`catalog/mirror.ts`); ZERO on the turn path |
+| E2 | `ident toCamelCase` | 0 |
+| E3 | `literal tool-input-delta` | 0 |
+
+## F. Rolling our own where the SDK has it — verdicts
+
+`ai` core is design-excluded for the agent loop, UI stream, gateway, tool executor and persistence (§8.0). It is NOT excluded for discrete helpers, and `wrapLanguageModel` is named as permitted. Judged on that line:
+
+| Ours | SDK equivalent | Verdict |
+| - | - | - |
+| Preset `reasoningParse` (`autoParse`/`prefix`/`suffix`, `THINK_*_DEFAULT` in `contracts/preset/index.ts:1940,2180`) — a POST-HOC split of `<think>…</think>` out of the finished reply | `extractReasoningMiddleware({ tagName, startWithReasoning })` via `wrapLanguageModel` — splits AT STREAM TIME into real `reasoning-delta` parts, handles a tag split across chunks | **Adopt.** Ours cannot stream the reasoning as reasoning (the bus sees prose until the split runs) and duplicates a solved chunk-boundary problem. Map `reasoningParse.prefix` → `tagName`; keep the preset as the user control. Design-permitted (`wrapLanguageModel`). |
+| `kit/retry.ts` pre-commit retry with `rate_limit.resetsAt` and commit semantics | core `maxRetries` (call-start only) + `streamRetries` | **Keep ours.** The commit boundary is tied to our bus; the SDK's retry is core-only. Do adopt `APICallError.isRetryable` / `responseHeaders["retry-after"]` as inputs to the backoff (today ignored). |
+| `kit/error-classify.ts` status table + moderation + secret scrub | `APICallError` (`statusCode`, `responseBody`, `isRetryable`, `responseHeaders`), `isInstance` guards | **Keep ours**, but narrow with `APICallError.isInstance(err)` instead of duck-typing `statusCode` (`pnpm ast ident isInstance` = 0). Ours carries moderation/billing/abort/scrub the SDK lacks. |
+| `openai-compat/embed.ts` token-bounded batching, window clamp, dimension fallback, ChatML scaffold, L2 normalise, per-POST deadline | `embedMany` (`maxEmbeddingsPerCall` chunking, `maxParallelCalls`, retries) | **Keep ours.** `embedMany` has no token budget, no scaffold, no clamp — the vLLM measurements the file header cites are the whole point. |
+| `kit/sse.ts` + `wrapFetch` `responseMap`/`reasoningKeys` reshape | the SDK's own SSE parser + `metadataExtractor` | **Keep** — it exists only to make a non-OpenAI reply parse at all; nothing in the SDK reshapes a foreign chunk. Sole consumer is `v4/fetch.ts` (`importers` = 2 files, one the barrel). |
+| `kit/cache-control.ts` breakpoint placer | none (SDK places nothing automatically) | Keep. |
+| `v4/prompt.ts` history → V4 prompt | `convertToModelMessages` / `standardizePrompt` (core, UIMessage-shaped) | Keep — ours starts from the D45 send model, not UIMessage. |
+| `scrubWireSchema` per-wire JSON-schema subsets | none per-provider (Anthropic provider only normalises `$schema`) | Keep. |
+| `kit/idle-timeout.ts` idle abort | core `timeout` (per-call) | Keep — idle-between-parts is not a per-call timeout. |
+| `catalog/openrouter.ts` `/models`, `/credits`, `/generation` | none in the OR provider | Keep (designed, §8.2). |
+| `@orb/kit/vector-math` cosine | `cosineSimilarity` (core) | Keep — trivial, and the discovery domain's in-RAM cosine is an owner ruling. |
+| structured task: we return TEXT and let the caller parse | `Output.object` (core; repair + zod validation) | Keep as-is (core loop), but OR `response-healing` (C3) is the server-side half of what `Output.object` repairs. |
 
 ## Suggested lane cut (three lanes, disjoint files)
+
+A7 joins lane 1 (anthropic transport `shapeBody`); the F-table "Adopt" row (`extractReasoningMiddleware`) joins lane 3.
 
 1. **Wire correctness** — A1, A2, A3, B2, B4, D1, E2: `contracts/chat/bus.ts`, `inference/backends/v4/*`, `backends/anthropic-messages/chat.ts`, `backends/openai-compat/chat.ts`, `contract/backend.ts`; plus the E1 pins for every file touched.
 2. **Record truth** — A4, A5, B1, B3, B5, B6, B7, B8, A6: `contracts/inference/usage.ts`, `db/schema/chat.ts` (forward migration), `chat/engine/engine.ts`, `persistence/canon-write.ts`, `capability/sources/curated/anthropic.ts`, `roles/role-clients.ts`.
