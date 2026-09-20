@@ -34,6 +34,7 @@ import { createMemoryRecallWarningEpisode } from "../../../../../packages/server
 import type { SearchContext } from "../../../../../packages/server/src/domain/search/context.ts";
 import { createDigests } from "../../../../../packages/server/src/domain/search/verbs/digests.ts";
 import { freshDb } from "../../../../support/db.ts";
+import { makeApiKeySecret } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import {
   FROZEN_AT,
@@ -71,8 +72,7 @@ type StrikeCall = Parameters<ChatContext["maybeRevokeOnAuthFailed"]>[0];
 function byoConnection(api: Resolved<"chat">["api"] = "chat-completions"): Resolved<"chat"> {
   return {
     ...testConnection("custom_openai", api),
-    // @orb-waive no-test-fabrication(unknown): minimal ResolvedCredential double — the engine reads only `.source`/`.credentialId`. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-    credential: { source: "custom_openai", credentialId: BYO_CREDENTIAL } as unknown as ResolvedCredential,
+    credential: makeApiKeySecret("sk-test", BYO_CREDENTIAL),
   };
 }
 
@@ -159,7 +159,6 @@ function engineOver(
   });
   return createTurnEngine(ctx, {
     emit: (_event: ChatBusEvent): Promise<void> => Promise.resolve(),
-
 
     holder: "replica-1",
     lockTtlMs: 60_000,
@@ -341,7 +340,10 @@ describe("the main turn's fault path strikes out the credential it ran under", (
       succeedingTurn,
       stubRunCompaction,
       { recallMemory, loadWitnessHorizons: () => Promise.resolve([{ joinSeq: 1, leftSeq: null }]) },
-      { searchDigests: (query) => digests(query).then((hits) => hits.map((h) => ({ blockKey: h.blockKey, score: h.score, relevance: h.relevance }))), ownerId: owner, ownerId: owner },
+      {
+        searchDigests: (query) =>
+          digests({ ...query, ownerId: owner }).then((hits) => hits.map((h) => ({ blockKey: h.blockKey, score: h.score, relevance: h.relevance }))),
+      },
     );
 
     const prep = scopedRecallPrep();

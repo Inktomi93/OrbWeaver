@@ -1,7 +1,8 @@
 import type { SummarizeResult } from "@orb/contracts/providers";
+import type { SummarizeInput } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
 import { chatDigestSpeakers, chatDigests, messages, messageVariants } from "@orb/db";
-import type { CharacterId, ChatDigestId, Handle, MessageId, MessageVariantId , UserId} from "@orb/kit/ids";
+import type { CharacterId, ChatDigestId, Handle, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { eq } from "drizzle-orm";
@@ -14,7 +15,7 @@ import { loadDigestsForScope, loadWitnessHorizons } from "../../../../../../pack
 import type { MemoryLogEntry, MsgRow } from "../../../../../../packages/server/src/domain/chat/memory/types.ts";
 import { freshDb } from "../../../../../support/db.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
-import { makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedPersona, seedUser , asSummarizeOp } from "../../_support.ts";
+import { asSummarizeOp, makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedPersona, seedUser } from "../../_support.ts";
 import { fakeEmbeddingsStore, fakeSummarize, GROUP_CHAR, MODEL, seedDigest, seedTurns, sharedScope } from "../_support.ts";
 
 // PROSE-1 S1: the consolidation system prompt is a slot resolved off the ROOM HOST. The harness's chat ctx
@@ -23,7 +24,7 @@ const CONSOLIDATION_SYSTEM_PROMPT = consolidationSystemPrompt({});
 
 /** A summarizer that returns only whitespace — the empty-output degrade the F7 skip-and-flag guards against.
  *  Returns ONE blank item per input so a BATCHED call resolves every slot (the build now batches). */
-const emptySummarize = (inputs: { systemPrompt: string; userPrompt: string }[]): Promise<SummarizeResult> =>
+const emptySummarize = (inputs: readonly SummarizeInput[]): Promise<SummarizeResult> =>
   Promise.resolve({
     items: inputs.map(() => ({ text: "  \n ", usage: { tokensIn: 1, tokensOut: 0, costUsd: null } })),
     model: MODEL,
@@ -214,7 +215,7 @@ describe("memory/build/digests", () => {
   test("a consolidation that returns NO facts body is skipped, not stored as a bodyless arc (#329 P1b)", async () => {
     const chatId = await seedChat(db, "bodyless-arc");
     await seedTurns(db, chatId, aria, 4);
-    const bodylessArc = (inputs: readonly { systemPrompt: string; userPrompt: string }[]): Promise<SummarizeResult> =>
+    const bodylessArc = (inputs: readonly SummarizeInput[]): Promise<SummarizeResult> =>
       Promise.resolve({
         items: inputs.map((inp) => ({
           text:
@@ -324,7 +325,11 @@ describe("memory/build/digests", () => {
 
     const second = upsertingStore(db);
     const sum = fakeSummarize();
-    await generateDigests(makeChatContext(db, { summarize: sum.op, embeddingsStore: second.store }), { scope: sharedScope(chatId), config: cfg, funderUserId: owner });
+    await generateDigests(makeChatContext(db, { summarize: sum.op, embeddingsStore: second.store }), {
+      scope: sharedScope(chatId),
+      config: cfg,
+      funderUserId: owner,
+    });
 
     // Block 0's rows did not move, so the self-heal legitimately re-summarizes NOTHING…
     expect(second.digests).toHaveLength(0);
