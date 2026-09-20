@@ -103,6 +103,15 @@ const config = {
     },
     "packages/kit": { entry: ["src/**/index.ts!"], project: ["src/**/*.ts!"] },
     "packages/contracts": { entry: ["src/**/index.ts!"], project: ["src/**/*.ts!"] },
+    // @orb/db + @orb/inference KEEP their `entry: ["src/**/index.ts!"]` rows even though both exports maps
+    // were ENUMERATED on 2026-09-20 (`@orb/db` → `.`/`./kit`/`./schema`; `@orb/inference` → `.` alone), so the
+    // rows now over-declare relative to the published surface. That is deliberate and was MEASURED, not
+    // assumed: dropping them makes every same-package barrel re-export a knip finding — 32 of them in
+    // `inference` on the narrowed tree — which is the internal-composition false positive the 2026-08-09
+    // `includeEntryExports` pivot already evaluated and REJECTED (146 in `contracts` alone; the reasoning is
+    // in tooling/src/verify/ops/orphan-export-ratchet.ts's header, "WHY IT CANNOT LEAN ON KNIP"). The
+    // instrument that owns unreached exports is that ratchet, whose population now covers `inference` by
+    // derivation rather than by a hand-kept opt-in list.
     "packages/db": { entry: ["src/**/index.ts!"], project: ["src/**/*.ts!"] },
     "packages/inference": {
       entry: ["src/**/index.ts!"],

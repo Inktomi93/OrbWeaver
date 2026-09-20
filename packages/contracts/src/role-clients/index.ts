@@ -123,7 +123,7 @@ export interface SummarizeInput {
 
 /** Per-call sampling overrides for `summarize` — applied uniformly to every input; runners that can't
  *  honor a knob drop it silently (cross-family summarize is fire-and-forget for these). The penalty/nucleus
- *  set MIRRORS the generate path's sampler knobs (`OpenAiSamplingInput`) so a summarize request can carry the
+ *  set MIRRORS the generate path's sampler knobs so a summarize request can carry the
  *  SAME loop-controls a chat request does — critically `presencePenalty`, which the memory build defaults to a
  *  loop-stopping value for repetition_penalty=1.0 models (Qwen3-VL). A family that can't honor a knob drops it. */
 export interface SummarizeOptions {
