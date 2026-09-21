@@ -140,9 +140,9 @@ param spelling (`chub`'s `topics`/`excludetopics`/`special_mode`; `wyvern`'s `ex
 browser `User-Agent`/`Accept` pair — bare-client requests get a 403, probe-verified §4), and
 response→`HubCardSummary` mapping. That is sealed infra vocab; `domain/hub` sees only
 `HubKey`/capabilities/normalized shapes (the `connection` never sees `runner` rule, verbatim).
-The registry is injected into `HubContext.hubs` at compose (the `credentials.fetchModels`
-precedent — domain-verb-over-injected-network-adapter, already the recorded pattern in
-gallery-design §5). **Enforcers:** the mapped-type Record (compile); `no-raw-egress` (doc 01 §5
+The registry is injected into `HubContext.hubs` at compose (the live databank scrape precedent:
+`DatabankContext.fetchUrl` is implemented by `infra/network.fetchWebDocument` at
+`entry/compose/databank.ts`). **Enforcers:** the mapped-type Record (compile); `no-raw-egress` (doc 01 §5
 — adapters get `HubIo`, never global fetch); dep-cruiser: `domain/hub` may not import
 `infra/network/hubs/*` (the op bundle is compose-injected; front-door-or-nothing).
 

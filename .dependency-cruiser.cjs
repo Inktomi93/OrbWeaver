@@ -701,7 +701,7 @@ module.exports = {
     {
       name: "persistence-no-io",
       comment:
-        "persistence/ is db queries ONLY — no node:* I/O (no node:fs / node:net / raw fetch). A raw fetch vs a user URL is infra (e.g. fetchOpenAiModels → infra/network), reached via an injected op. (Core-0-Architecture-and-Structure.md §3; Tier-3-Infra.md openai-models move.) The no-module-scope-Map half is a structural gate (persistence-no-in-memory-state) — it was a GritQL plugin until 64ab26501 retired that layer.",
+        "persistence/ is db queries ONLY — no node:* I/O (no node:fs / node:net / raw fetch). A raw fetch against a user URL is an infra adapter reached through an injected op; the live precedent is DatabankContext.fetchUrl → entry/compose/databank.ts → infra/network.fetchWebDocument. (Core-0-Architecture-and-Structure.md §3; Tier-3-Infra.md.) The no-module-scope-Map half is a structural gate (persistence-no-in-memory-state) — it was a GritQL plugin until 64ab26501 retired that layer.",
       severity: "error",
       from: { path: `${SRV}domain/[^/]+/persistence/` },
       to: { dependencyTypes: ["core"] },
