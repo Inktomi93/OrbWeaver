@@ -63,10 +63,6 @@ export const CORPUS_WIDE_SYNTACTIC = corpusLabel("search-globs-no-types", search
 
 export const CORPUS_DEPCRUISE = "depcruise(.dependency-cruiser.cjs)";
 
-/** The syntactic verbs whose ARGUMENT is a symbol/module NAME (not a path) — the ones where a zero can be
- *  a corpus false clean rather than an answer, so their no-results line carries the corpus caveat. */
-export const NAME_LOOKUP_SYNTACTIC_VERBS = new Set(["callers", "ident", "jsx", "importers"]);
-
 export function beginRun(verb: string, corpus: string, flags: Flags): void {
   const scopeParts = [`corpus:${corpus}`];
   ledger = {

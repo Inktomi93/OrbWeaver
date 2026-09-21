@@ -60,6 +60,9 @@ export const VERBS: Record<string, (project: SourceCorpus, arg: string, flags: F
 // liveness keys on (file, name) — bare-name matching over-reports same-file use and misses collisions.
 export const TYPED_VERBS = new Set([
   "refs",
+  "callers",
+  "importers",
+  "jsx",
   "dead",
   "cycles",
   "orphans",
@@ -77,10 +80,8 @@ export const TYPED_VERBS = new Set([
   "rot",
 ]);
 
-// Verbs that load the TYPED file set (searchGlobs) WITHOUT the type graph — a purely syntactic walk (no
-// language-service resolution) over the wide corpus. `literal` is the only member: a value-change battery
-// needs "which code/tests pin this literal" over tests+fixtures+scripts, at the cheap syntactic load.
-export const WIDE_SYNTACTIC_VERBS = new Set(["literal"]);
+// Verbs that load searchGlobs WITHOUT the type graph — purely syntactic walks over the wide corpus.
+export const WIDE_SYNTACTIC_VERBS = new Set(["aliases", "exports", "ident", "literal"]);
 
 // Verbs whose scope arg is OPTIONAL (default to the whole surface) — run bare, arg defaults to "".
 export const ARGLESS_VERBS = new Set([

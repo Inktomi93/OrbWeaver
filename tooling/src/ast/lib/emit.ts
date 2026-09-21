@@ -7,8 +7,13 @@ import { print } from "../../_shared/artifacts.ts";
 import { warn } from "../../_shared/log.ts";
 import { UsageError } from "../../_shared/run-tool.ts";
 import type { Flags, Hit } from "../contract/types.ts";
-import { CORPUS_SYNTACTIC, EPILOGUE_TAG, ledger, NAME_LOOKUP_SYNTACTIC_VERBS, noteMatches, scanMeta } from "./ledger.ts";
+import { EPILOGUE_TAG, noteMatches, scanMeta } from "./ledger.ts";
 import { COLLAPSE_THRESHOLD, DEFAULT_MAX, REPO_ROOT, RESPELL_NEAR_DEFAULT_PCT, SNIPPET_CAP } from "./root.ts";
+
+// `Hit` is a public rendered protocol, so occurrence identity stays private. Source-oriented lenses can
+// render two AST nodes as the same file/line/kind/text; retaining each node start here keeps totals exact
+// without adding an implementation-only field to JSON or every non-node-backed finding producer.
+const hitStarts = new WeakMap<Hit, number>();
 
 /** The bare boolean switches, dictionary-dispatched (kept off the if/else chain, or `--all` pushes
  *  `parseFlags` over the complexity ceiling). */
@@ -117,7 +122,9 @@ export function hitOf(node: Node, kind: string): Hit {
   const text = raw.trim().slice(0, SNIPPET_CAP);
   const full = sf.getFilePath();
   const file = full.startsWith(`${REPO_ROOT}/`) ? full.slice(REPO_ROOT.length + 1) : full;
-  return { file, line, kind, text };
+  const hit = { file, line, kind, text };
+  hitStarts.set(hit, node.getStart());
+  return hit;
 }
 
 /** Human explanation belongs on stdout for the ordinary CLI, but it must not corrupt the one JSON value
@@ -138,7 +145,7 @@ export function dedupe(hits: Hit[], flags: Flags): Hit[] {
     // while semantic lenses may emit several distinct records from one source line (two z.object fields on
     // one line, for example). Include rendered identity so those findings survive without exposing a new
     // hit-id protocol or changing the line-oriented search behavior.
-    const k = JSON.stringify([h.file, h.line, h.kind, h.text]);
+    const k = JSON.stringify([h.file, h.line, h.kind, h.text, hitStarts.get(h)]);
     if (seen.has(k)) {
       return false;
     }
@@ -201,16 +208,7 @@ export function emit(hits: Hit[], flags: Flags, label: string): void {
     print(`${h.file}:${h.line}  [${h.kind}]  ${h.text}`);
   }
   const overflow = unique.length > shown.length ? ` (showing ${shown.length} — raise --max)` : "";
-  // A zero on a NAME-lookup syntactic verb is only as good as its corpus: package-root TS, MTS, and
-  // playwright/** live only in searchGlobs, so a symbol living there can zero-match while being fully alive.
-  // Say so instead of printing a bare "no results".
-  // Path-scoped verbs (exports/aliases) stay bare: their argument names a file that WAS scanned.
-  const syntacticZero =
-    unique.length === 0 && ledger !== undefined && NAME_LOOKUP_SYNTACTIC_VERBS.has(ledger.verb) && ledger.scopeParts[0] === `corpus:${CORPUS_SYNTACTIC}`;
-  const corpusHint = syntacticZero
-    ? " — NOTE: the syntactic corpus excludes package-root TS, MTS, and playwright/**; a symbol living there needs a search-corpus verb (refs)"
-    : "";
-  print(unique.length === 0 ? `RESULT ast ${label}: no results${corpusHint}` : `RESULT ast ${label}: ${unique.length} hit(s)${overflow} in ${files} file(s)`);
+  print(unique.length === 0 ? `RESULT ast ${label}: no results` : `RESULT ast ${label}: ${unique.length} hit(s)${overflow} in ${files} file(s)`);
 }
 
 // The shared bootstrap supplies native per-tsconfig semantic programs for typed searches and a pure-AST

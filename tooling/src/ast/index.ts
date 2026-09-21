@@ -49,7 +49,7 @@ export { collectViewFieldCandidates, isViewServerOnly, viewFieldsOf, viewGapHit 
 export { collectApiSurface } from "./ops/apisurface.ts";
 export { collectChainAudit, collectChainCandidates } from "./ops/chains.ts";
 export { deadEvidenceFor } from "./ops/dead.ts";
-export { DEPCRUISE_VERBS, runDepcruise } from "./ops/depcruise.ts";
+export { DEPCRUISE_ROOTS, DEPCRUISE_VERBS, runDepcruise } from "./ops/depcruise.ts";
 export { collectOrphanCandidates, isProdConsumed, testOnlyClassOf } from "./ops/orphans.ts";
 export { scriptEntryPaths, toolingConfigNames } from "./ops/prodonly.ts";
 export { collectRegistryCandidates } from "./ops/registry-candidates.ts";
