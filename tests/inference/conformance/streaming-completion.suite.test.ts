@@ -51,4 +51,11 @@ for (const wire of CONFORMANCE_WIRES) {
     expect(error?.kind, "truncated-stream error kind").toBe("server");
     expect(error?.retryable, "truncated-stream retryability").toBe(true);
   });
+
+  cellTest(wire, "chat", "an untyped callback request without a ChatId emits no fabricated delta (BB-004)", async () => {
+    const { deltas, turn } = await driveChat(wire, { script: terminatedScript(wire), omitChatIdAtRuntime: true });
+    expect(deltas, "callback invocations without identity").toEqual([]);
+    // Delta delivery is suppressed; the provider result remains truthful and complete.
+    expect(turn.reply).toBe(REPLY);
+  });
 }

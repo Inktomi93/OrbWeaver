@@ -29,6 +29,7 @@ import type { Capability, GenerationCapability, Task, Wire } from "@orb/contract
 import { BUILTIN_PROVIDERS, EMBEDDING_FLOOR, WIRE_DEFS } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { z } from "zod";
 import type { ProviderExecutor, WireCaptureSink } from "../../../packages/inference/src/contract/backend.ts";
@@ -53,6 +54,7 @@ const MAX_OUTPUT_TOKENS = 8192;
 const PRICING = { inputPerMTok: 3, outputPerMTok: 15 };
 /** The deployment vector width `fakeDeps` injects (`embedSpace.dims`) — the embed arms must agree with it. */
 const EMBED_DIMS = 1024;
+const CONFORMANCE_CHAT_ID = mintTypeId(ID_PREFIX.chat);
 
 /** The tasks this harness can DRIVE. Per-wire applicability is `WIRE_DEFS[wire].serves ∩ this` — derived,
  *  never a per-backend roster; `applicability.suite.test.ts` pins the driver table against it so a wire that
@@ -326,6 +328,9 @@ export interface ChatArmOptions {
   readonly capability?: Capability | undefined;
   /** Give the connection row shipped pricing, so the `estimated` cost arm has an input. */
   readonly pricing?: boolean | undefined;
+  /** BB-004 negative arm only: remove the typed chat id immediately before the executor call, simulating an
+   *  untyped consumer that bypassed the callback/id contract. The callback must then stay silent. */
+  readonly omitChatIdAtRuntime?: true | undefined;
 }
 
 /** What `driveChat` collects out of the executor's callbacks. ONE declaration rather than a shape
@@ -353,6 +358,7 @@ function chatRequestFor(wire: Wire, options: ChatArmOptions, sink: ChatEventSink
     connection,
     params: options.params ?? {},
     systemPrompt: { static: "You are a conformance fixture.", dynamic: "" },
+    chatId: CONFORMANCE_CHAT_ID,
     onDelta: (event: { readonly kind: string; readonly text?: string }): void => {
       if (event.kind === "text" && event.text !== undefined) {
         sink.deltas.push(event.text);
@@ -389,7 +395,15 @@ export async function driveChat(wire: Wire, options: ChatArmOptions): Promise<Ch
     () => (wire === "anthropic-messages" ? anthropicScript(options.script) : openAiCompatScript(options.script)),
     recorded,
   );
-  const turn = await runtime.executor.runChatTurn(chatRequestFor(wire, options, sink));
+  const request = chatRequestFor(wire, options, sink);
+  const turn =
+    options.omitChatIdAtRuntime === true
+      ? await Reflect.apply(Reflect.get(runtime.executor, "runChatTurn"), runtime.executor, [
+          // Deliberately bypass the compile-time contract to prove each backend's runtime backstop. Reflect
+          // keeps the malformed value untyped instead of laundering it through a `ChatRequest` assertion.
+          (({ chatId: _chatId, ...withoutChatId }): object => withoutChatId)(request),
+        ])
+      : await runtime.executor.runChatTurn(request);
   return { deltas: sink.deltas, events: sink.events, captured: runtime.captured.map((entry) => entry.body), turn };
 }
 

@@ -92,19 +92,26 @@ export const AGENT_PROMPT_TAIL_JOINER = "\n\n";
  *  turn boundary (#1593/#1607). */
 export const AGENT_CONTINUATION_PROMPT_STUB = "*The scene continues.*";
 
-interface ChatRequestCommon {
+interface ChatRequestBase {
   readonly connection: Resolved<"chat">;
   readonly params: UserIntent;
   /** Split system prompt: a stable static prefix + a volatile dynamic tail (cache placement). */
   readonly systemPrompt: { readonly static: string; readonly dynamic: string };
-  readonly chatId?: ChatId | undefined;
   readonly signal?: AbortSignal | undefined;
-  readonly onDelta?: ((event: ChatDeltaEvent) => void) | undefined;
   readonly onEvent?: ((event: ChatEvent) => void) | undefined;
 }
 
+/** Delta delivery is chat-scoped: a callback can only exist beside the real entity id every
+ *  {@link ChatDeltaEvent} carries. The callback-free arm may still carry an id for session lineage and
+ *  wire capture. Backends also check this pair at runtime because untyped callers can bypass the TS contract. */
+export type ChatDeltaSubscription =
+  | { readonly chatId: ChatId; readonly onDelta: (event: ChatDeltaEvent) => void }
+  | { readonly chatId?: ChatId | undefined; readonly onDelta?: undefined };
+
+type ChatRequestCommon = ChatRequestBase & ChatDeltaSubscription;
+
 /** The array-shaped wires share one arm body: an assembled history + the OpenAI-spec tool channel. */
-interface HistoryChatRequest extends ChatRequestCommon {
+type HistoryChatRequest = ChatRequestCommon & {
   readonly history: readonly ChatHistoryMessage[];
   readonly tools?: readonly WireTool[] | undefined;
   readonly toolChoice?: ToolChoice | undefined;
@@ -118,7 +125,7 @@ interface HistoryChatRequest extends ChatRequestCommon {
    *  happens at STREAM time (the F-table "Adopt" row); every other shape, and every other wire, leaves the
    *  engine's post-hoc split to do it. Absent ⇒ no inline split is wanted at all. */
   readonly reasoningTags?: { readonly prefix: string; readonly suffix: string } | undefined;
-}
+};
 
 /**
  * The discriminated input every backend consumes:
@@ -139,8 +146,7 @@ export type ChatRequest =
        *  handed back on {@link ChatResult.toolCalls}. */
       readonly terminalTools?: readonly WireTool[] | undefined;
     })
-  | (HistoryChatRequest & { readonly api: "chat-completions" })
-  | (HistoryChatRequest & { readonly api: "anthropic-messages" });
+  | (HistoryChatRequest & { readonly api: "chat-completions" | "anthropic-messages" });
 
 export type AgentSdkChatRequest = ChatRequest & { readonly api: "agent-sdk" };
 export type OpenAiCompatChatRequest = ChatRequest & { readonly api: "chat-completions" };

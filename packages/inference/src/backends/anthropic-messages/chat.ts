@@ -19,8 +19,6 @@ import type { JSONObject, LanguageModelV4CallOptions, SharedV4Headers, SharedV4P
 import type { GenerationCapability } from "@orb/contracts/inference";
 import { acceptsAssistantPrefill, cacheMinTokensOf } from "@orb/contracts/inference";
 import type { EffortLevel } from "@orb/contracts/preset";
-import type { ChatId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import { scrubWireSchema } from "@orb/kit/json-schema";
 import { estimateTokens } from "@orb/kit/tokens";
 import type { AnthropicChatRequest, ChatHistoryMessage, ChatResult } from "../../contract/chat.ts";
@@ -255,7 +253,7 @@ interface StreamOnceArgs {
 
 async function streamOnce(args: StreamOnceArgs): Promise<StreamDrain> {
   const { call, req, markCommitted } = args;
-  const chatId = castId<ChatId>(req.chatId ?? "");
+  const deltaTarget = req.chatId === undefined || req.onDelta === undefined ? undefined : { chatId: req.chatId, onDelta: req.onDelta };
   const idle = turnAbortSignal(req.signal);
   let first = true;
   const commit = (): void => {
@@ -273,11 +271,11 @@ async function streamOnce(args: StreamOnceArgs): Promise<StreamDrain> {
       onPart: idle.reset,
       onText: (text): void => {
         commit();
-        req.onDelta?.({ chatId, kind: "text", text });
+        deltaTarget?.onDelta({ chatId: deltaTarget.chatId, kind: "text", text });
       },
       onReasoning: (text): void => {
         commit();
-        req.onDelta?.({ chatId, kind: "reasoning", text });
+        deltaTarget?.onDelta({ chatId: deltaTarget.chatId, kind: "reasoning", text });
       },
     });
   } finally {
