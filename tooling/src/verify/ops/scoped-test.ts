@@ -15,7 +15,7 @@ import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { warn } from "@orb/tooling/_shared/log";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
 import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
-import { runMarkerEnv } from "@orb/tooling/_shared/run-marker";
+import { runLeaseEnv, runMarkerEnv } from "@orb/tooling/_shared/run-marker";
 import { UsageError } from "@orb/tooling/_shared/run-tool";
 import type { ScopedOperand } from "@orb/tooling/_shared/scoped-run-paths";
 import {
@@ -121,8 +121,10 @@ function collect(runner: ScopedTestRunner, root: string, rest: readonly string[]
   return runner === "node" ? collectNode(root, rest) : collectCt(root, rest);
 }
 
-/** The CT run, streamed to the operator's terminal, in the lease's per-invocation cold cache. */
-function spawnCt(root: string, rest: readonly string[], lease: { readonly cacheDir: string; readonly runMarker: string }): number {
+/** The CT run, streamed to the operator's terminal, in the lease's per-invocation cold cache. BOTH
+ *  identities ride into playwright's environment (#2504): the run MARKER so an outer run's kill path
+ *  reaches these browsers (#1848), and this invocation's LEASE — the only one `lease.release()` sweeps. */
+function spawnCt(root: string, rest: readonly string[], lease: { readonly cacheDir: string; readonly runMarker: string; readonly runLease: string }): number {
   const slot = openRunSlot(root, "ct");
   const ct = runNicedSync(process.execPath, [playwrightBin(root), "test", "-c", CT_CONFIG, ...rest], {
     cwd: root,
@@ -130,6 +132,7 @@ function spawnCt(root: string, rest: readonly string[], lease: { readonly cacheD
       [CT_RUN_SLOT_ENV]: slot.dir,
       [CT_RUN_RACING_ENV]: slot.racing.join("\n"),
       ...runMarkerEnv(lease.runMarker),
+      ...runLeaseEnv(lease.runLease),
       [CT_CACHE_DIR_ENV]: lease.cacheDir,
     }),
     stdio: "inherit",

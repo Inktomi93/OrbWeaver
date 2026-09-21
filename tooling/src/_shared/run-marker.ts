@@ -30,6 +30,19 @@
 //     gone can have no legitimate live descendants, whoever minted it. This is the arm that covers SIGKILL
 //     and a hard power-off of a lane, and it is why the marker embeds its owner's pid.
 //
+// TWO IDENTITIES, AND THE LAW THAT SEPARATES THEM (#2504). A process belongs to two runs at once: the OUTER
+// run (`ORB_RUN_MARKER`, INHERITED by every descendant — #1848's requirement, so the outer run's kill path
+// still reaches a browser a nested launcher started) and a LEASE (`ORB_RUN_LEASE`, MINTED by whoever takes a
+// scoped resource — a snap session daemon, one `test:ct` invocation — and never inherited). Both are stamped
+// on the child, in both channels; the sweeps match EITHER, because the marker's entropy is the whole proof
+// and the channel it arrived on adds nothing to it.
+//   THE LAW IS: A TEARDOWN SWEEPS THE IDENTITY IT MINTED, NEVER ONE IT INHERITED. Inherit-before-mint had
+// widened the SUBJECT of `sweepOwnBrowsers` and of the CT lease release to the OUTER run while their comments
+// still described the inner one — so a reparented session daemon's shutdown SIGKILLed the whole battery that
+// contained it (`tests:tooling` under a marker: exit 137, 11 files, no summary; unmarked: 556 files and a
+// verdict). Every sweep door therefore takes its subject as a REQUIRED argument its caller minted, and no
+// door here answers "the marker I happen to be carrying".
+//
 // A SWEEP THAT SIGNALS NOTHING IS NORMAL AND SAYS SO. The result is reported by the caller into its own
 // transcript — a teardown that silently killed seven processes, or silently found none, is the same
 // unreadable line, and the count is what tells an operator whether the leak is closed.
@@ -68,7 +81,8 @@ export interface RunMarkerSweep {
 /** The reads and signals a sweep performs — injected so a test drives the whole decision without a box. */
 export interface RunMarkerDeps {
   readonly listPids?: () => readonly number[];
-  readonly markerOf?: (pid: number) => string | null;
+  /** Every identity one pid carries — its outer RUN marker and its LEASE, either channel, 0-2 values. */
+  readonly identitiesOf?: (pid: number) => readonly string[];
   readonly parentOf?: (pid: number) => number | null;
   readonly signal?: (pid: number, signal: NodeJS.Signals) => void;
   readonly alive?: (pid: number) => boolean;
@@ -110,6 +124,22 @@ export function runMarkerArg(marker: string): string {
   return `${RUN_MARKER_ARG_PREFIX}${marker}`;
 }
 
+/** THE LEASE CHANNEL (#2504) — the same two files, a second pair of keys, and the reason it exists is that
+ *  the RUN channel is INHERITED: a launcher that swept it reached its own grandparents' siblings. A lease is
+ *  minted by the process that takes a scoped resource, rides beside the run marker on every child it starts,
+ *  and is swept by that process alone. Same grammar as a marker (`MARKER_RE`), so the abandoned sweep reaps a
+ *  dead lease owner's browsers even while the OUTER run is still alive — the orphan window got smaller. */
+export const RUN_LEASE_ENV = "ORB_RUN_LEASE";
+export const RUN_LEASE_ARG_PREFIX = "--orb-run-lease=";
+
+export function runLeaseEnv(lease: string): Readonly<Record<string, string>> {
+  return { [RUN_LEASE_ENV]: lease };
+}
+
+export function runLeaseArg(lease: string): string {
+  return `${RUN_LEASE_ARG_PREFIX}${lease}`;
+}
+
 /** The marker THIS process carries, or null. A nested launcher (a `test:ct` inside a verify stage) must
  *  REUSE its parent's marker rather than mint a second one: overwriting it would orphan every browser from
  *  the outer run's sweep, which is the hole this whole module exists to close. */
@@ -125,11 +155,17 @@ function listPidsFromProc(): readonly number[] {
     .map(Number);
 }
 
-/** One live process's marker: its `/proc/<pid>/environ`, else its `/proc/<pid>/cmdline`. `null` =
- *  unreadable, gone, or unmarked — all three are "not provably mine", the fail-closed direction, so an
- *  unreadable process is never signalled. */
-export function processRunMarker(pid: number, read: (path: string) => Buffer = readFileSync): string | null {
-  return markerIn(readProcFile(pid, "environ", read), `${RUN_MARKER_ENV}=`) ?? markerIn(readProcFile(pid, "cmdline", read), RUN_MARKER_ARG_PREFIX);
+/** EVERY IDENTITY one live process carries — its outer RUN marker and its LEASE — each read from its
+ *  `/proc/<pid>/environ`, else its `/proc/<pid>/cmdline`. Both /proc files are read ONCE, because a sweep
+ *  asks this of every pid on the box. An empty array = unreadable, gone, or unmarked — all three are "not
+ *  provably mine", the fail-closed direction, so an unreadable process is never signalled. */
+export function processRunIdentities(pid: number, read: (path: string) => Buffer = readFileSync): readonly string[] {
+  const environ = readProcFile(pid, "environ", read);
+  const cmdline = readProcFile(pid, "cmdline", read);
+  return [
+    markerIn(environ, `${RUN_MARKER_ENV}=`) ?? markerIn(cmdline, RUN_MARKER_ARG_PREFIX),
+    markerIn(environ, `${RUN_LEASE_ENV}=`) ?? markerIn(cmdline, RUN_LEASE_ARG_PREFIX),
+  ].filter((value): value is string => value !== null);
 }
 
 function readProcFile(pid: number, name: string, read: (path: string) => Buffer): string | null {
@@ -157,9 +193,9 @@ function markerIn(blob: string | null, prefix: string): string | null {
   return MARKER_RE.test(value) ? value : null;
 }
 
-/** The default environ reader, named so both sweep doors share one spelling. */
-function markerFromProc(pid: number): string | null {
-  return processRunMarker(pid);
+/** The default /proc reader, named so both sweep doors share one spelling. */
+function identitiesFromProc(pid: number): readonly string[] {
+  return processRunIdentities(pid);
 }
 
 /** A pid's parent, from `/proc/<pid>/status`. Used only to EXCLUDE — never to select a target. */
@@ -213,12 +249,13 @@ function selfAndAncestors(selfPid: number, parentOf: (pid: number) => number | n
   return chain;
 }
 
-/** Every live pid carrying `marker`, minus this process and its ancestors. */
+/** Every live pid carrying `marker` in EITHER channel, minus this process and its ancestors. A lease and a
+ *  run marker are matched the same way on purpose: the value's entropy is the proof, never the channel. */
 export function markedPids(marker: string, deps: RunMarkerDeps = {}): readonly number[] {
   const listPids = deps.listPids ?? listPidsFromProc;
-  const markerOf = deps.markerOf ?? markerFromProc;
+  const identitiesOf = deps.identitiesOf ?? identitiesFromProc;
   const excluded = selfAndAncestors(deps.selfPid ?? process.pid, deps.parentOf ?? parentFromProc);
-  return listPids().filter((pid) => !excluded.has(pid) && markerOf(pid) === marker);
+  return listPids().filter((pid) => !excluded.has(pid) && identitiesOf(pid).includes(marker));
 }
 
 function defaultSleep(ms: number): Promise<void> {
@@ -294,6 +331,28 @@ export function currentRunMarker(): string {
   return minted;
 }
 
+/** TAKE A LEASE: mint THIS process's own scoped identity and publish it, so every browser this process
+ *  launches from here on carries it beside the outer run marker. It OVERWRITES any inherited value by
+ *  design — inheriting a lease is how a shutdown ends up sweeping its parent's fleet (#2504), so the door
+ *  that publishes one cannot also be the door that adopts one.
+ *
+ *  PUBLISHED RATHER THAN PASSED because the stamp site is deep (`_shared/browser.ts`'s launch doors, three
+ *  frames below the daemon that owns the lease) and because two module instances under vitest must agree —
+ *  the same reason `currentRunMarker` memoizes in the environment. A launcher whose stamp site is its OWN
+ *  call (the CT runner hands `runLease` to `spawnCt`) mints with {@link mintRunMarker} and publishes nothing. */
+export function beginRunLease(pid: number = process.pid, mintedAtMs: number = Date.now()): string {
+  const lease = mintRunMarker(pid, mintedAtMs);
+  exportProcessEnv(RUN_LEASE_ENV, lease);
+  return lease;
+}
+
+/** The lease THIS process published, or null when it holds none. Read by the stamp sites only — a sweep
+ *  never asks this question, because a sweep's subject is a value its caller minted. */
+export function currentRunLease(read: (key: string) => string | undefined = processEnvValue): string | null {
+  const raw = read(RUN_LEASE_ENV);
+  return raw !== undefined && MARKER_RE.test(raw) ? raw : null;
+}
+
 /** THE SYNCHRONOUS ABANDONED SWEEP, for a teardown path that cannot await (a signal handler, snap's sync
  *  stage teardown). Same rule as {@link sweepAbandonedRunMarkers} — only markers whose OWNER RUN is gone —
  *  but SIGKILL with no grace, because these processes have already outlived everything that could be
@@ -302,18 +361,21 @@ export function sweepAbandonedRunMarkersNow(deps: RunMarkerDeps = {}): readonly 
   return abandonedMarkers(deps).map((marker) => sweepRunMarkerNow(marker, deps));
 }
 
-/** Every marker on the box whose minting process is gone, minus this process's own chain. */
+/** Every identity on the box — run marker OR lease — whose minting process is gone, minus this process's
+ *  own chain. Reading BOTH channels is what lets a SIGKILLed lease owner's browsers be reaped while the
+ *  outer run it was nested inside is still alive and still legitimately holds the run marker (#2504). */
 function abandonedMarkers(deps: RunMarkerDeps): readonly string[] {
   const listPids = deps.listPids ?? listPidsFromProc;
-  const markerOf = deps.markerOf ?? markerFromProc;
+  const identitiesOf = deps.identitiesOf ?? identitiesFromProc;
   const alive = deps.alive ?? aliveBySignal;
   const excluded = selfAndAncestors(deps.selfPid ?? process.pid, deps.parentOf ?? parentFromProc);
   const abandoned = new Set<string>();
   for (const pid of listPids()) {
-    const marker = excluded.has(pid) ? null : markerOf(pid);
-    const owner = marker === null ? null : runMarkerOwnerPid(marker);
-    if (marker !== null && owner !== null && !alive(owner)) {
-      abandoned.add(marker);
+    for (const marker of excluded.has(pid) ? [] : identitiesOf(pid)) {
+      const owner = runMarkerOwnerPid(marker);
+      if (owner !== null && !alive(owner)) {
+        abandoned.add(marker);
+      }
     }
   }
   return [...abandoned];
