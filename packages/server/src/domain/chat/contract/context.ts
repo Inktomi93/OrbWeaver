@@ -326,7 +326,7 @@ type ResolveChatProseOp = (chatId: ChatId) => Promise<ProseOverrides>;
 type ReadReactionDefaultsOp = (userId: UserId) => Promise<Pick<ChatBehaviorInputs, "charactersCanReact" | "reactionsEnabled">>;
 
 /** The imagery quiet-extraction shaper (imagery-design/02 §2) — a STANDALONE op (not on ChatContext; built
- *  at compose from db + summarize + getCard, the `loadTurnForClassify` precedent). Chat owns the history
+ *  at compose from db + summarize + getCard). Chat owns the history
  *  window + the ONE MacroContext (the char macro resolved against the subject/roster card), then calls the summarize
  *  side-LLM; imagery consumes it as an injected op and never imports chat. `caller` is deliberately absent —
  *  cards resolve under the chat HOST's ownership, and imagery already gated the caller's chat membership. */

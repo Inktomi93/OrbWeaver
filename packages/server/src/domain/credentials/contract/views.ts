@@ -12,7 +12,6 @@ export interface CredentialView {
   readonly provider: ProviderId;
   /** Nullable at the column; add always writes one (default "default"). */
   readonly label: string | null;
-  readonly hasMetadata: boolean;
   readonly revokedAt: number | null;
   /** WHY it was revoked, so the Connections pane can say which of the three things happened instead of a
    *  bare Revoked chip. Non-null exactly when `revokedAt` is (both are written in one statement and cleared

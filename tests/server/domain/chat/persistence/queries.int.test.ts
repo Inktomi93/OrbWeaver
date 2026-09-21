@@ -10,7 +10,6 @@ import {
   loadChatEventBounds,
   loadChatEventReplay,
   loadChatMessageStats,
-  loadChatParticipantCharacterIds,
   loadChatRow,
   loadForkChildren,
   loadIsReplyToLatestUserMessage,
@@ -21,12 +20,11 @@ import {
   loadStreamBounds,
   loadStreamReplay,
   loadSwipeStatRows,
-  loadTurnForClassify,
   loadTurnOrigin,
 } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { addVariant, seedCharacter, seedChat, seedChatEvent, seedMessage, seedParticipant, seedStreamEvent, seedUser } from "../_support.ts";
+import { addVariant, seedChat, seedChatEvent, seedMessage, seedParticipant, seedStreamEvent, seedUser } from "../_support.ts";
 
 /** A page bound comfortably above every fixture here — these arms are about the FILTERS, not the keyset. */
 const TEST_PAGE_LIMIT = 100;
@@ -209,57 +207,6 @@ describe("persistence/queries — chat-row reads (D18 membership scope)", () => 
   });
 });
 
-describe("persistence/queries — loadChatParticipantCharacterIds (the FIX-#1 reverse read)", () => {
-  test("returns character-seat ids per chat, batched; human seats excluded; a no-character chat is absent", async () => {
-    const owner = await seedUser(db, castId<Handle>("owner"));
-    const human = await seedUser(db, castId<Handle>("human"));
-    const charA = await seedCharacter(db, owner, "a");
-    const charB = await seedCharacter(db, owner, "b");
-    const chat1 = await seedChat(db, "c1");
-    const chat2 = await seedChat(db, "c2");
-    const soloHuman = await seedChat(db, "solo");
-    await seedParticipant(db, { chatId: chat1, key: "1h", userId: human, role: "host" });
-    await seedParticipant(db, { chatId: chat1, key: "1a", characterId: charA });
-    await seedParticipant(db, { chatId: chat1, key: "1b", characterId: charB });
-    await seedParticipant(db, { chatId: chat2, key: "2a", characterId: charA });
-    // A chat with only a human seat — must be ABSENT from the map (the verb defaults it to []).
-    await seedParticipant(db, { chatId: soloHuman, key: "sh", userId: human, role: "host" });
-
-    const map = await loadChatParticipantCharacterIds(db, [chat1, chat2, soloHuman]);
-    expect(new Set(map.get(chat1))).toStrictEqual(new Set([charA, charB]));
-    expect(map.get(chat2)).toStrictEqual([charA]);
-    expect(map.has(soloHuman)).toBe(false);
-  });
-
-  test("INCLUDES departed (leftSeq) character seats — §7 wants every chat you've had with them", async () => {
-    const owner = await seedUser(db, castId<Handle>("owner"));
-    const present = await seedCharacter(db, owner, "present");
-    const departed = await seedCharacter(db, owner, "departed");
-    const chatId = await seedChat(db, "c");
-    await seedParticipant(db, { chatId, key: "p", characterId: present });
-    // A character that has since LEFT the chat (leftSeq set) still counts for the reverse read.
-    await seedParticipant(db, { chatId, key: "d", characterId: departed, leftSeq: 5 });
-
-    const map = await loadChatParticipantCharacterIds(db, [chatId]);
-    expect(new Set(map.get(chatId))).toStrictEqual(new Set([present, departed]));
-  });
-
-  test("dedupes a character that left and rejoined (two seat rows → one id)", async () => {
-    const owner = await seedUser(db, castId<Handle>("owner"));
-    const rejoiner = await seedCharacter(db, owner, "rejoiner");
-    const chatId = await seedChat(db, "c");
-    // Left once (leftSeq set) then rejoined (present) — two rows, one character.
-    await seedParticipant(db, { chatId, key: "left", characterId: rejoiner, leftSeq: 3 });
-    await seedParticipant(db, { chatId, key: "back", characterId: rejoiner, joinSeq: 4 });
-
-    expect(await loadChatParticipantCharacterIds(db, [chatId])).toStrictEqual(new Map([[chatId, [rejoiner]]]));
-  });
-
-  test("an empty id list is a no-op (empty map, no query)", async () => {
-    expect((await loadChatParticipantCharacterIds(db, [])).size).toBe(0);
-  });
-});
-
 // The `ChatSummary` list chrome's aggregates. REGRESSION (owner dogfood 2026-07-31): the chat list read
 // "7 messages" over a 3-message conversation because `resyncFromStory`/`editSnapshot` had appended four rpg
 // state-anchor slots — empty-body assistant rows that existed only to KEY a snapshot. D124 made that row
@@ -424,67 +371,6 @@ describe("persistence/queries — stream-log / bus-log replay + cursors", () => 
     expect(tail.map((e) => e.seq)).toStrictEqual([2]);
     expect(tail[0]?.payload.type).toBe("delta");
     expect((await loadChatEventBounds(db, chatId)).maxSeq).toBe(2);
-  });
-});
-
-// The expressions post-turn read (expressions-design/02 §3.1): the injected `readTurn` op surfaces the
-// variant's STORED content — which the pipeline already receive-tier-regex'd before persisting — never the raw
-// model text, and never a re-applied regex. These pin that projection + the id-scoping (swipe-safe, leak-free).
-describe("persistence/queries — loadTurnForClassify (the classify prose read)", () => {
-  test("returns the speaker + the POST-regex prose the classifier sees (the stored, rewritten content)", async () => {
-    // A host regex script that strips a *…* action stage-direction from the AI output (the pipeline runs this
-    // AI_OUTPUT-placement transform BEFORE persisting — `applyRegexReplace` is `text.replace`). The classifier
-    // must see the REWRITTEN prose, not the raw model reply.
-    const raw = "*She grins wide.* I'm absolutely thrilled!";
-    const rewritten = raw.replace(/\*[^*]*\*\s*/gu, ""); // → "I'm absolutely thrilled!"
-    expect(rewritten).not.toBe(raw); // the script actually rewrote something
-
-    const owner = await seedUser(db, castId<Handle>("host"));
-    const character = await seedCharacter(db, owner, "aria");
-    const chatId = await seedChat(db, "c");
-    // The committed assistant slot stores the POST-regex canon (what the pipeline persisted).
-    const { messageId, variantId } = await seedMessage(db, chatId, 1, { characterId: character, content: rewritten });
-
-    const result = await loadTurnForClassify(db, chatId, messageId, variantId);
-    expect(result).toEqual({ speakerCharacterId: character, text: rewritten });
-    expect(result?.text).not.toContain("She grins"); // the raw action never reaches the classifier
-  });
-
-  test("speakerCharacterId is null for a user turn (no sprite target)", async () => {
-    const owner = await seedUser(db, castId<Handle>("host"));
-    const chatId = await seedChat(db, "c");
-    const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "user", authorUserId: owner, content: "hello" });
-
-    expect(await loadTurnForClassify(db, chatId, messageId, variantId)).toEqual({ speakerCharacterId: null, text: "hello" });
-  });
-
-  test("null when the variant vanished / the ids don't belong together (leak-free, swipe-safe)", async () => {
-    const owner = await seedUser(db, castId<Handle>("host"));
-    const character = await seedCharacter(db, owner, "aria");
-    const chatId = await seedChat(db, "c");
-    const otherChat = await seedChat(db, "other");
-    const { messageId, variantId } = await seedMessage(db, chatId, 1, { characterId: character, content: "hi" });
-    const wrongVariant = await addVariant(db, messageId, 1, "swipe");
-
-    // wrong chat scoping → null (a foreign chatId can't read the variant).
-    expect(await loadTurnForClassify(db, otherChat, messageId, variantId)).toBeNull();
-    // gone variant id → null.
-    expect(await loadTurnForClassify(db, chatId, messageId, castId("variant_gone"))).toBeNull();
-    // a variant that belongs to a DIFFERENT slot than the messageId passed → null (the pair must agree).
-    expect(await loadTurnForClassify(db, chatId, castId("message_other"), wrongVariant)).toBeNull();
-  });
-
-  test("reads the EXACT variant requested, not the slot's selected pointer (swipe correctness)", async () => {
-    const owner = await seedUser(db, castId<Handle>("host"));
-    const character = await seedCharacter(db, owner, "aria");
-    const chatId = await seedChat(db, "c");
-    // seq-1 slot's first variant is the SELECTED one ("first"); append a second, non-selected variant.
-    const { messageId, variantId } = await seedMessage(db, chatId, 1, { characterId: character, content: "first" });
-    const secondVariant = await addVariant(db, messageId, 1, "second");
-
-    // The classify hook passes the committed variant id — the read honors it, not the selected pointer.
-    expect((await loadTurnForClassify(db, chatId, messageId, variantId))?.text).toBe("first");
-    expect((await loadTurnForClassify(db, chatId, messageId, secondVariant))?.text).toBe("second");
   });
 });
 

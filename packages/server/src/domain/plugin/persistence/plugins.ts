@@ -62,7 +62,6 @@ export function toPluginView(row: PluginRow, showcaseSlugs: ReadonlySet<string>)
     reconsentPending: row.pendingReconsent,
     widenedNetHosts: row.widenedNetHosts,
     builtAgainst: row.manifest.builtAgainst ?? null,
-    consecutiveCrashes: row.consecutiveCrashes,
     lastError: row.lastError,
     installedAt: row.installedAt,
     updatedAt: row.updatedAt,

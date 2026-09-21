@@ -3,7 +3,7 @@
 // fact (no real event), and a `transform_draft` rule (which registers into the pipeline and never dispatches
 // a terminal) resolves to `null` rather than a fabricated fire.
 
-import { automationRules } from "@orb/db";
+import { automationFires, automationRules } from "@orb/db";
 import type { AutomationRuleId, MessageId } from "@orb/kit/ids";
 import { mintTypeId } from "@orb/kit/ids";
 import { createEnabledRuleIndex } from "@orb/server/domain/automation";
@@ -120,7 +120,13 @@ describe("dispatchRuleNow", () => {
 
     const fires = await listFiresForRule(fixture.db, ruleId);
     expect(fires).toHaveLength(1);
-    expect(fires[0]).toMatchObject({ outcome: "action_error", automationDepth: 0 });
+    expect(fires[0]).toMatchObject({ outcome: "action_error" });
+    expect(fires[0]).not.toHaveProperty("automationDepth");
+    const [stored] = await fixture.db
+      .select({ automationDepth: automationFires.automationDepth })
+      .from(automationFires)
+      .where(eq(automationFires.ruleId, ruleId));
+    expect(stored?.automationDepth).toBe(0);
   });
 });
 

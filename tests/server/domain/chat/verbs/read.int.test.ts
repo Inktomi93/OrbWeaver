@@ -686,8 +686,7 @@ describe("read — listChats PAGING, projection + search (the 872-chat class)", 
     await seedParticipant(db, { chatId: withHer, key: "wh_h", userId: me, role: "host" });
     await seedParticipant(db, { chatId: withHer, key: "wh_c", characterId: her });
 
-    // She LEFT this one — `participantCharacterIds` promises "every chat you've had with them", so the
-    // server filter has to agree with that promise or the projection contradicts the row it renders.
+    // She LEFT this one — character-scoped history includes departed seats, so the server filter must retain it.
     const sheLeft = await seedChat(db, "sheleft", { title: "Ash" });
     await seedParticipant(db, { chatId: sheLeft, key: "sl_h", userId: me, role: "host" });
     await seedParticipant(db, { chatId: sheLeft, key: "sl_c", characterId: her, leftSeq: 4 });
@@ -706,10 +705,10 @@ describe("read — listChats PAGING, projection + search (the 872-chat class)", 
 
   // #192 — THE ROW CARRIES ITS OWN FACES. The client used to paint the leading slot by fetching the WHOLE
   // character library (`character.list {limit: 500}`) on every surface showing a chat row and indexing
-  // `participantCharacterIds` into it; past that ceiling the faces simply stopped resolving. The seats ride
-  // the projection now, off the roster views it already loads — so this pins the two properties the row
-  // renders with (SEAT ORDER, and character seats only) plus the deliberate split from
-  // `participantCharacterIds`, which keeps departed seats for the reverse read and must NOT gain a face.
+  // character ids into it; past that ceiling the faces simply stopped resolving. The seats ride the
+  // projection now, off the roster views it already loads — so this pins the two properties the row
+  // renders with (SEAT ORDER, and character seats only) plus the deliberate split from the character-scoped
+  // history filter, which keeps departed seats but must NOT turn one into a face.
   test("`participantPortraits` carries the PRESENT character seats in seat order — humans and departed seats excluded", async () => {
     const me = await seedUser(db, castId<Handle>("me"));
     const her = await seedCharacter(db, me, "azarael");
@@ -728,8 +727,9 @@ describe("read — listChats PAGING, projection + search (the 872-chat class)", 
     expect(row?.participantPortraits.map((seat) => seat.characterId)).toEqual([her, him]);
     // The human host holds a seat and a name, but not a FACE: the leading slot is the room's CHARACTER.
     expect(row?.participantPortraits.some((seat) => seat.characterId === castId<CharacterId>(me))).toBe(false);
-    // …while the reverse read keeps the departed seat, exactly as its own promise says.
-    expect([...(row?.participantCharacterIds ?? [])].sort()).toEqual([gone, her, him].sort());
+    // …while the character-scoped history read still finds the room through the departed seat.
+    const departedHistory = await listChats({ principal: principal(me), characterId: gone, limit: 50 });
+    expect(departedHistory.items.map((chat) => chat.id)).toEqual([chatId]);
   });
 
   test("`characterId` never duplicates a row when a character holds TWO seats in one chat", async () => {

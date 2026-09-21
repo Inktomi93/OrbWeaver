@@ -53,7 +53,6 @@ test("replace rotates THIS row: credentials.add with the row's own provider and 
       id: "user_credential_ctstory0004",
       provider: "openrouter",
       label: "shared key",
-      hasMetadata: false,
       revokedAt: null,
       revokedReason: null,
       createdAt: 0,

@@ -81,7 +81,6 @@ export interface PluginView {
    *  mark at all — and this field is what makes the mark derivable instead of invented. */
   readonly widenedNetHosts: readonly string[];
   readonly builtAgainst: PluginBuiltAgainst | null;
-  readonly consecutiveCrashes: number;
   readonly lastError: string | null;
   readonly installedAt: number;
   readonly updatedAt: number;

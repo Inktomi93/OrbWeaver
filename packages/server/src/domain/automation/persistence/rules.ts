@@ -78,7 +78,6 @@ export function toRuleView(row: RuleRow): RuleView {
     suggestOnRefusal: row.suggestOnRefusal,
     cooldownSeconds: row.cooldownSeconds,
     maxFiresPerHour: row.maxFiresPerHour,
-    consecutiveErrors: row.consecutiveErrors,
     lastError: row.lastError,
     lastFiredAt: row.lastFiredAt,
     createdAt: row.createdAt,

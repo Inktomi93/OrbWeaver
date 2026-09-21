@@ -20,11 +20,9 @@ function makeSummary(overrides: Partial<SummaryItem>): SummaryItem {
     starred: false,
     archived: false,
     gamePaused: false,
-    parentChatId: null,
     lastMessageAt: null,
     messageCount: 0,
     participantNames: [],
-    participantCharacterIds: [],
     participantPortraits: [],
     lastMessagePreview: null,
     isGame: false,
@@ -82,7 +80,7 @@ test("chatSummaryRowView: `when` prefers lastMessageAt, falling back to updatedA
 });
 
 // F7 + D3's LEADING-slot arm no longer has a client-side derivation to unit-test: `chatPortraits` (which
-// indexed `participantCharacterIds` into a whole-library `character.list` map) was retired with that read in
+// indexed character ids into a whole-library `character.list` map) was retired with that read in
 // #192. The seats arrive resolved on the row, and the SEAT-ORDER + portrait-less-seat properties it pinned
 // are now the server's (`seatPortraits`, tests/server/domain/chat/verbs/read.int.test.ts) plus the rendered
 // stack pin in tests/client/features/chat/surfaces/chat-list-surface.ct.tsx.

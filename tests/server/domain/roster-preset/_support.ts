@@ -131,7 +131,6 @@ export function seededRuleView(args: {
     suggestOnRefusal: true,
     cooldownSeconds: 0,
     maxFiresPerHour: 30,
-    consecutiveErrors: 0,
     lastError: null,
     lastFiredAt: null,
     createdAt: args.createdAt ?? FROZEN_AT_MS,

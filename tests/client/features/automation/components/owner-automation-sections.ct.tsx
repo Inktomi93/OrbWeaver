@@ -50,7 +50,6 @@ const GLOBAL_RULE = {
   matchAutomationEvents: false,
   cooldownSeconds: 0,
   maxFiresPerHour: 30,
-  consecutiveErrors: 0,
   lastError: null,
   lastFiredAt: null,
   createdAt: 1,

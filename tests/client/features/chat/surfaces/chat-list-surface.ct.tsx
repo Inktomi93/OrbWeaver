@@ -34,7 +34,7 @@ const ADVENTURE = makeChatSummary({
   id: "chat_adventure",
   title: "A grand adventure",
   participantNames: ["Aria Nightshade"],
-  participantCharacterIds: ["char_aria"],
+  filterCharacterIds: ["char_aria"],
   participantPortraits: [ARIA_SEAT],
 });
 const UNTITLED = makeChatSummary({
@@ -82,7 +82,7 @@ const GROUP = makeChatSummary({
   id: "chat_group",
   title: "The Crimson Court",
   participantNames: ["Aria Nightshade", "Sera", "Niko"],
-  participantCharacterIds: ["char_aria", "char_sera", "char_niko"],
+  filterCharacterIds: ["char_aria", "char_sera", "char_niko"],
   participantPortraits: [ARIA_SEAT, makeSeatPortrait("char_sera", "Sera"), makeSeatPortrait("char_niko", "Niko")],
 });
 
@@ -649,7 +649,7 @@ test("a chat with a portrait-owning participant renders the REAL portrait; the o
   const component = await mount(<ChatListSurfaceStory />);
   await expect(component.getByText("A grand adventure")).toBeVisible();
 
-  // Exactly ONE row resolved a face — the row whose participantCharacterIds hit an avatar-owning character.
+  // Exactly ONE row resolved a face — the row whose filterCharacterIds hit an avatar-owning character.
   // Scoped to the ROWS: the Arm B faces strip above them paints the same portrait as a shortcut.
   const images = component.locator(LIST_ROW_ROOT).locator(AVATAR_IMAGE);
   await expect(images).toHaveCount(1);
@@ -686,7 +686,7 @@ test("a chat whose participants own no portrait falls back to initials (no broke
       makeChatSummary({
         id: "chat_faceless",
         title: "Faceless chat",
-        participantCharacterIds: ["char_faceless"],
+        filterCharacterIds: ["char_faceless"],
         participantPortraits: [makeSeatPortrait("char_faceless", "Faceless")],
       }),
     ]),
@@ -1056,7 +1056,7 @@ function rosterChats(): readonly ReturnType<typeof makeChatSummary>[] {
       id: `chat_f${index}`,
       title: `Thread ${index}`,
       participantNames: [rosterName(index)],
-      participantCharacterIds: [`char_f${index}`],
+      filterCharacterIds: [`char_f${index}`],
       participantPortraits: [makeSeatPortrait(`char_f${index}`, rosterName(index))],
     }),
   );
@@ -1288,7 +1288,7 @@ function axisLibrary(): readonly ReturnType<typeof makeChatSummary>[] {
       id: `chat_axis_${String(at)}`,
       title: `${scoped ? "Aria thread" : "Deep"} ${String(at).padStart(3, "0")}`,
       participantNames: scoped ? ["Aria Nightshade"] : [],
-      participantCharacterIds: scoped ? ["char_aria"] : [],
+      filterCharacterIds: scoped ? ["char_aria"] : [],
       participantPortraits: scoped ? [AXIS_ARIA_SEAT] : [],
       lastMessageAt: recencyAt,
       updatedAt: recencyAt,
@@ -1351,7 +1351,7 @@ test("the head page is NEVER evicted — a deep scroll and back still lands on t
       id: `chat_deep_${String(at)}`,
       title: `Chat ${String(at).padStart(3, "0")}`,
       participantNames: [],
-      participantCharacterIds: [],
+      filterCharacterIds: [],
       updatedAt: 100_000_000 - at,
     }),
   );

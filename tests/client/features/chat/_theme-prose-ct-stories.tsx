@@ -38,8 +38,6 @@ export function HomePartialThemeProseStory({ background, ambientBackground, ambi
       lastMessagePreview: "The lanterns answer in amber.",
     }),
     id: castId<ChatId>("chat_theme_prose"),
-    parentChatId: null,
-    participantCharacterIds: [],
     participantPortraits: [],
   } satisfies ComponentProps<typeof HomeHearthRoom>["chat"];
 

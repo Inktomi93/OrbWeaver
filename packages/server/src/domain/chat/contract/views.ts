@@ -58,15 +58,12 @@ export interface ChatSeatPortrait {
 }
 
 /** The library-list row (listChats) — light, membership-scoped (D18: a chat I host OR am a member of; there
- *  is no `ownerId`). `lastMessageAt`/`messageCount` drive the list ordering + the unread chrome; `parentChatId`
- *  marks a fork in the list. */
+ *  is no `ownerId`). `lastMessageAt`/`messageCount` drive the list ordering + the unread chrome. */
 export interface ChatSummary {
   readonly id: ChatId;
   readonly title: string | null;
   readonly starred: boolean;
   readonly archived: boolean;
-  /** The fork-lineage pointer (D27) — null for a root chat. */
-  readonly parentChatId: ChatId | null;
   /** The timestamp of the newest message (null for an empty just-created chat). With `updatedAt` it IS the
    *  list's sort key — every surface renders `lastMessageAt ?? updatedAt` and `listChats` orders on exactly
    *  that expression in SQL (#150), so the row on top is the room whose stamp is the freshest. */
@@ -108,26 +105,17 @@ export interface ChatSummary {
    *  prefix that carries nothing and costs title width). A solo/self chat keeps its name, so the row never
    *  falls through to "Untitled chat". */
   readonly participantNames: readonly string[];
-  /** The character-SEAT ids in this chat — the reverse "which chats include character X" read backing the
-   *  FINAL-Character §7 Activity tab (every chat you've had with a character) + the §4.4/§9c resume-or-new
-   *  decision + the §4.5 recency signal. Unlike `participantNames` (display names, PRESENT roster only), this
-   *  DELIBERATELY includes DEPARTED character seats: §7 wants "every chat you've had with them," so a chat a
-   *  character has since left still counts for the reverse read (mirrors `roster.characterSeatedInAnotherChat`,
-   *  which also counts past seats). Character seats only (`kind='character'`) — human/agent/observer excluded;
-   *  deduped. Populated via ONE junction bulk read per page (no N+1 — the `canonicalTagsFor` precedent). */
-  readonly participantCharacterIds: readonly CharacterId[];
   /** The row's own PORTRAITS — one entry per PRESENT character seat, in seat order (#192). The list row
    *  paints a face per seat (one seat = a portrait, two or more = an `AvatarStack`), and until now the
    *  client resolved those faces by fetching the WHOLE character library (`character.list {limit: 500}`)
-   *  on every surface that shows a chat row, then indexing `participantCharacterIds` into it — a
-   *  whole-library read to decorate six rows, and one that simply stopped resolving past the page ceiling.
+   *  on every surface that shows a chat row, then indexing character ids into it — a whole-library read to
+   *  decorate six rows, and one that simply stopped resolving past the page ceiling.
    *  A row carries what it is about, so the seats ride the row.
    *
    *  Derived from the roster views this projection ALREADY loads (`loadParticipantViews` — the same read
    *  that produces `participantNames`), so it costs no extra query and its name/avatar resolution is the
-   *  one the room itself uses. PRESENT seats only, unlike `participantCharacterIds` above, which
-   *  deliberately keeps departed seats for the reverse "every chat you've had with them" read: a face is a
-   *  statement about who is IN the room, and the roster resolver only decorates present seats. */
+   *  one the room itself uses. PRESENT seats only: a face is a statement about who is IN the room, and the
+   *  roster resolver only decorates present seats. */
   readonly participantPortraits: readonly ChatSeatPortrait[];
   /** The CALLER's own role in this chat (D18 membership), derived per-caller from the `chat_participants`
    *  FK truth in the listing projection — never stamped. Drives the Automation pane's chat picker (which
