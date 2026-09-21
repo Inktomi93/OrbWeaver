@@ -8,6 +8,13 @@
       "when": 1789935957052,
       "tag": "0000_baseline",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1789982515936,
+      "tag": "0001_remove_dead_storage",
+      "breakpoints": true
     }
   ]
 }

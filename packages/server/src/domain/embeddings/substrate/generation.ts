@@ -54,14 +54,13 @@ async function resolveTargetGenerationAttempt({ ctx, ownerId, task, via, attempt
     .onConflictDoNothing();
   const prior = observed[0];
   if (prior === undefined) {
-    await ctx.db.insert(embedGenerationTargets).values({ ownerId, task, generationId: id, epoch: 1, updatedAt: now }).onConflictDoNothing();
+    await ctx.db.insert(embedGenerationTargets).values({ ownerId, task, generationId: id, epoch: 1 }).onConflictDoNothing();
   } else {
     await ctx.db
       .update(embedGenerationTargets)
       .set({
         generationId: id,
         epoch: prior.generationId === id ? prior.epoch : prior.epoch + 1,
-        updatedAt: now,
       })
       .where(
         and(

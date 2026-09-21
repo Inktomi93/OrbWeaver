@@ -96,7 +96,7 @@ async function seedMovingEmbedSpace(db: Db, ownerId: UserId): Promise<void> {
     space: "test-embed-model@f32",
     createdAt: FROZEN_AT,
   });
-  await db.insert(embedGenerationTargets).values({ ownerId, task: "embed", generationId, epoch: 1, updatedAt: FROZEN_AT });
+  await db.insert(embedGenerationTargets).values({ ownerId, task: "embed", generationId, epoch: 1 });
 }
 
 describe("in-turn retrieval degrades instead of killing the turn (#2510)", () => {

@@ -28,7 +28,6 @@ async function seedAssignedCluster(db: Db, args: { clusterId: string; ownerId: U
     level: args.level ?? "scene",
     clusterIdx: 0,
     name: "Adventures",
-    centroid: vec(1),
     size: 1,
     model: "test-embed-model-1024",
     computedAt: FROZEN_AT,

@@ -346,7 +346,6 @@ describe("createChatBus.emit — a failed durable append never rejects (the proc
       acceptedByUserId,
       actorRekeys: [],
       createdAt: FROZEN_AT,
-      updatedAt: FROZEN_AT,
     });
     const claim = batchStmt(db.delete(chatHandoffResumptions).where(eq(chatHandoffResumptions.chatId, chatId)));
 
@@ -376,7 +375,6 @@ describe("createChatBus.emit — a failed durable append never rejects (the proc
       acceptedByUserId,
       actorRekeys: [],
       createdAt: FROZEN_AT,
-      updatedAt: FROZEN_AT,
     });
     const claim = batchStmt(db.delete(chatHandoffResumptions).where(eq(chatHandoffResumptions.chatId, chatId)));
     const errorSpy = vi.spyOn(getLog(), "error").mockImplementation(() => undefined);
@@ -404,7 +402,6 @@ describe("createChatBus.emit — a failed durable append never rejects (the proc
       acceptedByUserId,
       actorRekeys: [],
       createdAt: FROZEN_AT,
-      updatedAt: FROZEN_AT,
     });
     const claim = batchStmt(db.delete(chatHandoffResumptions).where(eq(chatHandoffResumptions.chatId, chatId)));
     const bus = createChatBus(makeChatContext(db));

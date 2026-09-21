@@ -30,7 +30,7 @@ async function seedTarget(db: Db, ownerId: UserId, input: { task: GenerationTask
     space,
     createdAt: NOW,
   });
-  await db.insert(embedGenerationTargets).values({ ownerId, task, generationId: id, epoch: 1, updatedAt: NOW });
+  await db.insert(embedGenerationTargets).values({ ownerId, task, generationId: id, epoch: 1 });
   return { id, task, via: task, epoch: 1, space };
 }
 

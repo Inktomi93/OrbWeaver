@@ -1315,7 +1315,6 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
       acceptedByUserId: member,
       actorRekeys: [{ sourceCharacterId, characterId }],
       createdAt: FROZEN_AT,
-      updatedAt: FROZEN_AT,
     });
 
     let arrivals = 0;

@@ -262,7 +262,6 @@ export const chatHandoffResumptions = sqliteTable(
       .references(() => users.id, { onDelete: "cascade" }),
     actorRekeys: text("actor_rekeys", { mode: "json" }).$type<unknown>().notNull(),
     createdAt: integer("created_at").notNull(),
-    updatedAt: integer("updated_at").notNull(),
   },
   (t) => [index("chat_handoff_resumptions_accepted_by_idx").on(t.acceptedByUserId)],
 );

@@ -26,7 +26,7 @@ const DEFAULT_SEED = 1;
 // A cluster must have at least this many FULL-space members to be worth naming (else stored with name null).
 const MIN_NAME_SIZE = 2;
 const NAME_KEYWORDS = 12;
-const CLUSTER_COLS = 9;
+const CLUSTER_COLS = 8;
 const ASSIGN_COLS = 4;
 
 const NAME_SYSTEM =
@@ -42,7 +42,6 @@ interface ClusterDraft {
   readonly level: ThemeLevel;
   readonly clusterIdx: number;
   readonly model: string;
-  readonly centroid: Float32Array;
   readonly memberDigestIds: OwnedDigest["digestId"][];
   readonly memberRows: OwnedDigest[];
 }
@@ -87,7 +86,6 @@ function clusterSubgroup(
   k: number,
   seed: number,
 ): {
-  centroid: Float32Array;
   memberDigestIds: OwnedDigest["digestId"][];
   memberRows: OwnedDigest[];
 }[] {
@@ -101,8 +99,7 @@ function clusterSubgroup(
     k,
     seed,
   );
-  const builds = centroids.map((centroid) => ({
-    centroid,
+  const builds = centroids.map(() => ({
     memberDigestIds: [] as OwnedDigest["digestId"][],
     memberRows: [] as OwnedDigest[],
   }));
@@ -172,7 +169,7 @@ async function nameDrafts(drafts: readonly ClusterDraft[], rc: RoleClients, samp
   }
   // A DEGRADE, not a fault: a reply short of `targets.length` items (or one that sanitizes to empty) leaves
   // those clusters at `name: null` — the same state a below-MIN_NAME_SIZE cluster gets, which the schema and
-  // every reader already handle. The cluster keeps its members and centroid; only its label is missing.
+  // every reader already handle. The cluster keeps its members; only its label is missing.
   return names;
 }
 
@@ -219,7 +216,6 @@ export async function computeThemes(db: Db, deps: ComputeThemesDeps, opts: Compu
       level: draft.level,
       clusterIdx: draft.clusterIdx,
       name: names[i] ?? null,
-      centroid: draft.centroid,
       size: draft.memberDigestIds.length,
       model: draft.model,
       computedAt,

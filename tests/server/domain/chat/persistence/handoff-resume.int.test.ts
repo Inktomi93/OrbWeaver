@@ -62,7 +62,6 @@ describe("handoff resumption persistence", () => {
       acceptedByUserId,
       actorRekeys: [{ sourceCharacterId: "", characterId: "character_copy" }],
       createdAt: FROZEN_AT,
-      updatedAt: FROZEN_AT,
     });
 
     await expect(loadHandoffResumption(db, chatId)).rejects.toThrow();
