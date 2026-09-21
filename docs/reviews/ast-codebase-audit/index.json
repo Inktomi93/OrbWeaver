@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "capturedAt": "2026-09-21T09:45:49.185097+00:00",
-  "sourceCommit": "abe4ede14",
+  "capturedAt": "2026-09-21T10:04:23.512641+00:00",
+  "sourceCommit": "014ed4ee1",
   "purpose": "Full AST audit observations and agent reasoning. Dated evidence, not a replacement for GitHub work-item lifecycle.",
   "entryPoints": {
     "coverage": "world-tools-lens-manifest.json",
@@ -68,7 +68,8 @@
     "deadStorageReview": "world-tools-dead-storage-review.json",
     "typeonlyPerformanceFix": "world-tools-typeonly-performance-fix.json",
     "columnsLensFix": "world-tools-columns-lens-fix.json",
-    "externalConsumerDesign": "world-tools-external-consumer-design.json"
+    "externalConsumerDesign": "world-tools-external-consumer-design.json",
+    "externalConsumerFix": "world-tools-external-consumer-fix.json"
   },
   "limitations": [
     "30 CLI verbs identified; coverage remains incomplete. A candidate is not a confirmed defect or deletion authorization.",
@@ -236,6 +237,11 @@
     {
       "commit": "abe4ede14",
       "result": "Attributed named Drizzle insert-select projections and static raw-SQL INSERT headers to exact columns"
+    },
+    {
+      "commit": "014ed4ee1",
+      "issue": 2553,
+      "result": "Modeled typed source-reader and declared script-entry consumers through one normalized edge across the liveness lens family"
     }
   ],
   "unresolvedInsights": [
@@ -861,6 +867,13 @@
       "sourceSha256": "aadc04113ce894da2e09c1cc745924f069568dd1e473cb208ac986a8af52d891",
       "sha256": "aadc04113ce894da2e09c1cc745924f069568dd1e473cb208ac986a8af52d891",
       "bytes": 9550
+    },
+    {
+      "file": "world-tools-external-consumer-fix.json",
+      "source": "/tmp/world-tools-external-consumer-fix.json",
+      "sourceSha256": "b1283b685504aa80936723627f745e6931cb66d519ebd9b7afb996ddb63c80b8",
+      "sha256": "b1283b685504aa80936723627f745e6931cb66d519ebd9b7afb996ddb63c80b8",
+      "bytes": 3857
     }
   ],
   "crossCuttingFindings": {
@@ -1021,10 +1034,12 @@
       "liveDatabaseDriftIssue": 2552
     },
     "externalConsumerEvidence": {
-      "status": "complete design; implementation Ready in #2553",
+      "status": "implemented, committed, and work item complete",
       "issue": 2553,
       "receipt": "world-tools-external-consumer-design.json",
-      "ownerRulingNeeded": false
+      "ownerRulingNeeded": false,
+      "fix": "world-tools-external-consumer-fix.json",
+      "commit": "014ed4ee1"
     }
   }
 }
