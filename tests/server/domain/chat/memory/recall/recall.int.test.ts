@@ -333,7 +333,7 @@ describe("memory/recall — the 5 modes + the mode-switch union + witnessing", (
         topicAnchor: `[b${b}]`,
         keywords: [],
       });
-      await seedSegment(db, { chatId, blockIdx: b, seqStart: 8 * b + 1, seqEnd: 8 * b + 8 });
+      await seedSegment(db, { ownerId: owner, chatId, blockIdx: b, seqStart: 8 * b + 1, seqEnd: 8 * b + 8 });
     }
     const ctx = makeChatContext(db);
 
@@ -360,7 +360,7 @@ describe("memory/recall — the 5 modes + the mode-switch union + witnessing", (
         topicAnchor: `[b${b}]`,
         keywords: [],
       });
-      await seedSegment(db, { chatId, blockIdx: b, seqStart: 8 * b + 1, seqEnd: 8 * b + 8 });
+      await seedSegment(db, { ownerId: owner, chatId, blockIdx: b, seqStart: 8 * b + 1, seqEnd: 8 * b + 8 });
     }
     const ctx = makeChatContext(db);
 
@@ -384,7 +384,7 @@ describe("memory/recall — the 5 modes + the mode-switch union + witnessing", (
     // Three shared-bucket blocks + their spans (block b covers seq [8b+1, 8b+8]).
     for (let b = 0; b < 3; b += 1) {
       await seedDigest(db, { chatId, scopedCharacterId: GROUP_CHAR, tier: 0, blockIdx: b, topicAnchor: `[b${b}]`, keywords: [] });
-      await seedSegment(db, { chatId, blockIdx: b, seqStart: 8 * b + 1, seqEnd: 8 * b + 8 });
+      await seedSegment(db, { ownerId: owner, chatId, blockIdx: b, seqStart: 8 * b + 1, seqEnd: 8 * b + 8 });
     }
     // aria present since the chat opened (seq 1); bram joined at seq 17 (the start of block 2).
     await seedParticipant(db, { chatId, key: "aria", characterId: aria, joinSeq: 1, leftSeq: null });
@@ -556,8 +556,8 @@ describe("memory/recall — adversarial (trigger discipline, bridge-pool, witnes
       topicAnchor: "[aria]",
       keywords: [],
     });
-    await seedSegment(db, { chatId, blockIdx: 0, seqStart: 1, seqEnd: 8 });
-    await seedSegment(db, { chatId, blockIdx: 1, seqStart: 9, seqEnd: 16 });
+    await seedSegment(db, { ownerId: owner, chatId, blockIdx: 0, seqStart: 1, seqEnd: 8 });
+    await seedSegment(db, { ownerId: owner, chatId, blockIdx: 1, seqStart: 9, seqEnd: 16 });
     const ctx = makeChatContext(db);
     const out = await recallText(ctx, {
       scope: { chatId, scopedCharacterId: aria, isGroup: true },
@@ -596,7 +596,7 @@ describe("memory/recall — adversarial (trigger discipline, bridge-pool, witnes
     for (let b = 0; b < 4; b += 1) {
       await seedDigest(db, { chatId, scopedCharacterId: GROUP_CHAR, tier: 0, blockIdx: b, topicAnchor: `[t0.${b}]`, keywords: [] });
       if (b > 0) {
-        await seedSegment(db, { chatId, blockIdx: b, seqStart: 8 * b + 1, seqEnd: 8 * b + 8 });
+        await seedSegment(db, { ownerId: owner, chatId, blockIdx: b, seqStart: 8 * b + 1, seqEnd: 8 * b + 8 });
       }
     }
     await seedDigest(db, { chatId, scopedCharacterId: GROUP_CHAR, tier: 1, blockIdx: 0, topicAnchor: "[T1.0]", keywords: [] });
@@ -616,7 +616,7 @@ describe("memory/recall — adversarial (trigger discipline, bridge-pool, witnes
     for (let b = 0; b < 4; b += 1) {
       await seedDigest(db, { chatId, scopedCharacterId: GROUP_CHAR, tier: 0, blockIdx: b, topicAnchor: `[t0.${b}]`, keywords: [] });
       if (b !== 1) {
-        await seedSegment(db, { chatId, blockIdx: b, seqStart: 8 * b + 1, seqEnd: 8 * b + 8 });
+        await seedSegment(db, { ownerId: owner, chatId, blockIdx: b, seqStart: 8 * b + 1, seqEnd: 8 * b + 8 });
       }
     }
     await seedDigest(db, { chatId, scopedCharacterId: GROUP_CHAR, tier: 1, blockIdx: 0, topicAnchor: "[T1.0]", keywords: [] });
@@ -635,7 +635,7 @@ describe("memory/recall — adversarial (trigger discipline, bridge-pool, witnes
     const chatId = await seedChat(db, "known-endpoint-spans");
     for (let b = 0; b < 4; b += 1) {
       await seedDigest(db, { chatId, scopedCharacterId: GROUP_CHAR, tier: 0, blockIdx: b, topicAnchor: `[t0.${b}]`, keywords: [] });
-      await seedSegment(db, { chatId, blockIdx: b, seqStart: 8 * b + 1, seqEnd: 8 * b + 8 });
+      await seedSegment(db, { ownerId: owner, chatId, blockIdx: b, seqStart: 8 * b + 1, seqEnd: 8 * b + 8 });
     }
     await seedDigest(db, { chatId, scopedCharacterId: GROUP_CHAR, tier: 1, blockIdx: 0, topicAnchor: "[T1.0]", keywords: [] });
 
@@ -660,7 +660,7 @@ describe("memory/recall — adversarial (trigger discipline, bridge-pool, witnes
         topicAnchor: `[t0.${b}]`,
         keywords: [],
       });
-      await seedSegment(db, { chatId, blockIdx: b, seqStart: 8 * b + 1, seqEnd: 8 * b + 8 });
+      await seedSegment(db, { ownerId: owner, chatId, blockIdx: b, seqStart: 8 * b + 1, seqEnd: 8 * b + 8 });
     }
     // tier-1 block 0 covers tier-0 {0,1} (seq 1-16); block 1 covers {2,3} (seq 17-32).
     await seedDigest(db, {
@@ -735,7 +735,7 @@ describe("memory/recall — the §3a recall window-filter (the SECOND guard, tok
         keywords: [],
       });
 
-      await seedSegment(db, { chatId, blockIdx: b, seqStart: 8 * b + 1, seqEnd: 8 * b + 8 });
+      await seedSegment(db, { ownerId: owner, chatId, blockIdx: b, seqStart: 8 * b + 1, seqEnd: 8 * b + 8 });
     }
   }
 
@@ -816,7 +816,7 @@ describe("memory/recall — the §3a recall window-filter (the SECOND guard, tok
   async function seedEightBlocksWithTier1(chatId: ChatId): Promise<void> {
     for (let b = 0; b < 8; b += 1) {
       await seedDigest(db, { chatId, scopedCharacterId: GROUP_CHAR, tier: 0, blockIdx: b, topicAnchor: `[t0.${b}]`, keywords: [] });
-      await seedSegment(db, { chatId, blockIdx: b, seqStart: 8 * b + 1, seqEnd: 8 * b + 8 });
+      await seedSegment(db, { ownerId: owner, chatId, blockIdx: b, seqStart: 8 * b + 1, seqEnd: 8 * b + 8 });
     }
     for (let p = 0; p < 4; p += 1) {
       await seedDigest(db, { chatId, scopedCharacterId: GROUP_CHAR, tier: 1, blockIdx: p, topicAnchor: `[T1.${p}]`, keywords: [] });

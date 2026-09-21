@@ -59,7 +59,11 @@ async function seedGeneration(db: Db, chatId: ChatId, knownOwnerId?: UserId): Pr
     .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.kind, "human"), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq)));
   const ownerId = knownOwnerId ?? (hosts[0]?.ownerId as UserId | null | undefined);
   if (ownerId === undefined || ownerId === null) {
-    throw new Error(`missing host for ${chatId}`);
+    // D18: there is no `chats.ownerId` — the present human HOST participant is the authority, and that is
+    // what the generation's owner is derived from. A fixture chat with no host must say whose generation it
+    // is: pass `ownerId` (what `seedSegment`'s callers do; `seedDigest` can also fall back to the scoped
+    // character's owner), or seat a host with `seedParticipant({ userId, role: "host" })`.
+    throw new Error(`missing host for ${chatId} — pass \`ownerId\` to the seeder, or seat a human host participant`);
   }
   const id = testGenerationId(ownerId);
   const connectionId = castId<UserConnectionId>(`user_connection_memory_${ownerId}`);

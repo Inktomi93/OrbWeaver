@@ -12,9 +12,10 @@
 // `no-direct-users-read` gate scopes only `packages/server/src/domain`).
 
 import type { ImageBreakdown } from "@orb/contracts/embeddings";
+import type { ProviderId } from "@orb/contracts/inference";
 import type { ImageEmbedInput, RoleClients } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
-import { assets, characters, chatParticipants, chats, documents } from "@orb/db";
+import { assets, characters, chatParticipants, chats, documents, userConnections } from "@orb/db";
 import type {
   AssetId,
   CharacterEmbeddingId,
@@ -37,6 +38,7 @@ import { vi } from "vitest";
 import type { EmbeddingsContext } from "../../../../packages/server/src/domain/embeddings/context.ts";
 import type { EmbeddingsIndexerContext, EmbeddingsService } from "../../../../packages/server/src/domain/embeddings/contract/service.ts";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
+import { TEST_CONNECTION_ID, TEST_PROVIDER_ID } from "../../../support/factories/resolved-connection.ts";
 import { makeFakeRoleClients } from "../../../support/factories/role-clients.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 import { createSeededIds } from "../../../support/ids.ts";
@@ -192,6 +194,12 @@ export interface StoreHarness {
   readonly ctx: EmbeddingsContext;
   readonly roleClients: FakeRoleClients;
   readonly advance: (ms: number) => void;
+  /** Re-point the owner's resolved embed connection at a different DTYPE — the operator flipping the served
+   *  precision. The dtype rides INSIDE the space tag (`embedSpaceOf`, #2417), which is what a generation id is
+   *  minted from, so this is the seam that makes a corpus stale the way a model change does. NOT `embedAs`:
+   *  that flips what the PROVIDER reports for a produced vector (the issue-724 strand fixture) and never
+   *  reaches the staleness gate, which keys on the generation since the `610937682` cutover. */
+  readonly embedDtypeAs: (dtype: string) => void;
   readonly listCharacterIds: Mock<EmbeddingsContext["listCharacterIds"]>;
   readonly loadCardText: Mock<EmbeddingsContext["loadCardText"]>;
   readonly listImageAssetIds: Mock<EmbeddingsContext["listImageAssetIds"]>;
@@ -239,15 +247,24 @@ export function makeStoreHarness(db: Db, sources: StoreHarnessSources = {}, imag
   const loadAssetBytes: Mock<EmbeddingsContext["loadAssetBytes"]> = vi.fn<EmbeddingsContext["loadAssetBytes"]>((assetId) =>
     Promise.resolve(sources.assetBytes?.get(assetId)),
   );
+  // The owner's resolved embed DTYPE, overridable per test (`embedDtypeAs`). Undefined ⇒ the capability's own
+  // answer (the fake declares none, so the space tag is the bare model).
+  const embedDtype: { current: string | undefined } = { current: undefined };
   const ctx: EmbeddingsContext = {
     db,
     roleClientsFor: () => Promise.resolve(roleClients),
     resolveEmbeddingConnection: async (_ownerId, task) => {
       const resolved = await roleClients.resolved(task);
-      return resolved === null
+      const dtype = embedDtype.current;
+      const capability =
+        task === "embed" && dtype !== undefined && resolved !== null && resolved.capability.kind === "embedding"
+          ? { ...resolved.capability, embedding: { ...resolved.capability.embedding, dtype } }
+          : resolved?.capability;
+      return resolved === null || capability === undefined
         ? null
         : {
             ...resolved,
+            capability,
             api: "test",
             wire: "test",
             baseUrl: null,
@@ -279,6 +296,9 @@ export function makeStoreHarness(db: Db, sources: StoreHarnessSources = {}, imag
     ctx,
     roleClients,
     advance: (ms: number): void => clock.advance(ms),
+    embedDtypeAs: (dtype: string): void => {
+      embedDtype.current = dtype;
+    },
     listCharacterIds,
     loadCardText,
     listImageAssetIds,
@@ -336,11 +356,47 @@ interface SeedUserOverrides {
   readonly handle?: Handle;
 }
 
-/** Insert a `users` row (the FK target for characters/assets). Thin delegate over the canonical factory —
- *  embeddings' call sites want the id back, not the row. */
+/**
+ * Seed the `user_connections` row every REAL embeddings write resolves through — the FK parent of
+ * `embed_generations.connection_id` (`substrate/generation.ts` `resolveTargetGeneration`, which runs on the
+ * first `store()` of every sweep).
+ *
+ * THE ROW IS NOT DECORATION, AND IT IS NOT OPTIONAL. The shared fake `roleClients` resolve every owner to
+ * {@link TEST_CONNECTION_ID} (`tests/support/factories/resolved-connection.ts`) — the id is minted there as a
+ * pure const and NOTHING seeds the row it points at. With no row, the generation insert fails the FK and the
+ * failure surfaces wherever the caller happens to swallow it: an embeddings verb throws outright, while
+ * databank's ingest accumulator records it as DATA (`failed[]`) and every count reads zero, leaving the suite
+ * quietly, plausibly green. Three lanes hit this on three different days; this helper is the one home.
+ *
+ * WHY THE SEEDER IS HERE AND NOT AT THE ID'S MINT. `tests/support/factories/resolved-connection.ts` is
+ * imported by BROWSER-world CT stories (`tests/client/features/preset/components/_params-deck-stories.tsx`,
+ * `readout/_readout-stories.tsx`, `_message-handling-stories.tsx` and their `.ct.tsx` specs) — giving it a
+ * `@orb/db` import would drag the node-only db package into the CT bundle. So the id stays a pure const with
+ * a pointer comment, and the FK parent is seeded here, in the node-world harness that owns the write path.
+ *
+ * ONE row per db, not one per owner: the fake resolves a single connection id for everybody, so a second
+ * owner's generation necessarily points at the same row (`onConflictDoNothing` keeps the first seeder's).
+ * The FK is the only thing that reads it — nothing projects the connection's owner.
+ */
+export async function seedVectorConnection(db: Db, ownerId: UserId): Promise<void> {
+  await db
+    .insert(userConnections)
+    .values({
+      id: TEST_CONNECTION_ID,
+      ownerId,
+      label: "test vector connection",
+      providerId: castId<ProviderId>(TEST_PROVIDER_ID),
+      model: EMBED_MODEL,
+    })
+    .onConflictDoNothing();
+}
+
+/** Insert a `users` row (the FK target for characters/assets) AND its {@link seedVectorConnection} row. Thin
+ *  delegate over the canonical factory — embeddings' call sites want the id back, not the row. */
 export async function seedUser(db: Db, overrides: SeedUserOverrides = {}): Promise<UserId> {
   const id = castId<UserId>(overrides.id ?? `user_${overrides.handle ?? "x"}`);
   const seeded = await seedUserRow(db, { id, handle: castId<Handle>(overrides.handle ?? id) });
+  await seedVectorConnection(db, seeded.id);
   return seeded.id;
 }
 

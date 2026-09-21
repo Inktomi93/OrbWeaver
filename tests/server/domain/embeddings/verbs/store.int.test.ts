@@ -665,6 +665,11 @@ describe("store — a local-light dtype change is a space change (#2417)", () =>
     // The box's CURRENT space, derived the way the composition root derives it.
     const q8Space = localLightEmbedSpaceTag(DEFAULT_EMBED_MODEL, "q8");
     expect(q8Space).toContain("@"); // the tag CARRIES its dtype — the premise this whole case rests on
+    // The OWNER'S RESOLVED dtype is what drives the gate, not the declared `p.model`: since the generation
+    // cutover (`610937682`) the staleness read keys on the generation id, which is minted from
+    // `embedSpaceOf(connection.model, embedDtypeOf(connection.capability))`. `embedAs` only changes what the
+    // provider REPORTS for a produced vector (the stored `model` column, issue-724) and never reaches it.
+    h.embedDtypeAs("q8");
     embedAs(h, q8Space);
     await svc.store({ kind: "card", lens: "card-text", characterId, content: CARD_TEXT, model: q8Space, dim: EMBED_DIM, ownerId: owner });
     expect(h.roleClients.embed).toHaveBeenCalledTimes(1);
@@ -677,6 +682,7 @@ describe("store — a local-light dtype change is a space change (#2417)", () =>
     // answer `noop`: the indexer has to re-embed into the new space.
     const fp32Space = `${q8Space.split("@")[0] ?? ""}@fp32`;
     expect(fp32Space).not.toBe(q8Space);
+    h.embedDtypeAs("fp32");
     embedAs(h, fp32Space);
     const reindexed = await svc.store({ kind: "card", lens: "card-text", characterId, content: CARD_TEXT, model: fp32Space, dim: EMBED_DIM, ownerId: owner });
 
