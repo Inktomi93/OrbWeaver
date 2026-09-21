@@ -44,14 +44,23 @@ import type { MessageKind, TokenProvenance } from "@orb/contracts/chat";
 import { CHAT_INJECTION_POSITIONS, messageKindSchema, messageRoleSchema, tokenProvenanceSchema, varOpSchema } from "@orb/contracts/chat";
 import type { PortableParse } from "@orb/contracts/portability";
 import { userMacroValuesSchema } from "@orb/contracts/preset";
-import type { RpgGameConfig, RpgRecordedToolCall, RpgSheet, RpgSnapshotState } from "@orb/contracts/rpg";
-import {
+import type {
   RPG_CHECKPOINT_TRIGGERS,
   RPG_GAME_MODES,
   RPG_GAME_STATUSES,
   RPG_JOURNAL_TYPES,
+  RpgGameConfig,
+  RpgRecordedToolCall,
+  RpgSheet,
+  RpgSnapshotState,
+} from "@orb/contracts/rpg";
+import {
   RPG_TOOL_CALL_VERDICTS,
+  rpgCheckpointTriggerSchema,
   rpgGameConfigSchema,
+  rpgGameModeSchema,
+  rpgGameStatusSchema,
+  rpgJournalTypeSchema,
   rpgSheetSchema,
   rpgSnapshotStateSchema,
 } from "@orb/contracts/rpg";
@@ -260,8 +269,8 @@ const wireRecordedToolCallSchema = z.object({
 }) satisfies z.ZodType<RpgRecordedToolCall, unknown>;
 
 const wireRpgSchema = z.object({
-  mode: z.enum(RPG_GAME_MODES),
-  status: z.enum(RPG_GAME_STATUSES),
+  mode: rpgGameModeSchema,
+  status: rpgGameStatusSchema,
   sessionNumber: z.number().int().positive().catch(1),
   config: rpgGameConfigSchema,
   createdAt: z.number().int(),
@@ -281,7 +290,7 @@ const wireRpgSchema = z.object({
   ),
   journal: z.array(
     z.object({
-      type: z.enum(RPG_JOURNAL_TYPES),
+      type: rpgJournalTypeSchema,
       label: z.string().catch(""),
       title: z.string(),
       content: z.string(),
@@ -303,7 +312,7 @@ const wireRpgSchema = z.object({
     z.object({
       snapshotIndex: index,
       label: z.string(),
-      trigger: z.enum(RPG_CHECKPOINT_TRIGGERS),
+      trigger: rpgCheckpointTriggerSchema,
       createdAt: z.number().int(),
     }),
   ),

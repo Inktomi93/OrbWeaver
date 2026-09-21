@@ -22,9 +22,9 @@
 // have been the only re-spell in the set.
 
 import { z } from "zod";
-import { RPG_WEATHER_TYPES, rpgWeatherLabelSchema, TIME_OF_DAY } from "./ambient.ts";
+import { rpgWeatherLabelSchema, rpgWeatherTypeSchema, TIME_OF_DAY } from "./ambient.ts";
 import type { RpgJournalType } from "./enums.ts";
-import { RPG_JOURNAL_TYPES, RPG_RELATIONSHIP_KINDS } from "./enums.ts";
+import { rpgJournalTypeSchema, rpgRelationshipKindSchema } from "./enums.ts";
 
 /** The lite tool names — the 7-tuple `MODE_POLICY.lite.tools` withholds on a read-only turn. Full ADDS
  *  its names to its own tuple; these 7 are byte-stable at graft (the ambient/wallet args are already
@@ -78,7 +78,7 @@ const trackerSetSchema = z.object({
 // (kind required); `label` optional-omit keeps the derive-server-side arm (§10.1 — omission is plausible for a
 // non-custom kind). The whole `relationship` field is optional on the patch (MA-4: omit = keep the current stance).
 const relationshipUpsertSchema = z.object({
-  kind: z.enum(RPG_RELATIONSHIP_KINDS),
+  kind: rpgRelationshipKindSchema,
   label: z.string().optional(),
 });
 
@@ -90,7 +90,7 @@ const relationshipUpsertSchema = z.object({
 // the type already says it ("clear" needs no gloss). The whole `weather` field is optional on the patch
 // (MA-4: omit = keep the current sky).
 const weatherUpsertSchema = z.object({
-  type: z.enum(RPG_WEATHER_TYPES),
+  type: rpgWeatherTypeSchema,
   label: rpgWeatherLabelSchema.optional(),
 });
 
@@ -238,7 +238,7 @@ export type UpsertQuestArgs = z.infer<typeof upsertQuestArgsSchema>;
  *  content), so the honest degrade is to drop that one entry as malformed — which every delivery path now does
  *  per-ENTRY (EXT-4a), so the drop costs the entry and never the turn's other five planes. */
 export const addJournalEntryArgsSchema = z.object({
-  type: z.enum(RPG_JOURNAL_TYPES).optional(),
+  type: rpgJournalTypeSchema.optional(),
   // R4c — the free gloss for `type:"custom"`, the exact `relationship.label` shape: the enum keeps a model
   // from inventing an off-vocab token under an enforcing grammar, and `custom` + `label` reaches every beat
   // kind the closed seven miss (the plane fires on 79% of turns, in genres that aren't combat). Meaningless

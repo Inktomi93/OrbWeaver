@@ -27,7 +27,7 @@ import type { UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { CARD_FACE_LIMITS } from "../card-face/index.ts";
-import { RPG_RELATIONSHIP_KINDS } from "./enums.ts";
+import { rpgRelationshipKindSchema } from "./enums.ts";
 import { rpgTrackerValueSchema, rpgTrackerValuesSchema } from "./tracker.ts";
 
 // The slug grammar. Hoisted to module scope (the top-level-regex rule) and deliberately LOSSY IN ONE
@@ -173,7 +173,7 @@ const rpgConditionSchema = z.object({
  *  plane) and DEPARTURE-SURVIVING since R2 (it used to die with the `presentCharacters` row, so an established
  *  `enemy` returned as `neutral` with no journal beat — the silent arc reset). */
 export const rpgRelationshipSchema = z.object({
-  kind: z.enum(RPG_RELATIONSHIP_KINDS).default("neutral"),
+  kind: rpgRelationshipKindSchema.default("neutral"),
   label: z.string().default(""),
 });
 export type RpgRelationship = z.infer<typeof rpgRelationshipSchema>;
