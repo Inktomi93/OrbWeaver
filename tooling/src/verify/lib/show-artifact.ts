@@ -1,7 +1,9 @@
 // `check:show`'s artifact reader and consumability refusals. Reader-view shapes live in
 // `contract/show-artifact.ts`; this module owns I/O and decisions, while `show-policy.ts` owns FINAL rendering.
 import { readFileSync } from "node:fs";
-import { abandonedRuns, reportsPath } from "@orb/tooling/_shared/artifacts";
+import type { PointerResolution } from "@orb/tooling/_shared/artifact-pointer";
+import { formatRunProvenance, resolvePointer } from "@orb/tooling/_shared/artifact-pointer";
+import { reportsPath } from "@orb/tooling/_shared/artifacts";
 import { UsageError } from "@orb/tooling/_shared/run-tool";
 import type { GateReport, PopulationAlarmView, RunManifestView, StructureReport } from "../contract/show-artifact.ts";
 import type { FinalPolicyRow } from "../contract/structure-report.ts";
@@ -15,12 +17,22 @@ export function isFinalRow(g: GateReport): g is FinalPolicyRow {
   return g.contract === "final";
 }
 
-/** How a run identifies itself to a reader: the id, and the slot it wrote when it carries one. */
+/** THIS READER'S POINTER RESOLUTION — `reports/check-structure.json` against the `structure` instrument's
+ *  slot ring. Resolved ONCE per invocation and handed to both decisions below, so the read and the refusal
+ *  can never be about two different runs (#2502). */
+export function resolveStructurePointer(root: string): PointerResolution {
+  return resolvePointer(root, INSTRUMENT, STRUCTURE_REPORT_NAME);
+}
+
+/** How a run identifies itself to a reader: the id, and the slot it wrote when it carries one. The `id → dir`
+ *  spelling itself is the SHARED one (`formatRunProvenance`, #2502) — this reader's shipped first line is the
+ *  precedent every other instrument's reader now prints through, and the pre-#410 fallback stays here because
+ *  only this artifact family has a shape that old. */
 export function describeRun(run: RunManifestView | undefined): string {
   if (run === undefined) {
     return "<pre-#410 artifact — no run manifest>";
   }
-  return run.artifactDir === undefined ? run.runId : `${run.runId} → ${run.artifactDir}`;
+  return formatRunProvenance(run.runId, run.artifactDir);
 }
 
 /** The misuse text for "there is no artifact here at all" — ONE spelling, raised both by the read below and
@@ -29,15 +41,15 @@ export function missingReportRefusal(root: string): string {
   return `check:show — couldn't read ${reportsPath(root, STRUCTURE_REPORT_NAME)}\n  Run \`pnpm check:structure\` first to generate it.`;
 }
 
-export function readReport(root: string): StructureReport | null {
+export function readReport(root: string, pointer: PointerResolution): StructureReport | null {
   const path = reportsPath(root, STRUCTURE_REPORT_NAME);
   let raw: string;
   try {
     raw = readFileSync(path, "utf-8");
   } catch (err) {
-    // A missing pointer with a DEAD run behind it is a killed run, not misuse — the caller checks
-    // `abandonedRuns` first and only falls through to this when nothing ran here at all.
-    if (abandonedRuns(root, INSTRUMENT).length > 0) {
+    // A missing pointer with a DEAD run behind it is a killed run, not misuse — the caller checks the
+    // resolution's abandoned census first and only falls through to this when nothing ran here at all.
+    if (pointer.abandoned.length > 0) {
       return null;
     }
     // A missing report is MISUSE (3): run `pnpm check:structure` first to generate it.
@@ -51,15 +63,16 @@ export function readReport(root: string): StructureReport | null {
  *  needs is an ABANDONED SLOT: an in-flight marker whose pid is gone. One is refused whenever it is NEWER
  *  than the run the pointer resolves to — that is exactly "your last run died and you are about to read
  *  somebody else's (or an older) verdict as its result". A LIVE sibling run is deliberately not a refusal:
- *  it has not died, and the pointer it will publish is still a complete verdict. */
-export function refuseAbandoned(root: string, report: StructureReport | null, ink: ShowInk): string | null {
-  const dead = abandonedRuns(root, INSTRUMENT)[0];
+ *  it has not died, and the pointer it will publish is still a complete verdict.
+ *
+ *  THE DECISION MOVED TO THE SHARED RESOLVER (#2502) and the TEXT stayed here. `PointerResolution.abandoned`
+ *  is already "dead runs newer than the slot this pointer resolves into", which is the same comparison this
+ *  function used to make against the artifact's own manifest — one fact, computed once, for every
+ *  instrument, instead of each reader re-deriving it (or, as everywhere but here, never asking). */
+export function refuseAbandoned(pointer: PointerResolution, report: StructureReport | null, ink: ShowInk): string | null {
+  const dead = pointer.abandoned[0];
   if (dead === undefined) {
     return null;
-  }
-  const publishedAt = report?.run?.startedAt;
-  if (publishedAt !== undefined && publishedAt >= dead.startedAt) {
-    return null; // a later run finished after that death — the pointer is the newer fact
   }
   return ink.red(
     `✗ reports/${STRUCTURE_REPORT_NAME} is NOT a verdict for this checkout's last run (run ${dead.runId})\n` +

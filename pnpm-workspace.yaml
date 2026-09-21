@@ -101,11 +101,23 @@ catalog:
   # over packages/kit/src/macro/engine.ts — 17 killed / 1 timeout / 7 survived / 2 no-coverage / 20 compile-
   # error, score 66.67 total. Killed > 0 through an `@orb/kit/*` import IS the proof the sandbox rewire is
   # live; the pre-patch failure mode is "No tests were executed" / every mutant surviving.)
+  # THE CORE PATCH CARRIES A SECOND, INDEPENDENT HUNK since #2505 (2026-09-20): `dist/src/utils/file-utils.js`
+  # `findNodeModulesList`. That walk is a bare BFS over `readdir` rooted at `process.cwd()` (sandbox.js, under
+  # Stryker's own `// TODO: Change with this.options.basePath when we have it`) and it consults NO Stryker
+  # option but `tempDirName` — so `ignorePatterns`, where `tooling/src/_shared/stryker-config.ts` already lists
+  # `.claude/**`, CANNOT REACH IT. Unfenced it finds `.claude/worktrees/<lane>/node_modules` and the sandbox
+  # symlinks other agents' modules into the mutation run (reproduced against stock 10.0.0: with one planted
+  # worktree the walk returned two of its trees), and a lane swept mid-walk turns an enumerated path into an
+  # uncaught ENOENT that kills node before the first mutant — which is how the gate spent its life reporting
+  # exit 1 over ZERO tested mutants. The hunk fences dot-directories and skips a vanished subtree. ITS KEEPER
+  # IS `tests/tooling/stryker-sandbox-walk.int.test.ts`, which pins the INSTALLED package in both directions;
+  # the exit-class half is `tooling/src/verify/lib/mutation-gate-verdict.ts`. It RETIRES when
+  # `findNodeModulesList` honours `options.basePath`.
   # Keep all four in lockstep at 10.0.0 (core + vitest-runner + typescript-checker + api — the api package is
   # a DIRECT dep because scripts/mutation/arid-ignorer.ts imports its plugin surface). To bump: re-derive the
   # patch (`pnpm patch @stryker-mutator/core@<new>`,
-  # re-apply the symlink rewire, `pnpm patch-commit`), then move all three pins together, then RE-RUN THE
-  # PLANTED CONTROL. Deep reference (root cause at file:line, the exact diff, the A/B/C/D validation matrix)
+  # re-apply the symlink rewire AND the walk fence, `pnpm patch-commit`), then move all three pins together,
+  # then RE-RUN THE PLANTED CONTROL. Deep reference (root cause at file:line, the exact diff, the A/B/C/D validation matrix)
   # lives in the generated mutation-run report, not a tracked doc — re-run stryker to regenerate it.
   "@stryker-mutator/core": 10.0.0
   "@stryker-mutator/vitest-runner": 10.0.0

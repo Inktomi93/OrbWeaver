@@ -23,7 +23,7 @@ import type { ChatContext } from "../../context.ts";
 import { spanWitnessed } from "../build/substrate/witnessing.ts";
 import { resolveCfg } from "../constants.ts";
 import { loadDigestsForScope, loadSegmentSpans } from "../persistence/queries.ts";
-import type { DigestRow, MemoryConfig, MemoryRecallResult, MemoryRecallWarningEpisode, MemoryScope, MsgRow, WitnessInterval } from "../types.ts";
+import type { DigestRow, MemoryConfig, MemoryRecallResult, MemoryScope, MsgRow, TurnRetrievalWarningEpisode, WitnessInterval } from "../types.ts";
 import { computeBridge } from "./bridge.ts";
 import { blockKeyStr, formatMemory } from "./format.ts";
 import { buildRecallQuery } from "./query.ts";
@@ -39,7 +39,7 @@ interface RecallArgs {
   readonly config?: MemoryConfig | null | undefined;
   readonly recent?: readonly MsgRow[] | undefined;
   readonly names?: ReadonlyMap<CharacterId, string> | undefined;
-  readonly warningEpisode?: MemoryRecallWarningEpisode | undefined;
+  readonly warningEpisode?: TurnRetrievalWarningEpisode | undefined;
 }
 
 /** The per-block verdict ledger: every RAW pool member starts here and its entry is overwritten by whichever
@@ -129,7 +129,7 @@ export async function recallMemory(ctx: ChatContext, args: RecallArgs): Promise<
       queryEmbedded: selected.queryEmbedded,
       poolSize: union.length,
       candidateCount: selected.candidateCount,
-      note: null,
+      note: selected.note ?? null,
       verdicts,
       rendered,
       scored: selected.scored,
@@ -281,6 +281,35 @@ interface Selection {
   readonly queryText: string | null;
   readonly candidateCount: number;
   readonly scored: ReadonlyMap<string, ScoredBlock> | null;
+  /** The trace's `note` when the mode could not do its job (#2510 — an unqueryable vector space). `undefined`
+   *  ⇒ the ordinary `null` note: the mode ran and whatever it returned IS the answer. */
+  readonly note?: string | undefined;
+}
+
+/** Run the injected digest retrieval, reporting both degrade classes into the turn's episode and telling the
+ *  caller which one fired here.
+ *
+ *  `indexUnavailable` is RETURNED rather than read from a local flag at the branch, and the extraction is what
+ *  makes that legible: the op never throws the two SPACE refusals (`TurnRetrievalEvents`,
+ *  `contract/context.ts`) — it reports and resolves `[]` — so an empty array alone cannot tell the SLICE
+ *  whether the scan found nothing or never ran, and a trace claiming `queryEmbedded: true` with a clean zero
+ *  would be a measurement rather than the absence it actually was (#250: absent data renders absent, never
+ *  floor-synthesized). A flag assigned only inside the callback narrows to the `false` literal at its branch,
+ *  which both linters then call statically dead; crossing a typed return boundary is what widens it. */
+async function retrieve(
+  ctx: ChatContext,
+  query: Parameters<ChatContext["searchDigests"]>[0],
+  episode: TurnRetrievalWarningEpisode | undefined,
+): Promise<{ readonly hits: readonly ScoredBlock[]; readonly indexUnavailable: boolean }> {
+  let indexUnavailable = false;
+  const hits = await ctx.searchDigests(query, {
+    onRerankUnavailable: () => episode?.reportRerankUnavailable(),
+    onIndexUnavailable: () => {
+      indexUnavailable = true;
+      episode?.reportIndexUnavailable();
+    },
+  });
+  return { hits, indexUnavailable };
 }
 
 /** Select the ordered block-keys per mode, marking every pool member the mode itself eliminated. */
@@ -302,7 +331,17 @@ async function selectKeys(
     return { keys: bridge, queryEmbedded: false, queryText: null, candidateCount: bridge.length, scored: null };
   }
   const query = buildRecallQuery(cfg, scope, args.recent ?? [], args.names ?? new Map<CharacterId, string>());
-  const hits = await ctx.searchDigests({ ...query, candidates: bridge }, args.warningEpisode?.reportRerankUnavailable);
+  const { hits, indexUnavailable } = await retrieve(ctx, { ...query, candidates: bridge }, args.warningEpisode);
+  if (indexUnavailable) {
+    return {
+      keys: [],
+      queryEmbedded: false,
+      queryText: query.queryText ?? null,
+      candidateCount: bridge.length,
+      scored: null,
+      note: "vector space unavailable",
+    };
+  }
   const scored = new Map<string, ScoredBlock>(hits.map((h) => [blockKeyStr(h.blockKey), h]));
   return {
     keys: hits.map((h) => h.blockKey),

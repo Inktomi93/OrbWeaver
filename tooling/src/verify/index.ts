@@ -120,6 +120,7 @@ export {
 export { bannedMessage, CONTRACT_BANNED_SHAPES, contractBanHome, SCHEMA_BANNED_SHAPES } from "./lib/ledger-banned-shapes.ts";
 export { loadGateCorpus } from "./lib/loader.ts";
 export { markdownTables } from "./lib/markdown-tables.ts";
+export { mutationGateStageAudit, parseMutantProgress, reachedMutationVerdict } from "./lib/mutation-gate-verdict.ts";
 export { stripProbePolicyFindings } from "./lib/planted-fixtures.ts";
 export { parsePolicyCommand } from "./lib/policy-command.ts";
 export { loadPolicies, loadPolicyCorpus } from "./lib/policy-loader.ts";

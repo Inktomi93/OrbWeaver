@@ -71,22 +71,30 @@ function restoreReadingOrder(ranked: readonly DocumentCandidate[]): DocumentChun
 export function createDocuments(ctx: SearchContext): SearchService["documents"] {
   return async (params: DocumentSearchParams): Promise<DocumentChunkHit[]> => {
     const queryText = params.queryText;
+    if (queryText.trim().length === 0) {
+      throw new SearchError(SEARCH_EMPTY_QUERY, "documents requires a queryText to embed + scan");
+    }
+
+    // 1. allowlist — resolved by databank (D85: the membership-widened chat union minus the host's per-document
+    //    visibility exclusions, or the whole owned bank for a personal scope). Empty ⇒ ZERO embed calls
+    //    (the trigger-discipline mirror). A host-hidden document never enters the allowlist, so it never
+    //    embeds, ranks, or reaches a prompt.
+    //
+    //    HOISTED ABOVE THE SPACE READ (#2510). Both guards used to live INSIDE the `withActiveQuerySpace`
+    //    callback, so `requireQuerySpace` ran first and a bankless scope took the `search_space_reindexing` /
+    //    `search_no_space` refusal on the way to a short-circuit that would have returned `[]`. That is what
+    //    killed every chat turn on a databank-wired stack: the `{{databank}}` GATHER calls this verb once per
+    //    turn whether or not the room has documents. "Nothing is in scope" is answerable WITHOUT a vector
+    //    space, and this block's own "ZERO embed calls" claim was only true of the embed call, never of the
+    //    space read it sat under. The refusal itself is unchanged — only what now precedes it.
+    const allowlist = await ctx.resolveActiveDocumentIds(params.scope);
+    if (allowlist.length === 0) {
+      return [];
+    }
     const rc = await ctx.roleClientsFor(params.ownerId);
     return await withActiveQuerySpace(ctx, params.ownerId, "embed", async (space) => {
-      if (queryText.trim().length === 0) {
-        throw new SearchError(SEARCH_EMPTY_QUERY, "documents requires a queryText to embed + scan");
-      }
       const k = params.k ?? DEFAULT_DOCUMENT_K;
       const minScore = params.minScore ?? DEFAULT_DOCUMENT_MIN_SCORE;
-
-      // 1. allowlist — resolved by databank (D85: the membership-widened chat union minus the host's per-document
-      //    visibility exclusions, or the whole owned bank for a personal scope). Empty ⇒ ZERO embed calls
-      //    (the trigger-discipline mirror). A host-hidden document never enters the allowlist, so it never
-      //    embeds, ranks, or reaches a prompt.
-      const allowlist = await ctx.resolveActiveDocumentIds(params.scope);
-      if (allowlist.length === 0) {
-        return [];
-      }
 
       // 2. embed the query in the chunks' space.
       const embedded = await space.connection.embed(queryText, { inputType: "query", instruction: SCOPE_INSTRUCTIONS.documents.query });

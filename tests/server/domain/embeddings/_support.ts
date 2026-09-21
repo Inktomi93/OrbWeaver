@@ -377,8 +377,13 @@ interface SeedUserOverrides {
  * ONE row per db, not one per owner: the fake resolves a single connection id for everybody, so a second
  * owner's generation necessarily points at the same row (`onConflictDoNothing` keeps the first seeder's).
  * The FK is the only thing that reads it — nothing projects the connection's owner.
+ *
+ * MODULE-PRIVATE, and `seedUser` below is the one door. Every consumer — including databank's
+ * harness, which re-exports `seedUser` — reaches the FK parent by seeding an owner, never by calling
+ * this directly, so exporting it left knip with an importer-less export. The four sibling comments
+ * that name this function by name stay true: it is still the one home for the parent row.
  */
-export async function seedVectorConnection(db: Db, ownerId: UserId): Promise<void> {
+async function seedVectorConnection(db: Db, ownerId: UserId): Promise<void> {
   await db
     .insert(userConnections)
     .values({

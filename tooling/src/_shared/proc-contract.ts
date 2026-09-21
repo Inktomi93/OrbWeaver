@@ -148,7 +148,11 @@ export interface TranscriptOptions {
    *  kill they sweep every live pid whose `/proc/<pid>/environ` names this marker. Playwright starts each
    *  browser in its own session, so without this a timed-out CT stage leaves its whole Chromium fleet
    *  running (72 of them, up to 40 h old, on 2026-09-06 — #1848). The CALLER passes the value it also put
-   *  in `env`; a caller that sets neither keeps the old group-only behaviour. */
+   *  in `env`; a caller that sets neither keeps the old group-only behaviour.
+   *
+   *  IT MUST BE AN IDENTITY THE CALLER MINTED, NEVER AN INHERITED ONE (#2504) — this value is SIGKILLed,
+   *  and `run-marker.ts`'s outer `ORB_RUN_MARKER` names a run that may merely CONTAIN the caller. The verify
+   *  runner therefore hands its own `runLease` here and stamps the inherited marker only into `env`. */
   readonly runMarker?: string;
 }
 

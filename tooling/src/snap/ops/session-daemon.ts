@@ -21,6 +21,7 @@ import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { warn } from "../../_shared/log.ts";
 import { killPidGroup } from "../../_shared/proc.ts";
+import { beginRunLease } from "../../_shared/run-marker.ts";
 import type { SessionRow } from "../contract/session.ts";
 import { SESSION_PROTOCOL_VERSION } from "../contract/session.ts";
 import type { Args } from "../contract/types.ts";
@@ -137,6 +138,10 @@ export async function runSessionDaemon(opts: Args, argv: readonly string[]): Pro
     return stageExit;
   }
   const slot = openRunSlot(root, SESSION_INSTRUMENT);
+  // TAKE THIS DAEMON'S OWN LEASE BEFORE THE BROWSER EXISTS (#2504). Every browser launched from here carries
+  // it beside the outer run's marker, and the shutdown sweep below signals THIS value — never the inherited
+  // one, which belongs to whatever run spawned this daemon and is not ours to kill.
+  const runLease = beginRunLease();
   let session: ProbeSession;
   // No gate-ignore here on purpose: the catch RETHROWS the caught binding, which IS ownership under
   // caught-failure-ownership, so a marker would be a dead exemption (gate-ignore-inventory reds those).
@@ -237,9 +242,11 @@ export async function runSessionDaemon(opts: Args, argv: readonly string[]): Pro
       removeRow(home, name);
       publishRunSlot(root, slot, []);
       // THE BROWSER IS IN ITS OWN SESSION (#1848), so the group kill below cannot reach it and a close
-      // that failed leaves it running for good. Anything still carrying this daemon's run marker after
-      // the close is exactly that; a clean shutdown reaps nothing and prints nothing.
-      for (const line of [...sweepOwnBrowsers(), ...sweepStrandedBrowsers()]) {
+      // that failed leaves it running for good. Anything still carrying THIS DAEMON'S LEASE after the close
+      // is exactly that; a clean shutdown reaps nothing and prints nothing. The lease, never the inherited
+      // run marker (#2504): this process is reparented, so its ancestor chain excludes nothing and a sweep
+      // of the outer marker reaches the entire run that started it.
+      for (const line of [...sweepOwnBrowsers(runLease), ...sweepStrandedBrowsers()]) {
         print(`[snap-session] ${line}`);
       }
     } finally {

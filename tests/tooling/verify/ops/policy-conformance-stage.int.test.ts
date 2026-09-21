@@ -2,7 +2,13 @@
 // it is driven through — `cli.ts policy-conformance` over planted roots — so the exit classes and the failure lines
 // are proven where a reader meets them. Three arms, each the other's control: a REAL final policy re-exported into
 // a planted corpus proves clean (0); a planted policy whose founding row cannot bite proves exit 2 naming policy,
-// arm, row index and why; a legacy-only corpus proves the bare-zero refusal (2, never a clean 0).
+// arm, row index and why; a policy-less corpus proves the bare-zero refusal (2, never a clean 0).
+//
+// THE NON-SUBJECT MODULE IS UNREGISTERED, NOT LEGACY (#2497). Both arms used to plant a valid legacy
+// `GateDescriptor` as the "counted, never proven" module. `df2a54b09` deleted the legacy runtime and
+// `lib/loader.ts` now REFUSES a legacy-shaped `gate` export by name, so that fixture stopped being a
+// non-subject and became a loader throw: the CLI died before printing and both arms read as exit 2 with an
+// empty stdout. The loader's refusal itself is pinned where it lives, in `tests/tooling/verify/lib/loader.test.ts`.
 //
 // The re-export shim imports the REAL module by absolute file URL, so the descriptor the stage runs is the
 // production-branded object (the loader's identity law refuses a copy) and the shim's basename is the policy id
@@ -39,9 +45,9 @@ function identityRows(...policies: readonly GatePolicy[]): number {
   return policies.reduce((total, policy) => total + policyGrantIdentityRowCount(policy), 0);
 }
 
-/** A minimal VALID legacy descriptor — the stage's non-subject. */
-const LEGACY_GATE =
-  'export const gate = { name: "planted-legacy", docRow: "test-owned", status: "active", scopeSafety: "incremental-safe", message: "legacy fixture", visitFile() {}, mustFlag: [{ files: "export const bad = 1;", why: "fixture" }], mustPass: [{ files: "export const good = 1;", why: "fixture" }] };\n';
+/** A gate-directory module that exports no `gate` at all — the stage's non-subject. The loader records it as
+ *  UNREGISTERED (never swallowed, #410) and the stage counts it in the corpus without proving it. */
+const UNREGISTERED_MODULE = "export const notAGate = 1;\n";
 
 function realPolicyShim(repoRoot: string, id: string): string {
   return `export { gate } from ${JSON.stringify(pathToFileURL(join(repoRoot, GATES, `${id}.ts`)).href)};\n`;
@@ -78,23 +84,19 @@ export const gate = defineGate({
 `;
 }
 
-test("a corpus whose final policies all prove is CLEAN, and the summary names the counts", { timeout: CLI_TIMEOUT_MS }, async ({
-  plantedTree,
-  repoRoot,
-  runCli,
-}) => {
+test("a corpus whose policies all prove is CLEAN, and the summary names the counts", { timeout: CLI_TIMEOUT_MS }, async ({ plantedTree, repoRoot, runCli }) => {
   const root = await plantedTree({
     [`${GATES}/baseui-render-prop-composition.ts`]: realPolicyShim(repoRoot, "baseui-render-prop-composition"),
-    [`${GATES}/planted-legacy.ts`]: LEGACY_GATE,
+    [`${GATES}/planted-unregistered.ts`]: UNREGISTERED_MODULE,
   });
   const res = await runCli("verify", ["policy-conformance"], { cwd: root, timeoutMs: CLI_TIMEOUT_MS });
   await expect(res).toExitWith(0);
-  // The real policy's OWN row count is the denominator; the legacy module is counted, never proven here. The
+  // The real policy's OWN row count is the denominator; the unregistered module is counted, never proven. The
   // grant table is NOT part of this planted world, so only rows naming loaded policies are judged — none here.
   expect(res.stdout).toContain(
-    `policy-conformance: 1 final policies · ${String(proofRows(baseuiRenderProp))} proof rows · 0 refusal rows · ${String(identityRows(baseuiRenderProp))} identity-proof rows · 0 failure(s) · 0 grant rows (rows naming loaded policies) · 0 invalid`,
+    `policy-conformance: 1 policies · ${String(proofRows(baseuiRenderProp))} proof rows · 0 refusal rows · ${String(identityRows(baseuiRenderProp))} identity-proof rows · 0 failure(s) · 0 grant rows (rows naming loaded policies) · 0 invalid`,
   );
-  expect(res.stdout).toContain("(corpus: 2 module(s), 1 legacy proven by gate-conformance)");
+  expect(res.stdout).toContain("(corpus: 2 module(s), 1 unregistered)");
 });
 
 test("a planted root that carries a REVIEWED-GRANT target judges that policy's rows; one that carries the TABLE judges it whole", {
@@ -107,7 +109,7 @@ test("a planted root that carries a REVIEWED-GRANT target judges that policy's r
   const judged = await runCli("verify", ["policy-conformance"], { cwd: partial, timeoutMs: CLI_TIMEOUT_MS });
   await expect(judged).toExitWith(0);
   expect(judged.stdout).toContain(
-    `1 final policies · ${String(proofRows(routeImportsNoFeature))} proof rows · 0 refusal rows · ${String(identityRows(routeImportsNoFeature))} identity-proof rows · 0 failure(s) · `,
+    `1 policies · ${String(proofRows(routeImportsNoFeature))} proof rows · 0 refusal rows · ${String(identityRows(routeImportsNoFeature))} identity-proof rows · 0 failure(s) · `,
   );
   expect(judged.stdout).toMatch(/· [1-9]\d* grant rows \(rows naming loaded policies\) · 0 invalid/u);
 
@@ -145,7 +147,7 @@ test("a policy whose own proof fails is a TOOL ERROR naming policy, arm, row ind
   const res = await runCli("verify", ["policy-conformance"], { cwd: root, timeoutMs: CLI_TIMEOUT_MS });
   await expect(res).toExitWith(2);
   expect(res.stdout).toContain(
-    `2 final policies · ${String(proofRows(baseuiRenderProp) + BROKEN_PROOF_ROWS)} proof rows · 0 refusal rows · ${String(identityRows(baseuiRenderProp))} identity-proof rows · 1 failure(s)`,
+    `2 policies · ${String(proofRows(baseuiRenderProp) + BROKEN_PROOF_ROWS)} proof rows · 0 refusal rows · ${String(identityRows(baseuiRenderProp))} identity-proof rows · 1 failure(s)`,
   );
   expect(res.stdout).toContain(`✗ planted-broken · mustFlag[0] · ${BROKEN_WHY}`);
   expect(res.stdout).toContain("expected at least one effective finding but got 0");
@@ -221,7 +223,7 @@ test("a mustRefuse row is COUNTED and PROVEN, and the same row goes RED when the
   const clean = await runCli("verify", ["policy-conformance"], { cwd: armed, timeoutMs: CLI_TIMEOUT_MS });
   await expect(clean).toExitWith(0);
   expect(clean.stdout).toContain(
-    `1 final policies · ${String(REFUSAL_PROOF_ROWS)} proof rows · ${String(REFUSAL_MUST_REFUSE.length)} refusal rows · 0 identity-proof rows · 0 failure(s)`,
+    `1 policies · ${String(REFUSAL_PROOF_ROWS)} proof rows · ${String(REFUSAL_MUST_REFUSE.length)} refusal rows · 0 identity-proof rows · 0 failure(s)`,
   );
 
   // NEGATIVE, on a BYTE-IDENTICAL row: without the branch the pass completes, the refusal never happens, and
@@ -233,13 +235,10 @@ test("a mustRefuse row is COUNTED and PROVEN, and the same row goes RED when the
   expect(red.stdout).toContain("expected the pass to REFUSE but it completed");
 });
 
-test("a corpus with ZERO final policies is a TOOL ERROR — a bare zero is not a conformance verdict", { timeout: CLI_TIMEOUT_MS }, async ({
-  plantedTree,
-  runCli,
-}) => {
-  const root = await plantedTree({ [`${GATES}/planted-legacy.ts`]: LEGACY_GATE });
+test("a corpus with ZERO policies is a TOOL ERROR — a bare zero is not a conformance verdict", { timeout: CLI_TIMEOUT_MS }, async ({ plantedTree, runCli }) => {
+  const root = await plantedTree({ [`${GATES}/planted-unregistered.ts`]: UNREGISTERED_MODULE });
   const res = await runCli("verify", ["policy-conformance"], { cwd: root, timeoutMs: CLI_TIMEOUT_MS });
   await expect(res).toExitWith(2);
-  expect(res.stdout).toContain("0 final policies · 0 proof rows · 0 refusal rows");
-  expect(res.stderr).toContain("resolved ZERO final policies");
+  expect(res.stdout).toContain("0 policies · 0 proof rows · 0 refusal rows");
+  expect(res.stderr).toContain("resolved ZERO policies");
 });

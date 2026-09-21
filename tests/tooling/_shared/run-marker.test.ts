@@ -21,13 +21,16 @@ import {
   describeRunMarkerSweep,
   markedPids,
   mintRunMarker,
-  processRunMarker,
+  processRunIdentities,
+  RUN_LEASE_ENV,
   RUN_MARKER_ENV,
+  runLeaseArg,
   runMarkerArg,
   runMarkerEnv,
   runMarkerOwnerPid,
   sweepAbandonedRunMarkers,
   sweepRunMarker,
+  sweepRunMarkerNow,
 } from "@orb/tooling/_shared/run-marker";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
@@ -39,7 +42,7 @@ const PROBE_BUDGET_BASE_MS = 60_000;
 const SETTLE_BASE_MS = 250;
 
 function fakeTree(
-  rows: ReadonlyMap<number, { readonly marker: string | null; readonly parent: number }>,
+  rows: ReadonlyMap<number, { readonly marker: string | null; readonly lease?: string; readonly parent: number }>,
   self: number,
 ): RunMarkerDeps & { readonly signalled: [number, NodeJS.Signals][] } {
   const signalled: [number, NodeJS.Signals][] = [];
@@ -48,7 +51,7 @@ function fakeTree(
     signalled,
     selfPid: self,
     listPids: (): readonly number[] => [...rows.keys()],
-    markerOf: (pid): string | null => rows.get(pid)?.marker ?? null,
+    identitiesOf: (pid): readonly string[] => [rows.get(pid)?.marker ?? null, rows.get(pid)?.lease ?? null].filter((v): v is string => v !== null),
     parentOf: (pid): number | null => rows.get(pid)?.parent ?? null,
     alive: (pid): boolean => rows.has(pid) && !dead.has(pid),
     signal: (pid, signal): void => {
@@ -74,14 +77,32 @@ test("a CHROMIUM is found through its cmdline, because it erases its own environ
   // shapes are reproduced here, because both are why an environ-only, split-on-NUL reader found nothing.
   const chromium = (path: string): Buffer =>
     Buffer.from(path.endsWith("environ") ? "" : `/opt/chrome-headless-shell --headless --no-sandbox ${runMarkerArg(marker)} --user-data-dir=/tmp/x\0`, "utf8");
-  expect(processRunMarker(1, chromium)).toBe(marker);
+  expect(processRunIdentities(1, chromium)).toEqual([marker]);
   // …and an ordinary child is still found through the environment, which is the primary channel.
   const nodeChild = (path: string): Buffer =>
     Buffer.from(path.endsWith("environ") ? `PATH=/usr/bin\0${RUN_MARKER_ENV}=${marker}\0HOME=/root\0` : "node\0", "utf8");
-  expect(processRunMarker(2, nodeChild)).toBe(marker);
-  // A process carrying somebody else's marker is not ours, and an unmarked one answers null.
-  expect(processRunMarker(3, () => Buffer.from(`${RUN_MARKER_ENV}=nonsense\0`, "utf8"))).toBeNull();
-  expect(processRunMarker(4, () => Buffer.from("PATH=/usr/bin\0", "utf8"))).toBeNull();
+  expect(processRunIdentities(2, nodeChild)).toEqual([marker]);
+  // A process carrying somebody else's marker is not ours, and an unmarked one answers nothing.
+  expect(processRunIdentities(3, () => Buffer.from(`${RUN_MARKER_ENV}=nonsense\0`, "utf8"))).toEqual([]);
+  expect(processRunIdentities(4, () => Buffer.from("PATH=/usr/bin\0", "utf8"))).toEqual([]);
+});
+
+test("BOTH identities are read, in both channels — a leased browser answers with its run AND its lease (#2504)", () => {
+  const marker = mintRunMarker(4242, 1_700_000_000_000);
+  const lease = mintRunMarker(4343, 1_700_000_000_001);
+  // The production shape: a chromium stamped with both switches, environ erased by its own title rewrite.
+  const leasedChromium = (path: string): Buffer =>
+    Buffer.from(path.endsWith("environ") ? "" : `/opt/chrome-headless-shell --headless ${runMarkerArg(marker)} ${runLeaseArg(lease)}\0`, "utf8");
+  expect(processRunIdentities(1, leasedChromium)).toEqual([marker, lease]);
+  // …and an ordinary child, where both ride the environment.
+  const leasedChild = (path: string): Buffer =>
+    Buffer.from(path.endsWith("environ") ? `${RUN_MARKER_ENV}=${marker}\0${RUN_LEASE_ENV}=${lease}\0` : "node\0", "utf8");
+  expect(processRunIdentities(2, leasedChild)).toEqual([marker, lease]);
+  // A LEASE ALONE is a complete identity: the CT vite server started before any marker existed still answers.
+  const leaseOnly = (path: string): Buffer => Buffer.from(path.endsWith("environ") ? `${RUN_LEASE_ENV}=${lease}\0` : "node\0", "utf8");
+  expect(processRunIdentities(3, leaseOnly)).toEqual([lease]);
+  // A hand-typed lease authorizes nothing, exactly as a hand-typed marker does not.
+  expect(processRunIdentities(4, () => Buffer.from(`${RUN_LEASE_ENV}=mine\0`, "utf8"))).toEqual([]);
 });
 
 test("the sweep NEVER signals this process or its ancestors, whatever marker they carry", async () => {
@@ -125,6 +146,80 @@ test("a survivor of the grace is escalated to SIGKILL; a clean exit is not", asy
     [810, "SIGTERM"],
     [811, "SIGTERM"],
     [811, "SIGKILL"],
+  ]);
+});
+
+// ── #2504: the two stamps, and which one a teardown is allowed to sweep ─────────────────────────────
+// `tests:tooling` under a marker died at 11 files with exit 137 and NO summary; the same command unmarked
+// published 556. The killer was a REPARENTED launcher (a snap session daemon, whose ancestor chain is just
+// itself, so `selfAndAncestors` excluded nothing) sweeping the marker it had INHERITED — every sibling
+// vitest worker and the top-level pnpm carried that exact value. Both arms below plant the same tree; the
+// only variable is which identity the sweep is handed.
+const OUTER = mintRunMarker(100, 1_700_000_000_000);
+const LEASE = mintRunMarker(300, 1_700_000_000_001);
+/** pnpm(100) → vitest(101) → a worker(102), all carrying the outer marker; 300 is the reparented daemon
+ *  (parent 1) and 301 its browser, both carrying the outer marker AND the daemon's lease. */
+function batteryUnderADaemon(): ReturnType<typeof fakeTree> {
+  return fakeTree(
+    new Map([
+      [100, { marker: OUTER, parent: 1 }],
+      [101, { marker: OUTER, parent: 100 }],
+      [102, { marker: OUTER, parent: 101 }],
+      [300, { marker: OUTER, lease: LEASE, parent: 1 }],
+      [301, { marker: OUTER, lease: LEASE, parent: 1 }],
+    ]),
+    300,
+  );
+}
+
+test("the INHERITED marker reaches the whole battery — the planted control for the sweep that killed it (#2504)", () => {
+  // THE POSITIVE CONTROL, in the same file as the fix: from the reparented daemon, the outer marker names
+  // pnpm, vitest and the worker as well as the browser. A narrowed sweep proves nothing unless the wide one
+  // is shown to have been wide, and this is the exact set that took exit 137.
+  expect(markedPids(OUTER, batteryUnderADaemon())).toEqual([100, 101, 102, 301]);
+});
+
+test("a teardown sweeps the LEASE IT MINTED and leaves the run that contains it standing (#2504)", () => {
+  const deps = batteryUnderADaemon();
+  // The daemon's own shutdown subject: only what IT started. pnpm, vitest and the worker are untouched.
+  expect(markedPids(LEASE, deps)).toEqual([301]);
+  const sweep = sweepRunMarkerNow(LEASE, deps);
+  expect(sweep.killed).toEqual([301]);
+  expect(deps.signalled).toEqual([[301, "SIGKILL"]]);
+});
+
+test("#1848 IS PRESERVED: the outer run's own kill path still reaches a leased browser (#2504)", () => {
+  // The browser carries BOTH stamps, so the run that contains the daemon loses nothing by the narrowing —
+  // asked from the outer runner (pid 101, whose ancestors are pnpm and init), pid 301 is still in range.
+  const deps = fakeTree(
+    new Map([
+      [100, { marker: OUTER, parent: 1 }],
+      [101, { marker: OUTER, parent: 100 }],
+      [301, { marker: OUTER, lease: LEASE, parent: 1 }],
+    ]),
+    101,
+  );
+  expect(markedPids(OUTER, deps)).toEqual([301]);
+});
+
+test("the abandoned sweep reaps a DEAD LEASE owner's browser while its outer run is still alive (#2504)", async () => {
+  // THE STRENGTHENING the second channel buys. A SIGKILLed daemon inside a live battery used to leave a
+  // browser no sweep could justify: its marker's owner (the battery) answers, so the abandoned arm passes
+  // it over. Its LEASE's owner is the daemon, and the daemon is gone — which is a complete proof on its own.
+  const liveOuter = mintRunMarker(100, 1_700_000_000_000);
+  const deadDaemonLease = mintRunMarker(999_999, 1_700_000_000_001);
+  const deps = fakeTree(
+    new Map([
+      [100, { marker: liveOuter, parent: 1 }],
+      [301, { marker: liveOuter, lease: deadDaemonLease, parent: 1 }],
+    ]),
+    1,
+  );
+  const sweeps = await sweepAbandonedRunMarkers(deps);
+  expect(sweeps.map((sweep) => sweep.marker)).toEqual([deadDaemonLease]);
+  expect(deps.signalled).toEqual([
+    [301, "SIGTERM"],
+    [301, "SIGKILL"],
   ]);
 });
 
