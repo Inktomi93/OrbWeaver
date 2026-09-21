@@ -13,10 +13,12 @@ refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
 // agent-readable text instead of the pnpm scripts' mermaid. flow = X's direct edges both ways;
 // reaches = every module that can transitively reach X (the credential-firewall question shape).
 export const DEPCRUISE_VERBS: Record<string, string> = { flow: "--focus", reaches: "--reaches" };
+export const DEPCRUISE_ROOTS = ["packages", "tooling"] as const;
 
-export async function runDepcruise(mode: string, pattern: string): Promise<void> {
+export async function runDepcruise(mode: string, pattern: string, spawn: typeof spawnNiced = spawnNiced): Promise<void> {
+  noteScope(`graph-roots:${DEPCRUISE_ROOTS.join(",")}`);
   noteScope(`${mode}:${pattern}`);
-  const res = await spawnNiced("node_modules/.bin/depcruise", ["packages", "--config", ".dependency-cruiser.cjs", "--output-type", "text", mode, pattern], {
+  const res = await spawn("node_modules/.bin/depcruise", [...DEPCRUISE_ROOTS, "--config", ".dependency-cruiser.cjs", "--output-type", "text", mode, pattern], {
     cwd: REPO_ROOT,
   });
   // depcruise emits one text line per EDGE INSTANCE, so a value import and a type import of the same

@@ -18,7 +18,10 @@ import {
   CORPUS_WIDE_SYNTACTIC,
   finishRun,
   parseFlags,
+  runDepcruise,
+  TYPED_VERBS,
   VERBS,
+  WIDE_SYNTACTIC_VERBS,
 } from "../../../../tooling/src/ast/index.ts";
 import { emit } from "../../../../tooling/src/ast/lib/emit.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -209,19 +212,23 @@ describe("ast command output over bounded projects", () => {
     expect(CORPUS_TYPED).toBe("native-program-authored-roots(per-tsconfig)");
     expect(CORPUS_WIDE_SYNTACTIC).toContain("packages/*/*.ts");
     expect(CORPUS_WIDE_SYNTACTIC).toContain("playwright/**/*.tsx");
+    expect([...WIDE_SYNTACTIC_VERBS].sort()).toEqual(["aliases", "exports", "ident", "literal"]);
+    expect([...TYPED_VERBS]).toEqual(expect.arrayContaining(["callers", "importers", "jsx", "refs"]));
 
     const scriptHit = runVerb(standard, { verb: "ident", arg: "scriptOnly" });
     expect(scriptHit.stdout).toContain("scripts/dev/probe.ts");
-    const absent = runVerb(standard, { verb: "callers", arg: "missing" });
-    expect(absent.stdout).toContain("syntactic corpus excludes package-root TS, MTS, and playwright/**");
-    expect(absent.stdout).not.toContain("excludes scripts/**");
+    const packageRootHit = runVerb(wide, { verb: "ident", arg: "packageRootOnly", corpus: CORPUS_WIDE_SYNTACTIC });
+    expect(packageRootHit.stdout).toContain("packages/client/vite.config.ts");
+    const absent = runVerb(wide, { verb: "ident", arg: "missing", corpus: CORPUS_WIDE_SYNTACTIC });
+    expect(absent.stdout).toContain("RESULT ast ident missing: no results");
+    expect(absent.stdout).not.toContain("excludes");
   });
 
   test("name lookup caveats and output filters distinguish empty answers from empty scans", () => {
     const project = projectOf({ "packages/client/src/calls.ts": "export function present(): void {}" });
-    const absent = runVerb(project, { verb: "callers", arg: "missing" });
+    const absent = runVerb(project, { verb: "callers", arg: "missing", corpus: CORPUS_TYPED });
     expect(absent.status).toBe(0);
-    expect(absent.stdout).toContain("no results — NOTE: the syntactic corpus excludes package-root TS, MTS, and playwright/**");
+    expect(absent.stdout).toContain("no results");
     expect(absent.epilogue).toMatchObject({ scanned: "1", matches: "0", status: "complete" });
 
     const filtered = runVerb(project, { verb: "ident", arg: "present", argv: ["--in", "no-such-path"] });
@@ -254,6 +261,172 @@ describe("ast command output over bounded projects", () => {
     const absent = runVerb(project, { verb: "literal", arg: "nowhereAtAll9f3a1c", corpus: CORPUS_WIDE_SYNTACTIC });
     expect(absent.stdout).toContain("RESULT ast literal nowhereAtAll9f3a1c: no results");
     expect(absent.epilogue).toMatchObject({ matches: "0", status: "complete" });
+  });
+
+  test("source queries count distinct same-line AST occurrences", () => {
+    const project = projectOf({
+      "packages/client/src/query-sites.tsx": `
+export function target(): null { return null; }
+export function Widget(): null { return null; }
+target(); target();
+export const view = <><Widget /><Widget /></>;
+export const names = [target, target];
+export const values = ["needle", "needle"];
+`,
+    });
+    expect(runVerb(project, { verb: "callers", arg: "target", corpus: CORPUS_TYPED }).epilogue).toMatchObject({ matches: "2" });
+    expect(runVerb(project, { verb: "jsx", arg: "Widget", corpus: CORPUS_TYPED }).epilogue).toMatchObject({ matches: "2" });
+    expect(runVerb(project, { verb: "ident", arg: "target" }).epilogue).toMatchObject({ matches: "5" });
+    expect(runVerb(project, { verb: "literal", arg: "needle", corpus: CORPUS_WIDE_SYNTACTIC }).epilogue).toMatchObject({ matches: "2" });
+  });
+
+  test("refs discovers ordinary module-local declaration kinds", () => {
+    const project = projectOf({
+      "packages/kit/src/local-declarations.ts": `
+class LocalClass {};
+interface LocalInterface { value: string }
+type LocalType = LocalInterface;
+enum LocalEnum { Value }
+const classUse = new LocalClass();
+const interfaceUse: LocalInterface = { value: "x" };
+const typeUse: LocalType = interfaceUse;
+const enumUse = LocalEnum.Value;
+`,
+    });
+    for (const name of ["LocalClass", "LocalInterface", "LocalType", "LocalEnum"]) {
+      const run = runVerb(project, { verb: "refs", arg: name, corpus: CORPUS_TYPED });
+      expect(run.stdout, name).toContain("[def]");
+      expect(run.stdout, name).toContain("[ref]");
+    }
+  });
+
+  test("callers and jsx follow declaration identity through aliases", () => {
+    const project = projectOf({
+      "packages/ui/src/subject.tsx": `
+export function execute(): null { return null; }
+export function Widget(): null { return null; }
+`,
+      "packages/client/src/use.tsx": `
+import { execute as run, Widget as RenamedWidget } from "../../ui/src/subject";
+run(); run();
+function unrelated(): null { return null; }
+const collision = { execute: unrelated, Widget: (): null => null };
+collision.execute();
+export const view = <>
+  <RenamedWidget />
+  <collision.Widget />
+</>;
+`,
+    });
+    const callers = runVerb(project, { verb: "callers", arg: "execute", corpus: CORPUS_TYPED });
+    expect(callers.epilogue).toMatchObject({ matches: "2" });
+    expect(callers.stdout).not.toContain("collision.execute");
+    const jsx = runVerb(project, { verb: "jsx", arg: "Widget", corpus: CORPUS_TYPED });
+    expect(jsx.epilogue).toMatchObject({ matches: "1" });
+    expect(jsx.stdout).toContain("RenamedWidget");
+    expect(jsx.stdout).not.toContain("collision.Widget");
+  });
+
+  test("callers follows resolved class methods without admitting same-spelled property collisions", () => {
+    const project = projectOf({
+      "packages/server/src/service.ts": `
+export class Service { sendTurn(): void {} }
+export class Other { sendTurnElsewhere(): void {} }
+const service = new Service();
+const other = new Other();
+service.sendTurn();
+const collision = { sendTurn: other.sendTurnElsewhere.bind(other) };
+collision.sendTurn();
+`,
+    });
+    const run = runVerb(project, { verb: "callers", arg: "sendTurn", corpus: CORPUS_TYPED });
+    expect(run.epilogue).toMatchObject({ matches: "1" });
+    expect(run.stdout).toContain("service.sendTurn()");
+    expect(run.stdout).not.toContain("collision.sendTurn()");
+  });
+
+  test("importers canonicalizes a subject to resolved target identity", () => {
+    const project = projectOf(
+      {
+        "packages/kit/src/target.ts": "export const value = 1;",
+        "packages/kit/src/one.ts": 'import { value } from "#target"; import { value as sameLine } from "#target"; export { value, sameLine };',
+        "packages/kit/src/nested/two.ts": 'import { value } from "../target"; export { value };',
+        "packages/kit/src/nested/lazy.ts": 'export const load = () => import("../target");',
+      },
+      {
+        module: ModuleKind.NodeNext,
+        moduleResolution: ModuleResolutionKind.NodeNext,
+        paths: { "#target": ["packages/kit/src/target.ts"] },
+      },
+    );
+    project.resolveSourceFileDependencies();
+    const run = runVerb(project, { verb: "importers", arg: "#target", corpus: CORPUS_TYPED });
+    expect(run.epilogue).toMatchObject({ matches: "4" });
+    expect(run.stdout).toContain("src/one.ts");
+    expect(run.stdout).toContain("src/nested/two.ts");
+    expect(run.stdout).toContain("src/nested/lazy.ts");
+  });
+
+  test("cycles reports one stable cyclic component for overlapping cycles", () => {
+    const project = projectOf({
+      "packages/kit/src/a.ts": 'import "./b"; import "./c";',
+      "packages/kit/src/b.ts": 'import "./a";',
+      "packages/kit/src/c.ts": 'import "./a";',
+    });
+    project.resolveSourceFileDependencies();
+    const run = runVerb(project, { verb: "cycles", arg: "kit", corpus: CORPUS_TYPED });
+    expect(run.epilogue).toMatchObject({ matches: "1" });
+    expect(run.stdout).toContain("a.ts");
+    expect(run.stdout).toContain("b.ts");
+    expect(run.stdout).toContain("c.ts");
+  });
+
+  test("cycles retains a resolved self-import as a cyclic component", () => {
+    const project = projectOf({
+      "packages/kit/src/self.ts": 'import "./self"; export const value = 1;',
+    });
+    project.resolveSourceFileDependencies();
+    const run = runVerb(project, { verb: "cycles", arg: "kit", corpus: CORPUS_TYPED });
+    expect(run.epilogue).toMatchObject({ matches: "1" });
+    expect(run.stdout).toContain("self.ts");
+  });
+
+  test("aliases reports local and exported const rebindings", () => {
+    const project = projectOf({
+      "packages/kit/src/aliases.ts": "const origin = (): void => {}; const localAlias = origin; export const publicAlias = origin;",
+    });
+    const run = runVerb(project, { verb: "aliases", arg: "packages/kit/src", corpus: CORPUS_WIDE_SYNTACTIC });
+    expect(run.epilogue).toMatchObject({ matches: "2" });
+    expect(run.stdout).toContain("const localAlias = origin");
+    expect(run.stdout).toContain("const publicAlias = origin");
+  });
+
+  test("flow and reaches pass the governed graph roots and receipt through dependency-cruiser", async () => {
+    const stdout: string[] = [];
+    const stderr: string[] = [];
+    const calls: { cmd: string; args: readonly string[] }[] = [];
+    const previousExitCode = process.exitCode;
+    const release = installOutputSink({ line: (line) => stdout.push(line), warn: (line) => stderr.push(line) });
+    process.exitCode = undefined;
+    try {
+      beginRun("flow", "depcruise(.dependency-cruiser.cjs)", parseFlags([]));
+      await runDepcruise("--focus", "probe", (cmd, args) => {
+        calls.push({ cmd, args });
+        return Promise.resolve({ stdout: "packages/a.ts -> tooling/src/b.ts\n", stderr: "", code: 0, timedOut: false });
+      });
+      finishRun();
+      expect(calls).toEqual([
+        {
+          cmd: "node_modules/.bin/depcruise",
+          args: ["packages", "tooling", "--config", ".dependency-cruiser.cjs", "--output-type", "text", "--focus", "probe"],
+        },
+      ]);
+      expect(stdout).toEqual(["packages/a.ts -> tooling/src/b.ts"]);
+      expect(parseEpilogue(stderr.join("\n"))).toMatchObject({ scope: expect.stringContaining("graph-roots:packages,tooling"), matches: "1" });
+    } finally {
+      process.exitCode = previousExitCode;
+      release();
+    }
   });
 
   test("columns --all prints finding and healthy tables plus the total sweep receipt", () => {
@@ -355,10 +528,11 @@ export const UNUSED_KEYS = { first: 1, second: 2, third: 3 } as const;`,
 
   test("jsx recognizes paired and self-closing elements with the full known flag vocabulary", () => {
     const project = projectOf({
-      "packages/client/src/view.tsx": "export const view = <><Button>Save</Button><Skeleton /></>;",
-      "packages/ui/src/other.tsx": "export const other = <Skeleton />;",
+      "packages/client/src/view.tsx":
+        "export function Button(): null { return null; } export function Skeleton(): null { return null; } export const view = <><Button>Save</Button><Skeleton /></>;",
+      "packages/ui/src/other.tsx": 'import { Skeleton } from "../../client/src/view"; export const other = <Skeleton />;',
     });
-    const paired = runVerb(project, { verb: "jsx", arg: "Button", argv: ["--files"] });
+    const paired = runVerb(project, { verb: "jsx", arg: "Button", argv: ["--files"], corpus: CORPUS_TYPED });
     expect(paired.stdout).toContain("packages/client/src/view.tsx");
     expect(paired.epilogue["langs"]).toMatch(/tsx:\d+/u);
 
@@ -366,6 +540,7 @@ export const UNUSED_KEYS = { first: 1, second: 2, third: 3 } as const;`,
       verb: "jsx",
       arg: "Skeleton",
       argv: ["--in", "packages/client/src", "--max", "5", "--json"],
+      corpus: CORPUS_TYPED,
     });
     const payload = JSON.parse(selfClosing.stdout) as { total: number; hits: { file: string }[] };
     expect(payload.total).toBe(1);

@@ -1,6 +1,7 @@
 // The symbol verbs: refs / callers / importers / exports / jsx / ident / literal.
+import { dirname, resolve } from "node:path";
 import type { ExportDeclaration, ImportDeclaration, SourceFile } from "ts-morph";
-import { Node, SyntaxKind } from "ts-morph";
+import { Node, SyntaxKind, ts } from "ts-morph";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
 import { semanticReferenceNodes } from "../../_shared/ts-workspace.ts";
@@ -21,6 +22,11 @@ export function declarationsNamed(files: readonly SourceFile[], name: string): N
     candidates.push(...(sf.getExportedDeclarations().get(name) ?? []));
     candidates.push(...sf.getFunctions().filter((fn) => fn.getName() === name && !fn.isExported()));
     candidates.push(...sf.getVariableDeclarations().filter((v) => v.getName() === name && !v.isExported()));
+    candidates.push(...sf.getClasses().filter((decl) => decl.getName() === name && !decl.isExported()));
+    candidates.push(...sf.getInterfaces().filter((decl) => decl.getName() === name && !decl.isExported()));
+    candidates.push(...sf.getTypeAliases().filter((decl) => decl.getName() === name && !decl.isExported()));
+    candidates.push(...sf.getEnums().filter((decl) => decl.getName() === name && !decl.isExported()));
+    candidates.push(...sf.getDescendantsOfKind(SyntaxKind.MethodDeclaration).filter((decl) => decl.getName() === name));
   }
   const seen = new Set<string>();
   return candidates.filter((node) => {
@@ -57,17 +63,18 @@ export function cmdRefs(project: SourceCorpus, name: string, flags: Flags): void
 
 export function cmdCallers(project: SourceCorpus, name: string, flags: Flags): void {
   const hits: Hit[] = [];
-  for (const sf of scanCorpus(project, WHOLE_CORPUS)) {
-    for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
-      const expr = call.getExpression();
-      const isMethod = Node.isPropertyAccessExpression(expr);
-      const tail = isMethod ? expr.getName() : expr.getText();
-      if (tail === name) {
-        hits.push(hitOf(call, isMethod ? "method-call" : "call"));
+  const declarations = declarationsNamed(scanCorpus(project, WHOLE_CORPUS), name);
+  for (const declaration of declarations) {
+    for (const reference of semanticReferenceNodes(declaration)) {
+      const parent = reference.getParent();
+      const expression = parent !== undefined && Node.isPropertyAccessExpression(parent) && parent.getNameNode() === reference ? parent : reference;
+      const call = expression.getParent();
+      if (call !== undefined && Node.isCallExpression(call) && call.getExpression() === expression) {
+        hits.push(hitOf(call, Node.isPropertyAccessExpression(expression) ? "method-call" : "call"));
       }
     }
   }
-  emit(hits, flags, `callers ${name}`);
+  emit(hits, flags, `callers ${name} (${declarations.length} declaration(s), identity-resolved)`);
 }
 
 function staticImporterHits(sf: SourceFile, spec: string): Hit[] {
@@ -90,26 +97,106 @@ function staticImporterHits(sf: SourceFile, spec: string): Hit[] {
   return out;
 }
 
-function dynamicImporterHits(sf: SourceFile, spec: string): Hit[] {
+function resolvedModulePath(sf: SourceFile, spec: string): string | undefined {
+  if (spec.startsWith(".")) {
+    const base = resolve(dirname(sf.getFilePath()), spec);
+    for (const candidate of [base, `${base}.ts`, `${base}.tsx`, `${base}.mts`, `${base}/index.ts`, `${base}/index.tsx`, `${base}/index.mts`]) {
+      const source = sf.getProject().getSourceFile(candidate);
+      if (source !== undefined) {
+        return source.getFilePath();
+      }
+    }
+  }
+  const fs = sf.getProject().getFileSystem();
+  const readFile = (path: string): string | undefined => {
+    let content: string | undefined;
+    try {
+      content = fs.readFileSync(path, "utf-8");
+    } catch {
+      // TypeScript probes extension/package candidates that need not exist.
+    }
+    return content;
+  };
+  return ts.resolveModuleName(spec, sf.getFilePath(), sf.getProject().getCompilerOptions(), {
+    directoryExists: (path) => fs.directoryExistsSync(path),
+    fileExists: (path) => fs.fileExistsSync(path),
+    getCurrentDirectory: () => fs.getCurrentDirectory(),
+    readFile,
+    realpath: (path) => fs.realpathSync(path),
+  }).resolvedModule?.resolvedFileName;
+}
+
+function dynamicImporterHits(sf: SourceFile, spec: string, targets: ReadonlySet<string>): Hit[] {
   const out: Hit[] = [];
   for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
     if (call.getExpression().getKind() !== SyntaxKind.ImportKeyword) {
       continue;
     }
     const arg = call.getArguments()[0];
-    if (arg !== undefined && Node.isStringLiteral(arg) && arg.getLiteralText().includes(spec)) {
+    if (
+      arg !== undefined &&
+      Node.isStringLiteral(arg) &&
+      (arg.getLiteralText().includes(spec) || targets.has(resolvedModulePath(sf, arg.getLiteralText()) ?? ""))
+    ) {
       out.push(hitOf(call, "dynamic-import"));
     }
   }
   return out;
 }
 
+function staticResolvedTargets(sf: SourceFile, spec: string): string[] {
+  const targets: string[] = [];
+  for (const declaration of [...sf.getImportDeclarations(), ...sf.getExportDeclarations()]) {
+    const resolved = declaration.getModuleSpecifierSourceFile()?.getFilePath();
+    if (resolved !== undefined && (declaration.getModuleSpecifierValue()?.includes(spec) === true || resolved.includes(spec))) {
+      targets.push(resolved);
+    }
+  }
+  return targets;
+}
+
+function dynamicResolvedTargets(sf: SourceFile, spec: string): string[] {
+  const targets: string[] = [];
+  for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+    const arg = call.getExpression().getKind() === SyntaxKind.ImportKeyword ? call.getArguments()[0] : undefined;
+    const target =
+      arg !== undefined && Node.isStringLiteral(arg) && arg.getLiteralText().includes(spec) ? resolvedModulePath(sf, arg.getLiteralText()) : undefined;
+    if (target !== undefined) {
+      targets.push(target);
+    }
+  }
+  return targets;
+}
+
+function resolvedTargets(files: readonly SourceFile[], spec: string): Set<string> {
+  const targets = new Set<string>();
+  for (const sf of files) {
+    for (const target of [...staticResolvedTargets(sf, spec), ...dynamicResolvedTargets(sf, spec)]) {
+      targets.add(target);
+    }
+  }
+  return targets;
+}
+
+function resolvedImporterHits(sf: SourceFile, targets: ReadonlySet<string>): Hit[] {
+  const hits: Hit[] = [];
+  for (const declaration of [...sf.getImportDeclarations(), ...sf.getExportDeclarations()]) {
+    const resolved = declaration.getModuleSpecifierSourceFile()?.getFilePath();
+    if (resolved !== undefined && targets.has(resolved)) {
+      hits.push(hitOf(declaration, "import"));
+    }
+  }
+  return hits;
+}
+
 export function cmdImporters(project: SourceCorpus, spec: string, flags: Flags): void {
   const hits: Hit[] = [];
-  for (const sf of scanCorpus(project, WHOLE_CORPUS)) {
-    hits.push(...staticImporterHits(sf, spec), ...dynamicImporterHits(sf, spec));
+  const files = scanCorpus(project, WHOLE_CORPUS);
+  const targetPaths = resolvedTargets(files, spec);
+  for (const sf of files) {
+    hits.push(...staticImporterHits(sf, spec), ...dynamicImporterHits(sf, spec, targetPaths), ...resolvedImporterHits(sf, targetPaths));
   }
-  emit(hits, flags, `importers ${spec}`);
+  emit(hits, flags, `importers ${spec} (${targetPaths.size} resolved target(s))`);
 }
 
 export function cmdExports(project: SourceCorpus, path: string, flags: Flags): void {
@@ -131,16 +218,19 @@ export function cmdExports(project: SourceCorpus, path: string, flags: Flags): v
 
 export function cmdJsx(project: SourceCorpus, name: string, flags: Flags): void {
   const hits: Hit[] = [];
-  for (const sf of scanCorpus(project, WHOLE_CORPUS)) {
-    for (const kind of [SyntaxKind.JsxOpeningElement, SyntaxKind.JsxSelfClosingElement] as const) {
-      for (const el of sf.getDescendantsOfKind(kind)) {
-        if (el.getTagNameNode().getText() === name) {
-          hits.push(hitOf(el, "jsx"));
+  const declarations = declarationsNamed(scanCorpus(project, WHOLE_CORPUS), name);
+  for (const declaration of declarations) {
+    for (const reference of semanticReferenceNodes(declaration)) {
+      const element = reference.getFirstAncestor((ancestor) => Node.isJsxOpeningElement(ancestor) || Node.isJsxSelfClosingElement(ancestor));
+      if (element !== undefined && (Node.isJsxOpeningElement(element) || Node.isJsxSelfClosingElement(element))) {
+        const tag = element.getTagNameNode();
+        if (reference === tag || reference.getFirstAncestor((ancestor) => ancestor === tag) !== undefined) {
+          hits.push(hitOf(element, "jsx"));
         }
       }
     }
   }
-  emit(hits, flags, `jsx ${name}`);
+  emit(hits, flags, `jsx ${name} (${declarations.length} declaration(s), identity-resolved)`);
 }
 
 export function cmdIdent(project: SourceCorpus, name: string, flags: Flags): void {
