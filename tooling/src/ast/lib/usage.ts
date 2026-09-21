@@ -277,7 +277,9 @@ export const USAGE = [
   "       --near [pct] (respell) ADDS a NEAR tier beside the exact one, default 80 when the flag is",
   "       present — never changes the exact tier's output ·",
   "       --max <n> raw-line cap (default 60; big result sets auto-collapse to per-file counts) ·",
-  "       --json machine output (repeated once per section for rot). Syntactic verbs load in ~10s;",
+  "       --json machine output (one JSON value; rot and respell --near retain repeated section values).",
+  "              flow/reaches are dependency-cruiser text pass-throughs and explicitly refuse --json.",
+  "       Syntactic verbs load in ~10s;",
   "       refs/dead/cycles/orphans/testonly/prodonly/typeonly-alive/columns/apisurface/rot resolve types;",
   "       literal loads the wide corpus without resolving types.",
 ].join("\n");

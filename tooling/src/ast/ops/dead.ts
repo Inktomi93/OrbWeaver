@@ -1,12 +1,11 @@
 // dead: the composite evidence-ladder verdict for ONE symbol.
 import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
 import { semanticReferenceNodes } from "../../_shared/ts-workspace.ts";
 import type { DeadEvidence, DeadVerdict, Flags, Hit, Liveness, PublicMarker } from "../contract/types.ts";
-import { emit, hitOf } from "../lib/emit.ts";
+import { emit, hitOf, narrate } from "../lib/emit.ts";
 import { declKey } from "../lib/keys.ts";
 import { scanCorpus, WHOLE_CORPUS } from "../lib/ledger.ts";
 import { buildLiveness } from "../lib/liveness.ts";
@@ -144,17 +143,17 @@ function deadRow(label: string, value: string): string {
   return `  ${label.padEnd(DEAD_LABEL_PAD)} ${value}`;
 }
 
-function printDeadEvidence(name: string, decl: Node, evidence: DeadEvidence): void {
-  print(`dead ${name} @ ${declSite(decl)}`);
-  print(deadRow("production refs:", deadRefsCell(evidence.prodCount, evidence.prodRefs)));
-  print(deadRow("test-only refs:", deadRefsCell(evidence.testCount, evidence.testRefs)));
+function printDeadEvidence(name: string, decl: Node, evidence: DeadEvidence, flags: Flags): void {
+  narrate(flags, `dead ${name} @ ${declSite(decl)}`);
+  narrate(flags, deadRow("production refs:", deadRefsCell(evidence.prodCount, evidence.prodRefs)));
+  narrate(flags, deadRow("test-only refs:", deadRefsCell(evidence.testCount, evidence.testRefs)));
   const swallowedCell =
     evidence.swallowedSites.length === 0 ? "no" : `YES — namespace-swallowed by ${evidence.swallowedSites.slice(0, DEAD_SITES_SHOWN).join(", ")}`;
-  print(deadRow("swallowed:", swallowedCell));
-  print(deadRow("@public marker:", publicMarkerText(evidence.publicMarker)));
-  print(deadRow("vendored home:", evidence.vendored ? "yes (informational)" : "no"));
-  print(deadRow("comment mentions:", `${evidence.commentMentions} (informational — raw comment text, never liveness)`));
-  print(deadRow("VERDICT:", evidence.verdict));
+  narrate(flags, deadRow("swallowed:", swallowedCell));
+  narrate(flags, deadRow("@public marker:", publicMarkerText(evidence.publicMarker)));
+  narrate(flags, deadRow("vendored home:", evidence.vendored ? "yes (informational)" : "no"));
+  narrate(flags, deadRow("comment mentions:", `${evidence.commentMentions} (informational — raw comment text, never liveness)`));
+  narrate(flags, deadRow("VERDICT:", evidence.verdict));
 }
 
 /** A composite evidence-ladder verdict for ONE symbol: production refs / test-only refs / namespace-
@@ -164,7 +163,7 @@ function printDeadEvidence(name: string, decl: Node, evidence: DeadEvidence): vo
 export function cmdDead(project: SourceCorpus, name: string, flags: Flags): void {
   const decls = declarationsNamed(scanCorpus(project, WHOLE_CORPUS), name);
   if (decls.length === 0) {
-    print(`dead ${name}: no declaration found — try \`pnpm ast ident ${name}\``);
+    narrate(flags, `dead ${name}: no declaration found — try \`pnpm ast ident ${name}\``);
     emit([], flags, `dead ${name}`);
     return;
   }
@@ -172,12 +171,13 @@ export function cmdDead(project: SourceCorpus, name: string, flags: Flags): void
   const hits: Hit[] = [];
   for (const decl of decls) {
     const evidence = deadEvidenceFor(project, decl, name, live);
-    printDeadEvidence(name, decl, evidence);
+    printDeadEvidence(name, decl, evidence, flags);
     const h = hitOf(decl, `dead-${evidence.verdict.toLowerCase()}`);
     h.text = `${name}  —  ${evidence.verdict}  —  ${h.text}`;
     hits.push(h);
   }
-  print(
+  narrate(
+    flags,
     'dead is a CANDIDATE lens — an evidence-ladder verdict for ONE symbol (production refs / test-only refs / namespace-swallowed consumption / the @public marker / a vendored-file home / raw comment mentions). TAGGED-KEEP records an unadjudicated marker claim; the push-tier ratchet decides whether it is legal. "Unwired ≠ worthless" (constitution §1): the verdict is a human\'s, never a delete signal.',
   );
   emit(hits, flags, `dead ${name} (${decls.length} declaration(s))`);

@@ -1,10 +1,9 @@
 // stringy: type aliases whose RESOLVED type is exactly `string`.
 import { Node, SyntaxKind } from "ts-morph";
-import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
 import type { Flags, Hit, StringyAudit, StringyCandidate, StringyLink } from "../contract/types.ts";
-import { emit, hitOf } from "../lib/emit.ts";
+import { emit, hitOf, narrate } from "../lib/emit.ts";
 import { declKey } from "../lib/keys.ts";
 import { corpusPredicate, SKIP_TEST_FILES, scanCorpus } from "../lib/ledger.ts";
 import { SNIPPET_CAP, TEST_FILE_RE } from "../lib/root.ts";
@@ -153,10 +152,12 @@ export function cmdStringy(project: SourceCorpus, arg: string, flags: Flags): vo
   const scope = arg === "" ? { prefix: PACKAGES_PREFIX, label: "(all packages)" } : resolveScope(project, arg, "stringy");
   const inScope = corpusPredicate(scanCorpus(project, { scope: scope.prefix, label: `path:${scope.prefix}`, skip: [SKIP_TEST_FILES] }));
   const audit = collectStringyAudit(project, inScope);
-  print(
+  narrate(
+    flags,
     `stringy: ${audit.aliases} type alias(es) examined in scope — a zero below means every one of them NARROWS or BRANDS, not that the lens is blind. (This is NOT \`aliases\`, which reports rename laundering and never inspects a type's meaning.)`,
   );
-  print(
+  narrate(
+    flags,
     "stringy = an alias whose RESOLVED type is exactly `string`: it buys a name and gives up all checking, while reading like a type at the call site. The chain (`A → B → string`) names the fix — BRAND it (`Branded`/`TypeIdOf`, packages/kit/src/ids), NARROW it (a template-literal or a literal union), or DELETE the alias and use the primitive. A template literal, a `string & {brand}` intersection, a literal/value union, and a `T extends string` parameter are all genuine narrowings and are NOT reported. No exemption marker by design: this lens does not gate.",
   );
   emit(audit.candidates.map(stringyHit), flags, `stringy ${scope.label}`);

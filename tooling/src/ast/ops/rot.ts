@@ -1,9 +1,8 @@
 // rot: the five rot collectors over ONE package, ONE load + ONE liveness build.
-import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
 import type { Flags, Hit, Liveness } from "../contract/types.ts";
-import { emit } from "../lib/emit.ts";
+import { emit, narrate } from "../lib/emit.ts";
 import { corpusPredicate, SKIP_TEST_FILES, scanCorpus } from "../lib/ledger.ts";
 import { buildLiveness } from "../lib/liveness.ts";
 import { TEST_FILE_RE } from "../lib/root.ts";
@@ -72,7 +71,8 @@ export function cmdRot(project: SourceCorpus, arg: string, flags: Flags): void {
     }),
   );
   const live = buildLiveness(project, { edges: true });
-  print(
+  narrate(
+    flags,
     `rot ${scope.label}: ONE project load + ONE liveness build, five CANDIDATE-lens sections below — orphans / testonly / chains / typeonly-alive / swallowed (each section calls the SAME collector its standalone verb calls; run \`pnpm ast <verb> ${scope.label}\` for that section's exemption-marker grammar and bucketed narration). Trades five ~40s loads for one.`,
   );
   const sections: readonly (readonly [string, Hit[]])[] = [

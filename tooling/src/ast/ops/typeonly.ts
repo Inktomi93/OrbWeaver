@@ -2,12 +2,11 @@
 
 import process from "node:process";
 import { Node, SyntaxKind } from "ts-morph";
-import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
 import { semanticReferenceNodes } from "../../_shared/ts-workspace.ts";
 import type { Flags, Hit, TypeOnlyCandidate } from "../contract/types.ts";
-import { emit, hitOf } from "../lib/emit.ts";
+import { emit, hitOf, narrate } from "../lib/emit.ts";
 import { declKey } from "../lib/keys.ts";
 import { corpusPredicate, SKIP_TEST_FILES, scanCorpus } from "../lib/ledger.ts";
 import { commentHost } from "../lib/public-markers.ts";
@@ -238,7 +237,7 @@ export function typeOnlyHit(candidate: TypeOnlyCandidate, kind = "typeonly-alive
 /** The STALE side of the `@typeonly-ok` marker: a tag on an export the lens no longer calls type-only-alive —
  *  something references it at runtime now, or nothing references it at all (an `orphans` hit), or it was
  *  never a value declaration. Printed and exit-1 so the marker cannot rot into a permanent lie. */
-function printStaleTypeOnlyTags(project: SourceCorpus, inScope: (fp: string) => boolean, candidateKeys: Set<string>): void {
+function printStaleTypeOnlyTags(project: SourceCorpus, inScope: (fp: string) => boolean, candidateKeys: Set<string>, flags: Flags): void {
   const stale: Hit[] = [];
   for (const sf of project.getSourceFiles()) {
     const fp = sf.getFilePath();
@@ -257,11 +256,12 @@ function printStaleTypeOnlyTags(project: SourceCorpus, inScope: (fp: string) => 
   if (stale.length === 0) {
     return;
   }
-  print(
+  narrate(
+    flags,
     `typeonly-alive: ${stale.length} STALE \`@typeonly-ok:\` marker(s) — the export is no longer alive by type positions ALONE (a runtime reference reaches it now, nothing reaches it at all and it is an \`orphans\` hit, or it is not a value declaration). Delete the marker or re-state the reason:`,
   );
   for (const h of stale) {
-    print(`  ! ${h.file}:${h.line}  [${h.kind}]  ${h.text}`);
+    narrate(flags, `  ! ${h.file}:${h.line}  [${h.kind}]  ${h.text}`);
   }
   process.exitCode = 1;
 }
@@ -273,13 +273,14 @@ export function cmdTypeOnly(project: SourceCorpus, arg: string, flags: Flags): v
   const scope = arg === "" ? { prefix: "/packages/", label: "(all packages)" } : resolveScope(project, arg, "typeonly-alive");
   const inScope = corpusPredicate(scanCorpus(project, { scope: scope.prefix, label: `path:${scope.prefix}`, skip: [SKIP_TEST_FILES] }));
   const candidates = collectTypeOnlyCandidates(project, inScope);
-  printStaleTypeOnlyTags(project, inScope, new Set(candidates.map((c) => declKey(c.decl))));
+  printStaleTypeOnlyTags(project, inScope, new Set(candidates.map((c) => declKey(c.decl))), flags);
   const reportable = candidates.filter((c) => !isTypeOnlyExempt(c.decl));
   const hits = reportable.filter((c) => !c.unionSource).map((c) => typeOnlyHit(c));
   const bucketed = reportable.filter((c) => c.unionSource).map((c) => typeOnlyHit(c, "union-source"));
   const exempt = candidates.length - reportable.length;
   printUnionSourceBucket(bucketed, flags);
-  print(
+  narrate(
+    flags,
     `typeonly-alive is a CANDIDATE lens — a hit may be a DELIBERATE conformance seam (a \`satisfies\` anchor, a runtime value whose type IS the contract). It finds value exports whose every reference is a type position; the verdict is a human's. Keep one deliberately with \`// @typeonly-ok: <reason>\` on the declaration.${exempt === 0 ? "" : ` (${exempt} candidate(s) exempted by a reasoned marker.)`}`,
   );
   emit(hits, flags, `typeonly-alive ${scope.label}`);

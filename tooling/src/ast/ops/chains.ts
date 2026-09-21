@@ -1,11 +1,10 @@
 // chains: declarations whose ONLY life originates inside other DEAD declarations.
 import type { Node } from "ts-morph";
-import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
 import type { ChainAudit, ChainCandidate, ChainLink, Flags, Hit, Liveness } from "../contract/types.ts";
 import { fileOfKey, isModuleScopeKey, topLevelDeclarations } from "../lib/edges.ts";
-import { emit, hitOf } from "../lib/emit.ts";
+import { emit, hitOf, narrate } from "../lib/emit.ts";
 import { declKey } from "../lib/keys.ts";
 import { corpusPredicate, SKIP_TEST_FILES, scanCorpus } from "../lib/ledger.ts";
 import { buildLiveness } from "../lib/liveness.ts";
@@ -260,9 +259,10 @@ export function chainHit(candidate: ChainCandidate): Hit {
 
 /** The deliverable above the hit list: how many chain-dead declarations hang off each UNCONSUMED HEAD —
  *  the rows a reader actually acts on, since fixing one head resolves every link under it. */
-function printChainSummary(audit: ChainAudit): void {
+function printChainSummary(audit: ChainAudit, flags: Flags): void {
   const { candidates } = audit;
-  print(
+  narrate(
+    flags,
     `chains: graph = ${audit.declarations} declaration(s) with ${audit.edges} consumption edge(s); ${audit.unconsumedHeads} of them are UNCONSUMED heads (the \`orphans\`/\`@public\` class — reported by that lens, not this one). A zero below means those heads have nothing dead hanging off them, NOT that the lens is blind.`,
   );
   const byHead = new Map<string, number>();
@@ -277,15 +277,16 @@ function printChainSummary(audit: ChainAudit): void {
     byHead.set(label, (byHead.get(label) ?? 0) + 1);
   }
   const exported = candidates.filter((c) => c.exported).length;
-  print(
+  narrate(
+    flags,
     `chains: ${candidates.length} chain-dead declaration(s) (${exported} exported, ${candidates.length - exported} file-local) hanging off ${byHead.size} unconsumed head(s)${headless === 0 ? "" : `, plus ${headless} in dead cycles with no head`}`,
   );
   const ranked = [...byHead.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
   for (const [label, count] of ranked.slice(0, CHAIN_HEADS_SHOWN)) {
-    print(`  ${String(count).padStart(CHAIN_COUNT_PAD)} link(s) ← head ${label}`);
+    narrate(flags, `  ${String(count).padStart(CHAIN_COUNT_PAD)} link(s) ← head ${label}`);
   }
   if (ranked.length > CHAIN_HEADS_SHOWN) {
-    print(`  … and ${ranked.length - CHAIN_HEADS_SHOWN} more head(s)`);
+    narrate(flags, `  … and ${ranked.length - CHAIN_HEADS_SHOWN} more head(s)`);
   }
 }
 
@@ -306,8 +307,9 @@ export function cmdChains(project: SourceCorpus, arg: string, flags: Flags): voi
   const live = buildLiveness(project, { edges: true });
   const audit = collectChainAudit(project, live, inScope);
   const { candidates } = audit;
-  printChainSummary(audit);
-  print(
+  printChainSummary(audit, flags);
+  narrate(
+    flags,
     "chains is a CANDIDATE lens — it reports declarations whose ONLY consumers are THEMSELVES dead, as whole chains (`X ← only via Y (dead) ← only via Z (unconsumed)`). FIX AT THE HEAD: wire it, delete it, or add any reasoned `@public`-family claim — any makes every link below read alive here, which is why this lens has no per-link marker. This lens treats reasoned markers as provisional alive roots; the push-tier ratchet separately adjudicates their legality. VERIFY before acting: consumption attribution is syntactic and name-based inside a file, and a consumer this substrate cannot see (a registry keyed from the DB, a `Trpc[…]` proxy read, a template-literal module id) makes a LIVE declaration look chain-dead — a fixpoint amplifies one missed edge into a whole dead-looking subtree. Other alive roots are module-scope side effects, test/script consumers, and every `packages/ui/src` export (the R2 sealed surface).",
   );
   emit(candidates.map(chainHit), flags, `chains ${scope.label}`);

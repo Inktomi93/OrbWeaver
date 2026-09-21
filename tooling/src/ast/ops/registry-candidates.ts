@@ -1,12 +1,11 @@
 // registry-candidates: informational discovery lens for convention-maintained open sets (#1189).
 import type { Node as MorphNode, SourceFile, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { resolveLexicalValueDeclaration, resolveModuleMemberOrigin, resolveStableExpression } from "../../_shared/reference-fact.ts";
 import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
 import type { Flags, Hit } from "../contract/types.ts";
-import { emit, hitOf } from "../lib/emit.ts";
+import { emit, hitOf, narrate } from "../lib/emit.ts";
 import { noteUnits, scanCorpus } from "../lib/ledger.ts";
 import { isTestPath } from "../lib/root.ts";
 import { relPath } from "./swallowed.ts";
@@ -281,7 +280,8 @@ export function cmdRegistryCandidates(project: SourceCorpus, arg: string, flags:
   const all = collectRegistryCandidates(project);
   const hits = arg === "" ? all : all.filter((hit) => hit.file.includes(arg) || hit.text.includes(arg));
   noteUnits("candidate-classes", CANDIDATE_CLASS_COUNT);
-  print(
+  narrate(
+    flags,
     `registry-candidates is an INFORMATIONAL lens: every hit needs human triage. Classes: contribution-without-door, value-side-literal-set, shared-namespace-mutation, drifted-twins. Scanned ${files.length} production source files.`,
   );
   emit(hits, flags, `registry-candidates${arg === "" ? "" : ` ${arg}`}`);
