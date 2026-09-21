@@ -270,7 +270,7 @@ test.describe("the page-scale shell", () => {
     await routeTrpc(page, TWO_PAGES);
 
     // Page one.
-    const first = await mount(<ExtensionsPageStory selectKey={`${ORACLE_ID}:deck_page`} />);
+    const first = await mount(<ExtensionsPageStory selectKey={{ pluginId: ORACLE_ID, surfaceId: "deck_page" }} />);
     const band = page.getByTestId("plugin-page-attribution");
     await expect(band).toBeVisible();
     await expect(band).toContainText("Oracle Deck");
@@ -282,7 +282,7 @@ test.describe("the page-scale shell", () => {
 
     // Page TWO — the band is pinned on EVERY page, not on the one the first test happened to open. A wall that
     // holds for one page and not the next is not a wall.
-    await mount(<ExtensionsPageStory selectKey={`${CHIPS_ID}:chips_page`} />);
+    await mount(<ExtensionsPageStory selectKey={{ pluginId: CHIPS_ID, surfaceId: "chips_page" }} />);
     const secondBand = page.getByTestId("plugin-page-attribution");
     await expect(secondBand).toBeVisible();
     await expect(secondBand).toContainText("Scene Chips");
@@ -323,7 +323,7 @@ test.describe("the page-scale shell", () => {
       "plugin.listSurfaces": () => [pageRow(ORACLE_ID, "deck_page", "Oracle Deck", DECK_SPEC)],
       "plugin.getSurfaceState": () => ({ status: "Session open · 2 dealt" }),
     });
-    await mount(<ExtensionsPageStory selectKey={`${ORACLE_ID}:deck_page`} />);
+    await mount(<ExtensionsPageStory selectKey={{ pluginId: ORACLE_ID, surfaceId: "deck_page" }} />);
 
     const band = page.getByTestId("plugin-page-attribution");
     await expect(band).toBeVisible();
@@ -336,7 +336,7 @@ test.describe("the page-scale shell", () => {
     await routeTrpc(page, NO_PAGES);
     // The drill outlived its page (the plugin was disabled while it was open). The store is ephemeral and never
     // self-heals by writing — it just stops resolving until the person picks again (D138 rule 2).
-    await mount(<ExtensionsPageStory selectKey={`${ORACLE_ID}:deck_page`} />);
+    await mount(<ExtensionsPageStory selectKey={{ pluginId: ORACLE_ID, surfaceId: "deck_page" }} />);
     await expect(page.getByText("That page is no longer available")).toBeVisible();
     await expect(page.getByTestId("plugin-page-attribution")).toHaveCount(0);
   });

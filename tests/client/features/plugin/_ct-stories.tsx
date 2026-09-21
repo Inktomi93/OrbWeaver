@@ -31,6 +31,7 @@ import {
   clearPluginPage,
   openPluginCommandArgs,
   openPluginDialog,
+  pluginPageKey,
   selectChat,
   selectPluginPageFromList,
   useSectionRegistry,
@@ -286,14 +287,18 @@ function ExtensionsListHeaderHarness(): ReactElement {
 }
 
 /** The Extensions section's CONTENT pane, through the real registry. `selectKey` drives the module-singleton
- *  drill store through the production switcher door (`selectPluginPageFromList`) — `null` is the no-selection arm, which is a
- *  DIFFERENT state from "there are no pages" and must read differently. */
-export function ExtensionsPageStory({ selectKey = null }: { readonly selectKey?: string | null }): ReactElement {
+ *  drill store through the production switcher door (`pluginPageKey` → `selectPluginPageFromList`) — `null`
+ *  is the no-selection arm, which is a DIFFERENT state from "there are no pages" and must read differently. */
+export function ExtensionsPageStory({
+  selectKey = null,
+}: {
+  readonly selectKey?: { readonly pluginId: PluginId; readonly surfaceId: string } | null;
+}): ReactElement {
   useEffect(() => {
     if (selectKey === null) {
       clearPluginPage();
     } else {
-      selectPluginPageFromList(selectKey);
+      selectPluginPageFromList(pluginPageKey(selectKey.pluginId, selectKey.surfaceId));
     }
   }, [selectKey]);
   return (

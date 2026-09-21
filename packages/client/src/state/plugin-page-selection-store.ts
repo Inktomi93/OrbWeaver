@@ -13,15 +13,15 @@
 // self-heals by writing). This store is ephemeral anyway (a page selection dies with the tab), so there is no
 // persisted blob to sanitize.
 
-import type { PluginId } from "@orb/kit/ids";
+import type { Branded, PluginId } from "@orb/kit/ids";
 import { createDrillSelectionStore } from "./create-drill-selection-store.ts";
 
 /** The composite drill key: `<pluginId>:<surfaceId>`. */
-export type PluginPageKey = string;
+export type PluginPageKey = Branded<"PluginPageKey">;
 
 /** Join the pair into the drill key — the ONE mint. */
 export function pluginPageKey(pluginId: PluginId, surfaceId: string): PluginPageKey {
-  return `${pluginId}:${surfaceId}`;
+  return `${pluginId}:${surfaceId}` as PluginPageKey;
 }
 
 const store = createDrillSelectionStore<PluginPageKey>("plugin-page-selection");

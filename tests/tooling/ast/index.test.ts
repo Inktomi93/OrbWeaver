@@ -465,6 +465,70 @@ describe("ast prodonly lens (tooling entry points)", () => {
     expect(hitFiles).toContain("packages/client/src/internal/unused.ts");
   });
 
+  test("static relative Worker URL entries reach their TS/TSX modules without promoting dynamic paths or ordinary URL assets", () => {
+    const project = new Project({
+      useInMemoryFileSystem: true,
+      compilerOptions: { jsx: 1, moduleResolution: ModuleResolutionKind.Bundler },
+    });
+    const files: Record<string, string> = {
+      "packages/client/src/main.tsx": `
+import "./worker-owner.ts";
+import "./worker-owner.tsx";
+import "./ordinary-url.ts";
+import "./dynamic-worker.ts";
+export const appEntry = true;
+`,
+      "packages/client/src/worker-owner.ts": 'export const worker = new Worker(new URL("./live.worker.ts", import.meta.url), { type: "module" });',
+      "packages/client/src/worker-owner.tsx": `
+export const marker = <div />;
+export const worker = new Worker(new URL("./live.worker.tsx", import.meta.url), { type: "module" });
+export const templateWorker = new Worker(new URL(\`./live-template.worker.ts\`, import.meta.url), { type: "module" });
+`,
+      "packages/client/src/live.worker.ts": 'import "./worker-dependency.ts"; export const live = true;',
+      "packages/client/src/live.worker.tsx": "export const live = <span />;",
+      "packages/client/src/live-template.worker.ts": 'import "./template-worker-dependency.ts"; export const live = true;',
+      "packages/client/src/worker-dependency.ts": "export const dependency = true;",
+      "packages/client/src/template-worker-dependency.ts": "export const dependency = true;",
+      "packages/client/src/ordinary-url.ts": 'export const asset = new URL("./ordinary-url-target.ts", import.meta.url);',
+      "packages/client/src/ordinary-url-target.ts": "export const mustStayUnreachable = true;",
+      "packages/client/src/dynamic-worker.ts": `
+const path = "./dynamic.worker.ts";
+export const worker = new Worker(new URL(path, import.meta.url), { type: "module" });
+const stem = "substitution";
+export const templateWorker = new Worker(new URL(\`./\${stem}.worker.ts\`, import.meta.url), { type: "module" });
+`,
+      "packages/client/src/dynamic.worker.ts": "export const mustStayUnreachable = true;",
+      "packages/client/src/substitution.worker.ts": "export const mustStayUnreachable = true;",
+    };
+    for (const [path, text] of Object.entries(files)) {
+      project.createSourceFile(`${AST_REPO_ROOT}/${path}`, text);
+    }
+
+    const lines: string[] = [];
+    const release = installOutputSink({ line: (line) => lines.push(line), warn: () => undefined });
+    try {
+      const prodonly = VERBS["prodonly"];
+      expect(prodonly).toBeDefined();
+      if (prodonly === undefined) {
+        throw new Error("prodonly verb is not registered");
+      }
+      prodonly(project, "client", parseFlags(["--json"]));
+    } finally {
+      release();
+    }
+
+    const payload = JSON.parse(lines.find((line) => line.startsWith("{")) ?? "null") as { hits: Hit[] } | null;
+    const hitFiles = payload?.hits.map(({ file }) => file) ?? [];
+    expect(hitFiles).not.toContain("packages/client/src/live.worker.ts");
+    expect(hitFiles).not.toContain("packages/client/src/live.worker.tsx");
+    expect(hitFiles).not.toContain("packages/client/src/live-template.worker.ts");
+    expect(hitFiles).not.toContain("packages/client/src/worker-dependency.ts");
+    expect(hitFiles).not.toContain("packages/client/src/template-worker-dependency.ts");
+    expect(hitFiles).toContain("packages/client/src/ordinary-url-target.ts");
+    expect(hitFiles).toContain("packages/client/src/dynamic.worker.ts");
+    expect(hitFiles).toContain("packages/client/src/substitution.worker.ts");
+  });
+
   test("a knip-only nested index is analysis configuration, not a shipped entry", () => {
     const project = new Project({ useInMemoryFileSystem: true });
     const files: Record<string, string> = {
