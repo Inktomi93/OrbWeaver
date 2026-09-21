@@ -1,0 +1,505 @@
+{
+  "schema": "orbweaver.world-tools.ui-rot-triage.v1",
+  "worktree": "/home/inktomi/.codex/worktrees/world-aware-tools/orbweaver",
+  "input": {
+    "stdout": "/tmp/world-tools-partial-lenses-runs/rot-ui.stdout",
+    "stderr": "/tmp/world-tools-partial-lenses-runs/rot-ui.stderr",
+    "command": "pnpm ast rot ui --json --max 100000",
+    "exit_status": 0,
+    "tool_scope": "corpus:native-program-authored-roots(per-tsconfig)+path:/packages/ui/src/",
+    "tool_scanned": 368,
+    "tool_skipped_out_of_scope": 7497
+  },
+  "method": {
+    "structural": {
+      "tool": "ast-grep",
+      "languages": ["TypeScript", "Tsx"],
+      "scopes": ["packages/ui", "packages/client", "tests/ui", "tests/kit"],
+      "rules": [
+        "/tmp/ui-rot-identifiers-ts.yml",
+        "/tmp/ui-rot-identifiers-tsx.yml"
+      ],
+      "notes": [
+        "Exact identifier rules mapped declarations, re-export barrels, imports, JSX uses, and test callers.",
+        "Type-alias syntax was additionally probed with the contextual pattern `type PolarityTokenPath = $T` because a kind:identifier rule does not match TypeScript type_identifier nodes.",
+        "The TS and TSX scans contained planted known-positive controls such as THEME_DERIVATION and RevealGate, so zero-call-site results for the three orphan candidates were measured rather than an empty scan."
+      ]
+    },
+    "textual_corroboration": {
+      "tool": "rg",
+      "scope": "all 7,865 repository-authored *.ts and *.tsx files admitted by ripgrep ignore rules",
+      "pattern": "exact word-bounded alternation of all 46 candidate names",
+      "notes": [
+        "A second unrestricted literal search including non-TS files found PolarityTokenPath only in the generated index and its generator string.",
+        "Text counts include declarations, prop/type names, comments, and unrelated homonyms for generic names such as Table and Pause; they corroborate presence and absence but do not decide liveness."
+      ]
+    }
+  },
+  "summary": {
+    "candidate_count": 46,
+    "orphan_export_candidates": 3,
+    "test_only_export_candidates": 43,
+    "chains": 0,
+    "typeonly_alive": 0,
+    "swallowed": 0,
+    "primary_classification_counts": {
+      "runtime_consumer_with_proof_export": 1,
+      "framework_entrypoint": 37,
+      "deliberate_test_proof_seam": 5,
+      "intended_but_unwired_feature": 3,
+      "tool_false_positive": 0,
+      "tool_false_negative": 0,
+      "genuine_deletion": 0
+    },
+    "disposition_counts": {
+      "preserve": 46,
+      "delete": 0
+    },
+    "conclusion": "No deletion is justified. The three orphan exports are intentional package API surfaces with explicit anatomy or generated-map provenance. The 43 test-only exports divide into 37 public component/framework entrypoints and six proof-facing exports, one of which also has live runtime consumers. The rot lens is accurate as a candidate generator; treating candidate status as deletion authority would produce 46 false-positive deletions."
+  },
+  "tool_assessment": {
+    "false_positives": {
+      "count": 0,
+      "explanation": "No candidate is falsely labeled under the lens's narrow meanings of orphan-export or test-only-export. Every label matches the semantic graph inspected. All 46 are non-actionable for deletion because package entrypoints and proof seams are deliberately retained contracts."
+    },
+    "false_negatives": {
+      "count": 0,
+      "explanation": "No missed caller was found for these candidates by the independent ast-grep TS+TSX pass or the 7,865-file word-bounded text scan. This is bounded to the reported candidate set and does not claim completeness outside the tool's 368-file authored-root UI scope."
+    }
+  },
+  "findings": [
+    {
+      "name": "CommandSeparator",
+      "source": "packages/ui/src/primitives/command/command.tsx:221",
+      "lens": "orphan-export",
+      "primary_classification": "intended_but_unwired_feature",
+      "secondary_classifications": ["framework_entrypoint"],
+      "disposition": "preserve",
+      "evidence": "Re-exported from the @orb/ui/command package entrypoint. The declaration comment defines the cmdk divider anatomy and its alwaysRender search behavior. ast-grep found declaration/import-alias/barrel structure and no runtime or test caller; the exact textual count was 3. This is a complete but currently unwired command-palette part, not accidental code."
+    },
+    {
+      "name": "CommandLoading",
+      "source": "packages/ui/src/primitives/command/command.tsx:230",
+      "lens": "orphan-export",
+      "primary_classification": "intended_but_unwired_feature",
+      "secondary_classifications": ["framework_entrypoint"],
+      "disposition": "preserve",
+      "evidence": "Re-exported from @orb/ui/command. The declaration is the styled cmdk async-suggestions progressbar and the command file explicitly describes future omni-bar composition. ast-grep found declaration/import-alias/barrel structure and no caller; the exact textual count was 3."
+    },
+    {
+      "name": "PolarityTokenPath",
+      "source": "packages/ui/src/tokens/index.ts:253",
+      "lens": "orphan-export",
+      "primary_classification": "intended_but_unwired_feature",
+      "secondary_classifications": ["framework_entrypoint", "generated_contract"],
+      "disposition": "preserve",
+      "evidence": "The @orb/ui/tokens package entrypoint is the generated typed companion to TOKEN_POLARITY_ARMS. A contextual ast-grep type-alias pattern found the declaration; TSX ast-grep found no use; unrestricted rg found exactly two spellings: the generated declaration and the generator template at packages/ui/tokens.build.ts:422. git history shows both the map and key type were introduced together by e952dbc00. Removing only the type would narrow an intentionally generated map API, so absence of a current caller is insufficient deletion authority."
+    },
+    {
+      "name": "WEB_GLYPH_COMPACT",
+      "source": "packages/ui/src/art/web-weave/web-glyph.ts:98",
+      "lens": "test-only-export",
+      "primary_classification": "deliberate_test_proof_seam",
+      "secondary_classifications": ["framework_entrypoint"],
+      "disposition": "preserve",
+      "evidence": "Exported by @orb/ui/web-weave as part of the documented pure one-emblem/every-scale geometry API. Its caller is tests/ui/art/web-weave/web-weave-geometry.dom.test.ts; ast-grep found declaration, barrel, and test uses across 4 identifier nodes, matching 4 exact textual occurrences."
+    },
+    {
+      "name": "WAYSTONE_WEATHERS",
+      "source": "packages/ui/src/charts/meter/waystone-treatment.ts:38",
+      "lens": "test-only-export",
+      "primary_classification": "deliberate_test_proof_seam",
+      "secondary_classifications": ["framework_entrypoint"],
+      "disposition": "preserve",
+      "evidence": "Exported by @orb/ui/meter as the identity alias of the canonical weather tuple. tests/ui/charts/meter/waystone-treatment.dom.test.ts iterates it to prove recipe coverage and distinctness. ast-grep found 14 structural identifiers in declaration/barrel/test; exact text count 15."
+    },
+    {
+      "name": "WAYSTONE_SKY_STOPS",
+      "source": "packages/ui/src/charts/meter/waystone-treatment.ts:219",
+      "lens": "test-only-export",
+      "primary_classification": "deliberate_test_proof_seam",
+      "secondary_classifications": ["framework_entrypoint"],
+      "disposition": "preserve",
+      "evidence": "Exported by @orb/ui/meter so the treatment test can prove stop coverage, ordering, and noon resolution against the same table used by waystoneSkyAt. ast-grep found 7 structural identifiers and exact text count was 7."
+    },
+    {
+      "name": "THEME_DERIVATION",
+      "source": "packages/ui/src/content/theme-scope/clamp.ts:142",
+      "lens": "test-only-export",
+      "primary_classification": "runtime_consumer_with_proof_export",
+      "secondary_classifications": ["deliberate_test_proof_seam"],
+      "disposition": "preserve",
+      "evidence": "This is not dead at runtime: packages/ui/src/content/theme-scope/derive-vars.ts imports and reads it for borders, input alpha, reading plates, and ramps. Its exported visibility additionally lets kit/theme-scope tests prove the UI alias remains identical to the one canonical @orb/kit declaration. ast-grep found 37 identifier nodes across runtime and tests; exact text count 66."
+    },
+    {
+      "name": "SnappedTokenPath",
+      "source": "packages/ui/src/tokens/index.ts:295",
+      "lens": "test-only-export",
+      "primary_classification": "deliberate_test_proof_seam",
+      "secondary_classifications": ["framework_entrypoint", "generated_contract"],
+      "disposition": "preserve",
+      "evidence": "Generated key type paired with SNAPPED_LENGTH_BASE_PX. tests/ui/tokens/index.test.ts uses it to type the touch-floor and integer-pixel exhaustive probes. Exact text count was 5; the type remains part of the @orb/ui/tokens entrypoint."
+    },
+    {
+      "name": "zScopeOfCssVar",
+      "source": "packages/ui/src/tokens/z-scope.ts:77",
+      "lens": "test-only-export",
+      "primary_classification": "deliberate_test_proof_seam",
+      "secondary_classifications": ["framework_entrypoint"],
+      "disposition": "preserve",
+      "evidence": "The @orb/ui/z-scope package entrypoint is consumed by tests/ui/styles/css-structure.suite.test.ts to map live CSS vars back to governed stacking scopes. ast-grep and text both found 3 exact identifiers: declaration, import, and call."
+    },
+    {
+      "name": "ToolbarButton",
+      "source": "packages/ui/src/layout/toolbar.tsx:27",
+      "lens": "test-only-export",
+      "primary_classification": "framework_entrypoint",
+      "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
+      "disposition": "preserve",
+      "evidence": "Public @orb/ui/layout toolbar anatomy; tests/ui/layout/toolbar.ct.tsx proves roving-focus behavior. ast-grep found 23 declaration/barrel/test identifiers; exact text count 26."
+    },
+    {
+      "name": "ToolbarSeparator",
+      "source": "packages/ui/src/layout/toolbar.tsx:36",
+      "lens": "test-only-export",
+      "primary_classification": "framework_entrypoint",
+      "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
+      "disposition": "preserve",
+      "evidence": "Public @orb/ui/layout toolbar anatomy with focused CT coverage in tests/ui/layout/toolbar.ct.tsx. ast-grep found declaration/barrel/test structure; exact text count 5."
+    },
+    {
+      "name": "ToolbarGroup",
+      "source": "packages/ui/src/layout/toolbar.tsx:49",
+      "lens": "test-only-export",
+      "primary_classification": "framework_entrypoint",
+      "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
+      "disposition": "preserve",
+      "evidence": "Public @orb/ui/layout grouping primitive; tests/ui/layout/toolbar.ct.tsx exercises it. ast-grep found 7 structural identifiers; exact text count 10."
+    },
+    {
+      "name": "ToolbarLink",
+      "source": "packages/ui/src/layout/toolbar.tsx:62",
+      "lens": "test-only-export",
+      "primary_classification": "framework_entrypoint",
+      "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
+      "disposition": "preserve",
+      "evidence": "Public @orb/ui/layout toolbar link wrapper; tests/ui/layout/toolbar.ct.tsx covers the composed toolbar contract. ast-grep found 5 structural identifiers; exact text count 7."
+    },
+    {
+      "name": "ToolbarInput",
+      "source": "packages/ui/src/layout/toolbar.tsx:76",
+      "lens": "test-only-export",
+      "primary_classification": "framework_entrypoint",
+      "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
+      "disposition": "preserve",
+      "evidence": "Public @orb/ui/layout toolbar input wrapper; tests/ui/layout/toolbar.ct.tsx is its only current consumer. ast-grep found 4 structural identifiers; exact text count 6."
+    },
+    {
+      "name": "AccordionHeader",
+      "source": "packages/ui/src/primitives/accordion/accordion.tsx:36",
+      "lens": "test-only-export",
+      "primary_classification": "framework_entrypoint",
+      "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
+      "disposition": "preserve",
+      "evidence": "Public @orb/ui/accordion Base UI anatomy. tests/ui/primitives/accordion/accordion.ct.tsx exercises header composition and accessibility. ast-grep found 19 structural identifiers; exact text count 19."
+    },
+    {
+      "name": "createAlertDialogHandle",
+      "source": "packages/ui/src/primitives/alert-dialog/handle.ts:4",
+      "lens": "test-only-export",
+      "primary_classification": "framework_entrypoint",
+      "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
+      "disposition": "preserve",
+      "evidence": "Public detached-handle API exported from @orb/ui/alert-dialog. tests/ui/primitives/alert-dialog/alert-dialog-handle.fixtures.tsx mounts the imperative contract. ast-grep found declaration/barrel/import/call; exact text count 5."
+    },
+    {
+      "name": "ColorSwatch",
+      "source": "packages/ui/src/primitives/color-field/color-field.tsx:27",
+      "lens": "test-only-export",
+      "primary_classification": "framework_entrypoint",
+      "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
+      "disposition": "preserve",
+      "evidence": "Public display-only half of @orb/ui/color-field; the variants header explicitly says the skin is shared by ColorSwatch and the interactive field. tests/ui/primitives/color-field/color-field.ct.tsx covers it. ast-grep found 6 structural identifiers; exact text count 9."
+    },
+    {
+      "name": "CommandStatus",
+      "source": "packages/ui/src/primitives/command/command.tsx:235",
+      "lens": "test-only-export",
+      "primary_classification": "framework_entrypoint",
+      "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
+      "disposition": "preserve",
+      "evidence": "Public @orb/ui/command live-region part. tests/ui/primitives/command/command.fixtures.tsx composes it under Command so CT can prove filtered-result announcements. ast-grep and exact text both found 4 identifiers."
+    },
+    {
+      "name": "createDialogHandle",
+      "source": "packages/ui/src/primitives/dialog/handle.ts:5",
+      "lens": "test-only-export",
+      "primary_classification": "framework_entrypoint",
+      "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
+      "disposition": "preserve",
+      "evidence": "Public @orb/ui/dialog detached-handle API with tests/ui/primitives/dialog/dialog-handle.fixtures.tsx as the current caller. ast-grep and exact text both found 4 identifiers."
+    },
+    {
+      "name": "DrawerTrigger",
+      "source": "packages/ui/src/primitives/drawer/drawer.tsx:44",
+      "lens": "test-only-export",
+      "primary_classification": "framework_entrypoint",
+      "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
+      "disposition": "preserve",
+      "evidence": "Public @orb/ui/drawer Base UI trigger, exercised in drawer.ct.tsx and drawer-handle.fixtures.tsx. ast-grep found 18 structural identifiers; exact text count 23."
+    },
+    {
+      "name": "DrawerDescription",
+      "source": "packages/ui/src/primitives/drawer/drawer.tsx:97",
+      "lens": "test-only-export",
+      "primary_classification": "framework_entrypoint",
+      "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
+      "disposition": "preserve",
+      "evidence": "Public @orb/ui/drawer accessible-description part, exercised by tests/ui/primitives/drawer/drawer.ct.tsx. ast-grep and exact text both found 7 identifiers."
+    },
+    {
+      "name": "DrawerSwipeArea",
+      "source": "packages/ui/src/primitives/drawer/drawer.tsx:115",
+      "lens": "test-only-export",
+      "primary_classification": "framework_entrypoint",
+      "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
+      "disposition": "preserve",
+      "evidence": "Public swipe-area part of @orb/ui/drawer, exercised by drawer.ct.tsx. ast-grep and exact text both found 4 identifiers."
+    },
+    {
+      "name": "DrawerProvider",
+      "source": "packages/ui/src/primitives/drawer/drawer.tsx:125",
+      "lens": "test-only-export",
+      "primary_classification": "framework_entrypoint",
+      "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
+      "disposition": "preserve",
+      "evidence": "Public context owner required by DrawerIndent and DrawerIndentBackground; its source contract explicitly says it renders no element. drawer.ct.tsx proves the depth composition. ast-grep found 5 structural identifiers; exact text count 10."
+    },
+    {
+      "name": "DrawerIndent",
+      "source": "packages/ui/src/primitives/drawer/drawer.tsx:137",
+      "lens": "test-only-export",
+      "primary_classification": "framework_entrypoint",
+      "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
+      "disposition": "preserve",
+      "evidence": "Public drawer depth-effect part that must live inside DrawerProvider; drawer.ct.tsx is the proof consumer. ast-grep found 5 structural identifiers; exact text count 7."
+    },
+    {
+      "name": "DrawerIndentBackground",
+      "source": "packages/ui/src/primitives/drawer/drawer.tsx:150",
+      "lens": "test-only-export",
+      "primary_classification": "framework_entrypoint",
+      "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
+      "disposition": "preserve",
+      "evidence": "Public companion background for DrawerIndent, with an explicit source ordering/provider contract and drawer.ct.tsx coverage. ast-grep found 4 structural identifiers; exact text count 5."
+    },
+    {
+      "name": "createDrawerHandle",
+      "source": "packages/ui/src/primitives/drawer/handle.ts:4",
+      "lens": "test-only-export",
+      "primary_classification": "framework_entrypoint",
+      "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
+      "disposition": "preserve",
+      "evidence": "Public one-drawer-from-N-sources handle; its header explicitly states the use case and mirror with alert-dialog. drawer-handle.fixtures.tsx proves it. ast-grep and exact text both found 5 identifiers."
+    },
+    {
+      "name": "FieldValidity",
+      "source": "packages/ui/src/primitives/field/field.tsx:207",
+      "lens": "test-only-export",
+      "primary_classification": "framework_entrypoint",
+      "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
+      "disposition": "preserve",
+      "evidence": "Public @orb/ui/field Base UI validity part; field-validity.fixtures.tsx composes the browser-visible proof. ast-grep found 5 structural identifiers; exact text count 9."
+    },
+    {
+      "name": "Pause",
+      "source": "packages/ui/src/primitives/icons/fillable.ts:56",
+      "lens": "test-only-export",
+      "primary_classification": "framework_entrypoint",
+      "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
+      "disposition": "preserve",
+      "evidence": "Public fillable-icon registry member exported by @orb/ui/icons. The source header has Pause-specific partial-fill behavior, and icon.fixtures.tsx exercises it. ast-grep found declaration/import/barrel/fixture structure; exact text count 17 includes prose and other pause concepts."
+    },
+    {
+      "name": "createMenuHandle",
+      "source": "packages/ui/src/primitives/menu/handle.ts:7",
+      "lens": "test-only-export",
+      "primary_classification": "framework_entrypoint",
+      "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
+      "disposition": "preserve",
+      "evidence": "Public detached handle from @orb/ui/menu, with menu-handle.fixtures.tsx as current caller. ast-grep and exact text both found 4 identifiers."
+    },
+    {
+      "name": "MenuViewport",
+      "source": "packages/ui/src/primitives/menu/menu.tsx:85",
+      "lens": "test-only-export",
+      "primary_classification": "framework_entrypoint",
+      "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
+      "disposition": "preserve",
+      "evidence": "Public Base UI menu anatomy exported from @orb/ui/menu and exercised by menu.ct.tsx. ast-grep found 5 structural identifiers; exact text count 6."
+    },
+    {
+      "name": "MenuArrow",
+      "source": "packages/ui/src/primitives/menu/menu.tsx:95",
+      "lens": "test-only-export",
+      "primary_classification": "framework_entrypoint",
+      "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
+      "disposition": "preserve",
+      "evidence": "Public menu positioning arrow; menu.ct.tsx exercises it through the package entrypoint. ast-grep found 4 structural identifiers; exact text count 5."
+    },
+    {
+      "name": "MenuCheckboxItem",
+      "source": "packages/ui/src/primitives/menu/menu.tsx:149",
+      "lens": "test-only-export",
+      "primary_classification": "framework_entrypoint",
+      "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
+      "disposition": "preserve",
+      "evidence": "Public checked-item branch of the @orb/ui/menu API, covered in menu.ct.tsx. ast-grep and exact text both found 5 identifiers."
+    },
+    {
+      "name": "MenuRadioGroup",
+      "source": "packages/ui/src/primitives/menu/menu.tsx:162",
+      "lens": "test-only-export",
+      "primary_classification": "framework_entrypoint",
+      "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
+      "disposition": "preserve",
+      "evidence": "Public radio-group branch of the menu anatomy, covered in menu.ct.tsx. ast-grep found 5 structural identifiers; exact text count 6."
+    },
+    {
+      "name": "MenuRadioItem",
+      "source": "packages/ui/src/primitives/menu/menu.tsx:174",
+      "lens": "test-only-export",
+      "primary_classification": "framework_entrypoint",
+      "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
+      "disposition": "preserve",
+      "evidence": "Public radio-item branch of the menu anatomy, covered in menu.ct.tsx. ast-grep and exact text both found 7 identifiers."
+    },
+    {
+      "name": "MenuBackdrop",
+      "source": "packages/ui/src/primitives/menu/menu.tsx:236",
+      "lens": "test-only-export",
+      "primary_classification": "framework_entrypoint",
+      "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
+      "disposition": "preserve",
+      "evidence": "Public backdrop part of @orb/ui/menu, exercised by menu.ct.tsx. ast-grep and exact text both found 4 identifiers."
+    },
+    {
+      "name": "createPopoverHandle",
+      "source": "packages/ui/src/primitives/popover/handle.ts:5",
+      "lens": "test-only-export",
+      "primary_classification": "framework_entrypoint",
+      "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
+      "disposition": "preserve",
+      "evidence": "Public detached handle from @orb/ui/popover; popover-handle.fixtures.tsx proves the contract. ast-grep found 4 structural identifiers; exact text count 5."
+    },
+    {
+      "name": "PopoverViewport",
+      "source": "packages/ui/src/primitives/popover/popover.tsx:120",
+      "lens": "test-only-export",
+      "primary_classification": "framework_entrypoint",
+      "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
+      "disposition": "preserve",
+      "evidence": "Public Base UI popover anatomy, exercised by popover.ct.tsx. ast-grep found 5 structural identifiers; exact text count 6."
+    },
+    {
+      "name": "PopoverArrow",
+      "source": "packages/ui/src/primitives/popover/popover.tsx:129",
+      "lens": "test-only-export",
+      "primary_classification": "framework_entrypoint",
+      "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
+      "disposition": "preserve",
+      "evidence": "Public popover positioning arrow, exercised by popover.ct.tsx. ast-grep and exact text both found 4 identifiers."
+    },
+    {
+      "name": "PopoverDescription",
+      "source": "packages/ui/src/primitives/popover/popover.tsx:151",
+      "lens": "test-only-export",
+      "primary_classification": "framework_entrypoint",
+      "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
+      "disposition": "preserve",
+      "evidence": "Public accessible-description part used in popover.ct.tsx and popover-handle.fixtures.tsx. ast-grep and exact text both found 12 identifiers."
+    },
+    {
+      "name": "RevealGate",
+      "source": "packages/ui/src/primitives/reveal-gate/reveal-gate.tsx:27",
+      "lens": "test-only-export",
+      "primary_classification": "framework_entrypoint",
+      "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
+      "disposition": "preserve",
+      "evidence": "Dedicated @orb/ui/reveal-gate package entrypoint with extensive CT and fixture coverage for secret reveal/hide, labels, default state, and disabled state. ast-grep found 34 structural identifiers; exact text count 34."
+    },
+    {
+      "name": "StatusChip",
+      "source": "packages/ui/src/primitives/status-chip/status-chip.tsx:50",
+      "lens": "test-only-export",
+      "primary_classification": "framework_entrypoint",
+      "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
+      "disposition": "preserve",
+      "evidence": "Dedicated @orb/ui/status-chip package entrypoint; status-chip.ct.tsx, variant-attrs.ct.tsx, and the variant-arm matrix exercise its public status states. ast-grep found 19 structural identifiers; exact text count 20."
+    },
+    {
+      "name": "Table",
+      "source": "packages/ui/src/primitives/table/table.tsx:185",
+      "lens": "test-only-export",
+      "primary_classification": "framework_entrypoint",
+      "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
+      "disposition": "preserve",
+      "evidence": "Dedicated @orb/ui/table data-grid entrypoint; table.fixtures.tsx is the mounted proof surface. ast-grep found 9 exact identifier nodes in the bounded UI/test scope; the 35 exact-text occurrences include unrelated generic Table identifiers, so text is corroboration only."
+    },
+    {
+      "name": "createTooltipHandle",
+      "source": "packages/ui/src/primitives/tooltip/handle.ts:5",
+      "lens": "test-only-export",
+      "primary_classification": "framework_entrypoint",
+      "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
+      "disposition": "preserve",
+      "evidence": "Public detached handle from @orb/ui/tooltip; tooltip-handle.fixtures.tsx proves the contract. ast-grep found 4 structural identifiers; exact text count 5."
+    },
+    {
+      "name": "TooltipViewport",
+      "source": "packages/ui/src/primitives/tooltip/tooltip.tsx:221",
+      "lens": "test-only-export",
+      "primary_classification": "framework_entrypoint",
+      "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
+      "disposition": "preserve",
+      "evidence": "Public Base UI tooltip anatomy, exercised by tooltip.ct.tsx. ast-grep found 5 structural identifiers; exact text count 6."
+    },
+    {
+      "name": "TooltipArrow",
+      "source": "packages/ui/src/primitives/tooltip/tooltip.tsx:237",
+      "lens": "test-only-export",
+      "primary_classification": "framework_entrypoint",
+      "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
+      "disposition": "preserve",
+      "evidence": "Public tooltip positioning arrow, exercised by tooltip.ct.tsx. ast-grep and exact text both found 4 identifiers."
+    },
+    {
+      "name": "StreamText",
+      "source": "packages/ui/src/stream/stream-text.tsx:32",
+      "lens": "test-only-export",
+      "primary_classification": "framework_entrypoint",
+      "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
+      "disposition": "preserve",
+      "evidence": "The @orb/ui/stream header names StreamText as the composed plain-text display over the domain-free pacer and pending affordances. stream-text.ct.tsx is its current consumer and behavioral proof. ast-grep found 13 structural identifiers; exact text count 15."
+    }
+  ],
+  "changes": {
+    "source_edits": [],
+    "test_edits": [],
+    "reason": "No candidate met the deletion bar after package-entrypoint, declaration, caller, test, generator, and history inspection."
+  },
+  "verification": {
+    "commands_run": [
+      "ast-grep scan --rule /tmp/ui-rot-identifiers-ts.yml --json=compact packages/ui packages/client tests/ui tests/kit",
+      "ast-grep scan --rule /tmp/ui-rot-identifiers-tsx.yml --json=compact packages/ui packages/client tests/ui tests/kit",
+      "ast-grep --lang typescript --pattern 'type PolarityTokenPath = $T' packages/ui/src/tokens/index.ts --json=compact",
+      "ast-grep --lang tsx --pattern 'PolarityTokenPath' packages/ui packages/client tests --json=compact",
+      "rg exact word-bounded candidate alternation across all *.ts and *.tsx",
+      "rg PolarityTokenPath across all repository file types",
+      "git status --short"
+    ],
+    "tests_run": [],
+    "tests_skipped_reason": "Adjudication produced no source or test change. The task explicitly prohibited heap-heavy/full commands while the contracts rot owner holds the box.",
+    "worktree_status_before_report": "clean"
+  }
+}

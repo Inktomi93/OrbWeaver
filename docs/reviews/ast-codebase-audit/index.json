@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "capturedAt": "2026-09-21T07:39:37.849739+00:00",
-  "sourceCommit": "590cfa9ea",
+  "capturedAt": "2026-09-21T07:43:12.919479+00:00",
+  "sourceCommit": "e9cfa4e39",
   "purpose": "Full AST audit observations and agent reasoning. Dated evidence, not a replacement for GitHub work-item lifecycle.",
   "entryPoints": {
     "coverage": "world-tools-lens-manifest.json",
@@ -39,7 +39,8 @@
     "serverRotTriage": "world-tools-server-rot-triage.json",
     "imageryAliasCleanup": "world-tools-imagery-alias-cleanup.json",
     "imageryAliasCleanupReview": "world-tools-imagery-alias-review.json",
-    "clientRotTriage": "world-tools-client-rot-triage.json"
+    "clientRotTriage": "world-tools-client-rot-triage.json",
+    "uiRotTriage": "world-tools-ui-rot-triage.json"
   },
   "limitations": [
     "30 CLI verbs identified; coverage remains incomplete. A candidate is not a confirmed defect or deletion authorization.",
@@ -213,8 +214,8 @@
       "file": "world-tools-lens-status-current.json",
       "source": "maintained audit status matrix",
       "sourceSha256": null,
-      "sha256": "0642e3fbe1dbb82c80ae36203a9462955b431b6b55f7753bc187aae5fcf07e42",
-      "bytes": 4874
+      "sha256": "9d745ece87c16259f98e2f324498bf28a38d941c5edff56aa36060f899058dee",
+      "bytes": 5035
     },
     {
       "file": "world-tools-lens-manifest.json",
@@ -607,6 +608,13 @@
       "sourceSha256": "27f6f8732b38bd8415d9dc072d1eda20a707f39d60143c96a6dc09a07dbc8f41",
       "sha256": "27f6f8732b38bd8415d9dc072d1eda20a707f39d60143c96a6dc09a07dbc8f41",
       "bytes": 13530
+    },
+    {
+      "file": "world-tools-ui-rot-triage.json",
+      "source": "/tmp/world-tools-ui-rot-triage.json",
+      "sourceSha256": "633d46c0f1f85107904342f018eb1e6e5748ec22cffff3a60ae4b0a100bf5ddd",
+      "sha256": "633d46c0f1f85107904342f018eb1e6e5748ec22cffff3a60ae4b0a100bf5ddd",
+      "bytes": 29907
     }
   ],
   "crossCuttingFindings": {
@@ -675,6 +683,11 @@
         2527,
         2546
       ]
+    },
+    "uiRotTriage": {
+      "status": "46 findings adjudicated: 37 framework entrypoints, six proof/generated surfaces, three unwired exports, zero deletions",
+      "receipt": "world-tools-ui-rot-triage.json",
+      "featureWork": 2547
     }
   }
 }

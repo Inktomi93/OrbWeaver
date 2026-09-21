@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "capturedAt": "2026-09-21T07:39:37.850236+00:00",
+  "capturedAt": "2026-09-21T07:43:12.920014+00:00",
   "denominator": 30,
   "rule": "A verb is complete only after its result set and tool behavior are adjudicated. Invocation alone does not count.",
   "summary": {
@@ -154,6 +154,10 @@
     "clientRotTriage": {
       "status": "complete: nine findings kept, zero deletions; refinery UI work #2527 and #2546",
       "receipt": "world-tools-client-rot-triage.json"
+    },
+    "uiRotTriage": {
+      "status": "complete: 46 findings kept, zero deletions; omni-bar work #2547",
+      "receipt": "world-tools-ui-rot-triage.json"
     }
   }
 }
