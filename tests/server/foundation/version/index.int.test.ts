@@ -151,9 +151,8 @@ describe("readVersionIdentity", () => {
 });
 
 describe("buildVersionStamp — the CONTENT the image build writes to version.json", () => {
-  // This is the only TypeScript reference to the function `docker/assemble-runtime.sh` invokes. It is not
-  // ceremony: without it, a rename here would leave the shell script calling a symbol that no longer exists
-  // and the failure would surface as a broken `docker build`, not as a red test.
+  // The checked `scripts/build-version-stamp.ts` entry is the assembler's production caller; these tests pin
+  // the content contract separately, so launcher reachability and stamp semantics each fail at their owner.
   test("derives the SAME version+commit the reader would, with the build instant passed IN (never an ambient clock)", async () => {
     await gitDir({ head: `ref: ${BRANCH}\n`, looseRef: `${COMMIT}\n` });
     expect(buildVersionStamp(root, "2026-09-18T09:30:00Z")).toEqual({ version: "1.4.2", commit: COMMIT, builtAt: "2026-09-18T09:30:00Z" });

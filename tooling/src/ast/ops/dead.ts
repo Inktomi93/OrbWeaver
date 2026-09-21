@@ -100,8 +100,7 @@ function deadVerdictOf(evidence: {
  *  using it). Excluding this class is what keeps `dead`'s ALIVE verdict agreeing with `testonly`'s: a
  *  barrel that only re-exports a test-only export must not read as a production consumer of it. */
 function isReexportPassthroughRef(ref: Node): boolean {
-  const spec = ref.getFirstAncestorByKind(SyntaxKind.ExportSpecifier);
-  const exportDecl = spec?.getFirstAncestorByKind(SyntaxKind.ExportDeclaration);
+  const exportDecl = ref.getFirstAncestorByKind(SyntaxKind.ExportDeclaration);
   return exportDecl?.getModuleSpecifier() !== undefined;
 }
 
@@ -120,6 +119,7 @@ export function deadEvidenceFor(project: SourceCorpus, decl: Node, name: string,
     const fp = r.getSourceFile().getFilePath();
     return !(isTestPath(fp) || PRODUCT_SOURCE_RE.test(fp));
   });
+  const externalToolRefs = live.externalConsumptions.filter((fact) => fact.targetKey === declKey(decl)).map((fact) => fact.consumerSite);
   const testNodes = refs.filter((r) => isTestPath(r.getSourceFile().getFilePath()));
   const swallowed = collectSwallowedCandidates(project, live, (fp) => fp === sf.getFilePath()).find((c) => declKey(c.decl) === declKey(decl));
   const publicMarker = publicMarkerOf(decl);
@@ -128,13 +128,13 @@ export function deadEvidenceFor(project: SourceCorpus, decl: Node, name: string,
       prodCount: prodNodes.length,
       swallowed: swallowed !== undefined,
       tagged: publicMarker !== undefined,
-      toolCount: toolNodes.length,
+      toolCount: toolNodes.length + externalToolRefs.length,
       testCount: testNodes.length,
     }),
     prodRefs: siteListOf(prodNodes).slice(0, DEAD_SITES_SHOWN),
     prodCount: prodNodes.length,
-    toolRefs: siteListOf(toolNodes).slice(0, DEAD_SITES_SHOWN),
-    toolCount: toolNodes.length,
+    toolRefs: [...siteListOf(toolNodes), ...externalToolRefs].slice(0, DEAD_SITES_SHOWN),
+    toolCount: toolNodes.length + externalToolRefs.length,
     testRefs: siteListOf(testNodes).slice(0, DEAD_SITES_SHOWN),
     testCount: testNodes.length,
     swallowedSites: swallowed?.sites ?? [],

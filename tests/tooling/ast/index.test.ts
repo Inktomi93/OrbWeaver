@@ -67,6 +67,7 @@ import {
   rotTestOnlyHits,
   rotTypeOnlyHits,
   scanRowReads,
+  scriptEntryFiles,
   scriptEntryPaths,
   spellingIndex,
   testOnlyClassOf,
@@ -426,6 +427,15 @@ describe("ast prodonly lens (tooling entry points)", () => {
     expect(scriptEntryPaths(fileURLToPath(new URL("../../../packages/ui", import.meta.url)))).toContain("tokens.build.ts");
   });
 
+  test("the root build-version launcher is a declared TypeScript entry", () => {
+    expect(scriptEntryPaths(AST_REPO_ROOT)).toContain("scripts/build-version-stamp.ts");
+  });
+
+  test("a missing literal Node/TS script target refuses instead of disappearing from the entry graph", () => {
+    const project = projectOf({ "scripts/live.ts": "export const live = true;\n" });
+    expect(() => scriptEntryFiles(project, ROOT, { broken: "node scripts/vanished.ts" })).toThrow(/declared entry anchor \/repo\/scripts\/vanished\.ts/u);
+  });
+
   test("a package-aliased dynamic import reaches its target without crediting a same-spelled unused file", () => {
     const project = new Project({
       useInMemoryFileSystem: true,
@@ -553,6 +563,109 @@ export const templateWorker = new Worker(new URL(\`./\${stem}.worker.ts\`, impor
     }
     const payload = JSON.parse(lines.find((line) => line.startsWith("{")) ?? "null") as { hits: Hit[] } | null;
     expect(payload?.hits.map(({ file }) => file)).toContain("packages/inference/src/internal/index.ts");
+  });
+});
+
+describe("ast external production consumption", () => {
+  const files: Record<string, string> = {
+    "packages/server/src/external/origin.ts": `
+const dependency = 1;
+export const target = dependency;
+export const sibling = 2;
+`,
+    "packages/server/src/external/index.ts": 'export { target, sibling } from "./origin";\n',
+    "tooling/src/verify/reader.ts": `
+export const MATRIX_CONST = "target" satisfies keyof typeof import("@fixture/external");
+export function readMatrixName(): string { return MATRIX_CONST; }
+const commentDecoy = "target";
+export const ordinaryStringDecoy = commentDecoy;
+`,
+    "tests/server/external/origin.test.ts": `
+import * as surface from "../../../packages/server/src/external";
+export const fixtureSurface = Object.keys(surface);
+`,
+  };
+
+  test("a checked source-reader witness credits exactly its resolved origin across every symbol lens", () => {
+    const project = projectWithAliasesOf({ "@fixture/external": ["packages/server/src/external/index.ts"] }, files);
+    const origin = project.getSourceFileOrThrow(`${ROOT}/packages/server/src/external/origin.ts`);
+    const target = origin.getVariableDeclarationOrThrow("target");
+    const sibling = origin.getVariableDeclarationOrThrow("sibling");
+    const dependency = origin.getVariableDeclarationOrThrow("dependency");
+    const inOrigin = (filePath: string): boolean => filePath === origin.getFilePath();
+    const live = buildLiveness(project, { edges: true });
+
+    expect(live.usedProd.has(`${origin.getFilePath()}\0${String(target.getStart())}`)).toBe(true);
+    expect(live.usedClientProd.has(`${origin.getFilePath()}\0${String(target.getStart())}`)).toBe(false);
+    expect(live.usedServerProd.has(`${origin.getFilePath()}\0${String(target.getStart())}`)).toBe(false);
+    expect(live.usedProd.has(`${origin.getFilePath()}\0${String(sibling.getStart())}`)).toBe(false);
+    expect(testOnlyClassOf(origin, "target", target, live)).toBe("alive");
+    expect(testOnlyClassOf(origin, "sibling", sibling, live)).toBe("hit");
+
+    const api = new Map(collectApiSurface(project, inOrigin, live).map((entry) => [entry.name, entry]));
+    expect(api.get("target")?.klass).toBe("public");
+    expect(api.get("target")?.evidence).toContain("tooling/src/verify/reader.ts");
+    expect(api.get("sibling")?.klass).toBe("test-only");
+
+    const targetDead = deadEvidenceFor(project, target, "target", live);
+    expect(targetDead.verdict).toBe("TOOL-ANCHORED");
+    expect(targetDead.toolRefs).toEqual(["tooling/src/verify/reader.ts:2 (typed source-reader witness)"]);
+    expect(deadEvidenceFor(project, sibling, "sibling", live).verdict).toBe("SWALLOWED-ONLY");
+
+    expect(collectSwallowedCandidates(project, live, inOrigin).map(({ name }) => name)).toEqual(["sibling"]);
+    expect(collectChainCandidates(project, live, (filePath) => filePath.includes("/packages/server/src/external/")).map(({ name }) => name)).not.toContain(
+      dependency.getName(),
+    );
+  });
+
+  test("comments, ordinary strings, and unrelated satisfies types credit nothing; detached witnesses refuse", () => {
+    const project = projectWithAliasesOf(
+      { "@fixture/external": ["packages/server/src/external/index.ts"] },
+      {
+        ...files,
+        "tooling/src/verify/reader.ts": `
+// target satisfies keyof typeof import("@fixture/external")
+export const ordinary = "target";
+export const unrelated = "target" satisfies string;
+`,
+      },
+    );
+    const origin = project.getSourceFileOrThrow(`${ROOT}/packages/server/src/external/origin.ts`);
+    const target = origin.getVariableDeclarationOrThrow("target");
+    expect(testOnlyClassOf(origin, "target", target, buildLiveness(project))).toBe("hit");
+
+    const detached = projectWithAliasesOf(
+      { "@fixture/external": ["packages/server/src/external/index.ts"] },
+      { ...files, "tooling/src/verify/reader.ts": 'const detached = "target" satisfies keyof typeof import("@fixture/external");\n' },
+    );
+    expect(() => buildLiveness(detached)).toThrow(/detached external-consumption witness/u);
+  });
+
+  test("nonliteral, missing, and ambiguous checked witnesses refuse instead of inventing an edge", () => {
+    const aliases = { "@fixture/external": ["packages/server/src/external/index.ts"] };
+    const used = "export function read(): string { return MATRIX_CONST; }\n";
+    const nonliteral = projectWithAliasesOf(aliases, {
+      ...files,
+      "tooling/src/verify/reader.ts": `const key = "target" as const; export const MATRIX_CONST = key satisfies keyof typeof import("@fixture/external"); ${used}`,
+    });
+    expect(() => buildLiveness(nonliteral)).toThrow(/must name a literal export/u);
+
+    const missing = projectWithAliasesOf(aliases, {
+      ...files,
+      "tooling/src/verify/reader.ts": `export const MATRIX_CONST = "vanished" satisfies keyof typeof import("@fixture/external"); ${used}`,
+    });
+    expect(() => buildLiveness(missing)).toThrow(/resolves no export/u);
+
+    const ambiguous = projectWithAliasesOf(aliases, {
+      ...files,
+      "packages/server/src/external/origin.ts": `
+export function target(value: string): string;
+export function target(value: number): number;
+export function target(value: string | number): string | number { return value; }
+export const sibling = 2;
+`,
+    });
+    expect(() => buildLiveness(ambiguous)).toThrow(/exactly one is required/u);
   });
 });
 
@@ -1917,6 +2030,7 @@ function livenessDigest(live: Liveness): Record<string, string[]> {
     starTargets: sorted(live.starTargets),
     arms: [...live.arms.entries()].map(([k, v]) => `${k}=>${[...v].sort(byString).join(",")}`).sort(byString),
     namespaceSites: live.namespaceSites.map((s) => `${s.file.getFilePath()}::${s.alias}::${[...s.exposed.keys()].sort(byString).join("|")}`).sort(byString),
+    externalConsumptions: live.externalConsumptions.map((fact) => `${fact.targetKey}=>${fact.consumerSite}`).sort(byString),
   };
 }
 

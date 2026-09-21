@@ -360,9 +360,21 @@ export interface ScanSpec {
 }
 
 /** The consumption arms a key can be marked alive by. `named` NAMES the member (a named/default import);
- *  `namespace` and `dynamic` mark a module's WHOLE surface without naming anything (the err-alive arms). */
-const CONSUMPTION_ARMS = ["named", "namespace", "dynamic"] as const;
+ *  `namespace` and `dynamic` mark a module's WHOLE surface without naming anything (the err-alive arms);
+ *  `external` is a checked consumer outside the import graph. */
+const CONSUMPTION_ARMS = ["named", "namespace", "dynamic", "external"] as const;
 export type ConsumptionArm = (typeof CONSUMPTION_ARMS)[number];
+
+/** A production consumer that TypeScript imports cannot represent directly. Each fact is derived from
+ *  checked source syntax at the real consumer, never from a marker or a symbol-name registry. */
+export interface ExternalConsumption {
+  readonly targetKey: string;
+  readonly consumerSite: string;
+  readonly consumerFile: string;
+  readonly consumerClass: "tooling";
+  readonly kind: "value" | "type";
+  readonly rootConsumerKey: string;
+}
 
 /** ONE `import * as <alias> from "…"` site: the importing file, the local alias, and the export NAMES the
  *  namespace exposes each origin key under (the spelling an `alias.<member>` access would have to use —
@@ -397,6 +409,8 @@ export interface Liveness {
    *  `buildLiveness` was asked for it — see the section below for why it is parallel AND opt-in. Never
    *  consulted by a liveness verdict. */
   consumers: Map<string, Set<string>>;
+  /** Checked consumers outside the ordinary TS import graph, normalized once for every coupled lens. */
+  externalConsumptions: readonly ExternalConsumption[];
 }
 
 export interface Scope {

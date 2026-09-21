@@ -83,8 +83,7 @@ if [ -d "$src/.git-refs" ]; then
 fi
 ORB_STAMP_ROOT="$stamp_root" \
 ORB_STAMP_BUILT_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-  node --input-type=module -e \
-    'import { buildVersionStamp } from "@orb/server/foundation/version"; process.stdout.write(JSON.stringify(buildVersionStamp(process.env.ORB_STAMP_ROOT, process.env.ORB_STAMP_BUILT_AT)));' \
+  pnpm --silent --dir "$src" run build:version-stamp \
     > "$out/version.json"
 echo "assemble-runtime: stamped version.json = $(cat "$out/version.json")"
 

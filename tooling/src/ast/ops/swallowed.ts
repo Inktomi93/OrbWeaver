@@ -104,7 +104,7 @@ function memoizedSpelledMembers(): (site: NamespaceSite) => Set<string> {
 }
 
 /** ONE file's swallowed candidates — the three exclusions in order: a non-namespace arm reached it (a NAMED
- *  import anywhere, or a dynamic import — a different err-alive shape), its own file uses it, or a swallowing
+ *  import, a dynamic import, or checked external consumption), its own file uses it, or a swallowing
  *  file spells its name. Nothing reaching it at all is an `orphans` hit, not this lens's business. */
 function swallowedInFile(sf: SourceFile, live: Liveness, spelledAt: (site: NamespaceSite) => Set<string>): SwallowedCandidate[] {
   const out: SwallowedCandidate[] = [];
