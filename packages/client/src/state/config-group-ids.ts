@@ -47,7 +47,3 @@ export function isConfigGroupId(v: unknown): v is ConfigGroupId {
  *  two surfaces called one word. A shelf with zero visible groups paints nothing. */
 export const CONFIG_SHELVES = ["user", "app", "collections", "extensions"] as const;
 export type ConfigShelf = (typeof CONFIG_SHELVES)[number];
-
-export function isConfigShelf(v: unknown): v is ConfigShelf {
-  return typeof v === "string" && (CONFIG_SHELVES as readonly string[]).includes(v);
-}

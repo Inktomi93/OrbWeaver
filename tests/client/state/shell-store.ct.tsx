@@ -89,7 +89,7 @@ test("setContextTab sets the opaque CONTEXT tab request", async ({ mount }) => {
   await expect(state).toContainText("contextTab=members");
 });
 
-test("publishContextTabIds / getAvailableContextTabIds round-trip the mounted surface's tab ids for the dev bridge", async ({ mount }) => {
+test("publishContextTabs preserves mounted ids and visible labels for the dev bridge", async ({ mount }) => {
   const probe = await mount(<ShellStoreProbe />);
   // The read-back starts empty — nothing has published a tab set yet.
   await expect(probe.getByText("ctxTabIds=unread")).toBeVisible();

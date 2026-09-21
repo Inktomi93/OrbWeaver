@@ -72,7 +72,10 @@ afterEach(() => {
 });
 
 test("capabilities() exposes canonical targets and the mounted surface's published context tabs", () => {
-  state.publishContextTabIds(["runs", "setup"]);
+  state.publishContextTabs([
+    { id: "runs", label: "runs" },
+    { id: "setup", label: "setup" },
+  ]);
   const nav = buildAgentNav(fakeTrpc([], []), new RealQueryClient() as QueryClient);
 
   expect(nav.capabilities()).toEqual({
@@ -272,7 +275,7 @@ test("openConfig() with NO sub, when the injected thunk has not loaded, still di
 
 /** Put the store back to "no tabbed surface mounted, no tab requested" — the state a fresh navigation is in. */
 function resetContextTabs(): void {
-  state.publishContextTabIds([]);
+  state.publishContextTabs([]);
   state.setContextTab(null);
 }
 
@@ -320,7 +323,11 @@ test("contextTab() REVEALS a published tab, and refuses an empty name + a typo w
   expect(empty.ok ? "" : empty.reason).toContain("empty");
 
   // A tabbed surface is mounted → its ids are the vocabulary. A published tab lands.
-  state.publishContextTabIds(["runs", "setup", "versions"]);
+  state.publishContextTabs([
+    { id: "runs", label: "runs" },
+    { id: "setup", label: "setup" },
+    { id: "versions", label: "versions" },
+  ]);
   expect(await nav.contextTab("setup")).toEqual({ ok: true });
   expect(state.getContextTab()).toBe("setup");
 

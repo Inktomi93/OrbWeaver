@@ -3,7 +3,7 @@
 // (User · App · Collections · Extensions — never "You": that word is the mobile sheet's, owner correction
 // 2026-08-30). Pins the membership the door's total `Record` and every deep link are typed against.
 
-import { CONFIG_GROUP_IDS, CONFIG_SHELVES, isConfigGroupId, isConfigShelf } from "@orb/client/state";
+import { CONFIG_GROUP_IDS, CONFIG_SHELVES, isConfigGroupId } from "@orb/client/state";
 import { expect, test } from "../../support/fixtures.ts";
 
 test("the tuple is the nine settings groups + the four collections, each exactly once", () => {
@@ -27,7 +27,6 @@ test("the tuple is the nine settings groups + the four collections, each exactly
 
 test("the shelves are User · App · Collections · Extensions — no `you` shelf on the desktop LIST", () => {
   expect([...CONFIG_SHELVES]).toEqual(["user", "app", "collections", "extensions"]);
-  expect(isConfigShelf("you")).toBe(false);
 });
 
 test("the guards accept every member and refuse the retired settings-era spellings", () => {

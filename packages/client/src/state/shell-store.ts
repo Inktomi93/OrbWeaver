@@ -280,10 +280,6 @@ export function publishContextTabs(tabs: readonly PublishedContextTab[]): void {
   );
 }
 
-export function publishContextTabIds(ids: readonly string[]): void {
-  publishContextTabs(ids.map((id) => ({ id, label: id })));
-}
-
 /** Non-reactive read for the dev bridge. */
 export function getAvailableContextTabIds(): readonly string[] {
   return useShellStore.getState().contextTabIds;

@@ -55,10 +55,6 @@ export function setConfigSearchMatch(match: ConfigSearchMatch): void {
   useConfigSearchStore.setState({ match }, false, "configSearch/setMatch");
 }
 
-export function clearConfigSearch(): void {
-  useConfigSearchStore.setState(EMPTY, false, "configSearch/clear");
-}
-
 /** Test seam: a CT must not inherit another test's query. */
 export function __resetConfigSearch(): void {
   useConfigSearchStore.setState(EMPTY, false, "configSearch/__reset");

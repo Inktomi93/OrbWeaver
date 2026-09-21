@@ -32,7 +32,7 @@ import {
   openPluginCommandArgs,
   openPluginDialog,
   selectChat,
-  selectPluginPage,
+  selectPluginPageFromList,
   useSectionRegistry,
 } from "@orb/client/state";
 import type { ToolCallRecord } from "@orb/contracts/chat";
@@ -286,14 +286,14 @@ function ExtensionsListHeaderHarness(): ReactElement {
 }
 
 /** The Extensions section's CONTENT pane, through the real registry. `selectKey` drives the module-singleton
- *  drill store the way a switcher click does (`selectPluginPage`) — `null` is the no-selection arm, which is a
+ *  drill store through the production switcher door (`selectPluginPageFromList`) — `null` is the no-selection arm, which is a
  *  DIFFERENT state from "there are no pages" and must read differently. */
 export function ExtensionsPageStory({ selectKey = null }: { readonly selectKey?: string | null }): ReactElement {
   useEffect(() => {
     if (selectKey === null) {
       clearPluginPage();
     } else {
-      selectPluginPage(selectKey);
+      selectPluginPageFromList(selectKey);
     }
   }, [selectKey]);
   return (
