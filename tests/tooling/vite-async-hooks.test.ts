@@ -97,7 +97,7 @@ test("the CSP middleware continues successful requests and sends async failures 
   expect(failedNext).toHaveBeenCalledWith(failure);
 });
 
-test("the workspace export watcher restarts on watched changes and logs restart rejection", async () => {
+test("the workspace export watcher restarts on watched changes and logs restart rejection", async ({ repoRoot }) => {
   const watched: string[] = [];
   let onChange: ((file: string) => void) | undefined;
   const firstRestart = deferred();
@@ -115,12 +115,18 @@ test("the workspace export watcher restarts on watched changes and logs restart 
       },
     },
   });
-  expect(watched).toHaveLength(3);
+  // THIS PLUGIN ADDS NOTHING TO CHOKIDAR ANY MORE (#2462). It used to `watcher.add()` each of the three
+  // package.json paths, and this arm asserted the three adds; a path added ONE FILE AT A TIME goes
+  // permanently deaf after the second unlink+create and git writes that way, so `orb:workspace-source-watch`
+  // took over by watching the package DIRECTORIES (its own arms:
+  // tests/tooling/vite-workspace-source-watch.int.test.ts). What is left here — and what this arm now holds —
+  // is the MEMBERSHIP GATE: only a change to one of the three reachable package.json paths restarts.
+  expect(watched).toEqual([]);
   expect(onChange).toBeTypeOf("function");
 
   onChange?.("/unwatched/package.json");
   expect(restart).not.toHaveBeenCalled();
-  onChange?.(watched[0] ?? "");
+  onChange?.(`${repoRoot}/packages/kit/package.json`);
   expect(restart).toHaveBeenCalledOnce();
   expect(logger.info).toHaveBeenCalledWith(expect.stringContaining("restarting dev server"), { timestamp: true });
   firstRestart.resolve();
@@ -130,7 +136,7 @@ test("the workspace export watcher restarts on watched changes and logs restart 
   const failure = new Error("restart refused");
   const failedRestart = deferred();
   restart.mockImplementationOnce(() => failedRestart.promise);
-  onChange?.(watched[1] ?? "");
+  onChange?.(`${repoRoot}/packages/ui/package.json`);
   failedRestart.reject(failure);
   await flushPromises();
   expect(logger.error).toHaveBeenCalledWith(expect.stringContaining("workspace-export restart failed"), expect.objectContaining({ error: failure }));

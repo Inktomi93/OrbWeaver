@@ -35,12 +35,27 @@ export type GateFactPhase = (typeof GATE_FACT_PHASES)[number];
  *  NOT here on purpose: it READS the table to build the envelope and raises nothing, which the same pin
  *  asserts rather than assumes. */
 export const POLICY_REFUSAL_EMITTERS = Object.freeze([
-  "tooling/src/verify/lib/policy-pass.ts",
+  // RE-DERIVED 2026-09-20 (#2497). `lib/policy-pass.ts` split into four leaves at 32858021c and kept only its
+  // re-exports — zero throws, zero table references — so it LEFT this roster and the three leaves that took its
+  // refusals joined it. The split shipped without touching this data, which is exactly the drift the two-sided
+  // pin exists to catch; it caught it, unread, for a week while the instrument battery was dark.
   "tooling/src/verify/lib/policy-pass-context.ts",
+  "tooling/src/verify/lib/policy-pass-receipts.ts",
+  "tooling/src/verify/lib/policy-pass-resolve.ts",
+  "tooling/src/verify/lib/policy-pass-walk.ts",
   "tooling/src/verify/lib/population-resolver.ts",
   "tooling/src/verify/lib/resource-declaration.ts",
   "tooling/src/verify/lib/resource-policy.ts",
 ] as const);
+
+/** THE SAME DISPATCHER'S INVARIANT-ONLY LEAVES: modules that RAISE refusals but COMPOSE none, so they are not
+ *  emitters by the roster predicate above and would otherwise fall out of the census entirely. The receipt
+ *  validator is one — the 32858021c split carried five caller/programmer invariants out of `policy-pass-context.ts`
+ *  into it, and with no list naming it those five sentences went unmeasured while `DISPATCHER_INVARIANTS` still
+ *  declared them. `tests/tooling/verify/lib/policy-refusal-envelope.test.ts` censuses these modules TOGETHER with
+ *  the emitters and holds this list two-sided in the other direction: a member here that starts composing from the
+ *  table belongs in `POLICY_REFUSAL_EMITTERS` instead, and reds. */
+export const POLICY_REFUSAL_INVARIANT_ONLY = Object.freeze(["tooling/src/verify/lib/policy-pass-context-receipts.ts"] as const);
 
 export const POLICY_PASS_REFUSALS = Object.freeze({
   populationUnresolved: "population has not resolved",
