@@ -26,7 +26,7 @@
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
 import "../../../support/composed-real.ts";
 import type { Principal } from "@orb/contracts/identity";
-import { providerIdSchema } from "@orb/contracts/inference";
+import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import { connectionBindings, embedGenerations, embedGenerationTargets, userConnections } from "@orb/db";
 import type { ChatId, ConnectionBindingId, EmbedGenerationId, Handle, UserConnectionId, UserId } from "@orb/kit/ids";
@@ -54,7 +54,7 @@ async function seedBoundConnection(db: Db, ownerId: UserId, task: "chat" | "embe
     ownerId,
     label,
     providerId: providerIdSchema.parse(TEST_PROVIDER_ID),
-    model: `test-${task}-model`,
+    model: modelIdSchema.parse(`test-${task}-model`),
   });
   await db.insert(connectionBindings).values({
     id: castId<ConnectionBindingId>(`connection_binding_${task}_${ownerId}`),

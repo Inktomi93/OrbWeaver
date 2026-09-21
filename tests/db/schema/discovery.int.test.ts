@@ -46,6 +46,7 @@ import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 import { freshDb } from "../../support/db.ts";
 import { expect, test } from "../../support/fixtures.ts";
+import { testModelId, testProviderId } from "../../support/inference-identities.ts";
 import { seedChat, seedUser } from "./_support.ts";
 
 // The one embedding-space dim. A deterministic ramp vector (no Math-random) — every value is exactly
@@ -81,7 +82,13 @@ async function seedDigest(db: Db, chatId: ChatId, id: string, generationOwnerId:
   const connectionId = castId<UserConnectionId>(`user_connection_${generationOwnerId}_embed_${MODEL}`);
   await db
     .insert(userConnections)
-    .values({ id: connectionId, ownerId: generationOwnerId, label: `Test embed ${MODEL}`, providerId: castId("custom-openai"), model: MODEL })
+    .values({
+      id: connectionId,
+      ownerId: generationOwnerId,
+      label: `Test embed ${MODEL}`,
+      providerId: testProviderId("custom-openai"),
+      model: testModelId(MODEL),
+    })
     .onConflictDoNothing();
   const generationId = castId<EmbedGenerationId>(`embed_generation_${generationOwnerId}_embed_${MODEL}`);
   await db

@@ -12,6 +12,7 @@ import { castId } from "@orb/kit/ids";
 import { curatedKindOf } from "../../../../../packages/server/src/domain/connection/substrate/kind.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { testModelId } from "../../../../support/inference-identities.ts";
 
 function provider(id: string): ProviderDef {
   const row = builtinProvider(id);
@@ -29,7 +30,7 @@ function connection(overrides: Partial<UserConnection> = {}): UserConnection {
     providerId: castId<ProviderId>("local-light"),
     credentialId: null,
     baseUrl: null,
-    model: "jinaai/jina-clip-v2",
+    model: testModelId("jinaai/jina-clip-v2"),
     api: "auto",
     declared: null,
     extras: null,
@@ -52,7 +53,11 @@ test("the row's own `declared.kind` WINS over the curated table", () => {
 });
 
 test("an unknown model answers `undefined`, never a defaulted `generation`", () => {
-  const unknown = connection({ providerId: castId<ProviderId>("custom-openai"), model: "some-private-finetune", baseUrl: "http://127.0.0.1:18703/v1" });
+  const unknown = connection({
+    providerId: castId<ProviderId>("custom-openai"),
+    model: testModelId("some-private-finetune"),
+    baseUrl: "http://127.0.0.1:18703/v1",
+  });
   expect(curatedKindOf(unknown, provider("custom-openai"))).toBeUndefined();
 });
 

@@ -53,6 +53,7 @@ import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { makeCapability } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { testModelId } from "../../../../support/inference-identities.ts";
 import {
   FROZEN_AT,
   makeChatContext,
@@ -83,7 +84,7 @@ function scripted(content: string, finishReason?: NormalizedFinishReason): ChatC
       yield { kind: "text", text: content };
       yield {
         kind: "final",
-        economics: { content, tokensIn: 4, tokensOut: 2, model: "test-model", ...(finishReason !== undefined ? { finishReason } : {}) },
+        economics: { content, tokensIn: 4, tokensOut: 2, model: testModelId("test-model"), ...(finishReason !== undefined ? { finishReason } : {}) },
       };
     })();
 }

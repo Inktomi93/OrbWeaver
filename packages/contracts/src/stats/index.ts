@@ -5,8 +5,10 @@
 
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { MODEL_PROVIDER_UNKNOWN } from "@orb/kit/stats-tally";
 import { z } from "zod";
 import type { TokenProvenance } from "#chat";
+import { modelIdSchema, providerIdSchema } from "#inference";
 
 /** The page CEILING for the stats top-N reads (`leaderboard`, `byModel`, `momentum`), enforced at the
  *  transport trust boundary (the `CHARACTER_LIST_MAX_LIMIT` precedent). The same 200 the persistence
@@ -26,8 +28,8 @@ export const statsDeltaSchema = z.object({
   // 'YYYY-MM-DD' UTC of the message (the `daily_stats` grain — produced by `@orb/kit/stats-tally.utcDay`).
   day: z.string(),
   // null → `model_stats` is skipped; `provider` coalesces to '(unknown)' at the model-key seam, not here.
-  model: z.string().nullable(),
-  provider: z.string().nullable(),
+  model: modelIdSchema.nullable(),
+  provider: z.union([providerIdSchema, z.literal(MODEL_PROVIDER_UNKNOWN)]).nullable(),
 
   userTurns: z.number().optional(),
   assistantTurns: z.number().optional(),

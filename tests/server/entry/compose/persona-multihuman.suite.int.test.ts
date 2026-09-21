@@ -22,7 +22,7 @@
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
 import "../../../support/composed-real.ts";
 import type { Principal } from "@orb/contracts/identity";
-import { providerIdSchema } from "@orb/contracts/inference";
+import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import { characters, chatParticipants, connectionBindings, userConnections } from "@orb/db";
 import type { ChatId, ConnectionBindingId, Handle, PersonaId, UserId } from "@orb/kit/ids";
@@ -64,7 +64,7 @@ async function seedRoom(db: Db, opts: { readonly hostActive: boolean; readonly a
     ownerId: host,
     label: "multihuman test connection",
     providerId: providerIdSchema.parse(TEST_PROVIDER_ID),
-    model: "test-model",
+    model: modelIdSchema.parse("test-model"),
   });
   await db.insert(connectionBindings).values({
     id: castId<ConnectionBindingId>("connection_binding_mh_host"),

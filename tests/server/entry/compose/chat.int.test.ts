@@ -30,7 +30,7 @@
 import "../../../support/composed-real.ts";
 import process from "node:process";
 import type { Principal } from "@orb/contracts/identity";
-import { providerIdSchema } from "@orb/contracts/inference";
+import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
@@ -140,7 +140,7 @@ describe("D53 ReDoS watchdog — composed at the editMessage seam (real createSe
       ownerId: host,
       label: "redos test connection",
       providerId: providerIdSchema.parse(TEST_PROVIDER_ID),
-      model: "test-model",
+      model: modelIdSchema.parse("test-model"),
     });
     await db.insert(connectionBindings).values({
       id: castId<ConnectionBindingId>("connection_binding_redos"),

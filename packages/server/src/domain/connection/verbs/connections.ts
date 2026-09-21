@@ -9,11 +9,10 @@
 // column diff: the space is derived from the row's model AND its resolved capability, so a provider or
 // `declared` patch can move it without touching `model`, and an unrelated `declared` edit moves nothing.
 
-import type { ConnectionApi, ProviderDef, ProviderId, UserConnection } from "@orb/contracts/inference";
-import { connectionTasks } from "@orb/contracts/inference";
+import type { ConnectionApi, ProviderDef, UserConnection } from "@orb/contracts/inference";
+import { connectionTasks, modelIdSchema } from "@orb/contracts/inference";
 import { DomainOperationError } from "@orb/kit/errors";
-import type { UserConnectionId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import type { ModelId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { CONNECTION_OP_CODES, ConnectionNotFoundError } from "../contract/errors.ts";
 import type { CreateConnectionParams, UpdateConnectionParams } from "../contract/params.ts";
 import type { ConnectionView, EmbedSpaces } from "../contract/results.ts";
@@ -38,6 +37,14 @@ function requireProvider(ctx: ConnectionContext, providerId: string): ProviderDe
     throw new DomainOperationError(CONNECTION_OP_CODES.providerUnknown, `"${providerId}" is not a registered provider.`);
   }
   return provider;
+}
+
+function requireModelId(raw: string): ModelId {
+  const parsed = modelIdSchema.safeParse(raw);
+  if (!parsed.success) {
+    throw new DomainOperationError(CONNECTION_OP_CODES.taskUnservable, "a connection needs a model — pick one from the list or type its id.");
+  }
+  return parsed.data;
 }
 
 function requireApi(provider: ProviderDef, api: ConnectionApi): void {
@@ -130,10 +137,7 @@ function createCreate(ctx: ConnectionContext): ConnectionService["create"] {
     requireApi(provider, api);
     requireBaseUrl(ctx, provider, params.baseUrl);
     await requireCredential(ctx, ownerId, params.credentialId);
-    const model = params.model.trim();
-    if (model === "") {
-      throw new DomainOperationError(CONNECTION_OP_CODES.taskUnservable, "a connection needs a model — pick one from the list or type its id.");
-    }
+    const model = requireModelId(params.model);
     const label = mintLabel(provider, model, await listOwnedLabels(ctx.db, ownerId), params.label);
     const now = ctx.now();
     const id = ctx.newConnectionId();
@@ -141,7 +145,7 @@ function createCreate(ctx: ConnectionContext): ConnectionService["create"] {
       id,
       ownerId,
       label,
-      providerId: castId<ProviderId>(provider.id),
+      providerId: provider.id,
       credentialId: params.credentialId,
       baseUrl: params.baseUrl,
       model,
@@ -177,13 +181,10 @@ async function validatedPatch(
   requireBaseUrl(ctx, provider, baseUrl);
   const credentialId = patch.credentialId ?? row.credentialId;
   await requireCredential(ctx, ownerId, credentialId);
-  const model = patch.model === undefined ? row.model : patch.model.trim();
-  if (model === "") {
-    throw new DomainOperationError(CONNECTION_OP_CODES.taskUnservable, "a connection needs a model.");
-  }
+  const model = patch.model === undefined ? row.model : requireModelId(patch.model);
   return {
     ...(patch.label !== undefined ? { label: patch.label.trim() } : {}),
-    providerId: castId<ProviderId>(provider.id),
+    providerId: provider.id,
     credentialId,
     baseUrl,
     model,

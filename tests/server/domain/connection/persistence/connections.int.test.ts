@@ -6,7 +6,6 @@
 // Beside it: the field-wise update writes only the keys present and is owner-scoped, and the delete leaves
 // the binding row alive with a NULL connection (schema physics, not a verb loop).
 
-import type { ProviderId } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import { connectionBindings } from "@orb/db";
 import type { ConnectionBindingId, UserConnectionId, UserId } from "@orb/kit/ids";
@@ -25,6 +24,7 @@ import {
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
 import { seedUser } from "../_support.ts";
 
 const ROW_ID = castId<UserConnectionId>("user_connection_000001");
@@ -36,10 +36,10 @@ async function seedRow(db: Db, id: UserConnectionId, ownerId: UserId, label: str
     id,
     ownerId,
     label,
-    providerId: castId<ProviderId>("custom-openai"),
+    providerId: testProviderId("custom-openai"),
     credentialId: null,
     baseUrl: "http://127.0.0.1:18703/v1",
-    model: "m",
+    model: testModelId("m"),
     api: "auto",
     declared: null,
     extras: null,
@@ -102,9 +102,9 @@ describe("writes", () => {
     const owner = await seedUser(db, "user_a");
     const other = await seedUser(db, "user_b");
     await seedRow(db, ROW_ID, owner, "mine");
-    await updateOwnedConnection(db, owner, ROW_ID, { model: "m2" });
+    await updateOwnedConnection(db, owner, ROW_ID, { model: testModelId("m2") });
     expect(await fetchOwnedConnection(db, owner, ROW_ID)).toMatchObject({ model: "m2", label: "mine", modelListed: true });
-    await updateOwnedConnection(db, other, ROW_ID, { model: "stolen" });
+    await updateOwnedConnection(db, other, ROW_ID, { model: testModelId("stolen") });
     expect((await fetchOwnedConnection(db, owner, ROW_ID))?.model, "the owner predicate is the write's fence").toBe("m2");
   });
 

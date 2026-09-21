@@ -10,14 +10,21 @@
 // db error — the caller decides whether that is a boot warning (it is) or an un-created account (never).
 
 import type { ProviderId, RoutableTask } from "@orb/contracts/inference";
-import { LOCAL_LIGHT_SEED_ROWS } from "@orb/contracts/inference";
+import { builtinProvider, LOCAL_LIGHT_SEED_ROWS, modelIdSchema } from "@orb/contracts/inference";
 import { connectionBindings, userConnections } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import { and, eq, inArray } from "drizzle-orm";
 import type { LocalLightSeedDeps } from "../contract/params.ts";
 
-const LOCAL_LIGHT_PROVIDER_ID = castId<ProviderId>("local-light");
+function localLightProviderId(): ProviderId {
+  const provider = builtinProvider("local-light");
+  if (provider === undefined) {
+    throw new Error("the local-light connection seed requires its built-in provider registry row");
+  }
+  return provider.id;
+}
+
+const LOCAL_LIGHT_PROVIDER_ID = localLightProviderId();
 const SEED_LABELS = LOCAL_LIGHT_SEED_ROWS.map((row) => row.label);
 const SEED_TASKS: readonly RoutableTask[] = LOCAL_LIGHT_SEED_ROWS.map((row) => row.task);
 
@@ -35,7 +42,7 @@ export async function seedLocalLightConnections(deps: LocalLightSeedDeps, ownerI
         providerId: LOCAL_LIGHT_PROVIDER_ID,
         credentialId: null,
         baseUrl: null,
-        model: seed.model,
+        model: modelIdSchema.parse(seed.model),
         api: "auto" as const,
         declared: null,
         extras: null,

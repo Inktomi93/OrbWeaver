@@ -6,11 +6,9 @@
 // key sealed under an unknown id could never be opened. TOCTOU loser of two concurrent first-adds ->
 // CredentialsConflictError.
 
-import type { ProviderId } from "@orb/contracts/inference";
 import { isConstraintViolation } from "@orb/db/kit";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { UserCredentialId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import type { CredentialContext } from "../context.ts";
 import { CREDENTIALS_OP_CODES, CredentialsConflictError } from "../contract/errors.ts";
 import type { AddCredentialParams } from "../contract/params.ts";
@@ -27,10 +25,11 @@ export function createAdd(ctx: CredentialContext): CredentialsService["add"] {
     if (!ctx.box.enabled) {
       throw new DomainOperationError(CREDENTIALS_OP_CODES.disabled, "Per-user credential storage is disabled (no CREDENTIALS_KEY configured).");
     }
-    if (!ctx.providerKnown(params.provider)) {
+    const registeredProvider = ctx.findProvider(params.provider);
+    if (registeredProvider === undefined) {
       throw new DomainOperationError(CREDENTIALS_OP_CODES.providerUnknown, `"${params.provider}" is not a registered provider.`);
     }
-    const provider = castId<ProviderId>(params.provider);
+    const provider = registeredProvider.id;
     const trimmedLabel = params.label?.trim();
     const label = trimmedLabel !== undefined && trimmedLabel !== "" ? trimmedLabel : DEFAULT_LABEL;
     const metadata = params.metadata ?? null;

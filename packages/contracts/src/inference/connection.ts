@@ -3,7 +3,7 @@
 // (`schema/connection.ts`, producer `domain/connection`). Secrets never ride here: a row references its
 // credential by id; the runtime resolves the secret through its own port at call time.
 
-import type { UserCredentialId, UserId } from "@orb/kit/ids";
+import type { UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
@@ -11,6 +11,7 @@ import { z } from "zod";
 import { chatApiSchema } from "./apis.ts";
 import { declaredCapabilitySchema } from "./capability/override.ts";
 import { bindingActorKindSchema } from "./connection-ref.ts";
+import { modelIdSchema } from "./model-schema.ts";
 import { providerIdSchema } from "./provider-schema.ts";
 import { routableTaskSchema } from "./tasks.ts";
 
@@ -49,11 +50,11 @@ export const userConnectionSchema = z.object({
   ownerId: brandedId<UserId>(),
   label: z.string().min(1),
   providerId: providerIdSchema,
-  credentialId: brandedId<UserCredentialId>().nullable(),
+  credentialId: typeIdSchema(ID_PREFIX.userCredential).nullable(),
   /** For `auth: endpoint` providers; `null` when the provider row fixes it. */
   baseUrl: z.string().nullable(),
   /** The picked model id — NEVER defaulted (F16); the picker is the only way it gets set. */
-  model: z.string().min(1),
+  model: modelIdSchema,
   api: connectionApiSchema,
   declared: declaredCapabilitySchema.nullable(),
   extras: connectionExtrasSchema.nullable(),

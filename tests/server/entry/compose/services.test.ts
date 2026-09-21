@@ -34,6 +34,7 @@ import { subscribeNotifications } from "../../../../packages/server/src/transpor
 import { createFrozenClock } from "../../../support/clock.ts";
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures.ts";
+import { testModelId } from "../../../support/inference-identities.ts";
 import { makeHarness as makeAssetsHarness, pngBytes, principal, seedUser } from "../../domain/assets/_support.ts";
 import { makeHarness as makeCharHarness } from "../../domain/character/_support.ts";
 import { EMBED_DIM, makeRoleClients } from "../../domain/embeddings/_support.ts";
@@ -821,7 +822,7 @@ describe("automation generate_image forwards diffusion params through the compos
       prompt: "a lighthouse",
       promptSource: "user",
       mode: "free",
-      model: "fake",
+      model: testModelId("fake"),
       costUsd: 0,
       reused: false,
       warnings: [],

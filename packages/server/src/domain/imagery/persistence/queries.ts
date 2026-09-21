@@ -20,7 +20,7 @@ interface InsertGenerationInput {
   readonly identityHash: string | null;
   readonly prompt: string;
   readonly negativePrompt: string | null;
-  readonly model: ModelId | string;
+  readonly model: ModelId;
   readonly providerId: ProviderId;
   readonly connectionId: UserConnectionId;
   readonly costUsd: number | null;

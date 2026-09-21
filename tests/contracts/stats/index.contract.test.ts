@@ -3,6 +3,7 @@ import { statsDeltaSchema } from "@orb/contracts/stats";
 import type { UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "../../support/fixtures.ts";
+import { testModelId, testProviderId } from "../../support/inference-identities.ts";
 
 // Sample keys: a low-entropy owner brand at the untyped seam + a minted character TypeID (no pasted
 // high-entropy literals — noSecrets). The day grain is what `@orb/kit/stats-tally.utcDay` emits.
@@ -10,6 +11,8 @@ const OWNER_ID = castId<UserId>("user-owner");
 const CHARACTER_ID = mintTypeId(ID_PREFIX.character);
 const DAY = "2026-06-26";
 const NOW_MS = 1_750_000_000_000;
+const MODEL = testModelId("claude-opus-4");
+const PROVIDER = testProviderId("anthropic");
 
 test("statsDeltaSchema parses the minimal grain-only delta and round-trips (no defaults injected)", () => {
   // The required floor: keys + grain + the `now` computedAt stamp; every increment omitted.
@@ -17,8 +20,8 @@ test("statsDeltaSchema parses the minimal grain-only delta and round-trips (no d
     ownerId: OWNER_ID,
     characterId: CHARACTER_ID,
     day: DAY,
-    model: "claude-opus-4",
-    provider: "anthropic",
+    model: MODEL,
+    provider: PROVIDER,
     now: NOW_MS,
   };
   const parsed = statsDeltaSchema.parse(value);
@@ -33,8 +36,8 @@ test("a MESSAGE delta carries the scalar + daily + model slices together and rou
     ownerId: OWNER_ID,
     characterId: CHARACTER_ID,
     day: DAY,
-    model: "claude-opus-4",
-    provider: "anthropic",
+    model: MODEL,
+    provider: PROVIDER,
     now: NOW_MS,
     assistantTurns: 1,
     assistantWords: 42,
@@ -59,8 +62,8 @@ test("a VARIANT delta sets scalar tokens but OMITS the daily token slice (decoup
     ownerId: OWNER_ID,
     characterId: CHARACTER_ID,
     day: DAY,
-    model: "claude-opus-4",
-    provider: "anthropic",
+    model: MODEL,
+    provider: PROVIDER,
     now: NOW_MS,
     swipes: 1,
     swipeWords: 30,
@@ -85,8 +88,8 @@ test("a MODEL-ONLY delta (cross-model swipe bucket) round-trips with no scalar t
     ownerId: OWNER_ID,
     characterId: CHARACTER_ID,
     day: DAY,
-    model: "claude-sonnet-4",
-    provider: "anthropic",
+    model: testModelId("claude-sonnet-4"),
+    provider: PROVIDER,
     now: NOW_MS,
     modelGenerations: 1,
     modelTokensIn: 480,
@@ -166,6 +169,18 @@ test("statsDeltaSchema rejects a delta missing the required `now` stamp", () => 
   expect(statsDeltaSchema.safeParse(invalid).success).toBe(false);
 });
 
+test("model_stats.model producer rejects a blank foreign model id", () => {
+  expect(statsDeltaSchema.safeParse({ ownerId: OWNER_ID, characterId: CHARACTER_ID, day: DAY, model: "   ", provider: "anthropic", now: NOW_MS }).success).toBe(
+    false,
+  );
+});
+
+test("model_stats.provider producer rejects malformed registry ids and admits only the ruled unknown sentinel", () => {
+  const base = { ownerId: OWNER_ID, characterId: CHARACTER_ID, day: DAY, model: "claude-opus-4", now: NOW_MS };
+  expect(statsDeltaSchema.safeParse({ ...base, provider: "custom_openai" }).success).toBe(false);
+  expect(statsDeltaSchema.safeParse({ ...base, provider: "(unknown)" }).success).toBe(true);
+});
+
 test("statsDeltaSchema rejects an empty ownerId and a wrong-prefix characterId", () => {
   const emptyOwner = {
     ownerId: "",
@@ -216,8 +231,8 @@ test("ApplyStatsDelta is satisfiable by a no-op and consumes a StatsDelta", () =
     ownerId: OWNER_ID,
     characterId: CHARACTER_ID,
     day: DAY,
-    model: "claude-opus-4",
-    provider: "anthropic",
+    model: MODEL,
+    provider: PROVIDER,
     now: NOW_MS,
     assistantTurns: 1,
   };

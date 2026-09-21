@@ -11,6 +11,7 @@ import { eq } from "drizzle-orm";
 import { describe, vi } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { testModelId } from "../../../../support/inference-identities.ts";
 import { EMBED_DIM, EMBED_MODEL, embedAs, makeStoreHarness, seedDocument, seedUser } from "../_support.ts";
 
 const OLD_MODEL = "old-embed-model-v1";
@@ -69,11 +70,17 @@ describe("pruneDocumentChunks (databank-design/05 §2.4)", () => {
     const resolved = vi
       .spyOn(harness.roleClients, "resolved")
       .mockImplementation((task) => (task === "embed" ? Promise.resolve({ ...active, model: castId<ModelId>(OLD_MODEL) }) : resolve(task)));
-    await db.update(userConnections).set({ model: OLD_MODEL }).where(eq(userConnections.id, active.connectionId));
+    await db
+      .update(userConnections)
+      .set({ model: testModelId(OLD_MODEL) })
+      .where(eq(userConnections.id, active.connectionId));
     embedAs(harness, OLD_MODEL);
     await storeChunks(svc, { documentId, count: 3, model: OLD_MODEL, ownerId: owner }); // the old space
     resolved.mockImplementation(resolve);
-    await db.update(userConnections).set({ model: EMBED_MODEL }).where(eq(userConnections.id, active.connectionId));
+    await db
+      .update(userConnections)
+      .set({ model: testModelId(EMBED_MODEL) })
+      .where(eq(userConnections.id, active.connectionId));
     embedAs(harness, EMBED_MODEL);
     await storeChunks(svc, { documentId, count: 4, model: EMBED_MODEL, ownerId: owner }); // the pending space
 

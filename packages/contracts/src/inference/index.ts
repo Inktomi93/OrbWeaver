@@ -14,6 +14,7 @@ export * from "./features.ts";
 export * from "./finish-reasons.ts";
 export * from "./kinds.ts";
 export * from "./modalities.ts";
+export * from "./model-schema.ts";
 export * from "./policy.ts";
 export * from "./provider-schema.ts";
 export * from "./providers.ts";

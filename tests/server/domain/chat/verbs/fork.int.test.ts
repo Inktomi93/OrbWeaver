@@ -21,6 +21,7 @@ import { createFork } from "../../../../../packages/server/src/domain/chat/verbs
 import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
 import {
   addVariant,
   makeChatContext,
@@ -1031,8 +1032,8 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
           macroFreezes: [{ name: "roll", args: "d20", value: "17" }],
           reasoning: "thinking",
           reasoningEffort: "high",
-          model: "m1",
-          provider: "p1",
+          model: testModelId("m1"),
+          provider: testProviderId("p1"),
           tokensIn: 11,
           tokensOut: 22,
           cacheReadTokens: 33,

@@ -35,6 +35,7 @@ import { createTurnRetrievalWarningEpisode } from "../../../../../packages/serve
 import { freshDb } from "../../../../support/db.ts";
 import { makeCapability } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { testModelId } from "../../../../support/inference-identities.ts";
 import {
   FROZEN_AT,
   fakeRecallResult,
@@ -73,7 +74,7 @@ const OK_TURN = scripted([
   { kind: "text", text: "Hi" },
   {
     kind: "final",
-    economics: { content: "Hi there", tokensIn: 4, tokensOut: 2, model: "test-model" },
+    economics: { content: "Hi there", tokensIn: 4, tokensOut: 2, model: testModelId("test-model") },
   },
 ]);
 
@@ -372,7 +373,7 @@ describe("createTurnEngine — happy path", () => {
             reasoning: "thinking...",
             tokensIn: 4,
             tokensOut: 2,
-            model: "test-model",
+            model: testModelId("test-model"),
           },
         },
       ]),
@@ -397,7 +398,7 @@ describe("createTurnEngine — happy path", () => {
       runChatTurn: scripted([
         { kind: "reasoning", text: "ignored — the terminal chunk is authoritative" },
         { kind: "text", text: "Hi" },
-        { kind: "final", economics: { content: "Hi there", reasoning: "the settled trace", tokensIn: 4, tokensOut: 2, model: "test-model" } },
+        { kind: "final", economics: { content: "Hi there", reasoning: "the settled trace", tokensIn: 4, tokensOut: 2, model: testModelId("test-model") } },
       ]),
     }).engine.runTurn(prepOf(fromFinal));
 
@@ -408,7 +409,7 @@ describe("createTurnEngine — happy path", () => {
         { kind: "reasoning", text: "weighing " },
         { kind: "reasoning", text: "two openings" },
         { kind: "text", text: "Hi" },
-        { kind: "final", economics: { content: "Hi there", tokensIn: 4, tokensOut: 2, model: "test-model" } },
+        { kind: "final", economics: { content: "Hi there", tokensIn: 4, tokensOut: 2, model: testModelId("test-model") } },
       ]),
     }).engine.runTurn(prepOf(fromDeltas));
 
@@ -431,7 +432,10 @@ describe("createTurnEngine — happy path", () => {
       runChatTurn: scripted([
         { kind: "reasoning", text: "the model's private trace" },
         { kind: "text", text: "Hi" },
-        { kind: "final", economics: { content: "Hi there", reasoning: "the model's private trace", tokensIn: 4, tokensOut: 2, model: "test-model" } },
+        {
+          kind: "final",
+          economics: { content: "Hi there", reasoning: "the model's private trace", tokensIn: 4, tokensOut: 2, model: testModelId("test-model") },
+        },
       ]),
     }).engine.runTurn(prepOf(chatId));
 
@@ -1284,7 +1288,7 @@ describe("createTurnEngine — F4: continuePostfix delimiter on a continue turn"
     { kind: "text", text: "more" },
     {
       kind: "final",
-      economics: { content: "more", tokensIn: 1, tokensOut: 1, model: "test-model" },
+      economics: { content: "more", tokensIn: 1, tokensOut: 1, model: testModelId("test-model") },
     },
   ]);
 
@@ -1651,7 +1655,7 @@ function gatedProvider(): { runChatTurn: ChatContext["runChatTurn"]; started: Pr
     (async function* (): AsyncGenerator<TurnStreamChunk> {
       markStarted();
       await gate;
-      yield { kind: "final", economics: { content: "late reply", tokensIn: 4, tokensOut: 2, model: "test-model" } };
+      yield { kind: "final", economics: { content: "late reply", tokensIn: 4, tokensOut: 2, model: testModelId("test-model") } };
     })();
   return { runChatTurn, started, release: unblock };
 }
@@ -1730,7 +1734,7 @@ describe("createTurnEngine — turn-lock heartbeat", () => {
       const errProvider: ChatContext["runChatTurn"] = () =>
         (async function* (): AsyncGenerator<TurnStreamChunk> {
           await Promise.reject(new Error("provider exploded"));
-          yield { kind: "final", economics: { content: "", tokensIn: 0, tokensOut: 0, model: "test-model" } };
+          yield { kind: "final", economics: { content: "", tokensIn: 0, tokensOut: 0, model: testModelId("test-model") } };
         })();
       const errBefore = clearSpy.mock.calls.length;
       await expect(harness(db, { runChatTurn: errProvider, lockTtlMs: HEARTBEAT_TTL }).engine.runTurn(prepOf(errChat))).rejects.toThrow("provider exploded");
@@ -1755,7 +1759,7 @@ describe("createTurnEngine — VER-1b: a prose-less generation is a FAILURE, nev
   const proseLessTurn = scripted([
     {
       kind: "final",
-      economics: { content: "", tokensIn: 3713, tokensOut: 157, model: "test-model", finishReason: "tool", stopReason: "tool_calls" },
+      economics: { content: "", tokensIn: 3713, tokensOut: 157, model: testModelId("test-model"), finishReason: "tool", stopReason: "tool_calls" },
     },
   ]);
 
@@ -1853,13 +1857,13 @@ describe("createTurnEngine — VER-1b: a prose-less generation is a FAILURE, nev
                 kind: "final",
                 economics: {
                   content: "",
-                  model: "test-model",
+                  model: testModelId("test-model"),
                   finishReason: "tool",
                   stopReason: "tool_calls",
                   toolCalls: [{ toolCallId: "c1", name: "update_scene", arguments: "{}" }],
                 },
               }
-            : { kind: "final", economics: { content: "The hall settles.", model: "test-model", finishReason: "stop" } };
+            : { kind: "final", economics: { content: "The hall settles.", model: testModelId("test-model"), finishReason: "stop" } };
         })();
       },
     });
@@ -1882,7 +1886,7 @@ describe("createTurnEngine — VER-1b: a prose-less generation is a FAILURE, nev
   test("WHITESPACE-only content is the same defect (an invisible row either way)", async () => {
     const { chatId, messageId, variantId, characterId } = await seedSwipeTarget("empty-swipe-ws");
     const h = harness(db, {
-      runChatTurn: scripted([{ kind: "final", economics: { content: "\n\n  \n", model: "test-model" } }]),
+      runChatTurn: scripted([{ kind: "final", economics: { content: "\n\n  \n", model: testModelId("test-model") } }]),
     });
 
     await expect(
@@ -1897,7 +1901,7 @@ describe("createTurnEngine — VER-1b: a prose-less generation is a FAILURE, nev
       // Cut off at the output cap: short, unfinished — but the user may well want it.
       runChatTurn: scripted([
         { kind: "text", text: "The door creaks" },
-        { kind: "final", economics: { content: "The door creaks", tokensOut: 3, model: "test-model", finishReason: "length" } },
+        { kind: "final", economics: { content: "The door creaks", tokensOut: 3, model: testModelId("test-model"), finishReason: "length" } },
       ]),
     });
 
@@ -2072,7 +2076,7 @@ describe("createTurnEngine — a prose-less completion with tool calls is RECOVE
               content: "",
               tokensIn: 3713,
               tokensOut: 157,
-              model: "test-model",
+              model: testModelId("test-model"),
               finishReason: "tool",
               stopReason: "tool_calls",
               toolCalls: [{ toolCallId: "c1", name: "update_scene", arguments: '{"weather":"indoors"}' }],
@@ -2089,7 +2093,7 @@ describe("createTurnEngine — a prose-less completion with tool calls is RECOVE
 
   const narrativePass: readonly TurnStreamChunk[] = [
     { kind: "text", text: "The hall settles" },
-    { kind: "final", economics: { content: "The hall settles around you.", tokensOut: 6, model: "test-model", finishReason: "stop" } },
+    { kind: "final", economics: { content: "The hall settles around you.", tokensOut: 6, model: testModelId("test-model"), finishReason: "stop" } },
   ];
 
   test("THE REPRO, RECOVERED: the turn COMMITS the recovery pass's prose instead of failing", async () => {
@@ -2152,7 +2156,9 @@ describe("createTurnEngine — a prose-less completion with tool calls is RECOVE
   test("a recovery pass that ALSO writes no prose fails the turn — the guard still holds, and names the cause", async () => {
     const chatId = await seedChat(db, "recover-fails");
     // Pass 2 answers empty too. There is no third attempt.
-    const h = harness(db, { runChatTurn: twoPassRunner([], [{ kind: "final", economics: { content: "", model: "test-model", finishReason: "tool" } }]) });
+    const h = harness(db, {
+      runChatTurn: twoPassRunner([], [{ kind: "final", economics: { content: "", model: testModelId("test-model"), finishReason: "tool" } }]),
+    });
 
     const err: unknown = await h.engine.runTurn(prepOf(chatId, { connection: toolConnection(), terminalTools: terminalToolSet })).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
@@ -2173,7 +2179,7 @@ describe("createTurnEngine — a prose-less completion with tool calls is RECOVE
         requests.push(req);
         return (async function* (): AsyncGenerator<TurnStreamChunk> {
           await Promise.resolve();
-          yield { kind: "final", economics: { content: "", model: "test-model", finishReason: "stop", toolCalls: [] } };
+          yield { kind: "final", economics: { content: "", model: testModelId("test-model"), finishReason: "stop", toolCalls: [] } };
         })();
       },
     });
@@ -2193,7 +2199,7 @@ describe("createTurnEngine — a prose-less completion with tool calls is RECOVE
       runChatTurn: () =>
         (async function* (): AsyncGenerator<TurnStreamChunk> {
           await Promise.resolve();
-          yield { kind: "final", economics: { content: "", model: "test-model", finishReason: "length", maxOutputTokens: 4096 } };
+          yield { kind: "final", economics: { content: "", model: testModelId("test-model"), finishReason: "length", maxOutputTokens: 4096 } };
         })(),
     });
 
@@ -2221,7 +2227,7 @@ describe("createTurnEngine — the commit fence (#1393)", () => {
       (async function* (): AsyncGenerator<TurnStreamChunk> {
         yield { kind: "text", text: "Hi" };
         await stealLock(chatId);
-        yield { kind: "final", economics: { content: "Hi there", tokensIn: 4, tokensOut: 2, model: "test-model" } };
+        yield { kind: "final", economics: { content: "Hi there", tokensIn: 4, tokensOut: 2, model: testModelId("test-model") } };
       })();
     const h = harness(db, { runChatTurn: stealingTurn });
 

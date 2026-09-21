@@ -5,13 +5,15 @@
 // Owner-scoping is membership-derived: the owner's chats are those with a character participant they own.
 
 import type { TokenProvenance } from "@orb/contracts/chat";
+import type { ProviderId } from "@orb/contracts/inference";
+import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import { characterStats, dailyStats, modelStats, ownerStats } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, chunkRows, rowsPerInsert } from "@orb/db/kit";
-import type { CharacterId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ModelId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { utcDay, wordCount } from "@orb/kit/stats-tally";
+import { MODEL_PROVIDER_UNKNOWN, utcDay, wordCount } from "@orb/kit/stats-tally";
 import { eq, sql } from "drizzle-orm";
 import type { ReconcileStatsResult } from "../contract/results.ts";
 import { ownerChatIds } from "../substrate/owner-chat-scope.ts";
@@ -22,7 +24,6 @@ const CHUNK = 5000; // rows per streaming page — bounds peak memory on large c
 const DAY_MS = 86_400_000;
 const MIGRATION_GAP_DAYS = 30; // a message >30d after its chat's creation = migrated (createdAt clobbered)
 const MIGRATION_GAP_MS = MIGRATION_GAP_DAYS * DAY_MS;
-const UNKNOWN_PROVIDER = "(unknown)";
 // Per-table column counts for the bound-variable chunker — must track the insert shapes below.
 const CHAR_COLS = 29;
 const DAILY_COLS = 21;
@@ -109,8 +110,8 @@ interface OwnerAccum extends TokenSampleAccum {
   lastActivityAt: number;
 }
 interface ModelEntry {
-  model: string;
-  provider: string | null;
+  model: ModelId;
+  provider: ProviderId | null;
   acc: ModelAccum;
 }
 /** The per-owner accumulator bundle threaded through the fold/scan helpers (one param, not four). */
@@ -279,7 +280,21 @@ function foldModelGen(m: ModelAccum, r: GenRow): void {
 }
 
 function modelMapKey(model: string, provider: string | null): string {
-  return `${model} ${provider ?? UNKNOWN_PROVIDER}`;
+  return `${model} ${provider ?? MODEL_PROVIDER_UNKNOWN}`;
+}
+
+function modelIdentity(model: string | null, provider: string | null): Omit<ModelEntry, "acc"> | null {
+  if (model === null) {
+    return null;
+  }
+  const parsedModel = modelIdSchema.safeParse(model);
+  if (!parsedModel.success) {
+    return null;
+  }
+  return {
+    model: parsedModel.data,
+    provider: provider === null ? null : (providerIdSchema.safeParse(provider).data ?? null),
+  };
 }
 
 interface ReconcileOpts {
@@ -473,10 +488,10 @@ function foldMessage(r: MessageRow, a: Accums): void {
   if (r.role === "assistant" && r.cid !== null) {
     foldMessageChar(a.charMap, r);
   }
-  if (r.role === "assistant" && r.model !== null) {
-    const entry = get(a.modelMap, modelMapKey(r.model, r.provider), () => ({
-      model: r.model as string,
-      provider: r.provider,
+  const identity = r.role === "assistant" ? modelIdentity(r.model, r.provider) : null;
+  if (identity !== null) {
+    const entry = get(a.modelMap, modelMapKey(identity.model, identity.provider), () => ({
+      ...identity,
       acc: freshModel(),
     }));
     foldModelGen(entry.acc, r);
@@ -581,10 +596,10 @@ function foldSwipe(r: SwipeRow, a: Accums): void {
   if (r.cid !== null) {
     foldSwipeChar(a.charMap, r);
   }
-  if (r.model !== null) {
-    const entry = get(a.modelMap, modelMapKey(r.model, r.provider), () => ({
-      model: r.model as string,
-      provider: r.provider,
+  const identity = modelIdentity(r.model, r.provider);
+  if (identity !== null) {
+    const entry = get(a.modelMap, modelMapKey(identity.model, identity.provider), () => ({
+      ...identity,
       acc: freshModel(),
     }));
     foldModelGen(entry.acc, r); // swipes carry no cost/cache into the model bucket
@@ -800,7 +815,7 @@ function buildModelRows(ownerId: UserId, modelMap: Map<string, ModelEntry>, now:
     id: mintTypeId(ID_PREFIX.modelStat),
     ownerId,
     model,
-    provider: provider ?? UNKNOWN_PROVIDER,
+    provider: provider ?? MODEL_PROVIDER_UNKNOWN,
     generations: acc.generations,
     tokensIn: acc.tokensIn,
     tokensOut: acc.tokensOut,

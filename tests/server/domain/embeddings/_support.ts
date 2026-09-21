@@ -12,7 +12,6 @@
 // `no-direct-users-read` gate scopes only `packages/server/src/domain`).
 
 import type { ImageBreakdown } from "@orb/contracts/embeddings";
-import type { ProviderId } from "@orb/contracts/inference";
 import type { ImageEmbedInput, RoleClients } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
 import { assets, characters, chatParticipants, chats, documents, userConnections } from "@orb/db";
@@ -42,6 +41,7 @@ import { TEST_CONNECTION_ID, TEST_PROVIDER_ID } from "../../../support/factories
 import { makeFakeRoleClients } from "../../../support/factories/role-clients.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 import { createSeededIds } from "../../../support/ids.ts";
+import { testModelId, testProviderId } from "../../../support/inference-identities.ts";
 
 const FROZEN_AT = FROZEN_AT_MS;
 
@@ -133,7 +133,7 @@ export function makeRoleClients(vision = true, imageArm: FakeImageArm = "joint")
   const embed: Mock<RoleClients["embed"]> = vi.fn<RoleClients["embed"]>((input) =>
     Promise.resolve({
       vectors: (typeof input === "string" ? [input] : input).map((_, i) => fakeVector(EMBED_DIM, i + 1)),
-      model: EMBED_MODEL,
+      model: testModelId(EMBED_MODEL),
       usage: { promptTokens: null, totalTokens: null },
     }),
   );
@@ -390,8 +390,8 @@ async function seedVectorConnection(db: Db, ownerId: UserId): Promise<void> {
       id: TEST_CONNECTION_ID,
       ownerId,
       label: "test vector connection",
-      providerId: castId<ProviderId>(TEST_PROVIDER_ID),
-      model: EMBED_MODEL,
+      providerId: testProviderId(TEST_PROVIDER_ID),
+      model: testModelId(EMBED_MODEL),
     })
     .onConflictDoNothing();
 }

@@ -6,13 +6,14 @@ import type { PromptTemplateMode } from "@orb/contracts/imagery";
 import { providerIdSchema } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import { assets, characters, imageryGenerations, userConnections, users } from "@orb/db";
-import type { AssetId, CharacterId, Handle, ImageryGenerationId, ModelId, UserConnectionId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, Handle, ImageryGenerationId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
 import { findReusableGeneration, insertGeneration, readProvenanceByAsset } from "../../../../../packages/server/src/domain/imagery/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { makeCharacter } from "../../../../support/factories/character.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { testModelId } from "../../../../support/inference-identities.ts";
 
 const FROZEN_AT = 1_750_000_000_000;
 const PROVIDER_ID = providerIdSchema.parse("openrouter");
@@ -27,7 +28,7 @@ async function seedConnection(ownerId: UserId, suffix: string): Promise<UserConn
   const id = castId<UserConnectionId>(`user_connection_${suffix}`);
   await db
     .insert(userConnections)
-    .values({ id, ownerId, label: `image generator ${suffix}`, providerId: PROVIDER_ID, model: "img-model" })
+    .values({ id, ownerId, label: `image generator ${suffix}`, providerId: PROVIDER_ID, model: testModelId("img-model") })
     .onConflictDoNothing();
   return id;
 }
@@ -62,7 +63,7 @@ describe("insertGeneration", () => {
       identityHash: null,
       prompt: "a lighthouse at dusk",
       negativePrompt: null,
-      model: castId<ModelId>("img-model"),
+      model: testModelId("img-model"),
       providerId: PROVIDER_ID,
       connectionId,
       costUsd: 0.05,
@@ -102,7 +103,7 @@ describe("insertGeneration", () => {
       identityHash: "deadbeef",
       prompt: "full body portrait, red hair",
       negativePrompt: "text, watermark",
-      model: castId<ModelId>("img-model"),
+      model: testModelId("img-model"),
       providerId: PROVIDER_ID,
       connectionId,
       costUsd: null,
@@ -149,7 +150,7 @@ async function seedGeneration(args: SeedArgs): Promise<void> {
     identityHash,
     prompt: PORTRAIT_PROMPT,
     negativePrompt: null,
-    model: castId<ModelId>("img-model"),
+    model: testModelId("img-model"),
     providerId: PROVIDER_ID,
     connectionId,
     costUsd: 0.02,

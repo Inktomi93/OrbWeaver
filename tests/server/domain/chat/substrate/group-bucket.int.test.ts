@@ -15,6 +15,7 @@ import { recallMemory } from "../../../../../packages/server/src/domain/chat/mem
 import { resolveGroupBucketCharacterId } from "../../../../../packages/server/src/domain/chat/substrate/group-bucket.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
 import { makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
 import { fakeEmbeddingsStore, fakeSummarize } from "../memory/_support.ts";
 
@@ -93,7 +94,9 @@ describe("group memory build↔recall round-trip (F1 regression)", () => {
     const chatId = await seedChat(db, "grp");
     const generationId = castId<EmbedGenerationId>("embed_generation_group_bucket_bad");
     const connectionId = castId<UserConnectionId>("user_connection_group_bucket_bad");
-    await db.insert(userConnections).values({ id: connectionId, ownerId: host, label: "group bucket embed", providerId: castId("custom-openai"), model: "m" });
+    await db
+      .insert(userConnections)
+      .values({ id: connectionId, ownerId: host, label: "group bucket embed", providerId: testProviderId("custom-openai"), model: testModelId("m") });
     await db.insert(embedGenerations).values({
       id: generationId,
       ownerId: host,

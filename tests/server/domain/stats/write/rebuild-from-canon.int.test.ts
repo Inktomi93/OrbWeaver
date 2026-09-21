@@ -18,6 +18,7 @@ import { reconcileStats } from "../../../../../packages/server/src/domain/stats/
 import { createFrozenClock } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
 import { seedCharacter, seedChat, seedMessage, seedPersona, seedUser, T0 } from "../_support.ts";
 
 let db: Db;
@@ -256,7 +257,7 @@ describe("reconcileStats", () => {
       role: "assistant",
       characterId,
       now,
-      variant: { content, model: "gpt", provider: "openrouter" },
+      variant: { content, model: testModelId("gpt"), provider: testProviderId("openrouter") },
     });
     applyStatsDelta(statements, db, assistantTurnDelta({ ownerId, characterId, economics: { content, model: "gpt", provider: "openrouter" }, now }));
     await db.batch(batchMany(statements));

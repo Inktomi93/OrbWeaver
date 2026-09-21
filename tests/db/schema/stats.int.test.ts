@@ -13,6 +13,7 @@ import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 import { freshDb } from "../../support/db.ts";
 import { expect, test } from "../../support/fixtures.ts";
+import { testModelId, testProviderId } from "../../support/inference-identities.ts";
 import { seedUser } from "./_support.ts";
 
 async function seedCharacter(db: Db, ownerId: UserId, id: string): Promise<CharacterId> {
@@ -240,7 +241,7 @@ test("model_stats.provider defaults to '(unknown)' when omitted (the load-bearin
 
   // No `provider` supplied — the column default fills the sentinel so the (owner, model, provider) unique
   // never splits on a NULL (SQLite NULLs are DISTINCT).
-  await db.insert(modelStats).values({ id, ownerId, model: "claude-opus-4-8", generations: 3 });
+  await db.insert(modelStats).values({ id, ownerId, model: testModelId("claude-opus-4-8"), generations: 3 });
 
   const rows = await db.select().from(modelStats).where(eq(modelStats.id, id));
   expect(rows).toHaveLength(1);
@@ -258,8 +259,8 @@ test("model_stats round-trips an explicit provider and economics", async () => {
   await db.insert(modelStats).values({
     id,
     ownerId,
-    model: "claude-opus-4-8",
-    provider: "anthropic",
+    model: testModelId("claude-opus-4-8"),
+    provider: testProviderId("anthropic"),
     generations: 10,
     tokensIn: 5000,
     tokensOut: 9000,
@@ -279,8 +280,8 @@ test("model_stats unique is (owner, model, provider) — same triple collides, d
   await db.insert(modelStats).values({
     id: castId<ModelStatId>("model_stat_u1"),
     ownerId,
-    model: "claude-opus-4-8",
-    provider: "anthropic",
+    model: testModelId("claude-opus-4-8"),
+    provider: testProviderId("anthropic"),
   });
 
   // Same (owner, model, provider) → collide.
@@ -289,8 +290,8 @@ test("model_stats unique is (owner, model, provider) — same triple collides, d
     await db.insert(modelStats).values({
       id: castId<ModelStatId>("model_stat_u2"),
       ownerId,
-      model: "claude-opus-4-8",
-      provider: "anthropic",
+      model: testModelId("claude-opus-4-8"),
+      provider: testProviderId("anthropic"),
     });
   } catch (err) {
     caught = err;
@@ -301,13 +302,13 @@ test("model_stats unique is (owner, model, provider) — same triple collides, d
   await db.insert(modelStats).values({
     id: castId<ModelStatId>("model_stat_u3"),
     ownerId,
-    model: "claude-opus-4-8",
-    provider: "openrouter",
+    model: testModelId("claude-opus-4-8"),
+    provider: testProviderId("openrouter"),
   });
   const all = await db
     .select()
     .from(modelStats)
-    .where(and(eq(modelStats.ownerId, ownerId), eq(modelStats.model, "claude-opus-4-8")));
+    .where(and(eq(modelStats.ownerId, ownerId), eq(modelStats.model, testModelId("claude-opus-4-8"))));
   expect(all).toHaveLength(2);
 });
 
@@ -318,7 +319,7 @@ test("model_stats.ownerId FK is enforced (a missing user is rejected)", async ()
     await db.insert(modelStats).values({
       id: castId<ModelStatId>("model_stat_orphan"),
       ownerId: castId<UserId>("user_does_not_exist"),
-      model: "m",
+      model: testModelId("m"),
     });
   } catch (err) {
     caught = err;

@@ -3,7 +3,7 @@
 // injected fakes (summarize / embeddingsStore / searchDigests) the build + recall close over. The digest/
 // segment rows carry a dummy F32_BLOB(1024) embedding (memory never reads the vector column — only the facets).
 
-import type { ProviderId } from "@orb/contracts/inference";
+import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import type { SummarizeResult } from "@orb/contracts/providers";
 import type { SummarizeOptions } from "@orb/contracts/role-clients";
 import type { BlockKey, MemoryQueryOptions, ScoredBlock } from "@orb/contracts/search";
@@ -73,8 +73,8 @@ async function seedGeneration(db: Db, chatId: ChatId, knownOwnerId?: UserId): Pr
       id: connectionId,
       ownerId,
       label: "memory fixture embed",
-      providerId: castId<ProviderId>("custom-openai"),
-      model: MODEL,
+      providerId: providerIdSchema.parse("custom-openai"),
+      model: modelIdSchema.parse(MODEL),
     })
     .onConflictDoNothing();
   await db

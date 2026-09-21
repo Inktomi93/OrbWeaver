@@ -34,6 +34,7 @@ import { createFrozenClock } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { makeResolved } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
 import {
   FROZEN_AT,
   makeChatContext,
@@ -82,8 +83,8 @@ const REPLY = scripted({
     cacheReadTokens: 5,
     cacheWriteTokens: 3,
     contextWindow: 1000,
-    model: "gpt",
-    provider: "openrouter",
+    model: testModelId("gpt"),
+    provider: testProviderId("openrouter"),
   },
 });
 const SWIPE = scripted({
@@ -96,8 +97,8 @@ const SWIPE = scripted({
     cacheReadTokens: 6,
     cacheWriteTokens: 4,
     contextWindow: 1000,
-    model: "gpt",
-    provider: "openrouter",
+    model: testModelId("gpt"),
+    provider: testProviderId("openrouter"),
   },
 });
 const CONTINUE = scripted({
@@ -110,8 +111,8 @@ const CONTINUE = scripted({
     cacheReadTokens: 1,
     cacheWriteTokens: 1,
     contextWindow: 1000,
-    model: "gpt",
-    provider: "openrouter",
+    model: testModelId("gpt"),
+    provider: testProviderId("openrouter"),
   },
 });
 const IMPERSONATE = scripted({
@@ -122,8 +123,8 @@ const IMPERSONATE = scripted({
     tokensOut: 6,
     costUsd: 0.0625,
     contextWindow: 1000,
-    model: "gpt",
-    provider: "openrouter",
+    model: testModelId("gpt"),
+    provider: testProviderId("openrouter"),
   },
 });
 // A new-slot assistant turn WITH a non-empty reasoning trace — the engine folds `reasoning` onto the
@@ -141,8 +142,8 @@ const REASONING_REPLY = scripted({
     cacheReadTokens: 5,
     cacheWriteTokens: 3,
     contextWindow: 1000,
-    model: "gpt",
-    provider: "openrouter",
+    model: testModelId("gpt"),
+    provider: testProviderId("openrouter"),
   },
 });
 
@@ -451,8 +452,8 @@ describe("engine stats — the live turn stamps the reasoning window (#184)", ()
             tokensOut: 20,
             costUsd: 0.5,
             contextWindow: 1000,
-            model: "gpt",
-            provider: "openrouter",
+            model: testModelId("gpt"),
+            provider: testProviderId("openrouter"),
           },
         };
       })();
@@ -526,8 +527,8 @@ describe("engine stats — the live turn stamps the reasoning window (#184)", ()
             tokensIn: 10,
             tokensOut: 20,
             contextWindow: 1000,
-            model: "claude-opus-5",
-            provider: "claude-sub",
+            model: testModelId("claude-opus-5"),
+            provider: testProviderId("claude-sub"),
             providerMetadata,
           },
         };

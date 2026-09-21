@@ -138,6 +138,31 @@ describe("ST script_injects → orb's injection system", () => {
 });
 
 describe("imported variant token accounting", () => {
+  function importedAttribution(model: string, provider: string): BulkImportChatInput["messages"][number]["variants"][number] {
+    const header = JSON.stringify({ user_name: "Alex", character_name: "Aria", create_date: "May 7, 2025 10:52pm" });
+    const body = JSON.stringify({ is_user: false, mes: "Hello.", send_date: "May 7, 2025 10:52pm", extra: { model, api: provider } });
+    const parsed = parseChatJsonl(`${header}\n${body}\n`, { fileName: "identity.jsonl", charDirName: "Aria" });
+    if (parsed === null) {
+      throw new Error("fixture parse failed");
+    }
+    const input = buildBulkImportChatInput({ parsed, importedFrom: "identity.jsonl", importHash: "hash-identity" }, DEPS);
+    const variant = input.messages[0]?.variants[0];
+    if (variant === undefined) {
+      throw new Error("fixture variant missing");
+    }
+    return variant;
+  }
+
+  test("message_variants.model maps a blank imported foreign id to null and normalizes a valid id", () => {
+    expect(importedAttribution("   ", "openrouter").model).toBeNull();
+    expect(importedAttribution("  anthropic/claude-sonnet-5  ", "openrouter").model).toBe("anthropic/claude-sonnet-5");
+  });
+
+  test("message_variants.provider maps malformed imported identity to null and preserves a plugin registry id", () => {
+    expect(importedAttribution("m", "custom_openai").provider).toBeNull();
+    expect(importedAttribution("m", "plugin:acme/image").provider).toBe("plugin:acme/image");
+  });
+
   test("an inspected ST token_count remains measured on its role-routed axis", () => {
     const header = JSON.stringify({ user_name: "Alex", character_name: "Aria", create_date: "May 7, 2025 10:52pm" });
     const body = JSON.stringify({ is_user: false, mes: "Hello.", send_date: "May 7, 2025 10:52pm", extra: { token_count: 7 } });

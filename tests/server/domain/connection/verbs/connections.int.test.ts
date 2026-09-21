@@ -19,6 +19,26 @@ import { BYO_BASE_URL, BYO_PROVIDER, makeHarness, seedOwner, seedUser } from "..
 const CREDENTIAL_ID = castId<UserCredentialId>("user_credential_000001");
 
 describe("create", () => {
+  test("user_connections.model refuses a blank foreign id before persistence", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    const owner = await seedOwner(db);
+    await expect(
+      h.svc.create({ principal: owner.principal, providerId: BYO_PROVIDER, credentialId: null, baseUrl: BYO_BASE_URL, model: "   " }),
+    ).rejects.toMatchObject({ code: CONNECTION_OP_CODES.taskUnservable });
+    expect(await h.svc.list({ principal: owner.principal })).toEqual([]);
+  });
+
+  test("imagery_generations.provider cannot originate from an unregistered connection provider", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    const owner = await seedOwner(db);
+    await expect(
+      h.svc.create({ principal: owner.principal, providerId: "no-such-provider", credentialId: null, baseUrl: BYO_BASE_URL, model: "image-model" }),
+    ).rejects.toMatchObject({ code: CONNECTION_OP_CODES.providerUnknown });
+    expect(await h.svc.list({ principal: owner.principal })).toEqual([]);
+  });
+
   test("mints `<provider label> · <model>` and suffixes a collision, per owner", async () => {
     const db = await freshDb();
     const h = await makeHarness(db);

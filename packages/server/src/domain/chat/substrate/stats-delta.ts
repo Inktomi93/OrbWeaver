@@ -10,9 +10,24 @@
 
 import type { TokenProvenance, VariantMetadata } from "@orb/contracts/chat";
 import { VARIANT_METADATA_REASONING_MS_KEY } from "@orb/contracts/chat";
+import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { modelKey, utcDay, wordCount } from "@orb/kit/stats-tally";
+
+/** Convert nullable historical attribution into the only model-stats identities the write contract admits.
+ * A blank model has no bucket; a missing/malformed provider takes the ruled `(unknown)` bucket. */
+function statsModelKey(model: string | null, provider: string | null): Pick<StatsDelta, "model" | "provider"> {
+  if (model === null) {
+    return { model: null, provider: null };
+  }
+  const parsedModel = modelIdSchema.safeParse(model);
+  if (!parsedModel.success) {
+    return { model: null, provider: null };
+  }
+  const parsedProvider = provider === null ? null : (providerIdSchema.safeParse(provider).data ?? null);
+  return modelKey(parsedModel.data, parsedProvider);
+}
 
 /** The committed economics a turn-delta builder reads. All nullable — an unreported field contributes
  *  nothing (a sparse patch; never a fabricated zero). */
@@ -110,7 +125,7 @@ export function assistantTurnDelta(params: {
   readonly now: number;
 }): StatsDelta {
   const e = params.economics;
-  const { model, provider } = modelKey(e.model ?? null, e.provider ?? null);
+  const { model, provider } = statsModelKey(e.model ?? null, e.provider ?? null);
   const optional: Record<string, number> = {};
   setNum(optional, "tokensIn", e.tokensIn);
   setNum(optional, "tokensOut", e.tokensOut);
@@ -274,7 +289,7 @@ export function canonMessageDelta(params: { readonly ownerId: UserId; readonly r
   const words = wordCount(row.content ?? "") * sign;
   const gen = genDurationMs(row.genStartedAt, row.genFinishedAt);
   const reasoningMs = reasoningMsOf(row.metadata) * sign;
-  const { model, provider } = modelKey(row.model, row.provider);
+  const { model, provider } = statsModelKey(row.model, row.provider);
   const creditsModel = isAssistant && row.model !== null;
   const tokensIn = (row.tokensIn ?? 0) * sign;
   const tokensOut = (row.tokensOut ?? 0) * sign;
@@ -377,7 +392,7 @@ export function swipeVariantDelta(params: { readonly ownerId: UserId; readonly r
   const { row, sign } = params;
   const gen = genDurationMs(row.genStartedAt, row.genFinishedAt);
   const reasoningMs = reasoningMsOf(row.metadata) * sign;
-  const { model, provider } = modelKey(row.model, row.provider);
+  const { model, provider } = statsModelKey(row.model, row.provider);
   const creditsModel = row.model !== null;
   const tokensIn = (row.tokensIn ?? 0) * sign;
   const tokensOut = (row.tokensOut ?? 0) * sign;
@@ -525,8 +540,7 @@ export function editReasoningDelta(params: {
     ownerId: params.ownerId,
     characterId: assistant ? params.characterId : null,
     day: utcDay(params.createdAt),
-    model: assistant ? params.model : null,
-    provider: assistant ? params.provider : null,
+    ...statsModelKey(assistant ? params.model : null, assistant ? params.provider : null),
     reasoningGenerations: diff,
     modelReasoningGenerations: diff,
     now: params.now,

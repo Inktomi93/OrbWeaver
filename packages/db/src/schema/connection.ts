@@ -22,7 +22,7 @@
 
 import type { ConnectionApi, ConnectionExtrasDoc, ConnectionTransportDoc, DeclaredCapability, ProviderId } from "@orb/contracts/inference";
 import { CHAT_APIS } from "@orb/contracts/inference";
-import type { UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
+import type { ModelId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { checkList } from "../kit/check-list.ts";
@@ -60,7 +60,7 @@ export const userConnections = sqliteTable(
     // write and by the egress guard on use (§5.3c class 4).
     baseUrl: text("base_url"),
     // The picked model id — NEVER defaulted (F16); the picker is the only way it gets set.
-    model: text("model").notNull(),
+    model: text("model").$type<ModelId>().notNull(),
     // ∈ PROVIDER.apis (coherence is data, re-checked at resolve); `auto` ⇒ the provider's first api.
     api: text("api", { enum: CONNECTION_APIS }).$type<ConnectionApi>().notNull().default("auto"),
     // Per-connection capability OVERRIDES in `declaredCapabilitySchema` (kind, modalities, window, dims,

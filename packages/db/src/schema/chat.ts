@@ -68,7 +68,7 @@ import {
 } from "@orb/contracts/chat";
 // PARTICIPANT_ROLES is one-homed in @orb/contracts/identity (the can() resource-role axis; PD-59).
 import { PARTICIPANT_ROLES } from "@orb/contracts/identity";
-import type { CostDetails, NormalizedFinishReason } from "@orb/contracts/inference";
+import type { CostDetails, NormalizedFinishReason, ProviderId } from "@orb/contracts/inference";
 import { NORMALIZED_FINISH_REASONS } from "@orb/contracts/inference";
 import type { EffortLevel, UserIntent, UserMacroValues } from "@orb/contracts/preset";
 import { EFFORT_LEVELS } from "@orb/contracts/preset";
@@ -85,6 +85,7 @@ import type {
   MessageId,
   MessageReactionId,
   MessageVariantId,
+  ModelId,
   PendingTurnId,
   PersonaId,
   UserConnectionId,
@@ -443,7 +444,7 @@ export const messageVariants = sqliteTable(
     // what the wire needs and is NULL when nothing replayable was emitted. Typed JSON, parsed at the read seam
     // (the converters refuse an unsigned block, so a malformed row degrades to "nothing to replay").
     reasoningParts: text("reasoning_parts", { mode: "json" }).$type<readonly ChatReasoningPart[]>(),
-    model: text("model"),
+    model: text("model").$type<ModelId>(),
     // ATTRIBUTION (inference program §5.3b): which of the user's connections generated this swipe. SET NULL —
     // a deleted connection never deletes history (`selectedVariantId`'s idiom); null on user-authored rows,
     // imports and edits. Routing is a `connection_bindings` row; attribution is HERE and outlives the row.
@@ -452,8 +453,9 @@ export const messageVariants = sqliteTable(
       .references(() => userConnections.id, { onDelete: "set null" }),
     // The PROVIDER REGISTRY ID (`Resolved.provider.id`), denormalised on purpose so attribution reads need no
     // join. Validated at the producer against the registry, NO CHECK — a plugin provider id is runtime data
-    // (§5.3c class 2). The ST import narrows an unparseable source value to `(unknown)`.
-    provider: text("provider"),
+    // (§5.3c class 2). The ST import narrows an unparseable source value to NULL; `(unknown)` belongs only
+    // to `model_stats.provider`, whose non-null natural key requires a sentinel.
+    provider: text("provider").$type<ProviderId>(),
     // CHECK on the preset effort tuple (`EFFORT_LEVELS`, 7 members incl. `none`) — §5.3c class 1. The
     // APPLIED effort — what the wire actually carried in our vocabulary (`ChatResult.appliedEffort`), never the
     // requested intent (that lives in `params`): a transport that spells no effort field, a budget-mode turn or

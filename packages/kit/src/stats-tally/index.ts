@@ -8,7 +8,8 @@
 // 'YYYY-MM-DD' is the first 10 chars of an ISO-8601 timestamp — the daily_stats grain.
 const ISO_DATE_LENGTH = 10;
 // Sentinel provider bucket when a model row carries no provider.
-const UNKNOWN_PROVIDER = "(unknown)";
+/** The sole non-registry provider bucket, used only by the non-null `model_stats.provider` natural key. */
+export const MODEL_PROVIDER_UNKNOWN = "(unknown)" as const;
 
 /** ST's exact `\b\w+\b` word count — the validation harness matches SillyTavern's stats.json. */
 export function wordCount(s: string | null | undefined): number {
@@ -22,9 +23,12 @@ export function utcDay(ms: number): string {
 
 /** The model_stats group key — `(unknown)` provider bucket when a model has no provider. model null
  *  → no model_stats row. */
-export function modelKey(model: string | null, provider: string | null): { model: string | null; provider: string | null } {
+export function modelKey<Model extends string, Provider extends string>(
+  model: Model | null,
+  provider: Provider | null,
+): { model: Model | null; provider: Provider | typeof MODEL_PROVIDER_UNKNOWN | null } {
   return {
     model,
-    provider: model === null ? null : (provider ?? UNKNOWN_PROVIDER),
+    provider: model === null ? null : (provider ?? MODEL_PROVIDER_UNKNOWN),
   };
 }

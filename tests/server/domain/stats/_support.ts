@@ -4,6 +4,7 @@
 // canon slot/variant graph (D26 — for the on-read scans + reconcile). Inserts route through @orb/db tables.
 
 import type { TokenProvenance } from "@orb/contracts/chat";
+import type { ProviderId } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import { characterStats, characters, chatParticipants, chats, dailyStats, messages, messageVariants, modelStats, ownerStats, personas } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
@@ -18,6 +19,7 @@ import type {
   Handle,
   MessageId,
   MessageVariantId,
+  ModelId,
   ModelStatId,
   PersonaId,
   UserId,
@@ -27,6 +29,7 @@ import type { MessageRole } from "@orb/kit/message-role";
 import { eq } from "drizzle-orm";
 import { createFrozenClock } from "../../../support/clock.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
+import { testModelId, testProviderId } from "../../../support/inference-identities.ts";
 
 // The deterministic base instant — sourced from the LOCKED global fixture (Spine-Testing.md §4), not a
 // self-rolled literal. Seed-row timestamps build off it as test DATA (the `msgCounter` + explicit
@@ -132,6 +135,14 @@ function fixtureTokenProvenance(v: VariantSeed): TokenProvenance {
   return v.tokenProvenance ?? (v.tokensIn !== undefined || v.tokensOut !== undefined ? "measured" : "unrecorded");
 }
 
+function variantModel(value: string | null | undefined): ModelId | null {
+  return value === null || value === undefined ? null : testModelId(value);
+}
+
+function variantProvider(value: string | null | undefined): ProviderId | null {
+  return value === null || value === undefined ? null : testProviderId(value);
+}
+
 function variantRow(messageId: MessageId, n: number, idx: number, v: VariantSeed): typeof messageVariants.$inferInsert {
   const metadata =
     v.reasoningDuration === undefined
@@ -143,8 +154,8 @@ function variantRow(messageId: MessageId, n: number, idx: number, v: VariantSeed
     messageId,
     idx,
     content: v.content ?? "",
-    model: v.model ?? null,
-    provider: v.provider ?? null,
+    model: variantModel(v.model),
+    provider: variantProvider(v.provider),
     tokensIn: v.tokensIn ?? null,
     tokensOut: v.tokensOut ?? null,
     tokenProvenance: fixtureTokenProvenance(v),
@@ -209,11 +220,17 @@ export async function seedDailyStats(db: Db, ownerId: UserId, day: string, o: Pa
   });
 }
 
-export async function seedModelStats(db: Db, ownerId: UserId, o: { model: string; provider: string } & Partial<typeof modelStats.$inferInsert>): Promise<void> {
+export async function seedModelStats(
+  db: Db,
+  ownerId: UserId,
+  o: { model: string; provider: string } & Omit<Partial<typeof modelStats.$inferInsert>, "model" | "provider">,
+): Promise<void> {
   await db.insert(modelStats).values({
     id: castId<ModelStatId>(`model_stat_${o.model}_${o.provider}`),
     ownerId,
     computedAt: T0,
     ...o,
+    model: testModelId(o.model),
+    provider: testProviderId(o.provider),
   });
 }

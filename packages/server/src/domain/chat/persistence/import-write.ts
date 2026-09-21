@@ -8,13 +8,15 @@
 
 import type { BulkImportChatInput, BulkImportChatsResult, ChatMetadata, ImportedChatIdentity, MessageKind } from "@orb/contracts/chat";
 import { DEFAULT_MESSAGE_KIND } from "@orb/contracts/chat";
+import type { ProviderId } from "@orb/contracts/inference";
+import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import { characters, chatImportClaims, chatInjections, chatParticipants, chats, messageAssets, messages, messageVariants } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, batchStmt, isConstraintViolation } from "@orb/db/kit";
 import { tokenizeContent } from "@orb/kit/content";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { AssetId, CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, MessageId, MessageVariantId, ModelId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
@@ -254,6 +256,14 @@ interface MessageStatementsArgs {
   readonly narratorCharacterId: CharacterId | null;
 }
 
+function importedModelId(raw: string | null): ModelId | null {
+  return modelIdSchema.safeParse(raw).data ?? null;
+}
+
+function importedProviderId(raw: string | null): ProviderId | null {
+  return providerIdSchema.safeParse(raw).data ?? null;
+}
+
 /** Is this slot the room's narrator voice? ONE reading of the declared kind (D129), shared by the attribution
  *  router and the mint gate below so the two can never disagree about which rows made the mint necessary. */
 function isNarratorSlot(message: BulkImportChatInput["messages"][number]): boolean {
@@ -335,8 +345,8 @@ function messageStatements(args: MessageStatementsArgs): {
           messageId,
           idx: v.idx,
           content: v.content,
-          model: v.model,
-          provider: v.provider,
+          model: importedModelId(v.model),
+          provider: importedProviderId(v.provider),
           // `tokensIn` is supplied by the orb-native bundle AND by the ST arm's user/system slots (the
           // role-routed `extra.token_count`); `variableDelta` stays orb-native-only.
           tokensIn: v.tokensIn ?? null,

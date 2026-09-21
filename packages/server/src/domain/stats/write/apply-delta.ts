@@ -24,11 +24,11 @@ import { characterStats, dailyStats, modelStats, ownerStats, statsCanonVersions 
 import type { BatchStmt } from "@orb/db/kit";
 import { batchStmt } from "@orb/db/kit";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { MODEL_PROVIDER_UNKNOWN } from "@orb/kit/stats-tally";
 import { sql } from "drizzle-orm";
 
 // The model_stats "(unknown)" provider sentinel. Not null so the (owner, model, provider) unique never
 // splits on a null; must match `@orb/kit/stats-tally.modelKey` and the read-side keys.
-const UNKNOWN_PROVIDER = "(unknown)";
 
 /** Coalesce an absent increment to 0 (the delta is a sparse patch — an omitted field is "no change"). */
 const n = (v: number | undefined): number => v ?? 0;
@@ -279,7 +279,7 @@ export const applyStatsDelta: ApplyStatsDelta<BatchStmt[], Db> = (batch: BatchSt
             id: mintTypeId(ID_PREFIX.modelStat),
             ownerId: delta.ownerId,
             model: delta.model,
-            provider: delta.provider ?? UNKNOWN_PROVIDER,
+            provider: delta.provider ?? MODEL_PROVIDER_UNKNOWN,
             generations: n(delta.modelGenerations),
             tokensIn: n(delta.modelTokensIn),
             tokensOut: n(delta.modelTokensOut),

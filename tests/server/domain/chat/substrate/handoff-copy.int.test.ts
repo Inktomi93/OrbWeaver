@@ -69,6 +69,7 @@ import { createCopyHandoffBooks, createCountHandoffBooks } from "../../../../../
 import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
 import { makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
 
 let db: Db;
@@ -310,7 +311,9 @@ describe("the accepted offer — the room moves onto the copies", () => {
     const theirs = castId<ChatDigestId>("chat_digest_theirs");
     const generationId = castId<EmbedGenerationId>("embed_generation_handoff_copy");
     const connectionId = castId<UserConnectionId>("user_connection_handoff_copy");
-    await db.insert(userConnections).values({ id: connectionId, ownerId: host, label: "handoff copy embed", providerId: castId("custom-openai"), model: "m" });
+    await db
+      .insert(userConnections)
+      .values({ id: connectionId, ownerId: host, label: "handoff copy embed", providerId: testProviderId("custom-openai"), model: testModelId("m") });
     await db.insert(embedGenerations).values({
       id: generationId,
       ownerId: host,

@@ -22,6 +22,7 @@ import { createChatService } from "../../../../packages/server/src/domain/chat/s
 import { freshDb } from "../../../support/db.ts";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
 import { expect, test } from "../../../support/fixtures.ts";
+import { testModelId } from "../../../support/inference-identities.ts";
 import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser, testConnection } from "./_support.ts";
 
 let db: Db;
@@ -45,7 +46,7 @@ function scripted(content: string): ChatContext["runChatTurn"] {
       yield { kind: "text", text: content };
       yield {
         kind: "final",
-        economics: { content, tokensIn: 4, tokensOut: 2, model: "test-model" },
+        economics: { content, tokensIn: 4, tokensOut: 2, model: testModelId("test-model") },
       };
     })();
 }

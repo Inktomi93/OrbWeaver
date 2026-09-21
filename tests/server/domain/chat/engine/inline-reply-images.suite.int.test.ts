@@ -35,6 +35,7 @@ import { createPostNarratorMessage } from "../../../../../packages/server/src/do
 import { freshDb } from "../../../../support/db.ts";
 import { makeCapability, makeGenerationCapability, makeResolved, TEST_PROVIDER_ID } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { testModelId } from "../../../../support/inference-identities.ts";
 import { FROZEN_AT, makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser, stubRunCompaction } from "../_support.ts";
 
 const HOST = castId<UserId>("user_host");
@@ -58,7 +59,7 @@ function pictureTurn(sink: TurnRequest[], prose: string, images: readonly Genera
     return (async function* (): AsyncGenerator<TurnStreamChunk> {
       await Promise.resolve();
       yield { kind: "text", text: prose };
-      yield { kind: "final", economics: { content: prose, model: "test-model", replyImages: images, tokensIn: 1, tokensOut: 1 } };
+      yield { kind: "final", economics: { content: prose, model: testModelId("test-model"), replyImages: images, tokensIn: 1, tokensOut: 1 } };
     })();
   };
 }

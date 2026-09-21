@@ -10,6 +10,7 @@
 // consequences, because only this domain writes `user_credentials`.
 
 import type { CredentialHealth, ResolvedSecret } from "@orb/contracts/credentials";
+import type { ProviderDef } from "@orb/contracts/inference";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { UserCredentialId } from "@orb/kit/ids";
@@ -34,9 +35,9 @@ export interface CredentialContext {
   readonly now: () => number;
   readonly newCredentialId: () => UserCredentialId;
   readonly box: SecretBox;
-  /** Is `providerId` a registered provider row (built-in ∪ runtime rows)? `add` refuses an unknown id: the id
-   *  is half the AAD, so a typo would seal a key nothing can ever open. Bound to the inference registry. */
-  readonly providerKnown: (providerId: string) => boolean;
+  /** The registered provider row (built-in ∪ runtime rows), or undefined. `add` uses the row's branded id
+   *  directly: the id is half the AAD, so membership validation and branding must be one operation. */
+  readonly findProvider: (providerId: string) => ProviderDef | undefined;
   /** The db-bound best-effort `logAudit`, wired at the composition root (PD-142). Every credential mutation
    *  writes a durable `audit_logs` row IN ADDITION TO the ephemeral `securityEvent`/`emitUserEvent` — a leaked
    *  or rotated key must leave a persistent forensic trail, not just a pino line that ages out. Best-effort:

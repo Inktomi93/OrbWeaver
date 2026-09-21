@@ -7,7 +7,7 @@
 import type { ChatBusEvent, JoinHistoryVisibility, MessageKind, ParticipantView } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Capability } from "@orb/contracts/inference";
-import { providerIdSchema } from "@orb/contracts/inference";
+import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import type { SummarizeResult } from "@orb/contracts/providers";
 import type { SummarizeInput, SummarizeOptions } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
@@ -93,7 +93,7 @@ export async function seedConnection(db: Db, ownerId: UserId, label = "test conn
     ownerId,
     label,
     providerId: providerIdSchema.parse(TEST_PROVIDER_ID),
-    model: "test-model",
+    model: modelIdSchema.parse("test-model"),
     createdAt: FROZEN_AT,
     updatedAt: FROZEN_AT,
   });

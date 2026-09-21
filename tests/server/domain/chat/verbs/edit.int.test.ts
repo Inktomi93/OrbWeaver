@@ -29,6 +29,7 @@ import { reconcileStats } from "../../../../../packages/server/src/domain/stats/
 import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
 import { emptyState, seedGame, snapshotId } from "../../rpg/_support.ts";
 import { addVariant, FROZEN_AT, makeChatContext, noClaim, seedCharacter, seedChat, seedMessage, seedParticipant, seedPersona, seedUser } from "../_support.ts";
 import { seedDigest } from "../memory/_support.ts";
@@ -622,8 +623,8 @@ describe("canon-mutator stats drift gate (live delta == a reconcile over the res
     await db
       .update(messageVariants)
       .set({
-        model: "gpt",
-        provider: "openrouter",
+        model: testModelId("gpt"),
+        provider: testProviderId("openrouter"),
         tokensIn: 10,
         tokensOut: 20,
         costUsd: 0.5,
@@ -639,8 +640,8 @@ describe("canon-mutator stats drift gate (live delta == a reconcile over the res
     await db
       .update(messageVariants)
       .set({
-        model: "gpt",
-        provider: "openrouter",
+        model: testModelId("gpt"),
+        provider: testProviderId("openrouter"),
         tokensIn: 100,
         tokensOut: 200,
         costUsd: 5,
@@ -689,8 +690,8 @@ describe("canon-mutator stats drift gate (live delta == a reconcile over the res
     await db
       .update(messageVariants)
       .set({
-        model: "gpt",
-        provider: "openrouter",
+        model: testModelId("gpt"),
+        provider: testProviderId("openrouter"),
         tokensIn: 12,
         tokensOut: 34,
         costUsd: 1.5,
@@ -734,8 +735,8 @@ describe("canon-mutator stats drift gate (live delta == a reconcile over the res
     await db
       .update(messageVariants)
       .set({
-        model: "gpt",
-        provider: "openrouter",
+        model: testModelId("gpt"),
+        provider: testProviderId("openrouter"),
         tokensIn: 11,
         tokensOut: 22,
         costUsd: 2.5,
