@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "capturedAt": "2026-09-21T07:27:41.994665+00:00",
-  "sourceCommit": "7c59e5b50",
+  "capturedAt": "2026-09-21T07:33:54.115788+00:00",
+  "sourceCommit": "a040ed288",
   "purpose": "Full AST audit observations and agent reasoning. Dated evidence, not a replacement for GitHub work-item lifecycle.",
   "entryPoints": {
     "coverage": "world-tools-lens-manifest.json",
@@ -36,7 +36,9 @@
     "cleanupFinalRereview": "world-tools-cleanup-rereview.json",
     "graphQueryLensReview": "world-tools-graph-query-review.json",
     "smallPackageRotTriage": "world-tools-small-package-rot-triage.json",
-    "serverRotTriage": "world-tools-server-rot-triage.json"
+    "serverRotTriage": "world-tools-server-rot-triage.json",
+    "imageryAliasCleanup": "world-tools-imagery-alias-cleanup.json",
+    "imageryAliasCleanupReview": "world-tools-imagery-alias-review.json"
   },
   "limitations": [
     "30 CLI verbs identified; coverage remains incomplete. A candidate is not a confirmed defect or deletion authorization.",
@@ -178,6 +180,10 @@
       "commit": "d8426277d",
       "issue": 2540,
       "result": "Identity-aware callers/JSX/importers, complete local declarations and same-line occurrences, SCC cycles including self-loops, wide syntactic roots, and honest depcruise receipts; independently confirmed"
+    },
+    {
+      "commit": "a040ed288",
+      "result": "Removed server-only prompt/caption default aliases and retargeted proof to canonical contracts exports; independently confirmed"
     }
   ],
   "unresolvedInsights": [
@@ -579,6 +585,20 @@
       "sourceSha256": "7f4cd95021d16e09bf6707ebd0e0afcb070ff50600fde58d2e6593bee18ed055",
       "sha256": "7f4cd95021d16e09bf6707ebd0e0afcb070ff50600fde58d2e6593bee18ed055",
       "bytes": 29299
+    },
+    {
+      "file": "world-tools-imagery-alias-cleanup.json",
+      "source": "/tmp/world-tools-imagery-alias-cleanup.json",
+      "sourceSha256": "a6f0f29a3f306eb843a96261f9acc8f6ed5e3a612ae75c5b1a14d0a3020bebb6",
+      "sha256": "a6f0f29a3f306eb843a96261f9acc8f6ed5e3a612ae75c5b1a14d0a3020bebb6",
+      "bytes": 2845
+    },
+    {
+      "file": "world-tools-imagery-alias-review.json",
+      "source": "/tmp/world-tools-imagery-alias-review.json",
+      "sourceSha256": "0630aca22882d6ad886cd050a6db59e0626d2dc23131fc0283b8e0439e316323",
+      "sha256": "0630aca22882d6ad886cd050a6db59e0626d2dc23131fc0283b8e0439e316323",
+      "bytes": 2631
     }
   ],
   "crossCuttingFindings": {
