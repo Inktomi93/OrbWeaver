@@ -23,6 +23,7 @@
 // deletable, exportable, indistinguishable from a duplicate except for the provenance stamp. That matters
 // for the crash arm: mints that land without their room swap are not corruption and need no cleanup sweep.
 
+import { deriveCharacterHandle } from "@orb/contracts/character";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import { canonicalBackgroundSource } from "@orb/contracts/theme";
 import type { AssetId, CharacterHandle, CharacterId, UserId } from "@orb/kit/ids";
@@ -46,7 +47,7 @@ function freeHandle(sourceHandle: CharacterHandle, taken: ReadonlySet<string>): 
     return sourceHandle;
   }
   for (let n = 2; n <= HANDLE_ATTEMPTS; n += 1) {
-    const candidate = castId<CharacterHandle>(`${sourceHandle}-${n}`);
+    const candidate = deriveCharacterHandle(sourceHandle, `-${n}`);
     if (!taken.has(candidate)) {
       return candidate;
     }

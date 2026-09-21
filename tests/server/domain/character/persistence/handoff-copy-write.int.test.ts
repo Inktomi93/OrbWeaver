@@ -3,6 +3,7 @@
 // gates are the whole test: the source read carries `fromOwnerId` in its WHERE, and the provenance stamp is
 // the find-before-mint key that makes a retried accept converge instead of minting a second library.
 
+import { createCharacterSchema } from "@orb/contracts/character";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import { assets, characters } from "@orb/db";
@@ -165,6 +166,27 @@ test("a handle already taken in the recipient's library is uniquified, never a c
 
   const handles = (await db.select().from(characters).where(eq(characters.ownerId, nominee.id))).map((c) => c.handle).sort();
   expect(handles).toEqual(["aria", "aria-2"]);
+});
+
+test("a maximal non-BMP handle collision stays canonical without splitting a surrogate pair", async () => {
+  const db = await freshDb();
+  const oldHost = await seedUser(db, { handle: castId("oldhost") });
+  const nominee = await seedUser(db, { handle: castId("nominee") });
+  // 197 ASCII units + one two-unit code point + one ASCII unit = the canonical 200-unit maximum.
+  // Reserving `-2` leaves 198 units, which lands between the non-BMP code point's surrogate pair.
+  const sourceHandle = `${"a".repeat(197)}𠀀b`;
+  const parsedHandle = createCharacterSchema.shape.handle.parse(sourceHandle);
+  const source = await seedCard(db, oldHost.id, "long", { handle: parsedHandle });
+  await seedCard(db, nominee.id, "taken", { handle: parsedHandle });
+
+  await copier(db)({ fromOwnerId: oldHost.id, toOwnerId: nominee.id, chatId: CHAT, characterIds: [source] });
+
+  const copied = (await db.select().from(characters).where(eq(characters.ownerId, nominee.id))).find(
+    (row) => row.id !== castId<CharacterId>("character_taken"),
+  );
+  expect(copied?.handle).toBe(`${"a".repeat(197)}-2`);
+  expect(copied?.handle.isWellFormed()).toBe(true);
+  expect(createCharacterSchema.shape.handle.safeParse(copied?.handle).success).toBe(true);
 });
 
 test("the avatar is RE-OWNED through the injected op, never carried by id", async () => {
