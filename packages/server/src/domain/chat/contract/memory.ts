@@ -118,18 +118,32 @@ export interface MemoryRecallInputs {
   /** Turn-scoped rerank-degrade state shared by the round recall and every per-speaker recall. It owns the
    * one-warning boundary: many failed reranks in one turn collapse to one notice, while the next turn gets a
    * fresh episode and may report a continuing outage again. */
-  readonly warningEpisode: MemoryRecallWarningEpisode;
+  readonly warningEpisode: TurnRetrievalWarningEpisode;
   /** The live-window cutoff seq (the PREVIOUS turn's canon fit boundary) — the per-speaker re-run applies the
    *  SAME live-window trim the round-level recall did, so a scoped speaker never re-injects a still-verbatim
    *  scene either. Absent ⇒ no prior boundary stamp ⇒ no trim. */
   readonly liveWindowCutoffSeq?: number | undefined;
 }
 
-/** The narrow stateful seam between recall and the engine-owned chat bus. Search reports the outage; the
- * engine takes it after `turnStarted`, exactly once for this turn. */
-export interface MemoryRecallWarningEpisode {
+/** The narrow stateful seam between a turn's RETRIEVAL and the engine-owned chat bus. The gather reports the
+ *  outage; the engine takes it after `turnStarted`, exactly once per class for this turn.
+ *
+ *  NAMED FOR THE TURN, NOT FOR MEMORY (#2510). It was `TurnRetrievalWarningEpisode` while recall was its only
+ *  producer; the databank slot's gather now reports into the SAME episode, because one turn losing both its
+ *  retrieval slots to one unqueryable vector space owes the user ONE notice, not two. It is declared here (a
+ *  memory file) only because `MemoryRecallInputs` above carries it and `contract/context.ts` imports THIS
+ *  file — the arrow runs one way.
+ *
+ *  TWO INDEPENDENT CLASSES, deliberately not collapsed into one flag: a rerank outage means the turn DID
+ *  retrieve and lost only the cross-encoder order (`memory_rerank_unavailable`), while an unqueryable space
+ *  means nothing was retrieved at all (`retrieval_index_unavailable`). Different sentences; one turn can hit
+ *  both, and each latches independently. */
+export interface TurnRetrievalWarningEpisode {
   readonly reportRerankUnavailable: () => void;
   readonly takeRerankUnavailable: () => boolean;
+  /** The owner's vector space refused the query — mid-move, or no embed connection bound. */
+  readonly reportIndexUnavailable: () => void;
+  readonly takeIndexUnavailable: () => boolean;
 }
 
 /** A complete, aged-out block of canon (the `blockSize`-message digest/segment unit). `blockIdx` is the

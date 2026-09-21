@@ -190,9 +190,9 @@
       "path": "docs/architecture/core/AGENTS.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 373,
-      "bytes": 35973,
-      "sha256": "e7998873cd76fc33f074f9f76d99aa5657779a78eee89b4f2b10cf070b57ffc2",
+      "lines": 374,
+      "bytes": 36114,
+      "sha256": "7755a550d8348d8affe080c7e7ae54e6975fc4c85f4904b3b4382fa58b852413",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -205,13 +205,13 @@
       },
       "receipt": {
         "path": "docs/architecture/core/AGENTS.md",
-        "assignedSha256": "e7998873cd76fc33f074f9f76d99aa5657779a78eee89b4f2b10cf070b57ffc2",
+        "assignedSha256": "7755a550d8348d8affe080c7e7ae54e6975fc4c85f4904b3b4382fa58b852413",
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "e7998873cd76fc33f074f9f76d99aa5657779a78eee89b4f2b10cf070b57ffc2",
-        "verifiedCommit": "fd3c84456025412565dc40dc16f08194226de8c2",
-        "verifiedAt": "2026-09-20",
+        "verifiedSha256": "7755a550d8348d8affe080c7e7ae54e6975fc4c85f4904b3b4382fa58b852413",
+        "verifiedCommit": "4c688c915c97f2e31abe5ecb898e35eb932bd1c4",
+        "verifiedAt": "2026-09-21",
         "evidence": [
           "Owner ruling 2026-09-10: lanes may commit normally in their assigned worktree or clone, including configured hook checks. Explicit iteration stays scoped; hook bypass requires a specific user/coordinator exception with its reason and executed or owed checks. Main integration and push remain coordinator/owner operations. Coupled doctrine, role and runbook guidance was reconciled without changing hook commands.",
           "#1842 (cb-push-tier): tests:tooling is --full-only; tooling-serial lane; SERIAL_INT_PRODUCT/TOOLING; push = product node tests",
@@ -260,7 +260,7 @@
           }
         ],
         "summary": "Constitution with configured-hook commits in assigned lane checkouts, scoped explicit iteration, and specifically authorized recorded bypass exceptions; integrated verification and push ownership remain separate.",
-        "verifiedCanonicalSha256": "e7998873cd76fc33f074f9f76d99aa5657779a78eee89b4f2b10cf070b57ffc2"
+        "verifiedCanonicalSha256": "7755a550d8348d8affe080c7e7ae54e6975fc4c85f4904b3b4382fa58b852413"
       },
       "receiptCurrent": true
     },
@@ -316,28 +316,28 @@
       "path": "docs/architecture/core/Core-0-Architecture-and-Structure.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 327,
-      "bytes": 24436,
-      "sha256": "76b82ac2e6f79bb0c6f2cf8d0a1f676e8673a7e0876768fa7af243914c651878",
+      "lines": 329,
+      "bytes": 24615,
+      "sha256": "1eab0a6f1383b12de48e921347f4e405adc0a55699b977b244a3166adb4d8036",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-08-22"
+          "updated": "2026-09-20"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/core/Core-0-Architecture-and-Structure.md",
-        "assignedSha256": "76b82ac2e6f79bb0c6f2cf8d0a1f676e8673a7e0876768fa7af243914c651878",
+        "assignedSha256": "1eab0a6f1383b12de48e921347f4e405adc0a55699b977b244a3166adb4d8036",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "76b82ac2e6f79bb0c6f2cf8d0a1f676e8673a7e0876768fa7af243914c651878",
-        "verifiedCommit": "fd3c84456025412565dc40dc16f08194226de8c2",
-        "verifiedAt": "2026-09-20",
+        "verifiedSha256": "1eab0a6f1383b12de48e921347f4e405adc0a55699b977b244a3166adb4d8036",
+        "verifiedCommit": "4c688c915c97f2e31abe5ecb898e35eb932bd1c4",
+        "verifiedAt": "2026-09-21",
         "evidence": [
           "re-attested at eb01a72ab (#1055): §7 row 11 names the real enforcer for exhaustive dispatch (compile-time by construction; no `exhaustive-dispatch` gate exists)",
           "re-attested at 7b7eb54b2 under #950 — full-file/delta read; the one sanctioned revisioned non-TS runtime-data exception is Snap's manifest-closed official DevTools frontend asset root",
@@ -361,7 +361,7 @@
           }
         ],
         "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed.",
-        "verifiedCanonicalSha256": "76b82ac2e6f79bb0c6f2cf8d0a1f676e8673a7e0876768fa7af243914c651878"
+        "verifiedCanonicalSha256": "1eab0a6f1383b12de48e921347f4e405adc0a55699b977b244a3166adb4d8036"
       },
       "receiptCurrent": true
     },
@@ -370,27 +370,27 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 354,
-      "bytes": 68758,
-      "sha256": "4fcb100cf4d2e2453816384d9616bdd1b9b137e029a04c69e80e386f1c0b19eb",
+      "bytes": 55025,
+      "sha256": "f93ed6be39239e56af64d49745102df61ed5c1119a70747a40d723d5fda35cfd",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "reference",
           "status": "active",
-          "updated": "2026-08-22"
+          "updated": "2026-09-20"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Audits-and-Debt.md",
-        "assignedSha256": "4fcb100cf4d2e2453816384d9616bdd1b9b137e029a04c69e80e386f1c0b19eb",
+        "assignedSha256": "f93ed6be39239e56af64d49745102df61ed5c1119a70747a40d723d5fda35cfd",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "4fcb100cf4d2e2453816384d9616bdd1b9b137e029a04c69e80e386f1c0b19eb",
-        "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
-        "verifiedAt": "2026-09-19",
+        "verifiedSha256": "f93ed6be39239e56af64d49745102df61ed5c1119a70747a40d723d5fda35cfd",
+        "verifiedCommit": "4c688c915c97f2e31abe5ecb898e35eb932bd1c4",
+        "verifiedAt": "2026-09-21",
         "evidence": [
           "delta re-verify 2026-09-02 (#1193, the debug-gate amendment): the AUTHFIX-2 entry's two changed blocks were re-derived against the commit they describe (a67ef0ea8) — the credential allow-list is built per request in entry/auth/seam.ts::debugGateCredentialed, its fallback arm reads foundation/env::resolveOwnerFallbackCredential, its header arm reads infra/auth::selectSignedForwardJwt, and the enforcer row's counts are the planted-control results (4 admission rows red on fallback:false, 2 header rows red on header:true)",
           "docs/architecture/core/Core-Audits-and-Debt.md:1 (full read; header/status evaluated)",
@@ -401,7 +401,7 @@
           "docs/architecture/core/Core-Audits-and-Debt.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
         ],
         "summary": "Historical/parked record retained for provenance; assessed against its stated lifecycle rather than as current implementation law.",
-        "verifiedCanonicalSha256": "4fcb100cf4d2e2453816384d9616bdd1b9b137e029a04c69e80e386f1c0b19eb"
+        "verifiedCanonicalSha256": "f93ed6be39239e56af64d49745102df61ed5c1119a70747a40d723d5fda35cfd"
       },
       "receiptCurrent": true
     },
@@ -892,36 +892,37 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 152,
-      "bytes": 19969,
-      "sha256": "4719a41c50303ec7d109869eb84a52ac8e4730c4e3b66f1b3acc87a538163997",
+      "bytes": 20237,
+      "sha256": "7577063fe4aec4d1d623add3ea801fcdffb256d03204fc82fd0c1f542b78f526",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "reference",
           "status": "active",
-          "updated": "2026-08-14"
+          "updated": "2026-09-20"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/core/Core-ST-Feature-Gap-Register.md",
-        "assignedSha256": "c88f6a5e89df7aca2cb5c6871691707625a88f42b91f82e9003cbc9a2b6e7fde",
+        "assignedSha256": "7577063fe4aec4d1d623add3ea801fcdffb256d03204fc82fd0c1f542b78f526",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "c88f6a5e89df7aca2cb5c6871691707625a88f42b91f82e9003cbc9a2b6e7fde",
-        "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
-        "verifiedAt": "2026-08-30",
+        "verifiedSha256": "7577063fe4aec4d1d623add3ea801fcdffb256d03204fc82fd0c1f542b78f526",
+        "verifiedCommit": "4c688c915c97f2e31abe5ecb898e35eb932bd1c4",
+        "verifiedAt": "2026-09-21",
         "evidence": [
           "docs/architecture/core/Core-ST-Feature-Gap-Register.md:1 (full read; header/status evaluated)",
           "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
           "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
           "docs/architecture/core/Core-ST-Feature-Gap-Register.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
         ],
-        "summary": "Historical/parked record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
+        "summary": "Historical/parked record retained for provenance; assessed against its stated lifecycle rather than as current implementation law.",
+        "verifiedCanonicalSha256": "7577063fe4aec4d1d623add3ea801fcdffb256d03204fc82fd0c1f542b78f526"
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/architecture/core/Core-Shared-Dissolution.md",
@@ -998,28 +999,28 @@
       "path": "docs/architecture/core/Core-Tooling-Law.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 431,
-      "bytes": 53828,
-      "sha256": "585ded4efca0e959e5379e980c964991ac998e436306202b5c13ec7b0c725b58",
+      "lines": 433,
+      "bytes": 55431,
+      "sha256": "2ff452d5e18873ec5a8da684a5d417406a45e86ed37cdd607afac477662b3e6b",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-09-13"
+          "updated": "2026-09-20"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Tooling-Law.md",
-        "assignedSha256": "585ded4efca0e959e5379e980c964991ac998e436306202b5c13ec7b0c725b58",
+        "assignedSha256": "2ff452d5e18873ec5a8da684a5d417406a45e86ed37cdd607afac477662b3e6b",
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "585ded4efca0e959e5379e980c964991ac998e436306202b5c13ec7b0c725b58",
-        "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
-        "verifiedAt": "2026-09-19",
+        "verifiedSha256": "2ff452d5e18873ec5a8da684a5d417406a45e86ed37cdd607afac477662b3e6b",
+        "verifiedCommit": "4c688c915c97f2e31abe5ecb898e35eb932bd1c4",
+        "verifiedAt": "2026-09-21",
         "evidence": [
           "Program #1351 is complete; acceptance is recorded at https://github.com/Inktomi93/orbweaver/issues/1351#issuecomment-5626592009 . The law bytes are unchanged from 06c560d8e. Shared compiler, capacity and native-tool execution changes have current native/behavioral verification; inherited gate-cutover work remains separately tracked in #1584.",
           "Full law read and closeout delta verified: standing generated compiler-root and separately scoped ambient intent promoted from the world program; all five tsconfig-entry-liveness grants retain their reasons and end conditions and cite this law. Scoped liveness/routing/roadmap controls passed. Compiler ownership and relocation-ledger instructions reconciled with current generated configs and deriveTestBaselineManifest; generated testFiles is never hand-maintained.",
@@ -1071,7 +1072,7 @@
             ]
           }
         ],
-        "verifiedCanonicalSha256": "585ded4efca0e959e5379e980c964991ac998e436306202b5c13ec7b0c725b58"
+        "verifiedCanonicalSha256": "2ff452d5e18873ec5a8da684a5d417406a45e86ed37cdd607afac477662b3e6b"
       },
       "receiptCurrent": true
     },
@@ -1651,28 +1652,28 @@
       "path": "docs/architecture/core/Tier-3b-Providers.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 146,
-      "bytes": 23143,
-      "sha256": "daa849bce09beeaa28f5ebe9702c71587631f9e0ce63f87d8604225d759d94c9",
+      "lines": 165,
+      "bytes": 29730,
+      "sha256": "3953c1638ac1ffb63a91c463d069262395fd94a28bc9781a778bc3c0b33636f0",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-09-05"
+          "updated": "2026-09-20"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/core/Tier-3b-Providers.md",
-        "assignedSha256": "daa849bce09beeaa28f5ebe9702c71587631f9e0ce63f87d8604225d759d94c9",
+        "assignedSha256": "3953c1638ac1ffb63a91c463d069262395fd94a28bc9781a778bc3c0b33636f0",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "daa849bce09beeaa28f5ebe9702c71587631f9e0ce63f87d8604225d759d94c9",
-        "verifiedCommit": "e7fbeaac91a04954d0fe69c43f738035ed4a9320",
-        "verifiedAt": "2026-09-20",
+        "verifiedSha256": "3953c1638ac1ffb63a91c463d069262395fd94a28bc9781a778bc3c0b33636f0",
+        "verifiedCommit": "4c688c915c97f2e31abe5ecb898e35eb932bd1c4",
+        "verifiedAt": "2026-09-21",
         "evidence": [
           "re-attested after the agent-sdk frames fold (#1605 8946078de real tool_use/tool_result seed blocks; #1607 f8a754555 continue turn = frames + host stub) at 73c2fe6d1",
           "docs/architecture/core/Tier-3b-Providers.md:1 (full read; header/status evaluated)",
@@ -1692,7 +1693,7 @@
           }
         ],
         "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed.",
-        "verifiedCanonicalSha256": "daa849bce09beeaa28f5ebe9702c71587631f9e0ce63f87d8604225d759d94c9"
+        "verifiedCanonicalSha256": "3953c1638ac1ffb63a91c463d069262395fd94a28bc9781a778bc3c0b33636f0"
       },
       "receiptCurrent": true
     },
@@ -1748,9 +1749,9 @@
       "path": "docs/architecture/core/Tier-5-Entry.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 103,
-      "bytes": 10027,
-      "sha256": "294a656ff9f90236481af98a0de8632307346e6233dd68a1b36cf138da064ca3",
+      "lines": 104,
+      "bytes": 10124,
+      "sha256": "de8e5a60ca280786cf9024d1595bd0c1b1461df43671433c4c6b2614a26f32f8",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1763,13 +1764,13 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Tier-5-Entry.md",
-        "assignedSha256": "294a656ff9f90236481af98a0de8632307346e6233dd68a1b36cf138da064ca3",
+        "assignedSha256": "de8e5a60ca280786cf9024d1595bd0c1b1461df43671433c4c6b2614a26f32f8",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "294a656ff9f90236481af98a0de8632307346e6233dd68a1b36cf138da064ca3",
-        "verifiedCommit": "31247426185b7216659c79c71c93619db32fb1e7",
-        "verifiedAt": "2026-09-18",
+        "verifiedSha256": "de8e5a60ca280786cf9024d1595bd0c1b1461df43671433c4c6b2614a26f32f8",
+        "verifiedCommit": "4c688c915c97f2e31abe5ecb898e35eb932bd1c4",
+        "verifiedAt": "2026-09-21",
         "evidence": [
           "docs/architecture/core/Tier-5-Entry.md:1 (full read; header/status evaluated)",
           "re-attested 2026-09-18 by the default-content-pkg lane after reading the whole document: the boot/ inventory line no longer names seed-assets/, because the avatars + demo-chat transcripts moved to the @orb/default-content workspace package (D160); no other line changed",
@@ -1788,7 +1789,7 @@
           }
         ],
         "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed.",
-        "verifiedCanonicalSha256": "294a656ff9f90236481af98a0de8632307346e6233dd68a1b36cf138da064ca3"
+        "verifiedCanonicalSha256": "de8e5a60ca280786cf9024d1595bd0c1b1461df43671433c4c6b2614a26f32f8"
       },
       "receiptCurrent": true
     },
@@ -2608,8 +2609,8 @@
       "lane": "architecture-history",
       "issue": 3,
       "lines": 111,
-      "bytes": 26794,
-      "sha256": "b6a4a1c055b08c46c0361c6ef7beb8a01baacc295c77216ad8d2527013e675f7",
+      "bytes": 27181,
+      "sha256": "e9e7c2fb2aff6793b9f3fb11120143df81bf1913c2653b68f66aa7338413996e",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -2622,19 +2623,19 @@
       },
       "receipt": {
         "path": "docs/architecture/history/Core-Enforcement-Deferred-Dropped.md",
-        "assignedSha256": "b6a4a1c055b08c46c0361c6ef7beb8a01baacc295c77216ad8d2527013e675f7",
+        "assignedSha256": "e9e7c2fb2aff6793b9f3fb11120143df81bf1913c2653b68f66aa7338413996e",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "b6a4a1c055b08c46c0361c6ef7beb8a01baacc295c77216ad8d2527013e675f7",
-        "verifiedCommit": "e7fbeaac91a04954d0fe69c43f738035ed4a9320",
-        "verifiedAt": "2026-09-20",
+        "verifiedSha256": "e9e7c2fb2aff6793b9f3fb11120143df81bf1913c2653b68f66aa7338413996e",
+        "verifiedCommit": "4c688c915c97f2e31abe5ecb898e35eb932bd1c4",
+        "verifiedAt": "2026-09-21",
         "evidence": [
           "docs/architecture/history/Core-Enforcement-Deferred-Dropped.md:1 (full read); the deferred backlog (neo gates not yet ported, each with an activation trigger, held against the tree one-directionally by ledgers:fresh per its own §18 note), the PREBUILT orphan seal table, the dropped-do-not-port table, and the 2026-09-18-added \"Retired\" table for gates that were live and deleted when their law ended (baseline-single-migration, RETIRED 2026-09-18 per #316 Arm A).",
           "Row disposition/authority match this lane's other dated-record entries in docs/catalog/receipts/architecture-history.json (archive/historical) — the doc's own frontmatter (kind: reference, status: active) records that it stays load-bearing prose even while its catalog disposition is archive, consistent with other still-cited history/ docs in this lane."
         ],
         "summary": "Enforcement registry deferred/dropped/retired ledger: neo-gate deferral rows tripwired against the live tree by ledgers:fresh, the PREBUILT orphan-seal table (2026-08-17 re-derivation), the dropped-do-not-port table, and the new Retired section recording baseline-single-migration's 2026-09-18 deletion at the launch flip. Hand-authored row (D139 pending-clearance); no typed claims — lifecycle receipt (archive/historical).",
-        "verifiedCanonicalSha256": "b6a4a1c055b08c46c0361c6ef7beb8a01baacc295c77216ad8d2527013e675f7"
+        "verifiedCanonicalSha256": "e9e7c2fb2aff6793b9f3fb11120143df81bf1913c2653b68f66aa7338413996e"
       },
       "receiptCurrent": true
     },
@@ -12272,9 +12273,9 @@
       "path": "docs/design/containerize-build-plan.md",
       "lane": "design",
       "issue": 5,
-      "lines": 211,
-      "bytes": 18260,
-      "sha256": "bc8d936cc2246f9bd3ebeb180a85243e6237e8a68cc9a9670624ff7e698cc082",
+      "lines": 212,
+      "bytes": 18644,
+      "sha256": "37f9ecb6c87d95772ebb674dc90c7b9721c2dc091c10caeb5aba790515af192d",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -12287,13 +12288,13 @@
       },
       "receipt": {
         "path": "docs/design/containerize-build-plan.md",
-        "assignedSha256": "bc8d936cc2246f9bd3ebeb180a85243e6237e8a68cc9a9670624ff7e698cc082",
+        "assignedSha256": "37f9ecb6c87d95772ebb674dc90c7b9721c2dc091c10caeb5aba790515af192d",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "bc8d936cc2246f9bd3ebeb180a85243e6237e8a68cc9a9670624ff7e698cc082",
-        "verifiedCommit": "fd3c84456025412565dc40dc16f08194226de8c2",
-        "verifiedAt": "2026-09-20",
+        "verifiedSha256": "37f9ecb6c87d95772ebb674dc90c7b9721c2dc091c10caeb5aba790515af192d",
+        "verifiedCommit": "4c688c915c97f2e31abe5ecb898e35eb932bd1c4",
+        "verifiedAt": "2026-09-21",
         "evidence": [
           "docs/design/containerize-build-plan.md:1 (design; active)",
           "delta re-verify 2026-08-22 (#421, lane oneoff-rehome): re-read in full at the re-home commit; the ONE changed passage is the same §2.2 gpu-image coupled-site bullet — vllm-setup.sh re-homed scripts/dev/ → tooling/src/stack/, so the Dockerfile's separate scripts/dev COPY is gone and the shell rides the existing tooling/src/stack/ COPY (Dockerfile:187-190); engines.sh calls it as a sibling via $HERE (tooling/src/stack/engines.sh:86). Other cites re-derived: engines.sh's TSX line and the VLLM_STORE_ROOT venv check still hold. ONE STALE CLAIM FOUND AND LEFT (out of this lane's scope, reported to the orchestrator): §2.1 says `vllm-setup.sh:37 pins vllm>=0.22,<0.23`; line 37 is still the pin line but reads `vllm>=0.26,<0.27` today, so the dev pin and the image's baked `--torch-backend=cu130` install of 0.22 have diverged — that is a containerize decision, not a cite repoint",
@@ -12319,7 +12320,7 @@
             ]
           }
         ],
-        "verifiedCanonicalSha256": "bc8d936cc2246f9bd3ebeb180a85243e6237e8a68cc9a9670624ff7e698cc082"
+        "verifiedCanonicalSha256": "37f9ecb6c87d95772ebb674dc90c7b9721c2dc091c10caeb5aba790515af192d"
       },
       "receiptCurrent": true
     },
@@ -12327,28 +12328,28 @@
       "path": "docs/design/containerize-prod-image-spec.md",
       "lane": "design",
       "issue": 5,
-      "lines": 613,
-      "bytes": 50428,
-      "sha256": "b2f3945dd50f6786d0eb4b93652065a738b59c785da989df1faf4a8bc245c1fc",
+      "lines": 623,
+      "bytes": 51521,
+      "sha256": "6af0312b8fc294a4f57b9bed6992b7547e7ce9a9d4e065d6a978c6c73fbe61eb",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "draft",
-          "updated": "2026-09-18"
+          "updated": "2026-09-20"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/containerize-prod-image-spec.md",
-        "assignedSha256": "b2f3945dd50f6786d0eb4b93652065a738b59c785da989df1faf4a8bc245c1fc",
+        "assignedSha256": "6af0312b8fc294a4f57b9bed6992b7547e7ce9a9d4e065d6a978c6c73fbe61eb",
         "disposition": "needs-owner",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "b2f3945dd50f6786d0eb4b93652065a738b59c785da989df1faf4a8bc245c1fc",
-        "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
-        "verifiedAt": "2026-09-19",
+        "verifiedSha256": "6af0312b8fc294a4f57b9bed6992b7547e7ce9a9d4e065d6a978c6c73fbe61eb",
+        "verifiedCommit": "4c688c915c97f2e31abe5ecb898e35eb932bd1c4",
+        "verifiedAt": "2026-09-21",
         "evidence": [
           "delta re-verify 2026-09-02 (#1193): three §3.1/§3.2/§4 debug-gate lines re-derived at a67ef0ea8 — the fallback arm is posture-scoped (foundation/env::resolveOwnerFallbackCredential, false whenever NODE_ENV=production, which both supported prod launchers set in buildProdSpawnPlan), the second belt (isAdmin's peer-less re-resolution) is deliberately gone, and §4's accepted residual now also carries /api/_debug because the gate reads the same omitted NODE_ENV",
           "docs/design/containerize-prod-image-spec.md:1 (design; draft; full read 2026-08-19)",
@@ -12383,7 +12384,7 @@
             ]
           }
         ],
-        "verifiedCanonicalSha256": "b2f3945dd50f6786d0eb4b93652065a738b59c785da989df1faf4a8bc245c1fc"
+        "verifiedCanonicalSha256": "6af0312b8fc294a4f57b9bed6992b7547e7ce9a9d4e065d6a978c6c73fbe61eb"
       },
       "receiptCurrent": true
     },
@@ -12847,7 +12848,7 @@
       "issue": 5,
       "lines": 58,
       "bytes": 4459,
-      "sha256": "0707533e7c20a11707f223190a9d94628bf333edb8104f084b435cb2dbbfae48",
+      "sha256": "18228c24e921ae8ce8302680b1e279b11c48d80ad9de977692fd10b7c5673079",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -12860,13 +12861,13 @@
       },
       "receipt": {
         "path": "docs/design/gate-runtime-read-first.md",
-        "assignedSha256": "0707533e7c20a11707f223190a9d94628bf333edb8104f084b435cb2dbbfae48",
+        "assignedSha256": "18228c24e921ae8ce8302680b1e279b11c48d80ad9de977692fd10b7c5673079",
         "disposition": "repaired",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "0707533e7c20a11707f223190a9d94628bf333edb8104f084b435cb2dbbfae48",
-        "verifiedCommit": "dd1ccb2b5d7e6664c9280f4a8483482b684221d6",
-        "verifiedAt": "2026-09-20",
+        "verifiedSha256": "18228c24e921ae8ce8302680b1e279b11c48d80ad9de977692fd10b7c5673079",
+        "verifiedCommit": "4c688c915c97f2e31abe5ecb898e35eb932bd1c4",
+        "verifiedAt": "2026-09-21",
         "evidence": [
           "Prior receipt at 46f233e25afb95787c0249fa76249762a2f294bc: Full three-document reads in this session, followed by review of intervening changes and the current contradiction-repair diff. Scoped check:docs passed; read-first-costs and ledgers:fresh passed. Independent Sol review identified residual table instructions, corrected before this receipt. No claim of full gate implementation or #2071 completion.",
           "Prior receipt at 46f233e25afb95787c0249fa76249762a2f294bc: 2026-09-13 consolidation: complete document reads and independent citation/source-diff audit; standing law, procedure, reading router and dated worked cases now have separate homes. Scoped Markdown and agent checks passed; native tooling/root programs passed, and refusal-envelope, text-citation and focused policy-soundness controls passed. Read-first costs were generated after committing priced bytes. Catalog-wide freshness, remaining program defects and integrated acceptance are not claimed complete.",
@@ -12901,7 +12902,7 @@
             ]
           }
         ],
-        "verifiedCanonicalSha256": "0707533e7c20a11707f223190a9d94628bf333edb8104f084b435cb2dbbfae48"
+        "verifiedCanonicalSha256": "18228c24e921ae8ce8302680b1e279b11c48d80ad9de977692fd10b7c5673079"
       },
       "receiptCurrent": true
     },
@@ -12909,9 +12910,9 @@
       "path": "docs/design/gate-runtime-standardization.md",
       "lane": "design",
       "issue": 5,
-      "lines": 399,
-      "bytes": 31834,
-      "sha256": "c65fd9a4b1f97a3b7737e34a90f686e47cee5322e0161929cea7be75e1d09fd8",
+      "lines": 411,
+      "bytes": 33053,
+      "sha256": "cf2e8dbb416b94bfefcbc5de5631c7b6ec5f58cc0f383bcfb979b7693969ab64",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -12924,13 +12925,13 @@
       },
       "receipt": {
         "path": "docs/design/gate-runtime-standardization.md",
-        "assignedSha256": "c65fd9a4b1f97a3b7737e34a90f686e47cee5322e0161929cea7be75e1d09fd8",
+        "assignedSha256": "cf2e8dbb416b94bfefcbc5de5631c7b6ec5f58cc0f383bcfb979b7693969ab64",
         "disposition": "repaired",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "c65fd9a4b1f97a3b7737e34a90f686e47cee5322e0161929cea7be75e1d09fd8",
-        "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
-        "verifiedAt": "2026-09-19",
+        "verifiedSha256": "cf2e8dbb416b94bfefcbc5de5631c7b6ec5f58cc0f383bcfb979b7693969ab64",
+        "verifiedCommit": "4c688c915c97f2e31abe5ecb898e35eb932bd1c4",
+        "verifiedAt": "2026-09-21",
         "claims": [
           {
             "claim": "The program uses mixed legacy/final runtime during migration, preserves world/compiler and native-config guarantees, and requires scoped lane checks plus coordinated integration verification. Missing capabilities require an orchestrator decision rather than indefinite legacy parking.",
@@ -12965,7 +12966,7 @@
           "2026-09-13 #2126/#2159 docs-only final authoring rewrite at f9a49896fe10926c87f415f3bcce44a68d06c489. Complete final text reads and independent guide/conservation review; source revalidation is bounded to authoring, current contract/enforcer claims and coupled routes, not unrelated law. Original677line60347byte guide archived verbatim with SHA2563505368a62d0fa78d7745dba0c6d6b811ba7d7999369d2c46554f492d6ad3747;26contiguous disposition ranges. Reviewer corrected five enforcer/limit claims and approved repaired guide/map. Scoped formatting passed except preserved preexisting formatting in doctrine, UI law and the three additionally repaired design routes outside the edited sections; no whole corpus or scaffold/source acceptance is claimed. Existing evidence remains attributed to its original tree. Root owns separately scoped scaffold/CLI/test corrections and consolidated verification.",
           "2026-09-13 Q08 integration truth follow-up at 7ba66a34eb8d8baca96cf717852dfdd106c51b2b: guide and standing family law now describe canonical production dependencies from create, including method roots, callable/fact identities and subject/vocabulary data, with unused-import, proof-only and erased-type exclusions and explicit source-reach limits. Source and production-consumption review pinned to integrated main 735a86d0c; this isolated docs lane does not contain or claim to test that source. Warm independent review APPROVE, preserving its prior dated report byte-for-byte; all three changed Markdown format checks and diff whitespace check passed. Prior evidence and claims remain attributed to their original trees. Final latest-main read-cost reconciliation and integrated verification remain coordinator-owned."
         ],
-        "verifiedCanonicalSha256": "c65fd9a4b1f97a3b7737e34a90f686e47cee5322e0161929cea7be75e1d09fd8"
+        "verifiedCanonicalSha256": "cf2e8dbb416b94bfefcbc5de5631c7b6ec5f58cc0f383bcfb979b7693969ab64"
       },
       "receiptCurrent": true
     },
@@ -15288,28 +15289,28 @@
       "path": "docs/design/vocabulary-map.md",
       "lane": "design",
       "issue": 5,
-      "lines": 201,
-      "bytes": 46827,
-      "sha256": "83869d7af2fc728885a4c34fd8339d8a1dc580b73ccc47acf6f4b7873013b78d",
+      "lines": 216,
+      "bytes": 47573,
+      "sha256": "4c04b5bc65c53cb68e48d5f4e67a010b78cc4d7d48b80aa94efc597bdeacc9dc",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "active",
-          "updated": "2026-09-06"
+          "updated": "2026-09-20"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/vocabulary-map.md",
-        "assignedSha256": "83869d7af2fc728885a4c34fd8339d8a1dc580b73ccc47acf6f4b7873013b78d",
+        "assignedSha256": "4c04b5bc65c53cb68e48d5f4e67a010b78cc4d7d48b80aa94efc597bdeacc9dc",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "83869d7af2fc728885a4c34fd8339d8a1dc580b73ccc47acf6f4b7873013b78d",
-        "verifiedCommit": "fd3c84456025412565dc40dc16f08194226de8c2",
-        "verifiedAt": "2026-09-20",
+        "verifiedSha256": "4c04b5bc65c53cb68e48d5f4e67a010b78cc4d7d48b80aa94efc597bdeacc9dc",
+        "verifiedCommit": "4c688c915c97f2e31abe5ecb898e35eb932bd1c4",
+        "verifiedAt": "2026-09-21",
         "evidence": [
           "#1774 prose half (cb-rpg-prose): row 155 status + residue updated at the fold commit",
           "#1774 persona+compose halves (cb-roster-tail): row 155 LANDED for all three halves; stale RosterRefIndex/PersonaRosterView targets corrected",
@@ -15374,7 +15375,7 @@
           }
         ],
         "summary": "The living concept→word map: room seats are Characters, the saved template is a Roster (code rosterPreset, conforming), roster is reserved and never spent as English for a list, the rpg register is fenced with the chat word winning at the boundary, and castId is deliberately no-action. Prose-enforced by owner ruling with no gate; the enforcement section records the wave-union defect that produced it.",
-        "verifiedCanonicalSha256": "83869d7af2fc728885a4c34fd8339d8a1dc580b73ccc47acf6f4b7873013b78d"
+        "verifiedCanonicalSha256": "4c04b5bc65c53cb68e48d5f4e67a010b78cc4d7d48b80aa94efc597bdeacc9dc"
       },
       "receiptCurrent": true
     },

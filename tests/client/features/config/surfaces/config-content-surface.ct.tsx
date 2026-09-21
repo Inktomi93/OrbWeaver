@@ -127,11 +127,14 @@ const HOST_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
   "workloads.list": [],
   "workloads.listSchedules": [],
   "connection.resolveChatCapability": makeResolvedView(),
-  // The Connections group's three sections (list · model roles · saved keys) all suspend on these two —
-  // unfed, `routeTrpc` answers them `null`, which is not a view, and the whole group runs INERT behind a
+  // The Connections group's three sections (list · model roles · saved keys) all suspend on these — unfed,
+  // `routeTrpc` answers them `null`, which is not a view, and the whole group runs INERT behind a
   // QueryErrorState while the LIST band outside the boundary still passes (#629 / the unfed-read ratchet).
+  // `providersAvailable` joined the set at the `@orb/inference` cut-over (2026-09-20): Saved keys reads the
+  // registry rows for a provider's user-facing label, and unfed its heading never paints (#2500).
   "connection.list": [],
   "connection.listBindings": [],
+  "connection.providersAvailable": [],
   // About (last at the `admin` anchor) suspends on the version identity.
   "settings.getVersion": { version: "0.4.1", commit: "823d76f4343a1cea086b17a1b5bf212b44c17a7d", short: "823d76f4343a", source: "checkout" },
   "plugin.list": [],

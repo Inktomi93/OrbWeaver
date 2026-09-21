@@ -84,7 +84,7 @@ export function ensureReportsDir(root: string, ...segments: readonly string[]): 
 const INFLIGHT_MARKER = ".inflight";
 /** The alias list a publish leaves in its slot, so `pruneRuns` can ask "does any pointer still resolve
  *  here?" without walking `reports/`. Dot-prefixed: the `--out` layer's alias enumerator skips it. */
-const PUBLISHED_MANIFEST = ".published";
+export const PUBLISHED_MANIFEST = ".published";
 // Retention — HOW LONG a slot lives and the ledger of the ones that went — is ./run-retention.ts (#1341).
 const RUNS_SEGMENT = "runs";
 // DOT-FREE on purpose: a run id becomes a path SEGMENT and, for the doc-catalog scratch, part of a
@@ -140,18 +140,20 @@ export interface AbandonedRun {
   readonly startedAt: string;
 }
 
-interface InflightMarker {
+export interface InflightMarker {
   readonly runId: string;
   readonly pid: number;
   readonly checkout: string;
   readonly startedAt: string;
 }
 
-function instrumentRunsDir(root: string, instrument: string): string {
+/** THE FOUR SLOT READERS (this, `readMarker`, `runDirs`, `pointerRunId`) are exported for ./artifact-pointer.ts
+ *  — the READ half of this layout (#2502). It asks; it never writes, and this module never imports it back. */
+export function instrumentRunsDir(root: string, instrument: string): string {
   return reportsPath(root, RUNS_SEGMENT, instrument);
 }
 
-function readMarker(dir: string): InflightMarker | null {
+export function readMarker(dir: string): InflightMarker | null {
   // @orb-waive caught-failure-ownership(catch): an absent or unparseable in-flight marker means "this slot is not in flight" — the ONLY question this reader asks — and `null` is that answer at every call site (the racing census, the prune filter, the abandoned-run scan). Ends if any caller starts treating null as "in flight".
   try {
     return JSON.parse(readFileSync(join(dir, INFLIGHT_MARKER), "utf-8")) as InflightMarker;
@@ -160,7 +162,7 @@ function readMarker(dir: string): InflightMarker | null {
   }
 }
 
-function runDirs(root: string, instrument: string): readonly string[] {
+export function runDirs(root: string, instrument: string): readonly string[] {
   // @orb-waive caught-failure-ownership(catch): no runs directory yet means this instrument has never run here — an empty list is the truthful census, and every caller (racing, prune, abandoned) reads it as "no other slots". Ends if a missing directory must be created or refused here rather than by openRunSlot.
   try {
     return readdirSync(instrumentRunsDir(root, instrument), { withFileTypes: true })
@@ -325,7 +327,7 @@ function publishedAliases(dir: string): readonly string[] {
 /** The run id a published pointer currently resolves into (`../runs/<instrument>/<runId>/…`), or null
  *  when nothing readable is at the alias. Read as a LINK — never followed — so a pointer a later run
  *  re-aimed answers with that later run's id, which is exactly the retention question. */
-function pointerRunId(root: string, alias: string, instrument: string): string | null {
+export function pointerRunId(root: string, alias: string, instrument: string): string | null {
   // @orb-waive caught-failure-ownership(catch): a removed or replaced alias is the NEGATIVE answer to "does this pointer still resolve into that slot?" — null is that answer at the one call site (the retention filter). Ends if the caller starts acting on WHY the alias is unreadable.
   try {
     const target = readlinkSync(reportsPath(root, alias)).replaceAll("\\", "/");

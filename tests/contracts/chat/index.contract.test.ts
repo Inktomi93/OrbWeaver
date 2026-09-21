@@ -69,6 +69,16 @@ test("memory rerank degradation is a typed durable warning code", () => {
   expect(warning).toEqual({ type: "warning", chatId: SAMPLE_CHAT_ID, code: "memory_rerank_unavailable" });
 });
 
+// #2510 — its SIBLING, and the distinction is the reason it is a second member rather than a reuse of the one
+// above: `memory_rerank_unavailable` means the turn retrieved and lost only the cross-encoder ORDER, while
+// this one means the owner's vector space could not be queried at all, so `{{memory}}` and/or `{{databank}}`
+// came back empty. A turn can carry both.
+test("an unqueryable vector space is its OWN typed durable warning code", () => {
+  expect(CHAT_WARNING_CODES).toContain("retrieval_index_unavailable");
+  const warning: ChatBusEvent = { type: "warning", chatId: SAMPLE_CHAT_ID, code: "retrieval_index_unavailable" };
+  expect(warning).toEqual({ type: "warning", chatId: SAMPLE_CHAT_ID, code: "retrieval_index_unavailable" });
+});
+
 // THE LIVE-ONLY LANE (entity→room bridge §3.4). The two subsets must PARTITION the union: a member that is
 // in neither can never be fanned, and one in both is a contradiction the emit surfaces would resolve
 // arbitrarily. `DurableChatBusEvent` is what the db CHECK derives from, so a drift here is a row shape the

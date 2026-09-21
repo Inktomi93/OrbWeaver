@@ -5,6 +5,7 @@
 import type { StageDef, Tier } from "../contract/stage.ts";
 import { biomeStageAudit } from "./biome-verdict.ts";
 import { asViolations, eslintScheme, ownScheme } from "./exit-classifiers.ts";
+import { mutationGateStageAudit } from "./mutation-gate-verdict.ts";
 import { eslintScopedArgv, tscScopedArgv } from "./registry-argv.ts";
 import { MANUAL_ONLY_STAGES } from "./registry-manual.ts";
 import { TEST_LANE_STAGES } from "./registry-test-lanes.ts";
@@ -330,6 +331,11 @@ const GATING_STAGES: readonly StageDef[] = [
     tiers: ["full"],
     argv: ["pnpm", "test:mutation:gate"],
     classify: asViolations,
+    // #2505 — STRYKER'S EXIT 1 HAS TWO CAUSES AND `asViolations` CANNOT TELL THEM APART: a score under the
+    // break threshold (a verdict) and a crash before the first mutant (no verdict). The audit reads the
+    // transcript for Stryker's own break-threshold decision — its single exit-code site — and refuses
+    // (exit 2) when the run never reached it. See ./mutation-gate-verdict.ts for the enumeration.
+    auditTranscript: mutationGateStageAudit,
     hangCeilingBaseMs: mutationGateHangCeilingMs(),
   },
 ];

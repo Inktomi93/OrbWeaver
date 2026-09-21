@@ -22,6 +22,8 @@ import { pathToFileURL } from "node:url";
 import { vi } from "vitest";
 import { readConcurrencyProfile } from "../../../../tooling/src/_shared/concurrency-profile.ts";
 import { CT_CACHE_DIR_ENV } from "../../../../tooling/src/_shared/ct-run-slot.ts";
+import type { RunMarkerDeps } from "../../../../tooling/src/_shared/run-marker.ts";
+import { markedPids, mintRunMarker, RUN_LEASE_ENV, RUN_MARKER_ENV, runLeaseArg, runMarkerArg } from "../../../../tooling/src/_shared/run-marker.ts";
 import { acquireCtRunnerLock, acquireCtRunnerSlots, CT_RUN_DIR_REL, ctRunnerLockPath } from "../../../../tooling/src/verify/lib/ct-runner-lock.ts";
 import { HOST_POOL_ROOT_ENV, hostPoolDir } from "../../../../tooling/src/verify/lib/host-slots.ts";
 
@@ -141,6 +143,77 @@ test("the CT config ROUTES the launcher's cache dir into playwright's own knob (
   } finally {
     vi.unstubAllEnvs();
     rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// ── #2504: the lease release must not sweep the run that contains it ───────────────────────────────
+// `release()` swept `runMarker`, which is INHERITED inside `pnpm verify` — so its comment ("an ORPHAN by
+// construction: its run is over") was true of a MINTED identity and false of the one it was handed. The
+// snap half of the same defect killed a whole `tests:tooling` battery; this half never fired in isolation
+// only because a CT run's parents are not reparented. Fixing one and not the other is half a migration.
+test("a CT lease is MINTED, never the inherited marker, and release sweeps only what this invocation started (#2504)", () => {
+  const root = scratchRoot();
+  const outer = mintRunMarker(100, 1_700_000_000_000);
+  vi.stubEnv(RUN_MARKER_ENV, outer);
+  try {
+    // The battery around it (101 the runner, 102 a sibling) carries the outer marker; 301 is a chromium
+    // that outlived playwright and carries both stamps, exactly as the launch doors produce it. The lease
+    // is only known after the acquire, so the row is completed below — before anything reads the map.
+    const signalled: [number, NodeJS.Signals][] = [];
+    const identities = new Map<number, readonly string[]>([
+      [101, [outer]],
+      [102, [outer]],
+      [301, [outer]],
+    ]);
+    const marker: RunMarkerDeps = {
+      selfPid: 4242,
+      listPids: (): readonly number[] => [...identities.keys()],
+      identitiesOf: (pid): readonly string[] => identities.get(pid) ?? [],
+      parentOf: (): number | null => null,
+      alive: (pid): boolean => identities.has(pid),
+      signal: (pid, signal): void => {
+        signalled.push([pid, signal]);
+      },
+    };
+    // THE PLANTED CONTROL: the value release STOPPED using really does reach the battery from here.
+    expect(markedPids(outer, marker), "the inherited marker must reach the siblings, or this arm measures nothing").toEqual([101, 102, 301]);
+
+    const notices: string[] = [];
+    const held = acquireCtRunnerLock(root, { pid: 4242, alive: aliveOnly(4242), marker, notice: (m): void => void notices.push(m) });
+    if (held.kind !== "held") {
+      throw new Error("#2504 pin: could not take the lock");
+    }
+    expect(held.lease.runMarker, "the outer run's marker still rides into playwright's env (#1848)").toBe(outer);
+    expect(held.lease.runLease, "the lease must be this invocation's own, or release sweeps its parent").not.toBe(outer);
+    identities.set(301, [outer, held.lease.runLease]);
+    held.lease.release();
+    expect(signalled, "release may signal only this invocation's own escapees").toEqual([[301, "SIGKILL"]]);
+    expect(notices.join("\n")).toContain("CT RUNNER SWEPT");
+  } finally {
+    vi.unstubAllEnvs();
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("the CT config stamps BOTH identities onto every browser it launches (#2504)", async () => {
+  // The routing half: the launcher exports the pair, and the config must turn them into chromium switches —
+  // the ARGV channel is the only one a chromium keeps. Fresh module graph, because the config reads both
+  // values ONCE at load and an earlier arm in this file has already imported it.
+  const outer = mintRunMarker(100, 1_700_000_000_000);
+  const lease = mintRunMarker(4242, 1_700_000_000_001);
+  vi.stubEnv(RUN_MARKER_ENV, outer);
+  vi.stubEnv(RUN_LEASE_ENV, lease);
+  vi.resetModules();
+  try {
+    const specifier = pathToFileURL(join(import.meta.dirname, "..", "..", "..", "..", "playwright-ct.config.ts")).href;
+    const loaded = (await import(specifier)) as { readonly default?: { readonly use?: { readonly launchOptions?: { readonly args?: readonly string[] } } } };
+    expect(loaded.default?.use?.launchOptions?.args, "a browser missing either stamp is invisible to one of the two sweeps").toEqual([
+      runMarkerArg(outer),
+      runLeaseArg(lease),
+    ]);
+  } finally {
+    vi.unstubAllEnvs();
+    vi.resetModules();
   }
 });
 

@@ -31,7 +31,7 @@ import type { ChatContext } from "../../../../../packages/server/src/domain/chat
 import type { TurnPrep, TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
 import { createTurnEngine } from "../../../../../packages/server/src/domain/chat/engine/engine.ts";
 import { recallMemory } from "../../../../../packages/server/src/domain/chat/memory/recall/recall.ts";
-import { createMemoryRecallWarningEpisode } from "../../../../../packages/server/src/domain/chat/memory/recall/rerank-warning.ts";
+import { createTurnRetrievalWarningEpisode } from "../../../../../packages/server/src/domain/chat/substrate/turn-retrieval-warning.ts";
 import type { SearchContext } from "../../../../../packages/server/src/domain/search/context.ts";
 import { createDigests } from "../../../../../packages/server/src/domain/search/verbs/digests.ts";
 import { freshDb } from "../../../../support/db.ts";
@@ -140,7 +140,7 @@ function scopedRecallPrep(): Partial<TurnPrep> & { memoryRecall: NonNullable<Tur
       recent: [],
       names: new Map<CharacterId, string>(),
       config: null,
-      warningEpisode: createMemoryRecallWarningEpisode(),
+      warningEpisode: createTurnRetrievalWarningEpisode(),
     },
   };
 }

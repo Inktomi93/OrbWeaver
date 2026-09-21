@@ -5,13 +5,13 @@
   "entries": [
     {
       "path": "docs/architecture/core/AGENTS.md",
-      "assignedSha256": "e7998873cd76fc33f074f9f76d99aa5657779a78eee89b4f2b10cf070b57ffc2",
+      "assignedSha256": "7755a550d8348d8affe080c7e7ae54e6975fc4c85f4904b3b4382fa58b852413",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "e7998873cd76fc33f074f9f76d99aa5657779a78eee89b4f2b10cf070b57ffc2",
-      "verifiedCommit": "fd3c84456025412565dc40dc16f08194226de8c2",
-      "verifiedAt": "2026-09-20",
+      "verifiedSha256": "7755a550d8348d8affe080c7e7ae54e6975fc4c85f4904b3b4382fa58b852413",
+      "verifiedCommit": "4c688c915c97f2e31abe5ecb898e35eb932bd1c4",
+      "verifiedAt": "2026-09-21",
       "evidence": [
         "Owner ruling 2026-09-10: lanes may commit normally in their assigned worktree or clone, including configured hook checks. Explicit iteration stays scoped; hook bypass requires a specific user/coordinator exception with its reason and executed or owed checks. Main integration and push remain coordinator/owner operations. Coupled doctrine, role and runbook guidance was reconciled without changing hook commands.",
         "#1842 (cb-push-tier): tests:tooling is --full-only; tooling-serial lane; SERIAL_INT_PRODUCT/TOOLING; push = product node tests",
@@ -60,7 +60,7 @@
         }
       ],
       "summary": "Constitution with configured-hook commits in assigned lane checkouts, scoped explicit iteration, and specifically authorized recorded bypass exceptions; integrated verification and push ownership remain separate.",
-      "verifiedCanonicalSha256": "e7998873cd76fc33f074f9f76d99aa5657779a78eee89b4f2b10cf070b57ffc2"
+      "verifiedCanonicalSha256": "7755a550d8348d8affe080c7e7ae54e6975fc4c85f4904b3b4382fa58b852413"
     },
     {
       "path": "docs/architecture/core/Chat-Macro-Resolution.md",
@@ -93,13 +93,13 @@
     },
     {
       "path": "docs/architecture/core/Core-0-Architecture-and-Structure.md",
-      "assignedSha256": "76b82ac2e6f79bb0c6f2cf8d0a1f676e8673a7e0876768fa7af243914c651878",
+      "assignedSha256": "1eab0a6f1383b12de48e921347f4e405adc0a55699b977b244a3166adb4d8036",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "76b82ac2e6f79bb0c6f2cf8d0a1f676e8673a7e0876768fa7af243914c651878",
-      "verifiedCommit": "fd3c84456025412565dc40dc16f08194226de8c2",
-      "verifiedAt": "2026-09-20",
+      "verifiedSha256": "1eab0a6f1383b12de48e921347f4e405adc0a55699b977b244a3166adb4d8036",
+      "verifiedCommit": "4c688c915c97f2e31abe5ecb898e35eb932bd1c4",
+      "verifiedAt": "2026-09-21",
       "evidence": [
         "re-attested at eb01a72ab (#1055): §7 row 11 names the real enforcer for exhaustive dispatch (compile-time by construction; no `exhaustive-dispatch` gate exists)",
         "re-attested at 7b7eb54b2 under #950 — full-file/delta read; the one sanctioned revisioned non-TS runtime-data exception is Snap's manifest-closed official DevTools frontend asset root",
@@ -123,17 +123,17 @@
         }
       ],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed.",
-      "verifiedCanonicalSha256": "76b82ac2e6f79bb0c6f2cf8d0a1f676e8673a7e0876768fa7af243914c651878"
+      "verifiedCanonicalSha256": "1eab0a6f1383b12de48e921347f4e405adc0a55699b977b244a3166adb4d8036"
     },
     {
       "path": "docs/architecture/core/Core-Audits-and-Debt.md",
-      "assignedSha256": "4fcb100cf4d2e2453816384d9616bdd1b9b137e029a04c69e80e386f1c0b19eb",
+      "assignedSha256": "f93ed6be39239e56af64d49745102df61ed5c1119a70747a40d723d5fda35cfd",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "4fcb100cf4d2e2453816384d9616bdd1b9b137e029a04c69e80e386f1c0b19eb",
-      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
-      "verifiedAt": "2026-09-19",
+      "verifiedSha256": "f93ed6be39239e56af64d49745102df61ed5c1119a70747a40d723d5fda35cfd",
+      "verifiedCommit": "4c688c915c97f2e31abe5ecb898e35eb932bd1c4",
+      "verifiedAt": "2026-09-21",
       "evidence": [
         "delta re-verify 2026-09-02 (#1193, the debug-gate amendment): the AUTHFIX-2 entry's two changed blocks were re-derived against the commit they describe (a67ef0ea8) — the credential allow-list is built per request in entry/auth/seam.ts::debugGateCredentialed, its fallback arm reads foundation/env::resolveOwnerFallbackCredential, its header arm reads infra/auth::selectSignedForwardJwt, and the enforcer row's counts are the planted-control results (4 admission rows red on fallback:false, 2 header rows red on header:true)",
         "docs/architecture/core/Core-Audits-and-Debt.md:1 (full read; header/status evaluated)",
@@ -144,7 +144,7 @@
         "docs/architecture/core/Core-Audits-and-Debt.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Historical/parked record retained for provenance; assessed against its stated lifecycle rather than as current implementation law.",
-      "verifiedCanonicalSha256": "4fcb100cf4d2e2453816384d9616bdd1b9b137e029a04c69e80e386f1c0b19eb"
+      "verifiedCanonicalSha256": "f93ed6be39239e56af64d49745102df61ed5c1119a70747a40d723d5fda35cfd"
     },
     {
       "path": "docs/architecture/core/Core-Docs-Formatting-Law.md",
@@ -516,20 +516,21 @@
     },
     {
       "path": "docs/architecture/core/Core-ST-Feature-Gap-Register.md",
-      "assignedSha256": "c88f6a5e89df7aca2cb5c6871691707625a88f42b91f82e9003cbc9a2b6e7fde",
+      "assignedSha256": "7577063fe4aec4d1d623add3ea801fcdffb256d03204fc82fd0c1f542b78f526",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "c88f6a5e89df7aca2cb5c6871691707625a88f42b91f82e9003cbc9a2b6e7fde",
-      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
-      "verifiedAt": "2026-08-30",
+      "verifiedSha256": "7577063fe4aec4d1d623add3ea801fcdffb256d03204fc82fd0c1f542b78f526",
+      "verifiedCommit": "4c688c915c97f2e31abe5ecb898e35eb932bd1c4",
+      "verifiedAt": "2026-09-21",
       "evidence": [
         "docs/architecture/core/Core-ST-Feature-Gap-Register.md:1 (full read; header/status evaluated)",
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/core/Core-ST-Feature-Gap-Register.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
-      "summary": "Historical/parked record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
+      "summary": "Historical/parked record retained for provenance; assessed against its stated lifecycle rather than as current implementation law.",
+      "verifiedCanonicalSha256": "7577063fe4aec4d1d623add3ea801fcdffb256d03204fc82fd0c1f542b78f526"
     },
     {
       "path": "docs/architecture/core/Core-Shared-Dissolution.md",
@@ -566,13 +567,13 @@
     },
     {
       "path": "docs/architecture/core/Core-Tooling-Law.md",
-      "assignedSha256": "585ded4efca0e959e5379e980c964991ac998e436306202b5c13ec7b0c725b58",
+      "assignedSha256": "2ff452d5e18873ec5a8da684a5d417406a45e86ed37cdd607afac477662b3e6b",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "585ded4efca0e959e5379e980c964991ac998e436306202b5c13ec7b0c725b58",
-      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
-      "verifiedAt": "2026-09-19",
+      "verifiedSha256": "2ff452d5e18873ec5a8da684a5d417406a45e86ed37cdd607afac477662b3e6b",
+      "verifiedCommit": "4c688c915c97f2e31abe5ecb898e35eb932bd1c4",
+      "verifiedAt": "2026-09-21",
       "evidence": [
         "Program #1351 is complete; acceptance is recorded at https://github.com/Inktomi93/orbweaver/issues/1351#issuecomment-5626592009 . The law bytes are unchanged from 06c560d8e. Shared compiler, capacity and native-tool execution changes have current native/behavioral verification; inherited gate-cutover work remains separately tracked in #1584.",
         "Full law read and closeout delta verified: standing generated compiler-root and separately scoped ambient intent promoted from the world program; all five tsconfig-entry-liveness grants retain their reasons and end conditions and cite this law. Scoped liveness/routing/roadmap controls passed. Compiler ownership and relocation-ledger instructions reconciled with current generated configs and deriveTestBaselineManifest; generated testFiles is never hand-maintained.",
@@ -624,7 +625,7 @@
           ]
         }
       ],
-      "verifiedCanonicalSha256": "585ded4efca0e959e5379e980c964991ac998e436306202b5c13ec7b0c725b58"
+      "verifiedCanonicalSha256": "2ff452d5e18873ec5a8da684a5d417406a45e86ed37cdd607afac477662b3e6b"
     },
     {
       "path": "docs/architecture/core/Documentation-Law.md",
@@ -1029,13 +1030,13 @@
     },
     {
       "path": "docs/architecture/core/Tier-3b-Providers.md",
-      "assignedSha256": "daa849bce09beeaa28f5ebe9702c71587631f9e0ce63f87d8604225d759d94c9",
+      "assignedSha256": "3953c1638ac1ffb63a91c463d069262395fd94a28bc9781a778bc3c0b33636f0",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "daa849bce09beeaa28f5ebe9702c71587631f9e0ce63f87d8604225d759d94c9",
-      "verifiedCommit": "e7fbeaac91a04954d0fe69c43f738035ed4a9320",
-      "verifiedAt": "2026-09-20",
+      "verifiedSha256": "3953c1638ac1ffb63a91c463d069262395fd94a28bc9781a778bc3c0b33636f0",
+      "verifiedCommit": "4c688c915c97f2e31abe5ecb898e35eb932bd1c4",
+      "verifiedAt": "2026-09-21",
       "evidence": [
         "re-attested after the agent-sdk frames fold (#1605 8946078de real tool_use/tool_result seed blocks; #1607 f8a754555 continue turn = frames + host stub) at 73c2fe6d1",
         "docs/architecture/core/Tier-3b-Providers.md:1 (full read; header/status evaluated)",
@@ -1055,7 +1056,7 @@
         }
       ],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed.",
-      "verifiedCanonicalSha256": "daa849bce09beeaa28f5ebe9702c71587631f9e0ce63f87d8604225d759d94c9"
+      "verifiedCanonicalSha256": "3953c1638ac1ffb63a91c463d069262395fd94a28bc9781a778bc3c0b33636f0"
     },
     {
       "path": "docs/architecture/core/Tier-4-Transport.md",
@@ -1088,13 +1089,13 @@
     },
     {
       "path": "docs/architecture/core/Tier-5-Entry.md",
-      "assignedSha256": "294a656ff9f90236481af98a0de8632307346e6233dd68a1b36cf138da064ca3",
+      "assignedSha256": "de8e5a60ca280786cf9024d1595bd0c1b1461df43671433c4c6b2614a26f32f8",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "294a656ff9f90236481af98a0de8632307346e6233dd68a1b36cf138da064ca3",
-      "verifiedCommit": "31247426185b7216659c79c71c93619db32fb1e7",
-      "verifiedAt": "2026-09-18",
+      "verifiedSha256": "de8e5a60ca280786cf9024d1595bd0c1b1461df43671433c4c6b2614a26f32f8",
+      "verifiedCommit": "4c688c915c97f2e31abe5ecb898e35eb932bd1c4",
+      "verifiedAt": "2026-09-21",
       "evidence": [
         "docs/architecture/core/Tier-5-Entry.md:1 (full read; header/status evaluated)",
         "re-attested 2026-09-18 by the default-content-pkg lane after reading the whole document: the boot/ inventory line no longer names seed-assets/, because the avatars + demo-chat transcripts moved to the @orb/default-content workspace package (D160); no other line changed",
@@ -1113,7 +1114,7 @@
         }
       ],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed.",
-      "verifiedCanonicalSha256": "294a656ff9f90236481af98a0de8632307346e6233dd68a1b36cf138da064ca3"
+      "verifiedCanonicalSha256": "de8e5a60ca280786cf9024d1595bd0c1b1461df43671433c4c6b2614a26f32f8"
     },
     {
       "path": "docs/architecture/core/UI-Architecture-and-Layout.md",

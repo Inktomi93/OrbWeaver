@@ -20,7 +20,14 @@ import { scaledBudget, spawnNodeWithBudget } from "../_load-budget.ts";
 // surfaced as an opaque timeout indistinguishable from a real refusal-regression red. Each spawn now runs
 // under a load-scaled child `timeout` that throws a SELF-IDENTIFYING ORB-LOAD-KILL when contention (not a
 // missing guard) is the cause, and the test carries a load-scaled wall-clock. Solo (factor 1) is unchanged.
-const CENSUS_TEST_BUDGET = scaledBudget(15_000, 4);
+// THE OPS-REFUSAL CENSUS BUDGET IS A POPULATION COST, NOT A CONSTANT (#2497). It spawns ONE budgeted child
+// per module in `tooling/src/verify/ops/` SEQUENTIALLY, so its floor is `modules.length × PER_CHILD_BUDGET`
+// — and the population is the thing that grows. It was 15_000 with the comment below still saying "twelve
+// modules at the pin's minting"; that directory now holds 54, so at the fleet census's own measured ~1.16s
+// per child under load the arm needed ~63s and was structurally guaranteed to die. It did, as an opaque
+// Vitest timeout, the first time the instrument battery ran whole after 2026-09-13. Sized off the same
+// measurement the fleet ceiling below uses, with headroom for the next dozen modules, and load-scaled.
+const CENSUS_TEST_BUDGET = scaledBudget(90_000, 4);
 // The fleet census below spawns every tooling ops module (242 when #1833 measured ~1.16s per child at
 // load 65). Its cost grows with that derived population, so the 180s quiet ceiling needs the same
 // load-scaling contract as each child rather than becoming an opaque Vitest timeout under contention.

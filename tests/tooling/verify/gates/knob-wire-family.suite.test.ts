@@ -27,12 +27,16 @@ test("every declared row conforms", () => {
 
 // ── §6.2 authority: the central grant door, and the two-sided liveness that replaced the tables ────────
 
-// ── the six real central rows: shape, uniqueness, and vocabulary ───────────────────────────────────────
+// ── the four real central rows: shape, uniqueness, and vocabulary ──────────────────────────────────────
 
 test("every committed knob-wire grant names a real arm operation and a uniquely identifiable member", () => {
   const rows = REVIEWED_GRANTS.filter((row) => row.policyId === gate.id);
   const operations = new Set<string>(Object.values(KNOB_WIRE_OPERATIONS));
-  expect(rows.length, "the two retired ExemptionTables carried 1 DOORWAY + 5 DEFERRED rows").toBe(6);
+  // The two retired ExemptionTables carried 1 DOORWAY + 5 DEFERRED rows. BOTH halves shrank at 4b90bdf78
+  // (the @orb/inference §12 extraction audit): `metadata-provider-routing` — the sole DOORWAY — and the
+  // DEFERRED `config-allow-non-owner-local-compute` were retired with the fields they named, leaving four
+  // DEFERRED rows and no doorway. Shrink-only: a row returning here is a regression, not a bump (#2497).
+  expect(rows.length, "4 DEFERRED rows survive the @orb/inference extraction; the DOORWAY row is retired").toBe(4);
   for (const row of rows) {
     expect(operations.has(row.operation), `${row.id} names a live arm operation`).toBe(true);
     // The subject grammar is `<member source>.<member>`; a row that cannot be produced by the policy would
@@ -43,8 +47,8 @@ test("every committed knob-wire grant names a real arm operation and a uniquely 
   // 1:1 identity is what makes the over-broad alarm unreachable for this policy: no two rows share one
   // (subject, operation), and the policy emits at most one finding per pair.
   expect(new Set(rows.map((row) => `${row.subject}|${row.operation}`)).size).toBe(rows.length);
-  // The five DEFERRED successors carry the durable tracker #2283; the one DOORWAY row is a sanctioned
-  // seam, not debt, and cites D107 audit Q2 instead.
-  expect(rows.filter((row) => row.endsWhen.includes("#2283"))).toHaveLength(5);
-  expect(rows.filter((row) => row.why.includes("THE ONE SANCTIONED DOORWAY"))).toHaveLength(1);
+  // EVERY surviving row is DEFERRED debt carrying the durable tracker #2283 — the one sanctioned-doorway
+  // row (D107 audit Q2) went out with the field it named, so the doorway arm is now an emptiness claim.
+  expect(rows.filter((row) => row.endsWhen.includes("#2283"))).toHaveLength(4);
+  expect(rows.filter((row) => row.why.includes("THE ONE SANCTIONED DOORWAY"))).toHaveLength(0);
 });

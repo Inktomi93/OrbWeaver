@@ -15,11 +15,26 @@ import { GATE_AUTHORITY_ALARM_KINDS, GATE_AUTHORITY_TOOL_ERROR_KINDS } from "../
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
 import { POLICY_REFUSAL_PREFIXES } from "../../../../tooling/src/verify/contract/policy-conformance.ts";
-import { GATE_FACT_PHASES, POLICY_PASS_REFUSALS, POLICY_PHASES, POLICY_REFUSAL_EMITTERS } from "../../../../tooling/src/verify/contract/policy-pass.ts";
+import {
+  GATE_FACT_PHASES,
+  POLICY_PASS_REFUSALS,
+  POLICY_PHASES,
+  POLICY_REFUSAL_EMITTERS,
+  POLICY_REFUSAL_INVARIANT_ONLY,
+} from "../../../../tooling/src/verify/contract/policy-pass.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { genericRefusalTextContaining, refusalEnvelope } from "../../../../tooling/src/verify/lib/policy-refusal-envelope.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
+
+/** THE TWO TREE-WALKING ARMS PARSE EVERY `tooling/src/verify/lib/*.ts` THROUGH ts-morph, and they ran at
+ *  vitest's bare 5s default — a budget that was never sized for the walk and shrinks as `lib/` grows.
+ *  Measured 2026-09-20 (#2497): the roster arm timed out at exactly 5_000ms in a 14-file scoped run on a
+ *  loaded box and passed in a 5-file one, i.e. the arm was reporting CONTENTION as a roster disagreement —
+ *  the reading that hides a real roster drift behind a flake. Load-scaled like every other budget in this
+ *  tree; it is a ceiling for a legible failure, never a target. */
+const TREE_WALK_BUDGET = scaledBudget(60_000, 4);
 
 function sourcePolicy(id: string, overrides: Partial<GatePolicy> = {}): GatePolicy {
   return defineGate({
@@ -286,6 +301,12 @@ test("the context-door sentences the envelope carries are the text the LIVE cont
 // refuse `mustRefuse` rows for text the runtime cannot show a policy author. They are DECLARED and held
 // two-sided instead, which is the same completeness with an honest vocabulary.
 const DISPATCHER_MODULES = POLICY_REFUSAL_EMITTERS;
+// THE CENSUS SCOPE IS WIDER THAN THE EMITTER ROSTER (#2497). A module can RAISE refusals while COMPOSING
+// none — `policy-pass-context-receipts.ts` is exactly that, five caller/programmer invariants carried out of
+// `policy-pass-context.ts` by the 32858021c split. It fails the emitter predicate, so scoping the invariant
+// census to the roster alone silently DROPPED those five declared sentences from measurement while
+// `DISPATCHER_INVARIANTS` went on declaring them. Both lists are held two-sided below.
+const CENSUS_MODULES: readonly string[] = [...POLICY_REFUSAL_EMITTERS, ...POLICY_REFUSAL_INVARIANT_ONLY];
 
 /** One message expression, split into what the author WROTE (`statics`), what the runtime fills in (`slots`),
  *  and the two woven back together in ORDER (`text`, the census key: authored text with `…` at every slot).
@@ -495,6 +516,8 @@ const COMPOSITION_FRAGMENTS: readonly string[] = [
   " candidate(s)",
   " is ",
   "authored text ",
+  // `resource-policy.ts#candidateIndexDelta` (f5030b149), the one label added since the census was written.
+  "candidate index path ",
   "fact ",
   "members",
   "non-resource policy ",
@@ -606,7 +629,12 @@ function unaccountedRefusals(sourceFile: SourceFile): readonly string[] {
  *  envelope would refuse rows for text the runtime never shows a policy author. Declared here, held two-sided by
  *  the test below, over all five emitters. */
 const DISPATCHER_INVARIANTS: readonly string[] = [
+  // TWINNED BY THE 32858021c SPLIT (#2497): `policy-pass-context.ts` and `policy-pass-context-receipts.ts`
+  // each keep their own scalar-shape guard, so these two sentences are raised at two SITES. This census is
+  // per site, not per sentence — collapsing the duplicates here would stop it seeing one of the two go away.
   "… cannot author …",
+  "… cannot author …",
+  "… must be a nonempty string",
   "… must be a nonempty string",
   "… must be a nonempty string when present",
   "… must be a nonnegative integer",
@@ -645,68 +673,86 @@ const DISPATCHER_INVARIANTS: readonly string[] = [
 
 const sorted = (values: readonly string[]): readonly string[] => [...values].toSorted((left, right) => left.localeCompare(right));
 
-test("the refusal EMITTER roster is data, held two-sided against the tree (#2155)", ({ repoRoot }) => {
-  // THE ROSTER'S OTHER SIDE. `POLICY_REFUSAL_EMITTERS` is the contract's own list; this derives the same set
-  // from the tree — a `lib/` module composing a refusal from the table — and requires equality. A new emitter
-  // that never joins the roster reds here, and so does a roster entry that stopped composing. Before this pin
-  // the contract claimed five modules while the census below read two, and nothing held the pair together.
-  const project = new Project({ skipAddingFilesFromTsConfig: true });
-  project.addSourceFilesAtPaths(`${repoRoot}/tooling/src/verify/lib/*.ts`);
-  const derived = project
-    .getSourceFiles()
-    .filter((sourceFile) => refusalSites(sourceFile).some((argument) => fragmentsOf(argument).slots.some((slot) => slot.startsWith(TABLE))))
-    .map((sourceFile) => sourceFile.getFilePath().slice(`${repoRoot}/`.length));
-  expect(sorted(derived)).toEqual(sorted(DISPATCHER_MODULES));
+test(
+  "the refusal EMITTER roster is data, held two-sided against the tree (#2155)",
+  ({ repoRoot }) => {
+    // THE ROSTER'S OTHER SIDE. `POLICY_REFUSAL_EMITTERS` is the contract's own list; this derives the same set
+    // from the tree — a `lib/` module composing a refusal from the table — and requires equality. A new emitter
+    // that never joins the roster reds here, and so does a roster entry that stopped composing. Before this pin
+    // the contract claimed five modules while the census below read two, and nothing held the pair together.
+    const project = new Project({ skipAddingFilesFromTsConfig: true });
+    project.addSourceFilesAtPaths(`${repoRoot}/tooling/src/verify/lib/*.ts`);
+    const derived = project
+      .getSourceFiles()
+      .filter((sourceFile) => refusalSites(sourceFile).some((argument) => fragmentsOf(argument).slots.some((slot) => slot.startsWith(TABLE))))
+      .map((sourceFile) => sourceFile.getFilePath().slice(`${repoRoot}/`.length));
+    expect(sorted(derived)).toEqual(sorted(DISPATCHER_MODULES));
 
-  // AND THE NEGATIVE THE ROSTER ASSERTS RATHER THAN ASSUMES: the envelope module READS the table (it is built
-  // from it) and raises nothing, so "references the table" is not the predicate and it is not an emitter.
-  const envelope = project.getSourceFileOrThrow(`${repoRoot}/tooling/src/verify/lib/policy-refusal-envelope.ts`);
-  expect(envelope.getFullText()).toContain(TABLE);
-  expect(refusalSites(envelope)).toEqual([]);
-  expect(DISPATCHER_MODULES).not.toContain("tooling/src/verify/lib/policy-refusal-envelope.ts");
-});
+    // AND THE NEGATIVE THE ROSTER ASSERTS RATHER THAN ASSUMES: the envelope module READS the table (it is built
+    // from it) and raises nothing, so "references the table" is not the predicate and it is not an emitter.
+    const envelope = project.getSourceFileOrThrow(`${repoRoot}/tooling/src/verify/lib/policy-refusal-envelope.ts`);
+    expect(envelope.getFullText()).toContain(TABLE);
+    expect(refusalSites(envelope)).toEqual([]);
+    expect(DISPATCHER_MODULES).not.toContain("tooling/src/verify/lib/policy-refusal-envelope.ts");
 
-test("every refusal the emitters raise is COMPOSED from the table or a declared invariant — per FRAGMENT, and including the pushed sentences", ({
-  repoRoot,
-}) => {
-  const project = new Project({ skipAddingFilesFromTsConfig: true });
-  const modules = DISPATCHER_MODULES.map((path) => project.addSourceFileAtPath(`${repoRoot}/${path}`));
-  const unaccounted = modules.flatMap((sourceFile) => unaccountedRefusals(sourceFile));
-  // TWO-SIDED: a new literal refusal appears here, and a declared invariant that no longer exists disappears.
-  expect(sorted(unaccounted)).toEqual(sorted(DISPATCHER_INVARIANTS));
+    // THE INVARIANT-ONLY LIST'S OTHER SIDE: each member must RAISE at least one refusal (or it does not belong
+    // in the census at all) and COMPOSE none (or it is an emitter and belongs in the roster above).
+    for (const path of POLICY_REFUSAL_INVARIANT_ONLY) {
+      const sourceFile = project.getSourceFileOrThrow(`${repoRoot}/${path}`);
+      expect(refusalSites(sourceFile).length, path).toBeGreaterThan(0);
+      expect(
+        refusalSites(sourceFile).filter((argument) => isComposed(argument)),
+        path,
+      ).toEqual([]);
+      expect(DISPATCHER_MODULES, path).not.toContain(path);
+    }
+  },
+  TREE_WALK_BUDGET,
+);
 
-  // THE COMPOSITION FRAGMENTS ARE TWO-SIDED TOO — a declared joiner or subject label no emitter uses any more is
-  // a widened door nobody is holding, and it would silently admit the next appended sentence that happens to
-  // match it.
-  const used = new Set(
-    modules.flatMap((sourceFile) =>
-      refusalSites(sourceFile)
-        .filter((argument) => isComposed(argument))
-        .flatMap((argument) => fragmentsOf(argument).statics.filter((fragment) => fragment !== "")),
-    ),
-  );
-  expect(sorted([...used])).toEqual(sorted(COMPOSITION_FRAGMENTS));
+test(
+  "every refusal the emitters raise is COMPOSED from the table or a declared invariant — per FRAGMENT, and including the pushed sentences",
+  ({ repoRoot }) => {
+    const project = new Project({ skipAddingFilesFromTsConfig: true });
+    const modules = CENSUS_MODULES.map((path) => project.addSourceFileAtPath(`${repoRoot}/${path}`));
+    const unaccounted = modules.flatMap((sourceFile) => unaccountedRefusals(sourceFile));
+    // TWO-SIDED: a new literal refusal appears here, and a declared invariant that no longer exists disappears.
+    expect(sorted(unaccounted)).toEqual(sorted(DISPATCHER_INVARIANTS));
 
-  // NO SINK ESCAPES on the tree: the accumulator is never handed to a function, so the alias hop plus the
-  // `.push` rule sees every sentence that reaches a refusal. This is the arm that keeps the census honest as
-  // the emitters change — the day someone writes `collect(failures)`, this reds instead of going quiet.
-  expect(modules.flatMap((sourceFile) => escapedSinks(sourceFile))).toEqual([]);
+    // THE COMPOSITION FRAGMENTS ARE TWO-SIDED TOO — a declared joiner or subject label no emitter uses any more is
+    // a widened door nobody is holding, and it would silently admit the next appended sentence that happens to
+    // match it.
+    const used = new Set(
+      modules.flatMap((sourceFile) =>
+        refusalSites(sourceFile)
+          .filter((argument) => isComposed(argument))
+          .flatMap((argument) => fragmentsOf(argument).statics.filter((fragment) => fragment !== "")),
+      ),
+    );
+    expect(sorted([...used])).toEqual(sorted(COMPOSITION_FRAGMENTS));
 
-  // And every sentence the emitters DO compose from is an envelope member — the derivation, checked from the
-  // emitter side rather than from the table side.
-  const composedKeys = modules.flatMap((sourceFile) =>
-    sourceFile
-      .getDescendantsOfKind(SyntaxKind.PropertyAccessExpression)
-      .filter((access) => access.getExpression().getText() === "POLICY_PASS_REFUSALS")
-      .map((access) => access.getName()),
-  );
-  expect(composedKeys.length).toBeGreaterThan(10);
-  for (const key of new Set(composedKeys)) {
-    const sentence = POLICY_PASS_REFUSALS[key as keyof typeof POLICY_PASS_REFUSALS];
-    expect(sentence, key).toBeDefined();
-    expect(refusalEnvelope(), key).toContain(sentence);
-  }
-});
+    // NO SINK ESCAPES on the tree: the accumulator is never handed to a function, so the alias hop plus the
+    // `.push` rule sees every sentence that reaches a refusal. This is the arm that keeps the census honest as
+    // the emitters change — the day someone writes `collect(failures)`, this reds instead of going quiet.
+    expect(modules.flatMap((sourceFile) => escapedSinks(sourceFile))).toEqual([]);
+
+    // And every sentence the emitters DO compose from is an envelope member — the derivation, checked from the
+    // emitter side rather than from the table side.
+    const composedKeys = modules.flatMap((sourceFile) =>
+      sourceFile
+        .getDescendantsOfKind(SyntaxKind.PropertyAccessExpression)
+        .filter((access) => access.getExpression().getText() === "POLICY_PASS_REFUSALS")
+        .map((access) => access.getName()),
+    );
+    expect(composedKeys.length).toBeGreaterThan(10);
+    for (const key of new Set(composedKeys)) {
+      const sentence = POLICY_PASS_REFUSALS[key as keyof typeof POLICY_PASS_REFUSALS];
+      expect(sentence, key).toBeDefined();
+      expect(refusalEnvelope(), key).toContain(sentence);
+    }
+  },
+  TREE_WALK_BUDGET,
+);
 
 test("the census PLANTED CONTROLS: an appended sentence and an indirect pushed literal are both unaccounted (#2155 review)", () => {
   // THE TWO FALSE CLEANS THE FIRST CENSUS SHIPPED, now permanent rows. Each of these passed the substring

@@ -199,7 +199,21 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
   const registry = await createProviderRegistry(deps.providerStore);
   const built = buildBackends(deps);
   const fetchImpl = deps.sdkFetch;
-  const mirrorDeps: MirrorDeps = { now: deps.now, snapshotStore: deps.snapshotStore, addSpanEvent: deps.addSpanEvent, warn: deps.log.warn };
+  // `warn` is WRAPPED, never passed as a bare method reference (#2510, found while verifying that lane's e2e).
+  // pino's level methods read `this[writeSym]`, so a detached `deps.log.warn` throws
+  // `TypeError: this[writeSym] is not a function` the first time it is CALLED — which is only ever on the
+  // mirror's degrade path (`catalog/mirror.ts` warmOnce's catch). A catalog warm that failed for an ordinary
+  // reason therefore did not degrade to the marked-estimated fallback: it threw from inside its own catch and
+  // surfaced as an unmapped 500 on `chat.commitMessage` / `chat.previewAssembly`. The sibling wiring at
+  // `backends/agent-sdk/log.ts:93` already wraps for the same reason.
+  const mirrorDeps: MirrorDeps = {
+    now: deps.now,
+    snapshotStore: deps.snapshotStore,
+    addSpanEvent: deps.addSpanEvent,
+    warn: (fields, message) => {
+      deps.log.warn(fields, message);
+    },
+  };
 
   const openRouterCatalog = createMirror<ModelCatalogEntry[]>({ key: OPENROUTER_CATALOG_KEY, schema: z.array(modelCatalogEntrySchema), deps: mirrorDeps });
   const agentSdkCatalog = createMirror<AgentSdkModel[]>({ key: AGENT_SDK_CATALOG_KEY, schema: z.array(agentSdkModelSchema), deps: mirrorDeps });

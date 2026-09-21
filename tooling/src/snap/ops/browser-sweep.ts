@@ -20,7 +20,7 @@
 // outlived everything that could be waiting on them, so a TERM grace would buy nothing.
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { RunMarkerDeps } from "../../_shared/run-marker.ts";
-import { currentRunMarker, describeRunMarkerSweep, sweepAbandonedRunMarkersNow, sweepRunMarkerNow } from "../../_shared/run-marker.ts";
+import { describeRunMarkerSweep, sweepAbandonedRunMarkersNow, sweepRunMarkerNow } from "../../_shared/run-marker.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
@@ -33,9 +33,17 @@ export function sweepStrandedBrowsers(deps: RunMarkerDeps = {}): readonly string
     .filter((line): line is string => line !== null);
 }
 
-/** The daemon's own half: at ITS shutdown, anything still carrying THIS process's marker outlived the
- *  browser close that was supposed to end it. Reported the same way — silence when there was nothing. */
-export function sweepOwnBrowsers(deps: RunMarkerDeps = {}): readonly string[] {
-  const line = describeRunMarkerSweep(sweepRunMarkerNow(currentRunMarker(), deps));
+/** The daemon's own half: at ITS shutdown, anything still carrying the LEASE THIS DAEMON MINTED outlived the
+ *  browser close that was supposed to end it. Reported the same way — silence when there was nothing.
+ *
+ *  THE LEASE IS A REQUIRED ARGUMENT, AND THAT IS THE FIX (#2504). This door used to sweep
+ *  `currentRunMarker()`, which INHERITS — so inside a marked run its subject was the OUTER run, and a
+ *  session daemon (reparented, therefore with an ancestor chain too short to exclude anything) SIGKILLed the
+ *  battery that contained it: `tests:tooling` under a marker died at 11 files with exit 137 and no summary,
+ *  and the same command unmarked published 556 files. Nothing here may read an ambient identity: the caller
+ *  passes the value it minted with `beginRunLease`, and the OUTER run's marker stays the outer run's to
+ *  sweep. The browser still carries BOTH stamps, so the outer run's own kill path loses nothing. */
+export function sweepOwnBrowsers(lease: string, deps: RunMarkerDeps = {}): readonly string[] {
+  const line = describeRunMarkerSweep(sweepRunMarkerNow(lease, deps));
   return line === null ? [] : [line];
 }

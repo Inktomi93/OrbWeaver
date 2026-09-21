@@ -71,3 +71,55 @@ index 57a6c8e823aac0ecd7d20e85d2b0ea458fb10143..dd99d0192dd7b3f90e49c0a411e38d28
      /**
       * Sandboxes a file (writes it to the sandbox). Either in-place, or an actual sandbox directory.
       * @param name The name of the file
+diff --git a/dist/src/utils/file-utils.js b/dist/src/utils/file-utils.js
+index 67da071..aba21ec 100644
+--- a/dist/src/utils/file-utils.js
++++ b/dist/src/utils/file-utils.js
+@@ -82,15 +82,44 @@ export const fileUtils = {
+         const dirBfsQueue = ['.'];
+         let dir;
+         while ((dir = dirBfsQueue.pop())) {
+-            if (path.basename(dir) === tempDirName) {
++            const dirName = path.basename(dir);
++            if (dirName === tempDirName) {
+                 continue;
+             }
+-            if (path.basename(dir) === 'node_modules') {
++            if (dirName === 'node_modules') {
+                 nodeModulesList.push(dir);
+                 continue;
+             }
++            // ORBWEAVER PATCH (#2505), half 1 of 2 — THE FENCE. This walk starts at `process.cwd()` and
++            // consults no Stryker option but `tempDirName`, so `ignorePatterns` cannot reach it. Agent
++            // worktrees live at `.claude/worktrees/<lane>/` INSIDE the repo root, each with a full
++            // `node_modules`: unfenced, this walk FINDS them and the sandbox symlinks another lane's
++            // modules into the mutation run. A dot-directory never holds a workspace member here
++            // (pnpm-workspace.yaml: `packages/*` + `tooling`), so skipping them costs nothing.
++            // RETIRES WHEN: `findNodeModulesList` honours `options.basePath` — Stryker's own
++            // `// TODO: Change with this.options.basePath when we have it` (dist/src/sandbox/sandbox.js,
++            // just above the call). Until that lands the walk is hardcoded to `process.cwd()` and no
++            // config value can narrow it. Re-derive this hunk on every Stryker bump; do not drop it
++            // because the crash "stopped happening" (it only happens when a lane is swept mid-run).
++            if (dir !== '.' && dirName.startsWith('.')) {
++                continue;
++            }
+             const parentDir = dir;
+-            const filesWithType = await fs.promises.readdir(path.join(basePath, dir), { withFileTypes: true });
++            let filesWithType;
++            try {
++                filesWithType = await fs.promises.readdir(path.join(basePath, dir), { withFileTypes: true });
++            }
++            catch (error) {
++                // ORBWEAVER PATCH (#2505), half 2 of 2 — THE RACE. A directory enumerated by its parent
++                // can be gone by the time the queue reaches it (a lane worktree swept mid-run is the
++                // measured case). Stock code lets that ENOENT reject out of an unawaited path and kill
++                // the process before a single mutant runs. A vanished subtree is SKIPPED; every other
++                // readdir failure still throws.
++                if (isErrnoException(error) && (error.code === 'ENOENT' || error.code === 'ENOTDIR')) {
++                    continue;
++                }
++                throw error;
++            }
+             const dirs = filesWithType
+                 .filter((file) => file.isDirectory())
+                 .map((childDir) => path.join(parentDir, childDir.name));

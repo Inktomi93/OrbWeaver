@@ -40,10 +40,10 @@ import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { budget } from "@orb/tooling/_shared/load-budget";
 import { spawnNicedTranscript } from "@orb/tooling/_shared/proc";
-import { inheritedRunMarker, mintRunMarker, runMarkerEnv } from "@orb/tooling/_shared/run-marker";
+import { inheritedRunMarker, mintRunMarker, runLeaseEnv, runMarkerEnv } from "@orb/tooling/_shared/run-marker";
 import type { Selection } from "../contract/selection.ts";
 import type { StageDef, StageMode, StageResult, Tier, TranscriptAudit, VerifyReport } from "../contract/stage.ts";
-import { NOTICE_MARKER } from "../contract/stage.ts";
+import { NOTICE_MARKER, VERIFY_INSTRUMENT, VERIFY_REPORT_NAME } from "../contract/stage.ts";
 import { colourNeutralParentEnv } from "../lib/child-env.ts";
 import { aggregateExit, noVerdictStages } from "../lib/exit-classifiers.ts";
 import { historyAdvisories } from "../lib/history.ts";
@@ -113,10 +113,6 @@ function pushOrStatic(stage: StageDef): string {
   return "verify --full";
 }
 
-/** The artifact this harness publishes at `reports/verify.json`. */
-const REPORT_NAME = "verify.json";
-/** The run-slot family this harness writes under (`reports/runs/verify/<runId>/`, #1029). */
-const INSTRUMENT = "verify";
 /** Where per-stage transcripts live inside a run's slot; published as the `reports/verify/` alias. */
 const STAGES_SEGMENT = "stages";
 
@@ -198,9 +194,12 @@ interface RunContext {
   readonly root: string;
   readonly slot: RunSlot;
   readonly verbose: boolean;
-  /** This run's process marker (#1848) — exported into every stage child's environment and swept by the
-   *  kill paths, so a browser that left the process group still dies with the run that started it. */
+  /** This run's process marker (#1848) — in every stage child's env so a browser that left the process group
+   *  still dies with the run that started it. INHERITED inside a marked run, which is why it is NOT what the
+   *  kill paths sweep (#2504): that is `runLease`, MINTED here, stamped beside it, one per RUN not per stage
+   *  (stages are sequential, so a timeout's reach is unchanged). */
   readonly runMarker: string;
+  readonly runLease: string;
 }
 
 /** THE RESULT A STAGE THAT DID NOT RUN PUBLISHES — one home, and EXPORTED so the notice has a producer
@@ -257,9 +256,10 @@ async function runOneStage(ctx: RunContext, stage: StageDef, selection: Selectio
   const start = Date.now();
   const [cmd, ...args] = argv;
   // NO_COLOR only, and an inherited FORCE_COLOR dropped — `lib/child-env.ts` owns that decision and the
-  // incident behind it (#2469). THE RUN MARKER rides the same env (#1848): every descendant of this stage
-  // carries it, so the kill paths can reach a browser or a vite server that left the process group.
-  const env = { ...colourNeutralParentEnv(), ...Object.fromEntries([["NO_COLOR", "1"]]), ...runMarkerEnv(ctx.runMarker), ...stage.env };
+  // incident behind it (#2469). BOTH IDENTITIES ride the same env (#1848, #2504): every descendant of this
+  // stage carries them, so the kill paths reach what left the process group — see `RunContext.runLease`.
+  const identity = { ...runMarkerEnv(ctx.runMarker), ...runLeaseEnv(ctx.runLease) };
+  const env = { ...colourNeutralParentEnv(), ...Object.fromEntries([["NO_COLOR", "1"]]), ...identity, ...stage.env };
   // ARGV[0] IS RESOLVED FROM EVIDENCE, AND AN UNRESOLVABLE ONE IS REFUSED WITHOUT SPAWNING (#2220/#2225):
   // the old name allowlist sent `bash` to `node_modules/.bin/bash` and made `lint:hook-syntax` an exit-2
   // every static run since it landed. A refusal settles as `code: null`, which every classifier maps to a
@@ -274,7 +274,7 @@ async function runOneStage(ctx: RunContext, stage: StageDef, selection: Selectio
           cwd: root,
           env,
           timeoutMs: stageTimeoutMs(stage),
-          runMarker: ctx.runMarker,
+          runMarker: ctx.runLease,
           ...(verbose ? { onChunk: mirrorChunk } : {}),
         });
   const durationMs = Date.now() - start;
@@ -335,7 +335,7 @@ function mirrorChunk(chunk: string, stream: "stdout" | "stderr"): void {
 /** This run's artifact, written INSIDE its slot and published as `reports/verify.json` only after the run
  *  finishes — so a concurrent reader resolves to a complete run, never a half-written one (#1029). */
 function writeReport(slot: RunSlot, report: VerifyReport): void {
-  writeFileAtomic(runFile(slot, REPORT_NAME), `${JSON.stringify(report, null, 2)}\n`);
+  writeFileAtomic(runFile(slot, VERIFY_REPORT_NAME), `${JSON.stringify(report, null, 2)}\n`);
 }
 
 /** A concurrent verify run is NAMED on stderr, never silently tolerated — the artifact carries the same
@@ -356,7 +356,9 @@ async function runTier(root: string, slot: RunSlot, parsed: Parsed): Promise<Ver
   const startedAt = new Date().toISOString();
   // ONE marker for the whole run, INHERITED when this verify is itself running inside a marked run: a
   // second marker would orphan every browser from the outer run's sweep, which is the hole being closed.
+  // AND ONE LEASE, ALWAYS MINTED (#2504): the marker above may name a run that merely CONTAINS this one.
   const runMarker = inheritedRunMarker() ?? mintRunMarker();
+  const runLease = mintRunMarker();
   printHeadBanner(parsed.tier, scopeLabel(parsed));
 
   const stages = stagesForTier(parsed.tier);
@@ -381,7 +383,7 @@ async function runTier(root: string, slot: RunSlot, parsed: Parsed): Promise<Ver
     }
     // Sequential BY DESIGN: stages share the CPU, the reports dir and the console — they run one at a
     // time in registry order, exactly as the old sync loop ran them. The await IS the ordering.
-    results.push(await runOneStage({ root, slot, verbose: parsed.verbose, runMarker }, stage, parsed.selection, parsed.tier));
+    results.push(await runOneStage({ root, slot, verbose: parsed.verbose, runMarker, runLease }, stage, parsed.selection, parsed.tier));
   }
 
   const exitCode = aggregateExit(results.map((s) => s.exitCode));
@@ -415,7 +417,7 @@ export async function runVerify(root: string, parsed: Parsed): Promise<number> {
   // The host-wide whole-run slot, held for the WHOLE run and released in the `finally` (../lib/whole-run-queue.ts).
   const queue = await enterWholeRunQueue(root, parsed);
   try {
-    const slot = openRunSlot(root, INSTRUMENT);
+    const slot = openRunSlot(root, VERIFY_INSTRUMENT);
     announceRacing(slot);
     const report = await runTier(root, slot, parsed);
     writeReport(slot, report);
@@ -423,8 +425,8 @@ export async function runVerify(root: string, parsed: Parsed): Promise<number> {
     // per-stage log directory the constitution names. Until this line both still resolve to the previous
     // COMPLETE run — which is the whole point of publishing at completion only.
     publishRunSlot(root, slot, [
-      { alias: REPORT_NAME, target: REPORT_NAME },
-      { alias: INSTRUMENT, target: STAGES_SEGMENT },
+      { alias: VERIFY_REPORT_NAME, target: VERIFY_REPORT_NAME },
+      { alias: VERIFY_INSTRUMENT, target: STAGES_SEGMENT },
     ]);
 
     // #411 (slowdowns) + #1983 (the --full battery's cadence): retain this run, then print what the history
