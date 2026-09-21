@@ -51,18 +51,33 @@ export function createDatabankWorkloadContributions(deps: DatabankWorkloadDeps):
       lane: "sweep",
       resume: "idempotent-restart",
       run: async (ctx, params, report, signal): Promise<IngestRunResult> => {
-        const generationReceipts = ctx.ownerId === null ? await deps.beginDocumentVectorSweep() : [];
+        // Only an OWNER-WIDE pass re-derives a whole `documents` scope, so only it may claim one (#2517) —
+        // a single-document repair covers one row and says nothing about the rest of the corpus.
+        const corpusWide = params.scope.kind === "owner";
+        const generationReceipts = corpusWide ? await deps.beginDocumentVectorSweep(ctx.ownerId) : [];
         const mode = params.mode ?? DEFAULT_REINDEX_MODE;
         report({ message: `databank-reindex: ${mode} (${params.scope.kind} scope)` });
         const result = await deps.databankIngest.reindex({ ownerId: ctx.ownerId, scope: params.scope, mode, signal });
         report({
           message: `databank-reindex: ${result.documents} docs, ${result.chunksUpserted} written, ${result.chunksPruned} pruned, ${result.reExtracted} re-extracted`,
         });
-        // PD-139(c): once a BULK (all-owners), non-aborted sweep has re-embedded every chunk into the box's
-        // active embed `(model)` space, reclaim the rows stranded in any OTHER space. The DELETE lives in
-        // embeddings/persistence (the ONE vector write path) — this is the injected op, never a db reach.
-        // Skipped on abort: the space stays a strict superset (never a gap); the rerun reclaims it.
-        if (ctx.ownerId === null && !signal.aborted) {
+        // THE PASS'S TERMINAL — record the `documents` scope's completion for the generations this pass
+        // opened, and (PD-139(c)) reclaim the chunks stranded in any OTHER embed space once cards, memory and
+        // documents all name the same target generation. The DELETE lives in embeddings/persistence (the ONE
+        // vector write path) — this is the injected op, never a db reach.
+        //
+        // #2517 — THE RULING SURVIVES, ITS INPUT CHANGED, exactly as in chat's memory sweep: the BULK-ONLY
+        // fence was an argument about the cross-owner FAN-OUT, and it had the COMPLETION welded to it, so an
+        // owner's own reindex could never make `readGeneration` say `ready`. The fan-out now lives inside
+        // `beginDocumentVectorSweep`, which enumerates the scope it is handed. Still skipped on abort: the
+        // space stays a strict superset (never a gap); the rerun reclaims it.
+        //
+        // WHAT DID *NOT* CHANGE: the reclaim's blast radius. `markGenerationComplete` promotes nothing until
+        // cards, memory AND documents name the same `(generation, epoch)`, and its DELETEs derive their row
+        // set from THIS owner's documents (`embeddings/persistence/space-state.ts retiredVectorStatements`),
+        // so a per-owner pass can only ever reclaim its own old space. The cross-owner reach lives solely in
+        // the op's fan-out, which the enumeration scope still decides.
+        if (corpusWide && !signal.aborted) {
           await deps.purgeDocumentVectors(generationReceipts);
         }
         return result;

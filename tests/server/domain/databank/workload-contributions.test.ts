@@ -1,7 +1,9 @@
 // Contribution test: databank's two RAG kinds. `databank-ingest` is the ONE `interactive`-lane job in the
 // registry (a user is waiting on it — RAG is unavailable until it lands), which is the whole reason the lane
-// axis exists. `databank-reindex` floors its mode and, PD-139(c), reclaims the OLD document embed space via
-// the INJECTED purge op after a BULK non-aborted sweep — never on a singular pass, never on abort.
+// axis exists. `databank-reindex` floors its mode and then calls its TERMINAL — the injected op that records
+// the `documents` scope's `embed_space_state` completion and, PD-139(c), reclaims the OLD document embed
+// space. The terminal runs on BOTH enumeration arms and is handed the scope it must fan over (#2517); it is
+// still suppressed on abort, and on a per-DOCUMENT pass, which re-derives one row and can claim no scope.
 
 import type { WorkloadRunContext } from "@orb/contracts/workloads";
 import type { DocumentId, EmbedGenerationId, UserId } from "@orb/kit/ids";
@@ -43,7 +45,7 @@ const SWEEP_RECEIPT = {
 function build(): { readonly deps: DatabankWorkloadDeps; readonly contributions: ReturnType<typeof createDatabankWorkloadContributions> } {
   const deps = {
     databankIngest: { ingestDocument: vi.fn(async () => RUN), reindex: vi.fn(async () => RUN) },
-    beginDocumentVectorSweep: vi.fn(async () => [SWEEP_RECEIPT]),
+    beginDocumentVectorSweep: vi.fn(async (_enumerationScope: UserId | null) => [SWEEP_RECEIPT]),
     purgeDocumentVectors: vi.fn(async () => undefined),
   } satisfies DatabankWorkloadDeps;
   return { deps, contributions: createDatabankWorkloadContributions(deps) };
@@ -94,20 +96,35 @@ describe("databank-reindex", () => {
   test("a BULK (all-owners) sweep reclaims the old document embed space afterwards", async () => {
     const { deps, contributions } = build();
     await contributions[1].run(bulkCtx, { scope: { kind: "owner" } }, vi.fn(), sig());
-    expect(deps.beginDocumentVectorSweep).toHaveBeenCalledTimes(1);
+    expect(deps.beginDocumentVectorSweep).toHaveBeenCalledExactlyOnceWith(null);
     // BY VALUE, not just by count: the reclaim is only safe for the generations the sweep OPENED — a purge
     // handed anything else (or nothing) deletes rows the re-embed never replaced. That is the PD-139(c)
     // silent-data-loss edge this pair exists to hold.
     expect(deps.purgeDocumentVectors).toHaveBeenCalledExactlyOnceWith([SWEEP_RECEIPT]);
   });
 
-  test("a SINGULAR per-owner run does NOT purge (a model change is box-level)", async () => {
+  // #2517 — THE RULING SURVIVES, ITS INPUT CHANGED. This pin used to read "a SINGULAR per-owner run does NOT
+  // purge (a model change is box-level)". Its REASON was the cross-owner fan-out, but its LETTER suppressed
+  // the `documents` COMPLETION too, so an owner's own reindex could never make `readGeneration` say `ready`.
+  // The terminal now runs on both arms; the ENUMERATION SCOPE handed to `beginDocumentVectorSweep` is what
+  // bounds the covered set, and asserting it is threaded is what keeps a singular pass off a neighbour.
+  test("a SINGULAR per-owner run opens and completes the sweep scoped to ITS OWN OWNER (never the box)", async () => {
     const { deps, contributions } = build();
     await contributions[1].run(ctx, { scope: { kind: "owner" } }, vi.fn(), sig());
+    expect(deps.beginDocumentVectorSweep).toHaveBeenCalledExactlyOnceWith(OWNER_ID);
+    expect(deps.purgeDocumentVectors).toHaveBeenCalledExactlyOnceWith([SWEEP_RECEIPT]);
+  });
+
+  // A per-document repair covers one row. Claiming the whole `documents` scope off it would make the ledger
+  // lie — and the promotion it unlocks would reclaim chunks the pass never re-embedded.
+  test("a per-DOCUMENT pass neither opens a sweep nor completes the scope", async () => {
+    const { deps, contributions } = build();
+    await contributions[1].run(ctx, { scope: { kind: "document", documentId: DOCUMENT_ID } }, vi.fn(), sig());
+    expect(deps.beginDocumentVectorSweep).not.toHaveBeenCalled();
     expect(deps.purgeDocumentVectors).not.toHaveBeenCalled();
   });
 
-  test("an aborted BULK run does NOT purge (the space stays a strict superset)", async () => {
+  test("an aborted run does NOT purge (the space stays a strict superset)", async () => {
     const { deps, contributions } = build();
     const controller = new AbortController();
     controller.abort();

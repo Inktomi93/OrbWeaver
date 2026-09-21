@@ -261,10 +261,16 @@ export interface DatabankIngest {
 }
 
 /** What the domain's `WorkloadContribution` factory needs from the composition root (the two RAG kinds).
- *  `purgeDocumentVectors` is the ONE cross-domain reach — the PD-139(c) old-embed-space reclaim, whose
- *  DELETE lives in embeddings/persistence (the ONE vector write path), injected here as a typed op. */
+ *  `purgeDocumentVectors` is the ONE cross-domain reach — the `documents` scope's `embed_space_state`
+ *  completion plus the PD-139(c) old-embed-space reclaim, whose DELETE lives in embeddings/persistence (the
+ *  ONE vector write path), injected here as a typed op. */
 export interface DatabankWorkloadDeps {
   readonly databankIngest: DatabankIngest;
-  readonly beginDocumentVectorSweep: () => Promise<readonly { readonly ownerId: UserId; readonly generation: GenerationReceipt }[]>;
+  /** Pin the target generation of every owner the pass is about to cover, BEFORE it re-embeds anything.
+   *  The ENUMERATION SCOPE is the argument (#2517): `null` = every corpus owner (the bulk arm), a `UserId` =
+   *  exactly that owner — which is what keeps a per-owner catch-up's completion off a neighbour's space. */
+  readonly beginDocumentVectorSweep: (
+    enumerationScope: UserId | null,
+  ) => Promise<readonly { readonly ownerId: UserId; readonly generation: GenerationReceipt }[]>;
   readonly purgeDocumentVectors: (receipts: readonly { readonly ownerId: UserId; readonly generation: GenerationReceipt }[]) => Promise<void>;
 }
