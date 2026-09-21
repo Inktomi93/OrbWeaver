@@ -76,11 +76,44 @@ function semanticProject(root: string, descriptor: CompilerProgram, fileSystem?:
   return project;
 }
 
+interface ReferenceOrigin {
+  readonly sourcePath: string;
+  readonly start: number;
+  readonly width: number;
+}
+
+function referencesInProgram(root: string, program: SemanticProgram, origin: ReferenceOrigin): readonly SemanticReference[] {
+  const local = program.sourceFile(origin.sourcePath)?.getDescendantAtStartWithWidth(origin.start, origin.width);
+  if (local === undefined || !TsNode.isReferenceFindable(local)) {
+    return [];
+  }
+  return local.findReferencesAsNodes().map((reference) => ({
+    program,
+    node: reference,
+    canonicalPath: canonicalCompilerPath(root, reference.getSourceFile().getFilePath()),
+    start: reference.getStart(),
+    end: reference.getEnd(),
+  }));
+}
+
+function firstPhysicalReference(seen: Set<string>, reference: SemanticReference): boolean {
+  const key = `${reference.canonicalPath}\0${String(reference.start)}\0${String(reference.end)}`;
+  if (seen.has(key)) {
+    return false;
+  }
+  seen.add(key);
+  return true;
+}
+
+function ownerFirst(programs: readonly SemanticProgram[], owner: SemanticProgram | undefined): readonly SemanticProgram[] {
+  return owner === undefined || !programs.includes(owner) ? programs : [owner, ...programs.filter((program) => program !== owner)];
+}
+
 function lazySemanticProgram(
   root: string,
   descriptor: CompilerProgram,
   fileSystem: FileSystemHost | undefined,
-  register: (project: Project) => void,
+  register: (project: Project, program: SemanticProgram) => void,
 ): SemanticProgram {
   let cached: Project | undefined;
   const view: SemanticProgram = {
@@ -88,7 +121,7 @@ function lazySemanticProgram(
     project: () => {
       if (cached === undefined) {
         cached = semanticProject(root, descriptor, fileSystem);
-        register(cached);
+        register(cached, view);
       }
       return cached;
     },
@@ -98,6 +131,7 @@ function lazySemanticProgram(
 }
 
 const semanticWorkspaces = new WeakMap<object, SemanticWorkspace>();
+const semanticPrograms = new WeakMap<Project, SemanticProgram>();
 
 export function semanticWorkspaceOf(value: object): SemanticWorkspace | undefined {
   return semanticWorkspaces.get(value);
@@ -110,6 +144,23 @@ export function semanticReferenceNodes(node: Node): readonly Node[] {
     return workspace.findReferences(node).map(({ node: reference }) => reference);
   }
   return TsNode.isReferenceFindable(node) ? node.findReferencesAsNodes() : [];
+}
+
+/** Visit references without forcing a complete cross-world union when the consumer already has its verdict. */
+export function visitSemanticReferenceNodes(node: Node, visit: (reference: Node) => boolean): boolean {
+  const workspace = semanticWorkspaces.get(node.getProject());
+  if (workspace !== undefined) {
+    return workspace.visitReferences(node, ({ node: reference }) => visit(reference));
+  }
+  if (!TsNode.isReferenceFindable(node)) {
+    return true;
+  }
+  for (const reference of node.findReferencesAsNodes()) {
+    if (!visit(reference)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 /** Map two nodes into one native program when their owning views differ but one compiler closure contains both. */
@@ -152,8 +203,9 @@ export function createSemanticWorkspace(options: SemanticWorkspaceOptions): Sema
   };
   const byConfig = new Map<string, SemanticProgram>();
   let workspace: SemanticWorkspace;
-  const registerProject = (project: Project): void => {
+  const registerProject = (project: Project, program: SemanticProgram): void => {
     semanticWorkspaces.set(project, workspace);
+    semanticPrograms.set(project, program);
   };
   for (const descriptor of descriptors) {
     const view = lazySemanticProgram(root, descriptor, options.fileSystem, registerProject);
@@ -161,13 +213,20 @@ export function createSemanticWorkspace(options: SemanticWorkspaceOptions): Sema
   }
   const programs = [...byConfig.values()];
   let corpus: SourceCorpus | undefined;
+  const containingByPath = new Map<string, readonly SemanticProgram[]>();
   const rootOwners = (path: string): readonly SemanticProgram[] => {
     const rel = repoRelative(root, path);
     return programs.filter(({ descriptor }) => descriptor.files.includes(rel));
   };
   const containingPrograms = (path: string): readonly SemanticProgram[] => {
     const canonical = canonicalCompilerPath(root, path);
-    return programs.filter((candidate) => candidate.project().getSourceFile(canonical) !== undefined);
+    const cached = containingByPath.get(canonical);
+    if (cached !== undefined) {
+      return cached;
+    }
+    const containing = programs.filter((candidate) => candidate.project().getSourceFile(canonical) !== undefined);
+    containingByPath.set(canonical, containing);
+    return containing;
   };
   const sourceViews = (path: string): readonly SemanticSourceView[] => {
     const canonicalPath = canonicalCompilerPath(root, path);
@@ -194,6 +253,23 @@ export function createSemanticWorkspace(options: SemanticWorkspaceOptions): Sema
       }
     }
     return [...found.values()].toSorted((left, right) => left.canonicalPath.localeCompare(right.canonicalPath) || left.start - right.start);
+  };
+  const visitReferences = (node: Node, visit: (reference: SemanticReference) => boolean): boolean => {
+    const sourcePath = canonicalCompilerPath(root, node.getSourceFile().getFilePath());
+    const origin = { sourcePath, start: node.getStart(), width: node.getWidth() };
+    const ordered = ownerFirst(containingPrograms(sourcePath), semanticPrograms.get(node.getProject()));
+    const seen = new Set<string>();
+    for (const program of ordered) {
+      for (const reference of referencesInProgram(root, program, origin)) {
+        if (!firstPhysicalReference(seen, reference)) {
+          continue;
+        }
+        if (!visit(reference)) {
+          return false;
+        }
+      }
+    }
+    return true;
   };
   workspace = {
     root,
@@ -247,6 +323,7 @@ export function createSemanticWorkspace(options: SemanticWorkspaceOptions): Sema
       return corpus;
     },
     findReferences,
+    visitReferences,
   };
   return workspace;
 }

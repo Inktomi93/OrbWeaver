@@ -52,6 +52,8 @@ export interface SemanticWorkspace {
   readonly sourceCorpus: () => SourceCorpus;
   /** References unioned across every native program containing the declaration, deduped by physical span. */
   readonly findReferences: (node: Node) => readonly SemanticReference[];
+  /** Visit physical references until `visit` returns false; the declaration's owning world is searched first. */
+  readonly visitReferences: (node: Node, visit: (reference: SemanticReference) => boolean) => boolean;
 }
 
 export interface SemanticWorkspaceOptions {

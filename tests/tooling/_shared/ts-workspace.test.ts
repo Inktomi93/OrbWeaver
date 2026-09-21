@@ -2,8 +2,9 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
 import { createSemanticWorkspace } from "@orb/tooling/_shared/ts-workspace";
-import { buildLiveness, collectOrphanCandidates } from "@orb/tooling/ast";
+import { buildLiveness, collectOrphanCandidates, collectTypeOnlyCandidates } from "@orb/tooling/ast";
 import { Node } from "ts-morph";
+import { vi } from "vitest";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
 function write(root: string, path: string, text: string): void {
@@ -119,6 +120,29 @@ test("semantic references union overlapping native programs by physical identity
   const orphanNames = collectOrphanCandidates(workspace.sourceCorpus(), live, () => true).map(({ name }) => name);
   expect(orphanNames).not.toContain("token");
   expect(orphanNames).toContain("unused");
+});
+
+test("type-only liveness stops searching native worlds after the first runtime reference", ({ scratch }) => {
+  initializeWorldFixture(scratch);
+  const workspace = createSemanticWorkspace({ root: scratch });
+  const calls: string[] = [];
+  for (const program of workspace.containingPrograms("packages/contracts/src/index.ts")) {
+    const declaration = program.sourceFile("packages/contracts/src/index.ts")?.getVariableDeclarationOrThrow("common");
+    if (declaration === undefined) {
+      throw new Error(`common declaration missing from ${program.descriptor.config}`);
+    }
+    const findReferences = declaration.findReferencesAsNodes.bind(declaration);
+    vi.spyOn(declaration, "findReferencesAsNodes").mockImplementation(() => {
+      calls.push(program.descriptor.config);
+      return findReferences();
+    });
+  }
+
+  const candidates = collectTypeOnlyCandidates(workspace.sourceCorpus(), (path) => path.endsWith("packages/contracts/src/index.ts"));
+
+  expect(candidates.map(({ name }) => name)).not.toContain("common");
+  expect(candidates.find(({ name }) => name === "schema")?.sites).toEqual([expect.stringMatching(/packages\/client\/src\/browser\.ts:3$/u)]);
+  expect(calls).toEqual(["packages/contracts/tsconfig.json"]);
 });
 
 test("authored source views exclude ignored worktrees and dependencies", ({ scratch }) => {

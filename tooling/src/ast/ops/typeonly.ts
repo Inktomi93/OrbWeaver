@@ -4,7 +4,7 @@ import process from "node:process";
 import { Node, SyntaxKind } from "ts-morph";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
-import { semanticReferenceNodes } from "../../_shared/ts-workspace.ts";
+import { visitSemanticReferenceNodes } from "../../_shared/ts-workspace.ts";
 import type { Flags, Hit, TypeOnlyCandidate } from "../contract/types.ts";
 import { emit, hitOf, narrate } from "../lib/emit.ts";
 import { declKey } from "../lib/keys.ts";
@@ -179,20 +179,24 @@ function typeOnlyCandidateOf(name: string, decl: Node): TypeOnlyCandidate | unde
     return;
   }
   const sites = new Set<string>();
-  for (const ref of semanticReferenceNodes(decl)) {
+  const typeOnly = visitSemanticReferenceNodes(decl, (ref) => {
     // The declaration's OWN name node — its parent IS the declaration (true for function/class/enum/variable
     // alike). Measured: the language service does not currently hand it back, but a lens that would call
     // every candidate "value-referenced" if it ever did is one TypeScript bump from a silent permanent zero.
     if (ref.getSourceFile() === decl.getSourceFile() && ref.getParent()?.getStart() === decl.getStart()) {
-      continue;
+      return true;
     }
     const position = refPosition(ref);
     if (position === "value") {
-      return;
+      return false;
     }
     if (position === "type") {
       sites.add(`${relPath(ref.getSourceFile().getFilePath())}:${ref.getStartLineNumber()}`);
     }
+    return true;
+  });
+  if (!typeOnly) {
+    return;
   }
   if (sites.size === 0) {
     return;
