@@ -1,5 +1,3 @@
-import type { CredentialHealth } from "@orb/contracts/credentials";
-import { errorMessage } from "@orb/kit/error-message";
 import { redactKnownSecrets } from "@orb/kit/secret-redaction";
 import { z } from "zod";
 import { getLog } from "#foundation/observability";
@@ -13,11 +11,8 @@ import { safeFetch } from "./egress.ts";
 // safeFetch's own private-range denial. Best-effort: any failure returns [] (never throws, never surfaces
 // endpoint/key in a throw).
 //
-// TWO consumers of that ONE request, so the host pin + the caps are written once: `fetchOpenAiModels` (the
-// model LIST for the picker) and `probeOpenAiEndpoint` (the credential-HEALTH classification behind
-// `credentials.testHealth`'s custom_openai arm — SID-01). The probe differs only in what it returns: a
-// best-effort `[]` cannot say "the endpoint rejected your key" vs "the endpoint is down", and the health
-// verb's revoke/strike side-effects hang off exactly that distinction.
+// This is the model LIST for the picker. Credential health runs through the inference provider's live
+// diagnostics path, which probes the authenticated read admitted by that provider's dialect.
 
 const modelsResponseSchema = z.object({
   data: z.array(z.object({ id: z.string() }).loose()).optional(),
@@ -53,8 +48,8 @@ const OK_STATUS_MAX = 300;
 // large body back through the probe (the global firewall already blocks the private connect).
 const MODELS_MAX_BYTES = 2_000_000;
 
-/** The endpoint coordinates both user-endpoint ops take — the args for `fetchOpenAiModels` (injected into
- *  `domain/credentials/verbs/fetch-models`) and for `probeOpenAiEndpoint` (injected into `test-health`). */
+/** The endpoint coordinates for `fetchOpenAiModels`, injected into
+ *  `domain/credentials/verbs/fetch-models`. */
 export interface FetchOpenAiModelsArgs {
   baseUrl: string;
   apiKey: string | null;
@@ -102,72 +97,9 @@ export async function fetchOpenAiModels(args: FetchOpenAiModelsArgs): Promise<st
   }
 }
 
-// An auth-class answer (the endpoint rejected the key) vs any other non-2xx. Only these two statuses may
-// drive a REVOCATION — a 404/405/500 says the endpoint is reachable and did not reject the credential, and
-// auto-revoking a working BYO endpoint that simply doesn't serve `/models` would be a self-inflicted outage.
-const HTTP_UNAUTHORIZED = 401;
-const HTTP_FORBIDDEN = 403;
-const AUTH_FAILURE_STATUSES: readonly number[] = [HTTP_UNAUTHORIZED, HTTP_FORBIDDEN];
-
-/** Strip the credential literals we hold out of a transport error before it becomes a user-visible reason
+/** Strip the credential literals we hold out of a transport error before it reaches the log
  *  (the credential-echo class: a proxy/undici error can quote what it was handed). This file carries no
  *  header-name heuristic, so EVERY non-empty custom header value is treated as secret, regardless of length. */
 function scrubCredentials(text: string, args: FetchOpenAiModelsArgs): string {
   return redactKnownSecrets(text, [args.apiKey ?? "", ...Object.values(args.headers ?? {})]);
-}
-
-/** undici collapses every transport failure into the bare message "fetch failed" and hangs the actual
- *  diagnosis off `cause` (ECONNREFUSED / ENOTFOUND / a TLS error). A health reason without it is useless to
- *  the person wiring the endpoint, so unwrap ONE level: the cause names the USER'S OWN host/port (which they
- *  typed and which the UI already shows), never the key — and the result is scrubbed by value regardless. */
-function transportReason(err: unknown): string {
-  const message = errorMessage(err);
-  const detail = Error.isError(err) && err.cause !== undefined ? errorMessage(err.cause) : "";
-  return detail === "" || message.includes(detail) ? message : `${message}: ${detail}`;
-}
-
-/**
- * Credential-health probe for a user-configured OpenAI-compatible endpoint: the SAME host-pinned
- * `GET {baseUrl}/models` as {@link fetchOpenAiModels}, classified instead of listed. Never throws.
- *
- * The classification is what the caller's side-effects hang off, so it is deliberately narrow:
- * 2xx → `ok` · 401/403 → `revoked` (the endpoint rejected this key) · a transport failure (refused/DNS/
- * deadline/egress block) → `unreachable` (the only strike-worthy arm) · anything else, including a baseUrl
- * that cannot be exactly pinned → `unchecked` (nothing was learned about the key; NEVER a green).
- *
- * The STATUS is the whole answer: the body is disposed unread, so a hostile endpoint's bytes never reach a
- * health result, and any reason text is scrubbed of the key + header values by value.
- */
-export async function probeOpenAiEndpoint(args: FetchOpenAiModelsArgs, now: () => number): Promise<CredentialHealth> {
-  const checkedAt = now();
-  let target: { readonly url: string; readonly host: string };
-  // @orb-waive caught-failure-ownership(err): an unpinnable/malformed baseUrl yields "unchecked" — never a green and never the strike-worthy "unreachable", so a config typo can neither pass a bad key as healthy nor auto-revoke a working one; the reason is credential-scrubbed by value. Ends if the catch ever returns "ok" or "unreachable".
-  try {
-    target = modelsTarget(args.baseUrl);
-  } catch (err) {
-    // Never dialled — a malformed/unpinnable baseUrl is a configuration answer, not a reachability verdict
-    // (classifying it `unreachable` would feed the caller's strike breaker and revoke on a typo). Scrubbed
-    // too: the message can quote the baseUrl, and some users paste the key into the URL's query.
-    return { status: "unchecked", checkedAt, reason: scrubCredentials(`endpoint URL is not usable: ${errorMessage(err)}`, args) };
-  }
-  try {
-    const res = await safeFetch(target.url, {
-      allowedHosts: [target.host],
-      ownerConfiguredEndpoint: true,
-      maxBytes: MODELS_MAX_BYTES,
-      headers: endpointHeaders(args),
-    });
-    res.dispose?.(); // status-only probe: drop the body unread + close any pinned Agent
-    if (res.status >= OK_STATUS_MIN && res.status < OK_STATUS_MAX) {
-      return { status: "ok", checkedAt };
-    }
-    if (AUTH_FAILURE_STATUSES.includes(res.status)) {
-      return { status: "revoked", checkedAt, reason: `endpoint rejected the credential (HTTP ${res.status})` };
-    }
-    return { status: "unchecked", checkedAt, reason: `endpoint answered HTTP ${res.status} — the credential could not be verified` };
-  } catch (err) {
-    const reason = scrubCredentials(transportReason(err), args);
-    getLog().info({ err: reason }, "network: custom_openai health probe failed");
-    return { status: "unreachable", checkedAt, reason };
-  }
 }

@@ -26,7 +26,8 @@ import { authHeaders, fetchJson, openAiPath } from "../kit/fetch-json.ts";
 import { applyIncludeExclude, redactHeaders, redactSecretsFromText, secretScrubOverhang } from "../kit/openai-body.ts";
 import { resolvedScrubSet, sanitizeApiError } from "../kit/sanitize.ts";
 
-const AUTH_FAILURE_RE = /\b401\b|\b403\b|unauthor|forbidden|invalid[\s_-]?api[\s_-]?key/iu;
+const HTTP_UNAUTHORIZED = 401;
+const HTTP_FORBIDDEN = 403;
 const PING_CONTENT = "ping";
 const PING_MAX_TOKENS = 1;
 const BODY_PREVIEW_LIMIT = 4000;
@@ -84,7 +85,8 @@ async function authenticatedRead(deps: DiagnosticsDeps, args: ReadArgs): Promise
 }
 
 /** Credential health by the cheapest authenticated read the row admits: `/credits` on openrouter, `/models`
- *  elsewhere. Success → `ok`; an auth-class error → `revoked`; anything else → `unreachable`. */
+ *  elsewhere. Success → `ok`; a typed HTTP 401/403 → `revoked`; anything else → `unreachable`. Upstream
+ *  prose is never classification evidence: a 5xx body may mention another request's invalid API key. */
 export async function probeOpenAiCompat(req: ProbeRequest, deps: DiagnosticsDeps): Promise<CredentialHealth> {
   const checkedAt = deps.now();
   const { connection } = req;
@@ -95,7 +97,8 @@ export async function probeOpenAiCompat(req: ProbeRequest, deps: DiagnosticsDeps
     // @orb-waive caught-failure-ownership(err): credential probes own failures as typed revoked/unreachable health with a sanitized reason. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if the returned health stops carrying that disposition.
   } catch (err) {
     const reason = sanitizeApiError(redactSecretsFromText(errorMessage(err), resolvedScrubSet(connection)));
-    return AUTH_FAILURE_RE.test(reason) ? { status: "revoked", checkedAt, reason } : { status: "unreachable", checkedAt, reason };
+    const authFailure = err instanceof ProviderError && (err.apiErrorStatus === HTTP_UNAUTHORIZED || err.apiErrorStatus === HTTP_FORBIDDEN);
+    return authFailure ? { status: "revoked", checkedAt, reason } : { status: "unreachable", checkedAt, reason };
   }
 }
 

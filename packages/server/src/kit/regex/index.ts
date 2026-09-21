@@ -36,10 +36,6 @@ export function createRegexApplyReplace(timeoutMs: number = REGEX_APPLY_TIMEOUT_
   };
 }
 
-/** The server's default `applyReplace` — the {@link createRegexApplyReplace} watchdog at the standard
- *  {@link REGEX_APPLY_TIMEOUT_MS} budget. */
-export const applyReplace = createRegexApplyReplace();
-
 // The `.test` twin of {@link APPLY_SCRIPT}, for the world-info regex-KEY matcher (#710). A V3 `use_regex`
 // entry key is a user-authored pattern `.test`ed against the chat-history haystack EVERY turn; a catastrophic
 // key (`(a|a)+$`, `(a+)+$`) that slips past the kit's pre-compile heuristic backtracks unbounded on the main
@@ -65,7 +61,3 @@ export function createRegexTest(timeoutMs: number = REGEX_APPLY_TIMEOUT_MS): (re
     return result;
   };
 }
-
-/** The server's default world-info key `testRegex` — the {@link createRegexTest} watchdog at the standard
- *  {@link REGEX_APPLY_TIMEOUT_MS} budget. */
-export const testRegex = createRegexTest();
