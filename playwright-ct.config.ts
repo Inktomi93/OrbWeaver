@@ -6,7 +6,7 @@ import { readConcurrencyProfile } from "@orb/tooling/_shared/concurrency-profile
 import { CT_CACHE_DIR_ENV, CT_RUN_RACING_ENV, CT_RUN_SLOT_ENV } from "@orb/tooling/_shared/ct-run-slot";
 import { budget } from "@orb/tooling/_shared/load-budget";
 import { CT_VITE_PORT } from "@orb/tooling/_shared/ports";
-import { inheritedRunMarker, runMarkerArg } from "@orb/tooling/_shared/run-marker";
+import { currentRunLease, inheritedRunMarker, runLeaseArg, runMarkerArg } from "@orb/tooling/_shared/run-marker";
 import { TEST_KIND_DEFINITIONS } from "@orb/tooling/_shared/test-kinds";
 import type { PlaywrightTestConfig } from "@playwright/experimental-ct-react";
 import { defineConfig, devices } from "@playwright/experimental-ct-react";
@@ -38,6 +38,11 @@ import tailwindcss from "@tailwindcss/vite";
 const CONCURRENCY = readConcurrencyProfile();
 /** The run this CT invocation belongs to, if its launcher named one — read ONCE, like the caps above. */
 const CT_RUN_MARKER = inheritedRunMarker();
+/** …and the LEASE its launcher minted for this one invocation (#2504), which is what `release()` sweeps. */
+const CT_RUN_LEASE = currentRunLease();
+/** Every identity the launcher named, as chromium switches. Empty ⇒ no `launchOptions` at all, which is a
+ *  bare `npx playwright test` and gets exactly the stock behaviour. */
+const CT_IDENTITY_ARGS = [...(CT_RUN_MARKER === null ? [] : [runMarkerArg(CT_RUN_MARKER)]), ...(CT_RUN_LEASE === null ? [] : [runLeaseArg(CT_RUN_LEASE)])];
 
 const BASE_TEST_TIMEOUT_MS = 30_000;
 const BASE_EXPECT_TIMEOUT_MS = 5000;
@@ -167,7 +172,9 @@ export default defineConfig({
     // config's environment; the ARG channel is what a chromium actually keeps (it wipes its own environ —
     // `_shared/run-marker.ts` RUN_MARKER_ARG_PREFIX), and the runner's sweeps read it back from
     // `/proc/<pid>/cmdline`. No marker (a bare `npx playwright test`) ⇒ no arg, exactly as before.
-    ...(CT_RUN_MARKER === null ? {} : { launchOptions: { args: [runMarkerArg(CT_RUN_MARKER)] } }),
+    // THE LEASE RIDES BESIDE IT (#2504) — the marker says which RUN may kill this browser, the lease says
+    // which INVOCATION started it, and `release()` sweeps only the second. One switch could not say both.
+    ...(CT_IDENTITY_ARGS.length === 0 ? {} : { launchOptions: { args: CT_IDENTITY_ARGS } }),
     // Parameterized so parallel CI port-shards don't collide on the CT dev server.
     ctPort: Number(process.env["CT_PORT"] ?? CT_VITE_PORT),
     // THE BUILD CACHE IS PER INVOCATION when the launcher says so (#1581). playwright-ct resolves this

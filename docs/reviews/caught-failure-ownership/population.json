@@ -4438,7 +4438,7 @@
     {
       "siteId": "tooling/src/_shared/browser.ts::error::1",
       "path": "tooling/src/_shared/browser.ts",
-      "line": 231,
+      "line": 238,
       "column": 12,
       "grammar": "empty",
       "position": "error",
@@ -4446,12 +4446,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "closeProbeSessionAfterError is typed Promise<never> — it always rethrows the primary error (wrapped with any cleanup failure), never returns. Ends if that function stops rethrowing unconditionally.",
-      "markerLine": 216
+      "markerLine": 223
     },
     {
       "siteId": "tooling/src/_shared/browser.ts::error::2",
       "path": "tooling/src/_shared/browser.ts",
-      "line": 350,
+      "line": 357,
       "column": 12,
       "grammar": "empty",
       "position": "error",
@@ -4459,7 +4459,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "collected into failures[] which the two checks below rethrow as-is or as an AggregateError — never silently dropped. Ends if the failures array stops being surfaced after this block.",
-      "markerLine": 347
+      "markerLine": 354
     },
     {
       "siteId": "tooling/src/_shared/debugging-endpoint.ts::catch::1",
@@ -4633,7 +4633,7 @@
     {
       "siteId": "tooling/src/_shared/run-marker.ts::catch::1",
       "path": "tooling/src/_shared/run-marker.ts",
-      "line": 139,
+      "line": 175,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -4641,12 +4641,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a pid that exits mid-scan (or another user's) answers null, which every caller reads as \"not provably mine\" and therefore DO NOT SIGNAL. Ends if null ever authorizes a signal.",
-      "markerLine": 136
+      "markerLine": 172
     },
     {
       "siteId": "tooling/src/_shared/run-marker.ts::catch::2",
       "path": "tooling/src/_shared/run-marker.ts",
-      "line": 171,
+      "line": 207,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -4654,12 +4654,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "an unreadable /proc/<pid>/status ends the ancestor walk, which can only make the exclusion set SMALLER-BUT-SAFE — the walk starts at THIS process, whose own status is always readable. Ends if the walk is ever used to select targets rather than exclude them.",
-      "markerLine": 167
+      "markerLine": 203
     },
     {
       "siteId": "tooling/src/_shared/run-marker.ts::catch::3",
       "path": "tooling/src/_shared/run-marker.ts",
-      "line": 181,
+      "line": 217,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -4667,12 +4667,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "`kill(pid, 0)` ASKS a question and throws to answer \"no\" — the throw IS the ESRCH answer, exactly as _shared/run-retention.ts's pidAlive states it. Ends if this needs to tell EPERM from ESRCH.",
-      "markerLine": 177
+      "markerLine": 213
     },
     {
       "siteId": "tooling/src/_shared/run-marker.ts::error::1",
       "path": "tooling/src/_shared/run-marker.ts",
-      "line": 196,
+      "line": 232,
       "column": 12,
       "grammar": "empty",
       "position": "error",
@@ -4680,7 +4680,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "ESRCH is the DESIRED end state of a teardown signal (the process left between the scan and the signal); every other signal error rethrows. Ends if a caller starts requiring proof that a specific signal landed.",
-      "markerLine": 193
+      "markerLine": 229
     },
     {
       "siteId": "tooling/src/_shared/run-retention.ts::catch::1",
@@ -6596,7 +6596,7 @@
     {
       "siteId": "tooling/src/snap/ops/session-daemon.ts::error::1",
       "path": "tooling/src/snap/ops/session-daemon.ts",
-      "line": 225,
+      "line": 230,
       "column": 14,
       "grammar": "empty",
       "position": "error",
@@ -6604,12 +6604,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "a browser that fails to close is logged and the teardown proceeds to the registry half — the row + socket must go regardless, or the session reads as live forever. Ends if a failed browser close must abort the teardown.",
-      "markerLine": 221
+      "markerLine": 226
     },
     {
       "siteId": "tooling/src/snap/ops/session-daemon.ts::readSessionRequestLine::1",
       "path": "tooling/src/snap/ops/session-daemon.ts",
-      "line": 195,
+      "line": 200,
       "column": 5,
       "grammar": "promise",
       "position": "readSessionRequestLine",
@@ -6617,7 +6617,7 @@
       "snippet": "readSessionRequestLine(socket)",
       "verdict": "deliberate-absorb",
       "reason": "the failure is reported to the caller as SESSION SERVE ERROR and the request's `done` carries toolError — the caller's exit IS the report, and the daemon stays up (a session survives a failed call, §7.1). Ends if the done event stops carrying the exit.",
-      "markerLine": 194
+      "markerLine": 199
     },
     {
       "siteId": "tooling/src/snap/ops/session-registry.ts::catch::1",

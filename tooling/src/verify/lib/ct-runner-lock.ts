@@ -209,22 +209,29 @@ export function acquireCtRunnerLock(root: string, deps: CtRunnerLockDeps = {}): 
   // marker, and stamping a second one over it would hide these browsers from the RUNNER's kill path —
   // the exact hole being closed. Alone (a lane's `pnpm test:ct`), this run is its own owner.
   const runMarker = inheritedRunMarker() ?? mintRunMarker(pid, now().getTime());
+  // …AND THE LEASE, MINTED, NEVER INHERITED (#2504). The marker above answers "which run may kill me"; this
+  // answers "what did I start", and only the second is ours to sweep at release. They are stamped together
+  // on every child, so #1848's reach is unchanged and the release's blast radius is this invocation.
+  const runLease = mintRunMarker(pid, now().getTime());
   let released = false;
   return {
     kind: "held",
     lease: {
       cacheDir,
       runMarker,
+      runLease,
       stolenFrom,
       release: (): void => {
         if (released) {
           return;
         }
         released = true;
-        // A browser still carrying this marker after playwright has returned is an ORPHAN by construction:
-        // its run is over. Synchronous SIGKILL, because `release` runs in a `finally` nobody awaits — the
-        // polite TERM+grace form belongs to the timeout path, which has time for it.
-        const line = describeRunMarkerSweep(sweepRunMarkerNow(runMarker, deps.marker));
+        // A browser still carrying THIS LEASE after playwright has returned is an ORPHAN by construction:
+        // the run that minted the lease is over. Synchronous SIGKILL, because `release` runs in a `finally`
+        // nobody awaits — the polite TERM+grace form belongs to the timeout path, which has time for it.
+        // THE LEASE, NOT `runMarker` (#2504): "its run is over" is true of a value this invocation MINTED
+        // and false of one it INHERITED, and sweeping the inherited one killed the outer run that owned it.
+        const line = describeRunMarkerSweep(sweepRunMarkerNow(runLease, deps.marker));
         if (line !== null) {
           deps.notice?.(`CT RUNNER SWEPT   ${line}`);
         }
