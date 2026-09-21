@@ -238,6 +238,8 @@ export const pluginAssets = sqliteTable(
      *  `net.fetchAsset` cover (#802) — see the table header for why the sentinel is `''` and not NULL. It is
      *  the RESOLUTION key: a UI node names a bundle path and `listPluginBundleAssets` turns it into the id. */
     bundlePath: text("bundle_path").notNull().default(""),
+    // @column-ok: Diagnostic provenance for the last fetch or bundle unpack of this retained CAS link; asset
+    // liveness is reference-based, so correctness must not read recency. Ends if link retention becomes TTL-based.
     fetchedAt: integer("fetched_at").notNull(),
   },
   (t) => [
