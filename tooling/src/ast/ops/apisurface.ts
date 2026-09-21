@@ -8,9 +8,11 @@ import { dynamicImportTargetOf } from "../lib/edges.ts";
 import { emit, hitOf, narrate } from "../lib/emit.ts";
 import { declKey, exposedNames } from "../lib/keys.ts";
 import { corpusPredicate, SKIP_TEST_FILES, scanCorpus } from "../lib/ledger.ts";
-import { buildLiveness, isReferencedInOwnFile } from "../lib/liveness.ts";
+import { buildLiveness, dynamicImportMemberNames, isReferencedInOwnFile } from "../lib/liveness.ts";
+import { resolveDynamicImportTarget } from "../lib/resolve.ts";
 import { isTestPath, TEST_FILE_RE } from "../lib/root.ts";
 import { ownExports, resolveScope } from "../lib/scope.ts";
+import { isPackageRootToolingConfig } from "../lib/tooling-entries.ts";
 import { PACKAGES_PREFIX } from "./chains.ts";
 import { collectOrphanCandidates } from "./orphans.ts";
 import { byProdFirst, relPath } from "./swallowed.ts";
@@ -46,7 +48,8 @@ refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
 // while `usedProd` (import-edge presence) says alive — which would desync the PUBLIC/INTERNAL split from the
 // UNUSED split this verb takes from `orphans`; (2) it carries no type-only bit. So this pass mirrors
 // `markImportConsumption`'s EXACT origin resolution (named specifiers through `getExportedDeclarations().get`,
-// namespace + dynamic imports as whole-surface err-alive — the same arms `orphans` trusts) but buckets by the
+// namespace + relative dynamic imports as whole-surface err-alive, and checker-resolved package-alias
+// dynamic imports by their statically named members — the same arms `orphans` trusts) but buckets by the
 // IMPORTING file's package instead of client/server/test, and records the type-only bit. It is the same
 // parallel-arm shape the file already carries (`buildLiveness` vs `recordDeclarationEdges`).
 //
@@ -155,20 +158,58 @@ function recordImportApiConsumption(imp: ImportDeclaration, consumerFp: string, 
   }
 }
 
-/** ONE file's dynamic `import()` targets: each keeps the whole target surface alive (err alive, value —
- *  a runtime import can access any member), attributed to the importing file's package. */
+function recordWholeDynamicTarget(target: SourceFile, consumer: ApiConsumer, map: Map<string, ApiConsumption>): void {
+  for (const decls of target.getExportedDeclarations().values()) {
+    for (const decl of decls) {
+      recordApiConsumer(map, declKey(decl), consumer);
+    }
+  }
+}
+
+function recordNamedDynamicTarget(target: SourceFile, names: ReadonlySet<string>, consumer: ApiConsumer, map: Map<string, ApiConsumption>): void {
+  for (const name of names) {
+    for (const decl of target.getExportedDeclarations().get(name) ?? []) {
+      recordApiConsumer(map, declKey(decl), consumer);
+    }
+  }
+}
+
+/** ONE file's dynamic `import()` targets. Relative imports retain the conservative whole-module verdict;
+ *  package aliases credit only members named by a recognized static access shape. */
 function recordDynamicApiConsumption(sf: SourceFile, project: SourceCorpus, consumerFp: string, map: Map<string, ApiConsumption>): void {
   for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
-    const target = dynamicImportTargetOf(call, sf, project);
-    if (target === undefined) {
+    if (call.getExpression().getKind() !== SyntaxKind.ImportKeyword) {
       continue;
     }
-    const site = `${relPath(consumerFp)}:${call.getStartLineNumber()}`;
-    for (const decls of target.getExportedDeclarations().values()) {
-      for (const decl of decls) {
-        recordApiConsumer(map, declKey(decl), { fp: consumerFp, site, isValue: true });
-      }
+    const specifier = call.getArguments()[0];
+    if (specifier === undefined || specifier.getKind() !== SyntaxKind.StringLiteral) {
+      continue;
     }
+    const target = dynamicImportTargetOf(call, sf, project);
+    const site = `${relPath(consumerFp)}:${call.getStartLineNumber()}`;
+    const consumer = { fp: consumerFp, site, isValue: true } as const;
+    if (target !== undefined) {
+      recordWholeDynamicTarget(target, consumer, map);
+      continue;
+    }
+    const aliasedTarget = resolveDynamicImportTarget(call);
+    if (aliasedTarget === undefined) {
+      continue;
+    }
+    recordNamedDynamicTarget(aliasedTarget, dynamicImportMemberNames(call, sf), consumer, map);
+  }
+}
+
+/** A package-root tool config's default export is consumed by the external tool that loads the file.
+ *  Named helper exports remain ordinary symbols: tests may reach them, but the filename convention does not. */
+function recordToolingEntryConsumption(sf: SourceFile, map: Map<string, ApiConsumption>): void {
+  const fp = sf.getFilePath();
+  if (!isPackageRootToolingConfig(fp)) {
+    return;
+  }
+  const site = `${relPath(fp)}:1 (tool config entry)`;
+  for (const decl of sf.getExportedDeclarations().get("default") ?? []) {
+    recordApiConsumer(map, declKey(decl), { fp, site, isValue: true });
   }
 }
 
@@ -181,6 +222,7 @@ function buildApiConsumption(project: SourceCorpus): Map<string, ApiConsumption>
       recordImportApiConsumption(imp, fp, map);
     }
     recordDynamicApiConsumption(sf, project, fp, map);
+    recordToolingEntryConsumption(sf, map);
   }
   return map;
 }

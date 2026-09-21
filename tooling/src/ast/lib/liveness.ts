@@ -8,6 +8,7 @@ import { recordDeclarationEdges } from "./edges.ts";
 import { declKey, exposedNames } from "./keys.ts";
 import { resolveDynamicImportTarget, resolveModule } from "./resolve.ts";
 import { isTestPath } from "./root.ts";
+import { isPackageRootToolingConfig } from "./tooling-entries.ts";
 
 /** Records that `key` was marked alive by `arm`. Kept BESIDE the liveness buckets — recording an arm never
  *  changes who is alive, only what we can say about WHY. */
@@ -150,11 +151,12 @@ function markDynamicImports(sf: SourceFile, project: SourceCorpus, bucket: Set<s
 // reading its symbol's SourceFile declaration is exactly what `imp.getModuleSpecifierSourceFile()` gives a
 // static import for free.
 //
-// CONSERVATIVE BY CONSTRUCTION: exactly three shapes are recognized (the ones this repo's lazy-loaded
+// CONSERVATIVE BY CONSTRUCTION: exactly four shapes are recognized (the ones this repo's lazy-loaded
 // barrel exports are actually written in) — `import(spec).then((m) => … m.X …)`,
-// `(await import(spec)).X`, and `const m = await import(spec); … m.X …`. An import outside these shapes,
-// or one the checker can't resolve (a computed specifier, a bare specifier the compiler itself can't
-// find), credits nothing — fail toward the OLD whole-module-only behavior, never invent liveness.
+// `(await import(spec)).X`, `const m = await import(spec); … m.X …`, and a static object destructure
+// (`const { X, Y: local } = await import(spec)`). An import outside these shapes, or one the checker can't
+// resolve (a computed specifier, a bare specifier the compiler itself can't find), credits nothing — fail
+// toward the OLD whole-module-only behavior, never invent liveness.
 /** Property-read names on `bindingName` within `scope` — all THREE property-read shapes
  *  (`x.prop`/`x?.prop`/`x["prop"]`; a dot-only sweep is a known false clean in this repo, see the
  *  `regkeys` fix beside this one). */
@@ -233,11 +235,26 @@ function awaitedMemberAccess(call: Node): Set<string> {
   return name === undefined ? new Set() : new Set([name]);
 }
 
-/** Shape 3: `const m = await import(spec); … m.X …` — `call`'s `await` initializes a variable; the bound
- *  identifier's property reads are collected over the WHOLE declaring file (a same-file over-attribution
- *  in the erring-alive direction only — see the KNOWN OVER-ATTRIBUTION note on the `chains` edge map
- *  above; a lens that nominates code for deletion must never err the other way). Empty when the shape
- *  doesn't match. */
+/** Shapes 3/4: `const m = await import(spec); … m.X …` and
+ *  `const { X, Y: local } = await import(spec)`. An identifier binding's property reads are collected over
+ *  the WHOLE declaring file (a same-file over-attribution in the erring-alive direction only — see the
+ *  KNOWN OVER-ATTRIBUTION note on the `chains` edge map above). An object binding credits only its static
+ *  property names; computed/rest bindings credit nothing. Empty when neither shape matches. */
+function bindingElementExportName(element: Node): string | undefined {
+  if (!Node.isBindingElement(element) || element.getDotDotDotToken() !== undefined) {
+    return;
+  }
+  const property = element.getPropertyNameNode();
+  if (property !== undefined) {
+    if (Node.isIdentifier(property)) {
+      return property.getText();
+    }
+    return Node.isStringLiteral(property) || Node.isNoSubstitutionTemplateLiteral(property) ? property.getLiteralText() : undefined;
+  }
+  const name = element.getNameNode();
+  return Node.isIdentifier(name) ? name.getText() : undefined;
+}
+
 function awaitedBindingMembers(call: Node, sf: SourceFile): Set<string> {
   const awaitExpr = call.getParent();
   if (!Node.isAwaitExpression(awaitExpr)) {
@@ -248,12 +265,23 @@ function awaitedBindingMembers(call: Node, sf: SourceFile): Set<string> {
     return new Set();
   }
   const nameNode = decl.getNameNode();
-  return Node.isIdentifier(nameNode) ? propertyAccessNamesOn(sf, nameNode) : new Set();
+  if (Node.isIdentifier(nameNode)) {
+    return propertyAccessNamesOn(sf, nameNode);
+  }
+  if (!Node.isObjectBindingPattern(nameNode)) {
+    return new Set();
+  }
+  return new Set(
+    nameNode
+      .getElements()
+      .map(bindingElementExportName)
+      .filter((name): name is string => name !== undefined),
+  );
 }
 
-/** The member name(s) one of the three recognized lazy-import shapes reads off `call`'s resolved module,
+/** The member name(s) one of the four recognized lazy-import shapes reads off `call`'s resolved module,
  *  or empty when `call` matches none of them. */
-function lazyImportMemberNames(call: Node, sf: SourceFile): Set<string> {
+export function dynamicImportMemberNames(call: Node, sf: SourceFile): Set<string> {
   const then = thenCallbackMembers(call);
   if (then.size > 0) {
     return then;
@@ -269,7 +297,7 @@ function lazyImportMemberNames(call: Node, sf: SourceFile): Set<string> {
  *  specifier). Credits nothing unless BOTH a recognized member-access shape AND a checker-resolved target
  *  are found — the conservative fail-toward-old-behavior the section header commits to. */
 function markLazyImportMembers(call: Node, sf: SourceFile, bucket: Set<string>, record: ArmRecorder): void {
-  const members = lazyImportMemberNames(call, sf);
+  const members = dynamicImportMemberNames(call, sf);
   if (members.size === 0) {
     return;
   }
@@ -348,6 +376,9 @@ export function buildLiveness(project: SourceCorpus, options: LivenessOptions = 
     // A test path always wins into usedTest. clientgap reads the exact client/server slices;
     // orphans/testonly read the non-test union, including legitimate tool consumers.
     const bucket = prodBucketFor(fp, { usedTest, usedClientProd, usedServerProd, usedOtherProd, usedTooling });
+    if (isPackageRootToolingConfig(fp)) {
+      markNamedAlive(sf, "default", usedTooling, record);
+    }
     for (const imp of sf.getImportDeclarations()) {
       markImportConsumption(imp, { bucket, record, namespaceSites });
     }
