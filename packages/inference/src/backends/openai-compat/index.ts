@@ -5,7 +5,7 @@
 // `transport` are the whole configuration.
 
 import type { ProviderBackend } from "../../contract/backend.ts";
-import type { ChatResult } from "../../contract/chat.ts";
+import type { ChatRequest, ChatResult, OpenAiCompatChatRequest } from "../../contract/chat.ts";
 import { ProviderError } from "../../contract/errors.ts";
 import type { InferenceDeps } from "../../deps.ts";
 import type { NormalizeImageBytes } from "../kit/image-normalize.ts";
@@ -23,6 +23,10 @@ import { createReachabilityProber } from "./reachability.ts";
 import { runOpenAiCompatRerank } from "./rerank.ts";
 
 export type { ReachabilityProber } from "./reachability.ts";
+
+function isOpenAiCompatChatRequest(req: ChatRequest): req is OpenAiCompatChatRequest {
+  return req.api === "chat-completions";
+}
 
 /** The slice of the runtime deps this backend closes over. */
 export interface OpenAiCompatBackendDeps {
@@ -61,7 +65,7 @@ export function createOpenAiCompatBackend(deps: OpenAiCompatBackendDeps): OpenAi
     backend: {
       wire: "openai-compat",
       runChatTurn: (req): Promise<ChatResult> => {
-        if (req.api === "agent-sdk" || req.api === "anthropic-messages") {
+        if (!isOpenAiCompatChatRequest(req)) {
           return Promise.reject(new ProviderError({ kind: "invalid", retryable: false, message: `openai-compat backend received api="${req.api}"` }));
         }
         return runOpenAiCompatChatTurn(req, chatDeps);
