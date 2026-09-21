@@ -87,6 +87,22 @@ test(
 );
 
 test(
+  "a narrated real lens keeps stdout directly JSON-parseable",
+  () => {
+    const run = runAst(["registry-candidates", "--json", "--max", "1"]);
+    expect(run.status).toBe(0);
+    const parsed = JSON.parse(run.stdout) as { label: string; total: number; shown: number; hits: unknown[]; meta: { verb: string } };
+    expect(parsed.label).toBe("registry-candidates");
+    expect(parsed.total).toBeGreaterThan(0);
+    expect(parsed.shown).toBe(1);
+    expect(parsed.hits).toHaveLength(1);
+    expect(parsed.meta.verb).toBe("registry-candidates");
+    expect(run.stderr).toContain("registry-candidates is an INFORMATIONAL lens");
+  },
+  SPAWN_TIMEOUT_MS,
+);
+
+test(
   "the wide real corpus finds a coupled source and fixture literal",
   () => {
     const run = runAst(["literal", "chatDeleted"]);
@@ -164,4 +180,32 @@ test("a broken depcruise pass-through exits as a tool error", () => {
   const run = runAst(["flow", "("]);
   expect(run.status).toBe(2);
   expect(run.stderr).toContain("did NOT complete");
+});
+
+test("depcruise text pass-throughs explicitly refuse JSON mode", () => {
+  const run = runAst(["flow", "packages/client", "--json"]);
+  expect(run.status).toBe(3);
+  expect(run.stderr).toContain("does not support --json");
+  expect(run.stdout).toBe("");
+});
+
+test.each(["flow", "reaches"])("%s refuses JSON when the flag occupies the positional pattern slot", (verb) => {
+  const run = runAst([verb, "--json"]);
+  expect(run.status).toBe(3);
+  expect(run.stderr).toContain("does not support --json");
+  expect(run.stdout).toBe("");
+});
+
+test.each(["flow", "reaches"])("%s refuses JSON before a later module pattern", (verb) => {
+  const run = runAst([verb, "--json", "packages/client"]);
+  expect(run.status).toBe(3);
+  expect(run.stderr).toContain("does not support --json");
+  expect(run.stdout).toBe("");
+});
+
+test.each(["flow", "reaches"])("%s names its missing module pattern", (verb) => {
+  const run = runAst([verb]);
+  expect(run.status).toBe(3);
+  expect(run.stderr).toContain("requires a module pattern");
+  expect(run.stdout).toBe("");
 });

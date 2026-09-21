@@ -1,11 +1,10 @@
 // regkeys: registry rows whose KEY LITERAL is dispatched nowhere (informational, owner-ruled).
 import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
 import type { Flags, Hit, RegistryDef } from "../contract/types.ts";
-import { emit, hitOf } from "../lib/emit.ts";
+import { emit, hitOf, narrate } from "../lib/emit.ts";
 import { exitToolError, noteUnits, scanCorpus } from "../lib/ledger.ts";
 import { isTestPath } from "../lib/root.ts";
 import { relPath } from "./swallowed.ts";
@@ -309,9 +308,10 @@ export function cmdRegKeys(project: SourceCorpus, arg: string, flags: Flags): vo
   const qualified = qualifiedAccessIndex(project, new Set(registries.map((r) => r.name)));
   const byRegistry = new Map(registries.map((r) => [r, regKeyHitsFor(r, index, qualified)] as const));
   if (flags.all) {
-    printRegistriesPerTable(registries, byRegistry);
+    printRegistriesPerTable(registries, byRegistry, flags);
   }
-  print(
+  narrate(
+    flags,
     `regkeys is a HEURISTIC, INFORMATIONAL lens — it NEVER gates and has no exemption marker (owner ruling). Registry dispatch is legitimately dynamic: a key that arrives from the DB, a URL segment, a template literal, or an \`Object.keys(REGISTRY)\` iteration is a LIVE row that looks dead here — and three classes stay INVISIBLE to this lens entirely: ITERATION consumption (\`Object.entries(REGISTRY)\`/\`.map(...)\`, which spells no key at all), CSS-class-STRING derivation (a key concatenated into a class name rather than read as a property), and SAME-VALUE-different-SPELLING literals (a throw site spelling \`"compaction_empty"\` instead of \`CHAT_OP_CODES.compactionEmpty\`). Read the call sites before acting on any line below. (${registries.length} registry/registries, ${registries.reduce((n, r) => n + r.rows.length, 0)} row(s) examined; a registry = an exported const with ${REGISTRY_ROW_FLOOR}+ rows carrying a \`Record<…>\` annotation or a SCREAMING_SNAKE name, in either shape: an OBJECT literal keyed by property name, or an ARRAY literal of \`{ ${REGISTRY_ROW_ID_KEYS.join("|")}: "<key>" }\` rows.)`,
   );
   const hits = registries.flatMap((r) => byRegistry.get(r) ?? []);
@@ -340,19 +340,19 @@ export function regKeyHitsFor(registry: RegistryDef, index: ReadonlyMap<string, 
 /** `regkeys --all`: per-registry sectioning, the same shape as `columns --all` — a registry with
  *  undispatched rows gets its full list, a clean one collapses to one line, so a sweep names which
  *  TABLES need a look instead of forty manual per-registry runs. */
-function printRegistriesPerTable(registries: readonly RegistryDef[], byRegistry: ReadonlyMap<RegistryDef, Hit[]>): void {
+function printRegistriesPerTable(registries: readonly RegistryDef[], byRegistry: ReadonlyMap<RegistryDef, Hit[]>, flags: Flags): void {
   let withFindings = 0;
   for (const registry of registries) {
     const hits = byRegistry.get(registry) ?? [];
     if (hits.length === 0) {
-      print(`  ${registry.name} (${relPath(registry.filePath)}): healthy — 0 of ${registry.rows.length} row(s) undispatched`);
+      narrate(flags, `  ${registry.name} (${relPath(registry.filePath)}): healthy — 0 of ${registry.rows.length} row(s) undispatched`);
       continue;
     }
     withFindings += 1;
-    print(`  ${registry.name} (${relPath(registry.filePath)}): ${hits.length} of ${registry.rows.length} row(s) undispatched`);
+    narrate(flags, `  ${registry.name} (${relPath(registry.filePath)}): ${hits.length} of ${registry.rows.length} row(s) undispatched`);
     for (const h of hits) {
-      print(`    ${h.file}:${h.line}  [${h.kind}]  ${h.text}`);
+      narrate(flags, `    ${h.file}:${h.line}  [${h.kind}]  ${h.text}`);
     }
   }
-  print(`regkeys --all: swept ${registries.length} registry/registries, ${withFindings} carrying a finding.`);
+  narrate(flags, `regkeys --all: swept ${registries.length} registry/registries, ${withFindings} carrying a finding.`);
 }

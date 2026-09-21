@@ -109,9 +109,18 @@ async function main(): Promise<number> {
     print(USAGE);
     return EXIT.clean;
   }
-  if (arg !== undefined && DEPCRUISE_VERBS[verb] !== undefined) {
-    beginRun(verb, CORPUS_DEPCRUISE, parseFlags(rest));
-    await runDepcruise(DEPCRUISE_VERBS[verb], arg);
+  const depcruiseMode = DEPCRUISE_VERBS[verb];
+  if (depcruiseMode !== undefined) {
+    const tokens = arg === undefined ? rest : [arg, ...rest];
+    if (tokens.includes("--json")) {
+      throw new UsageError(`verb ${verb} does not support --json: dependency-cruiser returns its native text edge report. Remove --json.`);
+    }
+    if (arg === undefined || arg.startsWith("--")) {
+      throw new UsageError(`verb ${verb} requires a module pattern as its first positional argument.`);
+    }
+    const flags = parseFlags(rest);
+    beginRun(verb, CORPUS_DEPCRUISE, flags);
+    await runDepcruise(depcruiseMode, arg);
     finishRun();
     return typeof process.exitCode === "number" ? process.exitCode : EXIT.clean;
   }

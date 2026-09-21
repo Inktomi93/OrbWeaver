@@ -120,6 +120,16 @@ export function hitOf(node: Node, kind: string): Hit {
   return { file, line, kind, text };
 }
 
+/** Human explanation belongs on stdout for the ordinary CLI, but it must not corrupt the one JSON value
+ *  emitted on stdout by a machine-output run. Keep the prose visible on stderr in that mode. */
+export function narrate(flags: Flags, text: string): void {
+  if (flags.json) {
+    warn(text);
+    return;
+  }
+  print(text);
+}
+
 export function dedupe(hits: Hit[], flags: Flags): Hit[] {
   const filtered = flags.in === null ? hits : hits.filter((h) => h.file.includes(flags.in ?? ""));
   const seen = new Set<string>();

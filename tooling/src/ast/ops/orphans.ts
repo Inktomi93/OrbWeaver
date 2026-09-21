@@ -1,10 +1,9 @@
 // orphans + testonly — resolution-based rot over the liveness substrate.
 import type { Node, SourceFile } from "ts-morph";
-import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
 import type { Flags, Hit, Liveness, OrphanCandidate, TestOnlyClass } from "../contract/types.ts";
-import { dedupe, emit, hitOf } from "../lib/emit.ts";
+import { dedupe, emit, hitOf, narrate } from "../lib/emit.ts";
 import { declKey } from "../lib/keys.ts";
 import { corpusPredicate, SKIP_TEST_FILES, scanCorpus } from "../lib/ledger.ts";
 import { buildLiveness, isReferencedInOwnFile } from "../lib/liveness.ts";
@@ -63,12 +62,12 @@ export function printNamedBucket(rows: readonly Hit[], flags: Flags, headline: (
   if (unique.length === 0) {
     return;
   }
-  print(headline(unique.length, new Set(unique.map((h) => h.file)).size));
+  narrate(flags, headline(unique.length, new Set(unique.map((h) => h.file)).size));
   for (const h of unique.slice(0, flags.max)) {
-    print(`  ~ ${h.file}:${h.line}  [${h.kind}]  ${h.text}`);
+    narrate(flags, `  ~ ${h.file}:${h.line}  [${h.kind}]  ${h.text}`);
   }
   if (unique.length > flags.max) {
-    print(`  … and ${unique.length - flags.max} more (raise --max)`);
+    narrate(flags, `  … and ${unique.length - flags.max} more (raise --max)`);
   }
 }
 

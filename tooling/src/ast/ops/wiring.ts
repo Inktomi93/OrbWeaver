@@ -1,10 +1,9 @@
 // unwired (tRPC procedures no client consumes) + clientgap (server-only client-facing shapes).
 import { Node, SyntaxKind } from "ts-morph";
-import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
 import type { Flags, Hit } from "../contract/types.ts";
-import { emit, hitOf } from "../lib/emit.ts";
+import { emit, hitOf, narrate } from "../lib/emit.ts";
 import { declKey } from "../lib/keys.ts";
 import { exitToolError, noteUnits, SKIP_TEST_FILES, scanCorpus, WHOLE_CORPUS } from "../lib/ledger.ts";
 import { buildLiveness, CLIENT_SRC_PREFIX } from "../lib/liveness.ts";
@@ -330,7 +329,8 @@ export function cmdClientGap(project: SourceCorpus, arg: string, flags: Flags): 
       hits.push(h);
     }
   }
-  print(
+  narrate(
+    flags,
     "clientgap is a CANDIDATE lens — a contract may be client-consumed via a re-exported barrel or a `Trpc[…]` inference the import-liveness can't see; verify before acting.",
   );
   emit(hits, flags, `clientgap ${scope.label}${isContracts ? " (client-facing *View/*Summary names)" : ""}`);

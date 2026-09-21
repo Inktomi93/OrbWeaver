@@ -68,6 +68,35 @@ function parseEpilogue(stderr: string): Record<string, string> {
   return fields;
 }
 
+/** Parse the documented composite JSON protocol: consecutive pretty-printed top-level values, with no
+ *  narration between them. Nested object braces are indented by JSON.stringify, so only column-zero
+ *  braces delimit a section. */
+function parseJsonSections(stdout: string): readonly unknown[] {
+  const sections: unknown[] = [];
+  let lines: string[] = [];
+  for (const line of stdout.split("\n")) {
+    if (lines.length === 0) {
+      if (line === "{") {
+        lines = [line];
+        continue;
+      }
+      if (line.trim() !== "") {
+        throw new Error(`non-JSON stdout outside a composite section: ${line}`);
+      }
+      continue;
+    }
+    lines.push(line);
+    if (line === "}") {
+      sections.push(JSON.parse(lines.join("\n")) as unknown);
+      lines = [];
+    }
+  }
+  if (lines.length > 0) {
+    throw new Error("unterminated composite JSON section");
+  }
+  return sections;
+}
+
 function runVerb(project: Project, options: VerbRunOptions): VerbRun {
   const { verb, arg, argv = [], corpus = CORPUS_SYNTACTIC } = options;
   const stdout: string[] = [];
@@ -104,6 +133,22 @@ function runVerb(project: Project, options: VerbRunOptions): VerbRun {
 }
 
 describe("ast command output over bounded projects", () => {
+  test("composite JSON parsing refuses narration outside section values", () => {
+    const section = '{\n "section": 1\n}';
+    expect(() => parseJsonSections(`narration\n${section}\n`)).toThrow();
+    expect(() => parseJsonSections(`${section}\ntrailing narration`)).toThrow();
+  });
+
+  test("a narrated single-result verb emits exactly one parseable JSON value", () => {
+    const project = projectOf({ "packages/client/src/probe.ts": "export const present = 1;" });
+    const run = runVerb(project, { verb: "dead", arg: "missing", argv: ["--json"], corpus: CORPUS_TYPED });
+    const parsed = JSON.parse(run.stdout) as { label: string; total: number; hits: unknown[] };
+    expect(parsed).toMatchObject({ label: "dead missing", total: 0, hits: [] });
+    expect(run.stderr).toContain("dead missing: no declaration found");
+    expect(run.stdout.trimStart().startsWith("{")).toBe(true);
+    expect(run.stdout.trimEnd().endsWith("}")).toBe(true);
+  });
+
   test("JSON emission preserves distinct same-line findings while collapsing exact duplicates", () => {
     const hits: Hit[] = [
       { file: "packages/contracts/src/probe.ts", line: 1, kind: "field-declared-only", text: "probeSchema.first" },
@@ -237,6 +282,13 @@ db.select().from(healthy);`,
     expect(run.stdout).toContain("healthy (healthy): healthy — 0 of 2 column(s) flagged");
     expect(run.stdout).toContain("columns --all: swept 2 table(s), 1 carrying a finding.");
     expect(run.stdout).toContain("columns: 4 column(s) across 2 table(s)");
+
+    const jsonRun = runVerb(project, { verb: "columns", arg: "", argv: ["--all", "--json", "--max", "20"], corpus: CORPUS_TYPED });
+    const payload = JSON.parse(jsonRun.stdout) as { label: string; total: number; hits: unknown[] };
+    expect(payload).toMatchObject({ label: "columns (all tables)", total: 1 });
+    expect(payload.hits).toHaveLength(1);
+    expect(jsonRun.stderr).toContain("healthy — 0 of 2 column(s) flagged");
+    expect(jsonRun.stderr).toContain("columns --all: swept 2 table(s), 1 carrying a finding.");
   });
 
   test("regkeys --all keeps same-file property reads alive and reports an unused control registry", () => {
@@ -288,6 +340,17 @@ export const UNUSED_KEYS = { first: 1, second: 2, third: 3 } as const;`,
     expect(run.stdout).toContain("ControlOnly");
     expect(run.stdout).toContain("RESULT ast rot ui :: testonly: 1 hit(s)");
     expect(run.epilogue["status"]).toBe("complete");
+
+    const jsonRun = runVerb(project, { verb: "rot", arg: "ui", argv: ["--json", "--max", "20"], corpus: CORPUS_TYPED });
+    const sections = parseJsonSections(jsonRun.stdout) as readonly { label: string }[];
+    expect(sections.map(({ label }) => label)).toEqual([
+      "rot ui :: orphans",
+      "rot ui :: testonly",
+      "rot ui :: chains",
+      "rot ui :: typeonly-alive",
+      "rot ui :: swallowed",
+    ]);
+    expect(jsonRun.stderr).toContain("ONE project load + ONE liveness build");
   });
 
   test("jsx recognizes paired and self-closing elements with the full known flag vocabulary", () => {

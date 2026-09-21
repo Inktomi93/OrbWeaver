@@ -1,12 +1,11 @@
 // apisurface: exports partitioned by package-boundary consumption.
 import type { ImportDeclaration, Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
-import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
 import type { ApiClass, ApiSurfaceEntry, Flags, Hit, Liveness } from "../contract/types.ts";
 import { dynamicImportTargetOf } from "../lib/edges.ts";
-import { emit, hitOf } from "../lib/emit.ts";
+import { emit, hitOf, narrate } from "../lib/emit.ts";
 import { declKey, exposedNames } from "../lib/keys.ts";
 import { corpusPredicate, SKIP_TEST_FILES, scanCorpus } from "../lib/ledger.ts";
 import { buildLiveness, isReferencedInOwnFile } from "../lib/liveness.ts";
@@ -254,19 +253,19 @@ const API_COUNT_COL = 10;
 
 /** The per-package count table — the deliverable a reader wants above the hit list: how many exports of each
  *  package are PUBLIC / INTERNAL / TEST-ONLY / UNUSED, so a ZERO is legible as clean rather than as blindness. */
-function printApiSummary(entries: readonly ApiSurfaceEntry[], scannedFiles: number, label: string): void {
+function printApiSummary(entries: readonly ApiSurfaceEntry[], scannedFiles: number, label: string, flags: Flags): void {
   const byPkg = new Map<string, ApiSurfaceEntry[]>();
   for (const entry of entries) {
     byPkg.set(entry.ownPkg, [...(byPkg.get(entry.ownPkg) ?? []), entry]);
   }
   const cell = (s: string): string => s.padStart(API_COUNT_COL);
-  print(`apisurface ${label}: ${entries.length} own-export(s) across ${byPkg.size} package(s), scanned ${scannedFiles} source file(s)`);
-  print(`  ${"package".padEnd(API_PKG_COL)}${cell("PUBLIC")}${cell("INTERNAL")}${cell("TESTONLY")}${cell("UNUSED")}`);
+  narrate(flags, `apisurface ${label}: ${entries.length} own-export(s) across ${byPkg.size} package(s), scanned ${scannedFiles} source file(s)`);
+  narrate(flags, `  ${"package".padEnd(API_PKG_COL)}${cell("PUBLIC")}${cell("INTERNAL")}${cell("TESTONLY")}${cell("UNUSED")}`);
   for (const [pkg, list] of [...byPkg.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
     const n = (klass: ApiClass): string => String(list.filter((entry) => entry.klass === klass).length);
     const unusedStar = list.filter((entry) => entry.klass === "unused" && entry.starSuppressed).length;
     const starNote = unusedStar === 0 ? "" : ` (${unusedStar} star-suppressed)`;
-    print(`  ${pkg.padEnd(API_PKG_COL)}${cell(n("public"))}${cell(n("internal"))}${cell(n("test-only"))}${cell(n("unused"))}${starNote}`);
+    narrate(flags, `  ${pkg.padEnd(API_PKG_COL)}${cell(n("public"))}${cell(n("internal"))}${cell(n("test-only"))}${cell(n("unused"))}${starNote}`);
   }
 }
 
@@ -299,8 +298,9 @@ export function cmdApiSurface(project: SourceCorpus, arg: string, flags: Flags):
   const entries = collectApiSurface(project, corpusPredicate(files));
   // The summary's file count is the SCOPE's, not the whole project's — a scoped run used to print the
   // workspace total beside a package's exports, which reads as far more coverage than the run had.
-  printApiSummary(entries, files.length, scope.label);
-  print(
+  printApiSummary(entries, files.length, scope.label, flags);
+  narrate(
+    flags,
     "apisurface is a CANDIDATE lens — an INTERNAL verdict is EVIDENCE that an export could be made module-private, never proof (a same-package-only export may be a deliberate seam wired at a composition root). UNUSED is the `orphans` set verbatim; a namespace consumer (`import * as ns`) promotes a whole module to PUBLIC exactly as `orphans` errs alive — verify with `swallowed`. Default lists INTERNAL + TEST-ONLY + UNUSED (the actionable arms); pass `--public` to also list the cross-package PUBLIC rows.",
   );
   const shown = flags.public ? API_CLASS_ORDER : API_CLASS_ORDER.filter((klass) => klass !== "public");

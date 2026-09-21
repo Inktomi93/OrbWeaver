@@ -4,11 +4,10 @@ import { commentHost } from "../lib/public-markers.ts";
 import process from "node:process";
 import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
 import type { Flags, Hit, Liveness, NamespaceSite, SwallowedCandidate } from "../contract/types.ts";
-import { emit, hitOf } from "../lib/emit.ts";
+import { emit, hitOf, narrate } from "../lib/emit.ts";
 import { declKey } from "../lib/keys.ts";
 import { corpusPredicate, SKIP_TEST_FILES, scanCorpus } from "../lib/ledger.ts";
 import { buildLiveness, isReferencedInOwnFile } from "../lib/liveness.ts";
@@ -152,7 +151,7 @@ export function swallowedHit(candidate: SwallowedCandidate): Hit {
 /** The STALE side of the `@swallowed-ok` marker: a tag on an export the lens no longer calls swallowed — it
  *  is named-imported now, spelled at a namespace site, used in its own file, or dead outright. Printed and
  *  exit-1 so the marker cannot rot into a permanent lie (the two-sided-gate law). */
-function printStaleSwallowedTags(project: SourceCorpus, inScope: (fp: string) => boolean, candidateKeys: Set<string>): void {
+function printStaleSwallowedTags(project: SourceCorpus, inScope: (fp: string) => boolean, candidateKeys: Set<string>, flags: Flags): void {
   const stale: Hit[] = [];
   for (const sf of project.getSourceFiles()) {
     const fp = sf.getFilePath();
@@ -171,11 +170,12 @@ function printStaleSwallowedTags(project: SourceCorpus, inScope: (fp: string) =>
   if (stale.length === 0) {
     return;
   }
-  print(
+  narrate(
+    flags,
     `swallowed: ${stale.length} STALE \`@swallowed-ok:\` marker(s) — the export is no longer namespace-swallowed (a named import or an \`ns.<member>\` access reaches it, its own file uses it, or nothing reaches it at all and it is an \`orphans\` hit). Delete the marker or re-state the reason:`,
   );
   for (const h of stale) {
-    print(`  ! ${h.file}:${h.line}  [${h.kind}]  ${h.text}`);
+    narrate(flags, `  ! ${h.file}:${h.line}  [${h.kind}]  ${h.text}`);
   }
   process.exitCode = 1;
 }
@@ -188,10 +188,11 @@ export function cmdSwallowed(project: SourceCorpus, arg: string, flags: Flags): 
   const inScope = corpusPredicate(scanCorpus(project, { scope: scope.prefix, label: `path:${scope.prefix}`, skip: [SKIP_TEST_FILES] }));
   const live = buildLiveness(project);
   const candidates = collectSwallowedCandidates(project, live, inScope);
-  printStaleSwallowedTags(project, inScope, new Set(candidates.map((c) => declKey(c.decl))));
+  printStaleSwallowedTags(project, inScope, new Set(candidates.map((c) => declKey(c.decl))), flags);
   const hits = candidates.filter((c) => !isSwallowedExempt(c.decl)).map(swallowedHit);
   const exempt = candidates.length - hits.length;
-  print(
+  narrate(
+    flags,
     `swallowed is a CANDIDATE lens — a hit may be load-bearing THROUGH the swallowing API itself (drizzle reads a \`relations()\` config it is handed without your code ever naming it). It finds exports whose only liveness is a whole-module \`import * as\`; the verdict is a human's. Keep one deliberately with \`// @swallowed-ok: <reason>\` on the declaration.${exempt === 0 ? "" : ` (${exempt} candidate(s) exempted by a reasoned marker.)`}`,
   );
   emit(hits, flags, `swallowed ${scope.label}`);

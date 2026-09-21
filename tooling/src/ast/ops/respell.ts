@@ -3,12 +3,11 @@
 import process from "node:process";
 import type { Project } from "ts-morph";
 import { Node } from "ts-morph";
-import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
 import { coLocatedSemanticNodes, semanticWorkspaceOf } from "../../_shared/ts-workspace.ts";
 import type { Flags, Hit, NearFieldDiff, NearPairCandidate } from "../contract/types.ts";
-import { emit, hitOf } from "../lib/emit.ts";
+import { emit, hitOf, narrate } from "../lib/emit.ts";
 import { declKey } from "../lib/keys.ts";
 import { exitToolError, noteUnits, scanCorpus } from "../lib/ledger.ts";
 import { commentHost } from "../lib/public-markers.ts";
@@ -261,7 +260,8 @@ export function cmdRespell(project: SourceCorpus, arg: string, flags: Flags): vo
   for (const domain of domains) {
     hits.push(...respellHitsFor(project, checker, domain));
   }
-  print(
+  narrate(
+    flags,
     `respell is a CANDIDATE lens — structural identity is EVIDENCE of a re-spell, not proof: two shapes may agree today and be free to diverge tomorrow. Verify intent before acting, and prefer a derive when the domain shape IS the contracts shape. (${RESPELL_PROPERTY_FLOOR}+ properties, checker-resolved; a \`respell-same-name\` hit is already RED at the \`contract-derives-not-respells\` gate.)`,
   );
   emit(hits, flags, `respell ${arg === "" ? "(all domains)" : arg}`);
@@ -395,7 +395,7 @@ function nearPairHit(candidate: NearPairCandidate): Hit {
  *  contracts sibling above the current threshold (the exact tier resolved it, a field diverged past the
  *  floor, or the shape/contract disappeared). Printed and exit-1, the two-sided-gate law every other
  *  marker in this file follows. */
-function printStaleNearPairTags(project: SourceCorpus, domains: readonly string[], candidateKeys: ReadonlySet<string>): void {
+function printStaleNearPairTags(project: SourceCorpus, domains: readonly string[], candidateKeys: ReadonlySet<string>, flags: Flags): void {
   const stale: Hit[] = [];
   for (const domain of domains) {
     for (const shape of shapesUnder(project, `/packages/server/src/domain/${domain}/contract/`)) {
@@ -410,11 +410,12 @@ function printStaleNearPairTags(project: SourceCorpus, domains: readonly string[
   if (stale.length === 0) {
     return;
   }
-  print(
+  narrate(
+    flags,
     `respell --near: ${stale.length} STALE \`@nearpair-ok:\` marker(s) — the shape no longer near-matches any contracts sibling at the current threshold. Delete the marker or re-state the reason:`,
   );
   for (const h of stale) {
-    print(`  ! ${h.file}:${h.line}  [${h.kind}]  ${h.text}`);
+    narrate(flags, `  ! ${h.file}:${h.line}  [${h.kind}]  ${h.text}`);
   }
   process.exitCode = 1;
 }
@@ -430,10 +431,11 @@ interface RespellNearScope {
 function cmdRespellNear(project: SourceCorpus, checker: AssignabilityChecker, scope: RespellNearScope, flags: Flags): void {
   const { domains, thresholdPct } = scope;
   const candidates = domains.flatMap((domain) => respellNearCandidatesFor(project, checker, domain, thresholdPct));
-  printStaleNearPairTags(project, domains, new Set(candidates.map((c) => declKey(c.domainDecl))));
+  printStaleNearPairTags(project, domains, new Set(candidates.map((c) => declKey(c.domainDecl))), flags);
   const reportable = candidates.filter((c) => !isNearPairExempt(c.domainDecl));
   const exempt = candidates.length - reportable.length;
-  print(
+  narrate(
+    flags,
     `respell --near is a CANDIDATE lens — Jaccard similarity over (fieldName, resolvedTypeText) pairs at ≥${thresholdPct}%, floor ${RESPELL_NEAR_PROPERTY_FLOOR}+ fields on both sides, EXCLUDING every pair the exact tier already resolves. A near-twin that STARTED as a copy and drifted a field is the drift class this exists to catch; a genuinely deliberate near-pair (two shapes that happen to share most fields) is legitimate — verify before acting. Keep one deliberately with \`// @nearpair-ok: <reason>\` on the domain declaration.${exempt === 0 ? "" : ` (${exempt} candidate(s) exempted by a reasoned marker.)`}`,
   );
   emit(reportable.map(nearPairHit), flags, `respell --near>=${thresholdPct} ${domains.length === 1 ? domains[0] : "(all domains)"}`);

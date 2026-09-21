@@ -30,13 +30,12 @@ import type { CallExpression, Node, ObjectLiteralExpression, SourceFile } from "
 import { SyntaxKind, Node as TsNode } from "ts-morph";
 import type { ActionDoorRuling } from "../../_shared/action-door-rulings.ts";
 import { ACTION_DOOR_RULINGS } from "../../_shared/action-door-rulings.ts";
-import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { DestructuredFires, MutationFactoryIndex, ResolvedDoor, UnresolvedDoor } from "../../_shared/trpc-doors.ts";
 import { destructuredFires, indexMutationFactories, MUTATION_FIRE_MEMBERS, procedureMatches, resolveFiredDoor } from "../../_shared/trpc-doors.ts";
 import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
 import type { Flags, Hit, SubsetAudit, SubsetCallSite, SubsetDoorCensus, SubsetFinding, SubsetSiteScan, SubsetUnjudgedFire } from "../contract/types.ts";
-import { emit, hitOf } from "../lib/emit.ts";
+import { emit, hitOf, narrate } from "../lib/emit.ts";
 import { exitToolError, noteUnits, scanCorpus, WHOLE_CORPUS } from "../lib/ledger.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
@@ -364,22 +363,23 @@ function findingHit(symbol: string, finding: SubsetFinding, ruled: readonly Rule
  *  drops them silently is reporting a clean it never measured. A CLIENT door names its resolution chain,
  *  so a hook-wrapped fire site (`fireContinue` → `continueTurn.mutate(cond ? … : …)`) is legible as the
  *  WRAP SITE it is rather than as an anonymous unreadable call. */
-function printUnresolved(sites: readonly SubsetCallSite[]): void {
+function printUnresolved(sites: readonly SubsetCallSite[], flags: Flags): void {
   const unresolved = sites.filter((s) => s.keys === null);
   if (unresolved.length === 0) {
     return;
   }
-  print(`UNJUDGED (${unresolved.length} call site(s) whose key set this lens cannot resolve — NOT evidence of agreement):`);
+  narrate(flags, `UNJUDGED (${unresolved.length} call site(s) whose key set this lens cannot resolve — NOT evidence of agreement):`);
   for (const site of unresolved) {
     const door = site.door === null ? "" : `${site.door}  ·  `;
-    print(`  ~ ${whereOf(site)}  ${door}${site.unresolved ?? "unresolved"}`);
+    narrate(flags, `  ~ ${whereOf(site)}  ${door}${site.unresolved ?? "unresolved"}`);
   }
 }
 
 /** WHICH DOOR CLASSES THIS RUN COULD AND COULD NOT JUDGE — printed on EVERY run, clean or not (#572). A
  *  verdict without it is a number whose denominator the reader has to guess at. */
-function printDoorClasses(symbol: string, doors: SubsetDoorCensus): void {
-  print(
+function printDoorClasses(symbol: string, doors: SubsetDoorCensus, flags: Flags): void {
+  narrate(
+    flags,
     `DOOR CLASSES — judged: DIRECT call sites (tail \`${symbol}\`) + CLIENT doors fired through the mutation factory ` +
       `(${doors.factories} \`createEntityMutation\` hook(s) indexed; level 1 = a \`<const>.mutate(…)\` whose receiver is bound same-file to an indexed hook, ` +
       "level 2 = a BARE `mutate(…)` fired through a destructured `const { mutate } = useX()` / `const { mutate: fire } = useX()` binding). " +
@@ -389,10 +389,11 @@ function printDoorClasses(symbol: string, doors: SubsetDoorCensus): void {
   );
   for (const fire of doors.unjudgedFires) {
     const hit = hitOf(fire.node, "unjudged-fire");
-    print(`  ? ${hit.file}:${hit.line}  ${fire.reason}`);
+    narrate(flags, `  ? ${hit.file}:${hit.line}  ${fire.reason}`);
   }
   if (doors.procedures.length > 1) {
-    print(
+    narrate(
+      flags,
       `  ! POOLED — the matched client doors resolved to ${doors.procedures.length} DIFFERENT procedures (${doors.procedures.join(", ")}): name the full path to separate them.`,
     );
   }
@@ -402,8 +403,8 @@ export function cmdSubsetCallers(project: SourceCorpus, symbol: string, flags: F
   const files = scanCorpus(project, WHOLE_CORPUS);
   const audit = collectSubsetCallers(files, symbol);
   noteUnits("call-sites", audit.sites.length);
-  printDoorClasses(symbol, audit.doors);
-  printUnresolved(audit.sites);
+  printDoorClasses(symbol, audit.doors, flags);
+  printUnresolved(audit.sites, flags);
   if (audit.doors.factories === 0) {
     exitToolError(
       "[ast] CLIENT-DOOR ARM BLIND — zero `createEntityMutation` hooks were indexed in the scanned corpus, so every client door was invisible and this run judged DIRECT call sites only. That is a TOOL ERROR, not a narrower clean: either the corpus excludes packages/client/src or the one mutation factory was renamed (re-point MUTATION_FACTORY in tooling/src/_shared/trpc-doors.ts).",
@@ -419,7 +420,8 @@ export function cmdSubsetCallers(project: SourceCorpus, symbol: string, flags: F
       `[ast] NOT COMPARABLE — \`${symbol}\` has ${audit.sites.length} call site(s) but only ${audit.resolved} with a statically knowable key set, and a subset comparison needs ${MIN_COMPARABLE_SITES}. Reporting "no findings" here would be a clean this lens never measured (the UNJUDGED list above says why each site could not be read).`,
     );
   }
-  print(
+  narrate(
+    flags,
     `comparing ${audit.resolved} of ${audit.sites.length} call site(s) of \`${symbol}\` by first-argument object KEYS — ` +
       "THE SUBJECT IS THE COMPARISON UNIT: a shared method tail (`mutate`, `call`) pools unrelated verbs and every finding is noise; name the VERB or HOOK, and narrow further with --in <path>",
   );
