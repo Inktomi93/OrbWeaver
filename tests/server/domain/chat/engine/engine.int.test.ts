@@ -28,10 +28,10 @@ import type { TurnPrep, TurnRequest, TurnStreamChunk } from "../../../../../pack
 import { createTurnEngine } from "../../../../../packages/server/src/domain/chat/engine/engine.ts";
 import { loadWitnessHorizons } from "../../../../../packages/server/src/domain/chat/memory/persistence/queries.ts";
 import { recallMemory } from "../../../../../packages/server/src/domain/chat/memory/recall/recall.ts";
-import { createMemoryRecallWarningEpisode } from "../../../../../packages/server/src/domain/chat/memory/recall/rerank-warning.ts";
 import type { WitnessInterval } from "../../../../../packages/server/src/domain/chat/memory/types.ts";
 import { tryAcquireLock } from "../../../../../packages/server/src/domain/chat/persistence/lock.ts";
 import { loadCanonHistory, loadMaxMessageSeq, loadTurnOrigin } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
+import { createTurnRetrievalWarningEpisode } from "../../../../../packages/server/src/domain/chat/substrate/turn-retrieval-warning.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { makeCapability } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -778,7 +778,7 @@ describe("createTurnEngine — post-turn memory build (fire-and-forget, §3a)", 
       recent: [],
       names: new Map<CharacterId, string>(),
       config: { mode: "mixA" },
-      warningEpisode: createMemoryRecallWarningEpisode(),
+      warningEpisode: createTurnRetrievalWarningEpisode(),
     };
     const scopedShape = (charId: typeof aria, name: string): TurnPrep["shape"] => ({
       output: "per-speaker",
@@ -815,7 +815,7 @@ describe("createTurnEngine — post-turn memory build (fire-and-forget, §3a)", 
       recent: [],
       names: new Map<CharacterId, string>(),
       config: { mode: "mixA" },
-      warningEpisode: createMemoryRecallWarningEpisode(),
+      warningEpisode: createTurnRetrievalWarningEpisode(),
     };
 
     // A per-speaker MERGED turn (cardScope !== "scoped") must NOT re-run recall — the round-level memory stands.
@@ -850,7 +850,7 @@ describe("createTurnEngine — post-turn memory build (fire-and-forget, §3a)", 
       speakerRef: { kind: "character", characterId: charId },
     });
 
-    const firstEpisode = createMemoryRecallWarningEpisode();
+    const firstEpisode = createTurnRetrievalWarningEpisode();
     firstEpisode.reportRerankUnavailable(); // the round-level gather degraded before either speaker recall
     const shared: MemoryRecallInputs = {
       groupCharacterId: aria,
@@ -865,7 +865,7 @@ describe("createTurnEngine — post-turn memory build (fire-and-forget, §3a)", 
     expect(h.events.filter((event) => event.type === "warning")).toEqual([{ type: "warning", chatId, code: "memory_rerank_unavailable" }]);
     expect(speakerRecall).toHaveBeenCalledTimes(2); // both speaker failures happened; dedupe did not skip work
 
-    const nextEpisode = createMemoryRecallWarningEpisode();
+    const nextEpisode = createTurnRetrievalWarningEpisode();
     const nextTurn: MemoryRecallInputs = { ...shared, warningEpisode: nextEpisode };
     await h.engine.runTurn(
       prepOf(chatId, { speakerCharacterId: aria, shape: scopedShape(aria, "aria"), memoryConfig: { mode: "off" }, memoryRecall: nextTurn }),
@@ -888,7 +888,7 @@ describe("createTurnEngine — post-turn memory build (fire-and-forget, §3a)", 
     await seedParticipant(db, { chatId, key: "aria", characterId: aria, joinSeq: 1, leftSeq: null });
     const h = harness(db);
 
-    const episode = createMemoryRecallWarningEpisode();
+    const episode = createTurnRetrievalWarningEpisode();
     episode.reportRerankUnavailable(); // the round-level gather degraded; no per-speaker recall will re-run
     await h.engine.runTurn(
       prepOf(chatId, {
@@ -900,6 +900,39 @@ describe("createTurnEngine — post-turn memory build (fire-and-forget, §3a)", 
     );
 
     expect(h.events.filter((event) => event.type === "warning")).toEqual([{ type: "warning", chatId, code: "memory_rerank_unavailable" }]);
+  });
+
+  // #2510 — the D41 half of the in-turn retrieval degrade. The compose bindings now absorb the two SPACE
+  // refusals (`search_space_reindexing` / `search_no_space`) so an owner whose vector space is mid-move or
+  // unbound can still send a message; that trade is only legitimate if the user is TOLD. The report comes from
+  // whichever gather arm hit it (memory recall and/or the databank slot) and drains here, once for the turn.
+  test("an index-unavailable report warns ONCE for the turn, independently of the rerank class", async () => {
+    const chatId = await seedChat(db, "indexwarn");
+    await seedUser(db, castId<Handle>("host"));
+    const aria = await seedCharacter(db, HOST, "aria");
+    await seedParticipant(db, { chatId, key: "aria", characterId: aria, joinSeq: 1, leftSeq: null });
+    const h = harness(db);
+
+    const episode = createTurnRetrievalWarningEpisode();
+    // Both classes in ONE turn: the databank gather lost the whole space AND recall lost its reranker. Two
+    // different sentences, so two notices — collapsing them would tell a user their reranker failed when they
+    // have no queryable index at all.
+    episode.reportIndexUnavailable();
+    episode.reportIndexUnavailable(); // a second arm reporting the same outage is still one notice
+    episode.reportRerankUnavailable();
+    await h.engine.runTurn(
+      prepOf(chatId, {
+        speakerCharacterId: aria,
+        shape: { output: "per-speaker", cardScope: "merged", scopedTargetId: null, speakerName: "aria", speakerRef: { kind: "character", characterId: aria } },
+        memoryConfig: { mode: "off" },
+        memoryRecall: { groupCharacterId: aria, recent: [], names: new Map<CharacterId, string>(), config: { mode: "mixC" }, warningEpisode: episode },
+      }),
+    );
+
+    expect(h.events.filter((event) => event.type === "warning")).toEqual([
+      { type: "warning", chatId, code: "retrieval_index_unavailable" },
+      { type: "warning", chatId, code: "memory_rerank_unavailable" },
+    ]);
   });
 
   test("the memory build succeeding never emits warning(memory_build_failed)", async () => {

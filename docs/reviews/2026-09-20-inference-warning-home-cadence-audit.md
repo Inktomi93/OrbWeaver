@@ -124,7 +124,8 @@ Snapshot: local commit `f106f1bf8`, 2026-09-20. This was a read-only audit; no r
 - Negative cadence claim: no `Map<ChatWarning>`, `Set<ChatWarning>`, previous-drop, same-connection-warning,
   or session-warning state was found by the structural pass or a second `rg` pass. The only nearby stateful
   warning precedent is the memory rerank episode, which dedupes within one gathered turn at
-  `packages/server/src/domain/chat/memory/recall/rerank-warning.ts:1-21`; it does not compare connections or
+  `packages/server/src/domain/chat/substrate/turn-retrieval-warning.ts:1-40` (that file was
+  `memory/recall/rerank-warning.ts` when this audit ran; #2510 moved and renamed it); it does not compare connections or
   successive turns.
 - Existing tests pin warning production, whole-warning transport, per-warning server translation, client
   copy, and smart-arbitration emission. Representative homes are

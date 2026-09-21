@@ -136,6 +136,7 @@ import { minter } from "./minter.ts";
 import { buildPortabilityRunner } from "./portability-runner.ts";
 import { buildRefinery } from "./refinery.ts";
 import { buildRegex } from "./regex.ts";
+import { withRetrievalDegrade } from "./retrieval-degrade.ts";
 import { buildRosterPreset } from "./roster-preset.ts";
 import type { RpgComposeResult } from "./rpg.ts";
 import { buildRpg } from "./rpg.ts";
@@ -852,7 +853,13 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     promptCacheMinDepth: () => effectiveConfig.getEffectiveConfig().promptCacheMinDepth,
     readPresence: (userId) => Promise.resolve(presence.read(userId)),
     generatePicture: imagery.generatePicture,
-    gatherDatabank: databank.gatherRetrieval,
+    // The `{{databank}}` slot's in-turn retrieval, with the SAME space-refusal degrade the digest op carries
+    // (#2510 — `retrieval-degrade.ts` states the boundary). This arm is the one that was actually killing
+    // turns: `search.documents` runs once per turn whether or not the room has documents, so an owner whose
+    // vector space was mid-move could not send a message at all. `null` is databank's own ruled empty — the
+    // byte-identical no-op an absent op produces — so a degraded gather assembles exactly like a bankless one.
+    gatherDatabank: (args, events) =>
+      withRetrievalDegrade(async () => await databank.gatherRetrieval(args), { empty: null, onIndexUnavailable: events?.onIndexUnavailable }),
     rpg: rpgOpsDelegate,
     resolveRegexSources: regexCompose.resolveRegexSources,
     // The FOREIGN S2 teaching contributions (D145's registry). tool-use's contribution attaches the turn
