@@ -3,7 +3,6 @@
 // rows in a retired (model) space, scoped to the one document. Load-bearing: it is the ONLY non-store write
 // to document_chunks the databank domain reaches (via injection), and it must never touch another document.
 
-import type { Db } from "@orb/db";
 import { documentChunks, userConnections } from "@orb/db";
 import type { DocumentId, Handle, ModelId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -12,24 +11,9 @@ import { eq } from "drizzle-orm";
 import { describe, vi } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import type { StoreHarness } from "../_support.ts";
 import { EMBED_DIM, EMBED_MODEL, embedAs, makeStoreHarness, seedDocument, seedUser } from "../_support.ts";
 
 const OLD_MODEL = "old-embed-model-v1";
-
-async function seedHarnessConnection(db: Db, ownerId: UserId, harness: StoreHarness): Promise<void> {
-  const resolved = await harness.roleClients.resolved("embed");
-  if (resolved === null) {
-    throw new Error("the document fixture needs an embed connection");
-  }
-  await db.insert(userConnections).values({
-    id: resolved.connectionId,
-    ownerId,
-    label: "document prune embed",
-    providerId: resolved.providerId,
-    model: resolved.model,
-  });
-}
 
 /** Store `count` chunks (idx 0..count-1) for `documentId` in `model` via the ONE write path. Distinct
  *  chunkIdx keys ⇒ no upsert contention, so the inserts run concurrently. */
@@ -59,7 +43,6 @@ describe("pruneDocumentChunks (databank-design/05 §2.4)", () => {
     const harness = makeStoreHarness(db);
     const svc = createEmbeddingsService(harness.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    await seedHarnessConnection(db, owner, harness);
     const documentId = await seedDocument(db, owner);
     await storeChunks(svc, { documentId, count: 5, model: EMBED_MODEL, ownerId: owner }); // idx 0..4
 
@@ -75,7 +58,6 @@ describe("pruneDocumentChunks (databank-design/05 §2.4)", () => {
     const harness = makeStoreHarness(db);
     const svc = createEmbeddingsService(harness.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    await seedHarnessConnection(db, owner, harness);
     const documentId = await seedDocument(db, owner);
     // The retired generation comes from the connection snapshot, while the stored model comes from the
     // provider reply. Move both together to model the same connection changing models between sweeps.
@@ -110,7 +92,6 @@ describe("pruneDocumentChunks (databank-design/05 §2.4)", () => {
     const harness = makeStoreHarness(db);
     const svc = createEmbeddingsService(harness.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    await seedHarnessConnection(db, owner, harness);
     const docA = await seedDocument(db, owner, { id: "document_a" });
     const docB = await seedDocument(db, owner, { id: "document_b" });
     await storeChunks(svc, { documentId: docA, count: 4, model: EMBED_MODEL, ownerId: owner });

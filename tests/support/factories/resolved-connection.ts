@@ -25,6 +25,20 @@ import { castId } from "@orb/kit/ids";
 export const TEST_PROVIDER_ID = "custom-openai";
 export const TEST_BASE_URL = "http://127.0.0.1:8703/v1";
 export const TEST_OWNER_ID: UserId = castId<UserId>("user_test_owner");
+/**
+ * The connection id every fake `roleClients` bundle resolves to.
+ *
+ * THIS IS A PURE CONST AND IT SEEDS NOTHING — deliberately. Any harness that drives the REAL embeddings write
+ * path must ALSO seed the `user_connections` row this points at: `embed_generations.connection_id` FKs it
+ * (`packages/server/src/domain/embeddings/substrate/generation.ts`), so without the row the generation insert
+ * fails the FK and the suite goes red — or worse, quietly green where the caller records a partial failure as
+ * data. The seeder is `seedVectorConnection` in `tests/server/domain/embeddings/_support.ts` (embeddings owns
+ * the write path); `tests/server/domain/embeddings/_support.ts` `seedUser` already calls it for you.
+ *
+ * The seeder is NOT here because this module is imported by BROWSER-world CT stories
+ * (`tests/client/features/preset/**`, `tests/client/features/config/**`) — a `@orb/db` import would drag the
+ * node-only db package into the CT bundle.
+ */
 export const TEST_CONNECTION_ID: UserConnectionId = castId<UserConnectionId>("user_connection_test0001");
 
 /** FABRICATION-OK brand cast — the ONE sanctioned place outside the domain mint; `ResolvedSecret` is
