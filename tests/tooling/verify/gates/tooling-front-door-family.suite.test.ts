@@ -167,8 +167,10 @@ test("an argv grant whose entry stopped reading argv is STALE after a complete r
 test("every argv grant row in the central table names a subject that exists on the tree and is not a cli.ts", ({ repoRoot }) => {
   const rows = REVIEWED_GRANTS.filter((grant) => grant.policyId === argvFrontDoor.id);
   // 6 at the conversion; 7 since `stack/ops/start-entry.ts` — the root `start` script's target, the one
-  // launcher with no `.sh` in front of it because `pnpm start` must run where bash does not.
-  expect(rows).toHaveLength(7);
+  // launcher with no `.sh` in front of it because `pnpm start` must run where bash does not; 8 counting
+  // `verify/ops/config-snapshot-entry.ts`, the private native-config-snapshot process boundary (#1351),
+  // which the 6→7 bump miscounted past while this battery was dark (#2497).
+  expect(rows).toHaveLength(8);
   for (const row of rows) {
     expect(existsSync(join(repoRoot, row.subject)), row.id).toBe(true);
     expect(row.subject.endsWith("/cli.ts"), row.id).toBe(false);

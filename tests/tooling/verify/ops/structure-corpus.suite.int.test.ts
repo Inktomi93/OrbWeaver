@@ -34,7 +34,46 @@ const ABSENT_POLICY = "probe-no-such-policy";
 const ORDINARY = "baseui-render-prop-composition";
 const REVIEWED = "no-raw-matchmedia";
 const HARD_RESOURCE = "verify-registry-parity";
-const WARNING = "over-art-plate-arm";
+/** THE NONBLOCKING-WARNING SUBJECT IS PLANTED, NOT BORROWED (#2497) — this file's own §"MATERIALIZE the
+ *  premise" lesson, applied to SEVERITY. It used to shim the live `over-art-plate-arm` for its
+ *  `severity: "warning"`; `16b8b2b8f` raised that policy to `"error"` (its warning-debt flip condition was met
+ *  at #2389) and the reconciliation arm below silently measured ZERO warnings — the middle term of the
+ *  equation it exists to prove. A severity another owner may flip is not a premise to borrow. */
+const WARNING_POLICY_ID = "planted-warning";
+const WARNING_SUBJECT = "packages/client/src/features/probe/warned.ts";
+const WARNING_MARKER = "PLANTED_WARNING_SUBJECT";
+const WARNING_SUBJECT_SOURCE = `export const marker = "${WARNING_MARKER}";\n`;
+const WARNING_MESSAGE = "planted nonblocking warning";
+
+/** A minimal ordinary/warning policy with a live work item: one finding per file carrying the marker. */
+function warningPolicy(repoRoot: string): string {
+  const contract = pathToFileURL(join(repoRoot, "tooling/src/verify/contract/policy.ts")).href;
+  return `import { defineGate } from ${JSON.stringify(contract)};
+export const gate = defineGate({
+  id: ${JSON.stringify(WARNING_POLICY_ID)},
+  family: ${JSON.stringify(WARNING_POLICY_ID)},
+  authority: "ordinary",
+  severity: "warning",
+  workItem: 2497,
+  population: "@client",
+  analysis: "syntax",
+  execution: "selected-files",
+  facts: [],
+  resources: [],
+  message: ${JSON.stringify(WARNING_MESSAGE)},
+  fix: "delete the marker",
+  create: (ctx) => ({
+    visitFile: (sourceFile) => {
+      if (sourceFile.getFullText().includes(${JSON.stringify(WARNING_MARKER)})) {
+        ctx.report.file(ctx.relativePath(sourceFile), { line: 1, column: 1, message: ${JSON.stringify(WARNING_MESSAGE)} });
+      }
+    },
+  }),
+  mustFlag: [{ mode: "source", files: { ${JSON.stringify(WARNING_SUBJECT)}: ${JSON.stringify(WARNING_SUBJECT_SOURCE)} }, why: "the marker" }],
+  mustPass: [{ mode: "source", files: { "packages/client/src/features/probe/clean.ts": "export const clean = 1;\\n" }, why: "no marker" }],
+} as never);
+`;
+}
 
 function shim(repoRoot: string, id: string): string {
   return `export { gate } from ${JSON.stringify(pathToFileURL(join(repoRoot, GATES, `${id}.ts`)).href)};\n`;
@@ -152,8 +191,9 @@ test("the artifact and both readers reconcile effective findings, warnings, and 
       [STRAY_READ]: MATCH_MEDIA_LINE,
       "packages/client/src/styles/probe.css": PLATELESS_COMPOSER,
       "packages/ui/src/styles/keep.css": ".keep { color: var(--color-foreground); }\n",
+      [WARNING_SUBJECT]: WARNING_SUBJECT_SOURCE,
     }),
-    [`${GATES}/${WARNING}.ts`]: shim(repoRoot, WARNING),
+    [`${GATES}/${WARNING_POLICY_ID}.ts`]: warningPolicy(repoRoot),
   });
 
   const run = await runCli("verify", ["structure"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });

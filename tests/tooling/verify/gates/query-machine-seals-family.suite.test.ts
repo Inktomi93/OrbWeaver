@@ -11,9 +11,12 @@ import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const POLICIES = [seals, health] as const;
 const GRANTS: readonly ReviewedGateGrant[] = reviewedGrantsFor(POLICIES);
+// Sorted by id, and COMPARED sorted (#2497): the central table's row order is an artifact of which
+// `reviewed-grants-*.ts` shard holds a row, not a property of this family — the 450-line splits moved
+// these three past each other. The set still catches an added, dropped or re-pointed row.
 const EXPECTED_GRANT_IDENTITIES = [
-  ["query-machine-seals:create-entity-mutation", "packages/client/src/data/create-entity-mutation.ts", "raw-useMutation-import"],
   ["query-machine-seals:create-collection-surface", "packages/client/src/data/create-collection-surface.ts", "raw-useInfiniteQuery-import"],
+  ["query-machine-seals:create-entity-mutation", "packages/client/src/data/create-entity-mutation.ts", "raw-useMutation-import"],
   ["query-machine-seals:ct-stories", "tests/client/lib/_ct-stories.tsx", "raw-useMutation-import"],
 ] as const;
 
@@ -22,7 +25,10 @@ test("both query-machine owners pass their declared proofs", () => {
 });
 
 test("the three production candidates bind only their exact hook and home", () => {
-  expect(GRANTS.map(({ id, subject, operation }) => [id, subject, operation])).toEqual(EXPECTED_GRANT_IDENTITIES);
+  const byText = (left: string, right: string): number => left.localeCompare(right);
+  expect(GRANTS.map(({ id, subject, operation }) => [id, subject, operation].join("|")).toSorted(byText)).toEqual(
+    EXPECTED_GRANT_IDENTITIES.map((identity) => identity.join("|")).toSorted(byText),
+  );
   const project = getWorkspace({ root: process.cwd() });
   const result = runPolicyPass({ knownPolicies: POLICIES, policies: POLICIES, root: process.cwd(), project, reviewedGrants: GRANTS, failOnWarnings: false });
   expect(result.toolErrors).toEqual([]);
@@ -51,11 +57,14 @@ test("the three production candidates bind only their exact hook and home", () =
     });
   expect(
     reconcile(
-      GRANTS.map((grant, index) => {
-        if (index === 0) {
+      // BY ID, never by index (#2497): the central table's row order shifted under the 450-line splits and
+      // index 0 became the row whose real operation ALREADY is `raw-useInfiniteQuery-import`, so the
+      // "wrong key" mangle was a no-op and this arm silently proved one binding failure instead of two.
+      GRANTS.map((grant) => {
+        if (grant.id === "query-machine-seals:create-entity-mutation") {
           return { ...grant, operation: "raw-useInfiniteQuery-import" };
         }
-        if (index === 1) {
+        if (grant.id === "query-machine-seals:create-collection-surface") {
           return { ...grant, subject: `${grant.subject}:wrong` };
         }
         return grant;
