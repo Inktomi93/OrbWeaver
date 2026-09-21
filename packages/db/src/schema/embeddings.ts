@@ -115,6 +115,9 @@ export const embedGenerations = sqliteTable(
     connectionId: text("connection_id")
       .$type<UserConnectionId>()
       .references(() => userConnections.id, { onDelete: "set null" }),
+    // @column-ok: Immutable diagnostic provenance after `connectionId` is SET NULL; it must stay write-only
+    // because resolution through this historical id would bypass the deletion refusal. Ends if
+    // deleted-connection diagnosis no longer needs the original id.
     connectionRef: text("connection_ref").$type<UserConnectionId>().notNull(),
     fingerprint: text("fingerprint").notNull(),
     space: text("space").notNull(),
@@ -560,6 +563,8 @@ export const embedSpaceState = sqliteTable(
       .$type<EmbedGenerationId>()
       .references(() => embedGenerations.id, { onDelete: "set null" }),
     candidateEpoch: integer("candidate_epoch"),
+    // @column-ok: Diagnostic provenance for when the last accepted sweep receipt or promotion completed;
+    // correctness reads the generation and epoch instead. Ends if the row stops recording last completion.
     completedAt: integer("completed_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
