@@ -11,7 +11,7 @@ import { emit, hitOf, narrate } from "../lib/emit.ts";
 import { declKey } from "../lib/keys.ts";
 import { exitToolError, noteUnits, scanCorpus } from "../lib/ledger.ts";
 import { commentHost } from "../lib/public-markers.ts";
-import { KEY_SEP, TEST_FILE_RE } from "../lib/root.ts";
+import { TEST_FILE_RE } from "../lib/root.ts";
 import { ownExports } from "../lib/scope.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
@@ -272,7 +272,7 @@ export function cmdRespell(project: SourceCorpus, arg: string, flags: Flags): vo
   }
 }
 
-// ── respell --near: a NEAR tier beside the exact one — Jaccard over (fieldName, resolvedTypeText) ──
+// ── respell --near: a NEAR tier beside the exact one — Jaccard over semantic field identity ──
 // Exact `respell` asks "is this shape MUTUALLY ASSIGNABLE with a contracts sibling" — a yes/no that misses
 // the shape that STARTED as a copy and drifted a field or two (a rename, a dropped/added property). This
 // tier is a SIMILARITY score on the SAME axis (domain `contract/` vs `@orb/contracts/<domain>`, never
@@ -293,37 +293,80 @@ const RESPELL_NEAR_PROPERTY_FLOOR = 4;
 /** Ratio-to-percentage scale — the ONE place `nearFieldDiffOf` converts. */
 const PCT_SCALE = 100;
 
-/** ONE field: its name and its RESOLVED type text (through the checker, at the shape's own declaration —
- *  the same resolution `mutuallyAssignable` uses, so a `CharacterId`/`TypeIdOf<"character">` alias pair
- *  compares as the SAME type text here too, never as a spurious near-miss). */
+/** ONE field: its name and display type. Identity is decided by the checker in
+ *  {@link semanticallyEqualFieldType}; text is report-only because aliases preserve their spelling. */
 interface FieldPair {
   readonly name: string;
   readonly type: string;
 }
 
-/** `<name>\0<type>` — the identity the Jaccard set and the exact-shared count both key on. */
-function pairKey(pair: FieldPair): string {
-  return `${pair.name}${KEY_SEP}${pair.type}`;
+interface FieldIdentity {
+  readonly decl: Node;
+  readonly name: string;
 }
 
-/** A shape's `(fieldName, resolvedTypeText)` pairs. Reuses `decl.getType().getProperties()` — the same
- *  property enumeration `shapeSignature`'s floor already filters to object shapes with. */
+/** A shape's fields. Reuses `decl.getType().getProperties()` — the same property enumeration
+ *  `shapeSignature`'s floor already filters to object shapes with. */
 function fieldPairsOf(decl: Node): FieldPair[] {
   const type = decl.getType();
   return type.getProperties().map((prop) => ({ name: prop.getName(), type: prop.getTypeAtLocation(decl).getText() }));
 }
 
-function nearFieldDiffOf(domainFields: readonly FieldPair[], contractsFields: readonly FieldPair[]): NearFieldDiff {
-  const domainKeys = new Set(domainFields.map(pairKey));
-  const contractsKeys = new Set(contractsFields.map(pairKey));
-  const sharedCount = [...domainKeys].filter((k) => contractsKeys.has(k)).length;
-  const totalFields = new Set([...domainKeys, ...contractsKeys]).size;
+/** Whether two named properties are mutually assignable in every native compiler program that owns both
+ *  declarations. This is the field-level twin of {@link mutuallyAssignable}; checker text is diagnostic,
+ *  never identity (`CharacterId` and `TypeIdOf<"CharacterId">` can print differently). */
+function semanticallyEqualFieldType(checker: AssignabilityChecker, leftField: FieldIdentity, rightField: FieldIdentity): boolean {
+  const compare = (effectiveChecker: AssignabilityChecker, left: Node, right: Node): boolean => {
+    const leftType = left.getType().getProperty(leftField.name)?.getTypeAtLocation(left).compilerType;
+    const rightType = right.getType().getProperty(rightField.name)?.getTypeAtLocation(right).compilerType;
+    return (
+      leftType !== undefined &&
+      rightType !== undefined &&
+      effectiveChecker.isTypeAssignableTo(leftType, rightType) &&
+      effectiveChecker.isTypeAssignableTo(rightType, leftType)
+    );
+  };
+  const colocated = coLocatedSemanticNodes(leftField.decl, rightField.decl);
+  if (colocated.length === 0) {
+    if (leftField.decl.getProject() !== rightField.decl.getProject()) {
+      exitToolError("ast respell --near: compared fields share no native compiler program");
+    }
+    return compare(checker, leftField.decl, rightField.decl);
+  }
+  const answers = new Set(colocated.map(({ project, left, right }) => compare(assignabilityChecker(project), left, right)));
+  if (answers.size !== 1) {
+    exitToolError("ast respell --near: native compiler programs disagree about field assignability");
+  }
+  return answers.has(true);
+}
+
+function nearFieldDiffOf(checker: AssignabilityChecker, domainDecl: Node, contractsDecl: Node): NearFieldDiff {
+  const domainFields = fieldPairsOf(domainDecl);
+  const contractsFields = fieldPairsOf(contractsDecl);
+  const sharedNames = new Set(
+    domainFields
+      .filter((domainField) => {
+        const contractsField = contractsFields.find((candidate) => candidate.name === domainField.name);
+        return (
+          contractsField !== undefined &&
+          semanticallyEqualFieldType(checker, { decl: domainDecl, name: domainField.name }, { decl: contractsDecl, name: contractsField.name })
+        );
+      })
+      .map((field) => field.name),
+  );
+  const sharedCount = sharedNames.size;
+  const totalFields = domainFields.length + contractsFields.length - sharedCount;
   const pct = totalFields === 0 ? 0 : (sharedCount / totalFields) * PCT_SCALE;
-  const contractsRemainder = contractsFields.filter((f) => !domainKeys.has(pairKey(f)));
+  const contractsRemainder = contractsFields.filter((field) => !sharedNames.has(field.name));
   const renamed: { from: string; to: string; type: string }[] = [];
   const domainOnly: string[] = [];
-  for (const df of domainFields.filter((f) => !contractsKeys.has(pairKey(f)))) {
-    const matchAt = contractsRemainder.findIndex((cf) => cf.type === df.type && cf.name !== df.name && !renamed.some((r) => r.to === cf.name));
+  for (const df of domainFields.filter((field) => !sharedNames.has(field.name))) {
+    const matchAt = contractsRemainder.findIndex(
+      (cf) =>
+        cf.name !== df.name &&
+        !renamed.some((rename) => rename.to === cf.name) &&
+        semanticallyEqualFieldType(checker, { decl: domainDecl, name: df.name }, { decl: contractsDecl, name: cf.name }),
+    );
     if (matchAt === -1) {
       domainOnly.push(df.name);
       continue;
@@ -357,7 +400,7 @@ export function respellNearCandidatesFor(project: SourceCorpus, checker: Assigna
       if (derivedFrom.has(declKey(twin.decl)) || (twin.signature === domainShape.signature && mutuallyAssignable(checker, domainShape.decl, twin.decl))) {
         continue;
       }
-      const diff = nearFieldDiffOf(domainFields, fieldPairsOf(twin.decl));
+      const diff = nearFieldDiffOf(checker, domainShape.decl, twin.decl);
       if (diff.pct >= thresholdPct) {
         out.push({ domain, domainName: domainShape.name, domainDecl: domainShape.decl, contractsName: twin.name, contractsDecl: twin.decl, diff });
       }
@@ -436,7 +479,7 @@ function cmdRespellNear(project: SourceCorpus, checker: AssignabilityChecker, sc
   const exempt = candidates.length - reportable.length;
   narrate(
     flags,
-    `respell --near is a CANDIDATE lens — Jaccard similarity over (fieldName, resolvedTypeText) pairs at ≥${thresholdPct}%, floor ${RESPELL_NEAR_PROPERTY_FLOOR}+ fields on both sides, EXCLUDING every pair the exact tier already resolves. A near-twin that STARTED as a copy and drifted a field is the drift class this exists to catch; a genuinely deliberate near-pair (two shapes that happen to share most fields) is legitimate — verify before acting. Keep one deliberately with \`// @nearpair-ok: <reason>\` on the domain declaration.${exempt === 0 ? "" : ` (${exempt} candidate(s) exempted by a reasoned marker.)`}`,
+    `respell --near is a CANDIDATE lens — Jaccard similarity over (fieldName, semanticType) pairs at ≥${thresholdPct}%, where semantic type identity is bidirectional checker assignability in every co-located native program; floor ${RESPELL_NEAR_PROPERTY_FLOOR}+ fields on both sides, EXCLUDING every pair the exact tier already resolves. A near-twin that STARTED as a copy and drifted a field is the drift class this exists to catch; a genuinely deliberate near-pair (two shapes that happen to share most fields) is legitimate — verify before acting. Keep one deliberately with \`// @nearpair-ok: <reason>\` on the domain declaration.${exempt === 0 ? "" : ` (${exempt} candidate(s) exempted by a reasoned marker.)`}`,
   );
   emit(reportable.map(nearPairHit), flags, `respell --near>=${thresholdPct} ${domains.length === 1 ? domains[0] : "(all domains)"}`);
 }

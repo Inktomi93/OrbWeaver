@@ -176,6 +176,19 @@ describe("ast subset-callers lens (the stale-door class)", () => {
     });
     expect(audit.findings).toHaveLength(1);
   });
+
+  test("test and tool callers never enter the shipped-product comparison pool", () => {
+    const audit = auditOf({
+      "packages/client/src/a.ts": "export const A = () => sendTurn({ chatId, guided });\n",
+      "packages/client/src/b.ts": "export const B = () => sendTurn({ chatId, guided });\n",
+      "tests/client/send-turn.test.ts": "export const fixture = () => sendTurn({ chatId });\n",
+      "scripts/probe.ts": "export const probe = () => sendTurn({ chatId });\n",
+    });
+
+    expect(audit.sites).toHaveLength(2);
+    expect(audit.resolved).toBe(2);
+    expect(audit.findings).toEqual([]);
+  });
 });
 
 // The CLIENT-DOOR arm (#572). A client door names its verb only at its CREATION site
@@ -302,7 +315,7 @@ describe("ast subset-callers lens (the CLIENT-door arm)", () => {
           `${factory("useUndoContinueMutation", "chat.undoContinue")}export function MessageActionsRow() {\n` +
           "  const undoContinue = useUndoContinueMutation({ trpc, invalidation });\n" +
           "  return () => undoContinue.mutate({ chatId, messageId });\n}\n",
-        "tests/server/domain/chat/verbs/turn.int.test.ts": "export const T = () => undoContinue({ chatId, messageId, principal });\n",
+        "packages/server/src/domain/chat/verbs/turn.ts": "export const T = () => undoContinue({ chatId, messageId, principal });\n",
       },
       "undoContinue",
     );
@@ -328,8 +341,8 @@ describe("ast subset-callers lens (the CLIENT-door arm)", () => {
     const audit = auditFor(
       {
         "packages/client/src/features/chat/hooks/use-continue-turn.ts": `${factory("useGenerateMutation", "chat.generate")}export const G = () => useGenerateMutation({ trpc }).mutate({ chatId });\n`,
-        "tests/server/domain/chat/verbs/turn-a.int.test.ts": "export const A = () => generate({ chatId, principal });\n",
-        "tests/server/domain/chat/verbs/turn-b.int.test.ts": "export const B = () => generate({ chatId, principal, guided });\n",
+        "packages/server/src/domain/chat/verbs/turn-a.ts": "export const A = () => generate({ chatId, principal });\n",
+        "packages/server/src/domain/chat/verbs/turn-b.ts": "export const B = () => generate({ chatId, principal, guided });\n",
         "packages/client/src/features/chat/hooks/use-guided-actions.ts": `${factory("useGuidedGenerateMutation", "chat.generate")}export const W = () => useGuidedGenerateMutation({ trpc }).mutate({ chatId, guided });\n`,
       },
       "generate",

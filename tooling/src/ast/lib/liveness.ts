@@ -13,8 +13,10 @@ import { isTestPath } from "./root.ts";
  *  changes who is alive, only what we can say about WHY. */
 type ArmRecorder = (key: string, arm: ConsumptionArm) => void;
 
-/** The client package's src prefix — the seam that buckets prod consumption into client vs server. */
-export const CLIENT_SRC_PREFIX = "/packages/client/";
+/** Package source homes used to keep clientgap's server evidence exact. */
+export const CLIENT_SRC_PREFIX = "/packages/client/src/";
+const SERVER_SRC_PREFIX = "/packages/server/src/";
+const PACKAGE_SRC_RE = /\/packages\/[^/]+\/src\//u;
 
 /** Decl-key every export of `target` (its own decls AND re-exported ones — getExportedDeclarations
  *  resolves through `export *` and through renaming `export { X as Y } from` hops), added to `bucket`.
@@ -294,13 +296,28 @@ function collectStarTargets(sf: SourceFile, starTargets: Set<string>): void {
   }
 }
 
-/** Pick the consumption bucket for an importing file: test path → usedTest; client-package src →
- *  usedClientProd; everything else → usedServerProd. Flat (no nested ternary) for the linter. */
-function prodBucketFor(fp: string, buckets: { usedTest: Set<string>; usedClientProd: Set<string>; usedServerProd: Set<string> }): Set<string> {
+/** Pick the consumption bucket for an importing file. `usedServerProd` means exactly server source;
+ *  db/kit/contracts/ui/inference and tooling stay visible without masquerading as server evidence. */
+function prodBucketFor(
+  fp: string,
+  buckets: {
+    usedTest: Set<string>;
+    usedClientProd: Set<string>;
+    usedServerProd: Set<string>;
+    usedOtherProd: Set<string>;
+    usedTooling: Set<string>;
+  },
+): Set<string> {
   if (isTestPath(fp)) {
     return buckets.usedTest;
   }
-  return fp.includes(CLIENT_SRC_PREFIX) ? buckets.usedClientProd : buckets.usedServerProd;
+  if (fp.includes(CLIENT_SRC_PREFIX)) {
+    return buckets.usedClientProd;
+  }
+  if (fp.includes(SERVER_SRC_PREFIX)) {
+    return buckets.usedServerProd;
+  }
+  return PACKAGE_SRC_RE.test(fp) ? buckets.usedOtherProd : buckets.usedTooling;
 }
 
 /** The default: liveness sets ONLY, byte- and cost-identical to the pass that predates the edge map. */
@@ -314,6 +331,8 @@ const NO_EDGES: LivenessOptions = { edges: false };
 export function buildLiveness(project: SourceCorpus, options: LivenessOptions = NO_EDGES): Liveness {
   const usedClientProd = new Set<string>();
   const usedServerProd = new Set<string>();
+  const usedOtherProd = new Set<string>();
+  const usedTooling = new Set<string>();
   const usedTest = new Set<string>();
   const starTargets = new Set<string>();
   const arms = new Map<string, Set<ConsumptionArm>>();
@@ -326,9 +345,9 @@ export function buildLiveness(project: SourceCorpus, options: LivenessOptions = 
   };
   for (const sf of project.getSourceFiles()) {
     const fp = sf.getFilePath();
-    // Prod consumption is bucketed by the IMPORTING file's package (client vs everything-else); a test
-    // path always wins into usedTest. clientgap reads the split; orphans/testonly/prodonly read the union.
-    const bucket = prodBucketFor(fp, { usedTest, usedClientProd, usedServerProd });
+    // A test path always wins into usedTest. clientgap reads the exact client/server slices;
+    // orphans/testonly read the non-test union, including legitimate tool consumers.
+    const bucket = prodBucketFor(fp, { usedTest, usedClientProd, usedServerProd, usedOtherProd, usedTooling });
     for (const imp of sf.getImportDeclarations()) {
       markImportConsumption(imp, { bucket, record, namespaceSites });
     }
@@ -338,6 +357,6 @@ export function buildLiveness(project: SourceCorpus, options: LivenessOptions = 
       recordDeclarationEdges(sf, project, consumers);
     }
   }
-  const usedProd = new Set<string>([...usedClientProd, ...usedServerProd]);
+  const usedProd = new Set<string>([...usedClientProd, ...usedServerProd, ...usedOtherProd, ...usedTooling]);
   return { usedProd, usedClientProd, usedServerProd, usedTest, starTargets, arms, namespaceSites, consumers };
 }

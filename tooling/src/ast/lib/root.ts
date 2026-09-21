@@ -30,10 +30,18 @@ export const TRAILING_SLASHES_RE = /\/+$/u;
 // (declFile, declStart) identity separator — a NUL can never appear in a path or a decimal offset.
 export const KEY_SEP = "\u0000";
 
+const PACKAGE_SOURCE_RE = /\/packages\/[^/]+\/src\//u;
+
 /** `--near` with no explicit percentage. */
 export const RESPELL_NEAR_DEFAULT_PCT = 80;
 
 /** A test source file (a `.test`/`.ct` file or anything under a `/tests/` tree) — never a prod node. */
 export function isTestPath(fp: string): boolean {
   return TEST_FILE_RE.test(fp) || fp.includes("/tests/");
+}
+
+/** Authored shipped package source. Tooling, scripts, probes, tests, and package-root configs are outside
+ *  this corpus even when they legitimately consume package exports. */
+export function isPackageSourcePath(fp: string): boolean {
+  return PACKAGE_SOURCE_RE.test(fp);
 }

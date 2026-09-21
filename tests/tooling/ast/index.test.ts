@@ -464,6 +464,32 @@ describe("ast prodonly lens (tooling entry points)", () => {
     expect(hitFiles).toContain("packages/client/src/shadow/lazy-target.ts");
     expect(hitFiles).toContain("packages/client/src/internal/unused.ts");
   });
+
+  test("a knip-only nested index is analysis configuration, not a shipped entry", () => {
+    const project = new Project({ useInMemoryFileSystem: true });
+    const files: Record<string, string> = {
+      "packages/client/src/main.tsx": "export const appEntry = true;",
+      "packages/inference/src/index.ts": "export const publicEntry = true;",
+      "packages/inference/src/internal/index.ts": "export const analysisOnlyRoot = true;",
+    };
+    for (const [path, text] of Object.entries(files)) {
+      project.createSourceFile(`${AST_REPO_ROOT}/${path}`, text);
+    }
+    const lines: string[] = [];
+    const release = installOutputSink({ line: (line) => lines.push(line), warn: () => undefined });
+    try {
+      const prodonly = VERBS["prodonly"];
+      expect(prodonly).toBeDefined();
+      if (prodonly === undefined) {
+        throw new Error("prodonly verb is not registered");
+      }
+      prodonly(project, "inference", parseFlags(["--json"]));
+    } finally {
+      release();
+    }
+    const payload = JSON.parse(lines.find((line) => line.startsWith("{")) ?? "null") as { hits: Hit[] } | null;
+    expect(payload?.hits.map(({ file }) => file)).toContain("packages/inference/src/internal/index.ts");
+  });
 });
 
 describe("ast testonly lens (declared test seams)", () => {
@@ -798,7 +824,7 @@ export interface MemoryBackfillTally { scanned: number; written: number; skipped
   });
 });
 
-// ── respell --near: a NEAR tier beside the exact one, Jaccard over (fieldName, resolvedTypeText) ──
+// ── respell --near: a NEAR tier beside the exact one, Jaccard over (fieldName, semanticType) ──
 // `id/role/active:X` agree on both sides; the domain's `label:string` and the contracts' `name:string`
 // are the SAME type under a DIFFERENT name — the rename this tier's diff must name explicitly. Union = 5
 // distinct (name,type) pairs (id, role, active shared + label + name each counted once), intersection = 3,
@@ -838,6 +864,27 @@ describe("ast respell --near lens (Jaccard field-diff tier)", () => {
     });
     const checker = assignabilityChecker(project);
     expect(respellNearCandidatesFor(project, checker, "chat", 1)).toEqual([]);
+  });
+
+  test("field identity follows semantic types rather than alias-sensitive checker text", () => {
+    const project = projectOf({
+      "packages/contracts/src/chat/ids.ts": `
+type TypeIdOf<K extends string> = string & { readonly __kind: K };
+export type CharacterId = TypeIdOf<"CharacterId">;
+export interface ContractShape { id: CharacterId; name: string; role: string; active: boolean; note: string; }
+`,
+      "packages/server/src/domain/chat/contract/shape.ts": `
+type TypeIdOf<K extends string> = string & { readonly __kind: K };
+export interface DomainShape { id: TypeIdOf<"CharacterId">; name: string; role: string; active: boolean; memo: string; }
+`,
+    });
+    const candidates = respellNearCandidatesFor(project, assignabilityChecker(project), "chat", 60);
+    expect(candidates).toHaveLength(1);
+    const diff = candidates[0]?.diff;
+    expect(diff?.sharedCount).toBe(4);
+    expect(diff?.totalFields).toBe(6);
+    expect(diff?.pct).toBeCloseTo(66.666, 2);
+    expect(diff?.renamed).toEqual([{ from: "memo", to: "note", type: "string" }]);
   });
 
   test("a pair the EXACT tier already resolves is excluded from the near tier at ANY threshold", () => {
@@ -1127,6 +1174,33 @@ describe("ast columns lens (drizzle consumption)", () => {
     expect(byName.get("ghost")?.opaque).toBe(false);
     // The SQL spelling travels beside the JS one (a reader greps the migration, not the property).
     expect(byName.get("ghost")?.column.sqlColumn).toBe("ghost");
+  });
+
+  test("test and tool reads/writes do not make an otherwise-unused production column look healthy", () => {
+    const project = projectOf({
+      "packages/db/src/drizzle.ts": MINI_DRIZZLE,
+      "packages/db/src/schema/widgets.ts": WIDGET_SCHEMA,
+      "tests/db/widgets.test.ts": `
+import { db } from "../../packages/db/src/drizzle";
+import { widgets } from "../../packages/db/src/schema/widgets";
+export function fixture(): unknown {
+  db.insert(widgets).values({ ghost: "fixture" });
+  return widgets.ghost;
+}
+`,
+      "scripts/seed.ts": `
+import { db } from "../packages/db/src/drizzle";
+import { widgets } from "../packages/db/src/schema/widgets";
+export function seed(): unknown {
+  db.insert(widgets).values({ ghost: "seed" });
+  return widgets.ghost;
+}
+`,
+    });
+    const ghost = collectColumnCandidates(project, collectSchemaTables(project)).candidates.find((candidate) => candidate.column.jsProp === "ghost");
+    expect(ghost?.klass).toBe("neither");
+    expect(ghost?.reads).toEqual([]);
+    expect(ghost?.writes).toEqual([]);
   });
 
   test("READ arm 2 counts a row-shaped access with NO link back to the table (the mapped-type hole)", () => {
@@ -2017,6 +2091,47 @@ describe("ast clientgap lens (liveness split)", () => {
     // The union stays correct for orphans/testonly/prodonly (both shapes live in usedProd).
     expect(contractKeys(live.usedProd).sort(byString)).toEqual([...contractKeys(live.usedClientProd), ...contractKeys(live.usedServerProd)].sort(byString));
   });
+
+  test("test imports annotate a server-only gap but do not acquit it", () => {
+    const project = new Project({ useInMemoryFileSystem: true });
+    const files: Record<string, string> = {
+      "packages/contracts/src/thing/index.ts": "export interface MissingView { id: string; }",
+      "packages/server/src/domain/thing/service.ts":
+        'import type { MissingView } from "../../../../contracts/src/thing/index"; export const y: MissingView | null = null;',
+      "tests/thing/view.test.ts":
+        'import type { MissingView } from "../../packages/contracts/src/thing/index"; export const fixture: MissingView | null = null;',
+    };
+    for (const [path, text] of Object.entries(files)) {
+      project.createSourceFile(`${ROOT}/${path}`, text);
+    }
+    const lines: string[] = [];
+    const release = installOutputSink({ line: (line) => lines.push(line), warn: () => undefined });
+    try {
+      const clientgap = VERBS["clientgap"];
+      expect(clientgap).toBeDefined();
+      if (clientgap === undefined) {
+        throw new Error("clientgap verb is not registered");
+      }
+      clientgap(project, "packages/contracts/src/thing", parseFlags(["--json"]));
+    } finally {
+      release();
+    }
+    const payload = JSON.parse(lines.find((line) => line.startsWith("{")) ?? "null") as { hits: Hit[] } | null;
+    expect(payload?.hits.map(({ text }) => text)).toEqual([expect.stringContaining("MissingView")]);
+  });
+
+  test("non-server product and tool imports never masquerade as server production", () => {
+    const project = projectOf({
+      "packages/contracts/src/thing/index.ts":
+        "export interface ToolView { id: string; } export interface DbView { id: string; } export interface ConfigView { id: string; }",
+      "packages/db/src/thing.ts": 'import type { DbView } from "../../contracts/src/thing/index"; export const row: DbView | null = null;',
+      "scripts/thing.ts": 'import type { ToolView } from "../packages/contracts/src/thing/index"; export const fixture: ToolView | null = null;',
+      "packages/server/vite.config.ts": 'import type { ConfigView } from "../contracts/src/thing/index"; export const config: ConfigView | null = null;',
+    });
+    const live = buildLiveness(project);
+    expect(keysIn(live.usedServerProd, "/thing/index.ts")).toEqual([]);
+    expect(keysIn(live.usedProd, "/thing/index.ts")).toHaveLength(3);
+  });
 });
 
 // ── apisurface: exports partitioned by PACKAGE-BOUNDARY consumption ────────────────────────────────
@@ -2194,6 +2309,18 @@ describe("ast dead lens (evidence-ladder composite)", () => {
     expect(evidence.prodCount).toBe(0);
     // findReferencesAsNodes counts both the import specifier AND the usage line as sites.
     expect(evidence.testCount).toBe(2);
+  });
+
+  test("TOOL-ANCHORED: a script reference is visible without pretending the app uses the export", () => {
+    const project = projectOf({
+      "packages/kit/src/dead/tool.ts": "export const toolValue = 1;\n",
+      "scripts/use-tool.ts": 'import { toolValue } from "../packages/kit/src/dead/tool"; export const output = toolValue;',
+    });
+    const origin = project.getSourceFileOrThrow(`${ROOT}/packages/kit/src/dead/tool.ts`);
+    const decl = origin.getVariableDeclarationOrThrow("toolValue");
+    const evidence = deadEvidenceFor(project, decl, "toolValue", buildLiveness(project));
+    expect(evidence.verdict).toBe("TOOL-ANCHORED");
+    expect(evidence.prodCount).toBe(0);
   });
 
   test("a re-export PASS-THROUGH is NOT a production reference — a barrel that only re-exports a test-only symbol stays TEST-ANCHORED, never ALIVE", () => {

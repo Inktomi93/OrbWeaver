@@ -1,17 +1,14 @@
-// prodonly: entry-closure FILE reachability (the knip Unused-files lens). The knip-config import
-// is a ROOT-CONFIG import (tooling-front-door exemption row: re-spelling the entry globs would
-// be the one-home violation).
+// prodonly: entry-closure FILE reachability over the shipped/runtime entry surface.
 import { readFileSync } from "node:fs";
 import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import knipConfig from "../../../../knip.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
 import type { Flags, Hit } from "../contract/types.ts";
 import { emit, hitOf } from "../lib/emit.ts";
 import { exitToolError, SKIP_DECLARATION_FILES, SKIP_TEST_FILES, scanCorpus } from "../lib/ledger.ts";
 import { resolveDynamicImportTarget, resolveModule } from "../lib/resolve.ts";
-import { BANG_SUFFIX_RE, DOT_SLASH_RE, GLOB_STAR_RE, isTestPath, REPO_ROOT, TS_SUFFIX_RE, WORKSPACE_PACKAGES } from "../lib/root.ts";
+import { DOT_SLASH_RE, GLOB_STAR_RE, isTestPath, REPO_ROOT, TS_SUFFIX_RE, WORKSPACE_PACKAGES } from "../lib/root.ts";
 import { resolveScope } from "../lib/scope.ts";
 import { relPath } from "./swallowed.ts";
 
@@ -24,14 +21,12 @@ refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
 //
 // A file reachable ONLY from a test is prod-unreachable BY DESIGN of this lens (that's its whole point —
 // it complements testonly). So tests/ + scripts/ are NOT entries and NOT graph nodes here.
-/** The production entry FILES, derived honestly from the authorities (never a parallel definition):
- *   1. knip.ts's per-workspace `entry` globs (kit/contracts/db = every nested barrel index, client = html);
- *   2. each package.json `exports` map (the auto-detected surface for ui/server/client) — Node resolves
+/** The production entry FILES, derived honestly from runtime authorities (never analysis configuration):
+ *   1. each package.json `exports` map — Node resolves
  *      `./*` across slashes, so every nested `index.ts` addressable as a subpath is an entry;
- *   3. each package.json `scripts` command's `.ts` targets ({@link scriptEntryPaths}) and the package-root
+ *   2. each package.json `scripts` command's `.ts` targets ({@link scriptEntryPaths}) and the package-root
  *      TOOL CONFIG convention ({@link TOOLING_CONFIG_GLOB}) — see the tooling-entrypoint note below.
- *  The `!` production markers are stripped (they already mean "production entry"). index.html isn't a
- *  source file, so its `<script type=module>` target `src/main.tsx` stands in (knip's own auto-detection).
+ *  index.html isn't a source file, so its `<script type=module>` target `src/main.tsx` stands in.
  *
  *  TOOLING ENTRY POINTS ARE ENTRIES (lens calibration, owner ruling 2026-08-13). `drizzle.config.ts`,
  *  `vite.config.ts` and `tokens.build.ts` are loaded BY A TOOL — by filename convention or by a package
@@ -45,7 +40,7 @@ function deriveEntryFiles(project: SourceCorpus): Set<string> {
   const entries = new Set<string>();
   for (const pkg of WORKSPACE_PACKAGES) {
     const dir = `${REPO_ROOT}/packages/${pkg}`;
-    for (const glob of [...knipEntryGlobs(pkg), ...exportsEntryPaths(dir), ...scriptEntryPaths(dir), ...toolingConfigNames(project, dir)]) {
+    for (const glob of [...exportsEntryPaths(dir), ...scriptEntryPaths(dir), ...toolingConfigNames(project, dir)]) {
       addGlobMatches(project, `${dir}/${glob}`, entries);
     }
   }
@@ -94,15 +89,6 @@ function addAnchor(project: SourceCorpus, entries: Set<string>, fp: string, why:
     );
   }
   entries.add(fp);
-}
-
-// knip.ts's explicit entry globs for a workspace, bang-stripped and index.html-dropped (not a source
-// file — its resolved target is added separately). Empty for auto-from-exports workspaces (ui/server).
-function knipEntryGlobs(pkg: string): string[] {
-  const workspaces = (knipConfig as { workspaces?: Record<string, { entry?: string | string[] }> }).workspaces ?? {};
-  const entry = workspaces[`packages/${pkg}`]?.entry ?? [];
-  const globs = Array.isArray(entry) ? entry : [entry];
-  return globs.map((g) => g.replace(BANG_SUFFIX_RE, "")).filter((g) => TS_SUFFIX_RE.test(g));
 }
 
 // The .ts/.tsx targets of a package.json exports map (relative to the package dir), stars kept as glob
@@ -203,5 +189,5 @@ export function cmdProdOnly(project: SourceCorpus, arg: string, flags: Flags): v
       hits.push(hitOf(sf, "prod-unreachable"));
     }
   }
-  emit(hits, flags, `prodonly ${scope.label} (entry closure from package.json exports + knip.ts entries)`);
+  emit(hits, flags, `prodonly ${scope.label} (entry closure from package.json exports + runtime tool entries)`);
 }

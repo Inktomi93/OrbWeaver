@@ -296,7 +296,8 @@ export function cmdUnwired(project: SourceCorpus, scope: string, flags: Flags): 
 }
 
 // ── clientgap: client-facing contract exports the SERVER consumes but the CLIENT never does ─────
-// The liveness extension: an export in usedServerProd but NOT usedClientProd and NOT usedTest. Raw this
+// The liveness extension: an export in exact server product consumption but NOT client product consumption.
+// Tests annotate behavior; they do not prove the product wired the contract. Raw this
 // is noisy (server-only contracts are legion), so default-scope is `@orb/contracts` filtered to the
 // client-facing WIRE shapes (a `*View`/`*Summary` name heuristic — the surface a UI actually renders).
 // CANDIDATE lens (like orphans): a hit may be client-consumed via a re-exported barrel or a `Trpc[…]`
@@ -305,7 +306,7 @@ const CLIENT_FACING_SUFFIX_RE = /(View|Summary)$/u;
 
 const CONTRACTS_SRC_PREFIX = "/packages/contracts/src/";
 
-/** Exports of a scope the SERVER prod-consumes but the CLIENT never does (and no test does) — a wire
+/** Exports of a scope the SERVER prod-consumes but the CLIENT never does — a wire
  *  shape that never made it to the front-end. Default scope `contracts`, filtered to `*View`/`*Summary`
  *  client-facing names; a path/package scope overrides. A CANDIDATE lens — verify, don't act blind. */
 export function cmdClientGap(project: SourceCorpus, arg: string, flags: Flags): void {
@@ -318,7 +319,7 @@ export function cmdClientGap(project: SourceCorpus, arg: string, flags: Flags): 
   for (const sf of files) {
     for (const { name, decl } of ownExports(sf)) {
       const key = declKey(decl);
-      const gap = live.usedServerProd.has(key) && !live.usedClientProd.has(key) && !live.usedTest.has(key);
+      const gap = live.usedServerProd.has(key) && !live.usedClientProd.has(key);
       // On the default contracts scope, gate to client-facing wire names (else it floods with server-only
       // contracts). A caller-supplied scope trusts the caller — report every gap in it.
       if (!gap || (isContracts && !CLIENT_FACING_SUFFIX_RE.test(name))) {
