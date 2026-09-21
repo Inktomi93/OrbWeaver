@@ -49,7 +49,8 @@ function namedObjectFields(node: MorphNode): readonly string[] | undefined {
     if (!(Node.isPropertyAssignment(property) || Node.isShorthandPropertyAssignment(property) || Node.isMethodDeclaration(property))) {
       return;
     }
-    fields.push(property.getName());
+    const name = property.getNameNode();
+    fields.push(Node.isStringLiteral(name) ? name.getLiteralText() : name.getText());
   }
   return fields.length === 0 ? undefined : fields.toSorted(compareText);
 }
@@ -86,6 +87,10 @@ function contributionHits(files: readonly SourceFile[]): Hit[] {
       continue;
     }
     const names = new Set(group.map(({ declaration }) => declaration.getName()));
+    const declarationKeys = new Set(group.map(({ declaration }) => nodeIdentity(declaration)));
+    if (files.some((file) => typedCompositionCovers(file, declarationKeys))) {
+      continue;
+    }
     const aggregationSites = files.filter((file) =>
       file.getDescendantsOfKind(SyntaxKind.Identifier).some((identifier) => names.has(identifier.getText()) && !owners.has(file.getFilePath())),
     );
@@ -143,30 +148,117 @@ function valueSetHits(files: readonly SourceFile[]): Hit[] {
   return hits;
 }
 
-type MutationReceiverIdentity = object | string;
+function nodeIdentity(node: MorphNode): string {
+  return `${node.getSourceFile().getFilePath()}\0${node.getStart()}`;
+}
+
+function referencedDeclarationIdentity(node: MorphNode): string | undefined {
+  const moduleOrigin = resolveModuleMemberOrigin(node);
+  if (moduleOrigin.kind === "resolved" && moduleOrigin.value.canonical.kind === "project") {
+    return nodeIdentity(moduleOrigin.value.canonical.declaration);
+  }
+  const stable = resolveStableExpression(node);
+  if (stable.kind === "resolved") {
+    return nodeIdentity(stable.value);
+  }
+  const lexical = resolveLexicalValueDeclaration(node);
+  return lexical.kind === "resolved" ? nodeIdentity(lexical.value) : undefined;
+}
+
+function stableSpreadValues(node: MorphNode, visited: Set<string>): readonly MorphNode[] {
+  const spread = resolveStableExpression(node);
+  return spread.kind === "resolved" ? directCompositionValues(spread.value, visited) : [];
+}
+
+function directArrayCompositionValues(node: MorphNode, visited: Set<string>): readonly MorphNode[] {
+  if (!Node.isArrayLiteralExpression(node)) {
+    return [];
+  }
+  return node
+    .getElements()
+    .flatMap((element) => (Node.isSpreadElement(element) ? stableSpreadValues(element.getExpression(), visited) : [literal(element) ?? element]));
+}
+
+function directObjectCompositionValues(node: MorphNode, visited: Set<string>): readonly MorphNode[] {
+  if (!Node.isObjectLiteralExpression(node)) {
+    return [];
+  }
+  return node.getProperties().flatMap((property) => {
+    if (Node.isPropertyAssignment(property)) {
+      const initializer = property.getInitializer();
+      return initializer === undefined ? [] : [literal(initializer) ?? initializer];
+    }
+    if (Node.isShorthandPropertyAssignment(property)) {
+      return [property.getNameNode()];
+    }
+    return Node.isSpreadAssignment(property) ? stableSpreadValues(property.getExpression(), visited) : [];
+  });
+}
+
+function directCompositionValues(node: MorphNode, visited = new Set<string>()): readonly MorphNode[] {
+  const value = literal(node);
+  if (value === undefined || visited.has(nodeIdentity(value))) {
+    return [];
+  }
+  visited.add(nodeIdentity(value));
+  return [...directArrayCompositionValues(value, visited), ...directObjectCompositionValues(value, visited)];
+}
+
+function typedCompositionCovers(file: SourceFile, contributionKeys: ReadonlySet<string>): boolean {
+  return file.getVariableDeclarations().some((declaration) => {
+    const raw = declaration.getInitializer();
+    const value = literal(raw);
+    const typed = declaration.getTypeNode() !== undefined || (raw !== undefined && Node.isSatisfiesExpression(raw));
+    if (!(typed && (Node.isArrayLiteralExpression(value) || Node.isObjectLiteralExpression(value)))) {
+      return false;
+    }
+    const covered = new Set(
+      directCompositionValues(value)
+        .map(referencedDeclarationIdentity)
+        .filter((identity): identity is string => identity !== undefined),
+    );
+    return [...contributionKeys].every((identity) => covered.has(identity));
+  });
+}
+
+type MutationReceiverIdentity = string;
+
+function receiverRootAndPath(receiver: MorphNode): { root: MorphNode; path: readonly string[] } | undefined {
+  const path: string[] = [];
+  let current = receiver;
+  while (Node.isPropertyAccessExpression(current) || Node.isElementAccessExpression(current)) {
+    if (Node.isPropertyAccessExpression(current)) {
+      path.unshift(current.getName());
+    } else {
+      const argument = current.getArgumentExpression();
+      if (!(argument !== undefined && (Node.isStringLiteral(argument) || Node.isNumericLiteral(argument)))) {
+        return;
+      }
+      path.unshift(argument.getText());
+    }
+    current = current.getExpression();
+  }
+  return { root: current, path };
+}
 
 function mutationReceiverIdentity(receiver: MorphNode): MutationReceiverIdentity | undefined {
-  if (Node.isIdentifier(receiver)) {
-    const authoredLocals = receiver
+  const rooted = receiverRootAndPath(receiver);
+  if (rooted === undefined) {
+    return;
+  }
+  const { root, path } = rooted;
+  if (Node.isIdentifier(root)) {
+    const authoredLocals = root
       .getSourceFile()
       .getVariableDeclarations()
-      .filter((declaration) => declaration.getName() === receiver.getText());
+      .filter((declaration) => declaration.getName() === root.getText());
     const initializer = authoredLocals.length === 1 ? literal(authoredLocals[0]?.getInitializer()) : undefined;
     if (Node.isObjectLiteralExpression(initializer)) {
-      return initializer.compilerNode;
+      return `${nodeIdentity(initializer)}\0${path.join(".")}`;
     }
   }
-  const stable = resolveStableExpression(receiver);
-  if (stable.kind === "resolved") {
-    return stable.value.compilerNode;
-  }
-  const moduleOrigin = resolveModuleMemberOrigin(receiver);
-  if (moduleOrigin.kind === "resolved") {
-    const canonical = moduleOrigin.value.canonical;
-    return canonical.kind === "project" ? canonical.declaration.compilerNode : `external\0${canonical.moduleSpecifier}\0${canonical.exportedName}`;
-  }
-  const lexical = resolveLexicalValueDeclaration(receiver);
-  return lexical.kind === "resolved" ? lexical.value.compilerNode : undefined;
+  const identity = referencedDeclarationIdentity(root);
+  return identity === undefined ? undefined : `${identity}\0${path.join(".")}`;
 }
 
 interface MutationSite {
@@ -212,6 +304,36 @@ interface DispatchSet {
   readonly name: string;
   readonly node: MorphNode;
   readonly keys: ReadonlySet<string>;
+  readonly numericKeys: ReadonlySet<string>;
+  readonly axis: string | undefined;
+}
+
+function numericDispatchKey(node: MorphNode): string | undefined {
+  if (Node.isNumericLiteral(node)) {
+    return node.getText();
+  }
+  if (!Node.isStringLiteral(node)) {
+    return;
+  }
+  const value = node.getLiteralText();
+  return value.trim() !== "" && Number.isFinite(Number(value)) ? value : undefined;
+}
+
+function typeOrigin(node: MorphNode | undefined): string | undefined {
+  if (node === undefined) {
+    return;
+  }
+  const type = node.getType();
+  const declaration = (type.getAliasSymbol() ?? type.getSymbol())?.getDeclarations()[0];
+  return declaration === undefined ? undefined : nodeIdentity(declaration);
+}
+
+function recordKeyAxis(declaration: VariableDeclaration): string | undefined {
+  const typeNode = declaration.getTypeNode();
+  const record = [typeNode?.asKind(SyntaxKind.TypeReference), ...(typeNode?.getDescendantsOfKind(SyntaxKind.TypeReference) ?? [])].find(
+    (reference) => reference?.getTypeName().getText() === "Record",
+  );
+  return typeOrigin(record?.getTypeArguments()[0]);
 }
 
 function recordDispatchSets(file: SourceFile): readonly DispatchSet[] {
@@ -221,25 +343,85 @@ function recordDispatchSets(file: SourceFile): readonly DispatchSet[] {
     }
     const value = literal(declaration.getInitializer());
     const fields = value === undefined ? undefined : namedObjectFields(value);
-    return fields !== undefined && fields.length >= 2 ? [{ name: declaration.getName(), node: declaration, keys: new Set(fields) }] : [];
+    const numericKeys = Node.isObjectLiteralExpression(value)
+      ? new Set(
+          value.getProperties().flatMap((property) => {
+            if (!(Node.isPropertyAssignment(property) || Node.isShorthandPropertyAssignment(property) || Node.isMethodDeclaration(property))) {
+              return [];
+            }
+            const key = numericDispatchKey(property.getNameNode());
+            return key === undefined ? [] : [key];
+          }),
+        )
+      : new Set<string>();
+    return fields !== undefined && fields.length >= 2
+      ? [{ name: declaration.getName(), node: declaration, keys: new Set(fields), numericKeys, axis: recordKeyAxis(declaration) }]
+      : [];
   });
 }
 
 function switchDispatchSets(file: SourceFile): readonly DispatchSet[] {
   return file.getDescendantsOfKind(SyntaxKind.SwitchStatement).flatMap((statement) => {
+    const numericKeys = new Set<string>();
     const keys = statement.getClauses().flatMap((clause) => {
       if (!Node.isCaseClause(clause)) {
         return [];
       }
       const expression = clause.getExpression();
-      return Node.isStringLiteral(expression) ? [expression.getLiteralText()] : [];
+      if (Node.isStringLiteral(expression)) {
+        const key = expression.getLiteralText();
+        if (numericDispatchKey(expression) !== undefined) {
+          numericKeys.add(key);
+        }
+        return [key];
+      }
+      if (Node.isNumericLiteral(expression)) {
+        const key = numericDispatchKey(expression);
+        numericKeys.add(key ?? expression.getText());
+        return [key ?? expression.getText()];
+      }
+      return [];
     });
-    return keys.length >= 2 ? [{ name: `switch(${statement.getExpression().getText()})`, node: statement, keys: new Set(keys) }] : [];
+    return keys.length >= 2
+      ? [
+          {
+            name: `switch(${statement.getExpression().getText()})`,
+            node: statement,
+            keys: new Set(keys),
+            numericKeys,
+            axis: typeOrigin(statement.getExpression()),
+          },
+        ]
+      : [];
   });
+}
+
+function overlapsOnlyOnUnrelatedNumericAxes(left: DispatchSet, right: DispatchSet, common: readonly string[]): boolean {
+  return (
+    common.every((key) => left.numericKeys.has(key) && right.numericKeys.has(key)) &&
+    left.axis !== undefined &&
+    right.axis !== undefined &&
+    left.axis !== right.axis
+  );
 }
 
 function dispatchSets(files: readonly SourceFile[]): readonly DispatchSet[] {
   return files.flatMap((file) => [...recordDispatchSets(file), ...switchDispatchSets(file)]);
+}
+
+function driftedTwinHit(left: DispatchSet, right: DispatchSet): Hit | undefined {
+  if (left.node.getSourceFile() === right.node.getSourceFile()) {
+    return;
+  }
+  const common = [...left.keys].filter((key) => right.keys.has(key));
+  const leftOnly = [...left.keys].filter((key) => !right.keys.has(key));
+  const rightOnly = [...right.keys].filter((key) => !left.keys.has(key));
+  if (common.length < 2 || (leftOnly.length === 0 && rightOnly.length === 0) || overlapsOnlyOnUnrelatedNumericAxes(left, right, common)) {
+    return;
+  }
+  const hit = hitOf(left.node, "registry-candidate:drifted-twins");
+  hit.text = `${left.name} vs ${right.name} (${relPath(right.node.getSourceFile().getFilePath())}): common={${common.toSorted(compareText).join(", ")}} left-only={${leftOnly.toSorted(compareText).join(", ")}} right-only={${rightOnly.toSorted(compareText).join(", ")}}`;
+  return hit;
 }
 
 function driftedTwinHits(files: readonly SourceFile[]): Hit[] {
@@ -251,18 +433,10 @@ function driftedTwinHits(files: readonly SourceFile[]): Hit[] {
       continue;
     }
     for (const right of sets.slice(leftIndex + 1)) {
-      if (left.node.getSourceFile() === right.node.getSourceFile()) {
-        continue;
+      const hit = driftedTwinHit(left, right);
+      if (hit !== undefined) {
+        hits.push(hit);
       }
-      const common = [...left.keys].filter((key) => right.keys.has(key));
-      const leftOnly = [...left.keys].filter((key) => !right.keys.has(key));
-      const rightOnly = [...right.keys].filter((key) => !left.keys.has(key));
-      if (common.length < 2 || (leftOnly.length === 0 && rightOnly.length === 0)) {
-        continue;
-      }
-      const hit = hitOf(left.node, "registry-candidate:drifted-twins");
-      hit.text = `${left.name} vs ${right.name} (${relPath(right.node.getSourceFile().getFilePath())}): common={${common.toSorted(compareText).join(", ")}} left-only={${leftOnly.toSorted(compareText).join(", ")}} right-only={${rightOnly.toSorted(compareText).join(", ")}}`;
-      hits.push(hit);
     }
   }
   return hits;
