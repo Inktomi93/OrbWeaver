@@ -23,8 +23,8 @@ import {
   workloadModeSchema,
   workloadStatusSchema,
 } from "@orb/contracts/workloads";
-import type { UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
-import { brandedId } from "@orb/kit/ids";
+import type { UserId } from "@orb/kit/ids";
+import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { requireOwner } from "#domain/admin";
 import { authedProcedure, t } from "../trpc.ts";
@@ -37,7 +37,7 @@ export const workloadsRouter = t.router({
         // The run mode (default singular). A bulk CREATE-kind additionally carries the mint target.
         mode: workloadModeSchema.default("singular"),
         targetOwnerId: brandedId<UserId>().optional(),
-        dependsOn: z.array(brandedId<WorkloadId>()).optional(),
+        dependsOn: z.array(typeIdSchema(ID_PREFIX.workload)).optional(),
         scheduledAt: z.number().optional(),
       }),
     )
@@ -59,11 +59,11 @@ export const workloadsRouter = t.router({
     }),
 
   cancel: authedProcedure
-    .input(z.object({ id: brandedId<WorkloadId>() }))
+    .input(z.object({ id: typeIdSchema(ID_PREFIX.workload) }))
     .mutation(({ ctx, input }) => ctx.services.workloads.cancel({ id: input.id, caller: ctx.auth })),
 
   retry: authedProcedure
-    .input(z.object({ id: brandedId<WorkloadId>() }))
+    .input(z.object({ id: typeIdSchema(ID_PREFIX.workload) }))
     .mutation(({ ctx, input }) => ctx.services.workloads.retry({ id: input.id, caller: ctx.auth })),
 
   // Also the cross-tenant sweep's IDOR probe target (an id-taking read is what proves owner-scoping). It
@@ -71,7 +71,7 @@ export const workloadsRouter = t.router({
   // reconnect gap-heal reads it for real now (#248 — one run to resolve, no list to drive off), so the
   // exemption is deleted rather than left standing as a false claim about who calls this.
   get: authedProcedure
-    .input(z.object({ id: brandedId<WorkloadId>() }))
+    .input(z.object({ id: typeIdSchema(ID_PREFIX.workload) }))
     .query(({ ctx, input }) => ctx.services.workloads.get({ id: input.id, caller: ctx.auth })),
 
   list: authedProcedure
@@ -127,7 +127,7 @@ export const workloadsRouter = t.router({
   updateSchedule: authedProcedure
     .input(
       z.object({
-        id: brandedId<WorkloadScheduleId>(),
+        id: typeIdSchema(ID_PREFIX.workloadSchedule),
         input: startWorkloadEnvelope.optional(),
         cadence: scheduleCadenceSchema.optional(),
         mode: workloadModeSchema.optional(),
@@ -147,10 +147,10 @@ export const workloadsRouter = t.router({
     }),
 
   deleteSchedule: authedProcedure
-    .input(z.object({ id: brandedId<WorkloadScheduleId>() }))
+    .input(z.object({ id: typeIdSchema(ID_PREFIX.workloadSchedule) }))
     .mutation(({ ctx, input }) => ctx.services.workloads.deleteSchedule({ id: input.id, caller: ctx.auth })),
 
-  setScheduleEnabled: authedProcedure.input(z.object({ id: brandedId<WorkloadScheduleId>(), enabled: z.boolean() })).mutation(({ ctx, input }) =>
+  setScheduleEnabled: authedProcedure.input(z.object({ id: typeIdSchema(ID_PREFIX.workloadSchedule), enabled: z.boolean() })).mutation(({ ctx, input }) =>
     ctx.services.workloads.setScheduleEnabled({
       id: input.id,
       caller: ctx.auth,

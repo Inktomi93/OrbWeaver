@@ -364,13 +364,12 @@ describe("nextRunnableWorkload (dependsOn DAG gate)", () => {
     const db = await freshDb();
     await seedWorkloadRow(db, { id: "dep", kind: "compute-themes", status: "running", scheduledAt: T0, createdAt: T0 });
     for (let index = 0; index < 11; index += 1) {
-      const ownerId = await seedUser(db, `blocked_owner_${String(index).padStart(2, "0")}`);
       await seedWorkloadRow(db, {
         id: `blocked_${String(index).padStart(2, "0")}`,
         kind: "reconcile-stats",
         status: "queued",
         dependsOn: [depId],
-        ownerId,
+        admissionKey: `blocked_${String(index).padStart(2, "0")}`,
         scheduledAt: T0,
         createdAt: T0 + index,
       });
@@ -451,6 +450,24 @@ describe("nextRunnableWorkload (dependsOn DAG gate)", () => {
     });
     expect(await nextRunnableWorkload(db, CONTRIBUTIONS, T0, "sweep")).toBeNull();
     expect(await loadWorkloadStatus(db, castId<WorkloadId>("dependent"))).toBe("failed");
+  });
+
+  test("a planted cross-owner edge cannot turn the scheduler's status read into an unscoped lookup", async () => {
+    const db = await freshDb();
+    const alice = await seedUser(db, "user_alice");
+    const bob = await seedUser(db, "user_bob");
+    const foreign = await seedWorkloadRow(db, { id: "foreign_succeeded", kind: "compute-themes", ownerId: bob, status: "succeeded" });
+    const dependent = await seedWorkloadRow(db, {
+      id: "alice_dependent",
+      kind: "reconcile-stats",
+      ownerId: alice,
+      dependsOn: [foreign],
+    });
+
+    // The fixture bypasses the enqueue validation deliberately. An id-only lookup would observe Bob's
+    // success and dispatch Alice's row; the scoped gate treats the foreign row exactly like an absent dep.
+    expect(await nextRunnableWorkload(db, CONTRIBUTIONS, T0, "sweep")).toBeNull();
+    expect(await loadWorkloadStatus(db, dependent)).toBe("failed");
   });
 
   describe("multi-dependency (EVERY dep must be terminal + succeeded)", () => {

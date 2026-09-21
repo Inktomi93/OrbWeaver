@@ -12,7 +12,7 @@ import type { UserId, WorkloadId } from "@orb/kit/ids";
 import type { StartWorkloadParams } from "../contract/params.ts";
 import type { WorkloadService, WorkloadServiceContext } from "../contract/service.ts";
 import { isActiveKindUniqueViolation, isOwnerForeignKeyViolation } from "../persistence/constraints.ts";
-import { findActiveAdmittedWorkloadId, insertWorkload } from "../persistence/queries.ts";
+import { findActiveAdmittedWorkloadId, findUnavailableWorkloadDependency, insertWorkload } from "../persistence/queries.ts";
 import { activeConflictMessage, assertAdmissible, parseWorkloadInput, resolveAdmissionKey } from "../substrate/params.ts";
 
 /**
@@ -124,6 +124,11 @@ export function createStart(ctx: WorkloadServiceContext): Pick<WorkloadService, 
     const contributions = ctx.getContributions();
     const input = parseWorkloadInput(contributions, params.input);
     const ownerId = authorizeAndResolveOwner(ctx, params, input.kind);
+    const dependsOn = params.dependsOn ?? [];
+    const unavailableDependency = await findUnavailableWorkloadDependency(ctx.db, dependsOn, ownerId);
+    if (unavailableDependency !== undefined) {
+      throw new DomainNotFoundError("workload", unavailableDependency);
+    }
     // The OWNING DOMAIN's precondition, asked AFTER the owner is resolved (a per-user precondition needs the
     // row's enumeration scope) and BEFORE a row exists (#156): work that structurally cannot produce anything
     // is refused at the door, never enqueued to land as a vacuous success.
