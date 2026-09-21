@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "capturedAt": "2026-09-21T08:08:03.644829+00:00",
-  "sourceCommit": "c0e6372a0",
+  "capturedAt": "2026-09-21T09:10:29.085288+00:00",
+  "sourceCommit": "2eb18b459",
   "purpose": "Full AST audit observations and agent reasoning. Dated evidence, not a replacement for GitHub work-item lifecycle.",
   "entryPoints": {
     "coverage": "world-tools-lens-manifest.json",
@@ -42,7 +42,25 @@
     "clientRotTriage": "world-tools-client-rot-triage.json",
     "uiRotTriage": "world-tools-ui-rot-triage.json",
     "knipAstIntegrationAudit": "world-tools-knip-ast-integration-audit.json",
-    "knipGrantRepairReview": "world-tools-knip-grant-review.json"
+    "knipGrantRepairReview": "world-tools-knip-grant-review.json",
+    "partialLensAudit": "world-tools-partial-lenses-audit.json",
+    "partialLensReview": "world-tools-partial-lenses-review.json",
+    "typeonlyPerformanceRecon": "world-tools-typeonly-performance-recon.json",
+    "regkeysExhaustiveTriage": "world-tools-regkeys-triage.json",
+    "regkeysCleanup": "world-tools-regkeys-cleanup.json",
+    "regkeysCleanupReview": "world-tools-regkeys-cleanup-review.json",
+    "wiringGapTriage": "world-tools-wiring-gap-triage.json",
+    "columnsTriage": "world-tools-columns-triage.json",
+    "apiSurfaceTriage": "world-tools-apisurface-triage.json",
+    "stringyTriage": "world-tools-stringy-triage.json",
+    "prodonlyClientTriage": "world-tools-prodonly-client-triage.json",
+    "candidateLensMatrix": "world-tools-candidate-lens-matrix.json",
+    "columnsTriageReview": "world-tools-columns-triage-review.json",
+    "livenessStringyCleanup": "world-tools-liveness-stringy-cleanup.json",
+    "livenessStringyRereview": "world-tools-liveness-stringy-rereview.json",
+    "imageryAttributionCleanup": "world-tools-imagery-attribution-cleanup.json",
+    "imageryAttributionReview": "world-tools-imagery-attribution-review.json",
+    "columnProvenanceCleanup": "world-tools-column-provenance-cleanup.json"
   },
   "limitations": [
     "30 CLI verbs identified; coverage remains incomplete. A candidate is not a confirmed defect or deletion authorization.",
@@ -636,6 +654,132 @@
       "sourceSha256": "f3e72aa981e47d8140b763b267fb3a236e0282297951750fd66100c27baeadc4",
       "sha256": "f3e72aa981e47d8140b763b267fb3a236e0282297951750fd66100c27baeadc4",
       "bytes": 4305
+    },
+    {
+      "file": "world-tools-partial-lenses-audit.json",
+      "source": "/tmp/world-tools-partial-lenses-audit.json",
+      "sourceSha256": "c3f33fc19d6b7a2c99559149c6cc904a5f6b82b177415df17f75a237a74762cb",
+      "sha256": "c3f33fc19d6b7a2c99559149c6cc904a5f6b82b177415df17f75a237a74762cb",
+      "bytes": 187357
+    },
+    {
+      "file": "world-tools-partial-lenses-review.json",
+      "source": "/tmp/world-tools-partial-lenses-review.json",
+      "sourceSha256": "958efc7b3b0ae737265f7a8ce0e04e26daaa805c59b9ac0c08d455a9f295f177",
+      "sha256": "958efc7b3b0ae737265f7a8ce0e04e26daaa805c59b9ac0c08d455a9f295f177",
+      "bytes": 7028
+    },
+    {
+      "file": "world-tools-typeonly-performance-recon.json",
+      "source": "/tmp/world-tools-typeonly-performance-recon.json",
+      "sourceSha256": "e693db0b98737dd907c0196e94bb9db64630ba2d5b5d58e8959ede7371d780a8",
+      "sha256": "e693db0b98737dd907c0196e94bb9db64630ba2d5b5d58e8959ede7371d780a8",
+      "bytes": 17923
+    },
+    {
+      "file": "world-tools-regkeys-triage.json",
+      "source": "/tmp/world-tools-regkeys-triage.json",
+      "sourceSha256": "7b6ef33c7ef6abdab11616ec480ce5bf712a25bd6fd6292d86f36c281b586398",
+      "sha256": "7b6ef33c7ef6abdab11616ec480ce5bf712a25bd6fd6292d86f36c281b586398",
+      "bytes": 711422
+    },
+    {
+      "file": "world-tools-regkeys-cleanup.json",
+      "source": "/tmp/world-tools-regkeys-cleanup.json",
+      "sourceSha256": "d636509960e8726003bfa3555a0da1c9af3224ca6106954319c9784471a7be87",
+      "sha256": "d636509960e8726003bfa3555a0da1c9af3224ca6106954319c9784471a7be87",
+      "bytes": 4787
+    },
+    {
+      "file": "world-tools-regkeys-cleanup-review.json",
+      "source": "/tmp/world-tools-regkeys-cleanup-review.json",
+      "sourceSha256": "cc06e945396398a92a10c6bb8d96a3160a7e245c6993762203cf764ea1750bda",
+      "sha256": "cc06e945396398a92a10c6bb8d96a3160a7e245c6993762203cf764ea1750bda",
+      "bytes": 1519
+    },
+    {
+      "file": "world-tools-wiring-gap-triage.json",
+      "source": "/tmp/world-tools-wiring-gap-triage.json",
+      "sourceSha256": "6adc0290dc13663d323d7f6db84f52ba4c3546ca131ef3c13411f9039f33373b",
+      "sha256": "6adc0290dc13663d323d7f6db84f52ba4c3546ca131ef3c13411f9039f33373b",
+      "bytes": 25462
+    },
+    {
+      "file": "world-tools-columns-triage.json",
+      "source": "/tmp/world-tools-columns-triage.json",
+      "sourceSha256": "9268e0d222d3059e679e05b413a0045acebc95c1b6dd2e4990acce9748cbd2f1",
+      "sha256": "9268e0d222d3059e679e05b413a0045acebc95c1b6dd2e4990acce9748cbd2f1",
+      "bytes": 28795
+    },
+    {
+      "file": "world-tools-apisurface-triage.json",
+      "source": "/tmp/world-tools-apisurface-triage.json",
+      "sourceSha256": "eaeaa5542067c53e377944ae42d650d46fc57abf120f7dfb40fde357002fb96c",
+      "sha256": "eaeaa5542067c53e377944ae42d650d46fc57abf120f7dfb40fde357002fb96c",
+      "bytes": 6586656
+    },
+    {
+      "file": "world-tools-stringy-triage.json",
+      "source": "/tmp/world-tools-stringy-triage.json",
+      "sourceSha256": "dd1cbcfdec24a5f41ee9c123d372a29b5ffb53b152943cd133867561857a9c8b",
+      "sha256": "dd1cbcfdec24a5f41ee9c123d372a29b5ffb53b152943cd133867561857a9c8b",
+      "bytes": 2268
+    },
+    {
+      "file": "world-tools-prodonly-client-triage.json",
+      "source": "/tmp/world-tools-prodonly-client-triage.json",
+      "sourceSha256": "153335df50374124add8cd55fd132a1913f6f671006bbe448e0dd58d922c11a2",
+      "sha256": "153335df50374124add8cd55fd132a1913f6f671006bbe448e0dd58d922c11a2",
+      "bytes": 2332
+    },
+    {
+      "file": "world-tools-candidate-lens-matrix.json",
+      "source": "/tmp/world-tools-candidate-lens-matrix.json",
+      "sourceSha256": "dd9d0025d837ec79e6c09e3012def832db0d1705fdaa9723fa14d9e788aa5cba",
+      "sha256": "dd9d0025d837ec79e6c09e3012def832db0d1705fdaa9723fa14d9e788aa5cba",
+      "bytes": 46323
+    },
+    {
+      "file": "world-tools-columns-triage-review.json",
+      "source": "/tmp/world-tools-columns-triage-review.json",
+      "sourceSha256": "4bfc71b8904cb06b2c4ddd8f3ff0343d92aaec4f1ae23e931073a14d56ac6cb2",
+      "sha256": "4bfc71b8904cb06b2c4ddd8f3ff0343d92aaec4f1ae23e931073a14d56ac6cb2",
+      "bytes": 9578
+    },
+    {
+      "file": "world-tools-liveness-stringy-cleanup.json",
+      "source": "/tmp/world-tools-liveness-stringy-cleanup.json",
+      "sourceSha256": "e17141663babc8bd790af51d4e67bb2bf264ba3038d7d02c0a623a00325a6584",
+      "sha256": "e17141663babc8bd790af51d4e67bb2bf264ba3038d7d02c0a623a00325a6584",
+      "bytes": 2662
+    },
+    {
+      "file": "world-tools-liveness-stringy-rereview.json",
+      "source": "/tmp/world-tools-liveness-stringy-rereview.json",
+      "sourceSha256": "865bad22fb3d270c702a545e7a52f37bfa530d2355d5164ee83a474ef4f69e60",
+      "sha256": "865bad22fb3d270c702a545e7a52f37bfa530d2355d5164ee83a474ef4f69e60",
+      "bytes": 2132
+    },
+    {
+      "file": "world-tools-imagery-attribution-cleanup.json",
+      "source": "/tmp/world-tools-imagery-attribution-cleanup.json",
+      "sourceSha256": "950e4b98be1ea8e30e25a8553d0da275d2dec98d73679a742bf10b5c52c77647",
+      "sha256": "950e4b98be1ea8e30e25a8553d0da275d2dec98d73679a742bf10b5c52c77647",
+      "bytes": 1708
+    },
+    {
+      "file": "world-tools-imagery-attribution-review.json",
+      "source": "/tmp/world-tools-imagery-attribution-review.json",
+      "sourceSha256": "baf1c40a29e835dec86e8f23cca5575359e93f2686d4a254c2d57b87ac3f40f8",
+      "sha256": "baf1c40a29e835dec86e8f23cca5575359e93f2686d4a254c2d57b87ac3f40f8",
+      "bytes": 1218
+    },
+    {
+      "file": "world-tools-column-provenance-cleanup.json",
+      "source": "/tmp/world-tools-column-provenance-cleanup.json",
+      "sourceSha256": "9c9bc96e03469a9df945fc767fa792ee504d20844b455a207825bb4c813932cd",
+      "sha256": "9c9bc96e03469a9df945fc767fa792ee504d20844b455a207825bb4c813932cd",
+      "bytes": 1526
     }
   ],
   "crossCuttingFindings": {
@@ -715,6 +859,70 @@
       "commit": "c0e6372a0",
       "audit": "world-tools-knip-ast-integration-audit.json",
       "review": "world-tools-knip-grant-review.json"
+    },
+    "candidateLensMatrix": {
+      "status": "19 retained runs complete and untruncated on clean HEAD 3a2e348db",
+      "receipt": "world-tools-candidate-lens-matrix.json",
+      "regkeysBaseline": 743,
+      "regkeysFinal": 740
+    },
+    "partialLensAudit": {
+      "status": "160 findings exhaustively adjudicated and independently confirmed",
+      "receipt": "world-tools-partial-lenses-audit.json",
+      "review": "world-tools-partial-lenses-review.json"
+    },
+    "typeonlyPerformance": {
+      "status": "confirmed performance defect; repair tracked in #2548",
+      "receipt": "world-tools-typeonly-performance-recon.json",
+      "peakRssKb": 15377044,
+      "wallSeconds": 2130.13
+    },
+    "columnLensAudit": {
+      "status": "31 findings reviewed; 29 confirmed and two row-level corrections supersede the initial report; bounded repairs in progress",
+      "receipt": "world-tools-columns-triage.json",
+      "review": "world-tools-columns-triage-review.json",
+      "correctedTotals": {
+        "scannerBlindSpots": 9,
+        "liveWiringDefects": 2,
+        "parked": 8,
+        "deadStorage": 2,
+        "provenanceDecisions": 4,
+        "ddlConsumers": 5,
+        "defaultProvenance": 1
+      }
+    },
+    "apiSurfaceAudit": {
+      "status": "9495 rows exhaustively classified; zero deletion candidates, seven tool coverage defects, two owner forks",
+      "receipt": "world-tools-apisurface-triage.json"
+    },
+    "wiringGapAudit": {
+      "status": "10 unwired and 23 clientgap findings adjudicated; follow-up work tracked",
+      "receipt": "world-tools-wiring-gap-triage.json"
+    },
+    "stringyAudit": {
+      "status": "three findings adjudicated; intentional SDK mirror preserved and two repairs committed",
+      "receipt": "world-tools-stringy-triage.json",
+      "cleanup": "world-tools-liveness-stringy-cleanup.json",
+      "commit": "126b65c86",
+      "review": "world-tools-liveness-stringy-rereview.json"
+    },
+    "prodonlyClientAudit": {
+      "status": "three findings adjudicated; deliberate CT seam preserved and Vite worker reach repaired",
+      "receipt": "world-tools-prodonly-client-triage.json",
+      "cleanup": "world-tools-liveness-stringy-cleanup.json",
+      "commit": "126b65c86",
+      "review": "world-tools-liveness-stringy-rereview.json"
+    },
+    "imageryAttribution": {
+      "status": "two missing column producers repaired and independently confirmed",
+      "cleanup": "world-tools-imagery-attribution-cleanup.json",
+      "commit": "bc75001ed",
+      "review": "world-tools-imagery-attribution-review.json"
+    },
+    "columnProvenanceCleanup": {
+      "status": "three truthful write-only provenance exemptions committed; target updatedAt remains an explicit removal/design fork",
+      "cleanup": "world-tools-column-provenance-cleanup.json",
+      "commit": "2eb18b459"
     }
   }
 }

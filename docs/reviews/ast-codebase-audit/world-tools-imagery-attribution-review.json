@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "verdict": "CONFIRMED",
+  "scope": "current uncommitted imagery attribution diff",
+  "findings": [
+    {
+      "claim": "resolved providerId and connectionId flow through runGeneration, persistImage, insertGeneration to imagery_generations",
+      "verdict": "confirmed"
+    },
+    {
+      "claim": "all insertGeneration calls supply required attribution",
+      "verdict": "confirmed",
+      "astGrep": {
+        "tsFiles": 5025,
+        "tsxFiles": 1406,
+        "productionCalls": 1,
+        "testCalls": 3
+      }
+    },
+    {
+      "claim": "fixture connection is real and owned by generation caller; reader-only stranger remains connection-free",
+      "verdict": "confirmed"
+    },
+    {
+      "claim": "readProvenance remains owner scoped and unchanged",
+      "verdict": "confirmed"
+    }
+  ],
+  "verification": {
+    "focusedFiles": 5,
+    "testsPassed": 43,
+    "testsFailed": 0,
+    "diffCheck": "pass"
+  },
+  "limitation": "The in-memory Resolved.ownerId in the factory remains its default rather than the seeded caller, while the real DB connection row is correctly owned. The attribution path uses providerId and connectionId, so this does not change the verified behavior."
+}

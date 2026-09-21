@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "status": "committed",
+  "baseCommit": "3a2e348db9886eb0d4aa545e08804ca357e7eefc",
+  "repair": "Persist resolved providerId and connectionId through runGeneration -> persistImage -> insertGeneration into imagery_generations.provider and connection_id.",
+  "publicContract": "readProvenance unchanged; current design establishes stored attribution but no public attribution projection.",
+  "fixtureDiscipline": "Only seedGenerationOwner creates TEST_CONNECTION_ID; reader-only seedOwner leaves the stranger connection-free.",
+  "verification": {
+    "redFirst": "real DB fan-out test observed both attribution columns null before fix",
+    "imageryTests": "78/78",
+    "serverTypecheck": "pass",
+    "biomeFiles": 8,
+    "eslintFiles": 8,
+    "diffCheck": "pass",
+    "insertGenerationCallSites": {
+      "ts": 4,
+      "tsx": 0,
+      "allRequired": true
+    },
+    "patch": "/tmp/imagery-attribution-fix.patch",
+    "patchSha256": "74bed6955eab4eada2033745ff3791908782ce45cb85e81c99bdf55dc0ab4f4f"
+  },
+  "files": [
+    "packages/server/src/domain/imagery/persistence/queries.ts",
+    "packages/server/src/domain/imagery/substrate/generate-core.ts",
+    "tests/server/domain/imagery/_support.ts",
+    "tests/server/domain/imagery/persistence/queries.int.test.ts",
+    "tests/server/domain/imagery/substrate/generate-core.int.test.ts",
+    "tests/server/domain/imagery/verbs/edit-image.int.test.ts",
+    "tests/server/domain/imagery/verbs/generate-picture.int.test.ts",
+    "tests/server/domain/imagery/verbs/read-provenance.int.test.ts"
+  ],
+  "commit": "bc75001ed",
+  "review": {
+    "verdict": "CONFIRMED",
+    "receipt": "/tmp/world-tools-imagery-attribution-review.json"
+  }
+}

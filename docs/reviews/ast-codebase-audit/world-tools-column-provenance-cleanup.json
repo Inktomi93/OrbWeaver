@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "status": "committed",
+  "commit": "2eb18b459",
+  "baseAudit": "/tmp/world-tools-columns-triage.json",
+  "correctedReview": "/tmp/world-tools-columns-triage-review.json",
+  "changes": [
+    {
+      "column": "embed_generations.connection_ref",
+      "disposition": "reasoned exemption",
+      "reason": "Immutable original connection id retained only for deleted-connection diagnosis; never used to bypass the nullable live FK."
+    },
+    {
+      "column": "embed_space_state.completed_at",
+      "disposition": "reasoned exemption",
+      "reason": "Diagnostic completion time on accepted sweep receipt/promotion; correctness reads generation and epoch."
+    },
+    {
+      "column": "plugin_assets.fetched_at",
+      "disposition": "reasoned exemption",
+      "reason": "Last fetch/unpack provenance; asset link liveness remains reference-based."
+    },
+    {
+      "column": "embed_generation_targets.updated_at",
+      "disposition": "left unexempted",
+      "reason": "No consumer or active diagnostic contract; recommended removal or explicit future contract."
+    }
+  ],
+  "verification": {
+    "astGrep": {
+      "tsFiles": 2623,
+      "tsxFiles": 805,
+      "productionReadsForTargets": 0
+    },
+    "focusedColumnMarkerTest": "1 passed",
+    "biomeFiles": 2,
+    "diffCheck": "pass",
+    "reviewHistory": [
+      "initial marker review refuted connectionRef end-condition wording",
+      "wording corrected to end when deleted-connection diagnosis no longer needs original id"
+    ]
+  }
+}

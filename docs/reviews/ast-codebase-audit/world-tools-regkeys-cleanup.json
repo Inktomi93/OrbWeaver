@@ -1,0 +1,122 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-21T08:36:54.794Z",
+  "commit": "3a2e348db9886eb0d4aa545e08804ca357e7eefc",
+  "sourceTriage": {
+    "path": "/tmp/world-tools-regkeys-triage.json",
+    "sha256": "7b6ef33c7ef6abdab11616ec480ce5bf712a25bd6fd6292d86f36c281b586398",
+    "unresolvedInputCount": 3
+  },
+  "scope": "three confirmed regkeys drift repairs only",
+  "sourceEdits": [
+    {
+      "registry": "CHAT_OP_CODES",
+      "row": "compactionEmpty",
+      "action": "kept registry row; replaced raw compaction_empty throw argument with CHAT_OP_CODES.compactionEmpty",
+      "files": [
+        "packages/server/src/domain/chat/verbs/compaction.ts",
+        "tests/server/domain/chat/verbs/compaction.int.test.ts"
+      ]
+    },
+    {
+      "registry": "CREDENTIALS_OP_CODES",
+      "row": "metadataInvalid",
+      "action": "removed stale reason-code row; added integration control for retired/malformed metadata degrading to apiKey",
+      "files": [
+        "packages/server/src/domain/credentials/contract/errors.ts",
+        "tests/server/domain/credentials/verbs/resolve.int.test.ts"
+      ]
+    },
+    {
+      "registry": "SETTINGS_OP_CODES",
+      "row": "incoherentRoleModel",
+      "action": "removed stale reason-code row and corrected living settings service/design prose after routing-coherence deletion",
+      "files": [
+        "packages/server/src/domain/settings/contract/errors.ts",
+        "packages/server/src/domain/settings/contract/service.ts",
+        "docs/design/orbweaver-inference-package.md"
+      ]
+    }
+  ],
+  "redFirst": {
+    "method": "exact ast-grep TS+TSX plus textual corroboration against the unmodified candidate source",
+    "controls": [
+      {
+        "claim": "compaction throw did not consume the registry row",
+        "failingPattern": "new ChatOperationError(CHAT_OP_CODES.compactionEmpty, $$$ARGS)",
+        "beforeMatches": 0,
+        "positiveControlPattern": "new ChatOperationError(\"compaction_empty\", $$$ARGS)",
+        "positiveControlBeforeMatches": 1
+      },
+      {
+        "claim": "metadataInvalid had no TS or TSX consumer",
+        "pattern": "CREDENTIALS_OP_CODES.metadataInvalid",
+        "beforeMatches": {
+          "ts": 0,
+          "tsx": 0
+        },
+        "positiveControlPattern": "CREDENTIALS_OP_CODES.decryptFailed",
+        "positiveControlBeforeMatches": 2,
+        "textualCorroboration": "credential_metadata_invalid occurred only in its declaration plus frozen architecture history"
+      },
+      {
+        "claim": "incoherentRoleModel had no TS or TSX consumer",
+        "pattern": "SETTINGS_OP_CODES.incoherentRoleModel",
+        "beforeMatches": {
+          "ts": 0,
+          "tsx": 0
+        },
+        "positiveControlPattern": "SETTINGS_OP_CODES.reservedKey",
+        "positiveControlBeforeMatches": 1,
+        "textualCorroboration": "incoherent_role_model occurred only in the stale declaration, stale service prose, and living design deletion checklist"
+      }
+    ]
+  },
+  "postEditProof": {
+    "canonicalCompactionThrowMatches": 1,
+    "rawCompactionThrowMatches": 0,
+    "metadataInvalidTsMatches": 0,
+    "metadataInvalidTsxMatches": 0,
+    "incoherentRoleModelTsMatches": 0,
+    "incoherentRoleModelTsxMatches": 0,
+    "livingTextualSweepMatchesForRetiredSpellings": 0,
+    "frozenHistoryPreserved": [
+      "docs/architecture/history/neo-test-steal-list.md"
+    ]
+  },
+  "verification": [
+    {
+      "command": "pnpm test:scoped tests/server/domain/chat/verbs/compaction.int.test.ts tests/server/domain/credentials/verbs/resolve.int.test.ts tests/server/domain/settings/verbs/export-user-settings.int.test.ts tests/server/domain/settings/verbs/import-user-settings.int.test.ts",
+      "result": "PASS: 4 files, 31 tests",
+      "report": "reports/runs/test/orbweaver-122951-2026-09-21T08-34-52-444Z/test-report.json"
+    },
+    {
+      "command": "pnpm typecheck --config packages/server/tsconfig.json",
+      "result": "PASS: 1 runnable native program"
+    },
+    {
+      "command": "pnpm exec biome check <6 changed TS files> --diagnostic-level=error",
+      "result": "PASS: 6 files, no fixes"
+    },
+    {
+      "command": "pnpm exec eslint <6 changed TS files>",
+      "result": "PASS"
+    },
+    {
+      "command": "pnpm check:docs docs/design/orbweaver-inference-package.md",
+      "result": "PASS: 1 file formatted"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "constraints": {
+    "heavyCommandsRun": [],
+    "astToolSourcesTouched": false,
+    "auditIndexTouched": false,
+    "fullRegkeysRerun": false,
+    "note": "The columns candidate retained heap ownership; cleanup used only focused structural searches, tests, lint, docs format check, and one server native type program."
+  },
+  "remainingUnresolvedRows": []
+}

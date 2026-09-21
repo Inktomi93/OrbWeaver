@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "lens": "prodonly client",
+  "sourceRun": "/tmp/world-tools-candidate-lens-runs/prodonly-client.stdout",
+  "sourceRunSummary": {
+    "scanned": 1318,
+    "findings": 3,
+    "status": "complete"
+  },
+  "corroboration": {
+    "astGrep": {
+      "languages": [
+        "ts",
+        "tsx"
+      ],
+      "workerConstructionHits": 1,
+      "workerConstruction": "packages/client/src/features/plugin/lib/ui-guest/plugin-ui-guest-host.ts:70"
+    },
+    "literalSearch": "rg confirmed the worker imports ui-guest-realm.ts at lines 45-46 and the reading-port constant is imported only by its named CT"
+  },
+  "findings": [
+    {
+      "file": "packages/client/src/features/chat/lib/chat-reading-port.ts",
+      "line": 38,
+      "symbol": "CHAT_READING_PORT_MIN_PX",
+      "classification": "intentional-test-only-contract",
+      "disposition": "preserve",
+      "reason": "Named rendered-layout budget. The file header documents why Playwright CT cannot import the TSX owner and why the zero-import TS leaf is the enforced one-home seam. Production component points readers to it; the CT consumes it."
+    },
+    {
+      "file": "packages/client/src/features/plugin/lib/ui-guest/ui-guest.worker.ts",
+      "line": 30,
+      "symbol": "worker module",
+      "classification": "prodonly-false-positive",
+      "disposition": "fix-tool-after-matrix",
+      "reason": "Vite production worker entry is created by new Worker(new URL(\"./ui-guest.worker.ts\", import.meta.url), ...). The liveness graph does not recognize this bundler entry edge."
+    },
+    {
+      "file": "packages/client/src/features/plugin/lib/ui-guest/ui-guest-realm.ts",
+      "line": 13,
+      "symbol": "worker dependency",
+      "classification": "prodonly-transitive-false-positive",
+      "disposition": "fix-tool-after-matrix",
+      "reason": "The live worker imports this module at lines 45-46. It becomes reachable when the missing Worker(new URL(...)) production edge is represented."
+    }
+  ],
+  "counts": {
+    "preserve": 1,
+    "toolDefect": 2,
+    "deleteProductionBehavior": 0
+  },
+  "proposedRepair": "Teach production liveness graph construction to resolve static relative new Worker(new URL(path, import.meta.url), ...) targets as production edges, with red-first TS and TSX fixtures plus a negative dynamic-path control."
+}

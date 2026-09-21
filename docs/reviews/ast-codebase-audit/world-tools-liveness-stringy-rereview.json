@@ -1,0 +1,41 @@
+{
+  "verdict": "CONFIRMED",
+  "scope": [
+    "tooling/src/ast/ops/prodonly.ts",
+    "tests/tooling/ast/index.test.ts",
+    "packages/client/src/state/plugin-page-selection-store.ts",
+    "tests/client/state/plugin-page-selection-store.test.ts",
+    "packages/ui/src/lib/class-merge.ts",
+    "tests/client/features/plugin/_ct-stories.tsx",
+    "tests/client/features/plugin/components/plugin-primary-cta.suite.ct.tsx",
+    "tests/client/features/plugin/surfaces/page-dialog-frame.suite.ct.tsx",
+    "tests/client/features/plugin/lib/extensions-section.ct.tsx"
+  ],
+  "findings": [],
+  "evidence": {
+    "workerSpecifier": "staticWorkerSpecifier returns literal text only for ts-morph StringLiteral and NoSubstitutionTemplateLiteral nodes; identifiers and template expressions return undefined.",
+    "workerReachability": "The focused in-memory prodonly control makes string-literal TS, string-literal TSX, and no-substitution-template TS workers reachable, including each worker's static dependency.",
+    "negativeControls": "The same control reports identifier-computed dynamic.worker.ts, substitution.worker.ts, and ordinary-url-target.ts as prod-unreachable.",
+    "pluginPageBrand": "PluginPageKey remains Branded<PluginPageKey>; the only two selectPluginPageFromList calls receive pluginPageKey(...) or PluginPageView.key, and the type test rejects plain string.",
+    "classMergeAlias": "RuntimeClassResult remains absent; its former sites use string directly without runtime changes."
+  },
+  "checks": [
+    {
+      "command": "pnpm test:scoped tests/tooling/ast/index.test.ts",
+      "result": "PASS: 1 file, 98 tests"
+    },
+    {
+      "command": "ast-grep selectPluginPageFromList over TS and TSX with --inspect summary",
+      "result": "PASS: 6415 TS and 1407 TSX files scanned; exactly two calls, both branded"
+    },
+    {
+      "command": "ast-grep RuntimeClassResult declaration plus rg corroboration",
+      "result": "PASS: no declaration or literal remains"
+    }
+  ],
+  "excluded": [
+    "No full pnpm ast lens run",
+    "No broad TypeScript program",
+    "No unrelated imagery or documentation changes"
+  ]
+}

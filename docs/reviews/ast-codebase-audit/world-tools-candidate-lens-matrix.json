@@ -1,0 +1,1348 @@
+{
+  "schemaVersion": 1,
+  "report": "world-tools candidate/audit lens evidence matrix",
+  "generatedAt": "2026-09-21T08:51:51.957Z",
+  "outcome": "COMPLETE_EVIDENCE_MATRIX_NOT_ADJUDICATION",
+  "source": {
+    "worktree": "/home/inktomi/.codex/worktrees/world-aware-tools/orbweaver",
+    "initialHead": "b1e7a1a1018178cc4739bca3e6ffc366990a25c0",
+    "initialStatus": "",
+    "finalHead": "3a2e348db9886eb0d4aa545e08804ca357e7eefc",
+    "finalStatusPorcelainSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "finalStatusInterpretation": "empty porcelain at final regkeys launch",
+    "boundaryCommit": {
+      "sha": "3a2e348db9886eb0d4aa545e08804ca357e7eefc",
+      "committedAt": "2026-09-21T02:36:40-06:00",
+      "subject": "fix(server): retire stale operation codes"
+    },
+    "postMatrixConcurrentState": {
+      "observedAt": "2026-09-21T08:52:13.277Z",
+      "status": [
+        " M tests/tooling/ast/index.test.ts"
+      ],
+      "note": "This edit appeared after the final regkeys run completed and after its clean status hash was captured; it was not part of the measured final corpus."
+    }
+  },
+  "execution": {
+    "serialized": true,
+    "maxFlag": 100000,
+    "json": true,
+    "runCount": 19,
+    "runs": [
+      {
+        "name": "regkeys-all",
+        "command": "pnpm ast regkeys --all --json --max 100000",
+        "exit": 0,
+        "start": "2026-09-21T02:26:16-06:00",
+        "end": "2026-09-21T02:27:11-06:00",
+        "sourcePhase": "pre-cleanup baseline",
+        "result": {
+          "label": "regkeys (all registries)",
+          "total": 743,
+          "shown": 743,
+          "meta": {
+            "verb": "regkeys",
+            "scope": "corpus:harness-globs(packages/*/src/**/*.ts,packages/*/src/**/*.tsx,tests/**/*.ts,tests/**/*.tsx,tooling/src/**/*.ts,tooling/src/**/*.tsx,scripts/**/*.ts,scripts/**/*.tsx,!scripts/probes/st-goldens/sillytavern-runtime/**)+registries:324+path:registry-files",
+            "langs": {
+              "ts": 236,
+              "tsx": 1
+            },
+            "scanned": 237,
+            "skipped": 7611,
+            "skippedBy": {
+              "out-of-scope": 7611,
+              "out-of-filter": 0,
+              "test-file": 0,
+              "declaration-file": 0
+            },
+            "matches": 743,
+            "status": "complete"
+          }
+        },
+        "resources": {
+          "wall": "0:55.76",
+          "peakRssKiB": 6481940
+        },
+        "artifacts": {
+          "stdout": {
+            "path": "/tmp/world-tools-candidate-lens-runs/regkeys-all.stdout",
+            "sha256": "3c28ed21bc77d17bb0939467a5f381ebebee3e289d661479562a11bb64d650c2",
+            "bytes": 195760
+          },
+          "stderr": {
+            "path": "/tmp/world-tools-candidate-lens-runs/regkeys-all.stderr",
+            "sha256": "81cc5521168fe8d7dffc9627f3f78888f3ef9c637aca1b988f607b4d028eecee",
+            "bytes": 192799
+          }
+        }
+      },
+      {
+        "name": "unwired-global",
+        "command": "pnpm ast unwired --json --max 100000",
+        "exit": 0,
+        "start": "2026-09-21T02:27:29-06:00",
+        "end": "2026-09-21T02:27:57-06:00",
+        "sourcePhase": "pre-3a2e348db",
+        "result": {
+          "label": "unwired (423 server procedure(s) enumerated)",
+          "total": 10,
+          "shown": 10,
+          "meta": {
+            "verb": "unwired",
+            "scope": "corpus:native-program-authored-roots(per-tsconfig)+workspace+procs:423",
+            "langs": {
+              "dts": 9,
+              "ts": 6452,
+              "tsx": 1404
+            },
+            "scanned": 7865,
+            "skipped": 0,
+            "skippedBy": {
+              "out-of-scope": 0,
+              "out-of-filter": 0,
+              "test-file": 0,
+              "declaration-file": 0
+            },
+            "matches": 10,
+            "status": "complete"
+          }
+        },
+        "resources": {
+          "wall": "0:27.69",
+          "peakRssKiB": 5811876
+        },
+        "artifacts": {
+          "stdout": {
+            "path": "/tmp/world-tools-candidate-lens-runs/unwired-global.stdout",
+            "sha256": "0f61541b18d3078aeac2846c6cc5488860d8b9153528f6dc27df630b792e3c8d",
+            "bytes": 2459
+          },
+          "stderr": {
+            "path": "/tmp/world-tools-candidate-lens-runs/unwired-global.stderr",
+            "sha256": "faea4580183ca374da1da64b4f1237eb266c529ad996629f6d3e9009ad06e06e",
+            "bytes": 1001
+          }
+        }
+      },
+      {
+        "name": "clientgap-contracts",
+        "command": "pnpm ast clientgap contracts --json --max 100000",
+        "exit": 0,
+        "start": "2026-09-21T02:28:16-06:00",
+        "end": "2026-09-21T02:29:11-06:00",
+        "sourcePhase": "pre-3a2e348db",
+        "result": {
+          "label": "clientgap contracts (client-facing *View/*Summary names)",
+          "total": 23,
+          "shown": 23,
+          "meta": {
+            "verb": "clientgap",
+            "scope": "corpus:native-program-authored-roots(per-tsconfig)+path:/packages/contracts/src/",
+            "langs": {
+              "ts": 129
+            },
+            "scanned": 129,
+            "skipped": 7736,
+            "skippedBy": {
+              "out-of-scope": 7736,
+              "out-of-filter": 0,
+              "test-file": 0,
+              "declaration-file": 0
+            },
+            "matches": 23,
+            "status": "complete"
+          }
+        },
+        "resources": {
+          "wall": "0:54.49",
+          "peakRssKiB": 8032796
+        },
+        "artifacts": {
+          "stdout": {
+            "path": "/tmp/world-tools-candidate-lens-runs/clientgap-contracts.stdout",
+            "sha256": "3e34d175c46ef3aff3f73ab1557a2dd03028efee66e6244b1d3b8b9ab1fef694",
+            "bytes": 4657
+          },
+          "stderr": {
+            "path": "/tmp/world-tools-candidate-lens-runs/clientgap-contracts.stderr",
+            "sha256": "46825e0eda8ca99f444560a14a1ab7d3960d032909470e5b933bd61e0b10930b",
+            "bytes": 1212
+          }
+        }
+      },
+      {
+        "name": "respell-global",
+        "command": "pnpm ast respell --json --max 100000",
+        "exit": 0,
+        "start": "2026-09-21T02:30:01-06:00",
+        "end": "2026-09-21T02:30:42-06:00",
+        "sourcePhase": "pre-3a2e348db",
+        "result": {
+          "label": "respell (all domains)",
+          "total": 0,
+          "shown": 0,
+          "meta": {
+            "verb": "respell",
+            "scope": "corpus:native-program-authored-roots(per-tsconfig)+domains:29+path:domain-contracts(29)",
+            "langs": {
+              "ts": 262
+            },
+            "scanned": 262,
+            "skipped": 7603,
+            "skippedBy": {
+              "out-of-scope": 7603,
+              "out-of-filter": 0,
+              "test-file": 0,
+              "declaration-file": 0
+            },
+            "matches": 0,
+            "status": "complete"
+          }
+        },
+        "resources": {
+          "wall": "0:41.22",
+          "peakRssKiB": 7169064
+        },
+        "artifacts": {
+          "stdout": {
+            "path": "/tmp/world-tools-candidate-lens-runs/respell-global.stdout",
+            "sha256": "e0caee054541d908401c4c55628f4d607bb0ac0e3e081ca04f00fa3fef83ba77",
+            "bytes": 436
+          },
+          "stderr": {
+            "path": "/tmp/world-tools-candidate-lens-runs/respell-global.stderr",
+            "sha256": "ffbff97a2a1432bf18fa471498d94c4d3258e37c25d657f02dc859bdf03b8f1d",
+            "bytes": 1385
+          }
+        }
+      },
+      {
+        "name": "columns-all",
+        "command": "pnpm ast columns --all --json --max 100000",
+        "exit": 0,
+        "start": "2026-09-21T02:31:00-06:00",
+        "end": "2026-09-21T02:36:17-06:00",
+        "sourcePhase": "pre-3a2e348db",
+        "result": {
+          "label": "columns (all tables)",
+          "total": 31,
+          "shown": 31,
+          "meta": {
+            "verb": "columns",
+            "scope": "corpus:native-program-authored-roots(per-tsconfig)+tables:103+path:schema-files",
+            "langs": {
+              "ts": 30
+            },
+            "scanned": 30,
+            "skipped": 7835,
+            "skippedBy": {
+              "out-of-scope": 7835,
+              "out-of-filter": 0,
+              "test-file": 0,
+              "declaration-file": 0
+            },
+            "matches": 31,
+            "status": "complete"
+          }
+        },
+        "resources": {
+          "wall": "5:16.60",
+          "peakRssKiB": 15366776
+        },
+        "artifacts": {
+          "stdout": {
+            "path": "/tmp/world-tools-candidate-lens-runs/columns-all.stdout",
+            "sha256": "654f01f03f18f6a244d38a77b08bac767ad7e7da417a756a75c144cd2b367f5a",
+            "bytes": 10294
+          },
+          "stderr": {
+            "path": "/tmp/world-tools-candidate-lens-runs/columns-all.stderr",
+            "sha256": "759dab267ff8a706ab4887624744adf1d24acd2daeb936dcab3332e4a7d1f4fe",
+            "bytes": 19396
+          }
+        }
+      },
+      {
+        "name": "stringy-global",
+        "command": "pnpm ast stringy --json --max 100000",
+        "exit": 0,
+        "start": "2026-09-21T02:36:36-06:00",
+        "end": "2026-09-21T02:37:10-06:00",
+        "sourcePhase": "overlapped-3a2e348db",
+        "result": {
+          "label": "stringy (all packages)",
+          "total": 3,
+          "shown": 3,
+          "meta": {
+            "verb": "stringy",
+            "scope": "corpus:native-program-authored-roots(per-tsconfig)+path:/packages/",
+            "langs": {
+              "dts": 3,
+              "ts": 2627,
+              "tsx": 805
+            },
+            "scanned": 3435,
+            "skipped": 4430,
+            "skippedBy": {
+              "out-of-scope": 4430,
+              "out-of-filter": 0,
+              "test-file": 0,
+              "declaration-file": 0
+            },
+            "matches": 3,
+            "status": "complete"
+          }
+        },
+        "resources": {
+          "wall": "0:33.67",
+          "peakRssKiB": 7223580
+        },
+        "artifacts": {
+          "stdout": {
+            "path": "/tmp/world-tools-candidate-lens-runs/stringy-global.stdout",
+            "sha256": "7e9bf10c4924c1787ee701bac3b2b6caa143cdc2e84a18f600c4ef0b21c85a4a",
+            "bytes": 908
+          },
+          "stderr": {
+            "path": "/tmp/world-tools-candidate-lens-runs/stringy-global.stderr",
+            "sha256": "b158dea4092a3e2f99078596d5bc3e87650c498b799ced4f6f6cb584a8490b0f",
+            "bytes": 1808
+          }
+        }
+      },
+      {
+        "name": "apisurface-global",
+        "command": "pnpm ast apisurface --json --max 100000",
+        "exit": 0,
+        "start": "2026-09-21T02:37:27-06:00",
+        "end": "2026-09-21T02:38:51-06:00",
+        "sourcePhase": "post-3a2e348db",
+        "result": {
+          "label": "apisurface (all packages) (INTERNAL/TEST-ONLY/UNUSED — pass --public for PUBLIC)",
+          "total": 9495,
+          "shown": 9495,
+          "meta": {
+            "verb": "apisurface",
+            "scope": "corpus:native-program-authored-roots(per-tsconfig)+path:/packages/",
+            "langs": {
+              "dts": 3,
+              "ts": 2627,
+              "tsx": 805
+            },
+            "scanned": 3435,
+            "skipped": 4430,
+            "skippedBy": {
+              "out-of-scope": 4430,
+              "out-of-filter": 0,
+              "test-file": 0,
+              "declaration-file": 0
+            },
+            "matches": 9495,
+            "status": "complete"
+          }
+        },
+        "resources": {
+          "wall": "1:23.21",
+          "peakRssKiB": 9727020
+        },
+        "artifacts": {
+          "stdout": {
+            "path": "/tmp/world-tools-candidate-lens-runs/apisurface-global.stdout",
+            "sha256": "438fe02a0e293bd2f512c769cd3cdd965d8ead124595edc74140b68510c00ea3",
+            "bytes": 2682329
+          },
+          "stderr": {
+            "path": "/tmp/world-tools-candidate-lens-runs/apisurface-global.stderr",
+            "sha256": "dd8bb02336ee3e543bea18f7a0a817f63e2d661940d5dff20b950ff118fe8cbf",
+            "bytes": 2265
+          }
+        }
+      },
+      {
+        "name": "prodonly-kit",
+        "command": "pnpm ast prodonly kit --json --max 100000",
+        "exit": 0,
+        "start": "2026-09-21T02:39:20-06:00",
+        "end": "2026-09-21T02:39:53-06:00",
+        "sourcePhase": "post-3a2e348db",
+        "result": {
+          "label": "prodonly kit (entry closure from package.json exports + runtime tool entries)",
+          "total": 0,
+          "shown": 0,
+          "meta": {
+            "verb": "prodonly",
+            "scope": "corpus:native-program-authored-roots(per-tsconfig)+path:/packages/kit/src/",
+            "langs": {
+              "ts": 64
+            },
+            "scanned": 64,
+            "skipped": 7801,
+            "skippedBy": {
+              "out-of-scope": 7801,
+              "out-of-filter": 0,
+              "test-file": 0,
+              "declaration-file": 0
+            },
+            "matches": 0,
+            "status": "complete"
+          }
+        },
+        "resources": {
+          "wall": "0:32.53",
+          "peakRssKiB": 6648236
+        },
+        "artifacts": {
+          "stdout": {
+            "path": "/tmp/world-tools-candidate-lens-runs/prodonly-kit.stdout",
+            "sha256": "743b0ec8193697a93a20d95073c6256f8e5f70af18fdf1210e99781f32c3843d",
+            "bytes": 478
+          },
+          "stderr": {
+            "path": "/tmp/world-tools-candidate-lens-runs/prodonly-kit.stderr",
+            "sha256": "63620a802fcb98236015609b7760aa49f7f1fa879b6e12a64d7bc1d30f45f685",
+            "bytes": 1015
+          }
+        }
+      },
+      {
+        "name": "prodonly-contracts",
+        "command": "pnpm ast prodonly contracts --json --max 100000",
+        "exit": 0,
+        "start": "2026-09-21T02:39:53-06:00",
+        "end": "2026-09-21T02:40:26-06:00",
+        "sourcePhase": "post-3a2e348db",
+        "result": {
+          "label": "prodonly contracts (entry closure from package.json exports + runtime tool entries)",
+          "total": 0,
+          "shown": 0,
+          "meta": {
+            "verb": "prodonly",
+            "scope": "corpus:native-program-authored-roots(per-tsconfig)+path:/packages/contracts/src/",
+            "langs": {
+              "ts": 129
+            },
+            "scanned": 129,
+            "skipped": 7736,
+            "skippedBy": {
+              "out-of-scope": 7736,
+              "out-of-filter": 0,
+              "test-file": 0,
+              "declaration-file": 0
+            },
+            "matches": 0,
+            "status": "complete"
+          }
+        },
+        "resources": {
+          "wall": "0:33.60",
+          "peakRssKiB": 6638880
+        },
+        "artifacts": {
+          "stdout": {
+            "path": "/tmp/world-tools-candidate-lens-runs/prodonly-contracts.stdout",
+            "sha256": "9847e772e35d8cb8499535178fffcb05cb888a666186c1e57fc1fea65843d424",
+            "bytes": 492
+          },
+          "stderr": {
+            "path": "/tmp/world-tools-candidate-lens-runs/prodonly-contracts.stderr",
+            "sha256": "2ad935f5b9c960aab9ef7f5ee725b18b710d77fa30df7c36f52ad0a202a6ce3e",
+            "bytes": 1036
+          }
+        }
+      },
+      {
+        "name": "prodonly-db",
+        "command": "pnpm ast prodonly db --json --max 100000",
+        "exit": 0,
+        "start": "2026-09-21T02:40:26-06:00",
+        "end": "2026-09-21T02:40:58-06:00",
+        "sourcePhase": "post-3a2e348db",
+        "result": {
+          "label": "prodonly db (entry closure from package.json exports + runtime tool entries)",
+          "total": 0,
+          "shown": 0,
+          "meta": {
+            "verb": "prodonly",
+            "scope": "corpus:native-program-authored-roots(per-tsconfig)+path:/packages/db/src/",
+            "langs": {
+              "ts": 44
+            },
+            "scanned": 44,
+            "skipped": 7821,
+            "skippedBy": {
+              "out-of-scope": 7821,
+              "out-of-filter": 0,
+              "test-file": 0,
+              "declaration-file": 0
+            },
+            "matches": 0,
+            "status": "complete"
+          }
+        },
+        "resources": {
+          "wall": "0:32.15",
+          "peakRssKiB": 6650428
+        },
+        "artifacts": {
+          "stdout": {
+            "path": "/tmp/world-tools-candidate-lens-runs/prodonly-db.stdout",
+            "sha256": "25c0cca49e1fdfc20da65b5b0adf0701388dd1a0353e715c411a5b354a81e023",
+            "bytes": 476
+          },
+          "stderr": {
+            "path": "/tmp/world-tools-candidate-lens-runs/prodonly-db.stderr",
+            "sha256": "7f994dbc0140080853725fa71b12010cd8be5fb640087a25c9f7a1305135f4f3",
+            "bytes": 1012
+          }
+        }
+      },
+      {
+        "name": "prodonly-inference",
+        "command": "pnpm ast prodonly inference --json --max 100000",
+        "exit": 0,
+        "start": "2026-09-21T02:40:58-06:00",
+        "end": "2026-09-21T02:41:31-06:00",
+        "sourcePhase": "post-3a2e348db",
+        "result": {
+          "label": "prodonly inference (entry closure from package.json exports + runtime tool entries)",
+          "total": 0,
+          "shown": 0,
+          "meta": {
+            "verb": "prodonly",
+            "scope": "corpus:native-program-authored-roots(per-tsconfig)+path:/packages/inference/src/",
+            "langs": {
+              "ts": 112
+            },
+            "scanned": 112,
+            "skipped": 7753,
+            "skippedBy": {
+              "out-of-scope": 7753,
+              "out-of-filter": 0,
+              "test-file": 0,
+              "declaration-file": 0
+            },
+            "matches": 0,
+            "status": "complete"
+          }
+        },
+        "resources": {
+          "wall": "0:32.53",
+          "peakRssKiB": 6630668
+        },
+        "artifacts": {
+          "stdout": {
+            "path": "/tmp/world-tools-candidate-lens-runs/prodonly-inference.stdout",
+            "sha256": "9b2b41d9bf78d62c5eb46d74f1d2e791b34da6a6d10e637cbcaa23ef246577a8",
+            "bytes": 492
+          },
+          "stderr": {
+            "path": "/tmp/world-tools-candidate-lens-runs/prodonly-inference.stderr",
+            "sha256": "c248b4d08b5ac472c6b5de6979e934cfe87f173135b77c98a920d8c94a77bfff",
+            "bytes": 1035
+          }
+        }
+      },
+      {
+        "name": "prodonly-server",
+        "command": "pnpm ast prodonly server --json --max 100000",
+        "exit": 0,
+        "start": "2026-09-21T02:41:31-06:00",
+        "end": "2026-09-21T02:42:03-06:00",
+        "sourcePhase": "post-3a2e348db",
+        "result": {
+          "label": "prodonly server (entry closure from package.json exports + runtime tool entries)",
+          "total": 0,
+          "shown": 0,
+          "meta": {
+            "verb": "prodonly",
+            "scope": "corpus:native-program-authored-roots(per-tsconfig)+path:/packages/server/src/",
+            "langs": {
+              "ts": 1391
+            },
+            "scanned": 1391,
+            "skipped": 6474,
+            "skippedBy": {
+              "out-of-scope": 6474,
+              "out-of-filter": 0,
+              "test-file": 0,
+              "declaration-file": 0
+            },
+            "matches": 0,
+            "status": "complete"
+          }
+        },
+        "resources": {
+          "wall": "0:32.30",
+          "peakRssKiB": 6637924
+        },
+        "artifacts": {
+          "stdout": {
+            "path": "/tmp/world-tools-candidate-lens-runs/prodonly-server.stdout",
+            "sha256": "e5bff64a6639d1732007077f503a794ffe15a6c9d12338a12400b074423927bf",
+            "bytes": 488
+          },
+          "stderr": {
+            "path": "/tmp/world-tools-candidate-lens-runs/prodonly-server.stderr",
+            "sha256": "fcbfa02e482fe64c35bbdd3ee57e19128afd25f05d71d9dc6c3a5a1e2769476b",
+            "bytes": 1028
+          }
+        }
+      },
+      {
+        "name": "prodonly-default-content",
+        "command": "pnpm ast prodonly default-content --json --max 100000",
+        "exit": 0,
+        "start": "2026-09-21T02:42:03-06:00",
+        "end": "2026-09-21T02:42:36-06:00",
+        "sourcePhase": "post-3a2e348db",
+        "result": {
+          "label": "prodonly default-content (entry closure from package.json exports + runtime tool entries)",
+          "total": 0,
+          "shown": 0,
+          "meta": {
+            "verb": "prodonly",
+            "scope": "corpus:native-program-authored-roots(per-tsconfig)+path:/packages/default-content/src/",
+            "langs": {
+              "ts": 1
+            },
+            "scanned": 1,
+            "skipped": 7864,
+            "skippedBy": {
+              "out-of-scope": 7864,
+              "out-of-filter": 0,
+              "test-file": 0,
+              "declaration-file": 0
+            },
+            "matches": 0,
+            "status": "complete"
+          }
+        },
+        "resources": {
+          "wall": "0:32.95",
+          "peakRssKiB": 6628264
+        },
+        "artifacts": {
+          "stdout": {
+            "path": "/tmp/world-tools-candidate-lens-runs/prodonly-default-content.stdout",
+            "sha256": "e24a38add671cd9e0b9d04ce8a7eade24fe45e0eae62d9ae2fb2145ee0fee57a",
+            "bytes": 500
+          },
+          "stderr": {
+            "path": "/tmp/world-tools-candidate-lens-runs/prodonly-default-content.stderr",
+            "sha256": "5c71d0307dc4b3a432ef19ef1e8dd4434b3a25c338d70bc71bf2609b3908c594",
+            "bytes": 1049
+          }
+        }
+      },
+      {
+        "name": "prodonly-showcase-plugins",
+        "command": "pnpm ast prodonly showcase-plugins --json --max 100000",
+        "exit": 0,
+        "start": "2026-09-21T02:42:36-06:00",
+        "end": "2026-09-21T02:43:09-06:00",
+        "sourcePhase": "post-3a2e348db",
+        "result": {
+          "label": "prodonly showcase-plugins (entry closure from package.json exports + runtime tool entries)",
+          "total": 0,
+          "shown": 0,
+          "meta": {
+            "verb": "prodonly",
+            "scope": "corpus:native-program-authored-roots(per-tsconfig)+path:/packages/showcase-plugins/src/",
+            "langs": {
+              "ts": 1
+            },
+            "scanned": 1,
+            "skipped": 7864,
+            "skippedBy": {
+              "out-of-scope": 7864,
+              "out-of-filter": 0,
+              "test-file": 0,
+              "declaration-file": 0
+            },
+            "matches": 0,
+            "status": "complete"
+          }
+        },
+        "resources": {
+          "wall": "0:32.42",
+          "peakRssKiB": 6637816
+        },
+        "artifacts": {
+          "stdout": {
+            "path": "/tmp/world-tools-candidate-lens-runs/prodonly-showcase-plugins.stdout",
+            "sha256": "819292e759d68335e0e9bc5082f8ad99741c60eb535498e27f14123616501ae6",
+            "bytes": 502
+          },
+          "stderr": {
+            "path": "/tmp/world-tools-candidate-lens-runs/prodonly-showcase-plugins.stderr",
+            "sha256": "96b4291aebf00499f6476e10484ff1326b47b7e3271376deecd4c8e7af01c050",
+            "bytes": 1052
+          }
+        }
+      },
+      {
+        "name": "prodonly-ui",
+        "command": "pnpm ast prodonly ui --json --max 100000",
+        "exit": 0,
+        "start": "2026-09-21T02:43:09-06:00",
+        "end": "2026-09-21T02:43:41-06:00",
+        "sourcePhase": "post-3a2e348db",
+        "result": {
+          "label": "prodonly ui (entry closure from package.json exports + runtime tool entries)",
+          "total": 0,
+          "shown": 0,
+          "meta": {
+            "verb": "prodonly",
+            "scope": "corpus:native-program-authored-roots(per-tsconfig)+path:/packages/ui/src/",
+            "langs": {
+              "ts": 256,
+              "tsx": 111
+            },
+            "scanned": 367,
+            "skipped": 7498,
+            "skippedBy": {
+              "out-of-scope": 7497,
+              "out-of-filter": 0,
+              "test-file": 0,
+              "declaration-file": 1
+            },
+            "matches": 0,
+            "status": "complete"
+          }
+        },
+        "resources": {
+          "wall": "0:32.79",
+          "peakRssKiB": 6649044
+        },
+        "artifacts": {
+          "stdout": {
+            "path": "/tmp/world-tools-candidate-lens-runs/prodonly-ui.stdout",
+            "sha256": "dca5034f9cf69e13cc483ac770f5949acc6c3ee75a3c3409e51a4c613657a2be",
+            "bytes": 493
+          },
+          "stderr": {
+            "path": "/tmp/world-tools-candidate-lens-runs/prodonly-ui.stderr",
+            "sha256": "da1da26de4ff3f483f75f1c1526e1b37475a8a12cf75fd661a23c8b869f08e08",
+            "bytes": 1041
+          }
+        }
+      },
+      {
+        "name": "prodonly-client",
+        "command": "pnpm ast prodonly client --json --max 100000",
+        "exit": 0,
+        "start": "2026-09-21T02:43:41-06:00",
+        "end": "2026-09-21T02:44:16-06:00",
+        "sourcePhase": "post-3a2e348db",
+        "result": {
+          "label": "prodonly client (entry closure from package.json exports + runtime tool entries)",
+          "total": 3,
+          "shown": 3,
+          "meta": {
+            "verb": "prodonly",
+            "scope": "corpus:native-program-authored-roots(per-tsconfig)+path:/packages/client/src/",
+            "langs": {
+              "ts": 624,
+              "tsx": 694
+            },
+            "scanned": 1318,
+            "skipped": 6547,
+            "skippedBy": {
+              "out-of-scope": 6546,
+              "out-of-filter": 0,
+              "test-file": 0,
+              "declaration-file": 1
+            },
+            "matches": 3,
+            "status": "complete"
+          }
+        },
+        "resources": {
+          "wall": "0:34.48",
+          "peakRssKiB": 6631612
+        },
+        "artifacts": {
+          "stdout": {
+            "path": "/tmp/world-tools-candidate-lens-runs/prodonly-client.stdout",
+            "sha256": "37dba48a6a4752034098535c7dee9638fd7db525a72046456b2f13d2e0d8dc30",
+            "bytes": 1144
+          },
+          "stderr": {
+            "path": "/tmp/world-tools-candidate-lens-runs/prodonly-client.stderr",
+            "sha256": "25245b13542ff41c6aa7fca79241f2598ad1b5a2f3f1235dc07a73dc19b9d0b6",
+            "bytes": 1055
+          }
+        }
+      },
+      {
+        "name": "subset-callers-continueTurn",
+        "command": "pnpm ast subset-callers continueTurn --json --max 100000",
+        "exit": 0,
+        "start": "2026-09-21T02:46:31-06:00",
+        "end": "2026-09-21T02:46:37-06:00",
+        "sourcePhase": "post-3a2e348db",
+        "result": {
+          "label": "subset-callers continueTurn",
+          "total": 1,
+          "shown": 1,
+          "meta": {
+            "verb": "subset-callers",
+            "scope": "corpus:harness-globs(packages/*/src/**/*.ts,packages/*/src/**/*.tsx,tests/**/*.ts,tests/**/*.tsx,tooling/src/**/*.ts,tooling/src/**/*.tsx,scripts/**/*.ts,scripts/**/*.tsx,!scripts/probes/st-goldens/sillytavern-runtime/**)+path:packages/*/src+call-sites:5",
+            "langs": {
+              "dts": 2,
+              "ts": 2622,
+              "tsx": 805
+            },
+            "scanned": 3429,
+            "skipped": 4419,
+            "skippedBy": {
+              "out-of-scope": 4419,
+              "out-of-filter": 0,
+              "test-file": 0,
+              "declaration-file": 0
+            },
+            "matches": 1,
+            "status": "complete"
+          }
+        },
+        "resources": {
+          "wall": "0:06.71",
+          "peakRssKiB": 1849740
+        },
+        "artifacts": {
+          "stdout": {
+            "path": "/tmp/world-tools-candidate-lens-runs/subset-callers-continueTurn.stdout",
+            "sha256": "f424d15012e4491c54faf0c765a4e82d12141deebe1ecf7a33136c3b0c41f2bb",
+            "bytes": 2226
+          },
+          "stderr": {
+            "path": "/tmp/world-tools-candidate-lens-runs/subset-callers-continueTurn.stderr",
+            "sha256": "90758a3eb71f8503f31bb28f7117c6c588f57e153c5404e932f2add55e666434",
+            "bytes": 7277
+          }
+        }
+      },
+      {
+        "name": "dead-MemoryLogEntry",
+        "command": "pnpm ast dead MemoryLogEntry --json --max 100000",
+        "exit": 0,
+        "start": "2026-09-21T02:46:51-06:00",
+        "end": "2026-09-21T02:47:54-06:00",
+        "sourcePhase": "post-3a2e348db",
+        "result": {
+          "label": "dead MemoryLogEntry (1 declaration(s))",
+          "total": 1,
+          "shown": 1,
+          "meta": {
+            "verb": "dead",
+            "scope": "corpus:native-program-authored-roots(per-tsconfig)+workspace",
+            "langs": {
+              "dts": 9,
+              "ts": 6452,
+              "tsx": 1404
+            },
+            "scanned": 7865,
+            "skipped": 0,
+            "skippedBy": {
+              "out-of-scope": 0,
+              "out-of-filter": 0,
+              "test-file": 0,
+              "declaration-file": 0
+            },
+            "matches": 1,
+            "status": "complete"
+          }
+        },
+        "resources": {
+          "wall": "1:03.41",
+          "peakRssKiB": 8405196
+        },
+        "artifacts": {
+          "stdout": {
+            "path": "/tmp/world-tools-candidate-lens-runs/dead-MemoryLogEntry.stdout",
+            "sha256": "3397f7b2c5c4fcb17f1aa4079a75866b646a16b0190e6c6ad9783af914b85463",
+            "bytes": 639
+          },
+          "stderr": {
+            "path": "/tmp/world-tools-candidate-lens-runs/dead-MemoryLogEntry.stderr",
+            "sha256": "ec09183f1fa63cb44a48cf77b33bcad5708ea26ef5fb1a0bece5d5792202a613",
+            "bytes": 2221
+          }
+        }
+      },
+      {
+        "name": "regkeys-all-final",
+        "command": "pnpm ast regkeys --all --json --max 100000",
+        "exit": 0,
+        "start": "2026-09-21T02:49:02-06:00",
+        "end": "2026-09-21T02:50:03-06:00",
+        "sourcePhase": "post-3a2e348db",
+        "result": {
+          "label": "regkeys (all registries)",
+          "total": 740,
+          "shown": 740,
+          "meta": {
+            "verb": "regkeys",
+            "scope": "corpus:harness-globs(packages/*/src/**/*.ts,packages/*/src/**/*.tsx,tests/**/*.ts,tests/**/*.tsx,tooling/src/**/*.ts,tooling/src/**/*.tsx,scripts/**/*.ts,scripts/**/*.tsx,!scripts/probes/st-goldens/sillytavern-runtime/**)+registries:324+path:registry-files",
+            "langs": {
+              "ts": 236,
+              "tsx": 1
+            },
+            "scanned": 237,
+            "skipped": 7611,
+            "skippedBy": {
+              "out-of-scope": 7611,
+              "out-of-filter": 0,
+              "test-file": 0,
+              "declaration-file": 0
+            },
+            "matches": 740,
+            "status": "complete"
+          }
+        },
+        "resources": {
+          "wall": "1:00.67",
+          "peakRssKiB": 6306744
+        },
+        "artifacts": {
+          "stdout": {
+            "path": "/tmp/world-tools-candidate-lens-runs/regkeys-all-final.stdout",
+            "sha256": "9eb36f317f0883e6803939976dbd027a4536361fab4ef480eb35a374037078bc",
+            "bytes": 195029
+          },
+          "stderr": {
+            "path": "/tmp/world-tools-candidate-lens-runs/regkeys-all-final.stderr",
+            "sha256": "0d0d1abd08b9a2681ce2691f38d08022bd0fc6d0a030568a426997dda0300fe0",
+            "bytes": 192261
+          }
+        }
+      }
+    ]
+  },
+  "coverage": {
+    "requiredVerbs": [
+      "unwired",
+      "clientgap contracts",
+      "respell",
+      "columns --all",
+      "regkeys --all",
+      "stringy",
+      "apisurface",
+      "prodonly for nine packages",
+      "subset-callers required subject",
+      "dead required subject"
+    ],
+    "prodonlyPackages": {
+      "kit": {
+        "scanned": 64,
+        "langs": {
+          "ts": 64
+        },
+        "skipped": 7801,
+        "skippedBy": {
+          "out-of-scope": 7801,
+          "out-of-filter": 0,
+          "test-file": 0,
+          "declaration-file": 0
+        },
+        "total": 0,
+        "shown": 0,
+        "status": "complete"
+      },
+      "contracts": {
+        "scanned": 129,
+        "langs": {
+          "ts": 129
+        },
+        "skipped": 7736,
+        "skippedBy": {
+          "out-of-scope": 7736,
+          "out-of-filter": 0,
+          "test-file": 0,
+          "declaration-file": 0
+        },
+        "total": 0,
+        "shown": 0,
+        "status": "complete"
+      },
+      "db": {
+        "scanned": 44,
+        "langs": {
+          "ts": 44
+        },
+        "skipped": 7821,
+        "skippedBy": {
+          "out-of-scope": 7821,
+          "out-of-filter": 0,
+          "test-file": 0,
+          "declaration-file": 0
+        },
+        "total": 0,
+        "shown": 0,
+        "status": "complete"
+      },
+      "inference": {
+        "scanned": 112,
+        "langs": {
+          "ts": 112
+        },
+        "skipped": 7753,
+        "skippedBy": {
+          "out-of-scope": 7753,
+          "out-of-filter": 0,
+          "test-file": 0,
+          "declaration-file": 0
+        },
+        "total": 0,
+        "shown": 0,
+        "status": "complete"
+      },
+      "server": {
+        "scanned": 1391,
+        "langs": {
+          "ts": 1391
+        },
+        "skipped": 6474,
+        "skippedBy": {
+          "out-of-scope": 6474,
+          "out-of-filter": 0,
+          "test-file": 0,
+          "declaration-file": 0
+        },
+        "total": 0,
+        "shown": 0,
+        "status": "complete"
+      },
+      "default-content": {
+        "scanned": 1,
+        "langs": {
+          "ts": 1
+        },
+        "skipped": 7864,
+        "skippedBy": {
+          "out-of-scope": 7864,
+          "out-of-filter": 0,
+          "test-file": 0,
+          "declaration-file": 0
+        },
+        "total": 0,
+        "shown": 0,
+        "status": "complete"
+      },
+      "showcase-plugins": {
+        "scanned": 1,
+        "langs": {
+          "ts": 1
+        },
+        "skipped": 7864,
+        "skippedBy": {
+          "out-of-scope": 7864,
+          "out-of-filter": 0,
+          "test-file": 0,
+          "declaration-file": 0
+        },
+        "total": 0,
+        "shown": 0,
+        "status": "complete"
+      },
+      "ui": {
+        "scanned": 367,
+        "langs": {
+          "ts": 256,
+          "tsx": 111
+        },
+        "skipped": 7498,
+        "skippedBy": {
+          "out-of-scope": 7497,
+          "out-of-filter": 0,
+          "test-file": 0,
+          "declaration-file": 1
+        },
+        "total": 0,
+        "shown": 0,
+        "status": "complete"
+      },
+      "client": {
+        "scanned": 1318,
+        "langs": {
+          "ts": 624,
+          "tsx": 694
+        },
+        "skipped": 6547,
+        "skippedBy": {
+          "out-of-scope": 6546,
+          "out-of-filter": 0,
+          "test-file": 0,
+          "declaration-file": 1
+        },
+        "total": 3,
+        "shown": 3,
+        "status": "complete"
+      }
+    },
+    "complete": true,
+    "refusalOrToolErrorCount": 0,
+    "truncatedRunCount": 0,
+    "statusRule": "Every retained run exited 0, reported meta.status=complete, and shown equaled total. No empty-corpus result was treated as clean."
+  },
+  "provenance": {
+    "boundaryAssessment": {
+      "beforeCommit": [
+        "regkeys-all",
+        "unwired-global",
+        "clientgap-contracts",
+        "respell-global",
+        "columns-all"
+      ],
+      "overlappedCommit": [
+        "stringy-global"
+      ],
+      "afterCommit": [
+        "apisurface-global",
+        "all prodonly package runs",
+        "subset-callers-continueTurn",
+        "dead-MemoryLogEntry",
+        "regkeys-all-final"
+      ],
+      "pathAndSemanticIntersection": [
+        {
+          "runs": [
+            "clientgap-contracts"
+          ],
+          "decision": "retained",
+          "proof": "corpus is packages/contracts (129 files); 3a2e348db touched no packages/contracts path"
+        },
+        {
+          "runs": [
+            "unwired-global"
+          ],
+          "decision": "retained",
+          "proof": "3a2e348db touched no tRPC router/procedure declaration"
+        },
+        {
+          "runs": [
+            "columns-all"
+          ],
+          "decision": "retained",
+          "proof": "completed before commit; diff touched no database table/view/column declaration"
+        },
+        {
+          "runs": [
+            "respell-global"
+          ],
+          "decision": "retained-with-boundary-note",
+          "proof": "completed before commit; diff removed error-registry object rows and changed implementation/prose/tests, with no type alias or contract shape declaration in the lens candidate class"
+        },
+        {
+          "runs": [
+            "stringy-global"
+          ],
+          "decision": "retained-after-exact-nonintersection",
+          "proof": "run overlapped commit, but all three findings are PluginPageKey (client), ChatHandle (showcase d.ts), RuntimeClassResult (ui); commit touched only listed server/docs/tests paths and no type-alias declaration"
+        },
+        {
+          "runs": [
+            "regkeys-all"
+          ],
+          "decision": "retained-only-as-pre-cleanup-baseline",
+          "proof": "purpose is before/after comparison; it is not current-tree evidence"
+        }
+      ],
+      "commitTouchedPaths": [
+        "docs/design/orbweaver-inference-package.md",
+        "packages/server/src/domain/chat/verbs/compaction.ts",
+        "packages/server/src/domain/credentials/contract/errors.ts",
+        "packages/server/src/domain/settings/contract/errors.ts",
+        "packages/server/src/domain/settings/contract/service.ts",
+        "tests/server/domain/chat/verbs/compaction.int.test.ts",
+        "tests/server/domain/credentials/verbs/resolve.int.test.ts"
+      ],
+      "interruptedNonEvidence": [
+        {
+          "description": "targeted verifier commands for CHAT_OP_CODES, CREDENTIALS_OP_CODES, and SETTINGS_OP_CODES were terminated during the dead query overlap window",
+          "owner": "external verifier lane, not this matrix driver",
+          "artifacts": "none in matrix directory",
+          "use": "none; explicitly excluded from evidence"
+        }
+      ]
+    }
+  },
+  "comparisons": {
+    "regkeysFinal": {
+      "initial": {
+        "head": "b1e7a1a1018178cc4739bca3e6ffc366990a25c0",
+        "total": 743,
+        "registryRows": 3596,
+        "findingRegistries": 45
+      },
+      "final": {
+        "head": "3a2e348db9886eb0d4aa545e08804ca357e7eefc",
+        "total": 740,
+        "registryRows": 3594,
+        "findingRegistries": 43
+      },
+      "delta": {
+        "findings": -3,
+        "registryRows": -2,
+        "findingRegistries": -2,
+        "removed": [
+          {
+            "file": "packages/server/src/domain/chat/contract/errors.ts",
+            "line": 88,
+            "kind": "regkey-undispatched",
+            "text": "CHAT_OP_CODES[\"compactionEmpty\"]  —  the key is spelled in NO non-test file outside this table"
+          },
+          {
+            "file": "packages/server/src/domain/credentials/contract/errors.ts",
+            "line": 14,
+            "kind": "regkey-undispatched",
+            "text": "CREDENTIALS_OP_CODES[\"metadataInvalid\"]  —  the key is spelled in NO non-test file outside this table"
+          },
+          {
+            "file": "packages/server/src/domain/settings/contract/errors.ts",
+            "line": 18,
+            "kind": "regkey-undispatched",
+            "text": "SETTINGS_OP_CODES[\"incoherentRoleModel\"]  —  the key is spelled in NO non-test file outside this table"
+          }
+        ],
+        "added": []
+      },
+      "conclusion": "The final clean-HEAD run removed exactly the three intended drift rows and added none."
+    },
+    "subsetCallersRepresentative": {
+      "subject": "continueTurn",
+      "corpus": "corpus:harness-globs(packages/*/src/**/*.ts,packages/*/src/**/*.tsx,tests/**/*.ts,tests/**/*.tsx,tooling/src/**/*.ts,tooling/src/**/*.tsx,scripts/**/*.ts,scripts/**/*.tsx,!scripts/probes/st-goldens/sillytavern-runtime/**)+path:packages/*/src+call-sites:5",
+      "scanned": 3429,
+      "langs": {
+        "dts": 2,
+        "ts": 2622,
+        "tsx": 805
+      },
+      "sites": 5,
+      "resolved": 2,
+      "unjudged": 3,
+      "total": 1,
+      "hits": [
+        {
+          "file": "packages/client/src/features/chat/hooks/use-continue-turn.ts",
+          "line": 58,
+          "kind": "subset-caller",
+          "text": "continueTurn({chatId, messageId}) [client door: `mutation` ← useContinueTurnMutation → trpc.chat.continueTurn] — MISSING: principal  ⊂  packages/server/src/domain/chat/verbs/turn.ts:1333  [CROSS-CLASS: every superset is a DIRECT call site, not another client door — server-only fields cannot reach a wire payload; not the stale-door class]  [RULED door pair — chats::chat.continueTurn: #568: two AFFORDANCE KINDS, not one verb wearing two faces — use-continue-turn.ts is a settings-gated empty-Send KEYBOARD gesture firing the bare verb (off entirely unless `continueOnSend`), use-guided-actions.ts is the always-present composer wand whose payload carries the guided steer. Retiring either deletes a whole interaction mode (no-pointer, or steerable). Stays a COUNT rather than an EXEMPT_PROCEDURES row on purpose: an exempt procedure leaves the census, so a THIRD door would land silently. THE RULING SURVIVES, ITS INPUT CHANGED (2026-09-13, #1584): there is no count any more, and the protection that last sentence bought is now the door SET this row names — a third door changes the set, the row stops matching, and the finding is effective. · doors: packages/client/src/features/chat/hooks/use-continue-turn.ts, packages/client/src/features/chat/hooks/use-guided-actions.ts · ends when: ENDS if one arm is retired — the door set then changes, this row is consumed zero times and central liveness reports it stale.]"
+        }
+      ],
+      "interpretation": "Non-empty real-repo probe exercises the strict-subset emitter and refusal census. Its sole result is explicitly CROSS-CLASS and a RULED door pair, so it is not a stale-door deletion recommendation.",
+      "focusedControls": {
+        "path": "tests/tooling/ast/ops/subset-callers.test.ts",
+        "lines": [
+          41,
+          60,
+          70,
+          79,
+          89,
+          98,
+          113,
+          122
+        ],
+        "contract": "positive strict-subset finding plus equal/disjoint/partial/empty negative controls and unresolved spread/computed/unfollowable cases",
+        "execution": "read comparison only; controls were not rerun in this matrix"
+      }
+    },
+    "deadRepresentative": {
+      "subject": "MemoryLogEntry",
+      "corpus": "corpus:native-program-authored-roots(per-tsconfig)+workspace",
+      "scanned": 7865,
+      "langs": {
+        "dts": 9,
+        "ts": 6452,
+        "tsx": 1404
+      },
+      "total": 1,
+      "hits": [
+        {
+          "file": "packages/server/src/domain/chat/contract/memory.ts",
+          "line": 298,
+          "kind": "dead-alive",
+          "text": "MemoryLogEntry  —  ALIVE  —  export type MemoryLogEntry ="
+        }
+      ],
+      "evidence": {
+        "productionRefs": 3,
+        "testRefs": 11,
+        "toolRefs": 0,
+        "swallowed": false,
+        "publicMarker": "bare: Test-anchored module surface; focused tests pin this production-local behavior.",
+        "verdict": "ALIVE"
+      },
+      "interpretation": "Non-empty real-repo probe confirms evidence priority: production references make the symbol ALIVE even with test references and a marker.",
+      "focusedControls": {
+        "path": "tests/tooling/ast/index.test.ts",
+        "lines": [
+          2286,
+          2300,
+          2314,
+          2326,
+          2342,
+          2351,
+          2362
+        ],
+        "contract": "ALIVE, TEST-ANCHORED, TOOL-ANCHORED, barrel pass-through, SWALLOWED-ONLY, TAGGED-KEEP, and CANDIDATE arms",
+        "execution": "read comparison only; controls were not rerun in this matrix"
+      }
+    }
+  },
+  "findingsForMainLane": {
+    "clientProdonly": {
+      "count": 3,
+      "status": "requires consumer/entrypoint adjudication; this matrix makes no deletion recommendation",
+      "hits": [
+        {
+          "file": "packages/client/src/features/chat/lib/chat-reading-port.ts",
+          "line": 38,
+          "kind": "prod-unreachable",
+          "text": "export const CHAT_READING_PORT_MIN_PX = 212;"
+        },
+        {
+          "file": "packages/client/src/features/plugin/lib/ui-guest/ui-guest-realm.ts",
+          "line": 13,
+          "kind": "prod-unreachable",
+          "text": "import type { PluginLogLevel, UiProxyableHostFunction } from \"@orb/contracts/plugin\";"
+        },
+        {
+          "file": "packages/client/src/features/plugin/lib/ui-guest/ui-guest.worker.ts",
+          "line": 30,
+          "kind": "prod-unreachable",
+          "text": "import baseVariant from \"@jitl/quickjs-ng-wasmfile-release-sync\";"
+        }
+      ]
+    },
+    "stringyOverlapProof": {
+      "count": 3,
+      "hits": [
+        {
+          "file": "packages/client/src/state/plugin-page-selection-store.ts",
+          "line": 20,
+          "kind": "stringy-export",
+          "text": "PluginPageKey  →  string"
+        },
+        {
+          "file": "packages/showcase-plugins/bundles/host-v1.d.ts",
+          "line": 68,
+          "kind": "stringy-local",
+          "text": "ChatHandle  →  string"
+        },
+        {
+          "file": "packages/ui/src/lib/class-merge.ts",
+          "line": 237,
+          "kind": "stringy-local",
+          "text": "RuntimeClassResult  →  string"
+        }
+      ]
+    }
+  },
+  "limitations": [
+    "This is a corpus/status/provenance evidence matrix, not adjudication of every candidate emitted by high-volume lenses.",
+    "No focused test suite was rerun; the required-subject probes were compared to the focused control source contracts.",
+    "The pre-commit respell result was retained by bounded semantic/path review rather than rerun, per the orchestrator instruction not to repeat completed lenses.",
+    "The initial regkeys result is historical baseline only; current-tree regkeys evidence is the final run."
+  ]
+}

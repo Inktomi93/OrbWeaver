@@ -1,0 +1,135 @@
+{
+  "reviewed_report": "/tmp/world-tools-columns-triage.json",
+  "reviewed_head": "3a2e348db9886eb0d4aa545e08804ca357e7eefc",
+  "verdict": "REFUTED",
+  "basis": "Two consequential row descriptions require correction. The remaining 29 row classifications are confirmed against the captured HEAD with independent TS and TSX ast-grep scans plus literal/raw-SQL and DDL corroboration.",
+  "corrected_summary": {
+    "scanner_blind_spots": 9,
+    "live_wiring_defects_at_captured_head": 2,
+    "dormant_or_parked": 8,
+    "actual_dead_storage_candidates": 2,
+    "write_only_provenance_needing_exemption_or_removal_decision": 4,
+    "schema_physics_or_constraint_consumers": 5,
+    "default_provenance": 1,
+    "total": 31
+  },
+  "supersessions": [
+    {
+      "key": "embed_generations.connection_ref",
+      "report_category": "actual_dead_storage_candidate",
+      "corrected_category": "write_only_provenance_needing_exemption_or_removal_decision",
+      "correction": "The value is genuinely write-only, but the active owner design explicitly assigns it diagnostic provenance: `connection_ref` is the immutable original id for diagnosis and must never bypass a null FK. This is not unassigned dead storage. The schema lacks an adjacent reasoned `@column-ok` marker, so the current lens finding should be resolved by adding the diagnostic exemption or explicitly reversing that design decision.",
+      "evidence": [
+        "docs/reviews/2026-09-20-inference-reindex-generation-design.md:53-54",
+        "docs/reviews/2026-09-20-inference-reindex-generation-design.md:138",
+        "packages/db/src/schema/embeddings.ts:103-121",
+        "packages/server/src/domain/embeddings/substrate/generation.ts:51-54"
+      ],
+      "independent_search": "ast-grep found no `embedGenerations.connectionRef` member read in 4,061 production TS files or 807 production TSX files; rg found only the schema, baseline, writer, fixtures, and the active design's diagnostic ruling."
+    },
+    {
+      "key": "chat_digest_speakers.digest_id",
+      "report_category": "scanner_blind_spot",
+      "corrected_category": "scanner_blind_spot",
+      "correction": "The classification is correct but the producer account is not. Production does not call `.values(speakerRows)`. It writes `digest_id` with Drizzle INSERT ... SELECT, selecting `chatDigests.id` and the aliased character id once per speaker. This row belongs to the same insert-select blind-spot class as the embed-space-state and refinery rows.",
+      "evidence": [
+        "packages/server/src/domain/embeddings/persistence/queries.ts:388-401",
+        "packages/db/src/schema/embeddings.ts:394-417"
+      ],
+      "independent_search": "rg found the sole production insert at queries.ts:394 followed by `.select(...)`; ast-grep independently found the direct digestId consumers in embeddings, chat memory, search display/scope, and handoff-restamp."
+    }
+  ],
+  "confirmed_rows": [
+    "chat_handoff_resumptions.updated_at",
+    "chat_stream_events.id",
+    "chat_stream_events.chat_id",
+    "chat_stream_events.message_id",
+    "chat_stream_events.seq",
+    "chat_stream_events.kind",
+    "chat_stream_events.delta",
+    "chat_stream_events.created_at",
+    "provider_rows.origin_kind",
+    "provider_rows.origin_plugin_id",
+    "provider_rows.origin_user_id",
+    "theme_clusters.centroid",
+    "embed_generation_targets.updated_at",
+    "embed_space_state.owner_id",
+    "embed_space_state.scope",
+    "embed_space_state.completed_at",
+    "imagery_generations.provider",
+    "imagery_generations.connection_id",
+    "admin_distributed_plugins.distributed_by",
+    "plugin_assets.fetched_at",
+    "plugin_kv.plugin_id",
+    "plugin_kv.owner_id",
+    "plugin_kv.key",
+    "refinery_schemas.id",
+    "refinery_schemas.owner_id",
+    "refinery_schemas.created_at",
+    "session_entries.is_primary",
+    "session_entries.connection_id",
+    "session_entries.created_at"
+  ],
+  "confirmed_class_evidence": {
+    "scanner_blind_spots": [
+      "embed_space_state.owner_id and scope are written by INSERT ... SELECT at space-state.ts:91-112 and directly consumed by active-space, nearest, conflict, promotion, PK/FK/CHECK logic.",
+      "plugin_kv.plugin_id, owner_id, and key are written by raw atomic INSERTs at plugin-kv.ts:60-66 and 125-129 and directly consumed on every scoped operation.",
+      "refinery_schemas.id, owner_id, and created_at are written by INSERT ... SELECT at queries.ts:346-371; id and owner scope mutations/reads, while createdAt reaches schemaSummaryOf through the typed row carrier."
+    ],
+    "imagery_wiring_at_captured_head": [
+      "HEAD:imagery persistence InsertGenerationInput and values omit provider and connectionId.",
+      "HEAD:generate-core receives `req.connection`, but passes only model/cost/time/image into persistImage and therefore never writes either attribution field.",
+      "The schema and domain-freshness-plane explicitly retain the fields as attribution, so the null population is a wiring defect rather than rot."
+    ],
+    "dormant_or_parked": [
+      "chat_stream_events has no production insert: ast-grep scanned 2,130 production TS and 695 TSX files with zero writer matches; the planted test scope found the two fixture writers. The schema header explicitly records retention and the replay/bounds consumers are live.",
+      "session_entries.connection_id is explicitly nullable until the per-user agent-sdk cut-over writer lands; its FK, child index, and partial unique index already consume the column."
+    ],
+    "ddl_consumers": [
+      "provider_rows origin columns participate in the origin-shape CHECK, FK actions, and FK scan indexes.",
+      "admin_distributed_plugins.distributed_by participates in CASCADE lifecycle and its child index; its value is intentionally omitted from the projected admin view.",
+      "session_entries.is_primary is the predicate of session_entries_primary_unique."
+    ],
+    "write_only_or_dead": [
+      "No production TS or TSX member reads were found for chatHandoffResumptions.updatedAt, themeClusters.centroid, embedGenerationTargets.updatedAt, embedSpaceState.completedAt, or pluginAssets.fetchedAt; targeted rg/raw-SQL searches corroborated the absence.",
+      "theme_clusters.centroid has only a producer plus schema/fixture round-trip assertions; no persisted-centroid consumer exists.",
+      "plugin_assets.fetched_at and the two embedding timestamps have explicit or timestamp-shaped provenance but no value consumer; they need a reasoned exemption or removal decision as reported."
+    ],
+    "default_provenance": [
+      "session_entries.created_at is DB-defaulted timestamp provenance; direct table-member searches found no production read, while broad row-shape hits are homonyms."
+    ],
+    "migration_behavior": [
+      "The migration directory contains only 0000_baseline.sql, meta/0000_snapshot.json, and meta/_journal.json with one journal entry and 103 snapshot tables.",
+      "The current repository doctrine says post-launch schema cleanup uses a forward incremental migration and does not patch the frozen baseline."
+    ]
+  },
+  "concurrent_worktree_evidence": {
+    "status": "separate_from_captured_head_verdict",
+    "observation": "The shared worktree contains concurrent uncommitted imagery-attribution edits. They add providerId/connectionId to InsertGenerationInput, pass req.connection.providerId/connectionId through generate-core, and write imageryGenerations.provider/connectionId.",
+    "effect": "Those edits appear to repair both captured-HEAD imagery wiring defects, but they are not part of HEAD 3a2e348d and were not counted as refuting the report. No test verdict for the concurrent repair is claimed here.",
+    "paths": [
+      "packages/server/src/domain/imagery/persistence/queries.ts",
+      "packages/server/src/domain/imagery/substrate/generate-core.ts",
+      "tests/server/domain/imagery/substrate/generate-core.int.test.ts"
+    ]
+  },
+  "material_limitations": [
+    "No pnpm ast, whole-repo typecheck, or heap-heavy TypeScript program was run, per the brief. The report's own completed 103-table/31-hit corpus receipt was treated as the candidate denominator, then consequential claims were independently checked with ast-grep and rg.",
+    "The shared worktree was mutable. All captured-report judgments used HEAD snapshots where concurrent imagery edits overlapped the report; other rows were checked against files with no relevant working-tree diff.",
+    "No runtime database suite was run because the review is about static producer/consumer classification and the shared tree contains concurrent changes. DDL semantics were verified from schema source plus baseline/snapshot text.",
+    "chat_handoff_resumptions.created_at is outside the 31-row candidate set but is the identical insert-once timestamp sibling of updated_at and has no value consumer. Any removal decision for updated_at should adjudicate the pair; the original report notes this but does not classify the sibling."
+  ],
+  "search_receipts": {
+    "ast_grep_full_scope": {
+      "all_ts": 6455,
+      "all_tsx": 1407,
+      "production_ts_for_targeted_absence": 4061,
+      "production_tsx_for_targeted_absence": 807
+    },
+    "positive_controls": [
+      "chatHandoffResumptions.chatId returned production and test consumers while updatedAt returned none.",
+      "The chatStreamEvents insert pattern returned the two test fixture writers while returning zero production writers.",
+      "Direct member patterns returned the expected live reads for every scanner-blind-spot column."
+    ]
+  }
+}

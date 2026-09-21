@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "subjectCommit": "3a2e348db9886eb0d4aa545e08804ca357e7eefc",
+  "verdict": "CONFIRMED",
+  "claims": [
+    {
+      "claim": "Removed stale CREDENTIALS_OP_CODES.metadataInvalid",
+      "verdict": "confirmed"
+    },
+    {
+      "claim": "Removed stale SETTINGS_OP_CODES.incoherentRoleModel",
+      "verdict": "confirmed"
+    },
+    {
+      "claim": "Compaction uses CHAT_OP_CODES.compactionEmpty",
+      "verdict": "confirmed"
+    },
+    {
+      "claim": "Registry coverage was not weakened",
+      "verdict": "confirmed"
+    }
+  ],
+  "structuralEvidence": {
+    "astGrep": {
+      "tsFiles": 6526,
+      "tsxFiles": 1469,
+      "oldMemberAccesses": 0,
+      "compactionPositiveHits": 2
+    },
+    "textual": "git parent comparison found old identifiers only in removed parent lines"
+  },
+  "behavioralEvidence": {
+    "focusedIntegrationFiles": 2,
+    "testsPassed": 27,
+    "testsFailed": 0,
+    "biomeFiles": 6,
+    "gitShowCheck": "clean"
+  },
+  "matrixEvidence": {
+    "finalRegkeysFindings": 740,
+    "baselineFindings": 743,
+    "removedExactly": [
+      "CHAT_OP_CODES.compactionEmpty stale finding",
+      "CREDENTIALS_OP_CODES.metadataInvalid",
+      "SETTINGS_OP_CODES.incoherentRoleModel"
+    ],
+    "added": [],
+    "source": "/tmp/world-tools-candidate-lens-matrix.json"
+  },
+  "limitation": "Independent reviewer did not complete a separate regkeys run because the shared TS-program mutex was owned by the candidate matrix; the clean-HEAD final matrix run supplies that receipt."
+}

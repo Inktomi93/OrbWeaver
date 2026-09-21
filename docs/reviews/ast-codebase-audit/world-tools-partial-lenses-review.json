@@ -1,0 +1,136 @@
+{
+  "schemaVersion": 1,
+  "task": "Fresh read-only verification of world-tools partial semantic lens audit",
+  "verdict": "CONFIRMED",
+  "reviewedAudit": "/tmp/world-tools-partial-lenses-audit.json",
+  "reviewedAuditSha256": "c3f33fc19d6b7a2c99559149c6cc904a5f6b82b177415df17f75a237a74762cb",
+  "reviewedRunDirectory": "/tmp/world-tools-partial-lenses-runs",
+  "worktree": "/home/inktomi/.codex/worktrees/world-aware-tools/orbweaver",
+  "head": "b1e7a1a1018178cc4739bca3e6ffc366990a25c0",
+  "constraintsObserved": {
+    "repositoryEdits": 0,
+    "pnpmAstRuns": 0,
+    "typecheckRuns": 0,
+    "fullOrStaticRuns": 0
+  },
+  "confirmed": {
+    "packageDenominator": {
+      "packageCount": 9,
+      "packages": {
+        "kit": 64,
+        "contracts": 129,
+        "db": 44,
+        "inference": 112,
+        "server": 1391,
+        "default-content": 1,
+        "showcase-plugins": 1,
+        "ui": 368,
+        "client": 1319
+      },
+      "authoredSourceFiles": 3429,
+      "method": "Independent find count of .ts/.tsx/.mts/.cts under each canonical packages/<name>/src; names also equal the complete set of package src homes."
+    },
+    "authoritativeMatrix": {
+      "packages": 9,
+      "sectionTotals": {
+        "orphans": 34,
+        "testonly": 123,
+        "chains": 0,
+        "typeonly-alive": 1,
+        "swallowed": 2
+      },
+      "candidateTotal": 160,
+      "evidence": "Parsed all five JSON values from each authoritative stdout, recomputed totals, checked shown=total, and matched every recorded stdout SHA-256, exit 0, complete ledger, and nonzero package corpus."
+    },
+    "adjudicationCoverage": {
+      "owned": 63,
+      "delegated": {
+        "small-package": 6,
+        "server": 36,
+        "ui": 46,
+        "client": 9
+      },
+      "total": 160,
+      "symbolSetAgreement": true,
+      "embeddedDelegatedReportsEqualSources": true,
+      "delegatedReportSha256Agreement": true,
+      "dispositions": {
+        "preserve": 156,
+        "resolvedDeletion": 2,
+        "architectureDecisionUnresolved": 2
+      },
+      "derivation": "63 owned preserve + 6 small-package preserve + 46 UI preserve + 9 client preserve + server 32 preserve/2 resolved deletions/2 decision forks."
+    },
+    "standaloneAgreement": {
+      "swallowed": {
+        "total": 2,
+        "rotTotal": 2,
+        "reasonedExemptions": 1,
+        "exit": 0,
+        "scanned": 3435
+      },
+      "typeonly-alive": {
+        "total": 1,
+        "rotTotal": 1,
+        "unionSourceBucket": 58,
+        "reasonedExemptions": 2,
+        "exit": 0,
+        "scanned": 3435
+      },
+      "markerAndRefusalEvidence": "Current source contains exactly one reasoned @swallowed-ok declaration and two reasoned @typeonly-ok declarations. Standalone stderr names those exemption counts and contains no stale-marker refusal, with exit 0. Existing implementation sets exitCode=1 for stale markers; existing tests contain reasoned, bare, and stale controls. No tests were rerun under the brief."
+    },
+    "midRunLivenessAssessment": {
+      "result": "The observed mid-run commits cannot change the reported package-symbol liveness sets after the stated replacement/quarantine handling.",
+      "evidence": [
+        "The liveness.ts implementation used by db onward had mtime 00:36:06, before db began at 00:39:04; its later f734 commit only recorded already-present worktree bytes.",
+        "The 00:51 test edit removed automationDepth object properties only, with no import/export or package-symbol reference change.",
+        "The later d842 edits affect graph/callers/importers/jsx/help and rendered hit identity; they do not change the rot collectors' package-symbol liveness sets.",
+        "The a040 imagery package/test mutation occurred after kit-stable, during contracts-stable; that contracts attempt is quarantined and contracts-final began after the mutation. The server discovery output predates the deletion by design and its two deleted aliases are retained as resolved dispositions.",
+        "The c0e standalone-time change touches tooling gate/grant files and one tooling gate test; its diff removes no package-symbol import or consumer."
+      ]
+    },
+    "spotChecks": [
+      {
+        "class": "orphan/preserve",
+        "symbol": "OwnerStatId",
+        "result": "Source carries the explicit @public future natural-PK explanation; authoritative kit output reports it as orphan; the owned adjudication preserves it."
+      },
+      {
+        "class": "testonly/preserve",
+        "symbol": "activeLaneCount",
+        "result": "Source exposes lanes.size as a boundedness proof seam; current literal inventory finds the declaration plus the serial-lanes test import and calls, agreeing with the server report's ast-grep classification."
+      },
+      {
+        "class": "swallowed/preserve",
+        "symbol": "ProviderRowOrigin",
+        "result": "Source derives the type from PROVIDER_ROW_ORIGINS, the tuple drives the live Drizzle enum/check, and the db client imports the schema wholesale. This agrees with the existing 6526-TS/1469-TSX ast-grep receipt and the swallowed output."
+      },
+      {
+        "class": "typeonly-alive/preserve",
+        "symbol": "characterBulkTagResultSchema",
+        "result": "Source shows the schema and its sole z.infer type twin on the next declaration; standalone and contracts rot both report the one candidate, matching the recorded TS ast-grep locate."
+      },
+      {
+        "class": "resolvedDeletion",
+        "symbols": ["PROMPT_TEMPLATES", "CAPTION_INSTRUCTIONS"],
+        "result": "Commit a040ed288 removes the two server aliases and retargets their tests to canonical contracts defaults. Current search finds only the canonical DEFAULT_* names, while the pre-deletion server receipt classified exactly these aliases for deletion."
+      },
+      {
+        "class": "architectureDecisionUnresolved",
+        "symbol": "fetchOpenAiModels",
+        "result": "Current source and search show declaration/barrel plus tests only, while active Tier-3 law still claims entry/credentials composition; this reproduces the report's owner-decision fork."
+      },
+      {
+        "class": "securityArchitectureDecisionUnresolved",
+        "symbol": "boundHostFn",
+        "result": "Current source calls it a standalone primitive without the live membrane pending registry; search shows tests/docs/barrel but no live membrane caller, matching the report's security-owner fork."
+      }
+    ]
+  },
+  "discrepancies": [],
+  "repairRecheck": {
+    "quarantinedArtifacts": "All six artifacts for the three quarantined run stems are now listed and exist.",
+    "implementationHashes": "Both recorded current hashes equal the current files: liveness a67f8217... and usage b215e45e...."
+  },
+  "conclusion": "CONFIRMED. The refreshed audit exactly supports the requested denominator, candidate matrix, 156/2/2 dispositions, delegated ingestion, standalone agreement, marker state, source classifications, quarantine/authority split, and liveness-safe commit assessment."
+}

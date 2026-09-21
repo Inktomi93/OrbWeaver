@@ -1,0 +1,262 @@
+{
+  "schemaVersion": 1,
+  "task": "typeonly-alive full-native-corpus performance recon",
+  "checkout": "/home/inktomi/.codex/worktrees/world-aware-tools/orbweaver",
+  "mode": "read-only",
+  "sourceEdits": false,
+  "typescriptProgramsLoadedByRecon": false,
+  "conclusion": "The full run is dominated by one language-service reference query per exported value declaration in every native program containing that declaration. Native-program construction establishes a large fixed load floor; the remaining roughly 35 minutes come from repeated per-symbol, per-world reference searches whose results are fully unioned, canonicalized, deduplicated, and sorted before typeonly-alive can act on its first runtime-value counterexample.",
+  "completedRun": {
+    "command": "pnpm ast typeonly-alive --json --max 100000",
+    "wallClock": "35:30.13",
+    "wallClockSeconds": 2130.13,
+    "userSeconds": 2722.24,
+    "systemSeconds": 18.2,
+    "cpuPercent": 128,
+    "peakRssKb": 15377044,
+    "exitStatus": 0,
+    "corpusFiles": 7865,
+    "scannedPackageFiles": 3435,
+    "skippedOutOfScopeFiles": 4430,
+    "reportedHits": 1,
+    "unionSourceBuckets": 58,
+    "markerExemptions": 2,
+    "rawCandidates": 61,
+    "stdout": "/tmp/world-tools-partial-lenses-runs/typeonly-alive-global.stdout",
+    "stderrAndTime": "/tmp/world-tools-partial-lenses-runs/typeonly-alive-global.stderr",
+    "reportedHit": "packages/contracts/src/character/index.ts:601 characterBulkTagResultSchema"
+  },
+  "comparisonReceipt": {
+    "command": "pnpm ast refs createCodemodProject --json",
+    "scope": "one symbol over the native semantic corpus",
+    "wallClock": "0:34.25",
+    "wallClockSeconds": 34.25,
+    "peakRssKb": 7364364,
+    "receipt": "/tmp/world-tools-native-refs.time:3-12",
+    "interpretation": "This combines native-program load and one reference query, so it does not isolate them exactly. Compared with the full 35:30.13 and 15,377,044 KB run, it shows an approximately half-minute and 7.4 GB native load-plus-first-query floor; nearly 35 additional minutes are attributable to repeated per-export searches. The extra retained heap is consistent with compiler reference caches and ts-morph wrappers accumulated across those searches."
+  },
+  "timingBoundary": {
+    "currentInstrumentation": "The CLI starts the scan ledger before loadProject and finishes it only after the synchronous verb returns. The ledger records corpus, counts, matches, and status, but no phase clocks. Candidate collection completes before JSON and narration are emitted.",
+    "implication": "Existing CLI output cannot directly split project-load time from candidate-loop time. The comparison above is an empirical inference from the existing one-symbol timing receipt, not a direct phase measurement.",
+    "evidence": [
+      "tooling/src/ast/cli.ts:127-139",
+      "tooling/src/ast/lib/ledger.ts:66-80",
+      "tooling/src/ast/lib/ledger.ts:148-179",
+      "tooling/src/ast/ops/typeonly.ts:272-286"
+    ]
+  },
+  "complexity": {
+    "symbols": {
+      "F": "authored source files",
+      "P": "native compiler programs",
+      "E": "exported runtime-value declarations in the selected package scope",
+      "C_d": "native programs whose resolved closure contains declaration d",
+      "S_p": "files/nodes in native program p",
+      "R_dp": "reference nodes returned for declaration d in program p",
+      "U_d": "unique physical reference spans for declaration d"
+    },
+    "projectLoad": "Theta(sum over p of S_p) time and retained memory. Each native program owns a distinct retained ts-morph Project, so overlapping source graphs are duplicated by design.",
+    "candidateEnumeration": "At least three source-corpus enumerations occur in cmdTypeOnly: scan accounting, candidate collection, and stale-marker scanning. Each sourceCorpus.getSourceFiles rebuild currently reruns primary-owner selection across descriptor file arrays.",
+    "perDeclaration": "Theta(P + sum over p in C_d of (reference-search over S_p + R_dp)) before the caller sees any reference.",
+    "dedupeAndSort": "Theta(sum R_dp) temporary reference storage and physical-span map work, followed by O(U_d log U_d) sorting per declaration.",
+    "wholeRun": "Theta(sum over d in E of [P + sum over p in C_d of (S_p + R_dp)]), plus native load and repeated corpus/export enumeration. TypeScript's exact findReferencesAsNodes implementation is internal, but the observable multiplier is one call per exported value declaration per containing native program."
+  },
+  "hotPathEvidence": [
+    {
+      "pathLine": "tooling/src/ast/ops/typeonly.ts:157-171",
+      "claim": "Every non-test in-scope source file and every own export is enumerated; no cheap narrowing precedes the declaration check."
+    },
+    {
+      "pathLine": "tooling/src/ast/ops/typeonly.ts:177-200",
+      "claim": "Every reference-findable function, variable, class, or enum calls semanticReferenceNodes. The value-position early return happens only after that helper has returned its complete array."
+    },
+    {
+      "pathLine": "tooling/src/_shared/ts-workspace.ts:106-113",
+      "claim": "Semantic nodes delegate to workspace.findReferences and immediately map the complete SemanticReference array back to nodes. Plain in-memory Projects retain native findReferencesAsNodes behavior."
+    },
+    {
+      "pathLine": "tooling/src/_shared/ts-workspace.ts:168-171",
+      "claim": "containingPrograms scans every native program and performs a Project source-file lookup on every declaration query; the result is not memoized by physical path."
+    },
+    {
+      "pathLine": "tooling/src/_shared/ts-workspace.ts:180-197",
+      "claim": "findReferences remaps the declaration by physical start/width, invokes findReferencesAsNodes in every containing program, canonicalizes each result, deduplicates by physical path/start/end, and sorts the full union."
+    },
+    {
+      "pathLine": "tooling/src/_shared/ts-workspace.ts:66-97",
+      "claim": "Each native descriptor creates a separate Project, adds its roots, resolves dependencies, and retains that Project in a closure cache."
+    },
+    {
+      "pathLine": "tooling/src/_shared/ts-workspace.ts:206-248",
+      "claim": "The SourceCorpus object is cached, but getSourceFiles rebuilds its result from authoredRoots and reruns primaryConfig for each path on every call."
+    },
+    {
+      "pathLine": "tooling/src/_shared/ts-workspace.ts:144-152",
+      "claim": "primaryConfig filters all descriptors and uses linear files.includes membership checks."
+    },
+    {
+      "pathLine": "tooling/src/ast/ops/typeonly.ts:274-276",
+      "claim": "The command separately runs scanCorpus, collectTypeOnlyCandidates, and printStaleTypeOnlyTags, each of which enters the corpus."
+    }
+  ],
+  "repeatedWork": [
+    "The same physical declaration is mapped into every containing native program using source path, start, and width.",
+    "Overlapping native programs independently run findReferencesAsNodes for that declaration.",
+    "Overlapping results are paid for first and physically deduplicated only afterward.",
+    "All worlds are searched and all results are materialized even when the first observed runtime-value reference already disproves candidacy.",
+    "semanticReferenceNodes allocates another mapped node array on top of the SemanticReference array.",
+    "Canonical path resolution is repeated for reference spans that recur across overlapping programs.",
+    "The source corpus and descriptor membership are re-enumerated for scan, candidate, and stale-marker phases."
+  ],
+  "existingCachesAndGaps": [
+    {
+      "cache": "Lazy Project per SemanticProgram",
+      "status": "already present",
+      "evidence": "tooling/src/_shared/ts-workspace.ts:79-97",
+      "effect": "Avoids reconstructing the same native Project, but necessarily retains each loaded program and its compiler graph."
+    },
+    {
+      "cache": "SourceCorpus object",
+      "status": "already present, incomplete",
+      "evidence": "tooling/src/_shared/ts-workspace.ts:163,206-248",
+      "effect": "Caches the carrier object, not the getSourceFiles result or owner lookup."
+    },
+    {
+      "cache": "TypeScript/ts-morph module and checker state",
+      "status": "implicit",
+      "evidence": "tooling/src/ast/lib/liveness.ts:326-330",
+      "effect": "Module resolution is memoized after first use, but per-symbol reference queries remain repeated."
+    },
+    {
+      "cache": "containing programs by canonical path",
+      "status": "missing",
+      "evidence": "tooling/src/_shared/ts-workspace.ts:168-171",
+      "effect": "A small workspace-local Map can remove repeated P-way source-file membership scans."
+    },
+    {
+      "cache": "materialized source-corpus file array and owner index",
+      "status": "missing",
+      "evidence": "tooling/src/_shared/ts-workspace.ts:144-152,225-236",
+      "effect": "A descriptor-membership index plus one immutable source-file array removes repeated F by P membership work."
+    },
+    {
+      "cache": "full reference results by declaration",
+      "status": "intentionally not recommended",
+      "effect": "Each declaration is normally queried once by this lens; retaining every result would increase the 15 GB heap and creates mutation-staleness risk for in-memory consumers."
+    }
+  ],
+  "smallestSemanticsPreservingPlan": {
+    "name": "short-circuiting semantic-reference visitor",
+    "whySmallest": "It changes the shared traversal contract and the typeonly consumer without changing native-program construction, symbol identity, physical dedupe, evidence rendering, or other callers of findReferences.",
+    "steps": [
+      "Add a workspace-local reference traversal primitive beside SemanticWorkspace.findReferences, for example visitReferences(node, visitor): complete|stopped.",
+      "Retain the current containing-program loop, declaration remap by physical start/width, ReferenceFindable check, and canonical path/start/end identity.",
+      "Deduplicate physical spans incrementally before presenting them to the visitor.",
+      "Allow the visitor to stop traversal before later native programs are queried.",
+      "Keep findReferences as a compatibility wrapper that collects a complete traversal and performs the current stable canonical-path/start sort.",
+      "Change only typeOnlyCandidateOf to classify streamed references: neutral continues, type records its rendered site and continues, value stops immediately and returns no candidate.",
+      "For a declaration that never produces a runtime-value reference, exhaust every containing native world before deciding candidate or orphan and before rendering type-position sites.",
+      "As secondary low-risk work in the same workspace leaf, memoize containingPrograms by canonical path and materialize the source-corpus file array and descriptor owner index once. These are constant-factor wins, not the primary algorithmic fix."
+    ],
+    "semanticProof": [
+      "Typeonly candidacy is a universal predicate: every non-neutral reference must be type-position. One exact runtime-value counterexample permanently disproves it, so later worlds cannot restore candidacy.",
+      "Real type-only candidates, union-source buckets, and reasoned exemptions still exhaust every world and retain all unique type-position sites.",
+      "A stale marker remains stale as soon as any runtime-value reference is found.",
+      "A zero-reference declaration still requires complete exhaustion and remains outside this lens as an orphan.",
+      "Physical identity remains canonical source path plus start/end span.",
+      "Plain in-memory Project controls retain the existing findReferencesAsNodes fallback."
+    ]
+  },
+  "redFirstControls": [
+    {
+      "file": "tests/tooling/_shared/ts-workspace.test.ts",
+      "control": "Create a tiny overlapping multi-program workspace where an early containing program has a runtime reference and a later program also contains the declaration. Instrument or override the later mapped declaration's reference method so the test fails if it is queried after the runtime counterexample. Assert visitor status is stopped."
+    },
+    {
+      "file": "tests/tooling/_shared/ts-workspace.test.ts",
+      "control": "Create the opposite case: type-only references are split across two native worlds and one physical reference overlaps. Assert traversal completes, both unique sites survive, and overlap is deduped by physical span."
+    },
+    {
+      "file": "tests/tooling/_shared/ts-workspace.test.ts",
+      "control": "Assert the compatibility findReferences wrapper retains current stable ordering and complete-array behavior."
+    },
+    {
+      "file": "tests/tooling/ast/index.test.ts:920-1098",
+      "control": "Retain and exercise the exact classifier corpus: plain import used only through typeof, import type, namespace member access, renaming barrel, same-file runtime use, class implements versus runtime extends, and a test-path runtime reference that kills candidacy."
+    },
+    {
+      "file": "tests/tooling/ast/index.test.ts:991-1029",
+      "control": "Retain union-source bucketing for as const and as const satisfies, while schema-like and plain tuple candidates remain reportable."
+    },
+    {
+      "file": "tests/tooling/ast/index.test.ts:1061-1098",
+      "control": "Retain reasoned marker exemption, bare-marker rejection, and stale marker behavior when a runtime consumer appears."
+    },
+    {
+      "file": "tests/tooling/ast",
+      "control": "Add command-level in-memory output coverage that pins hit, union-source bucket, exemption count, stale-marker refusal/exit behavior, and JSON payload after the visitor change."
+    },
+    {
+      "file": "/tmp/world-tools-partial-lenses-runs/typeonly-alive-global.stdout",
+      "control": "After focused controls are green and no competing heap owner is active, rerun the uncapped command and require semantic parity with the completed receipt: 1 hit, 58 union-source buckets, 2 exemptions, same hit/site identities, complete ledger status. Record new wall and peak RSS with /usr/bin/time -v."
+    }
+  ],
+  "risksAndRejectedShortcuts": [
+    {
+      "risk": "Using import form or Liveness.usedProd as a prefilter",
+      "reason": "Liveness marks a named import without classifying its actual use position. A plain value import used only through typeof is an intentional positive control and would be lost.",
+      "evidence": [
+        "tooling/src/ast/lib/liveness.ts:52-77",
+        "tooling/src/ast/lib/liveness.ts:346-361",
+        "tests/tooling/ast/index.test.ts:943-974"
+      ]
+    },
+    {
+      "risk": "Using isReferencedInOwnFile unchanged as a fast skip",
+      "reason": "It preserves exact symbol identity but classifies any own-file reference as liveness; it does not distinguish type from value and would hide same-file type-only candidates.",
+      "evidence": "tooling/src/ast/lib/liveness.ts:87-108"
+    },
+    {
+      "risk": "Searching descriptor root owners only",
+      "reason": "A consumer program may contain the declaration through its resolved import closure without listing it as an authored config root. This would lose native-world references."
+    },
+    {
+      "risk": "Replacing native projects with one aggregate or root tsconfig",
+      "reason": "It would reduce cost by changing semantics and lose browser/node compiler-world fidelity.",
+      "evidence": "tests/tooling/_shared/ts-workspace.test.ts:49-70"
+    },
+    {
+      "risk": "Caching by symbol name or export spelling",
+      "reason": "Renaming barrels and same-spelled declarations require exact origin declaration identity.",
+      "evidence": "tooling/src/ast/lib/keys.ts:6-22,52-55"
+    },
+    {
+      "risk": "Stopping on a neutral or type-position reference",
+      "reason": "Neutral binding hops carry no verdict, and a later world may contain the runtime counterexample. Only value is a sound terminal state.",
+      "evidence": "tooling/src/ast/ops/typeonly.ts:88-119,181-200"
+    },
+    {
+      "risk": "Changing complete findReferences ordering for existing callers",
+      "reason": "The visitor should be new and findReferences should remain a sorted compatibility wrapper."
+    },
+    {
+      "risk": "Persistent/global all-reference caching",
+      "reason": "It raises retained heap and can become stale across in-memory mutation. Cache only immutable workspace-snapshot indexes and small path-to-program membership."
+    }
+  ],
+  "expectedLimits": [
+    "findReferencesAsNodes still materializes every reference within the current native program, so the first patch can short-circuit between programs but not inside TypeScript's own query.",
+    "Every real type-only candidate, marker exemption, union-source bucket, and orphan still requires complete all-world exhaustion.",
+    "The approximately 7.4 GB native load-plus-first-query floor remains because all native Projects are retained.",
+    "A significant CPU reduction is expected for ordinary runtime-alive exports; the exact speedup depends on containing-program order and where the first runtime reference is found.",
+    "If peak RSS remains unacceptable after eliminating unnecessary later-world searches, sequential per-program processing and release is the next design. That is a larger architecture change because current output candidates retain declaration nodes from cached Projects."
+  ],
+  "verificationOrder": [
+    "Make the multi-program early-stop control fail against current code.",
+    "Implement the visitor and compatibility wrapper.",
+    "Run focused in-memory shared-workspace and AST typeonly controls.",
+    "Verify marker refusal, bucket evidence, exact symbol identity, and complete-array compatibility.",
+    "Only when the box is quiescent, run the existing one-symbol native timing and full uncapped typeonly-alive timing.",
+    "Compare result identities and counts before evaluating wall-time/RSS improvement."
+  ]
+}
