@@ -2,8 +2,8 @@
 // No versions: the card IS the flat `characters` row, edited in place. No `raw` blob — every known field
 // has a typed home, so an app-authored card round-trips identically to an imported one.
 
-import type { CharacterHandle, CharacterId, PluginId } from "@orb/kit/ids";
-import { brandedId, castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import type { CharacterHandle, PluginId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { injectionDirectiveSchema } from "@orb/kit/injection";
 import { z } from "zod";
 import { cardFaceFields } from "#card-face";
@@ -586,7 +586,7 @@ export const CHARACTER_BULK_TAG_UNEXPECTED_OP_CODE = "unexpected" as const;
 export const CHARACTER_BULK_TAG_FAILURE_CODES = [CHARACTER_BULK_TAG_RESOLVE_FAILED_OP_CODE, CHARACTER_BULK_TAG_UNEXPECTED_OP_CODE] as const;
 
 export const characterBulkTagFailureSchema = z.object({
-  id: brandedId<CharacterId>(),
+  id: typeIdSchema(ID_PREFIX.character),
   error: z.object({
     code: z.enum(CHARACTER_BULK_TAG_FAILURE_CODES),
     message: z.string(),
@@ -599,7 +599,7 @@ export type CharacterBulkTagFailure = z.infer<typeof characterBulkTagFailureSche
  *  skipped as a silent no-op exactly as before this row (unowned/missing, or the tag was already in the
  *  target state) — that degrade is unchanged, only the REJECTED half is now legible. */
 export const characterBulkTagResultSchema = z.object({
-  applied: z.array(brandedId<CharacterId>()),
+  applied: z.array(typeIdSchema(ID_PREFIX.character)),
   failed: z.array(characterBulkTagFailureSchema),
 });
 export type CharacterBulkTagResult = z.infer<typeof characterBulkTagResultSchema>;

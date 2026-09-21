@@ -8,9 +8,17 @@ import type {
   ChatInjection,
   SectionPreview,
 } from "@orb/contracts/chat";
+import { chatInjectionInputSchema } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "../../support/fixtures.ts";
+
+test("chat injection ids reject malformed and wrong-prefix TypeIDs", () => {
+  const base = { position: "in_chat", depth: 0, role: "user", content: "note" } as const;
+  expect(chatInjectionInputSchema.safeParse({ ...base, id: mintTypeId(ID_PREFIX.chatInjection) }).success).toBe(true);
+  expect(chatInjectionInputSchema.safeParse({ ...base, id: mintTypeId(ID_PREFIX.chat) }).success).toBe(false);
+  expect(chatInjectionInputSchema.safeParse({ ...base, id: "chat_injection_not-a-typeid" }).success).toBe(false);
+});
 
 // ═══ the 8 assemble shapes (slim projections) ══════════════════════════════════
 

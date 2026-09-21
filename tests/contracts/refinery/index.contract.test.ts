@@ -18,6 +18,8 @@ import {
   REFINERY_STAGE_PAYLOADS,
   REFINERY_STAGES,
   refineryAnalyzePayloadSchema,
+  refineryCustomRunConfigSchema,
+  refineryCustomStageConfigSchema,
   refineryGuidanceSchema,
   refineryRewritePayloadSchema,
   refineryRunSchema,
@@ -28,6 +30,7 @@ import {
   refinerySessionSummarySchema,
   refineryStageConfigSchema,
 } from "@orb/contracts/refinery";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 // The PRODUCTION estimator the contract's token cap is measured by — imported so the fixtures below assert
 // their own token count instead of assuming it (a fixture that is not really at-cap proves nothing).
 import { estimateTokens } from "@orb/kit/tokens";
@@ -66,6 +69,18 @@ const CARD_GREETINGS_MAX = 100;
 const SESSION_ID = "refinery_session_01h455vb4pex5vsknk084sn02q";
 const RUN_ID = "refinery_run_01h455vb4pex5vsknk084sn02q";
 const CHARACTER_ID = "character_01h455vb4pex5vsknk084sn02q";
+
+test("custom stage schema ids reject malformed and wrong-prefix TypeIDs", () => {
+  const schemaId = mintTypeId(ID_PREFIX.refinerySchema);
+  const wrongPrefix = mintTypeId(ID_PREFIX.refineryRun);
+  expect(refineryCustomStageConfigSchema.safeParse({ kind: "custom", schemaId }).success).toBe(true);
+  expect(refineryCustomStageConfigSchema.safeParse({ kind: "custom", schemaId: wrongPrefix }).success).toBe(false);
+  expect(refineryCustomStageConfigSchema.safeParse({ kind: "custom", schemaId: "refinery_schema_not-a-typeid" }).success).toBe(false);
+  const run = { kind: "custom", schemaId, schemaVersion: 1, schema: {} } as const;
+  expect(refineryCustomRunConfigSchema.safeParse(run).success).toBe(true);
+  expect(refineryCustomRunConfigSchema.safeParse({ ...run, schemaId: wrongPrefix }).success).toBe(false);
+  expect(refineryCustomRunConfigSchema.safeParse({ ...run, schemaId: "refinery_schema_not-a-typeid" }).success).toBe(false);
+});
 
 const SCORE_PAYLOAD: RefineryScorePayload = {
   fieldScores: [

@@ -11,13 +11,13 @@
 
 import type { StreamRoomRef } from "@orb/contracts/stream";
 import { roomKey, STREAM_CHANNELS, streamAttachInputSchema, streamConnectInputSchema, streamDetachInputSchema } from "@orb/contracts/stream";
-import type { ChatId, SocketId, WorkloadId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import type { SocketId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "../../support/fixtures.ts";
 
-const CHAT_A = castId<ChatId>("chat_aaa");
-const CHAT_B = castId<ChatId>("chat_bbb");
-const RUN = castId<WorkloadId>("workload_aaa");
+const CHAT_A = mintTypeId(ID_PREFIX.chat);
+const CHAT_B = mintTypeId(ID_PREFIX.chat);
+const RUN = mintTypeId(ID_PREFIX.workload);
 const SOCKET = castId<SocketId>("f7a1c0de-0000-4000-8000-000000000001");
 
 test("STREAM_CHANNELS is exactly the room-ref channel set (both directions)", () => {
@@ -63,4 +63,8 @@ test("attach demands the chatId on a chat-scoped ref and bounds sinceSeq", () =>
   expect(streamAttachInputSchema.safeParse({ ...base, ref: { channel: "workloads" } }).success).toBe(false);
   expect(streamAttachInputSchema.safeParse({ ...base, ref: { channel: "workloads", chatId: CHAT_A } }).success).toBe(false);
   expect(streamAttachInputSchema.safeParse({ ...base, ref: { channel: "workloads", workloadId: RUN } }).success).toBe(true);
+  expect(streamAttachInputSchema.safeParse({ ...base, ref: { channel: "chat", chatId: RUN } }).success).toBe(false);
+  expect(streamAttachInputSchema.safeParse({ ...base, ref: { channel: "chat", chatId: "chat_not-a-typeid" } }).success).toBe(false);
+  expect(streamAttachInputSchema.safeParse({ ...base, ref: { channel: "workloads", workloadId: CHAT_A } }).success).toBe(false);
+  expect(streamAttachInputSchema.safeParse({ ...base, ref: { channel: "workloads", workloadId: "workload_not-a-typeid" } }).success).toBe(false);
 });

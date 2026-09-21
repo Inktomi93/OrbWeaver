@@ -60,6 +60,8 @@ test("acceptInviteSchema requires a branded inviteId (token-free accept-by-id)",
   expect(acceptInviteSchema.parse({ inviteId: SAMPLE_INVITE_ID, token: "x" })).toEqual({
     inviteId: SAMPLE_INVITE_ID,
   });
+  expect(acceptInviteSchema.safeParse({ inviteId: SAMPLE_CHAT_ID }).success).toBe(false);
+  expect(acceptInviteSchema.safeParse({ inviteId: "chat_invite_not-a-typeid" }).success).toBe(false);
 });
 
 test("InviteView / InvitePreview pin the host + accept-flow shapes (no token leaks)", () => {

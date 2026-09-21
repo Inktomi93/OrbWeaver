@@ -572,7 +572,7 @@ export type RedeemInviteInput = z.infer<typeof redeemInviteSchema>;
  *  share-link (untargeted) invite is NOT acceptable by id (token-only); a foreign/invalid id is a leak-free
  *  NOT_FOUND downstream. */
 export const acceptInviteSchema = z.object({
-  inviteId: brandedId<ChatInviteId>(),
+  inviteId: typeIdSchema(ID_PREFIX.chatInvite),
 });
 /** @public twin: acceptInviteSchema — the live `acceptInvite` tRPC input (cross-package PUBLIC). */
 export type AcceptInviteInput = z.infer<typeof acceptInviteSchema>;

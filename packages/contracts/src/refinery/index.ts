@@ -24,7 +24,7 @@
 // string — it silently DROPS the refinement and keeps `maxLength`, so the projection stays whole. The
 // cost is stated plainly: an over-token blob is now a FAILED RUN rather than an ungeneratable one.
 
-import type { ModelId, RefinerySchemaId } from "@orb/kit/ids";
+import type { ModelId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { liftJsonSchema } from "@orb/kit/json-schema";
 import { estimateTokens } from "@orb/kit/tokens";
@@ -298,7 +298,7 @@ export type RefineryAnalyzeFixedConfig = z.infer<typeof refineryAnalyzeFixedConf
  *  parse would heal a whole session config over an id-shape nit. */
 export const refineryCustomStageConfigSchema = z.object({
   kind: z.literal("custom"),
-  schemaId: brandedId<RefinerySchemaId>(),
+  schemaId: typeIdSchema(ID_PREFIX.refinerySchema),
 });
 /** @public twin: refineryCustomStageConfigSchema — the contract's stable spelling for the SF0 custom arm (cross-package PUBLIC). */
 export type RefineryCustomStageConfig = z.infer<typeof refineryCustomStageConfigSchema>;
@@ -333,7 +333,7 @@ export const DEFAULT_REFINERY_STAGE_CONFIG = {
  *  above is the mutable half; the resolve-and-embed happens inside `runStage`. */
 export const refineryCustomRunConfigSchema = z.object({
   kind: z.literal("custom"),
-  schemaId: brandedId<RefinerySchemaId>(),
+  schemaId: typeIdSchema(ID_PREFIX.refinerySchema),
   schemaVersion: z.number().int().min(1),
   schema: z.record(z.string(), z.unknown()),
 });

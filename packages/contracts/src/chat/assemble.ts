@@ -4,8 +4,8 @@
 // projections (`AssembleCharacter`/`AssemblePersona`/`AssembleWorldEntry`) are re-homed HERE (not imported
 // from `contracts/character`/`persona`) so `chat` avoids a `chat → character`/`persona` DAG edge.
 
-import type { CharacterId, ChatInjectionId, MessageId, MessageVariantId, UserId, WorldEntryId } from "@orb/kit/ids";
-import { brandedId } from "@orb/kit/ids";
+import type { CharacterId, MessageId, MessageVariantId, UserId, WorldEntryId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { InjectionPlacement } from "@orb/kit/injection";
 import type { VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
@@ -123,7 +123,7 @@ export const CHAT_INJECTION_POSITIONS = ["before_prompt", "in_static", "in_promp
  *  extends this), never here. Derived-checked: `satisfies` (below) proves the inferred shape matches the
  *  domain `SetChatInjectionParams` slice, so a params reshape breaks HERE, not silently at the boundary. */
 export const chatInjectionInputSchema = z.object({
-  id: brandedId<ChatInjectionId>().optional(),
+  id: typeIdSchema(ID_PREFIX.chatInjection).optional(),
   position: z.enum(CHAT_INJECTION_POSITIONS),
   depth: z.number().int(),
   role: messageRoleSchema,

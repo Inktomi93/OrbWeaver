@@ -490,7 +490,7 @@ export interface MessageView {
 // limitation and pre-authorized this arm). `mine` is a SELF-stamp: the rows it resolves are the caller's
 // own, so it widens reach, never authority (the verb's author-or-host belt is unchanged).
 export const reattributeScopeSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("messages"), messageIds: z.array(brandedId<MessageId>()) }),
+  z.object({ kind: z.literal("messages"), messageIds: z.array(typeIdSchema(ID_PREFIX.message)) }),
   z.object({ kind: z.literal("mine"), fromSeq: z.number().int().min(SEQ_MIN).optional() }),
 ]);
 
