@@ -41,6 +41,8 @@ const CLIENT_ERROR_URL_MAX = 4000;
 const CLIENT_ERROR_REQUEST_ID_MAX = 200;
 
 export const appRouter = t.router({
+  // @server-only: deployment readiness probe used by the boot supervisor and external health checks; it is
+  // deliberately public, carries no input, and has no browser UI consumer.
   health: publicProcedure.query(() => ({ ok: true }) as const),
   // @test-fixture: the CT typed-read template — the client-data CTs (_ct-stories.tsx) type a suspense
   // query against this echo; it ships as the minimal round-trip fixture, no production UI consumer.
