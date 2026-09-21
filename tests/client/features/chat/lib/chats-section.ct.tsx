@@ -1079,7 +1079,6 @@ function activityFire(over: Record<string, unknown>): Record<string, unknown> {
     triggerType: "messageCommitted",
     outcome: "fired",
     detail: null,
-    automationDepth: 0,
     firedAt: 1_700_000_000_000,
     ...over,
   };

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "capturedAt": "2026-09-21T06:50:16.393707+00:00",
-  "sourceCommit": "f734f9f27",
+  "capturedAt": "2026-09-21T07:07:27.954292+00:00",
+  "sourceCommit": "24d177728",
   "purpose": "Full AST audit observations and agent reasoning. Dated evidence, not a replacement for GitHub work-item lifecycle.",
   "entryPoints": {
     "coverage": "world-tools-lens-manifest.json",
@@ -32,7 +32,8 @@
     "candidateLensRepairReview": "world-tools-candidate-lenses-review.json",
     "graphQueryLensAudit": "world-tools-graph-query-lenses-audit.json",
     "brandBoundaryAudit": "world-tools-brand-boundary-audit.json",
-    "brandBoundarySummary": "world-tools-brand-boundary-audit.md"
+    "brandBoundarySummary": "world-tools-brand-boundary-audit.md",
+    "cleanupFinalRereview": "world-tools-cleanup-rereview.json"
   },
   "limitations": [
     "30 CLI verbs identified; coverage remains incomplete. A candidate is not a confirmed defect or deletion authorization.",
@@ -91,7 +92,9 @@
       "toolRepairIssue": 2523,
       "cleanupIssue": 2524,
       "receipt": "world-tools-viewgap-triage.json",
-      "cleanupCommit": "0834e6bb2"
+      "cleanupCommit": "0834e6bb2",
+      "cleanupRereview": "CONFIRMED after two stale FireView test mirrors were removed",
+      "cleanupRereviewReceipt": "world-tools-cleanup-rereview.json"
     },
     "testonly": {
       "coverage": [
@@ -161,7 +164,7 @@
         2524,
         2525
       ],
-      "result": "Removed seven unread public view/result fields, impossible untyped CT fixture fields, and retired loadTurnForClassify residue; post-merge rereview owed"
+      "result": "Removed seven unread public view/result fields, impossible untyped CT fixture fields, and retired loadTurnForClassify residue; final rereview confirmed after two stale FireView mirrors were removed"
     },
     {
       "commit": "f734f9f27",
@@ -540,6 +543,13 @@
       "sourceSha256": "eec0bfd166273357fe89db8b12b01e222c6725a98e8c7b552c33f1855bcc15d2",
       "sha256": "eec0bfd166273357fe89db8b12b01e222c6725a98e8c7b552c33f1855bcc15d2",
       "bytes": 27381
+    },
+    {
+      "file": "world-tools-cleanup-rereview.json",
+      "source": "/tmp/world-tools-cleanup-rereview.json",
+      "sourceSha256": "41c94668a7e98e2b258418a7d1bf022d77dad938abaac89682cad0b3e74af62d",
+      "sha256": "41c94668a7e98e2b258418a7d1bf022d77dad938abaac89682cad0b3e74af62d",
+      "bytes": 5607
     }
   ],
   "crossCuttingFindings": {
