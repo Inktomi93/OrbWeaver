@@ -22,9 +22,9 @@ export type PromptTemplateMode = z.infer<typeof promptTemplateModeSchema>;
 // The image-prompt-mode instructions were hardcoded in the server leaf (`domain/imagery/substrate/templates`);
 // homed HERE as the catalog (the ONE imagery-vocabulary home, grows additively) so a per-user
 // `UserSettings.imagery` override composes over them (unset ⇒ byte-identical to the shipped default). The
-// server substrate DERIVES `PROMPT_TEMPLATES`/`CAPTION_INSTRUCTIONS` from these (never re-spelled — the
-// `no-inline-union-redecl` discipline the modes tuple follows). The `{{char}}`/`{{user}}` macros resolve
-// through the ONE `@orb/kit/macro` engine at extraction time (a user override rides the same engine).
+// consumers read these canonical defaults directly (never re-spelled — the `no-inline-union-redecl`
+// discipline the modes tuple follows). The `{{char}}`/`{{user}}` macros resolve through the ONE
+// `@orb/kit/macro` engine at extraction time (a user override rides the same engine).
 
 /** The text-EXTRACTION modes (the quiet-shaper reads recent canon under these). `free` = the user's verbatim
  *  prompt (no template); the multimodal modes caption an avatar instead. */

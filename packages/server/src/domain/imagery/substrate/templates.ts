@@ -1,8 +1,7 @@
-// domain/imagery/substrate/templates — the real prompt text (doc 02 §5–6), NOT placeholders. PROMPT_TEMPLATES
-// are the quiet-extraction instructions chat's shaper resolves macros in ({{char}}); CAPTION_INSTRUCTIONS are
-// the multimodal vision-caption instructions (no macros — the image IS the subject). Each carries a load-bearing
-// "Begin your reply with: <prefix>," so the LLM opens the keyword list with the composition the size defaults
-// assume; REQUIRED_PREFIXES + ensurePrefix are the drift belt (doc 02 §1 step 4) when the LLM drops it.
+// domain/imagery/substrate/templates — server-side prompt composition behavior (doc 02 §5–6). The canonical
+// quiet-extraction and multimodal vision-caption instructions live in `@orb/contracts/imagery`. Each carries a
+// load-bearing "Begin your reply with: <prefix>," so the LLM opens the keyword list with the composition the size
+// defaults assume; REQUIRED_PREFIXES + ensurePrefix are the drift belt (doc 02 §1 step 4) when the LLM drops it.
 // The negative-prompt BASE is a deduped generic defect-suppression core adapted from Marinara Engine's negative prompts (doc 02 §6) — appended-to,
 // never replaced — and since PROSE-1 S1 it is a slot in the `@orb/contracts/imagery` catalog like its template
 // siblings, so `composeNegative` takes the resolved base rather than owning the bytes.
@@ -10,16 +9,6 @@
 // preamble is REPLACED by an explicit "Pause the roleplay" task frame (we control the system prompt, ST didn't).
 
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
-import { DEFAULT_CAPTION_INSTRUCTIONS, DEFAULT_PROMPT_TEMPLATES } from "@orb/contracts/imagery";
-
-// The prompt-building content is now the SHIPPED-DEFAULT catalog homed in `@orb/contracts/imagery` (Phase B ⑫,
-// so a per-user `UserSettings.imagery` override composes over it). These re-exports keep every existing
-// consumer's import path (D15 front-door) AND remain the byte-identical FALLBACK the resolver reads when the
-// caller has no override — never a re-spelled literal that could drift from the catalog (`no-inline-union-redecl`).
-/** @public Test-anchored module surface; focused tests pin this production-local behavior. */
-export const PROMPT_TEMPLATES = DEFAULT_PROMPT_TEMPLATES;
-/** @public Test-anchored module surface; focused tests pin this production-local behavior. */
-export const CAPTION_INSTRUCTIONS = DEFAULT_CAPTION_INSTRUCTIONS;
 
 /** The composition each non-free mode's keyword list must OPEN with — the templates instruct the LLM to
  *  begin here; `ensurePrefix` re-asserts it (doc 02 §1 step 4). The FACE→portrait / BACKGROUND→landscape
