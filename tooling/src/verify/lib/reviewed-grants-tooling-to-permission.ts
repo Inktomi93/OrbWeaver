@@ -206,15 +206,6 @@ export const REVIEWED_GRANTS_TOOLING_TO_PERMISSION: readonly ReviewedGateGrant[]
     endsWhen: "the loader moves — the row is then consumed zero times and reds at its dead subject, which is the legacy HOMES stale sweep.",
   },
   {
-    id: "tooling-root-config-import:prodonly-knip",
-    policyId: "tooling-root-config-import",
-    subject: "tooling/src/ast/ops/prodonly.ts",
-    operation: "root-config-import:knip.ts",
-    why: "ast/ops/prodonly derives its entry closure from the ONE knip workspace-entry config — re-spelling the globs is the one-home violation the front-door law exists to kill (P4 of #393, Core-Tooling-Law §4.2).",
-    endsWhen:
-      "prodonly stops deriving its closure from knip.ts, or knip's entry config moves — the row is then consumed zero times and reds at its dead subject, which is the two-sided stale sweep the legacy ROOT_CONFIG_IMPORTS table carried by hand.",
-  },
-  {
     id: "tsconfig-entry-liveness:node-modules",
     policyId: "tsconfig-entry-liveness",
     subject: "**/node_modules",

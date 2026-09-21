@@ -7,11 +7,11 @@
 //
 // What a declared row structurally cannot express lives here:
 //   §4.2 — the ordinary policy's identity arm, all three assertions, alarms first.
-//   §4.3 — grant identity for BOTH reviewed-grant policies with the REAL rows from `lib/reviewed-grants.ts`:
+//   §4.3 — grant identity for the reviewed argv policy with a REAL row from `lib/reviewed-grants.ts`:
 //          the intended row is consumed exactly once; a row keyed on the wrong operation licenses nothing;
-//          a row whose subject no longer performs the act is STALE after a complete run. The retired legacy
-//          int test's two-sided ROOT_CONFIG_IMPORTS sweep and the legacy ARGV_ENTRIES stale sweep (both
-//          modes) are exactly these pins.
+//          a row whose subject no longer performs the act is STALE after a complete run. The root-config
+//          policy has no real grant after prodonly stopped importing knip.ts; its exact synthetic-grant
+//          binding remains in its declared conformance row.
 //   §4.5 — every `entire-population` policy DEFERS a narrowed request instead of adjudicating a row its
 //          scope cannot see — the successor of the legacy int test's scoped-run defect pin (2026-08-30).
 //   §4.6 — the two split differentials against the frozen legacy descriptors (`1f5e25c00`, `4097be20d`):
@@ -19,8 +19,8 @@
 //          final policies, differences CLASSIFIED rather than averaged, and the legacy-side coverage of every
 //          moved arm asserted. Classified for the import family: (1) POSITION — the finding moved from the
 //          whole ImportDeclaration (legacy `token: spec, offset: 0`, not even an exact slice) to the quoted
-//          specifier literal; (2) the root-config row is a FINDING now (licensed by a grant the differential
-//          does not carry) where legacy passed it through its table; (3) the legacy escape example's
+//          specifier literal; (2) the historical root-config row is a FINDING in the final policy where
+//          legacy passed it through its table; (3) the legacy escape example's
 //          `../../../packages/...` resolved INSIDE `tooling/` — legacy called any non-`tooling/src/` path an
 //          escape and so does the final policy. For the argv family: (4) POSITION of the element-access
 //          spelling — legacy normalized `process["argv"]` to `process.argv`; (5) the six entry rows are
@@ -29,9 +29,7 @@
 //          file, not the gate module; (7) the ambient `process` spelling is UNREADABLE in a project without
 //          `@types/node`, so it is reported fail-closed under the unreadable text where legacy matched text
 //          (count identical, message differs) — the planted-types rows in the module pin the precise branch.
-//   Plus the real-tree fact the retired test carried: `ast/ops/prodonly.ts` imports `knip.ts` by relative
-//   path, read off disk — the second, independent method behind the one root-config grant.
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { Project } from "ts-morph";
 import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
@@ -51,10 +49,7 @@ const ARGV_FAMILY: readonly GatePolicy[] = [argvFrontDoor, argvHealth];
 const ALL: readonly GatePolicy[] = [...IMPORT_FAMILY, ...ARGV_FAMILY];
 const ANCHOR = "tooling/src/_shared/exit-contract.ts";
 const ANCHOR_SOURCE = "export const EXIT = { clean: 0 } as const;\n";
-const KNIP_GRANT_ID = "tooling-root-config-import:prodonly-knip";
 const ENGINES_GRANT_ID = "tooling-argv-front-door:stack-engines";
-const PRODONLY = "tooling/src/ast/ops/prodonly.ts";
-const KNIP_IMPORT = 'import knipConfig from "../../../../knip.ts";';
 const ENGINES = "tooling/src/stack/ops/engines.ts";
 const ENGINES_READ = 'import process from "node:process";\nexport const g = process.argv.includes("--detach");\n';
 
@@ -107,38 +102,7 @@ test("an ordinary waiver binds to the exact policy and the QUOTED-SPECIFIER posi
   expect(waived.authority.waivedFindings).toHaveLength(1);
 });
 
-// ─── §4.3 GRANT IDENTITY — the real rows ────────────────────────────────────────────────────────────────
-test("the prodonly/knip grant is consumed exactly once by the real subject and operation", () => {
-  const granted = passOf([rootConfigImport], { [PRODONLY]: `${KNIP_IMPORT}\nexport const globs = knipConfig;\n` }, { grants: [grantOf(KNIP_GRANT_ID)] });
-  expect(granted.toolErrors).toEqual([]);
-  expect(granted.authority.effectiveFindings).toEqual([]);
-  expect(granted.authority.grantedFindings).toHaveLength(1);
-  expect(granted.authority.reviewedGrantConsumption).toEqual([{ id: KNIP_GRANT_ID, count: 1 }]);
-  expect(granted.authority.authorityAlarms).toEqual([]);
-});
-
-test("the knip grant keyed on the WRONG config licenses nothing — the operation carries the resolved target", () => {
-  const mismatched = passOf(
-    [rootConfigImport],
-    { [PRODONLY]: `${KNIP_IMPORT}\nexport const globs = knipConfig;\n` },
-    { grants: [{ ...grantOf(KNIP_GRANT_ID), operation: "root-config-import:biome.json" }] },
-  );
-  expect(mismatched.authority.effectiveFindings).toHaveLength(1);
-  expect(mismatched.authority.authorityAlarms).toMatchObject([{ kind: "stale-reviewed-grant", grantId: KNIP_GRANT_ID }]);
-});
-
-test("the knip grant is STALE after a complete run in which prodonly no longer imports the config — the legacy sweep's mode (A)", () => {
-  const stale = passOf([rootConfigImport], { [PRODONLY]: "export const globs = [];\n" }, { grants: [grantOf(KNIP_GRANT_ID)] });
-  expect(stale.authority.effectiveFindings).toEqual([]);
-  expect(stale.authority.authorityAlarms).toMatchObject([{ kind: "stale-reviewed-grant", grantId: KNIP_GRANT_ID }]);
-});
-
-test("the knip grant is STALE when its subject is GONE from the tree — the legacy sweep's mode (B)", () => {
-  const gone = passOf([rootConfigImport], { "tooling/src/ast/ops/other.ts": "export const other = 1;\n" }, { grants: [grantOf(KNIP_GRANT_ID)] });
-  expect(gone.authority.effectiveFindings).toEqual([]);
-  expect(gone.authority.authorityAlarms).toMatchObject([{ kind: "stale-reviewed-grant", grantId: KNIP_GRANT_ID }]);
-});
-
+// ─── §4.3 GRANT IDENTITY — a real central row ──────────────────────────────────────────────────────────
 test("the stack/engines argv grant is consumed exactly once by the real entry", () => {
   const granted = passOf([argvFrontDoor], { [ENGINES]: ENGINES_READ }, { grants: [grantOf(ENGINES_GRANT_ID)] });
   expect(granted.toolErrors).toEqual([]);
@@ -182,7 +146,7 @@ test("every argv grant row in the central table names a subject that exists on t
 test("a narrowed request DEFERS every entire-population policy in both families instead of adjudicating a row its scope cannot see", () => {
   const files = {
     [ANCHOR]: ANCHOR_SOURCE,
-    [PRODONLY]: `${KNIP_IMPORT}\nexport const globs = knipConfig;\n`,
+    "tooling/src/aa/ops/root-config.ts": 'import knipConfig from "../../../../knip.ts";\nexport const globs = knipConfig;\n',
     "tooling/src/snap/cli.ts": 'import process from "node:process";\nexport const a = process.argv.slice(2);\n',
     "tooling/src/_shared/log.ts": "export const warn = 1;\n",
   };
@@ -193,14 +157,4 @@ test("a narrowed request DEFERS every entire-population policy in both families 
     expect(narrowed.authority.effectiveFindings, policy.id).toEqual([]);
     expect(narrowed.authority.authorityAlarms, policy.id).toEqual([]);
   }
-});
-
-// ─── THE REAL-TREE FACT behind the one root-config grant (the retired int test's independent method) ────
-test("the knip grant is LIVE on today's tree: ast/ops/prodonly imports the knip config by relative path and consumes it", ({ repoRoot }) => {
-  const consumer = join(repoRoot, PRODONLY);
-  expect(existsSync(consumer), `${PRODONLY} is the row's only justification`).toBe(true);
-  const source = readFileSync(consumer, "utf8");
-  expect(source, "the root-config import IS the row").toContain(KNIP_IMPORT);
-  expect(source, "…and it must still be CONSUMED, not merely imported").toContain("knipConfig as");
-  expect(grantOf(KNIP_GRANT_ID).subject).toBe(PRODONLY);
 });
