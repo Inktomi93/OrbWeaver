@@ -5,11 +5,21 @@
   "purpose": "Full AST audit observations and agent reasoning. Dated evidence, not a replacement for GitHub work-item lifecycle.",
   "entryPoints": {
     "coverage": "world-tools-lens-manifest.json",
+    "currentStatus": "world-tools-lens-status-current.json",
     "clientDecisions": "world-tools-client-testonly-triage.json",
     "serverDecisions": "world-tools-server-testonly-triage.json",
     "securityDecisions": "world-tools-security-testonly-triage.json",
     "contractsReasoning": "world-tools-contracts-audit.json",
-    "crossPackageReasoning": "world-tools-testonly-audit.json"
+    "crossPackageReasoning": "world-tools-testonly-audit.json",
+    "clientCleanup": "world-tools-client-cleanup-report.json",
+    "clientCleanupReview": "world-tools-client-cleanup-review.json",
+    "serverCleanup": "world-tools-server-cleanup-report.json",
+    "jsonOutputRepair": "world-tools-json-output-report.json",
+    "jsonOutputReview": "world-tools-json-output-review.json",
+    "jsonOutputRereview": "world-tools-json-output-rereview.json",
+    "contractFieldDecisions": "world-tools-contract-field-triage.json",
+    "clientTestonlyAfterCleanup": "world-tools-testonly-client-after-cleanup.json",
+    "registryDecisions": "world-tools-registry-triage.json"
   },
   "limitations": [
     "30 CLI verbs identified; coverage remains incomplete. A candidate is not a confirmed defect or deletion authorization.",
@@ -25,6 +35,38 @@
     "registryObservations": 153,
     "viewgapCandidates": 33,
     "correctedContractFieldCandidates": 48
+  },
+  "adjudicatedLensResults": {
+    "contract-field-liveness": {
+      "observations": 48,
+      "externalOrForeignInputs": 34,
+      "provenLiveFlowsMissedByLens": 13,
+      "deliberateReservedFields": 1,
+      "deletionCandidates": 0,
+      "unresolved": 0,
+      "receipt": "world-tools-contract-field-triage.json"
+    },
+    "testonly-client-after-cleanup": {
+      "findings": 8,
+      "declaredTestSeamsBucketed": 32,
+      "remainingIntentQuestion": "useDeleteRefinerySession",
+      "comparisonNote": "Do not attribute the full 19-to-8 delta to deletion: package-root framework entrypoints are outside this client/src run and require separate accounting."
+    },
+    "registry-candidates": {
+      "observations": 153,
+      "deliberateSubsetOrSuperset": 67,
+      "intentionalHandCompositions": 14,
+      "unrelatedVocabularyOrHeuristicCollisions": 72,
+      "confirmedDriftDefects": 0,
+      "unresolved": 0,
+      "toolCalibrationDefects": [
+        "shared-namespace mutation conflates distinct DOM instances through generic style and target members",
+        "record keys retain quotes while switch literals do not",
+        "numeric-key overlap creates unrelated migration and ordinal collisions",
+        "typed registered hand compositions are reported as contributions without a door"
+      ],
+      "receipt": "world-tools-registry-triage.json"
+    }
   },
   "committedRepairs": [
     {
@@ -45,6 +87,21 @@
         2515
       ],
       "result": "Actual corpus receipts, compound assignment producers, distinct same-line findings"
+    },
+    {
+      "commit": "7bccc3b0f",
+      "issue": 2516,
+      "result": "Retired duplicate endpoint probe and regex singleton aliases; typed 401/403 credential classification"
+    },
+    {
+      "commit": "af02c2480",
+      "issue": 2518,
+      "result": "Retired obsolete client state helpers, stale persisted-store ruling, proof denominator and citations"
+    },
+    {
+      "commit": "3d1468b27",
+      "issue": 2519,
+      "result": "Machine-readable AST JSON output with explicit dependency-cruiser refusal and independently confirmed boundary fixes"
     }
   ],
   "unresolvedInsights": [
@@ -54,20 +111,27 @@
     "Schema/type twins and intentional proof seams must not be deleted for lacking runtime callers.",
     "loadTurnForClassify and ensureUserSettings need separate adjudication.",
     "foldActiveSpace, evidenceRank, policy-table claims and inverse query helpers need follow-up; full rationale retained in Contracts report.",
-    "JSON single-lens output includes prose and is not directly parseable; issue2519."
+    "JSON single-lens output repair is implemented under issue2519; its original review refutation is preserved beside the corrected implementation report."
   ],
   "newReviewFinding": {
     "reviewer": "server_cleanup_review",
     "verdict": "REFUTED",
     "scope": "server cleanup replacement probe contract",
-    "severity": "medium",
+    "severity": "high credential-state integrity impact",
     "evidence": "Real probe with injected fetch: HTTP500 body {\"error\":\"temporary outage: invalid api key cache is unavailable\"} returned revoked. recordProbeOutcome then persists auth_failed.",
     "cause": "Regex classifies complete error text, including arbitrary upstream body prose.",
     "requiredRepair": "Use typed ProviderError.apiErrorStatus 401/403, regression with 500 auth words.",
     "deletionCorroboration": "Actual ast-grep packages/tests/tooling/scripts/playwright: 6446 TS,1409 TSX, zero probeOpenAiEndpoint; fetchOpenAiModels positive control succeeds.",
-    "disposition": "Assigned to security implementation lane; not yet verified."
+    "disposition": "Fixed red-first: classification now uses typed ProviderError.apiErrorStatus 401/403; 18 targeted and 122 final focused tests passed. Full receipt is world-tools-server-cleanup-report.json."
   },
   "artifacts": [
+    {
+      "file": "world-tools-lens-status-current.json",
+      "source": "maintained audit status matrix",
+      "sourceSha256": null,
+      "sha256": "ab1ddfcd15685b6c6e105ff58cac88e599dc00a660255c3750383f3dc74e559b",
+      "bytes": 2839
+    },
     {
       "file": "world-tools-lens-manifest.json",
       "source": "/tmp/world-tools-lens-manifest.json",
@@ -256,6 +320,69 @@
       "sourceSha256": "c51725815cecdd5dfc7c398c88c5a8e5e6bb5cfebd32a84e97244971af4d4996",
       "sha256": "c51725815cecdd5dfc7c398c88c5a8e5e6bb5cfebd32a84e97244971af4d4996",
       "bytes": 15182
+    },
+    {
+      "file": "world-tools-client-cleanup-report.json",
+      "source": "/tmp/world-tools-client-cleanup-report.json",
+      "sourceSha256": "6f8294369cc82c806ed6ec7f3b2ab37bedf94fd894b8c56a8ef67b9dae1e5ac2",
+      "sha256": "6f8294369cc82c806ed6ec7f3b2ab37bedf94fd894b8c56a8ef67b9dae1e5ac2",
+      "bytes": 10392
+    },
+    {
+      "file": "world-tools-server-cleanup-report.json",
+      "source": "/tmp/world-tools-server-cleanup-report.json",
+      "sourceSha256": "0391de3e8afb8509233e73ee4c38d867e36716ab562f03b823222a7178853a40",
+      "sha256": "0391de3e8afb8509233e73ee4c38d867e36716ab562f03b823222a7178853a40",
+      "bytes": 13273
+    },
+    {
+      "file": "world-tools-client-cleanup-review.json",
+      "source": "/tmp/world-tools-client-cleanup-review.json",
+      "sourceSha256": "c662dc24ea5f52c922c6440e313187c33046dda6dadd2dcf78fe26926e421e61",
+      "sha256": "c662dc24ea5f52c922c6440e313187c33046dda6dadd2dcf78fe26926e421e61",
+      "bytes": 8392
+    },
+    {
+      "file": "world-tools-json-output-report.json",
+      "source": "/tmp/world-tools-json-output-report.json",
+      "sourceSha256": "9dade71c9ab71fdeb7698fd15d3dd0ec9ad8264889e7b81502218b6aa167d822",
+      "sha256": "50ac11a8d73dc8e71aa028b43faecbc2452b6dd2c8be0b2481f68dcecb457b47",
+      "bytes": 19719
+    },
+    {
+      "file": "world-tools-contract-field-triage.json",
+      "source": "/tmp/world-tools-contract-field-triage.json",
+      "sourceSha256": "bfd2033cdbc2c541104b0ca4ecdb4994df6e1002fa8cfa447edb8484f97275a1",
+      "sha256": "bfd2033cdbc2c541104b0ca4ecdb4994df6e1002fa8cfa447edb8484f97275a1",
+      "bytes": 37914
+    },
+    {
+      "file": "world-tools-testonly-client-after-cleanup.json",
+      "source": "live pnpm ast testonly client --json run after af02c2480",
+      "sourceSha256": "4717e780dea1c53ba71c25f44207e77864cd42eba68ce3d394e37fc326acf781",
+      "sha256": "4717e780dea1c53ba71c25f44207e77864cd42eba68ce3d394e37fc326acf781",
+      "bytes": 3123
+    },
+    {
+      "file": "world-tools-json-output-review.json",
+      "source": "/tmp/world-tools-json-output-review.json",
+      "sourceSha256": "71e1099482115bd97132b38a1753527488cb893be078a3b71507bd2bc65d7075",
+      "sha256": "71e1099482115bd97132b38a1753527488cb893be078a3b71507bd2bc65d7075",
+      "bytes": 6282
+    },
+    {
+      "file": "world-tools-registry-triage.json",
+      "source": "/tmp/world-tools-registry-triage.json",
+      "sourceSha256": "8919429c5b38f3d3ab9d7e56e97cb366c4b759564fecc3ee56bd2ac3869e7004",
+      "sha256": "8919429c5b38f3d3ab9d7e56e97cb366c4b759564fecc3ee56bd2ac3869e7004",
+      "bytes": 166145
+    },
+    {
+      "file": "world-tools-json-output-rereview.json",
+      "source": "/tmp/world-tools-json-output-rereview.json",
+      "sourceSha256": "c5ee90af0a90597f89f822a09473ebd040158f5397728335d96509d772c53364",
+      "sha256": "6985c000b8ae8e194428993cfcb8b1c9a88df9efe32994b33f5571e39575ece8",
+      "bytes": 7513
     }
   ]
 }

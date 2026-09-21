@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-09-21T05:18:00-06:00",
+  "denominator": 30,
+  "rule": "A verb is complete only after its result set and tool behavior are adjudicated. Invocation alone does not count.",
+  "summary": {
+    "fullyAdjudicated": 2,
+    "mostlyClosed": 1,
+    "partialOrInProgress": 6,
+    "notYetIndependentlyAdjudicated": 21
+  },
+  "fullyAdjudicated": [
+    {
+      "verb": "contract-field-liveness",
+      "observations": 48,
+      "deletionCandidates": 0,
+      "unresolved": 0,
+      "receipt": "world-tools-contract-field-triage.json"
+    },
+    {
+      "verb": "registry-candidates",
+      "observations": 153,
+      "productDriftDefects": 0,
+      "unresolved": 0,
+      "toolRepairIssue": 2521,
+      "receipt": "world-tools-registry-triage.json"
+    }
+  ],
+  "mostlyClosed": [
+    {
+      "verb": "testonly",
+      "coverage": [
+        "client",
+        "server",
+        "security",
+        "contracts"
+      ],
+      "committedCleanup": [
+        "7bccc3b0f",
+        "af02c2480"
+      ],
+      "remainingDecisions": [
+        "useDeleteRefinerySession",
+        "loadTurnForClassify",
+        "ensureUserSettings"
+      ]
+    }
+  ],
+  "partialOrInProgress": [
+    {
+      "verb": "viewgap",
+      "status": "33-candidate full run preserved; per-candidate adjudication active"
+    },
+    {
+      "verb": "orphans",
+      "status": "contracts scope run and reviewed; broader package coverage pending"
+    },
+    {
+      "verb": "swallowed",
+      "status": "contracts scope run and reviewed; broader package coverage pending"
+    },
+    {
+      "verb": "typeonly-alive",
+      "status": "contracts scope run and reviewed; broader package coverage pending"
+    },
+    {
+      "verb": "chains",
+      "status": "contracts scope run and reviewed; broader package coverage pending"
+    },
+    {
+      "verb": "rot",
+      "status": "contracts composite run and reviewed; broader package coverage pending"
+    }
+  ],
+  "notYetIndependentlyAdjudicated": {
+    "candidateOrAudit": [
+      "subset-callers",
+      "dead",
+      "prodonly",
+      "unwired",
+      "clientgap",
+      "respell",
+      "columns",
+      "regkeys",
+      "stringy",
+      "apisurface"
+    ],
+    "graphOrInventory": [
+      "cycles",
+      "aliases"
+    ],
+    "queryNavigationTruthfulness": [
+      "refs",
+      "callers",
+      "importers",
+      "exports",
+      "jsx",
+      "ident",
+      "literal",
+      "flow",
+      "reaches"
+    ]
+  },
+  "crossCuttingWork": {
+    "jsonOutput": {
+      "scope": "all 30 verbs",
+      "status": "committed at 3d1468b27; final independent rereview CONFIRMED",
+      "implementationReceipt": "world-tools-json-output-report.json",
+      "originalRefutationReceipt": "world-tools-json-output-review.json",
+      "confirmedRereviewReceipt": "world-tools-json-output-rereview.json"
+    }
+  }
+}

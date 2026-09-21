@@ -1,0 +1,498 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-21T05:01:29.236236+00:00",
+  "issue": "#2519",
+  "denominator": {
+    "totalVerbs": 30,
+    "registeredAstVerbs": 28,
+    "depcruisePassThroughs": 2,
+    "singleResultByDefault": 27,
+    "compositeModes": [
+      "rot",
+      "respell --near"
+    ],
+    "unsupportedJson": [
+      "flow",
+      "reaches"
+    ]
+  },
+  "contract": {
+    "singleResult": "With --json, stdout is exactly one JSON value shaped {label,total,shown,hits,meta}; narration and diagnostics are stderr.",
+    "human": "Without --json, existing narration, hits, and RESULT lines remain on stdout; diagnostics and the scan epilogue remain stderr.",
+    "rot": "Preserves the documented five consecutive pretty-printed JSON section values on stdout; all composite narration moves to stderr.",
+    "respellNear": "Preserves the existing two consecutive pretty-printed JSON values: exact then near; narration moves to stderr.",
+    "depcruise": "flow/reaches remain native text reports and reject --json as misuse before starting dependency-cruiser."
+  },
+  "findings": [
+    {
+      "id": "narration-corrupts-json",
+      "affectedVerbCount": 17,
+      "affectedVerbs": [
+        "apisurface",
+        "chains",
+        "clientgap",
+        "columns",
+        "contract-field-liveness",
+        "dead",
+        "orphans",
+        "registry-candidates",
+        "regkeys",
+        "respell",
+        "rot",
+        "stringy",
+        "subset-callers",
+        "swallowed",
+        "testonly",
+        "typeonly-alive",
+        "viewgap"
+      ],
+      "cause": "Seventeen verbs printed explanatory tables/buckets before emit(JSON.stringify(...)), so JSON.parse(stdout) failed whenever that narration path ran.",
+      "fix": "All AST human narration uses emit.ts#narrate: stdout in human mode, stderr in JSON mode. emit remains the only AST JSON stdout writer."
+    },
+    {
+      "id": "depcruise-accepted-json-without-json-output",
+      "affectedVerbs": [
+        "flow",
+        "reaches"
+      ],
+      "cause": "The shared flag parser accepted --json, but the pass-through always printed dependency-cruiser text.",
+      "fix": "The CLI rejects --json explicitly for those two verbs with misuse exit 3."
+    }
+  ],
+  "inventory": [
+    {
+      "verb": "refs",
+      "category": "query-navigation",
+      "implementation": "tooling/src/ast/ops/symbols.ts#cmdRefs",
+      "corpus": "typed",
+      "jsonContract": "single-json-value",
+      "emissionPath": "tooling/src/ast/ops/symbols.ts#cmdRefs -> tooling/src/ast/lib/emit.ts#emit",
+      "hadNarrationBeforeResult": false,
+      "existingTests": [
+        "tests/tooling/ast/lib/emit.repo.int.test.ts (native world substrate only)",
+        "tests/tooling/ast/index.test.ts (shared liveness/reference fixtures indirectly)"
+      ]
+    },
+    {
+      "verb": "callers",
+      "category": "query-navigation",
+      "implementation": "tooling/src/ast/ops/symbols.ts#cmdCallers",
+      "corpus": "syntactic",
+      "jsonContract": "single-json-value",
+      "emissionPath": "tooling/src/ast/ops/symbols.ts#cmdCallers -> tooling/src/ast/lib/emit.ts#emit",
+      "hadNarrationBeforeResult": false,
+      "existingTests": [
+        "tests/tooling/ast/ops/verbs.test.ts (absent result and ledger)"
+      ]
+    },
+    {
+      "verb": "subset-callers",
+      "category": "audit-candidate",
+      "implementation": "tooling/src/ast/ops/subset-callers.ts#cmdSubsetCallers",
+      "corpus": "syntactic",
+      "jsonContract": "single-json-value",
+      "emissionPath": "tooling/src/ast/ops/subset-callers.ts#cmdSubsetCallers -> tooling/src/ast/lib/emit.ts#emit",
+      "hadNarrationBeforeResult": true,
+      "existingTests": [
+        "tests/tooling/ast/ops/subset-callers.test.ts"
+      ]
+    },
+    {
+      "verb": "importers",
+      "category": "query-navigation",
+      "implementation": "tooling/src/ast/ops/symbols.ts#cmdImporters",
+      "corpus": "syntactic",
+      "jsonContract": "single-json-value",
+      "emissionPath": "tooling/src/ast/ops/symbols.ts#cmdImporters -> tooling/src/ast/lib/emit.ts#emit",
+      "hadNarrationBeforeResult": false,
+      "existingTests": []
+    },
+    {
+      "verb": "exports",
+      "category": "query-navigation",
+      "implementation": "tooling/src/ast/ops/symbols.ts#cmdExports",
+      "corpus": "syntactic",
+      "jsonContract": "single-json-value",
+      "emissionPath": "tooling/src/ast/ops/symbols.ts#cmdExports -> tooling/src/ast/lib/emit.ts#emit",
+      "hadNarrationBeforeResult": false,
+      "existingTests": [
+        "tests/tooling/ast/ops/verbs.test.ts",
+        "tests/tooling/ast/cli.repo.int.test.ts"
+      ]
+    },
+    {
+      "verb": "jsx",
+      "category": "query-navigation",
+      "implementation": "tooling/src/ast/ops/symbols.ts#cmdJsx",
+      "corpus": "syntactic",
+      "jsonContract": "single-json-value",
+      "emissionPath": "tooling/src/ast/ops/symbols.ts#cmdJsx -> tooling/src/ast/lib/emit.ts#emit",
+      "hadNarrationBeforeResult": false,
+      "existingTests": [
+        "tests/tooling/ast/ops/verbs.test.ts",
+        "tests/tooling/ast/cli.repo.int.test.ts"
+      ]
+    },
+    {
+      "verb": "ident",
+      "category": "query-navigation",
+      "implementation": "tooling/src/ast/ops/symbols.ts#cmdIdent",
+      "corpus": "syntactic",
+      "jsonContract": "single-json-value",
+      "emissionPath": "tooling/src/ast/ops/symbols.ts#cmdIdent -> tooling/src/ast/lib/emit.ts#emit",
+      "hadNarrationBeforeResult": false,
+      "existingTests": [
+        "tests/tooling/ast/ops/verbs.test.ts",
+        "tests/tooling/ast/cli.repo.int.test.ts"
+      ]
+    },
+    {
+      "verb": "literal",
+      "category": "query-navigation",
+      "implementation": "tooling/src/ast/ops/symbols.ts#cmdLiteral",
+      "corpus": "wideSyntactic",
+      "jsonContract": "single-json-value",
+      "emissionPath": "tooling/src/ast/ops/symbols.ts#cmdLiteral -> tooling/src/ast/lib/emit.ts#emit",
+      "hadNarrationBeforeResult": false,
+      "existingTests": [
+        "tests/tooling/ast/ops/verbs.test.ts",
+        "tests/tooling/ast/cli.repo.int.test.ts"
+      ]
+    },
+    {
+      "verb": "dead",
+      "category": "audit-candidate",
+      "implementation": "tooling/src/ast/ops/dead.ts#cmdDead",
+      "corpus": "typed",
+      "jsonContract": "single-json-value",
+      "emissionPath": "tooling/src/ast/ops/dead.ts#cmdDead -> tooling/src/ast/lib/emit.ts#emit",
+      "hadNarrationBeforeResult": true,
+      "existingTests": [
+        "tests/tooling/ast/index.test.ts",
+        "tests/tooling/ast/cli.repo.int.test.ts (absent query dispatch)"
+      ]
+    },
+    {
+      "verb": "orphans",
+      "category": "audit-candidate",
+      "implementation": "tooling/src/ast/ops/orphans.ts#cmdOrphans",
+      "corpus": "typed",
+      "jsonContract": "single-json-value",
+      "emissionPath": "tooling/src/ast/ops/orphans.ts#cmdOrphans -> tooling/src/ast/lib/emit.ts#emit",
+      "hadNarrationBeforeResult": true,
+      "existingTests": [
+        "tests/tooling/ast/index.test.ts"
+      ]
+    },
+    {
+      "verb": "testonly",
+      "category": "audit-candidate",
+      "implementation": "tooling/src/ast/ops/orphans.ts#cmdTestOnly",
+      "corpus": "typed",
+      "jsonContract": "single-json-value",
+      "emissionPath": "tooling/src/ast/ops/orphans.ts#cmdTestOnly -> tooling/src/ast/lib/emit.ts#emit",
+      "hadNarrationBeforeResult": true,
+      "existingTests": [
+        "tests/tooling/ast/index.test.ts"
+      ]
+    },
+    {
+      "verb": "prodonly",
+      "category": "audit-candidate",
+      "implementation": "tooling/src/ast/ops/prodonly.ts#cmdProdOnly",
+      "corpus": "typed",
+      "jsonContract": "single-json-value",
+      "emissionPath": "tooling/src/ast/ops/prodonly.ts#cmdProdOnly -> tooling/src/ast/lib/emit.ts#emit",
+      "hadNarrationBeforeResult": false,
+      "existingTests": [
+        "tests/tooling/ast/index.test.ts"
+      ]
+    },
+    {
+      "verb": "cycles",
+      "category": "audit-graph",
+      "implementation": "tooling/src/ast/ops/graph.ts#cmdCycles",
+      "corpus": "typed",
+      "jsonContract": "single-json-value",
+      "emissionPath": "tooling/src/ast/ops/graph.ts#cmdCycles -> tooling/src/ast/lib/emit.ts#emit",
+      "hadNarrationBeforeResult": false,
+      "existingTests": []
+    },
+    {
+      "verb": "aliases",
+      "category": "inventory",
+      "implementation": "tooling/src/ast/ops/graph.ts#cmdAliases",
+      "corpus": "syntactic",
+      "jsonContract": "single-json-value",
+      "emissionPath": "tooling/src/ast/ops/graph.ts#cmdAliases -> tooling/src/ast/lib/emit.ts#emit",
+      "hadNarrationBeforeResult": false,
+      "existingTests": []
+    },
+    {
+      "verb": "unwired",
+      "category": "audit-candidate",
+      "implementation": "tooling/src/ast/ops/wiring.ts#cmdUnwired",
+      "corpus": "typed",
+      "jsonContract": "single-json-value",
+      "emissionPath": "tooling/src/ast/ops/wiring.ts#cmdUnwired -> tooling/src/ast/lib/emit.ts#emit",
+      "hadNarrationBeforeResult": false,
+      "existingTests": [
+        "tests/tooling/ast/index.test.ts"
+      ]
+    },
+    {
+      "verb": "clientgap",
+      "category": "audit-candidate",
+      "implementation": "tooling/src/ast/ops/wiring.ts#cmdClientGap",
+      "corpus": "typed",
+      "jsonContract": "single-json-value",
+      "emissionPath": "tooling/src/ast/ops/wiring.ts#cmdClientGap -> tooling/src/ast/lib/emit.ts#emit",
+      "hadNarrationBeforeResult": true,
+      "existingTests": [
+        "tests/tooling/ast/index.test.ts"
+      ]
+    },
+    {
+      "verb": "viewgap",
+      "category": "audit-candidate",
+      "implementation": "tooling/src/ast/ops/viewgap.ts#cmdViewGap",
+      "corpus": "syntactic",
+      "jsonContract": "single-json-value",
+      "emissionPath": "tooling/src/ast/ops/viewgap.ts#cmdViewGap -> tooling/src/ast/lib/emit.ts#emit",
+      "hadNarrationBeforeResult": true,
+      "existingTests": [
+        "tests/tooling/ast/index.test.ts"
+      ]
+    },
+    {
+      "verb": "swallowed",
+      "category": "audit-candidate",
+      "implementation": "tooling/src/ast/ops/swallowed.ts#cmdSwallowed",
+      "corpus": "typed",
+      "jsonContract": "single-json-value",
+      "emissionPath": "tooling/src/ast/ops/swallowed.ts#cmdSwallowed -> tooling/src/ast/lib/emit.ts#emit",
+      "hadNarrationBeforeResult": true,
+      "existingTests": [
+        "tests/tooling/ast/index.test.ts"
+      ]
+    },
+    {
+      "verb": "respell",
+      "category": "audit-candidate",
+      "implementation": "tooling/src/ast/ops/respell.ts#cmdRespell",
+      "corpus": "typed",
+      "jsonContract": "single-json-value; --near emits two consecutive documented section values",
+      "emissionPath": "tooling/src/ast/ops/respell.ts#cmdRespell -> emit; optional cmdRespellNear -> second emit",
+      "hadNarrationBeforeResult": true,
+      "existingTests": [
+        "tests/tooling/ast/index.test.ts"
+      ]
+    },
+    {
+      "verb": "typeonly-alive",
+      "category": "audit-candidate",
+      "implementation": "tooling/src/ast/ops/typeonly.ts#cmdTypeOnly",
+      "corpus": "typed",
+      "jsonContract": "single-json-value",
+      "emissionPath": "tooling/src/ast/ops/typeonly.ts#cmdTypeOnly -> tooling/src/ast/lib/emit.ts#emit",
+      "hadNarrationBeforeResult": true,
+      "existingTests": [
+        "tests/tooling/ast/index.test.ts"
+      ]
+    },
+    {
+      "verb": "columns",
+      "category": "audit-candidate",
+      "implementation": "tooling/src/ast/ops/columns.ts#cmdColumns",
+      "corpus": "typed",
+      "jsonContract": "single-json-value",
+      "emissionPath": "tooling/src/ast/ops/columns.ts#cmdColumns -> tooling/src/ast/lib/emit.ts#emit",
+      "hadNarrationBeforeResult": true,
+      "existingTests": [
+        "tests/tooling/ast/index.test.ts",
+        "tests/tooling/ast/ops/verbs.test.ts",
+        "tests/tooling/ast/lib/emit.repo.int.test.ts (real table discovery)"
+      ]
+    },
+    {
+      "verb": "regkeys",
+      "category": "informational-heuristic",
+      "implementation": "tooling/src/ast/ops/regkeys.ts#cmdRegKeys",
+      "corpus": "syntactic",
+      "jsonContract": "single-json-value",
+      "emissionPath": "tooling/src/ast/ops/regkeys.ts#cmdRegKeys -> tooling/src/ast/lib/emit.ts#emit",
+      "hadNarrationBeforeResult": true,
+      "existingTests": [
+        "tests/tooling/ast/index.test.ts",
+        "tests/tooling/ast/ops/verbs.test.ts"
+      ]
+    },
+    {
+      "verb": "registry-candidates",
+      "category": "informational-heuristic",
+      "implementation": "tooling/src/ast/ops/registry-candidates.ts#cmdRegistryCandidates",
+      "corpus": "syntactic",
+      "jsonContract": "single-json-value",
+      "emissionPath": "tooling/src/ast/ops/registry-candidates.ts#cmdRegistryCandidates -> tooling/src/ast/lib/emit.ts#emit",
+      "hadNarrationBeforeResult": true,
+      "existingTests": [
+        "tests/tooling/ast/ops/registry-candidates.test.ts"
+      ]
+    },
+    {
+      "verb": "contract-field-liveness",
+      "category": "informational-heuristic",
+      "implementation": "tooling/src/ast/ops/fields.ts#cmdContractFieldLiveness",
+      "corpus": "syntactic",
+      "jsonContract": "single-json-value",
+      "emissionPath": "tooling/src/ast/ops/fields.ts#cmdContractFieldLiveness -> tooling/src/ast/lib/emit.ts#emit",
+      "hadNarrationBeforeResult": true,
+      "existingTests": [
+        "tests/tooling/ast/index.test.ts"
+      ]
+    },
+    {
+      "verb": "chains",
+      "category": "audit-candidate",
+      "implementation": "tooling/src/ast/ops/chains.ts#cmdChains",
+      "corpus": "typed",
+      "jsonContract": "single-json-value",
+      "emissionPath": "tooling/src/ast/ops/chains.ts#cmdChains -> tooling/src/ast/lib/emit.ts#emit",
+      "hadNarrationBeforeResult": true,
+      "existingTests": [
+        "tests/tooling/ast/index.test.ts"
+      ]
+    },
+    {
+      "verb": "stringy",
+      "category": "audit-finding",
+      "implementation": "tooling/src/ast/ops/stringy.ts#cmdStringy",
+      "corpus": "typed",
+      "jsonContract": "single-json-value",
+      "emissionPath": "tooling/src/ast/ops/stringy.ts#cmdStringy -> tooling/src/ast/lib/emit.ts#emit",
+      "hadNarrationBeforeResult": true,
+      "existingTests": [
+        "tests/tooling/ast/index.test.ts"
+      ]
+    },
+    {
+      "verb": "apisurface",
+      "category": "audit-candidate",
+      "implementation": "tooling/src/ast/ops/apisurface.ts#cmdApiSurface",
+      "corpus": "typed",
+      "jsonContract": "single-json-value",
+      "emissionPath": "tooling/src/ast/ops/apisurface.ts#cmdApiSurface -> tooling/src/ast/lib/emit.ts#emit",
+      "hadNarrationBeforeResult": true,
+      "existingTests": [
+        "tests/tooling/ast/index.test.ts"
+      ]
+    },
+    {
+      "verb": "rot",
+      "category": "audit-composite",
+      "implementation": "tooling/src/ast/ops/rot.ts#cmdRot",
+      "corpus": "typed",
+      "jsonContract": "composite-five-consecutive-json-values",
+      "emissionPath": "tooling/src/ast/ops/rot.ts#cmdRot -> emit once per five documented sections",
+      "hadNarrationBeforeResult": true,
+      "existingTests": [
+        "tests/tooling/ast/index.test.ts",
+        "tests/tooling/ast/ops/verbs.test.ts"
+      ]
+    },
+    {
+      "verb": "flow",
+      "category": "query-navigation",
+      "implementation": "tooling/src/ast/ops/depcruise.ts#runDepcruise(--focus)",
+      "corpus": "depcruise",
+      "jsonContract": "unsupported-explicit-refusal",
+      "emissionPath": "tooling/src/ast/ops/depcruise.ts#runDepcruise native dependency-cruiser text",
+      "hadNarrationBeforeResult": false,
+      "existingTests": [
+        "tests/tooling/ast/cli.repo.int.test.ts (broken subprocess refusal only)"
+      ]
+    },
+    {
+      "verb": "reaches",
+      "category": "query-navigation",
+      "implementation": "tooling/src/ast/ops/depcruise.ts#runDepcruise(--reaches)",
+      "corpus": "depcruise",
+      "jsonContract": "unsupported-explicit-refusal",
+      "emissionPath": "tooling/src/ast/ops/depcruise.ts#runDepcruise native dependency-cruiser text",
+      "hadNarrationBeforeResult": false,
+      "existingTests": []
+    }
+  ],
+  "verification": {
+    "red": {
+      "result": "3 failed, 6 passed on old production source",
+      "failures": [
+        "dead JSON.parse",
+        "columns --all JSON.parse",
+        "rot narration channel"
+      ],
+      "report": "reports/runs/test/orbweaver-3340903-2026-09-21T04-54-10-929Z/test-report.json"
+    },
+    "productionVerbSuite": {
+      "command": "pnpm test:scoped tests/tooling/ast/ops/verbs.test.ts --maxWorkers=1",
+      "result": "10/10 passed",
+      "report": "reports/runs/test/orbweaver-3400270-2026-09-21T05-07-58-075Z/test-report.json",
+      "controls": [
+        "direct JSON.parse of narrated dead",
+        "columns --all single JSON plus stderr table",
+        "rot five-section JSON stream with no outside prose",
+        "composite parser rejects leading and trailing narration",
+        "human stdout assertions retained"
+      ]
+    },
+    "representativeCliSuite": {
+      "command": "pnpm test:scoped tests/tooling/ast/cli.repo.int.test.ts --maxWorkers=1",
+      "result": "14/14 passed in 220.64s",
+      "report": "reports/runs/test/orbweaver-3348591-2026-09-21T04-55-37-568Z/test-report.json",
+      "controls": [
+        "real narrated registry-candidates JSON.parse",
+        "real TSX JSON.parse",
+        "depcruise --json refusal",
+        "human zero/positive stdout",
+        "misuse and tool-error exits"
+      ]
+    },
+    "static": [
+      "tooling/tsconfig.json PASS",
+      "root tsconfig.json PASS",
+      "Biome 21 files PASS",
+      "ESLint 21 files PASS"
+    ],
+    "reviewRed": {
+      "command": "pnpm test:scoped tests/tooling/ast/ops/verbs.test.ts tests/tooling/ast/cli.repo.int.test.ts --maxWorkers=1 -t composite JSON parsing|positional pattern slot|missing module pattern",
+      "result": "5 failed as intended: 1 parser gap, flow/reaches positional --json, flow/reaches missing-pattern diagnosis",
+      "report": "reports/runs/test/orbweaver-3396885-2026-09-21T05-07-02-426Z/test-report.json"
+    },
+    "reviewFixBoundary": {
+      "result": "8/8 selected boundary tests passed (22 skipped)",
+      "report": "reports/runs/test/orbweaver-3399628-2026-09-21T05-07-48-321Z/test-report.json",
+      "controls": [
+        "flow/reaches --json exact",
+        "flow/reaches --json before later pattern",
+        "flow/reaches pattern then --json",
+        "flow/reaches missing pattern"
+      ]
+    },
+    "parserPrecision": {
+      "result": "1/1 selected test passed with valid pretty JSON sections plus leading/trailing narration",
+      "report": "reports/runs/test/orbweaver-3402812-2026-09-21T05-08-38-070Z/test-report.json"
+    },
+    "fullCliRerun": "Not repeated after review fix; the changed argv boundary is covered by eight cheap subprocess tests, while the prior 14/14 representative suite remains the full-run receipt."
+  },
+  "structuralReceipt": {
+    "scope": "tooling/src/ast/**/*.ts",
+    "result": "After the fix, direct print calls remain only in cli usage, emit's payload/human renderer, and depcruise's explicitly non-JSON text path. All VERBS narration sites call narrate."
+  },
+  "updatedAt": "2026-09-21T05:08:55.462820+00:00",
+  "reviewRefutation": {
+    "source": "/tmp/world-tools-json-output-review.json",
+    "finding": "flow/reaches treated --json in the positional pattern slot as the pattern and ran dependency-cruiser; the composite test parser ignored text outside JSON objects.",
+    "fix": "Depcruise dispatch now inspects the complete post-verb token list for --json before requiring a first positional module pattern; missing patterns are explicit misuse. Composite parsing rejects every non-whitespace byte outside complete pretty-printed JSON sections."
+  }
+}
+

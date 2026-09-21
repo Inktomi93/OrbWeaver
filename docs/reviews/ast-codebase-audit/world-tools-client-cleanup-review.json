@@ -1,0 +1,101 @@
+{
+  "lane": "client_cleanup_verify",
+  "worktree": "/home/inktomi/.codex/worktrees/world-aware-tools/orbweaver",
+  "verdict": "CONFIRMED",
+  "scope": "Current uncommitted client stale-state cleanup, including remediation accepted during review: deletion of the obsolete recent-models store/test cluster, removal of seven stale helper aliases, migration of tests/stories to remaining production APIs, preservation of test seams, and cleanup of the persisted-store registry and stale citations.",
+  "findings": [],
+  "review_catches_resolved": [
+    {
+      "issue": "Deleting recent-models-store.ts initially left DEVICE_LOCAL_REGISTRY[\"recent-models\"] behind.",
+      "evidence": "tooling/src/verify/gates/persisted-store-registry.ts declares the registry authoritative and two-sided at lines 8-17 and reports a stale registered name at lines 205-206/309-313 in the current line layout.",
+      "resolution": "The current diff deletes that row and updates the authoritative census from 14 to 13. The selected real-tree gate is green."
+    },
+    {
+      "issue": "The first registry remediation changed the real registry count but left the planted stale-arm proof at count 14.",
+      "evidence": "The verifier observed the stale count/rationale before the follow-up and reported it to the orchestrator.",
+      "resolution": "Current tooling/src/verify/gates/persisted-store-registry.ts:375-376 uses count 13 and says THIRTEEN/twelve. Gate contract and all declared proof rows pass."
+    }
+  ],
+  "source_evidence": [
+    "packages/client/src/state/config-group-ids.ts:40-49 retains isConfigGroupId and the ConfigShelf type/tuple while removing only isConfigShelf.",
+    "packages/client/src/state/config-group-open-store.ts:50-81 retains reactive read, idempotent open/close, and the explicit test reset while removing only toggleConfigGroup.",
+    "packages/client/src/state/config-search-store.ts:48-69 retains empty-query clearing and __resetConfigSearch while removing the duplicate clearConfigSearch spelling.",
+    "packages/client/src/state/plugin-page-selection-store.ts:23-33 keeps the single opaque key mint, the production list selection door, clear seam, and SectionSelection seam; parser and direct-selection aliases are gone.",
+    "packages/client/src/state/refinery-selection-store.ts:15-20 keeps select/selectFromList and exposes the factory-owned SectionSelection.clear as the one back door.",
+    "packages/client/src/state/shell-store.ts:266-305 keeps label-preserving publishContextTabs and both dev-bridge readers while removing the id-only publication alias.",
+    "packages/client/src/state/index.ts:123-167,307-314,343-349,397-425 exports the remaining public APIs and no removed symbol or recent-models module.",
+    "packages/client/src/state/create-drill-selection-store.ts:56-93 shows that selection.clear and selectFromList preserve the required overlay-release behavior used by the updated refinery and plugin stories.",
+    "packages/client/src/features/plugin/hooks/use-plugin-pages.ts:61-74 mints opaque keys once; extensions-switcher-surface.tsx:29-73 selects by exact key through selectPluginPageFromList; extensions-page-surface.tsx:58 resolves by exact equality rather than parsing.",
+    "packages/client/src/features/app-shell/hooks/use-context-tab-selection.ts:13-25 is the unchanged live publisher and preserves visible labels.",
+    "packages/client/src/features/refinery/lib/refinery-section.tsx:102 publishes refinerySectionSelection to the shell, so using refinerySectionSelection.clear in stories exercises the same one-door-back seam.",
+    "tooling/src/verify/gates/persisted-store-registry.ts:8-17,88-186,375-376 now has 13 authoritative entries, no recent-models row, and a matching 13-row stale-arm proof.",
+    "tests/client/state/durable-local.test.ts:211-220 now uses the neutral fixture-store name; deleted-test citations were removed from composer-draft-store.test.ts, surface-box-store.test.ts, and steer-recovery-store.test.ts; character-library-lens.ts:76-86 no longer cites the removed resolveRecentEntries helper."
+  ],
+  "ast_grep": {
+    "scope": ["packages", "tests", "tooling", "scripts", "playwright"],
+    "languages": {
+      "ts": {"scannedFileCount": 6446, "skippedFileCount": 0},
+      "tsx": {"scannedFileCount": 1409, "skippedFileCount": 0}
+    },
+    "removed_identifiers": [
+      "isConfigShelf",
+      "toggleConfigGroup",
+      "clearConfigSearch",
+      "parsePluginPageKey",
+      "selectPluginPage",
+      "clearRefinerySelection",
+      "publishContextTabIds",
+      "RECENT_MODELS_CAP",
+      "pushRecentModel",
+      "useRecentModels",
+      "__readRecentModelsForTest",
+      "__resetAllRecentModels"
+    ],
+    "result": "Zero structural identifier hits for every removed identifier in both TypeScript parsers.",
+    "positive_controls": {
+      "ts": "isConfigGroupId and publishContextTabs produced live declaration/import/call/export hits in the same 6,446-file scan.",
+      "tsx": "publishContextTabs produced import/call hits in tests/client/state/_ct-stories.tsx in the same 1,409-file scan."
+    },
+    "literal_corroboration": "rg over the same TS/TSX scope found no removed store key, deleted test filename, fixture name, or live symbol reference. The only matches were two intentional historical comments in refinery-list-surface.tsx:119 and :286 describing the former clearRefinerySelection behavior. Positive-control literal search returned 33 lines."
+  },
+  "verification": [
+    {
+      "command": "pnpm test:scoped tests/client/agent-nav/index.dom.test.ts tests/client/state/config-group-ids.test.ts tests/client/state/plugin-page-selection-store.test.ts",
+      "result": "PASS: 3 files, 36 tests. Full JSON receipt: reports/runs/test/orbweaver-3321598-2026-09-21T04-50-25-728Z/test-report.json."
+    },
+    {
+      "command": "pnpm test:scoped tests/tooling/verify/gates/ordinary-visitors-family.suite.test.ts tests/client/state/durable-local.test.ts tests/client/state/composer-draft-store.test.ts tests/client/state/steer-recovery-store.test.ts tests/client/state/surface-box-store.test.ts",
+      "result": "PASS: 5 files, 50 tests, 0 failures. Full JSON receipt: reports/runs/test/orbweaver-3345695-2026-09-21T04-54-56-709Z/test-report.json."
+    },
+    {
+      "command": "pnpm check:structure --check persisted-store-registry",
+      "result": "PASS on current tree: one selected hard/error policy, 0 effective findings, 0 tool errors, 0 withheld owners. Receipt: reports/runs/structure/orbweaver-3327398-2026-09-21T04-51-20-451Z/check-structure.json."
+    },
+    {
+      "command": "pnpm gate:contract",
+      "result": "PASS: 0 findings across 345 gate modules."
+    },
+    {
+      "command": "pnpm check:policy-conformance",
+      "result": "PASS: 345 policies, 3,985 proof rows, 92 refusal rows, 126 identity-proof rows, 0 failures, 0 invalid rows."
+    },
+    {
+      "command": "pnpm exec biome check <23 reviewed existing client/test/gate files> --diagnostic-level=error; pnpm exec eslint <same files>",
+      "result": "PASS: Biome checked 23 files with no fixes; ESLint exited 0."
+    },
+    {
+      "command": "pnpm typecheck",
+      "result": "PARTIAL WHOLE-TREE FAILURE OUTSIDE SCOPE: packages/client, tooling, tsconfig.tests-dom.json, tsconfig.tests-iso.json, and all other package programs passed. Only root tsconfig.json failed on six TS2339 errors in concurrent untracked tests/inference/backends/openai-compat/diagnostics.test.ts:46-59; no error names a reviewed client/test/gate file."
+    },
+    {
+      "command": "git diff --check -- packages/client/src tests/client tooling/src/verify/gates/persisted-store-registry.ts",
+      "result": "PASS."
+    }
+  ],
+  "limitations": [
+    "The already completed 79-test component-test battery was deliberately not duplicated, per the verification brief.",
+    "No live rendered drive was added because this change removes unreachable state API and updates test/story adapters; no production rendering behavior was added or altered.",
+    "The whole-worktree typecheck is not a global green receipt because of the unrelated concurrent inference diagnostics test, although every type program that owns the reviewed client, tooling, DOM, and isolated-test files passed.",
+    "The worktree contains concurrent server, inference, AST-tooling, and audit-index changes that were excluded from this client verdict."
+  ]
+}

@@ -1,0 +1,672 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "snapshot": "docs/reviews/ast-codebase-audit/world-tools-contract-field-liveness-after.parsed.json",
+    "snapshotLabel": "contract-field-liveness",
+    "snapshotTotal": 48,
+    "snapshotShown": 48,
+    "headSha": "9a71a6a095657333282b56a0acda2bce475658d4",
+    "worktree": "/home/inktomi/.codex/worktrees/world-aware-tools/orbweaver",
+    "mode": "read-only adjudication"
+  },
+  "classificationVocabulary": {
+    "external-runtime-or-foreign-input": "The field is authored across a runtime boundary, by a user/config/plugin/SDK, or by a foreign file format. An in-repo object-literal producer is neither expected nor required.",
+    "deliberate-reserved-or-passthrough": "The field deliberately preserves a future, compatibility, or passthrough shape even though the current product does not write it.",
+    "proven-live-flow-missed-by-lens": "A live in-repo producer and consumer exist, but the lens misses the flow because it is dynamically assembled, computed, spread, or otherwise not an explicit type-resolved object-property write.",
+    "genuine-unwired-dead-candidate": "No legitimate external author, producer, consumer, or reserved contract was found; deletion-grade scans are required before recommending removal.",
+    "tool-false-positive-or-coverage-limitation": "The finding is caused by a known evidence-plane limitation and does not establish field death."
+  },
+  "summary": {
+    "external-runtime-or-foreign-input": 34,
+    "deliberate-reserved-or-passthrough": 1,
+    "proven-live-flow-missed-by-lens": 13,
+    "genuine-unwired-dead-candidate": 0,
+    "tool-false-positive-or-coverage-limitation": 0,
+    "deletionRecommendations": 0,
+    "unresolvedItems": 0
+  },
+  "items": [
+    {
+      "id": "automationActionSchema.resultVar",
+      "declaration": "packages/contracts/src/automation/index.ts:627",
+      "snapshotKind": "field-consumed-never-populated",
+      "classification": "external-runtime-or-foreign-input",
+      "disposition": "KEEP",
+      "evidence": [
+        "AutomationActionInput is the authoring boundary; validateRuleInput parses authored actions before persistence.",
+        "packages/server/src/domain/automation/engine/arm-executors.ts:485-492 consumes resultVar and writes the tool result through writeArmVariable.",
+        "tests/server/entry/compose/automation-plugin.int.test.ts:112 and tests/server/domain/automation/engine/arm-executors.int.test.ts:775 supply and exercise resultVar."
+      ],
+      "reason": "Runtime rule authors populate this optional field; the contract parser is its producer boundary."
+    },
+    {
+      "id": "cardAssetSchema.uri",
+      "declaration": "packages/contracts/src/character/index.ts:147",
+      "snapshotKind": "field-declared-only",
+      "classification": "external-runtime-or-foreign-input",
+      "disposition": "KEEP",
+      "evidence": [
+        "packages/contracts/src/character/index.ts:137-151 defines the Character Card V3/RisuAI charx assets wire shape {type, uri, name, ext}.",
+        "packages/server/src/kit/serde/card/index.ts:17 states V3 data.assets is parsed and preserved.",
+        "tests/contracts/character/index.contract.test.ts:307-311 parses and retains uri=ccdefault:; tests/db/schema/character.int.test.ts:60 preserves the residual asset object."
+      ],
+      "reason": "uri is authored by imported Character Card V3 files, not an Orbweaver producer."
+    },
+    {
+      "id": "characterCardV3DataSchema.creator_notes_multilingual",
+      "declaration": "packages/contracts/src/character/index.ts:518",
+      "snapshotKind": "field-consumed-never-populated",
+      "classification": "external-runtime-or-foreign-input",
+      "disposition": "KEEP",
+      "evidence": [
+        "packages/server/src/kit/serde/card/index.ts:12-17 identifies this as foreign V3 data retained in residualData.",
+        "packages/server/src/kit/serde/card/index.ts:253-322 folds a multilingual note for display while preserving the map.",
+        "tests/server/kit/serde/card/index.test.ts:293-326 proves import, precedence, residual passthrough, export, and re-import."
+      ],
+      "reason": "This is a Character Card V3 foreign-format field with tested round-trip semantics."
+    },
+    {
+      "id": "reattributeScopeSchema.fromSeq",
+      "declaration": "packages/contracts/src/chat/messages.ts:494",
+      "snapshotKind": "field-consumed-never-populated",
+      "classification": "external-runtime-or-foreign-input",
+      "disposition": "KEEP",
+      "evidence": [
+        "packages/server/src/domain/chat/verbs/edit.ts:1026-1031 reads scope.fromSeq when resolving the caller's own authored rows.",
+        "tests/contracts/chat/messages.contract.test.ts:209-212 validates the wire input.",
+        "tests/server/domain/chat/verbs/edit.int.test.ts:1182-1191 exercises the floored sweep."
+      ],
+      "reason": "This is caller-authored command input validated at the contract boundary."
+    },
+    {
+      "id": "connectionTransportSchema.includeBody",
+      "declaration": "packages/contracts/src/inference/connection.ts:32",
+      "snapshotKind": "field-consumed-never-populated",
+      "classification": "external-runtime-or-foreign-input",
+      "disposition": "KEEP",
+      "evidence": [
+        "The connection contract is a closed user/BYO endpoint config parser.",
+        "packages/inference/src/backends/openai-compat/body.ts:189 merges includeBody after extras; packages/inference/src/backends/kit/sanitize.ts:116-184 scrubs credential-shaped values; diagnostics applies it too.",
+        "tests/inference/backends/openai-compat/body.test.ts:96 and tests/inference/backends/v4/fetch.test.ts:20 supply the field."
+      ],
+      "reason": "A connection editor/import supplies this optional transport override; runtime consumers are live."
+    },
+    {
+      "id": "endpointFeaturesSchema.inputPerMTok",
+      "declaration": "packages/contracts/src/inference/features.ts:61",
+      "snapshotKind": "field-consumed-never-populated",
+      "classification": "external-runtime-or-foreign-input",
+      "disposition": "KEEP",
+      "evidence": [
+        "packages/client/src/features/credentials/lib/connection-fact-model.ts:227,251 exposes pricing.inputPerMTok as an editable connection fact.",
+        "packages/inference/src/backends/v4/result.ts:179 consumes it for estimated prompt cost.",
+        "tests/inference/backends/v4/result.test.ts:112 supplies pricing and asserts estimated output."
+      ],
+      "reason": "This is user/provider-declared endpoint pricing, not an internal producer-owned field."
+    },
+    {
+      "id": "endpointFeaturesSchema.outputPerMTok",
+      "declaration": "packages/contracts/src/inference/features.ts:61",
+      "snapshotKind": "field-consumed-never-populated",
+      "classification": "external-runtime-or-foreign-input",
+      "disposition": "KEEP",
+      "evidence": [
+        "packages/client/src/features/credentials/lib/connection-fact-model.ts:227,252 exposes pricing.outputPerMTok as an editable connection fact.",
+        "packages/inference/src/backends/v4/result.ts:180 consumes it for estimated completion cost.",
+        "tests/inference/backends/v4/result.test.ts:112 supplies pricing and asserts estimated output."
+      ],
+      "reason": "This is user/provider-declared endpoint pricing."
+    },
+    {
+      "id": "endpointFeaturesSchema.floorTokensPerSec",
+      "declaration": "packages/contracts/src/inference/features.ts:72",
+      "snapshotKind": "field-consumed-never-populated",
+      "classification": "external-runtime-or-foreign-input",
+      "disposition": "KEEP",
+      "evidence": [
+        "packages/client/src/features/credentials/lib/connection-fact-model.ts:229,258 exposes embedBatch.floorTokensPerSec as endpoint configuration.",
+        "packages/inference/src/backends/openai-compat/embed.ts:162-197 derives the embed POST deadline from it."
+      ],
+      "reason": "This is a server-specific endpoint capability authored in configuration."
+    },
+    {
+      "id": "NestedUsage.cacheRead",
+      "declaration": "packages/contracts/src/inference/usage.ts:57",
+      "snapshotKind": "field-consumed-never-populated",
+      "classification": "external-runtime-or-foreign-input",
+      "disposition": "KEEP",
+      "evidence": [
+        "NestedUsage is explicitly the Vercel SDK's V4-shaped usage input.",
+        "packages/contracts/src/inference/usage.ts:63-72 folds inputTokens.cacheRead into normalized cacheReadTokens.",
+        "tests/contracts/inference/usage.contract.test.ts:32 supplies cacheRead and asserts the fold; V4 stream/result fixtures carry the SDK shape."
+      ],
+      "reason": "The SDK response populates this field off-tree."
+    },
+    {
+      "id": "NestedUsage.cacheWrite",
+      "declaration": "packages/contracts/src/inference/usage.ts:57",
+      "snapshotKind": "field-consumed-never-populated",
+      "classification": "external-runtime-or-foreign-input",
+      "disposition": "KEEP",
+      "evidence": [
+        "NestedUsage is explicitly the Vercel SDK's V4-shaped usage input.",
+        "packages/contracts/src/inference/usage.ts:63-72 folds inputTokens.cacheWrite into normalized cacheWriteTokens.",
+        "tests/inference/backends/v4/result.test.ts:81 and stream.test.ts:36 carry the SDK field."
+      ],
+      "reason": "The SDK response populates this field off-tree."
+    },
+    {
+      "id": "PluginHostV1.registerDisplay",
+      "declaration": "packages/contracts/src/plugin/host-v1.ts:515",
+      "snapshotKind": "field-declared-only",
+      "classification": "proven-live-flow-missed-by-lens",
+      "disposition": "KEEP",
+      "evidence": [
+        "packages/server/src/infra/plugin-host/membrane.ts:1431-1451 creates the QuickJS function and installs it with ctx.setProp(transforms, registerDisplay, ...).",
+        "tests/server/entry/boot/seed-example-plugins.int.test.ts:475 exercises the resident display transform.",
+        "packages/showcase-plugins/bundles/host-v1.d.ts:776 mirrors the guest API."
+      ],
+      "reason": "The host API is dynamically assembled in QuickJS rather than emitted as a typed PluginHostV1 object literal."
+    },
+    {
+      "id": "PluginHostV1.net",
+      "declaration": "packages/contracts/src/plugin/host-v1.ts:549",
+      "snapshotKind": "field-declared-only",
+      "classification": "proven-live-flow-missed-by-lens",
+      "disposition": "KEEP",
+      "evidence": [
+        "packages/server/src/infra/plugin-host/membrane.ts:1603-1658 builds the net namespace and installs it with ctx.setProp(surface, net, net).",
+        "tests/server/infra/plugin-host/membrane.test.ts:789-982 exercises net.fetch and net.fetchAsset capability and safety paths."
+      ],
+      "reason": "Dynamic realm-property construction is outside the lens's typed property-write model."
+    },
+    {
+      "id": "PluginHostV1.fetchAsset",
+      "declaration": "packages/contracts/src/plugin/host-v1.ts:573",
+      "snapshotKind": "field-declared-only",
+      "classification": "proven-live-flow-missed-by-lens",
+      "disposition": "KEEP",
+      "evidence": [
+        "packages/server/src/infra/plugin-host/membrane.ts:1620-1658 implements the function and attaches the net namespace.",
+        "packages/server/src/domain/plugin/substrate/bridge.ts:220 closes the installer-scoped CAS write.",
+        "tests/server/infra/plugin-host/membrane.test.ts:875-982 covers grant, allowlist, SSRF, mime, size, and returned asset id."
+      ],
+      "reason": "The implementation is a dynamically named QuickJS function, not a TypeScript object property assignment."
+    },
+    {
+      "id": "PluginHostV1.registerCommand",
+      "declaration": "packages/contracts/src/plugin/host-v1.ts:629",
+      "snapshotKind": "field-declared-only",
+      "classification": "proven-live-flow-missed-by-lens",
+      "disposition": "KEEP",
+      "evidence": [
+        "packages/server/src/infra/plugin-host/membrane.ts:573-619 creates registerCommand and installs it on the ui realm object.",
+        "tests/server/infra/plugin-host/membrane.test.ts:1399-1546 exercises validation, collection, and capability gating."
+      ],
+      "reason": "The dynamic QuickJS membrane is the live producer."
+    },
+    {
+      "id": "PluginHostV1.registerFrame",
+      "declaration": "packages/contracts/src/plugin/host-v1.ts:667",
+      "snapshotKind": "field-declared-only",
+      "classification": "proven-live-flow-missed-by-lens",
+      "disposition": "KEEP",
+      "evidence": [
+        "packages/server/src/infra/plugin-host/membrane.ts:480-536 creates registerFrame and installs it on ui.",
+        "tests/server/infra/plugin-host/membrane.test.ts:1562-1684 exercises frame collection, tier isolation, capability gating, and bounds."
+      ],
+      "reason": "The dynamic QuickJS membrane is the live producer."
+    },
+    {
+      "id": "pluginBuiltAgainstSchema.engineVersion",
+      "declaration": "packages/contracts/src/plugin/manifest.ts:217",
+      "snapshotKind": "field-consumed-never-populated",
+      "classification": "external-runtime-or-foreign-input",
+      "disposition": "KEEP",
+      "evidence": [
+        "Plugin authors/build tooling populate builtAgainst in manifest.json.",
+        "packages/client/src/features/plugin/lib/plugin-copy.ts reads engineVersion for display.",
+        "tests/contracts/plugin/manifest.contract.test.ts:119-128 proves the optional block and required engineVersion."
+      ],
+      "reason": "This is guest-authored build provenance."
+    },
+    {
+      "id": "pluginBuiltAgainstSchema.engineCommit",
+      "declaration": "packages/contracts/src/plugin/manifest.ts:218",
+      "snapshotKind": "field-declared-only",
+      "classification": "external-runtime-or-foreign-input",
+      "disposition": "KEEP",
+      "evidence": [
+        "Plugin build tooling may stamp the best-effort commit in manifest.json.",
+        "tests/contracts/plugin/manifest.contract.test.ts:125-128 validates preservation and rejects a commit-only block.",
+        "tests/server/domain/plugin/substrate/manifest.test.ts:280-283 parses and retains engineCommit."
+      ],
+      "reason": "Optional guest build provenance is accepted and preserved even though current UI does not display it."
+    },
+    {
+      "id": "pluginManifestSchema.hostVersion",
+      "declaration": "packages/contracts/src/plugin/manifest.ts:274",
+      "snapshotKind": "field-declared-only",
+      "classification": "external-runtime-or-foreign-input",
+      "disposition": "KEEP",
+      "evidence": [
+        "The plugin manifest trust boundary requires the guest to declare the served host version.",
+        "tests/contracts/plugin/manifest.contract.test.ts:173-175 refuses unserved versions.",
+        "tests/server/domain/plugin/substrate/manifest.test.ts:270-283 exercises parser enforcement and provenance."
+      ],
+      "reason": "This is guest-authored compatibility input; parser validation is the consumer."
+    },
+    {
+      "id": "pluginManifestSchema.uiEntry",
+      "declaration": "packages/contracts/src/plugin/manifest.ts:282",
+      "snapshotKind": "field-consumed-never-populated",
+      "classification": "external-runtime-or-foreign-input",
+      "disposition": "KEEP",
+      "evidence": [
+        "packages/server/src/domain/plugin/substrate/manifest.ts:295-302 enforces the ui.js iff uiEntry biconditional.",
+        "packages/server/src/domain/plugin/verbs/get-ui-bundle.ts:38-44 uses persisted uiEntry as the cheap pre-check.",
+        "tests/showcase-plugins/index.test.ts:93-130 tests both biconditional failure arms."
+      ],
+      "reason": "Plugin bundle authors populate the manifest field."
+    },
+    {
+      "id": "pluginManifestSchema.author",
+      "declaration": "packages/contracts/src/plugin/manifest.ts:284",
+      "snapshotKind": "field-consumed-never-populated",
+      "classification": "external-runtime-or-foreign-input",
+      "disposition": "KEEP",
+      "evidence": [
+        "packages/client/src/features/plugin/components/plugin-install-card.tsx:285-287 renders the manifest author.",
+        "The value is authored in guest manifest.json and admitted by pluginManifestSchema."
+      ],
+      "reason": "This is guest metadata, so no Orbweaver producer is expected."
+    },
+    {
+      "id": "PluginStateBinding.$state",
+      "declaration": "packages/contracts/src/plugin/ui.ts:432",
+      "snapshotKind": "field-consumed-never-populated",
+      "classification": "external-runtime-or-foreign-input",
+      "disposition": "KEEP",
+      "evidence": [
+        "Plugin authors declare {$state: path} in surface specs.",
+        "packages/client/src/features/plugin/lib/plugin-surface-bindings.ts resolves the path against published state.",
+        "tests/contracts/plugin/ui.contract.test.ts:306-309 and 448 prove accepted binding syntax and deferred-key exclusion."
+      ],
+      "reason": "This is guest-authored declarative UI syntax."
+    },
+    {
+      "id": "PluginGridNode.tiles",
+      "declaration": "packages/contracts/src/plugin/ui.ts:710",
+      "snapshotKind": "field-consumed-never-populated",
+      "classification": "external-runtime-or-foreign-input",
+      "disposition": "KEEP",
+      "evidence": [
+        "Plugin authors choose the declared tiles arm or the state-bound tilesFrom arm.",
+        "packages/client/src/features/plugin/lib/plugin-surface-bindings.ts gridTiles returns declared tiles verbatim and collection/render paths consume them.",
+        "tests/contracts/plugin/ui.contract.test.ts:617-636 includes a declared grid."
+      ],
+      "reason": "This is guest-authored surface specification data."
+    },
+    {
+      "id": "PluginSearchBarNode.filters",
+      "declaration": "packages/contracts/src/plugin/ui.ts:806",
+      "snapshotKind": "field-consumed-never-populated",
+      "classification": "external-runtime-or-foreign-input",
+      "disposition": "KEEP",
+      "evidence": [
+        "Plugin authors declare the search disclosure tail.",
+        "packages/client/src/features/plugin/components/plugin-browse-nodes.tsx renders node.filters.",
+        "tests/contracts/plugin/ui.contract.test.ts:626 supplies a searchBar with a toggle filter."
+      ],
+      "reason": "This is guest-authored surface specification data."
+    },
+    {
+      "id": "stateBindingSchema.$state",
+      "declaration": "packages/contracts/src/plugin/ui.ts:844",
+      "snapshotKind": "field-consumed-never-populated",
+      "classification": "external-runtime-or-foreign-input",
+      "disposition": "KEEP",
+      "evidence": [
+        "This is the runtime schema twin of PluginStateBinding.$state.",
+        "packages/client/src/features/plugin/lib/plugin-surface-bindings.ts consumes parsed bindings.",
+        "tests/contracts/plugin/ui.contract.test.ts:306-309 and 448 provide positive parser controls."
+      ],
+      "reason": "A schema/type twin should share the guest-input disposition, not be treated as a second field lifecycle."
+    },
+    {
+      "id": "pluginSurfaceNodeSchema.tiles",
+      "declaration": "packages/contracts/src/plugin/ui.ts:952",
+      "snapshotKind": "field-consumed-never-populated",
+      "classification": "external-runtime-or-foreign-input",
+      "disposition": "KEEP",
+      "evidence": [
+        "This is the runtime schema twin of PluginGridNode.tiles.",
+        "The client gridTiles/collectImageAssetIds/render flow consumes the parsed value.",
+        "Contract tests exercise declared and bound grid arms."
+      ],
+      "reason": "Guest-authored declarative UI input; the duplicate finding is a schema/type-twin artifact."
+    },
+    {
+      "id": "pluginSurfaceNodeSchema.filters",
+      "declaration": "packages/contracts/src/plugin/ui.ts:1022",
+      "snapshotKind": "field-consumed-never-populated",
+      "classification": "external-runtime-or-foreign-input",
+      "disposition": "KEEP",
+      "evidence": [
+        "This is the runtime schema twin of PluginSearchBarNode.filters.",
+        "packages/client/src/features/plugin/components/plugin-browse-nodes.tsx consumes filters.",
+        "tests/contracts/plugin/ui.contract.test.ts:626 provides a positive parser/shape control."
+      ],
+      "reason": "Guest-authored declarative UI input; the duplicate finding is a schema/type-twin artifact."
+    },
+    {
+      "id": "PluginCommandArgSpec.enumValues",
+      "declaration": "packages/contracts/src/plugin/ui.ts:1485",
+      "snapshotKind": "field-consumed-never-populated",
+      "classification": "external-runtime-or-foreign-input",
+      "disposition": "KEEP",
+      "evidence": [
+        "Plugin command authors declare enum options at host.ui.registerCommand.",
+        "packages/client/src/features/plugin/components/plugin-command-args-body.tsx renders the options and packages/client/src/features/plugin/lib/plugin-command-dispatch.ts offers enum completions.",
+        "packages/server/src/infra/plugin-host/membrane.test.ts:1418-1468 supplies and validates declared typed args."
+      ],
+      "reason": "Guest-authored command metadata drives two live client consumers."
+    },
+    {
+      "id": "pluginCommandArgSpecSchema.enumValues",
+      "declaration": "packages/contracts/src/plugin/ui.ts:1501",
+      "snapshotKind": "field-consumed-never-populated",
+      "classification": "external-runtime-or-foreign-input",
+      "disposition": "KEEP",
+      "evidence": [
+        "This is the runtime schema twin of PluginCommandArgSpec.enumValues.",
+        "The schema enforces the enum iff enumValues biconditional before command registration.",
+        "The command input renderer and completion dispatcher consume the parsed field."
+      ],
+      "reason": "Guest-authored command input; the type/schema duplicate is not an independent dead field."
+    },
+    {
+      "id": "stPromptSchema.injection_position",
+      "declaration": "packages/contracts/src/preset/index.ts:2748",
+      "snapshotKind": "field-consumed-never-populated",
+      "classification": "external-runtime-or-foreign-input",
+      "disposition": "KEEP",
+      "evidence": [
+        "The surrounding contract identifies stPromptSchema as the SillyTavern Chat-Completion preset importer.",
+        "packages/contracts/src/preset/index.ts:2821-2833 maps absolute injection position/depth/order.",
+        "tests/contracts/preset/index.contract.test.ts:762-789 supplies and bounds the foreign fields."
+      ],
+      "reason": "SillyTavern JSON is produced off-tree."
+    },
+    {
+      "id": "stPromptSchema.injection_depth",
+      "declaration": "packages/contracts/src/preset/index.ts:2749",
+      "snapshotKind": "field-consumed-never-populated",
+      "classification": "external-runtime-or-foreign-input",
+      "disposition": "KEEP",
+      "evidence": [
+        "packages/contracts/src/preset/index.ts:2827-2829 reads, defaults, and clamps the foreign depth.",
+        "tests/contracts/preset/index.contract.test.ts:770-789 exercises cap and negative-value handling."
+      ],
+      "reason": "SillyTavern JSON is produced off-tree."
+    },
+    {
+      "id": "stPromptSchema.injection_order",
+      "declaration": "packages/contracts/src/preset/index.ts:2750",
+      "snapshotKind": "field-consumed-never-populated",
+      "classification": "external-runtime-or-foreign-input",
+      "disposition": "KEEP",
+      "evidence": [
+        "packages/contracts/src/preset/index.ts:2829-2833 maps and clamps injection_order.",
+        "The importer tests construct real-shaped ST preset inputs with these snake_case fields."
+      ],
+      "reason": "SillyTavern JSON is produced off-tree."
+    },
+    {
+      "id": "stPromptSchema.injection_trigger",
+      "declaration": "packages/contracts/src/preset/index.ts:2751",
+      "snapshotKind": "field-consumed-never-populated",
+      "classification": "external-runtime-or-foreign-input",
+      "disposition": "KEEP",
+      "evidence": [
+        "packages/contracts/src/preset/index.ts:2793-2800 maps foreign trigger values into GenerationType.",
+        "tests/contracts/preset/index.contract.test.ts:793-835 proves marker trigger preservation.",
+        "tests/server/domain/chat/verbs/turn.int.test.ts:2065-2112 proves the imported gate reaches runtime turns."
+      ],
+      "reason": "SillyTavern JSON is produced off-tree and the imported result is live."
+    },
+    {
+      "id": "stPromptSchema.forbid_overrides",
+      "declaration": "packages/contracts/src/preset/index.ts:2752",
+      "snapshotKind": "field-consumed-never-populated",
+      "classification": "external-runtime-or-foreign-input",
+      "disposition": "KEEP",
+      "evidence": [
+        "packages/contracts/src/preset/index.ts:2852 maps true to forbidCharacterOverride.",
+        "The importer accepts this snake_case field from ST preset JSON."
+      ],
+      "reason": "SillyTavern JSON is produced off-tree."
+    },
+    {
+      "id": "stPresetSchema.prompt_order",
+      "declaration": "packages/contracts/src/preset/index.ts:2764",
+      "snapshotKind": "field-consumed-never-populated",
+      "classification": "external-runtime-or-foreign-input",
+      "disposition": "KEEP",
+      "evidence": [
+        "packages/contracts/src/preset/index.ts:2896-3014 selects and walks the authored ST order.",
+        "packages/contracts/src/preset/index.ts:3236-3245 uses prompts/prompt_order as recognition and import input.",
+        "Preset import contract, server, and CT fixtures supply real-shaped prompt_order arrays."
+      ],
+      "reason": "This is a required recognition/order arm of a foreign preset format."
+    },
+    {
+      "id": "stPresetSchema.character_id",
+      "declaration": "packages/contracts/src/preset/index.ts:2764",
+      "snapshotKind": "field-declared-only",
+      "classification": "external-runtime-or-foreign-input",
+      "disposition": "KEEP",
+      "evidence": [
+        "character_id is part of each foreign ST prompt_order group; Orbweaver intentionally selects the authored group rather than assigning an Orbweaver CharacterId.",
+        "tests/contracts/preset/index.contract.test.ts:762-763 and import/CT fixtures supply numeric ST character_id values."
+      ],
+      "reason": "This is a foreign template/group key; its presence validates the ST shape even when Orbweaver does not otherwise consume the number."
+    },
+    {
+      "id": "rpgWeatherSchema.temperatureC",
+      "declaration": "packages/contracts/src/rpg/ambient.ts:72",
+      "snapshotKind": "field-declared-only",
+      "classification": "deliberate-reserved-or-passthrough",
+      "disposition": "KEEP",
+      "evidence": [
+        "packages/contracts/src/rpg/ambient.ts header states lite writes type/label while the full engine later fills optional temperatureC/description/wind/visibility on the same storage shape.",
+        "tests/server/domain/rpg/field-reachability.suite.int.test.ts:70-73,111-113,173-175 explicitly classifies temperatureC as a full-engine storage field with no lite write door.",
+        "tests/contracts/rpg/ambient.contract.test.ts:27-29 validates temperatureC when weather.type is present."
+      ],
+      "reason": "This is intentionally born as a forward-compatible full-engine field; current unwritability is documented and tested, not accidental dead code."
+    },
+    {
+      "id": "statsDeltaSchema.dailyTokensInMeasuredSamples",
+      "declaration": "packages/contracts/src/stats/index.ts:74",
+      "snapshotKind": "field-consumed-never-populated",
+      "classification": "proven-live-flow-missed-by-lens",
+      "disposition": "KEEP",
+      "evidence": [
+        "packages/server/src/domain/chat/substrate/stats-delta.ts tokenSampleSlice computes dailyTokensInMeasuredSamples from prefix=daily, axis=TokensIn, provenance=measured and spreads it into live deltas.",
+        "packages/server/src/domain/stats/write/apply-delta.ts:235 consumes the exact property into daily_stats."
+      ],
+      "reason": "The producer key is computed, so a spelling-based/type-property lens cannot associate it with StatsDelta."
+    },
+    {
+      "id": "statsDeltaSchema.dailyTokensInEstimatedSamples",
+      "declaration": "packages/contracts/src/stats/index.ts:75",
+      "snapshotKind": "field-consumed-never-populated",
+      "classification": "proven-live-flow-missed-by-lens",
+      "disposition": "KEEP",
+      "evidence": [
+        "stats-delta.ts tokenSampleSlice computes this field for prefix=daily, TokensIn, provenance=estimated.",
+        "apply-delta.ts:236 writes it to daily_stats."
+      ],
+      "reason": "Computed-key production is outside the lens's explicit property-write evidence."
+    },
+    {
+      "id": "statsDeltaSchema.dailyTokensOutMeasuredSamples",
+      "declaration": "packages/contracts/src/stats/index.ts:76",
+      "snapshotKind": "field-consumed-never-populated",
+      "classification": "proven-live-flow-missed-by-lens",
+      "disposition": "KEEP",
+      "evidence": [
+        "stats-delta.ts tokenSampleSlice computes this field for prefix=daily, TokensOut, provenance=measured.",
+        "apply-delta.ts:237 writes it to daily_stats."
+      ],
+      "reason": "Computed-key production is outside the lens's explicit property-write evidence."
+    },
+    {
+      "id": "statsDeltaSchema.dailyTokensOutEstimatedSamples",
+      "declaration": "packages/contracts/src/stats/index.ts:77",
+      "snapshotKind": "field-consumed-never-populated",
+      "classification": "proven-live-flow-missed-by-lens",
+      "disposition": "KEEP",
+      "evidence": [
+        "stats-delta.ts tokenSampleSlice computes this field for prefix=daily, TokensOut, provenance=estimated.",
+        "apply-delta.ts:238 writes it to daily_stats."
+      ],
+      "reason": "Computed-key production is outside the lens's explicit property-write evidence."
+    },
+    {
+      "id": "statsDeltaSchema.modelTokensInMeasuredSamples",
+      "declaration": "packages/contracts/src/stats/index.ts:82",
+      "snapshotKind": "field-consumed-never-populated",
+      "classification": "proven-live-flow-missed-by-lens",
+      "disposition": "KEEP",
+      "evidence": [
+        "stats-delta.ts tokenSampleSlice computes this field for prefix=model, TokensIn, provenance=measured in modelSliceFor/canonModelSlice.",
+        "apply-delta.ts:286 consumes it; tests/server/domain/chat/substrate/stats-delta.test.ts:133-134 positively distinguishes input/output sample fields."
+      ],
+      "reason": "Computed-key production is live but not type-associated by the lens."
+    },
+    {
+      "id": "statsDeltaSchema.modelTokensInEstimatedSamples",
+      "declaration": "packages/contracts/src/stats/index.ts:83",
+      "snapshotKind": "field-consumed-never-populated",
+      "classification": "proven-live-flow-missed-by-lens",
+      "disposition": "KEEP",
+      "evidence": [
+        "stats-delta.ts tokenSampleSlice computes this field for prefix=model, TokensIn, provenance=estimated.",
+        "apply-delta.ts:287 consumes it."
+      ],
+      "reason": "Computed-key production is outside the lens's explicit property-write evidence."
+    },
+    {
+      "id": "statsDeltaSchema.modelTokensOutMeasuredSamples",
+      "declaration": "packages/contracts/src/stats/index.ts:84",
+      "snapshotKind": "field-consumed-never-populated",
+      "classification": "proven-live-flow-missed-by-lens",
+      "disposition": "KEEP",
+      "evidence": [
+        "stats-delta.ts tokenSampleSlice computes this field for prefix=model, TokensOut, provenance=measured.",
+        "apply-delta.ts:288 consumes it; stats-delta.test.ts:133-134 asserts the output-only measured sample."
+      ],
+      "reason": "Computed-key production is live but not type-associated by the lens."
+    },
+    {
+      "id": "statsDeltaSchema.modelTokensOutEstimatedSamples",
+      "declaration": "packages/contracts/src/stats/index.ts:85",
+      "snapshotKind": "field-consumed-never-populated",
+      "classification": "proven-live-flow-missed-by-lens",
+      "disposition": "KEEP",
+      "evidence": [
+        "stats-delta.ts tokenSampleSlice computes this field for prefix=model, TokensOut, provenance=estimated.",
+        "apply-delta.ts:289 consumes it."
+      ],
+      "reason": "Computed-key production is outside the lens's explicit property-write evidence."
+    },
+    {
+      "id": "loreEntryProvenanceSchema.fromSeq",
+      "declaration": "packages/contracts/src/world-info/index.ts:52",
+      "snapshotKind": "field-consumed-never-populated",
+      "classification": "external-runtime-or-foreign-input",
+      "disposition": "KEEP",
+      "evidence": [
+        "Machine-writer callers supply UpsertLoreEntryInput.span.",
+        "packages/server/src/domain/world-info/verbs/entries/upsert-entries.ts:39-40 spreads input.span into stored provenance.",
+        "tests/server/domain/world-info/verbs/entries/upsert-entries.int.test.ts:15-35 supplies {fromSeq,toSeq} and asserts the stored span."
+      ],
+      "reason": "The nested property arrives through a typed span object spread, which the lens does not attribute to the schema declaration."
+    },
+    {
+      "id": "loreEntryProvenanceSchema.toSeq",
+      "declaration": "packages/contracts/src/world-info/index.ts:52",
+      "snapshotKind": "field-consumed-never-populated",
+      "classification": "external-runtime-or-foreign-input",
+      "disposition": "KEEP",
+      "evidence": [
+        "Machine-writer callers supply UpsertLoreEntryInput.span.",
+        "upsert-entries.ts:39-40 stores the complete span by spread.",
+        "upsert-entries.int.test.ts:15-35 supplies and verifies toSeq with the span."
+      ],
+      "reason": "The nested property arrives through a typed span object spread."
+    },
+    {
+      "id": "UpsertLoreEntryInput.fromSeq",
+      "declaration": "packages/contracts/src/world-info/index.ts:231",
+      "snapshotKind": "field-consumed-never-populated",
+      "classification": "external-runtime-or-foreign-input",
+      "disposition": "KEEP",
+      "evidence": [
+        "UpsertLoreEntryInput.span is the machine-writer input boundary.",
+        "upsert-entries.ts:39-40 forwards input.span into LoreEntryProvenance.",
+        "upsert-entries.int.test.ts:15-35 supplies the input and verifies persistence."
+      ],
+      "reason": "This is runtime machine-writer input; callers may construct the span as a whole object."
+    },
+    {
+      "id": "UpsertLoreEntryInput.toSeq",
+      "declaration": "packages/contracts/src/world-info/index.ts:231",
+      "snapshotKind": "field-consumed-never-populated",
+      "classification": "external-runtime-or-foreign-input",
+      "disposition": "KEEP",
+      "evidence": [
+        "UpsertLoreEntryInput.span is the machine-writer input boundary.",
+        "upsert-entries.ts:39-40 forwards input.span into LoreEntryProvenance.",
+        "upsert-entries.int.test.ts:15-35 supplies the input and verifies persistence."
+      ],
+      "reason": "This is runtime machine-writer input; callers may construct the span as a whole object."
+    }
+  ],
+  "toolBehaviorConclusions": [
+    "The snapshot's name-matched consumer evidence is useful for locating reads, but it is not type-resolved flow proof and must not drive deletion by itself.",
+    "Boundary schemas naturally have no in-repo producer: users, imported files, plugin manifests/specs, and SDK responses populate them. The lens should classify these declaration homes as boundary inputs rather than implying they need an internal writer.",
+    "Type/schema twins produce duplicate lifecycle findings for one wire field, as shown by $state, tiles, filters, and enumValues. A useful report should pair those twins before counting remediation candidates.",
+    "QuickJS host APIs are assembled with ctx.newFunction/ctx.setProp. PluginHostV1 member declarations therefore require dynamic-property evidence; an object-literal-only producer model falsely marks live host functions and namespaces declared-only.",
+    "Computed property construction defeats field spelling. stats-delta.ts deterministically generates the eight daily/model sample keys in tokenSampleSlice and consumers read them explicitly; this is a concrete positive control for computed-key producer coverage.",
+    "Whole-object forwarding/spreads also obscure nested fields. World-info span is accepted as one typed object and spread into provenance, while the lens reports fromSeq/toSeq individually as unpopulated.",
+    "Reserved fields require code-law context. temperatureC is deliberately part of the future full-engine storage shape and the reachability suite explicitly asserts that lite cannot write it."
+  ],
+  "deletionGradeSearch": {
+    "required": false,
+    "reason": "No item was classified as a genuine unwired/dead candidate and no deletion is recommended.",
+    "astGrepInvocations": [],
+    "scannedCounts": null,
+    "positiveControls": null,
+    "note": "Per the task contract, actual TS+TSX ast-grep plus literal corroboration and positive controls is mandatory before any deletion recommendation. This adjudication makes none, so it did not spend a whole-corpus deletion scan while the AST lane's memory-heavy CLI suite was active."
+  },
+  "literalAndSourceReview": {
+    "scope": [
+      "declaring contract schemas/interfaces",
+      "runtime boundary parsers",
+      "writers and dynamic membrane construction",
+      "named consumers from the snapshot",
+      "focused contract/domain/client tests"
+    ],
+    "method": "Read source control flow and used rg name searches only as corroboration; same-spelled unrelated fields were not treated as type-resolved evidence.",
+    "pnpmAstRun": false,
+    "sourceEdits": false
+  },
+  "limitations": [
+    "This is an adjudication of the supplied 48-item snapshot, not a fresh AST execution.",
+    "No deletion-grade scan counts exist because there are zero deletion recommendations.",
+    "External producer behavior is evidenced by boundary contracts and focused fixtures; this lane did not execute foreign SDKs, plugin bundles, or import UIs.",
+    "The report does not recommend changing lens implementation; it records evidence-plane gaps for the owning AST lane."
+  ]
+}
