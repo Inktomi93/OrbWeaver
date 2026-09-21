@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "status": "complete",
+  "status": "liveness_lens_phase_complete_brand_program_open",
   "branch": "codex/world-aware-tools",
   "verifiedHead": "827486e32",
   "coverage": {
@@ -36,12 +36,18 @@
   "completedWorkItems": [2548, 2553],
   "remainingTrackedWork": [
     {
+      "issue": 2531,
+      "title": "Audit branded-value trust boundaries for type laundering",
+      "reason": "The checker-first audit is complete, but six confirmed defects remain open in #2534 and #2536-#2539; three declared coverage expansions also remain unfinished."
+    },
+    {
       "issue": 2552,
       "title": "Reconcile live dev DB migration record with frozen 0000 baseline",
       "reason": "Pre-existing copied-database migration-ledger drift; repair must be proven on a DB+WAL+SHM copy and must not rewrite the frozen baseline."
     }
   ],
   "limits": [
+    "This receipt closes the AST liveness/dead-code lens phase only. It does not close the separate branded-value trust-boundary program or claim that every filed product finding was repaired.",
     "No new full-corpus typeonly run was performed after the focused performance repair; the prior measured run took 35.5 minutes and about 15.4 GB peak RSS.",
     "The final consolidated pass intentionally reused focused structural controls instead of repeating every earlier whole-corpus lens run.",
     "The live database was not opened or mutated."
