@@ -1,16 +1,14 @@
-// Warning owner for #2536: a canonical TypeID cannot cross a trust boundary through `brandedId<T>()`,
-// which validates only nonempty text. The checker resolves T's canonical brand; the shared id-brand reader
-// derives the TypeID-prefix vocabulary from `TypeIdOf<"…">` aliases in kit, so renamed imports, barrels and
-// new entity aliases do not create a spelling-based blind spot. Prefixless `Branded<"…">` ids stay valid.
-// This warning remains until the measured program is zero, then it is promoted into the blocking id-brand
-// family and #2536 closes. It is debt authority, never a waiver or copied per-site allowlist.
+// A canonical TypeID cannot cross a trust boundary through `brandedId<T>()`, which validates only nonempty
+// text. The checker resolves T's canonical brand; the shared id-brand reader derives the TypeID-prefix
+// vocabulary from `TypeIdOf<"…">` aliases in kit, so renamed imports, barrels and new entity aliases do not
+// create a spelling-based blind spot. Prefixless `Branded<"…">` ids stay valid.
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { canonicalTypeIdPrefix, createKitIdCallMatcher, deriveCanonicalTypeIdPrefixes, ID_BRAND_HOME } from "../lib/id-brand.ts";
 import { idBrandProofModule } from "./_proof/id-brand.ts";
 
 const MESSAGE =
-  "a canonical TypeID crosses a trust boundary through brandedId<T>(), which validates only nonempty text and accepts malformed or wrong-prefix ids; use typeIdSchema(ID_PREFIX.x). Issue #2536 owns the bounded migration. (tooling/src/verify/gates/GATE-AUTHORING.md)";
+  "a canonical TypeID crosses a trust boundary through brandedId<T>(), which validates only nonempty text and accepts malformed or wrong-prefix ids; use typeIdSchema(ID_PREFIX.x). (tooling/src/verify/gates/GATE-AUTHORING.md)";
 const UNREADABLE =
   "a brandedId-spelled trust-boundary call enters through a door the shared readers cannot place, so whether it is the canonical non-validating helper CANNOT be established. Reported rather than admitted. (tooling/src/verify/gates/GATE-AUTHORING.md)";
 const BLIND =
@@ -20,8 +18,7 @@ export const gate = defineGate({
   id: "typeid-prefix-boundary",
   family: "id-brand-flow",
   authority: "hard",
-  severity: "warning",
-  workItem: 2536,
+  severity: "error",
   population: "@product",
   analysis: "types",
   execution: "entire-population",
