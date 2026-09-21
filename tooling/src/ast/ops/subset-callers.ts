@@ -26,7 +26,7 @@
 // UNJUDGED SITE naming its escape, because the payload it eventually fires is written out of this lens's
 // sight. Every refused fire is now NAMED with its `file:line` and reason — the census used to print a bare
 // count, which is the lens's own "counted and NAMED" promise going unhonoured.
-import type { CallExpression, Node, ObjectLiteralExpression, Project, SourceFile } from "ts-morph";
+import type { CallExpression, Node, ObjectLiteralExpression, SourceFile } from "ts-morph";
 import { SyntaxKind, Node as TsNode } from "ts-morph";
 import type { ActionDoorRuling } from "../../_shared/action-door-rulings.ts";
 import { ACTION_DOOR_RULINGS } from "../../_shared/action-door-rulings.ts";
@@ -34,6 +34,7 @@ import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { DestructuredFires, MutationFactoryIndex, ResolvedDoor, UnresolvedDoor } from "../../_shared/trpc-doors.ts";
 import { destructuredFires, indexMutationFactories, MUTATION_FIRE_MEMBERS, procedureMatches, resolveFiredDoor } from "../../_shared/trpc-doors.ts";
+import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
 import type { Flags, Hit, SubsetAudit, SubsetCallSite, SubsetDoorCensus, SubsetFinding, SubsetSiteScan, SubsetUnjudgedFire } from "../contract/types.ts";
 import { emit, hitOf } from "../lib/emit.ts";
 import { exitToolError, noteUnits, scanCorpus, WHOLE_CORPUS } from "../lib/ledger.ts";
@@ -397,7 +398,7 @@ function printDoorClasses(symbol: string, doors: SubsetDoorCensus): void {
   }
 }
 
-export function cmdSubsetCallers(project: Project, symbol: string, flags: Flags): void {
+export function cmdSubsetCallers(project: SourceCorpus, symbol: string, flags: Flags): void {
   const files = scanCorpus(project, WHOLE_CORPUS);
   const audit = collectSubsetCallers(files, symbol);
   noteUnits("call-sites", audit.sites.length);

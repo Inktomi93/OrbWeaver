@@ -1,7 +1,7 @@
 // rot: the five rot collectors over ONE package, ONE load + ONE liveness build.
-import type { Project } from "ts-morph";
 import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
 import type { Flags, Hit, Liveness } from "../contract/types.ts";
 import { emit } from "../lib/emit.ts";
 import { corpusPredicate, SKIP_TEST_FILES, scanCorpus } from "../lib/ledger.ts";
@@ -26,13 +26,13 @@ refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
 // four. Each verb's OWN bucketed/stale-marker narration (star-suppression, declared test seams, the
 // union-source bucket, `@…-ok:` staleness) is that verb's business and is deliberately NOT reproduced
 // here — run the verb directly for that detail; `rot` exists to answer "which sections need a look".
-export function rotOrphanHits(project: Project, live: Liveness, inScope: (fp: string) => boolean): Hit[] {
+export function rotOrphanHits(project: SourceCorpus, live: Liveness, inScope: (fp: string) => boolean): Hit[] {
   return collectOrphanCandidates(project, live, inScope)
     .filter((c) => !c.starSuppressed)
     .map((c) => candidateHit(c, "orphan-export"));
 }
 
-export function rotTestOnlyHits(project: Project, live: Liveness, inScope: (fp: string) => boolean): Hit[] {
+export function rotTestOnlyHits(project: SourceCorpus, live: Liveness, inScope: (fp: string) => boolean): Hit[] {
   const hits: Hit[] = [];
   for (const sf of project.getSourceFiles()) {
     const fp = sf.getFilePath();
@@ -43,17 +43,17 @@ export function rotTestOnlyHits(project: Project, live: Liveness, inScope: (fp: 
   return hits;
 }
 
-export function rotChainHits(project: Project, live: Liveness, inScope: (fp: string) => boolean): Hit[] {
+export function rotChainHits(project: SourceCorpus, live: Liveness, inScope: (fp: string) => boolean): Hit[] {
   return collectChainAudit(project, live, inScope).candidates.map(chainHit);
 }
 
-export function rotTypeOnlyHits(project: Project, inScope: (fp: string) => boolean): Hit[] {
+export function rotTypeOnlyHits(project: SourceCorpus, inScope: (fp: string) => boolean): Hit[] {
   return collectTypeOnlyCandidates(project, inScope)
     .filter((c) => !(isTypeOnlyExempt(c.decl) || c.unionSource))
     .map((c) => typeOnlyHit(c));
 }
 
-export function rotSwallowedHits(project: Project, live: Liveness, inScope: (fp: string) => boolean): Hit[] {
+export function rotSwallowedHits(project: SourceCorpus, live: Liveness, inScope: (fp: string) => boolean): Hit[] {
   return collectSwallowedCandidates(project, live, inScope)
     .filter((c) => !isSwallowedExempt(c.decl))
     .map(swallowedHit);
@@ -62,7 +62,7 @@ export function rotSwallowedHits(project: Project, live: Liveness, inScope: (fp:
 /** One package's five sections, printed and emitted in turn — `emit`'s per-call `noteMatches` accumulates
  *  into the ONE combined epilogue `finishRun` prints at the end of `main`, so five sectioned RESULT lines
  *  still resolve to one audited scan count. */
-export function cmdRot(project: Project, arg: string, flags: Flags): void {
+export function cmdRot(project: SourceCorpus, arg: string, flags: Flags): void {
   const scope = resolveScope(project, arg, "rot");
   const inScope = corpusPredicate(
     scanCorpus(project, {

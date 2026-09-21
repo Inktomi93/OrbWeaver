@@ -2,14 +2,15 @@
 // is a ROOT-CONFIG import (tooling-front-door exemption row: re-spelling the entry globs would
 // be the one-home violation).
 import { readFileSync } from "node:fs";
-import type { Project, SourceFile } from "ts-morph";
+import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import knipConfig from "../../../../knip.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
 import type { Flags, Hit } from "../contract/types.ts";
 import { emit, hitOf } from "../lib/emit.ts";
 import { exitToolError, SKIP_DECLARATION_FILES, SKIP_TEST_FILES, scanCorpus } from "../lib/ledger.ts";
-import { resolveModule } from "../lib/resolve.ts";
+import { resolveDynamicImportTarget, resolveModule } from "../lib/resolve.ts";
 import { BANG_SUFFIX_RE, DOT_SLASH_RE, GLOB_STAR_RE, isTestPath, REPO_ROOT, TS_SUFFIX_RE, WORKSPACE_PACKAGES } from "../lib/root.ts";
 import { resolveScope } from "../lib/scope.ts";
 import { relPath } from "./swallowed.ts";
@@ -40,7 +41,7 @@ refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
  *  `src/tokens/tokens.build.ts`, a path that has not existed since the file moved to the package root, and
  *  it failed SILENTLY (a hardcoded `add()` on a missing file is a no-op). Hence {@link addAnchor}: a
  *  declared anchor that resolves to nothing is now a TOOL ERROR, because a blind lens must never read clean. */
-function deriveEntryFiles(project: Project): Set<string> {
+function deriveEntryFiles(project: SourceCorpus): Set<string> {
   const entries = new Set<string>();
   for (const pkg of WORKSPACE_PACKAGES) {
     const dir = `${REPO_ROOT}/packages/${pkg}`;
@@ -58,7 +59,7 @@ function deriveEntryFiles(project: Project): Set<string> {
  *  a `*.config.ts` glob would therefore also swallow a real module at `src/**\/x.config.ts`. */
 const TOOLING_CONFIG_SUFFIX = ".config.ts";
 
-export function toolingConfigNames(project: Project, pkgDir: string): string[] {
+export function toolingConfigNames(project: SourceCorpus, pkgDir: string): string[] {
   const names: string[] = [];
   for (const sf of project.getSourceFiles()) {
     const fp = sf.getFilePath();
@@ -86,7 +87,7 @@ export function scriptEntryPaths(pkgDir: string): string[] {
 /** A NAMED anchor entry (a path this file asserts is an entry, derived from something outside the TS graph).
  *  A missing anchor is a TOOL ERROR, never a silent skip: the whole package it anchors would report as
  *  prod-unreachable rot, and that reads exactly like a real finding. */
-function addAnchor(project: Project, entries: Set<string>, fp: string, why: string): void {
+function addAnchor(project: SourceCorpus, entries: Set<string>, fp: string, why: string): void {
   if (project.getSourceFile(fp) === undefined) {
     exitToolError(
       `ast prodonly: the declared entry anchor ${relPath(fp)} (${why}) does not exist — the entry closure is WRONG, so every file it reaches would report as prod-unreachable. Fix the anchor in deriveEntryFiles, do not act on this run.`,
@@ -116,7 +117,7 @@ function exportsEntryPaths(pkgDir: string): string[] {
 
 /** Add every project source file matching an absolute glob (`*` = one path segment, `**` = many) to `set`.
  *  Node's exports `*` matches across slashes, so a single-`*` exports pattern is treated as `**` here. */
-function addGlobMatches(project: Project, absGlob: string, set: Set<string>): void {
+function addGlobMatches(project: SourceCorpus, absGlob: string, set: Set<string>): void {
   if (!absGlob.includes("*")) {
     if (project.getSourceFile(absGlob) !== undefined) {
       set.add(absGlob);
@@ -142,7 +143,7 @@ function globToRegExp(absGlob: string): RegExp {
 
 // Resolved out-edges of a file: every static import / re-export target (named, namespace, star, alias,
 // and @orb subpath all resolve via getModuleSpecifierSourceFile) plus dynamic import() targets.
-function fileEdges(sf: SourceFile, project: Project): SourceFile[] {
+function fileEdges(sf: SourceFile, project: SourceCorpus): SourceFile[] {
   const out: SourceFile[] = [];
   for (const d of [...sf.getImportDeclarations(), ...sf.getExportDeclarations()]) {
     const t = d.getModuleSpecifierSourceFile();
@@ -156,7 +157,7 @@ function fileEdges(sf: SourceFile, project: Project): SourceFile[] {
     }
     const arg = call.getArguments()[0];
     if (arg !== undefined && Node.isStringLiteral(arg)) {
-      const t = resolveModule(project, sf.getDirectoryPath(), arg.getLiteralText());
+      const t = resolveModule(project, sf.getDirectoryPath(), arg.getLiteralText()) ?? resolveDynamicImportTarget(call);
       if (t !== undefined) {
         out.push(t);
       }
@@ -167,7 +168,7 @@ function fileEdges(sf: SourceFile, project: Project): SourceFile[] {
 
 /** Files reachable from the entry set by a resolved-edge BFS (no test files as nodes — a test importer
  *  cannot keep a prod file alive in this lens). */
-function reachableFrom(entries: Set<string>, project: Project): Set<string> {
+function reachableFrom(entries: Set<string>, project: SourceCorpus): Set<string> {
   const seen = new Set<string>(entries);
   const stack = [...entries];
   while (stack.length > 0) {
@@ -190,7 +191,7 @@ function reachableFrom(entries: Set<string>, project: Project): Set<string> {
 /** Source FILES in `<scope>` no production entry can reach (the knip Unused-files verdict, entry-closure
  *  from the package exports maps). A file reached only from a test is prod-unreachable — the point of the
  *  lens. Complements testonly's per-symbol view. */
-export function cmdProdOnly(project: Project, arg: string, flags: Flags): void {
+export function cmdProdOnly(project: SourceCorpus, arg: string, flags: Flags): void {
   const scope = resolveScope(project, arg, "prodonly");
   // `.d.ts` ambient declarations are consumed by the type system, never by an import edge — they are
   // never "reachable" and are not orphans (knip excludes them from unused-files too).

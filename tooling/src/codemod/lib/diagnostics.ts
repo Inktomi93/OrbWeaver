@@ -26,7 +26,7 @@ import { tmpdir as osTmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
 import type { Project, SourceFile } from "ts-morph";
-import type { FileSnapshot, Plan } from "../contract/types.ts";
+import type { CodemodContext, FileSnapshot, Plan } from "../contract/types.ts";
 import { repoRelative } from "./plans.ts";
 
 const DEFAULT_MAX_OUTPUT_LINES = 200;
@@ -252,14 +252,20 @@ function summarizeDiff(before: string, after: string): string {
   return `${balance}, first change at ${firstLineLabel}`;
 }
 
-/** Print the full ts-morph pre-emit diagnostic block. Useful when you set
- *  `skipDiagnosticsCheck: true` but still want to see what TS thinks of the
- *  intermediate state. */
-export function printDiagnostics(project: Project): void {
-  const diags = project.getPreEmitDiagnostics();
-  if (diags.length === 0) {
+/** Print native-program semantic diagnostics for the transaction's current in-memory state. Useful
+ * when `skipDiagnosticsCheck` is intentional but the operator still wants the real world frontier. */
+export function printDiagnostics(ctx: CodemodContext): void {
+  const findings = ctx.semantic().programs.flatMap((program) => {
+    const project = program.project();
+    const diagnostics = project.getPreEmitDiagnostics();
+    return diagnostics.length === 0 ? [] : [{ config: program.descriptor.config, project, diagnostics }];
+  });
+  if (findings.length === 0) {
     print("✓ No pre-emit diagnostics.");
     return;
   }
-  print(project.formatDiagnosticsWithColorAndContext(diags));
+  for (const { config, project, diagnostics } of findings) {
+    print(`── ${config} ──`);
+    print(project.formatDiagnosticsWithColorAndContext(diagnostics));
+  }
 }

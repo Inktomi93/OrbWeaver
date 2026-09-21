@@ -1,8 +1,9 @@
 // apisurface: exports partitioned by package-boundary consumption.
-import type { ImportDeclaration, Node, Project, SourceFile } from "ts-morph";
+import type { ImportDeclaration, Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
 import type { ApiClass, ApiSurfaceEntry, Flags, Hit, Liveness } from "../contract/types.ts";
 import { dynamicImportTargetOf } from "../lib/edges.ts";
 import { emit, hitOf } from "../lib/emit.ts";
@@ -157,7 +158,7 @@ function recordImportApiConsumption(imp: ImportDeclaration, consumerFp: string, 
 
 /** ONE file's dynamic `import()` targets: each keeps the whole target surface alive (err alive, value —
  *  a runtime import can access any member), attributed to the importing file's package. */
-function recordDynamicApiConsumption(sf: SourceFile, project: Project, consumerFp: string, map: Map<string, ApiConsumption>): void {
+function recordDynamicApiConsumption(sf: SourceFile, project: SourceCorpus, consumerFp: string, map: Map<string, ApiConsumption>): void {
   for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
     const target = dynamicImportTargetOf(call, sf, project);
     if (target === undefined) {
@@ -173,7 +174,7 @@ function recordDynamicApiConsumption(sf: SourceFile, project: Project, consumerF
 }
 
 /** origin-key → per-package consumption, over the WHOLE workspace (imports + dynamic imports of every file). */
-function buildApiConsumption(project: Project): Map<string, ApiConsumption> {
+function buildApiConsumption(project: SourceCorpus): Map<string, ApiConsumption> {
   const map = new Map<string, ApiConsumption>();
   for (const sf of project.getSourceFiles()) {
     const fp = sf.getFilePath();
@@ -225,7 +226,7 @@ function classifyApiExport(name: string, decl: Node, ctx: ApiScanCtx): ApiSurfac
  *  function the CLI does. The UNUSED arm is `collectOrphanCandidates` verbatim; the rest is the per-package pass.
  *  `prebuilt` lets a caller that ALREADY built liveness (the push-tier ratchet, which also needs `isProdConsumed`
  *  for its stale arm) pass it in rather than pay a second whole-workspace liveness pass. */
-export function collectApiSurface(project: Project, inScope: (filePath: string) => boolean, prebuilt?: Liveness): ApiSurfaceEntry[] {
+export function collectApiSurface(project: SourceCorpus, inScope: (filePath: string) => boolean, prebuilt?: Liveness): ApiSurfaceEntry[] {
   const live = prebuilt ?? buildLiveness(project);
   const orphanStar = new Map(collectOrphanCandidates(project, live, inScope).map((candidate) => [declKey(candidate.decl), candidate.starSuppressed]));
   const ctx: ApiScanCtx = { consumption: buildApiConsumption(project), orphanStar };
@@ -292,7 +293,7 @@ function apiSurfaceHit(entry: ApiSurfaceEntry): Hit {
  *  only — barrel-bloat candidate) / TEST-ONLY (test-reached, not prod API) / UNUSED (the `orphans` set). Default
  *  emits the actionable arms (INTERNAL + TEST-ONLY + UNUSED); `--public` adds the PUBLIC rows. Optional scope
  *  (a package name / path); bare = every package. */
-export function cmdApiSurface(project: Project, arg: string, flags: Flags): void {
+export function cmdApiSurface(project: SourceCorpus, arg: string, flags: Flags): void {
   const scope = arg === "" ? { prefix: PACKAGES_PREFIX, label: "(all packages)" } : resolveScope(project, arg, "apisurface");
   const files = scanCorpus(project, { scope: scope.prefix, label: `path:${scope.prefix}`, skip: [SKIP_TEST_FILES] });
   const entries = collectApiSurface(project, corpusPredicate(files));

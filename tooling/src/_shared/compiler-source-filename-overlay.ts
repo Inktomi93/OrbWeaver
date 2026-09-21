@@ -4,8 +4,8 @@ import type { Dirent } from "node:fs";
 import { lstatSync, readdirSync, realpathSync, statSync } from "node:fs";
 import { basename, dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { ts } from "ts-morph";
-import type { CompilerSourceOverlay, PolicyRepositoryInventory } from "../contract/policy-scope.ts";
-import { assertPolicyRepoPath } from "./policy-repo-inventory.ts";
+import { assertRepoPath } from "./authored-repository.ts";
+import type { AuthoredRepositoryInventory, CompilerSourceOverlay } from "./compiler-programs-contract.ts";
 
 interface DirectoryEntries {
   readonly files: readonly string[];
@@ -78,10 +78,10 @@ function matchFilesRuntime(): MatchFiles {
   return candidate as MatchFiles;
 }
 
-function pathSet(paths: readonly string[], inventory: PolicyRepositoryInventory, label: string): ReadonlyMap<string, string> {
+function pathSet(paths: readonly string[], inventory: AuthoredRepositoryInventory, label: string): ReadonlyMap<string, string> {
   const result = new Map<string, string>();
   for (const path of paths) {
-    assertPolicyRepoPath(path, label);
+    assertRepoPath(path, label);
     const identity = physicalIdentity(resolve(inventory.root, path));
     if (!contained(inventory.root, identity)) {
       throw new Error(`${label} resolves outside repository: ${path}`);
@@ -95,7 +95,7 @@ function pathSet(paths: readonly string[], inventory: PolicyRepositoryInventory,
   return result;
 }
 
-function authoredIdentities(inventory: PolicyRepositoryInventory): ReadonlySet<string> {
+function authoredIdentities(inventory: AuthoredRepositoryInventory): ReadonlySet<string> {
   return new Set(inventory.paths.map((path) => physicalIdentity(resolve(inventory.root, path))));
 }
 
@@ -157,7 +157,7 @@ function virtualEntries(root: string, added: ReadonlyMap<string, string>): Reado
 }
 
 export function createCompilerSourceFilenameReader(
-  inventory: PolicyRepositoryInventory,
+  inventory: AuthoredRepositoryInventory,
   overlay: CompilerSourceOverlay | undefined,
 ): CompilerSourceFilenameReader {
   const added = pathSet(overlay?.addedPaths ?? [], inventory, "virtual compiler source");
@@ -177,7 +177,7 @@ export function createCompilerSourceFilenameReader(
       throw new Error(`compiler member resolves outside repository: ${fileName}`);
     }
     const path = rel.split(sep).join("/");
-    assertPolicyRepoPath(path, "compiler member");
+    assertRepoPath(path, "compiler member");
     return path;
   };
   const directoryEntries = (directory: string): DirectoryEntries => {

@@ -1,6 +1,7 @@
 // contract-field-liveness collectors: producers / consumers / model-projection fences.
-import type { JsxAttribute, Project, SourceFile } from "ts-morph";
+import type { JsxAttribute, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
 import type { FieldHitClass, FieldIndexes, TemplateBracket } from "../contract/fields.ts";
 import type { ContractField, FieldReadSites, Hit } from "../contract/types.ts";
 import { relPath } from "../ops/swallowed.ts";
@@ -341,7 +342,7 @@ function templateBracketsOf(sf: SourceFile, out: TemplateBracket[]): void {
 /** The producer / consumer indexes over the PRODUCTION corpus (tests excluded — a test constructing a
  *  fixture is not a producer, the same rule `testonly` and `regkeys` apply). `aliased` and `templates` are
  *  the #879 hygiene halves: the composition-alias fence and the `template-key` class evidence. */
-export function fieldIndexes(project: Project): FieldIndexes {
+export function fieldIndexes(project: SourceCorpus): FieldIndexes {
   const produced = new Set<string>();
   const consumed = new Map<string, FieldReadSites>();
   const aliased = new Set<string>();

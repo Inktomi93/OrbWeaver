@@ -10,14 +10,26 @@
 
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { Project, SyntaxKind } from "ts-morph";
 import { describe, vi } from "vitest";
-import { repointAliasPaths, routeSymbolsByMap } from "../../../../tooling/src/codemod/index.ts";
+import { moduleStringArg, repointAliasPaths, routeSymbolsByMap } from "../../../../tooling/src/codemod/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 import { withTree } from "../_kit-tree.ts";
 
 const DIAGNOSTICS_TIMEOUT_MS = scaledBudget(15_000);
 vi.setConfig({ testTimeout: DIAGNOSTICS_TIMEOUT_MS, hookTimeout: DIAGNOSTICS_TIMEOUT_MS });
+
+test("moduleStringArg follows the Vitest import binding rather than the receiver spelling", () => {
+  const project = new Project({ useInMemoryFileSystem: true });
+  const imported = project.createSourceFile("/imported.ts", 'import { vi as vitest } from "vitest";\nvitest.mock("#real/module");\n');
+  const unrelated = project.createSourceFile("/unrelated.ts", 'const vi = { mock: (_value: string) => undefined };\nvi.mock("#unrelated/module");\n');
+  const importedCall = imported.getFirstDescendantByKindOrThrow(SyntaxKind.CallExpression);
+  const unrelatedCall = unrelated.getFirstDescendantByKindOrThrow(SyntaxKind.CallExpression);
+
+  expect(moduleStringArg(importedCall)?.getLiteralValue()).toBe("#real/module");
+  expect(moduleStringArg(unrelatedCall)).toBeNull();
+});
 
 const fourFiles = {
   "hit-one.ts": 'import { x } from "#old/x.ts";\n\nexport const one = x;\n',

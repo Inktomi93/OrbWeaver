@@ -207,7 +207,7 @@ await runCodemod(
     // on a non-zero count, so this is how a collision (a renamed local shadowing an existing
     // `participants`) is located rather than guessed at.
     if (process.argv.slice(2).includes("--diagnose")) {
-      printDiagnostics(ctx.project);
+      printDiagnostics(ctx);
     }
   },
   { argv: process.argv.slice(2) },

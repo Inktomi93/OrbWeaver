@@ -1,7 +1,9 @@
 // The symbol verbs: refs / callers / importers / exports / jsx / ident / literal.
-import type { ExportDeclaration, ImportDeclaration, Project, SourceFile } from "ts-morph";
+import type { ExportDeclaration, ImportDeclaration, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
+import { semanticReferenceNodes } from "../../_shared/ts-workspace.ts";
 import type { Flags, Hit } from "../contract/types.ts";
 import { emit, hitOf } from "../lib/emit.ts";
 import { scanCorpus, WHOLE_CORPUS } from "../lib/ledger.ts";
@@ -31,7 +33,7 @@ export function declarationsNamed(files: readonly SourceFile[], name: string): N
   });
 }
 
-export function cmdRefs(project: Project, name: string, flags: Flags): void {
+export function cmdRefs(project: SourceCorpus, name: string, flags: Flags): void {
   const decls = declarationsNamed(scanCorpus(project, WHOLE_CORPUS), name);
   if (decls.length === 0) {
     emit([], flags, `refs ${name} (no declaration found — try \`pnpm ast ident ${name}\`)`);
@@ -42,7 +44,7 @@ export function cmdRefs(project: Project, name: string, flags: Flags): void {
   for (const decl of decls) {
     hits.push(hitOf(decl, "def"));
     if (Node.isReferenceFindable(decl)) {
-      for (const ref of decl.findReferencesAsNodes()) {
+      for (const ref of semanticReferenceNodes(decl)) {
         const key = `${ref.getSourceFile().getFilePath()}:${ref.getStart()}`;
         if (!declStarts.has(key)) {
           hits.push(hitOf(ref, "ref"));
@@ -53,7 +55,7 @@ export function cmdRefs(project: Project, name: string, flags: Flags): void {
   emit(hits, flags, `refs ${name} (${decls.length} declaration(s))`);
 }
 
-export function cmdCallers(project: Project, name: string, flags: Flags): void {
+export function cmdCallers(project: SourceCorpus, name: string, flags: Flags): void {
   const hits: Hit[] = [];
   for (const sf of scanCorpus(project, WHOLE_CORPUS)) {
     for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
@@ -102,7 +104,7 @@ function dynamicImporterHits(sf: SourceFile, spec: string): Hit[] {
   return out;
 }
 
-export function cmdImporters(project: Project, spec: string, flags: Flags): void {
+export function cmdImporters(project: SourceCorpus, spec: string, flags: Flags): void {
   const hits: Hit[] = [];
   for (const sf of scanCorpus(project, WHOLE_CORPUS)) {
     hits.push(...staticImporterHits(sf, spec), ...dynamicImporterHits(sf, spec));
@@ -110,7 +112,7 @@ export function cmdImporters(project: Project, spec: string, flags: Flags): void
   emit(hits, flags, `importers ${spec}`);
 }
 
-export function cmdExports(project: Project, path: string, flags: Flags): void {
+export function cmdExports(project: SourceCorpus, path: string, flags: Flags): void {
   const hits: Hit[] = [];
   // The scope IS the positional arg (a file or dir path substring) — a path that matches no loaded file is
   // now the same tool error a bad package scope has always been, instead of an empty export list.
@@ -127,7 +129,7 @@ export function cmdExports(project: Project, path: string, flags: Flags): void {
   emit(hits, flags, `exports ${path}`);
 }
 
-export function cmdJsx(project: Project, name: string, flags: Flags): void {
+export function cmdJsx(project: SourceCorpus, name: string, flags: Flags): void {
   const hits: Hit[] = [];
   for (const sf of scanCorpus(project, WHOLE_CORPUS)) {
     for (const kind of [SyntaxKind.JsxOpeningElement, SyntaxKind.JsxSelfClosingElement] as const) {
@@ -141,7 +143,7 @@ export function cmdJsx(project: Project, name: string, flags: Flags): void {
   emit(hits, flags, `jsx ${name}`);
 }
 
-export function cmdIdent(project: Project, name: string, flags: Flags): void {
+export function cmdIdent(project: SourceCorpus, name: string, flags: Flags): void {
   const hits: Hit[] = [];
   for (const sf of scanCorpus(project, WHOLE_CORPUS)) {
     for (const id of sf.getDescendantsOfKind(SyntaxKind.Identifier)) {
@@ -202,7 +204,7 @@ function literalHitsIn(sf: SourceFile, value: string): Hit[] {
   return hits;
 }
 
-export function cmdLiteral(project: Project, value: string, flags: Flags): void {
+export function cmdLiteral(project: SourceCorpus, value: string, flags: Flags): void {
   const hits: Hit[] = [];
   for (const sf of scanCorpus(project, WHOLE_CORPUS)) {
     hits.push(...literalHitsIn(sf, value));

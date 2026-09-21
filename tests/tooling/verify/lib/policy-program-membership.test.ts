@@ -24,7 +24,7 @@ function plant(root: string, files: Readonly<Record<string, string>>): void {
 test("nested variants and a references-only solution are discovered without a program list", ({ scratch }) => {
   plant(scratch, {
     ".gitignore": "node_modules/\nreports/\n",
-    "tsconfig.json": '{ "files": [], "references": [{ "path": "./scripts/probe-world" }] }',
+    "tsconfig.json": '{ "files": [], "references": [{ "path": "./scripts/probe-world" }, { "path": "./scripts/probe-world/tsconfig.json" }] }',
     "scripts/probe-world/tsconfig.json": '{ "files": ["a.ts"] }',
     "scripts/probe-world/a.ts": "export const a = 1;",
     "packages/a/tsconfig.browser.json": '{ "files": ["src/a.ts"] }',

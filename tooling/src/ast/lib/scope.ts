@@ -1,5 +1,6 @@
 // Scope normalization + validation (a zero-file scope is a tool error) + ownExports.
-import type { Node, Project, SourceFile } from "ts-morph";
+import type { Node, SourceFile } from "ts-morph";
+import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
 import type { Scope } from "../contract/types.ts";
 import { exitToolError, noteScope } from "./ledger.ts";
 import { LEADING_SLASHES_RE, TEST_FILE_RE, TRAILING_SLASHES_RE, WORKSPACE_PACKAGES } from "./root.ts";
@@ -23,7 +24,7 @@ function normalizeScope(arg: string): Scope {
 /** Resolve + VALIDATE a scope arg for the rot verbs. A scope that matches zero non-test source files is a
  *  tool error (the `/packages/packages/…` silent-green footgun — a bad arg once read as a clean package),
  *  so it prints what was tried + a suggestion and exits 2. Never returns a zero-file scope. */
-export function resolveScope(project: Project, arg: string, verb: string): Scope {
+export function resolveScope(project: SourceCorpus, arg: string, verb: string): Scope {
   const scope = normalizeScope(arg);
   const matched = project.getSourceFiles().some((sf) => {
     const fp = sf.getFilePath();

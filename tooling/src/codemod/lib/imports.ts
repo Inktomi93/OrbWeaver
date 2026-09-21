@@ -1,9 +1,10 @@
 // Import operations: find / add / remove / rename / repoint / route.
 // ── §9 ─ Import operations ───────────────────────────────────────────────────
 
-import type { CallExpression, ImportDeclaration, ImportSpecifier, Project, SourceFile, SourceFileReferencingNodes, StringLiteral } from "ts-morph";
+import type { CallExpression, ImportDeclaration, Project, SourceFile, SourceFileReferencingNodes, StringLiteral } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { CodemodContext, ImportSpecFilter, OperationOptions, Plan } from "../contract/types.ts";
+import { groupImportsByDestination, mergeNamedImportInto, routeSpecifiersToDestination } from "./import-routing.ts";
 import { absolutePath, assert, assertPathString, noteSuffix, repoRelative } from "./plans.ts";
 
 /**
@@ -131,6 +132,25 @@ function applyRewrites(text: string, rewrites: ReadonlyArray<readonly [RegExp, s
  *  A codemod that rewrites import paths must rewrite these strings too. */
 const VI_MODULE_METHODS: ReadonlySet<string> = new Set(["mock", "doMock", "importActual", "importMock", "unmock"]);
 
+function isVitestModuleMethod(expr: Node): boolean {
+  if (!(Node.isPropertyAccessExpression(expr) && VI_MODULE_METHODS.has(expr.getName()))) {
+    return false;
+  }
+  const receiver = expr.getExpression();
+  if (!Node.isIdentifier(receiver)) {
+    return false;
+  }
+  return Boolean(
+    receiver
+      .getSymbol()
+      ?.getDeclarations()
+      .some(
+        (declaration) =>
+          Node.isImportSpecifier(declaration) && declaration.getName() === "vi" && declaration.getImportDeclaration().getModuleSpecifierValue() === "vitest",
+      ),
+  );
+}
+
 /**
  * Extract the module-specifier string literal from a call when it's a dynamic
  * `import("…")` or a `vi.<mock-method>("…")` — else null. Lets a path-rewriting
@@ -139,43 +159,11 @@ const VI_MODULE_METHODS: ReadonlySet<string> = new Set(["mock", "doMock", "impor
 export function moduleStringArg(call: CallExpression): StringLiteral | null {
   const expr = call.getExpression();
   const isDynImport = expr.getKind() === SyntaxKind.ImportKeyword;
-  const isViMock = Node.isPropertyAccessExpression(expr) && expr.getExpression().getText() === "vi" && VI_MODULE_METHODS.has(expr.getName());
-  if (!(isDynImport || isViMock)) {
+  if (!(isDynImport || isVitestModuleMethod(expr))) {
     return null;
   }
   const arg0 = call.getArguments()[0];
   return arg0 && Node.isStringLiteral(arg0) ? arg0 : null;
-}
-
-/** Merge a named import into an EXISTING import declaration for the same module (the "already
- *  importing from here" branch of `addNamedImport`). */
-function mergeNamedImportInto(existing: ImportDeclaration, named: { readonly name: string; readonly alias?: string; readonly isTypeOnly?: boolean }): void {
-  const wantValue = named.isTypeOnly !== true;
-  // Adding a VALUE specifier into an `import type {…}` declaration would silently make the value
-  // type-only (TS1361 at its use site). Convert the declaration to a value import and push the
-  // `type` modifier onto each existing (type-only) specifier instead.
-  if (wantValue && existing.isTypeOnly()) {
-    existing.setIsTypeOnly(false);
-    for (const ni of existing.getNamedImports()) {
-      ni.setIsTypeOnly(true);
-    }
-  }
-  const match = existing
-    .getNamedImports()
-    .find((n) => n.getName() === named.name && (n.getAliasNode()?.getText() ?? n.getName()) === (named.alias ?? named.name));
-  if (match !== undefined) {
-    // Already imported — but a prior pass may have added it type-only; a later value use must
-    // downgrade it so it's callable.
-    if (wantValue && match.isTypeOnly()) {
-      match.setIsTypeOnly(false);
-    }
-    return;
-  }
-  existing.addNamedImport({
-    name: named.name,
-    ...(named.alias !== undefined ? { alias: named.alias } : {}),
-    ...(named.isTypeOnly !== undefined && !existing.isTypeOnly() ? { isTypeOnly: named.isTypeOnly } : {}),
-  });
 }
 
 /**
@@ -354,56 +342,6 @@ export function makeImportTypeOnly(ctx: CodemodContext, moduleSpecifier: string,
  * `deleteFiles(...)` and run `repointAliasPaths(...)` to catch any string-
  * literal references in comments.
  */
-/** Group a declaration's named imports by which new module specifier they route to (skipping any
- *  name not in the map — those stay on the original declaration). */
-function groupImportsByDestination(
-  decl: ImportDeclaration,
-  fromSpecifier: string,
-  symbolToNewSpecifier: Readonly<Record<string, string>>,
-): Map<string, ImportSpecifier[]> {
-  const groups = new Map<string, ImportSpecifier[]>();
-  for (const spec of decl.getNamedImports()) {
-    const dest = symbolToNewSpecifier[spec.getName()];
-    if (dest === undefined || dest === fromSpecifier) {
-      continue;
-    }
-    const bucket = groups.get(dest) ?? [];
-    bucket.push(spec);
-    groups.set(dest, bucket);
-  }
-  return groups;
-}
-
-/** Add-or-merge an import declaration for `dest` carrying `specs`, then remove the specifiers
- *  from their original declaration now that they've moved. */
-function routeSpecifiersToDestination(sf: SourceFile, dest: string, specs: readonly ImportSpecifier[]): void {
-  const sourceDecl = specs[0]?.getImportDeclaration();
-  const incoming = specs.map((s) => {
-    const aliasNode = s.getAliasNode();
-    return {
-      name: s.getName(),
-      ...(aliasNode !== undefined ? { alias: aliasNode.getText() } : {}),
-      isTypeOnly: sourceDecl?.isTypeOnly() === true || s.isTypeOnly(),
-    };
-  });
-  const target = sf
-    .getImportDeclarations()
-    .find(
-      (decl) =>
-        decl.getModuleSpecifierValue() === dest && decl.getNamespaceImport() === undefined && !(decl.isTypeOnly() && decl.getDefaultImport() !== undefined),
-    );
-  if (target !== undefined) {
-    for (const named of incoming) {
-      mergeNamedImportInto(target, named);
-    }
-  } else {
-    sf.addImportDeclaration({ moduleSpecifier: dest, namedImports: incoming });
-  }
-  for (const s of specs) {
-    s.remove();
-  }
-}
-
 export function routeSymbolsByMap(
   ctx: CodemodContext,
   fromSpecifier: string,

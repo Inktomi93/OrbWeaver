@@ -1,21 +1,21 @@
 // The @public marker family — read by orphans/chains/apisurface AND the push-tier ratchet
-// through the SAME predicate (one definition of tagged-keep).
+// through the SAME predicate (one definition of a marker claim; the ratchet adjudicates legality).
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { PublicMarker } from "../contract/types.ts";
 
-const PUBLIC_TAG_RE = /@public(?<reason>[^\n]*)/u;
+const PUBLIC_TAG_RE = /@public(?=$|[\s-])(?<reason>[^\n]*)/u;
 
 const JSDOC_TERMINATOR_RE = /\*\/\s*$/u;
 
-/** Does this declaration carry `/** @public <reason> *\/` in a LEADING comment, WITH a reason? (the
- *  `isUnwiredExempt` discipline: a bare marker is not a legal exemption.)
+/** Does this declaration carry `/** @public <reason> *\/` in a LEADING comment, WITH a reason? This is
+ *  deliberately a conservative graph-root predicate, not a ruling that the marker is a legal exemption.
  *
  *  ONE HOME, deliberately: the push-tier ratchet (tooling/src/verify/ops/orphan-export-ratchet.ts) reads this to
  *  decide which orphan candidates it judges, and the `chains` fixpoint reads it to decide which declarations
  *  are ALIVE ROOTS. Two spellings of the predicate would let the two disagree about what "deliberately
- *  unconsumed" means — and the chain lens would then report a whole tree hanging off a head the ratchet has
- *  already ratified. Reads through {@link commentHost}: a tagged `export const`'s JSDoc sits on the
+ *  unconsumed" means — and the chain lens would then report a whole tree hanging off a head the ratchet is
+ *  responsible for adjudicating. Reads through {@link commentHost}: a tagged `export const`'s JSDoc sits on the
  *  VariableStatement, not on the VariableDeclaration the liveness keys on. */
 export function isPublicTagged(decl: Node): boolean {
   return commentHost(decl)
@@ -58,8 +58,8 @@ function markerTail(raw: string | undefined): string {
   return (raw ?? "").replace(JSDOC_TERMINATOR_RE, "").trim();
 }
 
-/** The `@public`-family marker in ONE comment's text, or undefined. Checks the two NAMED forms FIRST (a bare
- *  `@public` regex also matches `@public-twin`/`@public-future`, so order is the disambiguator), then the
+/** The `@public`-family marker in ONE comment's text, or undefined. Checks the two NAMED forms FIRST (the bare
+ *  marker also admits the legacy hyphen separator, so order is the disambiguator), then the
  *  legacy bare form. `twin.value` is the FIRST token after the colon (prose may follow); a colon-marker with
  *  an empty tail falls through to bare (an unnamed twin/future is not a legal named exemption). */
 function markerInComment(text: string): PublicMarker | undefined {

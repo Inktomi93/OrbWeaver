@@ -5,6 +5,8 @@ import type { Project } from "ts-morph";
 import { Node } from "ts-morph";
 import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
+import { coLocatedSemanticNodes, semanticWorkspaceOf } from "../../_shared/ts-workspace.ts";
 import type { Flags, Hit, NearFieldDiff, NearPairCandidate } from "../contract/types.ts";
 import { emit, hitOf } from "../lib/emit.ts";
 import { declKey } from "../lib/keys.ts";
@@ -44,7 +46,7 @@ interface AssignabilityChecker {
   isTypeAssignableTo: (source: unknown, target: unknown) => boolean;
 }
 
-export function assignabilityChecker(project: Project): AssignabilityChecker {
+export function assignabilityChecker(project: Pick<Project, "getTypeChecker">): AssignabilityChecker {
   const compiler = project.getTypeChecker().compilerObject as unknown as Partial<AssignabilityChecker>;
   if (typeof compiler.isTypeAssignableTo !== "function") {
     exitToolError(
@@ -54,14 +56,43 @@ export function assignabilityChecker(project: Project): AssignabilityChecker {
   return { isTypeAssignableTo: compiler.isTypeAssignableTo.bind(compiler) };
 }
 
+function checkerProjectOf(corpus: SourceCorpus): Pick<Project, "getTypeChecker"> {
+  if ("getTypeChecker" in corpus && typeof corpus.getTypeChecker === "function") {
+    return corpus as Pick<Project, "getTypeChecker">;
+  }
+  const project = semanticWorkspaceOf(corpus)?.programs[0]?.project();
+  if (project === undefined) {
+    exitToolError("ast respell: semantic corpus has no runnable compiler program");
+  }
+  return project;
+}
+
 /** MUTUALLY assignable = the same shape, whatever the two spell their fields' types as. Assignability (not
  *  type TEXT) is the comparison because a text signature is ALIAS-SENSITIVE: `CharacterId` and
  *  `TypeIdOf<"character">` print differently and are the same type, so a text lens reports a clean zero on a
  *  literal re-spell (measured — the first cut of this lens missed a planted twin for exactly that reason). */
 function mutuallyAssignable(checker: AssignabilityChecker, a: Node, b: Node): boolean {
-  const ta = a.getType().compilerType;
-  const tb = b.getType().compilerType;
-  return checker.isTypeAssignableTo(ta, tb) && checker.isTypeAssignableTo(tb, ta);
+  const colocated = coLocatedSemanticNodes(a, b);
+  if (colocated.length === 0) {
+    if (a.getProject() !== b.getProject()) {
+      exitToolError("ast respell: compared declarations share no native compiler program");
+    }
+    const ta = a.getType().compilerType;
+    const tb = b.getType().compilerType;
+    return checker.isTypeAssignableTo(ta, tb) && checker.isTypeAssignableTo(tb, ta);
+  }
+  const answers = new Set(
+    colocated.map(({ project, left, right }) => {
+      const effectiveChecker = assignabilityChecker(project);
+      const ta = left.getType().compilerType;
+      const tb = right.getType().compilerType;
+      return effectiveChecker.isTypeAssignableTo(ta, tb) && effectiveChecker.isTypeAssignableTo(tb, ta);
+    }),
+  );
+  if (answers.size !== 1) {
+    exitToolError("ast respell: native compiler programs disagree about declaration assignability");
+  }
+  return answers.has(true);
 }
 
 /** The sorted PROPERTY-NAME signature of a declaration's type — the cheap prefilter that keeps the O(n²)
@@ -90,7 +121,7 @@ function shapeSignature(decl: Node): string | undefined {
 }
 
 /** Every exported declaration of the files under `prefix` that HAS a shape signature. */
-function shapesUnder(project: Project, prefix: string): ShapeEntry[] {
+function shapesUnder(project: SourceCorpus, prefix: string): ShapeEntry[] {
   const out: ShapeEntry[] = [];
   for (const sf of project.getSourceFiles()) {
     const fp = sf.getFilePath();
@@ -108,7 +139,7 @@ function shapesUnder(project: Project, prefix: string): ShapeEntry[] {
 }
 
 /** Domain dirs under `packages/server/src/domain/` that have a `contract/`, filtered by an optional arg. */
-function domainsWithContracts(project: Project, arg: string): string[] {
+function domainsWithContracts(project: SourceCorpus, arg: string): string[] {
   const found = new Set<string>();
   for (const sf of project.getSourceFiles()) {
     const domain = DOMAIN_CONTRACT_DIR_RE.exec(sf.getFilePath())?.groups?.["domain"];
@@ -121,17 +152,8 @@ function domainsWithContracts(project: Project, arg: string): string[] {
 
 const DOMAIN_CONTRACT_DIR_RE = /\/packages\/server\/src\/domain\/(?<domain>[^/]+)\/contract\//u;
 
-/** The origin declaration keys a BARE type alias names — `export type X = Y` where `Y` is a plain type
- *  reference with no type arguments — resolved through import/re-export alias hops to the declaration(s) it
- *  ultimately points at. Empty for anything else (an object-literal type, a generic instantiation, an indexed
- *  access): those are not derives.
- *
- *  WHY (2026-08-03): the lens used to flag the very fix it recommends.
- *  `export type MemoryBackfillCounts = MemoryBackfillResult` IS the derive, and it is of course mutually
- *  assignable with its own RHS — so the steady state was "3 hits, all already resolved", which trains a
- *  reader to ignore the lens. A hit is only
- *  meaningful when the domain shape RE-DECLARES the body; an alias that names the contracts symbol is the
- *  destination, not the defect. */
+/** Origin declarations named by a bare alias (`type X = Y`), resolved through import/re-export hops.
+ *  Direct aliases are the recommended derive, so reporting their mutual assignability would flag the fix. */
 function bareAliasTargetKeys(decl: Node): Set<string> {
   const keys = new Set<string>();
   if (!Node.isTypeAliasDeclaration(decl)) {
@@ -155,10 +177,41 @@ function bareAliasTargetKeys(decl: Node): Set<string> {
   return keys;
 }
 
-/** ONE domain's structural twins: every `contract/` shape MUTUALLY ASSIGNABLE with a shape the sibling
- *  `@orb/contracts/<domain>` exports (property-name signature prefilter, then the real probe), MINUS the
- *  aliases that already ARE the derive ({@link bareAliasTargetKeys}). */
-export function respellHitsFor(project: Project, checker: AssignabilityChecker, domain: string): Hit[] {
+/** Shared `typeof value` provenance through a generic derive (`z.infer`, `ReturnType`, and equivalents).
+ * The generic's spelling is irrelevant: two aliases are already derived when TypeScript resolves their
+ * type-query operand to the same declaration. Other generic aliases remain candidates. */
+function typeQueryDerivationKeys(decl: Node): Set<string> {
+  const keys = new Set<string>();
+  if (!Node.isTypeAliasDeclaration(decl)) {
+    return keys;
+  }
+  const typeNode = decl.getTypeNode();
+  if (typeNode === undefined || !Node.isTypeReference(typeNode)) {
+    return keys;
+  }
+  const [argument] = typeNode.getTypeArguments();
+  if (argument === undefined || typeNode.getTypeArguments().length !== 1 || !Node.isTypeQuery(argument)) {
+    return keys;
+  }
+  const genericSymbol = typeNode.getTypeName().getSymbol();
+  const genericKeys = ((genericSymbol?.getAliasedSymbol() ?? genericSymbol)?.getDeclarations() ?? []).map(declKey);
+  const operandSymbol = argument.getExprName().getSymbol();
+  const operandKeys = ((operandSymbol?.getAliasedSymbol() ?? operandSymbol)?.getDeclarations() ?? []).map(declKey);
+  for (const genericKey of genericKeys) {
+    for (const operandKey of operandKeys) {
+      keys.add(`${genericKey}\0${operandKey}`);
+    }
+  }
+  return keys;
+}
+
+function overlaps(left: ReadonlySet<string>, right: ReadonlySet<string>): boolean {
+  return [...left].some((key) => right.has(key));
+}
+
+/** ONE domain's structural twins, excluding aliases with the same direct target or resolved generic
+ *  `typeof` provenance because those already derive from the shared declaration. */
+export function respellHitsFor(project: SourceCorpus, checker: AssignabilityChecker, domain: string): Hit[] {
   const contractsShapes = shapesUnder(project, `/packages/contracts/src/${domain}/`);
   if (contractsShapes.length === 0) {
     return [];
@@ -170,9 +223,14 @@ export function respellHitsFor(project: Project, checker: AssignabilityChecker, 
   const hits: Hit[] = [];
   for (const domainShape of shapesUnder(project, `/packages/server/src/domain/${domain}/contract/`)) {
     const derivedFrom = bareAliasTargetKeys(domainShape.decl);
+    const domainOrigins = typeQueryDerivationKeys(domainShape.decl);
     for (const twin of bySignature.get(domainShape.signature) ?? []) {
       // The domain shape IS this contracts symbol, under a local name — the recommended derive, not a hit.
-      if (derivedFrom.has(declKey(twin.decl)) || !mutuallyAssignable(checker, domainShape.decl, twin.decl)) {
+      if (
+        derivedFrom.has(declKey(twin.decl)) ||
+        overlaps(domainOrigins, typeQueryDerivationKeys(twin.decl)) ||
+        !mutuallyAssignable(checker, domainShape.decl, twin.decl)
+      ) {
         continue;
       }
       const h = hitOf(domainShape.decl, domainShape.name === twin.name ? "respell-same-name" : "respell-renamed");
@@ -185,7 +243,7 @@ export function respellHitsFor(project: Project, checker: AssignabilityChecker, 
 
 /** Domain `contract/` shapes structurally identical to a shape the sibling `@orb/contracts/<domain>` already
  *  exports — the RENAMED re-spell the syntactic gate cannot see. Optional arg = one domain; bare = all. */
-export function cmdRespell(project: Project, arg: string, flags: Flags): void {
+export function cmdRespell(project: SourceCorpus, arg: string, flags: Flags): void {
   const domains = domainsWithContracts(project, arg);
   noteUnits("domains", domains.length);
   if (domains.length === 0) {
@@ -198,7 +256,7 @@ export function cmdRespell(project: Project, arg: string, flags: Flags): void {
     scope: domains.flatMap((d) => [`/packages/contracts/src/${d}/`, `/packages/server/src/domain/${d}/contract/`]),
     label: `path:domain-contracts(${domains.length})`,
   });
-  const checker = assignabilityChecker(project);
+  const checker = assignabilityChecker(checkerProjectOf(project));
   const hits: Hit[] = [];
   for (const domain of domains) {
     hits.push(...respellHitsFor(project, checker, domain));
@@ -227,10 +285,8 @@ export function cmdRespell(project: Project, arg: string, flags: Flags): void {
 // FLOOR: {@link RESPELL_NEAR_PROPERTY_FLOOR}+ fields on BOTH sides — below it, two shapes coincide on most
 // of a tiny signature by chance (every `{id, name}`-ish pair in the repo would score high).
 //
-// EXCLUDED from the near tier, deliberately: any (domain shape, contracts shape) pair the EXACT tier
-// already reports (mutually assignable + same signature) — `--near` never re-flags what `respell` already
-// resolved — and the bare-alias-IS-the-derive exclusion `respellHitsFor` applies (a `type X = ContractsY`
-// alias is the recommended fix, never a defect, at either tier).
+// EXCLUDED deliberately: exact-tier hits, plus direct aliases and generic `typeof` aliases with shared
+// resolved provenance. A derive is the recommended fix, never a defect at either tier.
 /** How many fields a shape needs on BOTH sides before a near-match means anything. */
 const RESPELL_NEAR_PROPERTY_FLOOR = 4;
 
@@ -284,7 +340,7 @@ function nearFieldDiffOf(domainFields: readonly FieldPair[], contractsFields: re
  *  minus any pair the EXACT tier already resolves and minus the domain shapes below the field floor. Pure
  *  enumeration — no exemption policy, no printing (the verb owns both), so the self-test drives the same
  *  function the CLI does. */
-export function respellNearCandidatesFor(project: Project, checker: AssignabilityChecker, domain: string, thresholdPct: number): NearPairCandidate[] {
+export function respellNearCandidatesFor(project: SourceCorpus, checker: AssignabilityChecker, domain: string, thresholdPct: number): NearPairCandidate[] {
   const contractsShapes = shapesUnder(project, `/packages/contracts/src/${domain}/`).filter((s) => fieldPairsOf(s.decl).length >= RESPELL_NEAR_PROPERTY_FLOOR);
   if (contractsShapes.length === 0) {
     return [];
@@ -339,7 +395,7 @@ function nearPairHit(candidate: NearPairCandidate): Hit {
  *  contracts sibling above the current threshold (the exact tier resolved it, a field diverged past the
  *  floor, or the shape/contract disappeared). Printed and exit-1, the two-sided-gate law every other
  *  marker in this file follows. */
-function printStaleNearPairTags(project: Project, domains: readonly string[], candidateKeys: ReadonlySet<string>): void {
+function printStaleNearPairTags(project: SourceCorpus, domains: readonly string[], candidateKeys: ReadonlySet<string>): void {
   const stale: Hit[] = [];
   for (const domain of domains) {
     for (const shape of shapesUnder(project, `/packages/server/src/domain/${domain}/contract/`)) {
@@ -371,7 +427,7 @@ interface RespellNearScope {
 
 /** The `--near` tier: run for every domain already resolved by the exact tier, at `thresholdPct`. A
  *  SEPARATE `emit` call (its own RESULT line) beside the exact tier's — additive, never mixed into it. */
-function cmdRespellNear(project: Project, checker: AssignabilityChecker, scope: RespellNearScope, flags: Flags): void {
+function cmdRespellNear(project: SourceCorpus, checker: AssignabilityChecker, scope: RespellNearScope, flags: Flags): void {
   const { domains, thresholdPct } = scope;
   const candidates = domains.flatMap((domain) => respellNearCandidatesFor(project, checker, domain, thresholdPct));
   printStaleNearPairTags(project, domains, new Set(candidates.map((c) => declKey(c.domainDecl))));

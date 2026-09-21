@@ -1,6 +1,8 @@
 // Symbol & reference + rename operations (TypeScript's reference engine).
 // ── §11 ─ Symbol & reference operations ──────────────────────────────────────
 
+import type { SemanticSourceView } from "@orb/tooling/_shared/ts-workspace";
+import { canonicalCompilerPath } from "@orb/tooling/_shared/ts-workspace";
 import type { Project, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { CodemodContext, OperationOptions, Plan } from "../contract/types.ts";
@@ -8,7 +10,7 @@ import { CodemodError } from "./errors.ts";
 import { absolutePath, assert, noteSuffix, repoRelative } from "./plans.ts";
 
 /**
- * Find every node in the project that references the named declaration
+ * Find every node in the authored native programs that references the named declaration
  * `name` in `filePath`. The "declaration" is the FIRST exported symbol with
  * that name (interface, type alias, class, function, const). Returns
  * Node[] — the call sites / references themselves, not their declaration.
@@ -17,28 +19,36 @@ import { absolutePath, assert, noteSuffix, repoRelative } from "./plans.ts";
  * follows aliases through re-exports correctly but is slower than text
  * search. For "every file that imports X" use `findImporters()` instead.
  */
-export function findReferencesByName(project: Project, filePath: string, name: string): Node[] {
-  const sf = project.getSourceFile(filePath);
-  if (!sf) {
-    throw new CodemodError(
-      `findReferencesByName: file not in project: ${filePath}`,
-      "Pass an absolute path or one that matches a file added by the project globs.",
-    );
+export function findReferencesByName(ctx: CodemodContext, filePath: string, name: string): Node[] {
+  const workspace = ctx.semantic();
+  const views = workspace.sourceViews(absolutePath(filePath, ctx.repoRoot));
+  if (views.length === 0) {
+    throw new CodemodError(`findReferencesByName: file not in project: ${filePath}`, "Pass a path owned by an authored native TypeScript program.");
   }
-  const decl = findExportedDeclaration(sf, name);
-  if (!decl) {
+  const declarations = views.flatMap(({ sourceFile }) => {
+    const declaration = findExportedDeclaration(sourceFile, name);
+    return declaration === undefined ? [] : [declaration];
+  });
+  if (declarations.length === 0) {
     throw new CodemodError(
       `findReferencesByName: no exported declaration "${name}" in ${filePath}`,
       "Confirm the name + check it's exported (this helper only walks exported declarations).",
     );
   }
-  // ts-morph's findReferencesAsNodes lives on the ReferenceFindableNode
-  // mixin; the static `Node.isReferenceFindable` guard narrows the union
-  // properly so we don't need any casts.
-  if (Node.isReferenceFindable(decl)) {
-    return decl.findReferencesAsNodes();
+  const references = new Map<string, Node>();
+  for (const declaration of declarations) {
+    for (const reference of workspace.findReferences(declaration)) {
+      const mutable = ctx.project.getSourceFile(reference.canonicalPath)?.getDescendantAtStartWithWidth(reference.start, reference.end - reference.start);
+      if (mutable === undefined) {
+        throw new CodemodError(
+          `findReferencesByName: semantic reference is outside the editable project: ${repoRelative(reference.canonicalPath, ctx.repoRoot)}.`,
+          "Add the authored file to createCodemodProject's globs before editing the returned references.",
+        );
+      }
+      references.set(`${reference.canonicalPath}\0${String(reference.start)}\0${String(reference.end)}`, mutable);
+    }
   }
-  return [];
+  return [...references.values()];
 }
 
 /** Find an exported declaration by name. Returns the first match across
@@ -74,6 +84,75 @@ export function findCallSites(project: Project, functionName: string): Node[] {
   return out;
 }
 
+function renameDeclaration(sourceFile: SourceFile, oldName: string, newName: string): boolean {
+  const declaration = findExportedDeclaration(sourceFile, oldName);
+  if (declaration === undefined) {
+    return false;
+  }
+  if (Node.isRenameable(declaration)) {
+    declaration.rename(newName);
+    return true;
+  }
+  const identifier = declaration.getFirstDescendantByKind(SyntaxKind.Identifier);
+  if (identifier === undefined) {
+    throw new CodemodError(`renameExportedSymbol: couldn't find an Identifier on the declaration of "${oldName}"`);
+  }
+  identifier.rename(newName);
+  return true;
+}
+
+function renamedProgramTexts(view: SemanticSourceView, oldName: string, newName: string, repoRoot: string): ReadonlyMap<string, string> | undefined {
+  const project = view.program.project();
+  const before = new Map(project.getSourceFiles().map((file) => [file.getFilePath(), file.getFullText()]));
+  if (!renameDeclaration(view.sourceFile, oldName, newName)) {
+    return;
+  }
+  return new Map(
+    project
+      .getSourceFiles()
+      .filter((source) => before.get(source.getFilePath()) !== source.getFullText())
+      .map((source) => [canonicalCompilerPath(repoRoot, source.getFilePath()), source.getFullText()]),
+  );
+}
+
+function collectRenameChanges(views: readonly SemanticSourceView[], oldName: string, newName: string, repoRoot: string): ReadonlyMap<string, string> {
+  const changed = new Map<string, string>();
+  let renamed = false;
+  for (const view of views) {
+    const programChanges = renamedProgramTexts(view, oldName, newName, repoRoot);
+    if (programChanges === undefined) {
+      continue;
+    }
+    renamed = true;
+    for (const [path, text] of programChanges) {
+      const prior = changed.get(path);
+      if (prior !== undefined && prior !== text) {
+        throw new CodemodError(
+          `renameExportedSymbol: native compiler programs produced conflicting edits for ${repoRelative(path, repoRoot)}.`,
+          "Split the rename by compiler program instead of choosing one world's edit silently.",
+        );
+      }
+      changed.set(path, text);
+    }
+  }
+  assert(renamed, `renameExportedSymbol: no exported "${oldName}" in the selected file`);
+  return changed;
+}
+
+function applyRenameChanges(ctx: CodemodContext, changed: ReadonlyMap<string, string>): void {
+  for (const [path, text] of changed) {
+    const mutable = ctx.project.getSourceFile(path);
+    if (mutable === undefined) {
+      throw new CodemodError(
+        `renameExportedSymbol: semantic rename reached a file outside the editable project: ${repoRelative(path, ctx.repoRoot)}.`,
+        "Add the authored file to createCodemodProject's globs before applying the rename.",
+      );
+    }
+    ctx.snapshot(mutable);
+    mutable.replaceWithText(text);
+  }
+}
+
 // ── §12 ─ Rename operations ──────────────────────────────────────────────────
 
 /**
@@ -100,8 +179,7 @@ export function renameExportedSymbol(
 ): Plan {
   const { oldName, newName } = rename;
   const abs = absolutePath(filePath, ctx.repoRoot);
-  const sf = ctx.project.getSourceFile(abs);
-  assert(sf !== undefined, `renameExportedSymbol: file not in project: ${repoRelative(abs, ctx.repoRoot)}`);
+  assert(ctx.project.getSourceFile(abs) !== undefined, `renameExportedSymbol: file not in project: ${repoRelative(abs, ctx.repoRoot)}`);
   return {
     description: `Rename symbol "${oldName}" → "${newName}" in ${repoRelative(abs, ctx.repoRoot)}${noteSuffix(opts)}`,
     // Only the declaring file is knowable up front; the reference set is a language-service
@@ -109,30 +187,10 @@ export function renameExportedSymbol(
     // it below (`ctx.snapshot`) before the rename touches a byte.
     touchedFiles: [abs],
     transform(innerCtx): void {
-      const decl = findExportedDeclaration(sf, oldName);
-      assert(decl !== undefined, `renameExportedSymbol: no exported "${oldName}" in ${filePath}`);
-      // The rename engine rewrites every reference site — importers, re-export chains, the
-      // declaration's own file. Declare that whole set FIRST: `findReferencesAsNodes` is the same
-      // reference resolution `rename()` uses, and the importer set covers the re-export shells
-      // whose specifier changes without a resolved reference node of its own.
-      for (const ref of Node.isReferenceFindable(decl) ? decl.findReferencesAsNodes() : []) {
-        innerCtx.snapshot(ref.getSourceFile());
-      }
-      for (const referencing of sf.getReferencingSourceFiles()) {
-        innerCtx.snapshot(referencing);
-      }
-      // Locate the actual name node. ts-morph's RenameableNode trait lives
-      // on the identifier itself for most kinds, but on the declaration for
-      // some (function, class). Try the declaration via the typed mixin
-      // guard first, then descend to find the name node.
-      if (Node.isRenameable(decl)) {
-        decl.rename(newName);
-        return;
-      }
-      // Fallback: find the first child identifier and rename it.
-      const id = decl.getFirstDescendantByKind(SyntaxKind.Identifier);
-      assert(id !== undefined, `renameExportedSymbol: couldn't find an Identifier on the declaration of "${oldName}"`);
-      id.rename(newName);
+      const workspace = innerCtx.semantic();
+      const views = workspace.sourceViews(abs);
+      assert(views.length > 0, `renameExportedSymbol: no authored compiler program contains ${repoRelative(abs, innerCtx.repoRoot)}`);
+      applyRenameChanges(innerCtx, collectRenameChanges(views, oldName, newName, innerCtx.repoRoot));
     },
   };
 }

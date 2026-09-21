@@ -24,11 +24,10 @@ import { scaledBudget, spawnNodeWithBudget } from "../_load-budget.ts";
 const REPO_ROOT = fileURLToPath(new URL("../../../", import.meta.url));
 const AST_CLI = fileURLToPath(new URL("../../../tooling/src/ast/cli.ts", import.meta.url));
 const SPAWN_TIMEOUT_MS = scaledBudget(120_000);
-/** The two TYPED whole-workspace rows (`columns --all`, `rot ui`) genuinely exceed the default spawn cap
- *  on a loaded box — measured 2026-08-22 at load-avg ~20: 122s and 175s, both exiting 0. A spawn killed by
- *  its own wall clock returns `status: null`, which reads as a lens failure and is NOT a verdict (the
- *  exit-2 discipline), so those rows get a budget that matches what they actually cost. */
+/** TYPED whole-workspace rows exceed the default spawn cap. A world-aware `columns --all` completed in
+ *  372s, while `rot ui` completed in 253s; separate budgets preserve that measured distinction. */
 const HEAVY_TIMEOUT_MS = scaledBudget(300_000);
+const COLUMNS_TIMEOUT_MS = scaledBudget(480_000);
 
 interface AstRun {
   stdout: string;
@@ -63,9 +62,8 @@ function parseEpilogue(stderr: string): Record<string, string> {
 function runAst(argv: readonly string[], baseTimeoutMs: number = SPAWN_TIMEOUT_MS): AstRun {
   // The TYPED whole-workspace verbs — `columns --all` above all — load the full type graph AND row-shape
   // scan every table; past ~86 tables (#273's `image_index_skips` landing) the sweep's peak exceeds node's
-  // default old-space ceiling and aborts (SIGABRT → status null, ~5.6GB RSS). Raise the heap to match the
-  // `pnpm ast` script; this harness spawns node DIRECTLY so it does not inherit that script's flag, and a
-  // higher ceiling is harmless for the lighter syntactic rows (node allocates only what it uses).
+  // default old-space ceiling and aborts (SIGABRT → status null). This child inherits the workspace's
+  // `nodeOptions` heap floor from the pnpm-launched test process; do not pin a smaller second ceiling here.
   //
   // THROUGH THE LOAD BUDGET (#606), not a raw spawnSync: a child killed by its own wall clock returns
   // `stdout: null → ""` and `status: null`, which is byte-identical to "the lens printed nothing" — the
@@ -74,7 +72,7 @@ function runAst(argv: readonly string[], baseTimeoutMs: number = SPAWN_TIMEOUT_M
   // scales the budget with the box and THROWS a self-identifying ORB-LOAD-KILL instead, so a contention
   // kill is legible as exit-2 class rather than read as an assertion failure.
   const budgetMs = scaledBudget(baseTimeoutMs);
-  const res = spawnNodeWithBudget(["--max-old-space-size=8192", AST_CLI, ...argv], REPO_ROOT, budgetMs, `pnpm ast ${argv.join(" ")}`);
+  const res = spawnNodeWithBudget([AST_CLI, ...argv], REPO_ROOT, budgetMs, `pnpm ast ${argv.join(" ")}`);
   return { stdout: res.stdout, stderr: res.stderr, status: res.status, epilogue: parseEpilogue(res.stderr) };
 }
 
@@ -250,13 +248,13 @@ test(
 test(
   "columns --all sweeps every table and receipts the count, without changing the class-summary totals",
   () => {
-    const run = runAst(["columns", "--all", "--max", "3"], HEAVY_TIMEOUT_MS);
+    const run = runAst(["columns", "--all", "--max", "3"], COLUMNS_TIMEOUT_MS);
     expect(run.status).toBe(0);
     expect(run.stdout).toMatch(COLUMNS_ALL_SWEPT_RE);
     // Every table gets a line, healthy or not — at least one recognizable real table shows up.
     expect(run.stdout).toContain("rpg_games (rpgGames):");
   },
-  HEAVY_TIMEOUT_MS,
+  COLUMNS_TIMEOUT_MS,
 );
 
 test(

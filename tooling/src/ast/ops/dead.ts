@@ -1,8 +1,10 @@
 // dead: the composite evidence-ladder verdict for ONE symbol.
-import type { Project, SourceFile } from "ts-morph";
+import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
+import { semanticReferenceNodes } from "../../_shared/ts-workspace.ts";
 import type { DeadEvidence, DeadVerdict, Flags, Hit, Liveness, PublicMarker } from "../contract/types.ts";
 import { emit, hitOf } from "../lib/emit.ts";
 import { declKey } from "../lib/keys.ts";
@@ -65,7 +67,8 @@ function commentMentionsOf(sf: SourceFile, name: string): number {
 }
 
 /** The evidence-priority verdict (see the section header): ALIVE beats SWALLOWED-ONLY beats TAGGED-KEEP
- *  beats TEST-ANCHORED beats CANDIDATE. */
+ *  beats TEST-ANCHORED beats CANDIDATE. TAGGED-KEEP is this conservative lens's marker bucket; the
+ *  push-tier ratchet, not marker presence, decides whether that claim is legal. */
 function deadVerdictOf(prodCount: number, swallowed: boolean, tagged: boolean, testCount: number): DeadVerdict {
   if (prodCount > 0) {
     return "ALIVE";
@@ -93,11 +96,10 @@ function isReexportPassthroughRef(ref: Node): boolean {
 /** The whole evidence ladder for ONE declaration. Reuses the SAME collector `swallowed` calls
  *  (`collectSwallowedCandidates`), scoped to just this declaration's own file, so the two lenses can
  *  never disagree about what "namespace-swallowed" means. */
-export function deadEvidenceFor(project: Project, decl: Node, name: string, live: Liveness): DeadEvidence {
+export function deadEvidenceFor(project: SourceCorpus, decl: Node, name: string, live: Liveness): DeadEvidence {
   const sf = decl.getSourceFile();
   const refs = Node.isReferenceFindable(decl)
-    ? decl
-        .findReferencesAsNodes()
+    ? semanticReferenceNodes(decl)
         .filter((r) => !(r.getSourceFile() === sf && r.getParent()?.getStart() === decl.getStart()))
         .filter((r) => !isReexportPassthroughRef(r))
     : [];
@@ -159,7 +161,7 @@ function printDeadEvidence(name: string, decl: Node, evidence: DeadEvidence): vo
  *  swallowed consumption / the `@public` marker / a vendored-file home / raw comment mentions, then a
  *  verdict — ALIVE / TEST-ANCHORED / SWALLOWED-ONLY / TAGGED-KEEP / CANDIDATE. CANDIDATE lens — see the
  *  section header above. Multiple declarations of the same name (a collision) are each classified. */
-export function cmdDead(project: Project, name: string, flags: Flags): void {
+export function cmdDead(project: SourceCorpus, name: string, flags: Flags): void {
   const decls = declarationsNamed(scanCorpus(project, WHOLE_CORPUS), name);
   if (decls.length === 0) {
     print(`dead ${name}: no declaration found — try \`pnpm ast ident ${name}\``);
@@ -176,7 +178,7 @@ export function cmdDead(project: Project, name: string, flags: Flags): void {
     hits.push(h);
   }
   print(
-    'dead is a CANDIDATE lens — an evidence-ladder verdict for ONE symbol (production refs / test-only refs / namespace-swallowed consumption / the @public marker / a vendored-file home / raw comment mentions). "Unwired ≠ worthless" (constitution §1): the verdict is a human\'s, never a delete signal.',
+    'dead is a CANDIDATE lens — an evidence-ladder verdict for ONE symbol (production refs / test-only refs / namespace-swallowed consumption / the @public marker / a vendored-file home / raw comment mentions). TAGGED-KEEP records an unadjudicated marker claim; the push-tier ratchet decides whether it is legal. "Unwired ≠ worthless" (constitution §1): the verdict is a human\'s, never a delete signal.',
   );
   emit(hits, flags, `dead ${name} (${decls.length} declaration(s))`);
 }

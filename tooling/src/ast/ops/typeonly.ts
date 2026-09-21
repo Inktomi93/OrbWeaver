@@ -1,10 +1,11 @@
 // typeonly-alive: VALUE exports kept alive only by type positions.
 
 import process from "node:process";
-import type { Project } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
+import { semanticReferenceNodes } from "../../_shared/ts-workspace.ts";
 import type { Flags, Hit, TypeOnlyCandidate } from "../contract/types.ts";
 import { emit, hitOf } from "../lib/emit.ts";
 import { declKey } from "../lib/keys.ts";
@@ -154,7 +155,7 @@ function isTypeOnlyHeritage(node: Node): boolean {
 
 /** Value exports of `inScope` whose every reference is a type position. Pure enumeration — no exemption
  *  policy, no printing (the verb owns both), so the self-test drives the same function the CLI does. */
-export function collectTypeOnlyCandidates(project: Project, inScope: (filePath: string) => boolean): TypeOnlyCandidate[] {
+export function collectTypeOnlyCandidates(project: SourceCorpus, inScope: (filePath: string) => boolean): TypeOnlyCandidate[] {
   const out: TypeOnlyCandidate[] = [];
   for (const sf of project.getSourceFiles()) {
     const fp = sf.getFilePath();
@@ -179,7 +180,7 @@ function typeOnlyCandidateOf(name: string, decl: Node): TypeOnlyCandidate | unde
     return;
   }
   const sites = new Set<string>();
-  for (const ref of decl.findReferencesAsNodes()) {
+  for (const ref of semanticReferenceNodes(decl)) {
     // The declaration's OWN name node — its parent IS the declaration (true for function/class/enum/variable
     // alike). Measured: the language service does not currently hand it back, but a lens that would call
     // every candidate "value-referenced" if it ever did is one TypeScript bump from a silent permanent zero.
@@ -237,7 +238,7 @@ export function typeOnlyHit(candidate: TypeOnlyCandidate, kind = "typeonly-alive
 /** The STALE side of the `@typeonly-ok` marker: a tag on an export the lens no longer calls type-only-alive —
  *  something references it at runtime now, or nothing references it at all (an `orphans` hit), or it was
  *  never a value declaration. Printed and exit-1 so the marker cannot rot into a permanent lie. */
-function printStaleTypeOnlyTags(project: Project, inScope: (fp: string) => boolean, candidateKeys: Set<string>): void {
+function printStaleTypeOnlyTags(project: SourceCorpus, inScope: (fp: string) => boolean, candidateKeys: Set<string>): void {
   const stale: Hit[] = [];
   for (const sf of project.getSourceFiles()) {
     const fp = sf.getFilePath();
@@ -268,7 +269,7 @@ function printStaleTypeOnlyTags(project: Project, inScope: (fp: string) => boole
 /** VALUE exports (functions/consts/classes/enums) whose EVERY reference is a type position — runtime-dead
  *  code kept alive only by the shapes it satisfies. Optional scope (a package name / path); bare = every
  *  package. A deliberate conformance seam carries `// @typeonly-ok: <reason>`; a stale marker exits 1. */
-export function cmdTypeOnly(project: Project, arg: string, flags: Flags): void {
+export function cmdTypeOnly(project: SourceCorpus, arg: string, flags: Flags): void {
   const scope = arg === "" ? { prefix: "/packages/", label: "(all packages)" } : resolveScope(project, arg, "typeonly-alive");
   const inScope = corpusPredicate(scanCorpus(project, { scope: scope.prefix, label: `path:${scope.prefix}`, skip: [SKIP_TEST_FILES] }));
   const candidates = collectTypeOnlyCandidates(project, inScope);

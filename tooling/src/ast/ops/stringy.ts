@@ -1,8 +1,8 @@
 // stringy: type aliases whose RESOLVED type is exactly `string`.
-import type { Project } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
 import type { Flags, Hit, StringyAudit, StringyCandidate, StringyLink } from "../contract/types.ts";
 import { emit, hitOf } from "../lib/emit.ts";
 import { declKey } from "../lib/keys.ts";
@@ -114,7 +114,7 @@ function stringyChainOf(head: Node): { chain: StringyLink[]; rhs: string } {
  *  enumeration — no printing, no scope policy (the verb owns both), so the self-test drives the same function
  *  the CLI does. Aliases are collected as DESCENDANTS, not top-level statements: one declared inside a
  *  function body or a namespace block is the same lie, told in a smaller room. */
-export function collectStringyAudit(project: Project, inScope: (filePath: string) => boolean): StringyAudit {
+export function collectStringyAudit(project: SourceCorpus, inScope: (filePath: string) => boolean): StringyAudit {
   const candidates: StringyCandidate[] = [];
   let aliases = 0;
   for (const sf of project.getSourceFiles()) {
@@ -149,7 +149,7 @@ function stringyHit(candidate: StringyCandidate): Hit {
 
 /** Type aliases that resolve to bare `string` — no narrowing, no brand. Optional scope (a package name /
  *  path); bare = every package. Reports the RESOLUTION CHAIN, which is what names the fix. */
-export function cmdStringy(project: Project, arg: string, flags: Flags): void {
+export function cmdStringy(project: SourceCorpus, arg: string, flags: Flags): void {
   const scope = arg === "" ? { prefix: PACKAGES_PREFIX, label: "(all packages)" } : resolveScope(project, arg, "stringy");
   const inScope = corpusPredicate(scanCorpus(project, { scope: scope.prefix, label: `path:${scope.prefix}`, skip: [SKIP_TEST_FILES] }));
   const audit = collectStringyAudit(project, inScope);

@@ -12,8 +12,9 @@
 // off and on. Perturbing them is a GATE regression, not a lens change. Do not weaken it.
 
 import { fileURLToPath } from "node:url";
-import { Project } from "ts-morph";
+import { ModuleResolutionKind, Project } from "ts-morph";
 import { describe } from "vitest";
+import { installOutputSink } from "../../../tooling/src/_shared/log.ts";
 import type {
   ApiSurfaceEntry,
   ChainCandidate,
@@ -74,6 +75,7 @@ import {
   viewFieldsOf,
   viewGapHit,
 } from "../../../tooling/src/ast/index.ts";
+import { REPO_ROOT as AST_REPO_ROOT } from "../../../tooling/src/ast/lib/root.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
 const ROOT = "/repo";
@@ -385,6 +387,22 @@ describe("ast orphan-candidate substrate", () => {
     expect(isProdConsumed(live, declOf("LiveShape"))).toBe(true);
     expect(isProdConsumed(live, declOf("RotShape"))).toBe(false);
   });
+
+  test("same-spelled shadow and named re-export do not consume an export, while a genuine own-file reference does", () => {
+    const project = projectOf({
+      "packages/contracts/src/thing/shapes.ts": `
+export const genuinelyUsed = 1;
+export const shadowedOnly = 2;
+export const ownUse = genuinelyUsed;
+export function unrelated(): number { const shadowedOnly = 3; return shadowedOnly; }
+`,
+      "packages/contracts/src/thing/index.ts": 'export { shadowedOnly as renamedPassThrough } from "./shapes";',
+    });
+    const live = buildLiveness(project);
+    const names = collectOrphanCandidates(project, live, (filePath) => filePath.endsWith("/shapes.ts")).map(({ name }) => name);
+    expect(names).toContain("shadowedOnly");
+    expect(names).not.toContain("genuinelyUsed");
+  });
 });
 
 describe("ast prodonly lens (tooling entry points)", () => {
@@ -406,6 +424,45 @@ describe("ast prodonly lens (tooling entry points)", () => {
     // existing when the file moved to the package root, and a hardcoded `add()` on a missing file is a silent
     // no-op. `packages/ui`'s own `tokens:build` script names the file; reading the script cannot go stale.
     expect(scriptEntryPaths(fileURLToPath(new URL("../../../packages/ui", import.meta.url)))).toContain("tokens.build.ts");
+  });
+
+  test("a package-aliased dynamic import reaches its target without crediting a same-spelled unused file", () => {
+    const project = new Project({
+      useInMemoryFileSystem: true,
+      compilerOptions: {
+        baseUrl: AST_REPO_ROOT,
+        moduleResolution: ModuleResolutionKind.Bundler,
+        paths: { "#lazy-target": ["packages/client/src/internal/lazy-target.ts"] },
+      },
+    });
+    const files: Record<string, string> = {
+      "packages/client/src/main.tsx": 'export const load = () => import("#lazy-target");',
+      "packages/client/src/index.ts": "export const publicEntry = true;",
+      "packages/client/src/internal/lazy-target.ts": "export const reached = true;",
+      "packages/client/src/shadow/lazy-target.ts": "export const sameSpelledButUnused = true;",
+      "packages/client/src/internal/unused.ts": "export const unused = true;",
+    };
+    for (const [path, text] of Object.entries(files)) {
+      project.createSourceFile(`${AST_REPO_ROOT}/${path}`, text);
+    }
+    const flags = parseFlags(["--json"]);
+    const lines: string[] = [];
+    const release = installOutputSink({ line: (line) => lines.push(line), warn: () => undefined });
+    try {
+      const prodonly = VERBS["prodonly"];
+      expect(prodonly).toBeDefined();
+      if (prodonly === undefined) {
+        throw new Error("prodonly verb is not registered");
+      }
+      prodonly(project, "client", flags);
+    } finally {
+      release();
+    }
+    const payload = JSON.parse(lines.find((line) => line.startsWith("{")) ?? "null") as { hits: Hit[] } | null;
+    const hitFiles = payload?.hits.map(({ file }) => file) ?? [];
+    expect(hitFiles).not.toContain("packages/client/src/internal/lazy-target.ts");
+    expect(hitFiles).toContain("packages/client/src/shadow/lazy-target.ts");
+    expect(hitFiles).toContain("packages/client/src/internal/unused.ts");
   });
 });
 
@@ -463,7 +520,11 @@ export function ControlOnly(): null { return null; }
         "packages/ui/src/code-editor/consumer.tsx": `
 import { lazy } from "react";
 const CodeEditor = lazy(() =>
-  import("@orb/ui/code-editor").then((m) => ({ default: m.CodeEditor })),
+  import("@orb/ui/code-editor").then((m) => {
+    const shadow = (): unknown => { const m = { ControlOnly: null }; return m.ControlOnly; };
+    shadow();
+    return { default: m.CodeEditor };
+  }),
 );
 export { CodeEditor };
 `,
@@ -542,6 +603,7 @@ export const db = drizzle(client, { schema });
 export const primary = schema.users;
 const { legacyView } = schema;
 export const legacy = legacyView;
+export function unrelatedShadow(): unknown { const schema = { usersRelations: 1 }; return schema.usersRelations; }
 `;
 
 const SWALLOWED_FILES = {
@@ -652,6 +714,31 @@ export type MemoryBackfillCounts = MemoryBackfillResult;
     const texts = respellHitsFor(project, assignabilityChecker(project), "chat").map((h) => h.text);
     // Skipped against its own origin, reported against the structurally-identical sibling.
     expect(texts).toEqual(["MemoryBackfillCounts  ≡  @orb/contracts/chat::MemoryScanResult"]);
+  });
+
+  test("shared typeof provenance exempts schema-derived aliases while a handwritten equal shape still reports", () => {
+    const project = projectOf({
+      "packages/contracts/src/z.ts": `
+export namespace z { export type infer<T> = T extends { _output: infer O } ? O : never; }
+`,
+      "packages/contracts/src/chat/index.ts": `
+import { z } from "../z";
+export const sharedSchema = null as unknown as { _output: { scanned: number; written: number; skipped: number } };
+export type MemoryBackfillResult = z.infer<typeof sharedSchema>;
+`,
+      "packages/server/src/domain/chat/contract/memory.ts": `
+import { sharedSchema } from "${CONTRACTS_IMPORT}";
+import { z } from "../../../../../contracts/src/z";
+type Ignore<T> = T extends { _output: infer O } ? O : never;
+export type MemoryBackfillCounts = z.infer<typeof sharedSchema>;
+export type MemoryBackfillDisguise = Ignore<typeof sharedSchema>;
+export interface MemoryBackfillTally { scanned: number; written: number; skipped: number; }
+`,
+    });
+    const names = respellHitsFor(project, assignabilityChecker(project), "chat").map((hit) => hit.text);
+    expect(names.some((text) => text.startsWith("MemoryBackfillCounts"))).toBe(false);
+    expect(names.some((text) => text.startsWith("MemoryBackfillDisguise"))).toBe(true);
+    expect(names.some((text) => text.startsWith("MemoryBackfillTally"))).toBe(true);
   });
 });
 
@@ -1584,10 +1671,10 @@ describe("ast chains lens (declaration-granular fixpoint)", () => {
     expect(audit.candidates).toHaveLength(3);
   });
 
-  test("`@public <reason>` on the HEAD makes the whole chain alive — the fix-at-the-head rule, end to end", () => {
+  test("`@public <reason>` on the head is conservatively alive here while an empty marker is not", () => {
     // The lens deliberately has NO marker of its own: every chain ends at an orphan candidate the ratchet
-    // already governs, so tagging the head is the exemption. A BARE `@public` must NOT exempt (the
-    // `isUnwiredExempt` discipline), which is the other half of this test.
+    // already governs. Any reasoned marker seeds this conservative graph; the ratchet separately adjudicates
+    // legality. An empty `@public` does not seed the graph, which is the other half of this test.
     const headPath = "packages/server/src/chain/head.ts";
     const tagged = {
       ...CHAIN_FILES,

@@ -1,7 +1,8 @@
 // Flag parsing + hit emission (dedupe / collapse / truncation warning) + the ONE project loader
 // (rides _shared/ts-workspace — the consolidated bootstrap). Split from ast.ts (P4 of #393).
-import { getWorkspace, searchGlobs } from "@orb/tooling/_shared/ts-workspace";
-import type { Node, Project } from "ts-morph";
+import type { SourceCorpus } from "@orb/tooling/_shared/ts-workspace";
+import { createSemanticWorkspace, getWorkspace, searchGlobs } from "@orb/tooling/_shared/ts-workspace";
+import type { Node } from "ts-morph";
 import { print } from "../../_shared/artifacts.ts";
 import { warn } from "../../_shared/log.ts";
 import { UsageError } from "../../_shared/run-tool.ts";
@@ -203,9 +204,9 @@ export function emit(hits: Hit[], flags: Flags, label: string): void {
 // language service to follow @orb/* exports and #aliases); types:false = the fast pure-AST arm.
 // `wide` loads the TYPED arm's file set (searchGlobs — tests+fixtures+scripts) WITHOUT the type graph:
 // a purely syntactic walk needs no language service, so `literal` gets the wide corpus at the cheap load.
-export function loadProject(needTypes: boolean, wide = false): Project {
+export function loadProject(needTypes: boolean, wide = false): SourceCorpus {
   if (needTypes) {
-    return getWorkspace({ root: REPO_ROOT, types: true });
+    return createSemanticWorkspace({ root: REPO_ROOT }).sourceCorpus();
   }
   if (wide) {
     return getWorkspace({ root: REPO_ROOT, types: false, globs: searchGlobs(REPO_ROOT) });

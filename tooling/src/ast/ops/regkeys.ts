@@ -1,8 +1,9 @@
 // regkeys: registry rows whose KEY LITERAL is dispatched nowhere (informational, owner-ruled).
-import type { Project, SourceFile } from "ts-morph";
+import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
 import type { Flags, Hit, RegistryDef } from "../contract/types.ts";
 import { emit, hitOf } from "../lib/emit.ts";
 import { exitToolError, noteUnits, scanCorpus } from "../lib/ledger.ts";
@@ -119,7 +120,7 @@ function rowArrayRowKey(element: Node): string | undefined {
 
 /** Every registry-shaped exported const in the workspace (excluding test paths — a table declared in a test
  *  is a fixture, not a dispatch surface). */
-export function collectRegistries(project: Project): RegistryDef[] {
+export function collectRegistries(project: SourceCorpus): RegistryDef[] {
   const out: RegistryDef[] = [];
   for (const sf of project.getSourceFiles()) {
     const filePath = sf.getFilePath();
@@ -196,7 +197,7 @@ function spellingsOf(sf: SourceFile): Set<string> {
 
 /** filePath → the spellings that file uses. Built once; a key's dispatch question is then a scan of this map
  *  skipping the registry's own file and every test path. */
-export function spellingIndex(project: Project): Map<string, Set<string>> {
+export function spellingIndex(project: SourceCorpus): Map<string, Set<string>> {
   const index = new Map<string, Set<string>>();
   for (const sf of project.getSourceFiles()) {
     index.set(sf.getFilePath(), spellingsOf(sf));
@@ -277,7 +278,7 @@ function creditElementAccesses(sf: SourceFile, registryNames: ReadonlySet<string
  *  `REGISTRY?.key`, `REGISTRY["key"]` — a dot-only sweep is a known false clean in this repo). Test paths
  *  are still excluded — a test enumerating a table is not a product consumer, the same rule `spellingsOf`
  *  callers apply. ONE pass over the whole project, built once per `regkeys` invocation. */
-export function qualifiedAccessIndex(project: Project, registryNames: ReadonlySet<string>): Map<string, Set<string>> {
+export function qualifiedAccessIndex(project: SourceCorpus, registryNames: ReadonlySet<string>): Map<string, Set<string>> {
   const index = new Map<string, Set<string>>();
   for (const sf of project.getSourceFiles()) {
     if (isTestPath(sf.getFilePath())) {
@@ -292,7 +293,7 @@ export function qualifiedAccessIndex(project: Project, registryNames: ReadonlySe
 /** Registry rows whose key literal is spelled at ZERO dispatch sites outside their own table (and outside
  *  tests). INFORMATIONAL — a computed/DB-sourced/iterated key is a live row that looks dead here. Optional
  *  scope = a registry NAME or file substring; bare = every registry. Never exits non-zero on findings. */
-export function cmdRegKeys(project: Project, arg: string, flags: Flags): void {
+export function cmdRegKeys(project: SourceCorpus, arg: string, flags: Flags): void {
   const all = collectRegistries(project);
   const registries = arg === "" ? all : all.filter((r) => r.name.includes(arg) || r.filePath.includes(arg));
   noteUnits("registries", registries.length);

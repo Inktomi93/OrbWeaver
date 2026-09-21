@@ -567,7 +567,7 @@ await runCodemod(
     ctx.plan(renameLocalSymbols(LOCAL_RENAMES));
     ctx.plan(fixComments());
     if (process.argv.slice(2).includes("--diagnose")) {
-      printDiagnostics(ctx.project);
+      printDiagnostics(ctx);
     }
   },
   { argv: process.argv.slice(2) },

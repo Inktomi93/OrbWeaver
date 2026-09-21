@@ -1,7 +1,7 @@
 // Native pre-transform dependency census. This stays independent of the edit Project's replaceGlobs.
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import ts from "typescript";
-import type { CompilerProgram } from "#verify";
+import type { CompilerProgram } from "../../_shared/compiler-programs.ts";
 import type { ProgramDiagnosticBaseline } from "../contract/types.ts";
 import { physicalPathIdentity } from "./plans.ts";
 

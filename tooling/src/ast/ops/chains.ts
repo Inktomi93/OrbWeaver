@@ -1,7 +1,8 @@
 // chains: declarations whose ONLY life originates inside other DEAD declarations.
-import type { Node, Project } from "ts-morph";
+import type { Node } from "ts-morph";
 import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
 import type { ChainAudit, ChainCandidate, ChainLink, Flags, Hit, Liveness } from "../contract/types.ts";
 import { fileOfKey, isModuleScopeKey, topLevelDeclarations } from "../lib/edges.ts";
 import { emit, hitOf } from "../lib/emit.ts";
@@ -32,9 +33,9 @@ refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
 //   ROOT 2 — a consumer OUTSIDE the audited surface: a test path, or any file not under `packages/`
 //     (scripts, tooling, config). `orphans` already counts test consumption as life; this lens must agree
 //     with it or the two would nominate different code for deletion.
-//   ROOT 3 — a `/** @public <reason> */` declaration. That marker is the repo's ratified statement of
-//     "deliberately unconsumed API surface", it is judged two-sided by the push-tier orphan ratchet, and it
-//     is read HERE through the ratchet's own predicate ({@link isPublicTagged}) so the two cannot drift.
+//   ROOT 3 — a reasoned `@public`-family declaration. This lens conservatively treats the author's claim as
+//     alive; the push-tier orphan ratchet separately adjudicates whether the marker form and target are legal.
+//     It is read HERE through the ratchet's own predicate ({@link isPublicTagged}) so the grammar cannot drift.
 //   ROOT 4 — every export of `packages/ui/src`. R2 of docs/architecture/core/ui-package-design.md: a sealed
 //     surface exists to be available, so "no consumer yet" is its designed state. The orphan ratchet exempts
 //     the whole package for exactly this reason; a chain lens that did not would report the entire UI tree.
@@ -46,9 +47,10 @@ refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
 //
 // THE FIX IS AT THE HEAD, and that is why this lens has NO marker of its own (owner-ratified 2026-08-03).
 // Every chain terminates at an unconsumed head that `orphans` already reports and the ratchet already
-// governs. Wire the head, or delete the head and the chain with it, or tag the head `@public <reason>` — any
-// of the three makes every link below it read alive here, by construction. A per-link `@chain-ok:` would let
-// somebody exempt a middle link while its head stays dead, which states nothing true.
+// governs. Wire the head, delete the head and the chain with it, or give the head any reasoned `@public`-family
+// claim — this lens keeps the last arm alive conservatively while the ratchet judges it separately. A
+// per-link `@chain-ok:` would let somebody exempt a middle link while its head stays dead, which states
+// nothing true.
 //
 // CANDIDATE lens, MANUAL tier — never a gate, for the same reason `swallowed`/`typeonly-alive`/`columns`
 // aren't, plus one specific to the fixpoint: a consumer this substrate cannot SEE (a registry dispatched by a
@@ -101,7 +103,7 @@ function isChainRootFile(filePath: string): boolean {
 
 /** Every audited declaration, keyed — plus the reverse edge index. Test files are not nodes (their
  *  declarations are roots, per ROOT 2), matching `orphans`' own rule. */
-function buildChainGraph(project: Project, live: Liveness): ChainGraph {
+function buildChainGraph(project: SourceCorpus, live: Liveness): ChainGraph {
   const nodes = new Map<string, ChainNode>();
   for (const sf of project.getSourceFiles()) {
     const fp = sf.getFilePath();
@@ -134,8 +136,8 @@ function isRootConsumerKey(consumerKey: string): boolean {
   return isModuleScopeKey(consumerKey) || isChainRootFile(fileOfKey(consumerKey));
 }
 
-/** ROOT 3 + ROOT 4 — a declaration ratified as deliberately unconsumed (`@public <reason>`, the orphan
- *  ratchet's own marker, read through its own predicate) or an export of the R2-sealed `ui` package. */
+/** ROOT 3 + ROOT 4 — a declaration carrying a reasoned `@public`-family claim (kept alive conservatively;
+ *  legality belongs to the orphan ratchet) or an export of the R2-sealed `ui` package. */
 function isRootDeclaration(node: ChainNode): boolean {
   return (node.exported && node.decl.getSourceFile().getFilePath().includes(UI_SRC_PREFIX)) || isPublicTagged(node.decl);
 }
@@ -214,7 +216,7 @@ function chainOf(startKey: string, graph: ChainGraph, alive: ReadonlySet<string>
  *  enumeration: no printing, no scope policy (the verb owns both), so the self-test drives the same function
  *  the CLI does. A dead declaration with NO consumer at all is an `orphans` hit and is deliberately absent
  *  from `candidates` — it is counted in `unconsumedHeads` instead, because it is where a reader FIXES. */
-export function collectChainAudit(project: Project, live: Liveness, inScope: (filePath: string) => boolean): ChainAudit {
+export function collectChainAudit(project: SourceCorpus, live: Liveness, inScope: (filePath: string) => boolean): ChainAudit {
   const graph = buildChainGraph(project, live);
   const alive = chainAliveKeys(graph);
   const candidates: ChainCandidate[] = [];
@@ -236,7 +238,7 @@ export function collectChainAudit(project: Project, live: Liveness, inScope: (fi
 }
 
 /** The findings alone — the shape every caller but the CLI summary wants. */
-export function collectChainCandidates(project: Project, live: Liveness, inScope: (filePath: string) => boolean): readonly ChainCandidate[] {
+export function collectChainCandidates(project: SourceCorpus, live: Liveness, inScope: (filePath: string) => boolean): readonly ChainCandidate[] {
   return collectChainAudit(project, live, inScope).candidates;
 }
 
@@ -289,8 +291,8 @@ function printChainSummary(audit: ChainAudit): void {
 
 /** Declarations whose ONLY life originates inside declarations that are themselves dead — the alias
  *  rabbit hole, reported as WHOLE chains in one run. Optional scope (a package name / path); bare = every
- *  package. No marker of its own: the fix (and the `@public` exemption) lives at the chain's HEAD. */
-export function cmdChains(project: Project, arg: string, flags: Flags): void {
+ *  package. No marker of its own: the fix (and any ratchet-adjudicated `@public` claim) lives at the head. */
+export function cmdChains(project: SourceCorpus, arg: string, flags: Flags): void {
   const scope = arg === "" ? { prefix: PACKAGES_PREFIX, label: "(all packages)" } : resolveScope(project, arg, "chains");
   // The audited surface is `packages/*/src` non-test only (ROOT 2 makes everything else an alive root),
   // so the corpus fences match `buildChainGraph`'s own — the count and the graph agree by construction.
@@ -306,7 +308,7 @@ export function cmdChains(project: Project, arg: string, flags: Flags): void {
   const { candidates } = audit;
   printChainSummary(audit);
   print(
-    "chains is a CANDIDATE lens — it reports declarations whose ONLY consumers are THEMSELVES dead, as whole chains (`X ← only via Y (dead) ← only via Z (unconsumed)`). FIX AT THE HEAD: wire it, delete it, or tag it `/** @public <reason> */` — any of the three makes every link below read alive here, which is why this lens has no per-link marker of its own. VERIFY before acting: consumption attribution is syntactic and name-based inside a file, and a consumer this substrate cannot see (a registry keyed from the DB, a `Trpc[…]` proxy read, a template-literal module id) makes a LIVE declaration look chain-dead — a fixpoint amplifies one missed edge into a whole dead-looking subtree. Alive roots: module-scope side effects, test/script consumers, `@public`-tagged exports, and every `packages/ui/src` export (the R2 sealed surface).",
+    "chains is a CANDIDATE lens — it reports declarations whose ONLY consumers are THEMSELVES dead, as whole chains (`X ← only via Y (dead) ← only via Z (unconsumed)`). FIX AT THE HEAD: wire it, delete it, or add any reasoned `@public`-family claim — any makes every link below read alive here, which is why this lens has no per-link marker. This lens treats reasoned markers as provisional alive roots; the push-tier ratchet separately adjudicates their legality. VERIFY before acting: consumption attribution is syntactic and name-based inside a file, and a consumer this substrate cannot see (a registry keyed from the DB, a `Trpc[…]` proxy read, a template-literal module id) makes a LIVE declaration look chain-dead — a fixpoint amplifies one missed edge into a whole dead-looking subtree. Other alive roots are module-scope side effects, test/script consumers, and every `packages/ui/src` export (the R2 sealed surface).",
   );
   emit(candidates.map(chainHit), flags, `chains ${scope.label}`);
 }

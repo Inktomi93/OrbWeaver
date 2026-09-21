@@ -423,7 +423,7 @@ await runCodemod(
     // `--diagnose` prints the pre-emit diagnostics the harness only COUNTS — how a collision is LOCATED
     // rather than guessed at.
     if (process.argv.slice(2).includes("--diagnose")) {
-      printDiagnostics(ctx.project);
+      printDiagnostics(ctx);
     }
   },
   { argv: process.argv.slice(2) },

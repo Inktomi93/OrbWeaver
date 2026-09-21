@@ -3,6 +3,7 @@
 import { lstatSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
+import { assertRepoPath, readAuthoredRepositoryInventory } from "../../_shared/authored-repository.ts";
 import type {
   PolicyChangedSelection,
   PolicyRepositoryInventory,
@@ -34,29 +35,7 @@ function hasAsciiControl(value: string): boolean {
 }
 
 export function assertPolicyRepoPath(value: unknown, label: string): asserts value is string {
-  if (
-    typeof value !== "string" ||
-    value.length === 0 ||
-    value.trim() !== value ||
-    hasAsciiControl(value) ||
-    value.startsWith("/") ||
-    /^[A-Za-z]:\//u.test(value) ||
-    value.endsWith("/") ||
-    value.includes("\\")
-  ) {
-    throw new Error(`${label} must be a repo-relative POSIX path`);
-  }
-  if (value.split("/").some((segment) => segment.length === 0 || segment === "." || segment === "..")) {
-    throw new Error(`${label} has an invalid path segment`);
-  }
-}
-
-function rootDirectory(root: string): string {
-  const canonical = realpathSync(root);
-  if (!statSync(canonical).isDirectory()) {
-    throw new Error(`policy scope root is not a directory: ${root}`);
-  }
-  return canonical;
+  assertRepoPath(value, label);
 }
 
 function isMissing(error: unknown): boolean {
@@ -71,31 +50,6 @@ function containedRelative(root: string, canonical: string, label: string): stri
   return rel.split(sep).join("/");
 }
 
-function currentAuthoredFile(root: string, path: string): string | null {
-  assertPolicyRepoPath(path, "repository inventory path");
-  const candidate = resolve(root, path);
-  let entry: ReturnType<typeof lstatSync>;
-  try {
-    entry = lstatSync(candidate);
-  } catch (error) {
-    if (isMissing(error)) {
-      return null;
-    }
-    throw error;
-  }
-  let canonical: string;
-  try {
-    canonical = realpathSync(candidate);
-  } catch (error) {
-    throw new Error(`repository inventory symlink cannot be resolved: ${path}`, { cause: error });
-  }
-  containedRelative(root, canonical, `repository inventory path ${path}`);
-  if (entry.isSymbolicLink()) {
-    return path;
-  }
-  return entry.isFile() ? path : null;
-}
-
 function gitRead(root: string, args: readonly string[]): string {
   const result = runNicedSync("git", args, { cwd: root, env: repoGitEnvironment() });
   if (result.status !== 0) {
@@ -105,24 +59,8 @@ function gitRead(root: string, args: readonly string[]): string {
   return result.stdout;
 }
 
-function nulPaths(source: string, label: string): readonly string[] {
-  const paths = source.split("\0").filter((path) => path !== "");
-  for (const path of paths) {
-    assertPolicyRepoPath(path, label);
-  }
-  return paths;
-}
-
-function canonicalFiles(root: string, paths: readonly string[]): readonly string[] {
-  const files = paths.map((path) => currentAuthoredFile(root, path)).filter((path): path is string => path !== null);
-  return [...new Set(files)].toSorted(compare);
-}
-
 export function readPolicyRepositoryInventory(root: string): PolicyRepositoryInventory {
-  const canonicalRoot = rootDirectory(root);
-  const trackedPaths = canonicalFiles(canonicalRoot, nulPaths(gitRead(canonicalRoot, TRACKED_ARGS), "tracked Git path"));
-  const untrackedPaths = canonicalFiles(canonicalRoot, nulPaths(gitRead(canonicalRoot, UNTRACKED_ARGS), "untracked Git path"));
-  const paths = [...new Set([...trackedPaths, ...untrackedPaths])].toSorted(compare);
+  const { root: canonicalRoot, trackedPaths, untrackedPaths, paths } = readAuthoredRepositoryInventory(root);
   const receipt: PolicyScopeInventoryReceipt = {
     source: "git",
     trackedCommand: ["git", ...TRACKED_ARGS],
