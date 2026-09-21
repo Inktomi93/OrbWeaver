@@ -57,6 +57,13 @@ function plainNotice(code: PlainChatWarningCode): NotifyNotice {
       return { description: "Your reply is unaffected — only the long-term memory index missed this turn.", title: "Long-term memory couldn't update" };
     case "memory_rerank_unavailable":
       return { description: "Using vector recall for this turn instead. Your reply will continue.", title: "Memory reranking was unavailable" };
+    // Names the REPAIR, not the internals: "index" and "vector space" are words no screen shows, and the two
+    // causes (mid-move, or no embedder bound) both end at the same place — Connections.
+    case "retrieval_index_unavailable":
+      return {
+        description: "Your reply went through without recalled memory or attached documents. Check your embedding connection in Connections.",
+        title: "Your library couldn't be searched",
+      };
     case "structured_output_unsupported":
       return { description: "This model doesn't support it, so the reply came back as plain text.", title: "Structured output isn't supported" };
     case "prompt_transform_skipped":

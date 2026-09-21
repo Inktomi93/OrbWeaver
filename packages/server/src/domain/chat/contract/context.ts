@@ -1154,25 +1154,45 @@ type EmbeddingsPruneBlocksOp = (params: PruneDigestBlocksParams | PruneSegmentBl
  *  "why did THIS block surface" unanswerable at the only seam that knows). */
 /** `ownerId` is OMITTED on purpose: `MemoryScope` carries no owner (D20), so the compose binding resolves the
  *  chat HOST — whose `embed`/`rerank` bindings define the digest space — from the chat FK before calling search. */
-type SearchDigestsOp = (query: Omit<MemoryQueryOptions, "ownerId">, onRerankUnavailable?: (() => void) | undefined) => Promise<readonly ScoredBlock[]>;
+type SearchDigestsOp = (query: Omit<MemoryQueryOptions, "ownerId">, events?: TurnRetrievalEvents | undefined) => Promise<readonly ScoredBlock[]>;
+
+/** The per-call degrade observations BOTH in-turn retrieval ops report back — the neutral, chat-side half of
+ *  the seam (search owns its own `DigestSearchEvents`; neither side imports the other's vocabulary).
+ *
+ *  `onIndexUnavailable` IS A CONTRACT ON THE BINDING, not a courtesy (#2510): an op that reports it MUST also
+ *  resolve empty rather than throw. The owner's vector space being mid-move or unbound is an ordinary state,
+ *  and a turn's retrieval is an ENHANCEMENT to the turn — so that one class degrades here while every other
+ *  search failure still propagates and still faults the turn (a `strikeOutOnTurnFault` premise, `engine.ts`). */
+interface TurnRetrievalEvents {
+  readonly onRerankUnavailable: () => void;
+  readonly onIndexUnavailable: () => void;
+}
 
 /** The cross-chat corpus/digest+segment scan; host-only scope is enforced by the caller. */
 type SearchCorpusOp = (query: Omit<MemoryQueryOptions, "ownerId">) => Promise<readonly BlockKey[]>;
 
 /** The databank `{{databank}}`-slot GATHER op (DB6, databank-design/07 §1). OPTIONAL: absent ⇒ GATHER skips
  *  the branch entirely and the slot resolves empty, byte-identical to a non-databank deploy (the null-op pin).
- *  A `null` result = nothing retrieved (bankless scope / no hits / budget too small). chat reads ONLY `.text`
- *  (the slot value); databank's provenance/token fields never cross into chat. */
-type GatherDatabankOp = (args: {
-  readonly chatId: ChatId;
-  /** The room HOST — the document space is theirs (host-only v1), so their `embed`/`rerank` bindings serve it. */
-  readonly hostUserId: UserId;
-  readonly queryText: string;
-  readonly tokenBudget: number;
-  readonly k?: number | undefined;
-  readonly minScore?: number | undefined;
-  readonly rerank?: boolean | undefined;
-}) => Promise<{ readonly text: string } | null>;
+ *  A `null` result = nothing retrieved (bankless scope / no hits / budget too small — and, since #2510, an
+ *  unqueryable vector space, which reports through `events` before resolving null). chat reads ONLY `.text`
+ *  (the slot value); databank's provenance/token fields never cross into chat.
+ *
+ *  It shares {@link TurnRetrievalEvents} with the digest op because one turn losing both slots to ONE
+ *  unqueryable space owes the user ONE notice; `onRerankUnavailable` is unused on this arm (databank's rerank
+ *  degrade is not wired) and the binding simply never calls it. */
+type GatherDatabankOp = (
+  args: {
+    readonly chatId: ChatId;
+    /** The room HOST — the document space is theirs (host-only v1), so their `embed`/`rerank` bindings serve it. */
+    readonly hostUserId: UserId;
+    readonly queryText: string;
+    readonly tokenBudget: number;
+    readonly k?: number | undefined;
+    readonly minScore?: number | undefined;
+    readonly rerank?: boolean | undefined;
+  },
+  events?: TurnRetrievalEvents | undefined,
+) => Promise<{ readonly text: string } | null>;
 
 /** The chat's active preset's declared ChoiceBlock variables, resolved under the host's settings. Empty
  *  means no declared variables (or a hostless/stale room). */

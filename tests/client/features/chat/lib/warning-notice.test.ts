@@ -119,6 +119,16 @@ test("memory_rerank_unavailable → vector recall continued for this turn", () =
   expect(notice.description).toContain("this turn");
 });
 
+// #2510 — the reply SURVIVED (that is the whole point of the degrade), so the copy has to say so before it
+// says anything went wrong, and it has to name a place the user can actually go. "Index", "vector space" and
+// "embedding generation" are words no screen shows; Connections is a screen.
+test("retrieval_index_unavailable → the reply went through, and the copy points at Connections", () => {
+  const notice = noticeFor("retrieval_index_unavailable");
+  expect(notice.description).toContain("went through");
+  expect(notice.description).toContain("Connections");
+  expect(notice.title).not.toContain("index");
+});
+
 // ── P1-3: the copy speaks the UI's OWN connection vocabulary ─────────────────────────────────────────
 
 test("custom_parameters_ignored names the real connection labels, never 'direct' or 'BYOK'", () => {

@@ -23,14 +23,14 @@ import { buildAssembleContext } from "../assembly/context.ts";
 import type { ChatContext } from "../context.ts";
 
 import type { ForeignInputs } from "../contract/foreign.ts";
-import type { MemoryRecallInputs, MsgRow } from "../contract/memory.ts";
+import type { MemoryRecallInputs, MsgRow, TurnRetrievalWarningEpisode } from "../contract/memory.ts";
 import type { GuidedSteer } from "../contract/params.ts";
 import { recallMemory } from "../memory/recall/recall.ts";
-import { createMemoryRecallWarningEpisode } from "../memory/recall/rerank-warning.ts";
 import { LIVE_WINDOW_FULL_HISTORY_CUTOFF } from "../memory/recall/window.ts";
 import { loadCanonHistory, loadChatInjections, loadChatRow, loadStoredVariables, loadVariableDeltas } from "../persistence/queries.ts";
 import { regexAllowOf, resolveHostTierRegexScripts } from "./regex-tier.ts";
 import { foldChain } from "./runtime-variables.ts";
+import { createTurnRetrievalWarningEpisode } from "./turn-retrieval-warning.ts";
 import { resolveChoiceVariables } from "./variables.ts";
 
 /** The SEND USER_INPUT regex out-param sink — `buildAssembleContext` writes the post-regex user text
@@ -79,6 +79,8 @@ async function gatherDatabank(
     readonly eligibleContent: readonly string[];
     /** The host's databank settings (DB6), from ForeignInputs — retrieval params + the slot budget. */
     readonly foreign: ForeignInputs;
+    /** The turn's degrade episode, shared with the MEMORY arm (#2510). */
+    readonly warningEpisode: TurnRetrievalWarningEpisode;
   },
 ): Promise<string | undefined> {
   if (ctx.gatherDatabank === undefined) {
@@ -89,15 +91,20 @@ async function gatherDatabank(
     return;
   }
   const retrieval = args.foreign.databankRetrieval;
-  const result = await ctx.gatherDatabank({
-    chatId: args.chatId,
-    hostUserId: args.hostUserId,
-    queryText,
-    tokenBudget: args.foreign.databankSlotTokenBudget ?? DATABANK_SLOT_TOKEN_BUDGET,
-    ...(retrieval !== undefined
-      ? ({ k: retrieval.k, minScore: retrieval.minScore, rerank: retrieval.rerank } satisfies Pick<GatherDatabankParams, "k" | "minScore" | "rerank">)
-      : {}),
-  });
+  const result = await ctx.gatherDatabank(
+    {
+      chatId: args.chatId,
+      hostUserId: args.hostUserId,
+      queryText,
+      tokenBudget: args.foreign.databankSlotTokenBudget ?? DATABANK_SLOT_TOKEN_BUDGET,
+      ...(retrieval !== undefined
+        ? ({ k: retrieval.k, minScore: retrieval.minScore, rerank: retrieval.rerank } satisfies Pick<GatherDatabankParams, "k" | "minScore" | "rerank">)
+        : {}),
+    },
+    // The binding degrades a SPACE refusal to `null` and reports here (#2510); `onRerankUnavailable` is
+    // unused on this arm — databank's own rerank degrade is not wired, so the binding never calls it.
+    { onRerankUnavailable: args.warningEpisode.reportRerankUnavailable, onIndexUnavailable: args.warningEpisode.reportIndexUnavailable },
+  );
   return result === null ? undefined : result.text;
 }
 
@@ -223,6 +230,9 @@ async function gatherMemory(
     /** The live-window cutoff seq (the seq below which messages aren't in the prompt) — the PREVIOUS turn's
      *  canon fit boundary. `undefined` ⇒ no prior boundary stamp ⇒ no live-window trim this round. */
     readonly liveWindowCutoffSeq: number | undefined;
+    /** The turn's degrade episode, constructed by {@link gatherAssembleContext} and shared with the DATABANK
+     *  arm (#2510) — one unqueryable vector space losing both retrieval slots owes the user ONE notice. */
+    readonly warningEpisode: TurnRetrievalWarningEpisode;
   },
   out?: SendRegexSink,
 ): Promise<{ readonly text: string; readonly trace: MemoryRecallSlice | null }> {
@@ -238,7 +248,7 @@ async function gatherMemory(
     return { text: "", trace: null };
   }
   const config = args.foreign.memoryConfig ?? null;
-  const warningEpisode = createMemoryRecallWarningEpisode();
+  const { warningEpisode } = args;
   if (out !== undefined) {
     out.memoryRecall = {
       groupCharacterId: sharedCharId,
@@ -388,6 +398,14 @@ export async function gatherAssembleContext(
   // `recallRecentWindow`; absent pending text ⇒ the committed rows unchanged.
   const recallRecent = recallRecentWindow(recentRows, args.pendingUserText, args.triggerUserId);
 
+  // ONE episode for the whole gathered turn, constructed HERE rather than inside either arm (#2510): both
+  // retrieval slots read the same owner's vector space, so one unqueryable space owes the user one notice.
+  // The engine drains it after `turnStarted` through the staged `MemoryRecallInputs`. THE ONE GAP, stated
+  // rather than hidden: a room with no character to key on stages `memoryRecall: null` (below), so a databank
+  // degrade in a character-less room reports into an episode no engine drains — the same "preview/aux gathers
+  // hold an episode with no engine consumer" limit the rerank degrade already carries, and such a room has no
+  // speaker to run a turn for.
+  const warningEpisode = createTurnRetrievalWarningEpisode();
   const [memory, databank] = await Promise.all([
     gatherMemory(
       ctx,
@@ -399,10 +417,18 @@ export async function gatherAssembleContext(
         recent: recallRecent,
         names: characterCards.names,
         liveWindowCutoffSeq: resolveLiveWindowCutoffSeq(canon),
+        warningEpisode,
       },
       out,
     ),
-    gatherDatabank(ctx, { chatId, hostUserId: runAsUserId, pendingUserText: args.pendingUserText, eligibleContent: eligible.map((m) => m.content), foreign }),
+    gatherDatabank(ctx, {
+      chatId,
+      hostUserId: runAsUserId,
+      pendingUserText: args.pendingUserText,
+      eligibleContent: eligible.map((m) => m.content),
+      foreign,
+      warningEpisode,
+    }),
   ]);
 
   // The host-tier regex union (global ∪ preset ∪ character ∪ room), deterministically ordered/deduped. D121-E:
