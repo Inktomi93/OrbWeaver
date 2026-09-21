@@ -124,7 +124,11 @@ export function dedupe(hits: Hit[], flags: Flags): Hit[] {
   const filtered = flags.in === null ? hits : hits.filter((h) => h.file.includes(flags.in ?? ""));
   const seen = new Set<string>();
   return filtered.filter((h) => {
-    const k = `${h.file}:${h.line}:${h.kind}`;
+    // Source searches deliberately collapse repeated nodes that render as the exact same line-oriented hit,
+    // while semantic lenses may emit several distinct records from one source line (two z.object fields on
+    // one line, for example). Include rendered identity so those findings survive without exposing a new
+    // hit-id protocol or changing the line-oriented search behavior.
+    const k = JSON.stringify([h.file, h.line, h.kind, h.text]);
     if (seen.has(k)) {
       return false;
     }
@@ -187,23 +191,21 @@ export function emit(hits: Hit[], flags: Flags, label: string): void {
     print(`${h.file}:${h.line}  [${h.kind}]  ${h.text}`);
   }
   const overflow = unique.length > shown.length ? ` (showing ${shown.length} — raise --max)` : "";
-  // A zero on a NAME-lookup syntactic verb is only as good as its corpus: scripts/** outside check/gates
-  // is not in harness-globs, so a symbol living there (e.g. scripts/github/*, scripts/dev/*) zero-matches
-  // while being fully alive — a real false clean, measured. Say so instead of printing a bare "no results".
+  // A zero on a NAME-lookup syntactic verb is only as good as its corpus: package-root TS, MTS, and
+  // playwright/** live only in searchGlobs, so a symbol living there can zero-match while being fully alive.
+  // Say so instead of printing a bare "no results".
   // Path-scoped verbs (exports/aliases) stay bare: their argument names a file that WAS scanned.
   const syntacticZero =
     unique.length === 0 && ledger !== undefined && NAME_LOOKUP_SYNTACTIC_VERBS.has(ledger.verb) && ledger.scopeParts[0] === `corpus:${CORPUS_SYNTACTIC}`;
   const corpusHint = syntacticZero
-    ? " — NOTE: the syntactic corpus excludes scripts/** outside check/gates; a symbol living there needs a search-corpus verb (refs)"
+    ? " — NOTE: the syntactic corpus excludes package-root TS, MTS, and playwright/**; a symbol living there needs a search-corpus verb (refs)"
     : "";
   print(unique.length === 0 ? `RESULT ast ${label}: no results${corpusHint}` : `RESULT ast ${label}: ${unique.length} hit(s)${overflow} in ${files} file(s)`);
 }
 
-// One workspace project per invocation, via the ONE sanctioned bootstrap (tooling/src/_shared/ts-workspace.ts).
-// types:true = root-tsconfig resolution options + full-workspace globs (the refs verb needs the
-// language service to follow @orb/* exports and #aliases); types:false = the fast pure-AST arm.
-// `wide` loads the TYPED arm's file set (searchGlobs — tests+fixtures+scripts) WITHOUT the type graph:
-// a purely syntactic walk needs no language service, so `literal` gets the wide corpus at the cheap load.
+// The shared bootstrap supplies native per-tsconfig semantic programs for typed searches and a pure-AST
+// project for syntactic searches. `wide` chooses searchGlobs instead of harnessGlobs without loading a
+// type graph; its membership need not equal the native programs' authored roots.
 export function loadProject(needTypes: boolean, wide = false): SourceCorpus {
   if (needTypes) {
     return createSemanticWorkspace({ root: REPO_ROOT }).sourceCorpus();

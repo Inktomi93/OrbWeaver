@@ -304,10 +304,9 @@ export interface WriteScan {
 // WHY (Codex repository audit, 2026-08-13): `no results` and `the search never happened` print the SAME
 // line, so a lens can read clean while blind. Three shapes produce that lie here, all measured on this
 // tree, none visible in the RESULT line:
-//   1. THE TWO CORPORA. The syntactic verbs load `harnessGlobs` (packages/*/src + tests +
-//      tooling/src/verify/gates); only the TYPED verbs load `searchGlobs`, which adds all of scripts/**,
-//      packages/*/*.ts, *.mts and playwright/**. So `ast ident REPO_ROOT --in scripts/` printed
-//      `no results` against a corpus that never contained one scripts/ file (verified 2026-08-13).
+//   1. THE CORPUS ROOTS. Syntactic verbs load `harnessGlobs`; `literal` uses the wider `searchGlobs`.
+//      Their labels derive from those helpers. Typed verbs instead expose authored roots from native
+//      per-tsconfig programs; the epilogue names that authority rather than claiming glob equivalence.
 //   2. A SCOPE THAT ADMITS NOTHING. `resolveScope` has always rejected a zero-file positional scope with
 //      exit 2 — but the verbs that take a raw path substring (`exports`, `aliases`, `cycles`) had no such
 //      gate, and neither did `--in`, so a typo there degraded straight to a clean zero.

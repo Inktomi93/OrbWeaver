@@ -411,7 +411,7 @@ export function cmdSubsetCallers(project: SourceCorpus, symbol: string, flags: F
   }
   if (audit.sites.length === 0) {
     exitToolError(
-      `[ast] NO CALL SITE — \`${symbol}\` is called nowhere in the scanned corpus, so no key sets were compared. This is a TOOL ERROR, not a clean subset verdict: check the spelling (the subject is POSITIONAL) and note that the syntactic corpus excludes scripts/** outside check/gates.`,
+      `[ast] NO CALL SITE — \`${symbol}\` is called nowhere in the scanned corpus, so no key sets were compared. This is a TOOL ERROR, not a clean subset verdict: check the spelling (the subject is POSITIONAL) and note that the syntactic corpus excludes package-root TS, MTS, and playwright/**.`,
     );
   }
   if (audit.resolved < MIN_COMPARABLE_SITES) {
