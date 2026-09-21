@@ -32,7 +32,7 @@ import type { ChatId, UserId } from "@orb/kit/ids";
 import { and, eq, sql } from "drizzle-orm";
 import type { ChatContext } from "../context.ts";
 import type { QuietGenerate } from "../contract/context.ts";
-import { ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
+import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import type { CompactParams } from "../contract/params.ts";
 import type { CompactResult } from "../contract/results.ts";
 import type { ChatService } from "../contract/service.ts";
@@ -122,7 +122,7 @@ async function buildMarker(
     // Empty generation over a NON-empty span → a real failure. THROW so the caller surfaces it (the hook warns
     // `compaction_failed`, the manual verb propagates); the EXISTING marker + coverage stamp are left untouched
     // (never a blank marker), so a retry next turn is honest.
-    throw new ChatOperationError("compaction_empty", `compaction produced an empty marker for chat ${env.chatId}`);
+    throw new ChatOperationError(CHAT_OP_CODES.compactionEmpty, `compaction produced an empty marker for chat ${env.chatId}`);
   }
   // THE WRITE IS CONDITIONAL, AND THE CORE STAYS LOCK-FREE (#1463 item 5). Two passes can run at once (the
   // engine's managed hook beside the host's manual lever), both read the same `compactedAtSeq` and both pay

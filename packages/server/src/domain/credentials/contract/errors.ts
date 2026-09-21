@@ -11,7 +11,6 @@ const DECRYPT_GUIDANCE = "Stored credential cannot be decrypted. Restore the mat
 export const CREDENTIALS_OP_CODES = {
   notFound: "credential_not_found",
   disabled: "credentials_disabled",
-  metadataInvalid: "credential_metadata_invalid",
   decryptFailed: "credential_decrypt_failed",
   providerUnknown: "credential_provider_unknown",
 } as const;

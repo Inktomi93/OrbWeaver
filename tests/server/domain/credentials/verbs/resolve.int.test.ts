@@ -54,6 +54,22 @@ describe("resolve", () => {
     expect(await svc.resolve({ ownerId: owner, credentialId: bearer.id, providerId: VLLM })).toMatchObject({ kind: "bearer", secret: "vllm-bearer" });
   });
 
+  test("retired or malformed metadata degrades to the API-key kind after the inference cutover", async () => {
+    const db = await freshDb();
+    const svc = createCredentialsService(makeHarness(db).ctx);
+    const owner = await seedUser(db, { id: "user_retired_metadata", role: "user" });
+    const added = await svc.add({ principal: principal(owner), provider: "openrouter", key: "sk-retired-shape" });
+    await db
+      .update(userCredentials)
+      .set({ metadata: { kind: "custom_openai", baseUrl: "http://retired.invalid/v1" } })
+      .where(eq(userCredentials.id, added.id));
+
+    await expect(svc.resolve({ ownerId: owner, credentialId: added.id, providerId: OPENROUTER })).resolves.toMatchObject({
+      kind: "apiKey",
+      secret: "sk-retired-shape",
+    });
+  });
+
   test("a stored key with a MISSING runtime box fails as decrypt-unavailable, never absent or keyless", async () => {
     const db = await freshDb();
     const harness = makeHarness(db);

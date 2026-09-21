@@ -78,9 +78,8 @@ export interface SettingsService {
   /** Read this user's typed/defaulted UserSettings. A never-touched account reads parsed defaults with no
    *  write (`updatedAt: 0`). */
   readonly getUserSettings: (params: GetUserSettingsParams) => Promise<UserSettingsView>;
-  /** Deep-merge one namespace + re-validate the whole blob. Serialized per user. A `routing` patch is first
-   *  made coherent (a named source without a named model clears the model) and throws
-   *  `DomainOperationError(incoherent_role_model)` when it pins a model on a server-configured source. */
+  /** Deep-merge one namespace + re-validate the whole blob. Serialized per user. Inference routing is not a
+   *  settings namespace: per-task selections live in connection bindings. */
   readonly updateUserSettingsSection: (params: UpdateUserSettingsSectionParams) => Promise<UserSettingsView>;
   /** Replace this user's WHOLE settings blob with the contract defaults at the current schema version, and
    *  return the re-read row. Serialized per user, audited, emits `settingsChanged`. DESTRUCTIVE — it is the
