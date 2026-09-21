@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "capturedAt": "2026-09-21T04:46:11.514594+00:00",
-  "sourceCommit": "166280900fa273118b51c9ad57515789e5339e60",
+  "capturedAt": "2026-09-21T06:08:28.670730+00:00",
+  "sourceCommit": "0834e6bb2",
   "purpose": "Full AST audit observations and agent reasoning. Dated evidence, not a replacement for GitHub work-item lifecycle.",
   "entryPoints": {
     "coverage": "world-tools-lens-manifest.json",
@@ -19,7 +19,17 @@
     "jsonOutputRereview": "world-tools-json-output-rereview.json",
     "contractFieldDecisions": "world-tools-contract-field-triage.json",
     "clientTestonlyAfterCleanup": "world-tools-testonly-client-after-cleanup.json",
-    "registryDecisions": "world-tools-registry-triage.json"
+    "registryDecisions": "world-tools-registry-triage.json",
+    "viewgapDecisions": "world-tools-viewgap-triage.json",
+    "testonlyRemainingDecisions": "world-tools-testonly-remaining-triage.json",
+    "viewgapCleanup": "world-tools-viewgap-cleanup-report.json",
+    "loadTurnCleanup": "world-tools-loadturn-cleanup-report.json",
+    "cleanupCombinedReview": "world-tools-cleanup-combined-review.json",
+    "registryRepair": "world-tools-registry-fix-report.json",
+    "registryRepairInitialReview": "world-tools-registry-fix-review.json",
+    "registryRepairRereview": "world-tools-registry-fix-rereview.json",
+    "brandBoundaryAuditProvisional": "world-tools-brand-boundary-audit.json",
+    "brandBoundarySummaryProvisional": "world-tools-brand-boundary-audit.md"
   },
   "limitations": [
     "30 CLI verbs identified; coverage remains incomplete. A candidate is not a confirmed defect or deletion authorization.",
@@ -65,7 +75,30 @@
         "numeric-key overlap creates unrelated migration and ordinal collisions",
         "typed registered hand compositions are reported as contributions without a door"
       ],
-      "receipt": "world-tools-registry-triage.json"
+      "receipt": "world-tools-registry-triage.json",
+      "toolRepairCommit": "89935dbf3"
+    },
+    "viewgap": {
+      "observations": 33,
+      "deliberateExternalOrWriteOnly": 14,
+      "liveReadersMissedByLens": 3,
+      "toolDefects": 6,
+      "confirmedDeadCleanup": 7,
+      "unresolved": 3,
+      "toolRepairIssue": 2523,
+      "cleanupIssue": 2524,
+      "receipt": "world-tools-viewgap-triage.json",
+      "cleanupCommit": "0834e6bb2"
+    },
+    "testonly": {
+      "coverage": ["client", "server", "security", "contracts"],
+      "remainingQuestionsClosed": 3,
+      "wire": ["useDeleteRefinerySession"],
+      "delete": ["loadTurnForClassify"],
+      "preserveTestSeam": ["ensureUserSettings"],
+      "ownerDecision": [],
+      "receipt": "world-tools-testonly-remaining-triage.json",
+      "cleanupCommit": "0834e6bb2"
     }
   },
   "committedRepairs": [
@@ -81,11 +114,7 @@
     },
     {
       "commit": "166280900",
-      "issues": [
-        2513,
-        2514,
-        2515
-      ],
+      "issues": [2513, 2514, 2515],
       "result": "Actual corpus receipts, compound assignment producers, distinct same-line findings"
     },
     {
@@ -102,16 +131,27 @@
       "commit": "3d1468b27",
       "issue": 2519,
       "result": "Machine-readable AST JSON output with explicit dependency-cruiser refusal and independently confirmed boundary fixes"
+    },
+    {
+      "commit": "89935dbf3",
+      "issue": 2521,
+      "result": "Registry candidates separate unrelated member paths and numeric axes and recognize only direct typed compositions; independent rereview confirmed"
+    },
+    {
+      "commit": "0834e6bb2",
+      "issues": [2524, 2525],
+      "result": "Removed seven unread public view/result fields, impossible untyped CT fixture fields, and retired loadTurnForClassify residue; post-merge rereview owed"
     }
   ],
   "unresolvedInsights": [
-    "useDeleteRefinerySession appears unwired: investigate R3 product intent before wiring or deleting.",
     "Vite default export is a framework-consumed testonly false positive.",
     "CHAT_VERB_AUTHORITY is consumed by type exhaustiveness and a structural gate; preserve.",
     "Schema/type twins and intentional proof seams must not be deleted for lacking runtime callers.",
-    "loadTurnForClassify and ensureUserSettings need separate adjudication.",
     "foldActiveSpace, evidenceRank, policy-table claims and inverse query helpers need follow-up; full rationale retained in Contracts report.",
-    "JSON single-lens output repair is implemented under issue2519; its original review refutation is preserved beside the corrected implementation report."
+    "JSON single-lens output repair is implemented under issue2519; its original review refutation is preserved beside the corrected implementation report.",
+    "useDeleteRefinerySession is a confirmed intended feature tracked by #2527.",
+    "ensureUserSettings is a deliberate test seam whose explicit naming is tracked by #2526.",
+    "The routeTrpc response mirror is structurally untyped; #2533 owns coupling fixtures to AppRouter."
   ],
   "newReviewFinding": {
     "reviewer": "server_cleanup_review",
@@ -129,8 +169,8 @@
       "file": "world-tools-lens-status-current.json",
       "source": "maintained audit status matrix",
       "sourceSha256": null,
-      "sha256": "ab1ddfcd15685b6c6e105ff58cac88e599dc00a660255c3750383f3dc74e559b",
-      "bytes": 2839
+      "sha256": "9d624b53ad1df26dc8e873d9cb10946f9ad2324da603e4c2971ab8d8dd85b038",
+      "bytes": 3576
     },
     {
       "file": "world-tools-lens-manifest.json",
@@ -383,6 +423,94 @@
       "sourceSha256": "c5ee90af0a90597f89f822a09473ebd040158f5397728335d96509d772c53364",
       "sha256": "6985c000b8ae8e194428993cfcb8b1c9a88df9efe32994b33f5571e39575ece8",
       "bytes": 7513
+    },
+    {
+      "file": "world-tools-viewgap-triage.json",
+      "source": "/tmp/world-tools-viewgap-triage.json",
+      "sourceSha256": "22e56132b91b05ba8dd433aa81dce094c88ff445d95ba0b7c0eb6aa4f0ae1785",
+      "sha256": "6de7ed54ad1c87ad6d385ef384f4dea9b83e479ee2c39c1437e866522bd70d95",
+      "bytes": 82064
+    },
+    {
+      "file": "world-tools-testonly-remaining-triage.json",
+      "source": "/tmp/world-tools-testonly-remaining-triage.json",
+      "sourceSha256": "ef84084bfe648893db1165400c03816de4e29f89018b9cab5a87e22eab54f7f5",
+      "sha256": "a845b70aef6a14ba8fa8ba65837b002e8ea6263868bbfe706c938a4043d6defd",
+      "bytes": 17242
+    },
+    {
+      "file": "world-tools-viewgap-cleanup-report.json",
+      "source": "/tmp/world-tools-viewgap-cleanup-report.json",
+      "sourceSha256": "0a3a8cac82aff220359e672a9b35b047b11be2ef05c28bd64170c63708f93f9c",
+      "sha256": "0a3a8cac82aff220359e672a9b35b047b11be2ef05c28bd64170c63708f93f9c",
+      "bytes": 18335
+    },
+    {
+      "file": "world-tools-loadturn-cleanup-report.json",
+      "source": "/tmp/world-tools-loadturn-cleanup-report.json",
+      "sourceSha256": "18cec84f4e2dc5f684b6c58373dfba95a51ebf0ff65fd5fef90ae949112c5716",
+      "sha256": "18cec84f4e2dc5f684b6c58373dfba95a51ebf0ff65fd5fef90ae949112c5716",
+      "bytes": 5959
+    },
+    {
+      "file": "world-tools-cleanup-combined-review.json",
+      "source": "/tmp/world-tools-cleanup-combined-review.json",
+      "sourceSha256": "d80eb2a24ac1b295b990c540a05bd63d62d1a3e0e72900e634d90bd5dce00b0b",
+      "sha256": "d80eb2a24ac1b295b990c540a05bd63d62d1a3e0e72900e634d90bd5dce00b0b",
+      "bytes": 7097
+    },
+    {
+      "file": "world-tools-registry-fix-report.json",
+      "source": "/tmp/world-tools-registry-fix-report.json",
+      "sourceSha256": "c2f4c8c116eedcdf8d9f83f0e8e067b9fd9bca7a462cb52e142f7b3b03056db9",
+      "sha256": "c2f4c8c116eedcdf8d9f83f0e8e067b9fd9bca7a462cb52e142f7b3b03056db9",
+      "bytes": 8752
+    },
+    {
+      "file": "world-tools-registry-fix-review.json",
+      "source": "/tmp/world-tools-registry-fix-review.json",
+      "sourceSha256": "2b88171fc88e8e21a8ec2dae72da1a1cc9f5ffe6bda2997a150261eabd77f21c",
+      "sha256": "2b88171fc88e8e21a8ec2dae72da1a1cc9f5ffe6bda2997a150261eabd77f21c",
+      "bytes": 7672
+    },
+    {
+      "file": "world-tools-registry-fix-rereview.json",
+      "source": "/tmp/world-tools-registry-fix-rereview.json",
+      "sourceSha256": "682ad9ee15f0b25e1139166daf8276348ae125c5d10dde8ede5d57a46d66667a",
+      "sha256": "682ad9ee15f0b25e1139166daf8276348ae125c5d10dde8ede5d57a46d66667a",
+      "bytes": 5768
+    },
+    {
+      "file": "world-tools-brand-boundary-audit.json",
+      "source": "/tmp/world-tools-brand-boundary-audit.json",
+      "sourceSha256": "aff7478a4d8a9e33a570354872f2cc57dd279962a667accc284681f09254c5f5",
+      "sha256": "aff7478a4d8a9e33a570354872f2cc57dd279962a667accc284681f09254c5f5",
+      "bytes": 923643
+    },
+    {
+      "file": "world-tools-brand-boundary-audit.md",
+      "source": "/tmp/world-tools-brand-boundary-audit.md",
+      "sourceSha256": "4c8d0c6346744a43a6552db4d7dadb975422e425eea1d9ff24343198243fbb61",
+      "sha256": "4c8d0c6346744a43a6552db4d7dadb975422e425eea1d9ff24343198243fbb61",
+      "bytes": 3053
     }
-  ]
+  ],
+  "crossCuttingFindings": {
+    "routeTrpcContractFidelity": {
+      "issue": 2533,
+      "status": "Ready",
+      "finding": "CT route responders are unknown and can serve response shapes AppRouter production cannot emit"
+    },
+    "brandBoundaryAudit": {
+      "issue": 2531,
+      "status": "provisional pre-main-refresh",
+      "receipt": "world-tools-brand-boundary-audit.json",
+      "note": "Checker-first report is preserved but its denominator must be refreshed after merging main; initial bare-node OOM bypassed the workspace 16 GiB pnpm heap floor."
+    },
+    "workloadDependencyAuthority": {
+      "issue": 2534,
+      "status": "Ready",
+      "finding": "Caller-authored workload dependencies reach an unscoped scheduler read without canonical ID and owner validation"
+    }
+  }
 }

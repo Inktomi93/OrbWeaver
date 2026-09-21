@@ -1,0 +1,148 @@
+{
+  "schemaVersion": 1,
+  "issue": 2525,
+  "task": "Remove the bounded loadTurnForClassify residue",
+  "worktree": "/home/inktomi/.codex/worktrees/world-aware-tools/orbweaver",
+  "headAtStart": "41ae2d2e04cde288c6175fce23435a54de78014d",
+  "status": "IMPLEMENTED_WITH_EXTERNAL_TYPECHECK_BLOCKER",
+  "committed": false,
+  "implementation": {
+    "files": [
+      {
+        "path": "packages/server/src/domain/chat/persistence/queries.ts",
+        "change": "Removed the loadTurnForClassify declaration and query body."
+      },
+      {
+        "path": "packages/server/src/domain/chat/index.ts",
+        "change": "Removed the chat front-door re-export and its false expressions-wiring comment."
+      },
+      {
+        "path": "tests/server/domain/chat/persistence/queries.int.test.ts",
+        "change": "Removed the import and the dedicated four-test describe block."
+      },
+      {
+        "path": "packages/server/src/domain/chat/contract/context.ts",
+        "change": "Removed the dead-symbol precedent from the ExtractQuietParams contract comment."
+      },
+      {
+        "path": "packages/server/src/domain/chat/verbs/extract-quiet.ts",
+        "change": "Removed the dead-symbol precedent from the extract-quiet file header."
+      }
+    ],
+    "diffSummary": {
+      "filesChanged": 5,
+      "insertions": 4,
+      "deletions": 89
+    },
+    "scopeGuard": "No registry AST file, audit archive, or view-gap contract field was edited by this lane."
+  },
+  "astGrep": {
+    "before": {
+      "callPattern": "loadTurnForClassify($$$ARGS)",
+      "ts": {
+        "scannedFiles": 6515,
+        "skippedFiles": 0,
+        "matches": 7,
+        "locations": [
+          "tests/server/domain/chat/persistence/queries.int.test.ts:448",
+          "tests/server/domain/chat/persistence/queries.int.test.ts:458",
+          "tests/server/domain/chat/persistence/queries.int.test.ts:470",
+          "tests/server/domain/chat/persistence/queries.int.test.ts:472",
+          "tests/server/domain/chat/persistence/queries.int.test.ts:474",
+          "tests/server/domain/chat/persistence/queries.int.test.ts:486",
+          "tests/server/domain/chat/persistence/queries.int.test.ts:487"
+        ]
+      },
+      "tsx": {
+        "scannedFiles": 1469,
+        "skippedFiles": 0,
+        "matches": 0
+      }
+    },
+    "after": {
+      "callPattern": "loadTurnForClassify($$$ARGS)",
+      "identifierPattern": "loadTurnForClassify",
+      "ts": {
+        "scannedFiles": 6515,
+        "skippedFiles": 0,
+        "callMatches": 0,
+        "identifierMatches": 0
+      },
+      "tsx": {
+        "scannedFiles": 1469,
+        "skippedFiles": 0,
+        "callMatches": 0,
+        "identifierMatches": 0
+      },
+      "literalCorroboration": {
+        "scope": "packages tests tooling scripts playwright",
+        "extensions": [
+          "ts",
+          "tsx",
+          "mts",
+          "cts"
+        ],
+        "matches": 0
+      }
+    },
+    "positiveControls": [
+      {
+        "language": "ts",
+        "scope": "tests/server/domain/chat/persistence/queries.int.test.ts",
+        "pattern": "expect($$$ARGS)",
+        "scannedFiles": 1,
+        "result": "matched"
+      },
+      {
+        "language": "tsx",
+        "scope": "tests/client/features/refinery/_ct-stories.tsx",
+        "pattern": "useDeleteRefinerySession($$$ARGS)",
+        "scannedFiles": 1,
+        "result": "matched"
+      }
+    ]
+  },
+  "verification": [
+    {
+      "command": "pnpm test:scoped tests/server/domain/chat/persistence/queries.int.test.ts",
+      "status": "PASS",
+      "result": "1 file passed; 37 tests passed; 0 failed",
+      "duration": "3.29s",
+      "artifact": "reports/runs/test/orbweaver-3483820-2026-09-21T05-26-21-521Z/test-report.json"
+    },
+    {
+      "command": "pnpm exec biome check packages/server/src/domain/chat/persistence/queries.ts packages/server/src/domain/chat/index.ts packages/server/src/domain/chat/contract/context.ts packages/server/src/domain/chat/verbs/extract-quiet.ts tests/server/domain/chat/persistence/queries.int.test.ts --diagnostic-level=error",
+      "status": "PASS",
+      "result": "Checked 5 files; no fixes applied"
+    },
+    {
+      "command": "pnpm exec eslint packages/server/src/domain/chat/persistence/queries.ts packages/server/src/domain/chat/index.ts packages/server/src/domain/chat/contract/context.ts packages/server/src/domain/chat/verbs/extract-quiet.ts tests/server/domain/chat/persistence/queries.int.test.ts",
+      "status": "PASS",
+      "result": "Exited 0 with no diagnostics"
+    },
+    {
+      "command": "git diff --check -- <five owned files>",
+      "status": "PASS",
+      "result": "No whitespace errors"
+    },
+    {
+      "command": "pnpm typecheck --config packages/server/tsconfig.json --config tsconfig.json",
+      "status": "BLOCKED_EXTERNAL",
+      "result": "Both requested native configs ran and failed only on concurrent sibling #2524 view-gap field removals; no diagnostic names any of the five owned files.",
+      "externalDiagnostics": [
+        "automationDepth missing from FireView",
+        "consecutiveErrors missing from RuleView",
+        "contentHash missing from CharacterSummary",
+        "parentChatId and participantCharacterIds missing from ChatSummary",
+        "hasMetadata missing from CredentialView",
+        "consecutiveCrashes missing from PluginView"
+      ],
+      "disposition": "Root instructed this lane to wait for #2524 to stabilize before retrying and not to alter sibling fields."
+    }
+  ],
+  "limitations": [
+    "The affected native type configurations do not yet have a green receipt because concurrent #2524 edits make the shared tree fail outside this lane's scope.",
+    "No whole-repository suite was run; the requested focused runtime and per-file static checks were used.",
+    "The shared worktree contains unrelated modified and untracked audit, registry, and view-gap files; final diff review was restricted to the five owned paths."
+  ]
+}

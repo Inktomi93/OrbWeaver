@@ -1,0 +1,1893 @@
+{
+  "schema_version": 1,
+  "task": "Adjudication of all preserved pnpm ast viewgap candidates",
+  "repo": "/home/inktomi/.codex/worktrees/world-aware-tools/orbweaver",
+  "source_sha": "41ae2d2e04cde288c6175fce23435a54de78014d",
+  "artifact": {
+    "path": "docs/reviews/ast-codebase-audit/world-tools-viewgap.json",
+    "sha256": "30e211c8de20f819b233a2fa5000332cd2f249babaaa544fa87520670f4c1593",
+    "candidate_count": 33
+  },
+  "disposition_counts": {
+    "deliberate_write_only_external_protocol": 14,
+    "live_reader_missed_by_lens": 3,
+    "unresolved": 3,
+    "tool_defect": 6,
+    "confirmed_dead_cleanup": 7
+  },
+  "method": {
+    "owner_files_read_in_full": 16,
+    "owner_file_lines_read": 3956,
+    "consumer_method": "Read each declaration/producer and relevant current consumers; corroborated field-name searches with actual ast-grep property-access sweeps.",
+    "ast_grep": {
+      "binary": "ast-grep 0.45.0",
+      "scope": [
+        "packages",
+        "tests",
+        "tooling",
+        "scripts",
+        "playwright"
+      ],
+      "positive_control": {
+        "ts": {
+          "pattern": "$OBJ.id",
+          "exit": 0,
+          "hit_count": 8256,
+          "scanned_file_count": 6446,
+          "skipped_file_count": 0
+        },
+        "tsx": {
+          "pattern": "$OBJ.id",
+          "exit": 0,
+          "hit_count": 1131,
+          "scanned_file_count": 1409,
+          "skipped_file_count": 0
+        }
+      },
+      "cleanup_field_patterns": "$OBJ.<field>, separately in TypeScript and TSX",
+      "evidence_file": "/tmp/world-tools-viewgap-asg.json"
+    },
+    "tests": "No behavioral suite run; this was static adjudication and the task prohibited duplicating heavy test lanes."
+  },
+  "tool_defects": [
+    {
+      "pattern": "owner-fence mismatch",
+      "detail": "The lens treats every interface named *View/*Summary under contracts or server as client-facing, then checks only packages/client/src. Internal server summaries therefore become guaranteed false positives.",
+      "observations": [
+        9,
+        10,
+        24,
+        25,
+        32,
+        33
+      ]
+    },
+    {
+      "pattern": "consumer-scope mismatch",
+      "detail": "Shared cross-boundary MessageView fields can have load-bearing server consumers; a client-only reader census misses them.",
+      "observations": [
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "pattern": "name-only ambiguity",
+      "detail": "The lens and structural sweeps are name-based, so common names such as contentHash, parentChatId, and automationDepth need owner/type adjudication. A raw hit count is not a reader proof.",
+      "observations": [
+        13,
+        14,
+        15
+      ]
+    }
+  ],
+  "bounded_tool_calibration": [
+    "Restrict candidates to DTO owners explicitly marked client-facing, or select result types reachable from client router outputs instead of all *View/*Summary names.",
+    "For server-owned candidate types, include packages/server production property reads before emitting a gap.",
+    "Report whole-object pass-through and type/name ambiguity as lower-confidence evidence; do not label a name absence as dead code."
+  ],
+  "observations": [
+    {
+      "ordinal": 1,
+      "owner": "GalleryItemView",
+      "field": "subjectCharacterId",
+      "candidate": {
+        "file": "packages/contracts/src/assets/index.ts",
+        "line": 155
+      },
+      "disposition": "deliberate_write_only_external_protocol",
+      "reason": "The whole-gallery wire must retain the optional subject association even though the current character gallery asks with subjectCharacterId and therefore does not need to re-read it.",
+      "evidence": [
+        "packages/contracts/src/assets/index.ts:128-156",
+        "packages/client/src/features/chat/anchors/character-gallery-dialog.tsx:101-102"
+      ],
+      "recommendation": "no_edit"
+    },
+    {
+      "ordinal": 2,
+      "owner": "MessageView",
+      "field": "finishReason",
+      "candidate": {
+        "file": "packages/contracts/src/chat/messages.ts",
+        "line": 443
+      },
+      "disposition": "live_reader_missed_by_lens",
+      "reason": "A production server consumer reads MessageView.finishReason to decide bounded auto-continue; a client-only name census cannot see that reader.",
+      "evidence": [
+        "packages/server/src/domain/chat/verbs/turn.ts:1325-1334"
+      ],
+      "recommendation": "no_edit"
+    },
+    {
+      "ordinal": 3,
+      "owner": "MessageView",
+      "field": "stopReason",
+      "candidate": {
+        "file": "packages/contracts/src/chat/messages.ts",
+        "line": 444
+      },
+      "disposition": "live_reader_missed_by_lens",
+      "reason": "The duplicate-message path reads stopReason from a value explicitly typed MessageView and copies it into the new selected variant.",
+      "evidence": [
+        "packages/server/src/domain/chat/verbs/edit.ts:152-175",
+        "packages/server/src/domain/chat/verbs/edit.ts:953-955"
+      ],
+      "recommendation": "no_edit"
+    },
+    {
+      "ordinal": 4,
+      "owner": "MessageView",
+      "field": "terminalReason",
+      "candidate": {
+        "file": "packages/contracts/src/chat/messages.ts",
+        "line": 445
+      },
+      "disposition": "live_reader_missed_by_lens",
+      "reason": "The duplicate-message path reads terminalReason from a value explicitly typed MessageView and copies it into the new selected variant.",
+      "evidence": [
+        "packages/server/src/domain/chat/verbs/edit.ts:152-175",
+        "packages/server/src/domain/chat/verbs/edit.ts:953-955"
+      ],
+      "recommendation": "no_edit"
+    },
+    {
+      "ordinal": 5,
+      "owner": "MessageView",
+      "field": "costProvenance",
+      "candidate": {
+        "file": "packages/contracts/src/chat/messages.ts",
+        "line": 462
+      },
+      "disposition": "unresolved",
+      "reason": "No current client or MessageView-specific server reader was found. The contract says the cost pill needs this provenance, but the current UI settles cost through generationId/connectionId. That is evidence of either stale payload/comment or an unfinished provenance display, not enough to choose deletion.",
+      "evidence": [
+        "packages/contracts/src/chat/messages.ts:457-474",
+        "packages/server/src/domain/chat/verbs/fork.ts:165-184"
+      ],
+      "recommendation": "no_edit"
+    },
+    {
+      "ordinal": 6,
+      "owner": "ParticipantView",
+      "field": "joinedAt",
+      "candidate": {
+        "file": "packages/contracts/src/chat/roster.ts",
+        "line": 258
+      },
+      "disposition": "deliberate_write_only_external_protocol",
+      "reason": "joinedAt is durable roster chronology in the cross-boundary participant record. The current client does not render it, but it remains semantically distinct from the server-only joinSeq field immediately below it.",
+      "evidence": [
+        "packages/contracts/src/chat/roster.ts:242-261"
+      ],
+      "recommendation": "no_edit"
+    },
+    {
+      "ordinal": 7,
+      "owner": "ResolvedConnectionView",
+      "field": "requirement",
+      "candidate": {
+        "file": "packages/contracts/src/inference/resolved.ts",
+        "line": 23
+      },
+      "disposition": "deliberate_write_only_external_protocol",
+      "reason": "The credential-free resolved connection protocol reports the task requirement verdict alongside capability. Current callers can derive their visible state elsewhere, but this is an explicit resolver result rather than accidental projection residue.",
+      "evidence": [
+        "packages/contracts/src/inference/resolved.ts:1-24",
+        "packages/server/src/domain/connection/substrate/resolved-view.ts:17"
+      ],
+      "recommendation": "no_edit"
+    },
+    {
+      "ordinal": 8,
+      "owner": "EntryView",
+      "field": "worldBookId",
+      "candidate": {
+        "file": "packages/contracts/src/world-info/index.ts",
+        "line": 155
+      },
+      "disposition": "deliberate_write_only_external_protocol",
+      "reason": "EntryView is a reusable entry identity record; worldBookId preserves the parent association even when the current editor obtained the entry through a selected book.",
+      "evidence": [
+        "packages/contracts/src/world-info/index.ts:151-166"
+      ],
+      "recommendation": "no_edit"
+    },
+    {
+      "ordinal": 9,
+      "owner": "DispatchSummary",
+      "field": "anyDisabled",
+      "candidate": {
+        "file": "packages/server/src/domain/automation/contract/ops.ts",
+        "line": 707
+      },
+      "disposition": "tool_defect",
+      "reason": "This is an internal server summary, not a client view. Two production server callers read anyDisabled to refresh the enabled-rule index.",
+      "evidence": [
+        "packages/server/src/domain/automation/substrate/handle-event.ts:110-117",
+        "packages/server/src/domain/automation/substrate/run-now.ts:56-64"
+      ],
+      "recommendation": "no_edit"
+    },
+    {
+      "ordinal": 10,
+      "owner": "RuleView",
+      "field": "predicateCel",
+      "candidate": {
+        "file": "packages/server/src/domain/automation/contract/results.ts",
+        "line": 27
+      },
+      "disposition": "tool_defect",
+      "reason": "RuleView is reused inside the server testRule verb; predicateCel is evaluated there. A client-only reader search is incomplete for this owner.",
+      "evidence": [
+        "packages/server/src/domain/automation/verbs/test-rule.ts:20-37"
+      ],
+      "recommendation": "no_edit"
+    },
+    {
+      "ordinal": 11,
+      "owner": "RuleView",
+      "field": "matchAutomationEvents",
+      "candidate": {
+        "file": "packages/server/src/domain/automation/contract/results.ts",
+        "line": 40
+      },
+      "disposition": "deliberate_write_only_external_protocol",
+      "reason": "The value is a writable rule setting accepted by create/update and used by dispatch. The current client lacks an editor, but retaining it in the rule lifecycle DTO keeps reads symmetric with that externally writable protocol.",
+      "evidence": [
+        "packages/server/src/domain/automation/verbs/create-rule.ts:71",
+        "packages/server/src/domain/automation/verbs/update-rule.ts:57",
+        "packages/server/src/domain/automation/engine/dispatch.ts:392"
+      ],
+      "recommendation": "no_edit"
+    },
+    {
+      "ordinal": 12,
+      "owner": "RuleView",
+      "field": "consecutiveErrors",
+      "candidate": {
+        "file": "packages/server/src/domain/automation/contract/results.ts",
+        "line": 48
+      },
+      "disposition": "confirmed_dead_cleanup",
+      "reason": "Only the RuleView projector reads the row into this output field; mutation logic uses the persistence row/counter directly and no production consumer reads RuleView.consecutiveErrors.",
+      "evidence": [
+        "packages/server/src/domain/automation/persistence/rules.ts:81",
+        "packages/server/src/domain/automation/persistence/rules.ts:303-305"
+      ],
+      "recommendation": "remove this member from the view/result projection and adjust only directly coupled fixtures/tests; preserve same-name persistence/domain fields",
+      "structural_sweep": {
+        "ts": {
+          "pattern": "$OBJ.consecutiveErrors",
+          "exit": 0,
+          "hit_count": 4,
+          "scanned_file_count": 6446,
+          "skipped_file_count": 0,
+          "hits": [
+            {
+              "file": "tests/server/domain/automation/engine/dispatch.int.test.ts",
+              "line": 145,
+              "text": "row.consecutiveErrors",
+              "source": "return { enabled: row.enabled, consecutiveErrors: row.consecutiveErrors, lastFiredAt: row.lastFiredAt };"
+            },
+            {
+              "file": "packages/server/src/domain/automation/persistence/rules.ts",
+              "line": 81,
+              "text": "row.consecutiveErrors",
+              "source": "consecutiveErrors: row.consecutiveErrors,"
+            },
+            {
+              "file": "packages/server/src/domain/automation/persistence/rules.ts",
+              "line": 303,
+              "text": "automationRules.consecutiveErrors",
+              "source": ".set({ consecutiveErrors: sql`${automationRules.consecutiveErrors} + 1`, lastError: reason, updatedAt: now })"
+            },
+            {
+              "file": "packages/server/src/domain/automation/persistence/rules.ts",
+              "line": 305,
+              "text": "automationRules.consecutiveErrors",
+              "source": ".returning({ consecutiveErrors: automationRules.consecutiveErrors });"
+            }
+          ]
+        },
+        "tsx": {
+          "pattern": "$OBJ.consecutiveErrors",
+          "exit": 1,
+          "hit_count": 0,
+          "scanned_file_count": 1409,
+          "skipped_file_count": 0,
+          "hits": []
+        }
+      },
+      "hit_classification": "Hits are the named view producer and/or persistence/test behavior; no production consumer of the candidate view member occurs."
+    },
+    {
+      "ordinal": 13,
+      "owner": "FireView",
+      "field": "automationDepth",
+      "candidate": {
+        "file": "packages/server/src/domain/automation/contract/results.ts",
+        "line": 64
+      },
+      "disposition": "confirmed_dead_cleanup",
+      "reason": "The fire projector emits automationDepth, while the client fire log reads outcome/detail/triggerType/firedAt and never this field. Same-name hits belong to trigger, message, plugin, and persistence shapes, not FireView consumers.",
+      "evidence": [
+        "packages/server/src/domain/automation/persistence/fires.ts:55",
+        "packages/client/src/features/automation/components/rule-fire-log.tsx:48-76"
+      ],
+      "recommendation": "remove this member from the view/result projection and adjust only directly coupled fixtures/tests; preserve same-name persistence/domain fields",
+      "structural_sweep": {
+        "ts": {
+          "pattern": "$OBJ.automationDepth",
+          "exit": 0,
+          "hit_count": 40,
+          "scanned_file_count": 6446,
+          "skipped_file_count": 0,
+          "hits": [
+            {
+              "file": "packages/server/src/entry/compose/automation-plugin.ts",
+              "line": 238,
+              "text": "req.automationDepth",
+              "source": "automationDepth: req.automationDepth,"
+            },
+            {
+              "file": "packages/server/src/entry/compose/automation-plugin.ts",
+              "line": 281,
+              "text": "req.automationDepth",
+              "source": "{ initiator: \"automation\", automationDepth: req.automationDepth },"
+            },
+            {
+              "file": "tests/server/domain/automation/_support.ts",
+              "line": 167,
+              "text": "messages.automationDepth",
+              "source": ".select({ initiator: messages.initiator, automationDepth: messages.automationDepth })"
+            },
+            {
+              "file": "tests/server/domain/automation/_support.ts",
+              "line": 172,
+              "text": "row.automationDepth",
+              "source": "return row === undefined ? null : { initiator: row.initiator, automationDepth: row.automationDepth };"
+            },
+            {
+              "file": "tests/server/domain/automation/substrate/handle-event.int.test.ts",
+              "line": 673,
+              "text": "messages.automationDepth",
+              "source": ".select({ initiator: messages.initiator, automationDepth: messages.automationDepth })"
+            },
+            {
+              "file": "tests/server/domain/automation/substrate/handle-event.int.test.ts",
+              "line": 678,
+              "text": "row.automationDepth",
+              "source": "return row === undefined ? null : { initiator: row.initiator, automationDepth: row.automationDepth };"
+            },
+            {
+              "file": "tests/server/domain/automation/substrate/handle-event.int.test.ts",
+              "line": 697,
+              "text": "req.automationDepth",
+              "source": "await postNarratorMessage(req.chatId, req.prompt ?? \"\", [asset], { initiator: \"automation\", automationDepth: req.automationDepth });"
+            },
+            {
+              "file": "tests/server/domain/automation/substrate/handle-event.int.test.ts",
+              "line": 843,
+              "text": "req.automationDepth",
+              "source": "automationDepth: req.automationDepth,"
+            },
+            {
+              "file": "packages/server/src/domain/plugin/substrate/confirmed-act.ts",
+              "line": 58,
+              "text": "turn.automationDepth",
+              "source": "await bridge.chat.requestTurn(chatId, turn.automationDepth, {"
+            },
+            {
+              "file": "packages/server/src/foundation/observability/debug/inspect/automation-fires.ts",
+              "line": 66,
+              "text": "row.automationDepth",
+              "source": "automationDepth: row.automationDepth,"
+            },
+            {
+              "file": "packages/server/src/infra/plugin-host/membrane.ts",
+              "line": 779,
+              "text": "scope.automationDepth",
+              "source": "await suggestAct(runtime, scope, { kind: \"requestTurn\", automationDepth: scope.automationDepth + 1, ...buildTurnHints(args[1]) });"
+            },
+            {
+              "file": "packages/server/src/infra/plugin-host/membrane.ts",
+              "line": 786,
+              "text": "scope.automationDepth",
+              "source": "await runtime.bridge.chat.requestTurn(scope.chatId, scope.automationDepth + 1, buildTurnHints(args[1]));"
+            },
+            {
+              "file": "packages/server/src/domain/chat/engine/engine.ts",
+              "line": 536,
+              "text": "prep.automationDepth",
+              "source": "...(prep.automationDepth !== undefined ? { automationDepth: prep.automationDepth } : {}),"
+            },
+            {
+              "file": "packages/server/src/domain/chat/engine/engine.ts",
+              "line": 536,
+              "text": "prep.automationDepth",
+              "source": "...(prep.automationDepth !== undefined ? { automationDepth: prep.automationDepth } : {}),"
+            },
+            {
+              "file": "packages/server/src/domain/chat/engine/engine.ts",
+              "line": 1602,
+              "text": "prep.automationDepth",
+              "source": "return prep.automationDepth ?? 0;"
+            },
+            {
+              "file": "packages/server/src/domain/chat/verbs/post-narrator-message.ts",
+              "line": 100,
+              "text": "options.automationDepth",
+              "source": "...(options !== undefined && \"initiator\" in options ? { initiator: options.initiator, automationDepth: options.automationDepth } : {}),"
+            },
+            {
+              "file": "packages/server/src/domain/automation/substrate/analysis-confirm.ts",
+              "line": 67,
+              "text": "act.automationDepth",
+              "source": "await deps.ops.chat.requestTurn({ authorUserId, chatId, automationDepth: act.automationDepth, guided: act.steerText });"
+            },
+            {
+              "file": "packages/server/src/domain/automation/substrate/fact-resolver.ts",
+              "line": 77,
+              "text": "origin.automationDepth",
+              "source": "return origin === null ? null : origin.automationDepth;"
+            },
+            {
+              "file": "packages/server/src/domain/automation/substrate/fact-resolver.ts",
+              "line": 147,
+              "text": "event.automationDepth",
+              "source": "const automationDepth = event.automationDepth;"
+            },
+            {
+              "file": "packages/server/src/domain/automation/substrate/fact-resolver.ts",
+              "line": 163,
+              "text": "event.automationDepth",
+              "source": "return { fact: { ...base, worldInfo: { entryIds: event.entryIds } }, automationDepth: event.automationDepth };"
+            },
+            {
+              "file": "packages/server/src/domain/automation/substrate/plugin-subscribers.ts",
+              "line": 173,
+              "text": "resolved.automationDepth",
+              "source": "sub.deliver(fact, resolved.automationDepth);"
+            },
+            {
+              "file": "packages/server/src/domain/automation/substrate/plugin-subscribers.ts",
+              "line": 188,
+              "text": "resolved.automationDepth",
+              "source": "return !(resolved.automationDepth >= 1 && !sub.matchAutomationEvents);"
+            },
+            {
+              "file": "packages/server/src/domain/automation/substrate/plugin-subscribers.ts",
+              "line": 199,
+              "text": "resolved.automationDepth",
+              "source": "if (resolved.automationDepth >= AUTOMATION_DEPTH_HARD_CAP) {"
+            },
+            {
+              "file": "packages/server/src/domain/automation/engine/analysis-arm.ts",
+              "line": 326,
+              "text": "frame.origin.automationDepth",
+              "source": "act: { kind: \"suggestTurn\", steerText: neutralizeMacros(text), automationDepth: frame.origin.automationDepth },"
+            },
+            {
+              "file": "packages/server/src/domain/automation/engine/arm-executors.ts",
+              "line": 314,
+              "text": "frame.origin.automationDepth",
+              "source": "automationDepth: frame.origin.automationDepth,"
+            },
+            {
+              "file": "packages/server/src/domain/automation/engine/arm-executors.ts",
+              "line": 356,
+              "text": "frame.origin.automationDepth",
+              "source": "automationDepth: frame.origin.automationDepth,"
+            },
+            {
+              "file": "packages/server/src/domain/automation/engine/dispatch.ts",
+              "line": 134,
+              "text": "rc.deps.resolved.automationDepth",
+              "source": "automationDepth: rc.deps.resolved.automationDepth,"
+            },
+            {
+              "file": "packages/server/src/domain/automation/engine/dispatch.ts",
+              "line": 257,
+              "text": "rc.deps.resolved.automationDepth",
+              "source": "automationDepth: rc.deps.resolved.automationDepth,"
+            },
+            {
+              "file": "packages/server/src/domain/automation/engine/dispatch.ts",
+              "line": 387,
+              "text": "rc.deps.resolved.automationDepth",
+              "source": "const eventDepth = rc.deps.resolved.automationDepth;"
+            },
+            {
+              "file": "packages/server/src/domain/automation/engine/dispatch.ts",
+              "line": 458,
+              "text": "rc.deps.resolved.automationDepth",
+              "source": "const eventDepth = rc.deps.resolved.automationDepth;"
+            },
+            {
+              "file": "packages/server/src/domain/automation/persistence/fires.ts",
+              "line": 55,
+              "text": "row.automationDepth",
+              "source": "automationDepth: row.automationDepth,"
+            },
+            {
+              "file": "packages/server/src/domain/automation/persistence/fires.ts",
+              "line": 107,
+              "text": "row.automationDepth",
+              "source": "SELECT ${row.id}, rule.id, rule.chat_id, rule.trigger_type, 'reserved', NULL, ${row.automationDepth}, ${row.firedAt}"
+            },
+            {
+              "file": "packages/server/src/domain/chat/verbs/turn.ts",
+              "line": 997,
+              "text": "args.base.automationDepth",
+              "source": "automationDepth: args.base.automationDepth ?? 0,"
+            },
+            {
+              "file": "packages/server/src/domain/chat/verbs/turn.ts",
+              "line": 1084,
+              "text": "args.base.automationDepth",
+              "source": "await deps.emit({ type: \"turnAborted\", chatId: args.base.chatId, intent, reason: \"user\", automationDepth: args.base.automationDepth ?? 0 });"
+            },
+            {
+              "file": "packages/server/src/domain/automation/verbs/confirm-suggestion.ts",
+              "line": 287,
+              "text": "stashed.frame.origin.automationDepth",
+              "source": "automationDepth: stashed.frame.origin.automationDepth,"
+            },
+            {
+              "file": "packages/server/src/domain/chat/verbs/fork.ts",
+              "line": 234,
+              "text": "slot.automationDepth",
+              "source": "automationDepth: slot.automationDepth,"
+            },
+            {
+              "file": "packages/server/src/domain/chat/persistence/queries.ts",
+              "line": 1248,
+              "text": "messages.automationDepth",
+              "source": ".select({ initiator: messages.initiator, automationDepth: messages.automationDepth })"
+            },
+            {
+              "file": "packages/server/src/domain/chat/persistence/queries.ts",
+              "line": 1253,
+              "text": "row.automationDepth",
+              "source": "return row === undefined ? null : { initiator: row.initiator, automationDepth: row.automationDepth };"
+            },
+            {
+              "file": "packages/server/src/domain/chat/persistence/canon-write.ts",
+              "line": 305,
+              "text": "params.automationDepth",
+              "source": "...(params.automationDepth !== undefined ? { automationDepth: params.automationDepth } : {}),"
+            },
+            {
+              "file": "packages/server/src/domain/chat/persistence/canon-write.ts",
+              "line": 305,
+              "text": "params.automationDepth",
+              "source": "...(params.automationDepth !== undefined ? { automationDepth: params.automationDepth } : {}),"
+            }
+          ]
+        },
+        "tsx": {
+          "pattern": "$OBJ.automationDepth",
+          "exit": 1,
+          "hit_count": 0,
+          "scanned_file_count": 1409,
+          "skipped_file_count": 0,
+          "hits": []
+        }
+      },
+      "hit_classification": "Forty TypeScript member-access hits are other semantic shapes; packages/server/src/domain/automation/persistence/fires.ts:55 is the FireView producer. No FireView consumer occurs."
+    },
+    {
+      "ordinal": 14,
+      "owner": "CharacterSummary",
+      "field": "contentHash",
+      "candidate": {
+        "file": "packages/server/src/domain/character/contract/views.ts",
+        "line": 65
+      },
+      "disposition": "confirmed_dead_cleanup",
+      "reason": "The list projector emits contentHash, but character list/home consumers do not read it. The many same-name hits are detail rows, embeddings, discovery rows, and database records; none consumes CharacterSummary.contentHash.",
+      "evidence": [
+        "packages/server/src/domain/character/persistence/queries.ts:806",
+        "packages/server/src/domain/character/contract/views.ts:51-71"
+      ],
+      "recommendation": "remove this member from the view/result projection and adjust only directly coupled fixtures/tests; preserve same-name persistence/domain fields",
+      "structural_sweep": {
+        "ts": {
+          "pattern": "$OBJ.contentHash",
+          "exit": 0,
+          "hit_count": 117,
+          "scanned_file_count": 6446,
+          "skipped_file_count": 0,
+          "hits": [
+            {
+              "file": "tests/server/domain/character/_support.ts",
+              "line": 265,
+              "text": "overrides.contentHash",
+              "source": "contentHash: overrides.contentHash ?? \"seed_content_hash\","
+            },
+            {
+              "file": "tests/server/domain/character/persistence/plugin-card-data.int.test.ts",
+              "line": 104,
+              "text": "characters.contentHash",
+              "source": "const rows = await db.select({ contentHash: characters.contentHash }).from(characters).where(eq(characters.id, id));"
+            },
+            {
+              "file": "tests/server/domain/discovery/_support.ts",
+              "line": 337,
+              "text": "overrides.contentHash",
+              "source": "contentHash: overrides.contentHash ?? `hash_${overrides.characterId}`,"
+            },
+            {
+              "file": "tests/server/domain/discovery/_support.ts",
+              "line": 466,
+              "text": "overrides.contentHash",
+              "source": "contentHash: overrides.contentHash ?? `hash_${overrides.id}`,"
+            },
+            {
+              "file": "tests/server/domain/discovery/_support.ts",
+              "line": 502,
+              "text": "overrides.contentHash",
+              "source": "contentHash: overrides.contentHash ?? `hash_${overrides.id}`,"
+            },
+            {
+              "file": "tests/server/domain/discovery/_support.ts",
+              "line": 626,
+              "text": "overrides.contentHash",
+              "source": "contentHash: overrides.contentHash ?? `hash_${overrides.id}`,"
+            },
+            {
+              "file": "tests/server/domain/databank/ingest/index.int.test.ts",
+              "line": 114,
+              "text": "row.contentHash",
+              "source": "expect(row.contentHash.length).toBeGreaterThan(0);"
+            },
+            {
+              "file": "tests/server/domain/character/verbs/create.int.test.ts",
+              "line": 30,
+              "text": "detail.contentHash",
+              "source": "expect(detail.contentHash).toHaveLength(64);"
+            },
+            {
+              "file": "tests/server/domain/discovery/verbs/archetypes.int.test.ts",
+              "line": 50,
+              "text": "args.contentHash",
+              "source": "...(args.contentHash !== undefined ? { contentHash: args.contentHash } : {}),"
+            },
+            {
+              "file": "tests/server/domain/discovery/verbs/archetypes.int.test.ts",
+              "line": 50,
+              "text": "args.contentHash",
+              "source": "...(args.contentHash !== undefined ? { contentHash: args.contentHash } : {}),"
+            },
+            {
+              "file": "tests/server/domain/discovery/verbs/projection.int.test.ts",
+              "line": 27,
+              "text": "args.contentHash",
+              "source": "contentHash: args.contentHash,"
+            },
+            {
+              "file": "tests/server/domain/character/verbs/update.int.test.ts",
+              "line": 46,
+              "text": "updated.contentHash",
+              "source": "expect(updated.contentHash).not.toBe(created.contentHash);"
+            },
+            {
+              "file": "tests/server/domain/character/verbs/update.int.test.ts",
+              "line": 46,
+              "text": "created.contentHash",
+              "source": "expect(updated.contentHash).not.toBe(created.contentHash);"
+            },
+            {
+              "file": "tests/server/domain/character/verbs/update.int.test.ts",
+              "line": 92,
+              "text": "same.contentHash",
+              "source": "expect(same.contentHash).toBe(created.contentHash);"
+            },
+            {
+              "file": "tests/server/domain/character/verbs/update.int.test.ts",
+              "line": 92,
+              "text": "created.contentHash",
+              "source": "expect(same.contentHash).toBe(created.contentHash);"
+            },
+            {
+              "file": "tests/server/domain/character/verbs/update.int.test.ts",
+              "line": 115,
+              "text": "updated.contentHash",
+              "source": "expect(updated.contentHash).toBe(created.contentHash);"
+            },
+            {
+              "file": "tests/server/domain/character/verbs/update.int.test.ts",
+              "line": 115,
+              "text": "created.contentHash",
+              "source": "expect(updated.contentHash).toBe(created.contentHash);"
+            },
+            {
+              "file": "tests/server/domain/character/verbs/update.int.test.ts",
+              "line": 432,
+              "text": "updated.contentHash",
+              "source": "expect(updated.contentHash).toBe(created.contentHash);"
+            },
+            {
+              "file": "tests/server/domain/character/verbs/update.int.test.ts",
+              "line": 432,
+              "text": "created.contentHash",
+              "source": "expect(updated.contentHash).toBe(created.contentHash);"
+            },
+            {
+              "file": "tests/support/factories/factories.int.test.ts",
+              "line": 48,
+              "text": "base.contentHash",
+              "source": "expect(base.contentHash).toBe(cardContentHash(base));"
+            },
+            {
+              "file": "tests/support/factories/factories.int.test.ts",
+              "line": 49,
+              "text": "base.contentHash",
+              "source": "expect(base.contentHash).toHaveLength(64);"
+            },
+            {
+              "file": "tests/support/factories/factories.int.test.ts",
+              "line": 50,
+              "text": "base.contentHash",
+              "source": "expect(base.contentHash).not.toBe(`hash_${base.id}`);"
+            },
+            {
+              "file": "tests/support/factories/factories.int.test.ts",
+              "line": 55,
+              "text": "renamed.contentHash",
+              "source": "expect(renamed.contentHash).not.toBe(base.contentHash);"
+            },
+            {
+              "file": "tests/support/factories/factories.int.test.ts",
+              "line": 55,
+              "text": "base.contentHash",
+              "source": "expect(renamed.contentHash).not.toBe(base.contentHash);"
+            },
+            {
+              "file": "tests/support/factories/factories.int.test.ts",
+              "line": 57,
+              "text": "restarred.contentHash",
+              "source": "expect(restarred.contentHash).toBe(base.contentHash);"
+            },
+            {
+              "file": "tests/support/factories/factories.int.test.ts",
+              "line": 57,
+              "text": "base.contentHash",
+              "source": "expect(restarred.contentHash).toBe(base.contentHash);"
+            },
+            {
+              "file": "tests/support/factories/factories.int.test.ts",
+              "line": 60,
+              "text": "makeCharacter({ contentHash: \"pinned\" }).contentHash",
+              "source": "expect(makeCharacter({ contentHash: \"pinned\" }).contentHash).toBe(\"pinned\");"
+            },
+            {
+              "file": "tests/support/factories/character.ts",
+              "line": 90,
+              "text": "overrides.contentHash",
+              "source": "return { ...row, contentHash: overrides.contentHash ?? cardContentHash(row) };"
+            },
+            {
+              "file": "tests/server/domain/search/_support.ts",
+              "line": 332,
+              "text": "o.contentHash",
+              "source": "contentHash: o.contentHash ?? `chunk_hash_${o.documentId}_${o.chunkIdx}`,"
+            },
+            {
+              "file": "tests/server/domain/search/_support.ts",
+              "line": 431,
+              "text": "overrides.contentHash",
+              "source": "contentHash: overrides.contentHash ?? \"embed_content_hash\","
+            },
+            {
+              "file": "tests/server/domain/search/_support.ts",
+              "line": 505,
+              "text": "o.contentHash",
+              "source": "contentHash: o.contentHash ?? `image_hash_${o.assetId}`,"
+            },
+            {
+              "file": "tests/server/domain/search/_support.ts",
+              "line": 552,
+              "text": "o.contentHash",
+              "source": "contentHash: o.contentHash ?? `digest_hash_${o.chatId}_${o.blockIdx}`,"
+            },
+            {
+              "file": "tests/server/domain/search/_support.ts",
+              "line": 592,
+              "text": "o.contentHash",
+              "source": "contentHash: o.contentHash ?? `segment_hash_${o.chatId}_${o.blockIdx}_${chunkIdx}`,"
+            },
+            {
+              "file": "packages/server/src/entry/compose/chat.ts",
+              "line": 1546,
+              "text": "params.contentHash",
+              "source": "contentHash: params.contentHash,"
+            },
+            {
+              "file": "packages/server/src/entry/compose/chat.ts",
+              "line": 1576,
+              "text": "p.contentHash",
+              "source": "contentHash: p.contentHash,"
+            },
+            {
+              "file": "tests/server/domain/chat/substrate/backfill.int.test.ts",
+              "line": 102,
+              "text": "params.contentHash",
+              "source": "contentHash: params.contentHash,"
+            },
+            {
+              "file": "tests/server/domain/chat/substrate/backfill.int.test.ts",
+              "line": 123,
+              "text": "p.contentHash",
+              "source": "contentHash: p.contentHash,"
+            },
+            {
+              "file": "tests/server/domain/embeddings/verbs/store.int.test.ts",
+              "line": 83,
+              "text": "result.contentHash",
+              "source": "expect(row?.contentHash).toBe(result.contentHash);"
+            },
+            {
+              "file": "tests/server/domain/embeddings/verbs/store.int.test.ts",
+              "line": 109,
+              "text": "second.contentHash",
+              "source": "expect(second.contentHash).toBe(first.contentHash);"
+            },
+            {
+              "file": "tests/server/domain/embeddings/verbs/store.int.test.ts",
+              "line": 109,
+              "text": "first.contentHash",
+              "source": "expect(second.contentHash).toBe(first.contentHash);"
+            },
+            {
+              "file": "tests/server/domain/embeddings/verbs/store.int.test.ts",
+              "line": 143,
+              "text": "second.contentHash",
+              "source": "expect(second.contentHash).not.toBe(first.contentHash);"
+            },
+            {
+              "file": "tests/server/domain/embeddings/verbs/store.int.test.ts",
+              "line": 143,
+              "text": "first.contentHash",
+              "source": "expect(second.contentHash).not.toBe(first.contentHash);"
+            },
+            {
+              "file": "tests/server/domain/embeddings/verbs/store.int.test.ts",
+              "line": 147,
+              "text": "second.contentHash",
+              "source": "expect(rows[0]?.contentHash).toBe(second.contentHash);"
+            },
+            {
+              "file": "tests/server/domain/embeddings/verbs/store.int.test.ts",
+              "line": 426,
+              "text": "result.contentHash",
+              "source": "expect(result.contentHash).toBe(\"precomputed-digest-hash\");"
+            },
+            {
+              "file": "tests/server/domain/embeddings/verbs/store.int.test.ts",
+              "line": 595,
+              "text": "first.contentHash",
+              "source": "expect(row?.contentHash).toBe(first.contentHash);"
+            },
+            {
+              "file": "packages/server/src/domain/automation/substrate/analysis-confirm.ts",
+              "line": 59,
+              "text": "act.contentHash",
+              "source": "expectedContentHash: act.contentHash,"
+            },
+            {
+              "file": "packages/server/src/domain/character/persistence/queries.ts",
+              "line": 776,
+              "text": "row.contentHash",
+              "source": "contentHash: row.contentHash,"
+            },
+            {
+              "file": "packages/server/src/domain/character/persistence/queries.ts",
+              "line": 806,
+              "text": "row.contentHash",
+              "source": "contentHash: row.contentHash,"
+            },
+            {
+              "file": "packages/server/src/domain/character/persistence/card.ts",
+              "line": 84,
+              "text": "characters.contentHash",
+              "source": "eq(characters.contentHash, basis.contentHash),"
+            },
+            {
+              "file": "packages/server/src/domain/character/persistence/card.ts",
+              "line": 84,
+              "text": "basis.contentHash",
+              "source": "eq(characters.contentHash, basis.contentHash),"
+            },
+            {
+              "file": "packages/server/src/domain/character/persistence/card.ts",
+              "line": 93,
+              "text": "characters.contentHash",
+              "source": ".select({ contentHash: characters.contentHash, creatorNotes: characters.creatorNotes })"
+            },
+            {
+              "file": "packages/server/src/domain/character/persistence/card.ts",
+              "line": 98,
+              "text": "live.contentHash",
+              "source": "return live !== undefined && (live.contentHash !== basis.contentHash || live.creatorNotes !== basis.creatorNotes);"
+            },
+            {
+              "file": "packages/server/src/domain/character/persistence/card.ts",
+              "line": 98,
+              "text": "basis.contentHash",
+              "source": "return live !== undefined && (live.contentHash !== basis.contentHash || live.creatorNotes !== basis.creatorNotes);"
+            },
+            {
+              "file": "packages/server/src/foundation/observability/debug/inspect/config.ts",
+              "line": 355,
+              "text": "r.contentHash",
+              "source": "contentHash: r.contentHash,"
+            },
+            {
+              "file": "packages/server/src/domain/imagery/verbs/generate-picture.ts",
+              "line": 144,
+              "text": "card.contentHash",
+              "source": "const identityHash = identityHashFor(p.mode, subjectCharacterId, card.contentHash);"
+            },
+            {
+              "file": "packages/server/src/domain/character/verbs/update.ts",
+              "line": 72,
+              "text": "current.contentHash",
+              "source": "const contentChanged = nextHash !== current.contentHash;"
+            },
+            {
+              "file": "packages/server/src/domain/search/substrate/dedupe.ts",
+              "line": 52,
+              "text": "row.contentHash",
+              "source": "if (!seen.has(row.contentHash)) {"
+            },
+            {
+              "file": "packages/server/src/domain/search/substrate/dedupe.ts",
+              "line": 53,
+              "text": "row.contentHash",
+              "source": "seen.add(row.contentHash);"
+            },
+            {
+              "file": "tests/server/domain/chat/memory/_support.ts",
+              "line": 133,
+              "text": "opts.contentHash",
+              "source": "contentHash: opts.contentHash ?? `hash_${opts.tier}_${opts.blockIdx}`,"
+            },
+            {
+              "file": "tests/server/domain/chat/memory/_support.ts",
+              "line": 174,
+              "text": "opts.contentHash",
+              "source": "contentHash: opts.contentHash ?? `seg_${opts.blockIdx}_${chunkIdx}`,"
+            },
+            {
+              "file": "tests/server/domain/chat/memory/_support.ts",
+              "line": 235,
+              "text": "params.contentHash",
+              "source": "contentHash: params.contentHash,"
+            },
+            {
+              "file": "tests/server/domain/chat/memory/_support.ts",
+              "line": 255,
+              "text": "params.contentHash",
+              "source": "contentHash: params.contentHash,"
+            },
+            {
+              "file": "packages/server/src/domain/search/persistence/nearest.ts",
+              "line": 105,
+              "text": "documentChunks.contentHash",
+              "source": "contentHash: documentChunks.contentHash,"
+            },
+            {
+              "file": "packages/server/src/domain/search/persistence/nearest.ts",
+              "line": 137,
+              "text": "r.contentHash",
+              "source": "contentHash: r.contentHash,"
+            },
+            {
+              "file": "packages/server/src/domain/search/persistence/digest-rows.ts",
+              "line": 51,
+              "text": "chatDigests.contentHash",
+              "source": "contentHash: chatDigests.contentHash,"
+            },
+            {
+              "file": "packages/server/src/domain/search/persistence/digest-rows.ts",
+              "line": 113,
+              "text": "chatSegments.contentHash",
+              "source": "contentHash: chatSegments.contentHash,"
+            },
+            {
+              "file": "packages/server/src/domain/search/verbs/corpus.ts",
+              "line": 79,
+              "text": "d.contentHash",
+              "source": "contentHash: d.contentHash,"
+            },
+            {
+              "file": "packages/server/src/domain/search/verbs/corpus.ts",
+              "line": 103,
+              "text": "s.contentHash",
+              "source": "contentHash: s.contentHash,"
+            },
+            {
+              "file": "packages/server/src/domain/search/verbs/documents.ts",
+              "line": 64,
+              "text": "c.contentHash",
+              "source": "contentHash: c.contentHash,"
+            },
+            {
+              "file": "packages/server/src/domain/search/verbs/documents.ts",
+              "line": 121,
+              "text": "r.contentHash",
+              "source": "contentHash: r.contentHash,"
+            },
+            {
+              "file": "tests/server/domain/chat/memory/build/digests.int.test.ts",
+              "line": 64,
+              "text": "params.contentHash",
+              "source": "contentHash: params.contentHash,"
+            },
+            {
+              "file": "packages/server/src/domain/embeddings/persistence/queries.ts",
+              "line": 71,
+              "text": "characterEmbeddings.contentHash",
+              "source": ".select({ hash: characterEmbeddings.contentHash })"
+            },
+            {
+              "file": "packages/server/src/domain/embeddings/persistence/queries.ts",
+              "line": 81,
+              "text": "imageEmbeddings.contentHash",
+              "source": ".select({ hash: imageEmbeddings.contentHash })"
+            },
+            {
+              "file": "packages/server/src/domain/embeddings/persistence/queries.ts",
+              "line": 91,
+              "text": "imageEmbeddings.contentHash",
+              "source": ".select({ hash: imageEmbeddings.contentHash, captionMeta: imageEmbeddings.captionMeta })"
+            },
+            {
+              "file": "packages/server/src/domain/embeddings/persistence/queries.ts",
+              "line": 152,
+              "text": "input.contentHash",
+              "source": "contentHash: input.contentHash,"
+            },
+            {
+              "file": "packages/server/src/domain/embeddings/persistence/queries.ts",
+              "line": 162,
+              "text": "input.contentHash",
+              "source": "contentHash: input.contentHash,"
+            },
+            {
+              "file": "packages/server/src/domain/embeddings/persistence/queries.ts",
+              "line": 200,
+              "text": "input.contentHash",
+              "source": "contentHash: input.contentHash,"
+            },
+            {
+              "file": "packages/server/src/domain/embeddings/persistence/queries.ts",
+              "line": 212,
+              "text": "input.contentHash",
+              "source": "contentHash: input.contentHash,"
+            },
+            {
+              "file": "packages/server/src/domain/embeddings/persistence/queries.ts",
+              "line": 228,
+              "text": "chatSegments.contentHash",
+              "source": ".select({ hash: chatSegments.contentHash })"
+            },
+            {
+              "file": "packages/server/src/domain/embeddings/persistence/queries.ts",
+              "line": 256,
+              "text": "chatDigests.contentHash",
+              "source": ".select({ hash: chatDigests.contentHash })"
+            },
+            {
+              "file": "packages/server/src/domain/embeddings/persistence/queries.ts",
+              "line": 304,
+              "text": "input.contentHash",
+              "source": "contentHash: input.contentHash,"
+            },
+            {
+              "file": "packages/server/src/domain/embeddings/persistence/queries.ts",
+              "line": 317,
+              "text": "input.contentHash",
+              "source": "contentHash: input.contentHash,"
+            },
+            {
+              "file": "packages/server/src/domain/embeddings/persistence/queries.ts",
+              "line": 369,
+              "text": "input.contentHash",
+              "source": "contentHash: input.contentHash,"
+            },
+            {
+              "file": "packages/server/src/domain/embeddings/persistence/queries.ts",
+              "line": 383,
+              "text": "input.contentHash",
+              "source": "contentHash: input.contentHash,"
+            },
+            {
+              "file": "packages/server/src/domain/embeddings/persistence/queries.ts",
+              "line": 416,
+              "text": "documentChunks.contentHash",
+              "source": ".select({ hash: documentChunks.contentHash })"
+            },
+            {
+              "file": "packages/server/src/domain/embeddings/persistence/queries.ts",
+              "line": 488,
+              "text": "input.contentHash",
+              "source": "contentHash: input.contentHash,"
+            },
+            {
+              "file": "packages/server/src/domain/embeddings/persistence/queries.ts",
+              "line": 501,
+              "text": "input.contentHash",
+              "source": "contentHash: input.contentHash,"
+            },
+            {
+              "file": "packages/server/src/domain/embeddings/persistence/clear.ts",
+              "line": 123,
+              "text": "chatDigests.contentHash",
+              "source": "const targeted = keys.map((k) => and(eq(chatDigests.tier, k.tier), eq(chatDigests.blockIdx, k.blockIdx), eq(chatDigests.contentHash, k.staleHash)));"
+            },
+            {
+              "file": "packages/server/src/domain/embeddings/verbs/store-segments.ts",
+              "line": 57,
+              "text": "p.contentHash",
+              "source": "return generation === undefined || existing[index] === p.contentHash ? [] : [{ index, params: p, generation }];"
+            },
+            {
+              "file": "packages/server/src/domain/embeddings/verbs/store-segments.ts",
+              "line": 109,
+              "text": "p.contentHash",
+              "source": "const results: StoreResult[] = params.map((p) => ({ outcome: \"noop\", contentHash: p.contentHash, model: p.model }));"
+            },
+            {
+              "file": "packages/server/src/domain/embeddings/verbs/store-segments.ts",
+              "line": 130,
+              "text": "p.contentHash",
+              "source": "contentHash: p.contentHash,"
+            },
+            {
+              "file": "packages/server/src/domain/embeddings/verbs/store-segments.ts",
+              "line": 136,
+              "text": "p.contentHash",
+              "source": "results[item.index] = { outcome: \"written\", contentHash: p.contentHash, model: embedded.model };"
+            },
+            {
+              "file": "packages/server/src/domain/embeddings/verbs/store.ts",
+              "line": 221,
+              "text": "p.contentHash",
+              "source": "const hash = p.contentHash;"
+            },
+            {
+              "file": "packages/server/src/domain/discovery/duplicates/generate.ts",
+              "line": 91,
+              "text": "r.contentHash",
+              "source": "(r) => r.contentHash,"
+            },
+            {
+              "file": "packages/server/src/domain/discovery/duplicates/generate.ts",
+              "line": 181,
+              "text": "row.contentHash",
+              "source": "sets.set(row.chatId, new Set([row.contentHash]));"
+            },
+            {
+              "file": "packages/server/src/domain/discovery/duplicates/generate.ts",
+              "line": 183,
+              "text": "row.contentHash",
+              "source": "set.add(row.contentHash);"
+            },
+            {
+              "file": "packages/server/src/domain/discovery/themes/generate.ts",
+              "line": 96,
+              "text": "r.contentHash",
+              "source": "(r) => r.contentHash,"
+            },
+            {
+              "file": "packages/server/src/domain/discovery/persistence/embed-store-reads.ts",
+              "line": 80,
+              "text": "characterEmbeddings.contentHash",
+              "source": ".select({ characterId: characterEmbeddings.characterId, contentHash: characterEmbeddings.contentHash })"
+            },
+            {
+              "file": "packages/server/src/domain/discovery/persistence/embed-store-reads.ts",
+              "line": 95,
+              "text": "characterEmbeddings.contentHash",
+              "source": "contentHash: characterEmbeddings.contentHash,"
+            },
+            {
+              "file": "packages/server/src/domain/discovery/persistence/embed-store-reads.ts",
+              "line": 113,
+              "text": "characterEmbeddings.contentHash",
+              "source": "contentHash: characterEmbeddings.contentHash,"
+            },
+            {
+              "file": "packages/server/src/domain/discovery/persistence/embed-store-reads.ts",
+              "line": 128,
+              "text": "chatDigests.contentHash",
+              "source": "contentHash: chatDigests.contentHash,"
+            },
+            {
+              "file": "packages/server/src/domain/discovery/persistence/embed-store-reads.ts",
+              "line": 150,
+              "text": "chatSegments.contentHash",
+              "source": "contentHash: chatSegments.contentHash,"
+            },
+            {
+              "file": "packages/server/src/domain/discovery/persistence/embed-store-reads.ts",
+              "line": 172,
+              "text": "imageEmbeddings.contentHash",
+              "source": "contentHash: imageEmbeddings.contentHash,"
+            },
+            {
+              "file": "packages/server/src/domain/discovery/persistence/embed-store-reads.ts",
+              "line": 282,
+              "text": "chatDigests.contentHash",
+              "source": "contentHash: chatDigests.contentHash,"
+            },
+            {
+              "file": "packages/server/src/domain/discovery/persistence/embed-store-reads.ts",
+              "line": 317,
+              "text": "chatDigests.contentHash",
+              "source": "contentHash: chatDigests.contentHash,"
+            },
+            {
+              "file": "packages/server/src/domain/discovery/persistence/embed-store-reads.ts",
+              "line": 348,
+              "text": "chatSegments.contentHash",
+              "source": "contentHash: chatSegments.contentHash,"
+            },
+            {
+              "file": "packages/server/src/domain/discovery/cooccurrence/generate.ts",
+              "line": 184,
+              "text": "d.contentHash",
+              "source": "(d) => d.contentHash,"
+            },
+            {
+              "file": "packages/server/src/domain/discovery/cooccurrence/generate.ts",
+              "line": 185,
+              "text": "d.contentHash",
+              "source": "(d) => `${d.scopedCharacterId} ${d.contentHash}`,"
+            },
+            {
+              "file": "packages/server/src/domain/discovery/verbs/views.ts",
+              "line": 56,
+              "text": "r.contentHash",
+              "source": "(r) => r.contentHash,"
+            },
+            {
+              "file": "packages/server/src/domain/discovery/verbs/compute-hub-scores.ts",
+              "line": 95,
+              "text": "r.contentHash",
+              "source": "(r) => r.contentHash,"
+            },
+            {
+              "file": "packages/server/src/domain/discovery/verbs/archetypes.ts",
+              "line": 123,
+              "text": "r.contentHash",
+              "source": "(r) => r.contentHash,"
+            },
+            {
+              "file": "packages/server/src/domain/chat/memory/persistence/queries.ts",
+              "line": 93,
+              "text": "chatDigests.contentHash",
+              "source": "contentHash: chatDigests.contentHash,"
+            },
+            {
+              "file": "packages/server/src/domain/chat/memory/persistence/queries.ts",
+              "line": 100,
+              "text": "r.contentHash",
+              "source": "out.set(`${r.tier}:${r.blockIdx}`, r.contentHash);"
+            },
+            {
+              "file": "packages/server/src/domain/chat/memory/persistence/queries.ts",
+              "line": 111,
+              "text": "chatSegments.contentHash",
+              "source": ".select({ blockIdx: chatSegments.blockIdx, chunkIdx: chatSegments.chunkIdx, contentHash: chatSegments.contentHash })"
+            },
+            {
+              "file": "packages/server/src/domain/chat/memory/persistence/queries.ts",
+              "line": 117,
+              "text": "r.contentHash",
+              "source": "out.set(`${r.blockIdx}:${r.chunkIdx}`, r.contentHash);"
+            },
+            {
+              "file": "packages/server/src/domain/chat/memory/persistence/queries.ts",
+              "line": 153,
+              "text": "chatDigests.contentHash",
+              "source": "contentHash: chatDigests.contentHash,"
+            },
+            {
+              "file": "packages/server/src/domain/chat/memory/build/digests.ts",
+              "line": 579,
+              "text": "c.contentHash",
+              "source": "ordered.map((c) => c.contentHash),"
+            }
+          ]
+        },
+        "tsx": {
+          "pattern": "$OBJ.contentHash",
+          "exit": 1,
+          "hit_count": 0,
+          "scanned_file_count": 1409,
+          "skipped_file_count": 0,
+          "hits": []
+        }
+      },
+      "hit_classification": "The 117 TypeScript hits are detail/persistence/search/discovery/embedding shapes; packages/server/src/domain/character/persistence/queries.ts:806 is the CharacterSummary producer. No CharacterSummary consumer occurs."
+    },
+    {
+      "ordinal": 15,
+      "owner": "ChatSummary",
+      "field": "parentChatId",
+      "candidate": {
+        "file": "packages/server/src/domain/chat/contract/views.ts",
+        "line": 69
+      },
+      "disposition": "confirmed_dead_cleanup",
+      "reason": "The summary contract says this marks a fork in the list, but the current chat-list implementation never reads it. Same-name production reads are ChatDetail/database lineage consumers, not ChatSummary consumers.",
+      "evidence": [
+        "packages/server/src/domain/chat/contract/views.ts:60-70",
+        "packages/server/src/domain/chat/verbs/read.ts:308"
+      ],
+      "recommendation": "remove this member from the view/result projection and adjust only directly coupled fixtures/tests; preserve same-name persistence/domain fields",
+      "structural_sweep": {
+        "ts": {
+          "pattern": "$OBJ.parentChatId",
+          "exit": 0,
+          "hit_count": 23,
+          "scanned_file_count": 6446,
+          "skipped_file_count": 0,
+          "hits": [
+            {
+              "file": "tests/server/transport/trpc/routers/chat.test.ts",
+              "line": 723,
+              "text": "result.chat.parentChatId",
+              "source": "expect(result.chat.parentChatId).toBe(CHAT);"
+            },
+            {
+              "file": "packages/server/src/domain/chat/substrate/chat-detail.ts",
+              "line": 58,
+              "text": "chat.parentChatId",
+              "source": "parentChatId: chat.parentChatId,"
+            },
+            {
+              "file": "packages/server/src/domain/chat/persistence/queries.ts",
+              "line": 96,
+              "text": "chats.parentChatId",
+              "source": "parentChatId: chats.parentChatId,"
+            },
+            {
+              "file": "packages/server/src/domain/chat/persistence/queries.ts",
+              "line": 474,
+              "text": "chats.parentChatId",
+              "source": "const rows = await db.select(chatRowSelection).from(chats).where(eq(chats.parentChatId, parentChatId)).orderBy(desc(chats.createdAt));"
+            },
+            {
+              "file": "packages/server/src/domain/chat/persistence/queries.ts",
+              "line": 580,
+              "text": "row.parentChatId",
+              "source": "current = row.parentChatId ?? undefined;"
+            },
+            {
+              "file": "packages/server/src/domain/discovery/duplicates/generate.ts",
+              "line": 235,
+              "text": "e.parentChatId",
+              "source": "const roots = forkRoots(new Map(lineage.map((e) => [e.chatId, e.parentChatId])));"
+            },
+            {
+              "file": "packages/server/src/domain/discovery/persistence/embed-store-reads.ts",
+              "line": 373,
+              "text": "chats.parentChatId",
+              "source": "parentChatId: chats.parentChatId,"
+            },
+            {
+              "file": "packages/server/src/domain/export/verbs/export-chat.ts",
+              "line": 157,
+              "text": "chat.parentChatId",
+              "source": "if (chat.parentChatId !== null) {"
+            },
+            {
+              "file": "packages/server/src/domain/export/verbs/export-chat.ts",
+              "line": 158,
+              "text": "chat.parentChatId",
+              "source": "const [parent] = await ctx.db.select({ importedFrom: chats.importedFrom }).from(chats).where(eq(chats.id, chat.parentChatId)).limit(1);"
+            },
+            {
+              "file": "tests/server/domain/export/verbs/export-chat.int.test.ts",
+              "line": 42,
+              "text": "over.parentChatId",
+              "source": "parentChatId: over.parentChatId ?? null,"
+            },
+            {
+              "file": "packages/server/src/domain/chat/verbs/participants.ts",
+              "line": 748,
+              "text": "chat.parentChatId",
+              "source": "forked: chat.parentChatId !== null,"
+            },
+            {
+              "file": "tests/server/domain/chat/_support.ts",
+              "line": 190,
+              "text": "overrides.parentChatId",
+              "source": "parentChatId: overrides.parentChatId ?? null,"
+            },
+            {
+              "file": "packages/db/src/schema/chat.ts",
+              "line": 210,
+              "text": "t.parentChatId",
+              "source": "index(\"chats_parent_idx\").on(t.parentChatId),"
+            },
+            {
+              "file": "packages/server/src/foundation/observability/debug/inspect/config.ts",
+              "line": 255,
+              "text": "r.parentChatId",
+              "source": "parentChatId: r.parentChatId,"
+            },
+            {
+              "file": "packages/server/src/domain/chat/verbs/read.ts",
+              "line": 308,
+              "text": "row.parentChatId",
+              "source": "parentChatId: row.parentChatId,"
+            },
+            {
+              "file": "tests/server/domain/chat/persistence/import-write.int.test.ts",
+              "line": 372,
+              "text": "chats.parentChatId",
+              "source": "const rows = await db.select({ id: chats.id, importedFrom: chats.importedFrom, parentChatId: chats.parentChatId }).from(chats);"
+            },
+            {
+              "file": "tests/server/domain/chat/verbs/fork.int.test.ts",
+              "line": 295,
+              "text": "chat.parentChatId",
+              "source": "expect(chat.parentChatId).toBe(chatId);"
+            },
+            {
+              "file": "tests/server/domain/chat/verbs/fork.int.test.ts",
+              "line": 479,
+              "text": "chat.parentChatId",
+              "source": "expect(chat.parentChatId).toBe(chatId);"
+            },
+            {
+              "file": "tests/server/domain/chat/verbs/fork.int.test.ts",
+              "line": 510,
+              "text": "chat.parentChatId",
+              "source": "expect(chat.parentChatId).toBe(chatId);"
+            },
+            {
+              "file": "tests/server/domain/chat/verbs/fork.int.test.ts",
+              "line": 1225,
+              "text": "chat.parentChatId",
+              "source": "expect(chat.parentChatId).toBe(chatId);"
+            },
+            {
+              "file": "tests/server/domain/chat/verbs/fork.int.test.ts",
+              "line": 1239,
+              "text": "chat.parentChatId",
+              "source": "expect(chat.parentChatId).toBe(chatId);"
+            },
+            {
+              "file": "tests/server/domain/chat/verbs/fork.int.test.ts",
+              "line": 1257,
+              "text": "chats.parentChatId",
+              "source": "expect(await db.select({ id: chats.id }).from(chats).where(eq(chats.parentChatId, chatId))).toEqual([]);"
+            },
+            {
+              "file": "tests/server/domain/chat/verbs/fork.int.test.ts",
+              "line": 1271,
+              "text": "chats.parentChatId",
+              "source": "expect(await db.select({ id: chats.id }).from(chats).where(eq(chats.parentChatId, chatId))).toEqual([]);"
+            }
+          ]
+        },
+        "tsx": {
+          "pattern": "$OBJ.parentChatId",
+          "exit": 1,
+          "hit_count": 0,
+          "scanned_file_count": 1409,
+          "skipped_file_count": 0,
+          "hits": []
+        }
+      },
+      "hit_classification": "The 23 TypeScript hits are chat rows/details/lineage and tests; packages/server/src/domain/chat/verbs/read.ts:308 is the ChatSummary producer. No ChatSummary consumer occurs."
+    },
+    {
+      "ordinal": 16,
+      "owner": "ChatSummary",
+      "field": "participantCharacterIds",
+      "candidate": {
+        "file": "packages/server/src/domain/chat/contract/views.ts",
+        "line": 118
+      },
+      "disposition": "confirmed_dead_cleanup",
+      "reason": "Production list rendering now consumes participantPortraits; its comment explicitly says that projection replaced the client-side participantCharacterIds map. The sole member-access hit is a test fixture emulating server characterId filtering.",
+      "evidence": [
+        "packages/client/src/features/chat/lib/chat-summary-row.ts:29-33",
+        "tests/client/features/chat/fixtures.ts:54"
+      ],
+      "recommendation": "remove this member from the view/result projection and adjust only directly coupled fixtures/tests; preserve same-name persistence/domain fields",
+      "structural_sweep": {
+        "ts": {
+          "pattern": "$OBJ.participantCharacterIds",
+          "exit": 0,
+          "hit_count": 1,
+          "scanned_file_count": 6446,
+          "skipped_file_count": 0,
+          "hits": [
+            {
+              "file": "tests/client/features/chat/fixtures.ts",
+              "line": 54,
+              "text": "chat.participantCharacterIds",
+              "source": "const scoped = all.filter((chat) => args.characterId === undefined || chat.participantCharacterIds.includes(args.characterId));"
+            }
+          ]
+        },
+        "tsx": {
+          "pattern": "$OBJ.participantCharacterIds",
+          "exit": 1,
+          "hit_count": 0,
+          "scanned_file_count": 1409,
+          "skipped_file_count": 0,
+          "hits": []
+        }
+      },
+      "hit_classification": "The only member-access hit is tests/client/features/chat/fixtures.ts:54; production reads are absent. Bare-name locals elsewhere are unrelated RPG/read projection vocabulary."
+    },
+    {
+      "ordinal": 17,
+      "owner": "ChatLineageView",
+      "field": "chain",
+      "candidate": {
+        "file": "packages/server/src/domain/chat/contract/views.ts",
+        "line": 268
+      },
+      "disposition": "deliberate_write_only_external_protocol",
+      "reason": "chain is the sole payload of the dedicated getChatLineage endpoint and is exercised by the endpoint integration test. There is no current client caller, but deleting the field is equivalent to deleting the protocol rather than trimming an accidental member.",
+      "evidence": [
+        "packages/server/src/domain/chat/contract/views.ts:263-269",
+        "tests/server/domain/chat/verbs/read.int.test.ts:891-901"
+      ],
+      "recommendation": "no_edit"
+    },
+    {
+      "ordinal": 18,
+      "owner": "ConnectionCapabilityView",
+      "field": "baseline",
+      "candidate": {
+        "file": "packages/server/src/domain/connection/contract/results.ts",
+        "line": 29
+      },
+      "disposition": "unresolved",
+      "reason": "The server already returns baseline and the client model already accepts it, but the one production call omits it. Comments explicitly reserve this as the #2478 wiring seam, so this is an unfinished live feature rather than verified deletion material.",
+      "evidence": [
+        "packages/client/src/features/credentials/components/connection-editor.tsx:98",
+        "packages/client/src/features/credentials/components/connection-editor.tsx:212-216",
+        "packages/client/src/features/credentials/lib/connection-fact-model.ts:381-386"
+      ],
+      "recommendation": "no_edit"
+    },
+    {
+      "ordinal": 19,
+      "owner": "CredentialView",
+      "field": "hasMetadata",
+      "candidate": {
+        "file": "packages/server/src/domain/credentials/contract/views.ts",
+        "line": 15
+      },
+      "disposition": "confirmed_dead_cleanup",
+      "reason": "The credential projector emits this boolean and one server test asserts it, but no production consumer reads it; credential UI behavior uses provider/label/revocation identity instead.",
+      "evidence": [
+        "packages/server/src/domain/credentials/persistence/queries.ts:145",
+        "tests/server/domain/credentials/verbs/add.int.test.ts:64"
+      ],
+      "recommendation": "remove this member from the view/result projection and adjust only directly coupled fixtures/tests; preserve same-name persistence/domain fields",
+      "structural_sweep": {
+        "ts": {
+          "pattern": "$OBJ.hasMetadata",
+          "exit": 0,
+          "hit_count": 1,
+          "scanned_file_count": 6446,
+          "skipped_file_count": 0,
+          "hits": [
+            {
+              "file": "tests/server/domain/credentials/verbs/add.int.test.ts",
+              "line": 64,
+              "text": "view.hasMetadata",
+              "source": "expect(view.hasMetadata).toBe(true);"
+            }
+          ]
+        },
+        "tsx": {
+          "pattern": "$OBJ.hasMetadata",
+          "exit": 1,
+          "hit_count": 0,
+          "scanned_file_count": 1409,
+          "skipped_file_count": 0,
+          "hits": []
+        }
+      },
+      "hit_classification": "Hits are the named view producer and/or persistence/test behavior; no production consumer of the candidate view member occurs."
+    },
+    {
+      "ordinal": 20,
+      "owner": "DocumentDetailView",
+      "field": "extractorVersion",
+      "candidate": {
+        "file": "packages/server/src/domain/databank/contract/views.ts",
+        "line": 18
+      },
+      "disposition": "unresolved",
+      "reason": "The contract promises a re-extract-on-upgrade affordance, but the current document detail UI does not read the value. This may be stale payload or a missing promised affordance; source alone does not authorize deletion.",
+      "evidence": [
+        "packages/server/src/domain/databank/contract/views.ts:12-19",
+        "packages/server/src/domain/databank/verbs/get.ts:34"
+      ],
+      "recommendation": "no_edit"
+    },
+    {
+      "ordinal": 21,
+      "owner": "PluginView",
+      "field": "consecutiveCrashes",
+      "candidate": {
+        "file": "packages/server/src/domain/plugin/contract/results.ts",
+        "line": 84
+      },
+      "disposition": "confirmed_dead_cleanup",
+      "reason": "Crash accounting remains live in persistence, but PluginView merely projects the counter and no production consumer reads that projected member.",
+      "evidence": [
+        "packages/server/src/domain/plugin/persistence/plugins.ts:65",
+        "packages/server/src/domain/plugin/persistence/plugins.ts:329-331"
+      ],
+      "recommendation": "remove this member from the view/result projection and adjust only directly coupled fixtures/tests; preserve same-name persistence/domain fields",
+      "structural_sweep": {
+        "ts": {
+          "pattern": "$OBJ.consecutiveCrashes",
+          "exit": 0,
+          "hit_count": 3,
+          "scanned_file_count": 6446,
+          "skipped_file_count": 0,
+          "hits": [
+            {
+              "file": "packages/server/src/domain/plugin/persistence/plugins.ts",
+              "line": 65,
+              "text": "row.consecutiveCrashes",
+              "source": "consecutiveCrashes: row.consecutiveCrashes,"
+            },
+            {
+              "file": "packages/server/src/domain/plugin/persistence/plugins.ts",
+              "line": 329,
+              "text": "plugins.consecutiveCrashes",
+              "source": ".set({ consecutiveCrashes: sql`${plugins.consecutiveCrashes} + 1`, updatedAt })"
+            },
+            {
+              "file": "packages/server/src/domain/plugin/persistence/plugins.ts",
+              "line": 331,
+              "text": "plugins.consecutiveCrashes",
+              "source": ".returning({ consecutiveCrashes: plugins.consecutiveCrashes });"
+            }
+          ]
+        },
+        "tsx": {
+          "pattern": "$OBJ.consecutiveCrashes",
+          "exit": 1,
+          "hit_count": 0,
+          "scanned_file_count": 1409,
+          "skipped_file_count": 0,
+          "hits": []
+        }
+      },
+      "hit_classification": "Hits are the named view producer and/or persistence/test behavior; no production consumer of the candidate view member occurs."
+    },
+    {
+      "ordinal": 22,
+      "owner": "PluginView",
+      "field": "installedAt",
+      "candidate": {
+        "file": "packages/server/src/domain/plugin/contract/results.ts",
+        "line": 86
+      },
+      "disposition": "deliberate_write_only_external_protocol",
+      "reason": "installedAt is the immutable lifecycle timestamp of the installed-plugin wire record. The current surface does not render it, but it is protocol metadata distinct from mutable updatedAt.",
+      "evidence": [
+        "packages/server/src/domain/plugin/contract/results.ts:83-87"
+      ],
+      "recommendation": "no_edit"
+    },
+    {
+      "ordinal": 23,
+      "owner": "DistributedPluginView",
+      "field": "distributedAt",
+      "candidate": {
+        "file": "packages/server/src/domain/plugin/contract/results.ts",
+        "line": 159
+      },
+      "disposition": "deliberate_write_only_external_protocol",
+      "reason": "The distribution policy record deliberately preserves first-publication time across republish and orders rows by it. No current client invokes the admin endpoint, but the timestamp is part of that external administration protocol.",
+      "evidence": [
+        "packages/server/src/domain/plugin/contract/results.ts:151-160",
+        "packages/server/src/domain/plugin/persistence/distributed-plugins.ts:31-48"
+      ],
+      "recommendation": "no_edit"
+    },
+    {
+      "ordinal": 24,
+      "owner": "RevokedSessionsSummary",
+      "field": "revoked",
+      "candidate": {
+        "file": "packages/server/src/domain/sessions/contract/results.ts",
+        "line": 52
+      },
+      "disposition": "tool_defect",
+      "reason": "This internal server summary is destructured by the OIDC back-channel logout route and revoked is logged as the settled result.",
+      "evidence": [
+        "packages/server/src/entry/http/auth-routes.ts:873-880"
+      ],
+      "recommendation": "no_edit"
+    },
+    {
+      "ordinal": 25,
+      "owner": "RevokedSessionsSummary",
+      "field": "userIds",
+      "candidate": {
+        "file": "packages/server/src/domain/sessions/contract/results.ts",
+        "line": 53
+      },
+      "disposition": "tool_defect",
+      "reason": "This internal server summary is destructured by the OIDC back-channel logout route and userIds drives live socket eviction.",
+      "evidence": [
+        "packages/server/src/entry/http/auth-routes.ts:873-879"
+      ],
+      "recommendation": "no_edit"
+    },
+    {
+      "ordinal": 26,
+      "owner": "OwnerStatsView",
+      "field": "systemTurns",
+      "candidate": {
+        "file": "packages/server/src/domain/stats/contract/views.ts",
+        "line": 35
+      },
+      "disposition": "deliberate_write_only_external_protocol",
+      "reason": "systemTurns is a first-class owner/character rollup metric. The current analytics surface omits it, but it remains a coherent member of the externally returned statistics protocol.",
+      "evidence": [
+        "packages/server/src/domain/stats/contract/views.ts:30-39"
+      ],
+      "recommendation": "no_edit"
+    },
+    {
+      "ordinal": 27,
+      "owner": "OwnerStatsView",
+      "field": "contentBytes",
+      "candidate": {
+        "file": "packages/server/src/domain/stats/contract/views.ts",
+        "line": 53
+      },
+      "disposition": "deliberate_write_only_external_protocol",
+      "reason": "contentBytes is a first-class corpus-size metric in the owner/character stats DTO. Current UI omission alone does not make the metric semantically dead.",
+      "evidence": [
+        "packages/server/src/domain/stats/contract/views.ts:45-56"
+      ],
+      "recommendation": "no_edit"
+    },
+    {
+      "ordinal": 28,
+      "owner": "OwnerStatsView",
+      "field": "firstChatAt",
+      "candidate": {
+        "file": "packages/server/src/domain/stats/contract/views.ts",
+        "line": 54
+      },
+      "disposition": "deliberate_write_only_external_protocol",
+      "reason": "firstChatAt is lifecycle chronology in the owner/character stats DTO. It is also independently meaningful in leaderboard/wrapped records even though this particular projection is not rendered.",
+      "evidence": [
+        "packages/server/src/domain/stats/contract/views.ts:53-56",
+        "packages/server/src/domain/stats/contract/views.ts:64-76"
+      ],
+      "recommendation": "no_edit"
+    },
+    {
+      "ordinal": 29,
+      "owner": "WrappedSummary",
+      "field": "firstChatAt",
+      "candidate": {
+        "file": "packages/server/src/domain/stats/contract/views.ts",
+        "line": 152
+      },
+      "disposition": "deliberate_write_only_external_protocol",
+      "reason": "The wrapped endpoint is an analytics summary protocol; firstChatAt defines the covered history even though the current overview renders later activity metrics.",
+      "evidence": [
+        "packages/server/src/domain/stats/contract/views.ts:151-168",
+        "packages/client/src/features/stats/surfaces/analytics-overview-surface.tsx:73-92"
+      ],
+      "recommendation": "no_edit"
+    },
+    {
+      "ordinal": 30,
+      "owner": "WrappedSummary",
+      "field": "avgSwipeDepth",
+      "candidate": {
+        "file": "packages/server/src/domain/stats/contract/views.ts",
+        "line": 162
+      },
+      "disposition": "deliberate_write_only_external_protocol",
+      "reason": "Average swipe depth is a meaningful generated metric of the wrapped analytics protocol; current overview omission is not evidence that its producer or external result is obsolete.",
+      "evidence": [
+        "packages/server/src/domain/stats/contract/views.ts:151-168"
+      ],
+      "recommendation": "no_edit"
+    },
+    {
+      "ordinal": 31,
+      "owner": "WrappedSummary",
+      "field": "swipeRate",
+      "candidate": {
+        "file": "packages/server/src/domain/stats/contract/views.ts",
+        "line": 163
+      },
+      "disposition": "deliberate_write_only_external_protocol",
+      "reason": "Swipe rate is a meaningful generated metric of the wrapped analytics protocol; current overview omission is not evidence that its producer or external result is obsolete.",
+      "evidence": [
+        "packages/server/src/domain/stats/contract/views.ts:151-168"
+      ],
+      "recommendation": "no_edit"
+    },
+    {
+      "ordinal": 32,
+      "owner": "StructuredRetrySummary",
+      "field": "issueCount",
+      "candidate": {
+        "file": "packages/server/src/kit/structured-turn/index.ts",
+        "line": 35
+      },
+      "disposition": "tool_defect",
+      "reason": "This server-kit callback summary has three production server readers; classifying it by client reads is categorically wrong.",
+      "evidence": [
+        "packages/server/src/domain/discovery/substrate/structured-retry-trace.ts:33-35",
+        "packages/server/src/domain/refinery/substrate/structured-retry-trace.ts:21-23",
+        "packages/server/src/domain/automation/engine/analysis-arm.ts:487-489"
+      ],
+      "recommendation": "no_edit"
+    },
+    {
+      "ordinal": 33,
+      "owner": "StructuredRetrySummary",
+      "field": "paths",
+      "candidate": {
+        "file": "packages/server/src/kit/structured-turn/index.ts",
+        "line": 37
+      },
+      "disposition": "tool_defect",
+      "reason": "This server-kit callback summary has three production server readers; classifying it by client reads is categorically wrong.",
+      "evidence": [
+        "packages/server/src/domain/discovery/substrate/structured-retry-trace.ts:33-35",
+        "packages/server/src/domain/refinery/substrate/structured-retry-trace.ts:21-23",
+        "packages/server/src/domain/automation/engine/analysis-arm.ts:487-489"
+      ],
+      "recommendation": "no_edit"
+    }
+  ],
+  "limitations": [
+    "ast-grep property patterns are syntax/name based and do not type-resolve same-name properties; every cleanup recommendation therefore includes manual owner classification.",
+    "The TS/TSX scans reported 6446 and 1409 parsed files respectively, slightly above find-based extension counts because ast-grep's language loader includes additional recognized inputs; skippedFileCount was zero.",
+    "External third-party tRPC consumers outside this repository cannot be observed. Fields classified as external protocol receive no deletion recommendation.",
+    "The shared worktree had concurrent uncommitted registry-candidates changes; this review did not edit them or any product/tool source."
+  ]
+}
+

@@ -1,0 +1,405 @@
+{
+  "schemaVersion": 1,
+  "issue": 2524,
+  "sourceSha": "41ae2d2e04cde288c6175fce23435a54de78014d",
+  "status": "implemented_review_refutation_repaired_scoped_checks_green",
+  "scope": {
+    "deletedViewMembers": [
+      "RuleView.consecutiveErrors",
+      "FireView.automationDepth",
+      "CharacterSummary.contentHash",
+      "ChatSummary.parentChatId",
+      "ChatSummary.participantCharacterIds",
+      "CredentialView.hasMetadata",
+      "PluginView.consecutiveCrashes"
+    ],
+    "changedFiles": [
+      "packages/client/src/features/chat/lib/chat-summary-row.ts",
+      "packages/client/src/features/chat/surfaces/chat-list-surface.tsx",
+      "packages/server/src/domain/automation/contract/results.ts",
+      "packages/server/src/domain/automation/persistence/fires.ts",
+      "packages/server/src/domain/automation/persistence/rules.ts",
+      "packages/server/src/domain/character/contract/views.ts",
+      "packages/server/src/domain/character/persistence/queries.ts",
+      "packages/server/src/domain/chat/contract/views.ts",
+      "packages/server/src/domain/chat/persistence/queries.ts",
+      "packages/server/src/domain/chat/verbs/read.ts",
+      "packages/server/src/domain/credentials/contract/views.ts",
+      "packages/server/src/domain/credentials/persistence/queries.ts",
+      "packages/server/src/domain/plugin/contract/results.ts",
+      "packages/server/src/domain/plugin/persistence/plugins.ts",
+      "tests/client/features/character/components/character-chats-projection-shell.ct.tsx",
+      "tests/client/features/character/lib/characters-section.ct.tsx",
+      "tests/client/features/character/surfaces/character-editor-surface.ct.tsx",
+      "tests/client/features/chat/_theme-prose-ct-stories.tsx",
+      "tests/client/features/chat/components/chat-options-menu.ct.tsx",
+      "tests/client/features/chat/components/home-masthead-body.ct.tsx",
+      "tests/client/features/chat/components/home-recents-tile-body.ct.tsx",
+      "tests/client/features/chat/fixtures.ts",
+      "tests/client/features/chat/lib/chat-summary-row.test.ts",
+      "tests/client/features/chat/surfaces/chat-list-surface.ct.tsx",
+      "tests/client/features/credentials/_ct-stories.tsx",
+      "tests/client/features/credentials/components/connections-roles-section.ct.tsx",
+      "tests/client/features/credentials/components/credential-key-row.ct.tsx",
+      "tests/client/features/home/surfaces/home-surface.ct.tsx",
+      "tests/server/domain/automation/engine/dispatch.int.test.ts",
+      "tests/server/domain/automation/engine/prompt-transforms.int.test.ts",
+      "tests/server/domain/automation/substrate/run-now.int.test.ts",
+      "tests/server/domain/chat/contract/metadata.contract.test.ts",
+      "tests/server/domain/chat/persistence/queries.int.test.ts",
+      "tests/server/domain/chat/verbs/read.int.test.ts",
+      "tests/server/domain/credentials/verbs/add.int.test.ts",
+      "tests/server/domain/roster-preset/_support.ts",
+      "tests/server/entry/boot/seed-credential.test.ts",
+      "tests/server/transport/trpc/routers/automation.test.ts"
+    ],
+    "preservedAxes": [
+      "automation rule consecutiveErrors persistence ledger",
+      "automation fire automationDepth persistence and internal event depth",
+      "CharacterDetail.contentHash and all persistence/search hashes",
+      "ChatDetail.parentChatId and persistence fork lineage",
+      "plugin consecutiveCrashes persistence counter"
+    ],
+    "concurrentFilesExcluded": [
+      "docs/reviews/ast-codebase-audit/index.json",
+      "docs/reviews/ast-codebase-audit/world-tools-lens-status-current.json",
+      "docs/reviews/ast-codebase-audit/world-tools-testonly-remaining-triage.json",
+      "docs/reviews/ast-codebase-audit/world-tools-viewgap-triage.json",
+      "packages/server/src/domain/chat/contract/context.ts",
+      "packages/server/src/domain/chat/index.ts",
+      "packages/server/src/domain/chat/verbs/extract-quiet.ts",
+      "tests/tooling/ast/ops/registry-candidates.test.ts",
+      "tooling/src/ast/ops/registry-candidates.ts"
+    ],
+    "sharedFileConcurrentHunkExcluded": "packages/server/src/domain/chat/persistence/queries.ts also contains a concurrent removal of loadTurnForClassify; this lane did not author, revert, or claim that hunk."
+  },
+  "implementation": [
+    {
+      "change": "Removed seven public view/result declarations and their result projections.",
+      "evidence": [
+        "packages/server/src/domain/automation/contract/results.ts:19",
+        "packages/server/src/domain/automation/contract/results.ts:56",
+        "packages/server/src/domain/character/contract/views.ts:52",
+        "packages/server/src/domain/chat/contract/views.ts:62",
+        "packages/server/src/domain/credentials/contract/views.ts:9",
+        "packages/server/src/domain/plugin/contract/results.ts:30"
+      ]
+    },
+    {
+      "change": "Removed the chat-summary-only loadChatParticipantCharacterIds query and direct helper tests; characterId list filtering remains in memberChatScope and is covered at the verb level.",
+      "evidence": [
+        "packages/server/src/domain/chat/persistence/queries.ts:354",
+        "tests/server/domain/chat/verbs/read.int.test.ts"
+      ]
+    },
+    {
+      "change": "Preserved client character-filter test behavior with harness-only filterCharacterIds, stripped before returning wire rows.",
+      "evidence": [
+        "tests/client/features/chat/fixtures.ts:50",
+        "tests/client/features/chat/fixtures.ts:65",
+        "tests/client/features/chat/fixtures.ts:261"
+      ]
+    },
+    {
+      "change": "Moved persistence behavior assertions behind direct DB reads instead of reintroducing deleted view members.",
+      "evidence": [
+        "tests/server/domain/automation/engine/dispatch.int.test.ts:142",
+        "tests/server/domain/automation/engine/prompt-transforms.int.test.ts:66",
+        "tests/server/domain/automation/substrate/run-now.int.test.ts:121",
+        "tests/server/domain/credentials/verbs/add.int.test.ts"
+      ]
+    }
+  ],
+  "redFirst": {
+    "command": "node tooling/src/verify/cli.ts typecheck --config packages/client/tsconfig.json --config packages/server/tsconfig.json --config tooling/tsconfig.json --config tsconfig.json --config tsconfig.tests-dom.json",
+    "state": "declarations removed, projections/tests intentionally still stale",
+    "exitCode": 1,
+    "log": "/tmp/world-tools-viewgap-red.log",
+    "observed": "TS2353/TS2339 failures identified six direct result projectors plus stale tests/fixtures; parentChatId excess-property reporting masked the adjacent participantCharacterIds projector until manual full-file inspection."
+  },
+  "astGrep": {
+    "binaryVersion": "ast-grep 0.45.0",
+    "scope": [
+      "packages",
+      "tests",
+      "tooling",
+      "scripts",
+      "playwright"
+    ],
+    "languages": {
+      "ts": {
+        "scannedFiles": 6446,
+        "skippedFiles": 0,
+        "positiveControlPattern": "$OBJ.id",
+        "prePositiveHits": 8256,
+        "postPositiveHits": 8257
+      },
+      "tsx": {
+        "scannedFiles": 1409,
+        "skippedFiles": 0,
+        "positiveControlPattern": "$OBJ.id",
+        "prePositiveHits": 1131,
+        "postPositiveHits": 1131
+      }
+    },
+    "prePropertyHits": {
+      "consecutiveErrors": {
+        "ts": 4,
+        "tsx": 0
+      },
+      "automationDepth": {
+        "ts": 40,
+        "tsx": 0
+      },
+      "contentHash": {
+        "ts": 117,
+        "tsx": 0
+      },
+      "parentChatId": {
+        "ts": 23,
+        "tsx": 0
+      },
+      "participantCharacterIds": {
+        "ts": 1,
+        "tsx": 0
+      },
+      "hasMetadata": {
+        "ts": 1,
+        "tsx": 0
+      },
+      "consecutiveCrashes": {
+        "ts": 3,
+        "tsx": 0
+      }
+    },
+    "postPropertyHits": {
+      "consecutiveErrors": {
+        "ts": 9,
+        "tsx": 0
+      },
+      "automationDepth": {
+        "ts": 40,
+        "tsx": 0
+      },
+      "contentHash": {
+        "ts": 116,
+        "tsx": 0
+      },
+      "parentChatId": {
+        "ts": 22,
+        "tsx": 0
+      },
+      "participantCharacterIds": {
+        "ts": 0,
+        "tsx": 0
+      },
+      "hasMetadata": {
+        "ts": 0,
+        "tsx": 0
+      },
+      "consecutiveCrashes": {
+        "ts": 2,
+        "tsx": 0
+      }
+    },
+    "artifacts": {
+      "pre": "/tmp/world-tools-viewgap-asg-pre.json",
+      "post": "/tmp/world-tools-viewgap-asg-post.json",
+      "postLiteralSearch": "/tmp/world-tools-viewgap-literal-post.txt"
+    },
+    "classification": {
+      "consecutiveErrors": "9 post TS hits are persistence schema/counter accesses and direct ledger assertions; no RuleView access remains.",
+      "automationDepth": "40 post TS hits are persistence/internal event/engine/plugin depth accesses, including the new direct automation_fires assertion; no FireView projection/access remains. Literal corroboration caught the stale object-literal assertion that member-access AST cannot match.",
+      "contentHash": "116 post TS hits are CharacterDetail, persistence, embeddings/search/discovery, or their tests; CharacterSummary projection/access is gone.",
+      "parentChatId": "22 post TS hits are ChatDetail, persistence, export/discovery/debug, or fork tests; ChatSummary projection/access is gone.",
+      "participantCharacterIds": "0 TS and 0 TSX property-access hits; the chat-summary-only loader and consumers are gone. Harness filtering uses filterCharacterIds and strips it at the adapter door.",
+      "hasMetadata": "0 TS and 0 TSX property-access hits; credential persistence metadata remains and the view omission is explicitly tested.",
+      "consecutiveCrashes": "2 post TS hits are plugin persistence counter increment/returning; PluginView projection/access is gone."
+    }
+  },
+  "verification": [
+    {
+      "name": "affected typecheck plan",
+      "result": "PASS",
+      "receipt": "/tmp/world-tools-viewgap-green-attempt2.log",
+      "details": [
+        "packages/client/tsconfig.json",
+        "packages/server/tsconfig.json",
+        "tooling/tsconfig.json",
+        "tsconfig.json",
+        "tsconfig.tests-dom.json"
+      ]
+    },
+    {
+      "name": "final root contract typecheck after run-now test repair",
+      "result": "PASS",
+      "receipt": "/tmp/world-tools-viewgap-typecheck-final.log",
+      "details": [
+        "tsconfig.json"
+      ]
+    },
+    {
+      "name": "focused node battery",
+      "result": "PASS",
+      "receipt": "/tmp/world-tools-viewgap-node-tests.log",
+      "details": "11 files, 273 tests passed; report reports/runs/test/orbweaver-3535422-2026-09-21T05-35-43-479Z/test-report.json"
+    },
+    {
+      "name": "stale literal FireView consumer regression",
+      "result": "PASS",
+      "receipt": "/tmp/world-tools-viewgap-run-now-scoped.log",
+      "details": "1 file, 5 tests passed; report reports/runs/test/orbweaver-3592556-2026-09-21T05-45-48-454Z/test-report.json"
+    },
+    {
+      "name": "component battery",
+      "result": "PASS",
+      "receipt": "/tmp/world-tools-viewgap-ct.log",
+      "details": "10 files, 243 passed, 0 failed, 0 flaky, 0 skipped"
+    },
+    {
+      "name": "Biome",
+      "result": "PASS",
+      "receipt": [
+        "/tmp/world-tools-viewgap-biome.log",
+        "/tmp/world-tools-viewgap-biome-final.log"
+      ],
+      "details": "37 changed files plus final run-now test; initial pass found one import-order issue, corrected mechanically, rerun green"
+    },
+    {
+      "name": "ESLint",
+      "result": "PASS",
+      "receipt": [
+        "/tmp/world-tools-viewgap-eslint.log",
+        "/tmp/world-tools-viewgap-eslint-final.log"
+      ],
+      "details": "37 changed files plus final run-now test"
+    },
+    {
+      "name": "diff whitespace",
+      "result": "PASS",
+      "details": "git diff --check exit 0"
+    }
+  ],
+  "nonVerdicts": [
+    {
+      "command": "pnpm test tests/server/domain/automation/substrate/run-now.int.test.ts",
+      "count": 2,
+      "reason": "pnpm test expands to the broad runtime+CT battery; duplicate process groups were terminated at approximately 39s and 4s after detection. No result used."
+    },
+    {
+      "command": "pnpm test:node -- tests/server/domain/automation/substrate/run-now.int.test.ts",
+      "count": 1,
+      "reason": "Orchestrator-provided spelling forwarded `--` before the path, so Vitest ran unrelated runtime suites. Process group terminated at approximately 2m15s. No result used; superseded by pnpm test:scoped."
+    }
+  ],
+  "surprises": [
+    "The property-access AST pattern does not match object-literal keys. Literal corroboration found tests/server/domain/automation/substrate/run-now.int.test.ts still asserting automationDepth on FireView; it now separately proves public omission and stored depth.",
+    "ChatSummary participantCharacterIds also powered a client test adapter character filter. The adapter now owns filterCharacterIds and strips it before returning the wire row, preserving the intentional test entry point.",
+    "Removing ChatSummary.participantCharacterIds made loadChatParticipantCharacterIds dead; its helper-level fixture tests were removed while verb-level character-scoped/departed/deduped behavior remains."
+  ],
+  "limitations": [
+    "No full pnpm check or full runtime/CT suite was run in this lane; the requested affected native configs and focused behavioral batteries were run.",
+    "A concurrent structure run was observed and allowed to finish, but its output belongs to another lane and is not claimed here.",
+    "The worktree contains concurrent unrelated edits listed under scope.concurrentFilesExcluded.",
+    "During the final diff inspection, ordinary Git commands began reporting `fatal: this operation must be run in a work tree` because shared repository core.bare became true. Read-only diff verification succeeded with explicit GIT_DIR/GIT_WORK_TREE. The recorded remediation SHA is the worktree HEAD read immediately before that transition."
+  ],
+  "sourceShaAtRemediation": "41ae2d2e04cde288c6175fce23435a54de78014d",
+  "preMergeReviewRemediation": {
+    "review": "/tmp/world-tools-cleanup-combined-review.json",
+    "refutedClaim": "Untyped routeTrpc fixture producers still emitted four removed public fields despite green typecheck/CT.",
+    "changedFiles": [
+      "tests/client/features/automation/components/owner-automation-sections.ct.tsx",
+      "tests/client/features/automation/components/rules-section.ct.tsx",
+      "tests/client/features/character/fixtures.ts",
+      "tests/client/features/plugin/surfaces/page-dialog-frame.suite.ct.tsx",
+      "tests/client/features/plugin/lib/chat-anchors.ct.tsx",
+      "tests/client/features/plugin/lib/tool-card.ct.tsx",
+      "tests/client/features/plugin/components/plugin-primary-cta.suite.ct.tsx",
+      "tests/client/features/plugin/components/plugin-frame.ct.tsx",
+      "tests/client/features/plugin/components/plugin-message-footer-surfaces.ct.tsx",
+      "tests/client/features/plugin/components/plugin-scripted-surface.ct.tsx",
+      "tests/client/features/plugin/components/extensions-list-header.ct.tsx",
+      "tests/client/features/plugin/lib/extensions-section.ct.tsx",
+      "tests/client/features/plugin/components/plugin-surface-renderer.ct.tsx",
+      "tests/client/features/plugin/components/plugins-install-section.ct.tsx"
+    ],
+    "removedFixtureFields": {
+      "RuleView.consecutiveErrors": {
+        "tsxObjectPairs": "2 -> 0"
+      },
+      "FireView.automationDepth": {
+        "tsxObjectPairs": "5 -> 1",
+        "classification": "four FireView fixture keys removed; sole remaining TSX object pair is a legitimate ChatBusEvent at tests/client/features/chat/lib/chats-section.ct.tsx"
+      },
+      "CharacterSummary.contentHash": {
+        "tsObjectPairs": "362 -> 361",
+        "tsReadonlyPropertySignatures": "31 -> 30",
+        "classification": "summary declaration and producer removed; CharacterDetail fixture declaration/producer preserved"
+      },
+      "PluginView.consecutiveCrashes": {
+        "tsxObjectPairs": "11 -> 0"
+      }
+    },
+    "astGrep": {
+      "version": "0.45.0",
+      "scope": [
+        "packages",
+        "tests",
+        "tooling",
+        "scripts",
+        "playwright"
+      ],
+      "ts": {
+        "scannedFiles": 6446,
+        "skippedFiles": 0,
+        "positiveControl": "$OBJ.id",
+        "positiveHits": 8257
+      },
+      "tsx": {
+        "scannedFiles": 1409,
+        "skippedFiles": 0,
+        "positiveControl": "$OBJ.id",
+        "positiveHits": 1131
+      },
+      "patterns": [
+        "object-literal pair via contextual pattern `{field: $V}` with selector `pair`",
+        "readonly interface member via contextual interface pattern with selector `property_signature`"
+      ],
+      "preArtifact": "/tmp/world-tools-viewgap-fixture-asg-pre.json",
+      "postArtifact": "/tmp/world-tools-viewgap-fixture-asg-post.json"
+    },
+    "verification": [
+      {
+        "command": "node tooling/src/verify/cli.ts typecheck --config packages/client/tsconfig.json --config tsconfig.tests-dom.json",
+        "result": "PASS 2/2",
+        "receipt": "/tmp/world-tools-viewgap-fixture-typecheck.log"
+      },
+      {
+        "command": "pnpm exec biome check <14 remediation files> --diagnostic-level=error",
+        "result": "PASS",
+        "receipt": "/tmp/world-tools-viewgap-fixture-biome.log"
+      },
+      {
+        "command": "pnpm exec eslint <14 remediation files>",
+        "result": "PASS",
+        "receipt": "/tmp/world-tools-viewgap-fixture-eslint.log"
+      },
+      {
+        "command": "pnpm test:ct <13 automation/plugin CT files> --workers=2",
+        "result": "PASS 144 passed, 0 failed, 0 flaky, 0 skipped",
+        "receipt": "/tmp/world-tools-viewgap-fixture-ct.log"
+      },
+      {
+        "command": "pnpm test:ct tests/client/features/character/lib/characters-section.ct.tsx --workers=1",
+        "result": "PASS 12 passed, 0 failed, 0 flaky, 0 skipped",
+        "receipt": "/tmp/world-tools-viewgap-fixture-character-ct.log"
+      },
+      {
+        "command": "GIT_DIR=<worktree gitdir> GIT_WORK_TREE=<checkout> git diff --check",
+        "result": "PASS",
+        "detail": "Explicit git dir/work tree was required after the shared repository configuration changed core.bare to true during the final check."
+      }
+    ],
+    "diffSummary": "14 files changed, 19 deletions; no additions."
+  }
+}

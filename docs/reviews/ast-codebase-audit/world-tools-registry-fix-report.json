@@ -1,0 +1,180 @@
+{
+  "schema": "world-tools-registry-fix-report-v1",
+  "issue": {
+    "number": 2521,
+    "title": "Stop registry-candidates from conflating unrelated key domains"
+  },
+  "worktree": {
+    "head": "41ae2d2e04cde288c6175fce23435a54de78014d",
+    "ownedFiles": [
+      "tooling/src/ast/ops/registry-candidates.ts",
+      "tests/tooling/ast/ops/registry-candidates.test.ts"
+    ]
+  },
+  "implementation": [
+    {
+      "family": "unrelated DOM instance style/target namespaces",
+      "change": "Resolve mutation receiver identity from the lexical or imported root value plus its static member path. Shared imported registries still coalesce; unrelated parameters and local DOM instances remain distinct."
+    },
+    {
+      "family": "quoted Record keys vs switch literals",
+      "change": "Normalize AST StringLiteral property names with getLiteralText before comparing dispatch sets."
+    },
+    {
+      "family": "numeric migration/ordinal collisions",
+      "change": "Classify NumericLiteral and numeric StringLiteral keys structurally, then suppress numeric-only overlap only when both key-axis origins resolve and differ; unresolved primitive axes remain visible."
+    },
+    {
+      "family": "typed registered hand compositions",
+      "change": "Resolve referenced contribution declarations inside typed or satisfies object/array compositions and suppress without-door only when one composition covers the complete sibling group."
+    }
+  ],
+  "controls": {
+    "red": [
+      {
+        "report": "reports/runs/test/orbweaver-3429941-2026-09-21T05-14-53-534Z/test-report.json",
+        "result": "4 failed, 5 passed",
+        "failures": [
+          "unrelated instance style/target values merged",
+          "quoted Record key equality reported as drift",
+          "unrelated numeric records reported as drift",
+          "typed readonly contribution array reported without a door"
+        ]
+      },
+      {
+        "report": "reports/runs/test/orbweaver-3475605-2026-09-21T05-25-03-685Z/test-report.json",
+        "result": "1 failed, 8 passed",
+        "failure": "mixed quoted/unquoted numeric ordinals still collided"
+      }
+    ],
+    "green": {
+      "command": "pnpm test:scoped tests/tooling/ast/ops/registry-candidates.test.ts --maxWorkers=1",
+      "report": "reports/runs/test/orbweaver-3477407-2026-09-21T05-25-29-667Z/test-report.json",
+      "result": "9 passed, 0 failed"
+    },
+    "retainedPositive": "The existing all-four-classes control still reports contribution-without-door, value-side-literal-set, shared-namespace-mutation, and drifted-twins; imported shared-registry alias controls remain positive."
+  },
+  "corpus": {
+    "historical": {
+      "artifact": "docs/reviews/ast-codebase-audit/world-tools-registry-candidates.json",
+      "sourceSha": "af02c24808af5f4b2b29681875c25a2bcab00890",
+      "scanned": 4851,
+      "total": 153,
+      "perKind": {
+        "registry-candidate:drifted-twins": 137,
+        "registry-candidate:contribution-without-door": 14,
+        "registry-candidate:shared-namespace-mutation": 2
+      },
+      "emissionIdentity": "file+line+kind (lossy; distinct comparison records collapsed)"
+    },
+    "intermediate": {
+      "artifact": "/tmp/world-tools-registry-after.json",
+      "summary": "/tmp/world-tools-registry-after-summary.json",
+      "elapsedSeconds": 214.72409213799983,
+      "scanned": 4850,
+      "total": 420,
+      "note": "Exposed the quoted-numeric gap and is not an acceptance result."
+    },
+    "final": {
+      "command": "pnpm ast registry-candidates --json --max 1000",
+      "artifact": "/tmp/world-tools-registry-final.json",
+      "stderr": "/tmp/world-tools-registry-final.stderr",
+      "summary": "/tmp/world-tools-registry-final-summary.json",
+      "exitCode": 0,
+      "elapsedSeconds": 243.67478653602302,
+      "jsonParseable": true,
+      "jsonShape": "single envelope object",
+      "scanned": 4850,
+      "status": "complete",
+      "logicalTotal": 405,
+      "perKind": {
+        "registry-candidate:drifted-twins": 393,
+        "registry-candidate:contribution-without-door": 12,
+        "registry-candidate:shared-namespace-mutation": 0
+      },
+      "legacyFileLineKindProjection": {
+        "total": 140,
+        "perKind": {
+          "registry-candidate:drifted-twins": 128,
+          "registry-candidate:contribution-without-door": 12,
+          "registry-candidate:shared-namespace-mutation": 0
+        },
+        "distinctLogicalRecordsFormerlyCollapsed": 265
+      },
+      "acceptanceStatus": "PRE_REVIEW_ARTIFACT; not rerun after adversarial repair per parent instruction",
+      "limitations": [
+        "The 405-hit corpus predates the review repair. Unknown numeric-axis candidates will reappear in the next authorized corpus run, so 405 is not the repaired denominator."
+      ]
+    },
+    "denominatorExplanation": "The logical total rises from the historical 153 to 405 because #2515 now preserves distinct hit text that the old file/line/kind emission key collapsed. On the historical identity projection, the comparable denominator falls from 153 to 140: drifted twins 137 to 128, contributions 14 to 12, shared mutations 2 to 0. The one-source difference is 4046 TS historically versus 4045 TS in the concurrent current worktree; TSX remains 805.",
+    "auditedSignaturesAbsent": [
+      "probe.style",
+      "event.target",
+      "MULTI_HUMAN_CAPABLE vs switch(config.mode)",
+      "MODE_RESOLVERS vs switch(config.mode)",
+      "VERB_TO_SHELL_LABEL vs switch(invocation.verb)",
+      "switch(verb) vs VERB_HELP",
+      "CONFIG_LIFTS vs ST_REGEX_PLACEMENT_BY_NUMBER",
+      "ST_REGEX_PLACEMENT_BY_NUMBER vs APP_SETTINGS_LIFTS",
+      "APP_SETTINGS_LIFTS vs SWATCH_FILL",
+      "USER_SETTINGS_LIFTS vs SWATCH_FILL",
+      "SWATCH_FILL vs ST_NOTE_POSITIONS",
+      "AVATAR_HUE_STEPS"
+    ],
+    "typedCompositionsRemoved": [
+      "tooling/src/snap/ops/arms registry composed at tooling/src/snap/ops/arms/registry.ts",
+      "server room source contributions composed at packages/server/src/transport/trpc/stream/room-sources.ts"
+    ],
+    "auditedSignaturesAbsentStatus": "Observed in the pre-review 405-hit artifact only; a repaired full-corpus run is intentionally pending authorization."
+  },
+  "validation": [
+    {
+      "command": "pnpm test:scoped tests/tooling/ast/ops/registry-candidates.test.ts --maxWorkers=1",
+      "result": "PASS 11/11",
+      "report": "reports/runs/test/orbweaver-3584937-2026-09-21T05-43-56-882Z/test-report.json"
+    },
+    {
+      "command": "pnpm exec biome check tooling/src/ast/ops/registry-candidates.ts tests/tooling/ast/ops/registry-candidates.test.ts",
+      "result": "PASS"
+    },
+    {
+      "command": "pnpm exec eslint tooling/src/ast/ops/registry-candidates.ts tests/tooling/ast/ops/registry-candidates.test.ts",
+      "result": "PASS"
+    },
+    {
+      "command": "pnpm typecheck --config tooling/tsconfig.json",
+      "result": "PASS"
+    },
+    {
+      "command": "pnpm typecheck --config tsconfig.json",
+      "result": "PASS"
+    }
+  ],
+  "limitations": [
+    "Registry candidates remain informational review prompts. The fix uses resolved declarations/type origins available to the active semantic project; it does not infer runtime registration performed through dynamic or untyped indirection.",
+    "The historical and final source trees differ by one authored TS file due concurrent work, so both raw and legacy-projected denominators are reported rather than claiming a controlled benchmark checkout.",
+    "The repaired implementation has not received a post-review full-corpus denominator because the parent explicitly deferred the 244-second rerun."
+  ],
+  "reviewRefutation": {
+    "review": "/tmp/world-tools-registry-fix-review.json",
+    "verdict": "REFUTED initial repair",
+    "findings": [
+      "unknown numeric axes were treated as proven unrelated",
+      "typed literals mentioning contribution descendants were treated as registration doors"
+    ],
+    "red": {
+      "command": "pnpm test:scoped tests/tooling/ast/ops/registry-candidates.test.ts --maxWorkers=1",
+      "report": "reports/runs/test/orbweaver-3568163-2026-09-21T05-42-09-213Z/test-report.json",
+      "result": "2 failed, 9 passed"
+    },
+    "repair": [
+      "Numeric-only overlap is suppressed only when both axis origins resolve and differ.",
+      "Typed composition counts only direct array elements, direct object values, and recursively resolved stable spreads; descendant mentions do not count."
+    ],
+    "green": {
+      "command": "pnpm test:scoped tests/tooling/ast/ops/registry-candidates.test.ts --maxWorkers=1",
+      "report": "reports/runs/test/orbweaver-3584937-2026-09-21T05-43-56-882Z/test-report.json",
+      "result": "11 passed, 0 failed"
+    }
+  }
+}

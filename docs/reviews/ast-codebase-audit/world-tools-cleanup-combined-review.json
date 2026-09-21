@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "verdict": "REFUTED",
+  "task": "Combined independent pre-merge review for #2524 and #2525",
+  "reviewedHead": "41ae2d2e04cde288c6175fce23435a54de78014d",
+  "currentMainObserved": "78e9989d54099a12026e503b1f69d21018b8d0c8",
+  "disposition": "Pre-merge verdict. Re-run after merging current main.",
+  "claim": {
+    "issue2524": "Remove seven confirmed unread public view/result fields while preserving same-named persistence/domain/external concepts.",
+    "issue2525": "Remove retired loadTurnForClassify residue."
+  },
+  "finding": {
+    "severity": "blocking cleanup incompleteness / test-only false confidence",
+    "summary": "Four of the seven removed public fields remain in client test wire fixtures. The production projectors omit them, but routeTrpc responders are deliberately unknown/untyped and accept the stale extra keys, so typecheck and CT stay green against responses production can no longer emit.",
+    "expected": "Client wire fixtures for RuleView, FireView, CharacterSummary, and PluginView omit the removed fields, matching the production response shapes.",
+    "actual": {
+      "RuleView": [
+        "tests/client/features/automation/components/owner-automation-sections.ct.tsx:53 consecutiveErrors: 0",
+        "tests/client/features/automation/components/rules-section.ct.tsx:68 consecutiveErrors: 0"
+      ],
+      "FireView": [
+        "tests/client/features/automation/components/rules-section.ct.tsx:473 automationDepth: 0",
+        "tests/client/features/automation/components/rules-section.ct.tsx:591 automationDepth: 0",
+        "tests/client/features/automation/components/rules-section.ct.tsx:601 automationDepth: 0",
+        "tests/client/features/automation/components/rules-section.ct.tsx:1268 automationDepth: 0"
+      ],
+      "CharacterSummary": [
+        "tests/client/features/character/fixtures.ts:68 CharacterSummaryFixture still declares contentHash",
+        "tests/client/features/character/fixtures.ts:227 makeCharacterSummary still emits contentHash"
+      ],
+      "PluginView": [
+        "tests/client/features/plugin/surfaces/page-dialog-frame.suite.ct.tsx:70",
+        "tests/client/features/plugin/lib/chat-anchors.ct.tsx:59",
+        "tests/client/features/plugin/lib/tool-card.ct.tsx:51",
+        "tests/client/features/plugin/components/plugin-primary-cta.suite.ct.tsx:52",
+        "tests/client/features/plugin/components/plugin-frame.ct.tsx:71",
+        "tests/client/features/plugin/components/plugin-message-footer-surfaces.ct.tsx:49",
+        "tests/client/features/plugin/components/plugin-scripted-surface.ct.tsx:137",
+        "tests/client/features/plugin/components/extensions-list-header.ct.tsx:30",
+        "tests/client/features/plugin/lib/extensions-section.ct.tsx:44",
+        "tests/client/features/plugin/components/plugin-surface-renderer.ct.tsx:46",
+        "tests/client/features/plugin/components/plugins-install-section.ct.tsx:120"
+      ]
+    },
+    "counterexample": "The scoped CT run included rules-section.ct.tsx, characters-section.ct.tsx, and plugin-primary-cta.suite.ct.tsx and passed 66/66 while each family supplied at least one removed field. This directly demonstrates that green CT/typecheck do not prove the test wire models were cleaned."
+  },
+  "confirmedSubclaims": [
+    "Production declarations and projectors for all seven named view/result fields are removed in the reviewed diff.",
+    "The same-named persistence/domain concepts remain where required: automation rule error ledger, automation fire/event depth, CharacterDetail/content hashes, ChatDetail/fork lineage, and plugin crash counter.",
+    "loadTurnForClassify is absent from TS and TSX identifiers/calls and its export/tests/comments were removed. The overlapping chat persistence edit is clean: isNotNull disappeared only with loadChatParticipantCharacterIds, while loadTurnForClassify removal shares no surviving import.",
+    "ChatSummary participantCharacterIds and CredentialView.hasMetadata have no surviving TS/TSX member access or property-signature matches in the scanned code scope. Same-spelled local/domain concepts remain intentionally."
+  ],
+  "structuralEvidence": {
+    "scope": [
+      "packages",
+      "tests",
+      "tooling",
+      "scripts",
+      "playwright"
+    ],
+    "astGrep": {
+      "ts": {
+        "scannedFiles": 6446,
+        "skippedFiles": 0,
+        "positiveControl": "$OBJ.id",
+        "positiveHits": 8257
+      },
+      "tsx": {
+        "scannedFiles": 1409,
+        "skippedFiles": 0,
+        "positiveControl": "$OBJ.id",
+        "positiveHits": 1131
+      },
+      "loadTurnForClassify": {
+        "tsIdentifierHits": 0,
+        "tsxIdentifierHits": 0
+      },
+      "participantCharacterIds": {
+        "tsMemberHits": 0,
+        "tsxMemberHits": 0,
+        "tsPropertySignatures": 0,
+        "tsxPropertySignatures": 0
+      },
+      "hasMetadata": {
+        "tsMemberHits": 0,
+        "tsxMemberHits": 0,
+        "tsPropertySignatures": 0,
+        "tsxPropertySignatures": 0
+      }
+    },
+    "literalCorroboration": "rg found no loadTurnForClassify code occurrence. It found the stale test fixture keys listed in the finding and preserved same-named concepts."
+  },
+  "verification": [
+    {
+      "command": "pnpm typecheck --config packages/client/tsconfig.json --config packages/server/tsconfig.json --config tsconfig.json --config tsconfig.tests-dom.json",
+      "result": "PASS: 4/4 runnable configs"
+    },
+    {
+      "command": "pnpm test:scoped tests/server/domain/automation/engine/dispatch.int.test.ts tests/server/domain/automation/engine/prompt-transforms.int.test.ts tests/server/domain/automation/substrate/run-now.int.test.ts tests/server/domain/chat/persistence/queries.int.test.ts tests/server/domain/chat/verbs/read.int.test.ts tests/server/domain/credentials/verbs/add.int.test.ts tests/server/entry/boot/seed-credential.test.ts tests/server/transport/trpc/routers/automation.test.ts tests/client/features/chat/lib/chat-summary-row.test.ts",
+      "result": "PASS: 9 files, 222 tests",
+      "artifact": "reports/runs/test/orbweaver-3625802-2026-09-21T05-53-33-428Z/test-report.json"
+    },
+    {
+      "command": "pnpm test:ct tests/client/features/automation/components/rules-section.ct.tsx tests/client/features/character/lib/characters-section.ct.tsx tests/client/features/plugin/components/plugin-primary-cta.suite.ct.tsx --workers=2",
+      "result": "PASS: 66 passed, 0 failed/flaky/skipped",
+      "artifact": "reports/ct-report.json"
+    },
+    {
+      "command": "git diff --check -- <#2524/#2525 changed paths>",
+      "result": "PASS"
+    }
+  ],
+  "inspectedPriorReports": [
+    "/tmp/world-tools-viewgap-cleanup-report.json",
+    "/tmp/world-tools-loadturn-cleanup-report.json"
+  ],
+  "limitations": [
+    "This is a pre-merge verdict against uncommitted changes on HEAD 41ae2d2e while main had advanced to 78e9989d5; integration with current main was not assessed.",
+    "No whole-repository check or full behavioral suite was run; targeted native typecheck, 222 scoped node tests, and 66 scoped CTs were reproduced."
+  ]
+}

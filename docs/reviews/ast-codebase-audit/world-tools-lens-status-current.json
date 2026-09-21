@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
-  "capturedAt": "2026-09-21T05:18:00-06:00",
+  "capturedAt": "2026-09-21T06:08:28.672628+00:00",
   "denominator": 30,
   "rule": "A verb is complete only after its result set and tool behavior are adjudicated. Invocation alone does not count.",
   "summary": {
-    "fullyAdjudicated": 2,
-    "mostlyClosed": 1,
-    "partialOrInProgress": 6,
+    "fullyAdjudicated": 4,
+    "mostlyClosed": 0,
+    "partialOrInProgress": 5,
     "notYetIndependentlyAdjudicated": 21
   },
   "fullyAdjudicated": [
@@ -23,34 +23,35 @@
       "productDriftDefects": 0,
       "unresolved": 0,
       "toolRepairIssue": 2521,
-      "receipt": "world-tools-registry-triage.json"
-    }
-  ],
-  "mostlyClosed": [
-    {
-      "verb": "testonly",
-      "coverage": [
-        "client",
-        "server",
-        "security",
-        "contracts"
-      ],
-      "committedCleanup": [
-        "7bccc3b0f",
-        "af02c2480"
-      ],
-      "remainingDecisions": [
-        "useDeleteRefinerySession",
-        "loadTurnForClassify",
-        "ensureUserSettings"
-      ]
-    }
-  ],
-  "partialOrInProgress": [
+      "receipt": "world-tools-registry-triage.json",
+      "toolRepairCommit": "89935dbf3"
+    },
     {
       "verb": "viewgap",
-      "status": "33-candidate full run preserved; per-candidate adjudication active"
+      "observations": 33,
+      "confirmedDeadCleanup": 7,
+      "toolDefects": 6,
+      "liveReadersMissedByLens": 3,
+      "unresolved": 3,
+      "toolRepairIssue": 2523,
+      "cleanupIssue": 2524,
+      "receipt": "world-tools-viewgap-triage.json",
+      "cleanupCommit": "0834e6bb2"
     },
+    {
+      "verb": "testonly",
+      "coverage": ["client", "server", "security", "contracts"],
+      "committedCleanup": ["7bccc3b0f", "af02c2480", "0834e6bb2"],
+      "remainingQuestionsClosed": {
+        "wire": "useDeleteRefinerySession",
+        "delete": "loadTurnForClassify",
+        "preserveTestSeam": "ensureUserSettings"
+      },
+      "receipt": "world-tools-testonly-remaining-triage.json"
+    }
+  ],
+  "mostlyClosed": [],
+  "partialOrInProgress": [
     {
       "verb": "orphans",
       "status": "contracts scope run and reviewed; broader package coverage pending"
@@ -73,33 +74,9 @@
     }
   ],
   "notYetIndependentlyAdjudicated": {
-    "candidateOrAudit": [
-      "subset-callers",
-      "dead",
-      "prodonly",
-      "unwired",
-      "clientgap",
-      "respell",
-      "columns",
-      "regkeys",
-      "stringy",
-      "apisurface"
-    ],
-    "graphOrInventory": [
-      "cycles",
-      "aliases"
-    ],
-    "queryNavigationTruthfulness": [
-      "refs",
-      "callers",
-      "importers",
-      "exports",
-      "jsx",
-      "ident",
-      "literal",
-      "flow",
-      "reaches"
-    ]
+    "candidateOrAudit": ["subset-callers", "dead", "prodonly", "unwired", "clientgap", "respell", "columns", "regkeys", "stringy", "apisurface"],
+    "graphOrInventory": ["cycles", "aliases"],
+    "queryNavigationTruthfulness": ["refs", "callers", "importers", "exports", "jsx", "ident", "literal", "flow", "reaches"]
   },
   "crossCuttingWork": {
     "jsonOutput": {
@@ -108,6 +85,17 @@
       "implementationReceipt": "world-tools-json-output-report.json",
       "originalRefutationReceipt": "world-tools-json-output-review.json",
       "confirmedRereviewReceipt": "world-tools-json-output-rereview.json"
+    },
+    "brandBoundaryAudit": {
+      "status": "provisional pre-main-refresh; preserved, not counted as a completed pnpm ast lens",
+      "issue": 2531,
+      "receipt": "world-tools-brand-boundary-audit.json",
+      "trackedFindings": [2533, 2534]
+    },
+    "activeLensLanes": {
+      "candidateAudit": "subset-callers, dead, prodonly, unwired, clientgap, respell, columns, regkeys, stringy, apisurface",
+      "partialSemantic": "orphans, swallowed, typeonly-alive, chains, rot",
+      "state": "source/control maps prepared at 41ae2d2e; corpus runs wait for main merge"
     }
   }
 }
