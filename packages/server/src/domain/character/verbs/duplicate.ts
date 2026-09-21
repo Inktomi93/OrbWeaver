@@ -9,8 +9,8 @@
 // standalone entities and are NEVER cloned. Emits `character.updated`. Throws `CharacterNotFoundError` when
 // the source isn't owned/found.
 
+import { deriveCharacterHandle } from "@orb/contracts/character";
 import type { CharacterHandle, CharacterId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import { cardContentHash } from "#kit/serde/card";
 import type { CharacterContext } from "../context.ts";
@@ -26,15 +26,17 @@ const FIRST_INCREMENT = 2;
 
 /** First free `<handle>-copy[-n]` not already used by the owner. */
 function freeCopyHandle(sourceHandle: CharacterHandle, taken: ReadonlySet<string>): CharacterHandle {
-  const base = castId<CharacterHandle>(`${sourceHandle}${COPY_SUFFIX}`);
+  const base = deriveCharacterHandle(sourceHandle, COPY_SUFFIX);
   if (!taken.has(base)) {
     return base;
   }
   let n = FIRST_INCREMENT;
-  while (taken.has(`${base}-${n}`)) {
+  let candidate = deriveCharacterHandle(sourceHandle, `${COPY_SUFFIX}-${n}`);
+  while (taken.has(candidate)) {
     n += 1;
+    candidate = deriveCharacterHandle(sourceHandle, `${COPY_SUFFIX}-${n}`);
   }
-  return castId<CharacterHandle>(`${base}-${n}`);
+  return candidate;
 }
 
 /** Undo a clone whose book copy failed. Best-effort by construction: the caller rethrows the ORIGINAL

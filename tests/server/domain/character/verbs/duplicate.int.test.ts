@@ -3,6 +3,7 @@
 // (PD-141) the source's attached world-info book REFERENCES are CARRIED onto the clone (the books are never
 // cloned — new junction rows point at the SAME books).
 
+import { createCharacterSchema } from "@orb/contracts/character";
 import type { WorldBookRole } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
 import { characterBooks, characters, worldBooks } from "@orb/db";
@@ -59,6 +60,25 @@ describe("duplicate", () => {
     const second = await svc.duplicate({ principal: principal(owner), characterId: source.id });
     expect(first.handle).toBe("nyx-copy");
     expect(second.handle).toBe("nyx-copy-2");
+  });
+
+  test("a maximal source handle stays canonical after the copy suffix is reserved", async () => {
+    const db = await freshDb();
+    const svc = createCharacterService(makeHarness(db).ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const sourceHandle = "a".repeat(200);
+    const source = await svc.create({
+      principal: principal(owner),
+      input: { handle: createCharacterSchema.shape.handle.parse(sourceHandle), name: "Long", description: "d" },
+    });
+
+    const first = await svc.duplicate({ principal: principal(owner), characterId: source.id });
+    const second = await svc.duplicate({ principal: principal(owner), characterId: source.id });
+
+    expect(first.handle).toBe(`${"a".repeat(195)}-copy`);
+    expect(second.handle).toBe(`${"a".repeat(193)}-copy-2`);
+    expect(createCharacterSchema.shape.handle.safeParse(first.handle).success).toBe(true);
+    expect(createCharacterSchema.shape.handle.safeParse(second.handle).success).toBe(true);
   });
 
   test("duplicating an imported card clears the import provenance", async () => {

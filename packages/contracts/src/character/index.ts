@@ -263,16 +263,46 @@ export const characterCardSchema = z.object({
 });
 export type CharacterCard = z.infer<typeof characterCardSchema>;
 
+/** The character-handle boundary shared by authored input and internal derived-handle producers. The cap
+ * is measured in JavaScript string length (UTF-16 code units), which is also Zod's `string().max` unit. */
+export const characterHandleSchema = z
+  .string()
+  .min(HANDLE_MIN)
+  .max(HANDLE_MAX)
+  .transform((value) => castId<CharacterHandle>(value));
+
+/** Append a machine suffix while keeping the result inside {@link characterHandleSchema}.
+ *
+ * The suffix gets its full UTF-16-unit budget first; the source is then shortened on a code-point boundary.
+ * Iterating the source by code point is load-bearing: a plain `slice(0, budget)` can stop between a non-BMP
+ * character's surrogate pair and persist an ill-formed string. The final parse is the brand boundary, so
+ * callers never assert a derived string into `CharacterHandle` themselves. */
+export function deriveCharacterHandle(source: CharacterHandle, suffix: string): CharacterHandle {
+  const sourceBudget = HANDLE_MAX - suffix.length;
+  if (sourceBudget < HANDLE_MIN) {
+    throw new Error("a derived character-handle suffix must leave room for the source");
+  }
+  let sourceUnits = 0;
+  let boundedSource = "";
+  for (const point of source) {
+    if (sourceUnits + point.length > sourceBudget) {
+      break;
+    }
+    boundedSource += point;
+    sourceUnits += point.length;
+  }
+  if (boundedSource.length < HANDLE_MIN) {
+    throw new Error("a derived character handle must retain a non-empty source");
+  }
+  return characterHandleSchema.parse(`${boundedSource}${suffix}`);
+}
+
 // The ONE schema the tRPC router AND the import normalizer validate against. Pipeline-derived `refinery`
 // is NOT here. null clears a field; omit to leave it unchanged.
 export const createCharacterSchema = z.object({
   // The card-slug WIRE boundary: length-validated, then branded (`CharacterHandle`, the identity-VALUE
   // brand `characters.handle` carries) — every consumer downstream of the parse is nominally typed.
-  handle: z
-    .string()
-    .min(HANDLE_MIN)
-    .max(HANDLE_MAX)
-    .transform((v) => castId<CharacterHandle>(v)),
+  handle: characterHandleSchema,
   name: cardFaceFields.name,
   description: cardFaceFields.description,
   personality: z.string().max(TEXT_MAX).nullable().optional(),
