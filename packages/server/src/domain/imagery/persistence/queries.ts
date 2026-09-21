@@ -4,9 +4,10 @@
 // lookup + the provenance read both JOIN `assets` and gate on `ownerId` (no cross-owner leak, no ownerId dup).
 
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
+import type { ProviderId } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import { assets, imageryGenerations } from "@orb/db";
-import type { AssetId, CharacterId, ChatId, ImageryGenerationId, ModelId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, ImageryGenerationId, ModelId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { and, desc, eq } from "drizzle-orm";
 import type { GenerationProvenance, ReuseRow } from "../contract/results.ts";
 
@@ -20,6 +21,8 @@ interface InsertGenerationInput {
   readonly prompt: string;
   readonly negativePrompt: string | null;
   readonly model: ModelId | string;
+  readonly providerId: ProviderId;
+  readonly connectionId: UserConnectionId;
   readonly costUsd: number | null;
   readonly edited: boolean;
   readonly createdAt: number;
@@ -36,6 +39,8 @@ export async function insertGeneration(db: Db, input: InsertGenerationInput): Pr
     prompt: input.prompt,
     negativePrompt: input.negativePrompt,
     model: input.model,
+    provider: input.providerId,
+    connectionId: input.connectionId,
     costUsd: input.costUsd,
     edited: input.edited,
     createdAt: input.createdAt,

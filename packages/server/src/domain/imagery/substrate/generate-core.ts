@@ -6,8 +6,9 @@
 
 import type { MessageContentBlock } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
+import type { ProviderId } from "@orb/contracts/inference";
 import type { StatsDelta } from "@orb/contracts/stats";
-import type { AssetId } from "@orb/kit/ids";
+import type { AssetId, UserConnectionId } from "@orb/kit/ids";
 import { sniffMime } from "@orb/kit/image-sniff";
 import { modelKey, utcDay } from "@orb/kit/stats-tally";
 import { GenerationFailedError } from "../contract/errors.ts";
@@ -53,7 +54,14 @@ export function buildBlock(assetId: AssetId, prompt: string): MessageContentBloc
 async function persistImage(
   ctx: ImageryContext,
   prov: GenerationProvenanceInput,
-  gen: { readonly model: string; readonly costUsd: number | null; readonly createdAt: number; readonly img: DecodedImage },
+  gen: {
+    readonly model: string;
+    readonly providerId: ProviderId;
+    readonly connectionId: UserConnectionId;
+    readonly costUsd: number | null;
+    readonly createdAt: number;
+    readonly img: DecodedImage;
+  },
 ): Promise<GeneratedPictureImage> {
   // Derive the claimed mime from the bytes via the shared `@orb/kit/image-sniff` table — the same one assets'
   // `enforceMagic` re-checks against. On the unrecognized sentinel, fall back to the provider mediaType then PNG.
@@ -71,6 +79,8 @@ async function persistImage(
     prompt: prov.prompt,
     negativePrompt: prov.negativePrompt,
     model: gen.model,
+    providerId: gen.providerId,
+    connectionId: gen.connectionId,
     costUsd: gen.costUsd,
     edited: prov.edited,
     createdAt: gen.createdAt,
@@ -118,7 +128,16 @@ export async function runGeneration(ctx: ImageryContext, req: ImageGenerateReque
   const createdAt = ctx.now();
   const images: GeneratedPictureImage[] = [];
   for (const img of decoded) {
-    images.push(await persistImage(ctx, prov, { model: result.model, costUsd: result.usage.costUsd, createdAt, img }));
+    images.push(
+      await persistImage(ctx, prov, {
+        model: result.model,
+        providerId: req.connection.providerId,
+        connectionId: req.connection.connectionId,
+        costUsd: result.usage.costUsd,
+        createdAt,
+        img,
+      }),
+    );
   }
   await ctx.recordStats(buildDelta({ caller: prov.caller, model: result.model, costUsd: result.usage.costUsd, count: images.length, now: createdAt }));
   return { images, model: result.model, costUsd: result.usage.costUsd, warnings: result.warnings };

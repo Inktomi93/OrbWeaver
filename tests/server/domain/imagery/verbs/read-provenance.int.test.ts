@@ -9,7 +9,7 @@ import { createImageryService } from "@orb/server/domain/imagery";
 import { beforeEach, describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { makeHarness, principal, seedOwner } from "../_support.ts";
+import { makeHarness, principal, seedGenerationOwner, seedOwner } from "../_support.ts";
 
 let db: Db;
 
@@ -19,7 +19,7 @@ beforeEach(async () => {
 
 describe("readProvenance", () => {
   test("reads a generated image's provenance; a foreign caller gets null (owner-scoped)", async () => {
-    const owner = await seedOwner(db, castId<Handle>("owner"));
+    const owner = await seedGenerationOwner(db, castId<Handle>("owner"));
     const stranger = await seedOwner(db, castId<Handle>("stranger"));
     const svc = createImageryService(makeHarness(db).ctx);
 

@@ -14,7 +14,7 @@ import { runGeneration, sumCost } from "../../../../../packages/server/src/domai
 import { freshDb } from "../../../../support/db.ts";
 import { makeResolved } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { makeHarness, PNG_BYTES, principal, seedOwner } from "../_support.ts";
+import { makeHarness, PNG_BYTES, principal, seedGenerationOwner } from "../_support.ts";
 
 /** The request shape `runGeneration` takes, named so the deliberate fabrication below has a ONE-LINE
  *  assertion position the waiver can anchor on (a multi-line `Parameters<…>` slice cannot be a marker). */
@@ -51,7 +51,7 @@ describe("sumCost", () => {
 describe("runGeneration", () => {
   test("zero decodable images (no base64, fetch returns null) throws GenerationFailedError", async () => {
     const db = await freshDb();
-    const owner = await seedOwner(db, castId<Handle>("owner"));
+    const owner = await seedGenerationOwner(db, castId<Handle>("owner"));
     const { ctx } = makeHarness(db, {
       generateImage: () =>
         Promise.resolve({
@@ -68,7 +68,7 @@ describe("runGeneration", () => {
 
   test("a fanned-out (n>1) generation shares ONE createdAt across every provenance row", async () => {
     const db = await freshDb();
-    const owner = await seedOwner(db, castId<Handle>("owner"));
+    const owner = await seedGenerationOwner(db, castId<Handle>("owner"));
     const base64 = Buffer.from(PNG_BYTES).toString("base64");
     const { ctx } = makeHarness(db, {
       generateImage: () =>
@@ -86,8 +86,14 @@ describe("runGeneration", () => {
     const outcome = await runGeneration(ctx, REQ, { ...PROV, caller: principal(owner) });
 
     expect(outcome.images).toHaveLength(2);
-    const rows = await db.select({ createdAt: imageryGenerations.createdAt }).from(imageryGenerations);
+    const rows = await db
+      .select({ createdAt: imageryGenerations.createdAt, provider: imageryGenerations.provider, connectionId: imageryGenerations.connectionId })
+      .from(imageryGenerations);
     expect(rows).toHaveLength(2);
     expect(new Set(rows.map((r) => r.createdAt)).size).toBe(1);
+    expect(rows).toEqual([
+      { createdAt: rows[0]?.createdAt, provider: REQ.connection.providerId, connectionId: REQ.connection.connectionId },
+      { createdAt: rows[0]?.createdAt, provider: REQ.connection.providerId, connectionId: REQ.connection.connectionId },
+    ]);
   });
 });

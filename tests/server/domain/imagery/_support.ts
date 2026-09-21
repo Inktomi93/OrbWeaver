@@ -4,16 +4,17 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import { DEFAULT_CAPTION_INSTRUCTIONS, DEFAULT_PROMPT_TEMPLATES, IMAGERY_NEGATIVE_SLOT_ID } from "@orb/contracts/imagery";
+import { providerIdSchema } from "@orb/contracts/inference";
 import { PROSE_SLOTS } from "@orb/contracts/prose";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
-import { assets, users } from "@orb/db";
+import { assets, userConnections, users } from "@orb/db";
 import type { Resolved } from "@orb/inference";
 import { generationOf } from "@orb/inference";
 import type { AssetId, Handle, ImageryGenerationId, ModelId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ImageGenerateRequest, ImageryContext } from "@orb/server/domain/imagery";
-import { makeResolved } from "../../../support/factories/resolved-connection.ts";
+import { makeResolved, TEST_CONNECTION_ID } from "../../../support/factories/resolved-connection.ts";
 import { createSeededIds } from "../../../support/ids.ts";
 
 const FROZEN_AT = 1_750_000_000_000;
@@ -26,6 +27,16 @@ export async function seedOwner(db: Db, handle: Handle): Promise<UserId> {
   const id = castId<UserId>(`user_${handle}`);
   await db.insert(users).values({ id, handle: castId<Handle>(handle), role: "user", enabled: true });
   return id;
+}
+
+/** Seed the owner plus the exact connection the harness resolves for generation. Kept separate from
+ *  `seedOwner` so reader-only principals cannot silently collide on the shared test connection id. */
+export async function seedGenerationOwner(db: Db, handle: Handle): Promise<UserId> {
+  const ownerId = await seedOwner(db, handle);
+  await db
+    .insert(userConnections)
+    .values({ id: TEST_CONNECTION_ID, ownerId, label: "image generator", providerId: providerIdSchema.parse("openrouter"), model: "img-model" });
+  return ownerId;
 }
 
 export function principal(userId: UserId): Principal {
