@@ -6,7 +6,7 @@ import type { Db } from "@orb/db";
 import { assets } from "@orb/db";
 import type { Handle, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { ManifestInvalidError, PluginDowngradeRefusedError, PluginNotFoundError } from "@orb/server/domain/plugin";
+import { HostVersionUnservedError, ManifestInvalidError, PluginDowngradeRefusedError, PluginNotFoundError } from "@orb/server/domain/plugin";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -43,6 +43,20 @@ test("a bundle whose slug differs from the installed plugin is refused", async (
   await expect(
     h.service.upgrade({ caller: ownerPrincipalFor(owner), pluginId: installed.id, bundle: makeBundle({ id: "other", version: "2.0.0" }) }),
   ).rejects.toBeInstanceOf(ManifestInvalidError);
+});
+
+test("an upgrade for an unsupported host major is distinctly refused without replacing the installed bundle", async () => {
+  const db = await freshDb();
+  const h = makePluginHarness(db);
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const installed = await h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: "pp", version: "1.0.0" }), grant: [] });
+
+  await expect(
+    h.service.upgrade({ caller: ownerPrincipalFor(owner), pluginId: installed.id, bundle: makeBundle({ id: "pp", version: "2.0.0", hostVersion: 2 }) }),
+  ).rejects.toBeInstanceOf(HostVersionUnservedError);
+
+  expect((await h.service.list({ caller: ownerPrincipalFor(owner) }))[0]?.version).toBe("1.0.0");
+  expect(h.storedBytes.size).toBe(1);
 });
 
 test("an upgrade that declares a NEW capability lands disabled (pending re-grant) — and is NOT re-activated", async () => {

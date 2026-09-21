@@ -39,7 +39,7 @@ export const pluginManifestSchema = z.object({
   id: z.string().regex(/^[a-z0-9][a-z0-9-]{1,63}$/),
   name: z.string().min(1).max(80),
   version: z.string().regex(/^\d+\.\d+\.\d+$/),          // plugin's own semver (display + upgrade ordering)
-  hostVersion: z.literal(1),                              // the membrane major (01 §3) — refused pre-run if unserved
+  hostVersion: z.number().int().positive(),              // structural major; lifecycle checks the served tuple
   entry: z.literal("main.js"),                            // ONE fixed entry file in the bundle (below)
   description: z.string().max(500),
   author: z.string().max(120).optional(),

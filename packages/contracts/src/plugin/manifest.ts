@@ -2,8 +2,9 @@
 // SHAPE borrow D46 named (copy the manifest/capability shape, NOT the runtime). `PLUGIN_CAPABILITIES` is the
 // ONE closed capability axis: the manifest DECLARES a subset, the grant RECORDS the confirmed subset, and each
 // member maps to a concrete host-side enforcement (coded as `CAPABILITY_HOST_FUNCTIONS` in host-v1.ts).
-// The manifest is the install-time trust edge — every field is bounded here so a malformed bundle is refused
-// before any guest code runs (`hostVersion` refuses an unserved membrane major).
+// The manifest is the install-time structural trust edge — every field is bounded here so a malformed bundle
+// is refused before any guest code runs. A well-formed `hostVersion` is compatibility data: the lifecycle
+// funnel compares it with {@link PLUGIN_HOST_VERSIONS} and raises its distinct unserved-version refusal.
 
 import { z } from "zod";
 
@@ -97,6 +98,13 @@ export const PLUGIN_CAPABILITIES = [
   "net.fetch_asset", // requires netHosts (an egress capability)
 ] as const;
 export type PluginCapability = (typeof PLUGIN_CAPABILITIES)[number];
+
+/** The membrane majors this build serves. ONE contract-owned tuple feeds both install-time lifecycle
+ *  compatibility and `orb.host(major)` at guest runtime, so a bundle cannot install under a major the realm
+ *  then refuses (or vice versa). The manifest schema deliberately accepts any positive integer major: an
+ *  unsupported but well-formed value must survive structural parsing to reach the caller-distinguishable
+ *  lifecycle error. */
+export const PLUGIN_HOST_VERSIONS = [1] as const;
 
 /** The capabilities that PERFORM allowlisted egress and therefore REQUIRE `netHosts` (the SSRF wall). Both
  *  `net.fetch` (text) and `net.fetch_asset` (a remote image → the installer's CAS) reach the network through
@@ -271,7 +279,7 @@ export const pluginManifestSchema = z
     id: z.string().regex(SLUG_RE),
     name: z.string().min(1).max(NAME_MAX),
     version: z.string().regex(PLUGIN_SEMVER_RE),
-    hostVersion: z.literal(1), // the membrane major — refused pre-run if unserved
+    hostVersion: z.number().int().positive(), // structural major; lifecycle parsing checks the served tuple
     entry: z.literal(PLUGIN_MAIN_ENTRY), // ONE fixed entry file in the bundle (the guest has no module loader)
     /** The OPTIONAL Tier-C client entry (plugin-ui-plane #679 U4, §4.6). Present ⇒ the bundle carries a third
      *  zip entry, `ui.js`, which runs in the BROWSER's QuickJS worker for the plugin's `tier:"scripted"`

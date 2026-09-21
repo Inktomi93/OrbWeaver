@@ -7,7 +7,7 @@
 import { DomainConflictError, DomainNotFoundError, DomainOperationError, DomainUnavailableError } from "@orb/kit/errors";
 
 /** The bundle failed unzip/validation: a bad zip, extra/unknown entries, a decompression-bomb over the caps,
- *  malformed `manifest.json`, or a manifest that fails `pluginManifestSchema` (bad slug/version/hostVersion/
+ *  malformed `manifest.json`, or a manifest that fails `pluginManifestSchema` (bad slug/version/hostVersion shape/
  *  netHosts). Thrown BEFORE anything persists — a 400/415-class refusal, never retried. */
 // @nearpair-ok: near-matches `@orb/contracts/plugin::PluginCapabilityError` by design — this is the sibling
 // lifecycle-error taxonomy (host-side, a CALLER sees it), never the guest-observable membrane error the
@@ -85,12 +85,16 @@ export class PluginNotShowcaseError extends DomainOperationError {
 /** The manifest pins a `hostVersion` this build does not serve. Separate from a generic manifest
  *  fault so the caller can be told to rebuild against the served major, not "fix your manifest".
  *
- *  @public future: the hostVersion gate (unbuilt) — a member of the built lifecycle error taxonomy; zero throw sites because that gate is not built yet. */
+ *  @public thrown by the common bundle funnel before install, upgrade, preview, or activation accepts bytes. */
 // @nearpair-ok: near-matches `@orb/contracts/plugin::PluginCapabilityError` by design — see
 // `ManifestInvalidError` above (same host-side taxonomy, expected kinship).
 export class HostVersionUnservedError extends DomainOperationError {
+  readonly requested: number;
+  readonly served: readonly number[];
   constructor(requested: number, served: readonly number[]) {
     super("plugin_host_version_unserved", `plugin host version ${requested} not served (served: ${served.join(", ")})`);
+    this.requested = requested;
+    this.served = served;
   }
 }
 

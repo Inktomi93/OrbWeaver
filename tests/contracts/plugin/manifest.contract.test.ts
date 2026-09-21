@@ -1,6 +1,6 @@
 // Contract tests for @orb/contracts/plugin/manifest (plugin-design P2 §1): the install-time trust edge. The
 // capability axis (the pinned 15-member closed list, confirm-dialog order), the manifest matrix (every refusal
-// typed — bad slug, unserved hostVersion, bad semver, wrong entry, the netHosts ⟺ net.fetch biconditional,
+// typed — bad slug, malformed hostVersion, bad semver, wrong entry, the netHosts ⟺ net.fetch biconditional,
 // netHosts SSRF regex, caps superset), and the OPTIONAL builtAgainst provenance block. Mirror of manifest.ts.
 
 import {
@@ -170,9 +170,15 @@ test("#1803: an admitted slug + an admitted tool name can never mint past the re
   expect(pluginToolWireName(worstSlug, oneByteOverName)).toHaveLength(PLUGIN_TOOL_WIRE_NAME_MAX + 1);
 });
 
-test("manifest matrix — an unserved hostVersion is refused before any code runs (01 §3)", () => {
-  expect(pluginManifestSchema.safeParse({ ...BASE, hostVersion: 2 }).success).toBe(false);
+test("manifest matrix — hostVersion is structurally valid before the lifecycle checks whether it is served", () => {
+  // A future major is a well-formed manifest value. The server's bundle funnel must see it so it can raise the
+  // caller-distinguishable HostVersionUnservedError instead of collapsing compatibility into schema failure.
+  expect(pluginManifestSchema.safeParse({ ...BASE, hostVersion: 2 }).success).toBe(true);
+
+  // Shape failures remain schema failures; compatibility widening must not admit non-major values.
   expect(pluginManifestSchema.safeParse({ ...BASE, hostVersion: 0 }).success).toBe(false);
+  expect(pluginManifestSchema.safeParse({ ...BASE, hostVersion: 1.5 }).success).toBe(false);
+  expect(pluginManifestSchema.safeParse({ ...BASE, hostVersion: "2" }).success).toBe(false);
 });
 
 test("manifest matrix — a non-semver version and a non-main.js entry are refused", () => {

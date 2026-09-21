@@ -6,7 +6,7 @@
 import { PLUGIN_UI_ASSET_MAX_BYTES, PLUGIN_UI_ASSETS_MAX_COUNT, PLUGIN_UI_ASSETS_TOTAL_MAX_BYTES } from "@orb/contracts/plugin";
 import { strToU8, zipSync } from "fflate";
 import { describe } from "vitest";
-import { ManifestInvalidError } from "../../../../../packages/server/src/domain/plugin/contract/errors.ts";
+import { HostVersionUnservedError, ManifestInvalidError } from "../../../../../packages/server/src/domain/plugin/contract/errors.ts";
 import { isVersionDowngrade, parseBundle } from "../../../../../packages/server/src/domain/plugin/substrate/manifest.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { magicBytes } from "../../../../support/magic-bytes.ts";
@@ -267,12 +267,36 @@ describe("parseBundle — manifest validation", () => {
     expect(() => parseBundle(bundle)).toThrow(ManifestInvalidError);
   });
 
-  test("an unserved hostVersion is refused (schema literal 1)", () => {
+  test("an unsupported but well-formed hostVersion reaches the distinct lifecycle refusal", () => {
     const bundle = makeBundle({
       "manifest.json": strToU8(JSON.stringify({ ...VALID_MANIFEST, hostVersion: 2 })),
       "main.js": strToU8("const x = 1;"),
     });
+
+    let refusal: unknown;
+    try {
+      parseBundle(bundle);
+    } catch (error) {
+      refusal = error;
+    }
+
+    // This is the planted collapse control: generic manifest validation must never swallow a parseable major.
+    expect(refusal).toBeInstanceOf(HostVersionUnservedError);
+    expect(refusal).not.toBeInstanceOf(ManifestInvalidError);
+    expect(refusal).toMatchObject({
+      code: "plugin_host_version_unserved",
+      message: "plugin host version 2 not served (served: 1)",
+    });
+  });
+
+  test("a malformed hostVersion remains a structural manifest refusal", () => {
+    const bundle = makeBundle({
+      "manifest.json": strToU8(JSON.stringify({ ...VALID_MANIFEST, hostVersion: "2" })),
+      "main.js": strToU8("const x = 1;"),
+    });
+
     expect(() => parseBundle(bundle)).toThrow(ManifestInvalidError);
+    expect(() => parseBundle(bundle)).not.toThrow(HostVersionUnservedError);
   });
 
   test("a builtAgainst provenance block round-trips through the bundle", () => {

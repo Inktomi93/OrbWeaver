@@ -405,6 +405,9 @@ export interface BundleManifestOverrides {
   readonly id?: string;
   readonly name?: string;
   readonly version?: string;
+  /** A positive integer is structurally valid even when this build does not serve it; lifecycle tests use
+   *  this override to prove the distinct compatibility refusal. */
+  readonly hostVersion?: number;
   readonly description?: string;
   readonly capabilities?: readonly PluginCapability[];
   readonly netHosts?: readonly string[];
@@ -432,7 +435,7 @@ export function makeBundle(
     id: overrides.id ?? "test-plugin",
     name: overrides.name ?? "Test Plugin",
     version: overrides.version ?? "1.0.0",
-    hostVersion: 1,
+    hostVersion: overrides.hostVersion ?? 1,
     entry: "main.js",
     description: overrides.description ?? "a test plugin",
     capabilities: overrides.capabilities ?? [],

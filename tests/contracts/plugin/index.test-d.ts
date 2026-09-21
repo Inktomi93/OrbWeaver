@@ -1,4 +1,4 @@
-import type { HOST_FUNCTION_CAPABILITY, HostFunctionRef, PluginCapability, PluginHostV1 } from "@orb/contracts/plugin";
+import type { HOST_FUNCTION_CAPABILITY, HostFunctionRef, PLUGIN_HOST_VERSIONS, PluginCapability, PluginHostV1 } from "@orb/contracts/plugin";
 import { expectTypeOf, test } from "vitest";
 
 // The P2 completeness checkpoint (04 §P2): a capability with no function, OR a function with no capability, must
@@ -27,7 +27,9 @@ test("PluginHostV1 exposes no db/sql/preset/connection/credential/message-write 
   expectTypeOf<Extract<keyof PluginHostV1, "messages" | "editMessage" | "writeMessage" | "emit">>().toEqualTypeOf<never>();
 });
 
-// The version is a pinned literal (01 §3) — the manifest's `hostVersion: 1` and this must not drift apart.
-test("PluginHostV1.version is the literal 1", () => {
+// The served surface is a pinned literal (01 §3). The manifest schema accepts other positive integer majors
+// structurally so lifecycle parsing can distinguish "well-formed but unserved" from an invalid manifest.
+test("the served-major tuple and PluginHostV1.version are the same literal set", () => {
+  expectTypeOf<(typeof PLUGIN_HOST_VERSIONS)[number]>().toEqualTypeOf<PluginHostV1["version"]>();
   expectTypeOf<PluginHostV1["version"]>().toEqualTypeOf<1>();
 });

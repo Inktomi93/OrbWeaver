@@ -67,6 +67,7 @@ export type { PluginBuiltAgainst, PluginCapability, PluginManifest } from "./man
 export {
   NET_HOSTS_MAX,
   PLUGIN_CAPABILITIES,
+  PLUGIN_HOST_VERSIONS,
   PLUGIN_MAIN_ENTRY,
   PLUGIN_MANIFEST_ENTRY,
   PLUGIN_SLUG_MAX,
