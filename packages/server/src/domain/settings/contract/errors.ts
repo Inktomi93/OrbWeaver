@@ -13,9 +13,6 @@ export const SETTINGS_OP_CODES = {
   reservedKey: "reserved_key",
   /** createTheme/updateTheme custom CSS failed css-validate (a containment-break shape). */
   unsafeCss: "unsafe_css",
-  /** A `routing.roleDefaults` patch pinned a model on a source that serves only its configured one
-   *  (substrate/routing-coherence.ts) — the `{source:"vllm", model:"anthropic/…"}` pair that 404s a turn. */
-  incoherentRoleModel: "incoherent_role_model",
   /** A settings write found the EXISTING stored blob unreadable and refused rather than overwrite it with
    *  the degraded default the read seam hands out (#471 — the silent whole-blob wipe class). The row is
    *  left exactly as it was; the failure reason rides the message. Thrown by `#kit/stored-config`, which

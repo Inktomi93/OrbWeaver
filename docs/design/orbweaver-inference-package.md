@@ -1409,9 +1409,8 @@ precedent cites that would dangle (`contracts/chat/metadata.ts:250,255,261`, `co
 TYPE-level pin neither `pnpm check` nor the node suites see: `tests/server/domain/chat/contract/
 metadata.contract.test.ts:19,24,37-38,112-114`, `tests/server/infra/providers/backends/openrouter/runners/chat/
 responses.test.ts:196`, `tests/e2e/support/mirror-parity.dom.test-d.ts:411`. Also deleted with the settings
-blob's routing leaves: `coherentRoutingPatch` (the `(source, model)` write guard — deleted by construction),
-`SETTINGS_OP_CODES.incoherentRoleModel` + its client copy, and the routing keys in
-`client/src/data/invalidation.ts` (ground5 M13).
+blob's routing leaves: the `(source, model)` write guard and its refusal code were deleted by construction,
+along with the routing keys in `client/src/data/invalidation.ts` (ground5 M13).
 
 ### 7.2 No defaults (F2, F16) — and the local-light floor is two SEEDED rows
 

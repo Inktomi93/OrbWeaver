@@ -15,7 +15,7 @@ import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import type { QuietGenerate, QuietGenerateParams } from "../../../../../packages/server/src/domain/chat/contract/context.ts";
-import { ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
+import { CHAT_OP_CODES, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
 import { createCompaction } from "../../../../../packages/server/src/domain/chat/verbs/compaction.ts";
 import { freshDb, freshHeldDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
@@ -241,7 +241,7 @@ describe("runCompaction — the injected core (chained-marker math)", () => {
       .runCompaction({ chatId, connection: CONNECTION, ownerId: OWNER })
       .catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
-    expect((err as ChatOperationError).code).toBe("compaction_empty");
+    expect((err as ChatOperationError).code).toBe(CHAT_OP_CODES.compactionEmpty);
     const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
     expect(row?.compactSummary).toBe("GOOD-MARKER"); // untouched
     expect(row?.compactedAtSeq).toBe(1); // NOT advanced — an honest retry next turn
