@@ -2,32 +2,27 @@
 // drift belt (imagery-design/02 §5-6). The prefixes are load-bearing: the size defaults assume the composition
 // they set, and ensurePrefix re-asserts them when the LLM drops its instruction.
 
-import { IMAGERY_NEGATIVE_SLOT_ID } from "@orb/contracts/imagery";
+import { DEFAULT_CAPTION_INSTRUCTIONS, DEFAULT_PROMPT_TEMPLATES, IMAGERY_NEGATIVE_SLOT_ID } from "@orb/contracts/imagery";
 import { PROSE_SLOTS, resolveProseText } from "@orb/contracts/prose";
 import { describe } from "vitest";
-import {
-  CAPTION_INSTRUCTIONS,
-  composeNegative,
-  ensurePrefix,
-  PROMPT_TEMPLATES,
-} from "../../../../../packages/server/src/domain/imagery/substrate/templates.ts";
+import { composeNegative, ensurePrefix } from "../../../../../packages/server/src/domain/imagery/substrate/templates.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
-describe("PROMPT_TEMPLATES / CAPTION_INSTRUCTIONS", () => {
+describe("canonical prompt and caption defaults", () => {
   test("every extraction template resolves {{char}} for chat's shaper + ends with its required prefix", () => {
-    expect(PROMPT_TEMPLATES.character).toContain("{{char}}");
-    expect(PROMPT_TEMPLATES.character).toContain("Begin your reply with: full body portrait,");
-    expect(PROMPT_TEMPLATES.face).toContain("Begin your reply with: close up facial portrait,");
-    expect(PROMPT_TEMPLATES.scenario).toContain("Begin your reply with: scene,");
-    expect(PROMPT_TEMPLATES.background).toContain("Begin your reply with: background,");
+    expect(DEFAULT_PROMPT_TEMPLATES.character).toContain("{{char}}");
+    expect(DEFAULT_PROMPT_TEMPLATES.character).toContain("Begin your reply with: full body portrait,");
+    expect(DEFAULT_PROMPT_TEMPLATES.face).toContain("Begin your reply with: close up facial portrait,");
+    expect(DEFAULT_PROMPT_TEMPLATES.scenario).toContain("Begin your reply with: scene,");
+    expect(DEFAULT_PROMPT_TEMPLATES.background).toContain("Begin your reply with: background,");
     // The background template forbids figures (environment only).
-    expect(PROMPT_TEMPLATES.background.toLowerCase()).toContain("no people");
+    expect(DEFAULT_PROMPT_TEMPLATES.background.toLowerCase()).toContain("no people");
   });
 
   test("caption instructions carry no macros (the image IS the subject) + their opening prefix", () => {
-    expect(CAPTION_INSTRUCTIONS.character_multimodal).not.toContain("{{");
-    expect(CAPTION_INSTRUCTIONS.character_multimodal).toContain("full body portrait,");
-    expect(CAPTION_INSTRUCTIONS.face_multimodal).toContain("close up facial portrait,");
+    expect(DEFAULT_CAPTION_INSTRUCTIONS.character_multimodal).not.toContain("{{");
+    expect(DEFAULT_CAPTION_INSTRUCTIONS.character_multimodal).toContain("full body portrait,");
+    expect(DEFAULT_CAPTION_INSTRUCTIONS.face_multimodal).toContain("close up facial portrait,");
   });
 
   test("the shipped negative base (via composeNegative, no user extra) suppresses the generic defects (text, watermark, bad anatomy)", () => {
