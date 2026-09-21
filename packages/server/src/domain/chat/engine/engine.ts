@@ -59,9 +59,9 @@ import type {
   MemoryEmbedSpace,
   MemoryPassCounts,
   MemoryRecallResult,
-  MemoryRecallWarningEpisode,
   MemoryScope,
   MsgRow,
+  TurnRetrievalWarningEpisode,
   WitnessInterval,
 } from "../contract/memory.ts";
 import { resolveToolRecurseLimit } from "../contract/metadata.ts";
@@ -158,7 +158,7 @@ interface EngineDeps {
       readonly config?: MemoryConfig | null | undefined;
       readonly recent?: readonly MsgRow[] | undefined;
       readonly names?: ReadonlyMap<CharacterId, string> | undefined;
-      readonly warningEpisode?: MemoryRecallWarningEpisode | undefined;
+      readonly warningEpisode?: TurnRetrievalWarningEpisode | undefined;
     },
   ) => Promise<MemoryRecallResult>;
   /** Injected lock-free compaction core (`makeRunCompaction`) — the managed-compaction post-turn hook rebuilds
@@ -1620,7 +1620,7 @@ async function resolveSpeakerMemory(ctx: ChatContext, deps: EngineDeps, prep: Tu
   const recall = prep.memoryRecall;
   if (prep.shape?.cardScope !== "scoped" || speakerCharId === null || recall === undefined || recall === null) {
     if (recall !== undefined && recall !== null) {
-      await emitMemoryRerankWarningOnce(deps, prep.chatId, recall.warningEpisode);
+      await emitRetrievalWarningsOnce(deps, prep.chatId, recall.warningEpisode);
     }
     return prep.assembleContext;
   }
@@ -1635,15 +1635,23 @@ async function resolveSpeakerMemory(ctx: ChatContext, deps: EngineDeps, prep: Tu
     warningEpisode: recall.warningEpisode,
     ...(recall.liveWindowCutoffSeq !== undefined ? { liveWindowCutoffSeq: recall.liveWindowCutoffSeq } : {}),
   });
-  await emitMemoryRerankWarningOnce(deps, prep.chatId, recall.warningEpisode);
+  await emitRetrievalWarningsOnce(deps, prep.chatId, recall.warningEpisode);
   // The per-speaker recall REPLACES the round-level one, so its trace replaces the round-level trace too —
   // the ctx a speaker's BUILD reads must explain the memory that speaker actually got (#250).
   return { ...prep.assembleContext, memory: recalled.text, memoryTrace: recalled.trace };
 }
 
-/** The engine owns the typed bus literal and emits only after `turnStarted`; the shared episode owns
- * round-level/per-speaker dedupe for this turn. */
-async function emitMemoryRerankWarningOnce(deps: EngineDeps, chatId: ChatId, episode: MemoryRecallWarningEpisode): Promise<void> {
+/** The engine owns the typed bus literals and emits only after `turnStarted`; the shared episode owns
+ * round-level/per-speaker/databank dedupe for this turn.
+ *
+ * TWO CLASSES, DRAINED INDEPENDENTLY (#2510). `retrieval_index_unavailable` says the owner's vector space
+ * could not be queried at all, so `{{memory}}` and/or `{{databank}}` came back empty;
+ * `memory_rerank_unavailable` says recall DID retrieve and only lost the cross-encoder order. A turn can hit
+ * both, and collapsing them would tell a user their reranker failed when they have no queryable index. */
+async function emitRetrievalWarningsOnce(deps: EngineDeps, chatId: ChatId, episode: TurnRetrievalWarningEpisode): Promise<void> {
+  if (episode.takeIndexUnavailable()) {
+    await deps.emit({ type: "warning", chatId, code: "retrieval_index_unavailable" });
+  }
   if (episode.takeRerankUnavailable()) {
     await deps.emit({ type: "warning", chatId, code: "memory_rerank_unavailable" });
   }

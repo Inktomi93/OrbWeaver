@@ -93,6 +93,18 @@ export const PLAIN_CHAT_WARNING_CODES = [
   // mixC recall's cross-encoder reranker failed after vector retrieval had already succeeded. The turn keeps
   // the exact mixB/vector order and emits once for the whole turn's round + per-speaker recall episode.
   "memory_rerank_unavailable",
+  // THE OWNER'S VECTOR SPACE WAS NOT QUERYABLE THIS TURN, so a retrieval-backed prompt slot ran without its
+  // content — `{{memory}}` recall, the `{{databank}}` slot, or both. Two causes, one sentence to the user:
+  // their embedding index is mid-move (`search_space_reindexing`) or no embed connection is bound
+  // (`search_no_space`). The turn is UNAFFECTED apart from the missing slot.
+  // WHY IT EXISTS (#2510): that refusal is correct for a SEARCH surface — a half-migrated geometry ranks
+  // dimensionally-valid nonsense — but it used to travel out of the in-turn GATHER and kill the whole turn
+  // with a 400, which is the opposite trade: a turn's retrieval is an ENHANCEMENT to the turn. The compose
+  // bindings now degrade those two codes to "nothing retrieved" and raise this instead. Degraded-and-loud
+  // (D41); every OTHER search failure still propagates and still faults the turn.
+  // ONE PER TURN, never one per slot or per speaker: the shared `TurnRetrievalWarningEpisode` collapses the
+  // round-level recall, every per-speaker recall, and the databank gather into a single notice.
+  "retrieval_index_unavailable",
   // A structured-output `responseFormat` was requested but `capability.output.structured` isn't true → dropped;
   // the turn proceeds free-text (D79 interactive-axis degrade, 04 §7; the emit site is the engine's structured
   // request-builder gate, mirror of tools_unsupported).

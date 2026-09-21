@@ -253,8 +253,8 @@ describe("gatherAssembleContext — memory recall (the shared/merged bucket)", (
     const ctx = makeChatContext(db, {
       getCard: () => Promise.resolve(cardOf("Aria")),
       findSyntheticGroupCharacter: () => Promise.resolve({ characterId: GROUP_CHAR }),
-      searchDigests: (_query, onRerankUnavailable) => {
-        onRerankUnavailable?.();
+      searchDigests: (_query, events) => {
+        events?.onRerankUnavailable();
         return Promise.resolve([]);
       },
     });
