@@ -16,7 +16,7 @@ import type { RetryWorkloadParams } from "../contract/params.ts";
 import type { WorkloadService, WorkloadServiceContext } from "../contract/service.ts";
 import type { WorkloadRowAnyKind } from "../contract/workload-row.ts";
 import { isActiveKindUniqueViolation } from "../persistence/constraints.ts";
-import { insertWorkload, loadRawWorkloadParams, loadWorkload } from "../persistence/queries.ts";
+import { findUnavailableWorkloadDependency, insertWorkload, loadRawWorkloadParams, loadWorkload } from "../persistence/queries.ts";
 import { isVisibleToCaller } from "../substrate/authorize.ts";
 import { activeConflictMessage, assertAdmissible, resolveAdmissionKey } from "../substrate/params.ts";
 
@@ -40,6 +40,15 @@ async function resolveCloneParams(
   };
 }
 
+/** Re-prove the original dependency edges before a retry persists them into a fresh row. This keeps legacy
+ *  or directly-inserted cross-owner edges from laundering themselves through an otherwise authorized retry. */
+async function assertCloneDependenciesAvailable(ctx: WorkloadServiceContext, original: WorkloadRowAnyKind): Promise<void> {
+  const unavailableDependency = await findUnavailableWorkloadDependency(ctx.db, original.dependsOn ?? [], original.ownerId);
+  if (unavailableDependency !== undefined) {
+    throw new DomainNotFoundError(ENTITY, unavailableDependency);
+  }
+}
+
 export function createRetry(ctx: WorkloadServiceContext): Pick<WorkloadService, "retry"> {
   async function retry(params: RetryWorkloadParams): Promise<{ id: WorkloadId }> {
     const contributions = ctx.getContributions();
@@ -50,6 +59,7 @@ export function createRetry(ctx: WorkloadServiceContext): Pick<WorkloadService, 
     if (params.caller !== null && original.mode === "bulk") {
       ctx.requireOwner(params.caller);
     }
+    await assertCloneDependenciesAvailable(ctx, original);
     const clone = await resolveCloneParams(ctx, contributions, original);
     // Retry IS an enqueue door, so it asks the owning domain the same precondition `start` asks (#156) — a
     // memory backfill retried after memory was turned off would otherwise walk straight past the gate and

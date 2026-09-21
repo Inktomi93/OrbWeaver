@@ -106,6 +106,24 @@ describe("workloads.retry", () => {
     expect((await s.get({ id: cloneId, caller: principal("user_alice") })).ownerId).toBe(alice);
   });
 
+  test("a legacy cross-owner dependency cannot be laundered into a fresh retry row", async () => {
+    const db = await freshDb();
+    const alice = await seedUser(db, "user_alice");
+    const bob = await seedUser(db, "user_bob");
+    const foreign = await seedWorkloadRow(db, { id: "w_bob_dep", ownerId: bob, status: "succeeded" });
+    const original = await seedWorkloadRow(db, {
+      id: "w_alice_legacy",
+      kind: "reconcile-stats",
+      ownerId: alice,
+      status: "failed",
+      dependsOn: [foreign],
+    });
+    const s = makeService(db);
+
+    await expect(s.retry({ id: original, caller: principal("user_alice") })).rejects.toBeInstanceOf(DomainNotFoundError);
+    expect(new Set((await s.list({ caller: principal("user_admin", "admin") })).map((row) => row.id))).toEqual(new Set([original, foreign]));
+  });
+
   // Retry IS an enqueue door (#156): a memory backfill retried after memory was turned off would otherwise
   // walk straight past the gate `start` enforces and land the vacuous 0/0 run again.
   test("REFUSES the clone when the owning domain no longer admits the kind (memory turned off since the original)", async () => {

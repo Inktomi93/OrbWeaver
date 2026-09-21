@@ -41,12 +41,34 @@ const DEPENDENCY_FAILED_MESSAGE = "a dependency did not succeed (a non-success t
 const DEPENDENCY_GATES = ["ready", "waiting", "failed"] as const;
 type DependencyGate = (typeof DEPENDENCY_GATES)[number];
 
-// @orb-waive owner-scoped-reads(workloads): the ENGINE plane, not a door — the ids are a row's own persisted `dependsOn` set and the read returns statuses the scheduler needs to decide runnability. Owner-scoping it would deadlock a dependent whose dependency is (legitimately) another principal's row. Ends if `dependsOn` ever becomes caller-authored across owners without a validation rung.
-async function resolveDependencyGate(db: Db, dependsOn: readonly WorkloadId[]): Promise<DependencyGate> {
-  const rows = await db
+/** The dependency rows visible to one workload owner. This predicate is the shared authority rung for both
+ *  admission and scheduling: a persisted edge is admitted only through this scope, and the later gate reads
+ *  through the same scope instead of trusting the caller-authored id as a capability. */
+async function loadScopedDependencyStatuses(
+  db: Db,
+  dependsOn: readonly WorkloadId[],
+  ownerId: UserId | null,
+): Promise<readonly { readonly id: WorkloadId; readonly status: WorkloadStatus }[]> {
+  const ownerScope = ownerId === null ? isNull(workloads.ownerId) : eq(workloads.ownerId, ownerId);
+  return await db
     .select({ id: workloads.id, status: workloads.status })
     .from(workloads)
-    .where(inArray(workloads.id, [...dependsOn]));
+    .where(and(inArray(workloads.id, [...dependsOn]), ownerScope));
+}
+
+/** The first absent-or-foreign dependency, collapsed to one answer so the enqueue door cannot become an
+ *  existence oracle. `undefined` means every id exists inside the dependent row's resolved owner scope. */
+export async function findUnavailableWorkloadDependency(db: Db, dependsOn: readonly WorkloadId[], ownerId: UserId | null): Promise<WorkloadId | undefined> {
+  if (dependsOn.length === 0) {
+    return;
+  }
+  const rows = await loadScopedDependencyStatuses(db, dependsOn, ownerId);
+  const visible = new Set(rows.map((row) => row.id));
+  return dependsOn.find((id) => !visible.has(id));
+}
+
+async function resolveDependencyGate(db: Db, dependsOn: readonly WorkloadId[], ownerId: UserId | null): Promise<DependencyGate> {
+  const rows = await loadScopedDependencyStatuses(db, dependsOn, ownerId);
   let anyActive = false;
   for (const depId of dependsOn) {
     const status = rows.find((row) => row.id === depId)?.status;
@@ -391,7 +413,7 @@ async function evaluateQueuedRow(input: QueueScanInput, row: WorkloadSelectRow):
   if (view.dependsOn === null || view.dependsOn.length === 0) {
     return view;
   }
-  const gate = await resolveDependencyGate(input.db, view.dependsOn);
+  const gate = await resolveDependencyGate(input.db, view.dependsOn, view.ownerId);
   if (gate === "waiting") {
     return null;
   }

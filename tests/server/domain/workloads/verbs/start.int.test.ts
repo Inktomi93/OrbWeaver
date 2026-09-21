@@ -3,11 +3,12 @@
 // unsupported mode / a missing bulk-create target / a bad target are typed errors.
 
 import { DomainConflictError, DomainForbiddenError, DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import type { WorkloadId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { fakeContributions, makeService, principal, seedUser } from "../_support.ts";
+import { fakeContributions, makeService, principal, seedUser, seedWorkloadRow } from "../_support.ts";
 
 /** The chat domain's own refusal sentence (#156) — asserted through the message a caller actually reads. */
 const MEMORY_OFF_RE = /Memory is turned off/;
@@ -152,6 +153,62 @@ describe("workloads.start — MODE authz", () => {
         ownerId: principal("user_alice").userId,
       }),
     ).rejects.toBeInstanceOf(DomainOperationError);
+  });
+});
+
+describe("workloads.start — dependency authority", () => {
+  test("admits an existing dependency in the new row's resolved owner scope", async () => {
+    const db = await freshDb();
+    const alice = await seedUser(db, "user_alice");
+    const dependencyId = await seedWorkloadRow(db, { id: "workload_alice_dependency", ownerId: alice, status: "running" });
+    const s = makeService(db);
+
+    const { id } = await s.start({
+      input: { kind: "compute-themes", params: {} },
+      caller: principal("user_alice"),
+      mode: "singular",
+      ownerId: alice,
+      dependsOn: [dependencyId],
+    });
+
+    expect((await s.get({ id, caller: principal("user_alice") })).dependsOn).toEqual([dependencyId]);
+  });
+
+  test("a missing dependency is leak-free NOT_FOUND and no dependent row is persisted", async () => {
+    const db = await freshDb();
+    const alice = await seedUser(db, "user_alice");
+    const missing = castId<WorkloadId>("workload_missing_dependency");
+    const s = makeService(db);
+
+    await expect(
+      s.start({
+        input: { kind: "compute-themes", params: {} },
+        caller: principal("user_alice"),
+        mode: "singular",
+        ownerId: alice,
+        dependsOn: [missing],
+      }),
+    ).rejects.toBeInstanceOf(DomainNotFoundError);
+    expect(await s.list({ caller: principal("user_alice") })).toEqual([]);
+  });
+
+  test("another user's dependency collapses to the same NOT_FOUND and no dependent row is persisted", async () => {
+    const db = await freshDb();
+    const alice = await seedUser(db, "user_alice");
+    const bob = await seedUser(db, "user_bob");
+    const foreign = await seedWorkloadRow(db, { id: "workload_bob_dependency", ownerId: bob, status: "running" });
+    const s = makeService(db);
+
+    await expect(
+      s.start({
+        input: { kind: "compute-themes", params: {} },
+        caller: principal("user_alice"),
+        mode: "singular",
+        ownerId: alice,
+        dependsOn: [foreign],
+      }),
+    ).rejects.toBeInstanceOf(DomainNotFoundError);
+    expect((await s.list({ caller: principal("user_admin", "admin") })).map((row) => row.id)).toEqual([foreign]);
   });
 });
 
