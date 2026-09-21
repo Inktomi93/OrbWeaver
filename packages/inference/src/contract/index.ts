@@ -33,6 +33,7 @@ export type {
   AgentSeedBlock,
   AgentSeedTurn,
   AnthropicChatRequest,
+  ChatDeltaSubscription,
   ChatHistoryMessage,
   ChatRequest,
   ChatResult,

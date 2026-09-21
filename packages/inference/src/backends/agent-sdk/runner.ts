@@ -17,7 +17,6 @@ import type {
 } from "@anthropic-ai/claude-agent-sdk";
 import type { ChatUsage } from "@orb/contracts/inference";
 import type { ChatId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import { secondsToMs } from "@orb/kit/time";
 import type { AgentSdkChatRequest, ChatResult, ContextUsage, ToolCallInput } from "../../contract/chat.ts";
 import { normalizeFinishReason } from "../../contract/chat.ts";
@@ -849,13 +848,16 @@ function handleStreamEvent(acc: TurnAccumulator, message: Narrow<"stream_event">
     return;
   }
   const delta = raw.delta;
-  const chatId = castId<ChatId>(acc.ctx.chatId ?? "");
+  const { chatId, onDelta } = acc.ctx;
+  if (chatId === undefined || onDelta === undefined) {
+    return;
+  }
   if (delta.type === "text_delta") {
-    acc.ctx.onDelta?.({ chatId, kind: "text", text: delta.text });
+    onDelta({ chatId, kind: "text", text: delta.text });
     return;
   }
   if (delta.type === "thinking_delta") {
     // Stream-time only — handleAssistant is the canonical accumulation source.
-    acc.ctx.onDelta?.({ chatId, kind: "reasoning", text: delta.thinking });
+    onDelta({ chatId, kind: "reasoning", text: delta.thinking });
   }
 }
