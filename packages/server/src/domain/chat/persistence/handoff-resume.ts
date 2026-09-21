@@ -28,7 +28,6 @@ export function insertHandoffResumptionStatement(db: Db, args: HandoffResumption
       acceptedByUserId: args.acceptedByUserId,
       actorRekeys: args.actorRekeys,
       createdAt: args.now,
-      updatedAt: args.now,
     }),
   );
 }

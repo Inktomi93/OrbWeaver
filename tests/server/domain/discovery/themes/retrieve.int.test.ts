@@ -9,7 +9,7 @@ import { describe } from "vitest";
 import { readThemes } from "../../../../../packages/server/src/domain/discovery/themes/retrieve.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { FROZEN_AT, seedUser, vec } from "../_support.ts";
+import { FROZEN_AT, seedUser } from "../_support.ts";
 
 async function seedCluster(db: Awaited<ReturnType<typeof freshDb>>, args: { id: string; ownerId: UserId; level: string; clusterIdx: number }): Promise<void> {
   await db.insert(themeClusters).values({
@@ -18,7 +18,6 @@ async function seedCluster(db: Awaited<ReturnType<typeof freshDb>>, args: { id: 
     level: args.level,
     clusterIdx: args.clusterIdx,
     name: `Cluster ${args.id}`,
-    centroid: vec(1),
     size: 1,
     model: "test-embed-model-1024",
     computedAt: FROZEN_AT,

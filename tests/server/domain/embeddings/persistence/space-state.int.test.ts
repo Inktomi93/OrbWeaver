@@ -36,10 +36,10 @@ async function seedTarget(db: Db, ownerId: UserId, input: { task: GenerationTask
     .onConflictDoNothing();
   await db
     .insert(embedGenerationTargets)
-    .values({ ownerId, task, generationId: id, epoch, updatedAt: T0 })
+    .values({ ownerId, task, generationId: id, epoch })
     .onConflictDoUpdate({
       target: [embedGenerationTargets.ownerId, embedGenerationTargets.task],
-      set: { generationId: id, epoch, updatedAt: T0 },
+      set: { generationId: id, epoch },
     });
   return { id, task, via: task, epoch, space };
 }

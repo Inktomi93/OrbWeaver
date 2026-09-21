@@ -2,7 +2,7 @@
 // duplicate pairs). Real libSQL :memory: via freshDb (FK PRAGMA ON). Covers: the per-type FK pair
 // round-trips + CASCADE on entity delete + the `relation` test-mirror/CHECK + the canonical-A<B CHECK +
 // FK enforcement; the D23 ownership SHAPE per table (ownerId PRESENT on keyword_cooccurrence/theme_clusters,
-// ABSENT on the 5 derived tables); the theme_clusters.centroid vector32 1024-dim round-trip; the
+// ABSENT on the 5 derived tables); the theme_clusters owner/unique-address contract; the
 // digest_theme_assignments composite PK + its CASCADE to both parents.
 //
 // `relation` (`duplicate | forked`) is the db↔contracts mirror: the column DERIVES `RELATIONS` from
@@ -48,8 +48,8 @@ import { freshDb } from "../../support/db.ts";
 import { expect, test } from "../../support/fixtures.ts";
 import { seedChat, seedUser } from "./_support.ts";
 
-// The one space's dim (mirrors schema CENTROID_DIM). A deterministic ramp vector (no Math-random) — every
-// value is exactly representable + round-trippable through F32_BLOB.
+// The one embedding-space dim. A deterministic ramp vector (no Math-random) — every value is exactly
+// representable + round-trippable through F32_BLOB.
 const DIM = 1024;
 const MODEL = "qwen3-vl";
 function rampVector(): Float32Array {
@@ -131,7 +131,6 @@ async function seedThemeCluster(db: Db, seed: ThemeClusterSeed): Promise<ThemeCl
     ownerId: seed.ownerId,
     level: seed.level,
     clusterIdx: seed.clusterIdx,
-    centroid: rampVector(),
     size: 5,
     model: MODEL,
   });
@@ -487,8 +486,8 @@ test("character_summaries is keyed by characterId, DERIVE ownerId (no column), a
   expect(await db.select().from(characterSummaries)).toHaveLength(0);
 });
 
-// ── D23 KEEP: theme_clusters (ownerId + centroid vector32 + unique(owner,level,idx)) ───────────────────
-test("theme_clusters KEEPS ownerId (D23) and round-trips the centroid vector32 (k-means MEAN, 1024-dim)", async () => {
+// ── D23 KEEP: theme_clusters (ownerId + unique(owner,level,idx)) ──────────────────────────────────────
+test("theme_clusters KEEPS ownerId (D23) and uniquely addresses a cluster by owner, level, and index", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_tc", handle: castId<Handle>("h-user_tc") });
   const id = await seedThemeCluster(db, {
@@ -503,9 +502,6 @@ test("theme_clusters KEEPS ownerId (D23) and round-trips the centroid vector32 (
   // KEEP (D23) — ownerId IS a column.
   expect(rows[0]?.ownerId).toBe(ownerId);
   expect(rows[0]?.level).toBe("scene");
-  // The centroid is a real F32_BLOB ⇄ Float32Array round-trip (the slice() alignment idiom).
-  expect(rows[0]?.centroid).toBeInstanceOf(Float32Array);
-  expect(rows[0]?.centroid).toHaveLength(DIM);
   expect(rows[0]?.name).toBeNull();
 
   // unique(owner, level, clusterIdx) — a same-address cluster collides; a different level coexists.

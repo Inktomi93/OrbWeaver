@@ -27,7 +27,6 @@ async function seedCluster(db: Db, args: { ownerId: UserId; clusterIdx: number; 
     level: args.level ?? "scene",
     clusterIdx: args.clusterIdx,
     name: args.name,
-    centroid: vec(1),
     size: 1,
     model: "test-embed-model-1024",
     computedAt: FROZEN_AT,

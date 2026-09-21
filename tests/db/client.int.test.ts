@@ -6,7 +6,7 @@
 // Wave-1 slices that land real FKs.
 
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pid } from "node:process";
@@ -217,6 +217,69 @@ test("the 0000_baseline migration applies on a fresh db and passes assertReferen
   await expect(assertReferentialIntegrity(db)).resolves.toBeUndefined();
   // Each select throws if the baseline didn't create the table (independent → run together).
   await Promise.all(SENTINEL_TABLES.map((table) => db.run(sql.raw(`select count(*) from ${table}`))));
+});
+
+test("the dead-storage migration preserves handoff, generation-target, theme-cluster, and assignment rows", async () => {
+  const dir = mkdtempSync(join(tmpdir(), `orb-dead-storage-migration-${pid}-`));
+  try {
+    const journal = JSON.parse(readFileSync(join(MIGRATIONS_DIR, "meta", "_journal.json"), "utf8")) as {
+      readonly entries: readonly { readonly tag: string; readonly when: number }[];
+    };
+    const entry = (tag: string): ChainEntry => {
+      const metadata = journal.entries.find((candidate) => candidate.tag === tag);
+      if (metadata === undefined) {
+        throw new Error(`missing migration ${tag}`);
+      }
+      return { ...metadata, sqlText: readFileSync(join(MIGRATIONS_DIR, `${tag}.sql`), "utf8") };
+    };
+    const baseline = entry("0000_baseline");
+    const cleanup = entry("0001_remove_dead_storage");
+    const folder = chainFixture(dir, [baseline]);
+    const db = await createDb(":memory:");
+    await runMigrations(db, folder);
+
+    const vector = new Uint8Array(new Float32Array(1024).buffer);
+    await db.run(sql`INSERT INTO users (id, handle) VALUES ('user_migration', 'migration')`);
+    await db.run(sql`INSERT INTO chats (id) VALUES ('chat_migration')`);
+    await db.run(sql`INSERT INTO chat_handoff_resumptions (chat_id, accepted_by_user_id, actor_rekeys, created_at, updated_at)
+      VALUES ('chat_migration', 'user_migration', '[]', 10, 20)`);
+    await db.run(sql`INSERT INTO embed_generations (id, owner_id, task, via, connection_ref, fingerprint, space)
+      VALUES ('embed_generation_migration', 'user_migration', 'embed', 'embed', 'connection_removed', 'fingerprint', 'space')`);
+    await db.run(sql`INSERT INTO embed_generation_targets (owner_id, task, generation_id, epoch, updated_at)
+      VALUES ('user_migration', 'embed', 'embed_generation_migration', 3, 30)`);
+    await db.run(sql`INSERT INTO characters (id, handle, owner_id, content_hash, name)
+      VALUES ('character_migration', 'migration-card', 'user_migration', 'hash', 'Migration')`);
+    await db.run(sql`INSERT INTO chat_digests
+      (id, chat_id, scoped_character_id, tier, block_idx, text, embedding, content_hash, model, generation_id, dim)
+      VALUES ('chat_digest_migration', 'chat_migration', 'character_migration', 0, 0, 'body', ${vector}, 'digest-hash', 'model', 'embed_generation_migration', 1024)`);
+    await db.run(sql`INSERT INTO theme_clusters (id, owner_id, level, cluster_idx, name, centroid, size, model)
+      VALUES ('theme_cluster_migration', 'user_migration', 'scene', 0, 'Migration theme', ${vector}, 1, 'model')`);
+    await db.run(sql`INSERT INTO digest_theme_assignments (digest_id, theme_cluster_id)
+      VALUES ('chat_digest_migration', 'theme_cluster_migration')`);
+
+    chainFixture(dir, [baseline, cleanup]);
+    await runMigrations(db, folder);
+    await expect(assertReferentialIntegrity(db)).resolves.toBeUndefined();
+    const columns = async (table: string): Promise<string[]> => {
+      const rows = await db.all<Record<string, unknown>>(sql.raw(`PRAGMA table_info(${table})`));
+      return rows.map((row) => String(row["name"]));
+    };
+    expect(await columns("chat_handoff_resumptions")).not.toContain("updated_at");
+    expect(await columns("embed_generation_targets")).not.toContain("updated_at");
+    expect(await columns("theme_clusters")).not.toContain("centroid");
+    expect(await db.all(sql`SELECT chat_id AS chatId, created_at AS createdAt FROM chat_handoff_resumptions`)).toEqual([
+      { chatId: "chat_migration", createdAt: 10 },
+    ]);
+    expect(await db.all(sql`SELECT generation_id AS generationId, epoch FROM embed_generation_targets`)).toEqual([
+      { generationId: "embed_generation_migration", epoch: 3 },
+    ]);
+    expect(await db.all(sql`SELECT id, name, size FROM theme_clusters`)).toEqual([{ id: "theme_cluster_migration", name: "Migration theme", size: 1 }]);
+    expect(await db.all(sql`SELECT digest_id AS digestId, theme_cluster_id AS themeClusterId FROM digest_theme_assignments`)).toEqual([
+      { digestId: "chat_digest_migration", themeClusterId: "theme_cluster_migration" },
+    ]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test("runMigrations restores foreign_keys ON afterward (the finally-restore contract)", async () => {

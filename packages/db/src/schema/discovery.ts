@@ -28,11 +28,11 @@
 //     tuple from `@orb/contracts/discovery` (D34 — now populated, the one home); the column carries the
 //     drizzle `{ enum }` (type-side) AND a CHECK built from the same tuple (SQL-side), and a `.int`
 //     test-mirror pins `relation.enumValues` to it — mirroring `image_embeddings.lens ← IMAGE_LENSES`.
-//   • `theme_clusters.centroid` is a `vector32` F32_BLOB — but a k-means MEAN rollup, NOT a primary
-//     vector store (those four live in `schema/embeddings.ts`). It lives here because it is discovery's
-//     own derived signal. `level` (`scene | arc`, the ThemeLevel union) is the clustering level; its
-//     canonical home is `domain/discovery/contract/params.ts` (a server-tier domain concern that db may
-//     NOT import), so the column is plain TEXT — the domain validates it, the db does not constrain it.
+//   • Theme centroids are transient k-means state. The durable result is the cluster row plus its
+//     `digest_theme_assignments`; no vector is stored on `theme_clusters`. `level` (`scene | arc`, the
+//     ThemeLevel union) is the clustering level; its canonical home is
+//     `domain/discovery/contract/params.ts` (a server-tier domain concern that db may NOT import), so the
+//     column is plain TEXT — the domain validates it, the db does not constrain it.
 //
 // Timestamps / provenance are plain `integer("x_at")` epoch-MS NUMBERS (NOT Date). `computedAt` is the
 // provenance stamp on each recompute, born via `(unixepoch() * 1000)`. Floats (`cslsScore`/`similarity`)
@@ -62,7 +62,6 @@ import {
   text,
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
-import { vector32 } from "../custom-types/index.ts";
 import { checkList } from "../kit/check-list.ts";
 import { characters } from "./character.ts";
 import { chats } from "./chat.ts";
@@ -74,10 +73,6 @@ import { users } from "./users.ts";
 // `@orb/contracts/discovery` (D34 one-home — the canonical tuple); the SQL CHECK list is built from the
 // same tuple (never a re-spelled union), and a `.int` test-mirror pins `relation.enumValues` to it.
 const RELATION_CHECK_LIST = checkList(RELATIONS);
-
-// The one 1024-dim space (Qwen3-VL — core/Knowledge-Cluster.md §1). A theme centroid is a MEAN of digest
-// embeddings in that space, so it matches the embeddings dim exactly.
-const CENTROID_DIM = 1024;
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // duplicate_character_pairs — near-duplicate cards (all-pairs cosine ≥ threshold, CSLS-ranked). Per-type
@@ -258,9 +253,10 @@ export const characterSummaries = sqliteTable("character_summaries", {
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // theme_clusters — emergent themes (k-means over digest embeddings, LLM-named). KEEP ownerId (D23 — a
-// parentless per-user aggregate: owner × cluster). `centroid` is a `vector32` k-means MEAN rollup (NOT a
-// primary vector store). `level` (`scene | arc`, the ThemeLevel union) is plain TEXT — its canonical home
-// is the server-tier `domain/discovery/contract/params.ts`, which db may not import (the domain validates).
+// parentless per-user aggregate: owner × cluster). The transient k-means centroid is discarded once the
+// durable cluster and assignments are written. `level` (`scene | arc`, the ThemeLevel union) is plain TEXT
+// — its canonical home is the server-tier `domain/discovery/contract/params.ts`, which db may not import
+// (the domain validates).
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
 export const themeClusters = sqliteTable(
@@ -279,9 +275,6 @@ export const themeClusters = sqliteTable(
     clusterIdx: integer("cluster_idx").notNull(),
     // The LLM-assigned name — nullable until the naming pass runs (clusters exist before they are named).
     name: text("name"),
-    // The k-means MEAN centroid (F32_BLOB(1024), ../custom-types) — a discovery rollup, NOT a primary
-    // vector. Re-normalized by the clusterer so a downstream cosineDistance ranks as the argmin did.
-    centroid: vector32("centroid", { dimensions: CENTROID_DIM }).notNull(),
     // The FULL-space member count (the "is this cluster worth naming?" gate uses this, NOT the collapsed
     // rep count — a fork-of-50 collapsing to one rep should still be named).
     size: integer("size").notNull(),

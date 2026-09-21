@@ -94,7 +94,7 @@ async function seedGeneration(db: Db, ownerId: UserId, task: "embed" | "imageEmb
       createdAt: FROZEN_AT,
     })
     .onConflictDoNothing();
-  await db.insert(embedGenerationTargets).values({ ownerId, task, generationId: id, epoch: 1, updatedAt: FROZEN_AT }).onConflictDoNothing();
+  await db.insert(embedGenerationTargets).values({ ownerId, task, generationId: id, epoch: 1 }).onConflictDoNothing();
   await db
     .insert(embedSpaceState)
     .values(

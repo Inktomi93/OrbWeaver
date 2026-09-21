@@ -145,7 +145,6 @@ export const embedGenerationTargets = sqliteTable(
       .notNull()
       .references(() => embedGenerations.id, { onDelete: "cascade" }),
     epoch: integer("epoch").notNull(),
-    updatedAt: integer("updated_at").notNull(),
   },
   (t) => [
     primaryKey({ columns: [t.ownerId, t.task] }),
