@@ -40,8 +40,8 @@ export function assertRepoPath(value: unknown, label: string): asserts value is 
   }
 }
 
-export function repoGitEnvironment(): NodeJS.ProcessEnv {
-  return Object.fromEntries(Object.entries(inheritedProcessEnv()).filter(([name]) => !name.startsWith("GIT_")));
+export function repoGitEnvironment(environment: NodeJS.ProcessEnv = inheritedProcessEnv()): NodeJS.ProcessEnv {
+  return Object.fromEntries(Object.entries(environment).filter(([name]) => !name.startsWith("GIT_")));
 }
 
 function containedRelative(root: string, canonical: string, label: string): string {

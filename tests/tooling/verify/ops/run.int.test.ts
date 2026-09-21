@@ -10,7 +10,8 @@ import { delimiter, join } from "node:path";
 import process from "node:process";
 import { setTimeout as delay } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
-import { execNicedSync, spawnNiced, spawnNicedTranscript } from "@orb/tooling/_shared/proc";
+import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
+import { spawnNiced, spawnNicedTranscript } from "@orb/tooling/_shared/proc";
 import YAML from "yaml";
 import type { Parsed, StageDef, StageResult, VerifyReport } from "../../../../tooling/src/verify/index.ts";
 import {
@@ -71,7 +72,7 @@ test("Lefthook forwards each long gate before its held child exits and preserves
   const live = YAML.parse(readFileSync(join(repoRoot, "lefthook.yml"), "utf8")) as Record<string, { readonly follow?: boolean }>;
   const hooks = ["pre-commit", "pre-merge-commit", "pre-push"] as const;
   writeFileSync(join(scratch, "package.json"), '{"name":"lefthook-progress-fixture","private":true}\n');
-  expect(spawnSync("git", ["init", "-q"], { cwd: scratch }).status).toBe(0);
+  execFixtureGit(scratch, ["init", "-q"]);
   writeFileSync(
     join(scratch, "hold.cjs"),
     "const fs=require('node:fs');const hook=process.argv[2];process.stdout.write('HELD '+hook+'\\n',()=>fs.writeFileSync('ready-'+hook,'yes'));const timer=setInterval(()=>{if(fs.existsSync('release-'+hook)){clearInterval(timer);process.exitCode=7}},20);\n",
@@ -681,16 +682,16 @@ test("resolveSelection: bare --changed preserves modified, untracked, deleted, a
   writeFileSync(join(toolingSrc, "tracked.ts"), "export const tracked = true;\n");
   writeFileSync(join(toolingSrc, "deleted.ts"), "export const deleted = true;\n");
   writeFileSync(join(scratch, ".gitignore"), "tooling/src/ignored.ts\n");
-  execNicedSync("git", ["init", "-q"], { cwd: scratch });
-  execNicedSync("git", ["config", "user.email", "selection-test@example.invalid"], { cwd: scratch });
-  execNicedSync("git", ["config", "user.name", "Selection Test"], { cwd: scratch });
-  execNicedSync("git", ["add", "."], { cwd: scratch });
-  execNicedSync("git", ["commit", "-qm", "fixture"], { cwd: scratch });
+  execFixtureGit(scratch, ["init", "-q"]);
+  execFixtureGit(scratch, ["config", "user.email", "selection-test@example.invalid"]);
+  execFixtureGit(scratch, ["config", "user.name", "Selection Test"]);
+  execFixtureGit(scratch, ["add", "."]);
+  execFixtureGit(scratch, ["commit", "-qm", "fixture"]);
 
   writeFileSync(join(src, "modified.ts"), "export const value = 2;\n");
   rmSync(join(src, "deleted.ts"));
   renameSync(join(src, "rename-old.ts"), join(src, "rename-new.ts"));
-  execNicedSync("git", ["add", "-A"], { cwd: scratch });
+  execFixtureGit(scratch, ["add", "-A"]);
   writeFileSync(join(src, "modified.ts"), "export const value = 3;\n");
   writeFileSync(join(src, "untracked.ts"), "export const untracked = true;\n");
   rmSync(join(toolingSrc, "deleted.ts"));

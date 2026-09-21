@@ -5,11 +5,11 @@
 // (#1778/#1781) needed the same tree with the pre-emit diagnostics check ON — the one knob the
 // inline copy hard-coded off.
 
-import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import process from "node:process";
+import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
 import { vi } from "vitest";
 import type { CodemodContext, CodemodResult, RunCodemodOptions } from "../../../tooling/src/codemod/index.ts";
 import { runCodemod } from "../../../tooling/src/codemod/index.ts";
@@ -55,10 +55,7 @@ export async function withTree(files: Record<string, string>, fn: (h: KitTreeHar
   // compares resolved paths — an unresolved root makes every fixture path look like it escapes.
   const root = mkdtempSync(join(realpathSync(tmpdir()), "orb-codemod-kit-"));
   try {
-    const initialized = spawnSync("git", ["init", "-q"], { cwd: root, encoding: "utf8" });
-    if (initialized.status !== 0) {
-      throw new Error(`could not initialize codemod fixture repository: ${initialized.stderr}`);
-    }
+    execFixtureGit(root, ["init", "-q"]);
     writeFileSync(join(root, "tsconfig.json"), TSCONFIG);
     for (const [rel, text] of Object.entries(files)) {
       const abs = join(root, rel);

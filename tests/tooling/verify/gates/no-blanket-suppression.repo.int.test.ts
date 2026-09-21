@@ -7,9 +7,9 @@
 // arm over the actual repo reports ZERO findings across a non-zero denominator — the post-migration receipt
 // in test form, so it keeps proving. Every fixture is a throwaway git repo under the scratch fixture, never
 // the real tree (`__g_` stays the gate harness's).
-import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
 import { Project } from "ts-morph";
 import { describe } from "vitest";
 import type { CoordinatedGateFinding } from "../../../../tooling/src/verify/contract/gate-authority.ts";
@@ -62,7 +62,7 @@ function plant(root: string, rel: string, content: string): void {
 }
 
 function git(root: string, args: readonly string[]): void {
-  execFileSync("git", [...args], { cwd: root, stdio: "ignore" });
+  execFixtureGit(root, args);
 }
 
 /** A throwaway git repo carrying a governed source + strict-JSON biome.json + `files`, all COMMITTED. */

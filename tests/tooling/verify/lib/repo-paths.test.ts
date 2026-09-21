@@ -9,6 +9,7 @@
 import { execFileSync } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
 import {
   branchChangedPaths,
   FIXTURE_GIT_CONFIG_ARGS,
@@ -99,22 +100,8 @@ test("the fixture environment still strips inherited GIT_ redirections", () => {
 // — and they go red there, naming the backlog file. They are a defect proof, not a build error.
 // ══════════════════════════════════════════════════════════════════════════════════════════════════════
 
-/** Isolate every fixture repository from the operator's git configuration and from any inherited GIT_*.
- *  Built through `fromEntries` because env-var names are SCREAMING_SNAKE and an object literal spelling
- *  them is a `useNamingConvention` violation. */
-const GIT_ENV: NodeJS.ProcessEnv = Object.fromEntries([
-  ["PATH", "/usr/bin:/bin"],
-  ["HOME", "/nonexistent"],
-  ["GIT_CONFIG_GLOBAL", "/dev/null"],
-  ["GIT_CONFIG_NOSYSTEM", "1"],
-  ["GIT_AUTHOR_NAME", "pin"],
-  ["GIT_AUTHOR_EMAIL", "pin@example.invalid"],
-  ["GIT_COMMITTER_NAME", "pin"],
-  ["GIT_COMMITTER_EMAIL", "pin@example.invalid"],
-]);
-
 function git(repo: string, ...args: string[]): string {
-  return execFileSync("git", args, { cwd: repo, env: GIT_ENV, encoding: "utf-8" }).trim();
+  return execFixtureGit(repo, ["-c", "user.name=pin", "-c", "user.email=pin@example.invalid", ...args]).trim();
 }
 
 /** Commit one file, so each commit is identifiable by the path it introduced. */

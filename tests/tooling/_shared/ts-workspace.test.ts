@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { runNicedSync } from "@orb/tooling/_shared/proc";
+import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
 import { createSemanticWorkspace } from "@orb/tooling/_shared/ts-workspace";
 import { buildLiveness, collectOrphanCandidates, collectTypeOnlyCandidates } from "@orb/tooling/ast";
 import { Node } from "ts-morph";
@@ -41,10 +41,7 @@ function initializeWorldFixture(root: string): void {
   write(root, ".gitignore", ".claude/worktrees/\nnode_modules/\n");
   write(root, ".claude/worktrees/decoy/packages/client/src/browser.ts", "export const decoy = document.createElement('button');\n");
   write(root, "node_modules/decoy/index.ts", "export const dependencyDecoy = true;\n");
-  const initialized = runNicedSync("git", ["init", "-q"], { cwd: root });
-  if (initialized.status !== 0) {
-    throw new Error(initialized.stderr);
-  }
+  execFixtureGit(root, ["init", "-q"]);
 }
 
 test("semantic workspace preserves native browser and node worlds", ({ scratch }) => {
@@ -164,10 +161,7 @@ function initializeZeroProgramRepository(scratch: string, files: Readonly<Record
   for (const [path, text] of Object.entries(files)) {
     write(scratch, path, text);
   }
-  const initialized = runNicedSync("git", ["init", "-q"], { cwd: scratch });
-  if (initialized.status !== 0) {
-    throw new Error(initialized.stderr);
-  }
+  execFixtureGit(scratch, ["init", "-q"]);
 }
 
 test("semantic workspace refuses a repository with no config", ({ scratch }) => {

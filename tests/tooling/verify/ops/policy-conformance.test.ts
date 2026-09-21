@@ -1,8 +1,8 @@
-import { execFileSync } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import process from "node:process";
+import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
 import { SyntaxKind } from "ts-morph";
 import { withProcessEnv } from "../../../../tooling/src/_shared/process-env.ts";
 import type { GatePolicy, GatePolicyProof } from "../../../../tooling/src/verify/contract/policy.ts";
@@ -700,8 +700,8 @@ test("a .git/config fixture cannot run a command during the runner's git add —
 for (const key of ["GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"] as const) {
   test(`resource proofs ignore ambient ${key} without changing the caller index`, async ({ scratch }) => {
     writeFileSync(join(scratch, "outside.txt"), "outside");
-    execFileSync("git", ["init", "--quiet"], { cwd: scratch });
-    execFileSync("git", ["add", "--all"], { cwd: scratch });
+    execFixtureGit(scratch, ["init", "--quiet"]);
+    execFixtureGit(scratch, ["add", "--all"]);
     const index = join(scratch, ".git/index");
     const before = readFileSync(index);
     let target = scratch;

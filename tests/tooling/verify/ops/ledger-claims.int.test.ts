@@ -16,7 +16,7 @@
 // unconditionally; a pin holding only the second would pass on the pre-fix code.
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { runNicedSync } from "@orb/tooling/_shared/proc";
+import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
 import { parseClaimCommits, readClaimRange } from "../../../../tooling/src/verify/ops/ledger-claims.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
@@ -32,10 +32,7 @@ const TINY_CEILING_BYTES = 4096;
 const AMPLE_CEILING_BYTES = 16 * 1024 * 1024;
 
 function git(cwd: string, args: readonly string[]): void {
-  const res = runNicedSync("git", ["-c", "core.hooksPath=/dev/null", "-c", "user.email=pin@orbweaver.test", "-c", "user.name=pin", ...args], { cwd });
-  if (res.status !== 0) {
-    throw new Error(`fixture git ${args.join(" ")} exited ${String(res.status)}: ${res.stderr}`);
-  }
+  execFixtureGit(cwd, ["-c", "user.email=pin@orbweaver.test", "-c", "user.name=pin", ...args]);
 }
 
 /** A repository whose range output is comfortably over TINY_CEILING_BYTES and comfortably under the ample
@@ -48,7 +45,7 @@ function plantRange(
   writeFileSync(join(scratch, "seed.txt"), "seed\n");
   git(scratch, ["add", "--all"]);
   git(scratch, ["commit", "--quiet", "-m", "seed"]);
-  const base = runNicedSync("git", ["rev-parse", "HEAD"], { cwd: scratch }).stdout.trim();
+  const base = execFixtureGit(scratch, ["rev-parse", "HEAD"]).trim();
   for (let n = 0; n < commits; n += 1) {
     writeFileSync(join(scratch, `file-${String(n)}.txt`), `${String(n)}\n`);
     git(scratch, ["add", "--all"]);

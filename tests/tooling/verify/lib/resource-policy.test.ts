@@ -1,6 +1,6 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { execNicedSync } from "@orb/tooling/_shared/proc";
+import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
 import { Project } from "ts-morph";
 import { PRODUCT_STYLESHEETS } from "../../../../tooling/src/verify/contract/css-family.ts";
 import type { GatePolicyContext } from "../../../../tooling/src/verify/contract/policy.ts";
@@ -184,10 +184,10 @@ test("the exact-file door is fenced PER ID, so a widened argument cannot reach a
 });
 
 test("candidate-index text cannot widen beyond the tracked paths in this policy's effective population", ({ scratch }) => {
-  execNicedSync("git", ["init", "--quiet", scratch]);
+  execFixtureGit(scratch, ["init", "--quiet"]);
   writeFileSync(join(scratch, "allowed.ts"), "export const allowed = true;\n");
   writeFileSync(join(scratch, "sibling.ts"), "export const sibling = true;\n");
-  execNicedSync("git", ["-C", scratch, "add", "allowed.ts", "sibling.ts"]);
+  execFixtureGit(scratch, ["add", "allowed.ts", "sibling.ts"]);
   const invocation = createResourceHost({ root: scratch });
   const receipts: GatePolicyReceipt[] = [];
   const bound = bindPolicyResources({

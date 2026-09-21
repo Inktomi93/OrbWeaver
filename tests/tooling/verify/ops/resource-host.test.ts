@@ -1,6 +1,6 @@
-import { execFileSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
 import { Project } from "ts-morph";
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
 import type { ResourceHost } from "../../../../tooling/src/verify/contract/resource-host.ts";
@@ -162,8 +162,8 @@ test("an injected parser cannot substitute a same-suffix source from another roo
 test("native configuration observes the host overlay and caches its exact transaction receipt", ({ scratch }) => {
   writeFileSync(join(scratch, "vitest.config.ts"), 'import { ROWS } from "./rows.js"; export default { test: { include: ROWS } };');
   writeFileSync(join(scratch, "rows.js"), 'export const ROWS = ["tests/disk.test.ts"];');
-  execFileSync("git", ["init", "-q"], { cwd: scratch });
-  execFileSync("git", ["add", "-A"], { cwd: scratch });
+  execFixtureGit(scratch, ["init", "-q"]);
+  execFixtureGit(scratch, ["add", "-A"]);
   const overlay = { "rows.js": 'export const ROWS = ["tests/overlay.test.ts"];' };
   const invocation = createResourceHost({ root: scratch, overlay });
   overlay["rows.js"] = 'export const ROWS = ["tests/wrong.test.ts"];';
@@ -184,8 +184,8 @@ test("native configuration observes the host overlay and caches its exact transa
 test("declared native configuration is consumed through the production dispatcher", ({ scratch }) => {
   const config = 'export default { test: { include: ["tests/live.test.ts"] } };';
   writeFileSync(join(scratch, "vitest.config.ts"), config);
-  execFileSync("git", ["init", "-q"], { cwd: scratch });
-  execFileSync("git", ["add", "-A"], { cwd: scratch });
+  execFixtureGit(scratch, ["init", "-q"]);
+  execFixtureGit(scratch, ["add", "-A"]);
   let observed = false;
   const gate = defineGate({
     id: "native-config-proof",

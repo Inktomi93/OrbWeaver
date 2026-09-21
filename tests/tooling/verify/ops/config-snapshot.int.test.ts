@@ -5,6 +5,7 @@ import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, symlinkSyn
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import process from "node:process";
+import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
 import { ESLint } from "eslint";
 import { createVitest } from "vitest/node";
 import { readConfigSnapshot } from "../../../../tooling/src/verify/lib/config-snapshot.ts";
@@ -26,8 +27,8 @@ async function plantEslintRepo(root: string, files: Readonly<Record<string, stri
     await mkdir(dirname(abs), { recursive: true });
     await writeFile(abs, source, "utf8");
   }
-  execFileSync("git", ["init", "-q"], { cwd: root });
-  execFileSync("git", ["add", "-A"], { cwd: root });
+  execFixtureGit(root, ["init", "-q"]);
+  execFixtureGit(root, ["add", "-A"]);
 }
 
 test("loads an async Vitest config and preserves derived selector owner/field identities", async ({ scratch }) => {
@@ -107,8 +108,8 @@ test("loads the effective dependency-cruiser chain but snapshots only repository
 
 test("dependency-cruiser evaluates required helper bytes from the overlay transaction", ({ scratch }) => {
   writeFileSync(join(scratch, DEPCRUISE_CONFIG_REL), 'module.exports = { forbidden: [{ name: "disk", from: { path: "^disk/" }, to: {} }] };\n');
-  execFileSync("git", ["init", "-q"], { cwd: scratch });
-  execFileSync("git", ["add", "-A"], { cwd: scratch });
+  execFixtureGit(scratch, ["init", "-q"]);
+  execFixtureGit(scratch, ["add", "-A"]);
   const read = readConfigSnapshot(scratch, "depcruise", DEPCRUISE_CONFIG_REL, {
     overlay: {
       [DEPCRUISE_CONFIG_REL]:
@@ -146,8 +147,8 @@ test("the process boundary observes rewritten CommonJS config instead of a stale
 
 test("materialization failures stay unreadable and private ESLint population input refuses another runner", ({ scratch, repoRoot }) => {
   writeFileSync(join(scratch, CONFIG_REL), 'export default { test: { include: ["tests/live.test.ts"] } };\n');
-  execFileSync("git", ["init", "-q"], { cwd: scratch });
-  execFileSync("git", ["add", "-A"], { cwd: scratch });
+  execFixtureGit(scratch, ["init", "-q"]);
+  execFixtureGit(scratch, ["add", "-A"]);
   expect(readConfigSnapshot(scratch, "vitest", CONFIG_REL, { overlay: { "node_modules/forged.js": "x" } })).toMatchObject({
     kind: "unreadable",
     detail: expect.stringContaining("non-authored"),
@@ -166,8 +167,8 @@ test("materialization failures stay unreadable and private ESLint population inp
 test("the process boundary evaluates config and relative filesystem sidecars from one overlay transaction", ({ scratch }) => {
   writeFileSync(join(scratch, CONFIG_REL), 'export default { test: { include: ["tests/disk.test.ts"] } };\n');
   writeFileSync(join(scratch, "selector.txt"), "tests/disk.test.ts\n");
-  execFileSync("git", ["init", "-q"], { cwd: scratch });
-  execFileSync("git", ["add", "-A"], { cwd: scratch });
+  execFixtureGit(scratch, ["init", "-q"]);
+  execFixtureGit(scratch, ["add", "-A"]);
   const config = `import { readFileSync } from "node:fs";\nimport { join } from "node:path";\nconst value = readFileSync(join(import.meta.dirname, "selector.txt"), "utf8").trim();\nexport default { test: { include: [value] } };\n`;
 
   const read = readConfigSnapshot(scratch, "vitest", CONFIG_REL, {
@@ -189,8 +190,8 @@ test("a contained absolute symlink resolves to staged target bytes", ({ scratch 
   writeFileSync(join(scratch, "selector.ts"), 'export const SELECTOR = "tests/disk.test.ts";\n');
   symlinkSync(join(scratch, "selector.ts"), join(scratch, "selector-link.ts"));
   writeFileSync(join(scratch, CONFIG_REL), 'import { SELECTOR } from "./selector-link.ts";\nexport default { test: { include: [SELECTOR] } };\n');
-  execFileSync("git", ["init", "-q"], { cwd: scratch });
-  execFileSync("git", ["add", "-A"], { cwd: scratch });
+  execFixtureGit(scratch, ["init", "-q"]);
+  execFixtureGit(scratch, ["add", "-A"]);
 
   const read = readConfigSnapshot(scratch, "vitest", CONFIG_REL, {
     overlay: { "selector.ts": 'export const SELECTOR = "tests/staged.test.ts";\n' },
@@ -230,8 +231,8 @@ test("the overlay transaction refuses a deleted workspace target instead of reso
 
 test("an overlay entry with a parent-traversal path refuses instead of escaping the stage root", ({ scratch }) => {
   writeFileSync(join(scratch, CONFIG_REL), 'export default { test: { include: ["tests/live.test.ts"] } };\n');
-  execFileSync("git", ["init", "-q"], { cwd: scratch });
-  execFileSync("git", ["add", "-A"], { cwd: scratch });
+  execFixtureGit(scratch, ["init", "-q"]);
+  execFixtureGit(scratch, ["add", "-A"]);
   const read = readConfigSnapshot(scratch, "vitest", CONFIG_REL, {
     overlay: { "../../escape.ts": "export const ESCAPED = true;\n" },
   });
@@ -244,8 +245,8 @@ test("an overlaid workspace manifest cannot redirect a package link outside the 
   mkdirSync(join(scratch, "tooling"));
   writeFileSync(join(scratch, "tooling/package.json"), JSON.stringify({ name: "@orb/tooling", private: true }));
   writeFileSync(join(scratch, CONFIG_REL), 'export default { test: { include: ["tests/live.test.ts"] } };\n');
-  execFileSync("git", ["init", "-q"], { cwd: scratch });
-  execFileSync("git", ["add", "-A"], { cwd: scratch });
+  execFixtureGit(scratch, ["init", "-q"]);
+  execFixtureGit(scratch, ["add", "-A"]);
   const escaped = join(scratch, "escaped-link");
   const read = readConfigSnapshot(scratch, "vitest", CONFIG_REL, {
     overlay: { "tooling/package.json": JSON.stringify({ name: "../../../escaped-link", private: true }) },
@@ -265,8 +266,8 @@ test("a symlinked workspace manifest keeps its staged target bytes instead of re
   writeFileSync(join(scratch, "tooling-manifest.json"), `${JSON.stringify(diskManifest)}\n`);
   symlinkSync("../tooling-manifest.json", join(scratch, "tooling/package.json"));
   writeFileSync(join(scratch, CONFIG_REL), 'import { SELECTOR } from "@orb/tooling/x";\nexport default { test: { include: [SELECTOR] } };\n');
-  execFileSync("git", ["init", "-q"], { cwd: scratch });
-  execFileSync("git", ["add", "-A"], { cwd: scratch });
+  execFixtureGit(scratch, ["init", "-q"]);
+  execFixtureGit(scratch, ["add", "-A"]);
 
   const read = readConfigSnapshot(scratch, "vitest", CONFIG_REL, {
     overlay: { "tooling-manifest.json": `${JSON.stringify(overlayManifest)}\n` },
@@ -487,12 +488,12 @@ async function plantSymlinkedEslintRepo(root: string): Promise<void> {
     "target/inside.js": "export const inside = 1;\n",
   });
   symlinkSync("../target", join(root, "src/linked-dir"));
-  execFileSync("git", ["add", "-A"], { cwd: root });
+  execFixtureGit(root, ["add", "-A"]);
 }
 
 test("a tracked symlink-to-DIRECTORY leaves the ESLint candidate population BY NAME, on both caller branches", async ({ scratch }) => {
   await plantSymlinkedEslintRepo(scratch);
-  const tracked = execFileSync("git", ["ls-files"], { cwd: scratch, encoding: "utf8" }).split("\n").filter(Boolean);
+  const tracked = execFixtureGit(scratch, ["ls-files"]).split("\n").filter(Boolean);
   expect(tracked, "the planted symlink must be a TRACKED path or this arm proves nothing").toContain("src/linked-dir");
 
   const supplied = await snapshotEslintConfig(scratch, ESLINT_CONFIG_REL, tracked);

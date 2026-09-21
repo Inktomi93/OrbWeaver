@@ -2,7 +2,8 @@
 import { mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import { execNicedSync, runNicedSync } from "@orb/tooling/_shared/proc";
+import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
+import { runNicedSync } from "@orb/tooling/_shared/proc";
 import { PACKAGE_WORLDS } from "@orb/tooling/_shared/project-worlds";
 import { TEST_KIND_DEFINITIONS } from "@orb/tooling/_shared/test-kinds";
 import { deriveTypeConfigFiles, generateTypeConfigs, readCompilerPrograms, typeConfigsDrift } from "@orb/tooling/verify";
@@ -55,7 +56,7 @@ test("fresh helper TSX roots compile in their declared worlds while ISO rejects 
   writeFileSync(join(scratch, "platform.d.ts"), "export {};\n");
   writeFileSync(join(scratch, "package.json"), JSON.stringify({ type: "module" }));
   writeFileSync(join(scratch, ".gitignore"), "node_modules/\n");
-  execNicedSync("git", ["init", "--quiet", "--template=", "--initial-branch=main"], { cwd: scratch });
+  execFixtureGit(scratch, ["init", "--quiet", "--template=", "--initial-branch=main"]);
   for (const pkg of Object.keys(PACKAGE_WORLDS)) {
     mkdirSync(join(scratch, "packages", pkg, "src"), { recursive: true });
     writeFileSync(join(scratch, "packages", pkg, "src", "anchor.ts"), "export {};\n");

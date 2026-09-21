@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { runNicedSync } from "@orb/tooling/_shared/proc";
+import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
@@ -51,7 +51,7 @@ function pass(policy: GatePolicy, scratch: string, overlay: Readonly<Record<stri
     ["init", "--quiet"],
     ["add", "--all"],
   ]) {
-    runNicedSync("git", ["-c", "core.hooksPath=/dev/null", ...args], { cwd: scratch });
+    execFixtureGit(scratch, args);
   }
   return runPolicyPass({
     knownPolicies: [policy],

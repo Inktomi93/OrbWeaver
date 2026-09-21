@@ -1,14 +1,14 @@
-import { execFileSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
 import { loadNativeConfig } from "../../../../tooling/src/verify/ops/resource-native-config.ts";
 import { createResourceReader } from "../../../../tooling/src/verify/ops/resource-reader.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 /** `loadNativeConfig` walks the whole tracked+untracked inventory through git; unit-level reads need a real repo. */
 function gitInit(root: string): void {
-  execFileSync("git", ["init", "-q"], { cwd: root });
-  execFileSync("git", ["add", "-A"], { cwd: root });
+  execFixtureGit(root, ["init", "-q"]);
+  execFixtureGit(root, ["add", "-A"]);
 }
 
 test("loads a ready snapshot from disk, its paths and member count reflecting the whole authored transaction", ({ scratch }) => {

@@ -3,7 +3,7 @@
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { runNicedSync } from "@orb/tooling/_shared/proc";
+import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
 import type { PolicyScopeRequest } from "../../../../tooling/src/verify/contract/policy-scope.ts";
 import { POLICY_SCOPE_KINDS } from "../../../../tooling/src/verify/contract/policy-scope.ts";
 import { resolvePolicyScope } from "../../../../tooling/src/verify/lib/policy-scope.ts";
@@ -12,11 +12,7 @@ import { expect, test } from "../../../support/tool-fixtures.ts";
 const GIT_ARGS = ["-c", "core.hooksPath=/dev/null", "-c", "commit.gpgsign=false", "-c", "init.defaultBranch=main"] as const;
 
 function git(root: string, ...args: readonly string[]): string {
-  const result = runNicedSync("git", [...GIT_ARGS, ...args], { cwd: root });
-  if (result.status !== 0) {
-    throw new Error(`git ${args.join(" ")} failed: ${result.stderr}`);
-  }
-  return result.stdout.trim();
+  return execFixtureGit(root, [...GIT_ARGS, ...args]).trim();
 }
 
 function writeJson(path: string, value: object): void {

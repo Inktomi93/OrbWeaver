@@ -20,9 +20,9 @@
 //      `depcruise-grant-liveness` / `eslint-grant-liveness` shape. The real-tree VERDICT (zero effective
 //      findings) belongs to the mixed front door, which runs this policy on the real corpus on every
 //      `pnpm check:structure`.
-import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
 import { Project } from "ts-morph";
 import { gate } from "../../../../tooling/src/verify/gates/runner-config-path-liveness.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
@@ -51,7 +51,7 @@ function plantRepository(root: string, files: Readonly<Record<string, string>>):
     ["init", "--quiet"],
     ["add", "--all"],
   ]) {
-    execFileSync("git", ["-c", "core.hooksPath=/dev/null", ...args], { cwd: root, stdio: "pipe" });
+    execFixtureGit(root, args);
   }
 }
 

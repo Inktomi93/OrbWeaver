@@ -12,9 +12,9 @@
 //      authority alarms, or effective findings (proof law §6.3).
 //   3. the pair RESOLVES AND RUNS at repository scope over the whole-inventory `tracked-files` population,
 //      and its verdict lands through the central grant table with zero alarms (#1947).
-import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
 import { Project } from "ts-morph";
 import { gate } from "../../../../tooling/src/verify/gates/tsconfig-entry-liveness.ts";
 import { gate as health } from "../../../../tooling/src/verify/gates/tsconfig-entry-liveness-health.ts";
@@ -44,8 +44,8 @@ function plantRepo(root: string, files: Readonly<Record<string, string>>): void 
     mkdirSync(dirname(absolute), { recursive: true });
     writeFileSync(absolute, content);
   }
-  execFileSync("git", ["-c", "core.hooksPath=/dev/null", "init", "-q"], { cwd: root });
-  execFileSync("git", ["-c", "core.hooksPath=/dev/null", "add", "-A"], { cwd: root });
+  execFixtureGit(root, ["init", "-q"]);
+  execFixtureGit(root, ["add", "-A"]);
 }
 
 test("an EMPTY ROSTER refuses the whole run — the successor to the legacy MISSING-CONFIG arm", ({ scratch }) => {
