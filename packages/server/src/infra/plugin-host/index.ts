@@ -2,7 +2,7 @@
 // sealed I/O executor BELOW domain (the `plugin-no-ambient` invariant) — it imports zero domains and is
 // handed its host-function op bundle at compose. The runtime SKELETON is proven by the spike
 // suite (tests/server/infra/plugin-host/): module load, context-per-instance, injected-seam realm, the
-// per-invocation DoS budget, the async promise bridge, `boundHostFn`, and the ambient-authority denial.
+// per-invocation DoS budget, the async promise bridge, and the ambient-authority denial.
 //
 // The evidence report lives in ./README.md. The full `PluginHostV1` surface is
 // `@orb/contracts/plugin`; lifecycle/registry/grants are this module's port/sandbox.
@@ -27,4 +27,4 @@ export {
 export { getPluginQuickJS } from "./module.ts";
 export { createPluginHost, type PluginHostSeamDeps } from "./port.ts";
 export { AMBIENT_STUBS, type HostSeams, installRealm, LogRing } from "./realm.ts";
-export { boundHostFn, type EvalOutcome, type GuestError, PLUGIN_INVOCATION_ENDED, Sandbox, type SandboxLimits } from "./sandbox.ts";
+export { type EvalOutcome, type GuestError, PLUGIN_INVOCATION_ENDED, Sandbox, type SandboxLimits } from "./sandbox.ts";

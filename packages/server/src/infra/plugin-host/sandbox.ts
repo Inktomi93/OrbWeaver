@@ -1,6 +1,6 @@
 // The Sandbox — one guest instance = one QuickJSContext (own globals, own memory cap, own interrupt budget).
 // It provides the skeleton (boot/teardown, injected-seam realm, per-invocation DoS budget, the async promise
-// bridge, `boundHostFn`) and the MEMBRANE: the capability-gated host-fn call surface (membrane.ts),
+// bridge) and the MEMBRANE: the capability-gated host-fn call surface (membrane.ts),
 // the invocation-chat-context (a mutable per-invocation `InvocationChat` + its host-minted opaque token), and
 // the RESIDENT-HANDLER runtime — `main.js` registers guest tool callbacks at activation; the Sandbox keeps each
 // live handler HANDLE (keyed by a minted ref), and `invokeHandler` calls it under the per-invocation budget.
@@ -34,15 +34,7 @@ import type {
   PluginTransformRegistration,
 } from "@orb/contracts/plugin";
 import type { QuickJSContext, QuickJSDeferredPromise, QuickJSHandle, QuickJSWASMModule, VmCallResult } from "quickjs-emscripten-core";
-import { superviseDetached } from "#foundation/observability";
-import {
-  GUEST_MAX_STACK_BYTES,
-  HOST_FN_DEADLINE_MS,
-  HOST_FN_RESULT_CAP_BYTES,
-  PLUGIN_INVOCATION_CPU_MS,
-  PLUGIN_INVOKE_ARGS_MAX_BYTES,
-  PLUGIN_MEMORY_LIMIT_BYTES,
-} from "./budgets.ts";
+import { GUEST_MAX_STACK_BYTES, HOST_FN_DEADLINE_MS, PLUGIN_INVOCATION_CPU_MS, PLUGIN_INVOKE_ARGS_MAX_BYTES, PLUGIN_MEMORY_LIMIT_BYTES } from "./budgets.ts";
 import { installCpuGuard, openCpuWindow, pumpGuestJobs } from "./cpu-guard.ts";
 import type { InFlightCounter, InvocationChat, MembraneRuntime, PluginBridge } from "./membrane.ts";
 import { getPluginQuickJS } from "./module.ts";
@@ -665,83 +657,4 @@ export class Sandbox implements Disposable {
   [Symbol.dispose](): void {
     this.dispose();
   }
-}
-
-function capResult(value: string, capBytes: number, name: string): string {
-  if (Buffer.byteLength(value, "utf8") > capBytes) {
-    throw new Error(`${name} host result exceeds ${capBytes}-byte cap`);
-  }
-  return value;
-}
-
-/** Build a host function that self-bounds ("the interrupt does NOT preempt a blocking host call"). Args
- *  cross as JSON-safe strings; a sync impl marshals immediately, an async impl bridges through a deferred
- *  promise RACED against a real-time deadline and its result is size-capped. Retained from the original spike as the
- *  string-in/string-out primitive; the membrane's `attachAsync` is the object-marshalling generalization.
- *
- *  DISPOSE CONTRACT (async impl): the returned guest promise (the internal deferred) must SETTLE before the
- *  context is torn down — an unsettled guest Promise at `ctx.dispose()` aborts the shared WASM module
- *  (`list_empty(&rt->gc_obj_list)`), a guest-reachable host crash. This standalone primitive does NOT own a
- *  teardown registry (unlike the live membrane, where the `Sandbox` tracks + drains pending deferreds), so a
- *  caller that disposes a context while a `boundHostFn` async call is still in flight MUST drain it first. The
- *  `!ctx.alive` guard below only contains the SEPARATE late-settle use-after-free (a settle that lands after a
- *  clean teardown); it does not make dispose-while-pending safe on its own. */
-export function boundHostFn(
-  ctx: QuickJSContext,
-  name: string,
-  impl: (args: readonly string[]) => Promise<string> | string,
-  opts: { deadlineMs?: number; resultCapBytes?: number } = {},
-): QuickJSHandle {
-  const deadlineMs = opts.deadlineMs ?? HOST_FN_DEADLINE_MS;
-  const capBytes = opts.resultCapBytes ?? HOST_FN_RESULT_CAP_BYTES;
-
-  return ctx.newFunction(name, (...argHandles) => {
-    const args = argHandles.map((handle) => ctx.getString(handle));
-    const out = impl(args);
-
-    if (typeof out === "string") {
-      return ctx.newString(capResult(out, capBytes, name));
-    }
-
-    const deferred = ctx.newPromise();
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const timeout = new Promise<never>((_resolve, reject) => {
-      timer = setTimeout(() => reject(new Error(`${name} exceeded ${deadlineMs}ms host bound`)), deadlineMs);
-      timer.unref();
-    });
-    // @orb-waive caught-failure-ownership(Promise.race): the GUEST owns it — the rejection arm below reaches `deferred.reject(handle)`. The one path that DROPS is the `!ctx.alive` guard, and dropping there is required: the guest promise this would settle no longer exists, so touching the disposed context is a use-after-free that escapes as an unhandled rejection. Guard-equivalent to the membrane's `attachAsync` by design (LOW-1). Ends if a disposed context gains a safe late-failure sink.
-    void Promise.race([out, timeout])
-      .then(
-        (settled) => {
-          // A fire-and-forget guest call can outlive its invocation: the context is disposed (snippet end /
-          // deactivate) BEFORE this real-async host call settles. Touching a dead context (deferred/newString)
-          // is a use-after-free that escapes as an unhandled rejection — drop the late result. Guard-equivalent
-          // to the membrane's `attachAsync` (the LIVE path); this primitive is exported so a future async host-fn
-          // built on it inherits the same containment (LOW-1).
-          if (!ctx.alive) {
-            return;
-          }
-          using handle = ctx.newString(capResult(settled, capBytes, name));
-          deferred.resolve(handle);
-        },
-        (reason: unknown) => {
-          if (!ctx.alive) {
-            return;
-          }
-          const message = reason instanceof Error ? reason.message : String(reason);
-          using handle = ctx.newError(message);
-          deferred.reject(handle);
-        },
-      )
-      .finally(() => clearTimeout(timer));
-    // The guest continuation this pump resumes is BYTECODE running outside any invocation — bounded by the
-    // pump's own CPU window, and by nothing at all before #781. `pumpGuestJobs` owns the `ctx.alive` guard for
-    // the late-settle case (the context can be disposed before this host call lands).
-    superviseDetached(`plugin-sandbox:${randomUUID()}`, "plugin.sandbox.pending-jobs", {}, () =>
-      deferred.settled.then(() => {
-        pumpGuestJobs(ctx);
-      }),
-    );
-    return deferred.handle;
-  });
 }

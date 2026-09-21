@@ -12,7 +12,7 @@
 //   2. opaque handle — `chat.current()` returns the ONE host-minted token for the admitted invocation chat;
 //      every chat function validates its handle arg against that token, so a forged/stale handle fails
 //      resolution (no read) rather than reaching a different chat.
-//   3. self-bound — each host call races a real-time deadline (`boundHostFn`'s posture) and caps its
+//   3. self-bound — each host call races a real-time deadline and caps its
 //      serialized result AND its guest-supplied ARGUMENTS (`HOST_FN_ARGS_MAX_BYTES` — the inbound mirror; the
 //      only prior bound on an argument was the 32 MiB instance heap, retained per call across the ≤32 ceiling);
 //      ≤ 32 concurrent host calls per INSTANCE (the reentrancy footgun, 03 §3) — counted over
@@ -126,10 +126,8 @@ export interface MembraneRuntime {
    *  still be UNSETTLED when its invocation ends MUST be registered here on creation and deregistered on settle,
    *  so the dispose-drain frees it (fire a host call, never await it, end the invocation = a guest-REACHABLE host
    *  crash otherwise). Today `attachAsync` below is the ONLY live constructor of such a promise and it obeys this
-   *  (the cap-reject arm settles synchronously, so it deliberately does NOT register). The one carve-out is the
-   *  standalone `boundHostFn` primitive (sandbox.ts) — it owns no `pending` set and is UNUSED by the live port;
-   *  its own header documents that a caller disposing while it is in flight must drain manually. A NEW async
-   *  host-fn that calls `ctx.newPromise()` without threading `pending` is the bug this invariant exists to catch;
+   *  (the cap-reject arm settles synchronously, so it deliberately does NOT register). A NEW async host-fn that
+   *  calls `ctx.newPromise()` without threading `pending` is the bug this invariant exists to catch;
    *  the escape suite's multi-pending dispose-drain test + port.test's fire-and-forget cases are its regression
    *  floor (a static gate cannot verify the dataflow — flagged for a review-time follow-up). */
   readonly pending: Set<QuickJSDeferredPromise>;

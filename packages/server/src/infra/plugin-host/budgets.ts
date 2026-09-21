@@ -63,8 +63,8 @@ export const PLUGIN_SNIPPET_RUNTIME_MAX = 8;
 export const GUEST_MAX_STACK_BYTES = 262_144;
 
 /** Host-function self-bound deadline. The interrupt handler does NOT preempt a blocking HOST call — only
- *  guest bytecode — so every host fn self-bounds (the "reentrancy footgun"). `boundHostFn` races the
- *  fn against this real-time deadline; an unbounded host fn cannot be written by omission.
+ *  guest bytecode — so every host fn self-bounds (the "reentrancy footgun"). `attachAsync` races every
+ *  membrane call against this real-time deadline; an unbounded host fn cannot be written by omission.
  *
  *  IT IS ALSO THE INVOCATION SETTLEMENT GRACE (`Sandbox.runToSettlement`, the `PluginInvocationEnded`
  *  posture of 03 §3): the settlement wall is `cpuDeadlineMs + this`. ONE constant, not two names for one
