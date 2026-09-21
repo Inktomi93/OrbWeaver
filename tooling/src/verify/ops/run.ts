@@ -43,7 +43,7 @@ import { spawnNicedTranscript } from "@orb/tooling/_shared/proc";
 import { inheritedRunMarker, mintRunMarker, runMarkerEnv } from "@orb/tooling/_shared/run-marker";
 import type { Selection } from "../contract/selection.ts";
 import type { StageDef, StageMode, StageResult, Tier, TranscriptAudit, VerifyReport } from "../contract/stage.ts";
-import { NOTICE_MARKER } from "../contract/stage.ts";
+import { NOTICE_MARKER, VERIFY_INSTRUMENT, VERIFY_REPORT_NAME } from "../contract/stage.ts";
 import { colourNeutralParentEnv } from "../lib/child-env.ts";
 import { aggregateExit, noVerdictStages } from "../lib/exit-classifiers.ts";
 import { historyAdvisories } from "../lib/history.ts";
@@ -113,10 +113,6 @@ function pushOrStatic(stage: StageDef): string {
   return "verify --full";
 }
 
-/** The artifact this harness publishes at `reports/verify.json`. */
-const REPORT_NAME = "verify.json";
-/** The run-slot family this harness writes under (`reports/runs/verify/<runId>/`, #1029). */
-const INSTRUMENT = "verify";
 /** Where per-stage transcripts live inside a run's slot; published as the `reports/verify/` alias. */
 const STAGES_SEGMENT = "stages";
 
@@ -335,7 +331,7 @@ function mirrorChunk(chunk: string, stream: "stdout" | "stderr"): void {
 /** This run's artifact, written INSIDE its slot and published as `reports/verify.json` only after the run
  *  finishes — so a concurrent reader resolves to a complete run, never a half-written one (#1029). */
 function writeReport(slot: RunSlot, report: VerifyReport): void {
-  writeFileAtomic(runFile(slot, REPORT_NAME), `${JSON.stringify(report, null, 2)}\n`);
+  writeFileAtomic(runFile(slot, VERIFY_REPORT_NAME), `${JSON.stringify(report, null, 2)}\n`);
 }
 
 /** A concurrent verify run is NAMED on stderr, never silently tolerated — the artifact carries the same
@@ -415,7 +411,7 @@ export async function runVerify(root: string, parsed: Parsed): Promise<number> {
   // The host-wide whole-run slot, held for the WHOLE run and released in the `finally` (../lib/whole-run-queue.ts).
   const queue = await enterWholeRunQueue(root, parsed);
   try {
-    const slot = openRunSlot(root, INSTRUMENT);
+    const slot = openRunSlot(root, VERIFY_INSTRUMENT);
     announceRacing(slot);
     const report = await runTier(root, slot, parsed);
     writeReport(slot, report);
@@ -423,8 +419,8 @@ export async function runVerify(root: string, parsed: Parsed): Promise<number> {
     // per-stage log directory the constitution names. Until this line both still resolve to the previous
     // COMPLETE run — which is the whole point of publishing at completion only.
     publishRunSlot(root, slot, [
-      { alias: REPORT_NAME, target: REPORT_NAME },
-      { alias: INSTRUMENT, target: STAGES_SEGMENT },
+      { alias: VERIFY_REPORT_NAME, target: VERIFY_REPORT_NAME },
+      { alias: VERIFY_INSTRUMENT, target: STAGES_SEGMENT },
     ]);
 
     // #411 (slowdowns) + #1983 (the --full battery's cadence): retain this run, then print what the history
