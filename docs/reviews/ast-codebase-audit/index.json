@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "capturedAt": "2026-09-21T10:04:23.512641+00:00",
-  "sourceCommit": "014ed4ee1",
+  "capturedAt": "2026-09-21T10:06:11.852679+00:00",
+  "sourceCommit": "827486e32",
   "purpose": "Full AST audit observations and agent reasoning. Dated evidence, not a replacement for GitHub work-item lifecycle.",
   "entryPoints": {
     "coverage": "world-tools-lens-manifest.json",
@@ -69,7 +69,8 @@
     "typeonlyPerformanceFix": "world-tools-typeonly-performance-fix.json",
     "columnsLensFix": "world-tools-columns-lens-fix.json",
     "externalConsumerDesign": "world-tools-external-consumer-design.json",
-    "externalConsumerFix": "world-tools-external-consumer-fix.json"
+    "externalConsumerFix": "world-tools-external-consumer-fix.json",
+    "finalVerification": "world-tools-final-verification.json"
   },
   "limitations": [
     "30 CLI verbs identified; coverage remains incomplete. A candidate is not a confirmed defect or deletion authorization.",
@@ -874,6 +875,13 @@
       "sourceSha256": "b1283b685504aa80936723627f745e6931cb66d519ebd9b7afb996ddb63c80b8",
       "sha256": "b1283b685504aa80936723627f745e6931cb66d519ebd9b7afb996ddb63c80b8",
       "bytes": 3857
+    },
+    {
+      "file": "world-tools-final-verification.json",
+      "source": "/tmp/world-tools-final-verification.json",
+      "sourceSha256": "4d75beee6c4a33e2490454a26d7da13ab2b0a166f19b8384b8b3854ac40da5fb",
+      "sha256": "4d75beee6c4a33e2490454a26d7da13ab2b0a166f19b8384b8b3854ac40da5fb",
+      "bytes": 2557
     }
   ],
   "crossCuttingFindings": {
@@ -1040,6 +1048,11 @@
       "ownerRulingNeeded": false,
       "fix": "world-tools-external-consumer-fix.json",
       "commit": "014ed4ee1"
+    },
+    "finalVerification": {
+      "status": "consolidated focused verification complete",
+      "receipt": "world-tools-final-verification.json",
+      "remainingTrackedIssue": 2552
     }
   }
 }

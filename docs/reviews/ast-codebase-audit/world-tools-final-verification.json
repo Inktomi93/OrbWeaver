@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "status": "complete",
+  "branch": "codex/world-aware-tools",
+  "verifiedHead": "827486e32",
+  "coverage": {
+    "candidateLensMatrix": "19 retained runs complete and untruncated at the recorded clean-head boundary; see world-tools-candidate-lens-matrix.json",
+    "partialLenses": "160 findings exhaustively adjudicated and independently reviewed",
+    "apiSurface": "9,495 rows individually classified; seven coverage defects repaired; two external consumers subsequently modeled",
+    "columns": "31 findings reviewed; all nine scanner blind spots repaired; three dead-storage columns removed with a forward migration",
+    "regkeys": "743 findings exhaustively classified; three stale rows repaired; final recorded matrix count 740",
+    "typeonly": "multi-world traversal short-circuits after owning-world runtime evidence; complete reference API preserved"
+  },
+  "consolidatedVerification": [
+    {
+      "command": "pnpm install",
+      "result": "PASS: all 11 workspace projects already up to date"
+    },
+    {
+      "command": "pnpm test:scoped tests/tooling/ast/index.test.ts tests/tooling/_shared/ts-workspace.test.ts tests/tooling/container-security-config.int.test.ts tests/server/foundation/version/index.int.test.ts tests/db/client.int.test.ts",
+      "result": "PASS: 5 files, 175 tests"
+    },
+    {
+      "command": "pnpm typecheck --config tooling/tsconfig.json --config packages/db/tsconfig.json --config packages/server/tsconfig.json",
+      "result": "PASS: 3/3 runnable native programs"
+    },
+    {
+      "command": "pnpm check:drizzle-kit",
+      "result": "PASS"
+    },
+    {
+      "command": "pnpm check:db-baseline",
+      "result": "PASS: live schema accounted for by the two-migration chain ending at 0001_remove_dead_storage"
+    }
+  ],
+  "completedWorkItems": [2548, 2553],
+  "remainingTrackedWork": [
+    {
+      "issue": 2552,
+      "title": "Reconcile live dev DB migration record with frozen 0000 baseline",
+      "reason": "Pre-existing copied-database migration-ledger drift; repair must be proven on a DB+WAL+SHM copy and must not rewrite the frozen baseline."
+    }
+  ],
+  "limits": [
+    "No new full-corpus typeonly run was performed after the focused performance repair; the prior measured run took 35.5 minutes and about 15.4 GB peak RSS.",
+    "The final consolidated pass intentionally reused focused structural controls instead of repeating every earlier whole-corpus lens run.",
+    "The live database was not opened or mutated."
+  ],
+  "push": "not authorized and not performed"
+}
