@@ -279,8 +279,13 @@ test("the CHROME_ZONES spread resolves to all four zones, so the rail arm is not
   ]);
 });
 
-const PROVIDER_HOME = "packages/server/src/infra/providers/contract/resolve.ts";
-const PROVIDER_EMIT = "packages/server/src/infra/providers/resolve-chat.ts";
+// RE-POINTED 2026-09-20 (#2497): the provider warning channel's home and emit scope left
+// `packages/server/src/infra/providers/` for the `@orb/inference` package at 4b90bdf78. A fixture under
+// the OLD directory admits zero paths, so `WARNING_CODES` resolved zero members and this policy's own
+// receipt refused on every pass here — which also silently emptied the three withholding cases below
+// (their `stringContaining("CHAT_WARNING_CODES")` still matched a refusal naming BOTH channels).
+const PROVIDER_HOME = "packages/inference/src/contract/resolve.ts";
+const PROVIDER_EMIT = "packages/inference/src/resolve-chat.ts";
 const CHAT_HOME = "packages/contracts/src/chat/bus.ts";
 const CHAT_EMIT = "packages/server/src/domain/chat/x.ts";
 const PROVIDER_TUPLE = 'export const WARNING_CODES = ["provider_ok"] as const;\n';
@@ -715,7 +720,7 @@ test("an imported export-name alias does not invent a local warnings accumulator
     [PROVIDER_HOME]: PROVIDER_TUPLE,
     [CHAT_HOME]: CHAT_TUPLE,
     [CHAT_EMIT]: CHAT_PUSH,
-    "packages/server/src/infra/providers/foreign.ts": "export const warnings: unknown[] = [];",
+    "packages/inference/src/foreign.ts": "export const warnings: unknown[] = [];",
     [PROVIDER_EMIT]: 'import { warnings as sink } from "./foreign.ts"; sink.push({ code: "provider_ok", message: "elsewhere" });',
   });
   expect(result.toolErrors).toEqual([]);
@@ -727,7 +732,7 @@ test("an unrenamed warnings import does not invent a local warnings accumulator"
     [PROVIDER_HOME]: PROVIDER_TUPLE,
     [CHAT_HOME]: CHAT_TUPLE,
     [CHAT_EMIT]: CHAT_PUSH,
-    "packages/server/src/infra/providers/foreign.ts": "export const warnings: unknown[] = [];",
+    "packages/inference/src/foreign.ts": "export const warnings: unknown[] = [];",
     [PROVIDER_EMIT]: 'import { warnings } from "./foreign.ts"; warnings.push({ code: "provider_ok", message: "elsewhere" });',
   });
   expect(result.toolErrors).toEqual([]);

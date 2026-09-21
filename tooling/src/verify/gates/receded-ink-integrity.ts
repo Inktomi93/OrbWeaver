@@ -33,6 +33,7 @@
 import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
+import { MEMBER_ACCESS_KINDS, namespaceImportSpecifier, readMemberAccess } from "../lib/symbol-reference.ts";
 import { readTailwindClassTokens } from "../lib/tailwind-class-token.ts";
 
 const RECEDED_INK = "RECEDED_INK";
@@ -55,6 +56,9 @@ const FIX =
  *  the FIXTURE's source text, not to this module's. Eight rows would otherwise each carry a suppression. */
 const SPAN = `\${${RECEDED_INK}}`;
 const FIXTURE_IMPORT = `import { ${RECEDED_INK} } from "@orb/ui/lib";\n`;
+/** The same fixture one import spelling over — no `ImportSpecifier`, no bare identifier. */
+const NAMESPACE_IMPORT = 'import * as ui from "@orb/ui/lib";\n';
+const NAMESPACE_SPAN = `\${ui.${RECEDED_INK}}`;
 
 /** One fixture whose `className` is a TEMPLATE carrying `classText` — the only shape this policy can flag,
  *  so every catch row and most near-miss rows are one call here with a different class string. */
@@ -87,6 +91,36 @@ function precedingVariants(head: string): readonly string[] {
   return last.terminal === "" ? last.variants : [];
 }
 
+/** WHERE THE REPORTED TOKEN SITS IN `node`, or undefined when `node` is not a `RECEDED_INK` reference at
+ *  all — the policy's whole subject test, in EITHER import spelling (#2497).
+ *
+ *  It shipped keyed on a bare `Identifier` plus `getNamedImports()`, which is the #1506 namespace hole in
+ *  its simplest form: `import * as ui from "@orb/ui/lib"` produces no `ImportSpecifier` (so the file read as
+ *  "does not import it") AND binds no identifier named `RECEDED_INK` (so the template span held a member
+ *  read the visitor never matched). Both halves had to go for the spelling to bite, and the
+ *  `gate-spelling-twins` census named it the first time the instrument battery ran after this policy landed.
+ *
+ *  The OFFSET is why this returns a number rather than a boolean: the reported node is the whole reference,
+ *  and in the namespace spelling the token starts inside it (`ui.RECEDED_INK`), so a fixed `offset: 0` would
+ *  anchor the finding on the namespace binding and fail the report's own token/offset invariant.
+ *
+ *  The namespace arm does not constrain the MODULE, exactly as the named arm does not: this policy's fence
+ *  has always been the imported NAME (see `importsRecededInk`), and matching any namespace import is the
+ *  widening direction — it cannot hide a violation, and a same-named LOCAL constant is still not a
+ *  namespace member, so the declared-limit row below keeps its meaning. */
+function recededInkTokenOffset(node: Node, sourceFile: SourceFile): number | undefined {
+  if (Node.isIdentifier(node)) {
+    return node.getText() === RECEDED_INK && importsRecededInk(sourceFile) ? 0 : undefined;
+  }
+  // The NAME is checked before the import walk: these kinds are every member access in @client + @ui.
+  const read = readMemberAccess(node);
+  if (read?.name !== RECEDED_INK || namespaceImportSpecifier(read.receiver) === undefined) {
+    return;
+  }
+  const offset = node.getText().lastIndexOf(RECEDED_INK);
+  return offset < 0 ? undefined : offset;
+}
+
 export const gate = defineGate({
   id: "receded-ink-integrity",
   family: "tailwind-class-token",
@@ -102,9 +136,10 @@ export const gate = defineGate({
   create: (ctx) => ({
     visitors: [
       {
-        kinds: [SyntaxKind.Identifier],
+        kinds: [SyntaxKind.Identifier, ...MEMBER_ACCESS_KINDS],
         visit: (node, sourceFile) => {
-          if (!Node.isIdentifier(node) || node.getText() !== RECEDED_INK || !importsRecededInk(sourceFile)) {
+          const tokenOffset = recededInkTokenOffset(node, sourceFile);
+          if (tokenOffset === undefined) {
             return;
           }
           // NO `=== undefined` GUARD: ts-morph types an Identifier's parent as present (only a SourceFile
@@ -128,7 +163,7 @@ export const gate = defineGate({
           if (precedingVariants(head).length === 0) {
             return;
           }
-          ctx.report.node(node, { token: RECEDED_INK, offset: 0 });
+          ctx.report.node(node, { token: RECEDED_INK, offset: tokenOffset });
         },
       },
     ],
@@ -157,6 +192,14 @@ export const gate = defineGate({
       files: { "packages/client/src/features/a/mid-string-prefixed.tsx": templateFixture(`min-w-0 group-hover:${SPAN}`) },
       expect: { count: 1, token: RECEDED_INK },
       why: "the prefix is the LAST token of the preceding chunk, not the whole chunk — a head-only read would miss every real call site, which authors layout classes first",
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/client/src/features/a/namespace-prefixed.tsx": `${NAMESPACE_IMPORT}export const T = <button className={\`hover:${NAMESPACE_SPAN}\`} type="button" />;\n`,
+      },
+      expect: { count: 1, token: RECEDED_INK },
+      why: "THE NAMESPACE SPELLING of the founding row (#2497) — the same violation with no `ImportSpecifier` and no bare `RECEDED_INK` identifier. This policy shipped blind to it and `tests/tooling/gate-spelling-twins.int.test.ts` said so; reverting either half of `recededInkTokenOffset` (the member-access kinds, or the namespace receiver check) kills this row while every row above stays green.",
     },
   ],
   mustPass: [

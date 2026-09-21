@@ -1,4 +1,6 @@
-// The 23 permissions translated out of six schema/data legacy gates. The policies are dispatched once over
+// The 25 permissions translated out of six schema/data legacy gates (23 at the conversion; +1
+// `contract-verb-presence:sessions-getOwnerUserId` at 0203a2b98, +1
+// `db-structure-producer-home:connection-bindings` at 146f71cd5). The policies are dispatched once over
 // the real checkout, then their production owner results drive the central authority coordinator's identity,
 // stale, and multiplicity controls. No hand-written finding can make this test green.
 import process from "node:process";
@@ -25,7 +27,7 @@ const POLICIES: readonly GatePolicy[] = [
   openJsonColumnKeyParity,
   wireSchemaVocabOneHome,
 ];
-const GRANT_COUNT = 23;
+const GRANT_COUNT = 25;
 const BUDGET_MS = scaledBudget(300_000);
 
 function authority(ownerResults: readonly GateOwnerResult[], reviewedGrants: readonly ReviewedGateGrant[]): ReturnType<typeof coordinateGateAuthority> {
@@ -43,7 +45,7 @@ const alarmIds = (result: ReturnType<typeof coordinateGateAuthority>, kind: "sta
   result.authorityAlarms.flatMap((alarm) => (alarm.kind === kind ? [alarm.grantId] : [])).toSorted();
 
 test(
-  "all 23 real schema/data grants bind once; wrong keys stale, missing findings stale, and duplicate findings are over-broad",
+  "all 25 real schema/data grants bind once; wrong keys stale, missing findings stale, and duplicate findings are over-broad",
   () => {
     const root = process.cwd();
     const project = getWorkspace({ root });
