@@ -1,17 +1,14 @@
 // Policy: tooling-root-config-import (docs/architecture/core/Core-Tooling-Law.md §4.2) — a tooling module that
 // imports OUTSIDE the tooling tree by relative path. Cross-package needs go through `@orb/*` package
-// specifiers; the ONE sanctioned exception is a repo-root CONFIG whose data would otherwise be re-spelled
-// (P4 of #393: `ast/ops/prodonly` derives its entry closure from the one knip workspace-entry config —
-// re-spelling the globs is the one-home violation this rule exists to kill).
+// specifiers; a repo-root CONFIG whose data would otherwise be re-spelled requires an exact reviewed grant.
+// Prodonly derives runtime entries from package manifests and tool conventions; knip.ts stays analysis-only.
 //
 // AUTHORITY IS reviewed-grant, and that is the whole reason this arm has its own policy id (docs/history/gate-runtime-worked-cases-2026-09.md §"Mixed-hook arity amendments",
 // #1950). The exception is not a per-occurrence mistake an author waives with a reason — it is a recurring
-// repository PERMISSION: one exact `(subject, operation)` row in the central reviewed-grant table
-// (`tooling-root-config-import:prodonly-knip`) with its own `why` and `endsWhen`. After a complete run a
-// row consumed zero times is STALE and a row matching more than one finding is OVER-BROAD and licenses
-// nothing — which is exactly the two-sided stale sweep the legacy `ROOT_CONFIG_IMPORTS` table carried by
-// hand, now owned centrally. Nothing here subtracts a path from the population and this policy holds no
-// allowlist of its own.
+// repository PERMISSION: one exact `(subject, operation)` row in the central reviewed-grant table with its
+// own `why` and `endsWhen`. After a complete run a row consumed zero times is STALE and a row matching more
+// than one finding is OVER-BROAD and licenses nothing — the two-sided stale sweep is owned centrally.
+// Nothing here subtracts a path from the population and this policy holds no allowlist of its own.
 //
 // FAMILY `tooling-front-door` — the shared reader is `lib/tooling-import-door.ts` (`resolveRelativeImport`),
 // the same specifier resolution the ordinary sibling judges the tooling-internal boundary with.
@@ -19,9 +16,9 @@
 // `entire-population` because grant liveness is only sound after a COMPLETE owner run: a narrowed request
 // DEFERS this policy, which is what retires the legacy defect the retired int test pinned (a scoped run's
 // `visit` never saw the row's consumer and called the live row stale — measured 2026-08-30) and the
-// legacy `fileLoaded(exit-contract)` anchor guard with it. The knip import retains its ungranted `mustFlag`
-// baseline; an authored module witness proves synthetic exact-grant consumption, and the family test proves
-// the real central row (§4.3).
+// legacy `fileLoaded(exit-contract)` anchor guard with it. The knip fixture retains an ungranted `mustFlag`
+// baseline; its authored witness proves synthetic exact-grant consumption, while the family test exercises
+// real central grant identity and staleness through the live argv policy (§4.3).
 //
 // THE OPERATION CARRIES THE RESOLVED TARGET (`root-config-import:knip.ts`), so a grant licenses one
 // consumer reading ONE config: a second root config imported by the same file is a second finding.
@@ -105,7 +102,7 @@ export const gate = defineGate({
         "knip.ts": "export default { workspaces: {} };\n",
       },
       expect: { count: 1, messageIncludes: "Subject: tooling/src/aa/ops/x.ts, operation: root-config-import:knip.ts" },
-      why: "THE PERMISSION IS NOT A CARVE-OUT IN THE RULE: a root-config read reds like any other escape and is licensed by an exact grant row (`tooling-root-config-import:prodonly-knip` names ast/ops/prodonly.ts, not this fixture), so a NEW consumer of knip.ts is a finding until someone reviews it",
+      why: "THE PERMISSION IS NOT A CARVE-OUT IN THE RULE: a root-config read reds like any other escape and needs an exact grant; prodonly derives runtime entries from package manifests and has no grant, so a NEW production consumer of analysis-only knip.ts is a finding until someone reviews it",
     },
     {
       mode: "source",

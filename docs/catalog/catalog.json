@@ -456,9 +456,9 @@
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 507,
-      "bytes": 406141,
-      "sha256": "9686ffe3a9a3ddc392831d80f7f89f40097dac4a3a9cc26ead2bf090c71ec202",
+      "lines": 513,
+      "bytes": 409938,
+      "sha256": "79dd15931b98408c59c1bd55e2f7835049061de2dee32301a9b39623159e4708",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -471,13 +471,13 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-        "assignedSha256": "9686ffe3a9a3ddc392831d80f7f89f40097dac4a3a9cc26ead2bf090c71ec202",
+        "assignedSha256": "79dd15931b98408c59c1bd55e2f7835049061de2dee32301a9b39623159e4708",
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "9686ffe3a9a3ddc392831d80f7f89f40097dac4a3a9cc26ead2bf090c71ec202",
-        "verifiedCommit": "e7fbeaac91a04954d0fe69c43f738035ed4a9320",
-        "verifiedAt": "2026-09-20",
+        "verifiedSha256": "79dd15931b98408c59c1bd55e2f7835049061de2dee32301a9b39623159e4708",
+        "verifiedCommit": "ec84ed686d6ca223e36781131cd6c232976b8eb0",
+        "verifiedAt": "2026-09-21",
         "evidence": [
           "Bounded #2312 citation correction; existing reviewed CSS-family changes and earlier evidence remain attributable to their own receipts. Selected dangling-refs drive clean over199 docs: reports/runs/structure/main-72765-2026-09-13T06-11-26-874Z/check-structure.json. This receipt does not certify the whole gate roster or close ongoing CSS verification.",
           "Full document read by the registration lane; changed rows reviewed against source by the orchestrator. Browser-contract real-tree fixture red/clean, 15 behavioral tests and independent semantic review; hook/router/config snapshot 137 behavioral tests and security approval. Full legacy structure still refuses the separate mixed-descriptor cutover.",
@@ -645,7 +645,7 @@
           }
         ],
         "summary": "Active enforcement catalog, fully read as text; current Q11 health-row correction verified against canonical generation and namespace-health ownership. Prior per-row evidence remains attributed; no new whole-roster implementation certification.",
-        "verifiedCanonicalSha256": "9686ffe3a9a3ddc392831d80f7f89f40097dac4a3a9cc26ead2bf090c71ec202"
+        "verifiedCanonicalSha256": "79dd15931b98408c59c1bd55e2f7835049061de2dee32301a9b39623159e4708"
       },
       "receiptCurrent": true
     },
