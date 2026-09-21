@@ -3,8 +3,8 @@
 // derive from `@orb/contracts/persona`.
 
 import { createPersonaSchema, updatePersonaSchema } from "@orb/contracts/persona";
-import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
-import { brandedId } from "@orb/kit/ids";
+import type { UserId } from "@orb/kit/ids";
+import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc.ts";
@@ -22,10 +22,10 @@ export const personaRouter = t.router({
   list: authedProcedure.query(({ ctx }) => ctx.services.persona.list({ principal: ctx.auth })),
 
   get: authedProcedure
-    .input(z.object({ personaId: brandedId<PersonaId>() }))
+    .input(z.object({ personaId: typeIdSchema(ID_PREFIX.persona) }))
     .query(({ ctx, input }) => ctx.services.persona.get({ principal: ctx.auth, personaId: input.personaId })),
 
-  update: authedProcedure.input(z.object({ personaId: brandedId<PersonaId>(), input: updatePersonaSchema })).mutation(({ ctx, input }) =>
+  update: authedProcedure.input(z.object({ personaId: typeIdSchema(ID_PREFIX.persona), input: updatePersonaSchema })).mutation(({ ctx, input }) =>
     ctx.services.persona.update({
       principal: ctx.auth,
       personaId: input.personaId,
@@ -34,7 +34,7 @@ export const personaRouter = t.router({
   ),
 
   remove: authedProcedure
-    .input(z.object({ personaId: brandedId<PersonaId>() }))
+    .input(z.object({ personaId: typeIdSchema(ID_PREFIX.persona) }))
     .mutation(({ ctx, input }) => ctx.services.persona.remove({ principal: ctx.auth, personaId: input.personaId })),
 
   // PD-99: the per-participant active-persona flip (verb built + composed; this is its ONE wire surface).
@@ -44,9 +44,9 @@ export const personaRouter = t.router({
   setActivePersona: authedProcedure
     .input(
       z.object({
-        chatId: brandedId<ChatId>(),
+        chatId: typeIdSchema(ID_PREFIX.chat),
         targetUserId: brandedId<UserId>().optional(),
-        personaId: brandedId<PersonaId>().nullable(),
+        personaId: typeIdSchema(ID_PREFIX.persona).nullable(),
       }),
     )
     .mutation(({ ctx, input }) =>
@@ -58,7 +58,7 @@ export const personaRouter = t.router({
       }),
     ),
 
-  createFromCharacter: authedProcedure.input(z.object({ characterId: brandedId<CharacterId>(), swapMacros: z.boolean() })).mutation(({ ctx, input }) =>
+  createFromCharacter: authedProcedure.input(z.object({ characterId: typeIdSchema(ID_PREFIX.character), swapMacros: z.boolean() })).mutation(({ ctx, input }) =>
     ctx.services.persona.createFromCharacter({
       principal: ctx.auth,
       characterId: input.characterId,
@@ -66,16 +66,18 @@ export const personaRouter = t.router({
     }),
   ),
 
-  connectToCharacter: authedProcedure.input(z.object({ characterId: brandedId<CharacterId>(), personaId: brandedId<PersonaId>() })).mutation(({ ctx, input }) =>
-    ctx.services.persona.connectToCharacter({
-      principal: ctx.auth,
-      characterId: input.characterId,
-      personaId: input.personaId,
-    }),
-  ),
+  connectToCharacter: authedProcedure
+    .input(z.object({ characterId: typeIdSchema(ID_PREFIX.character), personaId: typeIdSchema(ID_PREFIX.persona) }))
+    .mutation(({ ctx, input }) =>
+      ctx.services.persona.connectToCharacter({
+        principal: ctx.auth,
+        characterId: input.characterId,
+        personaId: input.personaId,
+      }),
+    ),
 
   disconnectFromCharacter: authedProcedure
-    .input(z.object({ characterId: brandedId<CharacterId>(), personaId: brandedId<PersonaId>() }))
+    .input(z.object({ characterId: typeIdSchema(ID_PREFIX.character), personaId: typeIdSchema(ID_PREFIX.persona) }))
     .mutation(({ ctx, input }) =>
       ctx.services.persona.disconnectFromCharacter({
         principal: ctx.auth,
@@ -84,7 +86,7 @@ export const personaRouter = t.router({
       }),
     ),
 
-  listConnectedToCharacter: authedProcedure.input(z.object({ characterId: brandedId<CharacterId>() })).query(({ ctx, input }) =>
+  listConnectedToCharacter: authedProcedure.input(z.object({ characterId: typeIdSchema(ID_PREFIX.character) })).query(({ ctx, input }) =>
     ctx.services.persona.listConnectedToCharacter({
       principal: ctx.auth,
       characterId: input.characterId,
@@ -92,7 +94,7 @@ export const personaRouter = t.router({
   ),
 
   // The junction read from the PERSONA side (#866 S4 — the editor's "Connected characters" section).
-  listConnectedCharacters: authedProcedure.input(z.object({ personaId: brandedId<PersonaId>() })).query(({ ctx, input }) =>
+  listConnectedCharacters: authedProcedure.input(z.object({ personaId: typeIdSchema(ID_PREFIX.persona) })).query(({ ctx, input }) =>
     ctx.services.persona.listConnectedCharacters({
       principal: ctx.auth,
       personaId: input.personaId,
@@ -101,13 +103,13 @@ export const personaRouter = t.router({
 
   // FINAL-Persona §A.6b gap #2/#3 — duplicate + the export/import backup round-trip.
   duplicate: authedProcedure
-    .input(z.object({ personaId: brandedId<PersonaId>() }))
+    .input(z.object({ personaId: typeIdSchema(ID_PREFIX.persona) }))
     .mutation(({ ctx, input }) => ctx.services.persona.duplicate({ principal: ctx.auth, personaId: input.personaId })),
 
   // The two single-entity doors, both THIN ARMS over the bundle descriptor's verbs (the ratified thin-arm
   // law): the FILE is the unit on the wire, so a persona shared one-at-a-time is byte-identical to the one
   // inside a backup zip and the merge semantics can never fork.
-  export: authedProcedure.input(z.object({ personaId: brandedId<PersonaId>() })).query(async ({ ctx, input }) => {
+  export: authedProcedure.input(z.object({ personaId: typeIdSchema(ID_PREFIX.persona) })).query(async ({ ctx, input }) => {
     const file = await ctx.services.persona.export({ principal: ctx.auth, personaId: input.personaId });
     return { filename: file.filename, fileText: DEC.decode(file.bytes) };
   }),

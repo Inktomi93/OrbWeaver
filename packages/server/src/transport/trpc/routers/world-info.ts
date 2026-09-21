@@ -5,8 +5,7 @@
 // member-readable (the room's shared pool).
 
 import { createBookSchema, createEntrySchema, updateBookSchema, updateEntrySchema, worldBookRoleSchema } from "@orb/contracts/world-info";
-import type { CharacterId, ChatId, PersonaId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
-import { brandedId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc.ts";
@@ -22,18 +21,18 @@ export const worldInfoRouter = t.router({
   listBooksWithUsage: authedProcedure.query(({ ctx }) => ctx.services.worldInfo.listBooksWithUsage({ principal: ctx.auth })),
 
   listAttachmentsForBook: authedProcedure
-    .input(z.object({ bookId: brandedId<WorldBookId>() }))
+    .input(z.object({ bookId: typeIdSchema(ID_PREFIX.worldBook) }))
     .query(({ ctx, input }) => ctx.services.worldInfo.listAttachmentsForBook({ principal: ctx.auth, bookId: input.bookId })),
 
   getBook: authedProcedure
-    .input(z.object({ bookId: brandedId<WorldBookId>() }))
+    .input(z.object({ bookId: typeIdSchema(ID_PREFIX.worldBook) }))
     .query(({ ctx, input }) => ctx.services.worldInfo.getBook({ principal: ctx.auth, bookId: input.bookId })),
 
   createBook: authedProcedure
     .input(z.object({ input: createBookSchema }))
     .mutation(({ ctx, input }) => ctx.services.worldInfo.createBook({ principal: ctx.auth, input: input.input })),
 
-  updateBook: authedProcedure.input(z.object({ bookId: brandedId<WorldBookId>(), input: updateBookSchema })).mutation(({ ctx, input }) =>
+  updateBook: authedProcedure.input(z.object({ bookId: typeIdSchema(ID_PREFIX.worldBook), input: updateBookSchema })).mutation(({ ctx, input }) =>
     ctx.services.worldInfo.updateBook({
       principal: ctx.auth,
       bookId: input.bookId,
@@ -42,16 +41,16 @@ export const worldInfoRouter = t.router({
   ),
 
   removeBook: authedProcedure
-    .input(z.object({ bookId: brandedId<WorldBookId>() }))
+    .input(z.object({ bookId: typeIdSchema(ID_PREFIX.worldBook) }))
     .mutation(({ ctx, input }) => ctx.services.worldInfo.removeBook({ principal: ctx.auth, bookId: input.bookId })),
 
   duplicateBook: authedProcedure
-    .input(z.object({ bookId: brandedId<WorldBookId>() }))
+    .input(z.object({ bookId: typeIdSchema(ID_PREFIX.worldBook) }))
     .mutation(({ ctx, input }) => ctx.services.worldInfo.duplicateBook({ principal: ctx.auth, bookId: input.bookId })),
 
   // The two single-book DOORS (F2 — the verbs shipped with none, so sharing one lorebook required a full
   // library-zip round-trip). Both are thin arms over the bundle descriptor's own verbs.
-  exportBook: authedProcedure.input(z.object({ bookId: brandedId<WorldBookId>() })).query(async ({ ctx, input }) => {
+  exportBook: authedProcedure.input(z.object({ bookId: typeIdSchema(ID_PREFIX.worldBook) })).query(async ({ ctx, input }) => {
     const file = await ctx.services.worldInfo.exportBook({ principal: ctx.auth, bookId: input.bookId });
     if (file === null) {
       throw new TRPCError({ code: "NOT_FOUND", message: "That world-info book doesn't exist." });
@@ -70,14 +69,14 @@ export const worldInfoRouter = t.router({
   }),
 
   listEntries: authedProcedure
-    .input(z.object({ bookId: brandedId<WorldBookId>() }))
+    .input(z.object({ bookId: typeIdSchema(ID_PREFIX.worldBook) }))
     .query(({ ctx, input }) => ctx.services.worldInfo.listEntries({ principal: ctx.auth, bookId: input.bookId })),
 
   getEntry: authedProcedure
-    .input(z.object({ entryId: brandedId<WorldEntryId>() }))
+    .input(z.object({ entryId: typeIdSchema(ID_PREFIX.worldEntry) }))
     .query(({ ctx, input }) => ctx.services.worldInfo.getEntry({ principal: ctx.auth, entryId: input.entryId })),
 
-  createEntry: authedProcedure.input(z.object({ bookId: brandedId<WorldBookId>(), input: createEntrySchema })).mutation(({ ctx, input }) =>
+  createEntry: authedProcedure.input(z.object({ bookId: typeIdSchema(ID_PREFIX.worldBook), input: createEntrySchema })).mutation(({ ctx, input }) =>
     ctx.services.worldInfo.createEntry({
       principal: ctx.auth,
       bookId: input.bookId,
@@ -85,7 +84,7 @@ export const worldInfoRouter = t.router({
     }),
   ),
 
-  updateEntry: authedProcedure.input(z.object({ entryId: brandedId<WorldEntryId>(), input: updateEntrySchema })).mutation(({ ctx, input }) =>
+  updateEntry: authedProcedure.input(z.object({ entryId: typeIdSchema(ID_PREFIX.worldEntry), input: updateEntrySchema })).mutation(({ ctx, input }) =>
     ctx.services.worldInfo.updateEntry({
       principal: ctx.auth,
       entryId: input.entryId,
@@ -94,18 +93,18 @@ export const worldInfoRouter = t.router({
   ),
 
   removeEntry: authedProcedure
-    .input(z.object({ entryId: brandedId<WorldEntryId>() }))
+    .input(z.object({ entryId: typeIdSchema(ID_PREFIX.worldEntry) }))
     .mutation(({ ctx, input }) => ctx.services.worldInfo.removeEntry({ principal: ctx.auth, entryId: input.entryId })),
 
   backfillTitles: authedProcedure
-    .input(z.object({ bookId: brandedId<WorldBookId>() }))
+    .input(z.object({ bookId: typeIdSchema(ID_PREFIX.worldBook) }))
     .mutation(({ ctx, input }) => ctx.services.worldInfo.backfillTitles({ principal: ctx.auth, bookId: input.bookId })),
 
   applyEntryOrder: authedProcedure
     .input(
       z.object({
-        bookId: brandedId<WorldBookId>(),
-        orderedEntryIds: z.array(brandedId<WorldEntryId>()),
+        bookId: typeIdSchema(ID_PREFIX.worldBook),
+        orderedEntryIds: z.array(typeIdSchema(ID_PREFIX.worldEntry)),
       }),
     )
     .mutation(({ ctx, input }) =>
@@ -119,8 +118,8 @@ export const worldInfoRouter = t.router({
   attachToCharacter: authedProcedure
     .input(
       z.object({
-        characterId: brandedId<CharacterId>(),
-        bookId: brandedId<WorldBookId>(),
+        characterId: typeIdSchema(ID_PREFIX.character),
+        bookId: typeIdSchema(ID_PREFIX.worldBook),
         role: worldBookRoleSchema,
       }),
     )
@@ -133,15 +132,17 @@ export const worldInfoRouter = t.router({
       }),
     ),
 
-  detachFromCharacter: authedProcedure.input(z.object({ characterId: brandedId<CharacterId>(), bookId: brandedId<WorldBookId>() })).mutation(({ ctx, input }) =>
-    ctx.services.worldInfo.detachFromCharacter({
-      principal: ctx.auth,
-      characterId: input.characterId,
-      bookId: input.bookId,
-    }),
-  ),
+  detachFromCharacter: authedProcedure
+    .input(z.object({ characterId: typeIdSchema(ID_PREFIX.character), bookId: typeIdSchema(ID_PREFIX.worldBook) }))
+    .mutation(({ ctx, input }) =>
+      ctx.services.worldInfo.detachFromCharacter({
+        principal: ctx.auth,
+        characterId: input.characterId,
+        bookId: input.bookId,
+      }),
+    ),
 
-  listForCharacter: authedProcedure.input(z.object({ characterId: brandedId<CharacterId>() })).query(({ ctx, input }) =>
+  listForCharacter: authedProcedure.input(z.object({ characterId: typeIdSchema(ID_PREFIX.character) })).query(({ ctx, input }) =>
     ctx.services.worldInfo.listForCharacter({
       principal: ctx.auth,
       characterId: input.characterId,
@@ -149,52 +150,60 @@ export const worldInfoRouter = t.router({
   ),
 
   attachGlobal: authedProcedure
-    .input(z.object({ bookId: brandedId<WorldBookId>() }))
+    .input(z.object({ bookId: typeIdSchema(ID_PREFIX.worldBook) }))
     .mutation(({ ctx, input }) => ctx.services.worldInfo.attachGlobal({ principal: ctx.auth, bookId: input.bookId })),
 
   detachGlobal: authedProcedure
-    .input(z.object({ bookId: brandedId<WorldBookId>() }))
+    .input(z.object({ bookId: typeIdSchema(ID_PREFIX.worldBook) }))
     .mutation(({ ctx, input }) => ctx.services.worldInfo.detachGlobal({ principal: ctx.auth, bookId: input.bookId })),
 
   listGlobal: authedProcedure.query(({ ctx }) => ctx.services.worldInfo.listGlobal({ principal: ctx.auth })),
 
-  attachToPersona: authedProcedure.input(z.object({ personaId: brandedId<PersonaId>(), bookId: brandedId<WorldBookId>() })).mutation(({ ctx, input }) =>
-    ctx.services.worldInfo.attachToPersona({
-      principal: ctx.auth,
-      personaId: input.personaId,
-      bookId: input.bookId,
-    }),
-  ),
+  attachToPersona: authedProcedure
+    .input(z.object({ personaId: typeIdSchema(ID_PREFIX.persona), bookId: typeIdSchema(ID_PREFIX.worldBook) }))
+    .mutation(({ ctx, input }) =>
+      ctx.services.worldInfo.attachToPersona({
+        principal: ctx.auth,
+        personaId: input.personaId,
+        bookId: input.bookId,
+      }),
+    ),
 
-  detachFromPersona: authedProcedure.input(z.object({ personaId: brandedId<PersonaId>(), bookId: brandedId<WorldBookId>() })).mutation(({ ctx, input }) =>
-    ctx.services.worldInfo.detachFromPersona({
-      principal: ctx.auth,
-      personaId: input.personaId,
-      bookId: input.bookId,
-    }),
-  ),
+  detachFromPersona: authedProcedure
+    .input(z.object({ personaId: typeIdSchema(ID_PREFIX.persona), bookId: typeIdSchema(ID_PREFIX.worldBook) }))
+    .mutation(({ ctx, input }) =>
+      ctx.services.worldInfo.detachFromPersona({
+        principal: ctx.auth,
+        personaId: input.personaId,
+        bookId: input.bookId,
+      }),
+    ),
 
   listForPersona: authedProcedure
-    .input(z.object({ personaId: brandedId<PersonaId>() }))
+    .input(z.object({ personaId: typeIdSchema(ID_PREFIX.persona) }))
     .query(({ ctx, input }) => ctx.services.worldInfo.listForPersona({ principal: ctx.auth, personaId: input.personaId })),
 
-  attachToChat: authedProcedure.input(z.object({ chatId: brandedId<ChatId>(), bookId: brandedId<WorldBookId>() })).mutation(({ ctx, input }) =>
-    ctx.services.worldInfo.attachToChat({
-      principal: ctx.auth,
-      chatId: input.chatId,
-      bookId: input.bookId,
-    }),
-  ),
+  attachToChat: authedProcedure
+    .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat), bookId: typeIdSchema(ID_PREFIX.worldBook) }))
+    .mutation(({ ctx, input }) =>
+      ctx.services.worldInfo.attachToChat({
+        principal: ctx.auth,
+        chatId: input.chatId,
+        bookId: input.bookId,
+      }),
+    ),
 
-  detachFromChat: authedProcedure.input(z.object({ chatId: brandedId<ChatId>(), bookId: brandedId<WorldBookId>() })).mutation(({ ctx, input }) =>
-    ctx.services.worldInfo.detachFromChat({
-      principal: ctx.auth,
-      chatId: input.chatId,
-      bookId: input.bookId,
-    }),
-  ),
+  detachFromChat: authedProcedure
+    .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat), bookId: typeIdSchema(ID_PREFIX.worldBook) }))
+    .mutation(({ ctx, input }) =>
+      ctx.services.worldInfo.detachFromChat({
+        principal: ctx.auth,
+        chatId: input.chatId,
+        bookId: input.bookId,
+      }),
+    ),
 
   listForChat: authedProcedure
-    .input(z.object({ chatId: brandedId<ChatId>() }))
+    .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat) }))
     .query(({ ctx, input }) => ctx.services.worldInfo.listForChat({ principal: ctx.auth, chatId: input.chatId })),
 });

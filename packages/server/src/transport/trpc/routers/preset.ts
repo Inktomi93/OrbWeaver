@@ -8,8 +8,7 @@
 // preset that already carries a broken wrapper still loads and can be fixed in the editor.
 
 import { promptConfigWriteSchema } from "@orb/contracts/preset";
-import type { PresetId } from "@orb/kit/ids";
-import { brandedId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc.ts";
 
@@ -39,13 +38,13 @@ export const presetRouter = t.router({
   list: authedProcedure.query(({ ctx }) => ctx.services.preset.list({ userId: ctx.auth.userId })),
 
   get: authedProcedure
-    .input(z.object({ id: brandedId<PresetId>() }))
+    .input(z.object({ id: typeIdSchema(ID_PREFIX.preset) }))
     .query(({ ctx, input }) => ctx.services.preset.get({ userId: ctx.auth.userId, id: input.id })),
 
   update: authedProcedure
     .input(
       z.object({
-        id: brandedId<PresetId>(),
+        id: typeIdSchema(ID_PREFIX.preset),
         name: z.string().min(1).optional(),
         kind: z.string().min(1).optional(),
         config: promptConfigWriteSchema.optional(),
@@ -69,24 +68,24 @@ export const presetRouter = t.router({
     ),
 
   remove: authedProcedure
-    .input(z.object({ id: brandedId<PresetId>() }))
+    .input(z.object({ id: typeIdSchema(ID_PREFIX.preset) }))
     .mutation(({ ctx, input }) => ctx.services.preset.remove({ userId: ctx.auth.userId, id: input.id })),
 
   resetToDefault: authedProcedure
-    .input(z.object({ id: brandedId<PresetId>() }))
+    .input(z.object({ id: typeIdSchema(ID_PREFIX.preset) }))
     .mutation(({ ctx, input }) => ctx.services.preset.resetToDefault({ userId: ctx.auth.userId, id: input.id })),
 
   // The editor's effective-profile read (redesign §4.3): the generation funnel projected for THIS preset
   // against the caller's own chat model. Caller-scoped both ways — the preset must be readable by them, and
   // the capability half takes only the resolved Principal.
   resolveEffective: authedProcedure
-    .input(z.object({ id: brandedId<PresetId>() }))
+    .input(z.object({ id: typeIdSchema(ID_PREFIX.preset) }))
     .query(({ ctx, input }) => ctx.services.preset.resolveEffective({ principal: ctx.auth, id: input.id })),
 
   // The CONTEXT panel's backward bindings (#279) — principal-carrying like `resolveEffective`, because its
   // room half is membership-scoped (D18) and is resolved for the ACTING caller, never a supplied user id.
   listUsage: authedProcedure
-    .input(z.object({ id: brandedId<PresetId>() }))
+    .input(z.object({ id: typeIdSchema(ID_PREFIX.preset) }))
     .query(({ ctx, input }) => ctx.services.preset.listUsage({ principal: ctx.auth, id: input.id })),
 
   // The single-preset import door (G6) — a thin arm over the ONE `ImportPreset` verb the profile bundle uses,

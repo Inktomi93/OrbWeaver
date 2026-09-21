@@ -178,6 +178,7 @@ import { warningNotice } from "../../../../packages/client/src/features/chat/lib
 import { enableAppearanceMessageRegistry } from "../../../../packages/client/src/lib/appearance-message-registry.ts";
 import type { SlashArgOffer } from "../../../../packages/client/src/lib/contribution-contracts.ts";
 import { CtAppDataProviders, CtChatContributorSectionRegistry, CtDataProviders, CtRealSectionRegistry } from "../../../support/browser/ct-data-providers.tsx";
+import { testModelId, testProviderId } from "../../../support/inference-identities.ts";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 import { CHAT_ID, COMPOSER_CHAT_ID, makeMessageView } from "./fixtures.ts";
 
@@ -369,7 +370,7 @@ export function MessageRowStory({
               characterId,
               personaId,
               tokensOut: 128,
-              model,
+              model: model === null ? null : testModelId(model),
               toolCalls: toolCalls ?? [],
               reasoning,
               ...(showSwipes ? { variantCount: 3, selectedVariantIdx: 1 } : {}),
@@ -3121,7 +3122,7 @@ export function MessageMetadataRowStory({
   readonly message?: Partial<MessageView>;
 }): ReactElement {
   const view = makeMessageView({
-    model: "qwen3-vl",
+    model: testModelId("qwen3-vl"),
     tokensOut: 128,
     tokensIn: 64,
     tokenProvenance: "measured",
@@ -3152,7 +3153,11 @@ export function MessageCostReadoutStory({
   readonly generationId?: string | null;
   readonly provider?: string | null;
 }): ReactElement {
-  const view = makeMessageView({ connectionId: castId<UserConnectionId>("uconn_ct_1"), generationId, provider });
+  const view = makeMessageView({
+    connectionId: castId<UserConnectionId>("uconn_ct_1"),
+    generationId,
+    provider: provider === null ? null : testProviderId(provider),
+  });
   return (
     <CtDataProviders>
       <MessageCostReadout message={view} />

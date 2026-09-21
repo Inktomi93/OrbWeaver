@@ -10,8 +10,7 @@
 // at the domain (the id is half the AAD — an unknown id would seal a key nothing can open).
 
 import { providerMetadataSchema } from "@orb/contracts/credentials";
-import type { UserCredentialId } from "@orb/kit/ids";
-import { brandedId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc.ts";
 
@@ -43,11 +42,11 @@ export const credentialsRouter = t.router({
     ),
 
   remove: authedProcedure
-    .input(z.object({ credentialId: brandedId<UserCredentialId>() }))
+    .input(z.object({ credentialId: typeIdSchema(ID_PREFIX.userCredential) }))
     .mutation(({ ctx, input }) => ctx.services.credentials.remove({ principal: ctx.auth, credentialId: input.credentialId })),
 
   markRevokedByUser: authedProcedure
-    .input(z.object({ credentialId: brandedId<UserCredentialId>(), reason: z.string().optional() }))
+    .input(z.object({ credentialId: typeIdSchema(ID_PREFIX.userCredential), reason: z.string().optional() }))
     .mutation(({ ctx, input }) =>
       ctx.services.credentials.markRevokedByUser({
         principal: ctx.auth,
@@ -56,7 +55,7 @@ export const credentialsRouter = t.router({
       }),
     ),
 
-  clearRevoked: authedProcedure.input(z.object({ credentialId: brandedId<UserCredentialId>() })).mutation(({ ctx, input }) =>
+  clearRevoked: authedProcedure.input(z.object({ credentialId: typeIdSchema(ID_PREFIX.userCredential) })).mutation(({ ctx, input }) =>
     ctx.services.credentials.clearRevoked({
       principal: ctx.auth,
       credentialId: input.credentialId,

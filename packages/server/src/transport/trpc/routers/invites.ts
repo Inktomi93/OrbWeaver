@@ -26,35 +26,35 @@ import {
   previewInviteSchema,
   redeemInviteSchema,
 } from "@orb/contracts/chat";
-import type { ChatId, ChatInviteId, UserId } from "@orb/kit/ids";
-import { brandedId } from "@orb/kit/ids";
+import type { UserId } from "@orb/kit/ids";
+import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { multiHumanProcedure, t } from "../trpc.ts";
 
 const createSchema = z.object({
-  chatId: brandedId<ChatId>(),
+  chatId: typeIdSchema(ID_PREFIX.chat),
   input: createInviteSchema,
 });
 
 const revokeSchema = z.object({
-  chatId: brandedId<ChatId>(),
-  inviteId: brandedId<ChatInviteId>(),
+  chatId: typeIdSchema(ID_PREFIX.chat),
+  inviteId: typeIdSchema(ID_PREFIX.chatInvite),
 });
 
-const declineSchema = z.object({ inviteId: brandedId<ChatInviteId>() });
+const declineSchema = z.object({ inviteId: typeIdSchema(ID_PREFIX.chatInvite) });
 
 const kickSchema = z.object({
-  chatId: brandedId<ChatId>(),
+  chatId: typeIdSchema(ID_PREFIX.chat),
   userId: brandedId<UserId>(),
 });
 
-const chatScopedSchema = z.object({ chatId: brandedId<ChatId>() });
+const chatScopedSchema = z.object({ chatId: typeIdSchema(ID_PREFIX.chat) });
 
 // The nomination + the departing host's OPTIONAL property offer (stickler 2026-08-03 §5). `offer` absent =
 // no offer = the built D64 drop: the wire's DEFAULT is give-nothing, so a client that never learned about the
 // arm can never accidentally transfer someone's library.
 const nominateSchema = z.object({
-  chatId: brandedId<ChatId>(),
+  chatId: typeIdSchema(ID_PREFIX.chat),
   userId: brandedId<UserId>(),
   offer: handoffOfferSchema.optional(),
 });
@@ -64,7 +64,7 @@ const nominateSchema = z.object({
 // a deployment that cannot seat one (the `kick`/`nominateHostHandoff` shape). The wire enum is the ONE-HOME
 // `joinHistoryVisibilitySchema` (`@orb/contracts/chat`), the same tuple the DB column's enum derives from.
 const setMemberHistoryVisibilitySchema = z.object({
-  chatId: brandedId<ChatId>(),
+  chatId: typeIdSchema(ID_PREFIX.chat),
   userId: brandedId<UserId>(),
   visibility: joinHistoryVisibilitySchema,
 });

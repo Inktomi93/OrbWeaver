@@ -18,8 +18,7 @@ import {
   providerIdSchema,
   routableTaskSchema,
 } from "@orb/contracts/inference";
-import type { AutomationRuleId, PluginId, UserCredentialId } from "@orb/kit/ids";
-import { brandedId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { adminProcedure, authedProcedure, t } from "../trpc.ts";
 
@@ -32,7 +31,7 @@ const LABEL_MAX_CHARS = 120;
 const connectionFields = z.object({
   label: z.string().min(1).max(LABEL_MAX_CHARS).optional(),
   providerId: providerIdSchema,
-  credentialId: brandedId<UserCredentialId>().nullable(),
+  credentialId: typeIdSchema(ID_PREFIX.userCredential).nullable(),
   baseUrl: z.string().min(1).nullable(),
   model: modelIdSchema,
   api: connectionApiSchema.optional(),
@@ -45,8 +44,8 @@ const connectionFields = z.object({
 
 /** The actor a binding belongs to, from the caller's side; absent ⇒ the caller's own `user` bindings. */
 const bindingActor = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("automation-rule"), ruleId: brandedId<AutomationRuleId>() }),
-  z.object({ kind: z.literal("plugin-grant"), pluginId: brandedId<PluginId>() }),
+  z.object({ kind: z.literal("automation-rule"), ruleId: typeIdSchema(ID_PREFIX.automationRule) }),
+  z.object({ kind: z.literal("plugin-grant"), pluginId: typeIdSchema(ID_PREFIX.plugin) }),
 ]);
 
 export const connectionRouter = t.router({
@@ -105,7 +104,7 @@ export const connectionRouter = t.router({
     .input(
       z.object({
         baseUrl: z.string().min(1),
-        credentialId: brandedId<UserCredentialId>().optional(),
+        credentialId: typeIdSchema(ID_PREFIX.userCredential).optional(),
         key: z.string().optional(),
         headers: z.record(z.string(), z.string()).optional(),
       }),
