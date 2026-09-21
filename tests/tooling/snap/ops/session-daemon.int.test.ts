@@ -17,6 +17,7 @@
 // one-shot AND through a session (one implementation, never a second capture path).
 // @instrument-absence-proof: T2 — a call on a session whose daemon is GONE exits 2 with `SESSION DEAD …
 // mid-<op>`, never a comfortable RESULT from a browser that no longer exists.
+import { spawn } from "node:child_process";
 import { existsSync, readFileSync, readlinkSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
@@ -25,10 +26,13 @@ import { abandonedRuns } from "@orb/tooling/_shared/artifacts";
 import { attachProbeSession, closeProbeSession } from "@orb/tooling/_shared/browser";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { spawnNiced } from "@orb/tooling/_shared/proc";
+import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
+import { markedPids, mintRunMarker, RUN_MARKER_ENV, runMarkerEnv } from "@orb/tooling/_shared/run-marker";
 import { vi } from "vitest";
 import type { SessionRow } from "../../../../tooling/src/snap/contract/session.ts";
 import { SESSION_INSTRUMENT } from "../../../../tooling/src/snap/lib/session-plan.ts";
 import { readSessionRow, resultPairsOf } from "../../../../tooling/src/snap/lib/session-wire.ts";
+import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import type { CliResult } from "../../../support/tool-fixtures.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
@@ -602,5 +606,58 @@ test("attach — attachProbeSession drives the owner's LIVE page over the sessio
     expect(after.stdout).not.toContain("booting");
   } finally {
     await r.close([a]);
+  }
+});
+
+// ── #2504: a daemon inside a marked run may not take the run down with it ───────────────────────────
+// THE DEFECT, AT THE SEAM IT WAS REPORTED AT. `pnpm test:tooling` with `ORB_RUN_MARKER` set and its owner
+// alive: `Killed`, exit 137, 11 files, NO summary. Unset, same tree, same command: 556 files and a
+// published verdict. The killer was this suite's own daemons: reparented (so `selfAndAncestors` excludes
+// nothing) and sweeping the marker they had INHERITED, which every sibling vitest worker and the top-level
+// pnpm carried. This arm reproduces that exactly, with a marker of its own so the red costs one `sleep`
+// instead of the battery, and it asserts BOTH directions in one run:
+//   · the planted sibling — every worker's stand-in — must still be alive after the close, and
+//   · the daemon's OWN browser must be gone, which is the arm that says the sweep still sweeps.
+// The control between them is `markedPids(outer)`: the sibling and the browser are BOTH in range of the
+// value the shutdown stopped using, so "nothing died" cannot be "nothing was there".
+function chromiumPidsCarrying(marker: string): readonly number[] {
+  return markedPids(marker).filter((pid) => {
+    try {
+      return /chrome|headless_shell/u.test(readFileSync(`/proc/${String(pid)}/cmdline`, "utf8"));
+    } catch {
+      // A pid that exits between the scan and the read is simply not counted: this is a census.
+      return false;
+    }
+  });
+}
+
+test("T-scope — a daemon's shutdown reaps its own browser and leaves the RUN THAT CONTAINS IT standing (#2504)", async ({ plantedTree, runCli }) => {
+  // FROZEN CLOCK (#1975): the minted-at segment is opaque — `MARKER_RE` matches it and nothing reads it —
+  // so identity here is the pid plus the crypto nonce, never elapsed time.
+  const outer = mintRunMarker(process.pid, FROZEN_AT_MS);
+  const r = await rig(plantedTree, runCli, envOf([[RUN_MARKER_ENV, outer]]));
+  const name = uniq("scope");
+  // THE PLANTED VICTIM: a process carrying the outer marker exactly as a sibling vitest worker does.
+  const sibling = spawn("sleep", ["120"], { env: inheritedProcessEnv(runMarkerEnv(outer)), detached: true, stdio: "ignore" });
+  sibling.unref();
+  const siblingPid = sibling.pid;
+  expect(siblingPid, "the fixture, not the sweep, is broken if the planted sibling has no pid").toBeDefined();
+  try {
+    expect(await until(() => markedPids(outer).includes(siblingPid as number)), "the planted sibling must be IN RANGE of the outer marker").toBe(true);
+    await expect(await r.snap(["--session", name, "--file", r.fixture, "--eval", "1", ...QUIET])).toExitWith(EXIT.clean);
+    // #1848 IS PRESERVED: the daemon's browser carries the OUTER marker too, so that run's kill path still
+    // reaches it. If this is zero the narrowing went too far and the orphan leak is back.
+    expect(chromiumPidsCarrying(outer).length, "the session browser must still carry the outer run's marker").toBeGreaterThan(0);
+
+    const close = await r.snap(["--session-close", name]);
+    // The closing client carries the marker too — against the pre-fix daemon it is SIGKILLed mid-close.
+    await expect(close).toExitWith(EXIT.clean);
+    expect(pidAlive(siblingPid as number), "the daemon swept the run that contained it — this is the exit-137 battery kill").toBe(true);
+    expect(await until(() => chromiumPidsCarrying(outer).length === 0), "the daemon's own browser must be gone — a scoped sweep still has to sweep").toBe(true);
+  } finally {
+    if (siblingPid !== undefined && pidAlive(siblingPid)) {
+      process.kill(siblingPid, "SIGKILL");
+    }
+    await r.close([name]);
   }
 });

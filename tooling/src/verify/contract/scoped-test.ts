@@ -25,9 +25,13 @@ interface CtRunnerLease {
   /** The per-invocation build cache — absolute, freshly created (hence COLD), removed by `release`. */
   readonly cacheDir: string;
   /** THE RUN MARKER this invocation stamps into playwright's environment (#1848), INHERITED when the CT
-   *  run is itself inside a marked run so the outer runner's kill path still reaches these browsers.
-   *  `release` sweeps whatever still carries it — a chromium that outlived its playwright is an orphan. */
+   *  run is itself inside a marked run so the outer runner's kill path still reaches these browsers. It is
+   *  NOT what `release` sweeps: an inherited value names the outer run, and killing it kills that run. */
   readonly runMarker: string;
+  /** THE LEASE (#2504) — minted fresh for THIS invocation, never inherited, stamped beside the run marker
+   *  on the same children. `release` sweeps exactly this: a chromium or a CT vite server still carrying it
+   *  after playwright has returned outlived its own run, while everything else on the box is somebody's. */
+  readonly runLease: string;
   readonly release: () => void;
   /** Set when a DEAD runner's lock was stolen — the caller prints it, so a self-heal is never silent. */
   readonly stolenFrom: number | null;

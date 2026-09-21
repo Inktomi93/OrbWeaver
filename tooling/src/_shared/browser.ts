@@ -16,7 +16,7 @@ import { resolveProbeMedia } from "./browser-media.ts";
 import { warn } from "./log.ts";
 import { DEV_PORTS } from "./ports.ts";
 import { inheritedProcessEnv, processEnvValue } from "./process-env.ts";
-import { currentRunMarker, runMarkerArg, runMarkerEnv } from "./run-marker.ts";
+import { currentRunLease, currentRunMarker, runLeaseArg, runLeaseEnv, runMarkerArg, runMarkerEnv } from "./run-marker.ts";
 
 export type { CapturedConsole, CapturedRequest } from "./browser-capture.ts";
 
@@ -156,18 +156,25 @@ interface LaunchedBrowser {
  *  no process-group kill can reach — the same leak the CT runner had, and the reason 72 headless-shell
  *  processes were alive on this box on 2026-09-06. The marker rides the browser's ENVIRONMENT, which
  *  `/proc/<pid>/environ` makes readable and unforgeable, so `_shared/run-marker.ts`'s sweeps can find them
- *  by RUN — never by program name, which would kill a sibling lane's fleet. */
+ *  by RUN — never by program name, which would kill a sibling lane's fleet.
+ *
+ *  BOTH IDENTITIES RIDE WHEN THIS PROCESS HOLDS A LEASE (#2504): the OUTER run's marker, so that run's kill
+ *  path still reaches this browser exactly as #1848 requires, AND the lease this process minted, which is
+ *  the only value its own teardown may sweep. One stamp would have to serve both, and it could not. */
 function markedBrowserEnv(): NodeJS.ProcessEnv {
-  return inheritedProcessEnv(runMarkerEnv(currentRunMarker()));
+  const lease = currentRunLease();
+  return inheritedProcessEnv({ ...runMarkerEnv(currentRunMarker()), ...(lease === null ? {} : runLeaseEnv(lease)) });
 }
 
 /** …AND THE ARG, because the env alone does not survive: chromium rewrites its own environ area for its
  *  process title, so `/proc/<pid>/environ` reads EMPTY for every browser process (measured 2026-09-06).
  *  The switch is unknown to chromium, which ignores it, and lands in `/proc/<pid>/cmdline` — where the
  *  sweep's second channel reads it. Marking the ROOT is sufficient: killing it took all six of the probe's
- *  chromium processes with it. */
+ *  chromium processes with it. The lease rides the same way and for the same reason — a chromium that keeps
+ *  neither environ is reachable by whichever identity its argv carries. */
 function markedBrowserArgs(args: readonly string[]): string[] {
-  return [...args, runMarkerArg(currentRunMarker())];
+  const lease = currentRunLease();
+  return [...args, runMarkerArg(currentRunMarker()), ...(lease === null ? [] : [runLeaseArg(lease)])];
 }
 
 async function launchOwnedBrowser(opts: ProbeLaunchOptions, deviceDescriptor: (typeof devices)[string] | null): Promise<LaunchedBrowser> {
