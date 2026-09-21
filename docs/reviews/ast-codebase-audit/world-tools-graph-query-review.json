@@ -1,0 +1,99 @@
+{
+  "verdict": "CONFIRMED",
+  "repository": "/home/inktomi/.codex/worktrees/world-aware-tools/orbweaver",
+  "reviewedState": {
+    "branch": "codex/world-aware-tools",
+    "changedFiles": [
+      "tooling/src/ast/index.ts",
+      "tooling/src/ast/lib/emit.ts",
+      "tooling/src/ast/lib/ledger.ts",
+      "tooling/src/ast/lib/usage.ts",
+      "tooling/src/ast/ops/depcruise.ts",
+      "tooling/src/ast/ops/graph.ts",
+      "tooling/src/ast/ops/symbols.ts",
+      "tooling/src/ast/ops/verbs.ts",
+      "tests/tooling/ast/ops/verbs.test.ts"
+    ],
+    "finalHashes": {
+      "tooling/src/ast/ops/graph.ts": "3377d113f16b81cde73d737c4cf7d39b6c8a2d4432693975d189a62de8980d0d",
+      "tooling/src/ast/ops/symbols.ts": "8024d2bac94fd57baf519fbebaa9a891d7b3469e4629fca654dbfb2e2e8bdc00",
+      "tests/tooling/ast/ops/verbs.test.ts": "73fb6025865af45306cd26a1f99e541339a88bf7f73c9ce2f616cf861d7b88f1"
+    }
+  },
+  "claimsChecked": [
+    {
+      "claim": "semantic callers and JSX follow declaration identity through aliases without admitting unrelated property collisions",
+      "evidence": "Bounded production-dispatch tests report 2 aliased execute calls, 1 renamed Widget JSX use, exclude collision.execute/collision.Widget, and report exactly 1 Service.sendTurn call while excluding a same-spelled property bound to Other.sendTurnElsewhere. Independent /tmp probe also reports callers sendTurn matches=1 status=complete."
+    },
+    {
+      "claim": "same-line source occurrences survive dedupe while exact duplicate records still collapse",
+      "evidence": "Bounded controls report 2 same-line callers, 2 JSX nodes, 5 target identifiers, and 2 needle literals; emitter control retains two distinct rendered findings and collapses an exact duplicate."
+    },
+    {
+      "claim": "importers canonicalizes static and literal dynamic module subjects without double counting",
+      "evidence": "The #target fixture resolves one canonical target and reports exactly four import occurrences: two same-line alias imports, one differently spelled relative static import, and one relative dynamic import. Static raw/resolved duplicate emissions collapse by the same node start."
+    },
+    {
+      "claim": "refs discovers ordinary module-local declarations",
+      "evidence": "Class, interface, type alias, and enum controls each emit a def plus semantic refs. MethodDeclaration discovery was also exercised by the callers control."
+    },
+    {
+      "claim": "cycles reports stable SCCs including overlapping cycles and self-loops",
+      "evidence": "The overlapping a-b/a-c graph emits one sorted SCC containing all three files. A self-import emits one self.ts cyclic-component. Independent /tmp probe reports cycles kit matches=1 status=complete for the self-loop."
+    },
+    {
+      "claim": "corpus routing and depcruise roots/receipts are explicit",
+      "evidence": "Routing controls place callers/importers/jsx/refs in TYPED_VERBS and aliases/exports/ident/literal in WIDE_SYNTACTIC_VERBS. The depcruise seam receives roots [packages, tooling] and the ledger scope contains graph-roots:packages,tooling with matches=1."
+    },
+    {
+      "claim": "empty scope/refusal behavior does not become false-clean",
+      "evidence": "Bounded controls preserve exit 2 plus status=error and SCOPE ENTERED NOTHING for an unmatched --in filter and an invalid exports scope. CLI argument/refusal implementation was unchanged by this diff; its repository integration suite was not run because it performs repeated full-corpus loads."
+    }
+  ],
+  "verification": [
+    {
+      "command": "pnpm test:scoped tests/tooling/ast/ops/verbs.test.ts",
+      "result": "PASS: 19/19 tests, 1 file, final refreshed tree"
+    },
+    {
+      "command": "pnpm typecheck --config tooling/tsconfig.json --config tsconfig.json",
+      "result": "PASS: tooling/tsconfig.json and tsconfig.json"
+    },
+    {
+      "command": "pnpm exec biome check <9 reviewed paths> --diagnostic-level=error",
+      "result": "PASS: checked 9 files, no fixes applied"
+    },
+    {
+      "command": "pnpm exec eslint <9 reviewed paths>",
+      "result": "PASS"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    },
+    {
+      "command": "node --experimental-strip-types /tmp/world-tools-graph-query-probe.ts",
+      "result": "PASS: method caller matches=1 complete; self-loop matches=1 complete"
+    }
+  ],
+  "midReviewCorrection": {
+    "initialCounterexamples": [
+      "callers returned a clean zero for a class method",
+      "cycles returned a clean zero for a resolved self-import"
+    ],
+    "resolution": "Both were converted into bounded regression controls and repaired in the live shared diff. The refreshed full bounded suite and independent probes are green."
+  },
+  "notRun": [
+    {
+      "command": "pnpm test:scoped tests/tooling/ast/cli.repo.int.test.ts",
+      "status": "terminated/non-verdict",
+      "reason": "The suite performs repeated real full-repository corpus loads, which the review brief explicitly prohibited while the package rot matrix owns the heavy slot. It was stopped before completion and not restarted."
+    },
+    {
+      "command": "whole-repo checks or full-corpus ast lenses",
+      "status": "not run",
+      "reason": "Explicit review constraint."
+    }
+  ],
+  "treeMutation": "No repository files were edited by the verifier. The only verifier-authored files are /tmp/world-tools-graph-query-probe.ts and this report."
+}

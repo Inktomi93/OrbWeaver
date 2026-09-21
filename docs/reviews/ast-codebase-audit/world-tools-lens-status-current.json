@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "capturedAt": "2026-09-21T06:50:01.500298+00:00",
+  "capturedAt": "2026-09-21T07:14:56.336717+00:00",
   "denominator": 30,
   "rule": "A verb is complete only after its result set and tool behavior are adjudicated. Invocation alone does not count.",
   "summary": {
@@ -137,9 +137,10 @@
       "graphQuery": "11-lens audit preserved; confirmed tool/control repairs active under #2540"
     },
     "graphQueryLensAudit": {
-      "status": "11 lenses mapped; nine confirmed tool/control findings; repair active",
+      "status": "repair committed at d8426277d and independently confirmed; whole-corpus result adjudication remains pending",
       "issue": 2540,
-      "receipt": "world-tools-graph-query-lenses-audit.json"
+      "receipt": "world-tools-graph-query-lenses-audit.json",
+      "review": "world-tools-graph-query-review.json"
     }
   }
 }

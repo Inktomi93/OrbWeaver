@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "capturedAt": "2026-09-21T07:07:27.954292+00:00",
-  "sourceCommit": "24d177728",
+  "capturedAt": "2026-09-21T07:14:56.336216+00:00",
+  "sourceCommit": "d8426277d",
   "purpose": "Full AST audit observations and agent reasoning. Dated evidence, not a replacement for GitHub work-item lifecycle.",
   "entryPoints": {
     "coverage": "world-tools-lens-manifest.json",
@@ -33,7 +33,8 @@
     "graphQueryLensAudit": "world-tools-graph-query-lenses-audit.json",
     "brandBoundaryAudit": "world-tools-brand-boundary-audit.json",
     "brandBoundarySummary": "world-tools-brand-boundary-audit.md",
-    "cleanupFinalRereview": "world-tools-cleanup-rereview.json"
+    "cleanupFinalRereview": "world-tools-cleanup-rereview.json",
+    "graphQueryLensReview": "world-tools-graph-query-review.json"
   },
   "limitations": [
     "30 CLI verbs identified; coverage remains incomplete. A candidate is not a confirmed defect or deletion authorization.",
@@ -170,6 +171,11 @@
       "commit": "f734f9f27",
       "issue": 2535,
       "result": "Separated shipped product, tooling/script, and test evidence; exact client/server liveness; semantic respell identity; runtime-only prodonly roots; independently confirmed"
+    },
+    {
+      "commit": "d8426277d",
+      "issue": 2540,
+      "result": "Identity-aware callers/JSX/importers, complete local declarations and same-line occurrences, SCC cycles including self-loops, wide syntactic roots, and honest depcruise receipts; independently confirmed"
     }
   ],
   "unresolvedInsights": [
@@ -198,8 +204,8 @@
       "file": "world-tools-lens-status-current.json",
       "source": "maintained audit status matrix",
       "sourceSha256": null,
-      "sha256": "8cc069cc5fc138e033ba7000da219e359692b217c4cf8489cd31e0f35ae7633d",
-      "bytes": 4139
+      "sha256": "59700f9d9b82e22c86ced6a06fdfa4d3537c2055947c779ff9451fe9fe39448f",
+      "bytes": 4232
     },
     {
       "file": "world-tools-lens-manifest.json",
@@ -550,6 +556,13 @@
       "sourceSha256": "41c94668a7e98e2b258418a7d1bf022d77dad938abaac89682cad0b3e74af62d",
       "sha256": "41c94668a7e98e2b258418a7d1bf022d77dad938abaac89682cad0b3e74af62d",
       "bytes": 5607
+    },
+    {
+      "file": "world-tools-graph-query-review.json",
+      "source": "/tmp/world-tools-graph-query-review.json",
+      "sourceSha256": "81274b068553613538189598b5b23337a426ca09bb04c31dd8c36e491f864ecf",
+      "sha256": "81274b068553613538189598b5b23337a426ca09bb04c31dd8c36e491f864ecf",
+      "bytes": 5454
     }
   ],
   "crossCuttingFindings": {
@@ -585,8 +598,10 @@
     },
     "graphQueryLensAudit": {
       "issue": 2540,
-      "status": "confirmed tool/control findings; repair active",
-      "receipt": "world-tools-graph-query-lenses-audit.json"
+      "status": "repair committed and independently confirmed",
+      "receipt": "world-tools-graph-query-lenses-audit.json",
+      "commit": "d8426277d",
+      "review": "world-tools-graph-query-review.json"
     }
   }
 }
