@@ -28,6 +28,10 @@ const VENDORED_PATH_RE = /\/vendor\//u;
 
 const VENDORED_HEADER_RE = /\bvendored\b/iu;
 
+/** Application/package source is product evidence. Scripts, tooling, and package-root configs are useful
+ *  consumers too, but get their own bucket so they cannot make an app-dead export read ALIVE. */
+const PRODUCT_SOURCE_RE = /\/packages\/[^/]+\/src\//u;
+
 /** `<repo-rel file>:<line>`, deduped and sorted prod-first, for a set of reference nodes. */
 function siteListOf(nodes: readonly Node[]): string[] {
   return [...new Set(nodes.map((n) => `${relPath(n.getSourceFile().getFilePath())}:${n.getStartLineNumber()}`))].sort(byProdFirst);
@@ -65,20 +69,29 @@ function commentMentionsOf(sf: SourceFile, name: string): number {
   return mentions;
 }
 
-/** The evidence-priority verdict (see the section header): ALIVE beats SWALLOWED-ONLY beats TAGGED-KEEP
- *  beats TEST-ANCHORED beats CANDIDATE. TAGGED-KEEP is this conservative lens's marker bucket; the
+/** The evidence-priority verdict (see the section header): ALIVE beats SWALLOWED-ONLY beats TAGGED-KEEP,
+ *  then TOOL-ANCHORED / TEST-ANCHORED beat CANDIDATE. TAGGED-KEEP is this lens's marker bucket; the
  *  push-tier ratchet, not marker presence, decides whether that claim is legal. */
-function deadVerdictOf(prodCount: number, swallowed: boolean, tagged: boolean, testCount: number): DeadVerdict {
-  if (prodCount > 0) {
+function deadVerdictOf(evidence: {
+  readonly prodCount: number;
+  readonly swallowed: boolean;
+  readonly tagged: boolean;
+  readonly toolCount: number;
+  readonly testCount: number;
+}): DeadVerdict {
+  if (evidence.prodCount > 0) {
     return "ALIVE";
   }
-  if (swallowed) {
+  if (evidence.swallowed) {
     return "SWALLOWED-ONLY";
   }
-  if (tagged) {
+  if (evidence.tagged) {
     return "TAGGED-KEEP";
   }
-  return testCount > 0 ? "TEST-ANCHORED" : "CANDIDATE";
+  if (evidence.toolCount > 0) {
+    return "TOOL-ANCHORED";
+  }
+  return evidence.testCount > 0 ? "TEST-ANCHORED" : "CANDIDATE";
 }
 
 /** A reference that is only a re-export PASS-THROUGH (`export { X } from "./y"`, no `from`-less local
@@ -102,14 +115,26 @@ export function deadEvidenceFor(project: SourceCorpus, decl: Node, name: string,
         .filter((r) => !(r.getSourceFile() === sf && r.getParent()?.getStart() === decl.getStart()))
         .filter((r) => !isReexportPassthroughRef(r))
     : [];
-  const prodNodes = refs.filter((r) => !isTestPath(r.getSourceFile().getFilePath()));
+  const prodNodes = refs.filter((r) => PRODUCT_SOURCE_RE.test(r.getSourceFile().getFilePath()));
+  const toolNodes = refs.filter((r) => {
+    const fp = r.getSourceFile().getFilePath();
+    return !(isTestPath(fp) || PRODUCT_SOURCE_RE.test(fp));
+  });
   const testNodes = refs.filter((r) => isTestPath(r.getSourceFile().getFilePath()));
   const swallowed = collectSwallowedCandidates(project, live, (fp) => fp === sf.getFilePath()).find((c) => declKey(c.decl) === declKey(decl));
   const publicMarker = publicMarkerOf(decl);
   return {
-    verdict: deadVerdictOf(prodNodes.length, swallowed !== undefined, publicMarker !== undefined, testNodes.length),
+    verdict: deadVerdictOf({
+      prodCount: prodNodes.length,
+      swallowed: swallowed !== undefined,
+      tagged: publicMarker !== undefined,
+      toolCount: toolNodes.length,
+      testCount: testNodes.length,
+    }),
     prodRefs: siteListOf(prodNodes).slice(0, DEAD_SITES_SHOWN),
     prodCount: prodNodes.length,
+    toolRefs: siteListOf(toolNodes).slice(0, DEAD_SITES_SHOWN),
+    toolCount: toolNodes.length,
     testRefs: siteListOf(testNodes).slice(0, DEAD_SITES_SHOWN),
     testCount: testNodes.length,
     swallowedSites: swallowed?.sites ?? [],
@@ -146,6 +171,7 @@ function deadRow(label: string, value: string): string {
 function printDeadEvidence(name: string, decl: Node, evidence: DeadEvidence, flags: Flags): void {
   narrate(flags, `dead ${name} @ ${declSite(decl)}`);
   narrate(flags, deadRow("production refs:", deadRefsCell(evidence.prodCount, evidence.prodRefs)));
+  narrate(flags, deadRow("tool/script refs:", deadRefsCell(evidence.toolCount, evidence.toolRefs)));
   narrate(flags, deadRow("test-only refs:", deadRefsCell(evidence.testCount, evidence.testRefs)));
   const swallowedCell =
     evidence.swallowedSites.length === 0 ? "no" : `YES — namespace-swallowed by ${evidence.swallowedSites.slice(0, DEAD_SITES_SHOWN).join(", ")}`;
@@ -158,7 +184,7 @@ function printDeadEvidence(name: string, decl: Node, evidence: DeadEvidence, fla
 
 /** A composite evidence-ladder verdict for ONE symbol: production refs / test-only refs / namespace-
  *  swallowed consumption / the `@public` marker / a vendored-file home / raw comment mentions, then a
- *  verdict — ALIVE / TEST-ANCHORED / SWALLOWED-ONLY / TAGGED-KEEP / CANDIDATE. CANDIDATE lens — see the
+ *  verdict — ALIVE / TOOL-ANCHORED / TEST-ANCHORED / SWALLOWED-ONLY / TAGGED-KEEP / CANDIDATE. CANDIDATE lens — see the
  *  section header above. Multiple declarations of the same name (a collision) are each classified. */
 export function cmdDead(project: SourceCorpus, name: string, flags: Flags): void {
   const decls = declarationsNamed(scanCorpus(project, WHOLE_CORPUS), name);
@@ -178,7 +204,7 @@ export function cmdDead(project: SourceCorpus, name: string, flags: Flags): void
   }
   narrate(
     flags,
-    'dead is a CANDIDATE lens — an evidence-ladder verdict for ONE symbol (production refs / test-only refs / namespace-swallowed consumption / the @public marker / a vendored-file home / raw comment mentions). TAGGED-KEEP records an unadjudicated marker claim; the push-tier ratchet decides whether it is legal. "Unwired ≠ worthless" (constitution §1): the verdict is a human\'s, never a delete signal.',
+    'dead is a CANDIDATE lens — an evidence-ladder verdict for ONE symbol (product refs / tool-script refs / test-only refs / namespace-swallowed consumption / the @public marker / a vendored-file home / raw comment mentions). TAGGED-KEEP records an unadjudicated marker claim; the push-tier ratchet decides whether it is legal. "Unwired ≠ worthless" (constitution §1): the verdict is a human\'s, never a delete signal.',
   );
   emit(hits, flags, `dead ${name} (${decls.length} declaration(s))`);
 }

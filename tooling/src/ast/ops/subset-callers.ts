@@ -36,13 +36,17 @@ import { destructuredFires, indexMutationFactories, MUTATION_FIRE_MEMBERS, proce
 import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
 import type { Flags, Hit, SubsetAudit, SubsetCallSite, SubsetDoorCensus, SubsetFinding, SubsetSiteScan, SubsetUnjudgedFire } from "../contract/types.ts";
 import { emit, hitOf, narrate } from "../lib/emit.ts";
-import { exitToolError, noteUnits, scanCorpus, WHOLE_CORPUS } from "../lib/ledger.ts";
+import { exitToolError, noteUnits, scanCorpus } from "../lib/ledger.ts";
+import { isPackageSourcePath, isTestPath, WORKSPACE_PACKAGES } from "../lib/root.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
 
 /** A subset comparison needs two sides. One resolved site answers nothing — and printing "no findings"
  *  there is exactly the false clean this lens exists to refuse. */
 const MIN_COMPARABLE_SITES = 2;
+
+/** The ledger and collector share the same complete test-path rule, including helper files under tests/. */
+const SKIP_TEST_PATHS = { reason: "test-file" as const, test: isTestPath };
 
 /** How many supersets a finding NAMES before it elides the rest (the reader needs the shape, not a list). */
 const NAMED_SUPERSETS = 3;
@@ -206,11 +210,12 @@ function escapeSites(fires: DestructuredFires, symbol: string): readonly SubsetC
  * be a door on any verb and dropping it silently is the false clean this lens exists to refuse.
  */
 export function collectSubsetCallSites(files: readonly SourceFile[], symbol: string): SubsetSiteScan {
-  const index: MutationFactoryIndex = indexMutationFactories(files);
+  const productionFiles = files.filter((file) => isPackageSourcePath(file.getFilePath()) && !isTestPath(file.getFilePath()));
+  const index: MutationFactoryIndex = indexMutationFactories(productionFiles);
   const sites: SubsetCallSite[] = [];
   const procedures = new Set<string>();
   const unjudgedFires: SubsetUnjudgedFire[] = [];
-  for (const sf of files) {
+  for (const sf of productionFiles) {
     const doors: CallDoors = { index, fires: destructuredFires(sf, index) };
     sites.push(...escapeSites(doors.fires, symbol));
     for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
@@ -400,7 +405,11 @@ function printDoorClasses(symbol: string, doors: SubsetDoorCensus, flags: Flags)
 }
 
 export function cmdSubsetCallers(project: SourceCorpus, symbol: string, flags: Flags): void {
-  const files = scanCorpus(project, WHOLE_CORPUS);
+  const files = scanCorpus(project, {
+    scope: WORKSPACE_PACKAGES.map((pkg) => `/packages/${pkg}/src/`),
+    label: "path:packages/*/src",
+    skip: [SKIP_TEST_PATHS],
+  });
   const audit = collectSubsetCallers(files, symbol);
   noteUnits("call-sites", audit.sites.length);
   printDoorClasses(symbol, audit.doors, flags);

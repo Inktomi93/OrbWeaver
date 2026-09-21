@@ -45,7 +45,7 @@ export interface SwallowedCandidate {
 // Classifying one orphan today costs five separate commands (refs, ident, swallowed, a marker grep, a
 // comment grep) plus the reader's own glue to line the results up. This composite resolves the symbol
 // ONCE (`declarationsNamed`, the same substrate `refs` uses) and lays the evidence out as a compact
-// table: production references / test-only references / namespace-swallowed consumption / the `@public`
+// table: product references / tool-script references / test-only references / namespace-swallowed consumption / the `@public`
 // marker / a vendored-file home / raw comment-line mentions — then states a verdict.
 //
 // IT IS A CANDIDATE LENS, like `swallowed`/`typeonly-alive`/`chains` — the verdict is a human's, never a
@@ -53,9 +53,10 @@ export interface SwallowedCandidate {
 // production reference outranks everything else (ALIVE); a namespace-only reach may still be load-bearing
 // THROUGH the swallowing API (SWALLOWED-ONLY); a reasoned `@public`-family marker is the author's
 // unadjudicated keep claim (TAGGED-KEEP in this conservative lens; the ratchet separately judges legality);
-// reach from a test alone is `testonly`'s class (TEST-ANCHORED); only when none apply is it a CANDIDATE.
-/** The five-way verdict `dead` renders — evidence PRIORITY order (see the header above), not a tally. */
-const DEAD_VERDICTS = ["ALIVE", "TEST-ANCHORED", "SWALLOWED-ONLY", "TAGGED-KEEP", "CANDIDATE"] as const;
+// reach from a tool/script alone is TOOL-ANCHORED; reach from a test alone is `testonly`'s class
+// (TEST-ANCHORED); only when none apply is it a CANDIDATE.
+/** The six-way verdict `dead` renders — evidence PRIORITY order (see the header above), not a tally. */
+const DEAD_VERDICTS = ["ALIVE", "TOOL-ANCHORED", "TEST-ANCHORED", "SWALLOWED-ONLY", "TAGGED-KEEP", "CANDIDATE"] as const;
 export type DeadVerdict = (typeof DEAD_VERDICTS)[number];
 
 /** The full evidence ladder for one declaration — every arm `dead` prints ahead of the verdict. */
@@ -63,6 +64,8 @@ export interface DeadEvidence {
   readonly verdict: DeadVerdict;
   readonly prodRefs: readonly string[];
   readonly prodCount: number;
+  readonly toolRefs: readonly string[];
+  readonly toolCount: number;
   readonly testRefs: readonly string[];
   readonly testCount: number;
   readonly swallowedSites: readonly string[];
@@ -372,12 +375,12 @@ export interface NamespaceSite {
 }
 
 export interface Liveness {
-  /** origin-keys reached by a NAMED import / namespace access / dynamic import from PROD code —
-   *  the UNION of client + server prod consumption (orphans/testonly/prodonly key on this). */
+  /** origin-keys reached by a NAMED import / namespace access / dynamic import outside tests —
+   *  the UNION of all product packages plus tool/script consumption (orphans/testonly key on this). */
   usedProd: Set<string>;
   /** the client-package slice of `usedProd` (importing file under `/packages/client/`). */
   usedClientProd: Set<string>;
-  /** the non-client (server/kit/contracts/db/ui) slice of `usedProd`. */
+  /** the exact server-package slice of `usedProd`. */
   usedServerProd: Set<string>;
   /** same, from TEST paths. */
   usedTest: Set<string>;

@@ -7,7 +7,7 @@ import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
 import type { TableDef, WriteScan } from "../contract/types.ts";
 import { relPath } from "../ops/swallowed.ts";
 import { declKey } from "./keys.ts";
-import { KEY_SEP } from "./root.ts";
+import { isPackageSourcePath, isTestPath, KEY_SEP } from "./root.ts";
 
 // ── columns: drizzle columns classified by CONSUMPTION (READ+WRITE / WRITE-only / READ-only / NEITHER) ─
 // The owner-named RV-11 class: "the model writes a column nobody renders". Every liveness lens above keys on
@@ -186,10 +186,10 @@ export function columnKey(tableVar: string, jsProp: string): string {
   return `${tableVar}${KEY_SEP}${jsProp}`;
 }
 
-/** A file that CONSUMES columns: anything in the workspace except the schema dir itself (a `t.col` inside an
- *  index/CHECK is DDL, not consumption — counting it would make every indexed column permanently "read"). */
+/** A production file that CONSUMES columns: schema declarations and tests are evidence about the model,
+ *  not product reads/writes. Counting either would make unused columns look permanently healthy. */
 export function isColumnConsumer(fp: string): boolean {
-  return !fp.includes(SCHEMA_DIR);
+  return isPackageSourcePath(fp) && !(fp.includes(SCHEMA_DIR) || isTestPath(fp));
 }
 
 /** Walk a drizzle method chain down to the `insert(<T>)` / `update(<T>)` call that NAMES the table, and return
