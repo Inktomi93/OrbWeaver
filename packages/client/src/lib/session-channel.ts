@@ -42,6 +42,15 @@ const RECOVERY_LOCK = "orb:session-recovery";
 export type SessionMessage =
   | { readonly kind: "signed-out" }
   | { readonly kind: "session-recovering" }
+  | { readonly kind: "session-recovered"; readonly handle: string | null }
+  | { readonly kind: "durable-local-written"; readonly storeName: string };
+
+/** Messages this tab is allowed to put on the channel. A recovered handle originates in the authenticated
+ *  `/api/auth/me` response, so the outbound edge keeps its `Handle` proof. The channel parser deliberately
+ *  erases that proof again: an origin-wide bus cannot authenticate the bytes another tab posted. */
+type SessionPostMessage =
+  | { readonly kind: "signed-out" }
+  | { readonly kind: "session-recovering" }
   | { readonly kind: "session-recovered"; readonly handle: Handle | null }
   | { readonly kind: "durable-local-written"; readonly storeName: string };
 
@@ -70,7 +79,9 @@ function asSessionMessage(data: unknown): SessionMessage | null {
   }
   if (kind === "session-recovered") {
     const handle = (data as { handle?: unknown }).handle;
-    return { kind, handle: typeof handle === "string" ? (handle as Handle) : null };
+    // Parsing the transport shape proves only "string". The next authenticated session read is what can
+    // restore the Handle brand; accepting the sibling's assertion here would smuggle any string into it.
+    return { kind, handle: typeof handle === "string" ? handle : null };
   }
   if (kind === "durable-local-written" && typeof (data as { storeName?: unknown }).storeName === "string") {
     return { kind, storeName: (data as { storeName: string }).storeName };
@@ -107,7 +118,7 @@ function openChannel(): BroadcastChannel | null {
 }
 
 /** Broadcast to every OTHER tab on this origin. A no-op where the primitive is absent. */
-export function postSessionMessage(message: SessionMessage): void {
+export function postSessionMessage(message: SessionPostMessage): void {
   openChannel()?.postMessage(message);
 }
 

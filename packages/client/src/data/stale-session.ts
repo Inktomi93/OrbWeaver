@@ -115,7 +115,7 @@ function signOut(): void {
  *  that has not resolved its viewer yet reports `null`, which matches only the equally identity-less
  *  absent-principal answer (`/api/auth/me` serves `principal?.handle ?? null`, so a live principal always
  *  names one). */
-function identityBoundaryCrossed(handle: Handle | null): boolean {
+function identityBoundaryCrossed(handle: string | null): boolean {
   return handle !== host?.currentHandle();
 }
 
@@ -271,8 +271,9 @@ export function bindSessionRecovery(next: SessionRecoveryHost | null): void {
     if (message.kind === "session-recovered") {
       // A sibling re-authenticated on the SHARED cookie — this tab's reads are stale, not its session.
       // Which is true only while the recovered identity is still THIS tab's: the message names the handle
-      // precisely so a follower applies the same §4.2.1 boundary the leader did (the shape-validated
-      // `handle` is compared, never used to build the target — that is the module constant above).
+      // precisely so a follower applies the same §4.2.1 boundary the leader did. The channel proves only a
+      // string; equality against this tab's authenticated Handle needs no brand, and the untrusted value is
+      // never stored, forwarded, or used to build the target — that is the module constant above.
       if (identityBoundaryCrossed(message.handle)) {
         navigateTo(APP_ROOT_PATH);
         return;

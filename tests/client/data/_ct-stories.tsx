@@ -5,7 +5,7 @@
 // exports. This file is the template every client feature agent copies.
 
 import { QueryBoundary } from "@orb/client/components";
-import type { CardFrameRequest, PluginFrameRequest } from "@orb/client/data";
+import type { CardFrameRequest, PluginDisplayRow, PluginFrameRequest } from "@orb/client/data";
 import {
   __resetSessionFreshness,
   createCollectionSurface,
@@ -799,7 +799,7 @@ const DISPLAY_STORY_RAW = "the GOBLIN snarls";
  * and mounts a composer + an edit textarea beside it holding the SAME raw text — so one CT proves in a
  * single shot that a display script transforms the rendered body and touches NEITHER input nor the wire.
  */
-function DisplayTierBody({ chatId }: { readonly chatId: ChatId }): ReactElement {
+function DisplayTierBody({ chatId }: { readonly chatId: ChatId | null }): ReactElement {
   const scripts = useDisplayScripts(chatId);
   const rendered = renderMessageForDisplay(DISPLAY_STORY_RAW, {
     // Branded key types, not bare `new Map()` — the maps are keyed by CharacterId/PersonaId.
@@ -824,6 +824,15 @@ export function DisplayTierInRoomStory(): ReactElement {
   return (
     <CtDataProviders>
       <DisplayTierBody chatId={DISPLAY_STORY_CHAT} />
+    </CtDataProviders>
+  );
+}
+
+/** Chat-less: only the viewer tier exists; no room query may be constructed or sent. */
+export function DisplayTierChatlessStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <DisplayTierBody chatId={null} />
     </CtDataProviders>
   );
 }
@@ -1141,8 +1150,8 @@ const DISPLAY_TRANSFORM_CHAT = castId<ChatId>("chat_ct_display0000000000000");
 const DISPLAY_TRANSFORM_MESSAGE = castId<MessageId>("msg_ct_display00000000000000");
 
 /** The hook's answer for one row, rendered as text so a CT can read it without a transcript. */
-function PluginDisplayTextBody({ text }: { readonly text: string }): ReactElement {
-  const shown = usePluginDisplayText(text, { chatId: DISPLAY_TRANSFORM_CHAT, messageId: DISPLAY_TRANSFORM_MESSAGE });
+function PluginDisplayTextBody({ text, row }: { readonly text: string; readonly row: PluginDisplayRow | undefined }): ReactElement {
+  const shown = usePluginDisplayText(text, row);
   return <p data-slot="plugin-display-text">{shown}</p>;
 }
 
@@ -1150,7 +1159,16 @@ function PluginDisplayTextBody({ text }: { readonly text: string }): ReactElemen
 export function PluginDisplayTextStory({ text = "a rendered line" }: { readonly text?: string }): ReactElement {
   return (
     <CtDataProviders>
-      <PluginDisplayTextBody text={text} />
+      <PluginDisplayTextBody text={text} row={{ chatId: DISPLAY_TRANSFORM_CHAT, messageId: DISPLAY_TRANSFORM_MESSAGE }} />
+    </CtDataProviders>
+  );
+}
+
+/** A chat-less display surface has no row identity and therefore cannot call the per-row transform. */
+export function PluginDisplayTextWithoutRowStory({ text = "a rendered line" }: { readonly text?: string }): ReactElement {
+  return (
+    <CtDataProviders>
+      <PluginDisplayTextBody text={text} row={undefined} />
     </CtDataProviders>
   );
 }

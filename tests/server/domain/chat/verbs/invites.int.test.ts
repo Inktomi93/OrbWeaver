@@ -760,6 +760,34 @@ describe("previewInvite — minimal preview-then-confirm", () => {
     expect(preview.memberCount).toBe(1);
     expect(preview.modeLabel).toBe("per-speaker · natural");
   });
+
+  test("a hostless participant view is an invariant failure, never an empty branded handle", async () => {
+    const chatId = await seedChat(db, "a", { title: "The Tavern" });
+    await seedInvite(chatId, "tok");
+    const outsider = await seedUser(db, castId<Handle>("outsider"));
+    loadParticipantViews = (): Promise<readonly ParticipantView[]> => Promise.resolve([]);
+    const invites = createInvites(makeChatContext(db), makeDeps());
+
+    await expect(invites.previewInvite({ principal: principal(outsider), input: { token: "tok" } })).rejects.toThrow(
+      `previewInvite: chat ${chatId} has no host participant`,
+    );
+  });
+
+  test("a host participant without a public handle is the same invariant failure", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const chatId = await seedChat(db, "a", { title: "The Tavern" });
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    await seedInvite(chatId, "tok");
+    const outsider = await seedUser(db, castId<Handle>("outsider"));
+    const loadViews = loadParticipantViews;
+    loadParticipantViews = async (id): Promise<readonly ParticipantView[]> =>
+      (await loadViews(id)).map((participant) => (participant.role === "host" ? { ...participant, handle: null } : participant));
+    const invites = createInvites(makeChatContext(db), makeDeps());
+
+    await expect(invites.previewInvite({ principal: principal(outsider), input: { token: "tok" } })).rejects.toThrow(
+      `previewInvite: chat ${chatId} has no host participant`,
+    );
+  });
 });
 
 describe("listInvites — the host-management outstanding-invites read (FIX #4)", () => {

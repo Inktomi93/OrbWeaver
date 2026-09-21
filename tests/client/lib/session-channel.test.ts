@@ -118,6 +118,16 @@ describe("session channel — the wire", () => {
     expect(mine).toEqual([]);
   });
 
+  test("a malformed recovered handle never acquires identity — it is normalized to null", () => {
+    const sibling = new FakeBroadcastChannel("orb:session");
+    const mine: unknown[] = [];
+    channel.onSessionMessage((message) => mine.push(message));
+
+    sibling.postMessage({ kind: "session-recovered", handle: { forged: "owner" } });
+
+    expect(mine).toEqual([{ kind: "session-recovered", handle: null }]);
+  });
+
   test("unsubscribing stops delivery", () => {
     const sibling = new FakeBroadcastChannel("orb:session");
     const mine: unknown[] = [];

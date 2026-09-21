@@ -22,10 +22,10 @@
 // It lives in `#data` rather than `features/preset` because its consumers are the PERSONA and CHARACTER
 // editors, and a feature never imports another feature (the `useDisplayScripts` precedent).
 
-import type { PresetId } from "@orb/kit/ids";
 import { useQuery } from "@tanstack/react-query";
 import { withUserMacros } from "#lib";
 import { useTRPC } from "./trpc.ts";
+import { useGatedQuery } from "./use-gated-query.ts";
 
 /** The plane-less arm, hoisted so the identity handed to `withUserMacros` is stable across renders (it is
  *  the key its memo — and behind it `<MacroTextarea>`'s fuzzy index — is built on). */
@@ -47,12 +47,9 @@ export function usePromptMacroSuggestions(): ReturnType<typeof withUserMacros> {
   // shell; the preset by the preset surfaces) — this adds a cache hit, not a round trip, on the common path.
   const settings = useQuery(trpc.settings.getUserSettings.queryOptions());
   const activePresetId = settings.data?.config.seeds.defaultPresetId ?? null;
-  const preset = useQuery({
-    ...trpc.preset.get.queryOptions({ id: (activePresetId ?? "") as PresetId }),
-    // `null` means the BUILT-IN default is active, which declares no user macros — so there is nothing to
-    // fetch and the builtin catalog is already the complete answer.
-    enabled: activePresetId !== null,
-  });
+  // `null` means the BUILT-IN default is active, which declares no user macros. No PresetId is manufactured:
+  // the gated options builder is never called and the builtin catalog is already the complete answer.
+  const preset = useGatedQuery(activePresetId, (id) => trpc.preset.get.queryOptions({ id }));
   // The array's IDENTITY is the memo key, and TanStack's structural sharing keeps it stable across refetches
   // that don't change the list — which is what makes the union (and the fuzzy index behind it) pay off.
   return withUserMacros(preset.data?.config.userMacros ?? NO_USER_MACROS);

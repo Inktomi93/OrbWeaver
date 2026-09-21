@@ -31,7 +31,7 @@
 // failure posture — a refused, slow, or errored round-trip leaves the row reading exactly as it would have.
 
 import type { ChatId, MessageId } from "@orb/kit/ids";
-import { useQuery } from "@tanstack/react-query";
+import { skipToken, useQuery } from "@tanstack/react-query";
 import { useTRPC } from "./trpc.ts";
 
 /** The row this text belongs to. Absent ⇒ a chat-less surface (a draft-greeting preview, a story mount): no
@@ -40,8 +40,6 @@ export interface PluginDisplayRow {
   readonly chatId: ChatId;
   readonly messageId: MessageId;
 }
-
-const INERT_ROW: PluginDisplayRow = { chatId: "" as ChatId, messageId: "" as MessageId };
 
 /** Annotate one already-rendered row through the viewer's own plugins' display transforms. Returns `text`
  *  unchanged when there is no row, no registered transform, or the round-trip has not landed (or failed). */
@@ -54,12 +52,10 @@ export function usePluginDisplayText(text: string, row: PluginDisplayRow | undef
   // read that answers with something other than the contract (a stubbed CT route, a transport hiccup) by
   // going silent rather than by throwing inside a transcript render.
   const hasTransforms = Array.isArray(registered) && registered.length > 0;
-  // A well-formed but DISABLED key for the chat-less arm — the `useDisplayScripts` idiom: the query never
-  // runs, so the placeholder ids are never sent; they exist only so the key shape stays uniform.
-  const target = row ?? INERT_ROW;
+  // A chat-less row or an empty transform registry carries no entity identity. `skipToken` keeps the real
+  // key unbuilt; there is no empty ChatId/MessageId value for an `enabled` guard to accidentally release.
   const { data } = useQuery({
-    ...trpc.plugin.transformForDisplay.queryOptions({ chatId: target.chatId, messageId: target.messageId, text }),
-    enabled: hasTransforms && row !== undefined,
+    ...trpc.plugin.transformForDisplay.queryOptions(hasTransforms && row !== undefined ? { chatId: row.chatId, messageId: row.messageId, text } : skipToken),
     // A failed round-trip degrades this row to its own text — never into the transcript's error boundary. It
     // is the same silence a skipped transform produces, which is the point: a display transform is decoration.
     throwOnError: false,
