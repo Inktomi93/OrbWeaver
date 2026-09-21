@@ -1,8 +1,9 @@
 // domain/plugin/substrate/manifest — the SOURCE-AGNOSTIC bundle funnel (owner-ruled): bytes in →
 // unzip → validate → a typed `PluginBundle` out. A future first-party catalog fetcher is just another byte
 // source (the safeFetch precedent) feeding THIS funnel — never a second install path. Pure + Principal-free;
-// the verbs own persistence + the CAS write. Every failure is a typed `ManifestInvalidError` thrown BEFORE
-// anything persists (validate-at-the-boundary — the bundle is untrusted input).
+// the verbs own persistence + the CAS write. Structural failures are typed `ManifestInvalidError`; a
+// structurally valid but unsupported membrane major is `HostVersionUnservedError`. Both throw BEFORE anything
+// persists (validate-at-the-boundary — the bundle is untrusted input).
 //
 // Unzip hardening is NON-optional: (a) STRICT ENTRY ALLOW-LIST
 // — a bundle is `manifest.json` + `main.js`, plus the OPTIONAL `ui.js` (the Tier-C client guest,
@@ -41,6 +42,7 @@
 
 import type { PluginManifest } from "@orb/contracts/plugin";
 import {
+  PLUGIN_HOST_VERSIONS,
   PLUGIN_MAIN_ENTRY,
   PLUGIN_MANIFEST_ENTRY,
   PLUGIN_UI_ASSET_ENTRY_RE,
@@ -56,7 +58,7 @@ import { sniffMime } from "@orb/kit/image-sniff";
 import type { UnzipFileInfo } from "fflate";
 import { unzipSync } from "fflate";
 import { z } from "zod";
-import { ManifestInvalidError, PluginBundleFetchError } from "../contract/errors.ts";
+import { HostVersionUnservedError, ManifestInvalidError, PluginBundleFetchError } from "../contract/errors.ts";
 
 /** The stored bundle is the whole zip (re-parsed + re-validated on activation load); the CAS row's
  *  mime records that. install/upgrade store under this; the ONE home so the two verbs don't drift. */
@@ -262,7 +264,9 @@ function unzipHardened(bundle: Uint8Array): {
   return uiBytes === undefined ? { manifestBytes, mainBytes, uiAssets } : { manifestBytes, mainBytes, uiBytes, uiAssets };
 }
 
-/** Parse untrusted bundle bytes into a validated `PluginBundle`. The ONE bundle funnel (source-agnostic). */
+/** Parse untrusted bundle bytes into a validated, host-compatible `PluginBundle`. The ONE bundle funnel
+ *  (source-agnostic). Structural faults throw `ManifestInvalidError`; a well-formed major absent from the
+ *  contract-owned served tuple throws `HostVersionUnservedError`. */
 export function parseBundle(bundle: Uint8Array): PluginBundle {
   const { manifestBytes, mainBytes, uiBytes, uiAssets } = unzipHardened(bundle);
 
@@ -291,6 +295,13 @@ export function parseBundle(bundle: Uint8Array): PluginBundle {
     // bundle refused for `net.hosts[2]` read as a bare "Invalid input" naming no field — and this refusal is
     // OPERATOR-facing (someone installing a plugin), not model-facing, so the human layout is the right one.
     throw new ManifestInvalidError(`manifest.json failed validation:\n${z.prettifyError(parsed.error)}`);
+  }
+  // Compatibility is a LIFECYCLE refusal, not a structural-manifest failure. Keeping this after the schema
+  // parse means malformed values still get field-level Zod diagnostics, while a future positive-integer major
+  // reaches the stable error code callers can use to say "rebuild for a served host". The tuple is also what
+  // `orb.host(major)` consumes, so install-time admission and guest-runtime negotiation cannot drift.
+  if (!PLUGIN_HOST_VERSIONS.some((served) => served === parsed.data.hostVersion)) {
+    throw new HostVersionUnservedError(parsed.data.hostVersion, PLUGIN_HOST_VERSIONS);
   }
   // THE ui.js ⟺ uiEntry BICONDITIONAL (see the header). Both arms are refused at the trust edge because both
   // are real defects, not merely untidy: undeclared bytes are code inside the consent unit that nothing

@@ -12,7 +12,7 @@
 // and wiring; this spike proves the realm + seam-injection + version gate the rest hangs off.
 
 import type { PluginLogLevel } from "@orb/contracts/plugin";
-import { HostVersionError, PLUGIN_LOG_LEVELS } from "@orb/contracts/plugin";
+import { HostVersionError, PLUGIN_HOST_VERSIONS, PLUGIN_LOG_LEVELS } from "@orb/contracts/plugin";
 import { estimateTokens } from "@orb/kit/tokens";
 import type { QuickJSContext, QuickJSHandle } from "quickjs-emscripten-core";
 import { LOG_BYTES_PER_INVOCATION, LOG_LINES_PER_INVOCATION } from "./budgets.ts";
@@ -177,12 +177,6 @@ function buildHostSurface(ctx: QuickJSContext, seams: HostSeams, log: LogRing, m
   return surface;
 }
 
-/** The host majors this runtime serves (V1 only today). `orb.host(major)` throws the typed
- *  `HostVersionError{requested, served}` for anything else; the CLASS NAME crosses the boundary so a guest's
- *  activation can `catch (e) { e.name === "HostVersionError" }` — feature-detection by type, not by message
- *  substring (the D46 "fails loudly on V2" clause, made a typed contract). */
-const SERVED_HOST_MAJORS = [1] as const;
-
 /** Turn a bare context into a guest realm: overwrite ambient non-determinism, install the frozen `orb`
  *  entry. After this the guest global holds exactly `orb` (+ the standard ECMAScript intrinsics minus
  *  Date/Math.random). `log` is the instance's ONE ring — every `orb.host(1).log.*` call from any span of
@@ -200,10 +194,10 @@ export function installRealm(ctx: QuickJSContext, seams: HostSeams, log: LogRing
   using orb = ctx.newObject();
   using hostFn = ctx.newFunction("host", (majorHandle?: QuickJSHandle) => {
     const major = majorHandle === undefined ? Number.NaN : ctx.getNumber(majorHandle);
-    if (major !== 1) {
+    if (!PLUGIN_HOST_VERSIONS.some((served) => served === major)) {
       // Throw the TYPED class (not a plain Error) so `.name` crosses the boundary as "HostVersionError" — a
       // guest feature-detects by `e.name`, and `served` rides along as data.
-      throw new HostVersionError(major, SERVED_HOST_MAJORS);
+      throw new HostVersionError(major, PLUGIN_HOST_VERSIONS);
     }
     return buildHostSurface(ctx, seams, log, membrane);
   });

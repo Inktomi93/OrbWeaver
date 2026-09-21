@@ -5,6 +5,7 @@
 import { assets, pluginAssets, plugins } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { HostVersionUnservedError } from "@orb/server/domain/plugin";
 import { CapabilityNotGrantedError, ManifestInvalidError, PluginAlreadyInstalledError, PluginNotFoundError } from "@orb/server/domain/plugin";
 import { eq, inArray } from "drizzle-orm";
 import { freshDb } from "../../../../support/db.ts";
@@ -115,6 +116,21 @@ test("a corrupt bundle is refused before anything persists", async () => {
   );
   expect(h.storedBytes.size).toBe(0); // nothing stored on a validation failure
   expect((await h.service.list({ caller: ownerPrincipalFor(owner) })).length).toBe(0);
+});
+
+test("an unsupported host major is a distinct lifecycle refusal before anything persists", async () => {
+  const db = await freshDb();
+  const h = makePluginHarness(db);
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+
+  await expect(h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ hostVersion: 2 }), grant: [] })).rejects.toMatchObject({
+    name: "HostVersionUnservedError",
+    code: "plugin_host_version_unserved",
+    requested: 2,
+    served: [1],
+  } satisfies Partial<HostVersionUnservedError>);
+  expect(h.storedBytes.size).toBe(0);
+  expect(await h.service.list({ caller: ownerPrincipalFor(owner) })).toEqual([]);
 });
 
 // ── #820 seam 11: the bundle's own `ui/assets/` images become CAS assets under the INSTALLER, linked through

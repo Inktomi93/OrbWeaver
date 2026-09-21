@@ -12,8 +12,10 @@
 //
 // The two halves are deliberately asymmetric about WHAT they re-spell:
 //   · the SCHEMA is not re-spelled — `pluginManifestSchema` is imported from `@orb/contracts/plugin`, the
-//     ONE home, so the preview's verdict on a manifest is the server's verdict by construction (including
-//     the netHosts ⟺ net.fetch biconditional, which is the SSRF allowlist's integrity);
+//     ONE home, so the preview and server share the STRUCTURAL verdict (including the netHosts ⟺ net.fetch
+//     biconditional, which is the SSRF allowlist's integrity). The server then layers its lifecycle
+//     compatibility check against `PLUGIN_HOST_VERSIONS`, producing `HostVersionUnservedError` for a
+//     well-formed future major; this preview is not an install-authority substitute;
 //   · the UNZIP is a second, DELIBERATELY SIMPLER read (`fflate`, the same engine the server uses). It
 //     carries the bundle + entry byte caps so a bomb cannot be inflated in the user's TAB, but it does not
 //     re-implement the server's pre-alloc header filter — that belt guards the HOST, and the host is not
