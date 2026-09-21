@@ -229,19 +229,19 @@
     },
     {
       "path": "docs/architecture/history/Core-Enforcement-Deferred-Dropped.md",
-      "assignedSha256": "b6a4a1c055b08c46c0361c6ef7beb8a01baacc295c77216ad8d2527013e675f7",
+      "assignedSha256": "e9e7c2fb2aff6793b9f3fb11120143df81bf1913c2653b68f66aa7338413996e",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "b6a4a1c055b08c46c0361c6ef7beb8a01baacc295c77216ad8d2527013e675f7",
-      "verifiedCommit": "e7fbeaac91a04954d0fe69c43f738035ed4a9320",
-      "verifiedAt": "2026-09-20",
+      "verifiedSha256": "e9e7c2fb2aff6793b9f3fb11120143df81bf1913c2653b68f66aa7338413996e",
+      "verifiedCommit": "4c688c915c97f2e31abe5ecb898e35eb932bd1c4",
+      "verifiedAt": "2026-09-21",
       "evidence": [
         "docs/architecture/history/Core-Enforcement-Deferred-Dropped.md:1 (full read); the deferred backlog (neo gates not yet ported, each with an activation trigger, held against the tree one-directionally by ledgers:fresh per its own §18 note), the PREBUILT orphan seal table, the dropped-do-not-port table, and the 2026-09-18-added \"Retired\" table for gates that were live and deleted when their law ended (baseline-single-migration, RETIRED 2026-09-18 per #316 Arm A).",
         "Row disposition/authority match this lane's other dated-record entries in docs/catalog/receipts/architecture-history.json (archive/historical) — the doc's own frontmatter (kind: reference, status: active) records that it stays load-bearing prose even while its catalog disposition is archive, consistent with other still-cited history/ docs in this lane."
       ],
       "summary": "Enforcement registry deferred/dropped/retired ledger: neo-gate deferral rows tripwired against the live tree by ledgers:fresh, the PREBUILT orphan-seal table (2026-08-17 re-derivation), the dropped-do-not-port table, and the new Retired section recording baseline-single-migration's 2026-09-18 deletion at the launch flip. Hand-authored row (D139 pending-clearance); no typed claims — lifecycle receipt (archive/historical).",
-      "verifiedCanonicalSha256": "b6a4a1c055b08c46c0361c6ef7beb8a01baacc295c77216ad8d2527013e675f7"
+      "verifiedCanonicalSha256": "e9e7c2fb2aff6793b9f3fb11120143df81bf1913c2653b68f66aa7338413996e"
     },
     {
       "path": "docs/architecture/history/Core-Event-Bus-Parity-Audit.md",
