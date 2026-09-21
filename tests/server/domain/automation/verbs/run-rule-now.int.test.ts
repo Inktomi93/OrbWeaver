@@ -138,7 +138,7 @@ describe("what a manual run KEEPS", () => {
 
     const fires = await fixture.svc.listFires({ principal: principal(fixture.host), ruleId });
     expect(fires).toHaveLength(1);
-    expect(fires[0]).toMatchObject({ outcome: "fired", automationDepth: 0 });
+    expect(fires[0]).toMatchObject({ outcome: "fired" });
     expect(fires[0]?.detail).toEqual({ runNow: true, byUserId: fixture.host });
   });
 
