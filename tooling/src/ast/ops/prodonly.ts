@@ -21,12 +21,13 @@ refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
 // reach — the instrument that sees the whole rpg pending-seam cluster (dead FILES, not dead symbols).
 //
 // A file reachable ONLY from a test is prod-unreachable BY DESIGN of this lens (that's its whole point —
-// it complements testonly). So tests/ + scripts/ are NOT entries and NOT graph nodes here.
+// it complements testonly). Tests and arbitrary scripts are not roots; only a script named by a package
+// manifest is an entry and graph node.
 /** The production entry FILES, derived honestly from runtime authorities (never analysis configuration):
  *   1. each package.json `exports` map — Node resolves
  *      `./*` across slashes, so every nested `index.ts` addressable as a subpath is an entry;
- *   2. each package.json `scripts` command's `.ts` targets ({@link scriptEntryPaths}) and the package-root
- *      TOOL CONFIG convention ({@link TOOLING_CONFIG_GLOB}) — see the tooling-entrypoint note below.
+ *   2. each package and root package.json `scripts` command's Node/TS program ({@link scriptEntryPaths})
+ *      and the package-root TOOL CONFIG convention — see the tooling-entrypoint note below.
  *  index.html isn't a source file, so its `<script type=module>` target `src/main.tsx` stands in.
  *
  *  TOOLING ENTRY POINTS ARE ENTRIES (lens calibration, owner ruling 2026-08-13). `drizzle.config.ts`,
@@ -41,8 +42,19 @@ function deriveEntryFiles(project: SourceCorpus): Set<string> {
   const entries = new Set<string>();
   for (const pkg of WORKSPACE_PACKAGES) {
     const dir = `${REPO_ROOT}/packages/${pkg}`;
-    for (const glob of [...exportsEntryPaths(dir), ...scriptEntryPaths(dir), ...toolingConfigNames(project, dir)]) {
+    if (!project.getSourceFiles().some((sourceFile) => sourceFile.getFilePath().startsWith(`${dir}/`))) {
+      continue;
+    }
+    for (const glob of [...exportsEntryPaths(dir), ...toolingConfigNames(project, dir)]) {
       addGlobMatches(project, `${dir}/${glob}`, entries);
+    }
+    for (const entry of scriptEntryFiles(project, dir)) {
+      entries.add(entry);
+    }
+  }
+  if (project.getSourceFiles().some((sourceFile) => /\/(?:scripts|tooling)\//u.test(sourceFile.getFilePath()))) {
+    for (const entry of scriptEntryFiles(project, REPO_ROOT)) {
+      entries.add(entry);
     }
   }
   addAnchor(project, entries, `${REPO_ROOT}/packages/client/src/main.tsx`, "index.html's <script type=module> target");
@@ -65,17 +77,30 @@ export function toolingConfigNames(project: SourceCorpus, pkgDir: string): strin
   return names;
 }
 
-const SCRIPT_TS_TOKEN_RE = /[\w./-]+\.tsx?\b/gu;
+const NODE_TS_ENTRY_RE = /(?:^|\s)node(?:\s+--[\w-]+(?:=[^\s]+)?)*\s+(?<target>[\w./-]+\.tsx?)\b/gu;
 
-/** The `.ts`/`.tsx` targets named by a package's own `scripts` commands (`node tokens.build.ts` →
- *  `tokens.build.ts`) — the same auto-detection knip performs, read off the same package.json. A token that
- *  resolves to no source file is simply not an entry; the glob matcher already ignores it. */
+function scriptTargets(scripts: Readonly<Record<string, string>>): string[] {
+  return Object.values(scripts)
+    .flatMap((cmd) => [...cmd.matchAll(NODE_TS_ENTRY_RE)].map((match) => match.groups?.["target"]).filter((target): target is string => target !== undefined))
+    .map((token) => token.replace(DOT_SLASH_RE, ""));
+}
+
+/** The literal `.ts`/`.tsx` PROGRAM named by each `node …` package-script command. A test filename passed
+ *  to Playwright is an argument, not a Node program, so scanning every TS-shaped token would invent roots. */
 export function scriptEntryPaths(pkgDir: string): string[] {
   const raw = readFileSync(`${pkgDir}/package.json`, "utf8");
   const scripts = (JSON.parse(raw) as { scripts?: Record<string, string> }).scripts ?? {};
-  return Object.values(scripts)
-    .flatMap((cmd) => cmd.match(SCRIPT_TS_TOKEN_RE) ?? [])
-    .map((token) => token.replace(DOT_SLASH_RE, ""));
+  return scriptTargets(scripts);
+}
+
+/** Resolve every declared Node/TS script entry. A manifest row whose literal target vanished is a broken
+ *  entry graph and refuses; silently dropping it makes every transitive file look dead. */
+export function scriptEntryFiles(project: SourceCorpus, pkgDir: string, scripts?: Readonly<Record<string, string>>): Set<string> {
+  const entries = new Set<string>();
+  for (const relative of scripts === undefined ? scriptEntryPaths(pkgDir) : scriptTargets(scripts)) {
+    addAnchor(project, entries, `${pkgDir}/${relative}`, `${relPath(`${pkgDir}/package.json`)} script target`);
+  }
+  return entries;
 }
 
 /** A NAMED anchor entry (a path this file asserts is an entry, derived from something outside the TS graph).

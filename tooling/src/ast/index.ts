@@ -13,6 +13,7 @@ export type {
   ContractField,
   DeadEvidence,
   DeadVerdict,
+  ExternalConsumption,
   FieldReadSites,
   Flags,
   Hit,
@@ -51,7 +52,7 @@ export { collectChainAudit, collectChainCandidates } from "./ops/chains.ts";
 export { deadEvidenceFor } from "./ops/dead.ts";
 export { DEPCRUISE_ROOTS, DEPCRUISE_VERBS, runDepcruise } from "./ops/depcruise.ts";
 export { collectOrphanCandidates, isProdConsumed, testOnlyClassOf } from "./ops/orphans.ts";
-export { scriptEntryPaths, toolingConfigNames } from "./ops/prodonly.ts";
+export { scriptEntryFiles, scriptEntryPaths, toolingConfigNames } from "./ops/prodonly.ts";
 export { collectRegistryCandidates } from "./ops/registry-candidates.ts";
 export { collectRegistries, qualifiedAccessIndex, regKeyHitsFor, spellingIndex } from "./ops/regkeys.ts";
 export { assignabilityChecker, isNearPairExempt, respellHitsFor, respellNearCandidatesFor } from "./ops/respell.ts";

@@ -8,7 +8,7 @@ import { recordDeclarationEdges } from "./edges.ts";
 import { declKey, exposedNames } from "./keys.ts";
 import { resolveDynamicImportTarget, resolveModule } from "./resolve.ts";
 import { isTestPath } from "./root.ts";
-import { isPackageRootToolingConfig } from "./tooling-entries.ts";
+import { collectExternalConsumptions } from "./tooling-entries.ts";
 
 /** Records that `key` was marked alive by `arm`. Kept BESIDE the liveness buckets — recording an arm never
  *  changes who is alive, only what we can say about WHY. */
@@ -376,9 +376,6 @@ export function buildLiveness(project: SourceCorpus, options: LivenessOptions = 
     // A test path always wins into usedTest. clientgap reads the exact client/server slices;
     // orphans/testonly read the non-test union, including legitimate tool consumers.
     const bucket = prodBucketFor(fp, { usedTest, usedClientProd, usedServerProd, usedOtherProd, usedTooling });
-    if (isPackageRootToolingConfig(fp)) {
-      markNamedAlive(sf, "default", usedTooling, record);
-    }
     for (const imp of sf.getImportDeclarations()) {
       markImportConsumption(imp, { bucket, record, namespaceSites });
     }
@@ -388,6 +385,16 @@ export function buildLiveness(project: SourceCorpus, options: LivenessOptions = 
       recordDeclarationEdges(sf, project, consumers);
     }
   }
+  const externalConsumptions = collectExternalConsumptions(project);
+  for (const fact of externalConsumptions) {
+    usedTooling.add(fact.targetKey);
+    record(fact.targetKey, "external");
+    if (options.edges) {
+      const roots = consumers.get(fact.targetKey) ?? new Set<string>();
+      roots.add(fact.rootConsumerKey);
+      consumers.set(fact.targetKey, roots);
+    }
+  }
   const usedProd = new Set<string>([...usedClientProd, ...usedServerProd, ...usedOtherProd, ...usedTooling]);
-  return { usedProd, usedClientProd, usedServerProd, usedTest, starTargets, arms, namespaceSites, consumers };
+  return { usedProd, usedClientProd, usedServerProd, usedTest, starTargets, arms, namespaceSites, consumers, externalConsumptions };
 }

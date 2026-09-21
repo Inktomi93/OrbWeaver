@@ -12,7 +12,6 @@ import { buildLiveness, dynamicImportMemberNames, isReferencedInOwnFile } from "
 import { resolveDynamicImportTarget } from "../lib/resolve.ts";
 import { isTestPath, TEST_FILE_RE } from "../lib/root.ts";
 import { ownExports, resolveScope } from "../lib/scope.ts";
-import { isPackageRootToolingConfig } from "../lib/tooling-entries.ts";
 import { PACKAGES_PREFIX } from "./chains.ts";
 import { collectOrphanCandidates } from "./orphans.ts";
 import { byProdFirst, relPath } from "./swallowed.ts";
@@ -200,21 +199,8 @@ function recordDynamicApiConsumption(sf: SourceFile, project: SourceCorpus, cons
   }
 }
 
-/** A package-root tool config's default export is consumed by the external tool that loads the file.
- *  Named helper exports remain ordinary symbols: tests may reach them, but the filename convention does not. */
-function recordToolingEntryConsumption(sf: SourceFile, map: Map<string, ApiConsumption>): void {
-  const fp = sf.getFilePath();
-  if (!isPackageRootToolingConfig(fp)) {
-    return;
-  }
-  const site = `${relPath(fp)}:1 (tool config entry)`;
-  for (const decl of sf.getExportedDeclarations().get("default") ?? []) {
-    recordApiConsumer(map, declKey(decl), { fp, site, isValue: true });
-  }
-}
-
 /** origin-key → per-package consumption, over the WHOLE workspace (imports + dynamic imports of every file). */
-function buildApiConsumption(project: SourceCorpus): Map<string, ApiConsumption> {
+function buildApiConsumption(project: SourceCorpus, live: Liveness): Map<string, ApiConsumption> {
   const map = new Map<string, ApiConsumption>();
   for (const sf of project.getSourceFiles()) {
     const fp = sf.getFilePath();
@@ -222,7 +208,9 @@ function buildApiConsumption(project: SourceCorpus): Map<string, ApiConsumption>
       recordImportApiConsumption(imp, fp, map);
     }
     recordDynamicApiConsumption(sf, project, fp, map);
-    recordToolingEntryConsumption(sf, map);
+  }
+  for (const fact of live.externalConsumptions) {
+    recordApiConsumer(map, fact.targetKey, { fp: fact.consumerFile, site: fact.consumerSite, isValue: fact.kind === "value" });
   }
   return map;
 }
@@ -270,7 +258,7 @@ function classifyApiExport(name: string, decl: Node, ctx: ApiScanCtx): ApiSurfac
 export function collectApiSurface(project: SourceCorpus, inScope: (filePath: string) => boolean, prebuilt?: Liveness): ApiSurfaceEntry[] {
   const live = prebuilt ?? buildLiveness(project);
   const orphanStar = new Map(collectOrphanCandidates(project, live, inScope).map((candidate) => [declKey(candidate.decl), candidate.starSuppressed]));
-  const ctx: ApiScanCtx = { consumption: buildApiConsumption(project), orphanStar };
+  const ctx: ApiScanCtx = { consumption: buildApiConsumption(project, live), orphanStar };
   const out: ApiSurfaceEntry[] = [];
   for (const sf of project.getSourceFiles()) {
     const fp = sf.getFilePath();

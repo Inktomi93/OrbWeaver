@@ -29,6 +29,14 @@ test("the Dockerfile is a single app-only target: no corepack, no GPU stage, pnp
   expect(dockerfile).toContain("docker/assemble-runtime.sh");
 });
 
+test("the runtime assembler invokes the checked version-stamp entry without pnpm chatter in version.json", ({ repoRoot }) => {
+  const assembler = read(repoRoot, "docker/assemble-runtime.sh");
+  const manifest = JSON.parse(read(repoRoot, "package.json")) as { scripts?: Record<string, string> };
+  expect(manifest.scripts?.["build:version-stamp"]).toBe("node scripts/build-version-stamp.ts");
+  expect(assembler).toContain('pnpm --silent --dir "$src" run build:version-stamp');
+  expect(assembler).not.toContain("node --input-type=module -e");
+});
+
 test("compose publishes on loopback by default, ships a credentialed login mode, and keeps secrets out of the tracked env file", ({ repoRoot }) => {
   const compose = read(repoRoot, "docker-compose.yaml");
   const env = read(repoRoot, "docker/orbweaver.env");
