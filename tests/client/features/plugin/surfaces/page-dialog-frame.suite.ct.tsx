@@ -103,7 +103,7 @@ test("a PAGE-anchored frame renders its own document inside the PAGE-SCALE shell
     "plugin.list": () => [pluginRow(ORACLE_ID, "oracle-deck", "Oracle Deck")],
     "plugin.listSurfaces": () => [frameRow(ORACLE_ID, "board_page", "page", "The Board")],
   });
-  await mount(<ExtensionsPageStory selectKey={`${ORACLE_ID}:board_page`} />);
+  await mount(<ExtensionsPageStory selectKey={{ pluginId: ORACLE_ID, surfaceId: "board_page" }} />);
 
   // THE §9 WALL: a full-page frame is arbitrary HTML at the biggest impersonation scale, so it wears the pinned
   // attribution band — the plugin's name and the "Extension" kicker — that every vocabulary page wears.

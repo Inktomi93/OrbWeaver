@@ -1,6 +1,6 @@
 // prodonly: entry-closure FILE reachability over the shipped/runtime entry surface.
 import { readFileSync } from "node:fs";
-import type { SourceFile } from "ts-morph";
+import type { NewExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
@@ -127,8 +127,59 @@ function globToRegExp(absGlob: string): RegExp {
   return new RegExp(`^${escaped}$`, "u");
 }
 
+function isImportMetaUrl(node: Node): boolean {
+  if (!Node.isPropertyAccessExpression(node) || node.getName() !== "url") {
+    return false;
+  }
+  const receiver = node.getExpression();
+  return receiver.getKind() === SyntaxKind.MetaProperty && receiver.getFirstChildByKind(SyntaxKind.ImportKeyword) !== undefined;
+}
+
+function staticWorkerSpecifier(node: Node): string | undefined {
+  return Node.isStringLiteral(node) || Node.isNoSubstitutionTemplateLiteral(node) ? node.getLiteralText() : undefined;
+}
+
+/** Resolve Vite's static worker-entry form without promoting ordinary `new URL(...)` assets. The path and
+ *  `import.meta.url` base must both be literal syntax: a computed path is a runtime choice this graph cannot
+ *  resolve honestly. */
+function resolveWorkerEntryTarget(expression: NewExpression, sf: SourceFile, project: SourceCorpus): SourceFile | undefined {
+  const workerConstructor = expression.getExpression();
+  if (!(Node.isIdentifier(workerConstructor) && workerConstructor.getText() === "Worker")) {
+    return;
+  }
+  const url = expression.getArguments()[0];
+  if (!(url !== undefined && Node.isNewExpression(url))) {
+    return;
+  }
+  const urlConstructor = url.getExpression();
+  const [path, base] = url.getArguments();
+  if (!(Node.isIdentifier(urlConstructor) && urlConstructor.getText() === "URL") || path === undefined || base === undefined || !isImportMetaUrl(base)) {
+    return;
+  }
+  const specifier = staticWorkerSpecifier(path);
+  if (specifier === undefined) {
+    return;
+  }
+  if (!(specifier.startsWith("./") || specifier.startsWith("../"))) {
+    return;
+  }
+  return resolveModule(project, sf.getDirectoryPath(), specifier);
+}
+
+function workerEntryTargets(sf: SourceFile, project: SourceCorpus): SourceFile[] {
+  const targets: SourceFile[] = [];
+  for (const expression of sf.getDescendantsOfKind(SyntaxKind.NewExpression)) {
+    const target = resolveWorkerEntryTarget(expression, sf, project);
+    if (target !== undefined) {
+      targets.push(target);
+    }
+  }
+  return targets;
+}
+
 // Resolved out-edges of a file: every static import / re-export target (named, namespace, star, alias,
-// and @orb subpath all resolve via getModuleSpecifierSourceFile) plus dynamic import() targets.
+// and @orb subpath all resolve via getModuleSpecifierSourceFile), dynamic import() targets, and Vite's
+// static relative Worker(new URL(..., import.meta.url)) entries.
 function fileEdges(sf: SourceFile, project: SourceCorpus): SourceFile[] {
   const out: SourceFile[] = [];
   for (const d of [...sf.getImportDeclarations(), ...sf.getExportDeclarations()]) {
@@ -149,6 +200,7 @@ function fileEdges(sf: SourceFile, project: SourceCorpus): SourceFile[] {
       }
     }
   }
+  out.push(...workerEntryTargets(sf, project));
   return out;
 }
 

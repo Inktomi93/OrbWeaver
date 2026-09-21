@@ -120,7 +120,7 @@ test("PAGE: the first `primary` renders as the house CTA — and the SECOND is d
     "plugin.list": () => [pluginRow(ATLAS_ID, PLUGIN_NAME)],
     "plugin.listSurfaces": () => [surfaceRow({ pluginId: ATLAS_ID, anchor: "page", id: "atlas_detail", title: "Browse cards", spec: DETAIL_SPEC })],
   });
-  await mount(<ExtensionsPageStory selectKey={`${ATLAS_ID}:atlas_detail`} />);
+  await mount(<ExtensionsPageStory selectKey={{ pluginId: ATLAS_ID, surfaceId: "atlas_detail" }} />);
 
   const cta = page.getByRole("button", { name: "Add to library" });
   const back = page.getByRole("button", { name: "Back to results" });

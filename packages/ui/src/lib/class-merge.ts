@@ -234,23 +234,22 @@ export function cn(...classes: CnOptions): CnReturn {
   return output || undefined;
 }
 
-type RuntimeClassResult = string;
-type RuntimeSlots = Readonly<Record<string, (...args: unknown[]) => RuntimeClassResult>>;
+type RuntimeSlots = Readonly<Record<string, (...args: unknown[]) => string>>;
 type RuntimeVariantResult = string | RuntimeSlots | undefined;
 type RuntimeVariantComponent = ((...args: unknown[]) => RuntimeVariantResult) & Readonly<Record<string, unknown>>;
 
 const composeVariants = createTV({ twMerge: false });
 
-function finalizeVariantResult(result: RuntimeVariantResult): RuntimeClassResult | RuntimeSlots {
+function finalizeVariantResult(result: RuntimeVariantResult): string | RuntimeSlots {
   if (typeof result === "string" || result === undefined) {
     // Tailwind Variants' public TV contract returns `string`, including an empty recipe. `cn` keeps its
     // own undefined-when-empty contract, so normalize only at this adapter boundary instead of lying to
     // TypeScript about TV's return shape.
     return cn(result) ?? "";
   }
-  const slots: Record<string, (...args: unknown[]) => RuntimeClassResult> = {};
+  const slots: Record<string, (...args: unknown[]) => string> = {};
   for (const [slot, render] of Object.entries(result)) {
-    slots[slot] = (...args: unknown[]): RuntimeClassResult => cn(render(...args)) ?? "";
+    slots[slot] = (...args: unknown[]): string => cn(render(...args)) ?? "";
   }
   return slots;
 }
