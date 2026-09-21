@@ -10,8 +10,8 @@ export const ID_PREFIX = { chat: "chat", persona: "persona" } as const;
 export type ChatId = TypeIdOf<"chat">;
 export type PersonaId = TypeIdOf<"persona">;
 export type UserId = Branded<"UserId">;
-export function brandedId<T extends Branded<string>>(): T { return "" as T; }
-export function typeIdSchema<P extends string>(_prefix: P): TypeIdOf<P> { return "" as TypeIdOf<P>; }
+export function brandedId<T extends Branded<string>>(): T { throw new Error("fixture"); }
+export function typeIdSchema<P extends string>(_prefix: P): TypeIdOf<P> { throw new Error("fixture"); }
 `;
 
 function runMigration(ctx: Parameters<typeof migrateTypeIdBoundarySchemas>[0]): void {
@@ -47,6 +47,42 @@ test("checker-resolved TypeIDs migrate through a renamed barrel while prefixless
       expect(second.result.filesChanged).toBe(0);
       expect(second.output).toContain("1 canonical brandedId call(s) = 0 TypeID replacement(s) + 1 preserved prefixless brand(s); 0 refusal(s)");
     },
+  );
+});
+
+test("a surviving alias for the same exported TypeID keeps its import binding", async () => {
+  const subject =
+    'import { brandedId, type ChatId as MigratedChatId } from "../../kit/src/ids/index.ts";\n' +
+    'import type { ChatId as SurvivingChatId } from "../../kit/src/ids/index.ts";\n' +
+    "export const room = brandedId<MigratedChatId>();\n" +
+    "export type Keep = SurvivingChatId;\n";
+  await withTree(
+    {
+      "tsconfig.json": JSON.stringify({
+        compilerOptions: {
+          target: "es2022",
+          module: "esnext",
+          moduleResolution: "bundler",
+          allowImportingTsExtensions: true,
+          strict: true,
+          noEmit: true,
+          paths: { "@orb/kit/ids": ["./packages/kit/src/ids/index.ts"] },
+        },
+      }),
+      "packages/kit/src/ids/index.ts": IDS,
+      "packages/server/src/aliased.ts": subject,
+    },
+    async ({ read, run }) => {
+      const { result } = await run(runMigration, { apply: true });
+
+      expect(result.diagnosticErrors).toBe(0);
+      const output = read("packages/server/src/aliased.ts");
+      expect(output).toContain("typeIdSchema(ID_PREFIX.chat)");
+      expect(output).toContain("ChatId as SurvivingChatId");
+      expect(output).not.toContain("ChatId as MigratedChatId");
+      expect(output).toContain("export type Keep = SurvivingChatId");
+    },
+    { skipDiagnosticsCheck: false },
   );
 });
 

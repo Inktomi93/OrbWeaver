@@ -12,7 +12,16 @@ import { relative, sep } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 import type { CallExpression, CodemodContext, ImportSpecifier, Plan, SourceFile } from "@orb/tooling/codemod";
-import { addNamedImport, applyTextReplacements, CodemodError, composePlans, Node, removeNamedImport, runCodemod, SyntaxKind } from "@orb/tooling/codemod";
+import {
+  addNamedImport,
+  applyTextReplacements,
+  CodemodError,
+  composePlans,
+  Node,
+  removeNamedImportBinding,
+  runCodemod,
+  SyntaxKind,
+} from "@orb/tooling/codemod";
 import { canonicalIdBrand, createKitIdCallMatcher, deriveCanonicalTypeIdPrefixes, ID_BRAND_HOME } from "../../tooling/src/verify/lib/id-brand.ts";
 
 const KIT_IDS_MODULE = "@orb/kit/ids";
@@ -162,11 +171,17 @@ function targetImportReferenceKeys(targets: readonly CallExpression[]): Readonly
   return keys;
 }
 
-/** Remove a named import only when every reference to that exact local binding is inside a call or
- *  generic target being replaced. Prefixless calls and any surviving type/value use keep the import. */
-function removableImports(sourceFile: SourceFile, targets: readonly CallExpression[]): ReadonlyArray<readonly [moduleSpecifier: string, name: string]> {
+interface RemovableImportBinding {
+  readonly moduleSpecifier: string;
+  readonly name: string;
+  readonly localName: string;
+}
+
+/** Remove only exact local bindings whose every reference is inside a replaced call. An alias of
+ *  the same exported name is a separate binding and survives when it has any live reference. */
+function removableImports(sourceFile: SourceFile, targets: readonly CallExpression[]): readonly RemovableImportBinding[] {
   const targetReferences = targetImportReferenceKeys(targets);
-  const removals = new Map<string, string>();
+  const removals: RemovableImportBinding[] = [];
   for (const declaration of sourceFile.getImportDeclarations()) {
     for (const specifier of declaration.getNamedImports()) {
       const refs = sourceFile
@@ -175,10 +190,14 @@ function removableImports(sourceFile: SourceFile, targets: readonly CallExpressi
       if (refs.length === 0 || refs.some((identifier) => !targetReferences.has(`${String(identifier.getStart())}:${String(identifier.getEnd())}`))) {
         continue;
       }
-      removals.set(`${declaration.getModuleSpecifierValue()}\0${specifier.getName()}`, specifier.getName());
+      removals.push({
+        moduleSpecifier: declaration.getModuleSpecifierValue(),
+        name: specifier.getName(),
+        localName: specifier.getAliasNode()?.getText() ?? specifier.getName(),
+      });
     }
   }
-  return [...removals].map(([key, name]) => [key.slice(0, key.indexOf("\0")), name] as const);
+  return removals;
 }
 
 function scanCanonicalCall(options: CanonicalCallScan): void {
@@ -271,8 +290,8 @@ function importPlans(ctx: CodemodContext, semanticFiles: readonly SourceFile[], 
     if (semanticSource === undefined) {
       fail("TypeID migration lost a semantic source while planning imports.", [filePath]);
     }
-    for (const [moduleSpecifier, name] of removableImports(semanticSource, scan.targetsByPath.get(filePath) ?? [])) {
-      plans.push(removeNamedImport(ctx, filePath, { moduleSpecifier, names: [name] }));
+    for (const binding of removableImports(semanticSource, scan.targetsByPath.get(filePath) ?? [])) {
+      plans.push(removeNamedImportBinding(ctx, filePath, binding));
     }
   }
   return plans;

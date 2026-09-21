@@ -248,6 +248,38 @@ function removeNamesFromImport(decl: ImportDeclaration, names: ReadonlySet<strin
   }
 }
 
+/** Remove one exact imported binding while preserving other aliases of the same exported name. */
+export function removeNamedImportBinding(
+  ctx: CodemodContext,
+  filePath: string,
+  target: { readonly moduleSpecifier: string; readonly name: string; readonly localName: string },
+  opts: OperationOptions = {},
+): Plan {
+  const { moduleSpecifier, name, localName } = target;
+  const abs = absolutePath(filePath, ctx.repoRoot);
+  const sf = ctx.project.getSourceFile(abs);
+  assert(sf !== undefined, `removeNamedImportBinding: file not in project: ${repoRelative(abs, ctx.repoRoot)}`);
+
+  return {
+    description: `Remove import binding { ${name}${localName === name ? "" : ` as ${localName}`} } from "${moduleSpecifier}" in ${repoRelative(abs, ctx.repoRoot)}${noteSuffix(opts)}`,
+    touchedFiles: [abs],
+    transform(): void {
+      for (const decl of sf.getImportDeclarations().filter((candidate) => candidate.getModuleSpecifierValue() === moduleSpecifier)) {
+        for (const specifier of decl.getNamedImports()) {
+          const specifierLocalName = specifier.getAliasNode()?.getText() ?? specifier.getName();
+          if (specifier.getName() === name && specifierLocalName === localName) {
+            specifier.remove();
+          }
+        }
+        const stillHas = decl.getNamedImports().length > 0 || decl.getDefaultImport() !== undefined || decl.getNamespaceImport() !== undefined;
+        if (!stillHas) {
+          decl.remove();
+        }
+      }
+    },
+  };
+}
+
 /**
  * Remove specific named imports from a declaration. If the declaration is
  * left with no names (and no default / namespace import), the declaration

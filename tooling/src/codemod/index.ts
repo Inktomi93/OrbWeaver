@@ -43,6 +43,7 @@ export {
   makeImportTypeOnly,
   moduleStringArg,
   removeNamedImport,
+  removeNamedImportBinding,
   renameNamedImport,
   repointAliasPaths,
   repointImports,
