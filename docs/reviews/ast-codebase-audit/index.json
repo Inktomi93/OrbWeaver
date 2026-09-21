@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "capturedAt": "2026-09-21T07:33:54.115788+00:00",
-  "sourceCommit": "a040ed288",
+  "capturedAt": "2026-09-21T07:39:37.849739+00:00",
+  "sourceCommit": "590cfa9ea",
   "purpose": "Full AST audit observations and agent reasoning. Dated evidence, not a replacement for GitHub work-item lifecycle.",
   "entryPoints": {
     "coverage": "world-tools-lens-manifest.json",
@@ -38,7 +38,8 @@
     "smallPackageRotTriage": "world-tools-small-package-rot-triage.json",
     "serverRotTriage": "world-tools-server-rot-triage.json",
     "imageryAliasCleanup": "world-tools-imagery-alias-cleanup.json",
-    "imageryAliasCleanupReview": "world-tools-imagery-alias-review.json"
+    "imageryAliasCleanupReview": "world-tools-imagery-alias-review.json",
+    "clientRotTriage": "world-tools-client-rot-triage.json"
   },
   "limitations": [
     "30 CLI verbs identified; coverage remains incomplete. A candidate is not a confirmed defect or deletion authorization.",
@@ -212,8 +213,8 @@
       "file": "world-tools-lens-status-current.json",
       "source": "maintained audit status matrix",
       "sourceSha256": null,
-      "sha256": "ce847bd750760bba9bb571879f01a642fac2032ac5a63f923b49226735a98eb1",
-      "bytes": 4690
+      "sha256": "0642e3fbe1dbb82c80ae36203a9462955b431b6b55f7753bc187aae5fcf07e42",
+      "bytes": 4874
     },
     {
       "file": "world-tools-lens-manifest.json",
@@ -599,6 +600,13 @@
       "sourceSha256": "0630aca22882d6ad886cd050a6db59e0626d2dc23131fc0283b8e0439e316323",
       "sha256": "0630aca22882d6ad886cd050a6db59e0626d2dc23131fc0283b8e0439e316323",
       "bytes": 2631
+    },
+    {
+      "file": "world-tools-client-rot-triage.json",
+      "source": "/tmp/world-tools-client-rot-triage.json",
+      "sourceSha256": "27f6f8732b38bd8415d9dc072d1eda20a707f39d60143c96a6dc09a07dbc8f41",
+      "sha256": "27f6f8732b38bd8415d9dc072d1eda20a707f39d60143c96a6dc09a07dbc8f41",
+      "bytes": 13530
     }
   ],
   "crossCuttingFindings": {
@@ -658,6 +666,14 @@
         2543,
         2544,
         2545
+      ]
+    },
+    "clientRotTriage": {
+      "status": "nine findings adjudicated: seven deliberate adapters, two intended refinery affordances, zero deletions",
+      "receipt": "world-tools-client-rot-triage.json",
+      "featureWork": [
+        2527,
+        2546
       ]
     }
   }
