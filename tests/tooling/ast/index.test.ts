@@ -723,6 +723,48 @@ export const k = UntouchedPanel;
     expect(classOf("OtherPanel")).toBe("alive");
     expect(classOf("UntouchedPanel")).toBe("hit");
   });
+
+  test("an aliased dynamic-import destructure credits only its statically named members", () => {
+    const project = projectWithAliasesOf(
+      { "@orb/db": ["packages/db/src/index"] },
+      {
+        "packages/db/src/index.ts": `
+export function selected(): number { return 1; }
+export function renamed(): number { return 2; }
+export function untouched(): number { return 3; }
+`,
+        "tooling/src/check.ts": `
+export async function check(): Promise<number> {
+  const { selected, renamed: localName } = await import("@orb/db");
+  const computedSpecifier = "@orb/db";
+  const { untouched } = await import(computedSpecifier);
+  void untouched;
+  return selected() + localName();
+}
+`,
+        "tests/db/index.test.ts": `
+import { untouched } from "../../packages/db/src/index";
+export const value = untouched();
+`,
+      },
+    );
+    const live = buildLiveness(project);
+    const target = project.getSourceFileOrThrow(`${ROOT}/packages/db/src/index.ts`);
+    const classOf = (name: string): string => testOnlyClassOf(target, name, target.getFunctionOrThrow(name), live);
+
+    expect(isProdConsumed(live, target.getFunctionOrThrow("selected"))).toBe(true);
+    expect(isProdConsumed(live, target.getFunctionOrThrow("renamed"))).toBe(true);
+    expect(isProdConsumed(live, target.getFunctionOrThrow("untouched"))).toBe(false);
+    expect(classOf("selected")).toBe("alive");
+    expect(classOf("renamed")).toBe("alive");
+    expect(classOf("untouched")).toBe("hit");
+
+    const api = new Map(collectApiSurface(project, (filePath) => filePath.endsWith("/packages/db/src/index.ts"), live).map((entry) => [entry.name, entry]));
+    expect(api.get("selected")?.klass).toBe("public");
+    expect(api.get("selected")?.consumers).toEqual(["scripts/tooling"]);
+    expect(api.get("renamed")?.klass).toBe("public");
+    expect(api.get("untouched")?.klass).toBe("test-only");
+  });
 });
 
 // ── swallowed: the err-alive namespace arm hiding a functionally dead export ──────────────────────
@@ -2335,6 +2377,20 @@ describe("ast apisurface lens (package-boundary classification)", () => {
     // Both exports are PUBLIC — alpha is spelled, beta rode the whole-surface arm (the honest over-report).
     expect(byName.get("alpha")?.klass).toBe("public");
     expect(byName.get("beta")?.klass).toBe("public");
+  });
+
+  test("a package-root tool config's default export is externally consumed while named helpers and nested configs are not", () => {
+    const project = projectOf({
+      "packages/client/vite.config.ts": "export const helper = 1; export default { root: true };",
+      "packages/client/src/feature.config.ts": "export default { nested: true };",
+    });
+    const entries = collectApiSurface(project, (filePath) => filePath.includes("/packages/client/"));
+    const byIdentity = new Map(entries.map((entry) => [`${entry.decl.getSourceFile().getBaseName()}:${entry.name}`, entry]));
+
+    expect(byIdentity.get("vite.config.ts:default")?.klass).toBe("public");
+    expect(byIdentity.get("vite.config.ts:default")?.consumers).toEqual(["scripts/tooling"]);
+    expect(byIdentity.get("vite.config.ts:helper")?.klass).toBe("unused");
+    expect(byIdentity.get("feature.config.ts:default")?.klass).toBe("unused");
   });
 });
 

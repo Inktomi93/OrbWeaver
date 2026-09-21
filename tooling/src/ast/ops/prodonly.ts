@@ -10,6 +10,7 @@ import { exitToolError, SKIP_DECLARATION_FILES, SKIP_TEST_FILES, scanCorpus } fr
 import { resolveDynamicImportTarget, resolveModule } from "../lib/resolve.ts";
 import { DOT_SLASH_RE, GLOB_STAR_RE, isTestPath, REPO_ROOT, TS_SUFFIX_RE, WORKSPACE_PACKAGES } from "../lib/root.ts";
 import { resolveScope } from "../lib/scope.ts";
+import { isPackageRootToolingConfig } from "../lib/tooling-entries.ts";
 import { relPath } from "./swallowed.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
@@ -52,14 +53,12 @@ function deriveEntryFiles(project: SourceCorpus): Set<string> {
  *  Nothing imports them and nothing can: they are the tool's own entry. Matched by directory identity rather
  *  than a glob, because {@link globToRegExp} deliberately lets `*` cross slashes (Node exports semantics) and
  *  a `*.config.ts` glob would therefore also swallow a real module at `src/**\/x.config.ts`. */
-const TOOLING_CONFIG_SUFFIX = ".config.ts";
-
 export function toolingConfigNames(project: SourceCorpus, pkgDir: string): string[] {
   const names: string[] = [];
   for (const sf of project.getSourceFiles()) {
     const fp = sf.getFilePath();
     const slash = fp.lastIndexOf("/");
-    if (fp.slice(0, slash) === pkgDir && fp.endsWith(TOOLING_CONFIG_SUFFIX)) {
+    if (fp.slice(0, slash) === pkgDir && isPackageRootToolingConfig(fp)) {
       names.push(fp.slice(slash + 1));
     }
   }
