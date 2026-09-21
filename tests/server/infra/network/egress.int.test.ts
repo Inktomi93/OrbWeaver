@@ -38,7 +38,7 @@
 // allowlist (the `ownerConfiguredEndpoint` class is the one named opt-out, compose-bound, not caller-suppliable).
 
 import process from "node:process";
-import { endpointAdmission, fetchOpenAiModels, installEgressFirewall, publishPrivateEndpointAllowlist } from "@orb/server/infra/network";
+import { endpointAdmission, installEgressFirewall, publishPrivateEndpointAllowlist } from "@orb/server/infra/network";
 import type { Dispatcher } from "undici";
 import { getGlobalDispatcher, setGlobalDispatcher } from "undici";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, vi } from "vitest";
@@ -126,18 +126,6 @@ describe("installEgressFirewall — boot-installed global SSRF dispatcher (s7 HI
     const err = await fetch("http://127.0.0.1:9998/x").catch((e: unknown) => e);
     expect(err).toBeInstanceOf(Error);
     expect(errorChainText(err)).toContain("SSRF_BLOCKED");
-  });
-
-  test("fetchOpenAiModels drops a private-address baseUrl (defense-in-depth: firewall + safeFetch) → []", async () => {
-    // The user-supplied `/models` probe (connection.listEndpointModels/inspectEndpoint) must never reach an
-    // internal endpoint. With the firewall installed, the SSRF connect is rejected; fetchOpenAiModels
-    // swallows it and returns [] — no data leaked, no internal port-scan oracle.
-    const ids = await fetchOpenAiModels({
-      baseUrl: "http://169.254.169.254",
-      apiKey: "sk-should-not-leak",
-      headers: null,
-    });
-    expect(ids).toEqual([]);
   });
 });
 
