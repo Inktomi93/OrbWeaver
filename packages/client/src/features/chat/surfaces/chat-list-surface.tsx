@@ -15,9 +15,8 @@
 //     a character seat's name OR the newest message's body — over the active server scope. The value is
 //     DEBOUNCED, not just deferred: deferring picks a render, and every distinct string here is a round trip.
 //
-// Portraits (F7/D3) resolve HERE, not in the row: one non-blocking `character.list` read builds a
-// characterId→seat map the rows index with their `participantCharacterIds` (one seat = a portrait, two or
-// more = an AvatarStack). Reads its OWN selection (`useActiveChatId`) so the chats-section definition
+// Portraits (F7/D3) arrive resolved on each row (one seat = a portrait, two or more = an AvatarStack).
+// Reads its OWN selection (`useActiveChatId`) so the chats-section definition
 // composing it stays a pure data object (the character/preset/world-info library-surface precedent); writes
 // the choice out via onSelect/onNewChat/onDeletedChat.
 //

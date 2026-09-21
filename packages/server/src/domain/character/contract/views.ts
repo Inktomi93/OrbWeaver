@@ -62,7 +62,6 @@ export interface CharacterSummary {
   readonly backgroundOverride: ThemeBackground | null;
   readonly avatarAssetId: CharacterCard["avatarAssetId"];
   readonly avatarHash: string | null;
-  readonly contentHash: string;
   readonly createdAt: number;
   /** Advisory card-heft estimate — list display only. */
   readonly tokenSize: number;

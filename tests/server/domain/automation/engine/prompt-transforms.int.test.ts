@@ -9,8 +9,10 @@
 
 import type { AutomationAction } from "@orb/contracts/automation";
 import type { PromptTransform, PromptTransformEnv, PromptTransformPoint } from "@orb/contracts/chat";
+import { automationRules } from "@orb/db";
 import type { AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import type { AutomationService } from "../../../../../packages/server/src/domain/automation/contract/service.ts";
 import { createAutomationService } from "../../../../../packages/server/src/domain/automation/index.ts";
@@ -59,6 +61,17 @@ async function armTransform(f: Fixture, opts: { actions: readonly AutomationActi
 
 function envFor(chatId: ChatId, vars: Record<string, string> = {}): PromptTransformEnv {
   return { chatId, vars };
+}
+
+async function ruleLedger(f: Fixture, ruleId: AutomationRuleId): Promise<{ consecutiveErrors: number; enabled: boolean; lastError: string | null }> {
+  const [row] = await f.db
+    .select({ consecutiveErrors: automationRules.consecutiveErrors, enabled: automationRules.enabled, lastError: automationRules.lastError })
+    .from(automationRules)
+    .where(eq(automationRules.id, ruleId));
+  if (row === undefined) {
+    throw new Error("the rule vanished");
+  }
+  return row;
 }
 
 describe("A7 prompt-transform registration lifecycle", () => {
@@ -151,8 +164,7 @@ describe("A7 prompt-transform apply", () => {
   // #1422 — THE PASS-THROUGH STAYS, THE SILENCE GOES. A transform-only rule is skipped by `dispatch` before
   // its consecutive-errors logic, so a dynamically broken transform failed on every turn indefinitely with no
   // fire row, no counter and no operator-visible signal — indistinguishable from a rule whose predicate is
-  // simply false. The failure arms now tick the SAME error ledger a dispatch failure would, on the rule view a
-  // host already reads to answer "why isn't my rule doing anything".
+  // simply false. The failure arms now tick the SAME durable error ledger a dispatch failure would.
   test("a render error RECORDS an error on the rule (the draft still passes through untouched)", async () => {
     const f = await setup();
     const ruleId = await armTransform(f, { actions: [transformArm("{{nope::x}} {{draft}}")] });
@@ -160,49 +172,48 @@ describe("A7 prompt-transform apply", () => {
 
     expect(await t.apply("survivor", envFor(f.chatId))).toBe("survivor");
 
-    const [view] = await f.svc.listRules({ principal: principal(f.host), chatId: f.chatId });
-    expect(view?.id).toBe(ruleId);
-    expect(view?.consecutiveErrors).toBe(1);
-    expect(view?.lastError).toMatch(/^transform_error: render:/);
+    const ledger = await ruleLedger(f, ruleId);
+    expect(ledger.consecutiveErrors).toBe(1);
+    expect(ledger.lastError).toMatch(/^transform_error: render:/);
     // It does NOT auto-disable — that is dispatch's call about acts with side effects, and a transform's
     // failure is inert by construction.
-    expect(view?.enabled).toBe(true);
+    expect(ledger.enabled).toBe(true);
   });
 
   test("a PREDICATE ERROR records; a predicate that is merely FALSE does not (a working rule is not a broken one)", async () => {
     const f = await setup();
     // A predicate that PARSES (the mint's only CEL gate) but evaluates to a string is an EVAL error, not a
     // false — `evaluatePredicate` answers `{ error: "predicate must evaluate to a boolean" }`.
-    await armTransform(f, { actions: [transformArm("REWRITTEN")], predicateCel: "vars.mood" });
+    const erroredRuleId = await armTransform(f, { actions: [transformArm("REWRITTEN")], predicateCel: "vars.mood" });
     const errored = f.registry.list()[0] as PromptTransform;
     expect(await errored.apply("keep me", envFor(f.chatId, { mood: "grim" }))).toBe("keep me");
-    const [afterError] = await f.svc.listRules({ principal: principal(f.host), chatId: f.chatId });
-    expect(afterError?.consecutiveErrors).toBe(1);
-    expect(afterError?.lastError).toMatch(/^transform_error: predicate:/);
+    const afterError = await ruleLedger(f, erroredRuleId);
+    expect(afterError.consecutiveErrors).toBe(1);
+    expect(afterError.lastError).toMatch(/^transform_error: predicate:/);
 
     // A second, healthy rule whose predicate is FALSE this turn keeps a clean ledger.
     const quiet = await setup();
-    await armTransform(quiet, { actions: [transformArm("REWRITTEN")], predicateCel: 'vars.mood == "grim"' });
+    const quietRuleId = await armTransform(quiet, { actions: [transformArm("REWRITTEN")], predicateCel: 'vars.mood == "grim"' });
     const t = quiet.registry.list()[0] as PromptTransform;
     expect(await t.apply("keep me", envFor(quiet.chatId, { mood: "happy" }))).toBe("keep me");
-    const [afterFalse] = await quiet.svc.listRules({ principal: principal(quiet.host), chatId: quiet.chatId });
-    expect(afterFalse?.consecutiveErrors).toBe(0);
-    expect(afterFalse?.lastError).toBeNull();
+    const afterFalse = await ruleLedger(quiet, quietRuleId);
+    expect(afterFalse.consecutiveErrors).toBe(0);
+    expect(afterFalse.lastError).toBeNull();
   });
 
   test("the ledger is BOUNDED — a transform failing every turn stops climbing rather than writing forever", async () => {
     const f = await setup();
-    await armTransform(f, { actions: [transformArm("{{nope::x}} {{draft}}")] });
+    const ruleId = await armTransform(f, { actions: [transformArm("{{nope::x}} {{draft}}")] });
     const t = f.registry.list()[0] as PromptTransform;
 
     for (let i = 0; i < 25; i += 1) {
       expect(await t.apply("survivor", envFor(f.chatId))).toBe("survivor");
     }
 
-    const [view] = await f.svc.listRules({ principal: principal(f.host), chatId: f.chatId });
+    const ledger = await ruleLedger(f, ruleId);
     // 20 ticks and then silence: past the bound the row already reads "fails every turn", so further UPDATEs
     // on the turn pipeline's error path buy nothing.
-    expect(view?.consecutiveErrors).toBe(20);
+    expect(ledger.consecutiveErrors).toBe(20);
   });
 
   test("self-guards on chatId — a transform ignores another chat's turn (the shared registry is chat-blind)", async () => {

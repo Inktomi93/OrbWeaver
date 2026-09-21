@@ -65,7 +65,6 @@ const RULE = {
   suggestOnRefusal: true,
   cooldownSeconds: 0,
   maxFiresPerHour: 30,
-  consecutiveErrors: 0,
   lastError: null,
   lastFiredAt: null,
   createdAt: 1,
@@ -470,7 +469,6 @@ test("the fire log shows a rule's recent fire", async ({ mount, page }) => {
         triggerType: "turnCompleted",
         outcome: "fired",
         detail: null,
-        automationDepth: 0,
         firedAt: A_PAST_INSTANT,
       },
     ],
@@ -588,7 +586,6 @@ test("#621 P1-5: the fire log renders `detail` — the answer the Run-now toast 
         triggerType: "turnCompleted",
         outcome: "action_error",
         detail: { armIndex: 0, armType: "generate_image", error: "no image connection is configured" },
-        automationDepth: 0,
         firedAt: A_PAST_INSTANT,
       },
       {
@@ -598,7 +595,6 @@ test("#621 P1-5: the fire log renders `detail` — the answer the Run-now toast 
         triggerType: "turnCompleted",
         outcome: "budget_refused",
         detail: { limit: "rule_hourly" },
-        automationDepth: 0,
         firedAt: A_PAST_INSTANT,
       },
     ],
@@ -1265,7 +1261,6 @@ test("#815: a full rules-editing session stays inside this surface's layout-shif
     triggerType: "turnCompleted",
     outcome: "budget_refused",
     detail: { limit: "rule_hourly" },
-    automationDepth: 0,
     firedAt: A_PAST_INSTANT,
   }));
   await routeTrpc(page, {

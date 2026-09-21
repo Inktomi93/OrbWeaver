@@ -124,7 +124,6 @@ import {
   loadChatEventReplay,
   loadChatLastMessages,
   loadChatMessageStats,
-  loadChatParticipantCharacterIds,
   loadChatRow,
   loadForkChildren,
   loadInlineReplyAssetIds,
@@ -247,13 +246,12 @@ interface PreviewInputs {
   readonly gameUserMacros: readonly UserMacroSpec[];
 }
 
-/** Map a loaded chat row + its canon stats + present roster + character-seat ids → the light `ChatSummary`
+/** Map a loaded chat row + its canon stats + present roster → the light `ChatSummary`
  *  list row. `participantNames` are display names only — the heavy roster is `getChat`. */
 interface ChatSummaryInputs {
   readonly row: ChatRowView;
   readonly stat: { messageCount: number; lastMessageAt: number | null };
   readonly participants: readonly ParticipantView[];
-  readonly participantCharacterIds: readonly CharacterId[];
   readonly viewerUserId: UserId;
   /** The already-resolved per-caller scent line (see {@link buildSummaryPreview}) — `null` = nothing this
    *  viewer may see. Resolved by the caller so the mapper stays pure (no clamp re-derivation here). */
@@ -280,7 +278,7 @@ function summaryParticipantNames(participants: readonly ParticipantView[], viewe
  * projection already loaded.
  *
  * It replaces a client-side whole-library join: every surface showing a chat row fetched
- * `character.list {limit: 500}` and indexed `participantCharacterIds` into it, which cost a library-sized
+ * `character.list {limit: 500}` and indexed character ids into it, which cost a library-sized
  * read to decorate six rows and silently stopped resolving faces past the page ceiling. The roster resolver
  * already reads exactly these cards (it is what `participantNames` comes from), so the join belongs here.
  *
@@ -299,13 +297,12 @@ function seatPortraits(participants: readonly ParticipantView[]): ChatSeatPortra
   return portraits;
 }
 
-function toChatSummary({ row, stat, participants, participantCharacterIds, viewerUserId, lastMessagePreview }: ChatSummaryInputs): ChatSummary {
+function toChatSummary({ row, stat, participants, viewerUserId, lastMessagePreview }: ChatSummaryInputs): ChatSummary {
   return {
     id: row.id,
     title: row.title,
     starred: row.starred,
     archived: row.archived,
-    parentChatId: row.parentChatId,
     lastMessageAt: stat.lastMessageAt,
     messageCount: stat.messageCount,
     lastMessagePreview,
@@ -317,7 +314,6 @@ function toChatSummary({ row, stat, participants, participantCharacterIds, viewe
     // game; every gate that asks "is this a live game" still reads `isGame` alone.
     gamePaused: row.metadata.rpg !== undefined && !isRpgEngaged(row.metadata.rpg),
     participantNames: summaryParticipantNames(participants, viewerUserId),
-    participantCharacterIds,
     participantPortraits: seatPortraits(participants),
     // Derive the caller's role from the present roster already loaded for this row — no extra read. The
     // caller is a present member on every listing path (membership-gated), so the `find` resolves; fail to
@@ -375,14 +371,12 @@ async function buildSummaries(db: Db, deps: ReadDeps, rows: readonly ChatRowView
   const stats = await loadChatMessageStats(db, chatIds);
   const lastMessages = await loadChatLastMessages(db, chatIds);
   const visibility = await loadPresentVisibilityRows(db, chatIds, viewerUserId);
-  const characterIdsByChat = await loadChatParticipantCharacterIds(db, chatIds);
   const enriched = await Promise.all(rows.map(async (row) => ({ row, names: await deps.loadParticipantViews(row.id) })));
   return enriched.map(({ row, names }) =>
     toChatSummary({
       row,
       stat: stats.get(row.id) ?? EMPTY_STATS,
       participants: names,
-      participantCharacterIds: characterIdsByChat.get(row.id) ?? [],
       viewerUserId,
       lastMessagePreview: buildSummaryPreview(lastMessages.get(row.id), visibility.get(row.id)),
     }),

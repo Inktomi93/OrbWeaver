@@ -140,7 +140,6 @@ export function toCredentialView(row: CredentialRow): CredentialView {
     id: row.id,
     provider: row.provider,
     label: row.label,
-    hasMetadata: row.metadata !== null,
     revokedAt: row.revokedAt,
     revokedReason: row.revokedReason,
     createdAt: row.createdAt,

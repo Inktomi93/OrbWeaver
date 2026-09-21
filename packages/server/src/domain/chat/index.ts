@@ -108,9 +108,7 @@ export { migrateHandoffOfferVocab } from "./persistence/participant.ts";
 // The membership primitive imagery's extractQuiet compose-gate reads (leak-free NOT_FOUND for a non-member —
 // cross-tenant-sweep-enforced; the createGetMembership precedent, a pure `(db, chatId, userId)` read).
 export { loadPresentRole } from "./persistence/participants-read.ts";
-// The expressions post-turn prose read (E3 — expressions-design/02 §3.1): the injected `readTurn` op is wired
-// over this at the composition root. A pure `(db, …)` read (needs no ChatContext) so it breaks no cycle.
-export { loadSeededChatDressing, loadTurnForClassify, loadTurnOrigin } from "./persistence/queries.ts";
+export { loadSeededChatDressing, loadTurnOrigin } from "./persistence/queries.ts";
 export {
   createCompareAndSetImportedTokenUsage,
   createListImportedTokenUsageCandidates,

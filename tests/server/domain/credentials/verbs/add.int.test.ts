@@ -2,10 +2,12 @@
 // place (clears revocation), the secret-free view, the conflict path, and the disabled-box guard.
 
 import type { ProviderId } from "@orb/contracts/inference";
+import { userCredentials } from "@orb/db";
 import { DomainOperationError } from "@orb/kit/errors";
 import { castId } from "@orb/kit/ids";
 import { createCredentialsService } from "@orb/server/domain/credentials";
 import { createSecretBox } from "@orb/server/infra/crypto";
+import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -51,7 +53,7 @@ describe("add", () => {
     expect(resolved).toMatchObject({ secret: "sk-new" });
   });
 
-  test("endpoint metadata is stored (hasMetadata) without leaking the blob in the view", async () => {
+  test("endpoint metadata is stored without leaking the blob or a redundant presence bit in the view", async () => {
     const db = await freshDb();
     const svc = createCredentialsService(makeHarness(db).ctx);
     const owner = await seedUser(db, { id: "user_o", role: "user" });
@@ -61,7 +63,10 @@ describe("add", () => {
       key: "sk-c",
       metadata: { auth: "endpoint" },
     });
-    expect(view.hasMetadata).toBe(true);
+    const [row] = await db.select({ metadata: userCredentials.metadata }).from(userCredentials).where(eq(userCredentials.id, view.id));
+    expect(row?.metadata).toEqual({ auth: "endpoint" });
+    expect(view).not.toHaveProperty("metadata");
+    expect(view).not.toHaveProperty("hasMetadata");
   });
 
   test("a fresh insert audits credential.add (rotated:false) attributed to the owner (PD-142)", async () => {

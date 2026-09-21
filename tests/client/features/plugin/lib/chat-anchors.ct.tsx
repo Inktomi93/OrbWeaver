@@ -56,7 +56,6 @@ function pluginRow(status: "enabled" | "disabled"): Record<string, unknown> {
     reconsentPending: false,
     widenedNetHosts: [],
     builtAgainst: null,
-    consecutiveCrashes: 0,
     lastError: null,
     installedAt: A_PAST_INSTANT,
     updatedAt: A_PAST_INSTANT,

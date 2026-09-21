@@ -134,8 +134,7 @@ const refineryScoreExpr = sql`json_extract(${characters.refinery}, '$.score')`;
 const characterSeats = alias(chatParticipants, "character_seats");
 
 /** THE ROOMS THIS CHARACTER IS IN, from the OWNER's side (#1131). The visibility arms are `@orb/db/kit`'s —
- *  the same four the chat library pages by — plus the seat probe. DEPARTED SEATS COUNT, exactly as
- *  `ChatSummary.participantCharacterIds` promises "every chat you've had with them": a room she has since
+ *  the same four the chat library pages by — plus the seat probe. DEPARTED SEATS COUNT: a room she has since
  *  left is part of her history. It is an EXISTS over the junction rather than a join, so a room carrying two
  *  seats for one character cannot double her count. */
 function seatedChatScope(db: Db, ownerId: UserId): SQL | undefined {
@@ -803,7 +802,6 @@ export function summaryOf(
     backgroundOverride: row.backgroundOverride,
     avatarAssetId: row.avatarAssetId,
     avatarHash: avatar?.hash ?? null,
-    contentHash: row.contentHash,
     createdAt: row.createdAt,
     tokenSize: row.tokenSize,
     tags: canonicalTags,

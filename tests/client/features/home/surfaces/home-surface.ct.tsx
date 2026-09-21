@@ -1574,7 +1574,7 @@ const ART_ROOMS = [
   makeChatSummary({
     id: "chat_hearth_art",
     lastMessageAt: 1_750_000_000_000,
-    participantCharacterIds: ["char_hearth"],
+    filterCharacterIds: ["char_hearth"],
     participantNames: ["Wren"],
     participantPortraits: [HERO_SEAT],
     title: "The Ashen Spire",

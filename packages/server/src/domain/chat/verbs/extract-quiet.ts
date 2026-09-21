@@ -1,7 +1,7 @@
 // The imagery quiet-extraction shaper (imagery-design/02 §2), homed in chat because it needs chat's TWO
 // things: a bounded recent-history window and the ONE MacroContext ({{char}}/{{user}} resolution). A STANDALONE
-// factory (not a ChatContext op) built at compose from db + summarize + getCard — the `loadTurnForClassify`
-// precedent. It resolves the mode template's macros against the subject/roster card, frames the recent canon as
+// factory (not a ChatContext op) built at compose from db + summarize + getCard. It resolves the mode
+// template's macros against the subject/roster card, frames the recent canon as
 // context, and runs the summarize side-LLM (low temp, a small keyword budget). Returns the raw reply text +
 // that call's spend; imagery normalizes it (processReply) and decides empty-is-error. Never persisted, never
 // streamed — the spend is attributed by imagery to the initiating principal.

@@ -262,7 +262,6 @@ test("confirmed remove names the role COUNT, the roles, and that the key stays i
         id: "user_credential_ctroles001",
         provider: "openrouter",
         label: "work",
-        hasMetadata: false,
         revokedAt: null,
         revokedReason: null,
         createdAt: 0,

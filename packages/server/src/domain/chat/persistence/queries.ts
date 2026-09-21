@@ -46,7 +46,7 @@ import type { AssetId, CharacterId, ChatEventId, ChatId, MessageId, MessageVaria
 import type { VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { SQL } from "drizzle-orm";
-import { and, asc, count, desc, eq, exists, gt, gte, inArray, isNotNull, isNull, lt, lte, max, min, ne, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, exists, gt, gte, inArray, isNull, lt, lte, max, min, ne, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import type { ChatMetadata } from "../contract/metadata.ts";
 import { parseChatMetadata } from "../contract/metadata.ts";
@@ -314,7 +314,7 @@ function memberHiddenBodyGuard(): SQL | undefined {
  *    THE HEADER LAW OF THIS FILE reserves `users` for the verb layer — resolving a human's name here would
  *    be exactly the roster-name resolution that law keeps out. Character seats are joined the way
  *    `persistence/identity.ts` already joins them (a filter, never a projection). Departed seats count, matching
- *    `participantCharacterIds`' own promise. */
+ *    the character-scoped history projection's own promise. */
 function searchPredicate(db: Db, needle: string): SQL | undefined {
   const like = `%${needle}%`;
   return or(
@@ -354,8 +354,8 @@ function searchPredicate(db: Db, needle: string): SQL | undefined {
  *  + projection predicates are spelled, so the page and its census can never disagree about what they count.
  *
  *  `characterId` is the D18 PROJECTION filter ("her threads"), and it deliberately matches DEPARTED seats
- *  too: `ChatSummary.participantCharacterIds` promises "every chat you've had with them", so a room she has
- *  since left is part of her history (`roster.characterSeatedInAnotherChat` counts past seats the same way).
+ *  too: a room she has since left is part of her history
+ *  (`roster.characterSeatedInAnotherChat` counts past seats the same way).
  *  It is an EXISTS over the junction rather than a second join — a chat with two seats for the same character
  *  would otherwise duplicate the row and silently corrupt both the page and the count. */
 function memberChatScope(db: Db, userId: UserId, opts: MemberChatFilter): SQL | undefined {
@@ -535,34 +535,6 @@ export async function loadChatLastMessages(db: Db, chatIds: readonly ChatId[]): 
   return out;
 }
 
-/** The character-seat ids per chat (the reverse "which chats include character X" read). Batched over a
- *  set of chatIds (one junction read, no N+1). Deduped; includes departed seats (no `leftSeq` filter) —
- *  Activity wants "every chat you've had with them." A chat with no seats is absent from the map. */
-export async function loadChatParticipantCharacterIds(db: Db, chatIds: readonly ChatId[]): Promise<Map<ChatId, CharacterId[]>> {
-  // @orb-waive persistence-no-in-memory-state(Map): query-local lookup map for chat participant ids. Ends if it outlives the call.
-  const out = new Map<ChatId, CharacterId[]>();
-  if (chatIds.length === 0) {
-    return out;
-  }
-  const rows = await db
-    .select({ chatId: chatParticipants.chatId, characterId: chatParticipants.characterId })
-    .from(chatParticipants)
-    .where(and(inArray(chatParticipants.chatId, [...chatIds]), eq(chatParticipants.kind, "character"), isNotNull(chatParticipants.characterId)))
-    .orderBy(asc(chatParticipants.joinSeq), asc(chatParticipants.id));
-  for (const { chatId, characterId } of rows) {
-    if (characterId === null) {
-      continue;
-    }
-    const bucket = out.get(chatId);
-    if (bucket === undefined) {
-      out.set(chatId, [characterId]);
-    } else if (!bucket.includes(characterId)) {
-      bucket.push(characterId);
-    }
-  }
-  return out;
-}
-
 /** Walk the fork-lineage chain from `chatId` up to its root — unscoped (membership is gated per-ancestor
  *  by the verb). Returns rows self-first; the `visited` set + `maxDepth` cap defend against a cycle. */
 export async function loadAncestorChain(db: Db, chatId: ChatId, maxDepth = 64): Promise<ChatRow[]> {
@@ -712,27 +684,6 @@ export async function loadCanonReasoningParts(db: Db, chatId: ChatId): Promise<R
 
 /** One slot ⋈ its selected variant. The engine re-reads this after an append-variant/continue commit;
  *  undo/revert re-read it for the returned view. `undefined` ⇒ no such committed slot. */
-/** The expressions post-turn read (expressions-design/02 §3.1) — ONE committed variant's speaker + POST-regex
- *  visible prose, scoped by `(chatId, messageId, variantId)`. The variant's `content` is ALREADY the
- *  receive-tier-regex'd canon (the pipeline applies AI_OUTPUT scripts before persisting — this exposes the
- *  stored projection, never re-runs regex). `speakerCharacterId` is the SLOT's `characterId` (D26 — null for a
- *  user/persona/narrator/agent turn, i.e. no sprite target). `null` ⇒ the variant vanished (deleted
- *  mid-flight) or the ids don't belong together. */
-export async function loadTurnForClassify(
-  db: Db,
-  chatId: ChatId,
-  messageId: MessageId,
-  variantId: MessageVariantId,
-): Promise<{ speakerCharacterId: CharacterId | null; text: string } | null> {
-  const rows = await db
-    .select({ speakerCharacterId: messages.characterId, text: messageVariants.content })
-    .from(messageVariants)
-    .innerJoin(messages, eq(messages.id, messageVariants.messageId))
-    .where(and(eq(messageVariants.id, variantId), eq(messageVariants.messageId, messageId), eq(messages.chatId, chatId)))
-    .limit(LIMIT_ONE);
-  return rows.at(0) ?? null;
-}
-
 export async function loadMessageView(db: Db, messageId: MessageId): Promise<MessageView | undefined> {
   const rows = await db
     .select(messageViewSelection)

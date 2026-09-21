@@ -14,12 +14,13 @@
 
 import type { AutomationActionInput } from "@orb/contracts/automation";
 import type { VariableWriteResult } from "@orb/contracts/chat";
-import { worldBooks } from "@orb/db";
+import { automationRules, worldBooks } from "@orb/db";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { AutomationRuleId, UserId, WorldBookId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type { AutomationOps, AutomationToolOutcome, AutomationToolRequest } from "@orb/server/domain/automation";
+import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import type { ArmExecutorDeps, AutomationImageRequest, DispatchFrame } from "../../../../../packages/server/src/domain/automation/contract/ops.ts";
 import type { AutomationContext, AutomationService } from "../../../../../packages/server/src/domain/automation/contract/service.ts";
@@ -137,12 +138,14 @@ async function enableToolRule(fx: Fixture, withSideEffectArm = false): Promise<A
 }
 
 async function ruleRow(fx: Fixture, ruleId: AutomationRuleId): Promise<{ enabled: boolean; consecutiveErrors: number; lastFiredAt: number | null }> {
-  const rules = await fx.svc.listRules({ principal: principal(fx.host), chatId: fx.chatId });
-  const row = rules.find((r) => r.id === ruleId);
+  const [row] = await fx.db
+    .select({ enabled: automationRules.enabled, consecutiveErrors: automationRules.consecutiveErrors, lastFiredAt: automationRules.lastFiredAt })
+    .from(automationRules)
+    .where(eq(automationRules.id, ruleId));
   if (row === undefined) {
     throw new Error("the rule vanished");
   }
-  return { enabled: row.enabled, consecutiveErrors: row.consecutiveErrors, lastFiredAt: row.lastFiredAt };
+  return row;
 }
 
 // THE CONTROL. Without this row every assertion below could pass on a rule that never worked at all — the
@@ -437,9 +440,9 @@ describe("C5 belts — the owner rate ceiling and the book-ownership gate", () =
     expect(fires.map((row) => row.outcome)).toEqual(["budget_refused"]);
     expect(fires[0]?.detail).toMatchObject({ limit: "owner_hourly" }); // the OWNER belt, not a chat's
     // A rate refusal is NOT an error — the rule stays enabled with a clean error ledger.
-    const [after] = await f.svc.listOwnerRules({ principal: principal(f.host) });
-    expect(after?.enabled).toBe(true);
-    expect(after?.consecutiveErrors).toBe(0);
+    const after = await ruleRow(f, rule.id);
+    expect(after.enabled).toBe(true);
+    expect(after.consecutiveErrors).toBe(0);
   });
 
   test("an ABSENT owner-budget row is dispatched as — and projects to — the DDL default", async () => {

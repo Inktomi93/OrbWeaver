@@ -29,7 +29,7 @@ const RECENT = makeChatSummary({
   id: "chat_recent",
   title: "A grand adventure",
   participantNames: ["Wren"],
-  participantCharacterIds: ["char_wren"],
+  filterCharacterIds: ["char_wren"],
   participantPortraits: [WREN_SEAT],
 });
 const GAME = makeChatSummary({ id: "chat_game", title: "The Ashfell run", participantNames: ["Wren"], isGame: true });
@@ -46,7 +46,7 @@ const LONG_ROOM = makeChatSummary({
   id: "chat_long",
   title: "A grand adventure",
   participantNames: ["Calamity, Doomblade of the Ninth Epoch", "Morgatha, the Undying Dark"],
-  participantCharacterIds: ["char_calamity", "char_morgatha"],
+  filterCharacterIds: ["char_calamity", "char_morgatha"],
   participantPortraits: [CALAMITY_SEAT, MORGATHA_SEAT],
 });
 /** The SECOND room, so the pair has both arms: a hero AND an also-open list under it. `lastMessageAt` is
@@ -58,7 +58,7 @@ const PAIR_ROOM = makeChatSummary({
   id: "chat_pair",
   title: "The quiet ledger",
   participantNames: ["Calamity, Doomblade of the Ninth Epoch", "Morgatha, the Undying Dark"],
-  participantCharacterIds: ["char_calamity", "char_morgatha"],
+  filterCharacterIds: ["char_calamity", "char_morgatha"],
   participantPortraits: [CALAMITY_SEAT, MORGATHA_SEAT],
   lastMessageAt: 1,
 });
@@ -507,7 +507,7 @@ const LONG_ROOM_WITH_ART = makeChatSummary({
   id: "chat_long",
   title: "A grand adventure",
   participantNames: ["Calamity, Doomblade of the Ninth Epoch", "Morgatha, the Undying Dark"],
-  participantCharacterIds: ["char_calamity", "char_morgatha"],
+  filterCharacterIds: ["char_calamity", "char_morgatha"],
   participantPortraits: [{ ...CALAMITY_SEAT, avatarHash: "hash_calamity_portrait" }, MORGATHA_SEAT],
 });
 /** The FIRST seat's hash — the room's art is its first seat that has one, the same "one room, one face"
@@ -645,7 +645,7 @@ const WRAPPING_CREDIT = makeChatSummary({
   id: "chat_wrap",
   title: "A grand adventure",
   participantNames: ["Sabine Veyra", "Calamity, Doomblade of the Ninth Epoch", "Morgatha, the Undying Dark"],
-  participantCharacterIds: ["char_sabine", "char_calamity", "char_morgatha"],
+  filterCharacterIds: ["char_sabine", "char_calamity", "char_morgatha"],
   participantPortraits: [CALAMITY_SEAT, MORGATHA_SEAT],
 });
 

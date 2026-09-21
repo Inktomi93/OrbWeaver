@@ -47,11 +47,11 @@ export interface ChatListPageFixture {
  * the client-side page-window eviction (`maxPages: 5`, head page unrecoverable) lived behind a green chat CT
  * suite. Ordering is the ARRAY's; the cursor is the last served row's `(updatedAt, id)`, the real wire shape.
  */
-export function chatListResponder(all: readonly ChatSummaryFixture[]): (input: unknown) => ChatListPageFixture {
+export function chatListResponder(all: readonly ScopedChatSummaryFixture[]): (input: unknown) => ChatListPageFixture {
   return (input: unknown): ChatListPageFixture => {
     const args = (input ?? {}) as { characterId?: CharacterId; search?: string; limit?: number; cursor?: { id?: string } };
     const needle = args.search?.trim().toLowerCase() ?? "";
-    const scoped = all.filter((chat) => args.characterId === undefined || chat.participantCharacterIds.includes(args.characterId));
+    const scoped = all.filter((chat) => args.characterId === undefined || chat.filterCharacterIds.includes(args.characterId));
     const matched = scoped.filter(
       (chat) =>
         needle === "" ||
@@ -62,7 +62,7 @@ export function chatListResponder(all: readonly ChatSummaryFixture[]): (input: u
     const cursorId = args.cursor?.id;
     const from = cursorId === undefined ? 0 : matched.findIndex((chat) => chat.id === cursorId) + 1;
     const limit = args.limit ?? matched.length;
-    const items = matched.slice(from, from + limit);
+    const items = matched.slice(from, from + limit).map(({ filterCharacterIds: _filterCharacterIds, ...chat }) => chat);
     const last = items.at(-1);
     return {
       items,
@@ -230,8 +230,7 @@ export function makeMessageView(overrides: Partial<MessageView> = {}): MessageVi
 }
 
 /** The `chat.listChats` row shape (ChatSummary — packages/server/src/domain/chat/contract/views.ts).
- *  A plain client read-model literal (see the header); `participantNames` is names-only,
- *  `participantCharacterIds` is the reverse "every chat you've had with them" read, and
+ *  A plain client read-model literal (see the header); `participantNames` is names-only and
  *  `participantPortraits` is what the row PAINTS its leading slot from (F7 + #192 — the seats ride the row
  *  now; there is no character-library read to stub for a portrait). Ids are plain strings — the wire shape
  *  routeTrpc fulfills. */
@@ -240,15 +239,13 @@ export interface ChatSummaryFixture {
   readonly title: string | null;
   readonly starred: boolean;
   readonly archived: boolean;
-  readonly parentChatId: string | null;
   readonly lastMessageAt: number | null;
   readonly messageCount: number;
   readonly participantNames: readonly string[];
-  readonly participantCharacterIds: readonly string[];
   /** The row's own character seats, in seat order — the leading portrait / AvatarStack (#192). Branded,
-   *  unlike the plain-string `participantCharacterIds` beside it: `characterId` is a NAME POSITION the ids
-   *  gate reads, and a fixture that declares it `string` is the same compile-time hole in a test that it
-   *  would be in a source file. Build one with {@link makeSeatPortrait} rather than a bare literal. */
+   *  because `characterId` is a NAME POSITION the ids gate reads, and a fixture that declares it `string`
+   *  is the same compile-time hole in a test that it would be in a source file. Build one with
+   *  {@link makeSeatPortrait} rather than a bare literal. */
   readonly participantPortraits: readonly { readonly characterId: CharacterId; readonly name: string; readonly avatarHash: string | null }[];
   /** The server-resolved scent line (null = nothing this caller may see). */
   readonly lastMessagePreview: string | null;
@@ -259,6 +256,12 @@ export interface ChatSummaryFixture {
   readonly viewerRole: ParticipantRole;
   readonly createdAt: number;
   readonly updatedAt: number;
+}
+
+/** Harness-only character projection metadata. `chatListResponder` consumes and strips this before returning
+ *  the wire row, so tests can prove the server-narrowed query without reviving a removed `ChatSummary` field. */
+export interface ScopedChatSummaryFixture extends ChatSummaryFixture {
+  readonly filterCharacterIds: readonly string[];
 }
 
 /** ONE seat on a chat row (`ChatSummary.participantPortraits`) — the branded id minted from a plain
@@ -272,17 +275,16 @@ export function makeSeatPortrait(
 }
 
 /** A fully-valid `ChatSummary` literal — the chats-list row. */
-export function makeChatSummary(overrides: Partial<ChatSummaryFixture> = {}): ChatSummaryFixture {
+export function makeChatSummary(overrides: Partial<ScopedChatSummaryFixture> = {}): ScopedChatSummaryFixture {
   return {
     id: "chat_ct_list_1",
     title: "A grand adventure",
     starred: false,
     archived: false,
-    parentChatId: null,
     lastMessageAt: FROZEN_AT,
     messageCount: 4,
     participantNames: ["Aria Nightshade"],
-    participantCharacterIds: [],
+    filterCharacterIds: [],
     participantPortraits: [],
     lastMessagePreview: null,
     isGame: false,

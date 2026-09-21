@@ -22,7 +22,7 @@ import { touchFloorPx } from "../../../../support/browser/touch-floor.ts";
 import { resolvedTokenColor } from "../../../../support/node/resolved-token-color.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { userSettingsView } from "../../../../support/node/user-settings-view.ts";
-import type { ChatSummaryFixture } from "../../chat/fixtures.ts";
+import type { ScopedChatSummaryFixture } from "../../chat/fixtures.ts";
 import { chatListResponder, makeSeatPortrait } from "../../chat/fixtures.ts";
 import { CharacterDetailContributorStory, CharacterEditorSurfaceStory, CharacterFacetInspectorStory } from "../_ct-stories.tsx";
 import { CHARACTER_EDITOR_AMBIENT_ROUTES, characterListResponder, makeCharacterDetail, makeCharacterSummary, makeTagFixture } from "../fixtures.ts";
@@ -518,17 +518,16 @@ const OVERVIEW_CARD = makeCharacterDetail({
 });
 
 /** One chat with this character + one with somebody else (the count must scope to the open character). */
-const OVERVIEW_CHATS: readonly ChatSummaryFixture[] = [
+const OVERVIEW_CHATS: readonly ScopedChatSummaryFixture[] = [
   {
     id: "chat_ct_1",
     title: "A rainy night",
     starred: false,
     archived: false,
-    parentChatId: null,
     lastMessageAt: 1_750_000_100_000,
     messageCount: 4,
     participantNames: ["Aria Nightshade"],
-    participantCharacterIds: ["char_ct_1"],
+    filterCharacterIds: ["char_ct_1"],
     participantPortraits: [makeSeatPortrait("char_ct_1", "Aria Nightshade")],
     lastMessagePreview: null,
     isGame: false,
@@ -542,11 +541,10 @@ const OVERVIEW_CHATS: readonly ChatSummaryFixture[] = [
     title: "Elsewhere",
     starred: false,
     archived: false,
-    parentChatId: null,
     lastMessageAt: 1_750_000_200_000,
     messageCount: 2,
     participantNames: ["Someone else"],
-    participantCharacterIds: ["char_other"],
+    filterCharacterIds: ["char_other"],
     participantPortraits: [makeSeatPortrait("char_other", "Someone else")],
     lastMessagePreview: null,
     isGame: false,

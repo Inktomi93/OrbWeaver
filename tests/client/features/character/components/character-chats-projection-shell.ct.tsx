@@ -22,7 +22,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
-import type { ChatSummaryFixture } from "../../chat/fixtures.ts";
+import type { ScopedChatSummaryFixture } from "../../chat/fixtures.ts";
 import { chatListResponder, makeChatSummary, makeSeatPortrait } from "../../chat/fixtures.ts";
 import { CharactersContextStory } from "../_ct-stories.tsx";
 import { makeCharacterDetail } from "../fixtures.ts";
@@ -36,11 +36,10 @@ const AZARAEL_DETAIL = makeCharacterDetail({ id: AZARAEL, handle: castId<Charact
 /** The row's cast as the SERVER sends it: the viewer's own seat is suppressed while another seat remains. */
 const CAST_BY_SEAT: Record<string, string> = { [AZARAEL]: "Azarael", [SERA]: "Sera" };
 
-/** `seats` is the row's `participantCharacterIds` — the reverse read, which KEEPS a departed seat. `present`
- *  is who is still in the room, i.e. the row's own faces (`participantPortraits`, #192); it defaults to
- *  `seats` for a room nobody has left. The two are deliberately different fields on the wire, and this
- *  fixture is the one place a CT can hold them apart. */
-function chat(fields: { id: string; title: string; seats: readonly string[]; present?: readonly string[]; lastMessageAt: number }): ChatSummaryFixture {
+/** `seats` feeds the responder's harness-only character scope and deliberately KEEPS a departed seat.
+ *  `present` is who is still in the room, i.e. the row's own faces (`participantPortraits`, #192); it
+ *  defaults to `seats` for a room nobody has left. */
+function chat(fields: { id: string; title: string; seats: readonly string[]; present?: readonly string[]; lastMessageAt: number }): ScopedChatSummaryFixture {
   const present = fields.present ?? fields.seats;
   return makeChatSummary({
     id: fields.id,
@@ -48,13 +47,13 @@ function chat(fields: { id: string; title: string; seats: readonly string[]; pre
     lastMessageAt: fields.lastMessageAt,
     updatedAt: fields.lastMessageAt,
     participantNames: fields.seats.map((seat) => CAST_BY_SEAT[seat] ?? seat),
-    participantCharacterIds: fields.seats,
+    filterCharacterIds: fields.seats,
     participantPortraits: present.map((seat) => makeSeatPortrait(seat, CAST_BY_SEAT[seat] ?? seat)),
   });
 }
 
 // Server order = newest-updated first. "The Gilded Ember" is a room Azarael has SINCE LEFT: her seat id is
-// still on the row (the contract's departed-seat guarantee) while the present characters is someone else.
+// still in the responder's filter scope while the present characters is someone else.
 const HER_NEWEST = chat({ id: "chat_ct_newest", title: "Winter court", seats: [AZARAEL], lastMessageAt: 300 });
 const HER_DEPARTED = chat({ id: "chat_ct_left", title: "The Gilded Ember", seats: [AZARAEL, SERA], present: [SERA], lastMessageAt: 200 });
 /** A room with TWO seats still IN it — the stack arm of D3. */
@@ -87,7 +86,7 @@ const CREATED_CHAT = {
   rpg: null,
 };
 
-function routeAll(page: Page, chats: readonly ChatSummaryFixture[]): ReturnType<typeof routeTrpc> {
+function routeAll(page: Page, chats: readonly ScopedChatSummaryFixture[]): ReturnType<typeof routeTrpc> {
   return routeTrpc(page, {
     "character.get": () => AZARAEL_DETAIL,
     "chat.listChats": chatListResponder(chats),
@@ -122,8 +121,8 @@ test("D3 the projection INHERITS the shared row upgrade: a multi-seat room stack
 
   await expect(component.locator(LIST_ROW_ROOT, { hasText: "The Crimson Court" }).locator(AVATAR_STACK)).toBeVisible();
   await expect(component.locator(LIST_ROW_ROOT, { hasText: "Winter court" }).locator(AVATAR_STACK)).toHaveCount(0);
-  // …and the room she LEFT paints the seat that remains, not the seat that is only on the reverse read
-  // (#192): `participantCharacterIds` still lists her there, and a face would claim she is in the room.
+  // …and the room she LEFT paints the seat that remains, not the departed seat retained only by the
+  // responder's character scope (#192): a face would claim she is still in the room.
   await expect(component.locator(LIST_ROW_ROOT, { hasText: "The Gilded Ember" }).locator(AVATAR_STACK)).toHaveCount(0);
 });
 

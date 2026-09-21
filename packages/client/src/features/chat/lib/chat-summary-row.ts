@@ -28,8 +28,8 @@ type ChatSummarySeat = ChatSummaryItem["participantPortraits"][number];
  *
  *  DERIVED from the wire, never re-spelled (#192). The seats arrive ON the chat row now
  *  (`ChatSummary.participantPortraits`, resolved by the roster read the list projection already runs); the
- *  client used to build them by fetching the whole character library and indexing
- *  `participantCharacterIds` into it, which is the map this alias replaced. A single seat paints one
+ *  client used to build them by fetching the whole character library and indexing character ids into it,
+ *  which is the map this alias replaced. A single seat paints one
  *  portrait; two or more paint an `AvatarStack`, because a shared room must read SHARED at rest.
  *
  *  An INTERFACE extending the derived member, not a `type` alias of it: an exported type ALIAS outside a

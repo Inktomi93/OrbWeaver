@@ -43,7 +43,7 @@ const AZARAEL_DETAIL = makeCharacterDetail(AZARAEL_INPUT);
 const HER_CHAT = makeChatSummary({
   id: "chat_ct_newest",
   title: "Winter court",
-  participantCharacterIds: [AZARAEL],
+  filterCharacterIds: [AZARAEL],
   participantNames: ["Azarael"],
   participantPortraits: [makeSeatPortrait(AZARAEL, "Azarael")],
   lastMessageAt: 300,

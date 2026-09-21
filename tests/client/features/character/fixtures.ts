@@ -65,7 +65,6 @@ export interface CharacterSummaryFixture {
   readonly themeOverride: Record<string, unknown> | null;
   readonly avatarAssetId: string | null;
   readonly avatarHash: string | null;
-  readonly contentHash: string;
   readonly createdAt: number;
   readonly tokenSize: number;
   readonly tags: readonly CharacterSummaryFixtureTag[];
@@ -224,7 +223,6 @@ export function makeCharacterSummary(overrides: Partial<CharacterSummaryFixture>
     themeOverride: null,
     avatarAssetId: null,
     avatarHash: null,
-    contentHash: "hash_ct_1",
     createdAt: FROZEN_AT,
     tokenSize: 42,
     tags: [],

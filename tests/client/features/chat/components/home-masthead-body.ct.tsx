@@ -14,7 +14,7 @@ import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ChatMastheadTileStory } from "../_ct-stories.tsx";
 import { HomePartialThemeProseStory } from "../_theme-prose-ct-stories.tsx";
-import type { ChatSummaryFixture } from "../fixtures.ts";
+import type { ScopedChatSummaryFixture } from "../fixtures.ts";
 import { chatListResponder, makeChatSummary } from "../fixtures.ts";
 
 /** The masthead's subtitle sentence — the one line whose whole job is "how long has it been". */
@@ -79,7 +79,7 @@ test("#150 the subtitle ages the room by its last MESSAGE, not by the chat row's
 
 /** A library of N rooms. At N >= `RECENTS_LIMIT` (8) the responder serves a FULL page — `items.length`
  *  equals the requested limit — which is the exact state the old "and more" hedge fired on. */
-function rooms(count: number): ChatSummaryFixture[] {
+function rooms(count: number): ScopedChatSummaryFixture[] {
   return Array.from({ length: count }, (_unused, index) =>
     makeChatSummary({ id: `chat_count_${String(index)}`, title: `Room ${String(index)}`, lastMessageAt: FROZEN_AT_MS - index }),
   );

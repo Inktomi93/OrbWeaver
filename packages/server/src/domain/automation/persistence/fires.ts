@@ -52,7 +52,6 @@ function toFireView(row: FireRow): FireView {
     triggerType: row.triggerType,
     outcome: row.outcome,
     detail: row.detail ?? null,
-    automationDepth: row.automationDepth,
     firedAt: row.firedAt,
   };
 }

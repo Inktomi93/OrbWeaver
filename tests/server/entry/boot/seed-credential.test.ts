@@ -27,7 +27,6 @@ function view(provider: string, id: string): CredentialView {
     provider: castId<ProviderId>(provider),
     label: "default",
 
-    hasMetadata: false,
     revokedAt: null,
     revokedReason: null,
     createdAt: 0,

@@ -45,7 +45,6 @@ export interface RuleView {
   readonly suggestOnRefusal: boolean;
   readonly cooldownSeconds: number;
   readonly maxFiresPerHour: number;
-  readonly consecutiveErrors: number;
   readonly lastError: string | null;
   readonly lastFiredAt: number | null;
   readonly createdAt: number;
@@ -61,7 +60,6 @@ export interface FireView {
   readonly triggerType: string;
   readonly outcome: AutomationFireOutcome;
   readonly detail: Record<string, unknown> | null;
-  readonly automationDepth: number;
   readonly firedAt: number;
 }
 
