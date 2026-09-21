@@ -3,7 +3,7 @@
 // then performs the old-space reclaim atomically.
 
 import type { Db } from "@orb/db";
-import { chatDigests, chatSegments, embedGenerations, userConnections } from "@orb/db";
+import { chatDigests, chatSegments, embedGenerations } from "@orb/db";
 import type { ChatDigestId, ChatSegmentId, EmbedGenerationId, Handle, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
@@ -19,20 +19,13 @@ import { EMBED_DIM, EMBED_MODEL, fakeVector, makeStoreHarness, seedCharacter, se
 const NOW = 1_750_000_000_000;
 const STALE_MODEL = "old-embed-model-v0";
 
-async function seedHarnessGeneration(db: Db, ownerId: UserId, harness: StoreHarness): Promise<PinnedGeneration> {
+async function seedHarnessGeneration(ownerId: UserId, harness: StoreHarness): Promise<PinnedGeneration> {
   const resolved = await harness.roleClients.resolved("embed");
   if (resolved === null) {
     throw new Error("the memory fixture needs an embed connection");
   }
-  await db.insert(userConnections).values({
-    id: resolved.connectionId,
-    ownerId,
-    label: "memory purge embed",
-    providerId: resolved.providerId,
-    model: resolved.model,
-    createdAt: NOW,
-    updatedAt: NOW,
-  });
+  // The `user_connections` row `resolved.connectionId` points at is seeded by `seedUser` (embeddings
+  // `_support` → `seedVectorConnection`) — the generation's `connection_id` FK parent has ONE home.
   const generation = await resolveTargetGeneration(harness.ctx, ownerId, "embed");
   if (generation === null) {
     throw new Error("expected generation");
@@ -66,7 +59,7 @@ describe("purgeMemoryVectors — PD-139(b) chat-memory old-space reclaim", () =>
     const characterId = await seedCharacter(db, owner);
     const chatId = await seedChat(db, "chat_test", owner);
     const harness = makeStoreHarness(db);
-    const generation = await seedHarnessGeneration(db, owner, harness);
+    const generation = await seedHarnessGeneration(owner, harness);
     const staleGenerationId = await seedDetachedGeneration(db, owner, STALE_MODEL);
     // One OLD-space + one active-space row in each model-keyed chat-memory table (both coexist because the
     // upsert key now includes `model` — PD-104).
@@ -151,7 +144,7 @@ describe("purgeMemoryVectors — PD-139(b) chat-memory old-space reclaim", () =>
     const characterId = await seedCharacter(db, owner);
     const chatId = await seedChat(db, "chat_test", owner);
     const harness = makeStoreHarness(db);
-    const generation = await seedHarnessGeneration(db, owner, harness);
+    const generation = await seedHarnessGeneration(owner, harness);
     await upsertChatSegment(db, {
       id: castId<ChatSegmentId>("chat_segment_active"),
       chatId,

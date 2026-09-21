@@ -22,7 +22,6 @@
 import { VECTOR_SCOPES_BY_TASK } from "@orb/contracts/embeddings";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
-import { userConnections } from "@orb/db";
 import type { UserConnectionId, UserId } from "@orb/kit/ids";
 import type { GenerationReceipt } from "../../../../../packages/server/src/domain/embeddings/contract/generation.ts";
 import type { EmbeddingConnectionSnapshot } from "../../../../../packages/server/src/domain/embeddings/contract/service.ts";
@@ -70,20 +69,10 @@ async function drive(controls: FakeRoleClientControls = {}): Promise<{
   };
 }> {
   const db = await freshDb();
+  // `seedUser` (embeddings `_support`) also seeds the `user_connections` row the fake clients resolve to —
+  // `seedVectorConnection`, the FK parent of every `embed_generations.connection_id`.
   const ownerId = await seedUser(db, {});
   const clients = makeFakeRoleClients(controls);
-  const resolvedConnection = (await clients.resolved("embed")) ?? (await clients.resolved("imageEmbed"));
-  if (resolvedConnection !== null) {
-    await db.insert(userConnections).values({
-      id: resolvedConnection.connectionId,
-      ownerId,
-      label: "search space embed",
-      providerId: resolvedConnection.providerId,
-      model: resolvedConnection.model,
-      createdAt: NOW,
-      updatedAt: NOW,
-    });
-  }
   return {
     db,
     ownerId,

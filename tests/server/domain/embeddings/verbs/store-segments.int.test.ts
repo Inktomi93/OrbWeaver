@@ -16,9 +16,14 @@ import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { EMBED_DIM, EMBED_MODEL, fakeVector, makeStoreHarness, seedChat } from "../_support.ts";
+import { EMBED_DIM, EMBED_MODEL, fakeVector, makeStoreHarness, seedChat, seedUser } from "../_support.ts";
 
 const SEGMENT_TEXT = "Alice: meet me at the docks.\nBob: I'll bring the relic.";
+
+/** The batch's owner. SEEDED per test, never a bare literal: `storeSegments` mints this owner's
+ *  `embed_generations` row, whose `owner_id` FKs `users` and whose `connection_id` FKs the harness's vector
+ *  connection — `seedUser` (embeddings `_support`) lands both parents. */
+const OWNER = castId<UserId>("user_owner");
 
 /** The batch op's item shape, derived from the service signature (the params type is domain-internal). */
 type SegmentStoreParams = Parameters<EmbeddingsService["storeSegments"]>[0][number];
@@ -27,7 +32,7 @@ function segment(chatId: SegmentStoreParams["chatId"], over: Partial<SegmentStor
   return {
     kind: "chat-block",
     lens: "segment",
-    ownerId: castId<UserId>("user_owner"),
+    ownerId: OWNER,
     chatId,
     blockIdx: 0,
     chunkIdx: 0,
@@ -46,6 +51,7 @@ describe("storeSegments — the batched verbatim lens", () => {
     const db = await freshDb();
     const h = makeStoreHarness(db);
     const svc = createEmbeddingsService(h.ctx);
+    await seedUser(db, { id: OWNER });
     const chatId = await seedChat(db);
 
     const [result] = await svc.storeSegments([segment(chatId, { blockIdx: 3, seqStart: 24, seqEnd: 31, contentHash: "precomputed-seg-hash" })]);
@@ -67,6 +73,7 @@ describe("storeSegments — the batched verbatim lens", () => {
     const db = await freshDb();
     const h = makeStoreHarness(db);
     const svc = createEmbeddingsService(h.ctx);
+    await seedUser(db, { id: OWNER });
     const chatId = await seedChat(db);
     const params = [segment(chatId)];
 
@@ -83,6 +90,7 @@ describe("storeSegments — the batched verbatim lens", () => {
     const db = await freshDb();
     const h = makeStoreHarness(db);
     const svc = createEmbeddingsService(h.ctx);
+    await seedUser(db, { id: OWNER });
     const chatId = await seedChat(db);
 
     const results = await svc.storeSegments([
@@ -104,6 +112,7 @@ describe("storeSegments — the batched verbatim lens", () => {
     const db = await freshDb();
     const h = makeStoreHarness(db);
     const svc = createEmbeddingsService(h.ctx);
+    await seedUser(db, { id: OWNER });
     const chatId = await seedChat(db);
     const settled = segment(chatId, { blockIdx: 0, contentHash: "settled" });
     await svc.storeSegments([settled]);
@@ -128,6 +137,7 @@ describe("storeSegments — the batched verbatim lens", () => {
     const db = await freshDb();
     const h = makeStoreHarness(db);
     const svc = createEmbeddingsService(h.ctx);
+    await seedUser(db, { id: OWNER });
     const chatId = await seedChat(db);
     h.roleClients.embed.mockResolvedValueOnce({
       vectors: [fakeVector(EMBED_DIM + 1, 1)],
@@ -143,6 +153,7 @@ describe("storeSegments — the batched verbatim lens", () => {
     const db = await freshDb();
     const h = makeStoreHarness(db);
     const svc = createEmbeddingsService(h.ctx);
+    await seedUser(db, { id: OWNER });
     const chatId = await seedChat(db);
     h.roleClients.embed.mockResolvedValueOnce({ vectors: [null], model: EMBED_MODEL, usage: { promptTokens: null, totalTokens: null } });
 

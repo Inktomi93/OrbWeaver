@@ -327,7 +327,7 @@ describe("the main turn's fault path strikes out the credential it ran under", (
     // short-circuiting on an empty pool (a digest whose covered segment span is missing, or whose span no
     // horizon proves, is dropped before any search call — and the arm would prove nothing).
     await seedDigest(db, { chatId, scopedCharacterId: GROUP_CHAR, tier: 0, blockIdx: 0 });
-    await seedSegment(db, { chatId, blockIdx: 0, seqStart: 1, seqEnd: 8 });
+    await seedSegment(db, { ownerId: owner, chatId, blockIdx: 0, seqStart: 1, seqEnd: 8 });
     const rejected = new ProviderError({ kind: "auth_failed", retryable: false, message: "the upstream rejected the key (401)", apiErrorStatus: 401 });
     // The verb binds its bundle through the funder-keyed `roleClientsFor` seam (@orb/inference §7.5-1b), so
     // the double is the shared scripted bundle with ONE callable replaced: `withActiveQuerySpace` must still

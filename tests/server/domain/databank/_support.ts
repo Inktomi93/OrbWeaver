@@ -9,10 +9,9 @@ import type { LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import { databankSettingsSchema } from "@orb/contracts/databank";
 import type { ExtractionResult, ExtractTextOp } from "@orb/contracts/extraction";
 import type { ParticipantRole, Principal } from "@orb/contracts/identity";
-import type { ProviderId } from "@orb/contracts/inference";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
-import { assets, chatParticipants, userConnections } from "@orb/db";
+import { assets, chatParticipants } from "@orb/db";
 import type { AssetId, CharacterId, ChatId, ChatParticipantId, DocumentId, Handle, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Mock } from "vitest";
@@ -29,42 +28,14 @@ import {
   createFanDatabankMemberRooms,
 } from "../../../../packages/server/src/entry/compose/room-reach.ts";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
-import { TEST_CONNECTION_ID, TEST_PROVIDER_ID } from "../../../support/factories/resolved-connection.ts";
 import { createSeededIds } from "../../../support/ids.ts";
-import { EMBED_DIM, EMBED_MODEL, makeStoreHarness, seedUser as seedUserRow } from "../embeddings/_support.ts";
+import { EMBED_DIM, EMBED_MODEL, makeStoreHarness } from "../embeddings/_support.ts";
 
-export { EMBED_DIM, EMBED_MODEL, seedCharacter, seedChat } from "../embeddings/_support.ts";
-
-/**
- * Seed a `users` row AND the `user_connections` row the harness's fake embed connection resolves to.
- *
- * THE CONNECTION ROW IS NOT DECORATION. This harness runs the REAL embeddings write path, and every
- * `store()` call first mints the owner's `embed_generations` row — whose `connection_id` FKs
- * `user_connections`. The fake `roleClients` resolve to {@link TEST_CONNECTION_ID}, so with no such row the
- * generation insert fails the FK, `ingestOne` throws on its FIRST chunk, and the ingest accumulator records
- * that as DATA (`failed[]` — partial failure is deliberately never a throw). Every count then reads ZERO and
- * the suite goes quietly, plausibly green: that is exactly how the chunk-partition, store-then-prune and
- * abort-containment assertions stopped asserting anything. The embeddings suite seeds the same row for the
- * same reason (`verbs/embed-assets.int.test.ts` `seedSweepConnection`).
- *
- * ONE row per db, not one per owner: the fake resolves a single connection id for everybody, so a second
- * owner's generation necessarily points at the same row (`onConflictDoNothing` keeps the first seeder's).
- * The FK is the only thing that reads it here — nothing in databank projects the connection's owner.
- */
-export async function seedUser(db: Db, overrides: Parameters<typeof seedUserRow>[1] = {}): Promise<UserId> {
-  const id = await seedUserRow(db, overrides);
-  await db
-    .insert(userConnections)
-    .values({
-      id: TEST_CONNECTION_ID,
-      ownerId: id,
-      label: "databank test vector connection",
-      providerId: castId<ProviderId>(TEST_PROVIDER_ID),
-      model: EMBED_MODEL,
-    })
-    .onConflictDoNothing();
-  return id;
-}
+// `seedUser` seeds the `users` row AND the `user_connections` row the harness's fake embed connection
+// resolves to (`seedVectorConnection`) — this harness runs the REAL embeddings write path, so the FK parent
+// of `embed_generations.connection_id` must exist or `ingestOne` throws on its first chunk and the ingest
+// accumulator records that as DATA (`failed[]`), leaving every count at zero and the suite quietly green.
+export { EMBED_DIM, EMBED_MODEL, seedCharacter, seedChat, seedUser } from "../embeddings/_support.ts";
 
 /** Seat a character on a chat (the roster arm the character-scope union reads: kind='character', present). */
 export async function seedRosterCharacter(db: Db, chatId: ChatId, characterId: CharacterId, leftSeq: number | null = null): Promise<void> {
