@@ -4,7 +4,7 @@
 // and the runtime variable-delta wire (D46) parsed at the DB read seam. A swipe APPENDs a variant + flips a
 // pointer (never a content copy); attribution is slot-level (a swipe never changes the voiced speaker).
 
-import type { CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, UserConnectionId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, MessageId, MessageVariantId, ModelId, PersonaId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
@@ -12,6 +12,7 @@ import type { MacroFreeze, VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import { z } from "zod";
 import type { NormalizedFinishReason } from "../inference/finish-reasons.ts";
+import type { ProviderId } from "../inference/provider-schema.ts";
 import type { MessageKind } from "./participants.ts";
 import { messageKindSchema, messageRoleSchema } from "./participants.ts";
 
@@ -436,8 +437,8 @@ export interface MessageView {
   hasContinuation: boolean;
   content: string;
   reasoning: string | null;
-  model: string | null;
-  provider: string | null;
+  model: ModelId | null;
+  provider: ProviderId | null;
   /** The NORMALIZED reason (`NORMALIZED_FINISH_REASONS`); `stopReason`/`terminalReason` are the raw upstream
    *  words, OPAQUE provenance never compared or switched on (inference program §5.3c class 4). */
   finishReason: NormalizedFinishReason | null;

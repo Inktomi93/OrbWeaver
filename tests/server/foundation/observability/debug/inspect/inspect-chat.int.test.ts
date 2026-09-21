@@ -22,6 +22,7 @@ import { inspectChatState } from "@orb/server/foundation/observability/debug";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../../../../support/db.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
+import { testModelId, testProviderId } from "../../../../../support/inference-identities.ts";
 
 const SEEDED_THROUGH_SEQ = 4;
 const CANON_HASH = "canon-hash-inspect";
@@ -80,8 +81,8 @@ async function seedFullChat(db: Awaited<ReturnType<typeof freshDb>>): Promise<Se
     messageId,
     idx: 0,
     content: "Hello from Aria",
-    model: "anthropic/claude-opus-4",
-    provider: "openrouter",
+    model: testModelId("anthropic/claude-opus-4"),
+    provider: testProviderId("openrouter"),
   });
   await db.update(messages).set({ selectedVariantId: variantId }).where(eq(messages.id, messageId));
 

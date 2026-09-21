@@ -18,7 +18,7 @@
 import "../../../support/composed-real.ts";
 import { tmpdir } from "node:os";
 import type { Principal } from "@orb/contracts/identity";
-import { providerIdSchema } from "@orb/contracts/inference";
+import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import { connectionBindings, userConnections } from "@orb/db";
 import type { ConnectionBindingId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -253,7 +253,7 @@ describe("compose/assets-character.ts — resolveGreetingTemplate narrows to Pre
       label: "greeting studio test connection",
       providerId: providerIdSchema.parse(TEST_PROVIDER_ID),
       baseUrl: TEST_BASE_URL,
-      model: "test-model",
+      model: modelIdSchema.parse("test-model"),
     });
     await db.insert(connectionBindings).values({
       id: castId<ConnectionBindingId>("connection_binding_greet2"),

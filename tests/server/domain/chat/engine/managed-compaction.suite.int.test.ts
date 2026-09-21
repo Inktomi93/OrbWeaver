@@ -35,6 +35,7 @@ import { createQuietGenerate } from "../../../../../packages/server/src/domain/c
 import { freshDb } from "../../../../support/db.ts";
 import { makeCapability } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { testModelId } from "../../../../support/inference-identities.ts";
 import { makeChatContext, seedChat, seedMessage, seedParticipant, seedUser, testConnection } from "../_support.ts";
 
 const HOST = castId<UserId>("user_host");
@@ -60,7 +61,7 @@ function turnWithUsage(economics: { tokensIn?: number; tokensOut?: number; conte
     (async function* (): AsyncGenerator<TurnStreamChunk> {
       await Promise.resolve();
       yield { kind: "text", text: "Hi" };
-      yield { kind: "final", economics: { content: "Hi there", model: "test-model", ...economics } };
+      yield { kind: "final", economics: { content: "Hi there", model: testModelId("test-model"), ...economics } };
     })();
 }
 
@@ -126,7 +127,7 @@ const markerRunChatTurn: ChatContext["runChatTurn"] = (req) => {
   });
   return (async function* (): AsyncGenerator<TurnStreamChunk> {
     await Promise.resolve();
-    yield { kind: "final", economics: { content: "MANAGED MARKER", model: "stub", costUsd: 0.001 } };
+    yield { kind: "final", economics: { content: "MANAGED MARKER", model: testModelId("stub"), costUsd: 0.001 } };
   })();
 };
 
@@ -475,7 +476,7 @@ describe("fireManagedCompaction — the managed-compaction post-turn hook (#9 A)
         maxConcurrent = Math.max(maxConcurrent, running);
         await gate;
         running -= 1;
-        yield { kind: "final", economics: { content: "MARKER", model: "stub", costUsd: 0 } };
+        yield { kind: "final", economics: { content: "MARKER", model: testModelId("stub"), costUsd: 0 } };
       })();
     const ctx = makeChatContext(db, { runChatTurn: turnWithUsage({ tokensIn: 4, tokensOut: 2 }) });
     const { runCompaction } = createCompaction(makeChatContext(db, { runChatTurn: gatedRunChatTurn }), {
@@ -541,13 +542,13 @@ describe("fireManagedCompaction — the managed-compaction post-turn hook (#9 A)
           err.name = "AbortError";
           await Promise.reject(err);
         }
-        yield { kind: "final", economics: { content: "MANAGED MARKER", model: "stub", costUsd: 0.001 } };
+        yield { kind: "final", economics: { content: "MANAGED MARKER", model: testModelId("stub"), costUsd: 0.001 } };
       })();
     const countedTurn: ChatContext["runChatTurn"] = (req) => {
       turnCalls += 1;
       return (async function* (): AsyncGenerator<TurnStreamChunk> {
         await Promise.resolve();
-        yield { kind: "final", economics: { content: `dispatched (aborted=${String(req.signal?.aborted)})`, model: "test-model" } };
+        yield { kind: "final", economics: { content: `dispatched (aborted=${String(req.signal?.aborted)})`, model: testModelId("test-model") } };
       })();
     };
     const ctx = makeChatContext(db, { runChatTurn: countedTurn });
@@ -596,7 +597,7 @@ describe("fireManagedCompaction — the managed-compaction post-turn hook (#9 A)
       turnCalls += 1;
       return (async function* (): AsyncGenerator<TurnStreamChunk> {
         await Promise.resolve();
-        yield { kind: "final", economics: { content: "Hi there", model: "test-model" } };
+        yield { kind: "final", economics: { content: "Hi there", model: testModelId("test-model") } };
       })();
     };
     const ctx = makeChatContext(db, { runChatTurn: countedTurn });

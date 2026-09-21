@@ -5,7 +5,6 @@
 // row gets it back on the next seed without duplicating the other one. Every id comes from the injected
 // minters, so the assertions are deterministic.
 
-import type { ProviderId } from "@orb/contracts/inference";
 import { connectionBindings, userConnections } from "@orb/db";
 import type { ConnectionBindingId, UserConnectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -14,6 +13,7 @@ import { seedLocalLightConnections } from "../../../../../packages/server/src/do
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
 import { seedUser } from "../_support.ts";
 
 /** The injected deps. `serial` keeps ids unique across seeds in one test (the PK is global, not per owner). */
@@ -63,10 +63,10 @@ test("never overwrites a task the user RE-POINTED at their own row", async () =>
     id: mine,
     ownerId: owner,
     label: "my own embedder",
-    providerId: castId<ProviderId>("custom-openai"),
+    providerId: testProviderId("custom-openai"),
     credentialId: null,
     baseUrl: "http://127.0.0.1:18703/v1",
-    model: "bge-m3",
+    model: testModelId("bge-m3"),
     api: "auto",
     declared: { kind: "embedding" },
     extras: null,

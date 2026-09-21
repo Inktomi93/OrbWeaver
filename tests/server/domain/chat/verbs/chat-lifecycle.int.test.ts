@@ -29,6 +29,7 @@ import { tape } from "../../../../support/chat/tape.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { testModelId } from "../../../../support/inference-identities.ts";
 import { FROZEN_AT, makeChatContext, noClaim, seedChat, seedParticipant, seedPersona, seedUser } from "../_support.ts";
 
 let db: Db;
@@ -153,7 +154,7 @@ describe("chat-row flags (host-only)", () => {
       sawFirstDelta();
       await deleted;
       yield { kind: "text", text: "lo" };
-      yield { kind: "final", economics: { content: "hello", tokensIn: 4, tokensOut: 2, model: "test-model" } };
+      yield { kind: "final", economics: { content: "hello", tokensIn: 4, tokensOut: 2, model: testModelId("test-model") } };
     }
     // The REAL durable bus (not the recorder) — this test exists to exercise the `chat_events` FK itself.
     const bus = createChatBus(makeChatContext(db));

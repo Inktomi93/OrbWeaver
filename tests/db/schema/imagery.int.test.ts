@@ -12,6 +12,7 @@ import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../support/db.ts";
 import { expect, test } from "../../support/fixtures.ts";
+import { testModelId } from "../../support/inference-identities.ts";
 import { seedChat, seedUser } from "./_support.ts";
 
 function isConstraintErr(err: unknown): boolean {
@@ -39,7 +40,7 @@ test("round-trips, borns createdAt, and defaults edited=false", async () => {
     assetId,
     mode: "free",
     prompt: "a cat on a windowsill",
-    model: "sdxl",
+    model: testModelId("sdxl"),
   });
 
   const rows = await db.select().from(imageryGenerations).where(eq(imageryGenerations.id, id));
@@ -56,7 +57,7 @@ test("round-trips, borns createdAt, and defaults edited=false", async () => {
       assetId,
       mode: "bogus" as "free",
       prompt: "x",
-      model: "sdxl",
+      model: testModelId("sdxl"),
     }),
   ).rejects.toSatisfy(isConstraintErr);
 });
@@ -77,7 +78,7 @@ test("assetId CASCADE erases the provenance row; chatId + subjectCharacterId SET
     subjectCharacterId: characterId,
     mode: "character",
     prompt: "a portrait",
-    model: "sdxl",
+    model: testModelId("sdxl"),
   });
 
   // Chat delete → SET NULL, the generation survives.

@@ -20,7 +20,8 @@
 // tuple-built CHECK gates the SQL; the column never re-spells the union on either side.
 
 import { PROMPT_TEMPLATE_MODES } from "@orb/contracts/imagery";
-import type { AssetId, CharacterId, ChatId, ImageryGenerationId, UserConnectionId } from "@orb/kit/ids";
+import type { ProviderId } from "@orb/contracts/inference";
+import type { AssetId, CharacterId, ChatId, ImageryGenerationId, ModelId, UserConnectionId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, index, integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { checkList } from "../kit/check-list.ts";
@@ -61,10 +62,10 @@ export const imageryGenerations = sqliteTable(
     // The negative prompt applied (reserved — the Phase-7 negative composition). Nullable.
     negativePrompt: text("negative_prompt"),
     // The image model that produced it (the gallery's provenance detail).
-    model: text("model").notNull(),
+    model: text("model").$type<ModelId>().notNull(),
     // The provider registry id + the connection that generated it — the same attribution pair as a chat swipe
     // (inference program §5.3b/§5.3c); SET NULL so provenance outlives the connection row.
-    provider: text("provider"),
+    provider: text("provider").$type<ProviderId>(),
     connectionId: text("connection_id")
       .$type<UserConnectionId>()
       .references(() => userConnections.id, { onDelete: "set null" }),

@@ -20,6 +20,7 @@ import type { ToolCallInput } from "../../../../../packages/server/src/domain/to
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { makeCapability, makeGenerationCapability, makeResolved } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { testModelId } from "../../../../support/inference-identities.ts";
 
 type PipelineArgs = Parameters<typeof runTurnPipeline>[0];
 type PipelineResult = Awaited<ReturnType<typeof runTurnPipeline>>;
@@ -95,12 +96,12 @@ function scriptedPasses(passes: readonly (readonly TurnStreamChunk[])[]): { runC
 /** A completion that emits the terminal call and NO prose — the recoverable shape. */
 const PROSELESS_PASS: readonly TurnStreamChunk[] = [
   { kind: "reasoning", text: "the beat is discharged by the calls" },
-  { kind: "final", economics: { content: "", model: "test-model", finishReason: "stop", toolCalls: [TERMINAL_CALL] } },
+  { kind: "final", economics: { content: "", model: testModelId("test-model"), finishReason: "stop", toolCalls: [TERMINAL_CALL] } },
 ];
 
 const prosePass = (text: string): readonly TurnStreamChunk[] => [
   { kind: "text", text },
-  { kind: "final", economics: { content: text, model: "test-model", finishReason: "stop" } },
+  { kind: "final", economics: { content: text, model: testModelId("test-model"), finishReason: "stop" } },
 ];
 
 function argsOf(over: Partial<PipelineArgs>, passes: readonly (readonly TurnStreamChunk[])[]): { args: PipelineArgs; requests: TurnRequest[] } {
@@ -243,9 +244,12 @@ describe("resolveTurnNarrative — the NON-recoverable classes (no second wire c
 
   test("prose-less with NO terminal channel (null) is a provider fault, not a discharged turn", async () => {
     // No terminal tools ⇒ `terminalToolCalls` is null: nothing landed to recover FROM.
-    const { first, result, requests } = await driveTurn([[{ kind: "final", economics: { content: "", model: "test-model", finishReason: "stop" } }]], {
-      terminalTools: undefined,
-    });
+    const { first, result, requests } = await driveTurn(
+      [[{ kind: "final", economics: { content: "", model: testModelId("test-model"), finishReason: "stop" } }]],
+      {
+        terminalTools: undefined,
+      },
+    );
 
     expect(first.terminalToolCalls).toBeNull();
     expect(result).toBe(first);
@@ -253,7 +257,7 @@ describe("resolveTurnNarrative — the NON-recoverable classes (no second wire c
   });
 
   test("prose-less with an EMPTY terminal array is a quiet beat — genuinely empty, still refused", async () => {
-    const quiet: readonly TurnStreamChunk[] = [{ kind: "final", economics: { content: "", model: "test-model", finishReason: "stop" } }];
+    const quiet: readonly TurnStreamChunk[] = [{ kind: "final", economics: { content: "", model: testModelId("test-model"), finishReason: "stop" } }];
     const { first, result, requests } = await driveTurn([quiet]);
 
     expect(first.terminalToolCalls).toEqual([]);

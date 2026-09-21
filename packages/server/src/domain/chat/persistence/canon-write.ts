@@ -24,14 +24,14 @@ import type {
   VariantMetadata,
 } from "@orb/contracts/chat";
 import { DEFAULT_MESSAGE_KIND } from "@orb/contracts/chat";
-import type { CostDetails, NormalizedFinishReason } from "@orb/contracts/inference";
+import type { CostDetails, NormalizedFinishReason, ProviderId } from "@orb/contracts/inference";
 import type { EffortLevel, UserIntent } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { messageAssets, messages, messageVariants } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, batchStmt, isConstraintViolation } from "@orb/db/kit";
 import type { ReasoningContentPart } from "@orb/inference";
-import type { AssetId, CharacterId, ChatId, MessageAssetId, MessageId, MessageVariantId, PersonaId, UserConnectionId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, MessageAssetId, MessageId, MessageVariantId, ModelId, PersonaId, UserConnectionId, UserId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import { and, eq, gte, inArray, lte, sql } from "drizzle-orm";
@@ -43,8 +43,8 @@ import { loadMaxMessageSeq } from "./queries.ts";
 interface CanonVariantInput {
   readonly content: string;
   readonly reasoning?: string | null | undefined;
-  readonly model?: string | null | undefined;
-  readonly provider?: string | null | undefined;
+  readonly model?: ModelId | null | undefined;
+  readonly provider?: ProviderId | null | undefined;
   /** ATTRIBUTION (§5.3b): the connection row that generated this swipe (SET NULL on delete); null on a
    *  user-authored row, an import or an edit. */
   readonly connectionId?: UserConnectionId | null | undefined;
@@ -149,8 +149,8 @@ interface InsertCanonMessageParams extends CanonSlotAttribution {
 interface VariantEconomics {
   readonly content: string;
   readonly reasoning: string | null;
-  readonly model: string | null;
-  readonly provider: string | null;
+  readonly model: ModelId | null;
+  readonly provider: ProviderId | null;
   readonly connectionId: UserConnectionId | null;
   readonly tokensIn: number | null;
   readonly tokensOut: number | null;

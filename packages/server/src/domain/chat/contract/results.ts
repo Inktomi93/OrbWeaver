@@ -22,11 +22,11 @@ import type {
   VariantProviderMetadata,
 } from "@orb/contracts/chat";
 import type { ChatMembership } from "@orb/contracts/identity";
-import type { CostDetails, NormalizedFinishReason } from "@orb/contracts/inference";
+import type { CostDetails, NormalizedFinishReason, ProviderId } from "@orb/contracts/inference";
 import type { EffortLevel, UserIntent } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { GeneratedImage, HistoryRole, ReasoningContentPart, Resolved, ResolvedWarning, ToolCallInput, ToolChoice, WireTool } from "@orb/inference";
-import type { AssetId, CharacterId, ChatId, MessageId, PersonaId, UserConnectionId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, MessageId, ModelId, PersonaId, UserConnectionId, UserId } from "@orb/kit/ids";
 import type { MacroRegistry, RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { MemoryConfig, MemoryRecallInputs } from "./memory.ts";
@@ -241,10 +241,10 @@ export type TurnStreamChunk =
 export interface TurnEconomics {
   readonly content: string;
   readonly reasoning?: string | null;
-  readonly model?: string | null;
+  readonly model?: ModelId | null;
   /** ATTRIBUTION (§5.3b): the provider REGISTRY id and the connection row that generated this swipe — both
    *  denormalised onto the variant so a read outlives an edited or deleted connection. */
-  readonly provider?: string | null;
+  readonly provider?: ProviderId | null;
   readonly connectionId?: UserConnectionId | null;
   readonly tokensIn?: number | null;
   readonly tokensOut?: number | null;

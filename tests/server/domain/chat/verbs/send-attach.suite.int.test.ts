@@ -29,6 +29,7 @@ import { createTurn } from "../../../../../packages/server/src/domain/chat/verbs
 import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { testModelId } from "../../../../support/inference-identities.ts";
 import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser, stubRunCompaction, testConnection } from "../_support.ts";
 
 function principal(userId: UserId): Principal {
@@ -43,7 +44,7 @@ function scripted(content: string): ChatContext["runChatTurn"] {
       yield { kind: "text", text: content };
       yield {
         kind: "final",
-        economics: { content, tokensIn: 1, tokensOut: 1, model: "test-model" },
+        economics: { content, tokensIn: 1, tokensOut: 1, model: testModelId("test-model") },
       };
     })();
 }

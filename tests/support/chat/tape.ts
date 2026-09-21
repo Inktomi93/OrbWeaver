@@ -24,11 +24,12 @@ import type { ProviderErrorKind } from "@orb/inference";
 import { ProviderError } from "@orb/inference";
 import type { RunChatTurnOp } from "../../../packages/server/src/domain/chat/contract/context.ts";
 import type { TurnEconomics, TurnRequest, TurnStreamChunk } from "../../../packages/server/src/domain/chat/contract/results.ts";
+import { testModelId } from "../inference-identities.ts";
 
 /** The default per-turn economics a scripted `reply` reports (matches the hand-rolled chat int fakes —
  *  `{ tokensIn: 4, tokensOut: 2, model: "test-model" }` — so a converted test's stats deltas stay identical).
  *  `content` defaults to the reply text; any field is overridable per `reply`. */
-const DEFAULT_ECONOMICS = { tokensIn: 4, tokensOut: 2, model: "test-model" } as const;
+const DEFAULT_ECONOMICS = { tokensIn: 4, tokensOut: 2, model: testModelId("test-model") } as const;
 
 /** Per-`reply` overrides: an optional reasoning-channel delta + an economics patch (folded over the defaults). */
 export interface ReplyOptions {

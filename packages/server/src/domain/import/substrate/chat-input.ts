@@ -9,6 +9,7 @@
 // dates/variants/persona attribution can never apply to only one kind of room.
 
 import type { BulkImportChatInput, BulkImportInjectionInput, BulkImportMessageInput, BulkImportSeatKnobs, BulkImportVariantInput } from "@orb/contracts/chat";
+import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { msToWallClock } from "@orb/kit/time";
@@ -18,6 +19,25 @@ import type { CollectedChat, GroupChatInputDeps, ImportUnresolvedPinnedPersona }
 import { resolveImportedTokenUsage } from "./token-usage.ts";
 
 const JSONL_EXT = /\.jsonl$/i;
+
+/** Imported attribution is untrusted provenance. Keep only values that can honestly carry the identity
+ * brands; these nullable history columns use NULL for unknown. The `(unknown)` sentinel is reserved for
+ * `model_stats.provider`, whose non-null natural key requires it. */
+function importedModelId(raw: string | null): BulkImportVariantInput["model"] {
+  if (raw === null) {
+    return null;
+  }
+  const parsed = modelIdSchema.safeParse(raw);
+  return parsed.success ? parsed.data : null;
+}
+
+function importedProviderId(raw: string | null): BulkImportVariantInput["provider"] {
+  if (raw === null) {
+    return null;
+  }
+  const parsed = providerIdSchema.safeParse(raw);
+  return parsed.success ? parsed.data : null;
+}
 
 /** Multi-swipe message uses its swipe pool; when the active swipe was empty-dropped or there is no pool,
  *  a variant carrying the rendered `mes` is appended and selected. */
@@ -36,8 +56,8 @@ function buildVariantColumns(m: ParsedChatMessage): {
       (v): BulkImportVariantInput => ({
         idx: v.idx,
         content: v.content,
-        model: v.model,
-        provider: v.provider,
+        model: importedModelId(v.model),
+        provider: importedProviderId(v.provider),
         ...tokenUsage(v.content, v.tokensIn, v.tokensOut),
         reasoning: v.reasoning,
         ttftMs: null,
@@ -58,8 +78,8 @@ function buildVariantColumns(m: ParsedChatMessage): {
     (v): BulkImportVariantInput => ({
       idx: v.idx,
       content: v.content,
-      model: v.model,
-      provider: v.provider,
+      model: importedModelId(v.model),
+      provider: importedProviderId(v.provider),
       ...tokenUsage(v.content, v.tokensIn, v.tokensOut),
       reasoning: v.reasoning,
       ttftMs: null,
@@ -72,8 +92,8 @@ function buildVariantColumns(m: ParsedChatMessage): {
   alternates.push({
     idx: mesIdx,
     content: m.content,
-    model: m.model,
-    provider: m.provider,
+    model: importedModelId(m.model),
+    provider: importedProviderId(m.provider),
     ...tokenUsage(m.content, m.tokensIn, m.tokensOut),
     reasoning: m.reasoning,
     ttftMs: m.ttftMs,

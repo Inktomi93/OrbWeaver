@@ -16,6 +16,7 @@ import {
 import type { UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "../../support/fixtures.ts";
+import { testModelId, testProviderId } from "../../support/inference-identities.ts";
 
 // ── Sample ids (minted/cast — no pasted random-looking literals; noSecrets) ───
 const SAMPLE_MESSAGE_ID = mintTypeId(ID_PREFIX.message);
@@ -127,8 +128,8 @@ test("MessageView is the slot joined with its selected variant (content + econom
     hasContinuation: false,
     content: "hello there",
     reasoning: null,
-    model: "claude-sonnet",
-    provider: "openrouter",
+    model: testModelId("claude-sonnet"),
+    provider: testProviderId("openrouter"),
     finishReason: "stop",
     stopReason: null,
     terminalReason: null,

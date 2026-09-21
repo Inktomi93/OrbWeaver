@@ -1,7 +1,7 @@
 // Shared test harness for the credentials domain (NOT a test file — no `.test` suffix, so test-layout
 // ignores it). Builds a real-db `CredentialContext` with: injected determinism (frozen clock + seeded
 // ids), the REAL AES-256-GCM `SecretBox` over a known key (so the AAD round-trip + wrong-AAD failure are
-// exercised for real, not mocked), and a `providerKnown` predicate over the built-in registry — the
+// exercised for real, not mocked), and a `findProvider` lookup over the built-in registry — the
 // sanctioned "fake at the edges, inject at the root" doctrine (testing §3). Under connections-as-the-unit a
 // credential is a sealed secret with a label: the probes/inspect/fetch-models ops LEFT this domain for the
 // connection router (inference program §5.3), so there is nothing left here to fake but the audit recorder.
@@ -82,7 +82,7 @@ export function makeHarness(db: Db): CredentialHarness {
     now: (): number => clock.now(),
     newCredentialId: (): UserCredentialId => nextCredentialId(),
     box: createSecretBox(TEST_KEY),
-    providerKnown: (providerId: string): boolean => builtinProvider(providerId) !== undefined,
+    findProvider: builtinProvider,
     audit: (entry: AuditCall["entry"], at: number): Promise<void> => {
       audits.push({ entry, at });
       return Promise.resolve();

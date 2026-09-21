@@ -7,10 +7,11 @@
 import type { MessageContentBlock } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { ProviderId } from "@orb/contracts/inference";
+import { modelIdSchema } from "@orb/contracts/inference";
 import type { StatsDelta } from "@orb/contracts/stats";
-import type { AssetId, UserConnectionId } from "@orb/kit/ids";
+import type { AssetId, ModelId, UserConnectionId } from "@orb/kit/ids";
 import { sniffMime } from "@orb/kit/image-sniff";
-import { modelKey, utcDay } from "@orb/kit/stats-tally";
+import { utcDay } from "@orb/kit/stats-tally";
 import { GenerationFailedError } from "../contract/errors.ts";
 import type { GeneratedPictureImage, GenerationOutcome, GenerationProvenanceInput } from "../contract/results.ts";
 import type { GeneratedImage, ImageGenerateRequest, ImageryContext } from "../contract/service.ts";
@@ -55,7 +56,7 @@ async function persistImage(
   ctx: ImageryContext,
   prov: GenerationProvenanceInput,
   gen: {
-    readonly model: string;
+    readonly model: ModelId;
     readonly providerId: ProviderId;
     readonly connectionId: UserConnectionId;
     readonly costUsd: number | null;
@@ -91,18 +92,18 @@ async function persistImage(
 /** The generation's economics delta — attributed to `caller` as owner, one model bucket, `count` generations. */
 function buildDelta(args: {
   readonly caller: Principal;
-  readonly model: string;
+  readonly model: ModelId;
+  readonly providerId: ProviderId;
   readonly costUsd: number | null;
   readonly count: number;
   readonly now: number;
 }): StatsDelta {
-  const { model, provider } = modelKey(args.model, null);
   return {
     ownerId: args.caller.userId,
     characterId: null,
     day: utcDay(args.now),
-    model,
-    provider,
+    model: args.model,
+    provider: args.providerId,
     modelGenerations: args.count,
     modelGenSamples: args.count,
     now: args.now,
@@ -119,6 +120,7 @@ export function sumCost(a: number | null, b: number | null): number | null {
 /** Run one built request through the spend-and-persist tail. Zero decodable images ⇒ `GenerationFailedError`. */
 export async function runGeneration(ctx: ImageryContext, req: ImageGenerateRequest, prov: GenerationProvenanceInput): Promise<GenerationOutcome> {
   const result = await ctx.generateImage(req);
+  const model = modelIdSchema.parse(result.model);
   const decoded = (await Promise.all(result.images.map((img) => materialize(ctx, img)))).filter((d): d is DecodedImage => d !== null);
   if (decoded.length === 0) {
     throw new GenerationFailedError("imagery: the image provider returned zero decodable images");
@@ -130,7 +132,7 @@ export async function runGeneration(ctx: ImageryContext, req: ImageGenerateReque
   for (const img of decoded) {
     images.push(
       await persistImage(ctx, prov, {
-        model: result.model,
+        model,
         providerId: req.connection.providerId,
         connectionId: req.connection.connectionId,
         costUsd: result.usage.costUsd,
@@ -139,6 +141,15 @@ export async function runGeneration(ctx: ImageryContext, req: ImageGenerateReque
       }),
     );
   }
-  await ctx.recordStats(buildDelta({ caller: prov.caller, model: result.model, costUsd: result.usage.costUsd, count: images.length, now: createdAt }));
-  return { images, model: result.model, costUsd: result.usage.costUsd, warnings: result.warnings };
+  await ctx.recordStats(
+    buildDelta({
+      caller: prov.caller,
+      model,
+      providerId: req.connection.providerId,
+      costUsd: result.usage.costUsd,
+      count: images.length,
+      now: createdAt,
+    }),
+  );
+  return { images, model, costUsd: result.usage.costUsd, warnings: result.warnings };
 }

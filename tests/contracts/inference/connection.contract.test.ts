@@ -50,6 +50,12 @@ test("a foreign TypeID cannot ride in as the row's id", () => {
   expect(userConnectionSchema.safeParse({ ...ROW, id: mintTypeId(ID_PREFIX.connectionBinding) }).success).toBe(false);
 });
 
+test("credentialId is prefix-valid when present", () => {
+  expect(userConnectionSchema.safeParse({ ...ROW, credentialId: mintTypeId(ID_PREFIX.userCredential) }).success).toBe(true);
+  expect(userConnectionSchema.safeParse({ ...ROW, credentialId: mintTypeId(ID_PREFIX.userConnection) }).success).toBe(false);
+  expect(userConnectionSchema.safeParse({ ...ROW, credentialId: "user_credential_not-a-typeid" }).success).toBe(false);
+});
+
 test("the JSON columns are nullable documents, and `transport` keeps its closed four-field shape", () => {
   const withDocs = userConnectionSchema.parse({
     ...ROW,

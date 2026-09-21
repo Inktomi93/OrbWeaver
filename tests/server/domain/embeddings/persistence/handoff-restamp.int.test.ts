@@ -18,6 +18,7 @@ import { freshDb } from "../../../../support/db.ts";
 import { seedChat } from "../../../../support/factories/chat.ts";
 import { seedUser } from "../../../../support/factories/user.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
 
 const AT = 1_700_000_000_000;
 
@@ -38,7 +39,7 @@ async function seedDigest(db: Db, key: string, chatId: ChatId, characterId: Char
   const connectionId = castId<UserConnectionId>(`user_connection_${ownerId}_embed_m`);
   await db
     .insert(userConnections)
-    .values({ id: connectionId, ownerId, label: "handoff restamp embed", providerId: castId("custom-openai"), model: "m" })
+    .values({ id: connectionId, ownerId, label: "handoff restamp embed", providerId: testProviderId("custom-openai"), model: testModelId("m") })
     .onConflictDoNothing();
   await db
     .insert(embedGenerations)

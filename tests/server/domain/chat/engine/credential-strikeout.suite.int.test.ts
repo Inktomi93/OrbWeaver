@@ -38,6 +38,7 @@ import { freshDb } from "../../../../support/db.ts";
 import { makeApiKeySecret } from "../../../../support/factories/resolved-connection.ts";
 import { makeFakeRoleClients } from "../../../../support/factories/role-clients.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { testModelId } from "../../../../support/inference-identities.ts";
 import {
   FROZEN_AT,
   fakeRecallResult,
@@ -112,7 +113,7 @@ const succeedingTurn: ChatContext["runChatTurn"] = () =>
   (async function* (): AsyncGenerator<TurnStreamChunk> {
     await Promise.resolve();
     yield { kind: "text", text: "Hi" };
-    yield { kind: "final", economics: { content: "Hi there", model: "test-model", tokensIn: 4, tokensOut: 2 } };
+    yield { kind: "final", economics: { content: "Hi there", model: testModelId("test-model"), tokensIn: 4, tokensOut: 2 } };
   })();
 
 let db: Db;

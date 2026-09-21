@@ -46,6 +46,7 @@ export interface ConnectionFields {
   readonly providerId: string;
   readonly credentialId: UserCredentialId | null;
   readonly baseUrl: string | null;
+  /** Provider-owned foreign id: open vocabulary, normalized and branded by `modelIdSchema` at the verb. */
   readonly model: string;
   readonly api?: ConnectionApi | undefined;
   readonly declared?: DeclaredCapability | null | undefined;

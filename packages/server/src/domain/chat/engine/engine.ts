@@ -27,7 +27,7 @@ import type {
   VariantMetadata,
 } from "@orb/contracts/chat";
 import { buildIdentityNameContext, DEFAULT_MESSAGE_KIND, INLINE_REPLY_ORIGIN, VARIANT_METADATA_REASONING_MS_KEY } from "@orb/contracts/chat";
-import type { NormalizedFinishReason } from "@orb/contracts/inference";
+import type { NormalizedFinishReason, ProviderId } from "@orb/contracts/inference";
 
 import type { ContinuePostfix, UserIntent } from "@orb/contracts/preset";
 import {
@@ -47,7 +47,7 @@ import { batchMany, isConstraintViolation } from "@orb/db/kit";
 // `infra-below-domain` bans.
 import type { Resolved, ResolvedWarning } from "@orb/inference";
 import { generationOf, ProviderError } from "@orb/inference";
-import type { AssetId, CharacterId, ChatId, ChatTurnId, MessageId, UserConnectionId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, ChatTurnId, MessageId, ModelId, UserConnectionId, UserId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { estimateTokens } from "@orb/kit/tokens";
 import { getLog, recordTurnOutcome, withRequestSpan } from "#foundation/observability";
@@ -193,8 +193,8 @@ function continuePostfixDelimiter(prep: TurnPrep): string {
 
 /** The shared economics subset (variant columns ∩ stats input). */
 interface EconomicsCommon {
-  readonly model: string | null;
-  readonly provider: string | null;
+  readonly model: ModelId | null;
+  readonly provider: ProviderId | null;
   readonly connectionId: UserConnectionId | null;
   readonly costProvenance: TokenProvenance;
   readonly tokensIn: number | null;

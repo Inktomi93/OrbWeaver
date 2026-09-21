@@ -39,6 +39,7 @@ import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 import { freshDb } from "../../support/db.ts";
 import { expect, test } from "../../support/fixtures.ts";
+import { testModelId, testProviderId } from "../../support/inference-identities.ts";
 import { seedChat, seedUser } from "./_support.ts";
 
 // The one space's dim (mirrors schema VECTOR_DIM). A deterministic ramp vector (no Math-random) — every
@@ -53,7 +54,7 @@ async function seedGeneration(db: Db, ownerId: UserId, task: "embed" | "imageEmb
   const connectionId = castId<UserConnectionId>(`user_connection_${ownerId}_${task}_${MODEL}`);
   await db
     .insert(userConnections)
-    .values({ id: connectionId, ownerId, label: `Test ${task} ${MODEL}`, providerId: castId("custom-openai"), model: MODEL })
+    .values({ id: connectionId, ownerId, label: `Test ${task} ${MODEL}`, providerId: testProviderId("custom-openai"), model: testModelId(MODEL) })
     .onConflictDoNothing();
   const id = castId<EmbedGenerationId>(`embed_generation_${ownerId}_${task}_${MODEL}`);
   await db

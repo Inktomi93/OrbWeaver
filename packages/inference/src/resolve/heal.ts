@@ -3,12 +3,12 @@
 // and availability `no-connection`; the picker is the only way a model gets set.
 
 import type { AgentSdkModel } from "@orb/contracts/inference";
+import { modelIdSchema } from "@orb/contracts/inference";
 import type { ModelId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import { agentSdkRowFor } from "../capability/sources/advertised/agent-sdk.ts";
 
 export function normalizeModelId(raw: string, daemonRows: readonly AgentSdkModel[] | null): ModelId {
   const trimmed = raw.trim();
   const row = agentSdkRowFor(trimmed, daemonRows);
-  return castId<ModelId>(row?.resolvedModel ?? trimmed);
+  return modelIdSchema.parse(row?.resolvedModel ?? trimmed);
 }

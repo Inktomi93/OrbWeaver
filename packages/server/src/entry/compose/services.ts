@@ -377,7 +377,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
 
   // The credentials domain composes BEFORE the runtime: the runtime resolves a connection's sealed secret
   // through it (`resolveCredential` by credentialId — `loadActiveCredential` is gone, §5.3), and reports a
-  // derive-task auth failure back to it (#1800). `providerKnown` is bound to the runtime's registry through a
+  // derive-task auth failure back to it (#1800). `findProvider` is bound to the runtime's registry through a
   // late-bound holder because the registry exists only once the runtime does — a genuine construction cycle,
   // closed one line after `createInferenceRuntime` returns.
   let runtimeHolder: InferenceRuntime | null = null;
@@ -392,7 +392,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     now,
     newCredentialId: minter(ID_PREFIX.userCredential),
     box: secretBox,
-    providerKnown: (providerId) => runtimeRef().providers.registry.get(providerId) !== undefined,
+    findProvider: (providerId) => runtimeRef().providers.registry.get(providerId),
     audit,
     emitUserEvent: publishUserEvent,
   });

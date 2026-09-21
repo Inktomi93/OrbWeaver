@@ -109,6 +109,7 @@ export interface ImageGenerateUsage {
  *  mapped to the domain's `ImageryWarning` at compose — two spellings of one result must not drift (doc 01 §4 note). */
 export interface ImageGenerateResult {
   readonly images: readonly GeneratedImage[];
+  /** Provider-reported foreign id; `runGeneration` validates/brands it before any persistence. */
   readonly model: string;
   readonly usage: ImageGenerateUsage;
   readonly warnings: readonly ImageryWarning[];

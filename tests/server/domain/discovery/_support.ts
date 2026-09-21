@@ -7,6 +7,7 @@
 
 import type { ImageLens } from "@orb/contracts/embeddings";
 import { VECTOR_SCOPES_BY_TASK } from "@orb/contracts/embeddings";
+import type { ProviderId } from "@orb/contracts/inference";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
 import {
@@ -41,6 +42,7 @@ import type {
   KeywordCooccurrenceId,
   MessageId,
   MessageVariantId,
+  ModelId,
   ThemeClusterId,
   UserConnectionId,
   UserId,
@@ -54,6 +56,7 @@ import { createStatsService } from "../../../../packages/server/src/domain/stats
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { makeFakeRoleClients } from "../../../support/factories/role-clients.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
+import { testModelId, testProviderId } from "../../../support/inference-identities.ts";
 
 /** A fixed instant for the service's injected clock (only `reconcile` reads it). */
 const STATS_NOW = 1_700_000_000_000;
@@ -68,6 +71,14 @@ const VECTOR_DIM = 1024;
 /** The default embed model the seeders tag rows with (the `(model)` space tag). */
 export const EMBED_MODEL = "test-embed-model-1024";
 
+function variantModel(value: string | null | undefined): ModelId | null {
+  return value === null || value === undefined ? null : testModelId(value);
+}
+
+function variantProvider(value: string | null | undefined): ProviderId | null {
+  return value === null || value === undefined ? null : testProviderId(value);
+}
+
 async function seedGeneration(db: Db, ownerId: UserId, task: "embed" | "imageEmbed", model: string): Promise<EmbedGenerationId> {
   const clients = makeFakeRoleClients(task === "embed" ? { embedModel: model } : { imageEmbedModel: model });
   const resolved = await clients.resolved(task);
@@ -77,7 +88,7 @@ async function seedGeneration(db: Db, ownerId: UserId, task: "embed" | "imageEmb
   const connectionId = castId<UserConnectionId>(`user_connection_${ownerId}_${task}`);
   await db
     .insert(userConnections)
-    .values({ id: connectionId, ownerId, label: `Test ${task}`, providerId: resolved.providerId, model })
+    .values({ id: connectionId, ownerId, label: `Test ${task}`, providerId: resolved.providerId, model: testModelId(model) })
     .onConflictDoNothing();
   const id = castId<EmbedGenerationId>(`embed_generation_${ownerId}_${task}_${model}`);
   await db
@@ -551,8 +562,8 @@ export async function seedMessage(
       // not a message), which the visible-canon reads exclude. Defaulting to "" silently minted anchors and
       // made every count fixture lie. A test that wants an anchor passes `content: ""` explicitly.
       content: overrides.variant.content ?? `body-${overrides.seq}`,
-      model: overrides.variant.model ?? null,
-      provider: overrides.variant.provider ?? null,
+      model: variantModel(overrides.variant.model),
+      provider: variantProvider(overrides.variant.provider),
       tokensIn: overrides.variant.tokensIn ?? null,
       tokensOut: overrides.variant.tokensOut ?? null,
       tokenProvenance:

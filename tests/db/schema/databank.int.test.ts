@@ -37,6 +37,7 @@ import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../support/db.ts";
 import { expect, test } from "../../support/fixtures.ts";
+import { testModelId, testProviderId } from "../../support/inference-identities.ts";
 import { seedUser } from "./_support.ts";
 
 // `.toSatisfy` needs a `=> boolean`; `isConstraintViolation` returns the violation|undefined, so wrap it.
@@ -54,7 +55,7 @@ async function seedGeneration(db: Db, ownerId: UserId): Promise<EmbedGenerationI
   const connectionId = castId<UserConnectionId>(`user_connection_${ownerId}_embed_${MODEL}`);
   await db
     .insert(userConnections)
-    .values({ id: connectionId, ownerId, label: `Test embed ${MODEL}`, providerId: castId("custom-openai"), model: MODEL })
+    .values({ id: connectionId, ownerId, label: `Test embed ${MODEL}`, providerId: testProviderId("custom-openai"), model: testModelId(MODEL) })
     .onConflictDoNothing();
   const id = castId<EmbedGenerationId>(`embed_generation_${ownerId}_embed_${MODEL}`);
   await db

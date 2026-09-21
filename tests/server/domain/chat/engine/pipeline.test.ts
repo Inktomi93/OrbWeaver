@@ -28,6 +28,7 @@ import { __spanToWirePartForTest } from "../../../../../packages/server/src/doma
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { makeCapability, makeGenerationCapability, makeResolved } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { testModelId } from "../../../../support/inference-identities.ts";
 import { wireSchema } from "../../../../support/wire-ready.ts";
 
 const CAPABILITY: GenerationCapability = makeGenerationCapability({
@@ -112,7 +113,7 @@ function baseArgs(over: Partial<PipelineArgs> = {}): {
       { kind: "text", text: "lo" },
       {
         kind: "final",
-        economics: { content: "Hello", tokensIn: 3, tokensOut: 1, model: "test-model" },
+        economics: { content: "Hello", tokensIn: 3, tokensOut: 1, model: testModelId("test-model") },
       },
     ]),
     resolveImageUrl: (ref) => Promise.resolve({ url: ref.kind === "asset" ? `https://cas.test/${ref.assetId}` : ref.url, media: "image" as const }),

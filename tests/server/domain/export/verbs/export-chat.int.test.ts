@@ -16,6 +16,7 @@ import { beforeEach, describe } from "vitest";
 import { createExportChat } from "../../../../../packages/server/src/domain/export/verbs/export-chat.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { testModelId } from "../../../../support/inference-identities.ts";
 import { makeHarness, principal, seedCharacter, seedUser } from "../_support.ts";
 
 const FROZEN_AT = 1_750_000_000_000;
@@ -101,7 +102,7 @@ async function seedSlot(args: {
       messageId,
       idx: i,
       content,
-      model: `m${i}`,
+      model: testModelId(`m${i}`),
       tokensOut: i + 1,
       createdAt: FROZEN_AT,
     })),

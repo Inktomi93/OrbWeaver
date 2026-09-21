@@ -5,7 +5,7 @@
 import type { MessageContentBlock } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
-import type { AssetId, CharacterId, ChatId, ImageryGenerationId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, ImageryGenerationId, ModelId } from "@orb/kit/ids";
 
 /** block is a render-ready convenience for direct consumers; the chat caller persists a message string
  *  with asset: refs instead and never stores this block. */
@@ -28,7 +28,7 @@ export interface GeneratedPicture {
   readonly prompt: string;
   readonly promptSource: "extracted" | "captioned" | "user";
   readonly mode: PromptTemplateMode;
-  readonly model: string;
+  readonly model: ModelId;
   readonly costUsd: number | null;
   readonly reused: boolean;
   readonly warnings: readonly ImageryWarning[];
@@ -40,7 +40,7 @@ export interface ReuseRow {
   readonly generationId: ImageryGenerationId;
   readonly assetId: AssetId;
   readonly prompt: string;
-  readonly model: string;
+  readonly model: ModelId;
 }
 
 /** The durable provenance of one generated image (`readProvenance`, doc 04 §3) — the gallery's
@@ -52,7 +52,7 @@ export interface GenerationProvenance {
   readonly mode: PromptTemplateMode;
   readonly prompt: string;
   readonly negativePrompt: string | null;
-  readonly model: string;
+  readonly model: ModelId;
   readonly costUsd: number | null;
   readonly subjectCharacterId: CharacterId | null;
   /** The reuse hash stored on this generation (rpg-design/08 §2): the portrait-mode subject hash, an external
@@ -91,7 +91,7 @@ export interface GenerationProvenanceInput {
  *  sums in any extraction/caption spend) + the runner's edit-strip belt warnings surfaced onto the result. */
 export interface GenerationOutcome {
   readonly images: readonly GeneratedPictureImage[];
-  readonly model: string;
+  readonly model: ModelId;
   readonly costUsd: number | null;
   readonly warnings: readonly ImageryWarning[];
 }

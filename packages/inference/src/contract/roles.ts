@@ -15,7 +15,7 @@ import type {
   SummarizeInput,
   SummarizeOptions,
 } from "@orb/contracts/role-clients";
-import type { UserId } from "@orb/kit/ids";
+import type { ModelId, UserId } from "@orb/kit/ids";
 import type { ResolvedWarning } from "./resolve.ts";
 import type { Resolved } from "./resolved.ts";
 
@@ -117,7 +117,7 @@ export interface GeneratedImage {
 
 export interface ImageGenerateResult {
   readonly images: readonly GeneratedImage[];
-  readonly model: string;
+  readonly model: ModelId;
   readonly usage: { readonly costUsd: number | null };
   readonly warnings: readonly ResolvedWarning[];
 }

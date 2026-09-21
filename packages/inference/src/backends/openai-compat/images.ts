@@ -8,7 +8,7 @@
 // negative prompt folds into the text on the chat arm (no hosted chat wire has a native negative field).
 
 import type { ImageModelV4File } from "@ai-sdk/provider";
-import { acceptsImageEdit } from "@orb/contracts/inference";
+import { acceptsImageEdit, modelIdSchema } from "@orb/contracts/inference";
 import type { ImageInput } from "@orb/contracts/role-clients";
 import { ProviderError } from "../../contract/errors.ts";
 import type { ResolvedWarning } from "../../contract/resolve.ts";
@@ -95,7 +95,7 @@ async function runImagesApi(req: ImageGenerateRequest, deps: ImagesDeps, call: M
   if (images.length === 0) {
     throw new ProviderError({ kind: "server", retryable: result.isRetryable ?? true, message: `${call.label}: image generation returned no images` });
   }
-  return { images, model: result.response.modelId, usage: { costUsd: null }, warnings };
+  return { images, model: modelIdSchema.parse(result.response.modelId), usage: { costUsd: null }, warnings };
 }
 
 async function runChatModalities(req: ImageGenerateRequest, deps: ImagesDeps, call: ModelCall, warnings: ResolvedWarning[]): Promise<ImageGenerateResult> {

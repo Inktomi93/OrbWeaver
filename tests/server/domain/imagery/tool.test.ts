@@ -10,6 +10,7 @@ import { imageryToolDefinitions } from "@orb/server/domain/imagery";
 import type { ToolExecutionContext } from "@orb/server/domain/tool-use";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
+import { testModelId } from "../../../support/inference-identities.ts";
 import { principal } from "./_support.ts";
 
 const OWNER = castId<UserId>("user_owner");
@@ -37,7 +38,7 @@ function fakeGeneratePicture(): Recorder {
       prompt: p.prompt ?? "",
       promptSource: "user",
       mode: p.mode,
-      model: "img-model",
+      model: testModelId("img-model"),
       costUsd: 0.02,
       reused: false,
       warnings: [],

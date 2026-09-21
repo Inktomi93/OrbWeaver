@@ -4,7 +4,7 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import { DEFAULT_CAPTION_INSTRUCTIONS, DEFAULT_PROMPT_TEMPLATES, IMAGERY_NEGATIVE_SLOT_ID } from "@orb/contracts/imagery";
-import { providerIdSchema } from "@orb/contracts/inference";
+import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import { PROSE_SLOTS } from "@orb/contracts/prose";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
@@ -33,9 +33,13 @@ export async function seedOwner(db: Db, handle: Handle): Promise<UserId> {
  *  `seedOwner` so reader-only principals cannot silently collide on the shared test connection id. */
 export async function seedGenerationOwner(db: Db, handle: Handle): Promise<UserId> {
   const ownerId = await seedOwner(db, handle);
-  await db
-    .insert(userConnections)
-    .values({ id: TEST_CONNECTION_ID, ownerId, label: "image generator", providerId: providerIdSchema.parse("openrouter"), model: "img-model" });
+  await db.insert(userConnections).values({
+    id: TEST_CONNECTION_ID,
+    ownerId,
+    label: "image generator",
+    providerId: providerIdSchema.parse("openrouter"),
+    model: modelIdSchema.parse("img-model"),
+  });
   return ownerId;
 }
 

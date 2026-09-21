@@ -4,7 +4,6 @@
 // per-arm predicate, not a coalesce), and the upsert must re-point the existing row in place rather than
 // writing a second row for the same (actor, task).
 
-import type { ProviderId } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import { userConnections } from "@orb/db";
 import type { AutomationRuleId, ConnectionBindingId, UserConnectionId, UserId } from "@orb/kit/ids";
@@ -14,6 +13,7 @@ import { listBindingsForActor, lookupBinding, upsertBinding } from "../../../../
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
 import { seedAutomationRule, seedUser } from "../_support.ts";
 
 const ROW_ID = castId<UserConnectionId>("user_connection_000001");
@@ -25,10 +25,10 @@ async function seedRow(db: Db, id: UserConnectionId, ownerId: UserId, label: str
     id,
     ownerId,
     label,
-    providerId: castId<ProviderId>("custom-openai"),
+    providerId: testProviderId("custom-openai"),
     credentialId: null,
     baseUrl: "http://127.0.0.1:18703/v1",
-    model: "m",
+    model: testModelId("m"),
     api: "auto",
     declared: null,
     extras: null,

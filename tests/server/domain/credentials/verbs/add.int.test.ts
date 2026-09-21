@@ -2,10 +2,11 @@
 // place (clears revocation), the secret-free view, the conflict path, and the disabled-box guard.
 
 import type { ProviderId } from "@orb/contracts/inference";
+import { builtinProvider } from "@orb/contracts/inference";
 import { userCredentials } from "@orb/db";
 import { DomainOperationError } from "@orb/kit/errors";
 import { castId } from "@orb/kit/ids";
-import { createCredentialsService } from "@orb/server/domain/credentials";
+import { CREDENTIALS_OP_CODES, createCredentialsService } from "@orb/server/domain/credentials";
 import { createSecretBox } from "@orb/server/infra/crypto";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
@@ -14,6 +15,29 @@ import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, principal, seedUser } from "../_support.ts";
 
 describe("add", () => {
+  test("an unknown provider keeps the provider_unknown refusal and writes nothing", async () => {
+    const db = await freshDb();
+    const svc = createCredentialsService(makeHarness(db).ctx);
+    const owner = await seedUser(db, { id: "user_o", role: "user" });
+    await expect(svc.add({ principal: principal(owner), provider: "not-registered", key: "sk-1" })).rejects.toMatchObject({
+      code: CREDENTIALS_OP_CODES.providerUnknown,
+    });
+    expect(await db.select().from(userCredentials)).toEqual([]);
+  });
+
+  test("persists the registry-returned provider identity rather than branding caller text", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const registered = builtinProvider("openrouter");
+    if (registered === undefined) {
+      throw new Error("openrouter provider fixture is missing");
+    }
+    const svc = createCredentialsService({ ...h.ctx, findProvider: (requested) => (requested === "registry-alias" ? registered : undefined) });
+    const owner = await seedUser(db, { id: "user_o", role: "user" });
+    const view = await svc.add({ principal: principal(owner), provider: "registry-alias", key: "sk-1" });
+    expect(view.provider).toBe(registered.id);
+  });
+
   test("the view carries no secret field", async () => {
     const db = await freshDb();
     const svc = createCredentialsService(makeHarness(db).ctx);

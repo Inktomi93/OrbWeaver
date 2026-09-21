@@ -25,6 +25,7 @@ import { loadWitnessHorizons } from "../../../../../packages/server/src/domain/c
 import { recallMemory } from "../../../../../packages/server/src/domain/chat/memory/recall/recall.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { testModelId } from "../../../../support/inference-identities.ts";
 import { makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser, stubRunCompaction, testConnection } from "../_support.ts";
 import { fakeEmbeddingsStore, fakeSummarize } from "../memory/_support.ts";
 
@@ -47,7 +48,7 @@ const OK_TURN: ChatContext["runChatTurn"] = () =>
     yield { kind: "text", text: "Hi" };
     yield {
       kind: "final",
-      economics: { content: "Hi there", tokensIn: 4, tokensOut: 2, model: "test-model" },
+      economics: { content: "Hi there", tokensIn: 4, tokensOut: 2, model: testModelId("test-model") },
     };
   })();
 

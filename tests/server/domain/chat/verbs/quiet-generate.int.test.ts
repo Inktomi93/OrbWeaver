@@ -16,6 +16,7 @@ import type { TurnRequest, TurnStreamChunk } from "../../../../../packages/serve
 import { createQuietGenerate } from "../../../../../packages/server/src/domain/chat/verbs/quiet-generate.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { testModelId } from "../../../../support/inference-identities.ts";
 import { seedChat, testConnection } from "../_support.ts";
 
 let db: Db;
@@ -52,7 +53,7 @@ describe("quietGenerate — the verb's own contract", () => {
     const run = scriptedRun(sink, [
       { kind: "text", text: "partial " },
       { kind: "text", text: "delta" },
-      { kind: "final", economics: { content: "THE MARKER", costUsd: 0.017, model: "m" } },
+      { kind: "final", economics: { content: "THE MARKER", costUsd: 0.017, model: testModelId("m") } },
     ]);
     const chatId = await seedChat(db, "q");
     const quiet = createQuietGenerate({ runChatTurn: run, resolveChatPresetParams: NO_CHAT_PARAMS });
@@ -74,7 +75,7 @@ describe("quietGenerate — the verb's own contract", () => {
     const sink: TurnRequest[] = [];
     const chatId = await seedChat(db, "qfloor");
     const quiet = createQuietGenerate({
-      runChatTurn: scriptedRun(sink, [{ kind: "final", economics: { content: "M", model: "m" } }]),
+      runChatTurn: scriptedRun(sink, [{ kind: "final", economics: { content: "M", model: testModelId("m") } }]),
       resolveChatPresetParams: NO_CHAT_PARAMS,
     });
     await quiet(paramsOf(chatId));
@@ -88,7 +89,7 @@ describe("quietGenerate — the verb's own contract", () => {
     const sink: TurnRequest[] = [];
     const chatId = await seedChat(db, "qover");
     const quiet = createQuietGenerate({
-      runChatTurn: scriptedRun(sink, [{ kind: "final", economics: { content: "M", model: "m" } }]),
+      runChatTurn: scriptedRun(sink, [{ kind: "final", economics: { content: "M", model: testModelId("m") } }]),
       resolveChatPresetParams: () => Promise.resolve({ temperature: 0.9 }),
     });
     await quiet(paramsOf(chatId));
@@ -101,7 +102,7 @@ describe("quietGenerate — the verb's own contract", () => {
     const sink: TurnRequest[] = [];
     const chatId = await seedChat(db, "qtop");
     const quiet = createQuietGenerate({
-      runChatTurn: scriptedRun(sink, [{ kind: "final", economics: { content: "M", model: "m" } }]),
+      runChatTurn: scriptedRun(sink, [{ kind: "final", economics: { content: "M", model: testModelId("m") } }]),
       resolveChatPresetParams: () => Promise.resolve({ temperature: 0.9, maxOutputTokens: 2000 }),
     });
     await quiet(paramsOf(chatId, { intent: { temperature: 0.3 } }));
@@ -112,7 +113,7 @@ describe("quietGenerate — the verb's own contract", () => {
   test("a null economics cost yields costUsd: null (a local vLLM turn reports none)", async () => {
     const chatId = await seedChat(db, "q2");
     const quiet = createQuietGenerate({
-      runChatTurn: scriptedRun([], [{ kind: "final", economics: { content: "M", model: "m" } }]),
+      runChatTurn: scriptedRun([], [{ kind: "final", economics: { content: "M", model: testModelId("m") } }]),
       resolveChatPresetParams: NO_CHAT_PARAMS,
     });
     const result = await quiet(paramsOf(chatId));
@@ -123,7 +124,7 @@ describe("quietGenerate — the verb's own contract", () => {
   test("COMMITS ZERO canon: no messages / message_variants rows are written for the chat", async () => {
     const chatId = await seedChat(db, "q3");
     const quiet = createQuietGenerate({
-      runChatTurn: scriptedRun([], [{ kind: "final", economics: { content: "M", costUsd: 0.01, model: "m" } }]),
+      runChatTurn: scriptedRun([], [{ kind: "final", economics: { content: "M", costUsd: 0.01, model: testModelId("m") } }]),
       resolveChatPresetParams: NO_CHAT_PARAMS,
     });
 

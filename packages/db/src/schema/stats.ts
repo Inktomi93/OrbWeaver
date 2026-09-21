@@ -34,7 +34,9 @@
 // Cache economics (`cacheReadTokens`/`cacheWriteTokens`) + `maxContextTokens` are OWNER + MODEL grain only,
 // NOT per-character — character_stats omits them.
 
-import type { CharacterId, CharacterStatId, DailyStatId, ModelStatId, UserId } from "@orb/kit/ids";
+import type { ProviderId } from "@orb/contracts/inference";
+import type { CharacterId, CharacterStatId, DailyStatId, ModelId, ModelStatId, UserId } from "@orb/kit/ids";
+import { MODEL_PROVIDER_UNKNOWN } from "@orb/kit/stats-tally";
 import { sql } from "drizzle-orm";
 import { integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
@@ -43,7 +45,7 @@ import { users } from "./users.ts";
 
 // The `(unknown)` provider sentinel — see header. Mirrors `@orb/kit/stats-tally.modelKey`'s null-coalesce
 // and the read-side model/latency keys; all three MUST stay aligned (invariant #5).
-const PROVIDER_FALLBACK = "(unknown)";
+const PROVIDER_FALLBACK = MODEL_PROVIDER_UNKNOWN;
 
 // Born-at-insert epoch-ms clock for `computedAt` (the live delta always supplies `delta.now`; this default
 // only covers a bare insert). SQL `unixepoch()`, never a JS clock (the determinism gate).
@@ -235,10 +237,10 @@ export const modelStats = sqliteTable(
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "restrict" }),
-    model: text("model").notNull(),
+    model: text("model").$type<ModelId>().notNull(),
     // LOAD-BEARING `(unknown)` sentinel — NOT NULL so the (owner, model, provider) unique never splits on
     // a NULL (SQLite NULLs are DISTINCT → duplicate rows across recompute). Coalesced to match modelKey.
-    provider: text("provider").notNull().default(PROVIDER_FALLBACK),
+    provider: text("provider").$type<ProviderId | typeof PROVIDER_FALLBACK>().notNull().default(PROVIDER_FALLBACK),
     generations: integer("generations").notNull().default(0),
     tokensIn: integer("tokens_in").notNull().default(0),
     tokensOut: integer("tokens_out").notNull().default(0),

@@ -4,8 +4,8 @@
 // test hands in, which is the whole point of the deps interface (§11).
 
 import type { ResolvedSecret, ResolvedSecretKind } from "@orb/contracts/credentials";
-import type { Capability, ConnectionBinding, EndpointFeatures, ProviderDef, ProviderId, RoutableTask, Task, UserConnection } from "@orb/contracts/inference";
-import { builtinProvider, foldFeatures, requirementMet, taskDef } from "@orb/contracts/inference";
+import type { Capability, ConnectionBinding, EndpointFeatures, ProviderDef, RoutableTask, Task, UserConnection } from "@orb/contracts/inference";
+import { builtinProvider, foldFeatures, modelIdSchema, providerIdSchema, requirementMet, taskDef } from "@orb/contracts/inference";
 import type { AutomationRuleId, ModelId, PluginId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
@@ -58,7 +58,8 @@ export function fakeConnection(overrides: ConnectionOverrides): UserConnection {
     createdAt: FROZEN_NOW,
     updatedAt: FROZEN_NOW,
     ...overrides,
-    providerId: castId<ProviderId>(overrides.providerId),
+    model: modelIdSchema.parse(overrides.model),
+    providerId: providerIdSchema.parse(overrides.providerId),
   };
 }
 

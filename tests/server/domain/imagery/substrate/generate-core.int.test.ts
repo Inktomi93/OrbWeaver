@@ -49,6 +49,19 @@ describe("sumCost", () => {
 });
 
 describe("runGeneration", () => {
+  test("imagery_generations.model refuses a blank provider-reported model before persistence", async () => {
+    const db = await freshDb();
+    const owner = await seedGenerationOwner(db, castId<Handle>("owner"));
+    const base64 = Buffer.from(PNG_BYTES).toString("base64");
+    const { ctx } = makeHarness(db, {
+      generateImage: () =>
+        Promise.resolve({ images: [{ base64, mediaType: "image/png", url: undefined }], model: "   ", usage: { costUsd: null }, warnings: [] }),
+    });
+
+    await expect(runGeneration(ctx, REQ, { ...PROV, caller: principal(owner) })).rejects.toThrow();
+    expect(await db.select().from(imageryGenerations)).toEqual([]);
+  });
+
   test("zero decodable images (no base64, fetch returns null) throws GenerationFailedError", async () => {
     const db = await freshDb();
     const owner = await seedGenerationOwner(db, castId<Handle>("owner"));

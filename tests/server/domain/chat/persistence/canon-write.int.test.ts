@@ -24,6 +24,7 @@ import {
 import { loadCanonHistory, loadMaxMessageSeq, loadSlotTarget } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
 import { FROZEN_AT, seedCharacter, seedChat, seedMessage, seedUser } from "../_support.ts";
 
 let db: Db;
@@ -52,8 +53,8 @@ describe("persistence/canon-write — the D26 3-step dance", () => {
       now: FROZEN_AT,
       variant: {
         content: "hello world",
-        model: "opus",
-        provider: "anthropic",
+        model: testModelId("opus"),
+        provider: testProviderId("anthropic"),
         tokensIn: 12,
         tokensOut: 7,
       },

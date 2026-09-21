@@ -15,6 +15,7 @@ import { beforeEach, describe } from "vitest";
 import { applyStatsDelta } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
 import { seedCharacter, seedUser, T0 } from "../_support.ts";
 
 let db: Db;
@@ -38,8 +39,8 @@ function makeDelta(over: Partial<StatsDelta>): StatsDelta {
     ownerId,
     characterId,
     day: "2025-06-01",
-    model: "gpt",
-    provider: "openrouter",
+    model: testModelId("gpt"),
+    provider: testProviderId("openrouter"),
     now: T0,
     ...over,
   };
@@ -100,8 +101,8 @@ describe("applyStatsDelta", () => {
   });
 
   test("a null-provider model coalesces to the (unknown) sentinel — one row across recompute", async () => {
-    await apply(makeDelta({ model: "local", provider: null, modelGenerations: 1 }));
-    await apply(makeDelta({ model: "local", provider: null, modelGenerations: 1 }));
+    await apply(makeDelta({ model: testModelId("local"), provider: null, modelGenerations: 1 }));
+    await apply(makeDelta({ model: testModelId("local"), provider: null, modelGenerations: 1 }));
 
     const rows = await db.select().from(modelStats).where(eq(modelStats.ownerId, ownerId));
     const local = rows.filter((r) => r.model === "local");
