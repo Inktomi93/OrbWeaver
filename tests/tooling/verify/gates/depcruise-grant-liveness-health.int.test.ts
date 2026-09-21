@@ -16,9 +16,9 @@
 // gate-authority.test.ts` owns them ("invalid coordinates, not-applicable findings, blank identities…"),
 // which is the control proving this fix came from moving the arm to an authority that admits it, never from
 // weakening the check the arm used to trip.
-import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
 import { Project } from "ts-morph";
 import { PACKAGE_RESOURCE_PATHS } from "../../../../tooling/src/verify/contract/resource-config.ts";
 import { classifyRegex, gate as sibling } from "../../../../tooling/src/verify/gates/depcruise-grant-liveness.ts";
@@ -75,8 +75,8 @@ function plantRepo(root: string, count: number): void {
     mkdirSync(join(root, dirname(rel)), { recursive: true });
     writeFileSync(join(root, rel), '{ "name": "fixture", "private": true }\n');
   }
-  execFileSync("git", ["-c", "core.hooksPath=/dev/null", "init", "-q"], { cwd: root });
-  execFileSync("git", ["-c", "core.hooksPath=/dev/null", "add", "-A"], { cwd: root });
+  execFixtureGit(root, ["init", "-q"]);
+  execFixtureGit(root, ["add", "-A"]);
 }
 
 function drive(root: string): ReturnType<typeof runPolicyPass> {

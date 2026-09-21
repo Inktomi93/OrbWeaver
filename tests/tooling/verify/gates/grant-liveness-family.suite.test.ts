@@ -37,9 +37,9 @@
 // so no committed test executed these policies' proofs, including depcruise's #973 pattern-liveness rows.
 // `verifyPolicyProofs` runs each row through the production dispatcher (`runPolicyPass`), so an empty result
 // is the receipt that every arm still fires on its own fixture.
-import { execFileSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
 import { Project } from "ts-morph";
 import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import { gate as biomeGrantLiveness } from "../../../../tooling/src/verify/gates/biome-grant-liveness.ts";
@@ -113,8 +113,8 @@ const DEAD_GRANT: ReviewedGateGrant = {
 function driveWithGrants(root: string, grants: readonly ReviewedGateGrant[]): ReturnType<typeof runPolicyPass> {
   const config = `{\n  "overrides": [\n    {\n      "includes": ["${DEAD_SUBJECT}"],\n      "linter": { "rules": {} }\n    }\n  ]\n}\n`;
   writeFileSync(join(root, "biome.json"), config);
-  execFileSync("git", ["-c", "core.hooksPath=/dev/null", "init", "-q"], { cwd: root });
-  execFileSync("git", ["-c", "core.hooksPath=/dev/null", "add", "-A"], { cwd: root });
+  execFixtureGit(root, ["init", "-q"]);
+  execFixtureGit(root, ["add", "-A"]);
   const project = new Project({ useInMemoryFileSystem: true });
   return runPolicyPass({
     knownPolicies: [biomeGrantLiveness, biomeGrantLivenessHealth],

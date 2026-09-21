@@ -13,9 +13,9 @@
 // real tree would red any concurrent whole-tree biome pass, and `**/__probe*` is gitignored so biome
 // (useIgnoreFile) never sees a probe planted there — measured on this tree 2026-09-05: four planted probe
 // files came back "No files were processed in the specified paths".
-import { execFileSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
 import { CONTRACT_BANNED_SHAPES, SCHEMA_BANNED_SHAPES } from "@orb/tooling/verify";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -84,8 +84,8 @@ function seedRoot(scratch: string, repoRoot: string): void {
     plant(scratch, rel, body);
   }
   plant(scratch, ALLOWED_FILE, ALLOWED_BODY);
-  execFileSync("git", ["init", "-q"], { cwd: scratch });
-  execFileSync("git", ["add", "-A"], { cwd: scratch });
+  execFixtureGit(scratch, ["init", "-q"]);
+  execFixtureGit(scratch, ["add", "-A"]);
 }
 
 function checkWithBiome(scratch: string, repoRoot: string, files: readonly string[]): BiomeReport {

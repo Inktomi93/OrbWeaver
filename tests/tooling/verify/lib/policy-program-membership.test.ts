@@ -1,7 +1,7 @@
 // Program discovery uses authored paths and compiler references, independent of directory layout.
 import { mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
-import { execNicedSync } from "@orb/tooling/_shared/proc";
+import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
 import { readCompilerPrograms } from "@orb/tooling/verify";
 import type { PolicyProgramMembership } from "../../../../tooling/src/verify/contract/policy-scope.ts";
 import {
@@ -14,7 +14,7 @@ import { readPolicyRepositoryInventory } from "../../../../tooling/src/verify/li
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function plant(root: string, files: Readonly<Record<string, string>>): void {
-  execNicedSync("git", ["init", "--quiet", "--template=", "--initial-branch=main"], { cwd: root });
+  execFixtureGit(root, ["init", "--quiet", "--template=", "--initial-branch=main"]);
   for (const [path, text] of Object.entries(files)) {
     mkdirSync(dirname(join(root, path)), { recursive: true });
     writeFileSync(join(root, path), text);

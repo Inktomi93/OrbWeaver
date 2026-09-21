@@ -10,10 +10,10 @@
 //   the expensive halves are exercised where they belong: the census derivation keeps its bijection proof
 //   in the int suite above (~19s of ts-morph), and the manifest derivation runs for real HERE (git
 //   ls-files, milliseconds) as the real-tree green + the blindness control.
-import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
 import type { CaughtFailurePopulation, CaughtFailureRow } from "@orb/tooling/verify";
 import {
   BASELINE_HELP,
@@ -126,7 +126,7 @@ test("a derivation that comes back EMPTY is a TOOL ERROR (exit 2), never a fresh
       join(root, "docs", "reviews", "caught-failure-ownership", "population.json"),
       JSON.stringify({ gate: "x", generatedBy: "x", totals: {}, rows: [] }),
     );
-    execFileSync("git", ["init", "-q"], { cwd: root });
+    execFixtureGit(root, ["init", "-q"]);
 
     const check = LEDGER_CHECKS["caught-failure-population"];
     expect(check).toBeDefined();

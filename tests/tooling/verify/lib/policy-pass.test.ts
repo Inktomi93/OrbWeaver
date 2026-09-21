@@ -1,6 +1,6 @@
-import { execFileSync } from "node:child_process";
 import { symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
 import type { SourceFile } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
 import type { GateFact } from "../../../../tooling/src/verify/contract/fact.ts";
@@ -1447,8 +1447,8 @@ function nativeConfigTransaction(root: string): void {
   writeFileSync(join(root, "target.md"), "target\n");
   symlinkSync("target.md", join(root, "link.md"));
   writeFileSync(join(root, "bad.md"), Buffer.from([0xff, 0xfe, 0x41, 0x0a]));
-  execFileSync("git", ["init", "-q"], { cwd: root });
-  execFileSync("git", ["add", "-A"], { cwd: root });
+  execFixtureGit(root, ["init", "-q"]);
+  execFixtureGit(root, ["add", "-A"]);
 }
 
 function nativeConfigPolicy(id: string, authority: GatePolicy["authority"]): GatePolicy {

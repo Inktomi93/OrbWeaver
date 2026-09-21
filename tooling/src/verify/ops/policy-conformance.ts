@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
-import { runNicedSync } from "@orb/tooling/_shared/proc";
+import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
 import type { SourceFile } from "ts-morph";
 import { Project } from "ts-morph";
 import type { CoordinatedGateFinding, ReviewedGateGrant } from "../contract/gate-authority.ts";
@@ -17,7 +17,7 @@ import { declaresModuleName } from "../lib/policy-descriptor-read.ts";
 import { runPolicyPass } from "../lib/policy-pass.ts";
 import { policyProofRows } from "../lib/policy-proof-rows.ts";
 import { isPolicySourceCandidate } from "../lib/policy-source-candidate.ts";
-import { FIXTURE_GIT_CONFIG_ARGS, fixtureGitEnvironment, ROOT } from "../lib/repo-paths.ts";
+import { ROOT } from "../lib/repo-paths.ts";
 import { invocationPolicies, messageOf } from "./policy-conformance-validation.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm test:scoped tests/tooling/verify/ops/policy-conformance.test.ts");
@@ -178,15 +178,11 @@ function* runResourceExample({ policy, proof, grantSets = NO_GRANTS }: Omit<Exam
       symlinkSync(target, absolute);
     }
     // Resource proofs own their index, including native config and tracked-file consumers.
-    const env = fixtureGitEnvironment();
     for (const args of [
       ["init", "--quiet"],
       ["add", "--all"],
     ]) {
-      const git = runNicedSync("git", [...FIXTURE_GIT_CONFIG_ARGS, ...args], { cwd: root, env });
-      if (git.status !== 0) {
-        throw new Error(`proof Git ${args[0]} failed: ${git.stderr.trim()}`);
-      }
+      execFixtureGit(root, args);
     }
     const parser = new Project({ useInMemoryFileSystem: true });
     // The overlay is the AUTHORED transaction, and the reader refuses a non-authored segment outright

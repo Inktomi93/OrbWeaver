@@ -13,7 +13,7 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
-import { execNicedSync } from "@orb/tooling/_shared/proc";
+import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
 import { classifyMembership, compareRoutingParity, findTripleSlashLibLeaks, runTestsTypeMembership } from "@orb/tooling/verify";
 import { vi } from "vitest";
 import type { MembershipReport } from "../../../../tooling/src/verify/contract/tests-type-membership.ts";
@@ -29,7 +29,7 @@ function withScratchDir<T>(fn: (dir: string) => T): T {
 }
 
 function plantNativeMembershipRepo(repoRoot: string, scratch: string, files: Readonly<Record<string, string>>): void {
-  execNicedSync("git", ["init", "--quiet", "--template=", "--initial-branch=main"], { cwd: scratch });
+  execFixtureGit(scratch, ["init", "--quiet", "--template=", "--initial-branch=main"]);
   writeFileSync(join(scratch, ".gitignore"), "node_modules\ndeps/\nscripts/ts7.cjs\n");
   symlinkSync(join(repoRoot, "node_modules"), join(scratch, "node_modules"), "dir");
   mkdirSync(join(scratch, "scripts"), { recursive: true });

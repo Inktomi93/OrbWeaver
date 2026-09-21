@@ -1,6 +1,6 @@
-import { spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
 import { TEST_KIND_DEFINITIONS } from "@orb/tooling/_shared/test-kinds";
 import { castStringLiteralsByDiagnostic, createCodemodProject, deleteFiles, isTestFile, moveFiles, runCodemod } from "@orb/tooling/codemod";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -9,8 +9,7 @@ import { scaledBudget } from "../../_load-budget.ts";
 const SEMANTIC_RUN_TIMEOUT_MS = scaledBudget(20_000);
 
 function initializeGit(root: string): void {
-  const initialized = spawnSync("git", ["init", "--quiet", "--template=", "--initial-branch=main"], { cwd: root, encoding: "utf8" });
-  expect(initialized.status, initialized.stderr).toBe(0);
+  execFixtureGit(root, ["init", "--quiet", "--template=", "--initial-branch=main"]);
 }
 
 test("createCodemodProject honors the explicit config basename", ({ scratch }) => {

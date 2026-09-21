@@ -3,17 +3,14 @@
 // in a disposable repo and proves every stage derives from the one classification.
 import { mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { runNicedSync } from "@orb/tooling/_shared/proc";
+import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
 import type { Selection, StageDef } from "../../../../tooling/src/verify/index.ts";
 import { REGISTRY, resolveSelection } from "../../../../tooling/src/verify/index.ts";
 import { gitChangedPathClassification } from "../../../../tooling/src/verify/lib/repo-paths.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function git(root: string, args: readonly string[]): void {
-  const result = runNicedSync("git", [...args], { cwd: root });
-  if (result.status !== 0) {
-    throw new Error(`git ${args.join(" ")} failed (${String(result.status)}): ${result.stderr}`);
-  }
+  execFixtureGit(root, args);
 }
 
 function stage(name: string): StageDef {

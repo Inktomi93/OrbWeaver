@@ -1,7 +1,7 @@
 // Typecheck routing is derived from native compiler roots; intent only selects a primary among real roots.
 import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { execNicedSync } from "@orb/tooling/_shared/proc";
+import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
 import { planTypecheckPrograms } from "@orb/tooling/verify";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
@@ -14,7 +14,7 @@ test("affected routing retains concrete parents for exclusive roots, shared root
   scratch,
   repoRoot,
 }) => {
-  execNicedSync("git", ["init", "--quiet", "--template=", "--initial-branch=main"], { cwd: scratch });
+  execFixtureGit(scratch, ["init", "--quiet", "--template=", "--initial-branch=main"]);
   mkdirSync(join(scratch, "scripts"));
   symlinkSync(join(repoRoot, "scripts/ts7.cjs"), join(scratch, "scripts/ts7.cjs"), "file");
   symlinkSync(join(repoRoot, "node_modules"), join(scratch, "node_modules"), "dir");
@@ -104,7 +104,7 @@ test("affected routing includes native imported consumers while direct DOM roots
 });
 
 test("unknown TS roots and malformed configs refuse while an unused empty template is not applicable", ({ scratch }) => {
-  execNicedSync("git", ["init", "--quiet", "--template=", "--initial-branch=main"], { cwd: scratch });
+  execFixtureGit(scratch, ["init", "--quiet", "--template=", "--initial-branch=main"]);
   const write = (path: string, text: string): void => {
     mkdirSync(dirname(join(scratch, path)), { recursive: true });
     writeFileSync(join(scratch, path), text);
@@ -123,7 +123,7 @@ test("unknown TS roots and malformed configs refuse while an unused empty templa
 });
 
 test("the in-process membership snapshot invalidates when authored bytes add a root", ({ scratch }) => {
-  execNicedSync("git", ["init", "--quiet", "--template=", "--initial-branch=main"], { cwd: scratch });
+  execFixtureGit(scratch, ["init", "--quiet", "--template=", "--initial-branch=main"]);
   mkdirSync(join(scratch, "src"), { recursive: true });
   writeFileSync(join(scratch, "tsconfig.json"), '{"include":["src/one.ts"]}\n');
   writeFileSync(join(scratch, "src/one.ts"), "export {};\n");
