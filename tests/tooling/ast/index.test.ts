@@ -1362,6 +1362,73 @@ export function bulk(row: { id: string }): void {
     expect(audit.opaqueTables.has("widgets")).toBe(true);
   });
 
+  test("an `insert(table).select(query)` attributes the select projection as writes", () => {
+    const project = projectOf({
+      ...COLUMN_FILES,
+      "packages/server/src/domain/widget/insert-select.ts": `
+import { db } from "../../../../db/src/drizzle";
+import { widgets } from "../../../../db/src/schema/widgets";
+declare const sql: <T>(parts: TemplateStringsArray, ...values: unknown[]) => { as: (name: string) => T };
+export function copy(): void {
+  db.insert(widgets).select(db.select({
+    id: sql<string>\`\${"new-id"}\`.as("id"),
+    label: widgets.label,
+    origin: sql<string>\`\${"copy"}\`.as("origin"),
+  }).from(widgets));
+}
+`,
+    });
+    const audit = collectColumnCandidates(project, collectSchemaTables(project));
+    const byName = new Map(audit.candidates.map((candidate) => [candidate.column.jsProp, candidate]));
+    expect(byName.get("id")?.writes).toHaveLength(2);
+    expect(byName.get("label")?.writes).toHaveLength(2);
+    expect(byName.get("origin")?.writes).toHaveLength(2);
+    expect(byName.get("ghost")?.writes).toEqual([]);
+    expect(audit.opaqueTables.has("widgets")).toBe(false);
+  });
+
+  test("a positional insert-select marks the target table opaque instead of inventing destination columns", () => {
+    const project = projectOf({
+      ...COLUMN_FILES,
+      "packages/server/src/domain/widget/positional-select.ts": `
+import { db } from "../../../../db/src/drizzle";
+import { widgets } from "../../../../db/src/schema/widgets";
+export function copy(): void {
+  db.insert(widgets).select(db.select().from(widgets));
+}
+`,
+    });
+    const audit = collectColumnCandidates(project, collectSchemaTables(project));
+    expect(audit.opaqueTables.has("widgets")).toBe(true);
+    expect(audit.candidates.find((candidate) => candidate.column.jsProp === "ghost")?.klass).toBe("write-only");
+  });
+
+  test("a static raw-SQL INSERT attributes only its target table's named columns", () => {
+    const project = projectOf({
+      ...COLUMN_FILES,
+      "packages/server/src/domain/widget/raw-insert.ts": `
+declare const sql: (parts: TemplateStringsArray, ...values: unknown[]) => unknown;
+declare const sqlFake: (parts: TemplateStringsArray, ...values: unknown[]) => unknown;
+declare const db: { run: (query: unknown) => void };
+export function writeRaw(id: string): void {
+  db.run(sql\`INSERT INTO widgets (id, origin) SELECT \${id}, 'import'\`);
+  db.run(sql\`INSERT INTO "widgets" ("label") VALUES ('quoted')\`);
+  db.run(sql\`SELECT ghost FROM widgets\`);
+  db.run(sql\`INSERT INTO other_table (tally) VALUES (1)\`);
+  db.run(sql\`SELECT 'INSERT INTO widgets (ghost)' /* INSERT INTO widgets (tally) */\`);
+  db.run(sqlFake\`INSERT INTO widgets (ghost) VALUES ('decoy')\`);
+}
+`,
+    });
+    const audit = collectColumnCandidates(project, collectSchemaTables(project));
+    const byName = new Map(audit.candidates.map((candidate) => [candidate.column.jsProp, candidate]));
+    expect(byName.get("id")?.writes).toHaveLength(2);
+    expect(byName.get("origin")?.writes).toHaveLength(2);
+    expect(byName.get("label")?.writes).toHaveLength(2);
+    expect(byName.get("ghost")?.writes).toEqual([]);
+    expect(byName.get("tally")?.writes).toHaveLength(2);
+  });
+
   test("a DEFAULTED created_at/updated_at nobody reads is `provenance`, not the RV-11 write-only class", () => {
     // LENS CALIBRATION (2026-08-13): every write-only row the real tree produced was a junction table's
     // audit stamp, and the audit that consumed them wrote "safe to kill". An audit stamp nothing reads back

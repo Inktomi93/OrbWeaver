@@ -16,7 +16,8 @@ export function rawSqlBlob(project: SourceCorpus): string {
       continue;
     }
     for (const tagged of sf.getDescendantsOfKind(SyntaxKind.TaggedTemplateExpression)) {
-      if (tagged.getTag().getText().startsWith("sql")) {
+      const tag = tagged.getTag();
+      if (Node.isIdentifier(tag) && tag.getText() === "sql") {
         parts.push(tagged.getTemplate().getText());
       }
     }
