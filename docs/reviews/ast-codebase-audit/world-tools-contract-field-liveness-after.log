@@ -1,0 +1,316 @@
+contract-field-liveness is an INFORMATIONAL lens — it NEVER gates. A field here is one NO producer spells outside its own declaration; two classes are separated by whether anything SPELLS its name as a read. BLIND SPOTS, stated: a TEMPLATE-LITERAL producer is invisible (TanStack Form's `name={\`sections[${i}].field\`}` is a real write path no key index can see — the PLAIN `name="field"` attribute and `setFieldValue("a.b", v)` ARE indexed), a SAME-NAMED field anywhere hides a finding (this lens under-reports, never over-), reader attribution is NAME-matched and never type-resolved (a same-named property on another shape reads as a consumer), brand phantom-symbols are skipped as computed names, and a `{ ...spread }` producer names no key. TESTS ARE NOT PRODUCERS (the `testonly`/`regkeys` rule): a field only a fixture constructs is exactly the RepetitionDetection shape, so it is REPORTED, not absolved. The fence is the DECLARATION SITE, never a package — `contracts` legitimately holds pure builders (the audit's wrong package-fence produced 27 false hits). A wire-INPUT-only schema (a tRPC `.input()`, a plugin-guest DTO) is still REPORTED: fencing by router input would fence most of contracts. Prototype + the two real findings: docs/history/reviews/misc/2026-08-18-silent-reader-audit.md §5; the 70-hit read that shaped the producer index: docs/history/reviews/misc/2026-08-19-lens-triage-210.md. (3538 field(s) examined over 129 contracts file(s).)
+MODEL-PROJECTED FENCE: 17 hit(s) EXCLUDED (not counted below) across 8 schema(s) whose keys a MODEL writes — projected via projectJsonSchema/z.toJSONSchema or registered as a tool `argsSchema`, so no on-tree producer exists by construction: forgeDesignEnvelopeSchema, plotPatchSchema, refineryAnalyzePayloadSchema, refineryScorePayloadSchema, updateInventoryArgsSchema, updatePartyArgsSchema, updateSceneArgsSchema, upsertQuestArgsSchema.
+SCHEMA-COMPOSITION-ALIAS FENCE (#879): 2 hit(s) EXCLUDED (not counted below) — a declared schema REUSED under another wire name (the live shape is preset's `thresholdPct: generationKnobSchemas.compactionThresholdPct`), whose own name has no producer BY CONSTRUCTION. Owner-matched, so an ordinary `dims: block.dims` pass-through is NOT absolved (tooling/src/ast/lib/fields.ts).
+HIT CLASSES (#879 — derived, never declared; only `unclassified` is worth a human read): foreign-format=7 · guest=18 · template-key=9 · unclassified=14. `template-key` = a corpus template literal brackets the name, so the producer BUILDS the key and no key index can see it; `guest` = the plugin key space, whose producer is a guest; `foreign-format` = an ST / character-card schema, produced by a foreign file. A `dormant-cited` class is DELIBERATELY ABSENT — nothing in contracts EXPRESSES dormancy, so those hits stay `unclassified` rather than wear a label inferred from prose (tooling/src/ast/lib/fields.ts).
+{
+ "label": "contract-field-liveness (all contract fields)",
+ "total": 48,
+ "shown": 48,
+ "hits": [
+  {
+   "file": "packages/contracts/src/automation/index.ts",
+   "line": 627,
+   "kind": "field-consumed-never-populated",
+   "text": "[unclassified] automationActionSchema.resultVar — NO producer spells this name outside its own declaration, but 1 site(s) SPELL this NAME as a read (packages/server/src/domain/automation/engine/arm-executors.ts) — the RepetitionDetection class, name-matched not type-resolved"
+  },
+  {
+   "file": "packages/contracts/src/character/index.ts",
+   "line": 147,
+   "kind": "field-declared-only",
+   "text": "[unclassified] cardAssetSchema.uri — NO producer spells this name outside its own declaration, and NOTHING spells it either — the declaration is its only occurrence (the activeSpeakerCharacterId class)"
+  },
+  {
+   "file": "packages/contracts/src/character/index.ts",
+   "line": 518,
+   "kind": "field-consumed-never-populated",
+   "text": "[foreign-format] characterCardV3DataSchema.creator_notes_multilingual — NO producer spells this name outside its own declaration, but 1 site(s) SPELL this NAME as a read (packages/server/src/kit/serde/card/index.ts) — the RepetitionDetection class, name-matched not type-resolved"
+  },
+  {
+   "file": "packages/contracts/src/chat/messages.ts",
+   "line": 494,
+   "kind": "field-consumed-never-populated",
+   "text": "[unclassified] reattributeScopeSchema.fromSeq — NO producer spells this name outside its own declaration, but 1 site(s) SPELL this NAME as a read (packages/server/src/domain/chat/verbs/edit.ts) — the RepetitionDetection class, name-matched not type-resolved"
+  },
+  {
+   "file": "packages/contracts/src/inference/connection.ts",
+   "line": 32,
+   "kind": "field-consumed-never-populated",
+   "text": "[unclassified] connectionTransportSchema.includeBody — NO producer spells this name outside its own declaration, but 3 site(s) SPELL this NAME as a read (packages/inference/src/backends/kit/sanitize.ts, packages/inference/src/backends/openai-compat/body.ts, packages/inference/src/backends/openai-compat/diagnostics.ts) — the RepetitionDetection class, name-matched not type-resolved"
+  },
+  {
+   "file": "packages/contracts/src/inference/features.ts",
+   "line": 61,
+   "kind": "field-consumed-never-populated",
+   "text": "[unclassified] endpointFeaturesSchema.inputPerMTok — NO producer spells this name outside its own declaration, but 1 site(s) SPELL this NAME as a read (packages/inference/src/backends/v4/result.ts) — the RepetitionDetection class, name-matched not type-resolved"
+  },
+  {
+   "file": "packages/contracts/src/inference/features.ts",
+   "line": 61,
+   "kind": "field-consumed-never-populated",
+   "text": "[unclassified] endpointFeaturesSchema.outputPerMTok — NO producer spells this name outside its own declaration, but 1 site(s) SPELL this NAME as a read (packages/inference/src/backends/v4/result.ts) — the RepetitionDetection class, name-matched not type-resolved"
+  },
+  {
+   "file": "packages/contracts/src/inference/features.ts",
+   "line": 72,
+   "kind": "field-consumed-never-populated",
+   "text": "[unclassified] endpointFeaturesSchema.floorTokensPerSec — NO producer spells this name outside its own declaration, but 1 site(s) SPELL this NAME as a read (packages/inference/src/backends/openai-compat/embed.ts) — the RepetitionDetection class, name-matched not type-resolved"
+  },
+  {
+   "file": "packages/contracts/src/inference/usage.ts",
+   "line": 57,
+   "kind": "field-consumed-never-populated",
+   "text": "[unclassified] NestedUsage.cacheRead — NO producer spells this name outside its own declaration, but 1 site(s) SPELL this NAME as a read (packages/contracts/src/inference/usage.ts) — the RepetitionDetection class, name-matched not type-resolved"
+  },
+  {
+   "file": "packages/contracts/src/inference/usage.ts",
+   "line": 57,
+   "kind": "field-consumed-never-populated",
+   "text": "[unclassified] NestedUsage.cacheWrite — NO producer spells this name outside its own declaration, but 1 site(s) SPELL this NAME as a read (packages/contracts/src/inference/usage.ts) — the RepetitionDetection class, name-matched not type-resolved"
+  },
+  {
+   "file": "packages/contracts/src/plugin/host-v1.ts",
+   "line": 515,
+   "kind": "field-declared-only",
+   "text": "[guest] PluginHostV1.registerDisplay — NO producer spells this name outside its own declaration, and NOTHING spells it either — the declaration is its only occurrence (the activeSpeakerCharacterId class)"
+  },
+  {
+   "file": "packages/contracts/src/plugin/host-v1.ts",
+   "line": 549,
+   "kind": "field-declared-only",
+   "text": "[guest] PluginHostV1.net — NO producer spells this name outside its own declaration, and NOTHING spells it either — the declaration is its only occurrence (the activeSpeakerCharacterId class)"
+  },
+  {
+   "file": "packages/contracts/src/plugin/host-v1.ts",
+   "line": 573,
+   "kind": "field-declared-only",
+   "text": "[guest] PluginHostV1.fetchAsset — NO producer spells this name outside its own declaration, and NOTHING spells it either — the declaration is its only occurrence (the activeSpeakerCharacterId class)"
+  },
+  {
+   "file": "packages/contracts/src/plugin/host-v1.ts",
+   "line": 629,
+   "kind": "field-declared-only",
+   "text": "[guest] PluginHostV1.registerCommand — NO producer spells this name outside its own declaration, and NOTHING spells it either — the declaration is its only occurrence (the activeSpeakerCharacterId class)"
+  },
+  {
+   "file": "packages/contracts/src/plugin/host-v1.ts",
+   "line": 667,
+   "kind": "field-declared-only",
+   "text": "[guest] PluginHostV1.registerFrame — NO producer spells this name outside its own declaration, and NOTHING spells it either — the declaration is its only occurrence (the activeSpeakerCharacterId class)"
+  },
+  {
+   "file": "packages/contracts/src/plugin/manifest.ts",
+   "line": 217,
+   "kind": "field-consumed-never-populated",
+   "text": "[guest] pluginBuiltAgainstSchema.engineVersion — NO producer spells this name outside its own declaration, but 1 site(s) SPELL this NAME as a read (packages/client/src/features/plugin/lib/plugin-copy.ts) — the RepetitionDetection class, name-matched not type-resolved"
+  },
+  {
+   "file": "packages/contracts/src/plugin/manifest.ts",
+   "line": 218,
+   "kind": "field-declared-only",
+   "text": "[guest] pluginBuiltAgainstSchema.engineCommit — NO producer spells this name outside its own declaration, and NOTHING spells it either — the declaration is its only occurrence (the activeSpeakerCharacterId class)"
+  },
+  {
+   "file": "packages/contracts/src/plugin/manifest.ts",
+   "line": 274,
+   "kind": "field-declared-only",
+   "text": "[guest] pluginManifestSchema.hostVersion — NO producer spells this name outside its own declaration, and NOTHING spells it either — the declaration is its only occurrence (the activeSpeakerCharacterId class)"
+  },
+  {
+   "file": "packages/contracts/src/plugin/manifest.ts",
+   "line": 282,
+   "kind": "field-consumed-never-populated",
+   "text": "[guest] pluginManifestSchema.uiEntry — NO producer spells this name outside its own declaration, but 3 site(s) SPELL this NAME as a read (packages/contracts/src/plugin/manifest.ts, packages/server/src/domain/plugin/substrate/manifest.ts, packages/server/src/domain/plugin/verbs/get-ui-bundle.ts) — the RepetitionDetection class, name-matched not type-resolved"
+  },
+  {
+   "file": "packages/contracts/src/plugin/manifest.ts",
+   "line": 284,
+   "kind": "field-consumed-never-populated",
+   "text": "[guest] pluginManifestSchema.author — NO producer spells this name outside its own declaration, but 1 site(s) SPELL this NAME as a read (packages/client/src/features/plugin/components/plugin-install-card.tsx) — the RepetitionDetection class, name-matched not type-resolved"
+  },
+  {
+   "file": "packages/contracts/src/plugin/ui.ts",
+   "line": 432,
+   "kind": "field-consumed-never-populated",
+   "text": "[guest] PluginStateBinding.$state — NO producer spells this name outside its own declaration, but 2 site(s) SPELL this NAME as a read (packages/contracts/src/plugin/ui.ts, packages/client/src/features/plugin/lib/plugin-surface-bindings.ts) — the RepetitionDetection class, name-matched not type-resolved"
+  },
+  {
+   "file": "packages/contracts/src/plugin/ui.ts",
+   "line": 710,
+   "kind": "field-consumed-never-populated",
+   "text": "[guest] PluginGridNode.tiles — NO producer spells this name outside its own declaration, but 3 site(s) SPELL this NAME as a read (packages/contracts/src/plugin/ui.ts, packages/client/src/features/home/surfaces/home-surface.tsx, packages/client/src/features/plugin/lib/plugin-surface-bindings.ts) — the RepetitionDetection class, name-matched not type-resolved"
+  },
+  {
+   "file": "packages/contracts/src/plugin/ui.ts",
+   "line": 806,
+   "kind": "field-consumed-never-populated",
+   "text": "[guest] PluginSearchBarNode.filters — NO producer spells this name outside its own declaration, but 2 site(s) SPELL this NAME as a read (packages/contracts/src/plugin/ui.ts, packages/client/src/features/plugin/components/plugin-browse-nodes.tsx) — the RepetitionDetection class, name-matched not type-resolved"
+  },
+  {
+   "file": "packages/contracts/src/plugin/ui.ts",
+   "line": 844,
+   "kind": "field-consumed-never-populated",
+   "text": "[guest] stateBindingSchema.$state — NO producer spells this name outside its own declaration, but 2 site(s) SPELL this NAME as a read (packages/contracts/src/plugin/ui.ts, packages/client/src/features/plugin/lib/plugin-surface-bindings.ts) — the RepetitionDetection class, name-matched not type-resolved"
+  },
+  {
+   "file": "packages/contracts/src/plugin/ui.ts",
+   "line": 952,
+   "kind": "field-consumed-never-populated",
+   "text": "[guest] pluginSurfaceNodeSchema.tiles — NO producer spells this name outside its own declaration, but 3 site(s) SPELL this NAME as a read (packages/contracts/src/plugin/ui.ts, packages/client/src/features/home/surfaces/home-surface.tsx, packages/client/src/features/plugin/lib/plugin-surface-bindings.ts) — the RepetitionDetection class, name-matched not type-resolved"
+  },
+  {
+   "file": "packages/contracts/src/plugin/ui.ts",
+   "line": 1022,
+   "kind": "field-consumed-never-populated",
+   "text": "[guest] pluginSurfaceNodeSchema.filters — NO producer spells this name outside its own declaration, but 2 site(s) SPELL this NAME as a read (packages/contracts/src/plugin/ui.ts, packages/client/src/features/plugin/components/plugin-browse-nodes.tsx) — the RepetitionDetection class, name-matched not type-resolved"
+  },
+  {
+   "file": "packages/contracts/src/plugin/ui.ts",
+   "line": 1485,
+   "kind": "field-consumed-never-populated",
+   "text": "[guest] PluginCommandArgSpec.enumValues — NO producer spells this name outside its own declaration, but 3 site(s) SPELL this NAME as a read (packages/contracts/src/plugin/ui.ts, packages/client/src/features/plugin/components/plugin-command-args-body.tsx, packages/client/src/features/plugin/lib/plugin-command-dispatch.ts) — the RepetitionDetection class, name-matched not type-resolved"
+  },
+  {
+   "file": "packages/contracts/src/plugin/ui.ts",
+   "line": 1501,
+   "kind": "field-consumed-never-populated",
+   "text": "[guest] pluginCommandArgSpecSchema.enumValues — NO producer spells this name outside its own declaration, but 3 site(s) SPELL this NAME as a read (packages/contracts/src/plugin/ui.ts, packages/client/src/features/plugin/components/plugin-command-args-body.tsx, packages/client/src/features/plugin/lib/plugin-command-dispatch.ts) — the RepetitionDetection class, name-matched not type-resolved"
+  },
+  {
+   "file": "packages/contracts/src/preset/index.ts",
+   "line": 2748,
+   "kind": "field-consumed-never-populated",
+   "text": "[foreign-format] stPromptSchema.injection_position — NO producer spells this name outside its own declaration, but 1 site(s) SPELL this NAME as a read (packages/contracts/src/preset/index.ts) — the RepetitionDetection class, name-matched not type-resolved"
+  },
+  {
+   "file": "packages/contracts/src/preset/index.ts",
+   "line": 2749,
+   "kind": "field-consumed-never-populated",
+   "text": "[foreign-format] stPromptSchema.injection_depth — NO producer spells this name outside its own declaration, but 1 site(s) SPELL this NAME as a read (packages/contracts/src/preset/index.ts) — the RepetitionDetection class, name-matched not type-resolved"
+  },
+  {
+   "file": "packages/contracts/src/preset/index.ts",
+   "line": 2750,
+   "kind": "field-consumed-never-populated",
+   "text": "[foreign-format] stPromptSchema.injection_order — NO producer spells this name outside its own declaration, but 1 site(s) SPELL this NAME as a read (packages/contracts/src/preset/index.ts) — the RepetitionDetection class, name-matched not type-resolved"
+  },
+  {
+   "file": "packages/contracts/src/preset/index.ts",
+   "line": 2751,
+   "kind": "field-consumed-never-populated",
+   "text": "[foreign-format] stPromptSchema.injection_trigger — NO producer spells this name outside its own declaration, but 1 site(s) SPELL this NAME as a read (packages/contracts/src/preset/index.ts) — the RepetitionDetection class, name-matched not type-resolved"
+  },
+  {
+   "file": "packages/contracts/src/preset/index.ts",
+   "line": 2752,
+   "kind": "field-consumed-never-populated",
+   "text": "[foreign-format] stPromptSchema.forbid_overrides — NO producer spells this name outside its own declaration, but 1 site(s) SPELL this NAME as a read (packages/contracts/src/preset/index.ts) — the RepetitionDetection class, name-matched not type-resolved"
+  },
+  {
+   "file": "packages/contracts/src/preset/index.ts",
+   "line": 2764,
+   "kind": "field-consumed-never-populated",
+   "text": "[foreign-format] stPresetSchema.prompt_order — NO producer spells this name outside its own declaration, but 1 site(s) SPELL this NAME as a read (packages/contracts/src/preset/index.ts) — the RepetitionDetection class, name-matched not type-resolved"
+  },
+  {
+   "file": "packages/contracts/src/preset/index.ts",
+   "line": 2764,
+   "kind": "field-declared-only",
+   "text": "[template-key] stPresetSchema.character_id — NO producer spells this name outside its own declaration, and NOTHING spells it either — the declaration is its only occurrence (the activeSpeakerCharacterId class)"
+  },
+  {
+   "file": "packages/contracts/src/rpg/ambient.ts",
+   "line": 72,
+   "kind": "field-declared-only",
+   "text": "[unclassified] rpgWeatherSchema.temperatureC — NO producer spells this name outside its own declaration, and NOTHING spells it either — the declaration is its only occurrence (the activeSpeakerCharacterId class)"
+  },
+  {
+   "file": "packages/contracts/src/stats/index.ts",
+   "line": 74,
+   "kind": "field-consumed-never-populated",
+   "text": "[template-key] statsDeltaSchema.dailyTokensInMeasuredSamples — NO producer spells this name outside its own declaration, but 1 site(s) SPELL this NAME as a read (packages/server/src/domain/stats/write/apply-delta.ts) — the RepetitionDetection class, name-matched not type-resolved"
+  },
+  {
+   "file": "packages/contracts/src/stats/index.ts",
+   "line": 75,
+   "kind": "field-consumed-never-populated",
+   "text": "[template-key] statsDeltaSchema.dailyTokensInEstimatedSamples — NO producer spells this name outside its own declaration, but 1 site(s) SPELL this NAME as a read (packages/server/src/domain/stats/write/apply-delta.ts) — the RepetitionDetection class, name-matched not type-resolved"
+  },
+  {
+   "file": "packages/contracts/src/stats/index.ts",
+   "line": 76,
+   "kind": "field-consumed-never-populated",
+   "text": "[template-key] statsDeltaSchema.dailyTokensOutMeasuredSamples — NO producer spells this name outside its own declaration, but 1 site(s) SPELL this NAME as a read (packages/server/src/domain/stats/write/apply-delta.ts) — the RepetitionDetection class, name-matched not type-resolved"
+  },
+  {
+   "file": "packages/contracts/src/stats/index.ts",
+   "line": 77,
+   "kind": "field-consumed-never-populated",
+   "text": "[template-key] statsDeltaSchema.dailyTokensOutEstimatedSamples — NO producer spells this name outside its own declaration, but 1 site(s) SPELL this NAME as a read (packages/server/src/domain/stats/write/apply-delta.ts) — the RepetitionDetection class, name-matched not type-resolved"
+  },
+  {
+   "file": "packages/contracts/src/stats/index.ts",
+   "line": 82,
+   "kind": "field-consumed-never-populated",
+   "text": "[template-key] statsDeltaSchema.modelTokensInMeasuredSamples — NO producer spells this name outside its own declaration, but 1 site(s) SPELL this NAME as a read (packages/server/src/domain/stats/write/apply-delta.ts) — the RepetitionDetection class, name-matched not type-resolved"
+  },
+  {
+   "file": "packages/contracts/src/stats/index.ts",
+   "line": 83,
+   "kind": "field-consumed-never-populated",
+   "text": "[template-key] statsDeltaSchema.modelTokensInEstimatedSamples — NO producer spells this name outside its own declaration, but 1 site(s) SPELL this NAME as a read (packages/server/src/domain/stats/write/apply-delta.ts) — the RepetitionDetection class, name-matched not type-resolved"
+  },
+  {
+   "file": "packages/contracts/src/stats/index.ts",
+   "line": 84,
+   "kind": "field-consumed-never-populated",
+   "text": "[template-key] statsDeltaSchema.modelTokensOutMeasuredSamples — NO producer spells this name outside its own declaration, but 1 site(s) SPELL this NAME as a read (packages/server/src/domain/stats/write/apply-delta.ts) — the RepetitionDetection class, name-matched not type-resolved"
+  },
+  {
+   "file": "packages/contracts/src/stats/index.ts",
+   "line": 85,
+   "kind": "field-consumed-never-populated",
+   "text": "[template-key] statsDeltaSchema.modelTokensOutEstimatedSamples — NO producer spells this name outside its own declaration, but 1 site(s) SPELL this NAME as a read (packages/server/src/domain/stats/write/apply-delta.ts) — the RepetitionDetection class, name-matched not type-resolved"
+  },
+  {
+   "file": "packages/contracts/src/world-info/index.ts",
+   "line": 52,
+   "kind": "field-consumed-never-populated",
+   "text": "[unclassified] loreEntryProvenanceSchema.fromSeq — NO producer spells this name outside its own declaration, but 1 site(s) SPELL this NAME as a read (packages/server/src/domain/chat/verbs/edit.ts) — the RepetitionDetection class, name-matched not type-resolved"
+  },
+  {
+   "file": "packages/contracts/src/world-info/index.ts",
+   "line": 52,
+   "kind": "field-consumed-never-populated",
+   "text": "[unclassified] loreEntryProvenanceSchema.toSeq — NO producer spells this name outside its own declaration, but 1 site(s) SPELL this NAME as a read (packages/server/src/domain/chat/verbs/edit.ts) — the RepetitionDetection class, name-matched not type-resolved"
+  },
+  {
+   "file": "packages/contracts/src/world-info/index.ts",
+   "line": 231,
+   "kind": "field-consumed-never-populated",
+   "text": "[unclassified] UpsertLoreEntryInput.fromSeq — NO producer spells this name outside its own declaration, but 1 site(s) SPELL this NAME as a read (packages/server/src/domain/chat/verbs/edit.ts) — the RepetitionDetection class, name-matched not type-resolved"
+  },
+  {
+   "file": "packages/contracts/src/world-info/index.ts",
+   "line": 231,
+   "kind": "field-consumed-never-populated",
+   "text": "[unclassified] UpsertLoreEntryInput.toSeq — NO producer spells this name outside its own declaration, but 1 site(s) SPELL this NAME as a read (packages/server/src/domain/chat/verbs/edit.ts) — the RepetitionDetection class, name-matched not type-resolved"
+  }
+ ],
+ "meta": {
+  "verb": "contract-field-liveness",
+  "scope": "corpus:harness-globs(packages/*/src/**/*.ts,packages/*/src/**/*.tsx,tests/**/*.ts,tests/**/*.tsx,tooling/src/**/*.ts,tooling/src/**/*.tsx,scripts/**/*.ts,scripts/**/*.tsx,!scripts/probes/st-goldens/sillytavern-runtime/**)+path:packages/contracts/src+contract fields:3538",
+  "langs": {
+   "ts": 129
+  },
+  "scanned": 129,
+  "skipped": 7709,
+  "skippedBy": {
+   "out-of-scope": 7709,
+   "out-of-filter": 0,
+   "test-file": 0,
+   "declaration-file": 0
+  },
+  "matches": 48,
+  "status": "complete"
+ }
+}

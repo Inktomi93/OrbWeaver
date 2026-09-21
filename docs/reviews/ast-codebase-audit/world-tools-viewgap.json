@@ -1,0 +1,222 @@
+{
+  "label": "viewgap (all *View/*Summary fields)",
+  "total": 33,
+  "shown": 33,
+  "hits": [
+    {
+      "file": "packages/contracts/src/assets/index.ts",
+      "line": 155,
+      "kind": "view-field-unread",
+      "text": "GalleryItemView.subjectCharacterId \u2014 NO file under packages/client/src spells this name (name-matched, never type-resolved \u2014 so this is strong evidence, not proof)"
+    },
+    {
+      "file": "packages/contracts/src/chat/messages.ts",
+      "line": 443,
+      "kind": "view-field-unread",
+      "text": "MessageView.finishReason \u2014 NO file under packages/client/src spells this name (name-matched, never type-resolved \u2014 so this is strong evidence, not proof)"
+    },
+    {
+      "file": "packages/contracts/src/chat/messages.ts",
+      "line": 444,
+      "kind": "view-field-unread",
+      "text": "MessageView.stopReason \u2014 NO file under packages/client/src spells this name (name-matched, never type-resolved \u2014 so this is strong evidence, not proof)"
+    },
+    {
+      "file": "packages/contracts/src/chat/messages.ts",
+      "line": 445,
+      "kind": "view-field-unread",
+      "text": "MessageView.terminalReason \u2014 NO file under packages/client/src spells this name (name-matched, never type-resolved \u2014 so this is strong evidence, not proof)"
+    },
+    {
+      "file": "packages/contracts/src/chat/messages.ts",
+      "line": 462,
+      "kind": "view-field-unread",
+      "text": "MessageView.costProvenance \u2014 NO file under packages/client/src spells this name (name-matched, never type-resolved \u2014 so this is strong evidence, not proof)"
+    },
+    {
+      "file": "packages/contracts/src/chat/roster.ts",
+      "line": 258,
+      "kind": "view-field-unread",
+      "text": "ParticipantView.joinedAt \u2014 NO file under packages/client/src spells this name (name-matched, never type-resolved \u2014 so this is strong evidence, not proof)"
+    },
+    {
+      "file": "packages/contracts/src/inference/resolved.ts",
+      "line": 23,
+      "kind": "view-field-unread",
+      "text": "ResolvedConnectionView.requirement \u2014 NO file under packages/client/src spells this name (name-matched, never type-resolved \u2014 so this is strong evidence, not proof)"
+    },
+    {
+      "file": "packages/contracts/src/world-info/index.ts",
+      "line": 155,
+      "kind": "view-field-unread",
+      "text": "EntryView.worldBookId \u2014 NO file under packages/client/src spells this name (name-matched, never type-resolved \u2014 so this is strong evidence, not proof)"
+    },
+    {
+      "file": "packages/server/src/domain/automation/contract/ops.ts",
+      "line": 707,
+      "kind": "view-field-unread",
+      "text": "DispatchSummary.anyDisabled \u2014 NO file under packages/client/src spells this name (name-matched, never type-resolved \u2014 so this is strong evidence, not proof)"
+    },
+    {
+      "file": "packages/server/src/domain/automation/contract/results.ts",
+      "line": 27,
+      "kind": "view-field-unread",
+      "text": "RuleView.predicateCel \u2014 NO file under packages/client/src spells this name (name-matched, never type-resolved \u2014 so this is strong evidence, not proof)"
+    },
+    {
+      "file": "packages/server/src/domain/automation/contract/results.ts",
+      "line": 40,
+      "kind": "view-field-unread",
+      "text": "RuleView.matchAutomationEvents \u2014 NO file under packages/client/src spells this name (name-matched, never type-resolved \u2014 so this is strong evidence, not proof)"
+    },
+    {
+      "file": "packages/server/src/domain/automation/contract/results.ts",
+      "line": 48,
+      "kind": "view-field-unread",
+      "text": "RuleView.consecutiveErrors \u2014 NO file under packages/client/src spells this name (name-matched, never type-resolved \u2014 so this is strong evidence, not proof)"
+    },
+    {
+      "file": "packages/server/src/domain/automation/contract/results.ts",
+      "line": 64,
+      "kind": "view-field-unread",
+      "text": "FireView.automationDepth \u2014 NO file under packages/client/src spells this name (name-matched, never type-resolved \u2014 so this is strong evidence, not proof)"
+    },
+    {
+      "file": "packages/server/src/domain/character/contract/views.ts",
+      "line": 65,
+      "kind": "view-field-unread",
+      "text": "CharacterSummary.contentHash \u2014 NO file under packages/client/src spells this name (name-matched, never type-resolved \u2014 so this is strong evidence, not proof)"
+    },
+    {
+      "file": "packages/server/src/domain/chat/contract/views.ts",
+      "line": 69,
+      "kind": "view-field-unread",
+      "text": "ChatSummary.parentChatId \u2014 NO file under packages/client/src spells this name (name-matched, never type-resolved \u2014 so this is strong evidence, not proof)"
+    },
+    {
+      "file": "packages/server/src/domain/chat/contract/views.ts",
+      "line": 118,
+      "kind": "view-field-unread",
+      "text": "ChatSummary.participantCharacterIds \u2014 NO file under packages/client/src spells this name (name-matched, never type-resolved \u2014 so this is strong evidence, not proof)"
+    },
+    {
+      "file": "packages/server/src/domain/chat/contract/views.ts",
+      "line": 268,
+      "kind": "view-field-unread",
+      "text": "ChatLineageView.chain \u2014 NO file under packages/client/src spells this name (name-matched, never type-resolved \u2014 so this is strong evidence, not proof)"
+    },
+    {
+      "file": "packages/server/src/domain/connection/contract/results.ts",
+      "line": 29,
+      "kind": "view-field-unread",
+      "text": "ConnectionCapabilityView.baseline \u2014 NO file under packages/client/src spells this name (name-matched, never type-resolved \u2014 so this is strong evidence, not proof)"
+    },
+    {
+      "file": "packages/server/src/domain/credentials/contract/views.ts",
+      "line": 15,
+      "kind": "view-field-unread",
+      "text": "CredentialView.hasMetadata \u2014 NO file under packages/client/src spells this name (name-matched, never type-resolved \u2014 so this is strong evidence, not proof)"
+    },
+    {
+      "file": "packages/server/src/domain/databank/contract/views.ts",
+      "line": 18,
+      "kind": "view-field-unread",
+      "text": "DocumentDetailView.extractorVersion \u2014 NO file under packages/client/src spells this name (name-matched, never type-resolved \u2014 so this is strong evidence, not proof)"
+    },
+    {
+      "file": "packages/server/src/domain/plugin/contract/results.ts",
+      "line": 84,
+      "kind": "view-field-unread",
+      "text": "PluginView.consecutiveCrashes \u2014 NO file under packages/client/src spells this name (name-matched, never type-resolved \u2014 so this is strong evidence, not proof)"
+    },
+    {
+      "file": "packages/server/src/domain/plugin/contract/results.ts",
+      "line": 86,
+      "kind": "view-field-unread",
+      "text": "PluginView.installedAt \u2014 NO file under packages/client/src spells this name (name-matched, never type-resolved \u2014 so this is strong evidence, not proof)"
+    },
+    {
+      "file": "packages/server/src/domain/plugin/contract/results.ts",
+      "line": 159,
+      "kind": "view-field-unread",
+      "text": "DistributedPluginView.distributedAt \u2014 NO file under packages/client/src spells this name (name-matched, never type-resolved \u2014 so this is strong evidence, not proof)"
+    },
+    {
+      "file": "packages/server/src/domain/sessions/contract/results.ts",
+      "line": 52,
+      "kind": "view-field-unread",
+      "text": "RevokedSessionsSummary.revoked \u2014 NO file under packages/client/src spells this name (name-matched, never type-resolved \u2014 so this is strong evidence, not proof)"
+    },
+    {
+      "file": "packages/server/src/domain/sessions/contract/results.ts",
+      "line": 53,
+      "kind": "view-field-unread",
+      "text": "RevokedSessionsSummary.userIds \u2014 NO file under packages/client/src spells this name (name-matched, never type-resolved \u2014 so this is strong evidence, not proof)"
+    },
+    {
+      "file": "packages/server/src/domain/stats/contract/views.ts",
+      "line": 35,
+      "kind": "view-field-unread",
+      "text": "OwnerStatsView.systemTurns \u2014 NO file under packages/client/src spells this name (name-matched, never type-resolved \u2014 so this is strong evidence, not proof)"
+    },
+    {
+      "file": "packages/server/src/domain/stats/contract/views.ts",
+      "line": 53,
+      "kind": "view-field-unread",
+      "text": "OwnerStatsView.contentBytes \u2014 NO file under packages/client/src spells this name (name-matched, never type-resolved \u2014 so this is strong evidence, not proof)"
+    },
+    {
+      "file": "packages/server/src/domain/stats/contract/views.ts",
+      "line": 54,
+      "kind": "view-field-unread",
+      "text": "OwnerStatsView.firstChatAt \u2014 NO file under packages/client/src spells this name (name-matched, never type-resolved \u2014 so this is strong evidence, not proof)"
+    },
+    {
+      "file": "packages/server/src/domain/stats/contract/views.ts",
+      "line": 152,
+      "kind": "view-field-unread",
+      "text": "WrappedSummary.firstChatAt \u2014 NO file under packages/client/src spells this name (name-matched, never type-resolved \u2014 so this is strong evidence, not proof)"
+    },
+    {
+      "file": "packages/server/src/domain/stats/contract/views.ts",
+      "line": 162,
+      "kind": "view-field-unread",
+      "text": "WrappedSummary.avgSwipeDepth \u2014 NO file under packages/client/src spells this name (name-matched, never type-resolved \u2014 so this is strong evidence, not proof)"
+    },
+    {
+      "file": "packages/server/src/domain/stats/contract/views.ts",
+      "line": 163,
+      "kind": "view-field-unread",
+      "text": "WrappedSummary.swipeRate \u2014 NO file under packages/client/src spells this name (name-matched, never type-resolved \u2014 so this is strong evidence, not proof)"
+    },
+    {
+      "file": "packages/server/src/kit/structured-turn/index.ts",
+      "line": 35,
+      "kind": "view-field-unread",
+      "text": "StructuredRetrySummary.issueCount \u2014 NO file under packages/client/src spells this name (name-matched, never type-resolved \u2014 so this is strong evidence, not proof)"
+    },
+    {
+      "file": "packages/server/src/kit/structured-turn/index.ts",
+      "line": 37,
+      "kind": "view-field-unread",
+      "text": "StructuredRetrySummary.paths \u2014 NO file under packages/client/src spells this name (name-matched, never type-resolved \u2014 so this is strong evidence, not proof)"
+    }
+  ],
+  "meta": {
+    "verb": "viewgap",
+    "scope": "corpus:harness-globs(packages/*/src,tests,tooling/src/verify/gates)+path:packages/{contracts,server}/src+view fields:597+client-readers:1319",
+    "langs": {
+      "ts": 1519
+    },
+    "scanned": 1519,
+    "skipped": 6319,
+    "skippedBy": {
+      "out-of-scope": 6319,
+      "out-of-filter": 0,
+      "test-file": 0,
+      "declaration-file": 0
+    },
+    "matches": 33,
+    "status": "complete"
+  }
+}

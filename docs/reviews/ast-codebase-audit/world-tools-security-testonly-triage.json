@@ -1,0 +1,187 @@
+{
+  "source": {
+    "testonlyReport": "/tmp/world-tools-testonly-after.json",
+    "priorTriage": "/tmp/world-tools-server-testonly-triage.json",
+    "workspace": "/home/inktomi/.codex/worktrees/world-aware-tools/orbweaver",
+    "mode": "read-only source adjudication",
+    "networkCalls": 0
+  },
+  "scope": {
+    "symbols": [
+      "CHAT_VERB_AUTHORITY",
+      "authorityForSurface",
+      "jwksCacheSize",
+      "resetJwksCache",
+      "probeOpenAiEndpoint"
+    ],
+    "structuralCorroboration": {
+      "tool": "pnpm ast ident <symbol> --json --max 1000",
+      "scope": "corpus:harness-globs(packages/*/src,tests,tooling/src/verify/gates)+workspace",
+      "filesScanned": 7838,
+      "languages": {
+        "ts": 6431,
+        "tsx": 1403,
+        "dts": 4
+      },
+      "status": "complete"
+    },
+    "literalCorroboration": "rg -n --glob '*.{ts,tsx}' over packages, tests, and tooling",
+    "limits": [
+      "This adjudication covers repository TS/TSX consumers. @orb/server is private, so there is no supported external package consumer to preserve.",
+      "The AST identifier lens cannot see a tool that deliberately locates a declaration by a string-held symbol name; that structural consumer is called out explicitly for CHAT_VERB_AUTHORITY.",
+      "No live endpoint, network, deletion, or source mutation probe was performed."
+    ]
+  },
+  "summary": {
+    "retain": [
+      "CHAT_VERB_AUTHORITY",
+      "authorityForSurface",
+      "jwksCacheSize",
+      "resetJwksCache"
+    ],
+    "removeAsStaleInASeparateSecurityReviewedChange": [
+      "probeOpenAiEndpoint"
+    ],
+    "missedProductionCallers": []
+  },
+  "items": [
+    {
+      "symbol": "CHAT_VERB_AUTHORITY",
+      "file": "packages/server/src/domain/chat/substrate/auth/matrix.ts",
+      "line": 43,
+      "classification": "live-structural-policy-oracle",
+      "disposition": "retain",
+      "severity": "none",
+      "ast": {
+        "identifierMatches": 39,
+        "productionRuntimeCallers": 0,
+        "productionIdentifierSites": [
+          "the declaration",
+          "the auth barrel re-export"
+        ],
+        "testIdentifierSites": 37
+      },
+      "evidence": [
+        "The value is exhaustive by type: it satisfies Record<keyof ChatService, VerbAuthority>, so adding a ChatService verb without an authority fails TypeScript.",
+        "tooling/src/verify/lib/chat-plane-read.ts sets MATRIX_CONST to CHAT_VERB_AUTHORITY, collects that variable declaration from the gate visitor stream, resolves its rows, and supplies the resulting matrix to chat-viewer-plane-canon-reads.",
+        "That gate consumer is intentionally string-directed and therefore invisible to ordinary import/reference liveness. Removing the matrix would make the gate refuse rather than merely remove a test fixture.",
+        "The focused matrix test also pins high-risk host/member/author-or-host classifications."
+      ],
+      "securityDecision": "This is a build-time security policy oracle and compile-time exhaustiveness belt. It is not itself the runtime authorization check, so reports must not describe it as the live request guard; the chat verbs' guard paths remain the runtime enforcement.",
+      "recommendation": "Keep the declaration, export, and focused tests. Treat the test-only hit as a liveness-lens false positive caused by the gate's structural, symbol-name-based consumer."
+    },
+    {
+      "symbol": "authorityForSurface",
+      "file": "packages/server/src/domain/chat/substrate/auth/matrix.ts",
+      "line": 221,
+      "classification": "intentional-dormant-fail-closed-seam",
+      "disposition": "retain",
+      "severity": "none",
+      "ast": {
+        "identifierMatches": 7,
+        "productionRuntimeCallers": 0,
+        "productionIdentifierSites": [
+          "the declaration",
+          "the auth barrel re-export"
+        ],
+        "testIdentifierSites": 5,
+        "testCallExpressions": 4
+      },
+      "evidence": [
+        "The source header explicitly records that there is no production caller and says the classifier is prebuilt for the named non-verb surfaces so future wiring does not invent a second authority decision.",
+        "Its tests prove a known fail-open pitfall is closed: Object.hasOwn is used, and inherited Object.prototype names plus empty and unknown strings return DENY.",
+        "The complete AST and literal sweeps found no missed runtime caller."
+      ],
+      "securityDecision": "This seam currently enforces nothing in production and must not be credited as an active authorization belt. Its value is the explicit, tested default-deny classifier prepared for non-verb wiring.",
+      "recommendation": "Keep as the documented intentional security seam. If project policy later rejects prewired dormant seams, remove the function, barrel export, and its four focused calls together; no production migration would be required."
+    },
+    {
+      "symbol": "jwksCacheSize",
+      "file": "packages/server/src/infra/auth/jwks.ts",
+      "line": 206,
+      "classification": "intentional-test-oracle-over-live-security-state",
+      "disposition": "retain",
+      "severity": "none",
+      "ast": {
+        "identifierMatches": 6,
+        "productionRuntimeCallers": 0,
+        "productionIdentifierSites": [
+          "the declaration",
+          "the infra auth barrel re-export"
+        ],
+        "testIdentifierSites": 4,
+        "testCallExpressions": 3
+      },
+      "evidence": [
+        "The function is marked @internal test seam.",
+        "It observes the same process-shared LRU used by production jwksFor and createForwardJwtVerifier.",
+        "The focused tests use it to prove identical JWKS inputs deduplicate and hostile input variation cannot grow the cache beyond its cap of 32."
+      ],
+      "securityDecision": "This is an oracle for the live unbounded-cache defense, not stale application behavior.",
+      "recommendation": "Keep the seam and its cap tests. Do not replace the direct size assertion with an implementation-mirroring fake cache."
+    },
+    {
+      "symbol": "resetJwksCache",
+      "file": "packages/server/src/infra/auth/jwks.ts",
+      "line": 211,
+      "classification": "intentional-test-isolation-seam-over-live-security-state",
+      "disposition": "retain",
+      "severity": "none",
+      "ast": {
+        "identifierMatches": 8,
+        "productionRuntimeCallers": 0,
+        "productionIdentifierSites": [
+          "the declaration",
+          "the infra auth barrel re-export"
+        ],
+        "testIdentifierSites": 6,
+        "testCallExpressions": 4
+      },
+      "evidence": [
+        "The function is marked @internal test seam.",
+        "jwks.test.ts clears the module-global cache before fail-closed and LRU cases; backchannel.test.ts clears the same cache before each jose verification case.",
+        "The underlying cache is live production state shared by forward JWT verification and backchannel logout verification through jwksFor."
+      ],
+      "securityDecision": "Reset is deterministic isolation for a process-shared security cache. It is not a retired product operation.",
+      "recommendation": "Keep the seam. Its absence would make authentication tests order-dependent and could hide cache-key or rotation defects."
+    },
+    {
+      "symbol": "probeOpenAiEndpoint",
+      "file": "packages/server/src/infra/network/openai-models.ts",
+      "line": 141,
+      "classification": "stale-tested-implementation",
+      "disposition": "remove-in-separate-security-reviewed-cleanup",
+      "severity": "no-current-runtime-impact",
+      "ast": {
+        "identifierMatches": 14,
+        "productionRuntimeCallers": 0,
+        "productionIdentifierSites": [
+          "the declaration",
+          "the infra network barrel re-export"
+        ],
+        "testIdentifierSites": 12,
+        "testCallExpressions": 11
+      },
+      "evidence": [
+        "The complete AST and literal sweeps found no production caller; only the barrel and tests reach the function.",
+        "Its file comments still claim it backs credentials.testHealth, but CredentialsService explicitly documents that testHealth dialing moved to connection verbs and no testHealth method remains.",
+        "The live chain is connection.probe -> domain/connection/verbs/diagnostics.ts resolveRow -> ctx.runtime.diagnostics.probe -> the selected provider backend probe -> credentials.recordProbeOutcome.",
+        "For OpenAI-compatible rows, packages/inference/src/backends/openai-compat/diagnostics.ts::probeOpenAiCompat is wired by the backend and ProviderDiagnostics registry. The old infra/network function is not an adapter in that chain.",
+        "The old and live classifiers are not behavior-identical: the old function returned unchecked for reachable non-auth HTTP errors, while probeOpenAiCompat maps sanitized non-auth failures to unreachable. The old tests therefore cannot serve as tests of the migrated implementation."
+      ],
+      "securityDecision": "The dead code is not an active SSRF or credential leak because it has no runtime caller. Retaining a second egress-and-secret-handling implementation and green tests creates false confidence about the live connection diagnostics path.",
+      "minimalCleanupScope": [
+        "packages/server/src/infra/network/openai-models.ts: remove probeOpenAiEndpoint and its old-only CredentialHealth/errorMessage import, auth-status constants, transportReason helper, and stale credentials.testHealth/two-consumer comments; preserve fetchOpenAiModels, modelsTarget, endpointHeaders, scrubCredentials, and their tests.",
+        "packages/server/src/infra/network/index.ts: remove probeOpenAiEndpoint from the export and header description.",
+        "tests/server/infra/network/openai-models.test.ts: remove the probe import and probeOpenAiEndpoint describe block; retain all fetchOpenAiModels and egress tests."
+      ],
+      "acceptanceForCleanup": [
+        "AST identifier and literal sweeps report no probeOpenAiEndpoint declaration, barrel export, test call, or stale credentials.testHealth claim in infra/network.",
+        "fetchOpenAiModels focused tests and egress integration coverage remain green.",
+        "Add or confirm focused tests against the live probeOpenAiCompat/provider-diagnostics path for auth rejection, sanitized reasons, and the intended non-auth classification. Do not mechanically transplant the old unchecked expectations because the live contract differs.",
+        "Connection probe and credentials recordProbeOutcome suites remain green."
+      ],
+      "recommendation": "Delete the retired implementation and tests in a security-reviewed cleanup. The current migration replacement should remain unchanged unless its own focused tests expose a separate defect."
+    }
+  ]
+}

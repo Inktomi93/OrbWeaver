@@ -1,0 +1,134 @@
+$ nice -n 19 node tooling/src/verify/cli.ts scoped-test node tests/tooling/ast/ops/verbs.test.ts --maxWorkers=1
+
+ RUN  v4.1.11 /home/inktomi/.codex/worktrees/world-aware-tools/orbweaver
+
+[ast] TRUNCATED — ast contract-field-liveness fixture: 2 hit(s) found, 1 displayed, 1 DROPPED by --max 1. This list is NOT the answer; re-run with --max 2 (or more) for the complete set.
+[ast] verb=contract-field-liveness scope=corpus:harness-globs(packages/*/src/**/*.ts,packages/*/src/**/*.tsx,tests/**/*.ts,tests/**/*.tsx,tooling/src/**/*.ts,tooling/src/**/*.tsx,scripts/**/*.ts,scripts/**/*.tsx,!scripts/probes/st-goldens/sillytavern-runtime/**)+in:packages/contracts langs=- scanned=n/a skipped=n/a(-) matches=2 status=partial
+{
+ "label": "contract-field-liveness fixture",
+ "total": 2,
+ "shown": 1,
+ "hits": [
+  {
+   "file": "packages/contracts/src/probe.ts",
+   "line": 1,
+   "kind": "field-declared-only",
+   "text": "probeSchema.first"
+  }
+ ],
+ "meta": {
+  "verb": "contract-field-liveness",
+  "scope": "corpus:harness-globs(packages/*/src/**/*.ts,packages/*/src/**/*.tsx,tests/**/*.ts,tests/**/*.tsx,tooling/src/**/*.ts,tooling/src/**/*.tsx,scripts/**/*.ts,scripts/**/*.tsx,!scripts/probes/st-goldens/sillytavern-runtime/**)+in:packages/contracts",
+  "langs": {},
+  "scanned": null,
+  "skipped": null,
+  "skippedBy": {
+   "out-of-scope": 0,
+   "out-of-filter": 0,
+   "test-file": 0,
+   "declaration-file": 0
+  },
+  "matches": 2,
+  "status": "partial"
+ }
+}
+/tmp/orb-tool-Zu01up/scripts/dev/probe.ts:1  [ident]  export const scriptOnly = 1;
+RESULT ast ident scriptOnly: 1 hit(s) in 1 file(s)
+[ast] verb=ident scope=corpus:harness-globs(packages/*/src/**/*.ts,packages/*/src/**/*.tsx,tests/**/*.ts,tests/**/*.tsx,tooling/src/**/*.ts,tooling/src/**/*.tsx,scripts/**/*.ts,scripts/**/*.tsx,!scripts/probes/st-goldens/sillytavern-runtime/**)+workspace langs=ts:4 scanned=4 skipped=0(-) matches=1 status=complete
+RESULT ast callers missing: no results — NOTE: the syntactic corpus excludes package-root TS, MTS, and playwright/**; a symbol living there needs a search-corpus verb (refs)
+[ast] verb=callers scope=corpus:harness-globs(packages/*/src/**/*.ts,packages/*/src/**/*.tsx,tests/**/*.ts,tests/**/*.tsx,tooling/src/**/*.ts,tooling/src/**/*.tsx,scripts/**/*.ts,scripts/**/*.tsx,!scripts/probes/st-goldens/sillytavern-runtime/**)+workspace langs=ts:4 scanned=4 skipped=0(-) matches=0 status=complete
+RESULT ast callers missing: no results — NOTE: the syntactic corpus excludes package-root TS, MTS, and playwright/**; a symbol living there needs a search-corpus verb (refs)
+[ast] verb=callers scope=corpus:harness-globs(packages/*/src/**/*.ts,packages/*/src/**/*.tsx,tests/**/*.ts,tests/**/*.tsx,tooling/src/**/*.ts,tooling/src/**/*.tsx,scripts/**/*.ts,scripts/**/*.tsx,!scripts/probes/st-goldens/sillytavern-runtime/**)+workspace langs=ts:1 scanned=1 skipped=0(-) matches=0 status=complete
+RESULT ast ident present: no results — NOTE: the syntactic corpus excludes package-root TS, MTS, and playwright/**; a symbol living there needs a search-corpus verb (refs)
+[ast] verb=ident scope=corpus:harness-globs(packages/*/src/**/*.ts,packages/*/src/**/*.tsx,tests/**/*.ts,tests/**/*.tsx,tooling/src/**/*.ts,tooling/src/**/*.tsx,scripts/**/*.ts,scripts/**/*.tsx,!scripts/probes/st-goldens/sillytavern-runtime/**)+workspace+in:no-such-path langs=- scanned=0 skipped=1(out-of-filter:1) matches=0 status=error
+[ast] SCOPE ENTERED NOTHING — --in "no-such-path" matched none of the 1 file(s) the scope admitted. This is a TOOL ERROR (exit 2), not a clean result: nothing was searched, so nothing could be found. Corpus authorities: syntactic verbs load harness-globs(packages/*/src/**/*.ts,packages/*/src/**/*.tsx,tests/**/*.ts,tests/**/*.tsx,tooling/src/**/*.ts,tooling/src/**/*.tsx,scripts/**/*.ts,scripts/**/*.tsx,!scripts/probes/st-goldens/sillytavern-runtime/**); wide syntactic verbs load search-globs-no-types(packages/*/src/**/*.ts,packages/*/src/**/*.tsx,tests/**/*.ts,tests/**/*.tsx,tooling/src/**/*.ts,tooling/src/**/*.tsx,scripts/**/*.ts,scripts/**/*.tsx,!scripts/probes/st-goldens/sillytavern-runtime/**,packages/*/*.ts,packages/*/src/**/*.mts,tests/**/*.mts,playwright/**/*.tsx); typed verbs load native-program-authored-roots(per-tsconfig).
+RESULT ast exports packages/no-such-package/src: no results
+[ast] verb=exports scope=corpus:harness-globs(packages/*/src/**/*.ts,packages/*/src/**/*.tsx,tests/**/*.ts,tests/**/*.tsx,tooling/src/**/*.ts,tooling/src/**/*.tsx,scripts/**/*.ts,scripts/**/*.tsx,!scripts/probes/st-goldens/sillytavern-runtime/**)+path:packages/no-such-package/src langs=- scanned=0 skipped=1(out-of-scope:1) matches=0 status=error
+[ast] SCOPE ENTERED NOTHING — scope corpus:harness-globs(packages/*/src/**/*.ts,packages/*/src/**/*.tsx,tests/**/*.ts,tests/**/*.tsx,tooling/src/**/*.ts,tooling/src/**/*.tsx,scripts/**/*.ts,scripts/**/*.tsx,!scripts/probes/st-goldens/sillytavern-runtime/**)+path:packages/no-such-package/src admitted no file from the loaded corpus. This is a TOOL ERROR (exit 2), not a clean result: nothing was searched, so nothing could be found. Corpus authorities: syntactic verbs load harness-globs(packages/*/src/**/*.ts,packages/*/src/**/*.tsx,tests/**/*.ts,tests/**/*.tsx,tooling/src/**/*.ts,tooling/src/**/*.tsx,scripts/**/*.ts,scripts/**/*.tsx,!scripts/probes/st-goldens/sillytavern-runtime/**); wide syntactic verbs load search-globs-no-types(packages/*/src/**/*.ts,packages/*/src/**/*.tsx,tests/**/*.ts,tests/**/*.tsx,tooling/src/**/*.ts,tooling/src/**/*.tsx,scripts/**/*.ts,scripts/**/*.tsx,!scripts/probes/st-goldens/sillytavern-runtime/**,packages/*/*.ts,packages/*/src/**/*.mts,tests/**/*.mts,playwright/**/*.tsx); typed verbs load native-program-authored-roots(per-tsconfig).
+/repo/packages/client/src/calls.ts:1  [export]  present  —  export function present(): void {}
+RESULT ast exports packages/client/src/calls.ts: 1 hit(s) in 1 file(s)
+[ast] verb=exports scope=corpus:harness-globs(packages/*/src/**/*.ts,packages/*/src/**/*.tsx,tests/**/*.ts,tests/**/*.tsx,tooling/src/**/*.ts,tooling/src/**/*.tsx,scripts/**/*.ts,scripts/**/*.tsx,!scripts/probes/st-goldens/sillytavern-runtime/**)+path:packages/client/src/calls.ts langs=ts:1 scanned=1 skipped=0(-) matches=1 status=complete
+/repo/packages/contracts/src/events.ts:1  [string-literal]  export const event = "chatDeleted";
+/repo/tests/contracts/events.test.ts:1  [template-literal]  export const fixture = `chatDeleted`;
+RESULT ast literal chatDeleted: 2 hit(s) in 2 file(s)
+[ast] verb=literal scope=corpus:search-globs-no-types(packages/*/src/**/*.ts,packages/*/src/**/*.tsx,tests/**/*.ts,tests/**/*.tsx,tooling/src/**/*.ts,tooling/src/**/*.tsx,scripts/**/*.ts,scripts/**/*.tsx,!scripts/probes/st-goldens/sillytavern-runtime/**,packages/*/*.ts,packages/*/src/**/*.mts,tests/**/*.mts,playwright/**/*.tsx)+workspace langs=ts:3 scanned=3 skipped=0(-) matches=2 status=complete
+RESULT ast literal nowhereAtAll9f3a1c: no results
+[ast] verb=literal scope=corpus:search-globs-no-types(packages/*/src/**/*.ts,packages/*/src/**/*.tsx,tests/**/*.ts,tests/**/*.tsx,tooling/src/**/*.ts,tooling/src/**/*.tsx,scripts/**/*.ts,scripts/**/*.tsx,!scripts/probes/st-goldens/sillytavern-runtime/**,packages/*/*.ts,packages/*/src/**/*.mts,tests/**/*.mts,playwright/**/*.tsx)+workspace langs=ts:3 scanned=3 skipped=0(-) matches=0 status=complete
+columns: 4 column(s) across 2 table(s)
+  neither        1   pure rot — no reader, no writer, no raw-SQL mention: the column exists and nothing in the workspace touches it
+  write-only     0   the RV-11 class — something FILLS it and nothing ever reads it back (the model writes what no surface renders)
+  read-only      0   read but never written — a permanent DEFAULT/NULL being rendered as if it were data
+  provenance     0   a `created_at`/`updated_at` with a schema DEFAULT that nothing reads back — an audit stamp doing its job (NEVER a hit; do not 'reclaim' these)
+  read-write     3   healthy (never a hit)
+  widgets (widgets): 1 of 2 column(s) flagged
+    /repo/packages/db/src/schema/tables.ts:3  [column-neither]  widgets.ghost  (widgets.ghost)  —  reads:0  writes:0
+  healthy (healthy): healthy — 0 of 2 column(s) flagged
+columns --all: swept 2 table(s), 1 carrying a finding.
+columns is a CANDIDATE lens. READS are the union of two arms — language-service `<table>.<col>` query references PLUS a row-shape scan for `<row>.<col>` reads (needed because `$inferSelect` is a mapped type: a read through a declared row alias is INVISIBLE to reference resolution). The row-shape arm is deliberately OVER-inclusive, so a read count can be generous — which is the safe direction. WRITES are STRUCTURAL for the same mapped-type reason, so a table with a whole-row/spread writer marks every column `write?`, never "unwritten". A `raw?` annotation means the column's SQL name appears in some raw `sql` template — NOT attributable to a table in v1, so read those before calling it rot. A `created_at`/`updated_at` with a schema DEFAULT that nothing reads back is classed `provenance`, counted in the table above and NEVER listed as a hit — an audit stamp is not the RV-11 class. Keep one deliberately with `// @column-ok: <reason>` on the column property.
+/repo/packages/db/src/schema/tables.ts:3  [column-neither]  widgets.ghost  (widgets.ghost)  —  reads:0  writes:0
+RESULT ast columns (all tables): 1 hit(s) in 1 file(s)
+[ast] verb=columns scope=corpus:native-program-authored-roots(per-tsconfig)+tables:2+path:schema-files langs=ts:1 scanned=1 skipped=2(out-of-scope:2) matches=1 status=complete
+  MOTION_BUDGETS (/repo/packages/client/src/motion.ts): healthy — 0 of 3 row(s) undispatched
+  UNUSED_KEYS (/repo/packages/client/src/motion.ts): 3 of 3 row(s) undispatched
+    /repo/packages/client/src/motion.ts:6  [regkey-undispatched]  UNUSED_KEYS["first"]  —  the key is spelled in NO non-test file outside this table
+    /repo/packages/client/src/motion.ts:6  [regkey-undispatched]  UNUSED_KEYS["second"]  —  the key is spelled in NO non-test file outside this table
+    /repo/packages/client/src/motion.ts:6  [regkey-undispatched]  UNUSED_KEYS["third"]  —  the key is spelled in NO non-test file outside this table
+regkeys --all: swept 2 registry/registries, 1 carrying a finding.
+regkeys is a HEURISTIC, INFORMATIONAL lens — it NEVER gates and has no exemption marker (owner ruling). Registry dispatch is legitimately dynamic: a key that arrives from the DB, a URL segment, a template literal, or an `Object.keys(REGISTRY)` iteration is a LIVE row that looks dead here — and three classes stay INVISIBLE to this lens entirely: ITERATION consumption (`Object.entries(REGISTRY)`/`.map(...)`, which spells no key at all), CSS-class-STRING derivation (a key concatenated into a class name rather than read as a property), and SAME-VALUE-different-SPELLING literals (a throw site spelling `"compaction_empty"` instead of `CHAT_OP_CODES.compactionEmpty`). Read the call sites before acting on any line below. (2 registry/registries, 6 row(s) examined; a registry = an exported const with 3+ rows carrying a `Record<…>` annotation or a SCREAMING_SNAKE name, in either shape: an OBJECT literal keyed by property name, or an ARRAY literal of `{ id|key: "<key>" }` rows.)
+/repo/packages/client/src/motion.ts:6  [regkey-undispatched]  UNUSED_KEYS["first"]  —  the key is spelled in NO non-test file outside this table
+/repo/packages/client/src/motion.ts:6  [regkey-undispatched]  UNUSED_KEYS["second"]  —  the key is spelled in NO non-test file outside this table
+/repo/packages/client/src/motion.ts:6  [regkey-undispatched]  UNUSED_KEYS["third"]  —  the key is spelled in NO non-test file outside this table
+RESULT ast regkeys (all registries): 3 hit(s) in 1 file(s)
+[ast] verb=regkeys scope=corpus:harness-globs(packages/*/src/**/*.ts,packages/*/src/**/*.tsx,tests/**/*.ts,tests/**/*.tsx,tooling/src/**/*.ts,tooling/src/**/*.tsx,scripts/**/*.ts,scripts/**/*.tsx,!scripts/probes/st-goldens/sillytavern-runtime/**)+registries:2+path:registry-files langs=ts:1 scanned=1 skipped=0(-) matches=3 status=complete
+rot ui: ONE project load + ONE liveness build, five CANDIDATE-lens sections below — orphans / testonly / chains / typeonly-alive / swallowed (each section calls the SAME collector its standalone verb calls; run `pnpm ast <verb> ui` for that section's exemption-marker grammar and bucketed narration). Trades five ~40s loads for one.
+/repo/packages/ui/src/consumer.ts:1  [orphan-export]  load  —  export const load = () => import("#code-editor").then((module) => module.CodeEditor);
+RESULT ast rot ui :: orphans: 1 hit(s) in 1 file(s)
+/repo/packages/ui/src/code-editor/code-editor.ts:2  [test-only-export]  ControlOnly  —  export function ControlOnly(): null { return null; }
+RESULT ast rot ui :: testonly: 1 hit(s) in 1 file(s)
+RESULT ast rot ui :: chains: no results
+RESULT ast rot ui :: typeonly-alive: no results
+RESULT ast rot ui :: swallowed: no results
+[ast] verb=rot scope=corpus:native-program-authored-roots(per-tsconfig)+path:/packages/ui/src/ langs=ts:2 scanned=2 skipped=1(out-of-scope:1) matches=2 status=complete
+/repo/packages/client/src/view.tsx  (1)
+RESULT ast jsx Button: 1 hit(s) in 1 file(s) — per-file counts
+[ast] verb=jsx scope=corpus:harness-globs(packages/*/src/**/*.ts,packages/*/src/**/*.tsx,tests/**/*.ts,tests/**/*.tsx,tooling/src/**/*.ts,tooling/src/**/*.tsx,scripts/**/*.ts,scripts/**/*.tsx,!scripts/probes/st-goldens/sillytavern-runtime/**)+workspace langs=tsx:2 scanned=2 skipped=0(-) matches=1 status=complete
+{
+ "label": "jsx Skeleton",
+ "total": 1,
+ "shown": 1,
+ "hits": [
+  {
+   "file": "/repo/packages/client/src/view.tsx",
+   "line": 1,
+   "kind": "jsx",
+   "text": "export const view = <><Button>Save</Button><Skeleton /></>;"
+  }
+ ],
+ "meta": {
+  "verb": "jsx",
+  "scope": "corpus:harness-globs(packages/*/src/**/*.ts,packages/*/src/**/*.tsx,tests/**/*.ts,tests/**/*.tsx,tooling/src/**/*.ts,tooling/src/**/*.tsx,scripts/**/*.ts,scripts/**/*.tsx,!scripts/probes/st-goldens/sillytavern-runtime/**)+workspace+in:packages/client/src",
+  "langs": {
+   "tsx": 1
+  },
+  "scanned": 1,
+  "skipped": 1,
+  "skippedBy": {
+   "out-of-scope": 0,
+   "out-of-filter": 1,
+   "test-file": 0,
+   "declaration-file": 0
+  },
+  "matches": 1,
+  "status": "complete"
+ }
+}
+[ast] verb=jsx scope=corpus:harness-globs(packages/*/src/**/*.ts,packages/*/src/**/*.tsx,tests/**/*.ts,tests/**/*.tsx,tooling/src/**/*.ts,tooling/src/**/*.tsx,scripts/**/*.ts,scripts/**/*.tsx,!scripts/probes/st-goldens/sillytavern-runtime/**)+workspace+in:packages/client/src langs=tsx:1 scanned=1 skipped=1(out-of-filter:1) matches=1 status=complete
+ ✓ |tooling| tests/tooling/ast/ops/verbs.test.ts (8 tests) 630ms
+
+ Test Files  1 passed (1)
+      Tests  8 passed (8)
+   Start at  22:37:13
+   Duration  1.28s (transform 308ms, setup 0ms, import 574ms, tests 630ms, environment 0ms)
+
+JSON report written to /home/inktomi/.codex/worktrees/world-aware-tools/orbweaver/reports/runs/test/orbweaver-3259069-2026-09-21T04-37-12-695Z/test-report.json
+[vitest-supervised] report → reports/runs/test/orbweaver-3259069-2026-09-21T04-37-12-695Z/test-report.json (published at reports/test-report.json)

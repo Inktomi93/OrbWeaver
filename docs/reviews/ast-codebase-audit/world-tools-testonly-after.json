@@ -1,0 +1,908 @@
+{
+  "label": "testonly ",
+  "total": 147,
+  "shown": 147,
+  "hits": [
+    {
+      "file": "packages/client/src/features/chat/lib/chat-reading-port.ts",
+      "line": 38,
+      "kind": "test-only-export",
+      "text": "CHAT_READING_PORT_MIN_PX  \u2014  export const CHAT_READING_PORT_MIN_PX = 212;"
+    },
+    {
+      "file": "packages/client/src/features/credentials/lib/connection-fact-model.ts",
+      "line": 276,
+      "kind": "test-only-export",
+      "text": "QUIRK_LEAF_PATH_LIST  \u2014  export const QUIRK_LEAF_PATH_LIST: readonly string[] = Object.values(QUIRK_LEAF_PATHS).flat();"
+    },
+    {
+      "file": "packages/client/src/features/credentials/lib/connection-fact-model.ts",
+      "line": 279,
+      "kind": "test-only-export",
+      "text": "QUIRK_ROW_PATHS  \u2014  export const QUIRK_ROW_PATHS: readonly string[] = QUIRK_LEAVES.map((leaf) => leaf.path);"
+    },
+    {
+      "file": "packages/client/src/features/credentials/lib/connections-model.ts",
+      "line": 349,
+      "kind": "test-only-export",
+      "text": "roleRequirementGaps  \u2014  export function roleRequirementGaps(row: RoleRow, tasks: readonly Task[]): readonly string[] {"
+    },
+    {
+      "file": "packages/client/src/features/refinery/hooks/use-refinery-mutations.ts",
+      "line": 123,
+      "kind": "test-only-export",
+      "text": "useDeleteRefinerySession  \u2014  export const useDeleteRefinerySession = createEntityMutation<inferInput<Trpc[\"refinery\"][\"deleteSession\"]>, unknown>({"
+    },
+    {
+      "file": "packages/client/src/lib/appearance-carrier-manifest.ts",
+      "line": 316,
+      "kind": "test-only-export",
+      "text": "appearanceCarrierRowsFor  \u2014  export function appearanceCarrierRowsFor(plane: AppearanceCarrierPlane): readonly AppearanceCarrierKey[] {"
+    },
+    {
+      "file": "packages/client/src/state/chat-stream.ts",
+      "line": 391,
+      "kind": "test-only-export",
+      "text": "subscribeTurnSlot  \u2014  export function subscribeTurnSlot(chatId: ChatId, listener: (slot: TurnSlot) => void): () => void {"
+    },
+    {
+      "file": "packages/client/src/state/config-group-ids.ts",
+      "line": 51,
+      "kind": "test-only-export",
+      "text": "isConfigShelf  \u2014  export function isConfigShelf(v: unknown): v is ConfigShelf {"
+    },
+    {
+      "file": "packages/client/src/state/config-group-open-store.ts",
+      "line": 55,
+      "kind": "test-only-export",
+      "text": "toggleConfigGroup  \u2014  export function toggleConfigGroup(id: ConfigGroupId): void {"
+    },
+    {
+      "file": "packages/client/src/state/config-search-store.ts",
+      "line": 58,
+      "kind": "test-only-export",
+      "text": "clearConfigSearch  \u2014  export function clearConfigSearch(): void {"
+    },
+    {
+      "file": "packages/client/src/state/plugin-page-selection-store.ts",
+      "line": 30,
+      "kind": "test-only-export",
+      "text": "parsePluginPageKey  \u2014  export function parsePluginPageKey(key: PluginPageKey): { readonly pluginId: PluginId; readonly surfaceId: string } | nu"
+    },
+    {
+      "file": "packages/client/src/state/plugin-page-selection-store.ts",
+      "line": 41,
+      "kind": "test-only-export",
+      "text": "selectPluginPage  \u2014  export const selectPluginPage = store.select;"
+    },
+    {
+      "file": "packages/client/src/state/recent-models-store.ts",
+      "line": 54,
+      "kind": "test-only-export",
+      "text": "pushRecentModel  \u2014  export function pushRecentModel(source: string, id: string): void {"
+    },
+    {
+      "file": "packages/client/src/state/recent-models-store.ts",
+      "line": 65,
+      "kind": "test-only-export",
+      "text": "useRecentModels  \u2014  export function useRecentModels(source: string): readonly string[] {"
+    },
+    {
+      "file": "packages/client/src/state/refinery-selection-store.ts",
+      "line": 19,
+      "kind": "test-only-export",
+      "text": "clearRefinerySelection  \u2014  export const clearRefinerySelection = store.clear;"
+    },
+    {
+      "file": "packages/client/src/state/rpg-round-store.ts",
+      "line": 49,
+      "kind": "test-only-export",
+      "text": "readRpgRoundPendingForTest  \u2014  export function readRpgRoundPendingForTest(chatId: ChatId): boolean {"
+    },
+    {
+      "file": "packages/client/src/state/shell-store.ts",
+      "line": 283,
+      "kind": "test-only-export",
+      "text": "publishContextTabIds  \u2014  export function publishContextTabIds(ids: readonly string[]): void {"
+    },
+    {
+      "file": "packages/client/vite.config.ts",
+      "line": 484,
+      "kind": "test-only-export",
+      "text": "devServerServes  \u2014  export async function devServerServes(absolutePath: string): Promise<boolean> {"
+    },
+    {
+      "file": "packages/client/vite.config.ts",
+      "line": 498,
+      "kind": "test-only-export",
+      "text": "default  \u2014  export default defineConfig({"
+    },
+    {
+      "file": "packages/contracts/src/automation/index.ts",
+      "line": 128,
+      "kind": "test-only-export",
+      "text": "automationFireOutcomeSchema  \u2014  export const automationFireOutcomeSchema = z.enum(AUTOMATION_FIRE_OUTCOMES);"
+    },
+    {
+      "file": "packages/contracts/src/automation/index.ts",
+      "line": 144,
+      "kind": "test-only-export",
+      "text": "globalVariableKeySchema  \u2014  export const globalVariableKeySchema = z.string().min(1).max(GLOBAL_VARIABLE_KEY_MAX_CHARS);"
+    },
+    {
+      "file": "packages/contracts/src/automation/presets.ts",
+      "line": 109,
+      "kind": "test-only-export",
+      "text": "rulePresetScopeSchema  \u2014  export const rulePresetScopeSchema = z.enum(RULE_PRESET_SCOPES);"
+    },
+    {
+      "file": "packages/contracts/src/automation/presets.ts",
+      "line": 113,
+      "kind": "test-only-export",
+      "text": "RulePresetKnobKind  \u2014  export type RulePresetKnobKind = (typeof RULE_PRESET_KNOB_KINDS)[number];"
+    },
+    {
+      "file": "packages/contracts/src/chat/bus.ts",
+      "line": 683,
+      "kind": "test-only-export",
+      "text": "isChatBusEventType  \u2014  export function isChatBusEventType(t: string): t is ChatBusEvent[\"type\"] {"
+    },
+    {
+      "file": "packages/contracts/src/chat/content-classes.ts",
+      "line": 55,
+      "kind": "test-only-export",
+      "text": "CONTENT_CLASS_POLICY  \u2014  export const CONTENT_CLASS_POLICY: Readonly<Record<ContentSpanKind, ContentClassPolicy>> = {"
+    },
+    {
+      "file": "packages/contracts/src/chat/messages.ts",
+      "line": 286,
+      "kind": "test-only-export",
+      "text": "MessageSlot  \u2014  export type MessageSlot = z.infer<typeof messageSlotSchema>;"
+    },
+    {
+      "file": "packages/contracts/src/databank/index.ts",
+      "line": 195,
+      "kind": "test-only-export",
+      "text": "DEFAULT_CHAT_DOCUMENT_VISIBILITY  \u2014  export const DEFAULT_CHAT_DOCUMENT_VISIBILITY: ChatDocumentVisibility = { hidden: [] };"
+    },
+    {
+      "file": "packages/contracts/src/discovery/index.ts",
+      "line": 17,
+      "kind": "test-only-export",
+      "text": "duplicateRelationSchema  \u2014  export const duplicateRelationSchema = z.enum(RELATIONS);"
+    },
+    {
+      "file": "packages/contracts/src/embeddings/index.ts",
+      "line": 79,
+      "kind": "test-only-export",
+      "text": "foldActiveSpace  \u2014  export function foldActiveSpace(task: keyof typeof VECTOR_SCOPES_BY_TASK, rows: readonly CompletedSpaceRow[]): ActiveSpa"
+    },
+    {
+      "file": "packages/contracts/src/embeddings/index.ts",
+      "line": 237,
+      "kind": "test-only-export",
+      "text": "ImageBreakdown  \u2014  export type ImageBreakdown = z.infer<typeof imageBreakdownSchema>;"
+    },
+    {
+      "file": "packages/contracts/src/identity/index.ts",
+      "line": 36,
+      "kind": "test-only-export",
+      "text": "authModeSchema  \u2014  export const authModeSchema = z.enum(AUTH_MODES);"
+    },
+    {
+      "file": "packages/contracts/src/inference/capability/capability.ts",
+      "line": 23,
+      "kind": "test-only-export",
+      "text": "KIND_DEFS  \u2014  export const KIND_DEFS: Record<ModelKind, KindDef> = {"
+    },
+    {
+      "file": "packages/contracts/src/inference/connection-ref.ts",
+      "line": 9,
+      "kind": "test-only-export",
+      "text": "connectionRefSchema  \u2014  export const connectionRefSchema = z.object({ connectionId: typeIdSchema(ID_PREFIX.userConnection) });"
+    },
+    {
+      "file": "packages/contracts/src/inference/deltas.ts",
+      "line": 9,
+      "kind": "test-only-export",
+      "text": "deltaKindSchema  \u2014  export const deltaKindSchema = z.enum(DELTA_KINDS);"
+    },
+    {
+      "file": "packages/contracts/src/inference/evidence.ts",
+      "line": 21,
+      "kind": "test-only-export",
+      "text": "evidenceRank  \u2014  export function evidenceRank(tier: EvidenceTier): number {"
+    },
+    {
+      "file": "packages/contracts/src/inference/finish-reasons.ts",
+      "line": 11,
+      "kind": "test-only-export",
+      "text": "normalizedFinishReasonSchema  \u2014  export const normalizedFinishReasonSchema = z.enum(NORMALIZED_FINISH_REASONS);"
+    },
+    {
+      "file": "packages/contracts/src/inference/policy.ts",
+      "line": 22,
+      "kind": "test-only-export",
+      "text": "taskProviders  \u2014  export function taskProviders(task: Task, providers: readonly ProviderDef[] = BUILTIN_PROVIDERS): readonly ProviderDef[]"
+    },
+    {
+      "file": "packages/contracts/src/memory/index.ts",
+      "line": 15,
+      "kind": "test-only-export",
+      "text": "ClipKind  \u2014  export type ClipKind = (typeof CLIP_KINDS)[number];"
+    },
+    {
+      "file": "packages/contracts/src/memory/index.ts",
+      "line": 17,
+      "kind": "test-only-export",
+      "text": "clipKindSchema  \u2014  export const clipKindSchema = z.enum(CLIP_KINDS);"
+    },
+    {
+      "file": "packages/contracts/src/memory/index.ts",
+      "line": 22,
+      "kind": "test-only-export",
+      "text": "ClipSourceKind  \u2014  export type ClipSourceKind = (typeof CLIP_SOURCE_KINDS)[number];"
+    },
+    {
+      "file": "packages/contracts/src/memory/index.ts",
+      "line": 24,
+      "kind": "test-only-export",
+      "text": "clipSourceKindSchema  \u2014  export const clipSourceKindSchema = z.enum(CLIP_SOURCE_KINDS);"
+    },
+    {
+      "file": "packages/contracts/src/memory/index.ts",
+      "line": 28,
+      "kind": "test-only-export",
+      "text": "ClipScope  \u2014  export type ClipScope = (typeof CLIP_SCOPES)[number];"
+    },
+    {
+      "file": "packages/contracts/src/memory/index.ts",
+      "line": 30,
+      "kind": "test-only-export",
+      "text": "clipScopeSchema  \u2014  export const clipScopeSchema = z.enum(CLIP_SCOPES);"
+    },
+    {
+      "file": "packages/contracts/src/preset/index.ts",
+      "line": 1923,
+      "kind": "test-only-export",
+      "text": "TEMPLATE_DEF_BY_ID  \u2014  export const TEMPLATE_DEF_BY_ID: Record<RegistryTemplateId, TemplateDef> & Partial<Record<ProseSlotId, TemplateDef>> = ("
+    },
+    {
+      "file": "packages/contracts/src/preset/prose.ts",
+      "line": 448,
+      "kind": "test-only-export",
+      "text": "PRESET_GUIDED_SLOT_IDS  \u2014  export const PRESET_GUIDED_SLOT_IDS = {"
+    },
+    {
+      "file": "packages/contracts/src/rpg/enums.ts",
+      "line": 21,
+      "kind": "test-only-export",
+      "text": "rpgGameStatusSchema  \u2014  export const rpgGameStatusSchema = z.enum(RPG_GAME_STATUSES);"
+    },
+    {
+      "file": "packages/contracts/src/rpg/enums.ts",
+      "line": 44,
+      "kind": "test-only-export",
+      "text": "rpgCheckpointTriggerSchema  \u2014  export const rpgCheckpointTriggerSchema = z.enum(RPG_CHECKPOINT_TRIGGERS);"
+    },
+    {
+      "file": "packages/contracts/src/rpg/enums.ts",
+      "line": 56,
+      "kind": "test-only-export",
+      "text": "rpgTrackerShapeSchema  \u2014  export const rpgTrackerShapeSchema = z.enum(RPG_TRACKER_SHAPES);"
+    },
+    {
+      "file": "packages/contracts/src/rpg/enums.ts",
+      "line": 67,
+      "kind": "test-only-export",
+      "text": "rpgTrackerWriteSchema  \u2014  export const rpgTrackerWriteSchema = z.enum(RPG_TRACKER_WRITES);"
+    },
+    {
+      "file": "packages/contracts/src/rpg/enums.ts",
+      "line": 76,
+      "kind": "test-only-export",
+      "text": "rpgTrackerSubjectSchema  \u2014  export const rpgTrackerSubjectSchema = z.enum(RPG_TRACKER_SUBJECTS);"
+    },
+    {
+      "file": "packages/contracts/src/rpg/enums.ts",
+      "line": 83,
+      "kind": "test-only-export",
+      "text": "rpgTrackerCarrierClassSchema  \u2014  export const rpgTrackerCarrierClassSchema = z.enum(RPG_TRACKER_CARRIER_CLASSES);"
+    },
+    {
+      "file": "packages/contracts/src/rpg/mode.ts",
+      "line": 51,
+      "kind": "test-only-export",
+      "text": "MODE_POLICY  \u2014  export const MODE_POLICY: Readonly<Record<RpgGameMode, RpgModePolicy>> = {"
+    },
+    {
+      "file": "packages/contracts/src/rpg/profile.ts",
+      "line": 159,
+      "kind": "test-only-export",
+      "text": "RPG_PACKAGED_PROFILE_BY_KEY  \u2014  export const RPG_PACKAGED_PROFILE_BY_KEY: Readonly<Record<RpgPackagedProfileKey, RpgStatProfile>> = {"
+    },
+    {
+      "file": "packages/contracts/src/rpg/snapshot.ts",
+      "line": 33,
+      "kind": "test-only-export",
+      "text": "RpgPlotAct  \u2014  export type RpgPlotAct = z.infer<typeof rpgPlotActSchema>;"
+    },
+    {
+      "file": "packages/contracts/src/rpg/tracker.ts",
+      "line": 177,
+      "kind": "test-only-export",
+      "text": "resolveTrackerCarriers  \u2014  export function resolveTrackerCarriers(def: RpgTrackerDef, carriers: readonly RpgTrackerCarrier[]): readonly RpgTrackerC"
+    },
+    {
+      "file": "packages/contracts/src/search/index.ts",
+      "line": 14,
+      "kind": "test-only-export",
+      "text": "memoryRetrievalModeSchema  \u2014  export const memoryRetrievalModeSchema = z.enum(MEMORY_RETRIEVAL_MODES);"
+    },
+    {
+      "file": "packages/contracts/src/stream/index.ts",
+      "line": 58,
+      "kind": "test-only-export",
+      "text": "STREAM_CHANNELS  \u2014  export const STREAM_CHANNELS = [\"user\", \"notifications\", \"chat\", \"rpg\", \"automation\", \"workloads\"] as const satisfies re"
+    },
+    {
+      "file": "packages/contracts/src/theme/override.ts",
+      "line": 127,
+      "kind": "test-only-export",
+      "text": "VIEWER_SACRED_THEME_KEYS  \u2014  export const VIEWER_SACRED_THEME_KEYS: readonly ViewerSacredThemeKey[] = REACH_ENTRIES.filter(([, reach]) => reach === \""
+    },
+    {
+      "file": "packages/db/src/client/index.ts",
+      "line": 638,
+      "kind": "test-only-export",
+      "text": "forecastDevDbReset  \u2014  export async function forecastDevDbReset(url: string, migrationsFolder: string): Promise<DevDbResetForecast> {"
+    },
+    {
+      "file": "packages/inference/src/backends/local-light/tasks.ts",
+      "line": 17,
+      "kind": "test-only-export",
+      "text": "DEFAULT_EMBED_MODEL  \u2014  export const DEFAULT_EMBED_MODEL: string = LOCAL_LIGHT_SEED_ROWS[0].model;"
+    },
+    {
+      "file": "packages/inference/src/backends/local-light/tasks.ts",
+      "line": 18,
+      "kind": "test-only-export",
+      "text": "DEFAULT_RERANK_MODEL  \u2014  export const DEFAULT_RERANK_MODEL: string = LOCAL_LIGHT_SEED_ROWS[1].model;"
+    },
+    {
+      "file": "packages/kit/src/macro/metadata.ts",
+      "line": 144,
+      "kind": "test-only-export",
+      "text": "validateMacroArgs  \u2014  export function validateMacroArgs(metadata: MacroMetadata, args: readonly string[], span: MacroSpan, strict: boolean): M"
+    },
+    {
+      "file": "packages/kit/src/theme-derivation/index.ts",
+      "line": 249,
+      "kind": "test-only-export",
+      "text": "oklabToOklch  \u2014  export function oklabToOklch(l: number, a: number, b: number): Oklch {"
+    },
+    {
+      "file": "packages/kit/src/theme-derivation/index.ts",
+      "line": 393,
+      "kind": "test-only-export",
+      "text": "derivedMutedForegroundLightness  \u2014  export function derivedMutedForegroundLightness(surfaces: readonly Oklch[]): number {"
+    },
+    {
+      "file": "packages/kit/src/theme-derivation/index.ts",
+      "line": 411,
+      "kind": "test-only-export",
+      "text": "derivedForeground  \u2014  export function derivedForeground(surface: Oklch): Oklch {"
+    },
+    {
+      "file": "packages/kit/src/theme-derivation/index.ts",
+      "line": 421,
+      "kind": "test-only-export",
+      "text": "inputCompositeSurface  \u2014  export function inputCompositeSurface(base: Oklch, backing: Oklch, alpha: number = THEME_DERIVATION.inputAlpha): Oklch {"
+    },
+    {
+      "file": "packages/server/src/domain/assets/persistence/asset-refs.ts",
+      "line": 88,
+      "kind": "test-only-export",
+      "text": "DERIVED_ASSET_COLUMNS  \u2014  export const DERIVED_ASSET_COLUMNS: readonly string[] = [\"image_embeddings.asset_id\", \"image_index_skips.asset_id\"];"
+    },
+    {
+      "file": "packages/server/src/domain/automation/substrate/serial-lanes.ts",
+      "line": 101,
+      "kind": "test-only-export",
+      "text": "activeLaneCount  \u2014  export function activeLaneCount(): number {"
+    },
+    {
+      "file": "packages/server/src/domain/chat/persistence/handoff-resume.ts",
+      "line": 63,
+      "kind": "test-only-export",
+      "text": "clearHandoffResumption  \u2014  export async function clearHandoffResumption(db: Db, chatId: ChatId, acceptedByUserId: UserId): Promise<void> {"
+    },
+    {
+      "file": "packages/server/src/domain/chat/persistence/invites.ts",
+      "line": 228,
+      "kind": "test-only-export",
+      "text": "loadPendingTurns  \u2014  export async function loadPendingTurns(db: Db, chatId: ChatId): Promise<(typeof pendingTurns.$inferSelect)[]> {"
+    },
+    {
+      "file": "packages/server/src/domain/chat/persistence/queries.ts",
+      "line": 721,
+      "kind": "test-only-export",
+      "text": "loadTurnForClassify  \u2014  export async function loadTurnForClassify("
+    },
+    {
+      "file": "packages/server/src/domain/chat/seeder/demo-chats.ts",
+      "line": 700,
+      "kind": "test-only-export",
+      "text": "DEMO_CHAT_NARRATOR_NAME  \u2014  export const DEMO_CHAT_NARRATOR_NAME = \"Group\";"
+    },
+    {
+      "file": "packages/server/src/domain/chat/substrate/auth/matrix.ts",
+      "line": 43,
+      "kind": "test-only-export",
+      "text": "CHAT_VERB_AUTHORITY  \u2014  export const CHAT_VERB_AUTHORITY = {"
+    },
+    {
+      "file": "packages/server/src/domain/chat/substrate/auth/matrix.ts",
+      "line": 221,
+      "kind": "test-only-export",
+      "text": "authorityForSurface  \u2014  export function authorityForSurface(surface: string): ChatAuthority | typeof DENY {"
+    },
+    {
+      "file": "packages/server/src/domain/embeddings/contract/params.ts",
+      "line": 13,
+      "kind": "test-only-export",
+      "text": "SourceKind  \u2014  export type SourceKind = (typeof SOURCE_KINDS)[number];"
+    },
+    {
+      "file": "packages/server/src/domain/embeddings/contract/params.ts",
+      "line": 18,
+      "kind": "test-only-export",
+      "text": "SOURCE_LENSES  \u2014  export const SOURCE_LENSES = [...TEXT_LENSES, ...IMAGE_LENSES] as const;"
+    },
+    {
+      "file": "packages/server/src/domain/embeddings/contract/params.ts",
+      "line": 20,
+      "kind": "test-only-export",
+      "text": "SourceLens  \u2014  export type SourceLens = (typeof TEXT_LENSES)[number] | ImageLens;"
+    },
+    {
+      "file": "packages/server/src/domain/imagery/substrate/templates.ts",
+      "line": 20,
+      "kind": "test-only-export",
+      "text": "PROMPT_TEMPLATES  \u2014  export const PROMPT_TEMPLATES = DEFAULT_PROMPT_TEMPLATES;"
+    },
+    {
+      "file": "packages/server/src/domain/imagery/substrate/templates.ts",
+      "line": 22,
+      "kind": "test-only-export",
+      "text": "CAPTION_INSTRUCTIONS  \u2014  export const CAPTION_INSTRUCTIONS = DEFAULT_CAPTION_INSTRUCTIONS;"
+    },
+    {
+      "file": "packages/server/src/domain/rpg/persistence/games.ts",
+      "line": 47,
+      "kind": "test-only-export",
+      "text": "insertGame  \u2014  export async function insertGame(db: Db, values: NewRpgGame): Promise<RpgGameRow> {"
+    },
+    {
+      "file": "packages/server/src/domain/rpg/persistence/games.ts",
+      "line": 60,
+      "kind": "test-only-export",
+      "text": "findGameById  \u2014  export async function findGameById(db: Db, id: RpgGameId): Promise<RpgGameRow | undefined> {"
+    },
+    {
+      "file": "packages/server/src/domain/rpg/persistence/journal.ts",
+      "line": 110,
+      "kind": "test-only-export",
+      "text": "listJournalByVariant  \u2014  export function listJournalByVariant(db: Db, variantId: MessageVariantId): Promise<RpgJournalRow[]> {"
+    },
+    {
+      "file": "packages/server/src/domain/rpg/persistence/snapshots.ts",
+      "line": 139,
+      "kind": "test-only-export",
+      "text": "countSnapshots  \u2014  export async function countSnapshots(db: Db, gameId: RpgGameId): Promise<number> {"
+    },
+    {
+      "file": "packages/server/src/domain/rpg/persistence/snapshots.ts",
+      "line": 547,
+      "kind": "test-only-export",
+      "text": "writeStagedSnapshot  \u2014  export function writeStagedSnapshot(db: Db, state: RpgSnapshotState, target: TurnSnapshotTarget): Promise<WriteStagedSna"
+    },
+    {
+      "file": "packages/server/src/domain/rpg/persistence/turn-tool-calls.ts",
+      "line": 86,
+      "kind": "test-only-export",
+      "text": "findTurnToolCallsByVariant  \u2014  export function findTurnToolCallsByVariant(db: Db, variantId: MessageVariantId): Promise<RpgTurnToolCallsRow[]> {"
+    },
+    {
+      "file": "packages/server/src/domain/rpg/substrate/delta.ts",
+      "line": 36,
+      "kind": "test-only-export",
+      "text": "RPG_DELTA_HEADING  \u2014  export const RPG_DELTA_HEADING = PROSE_SLOTS[\"rpg.delta.changesHeading\"].text;"
+    },
+    {
+      "file": "packages/server/src/domain/rpg/substrate/delta.ts",
+      "line": 42,
+      "kind": "test-only-export",
+      "text": "RPG_SCENE_OPENS_HEADING  \u2014  export const RPG_SCENE_OPENS_HEADING = PROSE_SLOTS[\"rpg.delta.sceneOpensHeading\"].text;"
+    },
+    {
+      "file": "packages/server/src/domain/rpg/substrate/reminder.ts",
+      "line": 82,
+      "kind": "test-only-export",
+      "text": "RPG_STEERING_LICENSE  \u2014  export const RPG_STEERING_LICENSE = PROSE_SLOTS[\"rpg.reminder.steeringLicense\"].text;"
+    },
+    {
+      "file": "packages/server/src/domain/rpg/substrate/reminder.ts",
+      "line": 91,
+      "kind": "test-only-export",
+      "text": "RPG_DECEPTION_TEACH  \u2014  export const RPG_DECEPTION_TEACH = PROSE_SLOTS[\"rpg.reminder.deceptionTeach\"].text;"
+    },
+    {
+      "file": "packages/server/src/domain/rpg/substrate/reminder.ts",
+      "line": 101,
+      "kind": "test-only-export",
+      "text": "RPG_OFILTER_TEACH  \u2014  export const RPG_OFILTER_TEACH = PROSE_SLOTS[\"rpg.reminder.omniscienceTeach\"].text;"
+    },
+    {
+      "file": "packages/server/src/domain/rpg/substrate/reminder.ts",
+      "line": 119,
+      "kind": "test-only-export",
+      "text": "RPG_CARD_TEACH  \u2014  export const RPG_CARD_TEACH = RPG_CARD_TEACH_ASK + RPG_CARD_TEACH_EXAMPLE;"
+    },
+    {
+      "file": "packages/server/src/domain/rpg/substrate/reminder.ts",
+      "line": 126,
+      "kind": "test-only-export",
+      "text": "RPG_CYOA_TEACH  \u2014  export const RPG_CYOA_TEACH = PROSE_SLOTS[\"rpg.reminder.cyoaTeach\"].text;"
+    },
+    {
+      "file": "packages/server/src/domain/rpg/substrate/reminder.ts",
+      "line": 132,
+      "kind": "test-only-export",
+      "text": "RPG_CARD_TEACH_STATIC  \u2014  export const RPG_CARD_TEACH_STATIC = RPG_CARD_TEACH_STATIC_ASK + RPG_CARD_TEACH_EXAMPLE;"
+    },
+    {
+      "file": "packages/server/src/domain/settings/persistence/queries.ts",
+      "line": 69,
+      "kind": "test-only-export",
+      "text": "ensureUserSettings  \u2014  export async function ensureUserSettings(db: Db, ownerId: UserId, at: number): Promise<void> {"
+    },
+    {
+      "file": "packages/server/src/foundation/observability/audit.ts",
+      "line": 45,
+      "kind": "test-only-export",
+      "text": "resetAuditFailureCount  \u2014  export function resetAuditFailureCount(): void {"
+    },
+    {
+      "file": "packages/server/src/foundation/observability/debug/wire-capture.ts",
+      "line": 166,
+      "kind": "test-only-export",
+      "text": "resetWireCaptures  \u2014  export function resetWireCaptures(): void {"
+    },
+    {
+      "file": "packages/server/src/foundation/version/index.ts",
+      "line": 194,
+      "kind": "test-only-export",
+      "text": "buildVersionStamp  \u2014  export function buildVersionStamp(root: string, builtAt: string): VersionStamp {"
+    },
+    {
+      "file": "packages/server/src/infra/auth/jwks.ts",
+      "line": 206,
+      "kind": "test-only-export",
+      "text": "jwksCacheSize  \u2014  export function jwksCacheSize(): number {"
+    },
+    {
+      "file": "packages/server/src/infra/auth/jwks.ts",
+      "line": 211,
+      "kind": "test-only-export",
+      "text": "resetJwksCache  \u2014  export function resetJwksCache(): void {"
+    },
+    {
+      "file": "packages/server/src/infra/network/openai-models.ts",
+      "line": 141,
+      "kind": "test-only-export",
+      "text": "probeOpenAiEndpoint  \u2014  export async function probeOpenAiEndpoint(args: FetchOpenAiModelsArgs, now: () => number): Promise<CredentialHealth> {"
+    },
+    {
+      "file": "packages/server/src/infra/plugin-host/sandbox.ts",
+      "line": 689,
+      "kind": "test-only-export",
+      "text": "boundHostFn  \u2014  export function boundHostFn("
+    },
+    {
+      "file": "packages/server/src/kit/regex/index.ts",
+      "line": 41,
+      "kind": "test-only-export",
+      "text": "applyReplace  \u2014  export const applyReplace = createRegexApplyReplace();"
+    },
+    {
+      "file": "packages/server/src/kit/regex/index.ts",
+      "line": 71,
+      "kind": "test-only-export",
+      "text": "testRegex  \u2014  export const testRegex = createRegexTest();"
+    },
+    {
+      "file": "packages/server/src/transport/trpc/router.ts",
+      "line": 102,
+      "kind": "test-only-export",
+      "text": "createCaller  \u2014  export const createCaller = t.createCallerFactory(appRouter);"
+    },
+    {
+      "file": "packages/ui/src/art/web-weave/web-glyph.ts",
+      "line": 98,
+      "kind": "test-only-export",
+      "text": "WEB_GLYPH_COMPACT  \u2014  export const WEB_GLYPH_COMPACT: WebGlyphGeometry = webGlyph({ spokes: 6, turns: 1.7, spiralEndRadius: 10.6 });"
+    },
+    {
+      "file": "packages/ui/src/charts/meter/waystone-treatment.ts",
+      "line": 38,
+      "kind": "test-only-export",
+      "text": "WAYSTONE_WEATHERS  \u2014  export const WAYSTONE_WEATHERS = WEATHER_TYPES;"
+    },
+    {
+      "file": "packages/ui/src/charts/meter/waystone-treatment.ts",
+      "line": 219,
+      "kind": "test-only-export",
+      "text": "WAYSTONE_SKY_STOPS  \u2014  export const WAYSTONE_SKY_STOPS = SKY_STOPS;"
+    },
+    {
+      "file": "packages/ui/src/content/theme-scope/clamp.ts",
+      "line": 142,
+      "kind": "test-only-export",
+      "text": "THEME_DERIVATION  \u2014  export const THEME_DERIVATION = KIT_THEME_DERIVATION;"
+    },
+    {
+      "file": "packages/ui/src/layout/toolbar.tsx",
+      "line": 27,
+      "kind": "test-only-export",
+      "text": "ToolbarButton  \u2014  export function ToolbarButton({ className, ...props }: ToolbarButtonProps): ReactElement {"
+    },
+    {
+      "file": "packages/ui/src/layout/toolbar.tsx",
+      "line": 36,
+      "kind": "test-only-export",
+      "text": "ToolbarSeparator  \u2014  export function ToolbarSeparator({ className, ...props }: ToolbarSeparatorProps): ReactElement {"
+    },
+    {
+      "file": "packages/ui/src/layout/toolbar.tsx",
+      "line": 49,
+      "kind": "test-only-export",
+      "text": "ToolbarGroup  \u2014  export function ToolbarGroup({ className, ...props }: ToolbarGroupProps): ReactElement {"
+    },
+    {
+      "file": "packages/ui/src/layout/toolbar.tsx",
+      "line": 62,
+      "kind": "test-only-export",
+      "text": "ToolbarLink  \u2014  export function ToolbarLink({ className, ...props }: ToolbarLinkProps): ReactElement {"
+    },
+    {
+      "file": "packages/ui/src/layout/toolbar.tsx",
+      "line": 76,
+      "kind": "test-only-export",
+      "text": "ToolbarInput  \u2014  export function ToolbarInput({ className, ...props }: ToolbarInputProps): ReactElement {"
+    },
+    {
+      "file": "packages/ui/src/primitives/accordion/accordion.tsx",
+      "line": 36,
+      "kind": "test-only-export",
+      "text": "AccordionHeader  \u2014  export function AccordionHeader({ className, ...rest }: AccordionHeaderProps): ReactElement {"
+    },
+    {
+      "file": "packages/ui/src/primitives/alert-dialog/handle.ts",
+      "line": 4,
+      "kind": "test-only-export",
+      "text": "createAlertDialogHandle  \u2014  export const createAlertDialogHandle = BaseAlertDialog.createHandle;"
+    },
+    {
+      "file": "packages/ui/src/primitives/color-field/color-field.tsx",
+      "line": 27,
+      "kind": "test-only-export",
+      "text": "ColorSwatch  \u2014  export function ColorSwatch({ value, label, className }: ColorSwatchProps): ReactElement {"
+    },
+    {
+      "file": "packages/ui/src/primitives/command/command.tsx",
+      "line": 235,
+      "kind": "test-only-export",
+      "text": "CommandStatus  \u2014  export function CommandStatus(): ReactElement {"
+    },
+    {
+      "file": "packages/ui/src/primitives/dialog/handle.ts",
+      "line": 5,
+      "kind": "test-only-export",
+      "text": "createDialogHandle  \u2014  export const createDialogHandle = BaseDialog.createHandle;"
+    },
+    {
+      "file": "packages/ui/src/primitives/drawer/drawer.tsx",
+      "line": 44,
+      "kind": "test-only-export",
+      "text": "DrawerTrigger  \u2014  export function DrawerTrigger<Payload = unknown>(props: BaseTriggerProps<Payload>): ReactElement {"
+    },
+    {
+      "file": "packages/ui/src/primitives/drawer/drawer.tsx",
+      "line": 97,
+      "kind": "test-only-export",
+      "text": "DrawerDescription  \u2014  export function DrawerDescription(props: DrawerDescriptionProps): ReactElement {"
+    },
+    {
+      "file": "packages/ui/src/primitives/drawer/drawer.tsx",
+      "line": 115,
+      "kind": "test-only-export",
+      "text": "DrawerSwipeArea  \u2014  export function DrawerSwipeArea(props: DrawerSwipeAreaProps): ReactElement {"
+    },
+    {
+      "file": "packages/ui/src/primitives/drawer/drawer.tsx",
+      "line": 125,
+      "kind": "test-only-export",
+      "text": "DrawerProvider  \u2014  export function DrawerProvider(props: BaseProviderProps): ReactElement {"
+    },
+    {
+      "file": "packages/ui/src/primitives/drawer/drawer.tsx",
+      "line": 137,
+      "kind": "test-only-export",
+      "text": "DrawerIndent  \u2014  export function DrawerIndent(props: DrawerIndentProps): ReactElement {"
+    },
+    {
+      "file": "packages/ui/src/primitives/drawer/drawer.tsx",
+      "line": 150,
+      "kind": "test-only-export",
+      "text": "DrawerIndentBackground  \u2014  export function DrawerIndentBackground(props: DrawerIndentBackgroundProps): ReactElement {"
+    },
+    {
+      "file": "packages/ui/src/primitives/drawer/handle.ts",
+      "line": 4,
+      "kind": "test-only-export",
+      "text": "createDrawerHandle  \u2014  export const createDrawerHandle = BaseDrawer.createHandle;"
+    },
+    {
+      "file": "packages/ui/src/primitives/field/field.tsx",
+      "line": 207,
+      "kind": "test-only-export",
+      "text": "FieldValidity  \u2014  export function FieldValidity(props: FieldValidityProps): ReactElement {"
+    },
+    {
+      "file": "packages/ui/src/primitives/icons/fillable.ts",
+      "line": 56,
+      "kind": "test-only-export",
+      "text": "Pause  \u2014  export const Pause: FillableIcon = PauseGlyph as FillableIcon;"
+    },
+    {
+      "file": "packages/ui/src/primitives/menu/handle.ts",
+      "line": 7,
+      "kind": "test-only-export",
+      "text": "createMenuHandle  \u2014  export const createMenuHandle = BaseMenu.createHandle;"
+    },
+    {
+      "file": "packages/ui/src/primitives/menu/menu.tsx",
+      "line": 85,
+      "kind": "test-only-export",
+      "text": "MenuViewport  \u2014  export function MenuViewport(props: MenuViewportProps): ReactElement {"
+    },
+    {
+      "file": "packages/ui/src/primitives/menu/menu.tsx",
+      "line": 95,
+      "kind": "test-only-export",
+      "text": "MenuArrow  \u2014  export function MenuArrow(props: MenuArrowProps): ReactElement {"
+    },
+    {
+      "file": "packages/ui/src/primitives/menu/menu.tsx",
+      "line": 149,
+      "kind": "test-only-export",
+      "text": "MenuCheckboxItem  \u2014  export function MenuCheckboxItem(props: MenuCheckboxItemProps): ReactElement {"
+    },
+    {
+      "file": "packages/ui/src/primitives/menu/menu.tsx",
+      "line": 162,
+      "kind": "test-only-export",
+      "text": "MenuRadioGroup  \u2014  export function MenuRadioGroup(props: BaseRadioGroupProps): ReactElement {"
+    },
+    {
+      "file": "packages/ui/src/primitives/menu/menu.tsx",
+      "line": 174,
+      "kind": "test-only-export",
+      "text": "MenuRadioItem  \u2014  export function MenuRadioItem(props: MenuRadioItemProps): ReactElement {"
+    },
+    {
+      "file": "packages/ui/src/primitives/menu/menu.tsx",
+      "line": 236,
+      "kind": "test-only-export",
+      "text": "MenuBackdrop  \u2014  export function MenuBackdrop(props: MenuBackdropProps): ReactElement {"
+    },
+    {
+      "file": "packages/ui/src/primitives/popover/handle.ts",
+      "line": 5,
+      "kind": "test-only-export",
+      "text": "createPopoverHandle  \u2014  export const createPopoverHandle = BasePopover.createHandle;"
+    },
+    {
+      "file": "packages/ui/src/primitives/popover/popover.tsx",
+      "line": 120,
+      "kind": "test-only-export",
+      "text": "PopoverViewport  \u2014  export function PopoverViewport(props: PopoverViewportProps): ReactElement {"
+    },
+    {
+      "file": "packages/ui/src/primitives/popover/popover.tsx",
+      "line": 129,
+      "kind": "test-only-export",
+      "text": "PopoverArrow  \u2014  export function PopoverArrow(props: PopoverArrowProps): ReactElement {"
+    },
+    {
+      "file": "packages/ui/src/primitives/popover/popover.tsx",
+      "line": 151,
+      "kind": "test-only-export",
+      "text": "PopoverDescription  \u2014  export function PopoverDescription(props: PopoverDescriptionProps): ReactElement {"
+    },
+    {
+      "file": "packages/ui/src/primitives/reveal-gate/reveal-gate.tsx",
+      "line": 27,
+      "kind": "test-only-export",
+      "text": "RevealGate  \u2014  export function RevealGate({"
+    },
+    {
+      "file": "packages/ui/src/primitives/status-chip/status-chip.tsx",
+      "line": 50,
+      "kind": "test-only-export",
+      "text": "StatusChip  \u2014  export function StatusChip({ className, status, summary, timestamp, onRetry, retryLabel = \"Retry\", size, ...rest }: Stat"
+    },
+    {
+      "file": "packages/ui/src/primitives/table/table.tsx",
+      "line": 185,
+      "kind": "test-only-export",
+      "text": "Table  \u2014  export function Table<TData>({"
+    },
+    {
+      "file": "packages/ui/src/primitives/tooltip/handle.ts",
+      "line": 5,
+      "kind": "test-only-export",
+      "text": "createTooltipHandle  \u2014  export const createTooltipHandle = BaseTooltip.createHandle;"
+    },
+    {
+      "file": "packages/ui/src/primitives/tooltip/tooltip.tsx",
+      "line": 221,
+      "kind": "test-only-export",
+      "text": "TooltipViewport  \u2014  export function TooltipViewport(props: TooltipViewportProps): ReactElement {"
+    },
+    {
+      "file": "packages/ui/src/primitives/tooltip/tooltip.tsx",
+      "line": 237,
+      "kind": "test-only-export",
+      "text": "TooltipArrow  \u2014  export function TooltipArrow(props: TooltipArrowProps): ReactElement | null {"
+    },
+    {
+      "file": "packages/ui/src/stream/stream-text.tsx",
+      "line": 32,
+      "kind": "test-only-export",
+      "text": "StreamText  \u2014  export function StreamText({ text, status, cps = DEFAULT_CPS, shimmerLabel = \"Loading\", className }: StreamTextProps): R"
+    },
+    {
+      "file": "packages/ui/src/tokens/index.ts",
+      "line": 295,
+      "kind": "test-only-export",
+      "text": "SnappedTokenPath  \u2014  export type SnappedTokenPath = keyof typeof SNAPPED_LENGTH_BASE_PX;"
+    },
+    {
+      "file": "packages/ui/src/tokens/z-scope.ts",
+      "line": 77,
+      "kind": "test-only-export",
+      "text": "zScopeOfCssVar  \u2014  export function zScopeOfCssVar(cssVar: string): ZStackingScope | undefined {"
+    }
+  ],
+  "meta": {
+    "verb": "testonly",
+    "scope": "corpus:search-globs(packages/*/src,tests,scripts/**,packages/*/*.ts,*.mts,playwright)+path:/packages/",
+    "langs": {
+      "dts": 3,
+      "ts": 2627,
+      "tsx": 805
+    },
+    "scanned": 3435,
+    "skipped": 4419,
+    "skippedBy": {
+      "out-of-scope": 4419,
+      "out-of-filter": 0,
+      "test-file": 0,
+      "declaration-file": 0
+    },
+    "matches": 147,
+    "status": "complete"
+  }
+}

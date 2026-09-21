@@ -1,0 +1,173 @@
+{
+  "source": "/tmp/world-tools-testonly-after.json",
+  "scope": "Named non-security server test-only findings; production TS/TSX references corroborated with rg and ast-grep-style structural call scans. No tests run.",
+  "items": [
+    {
+      "symbol": "insertGame",
+      "file": "packages/server/src/domain/rpg/persistence/games.ts",
+      "line": 47,
+      "classification": "deliberate-test-seam",
+      "evidence": [
+        "No production caller; used by RPG persistence, fork, and handoff integration fixtures.",
+        "The source explicitly calls it the eager test setup twin; production birth uses the statement-plan seam in game-mint.ts.",
+        "It reuses the same private parseGameRow used by live findGameByChat, so corruption/default tests exercise the production parse belt."
+      ],
+      "recommendation": "Keep while integration fixtures need an eager game-row setup door. If production-export cleanup is desired later, move an equivalent helper into test support without weakening parseGameRow coverage.",
+      "confidence": "high"
+    },
+    {
+      "symbol": "findGameById",
+      "file": "packages/server/src/domain/rpg/persistence/games.ts",
+      "line": 60,
+      "classification": "deliberate-test-seam",
+      "evidence": [
+        "Only games.int.test.ts calls it; production resolves game-ness through findGameByChat.",
+        "It reuses private parseGameRow and is the direct lens for valid, corrupt, and retired-mode-heal assertions."
+      ],
+      "recommendation": "Keep as a focused parse-on-read test seam unless tests are rewritten to exercise findGameByChat with equivalent corruption and heal controls.",
+      "confidence": "high"
+    },
+    {
+      "symbol": "listJournalByVariant",
+      "file": "packages/server/src/domain/rpg/persistence/journal.ts",
+      "line": 110,
+      "classification": "deliberate-test-seam",
+      "evidence": [
+        "Only persistence/flush tests call it to inspect the exact rows stamped by one variant and CASCADE behavior.",
+        "Production reads use listActiveJournal, which applies active-lineage and history-floor policy; listAllJournal is the fork source read.",
+        "The source labels this an all-rows-by-variant test/introspection helper."
+      ],
+      "recommendation": "Keep as a narrow storage assertion seam; it must not replace the policy-bearing production read.",
+      "confidence": "high"
+    },
+    {
+      "symbol": "countSnapshots",
+      "file": "packages/server/src/domain/rpg/persistence/snapshots.ts",
+      "line": 139,
+      "classification": "deliberate-test-seam",
+      "evidence": [
+        "Only snapshot-edit tests use it for before/after row-count assertions.",
+        "Source explicitly distinguishes this all-row census from live countBeatSnapshots, which counts only turn-arm rows for cadence."
+      ],
+      "recommendation": "Keep as the precise test census. Do not wire it into production cadence because that would change hand-row semantics.",
+      "confidence": "high"
+    },
+    {
+      "symbol": "writeStagedSnapshot",
+      "file": "packages/server/src/domain/rpg/persistence/snapshots.ts",
+      "line": 547,
+      "classification": "deliberate-test-seam",
+      "evidence": [
+        "Production flush calls writeStagedSnapshotAndJournal.",
+        "This function delegates directly to writeStagedSnapshotAndJournal with an empty journal, preserving the same validation, upsert, and post-read boundary.",
+        "Many integration suites use it to establish or probe the production snapshot boundary, including invalid-state refusal."
+      ],
+      "recommendation": "Keep. It is a strong delegating seam rather than duplicated implementation.",
+      "confidence": "high"
+    },
+    {
+      "symbol": "findTurnToolCallsByVariant",
+      "file": "packages/server/src/domain/rpg/persistence/turn-tool-calls.ts",
+      "line": 86,
+      "classification": "deliberate-test-seam",
+      "evidence": [
+        "Only persistence/flush/compose tests call it to inspect the exact per-variant record and CASCADE behavior.",
+        "Production uses listTurnToolCalls, whose turn-window semantics are intentionally different.",
+        "Source labels it a test/introspection helper."
+      ],
+      "recommendation": "Keep as exact-row storage evidence; do not replace the live windowed reader with it.",
+      "confidence": "high"
+    },
+    {
+      "symbol": "loadTurnForClassify",
+      "file": "packages/server/src/domain/chat/persistence/queries.ts",
+      "line": 721,
+      "classification": "stale-tested-implementation",
+      "evidence": [
+        "No production call exists; the only value references are its barrel export and focused persistence tests.",
+        "Expressions post-turn classification now receives committed chat/message/variant ids through ChatContext.expressions.onTurnCompleted; no expressions domain implementation or compose wiring consumes this loader.",
+        "Remaining mentions in extract-quiet/context comments call it a precedent, not a dependency. Git history ties it to the former expressions graft."
+      ],
+      "recommendation": "Remove the stale query, barrel export, focused tests, and precedent wording unless the expressions feature is intentionally returning. Do not wire it merely to satisfy the test-only lens.",
+      "confidence": "high"
+    },
+    {
+      "symbol": "clearHandoffResumption",
+      "file": "packages/server/src/domain/chat/persistence/handoff-resume.ts",
+      "line": 63,
+      "classification": "deliberate-test-seam",
+      "evidence": [
+        "Production commits clearHandoffResumptionStatement with the durable event in participants.ts.",
+        "The eager test twin and production statement share the private clearHandoffResumptionQuery, including acceptedByUserId stale-retry scoping.",
+        "Focused integration tests prove that shared predicate."
+      ],
+      "recommendation": "Keep. It is an explicit shared-query proof seam for an atomic statement plan.",
+      "confidence": "high"
+    },
+    {
+      "symbol": "loadPendingTurns",
+      "file": "packages/server/src/domain/chat/persistence/invites.ts",
+      "line": 228,
+      "classification": "deliberate-test-seam",
+      "evidence": [
+        "Production drains use loadPendingTurnsForReclaim and loadPendingTurnsForHost, followed by atomic claimPendingTurn.",
+        "The chat-scoped sibling is used across turn/invite integration tests to assert queue state and ordering.",
+        "Source explicitly reserves it as a future per-chat pending surface while stating it is not the production drain scope."
+      ],
+      "recommendation": "Keep as a bounded queue-state test seam. Reassess only if the future surface is rejected and tests gain direct fixture queries.",
+      "confidence": "high"
+    },
+    {
+      "symbol": "ensureUserSettings",
+      "file": "packages/server/src/domain/settings/persistence/queries.ts",
+      "line": 69,
+      "classification": "stale-tested-implementation",
+      "evidence": [
+        "Source states there are no production callers today; only its direct integration test invokes it.",
+        "Live first-write behavior is insertGuardedUserSettings through writeUserConfig/replaceUserConfig, with atomic background ownership guards that ensureUserSettings does not exercise.",
+        "The gate reference is only source text inside a declared-limit fixture, not a live call."
+      ],
+      "recommendation": "Remove this unused seed primitive and its idempotency-only test, or relocate a seed helper to test support. Preserve tests of the live guarded first-write paths; this helper must not be wired into production because it bypasses their asset guards.",
+      "confidence": "high"
+    },
+    {
+      "symbol": "applyReplace",
+      "file": "packages/server/src/kit/regex/index.ts",
+      "line": 41,
+      "classification": "stale-tested-alias",
+      "evidence": [
+        "Production composition constructs createRegexApplyReplace() directly and injects it as ChatContext.applyRegexReplace.",
+        "The exported default instance is called only by server regex tests; its implementation is exactly createRegexApplyReplace() with the default timeout.",
+        "Live downstream code consumes the injected operation, not this singleton."
+      ],
+      "recommendation": "Remove the alias and have tests instantiate createRegexApplyReplace() when testing the default budget. Keep the factory and injection seam.",
+      "confidence": "high"
+    },
+    {
+      "symbol": "testRegex",
+      "file": "packages/server/src/kit/regex/index.ts",
+      "line": 71,
+      "classification": "stale-tested-alias",
+      "evidence": [
+        "Production composition constructs createRegexTest() directly and injects it as testRegexKey.",
+        "The exported default instance is called only by server regex tests; it is exactly createRegexTest() with the default timeout."
+      ],
+      "recommendation": "Remove the alias and test createRegexTest() directly. Keep the factory and injected world-info seam.",
+      "confidence": "high"
+    },
+    {
+      "symbol": "probeOpenAiEndpoint",
+      "file": "packages/server/src/infra/network/openai-models.ts",
+      "line": 141,
+      "classification": "stale-tested-implementation",
+      "evidence": [
+        "No production caller exists; only its focused network tests and infra barrel export reference it.",
+        "Credentials service documents that endpoint diagnostics moved to connection verbs. The live connection probe resolves a real connection and calls ctx.runtime.diagnostics.probe, then records the result through credentials.recordProbeOutcome.",
+        "The function header still claims it backs the deleted credentials.testHealth custom_openai arm, so its ownership comments are stale."
+      ],
+      "recommendation": "Remove this retired health-probe implementation, barrel export, and tests after confirming no external API consumer. Keep fetchOpenAiModels adjudication separate. Because this code includes egress pinning and secret scrubbing, route the deletion review through the security owner even though the reason is architectural staleness.",
+      "confidence": "high",
+      "limits": "No new abuse/security probes were performed in this non-security triage."
+    }
+  ]
+}
