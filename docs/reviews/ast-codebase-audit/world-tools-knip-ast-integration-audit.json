@@ -1,0 +1,281 @@
+{
+  "schemaVersion": 1,
+  "audit": {
+    "kind": "read-only Knip and pnpm ast integration audit",
+    "worktree": "/home/inktomi/.codex/worktrees/world-aware-tools/orbweaver",
+    "head": "ec84ed686",
+    "restrictions": [
+      "no source edits",
+      "no pnpm ast run",
+      "no Knip run",
+      "no typecheck",
+      "no full-suite run"
+    ]
+  },
+  "knipConfiguration": {
+    "configFiles": [
+      {
+        "path": "knip.ts",
+        "evidence": "knip.ts:14-170"
+      }
+    ],
+    "workspaceDenominator": 11,
+    "workspaceBreakdown": {
+      "root": 1,
+      "tooling": 1,
+      "packages": 9
+    },
+    "workspaces": [
+      ".",
+      "tooling",
+      "packages/kit",
+      "packages/contracts",
+      "packages/db",
+      "packages/inference",
+      "packages/default-content",
+      "packages/showcase-plugins",
+      "packages/ui",
+      "packages/server",
+      "packages/client"
+    ],
+    "rosterControl": {
+      "claim": "Knip package workspace keys equal native packages/* workspace membership.",
+      "evidence": "tests/tooling/package-roster.test.ts:9-28"
+    },
+    "posture": {
+      "publicTagEscape": "-@public",
+      "configHints": "error",
+      "issueRules": "all configured issue classes error except cycles warn",
+      "productionWorkspaceExclusion": "tooling!",
+      "evidence": "knip.ts:15-47"
+    },
+    "rootWorkspace": {
+      "entries": [
+        "scripts/**/*.ts",
+        "!scripts/probes/st-goldens/sillytavern-runtime/**",
+        "playwright/**/*.{ts,tsx}",
+        "tests/support/**/*.{ts,tsx}"
+      ],
+      "project": [
+        "scripts/**/*.ts",
+        "!scripts/probes/st-goldens/sillytavern-runtime/**",
+        "tests/**/*.{ts,tsx}",
+        "playwright/**/*.{ts,tsx}"
+      ],
+      "ignoreBinaries": [
+        "orb-nonexistent-binary-xyz-123",
+        "orb-fake-probe-bin"
+      ],
+      "ignoreDependencies": [
+        "pino-pretty",
+        "ts7",
+        "@typescript/native"
+      ],
+      "ignoreUnresolved": [
+        "./scripts/openai.js",
+        "./scripts/extensions.js",
+        "./scripts/tool-calling.js"
+      ],
+      "evidence": "knip.ts:49-71"
+    },
+    "toolingWorkspace": {
+      "entries": [
+        "src/*/cli.ts",
+        "src/*/index.ts",
+        "src/_shared/*.ts",
+        "src/verify/gates/*.ts",
+        "src/stack/ops/prod-entry.ts",
+        "src/stack/ops/engines.ts",
+        "src/stack/ops/engines-ctl.ts",
+        "src/stack/ops/engines-compose.ts",
+        "src/verify/ops/required-live-evidence-reporter.ts"
+      ],
+      "project": [
+        "src/**/*.ts"
+      ],
+      "ignoreDependencies": [
+        "chrome-devtools-mcp"
+      ],
+      "evidence": "knip.ts:72-100"
+    },
+    "packageWorkspaces": [
+      {
+        "names": [
+          "kit",
+          "contracts",
+          "db",
+          "inference",
+          "default-content",
+          "showcase-plugins"
+        ],
+        "entry": "src/**/index.ts!",
+        "project": "src/**/*.ts!",
+        "evidence": "knip.ts:101-131"
+      },
+      {
+        "name": "ui",
+        "entry": "package.json exports plus package-script auto-detection",
+        "project": [
+          "src/**/*.{ts,tsx}!",
+          "*.ts"
+        ],
+        "evidence": "knip.ts:132-143; packages/ui/package.json:10-110"
+      },
+      {
+        "name": "server",
+        "entry": "package.json exports, including wildcard subpaths",
+        "project": [
+          "src/**/*.ts!"
+        ],
+        "evidence": "knip.ts:144-147; packages/server/package.json:9-14"
+      },
+      {
+        "name": "client",
+        "entry": [
+          "index.html"
+        ],
+        "project": [
+          "src/**/*.{ts,tsx}!",
+          "!src/features/chat/lib/chat-reading-port.ts!"
+        ],
+        "ignoreDependencies": [
+          "tailwindcss"
+        ],
+        "evidence": "knip.ts:148-165"
+      }
+    ],
+    "execution": {
+      "default": "static deps:knip stage",
+      "production": "full-tier deps:knip-prod stage using --production --strict",
+      "evidence": "tooling/src/verify/lib/registry.ts:246-267"
+    },
+    "focusedControl": {
+      "claim": "Default Knip includes tooling dependencies; production excludes tooling while retaining application dependency reporting.",
+      "evidence": "tests/tooling/knip-workspace-policy.int.test.ts:7-39"
+    }
+  },
+  "astRelationship": {
+    "consumesKnipOutput": false,
+    "consumesKnipConfig": false,
+    "negativeSearchScope": "tooling/src/ast",
+    "negativeSearchResult": "Only prose mentions of Knip remain; no Knip config import or output reader exists.",
+    "typedVerbs": [
+      "dead",
+      "orphans",
+      "testonly",
+      "prodonly",
+      "apisurface"
+    ],
+    "typedVerbEvidence": "tooling/src/ast/ops/verbs.ts:58-81",
+    "nativeSemanticLoader": {
+      "claim": "Typed verbs load createSemanticWorkspace({ root }).sourceCorpus().",
+      "evidence": "tooling/src/ast/lib/emit.ts:214-224"
+    },
+    "worldSelection": {
+      "claim": "The semantic workspace reads native compiler programs and prefers the world-predicted primary owner when present.",
+      "evidence": "tooling/src/_shared/ts-workspace.ts:138-170; tooling/src/_shared/project-worlds.ts:17-38; tooling/src/_shared/project-worlds.ts:54-59; tooling/src/_shared/project-worlds.ts:111-129"
+    },
+    "sharedOrSeparate": "Knip remains a separate workspace graph. It shares package membership through a parity test but does not consume native world intent, compiler-program descriptors, or generated TS config intent.",
+    "lensDetails": [
+      {
+        "lens": "dead",
+        "relationship": "Uses semantic references across native programs and partitions package, tooling, and test sites.",
+        "evidence": "tooling/src/ast/ops/dead.ts:108-143"
+      },
+      {
+        "lens": "testonly",
+        "relationship": "Uses resolved declaration identity and separate production/test liveness sets.",
+        "evidence": "tooling/src/ast/ops/orphans.ts:107-142; tooling/src/ast/lib/liveness.ts:299-355"
+      },
+      {
+        "lens": "apisurface",
+        "relationship": "Independently classifies cross-package, same-package, tooling, and test consumers, including type-only public imports.",
+        "evidence": "tooling/src/ast/ops/apisurface.ts:126-185; tooling/src/ast/ops/apisurface.ts:195-240"
+      },
+      {
+        "lens": "prodonly",
+        "relationship": "Derives runtime entries from package exports, package scripts, package-root tool configs, and client main.tsx; it no longer reads Knip analysis roots.",
+        "evidence": "tooling/src/ast/ops/prodonly.ts:24-49; tooling/src/ast/ops/prodonly.ts:71-102; tooling/src/ast/ops/prodonly.ts:177-192"
+      }
+    ],
+    "trackedRepairs": [
+      {
+        "issue": 2535,
+        "status": "The candidate-lens repair moved typed AST analysis onto native worlds and removed prodonly's dependency on Knip analysis roots; the implementation was independently confirmed.",
+        "evidence": "docs/reviews/ast-codebase-audit/world-tools-candidate-lenses-review.json:10-39"
+      },
+      {
+        "issue": 2540,
+        "status": "Graph/query lens repair is committed and independently confirmed; it is separate from Knip configuration integration.",
+        "evidence": "docs/reviews/ast-codebase-audit/world-tools-lens-status-current.json:134-143"
+      }
+    ]
+  },
+  "conservativeTradeoffs": [
+    {
+      "area": "wildcard package exports and index barrels",
+      "classification": "inherent conservative false-live tradeoff",
+      "risk": "Published or explicitly configured index entries are treated as live, and entry exports are outside ordinary unused-export reporting even when no runtime consumer imports them.",
+      "evidence": "packages/kit/package.json:10-15; packages/contracts/package.json:10-16; packages/server/package.json:9-14; packages/client/package.json:14-19; knip.ts:101-115; docs/barrel-star-reexport-residue.md:54-76; tooling/src/verify/ops/orphan-export-ratchet.ts:10-20"
+    },
+    {
+      "area": "scripts and tooling",
+      "classification": "intentional entry treatment",
+      "risk": "All scripts and broad tooling front doors are entries, so their unused exports can be false-live to Knip. Runtime-discovered gates and shell-spawned tools would otherwise be false-dead.",
+      "evidence": "knip.ts:50-58; knip.ts:72-99; scripts/README.md:18-26"
+    },
+    {
+      "area": "tests",
+      "classification": "deliberate two-view tradeoff",
+      "risk": "Default Knip lets tests keep application exports alive; full-tier knip:prod supplies the test-only delta, while AST testonly directly classifies it.",
+      "evidence": "knip.ts:7-9; knip.ts:57-58; tooling/src/verify/lib/registry.ts:257-267; tooling/src/ast/ops/orphans.ts:107-142"
+    },
+    {
+      "area": "client-server tRPC type bridge",
+      "classification": "intentional type-only public seam",
+      "risk": "The client type-imports AppRouter from the server entry barrel. Knip can treat the entry export as public regardless of runtime use; AST apisurface can identify it as PUBLIC and type-only. The router value remains runtime-live through the server app entry.",
+      "evidence": "packages/client/src/data/trpc.ts:4-13; packages/server/src/index.ts:1-4; packages/server/src/transport/trpc/router.ts:98-102; packages/server/src/entry/app.ts:30; packages/server/src/entry/app.ts:312"
+    },
+    {
+      "area": "Zod schemas",
+      "classification": "reachability granularity limit",
+      "risk": "A runtime schema referenced only by z.infer can look alive to import/export reachability while being runtime-dead. AST typeonly-alive retains this as a real candidate.",
+      "evidence": "tooling/src/ast/ops/typeonly.ts:52-67"
+    },
+    {
+      "area": "Drizzle tables and schema barrels",
+      "classification": "reachability granularity limit",
+      "risk": "Published schema barrels and star re-exports keep table exports conservatively live; Knip cannot adjudicate dead columns, whole-row reflection, or individual table members. AST columns and the orphan ratchet own those questions.",
+      "evidence": "packages/db/package.json:9-15; packages/db/src/index.ts:16-36; tooling/src/ast/lib/liveness.ts:285-297; tooling/src/ast/ops/orphans.ts:74-96"
+    },
+    {
+      "area": "non-TypeScript shipped bytes",
+      "classification": "explicit evidence boundary",
+      "risk": "Default-content assets and showcase plugin bundles are intentionally outside Knip project globs, so Knip cannot prove their byte-level liveness.",
+      "evidence": "knip.ts:124-131; packages/default-content/package.json:10-14; packages/showcase-plugins/package.json:10-12"
+    },
+    {
+      "area": "new runtime discovery",
+      "classification": "latent maintenance risk, not a confirmed current defect",
+      "risk": "A future computed loader, shell-spawned entry, or shipped-byte surface can be false-dead until its runtime authority is modeled in entries or a reasoned ignore.",
+      "evidence": "knip.ts:50-99"
+    }
+  ],
+  "confirmedDefects": [
+    {
+      "id": "stale-prodonly-knip-reviewed-grant",
+      "classification": "confirmed source contradiction in existing issue 2535 scope",
+      "summary": "Issue #2535 removed prodonly's import of knip.ts, but the reviewed grant, policy rationale, and real-tree family assertion still require that import.",
+      "impact": "The real-tree family test will fail, and a complete entire-population policy run should report the reviewed grant as stale through zero consumption.",
+      "evidence": [
+        "tooling/src/ast/ops/prodonly.ts:1-13",
+        "tooling/src/verify/lib/reviewed-grants-tooling-to-permission.ts:209-215",
+        "tooling/src/verify/gates/tooling-root-config-import.ts:1-26",
+        "tests/tooling/verify/gates/tooling-front-door-family.suite.test.ts:198-205"
+      ],
+      "suggestedWork": "Fold into #2535: delete the stale reviewed-grant row and retire or update its Knip-specific real-tree assertions and comments. Do not open a separate work item."
+    }
+  ],
+  "newWorkItems": [],
+  "conclusion": "No separate Knip/AST integration defect was confirmed beyond the stale #2535 grant residue. The remaining mismatches are explicit conservative tradeoffs or analysis-boundary choices."
+}

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "capturedAt": "2026-09-21T07:43:12.919479+00:00",
-  "sourceCommit": "e9cfa4e39",
+  "capturedAt": "2026-09-21T08:08:03.644829+00:00",
+  "sourceCommit": "c0e6372a0",
   "purpose": "Full AST audit observations and agent reasoning. Dated evidence, not a replacement for GitHub work-item lifecycle.",
   "entryPoints": {
     "coverage": "world-tools-lens-manifest.json",
@@ -40,7 +40,9 @@
     "imageryAliasCleanup": "world-tools-imagery-alias-cleanup.json",
     "imageryAliasCleanupReview": "world-tools-imagery-alias-review.json",
     "clientRotTriage": "world-tools-client-rot-triage.json",
-    "uiRotTriage": "world-tools-ui-rot-triage.json"
+    "uiRotTriage": "world-tools-ui-rot-triage.json",
+    "knipAstIntegrationAudit": "world-tools-knip-ast-integration-audit.json",
+    "knipGrantRepairReview": "world-tools-knip-grant-review.json"
   },
   "limitations": [
     "30 CLI verbs identified; coverage remains incomplete. A candidate is not a confirmed defect or deletion authorization.",
@@ -186,6 +188,11 @@
     {
       "commit": "a040ed288",
       "result": "Removed server-only prompt/caption default aliases and retargeted proof to canonical contracts exports; independently confirmed"
+    },
+    {
+      "commit": "c0e6372a0",
+      "issue": 2535,
+      "result": "Retired stale prodonly-to-knip reviewed grant, real-tree assertion, and policy/catalog claims while preserving generic root-config enforcement; independently confirmed"
     }
   ],
   "unresolvedInsights": [
@@ -615,6 +622,20 @@
       "sourceSha256": "633d46c0f1f85107904342f018eb1e6e5748ec22cffff3a60ae4b0a100bf5ddd",
       "sha256": "633d46c0f1f85107904342f018eb1e6e5748ec22cffff3a60ae4b0a100bf5ddd",
       "bytes": 29907
+    },
+    {
+      "file": "world-tools-knip-ast-integration-audit.json",
+      "source": "/tmp/world-tools-knip-ast-integration-audit.json",
+      "sourceSha256": "2eda27032afc8e5a5ac8e4fed0f4db0fed10d864b140e71c2858aef8eb3f4488",
+      "sha256": "2eda27032afc8e5a5ac8e4fed0f4db0fed10d864b140e71c2858aef8eb3f4488",
+      "bytes": 12196
+    },
+    {
+      "file": "world-tools-knip-grant-review.json",
+      "source": "/tmp/world-tools-knip-grant-review.json",
+      "sourceSha256": "f3e72aa981e47d8140b763b267fb3a236e0282297951750fd66100c27baeadc4",
+      "sha256": "f3e72aa981e47d8140b763b267fb3a236e0282297951750fd66100c27baeadc4",
+      "bytes": 4305
     }
   ],
   "crossCuttingFindings": {
@@ -688,6 +709,12 @@
       "status": "46 findings adjudicated: 37 framework entrypoints, six proof/generated surfaces, three unwired exports, zero deletions",
       "receipt": "world-tools-ui-rot-triage.json",
       "featureWork": 2547
+    },
+    "knipAstIntegration": {
+      "status": "audited: 11 Knip workspaces remain a separate conservative evidence plane; stale prodonly grant repaired and independently confirmed",
+      "commit": "c0e6372a0",
+      "audit": "world-tools-knip-ast-integration-audit.json",
+      "review": "world-tools-knip-grant-review.json"
     }
   }
 }

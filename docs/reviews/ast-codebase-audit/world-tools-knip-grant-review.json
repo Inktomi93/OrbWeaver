@@ -1,0 +1,41 @@
+{
+  "lane": "knip_grant_review",
+  "verdict": "CONFIRMED",
+  "worktree": "/home/inktomi/.codex/worktrees/world-aware-tools/orbweaver",
+  "head": "ec84ed686d6ca223e36781131cd6c232976b8eb0",
+  "claim": "The six-file #2535 repair removes the stale prodonly-to-knip reviewed grant and its real-row assertions while retaining generic root-config enforcement, discriminating declared controls, truthful documentation, and target-only catalog updates.",
+  "evidence": {
+    "stale_grant": [
+      "f734f9f27347de2e0c5d2c3fac7dd190245c4777 is an ancestor of HEAD and removes prodonly.ts's knip.ts import, knipEntryGlobs helper, and knip-derived entry roots.",
+      "Current prodonly.ts derives roots from package exports, scripts, package-root tool configs, and the client main anchor; no knip config is read.",
+      "An ast-grep ImportDeclaration scan matched 4900 tooling imports and found zero whose source text contains knip.ts.",
+      "An ast-grep reviewed-grant object scan matched 421 grant-shaped objects and found zero with policyId tooling-root-config-import.",
+      "Focused prodonly behavior test passed: a knip-only nested index remains prod-unreachable, proving knip analysis roots do not enter the shipped/runtime closure."
+    ],
+    "enforcement_and_controls": [
+      "tooling-root-config-import still reports every relative import resolving outside tooling/src and deduplicates by exact subject and root-config-import:<resolved target> operation.",
+      "Its declared knip fixture remains a mustFlag row annotated with the authored exact grant identity. verifyPolicyProofs first requires the ungranted finding, then replays the same bytes with the synthetic exact grant and requires one granted finding, zero effective findings, no alarms, no withholding, and no tool errors.",
+      "The focused tooling-front-door family suite passed 7/7, including all four policies' founding fixtures, real reviewed-grant exact/wrong/stale controls via the argv sibling, and narrowed-request deferral for root-config/argv entire-population policies.",
+      "pnpm gate:contract passed with 0 findings across 345 gate modules."
+    ],
+    "documentation": [
+      "The Active-Gates change is exactly one table row. Its statements match the current source: prodonly uses runtime authorities, knip.ts is analysis-only, and the root-config policy currently has zero central grants.",
+      "The generated catalog hashes, line count, and byte count match the edited Active-Gates file (sha256 79dd15931b98408c59c1bd55e2f7835049061de2dee32301a9b39623159e4708; 513 lines; 409938 bytes).",
+      "After removing the Active-Gates document entry from both old and new catalog JSON, the remaining catalog compared byte-for-byte equal; the same target exclusion made the architecture-core receipt JSON byte-for-byte equal."
+    ]
+  },
+  "commands": [
+    {"command": "pnpm test:scoped tests/tooling/verify/gates/tooling-front-door-family.suite.test.ts", "result": "PASS, 7/7"},
+    {"command": "pnpm test:scoped tests/tooling/ast/index.test.ts -t a knip-only nested index is analysis configuration, not a shipped entry", "result": "PASS, 1/1 selected; 96 skipped"},
+    {"command": "pnpm gate:contract", "result": "PASS, 0 findings across 345 modules"},
+    {"command": "pnpm exec biome check <six scoped files> --diagnostic-level=error", "result": "PASS, 5 admitted files checked; docs markdown not admitted by Biome"},
+    {"command": "pnpm exec eslint <three changed TypeScript files>", "result": "PASS"},
+    {"command": "pnpm typecheck --config tooling/tsconfig.json", "result": "PASS, 1 runnable config"},
+    {"command": "pnpm check:doc-catalog", "result": "EXPECTED EXTERNAL RED, 7 violations; Core-Enforcement-Active-Gates.md was absent from the violation list"},
+    {"command": "git diff --check HEAD -- <six scoped files>", "result": "PASS"}
+  ],
+  "external_state": {
+    "doc_catalog": "The checker reported unrelated current-tree violations for Core-Path-Registry.md, gate-runtime-read-first.md, inference-warning-home-cadence-audit.md, world-tools-brand-boundary-audit.md, and consequent generated/index staleness. None names Core-Enforcement-Active-Gates.md; this review does not charge #2535 for them.",
+    "scope": "No full/static run was performed, per brief. No source file was edited."
+  }
+}
