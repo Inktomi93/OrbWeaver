@@ -94,7 +94,10 @@ export function isReferencedInOwnFile(sf: SourceFile, name: string, decl: Node):
     if (id.getFirstAncestorByKind(SyntaxKind.ExportDeclaration) !== undefined || id.getParent() === decl) {
       continue;
     }
-    const symbol = id.getSymbol();
+    const parent = id.getParent();
+    // In `{ transform }`, the identifier's ordinary symbol is the object PROPERTY. The checker exposes
+    // the VALUE binding separately; that binding is the same declaration a direct `transform(x)` resolves.
+    const symbol = Node.isShorthandPropertyAssignment(parent) && parent.getNameNode() === id ? parent.getValueSymbol() : id.getSymbol();
     const declarations = (symbol?.getAliasedSymbol() ?? symbol)?.getDeclarations() ?? [];
     if ((id.getText() === name || declarations.length > 0) && declarations.some((candidate) => targetKeys.has(declKey(candidate)))) {
       return true;

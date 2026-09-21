@@ -467,6 +467,62 @@ describe("ast prodonly lens (tooling entry points)", () => {
 });
 
 describe("ast testonly lens (declared test seams)", () => {
+  test("same-file shorthand registry values are real uses without crediting shadows or re-export pass-throughs", () => {
+    const project = projectOf({
+      "packages/server/src/kit/post-process.ts": `
+export function shorthandTestOnly(value: string): string { return value; }
+export function shorthandOrphan(value: string): string { return value; }
+export function unusedTestOnly(value: string): string { return value; }
+export function shadowedTestOnly(value: string): string { return value; }
+export function reExportOnly(value: string): string { return value; }
+export function trulyUnused(value: string): string { return value; }
+const RECEIVE_TRANSFORMS = { shorthandTestOnly, shorthandOrphan };
+export function run(value: string): string { return RECEIVE_TRANSFORMS.shorthandTestOnly(value); }
+export function unrelated(): { shadowedTestOnly: string } { const shadowedTestOnly = "shadow"; return { shadowedTestOnly }; }
+`,
+      "packages/server/src/kit/index.ts": 'export { reExportOnly } from "./post-process";',
+      "tests/server/kit/post-process.test.ts": `
+import { reExportOnly } from "../../../packages/server/src/kit";
+import { shadowedTestOnly, shorthandTestOnly, unusedTestOnly } from "../../../packages/server/src/kit/post-process";
+export const controls = [reExportOnly, shadowedTestOnly, shorthandTestOnly, unusedTestOnly];
+`,
+    });
+    const live = buildLiveness(project);
+    const source = project.getSourceFileOrThrow(`${ROOT}/packages/server/src/kit/post-process.ts`);
+    const classOf = (name: string): string => testOnlyClassOf(source, name, source.getFunctionOrThrow(name), live);
+
+    expect(classOf("shorthandTestOnly")).toBe("alive");
+    expect(classOf("unusedTestOnly")).toBe("hit");
+    expect(classOf("shadowedTestOnly")).toBe("hit");
+    expect(classOf("reExportOnly")).toBe("hit");
+
+    const orphanNames = collectOrphanCandidates(project, live, (filePath) => filePath.endsWith("/post-process.ts")).map(({ name }) => name);
+    expect(orphanNames).not.toContain("shorthandOrphan");
+    expect(orphanNames).toContain("trulyUnused");
+
+    const apiByName = new Map(collectApiSurface(project, (filePath) => filePath.endsWith("/post-process.ts"), live).map((entry) => [entry.name, entry.klass]));
+    expect(apiByName.get("shorthandTestOnly")).toBe("internal");
+    expect(apiByName.get("unusedTestOnly")).toBe("test-only");
+    expect(apiByName.get("trulyUnused")).toBe("unused");
+
+    const swallowedProject = projectOf({
+      "packages/server/src/kit/transforms.ts": `
+export function liveInRegistry(value: string): string { return value; }
+export function swallowedOnly(value: string): string { return value; }
+const TRANSFORMS = { liveInRegistry };
+export function run(value: string): string { return TRANSFORMS.liveInRegistry(value); }
+`,
+      "packages/server/src/kit/pipeline.ts": `
+import * as transforms from "./transforms";
+export const pipeline = register(transforms);
+`,
+    });
+    const swallowedLive = buildLiveness(swallowedProject);
+    const swallowed = collectSwallowedCandidates(swallowedProject, swallowedLive, (filePath) => filePath.endsWith("/transforms.ts")).map(({ name }) => name);
+    expect(swallowed).not.toContain("liveInRegistry");
+    expect(swallowed).toContain("swallowedOnly");
+  });
+
   test("a `__`-prefixed export is a BUCKETED declared seam; an ordinary test-only export is still a hit", () => {
     // LENS CALIBRATION (2026-08-13): 21 of the 31 client rows were `__resetX` / `__readXForTest` — the
     // repo's self-identifying test-seam convention. Reporting one restates its own name back at the reader.
