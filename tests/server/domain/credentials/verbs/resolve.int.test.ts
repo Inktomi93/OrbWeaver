@@ -61,7 +61,7 @@ describe("resolve", () => {
     const added = await svc.add({ principal: principal(owner), provider: "openrouter", key: "sk-retired-shape" });
     await db
       .update(userCredentials)
-      .set({ metadata: { kind: "custom_openai", baseUrl: "http://retired.invalid/v1" } })
+      .set({ metadata: { auth: "apiKey", kind: "custom_openai", baseUrl: "http://retired.invalid/v1" } })
       .where(eq(userCredentials.id, added.id));
 
     await expect(svc.resolve({ ownerId: owner, credentialId: added.id, providerId: OPENROUTER })).resolves.toMatchObject({

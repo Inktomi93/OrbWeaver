@@ -6,8 +6,7 @@
 
 import { appSettingsSchema, USER_SETTINGS_SECTIONS } from "@orb/contracts/settings";
 import { createThemeInputSchema, promoteThemeInputSchema, updateThemeInputSchema } from "@orb/contracts/theme";
-import type { ThemeId } from "@orb/kit/ids";
-import { brandedId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { jsonValueSchema } from "@orb/kit/json";
 import { z } from "zod";
 import { adminProcedure, authedProcedure, t } from "../trpc.ts";
@@ -84,7 +83,7 @@ export const settingsRouter = t.router({
   listThemes: authedProcedure.query(({ ctx }) => ctx.services.settings.listThemes({ principal: ctx.auth })),
 
   getTheme: authedProcedure
-    .input(z.object({ id: brandedId<ThemeId>() }))
+    .input(z.object({ id: typeIdSchema(ID_PREFIX.theme) }))
     .query(({ ctx, input }) => ctx.services.settings.getTheme({ principal: ctx.auth, id: input.id })),
 
   createTheme: authedProcedure.input(createThemeInputSchema).mutation(({ ctx, input }) => ctx.services.settings.createTheme({ principal: ctx.auth, input })),
@@ -93,7 +92,7 @@ export const settingsRouter = t.router({
   // input is VALUES only (no foreign id to reach through), so there is no cross-tenant surface here.
   promoteTheme: authedProcedure.input(promoteThemeInputSchema).mutation(({ ctx, input }) => ctx.services.settings.promoteTheme({ principal: ctx.auth, input })),
 
-  duplicateTheme: authedProcedure.input(z.object({ id: brandedId<ThemeId>(), name: z.string().trim().min(1).optional() })).mutation(({ ctx, input }) =>
+  duplicateTheme: authedProcedure.input(z.object({ id: typeIdSchema(ID_PREFIX.theme), name: z.string().trim().min(1).optional() })).mutation(({ ctx, input }) =>
     ctx.services.settings.duplicateTheme({
       principal: ctx.auth,
       id: input.id,
@@ -102,10 +101,10 @@ export const settingsRouter = t.router({
   ),
 
   updateTheme: authedProcedure
-    .input(z.object({ id: brandedId<ThemeId>(), input: updateThemeInputSchema }))
+    .input(z.object({ id: typeIdSchema(ID_PREFIX.theme), input: updateThemeInputSchema }))
     .mutation(({ ctx, input }) => ctx.services.settings.updateTheme({ principal: ctx.auth, id: input.id, input: input.input })),
 
   removeTheme: authedProcedure
-    .input(z.object({ id: brandedId<ThemeId>() }))
+    .input(z.object({ id: typeIdSchema(ID_PREFIX.theme) }))
     .mutation(({ ctx, input }) => ctx.services.settings.removeTheme({ principal: ctx.auth, id: input.id })),
 });

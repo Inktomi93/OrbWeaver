@@ -32,8 +32,7 @@ import { generatePictureRequestSchema } from "@orb/contracts/imagery";
 import { choiceBlockValuesSchema, userIntentSchema, userMacroValuesSchema } from "@orb/contracts/preset";
 import { rpgRulesetSchema } from "@orb/contracts/rpg";
 import { themeBackgroundSchema } from "@orb/contracts/theme";
-import type { CharacterId, ChatId, ChatInjectionId, ChatParticipantId, MessageId, MessageVariantId, PersonaId, PresetId } from "@orb/kit/ids";
-import { brandedId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { TrackedEnvelope } from "@trpc/server";
 import { tracked } from "@trpc/server";
 import { z } from "zod";
@@ -51,8 +50,8 @@ import { authedProcedure, t } from "../trpc.ts";
 // room instead. `opening` EXCLUDES `"generate"` — "guide the opening" is now an ordinary post-creation
 // `chat.generate` action against the real room, never a creation-fused turn.
 const startChatSchema = z.object({
-  characterIds: z.array(brandedId<CharacterId>()),
-  anchorPersonaId: brandedId<PersonaId>().nullish(),
+  characterIds: z.array(typeIdSchema(ID_PREFIX.character)),
+  anchorPersonaId: typeIdSchema(ID_PREFIX.persona).nullish(),
   title: z.string().nullish(),
   opening: openingPolicySchema.exclude(["generate"]).optional(),
   injections: z.array(chatInjectionInputSchema).optional(),
@@ -71,12 +70,12 @@ const startChatSchema = z.object({
 // `getChat`/`listMessages` member-gated collapse). Fields above the effective level are NULL server-side —
 // never sent over the wire. Cross-tenant sweep: PROBED (the chatId gate refuses before any card load).
 const getMemberCardSchema = z.object({
-  chatId: brandedId<ChatId>(),
-  characterId: brandedId<CharacterId>(),
+  chatId: typeIdSchema(ID_PREFIX.chat),
+  characterId: typeIdSchema(ID_PREFIX.character),
 });
 
 const listMessagesSchema = z.object({
-  chatId: brandedId<ChatId>(),
+  chatId: typeIdSchema(ID_PREFIX.chat),
   beforeSeq: z.number().optional(),
   // The CEILING, enforced at the trust boundary (the `character.list` precedent): an over-bound ask is a
   // BAD_REQUEST naming the bound, never an unbounded canon fetch (`CHAT_MESSAGE_LIST_MAX_LIMIT`). The domain
@@ -90,14 +89,14 @@ const listMessagesSchema = z.object({
 // load) resolves through the real list instead of only what `useVariantHistory` observed live. Member-gated
 // (a read, unlike `selectVariant`'s author-or-host — see `substrate/auth/matrix.ts`).
 const listMessageVariantsSchema = z.object({
-  chatId: brandedId<ChatId>(),
-  messageId: brandedId<MessageId>(),
+  chatId: typeIdSchema(ID_PREFIX.chat),
+  messageId: typeIdSchema(ID_PREFIX.message),
 });
 
 const sendSchema = z.object({
-  chatId: brandedId<ChatId>(),
+  chatId: typeIdSchema(ID_PREFIX.chat),
   content: z.string(),
-  personaId: brandedId<PersonaId>().nullish(),
+  personaId: typeIdSchema(ID_PREFIX.persona).nullish(),
   blocks: z.array(messageContentBlockSchema).optional(),
   // #67 — inline images the user attached (asset ids). The send verb TRUST-BOUNDARY-checks each is the
   // actor's own asset (rejecting a foreign/gone id), then persists a `message_assets` row + a body ref per id.
@@ -109,16 +108,16 @@ const sendSchema = z.object({
 // `commitMessage` — the D56 "Simple Send" / post-without-generate lever: `sendSchema` MINUS intent/guided (no
 // generation ⇒ no gen-config, no steer). The verb runs `send`'s trust boundaries + persist; no AI round.
 const commitMessageSchema = z.object({
-  chatId: brandedId<ChatId>(),
+  chatId: typeIdSchema(ID_PREFIX.chat),
   content: z.string(),
-  personaId: brandedId<PersonaId>().nullish(),
+  personaId: typeIdSchema(ID_PREFIX.persona).nullish(),
   blocks: z.array(messageContentBlockSchema).optional(),
   attachmentAssetIds: z.array(assetIdSchema).max(ASSET_LIST_LIMIT_MAX).optional(),
 });
 
 const swipeSchema = z.object({
-  chatId: brandedId<ChatId>(),
-  messageId: brandedId<MessageId>(),
+  chatId: typeIdSchema(ID_PREFIX.chat),
+  messageId: typeIdSchema(ID_PREFIX.message),
   intent: userIntentSchema.optional(),
   guided: guidedSteerSchema.optional(),
 });
@@ -131,8 +130,8 @@ const swipeSchema = z.object({
 // generating verb threads an optional `guided: GuidedSteer` steer. continueTurn is messageId-scoped; the
 // rest are chatId-scoped.
 const continueTurnSchema = z.object({
-  chatId: brandedId<ChatId>(),
-  messageId: brandedId<MessageId>(),
+  chatId: typeIdSchema(ID_PREFIX.chat),
+  messageId: typeIdSchema(ID_PREFIX.message),
   intent: userIntentSchema.optional(),
   guided: guidedSteerSchema.optional(),
 });
@@ -145,20 +144,20 @@ const continueTurnSchema = z.object({
 // `swipe`-minus-the-guidance (a messageId-scoped pointer restore). A never-continued target is refused
 // `no_continuation` inside the verb (a ChatOperationError → BAD_REQUEST via the error map, never a 500).
 const restoreContinueSchema = z.object({
-  chatId: brandedId<ChatId>(),
-  messageId: brandedId<MessageId>(),
+  chatId: typeIdSchema(ID_PREFIX.chat),
+  messageId: typeIdSchema(ID_PREFIX.message),
 });
 
 const impersonateStreamSchema = z.object({
-  chatId: brandedId<ChatId>(),
-  personaId: brandedId<PersonaId>().nullish(),
+  chatId: typeIdSchema(ID_PREFIX.chat),
+  personaId: typeIdSchema(ID_PREFIX.persona).nullish(),
   intent: userIntentSchema.optional(),
   guided: guidedSteerSchema.optional(),
 });
 
 const generateSchema = z.object({
-  chatId: brandedId<ChatId>(),
-  speakerCharacterId: brandedId<CharacterId>().nullish(),
+  chatId: typeIdSchema(ID_PREFIX.chat),
+  speakerCharacterId: typeIdSchema(ID_PREFIX.character).nullish(),
   intent: userIntentSchema.optional(),
   guided: guidedSteerSchema.optional(),
   // The wand Response icon sets this when the tail is an assistant turn — the `responseNudge` gate (a reply
@@ -173,9 +172,9 @@ const generateSchema = z.object({
 // 2026-07-04c; swept via grep before this addition, no call site referenced `chat.selectVariant`). Thin
 // pass-through, same shape as `swipe` + an explicit `variantId` (a pointer move, not a generation).
 const selectVariantSchema = z.object({
-  chatId: brandedId<ChatId>(),
-  messageId: brandedId<MessageId>(),
-  variantId: brandedId<MessageVariantId>(),
+  chatId: typeIdSchema(ID_PREFIX.chat),
+  messageId: typeIdSchema(ID_PREFIX.message),
+  variantId: typeIdSchema(ID_PREFIX.messageVariant),
 });
 
 // The Stop verb (task #18 — the composer's mid-stream STOP): `ChatService.abort` (domain/chat/verbs/
@@ -183,7 +182,7 @@ const selectVariantSchema = z.object({
 // idempotent no-op with nothing in flight — but had never been exposed on this router (MISSING-API,
 // swept via `sg`/grep before this addition; no test or call site referenced `chat.abort`). Thin
 // pass-through, same shape as `getChat` (chatId only — `AbortParams extends ChatScopedParams {}`).
-const abortSchema = z.object({ chatId: brandedId<ChatId>() });
+const abortSchema = z.object({ chatId: typeIdSchema(ID_PREFIX.chat) });
 
 // The per-message ACTION cluster (edit-in-place · hide-from-AI · delete · fork; the chat-surface lane's
 // task #24-adjacent brief): `editMessage`/`setMessageHidden`/`deleteMessages`/`forkChat`
@@ -192,8 +191,8 @@ const abortSchema = z.object({ chatId: brandedId<ChatId>() });
 // shape `abort`/`selectVariant` were in before 2026-07-04c; swept via grep before this addition, no
 // call site referenced any of the four). Thin pass-throughs, same shape as their sibling verbs above.
 const editMessageSchema = z.object({
-  chatId: brandedId<ChatId>(),
-  messageId: brandedId<MessageId>(),
+  chatId: typeIdSchema(ID_PREFIX.chat),
+  messageId: typeIdSchema(ID_PREFIX.message),
   content: z.string(),
 });
 
@@ -202,20 +201,20 @@ const editMessageSchema = z.object({
 // host-gated door can never be a free-text content write standing beside `editMessage`'s author-or-host one.
 // `int().min(0)` at the trust boundary — a negative/fractional index is a malformed ask, not a miss.
 const setSeededGreetingSchema = z.object({
-  chatId: brandedId<ChatId>(),
-  messageId: brandedId<MessageId>(),
+  chatId: typeIdSchema(ID_PREFIX.chat),
+  messageId: typeIdSchema(ID_PREFIX.message),
   greetingIndex: z.number().int().min(0),
 });
 
 const setMessageHiddenSchema = z.object({
-  chatId: brandedId<ChatId>(),
-  messageId: brandedId<MessageId>(),
+  chatId: typeIdSchema(ID_PREFIX.chat),
+  messageId: typeIdSchema(ID_PREFIX.message),
   hidden: z.boolean(),
 });
 
 const deleteMessagesSchema = z.object({
-  chatId: brandedId<ChatId>(),
-  messageIds: z.array(brandedId<MessageId>()),
+  chatId: typeIdSchema(ID_PREFIX.chat),
+  messageIds: z.array(typeIdSchema(ID_PREFIX.message)),
 });
 
 // `reattributePersona` (task #60 — the persona-attribution / {{user}} history fix; neo `usePersonaReattribute`
@@ -225,15 +224,15 @@ const deleteMessagesSchema = z.object({
 // server-resolved "every row I authored" bulk arm (FINAL-Persona §A.7 — the arm that retired the client's
 // 100-message window).
 const reattributePersonaSchema = z.object({
-  chatId: brandedId<ChatId>(),
+  chatId: typeIdSchema(ID_PREFIX.chat),
   scope: reattributeScopeSchema,
-  personaId: brandedId<PersonaId>(),
+  personaId: typeIdSchema(ID_PREFIX.persona),
 });
 
 // `throughSeq`/`title` mirror `ForkChatParams` (D27 deep copy — throughSeq truncates the copy to a
 // message's `seq`, the "fork at this point" affordance the actions row's Fork button drives).
 const forkChatSchema = z.object({
-  chatId: brandedId<ChatId>(),
+  chatId: typeIdSchema(ID_PREFIX.chat),
   throughSeq: z.number().optional(),
   title: z.string().nullish(),
 });
@@ -251,7 +250,7 @@ const forkChatSchema = z.object({
 // unexposed for now (the room read rides `getChat`'s `ChatDetail.roomOverrides`; the member preview
 // affordance is deferred — task #28 flag).
 const setRoomOverridesSchema = z.object({
-  chatId: brandedId<ChatId>(),
+  chatId: typeIdSchema(ID_PREFIX.chat),
   overrides: roomOverridesSchema,
 });
 
@@ -259,7 +258,7 @@ const setRoomOverridesSchema = z.object({
 // schema DERIVES from `@orb/contracts/databank` (documentId-typed hidden set); authz (`requireHost`) lives
 // INSIDE the verb, so a stranger's chatId collapses to a leak-free NOT_FOUND (the setRoomOverrides shape).
 const setChatDocumentVisibilitySchema = z.object({
-  chatId: brandedId<ChatId>(),
+  chatId: typeIdSchema(ID_PREFIX.chat),
   visibility: chatDocumentVisibilitySchema,
 });
 
@@ -267,7 +266,7 @@ const setChatDocumentVisibilitySchema = z.object({
 // `@orb/contracts/theme` (`themeBackgroundSchema`); authz (`requireHost`) + the asset-ownership gate live
 // INSIDE the verb, so a stranger's chatId collapses to a leak-free NOT_FOUND (the setRoomOverrides shape).
 const setChatBackgroundSchema = z.object({
-  chatId: brandedId<ChatId>(),
+  chatId: typeIdSchema(ID_PREFIX.chat),
   background: themeBackgroundSchema,
 });
 
@@ -275,7 +274,7 @@ const setChatBackgroundSchema = z.object({
 // `toolRecurseLimitSchema` (int 1..20); authz (`requireHost`) lives INSIDE the verb, so a stranger's chatId
 // collapses to a leak-free NOT_FOUND (the setRoomOverrides shape).
 const setToolRecurseLimitSchema = z.object({
-  chatId: brandedId<ChatId>(),
+  chatId: typeIdSchema(ID_PREFIX.chat),
   limit: toolRecurseLimitSchema,
 });
 
@@ -283,13 +282,13 @@ const setToolRecurseLimitSchema = z.object({
 // to `chats.user_macro_values`. Authz (`requireParticipant`) lives INSIDE the verb, so a stranger's chatId is
 // a leak-free NOT_FOUND (the setVariables/member shape). `userMacroValuesSchema` bounds the bag at the wire.
 const setUserMacroValuesSchema = z.object({
-  chatId: brandedId<ChatId>(),
+  chatId: typeIdSchema(ID_PREFIX.chat),
   values: userMacroValuesSchema,
 });
 
 // #24: the picks pane's read — the pickable user-macro DECLARATIONS + the room's stored picks. Member-gated
 // INSIDE the verb (`requireParticipant`), so a stranger's chatId is a leak-free NOT_FOUND.
-const getUserMacroPicksSchema = z.object({ chatId: brandedId<ChatId>() });
+const getUserMacroPicksSchema = z.object({ chatId: typeIdSchema(ID_PREFIX.chat) });
 
 // The picks pane's ChoiceBlock half — the `setUserMacroValues`/`getUserMacroPicks` pair's sibling (one pane,
 // two knob families). `setVariables` flushes the FLAT per-chat picks bag to `chats.variableValues` (bounded
@@ -297,11 +296,11 @@ const getUserMacroPicksSchema = z.object({ chatId: brandedId<ChatId>() });
 // those picks back. Both are member-gated (`requireParticipant`) INSIDE the verb, so a stranger's chatId is
 // a leak-free NOT_FOUND.
 const setVariablesSchema = z.object({
-  chatId: brandedId<ChatId>(),
+  chatId: typeIdSchema(ID_PREFIX.chat),
   values: choiceBlockValuesSchema,
 });
-const getVariablePicksSchema = z.object({ chatId: brandedId<ChatId>() });
-const getRuntimeVariablesSchema = z.object({ chatId: brandedId<ChatId>() });
+const getVariablePicksSchema = z.object({ chatId: typeIdSchema(ID_PREFIX.chat) });
+const getRuntimeVariablesSchema = z.object({ chatId: typeIdSchema(ID_PREFIX.chat) });
 
 // B6/MR0 — the reaction plane. `emoji` DERIVES `reactionEmojiSchema` (the closed contracts vocabulary; no
 // inline re-spell), which is what keeps an arbitrary member-authored string out of a column every other
@@ -309,8 +308,8 @@ const getRuntimeVariablesSchema = z.object({ chatId: brandedId<ChatId>() });
 // stranger's chatId is a leak-free NOT_FOUND — and the `variantId` half carries its own belt in the verb (in
 // THIS chat, at or above the caller's D16 floor), the `getVariantWire` two-gate shape.
 const toggleReactionSchema = z.object({
-  chatId: brandedId<ChatId>(),
-  variantId: brandedId<MessageVariantId>(),
+  chatId: typeIdSchema(ID_PREFIX.chat),
+  variantId: typeIdSchema(ID_PREFIX.messageVariant),
   emoji: reactionEmojiSchema,
   // B7/MR3 — the segment CLAIM (absent = whole-message). The wire carries an index + the client's claimed
   // speaker ONLY; the verb re-parses the variant's CANON itself and stores ITS OWN speaker + snippet, so
@@ -319,7 +318,7 @@ const toggleReactionSchema = z.object({
   segmentIndex: z.number().int().min(0).optional(),
   segmentSpeaker: z.string().max(REACTION_SPEAKER_NAME_MAX).nullable().optional(),
 });
-const listReactionsSchema = z.object({ chatId: brandedId<ChatId>() });
+const listReactionsSchema = z.object({ chatId: typeIdSchema(ID_PREFIX.chat) });
 
 // speakerCharacterId/guided mirror `PreviewAssemblyParams` (a hypothetical per-speaker turn); `guided`
 // rides the DERIVED `guidedSteerSchema` (F6 — the same wire boundary as `send`/`generate` above).
@@ -328,10 +327,10 @@ const listReactionsSchema = z.object({ chatId: brandedId<ChatId>() });
 // owned-or-system under the HOST by the landed `presetOverride` seam (the `previewActionTemplates` rule), so
 // it cannot reach outside the host's library; the host gate itself is `requireHost` INSIDE the verb.
 const previewAssemblySchema = z.object({
-  chatId: brandedId<ChatId>(),
-  speakerCharacterId: brandedId<CharacterId>().nullish(),
+  chatId: typeIdSchema(ID_PREFIX.chat),
+  speakerCharacterId: typeIdSchema(ID_PREFIX.character).nullish(),
   guided: guidedSteerSchema.optional(),
-  presetOverride: brandedId<PresetId>().optional(),
+  presetOverride: typeIdSchema(ID_PREFIX.preset).optional(),
 });
 
 // `previewActionTemplates` (D8 / preset-surface-redesign §7.1) — the preset editor's BOUND readout: every
@@ -341,16 +340,16 @@ const previewAssemblySchema = z.object({
 // cannot reach outside the host's library; a stranger's chatId is a leak-free NOT_FOUND before any render,
 // which is what the cross-tenant sweep classifies it PROBED for.
 const previewActionTemplatesSchema = z.object({
-  chatId: brandedId<ChatId>(),
-  presetId: brandedId<PresetId>(),
+  chatId: typeIdSchema(ID_PREFIX.chat),
+  presetId: typeIdSchema(ID_PREFIX.preset),
 });
 
 // `getShapeTrace` (PD-132) — the content-free SHAPE trace for the next-turn shaping of the current canon.
 // `speakerCharacterId` picks the primary speaker the peek shapes for (mirrors `peekPrompt`); host-gated
 // (`requireHost`) INSIDE the verb (matrix `getShapeTrace: "host"`).
 const getShapeTraceSchema = z.object({
-  chatId: brandedId<ChatId>(),
-  speakerCharacterId: brandedId<CharacterId>().nullish(),
+  chatId: typeIdSchema(ID_PREFIX.chat),
+  speakerCharacterId: typeIdSchema(ID_PREFIX.character).nullish(),
 });
 
 // `getVariantWire` — the per-variant WIRE RECORD: what ONE PAST generation actually sent (`promptSnapshot` +
@@ -364,29 +363,29 @@ const getShapeTraceSchema = z.object({
 // new variant, a swipe appends one), so this read carries NO `BUS_FILTERS` row and no invalidation target;
 // the client caches it forever (the `connection.orGenerationCost` class, PD-137).
 const getVariantWireSchema = z.object({
-  chatId: brandedId<ChatId>(),
-  variantId: brandedId<MessageVariantId>(),
+  chatId: typeIdSchema(ID_PREFIX.chat),
+  variantId: typeIdSchema(ID_PREFIX.messageVariant),
 });
 
 // `previewContextFit` (PD-#7) — the present-tense fit budget for the current canon (the transcript divider's
 // live source). Member-gated (`requireParticipant`) INSIDE the verb (matrix `previewContextFit: "member"`);
 // reads tenant canon by chatId, so the cross-tenant sweep classifies it PROBED.
 const previewContextFitSchema = z.object({
-  chatId: brandedId<ChatId>(),
-  speakerCharacterId: brandedId<CharacterId>().nullish(),
+  chatId: typeIdSchema(ID_PREFIX.chat),
+  speakerCharacterId: typeIdSchema(ID_PREFIX.character).nullish(),
 });
 
 // `setChatInjection` upserts (id present ⇒ update, absent ⇒ create); the contracts schema owns the
 // authored fields (position/depth/role/content/order + the optional id), the router adds the chatId.
 const setChatInjectionSchema = chatInjectionInputSchema.extend({
-  chatId: brandedId<ChatId>(),
+  chatId: typeIdSchema(ID_PREFIX.chat),
 });
 
-const listChatInjectionsSchema = z.object({ chatId: brandedId<ChatId>() });
+const listChatInjectionsSchema = z.object({ chatId: typeIdSchema(ID_PREFIX.chat) });
 
 const deleteChatInjectionSchema = z.object({
-  chatId: brandedId<ChatId>(),
-  injectionId: brandedId<ChatInjectionId>(),
+  chatId: typeIdSchema(ID_PREFIX.chat),
+  injectionId: typeIdSchema(ID_PREFIX.chatInjection),
 });
 
 // The CHAT-ROW lifecycle cluster (J5 chat-list — the LIST-panel row kebab: rename/star/archive/delete).
@@ -397,28 +396,28 @@ const deleteChatInjectionSchema = z.object({
 // call site referenced any of the four). Thin pass-throughs; authz lives INSIDE each verb. `title` is
 // required + nullable (`UpdateTitleParams.title: string | null` — null clears the title).
 const updateTitleSchema = z.object({
-  chatId: brandedId<ChatId>(),
+  chatId: typeIdSchema(ID_PREFIX.chat),
   title: z.string().nullable(),
 });
 
 const starChatSchema = z.object({
-  chatId: brandedId<ChatId>(),
+  chatId: typeIdSchema(ID_PREFIX.chat),
   starred: z.boolean(),
 });
 
 const archiveChatSchema = z.object({
-  chatId: brandedId<ChatId>(),
+  chatId: typeIdSchema(ID_PREFIX.chat),
   archived: z.boolean(),
 });
 
 // `delete` is chatId-only (`DeleteChatParams extends ChatScopedParams {}` — same shape as `getChat`/`abort`).
-const deleteChatSchema = z.object({ chatId: brandedId<ChatId>() });
+const deleteChatSchema = z.object({ chatId: typeIdSchema(ID_PREFIX.chat) });
 
 // `setChatAnchorPersona` (FINAL-Persona §A.0/§A.6b gap #2) — the manual/host Anchor (#4) re-pin.
 // `personaId: null` clears the pin. Host-only + the present-human ownership belt live INSIDE the verb.
 const setChatAnchorPersonaSchema = z.object({
-  chatId: brandedId<ChatId>(),
-  personaId: brandedId<PersonaId>().nullable(),
+  chatId: typeIdSchema(ID_PREFIX.chat),
+  personaId: typeIdSchema(ID_PREFIX.persona).nullable(),
 });
 
 // The GROUP-ROSTER-CONTROLS cluster (task #29 — the cast bar + per-member controls): the two
@@ -437,16 +436,16 @@ const setChatAnchorPersonaSchema = z.object({
 // verb (`requireHost`) + the PD-21 single-owner invariant (a foreign character reads as missing, leak-
 // free) — this router row is a thin pass-through, the same shape as the sibling roster cluster.
 const addCharacterToChatSchema = z.object({
-  chatId: brandedId<ChatId>(),
-  characterId: brandedId<CharacterId>(),
+  chatId: typeIdSchema(ID_PREFIX.chat),
+  characterId: typeIdSchema(ID_PREFIX.character),
 });
 
 // `removeCharacterFromChat` — the symmetric drop for `addCharacterToChat` (cast-row "Remove from chat").
 // Host-only INSIDE the verb (`requireHost`); leftSeq-stamps the seat out (reversible via re-add), IDEMPOTENT
 // on an absent/already-left character. Same {chatId, characterId} wire shape as the add — thin pass-through.
 const removeCharacterFromChatSchema = z.object({
-  chatId: brandedId<ChatId>(),
-  characterId: brandedId<CharacterId>(),
+  chatId: typeIdSchema(ID_PREFIX.chat),
+  characterId: typeIdSchema(ID_PREFIX.character),
 });
 
 // `setSeatKnobs` (D80) — the ONE participantId-keyed AI-seat knob write, the replacement for the retired
@@ -455,8 +454,8 @@ const removeCharacterFromChatSchema = z.object({
 // (`requireHost`) + present-AI-seat-scoped (a human/observer seat → participant_not_found). The wire `patch`
 // is the ONE-HOME `seatKnobsSchema` (`@orb/contracts/chat`): both knobs optional, talkativeness RANGE-clamped.
 const setSeatKnobsSchema = z.object({
-  chatId: brandedId<ChatId>(),
-  participantId: brandedId<ChatParticipantId>(),
+  chatId: typeIdSchema(ID_PREFIX.chat),
+  participantId: typeIdSchema(ID_PREFIX.chatParticipant),
   patch: seatKnobsSchema,
 });
 
@@ -466,14 +465,14 @@ const setSeatKnobsSchema = z.object({
 // a fully-defaulted `GroupConfig`); the router only adds `chatId`. The chat's CONTEXT-panel group editor
 // consumes these (draft chats edit the draft-config store instead — the pre-send carry).
 const setGroupConfigSchema = z.object({
-  chatId: brandedId<ChatId>(),
+  chatId: typeIdSchema(ID_PREFIX.chat),
   config: groupConfigSchema,
 });
-const getGroupConfigSchema = z.object({ chatId: brandedId<ChatId>() });
+const getGroupConfigSchema = z.object({ chatId: typeIdSchema(ID_PREFIX.chat) });
 
 const forceCharacterTurnSchema = z.object({
-  chatId: brandedId<ChatId>(),
-  characterId: brandedId<CharacterId>(),
+  chatId: typeIdSchema(ID_PREFIX.chat),
+  characterId: typeIdSchema(ID_PREFIX.character),
   intent: userIntentSchema.optional(),
   guided: guidedSteerSchema.optional(),
 });
@@ -491,7 +490,7 @@ export const chatRouter = t.router({
       z
         .object({
           includeArchived: z.boolean().optional(),
-          characterId: brandedId<CharacterId>().optional(),
+          characterId: typeIdSchema(ID_PREFIX.character).optional(),
           search: z.string().optional(),
           beforeRecencyAt: z.number().int().optional(),
           // The CEILING, enforced at the trust boundary (the `character.list` precedent): an over-bound ask
@@ -513,13 +512,13 @@ export const chatRouter = t.router({
       }),
     ),
   getChat: authedProcedure
-    .input(z.object({ chatId: brandedId<ChatId>() }))
+    .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat) }))
     .query(({ ctx, input }) => ctx.services.chat.getChat({ principal: ctx.auth, chatId: input.chatId })),
   // The honest-refusal pre-send gate (#54): the deterministic serveability verdict for the chat's own
   // resolved connection — the composer disables SEND + the guided fire actions when `!available`. Member-gated
   // inside the verb; fires no turn/API call (a configured hosted connection reads available, never pre-flighted).
   checkSendAvailability: authedProcedure
-    .input(z.object({ chatId: brandedId<ChatId>() }))
+    .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat) }))
     .query(({ ctx, input }) => ctx.services.chat.checkSendAvailability({ principal: ctx.auth, chatId: input.chatId })),
   // D22 member-card read — member-gated + roster-scoped INSIDE the verb (leak-free NOT_FOUND for a
   // non-participant OR a not-in-roster characterId); level-clamped fields are NULL server-side.
@@ -584,7 +583,7 @@ export const chatRouter = t.router({
 
   // D121-E display-tier room OPTION — host-gated in the verb (a member's call is a refusal, not a no-op).
   setHostDisplayScripts: authedProcedure
-    .input(z.object({ chatId: brandedId<ChatId>(), enabled: z.boolean() }))
+    .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat), enabled: z.boolean() }))
     .mutation(({ ctx, input }) => ctx.services.chat.setHostDisplayScripts({ principal: ctx.auth, ...input })),
 
   // #1742 — the room's regex levers (the Regex section's master + one switch per tier). Host-gated in the
@@ -594,7 +593,7 @@ export const chatRouter = t.router({
   setRegexAllow: authedProcedure
     .input(
       z.object({
-        chatId: brandedId<ChatId>(),
+        chatId: typeIdSchema(ID_PREFIX.chat),
         lever: z.discriminatedUnion("kind", [
           z.object({ kind: z.literal("master"), enabled: z.boolean() }),
           z.object({ kind: z.literal("tier"), tier: regexTierKeySchema, enabled: z.boolean() }),
@@ -606,23 +605,23 @@ export const chatRouter = t.router({
   // #1742 — the Regex section's body: what runs in this room, in run order, by tier. HOST-only in the verb
   // (three of the four tiers are the host's own library, D19); a member's rack is `regex.listForChat`.
   listEffectiveRegex: authedProcedure
-    .input(z.object({ chatId: brandedId<ChatId>() }))
+    .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat) }))
     .query(({ ctx, input }) => ctx.services.chat.listEffectiveRegex({ principal: ctx.auth, chatId: input.chatId })),
 
   // B1 — the per-room offer-choices posture. Host-gated in the verb (a member's call is a refusal, not a
   // no-op), like every other `chatMetadata` write on this router.
   setOfferChoices: authedProcedure
-    .input(z.object({ chatId: brandedId<ChatId>(), enabled: z.boolean() }))
+    .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat), enabled: z.boolean() }))
     .mutation(({ ctx, input }) => ctx.services.chat.setOfferChoices({ principal: ctx.auth, ...input })),
 
   // B7 — the two reaction toggles (the setOfferChoices twins; host-gated in the verb). `charactersCanReact`
   // gates the `react` tool's attach; `reactionsEnabled` is the reaction plane's master switch, ENFORCED at
   // the reaction verbs (toggle refuses, list answers empty-with-verdict) rather than merely hidden.
   setCharactersCanReact: authedProcedure
-    .input(z.object({ chatId: brandedId<ChatId>(), enabled: z.boolean() }))
+    .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat), enabled: z.boolean() }))
     .mutation(({ ctx, input }) => ctx.services.chat.setCharactersCanReact({ principal: ctx.auth, ...input })),
   setReactionsEnabled: authedProcedure
-    .input(z.object({ chatId: brandedId<ChatId>(), enabled: z.boolean() }))
+    .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat), enabled: z.boolean() }))
     .mutation(({ ctx, input }) => ctx.services.chat.setReactionsEnabled({ principal: ctx.auth, ...input })),
   setToolRecurseLimit: authedProcedure
     .input(setToolRecurseLimitSchema)
@@ -701,11 +700,11 @@ export const chatRouter = t.router({
   // verdict, and a chatId the caller does not host is the usual leak-free refusal. Host-only + id-scoped, so
   // unlike `reapTemporaryChats` it does take an input.
   reapHusk: authedProcedure
-    .input(z.object({ chatId: brandedId<ChatId>() }))
+    .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat) }))
     .mutation(({ ctx, input }) => ctx.services.chat.reapHusk({ principal: ctx.auth, chatId: input.chatId })),
   // Generate image(s) in a chat (the I5 mode picker + /imagine surface). mode/prompt/n/size map onto
   // `chat.generateImage` → `imagery.generatePicture` (an absent `size` falls to the leaf's `defaultSizeFor`).
-  generateImage: authedProcedure.input(generatePictureRequestSchema.extend({ chatId: brandedId<ChatId>() })).mutation(({ ctx, input }) =>
+  generateImage: authedProcedure.input(generatePictureRequestSchema.extend({ chatId: typeIdSchema(ID_PREFIX.chat) })).mutation(({ ctx, input }) =>
     ctx.services.chat.generateImage({
       principal: ctx.auth,
       chatId: input.chatId,

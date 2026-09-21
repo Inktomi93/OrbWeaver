@@ -5,8 +5,7 @@
 
 import { imageLensSchema } from "@orb/contracts/embeddings";
 import { SEARCH_SUGGEST_MAX_LIMIT, SEARCH_TOP_N_MAX } from "@orb/contracts/search";
-import type { CharacterId, ChatId } from "@orb/kit/ids";
-import { brandedId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { SEARCH_TARGETS } from "#domain/search";
 import { authedProcedure, t } from "../trpc.ts";
@@ -18,10 +17,10 @@ const searchScopeInput = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("owner") }),
   z.object({
     kind: z.literal("chat"),
-    chatId: brandedId<ChatId>(),
-    scopedCharacterId: brandedId<CharacterId>().optional(),
+    chatId: typeIdSchema(ID_PREFIX.chat),
+    scopedCharacterId: typeIdSchema(ID_PREFIX.character).optional(),
   }),
-  z.object({ kind: z.literal("character"), characterId: brandedId<CharacterId>() }),
+  z.object({ kind: z.literal("character"), characterId: typeIdSchema(ID_PREFIX.character) }),
 ]);
 
 const unifiedSearchInput = z.object({
@@ -36,7 +35,7 @@ const unifiedSearchInput = z.object({
 // The seed-vector similarity verbs take a seed characterId (owner-belted inside the domain — the seed read
 // returns nothing for a foreign id, so a stranger gets an empty result, never another tenant's neighbourhood).
 const similarCharactersInput = z.object({
-  characterId: brandedId<CharacterId>(),
+  characterId: typeIdSchema(ID_PREFIX.character),
   topN: z.number().int().positive().max(SEARCH_TOP_N_MAX),
 });
 

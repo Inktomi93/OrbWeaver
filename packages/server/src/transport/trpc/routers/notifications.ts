@@ -40,8 +40,8 @@
 // nonexistent, and the client only renders the People section on such a deployment anyway.
 
 import { NOTIFICATIONS_LIST_MAX_LIMIT, PRESENCE_READ_MAX_USER_IDS } from "@orb/contracts/notifications";
-import type { NotificationId, UserId } from "@orb/kit/ids";
-import { brandedId } from "@orb/kit/ids";
+import type { UserId } from "@orb/kit/ids";
+import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { readPresenceDisclosure } from "../presence-disclosure.ts";
 import { authedProcedure, multiHumanProcedure, t } from "../trpc.ts";
@@ -59,7 +59,7 @@ export const notificationsRouter = t.router({
 
   markAllRead: authedProcedure.mutation(({ ctx }) => ctx.services.notifications.markAllRead({ principal: ctx.auth })),
 
-  dismiss: authedProcedure.input(z.object({ notificationId: brandedId<NotificationId>() })).mutation(({ ctx, input }) =>
+  dismiss: authedProcedure.input(z.object({ notificationId: typeIdSchema(ID_PREFIX.notification) })).mutation(({ ctx, input }) =>
     ctx.services.notifications.dismiss({
       principal: ctx.auth,
       notificationId: input.notificationId,

@@ -9,8 +9,7 @@
 // (DB5/DB6). The character-scope attach/detach verbs are DB8 (owner-gated on BOTH sides).
 
 import { docOriginSchema, documentListCursorSchema, ingestPhaseSchema, reindexModeSchema, reindexScopeSchema } from "@orb/contracts/databank";
-import type { CharacterId, ChatId, DocumentId } from "@orb/kit/ids";
-import { brandedId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc.ts";
 
@@ -37,7 +36,7 @@ export const databankRouter = t.router({
     .mutation(({ ctx, input }) => ctx.services.databank.scrapeWiki({ principal: ctx.auth, url: input.url })),
 
   get: authedProcedure
-    .input(z.object({ id: brandedId<DocumentId>(), includeText: z.boolean().optional() }))
+    .input(z.object({ id: typeIdSchema(ID_PREFIX.document), includeText: z.boolean().optional() }))
     .query(({ ctx, input }) =>
       ctx.services.databank.get({ principal: ctx.auth, id: input.id, ...(input.includeText !== undefined ? { includeText: input.includeText } : {}) }),
     ),
@@ -76,11 +75,11 @@ export const databankRouter = t.router({
   bankHealth: authedProcedure.query(({ ctx }) => ctx.services.databank.bankHealth({ principal: ctx.auth })),
 
   rename: authedProcedure
-    .input(z.object({ id: brandedId<DocumentId>(), name: z.string().min(1).max(NAME_MAX) }))
+    .input(z.object({ id: typeIdSchema(ID_PREFIX.document), name: z.string().min(1).max(NAME_MAX) }))
     .mutation(({ ctx, input }) => ctx.services.databank.rename({ principal: ctx.auth, id: input.id, name: input.name })),
 
   remove: authedProcedure
-    .input(z.object({ id: brandedId<DocumentId>() }))
+    .input(z.object({ id: typeIdSchema(ID_PREFIX.document) }))
     .mutation(({ ctx, input }) => ctx.services.databank.remove({ principal: ctx.auth, id: input.id })),
 
   reindex: authedProcedure
@@ -90,11 +89,11 @@ export const databankRouter = t.router({
     ),
 
   attachGlobal: authedProcedure
-    .input(z.object({ documentId: brandedId<DocumentId>() }))
+    .input(z.object({ documentId: typeIdSchema(ID_PREFIX.document) }))
     .mutation(({ ctx, input }) => ctx.services.databank.attachGlobal({ principal: ctx.auth, documentId: input.documentId })),
 
   detachGlobal: authedProcedure
-    .input(z.object({ documentId: brandedId<DocumentId>() }))
+    .input(z.object({ documentId: typeIdSchema(ID_PREFIX.document) }))
     .mutation(({ ctx, input }) => ctx.services.databank.detachGlobal({ principal: ctx.auth, documentId: input.documentId })),
 
   // D-1 (databank-surface-spec.md): the library row's `Everywhere` state as ONE read — the `worldInfo.listGlobal`
@@ -102,30 +101,30 @@ export const databankRouter = t.router({
   listGlobal: authedProcedure.query(({ ctx }) => ctx.services.databank.listGlobal({ principal: ctx.auth })),
 
   attachToChat: authedProcedure
-    .input(z.object({ documentId: brandedId<DocumentId>(), chatId: brandedId<ChatId>() }))
+    .input(z.object({ documentId: typeIdSchema(ID_PREFIX.document), chatId: typeIdSchema(ID_PREFIX.chat) }))
     .mutation(({ ctx, input }) => ctx.services.databank.attachToChat({ principal: ctx.auth, documentId: input.documentId, chatId: input.chatId })),
 
   detachFromChat: authedProcedure
-    .input(z.object({ documentId: brandedId<DocumentId>(), chatId: brandedId<ChatId>() }))
+    .input(z.object({ documentId: typeIdSchema(ID_PREFIX.document), chatId: typeIdSchema(ID_PREFIX.chat) }))
     .mutation(({ ctx, input }) => ctx.services.databank.detachFromChat({ principal: ctx.auth, documentId: input.documentId, chatId: input.chatId })),
 
   attachToCharacter: authedProcedure
-    .input(z.object({ documentId: brandedId<DocumentId>(), characterId: brandedId<CharacterId>() }))
+    .input(z.object({ documentId: typeIdSchema(ID_PREFIX.document), characterId: typeIdSchema(ID_PREFIX.character) }))
     .mutation(({ ctx, input }) =>
       ctx.services.databank.attachToCharacter({ principal: ctx.auth, documentId: input.documentId, characterId: input.characterId }),
     ),
 
   detachFromCharacter: authedProcedure
-    .input(z.object({ documentId: brandedId<DocumentId>(), characterId: brandedId<CharacterId>() }))
+    .input(z.object({ documentId: typeIdSchema(ID_PREFIX.document), characterId: typeIdSchema(ID_PREFIX.character) }))
     .mutation(({ ctx, input }) =>
       ctx.services.databank.detachFromCharacter({ principal: ctx.auth, documentId: input.documentId, characterId: input.characterId }),
     ),
 
   listAttachments: authedProcedure
-    .input(z.object({ id: brandedId<DocumentId>() }))
+    .input(z.object({ id: typeIdSchema(ID_PREFIX.document) }))
     .query(({ ctx, input }) => ctx.services.databank.listAttachments({ principal: ctx.auth, id: input.id })),
 
   listActiveForChat: authedProcedure
-    .input(z.object({ chatId: brandedId<ChatId>() }))
+    .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat) }))
     .query(({ ctx, input }) => ctx.services.databank.listActiveForChat({ principal: ctx.auth, chatId: input.chatId })),
 });

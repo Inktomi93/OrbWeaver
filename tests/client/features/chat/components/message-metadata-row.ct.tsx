@@ -9,6 +9,7 @@ import type { UserConnectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { MessageMetadataVisibility } from "../../../../../packages/client/src/features/chat/components/message-metadata-row.tsx";
+import { testProviderId } from "../../../../support/inference-identities.ts";
 import { MessageMetadataRowStory } from "../_ct-stories.tsx";
 
 const ALL_OFF: MessageMetadataVisibility = {
@@ -131,7 +132,11 @@ test("the cost slot is gated on the provider's dialect: an anthropic swipe with 
   const component = await mount(
     <MessageMetadataRowStory
       visibility={{ ...ALL_OFF, showGenerationCost: true }}
-      message={{ connectionId: castId<UserConnectionId>("uconn_ct_row"), generationId: "msg_011CfEBkq13YCxSrpf1a13Do", provider: "anthropic" }}
+      message={{
+        connectionId: castId<UserConnectionId>("uconn_ct_row"),
+        generationId: "msg_011CfEBkq13YCxSrpf1a13Do",
+        provider: testProviderId("anthropic"),
+      }}
     />,
   );
   await expect(component.locator('[data-slot="message-metadata-cost-trigger"]')).toHaveCount(0);
@@ -142,7 +147,11 @@ test("the same row on an openrouter connection DOES get the cost trigger", async
   const component = await mount(
     <MessageMetadataRowStory
       visibility={{ ...ALL_OFF, showGenerationCost: true }}
-      message={{ connectionId: castId<UserConnectionId>("uconn_ct_row"), generationId: "gen-1789884256-ZeulFgkGknjAbAgCKe1S", provider: "openrouter" }}
+      message={{
+        connectionId: castId<UserConnectionId>("uconn_ct_row"),
+        generationId: "gen-1789884256-ZeulFgkGknjAbAgCKe1S",
+        provider: testProviderId("openrouter"),
+      }}
     />,
   );
   await expect(component.locator('[data-slot="message-metadata-cost-trigger"]')).toBeVisible();

@@ -45,18 +45,17 @@ import {
   pluginNetHostSchema,
   pluginSlugSchema,
 } from "@orb/contracts/plugin";
-import type { ChatId, MessageId } from "@orb/kit/ids";
-import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { adminProcedure, authedProcedure, t } from "../trpc.ts";
 
 const pluginIdSchema = typeIdSchema(ID_PREFIX.plugin);
 // Lax like the chat router's chatId (leak-free gating is the service's `resolveChatAuthority`, not a strict
 // TypeID parse that would distinguish malformed-vs-not-found).
-const chatIdSchema = brandedId<ChatId>();
+const chatIdSchema = typeIdSchema(ID_PREFIX.chat);
 // Same laxity, same reason: the display round-trip never READS the row, so a strict TypeID parse would only
 // distinguish malformed-from-absent for an id the guest merely sees as its `env`.
-const messageIdSchema = brandedId<MessageId>();
+const messageIdSchema = typeIdSchema(ID_PREFIX.message);
 const grantSchema = z.array(z.enum(PLUGIN_CAPABILITIES));
 /** A surface / action id — the plugin-local ident grammar (`host.ui.register`'s id, §4.2). Defense-in-depth at
  *  the wire edge; the verb still resolves the surface/handler's actual existence off the caller's own instance. */

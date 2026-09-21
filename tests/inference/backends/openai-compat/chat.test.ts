@@ -18,7 +18,7 @@ import type { EFFORT_SPELLINGS } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import type { JsonValue } from "@orb/kit/json";
 import { runOpenAiCompatChatTurn } from "../../../../packages/inference/src/backends/openai-compat/chat.ts";
-import type { ChatResult, OpenAiCompatChatRequest } from "../../../../packages/inference/src/contract/chat.ts";
+import type { ChatDeltaSubscription, ChatResult, OpenAiCompatChatRequest } from "../../../../packages/inference/src/contract/chat.ts";
 import { ProviderError } from "../../../../packages/inference/src/contract/errors.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { fakeApiKeySecret, fakeResolved } from "../../_support.ts";
@@ -40,7 +40,9 @@ function turnDeps(fetchImpl: typeof fetch): Parameters<typeof runOpenAiCompatCha
   return { now: () => NOW, log: silentLog(), transport: { fetch: fetchImpl, app: APP } };
 }
 
-function orRequest(overrides: Partial<OpenAiCompatChatRequest> = {}): OpenAiCompatChatRequest {
+type OpenAiCompatRequestOverrides = Partial<Omit<OpenAiCompatChatRequest, "chatId" | "onDelta">> & ChatDeltaSubscription;
+
+function orRequest(overrides: OpenAiCompatRequestOverrides = {}): OpenAiCompatChatRequest {
   const connection = fakeResolved({
     task: "chat",
     providerId: "openrouter",
@@ -48,14 +50,14 @@ function orRequest(overrides: Partial<OpenAiCompatChatRequest> = {}): OpenAiComp
     capability: generationCapability(),
     secret: fakeApiKeySecret("sk-or-not-a-real-key"),
   });
-  const base: OpenAiCompatChatRequest = {
+  const base = {
     api: "chat-completions",
     connection,
     params: { effort: "high" } satisfies UserIntent,
     systemPrompt: { static: "You are a helpful assistant.", dynamic: "" },
     history: [{ role: "user", content: [{ type: "text", text: "What is the weather in Paris?" }] }],
     tools: [{ name: "get_weather", description: "Weather for a city.", parameters: { type: "object", properties: { city: { type: "string" } } } }],
-  };
+  } satisfies OpenAiCompatChatRequest;
   return { ...base, ...overrides };
 }
 

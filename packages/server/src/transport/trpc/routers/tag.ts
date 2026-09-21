@@ -3,8 +3,7 @@
 // Wire input shapes + axes derive from `@orb/contracts/tag` (no inline re-spell — §7.4).
 
 import { createTagSchema, tagStatusSchema, tagTargetTypeSchema, updateTagSchema } from "@orb/contracts/tag";
-import type { CharacterId, TagId } from "@orb/kit/ids";
-import { brandedId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc.ts";
 
@@ -19,20 +18,22 @@ export const tagRouter = t.router({
   listTags: authedProcedure.query(({ ctx }) => ctx.services.tag.listTags({ principal: ctx.auth })),
 
   updateTag: authedProcedure
-    .input(z.object({ tagId: brandedId<TagId>(), patch: updateTagSchema }))
+    .input(z.object({ tagId: typeIdSchema(ID_PREFIX.tag), patch: updateTagSchema }))
     .mutation(({ ctx, input }) => ctx.services.tag.updateTag({ principal: ctx.auth, tagId: input.tagId, patch: input.patch })),
 
   removeTag: authedProcedure
-    .input(z.object({ tagId: brandedId<TagId>() }))
+    .input(z.object({ tagId: typeIdSchema(ID_PREFIX.tag) }))
     .mutation(({ ctx, input }) => ctx.services.tag.removeTag({ principal: ctx.auth, tagId: input.tagId })),
 
-  mergeTags: authedProcedure.input(z.object({ sourceTagId: brandedId<TagId>(), targetTagId: brandedId<TagId>() })).mutation(({ ctx, input }) =>
-    ctx.services.tag.mergeTags({
-      principal: ctx.auth,
-      sourceTagId: input.sourceTagId,
-      targetTagId: input.targetTagId,
-    }),
-  ),
+  mergeTags: authedProcedure
+    .input(z.object({ sourceTagId: typeIdSchema(ID_PREFIX.tag), targetTagId: typeIdSchema(ID_PREFIX.tag) }))
+    .mutation(({ ctx, input }) =>
+      ctx.services.tag.mergeTags({
+        principal: ctx.auth,
+        sourceTagId: input.sourceTagId,
+        targetTagId: input.targetTagId,
+      }),
+    ),
 
   listTagsWithUsage: authedProcedure.query(({ ctx }) => ctx.services.tag.listTagsWithUsage({ principal: ctx.auth })),
 
@@ -44,7 +45,7 @@ export const tagRouter = t.router({
 
   // The Accept/Reject review queue: the owner's STAGED (`pending`) character-tag suggestions (PD-40 distill +
   // import staged card tags). `characterId` narrows to one editor's suggestions; absent = the whole inbox.
-  listPendingSuggestions: authedProcedure.input(z.object({ characterId: brandedId<CharacterId>().optional() }).optional()).query(({ ctx, input }) =>
+  listPendingSuggestions: authedProcedure.input(z.object({ characterId: typeIdSchema(ID_PREFIX.character).optional() }).optional()).query(({ ctx, input }) =>
     ctx.services.tag.listPendingSuggestions({
       principal: ctx.auth,
       ...(input?.characterId !== undefined ? { characterId: input.characterId } : {}),
@@ -54,13 +55,13 @@ export const tagRouter = t.router({
   pruneUnusedTags: authedProcedure.mutation(({ ctx }) => ctx.services.tag.pruneUnusedTags({ principal: ctx.auth })),
 
   setTagOrder: authedProcedure
-    .input(z.object({ orderedIds: z.array(brandedId<TagId>()).min(1) }))
+    .input(z.object({ orderedIds: z.array(typeIdSchema(ID_PREFIX.tag)).min(1) }))
     .mutation(({ ctx, input }) => ctx.services.tag.setTagOrder({ principal: ctx.auth, orderedIds: input.orderedIds })),
 
   attachTag: authedProcedure
     .input(
       z.object({
-        tagId: brandedId<TagId>(),
+        tagId: typeIdSchema(ID_PREFIX.tag),
         targetType: tagTargetTypeSchema,
         // @orb-waive no-raw-id(targetId): polymorphic ref — targetId is a plain wire string, branded per targetType at the junction dispatch (tag params).
         targetId: z.string().min(1),
@@ -80,7 +81,7 @@ export const tagRouter = t.router({
   detachTag: authedProcedure
     .input(
       z.object({
-        tagId: brandedId<TagId>(),
+        tagId: typeIdSchema(ID_PREFIX.tag),
         targetType: tagTargetTypeSchema,
         // @orb-waive no-raw-id(targetId): polymorphic ref — targetId is a plain wire string, branded per targetType at the junction dispatch (tag params).
         targetId: z.string().min(1),

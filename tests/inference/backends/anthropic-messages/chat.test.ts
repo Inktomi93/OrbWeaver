@@ -17,7 +17,7 @@ import type { GenerationCapability } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import { runAnthropicChatTurn } from "../../../../packages/inference/src/backends/anthropic-messages/chat.ts";
 import { anthropicUserIdDigest } from "../../../../packages/inference/src/backends/anthropic-messages/extras.ts";
-import type { AnthropicChatRequest, ChatResult } from "../../../../packages/inference/src/contract/chat.ts";
+import type { AnthropicChatRequest, ChatDeltaSubscription, ChatResult } from "../../../../packages/inference/src/contract/chat.ts";
 import { ProviderError } from "../../../../packages/inference/src/contract/errors.ts";
 import type { InferenceLog } from "../../../../packages/inference/src/deps.ts";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -50,7 +50,9 @@ function recordingLog(lines: LogLine[]): InferenceLog {
   return { debug: push("debug"), info: push("info"), warn: push("warn"), error: push("error") };
 }
 
-function turnRequest(overrides: Partial<AnthropicChatRequest> = {}): AnthropicChatRequest {
+type AnthropicRequestOverrides = Partial<Omit<AnthropicChatRequest, "chatId" | "onDelta">> & ChatDeltaSubscription;
+
+function turnRequest(overrides: AnthropicRequestOverrides = {}): AnthropicChatRequest {
   const connection = fakeResolved({
     task: "chat",
     providerId: "anthropic",
@@ -60,14 +62,14 @@ function turnRequest(overrides: Partial<AnthropicChatRequest> = {}): AnthropicCh
     secret: fakeApiKeySecret("sk-ant-probe-not-a-real-key"),
   });
   const params: UserIntent = { effort: "high" };
-  const base: AnthropicChatRequest = {
+  const base = {
     api: "anthropic-messages",
     connection,
     params,
     systemPrompt: { static: "You are a helpful assistant.", dynamic: "" },
     history: [{ role: "user", content: [{ type: "text", text: "What is the weather in Paris?" }] }],
     tools: [{ name: "get_weather", description: "Weather for a city.", parameters: { type: "object", properties: { city: { type: "string" } } } }],
-  };
+  } satisfies AnthropicChatRequest;
   return { ...base, ...overrides };
 }
 

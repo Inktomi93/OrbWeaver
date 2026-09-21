@@ -25,7 +25,7 @@ import type { DocOrigin } from "@orb/contracts/databank";
 import { docOriginSchema } from "@orb/contracts/databank";
 import type { PortableParse } from "@orb/contracts/portability";
 import type { AssetId } from "@orb/kit/ids";
-import { brandedId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { defineJsonObjectSerde } from "#kit/serde/lib";
 
@@ -64,9 +64,9 @@ const wireDocumentSchema = z.object({
   byteSize: z.number().int().nonnegative(),
   extractorVersion: z.string(),
   createdAt: z.number().int().nonnegative().nullish().catch(null),
-  // Deliberately not typeIdSchema (prefix-strict): an opaque carried value the import verb re-links against
-  // the db behind its own ownership gate (the gallery `assetId` precedent).
-  sourceAssetId: brandedId<AssetId>().nullish().catch(null),
+  // Prefix-strict at the portable-file boundary; the import verb still re-links this opaque carried value
+  // against the db behind its own ownership gate (the gallery `assetId` precedent).
+  sourceAssetId: typeIdSchema(ID_PREFIX.asset).nullish().catch(null),
   global: z.boolean().catch(false),
   characterHandles: z.array(z.string().trim().min(1)).catch([]),
 });

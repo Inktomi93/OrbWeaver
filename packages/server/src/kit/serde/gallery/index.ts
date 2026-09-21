@@ -13,7 +13,7 @@
 
 import type { PortableParse } from "@orb/contracts/portability";
 import type { AssetId } from "@orb/kit/ids";
-import { brandedId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import type { EmptyJsonHeader } from "#kit/serde/lib";
 import { defineJsonRowsSerde, NO_JSON_HEADER, noJsonHeader } from "#kit/serde/lib";
@@ -47,12 +47,12 @@ function itemToWire(item: CanonicalGalleryItem): Record<string, unknown> {
   };
 }
 
-// A lenient per-row view: assetId is required as a non-empty branded id. Deliberately not typeIdSchema
-// (prefix-strict): the assetId is an opaque carried value re-linked against the db by the import verb's
-// ownership gate.
+// A lenient per-row view, except that assetId must carry the canonical prefix at the portable-file boundary.
+// The import verb re-links this opaque carried value against the db through its ownership gate; the file does
+// not make an authority claim.
 const wireItemSchema = z
   .object({
-    assetId: brandedId<AssetId>(),
+    assetId: typeIdSchema(ID_PREFIX.asset),
     subjectCharacterHandle: z.string().trim().min(1).nullish().catch(null),
     createdAt: z.number().int().nonnegative().nullish().catch(null),
   })

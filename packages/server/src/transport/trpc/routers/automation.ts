@@ -22,32 +22,31 @@ import {
   rulePresetIdSchema,
   rulePresetKnobValuesSchema,
 } from "@orb/contracts/automation";
-import type { AutomationRuleId, AutomationSuggestionId, ChatId } from "@orb/kit/ids";
-import { brandedId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc.ts";
 
 export const automationRouter = t.router({
   // The host-only rule list is position-ordered.
   listRules: authedProcedure
-    .input(z.object({ chatId: brandedId<ChatId>() }))
+    .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat) }))
     .query(({ ctx, input }) => ctx.services.automation.listRules({ principal: ctx.auth, chatId: input.chatId })),
 
   setRuleEnabled: authedProcedure
-    .input(z.object({ ruleId: brandedId<AutomationRuleId>(), enabled: z.boolean() }))
+    .input(z.object({ ruleId: typeIdSchema(ID_PREFIX.automationRule), enabled: z.boolean() }))
     .mutation(({ ctx, input }) => ctx.services.automation.setRuleEnabled({ principal: ctx.auth, ruleId: input.ruleId, enabled: input.enabled })),
 
   // RULED F4's per-rule OPT-OUT (spec row B4) — whether a RATE REFUSAL of this rule still offers the host
   // the "run it now?" invitation. Its OWN procedure preserves the rule's mint provenance when the preference
   // flips. Same rule-scoped host gate as `setRuleEnabled`, which is the procedure this one is shaped on.
   setRuleSuggestOnRefusal: authedProcedure
-    .input(z.object({ ruleId: brandedId<AutomationRuleId>(), suggestOnRefusal: z.boolean() }))
+    .input(z.object({ ruleId: typeIdSchema(ID_PREFIX.automationRule), suggestOnRefusal: z.boolean() }))
     .mutation(({ ctx, input }) =>
       ctx.services.automation.setRuleSuggestOnRefusal({ principal: ctx.auth, ruleId: input.ruleId, suggestOnRefusal: input.suggestOnRefusal }),
     ),
 
   deleteRule: authedProcedure
-    .input(z.object({ ruleId: brandedId<AutomationRuleId>() }))
+    .input(z.object({ ruleId: typeIdSchema(ID_PREFIX.automationRule) }))
     .mutation(({ ctx, input }) => ctx.services.automation.deleteRule({ principal: ctx.auth, ruleId: input.ruleId })),
 
   // The preset catalogue READ (S3) — the picker's read model: the committed presets projected to
@@ -64,7 +63,7 @@ export const automationRouter = t.router({
   // `chatId` nullable for the same reason `createRule`'s is — and the verb additionally refuses a chat that
   // DISAGREES with the named preset's own declared scope, in both directions.
   createRuleFromPreset: authedProcedure
-    .input(z.object({ chatId: brandedId<ChatId>().nullable(), presetId: rulePresetIdSchema, knobs: rulePresetKnobValuesSchema.optional() }))
+    .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat).nullable(), presetId: rulePresetIdSchema, knobs: rulePresetKnobValuesSchema.optional() }))
     .mutation(({ ctx, input }) =>
       ctx.services.automation.createRuleFromPreset({
         principal: ctx.auth,
@@ -77,30 +76,30 @@ export const automationRouter = t.router({
   // The dry-run: evaluate the predicate + render every arm's templates, executing NOTHING (the editor's
   // diagnostics surface). The optional sampleEvent is synthesized in the verb from the rule's trigger.
   testRule: authedProcedure
-    .input(z.object({ ruleId: brandedId<AutomationRuleId>() }))
+    .input(z.object({ ruleId: typeIdSchema(ID_PREFIX.automationRule) }))
     .mutation(({ ctx, input }) => ctx.services.automation.testRule({ principal: ctx.auth, ruleId: input.ruleId })),
 
   // R7 — run ONE rule NOW (host-only): a fresh dispatch at depth 0. The TWIN of testRule, not a widening of
   // it: testRule executes NOTHING and stays that way, this one really runs the rule. Its one gate exemption
   // (the engine's fire-rate cap) is argued in the verb; every belt inside the arm's own pipeline still bites.
   runRuleNow: authedProcedure
-    .input(z.object({ ruleId: brandedId<AutomationRuleId>() }))
+    .input(z.object({ ruleId: typeIdSchema(ID_PREFIX.automationRule) }))
     .mutation(({ ctx, input }) => ctx.services.automation.runRuleNow({ principal: ctx.auth, ruleId: input.ruleId })),
 
   // S4 — the suggest/confirm pair (host-only). The suggestion id is the CLAIM handle the card carries: it
   // reaches the client on the host-only `suggestionRaised` bus event and comes back here. Take-once lives in
   // the verb, so a double-click's loser gets NOT_FOUND rather than a second execution.
   confirmSuggestion: authedProcedure
-    .input(z.object({ suggestionId: brandedId<AutomationSuggestionId>() }))
+    .input(z.object({ suggestionId: typeIdSchema(ID_PREFIX.automationSuggestion) }))
     .mutation(({ ctx, input }) => ctx.services.automation.confirmSuggestion({ principal: ctx.auth, suggestionId: input.suggestionId })),
 
   dismissSuggestion: authedProcedure
-    .input(z.object({ suggestionId: brandedId<AutomationSuggestionId>() }))
+    .input(z.object({ suggestionId: typeIdSchema(ID_PREFIX.automationSuggestion) }))
     .mutation(({ ctx, input }) => ctx.services.automation.dismissSuggestion({ principal: ctx.auth, suggestionId: input.suggestionId })),
 
   // The fire-log debug surface (host-only, newest first) — the "why didn't my rule fire" answer.
   listFires: authedProcedure
-    .input(z.object({ ruleId: brandedId<AutomationRuleId>(), limit: z.number().int().min(1).max(AUTOMATION_FIRES_LIST_MAX_LIMIT).optional() }))
+    .input(z.object({ ruleId: typeIdSchema(ID_PREFIX.automationRule), limit: z.number().int().min(1).max(AUTOMATION_FIRES_LIST_MAX_LIMIT).optional() }))
     .query(({ ctx, input }) =>
       ctx.services.automation.listFires({
         principal: ctx.auth,
@@ -114,7 +113,7 @@ export const automationRouter = t.router({
   // domain guard is `requireChatHost(chatId)` — a non-member passing a foreign chatId collapses to a leak-free
   // NOT_FOUND, exactly like `listRules`. Same page ceiling as `listFires`.
   listChatActivity: authedProcedure
-    .input(z.object({ chatId: brandedId<ChatId>(), limit: z.number().int().min(1).max(AUTOMATION_FIRES_LIST_MAX_LIMIT).optional() }))
+    .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat), limit: z.number().int().min(1).max(AUTOMATION_FIRES_LIST_MAX_LIMIT).optional() }))
     .query(({ ctx, input }) =>
       ctx.services.automation.listChatActivity({
         principal: ctx.auth,

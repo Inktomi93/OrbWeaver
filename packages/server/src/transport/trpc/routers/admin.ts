@@ -4,8 +4,8 @@
 // domain error map. The acting `Principal` is threaded as `params.principal` (the verb gates on it).
 
 import { userRoleSchema } from "@orb/contracts/identity";
-import type { CharacterId, ExternalId, Handle, SessionId, UserId } from "@orb/kit/ids";
-import { brandedId } from "@orb/kit/ids";
+import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
+import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { adminProcedure, t } from "../trpc.ts";
 
@@ -61,7 +61,7 @@ export const adminRouter = t.router({
     .input(z.object({ userId: brandedId<UserId>() }))
     .query(({ ctx, input }) => ctx.services.admin.listSessions({ principal: ctx.auth, userId: input.userId })),
 
-  revokeSession: adminProcedure.input(z.object({ sessionId: brandedId<SessionId>() })).mutation(async ({ ctx, input }) => {
+  revokeSession: adminProcedure.input(z.object({ sessionId: typeIdSchema(ID_PREFIX.session) })).mutation(async ({ ctx, input }) => {
     await ctx.services.admin.revokeSession({ principal: ctx.auth, sessionId: input.sessionId });
     return { ok: true } as const;
   }),
@@ -75,7 +75,7 @@ export const adminRouter = t.router({
   // PD-90 — the inline single-card embed (adminProcedure, Tier-4 esoteric #10: only admins drive the GPU
   // embed engine inline; the bulk path is the admin-only index workload). The producer-ownership
   // check + the embeddings write live behind the AdminService verb (the composed EmbedProducerPort).
-  embedCharacterCard: adminProcedure.input(z.object({ characterId: brandedId<CharacterId>() })).mutation(async ({ ctx, input }) => {
+  embedCharacterCard: adminProcedure.input(z.object({ characterId: typeIdSchema(ID_PREFIX.character) })).mutation(async ({ ctx, input }) => {
     await ctx.services.admin.embedCharacterCard({
       principal: ctx.auth,
       characterId: input.characterId,

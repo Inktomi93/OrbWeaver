@@ -232,6 +232,22 @@ export function addNamedImport(
   };
 }
 
+function removeNamesFromImport(decl: ImportDeclaration, names: ReadonlySet<string>, removeWholeDeclaration: boolean): void {
+  if (removeWholeDeclaration) {
+    decl.remove();
+    return;
+  }
+  for (const spec of decl.getNamedImports()) {
+    if (names.has(spec.getName())) {
+      spec.remove();
+    }
+  }
+  const stillHas = decl.getNamedImports().length > 0 || decl.getDefaultImport() !== undefined || decl.getNamespaceImport() !== undefined;
+  if (!stillHas) {
+    decl.remove();
+  }
+}
+
 /**
  * Remove specific named imports from a declaration. If the declaration is
  * left with no names (and no default / namespace import), the declaration
@@ -254,27 +270,13 @@ export function removeNamedImport(
     description: `Remove import { ${names.join(", ")} } from "${moduleSpecifier}" in ${repoRelative(abs, ctx.repoRoot)}${noteSuffix(opts)}`,
     touchedFiles: [abs],
     transform(): void {
-      // See addNamedImport's matching comment: don't grab a type-only declaration sharing the
-      // same specifier as the value declaration we actually mean to strip names from.
-      const decl = sf.getImportDeclaration((d) => d.getModuleSpecifierValue() === moduleSpecifier && !d.isTypeOnly());
-      if (!decl) {
-        return;
-      }
-      if (opts.removeWholeDeclaration === true) {
-        decl.remove();
-        return;
-      }
       const namesSet = new Set(names);
-      for (const spec of decl.getNamedImports()) {
-        if (namesSet.has(spec.getName())) {
-          spec.remove();
-        }
-      }
-      // If we removed everything from the declaration AND it has no default
-      // / namespace, drop the declaration itself.
-      const stillHas = decl.getNamedImports().length > 0 || decl.getDefaultImport() !== undefined || decl.getNamespaceImport() !== undefined;
-      if (!stillHas) {
-        decl.remove();
+      // A module may have separate value and `import type` declarations. Removal means the imported
+      // symbol, not one declaration spelling: leaving the type-only twin behind is how a codemod that
+      // removes the symbol's final use creates TS6196/TS6192 residue. Iterate every matching declaration;
+      // addNamedImport's value/type distinction is an insertion concern, not a removal exception.
+      for (const decl of sf.getImportDeclarations().filter((candidate) => candidate.getModuleSpecifierValue() === moduleSpecifier)) {
+        removeNamesFromImport(decl, namesSet, opts.removeWholeDeclaration === true);
       }
     },
   };

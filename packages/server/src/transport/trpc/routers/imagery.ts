@@ -11,8 +11,7 @@
 
 import { assetIdSchema } from "@orb/contracts/assets";
 import { promptTemplateModeSchema, sizePresetSchema } from "@orb/contracts/imagery";
-import type { CharacterId, ChatId } from "@orb/kit/ids";
-import { brandedId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc.ts";
 
@@ -38,7 +37,7 @@ export const imageryRouter = t.router({
         instruction: z.string().trim().min(1).max(MAX_INSTRUCTION_CHARS),
         n: z.number().int().min(MIN_IMAGE_COUNT).max(MAX_IMAGE_COUNT).optional(),
         size: sizePresetSchema.optional(),
-        chatId: brandedId<ChatId>().optional(),
+        chatId: typeIdSchema(ID_PREFIX.chat).optional(),
       }),
     )
     .mutation(({ ctx, input }) =>
@@ -57,9 +56,9 @@ export const imageryRouter = t.router({
   extractPrompt: authedProcedure
     .input(
       z.object({
-        chatId: brandedId<ChatId>(),
+        chatId: typeIdSchema(ID_PREFIX.chat),
         mode: extractionModeSchema,
-        subjectCharacterId: brandedId<CharacterId>().optional(),
+        subjectCharacterId: typeIdSchema(ID_PREFIX.character).optional(),
       }),
     )
     .mutation(({ ctx, input }) =>

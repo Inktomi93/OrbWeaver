@@ -7,8 +7,7 @@
 // a transport router must NOT deep-import `contract/params` nor re-spell the union inline).
 
 import { STATS_LIST_MAX_LIMIT } from "@orb/contracts/stats";
-import type { CharacterId } from "@orb/kit/ids";
-import { brandedId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { LEADERBOARD_SORTS, latencyScopeSchema } from "#domain/stats";
 import { authedProcedure, t } from "../trpc.ts";
@@ -17,7 +16,7 @@ export const statsRouter = t.router({
   overview: authedProcedure.query(({ ctx }) => ctx.services.stats.overview(ctx.auth.userId)),
 
   character: authedProcedure
-    .input(z.object({ characterId: brandedId<CharacterId>() }))
+    .input(z.object({ characterId: typeIdSchema(ID_PREFIX.character) }))
     .query(({ ctx, input }) => ctx.services.stats.character(ctx.auth.userId, input.characterId)),
 
   leaderboard: authedProcedure
@@ -48,7 +47,7 @@ export const statsRouter = t.router({
   // `personas.owner_id = principal.userId` regardless, so an id the caller does not own matches no chats
   // and returns the roster at zero — there is nothing here to IDOR.
   personaUsage: authedProcedure
-    .input(z.object({ characterId: brandedId<CharacterId>().optional() }).optional())
+    .input(z.object({ characterId: typeIdSchema(ID_PREFIX.character).optional() }).optional())
     .query(({ ctx, input }) => ctx.services.stats.personaUsage(ctx.auth.userId, { characterId: input?.characterId })),
 
   wrapped: authedProcedure.query(({ ctx }) => ctx.services.stats.wrapped(ctx.auth.userId)),

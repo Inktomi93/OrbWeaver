@@ -26,8 +26,7 @@
 //   • EXEMPT: none.
 
 import { createRegexScriptSchema, regexAttachScopeSchema, regexPlacementListSchema, updateRegexScriptSchema } from "@orb/contracts/regex";
-import type { CharacterId, ChatId, PresetId, RegexScriptId } from "@orb/kit/ids";
-import { brandedId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc.ts";
@@ -39,8 +38,8 @@ const MAX_SCRIPT_FILE_CHARS = 200_000;
 const MAX_BULK_SCRIPTS = 500;
 const DEC = new TextDecoder();
 
-const scriptIdInput = z.object({ scriptId: brandedId<RegexScriptId>() });
-const scriptIdsInput = z.array(brandedId<RegexScriptId>()).max(MAX_BULK_SCRIPTS);
+const scriptIdInput = z.object({ scriptId: typeIdSchema(ID_PREFIX.regexScript) });
+const scriptIdsInput = z.array(typeIdSchema(ID_PREFIX.regexScript)).max(MAX_BULK_SCRIPTS);
 
 export const regexRouter = t.router({
   listScripts: authedProcedure.query(({ ctx }) => ctx.services.regex.listScripts({ principal: ctx.auth })),
@@ -50,7 +49,7 @@ export const regexRouter = t.router({
     .mutation(({ ctx, input }) => ctx.services.regex.createScript({ principal: ctx.auth, input: input.input })),
 
   updateScript: authedProcedure
-    .input(z.object({ scriptId: brandedId<RegexScriptId>(), input: updateRegexScriptSchema }))
+    .input(z.object({ scriptId: typeIdSchema(ID_PREFIX.regexScript), input: updateRegexScriptSchema }))
     .mutation(({ ctx, input }) => ctx.services.regex.updateScript({ principal: ctx.auth, scriptId: input.scriptId, input: input.input })),
 
   removeScript: authedProcedure
@@ -119,48 +118,48 @@ export const regexRouter = t.router({
   listGlobal: authedProcedure.query(({ ctx }) => ctx.services.regex.listGlobal({ principal: ctx.auth })),
 
   attachToCharacter: authedProcedure
-    .input(z.object({ characterId: brandedId<CharacterId>(), scriptId: brandedId<RegexScriptId>() }))
+    .input(z.object({ characterId: typeIdSchema(ID_PREFIX.character), scriptId: typeIdSchema(ID_PREFIX.regexScript) }))
     .mutation(({ ctx, input }) => ctx.services.regex.attachToCharacter({ principal: ctx.auth, characterId: input.characterId, scriptId: input.scriptId })),
 
   detachFromCharacter: authedProcedure
-    .input(z.object({ characterId: brandedId<CharacterId>(), scriptId: brandedId<RegexScriptId>() }))
+    .input(z.object({ characterId: typeIdSchema(ID_PREFIX.character), scriptId: typeIdSchema(ID_PREFIX.regexScript) }))
     .mutation(({ ctx, input }) => ctx.services.regex.detachFromCharacter({ principal: ctx.auth, characterId: input.characterId, scriptId: input.scriptId })),
 
   listForCharacter: authedProcedure
-    .input(z.object({ characterId: brandedId<CharacterId>() }))
+    .input(z.object({ characterId: typeIdSchema(ID_PREFIX.character) }))
     .query(({ ctx, input }) => ctx.services.regex.listForCharacter({ principal: ctx.auth, characterId: input.characterId })),
 
   attachToPreset: authedProcedure
-    .input(z.object({ presetId: brandedId<PresetId>(), scriptId: brandedId<RegexScriptId>() }))
+    .input(z.object({ presetId: typeIdSchema(ID_PREFIX.preset), scriptId: typeIdSchema(ID_PREFIX.regexScript) }))
     .mutation(({ ctx, input }) => ctx.services.regex.attachToPreset({ principal: ctx.auth, presetId: input.presetId, scriptId: input.scriptId })),
 
   detachFromPreset: authedProcedure
-    .input(z.object({ presetId: brandedId<PresetId>(), scriptId: brandedId<RegexScriptId>() }))
+    .input(z.object({ presetId: typeIdSchema(ID_PREFIX.preset), scriptId: typeIdSchema(ID_PREFIX.regexScript) }))
     .mutation(({ ctx, input }) => ctx.services.regex.detachFromPreset({ principal: ctx.auth, presetId: input.presetId, scriptId: input.scriptId })),
 
   listForPreset: authedProcedure
-    .input(z.object({ presetId: brandedId<PresetId>() }))
+    .input(z.object({ presetId: typeIdSchema(ID_PREFIX.preset) }))
     .query(({ ctx, input }) => ctx.services.regex.listForPreset({ principal: ctx.auth, presetId: input.presetId })),
 
   attachToChat: authedProcedure
-    .input(z.object({ chatId: brandedId<ChatId>(), scriptId: brandedId<RegexScriptId>() }))
+    .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat), scriptId: typeIdSchema(ID_PREFIX.regexScript) }))
     .mutation(({ ctx, input }) => ctx.services.regex.attachToChat({ principal: ctx.auth, chatId: input.chatId, scriptId: input.scriptId })),
 
   detachFromChat: authedProcedure
-    .input(z.object({ chatId: brandedId<ChatId>(), scriptId: brandedId<RegexScriptId>() }))
+    .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat), scriptId: typeIdSchema(ID_PREFIX.regexScript) }))
     .mutation(({ ctx, input }) => ctx.services.regex.detachFromChat({ principal: ctx.auth, chatId: input.chatId, scriptId: input.scriptId })),
 
   listForChat: authedProcedure
-    .input(z.object({ chatId: brandedId<ChatId>() }))
+    .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat) }))
     .query(({ ctx, input }) => ctx.services.regex.listForChat({ principal: ctx.auth, chatId: input.chatId })),
 
   // D121-E host option: the room's BROADCAST display set. MEMBER-gated (the verb's injected chat guard) —
   // a non-member is refused, and a member of a room that never opted in gets `[]`.
   listRoomDisplayScripts: authedProcedure
-    .input(z.object({ chatId: brandedId<ChatId>() }))
+    .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat) }))
     .query(({ ctx, input }) => ctx.services.regex.listRoomDisplayScripts({ principal: ctx.auth, chatId: input.chatId })),
 
   applyScopeOrder: authedProcedure
-    .input(z.object({ scope: regexAttachScopeSchema, orderedScriptIds: z.array(brandedId<RegexScriptId>()) }))
+    .input(z.object({ scope: regexAttachScopeSchema, orderedScriptIds: z.array(typeIdSchema(ID_PREFIX.regexScript)) }))
     .mutation(({ ctx, input }) => ctx.services.regex.applyScopeOrder({ principal: ctx.auth, scope: input.scope, orderedScriptIds: input.orderedScriptIds })),
 });

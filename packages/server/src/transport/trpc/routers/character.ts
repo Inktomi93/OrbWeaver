@@ -11,8 +11,7 @@ import {
   updateCharacterSchema,
 } from "@orb/contracts/character";
 import { GREETING_TRANSFORM_IDS } from "@orb/contracts/preset";
-import type { CharacterId, CharacterSnapshotId, TagId } from "@orb/kit/ids";
-import { brandedId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc.ts";
 
@@ -25,7 +24,7 @@ export const characterRouter = t.router({
     .mutation(({ ctx, input }) => ctx.services.character.create({ principal: ctx.auth, input: input.input })),
 
   get: authedProcedure
-    .input(z.object({ characterId: brandedId<CharacterId>() }))
+    .input(z.object({ characterId: typeIdSchema(ID_PREFIX.character) }))
     .query(({ ctx, input }) => ctx.services.character.get({ principal: ctx.auth, characterId: input.characterId })),
 
   // Keyset-paged (core/Tier-4-Transport.md thin pass-through; core/Spine-Testing.md). `sort` + `cursor` derive
@@ -48,8 +47,8 @@ export const characterRouter = t.router({
           search: z.string().optional(),
           starred: z.boolean().optional(),
           archived: z.boolean().optional(),
-          includeTagIds: z.array(brandedId<TagId>()).optional(),
-          excludeTagIds: z.array(brandedId<TagId>()).optional(),
+          includeTagIds: z.array(typeIdSchema(ID_PREFIX.tag)).optional(),
+          excludeTagIds: z.array(typeIdSchema(ID_PREFIX.tag)).optional(),
         })
         .optional(),
     )
@@ -77,8 +76,8 @@ export const characterRouter = t.router({
           search: z.string().optional(),
           starred: z.boolean().optional(),
           archived: z.boolean().optional(),
-          includeTagIds: z.array(brandedId<TagId>()).optional(),
-          excludeTagIds: z.array(brandedId<TagId>()).optional(),
+          includeTagIds: z.array(typeIdSchema(ID_PREFIX.tag)).optional(),
+          excludeTagIds: z.array(typeIdSchema(ID_PREFIX.tag)).optional(),
         })
         .optional(),
     )
@@ -93,7 +92,7 @@ export const characterRouter = t.router({
       }),
     ),
 
-  update: authedProcedure.input(z.object({ characterId: brandedId<CharacterId>(), input: updateCharacterSchema })).mutation(({ ctx, input }) =>
+  update: authedProcedure.input(z.object({ characterId: typeIdSchema(ID_PREFIX.character), input: updateCharacterSchema })).mutation(({ ctx, input }) =>
     ctx.services.character.update({
       principal: ctx.auth,
       characterId: input.characterId,
@@ -102,30 +101,32 @@ export const characterRouter = t.router({
   ),
 
   remove: authedProcedure
-    .input(z.object({ characterId: brandedId<CharacterId>() }))
+    .input(z.object({ characterId: typeIdSchema(ID_PREFIX.character) }))
     .mutation(({ ctx, input }) => ctx.services.character.remove({ principal: ctx.auth, characterId: input.characterId })),
 
   duplicate: authedProcedure
-    .input(z.object({ characterId: brandedId<CharacterId>() }))
+    .input(z.object({ characterId: typeIdSchema(ID_PREFIX.character) }))
     .mutation(({ ctx, input }) => ctx.services.character.duplicate({ principal: ctx.auth, characterId: input.characterId })),
 
   bulkRemove: authedProcedure
-    .input(z.object({ characterIds: z.array(brandedId<CharacterId>()).min(1) }))
+    .input(z.object({ characterIds: z.array(typeIdSchema(ID_PREFIX.character)).min(1) }))
     .mutation(({ ctx, input }) => ctx.services.character.bulkRemove({ principal: ctx.auth, characterIds: input.characterIds })),
 
-  bulkArchive: authedProcedure.input(z.object({ characterIds: z.array(brandedId<CharacterId>()).min(1), archived: z.boolean() })).mutation(({ ctx, input }) =>
-    ctx.services.character.bulkArchive({
-      principal: ctx.auth,
-      characterIds: input.characterIds,
-      archived: input.archived,
-    }),
-  ),
+  bulkArchive: authedProcedure
+    .input(z.object({ characterIds: z.array(typeIdSchema(ID_PREFIX.character)).min(1), archived: z.boolean() }))
+    .mutation(({ ctx, input }) =>
+      ctx.services.character.bulkArchive({
+        principal: ctx.auth,
+        characterIds: input.characterIds,
+        archived: input.archived,
+      }),
+    ),
 
   bulkAddCardTag: authedProcedure
     .input(
       z.object({
         tagName: z.string().min(1),
-        characterIds: z.array(brandedId<CharacterId>()).min(1),
+        characterIds: z.array(typeIdSchema(ID_PREFIX.character)).min(1),
       }),
     )
     .mutation(({ ctx, input }) =>
@@ -140,7 +141,7 @@ export const characterRouter = t.router({
     .input(
       z.object({
         tagName: z.string().min(1),
-        characterIds: z.array(brandedId<CharacterId>()).min(1),
+        characterIds: z.array(typeIdSchema(ID_PREFIX.character)).min(1),
       }),
     )
     .mutation(({ ctx, input }) =>
@@ -151,7 +152,7 @@ export const characterRouter = t.router({
       }),
     ),
 
-  snapshot: authedProcedure.input(z.object({ characterId: brandedId<CharacterId>(), label: z.string().nullish() })).mutation(({ ctx, input }) =>
+  snapshot: authedProcedure.input(z.object({ characterId: typeIdSchema(ID_PREFIX.character), label: z.string().nullish() })).mutation(({ ctx, input }) =>
     ctx.services.character.snapshot({
       principal: ctx.auth,
       characterId: input.characterId,
@@ -160,18 +161,18 @@ export const characterRouter = t.router({
   ),
 
   listSnapshots: authedProcedure
-    .input(z.object({ characterId: brandedId<CharacterId>() }))
+    .input(z.object({ characterId: typeIdSchema(ID_PREFIX.character) }))
     .query(({ ctx, input }) => ctx.services.character.listSnapshots({ principal: ctx.auth, characterId: input.characterId })),
 
   getSnapshot: authedProcedure
-    .input(z.object({ characterId: brandedId<CharacterId>(), snapshotId: brandedId<CharacterSnapshotId>() }))
+    .input(z.object({ characterId: typeIdSchema(ID_PREFIX.character), snapshotId: typeIdSchema(ID_PREFIX.characterSnapshot) }))
     .query(({ ctx, input }) => ctx.services.character.getSnapshot({ principal: ctx.auth, characterId: input.characterId, snapshotId: input.snapshotId })),
 
   restore: authedProcedure
     .input(
       z.object({
-        characterId: brandedId<CharacterId>(),
-        snapshotId: brandedId<CharacterSnapshotId>(),
+        characterId: typeIdSchema(ID_PREFIX.character),
+        snapshotId: typeIdSchema(ID_PREFIX.characterSnapshot),
       }),
     )
     .mutation(({ ctx, input }) =>
@@ -189,7 +190,7 @@ export const characterRouter = t.router({
   // bytes are `preset.greetingTransform.*` prose slots the verb resolves from the caller's preset (the
   // templating fork, ARM B — owner 2026-08-09), the same doctrine `guidedSteerSchema.gameSteer` states.
   rewriteGreeting: authedProcedure
-    .input(z.object({ characterId: brandedId<CharacterId>(), greeting: z.string(), steer: z.string(), transforms: greetingTransformIds.optional() }))
+    .input(z.object({ characterId: typeIdSchema(ID_PREFIX.character), greeting: z.string(), steer: z.string(), transforms: greetingTransformIds.optional() }))
     .mutation(({ ctx, input }) =>
       ctx.services.character.rewriteGreeting({
         principal: ctx.auth,
@@ -201,7 +202,7 @@ export const characterRouter = t.router({
     ),
 
   generateGreeting: authedProcedure
-    .input(z.object({ characterId: brandedId<CharacterId>(), steer: z.string(), transforms: greetingTransformIds.optional() }))
+    .input(z.object({ characterId: typeIdSchema(ID_PREFIX.character), steer: z.string(), transforms: greetingTransformIds.optional() }))
     .mutation(({ ctx, input }) =>
       ctx.services.character.generateGreeting({
         principal: ctx.auth,

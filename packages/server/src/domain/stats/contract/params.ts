@@ -3,7 +3,7 @@
 // assertNever default, so an unhandled kind fails tsc instead of falling through to owner-scope.
 
 import type { CharacterId } from "@orb/kit/ids";
-import { brandedId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 
 export const LEADERBOARD_SORTS = ["assistantTurns", "totalGenTimeMs", "swipes", "lastActivityAt"] as const;
@@ -11,7 +11,7 @@ export type LeaderboardSort = (typeof LEADERBOARD_SORTS)[number];
 
 export const latencyScopeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("owner") }),
-  z.object({ kind: z.literal("character"), characterId: brandedId<CharacterId>() }),
+  z.object({ kind: z.literal("character"), characterId: typeIdSchema(ID_PREFIX.character) }),
   z.object({ kind: z.literal("model"), model: z.string(), provider: z.string().nullable() }),
 ]);
 export type LatencyScope = z.infer<typeof latencyScopeSchema>;
