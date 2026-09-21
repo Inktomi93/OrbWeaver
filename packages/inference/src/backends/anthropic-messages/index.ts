@@ -6,7 +6,7 @@ import type { CredentialHealth } from "@orb/contracts/credentials";
 import { errorMessage } from "@orb/kit/error-message";
 import { z } from "zod";
 import type { ProviderBackend } from "../../contract/backend.ts";
-import type { ChatResult } from "../../contract/chat.ts";
+import type { AnthropicChatRequest, ChatRequest, ChatResult } from "../../contract/chat.ts";
 import type { ListModelsRequest, ListModelsResult, ProbeRequest } from "../../contract/diagnostics.ts";
 import { ProviderError } from "../../contract/errors.ts";
 import type { InferenceDeps } from "../../deps.ts";
@@ -28,6 +28,10 @@ const MODELS_PATH = "/models";
 const AUTH_FAILURE_RE = /\b401\b|\b403\b|unauthor|forbidden|invalid[\s_-]?api[\s_-]?key/iu;
 
 const modelsSchema = z.object({ data: z.array(z.object({ id: z.string(), display_name: z.string().optional() }).loose()) }).loose();
+
+function isAnthropicChatRequest(req: ChatRequest): req is AnthropicChatRequest {
+  return req.api === "anthropic-messages";
+}
 
 export interface AnthropicBackendDeps {
   readonly now: () => number;
@@ -96,7 +100,7 @@ export function createAnthropicBackend(deps: AnthropicBackendDeps): ProviderBack
   return {
     wire: "anthropic-messages",
     runChatTurn: (req): Promise<ChatResult> => {
-      if (req.api !== "anthropic-messages") {
+      if (!isAnthropicChatRequest(req)) {
         return Promise.reject(new ProviderError({ kind: "invalid", retryable: false, message: `anthropic-messages backend received api="${req.api}"` }));
       }
       return runAnthropicChatTurn(req, chatDeps);
