@@ -39,7 +39,6 @@ import {
   clearChatListCharacterFilter,
   clearCollectionSelection,
   clearConfigFocus,
-  clearConfigSearch,
   clearCorpusSelection,
   clearDatabankPhaseFilter,
   clearNewChatIntent,
@@ -66,7 +65,6 @@ import {
   openImageDetail,
   openModal,
   openNewChatPicker,
-  publishContextTabIds,
   publishContextTabs,
   publishNoticeBand,
   readComposerDraft,
@@ -128,7 +126,6 @@ import {
   subscribeConfigNav,
   subscribeHuskAbandoned,
   subscribeShellState,
-  toggleConfigGroup,
   toggleFavoritesOnly,
   toggleFiltersOpen,
   toggleShowArchived,
@@ -339,7 +336,6 @@ function ShellStoreProbeBody(): ReactElement {
       <button
         type="button"
         onClick={(): void => {
-          publishContextTabIds(["legacy"]);
           publishContextTabs([
             { id: "runs", label: "Runs" },
             { id: "setup", label: "Setup" },
@@ -824,18 +820,14 @@ export function ChatContextSectionOpenProbe(): ReactElement {
   );
 }
 
-/** ConfigGroupOpenProbe — the per-device group DISCLOSURE store. Groups start COLLAPSED (owner ruling), a
- *  toggle flips one group without touching its siblings, and `openConfigGroup` is the idempotent
- *  deep-link arm (it may never collapse a group the user has open). */
+/** ConfigGroupOpenProbe — the per-device group DISCLOSURE store. Groups start COLLAPSED (owner ruling),
+ *  `openConfigGroup` is idempotent, and `closeConfigGroup` only undoes the named auto-open. */
 export function ConfigGroupOpenProbe(): ReactElement {
   const tagsOpen = useConfigGroupOpen("tags");
   const regexOpen = useConfigGroupOpen("regex");
   return (
     <div>
       <output>{`tags=${String(tagsOpen)} regex=${String(regexOpen)}`}</output>
-      <button type="button" onClick={(): void => toggleConfigGroup("tags")}>
-        toggle tags group
-      </button>
       <button type="button" onClick={(): void => openConfigGroup("tags")}>
         open tags group
       </button>
@@ -1682,9 +1674,6 @@ export function ConfigSearchProbe(): ReactElement {
       </button>
       <button type="button" onClick={(): void => setConfigSearchQuery("")}>
         empty the input
-      </button>
-      <button type="button" onClick={(): void => clearConfigSearch()}>
-        clear search
       </button>
       <button type="button" onClick={(): void => __resetConfigSearch()}>
         reset search

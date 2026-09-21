@@ -1,6 +1,6 @@
 // The home-tile BOX MEMORY store (F14 boot CLS): what a tile's loading skeleton is allowed to reserve.
-// Exercised through the non-hook `__readSurfaceBoxForTest` snapshot (the reactive `useSurfaceBox` needs
-// a React render — the `recent-models-store.test.ts` posture). Persistence itself is the
+// Exercised through the non-hook `__readSurfaceBoxForTest` snapshot because the reactive `useSurfaceBox`
+// needs a React render. Persistence itself is the
 // createPersistedStore door (its own slice test); this pins the guard that decides what gets remembered,
 // because the value is written straight into a `min-block-size` — a garbage measurement (0, NaN, a
 // detached-node height) would reserve a garbage box on every subsequent boot.

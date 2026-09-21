@@ -4,8 +4,8 @@
 // observe it. What is testable here is what the persisted blob is ALLOWED to contain — an unbounded
 // scopeKey→text map in an origin-wide ~5MB localStorage is the failure this store must not become.
 //
-// Exercised through the non-hook `__readComposerDraftsForTest` snapshot (the `recent-models-store.test.ts`
-// posture — the reactive `useComposerDraft` needs a React render).
+// Exercised through the non-hook `__readComposerDraftsForTest` snapshot; the reactive `useComposerDraft`
+// needs a React render.
 
 import { __readComposerDraftsForTest, __resetComposerDrafts, COMPOSER_DRAFT_CAP, readComposerDraft, setComposerDraft } from "@orb/client/state";
 import { beforeEach, describe } from "vitest";

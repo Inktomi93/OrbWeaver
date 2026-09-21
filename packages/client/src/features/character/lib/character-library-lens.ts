@@ -79,8 +79,7 @@ export function knownTagIds(library: readonly TagFilterVocabularyEntry[]): Reado
  * server's tag predicate is AND-semantics on both arms, and an include-id belonging to a deleted tag (or to a
  * previous dev era's db) therefore matches ZERO rows and empties the whole library — invisibly, and surviving
  * every reload, because the blob outlives the identity that wrote it. A reference that can NEVER match must
- * never veto: the recent-models picker's live-pool drop (`credentials/lib/model-picker-model.ts`
- * `resolveRecentEntries`) is the same rule for the same reason, one surface earlier.
+ * never veto.
  *
  * PURE, and DROPPED rather than PRUNED: the entry stays in the store (so the chip row still renders it,
  * clearable — "a filter you cannot see is a filter you cannot turn off"), it just stops reaching the wire. No

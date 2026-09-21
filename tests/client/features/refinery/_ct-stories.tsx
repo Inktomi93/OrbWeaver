@@ -47,7 +47,7 @@ import {
   useRunRefineryStage,
   useUpdateRefinerySession,
 } from "@orb/client/features/refinery";
-import { clearRefinerySelection, selectRefinerySession, setMobileViewport, setRefineryViewedRun } from "@orb/client/state";
+import { refinerySectionSelection, selectRefinerySession, setMobileViewport, setRefineryViewedRun } from "@orb/client/state";
 import type { CharacterCard } from "@orb/contracts/character";
 import type { RefinableField, RefinerySchemaStage, RefineryStage } from "@orb/contracts/refinery";
 import { REFINERY_STAGE_PAYLOADS } from "@orb/contracts/refinery";
@@ -203,7 +203,7 @@ export function RefineryContentStory({ sessionId, viewBackRunId }: RefineryConte
  */
 export function RefineryStartStory(): ReactElement {
   useState((): null => {
-    clearRefinerySelection();
+    refinerySectionSelection.clear();
     setRefineryViewedRun(null);
     return null;
   });
@@ -231,7 +231,7 @@ export function RefineryStartStory(): ReactElement {
 export function RefineryLandingStory({ mobile = false }: { readonly mobile?: boolean }): ReactElement {
   useState((): null => {
     setMobileViewport(mobile);
-    clearRefinerySelection();
+    refinerySectionSelection.clear();
     setRefineryViewedRun(null);
     return null;
   });
@@ -323,7 +323,7 @@ export function RefineryRosterStory({ mobile = false, selectedSessionId }: Refin
   useState((): null => {
     setMobileViewport(mobile);
     if (selectedSessionId === undefined) {
-      clearRefinerySelection();
+      refinerySectionSelection.clear();
     } else {
       selectRefinerySession(selectedSessionId);
     }

@@ -15,7 +15,6 @@ export const useSelectedRefinerySessionId = store.usePrimaryId;
 export const selectRefinerySession = store.select;
 /** LIST-row click: drill AND close an open roster slide-over (viewport-unaware). */
 export const selectRefinerySessionFromList = store.selectFromList;
-/** Back to the roster/teaching home — the ONE door back (the shell's mobile back fires this too). */
-export const clearRefinerySelection = store.clear;
-/** The section-registry seam (`SectionSelection`) — the shell's mobile ONE-SHELL input. */
+/** The section-registry seam (`SectionSelection`) — the shell's mobile ONE-SHELL input and its clear door
+ *  back to the roster/teaching home. */
 export const refinerySectionSelection = store.selection;

@@ -1,6 +1,6 @@
 // The session-scoped guided-steer recovery ring (F3 — the source's sacred input-recovery, client-only per
-// D57). Exercised through the non-hook `__readRecentSteersForTest` snapshot (the reactive `useRecentSteers` needs a
-// React render — the `recent-models-store.test.ts` posture). Pins the ring semantics the wand's "Recent
+// D57). Exercised through the non-hook `__readRecentSteersForTest` snapshot because the reactive
+// `useRecentSteers` needs a React render. Pins the ring semantics the wand's "Recent
 // steers" recall renders FROM: unshift (most-recent-first) · de-dupe on re-fire · cap · blank never stored.
 
 import { __readRecentSteersForTest, __resetRecentSteers, pushFiredSteer, STEER_RECOVERY_CAP } from "@orb/client/state";

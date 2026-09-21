@@ -51,13 +51,6 @@ export function useConfigGroupOpen(id: ConfigGroupId): boolean {
   return useConfigGroupOpenStore((s) => s.openIds.includes(id));
 }
 
-/** Expand ⇄ collapse one group (the band's disclosure button). */
-export function toggleConfigGroup(id: ConfigGroupId): void {
-  const { openIds } = useConfigGroupOpenStore.getState();
-  const next = openIds.includes(id) ? openIds.filter((k) => k !== id) : [...openIds, id];
-  useConfigGroupOpenStore.setState({ openIds: next }, false, "configGroupOpen/toggle");
-}
-
 /** Expand one group without collapsing anything — the deep-link arm (`openConfigTo`, a member selection)
  *  lands a caller ON the group it asked for, never on a closed door. Idempotent. */
 export function openConfigGroup(id: ConfigGroupId): void {

@@ -121,8 +121,8 @@ export { requestComposerFocus, useComposerFocusRequest } from "./composer-focus-
 export type { ConfigFocus } from "./config-focus-store.ts";
 export { __resetConfigFocus, clearConfigFocus, setConfigFocus, useConfigFocus } from "./config-focus-store.ts";
 export type { ConfigGroupId, ConfigShelf } from "./config-group-ids.ts";
-export { CONFIG_GROUP_IDS, CONFIG_SHELVES, isConfigGroupId, isConfigShelf } from "./config-group-ids.ts";
-export { __resetConfigGroupOpen, closeConfigGroup, openConfigGroup, toggleConfigGroup, useConfigGroupOpen } from "./config-group-open-store.ts";
+export { CONFIG_GROUP_IDS, CONFIG_SHELVES, isConfigGroupId } from "./config-group-ids.ts";
+export { __resetConfigGroupOpen, closeConfigGroup, openConfigGroup, useConfigGroupOpen } from "./config-group-open-store.ts";
 export type {
   CollectionGroupDefinition,
   ConfigGroupBase,
@@ -160,7 +160,6 @@ export { ConfigRowAnnotationProvider, useConfigRowAnnotation } from "./config-ro
 export type { ConfigModifiedMap, ConfigSearchMatch, ModifiedSettingIds, ModifiedSubIds } from "./config-search-store.ts";
 export {
   __resetConfigSearch,
-  clearConfigSearch,
   setConfigSearchMatch,
   setConfigSearchQuery,
   useConfigSearchMatch,
@@ -308,10 +307,8 @@ export { __readPluginDialogSubjectForTest, __resetPluginDialog, clearPluginDialo
 export type { PluginPageKey } from "./plugin-page-selection-store.ts";
 export {
   clearPluginPage,
-  parsePluginPageKey,
   pluginPageKey,
   pluginPageSectionSelection,
-  selectPluginPage,
   selectPluginPageFromList,
   usePluginPageKey,
 } from "./plugin-page-selection-store.ts";
@@ -343,16 +340,8 @@ export {
   useDrilledPresetTemplateId,
   useSelectedPresetTemplateId,
 } from "./preset-template-selection-store.ts";
-export {
-  __readRecentModelsForTest,
-  __resetAllRecentModels,
-  pushRecentModel,
-  RECENT_MODELS_CAP,
-  useRecentModels,
-} from "./recent-models-store.ts";
 export { requestRefineryLandingFocus, useRefineryLandingFocusRequest } from "./refinery-landing-focus-store.ts";
 export {
-  clearRefinerySelection,
   refinerySectionSelection,
   selectRefinerySession,
   selectRefinerySessionFromList,
@@ -413,7 +402,6 @@ export {
   getContextTab,
   hideContextPanel,
   openModal,
-  publishContextTabIds,
   publishContextTabs,
   revealContextPanel,
   revealContextPanelBesideContent,

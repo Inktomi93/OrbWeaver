@@ -211,12 +211,12 @@ describe("bindDurableLocalToUser — the three arms", () => {
   test("adoption with NO legacy blob writes nothing (a fresh browser is not a migration)", async () => {
     const map = new Map<string, unknown>();
     const store = storeDouble(map);
-    registerDurableLocalStore({ prefix: "orb:", name: "recent-models", api: store.api, reset: store.reset });
+    registerDurableLocalStore({ prefix: "orb:", name: "fixture-store", api: store.api, reset: store.reset });
 
     await bindDurableLocalToUser(ALICE);
 
     expect([...map.keys()]).toEqual([]);
-    expect(store.keys).toEqual([`orb:u/${ALICE}/recent-models`]);
+    expect(store.keys).toEqual([`orb:u/${ALICE}/fixture-store`]);
   });
 
   test("a partial legacy adoption retries every remaining store before declaring the user ready", async () => {

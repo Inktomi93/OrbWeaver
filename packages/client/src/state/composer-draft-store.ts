@@ -82,8 +82,7 @@ export function useComposerDraft(scopeKey: string): string {
   return useComposerDraftStore((s) => s.drafts[scopeKey] ?? "");
 }
 
-/** Non-hook snapshot — for the store's own tests + any read outside a render (the `__readRecentModelsForTest`
- *  precedent; the reactive hook needs a React render). */
+/** Non-hook snapshot for the store's own tests and reads outside a render; the reactive hook needs React. */
 export function __readComposerDraftsForTest(): Readonly<Record<string, string>> {
   return useComposerDraftStore.getState().drafts;
 }
