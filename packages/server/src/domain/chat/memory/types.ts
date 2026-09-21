@@ -14,7 +14,6 @@ export type {
   MemoryRecallRecord,
   MemoryRecallRecorder,
   MemoryRecallResult,
-  MemoryRecallWarningEpisode,
   MemoryScope,
   MsgRow,
   ParsedDigest,
@@ -22,6 +21,7 @@ export type {
   SegmentChunk,
   SegmentPassCounts,
   SummarizerBudget,
+  TurnRetrievalWarningEpisode,
   WitnessInterval,
 } from "../contract/memory.ts";
 

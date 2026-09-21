@@ -98,6 +98,7 @@ import { publishNotification } from "../../transport/trpc/index.ts";
 import { createReactToolDefinition } from "./chat-tools.ts";
 import { createChatChangedEmitter } from "./emit-chat-changed.ts";
 import { resolveImageRefToUrl } from "./resolve-image-ref.ts";
+import { withRetrievalDegrade } from "./retrieval-degrade.ts";
 
 /** Per-chat turn-lock TTL (ms) — auto-expires so a crashed holder's lock is takeover-eligible. */
 const CHAT_LOCK_TTL_MS = 120_000;
@@ -1619,12 +1620,19 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // The digest SPACE is the host's (their `embed`/`rerank` bindings wrote it — vector tasks are owner-scoped,
     // inference program §7.5); `MemoryQueryOptions` carries no owner by D20, so the host is resolved from the
     // chat FK here, exactly as `searchCorpus` below does. Hostless room ⇒ nothing to recall (leak-free).
-    searchDigests: async (query, onRerankUnavailable) => {
+    // The SPACE refusals degrade here rather than faulting the turn (#2510 — `retrieval-degrade.ts` states
+    // the whole boundary): a mid-move or unbound vector space is an ordinary owner state, and the user hears
+    // about it through the episode this reports into. Every other search failure still propagates.
+    searchDigests: async (query, events) => {
       const hostUserId = await resolveChatHostUserId(query.scope.chat);
       if (hostUserId === null) {
         return [];
       }
-      const hits = await input.search.digests({ ...query, ownerId: hostUserId }, onRerankUnavailable === undefined ? undefined : { onRerankUnavailable });
+      const onRerankUnavailable = events?.onRerankUnavailable;
+      const hits = await withRetrievalDegrade(
+        async () => await input.search.digests({ ...query, ownerId: hostUserId }, onRerankUnavailable === undefined ? undefined : { onRerankUnavailable }),
+        { empty: [], onIndexUnavailable: events?.onIndexUnavailable },
+      );
       return hits.map((h) => ({ blockKey: h.blockKey, score: h.score, relevance: h.relevance }));
     },
     // The owner-wide corpus lens. MemoryQueryOptions deliberately carries no owner, so the owner is

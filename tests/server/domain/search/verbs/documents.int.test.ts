@@ -4,9 +4,10 @@
 // representative), the empty-allowlist ZERO-embed short-circuit (the trigger-discipline mirror), and THE
 // flagship gate-8 owner/host-scope no-leak pin (two users share one chat; no cross-tenant chunk surfaces).
 
-import { documentChunks, embedGenerations, userConnections } from "@orb/db";
+import { documentChunks, embedGenerations, embedSpaceState, userConnections } from "@orb/db";
 import type { EmbedGenerationId, Handle, UserConnectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { SEARCH_SPACE_REINDEXING, SearchError } from "@orb/server/domain/search";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
@@ -90,6 +91,44 @@ describe("documents", () => {
 
     expect(hits).toEqual([]);
     expect(embedCalls).toBe(0);
+  });
+
+  // #2510 — THE SHORT-CIRCUIT NOW PRECEDES THE SPACE READ, and that ordering is the whole fix. Both guards
+  // used to live INSIDE the `withActiveQuerySpace` callback, so `requireQuerySpace` ran first: a bankless
+  // owner whose vector space was mid-move took `search_space_reindexing` on the way to a return of `[]`. That
+  // is not academic — the `{{databank}}` slot calls this verb once per chat turn whether or not the room has
+  // documents, so it killed every turn with a 400 (`tests/server/entry/compose/retrieval-degrade.int.test.ts`
+  // holds the end-to-end arm). "Nothing is in scope" is answerable WITHOUT a vector space.
+  //
+  // THE ORDINARY "MOVING" READ, seeded the way live usage reaches it: the harness's `seedUser` writes a
+  // complete space, and deleting its `embed_space_state` rows leaves the generation + target rows behind —
+  // exactly the shape `readGeneration` calls "moving" for an owner who has never completed a full
+  // cards ∪ memory ∪ documents sweep.
+  test("a MID-MOVE space still short-circuits an empty allowlist — and the refusal itself is untouched", async () => {
+    const db = await freshDb();
+    const bankless = await seedUser(db, { handle: castId<Handle>("bankless") }); // owns NO documents
+    const banked = await seedUser(db, { handle: castId<Handle>("banked") });
+    const doc = await seedDocument(db, { ownerId: banked });
+    await seedDocumentChunk(db, { documentId: doc, chunkIdx: 0, content: "in scope", embedding: vec(1) });
+    await db.delete(embedSpaceState); // both owners now read "moving"
+
+    let embedCalls = 0;
+    const svc = makeSearch(db, {
+      embedVector: () => {
+        embedCalls += 1;
+        return vec(1);
+      },
+    });
+
+    expect(await svc.documents({ scope: { ownerId: bankless }, queryText: "q", ownerId: bankless })).toEqual([]);
+    expect(embedCalls).toBe(0);
+
+    // THE POSITIVE CONTROL, in the same invocation: an owner with a document IN scope and the SAME moving
+    // space still takes the named refusal. Without it this test would pass just as well against a search that
+    // had stopped refusing at all, which is the one thing this change must not do.
+    const refused: unknown = await svc.documents({ scope: { ownerId: banked }, queryText: "q", ownerId: banked }).catch((err: unknown) => err);
+    expect(refused).toBeInstanceOf(SearchError);
+    expect((refused as SearchError).code).toBe(SEARCH_SPACE_REINDEXING);
   });
 
   // ── gate-8 twin (search-side): the D85 membership-widened scope + the no-leak floor ──

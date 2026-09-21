@@ -8,8 +8,8 @@ import { beforeEach, describe } from "vitest";
 import { generateDigests } from "../../../../../../packages/server/src/domain/chat/memory/build/digests.ts";
 import { loadWitnessHorizons } from "../../../../../../packages/server/src/domain/chat/memory/persistence/queries.ts";
 import { recallMemory } from "../../../../../../packages/server/src/domain/chat/memory/recall/recall.ts";
-import { createMemoryRecallWarningEpisode } from "../../../../../../packages/server/src/domain/chat/memory/recall/rerank-warning.ts";
 import type { MemoryLogEntry } from "../../../../../../packages/server/src/domain/chat/memory/types.ts";
+import { createTurnRetrievalWarningEpisode } from "../../../../../../packages/server/src/domain/chat/substrate/turn-retrieval-warning.ts";
 import { freshDb } from "../../../../../support/db.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
 import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser } from "../../_support.ts";
@@ -180,10 +180,10 @@ describe("memory/recall — the 5 modes + the mode-switch union + witnessing", (
   test("mixC threads the rerank-unavailable report into one shared recall episode", async () => {
     const chatId = await seedChat(db, "mixc-rerank-warning");
     await seedDigest(db, { chatId, tier: 0, blockIdx: 0, topicAnchor: "[s0]", keywords: ["a"] });
-    const episode = createMemoryRecallWarningEpisode();
+    const episode = createTurnRetrievalWarningEpisode();
     const ctx = makeChatContext(db, {
-      searchDigests: (query, onRerankUnavailable) => {
-        onRerankUnavailable?.();
+      searchDigests: (query, events) => {
+        events?.onRerankUnavailable();
         const blockKey = query.candidates?.[0];
         return Promise.resolve(blockKey === undefined ? [] : [{ blockKey, score: 0.8, relevance: 0.9 }]);
       },
