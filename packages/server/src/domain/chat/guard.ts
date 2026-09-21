@@ -1,7 +1,8 @@
 // domain/chat/guard — THE membership chokepoint (spine §2a/§7.1). The
 // ONE place a chatId surface loads its membership and routes the authority decision through the substrate
-// deciders. Every chatId verb + the non-verb surfaces (SSE subscribe, bus delivery, lineage walk, …) gate
-// HERE; an unlisted surface is default-deny (`substrate/auth/matrix`).
+// deciders. Chat verbs call these typed gates directly. The multiplexed chat stream reuses member-gated
+// `ChatService` reads at attach/replay and on every live yield; it does not maintain a string-keyed parallel
+// authority classifier.
 //
 // HOMED at the feature root (the `domain/admin/guard.ts` precedent — the auth guard is a feature-root file,
 // not a verb): it is the I/O wrapper (it calls `persistence/loadMemberChat`), so it cannot live in
