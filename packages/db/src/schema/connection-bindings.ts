@@ -6,12 +6,13 @@
 // `automation_rules` and `plugins`, whose schema files import `chat.ts`, which FKs `user_connections`.
 //
 // `provider_rows` is REAL COLUMNS for every scalar of `ProviderDef` with JSON only for `features` (a parsed
-// document) and the two closed-tuple arrays `apis`/`serves` — never a KV blob. Its `id` IS the registry id
-// (`plugin:<name>/<id>` for a plugin row, bare for an admin row; a built-in id can never be shadowed — the
-// registry refuses it at `register()`, §5.9-1).
+// document) and the two closed-tuple arrays `apis`/`serves` — never a KV blob. `providerDefSchema` is their
+// ONE validation authority: the registry parses before persistence and reads re-parse before returning a
+// row. Its `id` IS the registry id (`plugin:<name>/<id>` for a plugin row, bare for an admin row; a built-in
+// id can never be shadowed — the registry refuses it at `register()`, §5.9-1).
 
 import type { ChatApi, EndpointFeatures, ProviderId, RoutableTask, Task, Wire } from "@orb/contracts/inference";
-import { BINDING_ACTOR_KINDS, CATALOG_STRATEGIES, DIALECTS, PROVIDER_AUTHS, ROUTABLE_TASKS, TASKS, WIRES } from "@orb/contracts/inference";
+import { BINDING_ACTOR_KINDS, CATALOG_STRATEGIES, DIALECTS, PROVIDER_AUTHS, ROUTABLE_TASKS, WIRES } from "@orb/contracts/inference";
 import type { AutomationRuleId, ConnectionBindingId, PluginId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
@@ -85,7 +86,8 @@ export type ProviderRowOrigin = (typeof PROVIDER_ROW_ORIGINS)[number];
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // provider_rows — the ProviderStore's table: runtime `ProviderDef` rows. Real columns per scalar; `features`
-// is a parsed document; `apis`/`serves` are JSON arrays validated against the closed tuples on write.
+// is a parsed document; `apis`/`serves` are JSON arrays parsed by the canonical `providerDefSchema` before
+// this persistence boundary.
 // `origin_id` is the plugin id (CASCADE — deactivation drops the row through `providers.drop`, an uninstall
 // through the FK) or the admin's user id (the row outlives an admin; `origin_kind` says which).
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -132,6 +134,3 @@ export const providerRows = sqliteTable(
     ),
   ],
 );
-
-/** The closed task tuple the `serves` document is validated against on write (`TASKS`, not re-spelled). */
-export const PROVIDER_ROW_TASKS: readonly Task[] = TASKS;
