@@ -236,13 +236,19 @@ test("host + documents + a preset that never places {{databank}}: the rack says 
 });
 
 test("host + documents + the shipped default preset: no warning — the slot is placed", async ({ mount, page }) => {
-  await stubRack(page);
+  const trpc = await stubRack(page, {
+    // Deliberately fed but unreachable: the built-in arm has no PresetId and therefore no preset read.
+    [PRESET_GET]: () => ({ id: ACTIVE_PRESET_ID, name: "SHOULD NOT BE CALLED", config: DEFAULT_PROMPT_CONFIG }),
+  });
   const component = await mount(<ChatDocumentsSectionStory isHost={true} />);
 
   // BARRIER on the settled answer first: `placed` only renders once both reads resolved, so the absence
   // below is a verdict rather than a race with the un-resolved frame.
   await expect(component.locator('[data-databank-slot="placed"]')).toBeVisible();
   await expect(component.getByText(SLOT_WARNING, { exact: true })).toHaveCount(0);
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): `placed` is the settled built-in state, so every event
+  // that could release a fake-id preset query has passed.
+  expect(trpc.count(PRESET_GET)).toBe(0);
 });
 
 test("no documents attached: the slotless preset is not worth mentioning yet", async ({ mount, page }) => {

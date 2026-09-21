@@ -40,6 +40,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import type { Trpc } from "./trpc.ts";
 import { useTRPC } from "./trpc.ts";
+import { useGatedQuery } from "./use-gated-query.ts";
 
 const NO_SCRIPTS: never[] = [];
 /** The one leg this hook is about. EXPORTED because the room's `On screen` roster
@@ -49,19 +50,13 @@ const NO_SCRIPTS: never[] = [];
 export const DISPLAY_PLACEMENT = "DISPLAY";
 
 /** The two reads this hook composes, in ONE spelling — so the prefetch below and the render read below can
- *  never drift into two different cache keys (which would make the warm-up warm the wrong entry silently).
- *  `chatId` null keeps the room tier's key well-formed for a chat-less surface; the render read disables it. */
-function displayScriptQueries(
-  trpc: Trpc,
-  chatId: ChatId | null,
-): {
-  readonly own: ReturnType<Trpc["regex"]["listScripts"]["queryOptions"]>;
-  readonly room: ReturnType<Trpc["regex"]["listRoomDisplayScripts"]["queryOptions"]>;
-} {
-  return {
-    own: trpc.regex.listScripts.queryOptions(),
-    room: trpc.regex.listRoomDisplayScripts.queryOptions({ chatId: chatId ?? ("" as ChatId) }),
-  };
+ *  never drift into two different cache keys (which would make the warm-up warm the wrong entry silently). */
+function ownDisplayScriptQuery(trpc: Trpc): ReturnType<Trpc["regex"]["listScripts"]["queryOptions"]> {
+  return trpc.regex.listScripts.queryOptions();
+}
+
+function roomDisplayScriptQuery(trpc: Trpc, chatId: ChatId): ReturnType<Trpc["regex"]["listRoomDisplayScripts"]["queryOptions"]> {
+  return trpc.regex.listRoomDisplayScripts.queryOptions({ chatId });
 }
 
 /** Narrow a library read to the scripts that would actually fire on the display leg. */
@@ -80,21 +75,16 @@ function displaySlice(rows: readonly RegexScriptRow[]): readonly RegexScriptRow[
  */
 export function useDisplayScripts(chatId: ChatId | null): readonly RegexScriptRow[] {
   const trpc = useTRPC();
-  const queries = displayScriptQueries(trpc, chatId);
   // ONE query per tier (a row component must never fetch): `select` narrows the shared cache entry to the
   // display slice without a second network read or a second cache key.
   const own = useQuery({
-    ...queries.own,
+    ...ownDisplayScriptQuery(trpc),
     placeholderData: NO_SCRIPTS,
     select: displaySlice,
   });
-  const room = useQuery({
-    ...queries.room,
-    // A chat-less surface has no room tier at all — the query never runs and the viewer's own set stands.
-    enabled: chatId !== null,
-    placeholderData: NO_SCRIPTS,
-    select: displaySlice,
-  });
+  // A chat-less surface has no room tier at all. `useGatedQuery` does not invoke the options builder, so no
+  // fake ChatId exists and no room key or request can be built.
+  const room = useGatedQuery(chatId, (id) => ({ ...roomDisplayScriptQuery(trpc, id), placeholderData: NO_SCRIPTS, select: displaySlice }));
 
   const broadcast = room.data ?? NO_SCRIPTS;
   const viewer = own.data ?? NO_SCRIPTS;
@@ -127,9 +117,9 @@ export function useDisplayScripts(chatId: ChatId | null): readonly RegexScriptRo
  * type EXCLUDES `skipToken`, which tRPC's `queryOptions()` output always carries in its `queryFn` union;
  * `ensureQueryData` takes that output as-is, which is why it is the shape the one precedent already uses.)
  *
- * The one-home rule that makes it safe: the warm-up and the read take their keys from `displayScriptQueries`,
- * so no drift can make this warm a key nobody reads. A prefetch that warms the wrong key is INVISIBLE — it
- * looks exactly like a working one, plus a wasted round trip.
+ * The one-home rule that makes it safe: the warm-up and the read take their keys from the two query-builder
+ * functions above, so no drift can make this warm a key nobody reads. A prefetch that warms the wrong key is
+ * INVISIBLE — it looks exactly like a working one, plus a wasted round trip.
  *
  * The repo's other prefetch precedent (`use-open-refinery.ts`'s `ensureQueryData`) is the DECIDING flavour —
  * an action AWAITS a read it must have before it branches. This is the WARMING flavour: nobody awaits it, so
@@ -137,8 +127,8 @@ export function useDisplayScripts(chatId: ChatId | null): readonly RegexScriptRo
  * that will refetch and surface its own error through `QueryBoundary`, exactly as it did before this existed.
  *
  * REQUIRED `ChatId`, where the read takes `ChatId | null`: the chat-less arm (a draft-greeting preview) has
- * no room tier to warm and no boundary to beat, and a nullable parameter here could only be honoured by
- * warming the `""` key nothing reads.
+ * no room tier to warm and no boundary to beat. `useGatedQuery` keeps that arm keyless instead of inventing
+ * an entity id; this prefetch exists only where a real room id already exists.
  */
 export function usePrefetchDisplayScripts(chatId: ChatId): void {
   const trpc = useTRPC();
@@ -147,8 +137,7 @@ export function usePrefetchDisplayScripts(chatId: ChatId): void {
   // depping on it would re-run this on every unrelated re-render of the surface. `trpc`/`queryClient` are
   // context values (stable), and the room cannot change without a remount — so this runs once per open.
   useEffect(() => {
-    const queries = displayScriptQueries(trpc, chatId);
-    void queryClient.ensureQueryData(queries.own).catch(() => undefined);
-    void queryClient.ensureQueryData(queries.room).catch(() => undefined);
+    void queryClient.ensureQueryData(ownDisplayScriptQuery(trpc)).catch(() => undefined);
+    void queryClient.ensureQueryData(roomDisplayScriptQuery(trpc, chatId)).catch(() => undefined);
   }, [queryClient, trpc, chatId]);
 }

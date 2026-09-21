@@ -14,7 +14,7 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { TrpcRecorder } from "../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../support/node/route-trpc.ts";
-import { PluginDisplayTextStory } from "./_ct-stories.tsx";
+import { PluginDisplayTextStory, PluginDisplayTextWithoutRowStory } from "./_ct-stories.tsx";
 
 const SLOT = '[data-slot="plugin-display-text"]';
 const INPUT_TEXT = "a rendered line";
@@ -55,6 +55,20 @@ test("a registered display transform ANNOTATES the row, and the request carries 
   expect(seen[0]?.text).toBe(INPUT_TEXT);
   expect(seen[0]?.chatId).toBe("chat_ct_display0000000000000");
   expect(seen[0]?.messageId).toBe("msg_ct_display00000000000000");
+});
+
+test("a registered transform plus NO row identity still sends ZERO per-row requests", async ({ mount, page }) => {
+  const recorder = await routeTrpc(page, {
+    "plugin.listDisplayTransforms": () => [{ pluginId: "plugin_ct_oracle000000001", name: "furigana" }],
+    "plugin.transformForDisplay": () => ({ text: "SHOULD NOT BE CALLED" }),
+  });
+
+  await mount(<PluginDisplayTextWithoutRowStory text={INPUT_TEXT} />);
+
+  await expect(page.locator(SLOT)).toHaveText(INPUT_TEXT);
+  await expect.poll(() => recorder.count("plugin.listDisplayTransforms")).toBeGreaterThan(0);
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the registry read has settled and the original text has painted, so a leaked row query would already be recorded.
+  expect(recorder.count("plugin.transformForDisplay")).toBe(0);
 });
 
 test("a REFUSED round-trip degrades to the row's own text — never an error boundary, never a blank row", async ({ mount, page }) => {

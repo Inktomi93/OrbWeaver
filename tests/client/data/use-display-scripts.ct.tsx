@@ -13,8 +13,9 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import type { TrpcRecorder } from "../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../support/node/route-trpc.ts";
-import { DisplayTierInRoomStory } from "./_ct-stories.tsx";
+import { DisplayTierChatlessStory, DisplayTierInRoomStory } from "./_ct-stories.tsx";
 
 // The story's raw canon, restated here rather than imported: playwright-ct rewrites every named import
 // from a `_ct-stories` module into a generated component `const`, so a story module may only ever export
@@ -46,7 +47,7 @@ const OWN = script("regex_script_00000000000000000a", "own", "snarls", "grumbles
 const HOST = script("regex_script_00000000000000000b", "host", "GOBLIN", "✦GOBLIN✦");
 
 /** `listRoomDisplayScripts` returns `[]` when the room never opted in — that IS the toggle-off arm. */
-function stub(page: Page, roomBroadcast: readonly Record<string, unknown>[]): Promise<unknown> {
+function stub(page: Page, roomBroadcast: readonly Record<string, unknown>[]): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "regex.listScripts": () => [OWN],
     "regex.listRoomDisplayScripts": () => roomBroadcast,
@@ -61,6 +62,16 @@ test("toggle OFF: the room broadcasts nothing, so the host's script does NOT tou
   await expect(body).toHaveText("the GOBLIN grumbles");
   // … and the host's did not: the shout is untouched, no effect markers.
   await expect(body).not.toContainText("✦");
+});
+
+test("chat-less: the viewer tier still runs and ZERO room requests are sent", async ({ mount, page }) => {
+  const recorder = await stub(page, [HOST]);
+  await mount(<DisplayTierChatlessStory />);
+
+  await expect(page.getByTestId("rendered-body")).toHaveText("the GOBLIN grumbles");
+  await expect.poll(() => recorder.count("regex.listScripts")).toBeGreaterThan(0);
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the own-tier result has painted and its request is recorded, so every event that could construct the skipped room read has settled.
+  expect(recorder.count("regex.listRoomDisplayScripts")).toBe(0);
 });
 
 test("toggle ON: the host's script transforms a member's body AND the member's own still applies", async ({ mount, page }) => {

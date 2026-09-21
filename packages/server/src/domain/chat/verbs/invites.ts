@@ -15,8 +15,7 @@ import type { DurableChatBusEvent, GroupConfig, InvitePreview, InviteView, Parti
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
-import type { ChatId, Handle, PersonaId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import type { ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { ChatContext } from "../context.ts";
 import type { ClaimChatOp } from "../contract/context.ts";
 import { ChatNotFoundError } from "../contract/errors.ts";
@@ -220,12 +219,14 @@ function createPreviewInvite(ctx: ChatContext, deps: InviteDeps): ChatService["p
     }
     const participants = await deps.loadParticipantViews(invite.chatId);
     const host = hostSeatOf(participants);
+    if (host === undefined || host.handle === null) {
+      throw new Error(`previewInvite: chat ${invite.chatId} has no host participant`);
+    }
     const memberCount = await countPresentMembers(ctx.db, invite.chatId);
     return {
       chatId: invite.chatId,
       roomName: chat.title ?? "",
-      // The host is a human participant → handle resolved; the empty fallback is a defensive floor.
-      hostHandle: host?.handle ?? castId<Handle>(""),
+      hostHandle: host.handle,
       memberCount,
       modeLabel: modeLabel(chat.metadata.group ?? DEFAULT_GROUP_CONFIG),
     };

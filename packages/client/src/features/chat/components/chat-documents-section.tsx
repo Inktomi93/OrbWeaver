@@ -27,7 +27,7 @@
 
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
-import type { ChatId, DocumentId, PresetId } from "@orb/kit/ids";
+import type { ChatId, DocumentId } from "@orb/kit/ids";
 import { formatBytes } from "@orb/kit/strings";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
@@ -42,7 +42,7 @@ import type { ReactElement } from "react";
 import { Fragment, useRef, useState } from "react";
 import { RowActionsMenu, RowToggleAction } from "#components";
 import type { Trpc } from "#data";
-import { useInvalidation, useTRPC } from "#data";
+import { useGatedQuery, useInvalidation, useTRPC } from "#data";
 import { rowActionsName } from "#lib";
 import { useDetachDocumentFromChat, useSetChatDocumentVisibility } from "../hooks/use-chat-document-mutations.ts";
 import { isDetachableFromChat, nextHiddenSet, placesDatabankSlot, sourceChips } from "../lib/chat-documents-model.ts";
@@ -85,11 +85,14 @@ function useSlotState(): { readonly slot: SlotState; readonly recheck: () => voi
   const trpc = useTRPC();
   const settings = useQuery(trpc.settings.getUserSettings.queryOptions());
   const activePresetId = settings.data?.config.seeds.defaultPresetId ?? null;
-  const preset = useQuery({
-    ...trpc.preset.get.queryOptions({ id: (activePresetId ?? "") as PresetId }),
-    enabled: settings.data !== undefined && activePresetId !== null,
-  });
-  const recheck = (): void => void Promise.all([settings.refetch(), preset.refetch()]);
+  const preset = useGatedQuery(settings.data === undefined ? null : activePresetId, (id) => trpc.preset.get.queryOptions({ id }));
+  const recheck = (): void => {
+    if (activePresetId === null) {
+      settings.refetch().catch(() => undefined);
+      return;
+    }
+    Promise.all([settings.refetch(), preset.refetch()]).catch(() => undefined);
+  };
 
   if (settings.isError) {
     return { slot: "unknown", recheck };
