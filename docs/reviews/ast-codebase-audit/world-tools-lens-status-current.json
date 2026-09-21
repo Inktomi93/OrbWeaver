@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "capturedAt": "2026-09-21T06:08:28.672628+00:00",
+  "capturedAt": "2026-09-21T06:50:01.500298+00:00",
   "denominator": 30,
   "rule": "A verb is complete only after its result set and tool behavior are adjudicated. Invocation alone does not count.",
   "summary": {
@@ -40,8 +40,17 @@
     },
     {
       "verb": "testonly",
-      "coverage": ["client", "server", "security", "contracts"],
-      "committedCleanup": ["7bccc3b0f", "af02c2480", "0834e6bb2"],
+      "coverage": [
+        "client",
+        "server",
+        "security",
+        "contracts"
+      ],
+      "committedCleanup": [
+        "7bccc3b0f",
+        "af02c2480",
+        "0834e6bb2"
+      ],
       "remainingQuestionsClosed": {
         "wire": "useDeleteRefinerySession",
         "delete": "loadTurnForClassify",
@@ -74,9 +83,33 @@
     }
   ],
   "notYetIndependentlyAdjudicated": {
-    "candidateOrAudit": ["subset-callers", "dead", "prodonly", "unwired", "clientgap", "respell", "columns", "regkeys", "stringy", "apisurface"],
-    "graphOrInventory": ["cycles", "aliases"],
-    "queryNavigationTruthfulness": ["refs", "callers", "importers", "exports", "jsx", "ident", "literal", "flow", "reaches"]
+    "candidateOrAudit": [
+      "subset-callers",
+      "dead",
+      "prodonly",
+      "unwired",
+      "clientgap",
+      "respell",
+      "columns",
+      "regkeys",
+      "stringy",
+      "apisurface"
+    ],
+    "graphOrInventory": [
+      "cycles",
+      "aliases"
+    ],
+    "queryNavigationTruthfulness": [
+      "refs",
+      "callers",
+      "importers",
+      "exports",
+      "jsx",
+      "ident",
+      "literal",
+      "flow",
+      "reaches"
+    ]
   },
   "crossCuttingWork": {
     "jsonOutput": {
@@ -87,15 +120,26 @@
       "confirmedRereviewReceipt": "world-tools-json-output-rereview.json"
     },
     "brandBoundaryAudit": {
-      "status": "provisional pre-main-refresh; preserved, not counted as a completed pnpm ast lens",
+      "status": "complete checker-first audit across 7,847 unique physical files; repairs split to tracked work",
       "issue": 2531,
       "receipt": "world-tools-brand-boundary-audit.json",
-      "trackedFindings": [2533, 2534]
+      "trackedFindings": [
+        2534,
+        2536,
+        2537,
+        2538,
+        2539
+      ]
     },
     "activeLensLanes": {
-      "candidateAudit": "subset-callers, dead, prodonly, unwired, clientgap, respell, columns, regkeys, stringy, apisurface",
-      "partialSemantic": "orphans, swallowed, typeonly-alive, chains, rot",
-      "state": "source/control maps prepared at 41ae2d2e; corpus runs wait for main merge"
+      "candidateAudit": "behavior/corpus repair committed at f734f9f27 and independently confirmed; whole-corpus result adjudication still pending",
+      "partialSemantic": "orphans, swallowed, typeonly-alive, chains, rot package matrix actively running",
+      "graphQuery": "11-lens audit preserved; confirmed tool/control repairs active under #2540"
+    },
+    "graphQueryLensAudit": {
+      "status": "11 lenses mapped; nine confirmed tool/control findings; repair active",
+      "issue": 2540,
+      "receipt": "world-tools-graph-query-lenses-audit.json"
     }
   }
 }

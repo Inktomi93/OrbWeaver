@@ -1,28 +1,39 @@
-# Brand and type-boundary audit — production first tranche
+# Brand boundary audit — merged tree 5438cf0e4f5e
 
-The production package denominator is closed over six native TypeScript programs. The initial synthetic whole-workspace project OOMed at about 4.1 GB and produced no verdict; the successful runs used each package's own tsconfig and merged physical sites. ast-grep independently scanned 6,446 TS and 1,409 TSX files.
+This is a TypeScript-checker audit, not a regex census. It used one native tsconfig project per process through `pnpm exec node`, resolved unique-symbol brand properties and declarations, compared assignability, classified Zod input/output types, and then used real ast-grep over 6457 TS + 1409 TSX files as independent structural corroboration. `rg` only located source for reading.
+
+## Denominator
+
+- All nine package programs: 3,428 memberships / 3,428 physical files.
+- Tooling, Node tests, DOM tests, ISO tests, scripts, and Playwright: 4,459 memberships.
+- Combined, deduplicated: 7,847 physical files. There are 40 cross-world duplicate memberships.
+- Explicit remainder: root-owned top-level TypeScript config files. The all-root retry was stopped because it duplicated the already-covered corpora; the old zero-file artifact is refused.
+
+The discarded first bootstrap is not evidence that the repo is too large. It used the wrong legacy synthetic-project path and bare `node` (4,192 MiB heap), bypassing the workspace's `pnpm exec node` policy (16,480 MiB). The successful scans used native configs sequentially and exited between them.
 
 ## Confirmed findings
 
-1. **High — inference class-2 brand migration is incomplete.** Seven model/provider columns are still bare text, and the writer contracts are still bare strings. The ST import path copies foreign model/provider values at chat-input.ts:39-40,61-62,75-76 and import-write.ts:338-339. A .$type edit alone would launder those bytes. Fix the seven columns together with producer validation, foreign-provider fallback, writer/read contracts, and per-column negative tests.
-2. **Medium — fake disabled IDs bypass the castId-only gate.** Empty branded sentinels exist in use-display-scripts.ts:63, use-plugin-display-text.ts:44 (two brands), use-prompt-macro-suggestions.ts:51, and chat-documents-section.tsx:89. They are currently guarded, but the semantic control does not see direct assertions.
-3. **Low — BroadcastChannel parsing casts any string to Handle.** session-channel.ts:73 checks only typeof string. The consumer compares it and hard reloads on mismatch, so no takeover path was confirmed, but the returned SessionMessage type is stronger than the runtime check.
-4. **Medium coverage gap — AppRouter outputs are type-only across JSON.** The transport has 365 input parsers and 425 procedures, but zero output parsers. This needs a semantic output-truth inventory before adding schemas selectively; blanket output-schema duplication would be the wrong fix.
+1. **High — TypeID schemas are systematically under-validating.** The checker resolved 338 production `brandedId<T>()` calls: **307 target `TypeIdOf` aliases** even though the helper's own contract says those must use `typeIdSchema`; 31 are legitimate prefixless brands. The current no-raw-id gate explicitly accepts either helper, so it preserves the defect. A wrong-prefix or malformed nonempty string crosses the wire carrying the stronger entity brand. The repair is a checker-resolved gate split plus bounded domain migrations and wrong-prefix tests.
 
-## Measured populations
+2. **High — inference §5.3c remains incomplete.** Seven model/provider columns are plain text: `user_connections.model`, `message_variants.model/provider`, `model_stats.model/provider`, and `imagery_generations.model/provider`. ST import forwards arbitrary file strings into the variant writer. A `$type<>`-only patch would lie; producer validation, ruled unknown mapping, schema brands, and one negative test per column must land together.
 
-- 75 canonical concrete brands (78 brand-bearing aliases including Branded, TypeIdOf, and one conditional alias)
-- 116 selected production assertions; 44 nonbrand-to-brand assertions
-- 350 Drizzle .$type calls; 254 carry a brand or branded member
-- 563 checker-confirmed Zod operator sites; 347 have different checker input/output types
-- 29 Zod-returning generic wrappers
-- 153 type predicates; 10 mention branded/named-id shapes
-- zero production @ts directives and zero brand-bearing non-null assertions in the six package programs
+3. **Medium — workload dependency authority is already broken.** `workloads.start` accepts caller-authored `dependsOn`, persists it, and the scheduler reads dependency statuses without owner scope. User A can make A's row wait/run/fail based on a known User-B workload id; absent/malformed ids poison A's row. The waiver's stated end condition has already occurred.
 
-## Work to build
+4. **Medium — three inference streams manufacture `'' as ChatId`.** The request contract independently makes `chatId` and `onDelta` optional. OpenAI-compatible, Anthropic, and agent-sdk paths therefore emit a branded empty id when a callback is present without chatId.
 
-The report marks five concrete programs: finish the §5.3c class-2 migration; add a checker-backed brand manufacture/erase/tunnel lens; add a checker-backed Zod input/output lens; inventory AppRouter output truth; and build a table-symbol producer/read graph for branded Drizzle columns.
+5. **Low — fake brand sentinels remain.** Client disabled-query/inert-row paths manufacture empty ChatId/MessageId/PresetId values; invite preview manufactures an empty Handle on a supposedly unreachable host absence. Use conditional query construction/nullable inert shapes and fail the host invariant.
 
-## Explicit remainder
+6. **Low — BroadcastChannel Handle parsing is weaker than its return type.** Any string becomes `Handle`. Current consumers compare/reload only, so no privilege escalation was confirmed.
 
-The full per-site facts are in the JSON. Tests/tooling/scripts/playwright were structurally corroborated but not checker-adjudicated after the synthetic project OOM. Existing branded Drizzle columns have a complete column denominator but not yet a complete producer/read graph. The 332 default/prefault/catch/coerce Zod sites have checker facts but still need business-intent adjudication.
+## Closed semantic populations
+
+- 78 checker-resolved brand-bearing aliases: 2 primitives, 62 concrete TypeIDs, 13 concrete prefixless brands, and 2 derived aliases (see JSON sites).
+- 383 relevant production assertions; 90 are non-assignable source→brand target; 48 are double assertions. Zero brand-bearing non-null assertions and zero production `@ts-*` directives were found.
+- 350 Drizzle `$type<T>` calls: 254 direct brands, 10 brand-bearing containers, 86 unbranded.
+- 569 Zod semantic operators; 347 have checker-non-equivalent input/output and 13 produce brand-bearing output.
+- 145 production `safeParse`/`safeParseAsync` calls and 157 type predicates were captured with checker types; no assertion functions were found.
+- tRPC: 367 input validators and 423 terminal procedures (252 mutation / 169 query / 2 subscription), with **zero runtime output validators**. The client has one intended type-only AppRouter bridge over JSON HTTP/SSE and structural ast-grep finds 193 `inferOutput` plus 179 `inferInput` projections. This is a coverage gap pending a high-consequence output inventory, not a confirmed defect by itself.
+
+## Bounded next work
+
+The JSON report contains every brandedId site and classification, every relevant assertion, all 350 Drizzle sites, every Zod operator with checker input/output, safeParse access facts, predicates, per-program denominators, raw artifact hashes, and exact repair groups. Two investigations remain explicit: a table-symbol producer/read graph for all 264 brand-bearing Drizzle sites, and business-intent review of the 347 Zod input/output-different sites. Root-only config files are also outside this tranche.

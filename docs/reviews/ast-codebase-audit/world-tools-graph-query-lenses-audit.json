@@ -1,0 +1,683 @@
+{
+  "schemaVersion": 1,
+  "audit": {
+    "name": "pnpm ast graph and query lenses",
+    "repository": "/home/inktomi/.codex/worktrees/world-aware-tools/orbweaver",
+    "sourceCommit": "5438cf0e4f5eba3170b7ff56e9b056f47abb1a6c",
+    "generatedAt": "2026-09-21T06:40:58.291Z",
+    "mode": "read-only source/control mapping plus lightweight live probes"
+  },
+  "sourceMap": {
+    "dispatch": "tooling/src/ast/ops/verbs.ts",
+    "symbols": "tooling/src/ast/ops/symbols.ts",
+    "graph": "tooling/src/ast/ops/graph.ts",
+    "depcruise": "tooling/src/ast/ops/depcruise.ts",
+    "semanticWorkspace": "tooling/src/_shared/ts-workspace.ts",
+    "corpusAndEmission": [
+      "tooling/src/ast/lib/emit.ts",
+      "tooling/src/ast/lib/ledger.ts"
+    ],
+    "controls": [
+      "tests/tooling/ast/ops/verbs.test.ts",
+      "tests/tooling/ast/cli.repo.int.test.ts"
+    ],
+    "worktreeNote": "Concurrent edits existed in other ast modules/tests during this read-only audit. symbols.ts, graph.ts, depcruise.ts, verbs.ts, emit.ts, ledger.ts, and ts-workspace.ts were not modified by this lane."
+  },
+  "lensMap": [
+    {
+      "lens": "refs",
+      "implementation": "tooling/src/ast/ops/symbols.ts:15-56",
+      "corpus": "native-program-authored-roots",
+      "identity": "checker references across every native program containing the declaration",
+      "scope": "workspace; output may be --in filtered",
+      "controls": "no direct positive behavior control; typed CLI only proves an absent dead-symbol query closes its ledger",
+      "status": "semantic substrate sound; declaration discovery incomplete"
+    },
+    {
+      "lens": "callers",
+      "implementation": "tooling/src/ast/ops/symbols.ts:58-71",
+      "corpus": "harness-globs syntactic",
+      "identity": "spelling only: bare callee text or property tail",
+      "scope": "workspace minus package-root TS, MTS, and playwright",
+      "controls": "only an absent-name/corpus-hint control",
+      "status": "undercounts same-line sites and misses aliases; collisions overcount"
+    },
+    {
+      "lens": "importers",
+      "implementation": "tooling/src/ast/ops/symbols.ts:73-113",
+      "corpus": "harness-globs syntactic",
+      "identity": "raw-substring OR resolved-target-path substring for static imports; raw substring only for dynamic imports",
+      "scope": "workspace minus package-root TS, MTS, and playwright",
+      "controls": "no dedicated behavior control",
+      "status": "path subjects are broader than package-spec subjects; alias spelling changes answer"
+    },
+    {
+      "lens": "exports",
+      "implementation": "tooling/src/ast/ops/symbols.ts:115-130",
+      "corpus": "harness-globs syntactic",
+      "identity": "ts-morph exported declarations, including re-export resolution available in the synthetic project",
+      "scope": "path substring",
+      "controls": "tiny direct positive + real repository zero/ledger control",
+      "status": "works in src corpus; cannot enter existing package-root/MTS/playwright files"
+    },
+    {
+      "lens": "jsx",
+      "implementation": "tooling/src/ast/ops/symbols.ts:132-144",
+      "corpus": "harness-globs syntactic",
+      "identity": "exact rendered tag text",
+      "scope": "workspace minus package-root TS, MTS, and playwright",
+      "controls": "paired/self-closing positive and real filtered TSX JSON",
+      "status": "syntax query, not component identity; misses renamed/member usages and same-line duplicates"
+    },
+    {
+      "lens": "ident",
+      "implementation": "tooling/src/ast/ops/symbols.ts:146-156",
+      "corpus": "harness-globs syntactic",
+      "identity": "exact Identifier text; comments/strings excluded",
+      "scope": "workspace minus package-root TS, MTS, and playwright",
+      "controls": "positive scripts source + empty --in refusal",
+      "status": "honest spelling lens except incomplete corpus and line-collapsed counts"
+    },
+    {
+      "lens": "literal",
+      "implementation": "tooling/src/ast/ops/symbols.ts:158-212",
+      "corpus": "wide search-globs syntactic",
+      "identity": "string literals, no-substitution templates, and static template chunks",
+      "scope": "packages/tests/tooling/scripts plus package-root TS, MTS, and Playwright TSX",
+      "controls": "positive source+fixture, comment/identifier negative, real absent literal",
+      "status": "best-covered query lens; still reports unique rendered lines rather than AST occurrences"
+    },
+    {
+      "lens": "cycles",
+      "implementation": "tooling/src/ast/ops/graph.ts:12-79",
+      "corpus": "native-program-authored-roots",
+      "identity": "resolved static import/export file edges within one package",
+      "scope": "packages/<pkg>/src",
+      "controls": "no direct graph behavior control",
+      "status": "alias/world resolution is correct; DFS reports back-edge witnesses, not every distinct cycle or SCC"
+    },
+    {
+      "lens": "aliases",
+      "implementation": "tooling/src/ast/ops/graph.ts:81-135",
+      "corpus": "harness-globs syntactic",
+      "identity": "named import/export aliases, bare type-reference aliases, exported const-to-identifier rebinds",
+      "scope": "path substring",
+      "controls": "no dedicated behavior control",
+      "status": "partial alias taxonomy; help overstates const coverage"
+    },
+    {
+      "lens": "flow",
+      "implementation": "tooling/src/ast/ops/depcruise.ts:15-48",
+      "corpus": "dependency-cruiser over hard-coded packages root",
+      "identity": "resolved dependency-cruiser edge graph, direct focus",
+      "scope": "package production tree only; receipt says scanned=n/a",
+      "controls": "broken subprocess and JSON misuse only; no positive graph control",
+      "status": "works for package graph; silently excludes tests/tooling/scripts"
+    },
+    {
+      "lens": "reaches",
+      "implementation": "tooling/src/ast/ops/depcruise.ts:15-48",
+      "corpus": "dependency-cruiser over hard-coded packages root",
+      "identity": "resolved dependency-cruiser transitive reverse reachability",
+      "scope": "package production tree only; receipt says scanned=n/a",
+      "controls": "argument/JSON refusals only; no positive graph control",
+      "status": "works for package graph; cannot answer test/tooling/script reachability"
+    }
+  ],
+  "liveProbes": {
+    "json": {
+      "importers-spec": {
+        "artifact": "/tmp/ast-lens-importers-spec.json",
+        "sha256": "d5be594fa1b01900ee602151bac4bfba4902c15693302d8440860f27f1625f2b",
+        "total": 3496,
+        "shown": 3496,
+        "meta": {
+          "verb": "importers",
+          "scope": "corpus:harness-globs(packages/*/src/**/*.ts,packages/*/src/**/*.tsx,tests/**/*.ts,tests/**/*.tsx,tooling/src/**/*.ts,tooling/src/**/*.tsx,scripts/**/*.ts,scripts/**/*.tsx,!scripts/probes/st-goldens/sillytavern-runtime/**)+workspace",
+          "langs": {
+            "dts": 4,
+            "ts": 6441,
+            "tsx": 1403
+          },
+          "scanned": 7848,
+          "skipped": 0,
+          "skippedBy": {
+            "out-of-scope": 0,
+            "out-of-filter": 0,
+            "test-file": 0,
+            "declaration-file": 0
+          },
+          "matches": 3496,
+          "status": "complete"
+        }
+      },
+      "importers-path": {
+        "artifact": "/tmp/ast-lens-importers-path.json",
+        "sha256": "41dacb0187ac52bae33c975b4953c8f99fa4866d9a095da3078a104d5d7e4ebf",
+        "total": 3502,
+        "shown": 3502,
+        "meta": {
+          "verb": "importers",
+          "scope": "corpus:harness-globs(packages/*/src/**/*.ts,packages/*/src/**/*.tsx,tests/**/*.ts,tests/**/*.tsx,tooling/src/**/*.ts,tooling/src/**/*.tsx,scripts/**/*.ts,scripts/**/*.tsx,!scripts/probes/st-goldens/sillytavern-runtime/**)+workspace",
+          "langs": {
+            "dts": 4,
+            "ts": 6441,
+            "tsx": 1403
+          },
+          "scanned": 7848,
+          "skipped": 0,
+          "skippedBy": {
+            "out-of-scope": 0,
+            "out-of-filter": 0,
+            "test-file": 0,
+            "declaration-file": 0
+          },
+          "matches": 3502,
+          "status": "complete"
+        }
+      },
+      "callers": {
+        "artifact": "/tmp/ast-lens-callers.json",
+        "sha256": "5979d4e687063a56a114d64f6ae0096423ec2c0f59a87db832bbd4a23ead8046",
+        "total": 319,
+        "shown": 319,
+        "meta": {
+          "verb": "callers",
+          "scope": "corpus:harness-globs(packages/*/src/**/*.ts,packages/*/src/**/*.tsx,tests/**/*.ts,tests/**/*.tsx,tooling/src/**/*.ts,tooling/src/**/*.tsx,scripts/**/*.ts,scripts/**/*.tsx,!scripts/probes/st-goldens/sillytavern-runtime/**)+workspace",
+          "langs": {
+            "dts": 4,
+            "ts": 6441,
+            "tsx": 1403
+          },
+          "scanned": 7848,
+          "skipped": 0,
+          "skippedBy": {
+            "out-of-scope": 0,
+            "out-of-filter": 0,
+            "test-file": 0,
+            "declaration-file": 0
+          },
+          "matches": 319,
+          "status": "complete"
+        }
+      },
+      "ident": {
+        "artifact": "/tmp/ast-lens-ident.json",
+        "sha256": "eef888da29648b5de3857f34be68828511bf79a0af056c61fd7bf278266b6f87",
+        "total": 363,
+        "shown": 363,
+        "meta": {
+          "verb": "ident",
+          "scope": "corpus:harness-globs(packages/*/src/**/*.ts,packages/*/src/**/*.tsx,tests/**/*.ts,tests/**/*.tsx,tooling/src/**/*.ts,tooling/src/**/*.tsx,scripts/**/*.ts,scripts/**/*.tsx,!scripts/probes/st-goldens/sillytavern-runtime/**)+workspace",
+          "langs": {
+            "dts": 4,
+            "ts": 6441,
+            "tsx": 1403
+          },
+          "scanned": 7848,
+          "skipped": 0,
+          "skippedBy": {
+            "out-of-scope": 0,
+            "out-of-filter": 0,
+            "test-file": 0,
+            "declaration-file": 0
+          },
+          "matches": 363,
+          "status": "complete"
+        }
+      },
+      "exports": {
+        "artifact": "/tmp/ast-lens-exports.json",
+        "sha256": "866b57cacb1ec6a04f082f5a443e8a51f47e5a650a2e8777872e6112740d1a45",
+        "total": 80,
+        "shown": 80,
+        "meta": {
+          "verb": "exports",
+          "scope": "corpus:harness-globs(packages/*/src/**/*.ts,packages/*/src/**/*.tsx,tests/**/*.ts,tests/**/*.tsx,tooling/src/**/*.ts,tooling/src/**/*.tsx,scripts/**/*.ts,scripts/**/*.tsx,!scripts/probes/st-goldens/sillytavern-runtime/**)+path:packages/kit/src/ids/index.ts",
+          "langs": {
+            "ts": 1
+          },
+          "scanned": 1,
+          "skipped": 7847,
+          "skippedBy": {
+            "out-of-scope": 7847,
+            "out-of-filter": 0,
+            "test-file": 0,
+            "declaration-file": 0
+          },
+          "matches": 80,
+          "status": "complete"
+        }
+      },
+      "jsx": {
+        "artifact": "/tmp/ast-lens-jsx.json",
+        "sha256": "3b0e5e983e166f40d7bfc16bc0e8fe9c6419f268807c3fa8df3db1c41a6e9e02",
+        "total": 59,
+        "shown": 59,
+        "meta": {
+          "verb": "jsx",
+          "scope": "corpus:harness-globs(packages/*/src/**/*.ts,packages/*/src/**/*.tsx,tests/**/*.ts,tests/**/*.tsx,tooling/src/**/*.ts,tooling/src/**/*.tsx,scripts/**/*.ts,scripts/**/*.tsx,!scripts/probes/st-goldens/sillytavern-runtime/**)+workspace",
+          "langs": {
+            "dts": 4,
+            "ts": 6441,
+            "tsx": 1403
+          },
+          "scanned": 7848,
+          "skipped": 0,
+          "skippedBy": {
+            "out-of-scope": 0,
+            "out-of-filter": 0,
+            "test-file": 0,
+            "declaration-file": 0
+          },
+          "matches": 59,
+          "status": "complete"
+        }
+      },
+      "literal": {
+        "artifact": "/tmp/ast-lens-literal.json",
+        "sha256": "6652ff115b766f395a0e435947451c7d0158686c928e7f4dc217dc91c7412ac8",
+        "total": 39,
+        "shown": 39,
+        "meta": {
+          "verb": "literal",
+          "scope": "corpus:search-globs-no-types(packages/*/src/**/*.ts,packages/*/src/**/*.tsx,tests/**/*.ts,tests/**/*.tsx,tooling/src/**/*.ts,tooling/src/**/*.tsx,scripts/**/*.ts,scripts/**/*.tsx,!scripts/probes/st-goldens/sillytavern-runtime/**,packages/*/*.ts,packages/*/src/**/*.mts,tests/**/*.mts,playwright/**/*.tsx)+workspace",
+          "langs": {
+            "dts": 4,
+            "ts": 6446,
+            "tsx": 1404
+          },
+          "scanned": 7854,
+          "skipped": 0,
+          "skippedBy": {
+            "out-of-scope": 0,
+            "out-of-filter": 0,
+            "test-file": 0,
+            "declaration-file": 0
+          },
+          "matches": 39,
+          "status": "complete"
+        }
+      },
+      "aliases": {
+        "artifact": "/tmp/ast-lens-aliases.json",
+        "sha256": "2aca469c550765edb3663a2e42b9c1c5d358661700fd1d98345df249be86e63a",
+        "total": 105,
+        "shown": 105,
+        "meta": {
+          "verb": "aliases",
+          "scope": "corpus:harness-globs(packages/*/src/**/*.ts,packages/*/src/**/*.tsx,tests/**/*.ts,tests/**/*.tsx,tooling/src/**/*.ts,tooling/src/**/*.tsx,scripts/**/*.ts,scripts/**/*.tsx,!scripts/probes/st-goldens/sillytavern-runtime/**)+path:packages/server/src",
+          "langs": {
+            "ts": 1391
+          },
+          "scanned": 1391,
+          "skipped": 6457,
+          "skippedBy": {
+            "out-of-scope": 6457,
+            "out-of-filter": 0,
+            "test-file": 0,
+            "declaration-file": 0
+          },
+          "matches": 105,
+          "status": "complete"
+        }
+      }
+    },
+    "flow": {
+      "artifact": "/tmp/ast-lens-flow.txt",
+      "sha256": "6848349ec1658476db57ed3487518b486dd9268637b1365f49f559a6fc02e172",
+      "edgeLines": 211,
+      "meta": "scanned=n/a, matches=211, status=complete"
+    },
+    "reaches": {
+      "artifact": "/tmp/ast-lens-reaches.txt",
+      "sha256": "a5faa5bbdc5ee29b73b7e0f205dbad79473ac6c5e81e07d6b9c048d026c0e37f",
+      "edgeLines": 3428,
+      "meta": "scanned=n/a, matches=3428, status=complete"
+    },
+    "sameLineCorroboration": {
+      "subject": "brandedId<T>()",
+      "astGrepAstNodes": 343,
+      "astGrepUniqueFileLines": 319,
+      "pnpmAstCallerHits": 319,
+      "collapsedDistinctCallSites": 24,
+      "astGrepArtifact": "/tmp/brand-brandedId-ts.jsonl",
+      "explanation": "Actual ast-grep found 343 call AST nodes; 24 were a second call on an already-matched file line. pnpm ast callers emitted 319 because the shared emitter deduplicates source-search hits by file+line+kind+rendered line."
+    },
+    "importerIdentityCorroboration": {
+      "subjectSpecifier": "@orb/kit/ids",
+      "specifierHits": 3496,
+      "subjectResolvedPath": "packages/kit/src/ids/index.ts",
+      "resolvedPathHits": 3502,
+      "missingFromSpecifierQuery": 6,
+      "missingSites": [
+        {
+          "path": "packages/kit/src/content/index.ts",
+          "line": 48,
+          "spelling": "#ids"
+        },
+        {
+          "path": "packages/kit/src/content/index.ts",
+          "line": 49,
+          "spelling": "#ids"
+        },
+        {
+          "path": "packages/kit/src/macro/row-macros.ts",
+          "line": 20,
+          "spelling": "#ids"
+        },
+        {
+          "path": "packages/kit/src/macro/types.ts",
+          "line": 2,
+          "spelling": "#ids"
+        },
+        {
+          "path": "tests/server/domain/credentials/_support.ts",
+          "line": 13,
+          "spelling": "relative path"
+        },
+        {
+          "path": "tests/server/domain/credentials/_support.ts",
+          "line": 14,
+          "spelling": "relative path"
+        }
+      ]
+    }
+  },
+  "confirmedFindings": [
+    {
+      "id": "GQ-001",
+      "severity": "medium",
+      "title": "Six query lenses intentionally scan a smaller corpus than the repository can author",
+      "affected": [
+        "callers",
+        "importers",
+        "exports",
+        "jsx",
+        "ident",
+        "aliases"
+      ],
+      "failure": "Package-root TypeScript, package/source MTS, and Playwright TSX are excluded. A positive result is still incomplete, and exports/aliases cannot enter an existing excluded path. The zero-result hint admits this only for name-lookup verbs; positive runs do not announce missing roots beyond the long corpus label.",
+      "evidence": [
+        {
+          "path": "tooling/src/ast/ops/verbs.ts",
+          "line": 80
+        },
+        {
+          "path": "tooling/src/_shared/ts-workspace.ts",
+          "line": 256
+        },
+        {
+          "path": "tooling/src/_shared/ts-workspace.ts",
+          "line": 271
+        },
+        {
+          "path": "tests/tooling/ast/ops/verbs.test.ts",
+          "line": 180
+        },
+        {
+          "path": "tests/tooling/ast/ops/verbs.test.ts",
+          "line": 197
+        },
+        {
+          "path": "tests/tooling/ast/ops/verbs.test.ts",
+          "line": 215
+        }
+      ],
+      "repair": "Move these syntactic lenses to the already-existing wide search corpus. The current tree difference is only six files (7,848 standard vs 7,854 wide), so accuracy costs little. Keep typed refs/cycles on native programs and literal on wide."
+    },
+    {
+      "id": "GQ-002",
+      "severity": "medium",
+      "title": "Source-query totals collapse distinct AST sites that share one line",
+      "affected": [
+        "callers",
+        "importers",
+        "jsx",
+        "ident",
+        "literal"
+      ],
+      "failure": "The emitter deduplicates source hits by file, line, kind, and rendered source line. Two calls/tags/literals on one line become one match, so totals are line counts while help and output call them hits/call sites.",
+      "evidence": [
+        {
+          "path": "tooling/src/ast/lib/emit.ts",
+          "line": 113
+        },
+        {
+          "path": "tooling/src/ast/lib/emit.ts",
+          "line": 133
+        },
+        {
+          "path": "tooling/src/ast/ops/symbols.ts",
+          "line": 58
+        }
+      ],
+      "live": "brandedId: actual ast-grep found 343 call nodes on 319 unique lines; pnpm ast callers reported 319, dropping 24 distinct calls.",
+      "repair": "Carry start offset (or an internal hit id) in Hit and dedupe on node identity. Preserve line-oriented rendering while keeping exact total/matches counts."
+    },
+    {
+      "id": "GQ-003",
+      "severity": "medium",
+      "title": "importers answers a spelling query unless the caller already knows the resolved file path",
+      "affected": [
+        "importers"
+      ],
+      "failure": "The subject is compared as a substring against both raw specifier and resolved absolute path. Asking the documented package-spec form does not canonicalize it to the target, so differently spelled #aliases and relative imports disappear.",
+      "evidence": [
+        {
+          "path": "tooling/src/ast/ops/symbols.ts",
+          "line": 73
+        },
+        {
+          "path": "tooling/src/ast/ops/symbols.ts",
+          "line": 82
+        },
+        {
+          "path": "tooling/src/ast/ops/symbols.ts",
+          "line": 93
+        }
+      ],
+      "live": "`importers @orb/kit/ids` returned 3,496; `importers packages/kit/src/ids/index.ts` returned 3,502 and recovered four #ids plus two relative imports.",
+      "repair": "Resolve a module-spec subject to canonical target file(s) first, then compare import target identity. Keep an explicit spelling-only mode if substring search remains useful. Resolve static and literal dynamic imports through the same door."
+    },
+    {
+      "id": "GQ-004",
+      "severity": "medium",
+      "title": "refs cannot discover several ordinary module-local declaration kinds",
+      "affected": [
+        "refs"
+      ],
+      "failure": "Declaration discovery includes every exported declaration, but among non-exported declarations only functions and variable declarations. Module-local classes, interfaces, type aliases, enums, and named declarations therefore produce 'no declaration found' even though the native checker could resolve them.",
+      "evidence": [
+        {
+          "path": "tooling/src/ast/ops/symbols.ts",
+          "line": 13
+        },
+        {
+          "path": "tooling/src/ast/ops/symbols.ts",
+          "line": 21
+        },
+        {
+          "path": "tooling/src/ast/ops/symbols.ts",
+          "line": 38
+        }
+      ],
+      "repair": "Enumerate reference-findable named declarations across the file AST (or use the checker symbol table) and retain origin-node deduplication. Add one positive control per declaration kind and alias/re-export traversal."
+    },
+    {
+      "id": "GQ-005",
+      "severity": "medium",
+      "title": "callers and jsx are spelling lenses presented as usage lenses",
+      "affected": [
+        "callers",
+        "jsx"
+      ],
+      "failure": "callers matches every same-spelled bare callee/property tail and misses calls through import/local aliases; jsx compares exact tag text and misses renamed bindings/member paths while conflating unrelated same-name components. Neither follows declaration identity.",
+      "evidence": [
+        {
+          "path": "tooling/src/ast/ops/symbols.ts",
+          "line": 58
+        },
+        {
+          "path": "tooling/src/ast/ops/symbols.ts",
+          "line": 63
+        },
+        {
+          "path": "tooling/src/ast/ops/symbols.ts",
+          "line": 132
+        },
+        {
+          "path": "tooling/src/ast/ops/symbols.ts",
+          "line": 137
+        }
+      ],
+      "repair": "Add identity-resolved callers/jsx using native programs and reuse semanticReferenceNodes; retain current behavior under explicit spelling verbs if needed. Output must label spelling versus identity."
+    },
+    {
+      "id": "GQ-006",
+      "severity": "low",
+      "title": "aliases help text overstates the const-rebinding population",
+      "affected": [
+        "aliases"
+      ],
+      "failure": "The help says const Y = X, but implementation reports it only when Y is exported. Local const rebindings are invisible, as are other alias forms. The command has no dedicated behavior controls.",
+      "evidence": [
+        {
+          "path": "tooling/src/ast/ops/graph.ts",
+          "line": 106
+        },
+        {
+          "path": "tooling/src/ast/ops/graph.ts",
+          "line": 116
+        },
+        {
+          "path": "tooling/src/ast/ops/graph.ts",
+          "line": 127
+        }
+      ],
+      "repair": "Either enumerate all intended rebindings and classify local/exported, or narrow the contract/help to exported API aliases. Add positive/negative controls for each supported form."
+    },
+    {
+      "id": "GQ-007",
+      "severity": "medium",
+      "title": "flow and reaches hard-code the packages tree but do not state that boundary in the answer",
+      "affected": [
+        "flow",
+        "reaches"
+      ],
+      "failure": "Dependency-cruiser receives only `packages`, so tests, tooling, scripts, Playwright, and root tools can never appear. Help says every module for reaches, and the epilogue reports the config/pattern with scanned=n/a rather than the actual root set. A zero or partial graph can be mistaken for workspace reachability.",
+      "evidence": [
+        {
+          "path": "tooling/src/ast/ops/depcruise.ts",
+          "line": 12
+        },
+        {
+          "path": "tooling/src/ast/ops/depcruise.ts",
+          "line": 19
+        },
+        {
+          "path": "tooling/src/ast/ops/depcruise.ts",
+          "line": 27
+        }
+      ],
+      "live": "flow agent-sdk returned 211 edge lines; reaches agent-sdk returned 3,428, both with scanned=n/a. Neither receipt names the hard-coded packages root.",
+      "repair": "Expose and print a governed graph-root scope (production-packages vs workspace), or broaden the default to all authored runtime/test/tooling roots. Keep subprocess failure fail-closed."
+    },
+    {
+      "id": "GQ-008",
+      "severity": "low",
+      "title": "cycles reports DFS back-edge witnesses rather than the closed cycle population",
+      "affected": [
+        "cycles"
+      ],
+      "failure": "Once a node is fully visited, later edges into it cannot produce another cycle. Overlapping simple cycles can collapse to one DFS witness, and the output is traversal-order dependent. There is no direct cycle behavior control.",
+      "evidence": [
+        {
+          "path": "tooling/src/ast/ops/graph.ts",
+          "line": 33
+        },
+        {
+          "path": "tooling/src/ast/ops/graph.ts",
+          "line": 40
+        },
+        {
+          "path": "tooling/src/ast/ops/graph.ts",
+          "line": 54
+        }
+      ],
+      "repair": "Define the contract as strongly connected components and report each cyclic SCC, or enumerate/canonicalize simple cycles with a bound. Add relative, #alias, barrel, and overlapping-cycle controls."
+    },
+    {
+      "id": "GQ-009",
+      "severity": "medium",
+      "title": "The fragile lenses have the thinnest controls",
+      "affected": [
+        "refs",
+        "callers",
+        "importers",
+        "cycles",
+        "aliases",
+        "flow",
+        "reaches"
+      ],
+      "failure": "There are no direct behavior controls for refs/importers/cycles/aliases; callers is tested only for an absent name; flow/reaches are tested for bad subprocess/argv but not a positive graph. Existing positive controls concentrate on exports, jsx, ident corpus, and literal.",
+      "evidence": [
+        {
+          "path": "tests/tooling/ast/ops/verbs.test.ts",
+          "line": 180
+        },
+        {
+          "path": "tests/tooling/ast/ops/verbs.test.ts",
+          "line": 220
+        },
+        {
+          "path": "tests/tooling/ast/ops/verbs.test.ts",
+          "line": 356
+        },
+        {
+          "path": "tests/tooling/ast/cli.repo.int.test.ts",
+          "line": 39
+        },
+        {
+          "path": "tests/tooling/ast/cli.repo.int.test.ts",
+          "line": 180
+        }
+      ],
+      "repair": "Plant tiny in-memory world-aware programs for every semantic claim and one real-process smoke per corpus class. Prove alias traversal, collisions, cross-world references, package-root/MTS/Playwright membership, same-line multiplicity, and depcruise root scope."
+    }
+  ],
+  "recommendedRepairGroups": [
+    {
+      "order": 1,
+      "name": "Corpus and count honesty",
+      "items": [
+        "Move six syntactic verbs to wide roots",
+        "preserve node offsets through Hit/dedupe",
+        "print exact graph roots"
+      ]
+    },
+    {
+      "order": 2,
+      "name": "Identity queries",
+      "items": [
+        "canonicalize importer subject",
+        "complete refs declaration discovery",
+        "add semantic callers/jsx while retaining explicit spelling modes"
+      ]
+    },
+    {
+      "order": 3,
+      "name": "Graph/alias contract",
+      "items": [
+        "choose SCC contract for cycles",
+        "settle local vs exported alias taxonomy",
+        "add positive depcruise graph controls"
+      ]
+    }
+  ],
+  "limitations": [
+    "No typed refs/cycles whole-repo command was launched during the concurrent rot sweep; their implementation was traced through the native semantic workspace and their missing controls are explicit.",
+    "The live query probes are current-tree snapshots, not deletion verdicts. No source was edited.",
+    "Counts from pnpm ast query verbs are their current emitted line-deduplicated counts; GQ-002 explains why they are not AST occurrence totals."
+  ]
+}
