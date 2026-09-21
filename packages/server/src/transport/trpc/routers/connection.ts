@@ -14,6 +14,7 @@ import {
   connectionRefSchema,
   connectionTransportSchema,
   declaredCapabilitySchema,
+  modelIdSchema,
   providerIdSchema,
   routableTaskSchema,
 } from "@orb/contracts/inference";
@@ -33,7 +34,7 @@ const connectionFields = z.object({
   providerId: providerIdSchema,
   credentialId: brandedId<UserCredentialId>().nullable(),
   baseUrl: z.string().min(1).nullable(),
-  model: z.string(),
+  model: modelIdSchema,
   api: connectionApiSchema.optional(),
   declared: declaredCapabilitySchema.nullable().optional(),
   extras: connectionExtrasSchema.nullable().optional(),
@@ -147,14 +148,4 @@ export const connectionRouter = t.router({
 
   // ── providers: what the picker may offer (every registry row with its wire's build state, §5.3a)
   providersAvailable: authedProcedure.query(({ ctx }) => ctx.services.connection.providersAvailable({ principal: ctx.auth })),
-
-  // An admin-authored provider ROW (§5.9-1 shape; a plugin ships its own at activation) — validated by the
-  // registry's one schema at the domain, refused on a built-in id.
-  registerProvider: adminProcedure
-    .input(z.object({ row: z.unknown() }))
-    .mutation(({ ctx, input }) => ctx.services.connection.registerProvider({ row: input.row, origin: { admin: ctx.auth.userId } })),
-
-  dropProvider: adminProcedure
-    .input(z.object({ providerId: providerIdSchema }))
-    .mutation(({ ctx, input }) => ctx.services.connection.dropProvider({ providerId: input.providerId })),
 });

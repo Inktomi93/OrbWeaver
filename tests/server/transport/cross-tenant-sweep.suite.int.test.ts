@@ -1956,13 +1956,6 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "workloads.createSchedule": "self-scoped: stamps ownerId = caller (a bulk schedule requires the box owner); no foreign id",
   "workloads.listSchedules": "self-scoped: a non-admin caller is forced to its own ownerId (no cross-tenant id)",
   "connection.refreshCatalog": "admin-gated: writes the deployment KV snapshot",
-  // The registry's two WRITE doors (§5.9-1). Both are `adminProcedure`, so the sweep's plain-user stranger is
-  // refused FORBIDDEN at LAYER 1 before any lookup — the `admin.*` role-gate pattern, tested by the
-  // admin-gate matrix, not IDOR. Neither takes an owned id: `registerProvider` takes a row VALUE (and the
-  // runtime refuses a built-in id, so a row can never shadow one and inherit its sealed credentials) and
-  // `dropProvider` takes a deployment provider id, not an entity a user holds.
-  "connection.registerProvider": "admin-gated: role gate (deployment provider policy from a row VALUE; no foreign id)",
-  "connection.dropProvider": "admin-gated: role gate (drops a deployment provider row; not a user-owned entity)",
   // databank — the id-taking verbs are PROBED above; these two take no foreign id (verified in the verbs):
   "databank.createFromText": "self-scoped: stamps ownerId = principal.userId; input is name + text, no foreign id",
   "databank.scrapeWeb":
