@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "capturedAt": "2026-09-21T07:20:32.181419+00:00",
-  "sourceCommit": "440571042",
+  "capturedAt": "2026-09-21T07:27:41.994665+00:00",
+  "sourceCommit": "7c59e5b50",
   "purpose": "Full AST audit observations and agent reasoning. Dated evidence, not a replacement for GitHub work-item lifecycle.",
   "entryPoints": {
     "coverage": "world-tools-lens-manifest.json",
@@ -35,7 +35,8 @@
     "brandBoundarySummary": "world-tools-brand-boundary-audit.md",
     "cleanupFinalRereview": "world-tools-cleanup-rereview.json",
     "graphQueryLensReview": "world-tools-graph-query-review.json",
-    "smallPackageRotTriage": "world-tools-small-package-rot-triage.json"
+    "smallPackageRotTriage": "world-tools-small-package-rot-triage.json",
+    "serverRotTriage": "world-tools-server-rot-triage.json"
   },
   "limitations": [
     "30 CLI verbs identified; coverage remains incomplete. A candidate is not a confirmed defect or deletion authorization.",
@@ -205,8 +206,8 @@
       "file": "world-tools-lens-status-current.json",
       "source": "maintained audit status matrix",
       "sourceSha256": null,
-      "sha256": "daa177756ceaba0b2de1179d08f6ea727f15ee8cfd757aa23d57d7f557498b5b",
-      "bytes": 4481
+      "sha256": "ce847bd750760bba9bb571879f01a642fac2032ac5a63f923b49226735a98eb1",
+      "bytes": 4690
     },
     {
       "file": "world-tools-lens-manifest.json",
@@ -571,6 +572,13 @@
       "sourceSha256": "74ee1be9ea80a7e5386d9c473ea2d6b4e47acf75cc3fbe61f9853dc6640784ea",
       "sha256": "74ee1be9ea80a7e5386d9c473ea2d6b4e47acf75cc3fbe61f9853dc6640784ea",
       "bytes": 15616
+    },
+    {
+      "file": "world-tools-server-rot-triage.json",
+      "source": "/tmp/world-tools-server-rot-triage.json",
+      "sourceSha256": "7f4cd95021d16e09bf6707ebd0e0afcb070ff50600fde58d2e6593bee18ed055",
+      "sha256": "7f4cd95021d16e09bf6707ebd0e0afcb070ff50600fde58d2e6593bee18ed055",
+      "bytes": 29299
     }
   ],
   "crossCuttingFindings": {
@@ -616,6 +624,21 @@
       "status": "Needs owner",
       "finding": "PROVIDER_ROW_TASKS claims DB write-boundary validation but has no direct consumer; choose DB enforcement or retire the claimed seam",
       "receipt": "world-tools-small-package-rot-triage.json"
+    },
+    "serverRotTriage": {
+      "status": "36 findings adjudicated: two bounded deletions, 27 deliberate seams, three external/compile-time consumers, two reserved unwired surfaces, two architecture forks",
+      "receipt": "world-tools-server-rot-triage.json",
+      "cleanup": [
+        "PROMPT_TEMPLATES",
+        "CAPTION_INSTRUCTIONS"
+      ],
+      "existingSeamFollowUp": 2526,
+      "ownerDecisions": [
+        2542,
+        2543,
+        2544,
+        2545
+      ]
     }
   }
 }
