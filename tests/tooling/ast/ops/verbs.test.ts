@@ -1,11 +1,15 @@
 // Command-level lens and formatting proofs over tiny projects. These call the production VERBS table,
 // ledger, emitter, TypeScript checker, and module resolver; only repository bootstrap/process behavior
 // remains in cli.repo.int.test.ts.
+import { mkdirSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import process from "node:process";
 import type { CompilerOptions } from "ts-morph";
 import { ModuleKind, ModuleResolutionKind, Project } from "ts-morph";
 import { describe } from "vitest";
 import { installOutputSink } from "../../../../tooling/src/_shared/log.ts";
+import { getWorkspace, searchGlobs } from "../../../../tooling/src/_shared/ts-workspace.ts";
+import type { Hit } from "../../../../tooling/src/ast/index.ts";
 import {
   AstToolError,
   beginRun,
@@ -16,6 +20,7 @@ import {
   parseFlags,
   VERBS,
 } from "../../../../tooling/src/ast/index.ts";
+import { emit } from "../../../../tooling/src/ast/lib/emit.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/repo";
@@ -40,6 +45,12 @@ function projectOf(files: Readonly<Record<string, string>>, compilerOptions: Com
     project.createSourceFile(`${ROOT}/${path}`, text);
   }
   return project;
+}
+
+function writeFixture(root: string, path: string, text: string): void {
+  const target = join(root, path);
+  mkdirSync(dirname(target), { recursive: true });
+  writeFileSync(target, text);
 }
 
 function parseEpilogue(stderr: string): Record<string, string> {
@@ -93,11 +104,79 @@ function runVerb(project: Project, options: VerbRunOptions): VerbRun {
 }
 
 describe("ast command output over bounded projects", () => {
+  test("JSON emission preserves distinct same-line findings while collapsing exact duplicates", () => {
+    const hits: Hit[] = [
+      { file: "packages/contracts/src/probe.ts", line: 1, kind: "field-declared-only", text: "probeSchema.first" },
+      { file: "packages/contracts/src/probe.ts", line: 1, kind: "field-declared-only", text: "probeSchema.first" },
+      { file: "packages/contracts/src/probe.ts", line: 1, kind: "field-declared-only", text: "probeSchema.second" },
+      { file: "packages/server/src/out.ts", line: 1, kind: "field-declared-only", text: "filtered.out" },
+    ];
+    const flags = parseFlags(["--json", "--max", "1", "--in", "packages/contracts"]);
+    const stdout: string[] = [];
+    const stderr: string[] = [];
+    const previousExitCode = process.exitCode;
+    const release = installOutputSink({ line: (line) => stdout.push(line), warn: (line) => stderr.push(line) });
+    process.exitCode = undefined;
+    try {
+      beginRun("contract-field-liveness", CORPUS_SYNTACTIC, flags);
+      emit(hits, flags, "contract-field-liveness fixture");
+      finishRun();
+      const payload = JSON.parse(stdout.join("\n")) as { total: number; shown: number; hits: Hit[]; meta: { matches: number; status: string } };
+      expect(payload).toMatchObject({ total: 2, shown: 1, meta: { matches: 2, status: "partial" } });
+      expect(payload.hits.map(({ text }) => text)).toEqual(["probeSchema.first"]);
+      expect(stderr.join("\n")).toContain("2 hit(s) found, 1 displayed");
+      expect(parseEpilogue(stderr.join("\n"))).toMatchObject({ matches: "2", status: "partial" });
+    } finally {
+      process.exitCode = previousExitCode;
+      release();
+    }
+  });
+
+  test("syntactic corpus receipts match the shared standard and extra search roots", ({ scratch }) => {
+    writeFixture(scratch, "packages/client/src/main.ts", "export const sourceOnly = 1;\n");
+    writeFixture(scratch, "tests/client/main.test.ts", "export const testOnly = 1;\n");
+    writeFixture(scratch, "tooling/src/probe.ts", "export const toolingOnly = 1;\n");
+    writeFixture(scratch, "scripts/dev/probe.ts", "export const scriptOnly = 1;\n");
+    writeFixture(scratch, "packages/client/vite.config.ts", "export const packageRootOnly = 1;\n");
+    writeFixture(scratch, "packages/client/src/extra.mts", "export const mtsOnly = 1;\n");
+    writeFixture(scratch, "playwright/probe.tsx", "export const playwrightOnly = <main />;\n");
+    writeFixture(scratch, "scripts/probes/st-goldens/sillytavern-runtime/ignored.ts", "export const ignoredCapture = 1;\n");
+
+    const standard = getWorkspace({ root: scratch, types: false });
+    const wide = getWorkspace({ root: scratch, types: false, globs: searchGlobs(scratch) });
+    const relativePaths = (project: Project): string[] =>
+      project
+        .getSourceFiles()
+        .map((source) => source.getFilePath().slice(scratch.length + 1))
+        .sort();
+    expect(relativePaths(standard)).toEqual(["packages/client/src/main.ts", "scripts/dev/probe.ts", "tests/client/main.test.ts", "tooling/src/probe.ts"]);
+    expect(relativePaths(wide)).toEqual([
+      "packages/client/src/extra.mts",
+      "packages/client/src/main.ts",
+      "packages/client/vite.config.ts",
+      "playwright/probe.tsx",
+      "scripts/dev/probe.ts",
+      "tests/client/main.test.ts",
+      "tooling/src/probe.ts",
+    ]);
+    expect(CORPUS_SYNTACTIC).toContain("scripts/**/*.ts");
+    expect(CORPUS_SYNTACTIC).toContain("tooling/src/**/*.ts");
+    expect(CORPUS_TYPED).toBe("native-program-authored-roots(per-tsconfig)");
+    expect(CORPUS_WIDE_SYNTACTIC).toContain("packages/*/*.ts");
+    expect(CORPUS_WIDE_SYNTACTIC).toContain("playwright/**/*.tsx");
+
+    const scriptHit = runVerb(standard, { verb: "ident", arg: "scriptOnly" });
+    expect(scriptHit.stdout).toContain("scripts/dev/probe.ts");
+    const absent = runVerb(standard, { verb: "callers", arg: "missing" });
+    expect(absent.stdout).toContain("syntactic corpus excludes package-root TS, MTS, and playwright/**");
+    expect(absent.stdout).not.toContain("excludes scripts/**");
+  });
+
   test("name lookup caveats and output filters distinguish empty answers from empty scans", () => {
     const project = projectOf({ "packages/client/src/calls.ts": "export function present(): void {}" });
     const absent = runVerb(project, { verb: "callers", arg: "missing" });
     expect(absent.status).toBe(0);
-    expect(absent.stdout).toContain("no results — NOTE: the syntactic corpus excludes scripts/**");
+    expect(absent.stdout).toContain("no results — NOTE: the syntactic corpus excludes package-root TS, MTS, and playwright/**");
     expect(absent.epilogue).toMatchObject({ scanned: "1", matches: "0", status: "complete" });
 
     const filtered = runVerb(project, { verb: "ident", arg: "present", argv: ["--in", "no-such-path"] });

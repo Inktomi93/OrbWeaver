@@ -160,11 +160,10 @@ export function cmdIdent(project: SourceCorpus, name: string, flags: Flags): voi
 // enum member, a wire field name, a user-facing label) needs "which code/tests pin this literal" as one
 // receipted command — the coupled-fixture sweep the executor doctrine's "shared-value change owes a
 // BATTERY" rule keeps paying a noisy `rg` for (comments AND identifiers both false-positive on it). Runs
-// over the WIDE corpus (tests + fixtures + scripts), because that IS the point: a contract test pinning a
-// literal in a fixture lives in `tests/`, which the syntactic verbs' harness-globs corpus does not admit
-// past `tooling/src/verify/gates`. Loaded WITHOUT the type graph (see `loadProject`'s `wide` arm) — a purely
-// syntactic text match needs no language service, so the wide corpus costs the cheap ~10s load, not the
-// typed one.
+// over the WIDE corpus (the standard package/test/tooling/script roots plus package-root TS, MTS, and
+// Playwright TSX), because that IS the point: a coupled fixture may live outside package src. Loaded WITHOUT
+// the type graph (see `loadProject`'s `wide` arm) — a purely syntactic text match needs no language service,
+// so the wide corpus costs the cheap load, not the typed one.
 /** ONE static (non-interpolated) chunk of every `TemplateExpression` in `sf`: the `TemplateHead` plus each
  *  `TemplateSpan`'s trailing `TemplateMiddle`/`TemplateTail` — the text between `${…}` interpolations. An
  *  interpolated HOLE is never text, so it can never match; a `NoSubstitutionTemplateLiteral` (no `${}` at

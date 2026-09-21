@@ -188,9 +188,15 @@ export function calleeName(callee: Node): string {
   return callee.asKind(SyntaxKind.Identifier)?.getText() ?? "";
 }
 
+/** Is `kind` any TypeScript assignment token (`=` through `??=`/bitwise/arithmetic compounds), using the
+ *  compiler's own closed token range rather than a hand-kept operator-text roster. */
+function isAssignmentOperator(kind: SyntaxKind): boolean {
+  return kind >= SyntaxKind.FirstAssignment && kind <= SyntaxKind.LastAssignment;
+}
+
 /** Names this file PRODUCES: an object-literal key (excluding a `z.object` declaration), a shorthand, an
- *  assignment target (`x.foo = …` AND `x["foo"] = …` — the read side already counted both spellings, and
- *  the asymmetry was a live-field false positive), or a form-field name string. */
+ *  assignment target (`x.foo ??= …` AND `x["foo"] += …` included — the read side already counted both
+ *  target spellings, and the asymmetry was a live-field false positive), or a form-field name string. */
 function producedNamesOf(sf: SourceFile, out: Set<string>): void {
   formFieldNamesOf(sf, out);
   for (const pa of sf.getDescendantsOfKind(SyntaxKind.PropertyAssignment)) {
@@ -211,7 +217,7 @@ function producedNamesOf(sf: SourceFile, out: Set<string>): void {
     out.add(member.getName());
   }
   for (const bin of sf.getDescendantsOfKind(SyntaxKind.BinaryExpression)) {
-    if (bin.getOperatorToken().getText() !== "=") {
+    if (!isAssignmentOperator(bin.getOperatorToken().getKind())) {
       continue;
     }
     const left = bin.getLeft();

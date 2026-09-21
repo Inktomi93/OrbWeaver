@@ -1326,6 +1326,43 @@ export const Section = (form: { setFieldValue: (k: string, v: unknown) => void }
     expect(hits.map((h) => h.text.split(" — ")[0])).toEqual(["[unclassified] cardSchema.neverProduced"]);
   });
 
+  test("every assignment operator produces its dot or literal-index target, while reads and test writes do not", () => {
+    const project = projectOf({
+      "packages/contracts/src/probe/index.ts": `
+import { z } from "zod";
+export const probeSchema = z.object({
+  dotNullish: z.number(), dotOr: z.number(), dotAnd: z.number(), dotPlus: z.number(),
+  indexNullish: z.number(), indexMinus: z.number(), comparisonOnly: z.number(),
+  arithmeticOnly: z.number(), testOnlyWrite: z.number(), untouched: z.number(),
+});
+`,
+      "packages/server/src/probe/write.ts": `
+export function write(trace: Record<string, number>): void {
+  trace.dotNullish ??= 1;
+  trace.dotOr ||= 1;
+  trace.dotAnd &&= 1;
+  trace.dotPlus += 1;
+  trace["indexNullish"] ??= 1;
+  trace["indexMinus"] -= 1;
+  void (trace.comparisonOnly === 1);
+  void (trace.arithmeticOnly + 1);
+}
+`,
+      "tests/server/probe/write.test.ts": `
+export function testWrite(trace: Record<string, number>): void { trace.testOnlyWrite ??= 1; }
+`,
+    });
+    const contracts = project.getSourceFileOrThrow("/repo/packages/contracts/src/probe/index.ts");
+    const indexes = fieldIndexes(project);
+    const hits = contractFieldsOf(contracts).flatMap((field) => fieldHit(field, indexes) ?? []);
+    expect(hits.map((hit) => hit.text.split(" — ")[0])).toEqual([
+      "[unclassified] probeSchema.comparisonOnly",
+      "[unclassified] probeSchema.arithmeticOnly",
+      "[unclassified] probeSchema.testOnlyWrite",
+      "[unclassified] probeSchema.untouched",
+    ]);
+  });
+
   test("a SAME-FILE consumer is visible: the fence is the declaration NODE, not the declaring file", () => {
     const project = projectOf({
       // The `stPromptSchema` shape: a foreign wire schema declared in `contracts` and consumed by an

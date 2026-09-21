@@ -7,8 +7,9 @@ import process from "node:process";
 import type { SourceFile } from "ts-morph";
 import { warn } from "../../_shared/log.ts";
 import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
+import { harnessGlobs, searchGlobs } from "../../_shared/ts-workspace.ts";
 import type { Flags, ScanMeta, ScanSpec, ScanStatus, ScopeMatch, SkipReason, SkipRule } from "../contract/types.ts";
-import { TEST_FILE_RE } from "./root.ts";
+import { REPO_ROOT, TEST_FILE_RE } from "./root.ts";
 
 /** The typed tool-error carrier exitToolError throws — the cli maps it to EXIT.toolError. */
 export class AstToolError extends Error {}
@@ -38,15 +39,27 @@ const TOOL_ERROR_EXIT = 2;
 
 export const EPILOGUE_TAG = "[ast]";
 
-/** What the two `getWorkspace` arms load, named in `scope=` so a corpus-shaped zero is self-diagnosing. */
-export const CORPUS_TYPED = "search-globs(packages/*/src,tests,scripts/**,packages/*/*.ts,*.mts,playwright)";
+/** Render the actual shared glob authority repo-relative, so an epilogue can never advertise a stale
+ *  approximation of what its loader admitted. Exclusions retain their leading `!`. */
+function corpusLabel(authority: string, globs: readonly string[]): string {
+  const rootPrefix = `${REPO_ROOT}/`;
+  const patterns = globs.map((glob) => {
+    const excluded = glob.startsWith("!");
+    const absolute = excluded ? glob.slice(1) : glob;
+    const relative = absolute.startsWith(rootPrefix) ? absolute.slice(rootPrefix.length) : absolute;
+    return `${excluded ? "!" : ""}${relative}`;
+  });
+  return `${authority}(${patterns.join(",")})`;
+}
 
-export const CORPUS_SYNTACTIC = "harness-globs(packages/*/src,tests,tooling/src/verify/gates)";
+/** Semantic searches expose authored roots from the native per-tsconfig programs. */
+export const CORPUS_TYPED = "native-program-authored-roots(per-tsconfig)";
 
-/** Same file set as {@link CORPUS_TYPED}, loaded WITHOUT the type graph — a purely syntactic walk (no
- *  `import`/re-export resolution, no checker) needs no language service, so `literal` gets the wide
- *  corpus (tests + fixtures + scripts — the coupled-fixture sweep) at the cheap ~10s load. */
-export const CORPUS_WIDE_SYNTACTIC = "search-globs-no-types(packages/*/src,tests,scripts/**,packages/*/*.ts,*.mts,playwright)";
+export const CORPUS_SYNTACTIC = corpusLabel("harness-globs", harnessGlobs(REPO_ROOT));
+
+/** The shared search globs without a type graph, used by the literal/fixture sweep. Native semantic
+ *  program roots are selected independently, so this is not a promise of identical file membership. */
+export const CORPUS_WIDE_SYNTACTIC = corpusLabel("search-globs-no-types", searchGlobs(REPO_ROOT));
 
 export const CORPUS_DEPCRUISE = "depcruise(.dependency-cruiser.cjs)";
 
@@ -178,7 +191,7 @@ function emptyScopeDiagnosis(current: ScanLedger): string {
     current.filter !== null && filtered > 0
       ? `--in "${current.filter}" matched none of the ${filtered} file(s) the scope admitted`
       : `scope ${current.scopeParts.join("+")} admitted no file from the loaded corpus`;
-  return `${EPILOGUE_TAG} SCOPE ENTERED NOTHING — ${cause}. This is a TOOL ERROR (exit ${TOOL_ERROR_EXIT}), not a clean result: nothing was searched, so nothing could be found. Note the two corpora — syntactic verbs load ${CORPUS_SYNTACTIC}; the TYPED verbs (refs/cycles/orphans/testonly/prodonly/unwired/clientgap/swallowed/respell/typeonly-alive/columns/chains/stringy/apisurface) also load ${CORPUS_TYPED}.`;
+  return `${EPILOGUE_TAG} SCOPE ENTERED NOTHING — ${cause}. This is a TOOL ERROR (exit ${TOOL_ERROR_EXIT}), not a clean result: nothing was searched, so nothing could be found. Corpus authorities: syntactic verbs load ${CORPUS_SYNTACTIC}; wide syntactic verbs load ${CORPUS_WIDE_SYNTACTIC}; typed verbs load ${CORPUS_TYPED}.`;
 }
 
 /** Print the epilogue (stderr) and set the exit code when the run is not a verdict. Idempotent — the

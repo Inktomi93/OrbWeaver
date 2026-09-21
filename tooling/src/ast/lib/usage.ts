@@ -2,14 +2,15 @@
 
 import { DEPCRUISE_VERBS } from "../ops/depcruise.ts";
 import { VERBS } from "../ops/verbs.ts";
+import { CORPUS_SYNTACTIC, CORPUS_TYPED, CORPUS_WIDE_SYNTACTIC } from "./ledger.ts";
 
 const VERB_LIST = [...Object.keys(VERBS), ...Object.keys(DEPCRUISE_VERBS)].join("|");
 
 export const USAGE = [
   `usage: pnpm ast <${VERB_LIST}> <arg> [--in substr] [--files] [--public] [--all] [--near [pct]] [--json] [--max n]`,
   "",
-  "Symbol-aware workspace search (ts-morph). Prefer this over grep for CODE questions:",
-  "it follows aliases/re-exports and ignores comments + string contents.",
+  "Structural + semantic workspace search (ts-morph). Prefer this over grep for CODE questions.",
+  "Each verb below states whether it follows symbol identity or matches syntax/spelling.",
   "",
   "  pnpm ast refs MessageView          every real reference to the symbol (defs marked) — slow, exact",
   "  pnpm ast callers sendTurn          call sites (incl. method tails obj.sendTurn())",
@@ -58,12 +59,11 @@ export const USAGE = [
   "  status: complete = all matches shown · partial = the list was capped (raise --max) · error = NOT a",
   "  verdict. `--json` carries the same fields as an additive `meta` object (no existing key changes).",
   "  scanned=0 prints `SCOPE ENTERED NOTHING` and exits 2 — nothing was searched, so nothing could be found.",
-  "  THREE CORPORA, and the epilogue names yours: syntactic verbs load packages/*/src + tests +",
-  "  tooling/src/verify/gates; the TYPED verbs (refs/dead/cycles/orphans/testonly/prodonly/unwired/clientgap/",
-  "  swallowed/respell/typeonly-alive/columns/chains/stringy/apisurface/rot) also load scripts/**,",
-  "  packages/*/*.ts, *.mts and playwright/** — WITH the type graph. `literal` loads the SAME wide file set",
-  "  WITHOUT the type graph (a syntactic text match needs no language service), at the cheap load.",
-  "  So `ident X --in scripts/dev` scans ZERO files — it now says so instead of `no results`.",
+  "  THREE CORPORA: syntactic/wide labels derive from the shared glob authority; typed names its native-program source:",
+  `    syntactic: ${CORPUS_SYNTACTIC}`,
+  `    typed: ${CORPUS_TYPED}`,
+  `    wide syntax (literal): ${CORPUS_WIDE_SYNTACTIC}`,
+  "  Typed verbs add native TypeScript program semantics. `literal` uses the wide roots without a type graph.",
   "  (`pnpm --filter <pkg>` scopes the BUILD, never this lens: use the scope arg or --in, and read scope=.)",
   "",
   "Scope arg (orphans/testonly/prodonly): a package NAME (kit|contracts|db|server|client|ui) OR a path",
