@@ -1,7 +1,9 @@
-// Contribution test: chat's two corpus sweeps. `memory-backfill` (PD-41) folds the segment/digest counts
-// and, PD-139(b), reclaims the OLD chat-memory embed space via the INJECTED purge op after a BULK
-// (ownerId===null) sweep — but never on a singular pass and never on an aborted run (the space must stay a
-// strict superset, never a gap). `group-character-backfill` (PD-41/D38) projects its mint counts.
+// Contribution test: chat's two corpus sweeps. `memory-backfill` (PD-41) folds the segment/digest counts and
+// then calls its TERMINAL — the injected op that records the `memory` scope's `embed_space_state` completion
+// and, PD-139(b), reclaims the OLD chat-memory embed space. The terminal runs on BOTH arms and is handed the
+// ENUMERATION SCOPE (#2517), which is what the op fans over; it is still suppressed on an aborted run and on
+// a run with per-chat failures (the space must stay a strict superset, never a gap).
+// `group-character-backfill` (PD-41/D38) projects its mint counts.
 
 import type { WorkloadRunContext } from "@orb/contracts/workloads";
 import type { EmbedGenerationId, UserId } from "@orb/kit/ids";
@@ -52,13 +54,21 @@ describe("memory-backfill", () => {
     await contributions[0].run(bulkCtx, {}, vi.fn(), sig());
     expect(deps.backfillMemory).toHaveBeenCalledWith({ funderUserId: OWNER_ID, ownerId: null, signal: expect.any(AbortSignal) });
     expect(deps.purgeMemoryVectors).toHaveBeenCalledTimes(1);
-    expect(deps.purgeMemoryVectors).toHaveBeenCalledWith([{ ownerId: OWNER_ID, model: "embed-space", generationId: GENERATION_ID, generationEpoch: 1 }]);
+    expect(deps.purgeMemoryVectors).toHaveBeenCalledWith([{ ownerId: OWNER_ID, model: "embed-space", generationId: GENERATION_ID, generationEpoch: 1 }], null);
   });
 
-  test("a SINGULAR per-owner run does NOT purge (a model change is box-level)", async () => {
+  // #2517 — THE RULING SURVIVES, ITS INPUT CHANGED. This pin used to read "a SINGULAR per-owner run does NOT
+  // purge (a model change is box-level)". Its REASON was the cross-owner fan-out, but its LETTER suppressed
+  // the completion too, which left an owner whose memory was current reading `moving` forever. The terminal
+  // now runs on both arms; what a singular run may reach is decided by the ENUMERATION SCOPE it hands the
+  // op, so this asserts the scope is threaded — the only thing that keeps a singular pass off a neighbour.
+  test("a SINGULAR per-owner run runs the terminal scoped to ITS OWN OWNER (never the box)", async () => {
     const { deps, contributions } = build();
     await contributions[0].run(ctx, {}, vi.fn(), sig());
-    expect(deps.purgeMemoryVectors).not.toHaveBeenCalled();
+    expect(deps.purgeMemoryVectors).toHaveBeenCalledExactlyOnceWith(
+      [{ ownerId: OWNER_ID, model: "embed-space", generationId: GENERATION_ID, generationEpoch: 1 }],
+      OWNER_ID,
+    );
   });
 
   // #165/#156 (the vacuous-success family): the 895-chat run that skipped every chat on an embed timeout
@@ -133,7 +143,7 @@ describe("memory-backfill", () => {
     expect(deps.isMemoryEnabled).not.toHaveBeenCalled();
   });
 
-  test("an aborted BULK run does NOT purge (the space stays a strict superset)", async () => {
+  test("an aborted run does NOT purge (the space stays a strict superset)", async () => {
     const { deps, contributions } = build();
     const controller = new AbortController();
     controller.abort();
