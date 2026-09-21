@@ -17,11 +17,4 @@ export {
   assertParticipant,
   permitsHost,
 } from "./decide.ts";
-export {
-  authorityForSurface,
-  CHAT_AUTHORITIES,
-  CHAT_NONVERB_SURFACES,
-  CHAT_SURFACE_AUTHORITY,
-  CHAT_VERB_AUTHORITY,
-  DENY,
-} from "./matrix.ts";
+export { CHAT_VERB_AUTHORITY } from "./matrix.ts";

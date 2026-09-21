@@ -1,11 +1,6 @@
-// The typed per-verb authority matrix + default-deny (the chat design doc Part III §11/§12 inv #12).
+// The typed per-verb authority matrix (spine §2a).
 import { describe } from "vitest";
-import {
-  authorityForSurface,
-  CHAT_SURFACE_AUTHORITY,
-  CHAT_VERB_AUTHORITY,
-  DENY,
-} from "../../../../../../packages/server/src/domain/chat/substrate/auth/index.ts";
+import { CHAT_VERB_AUTHORITY } from "../../../../../../packages/server/src/domain/chat/substrate/auth/index.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
 
 describe("CHAT_VERB_AUTHORITY — the per-verb matrix", () => {
@@ -67,34 +62,5 @@ describe("CHAT_VERB_AUTHORITY — the per-verb matrix", () => {
     const values = Object.values(CHAT_VERB_AUTHORITY);
     expect(values.length).toBeGreaterThanOrEqual(62);
     expect(values.every((v) => typeof v === "string" && v.length > 0)).toBe(true);
-  });
-});
-
-describe("CHAT_SURFACE_AUTHORITY — the non-verb chatId surfaces (inv §12)", () => {
-  test("the §12-named surfaces route through the chokepoint", () => {
-    expect(CHAT_SURFACE_AUTHORITY["sse-subscribe"]).toBe("member");
-    expect(CHAT_SURFACE_AUTHORITY["bus-delivery"]).toBe("member");
-    expect(CHAT_SURFACE_AUTHORITY["lineage-walk"]).toBe("lineage-per-ancestor");
-    expect(CHAT_SURFACE_AUTHORITY["roster-card-read"]).toBe("member-card");
-    expect(CHAT_SURFACE_AUTHORITY["chat-injection-write"]).toBe("host");
-  });
-});
-
-describe("default-deny (inv §12 — an unlisted chatId surface defaults to deny)", () => {
-  test("a known surface resolves; an unlisted surface is denied", () => {
-    expect(authorityForSurface("sse-subscribe")).toBe("member");
-    expect(authorityForSurface("totally-unknown-surface")).toBe(DENY);
-    expect(authorityForSurface("")).toBe(DENY);
-  });
-
-  // #1480 item 2 — DEFAULT-DENY IS AN OWN-KEY QUESTION. `surface in CHAT_SURFACE_AUTHORITY` walks the
-  // PROTOTYPE CHAIN, so every `Object.prototype` member answered TRUE and the lookup handed back a Function
-  // (or, for `__proto__`, the prototype object) typed as a `ChatAuthority` — a value that is not `DENY`,
-  // which is the one thing inv §12 says an unlisted surface must be. Any caller comparing the verdict to
-  // `DENY` before authorizing would have let those five strings through.
-  test("an INHERITED Object.prototype key is DENIED, not answered from the prototype chain", () => {
-    for (const inherited of ["toString", "valueOf", "constructor", "hasOwnProperty", "__proto__", "isPrototypeOf"]) {
-      expect(authorityForSurface(inherited)).toBe(DENY);
-    }
   });
 });

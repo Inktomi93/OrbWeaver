@@ -1,6 +1,6 @@
 // domain/chat/substrate/auth/matrix — THE typed per-verb authority matrix (spine §2a). The matrix is the
-// SOURCE OF TRUTH for "what authority each chatId surface demands", and
-// it is DEFAULT-DENY: a chatId surface not classified here is denied.
+// SOURCE OF TRUTH for what authority each `ChatService` verb demands. Non-verb paths enforce authority at
+// their typed domain chokepoints; there is no string-keyed second authority plane.
 //
 // BORN-COMPLIANT: `CHAT_VERB_AUTHORITY` is typed `Record<keyof ChatService, …>`, so a NEW verb on the
 // `ChatService` interface fails `tsc` here until it is classified — no silently-ungated verb (the gate is
@@ -28,7 +28,7 @@ import type { ChatService } from "../../contract/service.ts";
  *                             active-turns match; NOT host — a host aborting a member's turn is the
  *                             rollback-theft the contract defends against).
  */
-export const CHAT_AUTHORITIES = ["member", "author-or-host", "host", "member-card", "lineage-per-ancestor", "turn-owner"] as const;
+const CHAT_AUTHORITIES = ["member", "author-or-host", "host", "member-card", "lineage-per-ancestor", "turn-owner"] as const;
 type ChatAuthority = (typeof CHAT_AUTHORITIES)[number];
 
 /** A verb whose gate is NOT the chatId-membership matrix (it takes no single-chat membership). The marker is
@@ -172,52 +172,3 @@ export const CHAT_VERB_AUTHORITY = {
   nominateHostHandoff: "host", // host-only (step 1)
   acceptHostHandoff: "member", // the nominee (a member) accepts; the nominee-MATCH is a verb-level state check on the nomination
 } as const satisfies Record<keyof ChatService, VerbAuthority>;
-
-/** The non-VERB chatId surfaces inv §12 names explicitly (the membership chokepoint covers these too).
- *  NOTE: the anchor re-pin is NOT here — it graduated from a speculative non-verb placeholder to a real
- *  `ChatService` verb (`setChatAnchorPersona`, classified in `CHAT_VERB_AUTHORITY` above) — keeping both
- *  would be two homes for one "host" decision (one-home law). */
-export const CHAT_NONVERB_SURFACES = [
-  "sse-subscribe", // a kicked member's stream stops yielding within the kick tx
-  "bus-delivery", // room-public bus events reach members only
-  "lineage-walk", // fork/export/corpus ancestry walkers — gated per-ancestor
-  "roster-card-read", // a roster character's card (D22 level-clamped)
-  "chat-injection-write", // write a positional chat_injection — host (room-wide prompt content)
-] as const;
-type ChatNonVerbSurface = (typeof CHAT_NONVERB_SURFACES)[number];
-
-/** The non-verb surfaces → authority. */
-export const CHAT_SURFACE_AUTHORITY = {
-  "sse-subscribe": "member",
-  "bus-delivery": "member",
-  "lineage-walk": "lineage-per-ancestor",
-  "roster-card-read": "member-card",
-  "chat-injection-write": "host",
-} as const satisfies Record<ChatNonVerbSurface, ChatAuthority>;
-
-/** The default-deny verdict for an UNLISTED chatId surface (inv §12: unlisted ⇒ deny). */
-export const DENY = "deny" as const;
-
-/**
- * Classify a non-verb chatId surface, DEFAULT-DENY: an unrecognized surface string returns {@link DENY}
- * (inv §12 — "an unlisted chatId surface defaults to deny"). The verb surface is exhaustively typed
- * (`CHAT_VERB_AUTHORITY` over `keyof ChatService`), so default-deny is the runtime guard for the non-verb
- * surfaces (SSE/bus/lineage/anchor/…) that arrive as strings, not method names.
- *
- * `Object.hasOwn`, NOT `in` (#1480 item 2). `in` walks the PROTOTYPE CHAIN, so every `Object.prototype`
- * member — `toString`, `valueOf`, `constructor`, `hasOwnProperty`, `__proto__` — answered TRUE and this
- * function handed back that inherited value (a Function, or the prototype object) cast to `ChatAuthority`.
- * A caller comparing the verdict against {@link DENY} before authorizing would have let those strings
- * through: not `DENY`, therefore "classified". The surface string is UNTRUSTED input by construction (it is
- * the string-keyed half of the matrix, the reason default-deny exists at all), so the own-key question is
- * the only one the contract can be read as asking.
- *
- * NO PRODUCTION CALLER TODAY (2026-09-06): `pnpm ast callers authorityForSurface` over 7065 scanned files
- * returns 4 hits, all in `tests/server/domain/chat/substrate/auth/matrix.test.ts`; a literal sweep adds only
- * the `substrate/auth/index.ts` re-export. The live verb gates key off `CHAT_VERB_AUTHORITY` directly. This
- * is exported infrastructure for the non-verb surfaces named in {@link CHAT_NONVERB_SURFACES}, kept
- * fail-closed here so that WIRING it later is not also a security decision.
- */
-export function authorityForSurface(surface: string): ChatAuthority | typeof DENY {
-  return Object.hasOwn(CHAT_SURFACE_AUTHORITY, surface) ? CHAT_SURFACE_AUTHORITY[surface as ChatNonVerbSurface] : DENY;
-}
