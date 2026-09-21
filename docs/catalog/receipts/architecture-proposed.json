@@ -2998,13 +2998,13 @@
     },
     {
       "path": "docs/architecture/proposed/plugin-design/03-execution-model.md",
-      "assignedSha256": "42e50740780622ddc928922508a11233dbb647641918d1976fd819a0b96cc728",
+      "assignedSha256": "03ce7c03796379f610904b7eccaf1e9ad3463f224054d9016b2a4458a9963622",
       "disposition": "needs-owner",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "42e50740780622ddc928922508a11233dbb647641918d1976fd819a0b96cc728",
-      "verifiedCommit": "2d0807247befdd5e615711bf0abf2c177f534561",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "03ce7c03796379f610904b7eccaf1e9ad3463f224054d9016b2a4458a9963622",
+      "verifiedCommit": "838a29e02f449c7ebcb4184e48f50d7f4d83000a",
+      "verifiedAt": "2026-09-21",
       "evidence": [
         "docs/architecture/proposed/plugin-design/03-execution-model.md:1 (full read; lifecycle/frontmatter evaluated)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
@@ -3046,17 +3046,18 @@
             }
           ]
         }
-      ]
+      ],
+      "verifiedCanonicalSha256": "565f40864f375181e5168491b24577fcedb899e1ebbf1c55dc39d9de5688cbf0"
     },
     {
       "path": "docs/architecture/proposed/plugin-design/04-build-plan.md",
-      "assignedSha256": "f25b10e00c4aefc91ba53a58f9037d88c9334a4ee8b9dd90710aaf1f9a189bdb",
+      "assignedSha256": "48432134f5c17c764ed952e06764bfdd5b73df6fd132003f4bafdc34abdf57cf",
       "disposition": "needs-owner",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "f25b10e00c4aefc91ba53a58f9037d88c9334a4ee8b9dd90710aaf1f9a189bdb",
-      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
-      "verifiedAt": "2026-08-30",
+      "verifiedSha256": "48432134f5c17c764ed952e06764bfdd5b73df6fd132003f4bafdc34abdf57cf",
+      "verifiedCommit": "838a29e02f449c7ebcb4184e48f50d7f4d83000a",
+      "verifiedAt": "2026-09-21",
       "evidence": [
         "docs/architecture/proposed/plugin-design/04-build-plan.md:1 (full read; lifecycle/frontmatter evaluated)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
@@ -3099,7 +3100,8 @@
             }
           ]
         }
-      ]
+      ],
+      "verifiedCanonicalSha256": "48432134f5c17c764ed952e06764bfdd5b73df6fd132003f4bafdc34abdf57cf"
     },
     {
       "path": "docs/architecture/proposed/plugin-design/README.md",
