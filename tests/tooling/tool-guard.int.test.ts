@@ -12,6 +12,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
 import { REGISTRY } from "../../tooling/src/verify/lib/registry.ts";
 import { expect, test } from "../support/tool-fixtures.ts";
 
@@ -946,8 +947,8 @@ test("script bodies: an untracked wrapper is judged by its CONTENTS, a tracked o
   const forgedRepo = mkdtempSync(join(tmpdir(), "tg-repo-"));
   const forged = writeScript(forgedRepo, "tracked-run.sh", EVIL_BODY);
   const forgedBig = writeScript(forgedRepo, "tracked-big.sh", `#!/usr/bin/env bash\n${"# pad\n".repeat(20_000)}git stash\n`);
-  spawnSync("git", ["-C", forgedRepo, "init", "-q"], { encoding: "utf8" });
-  spawnSync("git", ["-C", forgedRepo, "add", "tracked-run.sh", "tracked-big.sh"], { encoding: "utf8" });
+  execFixtureGit(forgedRepo, ["init", "-q"]);
+  execFixtureGit(forgedRepo, ["add", "tracked-run.sh", "tracked-big.sh"]);
   // #617: reviewed-ness decided BEFORE the size cap. The fixture is the LIVE instance the row was filed
   // for — `tests/tooling/check-gates.repo.int.test.ts` is ~100KB and tracked in THIS repo, and used to be
   // refused for its SIZE when named in the sanctioned `pnpm test:scoped` spelling, which teaches a lane
@@ -1209,25 +1210,24 @@ test("home expansion: `~/` and `$HOME/` resolve to the same file, and both get r
 // `<checkout>/.claude/hooks/tool-guard.mjs` shape, so THAT copy's project identity is the fixture repo —
 // exactly how the live hook derives its own. Nothing here touches this repository's worktree registry.
 test("tracked-ness is scoped to THIS project's repo, and a linked WORKTREE of it still counts", () => {
-  const gitq = (args: string[]): void => {
-    const r = spawnSync("git", args, { encoding: "utf8" });
-    expect([args.join(" "), r.status]).toEqual([args.join(" "), 0]);
+  const gitq = (root: string, args: readonly string[]): void => {
+    execFixtureGit(root, args);
   };
   const home = mkdtempSync(join(tmpdir(), "tg-home-repo-"));
   mkdirSync(join(home, ".claude", "hooks"), { recursive: true });
   const fixtureHook = join(home, ".claude", "hooks", "tool-guard.mjs");
   copyFileSync(HOOK, fixtureHook);
   const reviewed = writeScript(home, "reviewed.sh", EVIL_BODY);
-  gitq(["-C", home, "init", "-q"]);
-  gitq(["-C", home, "add", "reviewed.sh", ".claude/hooks/tool-guard.mjs"]);
-  gitq(["-C", home, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "fixture"]);
+  gitq(home, ["init", "-q"]);
+  gitq(home, ["add", "reviewed.sh", ".claude/hooks/tool-guard.mjs"]);
+  gitq(home, ["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "fixture"]);
   const wt = join(mkdtempSync(join(tmpdir(), "tg-home-wt-")), "lane");
-  gitq(["-C", home, "worktree", "add", "-q", "--detach", wt, "HEAD"]);
+  gitq(home, ["worktree", "add", "-q", "--detach", wt, "HEAD"]);
   // a SECOND repo — same bytes, its own index: the forgery the pin exists to refuse
   const other = mkdtempSync(join(tmpdir(), "tg-other-repo-"));
   const otherScript = writeScript(other, "reviewed.sh", EVIL_BODY);
-  gitq(["-C", other, "init", "-q"]);
-  gitq(["-C", other, "add", "reviewed.sh"]);
+  gitq(other, ["init", "-q"]);
+  gitq(other, ["add", "reviewed.sh"]);
 
   // the fixture repo's own hook copy is the classifier here — its project identity is `home`
   const r = spawnSync(process.execPath, [fixtureHook, "--classify-batch"], {
@@ -1243,13 +1243,13 @@ test("tracked-ness is scoped to THIS project's repo, and a linked WORKTREE of it
   expect(r.status).toBe(0);
   const [inRepo, inWorktree, inOther] = JSON.parse(r.stdout) as BatchResult[];
   // the worktree's toplevel is NOT the repo's — the distinction the fix turns on
-  const top = (dir: string): string => spawnSync("git", ["-C", dir, "rev-parse", "--show-toplevel"], { encoding: "utf8" }).stdout.trim();
+  const top = (dir: string): string => execFixtureGit(dir, ["rev-parse", "--show-toplevel"]).trim();
   expect(top(wt)).not.toBe(top(home));
   expect([inRepo?.decision, inRepo?.rule]).toEqual(["pass", null]); // reviewed here
   expect([inWorktree?.decision, inWorktree?.rule]).toEqual(["pass", null]); // …and through its worktree
   expect([inOther?.decision, inOther?.rule]).toEqual(["deny", "script:git-destructive"]); // somebody else's index
 
-  gitq(["-C", home, "worktree", "remove", "--force", wt]);
+  gitq(home, ["worktree", "remove", "--force", wt]);
 });
 
 test("nested commands: the depth fence says so rather than waving an unread command through", () => {

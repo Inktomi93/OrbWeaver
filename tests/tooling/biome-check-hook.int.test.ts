@@ -2,17 +2,13 @@ import { spawn, spawnSync } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
+import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
 import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
 import { expect, test } from "../support/tool-fixtures.ts";
 import { scaledBudget } from "./_load-budget.ts";
 
-const GIT_ARGS = ["-c", "core.hooksPath=/dev/null", "-c", "commit.gpgsign=false", "-c", "init.defaultBranch=main"] as const;
-
 function git(cwd: string, ...args: string[]): void {
-  const result = spawnSync("git", [...GIT_ARGS, ...args], { cwd, encoding: "utf8" });
-  if (result.status !== 0) {
-    throw new Error(`git ${args.join(" ")} failed: ${result.stderr}`);
-  }
+  execFixtureGit(cwd, ["-c", "commit.gpgsign=false", "-c", "init.defaultBranch=main", ...args]);
 }
 
 function plantCheckout(scratch: string): { readonly main: string; readonly worktree: string } {

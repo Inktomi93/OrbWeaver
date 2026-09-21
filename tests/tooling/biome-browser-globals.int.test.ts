@@ -11,9 +11,9 @@
 // under packages/*/src on the real tree would red any concurrent whole-tree biome/knip/tsc pass, and
 // `**/__probe*` is gitignored so biome (useIgnoreFile) never sees a probe planted there. The zero on the
 // local-binding body rides the SAME invocation as the nine-global body: a bare zero is never a verdict.
-import { execFileSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
 import { describe } from "vitest";
 import { expect, test } from "../support/tool-fixtures.ts";
@@ -80,8 +80,8 @@ function seedRoot(scratch: string, repoRoot: string, pkg: string): void {
   plant(scratch, CONFIG_REL, readFileSync(join(repoRoot, CONFIG_REL), "utf8"));
   plant(scratch, join("packages", pkg, NINE_GLOBALS_REL), NINE_GLOBALS_BODY);
   plant(scratch, join("packages", pkg, LOCAL_BINDINGS_REL), LOCAL_BINDINGS_BODY);
-  execFileSync("git", ["init", "-q"], { cwd: scratch });
-  execFileSync("git", ["add", "-A"], { cwd: scratch });
+  execFixtureGit(scratch, ["init", "-q"]);
+  execFixtureGit(scratch, ["add", "-A"]);
 }
 
 function checkWithBiome(scratch: string, repoRoot: string, files: readonly string[]): BiomeReport {

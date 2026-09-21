@@ -20,17 +20,17 @@
 //
 // A real git repo in a temp dir, because the subject IS the bytes git prints: a stubbed diff would be a
 // test of the stub's whitespace, not of the tool's.
-import { execFileSync } from "node:child_process";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
 import { snapDirtyIdentity } from "../../../../tooling/src/snap/lib/run-bundle-files.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const TRACKED = "tracked.txt";
 
 function git(root: string, ...args: string[]): void {
-  execFileSync("git", args, { cwd: root, stdio: "pipe" });
+  execFixtureGit(root, args);
 }
 
 /** A committed repo whose one tracked file holds `x`. */

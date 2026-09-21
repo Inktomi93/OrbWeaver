@@ -8,6 +8,7 @@
 import { execFileSync } from "node:child_process";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { execFixtureGit, FIXTURE_GIT_CONFIG_ARGS, fixtureGitEnvironment } from "../../../../tooling/src/_shared/git-fixture.ts";
 import { withProcessEnv } from "../../../../tooling/src/_shared/process-env.ts";
 import type { ArtifactForm, LaneConfig } from "../../../../tooling/src/doc-catalog/index.ts";
 import {
@@ -35,30 +36,14 @@ function form(current: string, canonical: string): ArtifactForm {
 }
 
 function git(root: string, ...args: readonly string[]): string {
-  return execFileSync(
-    "env",
-    [
-      "-u",
-      "GIT_DIR",
-      "-u",
-      "GIT_WORK_TREE",
-      "-u",
-      "GIT_INDEX_FILE",
-      "git",
-      "-c",
-      "user.name=Catalog Test",
-      "-c",
-      "user.email=catalog@example.invalid",
-      ...args,
-    ],
-    { cwd: root, encoding: "utf8" },
-  ).trim();
+  return execFixtureGit(root, ["-c", "user.name=Catalog Test", "-c", "user.email=catalog@example.invalid", ...args]).trim();
 }
 
 function gitAtIndex(root: string, index: string, ...args: readonly string[]): string {
-  return execFileSync("env", ["-u", "GIT_DIR", "-u", "GIT_WORK_TREE", `GIT_INDEX_FILE=${index}`, "git", ...args], {
+  return execFileSync("git", [...FIXTURE_GIT_CONFIG_ARGS, ...args], {
     cwd: root,
     encoding: "utf8",
+    env: { ...fixtureGitEnvironment(), ["GIT_INDEX_FILE"]: index },
   }).trim();
 }
 
@@ -73,9 +58,10 @@ function writeConflictStages(inputFacts: {
   const { base, index, ours, path, root, theirs } = inputFacts;
   const zero = "0".repeat(40);
   const input = `0 ${zero}\t${path}\n100644 ${base} 1\t${path}\n100644 ${ours} 2\t${path}\n100644 ${theirs} 3\t${path}\n`;
-  execFileSync("env", ["-u", "GIT_DIR", "-u", "GIT_WORK_TREE", `GIT_INDEX_FILE=${index}`, "git", "update-index", "--index-info"], {
+  execFileSync("git", [...FIXTURE_GIT_CONFIG_ARGS, "update-index", "--index-info"], {
     cwd: root,
     input,
+    env: { ...fixtureGitEnvironment(), ["GIT_INDEX_FILE"]: index },
   });
 }
 
