@@ -138,6 +138,14 @@ export interface StageResult {
  *  the field it feeds is documented directly above, and both sides already depend on this contract. */
 export const NOTICE_MARKER = "[verify-notice]";
 
+/** THE VERIFY ARTIFACT'S IDENTITY — its published name and its run-slot family. Same move as `NOTICE_MARKER`
+ *  directly above and for the same reason: both sat as private consts in `ops/run.ts` (the WRITER) until a
+ *  READER arrived (#2502's stage-log reader), and a reader that re-spells the artifact it opens is how the
+ *  two halves stop agreeing. They live with the shape they name, exactly as `STRUCTURE_REPORT_NAME` lives in
+ *  ./structure-report.ts, so a reader takes them without importing the whole verify runner. */
+export const VERIFY_REPORT_NAME = "verify.json";
+export const VERIFY_INSTRUMENT = "verify";
+
 /** WHO wrote this artifact (#1029). `reports/verify.json` is a `latest` POINTER now — published only when
  *  a run finishes — so the identity is part of the verdict: a reader who cannot say which run produced the
  *  file it is holding cannot say the verdict is theirs. `concurrent` names the other verify runs that were
