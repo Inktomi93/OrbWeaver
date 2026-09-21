@@ -13,7 +13,7 @@
 
 import type { RegexReplacer } from "@orb/kit/regex";
 import { matchEntryKeys } from "@orb/kit/world-info";
-import { applyReplace, createRegexApplyReplace, createRegexTest, REGEX_APPLY_TIMEOUT_MS, testRegex } from "@orb/server/kit/regex";
+import { createRegexApplyReplace, createRegexTest, REGEX_APPLY_TIMEOUT_MS } from "@orb/server/kit/regex";
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 
@@ -21,6 +21,8 @@ import { expect, test } from "../../support/fixtures.ts";
 // resolve in well under this. If the guard were broken, the 60-'a' backtrack (~2^60 steps) would never
 // complete and this deadline would fail the run instead of letting it pass falsely.
 const TEST_DEADLINE_MS = 2000;
+const applyReplace = createRegexApplyReplace();
+const testRegex = createRegexTest();
 
 // The canonical ReDoS: nested quantifier + a long subject that can never satisfy the trailing `$`. One
 // quantifier-stack, so the kit heuristic passes it — only the runtime watchdog catches this.
