@@ -16,10 +16,11 @@
 
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { REPO_ROOT } from "../../../../tooling/src/_shared/artifacts.ts";
 import { EXIT } from "../../../../tooling/src/_shared/exit-contract.ts";
+import { execFixtureGit, FIXTURE_GIT_CONFIG_ARGS, fixtureGitEnvironment } from "../../../../tooling/src/_shared/git-fixture.ts";
 import { installOutputSink } from "../../../../tooling/src/_shared/log.ts";
 import { withProcessEnv } from "../../../../tooling/src/_shared/process-env.ts";
 import type { AttestEvidenceResolver, LaneConfig, Receipt } from "../../../../tooling/src/doc-catalog/index.ts";
@@ -116,13 +117,7 @@ function sha256(value: string): string {
 }
 
 function git(cwd: string, args: readonly string[]): string {
-  // Hook-launched suites inherit the candidate index. Fixture setup must address only its scratch repo
-  // and must not recursively invoke the repository's hooks while making fixture commits.
-  return execFileSync(
-    "env",
-    ["-u", "GIT_DIR", "-u", "GIT_WORK_TREE", "-u", "GIT_INDEX_FILE", "git", "-c", "core.hooksPath=/dev/null", "-c", "commit.gpgsign=false", ...args],
-    { cwd, encoding: "utf8" },
-  ).trim();
+  return execFixtureGit(cwd, ["-c", "commit.gpgsign=false", ...args]).trim();
 }
 
 function isolatedAttestationRoot(scratch: string, brokenEvidence: boolean): { readonly root: string; readonly originalReceipt: string } {
@@ -184,14 +179,29 @@ test("fixture Git setup cannot consume an inherited candidate index", async ({ s
   mkdirSync(sentinelRoot);
   git(sentinelRoot, ["init", "-q"]);
   const sentinelIndex = join(scratch, "caller-candidate.index");
-  execFileSync("env", ["-u", "GIT_DIR", "-u", "GIT_WORK_TREE", `GIT_INDEX_FILE=${sentinelIndex}`, "git", "read-tree", "--empty"], {
+  execFileSync("git", [...FIXTURE_GIT_CONFIG_ARGS, "read-tree", "--empty"], {
     cwd: sentinelRoot,
+    env: { ...fixtureGitEnvironment(), ["GIT_INDEX_FILE"]: sentinelIndex },
   });
   const before = readFileSync(sentinelIndex);
 
   await withProcessEnv("GIT_INDEX_FILE", sentinelIndex, () => Promise.resolve(isolatedAttestationRoot(join(scratch, "under-hook"), false)));
 
   expect(readFileSync(sentinelIndex)).toEqual(before);
+});
+
+test("fixture Git setup drops inherited GIT_COMMON_DIR instead of partially initializing against it", async ({ scratch }) => {
+  const sentinelRoot = join(scratch, "common-dir-sentinel");
+  mkdirSync(sentinelRoot);
+  git(sentinelRoot, ["init", "-q"]);
+  const sentinelConfig = join(sentinelRoot, ".git", "config");
+  const before = readFileSync(sentinelConfig);
+  const fixtureParent = join(scratch, "under-common-dir");
+
+  await withProcessEnv("GIT_COMMON_DIR", join(sentinelRoot, ".git"), () => Promise.resolve(isolatedAttestationRoot(fixtureParent, false)));
+
+  expect(existsSync(join(fixtureParent, "healthy", ".git", "config"))).toBe(true);
+  expect(readFileSync(sentinelConfig)).toEqual(before);
 });
 
 test("production's DEFAULT resolver binding refuses invalid evidence without writing and writes the healthy twin", ({ scratch }) => {

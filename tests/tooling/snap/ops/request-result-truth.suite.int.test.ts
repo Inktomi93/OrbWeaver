@@ -6,8 +6,8 @@ import { join } from "node:path";
 import { aggregateScope, factBatchId } from "@orb/tooling/_shared/artifact-scope";
 import { printVerdictReceipt } from "@orb/tooling/_shared/evidence";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
 import { installOutputSink } from "@orb/tooling/_shared/log";
-import { runNicedSync } from "@orb/tooling/_shared/proc";
 import { snapArmFact } from "../../../../tooling/src/snap/contract/run-facts.ts";
 import type { SnapRunIndex } from "../../../../tooling/src/snap/contract/run-index.ts";
 import { parseSnapReportArgs } from "../../../../tooling/src/snap/lib/run-report-query.ts";
@@ -19,8 +19,7 @@ import { expect, test } from "../../../support/tool-fixtures.ts";
 const STARTED_AT = "2026-09-03T12:00:00.000Z";
 
 function git(root: string, args: readonly string[]): void {
-  const result = runNicedSync("git", ["-C", root, ...args]);
-  expect(result.status, result.stderr).toBe(0);
+  execFixtureGit(root, args);
 }
 
 async function repository(root: string): Promise<void> {

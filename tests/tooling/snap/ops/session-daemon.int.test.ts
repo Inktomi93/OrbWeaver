@@ -18,14 +18,14 @@
 // @instrument-absence-proof: T2 — a call on a session whose daemon is GONE exits 2 with `SESSION DEAD …
 // mid-<op>`, never a comfortable RESULT from a browser that no longer exists.
 import { spawn } from "node:child_process";
-import { existsSync, readFileSync, readlinkSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readlinkSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { abandonedRuns } from "@orb/tooling/_shared/artifacts";
 import { attachProbeSession, closeProbeSession } from "@orb/tooling/_shared/browser";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
-import { spawnNiced } from "@orb/tooling/_shared/proc";
+import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
 import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
 import { markedPids, mintRunMarker, RUN_MARKER_ENV, runMarkerEnv } from "@orb/tooling/_shared/run-marker";
 import { vi } from "vitest";
@@ -484,7 +484,8 @@ test("F4 — a caller from ANOTHER checkout is refused naming the owner, pid and
     await expect(await r.snap(["--session", a, "--file", r.fixture, "--eval", "1", ...QUIET])).toExitWith(EXIT.clean);
     const row = rowOf(r.home, a);
     // A second git repo IS a second checkout to `repoRoot()` — the ownership check keys on it.
-    expect((await spawnNiced("git", ["init", "-q", foreign])).code).toBe(0);
+    mkdirSync(foreign, { recursive: true });
+    execFixtureGit(foreign, ["init", "-q"]);
     const refused = await runCli("snap", ["--session", a, "--eval", "1", ...QUIET], { cwd: foreign, env: r.env, timeoutMs: CLI_BUDGET_MS });
     await expect(refused).toExitWith(EXIT.toolError);
     expect(refused.stdout).toContain("owned by ANOTHER checkout");

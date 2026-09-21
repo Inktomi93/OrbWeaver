@@ -16,6 +16,7 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
 import { expect, test } from "../support/tool-fixtures.ts";
 
@@ -37,11 +38,11 @@ function plantRepo(scratch: string): { readonly repo: string; readonly shimLog: 
     ["config", "user.email", "probe@example.com"],
     ["config", "user.name", "probe"],
   ]) {
-    runNicedSync("git", ["-C", repo, ...args]);
+    execFixtureGit(repo, args);
   }
   writeFileSync(join(repo, "README.md"), "probe\n");
-  runNicedSync("git", ["-C", repo, "add", "README.md"]);
-  runNicedSync("git", ["-C", repo, "commit", "-qm", "probe base"]);
+  execFixtureGit(repo, ["add", "README.md"]);
+  execFixtureGit(repo, ["commit", "-qm", "probe base"]);
   return { repo, shimLog, bin };
 }
 
@@ -54,7 +55,7 @@ function hookPayload(worktree: string): string {
 /** Add a worktree, write a band row owned by `owner`, run the hook over that worktree. */
 function removeWorktree(planted: { readonly repo: string; readonly bin: string }, name: string, owner: (worktree: string) => string): string {
   const worktree = join(planted.repo, ".claude", "worktrees", name);
-  runNicedSync("git", ["-C", planted.repo, "worktree", "add", "-q", "-b", `wt/${name}`, worktree]);
+  execFixtureGit(planted.repo, ["worktree", "add", "-q", "-b", `wt/${name}`, worktree]);
   const row = { band: 0, checkout: owner(worktree), dir: join(owner(worktree), ".cache", "snap-stage", "x") };
   writeFileSync(join(planted.repo, ".cache", "snap-stage", "bands.json"), `${JSON.stringify({ v: 1, rows: [row] })}\n`);
   const payload = hookPayload(worktree);
@@ -84,7 +85,7 @@ test("a band owned by a SIBLING checkout is left completely alone", ({ scratch }
 test("no band table at all is an ordinary state, not a failure", ({ scratch }) => {
   const planted = plantRepo(scratch);
   const worktree = join(planted.repo, ".claude", "worktrees", "no-table");
-  runNicedSync("git", ["-C", planted.repo, "worktree", "add", "-q", "-b", "wt/no-table", worktree]);
+  execFixtureGit(planted.repo, ["worktree", "add", "-q", "-b", "wt/no-table", worktree]);
   rmSync(join(planted.repo, ".cache", "snap-stage", "bands.json"), { force: true });
   const payload = hookPayload(worktree);
   runNicedSync("bash", ["-c", `printf '%s' '${payload}' | PATH="${planted.bin}:$PATH" bash ${HOOK}`]);

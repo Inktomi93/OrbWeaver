@@ -5,10 +5,10 @@
 //   would read as killed), and a suite killed by the wall-clock ceiling must never be scored as a kill.
 // @instrument-absence-proof: a source with no runnable mirror suite, and a report whose survivor
 //   population is empty, must both fail loudly rather than return a clean zero-survivor summary.
-import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
 import { probeMutants } from "../../../../tooling/src/mutation-probe/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
@@ -77,9 +77,9 @@ test("REFUSES to plant into a source that already has uncommitted changes", () =
   // mutation stranded by an earlier hard kill looks identical to a deliberate edit. The repo shipped a
   // BLINDED gate this way once already (2026-08-24, a probe swept in by a broad `git add`).
   const { root, reportPath } = fixture({ withSpec: true });
-  execFileSync("git", ["init", "-q"], { cwd: root });
-  execFileSync("git", ["add", "-A"], { cwd: root });
-  execFileSync("git", ["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "base"], { cwd: root });
+  execFixtureGit(root, ["init", "-q"]);
+  execFixtureGit(root, ["add", "-A"]);
+  execFixtureGit(root, ["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "base"]);
   writeFileSync(join(root, SRC_REL), "export const can = 2; // operator WIP\n");
   expect(() => probeMutants({ reportPath, sourceRel: SRC_REL, root })).toThrow(/uncommitted changes/u);
 });

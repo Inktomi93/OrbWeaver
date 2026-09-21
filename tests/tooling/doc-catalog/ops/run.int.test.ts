@@ -1,11 +1,11 @@
 // #2339: drive the real CLI against copied, unmodified production modules in an isolated Git tree.
 // The scoped writer must not classify selected debt as unrelated merely because its message starts
 // with a debt category. Every refusal is checked against catalog AND receipt bytes.
-import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { cpSync, mkdirSync, readdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
+import { execFixtureGit } from "../../../../tooling/src/_shared/git-fixture.ts";
 import { spawnNiced } from "../../../../tooling/src/_shared/proc.ts";
 import type { CatalogDocumentRow, Receipt } from "../../../../tooling/src/doc-catalog/index.ts";
 import type { CliResult } from "../../../support/tool-fixtures.ts";
@@ -19,30 +19,7 @@ const STATE = "docs/catalog/state.json";
 const VALID = "---\nkind: review\nstatus: active\nupdated: 2026-09-13\n---\n\n# Subject\n";
 
 function git(root: string, ...args: readonly string[]): string {
-  return execFileSync(
-    "env",
-    [
-      "-u",
-      "GIT_DIR",
-      "-u",
-      "GIT_WORK_TREE",
-      "-u",
-      "GIT_INDEX_FILE",
-      "git",
-      "-C",
-      root,
-      "-c",
-      "core.hooksPath=/dev/null",
-      "-c",
-      "commit.gpgsign=false",
-      "-c",
-      "user.name=Fixture",
-      "-c",
-      "user.email=fixture@example.invalid",
-      ...args,
-    ],
-    { encoding: "utf8" },
-  ).trim();
+  return execFixtureGit(root, ["-c", "commit.gpgsign=false", "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", ...args]).trim();
 }
 
 // Package links mirror pnpm's installed dependency resolution; the fixture owns real node_modules

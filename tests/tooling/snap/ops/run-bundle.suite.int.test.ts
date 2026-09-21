@@ -8,9 +8,9 @@ import { beginInstrumentRun, finishInstrumentRun, registerInstrumentArtifact } f
 import type { BrowserDiagnostic } from "@orb/tooling/_shared/browser-diagnostics";
 import { summarizeOrbConsoleCompleteness } from "@orb/tooling/_shared/browser-diagnostics";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
 import { BOX_LOAD_ENV } from "@orb/tooling/_shared/load-budget";
 import { installOutputSink } from "@orb/tooling/_shared/log";
-import { runNicedSync } from "@orb/tooling/_shared/proc";
 import { vi } from "vitest";
 import type { InstrumentEvidenceScope } from "../../../../tooling/src/_shared/artifact-scope.ts";
 import { aggregateScope, artifactRef, exactScope, factBatchId, scopeMatches } from "../../../../tooling/src/_shared/artifact-scope.ts";
@@ -172,8 +172,7 @@ function indexPath(stdout: string): string {
 }
 
 function git(root: string, args: readonly string[]): void {
-  const result = runNicedSync("git", ["-C", root, ...args]);
-  expect(result.status, result.stderr).toBe(0);
+  execFixtureGit(root, args);
 }
 
 /** The checkout identity this suite is RUNNING in, derived independently of the code under test (#1333):
@@ -181,11 +180,10 @@ function git(root: string, args: readonly string[]): void {
  *  same fact from `--git-common-dir`. Hard-coding `kind: "primary"` made the round-trip case red inside
  *  every lane worktree — the identity was correct on both sides, only the premise was. */
 function runningCheckout(root: string): { readonly primaryPath: string; readonly kind: "primary" | "linked" } {
-  const result = runNicedSync("git", ["-C", root, "worktree", "list", "--porcelain"]);
-  expect(result.status, result.stderr).toBe(0);
-  const primaryPath = /^worktree (.+)$/mu.exec(result.stdout)?.[1];
+  const output = execFixtureGit(root, ["worktree", "list", "--porcelain"]);
+  const primaryPath = /^worktree (.+)$/mu.exec(output)?.[1];
   if (primaryPath === undefined) {
-    throw new Error(`git worktree list named no primary checkout: ${result.stdout}`);
+    throw new Error(`git worktree list named no primary checkout: ${output}`);
   }
   return { primaryPath, kind: resolve(primaryPath) === resolve(root) ? "primary" : "linked" };
 }
