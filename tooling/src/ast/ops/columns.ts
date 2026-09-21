@@ -1,9 +1,9 @@
 // columns: every drizzle column classified by workspace consumption.
 
 import process from "node:process";
-import type { Project } from "ts-morph";
 import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
 import type { ColumnAudit, ColumnCandidate, ColumnClass, Flags, Hit, TableDef } from "../contract/types.ts";
 import { collectColumnCandidates } from "../lib/column-reads.ts";
 import { COLUMN_CLASS_PAD, COLUMN_COUNT_PAD, COLUMN_SITES_SHOWN, collectSchemaTables, isColumnExempt } from "../lib/columns.ts";
@@ -76,7 +76,7 @@ function printStaleColumnTags(candidates: readonly ColumnCandidate[]): void {
 /** Every drizzle column classified by CONSUMPTION across the workspace. Optional scope = a SQL-table-name /
  *  table-variable / schema-file substring; bare = every table. A deliberate keep carries
  *  `// @column-ok: <reason>` on the column property; a stale marker exits 1. */
-export function cmdColumns(project: Project, arg: string, flags: Flags): void {
+export function cmdColumns(project: SourceCorpus, arg: string, flags: Flags): void {
   const all = collectSchemaTables(project);
   const tables =
     arg === ""

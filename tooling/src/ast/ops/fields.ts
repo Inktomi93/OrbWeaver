@@ -1,7 +1,7 @@
 // contract-field-liveness: contracts fields DECLARED but never POPULATED (informational).
-import type { Project } from "ts-morph";
 import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
 import type { FieldHitClass } from "../contract/fields.ts";
 import type { Flags, Hit } from "../contract/types.ts";
 import { emit } from "../lib/emit.ts";
@@ -14,7 +14,7 @@ refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
 /** Contract fields no producer ever populates. INFORMATIONAL — read the call sites (and remember the
  *  template-literal blind spot) before acting. Optional scope = a contracts path or a field-name substring;
  *  bare = every field in `packages/contracts/src`. Never exits non-zero on findings. */
-export function cmdContractFieldLiveness(project: Project, arg: string, flags: Flags): void {
+export function cmdContractFieldLiveness(project: SourceCorpus, arg: string, flags: Flags): void {
   const files = scanCorpus(project, { scope: CONTRACTS_SRC, label: "path:packages/contracts/src" });
   const all = files.flatMap(contractFieldsOf);
   const fields = arg === "" ? all : all.filter((f) => f.name.includes(arg) || f.node.getSourceFile().getFilePath().includes(arg));

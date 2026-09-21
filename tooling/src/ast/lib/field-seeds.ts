@@ -1,14 +1,15 @@
 // The contract-field liveness FENCES: model-projection seeds (schemas whose json-schema projection
 // consumes every field) + registry-value and file-local-part expansion. Split from lib/fields.ts at
 // P4 (the tooling-size cap).
-import type { Node, Project, SourceFile, VariableDeclaration } from "ts-morph";
+import type { Node, SourceFile, VariableDeclaration } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
+import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
 import { CONTRACTS_SRC, calleeName, MODEL_PROJECTION_CALLEES, TOOL_ARGS_SCHEMA_KEY } from "./fields.ts";
 import { isTestPath } from "./root.ts";
 
 /** Every `const <name> = …` declared under `packages/contracts/src`, by name — the resolution table the
  *  fence walks (a projected schema names its parts as identifiers, and the parts are declared here). */
-export function contractDeclarations(project: Project): Map<string, VariableDeclaration> {
+export function contractDeclarations(project: SourceCorpus): Map<string, VariableDeclaration> {
   const byName = new Map<string, VariableDeclaration>();
   for (const sf of project.getSourceFiles()) {
     if (!sf.getFilePath().includes(CONTRACTS_SRC)) {
@@ -24,7 +25,7 @@ export function contractDeclarations(project: Project): Map<string, VariableDecl
 /** The SEED names of the fence: a schema handed to `projectJsonSchema`/`z.toJSONSchema`, or registered as a
  *  tool's `argsSchema`. A registry hop (`projectJsonSchema(REFINERY_STAGE_PAYLOADS.score)`) contributes the
  *  registry's own name, expanded one level below. */
-function modelProjectionSeeds(project: Project): { readonly names: Set<string>; readonly registries: Set<string> } {
+function modelProjectionSeeds(project: SourceCorpus): { readonly names: Set<string>; readonly registries: Set<string> } {
   const names = new Set<string>();
   const registries = new Set<string>();
   for (const sf of project.getSourceFiles()) {
@@ -73,7 +74,7 @@ function toolArgsSeeds(sf: SourceFile, names: Set<string>): void {
  *  writes it" from "nothing writes it", so these are excluded and COUNTED rather than reported — 25 of the
  *  #210 triage's 70 hits were this class, and they are what buried the two real findings. The closure is
  *  file-local on purpose: a cross-file hop would fence shared primitives and blind the lens wholesale. */
-export function modelProjectedSchemas(project: Project): Set<string> {
+export function modelProjectedSchemas(project: SourceCorpus): Set<string> {
   const declarations = contractDeclarations(project);
   const { names, registries } = modelProjectionSeeds(project);
   const fenced = new Set(names);

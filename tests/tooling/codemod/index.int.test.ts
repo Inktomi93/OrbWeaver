@@ -215,6 +215,7 @@ describe("the kit's own helpers declare their real blast radius", () => {
         "api.ts": "export function oldFoo(): number {\n  return 1;\n}\n",
         "barrel.ts": 'export { oldFoo } from "./api";\n',
         "consumer.ts": 'import { oldFoo } from "./barrel";\nexport const used = oldFoo();\n',
+        "unrelated.ts": "export function wrapper(): number {\n  const oldFoo = (): number => 2;\n  return oldFoo();\n}\n",
       },
       async ({ run }) => {
         const { output } = await run((ctx) => {
@@ -223,6 +224,7 @@ describe("the kit's own helpers declare their real blast radius", () => {
         expect(output).toContain("~ api.ts");
         expect(output).toContain("~ barrel.ts");
         expect(output).toContain("~ consumer.ts");
+        expect(output).not.toContain("unrelated.ts");
       },
     );
   });

@@ -1,13 +1,15 @@
 // The column READ arms: raw-sql mentions, language-service query reads, inferred-row reads,
 // classification + candidate collection.
-import type { Project, SourceFile, Type } from "ts-morph";
+import type { SourceFile, Type } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
+import { semanticReferenceNodes } from "../../_shared/ts-workspace.ts";
 import type { ColumnAudit, ColumnCandidate, ColumnClass, ColumnDef, TableDef } from "../contract/types.ts";
 import { byProdFirst, relPath } from "../ops/swallowed.ts";
 import { memberReadOf } from "../ops/wiring.ts";
 import { columnKey, isColumnConsumer, scanColumnWrites } from "./columns.ts";
 
-export function rawSqlBlob(project: Project): string {
+export function rawSqlBlob(project: SourceCorpus): string {
   const parts: string[] = [];
   for (const sf of project.getSourceFiles()) {
     if (!isColumnConsumer(sf.getFilePath())) {
@@ -81,7 +83,7 @@ function isConventionTimestamp(column: ColumnDef): boolean {
 
 /** Every column of `tables`, classified. Pure enumeration — no exemption policy, no printing (the verb owns
  *  both), so the self-test drives the same function the CLI does. */
-export function collectColumnCandidates(project: Project, tables: readonly TableDef[]): ColumnAudit {
+export function collectColumnCandidates(project: SourceCorpus, tables: readonly TableDef[]): ColumnAudit {
   const { perColumn, opaqueTables } = scanColumnWrites(project, tables);
   const rowReads = scanRowReads(project, tables);
   const blob = rawSqlBlob(project);
@@ -117,7 +119,7 @@ function columnQueryReadSites(column: ColumnDef): string[] {
     return [];
   }
   const sites = new Set<string>();
-  for (const ref of nameNode.findReferencesAsNodes()) {
+  for (const ref of semanticReferenceNodes(nameNode)) {
     const fp = ref.getSourceFile().getFilePath();
     if (isColumnConsumer(fp)) {
       sites.add(`${relPath(fp)}:${ref.getStartLineNumber()}`);
@@ -156,7 +158,7 @@ function rowTablesOf(type: Type, tables: readonly TableDef[], cache: Map<unknown
 
 /** ONE structural pass for every row-shaped READ in the workspace. The cheap gate runs FIRST — a property name
  *  that is no table's column never costs a type resolution, which is what keeps this arm affordable. */
-export function scanRowReads(project: Project, tables: readonly TableDef[]): RowReadScan {
+export function scanRowReads(project: SourceCorpus, tables: readonly TableDef[]): RowReadScan {
   const out = new Map<string, string[]>();
   const scan: RowReadCtx = {
     tables,

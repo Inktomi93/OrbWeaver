@@ -123,7 +123,7 @@ await runCodemod(
     ctx.plan(moveFiles(ctx, [...SOURCE_MOVES, ...TEST_MOVES]));
     ctx.plan(repointAliasTierImporters(ctx));
     if (process.argv.slice(2).includes("--diagnose")) {
-      printDiagnostics(ctx.project);
+      printDiagnostics(ctx);
     }
   },
   {

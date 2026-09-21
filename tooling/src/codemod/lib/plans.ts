@@ -3,6 +3,7 @@
 
 import { lstatSync, realpathSync } from "node:fs";
 import { basename, dirname, isAbsolute, normalize, relative, resolve, sep } from "node:path";
+import { classifyTestFilename } from "@orb/tooling/_shared/test-kinds";
 import type { OperationOptions, Plan } from "../contract/types.ts";
 import { CodemodError } from "./errors.ts";
 
@@ -179,11 +180,9 @@ export function isUnderSrc(filePath: string): boolean {
   return filePath.includes(`${sep}src${sep}`) || filePath.startsWith(`src${sep}`);
 }
 
-const TEST_FILE_PATTERN = /\.(test|spec)\.(ts|tsx|mts|cts)$/u;
-
-/** Does this filename look like a test/spec? */
+/** Does this filename use one of the repository's canonical authored test kinds? */
 export function isTestFile(filePath: string): boolean {
-  return TEST_FILE_PATTERN.test(filePath);
+  return classifyTestFilename(filePath) !== undefined;
 }
 
 const TS_EXTENSION_PATTERN = /\.(tsx?)$/u;

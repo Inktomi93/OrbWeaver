@@ -2,8 +2,8 @@
 
 import type { SchemaTable } from "@orb/tooling/_shared/schema-read";
 import { schemaTables } from "@orb/tooling/_shared/schema-read";
-import type { Project } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
 import type { TableDef, WriteScan } from "../contract/types.ts";
 import { relPath } from "../ops/swallowed.ts";
 import { declKey } from "./keys.ts";
@@ -144,7 +144,7 @@ function sqlColumnName(init: Node | undefined, jsProp: string): string {
  *  grep the baseline) and the table's declaration KEY (so a writer's identifier resolves to one table
  *  through an alias or a `schema.<table>` hop). A table whose SQL name is not a plain literal is skipped —
  *  there is nothing to report it under. */
-export function collectSchemaTables(project: Project): TableDef[] {
+export function collectSchemaTables(project: SourceCorpus): TableDef[] {
   const out: TableDef[] = [];
   for (const sf of project.getSourceFiles()) {
     // Path test by SUBSTRING, not schema-read's `isSchemaFile` — that predicate anchors on a REPO-RELATIVE
@@ -273,7 +273,7 @@ function writeArgOf(call: Node, method: string): Node | undefined {
 }
 
 /** ONE structural pass for every drizzle write in the workspace (outside the schema dir). */
-export function scanColumnWrites(project: Project, tables: readonly TableDef[]): WriteScan {
+export function scanColumnWrites(project: SourceCorpus, tables: readonly TableDef[]): WriteScan {
   const byKey = new Map(tables.map((t) => [t.key, t]));
   const perColumn = new Map<string, string[]>();
   const opaqueTables = new Map<string, string[]>();

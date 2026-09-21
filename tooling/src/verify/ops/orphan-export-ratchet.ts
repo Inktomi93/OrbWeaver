@@ -72,10 +72,11 @@ import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import type { PackageName } from "@orb/tooling/_shared/project-worlds";
 import { PACKAGE_NAMES } from "@orb/tooling/_shared/project-worlds";
 import { UsageError } from "@orb/tooling/_shared/run-tool";
-import { getWorkspace } from "@orb/tooling/_shared/ts-workspace";
+import type { SourceCorpus } from "@orb/tooling/_shared/ts-workspace";
+import { createSemanticWorkspace } from "@orb/tooling/_shared/ts-workspace";
 import type { ApiSurfaceEntry } from "@orb/tooling/ast";
 import { buildLiveness, collectApiSurface, isProdConsumed, isPublicTagged, ownExports, publicMarkerOf } from "@orb/tooling/ast";
-import type { Node, Project } from "ts-morph";
+import type { Node } from "ts-morph";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:orphan-ratchet");
 
@@ -172,7 +173,7 @@ function judgeUnused(root: string, apiEntry: ApiSurfaceEntry, publicValues: Read
 
 /** The stale arm: exports carrying ANY `@public`-family marker that DO have a prod consumer — the claim
  *  "deliberately unconsumed" is false, so the marker must come off (a lingering marker would exempt it forever). */
-function collectStaleTags(project: Project, live: ReturnType<typeof buildLiveness>, root: string, inScope: (fp: string) => boolean): Orphan[] {
+function collectStaleTags(project: SourceCorpus, live: ReturnType<typeof buildLiveness>, root: string, inScope: (fp: string) => boolean): Orphan[] {
   const staleTags: Orphan[] = [];
   for (const sf of project.getSourceFiles()) {
     const fp = sf.getFilePath();
@@ -194,7 +195,7 @@ function collectStaleTags(project: Project, live: ReturnType<typeof buildLivenes
  *     value apisurface does NOT classify PUBLIC. The set the baseline pins.
  *   • `staleTags` — exports that carry a `@public`-family marker and DO have a prod consumer. */
 function scanTree(root: string): Scan {
-  const project = getWorkspace({ root, types: true });
+  const project = createSemanticWorkspace({ root }).sourceCorpus();
   const live = buildLiveness(project);
   const prefixes = RATCHETED_PACKAGES.map((p) => `/packages/${p}/src/`);
   const inScope = (fp: string): boolean => prefixes.some((prefix) => fp.includes(prefix));

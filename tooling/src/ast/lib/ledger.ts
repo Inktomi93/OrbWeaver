@@ -4,8 +4,9 @@
 // maps it to EXIT.toolError.
 
 import process from "node:process";
-import type { Project, SourceFile } from "ts-morph";
+import type { SourceFile } from "ts-morph";
 import { warn } from "../../_shared/log.ts";
+import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
 import type { Flags, ScanMeta, ScanSpec, ScanStatus, ScopeMatch, SkipReason, SkipRule } from "../contract/types.ts";
 import { TEST_FILE_RE } from "./root.ts";
 
@@ -241,7 +242,7 @@ function inScopeOf(filePath: string, scope: ScopeMatch): boolean {
  *  `out-of-filter` but still RETURNED. `--in` filters hits (`dedupe`), never the walk — several verbs print
  *  corpus-wide summaries beside their hits ("N type alias(es) examined", the chain/column tables) and
  *  dropping files here would silently change those. The ledger observes; it never filters. */
-export function scanCorpus(project: Project, spec: ScanSpec): SourceFile[] {
+export function scanCorpus(project: SourceCorpus, spec: ScanSpec): SourceFile[] {
   noteScope(spec.label);
   if (ledger !== undefined) {
     // A scan seam RAN, so the corpus is ours to count: `scanned` leaves `null` (the pass-through sentinel)

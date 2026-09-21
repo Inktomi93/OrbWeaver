@@ -1,11 +1,12 @@
 // Resolution-based liveness — the substrate for orphans/testonly/clientgap/swallowed/apisurface.
 // Split from ast.ts (P4 of #393); the section headers carry the keying law verbatim.
-import type { ImportDeclaration, Project, SourceFile } from "ts-morph";
+import type { ImportDeclaration, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
 import type { ConsumptionArm, Liveness, LivenessOptions, NamespaceSite } from "../contract/types.ts";
 import { recordDeclarationEdges } from "./edges.ts";
 import { declKey, exposedNames } from "./keys.ts";
-import { resolveModule } from "./resolve.ts";
+import { resolveDynamicImportTarget, resolveModule } from "./resolve.ts";
 import { isTestPath } from "./root.ts";
 
 /** Records that `key` was marked alive by `arm`. Kept BESIDE the liveness buckets — recording an arm never
@@ -62,7 +63,7 @@ function markImportConsumption(imp: ImportDeclaration, sink: ConsumptionSink): v
       sink.bucket.add(key);
       sink.record(key, "namespace");
     }
-    sink.namespaceSites.push({ file: imp.getSourceFile(), alias: ns.getText(), exposed });
+    sink.namespaceSites.push({ file: imp.getSourceFile(), alias: ns.getText(), binding: ns, exposed });
     return;
   }
   for (const spec of imp.getNamedImports()) {
@@ -82,22 +83,21 @@ interface ConsumptionSink {
 }
 
 /** Same-file references: an export used within its own module (a component using its own `*Props`, a
- *  worker's exported-for-test helper called by the file's live loop) is NOT an orphan. Cheap identifier
- *  scan of the declaring file; the declaration's own name node is excluded by the `n > 1` count.
+ *  worker's exported-for-test helper called by the file's live loop) is NOT an orphan. Identifier symbols
+ *  must resolve to the declaration; same-spelled shadows and re-export pass-throughs do not count.
  *  Both spellings are scanned because a file may rename its own export
  *  (`const Inner = …; export { Inner as Outer }`): the export-map name is `Outer` while every in-file
  *  use says `Inner`. */
 export function isReferencedInOwnFile(sf: SourceFile, name: string, decl: Node): boolean {
-  // The declaration's OWN symbol name (a TS sentinel such as `__function` for anonymous shapes simply
-  // never matches an identifier, so no special-casing is needed).
-  const names = new Set([name, decl.getSymbol()?.getName() ?? name]);
-  let count = 0;
+  const targetKeys = new Set((decl.getSymbol()?.getDeclarations() ?? [decl]).map(declKey));
   for (const id of sf.getDescendantsOfKind(SyntaxKind.Identifier)) {
-    if (names.has(id.getText())) {
-      count += 1;
-      if (count > 1) {
-        return true;
-      }
+    if (id.getFirstAncestorByKind(SyntaxKind.ExportDeclaration) !== undefined || id.getParent() === decl) {
+      continue;
+    }
+    const symbol = id.getSymbol();
+    const declarations = (symbol?.getAliasedSymbol() ?? symbol)?.getDeclarations() ?? [];
+    if ((id.getText() === name || declarations.length > 0) && declarations.some((candidate) => targetKeys.has(declKey(candidate)))) {
+      return true;
     }
   }
   return false;
@@ -106,7 +106,7 @@ export function isReferencedInOwnFile(sf: SourceFile, name: string, decl: Node):
 /** Dynamic `import()` keeps the whole target module alive (the two rot verbs were blind to it while the
  *  `importers` verb saw it — the DevTools/installLongTaskTracer false-orphan class). Walks the file's
  *  `import(…)` calls and marks each resolved target's exports alive in `bucket`. */
-function markDynamicImports(sf: SourceFile, project: Project, bucket: Set<string>, record: ArmRecorder): void {
+function markDynamicImports(sf: SourceFile, project: SourceCorpus, bucket: Set<string>, record: ArmRecorder): void {
   for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
     if (call.getExpression().getKind() !== SyntaxKind.ImportKeyword) {
       continue;
@@ -153,15 +153,20 @@ function markDynamicImports(sf: SourceFile, project: Project, bucket: Set<string
 /** Property-read names on `bindingName` within `scope` — all THREE property-read shapes
  *  (`x.prop`/`x?.prop`/`x["prop"]`; a dot-only sweep is a known false clean in this repo, see the
  *  `regkeys` fix beside this one). */
-function propertyAccessNamesOn(scope: Node, bindingName: string): Set<string> {
+function propertyAccessNamesOn(scope: Node, binding: Node): Set<string> {
+  const bindingKeys = new Set((binding.getSymbol()?.getDeclarations() ?? []).map(declKey));
+  const isBinding = (node: Node): boolean => {
+    const symbol = node.getSymbol();
+    return ((symbol?.getAliasedSymbol() ?? symbol)?.getDeclarations() ?? []).some((declaration) => bindingKeys.has(declKey(declaration)));
+  };
   const names = new Set<string>();
   for (const pa of scope.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression)) {
-    if (pa.getExpression().getText() === bindingName) {
+    if (isBinding(pa.getExpression())) {
       names.add(pa.getName());
     }
   }
   for (const ea of scope.getDescendantsOfKind(SyntaxKind.ElementAccessExpression)) {
-    if (ea.getExpression().getText() !== bindingName) {
+    if (!isBinding(ea.getExpression())) {
       continue;
     }
     const arg = ea.getArgumentExpression();
@@ -205,7 +210,7 @@ function thenCallbackMembers(call: Node): Set<string> {
     return new Set();
   }
   const paramName = cb.getParameters()[0]?.getNameNode();
-  return paramName !== undefined && Node.isIdentifier(paramName) ? propertyAccessNamesOn(cb, paramName.getText()) : new Set();
+  return paramName !== undefined && Node.isIdentifier(paramName) ? propertyAccessNamesOn(cb, paramName) : new Set();
 }
 
 /** Shape 2: `(await import(spec)).X` — `call`'s `await` is parenthesized and immediately property-
@@ -238,7 +243,7 @@ function awaitedBindingMembers(call: Node, sf: SourceFile): Set<string> {
     return new Set();
   }
   const nameNode = decl.getNameNode();
-  return Node.isIdentifier(nameNode) ? propertyAccessNamesOn(sf, nameNode.getText()) : new Set();
+  return Node.isIdentifier(nameNode) ? propertyAccessNamesOn(sf, nameNode) : new Set();
 }
 
 /** The member name(s) one of the three recognized lazy-import shapes reads off `call`'s resolved module,
@@ -253,20 +258,6 @@ function lazyImportMemberNames(call: Node, sf: SourceFile): Set<string> {
     return awaitedAccess;
   }
   return awaitedBindingMembers(call, sf);
-}
-
-/** Resolve a dynamic `import()` call to its target module SourceFile through the TYPE CHECKER — see the
- *  section header above for why this is the right resolver and `resolveModule` is not. A dynamic import's
- *  expression type is always `Promise<typeof import("…")>`; unwrap to the module type and read its
- *  symbol's SourceFile declaration. Undefined when the checker can't resolve it: conservative, never
- *  invents a target. */
-function resolveDynamicImportTarget(call: Node): SourceFile | undefined {
-  if (!Node.isCallExpression(call)) {
-    return;
-  }
-  const [moduleType] = call.getType().getTypeArguments();
-  const decls = moduleType?.getSymbol()?.getDeclarations() ?? [];
-  return decls.find((decl): decl is SourceFile => Node.isSourceFile(decl));
 }
 
 /** The member-precise recovery for a dynamic import `resolveModule` couldn't follow (a package-aliased
@@ -317,7 +308,7 @@ const NO_EDGES: LivenessOptions = { edges: false };
  *  ts-morph after the first resolve. With `{ edges: true }` it ALSO builds the declaration-granular
  *  consumption map, at the cost of one identifier walk per file; the liveness sets are identical either
  *  way (pinned in tests/tooling/ast-lens.test.ts, both arms). */
-export function buildLiveness(project: Project, options: LivenessOptions = NO_EDGES): Liveness {
+export function buildLiveness(project: SourceCorpus, options: LivenessOptions = NO_EDGES): Liveness {
   const usedClientProd = new Set<string>();
   const usedServerProd = new Set<string>();
   const usedTest = new Set<string>();

@@ -1,6 +1,7 @@
 // DECLARATION-GRANULAR consumption edges — the chains substrate (parallel + opt-in).
-import type { BindingElement, ImportDeclaration, Project, SourceFile } from "ts-morph";
+import type { BindingElement, ImportDeclaration, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
 import { declKey, exposedNames } from "./keys.ts";
 import { resolveModule } from "./resolve.ts";
 import { KEY_SEP } from "./root.ts";
@@ -210,7 +211,7 @@ function recordImportEdges(imp: ImportDeclaration, sites: ReadonlyMap<string, Se
 
 /** The workspace file a `import("…")` CALL resolves to, or undefined when the node is not a dynamic import
  *  of a string literal this resolver can follow. */
-export function dynamicImportTargetOf(call: Node, sf: SourceFile, project: Project): SourceFile | undefined {
+export function dynamicImportTargetOf(call: Node, sf: SourceFile, project: SourceCorpus): SourceFile | undefined {
   if (!Node.isCallExpression(call) || call.getExpression().getKind() !== SyntaxKind.ImportKeyword) {
     return;
   }
@@ -223,7 +224,7 @@ export function dynamicImportTargetOf(call: Node, sf: SourceFile, project: Proje
 
 /** A dynamic `import()` keeps its target's whole surface alive — attributed to the declaration holding the
  *  CALL, which is finer than the import-edge arm can be (that one only knows the file). */
-function recordDynamicImportEdges(sf: SourceFile, project: Project, consumers: Map<string, Set<string>>): void {
+function recordDynamicImportEdges(sf: SourceFile, project: SourceCorpus, consumers: Map<string, Set<string>>): void {
   for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
     const target = dynamicImportTargetOf(call, sf, project);
     if (target === undefined) {
@@ -289,7 +290,7 @@ export function* topLevelDeclarations(sf: SourceFile): Generator<{ name: string;
 
 /** Every declaration-granular edge ONE file contributes: its import bindings resolved to origins, its
  *  dynamic-import targets, and its own top-level declarations' same-file uses. */
-export function recordDeclarationEdges(sf: SourceFile, project: Project, consumers: Map<string, Set<string>>): void {
+export function recordDeclarationEdges(sf: SourceFile, project: SourceCorpus, consumers: Map<string, Set<string>>): void {
   const sites = consumerSitesOf(sf);
   for (const imp of sf.getImportDeclarations()) {
     recordImportEdges(imp, sites, consumers);

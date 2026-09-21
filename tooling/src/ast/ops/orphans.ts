@@ -1,7 +1,8 @@
 // orphans + testonly — resolution-based rot over the liveness substrate.
-import type { Node, Project, SourceFile } from "ts-morph";
+import type { Node, SourceFile } from "ts-morph";
 import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
 import type { Flags, Hit, Liveness, OrphanCandidate, TestOnlyClass } from "../contract/types.ts";
 import { dedupe, emit, hitOf } from "../lib/emit.ts";
 import { declKey } from "../lib/keys.ts";
@@ -15,7 +16,7 @@ refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
 /** Every orphan candidate whose DECLARING file satisfies `inScope` — exports reached by nobody (prod or
  *  test) and unused in their own file. Pure enumeration: no printing, no exemption policy (the ratchet
  *  owns `@public`; the verb owns the display). */
-export function collectOrphanCandidates(project: Project, live: Liveness, inScope: (filePath: string) => boolean): OrphanCandidate[] {
+export function collectOrphanCandidates(project: SourceCorpus, live: Liveness, inScope: (filePath: string) => boolean): OrphanCandidate[] {
   const out: OrphanCandidate[] = [];
   for (const sf of project.getSourceFiles()) {
     const fp = sf.getFilePath();
@@ -85,7 +86,7 @@ function printSuppressed(suppressed: readonly Hit[], hitCount: number, flags: Fl
 /** Exports of a scope never imported anywhere (prod OR test) and never used in their own file — the rot
  *  signal. Star-suppressed candidates are counted + named PER SYMBOL, never silently swallowed (the
  *  permanent-zero `orphans contracts` bug: 100%-barrel packages reported clean while blind). */
-export function cmdOrphans(project: Project, arg: string, flags: Flags): void {
+export function cmdOrphans(project: SourceCorpus, arg: string, flags: Flags): void {
   const scope = resolveScope(project, arg, "orphans");
   const inScope = corpusPredicate(scanCorpus(project, { scope: scope.prefix, label: `path:${scope.prefix}`, skip: [SKIP_TEST_FILES] }));
   const live = buildLiveness(project);
@@ -128,7 +129,7 @@ export function scanTestOnly(sf: SourceFile, live: Liveness, want: TestOnlyClass
 
 /** Exports of `<scope>` reached ONLY from test paths — code alive solely because a test imports it. Exports
  *  whose NAME declares the intent (`__`-prefixed test seams) are bucketed and named, never counted. */
-export function cmdTestOnly(project: Project, arg: string, flags: Flags): void {
+export function cmdTestOnly(project: SourceCorpus, arg: string, flags: Flags): void {
   const scope = resolveScope(project, arg, "testonly");
   const files = scanCorpus(project, { scope: scope.prefix, label: `path:${scope.prefix}`, skip: [SKIP_TEST_FILES] });
   const live = buildLiveness(project);

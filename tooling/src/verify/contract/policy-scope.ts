@@ -1,6 +1,12 @@
 // The final policy runtime's scope and compiler-manifest contract. Requests name intent; resolutions carry
 // exact authored path identities and compiler facts without command-specific argv or lint ownership.
-import type { ts } from "ts-morph";
+import type { CompilerProgramMembership } from "../../_shared/compiler-programs-contract.ts";
+
+export type {
+  CompilerConfigEntries,
+  CompilerProgram,
+  CompilerSourceOverlay,
+} from "../../_shared/compiler-programs-contract.ts";
 
 export const POLICY_SCOPE_KINDS = ["whole", "changed", "file", "folder", "package", "project"] as const;
 /** @public knip type-face false positive — a structural field (`kind`) of the exported `PolicyScopeResolution` shape,
@@ -26,51 +32,7 @@ export interface PolicySemanticPath {
   readonly previousPath: string | null;
 }
 
-export interface PolicyProgramMembership {
-  /** Stable program identity. Equal to the canonical repo-relative config path. */
-  readonly id: string;
-  readonly config: string;
-  /** Authored current files admitted by TypeScript's parsed config. */
-  readonly files: readonly string[];
-  /** Direct canonical project-reference configs. */
-  readonly references: readonly string[];
-  /** This config plus every transitive authored local `extends` input. */
-  readonly configPaths: readonly string[];
-}
-
-/** Compiler-native settings for tools checking transformed source without reparsing config semantics. */
-export interface CompilerProgram extends PolicyProgramMembership {
-  readonly commandLine: ts.ParsedCommandLine;
-}
-
-export const COMPILER_CONFIG_FIELDS = ["include", "exclude"] as const;
-export type CompilerConfigField = (typeof COMPILER_CONFIG_FIELDS)[number];
-
-/** ONE authored root-selection entry, as the config SPELLS it — the half `ParsedCommandLine` consumes and
- *  destroys. `fileNames` is the folded, expanded ANSWER; this is the QUESTION, and a liveness reader judges
- *  the question (an entry that expands to nothing is exactly what `fileNames` cannot show you). */
-export interface CompilerConfigEntry {
-  readonly field: CompilerConfigField;
-  /** Unfolded (no `extends` inheritance applied) and unexpanded (no glob walk), byte-identical to source. */
-  readonly value: string;
-  /** 1-based line of the entry's own string literal WITHIN ITS OWN CONFIG TEXT. Carried because a liveness
-   *  finding anchors at the entry, and re-deriving it by scanning for the literal mis-anchors every entry a
-   *  config spells twice. */
-  readonly line: number;
-}
-
-/** A parse failure is a distinct fact, never an empty entry list: a tsconfig that silently defaulted checks
- *  a program nobody declared, so every consumer must be able to tell "no entries" from "I could not read". */
-export type CompilerConfigEntries =
-  | { readonly status: "read"; readonly config: string; readonly entries: readonly CompilerConfigEntry[] }
-  | { readonly status: "unparseable"; readonly config: string; readonly reason: string };
-
-/** In-memory source filenames presented to native config expansion. Config JSON and its inheritance graph
- * remain physical authored inputs; this overlay describes only the transaction's final source tree. */
-export interface CompilerSourceOverlay {
-  readonly addedPaths: readonly string[];
-  readonly deletedPaths: readonly string[];
-}
+export type PolicyProgramMembership = CompilerProgramMembership;
 
 /** @public knip type-face false positive — the one-home vocabulary tuple behind the exported `PolicyPathOwnershipReason` union
  *  — the ONE importable spelling of this axis, which nothing outside this module enumerates YET; un-exporting it would

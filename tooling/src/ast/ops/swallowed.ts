@@ -2,10 +2,11 @@ import { commentHost } from "../lib/public-markers.ts";
 // swallowed: exports alive ONLY because a namespace import swallowed their module.
 
 import process from "node:process";
-import type { Project, SourceFile } from "ts-morph";
+import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
 import type { Flags, Hit, Liveness, NamespaceSite, SwallowedCandidate } from "../contract/types.ts";
 import { emit, hitOf } from "../lib/emit.ts";
 import { declKey } from "../lib/keys.ts";
@@ -46,22 +47,24 @@ export function isSwallowedExempt(decl: Node): boolean {
  *  `alias["member"]`, and `const { member } = alias`. A member named here is genuinely consumed — it is the
  *  arm that separates "the module was swallowed" from "this export was actually used through it". */
 function namedMembersOf(site: NamespaceSite): Set<string> {
+  const bindingKeys = new Set((site.binding.getSymbol()?.getDeclarations() ?? []).map(declKey));
+  const isNamespaceBinding = (node: Node): boolean => (node.getSymbol()?.getDeclarations() ?? []).some((declaration) => bindingKeys.has(declKey(declaration)));
   const named = new Set<string>();
   for (const pa of site.file.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression)) {
-    if (pa.getExpression().getText() === site.alias) {
+    if (isNamespaceBinding(pa.getExpression())) {
       named.add(pa.getName());
     }
   }
   for (const ea of site.file.getDescendantsOfKind(SyntaxKind.ElementAccessExpression)) {
     const arg = ea.getArgumentExpression();
-    if (ea.getExpression().getText() === site.alias && arg !== undefined && Node.isStringLiteral(arg)) {
+    if (isNamespaceBinding(ea.getExpression()) && arg !== undefined && Node.isStringLiteral(arg)) {
       named.add(arg.getLiteralText());
     }
   }
   for (const v of site.file.getDescendantsOfKind(SyntaxKind.VariableDeclaration)) {
     const init = v.getInitializer();
     const binding = v.getNameNode();
-    if (init?.getText() !== site.alias || !Node.isObjectBindingPattern(binding)) {
+    if (init === undefined || !isNamespaceBinding(init) || !Node.isObjectBindingPattern(binding)) {
       continue;
     }
     for (const element of binding.getElements()) {
@@ -74,7 +77,7 @@ function namedMembersOf(site: NamespaceSite): Set<string> {
 /** Exports of `inScope` whose only liveness arm is `namespace` and whose name no swallowing file spells.
  *  Pure enumeration — no exemption policy, no printing (the verb owns both), so the self-test drives the
  *  same function the CLI does. */
-export function collectSwallowedCandidates(project: Project, live: Liveness, inScope: (filePath: string) => boolean): SwallowedCandidate[] {
+export function collectSwallowedCandidates(project: SourceCorpus, live: Liveness, inScope: (filePath: string) => boolean): SwallowedCandidate[] {
   const spelledAt = memoizedSpelledMembers();
   const out: SwallowedCandidate[] = [];
   for (const sf of project.getSourceFiles()) {
@@ -149,7 +152,7 @@ export function swallowedHit(candidate: SwallowedCandidate): Hit {
 /** The STALE side of the `@swallowed-ok` marker: a tag on an export the lens no longer calls swallowed — it
  *  is named-imported now, spelled at a namespace site, used in its own file, or dead outright. Printed and
  *  exit-1 so the marker cannot rot into a permanent lie (the two-sided-gate law). */
-function printStaleSwallowedTags(project: Project, inScope: (fp: string) => boolean, candidateKeys: Set<string>): void {
+function printStaleSwallowedTags(project: SourceCorpus, inScope: (fp: string) => boolean, candidateKeys: Set<string>): void {
   const stale: Hit[] = [];
   for (const sf of project.getSourceFiles()) {
     const fp = sf.getFilePath();
@@ -180,7 +183,7 @@ function printStaleSwallowedTags(project: Project, inScope: (fp: string) => bool
 /** Exports alive ONLY because an `import * as ns` handed their whole module to something — and whose member
  *  name no swallowing file ever spells. Optional scope (a package name / path); bare = every package. A
  *  deliberate keep carries `// @swallowed-ok: <reason>`; a stale marker is reported and exits 1. */
-export function cmdSwallowed(project: Project, arg: string, flags: Flags): void {
+export function cmdSwallowed(project: SourceCorpus, arg: string, flags: Flags): void {
   const scope = arg === "" ? { prefix: "/packages/", label: "(all packages)" } : resolveScope(project, arg, "swallowed");
   const inScope = corpusPredicate(scanCorpus(project, { scope: scope.prefix, label: `path:${scope.prefix}`, skip: [SKIP_TEST_FILES] }));
   const live = buildLiveness(project);

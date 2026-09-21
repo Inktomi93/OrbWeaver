@@ -36,7 +36,7 @@ export const MANIFEST: readonly ManifestCategory[] = [
     entries: [
       {
         name: "createCodemodProject",
-        summary: "Build a ts-morph Project with the repo's standard globs (src/tests/scripts).",
+        summary: "Build the mutable syntax carrier with the repo's standard authored globs (src/tests/scripts).",
         when: "Always — at the start of every codemod. The harness calls it for you if you use runCodemod.",
       },
       {
@@ -196,7 +196,7 @@ export const MANIFEST: readonly ManifestCategory[] = [
     entries: [
       {
         name: "findReferencesByName",
-        summary: "Find every reference to an exported symbol (uses TS language service — alias-aware).",
+        summary: "Find every reference to an exported symbol across its native compiler worlds (pass ctx; alias-aware).",
         when: "Audit: 'who actually uses this exported foo()?'",
       },
       {
@@ -222,7 +222,7 @@ export const MANIFEST: readonly ManifestCategory[] = [
     entries: [
       {
         name: "renameExportedSymbol",
-        summary: "Rename an exported declaration; TS's reference engine updates every importer.",
+        summary: "Rename an exported declaration through ctx's native compiler worlds; every authored importer is updated.",
         when: "Renaming a symbol cleanly across the whole project, including re-exports.",
       },
     ],
@@ -298,7 +298,7 @@ export const MANIFEST: readonly ManifestCategory[] = [
     entries: [
       {
         name: "printDiagnostics",
-        summary: "Print ts-morph's pre-emit diagnostics.",
+        summary: "Print pre-emit diagnostics from every native compiler world selected by ctx.",
         when: "After --apply when you want to manually verify the codemod didn't break TS.",
       },
     ],

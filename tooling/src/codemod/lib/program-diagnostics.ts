@@ -4,7 +4,7 @@ import { warn } from "@orb/tooling/_shared/log";
 import { predictedProgram, requiresExclusiveRoot } from "@orb/tooling/_shared/project-worlds";
 import type { Project, SourceFile } from "ts-morph";
 import ts from "typescript";
-import type { CompilerProgram } from "#verify";
+import type { CompilerProgram } from "../../_shared/compiler-programs.ts";
 import type { FileSnapshot, ProgramDiagnosticBaseline } from "../contract/types.ts";
 import { CodemodError } from "./errors.ts";
 import { physicalPathIdentity, repoRelative } from "./plans.ts";

@@ -1,9 +1,9 @@
 // viewgap: `*View`/`*Summary` FIELDS no client file reads (the field-level `clientgap`).
 
 import process from "node:process";
-import type { Project } from "ts-morph";
 import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
 import type { ContractField, Flags, ViewFieldCandidate } from "../contract/types.ts";
 import { emit } from "../lib/emit.ts";
 import { fieldIndexes } from "../lib/fields.ts";
@@ -16,7 +16,7 @@ refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
 /** The reader corpus, counted: `packages/client/src` production files. It is a DENOMINATOR, not a scope —
  *  the lens's scan seam counts the OWNER files, and a reader corpus of zero would make every field read as
  *  a gap. Zero here is the blindness tripwire, not a clean sweep. */
-function clientReaderCorpus(project: Project): number {
+function clientReaderCorpus(project: SourceCorpus): number {
   return project.getSourceFiles().filter((sf) => {
     const fp = sf.getFilePath();
     return fp.includes(CLIENT_SRC) && !isTestPath(fp) && !fp.endsWith(".d.ts");
@@ -51,7 +51,7 @@ function scopedFields(all: readonly ContractField[], arg: string): ContractField
  *  field the UI never renders). Optional scope = a field name / owner name / owner-file path substring;
  *  bare = every view field in `packages/contracts/src` + `packages/server/src`. A deliberate server-only
  *  field carries `// @view-server-only: <reason>`; a marker on a now-client-read field exits 1. */
-export function cmdViewGap(project: Project, arg: string, flags: Flags): void {
+export function cmdViewGap(project: SourceCorpus, arg: string, flags: Flags): void {
   const files = scanCorpus(project, {
     scope: [...VIEW_OWNER_HOMES],
     label: "path:packages/{contracts,server}/src",

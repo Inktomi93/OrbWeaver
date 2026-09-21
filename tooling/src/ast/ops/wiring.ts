@@ -1,8 +1,8 @@
 // unwired (tRPC procedures no client consumes) + clientgap (server-only client-facing shapes).
-import type { Project } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
 import type { Flags, Hit } from "../contract/types.ts";
 import { emit, hitOf } from "../lib/emit.ts";
 import { declKey } from "../lib/keys.ts";
@@ -85,7 +85,7 @@ interface ServerProc {
  *  definition site (the object-literal property — the node the unwired hit points at). Derived from the
  *  root `appRouter = t.router({ … })`: an identifier value is a namespaced sub-router; any other value
  *  (a `publicProcedure…` chain) is a loose root procedure keyed on its own name. */
-export function collectServerProcedures(project: Project): ServerProc[] {
+export function collectServerProcedures(project: SourceCorpus): ServerProc[] {
   const out: ServerProc[] = [];
   for (const sf of project.getSourceFiles()) {
     for (const v of sf.getVariableDeclarations()) {
@@ -145,7 +145,7 @@ function procDeclNode(routerCall: Node, proc: string): Node {
 /** `<ns>.<proc>` full names the CLIENT consumes, from prod (non-test) client files: property-access
  *  chains `X.<ns>.<proc>` (root identifier untrusted — matched by the known namespace+proc pair) and
  *  indexed-access types `Trpc["<ns>"]["<proc>"]`. Loose root procs match a bare `X.<proc>` chain. */
-export function collectClientConsumed(project: Project, valid: Set<string>): Set<string> {
+export function collectClientConsumed(project: SourceCorpus, valid: Set<string>): Set<string> {
   const consumed = new Set<string>();
   const looseProcs = new Set([...valid].filter((f) => !f.includes(".")));
   for (const sf of project.getSourceFiles()) {
@@ -260,7 +260,7 @@ export function isUnwiredExempt(decl: Node): boolean {
  *  full-name substring (a router name); default = all procedures. A procedure marked
  *  `// @server-only: <reason>` (no client consumer by design) or `// @test-fixture: <reason>` (a deliberate
  *  always-ship test/sweep fixture) is excluded from the report. */
-export function cmdUnwired(project: Project, scope: string, flags: Flags): void {
+export function cmdUnwired(project: SourceCorpus, scope: string, flags: Flags): void {
   scanCorpus(project, WHOLE_CORPUS);
   const procs = collectServerProcedures(project);
   // The scope of THIS lens is the enumerated procedure set, not a path: zero procedures means the
@@ -309,7 +309,7 @@ const CONTRACTS_SRC_PREFIX = "/packages/contracts/src/";
 /** Exports of a scope the SERVER prod-consumes but the CLIENT never does (and no test does) — a wire
  *  shape that never made it to the front-end. Default scope `contracts`, filtered to `*View`/`*Summary`
  *  client-facing names; a path/package scope overrides. A CANDIDATE lens — verify, don't act blind. */
-export function cmdClientGap(project: Project, arg: string, flags: Flags): void {
+export function cmdClientGap(project: SourceCorpus, arg: string, flags: Flags): void {
   const scoped = arg === "" ? "contracts" : arg;
   const scope = resolveScope(project, scoped, "clientgap");
   const isContracts = scope.prefix.includes(CONTRACTS_SRC_PREFIX);

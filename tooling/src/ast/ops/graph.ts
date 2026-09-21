@@ -1,7 +1,8 @@
 // cycles + aliases — the module-graph rot lenses.
-import type { Project, SourceFile } from "ts-morph";
+import type { SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
 import type { Flags, Hit } from "../contract/types.ts";
 import { emit, hitOf } from "../lib/emit.ts";
 import { scanCorpus } from "../lib/ledger.ts";
@@ -10,7 +11,7 @@ refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
 
 /** RESOLVED intra-package file graph: edges via getModuleSpecifierSourceFile (relative, #alias,
  *  `@orb` subpath all resolve) — needs the types:true arm. */
-function resolvedGraph(project: Project, prefix: string): Map<string, string[]> {
+function resolvedGraph(project: SourceCorpus, prefix: string): Map<string, string[]> {
   const graph = new Map<string, string[]>();
   for (const sf of project.getSourceFiles()) {
     const from = sf.getFilePath();
@@ -60,7 +61,7 @@ function findCycles(graph: Map<string, string[]>): string[][] {
 
 /** Intra-package import cycles with FULL specifier resolution — cycles laundered through aliases or
  *  barrels are visible (a relative-only walk reports a false 0). */
-export function cmdCycles(project: Project, pkg: string, flags: Flags): void {
+export function cmdCycles(project: SourceCorpus, pkg: string, flags: Flags): void {
   const prefix = `/packages/${pkg}/src/`;
   // A package name this corpus holds no file for is a tool error, not "no cycles" — the graph would be
   // empty either way, and an empty graph reads exactly like a clean one.
@@ -125,7 +126,7 @@ function rebindHits(sf: SourceFile): Hit[] {
 
 /** Rename-alias laundering: `import/export { X as Y }`, exported `const Y = X`, and bare `type Y = X`
  *  renames — the same declaration living under N public names. Scope with --in <pkg-substr>. */
-export function cmdAliases(project: Project, scope: string, flags: Flags): void {
+export function cmdAliases(project: SourceCorpus, scope: string, flags: Flags): void {
   const hits: Hit[] = [];
   for (const sf of scanCorpus(project, { scope, label: `path:${scope === "" ? "(all)" : scope}` })) {
     hits.push(...renameSpecifierHits(sf), ...rebindHits(sf));

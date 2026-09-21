@@ -51,9 +51,9 @@ export interface SwallowedCandidate {
 // IT IS A CANDIDATE LENS, like `swallowed`/`typeonly-alive`/`chains` — the verdict is a human's, never a
 // delete signal ("unwired ≠ worthless", constitution §1). Evidence PRIORITY, not accumulation: a single
 // production reference outranks everything else (ALIVE); a namespace-only reach may still be load-bearing
-// THROUGH the swallowing API (SWALLOWED-ONLY); a `@public`-family marker is the author's own ratified
-// keep (TAGGED-KEEP); reach from a test alone is `testonly`'s class (TEST-ANCHORED); only when none of
-// those apply does it become a CANDIDATE.
+// THROUGH the swallowing API (SWALLOWED-ONLY); a reasoned `@public`-family marker is the author's
+// unadjudicated keep claim (TAGGED-KEEP in this conservative lens; the ratchet separately judges legality);
+// reach from a test alone is `testonly`'s class (TEST-ANCHORED); only when none apply is it a CANDIDATE.
 /** The five-way verdict `dead` renders — evidence PRIORITY order (see the header above), not a tally. */
 const DEAD_VERDICTS = ["ALIVE", "TEST-ANCHORED", "SWALLOWED-ONLY", "TAGGED-KEEP", "CANDIDATE"] as const;
 export type DeadVerdict = (typeof DEAD_VERDICTS)[number];
@@ -368,6 +368,7 @@ export type ConsumptionArm = (typeof CONSUMPTION_ARMS)[number];
 export interface NamespaceSite {
   readonly file: SourceFile;
   readonly alias: string;
+  readonly binding: Node;
   readonly exposed: ReadonlyMap<string, readonly string[]>;
 }
 

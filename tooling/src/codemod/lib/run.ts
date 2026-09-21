@@ -2,8 +2,9 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import process from "node:process";
 import type { Project, SourceFile } from "ts-morph";
-import type { CompilerProgram, CompilerSourceOverlay } from "#verify";
 import { print } from "../../_shared/artifacts.ts";
+import type { CompilerProgram, CompilerSourceOverlay } from "../../_shared/compiler-programs.ts";
+import { readCompilerPrograms } from "../../_shared/compiler-programs.ts";
 import { warn } from "../../_shared/log.ts";
 import type { CodemodContext, CodemodResult, FileSnapshot, Plan, RunCodemodOptions } from "../contract/types.ts";
 import { applyProject } from "./apply-project.ts";
@@ -14,6 +15,7 @@ import { absolutePath, assertUniquePhysicalMutationPaths, physicalPathIdentity, 
 import { createProgramDiagnosticBaseline } from "./program-consumers.ts";
 import { countProgramDiagnostics } from "./program-diagnostics.ts";
 import { createCodemodProject } from "./project.ts";
+import { createCodemodSemanticWorkspace } from "./semantic.ts";
 
 type DiagnosticBaseline = ReturnType<typeof createProgramDiagnosticBaseline>;
 type CompilerProgramReader = (repoRoot: string, overlay?: CompilerSourceOverlay) => readonly CompilerProgram[];
@@ -200,6 +202,12 @@ function buildCodemodContext(opts: {
     project,
     repoRoot,
     isDryRun,
+    semantic: () =>
+      createCodemodSemanticWorkspace({
+        project,
+        repoRoot,
+        overlay: compilerSourceOverlay(project, ledger, repoRoot),
+      }),
     plan(plan): void {
       plans.push(plan);
       const diagnosticBaseline = prepareDiagnosticBaseline();
@@ -300,27 +308,34 @@ export async function runCodemod(name: string, codemod: (ctx: CodemodContext) =>
   const repoRoot = resolve(options.repoRoot ?? process.cwd());
   const { argv } = options;
   const isDryRun = resolveIsDryRun(options, argv);
-  const readCompilerPrograms: CompilerProgramReader | undefined = diagnosticsSkipped(options, argv)
-    ? undefined
-    : (await import("#verify")).readCompilerPrograms;
+  const compilerProgramReader: CompilerProgramReader | undefined = diagnosticsSkipped(options, argv) ? undefined : readCompilerPrograms;
 
-  const project = createCodemodProject(options.setup);
+  const project = createCodemodProject(options.setup, repoRoot);
   let diagnosticBaseline: DiagnosticBaseline | undefined;
   const prepareDiagnosticBaseline = (): DiagnosticBaseline | undefined => {
     if (diagnosticsSkipped(options, argv)) {
       return;
     }
-    if (readCompilerPrograms === undefined) {
+    if (compilerProgramReader === undefined) {
       return;
     }
-    diagnosticBaseline ??= createProgramDiagnosticBaseline(repoRoot, readCompilerPrograms(repoRoot));
+    diagnosticBaseline ??= createProgramDiagnosticBaseline(repoRoot, compilerProgramReader(repoRoot));
     return diagnosticBaseline;
   };
   const snapshots = new Map<string, FileSnapshot>();
   const ledger = createMutationLedger(project);
   const plans: Plan[] = [];
   const logs: string[] = [];
-  const ctx = buildCodemodContext({ project, repoRoot, isDryRun, snapshots, ledger, plans, logs, prepareDiagnosticBaseline });
+  const ctx = buildCodemodContext({
+    project,
+    repoRoot,
+    isDryRun,
+    snapshots,
+    ledger,
+    plans,
+    logs,
+    prepareDiagnosticBaseline,
+  });
 
   print(headerBox(name, isDryRun));
 
@@ -337,8 +352,8 @@ export async function runCodemod(name: string, codemod: (ctx: CodemodContext) =>
   assertPlanDeclaredItsMutations({ project, ledger, repoRoot, label: DIRECT_MUTATION_LABEL });
   assertUniquePhysicalMutationPaths(actualChangedPaths(project, ledger), repoRoot);
   const postPrograms =
-    diagnosticBaseline !== undefined && readCompilerPrograms !== undefined
-      ? readCompilerPrograms(repoRoot, compilerSourceOverlay(project, ledger, repoRoot))
+    diagnosticBaseline !== undefined && compilerProgramReader !== undefined
+      ? compilerProgramReader(repoRoot, compilerSourceOverlay(project, ledger, repoRoot))
       : undefined;
   const diagnosticErrors = checkDiagnostics({
     project,

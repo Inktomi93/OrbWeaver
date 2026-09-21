@@ -1,9 +1,10 @@
 // registry-candidates: informational discovery lens for convention-maintained open sets (#1189).
-import type { Node as MorphNode, Project, SourceFile, VariableDeclaration } from "ts-morph";
+import type { Node as MorphNode, SourceFile, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { resolveLexicalValueDeclaration, resolveModuleMemberOrigin, resolveStableExpression } from "../../_shared/reference-fact.ts";
+import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
 import type { Flags, Hit } from "../contract/types.ts";
 import { emit, hitOf } from "../lib/emit.ts";
 import { noteUnits, scanCorpus } from "../lib/ledger.ts";
@@ -17,7 +18,7 @@ const CANDIDATE_CLASS_COUNT = 4;
 const RECORD_RE = /\bRecord\s*</u;
 const compareText = (left: string, right: string): number => left.localeCompare(right);
 
-function productionFiles(project: Project): readonly SourceFile[] {
+function productionFiles(project: SourceCorpus): readonly SourceFile[] {
   return project.getSourceFiles().filter((file) => !(file.isDeclarationFile() || isTestPath(file.getFilePath())));
 }
 
@@ -269,12 +270,12 @@ function driftedTwinHits(files: readonly SourceFile[]): Hit[] {
 }
 
 /** Four candidate classes from #1189. Findings are prompts for human review, never deletion verdicts. */
-export function collectRegistryCandidates(project: Project): Hit[] {
+export function collectRegistryCandidates(project: SourceCorpus): Hit[] {
   const files = productionFiles(project);
   return [...contributionHits(files), ...valueSetHits(files), ...namespaceMutationHits(files), ...driftedTwinHits(files)];
 }
 
-export function cmdRegistryCandidates(project: Project, arg: string, flags: Flags): void {
+export function cmdRegistryCandidates(project: SourceCorpus, arg: string, flags: Flags): void {
   const files = productionFiles(project);
   scanCorpus(project, { scope: files.map((file) => file.getFilePath()), label: "path:production-source" });
   const all = collectRegistryCandidates(project);

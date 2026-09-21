@@ -4462,6 +4462,32 @@
       "markerLine": 347
     },
     {
+      "siteId": "tooling/src/_shared/compiler-source-filename-overlay.ts::catch::1",
+      "path": "tooling/src/_shared/compiler-source-filename-overlay.ts",
+      "line": 108,
+      "column": 5,
+      "grammar": "empty",
+      "position": "catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "native ts.sys.readDirectory treats an unreadable",
+      "markerLine": 104
+    },
+    {
+      "siteId": "tooling/src/_shared/compiler-source-filename-overlay.ts::catch::2",
+      "path": "tooling/src/_shared/compiler-source-filename-overlay.ts",
+      "line": 121,
+      "column": 9,
+      "grammar": "empty",
+      "position": "catch",
+      "ordinal": 2,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "native ts.sys directory reads skip dangling",
+      "markerLine": 117
+    },
+    {
       "siteId": "tooling/src/_shared/debugging-endpoint.ts::catch::1",
       "path": "tooling/src/_shared/debugging-endpoint.ts",
       "line": 49,
@@ -4854,7 +4880,7 @@
     {
       "siteId": "tooling/src/codemod/lib/plans.ts::error::1",
       "path": "tooling/src/codemod/lib/plans.ts",
-      "line": 83,
+      "line": 84,
       "column": 12,
       "grammar": "default",
       "position": "error",
@@ -4862,7 +4888,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "ENOENT/ENOTDIR means this entry is absent and the caller continues to an existing ancestor; other failures throw. Ends if false is treated as a containment verdict.",
-      "markerLine": 79
+      "markerLine": 80
     },
     {
       "siteId": "tooling/src/codemod/lib/program-consumers.ts::catch::1",
@@ -7335,32 +7361,6 @@
       "markerLine": 143
     },
     {
-      "siteId": "tooling/src/verify/lib/compiler-source-filename-overlay.ts::catch::1",
-      "path": "tooling/src/verify/lib/compiler-source-filename-overlay.ts",
-      "line": 108,
-      "column": 5,
-      "grammar": "empty",
-      "position": "catch",
-      "ordinal": 1,
-      "snippet": "} catch {",
-      "verdict": "deliberate-absorb",
-      "reason": "native ts.sys.readDirectory treats an unreadable",
-      "markerLine": 104
-    },
-    {
-      "siteId": "tooling/src/verify/lib/compiler-source-filename-overlay.ts::catch::2",
-      "path": "tooling/src/verify/lib/compiler-source-filename-overlay.ts",
-      "line": 121,
-      "column": 9,
-      "grammar": "empty",
-      "position": "catch",
-      "ordinal": 2,
-      "snippet": "} catch {",
-      "verdict": "deliberate-absorb",
-      "reason": "native ts.sys directory reads skip dangling",
-      "markerLine": 117
-    },
-    {
       "siteId": "tooling/src/verify/lib/config-snapshot.ts::catch::1",
       "path": "tooling/src/verify/lib/config-snapshot.ts",
       "line": 176,
@@ -7688,7 +7688,7 @@
     {
       "siteId": "tooling/src/verify/ops/orphan-export-ratchet.ts::err::1",
       "path": "tooling/src/verify/ops/orphan-export-ratchet.ts",
-      "line": 270,
+      "line": 271,
       "column": 12,
       "grammar": "empty",
       "position": "err",
@@ -7696,7 +7696,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "printed as TOOL ERROR and routed through EXIT.toolError, per the exit-contract §3.3 comment below. Ends if that exit code stops being surfaced.",
-      "markerLine": 266
+      "markerLine": 267
     },
     {
       "siteId": "tooling/src/verify/ops/policy-conformance.ts::error::1",

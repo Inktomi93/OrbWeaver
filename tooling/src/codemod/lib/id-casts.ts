@@ -2,6 +2,7 @@
 
 import type { CallExpression, Diagnostic, DiagnosticMessageChain, PropertyAssignment } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type { SemanticWorkspace } from "../../_shared/ts-workspace.ts";
 import type { CastByDiagnosticOptions, CastIdComparisonsOptions, CastIdLiteralsOptions, CodemodContext, Plan } from "../contract/types.ts";
 import { addNamedImport } from "./imports.ts";
 import { assertPathString, composePlans, isTestFile } from "./plans.ts";
@@ -69,7 +70,15 @@ function isCastTargetProperty(
 
 /** The node to wrap in `castFn<brand>(...)` for a matched property, or undefined if this
  *  property's initializer isn't eligible (already cast, wrong type, or vars disabled). */
-function resolveCastCandidate(pa: PropertyAssignment, opts: CastIdLiteralsOptions): Node | undefined {
+function plainStringInEveryWorld(node: Node, semantic: SemanticWorkspace): boolean {
+  const types = semantic.sourceViews(node.getSourceFile().getFilePath()).flatMap(({ sourceFile }) => {
+    const local = sourceFile.getDescendantAtStartWithWidth(node.getStart(), node.getWidth());
+    return local === undefined ? [] : [local.getType()];
+  });
+  return types.length > 0 && types.every((type) => type.isString() || type.isStringLiteral());
+}
+
+function resolveCastCandidate(pa: PropertyAssignment, opts: CastIdLiteralsOptions, semantic: SemanticWorkspace | undefined): Node | undefined {
   const literal =
     pa.getInitializerIfKind(SyntaxKind.StringLiteral) ??
     pa.getInitializerIfKind(SyntaxKind.NoSubstitutionTemplateLiteral) ??
@@ -95,14 +104,14 @@ function resolveCastCandidate(pa: PropertyAssignment, opts: CastIdLiteralsOption
   // Plain `string`, or a string-LITERAL type (`const id = "foo"` infers `"foo"`, not `string`) —
   // the common test pattern of a literal id stored in a const before the insert. Both are safe:
   // an already-branded value is neither, so it's never double-cast.
-  const exprType = expr.getType();
-  return exprType.getText() === "string" || exprType.isStringLiteral() ? expr : undefined;
+  return semantic !== undefined && plainStringInEveryWorld(expr, semantic) ? expr : undefined;
 }
 
 function scanObjectLiteralCastTargets(ctx: CodemodContext, opts: CastIdLiteralsOptions): { targets: Node[]; files: Set<string> } {
   const always = new Set(opts.alwaysProps);
   const tableScoped = opts.tableScopedIdProps ?? [];
   const testOnly = opts.testFilesOnly ?? true;
+  const semantic = opts.includeStringVars === true ? ctx.semantic() : undefined;
   const targets: Node[] = [];
   const files = new Set<string>();
   for (const sf of ctx.project.getSourceFiles()) {
@@ -114,7 +123,7 @@ function scanObjectLiteralCastTargets(ctx: CodemodContext, opts: CastIdLiteralsO
       if (!isCastTargetProperty(pa, always, tableScoped)) {
         continue;
       }
-      const candidate = resolveCastCandidate(pa, opts);
+      const candidate = resolveCastCandidate(pa, opts, semantic);
       if (candidate !== undefined) {
         targets.push(candidate);
         files.add(fp);
@@ -310,15 +319,21 @@ function resolveDiagnosticCastLiteral(diag: Diagnostic, opts: CastByDiagnosticOp
   if (node === undefined) {
     return;
   }
-  // The error node is (or sits just under) the offending string literal.
+  const literal = (candidate: Node | undefined): Node | undefined =>
+    candidate !== undefined &&
+    (candidate.getKind() === SyntaxKind.StringLiteral ||
+      candidate.getKind() === SyntaxKind.NoSubstitutionTemplateLiteral ||
+      candidate.getKind() === SyntaxKind.TemplateExpression)
+      ? candidate
+      : undefined;
+  // Argument diagnostics point at the value. Annotated variable/property assignments point at the
+  // declared name instead, so inspect that declaration's exact initializer without sweeping nearby
+  // literals on the line.
   const lit =
-    node.getKind() === SyntaxKind.StringLiteral ||
-    node.getKind() === SyntaxKind.NoSubstitutionTemplateLiteral ||
-    node.getKind() === SyntaxKind.TemplateExpression
-      ? node
-      : (node.getParentIfKind(SyntaxKind.StringLiteral) ??
-        node.getParentIfKind(SyntaxKind.NoSubstitutionTemplateLiteral) ??
-        node.getParentIfKind(SyntaxKind.TemplateExpression));
+    literal(node) ??
+    literal(node.getParent()) ??
+    literal(node.getFirstAncestorByKind(SyntaxKind.VariableDeclaration)?.getInitializer()) ??
+    literal(node.getFirstAncestorByKind(SyntaxKind.PropertyAssignment)?.getInitializer());
   if (lit === undefined) {
     return;
   }
@@ -333,32 +348,53 @@ function resolveDiagnosticCastLiteral(diag: Diagnostic, opts: CastByDiagnosticOp
   return lit;
 }
 
+function semanticDiagnostics(ctx: CodemodContext): readonly Diagnostic[] {
+  const diagnostics = new Map<string, Diagnostic>();
+  for (const program of ctx.semantic().programs) {
+    for (const diagnostic of program.project().getPreEmitDiagnostics()) {
+      const sourceFile = diagnostic.getSourceFile();
+      const identity = `${sourceFile?.getFilePath() ?? "<program>"}\0${String(diagnostic.getStart())}\0${String(diagnostic.getCode())}\0${flattenDiagnosticMessage(diagnostic.getMessageText())}`;
+      diagnostics.set(identity, diagnostic);
+    }
+  }
+  return [...diagnostics.values()];
+}
+
+function diagnosticCastTarget(
+  diagnostic: Diagnostic,
+  codes: ReadonlySet<number>,
+  testOnly: boolean,
+  opts: CastByDiagnosticOptions,
+): { readonly filePath: string; readonly literal: Node } | undefined {
+  if (!codes.has(diagnostic.getCode())) {
+    return;
+  }
+  const filePath = diagnostic.getSourceFile()?.getFilePath();
+  if (filePath === undefined || (testOnly && !isTestFile(filePath))) {
+    return;
+  }
+  const literal = resolveDiagnosticCastLiteral(diagnostic, opts);
+  return literal === undefined ? undefined : { filePath, literal };
+}
+
 function scanDiagnosticCastTargets(ctx: CodemodContext, opts: CastByDiagnosticOptions): { targets: Node[]; files: Set<string> } {
   const codes = new Set(opts.codes ?? [TS_ARGUMENT_TYPE_MISMATCH, TS_ASSIGNMENT_TYPE_MISMATCH]);
   const testOnly = opts.testFilesOnly ?? true;
   const seen = new Set<string>();
   const targets: Node[] = [];
   const files = new Set<string>();
-  for (const diag of ctx.project.getPreEmitDiagnostics()) {
-    if (!codes.has(diag.getCode())) {
+  for (const diagnostic of semanticDiagnostics(ctx)) {
+    const target = diagnosticCastTarget(diagnostic, codes, testOnly, opts);
+    if (target === undefined) {
       continue;
     }
-    const sf = diag.getSourceFile();
-    const fp = sf?.getFilePath();
-    if (fp === undefined || (testOnly && !isTestFile(fp))) {
-      continue;
-    }
-    const lit = resolveDiagnosticCastLiteral(diag, opts);
-    if (lit === undefined) {
-      continue;
-    }
-    const key = `${fp}:${lit.getStart()}`;
+    const key = `${target.filePath}:${target.literal.getStart()}`;
     if (seen.has(key)) {
       continue;
     }
     seen.add(key);
-    targets.push(lit);
-    files.add(fp);
+    targets.push(target.literal);
+    files.add(target.filePath);
   }
   return { targets, files };
 }

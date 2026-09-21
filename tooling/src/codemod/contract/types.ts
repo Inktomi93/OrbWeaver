@@ -1,7 +1,8 @@
 // The kit's exported shapes — plans, options, results (no-inline-types: tool types live in
 // contract/). Split from codemod-kit.ts §2/§4/§5 + the per-helper option interfaces (P4 of #393).
 import type { ImportSpecifier, JsxOpeningElement, JsxSelfClosingElement, Project, SourceFile } from "ts-morph";
-import type { CompilerProgram } from "#verify";
+import type { CompilerProgram } from "../../_shared/compiler-programs.ts";
+import type { SemanticWorkspace } from "../../_shared/ts-workspace.ts";
 
 export interface RetypeIdAnnotationsOptions {
   /** Declaration names to retype, e.g. `["chatId", "parentChatId", "newChatId"]`. */
@@ -123,9 +124,12 @@ export interface CreateProjectOptions {
  * builds one for you and tears it down on exit.
  */
 export interface CodemodContext {
-  /** The ts-morph project. Use this for navigation that doesn't need a Plan
-   *  (introspection, find-references, getting source files for a helper). */
+  /** Mutable syntax/text carrier for the transaction. Its one compiler-option set is not semantic
+   *  authority across the repository's native TypeScript programs. */
   readonly project: Project;
+  /** A fresh semantic view of the current in-memory transaction under the authored native compiler
+   *  programs. Type, diagnostic, and reference planning goes through this door. */
+  readonly semantic: () => SemanticWorkspace;
   /** Queue a plan returned by a kit helper. The plan's transform runs
    *  immediately on the in-memory project; the file system is only touched
    *  when the harness decides to commit. */

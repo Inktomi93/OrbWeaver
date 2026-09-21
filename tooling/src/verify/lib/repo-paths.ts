@@ -4,12 +4,15 @@
 import { existsSync } from "node:fs";
 import { isAbsolute, relative, resolve } from "node:path";
 import process from "node:process";
+import { GIT_READ_PREFIX, repoGitEnvironment } from "@orb/tooling/_shared/authored-repository";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
-import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
 import { UsageError } from "@orb/tooling/_shared/run-tool";
 import type { ChangedPath, ChangedPathClassification, ChangedPathStatus } from "../contract/selection.ts";
 
 export const ROOT = process.cwd();
+
+// biome-ignore lint/performance/noBarrelFile: compatibility front door keeps existing verifier imports stable after the shared path extraction.
+export { GIT_READ_PREFIX, repoGitEnvironment } from "@orb/tooling/_shared/authored-repository";
 
 function changedPath(path: string, status: ChangedPathStatus, previousPath: string | null = null): ChangedPath {
   return { path, status, previousPath };
@@ -62,13 +65,6 @@ function classifyGitNameStatus(source: string, root: string = ROOT): ChangedPath
  *  `grep --cached` and nothing else — re-derived 2026-09-05), but a checker has no business locking the
  *  operator's index while they work: `--no-optional-locks` is git's own flag for exactly this reader
  *  posture (it is what an IDE polling `status` is supposed to pass). It changes no output. */
-export const GIT_READ_PREFIX: readonly string[] = ["--no-optional-locks"];
-
-/** Explicit repository roots must not inherit a caller's alternate repository or index. */
-export function repoGitEnvironment(): NodeJS.ProcessEnv {
-  return Object.fromEntries(Object.entries(inheritedProcessEnv()).filter(([name]) => !name.startsWith("GIT_")));
-}
-
 /** The git posture for a proof FIXTURE repository, whose files were just written by the proof (#2333).
  *  `core.hooksPath=/dev/null` disables hooks; `core.fsmonitor=false` beats any repository-level fsmonitor
  *  command, because command-line config outranks repository config. The fixture grammar already refuses a
