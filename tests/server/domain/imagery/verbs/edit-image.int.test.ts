@@ -14,7 +14,7 @@ import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { makeHarness, PNG_BYTES, principal, resolutionWith, seedOwner } from "../_support.ts";
+import { makeHarness, PNG_BYTES, principal, resolutionWith, seedGenerationOwner } from "../_support.ts";
 
 let db: Db;
 
@@ -26,7 +26,7 @@ const SOURCE_ASSET = castId<AssetId>("asset_source");
 
 describe("editImage — the capability gate (doc 03 §1)", () => {
   test("a non-edit model throws ImageEditUnsupportedError — no asset, no row", async () => {
-    const owner = await seedOwner(db, castId<Handle>("owner"));
+    const owner = await seedGenerationOwner(db, castId<Handle>("owner"));
     const { ctx } = makeHarness(db, { resolveGenerateImage: resolutionWith(false) });
 
     await expect(
@@ -45,7 +45,7 @@ describe("editImage — the capability gate (doc 03 §1)", () => {
 
 describe("editImage — the edit path (doc 02 §4)", () => {
   test("an owned-asset source is read via readAsset, edited, and stored (edited:true, mode:free, no identity hash)", async () => {
-    const owner = await seedOwner(db, castId<Handle>("owner"));
+    const owner = await seedGenerationOwner(db, castId<Handle>("owner"));
     const editReqs: ImageGenerateRequest[] = [];
     const { ctx, readAssetCalls } = makeHarness(db, {
       resolveGenerateImage: resolutionWith(true),
@@ -87,7 +87,7 @@ describe("editImage — the edit path (doc 02 §4)", () => {
   });
 
   test("an upload-bytes source is used directly — readAsset is never called; a mask rides the edit payload", async () => {
-    const owner = await seedOwner(db, castId<Handle>("owner"));
+    const owner = await seedGenerationOwner(db, castId<Handle>("owner"));
     const editReqs: ImageGenerateRequest[] = [];
     const maskBytes = Uint8Array.from([9, 9, 9, 9]);
     const { ctx, readAssetCalls } = makeHarness(db, {
@@ -116,7 +116,7 @@ describe("editImage — the edit path (doc 02 §4)", () => {
   });
 
   test("a runner belt warning (e.g. a dropped mask) surfaces onto the result", async () => {
-    const owner = await seedOwner(db, castId<Handle>("owner"));
+    const owner = await seedGenerationOwner(db, castId<Handle>("owner"));
     const { ctx } = makeHarness(db, {
       resolveGenerateImage: resolutionWith(true),
       generateImage: () =>

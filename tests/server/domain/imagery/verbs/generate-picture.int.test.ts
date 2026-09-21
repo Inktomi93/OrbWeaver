@@ -16,7 +16,7 @@ import { beforeEach, describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { makeCharacter } from "../../../../support/factories/character.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { fakeCard, makeHarness, PNG_BYTES, principal, resolutionWith, seedOwner } from "../_support.ts";
+import { fakeCard, makeHarness, PNG_BYTES, principal, resolutionWith, seedGenerationOwner } from "../_support.ts";
 
 let db: Db;
 
@@ -26,7 +26,7 @@ beforeEach(async () => {
 
 describe("generatePicture (free mode)", () => {
   test("stores one generated asset + one provenance row + returns a media block", async () => {
-    const owner = await seedOwner(db, castId<Handle>("owner"));
+    const owner = await seedGenerationOwner(db, castId<Handle>("owner"));
     const { ctx, recordedStats, generateCalls } = makeHarness(db);
 
     const result = await createImageryService(ctx).generatePicture({
@@ -67,7 +67,7 @@ describe("generatePicture (free mode)", () => {
   });
 
   test("zero decodable images → GenerationFailedError (no asset, no row)", async () => {
-    const owner = await seedOwner(db, castId<Handle>("owner"));
+    const owner = await seedGenerationOwner(db, castId<Handle>("owner"));
     const { ctx } = makeHarness(db, {
       generateImage: () => Promise.resolve({ images: [], model: "img-model", usage: { costUsd: null }, warnings: [] }),
     });
@@ -85,7 +85,7 @@ describe("generatePicture (free mode)", () => {
   });
 
   test("a provider URL image is downloaded via the SSRF-safe fetchImage port, then stored", async () => {
-    const owner = await seedOwner(db, castId<Handle>("owner"));
+    const owner = await seedGenerationOwner(db, castId<Handle>("owner"));
     const url = "https://cdn.example/generated/dragon.png";
     const { ctx, fetchImageCalls } = makeHarness(db, {
       generateImage: () =>
@@ -116,7 +116,7 @@ describe("generatePicture (free mode)", () => {
   });
 
   test("a URL the SSRF-safe port rejects (null) is dropped → GenerationFailedError, no asset/row", async () => {
-    const owner = await seedOwner(db, castId<Handle>("owner"));
+    const owner = await seedGenerationOwner(db, castId<Handle>("owner"));
     // fetchImage returns null for an SSRF-blocked / non-2xx / oversized / failed download (the harness
     // default) — the only image drops, so the generation fails closed and nothing is persisted.
     const { ctx, fetchImageCalls } = makeHarness(db, {
@@ -143,7 +143,7 @@ describe("generatePicture (free mode)", () => {
   });
 
   test('"free" mode with no prompt is refused (free requires the user\'s literal words)', async () => {
-    const owner = await seedOwner(db, castId<Handle>("owner"));
+    const owner = await seedGenerationOwner(db, castId<Handle>("owner"));
     const { ctx } = makeHarness(db);
 
     await expect(createImageryService(ctx).generatePicture({ caller: principal(owner), mode: "free" })).rejects.toThrow();
@@ -159,7 +159,7 @@ async function seedChat(): Promise<void> {
 
 describe("generatePicture — prompt resolution (extraction / caption, doc 02 §1 step 3-4)", () => {
   test("an extraction mode runs chat's shaper, prefixes the keywords, sums the cost", async () => {
-    const owner = await seedOwner(db, castId<Handle>("owner"));
+    const owner = await seedGenerationOwner(db, castId<Handle>("owner"));
     const { ctx, extractInstructions, recordedStats } = makeHarness(db);
     await seedChat();
 
@@ -183,7 +183,7 @@ describe("generatePicture — prompt resolution (extraction / caption, doc 02 §
   });
 
   test("a prompt override on a template mode is used verbatim — the shaper is never called", async () => {
-    const owner = await seedOwner(db, castId<Handle>("owner"));
+    const owner = await seedGenerationOwner(db, castId<Handle>("owner"));
     const { ctx, extractInstructions } = makeHarness(db);
     await seedChat();
 
@@ -197,7 +197,7 @@ describe("generatePicture — prompt resolution (extraction / caption, doc 02 §
   });
 
   test("a multimodal mode captions the avatar (source captioned)", async () => {
-    const owner = await seedOwner(db, castId<Handle>("owner"));
+    const owner = await seedGenerationOwner(db, castId<Handle>("owner"));
     const { ctx, captionInstructions, extractInstructions } = makeHarness(db);
     await seedChat();
     await db.insert(characters).values(makeCharacter({ id: castId<CharacterId>("character_aria"), ownerId: owner }));
@@ -216,7 +216,7 @@ describe("generatePicture — prompt resolution (extraction / caption, doc 02 §
   });
 
   test("a multimodal mode with NO avatar falls back to text extraction of the sibling mode", async () => {
-    const owner = await seedOwner(db, castId<Handle>("owner"));
+    const owner = await seedGenerationOwner(db, castId<Handle>("owner"));
     // getCard returns a card with no avatar → captionAvatar returns null → extractText(character).
     const { ctx, captionInstructions, extractInstructions } = makeHarness(db, { getCard: () => Promise.resolve(fakeCard(null)) });
     await seedChat();
@@ -236,7 +236,7 @@ describe("generatePicture — prompt resolution (extraction / caption, doc 02 §
   });
 
   test("an empty extraction result raises PromptExtractionFailedError — no asset, no row", async () => {
-    const owner = await seedOwner(db, castId<Handle>("owner"));
+    const owner = await seedGenerationOwner(db, castId<Handle>("owner"));
     const { ctx } = makeHarness(db, { extractQuiet: () => Promise.resolve({ text: "()[]{}", costUsd: 0.001 }) });
 
     await expect(createImageryService(ctx).generatePicture({ caller: principal(owner), chatId: CHAT, mode: "scenario" })).rejects.toThrow();
@@ -245,14 +245,14 @@ describe("generatePicture — prompt resolution (extraction / caption, doc 02 §
   });
 
   test("an extraction mode with no chatId is refused (the shaper needs a history scope)", async () => {
-    const owner = await seedOwner(db, castId<Handle>("owner"));
+    const owner = await seedGenerationOwner(db, castId<Handle>("owner"));
     const { ctx } = makeHarness(db);
 
     await expect(createImageryService(ctx).generatePicture({ caller: principal(owner), mode: "scenario" })).rejects.toThrow();
   });
 
   test("cost null-propagates: an unknown extraction cost makes the total null (generation still lands in stats)", async () => {
-    const owner = await seedOwner(db, castId<Handle>("owner"));
+    const owner = await seedGenerationOwner(db, castId<Handle>("owner"));
     const { ctx, recordedStats } = makeHarness(db, { extractQuiet: () => Promise.resolve({ text: "keyword one", costUsd: null }) });
     await seedChat();
 
@@ -302,7 +302,7 @@ function enforcingStoreAsset(): ImageryContext["storeAsset"] {
 
 describe("generatePicture — sniff ↔ assets.enforceMagic agreement (F4)", () => {
   test("a real PNG: the claimed mime matches the shared magic check → stored (agreement)", async () => {
-    const owner = await seedOwner(db, castId<Handle>("owner"));
+    const owner = await seedGenerationOwner(db, castId<Handle>("owner"));
     const { ctx } = makeHarness(db, { storeAsset: enforcingStoreAsset() });
 
     const result = await createImageryService(ctx).generatePicture({
@@ -319,7 +319,7 @@ describe("generatePicture — sniff ↔ assets.enforceMagic agreement (F4)", () 
   });
 
   test("an unrecognized signature (e.g. AVIF) is coherently rejected by the shared check, not silently stored", async () => {
-    const owner = await seedOwner(db, castId<Handle>("owner"));
+    const owner = await seedGenerationOwner(db, castId<Handle>("owner"));
     // Bytes the shared table does NOT recognize (kit → octet-stream); the provider claims image/avif. The
     // caller-policy fallback claims that mediaType, and the SAME magic check assets runs rejects it — a coherent
     // rejection at the store boundary, never a wrong-typed asset slipped through a divergent local table.
@@ -363,7 +363,7 @@ async function seedPortraitFixtures(owner: UserId): Promise<void> {
 
 describe("generatePicture — B2 reuse gate (doc 03 §4.4)", () => {
   test("a repeat portrait request reuses the prior generation — zero new provider calls", async () => {
-    const owner = await seedOwner(db, castId<Handle>("owner"));
+    const owner = await seedGenerationOwner(db, castId<Handle>("owner"));
     await seedPortraitFixtures(owner);
     const { ctx, generateCalls } = makeHarness(db);
     const svc = createImageryService(ctx);
@@ -383,7 +383,7 @@ describe("generatePicture — B2 reuse gate (doc 03 §4.4)", () => {
   });
 
   test('reuse:"never" regenerates (the regenerate affordance) — a new row, no short-circuit', async () => {
-    const owner = await seedOwner(db, castId<Handle>("owner"));
+    const owner = await seedGenerationOwner(db, castId<Handle>("owner"));
     await seedPortraitFixtures(owner);
     const { ctx, generateCalls } = makeHarness(db);
     const svc = createImageryService(ctx);
@@ -397,7 +397,7 @@ describe("generatePicture — B2 reuse gate (doc 03 §4.4)", () => {
   });
 
   test("a prompt override bypasses the gate and stores no identity hash (not the card's canonical portrait)", async () => {
-    const owner = await seedOwner(db, castId<Handle>("owner"));
+    const owner = await seedGenerationOwner(db, castId<Handle>("owner"));
     await seedPortraitFixtures(owner);
     const { ctx, generateCalls } = makeHarness(db);
     const svc = createImageryService(ctx);
@@ -421,7 +421,7 @@ describe("generatePicture — B2 reuse gate (doc 03 §4.4)", () => {
   });
 
   test("the miss path stores the subject + identity hash so the NEXT prefer-call hits", async () => {
-    const owner = await seedOwner(db, castId<Handle>("owner"));
+    const owner = await seedGenerationOwner(db, castId<Handle>("owner"));
     await seedPortraitFixtures(owner);
     const { ctx } = makeHarness(db);
 
@@ -438,7 +438,7 @@ describe("generatePicture — B2 reuse gate (doc 03 §4.4)", () => {
 // readProvenance. Additive-only — the existing free path (no hash) is byte-identical (identityHash null).
 describe("generatePicture — free-mode external identity hash (08 §2 widening)", () => {
   test("a free-mode call with identityHash stores it on the provenance + readProvenance round-trips it", async () => {
-    const owner = await seedOwner(db, castId<Handle>("owner"));
+    const owner = await seedGenerationOwner(db, castId<Handle>("owner"));
     const { ctx } = makeHarness(db);
     const svc = createImageryService(ctx);
 
@@ -455,7 +455,7 @@ describe("generatePicture — free-mode external identity hash (08 §2 widening)
   });
 
   test("a free-mode call WITHOUT identityHash is byte-identical — the provenance hash stays null", async () => {
-    const owner = await seedOwner(db, castId<Handle>("owner"));
+    const owner = await seedGenerationOwner(db, castId<Handle>("owner"));
     const { ctx } = makeHarness(db);
 
     await createImageryService(ctx).generatePicture({ caller: principal(owner), mode: "free", prompt: "a plain scene" });
@@ -465,7 +465,7 @@ describe("generatePicture — free-mode external identity hash (08 §2 widening)
   });
 
   test("identityHash is IGNORED on a subject-portrait mode — the internal reuse gate's hash wins", async () => {
-    const owner = await seedOwner(db, castId<Handle>("owner"));
+    const owner = await seedGenerationOwner(db, castId<Handle>("owner"));
     await seedPortraitFixtures(owner);
     const { ctx } = makeHarness(db);
 
@@ -486,7 +486,7 @@ describe("generatePicture — free-mode external identity hash (08 §2 widening)
 
 describe("generatePicture — B3 avatar-reference gate (doc 03 §3)", () => {
   test("an edit-capable model reads the avatar as the init image + marks the row edited (no warning)", async () => {
-    const owner = await seedOwner(db, castId<Handle>("owner"));
+    const owner = await seedGenerationOwner(db, castId<Handle>("owner"));
     await seedPortraitFixtures(owner);
     const { ctx, readAssetCalls } = makeHarness(db, { resolveGenerateImage: resolutionWith(true) });
 
@@ -506,7 +506,7 @@ describe("generatePicture — B3 avatar-reference gate (doc 03 §3)", () => {
   });
 
   test("an edit-capable model routes the avatar to the img2img init (references absent)", async () => {
-    const owner = await seedOwner(db, castId<Handle>("owner"));
+    const owner = await seedGenerationOwner(db, castId<Handle>("owner"));
     await seedPortraitFixtures(owner);
     const { ctx, generateRequests } = makeHarness(db, { resolveGenerateImage: resolutionWith(true) });
 
@@ -524,7 +524,7 @@ describe("generatePicture — B3 avatar-reference gate (doc 03 §3)", () => {
   });
 
   test("a non-edit model DROPS the reference with an image_edit_dropped warning (never throws), row not edited", async () => {
-    const owner = await seedOwner(db, castId<Handle>("owner"));
+    const owner = await seedGenerationOwner(db, castId<Handle>("owner"));
     await seedPortraitFixtures(owner);
     const { ctx, readAssetCalls } = makeHarness(db, { resolveGenerateImage: resolutionWith(false) });
 
@@ -546,7 +546,7 @@ describe("generatePicture — B3 avatar-reference gate (doc 03 §3)", () => {
   });
 
   test("useAvatarReference on a non-subject mode (free) is ignored — no reference read, no warning", async () => {
-    const owner = await seedOwner(db, castId<Handle>("owner"));
+    const owner = await seedGenerationOwner(db, castId<Handle>("owner"));
     const { ctx, readAssetCalls } = makeHarness(db, { resolveGenerateImage: resolutionWith(true) });
 
     const result = await createImageryService(ctx).generatePicture({
@@ -565,7 +565,7 @@ describe("generatePicture — B3 avatar-reference gate (doc 03 §3)", () => {
 
 describe("generatePicture — runner warnings surface onto the result (doc 03 §2)", () => {
   test("a runner edit-strip belt warning flows up into GeneratedPicture.warnings", async () => {
-    const owner = await seedOwner(db, castId<Handle>("owner"));
+    const owner = await seedGenerationOwner(db, castId<Handle>("owner"));
     const { ctx } = makeHarness(db, {
       generateImage: () =>
         Promise.resolve({

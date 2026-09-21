@@ -3,9 +3,10 @@
 // nullable free-mode columns left at their defaults).
 
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
+import { providerIdSchema } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
-import { assets, characters, imageryGenerations, users } from "@orb/db";
-import type { AssetId, CharacterId, Handle, ImageryGenerationId, ModelId, UserId } from "@orb/kit/ids";
+import { assets, characters, imageryGenerations, userConnections, users } from "@orb/db";
+import type { AssetId, CharacterId, Handle, ImageryGenerationId, ModelId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
 import { findReusableGeneration, insertGeneration, readProvenanceByAsset } from "../../../../../packages/server/src/domain/imagery/persistence/queries.ts";
@@ -14,6 +15,7 @@ import { makeCharacter } from "../../../../support/factories/character.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const FROZEN_AT = 1_750_000_000_000;
+const PROVIDER_ID = providerIdSchema.parse("openrouter");
 
 let db: Db;
 
@@ -21,9 +23,19 @@ beforeEach(async () => {
   db = await freshDb();
 });
 
-async function seedOwnedAsset(): Promise<{ owner: UserId; assetId: AssetId }> {
+async function seedConnection(ownerId: UserId, suffix: string): Promise<UserConnectionId> {
+  const id = castId<UserConnectionId>(`user_connection_${suffix}`);
+  await db
+    .insert(userConnections)
+    .values({ id, ownerId, label: `image generator ${suffix}`, providerId: PROVIDER_ID, model: "img-model" })
+    .onConflictDoNothing();
+  return id;
+}
+
+async function seedOwnedAsset(): Promise<{ owner: UserId; assetId: AssetId; connectionId: UserConnectionId }> {
   const owner = castId<UserId>("user_owner");
   await db.insert(users).values({ id: owner, handle: castId<Handle>("owner"), role: "user", enabled: true });
+  const connectionId = await seedConnection(owner, "owner");
   const assetId = castId<AssetId>("asset_gen");
   await db.insert(assets).values({
     id: assetId,
@@ -33,12 +45,12 @@ async function seedOwnedAsset(): Promise<{ owner: UserId; assetId: AssetId }> {
     size: 8,
     hash: "hash_gen",
   });
-  return { owner, assetId };
+  return { owner, assetId, connectionId };
 }
 
 describe("insertGeneration", () => {
   test("writes one free-mode provenance row tied to the stored asset", async () => {
-    const { assetId } = await seedOwnedAsset();
+    const { assetId, connectionId } = await seedOwnedAsset();
     const id = castId<ImageryGenerationId>("imagery_generation_1");
 
     await insertGeneration(db, {
@@ -51,6 +63,8 @@ describe("insertGeneration", () => {
       prompt: "a lighthouse at dusk",
       negativePrompt: null,
       model: castId<ModelId>("img-model"),
+      providerId: PROVIDER_ID,
+      connectionId,
       costUsd: 0.05,
       edited: false,
       createdAt: FROZEN_AT,
@@ -65,6 +79,8 @@ describe("insertGeneration", () => {
       mode: "free",
       prompt: "a lighthouse at dusk",
       model: "img-model",
+      provider: PROVIDER_ID,
+      connectionId,
       costUsd: 0.05,
       edited: false,
       // The free-mode call leaves the portrait/negative columns null.
@@ -75,7 +91,7 @@ describe("insertGeneration", () => {
   });
 
   test("fills the portrait columns (subject + identity hash + negative) when supplied", async () => {
-    const { owner, assetId } = await seedOwnedAsset();
+    const { owner, assetId, connectionId } = await seedOwnedAsset();
     await db.insert(characters).values(makeCharacter({ id: castId<CharacterId>("character_aria"), ownerId: owner }));
     await insertGeneration(db, {
       id: castId<ImageryGenerationId>("imagery_generation_p"),
@@ -87,6 +103,8 @@ describe("insertGeneration", () => {
       prompt: "full body portrait, red hair",
       negativePrompt: "text, watermark",
       model: castId<ModelId>("img-model"),
+      providerId: PROVIDER_ID,
+      connectionId,
       costUsd: null,
       edited: false,
       createdAt: FROZEN_AT,
@@ -121,6 +139,7 @@ async function seedGeneration(args: SeedArgs): Promise<void> {
     const character = makeCharacter({ id: castId<CharacterId>(subjectCharacterId), ownerId: owner });
     await db.insert(characters).values(character).onConflictDoNothing();
   }
+  const connectionId = await seedConnection(owner, owner);
   await insertGeneration(db, {
     id: castId<ImageryGenerationId>(generationId),
     assetId,
@@ -131,6 +150,8 @@ async function seedGeneration(args: SeedArgs): Promise<void> {
     prompt: PORTRAIT_PROMPT,
     negativePrompt: null,
     model: castId<ModelId>("img-model"),
+    providerId: PROVIDER_ID,
+    connectionId,
     costUsd: 0.02,
     edited: false,
     createdAt,
