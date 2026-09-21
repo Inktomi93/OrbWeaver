@@ -13,7 +13,7 @@
 import type { MemoryRecallCandidate, MemoryRecallVerdict } from "@orb/contracts/chat";
 import type { ScoredBlock } from "@orb/contracts/search";
 import type { Db } from "@orb/db";
-import type { CharacterId, ChatId, Handle } from "@orb/kit/ids";
+import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
 import { recallMemory } from "../../../../../packages/server/src/domain/chat/memory/recall/recall.ts";
@@ -25,9 +25,13 @@ import { fakeSearchDigests, GROUP_CHAR, seedDigest, seedSegment, sharedScope } f
 const aria = castId<CharacterId>("character_aria");
 
 let db: Db;
+// The fixture owner. Hoisted out of `beforeEach` because `seedSegment` needs it: a segment's
+// `embed_generations` row is owner-scoped and these chats seat no human HOST for it to derive one from
+// (D18 — there is no `chats.ownerId`, the host participant is the authority), so the owner is passed.
+let owner: UserId;
 beforeEach(async () => {
   db = await freshDb();
-  const owner = await seedUser(db, castId<Handle>("owner"));
+  owner = await seedUser(db, castId<Handle>("owner"));
   await seedCharacter(db, owner, "group");
   await seedCharacter(db, owner, "aria");
 });
@@ -132,8 +136,8 @@ describe("memory/recall — the trace slice (#250)", () => {
   test("witnessing + live window: a block reads the STAGE that dropped it, not a generic miss", async () => {
     const chatId = await seedChat(db, "stages");
     // Two blocks of 4 messages each: block 0 = seq 1-4, block 1 = seq 5-8.
-    await seedSegment(db, { chatId, blockIdx: 0, seqStart: 1, seqEnd: 4 });
-    await seedSegment(db, { chatId, blockIdx: 1, seqStart: 5, seqEnd: 8 });
+    await seedSegment(db, { ownerId: owner, chatId, blockIdx: 0, seqStart: 1, seqEnd: 4 });
+    await seedSegment(db, { ownerId: owner, chatId, blockIdx: 1, seqStart: 5, seqEnd: 8 });
     await seedDigest(db, { chatId, tier: 0, blockIdx: 0, topicAnchor: "[b0]", keywords: [] });
     await seedDigest(db, { chatId, tier: 0, blockIdx: 1, topicAnchor: "[b1]", keywords: [] });
     await seedParticipant(db, { chatId, key: "aria", characterId: aria, joinSeq: 5, leftSeq: null });

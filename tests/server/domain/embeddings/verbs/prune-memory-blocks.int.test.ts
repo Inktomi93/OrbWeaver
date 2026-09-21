@@ -12,7 +12,7 @@
 // `chat_digest_speakers` join rows go with it.
 
 import type { Db } from "@orb/db";
-import { chatDigestSpeakers, chatDigests, chatSegments, userConnections } from "@orb/db";
+import { chatDigestSpeakers, chatDigests, chatSegments } from "@orb/db";
 import type { ChatDigestId, ChatSegmentId, EmbedGenerationId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
@@ -32,15 +32,8 @@ async function seedVectorParents(db: Db, ownerId: UserId): Promise<EmbedGenerati
   if (resolved === null) {
     throw new Error("the memory fixture needs an embed connection");
   }
-  await db.insert(userConnections).values({
-    id: resolved.connectionId,
-    ownerId,
-    label: "memory prune embed",
-    providerId: resolved.providerId,
-    model: resolved.model,
-    createdAt: NOW,
-    updatedAt: NOW,
-  });
+  // The `user_connections` row `resolved.connectionId` points at is seeded by `seedUser` (embeddings
+  // `_support` → `seedVectorConnection`) — the generation's `connection_id` FK parent has ONE home.
   const generation = await resolveTargetGeneration(harness.ctx, ownerId, "embed");
   if (generation === null) {
     throw new Error("the memory generation must resolve");

@@ -106,7 +106,7 @@ beforeEach(async () => {
       model: EMBED_MODEL,
     });
     // The verbatim spans the live-window guard reads: block N covers seqs [4N+1, 4N+4].
-    await seedSegment(db, { chatId, blockIdx: block.blockIdx, seqStart: block.blockIdx * 4 + 1, seqEnd: block.blockIdx * 4 + 4 });
+    await seedSegment(db, { ownerId: owner, chatId, blockIdx: block.blockIdx, seqStart: block.blockIdx * 4 + 1, seqEnd: block.blockIdx * 4 + 4 });
   }
 });
 
