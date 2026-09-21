@@ -1,0 +1,136 @@
+{
+  "schemaVersion": 1,
+  "task": "AST external-consumer evidence protocol investigation/design",
+  "workspace": "/home/inktomi/.codex/worktrees/world-aware-tools/orbweaver",
+  "head": "1767e0267b290c61f2da4382feb8c5615bf6a4cf",
+  "mode": "read-only design; no source edits and no broad corpus run",
+  "conclusion": {
+    "verdict": "Two real liveness false negatives. Do not solve them with @public, @orb-waive, a symbol-name allowlist, or a presence-only marker.",
+    "architecture": "Normalize external production consumption into one ExternalConsumption fact, but derive each fact from the source-native mechanism that actually consumes it.",
+    "ownerRulingNeeded": false,
+    "ownerRulingReason": "The recommended arms extend already-ruled mechanisms: package scripts/tool entries are production entries, and a TypeScript satisfies witness is checked semantic source. A ruling is needed only if implementation instead adds a Bash parser dependency or a hand-maintained registry."
+  },
+  "findings": [
+    {
+      "target": "packages/server/src/domain/chat/substrate/auth/matrix.ts:43:CHAT_VERB_AUTHORITY",
+      "currentLensVerdict": "api-test-only / testonly candidate",
+      "actualConsumer": "tooling/src/verify/lib/chat-plane-read.ts:72,177-210",
+      "mechanism": "MATRIX_CONST is the string CHAT_VERB_AUTHORITY; the gate visitor selects that VariableDeclaration and resolveChatMatrix resolves its rows.",
+      "structuralEvidence": {
+        "ts": { "scannedFiles": 6456, "exactIdentifierMatches": 39, "productionSites": ["declaration", "auth barrel re-export"], "testMatches": 37 },
+        "tsx": { "scannedFiles": 1407, "exactIdentifierMatches": 0 },
+        "interpretation": "The tool consumer is invisible because it deliberately holds the symbol name as a string."
+      }
+    },
+    {
+      "target": "packages/server/src/foundation/version/index.ts:194:buildVersionStamp",
+      "currentLensVerdict": "api-test-only / testonly candidate",
+      "actualConsumer": "docker/assemble-runtime.sh:84-88",
+      "mechanism": "Bash launches node --input-type=module -e; embedded ESM imports and calls buildVersionStamp to write /app/version.json.",
+      "structuralEvidence": {
+        "ts": { "scannedFiles": 6456, "exactIdentifierMatches": 5, "productionSites": ["declaration"], "testMatches": 4 },
+        "tsx": { "scannedFiles": 1407, "exactIdentifierMatches": 0 },
+        "bash": "ast-grep --lang bash sees the whole environment-prefixed node command as one command node at line 84; the JavaScript is nested in its quoted -e argument.",
+        "textualCorroboration": "rg found only the declaration, four test calls, and docker/assemble-runtime.sh:87."
+      }
+    }
+  ],
+  "existingMechanisms": [
+    {
+      "mechanism": "@public twin/future",
+      "decision": "reject extension",
+      "reason": "public-markers.ts:29-43 defines it for intentionally unconsumed exports, and the orphan ratchet reds it once production consumption exists."
+    },
+    {
+      "mechanism": "@orb-waive and reviewed grants",
+      "decision": "reject extension",
+      "reason": "They authorize exact verify-policy findings; external execution is evidence, not permission."
+    },
+    {
+      "mechanism": "tooling/src/ast/lib/tooling-entries.ts",
+      "decision": "extend conceptually",
+      "reason": "It already centralizes externally loaded entry conventions, but currently covers only package-root *.config.ts default exports."
+    },
+    {
+      "mechanism": "package.json script entries",
+      "decision": "reuse and finish",
+      "reason": "prodonly.ts:25-49 already rules script targets/tool configs as production entries. It currently scans package manifests only and silently ignores missing script targets."
+    }
+  ],
+  "recommendedContract": {
+    "normalizedFact": {
+      "name": "ExternalConsumption",
+      "fields": ["target declaration key", "consumer site", "consumer class", "value/type consumption", "root consumer key for chains"],
+      "home": "beside tooling/src/ast/lib/tooling-entries.ts"
+    },
+    "sourceReaderArm": {
+      "authoredSyntax": "\"CHAT_VERB_AUTHORITY\" satisfies keyof typeof import(\"@orb/server/domain/chat/substrate/auth\")",
+      "placement": "the actual MATRIX_CONST initializer",
+      "derivation": [
+        "Find a string literal in a satisfies expression whose type is keyof typeof import(static-module).",
+        "Resolve the module with the TypeScript checker and the named export through barrels to its origin.",
+        "Require the carrier value to have a non-test use outside its declaration; otherwise refuse as detached evidence.",
+        "Credit exactly that origin as external-tooling consumption."
+      ],
+      "staleness": "A rename/removal is TypeScript-red and collector-refusal-red; comments and plain strings never create an edge."
+    },
+    "launcherArm": {
+      "shape": [
+        "Move the inline node -e program into checked scripts/build-version-stamp.ts.",
+        "Use an ordinary static named import and call of buildVersionStamp.",
+        "Declare it in the root package.json scripts table and have assemble-runtime.sh invoke that named script."
+      ],
+      "derivation": [
+        "Extend existing script-entry derivation to the root manifest.",
+        "A literal TS script target that does not resolve must refuse rather than disappear.",
+        "Follow its ordinary import graph; buildVersionStamp then needs no exception grammar."
+      ],
+      "reason": "This avoids a Bash parser plus nested JavaScript parser for one current edge and reuses the checked TypeScript graph."
+    },
+    "bucketLaw": "External edges enter usedTooling and usedProd only, never usedClientProd or usedServerProd."
+  },
+  "coupledLenses": [
+    { "name": "buildLiveness", "path": "tooling/src/ast/lib/liveness.ts:359-392", "change": "ingest normalized edges, record an external arm and exact sites" },
+    { "name": "orphans/testonly/rot", "path": "tooling/src/ast/ops/orphans.ts and rot.ts", "change": "inherit usedProd" },
+    { "name": "apisurface", "path": "tooling/src/ast/ops/apisurface.ts:203-273", "change": "its separate ApiConsumption map must ingest the same facts or it disagrees with orphans" },
+    { "name": "dead", "path": "tooling/src/ast/ops/dead.ts:111-144", "change": "include exact external sites in TOOL-ANCHORED; semantic refs alone cannot see them" },
+    { "name": "chains", "path": "tooling/src/ast/ops/chains.ts:121-176", "change": "add an outside-surface root consumer edge" },
+    { "name": "swallowed", "path": "tooling/src/ast/ops/swallowed.ts", "change": "the external arm prevents namespace-only classification" },
+    { "name": "prodonly", "path": "tooling/src/ast/ops/prodonly.ts:25-90", "change": "recognize root package script entries and fail loud for missing literal targets" },
+    { "name": "orphan export ratchet", "path": "tooling/src/verify/ops/orphan-export-ratchet.ts:78-185", "change": "inherits both buildLiveness and collectApiSurface; both must agree in one commit" },
+    { "name": "clientgap", "path": "tooling/src/ast/ops/wiring.ts:317-350", "change": "preserve bucket boundaries; external tooling is neither server nor client product evidence" }
+  ],
+  "controls": {
+    "sourceReader": [
+      "Exact export through named barrel re-exports credits only the origin.",
+      "Same literal in comments, ordinary strings, fixture strings or unrelated satisfies types credits nothing.",
+      "Missing module/export, ambiguity, nonliteral target and detached carrier refuse.",
+      "Sibling exports remain candidates.",
+      "orphans, testonly, apisurface, dead, swallowed and chains agree on the same fixture."
+    ],
+    "launcher": [
+      "Root package script points at a real TS entry that imports and calls the target.",
+      "Missing literal target refuses.",
+      "An unregistered scripts/*.ts import is not an entry merely because of its directory.",
+      "assemble-runtime invokes the named script and produces version.json from the real server reader.",
+      "Removing the import/call makes the target test-only again; removing the target file with the manifest row present refuses."
+    ],
+    "redFirst": [
+      "Old source classifies both targets api-test-only/testonly.",
+      "Fixed source classifies both tooling-public/production-consumed with exact sites and without promoting siblings."
+    ]
+  },
+  "alternatives": [
+    { "name": "producer @external-consumer marker", "decision": "reject", "reason": "Presence-only permission repeats the @public parking-permit failure." },
+    { "name": "hand-written symbol/path allowlist", "decision": "reject", "reason": "Names incidents rather than deriving the class and can silently rot." },
+    { "name": "parse every shell node -e", "decision": "defer", "reason": "Requires a Bash parser dependency plus nested JS parsing for one edge." },
+    { "name": "type-only import solely to fool liveness", "decision": "reject", "reason": "Can outlive the actual source reader and greens the lens without binding evidence to the consumed key." },
+    { "name": "one normalized fact with source-native producers", "decision": "recommend", "reason": "Centralizes lens semantics while tying evidence to the actual mechanism." }
+  ],
+  "implementationAssessment": {
+    "tinyIsolated": false,
+    "reason": "A truthful fix spans shared liveness, apisurface's independent map, dead, chains, prodonly/root entries, tests and both consumer sites. Editing one lens would make the fleet disagree.",
+    "sourceEdited": false,
+    "committed": false
+  }
+}

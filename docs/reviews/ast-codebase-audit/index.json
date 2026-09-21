@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "capturedAt": "2026-09-21T09:34:46.576504+00:00",
-  "sourceCommit": "3e0c8bace",
+  "capturedAt": "2026-09-21T09:45:49.185097+00:00",
+  "sourceCommit": "abe4ede14",
   "purpose": "Full AST audit observations and agent reasoning. Dated evidence, not a replacement for GitHub work-item lifecycle.",
   "entryPoints": {
     "coverage": "world-tools-lens-manifest.json",
@@ -65,7 +65,10 @@
     "apiSurfaceCoverageReview": "world-tools-apisurface-coverage-review.json",
     "themeCentroidDecision": "world-tools-theme-centroid-decision.json",
     "deadStorageCleanup": "world-tools-dead-storage-cleanup.json",
-    "deadStorageReview": "world-tools-dead-storage-review.json"
+    "deadStorageReview": "world-tools-dead-storage-review.json",
+    "typeonlyPerformanceFix": "world-tools-typeonly-performance-fix.json",
+    "columnsLensFix": "world-tools-columns-lens-fix.json",
+    "externalConsumerDesign": "world-tools-external-consumer-design.json"
   },
   "limitations": [
     "30 CLI verbs identified; coverage remains incomplete. A candidate is not a confirmed defect or deletion authorization.",
@@ -224,6 +227,15 @@
     {
       "commit": "3e0c8bace",
       "result": "Removed three confirmed dead-storage columns through a populated forward-migration proof; independently confirmed"
+    },
+    {
+      "commit": "1767e0267",
+      "issue": 2548,
+      "result": "Short-circuited type-only reference walks after owning-world runtime evidence while preserving complete reference collection"
+    },
+    {
+      "commit": "abe4ede14",
+      "result": "Attributed named Drizzle insert-select projections and static raw-SQL INSERT headers to exact columns"
     }
   ],
   "unresolvedInsights": [
@@ -828,6 +840,27 @@
       "sourceSha256": "c5768323fb60ac43506ed8582e2def39595e610329a34d40eaa540640fc2b181",
       "sha256": "c5768323fb60ac43506ed8582e2def39595e610329a34d40eaa540640fc2b181",
       "bytes": 1444
+    },
+    {
+      "file": "world-tools-typeonly-performance-fix.json",
+      "source": "/tmp/world-tools-typeonly-performance-fix.json",
+      "sourceSha256": "20b9086dbcdfd49d5f19aae3d28d9ebe909a2f309b433ed43d91908b92bef768",
+      "sha256": "20b9086dbcdfd49d5f19aae3d28d9ebe909a2f309b433ed43d91908b92bef768",
+      "bytes": 4155
+    },
+    {
+      "file": "world-tools-columns-lens-fix.json",
+      "source": "/tmp/world-tools-columns-lens-fix.json",
+      "sourceSha256": "1ec68d3e3c486488087c3bb4b6adcd660b6421f03680aba7eb0d6441ded487cb",
+      "sha256": "1ec68d3e3c486488087c3bb4b6adcd660b6421f03680aba7eb0d6441ded487cb",
+      "bytes": 4286
+    },
+    {
+      "file": "world-tools-external-consumer-design.json",
+      "source": "/tmp/world-tools-external-consumer-design.json",
+      "sourceSha256": "aadc04113ce894da2e09c1cc745924f069568dd1e473cb208ac986a8af52d891",
+      "sha256": "aadc04113ce894da2e09c1cc745924f069568dd1e473cb208ac986a8af52d891",
+      "bytes": 9550
     }
   ],
   "crossCuttingFindings": {
@@ -920,13 +953,15 @@
       "review": "world-tools-partial-lenses-review.json"
     },
     "typeonlyPerformance": {
-      "status": "confirmed performance defect; repair tracked in #2548",
+      "status": "repair committed; owning-world runtime evidence now short-circuits later-world reference searches",
       "receipt": "world-tools-typeonly-performance-recon.json",
       "peakRssKb": 15377044,
-      "wallSeconds": 2130.13
+      "wallSeconds": 2130.13,
+      "fix": "world-tools-typeonly-performance-fix.json",
+      "commit": "1767e0267"
     },
     "columnLensAudit": {
-      "status": "31 findings reviewed; 29 confirmed and two row-level corrections supersede the initial report; bounded repairs in progress",
+      "status": "31 findings reviewed; all nine scanner blind spots repaired structurally; bounded cleanup and provenance decisions complete",
       "receipt": "world-tools-columns-triage.json",
       "review": "world-tools-columns-triage-review.json",
       "correctedTotals": {
@@ -937,7 +972,9 @@
         "provenanceDecisions": 4,
         "ddlConsumers": 5,
         "defaultProvenance": 1
-      }
+      },
+      "fix": "world-tools-columns-lens-fix.json",
+      "commit": "abe4ede14"
     },
     "apiSurfaceAudit": {
       "status": "9495 rows exhaustively classified; seven coverage defects repaired and independently confirmed; zero deletion candidates; two external-consumer protocol gaps remain",
@@ -982,6 +1019,12 @@
       "review": "world-tools-dead-storage-review.json",
       "commit": "3e0c8bace",
       "liveDatabaseDriftIssue": 2552
+    },
+    "externalConsumerEvidence": {
+      "status": "complete design; implementation Ready in #2553",
+      "issue": 2553,
+      "receipt": "world-tools-external-consumer-design.json",
+      "ownerRulingNeeded": false
     }
   }
 }

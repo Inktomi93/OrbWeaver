@@ -1,0 +1,65 @@
+{
+  "task": "columns lens scanner blind spots",
+  "status": "complete",
+  "input_reports": ["/tmp/world-tools-columns-triage.json", "/tmp/world-tools-columns-triage-review.json"],
+  "finding_equality": {"classified_scanner_blind_spots": 9, "accounted_for": 9, "missing": 0, "extra": 0},
+  "blind_spots": [
+    {
+      "mechanism": "drizzle_insert_select_named_projection",
+      "columns": ["chat_digest_speakers.digest_id", "embed_space_state.owner_id", "embed_space_state.scope", "refinery_schemas.id", "refinery_schemas.owner_id", "refinery_schemas.created_at"],
+      "fix": "Walk insert(table).select(query) back to the resolved table and attribute the inner select object projection keys. A positional or raw select marks the table opaque instead of inventing column identity."
+    },
+    {
+      "mechanism": "static_raw_sql_insert_header",
+      "columns": ["plugin_kv.plugin_id", "plugin_kv.owner_id", "plugin_kv.key"],
+      "fix": "Tokenize static sql tagged templates, skip template expressions, strings, and comments, and attribute INSERT INTO table (columns...) by exact SQL table and column identity. Exact sql tags only; similarly spelled tags are excluded."
+    }
+  ],
+  "changed_files": ["tooling/src/ast/lib/columns.ts", "tooling/src/ast/lib/column-reads.ts", "tooling/src/ast/lib/usage.ts", "tooling/src/ast/ops/columns.ts", "tests/tooling/ast/index.test.ts"],
+  "red_first": {
+    "command": "pnpm test:scoped tests/tooling/ast/index.test.ts",
+    "result": "failed 2 of 102: insert-select projections and static raw INSERT headers had no attributed writes",
+    "additional_control": {
+      "command": "pnpm test:scoped tests/tooling/ast/index.test.ts -t 'a static raw-SQL INSERT'",
+      "result": "failed because sqlFake was accepted by the former startsWith tag test; repaired to exact identifier identity"
+    }
+  },
+  "structural_corroboration": {
+    "ast_grep": {
+      "scope": "3 targeted TypeScript persistence files for insert-select plus plugin-kv.ts for sql tagged templates; no TSX source participates",
+      "insert_select_hits": 3,
+      "insert_select_columns_accounted": 6,
+      "sql_tagged_template_hits_in_plugin_kv": 3,
+      "raw_insert_headers_among_them": 2,
+      "raw_insert_columns_accounted": 3
+    },
+    "textual": {
+      "insert_target_counts": {"chatDigestSpeakers": 1, "embedSpaceState": 1, "refinerySchemas": 1},
+      "plugin_kv_exact_insert_header_count": 2
+    },
+    "deletions": 0
+  },
+  "verification": [
+    {"command": "pnpm test:scoped tests/tooling/ast/index.test.ts tests/tooling/ast/ops/verbs.test.ts", "result": "PASS: 122/122"},
+    {"command": "pnpm exec biome check tooling/src/ast/lib/columns.ts tooling/src/ast/lib/column-reads.ts tooling/src/ast/lib/usage.ts tooling/src/ast/ops/columns.ts tests/tooling/ast/index.test.ts --diagnostic-level=error", "result": "PASS"},
+    {"command": "pnpm typecheck --config tooling/tsconfig.json --config tsconfig.tests-iso.json", "result": "PASS: 2/2 native programs"},
+    {"command": "pnpm exec eslint tooling/src/ast/lib/columns.ts tooling/src/ast/lib/column-reads.ts tooling/src/ast/lib/usage.ts tooling/src/ast/ops/columns.ts tests/tooling/ast/index.test.ts", "result": "PASS"},
+    {"command": "git diff --check", "result": "PASS"}
+  ],
+  "controls": [
+    "named insert-select projection attributes only its keys",
+    "positional insert-select makes the table opaque",
+    "raw INSERT attributes only the exact target table and named columns",
+    "SELECT mentions do not become writes",
+    "other-table INSERT columns do not become writes",
+    "INSERT text inside SQL strings or comments does not become a write",
+    "similarly named sqlFake tag does not become SQL evidence",
+    "double-quoted static table and column identifiers are supported"
+  ],
+  "remaining_limits": [
+    "Raw SQL reads remain table-agnostic and advisory through raw?.",
+    "Dynamic raw-SQL table or destination-column identity is not guessed.",
+    "Backtick-quoted and square-bracket-quoted SQL identifiers are not attributed by the raw INSERT reader; current production findings use unquoted identifiers.",
+    "No repository-wide columns lens rerun was performed in this lane by explicit concurrency constraint; the orchestrator may perform one at the quiescent boundary."
+  ]
+}
