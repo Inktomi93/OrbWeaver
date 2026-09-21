@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "capturedAt": "2026-09-21T07:14:56.336717+00:00",
+  "capturedAt": "2026-09-21T07:20:32.182189+00:00",
   "denominator": 30,
   "rule": "A verb is complete only after its result set and tool behavior are adjudicated. Invocation alone does not count.",
   "summary": {
@@ -141,6 +141,11 @@
       "issue": 2540,
       "receipt": "world-tools-graph-query-lenses-audit.json",
       "review": "world-tools-graph-query-review.json"
+    },
+    "smallPackageRotTriage": {
+      "status": "db, inference, default-content, and showcase-plugins adjudicated: six candidates kept, zero deletions",
+      "receipt": "world-tools-small-package-rot-triage.json",
+      "ownerDecision": 2541
     }
   }
 }

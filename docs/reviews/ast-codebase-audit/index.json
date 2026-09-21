@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "capturedAt": "2026-09-21T07:14:56.336216+00:00",
-  "sourceCommit": "d8426277d",
+  "capturedAt": "2026-09-21T07:20:32.181419+00:00",
+  "sourceCommit": "440571042",
   "purpose": "Full AST audit observations and agent reasoning. Dated evidence, not a replacement for GitHub work-item lifecycle.",
   "entryPoints": {
     "coverage": "world-tools-lens-manifest.json",
@@ -34,7 +34,8 @@
     "brandBoundaryAudit": "world-tools-brand-boundary-audit.json",
     "brandBoundarySummary": "world-tools-brand-boundary-audit.md",
     "cleanupFinalRereview": "world-tools-cleanup-rereview.json",
-    "graphQueryLensReview": "world-tools-graph-query-review.json"
+    "graphQueryLensReview": "world-tools-graph-query-review.json",
+    "smallPackageRotTriage": "world-tools-small-package-rot-triage.json"
   },
   "limitations": [
     "30 CLI verbs identified; coverage remains incomplete. A candidate is not a confirmed defect or deletion authorization.",
@@ -204,8 +205,8 @@
       "file": "world-tools-lens-status-current.json",
       "source": "maintained audit status matrix",
       "sourceSha256": null,
-      "sha256": "59700f9d9b82e22c86ced6a06fdfa4d3537c2055947c779ff9451fe9fe39448f",
-      "bytes": 4232
+      "sha256": "daa177756ceaba0b2de1179d08f6ea727f15ee8cfd757aa23d57d7f557498b5b",
+      "bytes": 4481
     },
     {
       "file": "world-tools-lens-manifest.json",
@@ -563,6 +564,13 @@
       "sourceSha256": "81274b068553613538189598b5b23337a426ca09bb04c31dd8c36e491f864ecf",
       "sha256": "81274b068553613538189598b5b23337a426ca09bb04c31dd8c36e491f864ecf",
       "bytes": 5454
+    },
+    {
+      "file": "world-tools-small-package-rot-triage.json",
+      "source": "/tmp/world-tools-small-package-rot-triage.json",
+      "sourceSha256": "74ee1be9ea80a7e5386d9c473ea2d6b4e47acf75cc3fbe61f9853dc6640784ea",
+      "sha256": "74ee1be9ea80a7e5386d9c473ea2d6b4e47acf75cc3fbe61f9853dc6640784ea",
+      "bytes": 15616
     }
   ],
   "crossCuttingFindings": {
@@ -602,6 +610,12 @@
       "receipt": "world-tools-graph-query-lenses-audit.json",
       "commit": "d8426277d",
       "review": "world-tools-graph-query-review.json"
+    },
+    "providerRowTaskAuthority": {
+      "issue": 2541,
+      "status": "Needs owner",
+      "finding": "PROVIDER_ROW_TASKS claims DB write-boundary validation but has no direct consumer; choose DB enforcement or retire the claimed seam",
+      "receipt": "world-tools-small-package-rot-triage.json"
     }
   }
 }

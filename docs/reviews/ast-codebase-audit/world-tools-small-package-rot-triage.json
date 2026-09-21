@@ -1,0 +1,265 @@
+{
+  "schemaVersion": 1,
+  "generatedDate": "2026-09-21",
+  "task": "Adjudicate completed partial-semantic rot outputs for db, inference, default-content, and showcase-plugins",
+  "worktree": "/home/inktomi/.codex/worktrees/world-aware-tools/orbweaver",
+  "inputs": [
+    {
+      "package": "db",
+      "stdout": "/tmp/world-tools-partial-lenses-runs/rot-db.stdout",
+      "stderr": "/tmp/world-tools-partial-lenses-runs/rot-db.stderr",
+      "status": "complete",
+      "authoredFilesScanned": 44,
+      "candidateCount": 3
+    },
+    {
+      "package": "inference",
+      "stdout": "/tmp/world-tools-partial-lenses-runs/rot-inference.stdout",
+      "stderr": "/tmp/world-tools-partial-lenses-runs/rot-inference.stderr",
+      "status": "complete",
+      "authoredFilesScanned": 112,
+      "candidateCount": 3
+    },
+    {
+      "package": "default-content",
+      "stdout": "/tmp/world-tools-partial-lenses-runs/rot-default-content.stdout",
+      "stderr": "/tmp/world-tools-partial-lenses-runs/rot-default-content.stderr",
+      "status": "complete",
+      "authoredFilesScanned": 1,
+      "candidateCount": 0
+    },
+    {
+      "package": "showcase-plugins",
+      "stdout": "/tmp/world-tools-partial-lenses-runs/rot-showcase-plugins.stdout",
+      "stderr": "/tmp/world-tools-partial-lenses-runs/rot-showcase-plugins.stderr",
+      "status": "complete",
+      "authoredFilesScanned": 1,
+      "candidateCount": 0
+    }
+  ],
+  "scope": {
+    "included": [
+      "packages/db/src",
+      "packages/inference/src",
+      "packages/default-content/src",
+      "packages/showcase-plugins/src",
+      "their direct callers, package barrels, tests, and framework/tooling entrypoints"
+    ],
+    "excluded": [
+      "kit and contracts rot outputs because those runs predated or overlapped candidate repair",
+      "tooling/src/ast",
+      "docs audit index"
+    ],
+    "heavyCommandsNotRun": [
+      "pnpm ast",
+      "native full typecheck",
+      "full/static verification",
+      "heap-heavy scans"
+    ]
+  },
+  "method": {
+    "sourceReading": "Read each candidate declaration, its package barrel, relevant callers, and the package headers that state intended ownership. Read the provider-row persistence writer in full to distinguish a truly live schema value from a documented but currently unconsumed export.",
+    "structuralSearch": {
+      "tool": "ast-grep run",
+      "languages": [
+        "ts",
+        "tsx"
+      ],
+      "scope": ".",
+      "coverage": {
+        "tsScannedFileCount": 6526,
+        "tsxScannedFileCount": 1469,
+        "skippedFileCount": 0
+      },
+      "patterns": [
+        "candidate identifiers",
+        "export type ProviderRowOrigin = $T",
+        "export type AgentDialogKind = $T",
+        "$OBJ.ProviderRowOrigin",
+        "$OBJ.PROVIDER_ROW_TASKS",
+        "imports from @orb/default-content",
+        "imports from @orb/showcase-plugins"
+      ],
+      "note": "A bare identifier pattern does not match a TypeScript type-alias declaration reliably, so the aliases were also searched using explicit type-alias patterns. The explicit patterns found each declaration and no member access for either DB candidate."
+    },
+    "textualCorroboration": {
+      "tool": "rg",
+      "scope": "repository-wide tracked source-oriented glob set, primarily **/*.ts and **/*.tsx; package-name searches also included package.json and docs only to identify declared entrypoint roles",
+      "result": "Corroborated all direct identifier references and package consumers. No candidate was approved for deletion, so there is no deletion claim resting on a negative textual result."
+    }
+  },
+  "summary": {
+    "candidateCount": 6,
+    "productRuntimeConsumer": 0,
+    "testOnlySeam": 2,
+    "frameworkOrEntrypointUse": 1,
+    "intendedButUnwiredOrFutureSurface": 3,
+    "genuineDeletion": 0,
+    "editsMade": false,
+    "disposition": "Keep all six candidates. The scan found no conclusive architecture-neutral deletion. The two packages with zero candidates are live runtime content packages, not deletion candidates."
+  },
+  "findings": [
+    {
+      "id": "db.forecastDevDbReset",
+      "package": "db",
+      "reportedLens": "test-only-export",
+      "classification": "framework-or-entrypoint-use",
+      "disposition": "keep",
+      "productRuntimeConsumer": false,
+      "testOnlySeam": false,
+      "frameworkOrEntrypointUse": true,
+      "intendedButUnwired": false,
+      "genuineDeletion": false,
+      "reason": "The DB reset forecast is dynamically imported and invoked by the db-baseline-parity verification operation. That is a live framework/tooling entrypoint outside product runtime, and the integration tests additionally exercise every forecast arm. Calling it test-only loses its actual non-test consumer.",
+      "evidence": [
+        "packages/db/src/client/index.ts:637-661 declares and implements the forecast",
+        "packages/db/src/index.ts:24 re-exports it from @orb/db",
+        "tooling/src/verify/ops/db-baseline-parity.ts:156-175 dynamically imports and invokes it",
+        "tests/db/client.int.test.ts:436-610 covers no-db, trivial, current, unknown, and divergent behavior",
+        "ast-grep scanned 6526 TS and 1469 TSX files; it found the tooling calls, DB declaration/barrel, and test references"
+      ]
+    },
+    {
+      "id": "db.ProviderRowOrigin",
+      "package": "db",
+      "reportedLens": "namespace-swallowed-export",
+      "classification": "intended-but-unwired-or-schema-type-surface",
+      "disposition": "keep",
+      "productRuntimeConsumer": false,
+      "testOnlySeam": false,
+      "frameworkOrEntrypointUse": false,
+      "intendedButUnwired": true,
+      "genuineDeletion": false,
+      "reason": "No direct consumer uses the alias today, but it is the schema type twin derived from the live PROVIDER_ROW_ORIGINS tuple. The tuple itself drives the origin_kind Drizzle enum and SQL CHECK. The task explicitly requires preserving schema/type twins. The swallowed result comes from the complete schema barrel being imported as a namespace by the DB client; it is not evidence that this erased type executes at runtime.",
+      "evidence": [
+        "packages/db/src/schema/connection-bindings.ts:82-84 declares the tuple and derived alias",
+        "packages/db/src/schema/connection-bindings.ts:109 and :127 consume PROVIDER_ROW_ORIGINS in the live table definition",
+        "packages/db/src/schema/index.ts:1-8 states the complete-barrel contract and :34 re-exports connection-bindings",
+        "packages/db/src/client/index.ts:21 imports the schema namespace for Drizzle and typeof schema",
+        "explicit ast-grep type-alias search found the declaration; member-access searches found no direct ProviderRowOrigin consumer across 6526 TS files",
+        "repository-wide rg over TS/TSX found only the declaration"
+      ]
+    },
+    {
+      "id": "db.PROVIDER_ROW_TASKS",
+      "package": "db",
+      "reportedLens": "namespace-swallowed-export",
+      "classification": "intended-but-unwired-feature-seam",
+      "disposition": "keep-and-flag-unwired",
+      "productRuntimeConsumer": false,
+      "testOnlySeam": false,
+      "frameworkOrEntrypointUse": false,
+      "intendedButUnwired": true,
+      "genuineDeletion": false,
+      "reason": "The export has no direct caller. Its declaration explicitly names it as the closed task tuple for validating provider_rows.serves on write, but the current writer accepts an already validated ProviderDef and writes row.serves directly; the contract schema is the present validation authority. This is intended validation surface that is presently unwired, not proven superseded residue. Preserve the explicit seam and route any decision to remove or wire it through the provider-row design owner.",
+      "evidence": [
+        "packages/db/src/schema/connection-bindings.ts:136-137 states the validation-seam intent and derives the value from canonical TASKS",
+        "packages/server/src/domain/connection/persistence/provider-rows.ts:1-4 states that providerDefSchema validates the JSON arrays on write",
+        "packages/server/src/domain/connection/persistence/provider-rows.ts:35-58 writes row.serves without consuming PROVIDER_ROW_TASKS",
+        "explicit ast-grep member-access search found no direct consumer across 6526 TS files; TSX search covered another 1469 files",
+        "repository-wide rg over TS/TSX found only the declaration"
+      ],
+      "followUp": "Architectural/product decision only: either wire this exported tuple into a DB-owned validation boundary or explicitly retire the claimed seam. Do not delete it as incidental rot."
+    },
+    {
+      "id": "inference.AgentDialogKind",
+      "package": "inference",
+      "reportedLens": "orphan-export",
+      "classification": "intended-but-unwired-future-public-surface",
+      "disposition": "keep",
+      "productRuntimeConsumer": false,
+      "testOnlySeam": false,
+      "frameworkOrEntrypointUse": false,
+      "intendedButUnwired": true,
+      "genuineDeletion": false,
+      "reason": "The declaration carries an explicit @public future marker for unbuilt agent-principal dialog handling and says agents are the model of record while only dormant DDL exists. It is re-exported from the inference contract barrel. This is exactly the repository's unwired-intent case and must not be treated as deletion evidence.",
+      "evidence": [
+        "packages/inference/src/contract/agent.ts:12-18 declares the closed tuple and documents the kept future public surface",
+        "packages/inference/src/contract/index.ts:19-28 re-exports both the type and tuple",
+        "explicit ast-grep type-alias search found the declaration across 6526 TS files; TSX search covered another 1469 files",
+        "repository-wide rg over TS/TSX found the declaration and barrel re-export only"
+      ]
+    },
+    {
+      "id": "inference.DEFAULT_EMBED_MODEL",
+      "package": "inference",
+      "reportedLens": "test-only-export",
+      "classification": "test-only-seam",
+      "disposition": "keep",
+      "productRuntimeConsumer": false,
+      "testOnlySeam": true,
+      "frameworkOrEntrypointUse": false,
+      "intendedButUnwired": false,
+      "genuineDeletion": false,
+      "reason": "The alias is derived from the canonical LOCAL_LIGHT_SEED_ROWS rather than restating a model ID. It is deliberately exported through the local-light and package barrels and is consumed by inference, server boot, and embeddings tests to select the same production seed row and verify model-space agreement. It is a stable test-facing seam, not product runtime code and not dead residue.",
+      "evidence": [
+        "packages/inference/src/backends/local-light/tasks.ts:15-18 derives the value from LOCAL_LIGHT_SEED_ROWS[0]",
+        "packages/inference/src/backends/local-light/index.ts:16 and packages/inference/src/index.ts:65 export it",
+        "packages/inference/src/index.ts:66-68 documents adjacent test-visible seam policy",
+        "ast-grep found consumers in tests/server/entry/boot/local-light-prefetch.test.ts, tests/inference/**, and tests/server/domain/embeddings/verbs/store.int.test.ts"
+      ]
+    },
+    {
+      "id": "inference.DEFAULT_RERANK_MODEL",
+      "package": "inference",
+      "reportedLens": "test-only-export",
+      "classification": "test-only-seam",
+      "disposition": "keep",
+      "productRuntimeConsumer": false,
+      "testOnlySeam": true,
+      "frameworkOrEntrypointUse": false,
+      "intendedButUnwired": false,
+      "genuineDeletion": false,
+      "reason": "Like the embedding alias, this derives from the canonical production seed rows and is exported for tests that exercise server prefetch and inference role behavior. Removing it would force tests to restate or reach around the canonical model selection.",
+      "evidence": [
+        "packages/inference/src/backends/local-light/tasks.ts:15-18 derives the value from LOCAL_LIGHT_SEED_ROWS[1]",
+        "packages/inference/src/backends/local-light/index.ts:16 and packages/inference/src/index.ts:65 export it",
+        "ast-grep found consumers in tests/server/entry/boot/local-light-prefetch.test.ts, tests/inference/roles/role-clients.suite.test.ts, and tests/inference/index.test.ts"
+      ]
+    }
+  ],
+  "zeroCandidatePackages": [
+    {
+      "package": "default-content",
+      "rotVerdict": "No candidates in any of the five lenses",
+      "packageClassification": "product-runtime-content-package",
+      "deletionCandidate": false,
+      "reason": "The package is imported by server composition roots that seed avatar, background, and demo-chat bytes. Its header names runtime consumption and the injected-op boundary. The zero-candidate result is consistent with live product use.",
+      "evidence": [
+        "packages/default-content/src/index.ts:14-28 states the node-resolved runtime package contract",
+        "packages/server/src/entry/compose/assets-character.ts:26 imports avatar/background readers and plate inventory",
+        "packages/server/src/entry/compose/services.ts:53 imports the demo-chat reader",
+        "ast-grep found seven TS import declarations from @orb/default-content across product, tooling, and tests; TS scan count was 6526"
+      ]
+    },
+    {
+      "package": "showcase-plugins",
+      "rotVerdict": "No candidates in any of the five lenses",
+      "packageClassification": "product-runtime-content-package-plus-cli-entrypoint",
+      "deletionCandidate": false,
+      "reason": "The package supplies runtime plugin seeding and auto-upgrade bytes and the plugin:pack CLI entrypoint. Its header names three consumer classes. The zero-candidate result is consistent with live runtime and framework use.",
+      "evidence": [
+        "packages/showcase-plugins/src/index.ts:1-29 states runtime seeder, CLI, and byte-pin consumers",
+        "packages/server/src/entry/compose/automation-plugin.ts:37 imports all three public values",
+        "packages/server/src/entry/compose/services.ts:58 imports pack and manifest readers",
+        "scripts/pack-plugin.ts:28 and :47 use packShowcaseBundle as the CLI entrypoint",
+        "ast-grep found four TS import declarations from @orb/showcase-plugins across product and CLI code; TS scan count was 6526"
+      ]
+    }
+  ],
+  "changes": {
+    "sourceEdits": [],
+    "testEdits": [],
+    "reason": "No finding met the bar for conclusive architecture-neutral cleanup. Preserving the schema/type twins and explicit/future seams follows the task boundary and the declarations' contracts."
+  },
+  "verification": {
+    "testsRun": [],
+    "reasonNoTests": "No repository files changed. The task prohibited heavy scans while the UI/client lane owns the box; adjudication used the already completed rot runs plus lightweight structural and textual searches.",
+    "gitStatus": "No changes in the adjudicated package/test paths at final inspection; the report is outside the repository under /tmp."
+  },
+  "durableLesson": {
+    "title": "Namespace-swallowed rot candidates need symbol-kind adjudication",
+    "hook": "A complete schema namespace makes values look consumed and can make erased type exports look swallowed; inspect direct member accesses, schema/type-twin intent, and the barrel contract before deleting.",
+    "body": "For DB schema rot, the namespace import into Drizzle is required for table reachability but is a conservative liveness sink. A swallowed candidate may be a live table value, an erased type twin, or a documented future seam. Search the exact member access structurally in both TS and TSX, corroborate textually, then read the declaration and the actual writer before assigning deletion."
+  }
+}
