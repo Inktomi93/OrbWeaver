@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "decision": "remove persisted theme_clusters.centroid",
+  "status": "confirmed read-only recon; implementation assigned to dead-storage cleanup",
+  "evidence": {
+    "productionConsumerCount": 0,
+    "productionWriter": "packages/server/src/domain/discovery/themes/generate.ts:222",
+    "schemaPromise": "packages/db/src/schema/discovery.ts:282",
+    "astGrepRepo": {
+      "tsFiles": 6462,
+      "tsxFiles": 1404,
+      "themeClustersCentroidHits": 0
+    },
+    "astGrepPackages": {
+      "tsFiles": 2623,
+      "tsxFiles": 805,
+      "anyCentroidHits": 1,
+      "hit": "draft.centroid writer"
+    },
+    "textCorpusFiles": 3429,
+    "existingWorkItem": null
+  },
+  "reason": "Current theme products use assignments, names, sizes, cluster indices, and levels. Generic k-means needs transient centroids, but no current or deferred product feature needs persisted centroids.",
+  "removalScope": [
+    "remove schema column and CENTROID_DIM",
+    "remove persisted ClusterDraft/row field while keeping transient k-means centroids",
+    "generate forward migration and preserve baseline",
+    "migration test preserves cluster and assignment rows while column disappears",
+    "remove fixture writes and storage-only assertion",
+    "update active comments and preserve history docs"
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "verdict": "CONFIRMED",
+  "commit": "fbfc09721",
+  "claims": [
+    {
+      "claim": "package-root config default only receives tooling consumption",
+      "verdict": "confirmed"
+    },
+    {
+      "claim": "aliased dynamic-import destructuring and renames credit exact origin members",
+      "verdict": "confirmed"
+    },
+    {
+      "claim": "relative dynamic imports stay whole-module conservative",
+      "verdict": "confirmed"
+    },
+    {
+      "claim": "rest/computed credit nothing and nested binding credits top-level export",
+      "verdict": "confirmed"
+    },
+    {
+      "claim": "CHAT_VERB_AUTHORITY and buildVersionStamp remain external-consumer design gaps",
+      "verdict": "confirmed"
+    },
+    {
+      "claim": "UI THEME_DERIVATION is correctly test-only",
+      "verdict": "confirmed"
+    }
+  ],
+  "verification": {
+    "focusedTests": "2 passed, 98 skipped",
+    "independentProbes": [
+      "direct and renamed public",
+      "rest and computed unused",
+      "nested credits top-level only",
+      "barrel rename credits origin only",
+      "relative destructuring credits whole target"
+    ],
+    "structuralConsumersOfDynamicImportMemberNames": 2,
+    "fullLensRun": false,
+    "broadTypecheck": false
+  },
+  "nonEvidence": "Initial pnpm exec tsx probe failed because tsx is unavailable; repeated assertions passed via Node TypeScript stripping."
+}

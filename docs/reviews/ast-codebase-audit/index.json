@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "capturedAt": "2026-09-21T09:10:29.085288+00:00",
-  "sourceCommit": "2eb18b459",
+  "capturedAt": "2026-09-21T09:34:46.576504+00:00",
+  "sourceCommit": "3e0c8bace",
   "purpose": "Full AST audit observations and agent reasoning. Dated evidence, not a replacement for GitHub work-item lifecycle.",
   "entryPoints": {
     "coverage": "world-tools-lens-manifest.json",
@@ -60,7 +60,12 @@
     "livenessStringyRereview": "world-tools-liveness-stringy-rereview.json",
     "imageryAttributionCleanup": "world-tools-imagery-attribution-cleanup.json",
     "imageryAttributionReview": "world-tools-imagery-attribution-review.json",
-    "columnProvenanceCleanup": "world-tools-column-provenance-cleanup.json"
+    "columnProvenanceCleanup": "world-tools-column-provenance-cleanup.json",
+    "apiSurfaceCoverageFix": "world-tools-apisurface-coverage-fix.json",
+    "apiSurfaceCoverageReview": "world-tools-apisurface-coverage-review.json",
+    "themeCentroidDecision": "world-tools-theme-centroid-decision.json",
+    "deadStorageCleanup": "world-tools-dead-storage-cleanup.json",
+    "deadStorageReview": "world-tools-dead-storage-review.json"
   },
   "limitations": [
     "30 CLI verbs identified; coverage remains incomplete. A candidate is not a confirmed defect or deletion authorization.",
@@ -211,6 +216,14 @@
       "commit": "c0e6372a0",
       "issue": 2535,
       "result": "Retired stale prodonly-to-knip reviewed grant, real-tree assertion, and policy/catalog claims while preserving generic root-config enforcement; independently confirmed"
+    },
+    {
+      "commit": "fbfc09721",
+      "result": "Covered package-root tool configs and exact checker-resolved package-alias dynamic-import members; independently confirmed"
+    },
+    {
+      "commit": "3e0c8bace",
+      "result": "Removed three confirmed dead-storage columns through a populated forward-migration proof; independently confirmed"
     }
   ],
   "unresolvedInsights": [
@@ -780,6 +793,41 @@
       "sourceSha256": "9c9bc96e03469a9df945fc767fa792ee504d20844b455a207825bb4c813932cd",
       "sha256": "9c9bc96e03469a9df945fc767fa792ee504d20844b455a207825bb4c813932cd",
       "bytes": 1526
+    },
+    {
+      "file": "world-tools-apisurface-coverage-fix.json",
+      "source": "/tmp/world-tools-apisurface-coverage-fix.json",
+      "sourceSha256": "e2136fd85ab2cc8cc51f233a2b86700e19ffafef92e050212e9297ae40590119",
+      "sha256": "e2136fd85ab2cc8cc51f233a2b86700e19ffafef92e050212e9297ae40590119",
+      "bytes": 3265
+    },
+    {
+      "file": "world-tools-apisurface-coverage-review.json",
+      "source": "/tmp/world-tools-apisurface-coverage-review.json",
+      "sourceSha256": "d567417cc6abcd886083b887e662d2e8e2eac0016b6e09083ac0a968b1e5f2fe",
+      "sha256": "d567417cc6abcd886083b887e662d2e8e2eac0016b6e09083ac0a968b1e5f2fe",
+      "bytes": 1401
+    },
+    {
+      "file": "world-tools-theme-centroid-decision.json",
+      "source": "/tmp/world-tools-theme-centroid-decision.json",
+      "sourceSha256": "bd6a2df8f331ca016d12354108f23b81dcc03bcea3d9a501d1e58890eca80272",
+      "sha256": "bd6a2df8f331ca016d12354108f23b81dcc03bcea3d9a501d1e58890eca80272",
+      "bytes": 1313
+    },
+    {
+      "file": "world-tools-dead-storage-cleanup.json",
+      "source": "/tmp/world-tools-dead-storage-cleanup.json",
+      "sourceSha256": "b855d361dcf66b1b8640e2e280a73a5d1708ff8085386de42aee2de577359154",
+      "sha256": "b855d361dcf66b1b8640e2e280a73a5d1708ff8085386de42aee2de577359154",
+      "bytes": 3995
+    },
+    {
+      "file": "world-tools-dead-storage-review.json",
+      "source": "/tmp/world-tools-dead-storage-review.json",
+      "sourceSha256": "c5768323fb60ac43506ed8582e2def39595e610329a34d40eaa540640fc2b181",
+      "sha256": "c5768323fb60ac43506ed8582e2def39595e610329a34d40eaa540640fc2b181",
+      "bytes": 1444
     }
   ],
   "crossCuttingFindings": {
@@ -892,8 +940,11 @@
       }
     },
     "apiSurfaceAudit": {
-      "status": "9495 rows exhaustively classified; zero deletion candidates, seven tool coverage defects, two owner forks",
-      "receipt": "world-tools-apisurface-triage.json"
+      "status": "9495 rows exhaustively classified; seven coverage defects repaired and independently confirmed; zero deletion candidates; two external-consumer protocol gaps remain",
+      "receipt": "world-tools-apisurface-triage.json",
+      "fix": "world-tools-apisurface-coverage-fix.json",
+      "review": "world-tools-apisurface-coverage-review.json",
+      "commit": "fbfc09721"
     },
     "wiringGapAudit": {
       "status": "10 unwired and 23 clientgap findings adjudicated; follow-up work tracked",
@@ -923,6 +974,14 @@
       "status": "three truthful write-only provenance exemptions committed; target updatedAt remains an explicit removal/design fork",
       "cleanup": "world-tools-column-provenance-cleanup.json",
       "commit": "2eb18b459"
+    },
+    "deadStorageCleanup": {
+      "status": "three confirmed dead-storage columns removed by forward migration and independently confirmed",
+      "themeDecision": "world-tools-theme-centroid-decision.json",
+      "cleanup": "world-tools-dead-storage-cleanup.json",
+      "review": "world-tools-dead-storage-review.json",
+      "commit": "3e0c8bace",
+      "liveDatabaseDriftIssue": 2552
     }
   }
 }
