@@ -62,7 +62,7 @@ import type { AssetsService } from "#domain/assets";
 import type { AutomationService } from "#domain/automation";
 import { createAutomationTeachingContributions } from "#domain/automation";
 import type { DefaultCharacterSeeder } from "#domain/character";
-import type { ChatContext, ChatUserMacroDefs, DemoChatSeeder, MemoryRecallRecorder } from "#domain/chat";
+import type { ChatContext, ChatUserMacroDefs, DemoChatSeeder, MemoryEmbedSpace, MemoryRecallRecorder } from "#domain/chat";
 import { createDemoChatSeeder, createMemoryRecallRecorder, createResolveViewerVisibility, loadSeededChatDressing } from "#domain/chat";
 import type { ConnectionContext } from "#domain/connection";
 import { createConnectionPorts, createConnectionService } from "#domain/connection";
@@ -1092,6 +1092,25 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     ...(deps.stProfileDir !== undefined ? { stProfileDir: deps.stProfileDir } : {}),
   });
 
+  // THE COVERED SET of a vector sweep, from its ENUMERATION SCOPE (#2517): `null` is the bulk arm, whose
+  // covered set is exactly `listCorpusOwners()`; a `UserId` is a per-owner catch-up, whose covered set is
+  // that one owner. Deriving it HERE rather than fencing the CALL is what lets a singular pass record its
+  // own `embed_space_state` completion — a true statement about the scope it actually swept — without ever
+  // reaching a neighbour's live space.
+  const sweptOwners = async (enumerationScope: UserId | null): Promise<readonly UserId[]> =>
+    enumerationScope === null ? await searchDiscovery.listCorpusOwners() : [enumerationScope];
+
+  // The memory receipt for an owner the sweep covered but produced no space for. Only completable when
+  // memory is OFF for them: they have no memory vectors, so the scope is vacuously in the target space. An
+  // ENABLED owner with no receipt was not swept and gets none.
+  const vacuousMemoryReceipt = async (ownerId: UserId): Promise<MemoryEmbedSpace | null> => {
+    if (await chatCompose.isMemoryEnabled(ownerId)) {
+      return null;
+    }
+    const generation = await embeddings.resolveGeneration(ownerId, "embed");
+    return generation === null ? null : { ownerId, model: generation.space, generationId: generation.id, generationEpoch: generation.epoch };
+  };
+
   // Assemble the contribution registry + close the late-bound holder the workloads verbs deref.
   workloadContributions = buildWorkloadContributions({
     db,
@@ -1104,13 +1123,11 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     databankIngest,
     importWorkloads,
     refineryWorkloads,
-    // The old-space reclaim after a BULK sweep is PER OWNER (vector tasks are owner-scoped, §7.5) — one
-    // purge per corpus owner, the row counts advisory. The fan STAYS after §10-5's `activeSpace` getter
-    // landed: the injected op carries no owner, and `listCorpusOwners()` is exactly the set a BULK sweep
-    // covered, which is what makes the completion each purge records (`embed_space_state`) a true statement.
-    beginDocumentVectorSweep: async () => {
+    // The completion + old-space reclaim is PER OWNER (vector tasks are owner-scoped, §7.5) — one receipt
+    // per owner in the swept set (`sweptOwners` above), the row counts advisory.
+    beginDocumentVectorSweep: async (enumerationScope) => {
       const receipts: { ownerId: UserId; generation: GenerationReceipt }[] = [];
-      for (const ownerId of await searchDiscovery.listCorpusOwners()) {
+      for (const ownerId of await sweptOwners(enumerationScope)) {
         const generation = await embeddings.resolveGeneration(ownerId, "embed");
         if (generation !== null) {
           receipts.push({ ownerId, generation });
@@ -1127,34 +1144,17 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // The #156 admission gate's read — one hop to the ONE memory-config merge, never a second settings read.
     isMemoryEnabled: chatCompose.isMemoryEnabled,
     backfillGroupCharacters: (args) => chatCompose.backfill.groupCharacters(args),
-    purgeMemoryVectors: async (spaces): Promise<void> => {
+    // Same enumeration rule as `beginDocumentVectorSweep` above — one `sweptOwners` set, two consumers.
+    purgeMemoryVectors: async (spaces, enumerationScope): Promise<void> => {
       const completed = new Map(spaces.map((space) => [space.ownerId, space]));
-      for (const ownerId of await searchDiscovery.listCorpusOwners()) {
-        let receipt = completed.get(ownerId);
-        if (receipt === undefined) {
-          if (await chatCompose.isMemoryEnabled(ownerId)) {
-            continue;
-          }
-          const generation = await embeddings.resolveGeneration(ownerId, "embed");
-          if (generation === null) {
-            continue;
-          }
-          receipt = {
-            ownerId,
-            model: generation.space,
-            generationId: generation.id,
-            generationEpoch: generation.epoch,
-          };
+      for (const ownerId of await sweptOwners(enumerationScope)) {
+        const receipt = completed.get(ownerId) ?? (await vacuousMemoryReceipt(ownerId));
+        if (receipt === null) {
+          continue;
         }
         await embeddings.purgeMemoryVectors({
           ownerId,
-          generation: {
-            id: receipt.generationId,
-            task: "embed",
-            via: "embed",
-            epoch: receipt.generationEpoch,
-            space: receipt.model,
-          },
+          generation: { id: receipt.generationId, task: "embed", via: "embed", epoch: receipt.generationEpoch, space: receipt.model },
         });
       }
     },

@@ -20,10 +20,19 @@ export interface ChatWorkloadDeps {
   readonly backfillMemory: (args: CorpusSweepArgs) => Promise<MemoryBackfillSweepCounts>;
   /** Mint the synthetic group character for every multi-character room that lacks one (PD-41/D38). */
   readonly backfillGroupCharacters: (args: CorpusSweepArgs) => Promise<BackfillPassResult>;
-  /** PD-139(b): reclaim the OLD chat-memory embed space after a BULK backfill re-derives everything into
-   *  the active one. The DELETE lives in embeddings/persistence (the ONE vector write path) — this is the
-   *  injected op, never a db reach from chat. */
-  readonly purgeMemoryVectors: (spaces: readonly MemoryEmbedSpace[]) => Promise<void>;
+  /** The memory sweep's TERMINAL: record `embed_space_state`'s `memory` completion for every space the
+   *  sweep brought current and — once cards, memory AND documents all name the same target generation —
+   *  reclaim the rows stranded in an older embed space (PD-139(b)).
+   *
+   *  THE ENUMERATION SCOPE IS AN ARGUMENT, not a caller-side fence (#2517). The op enumerates exactly the
+   *  scope it is handed: `null` = every corpus owner (the bulk arm), a `UserId` = that one owner. That is
+   *  what keeps a per-owner catch-up off a neighbour's space — and it is why the COMPLETION half no longer
+   *  has to be suppressed on the singular arm, which had left an owner whose memory was perfectly current
+   *  reading `moving` forever.
+   *
+   *  The DELETE lives in embeddings/persistence (the ONE vector write path) — this is the injected op,
+   *  never a db reach from chat. */
+  readonly purgeMemoryVectors: (spaces: readonly MemoryEmbedSpace[], enumerationScope: UserId | null) => Promise<void>;
   /** Is the memory subsystem ON for this host (#156)? Resolved through the ONE memory-config merge
    *  (`entry/compose/chat.ts resolveMemoryConfig`: admin defaults ⊕ the host's `memory.enabled` opt-out), so
    *  the admission gate cannot drift from the sweep's own per-host skip (#54) or from the live turn. Injected
