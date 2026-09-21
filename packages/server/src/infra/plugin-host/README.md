@@ -37,8 +37,8 @@ No design premise was disproved — but the "process RSS stable" clause (03 §4)
 | DoS: busy loop killed at the interrupt deadline, process healthy | `sandbox.test.ts` (deadline kill < 2 s) |
 | DoS: memory bomb contained (guest OOMs), fresh instance works | `sandbox.test.ts` (alloc bomb → ok:false) |
 | DoS: deep recursion contained, runtime cleanly disposable | `sandbox.test.ts` (recursion → RangeError; see finding #1) |
-| Membrane round-trip: sync + async (deferred-promise bridge) | `sandbox.test.ts` (`boundHostFn` echo + async) |
-| Host-call self-bound (reentrancy footgun) + result cap | `sandbox.test.ts` (hanging fn bounded at deadline; oversize refused) |
+| Membrane round-trip: async deferred-promise bridge | `membrane.test.ts` + `port.test.ts` (live `attachAsync` calls cross and settle) |
+| Host-call self-bound (reentrancy footgun) + result cap | `port.test.ts` (deadline cancellation) + `membrane.test.ts` (oversize refused) |
 | Handle-lifetime discipline: zero leak after 10k invocations | `sandbox.test.ts` (`pendingHandles === 0`) |
 
 ## Sharp edges — P2–P6 MUST inherit these
@@ -65,12 +65,11 @@ No design premise was disproved — but the "process RSS stable" clause (03 §4)
    imprecise — a frozen test clock (or a wall-clock jump) must NEVER be able to disable the DoS kill, so the
    interrupt must NOT use the guest seam (and monotonic beats `Date.now`, which also satisfies `no-raw-clock`).
 4. **The interrupt does NOT preempt a blocking HOST call** — only guest bytecode. Every host function
-   therefore self-bounds with a real-time deadline race + result-size cap: the live port's constructor is
-   the membrane's `attachAsync` (object-marshalling, pending-set drain), which every wired host fn goes
-   through; `boundHostFn` is the standalone string-only sibling of the same discipline. An unbounded host
-   fn cannot be written by omission. Proven by the hanging-fn test.
-5. **Async bridge = sync variant + deferred promise + host-side pump.** A host fn returning a promise
-   creates `ctx.newPromise()`, resolves it from host async work, and pumps `executePendingJobs()` on settle;
+   therefore self-bounds with a real-time deadline race + result-size cap through the membrane's
+   `attachAsync` (object-marshalling, pending-set drain), which every wired host fn uses. An unbounded host
+   fn cannot be written by omission. Proven through the live deadline and result-cap tests.
+5. **Async bridge = deferred promise + host-side pump.** A host fn creates `ctx.newPromise()`, resolves it
+   from host async work, and pumps `executePendingJobs()` on settle;
    the caller `await ctx.resolvePromise(handle)`. Rejections MUST be minted as GUEST Error objects
    (`ctx.newError`), NOT strings — a rejected string gives the guest `e.message === undefined`.
 6. **Handle-lifetime discipline is load-bearing.** Every host-minted handle must be disposed; per-invocation
@@ -98,5 +97,5 @@ The surface `orb.host(1)` returns is the DETERMINISM FLOOR only (clock/random/id
 full `PluginHostV1` (chat/worldInfo/tools/net/transforms/… — 01 §2) is **P2** (`@orb/contracts/plugin`);
 lifecycle/registry/grants/DDL are **P3** (`domain/plugin`); host-function wiring + event delivery + the D48
 tool seam + the D50 transform seam are **P4**; snippets **P5**; the `plugin-no-ambient` gate + the full
-hostile-guest escape suite are **P6**. The `boundHostFn` wrapper, the realm, the budgets, and the module
-loader here are the real skeleton those chunks extend.
+hostile-guest escape suite are **P6**. The realm, budgets, module loader, and live membrane bridge are the
+runtime skeleton those chunks extend.

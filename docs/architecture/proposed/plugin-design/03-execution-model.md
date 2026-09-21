@@ -1,7 +1,7 @@
 ---
 kind: spec
 status: active
-updated: 2026-07-03
+updated: 2026-09-21
 ---
 
 # 03 — Execution: Dual-Mode, Determinism, DoS Budgets, Bridging, and the Registry Seams
@@ -60,8 +60,8 @@ measured legitimate need, whichever arrives first; each is a named constant in
 | per-invocation CPU | 1 s guest execution (snippet: 5 s total run) | the QuickJS interrupt handler (fires every ~1 M cycles; compares the injected clock against the invocation deadline) |
 | memory per instance | 32 MiB | `setMemoryLimit` on the context (WASM-contained — §4) |
 | guest stack | runtime default | QuickJS `maxStackSize` |
-| host-function self-bound | 5 s deadline + 1 MiB serialized result, per call | EVERY host function body (the reentrancy footgun D46 names: the interrupt handler does NOT preempt a blocking HOST call — only guest bytecode — so the host side self-bounds, no exceptions; enforced by a shared `boundHostFn(deadline, cap)` wrapper ALL host functions are built with, so an unbounded one cannot be written by omission) |
-| pending host calls in flight | 32 per invocation | the bridge (§ below); call 33 rejects |
+| host-function self-bound | 5 s deadline + 1 MiB serialized result, per call | EVERY live host function is built by `attachAsync`, which owns the deadline, result cap, pending-deferred teardown registry, and guest-job pump; the interrupt does not preempt blocking host work |
+| pending host calls in flight | 32 per instance | the bridge (§ below); call 33 rejects, and a timed-out implementation retains its slot until the work actually settles |
 | `host.log` volume | 256 lines / 16 KiB per invocation, ring-buffered per plugin | the log host fn |
 | event queue depth | 16 per instance (drop-oldest + warn) | the delivery queue (§2) |
 
@@ -72,7 +72,7 @@ does not exist in the guest (no timers — resident scheduling belongs to events
 is a held instance). An invocation ENDS when its job queue drains or the deadline kills it;
 dangling unresolved guest promises at end-of-invocation are rejected with `PluginInvocationEnded`
 (leak-proof: the bridge tracks every outstanding handle and disposes them — handle-lifetime
-discipline is what quickjs-emscripten demands, and the wrapper owns it in ONE place).
+discipline is what quickjs-emscripten demands, and `attachAsync` plus `Sandbox` own it in ONE place).
 
 ## 4. OOM + crash posture
 

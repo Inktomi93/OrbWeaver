@@ -19,7 +19,7 @@ import type {
 } from "@orb/contracts/plugin";
 import { PLUGIN_CAPABILITIES, PLUGIN_FRAME_HTML_MAX_CHARS, PLUGIN_FRAME_SURFACES_MAX, PLUGIN_TOOL_NAME_LOCAL_MAX } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
-import { getPluginQuickJS, HOST_FN_DEADLINE_MS } from "@orb/server/infra/plugin-host";
+import { getPluginQuickJS, HOST_FN_DEADLINE_MS, HOST_FN_RESULT_CAP_BYTES } from "@orb/server/infra/plugin-host";
 import type { QuickJSContext, QuickJSHandle } from "quickjs-emscripten-core";
 import { describe } from "vitest";
 import { __setEgressResolverForTest } from "../../../../packages/server/src/infra/network/egress.ts";
@@ -345,6 +345,36 @@ describe("attachMembrane — the in-flight slot is charged to the IMPL, not to t
       expect(runtime.pending.size).toBe(0);
       expect(inFlight.count).toBe(1);
     });
+  });
+});
+
+describe("attachMembrane — outbound result cap", () => {
+  test("a normal result crosses, while an oversized result is refused before entering the guest", async () => {
+    const base = fakeBridge().bridge;
+    let reads = 0;
+    const bridge: PluginBridge = {
+      ...base,
+      storage: {
+        ...base.storage,
+        get: () => {
+          reads += 1;
+          return Promise.resolve(reads === 1 ? "small" : "x".repeat(HOST_FN_RESULT_CAP_BYTES + 1));
+        },
+      },
+    };
+    await withHost(["storage.kv"], false, bridge, async (ctx) => {
+      const out = await runAsync(
+        ctx,
+        `(async () => {
+           const small = await host.storage.get("small");
+           try { await host.storage.get("large"); return "oversized-crossed"; }
+           catch (e) { return small + ":" + e.message; }
+         })()`,
+      );
+      expect(out).toContain("small:get host result exceeds");
+      expect(out).not.toContain("oversized-crossed");
+    });
+    expect(reads).toBe(2);
   });
 });
 

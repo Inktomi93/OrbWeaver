@@ -1,9 +1,5 @@
-// infra/plugin-host/cpu-guard — the guest-CPU interrupt's own seam (#781). The end-to-end proofs live where
-// the defect was reachable (escape.suite's post-invocation pump pins, sandbox.test's `boundHostFn` pump pin);
-// this file pins the MECHANICS those depend on and nothing else can see: the handler is INERT until a window
-// opens, a NESTED window can neither widen the enclosing budget nor blank it on close, the pump preempts a
-// runaway job and leaves the context usable + cleanly disposable, and an UNREGISTERED context is still bounded
-// (the fail-closed lazy install that makes an unbounded pump unwritable by omission).
+// infra/plugin-host/cpu-guard — the guest-CPU interrupt's own seam (#781). The end-to-end proof lives in the
+// escape suite's post-invocation pump pin; this file owns the handler-window and bounded-pump mechanics.
 //
 // Every arm drives a REAL QuickJS context — the interrupt is a runtime behavior, and a fake would pin nothing.
 
@@ -125,15 +121,5 @@ describe("cpu-guard — the context-lifetime interrupt is a WINDOW, not an insta
     } finally {
       after.dispose();
     }
-  }, 30_000);
-
-  test("a pump on an UNREGISTERED context is bounded anyway (fail-closed lazy install)", async () => {
-    await withContext((ctx) => {
-      // No `installCpuGuard` — the standalone `boundHostFn` primitive is handed bare contexts, and a pump with
-      // no CPU bound is exactly the defect. The lazy install uses the shared default budget.
-      const close = openCpuWindow(ctx);
-      expect(runGuestLoop(ctx, RUNAWAY)).toContain("interrupted");
-      close();
-    });
   }, 30_000);
 });

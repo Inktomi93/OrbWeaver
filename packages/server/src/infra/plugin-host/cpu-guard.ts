@@ -2,9 +2,9 @@
 // MUTABLE window instead of a per-invocation install/remove pair.
 //
 // WHY THE LIFETIME SHAPE (#781 — a whole-process DoS, not a tuning choice). QuickJS executes guest bytecode in
-// THREE places, not one: the invocation itself, and the two POST-invocation job pumps that resume a guest
-// continuation when a fire-and-forget host call settles later (`membrane.attachAsync`'s detached pump and the
-// standalone `boundHostFn`). While the interrupt was installed by `Sandbox.runToSettlement` and REMOVED in its
+// TWO places, not one: the invocation itself, and the POST-invocation job pump that resumes a guest
+// continuation when a fire-and-forget host call settles later (`membrane.attachAsync`'s detached pump). While
+// the interrupt was installed by `Sandbox.runToSettlement` and REMOVED in its
 // `finally`, those pumps ran guest bytecode with NO handler installed at all — so
 // `orb.host(1).storage.get(k).then(function () { while (true) {} })` in a plugin's `main.js` ran UNBOUNDED on
 // the Node MAIN THREAD: no interrupt, no rejection, no crash counter, no auto-disable, and no recovery short
@@ -56,9 +56,8 @@ function createGuard(ctx: QuickJSContext, budgetMs: number): CpuGuard {
   return guard;
 }
 
-/** FAIL-CLOSED resolution: a span on a context nobody registered (the exported `boundHostFn` primitive, handed
- *  a bare context) gets the shared default budget rather than an unbounded run. This is what makes "a job pump
- *  with no CPU bound" unwritable by omission — the sibling of `boundHostFn`'s own deadline posture. */
+/** FAIL-CLOSED resolution: a span on an unregistered context gets the shared default budget rather than an
+ *  unbounded run. This makes "a job pump with no CPU bound" unwritable by omission. */
 function guardOf(ctx: QuickJSContext): CpuGuard {
   return GUARDS.get(ctx) ?? createGuard(ctx, PLUGIN_INVOCATION_CPU_MS);
 }

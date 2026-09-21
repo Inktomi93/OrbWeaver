@@ -1,7 +1,7 @@
 ---
 kind: spec
 status: active
-updated: 2026-08-24
+updated: 2026-09-21
 ---
 
 # 04 — Build Plan: Chunks, Dependencies, Checkpoints, Test Plans
@@ -26,7 +26,7 @@ updated: 2026-08-24
 
 | # | Chunk | Size | Contents | Checkpoint (must demo) |
 | - | - | - | - | - |
-| P1 | Runtime spike + realm | **M** | `infra/plugin-host` skeleton: module load, context-per-instance, realm setup (empty globals, throwing stubs, `orb.host(1)`), the `boundHostFn` wrapper, interrupt/memory budgets, handle-lifetime bridge | a hello-world guest runs; `Date.now()` throws in-guest; a `while(true)` guest dies at the deadline with the process healthy |
+| P1 | Runtime spike + realm | **M** | `infra/plugin-host` skeleton: module load, context-per-instance, realm setup (empty globals, throwing stubs, `orb.host(1)`), interrupt/memory budgets, handle-lifetime bridge | a hello-world guest runs; `Date.now()` throws in-guest; a `while(true)` guest dies at the deadline with the process healthy |
 | P2 | The membrane contract | **M** | `@orb/contracts/plugin` in full (01 §2): `PluginHostV1`, handles, manifest schema + capability tuple (02 §1), errors | contract tests: every host-function capability annotation present (mapped-type Record over `PLUGIN_CAPABILITIES` — a capability with no function, or vice versa, fails `tsc`) |
 | P3 | `domain/plugin` + lifecycle | **L** | DDL (02 §3), all verbs (02 §4), bundle unzip/validation, CAS storage, grants math, activation subsystem, crash policy (03 §4), the log ring | install→grant→enable→invoke→disable round-trip; upgrade-with-new-caps lands disabled; uninstall leaves zero rows/assets/registrations |
 | P4 | Host-function wiring + seams | **L** | `PluginHostOps` composition, every 01 §2 namespace live against real domain ops, event delivery + depth gates (03 §2), D48 tool registration (03 §5), D50 transforms (03 §6), spend/budget/D17 integration | the 03 §7 fixture plugin works end-to-end in a real chat; a plugin tool round-trips the recurse loop with a namespaced `ToolCallRecord`; a plugin-triggered turn debits `automation_budgets` |
