@@ -8,12 +8,13 @@
 // DERIVE, NEVER RE-SPELL (§5.5): every union/owned shape a sibling module already owns is REUSED —
 // `rpgActorRefSchema` (the discriminated actor union), `rpgTrackerDefSchema` (the whole tracker set write),
 // `rpgStatProfileSchema`, and the enum schemas. Only the plain payload envelopes (chatId + scalar fields the
-// contract has no schema for, e.g. a checkpoint `label`, a dice `notation`) are spelled here. `chatId` +
-// the branded ids ride `brandedId<T>()` (the `no-raw-id` seam; the OWNER/MEMBER gate inside each verb is the
-// authority — a wire-valid-but-foreign id collapses to a leak-free NOT_FOUND, never a router-tier gate).
+// contract has no schema for, e.g. a checkpoint `label`, a dice `notation`) are spelled here. TypeIDs use
+// their prefix-validating schema; the prefixless in-snapshot quest id uses `brandedId<T>()`. The
+// OWNER/MEMBER gate inside each verb remains the authority boundary: a wire-valid-but-foreign id collapses
+// to a leak-free NOT_FOUND, never a router-tier gate.
 
-import type { ChatId, PresetId, RpgCheckpointId, RpgJournalId, RpgQuestId } from "@orb/kit/ids";
-import { brandedId } from "@orb/kit/ids";
+import type { RpgQuestId } from "@orb/kit/ids";
+import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { MAX_USER_MACROS, userMacroSchema } from "#preset";
 import { rpgActorOpSchema, rpgActorRefSchema, rpgNpcRefSchema } from "./actor.ts";
@@ -33,7 +34,7 @@ import { rpgQuestObjectiveSchema } from "./snapshot.ts";
 import { RPG_HINT_MAX, rpgTrackerDefSchema } from "./tracker.ts";
 
 /** The shared chatId trust-boundary field — game-ness + authority BOTH resolve through it (no `ownerId`, D23). */
-const chatIdField = brandedId<ChatId>();
+const chatIdField = typeIdSchema(ID_PREFIX.chat);
 
 /** `createGame` — host-gated birth. `mode` rides the mode enum (`"full"` is wire-valid; the verb throws the
  *  typed PHASE refusal). `ruleset` is the game's born vocabulary (omit ⇒ `freeform`, the birth default).
@@ -104,7 +105,7 @@ export const rpgUpdateConfigInputSchema = z.object({
       // PRESET editor (`promptConfig.prose`), never this door — one home for authorable prompt text.
     })
     .optional(),
-  gmPresetId: brandedId<PresetId>().nullable().optional(),
+  gmPresetId: typeIdSchema(ID_PREFIX.preset).nullable().optional(),
   extractionMode: z.enum(RPG_EXTRACTION_MODES).optional(),
 });
 
@@ -263,7 +264,7 @@ export const rpgAddJournalEntryInputSchema = z.object({
 /** `editJournalEntry` — patch an entry's mutable text (host; reaches model entries — the recovery path). */
 export const rpgEditJournalEntryInputSchema = z.object({
   chatId: chatIdField,
-  entryId: brandedId<RpgJournalId>(),
+  entryId: typeIdSchema(ID_PREFIX.rpgJournal),
   patch: z.object({
     type: rpgJournalTypeSchema.optional(),
     label: z.string().optional(),
@@ -275,7 +276,7 @@ export const rpgEditJournalEntryInputSchema = z.object({
 /** `deleteJournalEntry` — remove a journal entry (host). */
 export const rpgDeleteJournalEntryInputSchema = z.object({
   chatId: chatIdField,
-  entryId: brandedId<RpgJournalId>(),
+  entryId: typeIdSchema(ID_PREFIX.rpgJournal),
 });
 
 /** `createCheckpoint` — label the current resolved snapshot (host). */
@@ -287,7 +288,7 @@ export const rpgCreateCheckpointInputSchema = z.object({
 /** `restoreCheckpoint` — clone a checkpointed snapshot forward BORN COMMITTED onto a fresh narrator slot (host). */
 export const rpgRestoreCheckpointInputSchema = z.object({
   chatId: chatIdField,
-  checkpointId: brandedId<RpgCheckpointId>(),
+  checkpointId: typeIdSchema(ID_PREFIX.rpgCheckpoint),
 });
 
 /** `rollDice` — server CSPRNG, bake-once (member). `notation` is the dice string the server rolls authoritatively. */

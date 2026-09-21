@@ -28,7 +28,7 @@
 // never a FORBIDDEN that confirms existence). No frame ever carries it, and no domain ever sees it.
 
 import type { ChatId, SocketId, WorkloadId } from "@orb/kit/ids";
-import { brandedId } from "@orb/kit/ids";
+import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import type { AutomationBusEvent } from "#automation";
 import type { ChatBusEvent } from "#chat";
@@ -43,10 +43,10 @@ import type { WorkloadEvent } from "#workloads";
 export const streamRoomRefSchema = z.discriminatedUnion("channel", [
   z.object({ channel: z.literal("user") }),
   z.object({ channel: z.literal("notifications") }),
-  z.object({ channel: z.literal("chat"), chatId: brandedId<ChatId>() }),
-  z.object({ channel: z.literal("rpg"), chatId: brandedId<ChatId>() }),
-  z.object({ channel: z.literal("automation"), chatId: brandedId<ChatId>() }),
-  z.object({ channel: z.literal("workloads"), workloadId: brandedId<WorkloadId>() }),
+  z.object({ channel: z.literal("chat"), chatId: typeIdSchema(ID_PREFIX.chat) }),
+  z.object({ channel: z.literal("rpg"), chatId: typeIdSchema(ID_PREFIX.chat) }),
+  z.object({ channel: z.literal("automation"), chatId: typeIdSchema(ID_PREFIX.chat) }),
+  z.object({ channel: z.literal("workloads"), workloadId: typeIdSchema(ID_PREFIX.workload) }),
 ]);
 export type StreamRoomRef = z.infer<typeof streamRoomRefSchema>;
 

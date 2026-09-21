@@ -8,22 +8,49 @@ import {
   RPG_STEERING_NOTE_MAX,
   RPG_TURN_TOOL_CALLS_LIST_MAX_LIMIT,
   rpgCreateGameInputSchema,
+  rpgDeleteJournalEntryInputSchema,
   rpgDismissActorInputSchema,
+  rpgEditJournalEntryInputSchema,
   rpgEditQuestObjectiveInputSchema,
   rpgListJournalInputSchema,
   rpgListTurnToolCallsInputSchema,
   rpgPatchActorInputSchema,
   rpgPatchSheetInputSchema,
   rpgPromoteActorInputSchema,
+  rpgRestoreCheckpointInputSchema,
   rpgUpdateConfigInputSchema,
   rpgUpsertQuestInputSchema,
 } from "@orb/contracts/rpg";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "../../support/fixtures.ts";
 
-const CHAT_ID = "chat_alpha";
+const CHAT_ID = mintTypeId(ID_PREFIX.chat);
 /** A wire-shaped character id (the `typeIdSchema(ID_PREFIX.character)` prefix) — the promotion test needs a
  *  VALID roster ref, or the refusal it asserts could be the id shape rather than the arm. */
 const CHARACTER_ID = "character_01h0000000000000000000000";
+
+test("TypeID request fields reject malformed and wrong-prefix values", () => {
+  expect(rpgCreateGameInputSchema.safeParse({ chatId: CHAT_ID, mode: "lite" }).success).toBe(true);
+  expect(rpgCreateGameInputSchema.safeParse({ chatId: mintTypeId(ID_PREFIX.preset), mode: "lite" }).success).toBe(false);
+  expect(rpgCreateGameInputSchema.safeParse({ chatId: "chat_not-a-typeid", mode: "lite" }).success).toBe(false);
+
+  const presetId = mintTypeId(ID_PREFIX.preset);
+  expect(rpgUpdateConfigInputSchema.safeParse({ chatId: CHAT_ID, gmPresetId: presetId }).success).toBe(true);
+  expect(rpgUpdateConfigInputSchema.safeParse({ chatId: CHAT_ID, gmPresetId: mintTypeId(ID_PREFIX.chat) }).success).toBe(false);
+  expect(rpgUpdateConfigInputSchema.safeParse({ chatId: CHAT_ID, gmPresetId: "preset_not-a-typeid" }).success).toBe(false);
+
+  const journalId = mintTypeId(ID_PREFIX.rpgJournal);
+  for (const schema of [rpgEditJournalEntryInputSchema.shape.entryId, rpgDeleteJournalEntryInputSchema.shape.entryId]) {
+    expect(schema.safeParse(journalId).success).toBe(true);
+    expect(schema.safeParse(mintTypeId(ID_PREFIX.rpgCheckpoint)).success).toBe(false);
+    expect(schema.safeParse("rpg_journal_not-a-typeid").success).toBe(false);
+  }
+
+  const checkpoint = rpgRestoreCheckpointInputSchema.shape.checkpointId;
+  expect(checkpoint.safeParse(mintTypeId(ID_PREFIX.rpgCheckpoint)).success).toBe(true);
+  expect(checkpoint.safeParse(journalId).success).toBe(false);
+  expect(checkpoint.safeParse("rpg_checkpoint_not-a-typeid").success).toBe(false);
+});
 
 test("createGame: mode is enum-gated at the wire (a bogus mode is refused, not passed to the resolver)", () => {
   expect(rpgCreateGameInputSchema.safeParse({ chatId: CHAT_ID, mode: "lite" }).success).toBe(true);

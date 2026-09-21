@@ -219,6 +219,12 @@ test("the mine arm STRIPS a smuggled messageIds — a bulk restamp can never car
   expect(reattributeScopeSchema.parse({ kind: "mine", messageIds: [SAMPLE_MESSAGE_ID] })).toEqual({ kind: "mine" });
 });
 
+test("reattribution message ids reject malformed and wrong-prefix TypeIDs", () => {
+  expect(reattributeScopeSchema.safeParse({ kind: "messages", messageIds: [SAMPLE_MESSAGE_ID] }).success).toBe(true);
+  expect(reattributeScopeSchema.safeParse({ kind: "messages", messageIds: [SAMPLE_CHAT_ID] }).success).toBe(false);
+  expect(reattributeScopeSchema.safeParse({ kind: "messages", messageIds: ["message_not-a-typeid"] }).success).toBe(false);
+});
+
 // ── macroFreezeRecordSchema — the read-seam parse for `message_variants.macro_freezes` (stickler §3) ──
 // The volatile freeze ({{roll}}/{{random}}/{{pick}}/the clock family) is byte-DESTRUCTIVE: it bakes drawn
 // values into the stored text. Until this record it left no trace, so a swipe could not replay a roll and the

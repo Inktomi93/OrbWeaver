@@ -5,6 +5,8 @@ import {
   CHARACTER_LIST_SORTS,
   CHARACTER_PROVENANCES,
   cardDepthPromptSchema,
+  characterBulkTagFailureSchema,
+  characterBulkTagResultSchema,
   characterCardSchema,
   characterCardV3Schema,
   characterListCursorSchema,
@@ -15,6 +17,7 @@ import {
   updateCharacterSchema,
 } from "@orb/contracts/character";
 import type { RegexScriptCard } from "@orb/contracts/regex";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { SubstituteFindRegex } from "@orb/kit/regex";
 import { expect, test } from "../../support/fixtures.ts";
 
@@ -77,6 +80,18 @@ const APP_CARD: CharacterCard = {
     },
   },
 };
+
+test("bulk-tag result ids reject malformed and wrong-prefix TypeIDs", () => {
+  const characterId = mintTypeId(ID_PREFIX.character);
+  const wrongPrefix = mintTypeId(ID_PREFIX.chat);
+  const failure = { id: characterId, error: { code: "unexpected", message: "nope" } };
+  expect(characterBulkTagFailureSchema.safeParse(failure).success).toBe(true);
+  expect(characterBulkTagFailureSchema.safeParse({ ...failure, id: wrongPrefix }).success).toBe(false);
+  expect(characterBulkTagFailureSchema.safeParse({ ...failure, id: "character_not-a-typeid" }).success).toBe(false);
+  expect(characterBulkTagResultSchema.safeParse({ applied: [characterId], failed: [] }).success).toBe(true);
+  expect(characterBulkTagResultSchema.safeParse({ applied: [wrongPrefix], failed: [] }).success).toBe(false);
+  expect(characterBulkTagResultSchema.safeParse({ applied: ["character_not-a-typeid"], failed: [] }).success).toBe(false);
+});
 
 test("the canonical card round-trips an app-authored card byte-for-byte (no raw blob)", () => {
   const parsed = characterCardSchema.parse(APP_CARD);
