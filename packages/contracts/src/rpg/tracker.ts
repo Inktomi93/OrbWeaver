@@ -22,7 +22,7 @@
 
 import { z } from "zod";
 import type { RpgTrackerCarrierClass } from "./enums.ts";
-import { RPG_TRACKER_CARRIER_CLASSES, RPG_TRACKER_SHAPES, RPG_TRACKER_SUBJECTS, RPG_TRACKER_WRITES } from "./enums.ts";
+import { rpgTrackerCarrierClassSchema, rpgTrackerShapeSchema, rpgTrackerSubjectSchema, rpgTrackerWriteSchema } from "./enums.ts";
 
 /** The steering-HINT cap — a short prose gloss. ONE home for every host-authored gloss in the game (the
  *  tracker `hint`, the custom-relationship hints, the R4c custom-journal-type hints); homed HERE because
@@ -48,7 +48,7 @@ export const RPG_TRACKER_COLOR_RE =
  *  string projection every map/lock/find already keys on), not embedded ref objects: it keeps this module free
  *  of an `./actor` import (which imports THIS one for the value plane — the cycle is physics, not taste), and
  *  it stores flat, so a carrier list reads the same as a lock path. */
-export const rpgTrackerAppliesToSchema = z.union([z.enum(RPG_TRACKER_CARRIER_CLASSES), z.array(z.string().min(1))]);
+export const rpgTrackerAppliesToSchema = z.union([rpgTrackerCarrierClassSchema, z.array(z.string().min(1))]);
 export type RpgTrackerAppliesTo = z.infer<typeof rpgTrackerAppliesToSchema>;
 
 /** THE unified tracked-field definition. Lives in `RpgGameConfig.trackers[]` — ONE home for every tracker in
@@ -67,9 +67,9 @@ export type RpgTrackerAppliesTo = z.infer<typeof rpgTrackerAppliesToSchema>;
 export const rpgTrackerDefSchema = z.object({
   key: z.string().min(1),
   label: z.string().min(1),
-  shape: z.enum(RPG_TRACKER_SHAPES),
-  write: z.enum(RPG_TRACKER_WRITES),
-  subject: z.enum(RPG_TRACKER_SUBJECTS),
+  shape: rpgTrackerShapeSchema,
+  write: rpgTrackerWriteSchema,
+  subject: rpgTrackerSubjectSchema,
   appliesTo: rpgTrackerAppliesToSchema.default("everyone"),
   max: z.number().int().min(1).nullable().default(null),
   hint: z.string().max(RPG_HINT_MAX).default(""),

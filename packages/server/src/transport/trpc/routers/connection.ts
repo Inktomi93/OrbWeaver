@@ -11,17 +11,18 @@
 import {
   connectionApiSchema,
   connectionExtrasSchema,
+  connectionRefSchema,
   connectionTransportSchema,
   declaredCapabilitySchema,
   providerIdSchema,
   routableTaskSchema,
 } from "@orb/contracts/inference";
-import type { AutomationRuleId, PluginId, UserConnectionId, UserCredentialId } from "@orb/kit/ids";
+import type { AutomationRuleId, PluginId, UserCredentialId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
 import { adminProcedure, authedProcedure, t } from "../trpc.ts";
 
-const connectionId = brandedId<UserConnectionId>();
+const connectionId = connectionRefSchema.shape.connectionId;
 /** A label is a short user-facing name (the pane auto-mints `<provider> · <model>`). */
 const LABEL_MAX_CHARS = 120;
 

@@ -11,7 +11,7 @@ import { IMAGERY_CAPTION_SLOT_IDS, IMAGERY_TEMPLATE_SLOT_IDS } from "#imagery";
 import { legacyProseOverrides, proseOverridesSchema, resolveProseText } from "#prose";
 import type { StructuredOutputVehicle } from "#role-clients";
 import { structuredOutputVehicleSchema } from "#role-clients";
-import { MEMORY_RETRIEVAL_MODES } from "#search";
+import { memoryRetrievalModeSchema } from "#search";
 import { DATABANK_UPLOAD_MAX_BYTES } from "#uploads";
 import { defineVersionedConfig, tolerantArray } from "#versioned-config";
 import type { AppearanceSettings } from "./appearance.ts";
@@ -98,8 +98,7 @@ export const memoryDefaultsSchema = z.object({
   blockSize: memoryKnob("blockSize", "Messages per tier-0 digest block (default 8; ≈3k BGE tok, under the 8192 cap)."),
   verbatimWindow: memoryKnob("verbatimWindow", "Recent messages never digested — the protect zone / seam buffer (default 8)."),
   queryWindow: memoryKnob("queryWindow", "Recent messages used as the retrieval query for mixB/mixC (default 2)."),
-  mode: z
-    .enum(MEMORY_RETRIEVAL_MODES)
+  mode: memoryRetrievalModeSchema
     .optional()
     .describe("off | mixA (all tier-0, chronological) | mixB (+vector retrieve) | mixC (+rerank) | tiered (consolidation bridge). Default mixC."),
   fanOut: memoryKnob("fanOut", "Tier-k digests consolidated into one tier-(k+1) digest (default 4)."),

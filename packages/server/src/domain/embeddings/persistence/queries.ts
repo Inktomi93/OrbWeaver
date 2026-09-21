@@ -4,6 +4,7 @@
 // no-op before the expensive embed.
 
 import type { ImageCaptionMeta, ImageLens, ImageSkipReason } from "@orb/contracts/embeddings";
+import { imageCaptionMetaSchema } from "@orb/contracts/embeddings";
 import type { Db } from "@orb/db";
 // `documents` is databank's table, read here (and only here) to derive the OWNER scope of a chunk row — the
 // vector tables carry no ownerId (D20: scope derives through the FK to the producer). A cross-domain READ
@@ -182,9 +183,11 @@ interface UpsertImageInput {
   readonly now: number;
 }
 
-/** Upsert an image vector by `(assetId, model, lens)`. On conflict updates the vector + caption + hash + dim
- *  only — `hub_score`, the key columns, and `created_at` are left as-is. */
+/** Upsert an image vector by `(assetId, model, lens)`. Non-null caption metadata is parsed once before either
+ *  insert or update. On conflict updates the vector + caption + hash + dim only — `hub_score`, the key
+ *  columns, and `created_at` are left as-is. */
 export async function upsertImageEmbedding(db: Db, input: UpsertImageInput): Promise<void> {
+  const captionMeta = input.captionMeta === null ? null : imageCaptionMetaSchema.parse(input.captionMeta);
   await db
     .insert(imageEmbeddings)
     .values({
@@ -192,7 +195,7 @@ export async function upsertImageEmbedding(db: Db, input: UpsertImageInput): Pro
       assetId: input.assetId,
       lens: input.lens,
       caption: input.caption,
-      captionMeta: input.captionMeta,
+      captionMeta,
       embedding: input.embedding,
       contentHash: input.contentHash,
       model: input.model,
@@ -205,7 +208,7 @@ export async function upsertImageEmbedding(db: Db, input: UpsertImageInput): Pro
       set: {
         embedding: input.embedding,
         caption: input.caption,
-        captionMeta: input.captionMeta,
+        captionMeta,
         contentHash: input.contentHash,
         dim: input.dim,
       },

@@ -69,7 +69,7 @@ export interface ImageCaptionedStoreParams {
   /** The VL breakdown + its `model` provenance → `image_embeddings.caption_meta`. TYPED, not an open
    *  bag: the facet vocabulary has one home in `@orb/contracts/embeddings` and both sides import it
    *  (issue #164 — the reader named fourteen facets this carrier could not promise). */
-  readonly captionMeta?: ImageCaptionMeta | undefined;
+  readonly captionMeta: ImageCaptionMeta;
   /** THE JOINT-SPACE ARM (§10-3). `imageEmbed` = the joint image+caption vector through the owner's image
    *  embedder. `embed` = the CAPTIONED-TEXT fallback: the owner has no image-capable embedder, so the
    *  caption alone is embedded as TEXT into their `embed` space. The store verb dispatches the role op off

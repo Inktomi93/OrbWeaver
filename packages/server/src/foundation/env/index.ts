@@ -9,7 +9,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import process from "node:process";
 import { parseEnv } from "node:util";
-import { AUTH_MODES } from "@orb/contracts/identity";
+import type { AUTH_MODES } from "@orb/contracts/identity";
+import { authModeSchema } from "@orb/contracts/identity";
 import { AGENT_SDK_CONCURRENCY_MAX, LOG_LEVELS } from "@orb/contracts/settings";
 import { z } from "zod";
 import type { BindPostureInput } from "./bind.ts";
@@ -408,7 +409,7 @@ const envSchema = z
     DEFAULT_USER_HANDLE: z.string().min(1).default("owner"),
     // single-user (default, no SSO) | local (app-stored password, cookie/BFF sessions) | forward-header
     // (proxy forward-auth) | oidc (the app is an OIDC client, cookie/BFF sessions).
-    AUTH_MODE: z.enum(AUTH_MODES).default("single-user"),
+    AUTH_MODE: authModeSchema.default("single-user"),
     // What an un-credentialed request gets: deny → 401; owner → the owner, gated on a LOOPBACK TCP peer
     // (#298 f2 — the unspoofable socket, NOT the client `Host`). OPTIONAL in the SCHEMA and resolved by
     // MODE in the `.transform` below (`AUTH_MODE_DEFAULT_FALLBACK`, #2406): unset ⇒ `owner` under

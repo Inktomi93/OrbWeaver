@@ -14,7 +14,7 @@ import { z } from "zod";
 import type { RpgActorRef } from "./actor.ts";
 import { actorRefKey, rpgActorEntrySchema } from "./actor.ts";
 import { rpgClockTimeSchema, rpgWeatherSchema } from "./ambient.ts";
-import { RPG_QUEST_STATUSES } from "./enums.ts";
+import { rpgQuestStatusSchema } from "./enums.ts";
 import { rpgTrackerValuesSchema } from "./tracker.ts";
 
 // The PLOT plane (parity-plus P5 — the campaign-scale progression datum; workboard ruling #2). SNAPSHOT-
@@ -58,7 +58,7 @@ export type RpgQuestObjective = z.infer<typeof rpgQuestObjectiveSchema>;
 export const rpgQuestSchema = z.object({
   id: brandedId<RpgQuestId>(),
   name: z.string().min(1),
-  status: z.enum(RPG_QUEST_STATUSES),
+  status: rpgQuestStatusSchema,
   description: z.string().default(""),
   objectives: z.array(rpgQuestObjectiveSchema).default([]),
 });

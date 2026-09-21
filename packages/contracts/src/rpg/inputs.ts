@@ -26,7 +26,7 @@ import {
   RPG_RECONCILE_EVERY_BEATS_MAX,
   RPG_STEERING_NOTE_MAX,
 } from "./config.ts";
-import { RPG_CYOA_CHOICE_BEHAVIORS, rpgGameModeSchema, rpgJournalTypeSchema, rpgQuestStatusSchema } from "./enums.ts";
+import { rpgCyoaChoiceBehaviorSchema, rpgGameModeSchema, rpgJournalTypeSchema, rpgQuestStatusSchema } from "./enums.ts";
 import { rpgStatProfileSchema } from "./profile.ts";
 import { rpgRulesetSchema } from "./ruleset.ts";
 import { rpgQuestObjectiveSchema } from "./snapshot.ts";
@@ -84,7 +84,7 @@ export const rpgUpdateConfigInputSchema = z.object({
       // The P5 play-style knobs (§5.4/§6.4) — CYOA standing mode + the choice-click behavior + the wand
       // Plot submenu gate. Omit keeps; a passed value replaces.
       cyoa: z.boolean().optional(),
-      cyoaChoiceBehavior: z.enum(RPG_CYOA_CHOICE_BEHAVIORS).optional(),
+      cyoaChoiceBehavior: rpgCyoaChoiceBehaviorSchema.optional(),
       plotProgression: z.boolean().optional(),
       // The FRONT-DOOR toggle (#40): `false` disengages the game from the turn assembly + hides the
       // panel, state PRESERVED (reversible). The verb also re-writes the chat pointer mirror.

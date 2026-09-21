@@ -60,18 +60,18 @@ export const rpgTrackerShapeSchema = z.enum(RPG_TRACKER_SHAPES);
  *  `{key, value}`). It drives the tool arg shape, the model's mental model, and the panel read (a bar you
  *  drain vs a gauge that tracks). */
 export const RPG_TRACKER_WRITES = ["delta", "set"] as const;
-/** @public future: the not-yet-built tracker-write consumers — derived from the live `RPG_TRACKER_WRITES`
- *  tuple, which `rpgTrackerWriteSchema` and the tool-arg shape selection read directly; the `delta`/`set`
- *  discrimination surface they key off (rpg/index.ts KISS/YAGNI SUSPENDED). */
+/** @public future: the not-yet-built typed tracker-write consumers — the type face of the canonical
+ *  `RPG_TRACKER_WRITES` tuple/schema pair and its `delta`/`set` discrimination surface
+ *  (rpg/index.ts KISS/YAGNI SUSPENDED). */
 export type RpgTrackerWrite = (typeof RPG_TRACKER_WRITES)[number];
 export const rpgTrackerWriteSchema = z.enum(RPG_TRACKER_WRITES);
 
 /** A tracker's SUBJECT — `actor` (per-carrier, resolved through `appliesTo`+grants−revokes) or `game` (ONE
  *  value on the snapshot; the old game-scoped widgets, no carrier resolution). */
 export const RPG_TRACKER_SUBJECTS = ["actor", "game"] as const;
-/** @public future: the not-yet-built full-mode tracker consumers — derived from the live `RPG_TRACKER_SUBJECTS`
- *  tuple, which `rpgTrackerSubjectSchema` and the carrier-resolution code read directly; the full-mode
- *  `game`/`actor`-subject discrimination surface they key off (rpg/index.ts KISS/YAGNI SUSPENDED). */
+/** @public future: the not-yet-built typed full-mode tracker consumers — the type face of the canonical
+ *  `RPG_TRACKER_SUBJECTS` tuple/schema pair and its `game`/`actor` discrimination surface
+ *  (rpg/index.ts KISS/YAGNI SUSPENDED). */
 export type RpgTrackerSubject = (typeof RPG_TRACKER_SUBJECTS)[number];
 export const rpgTrackerSubjectSchema = z.enum(RPG_TRACKER_SUBJECTS);
 
@@ -89,8 +89,8 @@ export const rpgTrackerCarrierClassSchema = z.enum(RPG_TRACKER_CARRIER_CLASSES);
  *  schema-enforcing backend, §2.3) but CAN reach anything through `{kind:"custom", label:"…"}`. */
 export const RPG_RELATIONSHIP_KINDS = ["lover", "friend", "ally", "neutral", "enemy", "custom"] as const;
 export type RpgRelationshipKind = (typeof RPG_RELATIONSHIP_KINDS)[number];
-/** @public twin: RPG_RELATIONSHIP_KINDS — the zod (wire-validation) counterpart of the tuple, which is
- *  cross-package PUBLIC; the wire-validation surface a future relationship-write endpoint uses. */
+/** @public twin: RPG_RELATIONSHIP_KINDS — the canonical validation face shared by actor state and the
+ *  relationship-write tool; `RpgRelationshipKind` is the type face of the same public tuple. */
 export const rpgRelationshipKindSchema = z.enum(RPG_RELATIONSHIP_KINDS);
 
 /** P5 — what a CYOA choice CLICK does (§5.4). `compose` = the option text lands in the composer DRAFT + the
@@ -100,8 +100,7 @@ export const rpgRelationshipKindSchema = z.enum(RPG_RELATIONSHIP_KINDS);
  *  knob only shapes the click handler's behavior. */
 export const RPG_CYOA_CHOICE_BEHAVIORS = ["compose", "send"] as const;
 export type RpgCyoaChoiceBehavior = (typeof RPG_CYOA_CHOICE_BEHAVIORS)[number];
-/** @public future: a future CYOA-behavior write path (unbuilt) — the zod counterpart of the live
- *  `RPG_CYOA_CHOICE_BEHAVIORS` tuple, whose current consumers read the tuple/`RpgCyoaChoiceBehavior` type
- *  directly; kept alongside its sibling schemas for that write path's wire validation (rpg/index.ts KISS/YAGNI
- *  SUSPENDED). */
+/** @public twin: RPG_CYOA_CHOICE_BEHAVIORS — the canonical validation face shared by the live config and
+ *  update-input consumers; `RpgCyoaChoiceBehavior` is the type face of the same tuple
+ *  (rpg/index.ts KISS/YAGNI SUSPENDED). */
 export const rpgCyoaChoiceBehaviorSchema = z.enum(RPG_CYOA_CHOICE_BEHAVIORS);

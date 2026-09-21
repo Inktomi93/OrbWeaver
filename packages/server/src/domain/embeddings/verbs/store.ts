@@ -193,7 +193,7 @@ async function storeImage(ctx: EmbeddingsContext, p: ImageRawStoreParams | Image
     assetId: p.assetId,
     lens: p.lens,
     caption: p.lens === "image-captioned" ? p.caption : null,
-    captionMeta: p.lens === "image-captioned" ? (p.captionMeta ?? null) : null,
+    captionMeta: p.lens === "image-captioned" ? p.captionMeta : null,
     embedding: vector,
     contentHash: hash,
     model: embedded.model,

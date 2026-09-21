@@ -7,7 +7,7 @@
 
 import { z } from "zod";
 import { MAX_USER_MACROS, userMacroSchema } from "#preset";
-import { RPG_CYOA_CHOICE_BEHAVIORS } from "./enums.ts";
+import { rpgCyoaChoiceBehaviorSchema } from "./enums.ts";
 import { RPG_PROFILE_FREEFORM, rpgStatProfileSchema } from "./profile.ts";
 import { RPG_RULESET_DEFAULT, rpgRulesetSchema } from "./ruleset.ts";
 import { RPG_HINT_MAX, rpgTrackerDefSchema } from "./tracker.ts";
@@ -70,7 +70,7 @@ export const rpgGameFeaturesSchema = z.object({
   // What a CYOA choice CLICK does (§5.4). `compose` (default) drops the option text into the composer
   // draft + focuses it (append flavor, then send); `send` fires the option as the user turn immediately.
   // Toggle-independent render — the buttons always show; this only branches the client click handler.
-  cyoaChoiceBehavior: z.enum(RPG_CYOA_CHOICE_BEHAVIORS).default("compose"),
+  cyoaChoiceBehavior: rpgCyoaChoiceBehaviorSchema.default("compose"),
   // Plot progression (§6.4): gates the wand's Plot submenu (steer entries) for this game. Default ON
   // (fires only on click — no always-on prompt cost; broadly useful for un-sticking a scene). The submenu is
   // ABSENT when off, never a disabled twin (applicability, [no-separate-reduced-modes]).
