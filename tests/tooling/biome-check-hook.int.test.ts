@@ -536,7 +536,9 @@ test("a pnpm wrapper preamble above the JSON payload cannot skip the typecheck o
   const bite = runHook({ ...base, file, log: biteLog, mode: "plan-preamble-diagnostic" });
   expect(bite.status).toBe(2);
   expect(bite.stderr).not.toContain("planner returned malformed output");
-  expect(bite.stderr).toContain("tests/client/subject.dom.test.ts(3,9): error TS2322");
+  expect(bite.stderr).toContain("── tsconfig.tests-dom.json ──");
+  expect(bite.stderr).toContain("TS2322");
+  expect(bite.stderr).toContain("subject.dom.test.ts:3,9");
   expect(readFileSync(biteLog, "utf8")).toContain("-p tsconfig.tests-dom.json");
 
   const noiseLog = join(scratch, "preamble-noise.log");
@@ -595,6 +597,9 @@ test("type diagnostics from unchanged consumers in the selected program are show
     mode: "consumer-diagnostic",
   });
   expect(result.status).toBe(2);
-  expect(result.stderr).toContain("full selected-program diagnostics");
-  expect(result.stderr).toContain("tests/client/unchanged-consumer.ts(7,3): error TS2322");
+  expect(result.stderr).toContain("── tsconfig.tests-dom.json ──");
+  expect(result.stderr).toContain("TS2322");
+  // THE POINT OF THE ARM: the position belongs to a file the edit never touched, so the hook is reporting
+  // the whole selected PROGRAM rather than the edited file alone.
+  expect(result.stderr).toContain("unchanged-consumer.ts:7,3");
 });
