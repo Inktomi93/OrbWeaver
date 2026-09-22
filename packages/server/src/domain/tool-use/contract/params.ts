@@ -5,17 +5,11 @@
 
 import type { ChatAction, ChatMembership, GlobalAction, ParticipantRole, Principal } from "@orb/contracts/identity";
 import type { InvocationChat } from "@orb/contracts/plugin";
-import type { AgentToolServer, AgentToolSpec, ToolCallInput } from "@orb/inference";
+import type { ToolCallInput } from "@orb/inference";
 import type { ChatId, ChatTurnId, UserId } from "@orb/kit/ids";
 import type { z } from "zod";
 
 export type { ToolCallInput } from "@orb/inference";
-
-/** The injected agent-sdk tool-server factory — the D47 barrel seam (`infra/providers`). tool-use depends
- *  DOWN on infra and receives the factory injected so tests stub it without an SDK dependency; `project-mcp`
- *  calls it with the wrapped specs only (name/version default). The real `createAgentToolServer` (which also
- *  accepts optional name/version) is assignable to this narrower shape. */
-export type CreateAgentToolServer = (opts: { readonly tools: readonly AgentToolSpec[] }) => AgentToolServer;
 
 /** Where a tool came from. `plugin` is LIVE: `registerPluginTool` (`contract/service.ts`) is wired at
  *  `entry/compose/automation-plugin.ts`, namespacing guest tools `plugin_<slug>_<name>`. Its ceiling

@@ -139,7 +139,7 @@ test("managed compaction fires on the bound model, the divider carries the compa
 //
 // DISPOSITION REALITY (verified against the running vLLM-agent-sdk stack, provider.session log): at this TINY
 // 1500-token ceiling the SDK session CLEARS every turn — it does NOT resume. That is CORRECT, not a bug:
-// `splitAgentHistory` (entry/compose/chat.ts) derives the session seed from the SHAPED history (marker-EXCLUDED
+// `splitAgentHistory` (@orb/inference backends/agent-sdk/turn-input.ts) derives the session seed from the SHAPED history (marker-EXCLUDED
 // via `toShapeCanon`, then fit-trimmed). Once compaction covers the span AND the 1500-cap fit trims the rest, the
 // shaped history carries no assistant row before the current user turn → the seed is EMPTY → `toSeedTurns([]) → []`
 // → disposition "cleared" (a fresh throwaway session, no resume). The compacted history rides the SUMMARY MARKER in
