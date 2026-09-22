@@ -1392,6 +1392,103 @@
       ]
     },
     {
+      "path": "docs/design/inference-tool-delivery.md",
+      "assignedSha256": "c81a48827e413f763553291d12094eaff9249757144a4a6a3fb17a9cd7e5e0ba",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "c81a48827e413f763553291d12094eaff9249757144a4a6a3fb17a9cd7e5e0ba",
+      "verifiedCommit": "a51f4e325e1823fa5f68f2e09de5115028ecb93d",
+      "verifiedAt": "2026-09-22",
+      "evidence": [
+        "docs/design/inference-tool-delivery.md:1 (design; full read by lane inf-tools, its author, before and after the build)",
+        "git log --oneline -1 -- docs/design/inference-tool-delivery.md: 0a4f4d53e docs(inference): design for inference-owned tool and history delivery",
+        "re-read in full at a51f4e325 by lane inf-tools-2: the verifier's parity finding — the host Principal now resolves once in ChatToolOps.prepareExecution before the request is built, and the project-mcp pins moved to the compose suite over an in-memory MCP client",
+        "equivalence: the before/after matrix probe (agent-sdk + chat-completions x no tools / registry / terminal / both, plus bridge-only histories) serialized every ChatRequest the runner received and diffed byte-identical; planted id/label mutations made it differ",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Design for moving chat-turn tool and history delivery behind @orb/inference: the neutral ChatTurnInput (history array + ChatTurnTools offer/terminal), the toChatRequest projection, what moved out of server compose/pipeline/tool-use, what stays (executeToolCalls, the registry, runRecurseLoop), the rejected neutral-ChatRequest alternative, coupled sites and the test plan. The code is the doc from here on.",
+      "claims": [
+        {
+          "claim": "`toChatRequest` is the one projection from the neutral chat turn onto the connection's request arm.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/inference/src/roles/chat-request.ts:71"
+            },
+            {
+              "kind": "test",
+              "target": "tests/inference/roles/chat-request.test.ts:77"
+            }
+          ]
+        },
+        {
+          "claim": "The Agent SDK seed split and the MCP mount of the caller's tools live in the agent-sdk backend.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/inference/src/backends/agent-sdk/turn-input.ts:176"
+            },
+            {
+              "kind": "code",
+              "target": "packages/inference/src/backends/agent-sdk/turn-input.ts:345"
+            },
+            {
+              "kind": "test",
+              "target": "tests/inference/backends/agent-sdk/turn-input.test.ts:124"
+            },
+            {
+              "kind": "test",
+              "target": "tests/inference/roles/chat-request.test.ts:120"
+            }
+          ]
+        },
+        {
+          "claim": "The chat pipeline binds the offer's execute callback to the one executeToolCalls path and keeps the record.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/chat/engine/pipeline.ts:826"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/domain/chat/engine/pipeline.test.ts:2005"
+            }
+          ]
+        },
+        {
+          "claim": "tool-use has one backend-neutral projection, toToolDefinitions.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/tool-use/verbs/to-tool-definitions.ts:11"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/domain/tool-use/verbs/to-tool-definitions.test.ts:24"
+            }
+          ]
+        },
+        {
+          "claim": "The turn's host authority resolves once, before the request is built, so a failed lookup fails the turn before the model is called on every wire; the permission gate and record parity hold through the mounted MCP server.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/entry/compose/chat.ts:341"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/entry/compose/chat.test.ts:564"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/entry/compose/chat.test.ts:573"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "path": "docs/design/integer-line-boxes.md",
       "assignedSha256": "dd87039e1d745bfbac472d7aee74aa4923f6f905a5460f214d8834673b9e4d9e",
       "disposition": "current",

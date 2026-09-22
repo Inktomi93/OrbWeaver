@@ -8,7 +8,7 @@ import type { PromptConfig, UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_PROMPT_CONFIG, pipelineStepKey, RECEIVE_POST_PROCESS_ORDER, REPLY_LANE_STEPS } from "@orb/contracts/preset";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
-import type { Resolved } from "@orb/inference";
+import type { ChatToolExecution, Resolved, ToolCallInput } from "@orb/inference";
 import type { ContentImageRef, ContentSpan } from "@orb/kit/content";
 import { tokenizeContent } from "@orb/kit/content";
 import type { AssetId, CharacterId, ChatId, ChatTurnId, MessageId, ModelId, PersonaId, UserId } from "@orb/kit/ids";
@@ -1640,6 +1640,16 @@ const doneFinal = (content: string): TurnStreamChunk => ({
   economics: { content, tokensIn: 7, tokensOut: 3, costUsd: 0.02, finishReason: "stop" },
 });
 
+/** Every tool NAME a request offers, in the order an array wire declares them — the executable offer first, the
+ *  terminal set after (`toChatRequest`'s projection, pinned in tests/inference/roles/chat-request.test.ts). */
+function offeredNames(req: TurnRequest | undefined): readonly string[] | undefined {
+  const tools = req?.tools;
+  if (tools === undefined) {
+    return;
+  }
+  return [...(tools.offer?.definitions ?? []), ...(tools.terminal ?? [])].map((t) => t.name);
+}
+
 /** A fake ChatToolOps: echoes executions as records; `failWith` makes every call errors-as-data. `drivers`
  *  records who each attach-time resolve was scoped to (#677). */
 function fakeToolOps(executed: string[][], failWith?: string, drivers: UserId[] = []): ChatToolOps {
@@ -1648,21 +1658,21 @@ function fakeToolOps(executed: string[][], failWith?: string, drivers: UserId[] 
       drivers.push(driverUserId);
       return { marker: "resolved-set", names };
     },
-    toWireTools: () => [{ name: "tick_clock", description: "d", parameters: { type: "object" } }],
-    toAgentToolServer: () => Promise.resolve({ marker: "mcp-server" }),
-    executeToolCalls: (_set, calls): Promise<ToolCallRecord[]> => {
-      executed.push(calls.map((c) => c.name));
-      return Promise.resolve(
-        calls.map((c) => ({
-          toolCallId: c.toolCallId,
-          name: c.name,
-          arguments: c.arguments,
-          result: failWith === undefined ? JSON.stringify({ ok: c.name }) : JSON.stringify({ error: failWith }),
-          isError: failWith !== undefined,
-          durationMs: 1,
-        })),
-      );
-    },
+    toToolDefinitions: () => [{ name: "tick_clock", description: "d", parameters: { type: "object" }, inputShape: {} }],
+    prepareExecution: () =>
+      Promise.resolve((calls): Promise<ToolCallRecord[]> => {
+        executed.push(calls.map((c) => c.name));
+        return Promise.resolve(
+          calls.map((c) => ({
+            toolCallId: c.toolCallId,
+            name: c.name,
+            arguments: c.arguments,
+            result: failWith === undefined ? JSON.stringify({ ok: c.name }) : JSON.stringify({ error: failWith }),
+            isError: failWith !== undefined,
+            durationMs: 1,
+          })),
+        );
+      }),
   };
 }
 
@@ -1706,10 +1716,11 @@ describe("runTurnPipeline — the D48 recurse loop", () => {
     });
     const result = await runTurnPipeline(args);
 
-    // Two role calls; the first carried the wire tools + the LOOP's auto default.
+    // Two role calls; the first carried the neutral offer (the wire's `tools[]` + `auto` are inference's
+    // projection of it — tests/inference/roles/chat-request.test.ts).
     expect(requests).toHaveLength(2);
-    expect(requests[0]?.tools?.map((t) => t.name)).toEqual(["tick_clock"]);
-    expect(requests[0]?.toolChoice).toEqual({ mode: "auto" });
+    expect(requests[0]?.tools?.offer?.definitions.map((t) => t.name)).toEqual(["tick_clock"]);
+    expect(requests[0]?.tools?.offer?.turnLimit).toBe(5);
     // The recursed request's history grew by the materialized exchange: assistant(tool-call) + tool(result).
     const secondHistory = requests[1]?.history ?? [];
     const appended = secondHistory.slice((requests[0]?.history ?? []).length);
@@ -1949,54 +1960,144 @@ describe("runTurnPipeline — the D79 structured-output gate (04 §7)", () => {
   });
 });
 
-describe("runTurnPipeline — the STATEFUL (agent-sdk) tool channel (MCP toolServer)", () => {
+describe("runTurnPipeline — the backend-neutral tool offer (a backend-owned loop drives `execute`)", () => {
   const agentConnection: Resolved<"chat"> = { ...TOOL_CONNECTION, api: "agent-sdk" };
 
-  test("tools mount as the MCP toolServer (no wire tools[]); records ride the onRecord side-channel", async () => {
-    const requests: TurnRequest[] = [];
-    let onRecord: ((r: ToolCallRecord) => void) | undefined;
-    const server = { marker: "mcp-server" };
-    const ops: ChatToolOps = {
-      ...fakeToolOps([]),
-      toAgentToolServer: (_set, _frame, cb): Promise<unknown> => {
-        onRecord = cb;
-        return Promise.resolve(server);
-      },
+  /** A role that plays a backend OWNING the tool loop: mid-turn it invokes the offer's `execute` once per call
+   *  (as the Agent SDK's mounted MCP handlers do) and records what came back, then finishes with no tool pivot. */
+  function backendLoop(calls: readonly ToolCallInput[], sink: TurnRequest[], outcomes: ChatToolExecution[]): RunChatTurnOp {
+    return (req) => {
+      sink.push(req);
+      return (async function* (): AsyncGenerator<TurnStreamChunk> {
+        for (const call of calls) {
+          const offer = req.tools?.offer;
+          if (offer === undefined) {
+            throw new Error("no tool offer rode the request");
+          }
+          outcomes.push(await offer.execute(call));
+        }
+        yield doneFinal("done");
+      })();
     };
+  }
+
+  test("the SAME neutral offer rides whichever wire the connection speaks — the pipeline never branches on it", async () => {
+    const offersFor = async (connection: Resolved<"chat">): Promise<TurnRequest["tools"]> => {
+      const requests: TurnRequest[] = [];
+      const { args } = baseArgs({
+        connection,
+        tools: fakeToolOps([]),
+        attachedToolNames: ["tick_clock"],
+        toolRecurseLimit: 3,
+        runChatTurn: scriptedDepths([[doneFinal("x")]], requests),
+      });
+      await runTurnPipeline(args);
+      return requests[0]?.tools;
+    };
+    const onAgent = await offersFor(agentConnection);
+    const onArray = await offersFor(TOOL_CONNECTION);
+    expect(onAgent?.offer?.definitions).toEqual(onArray?.offer?.definitions);
+    expect(onAgent?.offer?.turnLimit).toBe(3);
+    expect(onArray?.offer?.turnLimit).toBe(3);
+    expect(onAgent?.terminal).toBeUndefined();
+  });
+
+  test("a backend-driven call runs the ONE execute path and its record is persisted with the turn", async () => {
+    const requests: TurnRequest[] = [];
+    const executed: string[][] = [];
+    const outcomes: ChatToolExecution[] = [];
+    const call: ToolCallInput = { toolCallId: "mcp_tick_clock_1", name: "tick_clock", arguments: '{"m":30}' };
     const { args } = baseArgs({
       connection: agentConnection,
-      tools: ops,
+      tools: fakeToolOps(executed),
       attachedToolNames: ["tick_clock"],
-      toolRecurseLimit: 3,
-      runChatTurn: (req): AsyncIterable<TurnStreamChunk> => {
-        requests.push(req);
-        // Simulate the SDK invoking a wrapped MCP handler mid-turn: the record lands via the side-channel.
-        onRecord?.({ toolCallId: "mcp_tick_clock_1", name: "tick_clock", arguments: "{}", result: "{}", isError: false, durationMs: 1 });
-        return scriptedTurn([doneFinal("done")])(req);
-      },
+      runChatTurn: backendLoop([call], requests, outcomes),
     });
     const result = await runTurnPipeline(args);
+    // One role call: the backend owned the loop, so there is no `finishReason: "tool"` pivot to recurse on.
     expect(requests).toHaveLength(1);
-    expect(requests[0]?.agentToolServer).toBe(server);
-    expect(requests[0]?.agentToolTurnLimit).toBe(3);
-    expect(requests[0]).not.toHaveProperty("tools");
-    expect(requests[0]).not.toHaveProperty("toolChoice");
-    expect(result.toolRecords.map((r) => r.name)).toEqual(["tick_clock"]);
+    // Single call in, single call executed — the batch path is the same one the recurse loop uses.
+    expect(executed).toEqual([["tick_clock"]]);
+    // The record the backend's call produced is the one the turn persists, byte-for-byte (D48 parity)…
+    expect(result.toolRecords).toEqual([
+      {
+        toolCallId: "mcp_tick_clock_1",
+        name: "tick_clock",
+        arguments: '{"m":30}',
+        result: JSON.stringify({ ok: "tick_clock" }),
+        isError: false,
+        durationMs: 1,
+      },
+    ]);
+    // …and the backend is handed exactly the record's serialized result.
+    expect(outcomes).toEqual([{ text: JSON.stringify({ ok: "tick_clock" }), isError: false }]);
     expect(result.toolsUnsupported).toBe(false);
     expect(result.content).toBe("done");
   });
 
-  test("array wires are untouched: chat-completions gets wire tools, never a toolServer", async () => {
-    const requests: TurnRequest[] = [];
+  test("an errors-as-data execution reaches the backend as an error, and is still recorded", async () => {
+    const outcomes: ChatToolExecution[] = [];
+    const call: ToolCallInput = { toolCallId: "mcp_tick_clock_1", name: "tick_clock", arguments: "{}" };
+    const { args } = baseArgs({
+      connection: agentConnection,
+      tools: fakeToolOps([], "not permitted: tick_clock"),
+      attachedToolNames: ["tick_clock"],
+      runChatTurn: backendLoop([call], [], outcomes),
+    });
+    const result = await runTurnPipeline(args);
+    expect(outcomes).toEqual([{ text: JSON.stringify({ error: "not permitted: tick_clock" }), isError: true }]);
+    expect(result.toolRecords.map((r) => r.isError)).toEqual([true]);
+  });
+
+  test("an execute path that returns NO record fails the call loudly — never a silent empty result", async () => {
+    const ops: ChatToolOps = { ...fakeToolOps([]), prepareExecution: () => Promise.resolve(() => Promise.resolve([])) };
+    const call: ToolCallInput = { toolCallId: "mcp_tick_clock_1", name: "tick_clock", arguments: "{}" };
+    const { args } = baseArgs({
+      connection: agentConnection,
+      tools: ops,
+      attachedToolNames: ["tick_clock"],
+      runChatTurn: backendLoop([call], [], []),
+    });
+    await expect(runTurnPipeline(args)).rejects.toThrow("tool-use: executeToolCalls returned no record for tick_clock");
+  });
+
+  test("the turn's authority is bound ONCE, before the first model call, and every recursion depth reuses it", async () => {
+    const order: string[] = [];
+    const base = fakeToolOps([]);
+    const depths = scriptedDepths([[toolFinal("", [{ id: "c1", name: "tick_clock", args: "{}" }])], [doneFinal("x")]], []);
+    const ops: ChatToolOps = {
+      ...base,
+      prepareExecution: (set, frame) => {
+        order.push("bind");
+        return base.prepareExecution(set, frame);
+      },
+    };
     const { args } = baseArgs({
       connection: TOOL_CONNECTION,
-      tools: fakeToolOps([]),
+      tools: ops,
       attachedToolNames: ["tick_clock"],
-      runChatTurn: scriptedDepths([[doneFinal("x")]], requests),
+      runChatTurn: (req) => {
+        order.push("model");
+        return depths(req);
+      },
     });
     await runTurnPipeline(args);
-    expect(requests[0]?.tools?.map((t) => t.name)).toEqual(["tick_clock"]);
-    expect(requests[0]).not.toHaveProperty("agentToolServer");
+    expect(order).toEqual(["bind", "model", "model"]);
+  });
+
+  test("an array wire's calls run through the recurse loop — the offer's execute is never the pipeline's to call", async () => {
+    const requests: TurnRequest[] = [];
+    const executed: string[][] = [];
+    const { args } = baseArgs({
+      connection: TOOL_CONNECTION,
+      tools: fakeToolOps(executed),
+      attachedToolNames: ["tick_clock"],
+      runChatTurn: scriptedDepths([[toolFinal("", [{ id: "c1", name: "tick_clock", args: "{}" }])], [doneFinal("x")]], requests),
+    });
+    const result = await runTurnPipeline(args);
+    expect(requests).toHaveLength(2);
+    expect(executed).toEqual([["tick_clock"]]);
+    expect(result.toolRecords.map((r) => r.toolCallId)).toEqual(["c1"]);
   });
 });
 
@@ -2273,9 +2374,10 @@ describe("runTurnPipeline — terminal tools (R1 fold)", () => {
 
     // ONE model call — the recurse loop never pivoted, so no second call was paid (the entire R1 win).
     expect(requests).toHaveLength(1);
-    expect(requests[0]?.tools?.map((t) => t.name)).toEqual(["update_scene", "no_changes"]);
-    // `auto`, NEVER `required` — required measurably kills the prose (0/6 narratives in the spike).
-    expect(requests[0]?.toolChoice).toEqual({ mode: "auto" });
+    expect(requests[0]?.tools?.terminal?.map((t) => t.name)).toEqual(["update_scene", "no_changes"]);
+    // Nothing executable rode: the terminal set is the whole offer. (The wire's `auto`, NEVER `required` — which
+    // measurably kills the prose, 0/6 narratives in the spike — is the projection's; see chat-request.test.ts.)
+    expect(requests[0]?.tools?.offer).toBeUndefined();
     // The narrative survived intact alongside the state call.
     expect(result.content).toBe("She draws her blade and steps into the rain.");
     // Nothing executed, nothing recorded — the tool traffic stays server-internal, exactly as the separate
@@ -2319,7 +2421,6 @@ describe("runTurnPipeline — terminal tools (R1 fold)", () => {
     const { args } = baseArgs({ connection: TOOL_CONNECTION, runChatTurn: scriptedDepths([[doneFinal("hi")]], requests) });
     const result = await runTurnPipeline(args);
     expect(requests[0]?.tools).toBeUndefined();
-    expect(requests[0]?.toolChoice).toBeUndefined();
     expect(result.terminalToolCalls).toBeNull();
   });
 
@@ -2335,10 +2436,10 @@ describe("runTurnPipeline — terminal tools (R1 fold)", () => {
     expect(result.terminalToolCalls).toBeNull();
   });
 
-  test("the STATEFUL agent-sdk wire carries them on ITS OWN field — same declarations, one call, a LIVE channel", async () => {
-    // The wire cannot read an OpenAI `tools[]`, so the SAME `WireTool[]` rides `agentTerminalTools` and its
-    // backend mounts them as a deny-on-use MCP server. Eligibility is a CAPABILITY question (this connection
-    // co-emits), never a wire one — the fold must NOT be pushed onto its fallback round here.
+  test("an agent-sdk connection gets the SAME neutral terminal declarations — one call, a LIVE channel", async () => {
+    // Eligibility is a CAPABILITY question (this connection co-emits), never a wire one — the fold must NOT be
+    // pushed onto its fallback round here. The DELIVERY (a deny-on-use MCP server on this wire) is inference's
+    // projection of the same `tools.terminal`, so the request the pipeline builds is the array wire's, verbatim.
     const requests: TurnRequest[] = [];
     const { args } = baseArgs({
       connection: { ...TOOL_CONNECTION, api: "agent-sdk" },
@@ -2350,12 +2451,9 @@ describe("runTurnPipeline — terminal tools (R1 fold)", () => {
     });
     const result = await runTurnPipeline(args);
     expect(requests).toHaveLength(1); // one model call — the fallback round is deleted on this wire too
-    expect(requests[0]?.agentTerminalTools?.map((t) => t.name)).toEqual(["update_scene", "no_changes"]);
-    // No array-wire spill: `tools`/`toolChoice` stay absent (the SDK owns the body and would ignore them), and
-    // nothing was resolved into a registry tool server.
-    expect(requests[0]?.tools).toBeUndefined();
-    expect(requests[0]?.toolChoice).toBeUndefined();
-    expect(requests[0]?.agentToolServer).toBeUndefined();
+    expect(requests[0]?.tools?.terminal?.map((t) => t.name)).toEqual(["update_scene", "no_changes"]);
+    // Nothing was resolved into an executable offer.
+    expect(requests[0]?.tools?.offer).toBeUndefined();
     expect(result.terminalToolCalls?.map((c) => c.name)).toEqual(["update_scene"]);
     expect(result.toolRecords).toEqual([]);
   });
@@ -2375,7 +2473,6 @@ describe("runTurnPipeline — terminal tools (R1 fold)", () => {
     const result = await runTurnPipeline(args);
     // The silencing cause is ABSENT from the request — the prose is never traded for the passenger.
     expect(requests[0]?.tools).toBeUndefined();
-    expect(requests[0]?.toolChoice).toBeUndefined();
     expect(result.content).toBe("She fords the river, and the water takes her boots.");
     // …and the contributor is TOLD (null channel ⇒ it runs its own post-commit round), never silently dropped.
     expect(result.terminalToolCalls).toBeNull();
@@ -2393,7 +2490,7 @@ describe("runTurnPipeline — terminal tools (R1 fold)", () => {
     });
     const result = await runTurnPipeline(args);
     // Both sets reached the wire; the REGISTRY tool still executed + recursed exactly as before.
-    expect(requests[0]?.tools?.map((t) => t.name)).toEqual(["tick_clock", "update_scene", "no_changes"]);
+    expect(offeredNames(requests[0])).toEqual(["tick_clock", "update_scene", "no_changes"]);
     expect(executed).toEqual([["tick_clock"]]);
     expect(result.toolRecords.map((r) => r.name)).toEqual(["tick_clock"]);
     // The terminal channel reports the terminal-partitioned calls across every depth — none were emitted here.
@@ -2479,7 +2576,7 @@ describe("runTurnPipeline — terminal tools (R1 fold)", () => {
     });
     const result = await runTurnPipeline(args);
     // NOT the surviving subset: the wire carries the registry declarations alone.
-    expect(requests[0]?.tools?.map((t) => t.name)).toEqual(["tick_clock"]);
+    expect(offeredNames(requests[0])).toEqual(["tick_clock"]);
     // The name stays the REGISTRY's: it executes and recurses, and the terminal channel never claims it.
     expect(executed).toEqual([["tick_clock"]]);
     expect(result.toolRecords.map((r) => r.name)).toEqual(["tick_clock"]);

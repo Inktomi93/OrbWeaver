@@ -4025,7 +4025,7 @@
           ]
         },
         {
-          "claim": "Verified realized slice: the live tool-use domain exports its service, and tests cover the project-MCP wrapper through the shared executor; #28 retains revalidation of remaining program scope.",
+          "claim": "Verified realized slice: the live tool-use domain exports its service, and tests cover the MCP-mounted (backend-owned loop) tool path through the shared executor; #28 retains revalidation of remaining program scope.",
           "evidence": [
             {
               "kind": "issue",
@@ -4041,7 +4041,7 @@
             },
             {
               "kind": "test",
-              "target": "tests/server/domain/tool-use/verbs/project-mcp.test.ts:37"
+              "target": "tests/server/domain/chat/engine/pipeline.test.ts:2005"
             }
           ]
         }
@@ -4077,7 +4077,7 @@
           ]
         },
         {
-          "claim": "Verified realized slice: the live tool-use domain exports its service, and tests cover the project-MCP wrapper through the shared executor; #28 retains revalidation of remaining program scope.",
+          "claim": "Verified realized slice: the live tool-use domain exports its service, and tests cover the MCP-mounted (backend-owned loop) tool path through the shared executor; #28 retains revalidation of remaining program scope.",
           "evidence": [
             {
               "kind": "issue",
@@ -4093,7 +4093,7 @@
             },
             {
               "kind": "test",
-              "target": "tests/server/domain/tool-use/verbs/project-mcp.test.ts:37"
+              "target": "tests/server/domain/chat/engine/pipeline.test.ts:2005"
             }
           ]
         }
@@ -4129,7 +4129,7 @@
           ]
         },
         {
-          "claim": "Verified realized slice: the live tool-use domain exports its service, and tests cover the project-MCP wrapper through the shared executor; #28 retains revalidation of remaining program scope.",
+          "claim": "Verified realized slice: the live tool-use domain exports its service, and tests cover the MCP-mounted (backend-owned loop) tool path through the shared executor; #28 retains revalidation of remaining program scope.",
           "evidence": [
             {
               "kind": "issue",
@@ -4145,7 +4145,7 @@
             },
             {
               "kind": "test",
-              "target": "tests/server/domain/tool-use/verbs/project-mcp.test.ts:37"
+              "target": "tests/server/domain/chat/engine/pipeline.test.ts:2005"
             }
           ]
         }
@@ -4181,7 +4181,7 @@
           ]
         },
         {
-          "claim": "Verified realized slice: the live tool-use domain exports its service, and tests cover the project-MCP wrapper through the shared executor; #28 retains revalidation of remaining program scope.",
+          "claim": "Verified realized slice: the live tool-use domain exports its service, and tests cover the MCP-mounted (backend-owned loop) tool path through the shared executor; #28 retains revalidation of remaining program scope.",
           "evidence": [
             {
               "kind": "issue",
@@ -4197,7 +4197,7 @@
             },
             {
               "kind": "test",
-              "target": "tests/server/domain/tool-use/verbs/project-mcp.test.ts:37"
+              "target": "tests/server/domain/chat/engine/pipeline.test.ts:2005"
             }
           ]
         }
@@ -4233,7 +4233,7 @@
           ]
         },
         {
-          "claim": "Verified realized slice: the live tool-use domain exports its service, and tests cover the project-MCP wrapper through the shared executor; #28 retains revalidation of remaining program scope.",
+          "claim": "Verified realized slice: the live tool-use domain exports its service, and tests cover the MCP-mounted (backend-owned loop) tool path through the shared executor; #28 retains revalidation of remaining program scope.",
           "evidence": [
             {
               "kind": "issue",
@@ -4249,7 +4249,7 @@
             },
             {
               "kind": "test",
-              "target": "tests/server/domain/tool-use/verbs/project-mcp.test.ts:37"
+              "target": "tests/server/domain/chat/engine/pipeline.test.ts:2005"
             }
           ]
         }
@@ -4285,7 +4285,7 @@
           ]
         },
         {
-          "claim": "Verified realized slice: the live tool-use domain exports its service, and tests cover the project-MCP wrapper through the shared executor; #28 retains revalidation of remaining program scope.",
+          "claim": "Verified realized slice: the live tool-use domain exports its service, and tests cover the MCP-mounted (backend-owned loop) tool path through the shared executor; #28 retains revalidation of remaining program scope.",
           "evidence": [
             {
               "kind": "issue",
@@ -4301,7 +4301,7 @@
             },
             {
               "kind": "test",
-              "target": "tests/server/domain/tool-use/verbs/project-mcp.test.ts:37"
+              "target": "tests/server/domain/chat/engine/pipeline.test.ts:2005"
             }
           ]
         }
@@ -4337,7 +4337,7 @@
           ]
         },
         {
-          "claim": "Verified realized slice: the live tool-use domain exports its service, and tests cover the project-MCP wrapper through the shared executor; #28 retains revalidation of remaining program scope.",
+          "claim": "Verified realized slice: the live tool-use domain exports its service, and tests cover the MCP-mounted (backend-owned loop) tool path through the shared executor; #28 retains revalidation of remaining program scope.",
           "evidence": [
             {
               "kind": "issue",
@@ -4353,7 +4353,7 @@
             },
             {
               "kind": "test",
-              "target": "tests/server/domain/tool-use/verbs/project-mcp.test.ts:37"
+              "target": "tests/server/domain/chat/engine/pipeline.test.ts:2005"
             }
           ]
         }

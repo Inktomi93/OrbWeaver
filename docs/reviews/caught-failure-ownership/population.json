@@ -1680,6 +1680,19 @@
       "markerLine": 44
     },
     {
+      "siteId": "packages/inference/src/backends/agent-sdk/turn-input.ts::catch::1",
+      "path": "packages/inference/src/backends/agent-sdk/turn-input.ts",
+      "line": 247,
+      "column": 5,
+      "grammar": "default",
+      "position": "catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "CLASSIFIER, not a failure — \"does this model-emitted blob parse to an object\" is the question, and `false` IS the answer (the pair degrades to announced text, which the caller renders). Reporting it would raise a user-facing error for a turn that runs correctly. Ends if this ever gates something other than the structural-vs-text choice.",
+      "markerLine": 244
+    },
+    {
       "siteId": "packages/inference/src/backends/anthropic-messages/index.ts::err::1",
       "path": "packages/inference/src/backends/anthropic-messages/index.ts",
       "line": 85,
@@ -3320,59 +3333,46 @@
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::catch::1",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 391,
-      "column": 5,
+      "line": 910,
+      "column": 9,
       "grammar": "default",
       "position": "catch",
       "ordinal": 1,
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
-      "reason": "CLASSIFIER, not a failure — \"does this model-emitted blob parse to an object\" is the question, and `false` IS the answer (the pair degrades to announced text, which the caller renders). Reporting it would raise a user-facing error for a turn that runs correctly. Ends if this ever gates something other than the structural-vs-text choice.",
-      "markerLine": 388
+      "reason": "FAIL-CLOSED — documented above: a gone card fail-closes to `[]` rather than throwing into the member-card read. Ends if a gone card needs to surface distinctly from an infra failure.",
+      "markerLine": 906
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::catch::2",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 1303,
+      "line": 943,
       "column": 9,
-      "grammar": "default",
+      "grammar": "empty",
       "position": "catch",
       "ordinal": 2,
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
-      "reason": "FAIL-CLOSED — documented above: a gone card fail-closes to `[]` rather than throwing into the member-card read. Ends if a gone card needs to surface distinctly from an infra failure.",
-      "markerLine": 1299
+      "reason": "FAIL-CLOSED — the comment block above states",
+      "markerLine": 932
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::catch::3",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 1336,
-      "column": 9,
+      "line": 980,
+      "column": 11,
       "grammar": "empty",
       "position": "catch",
       "ordinal": 3,
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
-      "reason": "FAIL-CLOSED — the comment block above states",
-      "markerLine": 1325
-    },
-    {
-      "siteId": "packages/server/src/entry/compose/chat.ts::catch::4",
-      "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 1373,
-      "column": 11,
-      "grammar": "empty",
-      "position": "catch",
-      "ordinal": 4,
-      "snippet": "} catch {",
-      "verdict": "deliberate-absorb",
       "reason": "optional-read-as-absent — a persona/handle",
-      "markerLine": 1365
+      "markerLine": 972
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::err::1",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 1073,
+      "line": 680,
       "column": 16,
       "grammar": "empty",
       "position": "err",
@@ -3380,12 +3380,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "narrow rethrow — documented below: only a",
-      "markerLine": 1067
+      "markerLine": 674
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::runChatTurn::1",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 961,
+      "line": 568,
       "column": 8,
       "grammar": "promise",
       "position": "runChatTurn",
@@ -3393,7 +3393,7 @@
       "snippet": ".runChatTurn(chatReq)",
       "verdict": "deliberate-absorb",
       "reason": "propagated — the rejection reaches",
-      "markerLine": 957
+      "markerLine": 564
     },
     {
       "siteId": "packages/server/src/entry/compose/emit-chat-changed.ts::catch::1",

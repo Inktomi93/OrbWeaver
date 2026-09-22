@@ -1,13 +1,13 @@
 //
 // domain/tool-use — FRONT DOOR. The one tool registry: every entry a name + description + zod argsSchema
 // + can() ceiling + handler closing over its owning domain's service, registered once at entry/compose,
-// read per turn via resolveTools, and projected onto the OpenAI wire. Every invocation funnels through the
-// same executeToolCalls, producing the same ToolCallRecord[] that chat persistence stores on the variant.
+// read per turn via resolveTools, and projected ONCE into backend-neutral definitions `@orb/inference` places.
+// Every invocation funnels through the same executeToolCalls, producing the same ToolCallRecord[] that chat
+// persistence stores on the variant.
 
 export type { ToolUseContext } from "./context.ts";
 export { ToolNameCollisionError, ToolNotFoundError } from "./contract/errors.ts";
 export type {
-  CreateAgentToolServer,
   PluginToolSpec,
   ToolCallInput,
   ToolCapability,

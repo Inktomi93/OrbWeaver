@@ -43,7 +43,7 @@ import {
 import type { CarryReasoning, UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_NAMES_BEHAVIOR } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
-import type { GeneratedImage, Resolved, ResolvedWarning, ToolCallInput, WireTool } from "@orb/inference";
+import type { ChatToolExecution, ChatToolOffer, GeneratedImage, Resolved, ResolvedWarning, ToolCallInput, WireTool } from "@orb/inference";
 import { generationOf, resolveCarryReasoning } from "@orb/inference";
 import type { ContentImageRef } from "@orb/kit/content";
 import type { AssetId, CharacterId, ChatId, MessageId, PersonaId, WorldEntryId } from "@orb/kit/ids";
@@ -54,7 +54,7 @@ import { estimateTokens } from "@orb/kit/tokens";
 import { applyReceivePostProcess } from "@orb/server/kit/post-process";
 import { parseReasoningTags } from "@orb/server/kit/reasoning";
 import { getLog } from "#foundation/observability";
-import type { ApplyPromptTransformsOp, ApplyRegexReplaceOp, ChatToolExecFrame, ChatToolOps, ChatToolSet, RunChatTurnOp } from "../contract/context.ts";
+import type { ApplyPromptTransformsOp, ApplyRegexReplaceOp, BoundToolExecution, ChatToolExecFrame, ChatToolOps, RunChatTurnOp } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
 import type { PromptHistoryRegexEnv } from "../contract/regex.ts";
 import type {
@@ -734,10 +734,10 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
   const attach = await attachTools(args, baseRequest);
   // The REGISTRY names that actually rode this turn — the left half of the tool-identity partition (#1404).
   // Empty when no set resolved (unwired ops / no capability), which is exactly when nothing may execute.
-  const registryNames: ReadonlySet<string> = new Set(attach.set === null ? [] : args.attachedToolNames);
+  const registryNames: ReadonlySet<string> = new Set(attach.execute === null ? [] : args.attachedToolNames);
   const terminal = attachTerminalTools(args, attach.request, registryNames);
   const structured = attachResponseFormat(args, terminal.request);
-  const loop = await runRecurseLoop({ args, request: structured.request, set: attach.set, terminalNames: terminal.names, carryReasoning });
+  const loop = await runRecurseLoop({ args, request: structured.request, execute: attach.execute, terminalNames: terminal.names, carryReasoning });
   // RECEIVE, applied once over the depth-cumulative text (prose flows across recursion depths into one variant).
   const received = applyReceiveTransforms({ content: loop.content, reasoning: loop.reasoning }, args, ctx);
   return {
@@ -755,9 +755,10 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     fitCeilingTokens: fitted.ceilingTokens,
     imageDropped,
     videoDropped,
-    // Array-wire records come from the recurse loop; stateful (agent-sdk) records from the MCP onRecord
-    // side-channel — mutually exclusive by construction, concatenated so persistence is arm-agnostic.
-    toolRecords: [...loop.records, ...attach.mcpRecords],
+    // Records from the pipeline's own recurse loop (an array wire) and from the offer's `execute` callback (a
+    // backend that owns the loop) — mutually exclusive by construction, concatenated so persistence is
+    // arm-agnostic.
+    toolRecords: [...loop.records, ...attach.offerRecords],
     replyImages: loop.replyImages,
     terminalToolCalls: terminalCallsOf(terminal.attached, loop.economics, loop.terminalCalls),
     terminalToolsCollided: terminal.collided,
@@ -781,48 +782,59 @@ function turnCarriesTools(args: RunTurnPipelineArgs): boolean {
 
 // Tools ride only when names were gather-contributed AND the ops are wired AND capability.tools declares
 // support — attached-but-unsupported drops them (runs tool-less) and flags tools_unsupported. A tool-less
-// request carries no tools field. Per-wire delivery: the ARRAY wires (chat-completions/responses) carry
-// `tools`/`toolChoice` and recurse in `runRecurseLoop`; the STATEFUL agent-sdk wire mounts the resolved set
-// as an in-process MCP server (`agentToolServer`) — the SDK owns the loop, every invocation runs the ONE
-// `executeToolCalls` path, and `mcpRecords` accumulates the SAME ToolCallRecords the recurse loop would.
+// request carries no tools field. The offer is BACKEND-NEUTRAL (`docs/design/inference-tool-delivery.md`): the
+// resolved set as definitions, the round ceiling, and ONE `execute` callback over the ONE execute path.
+// `@orb/inference` decides the delivery: an array wire declares them in `tools[]` and hands the calls back for
+// `runRecurseLoop` to execute; the Agent SDK mounts them as an MCP server, owns the loop, and calls `execute` per
+// invocation — which is why `offerRecords` accumulates the SAME ToolCallRecords the recurse loop would.
+//
+// THE AUTHORITY IS BOUND HERE, BEFORE THE REQUEST EXISTS (`ChatToolOps.prepareExecution`): the host Principal is
+// resolved once and both loops run the bound executor. A failed lookup therefore rejects THIS await and fails the
+// turn before the model is called, identically on every wire — never inside an SDK-driven handler, where the
+// throw would reach the model as tool-result text and leave no record.
 async function attachTools(
   args: RunTurnPipelineArgs,
   baseRequest: TurnRequest,
-): Promise<{ request: TurnRequest; set: ChatToolSet | null; unsupported: boolean; mcpRecords: readonly ToolCallRecord[] }> {
+): Promise<{ request: TurnRequest; execute: BoundToolExecution | null; unsupported: boolean; offerRecords: readonly ToolCallRecord[] }> {
   const wantTools = args.attachedToolNames.length > 0 && args.tools !== null;
   const toolsSupported = generationOf(args.connection).tools !== undefined;
   // Aliased narrowing: `!wantTools` returning implies `args.tools !== null` below (tsc 5.5+).
   if (!wantTools) {
-    return { request: baseRequest, set: null, unsupported: false, mcpRecords: [] };
+    return { request: baseRequest, execute: null, unsupported: false, offerRecords: [] };
   }
   if (!toolsSupported) {
-    return { request: baseRequest, set: null, unsupported: true, mcpRecords: [] };
+    return { request: baseRequest, execute: null, unsupported: true, offerRecords: [] };
   }
   // Resolved on the TURN HOST's shelf (#677) — the same identity the teaching contributions enumerated the
   // attach union from (`tctx.runAsUserId`). A guest in the room never pulls their own plugin's tools in, and
   // the host's copy of a plugin two people installed is the one that runs.
   const set = args.tools.resolveTools(args.toolExecFrame.runAsUserId, args.attachedToolNames);
-  if (args.connection.api === "agent-sdk") {
-    const mcpRecords: ToolCallRecord[] = [];
-    const server = await args.tools.toAgentToolServer(set, args.toolExecFrame, (record) => mcpRecords.push(record));
-    return {
-      request: { ...baseRequest, agentToolServer: server, agentToolTurnLimit: args.toolRecurseLimit },
-      // The SDK owns the loop — runRecurseLoop never pivots (no finishReason:"tool" on this arm).
-      set,
-      unsupported: false,
-      mcpRecords,
-    };
-  }
-  return {
-    request: {
-      ...baseRequest,
-      tools: args.tools.toWireTools(set),
-      toolChoice: { mode: "auto" },
-    },
-    set,
-    unsupported: false,
-    mcpRecords: [],
+  const execute = await args.tools.prepareExecution(set, args.toolExecFrame);
+  const offerRecords: ToolCallRecord[] = [];
+  const offer: ChatToolOffer = {
+    definitions: args.tools.toToolDefinitions(set),
+    execute: (call) => executeOfferedCall({ execute, call, sink: offerRecords }),
+    turnLimit: args.toolRecurseLimit,
   };
+  return { request: { ...baseRequest, tools: { offer } }, execute, unsupported: false, offerRecords };
+}
+
+/** ONE backend-driven invocation through the ONE execute path: single call in, single record out. The record is
+ *  kept for persistence (the pipeline's, never the backend's) and its serialized result + error flag go back to
+ *  the backend that asked. The execute path always serializes a non-null result on the executed path — `null` is
+ *  only the recurse loop's recorded-but-unexecuted case, which never rides this callback. */
+async function executeOfferedCall(input: {
+  readonly execute: BoundToolExecution;
+  readonly call: ToolCallInput;
+  readonly sink: ToolCallRecord[];
+}): Promise<ChatToolExecution> {
+  const records = await input.execute([input.call]);
+  const record = records[0];
+  if (record === undefined) {
+    throw new Error(`tool-use: executeToolCalls returned no record for ${input.call.name}`);
+  }
+  input.sink.push(record);
+  return { text: record.result ?? "", isError: record.isError };
 }
 
 /** The TERMINAL-tools request-builder gate (R1 — the folded state extraction). Structurally a sibling of
@@ -846,12 +858,11 @@ async function attachTools(
  *  Ineligible ⇒ the request is byte-identical to a tool-less one and `attached:false` flows back, so the
  *  contributor runs its own fallback instead of silently losing state.
  *
- *  DELIVERY then splits by WIRE, exactly as {@link attachTools} already splits registry tools: the ARRAY wires
- *  carry the declarations in `tools` with `tool_choice:"auto"`; the STATEFUL agent-sdk wire reads no tools
- *  array, so it takes the SAME `WireTool[]` on `agentTerminalTools` and its backend mounts them as a
- *  deny-on-use MCP server (declared to the model, denied at the `PreToolUse` seam, never executed, never a
- *  second call). Same declarations in, same `[]`-vs-`null` channel back — the domain learns no backend
- *  concept from the split, and a wire is never made ineligible for lacking one delivery shape.
+ *  DELIVERY is not this gate's: the declarations ride the neutral `tools.terminal` field and `@orb/inference`
+ *  places them — in the ARRAY wires' `tools[]` with `tool_choice:"auto"`, or on the Agent SDK as a deny-on-use
+ *  MCP server (declared to the model, denied at the `PreToolUse` seam, never executed, never a second call).
+ *  Same declarations in, same `[]`-vs-`null` channel back — the domain learns no backend concept, and a wire is
+ *  never made ineligible for lacking one delivery shape.
  *
  *  THE PARTITION IS THE RETURNED NAME SET (#1404), and it is the only thing that answers "who owns this
  *  call". On the array wires both classes ride the ONE `tools` field, so a model that picks a terminal tool
@@ -897,15 +908,7 @@ function attachTerminalTools(
     return { request: baseRequest, attached: false, names: new Set(), collided };
   }
   const names: ReadonlySet<string> = new Set(requested.map((tool) => tool.name));
-  if (args.connection.api === "agent-sdk") {
-    return { request: { ...baseRequest, agentTerminalTools: requested }, attached: true, names, collided };
-  }
-  return {
-    request: { ...baseRequest, tools: [...(baseRequest.tools ?? []), ...requested], toolChoice: { mode: "auto" } },
-    attached: true,
-    names,
-    collided,
-  };
+  return { request: { ...baseRequest, tools: { ...baseRequest.tools, terminal: requested } }, attached: true, names, collided };
 }
 
 /** The terminal channel's total read. The two arms carry DIFFERENT instructions to the consumer and the
@@ -951,7 +954,8 @@ function attachResponseFormat(args: RunTurnPipelineArgs, baseRequest: TurnReques
 async function runRecurseLoop(input: {
   readonly args: RunTurnPipelineArgs;
   readonly request: TurnRequest;
-  readonly set: ChatToolSet | null;
+  /** The bound execute path, or null when no registry set rode (nothing may execute). */
+  readonly execute: BoundToolExecution | null;
   /** The TERMINAL half of the tool-identity partition (#1404) — {@link attachTerminalTools}'s name set. Calls
    *  in it are collected for the terminal channel and are structurally unreachable from the executor below. */
   readonly terminalNames: ReadonlySet<string>;
@@ -971,7 +975,7 @@ async function runRecurseLoop(input: {
   refused: boolean;
   reasoningMs: number | null;
 }> {
-  const { args, set, terminalNames } = input;
+  const { args, execute, terminalNames } = input;
   let history = input.request.history;
   let content = "";
   let reasoning: string | null = null;
@@ -1016,15 +1020,18 @@ async function runRecurseLoop(input: {
     // THE PARTITION (#1404): this depth's calls split by tool identity before either reader sees them.
     const split = partitionToolCalls(reduced.economics, terminalNames);
     terminalCalls.push(...split.terminal);
-    const calls = pivotCalls(set, args.tools, reduced.economics, split.registry);
-    if (calls === null || args.tools === null) {
+    const calls = pivotCalls(execute, reduced.economics, split.registry);
+    if (calls === null || execute === null) {
       break;
     }
     if (depth >= args.toolRecurseLimit) {
       records.push(...calls.map(asUnexecutedRecord));
       break;
     }
-    const batch = await args.tools.executeToolCalls(set, calls, args.toolExecFrame);
+    // `Promise.resolve` wrap: biome's nursery `useAwaitThenable` does not carry the `execute === null` break above
+    // into this line and reads the union as non-thenable (the same false positive `applyDynamicTransform` wraps
+    // for); the wrap is a no-op on an already-Promise and keeps the await honest without a suppression.
+    const batch = await Promise.resolve(execute(calls));
     records.push(...batch);
     history = [...history, ...toolExchangeMessages(reduced.content, batch, carriedReasoning(reduced.economics, input.carryReasoning))];
     depth += 1;
@@ -1067,12 +1074,11 @@ function partitionToolCalls(
  *  half holds ≥1 call; null means the turn is done. A completion whose only calls were terminal ends the
  *  loop at that depth — nothing to execute, and no second model call paid for a passenger. */
 function pivotCalls(
-  set: ChatToolSet | null,
-  tools: ChatToolOps | null,
+  execute: BoundToolExecution | null,
   economics: TurnEconomics | null,
   registryCalls: readonly ToolCallInput[],
 ): readonly ToolCallInput[] | null {
-  if (set === null || tools === null || economics?.finishReason !== "tool") {
+  if (execute === null || economics?.finishReason !== "tool") {
     return null;
   }
   return registryCalls.length > 0 ? registryCalls : null;

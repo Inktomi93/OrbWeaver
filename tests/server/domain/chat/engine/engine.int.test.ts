@@ -2182,9 +2182,9 @@ describe("createTurnEngine — a prose-less completion with tool calls is RECOVE
 
     // Exactly two wire calls: the original and ONE recovery. Never a loop.
     expect(requests).toHaveLength(2);
-    expect(requests[0]?.tools?.map((t) => t.name)).toEqual(["update_scene"]);
+    expect(requests[0]?.tools?.terminal?.map((t) => t.name)).toEqual(["update_scene"]);
     // Pass 2 attaches NO tools — re-attaching them invites the same discharge that produced no prose.
-    expect(requests[1]?.tools ?? []).toEqual([]);
+    expect(requests[1]?.tools).toBeUndefined();
     // …and the ask is the trailing user row, so the model is told to write the beat it skipped.
     const tail = requests[1]?.history.at(-1);
     expect(tail?.role).toBe("user");
