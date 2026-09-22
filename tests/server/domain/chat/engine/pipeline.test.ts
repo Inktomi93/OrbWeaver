@@ -1659,19 +1659,20 @@ function fakeToolOps(executed: string[][], failWith?: string, drivers: UserId[] 
       return { marker: "resolved-set", names };
     },
     toToolDefinitions: () => [{ name: "tick_clock", description: "d", parameters: { type: "object" }, inputShape: {} }],
-    executeToolCalls: (_set, calls): Promise<ToolCallRecord[]> => {
-      executed.push(calls.map((c) => c.name));
-      return Promise.resolve(
-        calls.map((c) => ({
-          toolCallId: c.toolCallId,
-          name: c.name,
-          arguments: c.arguments,
-          result: failWith === undefined ? JSON.stringify({ ok: c.name }) : JSON.stringify({ error: failWith }),
-          isError: failWith !== undefined,
-          durationMs: 1,
-        })),
-      );
-    },
+    prepareExecution: () =>
+      Promise.resolve((calls): Promise<ToolCallRecord[]> => {
+        executed.push(calls.map((c) => c.name));
+        return Promise.resolve(
+          calls.map((c) => ({
+            toolCallId: c.toolCallId,
+            name: c.name,
+            arguments: c.arguments,
+            result: failWith === undefined ? JSON.stringify({ ok: c.name }) : JSON.stringify({ error: failWith }),
+            isError: failWith !== undefined,
+            durationMs: 1,
+          })),
+        );
+      }),
   };
 }
 
@@ -2049,7 +2050,7 @@ describe("runTurnPipeline — the backend-neutral tool offer (a backend-owned lo
   });
 
   test("an execute path that returns NO record fails the call loudly — never a silent empty result", async () => {
-    const ops: ChatToolOps = { ...fakeToolOps([]), executeToolCalls: () => Promise.resolve([]) };
+    const ops: ChatToolOps = { ...fakeToolOps([]), prepareExecution: () => Promise.resolve(() => Promise.resolve([])) };
     const call: ToolCallInput = { toolCallId: "mcp_tick_clock_1", name: "tick_clock", arguments: "{}" };
     const { args } = baseArgs({
       connection: agentConnection,
@@ -2058,6 +2059,30 @@ describe("runTurnPipeline — the backend-neutral tool offer (a backend-owned lo
       runChatTurn: backendLoop([call], [], []),
     });
     await expect(runTurnPipeline(args)).rejects.toThrow("tool-use: executeToolCalls returned no record for tick_clock");
+  });
+
+  test("the turn's authority is bound ONCE, before the first model call, and every recursion depth reuses it", async () => {
+    const order: string[] = [];
+    const base = fakeToolOps([]);
+    const depths = scriptedDepths([[toolFinal("", [{ id: "c1", name: "tick_clock", args: "{}" }])], [doneFinal("x")]], []);
+    const ops: ChatToolOps = {
+      ...base,
+      prepareExecution: (set, frame) => {
+        order.push("bind");
+        return base.prepareExecution(set, frame);
+      },
+    };
+    const { args } = baseArgs({
+      connection: TOOL_CONNECTION,
+      tools: ops,
+      attachedToolNames: ["tick_clock"],
+      runChatTurn: (req) => {
+        order.push("model");
+        return depths(req);
+      },
+    });
+    await runTurnPipeline(args);
+    expect(order).toEqual(["bind", "model", "model"]);
   });
 
   test("an array wire's calls run through the recurse loop — the offer's execute is never the pipeline's to call", async () => {

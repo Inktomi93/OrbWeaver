@@ -336,15 +336,20 @@ function buildChatToolOps(toolUse: ToolUseService, resolveHostPrincipal: (userId
   return {
     resolveTools: (driverUserId, names) => toolUse.resolveTools(driverUserId, names),
     toToolDefinitions: (set) => toolUse.toToolDefinitions(asResolvedSet(set)),
-    executeToolCalls: async (set, calls, frame) =>
-      toolUse.executeToolCalls(asResolvedSet(set), calls, {
+    // The host Principal is resolved ONCE per turn, here, before the request is built — a failed lookup fails
+    // the turn on every wire instead of surfacing inside an SDK-driven tool handler as text the model reads.
+    prepareExecution: async (set, frame) => {
+      const exec = {
         principal: await resolveHostPrincipal(frame.runAsUserId),
         triggeredBy: frame.triggeredBy,
         chatId: frame.chatId,
         membership: frame.membership,
         turnId: frame.turnId,
         ...(frame.signal !== undefined ? { signal: frame.signal } : {}),
-      }),
+      };
+      const resolved = asResolvedSet(set);
+      return (calls) => toolUse.executeToolCalls(resolved, calls, exec);
+    },
   };
 }
 
