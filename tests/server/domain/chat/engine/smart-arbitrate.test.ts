@@ -50,7 +50,7 @@ const SPEAKER_CANDIDATES = [
 ];
 // The resolved arbiter posture (the `arbiter` floor mapped to the summarize seam) — the caller normally folds
 // the ladder; here it is passed literally since these tests exercise the pure `smartArbitrate` in isolation.
-const ARB_SAMPLING = { temperature: 0.2, maxTokens: 24 } as const;
+const ARB_SAMPLING = { temperature: 0.2, maxOutputTokens: 24 } as const;
 const CANDIDATES = [candidate("aria"), candidate("bran"), candidate("cara")];
 
 describe("smartArbitrate — the validated side-LLM pick", () => {

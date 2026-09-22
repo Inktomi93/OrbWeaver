@@ -183,7 +183,7 @@ describe("memory/build/digests", () => {
     // Qwen3-VL loop-stopping presence-penalty default the memory build always rides.
     expect(sum.optsSeen).toHaveLength(3);
     for (const opts of sum.optsSeen) {
-      expect(opts).toEqual({ maxTokens: 512, temperature: 0.3, presencePenalty: 1.5 });
+      expect(opts).toEqual({ maxOutputTokens: 512, temperature: 0.3, presencePenalty: 1.5 });
     }
   });
 
@@ -206,7 +206,7 @@ describe("memory/build/digests", () => {
       // An unset admin config rides the TWO loop-guard defaults and nothing else: the presence penalty (1.5)
       // AND a hard max_tokens ceiling (1024) — both bound the Qwen3-VL repetition_penalty=1.0 loop that would
       // otherwise run unbounded to the 120s request timeout. The other samplers stay at provider default.
-      expect(opts).toEqual({ maxTokens: 1024, presencePenalty: 1.5 });
+      expect(opts).toEqual({ maxOutputTokens: 1024, presencePenalty: 1.5 });
     }
   });
 

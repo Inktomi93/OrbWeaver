@@ -196,8 +196,7 @@ export type SideGenKind = (typeof SIDE_GEN_KINDS)[number];
 /** A side-generation floor posture — the sampling knobs a side-gen call runs at ABSENT a preset
  *  override. Both fields optional: an ABSENT field means "the runner/backend default stands" (caption's
  *  empty posture is the honest encoding of a call that passed nothing). `maxOutputTokens` (not `maxTokens`)
- *  matches the `userIntentSchema` vocabulary — a call site whose seam takes `maxTokens` (the summarize role)
- *  maps the field at the seam. */
+ *  matches the `userIntentSchema` vocabulary, which the summarize role's options also speak. */
 export interface SideGenPosture {
   readonly temperature?: number;
   readonly maxOutputTokens?: number;

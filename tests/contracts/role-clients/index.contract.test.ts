@@ -92,7 +92,7 @@ test("each callable's result is the matching @orb/contracts/providers shape (par
   expect(
     summarizeResultSchema.parse(
       await noopRoleClients.summarize(inputs, {
-        maxTokens: 256,
+        maxOutputTokens: 256,
         temperature: 0.3,
       }),
     ),

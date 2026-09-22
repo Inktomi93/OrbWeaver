@@ -29,7 +29,6 @@ import type { AssetId, CharacterHandle, PersonaId, PresetId, UserId } from "@orb
 import { castId, ID_PREFIX } from "@orb/kit/ids";
 import type { SideGenSampling } from "@orb/kit/side-gen-posture";
 import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
-import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import type { AssetsContext, AssetsService } from "#domain/assets";
@@ -343,12 +342,12 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
     },
     generateGreetingText: async ({ caller, prompt }): Promise<{ text: string; costUsd: number | null }> => {
       // The side-gen sampling ladder: the `greeting_studio` floor ← the caller's default-preset params (the
-      // ONE user-owned rung — there is no per-template override; owner ruling 2026-08-01). `maxOutputTokens`
-      // maps to the summarize seam's `maxTokens`; an absent knob is omitted (the backend default stands).
+      // ONE user-owned rung — there is no per-template override; owner ruling 2026-08-01). The resolved posture
+      // is the summarize options as-is; an absent knob is omitted (the backend default stands).
       const presetParams = await deps.resolveUserPresetParams(caller.userId);
       const posture = resolveSideGenSampling(SIDE_GEN_POSTURES.greeting_studio, presetParams);
       const rc = await roleClientsFor(caller.userId);
-      const res = await rc.summarize([{ systemPrompt: prompt, userPrompt: "" }], toSummarizeOptions(posture));
+      const res = await rc.summarize([{ systemPrompt: prompt, userPrompt: "" }], posture);
       const item = res.items[0];
       return { text: (item?.text ?? "").trim(), costUsd: item?.usage.costUsd ?? null };
     },

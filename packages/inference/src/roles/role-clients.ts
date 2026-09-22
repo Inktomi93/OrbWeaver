@@ -26,9 +26,11 @@ import { NoConnectionError, resolveTask } from "../resolve/resolve-task.ts";
 const DERIVE_TASKS = ["embed", "rerank", "imageEmbed", "summarize", "structured"] as const satisfies readonly Task[];
 type DeriveTask = (typeof DERIVE_TASKS)[number];
 
+/** The caller's options onto the backend request. The role surface speaks `maxOutputTokens` (the posture
+ *  vocabulary); the backend request keeps `maxTokens`, so this is the one place the name changes. */
 function samplerFields(opts: SummarizeCallOptions | undefined): SideGenSampling {
   return {
-    ...(opts?.maxTokens !== undefined ? { maxTokens: opts.maxTokens } : {}),
+    ...(opts?.maxOutputTokens !== undefined ? { maxTokens: opts.maxOutputTokens } : {}),
     ...(opts?.temperature !== undefined ? { temperature: opts.temperature } : {}),
     ...(opts?.topP !== undefined ? { topP: opts.topP } : {}),
     ...(opts?.topK !== undefined ? { topK: opts.topK } : {}),
