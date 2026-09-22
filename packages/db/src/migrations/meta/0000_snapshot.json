@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "bb66b668-c348-428b-b123-d270f16bbc54",
+  "id": "cc28f3c0-4422-47c3-add6-7f64946348c8",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -1278,13 +1278,6 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
         }
       },
       "indexes": {
@@ -1863,6 +1856,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "generation_id": {
+          "name": "generation_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "seq": {
           "name": "seq",
           "type": "integer",
@@ -2058,6 +2058,14 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "stream_seq": {
+          "name": "stream_seq",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
         },
         "standalone_variable_deltas": {
           "name": "standalone_variable_deltas",
@@ -3317,6 +3325,88 @@
         }
       }
     },
+    "plugin_provider_contributions": {
+      "name": "plugin_provider_contributions",
+      "columns": {
+        "provider_id": {
+          "name": "provider_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "plugin_id": {
+          "name": "plugin_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "definition_hash": {
+          "name": "definition_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "provider_kind": {
+          "name": "provider_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'plugin'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
+        }
+      },
+      "indexes": {
+        "plugin_provider_contributions_plugin_idx": {
+          "name": "plugin_provider_contributions_plugin_idx",
+          "columns": ["plugin_id"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "plugin_provider_contributions_plugin_id_plugins_id_fk": {
+          "name": "plugin_provider_contributions_plugin_id_plugins_id_fk",
+          "tableFrom": "plugin_provider_contributions",
+          "tableTo": "plugins",
+          "columnsFrom": ["plugin_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "plugin_provider_contributions_definition_fk": {
+          "name": "plugin_provider_contributions_definition_fk",
+          "tableFrom": "plugin_provider_contributions",
+          "tableTo": "provider_rows",
+          "columnsFrom": ["provider_id", "definition_hash", "provider_kind"],
+          "columnsTo": ["id", "definition_hash", "origin_kind"],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {
+        "plugin_provider_contributions_provider_id_plugin_id_pk": {
+          "columns": ["provider_id", "plugin_id"],
+          "name": "plugin_provider_contributions_provider_id_plugin_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "plugin_provider_contributions_kind_check": {
+          "name": "plugin_provider_contributions_kind_check",
+          "value": "provider_kind = 'plugin'"
+        }
+      }
+    },
     "provider_rows": {
       "name": "provider_rows",
       "columns": {
@@ -3404,18 +3494,18 @@
           "notNull": false,
           "autoincrement": false
         },
-        "origin_kind": {
-          "name": "origin_kind",
+        "definition_hash": {
+          "name": "definition_hash",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "origin_plugin_id": {
-          "name": "origin_plugin_id",
+        "origin_kind": {
+          "name": "origin_kind",
           "type": "text",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "autoincrement": false
         },
         "origin_user_id": {
@@ -3435,10 +3525,10 @@
         }
       },
       "indexes": {
-        "provider_rows_origin_plugin_idx": {
-          "name": "provider_rows_origin_plugin_idx",
-          "columns": ["origin_plugin_id"],
-          "isUnique": false
+        "provider_rows_contribution_identity_unique": {
+          "name": "provider_rows_contribution_identity_unique",
+          "columns": ["id", "definition_hash", "origin_kind"],
+          "isUnique": true
         },
         "provider_rows_origin_user_idx": {
           "name": "provider_rows_origin_user_idx",
@@ -3447,15 +3537,6 @@
         }
       },
       "foreignKeys": {
-        "provider_rows_origin_plugin_id_plugins_id_fk": {
-          "name": "provider_rows_origin_plugin_id_plugins_id_fk",
-          "tableFrom": "provider_rows",
-          "tableTo": "plugins",
-          "columnsFrom": ["origin_plugin_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
         "provider_rows_origin_user_id_users_id_fk": {
           "name": "provider_rows_origin_user_id_users_id_fk",
           "tableFrom": "provider_rows",
@@ -3491,7 +3572,7 @@
         },
         "provider_rows_origin_shape_check": {
           "name": "provider_rows_origin_shape_check",
-          "value": "(origin_kind = 'plugin' and origin_plugin_id is not null and origin_user_id is null) or (origin_kind = 'admin' and origin_plugin_id is null)"
+          "value": "(origin_kind = 'plugin' and origin_user_id is null) or origin_kind = 'admin'"
         }
       }
     },
@@ -4469,13 +4550,6 @@
           "notNull": false,
           "autoincrement": false
         },
-        "centroid": {
-          "name": "centroid",
-          "type": "F32_BLOB(1024)",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
         "size": {
           "name": "size",
           "type": "integer",
@@ -5170,13 +5244,6 @@
         },
         "epoch": {
           "name": "epoch",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "updated_at": {
-          "name": "updated_at",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
@@ -8395,7 +8462,7 @@
           "name": "connection_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "autoincrement": false
         },
         "created_at": {
