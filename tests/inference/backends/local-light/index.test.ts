@@ -1,6 +1,6 @@
-// The local-light composition root's detached-work owner. A span implementation can throw before returning
-// its Promise (the production tracer resolves a process-global tracer first); that synchronous failure must
-// reach the same warning owner as an asynchronous detached rejection, never escape prefetch.start().
+// The local-light composition root does not own detached-work failure handling. Every prefetch walk enters
+// through the injected supervisor; server composition supplies the traced/logged owner while package tests
+// can supply a deterministic observer without reaching process-global tracing state.
 
 import { createLocalLightBackend } from "../../../../packages/inference/src/backends/local-light/index.ts";
 import type { InferenceLog } from "../../../../packages/inference/src/deps.ts";
