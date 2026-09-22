@@ -13,6 +13,8 @@ const SOURCE = "packages/inference/src/extensions/normalize.ts";
 const TEST = "tests/inference/extensions/normalize.test.ts";
 const SOURCE_TEXT = "export function normalize(value: string): string {\n  return value.trim();\n}\n";
 const POLICY_ID = "test-presence-inference";
+const BACKEND_SOURCE = "packages/inference/src/backends/example/live.ts";
+const BACKEND_SUITE = "tests/inference/conformance/applicability.suite.test.ts";
 
 function pass(root: string, overlay: Readonly<Record<string, string>>): PolicyPassResult {
   const project = new Project({ skipAddingFilesFromTsConfig: true });
@@ -49,6 +51,37 @@ test("a missing required inference mirror is a blocking finding", ({ scratch }) 
   expect(result.toolErrors).toEqual([]);
   expect(result.authority.effectiveFindings).toMatchObject([{ policyId: gate.id, file: SOURCE, severity: "error" }]);
   expect(result.authority.verdict.blocking).toBe(1);
+});
+
+test("an exported call initializer is runtime behavior and needs a supported test topology", ({ scratch }) => {
+  const result = pass(scratch, {
+    [SOURCE]: "export const normalize = buildNormalizer();\n",
+    "tests/inference/other.test.ts": "export {};\n",
+  });
+
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.effectiveFindings).toMatchObject([{ policyId: gate.id, file: SOURCE, severity: "error" }]);
+});
+
+test("an empty category suite does not cover an arbitrary runtime source", ({ scratch }) => {
+  const result = pass(scratch, {
+    [BACKEND_SOURCE]: "export function invoke(): string { return 'ok'; }\n",
+    [BACKEND_SUITE]: "export {};\n",
+  });
+
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.effectiveFindings).toMatchObject([{ policyId: gate.id, file: BACKEND_SOURCE, severity: "error" }]);
+});
+
+test("a category suite covers runtime source it reaches through the module graph", ({ scratch }) => {
+  const result = pass(scratch, {
+    [BACKEND_SOURCE]: "export function invoke(): string { return 'ok'; }\n",
+    "packages/inference/src/backends/example/index.ts": 'export { invoke } from "./live.ts";\n',
+    [BACKEND_SUITE]: 'import { invoke } from "../../../packages/inference/src/backends/example/index.ts";\nvoid invoke;\n',
+  });
+
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.effectiveFindings).toEqual([]);
 });
 
 test("a healthy inference mirror publishes the complete source and test denominators", ({ scratch }) => {
