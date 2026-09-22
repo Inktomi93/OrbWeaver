@@ -5,6 +5,7 @@
 import type { WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { AddChatBookDialogStory } from "../_ct-stories.tsx";
 
@@ -12,11 +13,8 @@ const BOOK = {
   id: castId<WorldBookId>("worldbook_ct_0000000000001"),
   name: "Ashfall Almanac",
   description: "Lore for the eastern wastes",
-  entryCount: 4,
-  enabled: true,
   createdAt: 1_750_000_000_000,
-  updatedAt: 1_750_000_000_000,
-};
+} satisfies TrpcWireOutput<"worldInfo.listBooks">[number];
 
 test("the picker owns a held attach, ignores a same-tick repeat, and closes only after success", async ({ mount, page }) => {
   const hold = trpcHold();

@@ -69,7 +69,7 @@ import { resolveAuthorityMatrix } from "./chat-plane-matrix.ts";
 export const CHAT_DOMAIN_UNDER = "packages/server/src/domain/chat/**";
 export const CHAT_MATRIX_FILE = "packages/server/src/domain/chat/substrate/auth/matrix.ts";
 export const CHAT_QUERIES_FILE = "packages/server/src/domain/chat/persistence/queries.ts";
-export const MATRIX_CONST = "CHAT_VERB_AUTHORITY" satisfies keyof typeof import("@orb/server/domain/chat/substrate/auth");
+export const MATRIX_CONST = "CHAT_VERB_AUTHORITY";
 export const SERVICE_TYPE = "ChatService";
 const CLAMP_FN = "isBelowHistoryFloor";
 

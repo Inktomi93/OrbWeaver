@@ -20,9 +20,10 @@
 //     `apis.length > 1` and every provider now lists one), no prefetch status (§8.3's line was STRUCK by
 //     owner ruling), no per-chat/per-room override (F20).
 
+import type { USER_ROLES } from "@orb/contracts/identity";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ConnectionEditorNarrowStory, ConnectionEditorStory } from "../_ct-stories.tsx";
 
@@ -31,7 +32,7 @@ const CONNECTION_ID = "user_connection_cteditor0001";
 /** The shipped vLLM provider row, verbatim from `contracts/inference/builtin-providers.ts` — the block the
  *  mock draws. Re-typed rather than imported because this spec runs NODE-side and the contracts barrel pulls
  *  zod through a chain the CT transform does not need; the values are pinned by the copy assertions below. */
-const VLLM_PROVIDER = {
+const VLLM_PROVIDER: TrpcWireOutput<"connection.providersAvailable">[number]["provider"] = {
   id: "vllm",
   label: "vLLM",
   wire: "openai-compat",
@@ -53,7 +54,9 @@ const VLLM_PROVIDER = {
 
 /** A saved endpoint connection. `declared.features.strictJson` is the OVERRIDDEN row the mock draws — the
  *  one that must restate the value it replaced. */
-function connectionRow(over: Record<string, unknown> = {}): Record<string, unknown> {
+type ConnectionRow = TrpcWireOutput<"connection.get">;
+
+function connectionRow(over: Partial<ConnectionRow> = {}): ConnectionRow {
   return {
     id: CONNECTION_ID,
     ownerId: "user_ct_editor",
@@ -80,7 +83,7 @@ function connectionRow(over: Record<string, unknown> = {}): Record<string, unkno
 }
 
 /** A generation capability — a chat model that takes text, gives back text, and cannot embed or draw. */
-const GENERATION_CAPABILITY = {
+const GENERATION_CAPABILITY: NonNullable<TrpcWireOutput<"connection.capabilities">["capability"]> = {
   kind: "generation",
   generation: {
     reasoning: { mode: "effort", enabled: true },
@@ -92,15 +95,22 @@ const GENERATION_CAPABILITY = {
   },
 };
 
+const CONNECTION_CAPABILITIES = {
+  capability: GENERATION_CAPABILITY,
+  baseline: GENERATION_CAPABILITY,
+  warnings: [],
+  tasks: ["chat", "agent", "summarize", "structured"],
+} satisfies TrpcWireOutput<"connection.capabilities">;
+
 async function stubEditor(
   page: Page,
-  opts: { readonly connection?: Record<string, unknown>; readonly allowlist?: readonly string[]; readonly role?: string } = {},
+  opts: { readonly connection?: ConnectionRow; readonly allowlist?: readonly string[]; readonly role?: (typeof USER_ROLES)[number] } = {},
 ): Promise<TrpcRecorder> {
   return await routeTrpc(page, {
     "sessions.me": () => ({ userId: "user_ct_editor", handle: "owner", globalRole: opts.role ?? "owner" }),
     "connection.get": () => opts.connection ?? connectionRow(),
     "connection.providersAvailable": () => [{ provider: VLLM_PROVIDER, available: true }],
-    "connection.capabilities": () => ({ capability: GENERATION_CAPABILITY, warnings: [], tasks: ["chat", "agent", "summarize", "structured"] }),
+    "connection.capabilities": () => CONNECTION_CAPABILITIES,
     // An empty catalog is the TYPED-ID arm — which is what `modelListed: false` is about.
     "connection.catalogModels": () => [],
     "connection.update": () => opts.connection ?? connectionRow(),
@@ -349,7 +359,7 @@ test("a host already named in the allowlist is NOT offered an admission", async 
 
 // A member cannot change a deployment setting, so they are not shown a control that would 403.
 test("a non-owner is offered no admission at all", async ({ mount, page }) => {
-  await stubEditor(page, { role: "member" });
+  await stubEditor(page, { role: "user" });
   const component = await mount(<ConnectionEditorStory />);
   await tier(page, "Diagnostics").click();
 

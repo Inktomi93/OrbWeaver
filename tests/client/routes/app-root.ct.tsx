@@ -28,6 +28,7 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { testId } from "../../../packages/client/src/lib/test-ids.ts";
+import type { TrpcFixtureOutput, TrpcRoutes, TrpcWireOutput } from "../../support/node/route-trpc.ts";
 import { routeTrpc, trpcHold } from "../../support/node/route-trpc.ts";
 import { STREAM_MUTATION_ROUTES } from "../data/bus/fixtures.ts";
 import { makeCharacterSummary } from "../features/character/fixtures.ts";
@@ -43,8 +44,8 @@ const LIST_TOGGLE_RE = /^(?:(?:Show|Hide) list panel|Show .+ (?:list|overview))$
 const CLOSE_AFFORDANCE_RE = /close/iu;
 
 /** The library page (`character.list` is keyset-paged: `{items, nextCursor}`). */
-const ONE_CHARACTER = { items: [ARIA], nextCursor: null };
-const NO_CHARACTERS = { items: [], nextCursor: null };
+const ONE_CHARACTER = { items: [ARIA], nextCursor: null, totalCount: 1 } satisfies TrpcFixtureOutput<"character.list">;
+const NO_CHARACTERS = { items: [], nextCursor: null, totalCount: 0 } satisfies TrpcFixtureOutput<"character.list">;
 
 // A non-empty `persona.list` — the route mounts `<FirstRunPersonaDialog>` as an AppShell sibling, which
 // forces a blocking, undismissable gate open over a viewer who cannot SPEAK yet. These tests are about the
@@ -55,7 +56,7 @@ const NO_CHARACTERS = { items: [], nextCursor: null };
 // the gate now offers to recover, so a row plus the DEFAULT (all-null) seeds is precisely the state that
 // opens it. {@link SEEDED_SETTINGS_ROUTE} points both pointers at this row; the two must always move together.
 const HOME_PERSONA = { id: "persona_home", name: "Alex", description: "", avatarHash: null, starred: true };
-const PERSONAS = [HOME_PERSONA];
+const PERSONAS = [HOME_PERSONA] satisfies TrpcFixtureOutput<"persona.list">;
 
 // The seeded draft's greeting row resolves `{{user}}` against the anchor the commit WILL write, so it
 // reads the same two identity sources the server's seed chain does: the viewer's persona connections for
@@ -63,7 +64,18 @@ const PERSONAS = [HOME_PERSONA];
 /** Home's databank tile reads the bank CENSUS beside its rows (`databank.bankHealth`, 2026-08-14) — an
  *  EMPTY bank here, matching the empty `databank.list` above it, so the front door renders that tile's
  *  teaching state. Both routes or neither: an unstubbed suspending read blanks the tile into its boundary. */
-const EMPTY_BANK_HEALTH = { byPhase: { embedding: 0, empty: 0, indexing: 0, ready: 0, stalled: 0 }, chunks: 0, passages: 0, total: 0 };
+const EMPTY_BANK_HEALTH = {
+  byPhase: { embedding: 0, empty: 0, indexing: 0, ready: 0, stalled: 0 },
+  chunks: 0,
+  passages: 0,
+  total: 0,
+} satisfies TrpcWireOutput<"databank.bankHealth">;
+
+const ARIA_CARD = {
+  id: "char_home_aria",
+  name: "Aria Nightshade",
+  greetings: [{ text: "The night market hums." }],
+} satisfies TrpcFixtureOutput<"character.get">;
 
 /**
  * The viewer's settings with BOTH persona seed pointers naming {@link HOME_PERSONA} — the state of an
@@ -71,12 +83,13 @@ const EMPTY_BANK_HEALTH = { byPhase: { embedding: 0, empty: 0, indexing: 0, read
  * seeds them NULL, which since 418d40c7f is the ORPHAN state the gate opens over to recover, so every mount
  * in this file that means "a viewer who is set up" must say so with the pointers, not with the row alone.
  */
-const SEEDED_SETTINGS_ROUTE = {
+const SEEDED_SETTINGS_ROUTE: TrpcRoutes<"settings.getUserSettings"> = {
   "settings.getUserSettings": {
     userId: castId<UserId>("user_ct"),
     schemaVersion: 1,
     config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, currentPersonaId: HOME_PERSONA.id, defaultPersonaId: HOME_PERSONA.id } },
     updatedAt: 0,
+    configUnreadable: null,
   },
 };
 
@@ -88,13 +101,13 @@ const SEEDED_SETTINGS_ROUTE = {
  * every one of those pipelines INERT across this whole file. Spread FIRST in each `routeTrpc` call so a
  * test's own per-fixture value (the zero-persona gate test's unseeded `settings.getUserSettings`, say) wins.
  */
-const HOME_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
+const HOME_AMBIENT_ROUTES: TrpcRoutes<"sessions.me" | "chat.reapTemporaryChats" | "notifications.list"> = {
   ...CHAT_AMBIENT_ROUTES,
   ...STREAM_MUTATION_ROUTES,
   // The viewer's own settings, OVERRIDING the all-null-seeds default {@link CHAT_AMBIENT_ROUTES} carries:
   // every test below (bar the zero-persona gate ones) needs a viewer whose identity is fully resolved.
   ...SEEDED_SETTINGS_ROUTE,
-  "sessions.me": { userId: castId<UserId>("user_ct"), globalRole: "user", handle: "app_root" },
+  "sessions.me": { userId: castId<UserId>("user_ct"), globalRole: "user" as const, handle: "app_root" },
   // The temp-chat tile's fire-and-forget janitor mutation fires once per HOME mount, on an idle deadline
   // (home-temp-chat-tile-body.tsx REAP_IDLE_TIMEOUT_MS) — every test in this file mounts Home. The feed is
   // for pipeline EXECUTION, not a defect fix: the wire type is non-nullable `{reaped: number}`, and the
@@ -116,7 +129,7 @@ const HOME_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
 // ambiently by {@link SEEDED_SETTINGS_ROUTE}, and a second spelling of it in this position (the per-test
 // value, which WINS over the ambient one) is exactly how the plain `DEFAULT_USER_SETTINGS` — all seed
 // pointers null — used to reopen the first-run gate over these journeys.
-const IDENTITY_STUB = {
+const IDENTITY_STUB: TrpcRoutes<"persona.listConnectedToCharacter"> = {
   "persona.listConnectedToCharacter": (): readonly never[] => [],
 };
 
@@ -127,7 +140,7 @@ const IDENTITY_STUB = {
 // (an unlisted-proc `null` is out-of-contract there and crashes the transcript).
 const CREATED_CHAT_ID = "chat_home_created";
 
-function createdChat(temporary: boolean): Record<string, unknown> {
+function createdChat(temporary: boolean): TrpcFixtureOutput<"chat.getChat"> {
   return {
     id: CREATED_CHAT_ID,
     title: null,
@@ -137,7 +150,6 @@ function createdChat(temporary: boolean): Record<string, unknown> {
     group: DEFAULT_GROUP_CONFIG,
     temporary,
     viewerIsHost: true,
-    roomOverrides: {},
     background: null,
     rpg: null,
   };
@@ -153,7 +165,10 @@ const PREVIEW_FIT_STUB = {
   compactSummary: null,
 };
 
-function createdRoomRoutes(temporary: boolean, canon: readonly unknown[] = []): Record<string, unknown> {
+function createdRoomRoutes(
+  temporary: boolean,
+  canon: TrpcFixtureOutput<"chat.listMessages">["messages"] = [],
+): TrpcRoutes<"chat.startChat" | "chat.getChat" | "chat.listMessages" | "chat.previewContextFit"> {
   const chat = createdChat(temporary);
   return {
     "chat.startChat": { chat, opening: null },
@@ -218,11 +233,7 @@ test("picking a character in the library CREATES the chat and lands in it (the l
     "databank.list": { items: [], nextCursor: null, totalCount: 0 },
     "databank.bankHealth": EMPTY_BANK_HEALTH,
     "character.list": ONE_CHARACTER,
-    "character.get": {
-      id: "char_home_aria",
-      name: "Aria Nightshade",
-      greetings: ["The night market hums."],
-    },
+    "character.get": ARIA_CARD,
     "persona.list": PERSONAS,
     ...IDENTITY_STUB,
     // Her greeting arrives as REAL CANON — `startChat` seeded it server-side, so the room reads it back
@@ -368,7 +379,7 @@ test("zero personas: the first-run persona ask is FORCED open — no dismiss, on
     // A REAL first sign-in all the way down: no persona rows AND no seed pointers. Overriding the ambient
     // {@link SEEDED_SETTINGS_ROUTE} keeps the fixture coherent — pointers naming a persona that does not
     // exist would be a state the server never writes.
-    "settings.getUserSettings": { userId: castId<UserId>("user_ct"), schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 },
+    "settings.getUserSettings": { userId: castId<UserId>("user_ct"), schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0, configUnreadable: null },
   });
   await mount(<HomePageStory />);
 
@@ -424,7 +435,7 @@ test("a user who owns a persona never sees the gate (the automation-seeded + ret
 /** A library page whose CENSUS is the subject — `character.list` serves a real `totalCount` beside its page. */
 const TWELVE_CHARACTERS = { items: [ARIA], nextCursor: null, totalCount: 12 };
 
-const CENSUS_ROUTES: Readonly<Record<string, unknown>> = {
+const CENSUS_ROUTES: TrpcRoutes<"chat.listChats" | "databank.list" | "databank.bankHealth" | "character.list" | "persona.list"> = {
   ...HOME_AMBIENT_ROUTES,
   "chat.listChats": chatListResponder([]),
   "databank.list": { items: [], nextCursor: null, totalCount: 0 },
@@ -534,14 +545,14 @@ const CENSUS_DOCS = [
     createdAt: 0,
     updatedAt: 0,
   },
-];
+] satisfies TrpcWireOutput<"databank.list">["items"];
 const CENSUS_BANK_HEALTH = { ...EMPTY_BANK_HEALTH, ready: 2, chunks: 51, passages: 51, total: CENSUS_DOCS.length };
 /** Two registered extension pages, joined to their plugin's display name by `usePluginPages`. */
 const CENSUS_PLUGIN = { id: "plugin_census", name: "Census Kit" };
 const CENSUS_SURFACES = [
   { pluginId: CENSUS_PLUGIN.id, id: "board_page", anchor: "page", title: "The Board", tier: "frame" },
   { pluginId: CENSUS_PLUGIN.id, id: "ledger_page", anchor: "page", title: "The Ledger", tier: "frame" },
-];
+] satisfies TrpcWireOutput<"plugin.listSurfaces">;
 const CENSUS_SESSIONS = [
   {
     id: "refinery_census_1",
@@ -567,7 +578,7 @@ const CENSUS_SESSIONS = [
     createdAt: 0,
     updatedAt: 0,
   },
-];
+] satisfies TrpcWireOutput<"refinery.listSessions">;
 const CENSUS_CHATS = [1, 2, 3].map((n) => makeChatSummary({ id: `chat_census_${String(n)}`, title: `Chat ${String(n)}` }));
 
 /**
@@ -576,7 +587,34 @@ const CENSUS_CHATS = [1, 2, 3].map((n) => makeChatSummary({ id: `chat_census_${S
  * The unfed-read ratchet is the reason this is exhaustive rather than per-test: each section's census read now
  * runs under the shell whenever that section is active.
  */
-const SECTION_CENSUS_ROUTES: Readonly<Record<string, unknown>> = {
+const SECTION_CENSUS_ROUTES: TrpcRoutes<
+  | "chat.listChats"
+  | "character.list"
+  | "persona.list"
+  | "databank.list"
+  | "databank.bankHealth"
+  | "discovery.catalog"
+  | "discovery.browseCharacters"
+  | "discovery.characterFacets"
+  | "stats.leaderboard"
+  | "preset.list"
+  | "plugin.list"
+  | "plugin.listSurfaces"
+  | "refinery.listSessions"
+  | "chat.getChat"
+  | "databank.listGlobal"
+  | "discovery.home"
+  | "discovery.visualArchetypes"
+  | "discovery.forgottenGems"
+  | "stats.freshness"
+  | "stats.overview"
+  | "stats.wrapped"
+  | "stats.momentum"
+  | "discovery.unusedCharacters"
+  | "discovery.modelRouting"
+  | "discovery.topKeywords"
+  | "workloads.list"
+> = {
   ...HOME_AMBIENT_ROUTES,
   "chat.listChats": chatListResponder(CENSUS_CHATS),
   "character.list": NO_CHARACTERS,

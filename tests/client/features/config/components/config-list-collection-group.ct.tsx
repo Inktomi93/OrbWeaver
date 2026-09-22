@@ -29,15 +29,15 @@ import type { Locator, Page } from "@playwright/test";
 // a re-spelling would pass while the instrument matched something else (see the module's header).
 import { SELECTION_RAIL_SEL } from "../../../../../tooling/src/ui-audit/lib/selection-rail-sel.ts";
 import { pixelSurface } from "../../../../support/browser/pixel-contrast.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
+import { defineTrpcRoutes, routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ConfigHostStory } from "../_ct-stories.tsx";
 
-const USER_SETTINGS_VIEW = { userId: "user_ct_collection_band", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };
+const USER_SETTINGS_VIEW = { userId: "user_ct_collection_band", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, configUnreadable: null, updatedAt: 0 };
 
 /** One POPULATED library beside three empty ones — the mix that used to draw two different bands, and the
  *  one a "no member rows in the LIST" sweep has to be taken over: a stub where every library is empty could
  *  pass the row count for the wrong reason. */
-const AMBIENT: Readonly<Record<string, unknown>> = {
+const AMBIENT = defineTrpcRoutes({
   "sessions.me": { userId: USER_SETTINGS_VIEW.userId, handle: "ct_collection_band", globalRole: "user" },
   "settings.getUserSettings": () => USER_SETTINGS_VIEW,
   "settings.listThemes": () => [],
@@ -69,7 +69,7 @@ const AMBIENT: Readonly<Record<string, unknown>> = {
   "worldInfo.listBooksWithUsage": [],
   "rosterPreset.list": [],
   "persona.list": [],
-};
+});
 
 const BAND = '[data-slot="config-band"]';
 const LIST_REGION = '[data-slot="config-list"]';

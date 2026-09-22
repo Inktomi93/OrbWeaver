@@ -114,6 +114,7 @@ export type {
   PluginBudgets,
   PluginDistributionDeps,
   PluginHostPort,
+  PluginProviderLifecycle,
   PluginService,
   PluginSurfaceStateStore,
   PluginUiOutbox,

@@ -24,7 +24,7 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import type { TrpcFixtureOutput, TrpcRecorder } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ConfigWorkspaceStory } from "../_ct-stories.tsx";
 
@@ -42,7 +42,7 @@ const TAG = {
   sortOrder: 0,
   isHiddenOnCard: false,
   usage: { characters: 1, chats: 0, worldBooks: 0, personas: 0, presets: 0, total: 1 },
-};
+} satisfies TrpcFixtureOutput<"tag.listTagsWithUsage">[number];
 
 /** A SECOND member, purely so the tab-continuity pin has a subject change to make inside the one arm that
  *  still resolves two cells (a settings state is now a single About cell — #926's applicability gate). */
@@ -60,10 +60,10 @@ const SCRIPT = {
   runOnEdit: false,
   trimStrings: [],
   updatedAt: 1_760_000_000_000,
-  substituteRegex: "none",
-};
+  substituteRegex: 0,
+} satisfies TrpcFixtureOutput<"regex.listScripts">[number];
 
-const SETTINGS_VIEW = { userId: "user_ct_config", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };
+const SETTINGS_VIEW = { userId: "user_ct_config", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, configUnreadable: null, updatedAt: 0 };
 
 function stub(page: Page): Promise<TrpcRecorder> {
   return routeTrpc(page, {
@@ -337,7 +337,13 @@ function stubModified(page: Page): Promise<TrpcRecorder> {
         appearance: { ...DEFAULT_USER_SETTINGS.appearance, colorQuotedSpeech: !DEFAULT_USER_SETTINGS.appearance.colorQuotedSpeech },
       },
     }),
-    "settings.updateUserSettingsSection": () => ({}),
+    "settings.updateUserSettingsSection": () => ({
+      ...SETTINGS_VIEW,
+      config: {
+        ...DEFAULT_USER_SETTINGS,
+        appearance: { ...DEFAULT_USER_SETTINGS.appearance, colorQuotedSpeech: !DEFAULT_USER_SETTINGS.appearance.colorQuotedSpeech },
+      },
+    }),
     "settings.listThemes": () => [],
     "rosterPreset.list": [],
     "sessions.me": { userId: "user_ct_config", handle: "ct_config", globalRole: "user" },

@@ -51,6 +51,7 @@ import {
 } from "#domain/automation";
 import { readPluginCardData, writePluginCardData } from "#domain/character";
 import { loadPresentRole } from "#domain/chat";
+import type { ConnectionService } from "#domain/connection";
 import type { DatabankService } from "#domain/databank";
 import type { ImageryService } from "#domain/imagery";
 import type { NotificationsService } from "#domain/notifications";
@@ -108,6 +109,7 @@ const PLUGIN_TRANSFORM_ORDER_BASE = 1000;
 export interface AutomationPluginComposeDeps {
   readonly db: Db;
   readonly now: () => number;
+  readonly connection: Pick<ConnectionService, "registerPluginProviders" | "dropPluginProviders">;
   readonly chatCompose: ChatComposeResult;
   /** chat's `resolveViewerVisibility` (membership AND the D16 canon floor) — automation/plugin never re-derive. */
   readonly resolveViewerVisibility: PluginHostOps["chat"]["resolveViewerVisibility"];
@@ -202,7 +204,8 @@ function buildQuietResponseFormat(schema: PluginQuietSchema): ResponseFormat {
 }
 
 export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): Promise<AutomationPluginComposeResult> {
-  const { db, now, chatCompose, worldInfo, notifications, imagery, settings, assets, admin, resolveOwnerPrincipal, roleClientsFor, pluginMacros } = deps;
+  const { db, now, connection, chatCompose, worldInfo, notifications, imagery, settings, assets, admin, resolveOwnerPrincipal, roleClientsFor, pluginMacros } =
+    deps;
   /** The VISION arm of the U6 `llm.quiet` widening: guest-named asset ids → bytes, read under the INSTALLER's
    *  OWN Principal (`readOwnedAssetBytes`), which is the whole wall — a guest can name an id but it can only
    *  ever reach an asset its installer owns, and a foreign/absent id THROWS rather than being dropped (a
@@ -228,13 +231,13 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     // PROSE-1 census 91 — the /autobg pick reads the ROOM HOST's prose, through chat's one host resolver.
     resolveChatProse: chatCompose.resolveChatProse,
     // The `trigger_turn` arm's autonomous turn → chat's `requestTurn`. `initiator:"automation"` is HARDCODED
-    // here (automation cannot forge a different origin); the funder = the rule author (chat resolves the funding
-    // host from the room + runs the engine's consent + per-member turn RATE belt — the loop-safety guard).
+    // here (automation cannot forge a different origin); the rule author owns attribution while chat freezes
+    // the room host for funding and assembly.
     requestTurn: async (req) => {
       const outcome = await chatCompose.requestTurn({
         chatId: req.chatId,
         initiator: "automation",
-        funderUserId: req.authorUserId,
+        triggeredBy: req.authorUserId,
         automationDepth: req.automationDepth,
         ...(req.speakerCharacterId !== undefined ? { speakerCharacterId: req.speakerCharacterId } : {}),
         ...(req.guided !== undefined ? { guided: { action: "response", input: req.guided } } : {}),
@@ -510,11 +513,11 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       getVariables: automationOps.chat.readVariables,
       applyVariableOps: automationOps.chat.applyVariableOps,
       // turn.trigger → chat's principal-free `requestTurn`. `initiator:"plugin"` is HARDCODED.
-      requestTurn: async ({ funderUserId, chatId, automationDepth, speakerCharacterId, guided }) => {
+      requestTurn: async ({ triggeredBy, chatId, automationDepth, speakerCharacterId, guided }) => {
         await chatCompose.requestTurn({
           chatId,
           initiator: "plugin",
-          funderUserId,
+          triggeredBy,
           automationDepth,
           ...(speakerCharacterId !== undefined ? { speakerCharacterId: castId<CharacterId>(speakerCharacterId) } : {}),
           ...(guided !== undefined ? { guided: { action: "response", input: guided } } : {}),
@@ -1021,6 +1024,10 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
         }
         return bytes;
       },
+    },
+    {
+      activate: (rows, { pluginId, pluginName }) => connection.registerPluginProviders({ rows, pluginId, pluginName }),
+      deactivate: (pluginId) => connection.dropPluginProviders({ pluginId }),
     },
   );
 

@@ -26,7 +26,7 @@ export function createSetEnabled(ctx: PluginContext, deps: ActivationDeps): Plug
 
     if (enabled) {
       // Clean slate: tear down any stale resident so a re-enable never leaks a second instance.
-      deps.deactivate(pluginId);
+      await deps.deactivate(pluginId);
       // THE STORED GRANT, AND THE CONSENTED REACH — the two halves of "enabling grants nothing". The
       // capability half needs no work (an unconfirmed capability was never written into the grant); the
       // `net.fetch` half does, because its reach is parameterized by the MANIFEST, which an upgrade can widen
@@ -47,7 +47,7 @@ export function createSetEnabled(ctx: PluginContext, deps: ActivationDeps): Plug
       return;
     }
 
-    deps.deactivate(pluginId);
+    await deps.deactivate(pluginId);
     await setStatus(ctx.db, pluginId, { status: "disabled", lastError: null, updatedAt: ctx.now() });
   };
 }

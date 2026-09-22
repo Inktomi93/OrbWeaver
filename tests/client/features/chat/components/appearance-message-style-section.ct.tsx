@@ -13,7 +13,7 @@ import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { AppearanceMessageStyleNarrowStory, AppearanceMessageStyleSectionStory } from "../_ct-stories.tsx";
 
-const SETTINGS_VIEW = { userId: "user_ct_message_style", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };
+const SETTINGS_VIEW = { userId: "user_ct_message_style", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, configUnreadable: null, updatedAt: 0 };
 const UPDATE_PROC = "settings.updateUserSettingsSection";
 const OWNED_KEYS = ["autoFixMarkdown", "chatStyle", "colorQuotedSpeech"];
 /** Re-spelled, not imported from `THEME_CHAT_STYLES` — a ninth mode shipping without a gloss must RED
@@ -21,7 +21,7 @@ const OWNED_KEYS = ["autoFixMarkdown", "chatStyle", "colorQuotedSpeech"];
 const CHAT_STYLE_COUNT = 8;
 
 function stub(page: Page): Promise<TrpcRecorder> {
-  return routeTrpc(page, { "settings.getUserSettings": () => SETTINGS_VIEW, [UPDATE_PROC]: () => ({}) });
+  return routeTrpc(page, { "settings.getUserSettings": () => SETTINGS_VIEW, [UPDATE_PROC]: () => SETTINGS_VIEW });
 }
 
 /** The most recent `appearance` section-patch body. */

@@ -12,14 +12,16 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { setNumber } from "../../../../support/node/set-number.ts";
 import { SystemTuningSectionStory } from "../_ct-stories.tsx";
+import type { EffectiveAppSettings } from "../app-settings-fixtures.ts";
+import { appSettingsView, effectiveAppSettings } from "../app-settings-fixtures.ts";
 
 // The resolved slice the section reads (getAppSettingsWithOverrides.resolved) — only the ⑩ fields matter; the
 // handler returns are untyped stubs so a partial suffices (the rate-limits CT precedent — no fabricated shape).
-const RESOLVED = {
+const RESOLVED: Partial<EffectiveAppSettings> = {
   agentSdkConcurrency: { summarize: 4 },
   promptTransformDeadlineMs: 250,
   catalogRefreshIntervalMs: 86_400_000,
@@ -41,10 +43,12 @@ const RESET_PATCH = {
 
 const UPDATE_PROC = "settings.updateAppSettings";
 
-function stub(page: Page, overrides: Record<string, unknown> = {}): Promise<TrpcRecorder> {
+type AppSettingsOverrides = TrpcWireOutput<"settings.getAppSettingsWithOverrides">["overrides"];
+
+function stub(page: Page, overrides: Partial<AppSettingsOverrides> = {}): Promise<TrpcRecorder> {
   return routeTrpc(page, {
-    "settings.getAppSettingsWithOverrides": () => ({ resolved: RESOLVED, overrides }),
-    [UPDATE_PROC]: () => RESOLVED,
+    "settings.getAppSettingsWithOverrides": () => appSettingsView(RESOLVED, overrides),
+    [UPDATE_PROC]: () => effectiveAppSettings(RESOLVED),
   });
 }
 

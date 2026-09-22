@@ -18,8 +18,8 @@
 // EVERY settle (success or fail), which would make "does the row survive to the real read" racy
 // against "when did the assertion happen" instead of actually pinning reconciliation.
 
-import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { TrpcFixtureOutput, TrpcInput, TrpcRoutes } from "../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../support/node/route-trpc.ts";
 import {
   SectionEchoStory,
@@ -59,8 +59,8 @@ test("cache-optimistic: the pending tag lands in the list before settle, then re
   const tags: FixtureTag[] = [];
   const trpc = await routeTrpc(page, {
     "tag.listTags": () => tags,
-    "tag.createTag": (input: unknown) => {
-      const created = makeTag("tag_real_1", (input as { input: { name: string } }).input.name);
+    "tag.createTag": (input: TrpcInput<"tag.createTag">) => {
+      const created = makeTag("tag_real_1", input.input.name);
       tags.push(created);
       return created;
     },
@@ -179,11 +179,11 @@ test("variables-mode: a failed create surfaces error + retry; retry re-fires the
   let call = 0;
   const trpc = await routeTrpc(page, {
     "tag.listTags": () => tags,
-    "tag.createTag": (input: unknown) => {
+    "tag.createTag": (input: TrpcInput<"tag.createTag">) => {
       if (call++ === 0) {
         return trpcError({ message: "variables attempt failed" });
       }
-      const created = makeTag("tag_real_3", (input as { input: { name: string } }).input.name);
+      const created = makeTag("tag_real_3", input.input.name);
       tags.push(created);
       return created;
     },
@@ -208,20 +208,16 @@ test("variables-mode: a failed create surfaces error + retry; retry re-fires the
 // persisted selection unsaved for exactly as long as the tick is missing. The read is fetched ONCE here
 // (the mount); the post-save value can therefore only have come from the write's response.
 test("echo: the write's own response seeds the read — no refetch, no invalidate", async ({ mount, page }) => {
-  let stored: Record<string, unknown> = { defaultPresetId: "preset_before" };
-  const view = (): unknown => ({
-    userId: "user_ct_echo",
-    schemaVersion: 1,
-    config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, ...stored } },
-    updatedAt: 0,
-  });
-  const trpc = await routeTrpc(page, {
+  let stored = "preset_before";
+  const view = (): TrpcFixtureOutput<"settings.getUserSettings"> => ({ config: { seeds: { defaultPresetId: stored } } });
+  const routes: TrpcRoutes<"settings.getUserSettings" | "settings.updateUserSettingsSection"> = {
     "settings.getUserSettings": () => view(),
-    "settings.updateUserSettingsSection": (input: unknown) => {
-      stored = (input as { readonly patch: Record<string, unknown> }).patch;
+    "settings.updateUserSettingsSection": (input: TrpcInput<"settings.updateUserSettingsSection">) => {
+      stored = String(input.patch["defaultPresetId"]);
       return view();
     },
-  });
+  };
+  const trpc = await routeTrpc(page, routes);
 
   await mount(<SectionEchoStory />);
   await expect(page.getByTestId("seed-preset")).toHaveText("preset_before");
@@ -239,19 +235,14 @@ test("echo: the write's own response seeds the read — no refetch, no invalidat
 // and `mutation.error` stays null. Every rpg hand-door call site is fire-and-forget (they reconcile through
 // `invalidates`), so before this arm a refusal was total silence: a five-plane scene write was lost to one
 // over-length label with the panel simply repainting its pre-write state.
-test("refusal: an errors-as-data refusal TOASTS the server's reason and does NOT seed the echo", async ({ mount, page }) => {
-  const stored: Record<string, unknown> = { defaultPresetId: "preset_before" };
-  const view = (): unknown => ({
-    userId: "user_ct_refusal",
-    schemaVersion: 1,
-    config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, ...stored } },
-    updatedAt: 0,
-  });
-  await routeTrpc(page, {
+test("refusal: a canonical errors-as-data refusal TOASTS the server's reason and does NOT seed the echo", async ({ mount, page }) => {
+  const view = (): TrpcFixtureOutput<"settings.getUserSettings"> => ({ config: { seeds: { defaultPresetId: "preset_before" } } });
+  const routes: TrpcRoutes<"settings.getUserSettings" | "rpg.editSnapshot"> = {
     "settings.getUserSettings": () => view(),
-    // A 200 carrying a REFUSAL — not a transport error. The write never happened.
-    "settings.updateUserSettingsSection": () => ({ ok: false, reason: "label exceeds 40 characters" }),
-  });
+    // A canonical 200 refusal from an AppRouter mutation whose result union carries errors as data.
+    "rpg.editSnapshot": () => ({ ok: false, reason: "label exceeds 40 characters" }),
+  };
+  await routeTrpc(page, routes);
 
   await mount(<SectionRefusalStory />);
   await expect(page.getByTestId("seed-preset")).toHaveText("preset_before");

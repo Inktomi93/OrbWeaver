@@ -20,7 +20,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRoutes } from "../../../../support/node/route-trpc.ts";
+import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { CorpusSimilarityTabStory, CorpusSimilarityToCompareStory } from "../_ct-stories.tsx";
 
@@ -72,9 +72,16 @@ const DUP_CHATS = [
     model: "m",
     computedAt: 1,
   },
-];
+] satisfies TrpcWireOutput<"discovery.duplicateChats">;
 
-const POPULATED: TrpcRoutes = {
+const POPULATED: TrpcRoutes<
+  | "discovery.duplicateCharacters"
+  | "discovery.duplicateChats"
+  | "discovery.imageDuplicates"
+  | "discovery.similarityGraph"
+  | "discovery.browseCharacters"
+  | "discovery.compareCharacters"
+> = {
   "discovery.duplicateCharacters": DUP_CHARACTERS,
   "discovery.duplicateChats": DUP_CHATS,
   "discovery.imageDuplicates": DUP_ART,

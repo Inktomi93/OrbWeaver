@@ -15,6 +15,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { touchFloorPx } from "../../../../support/browser/touch-floor.ts";
+import type { TrpcFixtureOutput, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { NarratorActionsDoorsStory, ReactionPickerStory, StandardLabeledDoorsStory } from "../_reaction-stories.tsx";
 
@@ -33,7 +34,7 @@ const CHAT_DETAIL = {
     { id: VIEWER_SEAT, userId: VIEWER_ID, leftSeq: null },
     { id: OTHER_SEAT, userId: "user_ct_other", leftSeq: null },
   ],
-};
+} satisfies TrpcFixtureOutput<"chat.getChat">;
 
 /** The viewer already holds 👍 on this variant; 😂 is somebody else's. Whole-message groups (all-null
  *  trio — B7): the picker's pressed state is per TARGET, and these must read pressed for the DEFAULT
@@ -57,10 +58,10 @@ const GROUPS = [
     segmentSnippet: null,
     reactorParticipantIds: [OTHER_SEAT],
   },
-];
+] satisfies TrpcWireOutput<"chat.listReactions">["groups"];
 
 /** The B7 wire view — `listReactions` carries the room's resolved posture beside the groups. */
-const VIEW = { reactionsEnabled: true, groups: GROUPS };
+const VIEW = { reactionsEnabled: true, groups: GROUPS } satisfies TrpcWireOutput<"chat.listReactions">;
 
 const PICKER = '[data-slot="reaction-picker"]';
 

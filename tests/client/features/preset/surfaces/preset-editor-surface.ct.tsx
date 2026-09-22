@@ -20,7 +20,7 @@
 // the segmented strip died), so its state reads off the TRIGGER'S TEXT and its options live in a portal.
 
 import type { PromptConfig } from "@orb/contracts/preset";
-import { DEFAULT_PROMPT_CONFIG, MAX_INJECTION_TEMPLATE_LENGTH } from "@orb/contracts/preset";
+import { DEFAULT_PROMPT_CONFIG, MAX_INJECTION_TEMPLATE_LENGTH, promptConfigSchema } from "@orb/contracts/preset";
 import { PROSE_COUNTER_AT, PROSE_MAX_CHARS, PROSE_SLOTS } from "@orb/contracts/prose";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { VersionedParseFailure } from "@orb/contracts/versioned-config";
@@ -35,7 +35,7 @@ import { readPhantomScrollers } from "../../../../support/browser/scroll-contain
 import { makeCapability, makeGenerationCapability, makeResolvedView } from "../../../../support/factories/resolved-connection.ts";
 import { assertTokenRoundtrip } from "../../../../support/node/assert-token-roundtrip.ts";
 import { resolvedTokenColor } from "../../../../support/node/resolved-token-color.ts";
-import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import type { TrpcFixtureOutput, TrpcRecorder, TrpcResponder, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import {
   PresetEditorCapabilityFreshnessStory,
@@ -48,6 +48,22 @@ import {
   PresetForkOnceAnnouncedStory,
   PresetForkOnceStory,
 } from "./_ct-stories.tsx";
+
+type FunctionResponder<T> = T extends (input: infer TInput) => infer TOutput ? (input: TInput) => TOutput : never;
+type PresetUpdateResponder = FunctionResponder<TrpcResponder<"preset.update">>;
+type PresetUpdateInput = Parameters<PresetUpdateResponder>[0];
+
+function presetSummary(detail: PresetDetailFixture): TrpcWireOutput<"preset.list">[number] {
+  return {
+    id: detail.id,
+    name: detail.name,
+    kind: detail.kind,
+    isSystemDefault: detail.isSystemDefault,
+    forkedFrom: detail.forkedFrom,
+    createdAt: detail.createdAt,
+    updatedAt: detail.updatedAt,
+  };
+}
 
 // The three fixed ids — the literal mirror of the story module's branded PresetIds (biome forbids the
 // story exporting non-component consts, so the literals live in both places), cast to the brand here.
@@ -102,21 +118,7 @@ const SETTINGS_VIEW = {
   configUnreadable: null,
 };
 
-interface PresetDetailFixture {
-  readonly id: string;
-  readonly name: string;
-  readonly kind: string;
-  readonly isSystemDefault: boolean;
-  readonly forkedFrom: string | null;
-  readonly createdAt: number;
-  readonly updatedAt: number;
-  readonly config: PromptConfig;
-  readonly schemaVersion: number;
-  /** #1716: the server's read verdict on the stored blob. `null` on every fixture below except the
-   *  unreadable-state stories — required, not optional, so a stub cannot omit the field the editor now
-   *  branches on. */
-  readonly configUnreadable: VersionedParseFailure | null;
-}
+type PresetDetailFixture = TrpcWireOutput<"preset.get">;
 
 /** A PresetDetail whose config differs only in `params.quality` — the dial the CT reads + edits. A detail is
  *  a superset of the summary the LIST returns, so the same fixtures double as `preset.list` rows (the editor
@@ -192,11 +194,12 @@ const CAPABILITY = makeResolvedView({
 });
 // The funnel's own projection for this preset (`preset.resolveEffective`, §4.3) — `maxOutputTokens` resolves
 // to the engine FLOOR (nothing explicit, nothing dialed), which is exactly what the ghost must show.
-const EFFECTIVE_FLOOR = {
+const EFFECTIVE_FLOOR: TrpcWireOutput<"preset.resolveEffective"> = {
   presetId: PRESET_A,
   model: "qwen3-32b",
   knobs: { maxOutputTokens: { value: 2048, provenance: "floor" } },
   stale: [],
+  qualityMapping: null,
 };
 
 /**
@@ -211,7 +214,9 @@ const EFFECTIVE_FLOOR = {
  * (or intercept it by URL) AFTER the spread and still win, which is why the SUCCESS descriptor is safe as the
  * default: it is the arm every non-capability test in this file already assumed.
  */
-const PRESET_EDITOR_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
+const PRESET_EDITOR_AMBIENT_ROUTES: TrpcRoutes<
+  "connection.resolveChatCapability" | "preset.resolveEffective" | "regex.listScripts" | "regex.listForPreset" | "settings.updateUserSettingsSection"
+> = {
   // A settled, REQUIRED capability descriptor — the connected-model arm.
   "connection.resolveChatCapability": CAPABILITY,
   // The funnel's projection for this preset (§4.3) — the ghost values the knob rows read.
@@ -223,7 +228,7 @@ const PRESET_EDITOR_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
   // The active-pick WRITE (`useSetDefaultPreset` — a `seeds` patch). It is `busDriven` and its output is
   // typed `unknown` and never read (use-preset-mutations.ts:67), so `{}` moves nothing observable; it only
   // stops a real mutation riding the lenient null fulfil.
-  "settings.updateUserSettingsSection": {},
+  "settings.updateUserSettingsSection": () => SETTINGS_VIEW,
 };
 
 test("capability freshness — a settingsChanged tick swaps the failed-capability note for the live Output knobs", async ({ mount, page }) => {
@@ -235,7 +240,7 @@ test("capability freshness — a settingsChanged tick swaps the failed-capabilit
   const trpc = await routeTrpc(page, {
     ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
-    "preset.list": () => [PRESET_A_DETAIL],
+    "preset.list": () => [PRESET_A_DETAIL].map(presetSummary),
     "settings.getUserSettings": () => SETTINGS_VIEW,
     "connection.resolveChatCapability": () => (resolves++ === 0 ? trpcError({ code: "BAD_REQUEST", message: ROUTING_FAULT_MESSAGE }) : CAPABILITY),
     "preset.resolveEffective": () => EFFECTIVE_FLOOR,
@@ -299,7 +304,7 @@ test("PENDING — a user WITH a chat model never sees a connect-a-model note; th
   await routeTrpc(page, {
     ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
-    "preset.list": () => [PRESET_A_DETAIL],
+    "preset.list": () => [PRESET_A_DETAIL].map(presetSummary),
     "settings.getUserSettings": () => SETTINGS_VIEW,
     "connection.resolveChatCapability": () => CAPABILITY,
     "preset.resolveEffective": () => EFFECTIVE_FLOOR,
@@ -327,7 +332,7 @@ test("PENDING — a FAILED read says nothing until it settles, then states the r
   await routeTrpc(page, {
     ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
-    "preset.list": () => [PRESET_A_DETAIL],
+    "preset.list": () => [PRESET_A_DETAIL].map(presetSummary),
     "settings.getUserSettings": () => SETTINGS_VIEW,
     "connection.resolveChatCapability": () => trpcError({ code: "BAD_REQUEST", message: ROUTING_FAULT_MESSAGE }),
     "preset.resolveEffective": () => EFFECTIVE_FLOOR,
@@ -362,11 +367,11 @@ test("#81 P0 — the header reads Saving… the instant a knob is edited, never 
   await routeTrpc(page, {
     ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
-    "preset.list": () => [PRESET_A_DETAIL],
+    "preset.list": () => [PRESET_A_DETAIL].map(presetSummary),
     "settings.getUserSettings": () => SETTINGS_VIEW,
     "connection.resolveChatCapability": () => CAPABILITY,
     "preset.resolveEffective": () => EFFECTIVE_FLOOR,
-    "preset.update": () => ({}),
+    "preset.update": () => PRESET_A_DETAIL,
   });
   const component = await mount(<PresetEditorSurfaceStory />);
 
@@ -391,9 +396,9 @@ test("SWITCH pin — A(dirty)→B shows B's real config and never persists A's v
   const trpc = await routeTrpc(page, {
     ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": (input: unknown) => ((input as { id?: string }).id === PRESET_B ? PRESET_B_DETAIL : PRESET_A_DETAIL),
-    "preset.list": () => [PRESET_A_DETAIL, PRESET_B_DETAIL],
+    "preset.list": () => [PRESET_A_DETAIL, PRESET_B_DETAIL].map(presetSummary),
     "settings.getUserSettings": () => SETTINGS_VIEW,
-    "preset.update": () => ({}),
+    "preset.update": () => PRESET_A_DETAIL,
   });
   const component = await mount(<PresetEditorSwitchStory />);
 
@@ -427,13 +432,13 @@ function routeReset(page: Page): Promise<TrpcRecorder> {
     ...PRESET_EDITOR_AMBIENT_ROUTES,
     // Before reset → A ("fast"); after `preset.resetToDefault` fires → the starter (unset quality).
     "preset.get": () => (didReset ? STARTER_DETAIL : PRESET_A_DETAIL),
-    "preset.list": () => [PRESET_A_DETAIL],
+    "preset.list": () => [PRESET_A_DETAIL].map(presetSummary),
     "settings.getUserSettings": () => SETTINGS_VIEW,
     "preset.resetToDefault": () => {
       didReset = true;
       return STARTER_DETAIL;
     },
-    "preset.update": () => ({}),
+    "preset.update": () => PRESET_A_DETAIL,
   });
 }
 
@@ -487,7 +492,7 @@ const MAX_OUTPUT_LABEL = "Max output tokens value";
 
 test("FORK-ONCE pin — a built-in edit mints exactly ONE copy; the editor, the racing save and the active pick all retarget to it", async ({ mount, page }) => {
   // The server's fork row, accumulating every patch — the CT's stand-in for the persisted copy.
-  let forkConfig: PromptConfig = BUILT_IN_DETAIL.config;
+  let forkConfig: PromptConfig = promptConfigSchema.parse(BUILT_IN_DETAIL.config);
   let activeId: string | null = null;
   const forkDetail = (): PresetDetailFixture => ({
     ...presetDetail(FORK, "Default (edited)", undefined),
@@ -501,14 +506,14 @@ test("FORK-ONCE pin — a built-in edit mints exactly ONE copy; the editor, the 
   const trpc = await routeTrpc(page, {
     ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": (input: unknown) => ((input as { id?: string }).id === BUILT_IN ? BUILT_IN_DETAIL : forkDetail()),
-    "preset.list": () => (minted ? [BUILT_IN_DETAIL, { ...forkDetail(), forkedFrom: BUILT_IN }] : [BUILT_IN_DETAIL]),
+    "preset.list": () => (minted ? [BUILT_IN_DETAIL, { ...forkDetail(), forkedFrom: BUILT_IN }] : [BUILT_IN_DETAIL]).map(presetSummary),
     "settings.getUserSettings": () => ({
       ...SETTINGS_VIEW,
       config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, defaultPresetId: activeId } },
     }),
     "settings.updateUserSettingsSection": (input: unknown) => {
       activeId = (input as { patch: { defaultPresetId: string | null } }).patch.defaultPresetId;
-      return {};
+      return SETTINGS_VIEW;
     },
     "connection.resolveChatCapability": () => CAPABILITY,
     // Every write lands on the fork row; targeting the built-in is what MINTS it (a NEW id in the response).
@@ -575,7 +580,7 @@ test("P2-A the BUILT-IN states its copy-on-write rule IN THE BODY, on every view
   await routeTrpc(page, {
     ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => BUILT_IN_DETAIL,
-    "preset.list": () => [BUILT_IN_DETAIL],
+    "preset.list": () => [BUILT_IN_DETAIL].map(presetSummary),
     "settings.getUserSettings": () => SETTINGS_VIEW,
   });
   const component = await mount(<PresetForkOnceStory />);
@@ -600,7 +605,7 @@ test("P2-A an OWNED preset carries no copy-on-write notice — the rule is the b
   await routeTrpc(page, {
     ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
-    "preset.list": () => [PRESET_A_DETAIL],
+    "preset.list": () => [PRESET_A_DETAIL].map(presetSummary),
     "settings.getUserSettings": () => SETTINGS_VIEW,
   });
   const component = await mount(<PresetEditorSurfaceStory />);
@@ -612,7 +617,7 @@ test("P2-A the silent fork ANNOUNCES — naming the copy, the untouched source, 
   // Same server script as the FORK-ONCE pin, minus the in-flight hold: one edit, one mint, and the sentence
   // it now owes. The active pick starts at `null` — the built-in — so the fork INHERITS it (owner ruling
   // 2026-08-30), and the announcement must SAY the activation rather than leave it to be discovered.
-  let forkConfig: PromptConfig = BUILT_IN_DETAIL.config;
+  let forkConfig: PromptConfig = promptConfigSchema.parse(BUILT_IN_DETAIL.config);
   let activeId: string | null = null;
   let minted = false;
   const forkDetail = (): PresetDetailFixture => ({
@@ -623,14 +628,14 @@ test("P2-A the silent fork ANNOUNCES — naming the copy, the untouched source, 
   await routeTrpc(page, {
     ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": (input: unknown) => ((input as { id?: string }).id === BUILT_IN ? BUILT_IN_DETAIL : forkDetail()),
-    "preset.list": () => (minted ? [BUILT_IN_DETAIL, { ...forkDetail(), forkedFrom: BUILT_IN }] : [BUILT_IN_DETAIL]),
+    "preset.list": () => (minted ? [BUILT_IN_DETAIL, { ...forkDetail(), forkedFrom: BUILT_IN }] : [BUILT_IN_DETAIL]).map(presetSummary),
     "settings.getUserSettings": () => ({
       ...SETTINGS_VIEW,
       config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, defaultPresetId: activeId } },
     }),
     "settings.updateUserSettingsSection": (input: unknown) => {
       activeId = (input as { patch: { defaultPresetId: string | null } }).patch.defaultPresetId;
-      return {};
+      return SETTINGS_VIEW;
     },
     "preset.update": (input: unknown) => {
       forkConfig = (input as { config: PromptConfig }).config;
@@ -675,7 +680,7 @@ interface ForkUpdateCall {
 /** The owner's library: the built-in plus ONE existing fork of it — the precondition for the choice. The
  *  fake server mirrors the verb: a `new` intent MINTS a row, an absent/`converge` one lands on the existing
  *  fork (recorded either way, so a test can prove which arm actually ran). */
-function routeForkChoice(page: Page, updateOverride?: (input: unknown) => unknown): Promise<TrpcRecorder> {
+function routeForkChoice(page: Page, updateOverride?: PresetUpdateResponder): Promise<TrpcRecorder> {
   const forkOne = { ...presetDetail(FORK_ONE, FORK_ONE_NAME, undefined), forkedFrom: BUILT_IN };
   const rows: PresetDetailFixture[] = [BUILT_IN_DETAIL, forkOne, PRESET_A_DETAIL];
   let activeId: string | null = null;
@@ -688,17 +693,17 @@ function routeForkChoice(page: Page, updateOverride?: (input: unknown) => unknow
   return routeTrpc(page, {
     ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": (input: unknown) => rows.find((row) => row.id === (input as { id?: string }).id) ?? BUILT_IN_DETAIL,
-    "preset.list": () => rows,
+    "preset.list": () => rows.map(presetSummary),
     "settings.getUserSettings": () => ({
       ...SETTINGS_VIEW,
       config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, defaultPresetId: activeId } },
     }),
     "settings.updateUserSettingsSection": (input: unknown) => {
       activeId = (input as { patch: { defaultPresetId: string | null } }).patch.defaultPresetId;
-      return {};
+      return SETTINGS_VIEW;
     },
     "connection.resolveChatCapability": () => CAPABILITY,
-    "preset.update": (input: unknown) => {
+    "preset.update": (input: PresetUpdateInput) => {
       if (updateOverride !== undefined) {
         return updateOverride(input);
       }
@@ -825,10 +830,10 @@ test("FIVE VIEWS — one flat strip (Params default), and the re-homed nudge edi
   const trpc = await routeTrpc(page, {
     ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
-    "preset.list": () => [PRESET_A_DETAIL],
+    "preset.list": () => [PRESET_A_DETAIL].map(presetSummary),
     "settings.getUserSettings": () => SETTINGS_VIEW,
     "preset.resolveEffective": () => EFFECTIVE_FLOOR,
-    "preset.update": () => ({}),
+    "preset.update": () => PRESET_A_DETAIL,
   });
   const component = await mount(<PresetEditorSurfaceStory />);
 
@@ -904,10 +909,10 @@ test("PROSE CAP — the counter is quiet until 80% of the cap, then typing HARD-
   await routeTrpc(page, {
     ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
-    "preset.list": () => [PRESET_A_DETAIL],
+    "preset.list": () => [PRESET_A_DETAIL].map(presetSummary),
     "settings.getUserSettings": () => SETTINGS_VIEW,
     "preset.resolveEffective": () => EFFECTIVE_FLOOR,
-    "preset.update": () => ({}),
+    "preset.update": () => PRESET_A_DETAIL,
   });
   const component = await mount(<PresetEditorSurfaceStory />);
   const field = await openContinuationCue(component);
@@ -943,10 +948,10 @@ test("PROSE CAP — an ALREADY-over-cap stored override shows its real text and 
   const trpc = await routeTrpc(page, {
     ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => presetWithProse(OVERLONG),
-    "preset.list": () => [presetWithProse(OVERLONG)],
+    "preset.list": () => [presetWithProse(OVERLONG)].map(presetSummary),
     "settings.getUserSettings": () => SETTINGS_VIEW,
     "preset.resolveEffective": () => EFFECTIVE_FLOOR,
-    "preset.update": () => ({}),
+    "preset.update": () => PRESET_A_DETAIL,
   });
   const component = await mount(<PresetEditorSurfaceStory />);
   const field = await openContinuationCue(component);
@@ -993,10 +998,10 @@ test("PROSE GEOMETRY — the box scrolls at its cap, the refusal stays on screen
   await routeTrpc(page, {
     ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => presetWithProse(OVERLONG),
-    "preset.list": () => [presetWithProse(OVERLONG)],
+    "preset.list": () => [presetWithProse(OVERLONG)].map(presetSummary),
     "settings.getUserSettings": () => SETTINGS_VIEW,
     "preset.resolveEffective": () => EFFECTIVE_FLOOR,
-    "preset.update": () => ({}),
+    "preset.update": () => PRESET_A_DETAIL,
   });
   const component = await mount(<PresetEditorSurfaceStory />);
   const field = await openContinuationCue(component);
@@ -1060,10 +1065,10 @@ test("NOTE CARRIER — dropping {{note}} holds the save, says why in the field, 
   await routeTrpc(page, {
     ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => presetWithNoteFrame(NOTE_FRAME_LEGAL),
-    "preset.list": () => [presetWithNoteFrame(NOTE_FRAME_LEGAL)],
+    "preset.list": () => [presetWithNoteFrame(NOTE_FRAME_LEGAL)].map(presetSummary),
     "settings.getUserSettings": () => SETTINGS_VIEW,
     "preset.resolveEffective": () => EFFECTIVE_FLOOR,
-    "preset.update": () => ({}),
+    "preset.update": () => PRESET_A_DETAIL,
   });
   const component = await mount(<PresetEditorSurfaceStory />);
   await component.getByRole("tab", { name: "Actions" }).click();
@@ -1099,10 +1104,10 @@ test("FORMAT-STRING CAP — the nudge field wears the schema's cap and counts to
   await routeTrpc(page, {
     ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
-    "preset.list": () => [PRESET_A_DETAIL],
+    "preset.list": () => [PRESET_A_DETAIL].map(presetSummary),
     "settings.getUserSettings": () => SETTINGS_VIEW,
     "preset.resolveEffective": () => EFFECTIVE_FLOOR,
-    "preset.update": () => ({}),
+    "preset.update": () => PRESET_A_DETAIL,
   });
   const component = await mount(<PresetEditorSurfaceStory />);
   await component.getByRole("tab", { name: "Actions" }).click();
@@ -1142,10 +1147,10 @@ test("GUIDED-PROMPT CAP — the steer field wears the shared injection-template 
   await routeTrpc(page, {
     ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
-    "preset.list": () => [PRESET_A_DETAIL],
+    "preset.list": () => [PRESET_A_DETAIL].map(presetSummary),
     "settings.getUserSettings": () => SETTINGS_VIEW,
     "preset.resolveEffective": () => EFFECTIVE_FLOOR,
-    "preset.update": () => ({}),
+    "preset.update": () => PRESET_A_DETAIL,
   });
   const component = await mount(<PresetEditorSurfaceStory />);
   await component.getByRole("tab", { name: "Actions" }).click();
@@ -1185,7 +1190,7 @@ interface ProseUpdateCall {
 // actionable state must act — and it rides the SAME `settings.updateUserSettingsSection` seeds patch as the
 // LIST row toggle and its kebab mirror.
 
-function settingsWithActive(activeId: string | null): Record<string, unknown> {
+function settingsWithActive(activeId: string | null): TrpcFixtureOutput<"settings.getUserSettings"> {
   return {
     ...SETTINGS_VIEW,
     config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, defaultPresetId: activeId } },
@@ -1200,9 +1205,9 @@ test("G7 a NOT-active preset's header offers Activate — the same setDefault se
   const trpc = await routeTrpc(page, {
     ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
-    "preset.list": () => [PRESET_A_DETAIL],
+    "preset.list": () => [PRESET_A_DETAIL].map(presetSummary),
     "settings.getUserSettings": () => settingsWithActive(null),
-    "settings.updateUserSettingsSection": () => ({}),
+    "settings.updateUserSettingsSection": () => SETTINGS_VIEW,
     "preset.resolveEffective": () => EFFECTIVE_FLOOR,
   });
   const component = await mount(<PresetEditorSurfaceStory />);
@@ -1228,7 +1233,7 @@ test("P2 TRANSFORMS speaks ONE field layout — DELIVERY docks its controls like
   await routeTrpc(page, {
     ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
-    "preset.list": () => [PRESET_A_DETAIL],
+    "preset.list": () => [PRESET_A_DETAIL].map(presetSummary),
     "settings.getUserSettings": () => SETTINGS_VIEW,
     "preset.resolveEffective": () => EFFECTIVE_FLOOR,
     "regex.listForPreset": () => [],
@@ -1254,7 +1259,7 @@ test("P1-2 the Activate command's ACCESSIBLE NAME contains its visible label (WC
   await routeTrpc(page, {
     ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
-    "preset.list": () => [PRESET_A_DETAIL],
+    "preset.list": () => [PRESET_A_DETAIL].map(presetSummary),
     "settings.getUserSettings": () => settingsWithActive(null),
     "preset.resolveEffective": () => EFFECTIVE_FLOOR,
   });
@@ -1276,7 +1281,7 @@ test("P1-1 the VIEW STRIP degrades to a scroller — every view reachable in a 3
   await routeTrpc(page, {
     ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
-    "preset.list": () => [PRESET_A_DETAIL],
+    "preset.list": () => [PRESET_A_DETAIL].map(presetSummary),
     "settings.getUserSettings": () => SETTINGS_VIEW,
     "preset.resolveEffective": () => EFFECTIVE_FLOOR,
   });
@@ -1331,7 +1336,7 @@ test("P1-1 the header band shares the BODY's content column — capped and cente
   await routeTrpc(page, {
     ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
-    "preset.list": () => [PRESET_A_DETAIL],
+    "preset.list": () => [PRESET_A_DETAIL].map(presetSummary),
     "settings.getUserSettings": () => settingsWithActive(null),
     "preset.resolveEffective": () => EFFECTIVE_FLOOR,
   });
@@ -1360,7 +1365,7 @@ test("P2-1 FENCE — the header column and the view's content column are the SAM
   await routeTrpc(page, {
     ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
-    "preset.list": () => [PRESET_A_DETAIL],
+    "preset.list": () => [PRESET_A_DETAIL].map(presetSummary),
     "settings.getUserSettings": () => settingsWithActive(null),
     "preset.resolveEffective": () => EFFECTIVE_FLOOR,
   });
@@ -1421,7 +1426,7 @@ test("P3-4: the view strip has an accessible name of its own, not one computed f
   await routeTrpc(page, {
     ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
-    "preset.list": () => [PRESET_A_DETAIL],
+    "preset.list": () => [PRESET_A_DETAIL].map(presetSummary),
     "settings.getUserSettings": () => settingsWithActive(null),
     "preset.resolveEffective": () => EFFECTIVE_FLOOR,
   });
@@ -1433,7 +1438,7 @@ test("G7 the ACTIVE preset's header wears the chip and offers NO Activate", asyn
   await routeTrpc(page, {
     ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
-    "preset.list": () => [PRESET_A_DETAIL],
+    "preset.list": () => [PRESET_A_DETAIL].map(presetSummary),
     "settings.getUserSettings": () => settingsWithActive(PRESET_A),
     "preset.resolveEffective": () => EFFECTIVE_FLOOR,
   });
@@ -1453,7 +1458,7 @@ test("P1-3 the header spends its width on the NAME — the model chip is gone, r
   await routeTrpc(page, {
     ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
-    "preset.list": () => [PRESET_A_DETAIL],
+    "preset.list": () => [PRESET_A_DETAIL].map(presetSummary),
     "settings.getUserSettings": () => settingsWithActive(PRESET_A),
     "preset.resolveEffective": () => EFFECTIVE_FLOOR,
   });
@@ -1478,7 +1483,7 @@ test("O-13 — the Delivers-via chip OPENS the Guided instruction row in the Pro
   await routeTrpc(page, {
     ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
-    "preset.list": () => [PRESET_A_DETAIL],
+    "preset.list": () => [PRESET_A_DETAIL].map(presetSummary),
     "settings.getUserSettings": () => SETTINGS_VIEW,
     "preset.resolveEffective": () => EFFECTIVE_FLOOR,
   });
@@ -1504,7 +1509,7 @@ test("the Delivers-via chip lands on the RACK even when a DIFFERENT section is a
   await routeTrpc(page, {
     ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
-    "preset.list": () => [PRESET_A_DETAIL],
+    "preset.list": () => [PRESET_A_DETAIL].map(presetSummary),
     "settings.getUserSettings": () => SETTINGS_VIEW,
     "preset.resolveEffective": () => EFFECTIVE_FLOOR,
   });
@@ -1529,7 +1534,7 @@ test("leaving the Prompt view while drilled and returning lands on the RACK, not
   await routeTrpc(page, {
     ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
-    "preset.list": () => [PRESET_A_DETAIL],
+    "preset.list": () => [PRESET_A_DETAIL].map(presetSummary),
     "settings.getUserSettings": () => SETTINGS_VIEW,
     "preset.resolveEffective": () => EFFECTIVE_FLOOR,
   });
@@ -1554,10 +1559,10 @@ test("a drill in preset A does not leak into preset B — the section ids are th
   await routeTrpc(page, {
     ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": (input: unknown) => ((input as { id?: string }).id === PRESET_B ? PRESET_B_DETAIL : PRESET_A_DETAIL),
-    "preset.list": () => [PRESET_A_DETAIL, PRESET_B_DETAIL],
+    "preset.list": () => [PRESET_A_DETAIL, PRESET_B_DETAIL].map(presetSummary),
     "settings.getUserSettings": () => SETTINGS_VIEW,
     "preset.resolveEffective": () => EFFECTIVE_FLOOR,
-    "preset.update": () => ({}),
+    "preset.update": () => PRESET_A_DETAIL,
   });
   const component = await mount(<PresetEditorSwitchStory />);
 
@@ -1580,7 +1585,7 @@ test("O-16 + F-18 — the header offers Reset as its OWN named door; Export is n
   await routeTrpc(page, {
     ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
-    "preset.list": () => [PRESET_A_DETAIL],
+    "preset.list": () => [PRESET_A_DETAIL].map(presetSummary),
     "settings.getUserSettings": () => SETTINGS_VIEW,
     "preset.resolveEffective": () => EFFECTIVE_FLOOR,
   });
@@ -1606,7 +1611,7 @@ test("O-17 — Delivery + Collapsing render under Transforms and are gone from P
   await routeTrpc(page, {
     ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
-    "preset.list": () => [PRESET_A_DETAIL],
+    "preset.list": () => [PRESET_A_DETAIL].map(presetSummary),
     "settings.getUserSettings": () => SETTINGS_VIEW,
     "preset.resolveEffective": () => EFFECTIVE_FLOOR,
   });
@@ -1637,7 +1642,7 @@ test("no absolutely-positioned box escapes the preset editor's scroller (the con
   await routeTrpc(page, {
     ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
-    "preset.list": () => [PRESET_A_DETAIL],
+    "preset.list": () => [PRESET_A_DETAIL].map(presetSummary),
     "settings.getUserSettings": () => SETTINGS_VIEW,
     "connection.resolveChatCapability": () => CAPABILITY,
     "preset.resolveEffective": () => EFFECTIVE_FLOOR,
@@ -1673,11 +1678,11 @@ test("#483 the editor header renames the open preset — one name-only update ag
   const trpc = await routeTrpc(page, {
     ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
-    "preset.list": () => [PRESET_A_DETAIL],
+    "preset.list": () => [PRESET_A_DETAIL].map(presetSummary),
     "settings.getUserSettings": () => SETTINGS_VIEW,
     "connection.resolveChatCapability": () => CAPABILITY,
     "preset.resolveEffective": () => EFFECTIVE_FLOOR,
-    "preset.update": () => ({}),
+    "preset.update": () => PRESET_A_DETAIL,
   });
   const component = await mount(<PresetEditorSurfaceStory />);
   await expect(component.getByRole("heading", { level: 2, name: "Preset A" })).toBeVisible();
@@ -1882,7 +1887,7 @@ for (const polarity of ["dark", "light"] as const) {
     await routeTrpc(page, {
       ...PRESET_EDITOR_AMBIENT_ROUTES,
       "preset.get": () => PRESET_A_DETAIL,
-      "preset.list": () => [PRESET_A_DETAIL],
+      "preset.list": () => [PRESET_A_DETAIL].map(presetSummary),
       "settings.getUserSettings": () => SETTINGS_VIEW,
     });
     const component = await mount(
@@ -1976,7 +1981,7 @@ test("UNREADABLE — a corrupt stored preset says so on OPEN, disables saving, a
   const trpc = await routeTrpc(page, {
     ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => detail,
-    "preset.list": () => [detail],
+    "preset.list": () => [detail].map(presetSummary),
     "settings.getUserSettings": () => SETTINGS_VIEW,
     "preset.update": () => detail,
   });
@@ -2020,7 +2025,7 @@ test("UNREADABLE — a blob from a NEWER build gets a different story, and is NO
   await routeTrpc(page, {
     ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => detail,
-    "preset.list": () => [detail],
+    "preset.list": () => [detail].map(presetSummary),
     "settings.getUserSettings": () => SETTINGS_VIEW,
   });
   const component = await mount(<PresetEditorSurfaceStory />);
@@ -2039,7 +2044,7 @@ test("READABLE — an intact preset is byte-identical to before: no state, no di
   const trpc = await routeTrpc(page, {
     ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
-    "preset.list": () => [PRESET_A_DETAIL],
+    "preset.list": () => [PRESET_A_DETAIL].map(presetSummary),
     "settings.getUserSettings": () => SETTINGS_VIEW,
     "preset.update": () => PRESET_A_DETAIL,
   });
@@ -2113,7 +2118,7 @@ test("#1770 a Params row's control sits a FIXED distance from its label at every
   await routeTrpc(page, {
     ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
-    "preset.list": () => [PRESET_A_DETAIL],
+    "preset.list": () => [PRESET_A_DETAIL].map(presetSummary),
     "settings.getUserSettings": () => SETTINGS_VIEW,
   });
   const component = await mount(<PresetEditorStripFadeStory />);

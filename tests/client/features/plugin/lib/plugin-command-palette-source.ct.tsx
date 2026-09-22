@@ -13,6 +13,7 @@
 import type { PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { TrpcInput, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { PluginCommandPaletteStory } from "../_ct-stories.tsx";
 
@@ -22,7 +23,7 @@ const CHIPS_ID = castId<PluginId>("plugin_ct_chips000000001");
 /** Two granted-and-enabled plugins, one command each — the "one row per command, across plugins" case. Each
  *  object is one `plugin.listCommands` row as the wire projects it (`PluginCommandView`): the command PLUS the
  *  slug and plugin name only this side knows — the projection the palette row is built from. */
-const TWO_COMMANDS: Readonly<Record<string, unknown>> = {
+const TWO_COMMANDS: TrpcRoutes<"chat.listChats" | "plugin.listCommands"> = {
   "chat.listChats": () => ({ items: [], nextCursor: null }),
   // `args: []` — these commands declare NO typed args (the U8 shape); a picked row dispatches directly.
   "plugin.listCommands": () => [
@@ -33,7 +34,7 @@ const TWO_COMMANDS: Readonly<Record<string, unknown>> = {
 
 /** No commands come back — the shape a caller sees when their plugins are DISABLED or UNGRANTED (the server's
  *  owner-scoped `listCommands` returns none). The source runs and yields zero rows. */
-const NO_COMMANDS: Readonly<Record<string, unknown>> = {
+const NO_COMMANDS: TrpcRoutes<"chat.listChats" | "plugin.listCommands"> = {
   "chat.listChats": () => ({ items: [], nextCursor: null }),
   "plugin.listCommands": () => [],
 };
@@ -65,12 +66,16 @@ test("the palette search matches a plugin command by name (cmdk scores it like a
 });
 
 test("picking a plugin command RUNS the guest-handler dispatch and surfaces its outcome", async ({ mount, page }) => {
-  let invoked: { pluginId: PluginId; name: string } | null = null;
+  let invoked: {
+    // @orb-waive brand-in-name-position(pluginId): routeTrpc exposes the procedure's pre-parse JSON input, so this recorder keeps the untrusted wire string verbatim; branding it would claim validation the fixture transport has not performed. Ends if routeTrpc returns the parsed AppRouter input.
+    readonly pluginId: string;
+    readonly name: string;
+  } | null = null;
   await routeTrpc(page, {
     ...TWO_COMMANDS,
     // The SAME `/plugin <slug> <cmd>` round-trip the U5 dispatch uses — the palette is a surfacing layer over it.
-    "plugin.invokeUiCommand": (input: unknown): unknown => {
-      const { pluginId, name } = input as { pluginId: PluginId; name: string };
+    "plugin.invokeUiCommand": (input: TrpcInput<"plugin.invokeUiCommand">): TrpcWireOutput<"plugin.invokeUiCommand"> => {
+      const { pluginId, name } = input;
       invoked = { pluginId, name };
       return { toasts: [{ level: "success", message: "Oracle Deck: drew the Tower" }] };
     },

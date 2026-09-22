@@ -21,7 +21,7 @@ export function createUninstall(ctx: PluginContext, deps: Pick<ActivationDeps, "
       throw new PluginNotFoundError(pluginId);
     }
 
-    deps.deactivate(pluginId);
+    await deps.deactivate(pluginId);
     // READ BEFORE THE DELETE: the `plugin_assets` links CASCADE away with the row, so after `deletePlugin`
     // there is nothing left to name — the ids would survive only as blobs waiting for the scheduled sweep.
     const fetched = await listPluginFetchedAssetIds(ctx.db, pluginId);

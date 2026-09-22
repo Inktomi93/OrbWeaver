@@ -44,17 +44,24 @@ function stub(page: Page): Promise<TrpcRecorder> {
       schemaVersion: 1,
       config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, colorQuotedSpeech: !DEFAULT_QUOTED } },
       updatedAt: 0,
+      configUnreadable: null,
     }),
     "settings.listThemes": () => [],
     "rosterPreset.list": [],
-    "sessions.me": { userId: "user_ct_rowchrome", handle: "ct_rowchrome", globalRole: "user" },
+    "sessions.me": { userId: "user_ct_rowchrome", handle: "ct_rowchrome", globalRole: "user" as const },
     "worldInfo.listBooksWithUsage": () => [],
     // The LIST pane's collection counts — fed empty (this file is about the CONTENT rows).
     "tag.listTagsWithUsage": () => [],
     "regex.listScripts": () => [],
     "persona.list": () => [],
     "character.list": () => ({ items: [], nextCursor: null }),
-    [SAVE_PROC]: () => ({}),
+    [SAVE_PROC]: () => ({
+      userId: "user_ct_rowchrome",
+      schemaVersion: 1,
+      config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, colorQuotedSpeech: !DEFAULT_QUOTED } },
+      updatedAt: 0,
+      configUnreadable: null,
+    }),
   });
 }
 
@@ -190,8 +197,9 @@ test("auto-swipe is ONE row, not three — its dependents ride inside it", async
       schemaVersion: 1,
       config: { ...DEFAULT_USER_SETTINGS, chat: { ...DEFAULT_USER_SETTINGS.chat, autoSwipe: { ...DEFAULT_USER_SETTINGS.chat.autoSwipe, enabled: true } } },
       updatedAt: 0,
+      configUnreadable: null,
     }),
-    "sessions.me": { userId: "user_ct_rowchrome", handle: "ct_rowchrome", globalRole: "user" },
+    "sessions.me": { userId: "user_ct_rowchrome", handle: "ct_rowchrome", globalRole: "user" as const },
     "settings.listThemes": () => [],
     "rosterPreset.list": [],
     "worldInfo.listBooksWithUsage": () => [],
@@ -199,7 +207,13 @@ test("auto-swipe is ONE row, not three — its dependents ride inside it", async
     "regex.listScripts": () => [],
     "persona.list": () => [],
     "character.list": () => ({ items: [], nextCursor: null }),
-    [SAVE_PROC]: () => ({}),
+    [SAVE_PROC]: () => ({
+      userId: "user_ct_rowchrome",
+      schemaVersion: 1,
+      config: { ...DEFAULT_USER_SETTINGS, chat: { ...DEFAULT_USER_SETTINGS.chat, autoSwipe: { ...DEFAULT_USER_SETTINGS.chat.autoSwipe, enabled: true } } },
+      updatedAt: 0,
+      configUnreadable: null,
+    }),
   });
   await mount(<ConfigHostStory target="chat-behavior" />);
   const row = page.locator('[data-setting="auto-swipe"]');

@@ -9,23 +9,31 @@
 // catalog the grid rendered unconditionally; that kind retired, and the bundled scene plates are seeded per
 // user into `appearance.backgroundLibrary`, so a plate tile IS a library tile and the stub seeds one.
 
-import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import type { AssetId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { routeTrpc } from "../../support/node/route-trpc.ts";
 import { BackgroundSourceFieldStory } from "./background-source-field.fixtures.tsx";
 
-const ENTRY = { entryId: "e1", assetId: "asset_00000000000000000000000001", assetHash: "hashaaa", mime: "image/png", name: "My dock" };
+const ENTRY = { entryId: "e1", assetId: castId<AssetId>("asset_00000000000000000000000001"), assetHash: "hashaaa", mime: "image/png", name: "My dock" };
 /** A bundled scene plate, as the viewer's library actually carries it after the per-user seed. */
-const PLATE = { entryId: "e0", assetId: "asset_00000000000000000000000002", assetHash: "hashplate", mime: "image/jpeg", name: "Charlotte's study" };
+const PLATE = {
+  entryId: "e0",
+  assetId: castId<AssetId>("asset_00000000000000000000000002"),
+  assetHash: "hashplate",
+  mime: "image/jpeg",
+  name: "Charlotte's study",
+};
 
-function stub(page: Page, library: readonly unknown[] = [PLATE, ENTRY]): ReturnType<typeof routeTrpc> {
+function stub(page: Page, library = [PLATE, ENTRY]): ReturnType<typeof routeTrpc> {
   return routeTrpc(page, {
     "settings.getUserSettings": () => ({
       userId: "user_ct_bg",
       schemaVersion: 1,
-      config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, backgroundLibrary: library } },
+      config: { appearance: { backgroundLibrary: library } },
       updatedAt: 0,
+      configUnreadable: null,
     }),
   });
 }

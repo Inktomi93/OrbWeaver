@@ -6,14 +6,15 @@
 // affordances gated exactly as the server re-gates them.
 
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { WorkloadsSchedulesSectionStory } from "../_ct-stories.tsx";
 
-const USER_VIEWER = { userId: "user_ct_kes", handle: "kes", globalRole: "user" };
+const USER_VIEWER = { userId: "user_ct_kes", handle: "kes", globalRole: "user" } satisfies TrpcWireOutput<"sessions.me">;
 /** Matches BOTH homes of the create action ("New schedule…" in the header, "New schedule" in the empty state)
  *  — the point of the assertion is that only one of them is ever on screen. */
 const NEW_SCHEDULE_LABEL = /New schedule/;
-const OWNER_VIEWER = { userId: "user_ct_root", handle: "root", globalRole: "owner" };
+const OWNER_VIEWER = { userId: "user_ct_root", handle: "root", globalRole: "owner" } satisfies TrpcWireOutput<"sessions.me">;
 
 const ADMIN_USERS = [
   {
@@ -38,10 +39,12 @@ const ADMIN_USERS = [
     createdAt: 1_700_000_000_000,
     updatedAt: 1_700_000_000_000,
   },
-];
+] satisfies TrpcWireOutput<"admin.listUsers">;
 
 /** One schedule row in the wire shape (`WorkloadScheduleRow` — domain/workloads/contract/schedule). */
-function scheduleRow(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+type ScheduleRow = TrpcWireOutput<"workloads.listSchedules">[number];
+
+function scheduleRow(overrides: Partial<ScheduleRow> = {}): ScheduleRow {
   return {
     id: "workload_schedule_ct_1",
     ownerId: "user_ct_kes",

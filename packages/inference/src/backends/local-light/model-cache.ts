@@ -400,7 +400,7 @@ export function createModelCache(config: ModelCacheConfig): LocalLightModelCache
       }),
     );
 
-  const SLOT_LOADERS: { readonly [K in LocalLightModelSlot]: (modelId: string) => Promise<void> } = {
+  const slotLoaders: { readonly [K in LocalLightModelSlot]: (modelId: string) => Promise<void> } = {
     rerank: async (modelId) => {
       await Promise.all([tokenizer(modelId), reranker(modelId)]);
     },
@@ -414,7 +414,7 @@ export function createModelCache(config: ModelCacheConfig): LocalLightModelCache
 
   return {
     async preload(slot, modelId): Promise<void> {
-      await SLOT_LOADERS[slot](modelId);
+      await slotLoaders[slot](modelId);
     },
     embedTexts(modelId, texts): Promise<Float32Array[]> {
       return texts.length === 0 ? Promise.resolve([]) : embedJinaTexts(modelId, texts);

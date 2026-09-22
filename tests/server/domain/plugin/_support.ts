@@ -8,6 +8,7 @@
 
 import { createHash } from "node:crypto";
 import type { Principal } from "@orb/contracts/identity";
+import type { ProviderDef } from "@orb/contracts/inference";
 import type { PluginCapability, PluginInstance } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
 import { assets, pluginAssets, plugins } from "@orb/db";
@@ -26,6 +27,7 @@ import type {
   PluginContext,
   PluginDistributionDeps,
   PluginHostPort,
+  PluginProviderLifecycle,
   PluginService,
 } from "../../../../packages/server/src/domain/plugin/contract/service.ts";
 import {
@@ -194,6 +196,8 @@ export function makePluginHarness(
      *  install/upgrade must not leave orphaned blobs behind (#820 seam 11). The first `n` calls behave
      *  normally, so a suite can let the bundle land and redden exactly the image wave after it. */
     readonly failStoreAfter?: number;
+    /** Provider contribution lifecycle; inert by default for suites unrelated to provider activation. */
+    readonly providers?: PluginProviderLifecycle;
   } = {},
 ): PluginHarness {
   const clock = createFrozenClock(FROZEN_AT_MS);
@@ -319,7 +323,14 @@ export function makePluginHarness(
     },
   };
 
-  return { ctx, service: createPluginService(ctx, distribution), port: fakePort, storedBytes, advance: (ms) => clock.advance(ms) };
+  const providers: PluginProviderLifecycle =
+    overrides.providers ??
+    ({
+      activate: (): Promise<void> => Promise.resolve(),
+      deactivate: (): Promise<void> => Promise.resolve(),
+    } satisfies PluginProviderLifecycle);
+
+  return { ctx, service: createPluginService(ctx, distribution, providers), port: fakePort, storedBytes, advance: (ms) => clock.advance(ms) };
 }
 
 /** An inert `PluginHostOps`: every op rejects/no-ops (the host functions are P4). The registrar seams record
@@ -412,6 +423,10 @@ export interface BundleManifestOverrides {
   readonly capabilities?: readonly PluginCapability[];
   readonly netHosts?: readonly string[];
   readonly builtAgainst?: { readonly engineVersion: string; readonly engineCommit?: string };
+  readonly providers?: readonly ProviderDef[];
+  /** Raw provider payload for trust-edge refusal tests. Healthy fixtures use {@link providers}; this arm
+   *  deliberately preserves the untrusted JSON shape until the production manifest parser judges it. */
+  readonly rawProviders?: unknown;
   /** DECLARE `uiEntry` in the manifest (plugin-ui-plane #679 U4). Independent of {@link makeBundle}'s `uiJs`
    *  argument ON PURPOSE: the funnel's biconditional refuses a declaration with no file AND a file with no
    *  declaration, and a fixture that could not express either half could not test either half. */
@@ -431,6 +446,10 @@ export function makeBundle(
    *  what judges these, so the fixture builder must be able to hand it something illegal. */
   extraEntries: Record<string, Uint8Array> = {},
 ): Uint8Array {
+  let providers: unknown = overrides.providers;
+  if (overrides.rawProviders !== undefined) {
+    providers = overrides.rawProviders;
+  }
   const manifest = {
     id: overrides.id ?? "test-plugin",
     name: overrides.name ?? "Test Plugin",
@@ -439,6 +458,7 @@ export function makeBundle(
     entry: "main.js",
     description: overrides.description ?? "a test plugin",
     capabilities: overrides.capabilities ?? [],
+    ...(providers !== undefined ? { providers } : {}),
     ...(overrides.netHosts !== undefined ? { netHosts: overrides.netHosts } : {}),
     ...(overrides.builtAgainst !== undefined ? { builtAgainst: overrides.builtAgainst } : {}),
     ...(overrides.uiEntry === true ? { uiEntry: "ui.js" } : {}),

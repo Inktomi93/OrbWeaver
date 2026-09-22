@@ -27,7 +27,7 @@ import type { Locator, Page } from "@playwright/test";
 // while the feature's own front door is a barrel that would pull `.tsx` in with it.
 import { ROLE_ROWS_ORDERED, ROLE_STATUS_LABELS } from "../../../../../packages/client/src/features/credentials/lib/connections-model.ts";
 import { hitExtent, touchFloorPx } from "../../../../support/browser/touch-floor.ts";
-import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ConnectionsPaneNarrowStory, ConnectionsPaneWideStory, ConnectionsSettingsHostedStory, ConnectionsSettingsStory } from "../_ct-stories.tsx";
 
@@ -49,13 +49,25 @@ const TEXT_ONLY_CAPABILITY = {
     input: ["text"],
     output: { maxTokens: { min: 1, max: 4096 }, modalities: ["text"] },
     context: { window: 8192, windowEstimated: true },
-    turns: { roleHandlingFloor: "none", cacheMinTokens: 1024 },
+    turns: {
+      assistantPrefill: false,
+      midConversationSystem: false,
+      historySystemRows: false,
+      roleHandlingFloor: "none",
+      explicitPromptCache: false,
+      cacheMinTokens: 1024,
+    },
   },
-};
+} satisfies NonNullable<NonNullable<TrpcWireOutput<"connection.listBindings">[number]["resolved"]>["capability"]>;
 
 /** A `connection.list` row — `UserConnection` plus the two derived fields the pane renders beside it
  *  (`ConnectionView`: the provider's label and the tasks this row may be bound to). */
-function connectionRow(over: Record<string, unknown>): Record<string, unknown> {
+type ConnectionRow = TrpcWireOutput<"connection.list">[number];
+type BindingView = TrpcWireOutput<"connection.listBindings">[number];
+type ConnectionBinding = NonNullable<BindingView["binding"]>;
+type CredentialRow = TrpcWireOutput<"credentials.list">[number];
+
+function connectionRow(over: Partial<ConnectionRow>): ConnectionRow {
   return {
     id: CHAT_CONNECTION_ID,
     ownerId: "user_ct_connections",
@@ -109,26 +121,32 @@ const EMBED_ROW = connectionRow({
 });
 
 /** One `listBindings` view — one per ROUTABLE task, bound or not. */
-function bindingView(task: string, over: Record<string, unknown> = {}): Record<string, unknown> {
+function bindingView(task: BindingView["task"], over: Partial<BindingView> = {}): BindingView {
   return { task, binding: null, resolved: null, unavailableCause: null, ...over };
 }
 
-function binding(task: string, connectionId: string | null): Record<string, unknown> {
+function binding(task: ConnectionBinding["task"], connectionId: string | null): ConnectionBinding {
   return { id: `connection_binding_ct${task}`, actorKind: "user", userId: "user_ct_connections", ruleId: null, pluginId: null, task, connectionId };
 }
 
 /** A view whose binding RESOLVES — what a turn runs on today. */
 function resolvedView(
-  task: string,
+  task: BindingView["task"],
   connectionId: string,
-  resolved: { readonly providerId: string; readonly model: string; readonly capability?: unknown },
-): Record<string, unknown> {
+  resolved: {
+    readonly providerId: string;
+    readonly model: string;
+    readonly capability?: NonNullable<NonNullable<BindingView["resolved"]>["capability"]>;
+  },
+): BindingView {
   return bindingView(task, {
     binding: binding(task, connectionId),
     resolved: {
       task,
       connectionId,
       providerId: resolved.providerId,
+      wire: "openai-compat",
+      api: "chat-completions",
       model: resolved.model,
       capability: resolved.capability ?? TEXT_ONLY_CAPABILITY,
       requirement: { ok: true },
@@ -149,9 +167,9 @@ interface RolesStub {
 async function stubPane(
   page: Page,
   opts: {
-    readonly connections?: readonly Record<string, unknown>[];
-    readonly bindings?: readonly Record<string, unknown>[];
-    readonly credentials?: readonly Record<string, unknown>[];
+    readonly connections?: readonly ConnectionRow[];
+    readonly bindings?: readonly BindingView[];
+    readonly credentials?: readonly CredentialRow[];
   } = {},
 ): Promise<RolesStub> {
   const recorder = await routeTrpc(page, {
@@ -162,8 +180,8 @@ async function stubPane(
     // registry rows — the one home for `ProviderDef.label`.
     "connection.providersAvailable": () => [],
     "credentials.list": () => opts.credentials ?? [],
-    "connection.setBinding": () => ({ ok: true }),
-    "connection.update": () => ({ ok: true }),
+    "connection.setBinding": () => binding("chat", CHAT_CONNECTION_ID),
+    "connection.update": () => CHAT_ROW,
   });
   return { recorder };
 }

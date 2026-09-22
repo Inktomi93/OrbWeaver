@@ -8,11 +8,12 @@ import type { TrpcRecorder, TrpcResponder } from "../../../../support/node/route
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { RpgGameDoorStory } from "../_ct-stories.tsx";
 
-function stubChat(page: Page, rpg: unknown, mutation: string, responder: TrpcResponder): Promise<TrpcRecorder> {
-  return routeTrpc(page, {
-    "chat.getChat": () => ({ rpg }),
-    [mutation]: responder,
-  });
+function stubCreate(page: Page, responder: TrpcResponder<"rpg.createGame">): Promise<TrpcRecorder> {
+  return routeTrpc(page, { "chat.getChat": () => ({ rpg: null }), "rpg.createGame": responder });
+}
+
+function stubUpdate(page: Page, responder: TrpcResponder<"rpg.updateConfig">): Promise<TrpcRecorder> {
+  return routeTrpc(page, { "chat.getChat": () => ({ rpg: { gameId: "rpg_game_ct", engaged: false } }), "rpg.updateConfig": responder });
 }
 
 // #862 — ONE START ACTION. The door used to offer `Freeform story` | `D20 adventure`, two buttons that
@@ -21,7 +22,7 @@ function stubChat(page: Page, rpg: unknown, mutation: string, responder: TrpcRes
 // same-task double activation still admits exactly one create.
 test("the door offers ONE start action (no profile pick), admits one create per task, and releases on rejection", async ({ mount, page }) => {
   const held = trpcHold();
-  const trpc = await stubChat(page, null, "rpg.createGame", held);
+  const trpc = await stubCreate(page, held);
   await mount(<RpgGameDoorStory />);
 
   await expect(page.getByRole("button", { name: "Freeform story" })).toHaveCount(0);
@@ -46,7 +47,7 @@ test("the door offers ONE start action (no profile pick), admits one create per 
 
 test("a same-task repeat admits one re-engage write, and rejection releases retry", async ({ mount, page }) => {
   const held = trpcHold();
-  const trpc = await stubChat(page, { gameId: "rpg_game_ct", engaged: false }, "rpg.updateConfig", held);
+  const trpc = await stubUpdate(page, held);
   await mount(<RpgGameDoorStory />);
 
   const engage = page.getByRole("button", { name: "Turn game mode back on" });

@@ -112,6 +112,7 @@ function resolvedModulePath(sf: SourceFile, spec: string): string | undefined {
     let content: string | undefined;
     try {
       content = fs.readFileSync(path, "utf-8");
+      // @orb-waive caught-failure-ownership(catch): TypeScript intentionally probes nonexistent module candidates; an unreadable candidate is `undefined` so resolution continues. Ends if this callback reads an already-proven-existing path.
     } catch {
       // TypeScript probes extension/package candidates that need not exist.
     }

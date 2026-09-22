@@ -20,6 +20,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { testId } from "../../../../../packages/client/src/lib/test-ids.ts";
 import { routeOrbSocket } from "../../../../support/node/route-orb-socket.ts";
+import type { TrpcFixtureOutput, TrpcInput, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ChatRoomGreetingWindowStory, ChatRoomSurfaceStory, ChatSurfaceContributorStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, CHAT_ID, makeMessagesPage, makeMessageView } from "../fixtures.ts";
@@ -27,7 +28,7 @@ import { CHAT_AMBIENT_ROUTES, CHAT_ID, makeMessagesPage, makeMessageView } from 
 // The divider's present-tense preview (PD-#7). Every map stubs it with a VALID resolved shape — the
 // harness's unlisted-proc default (`data: null`) is out-of-contract for this query and crashes the
 // surface (integration find, 2026-07-24). boundaryMessageId null = "everything fits" (no divider).
-const PREVIEW_FIT_STUB = {
+const PREVIEW_FIT_STUB: TrpcRoutes<"chat.previewContextFit"> = {
   "chat.previewContextFit": (): {
     boundaryMessageId: null;
     usedTokens: number;
@@ -64,7 +65,7 @@ const CANON = [
   }),
 ];
 
-const ROSTER_STUB = {
+const ROSTER_STUB: TrpcRoutes<"chat.getChat"> = {
   ...PREVIEW_FIT_STUB,
   "chat.getChat": (): {
     participants: never[];
@@ -174,7 +175,7 @@ test("a committed send adds NO invalidation of its own — the list refetch is b
     // The committed room reads its transcript ONCE (the list + the composer's tail-gate share the key).
     "chat.listMessages": () => makeMessagesPage([makeMessageView({ id: castId<MessageId>("msg_room_user"), role: "user", content: "Ping?" })]),
     // `send` resolves immediately (the turn's effect is bus-driven; the value is never read back).
-    "chat.send": () => null,
+    "chat.send": () => ({ messages: [], aborted: false }),
     ...ROSTER_STUB,
   });
   // NO bus turn — isolate the mutation's own contribution (the bus→refetch path is pinned separately in
@@ -688,7 +689,7 @@ test("COMMITTED: the SAME card resolves the SAME room accent through the roster 
     ...CHAT_AMBIENT_ROUTES,
     ...PREVIEW_FIT_STUB,
     "chat.listMessages": () => makeMessagesPage(CANON),
-    "chat.getChat": () => ({
+    "chat.getChat": (): TrpcFixtureOutput<"chat.getChat"> => ({
       participants: [
         { id: "cp_human", kind: "human", characterId: null, displayName: "Alex", leftSeq: null, avatarHash: null, role: "host" },
         {
@@ -745,11 +746,11 @@ const GREETING_ID = castId<MessageId>("msg_room_seeded_greeting");
 
 /** A room whose canon is ONE seeded greeting and NO user row — the malleable window, and the state a
  *  just-created room is in. `alternateIdx` moves the served canon, standing in for the write the verb makes. */
-function greetingWindowRoutes(alternateIdx: number): Record<string, unknown> {
+function greetingWindowRoutes(alternateIdx: number): TrpcRoutes<"chat.listMessages" | "chat.getChat" | "character.get" | "chat.setSeededGreeting"> {
   return {
     ...CHAT_AMBIENT_ROUTES,
     ...PREVIEW_FIT_STUB,
-    "chat.listMessages": (): unknown =>
+    "chat.listMessages": () =>
       makeMessagesPage([
         makeMessageView({
           id: GREETING_ID,
@@ -759,7 +760,7 @@ function greetingWindowRoutes(alternateIdx: number): Record<string, unknown> {
           seq: 1,
         }),
       ]),
-    "chat.getChat": (): unknown => ({
+    "chat.getChat": () => ({
       participants: [
         { id: "cp_greeter", kind: "character", characterId: GREETING_CHARACTER, displayName: "Aria", avatarHash: null, leftSeq: null, role: "member" },
       ],
@@ -769,13 +770,14 @@ function greetingWindowRoutes(alternateIdx: number): Record<string, unknown> {
     }),
     // The card is where the ALTERNATES live — the strip reads them to know how many there are and which one
     // is showing; the server re-reads the same card to resolve the index it is handed.
-    "character.get": (): unknown => ({
+    "character.get": () => ({
       id: GREETING_CHARACTER,
       name: "Aria",
       avatarHash: null,
       greetings: ALTERNATES.map((text) => ({ text })),
     }),
-    "chat.setSeededGreeting": (): unknown => ({ ok: true }),
+    "chat.setSeededGreeting": () =>
+      makeMessageView({ id: GREETING_ID, role: "assistant", characterId: GREETING_CHARACTER, content: ALTERNATES[alternateIdx] ?? ALT_0, seq: 1 }),
   };
 }
 
@@ -819,7 +821,7 @@ test("the row re-renders the SERVER's bytes when the edit lands on the bus (neve
   await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
     ...greetingWindowRoutes(0),
-    "chat.listMessages": (): unknown =>
+    "chat.listMessages": () =>
       makeMessagesPage([
         makeMessageView({
           id: GREETING_ID,
@@ -829,9 +831,9 @@ test("the row re-renders the SERVER's bytes when the edit lands on the bus (neve
           seq: 1,
         }),
       ]),
-    "chat.setSeededGreeting": (input: unknown): unknown => {
-      served = (input as { readonly greetingIndex: number }).greetingIndex;
-      return { ok: true };
+    "chat.setSeededGreeting": (input: TrpcInput<"chat.setSeededGreeting">) => {
+      served = input.greetingIndex;
+      return makeMessageView({ id: GREETING_ID, role: "assistant", characterId: GREETING_CHARACTER, content: ALTERNATES[served] ?? ALT_0, seq: 1 });
     },
   });
 
@@ -859,7 +861,7 @@ test("a room PAST its first user turn offers no greeting step — the window is 
   await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
     ...greetingWindowRoutes(0),
-    "chat.listMessages": (): unknown =>
+    "chat.listMessages": () =>
       makeMessagesPage([
         makeMessageView({
           id: GREETING_ID,
@@ -889,18 +891,23 @@ test("a room PAST its first user turn offers no greeting step — the window is 
 // passes both ON tests and fails both OFF ones — which is exactly the defect shape a knob test exists for.
 
 /** The settings read with ONE appearance knob overridden — everything else stays at its shipped default. */
-function routeWithAppearance(page: Page, appearance: Record<string, unknown>, content: string): Promise<unknown> {
+function routeWithAppearance(
+  page: Page,
+  appearance: Partial<TrpcWireOutput<"settings.getUserSettings">["config"]["appearance"]>,
+  content: string,
+): Promise<unknown> {
   return routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
     ...PREVIEW_FIT_STUB,
     ...ROSTER_STUB,
-    "settings.getUserSettings": (): unknown => ({
+    "settings.getUserSettings": () => ({
       userId: castId<UserId>("user_ct"),
       schemaVersion: 1,
       config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, ...appearance } },
+      configUnreadable: null,
       updatedAt: 0,
     }),
-    "chat.listMessages": (): unknown => makeMessagesPage([makeMessageView({ id: castId<MessageId>("msg_room_knob"), role: "assistant", content })]),
+    "chat.listMessages": () => makeMessagesPage([makeMessageView({ id: castId<MessageId>("msg_room_knob"), role: "assistant", content })]),
   });
 }
 

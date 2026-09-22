@@ -3,8 +3,8 @@
 // inside the panel width (its right edge ≤ the panel's), which `size="sm"` restores.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { Locator } from "@playwright/test";
-import type { TrpcRoutes } from "../../../../support/node/route-trpc.ts";
+import type { Locator, Page } from "@playwright/test";
+import type {} from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { CharacterBulkBarStory } from "../_ct-stories.tsx";
 
@@ -33,7 +33,7 @@ test("bulk selection clears only after the durable archive succeeds and remains 
   const trpc = await routeTrpc(page, {
     "character.bulkArchive": () => {
       attempts += 1;
-      return attempts === 1 ? trpcError() : { archived: 3 };
+      return attempts === 1 ? trpcError() : undefined;
     },
   });
   const component = await mount(<CharacterBulkBarStory />);
@@ -58,19 +58,6 @@ type Verdict = "success" | "rejection";
 
 const REPLACEMENTS: readonly Replacement[] = ["overlap", "disjoint"];
 const VERDICTS: readonly Verdict[] = ["success", "rejection"];
-
-const PROCEDURE_BY_ACTION: Readonly<Record<BulkAction, string>> = {
-  archive: "character.bulkArchive",
-  tag: "character.bulkAddCardTag",
-  delete: "character.bulkRemove",
-};
-
-const SUCCESS_BY_ACTION: Readonly<Record<BulkAction, unknown>> = {
-  archive: { archived: 3 },
-  tag: { applied: ["char_a", "char_b", "char_c"], failed: [] },
-  delete: { removed: 3 },
-};
-
 const LABEL_BY_ACTION: Readonly<Record<BulkAction, string>> = {
   archive: "Archive",
   tag: "Tag",
@@ -94,6 +81,32 @@ async function replaceSelectionWhileHeld(component: Locator, replacement: Replac
   await expect(component.getByRole("status", { name: "Bulk selected IDs" })).toHaveText(replacement === "overlap" ? "char_a,char_d" : "char_d");
 }
 
+async function routeBulkAction(page: Page, action: BulkAction, held: ReturnType<typeof trpcHold>): Promise<void> {
+  switch (action) {
+    case "archive":
+      await routeTrpc(page, { "character.bulkArchive": held });
+      return;
+    case "tag":
+      await routeTrpc(page, { "character.bulkAddCardTag": held, "tag.listTagsWithUsage": [] });
+      return;
+    case "delete":
+      await routeTrpc(page, { "character.bulkRemove": held });
+  }
+}
+
+function releaseBulkSuccess(action: BulkAction, held: ReturnType<typeof trpcHold>): void {
+  switch (action) {
+    case "archive":
+      held.release(undefined);
+      return;
+    case "tag":
+      held.release({ applied: ["char_a", "char_b", "char_c"], failed: [] });
+      return;
+    case "delete":
+      held.release(undefined);
+  }
+}
+
 function expectedSelection(replacement: Replacement, verdict: Verdict): string {
   if (verdict === "success" || replacement === "disjoint") {
     return "char_d";
@@ -106,17 +119,17 @@ for (const action of BULK_ACTIONS) {
     for (const verdict of VERDICTS) {
       test(`${LABEL_BY_ACTION[action]} ${replacement} ${verdict}: the completion retires only IDs owned by the submitted snapshot`, async ({ mount, page }) => {
         const held = trpcHold();
-        const routes: TrpcRoutes = { [PROCEDURE_BY_ACTION[action]]: held };
-        if (action === "tag") {
-          routes["tag.listTagsWithUsage"] = [];
-        }
-        await routeTrpc(page, routes);
+        await routeBulkAction(page, action, held);
         const component = await mount(<CharacterBulkBarStory />);
 
         await submitBulkAction(component, action);
         await held.requested;
         await replaceSelectionWhileHeld(component, replacement);
-        held.release(verdict === "success" ? SUCCESS_BY_ACTION[action] : trpcError());
+        if (verdict === "success") {
+          releaseBulkSuccess(action, held);
+        } else {
+          held.release(trpcError());
+        }
 
         await expect(component.getByRole("status", { name: "Bulk selected IDs" })).toHaveText(expectedSelection(replacement, verdict));
       });

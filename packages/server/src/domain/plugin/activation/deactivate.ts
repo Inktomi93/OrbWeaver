@@ -4,10 +4,13 @@
 // Idempotent: deactivating a plugin with no resident instance is a no-op (a disabled plugin, a double-disable).
 
 import type { PluginId } from "@orb/kit/ids";
-import type { PluginContext, PluginRegistry } from "../contract/service.ts";
+import type { PluginContext, PluginProviderLifecycle, PluginRegistry } from "../contract/service.ts";
 
-export function createDeactivate(ctx: PluginContext, registry: PluginRegistry): (pluginId: PluginId) => void {
-  return (pluginId: PluginId): void => {
+export function createDeactivate(ctx: PluginContext, registry: PluginRegistry, providers: PluginProviderLifecycle): (pluginId: PluginId) => Promise<void> {
+  return async (pluginId: PluginId): Promise<void> => {
+    // Remove durable provider authority before tearing down the resident view. If persistence refuses, keep the
+    // live instance coherent with its still-authoritative provider contribution and let the lifecycle fail.
+    await providers.deactivate(pluginId);
     // VOID this plugin's pending posture-2 asks FIRST, and unconditionally — before the resident check, because
     // a plugin can hold pending cards while holding no resident instance (an upgrade tears the instance down and
     // lands the row disabled). The confirm-time liveness re-check is what makes a stale card SAFE; this is what

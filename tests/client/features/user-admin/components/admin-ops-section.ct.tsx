@@ -19,7 +19,7 @@ test("each ops section stamps its OWN admin anchor (the ids the nav + search jum
 // admin-refreshed enriched catalog. The provider id is asserted, not just the call — a refresher that fired
 // against the wrong row would satisfy a count-only pin.
 test("the catalog refresher fires its admin-gated verb for the OpenRouter row", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { "connection.refreshCatalog": () => ({ ok: true }) });
+  const trpc = await routeTrpc(page, { "connection.refreshCatalog": () => ({ models: 0 }) });
   const component = await mount(<AdminOpsSectionsStory />);
 
   await component.getByRole("button", { name: "Refresh OpenRouter catalog" }).click();

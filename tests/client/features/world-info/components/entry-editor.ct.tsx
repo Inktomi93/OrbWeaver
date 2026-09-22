@@ -208,7 +208,7 @@ test("renders every field, commits a keyword chip, and autosaves the full input"
 
 test("delete: the icon trigger opens an uncontrolled confirm with no description, and confirming removes the entry", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
-    "worldInfo.removeEntry": () => ({ ok: true }),
+    "worldInfo.removeEntry": () => ({ deleted: true }),
   });
 
   await mount(<EntryEditorStory />);
@@ -245,7 +245,7 @@ test("SWITCH pin — switching entries autosaves the new entry, never the previo
         enabled: true,
         priority: 0,
         ignoreBudget: false,
-        metadata: {},
+        metadata: { scopeMode: "auto" },
       };
     },
   });
@@ -307,7 +307,7 @@ test("a REJECTED delete keeps the editor open on the entry that still exists (#1
 });
 
 test("a SUCCESSFUL delete DOES close it — the host must not hold a dead editor (#1501, the other direction)", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { "worldInfo.removeEntry": () => null });
+  const trpc = await routeTrpc(page, { "worldInfo.removeEntry": () => ({ deleted: true }) });
   const editor = await mount(<EntryEditorStory />);
   const deleted = editor.getByRole("status", { name: "Deleted entry" });
 

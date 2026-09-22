@@ -30,6 +30,7 @@ describe("createTheme", () => {
     const view = await h.svc.createTheme({
       principal: principal(a, "user"),
       // biome-ignore lint/suspicious/noExplicitAny: deliberately hostile input past the wire type
+      // @orb-waive no-test-fabrication(any): deliberately hostile override proves the verb's lenient validation boundary; ends when the verb accepts unknown input directly.
       input: { name: "Mine", override: { accent: "url(evil)" } as any },
     });
     expect(view.override.accent).toBeUndefined();

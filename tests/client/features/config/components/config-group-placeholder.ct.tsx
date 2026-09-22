@@ -18,7 +18,7 @@
 // and it opens the coming-soon body on activation.
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
+import { defineTrpcRoutes, routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ConfigHostStory } from "../_ct-stories.tsx";
 
 // The deferred group's OWN description, as `connectionsGroup` (connections-group.tsx) spells it — the
@@ -28,10 +28,10 @@ import { ConfigHostStory } from "../_ct-stories.tsx";
 // def lives in — the browser-side `ct-config-groups.ts` is what reads the real def.
 const CONNECTIONS_DESCRIPTION = "Your providers, keys and models — and which one each role uses.";
 
-const SETTINGS_VIEW = { userId: "user_ct_placeholder", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };
+const SETTINGS_VIEW = { userId: "user_ct_placeholder", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, configUnreadable: null, updatedAt: 0 };
 // A plain user — the placeholder group (connections) is un-gated, so this only feeds the LIST's
 // admin-gating projection; the deep link lands straight on the placeholder group, so no real group mounts.
-const VIEWER_ROUTE: Readonly<Record<string, unknown>> = {
+const VIEWER_ROUTE = defineTrpcRoutes({
   "sessions.me": { userId: SETTINGS_VIEW.userId, handle: "ct_placeholder", globalRole: "user" },
   "settings.getUserSettings": () => SETTINGS_VIEW,
   // THE ARRIVAL DEFAULT MOUNTS A REAL GROUP (#925): a host mounted with no deep link now lands on the first
@@ -44,7 +44,7 @@ const VIEWER_ROUTE: Readonly<Record<string, unknown>> = {
   "regex.listScripts": [],
   "worldInfo.listBooksWithUsage": [],
   "rosterPreset.list": [],
-};
+});
 
 test("a deferred category renders the teaching placeholder: its distinct copy + the 'Not built yet' chip", async ({ mount, page }) => {
   await routeTrpc(page, VIEWER_ROUTE);

@@ -10,12 +10,12 @@ import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { AppearanceAvatarsSectionStory } from "../_ct-stories.tsx";
 
-const SETTINGS_VIEW = { userId: "user_ct_avatars", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };
+const SETTINGS_VIEW = { userId: "user_ct_avatars", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, configUnreadable: null, updatedAt: 0 };
 const UPDATE_PROC = "settings.updateUserSettingsSection";
 const OWNED_KEYS = ["avatarAspect", "avatarRing", "avatarShape", "avatarSize", "showInChatAvatars"];
 
 function stub(page: Page): Promise<TrpcRecorder> {
-  return routeTrpc(page, { "settings.getUserSettings": () => SETTINGS_VIEW, [UPDATE_PROC]: () => ({}) });
+  return routeTrpc(page, { "settings.getUserSettings": () => SETTINGS_VIEW, [UPDATE_PROC]: () => SETTINGS_VIEW });
 }
 
 function lastPatch(trpc: TrpcRecorder): Record<string, unknown> | undefined {

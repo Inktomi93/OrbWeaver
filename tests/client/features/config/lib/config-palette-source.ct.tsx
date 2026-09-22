@@ -7,15 +7,16 @@
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { TrpcRoutes } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ConfigNavProbe } from "../../../state/_ct-stories.tsx";
 import { ConfigPaletteStory } from "../_ct-stories.tsx";
 
-const ROUTES: Readonly<Record<string, unknown>> = {
-  "chat.listChats": () => ({ items: [], nextCursor: null }),
+const ROUTES = {
+  "chat.listChats": { items: [], nextCursor: null },
   "sessions.me": { userId: "user_ct_palette", handle: "ct_palette", globalRole: "user" },
-  "settings.getUserSettings": { userId: "user_ct_palette", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 },
-};
+  "settings.getUserSettings": { userId: "user_ct_palette", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, configUnreadable: null, updatedAt: 0 },
+} satisfies TrpcRoutes<"chat.listChats" | "sessions.me" | "settings.getUserSettings">;
 
 test("the Settings source renders searchable rows under its own heading, group-labelled", async ({ mount, page }) => {
   await routeTrpc(page, ROUTES);

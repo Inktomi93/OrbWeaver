@@ -23,7 +23,7 @@ export interface ColumnDraft extends Omit<SchemaColumn, "foreignKey"> {
   readonly operations: ReadonlyMap<string, readonly CallExpression[]>;
 }
 
-export interface TableDraft extends Omit<SchemaTable, "columns" | "indexes"> {
+export interface TableDraft extends Omit<SchemaTable, "columns" | "indexes" | "foreignKeys"> {
   readonly columns: readonly ColumnDraft[];
   readonly extra: MorphNode | null;
 }

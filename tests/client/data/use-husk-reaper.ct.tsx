@@ -17,7 +17,7 @@ import { HuskReaperStory } from "./_ct-stories.tsx";
 const HUSK_ID = "chat_ct_husk_probe";
 
 test("leaving a room this device CREATED fires chat.reapHusk for exactly that room", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { "chat.reapHusk": { reaped: true } });
+  const trpc = await routeTrpc(page, { "chat.reapHusk": null });
 
   const component = await mount(<HuskReaperStory />);
   const state = component.getByTestId("husk-state");

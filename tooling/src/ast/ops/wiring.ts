@@ -3,6 +3,7 @@ import { Node, SyntaxKind } from "ts-morph";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
 import type { Flags, Hit } from "../contract/types.ts";
+import { collectAppRouterOutputProvenance } from "../lib/app-router-provenance.ts";
 import { emit, hitOf, narrate } from "../lib/emit.ts";
 import { declKey } from "../lib/keys.ts";
 import { exitToolError, noteUnits, SKIP_TEST_FILES, scanCorpus, WHOLE_CORPUS } from "../lib/ledger.ts";
@@ -315,11 +316,29 @@ export function cmdClientGap(project: SourceCorpus, arg: string, flags: Flags): 
   const isContracts = scope.prefix.includes(CONTRACTS_SRC_PREFIX);
   const files = scanCorpus(project, { scope: scope.prefix, label: `path:${scope.prefix}`, skip: [SKIP_TEST_FILES] });
   const live = buildLiveness(project);
+  const procedures = collectServerProcedures(project);
+  if (procedures.length === 0) {
+    exitToolError(
+      "ast clientgap: enumerated ZERO AppRouter procedures, so client-consumed output provenance cannot be resolved. Re-check the root `appRouter = t.router({ … })` composition shape.",
+    );
+  }
+  const consumedProcedures = collectClientConsumed(project, new Set(procedures.map(({ full }) => full)));
+  const provenance = collectAppRouterOutputProvenance(project, consumedProcedures, procedures);
+  if (provenance === undefined) {
+    exitToolError("ast clientgap: could not resolve the single exported AppRouter type declaration; refusing a false-clean contract report.");
+  }
+  if (provenance.unresolvedProcedures.length > 0) {
+    exitToolError(
+      `ast clientgap: could not resolve AppRouter output provenance for ${provenance.unresolvedProcedures.join(", ")}; refusing a false-clean contract report.`,
+    );
+  }
+  noteUnits("client-consumed-procedures", consumedProcedures.size);
+  noteUnits("client-output-contract-declarations", provenance.contractKeys.size);
   const hits: Hit[] = [];
   for (const sf of files) {
     for (const { name, decl } of ownExports(sf)) {
       const key = declKey(decl);
-      const gap = live.usedServerProd.has(key) && !live.usedClientProd.has(key);
+      const gap = live.usedServerProd.has(key) && !live.usedClientProd.has(key) && !provenance.contractKeys.has(key);
       // On the default contracts scope, gate to client-facing wire names (else it floods with server-only
       // contracts). A caller-supplied scope trusts the caller — report every gap in it.
       if (!gap || (isContracts && !CLIENT_FACING_SUFFIX_RE.test(name))) {
@@ -332,7 +351,7 @@ export function cmdClientGap(project: SourceCorpus, arg: string, flags: Flags): 
   }
   narrate(
     flags,
-    "clientgap is a CANDIDATE lens — a contract may be client-consumed via a re-exported barrel or a `Trpc[…]` inference the import-liveness can't see; verify before acting.",
+    "clientgap is a CANDIDATE lens — AppRouter output provenance is checker-resolved through aliases, barrels, nested constituents, and intersections; remaining hits may still be intentional server-only or external/plugin contracts, so verify before acting.",
   );
   emit(hits, flags, `clientgap ${scope.label}${isContracts ? " (client-facing *View/*Summary names)" : ""}`);
 }

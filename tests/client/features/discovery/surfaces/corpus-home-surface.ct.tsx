@@ -31,7 +31,7 @@ import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRoutes } from "../../../../support/node/route-trpc.ts";
+import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { userSettingsView } from "../../../../support/node/user-settings-view.ts";
 import {
@@ -76,12 +76,23 @@ const FAMILIES = [
  *  answered `routeTrpc`'s null, so this mount's viewer resolved through its no-data branch and nothing in
  *  thirty-three mounts exercised the identity-dependent path. The `userId` matches the settings row the
  *  route bags below already carry, so the two ambient reads describe ONE viewer rather than two. */
-const CORPUS_VIEWER_ROUTE: TrpcRoutes = {
+const CORPUS_VIEWER_ROUTE: TrpcRoutes<"sessions.me"> = {
   "sessions.me": { userId: "user_me", handle: "me", globalRole: "user" },
 };
 
 /** A library with characters and a finished VISUAL pass only — the invitation holds the focal. */
-const UNANALYSED: TrpcRoutes = {
+const UNANALYSED: TrpcRoutes<
+  | "discovery.home"
+  | "discovery.catalog"
+  | "discovery.visualArchetypes"
+  | "discovery.forgottenGems"
+  | "discovery.unusedCharacters"
+  | "discovery.modelRouting"
+  | "discovery.topKeywords"
+  | "discovery.themeDrift"
+  | "settings.getUserSettings"
+  | "workloads.list"
+> = {
   "discovery.home": {
     coverage: { characters: 10, digests: 0, segments: 0 },
     sceneThemes: [],
@@ -101,7 +112,7 @@ const UNANALYSED: TrpcRoutes = {
 
 /** …and the same library after the semantic pass — the map reclaims the focal and the rail carries the
  *  surface's one remaining door. */
-const ANALYSED: TrpcRoutes = {
+const ANALYSED: TrpcRoutes<"discovery.home" | "discovery.catalog"> = {
   ...UNANALYSED,
   "discovery.home": {
     coverage: { characters: 10, digests: 40, segments: 12 },
@@ -173,7 +184,7 @@ test("THE SURFACE'S ONE DOOR IS A CONTROL: a painted, bounded button (P1-3)", as
 // one led somewhere it could not deliver. Both are pinned as rendered affordances, in both arms.
 
 /** The rail's failure arm needs a viewer (rows are attributed to `sessions.me`) and a terminal pass row. */
-const FAILED_PASS: TrpcRoutes = {
+const FAILED_PASS: TrpcRoutes<"sessions.me" | "workloads.list"> = {
   ...ANALYSED,
   "sessions.me": { userId: "user_me", globalRole: "user", handle: "me" },
   "workloads.list": [
@@ -193,9 +204,9 @@ const FAILED_PASS: TrpcRoutes = {
 };
 
 /** The queue read itself DOWN — the state three of the five rail rows silently mis-reported (#1546). */
-const QUEUE_DOWN: TrpcRoutes = {
+const QUEUE_DOWN: TrpcRoutes<"workloads.list"> = {
   ...ANALYSED,
-  "workloads.list": (): unknown => trpcError({ message: "the queue is down" }),
+  "workloads.list": () => trpcError({ message: "the queue is down" }),
 };
 
 // ── A BROKEN RUN-HISTORY READ IS NOT FIVE PASSES THAT NEVER RAN (#1546) ──────────────────────────────
@@ -226,8 +237,10 @@ test("…and the rail says WHAT could not be read, with a retry that re-asks it 
   // WHAT THE STUB ANSWERS NEXT, as a PUSHED array rather than a boolean flip: biome narrows a
   // `= false` initializer to the literal type and reds the later flip as an always-falsy condition,
   // and the `: boolean` that would fix that is itself `noInferrableTypes`. Data, not a flag.
-  const answers: unknown[] = [trpcError({ message: "the queue is down" })];
-  await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...ANALYSED, "workloads.list": (): unknown => answers.at(-1) });
+  type WorkloadsAnswer = TrpcWireOutput<"workloads.list"> | ReturnType<typeof trpcError>;
+  const answers: WorkloadsAnswer[] = [trpcError({ message: "the queue is down" })];
+  const workloadsAnswer = (): WorkloadsAnswer => answers.at(-1) ?? [];
+  await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...ANALYSED, "workloads.list": workloadsAnswer });
   const component = await mount(<CorpusHomeDefaultPaneStory />);
   await expect(page.locator('[data-corpus-focal="familyMap"]')).toBeVisible();
 
@@ -468,7 +481,7 @@ for (const [phase, routes] of [
 // (packages/ui/src/primitives/virtual-list/virtual-list.tsx) — with the virtualizer's own viewport div in
 // between. This is the RENDERED check of that chain, because a source read cannot tell whether the
 // intervening node breaks the ownership: it asserts the roles the browser actually computes.
-const NEVER_PLAYED: TrpcRoutes = {
+const NEVER_PLAYED: TrpcRoutes<"discovery.unusedCharacters"> = {
   ...ANALYSED,
   "discovery.unusedCharacters": [
     { characterId: "character_imai", name: "Imai", avatarHash: null },
@@ -540,7 +553,7 @@ test("the pending corpus renders a skeleton composition, not a lone sentence (§
   expect(eyebrowWidth / paneWidth).toBeLessThan(SKELETON_EYEBROW_MAX_RATIO);
 
   // …and it gives way to the real surface when the reads land (the fallback is a fallback, not a state).
-  held.release((ANALYSED as Record<string, unknown>)["discovery.home"]);
+  held.release(ANALYSED["discovery.home"]);
   await expect(page.locator("[data-corpus-focal]")).toBeVisible();
 });
 
@@ -572,7 +585,7 @@ test("below-fold insights do not hold the settled corpus overview hostage (#269)
 // `workloads.list`, the rail falls back to its conservative "not run", and the defect is unreachable.
 // `CorpusHomeWarmQueueStory` primes the queue one tick earlier, which is what puts them in separate batches.
 /** A queue that has FINISHED the keyword pass — the state in which an empty keyword table is a real result. */
-const WARM_KEYWORD_QUEUE: TrpcRoutes = {
+const WARM_KEYWORD_QUEUE: TrpcRoutes<"workloads.list"> = {
   ...ANALYSED,
   "workloads.list": [
     {
@@ -627,7 +640,7 @@ const MANY_FAMILIES = Array.from({ length: 8 }, (_, i) => ({
 }));
 /** A library whose ISLAND is the tall column — eight family plates against a five-row rail, which is the
  *  shape that produced the audited void. */
-const TALL_ISLAND: TrpcRoutes = { ...ANALYSED, "discovery.visualArchetypes": MANY_FAMILIES };
+const TALL_ISLAND: TrpcRoutes<"discovery.visualArchetypes"> = { ...ANALYSED, "discovery.visualArchetypes": MANY_FAMILIES };
 // THE FIX THAT WAS TRIED HERE IS REVERSED, AND SO ARE ITS PINS (side-eye corpus re-pass #2, P2-1). Two
 // tests used to assert the rail's FOOT met the island's, which is what `flex-1` + `justify="between"` on the
 // stage stack bought. The re-pass measured what it cost: pitch 101/101/101/102px over rows whose ink is
@@ -785,7 +798,7 @@ const KEYWORDS = Array.from({ length: 50 }, (_, index) => ({ keyword: `keyword-$
 
 /** 30 routes, ONE of which reports a dollar cost. Generations and tokens are complete on all of them —
  *  which is the whole of [P1-1]: the section charted the one field its data does not carry. */
-const ROUTES = Array.from({ length: 30 }, (_, index) => ({
+const ROUTES: TrpcWireOutput<"discovery.modelRouting"> = Array.from({ length: 30 }, (_, index) => ({
   genre: `genre-${index % 5}`,
   model: `model-${index}`,
   provider: "local",
@@ -805,7 +818,7 @@ const UNUSED = Array.from({ length: 204 }, (_, index) => ({
 
 /** Three gems in the verb's RANK order (message volume × how long quiet) whose token totals ASCEND — the
  *  audited row 2, `567,106 · 597,739 · 629,696`, where the bars climb while the rank falls. */
-const GEMS = [
+const GEMS: TrpcWireOutput<"discovery.forgottenGems"> = [
   {
     characterId: "character_bess",
     name: "Mara",
@@ -813,7 +826,7 @@ const GEMS = [
     messageCount: 900,
     lastActiveAt: 1,
     tokensOut: 567_106,
-    tokensOutProvenance: "exact",
+    tokensOutProvenance: "measured",
     costUsd: null,
   },
   {
@@ -823,7 +836,7 @@ const GEMS = [
     messageCount: 800,
     lastActiveAt: 2,
     tokensOut: 597_739,
-    tokensOutProvenance: "exact",
+    tokensOutProvenance: "measured",
     costUsd: null,
   },
   {
@@ -833,25 +846,30 @@ const GEMS = [
     messageCount: 700,
     lastActiveAt: 3,
     tokensOut: 629_696,
-    tokensOutProvenance: "exact",
+    tokensOutProvenance: "measured",
     costUsd: null,
   },
 ];
 
 /** The audited workload history: a `distill-characters` crash, and a LATER successful run of the same kind
  *  two hours after it. `compute-themes` also succeeded — and produced zero themes. */
-const RUNS = [
+const RUNS: TrpcWireOutput<"workloads.list"> = [
   {
     id: "workload_distill_ok",
     kind: "distill-characters",
     status: "succeeded",
     ownerId: "user_me",
     mode: "singular",
+    lane: "sweep",
+    dependsOn: null,
     createdAt: 1_787_443_344_202,
+    updatedAt: 1_787_443_344_202,
+    scheduledAt: 1_787_443_344_202,
     params: {},
     progress: null,
     error: null,
     result: null,
+    poison: false,
   },
   {
     id: "workload_themes_ok",
@@ -859,11 +877,16 @@ const RUNS = [
     status: "succeeded",
     ownerId: "user_me",
     mode: "singular",
+    lane: "sweep",
+    dependsOn: null,
     createdAt: 1_787_431_820_258,
+    updatedAt: 1_787_431_820_258,
+    scheduledAt: 1_787_431_820_258,
     params: {},
     progress: null,
     error: null,
     result: null,
+    poison: false,
   },
   {
     id: "workload_distill_died",
@@ -871,15 +894,32 @@ const RUNS = [
     status: "worker_died",
     ownerId: "user_me",
     mode: "singular",
+    lane: "sweep",
+    dependsOn: null,
     createdAt: 1_787_436_170_285,
+    updatedAt: 1_787_436_170_285,
+    scheduledAt: 1_787_436_170_285,
     params: {},
     progress: null,
     error: "worker heartbeat went stale — row reaped",
     result: null,
+    poison: false,
   },
 ];
 
-const POPULATED: TrpcRoutes = {
+const POPULATED: TrpcRoutes<
+  | "discovery.home"
+  | "discovery.catalog"
+  | "discovery.visualArchetypes"
+  | "discovery.forgottenGems"
+  | "discovery.unusedCharacters"
+  | "discovery.modelRouting"
+  | "discovery.topKeywords"
+  | "discovery.themeDrift"
+  | "sessions.me"
+  | "settings.getUserSettings"
+  | "workloads.list"
+> = {
   "discovery.home": {
     coverage: { characters: CHARACTERS, digests: 2429, segments: 2026 },
     sceneThemes: [],

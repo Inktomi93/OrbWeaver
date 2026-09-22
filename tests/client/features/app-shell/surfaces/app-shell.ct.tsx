@@ -33,7 +33,8 @@ import type { Locator, Page } from "@playwright/test";
 import { MODAL_SLOT_IDS } from "../../../../../packages/client/src/state/modal-slot-ids.ts";
 import type { SectionId } from "../../../../../packages/client/src/state/section-ids.ts";
 import APPEARANCE_PRESET_FILE from "../../../../../tooling/src/_shared/appearance-presets.json" with { type: "json" };
-import { routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
+import type { TrpcFixtureOutput, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
+import { defineTrpcRoutes, routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { makeCharacterDetail, makeCharacterSummary } from "../../character/fixtures.ts";
 import { CHAT_ROOM_ROUTES, chatListResponder, makeChatSummary } from "../../chat/fixtures.ts";
 import { GrainDoublePaintFixture, OverArtGlassCensusFixture, ShellCascadeFixture } from "../_cascade-fixtures.tsx";
@@ -67,7 +68,7 @@ import {
  * the boot-veil tests' `trpcHold()` on it all still do exactly that).
  */
 const EMPTY_BANK_HEALTH = { byPhase: { embedding: 0, empty: 0, indexing: 0, ready: 0, stalled: 0 }, chunks: 0, passages: 0, total: 0 };
-const SHELL_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
+const SHELL_AMBIENT_ROUTES = defineTrpcRoutes({
   // The Settings section's LIST paints the four collection bands when a story lands on it — fed empty.
   "tag.listTagsWithUsage": [],
   "regex.listScripts": [],
@@ -77,7 +78,7 @@ const SHELL_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
   "sessions.me": { userId: "user_ct_shell", handle: "ct_shell", globalRole: "user" },
   // The viewer's settings row at the production defaults — the appearance/tier readers the shell root
   // resolves `data-theme`, `--font-scale` and `data-reduced-motion` from.
-  "settings.getUserSettings": { userId: "user_ct_shell", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 },
+  "settings.getUserSettings": { userId: "user_ct_shell", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, configUnreadable: null, updatedAt: 0 },
   // `PersonaDetail[]` — the You sheet's roster lens. Empty is the honest default for a fresh viewer.
   "persona.list": [],
   // Home's databank tile: the paged rows and the bank CENSUS beside them. BOTH or neither — an unstubbed
@@ -156,7 +157,7 @@ const SHELL_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
   "preset.list": [],
   "plugin.list": [],
   "plugin.listSurfaces": [],
-};
+});
 
 /** The thumb-reach budget (L6/J12): rendered mobile-bar buttons (`mobile: "tab"` sections + "You") must
  *  never exceed this — a def flipping to `mobile: "tab"` must not silently balloon the bar. */
@@ -1112,6 +1113,7 @@ for (const modalId of ["command", "you"] as const) {
           appearance: { ...DEFAULT_USER_SETTINGS.appearance, enableThemeColorization: false },
           theme: { ...DEFAULT_USER_SETTINGS.theme, selectedThemeId: COLORIZATION_THEME_ID },
         },
+        configUnreadable: null,
         updatedAt: 0,
       },
       "settings.getTheme": {
@@ -1192,6 +1194,7 @@ test("#935 a requested custom-light theme proves its rendered palette and effect
         ...DEFAULT_USER_SETTINGS,
         theme: { ...DEFAULT_USER_SETTINGS.theme, selectedThemeId: COLORIZATION_THEME_ID },
       },
+      configUnreadable: null,
       updatedAt: 0,
     },
     "settings.getTheme": {
@@ -1263,7 +1266,7 @@ for (const density of ["comfortable", "compact"] as const) {
   test(`#937 ${density}: a real portalled dialog inherits the shell's resolved density`, async ({ mount, page }) => {
     await routeTrpc(page, {
       ...SHELL_AMBIENT_ROUTES,
-      "character.list": [],
+      "character.list": { items: [], nextCursor: null, totalCount: 0 },
       "settings.getUserSettings": () => ({
         userId: `user_ct_shell_density_${density}`,
         schemaVersion: 1,
@@ -1271,6 +1274,7 @@ for (const density of ["comfortable", "compact"] as const) {
           ...DEFAULT_USER_SETTINGS,
           appearance: { ...DEFAULT_USER_SETTINGS.appearance, density },
         },
+        configUnreadable: null,
         updatedAt: 0,
       }),
     });
@@ -1313,19 +1317,21 @@ const DENSITY_THEME_CASES = [
 
 for (const densityCase of DENSITY_THEME_CASES) {
   test(`#938 ${densityCase.name}: resolved density wins symmetrically in the shell and its portal root`, async ({ mount, page }) => {
+    const settings = {
+      userId: `user_ct_shell_density_${densityCase.isSeed ? "seed" : "custom"}`,
+      schemaVersion: 1,
+      config: {
+        ...DEFAULT_USER_SETTINGS,
+        appearance: { ...DEFAULT_USER_SETTINGS.appearance, density: "comfortable" },
+        theme: { ...DEFAULT_USER_SETTINGS.theme, selectedThemeId: DENSITY_THEME_ID },
+      },
+      configUnreadable: null,
+      updatedAt: 0,
+    } satisfies TrpcWireOutput<"settings.getUserSettings">;
     await routeTrpc(page, {
       ...SHELL_AMBIENT_ROUTES,
-      "character.list": [],
-      "settings.getUserSettings": () => ({
-        userId: `user_ct_shell_density_${densityCase.isSeed ? "seed" : "custom"}`,
-        schemaVersion: 1,
-        config: {
-          ...DEFAULT_USER_SETTINGS,
-          appearance: { ...DEFAULT_USER_SETTINGS.appearance, density: "comfortable" },
-          theme: { ...DEFAULT_USER_SETTINGS.theme, selectedThemeId: DENSITY_THEME_ID },
-        },
-        updatedAt: 0,
-      }),
+      "character.list": { items: [], nextCursor: null, totalCount: 0 },
+      "settings.getUserSettings": () => settings,
       "settings.getTheme": {
         id: DENSITY_THEME_ID,
         name: densityCase.isSeed ? "Light" : "Custom",
@@ -1626,6 +1632,7 @@ test("mobile: the You tab opens the sheet; an overflow section routes and closes
       userId: "user_ct_you",
       schemaVersion: 1,
       config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, currentPersonaId: SHEET_PERSONA.id } },
+      configUnreadable: null,
       updatedAt: 0,
     }),
   });
@@ -1679,7 +1686,13 @@ test("mobile: the You sheet's Settings row switches to the config SECTION and cl
   await routeTrpc(page, {
     ...SHELL_AMBIENT_ROUTES,
     "persona.list": () => [],
-    "settings.getUserSettings": () => ({ userId: "user_ct_you_handoff", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 }),
+    "settings.getUserSettings": () => ({
+      userId: "user_ct_you_handoff",
+      schemaVersion: 1,
+      config: DEFAULT_USER_SETTINGS,
+      configUnreadable: null,
+      updatedAt: 0,
+    }),
   });
   const shell = await mount(<AppShellStory />);
   await shell.getByRole("button", { name: "You", exact: true }).click();
@@ -1721,7 +1734,13 @@ test.describe("the Refinery's phone door (coarse pointer)", () => {
     await routeTrpc(page, {
       ...SHELL_AMBIENT_ROUTES,
       "persona.list": () => [],
-      "settings.getUserSettings": () => ({ userId: "user_ct_refinery_door", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 }),
+      "settings.getUserSettings": () => ({
+        userId: "user_ct_refinery_door",
+        schemaVersion: 1,
+        config: DEFAULT_USER_SETTINGS,
+        configUnreadable: null,
+        updatedAt: 0,
+      }),
     });
     const shell = await mount(<AppShellStory />);
     await shell.getByRole("button", { name: "You", exact: true }).click();
@@ -1757,7 +1776,10 @@ const WIDE = { width: 1280, height: 900 }; // >64rem
 const ROOM_CHAT_ID = mintTypeId(ID_PREFIX.chat);
 /** ONE human seat and no other — the BG-C gate (`isSingleHumanRoom`): with a second human on the roster
  *  the carried source is inert for everyone and the test would pass against a broken shell. */
-const ROOM_HUMAN_SEAT = {
+type RoomParticipant = TrpcWireOutput<"chat.getChat">["participants"][number];
+type RoomBackground = NonNullable<TrpcWireOutput<"chat.getChat">["background"]>;
+
+const ROOM_HUMAN_SEAT: RoomParticipant = {
   id: "participant_ct_bg",
   chatId: ROOM_CHAT_ID,
   kind: "human",
@@ -1779,7 +1801,7 @@ const ROOM_HUMAN_SEAT = {
 /** The room's own chat-SET background (the cascade's first arm). `asset` + a stored hash is the ONLY kind
  *  that resolves to a paintable URL at all since `kind:"seeded"` retired (2026-09-18); `image/*` keeps it
  *  off the video layer. */
-const ROOM_BACKGROUND = {
+const ROOM_BACKGROUND: RoomBackground = {
   kind: "asset",
   externalUrl: "",
   provenanceUrl: "",
@@ -1998,6 +2020,7 @@ test("#375 Reading derives the context crossover from the resolved pane geometry
       userId: "user_ct_shell_reading_primacy",
       schemaVersion: 1,
       config: { ...DEFAULT_USER_SETTINGS, appearance: READING_APPEARANCE },
+      configUnreadable: null,
       updatedAt: 0,
     }),
   });
@@ -2081,7 +2104,7 @@ const TOPBAR_IDENTITY_ROOM = {
       leftSeq: null,
     },
   ],
-};
+} satisfies TrpcFixtureOutput<"chat.getChat">;
 
 interface TopbarIdentityReadout {
   readonly title: boolean;
@@ -2339,6 +2362,7 @@ for (const profileName of APPEARANCE_PROFILE_NAMES) {
         userId: `user_ct_shell_primacy_${profileName}`,
         schemaVersion: 1,
         config: { ...DEFAULT_USER_SETTINGS, appearance },
+        configUnreadable: null,
         updatedAt: 0,
       }),
     });
@@ -3673,6 +3697,7 @@ test("#2442 at fontScale 1.25 the docking counter is the box's CLAMPED delta, no
       userId: "user_ct_shell_track_scale",
       schemaVersion: 1,
       config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, fontScale: 1.25 } },
+      configUnreadable: null,
       updatedAt: 0,
     }),
   });
@@ -4069,6 +4094,7 @@ test("#2456 both doors hold their boxes at rem 20, where the reading cap binds o
       userId: "user_ct_shell_doors_scale",
       schemaVersion: 1,
       config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, fontScale: 1.25 } },
+      configUnreadable: null,
       updatedAt: 0,
     }),
   });
@@ -4221,6 +4247,7 @@ test("#2474 the exit width holds at rem 20, where the clamp and the squeeze have
       userId: "user_ct_shell_list_exit_scale",
       schemaVersion: 1,
       config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, fontScale: 1.25 } },
+      configUnreadable: null,
       updatedAt: 0,
     }),
   });
@@ -4565,7 +4592,10 @@ test("#176 full motion: the section swap captures the CONTENT pane only — the 
 // the old hook and fails on it.
 test("#170 a chat's carried background paints in the chats section and is GONE the moment another section is active", async ({ mount, page }) => {
   await page.setViewportSize(WIDE);
-  await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "chat.getChat": { participants: [ROOM_HUMAN_SEAT], background: ROOM_BACKGROUND } });
+  await routeTrpc(page, {
+    ...SHELL_AMBIENT_ROUTES,
+    "chat.getChat": { participants: [ROOM_HUMAN_SEAT], background: ROOM_BACKGROUND } satisfies TrpcFixtureOutput<"chat.getChat">,
+  });
   // The room pointer as a real boot has it: in localStorage BEFORE any module runs, so the shell's first
   // render reads it (the store rehydrates synchronously — see the boot test below). An effect-seeded
   // pointer would be one commit late and could not pin first-paint behaviour.
@@ -5743,6 +5773,7 @@ test("chatWidthPct stamps a real rendered max-width on a --width-shell-content c
         ...DEFAULT_USER_SETTINGS,
         appearance: { ...DEFAULT_USER_SETTINGS.appearance, chatWidthPct },
       },
+      configUnreadable: null,
       updatedAt: 0,
     }),
   });
@@ -5794,6 +5825,7 @@ test("#1204 the chat-width dial's clamp: the floor binds below the crossover, ha
       userId: "user_ct_shell_dial_matrix",
       schemaVersion: 1,
       config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, chatWidthPct: DIAL_MATRIX_PCT } },
+      configUnreadable: null,
       updatedAt: 0,
     }),
   });
@@ -5836,6 +5868,7 @@ test("fontScale stamps a real rendered <html> font-size (UA root × fontScale)",
         ...DEFAULT_USER_SETTINGS,
         appearance: { ...DEFAULT_USER_SETTINGS.appearance, fontScale },
       },
+      configUnreadable: null,
       updatedAt: 0,
     }),
   });
@@ -5872,6 +5905,7 @@ test("#188 the app's reduced-motion pref floors an animation OUTSIDE the shell g
         ...DEFAULT_USER_SETTINGS,
         appearance: { ...DEFAULT_USER_SETTINGS.appearance, reducedMotion: true },
       },
+      configUnreadable: null,
       updatedAt: 0,
     }),
   });
@@ -7188,18 +7222,16 @@ const CHARACTERS_PHONE_ARMS = [320, 390] as const;
 /** The routes the Characters plane needs on top of the shell's own ambient set. `character.get` is fed
  *  because the #520 half of the trail pin OPENS her - the editor beside the list is a real read, and an
  *  unfed one leaves that pipeline inert while this file claims to have driven a selection. */
-function charactersPlaneRoutes(): Readonly<Record<string, unknown>> {
-  return {
-    ...SHELL_AMBIENT_ROUTES,
-    "chat.listChats": chatListResponder([]),
-    "character.list": { items: [makeCharacterSummary({ id: "char_phone", name: "Starla" })], nextCursor: null, totalCount: 1 },
-    "character.get": makeCharacterDetail({ id: "char_phone", name: "Starla" }),
-    // The editor's own two ambient reads, fed empty: opening her is half the #520 pin, and an unfed read
-    // leaves those pipelines inert while this file claims to have driven a selection.
-    "tag.listPendingSuggestions": [],
-    "regex.listForCharacter": [],
-  };
-}
+const CHARACTERS_PLANE_ROUTES = defineTrpcRoutes({
+  ...SHELL_AMBIENT_ROUTES,
+  "chat.listChats": chatListResponder([]),
+  "character.list": { items: [makeCharacterSummary({ id: "char_phone", name: "Starla" })], nextCursor: null, totalCount: 1 },
+  "character.get": makeCharacterDetail({ id: "char_phone", name: "Starla" }),
+  // The editor's own two ambient reads, fed empty: opening her is half the #520 pin, and an unfed read
+  // leaves those pipelines inert while this file claims to have driven a selection.
+  "tag.listPendingSuggestions": [],
+  "regex.listForCharacter": [],
+});
 
 /** Her LIST row, addressed inside the list pane. The CONTENT pane's landing shelves offer a button with the
  *  same accessible name, so an unscoped `getByRole` is two elements on the desktop arm. */
@@ -7221,7 +7253,7 @@ test.describe("#1669 the Characters plane's phone chrome", () => {
     test(`at ${String(width)}px coarse the LIST band is shed and the chrome above the first row holds its budget`, async ({ mount, page }) => {
       await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
       await page.setViewportSize({ width, height: 740 });
-      await routeTrpc(page, charactersPlaneRoutes());
+      await routeTrpc(page, CHARACTERS_PLANE_ROUTES);
       const shell = await mount(<AppShellOnSectionStory section="characters" />);
       await expect(starlaRow(page)).toBeVisible();
 
@@ -7236,7 +7268,7 @@ test.describe("#1669 the Characters plane's phone chrome", () => {
     test(`at ${String(width)}px coarse the band's two doors are on the TOPBAR TRAIL, and only while the list is the screen`, async ({ mount, page }) => {
       await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
       await page.setViewportSize({ width, height: 740 });
-      await routeTrpc(page, charactersPlaneRoutes());
+      await routeTrpc(page, CHARACTERS_PLANE_ROUTES);
       await mount(<AppShellOnSectionStory section="characters" />);
       await expect(starlaRow(page)).toBeVisible();
 
@@ -7266,7 +7298,7 @@ test.describe("#1669 the Characters plane's phone chrome", () => {
 // keeps its cluster and the trail carries no section primary at all.
 test("#1669 @desktop: the Characters LIST band keeps its own doors and the topbar trail carries none", async ({ mount, page }) => {
   await page.setViewportSize(WIDE);
-  await routeTrpc(page, charactersPlaneRoutes());
+  await routeTrpc(page, CHARACTERS_PLANE_ROUTES);
   await mount(<AppShellOnSectionStory section="characters" />);
   await expect(starlaRow(page)).toBeVisible();
 

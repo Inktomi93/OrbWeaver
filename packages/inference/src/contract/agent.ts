@@ -9,14 +9,6 @@ import type { Resolved } from "./resolved.ts";
 /** The core treats it as opaque; the agent-sdk backend narrows it to its MCP server-config-with-instance. */
 export type AgentToolServer = unknown;
 
-/** An agent turn is non-interactive — there is no human to answer, so every dialog kind fails closed. */
-export const AGENT_DIALOG_KINDS = ["elicitation", "refusal_fallback_prompt"] as const;
-/** @public future: the unbuilt agent-principal dialog handling (D60 — agents are the model of record but NOT
- *  BUILT; only dormant DDL survives) — the member type of `AGENT_DIALOG_KINDS`, whose tuple is same-package-only
- *  (apisurface INTERNAL), so this is a kept future surface, not a twin. Carried over from the pre-extraction
- *  home (`packages/server/src/infra/providers/contract/agent.ts`), where the marker was dropped in the move. */
-export type AgentDialogKind = (typeof AGENT_DIALOG_KINDS)[number];
-
 /** SDK-free external MCP server spec the caller may attach. SECURITY: egress/subprocess capability — the
  *  caller owns authorization; this contract only names the concern. */
 export interface AgentMcpStdioServer {

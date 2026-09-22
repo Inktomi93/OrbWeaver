@@ -20,6 +20,7 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { MESSAGE_ACTIONS_MENU_NAME } from "../../../../../packages/client/src/features/chat/lib/message-action-names.ts";
+import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { MessageRowStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES } from "../fixtures.ts";
@@ -53,7 +54,7 @@ const WIRE_DATA = {
   macroDraws: null,
   rawContent: null,
   macroFreezes: null,
-};
+} satisfies TrpcWireOutput<"chat.getVariantWire">;
 
 /** The FREEZE-PROVENANCE arms (#1032) — the three fields the dialog never destructured. Kept separate from
  *  `WIRE_DATA` so the default stub stays the "nothing nondeterministic happened" case and each pin opts in. */
@@ -65,7 +66,7 @@ const WIRE_DATA_WITH_PROVENANCE = {
     { name: "time", value: "dusk" },
   ],
   rawContent: "The dice said {{roll::2d6}} and it was {{time}}.",
-};
+} satisfies TrpcWireOutput<"chat.getVariantWire">;
 
 /** The A3 action cluster rests `opacity-0 pointer-events-none` and reveals on hover/focus-within; these
  *  tests care about the wire seam, not the CSS variant, so they force the revealed+interactive state inline

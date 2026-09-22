@@ -12,6 +12,7 @@ import type { MessageId, MessageVariantId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { VARIANT_GENERATE_NAME, VARIANT_NEXT_NAME, VARIANT_PREV_NAME } from "../../../../../packages/client/src/features/chat/lib/message-action-names.ts";
+import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { SwipeStripStory } from "../_ct-stories.tsx";
 import { makeMessageView } from "../fixtures.ts";
@@ -46,10 +47,11 @@ const backAtIdx0Of2: MessageView = makeMessageView({
   selectedVariantIdx: 0,
   selectedVariantId: VARIANT_0,
 });
+const EMPTY_TURN = { messages: [], aborted: false } satisfies TrpcWireOutput<"chat.swipe">;
 
 test("renders the n/m counter and fires swipe (generate) on the next chevron at the tip", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
-    "chat.swipe": () => ({ ok: true }),
+    "chat.swipe": () => EMPTY_TURN,
     "chat.listMessageVariants": () => TWO_VARIANT_LIST,
   });
 
@@ -131,7 +133,7 @@ test("#849: the single-variant generate control carries a VISIBLE label, not a b
 
 test("COLD LOAD step-BACK: the left chevron reaches an earlier variant this mount has never rendered", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
-    "chat.selectVariant": () => ({ ok: true }),
+    "chat.selectVariant": () => backAtIdx0Of2,
     "chat.listMessageVariants": () => TWO_VARIANT_LIST,
   });
 
@@ -157,8 +159,8 @@ test("COLD LOAD step-BACK: the left chevron reaches an earlier variant this moun
 
 test("COLD LOAD step-FORWARD: the right chevron selects an already-generated sibling this mount has never rendered", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
-    "chat.selectVariant": () => ({ ok: true }),
-    "chat.swipe": () => ({ ok: true }),
+    "chat.selectVariant": () => backAtIdx0Of2,
+    "chat.swipe": () => EMPTY_TURN,
     "chat.listMessageVariants": () => TWO_VARIANT_LIST,
   });
 
@@ -189,8 +191,8 @@ test("COLD LOAD step-FORWARD: the right chevron selects an already-generated sib
 // two tests are a PAIR — the second is what stops a later "fix the other end for consistency".
 test("#1874: at 1 / X the back chevron WRAPS to the last variant instead of sitting dead", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
-    "chat.selectVariant": () => ({ ok: true }),
-    "chat.swipe": () => ({ ok: true }),
+    "chat.selectVariant": () => backAtIdx0Of2,
+    "chat.swipe": () => EMPTY_TURN,
     "chat.listMessageVariants": () => TWO_VARIANT_LIST,
   });
 
@@ -209,8 +211,8 @@ test("#1874: at 1 / X the back chevron WRAPS to the last variant instead of sitt
 
 test("#1874: the FORWARD edge still generates at the tip — the wrap is back-only", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
-    "chat.selectVariant": () => ({ ok: true }),
-    "chat.swipe": () => ({ ok: true }),
+    "chat.selectVariant": () => backAtIdx0Of2,
+    "chat.swipe": () => EMPTY_TURN,
     "chat.listMessageVariants": () => TWO_VARIANT_LIST,
   });
 
@@ -225,7 +227,7 @@ test("#1874: the FORWARD edge still generates at the tip — the wrap is back-on
 
 test("ArrowRight/ArrowLeft drive the same navigation as the chevrons", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
-    "chat.swipe": () => ({ ok: true }),
+    "chat.swipe": () => EMPTY_TURN,
     "chat.listMessageVariants": () => TWO_VARIANT_LIST,
   });
 
@@ -258,7 +260,7 @@ test("ArrowRight/ArrowLeft drive the same navigation as the chevrons", async ({ 
 
 test("ArrowLeft/ArrowRight are ignored while an editable control has focus (don't fight typing)", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
-    "chat.swipe": () => ({ ok: true }),
+    "chat.swipe": () => EMPTY_TURN,
     "chat.listMessageVariants": () => TWO_VARIANT_LIST,
   });
 

@@ -8,7 +8,7 @@ import type { ConnectionPorts } from "../contract/service.ts";
 import { lookupBinding } from "./bindings.ts";
 import { createSnapshotStore } from "./catalog-snapshot.ts";
 import { fetchConnectionById, listOwnedConnections } from "./connections.ts";
-import { deleteProviderRow, listProviderRows, putProviderRow } from "./provider-rows.ts";
+import { deleteAdminProviderRow, deletePluginProviderRows, listProviderRows, putAdminProviderRow, replacePluginProviderRows } from "./provider-rows.ts";
 
 export function createConnectionPorts(deps: { readonly db: Db; readonly now: () => number }): ConnectionPorts {
   const { db, now } = deps;
@@ -22,8 +22,10 @@ export function createConnectionPorts(deps: { readonly db: Db; readonly now: () 
     },
     providerStore: {
       list: () => listProviderRows(db),
-      put: (row, origin) => putProviderRow(db, row, origin, now()),
-      remove: (id) => deleteProviderRow(db, id),
+      putAdmin: (row, admin) => putAdminProviderRow(db, row, admin, now()),
+      removeAdmin: (id) => deleteAdminProviderRow(db, id),
+      replacePlugin: (rows, pluginId) => replacePluginProviderRows(db, rows, pluginId, now()),
+      removePlugin: (pluginId) => deletePluginProviderRows(db, pluginId),
     },
     snapshotStore: createSnapshotStore(db, now),
   };

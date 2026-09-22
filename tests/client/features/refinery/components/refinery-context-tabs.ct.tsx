@@ -13,7 +13,7 @@ import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { testId } from "../../../../../packages/client/src/lib/test-ids.ts";
-import type { TrpcRoutes } from "../../../../support/node/route-trpc.ts";
+import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { makeCharacterDetail } from "../../character/fixtures.ts";
 import { RefineryDoorStory, RunsTabBodyStory, SetupTabBodyStory, VersionsTabBodyStory } from "../_ct-stories.tsx";
@@ -38,7 +38,9 @@ const SCORE_SCHEMA = {
 
 /** The session's SCORE stage is on a CUSTOM schema (so the Score row opens the editor to EDIT it); ANALYZE
  *  is fixed (so the Analyze row authors a NEW one — the two verbs the drive found unreachable). */
-function sessionView(): unknown {
+type RefinerySessionView = NonNullable<TrpcWireOutput<"refinery.getSession">>;
+
+function sessionView(): RefinerySessionView {
   return {
     id: SESSION_ID,
     characterId: CHARACTER_ID,
@@ -58,7 +60,15 @@ function sessionView(): unknown {
   };
 }
 
-function schemaLibrary(): unknown[] {
+function sessionWithSelection(fields: RefinerySessionView["selection"]["fields"]): RefinerySessionView {
+  return { ...sessionView(), selection: { fields } };
+}
+
+function sessionWithGuidance(guidance: string): RefinerySessionView {
+  return { ...sessionView(), guidance };
+}
+
+function schemaLibrary(): TrpcWireOutput<"refinery.listSchemas"> {
   return [
     {
       id: SCORE_SCHEMA_ID,
@@ -73,7 +83,7 @@ function schemaLibrary(): unknown[] {
   ];
 }
 
-function preflight(): unknown {
+function preflight(): TrpcWireOutput<"refinery.preflight"> {
   return {
     contextTokens: 8000,
     stages: (["score", "rewrite", "analyze"] as const).map((stage) => ({
@@ -87,12 +97,12 @@ function preflight(): unknown {
   };
 }
 
-function baseRoutes(): TrpcRoutes {
+function baseRoutes(): TrpcRoutes<"refinery.getSession" | "refinery.preflight" | "refinery.listSchemas" | "character.get"> {
   return {
     "refinery.getSession": sessionView,
     "refinery.preflight": preflight,
     "refinery.listSchemas": schemaLibrary,
-    "character.get": (): unknown => CARD,
+    "character.get": () => CARD,
   };
 }
 
@@ -189,7 +199,7 @@ test("#171 — no Setup row ends in pointer prose, and every row either affords 
 });
 
 test("#171 — the Scope door OPENS the workbench's own scope editor (the one home), not a second one in this pane", async ({ mount, page }) => {
-  await routeTrpc(page, { ...baseRoutes(), "refinery.listRuns": (): readonly unknown[] => [] });
+  await routeTrpc(page, { ...baseRoutes(), "refinery.listRuns": () => [] });
   await mount(<RefineryDoorStory characterId={CHARACTER_ID} sessionId={SESSION_ID} />);
   const setup = page.getByTestId(testId("refinerySetupTab"));
   await expect(setup).toBeVisible();
@@ -205,7 +215,7 @@ test("#171 — the Scope door OPENS the workbench's own scope editor (the one ho
 });
 
 test("#171 — the Guidance door FOCUSES the run bar's textarea, which is guidance's one editing home", async ({ mount, page }) => {
-  await routeTrpc(page, { ...baseRoutes(), "refinery.listRuns": (): readonly unknown[] => [] });
+  await routeTrpc(page, { ...baseRoutes(), "refinery.listRuns": () => [] });
   await mount(<RefineryDoorStory characterId={CHARACTER_ID} sessionId={SESSION_ID} />);
   const setup = page.getByTestId(testId("refinerySetupTab"));
   await expect(setup).toBeVisible();
@@ -229,7 +239,7 @@ test("PROMPT FIT is not restated here — the per-stage budget lives beside the 
 });
 
 test("the LEDGER's own Run score is the quiet twin — the loud one belongs to the work pane (§14)", async ({ mount, page }) => {
-  await routeTrpc(page, { ...baseRoutes(), "refinery.listRuns": (): unknown[] => [] });
+  await routeTrpc(page, { ...baseRoutes(), "refinery.listRuns": () => [] });
   await mount(<RunsTabBodyStory characterId={CHARACTER_ID} sessionId={SESSION_ID} />);
 
   // THE DEFECT: "Run score" existed twice on one screen and the FILLED one was HERE, in the pane that
@@ -246,7 +256,7 @@ test("the LEDGER's own Run score is the quiet twin — the loud one belongs to t
 test("the scope readout speaks the user's words, never the wire's field names", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...baseRoutes(),
-    "refinery.getSession": (): unknown => ({ ...(sessionView() as object), selection: { fields: ["exampleMessages", "creatorNotes"] } }),
+    "refinery.getSession": () => sessionWithSelection(["exampleMessages", "creatorNotes"]),
   });
   await mount(<SetupTabBodyStory characterId={CHARACTER_ID} sessionId={SESSION_ID} />);
   const setup = page.getByTestId(testId("refinerySetupTab"));
@@ -262,7 +272,7 @@ test("the scope readout speaks the user's words, never the wire's field names", 
 test("Setup says guidance is IN FORCE — it does not reprint the sentence the workbench holds", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...baseRoutes(),
-    "refinery.getSession": (): unknown => ({ ...(sessionView() as object), guidance: GUIDANCE_TEXT }),
+    "refinery.getSession": () => sessionWithGuidance(GUIDANCE_TEXT),
   });
   await mount(<SetupTabBodyStory characterId={CHARACTER_ID} sessionId={SESSION_ID} />);
   const setup = page.getByTestId(testId("refinerySetupTab"));
@@ -300,6 +310,45 @@ test("the Setup tab reaches EDITING a saved schema — the update verb had no do
   await rowChangeButton(page, "Score schema").click();
   await expect(page.getByText('Edit "Vividness scorer"', { exact: true })).toBeVisible();
   await expect(page.getByText('"x-orb-ui"')).toBeVisible();
+});
+
+test("an edited library schema deletes only after a named destructive confirmation, then reports success and closes", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, { ...baseRoutes(), "refinery.deleteSchema": (): null => null });
+  await mount(<SetupTabBodyStory characterId={CHARACTER_ID} sessionId={SESSION_ID} />);
+
+  await expect(page.getByTestId(testId("refinerySetupTab"))).toBeVisible();
+  await rowChangeButton(page, "Score schema").click();
+  await expect(page.getByText('Edit "Vividness scorer"', { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Delete schema" }).click();
+  await expect(page.getByRole("heading", { name: 'Delete "Vividness scorer"?' })).toBeVisible();
+  await expect(page.getByText(/Past refinery runs keep their embedded results/)).toBeVisible();
+  await expect.poll(() => trpc.count("refinery.deleteSchema")).toBe(0);
+
+  await page.getByRole("button", { name: "Delete", exact: true }).click();
+  await expect.poll(() => trpc.lastInput("refinery.deleteSchema")).toEqual({ schemaId: SCORE_SCHEMA_ID });
+  // SETTLED rendered outcome: the mutation resolved, the nested confirm and editor both closed, and the
+  // real app toast surface reports which library row left. A wire count alone is not a browser barrier.
+  await expect(page.locator('[data-slot="toast-root"]')).toContainText("Deleted “Vividness scorer”.");
+  await expect(page.getByText('Edit "Vividness scorer"', { exact: true })).toHaveCount(0);
+});
+
+test("a failed schema delete keeps its confirmation open with the server reason and the hook's error feedback", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...baseRoutes(),
+    "refinery.deleteSchema": () => trpcError({ message: "That schema is already gone." }),
+  });
+  await mount(<SetupTabBodyStory characterId={CHARACTER_ID} sessionId={SESSION_ID} />);
+
+  await expect(page.getByTestId(testId("refinerySetupTab"))).toBeVisible();
+  await rowChangeButton(page, "Score schema").click();
+  await page.getByRole("button", { name: "Delete schema" }).click();
+  await page.getByRole("button", { name: "Delete", exact: true }).click();
+
+  await expect(page.locator('[data-slot="confirm-dialog-failure"]')).toContainText("That schema is already gone.");
+  await expect(page.locator('[data-slot="toast-root"]')).toContainText("Couldn't delete that schema.");
+  await expect(page.getByRole("heading", { name: 'Delete "Vividness scorer"?' })).toBeVisible();
+  await expect(page.getByText('Edit "Vividness scorer"', { exact: true })).toBeVisible();
 });
 
 // ── #1500 · "NO VERSIONS YET" IS A CLAIM ABOUT THE SNAPSHOT LOG ──────────────────────────────────

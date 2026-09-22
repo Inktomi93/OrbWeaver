@@ -121,22 +121,13 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
       "the analyzer stops mis-reading this shape — an upgrade whose `@typescript-eslint/no-unnecessary-condition` understands it — or the last governed source site under the rule disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
   },
   {
-    id: "suppressions:tests-format",
-    policyId: "suppressions",
-    subject: "format",
-    operation: "tests",
-    why: 'RULING — the same one-line-blob ruling the source table already carries, in its test form: `tests/server/domain/export/_support.ts:28` states "keep the blob on one line so the noSecrets suppression attaches to it", and a formatter wrap would move the base64 avatar onto lines the SECOND suppression no longer covers. Unratified before 2026-09-12 only because RATIFIED_TEST_RULES was never extended, never because anyone judged it debt.',
-    endsWhen:
-      "the export fixture stops embedding a base64 blob, or the formatter stops wrapping it; either way this row is consumed zero times and reds as a stale reviewed grant.",
-  },
-  {
     id: "suppressions:tests-lint-correctness-no-process-global",
     policyId: "suppressions",
     subject: "lint/correctness/noProcessGlobal",
     operation: "tests",
-    why: "RULING — a `vi.hoisted` setup body runs before the file's own `node:process` import binds, so the global is the only handle the hoisted setup has (Carried VERBATIM from the legacy RATIFIED_TEST_RULES table at 02382639e; 5 live site(s) under governed tests at conversion.)",
+    why: "RULING — a `vi.hoisted` setup body runs before the file's own `node:process` import binds, so the ambient global is the only process handle available inside that pre-import body.",
     endsWhen:
-      "the ruling itself is reversed, or the last governed tests site under `lint/correctness/noProcessGlobal` disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
+      "the remaining hoisted setup bodies no longer need process, or their runner provides an explicit process handle that is safe before imports bind.",
   },
   {
     id: "suppressions:tests-lint-correctness-use-unique-element-ids",
@@ -156,6 +147,15 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
       "CodeMirror 6 exposes an observable post-interaction state, the stability traces move to a rendered settle signal, and the tracing control gains a DOM condition — at which point every site converts to a barrier and this row is consumed zero times.",
   },
   {
+    id: "suppressions:tests-lint-nursery-use-explicit-return-type",
+    policyId: "suppressions",
+    subject: "lint/nursery/useExplicitReturnType",
+    operation: "tests",
+    why: "RULING — the local agent-seed factory is checked against the production client parameter with `satisfies`, while an inferred return preserves each `vi.fn` mock's exact call signature for assertions; annotating the factory with the broad client port would erase those mock members.",
+    endsWhen:
+      "the factory can spell a return type that both satisfies the production client port and preserves the exact `vi.fn` call signatures used by its assertions.",
+  },
+  {
     id: "suppressions:tests-lint-nursery-use-nullish-coalescing",
     policyId: "suppressions",
     subject: "lint/nursery/useNullishCoalescing",
@@ -173,14 +173,6 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
       "drizzle-kit takes an explicit table list, the parity comparator derives its denominator from a generated manifest, and `vi.spyOn` is replaced by injection at the agent-nav seam.",
   },
   {
-    id: "suppressions:tests-lint-style-no-non-null-assertion",
-    policyId: "suppressions",
-    subject: "lint/style/noNonNullAssertion",
-    operation: "tests",
-    why: 'RULING — the assertion states what the LINE ABOVE proved, which is verbatim the source table\'s own ruling for this rule ("the index is bound-proved one line above; the assertion states what the loop guarantees"). One live site after the 2026-09-12 burn-down: `tests/server/domain/rpg/contract/service.int.test.ts:46`, "asserted non-null above", where the mutation-rejection arm reaches through a shape a preceding assertion already pinned. THE OTHER THREE SITES IN THIS CLASS WERE FIXED, NOT GRANTED — `tests/server/domain/chat/wire-capture-fidelity.suite.int.test.ts:275,289,313` claimed "the backend always implements runChatTurn", which is a claim about the runtime the type deliberately does not make; they now go through a `requireRunChatTurn` guard that throws by name.',
-    endsWhen: "the rpg contract suite reaches its mutation target through a narrowed handle rather than re-asserting a proved shape.",
-  },
-  {
     id: "suppressions:tests-lint-style-no-process-env",
     policyId: "suppressions",
     subject: "lint/style/noProcessEnv",
@@ -194,7 +186,7 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
     policyId: "suppressions",
     subject: "lint/style/useNamingConvention",
     operation: "tests",
-    why: "RULING — the fixture mirrors a FOREIGN wire (ST cards/chats/settings, OpenAI-compatible bodies, OIDC claims, SDK frames, env keys) — the snake_case/CONSTANT key IS the format under test; renaming forks the fixture from the wire (Carried VERBATIM from the legacy RATIFIED_TEST_RULES table at 02382639e; 119 live site(s) under governed tests at conversion.)",
+    why: "RULING — the fixture mirrors an exact external or canonical serialized/protocol key (including wire fields, environment names, persisted JSON keys, and repo-owned discriminants); its snake_case or CONSTANT spelling is the format under test, so renaming forks the fixture from the contract.",
     endsWhen:
       "the ruling itself is reversed, or the last governed tests site under `lint/style/useNamingConvention` disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
   },
@@ -212,7 +204,7 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
     policyId: "suppressions",
     subject: "lint/suspicious/noBitwiseOperators",
     operation: "tests",
-    why: "RULING — an INDEPENDENT reference codec (a textbook CRC-32, hand-crafted zip/PNG bytes) written in the operators that define it — the test proves the shipped codec against a second implementation (Carried VERBATIM from the legacy RATIFIED_TEST_RULES table at 02382639e; 6 live site(s) under governed tests at conversion.)",
+    why: "RULING — specification-defined codecs, byte mutations, and bit masks (including POSIX permission masks) are written in the bitwise operators that define them; these fixtures exercise that exact representation.",
     endsWhen:
       "the ruling itself is reversed, or the last governed tests site under `lint/suspicious/noBitwiseOperators` disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
   },
@@ -221,9 +213,9 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
     policyId: "suppressions",
     subject: "lint/suspicious/noExplicitAny",
     operation: "tests",
-    why: "RULING — deliberately off-schema / hostile input pushed PAST the wire type to prove the runtime boundary refuses it — the `any` is the test's instrument, never a value the code under test owns (Carried VERBATIM from the legacy RATIFIED_TEST_RULES table at 02382639e; 29 live site(s) under governed tests at conversion.)",
+    why: "RULING — `any` remains where it is the test instrument (deliberately off-schema hostile input proving runtime refusal, or Vitest's declaration-compatible `Matchers<T = any>` default), plus two exact structural-fake exceptions. `buildAgentNav` accepts the full generated `TRPCOptionsProxy`, while its test constructs only four query-option branches; `buildAgentRpg` accepts the full generated `TrpcClient`, while its test constructs four RPG reads with intentionally partial response views. These fixtures are ordinary typing debt, not hostile input, and stay explicit until the production builders expose their real narrow read ports.",
     endsWhen:
-      "the ruling itself is reversed, or the last governed tests site under `lint/suspicious/noExplicitAny` disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
+      "the hostile-input tests gain a typed unsafe-input helper, Vitest's matcher declaration no longer requires its `any`-compatible generic default, and `buildAgentNav` plus `buildAgentRpg` narrow their dependencies to testable ports their structural fakes can satisfy without casts.",
   },
   {
     id: "suppressions:tests-lint-suspicious-no-misplaced-assertion",
@@ -255,8 +247,8 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
     policyId: "suppressions",
     subject: "lint/suspicious/useAwait",
     operation: "tests",
-    why: 'RULING — an async signature is a CONTRACT here, not an oversight, which is the source table\'s own `useAwait` ruling ("a buffered replay generator has nothing to await but must remain async to implement the AsyncIterable contract"). `tests/server/infra/storage/zip.int.test.ts:49`: "this is the lazy async producer contract packZip consumes; yielding 50k entries must not preallocate an array." `tests/support/tool-fixtures.ts:50`: "vitest\'s fixture signature is async; the value is a constant." In both, dropping `async` breaks the consumer\'s type.',
-    endsWhen: "`packZip` accepts a synchronous iterable and vitest's fixture signature admits a non-async provider.",
+    why: "RULING — the buffered replay generator has nothing to await but must remain async to implement the `AsyncIterable` contract consumed by `packZip`; its lazy 50k-entry producer must not preallocate an array.",
+    endsWhen: "`packZip` accepts a synchronous iterable or the numbered-entry fixture no longer implements its lazy `AsyncIterable` producer.",
   },
   {
     id: "suppressions:tests-lint-suspicious-use-error-message",

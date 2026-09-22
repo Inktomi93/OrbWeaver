@@ -33,6 +33,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeOrbSocket } from "../../../../support/node/route-orb-socket.ts";
+import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { STREAM_MUTATION_ROUTES } from "../../../data/bus/fixtures.ts";
 import { BundleWorkloadTrackerStory } from "../_ct-stories.tsx";
@@ -43,24 +44,23 @@ const GONE_ID = "workload_ct_gone";
 const LIVE_ID = "workload_ct_live";
 
 /** A finished bundle row in the `workloads.get` wire shape (`WorkloadRowAnyKind`), succeeded with counts. */
-const SUCCEEDED_ROW: Readonly<Record<string, unknown>> = {
+const SUCCEEDED_ROW = {
   id: LIVE_ID,
   kind: "import-bundle",
   status: "succeeded",
   mode: "singular",
-  source: "all",
   lane: "interactive",
   ownerId: "user_ct_tracker",
   dependsOn: null,
   error: null,
   progress: null,
-  poison: false,
   scheduledAt: 1_750_000_000_000,
   createdAt: 1_750_000_000_000,
   updatedAt: 1_750_000_000_000,
-  params: {},
-  result: { imported: 3, skipped: 0, failed: 0 },
-};
+  params: { token: "bundle-ct.zip" },
+  result: { imported: 3, skipped: 0, failed: 0, notes: [] },
+  poison: false,
+} satisfies TrpcWireOutput<"workloads.get">;
 
 /** Requests recorded for ONE workload id — `workloads.get` is one procedure for both trackers, so the
  *  per-tracker count is a filter over the recorder's decoded inputs, never `trpc.count`. */
@@ -102,7 +102,7 @@ test("B — a read that FAILS after teardown schedules no retry; the still-mount
   let seen = 0;
   const trpc = await routeTrpc(page, {
     ...STREAM_MUTATION_ROUTES,
-    "workloads.get": (): unknown => {
+    "workloads.get": () => {
       seen += 1;
       return seen <= 2 ? hold : SUCCEEDED_ROW;
     },

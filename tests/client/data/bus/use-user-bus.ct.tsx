@@ -17,11 +17,12 @@
 import type { StreamFrame } from "@orb/contracts/stream";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeOrbSocket } from "../../../support/node/route-orb-socket.ts";
+import type { TrpcRoutes } from "../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../support/node/route-trpc.ts";
 import { UserBusGapHealStory, UserBusRemountStory } from "./_ct-stories.tsx";
 import { STREAM_MUTATION_ROUTES } from "./fixtures.ts";
 
-const ROUTES = {
+const ROUTES: TrpcRoutes<"persona.list" | "tag.listTags"> = {
   ...STREAM_MUTATION_ROUTES,
   "persona.list": (): readonly { id: string }[] => [{ id: "persona_ctuserbus" }],
   "tag.listTags": (): readonly { id: string }[] => [{ id: "tag_ctuserbus" }],

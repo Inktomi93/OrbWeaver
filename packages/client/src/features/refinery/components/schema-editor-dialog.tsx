@@ -44,6 +44,7 @@ import { useCreateRefinerySchema, useGenerateRefinerySchema, useRefineRefinerySc
 import { buildRenderPlan } from "../lib/render-plan.ts";
 import { RefusalNote } from "./refusal-note.tsx";
 import { RenderHintPicker } from "./render-hint-picker.tsx";
+import { DeleteSchemaAction } from "./schema-delete-action.tsx";
 import { PreflightNote, PreviewCard } from "./schema-editor-panes.tsx";
 
 export interface SchemaEditorDialogProps {
@@ -381,6 +382,7 @@ export function SchemaEditorDialog({ open, onOpenChange, stage, editing, onSaved
           <Text voice="gloss">{previewEmptyTextOf(schemaText)}</Text>
         )}
         <Row gap="row" justify="end">
+          {editing === null ? null : <DeleteSchemaAction onDeleted={(): void => onOpenChange(false)} schema={editing} />}
           <Field label="Name">
             <Textarea
               defaultValue={editing === null ? "" : editing.name}

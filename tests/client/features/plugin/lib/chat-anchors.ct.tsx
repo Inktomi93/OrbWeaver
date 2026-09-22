@@ -28,11 +28,14 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
 import { HOST_BAND, openContextSections } from "../../../../support/node/open-context-sections.ts";
 import { REGEX_READS_EMPTY } from "../../../../support/node/regex-reads-empty.ts";
+import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { userSettingsView } from "../../../../support/node/user-settings-view.ts";
 import { CHAT_AMBIENT_ROUTES, makeMessagesPage, makeMessageView } from "../../chat/fixtures.ts";
 import { PluginChatFlankRoomStory, PluginChatSettingsSectionStory } from "../_ct-stories.tsx";
 
+type PluginListRow = TrpcWireOutput<"plugin.list">[number];
+type PluginSurfaceRow = TrpcWireOutput<"plugin.listSurfaces">[number];
 /** The transcript box a geometry pin compares — Playwright's own `boundingBox()` return. */
 type Box = Awaited<ReturnType<Locator["boundingBox"]>>;
 
@@ -42,7 +45,7 @@ const PLUGIN_NAME = "Affinity Tracker";
 
 /** One installed row as `plugin.list` projects it — the join the shell's attribution line reads its name from.
  *  The wire shape is pinned by the router/domain tests, never re-typed here. */
-function pluginRow(status: "enabled" | "disabled"): Record<string, unknown> {
+function pluginRow(status: "enabled" | "disabled"): PluginListRow {
   return {
     id: AFFINITY_ID,
     slug: "affinity-tracker",
@@ -50,6 +53,8 @@ function pluginRow(status: "enabled" | "disabled"): Record<string, unknown> {
     version: "1.0.0",
     status,
     origin: "upload",
+    sourceUrl: null,
+    updateSource: null,
     declaredCapabilities: ["ui.surface"],
     grantedCapabilities: ["ui.surface"],
     netHosts: null,
@@ -63,13 +68,13 @@ function pluginRow(status: "enabled" | "disabled"): Record<string, unknown> {
 }
 
 /** One `listSurfaces` row (the serializable meta + its pluginId; the `onAction` handle stays server-side). */
-function surfaceRow(anchor: string, id: string, title: string, spec: unknown): Record<string, unknown> {
+function surfaceRow(anchor: PluginSurfaceRow["anchor"], id: string, title: string, spec: PluginSurfaceRow["spec"]): PluginSurfaceRow {
   return { pluginId: AFFINITY_ID, id, anchor, title, tier: "static", spec };
 }
 
 /** The affinity tracker's ROOM WIDGET, as its seeded `main.js` registers it: a bound meter + a bound caption,
  *  i.e. a surface that has nothing to say until the plugin publishes. */
-const FLANK_SPEC = {
+const FLANK_SPEC: NonNullable<PluginSurfaceRow["spec"]> = {
   kind: "stack",
   gap: "field",
   children: [
@@ -83,7 +88,7 @@ const FLANK_STATE = { score: 7, caption: "Your latest warmth reading, 7 of 10." 
  *  shape, the roster/cast floor, and the context-fit preview (whose unlisted-proc `null` default is out of
  *  contract for that query and takes the whole transcript down with it). A room mount that skips any of them
  *  never leaves its loading skeleton — and every geometry pin below would then be measuring nothing. */
-const ROOM_ROUTES: Readonly<Record<string, unknown>> = {
+const ROOM_ROUTES: TrpcRoutes<"chat.listMessages" | "chat.listReactions" | "chat.getChat" | "chat.previewContextFit"> = {
   "chat.listMessages": () => makeMessagesPage([makeMessageView({ content: "Hi Aria", role: "user", seq: 1 })]),
   // FED, not declared (the unfed-read ratchet): the committed-row footer anchor mounts chat's own reaction pill
   // row (B6, 99b6ba2c6), which reads `chat.listReactions`. It landed AFTER this file and its lane's CT floor did
@@ -234,7 +239,17 @@ test.describe("the flank anchor", () => {
 
 /** The tab's own sections all suspend on reads of their own; a section left unfed renders its error arm and
  *  the composition contract silently stops being covered (#629). Same feed as settings-context-tab.ct.tsx. */
-const TAB_ROUTES: Readonly<Record<string, unknown>> = {
+const TAB_ROUTES: TrpcRoutes<
+  | "chat.getGroupConfig"
+  | "chat.setRoomOverrides"
+  | "databank.listActiveForChat"
+  | "worldInfo.listForChat"
+  | "chat.listChatInjections"
+  | "chat.getUserMacroPicks"
+  | "chat.getVariablePicks"
+  | "settings.getUserSettings"
+  | "chat.getChat"
+> = {
   "chat.getGroupConfig": () => ({ ...DEFAULT_GROUP_CONFIG }),
   "chat.setRoomOverrides": () => ({}),
   "databank.listActiveForChat": () => [],
@@ -253,7 +268,7 @@ const TAB_ROUTES: Readonly<Record<string, unknown>> = {
 };
 
 /** The panel a plugin registers at `chat-settings-section`: one bound line plus an action. */
-const PANEL_SPEC = {
+const PANEL_SPEC: NonNullable<PluginSurfaceRow["spec"]> = {
   kind: "stack",
   gap: "block",
   children: [
@@ -291,7 +306,7 @@ test("a chat-settings-section surface renders in the labelled shell, and its act
     "plugin.getSurfaceState": () => (refreshed ? { summary: "Warmth in this room: 7 of 10." } : { summary: "No readings yet." }),
     "plugin.invokeUiAction": () => {
       refreshed = true;
-      return null;
+      return { toasts: [] };
     },
   });
 

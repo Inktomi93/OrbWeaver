@@ -62,7 +62,7 @@ test("an empty thread list still renders the Go to + Create groups", async ({ mo
 test("a Recent threads failure stays visible and Retry restores only that group", async ({ mount, page }) => {
   let attempts = 0;
   await routeTrpc(page, {
-    "chat.listChats": (): unknown => (attempts++ === 0 ? trpcError({ message: "recent threads unavailable" }) : chatListResponder([ADVENTURE])({})),
+    "chat.listChats": () => (attempts++ === 0 ? trpcError({ message: "recent threads unavailable" }) : chatListResponder([ADVENTURE])({})),
   });
 
   const component = await mount(<CommandPaletteSurfaceStory />);
@@ -84,7 +84,7 @@ for (const key of ["Enter", "Space"] as const) {
   test(`focused Retry owns ${key} and restores Recent threads without activating a command`, async ({ mount, page }) => {
     let attempts = 0;
     await routeTrpc(page, {
-      "chat.listChats": (): unknown => (attempts++ === 0 ? trpcError({ message: "recent threads unavailable" }) : chatListResponder([ADVENTURE])({})),
+      "chat.listChats": () => (attempts++ === 0 ? trpcError({ message: "recent threads unavailable" }) : chatListResponder([ADVENTURE])({})),
     });
 
     const component = await mount(<CommandPaletteSurfaceStory />);

@@ -24,9 +24,9 @@
 // macro either.
 //
 // LOOP SAFETY (the per-plugin $/action spend ceiling was stripped for enterprise spend enforcement):
-// a runaway plugin's autonomous turns stay bounded by the engine's per-member turn RATE budget + the
-// cascade-depth guard (resolved inside chat's `requestTurn`); its images are clamped n≤4 + the membrane's ≤32
-// concurrent-host-call cap. Cost VISIBILITY rides the stats domain off the imagery/chat writes themselves.
+// a runaway plugin's autonomous turns stay bounded by the cascade-depth guard resolved inside chat's
+// `requestTurn`; its images are clamped n≤4 + the membrane's ≤32 concurrent-host-call cap. Cost visibility
+// rides the host-funded chat writes and the stats domain.
 //
 // THE BELTS THIS FILE CLAIMS, and why they are claimed HERE rather than at the membrane. Three capabilities
 // have a bound that no per-call check can express — `notify` (a durable row per member, per call), `net.fetch`
@@ -123,13 +123,12 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
         return await ops.chat.listCharacters(chatId);
       },
       applyVariableOps: (chatId, varOps, expect) => ops.chat.applyVariableOps(chatId, varOps, expect),
-      // The FUNDER is closed over the installer (never infra/guest-supplied) — the membrane passes only the
-      // admitted chatId + child depth + guest speaker/guided hints; `initiator:"plugin"` + the room-host box +
-      // the D17/membership belts + the per-member turn RATE budget + the cascade-depth guard (loop safety) are
-      // resolved inside chat's `requestTurn` (compose op below). Returns void to the realm.
+      // The initiator is closed over the installer (never infra/guest-supplied) — the membrane passes only the
+      // admitted chatId + child depth + guest speaker/guided hints; `initiator:"plugin"`, initiator membership,
+      // frozen host funding, and the cascade-depth guard are resolved inside chat's `requestTurn`.
       requestTurn: (chatId, automationDepth, p): Promise<void> =>
         ops.chat.requestTurn({
-          funderUserId: installerUserId,
+          triggeredBy: installerUserId,
           chatId,
           automationDepth,
           ...(p.speakerCharacterId !== undefined ? { speakerCharacterId: p.speakerCharacterId } : {}),

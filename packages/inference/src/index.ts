@@ -132,6 +132,8 @@ export interface InferenceRuntime {
     readonly available: (principal: Principal) => readonly ProviderAvailability[];
     readonly register: (row: unknown, origin: ProviderOrigin) => Promise<ProviderDef>;
     readonly drop: (id: ProviderDef["id"]) => Promise<void>;
+    readonly registerPlugin: ProviderRegistry["registerPlugin"];
+    readonly dropPlugin: ProviderRegistry["dropPlugin"];
   };
   /** The in-process tier's handles for the composition root: the boot prefetch (`start` with the slots that
    *  ACTUALLY resolved, §8.3), the alpha-matte op imagery binds narrowly, and the active embed-space tag. */
@@ -378,6 +380,8 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
         }),
       register: registry.register,
       drop: registry.drop,
+      registerPlugin: registry.registerPlugin,
+      dropPlugin: registry.dropPlugin,
     },
     localLight: { prefetch: built.localLight.prefetch, matte: built.localLight.matte, embedSpace: built.localLight.embedSpace },
   };

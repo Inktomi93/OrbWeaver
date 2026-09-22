@@ -71,6 +71,7 @@ function prepOf(chatId: ChatId, connection: Resolved<"chat">, over: Partial<Turn
     assembleContext: ASSEMBLE_CTX,
     connection,
     triggeredBy: HOST,
+    funderUserId: HOST,
     runAsUserId: HOST,
     kind: "send",
     intent: { compaction: { mode: "managed" } },

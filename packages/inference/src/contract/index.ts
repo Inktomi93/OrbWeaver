@@ -17,7 +17,6 @@ export type {
   SummarizeResultItem,
 } from "@orb/contracts/providers";
 export type {
-  AgentDialogKind,
   AgentMcpHttpServer,
   AgentMcpServerSpec,
   AgentMcpSseServer,
@@ -25,7 +24,6 @@ export type {
   AgentToolServer,
   AgentTurnRequest,
 } from "./agent.ts";
-export { AGENT_DIALOG_KINDS } from "./agent.ts";
 export type { BackendRegistry, ProviderBackend, ProviderExecutor, WireCaptureSink } from "./backend.ts";
 export type {
   AgentMcpServerHealth,

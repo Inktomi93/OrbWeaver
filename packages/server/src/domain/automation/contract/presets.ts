@@ -1285,7 +1285,7 @@ const ILLUSTRATE_ON_LORE_REVEAL = defineRulePreset({
  *  that loop: `worldInfoActivated` carries the generating turn's `automationDepth` on the event
  *  (`substrate/fact-resolver.ts` reads it, no longer hardcoded 0), so the re-activation escalates toward the
  *  hard cap. The cooldown is complementary — a wall-clock gate (`engine/budget-gate.ts`) that, with the 30/hr
- *  cap and requestTurn's own per-member turn budget, keeps the reaction at a conservative pace within the cap. */
+ *  cap, keeps the host-funded reaction at a conservative pace. */
 const REACT_TO_LORE_ACTIVATION = defineRulePreset({
   id: "reactToLoreActivation",
   title: "React to lore activation",

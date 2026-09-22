@@ -13,11 +13,12 @@ const SETTINGS_VIEW = {
   schemaVersion: 1,
   config: DEFAULT_USER_SETTINGS,
   updatedAt: 0,
+  configUnreadable: null,
 };
 const UPDATE_PROC = "settings.updateUserSettingsSection";
 /** The viewer identity every settings-shell mount resolves for pane nav (`sessions.me`, e.g.
  *  `use-settings-viewer-view.ts`) — feeding it runs that resolution for real instead of the no-data branch. */
-const VIEWER = { userId: "user_ct_section_status", globalRole: "user", handle: "section_status" };
+const VIEWER = { userId: "user_ct_section_status", globalRole: "user" as const, handle: "section_status" };
 
 test("a failing section renders inline at its anchor WITH a retry, even while hosted", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {

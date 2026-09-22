@@ -7,6 +7,7 @@
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { TrpcRoutes } from "../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../support/node/route-trpc.ts";
 import { ConfigHostStory } from "../features/config/_ct-stories.tsx";
 import { WorldInfoSettingsSectionStory } from "../features/world-info/_ct-stories.tsx";
@@ -16,13 +17,16 @@ const SETTINGS_VIEW = {
   schemaVersion: 1,
   config: DEFAULT_USER_SETTINGS,
   updatedAt: 0,
+  configUnreadable: null,
 };
 const UPDATE_PROC = "settings.updateUserSettingsSection";
 /** The viewer identity every settings-shell mount resolves for pane nav (`sessions.me`, e.g.
  *  `use-settings-viewer-view.ts`) — feeding it runs that resolution for real instead of the no-data branch. */
-const VIEWER = { userId: "user_ct_save_seam", globalRole: "user", handle: "save_seam" };
+const VIEWER = { userId: "user_ct_save_seam", globalRole: "user" as const, handle: "save_seam" };
 /** The config LIST paints every shelf, so the four collection bands read their rosters — fed empty. */
-const LIST_ROSTER_ROUTES: Readonly<Record<string, unknown>> = {
+const LIST_ROSTER_ROUTES: TrpcRoutes<
+  "tag.listTagsWithUsage" | "regex.listScripts" | "worldInfo.listBooksWithUsage" | "rosterPreset.list" | "settings.listThemes"
+> = {
   "tag.listTagsWithUsage": [],
   "regex.listScripts": [],
   "worldInfo.listBooksWithUsage": [],
@@ -31,7 +35,12 @@ const LIST_ROSTER_ROUTES: Readonly<Record<string, unknown>> = {
 };
 
 test("HOSTED: reporting sections stay quiet and the host shows ONE aggregate", async ({ mount, page }) => {
-  await routeTrpc(page, { ...LIST_ROSTER_ROUTES, "settings.getUserSettings": () => SETTINGS_VIEW, [UPDATE_PROC]: () => ({}), "sessions.me": () => VIEWER });
+  await routeTrpc(page, {
+    ...LIST_ROSTER_ROUTES,
+    "settings.getUserSettings": () => SETTINGS_VIEW,
+    [UPDATE_PROC]: () => SETTINGS_VIEW,
+    "sessions.me": () => VIEWER,
+  });
   await mount(<ConfigHostStory />);
   await page.getByRole("button", { name: "Chat behavior" }).click();
   await page.getByRole("heading", { name: "World info" }).waitFor();
@@ -46,7 +55,11 @@ test("HOSTED: reporting sections stay quiet and the host shows ONE aggregate", a
 });
 
 test("DEGRADED: with no host above it, a section renders its own inline status", async ({ mount, page }) => {
-  await routeTrpc(page, { ...LIST_ROSTER_ROUTES, "settings.getUserSettings": () => SETTINGS_VIEW, [UPDATE_PROC]: () => ({}) });
+  await routeTrpc(page, {
+    ...LIST_ROSTER_ROUTES,
+    "settings.getUserSettings": () => SETTINGS_VIEW,
+    [UPDATE_PROC]: () => SETTINGS_VIEW,
+  });
   await mount(<WorldInfoSettingsSectionStory />);
 
   await expect(page.locator('[data-slot="config-save-footer"]')).toHaveCount(0);

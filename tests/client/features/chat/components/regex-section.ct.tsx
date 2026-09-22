@@ -16,24 +16,39 @@
 //   • THE UNDRAWN STATES (§7.5) are rendered here because the canvas does not draw them: a preset-less room,
 //     the settling read, a failed read, `+2`, a member with broadcast on, a member under a host master off.
 
+import { characterRegexTierKey } from "@orb/contracts/chat";
+import type { CharacterId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { expectContainedWithin } from "../../../../support/browser/contained-within.ts";
-import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import type { TrpcFixtureOutput, TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { RegexSectionStory } from "../_ct-stories.tsx";
 
-const ALICE = "character_ct_alice";
-const BO = "character_ct_bo";
+const ALICE = castId<CharacterId>("character_ct_alice");
+const BO = castId<CharacterId>("character_ct_bo");
 
 /** A library row, minimal but CONTRACT-shaped — the section reads name/enabled/findRegex/placement. */
+type RegexScript = TrpcWireOutput<"regex.listScripts">[number];
+type EffectiveRegex = TrpcWireOutput<"chat.listEffectiveRegex">;
+type EffectiveRegexTier = EffectiveRegex["tiers"][number];
+type EffectiveRegexRow = EffectiveRegexTier["rows"][number];
+type Writable<T> = { -readonly [K in keyof T]: T[K] };
+type EffectiveRegexRowFixture = Writable<EffectiveRegexRow>;
+type EffectiveRegexTierFixture = Writable<Omit<EffectiveRegexTier, "rows">> & { rows: EffectiveRegexRowFixture[] };
+type EffectiveRegexFixture = Writable<Omit<EffectiveRegex, "effective" | "tiers">> & {
+  effective: Writable<EffectiveRegex["effective"][number]>[];
+  tiers: EffectiveRegexTierFixture[];
+};
+
 function script(spec: {
   readonly id: string;
   readonly name: string;
   readonly findRegex: string;
-  readonly placement: readonly string[];
+  readonly placement: RegexScript["placement"];
   readonly enabled?: boolean;
-}): Record<string, unknown> {
+}): RegexScript {
   const { id, name, findRegex, placement } = spec;
   return {
     id,
@@ -47,11 +62,16 @@ function script(spec: {
     promptOnly: false,
     runOnEdit: false,
     trimStrings: [],
-    substituteRegex: "none",
+    substituteRegex: 0,
   };
 }
 
-const STRIP_OOC = script({ id: "regex_script_ct_stripooc", name: "Strip OOC", findRegex: "\\(OOC:[^)]*\\)", placement: ["USER_INPUT", "AI_OUTPUT"] });
+const STRIP_OOC: RegexScript = script({
+  id: "regex_script_ct_stripooc",
+  name: "Strip OOC",
+  findRegex: "\\(OOC:[^)]*\\)",
+  placement: ["USER_INPUT", "AI_OUTPUT"],
+});
 const EMDASH = script({ id: "regex_script_ct_emdash", name: "Em-dash killer", findRegex: "—", placement: ["AI_OUTPUT"] });
 const HEDGES = script({ id: "regex_script_ct_hedges", name: "Trim trailing hedges", findRegex: "\\b(perhaps|maybe)\\b", placement: ["PROMPT_HISTORY"] });
 const ALICE_ITAL = script({ id: "regex_script_ct_aliceital", name: "Alice italics", findRegex: "\\*([^*]+)\\*", placement: ["DISPLAY"] });
@@ -60,21 +80,21 @@ const REDACT = script({ id: "regex_script_ct_redact", name: "Redact the address"
 const SAILOR = script({ id: "regex_script_ct_sailor", name: "Sailor slang", findRegex: "\\bmatey\\b", placement: ["USER_INPUT"] });
 
 /** The viewer's own library — everything except the PREVIOUS host's chat-tier row (#1739). */
-const OWNED = [STRIP_OOC, EMDASH, HEDGES, ALICE_ITAL, BO_SHOUT, REDACT];
+const OWNED: TrpcFixtureOutput<"regex.listScripts"> = [STRIP_OOC, EMDASH, HEDGES, ALICE_ITAL, BO_SHOUT, REDACT];
 
-function row(entry: Record<string, unknown>, position: number, runsAt: number | null, attachedElsewhere = false): Record<string, unknown> {
+function row(entry: RegexScript, position: number, runsAt: number | null, attachedElsewhere = false): EffectiveRegexRowFixture {
   return { script: entry, position, runsAt, attachedElsewhere };
 }
 
 /** The canvas's board 01: seven scripts, `Bo shouting` attached at BOTH `Everywhere` and Bo's card. */
-function board01(): Record<string, unknown> {
+function board01(): EffectiveRegexFixture {
   return {
     enabled: true,
     tiers: [
       { scope: "global", allowed: true, rows: [row(STRIP_OOC, 0, 1), row(EMDASH, 1, 2), row(BO_SHOUT, 2, 3, true)] },
       { scope: "preset", allowed: true, rows: [row(HEDGES, 0, 4)] },
-      { scope: `character:${ALICE}`, allowed: true, rows: [row(ALICE_ITAL, 0, 5)] },
-      { scope: `character:${BO}`, allowed: true, rows: [row(BO_SHOUT, 0, null, true)] },
+      { scope: characterRegexTierKey(ALICE), allowed: true, rows: [row(ALICE_ITAL, 0, 5)] },
+      { scope: characterRegexTierKey(BO), allowed: true, rows: [row(BO_SHOUT, 0, null, true)] },
       { scope: "chat", allowed: true, rows: [row(REDACT, 0, 6), row(SAILOR, 1, 7)] },
     ],
     effective: [1, 2, 3, 4, 5, 6, 7].map((runsAt) => ({ scriptId: `s${runsAt}`, runsAt })),
@@ -95,7 +115,7 @@ const CHAT_DETAIL = {
 /** Every read the host arm makes. `regex.listScripts` doubles as the #1739 ownership set and the `On screen`
  *  roster's provenance source; `listRoomDisplayScripts` is the host's broadcast set (empty unless a test
  *  says otherwise — the toggle is off by default and the server returns `[]`). */
-function stubHost(page: Page, view: Record<string, unknown>, broadcast: readonly Record<string, unknown>[] = []): Promise<TrpcRecorder> {
+function stubHost(page: Page, view: EffectiveRegex, broadcast: readonly RegexScript[] = []): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "chat.listEffectiveRegex": () => view,
     "chat.getChat": () => CHAT_DETAIL,
@@ -104,7 +124,7 @@ function stubHost(page: Page, view: Record<string, unknown>, broadcast: readonly
     "chat.setRegexAllow": () => ({ enabled: true, tiers: {} }),
     "regex.updateScript": () => STRIP_OOC,
     "regex.detachFromChat": () => ({ detached: true }),
-    "regex.attachToChat": () => ({}),
+    "regex.attachToChat": () => null,
   });
 }
 
@@ -132,8 +152,7 @@ test("host: a script two tiers hold draws ONCE, at the tier that ranked it, with
 
 test("host: a THIRD tier holding the same row reads +2 (§7.5's undrawn state)", async ({ mount, page }) => {
   const view = board01();
-  const tiers = view["tiers"] as Record<string, unknown>[];
-  (tiers[4] as { rows: Record<string, unknown>[] }).rows.unshift(row(BO_SHOUT, 0, null, true));
+  view.tiers[4]?.rows.unshift(row(BO_SHOUT, 0, null, true));
   await stubHost(page, view);
   const component = await mount(<RegexSectionStory />);
   await expect(component.locator('[data-tier="global"]').getByTitle("also attached: From Bo · This chat")).toHaveText("+2");
@@ -161,8 +180,7 @@ test("host: the master writes the master lever", async ({ mount, page }) => {
 
 test("host: with the preset tier OFF its rows stay readable, lose their ranks, and the group says `off here`", async ({ mount, page }) => {
   const view = board01();
-  const tiers = view["tiers"] as Record<string, unknown>[];
-  tiers[1] = { scope: "preset", allowed: false, rows: [row(HEDGES, 0, null)] };
+  view.tiers[1] = { scope: "preset", allowed: false, rows: [row(HEDGES, 0, null)] };
   await stubHost(page, view);
   const component = await mount(<RegexSectionStory />);
   await expect(component.getByRole("heading", { name: /^From the preset/u })).toContainText("off here");
@@ -175,9 +193,9 @@ test("host: with the preset tier OFF its rows stay readable, lose their ranks, a
 
 test("host: with the MASTER off every tier switch is disabled and no row claims a rank", async ({ mount, page }) => {
   const view = board01();
-  view["enabled"] = false;
-  view["effective"] = [];
-  for (const tier of view["tiers"] as { rows: { runsAt: number | null }[] }[]) {
+  view.enabled = false;
+  view.effective = [];
+  for (const tier of view.tiers) {
     for (const entry of tier.rows) {
       entry.runsAt = null;
     }
@@ -252,21 +270,20 @@ test("host: a PREVIOUS host's row can still be DETACHED — the room gate, not t
  *  the exact defect #1754 exists for. `chat-context-band` resolves it from these two reads. */
 const VIEWER_ACTIVE_PRESET = "Viewer's own preset";
 
-function stubHostWithViewerPreset(page: Page, view: Record<string, unknown>): Promise<TrpcRecorder> {
+function stubHostWithViewerPreset(page: Page, view: EffectiveRegex): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "chat.listEffectiveRegex": () => view,
     "chat.getChat": () => CHAT_DETAIL,
     "regex.listScripts": () => OWNED,
     "regex.listRoomDisplayScripts": () => [],
-    "settings.getUserSettings": () => ({ seeds: { defaultPresetId: "preset_ct_viewer" } }),
+    "settings.getUserSettings": () => ({ config: { seeds: { defaultPresetId: "preset_ct_viewer" } } }),
     "preset.list": () => [{ id: "preset_ct_viewer", name: VIEWER_ACTIVE_PRESET }],
   });
 }
 
 test("host: the preset tier is named by the WIRE's label, never by the viewer's own active preset (#1754)", async ({ mount, page }) => {
   const view = board01();
-  const tiers = view["tiers"] as Record<string, unknown>[];
-  tiers[1] = { scope: "preset", allowed: true, label: "Grimdark GM", rows: [row(HEDGES, 0, 4)] };
+  view.tiers[1] = { scope: "preset", allowed: true, label: "Grimdark GM", rows: [row(HEDGES, 0, 4)] };
   await stubHostWithViewerPreset(page, view);
   const component = await mount(<RegexSectionStory />);
   // The group heading and the lever both say the ROOM's preset…
@@ -311,8 +328,7 @@ test("host: a LONG preset name reaches BOTH voices whole — the lever clips vis
   // fail, which would have made it unfailable in exactly the shape #1765 exists to refuse).
   const longName = "Grimdark GM voice — long-context table rules v3 for the archive campaign spanning several arcs and expansions";
   const view = board01();
-  const tiers = view["tiers"] as Record<string, unknown>[];
-  tiers[1] = { scope: "preset", allowed: true, label: longName, rows: [row(HEDGES, 0, 4)] };
+  view.tiers[1] = { scope: "preset", allowed: true, label: longName, rows: [row(HEDGES, 0, 4)] };
   await stubHostWithViewerPreset(page, view);
   const component = await mount(<RegexSectionStory />);
   await expect(component.getByRole("heading", { name: new RegExp(`^From the preset · ${longName}`, "u") })).toBeVisible();
@@ -334,8 +350,7 @@ test("host: with NO label on the wire the preset tier says the bare `From the pr
 
 test("host: a preset-less room's group says so instead of naming a preset it cannot name (§7.5)", async ({ mount, page }) => {
   const view = board01();
-  const tiers = view["tiers"] as Record<string, unknown>[];
-  tiers[1] = { scope: "preset", allowed: true, rows: [] };
+  view.tiers[1] = { scope: "preset", allowed: true, rows: [] };
   await stubHost(page, view);
   const component = await mount(<RegexSectionStory />);
   await expect(component.locator('[data-tier="preset"]')).toContainText("Nothing from here.");
@@ -461,10 +476,9 @@ test("#1755 host: each ranked row speaks its RUN position out of the effective c
 
 test("#1755 host: a tier switched OFF here speaks no run position at all — an unranked row has none", async ({ mount, page }) => {
   const view = board01();
-  const tiers = view["tiers"] as Record<string, unknown>[];
   // The preset tier is off here: the server drops its rank (the `—` arm), so the spoken position goes with
   // it. A rank on a row that does not run is the exact lie the section exists to remove (§3 (c)).
-  tiers[1] = { scope: "preset", allowed: false, rows: [row(HEDGES, 0, null)] };
+  view.tiers[1] = { scope: "preset", allowed: false, rows: [row(HEDGES, 0, null)] };
   await stubHost(page, view);
   const component = await mount(<RegexSectionStory />);
   await expect(component.getByRole("heading", { name: /^From the preset/u })).toBeVisible();

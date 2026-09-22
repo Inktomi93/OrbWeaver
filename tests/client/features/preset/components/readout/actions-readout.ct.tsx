@@ -12,6 +12,7 @@
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { TrpcRoutes, TrpcWireOutput } from "../../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../../support/node/route-trpc.ts";
 import {
   PresetReadoutExtractBoundStory,
@@ -23,7 +24,7 @@ import {
 const PRESET = "preset_ct_readoutbind";
 const CHAT = "chat_ct_readoutbind";
 
-const PRESET_DETAIL = {
+const PRESET_DETAIL: TrpcWireOutput<"preset.get"> = {
   id: PRESET,
   name: "Preset R",
   kind: "custom",
@@ -33,11 +34,12 @@ const PRESET_DETAIL = {
   updatedAt: 0,
   config: DEFAULT_PROMPT_CONFIG,
   schemaVersion: DEFAULT_PROMPT_CONFIG.schemaVersion,
+  configUnreadable: null,
 };
 
 /** The bound read's answer for the EXTRACT case: the chat resolved what it could and passed the seam's DATA
  *  tokens through untouched (`kit/macro`'s unknown-macro passthrough) — exactly the verb's real shape. */
-const RESOLVED = {
+const RESOLVED: TrpcWireOutput<"chat.previewActionTemplates"> = {
   identity: { user: "Alex", char: "Azarael" },
   templates: [
     { id: "response", resolved: "Azarael responds. {{input}}" },
@@ -45,20 +47,35 @@ const RESOLVED = {
   ],
 };
 
-const SETTINGS_VIEW = { userId: "user_ct_readout", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };
+const SETTINGS_VIEW: TrpcWireOutput<"settings.getUserSettings"> = {
+  userId: "user_ct_readout",
+  schemaVersion: 1,
+  config: DEFAULT_USER_SETTINGS,
+  updatedAt: 0,
+  configUnreadable: null,
+};
 // See readout-binding.ct.tsx — the binding names its room through `chat.getChat`.
 const CHAT_DETAIL = { id: CHAT, title: "Azarael & the Court", starred: false, archived: false, temporary: false, parentChatId: null, participants: [] };
 
 /** The guided family's unbound-gloss tell — the sibling suite's own spelling (`readout-binding.ct.tsx`). */
 const RESOLVES_IN_CHAT_RE = /resolves in chat/i;
 
-function readoutRoutes(): Record<string, unknown> {
+function readoutRoutes(): TrpcRoutes<
+  | "preset.get"
+  | "preset.list"
+  | "settings.getUserSettings"
+  | "connection.resolveChatCapability"
+  | "preset.resolveEffective"
+  | "preset.listUsage"
+  | "chat.getChat"
+  | "chat.previewActionTemplates"
+> {
   return {
     "preset.get": () => PRESET_DETAIL,
     "preset.list": () => [PRESET_DETAIL],
     "settings.getUserSettings": () => SETTINGS_VIEW,
     "connection.resolveChatCapability": () => trpcError({ message: "no chat connection configured" }),
-    "preset.resolveEffective": () => ({ presetId: PRESET, model: "qwen3-32b", knobs: {}, stale: [] }),
+    "preset.resolveEffective": () => ({ presetId: PRESET, model: "qwen3-32b", knobs: {}, stale: [], qualityMapping: null }),
     // #649 — the CONTEXT panel's backward-BINDINGS read (`preset.listUsage`). Not this file's subject, but
     // every readout mount fires it, and unfed it rode `routeTrpc`'s null so the usage/gm-room resolve path
     // ran INERT here. The honest default for a preset nobody has picked and no room routes its GM voice to;

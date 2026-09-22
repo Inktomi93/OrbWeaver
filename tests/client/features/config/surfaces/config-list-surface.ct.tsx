@@ -10,7 +10,7 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import type { TrpcFixtureOutput, TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import {
   ConfigHostStory,
@@ -64,7 +64,8 @@ const FIRST_GROUP_ID = "appearance";
  *  here because a test may not import a source constant and then assert it against itself. */
 const CONFIG_MODIFIED_MARK = "Modified";
 
-function tagRow(index: number): Record<string, unknown> {
+type TagWithUsage = TrpcWireOutput<"tag.listTagsWithUsage">[number];
+function tagRow(index: number): TagWithUsage {
   return {
     id: `tag_${String(index).padStart(3, "0")}`,
     name: `tag-${String(index).padStart(3, "0")}`,
@@ -113,8 +114,8 @@ function scriptRow(over: {
   readonly id: string;
   readonly name: string;
   readonly findRegex: string;
-  readonly placement: readonly string[];
-}): Record<string, unknown> {
+  readonly placement: TrpcWireOutput<"regex.listScripts">[number]["placement"];
+}): TrpcFixtureOutput<"regex.listScripts">[number] {
   return {
     replaceString: "",
     enabled: true,
@@ -124,7 +125,7 @@ function scriptRow(over: {
     trimStrings: [],
     // A fixed edit stamp (X-16's `RegexScriptRow.updatedAt`) — the wall clock never reaches a fixture.
     updatedAt: 1_760_000_000_000,
-    substituteRegex: "none",
+    substituteRegex: 0,
     ...over,
   };
 }
@@ -167,16 +168,16 @@ const BOOKS = [BOOK];
 
 function stub(
   page: Page,
-  tags: readonly unknown[] = MANY_TAGS,
-  scripts: readonly unknown[] = SCRIPTS,
-  overrides: Readonly<Record<string, unknown>> = {},
+  tags: TrpcWireOutput<"tag.listTagsWithUsage"> = MANY_TAGS,
+  scripts: TrpcFixtureOutput<"regex.listScripts"> = SCRIPTS,
+  overrides: Partial<TrpcRoutes<"settings.getUserSettings">> = {},
 ): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     // The fourth collection (casts) + the viewer projection the LIST's `when` gate reads (#866 S1).
     "rosterPreset.list": [],
     // The workspace story now mounts the CONTEXT through the real resolve (#866 S3), and a selected
     // group's skimmer sections read the settings blob — fed the real defaults, never an inert null.
-    "settings.getUserSettings": () => ({ userId: "user_ct_config", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 }),
+    "settings.getUserSettings": () => ({ userId: "user_ct_config", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, configUnreadable: null, updatedAt: 0 }),
     // The Looks section (#866 S4) reads the theme library — three seeds, no owned rows.
     "settings.listThemes": () => [
       { id: "theme_00000000000000000000000001", name: "Hearth", override: {}, css: null, isSeed: true, isDefault: true, createdAt: 0, updatedAt: 0 },
@@ -185,7 +186,10 @@ function stub(
     ],
     "sessions.me": { userId: "user_ct_config", handle: "ct_config", globalRole: "user" },
     "tag.listTagsWithUsage": () => tags,
-    "tag.createTag": () => tagRow(TAG_COUNT),
+    "tag.createTag": () => {
+      const { usage: _usage, ...created } = tagRow(TAG_COUNT);
+      return created;
+    },
     "regex.listScripts": () => scripts,
     "regex.listGlobal": () => [],
     // The regex CONTEXT arm's reverse rosters (REGROSTER) — this host only proves that the arm MOUNTS;
@@ -1116,6 +1120,7 @@ function stubModified(page: Page): Promise<TrpcRecorder> {
       userId: "user_ct_config",
       schemaVersion: 1,
       config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, avatarShape: "square" } },
+      configUnreadable: null,
       updatedAt: 0,
     }),
   });

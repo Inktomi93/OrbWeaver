@@ -13,13 +13,13 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { measureContentColumn } from "../../../../support/browser/measure-content-column.ts";
 import { proseRow, readProseMeasure } from "../../../../support/browser/prose-measure.ts";
-import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { RegexMemberContentColumnStory, RegexMemberStory } from "../_ct-stories.tsx";
 
 const RUN_ON_EDIT = /Run on edit/;
 
-const SCRIPT = {
+const SCRIPT: TrpcWireOutput<"regex.updateScript"> = {
   id: "regex_script_stripooc",
   name: "strip ooc",
   findRegex: "\\(ooc\\)",
@@ -161,7 +161,7 @@ const CANNOT_RUN = /This pattern can't run:/;
 const NO_STREAMS = /no streams are selected/;
 
 /** The same stub, on a VARIANT of the fixture row (same id, so the story's default member still resolves). */
-function stubOn(page: Page, over: Record<string, unknown>): Promise<TrpcRecorder> {
+function stubOn(page: Page, over: Partial<TrpcWireOutput<"regex.updateScript">>): Promise<TrpcRecorder> {
   const script = { ...SCRIPT, ...over };
   return routeTrpc(page, {
     "regex.listScripts": () => [script],

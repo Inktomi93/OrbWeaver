@@ -7,7 +7,6 @@ export type {
   CommandListProps,
   CommandLoadingProps,
   CommandProps,
-  CommandSeparatorProps,
 } from "./command.tsx";
 export {
   Command,
@@ -18,7 +17,6 @@ export {
   CommandItem,
   CommandList,
   CommandLoading,
-  CommandSeparator,
   CommandStatus,
 } from "./command.tsx";
 export { useActiveCommandValue } from "./use-active-command-value.ts";

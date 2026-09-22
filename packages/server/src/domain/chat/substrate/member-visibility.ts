@@ -345,9 +345,10 @@ export function createMemberDeltaStamper(): MemberDeltaStamper {
 
 /** Scrub the DURABLE SSE token-log replay (`replayStreamEvents`) for a NON-HOST caller (§3.6). A late
  *  subscriber / reconnect replays the raw per-slot token stream; without this a member would receive the
- *  model's hidden bytes in the replayed `text` deltas. Each slot (`messageId`) gets a FRESH scrubber (the rows
- *  are the whole, already-committed stream for that slot), fed in order; a row whose scrubbed text is empty is
- *  DROPPED (it carried only held/hidden bytes). The final held tail is dropped — the caller's authoritative
+ *  model's hidden bytes in the replayed `text` deltas. Each committed generation gets a FRESH scrubber;
+ *  swipe/continue generations can reuse a `messageId`, so `generationId` is the lifetime boundary. Historical
+ *  rows without that marker fall back to the slot key. A row whose scrubbed text is empty is DROPPED (it
+ *  carried only held/hidden bytes). The final held tail is dropped — the caller's authoritative
  *  content is the at-commit-stripped `listMessages`/`replayChatEvents` view, not the token log. Reasoning
  *  rows and a `null` messageId (an unanchored control row) pass through. Identity for a host (verbatim). */
 export function scrubStreamReplayForMember(rows: readonly ChatStreamReplayEvent[], viewer: ViewerRole, reasoningHostOnly = false): ChatStreamReplayEvent[] {
@@ -370,10 +371,11 @@ export function scrubStreamReplayForMember(rows: readonly ChatStreamReplayEvent[
       out.push(row);
       continue;
     }
-    let scrubber = scrubbers.get(row.messageId);
+    const scrubberKey = row.generationId ?? row.messageId;
+    let scrubber = scrubbers.get(scrubberKey);
     if (scrubber === undefined) {
       scrubber = createHiddenSpanStreamScrubber();
-      scrubbers.set(row.messageId, scrubber);
+      scrubbers.set(scrubberKey, scrubber);
     }
     const safe = scrubber.push(row.delta);
     if (safe.length > 0) {

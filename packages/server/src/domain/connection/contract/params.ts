@@ -134,6 +134,16 @@ export interface RegisterProviderParams {
   readonly origin: { readonly plugin: PluginId; readonly pluginName: string } | { readonly admin: UserId };
 }
 
+export interface RegisterPluginProvidersParams {
+  readonly rows: readonly unknown[];
+  readonly pluginId: PluginId;
+  readonly pluginName: string;
+}
+
+export interface DropPluginProvidersParams {
+  readonly pluginId: PluginId;
+}
+
 export interface DropProviderParams {
   readonly providerId: ProviderDef["id"];
 }

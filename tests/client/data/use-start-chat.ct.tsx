@@ -10,10 +10,10 @@
 // A CT, not a unit test: the hook composes `createEntityMutation` + the real tRPC client + `#state` module
 // actions, and its whole observable surface is what a mounted component sees.
 
-import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { CharacterId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { TrpcRoutes } from "../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../support/node/route-trpc.ts";
 import { StartChatStory } from "./_ct-stories.tsx";
 
@@ -22,18 +22,9 @@ const CREATED_ID = "chat_ct_start_chat";
 const CREATED_CHAT = {
   id: CREATED_ID,
   title: "The Ashfall Road",
-  participants: [],
-  anchorPersonaId: null,
-  identities: [],
-  group: DEFAULT_GROUP_CONFIG,
-  temporary: false,
-  viewerIsHost: true,
-  roomOverrides: {},
-  background: null,
-  rpg: null,
 };
 
-const START_CHAT_ROUTES = {
+const START_CHAT_ROUTES: TrpcRoutes<"chat.startChat"> = {
   "chat.startChat": { chat: CREATED_CHAT, opening: null },
   // Deliberately NOT stubbed to the same row: `chat.getChat` answering `null` here is the CONTROL for the
   // seed pin below — if the response were not written into the cache, the reader would go cold.

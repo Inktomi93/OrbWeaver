@@ -46,11 +46,27 @@ export function denyRateLimit(error: Error): RateLimitGate {
   return { enforce: () => Promise.reject(error) };
 }
 
-/** Build a transport Context from only the parts a test cares about; the fake services are a partial cast
- *  (a thin router calls exactly one verb, so the unstubbed remainder is never reached). */
+type TestServices = { [K in keyof Services]?: Partial<Services[K]> };
+
+/** Complete the production-derived partial service map with a loud runtime boundary. The single assertion
+ * licenses only omitted, unreachable domains; every supplied domain and verb remains checked against the
+ * real `Services` contract, and an accidental unstubbed read throws at the point of use. */
+function testServices(parts: TestServices): Services {
+  const supplied: TestServices = { ...parts };
+  return new Proxy(supplied, {
+    get: (target, property, receiver): unknown => {
+      if (!Reflect.has(target, property)) {
+        throw new Error(`transport test reached unstubbed service ${String(property)}`);
+      }
+      return Reflect.get(target, property, receiver);
+    },
+  }) as Services;
+}
+
+/** Build a transport Context from only the parts a test cares about. */
 export function makeContext(parts: {
   auth?: Principal | null;
-  services?: { [K in keyof Services]?: Partial<Services[K]> };
+  services?: TestServices;
   rateLimit?: RateLimitGate;
   presence?: PresenceRegistry;
   /** The multiplexed-socket cells; a fresh isolated registry per context unless the test supplies one. */
@@ -67,8 +83,7 @@ export function makeContext(parts: {
   return {
     auth: parts.auth ?? null,
     sessionId: parts.sessionId ?? null,
-    // biome-ignore lint/suspicious/noExplicitAny: a thin router reaches exactly one verb; the rest of the partial Services is never read.
-    services: (parts.services ?? {}) as any as Services,
+    services: testServices(parts.services ?? {}),
     rateLimit: parts.rateLimit ?? allowAll,
     presence: parts.presence ?? inertPresence,
     sockets: parts.sockets ?? inertSockets(),

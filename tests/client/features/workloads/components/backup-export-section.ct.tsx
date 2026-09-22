@@ -19,6 +19,7 @@ import type { Finding } from "../../../../../tooling/src/ui-audit/contract/findi
 import { checkRowVoid } from "../../../../../tooling/src/ui-audit/lib/checks-structure.ts";
 import type { OrbSocketRecorder } from "../../../../support/node/route-orb-socket.ts";
 import { routeOrbSocket } from "../../../../support/node/route-orb-socket.ts";
+import type { TrpcRoutes } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 // The bus's OWN transport mutations (#649). `stream.attach`/`detach` ride the BATCHED HTTP link, not the
 // SSE leg (`use-orb-socket.ts:7,139` — only `stream.connect` is the subscription), so `routeOrbSocket`
@@ -28,7 +29,7 @@ import { STREAM_MUTATION_ROUTES } from "../../../data/bus/fixtures.ts";
 import { BackupSettingsStory } from "../_ct-stories.tsx";
 
 /** The host's viewer projection (`useSettingsViewerView`) — the group body resolves each section's `when` off it. */
-const HOST_VIEWER_ROUTE: Readonly<Record<string, unknown>> = { "sessions.me": { userId: "user_ct_backup", handle: "ct_backup", globalRole: "user" } };
+const HOST_VIEWER_ROUTE: TrpcRoutes<"sessions.me"> = { "sessions.me": { userId: "user_ct_backup", handle: "ct_backup", globalRole: "user" } };
 
 /** The tab's ONE socket, scripted with the import run's frames. The tracker mounts only AFTER the upload
  *  returns a workloadId, so the stub holds the stream open until that room attaches (a frame for an unjoined
@@ -138,7 +139,7 @@ test("import: a dropped .zip is STAGED first; confirming POSTs the bundle, tails
   await page.getByTestId("backup-import-dropzone").setInputFiles({
     name: "backup.zip",
     mimeType: "application/zip",
-    buffer: Buffer.from("PK"),
+    buffer: Buffer.from("PK��"),
   });
 
   // NOTHING IS SENT BY PICKING. Barrier on the settled preflight — a named group carrying the file it is

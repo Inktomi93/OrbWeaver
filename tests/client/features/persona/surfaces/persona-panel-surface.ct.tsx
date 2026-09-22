@@ -17,7 +17,7 @@ import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder, TrpcRoutes } from "../../../../support/node/route-trpc.ts";
+import type { TrpcFixtureOutput, TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { PersonaSwitcherBarStory, PersonaYouSheetStory } from "../_ct-stories.tsx";
 
@@ -25,14 +25,14 @@ const NOVA = "persona_nova";
 const ORION = "persona_orion";
 const CHAT_ID = castId<ChatId>("chat_switcher_ct");
 
-const PERSONAS = [
+const PERSONAS: TrpcWireOutput<"persona.list"> = [
   { id: NOVA, name: "Nova", title: null, description: "", starred: false, avatarAssetId: null, avatarHash: null, metadata: null, createdAt: 1, updatedAt: 1 },
   { id: ORION, name: "Orion", title: null, description: "", starred: false, avatarAssetId: null, avatarHash: null, metadata: null, createdAt: 2, updatedAt: 2 },
 ];
 
 /** The viewer's solo room, playing Nova in-chat. Shaped as `chat.getChat` returns it (the
  *  persona-this-chat-section fixture's shape, title added — the contextual block renders it). */
-const CHAT = {
+const CHAT: TrpcFixtureOutput<"chat.getChat"> = {
   id: CHAT_ID,
   title: "The Ashen Spire",
   viewerUserId: "user_ct",
@@ -47,7 +47,7 @@ const SEED_PROC = "settings.updateUserSettingsSection";
 const ACTIVE_PROC = "persona.setActivePersona";
 const RESTAMP_PROC = "chat.reattributePersona";
 
-function stub(page: Page, extra: TrpcRoutes = {}): Promise<TrpcRecorder> {
+function stub(page: Page, extra?: TrpcRoutes<"chat.getChat">): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "persona.list": () => PERSONAS,
     "settings.getUserSettings": () => ({
@@ -55,11 +55,18 @@ function stub(page: Page, extra: TrpcRoutes = {}): Promise<TrpcRecorder> {
       schemaVersion: 1,
       config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, currentPersonaId: NOVA, defaultPersonaId: NOVA } },
       updatedAt: 0,
+      configUnreadable: null,
     }),
-    [SEED_PROC]: () => ({}),
-    [ACTIVE_PROC]: () => ({}),
-    [RESTAMP_PROC]: () => ({}),
-    ...extra,
+    "settings.updateUserSettingsSection": () => ({
+      userId: "user_ct",
+      schemaVersion: 1,
+      config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, currentPersonaId: NOVA, defaultPersonaId: NOVA } },
+      updatedAt: 1,
+      configUnreadable: null,
+    }),
+    "persona.setActivePersona": () => undefined,
+    "chat.reattributePersona": () => undefined,
+    ...(extra ?? {}),
   });
 }
 

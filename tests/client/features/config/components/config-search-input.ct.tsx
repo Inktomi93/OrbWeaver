@@ -14,10 +14,17 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { hitExtent, resolveSpacingPx } from "../../../../support/browser/touch-floor.ts";
+import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ConfigHostStory } from "../_ct-stories.tsx";
 
-const USER_SETTINGS_VIEW = { userId: "user_ct_search", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };
+const USER_SETTINGS_VIEW = {
+  userId: "user_ct_search",
+  schemaVersion: 1,
+  config: DEFAULT_USER_SETTINGS,
+  configUnreadable: null,
+  updatedAt: 0,
+} satisfies TrpcWireOutput<"settings.getUserSettings">;
 
 /** EXACTLY ONE SETTING CHANGED, the live drive's own case (#1099 F16): `appearance.chatStyle` off its
  *  `bubble` default. Its section (Message style) owns two other leaves that are still at their defaults —
@@ -26,33 +33,44 @@ const USER_SETTINGS_VIEW = { userId: "user_ct_search", schemaVersion: 1, config:
 const MODIFIED_SETTINGS_VIEW = {
   ...USER_SETTINGS_VIEW,
   config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, chatStyle: "flat" } },
-};
+} satisfies TrpcWireOutput<"settings.getUserSettings">;
 
 /** One tag, so a MEMBER row exists for the dynamic-rows pin. */
 const TAG = {
   id: "tag_ct_search00000001",
   name: "slice-of-life",
   color: null,
-  proposed: false,
-  usage: { characters: 1, chats: 0, books: 0, personas: 0, presets: 0, total: 1 },
-  createdAt: 1,
-  updatedAt: 1,
-};
+  color2: null,
+  source: null,
+  folderType: "NONE",
+  sortOrder: 0,
+  isHiddenOnCard: false,
+  usage: { characters: 1, chats: 0, worldBooks: 0, personas: 0, presets: 0, total: 1 },
+} satisfies TrpcWireOutput<"tag.listTagsWithUsage">[number];
 
-const AMBIENT: Readonly<Record<string, unknown>> = {
+const AMBIENT = {
   "sessions.me": { userId: USER_SETTINGS_VIEW.userId, handle: "ct_search", globalRole: "user" },
-  "settings.getUserSettings": () => USER_SETTINGS_VIEW,
+  "settings.getUserSettings": (): typeof USER_SETTINGS_VIEW => USER_SETTINGS_VIEW,
   // The Looks section (#866 S4) reads the theme library the moment the appearance group mounts.
-  "settings.listThemes": () => [],
+  "settings.listThemes": (): TrpcWireOutput<"settings.listThemes"> => [],
   "tag.listTagsWithUsage": [TAG],
   "regex.listScripts": [],
   "worldInfo.listBooksWithUsage": [],
   "rosterPreset.list": [],
   "persona.list": [],
-};
+} satisfies TrpcRoutes<
+  | "sessions.me"
+  | "settings.getUserSettings"
+  | "settings.listThemes"
+  | "tag.listTagsWithUsage"
+  | "regex.listScripts"
+  | "worldInfo.listBooksWithUsage"
+  | "rosterPreset.list"
+  | "persona.list"
+>;
 
-async function stub(page: Page, extra: Readonly<Record<string, unknown>> = {}): Promise<void> {
-  await routeTrpc(page, { ...AMBIENT, ...extra });
+async function stub(page: Page, getUserSettings: () => TrpcWireOutput<"settings.getUserSettings"> = AMBIENT["settings.getUserSettings"]): Promise<void> {
+  await routeTrpc(page, { ...AMBIENT, "settings.getUserSettings": getUserSettings });
 }
 
 test("aria-expanded follows the LIST's existence: collapsed at rest, true with a query, back when cleared", async ({ mount, page }) => {
@@ -186,7 +204,7 @@ test("`when` parity: a plain viewer's search has NO admin hits — one predicate
 // exactly the failure the one-map derivation exists to prevent.
 
 test("@modified returns ONLY what differs — an unmodified sibling leaf of a modified section is not a hit", async ({ mount, page }) => {
-  await stub(page, { "settings.getUserSettings": () => MODIFIED_SETTINGS_VIEW });
+  await stub(page, () => MODIFIED_SETTINGS_VIEW);
   const component = await mount(<ConfigHostStory />);
 
   await component.getByRole("combobox", { name: "Search settings" }).fill("@modified ");
@@ -202,7 +220,7 @@ test("@modified returns ONLY what differs — an unmodified sibling leaf of a mo
 });
 
 test("every @modified hit CARRIES the mark — in its visible row and in its accessible name", async ({ mount, page }) => {
-  await stub(page, { "settings.getUserSettings": () => MODIFIED_SETTINGS_VIEW });
+  await stub(page, () => MODIFIED_SETTINGS_VIEW);
   const component = await mount(<ConfigHostStory />);
 
   await component.getByRole("combobox", { name: "Search settings" }).fill("@modified ");
@@ -217,7 +235,7 @@ test("every @modified hit CARRIES the mark — in its visible row and in its acc
 });
 
 test("a modified setting is findable from a PLAIN query too: the hit says so without the token", async ({ mount, page }) => {
-  await stub(page, { "settings.getUserSettings": () => MODIFIED_SETTINGS_VIEW });
+  await stub(page, () => MODIFIED_SETTINGS_VIEW);
   const component = await mount(<ConfigHostStory />);
 
   await component.getByRole("combobox", { name: "Search settings" }).fill("chat display");
@@ -225,7 +243,7 @@ test("a modified setting is findable from a PLAIN query too: the hit says so wit
 });
 
 test("modified PROPAGATES UP: the group band and its shelf say so, at rest, with nothing typed", async ({ mount, page }) => {
-  await stub(page, { "settings.getUserSettings": () => MODIFIED_SETTINGS_VIEW });
+  await stub(page, () => MODIFIED_SETTINGS_VIEW);
   const component = await mount(<ConfigHostStory />);
 
   // The band carries the word INSIDE the button, so it is part of the band's own accessible name.

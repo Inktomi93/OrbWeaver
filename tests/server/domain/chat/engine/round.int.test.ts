@@ -86,6 +86,7 @@ function base(chatId: ChatId): Omit<TurnPrep, "speakerCharacterId" | "groupNudge
     assembleContext: ASSEMBLE_CTX,
     connection: testConnection(),
     triggeredBy: HOST,
+    funderUserId: HOST,
     runAsUserId: HOST,
     kind: "auto",
     intent: {},

@@ -115,9 +115,8 @@ export const AA_NORMAL_RATIO = 4.5;
  *  WCAG's black/white crossover cannot physically reach 4.6, so each search caps this aim at the chosen
  *  polarity endpoint's measured capacity rather than narrowing the accepted theme domain. */
 export const AA_NORMAL_DERIVATION_RATIO = 4.6;
-/** @public future: the large-text / non-text contrast gate (unbuilt) — WCAG AA for large text, the floor's
- *  sibling threshold beside `AA_NORMAL_RATIO`; the theme importer gates normal-size only today, this is the
- *  named constant that next gate reaches for. */
+/** WCAG AA for large text and non-text graphics. The chart-ramp and accent-fill solvers use this live 3:1
+ *  floor, and the theme-derivation suite pins both families against it. */
 export const AA_LARGE_RATIO = 3;
 
 /** An sRGB triple, channels 0–255. */

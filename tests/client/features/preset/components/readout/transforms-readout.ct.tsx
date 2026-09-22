@@ -12,12 +12,13 @@
 
 import { PROMPT_LANE_STEPS, pipelineStepKey, REPLY_LANE_STEPS } from "@orb/contracts/preset";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { TrpcRoutes } from "../../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../../support/node/route-trpc.ts";
 import { TransformsReadoutStory, TransformsReadoutSystemDefaultStory } from "./_readout-stories.tsx";
 
 /** The readout resolves the preset's ATTACHED scripts; an empty set is enough (the pin is the ORDER, and
  *  every row renders regardless of its count — a stage with no scripts reads "off", never vanishes). */
-const NO_ATTACHED_SCRIPTS = { "regex.listForPreset": [] };
+const NO_ATTACHED_SCRIPTS: TrpcRoutes<"regex.listForPreset"> = { "regex.listForPreset": [] };
 
 test("the RENDERED rows are the DECLARED lanes, in order (prompt lane then reply lane)", async ({ mount, page }) => {
   await routeTrpc(page, NO_ATTACHED_SCRIPTS);

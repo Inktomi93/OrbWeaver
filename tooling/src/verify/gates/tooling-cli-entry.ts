@@ -102,14 +102,14 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "types",
-      files: { [RUNNER_HOME.path]: RUNNER_STUB(), "tooling/src/badcli/cli.ts": "export const c = 1;\n" },
+      files: { [RUNNER_HOME.path]: runnerStub(), "tooling/src/badcli/cli.ts": "export const c = 1;\n" },
       expect: { count: 1, line: 1 },
       why: "the founding shape — a tool cli.ts that never enters the exit-honesty runner (arm E)",
     },
     {
       mode: "types",
       files: {
-        [RUNNER_HOME.path]: RUNNER_STUB(),
+        [RUNNER_HOME.path]: runnerStub(),
         "tooling/src/localcli/cli.ts": "async function runTool(main: () => number): Promise<void> {\n  void main();\n}\nawait runTool(() => 0);\n",
       },
       expect: { count: 1, line: 1 },
@@ -118,7 +118,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        [RUNNER_HOME.path]: `${RUNNER_STUB()}export function other(): void {}\n`,
+        [RUNNER_HOME.path]: `${runnerStub()}export function other(): void {}\n`,
         "tooling/src/othercli/cli.ts": 'import { other } from "../_shared/run-tool.ts";\n\nother();\n',
       },
       expect: { count: 1, line: 1 },
@@ -126,7 +126,7 @@ export const gate = defineGate({
     },
     {
       mode: "types",
-      files: { [RUNNER_HOME.path]: RUNNER_STUB(), "tooling/src/blindcli/cli.ts": 'import { runTool } from "./missing.ts";\n\nawait runTool(() => 0);\n' },
+      files: { [RUNNER_HOME.path]: runnerStub(), "tooling/src/blindcli/cli.ts": 'import { runTool } from "./missing.ts";\n\nawait runTool(() => 0);\n' },
       expect: { count: 1, line: 1 },
       why: "FAIL-CLOSED: a runner call whose import door does not resolve is no PROVEN entry — the cli is reported rather than silently admitted on the strength of a spelling",
     },
@@ -135,7 +135,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        [RUNNER_HOME.path]: RUNNER_STUB(),
+        [RUNNER_HOME.path]: runnerStub(),
         "tooling/src/goodcli/cli.ts": 'import { runTool } from "../_shared/run-tool.ts";\nawait runTool(() => 0);\n',
       },
       why: "a cli.ts entering through runTool — the sanctioned front-door shape (arm E's pass half). The runner home is in the population and is SKIPPED, never judged: it is not a cli.ts by shape",
@@ -143,7 +143,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        [RUNNER_HOME.path]: RUNNER_STUB(),
+        [RUNNER_HOME.path]: runnerStub(),
         "tooling/src/aliascli/cli.ts": 'import { runTool as run } from "../_shared/run-tool.ts";\nawait run(() => 0);\n',
       },
       why: "AN IMPORT ALIAS enters the same runner — the callee resolves to the home's export whatever it was spelled as. The legacy text comparison reported this cli as unentered",
@@ -151,7 +151,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        [RUNNER_HOME.path]: RUNNER_STUB(),
+        [RUNNER_HOME.path]: runnerStub(),
         "tooling/src/nestedcli/cli.ts":
           'import { runTool } from "../_shared/run-tool.ts";\nasync function boot(): Promise<void> {\n  await runTool(() => 0);\n}\nawait boot();\n',
       },
@@ -159,13 +159,13 @@ export const gate = defineGate({
     },
     {
       mode: "types",
-      files: { [RUNNER_HOME.path]: RUNNER_STUB(), "tooling/src/snap/ops/cli.ts": "export const c = 1;\n" },
+      files: { [RUNNER_HOME.path]: runnerStub(), "tooling/src/snap/ops/cli.ts": "export const c = 1;\n" },
       why: "THE CLI SHAPE IS FOUR SEGMENTS: a `cli.ts` nested under ops/ is an ordinary module, not a tool's front door, and is outside the population by the `tooling/src/*/cli.ts` glob. The runner home keeps the fixture admitted",
     },
   ],
 });
 
 /** The runner's export surface, planted so a proof locates it: an absent home REFUSES the run by receipt. */
-function RUNNER_STUB(): string {
+function runnerStub(): string {
   return "export async function runTool(main: () => number): Promise<void> {\n  void main;\n}\n";
 }

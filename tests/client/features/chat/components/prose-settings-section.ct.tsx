@@ -6,11 +6,12 @@
 // patch, never the UI reaction (assert-the-mutation-fired).
 
 import { PROSE_COUNTER_AT, PROSE_MAX_CHARS, PROSE_SLOTS } from "@orb/contracts/prose";
+import type { UserSettings } from "@orb/contracts/settings";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { resolvedTokenColor } from "../../../../support/node/resolved-token-color.ts";
-import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import type { TrpcFixtureOutput, TrpcInput, TrpcRecorder } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ProseSettingsSectionStory } from "../_ct-stories.tsx";
 
@@ -26,20 +27,23 @@ const DIGEST = "chat.memory.digestSystem";
 const ARBITER_FIELD = PROSE_SLOTS[ARBITER].title;
 const DIGEST_FIELD = PROSE_SLOTS[DIGEST].title;
 
-function settingsView(prose: Record<string, unknown> = {}): Record<string, unknown> {
-  return { userId: "user_ct_prose", schemaVersion: 7, config: { ...DEFAULT_USER_SETTINGS, prose }, updatedAt: 0 };
+type ProseOverrides = UserSettings["prose"];
+type SettingsSectionInput = TrpcInput<"settings.updateUserSettingsSection">;
+
+function settingsView(prose: ProseOverrides = {}): TrpcFixtureOutput<"settings.getUserSettings"> {
+  return { userId: "user_ct_prose", schemaVersion: 7, config: { ...DEFAULT_USER_SETTINGS, prose }, configUnreadable: null, updatedAt: 0 };
 }
 
-function stub(page: Page, prose?: Record<string, unknown>): Promise<TrpcRecorder> {
+function stub(page: Page, prose?: ProseOverrides): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "settings.getUserSettings": () => settingsView(prose),
-    [UPDATE_PROC]: () => ({}),
+    [UPDATE_PROC]: () => settingsView(prose),
   });
 }
 
 /** The most recent prose-section patch body. */
-function lastPatch(trpc: TrpcRecorder): Record<string, unknown> | undefined {
-  const input = trpc.lastInput(UPDATE_PROC) as { section?: string; patch?: Record<string, unknown> } | undefined;
+function lastPatch(trpc: TrpcRecorder): SettingsSectionInput["patch"] | undefined {
+  const input = trpc.lastInput(UPDATE_PROC) as SettingsSectionInput | undefined;
   return input?.section === "prose" ? input.patch : undefined;
 }
 

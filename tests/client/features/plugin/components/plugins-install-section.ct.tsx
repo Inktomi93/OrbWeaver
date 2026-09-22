@@ -31,7 +31,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { strToU8, zipSync } from "fflate";
 import { touchFloorPx } from "../../../../support/browser/touch-floor.ts";
-import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { PluginsSurfaceStory, SnippetConsoleStory } from "../_ct-stories.tsx";
 
@@ -53,7 +53,7 @@ const A_PAST_INSTANT = 1_760_000_000_000;
  *  test here drives PER-USER plugin management, so the viewer is a plain user: `isAdmin` is false, the
  *  distribute contribution resolves out, and the pane renders exactly its own two sections. Fed (not left
  *  inert) so that admin gate runs LIVE under these mounts rather than answering an unstubbed `null`. */
-const USER_VIEWER = { userId: "user_ct_plugin", handle: "plugin_user", globalRole: "user" };
+const USER_VIEWER = { userId: "user_ct_plugin", handle: "plugin_user", globalRole: "user" } satisfies TrpcWireOutput<"sessions.me">;
 /** The bare-`host` tell the old starter shipped (#683) — a property read off `host` with no owning `.`/word
  *  before it (so `orb.host(1)` itself doesn't false-positive). */
 const BARE_HOST_RE = /(?<![.\w])host\./u;
@@ -62,16 +62,7 @@ const BARE_HOST_RE = /(?<![.\w])host\./u;
 const TOP_LEVEL_AWAIT_RE = /^\s*(?:const|let|var)\s+\w+\s*=\s*await\s/mu;
 const ORB_HOST_CALL_RE = /orb\.host\(1\)/u;
 
-interface ManifestFixture {
-  readonly id: string;
-  readonly name: string;
-  readonly version: string;
-  readonly hostVersion: 1;
-  readonly entry: "main.js";
-  readonly description: string;
-  readonly capabilities: readonly string[];
-  readonly netHosts?: readonly string[];
-}
+type ManifestFixture = TrpcWireOutput<"plugin.previewFromUrl">;
 
 /** A REAL bundle: the two entries the funnel admits, zipped with the engine the surface unzips with. */
 function bundle(manifest: ManifestFixture): Buffer {
@@ -120,7 +111,13 @@ const INSTALLED_ROW = {
   lastError: null,
   installedAt: A_PAST_INSTANT,
   updatedAt: A_PAST_INSTANT,
-};
+} satisfies TrpcWireOutput<"plugin.list">[number];
+
+type PluginRow = TrpcWireOutput<"plugin.list">[number];
+
+function pluginRow(overrides: Partial<PluginRow> = {}): PluginRow {
+  return { ...INSTALLED_ROW, ...overrides };
+}
 
 /** A `url`-ORIGIN installed row (U8 2b): fetched from a remembered `sourceUrl`, so the pane offers the auto
  *  update-check + one-click upgrade. Kept deliberately simple (one granted capability, no netHosts) so the
@@ -137,7 +134,7 @@ const URL_INSTALLED_ROW = {
   declaredCapabilities: ["chat.read"],
   grantedCapabilities: ["chat.read"],
   netHosts: null,
-};
+} satisfies TrpcWireOutput<"plugin.list">[number];
 
 /** A SEEDED SHOWCASE row (#1740): it arrived as an `upload` like any hand install and has no remembered URL —
  *  the server is what knows this build ships a bundle under its slug, and says so with
@@ -155,12 +152,12 @@ const SHOWCASE_ROW = {
   declaredCapabilities: ["chat.read"],
   grantedCapabilities: ["chat.read"],
   netHosts: null,
-};
+} satisfies TrpcWireOutput<"plugin.list">[number];
 
 /** The row the showcase one-click's server verb returns: the SHIPPED version, and nothing widened — so the
  *  outcome is the plain success arm rather than the re-consent wall (the widening half is already pinned on the
  *  url twin, and it is the same `upgrade` verb underneath either way). */
-const SHOWCASE_UPGRADED_ROW = { ...SHOWCASE_ROW, version: "1.2.0" };
+const SHOWCASE_UPGRADED_ROW = { ...SHOWCASE_ROW, version: "1.2.0" } satisfies TrpcWireOutput<"plugin.list">[number];
 
 /** What the one-click upgrade's server verb returns for a REACH-WIDENING update: the NEW version, `disabled`,
  *  `reconsentPending: true`, and a newly-declared capability the prior grant never confirmed — so the SAME
@@ -173,7 +170,7 @@ const URL_WIDENED_ROW = {
   grantedCapabilities: ["chat.read"],
   reconsentPending: true,
   widenedNetHosts: [],
-};
+} satisfies TrpcWireOutput<"plugin.list">[number];
 
 /** Drop a bundle into the install card's dropzone through the picker feeder. */
 async function pickBundle(page: Page, manifest: ManifestFixture): Promise<void> {
@@ -253,10 +250,10 @@ test("#1855: the consent list is read-only and Install grants the FULL declared 
   // appearing after the write's own invalidate — rather than on a toast or an in-flight flash.
   let installed = false;
   const recorder: TrpcRecorder = await routeTrpc(page, {
-    "plugin.list": () => (installed ? [{ ...INSTALLED_ROW, grantedCapabilities: WEATHER_MANIFEST.capabilities }] : []),
+    "plugin.list": () => (installed ? [pluginRow({ grantedCapabilities: WEATHER_MANIFEST.capabilities })] : []),
     "plugin.install": () => {
       installed = true;
-      return { ...INSTALLED_ROW, grantedCapabilities: WEATHER_MANIFEST.capabilities };
+      return pluginRow({ grantedCapabilities: WEATHER_MANIFEST.capabilities });
     },
     "plugin.listSurfaces": () => [],
     "sessions.me": () => USER_VIEWER,
@@ -463,8 +460,7 @@ test("an upgrade that WIDENS reach says exactly what widened, and Allow closes t
   // list read alone is what drives the notice.
   let upgraded = false;
   let allowed = false;
-  const upgradedRow = {
-    ...INSTALLED_ROW,
+  const upgradedRow = pluginRow({
     version: "2.0.0",
     status: "disabled",
     declaredCapabilities: ["chat.read", "net.fetch", "worldinfo.write"],
@@ -475,10 +471,10 @@ test("an upgrade that WIDENS reach says exactly what widened, and Allow closes t
     // NOT in here — that asymmetry inside a single fixture is what makes the badge assertions below mean
     // something rather than just counting.
     widenedNetHosts: ["collector.elsewhere.example"],
-  };
+  });
   // `setGrant` grants the WHOLE declared set and clears BOTH halves of the recorded refusal — the server's
   // own settled truth after the confirm, never faked client-side.
-  const allowedRow = { ...upgradedRow, grantedCapabilities: upgradedRow.declaredCapabilities, reconsentPending: false, widenedNetHosts: [] };
+  const allowedRow = pluginRow({ ...upgradedRow, grantedCapabilities: upgradedRow.declaredCapabilities, reconsentPending: false, widenedNetHosts: [] });
   const recorder = await routeTrpc(page, {
     "plugin.list": () => {
       if (!upgraded) {
@@ -616,8 +612,7 @@ test("an upgrade that WIDENS reach says exactly what widened, and Allow closes t
 test("#1855: a two-capability re-consent counts both, offers no partial path, and Approve all grants the whole ask", async ({ mount, page }) => {
   let upgraded = false;
   let partiallyAllowed = false;
-  const upgradedRow = {
-    ...INSTALLED_ROW,
+  const upgradedRow = pluginRow({
     version: "2.0.0",
     status: "disabled",
     declaredCapabilities: ["chat.read", "turn.trigger", "net.fetch", "worldinfo.write"],
@@ -625,16 +620,16 @@ test("#1855: a two-capability re-consent counts both, offers no partial path, an
     netHosts: ["api.weather.example", "collector.elsewhere.example"],
     reconsentPending: true,
     widenedNetHosts: ["collector.elsewhere.example"],
-  };
+  });
   // The server's settled row after the approve: the whole ask is granted and BOTH halves of the recorded
   // refusal clear. Named `allowedRow` for what it is — the partial arm this fixture used to model has no
   // client path left to reach it.
-  const allowedRow = {
+  const allowedRow = pluginRow({
     ...upgradedRow,
     grantedCapabilities: upgradedRow.declaredCapabilities,
     reconsentPending: false,
     widenedNetHosts: [],
-  };
+  });
   const recorder = await routeTrpc(page, {
     "plugin.list": () => {
       if (!upgraded) {
@@ -800,13 +795,12 @@ test("an up-to-date url plugin says so; a file plugin offers no update check (U8
 
 /** A row mid re-consent — the LONG status badge ("Off — asked for more than you allowed") and the notice.
  *  Shape mirrors the widened-upgrade fixture: declared ⊋ granted, `reconsentPending: true`. */
-const PENDING_ROW = {
-  ...INSTALLED_ROW,
+const PENDING_ROW = pluginRow({
   version: "2.0.0",
   declaredCapabilities: ["chat.read", "net.fetch", "worldinfo.write"],
   grantedCapabilities: ["chat.read", "net.fetch"],
   reconsentPending: true,
-};
+});
 
 /** Two boxes overlap iff both axes overlap — the header-collision read (side-eye 2026-08-29 P2-1). */
 function overlaps(a: { x: number; y: number; width: number; height: number }, b: { x: number; y: number; width: number; height: number }): boolean {
@@ -851,7 +845,7 @@ test("a plugin switched ON with nothing granted says so on its status badge (own
   // Enabled-but-inert: every capability "Not granted" means the plugin runs and can reach nothing — the
   // least-privilege posture working as designed, but "I turned it on and nothing happened" needed an answer
   // on the row itself.
-  const inertRow = { ...INSTALLED_ROW, status: "enabled", declaredCapabilities: ["chat.read"], grantedCapabilities: [], netHosts: null };
+  const inertRow = pluginRow({ status: "enabled", declaredCapabilities: ["chat.read"], grantedCapabilities: [], netHosts: null });
   await routeTrpc(page, { "plugin.list": () => [inertRow], "plugin.getLog": () => [], "plugin.listSurfaces": () => [], "sessions.me": () => USER_VIEWER });
   await mount(<PluginsSurfaceStory />);
 

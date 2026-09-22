@@ -117,7 +117,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "tooling/src/_shared/artifact-out.ts": ARTIFACT_OUT_STUB(),
+        "tooling/src/_shared/artifact-out.ts": artifactOutStub(),
         "tooling/src/unslotted/cli.ts": 'import { shoot } from "./ops/shoot.ts";\nexport const run = shoot;\n',
         "tooling/src/unslotted/ops/shoot.ts":
           'import { artifactFile } from "../../_shared/artifact-out.ts";\nexport async function shoot(): Promise<number> {\n  await artifactFile("snaps", "root", ".png");\n  return 0;\n}\n',
@@ -128,7 +128,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "tooling/src/_shared/artifact-out.ts": ARTIFACT_OUT_STUB(),
+        "tooling/src/_shared/artifact-out.ts": artifactOutStub(),
         "tooling/src/deep/cli.ts": 'import { shoot } from "./ops/shoot.ts";\nexport const run = shoot;\n',
         "tooling/src/deep/ops/shoot.ts":
           'import { artifactFile, withInstrumentRun } from "../../_shared/artifact-out.ts";\nexport async function shoot(): Promise<number> {\n  return await withInstrumentRun("deep", async () => {\n    await artifactFile("snaps", "root", ".png");\n    return 0;\n  });\n}\n',
@@ -139,7 +139,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "tooling/src/_shared/artifact-out.ts": ARTIFACT_OUT_STUB(),
+        "tooling/src/_shared/artifact-out.ts": artifactOutStub(),
         "tooling/src/local/cli.ts":
           'import { shoot } from "./ops/shoot.ts";\nasync function withInstrumentRun(i: string, m: () => Promise<number>): Promise<number> {\n  void i;\n  return await m();\n}\nexport const run = withInstrumentRun("local", shoot);\n',
         "tooling/src/local/ops/shoot.ts":
@@ -151,7 +151,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "tooling/src/_shared/artifact-out.ts": ARTIFACT_OUT_STUB(),
+        "tooling/src/_shared/artifact-out.ts": artifactOutStub(),
         "tooling/src/blind/cli.ts": 'import { shoot } from "./ops/shoot.ts";\nexport const run = shoot;\n',
         "tooling/src/blind/ops/shoot.ts":
           'import { artifactFile } from "./missing.ts";\nexport async function shoot(): Promise<number> {\n  await artifactFile("snaps", "root", ".png");\n  return 0;\n}\n',
@@ -164,7 +164,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "tooling/src/_shared/artifact-out.ts": ARTIFACT_OUT_STUB(),
+        "tooling/src/_shared/artifact-out.ts": artifactOutStub(),
         "tooling/src/slotted/cli.ts":
           'import { withInstrumentRun } from "../_shared/artifact-out.ts";\nimport { shoot } from "./ops/shoot.ts";\nexport const run = withInstrumentRun("slotted", shoot);\n',
         "tooling/src/slotted/ops/shoot.ts":
@@ -175,7 +175,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "tooling/src/_shared/artifact-out.ts": ARTIFACT_OUT_STUB(),
+        "tooling/src/_shared/artifact-out.ts": artifactOutStub(),
         "tooling/src/alias/cli.ts":
           'import { withInstrumentRun as slot } from "../_shared/artifact-out.ts";\nimport { shoot } from "./ops/shoot.ts";\nexport const run = slot("alias", shoot);\n',
         "tooling/src/alias/ops/shoot.ts":
@@ -186,7 +186,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "tooling/src/_shared/artifact-out.ts": ARTIFACT_OUT_STUB(),
+        "tooling/src/_shared/artifact-out.ts": artifactOutStub(),
         "tooling/src/lookalike/cli.ts": 'import { shoot } from "./ops/shoot.ts";\nexport const run = shoot;\n',
         "tooling/src/lookalike/ops/shoot.ts":
           'function artifactFile(k: string, o: string, e: string): string {\n  return k + o + e;\n}\nexport function shoot(): number {\n  return artifactFile("snaps", "root", ".png").length;\n}\n',
@@ -196,7 +196,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "tooling/src/_shared/artifact-out.ts": ARTIFACT_OUT_STUB(),
+        "tooling/src/_shared/artifact-out.ts": artifactOutStub(),
         "tooling/src/_shared/artifact-index.ts":
           'import { artifactFile } from "./artifact-out.ts";\nexport const index = artifactFile("index", "root", ".json");\n',
       },
@@ -206,7 +206,7 @@ export const gate = defineGate({
 });
 
 /** The home's export surface, planted so a proof locates it: an absent home REFUSES the run by receipt. */
-function ARTIFACT_OUT_STUB(): string {
+function artifactOutStub(): string {
   return [
     "export async function artifactDir(kind: string): Promise<string> {",
     "  return kind;",

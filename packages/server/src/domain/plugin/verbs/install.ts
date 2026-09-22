@@ -2,8 +2,9 @@
 // THEMSELVES, and the row is stamped `ownerId: caller.userId`. There is no role gate — a plugin runs under
 // its INSTALLER's own ceiling (the bridge closes over `caller.userId`, PL-C resolves the installer's own
 // room role, `llm.quiet` spends the installer's own credential), so an install grants the caller authority
-// over nothing but their own reach. The SERVER-WIDE install (one row serving every user) is the admin-gated
-// variant and is NOT BUILT — see D147.
+// over nothing but their own reach. The SERVER-WIDE path is an admin-triggered distribution fan-out, not a
+// shared row or principal: it re-enters this verb once per recipient under that recipient's Principal, with
+// the copy disabled, ungranted, and consent-pending. See D147.
 // Flow: `parseBundle` (unzip+validate the untrusted bytes — throws `ManifestInvalidError` on a bad
 // zip/bomb/manifest) → the grant ⊆ declared check → per-owner slug-collision check → store the WHOLE bundle
 // in the caller's CAS (kind `"plugin"`) → store each `ui/assets/` image the bundle shipped as its own CAS

@@ -8,13 +8,15 @@ import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import type { TrpcWireOutput } from "../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../support/node/route-trpc.ts";
 import { SessionRecoveryBindFailureStory, SessionRecoveryReauthStory, SessionRecoveryStory, SessionSwapStory } from "./_ct-stories.tsx";
 
-const VIEWER = { userId: "usr_ct_owner", handle: castId<Handle>("owner"), globalRole: "owner" };
+const VIEWER_HANDLE = castId<Handle>("owner");
+const VIEWER: TrpcWireOutput<"sessions.me"> = { userId: "usr_ct_owner", handle: VIEWER_HANDLE, globalRole: "owner" };
 
 test("binds the durable-local namespace to the viewer id off `sessions.me` (F1)", async ({ mount, page }) => {
-  await routeTrpc(page, { "sessions.me": (): unknown => VIEWER });
+  await routeTrpc(page, { "sessions.me": () => VIEWER });
 
   await mount(<SessionRecoveryStory />);
 
@@ -40,7 +42,7 @@ test("mounts without suspending or navigating when the identity read is still in
 });
 
 test("surfaces a durable-local bind failure and retries to the ready workspace", async ({ mount, page }) => {
-  await routeTrpc(page, { "sessions.me": (): unknown => VIEWER });
+  await routeTrpc(page, { "sessions.me": () => VIEWER });
 
   await mount(<SessionRecoveryBindFailureStory />);
 
@@ -57,12 +59,12 @@ test("surfaces a durable-local bind failure and retries to the ready workspace",
 //
 // `/api/auth/me` is the only identity the ladder can read pre-tRPC, so it is what the swap is scripted on.
 async function stubSwappableAuth(page: Page): Promise<(handle: Handle) => void> {
-  let handle: Handle = VIEWER.handle;
+  let handle: Handle = VIEWER_HANDLE;
   await page.route("**/api/auth/config", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ mode: "local" }) }));
   await page.route("**/api/auth/me", (route) =>
     route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ authenticated: true, handle, role: "owner" }) }),
   );
-  await routeTrpc(page, { "sessions.me": (): unknown => VIEWER });
+  await routeTrpc(page, { "sessions.me": () => VIEWER });
   return (next: Handle): void => {
     handle = next;
   };
@@ -123,7 +125,7 @@ test("keeps the mounted recovery host through a terminal sessions.me 401 and ope
     }),
   );
   await page.route("**/api/auth/config", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ mode: "local" }) }));
-  await routeTrpc(page, { "sessions.me": (): unknown => (alive ? VIEWER : trpcError({ code: "UNAUTHORIZED" })) });
+  await routeTrpc(page, { "sessions.me": () => (alive ? VIEWER : trpcError({ code: "UNAUTHORIZED" })) });
 
   await mount(<SessionRecoveryReauthStory />);
   await page.getByTestId("ct-revoke-session").click();

@@ -39,7 +39,7 @@ import type { PluginCapability, PluginManifest } from "@orb/contracts/plugin";
 import { errorMessage } from "@orb/kit/error-message";
 import type { AssetId, PluginId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
-import { ManifestInvalidError, PluginDowngradeRefusedError, PluginNotFoundError } from "../contract/errors.ts";
+import { ManifestInvalidError, PluginCrashedError, PluginDowngradeRefusedError, PluginNotFoundError } from "../contract/errors.ts";
 import type { UpgradePluginParams } from "../contract/params.ts";
 import type { ActivationDeps, PluginContext, PluginService } from "../contract/service.ts";
 import { listPluginBundleAssets } from "../persistence/plugin-assets.ts";
@@ -48,6 +48,14 @@ import { storeBundleAssets } from "../substrate/bundle-assets.ts";
 import { refreshConsentPrompt } from "../substrate/consent-prompt.ts";
 import { newlyDeclaredCapabilities, normalizeGrant, pendingWidenedNetHosts, widenedNetHosts } from "../substrate/grants.ts";
 import { isVersionDowngrade, PLUGIN_BUNDLE_MIME, parseBundle } from "../substrate/manifest.ts";
+
+function requireActivated(outcome: Awaited<ReturnType<ActivationDeps["activate"]>>): void {
+  if (!outcome.ok) {
+    // The new row is already the durable version and activation has marked it errored. Surface the typed
+    // refusal instead of returning a view that suggests an enabled upgrade succeeded.
+    throw new PluginCrashedError(`plugin activation failed: ${outcome.error}`);
+  }
+}
 
 /** The refusal the row carries OUT of this upgrade — whether one stands, and which hosts it is about. One
  *  function because they are one decision written to two columns, and splitting them is how they drift into
@@ -185,7 +193,7 @@ export function createUpgrade(ctx: PluginContext, deps: ActivationDeps): PluginS
 
     // Stop the old resident instance (running the OLD code) — the last act before the swap, so the window in
     // which the row and reality can disagree is exactly the swap itself, and the catch below closes that.
-    deps.deactivate(pluginId);
+    await deps.deactivate(pluginId);
 
     try {
       await applyUpgrade(
@@ -236,7 +244,8 @@ export function createUpgrade(ctx: PluginContext, deps: ActivationDeps): PluginS
       // EARLIER one can still be standing (`refusal.hosts`, the accumulated unanswered set filtered to what
       // this manifest still declares), and those destinations stay withheld from the wall until they are
       // answered. Same rule as `setEnabled`'s, at the other activation site.
-      await deps.activate({ caller, pluginId, bundleAssetId: stored.assetId, grants: granted, withheldNetHosts: refusal.hosts });
+      const outcome = await deps.activate({ caller, pluginId, bundleAssetId: stored.assetId, grants: granted, withheldNetHosts: refusal.hosts });
+      requireActivated(outcome);
     }
 
     // A reach-WIDENING upgrade is the other way a plugin starts standing on its owner's answer, so it

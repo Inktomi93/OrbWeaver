@@ -121,6 +121,7 @@ async function runPosture(
       assembleContext: ASSEMBLE_CTX,
       connection: testConnection(),
       triggeredBy: HOST,
+      funderUserId: HOST,
       runAsUserId: HOST,
       kind: "auto",
       intent: {},

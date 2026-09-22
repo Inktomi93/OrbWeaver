@@ -8,11 +8,11 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder } from "../../support/node/route-trpc.ts";
+import type { TrpcFixtureOutput, TrpcRecorder, TrpcResponder, TrpcWireOutput } from "../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../support/node/route-trpc.ts";
 import { RegexPickerHeadlessStory, RegexPickerInDeckStory, RegexPickerStory } from "../features/regex/_ct-stories.tsx";
 
-const ATTACHED = {
+const ATTACHED: TrpcWireOutput<"regex.listScripts">[number] = {
   id: "regex_script_000000000000000a",
   name: "already on",
   findRegex: "a",
@@ -34,10 +34,12 @@ const AUTHORED_IN_SETTINGS = /Settings → Regex/;
 const ATTACH_PROC = "regex.attachToCharacter";
 const DETACH_PROC = "regex.detachFromCharacter";
 
-function stub(page: Page, library: readonly unknown[], attached: readonly unknown[]): Promise<TrpcRecorder> {
+function stub(page: Page, library: TrpcFixtureOutput<"regex.listScripts">, attached: TrpcFixtureOutput<"regex.listForCharacter">): Promise<TrpcRecorder> {
+  const listScripts: TrpcResponder<"regex.listScripts"> = () => library;
+  const listAttached: TrpcResponder<"regex.listForCharacter"> = () => attached;
   return routeTrpc(page, {
-    "regex.listScripts": () => library,
-    "regex.listForCharacter": () => attached,
+    "regex.listScripts": listScripts,
+    "regex.listForCharacter": listAttached,
     [ATTACH_PROC]: () => null,
     [DETACH_PROC]: () => ({ detached: true }),
   });

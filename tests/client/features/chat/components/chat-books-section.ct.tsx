@@ -9,6 +9,7 @@
 import { rowActionsName } from "@orb/client/lib";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ChatBooksSectionStory } from "../_ct-stories.tsx";
 
@@ -25,7 +26,7 @@ const ROOM_BOOKS = [
   { id: "worldbook_ct_0000000000002", name: "Session Notes", description: null, createdAt: 1_700_000_000_001, role: null },
 ];
 
-function stubRack(page: Page, books: readonly unknown[] = ROOM_BOOKS): Promise<unknown> {
+function stubRack(page: Page, books: TrpcWireOutput<"worldInfo.listForChat"> = ROOM_BOOKS): Promise<unknown> {
   return routeTrpc(page, {
     "worldInfo.listForChat": () => books,
     "worldInfo.listBooks": () => [],

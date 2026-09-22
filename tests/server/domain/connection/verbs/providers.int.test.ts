@@ -5,6 +5,7 @@
 // provider leaves its connections resolvable-as-`no-connection` rather than dangling.
 
 import type { ProviderId } from "@orb/contracts/inference";
+import type { PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
@@ -12,6 +13,8 @@ import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, seedOwner } from "../_support.ts";
 
 const ACME_ID = castId<ProviderId>("acme-endpoint");
+const PLUGIN_ID = castId<PluginId>("plugin_provider_test");
+const CONTRIBUTED_ID = castId<ProviderId>("plugin:provider-test/acme");
 
 const PLUGIN_ROW = {
   id: "acme-endpoint",
@@ -39,6 +42,19 @@ describe("providersAvailable", () => {
 });
 
 describe("registerProvider / dropProvider", () => {
+  test("registerPluginProviders and dropPluginProviders publish and withdraw one plugin's rows", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    await h.svc.registerPluginProviders({
+      pluginId: PLUGIN_ID,
+      pluginName: "provider-test",
+      rows: [{ ...PLUGIN_ROW, id: CONTRIBUTED_ID }],
+    });
+    expect(h.svc.registry.get(CONTRIBUTED_ID)).toMatchObject({ id: CONTRIBUTED_ID, label: "Acme" });
+    await h.svc.dropPluginProviders({ pluginId: PLUGIN_ID });
+    expect(h.svc.registry.get(CONTRIBUTED_ID)).toBeUndefined();
+  });
+
   test("a registered row joins the registry, persists, and is offered by the picker", async () => {
     const db = await freshDb();
     const h = await makeHarness(db);

@@ -24,12 +24,15 @@ import type { PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { estimateTokens } from "@orb/kit/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { PluginScriptedSurfaceStory } from "../_ct-stories.tsx";
 
+type PluginListRow = TrpcWireOutput<"plugin.list">[number];
+type PluginSurfaceRow = TrpcWireOutput<"plugin.listSurfaces">[number];
+
 const A_PAST_INSTANT = 1_760_000_000_000;
-const USER_VIEWER = { userId: "user_ct_plugin", handle: "plugin_user", globalRole: "user" };
+const USER_VIEWER = { userId: "user_ct_plugin", handle: "plugin_user", globalRole: "user" } satisfies TrpcWireOutput<"sessions.me">;
 const SCRIPTED_ID = castId<PluginId>("plugin_ct_scripted00001");
 /** The WALL is `eventCpuMs + hostCallDeadlineMs` = 6 s (ui-guest-protocol.ts). The hung arm has to outlive it,
  *  plus the worker boot, so its barrier gets real room — a tighter timeout would flake on a cold WASM load
@@ -120,7 +123,7 @@ const CLIENT_ALLOWED_GLOBALS: readonly string[] = [
 ];
 
 /** An enabled installed row carrying the `ui.surface` grant — the row a scripted surface mounts inside. */
-function enabledRow(id: PluginId, name: string): Record<string, unknown> {
+function enabledRow(id: PluginId, name: string): PluginListRow {
   return {
     id,
     slug: "scripted-demo",
@@ -128,6 +131,8 @@ function enabledRow(id: PluginId, name: string): Record<string, unknown> {
     version: "1.0.0",
     status: "enabled",
     origin: "upload",
+    sourceUrl: null,
+    updateSource: null,
     declaredCapabilities: ["ui.surface", "storage.kv"],
     grantedCapabilities: ["ui.surface", "storage.kv"],
     netHosts: null,
@@ -141,7 +146,7 @@ function enabledRow(id: PluginId, name: string): Record<string, unknown> {
 }
 
 /** A `listSurfaces` row at the SCRIPTED tier: no `spec`, because the tree is computed in the browser. */
-function scriptedSurface(pluginId: PluginId, id: string): Record<string, unknown> {
+function scriptedSurface(pluginId: PluginId, id: string): PluginSurfaceRow {
   return { pluginId, id, anchor: "settings", title: "Browse readings", tier: "scripted" };
 }
 

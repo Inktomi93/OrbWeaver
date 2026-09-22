@@ -21,6 +21,7 @@ export type {
   LivenessOptions,
   NearPairCandidate,
   OrphanCandidate,
+  ProducerlessTableCandidate,
   PublicMarker,
   StringyAudit,
   StringyCandidate,

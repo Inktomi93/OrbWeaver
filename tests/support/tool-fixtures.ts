@@ -107,7 +107,6 @@ export function fixturePath(root: string, ...segments: readonly string[]): strin
 }
 
 export const test = houseTest.extend<ToolFixtures>({
-  // biome-ignore lint/suspicious/useAwait: vitest's fixture signature is async; the value is a constant.
   repoRoot: async ({}, use): Promise<void> => {
     await use(REPO_ROOT);
   },

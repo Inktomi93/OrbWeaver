@@ -26,12 +26,12 @@ import { PersonaNotificationsReopenStory } from "../_ct-stories.tsx";
 
 const SWITCH_LABEL = "Notify me when my persona changes in a chat";
 
-const SETTINGS = { userId: "user_ct_personas", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };
+const SETTINGS = { userId: "user_ct_personas", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0, configUnreadable: null };
 
 /** The first read answers; the SECOND is parked — the pending arm the reservation exists for. */
 function routeSecondReadHeld(page: Page, hold: ReturnType<typeof trpcHold>): Promise<TrpcRecorder> {
   let reads = 0;
-  return routeTrpc(page, { "settings.getUserSettings": (): unknown => (reads++ === 0 ? SETTINGS : hold) });
+  return routeTrpc(page, { "settings.getUserSettings": () => (reads++ === 0 ? SETTINGS : hold) });
 }
 
 test("#1098: the notifications section RESERVES its measured box on a second cold read, and nothing under it moves", async ({ mount, page }) => {

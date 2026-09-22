@@ -42,6 +42,7 @@ const RECOVERY_LOCK = "orb:session-recovery";
 export type SessionMessage =
   | { readonly kind: "signed-out" }
   | { readonly kind: "session-recovering" }
+  // @orb-waive brand-in-name-position(handle): an origin-wide BroadcastChannel payload is untrusted wire data; the authenticated sender brand is deliberately erased until the receiving tab compares it with its own Handle. Ends if this field becomes trusted without parsing.
   | { readonly kind: "session-recovered"; readonly handle: string | null }
   | { readonly kind: "durable-local-written"; readonly storeName: string };
 

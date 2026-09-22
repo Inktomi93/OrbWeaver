@@ -12,7 +12,8 @@
 import { createActivate } from "./activation/activate.ts";
 import { createCrashPolicy } from "./activation/crash-policy.ts";
 import { createDeactivate } from "./activation/deactivate.ts";
-import type { PluginContext, PluginDistributionDeps, PluginRegistry, PluginService } from "./contract/service.ts";
+import type { PluginContext, PluginDistributionDeps, PluginProviderLifecycle, PluginRegistry, PluginService } from "./contract/service.ts";
+import { createPluginLifecycleLanes } from "./substrate/lifecycle-lanes.ts";
 import { createApplyDistributedPlugins } from "./verbs/apply-distributed-plugins.ts";
 import { createCheckForUpdates } from "./verbs/check-for-updates.ts";
 import { createGetFrameBody } from "./verbs/get-frame-body.ts";
@@ -49,15 +50,16 @@ import { createUpgradeFromUrl } from "./verbs/upgrade-from-url.ts";
  *  exactly one. Required rather than optional, so every composition root — production and test — is forced to
  *  state how the admin gate and the recipient list resolve there; an optional bundle would let a caller build
  *  a service whose admin verbs silently do not exist. */
-export function createPluginService(ctx: PluginContext, distribution: PluginDistributionDeps): PluginService {
+export function createPluginService(ctx: PluginContext, distribution: PluginDistributionDeps, providers: PluginProviderLifecycle): PluginService {
   // The ONE resident-instance registry (ASSUMES single-replica — the automation enabled-index precedent). Built
   // here so activate/deactivate + getLog share the same live map.
   const registry: PluginRegistry = new Map();
-  const deactivate = createDeactivate(ctx, registry);
+  const lanes = createPluginLifecycleLanes();
+  const deactivate = createDeactivate(ctx, registry, providers);
   // The crash policy drives the resident-tool invoke loop inside activation: a handler throw bumps the
   // counter (auto-disable + owner-notify at the threshold), a clean run resets it.
-  const crashPolicy = createCrashPolicy(ctx, deactivate);
-  const activate = createActivate(ctx, registry, crashPolicy);
+  const crashPolicy = createCrashPolicy(ctx, deactivate, lanes);
+  const activate = createActivate(ctx, registry, crashPolicy, providers);
   // The fan-out verbs drive the REAL per-user verbs (the `ActivationDeps` verb-to-verb precedent), so a
   // distributed copy is never a second install path: same trust edge, same consent posture, same owner-scoped
   // uninstall — only the CALLER differs, and it is always the recipient themselves.
@@ -65,9 +67,14 @@ export function createPluginService(ctx: PluginContext, distribution: PluginDist
   // Hoisted (was inline) so the URL-install/upgrade verbs can DELEGATE to it — the verb-to-verb precedent: a
   // URL install/upgrade is the SAME funnel + consent + owner-scoped upgrade a file one is, only the byte source
   // differs (a fetch through the egress guard). No second install path, no second consent story.
-  const upgrade = createUpgrade(ctx, { activate, deactivate });
-  const setGrant = createSetGrant(ctx, { activate, deactivate });
-  const uninstall = createUninstall(ctx, { deactivate });
+  const rawUpgrade = createUpgrade(ctx, { activate, deactivate });
+  const upgrade: PluginService["upgrade"] = (params) => lanes.run(params.pluginId, () => rawUpgrade(params));
+  const rawSetGrant = createSetGrant(ctx, { activate, deactivate });
+  const setGrant: PluginService["setGrant"] = (params) => lanes.run(params.pluginId, () => rawSetGrant(params));
+  const rawSetEnabled = createSetEnabled(ctx, { activate, deactivate });
+  const setEnabled: PluginService["setEnabled"] = (params) => lanes.run(params.pluginId, () => rawSetEnabled(params));
+  const rawUninstall = createUninstall(ctx, { deactivate });
+  const uninstall: PluginService["uninstall"] = (params) => lanes.run(params.pluginId, () => rawUninstall(params));
   const fanout = { ...distribution, install, setGrant };
   return {
     install,
@@ -88,7 +95,7 @@ export function createPluginService(ctx: PluginContext, distribution: PluginDist
     // Same `upgrade` delegate, so the consent wall is one story, not two.
     upgradeFromShowcase: createUpgradeFromShowcase(ctx, { upgrade }),
     setGrant,
-    setEnabled: createSetEnabled(ctx, { activate, deactivate }),
+    setEnabled,
     uninstall,
     list: createListPlugins(ctx),
     installForAllUsers: createInstallForAllUsers(ctx, fanout),

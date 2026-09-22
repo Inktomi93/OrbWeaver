@@ -22,10 +22,11 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { dropFiles } from "../../../../support/browser/drop-files.ts";
-import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import type { TrpcFixtureOutput, TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { chatListResponder } from "../../chat/fixtures.ts";
 import { CharacterLibrarySurfaceStory } from "../_ct-stories.tsx";
+import type { CharacterListResponder } from "../fixtures.ts";
 import { characterListResponder, makeCharacterSummary, makeTagFixture } from "../fixtures.ts";
 
 /**
@@ -41,8 +42,8 @@ import { characterListResponder, makeCharacterSummary, makeTagFixture } from "..
  * own note, below) — so this feeds the pipeline without moving any existing assertion. A test that needs a
  * different size lists `settings.getUserSettings` AFTER the spread and wins (the eviction test does).
  */
-const LIBRARY_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
-  "settings.getUserSettings": { userId: "user_ct_lib", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 },
+const LIBRARY_AMBIENT_ROUTES: TrpcRoutes<"settings.getUserSettings" | "chat.listChats" | "character.listTagGroups"> = {
+  "settings.getUserSettings": { userId: "user_ct_lib", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0, configUnreadable: null },
   "chat.listChats": chatListResponder([]),
   // The GROUP-BY-TAG census (#1696). Ambient because the categorized view asks for it the moment it is
   // switched on, and an unrouted read leaves the buckets in their PENDING arm — which renders no counts at
@@ -54,7 +55,10 @@ const LIBRARY_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
 
 /** A census as `character.listTagGroups` answers it — the server's own order, so a CT that overrides it is
  *  writing what the server would send rather than what the client would sort. */
-function tagGroupCensus(groups: readonly (readonly [string, string, number, string])[], uncategorized: number): unknown {
+function tagGroupCensus(
+  groups: readonly (readonly [string, string, number, TrpcWireOutput<"character.listTagGroups">["groups"][number]["folderType"]])[],
+  uncategorized: number,
+): TrpcFixtureOutput<"character.listTagGroups"> {
   return {
     groups: groups.map(([id, name, characters, folderType]) => ({ id, name, characters, folderType })),
     uncategorized,
@@ -92,7 +96,7 @@ const THREE_ROW_TOTAL = 3;
 
 /** A two-page keyset series: page 1 = [ARIA, BOLT] + a cursor; page 2 = [CASSIUS], exhausted. Both pages
  *  carry the SAME census — every page of one keyset run counts the same scope. */
-function twoPageResponder(input: unknown): unknown {
+function twoPageResponder(input: Parameters<CharacterListResponder>[0]): TrpcFixtureOutput<"character.list"> {
   const cursor = (input as { cursor?: unknown } | undefined)?.cursor;
   return cursor === undefined
     ? { items: [ARIA, BOLT], nextCursor: PAGE_1_CURSOR, totalCount: THREE_ROW_TOTAL }
@@ -186,7 +190,7 @@ test("a read failure shows the error state with a working Retry (rule 1 — no d
   let failed = false;
   await routeTrpc(page, {
     ...LIBRARY_AMBIENT_ROUTES,
-    "character.list": (input: unknown) => {
+    "character.list": (input) => {
       const args = (input ?? {}) as { starred?: boolean; limit?: number };
       const isCollection = args.starred === undefined && args.limit !== 1;
       if (isCollection && !failed) {
@@ -244,11 +248,13 @@ const TAGGED = makeCharacterSummary({
 
 /** The tag LIBRARY the chips are drawn from (`tag.listTagFilterVocabulary`) — the vocabulary is the owner's tags
  *  now, not the loaded rows', so it has to be routed wherever a chip is asserted. */
-function tagLibraryOf(...names: readonly { readonly id: string; readonly name: string; readonly characters: number }[]): unknown {
+function tagLibraryOf(
+  ...names: readonly { readonly id: string; readonly name: string; readonly characters: number }[]
+): TrpcFixtureOutput<"tag.listTagFilterVocabulary"> {
   return names.map((tag) => ({ id: tag.id, name: tag.name, isHiddenOnCard: false, characters: tag.characters }));
 }
 
-const RPG_TAG_LIBRARY = tagLibraryOf({ id: "tag_rpg", name: "rpg", characters: 1 });
+const RPG_TAG_LIBRARY: TrpcFixtureOutput<"tag.listTagFilterVocabulary"> = tagLibraryOf({ id: "tag_rpg", name: "rpg", characters: 1 });
 
 /** Route the three fixtures through the INPUT-AWARE responder (the chips/search narrow the REQUEST) + an
  *  empty `listChats` (empty resume map) + the tag library the chips come from. */
@@ -535,7 +541,10 @@ const TAG_LIBRARY = [
 ];
 
 /** The same two tags, as the library rail's own read answers them. */
-const TAG_VOCABULARY = tagLibraryOf({ id: "tag_adventure", name: "adventure", characters: 5 }, { id: "tag_fantasy", name: "fantasy", characters: 12 });
+const TAG_VOCABULARY: TrpcFixtureOutput<"tag.listTagFilterVocabulary"> = tagLibraryOf(
+  { id: "tag_adventure", name: "adventure", characters: 5 },
+  { id: "tag_fantasy", name: "fantasy", characters: 12 },
+);
 
 test("D2 the bulk Tag action opens a picker and applies a tag to the selection", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
@@ -674,12 +683,13 @@ test("D4 the create dialog gates Create on BOTH name and description, with the r
 // ⑪ — the library page size is the user's `UserSettings.library.pageSize` (a consumer-supplied param into
 // createCollectionSurface, not a factory-internal settings read). A custom pageSize reaches the
 // `character.list` request's `limit`; unset falls to the schema default (30), byte-identical to pre-wire.
-function settingsView(pageSize: number): unknown {
+function settingsView(pageSize: number): TrpcFixtureOutput<"settings.getUserSettings"> {
   return {
     userId: "user_ct_lib",
     schemaVersion: 1,
     config: { ...DEFAULT_USER_SETTINGS, library: { pageSize } },
     updatedAt: 0,
+    configUnreadable: null,
   };
 }
 
@@ -1007,7 +1017,7 @@ test("the list band prints the server census, not the loaded row count", async (
   const rows = characterListResponder([STARLA, BOLT2, TAGGED]);
   await routeTrpc(page, {
     ...LIBRARY_AMBIENT_ROUTES,
-    "character.list": (input: unknown) => {
+    "character.list": (input) => {
       const args = (input ?? {}) as { limit?: number };
       // The band asks for the cheapest possible page and reads `totalCount` off it.
       return args.limit === COUNT_ONLY_PAGE ? { items: [STARLA], nextCursor: null, totalCount: LIBRARY_CENSUS } : rows(input);
@@ -1641,7 +1651,7 @@ const BIG_UNCATEGORIZED = 265;
 function routePartialLibrary(page: Page, rows: readonly ReturnType<typeof makeCharacterSummary>[]): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     ...LIBRARY_AMBIENT_ROUTES,
-    "character.list": (input: unknown) => {
+    "character.list": (input) => {
       const args = (input ?? {}) as { starred?: boolean; limit?: number };
       const isCollection = args.starred === undefined && args.limit !== COUNT_ONLY_PAGE;
       return { items: isCollection ? rows : [], nextCursor: null, totalCount: BIG_CENSUS };

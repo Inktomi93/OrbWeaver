@@ -26,7 +26,7 @@ import {
   BACKGROUND_DIM_MIN,
 } from "../../../../../packages/client/src/features/app-shell/lib/appearance-bounds.ts";
 import { DEFAULT_DEBOUNCE_MS } from "../../../../../packages/client/src/forms/entity-form-base.ts";
-import type { TrpcRecorder, TrpcResponder } from "../../../../support/node/route-trpc.ts";
+import type { TrpcRecorder, TrpcResponder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { AppearanceBackgroundSectionStory } from "../_ct-stories.tsx";
 
@@ -46,6 +46,7 @@ const SETTINGS_VIEW = {
   userId: "user_ct_background",
   schemaVersion: 1,
   config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, backgroundLibrary: [SEEDED_PLATE_ENTRY] } },
+  configUnreadable: null,
   updatedAt: 0,
 };
 const UPDATE_PROC = "settings.updateUserSettingsSection";
@@ -66,7 +67,7 @@ const MATERIALIZED_ENTRY = {
   mime: "image/png",
   name: "wallpaper",
   provenanceUrl: "https://cdn.example/wallpaper.png",
-};
+} satisfies TrpcWireOutput<"settings.addExternalBackground">;
 const OWNED_KEYS = [
   "backgroundAssetHash",
   "backgroundAssetId",
@@ -78,10 +79,10 @@ const OWNED_KEYS = [
   "backgroundLibrary",
 ];
 
-function stub(page: Page, external: TrpcResponder = (): unknown => MATERIALIZED_ENTRY): Promise<TrpcRecorder> {
+function stub(page: Page, external: TrpcResponder<typeof EXTERNAL_PROC> = () => MATERIALIZED_ENTRY): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "settings.getUserSettings": () => SETTINGS_VIEW,
-    [UPDATE_PROC]: () => ({}),
+    [UPDATE_PROC]: () => SETTINGS_VIEW,
     [EXTERNAL_PROC]: external,
   });
 }

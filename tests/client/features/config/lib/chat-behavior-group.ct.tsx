@@ -17,7 +17,7 @@ import type { TrpcRecorder, TrpcResponder } from "../../../../support/node/route
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { ChatBehaviorGroupStory, ConfigHostStory } from "../_ct-stories.tsx";
 
-const SETTINGS_VIEW = { userId: "user_ct_chat_behavior_pane", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };
+const SETTINGS_VIEW = { userId: "user_ct_chat_behavior_pane", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, configUnreadable: null, updatedAt: 0 };
 const UPDATE_PROC = "settings.updateUserSettingsSection";
 
 /** The pane's seven sections, in the door's declared order (main.tsx) — which IS the render order. */
@@ -35,7 +35,7 @@ const ANCHOR_ORDER = [
  *  `navLabel` shows THAT here ("Chat & message handling" stays the heading). */
 const NAV_LABELS = ["Message handling", "Streaming", "Memory", "World info", "Databank", "Image prompts", "Prose"];
 
-function stub(page: Page, update: TrpcResponder = (): unknown => ({})): Promise<TrpcRecorder> {
+function stub(page: Page, update: TrpcResponder<typeof UPDATE_PROC> = () => SETTINGS_VIEW): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     // The config LIST paints every shelf, so the four collection bands read their rosters for the counts —
     // fed empty (the honest fresh-library arm) rather than left to routeTrpc's inert null.
@@ -44,7 +44,7 @@ function stub(page: Page, update: TrpcResponder = (): unknown => ({})): Promise<
     "worldInfo.listBooksWithUsage": [],
     "rosterPreset.list": [],
     "settings.getUserSettings": () => SETTINGS_VIEW,
-    "sessions.me": () => ({ user: { id: SETTINGS_VIEW.userId, role: "user" } }),
+    "sessions.me": () => ({ userId: SETTINGS_VIEW.userId, handle: "ct_chat_behavior", globalRole: "user" }),
     [UPDATE_PROC]: update,
   });
 }

@@ -56,9 +56,9 @@ test("`providerStore` round-trips a row and its removal, stamping the injected c
     catalog: "url",
     metered: false,
   };
-  await ports.providerStore.put(row, { admin });
+  expect(await ports.providerStore.putAdmin(row, admin)).toBe(true);
   expect(await ports.providerStore.list()).toEqual([row]);
-  await ports.providerStore.remove(id);
+  expect(await ports.providerStore.removeAdmin(id)).toBe(true);
   expect(await ports.providerStore.list()).toEqual([]);
 });
 

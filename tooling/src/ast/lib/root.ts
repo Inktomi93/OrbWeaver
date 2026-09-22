@@ -21,8 +21,6 @@ export const TS_SUFFIX_RE = /\.tsx?$/u;
 
 export const DOT_SLASH_RE = /^\.\//u;
 
-export const BANG_SUFFIX_RE = /!$/u;
-
 export const LEADING_SLASHES_RE = /^\/+/u;
 
 export const TRAILING_SLASHES_RE = /\/+$/u;

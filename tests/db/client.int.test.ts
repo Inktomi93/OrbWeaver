@@ -282,6 +282,60 @@ test("the dead-storage migration preserves handoff, generation-target, theme-clu
   }
 });
 
+test("the provider-contribution migration preserves admin rows and discards unvalidated legacy plugin ownership", async () => {
+  const dir = mkdtempSync(join(tmpdir(), `orb-provider-contribution-migration-${pid}-`));
+  try {
+    const journal = JSON.parse(readFileSync(join(MIGRATIONS_DIR, "meta", "_journal.json"), "utf8")) as {
+      readonly entries: readonly { readonly tag: string; readonly when: number }[];
+    };
+    const entry = (tag: string): ChainEntry => {
+      const metadata = journal.entries.find((candidate) => candidate.tag === tag);
+      if (metadata === undefined) {
+        throw new Error(`missing migration ${tag}`);
+      }
+      return { ...metadata, sqlText: readFileSync(join(MIGRATIONS_DIR, `${tag}.sql`), "utf8") };
+    };
+    const baseline = entry("0000_baseline");
+    const cleanup = entry("0001_remove_dead_storage");
+    const contributions = entry("0002_plugin_provider_contributions");
+    const folder = chainFixture(dir, [baseline, cleanup]);
+    const db = await createDb(":memory:");
+    await runMigrations(db, folder);
+
+    await db.run(sql`INSERT INTO users (id, handle) VALUES ('user_provider_migration', 'provider-migration')`);
+    await db.run(sql`INSERT INTO assets (id, owner_id, kind, mime, size, hash)
+      VALUES ('asset_provider_migration', 'user_provider_migration', 'plugin', 'application/zip', 1, 'provider-migration-hash')`);
+    await db.run(sql`INSERT INTO plugins
+      (id, owner_id, slug, name, version, manifest, bundle_asset_id, granted_capabilities, status, origin, installed_at, updated_at)
+      VALUES ('plugin_provider_migration', 'user_provider_migration', 'migration-plugin', 'Migration', '1.0.0', '{}',
+        'asset_provider_migration', '[]', 'disabled', 'upload', 10, 10)`);
+    await db.run(sql`INSERT INTO provider_rows
+      (id, label, wire, dialect, auth, apis, catalog, metered, origin_kind, origin_plugin_id, origin_user_id, created_at)
+      VALUES ('plugin:migration-plugin/endpoint', 'Plugin endpoint', 'openai-compat', 'openai-compatible', 'endpoint',
+        '["chat-completions"]', 'url', 0, 'plugin', 'plugin_provider_migration', NULL, 10)`);
+    await db.run(sql`INSERT INTO provider_rows
+      (id, label, wire, dialect, auth, apis, catalog, metered, origin_kind, origin_plugin_id, origin_user_id, created_at)
+      VALUES ('admin-endpoint', 'Admin endpoint', 'openai-compat', 'openai-compatible', 'endpoint',
+        '["chat-completions"]', 'url', 0, 'admin', NULL, 'user_provider_migration', 20)`);
+
+    chainFixture(dir, [baseline, cleanup, contributions]);
+    await runMigrations(db, folder);
+    await expect(assertReferentialIntegrity(db)).resolves.toBeUndefined();
+    const columns = await db.all<Record<string, unknown>>(sql`PRAGMA table_info(provider_rows)`);
+    expect(columns.map((row) => row["name"])).toContain("definition_hash");
+    expect(columns.map((row) => row["name"])).not.toContain("origin_plugin_id");
+    expect(await db.all(sql`SELECT id, origin_kind AS originKind, definition_hash AS definitionHash FROM provider_rows ORDER BY id`)).toEqual([
+      { id: "admin-endpoint", originKind: "admin", definitionHash: "legacy:admin-endpoint" },
+    ]);
+    expect(
+      await db.all(sql`SELECT provider_id AS providerId, plugin_id AS pluginId, definition_hash AS definitionHash
+      FROM plugin_provider_contributions`),
+    ).toEqual([]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("runMigrations restores foreign_keys ON afterward (the finally-restore contract)", async () => {
   // runMigrations toggles FK enforcement OFF for the table-rebuild, then restores ON in finally. If a
   // future migration left it OFF, every subsequent write would bypass FK enforcement silently.

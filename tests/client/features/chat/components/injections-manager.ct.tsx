@@ -246,7 +246,7 @@ test("a literal {{token}} typed into Content round-trips to the wire unresolved"
 test("Remove fires deleteChatInjection with the row's id (host)", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "chat.listChatInjections": () => [INJECTION_ROW],
-    "chat.deleteChatInjection": () => ({}),
+    "chat.deleteChatInjection": () => null,
   });
 
   const component = await mount(<InjectionsManagerStory isHost={true} />);

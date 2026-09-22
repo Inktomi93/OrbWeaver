@@ -21,21 +21,25 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { routeImpersonateStream } from "../../../../support/node/route-impersonate-stream.ts";
+import type { TrpcFixtureOutput, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { ChatRoomPhoneStory, ComposerStory } from "../_ct-stories.tsx";
-import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES, COMPOSER_CHAT_ID } from "../fixtures.ts";
+import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES, COMPOSER_CHAT_ID, makeMessageView } from "../fixtures.ts";
 
 // A getUserSettings view with a chat-pref override — drives the composer's enterSends/continueOnSend read.
-function settingsWith(chat: Partial<(typeof DEFAULT_USER_SETTINGS)["chat"]>): unknown {
+function settingsWith(chat: Partial<(typeof DEFAULT_USER_SETTINGS)["chat"]>): TrpcFixtureOutput<"settings.getUserSettings"> {
   return {
     userId: "user_ct_composer",
     schemaVersion: 1,
     config: { ...DEFAULT_USER_SETTINGS, chat: { ...DEFAULT_USER_SETTINGS.chat, ...chat } },
+    configUnreadable: null,
     updatedAt: 0,
   };
 }
 
 const TAIL_ASSISTANT_ID = castId<MessageId>("message_ct_tail_assistant");
+const EMPTY_TURN = { messages: [], aborted: false } satisfies TrpcWireOutput<"chat.generate">;
+const GENERATED_IMAGE_MESSAGE = makeMessageView({ content: "generated image" });
 // The single clean accessible name for the Attach media row (P1-C — size-hinted, no doubled name; #317
 // widened the copy to images + video).
 const ATTACH_NAME = /^Attach images & video, up to [\d.]+ MB per file$/u;
@@ -160,7 +164,7 @@ test("#54: an unserveable connection refuses the SEND click — no chat.send fir
     ...CHAT_AMBIENT_ROUTES,
     ...CHAT_ROOM_ROUTES,
     "chat.checkSendAvailability": () => ({ available: false, cause: "no-connection" }),
-    "chat.send": () => ({ ok: true }),
+    "chat.send": () => ({ messages: [], aborted: false }),
   });
   const component = await mount(<ComposerStory />);
   await component.getByLabel("Message", { exact: true }).fill("doomed turn");
@@ -192,7 +196,7 @@ test("#54: an AVAILABLE verdict leaves Send serveable (a typed committed compose
     ...CHAT_AMBIENT_ROUTES,
     ...CHAT_ROOM_ROUTES,
     "chat.checkSendAvailability": () => ({ available: true }),
-    "chat.send": () => ({ ok: true }),
+    "chat.send": () => ({ messages: [], aborted: false }),
   });
   const component = await mount(<ComposerStory />);
   await component.getByLabel("Message", { exact: true }).fill("serve me");
@@ -208,7 +212,16 @@ test("#54: an AVAILABLE verdict leaves Send serveable (a typed committed compose
 // the portalled row via the PAGE locator (the menu.ct portal split).
 const UTILITY_TRIGGER = { name: "Message tools" } as const;
 
-function composerCharacter(key: string, name: string): unknown {
+type FixtureArrayElement<T, TKey extends PropertyKey> = T extends unknown
+  ? TKey extends keyof T
+    ? NonNullable<T[TKey]> extends readonly (infer Item)[]
+      ? Item
+      : never
+    : never
+  : never;
+type ParticipantFixture = FixtureArrayElement<TrpcFixtureOutput<"chat.getChat">, "participants">;
+
+function composerCharacter(key: string, name: string): ParticipantFixture {
   return {
     id: `chat_participant_${key}`,
     kind: "character",
@@ -221,7 +234,7 @@ function composerCharacter(key: string, name: string): unknown {
   };
 }
 
-function groupedComposerChat(): unknown {
+function groupedComposerChat(): TrpcFixtureOutput<"chat.getChat"> {
   return {
     title: "Council",
     participants: [composerCharacter("aria", "Aria"), composerCharacter("bryn", "Bryn")],
@@ -677,7 +690,7 @@ test("a generate-image that FAILS keeps the typed prompt for retry (never cleare
 });
 
 test("a generate-image that SUCCEEDS clears the typed prompt (clear-on-success)", async ({ mount, page }) => {
-  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.generateImage": () => ({ ok: true }) });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.generateImage": () => GENERATED_IMAGE_MESSAGE });
   const component = await mount(<ComposerStory />);
   const textarea = component.getByLabel("Message", { exact: true });
 
@@ -817,7 +830,7 @@ test("Stop shows 'stopping' immediately on click and fires chat.abort; the butto
   mount,
   page,
 }) => {
-  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.abort": () => ({ ok: true }) });
+  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.abort": () => null });
   const component = await mount(<ComposerStory />);
 
   await component.getByTestId("drive-begin").click();
@@ -840,7 +853,7 @@ test("Stop shows 'stopping' immediately on click and fires chat.abort; the butto
 });
 
 test("a second Stop click while already stopping does not fire a second chat.abort", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.abort": () => ({ ok: true }) });
+  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.abort": () => null });
   const component = await mount(<ComposerStory />);
 
   await component.getByTestId("drive-begin").click();
@@ -1052,7 +1065,7 @@ test("enterSends OFF: Enter inserts a newline (no send); ⌘/Ctrl+Enter sends", 
     ...CHAT_AMBIENT_ROUTES,
     ...CHAT_ROOM_ROUTES,
     "settings.getUserSettings": () => settingsWith({ enterSends: false }),
-    "chat.send": () => ({ ok: true }),
+    "chat.send": () => ({ messages: [], aborted: false }),
   });
   const component = await mount(<ComposerStory />);
   const textarea = component.getByLabel("Message", { exact: true });
@@ -1104,7 +1117,7 @@ test("continueOnSend: an empty Send on an assistant tail fires chat.continueTurn
     ...CHAT_AMBIENT_ROUTES,
     ...CHAT_ROOM_ROUTES,
     "settings.getUserSettings": () => settingsWith({ continueOnSend: true }),
-    "chat.continueTurn": () => ({ ok: true }),
+    "chat.continueTurn": () => EMPTY_TURN,
   });
   // Committed chat, assistant tail → Send becomes the continue affordance (empty composer).
   const component = await mount(<ComposerStory tailRole="assistant" tailAssistantMessageId={TAIL_ASSISTANT_ID} />);
@@ -1122,7 +1135,7 @@ test("generateOnEmptySend: an empty Send on a USER tail fires chat.generate (the
     ...CHAT_AMBIENT_ROUTES,
     ...CHAT_ROOM_ROUTES,
     "settings.getUserSettings": () => settingsWith({ generateOnEmptySend: true }),
-    "chat.generate": () => ({ ok: true }),
+    "chat.generate": () => EMPTY_TURN,
   });
   // Committed chat, USER tail, empty composer → Send prompts a reply (no assistant tail to continue).
   const component = await mount(<ComposerStory tailRole="user" />);
@@ -1140,7 +1153,7 @@ test("generateOnEmptySend OFF: an empty Send on a USER tail is a no-op (Send dis
     ...CHAT_AMBIENT_ROUTES,
     ...CHAT_ROOM_ROUTES,
     "settings.getUserSettings": () => settingsWith({ generateOnEmptySend: false, continueOnSend: false }),
-    "chat.generate": () => ({ ok: true }),
+    "chat.generate": () => EMPTY_TURN,
   });
   const component = await mount(<ComposerStory tailRole="user" />);
   await expect.poll(() => trpc.count("settings.getUserSettings"), { intervals: [20, 50, 100] }).toBeGreaterThan(0);
@@ -1366,10 +1379,10 @@ test("#376 paste: a clipboard carrying BOTH text and an image attaches the image
 // two-row render CORRECT and went green on the defect (measured: it did). The homes are already spaced at
 // `field` INSIDE themselves, so `field` is the bar's own floor for what "fits" means, and packing against it
 // is what makes this red on the old source at 430 (372px of homes in a 392px card, rendered as two rows).
-const PHONE_ROOM_STUB = {
+const PHONE_ROOM_STUB: TrpcRoutes<"chat.getChat"> = {
   ...CHAT_AMBIENT_ROUTES,
   ...CHAT_ROOM_ROUTES,
-  "chat.getChat": (): unknown => ({ title: "Council", participants: [], viewerIsHost: true, anchorPersonaId: null, identities: [] }),
+  "chat.getChat": () => ({ title: "Council", participants: [], viewerIsHost: true, anchorPersonaId: null, identities: [] }),
 };
 
 /** One settled read of the action bar: the four homes' geometry, the resolved gap, and the touch floor. */
@@ -1485,10 +1498,10 @@ test.describe("#531 the desktop composer keeps its four-track row", () => {
 // 48px control row that a solo room did not. Dropping the fifth control takes `Their reply` to 150px and the
 // homes to 348px + gaps — under the bar, one row. So this asserts BOTH halves: exactly one door in the home,
 // and the row count the removal bought.
-const GROUP_PHONE_STUB = {
+const GROUP_PHONE_STUB: TrpcRoutes<"chat.getChat"> = {
   ...CHAT_AMBIENT_ROUTES,
   ...CHAT_ROOM_ROUTES,
-  "chat.getChat": (): unknown => ({
+  "chat.getChat": () => ({
     title: "Council",
     viewerIsHost: true,
     anchorPersonaId: null,

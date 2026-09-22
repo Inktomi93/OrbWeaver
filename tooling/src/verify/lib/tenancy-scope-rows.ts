@@ -166,6 +166,11 @@ export const TABLE_SCOPING_ROWS: readonly ScopingRow[] = [
     scope: "parent",
     why: "an actor → connection pick (inference program §5.3): the owner DERIVES one FK away through the arm's actor (`users` / `automation_rules.ownerId` / `plugins.ownerId`), so the row carries no stamp of its own (D23 no doubling).",
   },
+  {
+    table: "plugin_provider_contributions",
+    scope: "parent",
+    why: "an enabled plugin install's claim on a deployment-global provider definition: authority derives through the plugin FK, while the provider parent is global; no owner stamp is duplicated (D23).",
+  },
 
   // ── (c) junction-derived — a pure LINK; BOTH parents must be reachable by the caller. ──────────────────
   {

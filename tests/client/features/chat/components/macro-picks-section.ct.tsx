@@ -7,12 +7,19 @@
 
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { MacroPicksSectionStory, MacroPicksSectionToastStory } from "../_ct-stories.tsx";
 
 // The wire shape `chat.getUserMacroPicks` returns (the server's least-privilege projection: identity +
 // inputs + the authoring home, never the macro BODY). Spelled locally — `UserMacroPicksView` is a SERVER-domain contract type
 // (packages/server/src/domain/chat/contract/views.ts), not importable from the client across the cake.
+type MacroPicks = TrpcWireOutput<"chat.getUserMacroPicks">;
+type MacroDeclaration = MacroPicks["macros"][number];
+type MacroInput = MacroDeclaration["inputs"][number];
+type VariablePicks = TrpcWireOutput<"chat.getVariablePicks">;
+type VariableDeclaration = VariablePicks["variables"][number];
+
 const TONE_INPUT = {
   kind: "single-select",
   name: "tone",
@@ -25,7 +32,7 @@ const TONE_INPUT = {
   onValue: "true",
   offValue: "",
   defaultValue: "warm",
-};
+} satisfies MacroInput;
 
 const WEATHER_INPUT = {
   kind: "random-pick",
@@ -39,9 +46,14 @@ const WEATHER_INPUT = {
   onValue: "true",
   offValue: "",
   defaultValue: "",
-};
+} satisfies MacroInput;
 
-const MOOD_MACRO = { name: "mood", description: "The scene's emotional weather.", inputs: [TONE_INPUT, WEATHER_INPUT], source: "preset" };
+const MOOD_MACRO = {
+  name: "mood",
+  description: "The scene's emotional weather.",
+  inputs: [TONE_INPUT, WEATHER_INPUT],
+  source: "preset",
+} satisfies MacroDeclaration;
 
 /** A MULTI-SELECT input — the second vocabulary-bound kind (#1356/#1582). Its store is a string ARRAY the
  *  turn filters to the declared options and joins; unlike `random-pick`, a selection nothing survives is
@@ -58,13 +70,13 @@ const TEXTURE_INPUT = {
   onValue: "true",
   offValue: "",
   defaultValue: "lush",
-};
+} satisfies MacroInput;
 
-const PROSE_MACRO = { name: "prose", description: "How the narration reads.", inputs: [TEXTURE_INPUT], source: "preset" };
+const PROSE_MACRO = { name: "prose", description: "How the narration reads.", inputs: [TEXTURE_INPUT], source: "preset" } satisfies MacroDeclaration;
 
 /** The GAME's own declaration (the second definition home) — same wire shape, `source: "game"`, which the
  *  pane glosses so a picker can tell the knob came with the game (a preset macro stays unmarked). */
-const OMEN_MACRO = { name: "omen", description: "The night's omen.", inputs: [TONE_INPUT], source: "game" };
+const OMEN_MACRO = { name: "omen", description: "The night's omen.", inputs: [TONE_INPUT], source: "game" } satisfies MacroDeclaration;
 
 // The wire shape `chat.getVariablePicks` returns — the pane's OTHER knob family (ChoiceBlock variables,
 // projected WHOLE: a ChoiceBlock has no body class to withhold). Spelled locally for the same reason.
@@ -79,7 +91,7 @@ const POV_VARIABLE = {
   multiSelect: false,
   separator: ", ",
   randomPick: false,
-};
+} satisfies VariableDeclaration;
 
 const WEATHER_VARIABLE = {
   name: "weather",
@@ -91,12 +103,12 @@ const WEATHER_VARIABLE = {
   multiSelect: true,
   separator: ", ",
   randomPick: true,
-};
+} satisfies VariableDeclaration;
 
 /** The "this preset declares none of THIS family" arms — the pane mounts BOTH reads, so every test answers
  *  both procs (an unlisted proc resolves `null`, which is not a view). */
-const NO_VARIABLES = { variables: [], values: {} };
-const NO_MACROS = { macros: [], values: {} };
+const NO_VARIABLES = { variables: [], values: {} } satisfies VariablePicks;
+const NO_MACROS = { macros: [], values: {} } satisfies MacroPicks;
 
 test("renders the declared macro + one control per typed input, and an UNSET input shows what the default resolves to", async ({ mount, page }) => {
   await routeTrpc(page, {
@@ -167,7 +179,7 @@ test("picking a single-select option fires setUserMacroValues with the rebuilt b
   const trpc = await routeTrpc(page, {
     "chat.getUserMacroPicks": () => ({ macros: [MOOD_MACRO], values: {} }),
     "chat.getVariablePicks": () => NO_VARIABLES,
-    "chat.setUserMacroValues": () => ({}),
+    "chat.setUserMacroValues": () => null,
   });
 
   await mount(<MacroPicksSectionStory />);
@@ -183,7 +195,7 @@ test("checking a random-pick option fires the mutation with the ARRAY pool, merg
   const trpc = await routeTrpc(page, {
     "chat.getUserMacroPicks": () => ({ macros: [MOOD_MACRO], values: { mood: { tone: "grim" } } }),
     "chat.getVariablePicks": () => NO_VARIABLES,
-    "chat.setUserMacroValues": () => ({}),
+    "chat.setUserMacroValues": () => null,
   });
 
   const component = await mount(<MacroPicksSectionStory />);
@@ -199,7 +211,7 @@ test("Use default UNSETS a stored pick — the select item drops the key, the bu
   const trpc = await routeTrpc(page, {
     "chat.getUserMacroPicks": () => ({ macros: [MOOD_MACRO], values: { mood: { tone: "grim", weather: ["storm"] } } }),
     "chat.getVariablePicks": () => NO_VARIABLES,
-    "chat.setUserMacroValues": () => ({}),
+    "chat.setUserMacroValues": () => null,
   });
 
   const component = await mount(<MacroPicksSectionStory />);
@@ -266,7 +278,7 @@ test("picking a variable fires setVariables with the rebuilt map — orphan keys
     // `retired` is a stored pick the preset no longer declares (the resolver's orphan-preserve arm) — the
     // pane never renders it, and an edit must not silently drop it from the flushed column.
     "chat.getVariablePicks": () => ({ variables: [POV_VARIABLE], values: { retired: "kept" } }),
-    "chat.setVariables": () => ({}),
+    "chat.setVariables": () => null,
   });
 
   await mount(<MacroPicksSectionStory />);
@@ -282,7 +294,7 @@ test("a multi-select variable stores its picks SEPARATOR-JOINED, and unchecking 
   const trpc = await routeTrpc(page, {
     "chat.getUserMacroPicks": () => NO_MACROS,
     "chat.getVariablePicks": () => ({ variables: [WEATHER_VARIABLE], values: { weather: "storm" } }),
-    "chat.setVariables": () => ({}),
+    "chat.setVariables": () => null,
   });
 
   const component = await mount(<MacroPicksSectionStory />);
@@ -306,7 +318,7 @@ test("Use default UNSETS a stored variable pick; a value the preset no longer of
   const trpc = await routeTrpc(page, {
     "chat.getUserMacroPicks": () => NO_MACROS,
     "chat.getVariablePicks": () => ({ variables: [POV_VARIABLE], values: { pov: "second person" } }),
-    "chat.setVariables": () => ({}),
+    "chat.setVariables": () => null,
   });
 
   await mount(<MacroPicksSectionStory />);
@@ -348,7 +360,7 @@ test("…and the next edit's whole-bag flush does not carry the dead value back 
   const trpc = await routeTrpc(page, {
     "chat.getUserMacroPicks": () => ({ macros: [MOOD_MACRO], values: { mood: { tone: "bleak" } } }),
     "chat.getVariablePicks": () => NO_VARIABLES,
-    "chat.setUserMacroValues": () => ({}),
+    "chat.setUserMacroValues": () => null,
   });
 
   const component = await mount(<MacroPicksSectionStory />);
@@ -364,7 +376,7 @@ test("a multi-select keeps the SURVIVING picks and drops only the dead ones (#15
   const trpc = await routeTrpc(page, {
     "chat.getUserMacroPicks": () => ({ macros: [PROSE_MACRO], values: { prose: { texture: ["terse", "baroque"] } } }),
     "chat.getVariablePicks": () => NO_VARIABLES,
-    "chat.setUserMacroValues": () => ({}),
+    "chat.setUserMacroValues": () => null,
   });
 
   const component = await mount(<MacroPicksSectionStory />);

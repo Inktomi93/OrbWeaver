@@ -115,8 +115,8 @@ function signOut(): void {
  *  that has not resolved its viewer yet reports `null`, which matches only the equally identity-less
  *  absent-principal answer (`/api/auth/me` serves `principal?.handle ?? null`, so a live principal always
  *  names one). */
-function identityBoundaryCrossed(handle: string | null): boolean {
-  return handle !== host?.currentHandle();
+function identityBoundaryCrossed(recoveredIdentity: string | null): boolean {
+  return recoveredIdentity !== host?.currentHandle();
 }
 
 /** Rung 0's success arm, shared with a rung-1 local re-auth: nothing navigates, nothing is dropped. */

@@ -15,6 +15,7 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { TrpcRoutes } from "../../support/node/route-trpc.ts";
 
 const FROZEN_AT = 1_750_000_000_000;
 
@@ -33,12 +34,18 @@ const CT_VIEWER_USER_ID = castId<UserId>("user_ct_viewer");
  * reader falls to its no-identity arm) and `settings.getUserSettings` resolved `null` (every appearance /
  * tier / preference reader falls to its default branch) — so neither pipeline executed at all.
  */
-export const VIEWER_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
+export const VIEWER_AMBIENT_ROUTES: TrpcRoutes<"sessions.me" | "settings.getUserSettings"> = {
   // `ViewerView` — a pure projection of the request Principal (transport/trpc/routers/sessions.ts:25).
   // A real triple, so an identity-keyed reader gets an identity instead of stepping aside on null.
   "sessions.me": { userId: CT_VIEWER_USER_ID, handle: "ct_viewer", globalRole: "user" },
   // The viewer's settings row at the PRODUCTION defaults (`userSettingsSchema.parse({})`) — the same shape
   // `features/chat/fixtures.ts` and the workloads/admin CTs feed. Real config, so a reader that keys off a
   // tier gets a tier and the settings-driven presentation path runs for real.
-  "settings.getUserSettings": { userId: CT_VIEWER_USER_ID, schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: FROZEN_AT },
+  "settings.getUserSettings": {
+    userId: CT_VIEWER_USER_ID,
+    schemaVersion: 1,
+    config: DEFAULT_USER_SETTINGS,
+    configUnreadable: null,
+    updatedAt: FROZEN_AT,
+  },
 };

@@ -11,7 +11,7 @@ import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { AppearanceEffectsSectionStory } from "../_ct-stories.tsx";
 
-const SETTINGS_VIEW = { userId: "user_ct_effects", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };
+const SETTINGS_VIEW = { userId: "user_ct_effects", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, configUnreadable: null, updatedAt: 0 };
 const UPDATE_PROC = "settings.updateUserSettingsSection";
 const OWNED_KEYS = ["blurStrength", "blurSurfaces", "enableThemeColorization", "shadowEffects", "surfaceTexture"];
 const FROSTED_GLASS_GLOSS_RE = /Backdrop blur plus a translucent fill/;
@@ -19,7 +19,7 @@ const FROSTED_GLASS_GLOSS_RE = /Backdrop blur plus a translucent fill/;
 const FROSTED_GLASS_GLOSS_OPENING = "Backdrop blur plus a translucent fill";
 
 function stub(page: Page): Promise<TrpcRecorder> {
-  return routeTrpc(page, { "settings.getUserSettings": () => SETTINGS_VIEW, [UPDATE_PROC]: () => ({}) });
+  return routeTrpc(page, { "settings.getUserSettings": () => SETTINGS_VIEW, [UPDATE_PROC]: () => SETTINGS_VIEW });
 }
 
 function lastPatch(trpc: TrpcRecorder): Record<string, unknown> | undefined {

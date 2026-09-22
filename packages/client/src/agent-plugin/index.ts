@@ -7,10 +7,25 @@
 // an ambiguous one — never a silent empty. Read-only by construction: no mutation has a bridge here (the
 // `agent-rpg/` posture).
 
-import type { TrpcClient } from "#data";
+import type { PluginId } from "@orb/kit/ids";
 import type { OrbPluginListEntry, OrbPluginLogReader, OrbPluginLogResult } from "../lib/agent-plugin-bridge.ts";
 
-export function buildAgentPlugin(client: TrpcClient): OrbPluginLogReader {
+/** The two read operations this bridge actually consumes. Keeping the port narrow lets focused tests
+ * prove the bridge without fabricating the rest of AppRouter. */
+export interface AgentPluginClient {
+  readonly plugin: {
+    readonly list: {
+      readonly query: () => Promise<readonly OrbPluginListEntry[]>;
+    };
+    readonly getLog: {
+      readonly query: (params: {
+        readonly pluginId: PluginId;
+      }) => Promise<readonly { readonly level: string; readonly message: string; readonly at: number }[]>;
+    };
+  };
+}
+
+export function buildAgentPlugin(client: AgentPluginClient): OrbPluginLogReader {
   return async (ref?: string): Promise<OrbPluginLogResult> => {
     const installed = await client.plugin.list.query();
     const plugins: OrbPluginListEntry[] = installed.map((view) => ({

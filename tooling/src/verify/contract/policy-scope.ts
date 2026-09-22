@@ -57,7 +57,10 @@ export interface PolicyWorkspacePackage {
 }
 
 export interface PolicyScopeInventoryReceipt {
-  readonly source: "git";
+  /** Git is authoritative on a real repository. `workspace` is the whole-scope compatibility arm for a
+   *  standalone planted root that has no Git repository at all; its paths come from the exact ts-morph
+   *  workspace the pass executes, never from a directory walk. */
+  readonly source: "git" | "workspace";
   readonly trackedCommand: readonly string[];
   readonly untrackedCommand: readonly string[];
   readonly trackedCount: number;

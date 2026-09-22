@@ -144,20 +144,20 @@ export const gate = defineGate({
     {
       mode: "types",
       grant: { subject: "tooling/src/seed/ops/raw.ts", operation: "child-process-import" },
-      files: { [PROC_HOME.path]: PROC_STUB(), "tooling/src/seed/ops/raw.ts": 'import { spawn } from "node:child_process";\nexport const s = spawn;\n' },
+      files: { [PROC_HOME.path]: procStub(), "tooling/src/seed/ops/raw.ts": 'import { spawn } from "node:child_process";\nexport const s = spawn;\n' },
       expect: { count: 1, token: '"node:child_process"', messageIncludes: "Subject: tooling/src/seed/ops/raw.ts, operation: child-process-import" },
       why: "the founding shape — a direct child_process import outside proc.ts bypasses the nice -19 homelab floor (arm F); the position is the quoted specifier",
     },
     {
       mode: "types",
-      files: { [PROC_HOME.path]: PROC_STUB(), "tooling/src/seed/ops/bare.ts": 'import { spawn } from "child_process";\nexport const s = spawn;\n' },
+      files: { [PROC_HOME.path]: procStub(), "tooling/src/seed/ops/bare.ts": 'import { spawn } from "child_process";\nexport const s = spawn;\n' },
       expect: { count: 1, token: '"child_process"' },
       why: "the BARE specifier spelling of the same module — a `node:`-only matcher would be the loophole",
     },
     {
       mode: "types",
       files: {
-        [PROC_HOME.path]: PROC_STUB(),
+        [PROC_HOME.path]: procStub(),
         "tooling/src/seed/ops/hot.ts":
           'import { spawnFullPrioritySync } from "../../_shared/proc.ts";\nexport const x = (): void => spawnFullPrioritySync("x", []);\n',
       },
@@ -167,7 +167,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        [PROC_HOME.path]: PROC_STUB(),
+        [PROC_HOME.path]: procStub(),
         "tooling/src/seed/ops/warm.ts":
           'import { spawnFullPriorityChild as detach } from "../../_shared/proc.ts";\nexport const x = (): void => detach("x", []);\n',
       },
@@ -176,14 +176,14 @@ export const gate = defineGate({
     },
     {
       mode: "types",
-      files: { [PROC_HOME.path]: `import { spawn } from "node:child_process";\n${PROC_STUB()}export const s = spawn;\n` },
+      files: { [PROC_HOME.path]: `import { spawn } from "node:child_process";\n${procStub()}export const s = spawn;\n` },
       expect: { count: 1, messageIncludes: "Subject: tooling/src/_shared/proc.ts, operation: child-process-import" },
       why: "THE PERMISSION IS NOT A CARVE-OUT IN THE RULE: the home's own child_process import reds like any other and is licensed by its exact grant row (`tooling-child-process-door:proc`); the home's door DEFINITIONS are not calls and its body is skipped for the door arm by derivation",
     },
     {
       mode: "types",
       files: {
-        [PROC_HOME.path]: PROC_STUB(),
+        [PROC_HOME.path]: procStub(),
         "tooling/src/seed/ops/blind.ts":
           'import { spawnFullPriorityChild } from "./missing.ts";\nexport const x = (): void => spawnFullPriorityChild("x", []);\n',
       },
@@ -193,7 +193,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        [PROC_HOME.path]: PROC_STUB(),
+        [PROC_HOME.path]: procStub(),
         "tooling/src/seed/ops/own-spawn.ts":
           'import { spawn } from "node:child_process";\nfunction spawnFullPrioritySync(c: string, a: readonly string[]): void {\n  void spawn(c, [...a]);\n}\nexport const x = (): void => spawnFullPrioritySync("x", []);\n',
       },
@@ -205,7 +205,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        [PROC_HOME.path]: PROC_STUB(),
+        [PROC_HOME.path]: procStub(),
         "tooling/src/seed/ops/local.ts":
           'declare function spawnFullPrioritySync(c: string, a: string[]): void;\nexport const x = (): void => spawnFullPrioritySync("x", []);\n',
       },
@@ -214,7 +214,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        [PROC_HOME.path]: PROC_STUB(),
+        [PROC_HOME.path]: procStub(),
         "tooling/src/seed/ops/niced.ts": 'import { spawnNiced } from "../../_shared/proc.ts";\nexport const x = spawnNiced("x", []);\n',
       },
       why: "the sanctioned shape — a spawn through the home's NICED door needs no permission; the name prefilter never carries it to the identity readers",
@@ -222,7 +222,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        [PROC_HOME.path]: PROC_STUB(),
+        [PROC_HOME.path]: procStub(),
         "tooling/src/seed/ops/prose.ts":
           '// import { spawn } from "node:child_process" is banned here; use spawnNiced from _shared/proc.ts.\nexport const doc = true;\n',
       },
@@ -230,13 +230,13 @@ export const gate = defineGate({
     },
     {
       mode: "types",
-      files: { [PROC_HOME.path]: PROC_STUB(), "scripts/probes/some-probe.ts": 'import { spawn } from "node:child_process";\nexport const s = spawn;\n' },
+      files: { [PROC_HOME.path]: procStub(), "scripts/probes/some-probe.ts": 'import { spawn } from "node:child_process";\nexport const s = spawn;\n' },
       why: "THE DECLARED LIMIT (#1118): the research zone is outside the population BY DERIVATION, not by a grant — a probe PROMOTED into tooling/src/<tool>/ is judged from its first day there. The home keeps the fixture admitted",
     },
     {
       mode: "types",
       files: {
-        [PROC_HOME.path]: PROC_STUB(),
+        [PROC_HOME.path]: procStub(),
         "tooling/src/seed/ops/written.ts":
           'import { spawnFullPrioritySync } from "../../_shared/proc.ts";\nlet door = spawnFullPrioritySync;\ndoor = spawnFullPrioritySync;\nexport const x = (): void => door("x", []);\n',
       },
@@ -246,7 +246,7 @@ export const gate = defineGate({
 });
 
 /** The home's door surface, planted so a proof locates it: an absent home REFUSES the run by receipt. */
-function PROC_STUB(): string {
+function procStub(): string {
   return [
     "export function spawnFullPrioritySync(cmd: string, args: readonly string[]): void {",
     "  void cmd;",

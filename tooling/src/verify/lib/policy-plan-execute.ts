@@ -30,6 +30,10 @@ function executionPolicies(input: PolicyPlanExecutionInput): readonly GatePolicy
 
 function assertExecutionResourcePaths(plan: PolicyPlanExecutionInput["plan"]): void {
   const selected = new Set(plan.policyIds);
+  const failedPolicies = new Set(Object.keys(plan.resourceFailuresByPolicy));
+  if ([...failedPolicies].some((policyId) => !selected.has(policyId))) {
+    throw new Error("policy execution resource failures name unselected policies");
+  }
   const unknown = Object.keys(plan.resourcePathsByPolicy)
     .filter((policyId) => !selected.has(policyId))
     .toSorted();
@@ -51,6 +55,10 @@ function assertExecutionResourcePaths(plan: PolicyPlanExecutionInput["plan"]): v
   }
 
   const selectedFacts = new Set(plan.facts.map(({ factId }) => factId));
+  const failedFacts = new Set(Object.keys(plan.resourceFailuresByFact));
+  if ([...failedFacts].some((factId) => !selectedFacts.has(factId))) {
+    throw new Error("policy execution resource failures name unselected facts");
+  }
   const unknownFacts = Object.keys(plan.resourcePathsByFact)
     .filter((factId) => !selectedFacts.has(factId))
     .toSorted();
@@ -81,10 +89,13 @@ function assertExecutionFacts(plan: PolicyPlanExecutionInput["plan"], policies: 
   }
 }
 
-function assertExecutedPopulations(plan: PolicyPlanExecutionInput["plan"], pass: PolicyPassResult): void {
+function assertExecutedPolicyPopulations(plan: PolicyPlanExecutionInput["plan"], pass: PolicyPassResult): void {
   const actual = new Map(pass.policies.map((result) => [result.id, result]));
   for (const planned of plan.policies) {
     const result = actual.get(planned.policyId);
+    if (planned.policyId in plan.resourceFailuresByPolicy && result?.owner.status === "incomplete") {
+      continue;
+    }
     if (result === undefined || JSON.stringify(result.population) !== JSON.stringify(planned.population)) {
       throw new Error(`policy execution population disagrees with its plan: ${planned.policyId}`);
     }
@@ -92,13 +103,24 @@ function assertExecutedPopulations(plan: PolicyPlanExecutionInput["plan"], pass:
       throw new Error(`policy execution disposition disagrees with its plan: ${planned.policyId}`);
     }
   }
+}
+
+function assertExecutedFactPopulations(plan: PolicyPlanExecutionInput["plan"], pass: PolicyPassResult): void {
   const actualFacts = new Map(pass.facts.map((result) => [result.id, result]));
   for (const planned of plan.facts) {
     const result = actualFacts.get(planned.factId);
+    if (planned.factId in plan.resourceFailuresByFact && result?.status === "incomplete") {
+      continue;
+    }
     if (result === undefined || JSON.stringify(result.population) !== JSON.stringify(planned.population)) {
       throw new Error(`policy execution fact population disagrees with its plan: ${planned.factId}`);
     }
   }
+}
+
+function assertExecutedPopulations(plan: PolicyPlanExecutionInput["plan"], pass: PolicyPassResult): void {
+  assertExecutedPolicyPopulations(plan, pass);
+  assertExecutedFactPopulations(plan, pass);
 }
 
 /** Execute one validated plan through the production pass, including its bound ResourceHost seam. */

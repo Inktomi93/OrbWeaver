@@ -464,6 +464,175 @@ db.select().from(healthy);`,
     expect(jsonRun.stderr).toContain("columns --all: swept 2 table(s), 1 carrying a finding.");
   });
 
+  test("columns JSON reports a consumed table with no production writer and clears it only with real write evidence", () => {
+    const base = {
+      "packages/db/src/drizzle.ts": `
+export declare function sqliteTable<T>(name: string, cols: T): T;
+export declare function text(name: string): string;
+export declare const db: {
+  insert: (table: unknown) => { values: (value: unknown) => void };
+  update: (table: unknown) => { set: (value: unknown) => void };
+};`,
+      "packages/db/src/schema/tables.ts": `
+import { sqliteTable, text } from "../drizzle";
+export const widgets = sqliteTable("widgets", { live: text("live"), ghost: text("ghost") });`,
+      "packages/server/src/read.ts": `
+import { widgets } from "../../db/src/schema/tables";
+export const read = (): unknown => widgets.live;`,
+    };
+    const tableHits = (files: Readonly<Record<string, string>>): readonly Hit[] => {
+      const run = runVerb(projectOf({ ...base, ...files }), { verb: "columns", arg: "widgets", argv: ["--json", "--max", "20"], corpus: CORPUS_TYPED });
+      expect(run.status).toBe(0);
+      const payload = JSON.parse(run.stdout) as { hits: Hit[] };
+      return payload.hits.filter(({ kind }) => kind === "column-table-producerless");
+    };
+
+    const missingWriter = runVerb(projectOf(base), { verb: "columns", arg: "widgets", argv: ["--json", "--max", "20"], corpus: CORPUS_TYPED });
+    const missingPayload = JSON.parse(missingWriter.stdout) as { hits: Hit[] };
+    expect(missingPayload.hits.filter(({ kind }) => kind === "column-table-producerless")).toHaveLength(1);
+    expect(new Set(missingPayload.hits.map(({ kind }) => kind))).toEqual(new Set(["column-table-producerless", "column-read-only", "column-neither"]));
+
+    expect(
+      tableHits({
+        "tests/server/widgets.test.ts": `
+import { db } from "../../packages/db/src/drizzle";
+import { widgets } from "../../packages/db/src/schema/tables";
+db.insert(widgets).values({ live: "fixture" });`,
+      }),
+    ).toHaveLength(1);
+    expect(
+      tableHits({
+        "packages/server/src/write.ts": `
+import { db } from "../../db/src/drizzle";
+import { widgets } from "../../db/src/schema/tables";
+db.insert(widgets).values({});`,
+      }),
+    ).toEqual([]);
+    expect(
+      tableHits({
+        "packages/server/src/write.ts": `
+import { db } from "../../db/src/drizzle";
+import { widgets } from "../../db/src/schema/tables";
+declare const row: unknown;
+db.insert(widgets).values(row);`,
+      }),
+    ).toEqual([]);
+    expect(
+      tableHits({
+        "packages/server/src/write.ts": `
+import { db } from "../../db/src/drizzle";
+import { widgets } from "../../db/src/schema/tables";
+db.update(widgets).set({});`,
+      }),
+    ).toEqual([]);
+    expect(
+      tableHits({
+        "packages/server/src/write.ts": `
+declare const sql: {
+  (parts: TemplateStringsArray, ...values: unknown[]): unknown;
+  raw: (text: string) => unknown;
+};
+export const taggedStatement = sql\`INSERT INTO widgets DEFAULT VALUES\`;
+export const rawStatement = sql.raw("INSERT INTO widgets DEFAULT VALUES");`,
+      }),
+    ).toHaveLength(1);
+    expect(
+      tableHits({
+        "packages/server/src/write.ts": `
+declare const db: { execute: (statement: unknown) => unknown };
+declare const sql: (parts: TemplateStringsArray, ...values: unknown[]) => unknown;
+const statement = sql\`INSERT INTO widgets DEFAULT VALUES\`;
+db.execute(statement);`,
+      }),
+    ).toEqual([]);
+    expect(
+      tableHits({
+        "packages/server/src/write.ts": `
+declare const db: { execute: (statement: unknown) => unknown };
+declare const sql: {
+  (parts: TemplateStringsArray, ...values: unknown[]): unknown;
+  raw: (text: string) => unknown;
+};
+declare const dynamicText: string;
+let statement = sql\`INSERT INTO widgets DEFAULT VALUES\`;
+statement = sql.raw(dynamicText);
+db.execute(statement);`,
+      }),
+    ).toHaveLength(1);
+
+    const healthyFiles = {
+      "packages/server/src/write.ts": `
+import { db } from "../../db/src/drizzle";
+import { widgets } from "../../db/src/schema/tables";
+db.insert(widgets).values({ live: "production", ghost: "production" });`,
+      "packages/server/src/read-ghost.ts": `
+import { widgets } from "../../db/src/schema/tables";
+export const readGhost = (): unknown => widgets.ghost;`,
+    };
+    const healthyRun = runVerb(projectOf({ ...base, ...healthyFiles }), {
+      verb: "columns",
+      arg: "widgets",
+      argv: ["--json", "--max", "20"],
+      corpus: CORPUS_TYPED,
+    });
+    expect((JSON.parse(healthyRun.stdout) as { hits: Hit[] }).hits).toEqual([]);
+    expect(
+      tableHits({
+        "packages/server/src/read-ghost.ts": healthyFiles["packages/server/src/read-ghost.ts"],
+      }),
+    ).toHaveLength(1);
+  });
+
+  test("columns --all keeps same-named schema exports in their canonical table sections", () => {
+    const project = projectOf({
+      "packages/db/src/drizzle.ts": `
+export declare function sqliteTable<T>(name: string, cols: T): T;
+export declare function text(name: string): string;
+export declare const db: { insert: (table: unknown) => { values: (value: unknown) => void } };`,
+      "packages/db/src/schema/a.ts": `
+import { sqliteTable, text } from "../drizzle";
+export const events = sqliteTable("a_events", { aValue: text("a_value") });`,
+      "packages/db/src/schema/b.ts": `
+import { sqliteTable, text } from "../drizzle";
+export const events = sqliteTable("b_events", { bValue: text("b_value") });`,
+      "packages/server/src/events.ts": `
+import { db } from "../../db/src/drizzle";
+import { events as aEvents } from "../../db/src/schema/a";
+db.insert(aEvents).values({ aValue: "written" });
+export const read = aEvents.aValue;`,
+    });
+
+    const run = runVerb(project, { verb: "columns", arg: "", argv: ["--all", "--max", "20"], corpus: CORPUS_TYPED });
+    expect(run.stdout).toContain("a_events (events): healthy — 0 of 1 column(s) flagged");
+    expect(run.stdout).toContain("b_events (events): 1 of 1 column(s) flagged");
+    expect(run.stdout).not.toContain("b_events (events): producerless table");
+    expect(run.stdout).not.toContain("table reads:1");
+  });
+
+  test("columns reports a writerless full-table select but not an import-only table", () => {
+    const project = projectOf({
+      "packages/db/src/drizzle.ts": `
+export declare function sqliteTable<T>(name: string, cols: T): T;
+export declare function text(name: string): string;
+export declare const db: { select: () => { from: (table: unknown) => unknown[] } };`,
+      "packages/db/src/schema/tables.ts": `
+import { sqliteTable, text } from "../drizzle";
+export const selected = sqliteTable("selected", { value: text("value") });
+export const mentioned = sqliteTable("mentioned", { value: text("value") });`,
+      "packages/server/src/read.ts": `
+import { db } from "../../db/src/drizzle";
+import { mentioned, selected } from "../../db/src/schema/tables";
+export const tableAlias = mentioned;
+export function readAll(): unknown[] { return db.select().from(selected); }`,
+    });
+
+    const run = runVerb(project, { verb: "columns", arg: "", argv: ["--json", "--max", "20"], corpus: CORPUS_TYPED });
+    const payload = JSON.parse(run.stdout) as { hits: Hit[] };
+    expect(payload.hits.filter(({ kind }) => kind === "column-table-producerless").map(({ text }) => text)).toEqual([expect.stringContaining("selected")]);
+    expect(payload.hits.filter(({ text }) => text.includes("selected.value"))).toEqual([expect.objectContaining({ kind: "column-neither" })]);
+    expect(payload.hits.filter(({ text }) => text.includes("mentioned.value"))).toEqual([expect.objectContaining({ kind: "column-neither" })]);
+  });
+
   test("regkeys --all keeps same-file property reads alive and reports an unused control registry", () => {
     const project = projectOf({
       "packages/client/src/motion.ts": `

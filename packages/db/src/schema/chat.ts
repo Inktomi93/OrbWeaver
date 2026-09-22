@@ -81,6 +81,7 @@ import type {
   ChatInviteId,
   ChatParticipantId,
   ChatStreamEventId,
+  ChatStreamGenerationId,
   MessageAssetId,
   MessageId,
   MessageReactionId,
@@ -194,6 +195,9 @@ export const chats = sqliteTable(
     // select / delete / fork); NOT authored directly. Distinct from `variableValues` (the config-plane store) —
     // the assembly env seed overlays THIS over the resolved config picks. Typed JSON; nullable (nothing folded yet).
     runtimeVariables: text("runtime_variables", { mode: "json" }).$type<Record<string, string>>(),
+    // Monotonic replay cursor head. Stream-row cascades never rewind it; the writer advances it in the
+    // same transaction as each appended row, so competing writers serialize on this DB-owned value.
+    streamSeq: integer("stream_seq").notNull().default(0),
     // The standalone (out-of-turn) runtime-variable delta log — an
     // `applyVariableOps` call with no turn in flight appends a seq-stamped batch here; every runtime-cache
     // fold reads it alongside the per-variant message deltas. Nullable JSON (no standalone delta yet).
@@ -912,20 +916,15 @@ export const chatEvents = sqliteTable(
 // streamed delta; `seq` is the resume cursor (`replayStreamEvents`/`streamEventBounds`). `kind` mirrors the
 // `ChatDeltaEvent` discriminant (text | reasoning) — tied to the contract wire type via `satisfies`.
 //
-// NO PRODUCTION WRITER YET — RETAINED, and this is the decision, not an oversight (#1379 item 1, swept:
-// zero inserts across 1451 server `.ts` files; the only writer on the tree is the test fixture
-// `seedStreamEvent`). "Unwired ≠ worthless" (constitution §1) is the rule, and here the READ half is not
-// scaffolding — it is BUILT AND WIRED: `loadStreamReplay`/`loadStreamBounds`
-// (`domain/chat/persistence/queries.ts`) back the `replayStreamEvents`/`streamEventBounds` verbs
-// (`domain/chat/verbs/read.ts`), the id minter is declared on `ChatContext` and wired at
-// `entry/compose/chat.ts`, and the D16 join-history-floor clamp is implemented AGAINST THIS TABLE as the
-// row-level twin of the bus `delta` check. Dropping the table would delete that clamp and the resume
-// shape with it. What is missing is exactly one thing: the append verb.
+// The production writer lives in `domain/chat/persistence/stream-events.ts`. Generation commit appends
+// its statements after the canon message statements in the same ordered database batch. Each row mints
+// its own `ChatStreamEventId`; both reference arms are derived through the one server-trusted message
+// root, and a missing or cross-chat root makes the whole batch fail before a stream row can persist.
 //
-// WHOEVER BUILDS IT: `chatId` and `messageId` are two references that must meet at ONE chat, and the
-// fixture is the place that used to model them as independent parameters — it now derives and refuses a
-// cross-chat pair (see `tests/server/domain/chat/_support.ts` `seedStreamEvent`). Derive both arms from
-// one server-trusted root, as every other chat writer does (#1380).
+// `loadStreamReplay`/`loadStreamBounds` (`domain/chat/persistence/queries.ts`) back the
+// `replayStreamEvents`/`streamEventBounds` verbs (`domain/chat/verbs/read.ts`), including the D16
+// join-history-floor clamp against this table. Historical nullable message rows remain readable below
+// the clamp; the canonical generation writer always anchors new rows to the committed canon slot.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
 // The stream-delta kind tuple — tied to the contract `ChatDeltaEvent["kind"]` (compile-time validity; a
@@ -945,6 +944,9 @@ export const chatStreamEvents = sqliteTable(
     messageId: text("message_id")
       .$type<MessageId>()
       .references(() => messages.id, { onDelete: "cascade" }),
+    // One provider generation, distinct from the message slot (swipe/continue reuse a slot). Nullable only
+    // for pre-writer historical/control rows; the canonical append writer always stamps it.
+    generationId: text("generation_id").$type<ChatStreamGenerationId>(),
     // Per-chat resume cursor (`lastEventId`). UNIQUE per chat.
     seq: integer("seq").notNull(),
     // text | reasoning — derives STREAM_DELTA_KINDS (tied to ChatDeltaEvent).

@@ -4,10 +4,12 @@
 // overview's pinned pattern uncovered on this twin).
 
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
+import { makeCharacterDetail } from "../../character/fixtures.ts";
 import { AnalyticsCharacterSurfaceStory } from "../_ct-stories.tsx";
 
-const CHARACTER_STATS = {
+const CHARACTER_STATS: TrpcWireOutput<"stats.character"> = {
   characterId: "character_ct_drill",
   name: "Kethryl",
   characters: 1,
@@ -49,13 +51,13 @@ const CHARACTER_STATS = {
   avgReplyWords: 170,
 };
 
-const LATENCY = { avgTtftMs: 300, p50TtftMs: 250, p90TtftMs: 500, avgGenMs: 900, p50GenMs: 800, p90GenMs: 1500 };
+const LATENCY: TrpcWireOutput<"stats.latency"> = { avgTtftMs: 300, p50TtftMs: 250, p90TtftMs: 500, avgGenMs: 900, p50GenMs: 800, p90GenMs: 1500 };
 
 test("the character drill's content region carries a non-zero inset (#1221, the overview's #1200 pin mirrored)", async ({ mount, page }) => {
   await routeTrpc(page, {
     "stats.character": () => CHARACTER_STATS,
     "stats.latency": () => LATENCY,
-    "character.get": () => ({ id: "character_ct_drill", name: "Kethryl" }),
+    "character.get": () => makeCharacterDetail({ id: "character_ct_drill", name: "Kethryl" }),
   });
 
   const component = await mount(<AnalyticsCharacterSurfaceStory />);
@@ -71,7 +73,7 @@ test("the drill mounts its economics landmarks with the character's real figures
   await routeTrpc(page, {
     "stats.character": () => CHARACTER_STATS,
     "stats.latency": () => LATENCY,
-    "character.get": () => ({ id: "character_ct_drill", name: "Kethryl" }),
+    "character.get": () => makeCharacterDetail({ id: "character_ct_drill", name: "Kethryl" }),
   });
 
   const component = await mount(<AnalyticsCharacterSurfaceStory />);

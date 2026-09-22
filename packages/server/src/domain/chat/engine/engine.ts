@@ -18,6 +18,7 @@
 
 import type {
   AssembleContext,
+  ChatDeltaEvent,
   ChatReasoningPart,
   ChatWarning,
   DurableChatBusEvent,
@@ -100,6 +101,7 @@ import {
   loadSlotTarget,
   loadVariableDeltas,
 } from "../persistence/queries.ts";
+import { insertChatStreamEventStatements } from "../persistence/stream-events.ts";
 import { resolveGroupBucketCharacterId } from "../substrate/group-bucket.ts";
 import { spliceInlineReplyImages } from "../substrate/inline-reply-images.ts";
 import { projectRpgTranscript } from "../substrate/rpg-transcript.ts";
@@ -595,6 +597,9 @@ async function commitGeneration(args: {
   readonly nextSeq: number;
   readonly genStartedAt: number;
   readonly genFinishedAt: number;
+  /** The provider deltas already published live, in callback order. They join the destination message in
+   *  the canon batch so only committed turns become resumable token history. */
+  readonly streamDeltas: readonly ChatDeltaEvent[];
   /** §6.7 — the CAS ids of the pictures this generation emitted and the engine already stored, in the order
    *  their spans were spliced into `result.content`. Each gets a `message_assets` link stamped
    *  `inline-reply`, in THIS batch: the body's `asset:` spans are invisible to `asset-refs.ts`
@@ -627,6 +632,15 @@ async function commitGeneration(args: {
         rows: args.inlineReplyAssetIds.map((assetId) => ({ id: ctx.newMessageAssetId(), messageId, assetId })),
         origin: INLINE_REPLY_ORIGIN,
         now,
+      }),
+    );
+    statements.push(
+      ...insertChatStreamEventStatements(ctx.db, {
+        message: { id: messageId, chatId: prep.chatId },
+        deltas: args.streamDeltas,
+        newEventId: ctx.newStreamEventId,
+        newGenerationId: ctx.newStreamGenerationId,
+        createdAt: now,
       }),
     );
 
@@ -1375,7 +1389,7 @@ async function strikeOutCredential(ctx: ChatContext, prep: TurnPrep, err: unknow
   }
   try {
     await ctx.maybeRevokeOnAuthFailed({
-      ownerId: prep.runAsUserId,
+      ownerId: prep.funderUserId,
       credentialId: prep.connection.credential.credentialId,
       errorKind: provider.kind,
       errorMessage: provider.message,
@@ -1674,8 +1688,8 @@ async function runPreStart(ctx: ChatContext, prep: TurnPrep, persist: TurnPersis
   if (persist.mode !== "new-slot" && target === null) {
     throw new ChatNotFoundError(prep.chatId);
   }
-  // No security belt runs here any more (inference program §8.4-3): the turn runs on the FUNDER's own
-  // connection, so there is no by-proxy spend to consent to and no shared compute to budget.
+  // No separate spend belt runs here: accepting the host seat accepts liability for turns in the room, and
+  // the already-resolved host connection is frozen on the prep.
   return { target };
 }
 
@@ -1741,6 +1755,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
   // tail outside the try so BOTH success and failure terminals must drain it; otherwise a partial stream that
   // throws can publish turnAborted before its already-observed delta reaches the durable bus.
   let deltaTail: Promise<void> = Promise.resolve();
+  const streamDeltas: ChatDeltaEvent[] = [];
   // THE GENERATION'S ERROR IDENTITY (#1373 chunk J). The catch below wraps the WHOLE body, so "the turn
   // failed" is NOT evidence that the CHAT's credential was rejected — a side role (memory recall's embed)
   // resolves its own credential and can 401 in here. Only the error the generation region itself threw may
@@ -1825,6 +1840,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
         signal: prep.signal,
       },
       onDelta: (delta): void => {
+        streamDeltas.push(delta);
         deltaTail = deltaTail.then(() => deps.emit({ type: "delta", chatId: prep.chatId, slotSeq, delta }));
       },
     } satisfies Parameters<typeof runTurnPipeline>[0];
@@ -1882,6 +1898,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
       nextSeq: maxSeq + 1,
       genStartedAt,
       genFinishedAt,
+      streamDeltas,
     });
     // BEFORE the client-visible `turnCompleted` emit (w4-my-lane S1, option 1): the rpg register is
     // SYNCHRONOUS (`onTurnCompleted` enters the flush barrier before its first await), so firing it
@@ -1923,7 +1940,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
         try {
           await deps.generateSegments(ctx, {
             chatId: prep.chatId,
-            funderUserId: prep.triggeredBy,
+            funderUserId: prep.funderUserId,
             config: memoryConfig,
             macroNames,
             embedOwnerId: prep.runAsUserId,
@@ -1943,7 +1960,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
             });
             await deps.generateDigests(ctx, {
               scope: { chatId: prep.chatId, scopedCharacterId: groupCharacterId, isGroup: true },
-              funderUserId: prep.triggeredBy,
+              funderUserId: prep.funderUserId,
               config: memoryConfig,
               macroNames,
               embedOwnerId: prep.runAsUserId,
@@ -1961,7 +1978,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
                   scopedCharacterId: charId,
                   isGroup: chars.length > 1,
                 },
-                funderUserId: prep.triggeredBy,
+                funderUserId: prep.funderUserId,
                 config: memoryConfig,
                 macroNames,
                 embedOwnerId: prep.runAsUserId,

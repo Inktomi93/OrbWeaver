@@ -34,14 +34,249 @@
 // as a stable state rather than trying to catch a flash. Both are recognised on the value a responder
 // PRODUCES, so either works as a route value or as a function's return.
 
+import type { Branded } from "@orb/kit/ids";
+import type { AppRouter } from "@orb/server";
 import type { Page, Request } from "@playwright/test";
 // The ONE tRPC code union home (tests/support/matchers.ts, derived through classifyDomainError —
 // gate no-inline-union-redecl). Type-only: erased, no vitest runtime in the Playwright process.
 import type { TrpcErrorCode } from "../matchers.ts";
 
-/** A response: static data, or a function of the decoded input (return `trpcError(…)` to fail). */
-export type TrpcResponder = unknown | ((input: unknown) => unknown);
-export type TrpcRoutes = Record<string, TrpcResponder>;
+type AppRouterRecord = AppRouter["_def"]["record"];
+
+interface AppProcedureShape {
+  readonly _def: {
+    readonly procedure: true;
+    readonly $types: { readonly input: unknown; readonly output: unknown };
+  };
+}
+
+type ProcedurePath<TRecord> = {
+  [K in keyof TRecord & string]: TRecord[K] extends AppProcedureShape
+    ? K
+    : TRecord[K] extends Record<string, unknown>
+      ? `${K}.${ProcedurePath<TRecord[K]>}`
+      : never;
+}[keyof TRecord & string];
+
+type ProcedureAtPath<TRecord, TPath extends string> = TPath extends `${infer Head}.${infer Tail}`
+  ? Head extends keyof TRecord
+    ? ProcedureAtPath<TRecord[Head], Tail>
+    : never
+  : TPath extends keyof TRecord
+    ? TRecord[TPath]
+    : never;
+
+/** Every procedure name accepted by the canonical AppRouter wire contract. */
+export type TrpcProcedurePath = ProcedurePath<AppRouterRecord>;
+
+type AppProcedure<TPath extends TrpcProcedurePath> = Extract<ProcedureAtPath<AppRouterRecord, TPath>, AppProcedureShape>;
+
+type TrpcWire<T> =
+  T extends Branded<string>
+    ? string
+    : T extends readonly (infer Item)[]
+      ? readonly TrpcWire<Item>[]
+      : T extends object
+        ? { readonly [K in keyof T]: TrpcWire<T[K]> }
+        : T;
+
+type AppProcedureOutput<TPath extends TrpcProcedurePath> = AppProcedure<TPath>["_def"]["$types"]["output"];
+type TrpcFullSuccess<TPath extends TrpcProcedurePath> = TrpcWire<AppProcedureOutput<TPath>> | (undefined extends AppProcedureOutput<TPath> ? null : never);
+
+type NonEmptyFixtureObject<T extends object, TSeen> = {
+  [K in keyof T]-?: { readonly [P in K]-?: TrpcFixture<T[P], TSeen> } & {
+    readonly [P in Exclude<keyof T, K>]?: TrpcFixture<T[P], TSeen>;
+  };
+}[keyof T];
+
+type TrpcFixture<T, TSeen = never> = T extends TSeen
+  ? TrpcWire<T>
+  : T extends readonly (infer Item)[]
+    ? readonly TrpcFixture<Item, TSeen | T>[]
+    : T extends object
+      ? string extends keyof T
+        ? Readonly<Record<string, TrpcFixture<T[string & keyof T], TSeen | T>>>
+        : TrpcWire<T> | NonEmptyFixtureObject<T, TSeen | T>
+      : T;
+
+/** The JSON-facing success shape for one procedure, with compile-time-only ID brands erased. */
+export type TrpcWireOutput<TPath extends TrpcProcedurePath> = TrpcFullSuccess<TPath>;
+
+/** A nonempty canonical subset suitable for focused fixtures that do not need every output field. */
+export type TrpcFixtureOutput<TPath extends TrpcProcedurePath> = TrpcFixture<TrpcFullSuccess<TPath>>;
+
+type TrpcRawInput<TPath extends TrpcProcedurePath> = AppProcedure<TPath>["_def"]["$types"]["input"];
+/** The canonical decoded input accepted by one AppRouter procedure. */
+export type TrpcInput<TPath extends TrpcProcedurePath> = undefined extends TrpcRawInput<TPath> ? undefined | TrpcRawInput<TPath> : TrpcRawInput<TPath>;
+
+/** A response for one AppRouter procedure. The direct call performs the exact partial-wire validation. */
+type CanonicalTrpcResponder<TPath extends TrpcProcedurePath> =
+  | TrpcFullSuccess<TPath>
+  | TrpcFixture<TrpcFullSuccess<TPath>>
+  | TrpcErrorMarker
+  | TrpcHoldMarker
+  | TrpcWireEscapeMarker
+  | ((input: TrpcInput<TPath>) => TrpcFullSuccess<TPath> | TrpcFixture<TrpcFullSuccess<TPath>> | TrpcErrorMarker | TrpcHoldMarker | TrpcWireEscapeMarker);
+
+export type TrpcResponder<TPath extends TrpcProcedurePath | undefined = undefined> = [TPath] extends [TrpcProcedurePath]
+  ? CanonicalTrpcResponder<Extract<TPath, TrpcProcedurePath>>
+  : unknown | ((input: unknown) => unknown);
+
+/**
+ * Procedure-keyed helper map. Name a path union for a reusable map with required, contract-checked keys;
+ * the default is the broad optional composition shape and is deliberately rejected as a direct route map.
+ */
+export type TrpcRoutes<TPaths extends TrpcProcedurePath = never> = [TPaths] extends [never]
+  ? { [TPath in TrpcProcedurePath]?: CanonicalTrpcResponder<TPath> }
+  : { [TPath in TPaths]-?: CanonicalTrpcResponder<TPath> };
+
+type MatchingWireMember<TActual, TExpected> = TActual extends unknown
+  ? TExpected extends unknown
+    ? TActual extends string | number | boolean | bigint | symbol | null | undefined
+      ? TActual extends TExpected
+        ? TActual
+        : never
+      : TActual extends readonly (infer TActualItem)[]
+        ? TExpected extends readonly (infer TExpectedItem)[]
+          ? [TActualItem] extends [never]
+            ? TActual
+            : ExactWire<TActualItem, TExpectedItem> extends never
+              ? never
+              : TActual
+          : never
+        : TActual extends object
+          ? TExpected extends object
+            ? ExactObject<TActual, TExpected> extends never
+              ? never
+              : TActual
+            : never
+          : never
+    : never
+  : never;
+
+type ExactWire<TActual, TExpected> = unknown extends TActual
+  ? never
+  : unknown extends TExpected
+    ? TActual
+    : [TActual] extends [MatchingWireMember<TActual, TExpected>]
+      ? TActual
+      : never;
+
+type InvalidFixedObjectKeys<TActual extends object, TExpected extends object> = {
+  [K in keyof TActual]-?: K extends keyof TExpected ? (ExactWire<TActual[K], TExpected[K]> extends never ? K : never) : K;
+}[keyof TActual];
+
+type InvalidDictionaryKeys<TActual extends object, TExpected extends object> = {
+  [K in keyof TActual]-?: K extends string | number ? (ExactWire<TActual[K], TExpected[string & keyof TExpected]> extends never ? K : never) : K;
+}[keyof TActual];
+
+type ExactObject<TActual extends object, TExpected extends object> = keyof TActual extends never
+  ? Record<never, never> extends TExpected
+    ? TActual
+    : never
+  : string extends keyof TExpected
+    ? InvalidDictionaryKeys<TActual, TExpected> extends never
+      ? TActual
+      : never
+    : string extends keyof TActual
+      ? never
+      : InvalidFixedObjectKeys<TActual, TExpected> extends never
+        ? TActual
+        : never;
+
+type TrpcMarker = TrpcErrorMarker | TrpcHoldMarker | TrpcWireEscapeMarker;
+type MatchingProduced<TPath extends TrpcProcedurePath, TProduced> = TProduced extends TrpcMarker ? TProduced : ExactWire<TProduced, TrpcFixtureOutput<TPath>>;
+type ExactArrayProduced<TPath extends TrpcProcedurePath, TProduced> = TProduced extends readonly (infer TActualItem)[]
+  ? Extract<TrpcWireOutput<TPath>, readonly unknown[]> extends readonly (infer TExpectedItem)[]
+    ? [TActualItem] extends [TExpectedItem]
+      ? [TExpectedItem] extends [TActualItem]
+        ? TProduced
+        : never
+      : never
+    : never
+  : never;
+type ExactProduced<TPath extends TrpcProcedurePath, TProduced> =
+  ExactArrayProduced<TPath, TProduced> extends never
+    ? TrpcFixtureOutput<TPath> extends TProduced
+      ? TProduced extends TrpcFixtureOutput<TPath>
+        ? TProduced
+        : [TProduced] extends [MatchingProduced<TPath, TProduced>]
+          ? TProduced
+          : never
+      : TrpcWireOutput<TPath> extends TProduced
+        ? TProduced extends TrpcWireOutput<TPath>
+          ? TProduced
+          : [TProduced] extends [MatchingProduced<TPath, TProduced>]
+            ? TProduced
+            : never
+        : [TProduced] extends [MatchingProduced<TPath, TProduced>]
+          ? TProduced
+          : never
+    : TProduced;
+
+type ResponderInputAccepts<TPath extends TrpcProcedurePath, Args extends readonly unknown[]> = Args["length"] extends 0
+  ? true
+  : number extends Args["length"]
+    ? true
+    : TrpcInput<TPath> extends Args[0]
+      ? true
+      : false;
+
+type ExactResponder<TPath extends TrpcProcedurePath, TResponder> =
+  CanonicalTrpcResponder<TPath> extends TResponder
+    ? TResponder extends CanonicalTrpcResponder<TPath>
+      ? TResponder
+      : never
+    : TResponder extends (...args: infer Args) => infer Produced
+      ? ResponderInputAccepts<TPath, Args> extends true
+        ? ExactProduced<TPath, Produced> extends never
+          ? never
+          : TResponder
+        : never
+      : ExactProduced<TPath, TResponder> extends never
+        ? never
+        : TResponder;
+
+type RequiredRouteKeys<TRoutes> = {
+  [TPath in keyof TRoutes]-?: object extends Pick<TRoutes, TPath> ? never : TPath;
+}[keyof TRoutes];
+
+type ExactRoutes<TRoutes extends object> = string extends keyof TRoutes
+  ? never
+  : keyof TRoutes extends never
+    ? TRoutes
+    : RequiredRouteKeys<TRoutes> extends never
+      ? never
+      : { readonly [TPath in RequiredRouteKeys<TRoutes>]: TPath extends TrpcProcedurePath ? ExactResponder<TPath, TRoutes[TPath]> : never };
+
+type ContextualObject<T extends object> = {
+  readonly [K in keyof T]?: T[K] extends string | number | boolean | bigint | symbol | null | undefined ? T[K] : unknown;
+};
+
+type ContextualOutput<T> = T extends readonly (infer Item)[]
+  ? readonly (Item extends object ? ContextualObject<Item> : Item)[]
+  : T extends object
+    ? ContextualObject<T>
+    : T;
+
+/**
+ * Give inline responder parameters and top-level discriminants their canonical context without recursively
+ * instantiating the full output graph. `ExactRoutes` below remains the complete output validator. The bounded
+ * context avoids expanding recursive plugin nodes and large mutually assignable view unions twice per route.
+ */
+type ContextualResponder<TPath extends TrpcProcedurePath> =
+  | ContextualOutput<TrpcFullSuccess<TPath>>
+  | TrpcMarker
+  | ((input: TrpcInput<TPath>) => ContextualOutput<TrpcFullSuccess<TPath>> | TrpcMarker);
+
+type ContextualRoutes<TRoutes extends object> = {
+  readonly [TPath in keyof TRoutes]: TPath extends TrpcProcedurePath ? ContextualResponder<TPath> : never;
+};
+
+/** Validate a fixture map against the procedure-specific AppRouter input and output types. */
+export function defineTrpcRoutes<const TRoutes extends object>(routes: TRoutes & ContextualRoutes<NoInfer<TRoutes>> & ExactRoutes<NoInfer<TRoutes>>): TRoutes {
+  return routes;
+}
 
 /** tRPC code → JSONRPC number (@trpc/server rpc/codes.ts TRPC_ERROR_CODES_BY_KEY), exhaustive. */
 function errorNumber(code: TrpcErrorCode): number {
@@ -177,6 +412,24 @@ function isTrpcHold(value: unknown): value is TrpcHoldMarker {
   return typeof value === "object" && value !== null && HOLD_MARK in value;
 }
 
+const WIRE_ESCAPE_MARK = Symbol("routeTrpc.malformed-or-forward-wire");
+
+interface TrpcWireEscapeMarker {
+  readonly [WIRE_ESCAPE_MARK]: unknown;
+}
+
+/**
+ * Explicit escape for a test whose subject is malformed or forward-version wire data that the current
+ * AppRouter cannot emit. Ordinary fixture drift must be repaired against the canonical procedure output.
+ */
+export function malformedOrForwardTrpcWire(value: unknown): TrpcWireEscapeMarker {
+  return { [WIRE_ESCAPE_MARK]: value };
+}
+
+function unwrapTrpcWireEscape(value: unknown): unknown {
+  return typeof value === "object" && value !== null && WIRE_ESCAPE_MARK in value ? value[WIRE_ESCAPE_MARK] : value;
+}
+
 // Inputs: queries carry `?input=` (batched or not — getUrl always URL-encodes query input);
 // mutations carry the POST body. Batched payloads are index-keyed (`{"0":…}`); non-batched carry
 // the raw input, normalized to index "0".
@@ -213,7 +466,10 @@ export interface TrpcRecorder {
   readonly unstubbed: () => string[];
 }
 
-export async function routeTrpc(page: Page, routes: TrpcRoutes): Promise<TrpcRecorder> {
+export async function routeTrpc<const TRoutes extends object>(
+  page: Page,
+  routes: TRoutes & ContextualRoutes<NoInfer<TRoutes>> & ExactRoutes<NoInfer<TRoutes>>,
+): Promise<TrpcRecorder> {
   // THE CENSUS LIVENESS MARKER (#637). The UNSTUBBED lines below are the census's FINDINGS; this line is the
   // proof the census could take one at all. A run that collected nothing because the marker was renamed, the
   // stderr plumbing broke, or this stub was swapped would otherwise be indistinguishable from a clean tree —
@@ -270,13 +526,14 @@ export async function routeTrpc(page: Page, routes: TrpcRoutes): Promise<TrpcRec
         const input = byIndex[String(i)];
         record(proc, input);
         noteUnstubbed(proc);
-        const responder = routes[proc];
-        const produced = typeof responder === "function" ? (responder as (x: unknown) => unknown)(input) : responder;
+        const responder: unknown = Reflect.get(routes, proc);
+        const produced = typeof responder === "function" ? Reflect.apply(responder, undefined, [input]) : responder;
         let data = produced;
         if (isTrpcHold(produced)) {
           produced[HOLD_MARK].onRequest();
           data = await produced[HOLD_MARK].released;
         }
+        data = unwrapTrpcWireEscape(data);
         if (isTrpcError(data)) {
           const errorData = data.reason === undefined ? { code: data.code } : { code: data.code, reason: data.reason };
           return { error: { code: errorNumber(data.code), message: data.message, data: errorData } };

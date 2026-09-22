@@ -51,10 +51,8 @@ const CHIP_DISPLAY_CAP = 4;
 /** How many cards are visible at once. ONE, by law: the newest; the rest are a "+N pending" count. */
 const CARD_DISPLAY_CAP = 1;
 
-// THE TRANSCRIPT'S READING-PORT FLOOR this band's coarse strip protects is homed one module over —
-// `../lib/chat-reading-port.ts` (`CHAT_READING_PORT_MIN_PX`), which states the whole derivation and why it
-// is a constant rather than a vault token. It lives in a zero-import `.ts` leaf because its one enforcer is
-// a playwright-ct spec and a CT spec's node side cannot import a `.tsx`.
+// The transcript's reading-port floor this band's coarse strip protects is asserted from rendered geometry
+// by `chat-controls-band.ct.tsx`; the numeric budget belongs to that test because production never reads it.
 
 /** THE BAND'S READING SURFACE (#674 — the over-art contrast family's TENTH instance, and the reason it is
  *  answered HERE rather than on the chips). Measured live 2026-08-24 in a carried-art room

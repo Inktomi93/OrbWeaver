@@ -125,7 +125,7 @@ test("a REJECTED save is not recorded as saved — leaving the tab re-sends the 
 test("a SUCCESSFUL save IS the new baseline — leaving the tab sends nothing more (#1501, the other direction)", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "chat.getGroupConfig": () => DEFAULT_GROUP_CONFIG,
-    "chat.setGroupConfig": () => null,
+    "chat.setGroupConfig": () => DEFAULT_GROUP_CONFIG,
   });
   const component = await mount(<CommittedGroupConfigTabStory />);
 

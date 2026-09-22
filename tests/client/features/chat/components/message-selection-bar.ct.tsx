@@ -42,7 +42,7 @@ test("Delete is disabled with an empty selection", async ({ mount }) => {
 });
 
 test("Delete → confirm fires ONE chat.deleteMessages with the whole selected set, then leaves select mode", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { [DELETE_PROC]: () => ({ ok: true }) });
+  const trpc = await routeTrpc(page, { [DELETE_PROC]: () => null });
   const component = await mount(<MessageSelectionBarStory />);
 
   await component.getByTestId("ctl-enter").click();

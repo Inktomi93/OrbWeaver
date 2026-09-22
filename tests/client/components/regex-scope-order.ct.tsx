@@ -18,7 +18,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder } from "../../support/node/route-trpc.ts";
+import type { TrpcFixtureOutput, TrpcInput, TrpcRecorder, TrpcResponder } from "../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../support/node/route-trpc.ts";
 import { RegexContextStory, RegexPickerStory } from "../features/regex/_ct-stories.tsx";
 
@@ -27,7 +27,7 @@ const APPLY_PROC = "regex.applyScopeOrder";
 const SCRIPT_BASE = {
   findRegex: "a",
   replaceString: "b",
-  placement: ["AI_OUTPUT"],
+  placement: ["AI_OUTPUT"] as const,
   enabled: true,
   markdownOnly: false,
   promptOnly: false,
@@ -36,7 +36,7 @@ const SCRIPT_BASE = {
   // A fixed edit stamp (X-16's `RegexScriptRow.updatedAt`) — the wall clock never reaches a fixture.
   updatedAt: 1_760_000_000_000,
   substituteRegex: 0,
-};
+} as const;
 
 const FIRST = { ...SCRIPT_BASE, id: "regex_script_000000000000000a", name: "strip ooc" };
 const SECOND = { ...SCRIPT_BASE, id: "regex_script_000000000000000b", name: "rename hero" };
@@ -48,28 +48,34 @@ const LOOSE = { ...SCRIPT_BASE, id: "regex_script_000000000000000c", name: "not 
  *  the state here is what makes any refetch agree with it instead of racing it.) */
 function stubScope(
   page: Page,
-  proc: string,
-  library: readonly { readonly id: string; readonly name: string }[],
-  attached: readonly { readonly id: string; readonly name: string }[],
+  proc: "regex.listForCharacter" | "regex.listGlobal",
+  library: TrpcFixtureOutput<"regex.listScripts">,
+  attached: TrpcFixtureOutput<"regex.listForCharacter">,
 ): Promise<TrpcRecorder> {
   let current = [...attached];
-  return routeTrpc(page, {
-    "regex.listScripts": () => library,
+  const applyScopeOrder: TrpcResponder<"regex.applyScopeOrder"> = (input: TrpcInput<"regex.applyScopeOrder">) => {
+    const ordered = input.orderedScriptIds;
+    const byId = new Map(current.map((row) => [row.id, row]));
+    current = ordered.flatMap((id) => {
+      const row = byId.get(id);
+      return row === undefined ? [] : [row];
+    });
+    return { reordered: current.length };
+  };
+  const listScripts: TrpcResponder<"regex.listScripts"> = () => library;
+  const listCharacter: TrpcResponder<"regex.listForCharacter"> = () => current;
+  const listGlobal: TrpcResponder<"regex.listGlobal"> = () => current;
+  const common = {
+    "regex.listScripts": listScripts,
     // The context pane also reads the reverse ROSTERS (REGROSTER). Not what these tests are about, but an
     // unlisted proc resolves `null` and the pane would render nothing at all — the rosters are pinned by
     // tests/client/features/regex/components/regex-context-body.ct.tsx.
-    "regex.listScriptUsage": () => ({ presets: [], characters: [], rooms: [] }),
-    [proc]: () => current,
-    [APPLY_PROC]: (input: unknown): unknown => {
-      const ordered = (input as { readonly orderedScriptIds: readonly string[] }).orderedScriptIds;
-      const byId = new Map(current.map((row) => [row.id, row]));
-      current = ordered.flatMap((id) => {
-        const row = byId.get(id);
-        return row === undefined ? [] : [row];
-      });
-      return { reordered: current.length };
-    },
-  });
+    "regex.listScriptUsage": (): TrpcFixtureOutput<"regex.listScriptUsage"> => ({ presets: [], characters: [], rooms: [] }),
+    [APPLY_PROC]: applyScopeOrder,
+  };
+  return proc === "regex.listForCharacter"
+    ? routeTrpc(page, { ...common, "regex.listForCharacter": listCharacter })
+    : routeTrpc(page, { ...common, "regex.listGlobal": listGlobal });
 }
 
 /** The grip labels in DOM order — the ordered slice as an assistive tech reads it. */

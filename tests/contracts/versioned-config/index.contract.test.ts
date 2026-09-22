@@ -54,6 +54,7 @@ test("a lift returning a non-object, or a final blob failing the schema, degrade
     version: 2,
     default: DEFAULT,
     // biome-ignore lint/suspicious/noExplicitAny: deliberately returns a non-object to test the guard.
+    // @orb-waive no-test-fabrication(any): deliberately invalid lift output proves the runtime shape guard; ends when lift callbacks can return unknown directly.
     lifts: { 1: () => null as any },
   });
   expect(broken.parse({ schemaVersion: 1 })).toEqual(DEFAULT);
@@ -84,6 +85,7 @@ test("parseOutcome reports the value's provenance and names the failure", () => 
     version: 2,
     default: DEFAULT,
     // biome-ignore lint/suspicious/noExplicitAny: deliberately returns a non-object to test the guard.
+    // @orb-waive no-test-fabrication(any): deliberately invalid lift output proves parseOutcome reports lift-broke-shape; ends when lift callbacks can return unknown directly.
     lifts: { 1: () => null as any },
   });
   expect(broken.parseOutcome({ schemaVersion: 1 })).toEqual({ intact: false, value: DEFAULT, failure: "lift-broke-shape" });

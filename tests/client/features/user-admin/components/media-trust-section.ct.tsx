@@ -6,16 +6,21 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { setNumber } from "../../../../support/node/set-number.ts";
 import { MediaTrustSectionStory } from "../_ct-stories.tsx";
+import type { EffectiveAppSettings } from "../app-settings-fixtures.ts";
+import { appSettingsView, effectiveAppSettings } from "../app-settings-fixtures.ts";
 
 const UPDATE_PROC = "settings.updateAppSettings";
+
+type AppSettingsOverrides = TrpcWireOutput<"settings.getAppSettingsWithOverrides">["overrides"];
+
 const BYTES_PER_MB = 1_000_000;
 
 /** The resolved slice this section reads (floor ⊕ override); untyped route stubs, so a partial suffices. */
-const RESOLVED = {
+const RESOLVED: Partial<EffectiveAppSettings> = {
   forbidExternalMedia: true,
   trustHtml: false,
   // #111 leg 3 — the interactive-card kill-switch, mounted here at its SHIPPED floor (off).
@@ -28,10 +33,10 @@ const INTERACTIVE_SWITCH = "Let interactive cards run their own scripts";
  *  be taken back by policy — softening it later would make this a plain feature toggle. */
 const WEBRTC_DISCLOSURE_RE = /beacon out over WebRTC, which no browser policy can block/u;
 
-function stub(page: Page, overrides: Record<string, unknown> = {}): Promise<TrpcRecorder> {
+function stub(page: Page, overrides: Partial<AppSettingsOverrides> = {}): Promise<TrpcRecorder> {
   return routeTrpc(page, {
-    "settings.getAppSettingsWithOverrides": () => ({ resolved: RESOLVED, overrides }),
-    [UPDATE_PROC]: () => RESOLVED,
+    "settings.getAppSettingsWithOverrides": () => appSettingsView(RESOLVED, overrides),
+    [UPDATE_PROC]: () => effectiveAppSettings(RESOLVED),
   });
 }
 

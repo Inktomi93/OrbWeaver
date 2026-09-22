@@ -30,7 +30,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { ariaTreeFindings, formatFindings, labelInNameFindings, nameQualityFindings } from "../../support/browser/accessible-names.ts";
 import { CHAT_AND_INBOX_READS_EMPTY } from "../../support/node/chat-and-inbox-reads-empty.ts";
-import { routeTrpc } from "../../support/node/route-trpc.ts";
+import { defineTrpcRoutes, routeTrpc } from "../../support/node/route-trpc.ts";
 import { AppShellStory, RailStory } from "../features/app-shell/_ct-stories.tsx";
 import { CharacterLibrarySurfaceStory } from "../features/character/_ct-stories.tsx";
 import { makeCharacterSummary, makeTagFixture } from "../features/character/fixtures.ts";
@@ -48,7 +48,7 @@ const USER_SETTINGS_VIEW = { userId: "user_ct_namecraft", schemaVersion: 1, conf
  * for the speaker chip. Feeding these turns `Composer`'s real selection/gate logic on instead of it
  * resolving through routeTrpc's unstubbed-null branch (#629/#649).
  */
-const VIEWER_IDENTITY_ROUTES: Readonly<Record<string, unknown>> = {
+const VIEWER_IDENTITY_ROUTES = defineTrpcRoutes({
   // The config LIST paints every shelf, so the four collection bands read their rosters — fed empty.
   "tag.listTagsWithUsage": [],
   "regex.listScripts": [],
@@ -60,7 +60,7 @@ const VIEWER_IDENTITY_ROUTES: Readonly<Record<string, unknown>> = {
   // `useSuspenseQuery(trpc.settings.listThemes…)` would otherwise run inert on routeTrpc's null fulfil
   // (the unfed-read ratchet, #1052/0040bebae) — fed empty per the "no themes yet" default.
   "settings.listThemes": [],
-};
+});
 
 /** The empty `chat.listChats` page (`ChatListPage` wire shape) — the honest "no chats yet" default the
  *  home masthead / library resume-strip readers compose over (character-library-surface.tsx:175,

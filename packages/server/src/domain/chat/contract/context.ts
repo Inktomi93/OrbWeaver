@@ -42,6 +42,7 @@ import type {
   ChatInviteId,
   ChatParticipantId,
   ChatStreamEventId,
+  ChatStreamGenerationId,
   ChatTurnId,
   EmbedGenerationId,
   Handle,
@@ -140,8 +141,7 @@ export interface ChatToolOps {
   readonly toAgentToolServer: (set: ChatToolSet, frame: ChatToolExecFrame, onRecord: (record: ToolCallRecord) => void) => Promise<unknown>;
 }
 
-/** Resolve the FUNDER's chat connection for a turn (inference program §8.4-3): the triggering principal's own
- *  `chat` binding — never the host's, never the caller's membership id. A chat binds no connection (F20). */
+/** Resolve the frozen room HOST's `chat` connection for a turn. A chat binds no connection (F20). */
 type ResolveChatConnectionOp = (params: { readonly funderUserId: UserId; readonly signal?: AbortSignal | undefined }) => Promise<Resolved<"chat">>;
 
 /** The post-generation credential STRIKE-OUT (#1373) — best-effort, never throws into the generation path.
@@ -159,7 +159,7 @@ type ResolveChatConnectionOp = (params: { readonly funderUserId: UserId; readonl
  *  `ownerId` IS THE TENANT SCOPE, and it is on the signature because the op IS the domain boundary
  *  (`injected-op-caller-param`, AGENTS §2): an op that takes an entity id and no caller is safe only by its
  *  call sites' discipline, and the next wiring inherits nothing that says so. It becomes the revoke's WHERE
- *  predicate. The engine passes the turn's frozen `prep.runAsUserId` — the SAME principal `resolveChat`
+ *  predicate. The engine passes the turn's frozen `prep.funderUserId` — the SAME principal `resolveChat`
  *  resolved this credential under, so the two cannot disagree without a composition-root bug, and if they
  *  ever do the credentials verb refuses and records it rather than writing to a stranger's row. */
 type MaybeRevokeOnAuthFailedOp = (params: {
@@ -1310,6 +1310,7 @@ export interface ChatContext {
   readonly newInjectionId: () => ChatInjectionId;
   readonly newEventId: () => ChatEventId;
   readonly newStreamEventId: () => ChatStreamEventId;
+  readonly newStreamGenerationId: () => ChatStreamGenerationId;
   readonly newInviteId: () => ChatInviteId;
   readonly newPendingTurnId: () => PendingTurnId;
   /** Mints the turn's ephemeral identity once per `executeTurn` (rpg-design/10 §R4) — threaded to the tool-exec
@@ -1492,10 +1493,9 @@ export interface ChatServiceDeps {
   readonly prng: () => number;
   /** The inter-turn delay for the auto-mode chain. */
   readonly delay: (ms: number) => Promise<void>;
-  /** The FUNDER's chat connection for a turn in this room (§8.4-3) — `funderUserId` is the triggering
-   *  principal (`triggeredBy`), never the host; the room binds nothing (F20), so `chatId` is provenance only. */
+  /** The frozen room HOST's chat connection for a turn. The room binds nothing (F20), so `chatId` is provenance only. */
   readonly resolveConnection: (args: { readonly funderUserId: UserId; readonly chatId: ChatId }) => Promise<Resolved<"chat">>;
-  /** The deterministic pre-send serveability verdict for the FUNDER's own chat connection (#54) — the
+  /** The deterministic pre-send serveability verdict for the room HOST's chat connection (#54) — the
    *  honest-refusal gate the composer disables SEND on. Fires no turn or API call. Wired at the composition root. */
   readonly checkSendAvailability: (args: { readonly funderUserId: UserId; readonly chatId: ChatId }) => Promise<SendAvailability>;
   readonly resolveForeignInputs: ResolveForeignInputsOp;

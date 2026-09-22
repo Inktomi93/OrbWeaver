@@ -58,7 +58,7 @@ async function routeRoom(
   const trpc = await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
     ...STREAM_MUTATION_ROUTES,
-    "chat.previewContextFit": (): unknown => ({
+    "chat.previewContextFit": () => ({
       boundaryMessageId: null,
       usedTokens: 120,
       ceilingTokens: 32_768,
@@ -73,9 +73,9 @@ async function routeRoom(
       identities: [],
       group: DEFAULT_GROUP_CONFIG,
     }),
-    "chat.listMessages": (): unknown =>
+    "chat.listMessages": () =>
       makeMessagesPage([makeMessageView({ id: castId<MessageId>("msg_chip_room"), role: "assistant", content: "The corridor forks.", seq: 1 })]),
-    "chat.send": (): unknown => ({ ok: true }),
+    "chat.send": () => ({ messages: [], aborted: false }),
   });
   // A gate registered AFTER routeOrbSocket runs FIRST (LIFO) — it holds the EventSource until the source has
   // joined its room, then falls through to routeOrbSocket, which serves the scripted frame.

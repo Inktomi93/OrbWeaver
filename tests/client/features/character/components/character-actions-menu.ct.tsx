@@ -11,7 +11,7 @@
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRoutes } from "../../../../support/node/route-trpc.ts";
+import type { TrpcFixtureOutput, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { CharacterActionsMenuStory } from "../_ct-stories.tsx";
 
@@ -23,7 +23,7 @@ const MINTED_SESSION_ID = mintTypeId(ID_PREFIX.refinerySession);
 const FROZEN_AT = 1_750_000_000_000;
 
 /** One roster row about this card, at a chosen status. The summary shape `refinery.listSessions` serves. */
-function rosterRow(id: string, status: string): unknown {
+function rosterRow(id: string, status: TrpcWireOutput<"refinery.listSessions">[number]["status"]): TrpcWireOutput<"refinery.listSessions">[number] {
   return {
     id,
     characterId: CHARACTER_ID,
@@ -41,17 +41,17 @@ function rosterRow(id: string, status: string): unknown {
 /** The card detail the kebab reads (#838) — the archive verb needs the CURRENT state to wear the right
  *  face, and the delete confirm names the card. Fed in every test in this file, never left to
  *  routeTrpc's `null`. */
-function characterDetail(archived: boolean): unknown {
+function characterDetail(archived: boolean): TrpcFixtureOutput<"character.get"> {
   return { id: CHARACTER_ID, name: "Zephyrine Vale", archived };
 }
 
-function routes(roster: readonly unknown[]): TrpcRoutes {
+function routes(roster: TrpcWireOutput<"refinery.listSessions">): TrpcRoutes<"character.get" | "refinery.listSessions" | "refinery.startSession"> {
   return {
-    "character.get": (): unknown => characterDetail(false),
-    "refinery.listSessions": (): readonly unknown[] => roster,
+    "character.get": () => characterDetail(false),
+    "refinery.listSessions": () => roster,
     // A mint that WOULD SUCCEED, scripted on purpose: with it working, the only thing separating resume
     // from mint is WHICH session the jump opens, which is the claim.
-    "refinery.startSession": (): unknown => ({ id: MINTED_SESSION_ID }),
+    "refinery.startSession": () => ({ id: MINTED_SESSION_ID }),
   };
 }
 
@@ -105,8 +105,8 @@ test("the jump obeys the ONE resume-or-mint rule — a card with an open session
 // two-container submenu grammar. No second serialization path, no lifecycle chrome in the editor.
 
 /** The base routes with the card's archived state chosen — the only axis these pins vary. */
-function detailRoutes(archived: boolean): TrpcRoutes {
-  return { ...routes([]), "character.get": (): unknown => characterDetail(archived) };
+function detailRoutes(archived: boolean): TrpcRoutes<"character.get"> {
+  return { ...routes([]), "character.get": () => characterDetail(archived) };
 }
 
 const OPEN_SCOPE_ITEMS = ["Open in Refinery", "Archive", "Duplicate", "Export card", "Convert to persona", "Set as welcome greeter", "Delete"] as const;
@@ -138,7 +138,7 @@ test("Export card is reachable from the OPEN character, and links BOTH container
 test("Archive is reachable from the OPEN character and fires the identity patch", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     ...detailRoutes(false),
-    "character.update": (): unknown => ({ id: CHARACTER_ID, name: "Zephyrine Vale", archived: true }),
+    "character.update": () => ({ id: CHARACTER_ID, name: "Zephyrine Vale", archived: true }),
   });
   await mount(<CharacterActionsMenuStory menuCharacterId={CHARACTER_ID} />);
 

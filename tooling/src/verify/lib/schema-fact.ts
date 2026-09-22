@@ -9,7 +9,7 @@ import type { CallExpression, Node as MorphNode, SourceFile, VariableDeclaration
 import { Node, SyntaxKind } from "ts-morph";
 import { defineFact } from "../contract/fact.ts";
 import type { SchemaFact, SchemaFactReceipt, SchemaModel, SchemaQuery, SchemaQueryOptions, SchemaTable } from "../contract/schema-fact.ts";
-import { columnFromReference, foreignKeyOf, indexesOf, tableFromReference } from "./schema-fact-resolve.ts";
+import { columnFromReference, foreignKeyOf, indexesOf, tableForeignKeysOf, tableFromReference } from "./schema-fact-resolve.ts";
 import {
   canonicalPathResolver,
   DRIZZLE_SQLITE,
@@ -82,7 +82,7 @@ function authoredSqliteTableDoor(node: MorphNode, visited: Set<object>): boolean
 function receipt(status: SchemaFactReceipt["status"], paths: readonly string[], tables: readonly SchemaTable[]): SchemaFactReceipt {
   const columns = tables.flatMap((table) => table.columns);
   const indexes = tables.flatMap((table) => table.indexes);
-  const foreignKeys = columns.filter((column) => column.foreignKey !== null);
+  const foreignKeys = [...columns.filter((column) => column.foreignKey !== null), ...tables.flatMap((table) => table.foreignKeys)];
   const json = columns.filter((column) => column.json !== null);
   const open = json.filter((column) => column.json?.shape.kind === "open");
   return {
@@ -126,15 +126,35 @@ function buildSchema(
       ...table,
       columns: table.columns.map(({ operations: _operations, ...column }) => ({ ...column, foreignKey: null })),
       indexes: [],
+      foreignKeys: [],
     }));
     const tableByDeclaration = new Map(initialTables.map((table) => [schemaDeclarationKey(table.declaration), table]));
     const initialColumns = new Map(initialTables.flatMap((table) => table.columns.map((column) => [column.identity.key, column] as const)));
-    const tables = drafts.map((draft) => {
+    const tablesWithoutCompositeForeignKeys = drafts.map((draft) => {
       const columns = draft.columns.map(({ operations: _operations, ...column }) => ({
         ...column,
         foreignKey: foreignKeyOf({ ...column, operations: _operations }, tableByDeclaration, initialColumns, canonicalPath),
       }));
-      return { identity: draft.identity, declaration: draft.declaration, call: draft.call, sqlName: draft.sqlName, columns, indexes: indexesOf(draft) };
+      return {
+        identity: draft.identity,
+        declaration: draft.declaration,
+        call: draft.call,
+        sqlName: draft.sqlName,
+        columns,
+        indexes: indexesOf(draft),
+        foreignKeys: [],
+      };
+    });
+    const resolvedTablesByDeclaration = new Map(tablesWithoutCompositeForeignKeys.map((table) => [schemaDeclarationKey(table.declaration), table]));
+    const resolvedColumns = new Map(
+      tablesWithoutCompositeForeignKeys.flatMap((table) => table.columns.map((column) => [column.identity.key, column] as const)),
+    );
+    const tables = drafts.map((draft, index) => {
+      const table = tablesWithoutCompositeForeignKeys[index];
+      if (table === undefined) {
+        throw new Error(`missing resolved schema table for ${draft.identity.key}`);
+      }
+      return { ...table, foreignKeys: tableForeignKeysOf(draft, resolvedTablesByDeclaration, resolvedColumns, canonicalPath) };
     });
     const value = { tables: tables.toSorted((left, right) => left.identity.key.localeCompare(right.identity.key)) } satisfies SchemaModel;
     return { status: "ready", value, receipt: receipt("ready", paths, value.tables) };

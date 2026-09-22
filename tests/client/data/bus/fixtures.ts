@@ -5,11 +5,13 @@
 // states this plainly — only `stream.connect` is the subscription). Every CT in this directory drives the
 // room registry through `useOrbSocket`, so every mount fires at least one real `attach` mutation; left
 // unfed it rode `routeTrpc`'s lenient null instead of a served response.
-export const STREAM_MUTATION_ROUTES: Readonly<Record<string, unknown>> = {
+import type { TrpcRoutes } from "../../../support/node/route-trpc.ts";
+
+export const STREAM_MUTATION_ROUTES: TrpcRoutes<"stream.attach" | "stream.detach"> = {
   // `useOrbSocket.bindTransport.attach` discards this mutation's result (`await client.stream.attach.mutate(…)`,
-  // packages/client/src/data/bus/use-orb-socket.ts:139) — so feeding `{}` changes no assertion in this
+  // packages/client/src/data/bus/use-orb-socket.ts:139) — so feeding `null` changes no assertion in this
   // directory's files; it only stops the mutation riding the unstubbed-null fulfil.
-  "stream.attach": {},
+  "stream.attach": null,
   // Same posture as attach — `useOrbSocket.bindTransport.detach` also discards its result (:142).
-  "stream.detach": {},
+  "stream.detach": null,
 };

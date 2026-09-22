@@ -37,6 +37,11 @@ import type { UserMacroDef } from "@orb/kit/macro";
 import type { AutomationOps } from "#domain/automation";
 import type { ResolveViewerVisibility } from "#domain/chat";
 
+/** Per-plugin serialization for durable rows, guest state, registrations, and provider contributions. */
+export interface PluginLifecycleLanes {
+  readonly run: <T>(pluginId: PluginId, job: () => Promise<T>) => Promise<T>;
+}
+
 /** The per-handler invoker activation closes over: run the guest callback `handler` with JSON-encoded args
  *  under the invocation budget (the port's `invoke`, curried over the resident instance). `chat` sets the
  *  handler's invocation-chat scope — a resident tool runs in the chat it was called from, with the caller's
@@ -109,13 +114,12 @@ export interface PluginHostOps {
     readonly applyVariableOps: AutomationOps["chat"]["applyVariableOps"];
     /** The autonomous turn seam (`chat.requestTurn`, turn.trigger). Maps onto chat's principal-free
      *  `requestTurn` at compose with `initiator:"plugin"` HARDCODED (a plugin cannot forge a different origin) +
-     *  `funderUserId` = the INSTALLER (funding attribution / D17 by-proxy subject — the bridge closes it over the
-     *  installer, never guest-supplied). The funding box is resolved from the room host and the funder's
-     *  membership is gated inside `requestTurn` (leak-free NOT_FOUND). LOOP SAFETY: the engine's per-member turn
-     *  RATE budget + the cascade-depth guard bound a runaway plugin (`automationDepth` is the child depth to stamp,
+     *  `triggeredBy` = the INSTALLER (attribution and abort ownership — the bridge closes it over the installer,
+     *  never guest-supplied). The room host funds the turn and the initiator's membership is gated inside
+     *  `requestTurn` (leak-free NOT_FOUND). LOOP SAFETY: the cascade-depth guard bounds a runaway plugin (`automationDepth` is the child depth to stamp,
      *  refused past the hard cap). Returns void to the realm; cost VISIBILITY rides the stats domain. */
     readonly requestTurn: (req: {
-      readonly funderUserId: UserId;
+      readonly triggeredBy: UserId;
       readonly chatId: ChatId;
       readonly automationDepth: number;
       readonly speakerCharacterId?: string;

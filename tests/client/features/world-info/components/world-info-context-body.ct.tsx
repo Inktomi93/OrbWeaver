@@ -57,7 +57,7 @@ test("the open book's arm switches the everywhere scope on", async ({ mount, pag
     "worldInfo.listGlobal": () => [],
     "persona.list": () => [],
     "character.list": () => ({ items: [], nextCursor: null }),
-    "worldInfo.attachGlobal": () => ({ attached: true }),
+    "worldInfo.attachGlobal": () => null,
   });
 
   const context = await mount(<WorldInfoContextStory />);

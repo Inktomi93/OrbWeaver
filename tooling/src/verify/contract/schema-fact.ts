@@ -97,6 +97,16 @@ export interface SchemaForeignKey {
   readonly call: CallExpression;
 }
 
+/** A table-level `foreignKey({ columns, foreignColumns })` constraint. Drizzle uses this form for
+ * composite references, so retaining only column-level `.references()` operations would make the shared
+ * schema fact falsely classify every child term as an untyped soft reference. */
+export interface SchemaTableForeignKey {
+  readonly children: readonly SchemaColumnIdentity[];
+  readonly parents: readonly SchemaForeignKey["parent"][];
+  readonly onDelete: { readonly kind: "specified"; readonly value: string } | { readonly kind: "unspecified" };
+  readonly call: CallExpression;
+}
+
 export interface SchemaColumn {
   readonly identity: SchemaColumnIdentity;
   readonly declaration: Node;
@@ -126,6 +136,7 @@ export interface SchemaTable {
   readonly sqlName: string;
   readonly columns: readonly SchemaColumn[];
   readonly indexes: readonly SchemaIndex[];
+  readonly foreignKeys: readonly SchemaTableForeignKey[];
 }
 
 export interface SchemaModel {

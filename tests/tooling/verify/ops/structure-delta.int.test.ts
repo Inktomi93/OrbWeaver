@@ -67,6 +67,25 @@ function plantSlot(root: string, id: string, startedAt: string, policies: readon
       verdict: "verdict",
       nonVerdictReason: null,
       selection: { kind: "all" },
+      scope: {
+        kind: "whole",
+        label: "whole repository",
+        tier: "static",
+        strict: false,
+        requestedPaths: null,
+        requestedProgramIds: [],
+        workspacePackage: null,
+        projectConfig: null,
+        inventory: {
+          source: "git",
+          trackedCommand: ["git", "ls-files", "-z"],
+          untrackedCommand: ["git", "ls-files", "--others", "--exclude-standard", "-z"],
+          trackedCount: 1,
+          untrackedCount: 0,
+          authoredCount: 1,
+          mergeBase: null,
+        },
+      },
       quiet: true,
       runId: id,
       checkout: CHECKOUT,
@@ -124,6 +143,24 @@ function plantSlot(root: string, id: string, startedAt: string, policies: readon
     ok: policies.every((policy) => policy.ok ?? (policy.violations ?? 0) === 0),
   };
   writeFileSync(join(dir, "check-structure.json"), JSON.stringify(report));
+}
+
+function plantSourceScopedSlot(root: string, id: string, startedAt: string, policies: readonly PlantedPolicy[]): void {
+  plantSlot(root, id, startedAt, policies);
+  const path = join(root, "reports", "runs", "structure", id, "check-structure.json");
+  const report = JSON.parse(readFileSync(path, "utf8")) as {
+    run: {
+      scope: {
+        kind: string;
+        label: string;
+        requestedPaths: null | readonly { path: string; status: string; previousPath: null }[];
+      };
+    };
+  };
+  report.run.scope.kind = "file";
+  report.run.scope.label = "files (1)";
+  report.run.scope.requestedPaths = [{ path: "a.ts", status: "present", previousPath: null }];
+  writeFileSync(path, JSON.stringify(report));
 }
 
 function plantErrors(root: string, id: string, errors: PlantedErrors): void {
@@ -274,4 +311,12 @@ test("#2223 (c) — the SAME slot at both ends is a refusal too: a run does not 
   plantSlot(root, BEFORE_ID, "2026-09-12T10:00:00.000Z", [{ name: "alpha", violations: 1, ok: false }]);
 
   expect(delta(root, BEFORE_ID, BEFORE_ID)).toBe(EXIT.toolError);
+});
+
+test("a source-scoped slot is refused because it shares no denominator with a whole-corpus run", async ({ plantedTree }) => {
+  const root = await plantedTree({});
+  plantSlot(root, BEFORE_ID, "2026-09-12T10:00:00.000Z", [{ name: "alpha", violations: 1 }]);
+  plantSourceScopedSlot(root, AFTER_ID, "2026-09-12T11:00:00.000Z", [{ name: "alpha", violations: 1 }]);
+
+  expect(delta(root, BEFORE_ID, AFTER_ID)).toBe(EXIT.toolError);
 });

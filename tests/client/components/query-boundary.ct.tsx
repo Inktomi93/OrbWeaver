@@ -99,7 +99,7 @@ test("a held batch answers its siblings correctly on release — one well-formed
 test("error surface → retry refetches (the reset handshake, not a re-render)", async ({ mount, page }) => {
   let call = 0;
   const trpc = await routeTrpc(page, {
-    echo: (): unknown => (call++ === 0 ? trpcError({ message: "boom" }) : { message: "recovered" }),
+    echo: () => (call++ === 0 ? trpcError({ message: "boom" }) : { message: "recovered" }),
   });
 
   await mount(<EchoBoundaryStory />);

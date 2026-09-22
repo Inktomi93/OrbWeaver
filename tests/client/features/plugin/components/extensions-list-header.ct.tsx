@@ -6,14 +6,18 @@
 import type { PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ExtensionsListHeaderStory } from "../_ct-stories.tsx";
+
+type PluginListRow = TrpcWireOutput<"plugin.list">[number];
+type PluginSurfaceRow = TrpcWireOutput<"plugin.listSurfaces">[number];
 
 const A_PAST_INSTANT = 1_760_000_000_000;
 const ORACLE_ID = castId<PluginId>("plugin_ct_oracle00000001");
 const CHIPS_ID = castId<PluginId>("plugin_ct_chips000000001");
 
-function pluginRow(id: PluginId, slug: string, name: string): Record<string, unknown> {
+function pluginRow(id: PluginId, slug: string, name: string): PluginListRow {
   return {
     id,
     slug,
@@ -21,6 +25,8 @@ function pluginRow(id: PluginId, slug: string, name: string): Record<string, unk
     version: "1.0.0",
     status: "enabled",
     origin: "upload",
+    sourceUrl: null,
+    updateSource: null,
     declaredCapabilities: ["ui.surface"],
     grantedCapabilities: ["ui.surface"],
     netHosts: null,
@@ -33,7 +39,7 @@ function pluginRow(id: PluginId, slug: string, name: string): Record<string, unk
   };
 }
 
-function pageRow(pluginId: PluginId, id: string, title: string): Record<string, unknown> {
+function pageRow(pluginId: PluginId, id: string, title: string): PluginSurfaceRow {
   return { pluginId, id, anchor: "page", title, tier: "static", spec: undefined };
 }
 

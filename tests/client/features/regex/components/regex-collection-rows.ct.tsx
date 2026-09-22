@@ -11,7 +11,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { RegexLibraryGroupStory } from "../_ct-stories.tsx";
 
@@ -33,7 +33,7 @@ const ROW_DELETE_CASCADE = /removes it from every preset, character, and room/;
  *  relative text, so the suite is not coupled to the wall clock. */
 const FIXTURE_UPDATED_AT = 1_760_000_000_000;
 
-function script(id: string, name: string, over: Record<string, unknown> = {}): Record<string, unknown> {
+function script(id: string, name: string, over: Partial<TrpcWireOutput<"regex.duplicateScript">> = {}): TrpcWireOutput<"regex.duplicateScript"> {
   return {
     id,
     name,
@@ -59,11 +59,11 @@ const SCRIPTS = [STRIP, NARRATE];
  *  thin arm over the bundle's own projection rather than a client-side re-serialization. */
 const EXPORTED = { filename: "strip-ooc-regex_script_stripooc00000.json", fileText: '{"kind":"regex-script"}' };
 
-function stub(page: Page, scripts: readonly unknown[] = SCRIPTS, globals: readonly unknown[] = []): Promise<TrpcRecorder> {
+function stub(page: Page, scripts: TrpcWireOutput<"regex.listScripts"> = SCRIPTS, globals: TrpcWireOutput<"regex.listGlobal"> = []): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "regex.listScripts": () => scripts,
     "regex.listGlobal": () => globals,
-    "regex.attachGlobal": () => undefined,
+    "regex.attachGlobal": () => null,
     "regex.detachGlobal": () => ({ detached: true }),
     "regex.duplicateScript": () => script("regex_script_copy000000000", "strip ooc (copy)"),
     "regex.removeScript": () => ({ deleted: true }),

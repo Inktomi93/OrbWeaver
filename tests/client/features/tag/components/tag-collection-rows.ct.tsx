@@ -15,7 +15,7 @@ import { rowActionsName } from "@orb/client/lib";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { INK_VOID_BAR_PCT, INK_VOID_WIDTHS, inkVoid } from "../../../../support/browser/ink-void.ts";
-import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import type { TrpcFixtureOutput, TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { TagCollectionRowsStory } from "../_ct-stories.tsx";
 
@@ -42,14 +42,14 @@ const TAGS = [
     isHiddenOnCard: true,
     usage: { characters: 0, chats: 0, worldBooks: 0, personas: 0, presets: 0, total: 0 },
   },
-];
+] as const satisfies TrpcWireOutput<"tag.listTagsWithUsage">;
 
-function stub(page: Page, tags: readonly unknown[] = TAGS): Promise<TrpcRecorder> {
+function stub(page: Page, tags: TrpcFixtureOutput<"tag.listTagsWithUsage"> = TAGS): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "tag.listTagsWithUsage": () => tags,
     "tag.pruneUnusedTags": () => ({ removed: 1 }),
-    "tag.setTagOrder": () => undefined,
-    "tag.removeTag": () => undefined,
+    "tag.setTagOrder": () => null,
+    "tag.removeTag": () => null,
   });
 }
 
@@ -69,9 +69,9 @@ const ZEAL = {
   sortOrder: 2,
   isHiddenOnCard: false,
   usage: { characters: 9, chats: 3, worldBooks: 0, personas: 0, presets: 0, total: 12 },
-};
+} as const satisfies TrpcWireOutput<"tag.listTagsWithUsage">[number];
 
-const THREE = [TAGS[0], TAGS[1], ZEAL];
+const THREE = [TAGS[0], TAGS[1], ZEAL] as const satisfies TrpcWireOutput<"tag.listTagsWithUsage">;
 
 /** The SortableList handle's per-row accessible name (`Reorder <tag>`). */
 const REORDER_HANDLE = /Reorder/u;
@@ -194,7 +194,7 @@ test("Prune unused fires the library verb once the confirm is accepted", async (
 });
 
 test("the prune confirm's LABEL agrees in number with its own title", async ({ mount, page }) => {
-  const second = { ...TAGS[1], id: "tag_orphan2", name: "orphan2" } as unknown;
+  const second = { ...TAGS[1], id: "tag_orphan2", name: "orphan2" };
   await stub(page, [TAGS[0], TAGS[1], second]);
   const rows = await mount(<TagCollectionRowsStory />);
   await rows.getByRole("button", { name: "open prune confirm" }).click();

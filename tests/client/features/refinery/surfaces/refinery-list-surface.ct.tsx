@@ -8,7 +8,7 @@
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
-import type { TrpcRoutes } from "../../../../support/node/route-trpc.ts";
+import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { characterListResponder, makeCharacterSummary } from "../../character/fixtures.ts";
 import { RefineryLandingStory, RefineryRosterStory } from "../_ct-stories.tsx";
@@ -50,19 +50,14 @@ function accessibleDescriptionOf(row: Locator): Promise<string> {
 
 /** An EMPTY character page — what page-two-and-beyond looks like from the first page. Typed so the
  *  responder's return type is explicit (biome `useExplicitReturnType`) and stated once. */
-interface CharacterPage {
-  readonly items: readonly unknown[];
-  readonly nextCursor: null;
-}
+type CharacterPage = TrpcWireOutput<"character.list">;
 function emptyCharacterPage(): CharacterPage {
-  return { items: [], nextCursor: null };
+  return { items: [], nextCursor: null, totalCount: 0 };
 }
 
 /** A roster whose one session is about a card NO client page contains. */
-const PAST_THE_PAGE: TrpcRoutes = {
-  "refinery.listSessions": (): unknown[] => [
-    makeRefinerySessionSummary({ characterName: "Zephyrine Vale", name: null, iterationCount: 3, latestVerdict: "ACCEPT" }),
-  ],
+const PAST_THE_PAGE: TrpcRoutes<"refinery.listSessions" | "character.list"> = {
+  "refinery.listSessions": () => [makeRefinerySessionSummary({ characterName: "Zephyrine Vale", name: null, iterationCount: 3, latestVerdict: "ACCEPT" })],
   "character.list": emptyCharacterPage,
 };
 
@@ -102,9 +97,9 @@ test("search finds a session by its CHARACTER name, including one no character p
 });
 
 /** A roster with nothing in it, plus the one card its start door offers. */
-function emptyRosterRoutes(): TrpcRoutes {
+function emptyRosterRoutes(): TrpcRoutes<"refinery.listSessions" | "character.list"> {
   return {
-    "refinery.listSessions": (): unknown[] => [],
+    "refinery.listSessions": () => [],
     "character.list": characterListResponder([makeCharacterSummary({ id: HEADER_PICK_CHARACTER_ID, name: "Zephyrine Vale" })]),
   };
 }
@@ -131,9 +126,9 @@ test("on a PHONE the roster's EMPTY-arm CTA is a real door — it opens the pick
 
 /** The empty roster BESIDE the CONTENT landing picker — the same routes, on the full-landing mount. The
  *  picker lists one card so the search box and its rows are real. */
-function fullLandingRoutes(): TrpcRoutes {
+function fullLandingRoutes(): TrpcRoutes<"refinery.listSessions" | "character.list"> {
   return {
-    "refinery.listSessions": (): unknown[] => [],
+    "refinery.listSessions": () => [],
     "character.list": characterListResponder([makeCharacterSummary({ id: HEADER_PICK_CHARACTER_ID, name: "Zephyrine Vale" })]),
   };
 }
@@ -254,9 +249,7 @@ test("the row folds the readout into its accessible DESCRIPTION — a screen rea
 
 test("a session with NO verdict wears no chip at all — the state is stated in the quiet subtitle, not shouted over the row's name", async ({ mount, page }) => {
   await routeTrpc(page, {
-    "refinery.listSessions": (): unknown[] => [
-      makeRefinerySessionSummary({ characterName: "Zephyrine Vale", name: null, iterationCount: 3, latestVerdict: null }),
-    ],
+    "refinery.listSessions": () => [makeRefinerySessionSummary({ characterName: "Zephyrine Vale", name: null, iterationCount: 3, latestVerdict: null })],
     "character.list": emptyCharacterPage,
   });
   await mount(<RefineryRosterStory />);

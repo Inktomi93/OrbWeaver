@@ -27,6 +27,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
+import type { TrpcRoutes } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { VIEWER_AMBIENT_ROUTES } from "../../fixtures.ts";
 import { CharacterLibraryWelcomeListModeStory } from "../_ct-stories.tsx";
@@ -102,12 +103,12 @@ const SHIPPED = ["Odalys", "Tobias Brand", "Marisol Reyes"].map((name, index) =>
 function landingRoutes(by: {
   readonly recent: readonly CharacterSummaryFixture[];
   readonly newest: readonly CharacterSummaryFixture[];
-}): Readonly<Record<string, unknown>> {
+}): TrpcRoutes<"sessions.me" | "settings.getUserSettings" | "character.list"> {
   const recent = characterListResponder(by.recent);
   const newest = characterListResponder(by.newest);
   return {
     ...VIEWER_AMBIENT_ROUTES,
-    "character.list": (input: unknown): unknown => ((input as { sort?: string }).sort === "newest" ? newest(input) : recent(input)),
+    "character.list": (input) => ((input as { sort?: string }).sort === "newest" ? newest(input) : recent(input)),
   };
 }
 

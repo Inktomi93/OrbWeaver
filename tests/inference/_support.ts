@@ -72,10 +72,36 @@ export interface MemoryStores {
   readonly snapshotStore: SnapshotStore & { readonly entries: Map<string, string> };
 }
 
+function memoryPluginConflict(args: {
+  readonly desired: readonly ProviderDef[];
+  readonly rows: ReadonlyMap<string, ProviderDef>;
+  readonly admins: ReadonlySet<string>;
+}): ProviderDef | undefined {
+  const { desired, rows, admins } = args;
+  return desired.find((row) => {
+    if (admins.has(row.id)) {
+      return true;
+    }
+    const current = rows.get(row.id);
+    return current !== undefined && JSON.stringify(current) !== JSON.stringify(row);
+  });
+}
+
+function removeMemoryPlugin(contributors: Map<string, Set<PluginId>>, pluginId: PluginId): void {
+  for (const [id, owners] of contributors) {
+    owners.delete(pluginId);
+    if (owners.size === 0) {
+      contributors.delete(id);
+    }
+  }
+}
+
 export function memoryStores(): MemoryStores {
   const rows = new Map<UserConnectionId, UserConnection>();
   const bindingRows = new Map<string, ConnectionBinding>();
   const providerRows = new Map<string, ProviderDef>();
+  const providerAdmins = new Set<string>();
+  const providerContributors = new Map<string, Set<PluginId>>();
   const entries = new Map<string, string>();
   const key = (actorKind: string, actorId: string, task: string): string => `${actorKind}|${actorId}|${task}`;
   return {
@@ -100,13 +126,41 @@ export function memoryStores(): MemoryStores {
     },
     providerStore: {
       rows: providerRows,
-      list: () => Promise.resolve([...providerRows.values()]),
-      put: (row): Promise<void> => {
+      list: () =>
+        Promise.resolve(
+          [...providerRows.entries()].filter(([id]) => providerAdmins.has(id) || (providerContributors.get(id)?.size ?? 0) > 0).map(([, row]) => row),
+        ),
+      putAdmin: (row): Promise<boolean> => {
+        if ((providerContributors.get(row.id)?.size ?? 0) > 0) {
+          return Promise.resolve(false);
+        }
         providerRows.set(row.id, row);
-        return Promise.resolve();
+        providerAdmins.add(row.id);
+        return Promise.resolve(true);
       },
-      remove: (id): Promise<void> => {
+      removeAdmin: (id): Promise<boolean> => {
+        if (!providerAdmins.delete(id)) {
+          return Promise.resolve(false);
+        }
         providerRows.delete(id);
+        return Promise.resolve(true);
+      },
+      replacePlugin: (desired, pluginId): Promise<{ readonly ok: true } | { readonly ok: false; readonly conflictingId: ProviderDef["id"] }> => {
+        const conflict = memoryPluginConflict({ desired, rows: providerRows, admins: providerAdmins });
+        if (conflict !== undefined) {
+          return Promise.resolve({ ok: false, conflictingId: conflict.id });
+        }
+        removeMemoryPlugin(providerContributors, pluginId);
+        for (const row of desired) {
+          providerRows.set(row.id, row);
+          const owners = providerContributors.get(row.id) ?? new Set<PluginId>();
+          owners.add(pluginId);
+          providerContributors.set(row.id, owners);
+        }
+        return Promise.resolve({ ok: true as const });
+      },
+      removePlugin: (pluginId): Promise<void> => {
+        removeMemoryPlugin(providerContributors, pluginId);
         return Promise.resolve();
       },
     },

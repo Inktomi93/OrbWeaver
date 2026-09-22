@@ -17,8 +17,12 @@
 import type { PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ExtensionsPageStory, ExtensionsSwitcherStory } from "../_ct-stories.tsx";
+
+type PluginListRow = TrpcWireOutput<"plugin.list">[number];
+type PluginSurfaceRow = TrpcWireOutput<"plugin.listSurfaces">[number];
 
 const A_PAST_INSTANT = 1_760_000_000_000;
 const ORACLE_ID = castId<PluginId>("plugin_ct_oracle00000001");
@@ -27,7 +31,7 @@ const CHIPS_ID = castId<PluginId>("plugin_ct_chips000000001");
 /** One installed row as `plugin.list` projects it — the join every plugin surface reads its NAME from.
  *  `lifecycle` is the LIVE half: `status`/`grantedCapabilities`/`reconsentPending` are the three fields the
  *  Extensions empty resolves its reason from, so an arm states them rather than inheriting a default. */
-function pluginRow(id: PluginId, slug: string, name: string, lifecycle: Record<string, unknown> = {}): Record<string, unknown> {
+function pluginRow(id: PluginId, slug: string, name: string, lifecycle: Partial<PluginListRow> = {}): PluginListRow {
   return {
     id,
     slug,
@@ -35,6 +39,8 @@ function pluginRow(id: PluginId, slug: string, name: string, lifecycle: Record<s
     version: "1.0.0",
     status: "enabled",
     origin: "upload",
+    sourceUrl: null,
+    updateSource: null,
     declaredCapabilities: ["ui.surface"],
     grantedCapabilities: ["ui.surface"],
     netHosts: null,
@@ -54,20 +60,28 @@ function pluginRow(id: PluginId, slug: string, name: string, lifecycle: Record<s
 const SEEDED_AWAITING_CONSENT = { status: "disabled", grantedCapabilities: [], reconsentPending: true } as const;
 
 /** One `listSurfaces` row (the serializable meta + its pluginId; the `onAction` handle stays server-side). */
-function pageRow(pluginId: PluginId, id: string, title: string, spec: unknown): Record<string, unknown> {
+function pageRow(pluginId: PluginId, id: string, title: string, spec: PluginSurfaceRow["spec"]): PluginSurfaceRow {
   return { pluginId, id, anchor: "page", title, tier: "static", spec };
 }
 
-const DECK_SPEC = { kind: "stack", gap: "block", children: [{ kind: "text", value: { $state: "status" }, voice: "label" }] };
-const CHIPS_SPEC = { kind: "stack", gap: "block", children: [{ kind: "text", value: "Scene chips live here.", voice: "body" }] };
+const DECK_SPEC: NonNullable<PluginSurfaceRow["spec"]> = {
+  kind: "stack",
+  gap: "block",
+  children: [{ kind: "text", value: { $state: "status" }, voice: "label" }],
+};
+const CHIPS_SPEC: NonNullable<PluginSurfaceRow["spec"]> = {
+  kind: "stack",
+  gap: "block",
+  children: [{ kind: "text", value: "Scene chips live here.", voice: "body" }],
+};
 
-const TWO_PAGES: Readonly<Record<string, unknown>> = {
+const TWO_PAGES: TrpcRoutes<"plugin.list" | "plugin.listSurfaces" | "plugin.getSurfaceState"> = {
   "plugin.list": () => [pluginRow(ORACLE_ID, "oracle-deck", "Oracle Deck"), pluginRow(CHIPS_ID, "scene-chips", "Scene Chips")],
   "plugin.listSurfaces": () => [pageRow(ORACLE_ID, "deck_page", "The Deck", DECK_SPEC), pageRow(CHIPS_ID, "chips_page", "Chips", CHIPS_SPEC)],
   "plugin.getSurfaceState": () => ({ status: "Session open · 2 dealt" }),
 };
 
-const NO_PAGES: Readonly<Record<string, unknown>> = {
+const NO_PAGES: TrpcRoutes<"plugin.list" | "plugin.listSurfaces"> = {
   // INSTALLED AND ENABLED but registering no `page` surface — the common case for everyone who has a plugin at
   // all, and the arm where a rail entry that only ever showed a full list would teach nothing.
   "plugin.list": () => [pluginRow(ORACLE_ID, "oracle-deck", "Oracle Deck")],
@@ -75,13 +89,13 @@ const NO_PAGES: Readonly<Record<string, unknown>> = {
 };
 
 /** NOTHING INSTALLED — the only account for which "install a plugin" is true guidance. */
-const NONE_INSTALLED: Readonly<Record<string, unknown>> = {
+const NONE_INSTALLED: TrpcRoutes<"plugin.list" | "plugin.listSurfaces"> = {
   "plugin.list": () => [],
   "plugin.listSurfaces": () => [],
 };
 
 /** THE FRESH BOOT (#924): two installed rows, neither allowed to do anything, both asking. */
-const AWAITING_CONSENT: Readonly<Record<string, unknown>> = {
+const AWAITING_CONSENT: TrpcRoutes<"plugin.list" | "plugin.listSurfaces"> = {
   "plugin.list": () => [
     pluginRow(ORACLE_ID, "oracle-deck", "Oracle Deck", SEEDED_AWAITING_CONSENT),
     pluginRow(CHIPS_ID, "scene-chips", "Scene Chips", SEEDED_AWAITING_CONSENT),
@@ -93,7 +107,7 @@ const AWAITING_CONSENT: Readonly<Record<string, unknown>> = {
  *  `errored` and it registers nothing. The second row is `disabled` on purpose — without the fifth arm this
  *  exact shape satisfies `all-off`'s "nothing is enabled" predicate and the pane blames the reader for a
  *  failure that was ours. */
-const SOME_ERRORED: Readonly<Record<string, unknown>> = {
+const SOME_ERRORED: TrpcRoutes<"plugin.list" | "plugin.listSurfaces"> = {
   "plugin.list": () => [
     pluginRow(ORACLE_ID, "oracle-deck", "Oracle Deck", { status: "errored", lastError: "registration failed: unsupported JSON Schema construct" }),
     pluginRow(CHIPS_ID, "scene-chips", "Scene Chips", { status: "disabled" }),
@@ -102,7 +116,7 @@ const SOME_ERRORED: Readonly<Record<string, unknown>> = {
 };
 
 /** GRANTED, BUT SWITCHED OFF — nothing is asking and nothing is running, so nothing registers. */
-const ALL_OFF: Readonly<Record<string, unknown>> = {
+const ALL_OFF: TrpcRoutes<"plugin.list" | "plugin.listSurfaces"> = {
   "plugin.list": () => [pluginRow(ORACLE_ID, "oracle-deck", "Oracle Deck", { status: "disabled" })],
   "plugin.listSurfaces": () => [],
 };

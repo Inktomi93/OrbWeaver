@@ -23,9 +23,9 @@
 // campaign. A failed re-link never un-writes the chat — a restored room missing its labels is strictly better
 // than no room, and the outcome still reports `ok`.
 
+import { characterHandleSchema } from "@orb/contracts/character";
 import type { BulkImportChatInput, BulkImportMessageInput, ImportedChatIdentity } from "@orb/contracts/chat";
 import type { CharacterHandle, CharacterId, MessageId, MessageVariantId, PersonaId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import type { RpgPortableGame } from "#domain/rpg";
 import { sha256Hex } from "#kit/content-hash";
 import type { PortableChat, PortableRpgGame } from "#kit/serde/chat-bundle";
@@ -38,11 +38,14 @@ import type { ImportChatFileInput } from "../contract/views.ts";
 import { requireProfile } from "../guard.ts";
 
 /** The handles a bundle could re-link against, in preference order: its own seat list, then the directory it
- *  sat in. Deduped, blanks dropped. */
+ *  sat in. Deduped, and validated against the canonical handle contract before a library lookup. */
 function candidateHandles(bundle: PortableChat, filename: string): readonly CharacterHandle[] {
   const slash = filename.indexOf("/");
   const fromPath = slash === -1 ? [] : [filename.slice(0, slash)];
-  return [...new Set([...bundle.characterHandles, ...fromPath])].flatMap((h) => (h.trim().length === 0 ? [] : [castId<CharacterHandle>(h)]));
+  return [...new Set([...bundle.characterHandles, ...fromPath])].flatMap((handle) => {
+    const parsed = characterHandleSchema.safeParse(handle);
+    return parsed.success ? [parsed.data] : [];
+  });
 }
 
 interface ResolvedCharacterIds {

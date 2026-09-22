@@ -12,6 +12,7 @@
 // bug).
 
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { RegexTabAttachableStory, RegexTabSystemDefaultStory } from "./_regex-tab-stories.tsx";
 
@@ -19,7 +20,7 @@ import { RegexTabAttachableStory, RegexTabSystemDefaultStory } from "./_regex-ta
  *  attachable arm has something real to paint.
  *  FABRICATION-OK: this CT stubs the NETWORK, so the fixture is deliberately the raw JSON wire object the
  *  browser parses, not a typed row built through a factory. */
-const LIBRARY_SCRIPT = {
+const LIBRARY_SCRIPT: TrpcWireOutput<"regex.listScripts">[number] = {
   id: "regex_script_000000000000000a",
   name: "Strip OOC",
   enabled: true,

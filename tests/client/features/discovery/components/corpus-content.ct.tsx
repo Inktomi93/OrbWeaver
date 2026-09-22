@@ -78,7 +78,18 @@ const FAMILIES = [
 ];
 
 /** A library with real characters, a completed VISUAL pass, and NOTHING semantic — the audited first run. */
-const UNANALYSED: TrpcRoutes = {
+const UNANALYSED: TrpcRoutes<
+  | "discovery.home"
+  | "discovery.catalog"
+  | "discovery.visualArchetypes"
+  | "discovery.forgottenGems"
+  | "discovery.unusedCharacters"
+  | "discovery.modelRouting"
+  | "discovery.topKeywords"
+  | "discovery.themeDrift"
+  | "settings.getUserSettings"
+  | "workloads.list"
+> = {
   "discovery.home": {
     coverage: { characters: 10, digests: 0, segments: 0 },
     sceneThemes: [],
@@ -100,7 +111,7 @@ const UNANALYSED: TrpcRoutes = {
 };
 
 /** …and the same library after both passes ran — the control for every absence below. */
-const ANALYSED: TrpcRoutes = {
+const ANALYSED: TrpcRoutes<"discovery.home" | "discovery.catalog"> = {
   ...UNANALYSED,
   "discovery.home": {
     coverage: { characters: 10, digests: 40, segments: 12 },
@@ -112,13 +123,13 @@ const ANALYSED: TrpcRoutes = {
 };
 
 /** THE THIN IN-BETWEEN the ruling calls out: distillation ran, the story-theme pass did not. */
-const THIN: TrpcRoutes = {
+const THIN: TrpcRoutes<"discovery.catalog"> = {
   ...UNANALYSED,
   "discovery.catalog": { totalDistilled: 3, genres: [], tones: [], topTags: [] },
 };
 
 /** A library with nothing in it at all — not the same thing as an un-analysed one. */
-const EMPTY_LIBRARY: TrpcRoutes = {
+const EMPTY_LIBRARY: TrpcRoutes<"discovery.home" | "discovery.visualArchetypes"> = {
   ...UNANALYSED,
   "discovery.home": {
     coverage: { characters: 0, digests: 0, segments: 0 },
@@ -380,7 +391,7 @@ test("clickable insight collections expose named lists with real listitem childr
 });
 
 /** A populated analysed library: the state in which the deleted tail USED to render 6,900px of bars. */
-const POPULATED: TrpcRoutes = {
+const POPULATED: TrpcRoutes<"discovery.catalog"> = {
   ...ANALYSED,
   "discovery.catalog": {
     totalDistilled: 6,

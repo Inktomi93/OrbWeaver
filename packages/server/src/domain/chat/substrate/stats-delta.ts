@@ -5,8 +5,8 @@
 // The drift gate: a builder computes the CHANGE its write makes. The same `@orb/kit/stats-tally`
 // primitives run here AND in `reconcileStats`, so the live delta can never drift from a rebuild.
 //
-// Owner = `runAsUserId` (the host, who funds + owns the turn). `triggeredBy` is the budget axis, not the
-// stats owner — they differ in a hosted by-proxy turn.
+// Owner = `runAsUserId` (the frozen host, who funds + owns the turn). `triggeredBy` remains initiator
+// attribution and can differ from the stats owner.
 
 import type { TokenProvenance, VariantMetadata } from "@orb/contracts/chat";
 import { VARIANT_METADATA_REASONING_MS_KEY } from "@orb/contracts/chat";

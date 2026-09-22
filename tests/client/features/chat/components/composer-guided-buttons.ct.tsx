@@ -27,6 +27,7 @@
 
 import { RESPONSE_SPEAKER_CUE, STEER_CUE_RESPONSE, SWIPE_NEEDS_REPLY } from "@orb/client/lib";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { TrpcFixtureOutput, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ComposerStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES } from "../fixtures.ts";
@@ -39,7 +40,16 @@ const IMPERSONATE = "Draft your line";
 const AUTO = "Auto (arbitrate)";
 
 /** A present character seat on the `chat.getChat` roster — what `filterCharacters` feeds the speaker menu. */
-function character(name: string): Record<string, unknown> {
+type FixtureArrayElement<T, TKey extends PropertyKey> = T extends unknown
+  ? TKey extends keyof T
+    ? NonNullable<T[TKey]> extends readonly (infer Item)[]
+      ? Item
+      : never
+    : never
+  : never;
+type ParticipantFixture = FixtureArrayElement<TrpcFixtureOutput<"chat.getChat">, "participants">;
+
+function character(name: string): ParticipantFixture {
   return {
     id: `participant_${name.toLowerCase()}`,
     kind: "character",
@@ -62,14 +72,15 @@ const HOST = {
   displayName: "Alex",
   avatarHash: null,
   leftSeq: null,
-};
+} satisfies ParticipantFixture;
 
-const GROUP_ROSTER = { participants: [HOST, character("Aria"), character("Bolt")] };
+const GROUP_ROSTER = { participants: [HOST, character("Aria"), character("Bolt")] } satisfies TrpcFixtureOutput<"chat.getChat">;
+const EMPTY_TURN = { messages: [], aborted: false } satisfies TrpcWireOutput<"chat.generate">;
 
 // ── 1. Response's character-count fork ───────────────────────────────────────────────────────────────────────────────
 
 test("a MULTI-character room turns Response into a speaker menu: picking a name rides speakerCharacterId", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.getChat": () => GROUP_ROSTER, "chat.generate": () => ({}) });
+  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.getChat": () => GROUP_ROSTER, "chat.generate": () => EMPTY_TURN });
   const component = await mount(<ComposerStory />);
 
   await component.getByRole("button", { name: RESPONSE }).click();
@@ -84,7 +95,7 @@ test("a MULTI-character room turns Response into a speaker menu: picking a name 
 });
 
 test("Auto (arbitrate) is a real row: it fires the generate with NO speaker (the server arbitrates)", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.getChat": () => GROUP_ROSTER, "chat.generate": () => ({}) });
+  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.getChat": () => GROUP_ROSTER, "chat.generate": () => EMPTY_TURN });
   const component = await mount(<ComposerStory />);
 
   await component.getByRole("button", { name: RESPONSE }).click();
@@ -117,7 +128,7 @@ test("a SOLO-character room keeps the DIRECT Response button — one click fires
     ...CHAT_AMBIENT_ROUTES,
     ...CHAT_ROOM_ROUTES,
     "chat.getChat": () => ({ participants: [HOST, character("Aria")] }),
-    "chat.generate": () => ({}),
+    "chat.generate": () => EMPTY_TURN,
   });
   const component = await mount(<ComposerStory />);
 
@@ -227,7 +238,7 @@ test("the group-room speaker cue — the one door to who replies next — is the
   await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
     ...CHAT_ROOM_ROUTES,
-    "chat.getChat": () => ({ title: "Council", participants: [HOST, character("Mira"), character("Doran")], viewerIsHost: true }),
+    "chat.getChat": () => ({ ...GROUP_ROSTER, title: "Council", participants: [HOST, character("Mira"), character("Doran")], viewerIsHost: true }),
   });
   const component = await mount(<ComposerStory />);
   await expect(component.getByRole("button", { name: RESPONSE, exact: true })).toHaveAccessibleDescription(RESPONSE_SPEAKER_CUE);

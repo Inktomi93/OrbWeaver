@@ -217,16 +217,42 @@ export function resolvePolicyResourcePaths(policies: readonly GatePolicy[], opti
   return resolveResourceOwnerPaths(policies, options);
 }
 
+export interface ResourceOwnerPathResolution {
+  readonly paths: ReadonlyMap<string, readonly string[]>;
+  /** Acquisition failures remain owner-local so execution can produce the canonical incomplete owner row. */
+  readonly failures: ReadonlyMap<string, string>;
+}
+
+/** Resolve every owner through one invocation while preserving failures by owner. The planner needs exact
+ *  paths for healthy owners, but a failed owner must still reach execution: the dispatcher owns its
+ *  incomplete row, withholding, and authority receipt. */
+export function resolveResourceOwnerPathResolution(
+  owners: readonly (Pick<GatePolicy, "id" | "resources"> | Pick<GateFact, "id" | "resources">)[],
+  options: ResourceHostOptions,
+): ResourceOwnerPathResolution {
+  const invocation = createResourceHost(options);
+  const paths = new Map<string, readonly string[]>();
+  const failures = new Map<string, string>();
+  for (const owner of owners.filter((candidate) => candidate.resources.length > 0).toSorted((left, right) => left.id.localeCompare(right.id))) {
+    // @orb-waive caught-failure-ownership(error): Acquisition failure is retained by owner so pure planning refuses and the structure-bound planner can let the dispatcher emit its canonical incomplete owner row and withheld authority. Ends if the failure map no longer drives both refusal paths.
+    try {
+      paths.set(owner.id, resolveResourceDeclarations(invocation.host, owner.resources));
+    } catch (error) {
+      failures.set(owner.id, error instanceof Error ? error.message : String(error));
+    }
+  }
+  return { paths, failures };
+}
+
 /** Resolve policy or shared-fact declarations without creating a second maintained resource roster. */
-export function resolveResourceOwnerPaths(
+function resolveResourceOwnerPaths(
   owners: readonly (Pick<GatePolicy, "id" | "resources"> | Pick<GateFact, "id" | "resources">)[],
   options: ResourceHostOptions,
 ): ReadonlyMap<string, readonly string[]> {
-  const invocation = createResourceHost(options);
-  return new Map(
-    owners
-      .filter((owner) => owner.resources.length > 0)
-      .map((owner) => [owner.id, resolveResourceDeclarations(invocation.host, owner.resources)] as const)
-      .toSorted(([left], [right]) => left.localeCompare(right)),
-  );
+  const resolved = resolveResourceOwnerPathResolution(owners, options);
+  const failure = [...resolved.failures.entries()][0];
+  if (failure !== undefined) {
+    throw new Error(failure[1]);
+  }
+  return resolved.paths;
 }

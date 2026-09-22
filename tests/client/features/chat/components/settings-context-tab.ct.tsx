@@ -13,23 +13,30 @@ import { DEFAULT_CHAT_SETTINGS, DEFAULT_USER_SETTINGS } from "@orb/contracts/set
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { HOST_BAND, openContextSections } from "../../../../support/node/open-context-sections.ts";
-import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import type { TrpcFixtureOutput, TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { setNumber } from "../../../../support/node/set-number.ts";
 import { CommittedSettingsTabStory } from "../_ct-stories.tsx";
 
 // The getChat stub the host-only Tool-use section suspends on (⑦). `toolRecurseLimit` is the current cap the
 // control displays; `viewerIsHost` mirrors the story's isHost. Minimal — the section only reads the cap.
-const CHAT_DETAIL = { id: "chat_ct", viewerIsHost: true, toolRecurseLimit: 7, hostDisplayScripts: false, roomOverrides: {}, participants: [] };
+const CHAT_DETAIL = {
+  id: "chat_ct",
+  viewerIsHost: true,
+  toolRecurseLimit: 7,
+  hostDisplayScripts: false,
+  roomOverrides: {},
+  participants: [],
+} satisfies TrpcFixtureOutput<"chat.getChat">;
 
 // The Macro-picks section's own suspense read (#24) — this tab is its production mount, so every committed
 // arm must stub it or the section's boundary would swallow the failure and the tab's composition contract
 // would silently stop covering it. Empty declarations = the section's teaching empty state.
-const EMPTY_PICKS = { macros: [], values: {} };
+const EMPTY_PICKS: TrpcWireOutput<"chat.getUserMacroPicks"> = { macros: [], values: {} };
 
 // The two injections the #821 fence releases — one at-depth, one before-prompt, both carrying content (so
 // both rows arrive COLLAPSED, which is the settled state the reserve is measured against).
-const HELD_INJECTIONS = [
+const HELD_INJECTIONS: TrpcWireOutput<"chat.listChatInjections"> = [
   { id: "injection_ct_1", position: "in_chat", depth: 2, role: "system", content: "The tavern is on fire." },
   { id: "injection_ct_2", position: "before_prompt", depth: 0, role: "system", content: "Keep replies under 120 words." },
 ];
@@ -53,7 +60,7 @@ const POV_VARIABLE = {
   separator: ", ",
   randomPick: false,
 };
-const VARIABLE_PICKS = { variables: [POV_VARIABLE], values: {} };
+const VARIABLE_PICKS: TrpcWireOutput<"chat.getVariablePicks"> = { variables: [POV_VARIABLE], values: {} };
 
 // `settings.getUserSettings` — read by FOUR consumers under this tab, and the reason this stub is spelled
 // from the contract rather than by hand. `UserSettingsView.config` is ALWAYS the parsed+defaulted
@@ -68,13 +75,19 @@ const VARIABLE_PICKS = { variables: [POV_VARIABLE], values: {} };
 // already asserting: `seeds.defaultPresetId: null` (this room's host runs the built-in preset, so the
 // Documents section resolves the built-in prompt config) and an EMPTY `appearance.backgroundLibrary` (the
 // Background grid renders None + the seeded plates).
-const USER_SETTINGS = { config: DEFAULT_USER_SETTINGS };
+const USER_SETTINGS: TrpcWireOutput<"settings.getUserSettings"> = {
+  userId: "user_settings_context",
+  schemaVersion: 1,
+  config: DEFAULT_USER_SETTINGS,
+  configUnreadable: null,
+  updatedAt: 0,
+};
 
 // The Documents section's own suspense read (S2, D-4) — this tab is its production mount, so every
 // committed arm must stub it or the section's boundary would swallow the failure and the tab's composition
 // contract would silently stop covering it (the EMPTY_PICKS precedent one line up). One row, so the
 // heading's count chip has something to count; the row's own behavior is chat-documents-section.ct's.
-const ACTIVE_DOCUMENTS = [
+const ACTIVE_DOCUMENTS: TrpcWireOutput<"databank.listActiveForChat"> = [
   {
     id: "document_00000000000000000001",
     name: "The Crimson Court",
@@ -96,13 +109,15 @@ const ACTIVE_DOCUMENTS = [
 // stub it or the section's boundary swallows the failure and the tab's composition contract silently stops
 // covering it (the ACTIVE_DOCUMENTS precedent two blocks up). `worldInfo.listForChat` is member-read and NOT
 // owner-filtered, so host and member arms get the identical rows.
-const ROOM_BOOKS = [{ id: "worldbook_ct_0000000000001", name: "Ashfall Canon", description: null, createdAt: 1_700_000_000_000, role: null }];
+const ROOM_BOOKS: TrpcWireOutput<"worldInfo.listForChat"> = [
+  { id: "worldbook_ct_0000000000001", name: "Ashfall Canon", description: null, createdAt: 1_700_000_000_000, role: null },
+];
 
 // The picker's own read (`worldInfo.listBooks` — the caller's whole library, unpaged). Only the tests that
 // OPEN the picker need it: a closed FormDialog never mounts its body, which is why the arms above can stay
 // green with `trpc.unstubbed()` empty. Two books: one already attached (subtracted by `attachableBooks`) and
 // one genuinely offerable, so the offer set is a real subtraction rather than a pass-through.
-const OWNED_BOOKS = [
+const OWNED_BOOKS: TrpcWireOutput<"worldInfo.listBooks"> = [
   { id: "worldbook_ct_0000000000001", name: "Ashfall Canon", description: null, createdAt: 1_700_000_000_000 },
   { id: "worldbook_ct_0000000000002", name: "Session Notes", description: "Running notes", createdAt: 1_700_000_000_001 },
 ];
@@ -112,7 +127,9 @@ const OWNED_BOOKS = [
 // count read fires until a test opens it; the body's reads are here too because three tests do open it.
 // Host and member read DIFFERENT procs (`chat.listEffectiveRegex` is host-gated, D19), which is why both
 // are stubbed in every arm — a member-only gap would otherwise hide behind the host stub.
-const CT_SCRIPT = {
+type RegexScriptFixture = TrpcWireOutput<"regex.listScripts">[number];
+
+const CT_SCRIPT: RegexScriptFixture = {
   id: "regex_script_ct_0001",
   name: "Strip OOC",
   enabled: true,
@@ -124,7 +141,7 @@ const CT_SCRIPT = {
   promptOnly: false,
   runOnEdit: false,
   trimStrings: [],
-  substituteRegex: "none",
+  substituteRegex: 0,
 };
 const EFFECTIVE_REGEX = {
   enabled: true,
@@ -134,8 +151,8 @@ const EFFECTIVE_REGEX = {
     { scope: "chat", allowed: true, rows: [] },
   ],
   effective: [{ scriptId: CT_SCRIPT.id, runsAt: 1 }],
-};
-const REGEX_READS = {
+} satisfies TrpcWireOutput<"chat.listEffectiveRegex">;
+const REGEX_READS: TrpcRoutes<"chat.listEffectiveRegex" | "regex.listForChat" | "regex.listScripts" | "regex.listRoomDisplayScripts"> = {
   "chat.listEffectiveRegex": () => EFFECTIVE_REGEX,
   "regex.listForChat": () => [],
   "regex.listScripts": () => [CT_SCRIPT],
@@ -338,7 +355,7 @@ function stubToolUse(page: Page): Promise<TrpcRecorder> {
     "settings.getUserSettings": () => USER_SETTINGS,
     ...REGEX_READS,
     "chat.getChat": () => CHAT_DETAIL,
-    [UPDATE_TOOL_LIMIT]: () => ({}),
+    [UPDATE_TOOL_LIMIT]: () => 10,
   });
 }
 
@@ -449,7 +466,7 @@ function stubHostDisplayScripts(page: Page): Promise<TrpcRecorder> {
     "settings.getUserSettings": () => USER_SETTINGS,
     ...REGEX_READS,
     "chat.getChat": () => CHAT_DETAIL,
-    [UPDATE_HOST_DISPLAY_SCRIPTS]: () => ({}),
+    [UPDATE_HOST_DISPLAY_SCRIPTS]: () => true,
   });
 }
 
@@ -505,7 +522,7 @@ function stubOfferChoices(page: Page, room: boolean | null, userDefault: boolean
     "settings.getUserSettings": () => ({ config: { ...USER_SETTINGS.config, chat: { ...DEFAULT_CHAT_SETTINGS, offerChoices: userDefault } } }),
     ...REGEX_READS,
     "chat.getChat": () => ({ ...CHAT_DETAIL, offerChoices: room }),
-    [UPDATE_OFFER_CHOICES]: () => ({}),
+    [UPDATE_OFFER_CHOICES]: () => true,
   });
 }
 
@@ -802,6 +819,14 @@ test("D-1: the host-ops trio sits under a 'Host controls' group — and a member
 // background was VISIBLY painting — the picker echoed only the chat-set field and was blind to the cascade's
 // card arm (the S4 override-echoed-as-default class). The row must name the EFFECTIVE source + where it came
 // from. Asserted through the rendered text a user reads, never through the resolver.
+type FixtureArrayElement<T, TKey extends PropertyKey> = T extends unknown
+  ? TKey extends keyof T
+    ? NonNullable<T[TKey]> extends readonly (infer Item)[]
+      ? Item
+      : never
+    : never
+  : never;
+type ChatParticipantFixture = FixtureArrayElement<TrpcFixtureOutput<"chat.getChat">, "participants">;
 const SOLO_ROSTER_WITH_CARD_BG = [
   { id: "p_human", kind: "human", characterId: null, displayName: "You" },
   {
@@ -811,7 +836,7 @@ const SOLO_ROSTER_WITH_CARD_BG = [
     displayName: "Birdie Mae Holloway",
     backgroundOverride: { kind: "asset", externalUrl: "", assetId: "asset_birdie_bg", assetHash: "hash_birdie_bg", mime: "image/jpeg", provenanceUrl: "" },
   },
-];
+] satisfies readonly ChatParticipantFixture[];
 
 test("BG-C: with no chat-set background, the Background row names the CARD-carried source that is painting", async ({ mount, page }) => {
   await routeTrpc(page, {
@@ -1240,7 +1265,7 @@ function stubIndexPane(page: Page): Promise<TrpcRecorder> {
     "chat.setRoomOverrides": () => ({}),
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
     "worldInfo.listForChat": () => ROOM_BOOKS,
-    "chat.listChatInjections": () => [HELD_INJECTIONS[0]],
+    "chat.listChatInjections": () => HELD_INJECTIONS.slice(0, 1),
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getVariablePicks": () => VARIABLE_PICKS,
     "settings.getUserSettings": () => USER_SETTINGS,

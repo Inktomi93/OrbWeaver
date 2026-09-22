@@ -16,20 +16,23 @@ import { BLOB_ROUTE } from "@orb/contracts/assets";
 import type { PluginId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
+import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
+import { malformedOrForwardTrpcWire, routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { PluginsSurfaceStory } from "../_ct-stories.tsx";
+
+type PluginListRow = TrpcWireOutput<"plugin.list">[number];
+type PluginSurfaceRow = TrpcWireOutput<"plugin.listSurfaces">[number];
 
 const A_PAST_INSTANT = 1_760_000_000_000;
 /** A valid 1×1 transparent PNG — served for the OWNED blob so its <img> loads instead of tripping the
  *  broken-media fallback (message-media.tsx onError). */
 const ONE_PX_PNG_B64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
-const USER_VIEWER = { userId: "user_ct_plugin", handle: "plugin_user", globalRole: "user" };
+const USER_VIEWER = { userId: "user_ct_plugin", handle: "plugin_user", globalRole: "user" } satisfies TrpcWireOutput<"sessions.me">;
 const AFFINITY_ID = castId<PluginId>("plugin_ct_affinity000001");
 
 /** An enabled installed row — the plugin row the surface panel mounts inside. The list-read shape is pinned by
  *  the router/domain tests, never re-typed here. */
-function enabledRow(id: PluginId, name: string): Record<string, unknown> {
+function enabledRow(id: PluginId, name: string): PluginListRow {
   return {
     id,
     slug: "affinity-tracker",
@@ -37,6 +40,8 @@ function enabledRow(id: PluginId, name: string): Record<string, unknown> {
     version: "1.0.0",
     status: "enabled",
     origin: "upload",
+    sourceUrl: null,
+    updateSource: null,
     declaredCapabilities: ["ui.surface"],
     grantedCapabilities: ["ui.surface"],
     netHosts: null,
@@ -50,12 +55,12 @@ function enabledRow(id: PluginId, name: string): Record<string, unknown> {
 }
 
 /** One `listSurfaces` row: the serializable meta + pluginId (the onAction handle stays server-side). */
-function surface(pluginId: PluginId, id: string, spec: unknown): Record<string, unknown> {
+function surface(pluginId: PluginId, id: string, spec: PluginSurfaceRow["spec"]): PluginSurfaceRow {
   return { pluginId, id, anchor: "settings", title: "Affinity readings", tier: "static", spec };
 }
 
 /** The affinity-tracker panel spec (the shape its upgraded main.js registers). */
-const AFFINITY_SPEC = {
+const AFFINITY_SPEC: NonNullable<PluginSurfaceRow["spec"]> = {
   kind: "stack",
   gap: "block",
   children: [
@@ -90,7 +95,7 @@ test("THE U1 DONE-CRITERIA — the affinity-tracker panel renders, its button ro
     "plugin.getSurfaceState": () => (refreshed ? AFFINITY_STATE : null),
     "plugin.invokeUiAction": () => {
       refreshed = true;
-      return null;
+      return { toasts: [] };
     },
     "plugin.getLog": () => [],
     "assets.resolveBlobRefs": () => [],
@@ -118,7 +123,7 @@ test("the image owner-scope gate — a foreign assetId renders the placeholder, 
   // literal would fail the spec and fall to the caps fallback instead of exercising the owner-scope gate.
   const foreignId = mintTypeId(ID_PREFIX.asset);
   const ownedId = mintTypeId(ID_PREFIX.asset);
-  const spec = {
+  const spec: NonNullable<PluginSurfaceRow["spec"]> = {
     kind: "stack",
     children: [
       { kind: "image", assetId: foreignId, alt: "someone else's private art" },
@@ -156,7 +161,7 @@ test("#820 the BUNDLE arm — a shipped path paints, and one the plugin never sh
   // path must fall to the per-node placeholder, NOT poison the id set — `resolveBlobRefs` validates its whole
   // input array against the TypeID schema, so a raw path leaking in would blank every image on the surface.
   const shippedId = mintTypeId(ID_PREFIX.asset);
-  const spec = {
+  const spec: NonNullable<PluginSurfaceRow["spec"]> = {
     kind: "stack",
     children: [
       { kind: "image", bundleAsset: "ui/assets/happy.png", alt: "the shipped sprite" },
@@ -208,8 +213,18 @@ test("#820 a spec with NO bundle path never asks for the map — the extra read 
 test("a spec that fails client-side validation renders a safe fallback, never a crash", async ({ mount, page }) => {
   await routeTrpc(page, {
     "plugin.list": () => [enabledRow(AFFINITY_ID, "Broken Plugin")],
-    // `iframe` is not a node kind — the client re-validation (the caps + closed union) rejects it.
-    "plugin.listSurfaces": () => [surface(AFFINITY_ID, "broken", { kind: "iframe", src: "https://evil.example" })],
+    // Deliberately impossible server wire: `iframe` is outside the closed node union. This escape is the
+    // subject of the test — the client must re-validate a malformed/forward payload and render its fallback.
+    "plugin.listSurfaces": malformedOrForwardTrpcWire([
+      {
+        pluginId: AFFINITY_ID,
+        id: "broken",
+        anchor: "settings",
+        title: "Affinity readings",
+        tier: "static",
+        spec: { kind: "iframe", src: "https://evil.example" },
+      },
+    ]),
     "plugin.getSurfaceState": () => null,
     "plugin.getLog": () => [],
     "assets.resolveBlobRefs": () => [],
@@ -221,7 +236,7 @@ test("a spec that fails client-side validation renders a safe fallback, never a 
 });
 
 test("renderer coverage — a spec mixing container, display, and form kinds renders each as a house control", async ({ mount, page }) => {
-  const spec = {
+  const spec: NonNullable<PluginSurfaceRow["spec"]> = {
     kind: "stack",
     children: [
       { kind: "section", kicker: "Settings", children: [{ kind: "text", value: "A configurable panel." }] },
@@ -258,7 +273,7 @@ test("#798: a card-atlas-style detail stage shows its cover — the BOUND hero (
   // its hero to that state path. The declared-hero path could never carry a fetched id (the spec is fixed at
   // registration); this proves the bound arm closes that gap.
   const coverId = mintTypeId(ID_PREFIX.asset);
-  const spec = {
+  const spec: NonNullable<PluginSurfaceRow["spec"]> = {
     kind: "masterDetail",
     stages: [
       {
@@ -306,7 +321,7 @@ const DETAIL_PROSE =
 const WIDE_MOUNT = 2000;
 
 test("F2: a masterDetail DETAIL stage renders its column at the house --reading-measure token, and the cap BINDS at a wide mount", async ({ mount, page }) => {
-  const spec = {
+  const spec: NonNullable<PluginSurfaceRow["spec"]> = {
     kind: "masterDetail",
     stages: [
       {
@@ -363,7 +378,7 @@ test("F2: a masterDetail DETAIL stage renders its column at the house --reading-
 
 test("F4: an empty grid renders the house EmptyState carrying the plugin's own teaching line — not a bare gloss", async ({ mount, page }) => {
   // A BOUND grid whose state resolved to zero tiles — the card-atlas pre-search page.
-  const spec = {
+  const spec: NonNullable<PluginSurfaceRow["spec"]> = {
     kind: "grid",
     tilesFrom: { $state: "tiles" },
     tileAction: "open_result",
@@ -393,7 +408,7 @@ test("F4: an empty grid renders the house EmptyState carrying the plugin's own t
 test("#799: a grid's bound `loading` renders the shape-matched skeleton, and it OUTRANKS both tiles and the empty line", async ({ mount, page }) => {
   // The state carries BOTH the tiles and (via the spec) a teaching empty, so this pin cannot pass by the grid
   // simply having nothing to show: only the loading arm winning explains the skeleton.
-  const spec = {
+  const spec: NonNullable<PluginSurfaceRow["spec"]> = {
     kind: "grid",
     tilesFrom: { $state: "tiles" },
     tileAction: "open_result",
@@ -422,7 +437,13 @@ test("#799: the SAME grid spec with `busy: false` shows its tiles — the loadin
   // A PLANTED CONTROL, not a defect proof: identical spec, one state value flipped. It passes against the
   // pre-#799 renderer too (which strips `loading` and shows the tiles for a different reason) — its job is
   // to rule out a skeleton that renders unconditionally, which would satisfy the pin above just as well.
-  const spec = { kind: "grid", tilesFrom: { $state: "tiles" }, tileAction: "open_result", empty: "Search to begin.", loading: { $state: "busy" } };
+  const spec: NonNullable<PluginSurfaceRow["spec"]> = {
+    kind: "grid",
+    tilesFrom: { $state: "tiles" },
+    tileAction: "open_result",
+    empty: "Search to begin.",
+    loading: { $state: "busy" },
+  };
   await routeTrpc(page, {
     "plugin.list": () => [enabledRow(AFFINITY_ID, "Card Atlas")],
     "plugin.listSurfaces": () => [surface(AFFINITY_ID, "atlas", spec)],
@@ -438,7 +459,7 @@ test("#799: the SAME grid spec with `busy: false` shows its tiles — the loadin
 });
 
 test("#799: an `icon` node renders the NAMED house glyph — labelled ones are named, unlabelled ones are decorative", async ({ mount, page }) => {
-  const spec = {
+  const spec: NonNullable<PluginSurfaceRow["spec"]> = {
     kind: "row",
     children: [
       { kind: "icon", name: "download", label: "Downloads" },
@@ -474,7 +495,16 @@ test("#799: a CONSENT glyph is unspellable — an off-tuple icon name is refused
   // naming it fails client-side validation and the whole surface renders the safe fallback.
   await routeTrpc(page, {
     "plugin.list": () => [enabledRow(AFFINITY_ID, "Impostor")],
-    "plugin.listSurfaces": () => [surface(AFFINITY_ID, "atlas", { kind: "row", children: [{ kind: "icon", name: "lock", label: "Secure" }] })],
+    "plugin.listSurfaces": malformedOrForwardTrpcWire([
+      {
+        pluginId: AFFINITY_ID,
+        id: "atlas",
+        anchor: "settings",
+        title: "Affinity readings",
+        tier: "static",
+        spec: { kind: "row", children: [{ kind: "icon", name: "lock", label: "Secure" }] },
+      },
+    ]),
     "plugin.getSurfaceState": () => null,
     "plugin.getLog": () => [],
     "assets.resolveBlobRefs": () => [],
@@ -494,7 +524,7 @@ test("#799: a `tabs` node renders the house one-of-N strip and a pick round-trip
   // STATEFUL state read, so the barrier below settles on the POST-INVOKE repaint rather than an in-flight
   // flash: the status line exists only after the action fired.
   let picked = false;
-  const spec = {
+  const spec: NonNullable<PluginSurfaceRow["spec"]> = {
     kind: "stack",
     children: [
       {
@@ -517,7 +547,7 @@ test("#799: a `tabs` node renders the house one-of-N strip and a pick round-trip
     "plugin.getSurfaceState": () => (picked ? { status: "Now browsing RisuRealm." } : null),
     "plugin.invokeUiAction": () => {
       picked = true;
-      return null;
+      return { toasts: [] };
     },
     "plugin.getLog": () => [],
     "assets.resolveBlobRefs": () => [],
@@ -552,7 +582,7 @@ test("hub v1.2: a bound grid tile carrying `tags` renders its chip row — the f
   // The tags ride PUBLISHED STATE through `pluginBoundGridTileSchema` (which STRIPS unknown keys — so this
   // pin is red against a vocabulary without the field: the schema itself is the planted control) and land as
   // the MediaTileGrid chip row. A tile without tags renders no row at all (the second tile).
-  const spec = { kind: "grid", tilesFrom: { $state: "tiles" }, tileAction: "open_result" };
+  const spec: NonNullable<PluginSurfaceRow["spec"]> = { kind: "grid", tilesFrom: { $state: "tiles" }, tileAction: "open_result" };
   await routeTrpc(page, {
     "plugin.list": () => [enabledRow(AFFINITY_ID, "Card Atlas")],
     "plugin.listSurfaces": () => [surface(AFFINITY_ID, "atlas", spec)],
@@ -578,7 +608,7 @@ test("hub v1.2: a bound grid tile carrying `tags` renders its chip row — the f
 test("hub v1.3: a BOUND select (`optionsFrom`) renders its options from published state — a per-hub sort menu is data", async ({ mount, page }) => {
   // Red-first control: against the pre-v1.3 renderer this spec either fails validation (unknown arm) or
   // crashes the select on its missing `options` — the pin cannot pass vacuously.
-  const spec = {
+  const spec: NonNullable<PluginSurfaceRow["spec"]> = {
     kind: "stack",
     children: [{ kind: "select", name: "sort", label: "Sort", optionsFrom: { $state: "sortOptions" }, value: "relevance", actionId: "search" }],
   };
@@ -606,7 +636,7 @@ test("hub v1.3: a BOUND select (`optionsFrom`) renders its options from publishe
 });
 
 test("hub v1.3: a BOUND keyValue (`rowsFrom`) renders its rows from published state — a per-hub stat sheet is data", async ({ mount, page }) => {
-  const spec = { kind: "keyValue", rowsFrom: { $state: "detail.stats" } };
+  const spec: NonNullable<PluginSurfaceRow["spec"]> = { kind: "keyValue", rowsFrom: { $state: "detail.stats" } };
   await routeTrpc(page, {
     "plugin.list": () => [enabledRow(AFFINITY_ID, "Card Atlas")],
     "plugin.listSurfaces": () => [surface(AFFINITY_ID, "atlas", spec)],
@@ -632,12 +662,12 @@ test("hub v1.3: a BOUND keyValue (`rowsFrom`) renders its rows from published st
 });
 
 test("hub v1.3: a LIVE toggle (`actionId`) fires its action on flip with the fresh value riding as an extra", async ({ mount, page }) => {
-  const spec = { kind: "toggle", name: "sfw", label: "SFW only", value: false, actionId: "search" };
+  const spec: NonNullable<PluginSurfaceRow["spec"]> = { kind: "toggle", name: "sfw", label: "SFW only", value: false, actionId: "search" };
   const recorder: TrpcRecorder = await routeTrpc(page, {
     "plugin.list": () => [enabledRow(AFFINITY_ID, "Card Atlas")],
     "plugin.listSurfaces": () => [surface(AFFINITY_ID, "atlas", spec)],
     "plugin.getSurfaceState": () => null,
-    "plugin.invokeUiAction": () => null,
+    "plugin.invokeUiAction": () => ({ toasts: [] }),
     "plugin.getLog": () => [],
     "assets.resolveBlobRefs": () => [],
     "sessions.me": () => USER_VIEWER,

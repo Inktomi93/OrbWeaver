@@ -4,20 +4,18 @@ import { Node, SyntaxKind } from "ts-morph";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { resolveLexicalValueDeclaration, resolveModuleMemberOrigin, resolveStableExpression } from "../../_shared/reference-fact.ts";
 import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
-import type { Flags, Hit } from "../contract/types.ts";
-import { emit, hitOf, narrate } from "../lib/emit.ts";
-import { noteUnits, scanCorpus } from "../lib/ledger.ts";
+import type { Hit } from "../contract/types.ts";
+import { hitOf } from "../lib/emit.ts";
 import { isTestPath } from "../lib/root.ts";
 import { relPath } from "./swallowed.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm ast registry-candidates");
 
 const MIN_MEMBERS = 3;
-const CANDIDATE_CLASS_COUNT = 4;
 const RECORD_RE = /\bRecord\s*</u;
 const compareText = (left: string, right: string): number => left.localeCompare(right);
 
-function productionFiles(project: SourceCorpus): readonly SourceFile[] {
+export function registryCandidateFiles(project: SourceCorpus): readonly SourceFile[] {
   return project.getSourceFiles().filter((file) => !(file.isDeclarationFile() || isTestPath(file.getFilePath())));
 }
 
@@ -444,19 +442,6 @@ function driftedTwinHits(files: readonly SourceFile[]): Hit[] {
 
 /** Four candidate classes from #1189. Findings are prompts for human review, never deletion verdicts. */
 export function collectRegistryCandidates(project: SourceCorpus): Hit[] {
-  const files = productionFiles(project);
+  const files = registryCandidateFiles(project);
   return [...contributionHits(files), ...valueSetHits(files), ...namespaceMutationHits(files), ...driftedTwinHits(files)];
-}
-
-export function cmdRegistryCandidates(project: SourceCorpus, arg: string, flags: Flags): void {
-  const files = productionFiles(project);
-  scanCorpus(project, { scope: files.map((file) => file.getFilePath()), label: "path:production-source" });
-  const all = collectRegistryCandidates(project);
-  const hits = arg === "" ? all : all.filter((hit) => hit.file.includes(arg) || hit.text.includes(arg));
-  noteUnits("candidate-classes", CANDIDATE_CLASS_COUNT);
-  narrate(
-    flags,
-    `registry-candidates is an INFORMATIONAL lens: every hit needs human triage. Classes: contribution-without-door, value-side-literal-set, shared-namespace-mutation, drifted-twins. Scanned ${files.length} production source files.`,
-  );
-  emit(hits, flags, `registry-candidates${arg === "" ? "" : ` ${arg}`}`);
 }

@@ -24,9 +24,12 @@ import {
   routeImpersonateStreamOnce,
   ZOMBIE_WATCH_MS,
 } from "../../../../support/node/route-impersonate-stream.ts";
+import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ComposerStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES, COMPOSER_CHAT_ID, makeMessagesPage, makeMessageView } from "../fixtures.ts";
+
+const EMPTY_TURN = { messages: [], aborted: false } satisfies TrpcWireOutput<"chat.generate">;
 
 const RESPONSE = "Generate reply";
 // P3-dualmode: the guided icons' accessible name reflects the active mode — "Guided …" when the composer has text.
@@ -51,7 +54,7 @@ test("all four guided icons ALWAYS render on a committed chat (never hidden/swap
 });
 
 test("Response on an EMPTY committed composer fires a PLAIN generate (no steer object)", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.generate": () => ({}) });
+  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.generate": () => EMPTY_TURN });
   const component = await mount(<ComposerStory tailRole="assistant" tailAssistantMessageId={TAIL_ASSISTANT_ID} />);
 
   await component.getByRole("button", { name: RESPONSE }).click();
@@ -63,7 +66,7 @@ test("Response on an EMPTY committed composer fires a PLAIN generate (no steer o
 });
 
 test("Response fires chat.generate with the typed steer + afterAssistant on an assistant tail", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.generate": () => ({}) });
+  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.generate": () => EMPTY_TURN });
   const component = await mount(<ComposerStory tailRole="assistant" tailAssistantMessageId={TAIL_ASSISTANT_ID} />);
 
   await component.getByRole("textbox", { name: "Message" }).fill("make her angrier");
@@ -87,7 +90,7 @@ test("Try another reply KEEPS the steer (reroll again with the same guidance —
     ...CHAT_AMBIENT_ROUTES,
     ...CHAT_ROOM_ROUTES,
     "chat.listMessages": () => makeMessagesPage([tail]),
-    "chat.swipe": () => ({ ok: true }),
+    "chat.swipe": () => EMPTY_TURN,
   });
   const component = await mount(<ComposerStory tailRole="assistant" tailAssistantMessageId={TAIL_ASSISTANT_ID} />);
 
@@ -268,7 +271,7 @@ test("Regenerate lives in the ✨ menu and fires a PLAIN reroll of the tail assi
     ...CHAT_AMBIENT_ROUTES,
     ...CHAT_ROOM_ROUTES,
     "chat.listMessages": () => makeMessagesPage([tail]),
-    "chat.swipe": () => ({ ok: true }),
+    "chat.swipe": () => EMPTY_TURN,
   });
   const component = await mount(<ComposerStory tailRole="assistant" tailAssistantMessageId={TAIL_ASSISTANT_ID} />);
 
@@ -311,7 +314,7 @@ test("P2-A: the ✨ menu is grouped with labeled sections (Input · Reply · Con
 });
 
 test("Simple send fires chat.commitMessage (post without generating) and clears the composer", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.commitMessage": () => ({ chat: { id: COMPOSER_CHAT_ID } }) });
+  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.commitMessage": () => EMPTY_TURN });
   const component = await mount(<ComposerStory />);
 
   const box = component.getByRole("textbox", { name: "Message" });
@@ -380,7 +383,7 @@ test("game steers live in the ✨ menu (the Plot submenu) and fire a gameSteer K
     ...CHAT_ROOM_ROUTES,
     "chat.getChat": () => GAME_CHAT,
     "rpg.getGame": () => ({ chatId: COMPOSER_CHAT_ID, publicConfig: { plotProgression: true } }),
-    "chat.generate": () => ({}),
+    "chat.generate": () => EMPTY_TURN,
   });
   const component = await mount(<ComposerStory />);
   await component.getByRole("button", { name: "Message tools" }).click();
@@ -426,7 +429,7 @@ test("PLOT steers are ABSENT in the ✨ menu on a non-game chat", async ({ mount
 // user meets it — an accessible menuitem name — and the fire is asserted on the DECODED WIRE, because
 // "the item rendered" and "the item asks for choices" are different claims and only the second one matters.
 test("a NON-GAME chat's ✨ menu offers 'Offer choices', and it fires the choices gameSteer KIND", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.generate": () => ({}) });
+  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.generate": () => EMPTY_TURN });
   const component = await mount(<ComposerStory />);
   await component.getByRole("button", { name: "Message tools" }).click();
   await expectPopupSettled(page.getByRole("menu", { name: "Message tools" }));
@@ -464,7 +467,7 @@ test("Corrections fires the toggle KINDS on the wire — no composed fragment by
     ...CHAT_AMBIENT_ROUTES,
     ...CHAT_ROOM_ROUTES,
     "chat.listMessages": () => makeMessagesPage([tail]),
-    "chat.swipe": () => ({ ok: true }),
+    "chat.swipe": () => EMPTY_TURN,
   });
   const component = await mount(<ComposerStory tailRole="assistant" tailAssistantMessageId={TAIL_ASSISTANT_ID} />);
 
@@ -494,7 +497,7 @@ test("Corrections with ONLY toggles (no typed instruction) still fires — the k
     ...CHAT_AMBIENT_ROUTES,
     ...CHAT_ROOM_ROUTES,
     "chat.listMessages": () => makeMessagesPage([tail]),
-    "chat.swipe": () => ({ ok: true }),
+    "chat.swipe": () => EMPTY_TURN,
   });
   const component = await mount(<ComposerStory tailRole="assistant" tailAssistantMessageId={TAIL_ASSISTANT_ID} />);
 

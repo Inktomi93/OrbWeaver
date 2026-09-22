@@ -14,7 +14,7 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { CharacterLookTabPanelStory, CharacterLookTabStory, CharacterTrustTabStory } from "../_ct-stories.tsx";
 import { makeCharacterDetail } from "../fixtures.ts";
@@ -32,7 +32,7 @@ function lastThemeOverride(trpc: TrpcRecorder): unknown {
  *  the "Start from a theme…" door, so every routeTrpc site owes it: `listThemes` is "the caller's own themes
  *  PLUS every seed palette" (domain/settings/verbs/list-themes.ts:1), so an empty array is a shape the server
  *  cannot mint and `routeTrpc`'s unfed null is not a view at all — the picker's resolve path never ran. */
-const THEME_LIST = [
+const THEME_LIST: TrpcWireOutput<"settings.listThemes"> = [
   {
     id: "theme_00000000000000000000000002",
     name: "Mocha",
@@ -52,7 +52,7 @@ function route(page: Page, themeOverride: Record<string, unknown> | null): Promi
     "character.update": () => card,
     "settings.listThemes": () => THEME_LIST,
     // The BG-C picker's grid reads the viewer's own backgroundLibrary (#866 S4) — fed empty, never inert.
-    "settings.getUserSettings": () => ({ userId: "user_ct_look", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 }),
+    "settings.getUserSettings": () => ({ userId: "user_ct_look", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0, configUnreadable: null }),
   });
 }
 
@@ -159,7 +159,7 @@ test("Save as theme… promotes the LIVE override, defaulted to the character's 
     "character.update": () => card,
     "settings.listThemes": () => THEME_LIST,
     // The BG-C picker's grid reads the viewer's own backgroundLibrary (#866 S4) — fed empty, never inert.
-    "settings.getUserSettings": () => ({ userId: "user_ct_look", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 }),
+    "settings.getUserSettings": () => ({ userId: "user_ct_look", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0, configUnreadable: null }),
     "settings.promoteTheme": () => ({
       id: "theme_new",
       name: "Aria",
@@ -183,7 +183,7 @@ test("Save as theme… is disabled while the card has nothing of its own to prom
     "character.update": () => makeCharacterDetail({ themeOverride: null }),
     "settings.listThemes": () => THEME_LIST,
     // The BG-C picker's grid reads the viewer's own backgroundLibrary (#866 S4) — fed empty, never inert.
-    "settings.getUserSettings": () => ({ userId: "user_ct_look", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 }),
+    "settings.getUserSettings": () => ({ userId: "user_ct_look", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0, configUnreadable: null }),
   });
   await mount(<CharacterLookTabStory />);
   await expect(page.getByRole("button", { name: "Save as theme…" })).toBeDisabled();
@@ -195,7 +195,7 @@ test("Start from a theme… seeds the card from the theme's CARD-EMBEDDABLE subs
     "character.update": () => makeCharacterDetail({ themeOverride: null }),
     "settings.listThemes": () => THEME_LIST,
     // The BG-C picker's grid reads the viewer's own backgroundLibrary (#866 S4) — fed empty, never inert.
-    "settings.getUserSettings": () => ({ userId: "user_ct_look", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 }),
+    "settings.getUserSettings": () => ({ userId: "user_ct_look", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0, configUnreadable: null }),
   });
   await mount(<CharacterLookTabStory />);
 
@@ -325,7 +325,7 @@ test("Inherit clears BOTH columns — a cleared render step must not leave an in
     "character.get": () => card,
     "character.update": () => card,
     "settings.listThemes": () => THEME_LIST,
-    "settings.getUserSettings": () => ({ userId: "user_ct_look", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 }),
+    "settings.getUserSettings": () => ({ userId: "user_ct_look", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0, configUnreadable: null }),
   });
   await mount(<CharacterTrustTabStory />);
 
@@ -413,7 +413,7 @@ test("no theme-cluster action clips the context panel's width", async ({ mount, 
     "character.listSnapshots": () => [],
     "settings.listThemes": () => THEME_LIST,
     // The BG-C picker's grid reads the viewer's own backgroundLibrary (#866 S4) — fed empty, never inert.
-    "settings.getUserSettings": () => ({ userId: "user_ct_look", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 }),
+    "settings.getUserSettings": () => ({ userId: "user_ct_look", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0, configUnreadable: null }),
   });
   const component = await mount(<CharacterLookTabPanelStory />);
 
@@ -467,7 +467,7 @@ test("#841 a colour field's value reads as words, never as an oklch() triple", a
     "character.listSnapshots": () => [],
     "settings.listThemes": () => THEME_LIST,
     // The BG-C picker's grid reads the viewer's own backgroundLibrary (#866 S4) — fed empty, never inert.
-    "settings.getUserSettings": () => ({ userId: "user_ct_look", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 }),
+    "settings.getUserSettings": () => ({ userId: "user_ct_look", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0, configUnreadable: null }),
   });
   const component = await mount(<CharacterLookTabPanelStory />);
 

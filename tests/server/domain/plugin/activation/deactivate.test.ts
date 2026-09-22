@@ -36,11 +36,11 @@ function makeCtx(): {
 }
 
 describe("createDeactivate", () => {
-  test("with NO resident instance, the pending-state clears still fire unconditionally; dispose is never called", () => {
+  test("with NO resident instance, the pending-state clears still fire unconditionally; dispose is never called", async () => {
     const { ctx, voidForPlugin, clearSurface, clearOutbox, dispose } = makeCtx();
     const registry: PluginRegistry = new Map();
 
-    createDeactivate(ctx, registry)(PLUGIN_ID);
+    await createDeactivate(ctx, registry, { activate: () => Promise.resolve(), deactivate: () => Promise.resolve() })(PLUGIN_ID);
 
     expect(voidForPlugin).toHaveBeenCalledWith(PLUGIN_ID);
     expect(clearSurface).toHaveBeenCalledWith(PLUGIN_ID);
@@ -48,7 +48,7 @@ describe("createDeactivate", () => {
     expect(dispose).not.toHaveBeenCalled();
   });
 
-  test("with a resident instance: every registration handle unregisters, the instance disposes, the registry drops the row", () => {
+  test("with a resident instance: every registration handle unregisters, the instance disposes, the registry drops the row", async () => {
     const { ctx, dispose } = makeCtx();
     const unregisterA = vi.fn();
     const unregisterB = vi.fn();
@@ -58,7 +58,7 @@ describe("createDeactivate", () => {
       [PLUGIN_ID, { instance, handles: [{ unregister: unregisterA }, { unregister: unregisterB }], invoke: vi.fn() }],
     ]) as unknown as PluginRegistry;
 
-    createDeactivate(ctx, registry)(PLUGIN_ID);
+    await createDeactivate(ctx, registry, { activate: () => Promise.resolve(), deactivate: () => Promise.resolve() })(PLUGIN_ID);
 
     expect(unregisterA).toHaveBeenCalledTimes(1);
     expect(unregisterB).toHaveBeenCalledTimes(1);
@@ -66,16 +66,16 @@ describe("createDeactivate", () => {
     expect(registry.has(PLUGIN_ID)).toBe(false);
   });
 
-  test("deactivating twice (a double-disable) is a no-op the second time — idempotent", () => {
+  test("deactivating twice (a double-disable) is a no-op the second time — idempotent", async () => {
     const { ctx, dispose } = makeCtx();
     const unregister = vi.fn();
     const instance = { marker: "x" };
     // @orb-waive no-test-fabrication(unknown): a minimal resident-plugin double — deactivate reads only .handles and .instance. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const registry: PluginRegistry = new Map([[PLUGIN_ID, { instance, handles: [{ unregister }], invoke: vi.fn() }]]) as unknown as PluginRegistry;
-    const deactivate = createDeactivate(ctx, registry);
+    const deactivate = createDeactivate(ctx, registry, { activate: () => Promise.resolve(), deactivate: () => Promise.resolve() });
 
-    deactivate(PLUGIN_ID);
-    deactivate(PLUGIN_ID);
+    await deactivate(PLUGIN_ID);
+    await deactivate(PLUGIN_ID);
 
     expect(unregister).toHaveBeenCalledTimes(1);
     expect(dispose).toHaveBeenCalledTimes(1);

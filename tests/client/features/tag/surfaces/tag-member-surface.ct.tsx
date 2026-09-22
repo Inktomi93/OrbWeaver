@@ -19,7 +19,7 @@ import type { Page } from "@playwright/test";
 import { measureContentColumn } from "../../../../support/browser/measure-content-column.ts";
 import { proseRow, readProseMeasure } from "../../../../support/browser/prose-measure.ts";
 import { readSwitchRowOrientation } from "../../../../support/browser/settings-geometry.ts";
-import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { TagMemberContentColumnStory, TagMemberStory } from "../_ct-stories.tsx";
 
@@ -48,13 +48,13 @@ const TAGS = [
     isHiddenOnCard: true,
     usage: { characters: 0, chats: 0, worldBooks: 0, personas: 0, presets: 0, total: 0 },
   },
-];
+] as const satisfies TrpcWireOutput<"tag.listTagsWithUsage">;
 
 function stub(page: Page): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "tag.listTagsWithUsage": () => TAGS,
-    "tag.updateTag": () => TAGS[0],
-    "tag.mergeTags": () => undefined,
+    "tag.updateTag": () => ({ id: TAGS[0].id }),
+    "tag.mergeTags": () => null,
   });
 }
 

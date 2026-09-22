@@ -55,6 +55,7 @@ import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-quer
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { CtAppDataProviders, CtDataProviders } from "../../support/browser/ct-data-providers.tsx";
+import type { TrpcInput, TrpcWireOutput } from "../../support/node/route-trpc.ts";
 
 /** SettingsViewerViewStory — the ONE home of the `SettingsViewerView` projection a settings `when`
  *  predicate consumes (SET-SEAMS §5). NON-suspense on purpose: gating must never block a pane from
@@ -741,14 +742,11 @@ export function SectionEchoStory(): ReactElement {
 // story reuses the echo pair on purpose: the OTHER half of the arm is that a refused write must not seed the
 // read it would otherwise be authoritative for.
 
-const useRefusableSectionUpdate = createEntityMutation<UpdateSectionVars, unknown>({
-  options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
+const useRefusableSectionUpdate = createEntityMutation<TrpcInput<"rpg.editSnapshot">, TrpcWireOutput<"rpg.editSnapshot">>({
+  options: (trpc) => trpc.rpg.editSnapshot.mutationOptions(),
   busDriven: true,
   echo: (trpc) => trpc.settings.getUserSettings.queryKey(),
-  refusal: (data): string | null => {
-    const verdict = data as { readonly ok?: boolean; readonly reason?: string };
-    return verdict.ok === false ? `refused — ${verdict.reason ?? ""}` : null;
-  },
+  refusal: (data): string | null => (data.ok === false ? `refused — ${data.reason}` : null),
 });
 
 function SectionRefusalInner(): ReactElement {
@@ -769,7 +767,7 @@ function SectionRefusalInner(): ReactElement {
     <div>
       <p data-testid="seed-preset">{data.config.seeds.defaultPresetId ?? "unset"}</p>
       <p data-testid="notified">{notified}</p>
-      <button type="button" onClick={(): void => mutation.mutate({ section: "seeds", patch: { defaultPresetId: "preset_after" } })}>
+      <button type="button" onClick={(): void => mutation.mutate({ chatId: "chat_ct_refusal", patch: { actorState: "invalid-image" } })}>
         save
       </button>
     </div>

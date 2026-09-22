@@ -344,11 +344,10 @@ async function runTriggerTurn(deps: ArmExecutorDeps, action: Extract<AutomationA
     guided = rendered.text.length > 0 ? rendered.text : undefined;
   }
   // The chat non-human turn seam: `initiator:"automation"` is hardcoded at compose (automation cannot forge a
-  // different origin), the funder = the rule author, the funding host is resolved from the ROOM, and the depth =
-  // this dispatch's child-depth (`origin.automationDepth`) — stamped on the reply slot so the cascade guard
-  // bounds the chain. LOOP SAFETY rides INSIDE requestTurn: the engine's D17 consent belt + the per-member turn
-  // RATE budget + the cascade-depth guard. A by-proxy hosted turn without owner consent (or a lost-authority /
-  // depth-cap / gone-chat) THROWS, mapped to a typed `arm_error` here (never a fabricated success).
+  // different origin), the rule author remains the initiator, the host funder is resolved from the ROOM, and
+  // the depth = this dispatch's child-depth (`origin.automationDepth`) — stamped on the reply slot so the
+  // cascade guard bounds the chain. A lost-authority / depth-cap / gone-chat refusal maps to a typed
+  // `arm_error` here (never a fabricated success).
   try {
     await deps.ops.chat.requestTurn({
       authorUserId: frame.authorUserId,

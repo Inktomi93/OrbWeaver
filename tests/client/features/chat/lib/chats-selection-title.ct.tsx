@@ -13,6 +13,7 @@
 // fact about the topbar, not about the title this hook returns.
 
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { TrpcRoutes } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ChatsSelectionTitleStory } from "../_ct-stories.tsx";
 import { chatListResponder, makeChatSummary } from "../fixtures.ts";
@@ -21,7 +22,9 @@ import { chatListResponder, makeChatSummary } from "../fixtures.ts";
  *  to print the roster's size, so the hook composes the census the LIST band's shed title took with it. Fed
  *  ambiently here — every test below has a room OPEN, where the census is deliberately not the answer, so a
  *  roster of three is the fixture that would EXPOSE a leak of it rather than hide one. */
-const ROSTER_OF_THREE = { "chat.listChats": chatListResponder([1, 2, 3].map((n) => makeChatSummary({ id: `chat_ct_title_${String(n)}` }))) };
+const ROSTER_OF_THREE: TrpcRoutes<"chat.listChats"> = {
+  "chat.listChats": chatListResponder([1, 2, 3].map((n) => makeChatSummary({ id: `chat_ct_title_${String(n)}` }))),
+};
 
 test("the open room's stored title IS the mobile screen title", async ({ mount, page }) => {
   await routeTrpc(page, { ...ROSTER_OF_THREE, "chat.getChat": { title: "The Ashfall Road", participants: [], identities: [] } });

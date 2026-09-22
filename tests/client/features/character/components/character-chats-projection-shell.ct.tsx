@@ -21,6 +21,7 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
+import type { TrpcFixtureOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import type { ScopedChatSummaryFixture } from "../../chat/fixtures.ts";
 import { chatListResponder, makeChatSummary, makeSeatPortrait } from "../../chat/fixtures.ts";
@@ -30,7 +31,7 @@ import { makeCharacterDetail } from "../fixtures.ts";
 const AZARAEL = "char_ct_azarael0001";
 const SERA = "char_ct_sera00000001";
 
-const SETTINGS = { userId: "user_ct_ctx", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };
+const SETTINGS = { userId: "user_ct_ctx", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0, configUnreadable: null };
 const AZARAEL_DETAIL = makeCharacterDetail({ id: AZARAEL, handle: castId<CharacterHandle>("azarael"), name: "Azarael" });
 
 /** The row's cast as the SERVER sends it: the viewer's own seat is suppressed while another seat remains. */
@@ -72,13 +73,12 @@ const HOUR_MS = 3_600_000;
 
 /** R1: New chat mints a REAL room — the minimal ChatDetail the startChat responder returns. */
 const CREATED_CHAT_ID = "chat_ctx_created";
-const CREATED_CHAT = {
+const CREATED_CHAT: TrpcFixtureOutput<"chat.startChat">["chat"] = {
   id: CREATED_CHAT_ID,
   title: null,
   participants: [],
   anchorPersonaId: null,
   identities: [],
-  group: { mode: "single" },
   temporary: false,
   viewerIsHost: true,
   roomOverrides: {},

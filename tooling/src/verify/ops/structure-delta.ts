@@ -16,8 +16,8 @@
 //   • either artifact unreadable or absent — including "there is no prior slot", which is NOT "no change";
 //   • either run DIED (`complete: false`) — the #410 in-flight stub;
 //   • either run is a NON-VERDICT (#2167) — fixture-mode, contaminated, or operator-tombstoned;
-//   • either run was GATE-SCOPED (`selection.kind !== "all"`) — a one-policy run against a whole-corpus run
-//     shares no denominator, and differencing them manufactures ~300 phantom removals that read as a finding.
+//   • either run was gate- or source-SCOPED — a partial run against a whole-corpus run shares no denominator,
+//     and differencing them manufactures phantom removals that read as a finding.
 //   • the two runs are from DIFFERENT CHECKOUTS — different trees, so the delta is not about a change;
 //   • the two ends are TRANSPOSED (#2223) — an explicit `--before` that started AFTER its `--after` reverses
 //     every comparison, so a regression reads as a repair and the tool exits 0 on it.
@@ -56,7 +56,7 @@ refuseDirectInvocation(import.meta.url, "pnpm check:structure-delta");
  *  with the mixed runtime (#1584), `selection`/`quiet` with the gate-scoped door (#1964), and
  *  `verdict`/`nonVerdictReason` with this row (#2167). Declaring them optional HERE is what makes each
  *  `!== undefined` guard below a real test instead of dead code the linter is right to flag. */
-const LATE_MANIFEST_FIELDS = ["final", "selection", "quiet", "verdict", "nonVerdictReason"] as const;
+const LATE_MANIFEST_FIELDS = ["final", "selection", "scope", "quiet", "verdict", "nonVerdictReason"] as const;
 type LateManifestFields = (typeof LATE_MANIFEST_FIELDS)[number];
 type SlotRun = Omit<RunManifest, LateManifestFields> & Partial<Pick<RunManifest, LateManifestFields>>;
 /** `toolErrors` LEFT the writer contract at #2176 Phase F (the legacy dispatcher that raised them is gone),
@@ -135,6 +135,9 @@ function unusable(slot: Slot): string | null {
   }
   if (run.selection !== undefined && run.selection.kind !== "all") {
     return `that run was GATE-SCOPED (--${run.selection.kind} ${run.selection.names.join(", ")}) — it shares no denominator with a whole-corpus run`;
+  }
+  if (run.scope !== undefined && run.scope.kind !== "whole") {
+    return `that run was SOURCE-SCOPED (${run.scope.label}) — it shares no denominator with a whole-corpus run`;
   }
   return null;
 }

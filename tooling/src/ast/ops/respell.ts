@@ -11,6 +11,7 @@ import { emit, hitOf, narrate } from "../lib/emit.ts";
 import { declKey } from "../lib/keys.ts";
 import { exitToolError, noteUnits, scanCorpus } from "../lib/ledger.ts";
 import { commentHost } from "../lib/public-markers.ts";
+import { nearPairHit } from "../lib/respell-near-report.ts";
 import { TEST_FILE_RE } from "../lib/root.ts";
 import { ownExports } from "../lib/scope.ts";
 
@@ -272,29 +273,12 @@ export function cmdRespell(project: SourceCorpus, arg: string, flags: Flags): vo
   }
 }
 
-// ── respell --near: a NEAR tier beside the exact one — Jaccard over semantic field identity ──
-// Exact `respell` asks "is this shape MUTUALLY ASSIGNABLE with a contracts sibling" — a yes/no that misses
-// the shape that STARTED as a copy and drifted a field or two (a rename, a dropped/added property). This
-// tier is a SIMILARITY score on the SAME axis (domain `contract/` vs `@orb/contracts/<domain>`, never
-// widened to all-pairs — a `RequestInit`-shaped coincidence anywhere in the workspace is noise, not a
-// re-spell candidate), reported as a FIELD-LEVEL DIFF because the percentage alone tells a reader nothing
-// actionable: "82%" doesn't say WHICH field moved. The diff does: shared-field count, fields that kept
-// their TYPE but changed NAME (the rename a syntactic tool cannot see either), and each side's leftover
-// fields.
-//
-// FLOOR: {@link RESPELL_NEAR_PROPERTY_FLOOR}+ fields on BOTH sides — below it, two shapes coincide on most
-// of a tiny signature by chance (every `{id, name}`-ish pair in the repo would score high).
-//
-// EXCLUDED deliberately: exact-tier hits, plus direct aliases and generic `typeof` aliases with shared
-// resolved provenance. A derive is the recommended fix, never a defect at either tier.
-/** How many fields a shape needs on BOTH sides before a near-match means anything. */
+// `respell --near` adds a Jaccard field-identity tier beside exact mutual assignability. It stays on the
+// domain-contracts axis, reports the field diff, ignores tiny shapes, and excludes exact or derived twins.
 const RESPELL_NEAR_PROPERTY_FLOOR = 4;
-
-/** Ratio-to-percentage scale — the ONE place `nearFieldDiffOf` converts. */
 const PCT_SCALE = 100;
 
-/** ONE field: its name and display type. Identity is decided by the checker in
- *  {@link semanticallyEqualFieldType}; text is report-only because aliases preserve their spelling. */
+/** One field's name and report-only display type; the checker decides identity. */
 interface FieldPair {
   readonly name: string;
   readonly type: string;
@@ -305,16 +289,13 @@ interface FieldIdentity {
   readonly name: string;
 }
 
-/** A shape's fields. Reuses `decl.getType().getProperties()` — the same property enumeration
- *  `shapeSignature`'s floor already filters to object shapes with. */
+/** A shape's checker-resolved fields. */
 function fieldPairsOf(decl: Node): FieldPair[] {
   const type = decl.getType();
   return type.getProperties().map((prop) => ({ name: prop.getName(), type: prop.getTypeAtLocation(decl).getText() }));
 }
 
-/** Whether two named properties are mutually assignable in every native compiler program that owns both
- *  declarations. This is the field-level twin of {@link mutuallyAssignable}; checker text is diagnostic,
- *  never identity (`CharacterId` and `TypeIdOf<"CharacterId">` can print differently). */
+/** Whether two fields are mutually assignable in every native compiler program that owns both. */
 function semanticallyEqualFieldType(checker: AssignabilityChecker, leftField: FieldIdentity, rightField: FieldIdentity): boolean {
   const compare = (effectiveChecker: AssignabilityChecker, left: Node, right: Node): boolean => {
     const leftType = left.getType().getProperty(leftField.name)?.getTypeAtLocation(left).compilerType;
@@ -379,10 +360,7 @@ function nearFieldDiffOf(checker: AssignabilityChecker, domainDecl: Node, contra
   return { pct, sharedCount, totalFields, renamed, domainOnly, contractsOnly };
 }
 
-/** ONE domain's near-tier candidates: every (domain shape, contracts shape) pair at ≥{@link thresholdPct},
- *  minus any pair the EXACT tier already resolves and minus the domain shapes below the field floor. Pure
- *  enumeration — no exemption policy, no printing (the verb owns both), so the self-test drives the same
- *  function the CLI does. */
+/** One domain's near-tier candidates, excluding exact/derived matches and shapes below the field floor. */
 export function respellNearCandidatesFor(project: SourceCorpus, checker: AssignabilityChecker, domain: string, thresholdPct: number): NearPairCandidate[] {
   const contractsShapes = shapesUnder(project, `/packages/contracts/src/${domain}/`).filter((s) => fieldPairsOf(s.decl).length >= RESPELL_NEAR_PROPERTY_FLOOR);
   if (contractsShapes.length === 0) {
@@ -417,21 +395,6 @@ export function isNearPairExempt(decl: Node): boolean {
   return commentHost(decl)
     .getLeadingCommentRanges()
     .some((range) => NEARPAIR_OK_RE.test(range.getText()));
-}
-
-/** `N/M shared (P%) · renamed-same-type: a→b · domain-only: x · contracts-only: y` — the field-level
- *  deliverable; the percentage is the admission threshold, never the report on its own. */
-function nearFieldDiffText(diff: NearFieldDiff): string {
-  const renamedText = diff.renamed.length === 0 ? "" : ` · renamed-same-type: ${diff.renamed.map((r) => `${r.from}→${r.to}`).join(", ")}`;
-  const domainOnlyText = diff.domainOnly.length === 0 ? "" : ` · domain-only: ${diff.domainOnly.join(", ")}`;
-  const contractsOnlyText = diff.contractsOnly.length === 0 ? "" : ` · contracts-only: ${diff.contractsOnly.join(", ")}`;
-  return `${diff.sharedCount}/${diff.totalFields} shared (${diff.pct.toFixed(0)}%)${renamedText}${domainOnlyText}${contractsOnlyText}`;
-}
-
-function nearPairHit(candidate: NearPairCandidate): Hit {
-  const h = hitOf(candidate.domainDecl, "respell-near");
-  h.text = `${candidate.domainName}  ≈  @orb/contracts/${candidate.domain}::${candidate.contractsName}  —  ${nearFieldDiffText(candidate.diff)}`;
-  return h;
 }
 
 /** The STALE side of `@nearpair-ok:` — a marker on a domain shape that no longer near-matches ANY

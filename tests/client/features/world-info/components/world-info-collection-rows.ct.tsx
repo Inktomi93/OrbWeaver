@@ -123,7 +123,7 @@ test("a REJECTED delete keeps the reader in the book that still exists (#1501)",
 test("a SUCCESSFUL delete does clear it — CONTENT must not hold a dead editor (#1501, the other direction)", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "worldInfo.listBooksWithUsage": () => [REACH, SCRATCH],
-    "worldInfo.removeBook": () => null,
+    "worldInfo.removeBook": () => ({ deleted: true }),
   });
   const rows = await mount(<WorldInfoCollectionRowsStory selectedId={REACH.id} />);
   const open = rows.getByRole("status", { name: "Open collection member" });

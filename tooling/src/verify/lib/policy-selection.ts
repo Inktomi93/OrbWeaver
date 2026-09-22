@@ -9,7 +9,6 @@
 // A `--check` name resolves to at most ONE module because the loader asserts `id === basename` and two
 // modules in one directory cannot share a basename. `--family` resolves against the family names the same
 // roster derives, so a policy id handed to `--family` is an unknown selection rather than a silent empty run.
-import type { GateCorpus, SelectedGateCorpus } from "../contract/gate-corpus.ts";
 import type { PolicySelector } from "../contract/policy-plan.ts";
 
 /** Empty, duplicated and unknown names are misuse, in that order. `available` is the set of names the
@@ -28,37 +27,4 @@ export function refuseSelection(selector: PolicySelector, available: ReadonlySet
   }
   const unknown = selector.names.filter((name) => !available.has(name)).toSorted();
   return unknown.length > 0 ? `unknown ${selector.kind} selection(s): ${unknown.join(", ")}` : null;
-}
-
-function availableNames(corpus: GateCorpus, selector: PolicySelector): ReadonlySet<string> {
-  if (selector.kind === "family") {
-    return new Set(corpus.gates.map((policy) => policy.family));
-  }
-  return new Set(corpus.gates.map((policy) => policy.id));
-}
-
-/** Resolve a selection against the corpus: the refusal message, or the slice that was asked for.
- *  `{kind:"all"}` returns the corpus unchanged, which is what keeps the default run byte-identical.
- *
- *  A selection that matched nothing can only come back as a REFUSAL, never as an empty `SelectedGateCorpus` —
- *  an empty selection that ran would report a clean zero about a gate nobody executed, which is the exact
- *  failure the gate-scoped door exists to close. */
-export function resolveGateSelection(corpus: GateCorpus, selector: PolicySelector): SelectedGateCorpus | { readonly message: string } {
-  const refusal = refuseSelection(selector, availableNames(corpus, selector));
-  if (refusal !== null) {
-    return { message: refusal };
-  }
-  if (selector.kind === "all") {
-    return { gates: corpus.gates };
-  }
-  const requested = new Set(selector.names);
-  const key =
-    selector.kind === "family"
-      ? (policy: { readonly family: string; readonly id: string }): string => policy.family
-      : (policy: { readonly family: string; readonly id: string }): string => policy.id;
-  return { gates: corpus.gates.filter((policy) => requested.has(key(policy))) };
-}
-
-export function isSelectionFailure(value: SelectedGateCorpus | { readonly message: string }): value is { readonly message: string } {
-  return "message" in value;
 }

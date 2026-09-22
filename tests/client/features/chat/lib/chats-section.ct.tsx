@@ -13,6 +13,7 @@
 // form) — a partial `ChatDetail`, the same posture as message-list-surface.ct's ROSTER_STUB. Every
 // value crosses the routeTrpc JSON boundary as a plain object.
 
+import type { RoomOverrides } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
@@ -22,6 +23,7 @@ import { testId } from "../../../../../packages/client/src/lib/test-ids.ts";
 import { hitExtent, touchFloorPx } from "../../../../support/browser/touch-floor.ts";
 import { HOST_BAND, openContextSections } from "../../../../support/node/open-context-sections.ts";
 import { REGEX_READS_EMPTY } from "../../../../support/node/regex-reads-empty.ts";
+import type { TrpcFixtureOutput, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ChatContextPanelStory, ChatContextTabContributorStory, ChatDeletedWhileOpenStory, RoomActivityTabStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES } from "../fixtures.ts";
@@ -33,15 +35,15 @@ import { CHAT_AMBIENT_ROUTES } from "../fixtures.ts";
 // boundary and the headings are all this file asserts. Found by the CT reporter's unfed-read census, whose
 // per-file line for this test named all three. Empty declarations = each section's teaching empty state,
 // the arm with the smallest blast radius on the heading/count assertions around them.
-const THIS_CHAT_TAB_READS = {
-  "chat.getUserMacroPicks": (): unknown => ({ macros: [], values: {} }),
-  "chat.getVariablePicks": (): unknown => ({ variables: [], values: {} }),
-  "databank.listActiveForChat": (): unknown => [],
+const THIS_CHAT_TAB_READS: TrpcRoutes<"chat.getUserMacroPicks" | "chat.getVariablePicks" | "databank.listActiveForChat" | "worldInfo.listForChat"> = {
+  "chat.getUserMacroPicks": () => ({ macros: [], values: {} }),
+  "chat.getVariablePicks": () => ({ variables: [], values: {} }),
+  "databank.listActiveForChat": () => [],
   // #637 — the Books section (chat-books-section.tsx, landed in #630) joined this tab with a SUSPENDING
   // `worldInfo.listForChat`, so an unfed read threw into its QueryBoundary and the "no read-error surface"
   // assertion below reddened. Exactly the "including one added tomorrow" case that assertion was written
   // for, and the unfed-read ratchet named the procedure in the same run. Empty = the section's empty state.
-  "worldInfo.listForChat": (): unknown => [],
+  "worldInfo.listForChat": () => [],
   // #1788 — the same story a third time, and the loudest arm of it: the #1742 Regex section joined this tab
   // with a HEADING CHIP that reads `chat.listEffectiveRegex` through a plain `useQuery` OUTSIDE every
   // disclosure, so the read fires on every mount here and the unfed answer took the tab's error arm — nine
@@ -87,13 +89,28 @@ async function stubMultiHumanCapable(page: Page, capable: boolean): Promise<void
 // A human seat in the room — `role` seats a host/member (the roster shape); the surface's host gate is
 // the separate server-resolved `viewerIsHost` field, NOT this seat's role. The rest is filler the panel
 // ignores.
-function human(role: ParticipantRole): Record<string, unknown> {
+type ChatParticipant = TrpcWireOutput<"chat.getChat">["participants"][number];
+type ChatIdentity = TrpcWireOutput<"chat.getChat">["identities"][number];
+type FixtureArrayElement<T, TKey extends PropertyKey> = T extends unknown
+  ? TKey extends keyof T
+    ? NonNullable<T[TKey]> extends readonly (infer Item)[]
+      ? Item
+      : never
+    : never
+  : never;
+type ParticipantFixture = FixtureArrayElement<TrpcFixtureOutput<"chat.getChat">, "participants">;
+type HumanSeat = Pick<
+  ChatParticipant,
+  "activePersonaId" | "avatarHash" | "characterId" | "displayName" | "handle" | "id" | "kind" | "leftSeq" | "role" | "userId"
+>;
+
+function human(role: ParticipantRole): ParticipantFixture {
   return { kind: "human", role, userId: "user_ct", characterId: null };
 }
 
 // A character seat — the fields `resolveIsGroupChat` AND the Members Character rows read (the §7.1 merge
 // projects displayName/disabled/talkativeness/avatarHash into `MemberCharacterRow`s).
-function character(key: string): Record<string, unknown> {
+function character(key: string): ParticipantFixture {
   return {
     id: `participant_${key}`,
     kind: "character",
@@ -111,7 +128,11 @@ function character(key: string): Record<string, unknown> {
 // `role` seats the viewer's OWN human row AND sets the server-resolved `viewerIsHost` to match — the
 // honest single-human case where the seat and the server field agree (the proxy-vs-server DISAGREEMENT
 // is exercised by its own dedicated test below).
-function chatDetail(role: ParticipantRole, roomOverrides: Record<string, string> = {}, characters: readonly Record<string, unknown>[] = []): unknown {
+function chatDetail(
+  role: ParticipantRole,
+  roomOverrides: RoomOverrides = {},
+  characters: readonly ParticipantFixture[] = [],
+): TrpcFixtureOutput<"chat.getChat"> {
   return {
     participants: [human(role), ...characters],
     // `ChatDetail.identities` is server-populated on every getChat; a tab that resolves a seat's persona through it
@@ -127,6 +148,9 @@ function chatDetail(role: ParticipantRole, roomOverrides: Record<string, string>
 /** The Preview tab's System source-row drill-in trigger. */
 const RE_SYSTEM_ROW = /System/;
 
+type AssemblyPreview = TrpcWireOutput<"chat.previewAssembly">;
+type AssemblyTrace = AssemblyPreview["trace"];
+
 const PREVIEW = {
   prompt: {
     static: "SYSTEM: be a helpful guide",
@@ -138,6 +162,7 @@ const PREVIEW = {
   trace: emptyTrace(),
   budget: {
     ceilingTokens: 8192,
+    ceilingEstimated: false,
     totalTokens: 120,
     sources: [
       {
@@ -148,10 +173,11 @@ const PREVIEW = {
         text: "SYSTEM: be a helpful guide",
       },
     ],
+    sections: [],
   },
-};
+} satisfies AssemblyPreview;
 
-function emptyTrace(): Record<string, unknown> {
+function emptyTrace(): AssemblyTrace {
   return {
     staticSections: ["main_prompt"],
     dynamicSections: [],
@@ -161,6 +187,8 @@ function emptyTrace(): Record<string, unknown> {
     matchedKeys: [],
     compactSummaryIncluded: false,
     memoryIncluded: false,
+    memoryRecall: null,
+    databankIncluded: false,
     guidedInstructionIncluded: false,
     staticCacheBusters: [],
     chatInjectionsIncluded: 0,
@@ -174,7 +202,7 @@ function emptyTrace(): Record<string, unknown> {
 // load-bearing now: a human row renders the PERSONA it is playing, resolved against the room's characters producer
 // (#162). The `handle` stays on the WIRE stub, spelled as an EMAIL exactly as an OIDC install ships it,
 // because the point of the change is that no row can render it as a second identity beside the name.
-function humanSeat(id: string, displayName: string, role: ParticipantRole): Record<string, unknown> {
+function humanSeat(id: string, displayName: string, role: ParticipantRole): HumanSeat {
   return {
     id: `participant_${id}`,
     kind: "human",
@@ -190,13 +218,13 @@ function humanSeat(id: string, displayName: string, role: ParticipantRole): Reco
 }
 
 /** The persona IDENTITY entry a {@link humanSeat} is playing — what turns its `activePersonaId` into a name. */
-function personaEntry(id: string, name: string): Record<string, unknown> {
+function personaEntry(id: string, name: string): ChatIdentity {
   return { kind: "persona", id: `persona_${id}`, name, description: "", avatarHash: null };
 }
 
 // A `ChatDetail` stub for the People-tab cases — carries the server-resolved `viewerIsHost` (the
 // invite-controls gate; NOT the first-seat proxy the older tabs still use) and the room's characters producer.
-function multiHumanChat(viewerIsHost: boolean, humans: readonly Record<string, unknown>[]): unknown {
+function multiHumanChat(viewerIsHost: boolean, humans: readonly HumanSeat[]): TrpcFixtureOutput<"chat.getChat"> {
   return {
     participants: [...humans, character("aria")],
     identities: humans.map((h) => personaEntry(String(h["userId"]).replace("user_", ""), String(h["displayName"]))),
@@ -204,6 +232,11 @@ function multiHumanChat(viewerIsHost: boolean, humans: readonly Record<string, u
     viewerIsHost,
   };
 }
+
+const CREATED_INVITE = {
+  invite: { id: "chatinvite_ct_new", status: "pending" },
+  token: "tok_ct_minted",
+} satisfies TrpcFixtureOutput<"invites.createInvite">;
 
 test("host sees the consolidated tabs (This chat · Preview)", async ({ mount, page }) => {
   await routeTrpc(page, {
@@ -253,7 +286,7 @@ test("#860: the context bracket's head band carries the room's title WHOLE and t
     // A long, crushable name (the seeded prefix every room shares) on a three-seat roster — every seat
     // PRESENT (`leftSeq: null`), which is what the chip counts.
     "chat.getChat": () => ({
-      ...(multiHumanChat(true, [humanSeat("ct", "Alex", "host")]) as object),
+      ...multiHumanChat(true, [humanSeat("ct", "Alex", "host")]),
       participants: [humanSeat("ct", "Alex", "host"), character("aria"), character("buddy")],
       title: "Example — The Ashen Spire",
     }),
@@ -264,6 +297,7 @@ test("#860: the context bracket's head band carries the room's title WHOLE and t
       userId: "user_ct",
       schemaVersion: 1,
       config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, defaultPresetId: "preset_ct_house" } },
+      configUnreadable: null,
       updatedAt: 0,
     }),
   });
@@ -306,7 +340,7 @@ test("#1502: the preset chip SAYS it could not name the preset — it does not v
     ...CHAT_AMBIENT_ROUTES,
     ...THIS_CHAT_TAB_READS,
     "chat.getChat": () => ({
-      ...(multiHumanChat(true, [humanSeat("ct", "Alex", "host")]) as object),
+      ...multiHumanChat(true, [humanSeat("ct", "Alex", "host")]),
       participants: [humanSeat("ct", "Alex", "host"), character("aria"), character("buddy")],
       title: "Example — The Ashen Spire",
     }),
@@ -316,6 +350,7 @@ test("#1502: the preset chip SAYS it could not name the preset — it does not v
       userId: "user_ct",
       schemaVersion: 1,
       config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, defaultPresetId: "preset_ct_gone" } },
+      configUnreadable: null,
       updatedAt: 0,
     }),
   });
@@ -335,7 +370,7 @@ test("#1502: a viewer on the built-in preset is an ANSWER, and reads as one", as
     ...CHAT_AMBIENT_ROUTES,
     ...THIS_CHAT_TAB_READS,
     "chat.getChat": () => ({
-      ...(multiHumanChat(true, [humanSeat("ct", "Alex", "host")]) as object),
+      ...multiHumanChat(true, [humanSeat("ct", "Alex", "host")]),
       participants: [humanSeat("ct", "Alex", "host"), character("aria"), character("buddy")],
       title: "Example — The Ashen Spire",
     }),
@@ -364,7 +399,7 @@ test("#875 F6: every visible label in the chat band clears the 11px readable flo
     ...CHAT_AMBIENT_ROUTES,
     ...THIS_CHAT_TAB_READS,
     "chat.getChat": () => ({
-      ...(multiHumanChat(true, [humanSeat("ct", "Alex", "host")]) as object),
+      ...multiHumanChat(true, [humanSeat("ct", "Alex", "host")]),
       participants: [humanSeat("ct", "Alex", "host"), character("aria"), character("buddy")],
       title: "Example — Midnight Run",
     }),
@@ -374,6 +409,7 @@ test("#875 F6: every visible label in the chat band clears the 11px readable flo
       userId: "user_ct",
       schemaVersion: 1,
       config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, defaultPresetId: "preset_ct_house" } },
+      configUnreadable: null,
       updatedAt: 0,
     }),
   });
@@ -405,7 +441,7 @@ test("#878 F11/F18: the memory chip shows its word, and the members chip is a DA
     ...CHAT_AMBIENT_ROUTES,
     ...THIS_CHAT_TAB_READS,
     "chat.getChat": () => ({
-      ...(multiHumanChat(true, [humanSeat("ct", "Alex", "host")]) as object),
+      ...multiHumanChat(true, [humanSeat("ct", "Alex", "host")]),
       participants: [humanSeat("ct", "Alex", "host"), character("aria"), character("buddy")],
       title: "Example — Midnight Run",
     }),
@@ -457,7 +493,7 @@ test.describe("#875 F6 — the band's chips at a coarse pointer", () => {
       ...CHAT_AMBIENT_ROUTES,
       ...THIS_CHAT_TAB_READS,
       "chat.getChat": () => ({
-        ...(multiHumanChat(true, [humanSeat("ct", "Alex", "host")]) as object),
+        ...multiHumanChat(true, [humanSeat("ct", "Alex", "host")]),
         participants: [humanSeat("ct", "Alex", "host"), character("aria")],
         title: "Example — Midnight Run",
       }),
@@ -722,10 +758,7 @@ test("capable HOST: Members lists the humans (host chip) and the invite dialog m
     "chat.listChatInjections": () => [],
     "chat.previewAssembly": () => PREVIEW,
     "invites.listInvites": () => [],
-    "invites.createInvite": () => ({
-      invite: { id: "chatinvite_ct_new", status: "pending" },
-      token: "tok_ct_minted",
-    }),
+    "invites.createInvite": () => CREATED_INVITE,
   });
   await stubMultiHumanCapable(page, true);
 
@@ -1071,7 +1104,9 @@ test("a chatDeleted for the OPEN room takes the reader to landing, not a room wh
 // row here (the ONE-HOME `automation_fires` store). Proven through the real section → factory → mint path.
 
 // One fire-log row as the wire ships it (the FireView JSON crosses routeTrpc as a plain object).
-function activityFire(over: Record<string, unknown>): Record<string, unknown> {
+type ActivityFire = TrpcWireOutput<"automation.listChatActivity">[number];
+
+function activityFire(over: Partial<ActivityFire>): ActivityFire {
   return {
     id: "automation_fire_ct",
     ruleId: "automation_rule_ct",

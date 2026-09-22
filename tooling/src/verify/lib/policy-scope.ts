@@ -21,6 +21,7 @@ import {
   assertPolicyRepoPath,
   readPolicyChangedSelection,
   readPolicyRepositoryInventory,
+  readPolicyWholeRepositoryInventory,
   readPolicyWorkspacePackages,
   resolveExistingPolicyPath,
 } from "./policy-repo-inventory.ts";
@@ -386,10 +387,18 @@ function scopeLabel(request: PolicyScopeRequest, count: number, mergeBase: Polic
   }
 }
 
-export function resolvePolicyScope(root: string, input: PolicyScopeRequest): PolicyScopeResolution {
+export interface PolicyScopeResolutionOptions {
+  /** Lazy because a normal Git repository must never build or consult this fallback inventory. */
+  readonly wholeWorkspacePaths?: () => readonly string[];
+}
+
+export function resolvePolicyScope(root: string, input: PolicyScopeRequest, options: PolicyScopeResolutionOptions = {}): PolicyScopeResolution {
   assertPolicyScopeRequest(input);
   const request = snapshotRequest(input);
-  const inventory = readPolicyRepositoryInventory(root);
+  const inventory =
+    request.kind === "whole" && options.wholeWorkspacePaths !== undefined
+      ? readPolicyWholeRepositoryInventory(root, options.wholeWorkspacePaths)
+      : readPolicyRepositoryInventory(root);
   const selected = selectRequest(request, inventory, readAvailablePolicyPrograms(inventory));
   const ownership = resolvePolicyPathOwnership(selected.programs, selected.semanticPaths);
   const resolution: PolicyScopeResolution = {

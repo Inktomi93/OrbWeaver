@@ -7,6 +7,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
+import type { TrpcFixtureOutput, TrpcInput, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { CorpusListSurfaceRailBounceStory, CorpusListSurfaceStory, CorpusListSurfaceWidthStory, CorpusSectionArrivalStory } from "../_ct-stories.tsx";
 
@@ -41,8 +42,8 @@ const DISCOVER_HIT = {
 };
 
 /** search.search — discriminate on the decoded `over` input so one responder serves every target. */
-function searchResponder(input: unknown): unknown {
-  const over = (input as { over?: string } | undefined)?.over;
+function searchResponder(input: TrpcInput<"search.search">): TrpcFixtureOutput<"search.search"> {
+  const over = input?.over;
   if (over === "characters") {
     return { over: "characters", hits: [CHARACTER_HIT] };
   }
@@ -66,10 +67,14 @@ const ARIA_ROW = {
 const BOLT_ROW = { ...ARIA_ROW, characterId: "char_bolt", name: "Bolt", elevatorPitch: "A hound." };
 
 /** `browseCharacters` is KEYSET-PAGED (A8) — one page, its boundary, and the census of the whole scope. */
-function browsePage(rows: readonly (typeof ARIA_ROW)[], nextCursor: unknown, totalCount = rows.length): unknown {
+function browsePage(
+  rows: readonly (typeof ARIA_ROW)[],
+  nextCursor: TrpcWireOutput<"discovery.browseCharacters">["nextCursor"],
+  totalCount = rows.length,
+): TrpcFixtureOutput<"discovery.browseCharacters"> {
   return { items: rows, nextCursor, totalCount };
 }
-const EMPTY_BROWSE = browsePage([], null, 0);
+const EMPTY_BROWSE: TrpcFixtureOutput<"discovery.browseCharacters"> = browsePage([], null, 0);
 
 const EMPTY_CATALOG = { genres: [], tones: [], topTags: [], tagPairs: [], totalDistilled: 0 };
 
@@ -316,14 +321,18 @@ function catalogRow(index: number): typeof ARIA_ROW {
 }
 const PAGE_ONE = Array.from({ length: PAGE_SIZE }, (_, i) => catalogRow(i));
 const PAGE_TWO = Array.from({ length: CATALOG_TOTAL - PAGE_SIZE }, (_, i) => catalogRow(i + PAGE_SIZE));
-const TAIL_CURSOR = { sort: "recent", createdAt: 2000, characterId: "char_30" };
+const TAIL_CURSOR: NonNullable<TrpcWireOutput<"discovery.browseCharacters">["nextCursor"]> = {
+  sort: "recent",
+  createdAt: 2000,
+  characterId: "char_30",
+};
 /** The first catalog row's own name — the button the role chain has to reach. */
 const FIRST_CARD = /Card 01/u;
 
 /** Serves page two only when the request CARRIES the cursor the first page handed back — so a client that
  *  never follows the boundary reads exactly the truncated list A8 is about. */
-function browseResponder(input: unknown): unknown {
-  const cursor = (input as { cursor?: unknown } | undefined)?.cursor;
+function browseResponder(input: TrpcInput<"discovery.browseCharacters">): TrpcFixtureOutput<"discovery.browseCharacters"> {
+  const cursor = input?.cursor;
   return cursor === undefined || cursor === null ? browsePage(PAGE_ONE, TAIL_CURSOR, CATALOG_TOTAL) : browsePage(PAGE_TWO, null, CATALOG_TOTAL);
 }
 
@@ -411,7 +420,16 @@ test("coming back to Corpus lands focus in the omnibox, not on a wrapper (C7)", 
 // outline:none" — because BOTH corpus surfaces called `useFocusOnMount` on their own root, and CONTENT
 // mounts after LIST. The C7 test above cannot see it: a list-only mount has no competitor. This one mounts
 // the section the way the shell does, and it is the only arrangement where the defect exists.
-const EMPTY_CORPUS_CONTENT = {
+const EMPTY_CORPUS_CONTENT: TrpcRoutes<
+  | "discovery.home"
+  | "discovery.visualArchetypes"
+  | "discovery.forgottenGems"
+  | "discovery.unusedCharacters"
+  | "discovery.modelRouting"
+  | "discovery.topKeywords"
+  | "discovery.themeDrift"
+  | "workloads.list"
+> = {
   "discovery.home": {
     coverage: { characters: 0, digests: 0, segments: 0 },
     sceneThemes: [],

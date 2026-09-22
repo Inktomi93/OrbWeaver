@@ -15,6 +15,7 @@ const SETTINGS_VIEW = {
   userId: "user_ct_memory",
   schemaVersion: 1,
   config: DEFAULT_USER_SETTINGS,
+  configUnreadable: null,
   updatedAt: 0,
 };
 
@@ -28,7 +29,7 @@ const BACKFILL_JOB_NOTE = /Memory backfill job/i;
 function stub(page: Page, view: typeof SETTINGS_VIEW = SETTINGS_VIEW): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "settings.getUserSettings": () => view,
-    [UPDATE_PROC]: () => ({}),
+    [UPDATE_PROC]: () => view,
   });
 }
 

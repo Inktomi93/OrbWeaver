@@ -18,6 +18,7 @@ import type {
   CatalogModelsParams,
   ConnectionDiagnosticParams,
   CreateConnectionParams,
+  DropPluginProvidersParams,
   DropProviderParams,
   GenerationCostParams,
   GetConnectionParams,
@@ -26,6 +27,7 @@ import type {
   ListEndpointModelsParams,
   ProvidersAvailableParams,
   RefreshCatalogParams,
+  RegisterPluginProvidersParams,
   RegisterProviderParams,
   RemoveConnectionParams,
   ResolveChatCapabilityParams,
@@ -116,6 +118,8 @@ export interface ConnectionService {
   readonly providersAvailable: (params: ProvidersAvailableParams) => Promise<readonly ProviderAvailability[]>;
   readonly registerProvider: (params: RegisterProviderParams) => Promise<void>;
   readonly dropProvider: (params: DropProviderParams) => Promise<void>;
+  readonly registerPluginProviders: (params: RegisterPluginProvidersParams) => Promise<void>;
+  readonly dropPluginProviders: (params: DropPluginProvidersParams) => Promise<void>;
   readonly registry: ProviderRegistry;
 }
 

@@ -8,6 +8,7 @@
 // precedent).
 
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ChatGameModeMenuStory, ChatOptionsMenuStory } from "../_ct-stories.tsx";
 import { CHAT_ID, CHAT_ROOM_ROUTES } from "../fixtures.ts";
@@ -24,12 +25,11 @@ const LIST_ROW = {
   lastMessagePreview: null,
   isGame: true,
   participantNames: [],
-  filterCharacterIds: [],
   participantPortraits: [],
   viewerRole: "host",
   createdAt: 0,
   updatedAt: 0,
-};
+} satisfies TrpcWireOutput<"chat.listChats">["items"][number];
 
 // #637 — THE SINGLETON THIS FILE WAS FLAGGED FOR, and the verdict: `chat.getChat` was unfed in every case
 // here, and it is NOT an error-arm defect (GameMenuSection's read is a non-suspending `useGatedQuery` and the
@@ -181,7 +181,7 @@ test("#863: turning game mode OFF announces the kept state AND repaints the chat
     "chat.listChats": () => ({ items: [{ ...LIST_ROW, isGame: engaged, gamePaused: !engaged }], nextCursor: null }),
     "rpg.updateConfig": () => {
       engaged = false;
-      return {};
+      return null;
     },
   });
   const component = await mount(<ChatGameModeMenuStory />);

@@ -936,6 +936,7 @@ export async function loadStreamReplay(db: Db, chatId: ChatId, afterSeq: number 
   const selection = {
     seq: chatStreamEvents.seq,
     messageId: chatStreamEvents.messageId,
+    generationId: chatStreamEvents.generationId,
     kind: chatStreamEvents.kind,
     delta: chatStreamEvents.delta,
   } as const;

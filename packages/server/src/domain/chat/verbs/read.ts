@@ -219,7 +219,7 @@ interface PreviewInputs {
   /** The previewed chat — carried so the registry build can stamp the GAME group's `MacroSourceRef.id`. */
   readonly chatId: ChatId;
   readonly hostUserId: UserId;
-  /** The READER — whose connection the preview resolved under (§8.4-3). */
+  /** The room host whose connection the preview resolved under (§8.4-3). */
   readonly funderUserId: UserId;
   readonly model: string;
   /** The resolved model capability — the SHAPE-trace peek reads its `turns` cell (roleHandlingFloor /
@@ -403,9 +403,6 @@ async function resolvePreviewInputs(
   deps: ReadDeps,
   chatId: ChatId,
   opts: {
-    /** The READER — whose connection the preview resolves (§8.4-3: a preview is an honesty instrument for the
-     *  turn THIS user would run, so it follows the funder, never the host). */
-    readonly funderUserId: UserId;
     readonly anchorPersonaId: PersonaId | null;
     readonly speakerCharacterId?: CharacterId | null | undefined;
     /** D8 / §7.1 — assemble as if THIS preset were the chat's active one (the preset editor's bound readout
@@ -449,8 +446,7 @@ async function resolvePreviewInputs(
       const actor = classifyParticipant(r);
       return actor?.kind === "human" && actor.userId === hostUserId;
     })?.activePersonaId ?? null;
-  // The preview follows the FUNDER (§8.4-3): the reader's own connection, as their turn would run.
-  const connection = await deps.resolveConnection({ funderUserId: opts.funderUserId, chatId });
+  const connection = await deps.resolveConnection({ funderUserId: hostUserId, chatId });
   // THE GM-PRESET REDIRECT — the SAME early hop the turn runs (`verbs/turn.ts`: `resolvePresetOverride` before
   // the foreign read). A game chat assembles its `gmPresetId`, not the host's default preset; without this hop
   // every preview surface on a game chat would render the host's DEFAULT preset's templates
@@ -486,7 +482,7 @@ async function resolvePreviewInputs(
   return {
     chatId,
     hostUserId,
-    funderUserId: opts.funderUserId,
+    funderUserId: hostUserId,
     model: connection.model,
     capability: generationOf(connection),
     api: connection.api,
@@ -762,9 +758,8 @@ function createGetChat(ctx: ChatContext, deps: ReadDeps): ChatService["getChat"]
   };
 }
 
-/** The honest-refusal pre-send gate (#54): the deterministic serveability verdict for the CALLER's own chat
- *  connection — the one their turn in this room actually runs on (inference program §8.4-3: the funder's
- *  row, never the host's). Member-gated (any participant may read it — the composer disables SEND on it). A
+/** The honest-refusal pre-send gate (#54): the deterministic serveability verdict for the room HOST's chat
+ *  connection — the one every turn in this room runs on. Member-gated (any participant may read it — the composer disables SEND on it). A
  *  hostless room is a leak-free NOT_FOUND (as `resolvePreviewInputs`). Fires no turn/API call. */
 function createCheckSendAvailability(ctx: ChatContext, deps: ReadDeps): ChatService["checkSendAvailability"] {
   return async ({ principal, chatId }: GetChatParams): Promise<SendAvailability> => {
@@ -774,7 +769,7 @@ function createCheckSendAvailability(ctx: ChatContext, deps: ReadDeps): ChatServ
     if (hostUserId === null) {
       throw new ChatNotFoundError(chatId);
     }
-    return deps.checkSendAvailability({ funderUserId: principal.userId, chatId });
+    return deps.checkSendAvailability({ funderUserId: hostUserId, chatId });
   };
 }
 
@@ -1028,7 +1023,7 @@ function createListParticipants(ctx: ChatContext, deps: ReadDeps): ChatService["
 function createListEffectiveRegex(ctx: ChatContext, deps: ReadDeps): ChatService["listEffectiveRegex"] {
   return async ({ principal, chatId }: ListEffectiveRegexParams): Promise<EffectiveRegexView> => {
     const { chat } = await requireHost(ctx, principal, chatId);
-    const inputs = await resolvePreviewInputs(ctx, deps, chatId, { funderUserId: principal.userId, anchorPersonaId: chat.anchorPersonaId });
+    const inputs = await resolvePreviewInputs(ctx, deps, chatId, { anchorPersonaId: chat.anchorPersonaId });
     return resolveRegexTiers(
       {
         ...(await ctx.resolveRegexSources({
@@ -1233,7 +1228,6 @@ function createPreviewAssembly(ctx: ChatContext, deps: ReadDeps): ChatService["p
   return async ({ principal, chatId, speakerCharacterId, guided, presetOverride }: PreviewAssemblyParams): Promise<AssemblyPreview> => {
     const membership = await requireHost(ctx, principal, chatId);
     const inputs = await resolvePreviewInputs(ctx, deps, chatId, {
-      funderUserId: principal.userId,
       anchorPersonaId: membership.chat.anchorPersonaId,
       speakerCharacterId,
       ...(presetOverride === undefined ? {} : { presetOverride }),
@@ -1276,7 +1270,6 @@ function createPeekPrompt(ctx: ChatContext, deps: ReadDeps): ChatService["peekPr
   return async ({ principal, chatId, speakerCharacterId }: PeekPromptParams): Promise<AssembledPrompt> => {
     const membership = await requireHost(ctx, principal, chatId);
     const inputs = await resolvePreviewInputs(ctx, deps, chatId, {
-      funderUserId: principal.userId,
       anchorPersonaId: membership.chat.anchorPersonaId,
       speakerCharacterId,
     });
@@ -1297,7 +1290,6 @@ function createGetShapeTrace(ctx: ChatContext, deps: ReadDeps): ChatService["get
   return async ({ principal, chatId, speakerCharacterId }: GetShapeTraceParams): Promise<ShapeTrace> => {
     const membership = await requireHost(ctx, principal, chatId);
     const inputs = await resolvePreviewInputs(ctx, deps, chatId, {
-      funderUserId: principal.userId,
       anchorPersonaId: membership.chat.anchorPersonaId,
       speakerCharacterId,
     });
@@ -1390,7 +1382,6 @@ function createPreviewContextFit(ctx: ChatContext, deps: ReadDeps): ChatService[
   return async ({ principal, chatId, speakerCharacterId }: PreviewContextFitParams): Promise<ContextFitPreview> => {
     const membership = await requireParticipant(ctx, principal, chatId);
     const inputs = await resolvePreviewInputs(ctx, deps, chatId, {
-      funderUserId: principal.userId,
       anchorPersonaId: membership.chat.anchorPersonaId,
       speakerCharacterId,
     });
@@ -1430,7 +1421,6 @@ function createGetActivePresetConfig(ctx: ChatContext, deps: ReadDeps): ChatServ
   return async ({ principal, chatId }: GetActivePresetConfigParams): Promise<PromptConfig> => {
     const membership = await requireParticipant(ctx, principal, chatId);
     const inputs = await resolvePreviewInputs(ctx, deps, chatId, {
-      funderUserId: principal.userId,
       anchorPersonaId: membership.chat.anchorPersonaId,
     });
     return inputs.foreign.promptConfig;
@@ -1448,7 +1438,6 @@ function createPreviewSection(ctx: ChatContext, deps: ReadDeps): ChatService["pr
   return async ({ principal, chatId, sectionId, speakerCharacterId }: PreviewSectionParams): Promise<SectionPreview> => {
     const membership = await requireHost(ctx, principal, chatId);
     const inputs = await resolvePreviewInputs(ctx, deps, chatId, {
-      funderUserId: principal.userId,
       anchorPersonaId: membership.chat.anchorPersonaId,
       speakerCharacterId,
     });
@@ -1504,7 +1493,6 @@ function createPreviewActionTemplates(ctx: ChatContext, deps: ReadDeps): ChatSer
   return async ({ principal, chatId, presetId }: PreviewActionTemplatesParams): Promise<ActionTemplatesPreview> => {
     const membership = await requireHost(ctx, principal, chatId);
     const inputs = await resolvePreviewInputs(ctx, deps, chatId, {
-      funderUserId: principal.userId,
       anchorPersonaId: membership.chat.anchorPersonaId,
       presetOverride: presetId,
     });

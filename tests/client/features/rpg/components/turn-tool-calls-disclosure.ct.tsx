@@ -17,6 +17,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { touchFloorPx } from "../../../../support/browser/touch-floor.ts";
+import type { TrpcRoutes } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import {
   TurnToolCallsDisclosureStory,
@@ -29,7 +30,7 @@ import {
 /** The room's `ChatDetail` as a LIVE game — the gate the hook reads before it asks for any record
  *  (`isRpgEngaged`, the one client predicate). Every story below is a game room unless it says otherwise;
  *  without this stub the disclosure correctly never fetches and the whole file would assert nothing. */
-const GAME_ROOM = {
+const GAME_ROOM: TrpcRoutes<"chat.getChat"> = {
   "chat.getChat": (): { readonly rpg: { readonly gameId: string; readonly engaged: boolean } } => ({ rpg: { gameId: "rpg_game_ct", engaged: true } }),
 };
 
@@ -245,12 +246,11 @@ test("re-engaging the game brings the record back with no reload", async ({ moun
     "chat.getChat": (): { readonly rpg: { readonly gameId: string; readonly engaged: boolean } } => ({
       rpg: { gameId: "rpg_game_ct", engaged },
     }),
-    "rpg.updateConfig": (): null => {
+    "rpg.updateConfig": (): undefined => {
       engaged = true;
-      return null;
     },
-    "rpg.getConfigView": (): null => null,
-    "rpg.getTrackerView": (): null => null,
+    "rpg.getConfigView": () => ({ ruleset: "freeform" }),
+    "rpg.getTrackerView": () => ({ ambient: null }),
     "rpg.listTurnToolCalls": () => RECORDED_TURN,
   });
 

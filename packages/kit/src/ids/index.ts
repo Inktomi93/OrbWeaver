@@ -43,6 +43,7 @@ export const ID_PREFIX = {
   messageReaction: "message_reaction",
   chatEvent: "chat_event",
   chatStreamEvent: "chat_stream_event",
+  chatStreamGeneration: "chat_stream_generation",
   sessionEntry: "session_entry",
   chatInjection: "chat_injection",
   chatParticipant: "chat_participant",
@@ -197,6 +198,9 @@ export type MessageAssetId = TypeIdOf<"message_asset">;
 export type MessageReactionId = TypeIdOf<"message_reaction">;
 export type ChatEventId = TypeIdOf<"chat_event">;
 export type ChatStreamEventId = TypeIdOf<"chat_stream_event">;
+/** One committed provider generation in the resumable token log. A swipe or continue can reuse its
+ * message slot, so the slot id cannot identify the hidden-span scrubber lifetime. */
+export type ChatStreamGenerationId = TypeIdOf<"chat_stream_generation">;
 export type SessionEntryId = TypeIdOf<"session_entry">;
 export type ChatInjectionId = TypeIdOf<"chat_injection">;
 export type ChatParticipantId = TypeIdOf<"chat_participant">;
@@ -223,8 +227,6 @@ export type ThemeClusterId = TypeIdOf<"theme_cluster">;
 
 // --- Stats (precompute rollup rows) ------------------------------------------
 export type CharacterStatId = TypeIdOf<"character_stat">;
-/** @public future: the owner_stats typed-id surface (unbuilt) — one member of the per-table id-brand block, kept for block completeness; unused as a column type only because owner_stats has a NATURAL PK. */
-export type OwnerStatId = TypeIdOf<"owner_stat">;
 export type DailyStatId = TypeIdOf<"daily_stat">;
 export type ModelStatId = TypeIdOf<"model_stat">;
 

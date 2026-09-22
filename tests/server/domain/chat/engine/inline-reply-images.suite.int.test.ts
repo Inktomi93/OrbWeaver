@@ -130,6 +130,7 @@ function prepOf(chatId: ChatId): TurnPrep {
     },
     connection: IMAGE_CONNECTION,
     triggeredBy: HOST,
+    funderUserId: HOST,
     runAsUserId: HOST,
     kind: "send",
     intent: { replyMedia: "text+image" },

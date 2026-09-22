@@ -16,6 +16,7 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { testId } from "../../../../../../packages/client/src/lib/test-ids.ts";
+import type { TrpcRoutes, TrpcWireOutput } from "../../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../../support/node/route-trpc.ts";
 import {
   PresetReadoutBoundStory,
@@ -29,7 +30,7 @@ const PRESET = "preset_ct_readoutbind";
 const CHAT = "chat_ct_readoutbind";
 const CHAT_TITLE = "Azarael & the Court";
 
-const PRESET_DETAIL = {
+const PRESET_DETAIL: TrpcWireOutput<"preset.get"> = {
   id: PRESET,
   name: "Preset R",
   kind: "custom",
@@ -39,11 +40,12 @@ const PRESET_DETAIL = {
   updatedAt: 0,
   config: DEFAULT_PROMPT_CONFIG,
   schemaVersion: DEFAULT_PROMPT_CONFIG.schemaVersion,
+  configUnreadable: null,
 };
 
 /** What the SERVER returns for the bound read — the resolution already happened chat-side (Ruling B), so the
  *  fixture is shaped exactly as the verb shapes it: identity REAL, fire-time tokens intact. */
-const RESOLVED = {
+const RESOLVED: TrpcWireOutput<"chat.previewActionTemplates"> = {
   identity: { user: "Alex", char: "Azarael" },
   templates: [
     { id: "impersonate", resolved: "Write the owner's next message from a {{person}}-person perspective. {{input}}" },
@@ -67,7 +69,7 @@ const ASSEMBLY_TRACE = {
   staticSections: ["main", "chat-history"],
   dynamicSections: [],
   worldInfoIncluded: 1,
-  worldInfoDropped: 0,
+  worldInfoDropped: [],
   worldInfoActivated: [],
   matchedKeys: [],
   compactSummaryIncluded: false,
@@ -76,9 +78,11 @@ const ASSEMBLY_TRACE = {
   staticCacheBusters: [],
   chatInjectionsIncluded: 0,
   afterHistorySections: [],
+  memoryRecall: null,
+  databankIncluded: false,
 };
 
-const ASSEMBLY = {
+const ASSEMBLY: TrpcWireOutput<"chat.previewAssembly"> = {
   prompt: { static: "You are Azarael.", dynamic: "", afterHistory: [], sendHistory: true, trace: ASSEMBLY_TRACE },
   trace: ASSEMBLY_TRACE,
   budget: {
@@ -111,7 +115,13 @@ const ASSEMBLY = {
 const CARRIER_UNPRICED = "Chat history cost not counted — this section's substance comes from the conversation";
 const CARRIER_PRICED = "Chat history approximately 1,624 tokens";
 
-const SETTINGS_VIEW = { userId: "user_ct_readout", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };
+const SETTINGS_VIEW: TrpcWireOutput<"settings.getUserSettings"> = {
+  userId: "user_ct_readout",
+  schemaVersion: 1,
+  config: DEFAULT_USER_SETTINGS,
+  updatedAt: 0,
+  configUnreadable: null,
+};
 // The binding NAMES the room off `chat.getChat` (2026-08-09) — the readout binds to the OPEN chat, so the
 // room read is the exact, already-warm answer; it used to scan the whole `listChats` array for a title,
 // which a keyset page can no longer promise carries it.
@@ -119,13 +129,23 @@ const CHAT_DETAIL = { id: CHAT, title: CHAT_TITLE, starred: false, archived: fal
 
 /** Every read the readout fires. `connection.resolveChatCapability` deliberately FAILS (no model connected):
  *  the binding must not depend on a connection, and the Actions panel has no capability half. */
-function readoutRoutes(): Record<string, unknown> {
+function readoutRoutes(): TrpcRoutes<
+  | "preset.get"
+  | "preset.list"
+  | "settings.getUserSettings"
+  | "connection.resolveChatCapability"
+  | "preset.resolveEffective"
+  | "preset.listUsage"
+  | "chat.getChat"
+  | "chat.previewActionTemplates"
+  | "chat.previewAssembly"
+> {
   return {
     "preset.get": () => PRESET_DETAIL,
     "preset.list": () => [PRESET_DETAIL],
     "settings.getUserSettings": () => SETTINGS_VIEW,
     "connection.resolveChatCapability": () => trpcError({ message: "no chat connection configured" }),
-    "preset.resolveEffective": () => ({ presetId: PRESET, model: "qwen3-32b", knobs: {}, stale: [] }),
+    "preset.resolveEffective": () => ({ presetId: PRESET, model: "qwen3-32b", knobs: {}, stale: [], qualityMapping: null }),
     // #649 — the CONTEXT panel's backward-BINDINGS read (`preset.listUsage`). Not this file's subject, but
     // every readout mount fires it, and unfed it rode `routeTrpc`'s null so the usage/gm-room resolve path
     // ran INERT here. The honest default for a preset nobody has picked and no room routes its GM voice to;

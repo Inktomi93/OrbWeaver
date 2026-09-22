@@ -6,11 +6,11 @@
 // routeTrpc-stubbed mutation returning text; Accept then persists via character.update.
 
 import { GREETING_TRANSFORMS } from "@orb/contracts/preset";
-import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
+import type { TrpcFixtureOutput } from "../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../support/node/route-trpc.ts";
 import { GreetingStudioStory } from "./greeting-studio.fixtures.tsx";
 
@@ -32,10 +32,10 @@ test("Rewrite generates, then Accept fires the character-update mutation exactly
     "settings.getUserSettings": () => settingsStub(false),
     // The studio's rewrite generation returns text; character.update is the accept-persist target. Its
     // result is never read (`StudioHarness`'s mutation has no `optimistic`/`echo` config — `busDriven`
-    // invalidation is what refreshes the cache), so `{}` is the honest fixture: it stops the mutation
-    // riding routeTrpc's unstubbed-null fulfil without inventing a consumed return shape.
+    // invalidation is what refreshes the cache), so the canonical updated-row response can stay focused
+    // to its id while still exercising the registered mutation.
     "character.rewriteGreeting": { text: "A revised, formal greeting.", costUsd: null },
-    "character.update": {},
+    "character.update": { id: "character_ct_greeting" },
   });
   await mount(<GreetingStudioStory />);
 
@@ -90,12 +90,13 @@ test("the transform picks ride the rewrite input as KINDS — no fragment bytes 
 const DIALOGUE_SPAN = '[data-slot="dialogue"]';
 const QUOTED_PREVIEW = "He looks up. “You're late,” he says.";
 
-function settingsStub(colorQuotedSpeech: boolean): { userId: UserId; schemaVersion: number; config: unknown; updatedAt: number } {
+function settingsStub(colorQuotedSpeech: boolean): TrpcFixtureOutput<"settings.getUserSettings"> {
   return {
     userId: castId<UserId>("user_ct"),
     schemaVersion: 1,
-    config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, colorQuotedSpeech } },
+    config: { appearance: { colorQuotedSpeech } },
     updatedAt: 0,
+    configUnreadable: null,
   };
 }
 

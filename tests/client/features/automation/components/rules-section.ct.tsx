@@ -12,6 +12,7 @@
 // own copy. Every one of them was RED against the pre-fix source (measured 2026-08-24, cb-rules-section).
 // The mount is 384px — the narrowest REAL host (the docked CONTEXT pane), never a roomy story width.
 
+import { DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -19,7 +20,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { hitExtent, touchFloorPx } from "../../../../support/browser/touch-floor.ts";
 import { HOST_BAND, openContextSections } from "../../../../support/node/open-context-sections.ts";
-import type { TrpcRecorder, TrpcResponder } from "../../../../support/node/route-trpc.ts";
+import type { TrpcFixtureOutput, TrpcRecorder, TrpcResponder, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { ctSnapPath } from "../../../../support/node/snap-out.ts";
 import { RulesInThisChatTabStory, RulesSectionStory, RulesSectionToastStory } from "../_ct-stories.tsx";
@@ -33,8 +34,8 @@ const A_PAST_INSTANT = 1_760_000_000_000;
  *  (the rules surface is), but unfed it resolved `routeTrpc`'s null, so every appearance/tier reader in this
  *  384px mount fell to its default branch and the settings-driven presentation path never ran. Production
  *  defaults, so no assertion here moves. */
-const VIEWER_SETTINGS_ROUTE: Readonly<Record<string, unknown>> = {
-  "settings.getUserSettings": { userId: "user_ct_rules", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: A_PAST_INSTANT },
+const VIEWER_SETTINGS_ROUTE: TrpcRoutes<"settings.getUserSettings"> = {
+  "settings.getUserSettings": { userId: "user_ct_rules", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: A_PAST_INSTANT, configUnreadable: null },
 };
 const RUN_NOW_ITEM = /Run now/u;
 const LAST_RAN_LINE = /^Last ran /u;
@@ -59,7 +60,10 @@ const RULE = {
   position: 1,
   trigger: { bus: "chat", type: "turnCompleted" },
   predicateCel: "int(chat.messageCount) % 10 == 0",
-  actions: [{ type: "generate_image", mode: "scenario", n: 1, useAvatarReference: false, reuse: "prefer", quiet: false }],
+  actions: [{ type: "generate_image", mode: "scenario", n: 1, useAvatarReference: false, reuse: "prefer", quiet: false, confirmFirst: false }],
+  actionsCorrupt: false,
+  rulePresetId: "illustrateScenes",
+  rulePresetKnobs: null,
   matchAutomationEvents: false,
   // B4 — RULED F4's per-rule opt-out, at its shipped default (the rule OFFERS to run when rate-capped).
   suggestOnRefusal: true,
@@ -69,7 +73,7 @@ const RULE = {
   lastFiredAt: null,
   createdAt: 1,
   updatedAt: 1,
-};
+} satisfies TrpcWireOutput<"automation.listRules">[number];
 
 // A rule whose only arm is FREE (`set_variable`) — the contrast that proves the spend marker is driven by
 // SPEND_ARM_TYPES rather than pasted onto every Run-now.
@@ -80,12 +84,13 @@ const FREE_RULE = {
   description: null,
   actions: [{ type: "set_variable", scope: "chat", key: "beats", op: "inc", value: "1" }],
   lastFiredAt: A_PAST_INSTANT,
-};
+} satisfies TrpcWireOutput<"automation.listRules">[number];
 
 // A single-rule, no-book rule preset (pacing nudge) — every knob has a usable default, so it mints on first
 // click.
 const PACING_PRESET = {
   id: "pacingNudge",
+  scope: "chat",
   title: "Periodic pacing nudge",
   summary: "Every few beats, quietly ask the narrator to shift the pacing.",
   ruleCount: 1,
@@ -97,7 +102,7 @@ const PACING_PRESET = {
     { key: "everyN", kind: "number", label: "Every N beats", default: 8, min: 2, max: 200 },
     { key: "steer", kind: "text", label: "Nudge", default: "Shift the pacing.", minLength: 1, maxLength: 600 },
   ],
-};
+} satisfies TrpcWireOutput<"automation.listRulePresets">[number];
 
 // The book-requiring rule preset (auto-add lore). Its `bookId` is the `entityRef` knob kind (#630): it
 // carries NO default at all — the picker renders it as a chooser over THIS CHAT's attached books, and the
@@ -105,6 +110,7 @@ const PACING_PRESET = {
 // to type a TypeID from memory) is what this row replaced.
 const LORE_PRESET = {
   id: "autoAddLore",
+  scope: "chat",
   title: "Auto-add lore entries",
   summary: "Every so often, offer to write what has happened into one of this room's world books.",
   ruleCount: 1,
@@ -116,13 +122,14 @@ const LORE_PRESET = {
     { key: "bookId", kind: "entityRef", entity: "worldInfoBook", label: "World book", help: "The book to write into — one of this room's own." },
     { key: "everyN", kind: "number", label: "Every N messages", default: 10, min: 2, max: 200 },
   ],
-};
+} satisfies TrpcWireOutput<"automation.listRulePresets">[number];
 
 /** The CHOICE + long-TEXT rule preset (the clock). It carries the two knob shapes #655 fixed on the form
  *  side: a `choice` whose options are wire values (`narrate`/`notify`) and now carry their own host labels,
  *  and a `text` knob holding a whole PROMPT SENTENCE, which a single-line `Input` clipped. */
 const CLOCK_PRESET = {
   id: "clockFires",
+  scope: "chat",
   title: "Clock fires when full",
   summary: "A countdown fills one step per beat; when it is full, something happens and it resets.",
   ruleCount: 2,
@@ -141,7 +148,7 @@ const CLOCK_PRESET = {
     },
     { key: "firedText", kind: "text", label: "What happens", default: CLOCK_PROMPT_DEFAULT, minLength: 1, maxLength: 600 },
   ],
-};
+} satisfies TrpcWireOutput<"automation.listRulePresets">[number];
 
 /** Named because the #640 end-to-end drives the picker BY this name — an index read into `ROOM_BOOKS` is
  *  `possibly undefined` under the tests program's `noUncheckedIndexedAccess`, while biome's type service
@@ -153,7 +160,7 @@ const CLOCK_PRESET = {
 // section is closed by default here, so the disabled-and-empty projection is all these mounts need: they
 // are about the AUTOMATION graft, and a regex claim belongs to `regex-section.ct.tsx`.
 const EMPTY_REGEX_READS = {
-  "chat.listEffectiveRegex": () => ({
+  "chat.listEffectiveRegex": (): TrpcWireOutput<"chat.listEffectiveRegex"> => ({
     enabled: false,
     tiers: [
       { scope: "global", allowed: true, rows: [] },
@@ -162,10 +169,10 @@ const EMPTY_REGEX_READS = {
     ],
     effective: [],
   }),
-  "regex.listForChat": () => [],
-  "regex.listScripts": () => [],
-  "regex.listRoomDisplayScripts": () => [],
-} as const;
+  "regex.listForChat": (): TrpcWireOutput<"regex.listForChat"> => [],
+  "regex.listScripts": (): TrpcWireOutput<"regex.listScripts"> => [],
+  "regex.listRoomDisplayScripts": (): TrpcWireOutput<"regex.listRoomDisplayScripts"> => [],
+} satisfies TrpcRoutes<"chat.listEffectiveRegex" | "regex.listForChat" | "regex.listScripts" | "regex.listRoomDisplayScripts">;
 
 const ATTACHABLE_BOOK_NAME = "Ashfall Canon";
 
@@ -174,16 +181,31 @@ const ATTACHABLE_BOOK_NAME = "Ashfall Canon";
 const ROOM_BOOKS = [
   { id: "worldbook_ct_lore_0001", name: ATTACHABLE_BOOK_NAME, description: null, createdAt: 2, role: null },
   { id: "worldbook_ct_lore_0002", name: "Session Notes", description: null, createdAt: 1, role: null },
-];
+] satisfies TrpcWireOutput<"worldInfo.listForChat">;
+
+type RulePreset = TrpcWireOutput<"automation.listRulePresets">[number];
+
+function rulePresets(...presets: readonly RulePreset[]): TrpcWireOutput<"automation.listRulePresets"> {
+  return presets;
+}
+
+function roomBooks(): TrpcWireOutput<"worldInfo.listBooks"> {
+  return ROOM_BOOKS;
+}
+
+const TEST_RULE_RESULT = {
+  predicate: true,
+  arms: [{ type: "generate_image", renderedPreview: "a moody scenario shot" }],
+} satisfies TrpcWireOutput<"automation.testRule">;
 
 interface StubOverrides {
-  readonly rules?: readonly unknown[];
-  readonly fires?: readonly unknown[];
-  readonly presets?: readonly unknown[];
-  readonly books?: readonly unknown[];
-  readonly mint?: TrpcResponder;
-  readonly setEnabled?: TrpcResponder;
-  readonly testRule?: TrpcResponder;
+  readonly rules?: TrpcFixtureOutput<"automation.listRules">;
+  readonly fires?: TrpcFixtureOutput<"automation.listFires">;
+  readonly presets?: TrpcFixtureOutput<"automation.listRulePresets">;
+  readonly books?: TrpcFixtureOutput<"worldInfo.listForChat">;
+  readonly mint?: TrpcResponder<"automation.createRuleFromPreset">;
+  readonly setEnabled?: TrpcResponder<"automation.setRuleEnabled">;
+  readonly testRule?: TrpcResponder<"automation.testRule">;
 }
 
 function stub(page: Page, overrides: StubOverrides = {}): Promise<TrpcRecorder> {
@@ -192,12 +214,12 @@ function stub(page: Page, overrides: StubOverrides = {}): Promise<TrpcRecorder> 
     "automation.listRules": () => overrides.rules ?? [RULE],
     "automation.listFires": () => overrides.fires ?? [],
     "automation.listRulePresets": () => overrides.presets ?? [PACING_PRESET],
-    "automation.setRuleEnabled": overrides.setEnabled ?? (() => ({})),
-    "automation.setRuleSuggestOnRefusal": () => ({}),
-    "automation.testRule": overrides.testRule ?? (() => ({ predicate: true, arms: [{ type: "generate_image", renderedPreview: "a moody scenario shot" }] })),
+    "automation.setRuleEnabled": overrides.setEnabled ?? (() => null),
+    "automation.setRuleSuggestOnRefusal": () => null,
+    "automation.testRule": overrides.testRule ?? (() => TEST_RULE_RESULT),
     "automation.runRuleNow": () => ({ outcome: "fired" }),
-    "automation.createRuleFromPreset": overrides.mint ?? ((): unknown => [RULE]),
-    "automation.deleteRule": () => undefined,
+    "automation.createRuleFromPreset": overrides.mint ?? (() => [RULE]),
+    "automation.deleteRule": () => null,
     "worldInfo.listForChat": () => overrides.books ?? ROOM_BOOKS,
   });
 }
@@ -651,20 +673,27 @@ test("#621 P1-3 re-derivation: the rule catalogue's summaries are not clipped by
 test("#616: the host's 'This chat' tab renders the grafted Rules section in the host-controls band", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...VIEWER_SETTINGS_ROUTE,
-    "chat.setRoomOverrides": () => ({}),
+    "chat.setRoomOverrides": () => DEFAULT_ROOM_OVERRIDES,
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => ({ macros: [], values: {} }),
     // The Macro-picks section reads TWO procs; stubbing only the first leaves its boundary in the error
     // arm (which is what the chat tab's own CT does today — reported, not fixed here).
     "chat.getVariablePicks": () => ({ variables: [], values: {} }),
-    "chat.getChat": () => ({ id: "chat_ct", viewerIsHost: true, toolRecurseLimit: 7, hostDisplayScripts: false, roomOverrides: {}, participants: [] }),
+    "chat.getChat": () => ({
+      id: "chat_ct",
+      viewerIsHost: true,
+      toolRecurseLimit: 7,
+      hostDisplayScripts: false,
+      roomOverrides: DEFAULT_ROOM_OVERRIDES,
+      participants: [],
+    }),
     "databank.listActiveForChat": () => [],
     // #640: the tab now carries a World books section too, and its read must be fed or that boundary
     // error-arms silently inside this composition.
     "worldInfo.listForChat": () => ROOM_BOOKS,
     "automation.listRules": () => [RULE],
     "automation.listFires": () => [],
-    "automation.listRulePresets": () => [PACING_PRESET],
+    "automation.listRulePresets": () => rulePresets(PACING_PRESET),
     ...EMPTY_REGEX_READS,
   });
 
@@ -688,7 +717,7 @@ test("#616: the host's 'This chat' tab renders the grafted Rules section in the 
 test("#616: a MEMBER's tab has no Rules section (host-only by MOUNT, not by a predicate)", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...VIEWER_SETTINGS_ROUTE,
-    "chat.setRoomOverrides": () => ({}),
+    "chat.setRoomOverrides": () => DEFAULT_ROOM_OVERRIDES,
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => ({ macros: [], values: {} }),
     // The Macro-picks section reads TWO procs; stubbing only the first leaves its boundary in the error
@@ -718,20 +747,27 @@ test("#616: a MEMBER's tab has no Rules section (host-only by MOUNT, not by a pr
 // the write that makes the picker offer the book. The bus leg is the persona-lorebook wire, already pinned.
 test("#640 END-TO-END: a room with no books → attach in World books → the auto-add-lore card can be completed", async ({ mount, page }) => {
   // The room's attachment list, MUTABLE — the stub answers what the server would after the write lands.
-  const attached: unknown[] = [];
+  const attached: TrpcWireOutput<"worldInfo.listForChat">[number][] = [];
   const trpc = await routeTrpc(page, {
     ...VIEWER_SETTINGS_ROUTE,
-    "chat.setRoomOverrides": () => ({}),
+    "chat.setRoomOverrides": () => DEFAULT_ROOM_OVERRIDES,
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => ({ macros: [], values: {} }),
     "chat.getVariablePicks": () => ({ variables: [], values: {} }),
-    "chat.getChat": () => ({ id: CHAT, viewerIsHost: true, toolRecurseLimit: 7, hostDisplayScripts: false, roomOverrides: {}, participants: [] }),
+    "chat.getChat": () => ({
+      id: CHAT,
+      viewerIsHost: true,
+      toolRecurseLimit: 7,
+      hostDisplayScripts: false,
+      roomOverrides: DEFAULT_ROOM_OVERRIDES,
+      participants: [],
+    }),
     "databank.listActiveForChat": () => [],
     "automation.listRules": () => [],
     "automation.listFires": () => [],
-    "automation.listRulePresets": () => [LORE_PRESET],
+    "automation.listRulePresets": () => rulePresets(LORE_PRESET),
     "worldInfo.listForChat": () => [...attached],
-    "worldInfo.listBooks": () => ROOM_BOOKS,
+    "worldInfo.listBooks": roomBooks,
     ...EMPTY_REGEX_READS,
     "worldInfo.attachToChat": () => {
       attached.push({ id: "worldbook_ct_lore_0001", name: ATTACHABLE_BOOK_NAME, description: null, createdAt: 2, role: null });
@@ -1254,7 +1290,7 @@ test("#815: a full rules-editing session stays inside this surface's layout-shif
   const testHold = trpcHold();
   let listCalls = 0;
   let fireCalls = 0;
-  const fires = Array.from({ length: FIRE_LOG_ROWS }, (_row, index) => ({
+  const fires: TrpcWireOutput<"automation.listFires"> = Array.from({ length: FIRE_LOG_ROWS }, (_row, index) => ({
     id: `automationfire_ct_${index}`,
     ruleId: "automationrule_ct1",
     chatId: CHAT,
@@ -1266,20 +1302,20 @@ test("#815: a full rules-editing session stays inside this surface's layout-shif
   await routeTrpc(page, {
     ...VIEWER_SETTINGS_ROUTE,
     // The FIRST read is the mount's; the refetch a mutation triggers is the one held past the window.
-    "automation.listRules": (): unknown => {
+    "automation.listRules": () => {
       listCalls += 1;
       return listCalls === 1 ? [RULE] : listHold;
     },
-    "automation.listFires": (): unknown => {
+    "automation.listFires": () => {
       fireCalls += 1;
       return fireCalls === 1 ? firesHold : fires;
     },
-    "automation.listRulePresets": () => [PACING_PRESET, CLOCK_PRESET],
-    "automation.setRuleEnabled": () => ({}),
-    "automation.setRuleSuggestOnRefusal": () => ({}),
-    "automation.testRule": (): unknown => testHold,
-    "automation.createRuleFromPreset": (): unknown => [FREE_RULE],
-    "automation.deleteRule": () => undefined,
+    "automation.listRulePresets": () => rulePresets(PACING_PRESET, CLOCK_PRESET),
+    "automation.setRuleEnabled": () => null,
+    "automation.setRuleSuggestOnRefusal": () => null,
+    "automation.testRule": () => testHold,
+    "automation.createRuleFromPreset": () => [FREE_RULE],
+    "automation.deleteRule": () => null,
     "worldInfo.listForChat": () => ROOM_BOOKS,
   });
   await mount(<RulesSectionStory chatId={CHAT} />);
@@ -1365,7 +1401,7 @@ const UNREADABLE_RULE = {
   actionsCorrupt: true,
   enabled: true,
   lastError: "actions: invalid discriminator value",
-};
+} satisfies TrpcWireOutput<"automation.listRules">[number];
 
 /** THE CONTRAST that makes the pin a difference rather than a decoration: same empty arm list, but empty
  *  BY CONFIGURATION. It must not wear the error anatomy, and it must keep its working enable door. */
@@ -1378,7 +1414,7 @@ const ARMLESS_RULE = {
   actionsCorrupt: false,
   enabled: false,
   lastError: null,
-};
+} satisfies TrpcWireOutput<"automation.listRules">[number];
 
 const UNREADABLE_SENTENCE = "This rule can't run — what it was told to do can no longer be read. Remove it and add the rule again.";
 
@@ -1499,11 +1535,11 @@ const TRANSFORM_RULE = {
   id: "automationrule_ct_transform",
   name: "Polish my draft",
   description: null,
-  actions: [{ type: "transform_draft" }],
+  actions: [{ type: "transform_draft", target: "user_input", template: "{{draft}}" }],
   actionsCorrupt: false,
   enabled: true,
   lastError: null,
-};
+} satisfies TrpcWireOutput<"automation.listRules">[number];
 
 const TRANSFORM_REFUSAL = `Can't run "Polish my draft" — it rewrites your draft while a reply is being built, so there's nothing to run out of turn`;
 

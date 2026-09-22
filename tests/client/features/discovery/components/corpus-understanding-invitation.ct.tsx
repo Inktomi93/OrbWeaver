@@ -17,12 +17,12 @@ import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder, TrpcRoutes } from "../../../../support/node/route-trpc.ts";
+import type { TrpcFixtureOutput, TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { userSettingsView } from "../../../../support/node/user-settings-view.ts";
 import { CorpusUnderstandingInvitationStory } from "../_ct-stories.tsx";
 
-const VIEWER = { userId: "user_me", globalRole: "user", handle: "me" };
+const VIEWER = { userId: "user_me", globalRole: "user", handle: "me" } satisfies TrpcWireOutput<"sessions.me">;
 
 /** The affordance names, as locator patterns — the door's label carries state, so both spellings are pinned. */
 const RUN_DOOR = /Run the understanding pass/;
@@ -32,7 +32,10 @@ const MEMORY_OFF_NOTE = /Story themes need chat memory, which is off/;
 const MEMORY_SWITCH = /Turn on memory/;
 
 /** A `workloads.list` row, in the shape the card reads it (id · kind · status · owner · progress · error). */
-function row(over: Record<string, unknown> = {}): Record<string, unknown> {
+type DistillRow = Extract<TrpcWireOutput<"workloads.list">[number], { readonly kind: "distill-characters" }>;
+type ThemesRow = Extract<TrpcWireOutput<"workloads.list">[number], { readonly kind: "compute-themes" }>;
+
+function distillRow(over: Partial<DistillRow> = {}): DistillRow {
   return {
     id: "workload_1",
     kind: "distill-characters",
@@ -47,17 +50,43 @@ function row(over: Record<string, unknown> = {}): Record<string, unknown> {
     poison: false,
     scheduledAt: 1,
     createdAt: 1,
+    updatedAt: 1,
+    params: {},
+    ...over,
+  };
+}
+
+function themesRow(over: Partial<ThemesRow> = {}): ThemesRow {
+  return {
+    id: "workload_themes",
+    kind: "compute-themes",
+    mode: "singular",
+    lane: "sweep",
+    status: "queued",
+    ownerId: VIEWER.userId,
+    dependsOn: null,
+    progress: null,
+    result: null,
+    error: null,
+    poison: false,
+    scheduledAt: 1,
+    createdAt: 1,
+    updatedAt: 1,
+    params: {},
     ...over,
   };
 }
 
 /** The user-settings read the chain branches on — memory ON unless a test says otherwise (issue #166: with
  *  memory off there are no digests, so the pass has no themes stage to enqueue and says so). */
-function settings(memoryEnabled: boolean): Record<string, unknown> {
+function settings(memoryEnabled: boolean): TrpcFixtureOutput<"settings.getUserSettings"> {
   return userSettingsView({ memory: { enabled: memoryEnabled } }, { userId: castId<UserId>(VIEWER.userId), updatedAt: 1 });
 }
 
-async function stub(page: Page, routes: TrpcRoutes = {}): Promise<TrpcRecorder> {
+const INVITATION_OVERRIDE_PATHS = ["settings.getUserSettings", "workloads.list", "workloads.start"] as const;
+type InvitationOverridePath = (typeof INVITATION_OVERRIDE_PATHS)[number];
+
+async function stub(page: Page, routes: Partial<TrpcRoutes<InvitationOverridePath>> = {}): Promise<TrpcRecorder> {
   return await routeTrpc(page, {
     "sessions.me": VIEWER,
     "workloads.list": [],
@@ -121,7 +150,7 @@ test("MEMORY OFF: the pass enqueues distill ALONE, says why, and offers the swit
 
 test("a live run replaces the door with its own progress state and never double-enqueues", async ({ mount, page }) => {
   const recorder = await stub(page, {
-    "workloads.list": [row({})],
+    "workloads.list": [distillRow()],
   });
   const component = await mount(<CorpusUnderstandingInvitationStory />);
 
@@ -140,10 +169,7 @@ test("a live run replaces the door with its own progress state and never double-
 // first), which is the order that reproduced it.
 test("with both stages queued the card names the stage that runs FIRST, not the newest row", async ({ mount, page }) => {
   await stub(page, {
-    "workloads.list": [
-      row({ id: "workload_themes", kind: "compute-themes", status: "queued", dependsOn: ["workload_distill"], createdAt: 2 }),
-      row({ id: "workload_distill", kind: "distill-characters", status: "queued", createdAt: 1 }),
-    ],
+    "workloads.list": [themesRow({ dependsOn: ["workload_distill"], createdAt: 2 }), distillRow({ id: "workload_distill", status: "queued", createdAt: 1 })],
   });
   const component = await mount(<CorpusUnderstandingInvitationStory />);
 
@@ -153,7 +179,7 @@ test("with both stages queued the card names the stage that runs FIRST, not the 
 
 test("a stopped pass says why, on the card, and offers another go", async ({ mount, page }) => {
   await stub(page, {
-    "workloads.list": [row({ status: "failed", error: "the summarizer connection refused" })],
+    "workloads.list": [distillRow({ status: "failed", error: "the summarizer connection refused" })],
   });
   const component = await mount(<CorpusUnderstandingInvitationStory />);
 

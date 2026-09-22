@@ -94,7 +94,11 @@ test("the action cluster rests HIDDEN + inert and carries the hover/focus/coarse
 });
 
 test("hide-from-AI fires setMessageHidden with the flipped flag", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.setMessageHidden": () => ({ ok: true }) });
+  const trpc = await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...CHAT_ROOM_ROUTES,
+    "chat.setMessageHidden": () => makeMessageView({ excludedFromPrompt: true }),
+  });
   const message = makeMessageView({ excludedFromPrompt: false });
   const component = await mount(<MessageActionsRowStory message={message} />);
 
@@ -111,7 +115,11 @@ test("hide-from-AI fires setMessageHidden with the flipped flag", async ({ mount
 });
 
 test("an already-hidden row shows Unhide and toggles the flag back", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.setMessageHidden": () => ({ ok: true }) });
+  const trpc = await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...CHAT_ROOM_ROUTES,
+    "chat.setMessageHidden": () => makeMessageView({ excludedFromPrompt: false }),
+  });
   const message = makeMessageView({ excludedFromPrompt: true });
   const component = await mount(<MessageActionsRowStory message={message} />);
 
@@ -223,7 +231,7 @@ test("a non-assistant row exposes NEITHER continuation item (only assistant repl
 });
 
 test("Undo last continuation fires undoContinue with this chatId + messageId", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.undoContinue": () => null });
+  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.undoContinue": () => makeMessageView({ hasContinuation: false }) });
   const message = makeMessageView({ hasContinuation: true });
   const component = await mount(<MessageActionsRowStory message={message} />);
 
@@ -235,7 +243,7 @@ test("Undo last continuation fires undoContinue with this chatId + messageId", a
 });
 
 test("Re-apply continuation fires revertContinue with this chatId + messageId", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.revertContinue": () => null });
+  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.revertContinue": () => makeMessageView({ hasContinuation: true }) });
   const message = makeMessageView({ hasContinuation: true });
   const component = await mount(<MessageActionsRowStory message={message} />);
 
@@ -247,7 +255,7 @@ test("Re-apply continuation fires revertContinue with this chatId + messageId", 
 });
 
 test("a DISABLED (non-continued) item does not fire the mutation on click", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.undoContinue": () => null });
+  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.undoContinue": () => makeMessageView({ hasContinuation: false }) });
   const component = await mount(<MessageActionsRowStory message={makeMessageView({ hasContinuation: false })} />);
 
   await openActionsMenu(component);

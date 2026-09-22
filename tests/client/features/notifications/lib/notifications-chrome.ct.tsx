@@ -18,6 +18,7 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { routeOrbSocket } from "../../../../support/node/route-orb-socket.ts";
+import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 // The bus's OWN transport mutations (#649). `stream.attach`/`detach` ride the BATCHED HTTP link, not the
 // SSE leg (`use-orb-socket.ts:7,139` — only `stream.connect` is the subscription), so `routeOrbSocket`
@@ -25,6 +26,8 @@ import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 // own fixture module rather than re-spelled, so the two directions of this feed cannot drift apart.
 import { STREAM_MUTATION_ROUTES } from "../../../data/bus/fixtures.ts";
 import { NotificationsSheetBadgeStory, NotificationsTrailStory } from "../_ct-stories.tsx";
+
+type InboxRow = TrpcWireOutput<"notifications.list">["items"][number];
 
 /** The deployment-boot hint's own key (`createPersistedStore("deployment-boot")`) on a browser with no
  *  identity bound. Still seeded by one test below: a device that remembers "single human" is exactly the
@@ -132,7 +135,7 @@ test("a device that REMEMBERS a single-human deployment paints the bell too — 
 // UNION against the tempting `unreadCount + pendingCount`, which no old code could have failed).
 test.describe("the You tab's tell (#1815)", () => {
   /** An invite that has been READ and is still undecided: the row the old predicate lost. */
-  function readPendingInvite(): Record<string, unknown> {
+  function readPendingInvite(): InboxRow {
     return {
       id: "ntf_ct_pending",
       type: "invite",
@@ -146,11 +149,11 @@ test.describe("the You tab's tell (#1815)", () => {
   }
 
   /** The same row once its decision has been settled elsewhere — the ask is gone, the row is not. */
-  function readSettledInvite(): Record<string, unknown> {
+  function readSettledInvite(): InboxRow {
     return { ...readPendingInvite(), actionable: false };
   }
 
-  async function mountSheet(mount: (c: React.ReactElement) => Promise<unknown>, page: Page, rows: readonly Record<string, unknown>[]): Promise<void> {
+  async function mountSheet(mount: (c: React.ReactElement) => Promise<unknown>, page: Page, rows: readonly InboxRow[]): Promise<void> {
     await routeTrpc(page, {
       ...STREAM_MUTATION_ROUTES,
       "notifications.list": () => ({ items: [...rows], nextCursor: null }),

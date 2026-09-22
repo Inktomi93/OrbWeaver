@@ -35,7 +35,7 @@ import { ComposerStory } from "../../features/chat/_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES } from "../../features/chat/fixtures.ts";
 import { CharacterCreateBandStory, PresetRenameDialogStory } from "./_form-identity-stories.tsx";
 
-const USER_SETTINGS_VIEW = { userId: "user_ct_form_identity", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };
+const USER_SETTINGS_VIEW = { userId: "user_ct_form_identity", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0, configUnreadable: null };
 
 /** One unidentified control, as the failure message prints it. */
 interface UnidentifiedControl {

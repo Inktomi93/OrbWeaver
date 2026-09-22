@@ -13,8 +13,8 @@
 //     `characterId ∈ {my characters}` (the leaderboard/character verbs JOIN characters). Keyed on
 //     `characterId` (FK characters CASCADE — the rollup dies with its character).
 //
-// KEYS: owner_stats PK = `ownerId` NATURAL — the per-user row IS keyed by the user (the OwnerStatId brand
-// exists but is reserved/unused; there is no second id). character_stats / daily_stats / model_stats carry
+// KEYS: owner_stats PK = `ownerId` NATURAL — the per-user row IS keyed by the user; there is no second id.
+// character_stats / daily_stats / model_stats carry
 // a TypeID `id` PK (minted in `domain/stats/write/*` via `ID_PREFIX.{characterStat,dailyStat,modelStat}`)
 // PLUS a UNIQUE on their natural business key — that unique is the live-delta UPSERT conflict target
 // (`character`, `(owner, day)`, `(owner, model, provider)`).
