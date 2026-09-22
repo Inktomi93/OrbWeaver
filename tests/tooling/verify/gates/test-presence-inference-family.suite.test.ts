@@ -63,6 +63,33 @@ test("an exported call initializer is runtime behavior and needs a supported tes
   expect(result.authority.effectiveFindings).toMatchObject([{ policyId: gate.id, file: SOURCE, severity: "error" }]);
 });
 
+test("an exported namespace needs a supported test topology", ({ scratch }) => {
+  const result = pass(scratch, {
+    [SOURCE]: "export namespace Live { export const value = 1; }\n",
+    "tests/inference/other.test.ts": "export {};\n",
+  });
+
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.effectiveFindings).toMatchObject([{ policyId: gate.id, file: SOURCE, severity: "error" }]);
+});
+
+test("an uninitialized exported variable needs a supported test topology", ({ scratch }) => {
+  const result = pass(scratch, { [SOURCE]: "export let live: number;\n", "tests/inference/other.test.ts": "export {};\n" });
+
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.effectiveFindings).toMatchObject([{ policyId: gate.id, file: SOURCE, severity: "error" }]);
+});
+
+test("ambient exported declarations remain type-only", ({ scratch }) => {
+  const result = pass(scratch, {
+    [SOURCE]: "export declare namespace Types { const value: number; }\nexport declare let live: number;\n",
+    "tests/inference/other.test.ts": "export {};\n",
+  });
+
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.effectiveFindings).toEqual([]);
+});
+
 test("an empty category suite does not cover an arbitrary runtime source", ({ scratch }) => {
   const result = pass(scratch, {
     [BACKEND_SOURCE]: "export function invoke(): string { return 'ok'; }\n",

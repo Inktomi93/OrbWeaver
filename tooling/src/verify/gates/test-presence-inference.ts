@@ -32,16 +32,15 @@ const MSG =
 
 function hasRuntimeExport(sourceFile: SourceFile): boolean {
   if (
-    sourceFile.getFunctions().some((fn) => fn.isExported()) ||
-    sourceFile.getClasses().some((cls) => cls.isExported()) ||
-    sourceFile.getEnums().some((decl) => decl.isExported()) ||
+    sourceFile.getFunctions().some((decl) => decl.isExported() && !decl.hasDeclareKeyword()) ||
+    sourceFile.getClasses().some((decl) => decl.isExported() && !decl.hasDeclareKeyword()) ||
+    sourceFile.getEnums().some((decl) => decl.isExported() && !decl.hasDeclareKeyword()) ||
+    sourceFile.getModules().some((decl) => decl.isExported() && !decl.hasDeclareKeyword()) ||
     sourceFile.getExportAssignments().length > 0
   ) {
     return true;
   }
-  return sourceFile
-    .getVariableStatements()
-    .some((statement) => statement.isExported() && statement.getDeclarations().some((declaration) => declaration.getInitializer() !== undefined));
+  return sourceFile.getVariableStatements().some((statement) => statement.isExported() && !statement.hasDeclareKeyword());
 }
 
 function hasExactRuntimeTest(mirror: MirrorIndex, rel: string): boolean {
@@ -198,6 +197,24 @@ export const gate = defineGate({
       },
       expect: { count: 1, messageIncludes: "no supported test topology" },
       why: "an exported call initializer is runtime behavior even though it is not function syntax",
+    },
+    {
+      mode: "resource",
+      files: {
+        "packages/inference/src/extensions/normalize.ts": "export namespace Live { export const value = 1; }\n",
+        "tests/inference/other.test.ts": "export {};\n",
+      },
+      expect: { count: 1, messageIncludes: "no supported test topology" },
+      why: "an exported namespace emits a runtime object and cannot enter the type-only bucket",
+    },
+    {
+      mode: "resource",
+      files: {
+        "packages/inference/src/extensions/normalize.ts": "export let live: number;\n",
+        "tests/inference/other.test.ts": "export {};\n",
+      },
+      expect: { count: 1, messageIncludes: "no supported test topology" },
+      why: "an exported non-ambient variable emits even when it has no initializer",
     },
   ],
   mustPass: [
