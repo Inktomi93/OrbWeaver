@@ -174,6 +174,11 @@ export async function makeHarness(db: Db, options: HarnessOptions = {}): Promise
     now,
     log: { debug: (): void => undefined, info: (): void => undefined, warn: (): void => undefined, error: (): void => undefined },
     span: (_name, fn) => Promise.resolve(fn()),
+    superviseDetached: (_name, _attrs, operation): void => {
+      Promise.resolve()
+        .then(operation)
+        .catch(() => undefined);
+    },
     env: {
       ...(options.claudeExecutable === undefined ? {} : { claudeExecutable: options.claudeExecutable }),
       hostEnvAllowlist: (): Readonly<Record<string, string>> => ({}),

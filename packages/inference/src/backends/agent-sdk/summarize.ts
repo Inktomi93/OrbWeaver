@@ -9,7 +9,7 @@ import type { SummarizeResult, SummarizeResultItem } from "@orb/contracts/provid
 import { AGENT_SDK_CONCURRENCY_MAX } from "@orb/contracts/settings";
 import { ProviderError } from "../../contract/errors.ts";
 import type { StructuredRequest, SummarizeRequest, SummarizeRequestItem } from "../../contract/roles.ts";
-import type { AnthImageBlock } from "../kit/anth-image-block.ts";
+import type { AnthImageBlock } from "../../contract/runtime.ts";
 import { toAnthImageBlock } from "../kit/anth-image-block.ts";
 import type { NormalizeImageBytes } from "../kit/image-normalize.ts";
 import type { AgentSdkLog } from "./log.ts";

@@ -4,14 +4,16 @@
 import type { query, SessionStore } from "@anthropic-ai/claude-agent-sdk";
 import type { EffortLevel } from "@orb/contracts/preset";
 import type { ChatId, ModelId } from "@orb/kit/ids";
+import type { SessionEntryWriter } from "../../contract/agent.ts";
 import type { WireCaptureSink } from "../../contract/backend.ts";
 import type { ContextUsage } from "../../contract/chat.ts";
 import type { ChatDeltaEvent, ChatEvent } from "../../contract/events.ts";
-import type { Resolved } from "../../contract/resolved.ts";
+import type { AgentSdkSessionId } from "../../contract/identity.ts";
+import type { SpawnIdentity } from "../../contract/runtime.ts";
 import type { InferenceLog } from "../../deps.ts";
 import type { NormalizeImageBytes } from "../kit/image-normalize.ts";
 import type { ClaudeRuntimeOverrides } from "./env.ts";
-import type { SeededSessionDecision, SessionEntryWriter } from "./session/index.ts";
+import type { SeededSessionDecision } from "./session/index.ts";
 
 /** Subset of SDK `Options` the firewall base (`disciplineOptions`) pins; spread into `query` options. */
 export interface DisciplineOptions {
@@ -27,8 +29,6 @@ export interface DisciplineOptions {
 /** Deps the agent-sdk family closes over (`createAgentSdkBackend`); injected for hermetic tests. */
 /** What a spawn needs from the connection: WHOSE runtime dir and WHICH token — the catalog warm runs before a
  *  full `Resolved` exists, so this is the narrow shape both it and a turn hand in. */
-export type SpawnIdentity = Pick<Resolved, "ownerId" | "credential">;
-
 export interface AgentSdkDeps {
   readonly now: () => number;
   readonly log: InferenceLog;
@@ -59,7 +59,7 @@ export interface TurnStreamContext {
   readonly chatId?: ChatId | undefined;
   readonly onEvent?: ((event: ChatEvent) => void) | undefined;
   readonly onDelta?: ((event: ChatDeltaEvent) => void) | undefined;
-  readonly onSessionId?: ((sessionId: string) => void) | undefined;
+  readonly onSessionId?: ((sessionId: AgentSdkSessionId) => void) | undefined;
   readonly configuredMaxOutputTokens?: number | null | undefined;
   readonly configuredMaxContextTokens?: number | null | undefined;
   readonly probeContextUsage?: (() => Promise<ContextUsage | undefined>) | undefined;

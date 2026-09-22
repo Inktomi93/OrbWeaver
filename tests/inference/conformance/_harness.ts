@@ -47,7 +47,7 @@ import { abortAware, generationCapability, scriptedJsonFetch, scriptedSseFetch }
 /** The bundled-runtime path `BACKEND_DEFS["agent-sdk"].needs` gates on. Never spawned: the `query` seam is
  *  faked, so this string only has to be present. */
 export const CLAUDE_EXECUTABLE = "/usr/bin/claude";
-const SESSION_ID = "sess_conformance";
+const SESSION_ID = "a95fcd1f-a1ca-42db-ac6c-de6b1f01091d";
 const CONTEXT_WINDOW = 200_000;
 const MAX_OUTPUT_TOKENS = 8192;
 /** Row pricing, so the `estimated` cost arm has an input on the wires that report no figure of their own. */

@@ -6,12 +6,11 @@
 
 import type { ProviderDef, ProviderId } from "@orb/contracts/inference";
 import { BUILTIN_PROVIDERS, isPluginProviderId, pluginNameOfProviderId, providerDefSchema } from "@orb/contracts/inference";
-import type { PluginId, UserId } from "@orb/kit/ids";
+import type { PluginId } from "@orb/kit/ids";
 import { z } from "zod";
 import { ProviderError } from "../contract/errors.ts";
+import type { ProviderOrigin } from "../contract/runtime.ts";
 import type { ProviderStore } from "../deps.ts";
-
-export type ProviderOrigin = { readonly plugin: PluginId; readonly pluginName: string } | { readonly admin: UserId };
 
 export interface ProviderRegistry {
   readonly get: (id: string) => ProviderDef | undefined;

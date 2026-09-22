@@ -43,7 +43,7 @@ The package now owns RESOLUTION as well as execution, deliberately: selection is
 
 1. **`@orb/inference` resolves and executes; `domain/connection` is the DOOR, not the decider.** The domain writes its three tables and gates the principal; every read verb is a thin delegation to `runtime.*` (`packages/server/src/domain/connection/verbs/resolve.ts`). It decides exactly one thing: the PROJECTION — a client or a bus payload gets the credential-free `ResolvedConnectionView`, never the secret-bearing `Resolved` (`packages/server/src/domain/connection/substrate/resolved-view.ts`).
 2. **Inside the package the executor still never selects.** `createProviderExecutor` dispatches on the ALREADY-RESOLVED wire; `canFund`, `requirementMet` and `connectionTasks` were decided at resolve (`packages/inference/src/roles/executor.ts`).
-3. **The package knows no domain and no persistence.** Connections, bindings, provider rows and catalog snapshots are four PORTS the server wires to drizzle; observability is a structural `span`/`log` shape; the provider transport is a required injected `fetch` (`packages/inference/src/deps.ts`). No `@orb/db`, no `@orb/server`, no `@orb/client`.
+3. **The package knows no domain and no persistence.** Connections, bindings, provider rows and catalog snapshots are four PORTS the server wires to drizzle; observability is injected as `span`/`log` plus the supervised-detach port; the provider transport is a required injected `fetch` (`packages/inference/src/deps.ts`). No `@orb/db`, no `@orb/server`, no `@orb/client`.
 
 **Resolution, in one line:** `(task, principal, actor?) → Resolved` = the binding fold over the funder's own rows → the connection row (must be the funder's) → the provider row → the model's kind → `connectionTasks` → api coherence → the credential by id → the catalog warm → the evidence synthesis → the feature fold → the `requirement`/`canFund` VERDICTS (`packages/inference/src/resolve/resolve-task.ts`). There is **no born default**: the fold ends at the funder's own rows and answers `no-connection` (`packages/inference/src/resolve/precedence.ts`).
 
@@ -75,7 +75,7 @@ A bare zero from step 1 or 2 is only a measurement because step 1 carries its ow
 packages/inference/src/
 ├── index.ts          createInferenceRuntime(deps) — THE ONE surface: resolve · availability · executor ·
 │                     capabilities · funnel · roleClientsFor · catalogs · diagnostics · providers · localLight
-├── deps.ts           InferenceDeps — the four persistence PORTS + span/log + the injected fetch
+├── deps.ts           exact D15 composition seam — re-exports InferenceDeps from contract/runtime.ts
 ├── contract/         the typed internal surface (backend · chat · agent · roles · events · errors ·
 │                     resolve · resolved · diagnostics), re-exported through index.ts
 ├── registry/         backends.ts (BACKEND_DEFS + buildBackends) · providers.ts (built-ins ∪ runtime rows) ·
@@ -98,10 +98,12 @@ packages/inference/src/
 | `EmbedResult` / `RerankResult` / `ImageEmbedResult` / `SummarizeResult` / `AccountCredits` / `EndpointInspection` | `@orb/contracts/providers` |
 | `ResolvedSecret` / `CredentialHealth` | `@orb/contracts/credentials` |
 | `RoleClients` (the pre-bound derive bundle, no credential in any signature) | `@orb/contracts/role-clients` |
-| `Resolved<Task>` (carries the SECRET), `ChatRequest`, `AgentTurnRequest`, `ChatEvent`, `ProviderError` | `packages/inference/src/contract/` — internal, behind the single entry |
+| `Resolved<Task>` (carries the SECRET), `ChatRequest`, `AgentTurnRequest`, `ChatEvent`, `ProviderError`, composition/runtime port shapes | `packages/inference/src/contract/` — the package's sanctioned type home, behind the single entry |
 | `ResolvedConnectionView` (the credential-FREE projection a client or a bus may see) | `packages/contracts/src/inference/resolved.ts` |
 
 The split is load-bearing: `ResolvedConnectionView` must stay importable by a bus contract, and the secret-bearing half must not (D16 fences secret-bearing shapes to `#credentials`).
+
+`packages/inference/src/deps.ts` is the exact D15 package-root composition seam. It re-exports the port shapes owned by `contract/runtime.ts`; it is not permission for another root module or another type home. `package-layout` and `no-inline-types` enforce both halves.
 
 ## 7. The composition seam
 

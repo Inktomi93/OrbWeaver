@@ -6,6 +6,7 @@
 import { z } from "zod";
 import { authHeaders, fetchJson, openAiPath } from "../backends/kit/fetch-json.ts";
 import type { ProviderScrubSet } from "../contract/errors.ts";
+import type { EndpointModel } from "../contract/runtime.ts";
 
 const rowSchema = z
   .object({
@@ -17,10 +18,6 @@ const rowSchema = z
   .loose();
 
 const listSchema = z.object({ data: z.array(rowSchema) }).loose();
-
-const endpointModelSchema = z.object({ id: z.string(), contextLength: z.number().nullable() });
-export type EndpointModel = z.infer<typeof endpointModelSchema>;
-export const endpointModelsSchema = z.array(endpointModelSchema);
 
 export async function fetchEndpointModels(args: {
   readonly fetch: typeof fetch;

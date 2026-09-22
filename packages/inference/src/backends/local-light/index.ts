@@ -2,6 +2,7 @@
 // Serves ONLY embed / imageEmbed / rerank (the other methods are ABSENT — the dispatcher's typed refusal).
 // The matte op and the prefetch handle ride beside the backend for the composition root.
 
+import type { ModelId } from "@orb/kit/ids";
 import type { ProviderBackend } from "../../contract/backend.ts";
 import type { InferenceDeps } from "../../deps.ts";
 import type { LocalLightModelCache } from "./model-cache.ts";
@@ -10,15 +11,16 @@ import type { LocalLightPrefetchHandle } from "./prefetch.ts";
 import { createLocalLightPrefetch } from "./prefetch.ts";
 import { createLocalLightEmbed, createLocalLightImageEmbed, createLocalLightMatte, createLocalLightRerank } from "./tasks.ts";
 
-export type { LocalLightModelCache, LocalLightModelSlot } from "./model-cache.ts";
-export { LOCAL_LIGHT_MODEL_SLOTS } from "./model-cache.ts";
+export type { LocalLightModelSlot } from "../../contract/runtime.ts";
+export { LOCAL_LIGHT_MODEL_SLOTS } from "../../contract/runtime.ts";
+export type { LocalLightModelCache } from "./model-cache.ts";
 export type { LocalLightPrefetchHandle, LocalLightPrefetchRecord, LocalLightPrefetchTarget } from "./prefetch.ts";
 export { DEFAULT_EMBED_MODEL, DEFAULT_MATTE_MODEL, DEFAULT_RERANK_MODEL } from "./tasks.ts";
 
 export interface LocalLightBackendDeps {
   readonly now: () => number;
   readonly log: InferenceDeps["log"];
-  readonly span: InferenceDeps["span"];
+  readonly superviseDetached: InferenceDeps["superviseDetached"];
   readonly config: NonNullable<InferenceDeps["localLight"]> | undefined;
 }
 
@@ -27,7 +29,7 @@ export interface LocalLightBackend {
   readonly prefetch: LocalLightPrefetchHandle;
   readonly matte: ReturnType<typeof createLocalLightMatte>;
   /** THE ACTIVE local-light embedding space tag for a model id — the same string the embed results carry. */
-  readonly embedSpace: (modelId: string) => string;
+  readonly embedSpace: (modelId: ModelId) => string;
 }
 
 function isModelCache(value: unknown): value is LocalLightModelCache {
@@ -36,14 +38,7 @@ function isModelCache(value: unknown): value is LocalLightModelCache {
 
 export function createLocalLightBackend(deps: LocalLightBackendDeps): LocalLightBackend {
   const config = deps.config ?? {};
-  // Owned fire-and-forget through the injected span so a surprise from a disposal or the prefetch walk is
-  // traced rather than silently lost; the promise's own failure is the callee's to own.
-  const detach = (name: string, fn: () => Promise<void>): void => {
-    // @orb-waive caught-failure-ownership(Promise.resolve): Promise.resolve turns a synchronous span throw into the same rejection path as async work, and the injected warning log names the detached root. Precedent: the gate mustPass fixture packages/server/src/domain/probe/logged.ts proves the same contextual warning owner. Ends if detach stops owning both failure modes in that log.
-    void Promise.resolve()
-      .then(() => deps.span(name, fn))
-      .catch((err: unknown) => deps.log.warn({ err, name }, "local-light: detached work failed"));
-  };
+  const detach = (name: string, fn: () => Promise<void>): void => deps.superviseDetached(name, {}, fn);
   let cacheRef: LocalLightModelCache | undefined;
   const prefetch = createLocalLightPrefetch({
     cache: () => cacheRef ?? createModelCache({ ...config, log: deps.log, detach }),
@@ -53,7 +48,7 @@ export function createLocalLightBackend(deps: LocalLightBackendDeps): LocalLight
   });
   const cache = isModelCache(config.cache) ? config.cache : createModelCache({ ...config, log: deps.log, detach, onProgress: prefetch.onProgress });
   cacheRef = cache;
-  const embedSpace = (modelId: string): string => localLightEmbedSpaceTag(modelId, resolveEmbedDtype(config.embedDtype));
+  const embedSpace = (modelId: ModelId): string => localLightEmbedSpaceTag(modelId, resolveEmbedDtype(config.embedDtype));
   return {
     backend: {
       wire: "local-light",

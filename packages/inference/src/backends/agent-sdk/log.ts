@@ -4,6 +4,7 @@
 import type { ChatId } from "@orb/kit/ids";
 import type { ContextUsage } from "../../contract/chat.ts";
 import type { ProviderError } from "../../contract/errors.ts";
+import type { AgentSdkSessionId } from "../../contract/identity.ts";
 import type { DynamicContextChannel } from "../../contract/resolve.ts";
 import type { InferenceLog } from "../../deps.ts";
 import type { ProviderCapabilityLog, ProviderLogger, ProviderTurnUsage } from "../kit/provider-log.ts";
@@ -16,7 +17,7 @@ const WIRE = "agent-sdk";
 interface ProviderTurnLog {
   readonly turnId?: string;
   readonly chatId?: ChatId;
-  readonly sessionId?: string;
+  readonly sessionId?: AgentSdkSessionId;
   readonly apiKeySource?: string;
   readonly requestedModel: string;
   readonly servedModel?: string;
@@ -40,7 +41,11 @@ interface ProviderMcpServerHealth {
 export interface AgentSdkLog {
   readonly base: ProviderLogger;
   readonly turn: (entry: ProviderTurnLog) => void;
-  readonly session: (entry: { readonly chatId: ChatId; readonly sessionId: string | null; readonly disposition: SeededSessionDecision["disposition"] }) => void;
+  readonly session: (entry: {
+    readonly chatId: ChatId;
+    readonly sessionId: AgentSdkSessionId | null;
+    readonly disposition: SeededSessionDecision["disposition"];
+  }) => void;
   readonly error: (err: ProviderError, extra?: { readonly stderrTail?: string }) => void;
   readonly rateLimit: (banRisk: boolean, fields: Record<string, unknown>) => void;
   readonly retry: (fields: Record<string, unknown>) => void;

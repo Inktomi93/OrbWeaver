@@ -19,7 +19,7 @@ const refusalMetadataSchema = z.object({
   iterations: z.array(z.object({ type: z.string(), model: z.string().optional() })).nullish(),
 });
 
-export type RefusalEvent = Extract<ChatEvent, { readonly kind: "refusal" }>;
+type RefusalEvent = Extract<ChatEvent, { readonly kind: "refusal" }>;
 
 /** The refusal event for a drained turn, or `null` when the turn was not classifier-blocked. */
 export function refusalEventOf(drain: StreamDrain, model: string, at: number): RefusalEvent | null {

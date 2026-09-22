@@ -15,7 +15,7 @@ import type { Db } from "@orb/db";
 import { sessionEntries } from "@orb/db";
 import type { SessionEntryWriter } from "@orb/inference";
 import { ID_PREFIX } from "@orb/kit/ids";
-import { eq, max } from "drizzle-orm";
+import { and, eq, max } from "drizzle-orm";
 import { minter } from "./minter.ts";
 
 export function createSessionEntryWriter(db: Db): SessionEntryWriter {
@@ -28,23 +28,33 @@ export function createSessionEntryWriter(db: Db): SessionEntryWriter {
         .where(eq(sessionEntries.chatId, entry.chatId));
       const priorMax = rows[0]?.maxSeq;
       const seq = priorMax === null || priorMax === undefined ? 0 : priorMax + 1;
+      const [connectionPrimary] = await db
+        .select({ id: sessionEntries.id })
+        .from(sessionEntries)
+        .where(and(eq(sessionEntries.chatId, entry.chatId), eq(sessionEntries.connectionId, entry.connectionId), eq(sessionEntries.isPrimary, true)))
+        .limit(1);
       await db.insert(sessionEntries).values({
         id: newSessionEntryId(),
         chatId: entry.chatId,
         sdkSessionId: entry.sdkSessionId,
+        connectionId: entry.connectionId,
         seq,
         // Today this is the SEEDED-TURN COUNT, not a true canon `messages.seq` — the backend seam
         // (`AgentSeedTurn`) carries no seq; extend that seam before pointing a horizon reader here.
         seededThroughSeq: entry.seededThroughSeq,
         canonHash: entry.canonHash,
-        isPrimary: seq === 0,
+        isPrimary: connectionPrimary === undefined,
       });
     },
     async update(entry): Promise<void> {
-      await db
+      const updated = await db
         .update(sessionEntries)
         .set({ seededThroughSeq: entry.seededThroughSeq, canonHash: entry.canonHash })
-        .where(eq(sessionEntries.sdkSessionId, entry.sdkSessionId));
+        .where(and(eq(sessionEntries.sdkSessionId, entry.sdkSessionId), eq(sessionEntries.connectionId, entry.connectionId)))
+        .returning({ id: sessionEntries.id });
+      if (updated.length !== 1) {
+        throw new Error("session entry update refused: the SDK session does not belong to the resolved connection");
+      }
     },
   };
 }

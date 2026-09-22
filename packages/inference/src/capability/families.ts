@@ -4,8 +4,7 @@
 // `some-org/claude-fork`, so an alien backend whose id merely contains "claude" never receives Anthropic-only
 // directives (cache_control) or the Claude family floor.
 
-const MODEL_FAMILIES = ["anthropic", "openai", "google", "meta", "deepseek", "qwen", "mistral", "xai", "other"] as const;
-export type ModelFamily = (typeof MODEL_FAMILIES)[number];
+import type { ModelFamily } from "../contract/runtime.ts";
 
 const FAMILY_ANCHORS: readonly (readonly [Exclude<ModelFamily, "other">, RegExp])[] = [
   ["anthropic", /^(anthropic\/)?claude[-/]/i],

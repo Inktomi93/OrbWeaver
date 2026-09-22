@@ -87,11 +87,11 @@ const MESSAGE =
   "a parameter or field uses bare `string` even though @orb/kit/ids owns the same name as a canonical brand — every other id brand is assignable to it, so a wrong-id value type-checks wherever this declaration is read.";
 const FIX =
   "use the canonical branded type and mint or parse it at the owning boundary. For a foreign wire that only shares the name, add `@orb-waive brand-in-name-position(<position>): <whose id + end condition>` on the exact declaration.";
-// `@inference` IS DELIBERATELY ABSENT pending an identity ruling. Widening was attempted and reverted after
-// the real policy reported 32 positions: 11 `sessionId` declarations name foreign Agent SDK handles, while
-// 21 `modelId` declarations may owe the canonical kit brand. Adding waivers merely to land the widening is
-// forbidden; decide which positions carry kit brands and which are foreign identities before adding the root.
-const POPULATION = ["@client", "@ui", "@server", "@db", "@contracts", "@kit", "@tests"] as const;
+// `@inference` joined after the identity ruling recorded by the AST/codebase audit: canonical Orb model
+// positions carry `ModelId`, while Agent SDK session handles carry the package-owned foreign
+// `AgentSdkSessionId` type. The old attempted widening found 21 + 11 bare positions respectively; neither
+// class is waived.
+const POPULATION = ["@client", "@ui", "@server", "@db", "@contracts", "@kit", "@inference", "@tests"] as const;
 interface BrandPosition {
   readonly typeName: string;
   readonly brand: string;
@@ -253,6 +253,16 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        [ID_BRAND_HOME]: idBrandProofModule('export type SessionId = TypeIdOf<"session">;\n'),
+        "packages/inference/src/contract/identity.ts": "export type AgentSdkSessionId = string & { readonly sdkSessionIdentity: unique symbol };\n",
+        "packages/inference/src/backends/agent-sdk/session/store.ts":
+          'import type { AgentSdkSessionId } from "../../../contract/identity.ts";\nexport function record(sessionId: AgentSdkSessionId): void { void sessionId; }\n',
+      },
+      why: "a foreign Agent SDK session handle has an explicit package-owned identity type instead of borrowing Orb's SessionId brand or escaping through a waiver",
+    },
     {
       mode: "types",
       files: {

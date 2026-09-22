@@ -204,6 +204,11 @@ export function fakeDeps(options: FakeDepsOptions = {}): InferenceDeps & { reado
     now: () => FROZEN_NOW,
     log,
     span: (_name, fn) => Promise.resolve(fn()),
+    superviseDetached: (_name, _attrs, operation): void => {
+      Promise.resolve()
+        .then(operation)
+        .catch(() => undefined);
+    },
     securityEvent: (kind, fields): void => {
       options.securityEvents?.push({ kind, fields: { ...fields } });
     },

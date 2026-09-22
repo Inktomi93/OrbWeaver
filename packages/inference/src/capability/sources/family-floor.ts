@@ -5,7 +5,7 @@
 // row cannot express "add, never subtract", which is why this stays code, keyed by `families.ts`.
 
 import type { GenerationCapability } from "@orb/contracts/inference";
-import type { ModelFamily } from "../families.ts";
+import type { ModelFamily } from "../../contract/runtime.ts";
 
 interface FamilyFloor {
   readonly parallelTools: boolean;

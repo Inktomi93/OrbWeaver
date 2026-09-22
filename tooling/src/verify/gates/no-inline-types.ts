@@ -134,7 +134,7 @@ export const gate = defineGate({
   // reproduced: inside these three roots they matched exactly one directory, `domain/regex/verbs/scripts/`,
   // by the same string accident the deleted `/tools/` clause was (#408). A domain subsystem is domain code.
   population: {
-    in: ["@client", "@server", "@tooling"],
+    in: ["@client", "@server", "@inference", "@tooling"],
     notUnder: [
       "packages/client/src/data/**",
       "packages/client/src/forms/**",
@@ -165,6 +165,12 @@ export const gate = defineGate({
     ],
   }),
   mustFlag: [
+    {
+      mode: "types",
+      files: { "packages/inference/src/backends/probe.ts": "export type ProbeResult = string;\n" },
+      expect: { count: 1, token: "ProbeResult" },
+      why: "an inference implementation module is not a type home; package-owned exported shapes live in src/contract/",
+    },
     {
       mode: "types",
       files: { "packages/server/src/domain/x/verb.ts": "export type Foo = string;\n" },
@@ -221,6 +227,14 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        "packages/inference/src/index.ts": "export const inference = true;\n",
+        "packages/inference/src/contract/probe.ts": "export type ProbeResult = string;\n",
+      },
+      why: "packages/inference/src/contract is the package-level type home",
+    },
     {
       mode: "types",
       files: {

@@ -35,11 +35,11 @@ import { curatedKind, curatedRows } from "../capability/sources/curated/loader.t
 import { measuredRows } from "../capability/sources/measured/loader.ts";
 import type { Evidence } from "../capability/synthesize.ts";
 import { synthesizeCapability } from "../capability/synthesize.ts";
-import type { EndpointModel } from "../catalog/endpoint.ts";
 import type { Mirror } from "../catalog/mirror.ts";
 import { ProviderError } from "../contract/errors.ts";
 import type { ResolvedWarning } from "../contract/resolve.ts";
 import type { Resolved } from "../contract/resolved.ts";
+import type { EndpointModel } from "../contract/runtime.ts";
 import type { BindingActor, InferenceDeps } from "../deps.ts";
 import type { ProviderRegistry } from "../registry/providers.ts";
 import { resolveApi } from "./coherence.ts";

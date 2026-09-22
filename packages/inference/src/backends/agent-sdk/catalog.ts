@@ -11,12 +11,13 @@ import { errorMessage } from "@orb/kit/error-message";
 import type { VerifyAuthRequest } from "../../contract/diagnostics.ts";
 import type { ProviderScrubSet } from "../../contract/errors.ts";
 import { ProviderError } from "../../contract/errors.ts";
+import type { SpawnIdentity } from "../../contract/runtime.ts";
 import { redactSecretsFromText } from "../kit/openai-body.ts";
 import { resolvedScrubSet, sanitizeApiError } from "../kit/sanitize.ts";
 import type { AgentSdkLog } from "./log.ts";
 import { linkAbort } from "./runner.ts";
 import { disciplineOptions, observabilityOptions } from "./translate.ts";
-import type { AgentSdkDeps, SpawnIdentity } from "./types.ts";
+import type { AgentSdkDeps } from "./types.ts";
 import { assertInitFrameShape } from "./verify.ts";
 
 const DISCOVERY_TIMEOUT_MS = 15_000;

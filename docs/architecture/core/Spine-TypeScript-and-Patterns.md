@@ -17,10 +17,11 @@ The rule: **one home per shape, derived by who needs it; flows DOWN only.** (Neo
 | **DB row** | `db` (drizzle table → inferred `$inferSelect`/`Insert`) | server persistence |
 | **cross-boundary wire** (server↔client, or domain↔domain) | `contracts` (zod + inferred TS) | server, client, other domains |
 | **domain-internal** | that domain's `contract/` (params/results/views/errors) | only that domain |
+| **package-internal** | that package's sanctioned `src/contract/` (`@orb/inference` today) | only that package and its public root |
 | **client-only view** | client | client |
 | **pure primitive shape** | `kit` | anyone (it's the bottom) |
 
-**The gate — `no-inline-types` (ts-morph, live):** no exported `type`/`interface`/`z.object` (and no structural cast) declared OUTSIDE `db` schema / `contracts` / a domain's `contract/` / `kit`. Inline shapes in `verbs/`, `persistence/`, `service.ts`, transport, or client components are RED. Companion: `types-in-contract` (`tooling/src/verify/gates/`) requires each feature's `contract/service.ts` to declare its exported service interface and bans exported `ReturnType<typeof fn>` for `context.ts`.
+**The gate — `no-inline-types` (ts-morph, live):** no exported `type`/`interface`/`z.object` (and no structural cast) declared OUTSIDE `db` schema / `contracts` / a domain's `contract/` / a sanctioned package `src/contract/` / `kit`. Inline shapes in `verbs/`, `persistence/`, `service.ts`, transport, or client components are RED. Companion: `types-in-contract` (`tooling/src/verify/gates/`) requires each feature's `contract/service.ts` to declare its exported service interface and bans exported `ReturnType<typeof fn>` for `context.ts`.
 
 ## House TypeScript style
 
