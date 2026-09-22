@@ -1,5 +1,6 @@
 import { fetchOpenRouterCatalog } from "../../../packages/inference/src/catalog/openrouter.ts";
 import { expect, test } from "../../support/fixtures.ts";
+import { openRouterCatalogFetch } from "../_openrouter-catalog.ts";
 
 test("OpenRouter catalog merges its three modality lists and preserves the first row per id", async () => {
   const requested: string[] = [];
@@ -114,4 +115,21 @@ test("OpenRouter catalog merges its three modality lists and preserves the first
       reasoning: null,
     },
   ]);
+});
+
+test("aliasOf is read only where the catalog states it: an alias's named target, a variant's canonical-slug base", async () => {
+  const rows = await fetchOpenRouterCatalog({ fetch: openRouterCatalogFetch(), baseUrl: "https://openrouter.example/api/v1" });
+  const aliasOf = (id: string): string | undefined => rows.find((row) => row.id === id)?.aliasOf;
+  expect(aliasOf("~anthropic/claude-fable-latest")).toBe("anthropic/claude-fable-5.1");
+  expect(aliasOf("anthropic/claude-fable-5.1:batch")).toBe("anthropic/claude-fable-5.1");
+  expect(aliasOf("openai/o4-mini:batch")).toBe("openai/o4-mini");
+  // A base id is its own model; an alias naming no target is left alone rather than guessed from its spelling.
+  expect(aliasOf("anthropic/claude-fable-5.1")).toBeUndefined();
+  expect(aliasOf("~anthropic/claude-mystery-latest")).toBeUndefined();
+  // A variant with no un-suffixed sibling in the catalog has nothing to share.
+  const orphan = await fetchOpenRouterCatalog({
+    fetch: openRouterCatalogFetch([{ id: "acme/solo:free", canonical_slug: "acme/solo-2026", supported_parameters: [] }]),
+    baseUrl: "https://openrouter.example/api/v1",
+  });
+  expect(orphan[0]?.aliasOf).toBeUndefined();
 });
