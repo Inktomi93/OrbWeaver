@@ -146,11 +146,9 @@ Preconditions and geography:
               --open-chat current --context-tab members --text
   ```
 
-- **`--eval` was NOT in the queue until 2026-08-16** — every step ran, then every eval, so
-  `--eval A --click X` reported A's POST-click state and a sequence walk cost one invocation per
-  step. It now runs where it is written; a TRAILING `--eval` (after the last step/nav) still
-  observes the settled surface, so the common `--goto x --eval y` shape is unchanged. If you are
-  reading an old transcript whose evals disagree with its steps, that is why.
+- **`--eval` runs where it is written in the argv queue**; a TRAILING `--eval` (after the last
+  step/nav) observes the settled surface. Transcripts from before 2026-08-16 ran every eval after
+  every step, so their evals can disagree with their steps.
 
 - **`--key` has two forms and only one WALKS.** `--key Tab` (bare, no `=`) presses the page
   keyboard without changing focus — N of them walk N stops, inside a Base UI focus trap included.
@@ -275,9 +273,9 @@ parameterized actions.
      `steps-failed`, `assertion-fails`, `contrast-fails`, `eval-fails`, `console-errors`,
      `page-errors`), then the retained Playwright trace under `reports/traces/`. Navigation/action
      refusals land here; instrument/tool refusals use exit 2 — see §9 before retrying anything.
-     **`nav=OK` no longer coexists with `nav-actions-failed>0`**: a run whose page loaded but whose
+     **`nav=OK` never coexists with `nav-actions-failed>0`**: a run whose page loaded but whose
      `--goto`/`--open-chat` was rejected reads `nav=ACTIONS-FAILED`, because its captures describe a
-     surface you never reached. (It printed `nav=OK` beside `nav-actions-failed=1` until 2026-08-16.)
+     surface you never reached.
   4. **exit 0 = clean.** The last stdout line is always `RESULT <tool> key=value …` — machine-
      parsable; grep `^RESULT`.
 - A `data-app-ready=degraded` readiness is reported as a NAV ERROR: the capture is mid-hydration —

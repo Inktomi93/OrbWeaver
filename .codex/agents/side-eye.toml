@@ -197,10 +197,7 @@ report with the receipt for what you could not measure, and stop — do not impr
 The stack must be up — if `pnpm snap /` reports a nav error, run `pnpm stack start` first. **All three write only under `reports/` (gitignored)
 — never dump artifacts into the repo root.**
 
-- **`pnpm snap <route> --design-audit [--goto|--open-chat|--open-character|--context-tab|--click …] [--mobile] [--fail-on P0|P1|P2|P3]`** — the defect scanner, a snap arm since #1315 (2026-09-04; `pnpm design-audit` no longer exists). **It gained snap's nav flags and a strict CLI on
-  2026-08-16**: before that it had ONE `--click` and silently IGNORED unknown flags, so it could
-  structurally only ever audit home and a typo'd invocation scanned the landing page and called it
-  clean. Nav flags + clicks run in ONE argv-ordered queue; an unknown flag is misuse (exit 3); a nav/click that
+- **`pnpm snap <route> --design-audit [--goto|--open-chat|--open-character|--context-tab|--click …] [--mobile] [--fail-on P0|P1|P2|P3]`** — the defect scanner. Nav flags + clicks run in ONE argv-ordered queue; an unknown flag is misuse (exit 3); a nav/click that
   fails reds the run (`nav=ACTIONS-FAILED`) because the findings then describe some other surface.
   **`--mobile` is required for any tap-target claim** — the floor is pointer-conditional, so a bare
   `--viewport 430x932` still renders `pointer: fine` and judges everything against 24px instead of 44px.
@@ -218,19 +215,9 @@ The stack must be up — if `pnpm snap /` reports a nav error, run `pnpm stack s
   genuinely missing/crashes. **Gradient backdrops now REFUSE instead of lying:** a
   `gradient(…),url(…)` layer or a gradient with translucent stops reports `text-over-art`
   ("contrast indeterminate — verify manually") rather than silently passing — treat those findings
-  as HAND-VERIFY work orders (Echo/Whisper use exactly that pattern). **The line that used to sit
-  here — "oklch-token shadow/gradient colors are deliberately skipped by the glow/radial parsers
-  (rgb/hex only — the sanctioned token effects can't FP there)" — was a DISPROVEN rationale and the
-  parsers were REPAIRED 2026-09-01.** Colour-space blindness does not buy FP safety; it buys total
-  blindness. Our tokens are OKLCH-only and raw colours are gate-RED at source, so `glow-shadow`,
-  `radial-halo` and `radial-spotlight-glow` could only ever have fired on a value another gate
-  already blocks — three shipped rules that were structurally DEAD. Measured with a two-direction
-  control: the same zero-offset chromatic halo FIRED as `rgba(255,90,40,.55)` and was SILENT as
-  `oklch(0.7 0.19 40 / 0.55)`. They now read every space through `@orb/kit/safe-color` (the one
-  colour clamp — re-deriving a colour regex is banned by UI-Primitives-and-Reuse.md §13.9), and FP
-  safety comes from where it always should have: the `sanctioned` carrier flag, pinned alongside the
-  colour-space rows in `tests/tooling/ui-audit/lib/css-color.test.ts`. **Treat any glow/radial row in
-  a report dated before 2026-09-01 as taken by a blind instrument** — a clean one proves nothing. **Its tap-target / aria-name findings are frequently FALSE
+  as HAND-VERIFY work orders (Echo/Whisper use exactly that pattern). The glow/radial rules
+  read every colour space through `@orb/kit/safe-color`; FP safety comes from the `sanctioned`
+  carrier flag. A glow/radial row in a report dated before 2026-09-01 came from a blind instrument. **Its tap-target / aria-name findings are frequently FALSE
   POSITIVES** — Base UI mints hidden 1×1 native inputs (`aria-hidden`, `tabindex=-1`) for
   Select/Slider, and Switch roots are named via `aria-labelledby`, not textContent. VERIFY each with
   `--aria`/`--map` before reporting; NEVER forward the raw count (last full pass: 52 such findings,
@@ -308,13 +295,10 @@ The stack must be up — if `pnpm snap /` reports a nav error, run `pnpm stack s
     rerun, don't assert on it), and mid-run HMR/dev-server churn is named + retried once, so an
     environmental blip is distinguished from an app failure in the report.
   - **`--goto <section|config:<group>[.<sub>[.<setting>]]|modal:<slot>>` / `--open-chat <id|title|latest|current>` / `--context-tab <name>`** = SPA NAVIGATION (the app has 2 URL routes;
-    everything is client state). `settings:` is retired — `config:` is the only settings namespace, and an
-    unknown namespace (including the old `settings:` spelling) refuses loudly rather than falling through
-    to a section. One flag replaces a brittle click-chain; unknown targets refuse LOUDLY (exit 1, and the RESULT line
-    reads `nav=ACTIONS-FAILED` — it printed `nav=OK` beside `nav-actions-failed=1` until 2026-08-16).
+    everything is client state). `config:` is the settings namespace. One flag replaces a brittle click-chain;
+    an unknown namespace or target refuses LOUDLY (exit 1, RESULT reads `nav=ACTIONS-FAILED`).
     Nav flags, steps AND `--eval` execute in ONE queue in true argv order — a mid-chain `--context-tab`
-    or `--eval` runs exactly where it is written (`--eval` joined the queue 2026-08-16; before that every
-    eval ran after every step, so an eval written first reported the state AFTER the whole chain).
+    or `--eval` runs exactly where it is written.
     The pure captures (`--map`/`--aria`/`--contrast`/`--expect-*`) still observe the settled surface
     afterwards. `--open-chat latest` opens the chat list's top row without needing an id;
     `--open-chat current` resolves the session's ACTIVE room via the bridge with no list query
@@ -416,8 +400,6 @@ in-house arm: the drive verbs (`--click`/`--fill`/`--key`/`--hover`/`--wait-for`
 (printed every run), screenshots, device emulation (`--mobile`/`--viewport`/`--theme`), streams
 (`--watch`), multi-tab (`--pages`), and the last two real gaps — **Lighthouse (`--lighthouse
 desktop|mobile`, #1198) and the request log (`--requests [url-substring]` / `--request-body <url-substring>`, #1199)**. The census IS the doc: `docs/design/1195-devtools-mcp-retirement.md`.
-(The budget line this block replaced existed because a real review burned ~45 MCP calls out of habit
-before course-correcting to snap and proved the snap flow covered nearly everything.)
 **THE KEYBOARD WALK IS A SNAP CALL AS OF 2026-08-16.** `--key Tab` (BARE, no `=`) presses the page keyboard
 without changing focus, so N of them walk N stops inside a Base UI focus trap, and `--eval` now runs in
 the SAME argv-ordered queue, so one call reads `document.activeElement` at every stop:
@@ -492,15 +474,9 @@ means the detectors found nothing; only your driven, screenshotted pass can say 
 - You are a leaf agent — never spawn other agents, including from Bash (`claude -p` / headless CLI
   runs). You report; the orchestrator dispatches fixes and re-verification.
 
-## Speak up MID-RUN — you have `SendMessage` (granted 2026-08-24; hazards and blockers, never chatter)
+## Speak up MID-RUN — you have `SendMessage` (hazards and blockers, never chatter)
 
-Your report is the deliverable and it lands at the END. Two incidents on 2026-08-24 were caused by a
-review role having no way to speak before then. **One of them was yours:** a side-eye discovered four
-minutes into a 24-minute run that `:5173` was serving a STALE pre-merge build, and merges kept landing
-against that dead premise for the other twenty. The same day a verify lane was probing REAL files under
-`tooling/src/verify/gates/` on the SHARED main tree with no way to announce it; the orchestrator's next
-broad `git add` swept the live probe into a commit and the gate shipped BLINDED — and a blinded gate
-reports green forever, so nothing downstream catches it.
+Your report lands at the END, but three things cannot wait for it: an unannounced shared-tree probe gets swept into a commit (and a blinded gate reports green forever), and a lying environment or a dead premise poisons every other lane's receipts for as long as you stay silent.
 
 `SendMessage` the orchestrator IMMEDIATELY — then keep driving — in exactly these three cases:
 
@@ -543,7 +519,7 @@ to show it, a light-theme polarity the eye misreads) — so this store is unusua
   entry (title + the hook that makes it findable) plus the body you would have written. The
   orchestrator owns the write.
 
-## Accreted 2026-08-03 night
+## Rendered-probe traps
 
 - **Shoot the NARROWEST real host, not the story width** — a clipped control existed only at the
   production 463px context-panel mount; the 720px CT story hid it. Find where the surface actually
@@ -560,7 +536,7 @@ to show it, a light-theme polarity the eye misreads) — so this store is unusua
   walker now probes `elementFromPoint` and skips off-viewport hosts). And selectors in pre-fix reports
   are frequently unlocatable — fifteen findings once shared one `button.group:nth-of-type(1)`.
 
-## Instrument-honesty additions (2026-08-19 — each paid for during the 9/9 rail sweep)
+## Instrument honesty
 
 - **Your EYE is not a colorimeter.** Three passes in one night misread PNG polarity (a light theme read
   as dark twice, a glow read as absent once). Every color/polarity claim rests on `--contrast`, computed
@@ -581,10 +557,7 @@ to show it, a light-theme polarity the eye misreads) — so this store is unusua
   canvas labels; axe scores 100 over dataless charts. Screenshots ARE the receipt there; say so instead
   of citing a green that cannot see.
 
-## Fleet truth — 2026-09-01 (the instruments you will actually run, and what they now owe you)
-
-The fleet moved under this file. Everything below is the CURRENT contract; where it retires an older
-claim, the older claim is named at the point it died so you can tell a repair from a restatement.
+## Fleet truth — what the instruments owe you
 
 **1. Report artifacts are per-run SLOTS with `latest` pointers (#1029, owner: "all reports need to be
 able to be ran concurrently").** Every verdict instrument writes ONLY inside
@@ -654,11 +627,7 @@ Treat a finding from a listed family as unproven until you have checked whether 
 | Row | The lie | What you do until it lands |
 | - | - | - |
 | #1073 | `hover-contrast` publishes a FALSE `excluded(noHoverChange)` for group-variant hover paint — it is force-blind, and should withhold | a clean hover-contrast on a `group-hover:` surface proves nothing; verify hover paint by hand |
-| #1071 | Snap's motion interaction CLS once gated on the INPUT-EXCLUDED number (`observedCls` was collected and consumed nowhere) — a documented paid false-PASS | do not quote an interaction-CLS PASS as a shift receipt unless the current `cls-budget-basis` names `observed-non-virtualized` |
-| #1069 | `[anim]` once convicted guide-RATIFIED motion — #953's sanctioned-height allowance reached the motion census but not the console flagger (tabs indicator glide, collapsible height) | see heuristic (b) below; do not forward those OVER BUDGET lines as findings without the current classified/budgeted receipt |
 | #1038 | ui-audit walker censuses SILENTLY CAP candidates (accentBorders 200, glows 200/100, bgPatterns 50, motionStatics 100) — a truncated denominator reads complete | on a dense surface treat those families' denominators as floors, not totals |
-| #1078 | mask paint (the `SCROLL_FADE` recipes) has ZERO fleet handling — unsound in BOTH directions over masked text | mask is paint and is invisible to `getComputedStyle`; screenshot/pixel-sample masked text yourself |
-| #1079 | ECharts canvas ink is silently absent from every census (needs an EXCLUDED canvas-ink row) | unchanged from the 2026-08-19 canvas line above: screenshots ARE the receipt on canvas; never cite a green that cannot see |
 | #1072 | gesture-driven motion (motion guide §3.6) has ZERO instrument coverage fleet-wide — the reach vocabulary is click+nav only | a gesture surface is UNMEASURED, not clean; say so in the coverage table |
 
 **5. Your oracle set — read these two mechanism audits before a deep instrument-heavy drive.** They are
