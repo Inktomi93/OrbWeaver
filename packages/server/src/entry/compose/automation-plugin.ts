@@ -33,7 +33,6 @@ import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { liftJsonSchema, projectJsonSchema } from "@orb/kit/json-schema";
 import type { SideGenSampling } from "@orb/kit/side-gen-posture";
 import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
-import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
 import { packShowcaseBundle, readShowcaseManifest, SHOWCASE_PLUGIN_SLUGS } from "@orb/showcase-plugins";
 import type { AdminService } from "#domain/admin";
 import { can } from "#domain/admin";
@@ -376,7 +375,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     // program §13 row 2). A user with no preset params gets the floor byte-identically.
     summarizeQuiet: async ({ authorUserId, systemPrompt, prompt, posture, responseFormat }) => {
       const rc = await roleClientsFor(authorUserId);
-      const sampling = toSummarizeOptions(resolveSideGenSampling(SIDE_GEN_POSTURES[posture], await deps.resolveUserPresetParams(authorUserId)));
+      const sampling = resolveSideGenSampling(SIDE_GEN_POSTURES[posture], await deps.resolveUserPresetParams(authorUserId));
       const inputs = [{ systemPrompt, userPrompt: prompt }];
       const res = responseFormat === undefined ? await rc.summarize(inputs, sampling) : await rc.structured(inputs, { ...sampling, responseFormat });
       const item = res.items[0];
@@ -693,7 +692,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
         // is prose `summarize` — the explicit two-arm dispatch, never a sniffed option.
         const responseFormat = opts?.schema === undefined ? undefined : buildQuietResponseFormat(opts.schema);
         const inputs = [{ systemPrompt: PLUGIN_QUIET_SYSTEM, userPrompt: prompt, ...(images.length > 0 ? { images } : {}) }];
-        const sampling = { ...toSummarizeOptions(posture), signal };
+        const sampling = { ...posture, signal };
         const res = responseFormat === undefined ? await rc.summarize(inputs, sampling) : await rc.structured(inputs, { ...sampling, responseFormat });
         return { text: (res.items[0]?.text ?? "").trim() };
       },

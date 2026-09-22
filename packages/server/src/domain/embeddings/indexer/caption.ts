@@ -44,7 +44,6 @@ import { ProviderError } from "@orb/inference";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import type { SideGenSampling } from "@orb/kit/side-gen-posture";
 import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
-import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
 import { runStructuredTurn } from "@orb/server/kit/structured-turn";
 import { getLog } from "#foundation/observability";
 import type { AvatarAnalysis } from "../contract/results.ts";
@@ -99,7 +98,7 @@ export async function analyzeAvatarImage(roleClients: RoleClients, bytes: Uint8A
     }
     return skipped(model);
   }
-  const posture = toSummarizeOptions(resolveSideGenSampling(ANALYSIS_FLOOR, presetParams));
+  const posture = resolveSideGenSampling(ANALYSIS_FLOOR, presetParams);
   const run = async (correction?: string): Promise<string> => {
     const userPrompt = correction === undefined ? ANALYSIS_USER_PROMPT : `${ANALYSIS_USER_PROMPT}\n\n${correction}`;
     const result = await roleClients.structured([{ systemPrompt: ANALYSIS_SYSTEM_PROMPT, userPrompt, images: [bytes] }], {

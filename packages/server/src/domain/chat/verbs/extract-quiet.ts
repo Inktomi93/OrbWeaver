@@ -22,7 +22,6 @@ import type { ChatId } from "@orb/kit/ids";
 import type { MacroRegistry, ProcessMacroOptions } from "@orb/kit/macro";
 import { processMacros } from "@orb/kit/macro";
 import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
-import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
 import type { ExtractQuiet, ExtractQuietDeps, ExtractQuietParams, ExtractQuietResult } from "../contract/context.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
 import { loadParticipants } from "../persistence/participants-read.ts";
@@ -114,11 +113,7 @@ export function createExtractQuiet(deps: ExtractQuietDeps): ExtractQuiet {
     // The side-gen sampling ladder: the `extract_quiet` floor (temp 0.4, 320 out — near-deterministic keyword
     // extraction) ← the chat host's default-preset params (extract-quiet is chat-scoped).
     const posture = resolveSideGenSampling(SIDE_GEN_POSTURES.extract_quiet, await deps.resolveChatPresetParams(p.chatId));
-    const res = await deps.summarize(
-      p.funderUserId,
-      [{ systemPrompt: instruction, userPrompt: `Recent conversation:\n${scene}` }],
-      toSummarizeOptions(posture),
-    );
+    const res = await deps.summarize(p.funderUserId, [{ systemPrompt: instruction, userPrompt: `Recent conversation:\n${scene}` }], posture);
     const item = res.items[0];
     return { text: (item?.text ?? "").trim(), costUsd: item?.usage.costUsd ?? null };
   };

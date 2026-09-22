@@ -127,7 +127,8 @@ export interface SummarizeInput {
  *  SAME loop-controls a chat request does — critically `presencePenalty`, which the memory build defaults to a
  *  loop-stopping value for repetition_penalty=1.0 models (Qwen3-VL). A family that can't honor a knob drops it. */
 export interface SummarizeOptions {
-  maxTokens?: number | undefined;
+  /** The output cap, in the `userIntentSchema` / side-gen posture vocabulary so a resolved posture passes as-is. */
+  maxOutputTokens?: number | undefined;
   temperature?: number | undefined;
   /** Nucleus top-p (vLLM / OpenAI-compatible families). */
   topP?: number | undefined;

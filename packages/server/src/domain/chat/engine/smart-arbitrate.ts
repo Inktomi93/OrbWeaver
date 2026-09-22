@@ -46,8 +46,8 @@ interface SmartArbitrateParams {
   /** The ROOM HOST's prose overrides (PROSE-1 census row 75, `chat.arbiter.system`), resolved by the caller
    *  off `ctx.resolveChatProse`. Empty ⇒ the shipped arbiter prompt, byte-identical. */
   readonly prose: ProseOverrides;
-  /** The resolved side-gen sampling options (the `arbiter` floor ← the chat host's preset params), mapped to
-   *  the summarize seam's `{temperature, maxTokens}` at compose. A tiny output budget — we want a name, not
+  /** The resolved side-gen sampling options (the `arbiter` floor ← the chat host's preset params), passed to
+   *  the summarize seam as-is. A tiny output budget — we want a name, not
    *  prose — but a user's preset params can now widen it. Absent knobs fall to the runner default. */
   readonly sampling: SummarizeOptions;
   /** The TURN's abort signal (the active-turn handle the verb registered). Threaded into the side-LLM call so

@@ -41,7 +41,6 @@ import type { ReportProgress } from "@orb/contracts/workloads";
 import type { UserId } from "@orb/kit/ids";
 import type { SideGenSampling } from "@orb/kit/side-gen-posture";
 import { estimateTokens } from "@orb/kit/tokens";
-import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
 import { runStructuredTurn } from "@orb/server/kit/structured-turn";
 import type { RefineryScoreTarget } from "#domain/character";
 import { getLog } from "#foundation/observability";
@@ -138,7 +137,7 @@ async function runScoreSweep(deps: RefineryWorkloadDeps, opts: ScoreSweepOptions
   const facts = await summarizerFactsOf(rc);
   const sampleOpts: StructuredOptions = {
     responseFormat: REFINERY_RESPONSE_FORMATS.score,
-    ...toSummarizeOptions(sweepOutputSamplingOf(items, presetParams, facts.contextTokens)),
+    ...sweepOutputSamplingOf(items, presetParams, facts.contextTokens),
   };
 
   signal?.throwIfAborted();

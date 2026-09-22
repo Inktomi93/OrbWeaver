@@ -44,7 +44,6 @@ import type { RoleClients, StructuredOptions, SummarizeOptions } from "@orb/cont
 import type { UserId } from "@orb/kit/ids";
 import { dropNullValues, projectJsonSchema } from "@orb/kit/json-schema";
 import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
-import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
 import { runStructuredTurn, StructuredOutputError } from "@orb/server/kit/structured-turn";
 import { z } from "zod";
 import { addSpanEvent } from "#foundation/observability";
@@ -100,7 +99,7 @@ export async function resolveForgeCall(
   ownerId: UserId,
 ): Promise<{ overrides: ProseOverrides; sampleOpts: SummarizeOptions; rc: RoleClients }> {
   const [overrides, presetParams, rc] = await Promise.all([ctx.resolveUserProse(ownerId), ctx.resolveUserPresetParams(ownerId), ctx.roleClientsFor(ownerId)]);
-  return { overrides, sampleOpts: toSummarizeOptions(resolveSideGenSampling(SIDE_GEN_POSTURES.schema_forge, presetParams)), rc };
+  return { overrides, sampleOpts: resolveSideGenSampling(SIDE_GEN_POSTURES.schema_forge, presetParams), rc };
 }
 
 /** One enforced call. `format` picks the grammar; `task` is the `{{task}}` splice; `payload` is the

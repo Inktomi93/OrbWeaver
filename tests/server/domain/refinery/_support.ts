@@ -58,7 +58,12 @@ export interface RefineryHarness {
 
 export const TEST_SUMMARIZER_MODEL = FAKE_SUMMARIZE_MODEL;
 
-export function makeRefineryHarness(db: Db): RefineryHarness {
+/** The owner's default-preset params the harness answers with (the top rung of the side-gen posture ladder). */
+export interface RefineryHarnessOptions {
+  readonly presetParams?: { readonly temperature?: number; readonly topP?: number; readonly maxOutputTokens?: number } | undefined;
+}
+
+export function makeRefineryHarness(db: Db, options: RefineryHarnessOptions = {}): RefineryHarness {
   const charHarness = makeCharacterHarness(db);
   const character = createCharacterService(charHarness.ctx);
   const clock = createFrozenClock(FROZEN_AT_MS);
@@ -88,7 +93,7 @@ export function makeRefineryHarness(db: Db): RefineryHarness {
     newRefineryRunId: (): RefineryRunId => castId<RefineryRunId>(ids.next("refinery_run")),
     newRefinerySchemaId: (): RefinerySchemaId => castId<RefinerySchemaId>(ids.next("refinery_schema")),
     roleClientsFor,
-    resolveUserPresetParams: () => Promise.resolve({}),
+    resolveUserPresetParams: () => Promise.resolve(options.presetParams ?? {}),
     resolveUserProse: () => Promise.resolve({}),
     emitUserEvent: (userId: UserId, event: UserBusEvent): void => {
       userEvents.push({ userId, event });

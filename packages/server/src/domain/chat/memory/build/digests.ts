@@ -54,7 +54,7 @@ interface GenerateDigestsArgs {
 function summarizerOpts(ctx: ChatContext): SummarizeOptions {
   const s = ctx.memorySummarizer;
   return {
-    maxTokens: s.maxTokens ?? DEFAULT_MEMORY_SUMMARIZER_MAX_TOKENS,
+    maxOutputTokens: s.maxTokens ?? DEFAULT_MEMORY_SUMMARIZER_MAX_TOKENS,
     ...(s.temperature !== undefined ? { temperature: s.temperature } : {}),
     ...(s.topP !== undefined ? { topP: s.topP } : {}),
     ...(s.topK !== undefined ? { topK: s.topK } : {}),

@@ -51,7 +51,6 @@ import { DomainNotFoundError } from "@orb/kit/errors";
 import type { ModelId, RefineryRunId } from "@orb/kit/ids";
 import type { SideGenSampling } from "@orb/kit/side-gen-posture";
 import { estimateTokens } from "@orb/kit/tokens";
-import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
 import { runStructuredTurn, StructuredOutputError } from "@orb/server/kit/structured-turn";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
@@ -350,7 +349,7 @@ function sampleOptsFor(pass: StagePass, prompts: StagePrompts): StructuredOption
     contextTokens: pass.contextTokens,
     inputEstimate: estimateTokens(`${prompts.system}\n${prompts.user}`),
   });
-  return { responseFormat: pass.responseFormat, ...toSummarizeOptions(sampling) };
+  return { responseFormat: pass.responseFormat, ...sampling };
 }
 
 /** The three ECONOMIC columns of a finished run, resolved identically for every stage: the provider's own
