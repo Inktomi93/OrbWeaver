@@ -9,7 +9,7 @@
 //
 // FLAG[attachment-scope] (#1396): all FOUR arms now name their owner authority, and it is NOT the same one.
 // The attachment arms used to carry no owner predicate at all, which left the tenant boundary resting on
-// whatever produced the id arrays — a prose-only boundary (AGENTS §2.3). Per scope:
+// whatever produced the id arrays — a prose-only boundary (constitution §2). Per scope:
 //   • character → `target.ownerId` (the room HOST). Every character-card read in the domain resolves under
 //     `hostUserId` (D18/D19), and both attach writers gate the card and the book under ONE caller, so a
 //     host-owned card can only legitimately carry host-owned books. `loadCharacterCardLore` below has

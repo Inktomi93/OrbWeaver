@@ -594,7 +594,7 @@ describe("the two-arm CHECK", () => {
 // `findEngagedGame(chatId)` result or one fork's own id maps, so a mismatched tuple is UNCONSTRUCTIBLE,
 // and the import arm's portable form carries INDICES that `remapRpg` can only resolve against the target
 // chat's freshly-minted identity. But "today's code happens to derive" is code shape, not a boundary
-// (constitution §2.3), and this arm had no negative test at all.
+// (constitution §2), and this arm had no negative test at all.
 //
 // THIS DOES NOT CLAIM THE DB REFUSES THE ROW — it does not, and pretending otherwise is the false clean
 // the pin exists to prevent. It states WHERE the line actually is, so nobody deletes a derivation

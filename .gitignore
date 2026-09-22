@@ -118,7 +118,7 @@ scratch/
 # `__dc*` is the dependency-cruiser self-test's live planter (tests/tooling/dependency-cruiser.int.test.ts).
 **/__g_*
 **/__dc*
-# The constitution's scratch-probe idiom (AGENTS §4: plant at `features/__probe/...`, rm after) and
+# Scratch probes planted at `features/__probe/...` and removed after, and
 # the cp-probe backup discipline (`cp f f.bak; ...; mv f.bak f`) — transient by definition; visible
 # untracked, they read as mystery files to sibling lanes (owner, 2026-08-21).
 **/__probe*

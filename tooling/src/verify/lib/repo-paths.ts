@@ -114,8 +114,8 @@ export interface MergeBaseResolution {
  *
  *  IT IS DERIVED, NOT ORDERED, AND THAT IS THE FIX. Both copies used to take the FIRST ref that resolved,
  *  with `origin/main` hardcoded ahead of `main`. In THIS repo the owner pushes by hand and rarely
- *  (`.claude/rules/orchestration.md`: "local `main` is the worktree base — the owner pushes manually, so
- *  `origin/main` can be far behind"), so that base is routinely tens of commits behind the branch point.
+ *  (`.claude/skills/orchestrator/SKILL.md`: "local `main` is the base for worktrees"; the owner pushes
+ *  manually, so `origin/main` can be far behind), so that base is routinely tens of commits behind the branch point.
  *  Measured 2026-09-20 on a CLEAN local main: `origin/main` was 280 commits back and the "changed set" was
  *  **2932 files, 488 of them `tooling/src/**`** — the whole backlog, every run, wearing the word "changed".
  *

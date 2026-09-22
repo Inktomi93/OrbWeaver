@@ -33,7 +33,7 @@ export function printResult(tool: string, pairs: readonly ResultPair[]): void {
 
 // ── the verify harness's ROOT-LEVEL artifacts ────────────────────────────────────────────────────────
 // A handful of artifacts are files AT `reports/` rather than under a `reports/<kind>/` dir, because the
-// constitution names them by exactly those paths as the read-don't-rerun surfaces (AGENTS.md §4:
+// always-on CLAUDE.md names them by exactly those paths as the read-don't-rerun surfaces ("Read the harness artifacts":
 // `reports/verify.json`, `reports/check-structure.json`, `reports/verify/<stage>.log`,
 // `reports/ct-flaky.json`). They ride the SAME home as every other artifact — the `reports` literal has one
 // spelling in this repo and it is here (policy `tooling-artifact-path-home`).

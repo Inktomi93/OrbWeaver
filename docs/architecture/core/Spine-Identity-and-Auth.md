@@ -6,7 +6,7 @@ updated: 2026-08-30
 
 # Orbweaver — Spine: Identity, Auth, and Permission
 
-Canonical doc for spine §7.1 (`AGENTS.md` §5.1 points here), and THE permissions-model page (D121 clause B): §1–§2b are the mechanics, §2c–§2e are the model a reviewer reasons from. Agent-principal detail: ledger D60 is the DESIGN of record; §4 states what is actually on the tree.
+Canonical doc for spine §7.1 (`AGENTS.md` §5 points here), and THE permissions-model page (D121 clause B): §1–§2b are the mechanics, §2c–§2e are the model a reviewer reasons from. Agent-principal detail: ledger D60 is the DESIGN of record; §4 states what is actually on the tree.
 
 ## 1. Resolution — one pipeline, one mint
 

@@ -7,8 +7,8 @@
 // exported from the sibling module the grammar moved OUT of, finds `tests/tooling/verify/lib/ordinary-waiver.test.ts:6`,
 // so the sweep can see test-side imports of this neighbourhood and the zero is a real zero). Delete any of the
 // four and every suite plus `check:policy-conformance` stayed green: five gate modules and both report doors
-// depend on behaviour nothing asserted. `.claude/rules/gates-and-tooling.md` § "a tool caught lying gets its
-// permanent pin" forbids exactly that for new central behaviour.
+// depend on behaviour nothing asserted. `.claude/rules/verify-and-gates.md` (the fix contract for a gate or
+// instrument caught lying) forbids exactly that for new central behaviour.
 //
 // WHY THE FENCE ARMS RIDE HERE AND NOT IN `policy-pass.test.ts`. `assertWaivablePosition` is not exported; it
 // is `isWaivablePosition` standing at the two report doors. What the arms below pin is not the pass's contract

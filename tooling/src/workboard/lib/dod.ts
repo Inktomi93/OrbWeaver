@@ -15,7 +15,7 @@ const DOD_HEADING = "### Definition of Done";
 const STAMP_HEX_LENGTH = 16;
 const TRIPLE_BACKTICK = "```";
 /** `npx` strips both the workspace NODE_OPTIONS heap floor and the nice level (measured 2026-08-27,
- *  lane-standing-facts) — a DoD spelled with it runs un-floored on every close. Word-boundary match so
+ *  the lane skill) — a DoD spelled with it runs un-floored on every close. Word-boundary match so
  *  command SUBSTRINGS (`pnpm-npx-shim`) stay legal; a literal `npx` search term is the accepted cost. */
 const NPX_RE = /(?:^|[\s;&|(])npx(?:\s|$)/u;
 

@@ -1,4 +1,4 @@
-// THE PERMANENT PIN for a tool caught LYING (.claude/rules/gates-and-tooling.md): three shipped
+// THE PERMANENT PIN for a tool caught LYING (.claude/rules/verify-and-gates.md): three shipped
 // rules — `glow-shadow`, `radial-halo`, `radial-spotlight-glow` — were structurally DEAD, because
 // `checks-decor.ts` and `checks-ornament.ts` each carried a hand-rolled `rgba?\(…\)`-and-hex regex
 // while our tokens are OKLCH-only and raw colours are gate-RED at source. They could only ever fire

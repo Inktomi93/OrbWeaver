@@ -123,7 +123,7 @@ const NON_ARM_FLAG_SUMMARIES: Readonly<Record<string, NonArmFlagMeta>> = {
   "--viewport": { group: "Environment", summary: "explicit WxH viewport (default 1280x800); under --mobile it WINDOWS the device, keeping touch/DPR/UA" },
   "--mobile": { group: "Environment", summary: "iPhone 14 Pro Max emulation: touch, pointer:coarse, DPR 3 (compose with --viewport for a coarse WxH)" },
   "--desktop": { group: "Environment", summary: "explicit default desktop viewport (1280x800)" },
-  "--cpu-throttle": { group: "Environment", summary: "CDP CPU throttle applied before navigation (4 = the standard under-load arm)" },
+  "--cpu-throttle": { group: "Environment", summary: "CDP CPU throttle applied before navigation (4 = the standard load-test throttle)" },
   "--network": { group: "Environment", summary: "DevTools network preset applied before navigation" },
   // Stage family (ops/flags-stage.ts)
   "--isolated": { group: "Where", summary: "boot/reuse snap's isolated stage: a detached worktree served on an offset port pair" },

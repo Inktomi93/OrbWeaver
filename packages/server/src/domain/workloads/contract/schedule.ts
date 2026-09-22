@@ -9,7 +9,7 @@ import type { Db, workloadSchedules } from "@orb/db";
 import type { UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import type { StartWorkloadParams } from "./params.ts";
 
-/** The `workload_schedules` row, DERIVED — never re-spelled (AGENTS §0.2: a DB row shape's one home is `db`,
+/** The `workload_schedules` row, DERIVED — never re-spelled (CLAUDE.md "Type homes and unions": a DB row shape's one home is `db`,
  *  via `$inferSelect`). It was a hand-written interface listing the same eleven columns; a column added to the
  *  table would have left it silently stale. */
 export type WorkloadScheduleRow = typeof workloadSchedules.$inferSelect;

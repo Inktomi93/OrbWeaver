@@ -357,8 +357,8 @@ Type assertions use the type-test kinds defined by `tooling/src/_shared/test-kin
 
 ## 6. The verification floor for a tooling change
 
-The scoped lane floor and shared-host scheduling live in `.claude/rules/lane-standing-facts.md`,
-sections “Verification floors” and “Running suites without starving the box”. Gate-program integration
+The scoped lane floor and shared-host scheduling live in the `lane` skill
+(`.claude/skills/lane/SKILL.md`), sections “Running tools” and “Floor”. Gate-program integration
 follows `../../design/gate-runtime-orchestrator-playbook.md`; a lane must not launch whole-tree checks
 alongside the integration train.
 

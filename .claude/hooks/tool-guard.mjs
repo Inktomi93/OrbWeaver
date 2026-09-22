@@ -35,7 +35,7 @@
 //      `env -C <dir> ./node_modules/.bin/playwright test …` ran un-floored, `nice -n 19 bash -c "git
 //      stash"` and `env -C /tmp bash -c …` passed a LITERAL `git stash`, and `env -C <wt> npx eslint …`
 //      escaped the heap floor — while the `timeout`/`FOO=1` spellings of all three bit. `env -C <dir>` is
-//      the spelling .claude/rules/lane-standing-facts.md ORDERS every lane to use, so the guard was blind to the house
+//      the spelling .claude/skills/lane/SKILL.md ORDERS every lane to use, so the guard was blind to the house
 //      idiom. 110 rows of a 171,473-command replay moved, every one toward a stricter or equal verdict.
 //   R2 A BACKGROUNDING `&` GLUED TO A SCRIPT OPERAND is stripped like a group closer (OPERAND_TAIL_NOISE,
 //      which no longer requires a closer FIRST): `bash /tmp/x.sh&` — no subshell at all — resolved
@@ -401,7 +401,7 @@ export function parseStructure(blank) {
 // 167,097 real commands against #1943):
 //   · `env -C <dir> ./node_modules/.bin/playwright test …` PASSED un-floored, while the `npx` and `pnpm`
 //     spellings of the same run were caught — and `env -C <dir>` is the spelling
-//     `.claude/rules/lane-standing-facts.md` ORDERS every lane to use, so the guard was blind to the
+//     `.claude/skills/lane/SKILL.md` ORDERS every lane to use, so the guard was blind to the
 //     house idiom and caught only the shapes nobody was told to type.
 //   · `nice -n 19 bash -c "git stash"` and `env -C /tmp bash -c "$CMD"` PASSED a literal `git stash`,
 //     while `timeout 60 bash -c …`, `FOO=1 bash -c …` and `env bash -c …` denied. One wrapper flag apart.
@@ -603,7 +603,7 @@ const VITEST_HEAD = /^\s*(?:npx\s+vitest|vitest|\S*node_modules\/\.bin\/vitest|p
 // MEASURED on this box (stickler 2026-09-11, item 9): a bare `node` gets heap_size_limit 4192 MiB and no
 // NODE_OPTIONS; a `pnpm exec node` / `pnpm run` child gets 16480 (pnpm-workspace.yaml `nodeOptions`). The
 // ENTRY SPELLING decides the heap ceiling, and these are the tools that need it — typed eslint (380 corpus
-// sightings), tsc (269), the in-process ts-morph verbs (the recorded exit-134 OOM, gates-and-tooling.md),
+// sightings), tsc (269), the in-process ts-morph verbs (the recorded exit-134 OOM),
 // stryker, jscpd, knip, depcruise. `nice` does NOT depend on the spelling (every _shared/proc.ts door
 // applies it in-process), so this rule is about the FLOOR, never politeness.
 // PRECISION, the guard's first law: only the spellings with NO floor at all are refused — `npx <tool>`,
@@ -665,8 +665,8 @@ const GREP_BROAD_ROOT = /^(\.|\.\/|packages\/?|tests\/?|src\/?|scripts\/?|\*)$/;
 // ripgrep's `-r`/`--replace` REWRITES matched text (it does not list matches); glued directly to another
 // flag letter (`-rln`, `-rl`, `-rc`…) rg parses the glued letters as the REPLACEMENT VALUE, so the intended
 // listing/count flag silently vanishes and output is REPLACED text instead of a match list — no error, no
-// warning (four paid offenses this era, three by the orchestrator; owner ruling 2026-08-19, orchestration.md
-// "rg flag discipline"). Scoped to an `rg` head only (a bare `-r` glued to a value on another tool, e.g.
+// warning (four paid offenses this era, three by the orchestrator; owner ruling 2026-08-19, the lane skill's
+// "CLI hazards"). Scoped to an `rg` head only (a bare `-r` glued to a value on another tool, e.g.
 // `tar -rf`, is that tool's own business). A bare `-r`/`--replace` with a SEPARATE token (or `--replace=`)
 // is unambiguous and passes — only the glued-cluster shape silently mangles.
 const RG_HEAD = /^\s*(?:\S*\/)?rg\b/;
@@ -1101,7 +1101,7 @@ function pipeRewrite(command, blank, clauses, headRe, ctx) {
 // `env -C <wt> …` or `nice -n 19 …` raw CT run reached rule 6 and DENIED for want of a rewrite it should
 // have got. Capturing the whole prefix carries it verbatim into the sanctioned call, which is how
 // `env -C <wt> ./node_modules/.bin/playwright test <paths>` becomes `env -C <wt> pnpm test:ct <paths>` —
-// the exact spelling .claude/rules/lane-standing-facts.md prescribes. Always matches (possibly empty).
+// the exact spelling .claude/skills/lane/SKILL.md prescribes. Always matches (possibly empty).
 const PW_CLAUSE_HEAD = new RegExp(
   String.raw`^\s*(${WRAP_PREFIX})(?:(?:npx|pnpm(?:\s+exec)?)\s+)?(?:(?:\S*\/)?playwright|node\s+\S*@playwright\/test\/cli\.js)\s+test\b`,
 );

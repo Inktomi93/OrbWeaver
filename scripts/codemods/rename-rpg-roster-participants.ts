@@ -1,5 +1,5 @@
 // One-shot codemod for #1774 / #914 (vocabulary-map row 155, the rpg-register table): the RPG DOMAIN's
-// code-side `roster` family becomes the CHAT word. The register boundary (constitution §3) is the whole
+// code-side `roster` family becomes the CHAT word. The register boundary (constitution §6) is the whole
 // argument — game-register words stay inside the rpg domain, and an rpg surface naming a CHAT concept
 // (the room's participants / seated characters) takes the chat word instead. Row 44 landed that word for
 // the server chat domain at #1010; this pass closes the rpg half, which is also what closes the twin
@@ -382,7 +382,7 @@ function renameParams(targets: typeof PARAM_RENAMES): Plan {
  * is not rewritten; a JSDoc `{@link Owner.field}` target IS one and is left out of this list on purpose).
  *
  * Addressed as exact one-line strings so a near-miss THROWS instead of silently skipping — a drifted comment
- * is the honesty mechanism for a prose-enforced vocabulary rule (constitution §3), so it lands in the SAME
+ * is the honesty mechanism for a prose-enforced vocabulary rule (constitution §6), so it lands in the SAME
  * pass as the rename. The generic-English prose sweep is deliberately NOT here (see the header).
  */
 const COMMENT_FIXES: ReadonlyArray<{ readonly file: string; readonly from: string; readonly to: string }> = [

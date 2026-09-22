@@ -341,7 +341,7 @@ subscribers) + per subscribed device: 1 `chatEventBounds` probe (the pump alread
 
 ## 7. Gate extension — a future entity kind cannot ship without declaring room reach
 
-Prose-only boundaries are wishes (constitution §2.3); the lane is enforced at three tiers, each named:
+Prose-only boundaries are wishes (constitution §2); the lane is enforced at three tiers, each named:
 
 1. **tsc — the registry field.** `FreshnessRow` (`domain-freshness-plane.ts:68`) gains a REQUIRED
    `roomReach: { lane: "none"; why: string } | { lane: "bridge"; entity: RoomEntityKind }`. Every one of

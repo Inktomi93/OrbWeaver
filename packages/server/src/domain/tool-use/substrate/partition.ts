@@ -22,7 +22,7 @@
 // first-party partition; `""` is not a valid `UserId`, so builtins are disjoint from every user's shelf.
 //
 // The key is BRANDED so this file is the only place a key can be minted — a bare `registry.get(name)` is a type
-// error, which is what makes the partition physics instead of etiquette (constitution §2.2, enforcement tier 2).
+// error, which is what makes the partition physics instead of etiquette (constitution §2, enforcement tier 2).
 
 import type { UserId } from "@orb/kit/ids";
 import type { RegisteredTool, ToolRegistry, ToolRegistryKey } from "../contract/results.ts";

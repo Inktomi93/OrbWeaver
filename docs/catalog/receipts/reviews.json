@@ -3071,10 +3071,6 @@
               "target": "tests/tooling/workboard/cli.test.ts:392"
             },
             {
-              "kind": "code",
-              "target": ".claude/skills/orchestrator-runbook/SKILL.md:268"
-            },
-            {
               "kind": "provenance",
               "target": "git:45d520e738691c162ac3468ee2f0a82d4d243140"
             }

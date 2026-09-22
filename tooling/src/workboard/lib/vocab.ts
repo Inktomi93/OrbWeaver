@@ -1,5 +1,4 @@
-// The Project-1 coordinates, ingress classes, and failure-shape recognizers. Lifecycle law:
-// .claude/rules/orchestration.md §Work control quick path.
+// The Project-1 coordinates, ingress classes, and failure-shape recognizers.
 import { join } from "node:path";
 import process from "node:process";
 import { REPO_ROOT } from "../../_shared/artifacts.ts";

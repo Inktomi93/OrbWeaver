@@ -263,7 +263,7 @@ do_start() {
     # The wait/verdict seam (#1165), the shell twin of engines.ts's ENGINES_DISPATCH_PROBE: NO venv
     # bootstrap, NO reconcile, NO spawn — only the loop below, against whatever the *_PORT env names.
     # It exists so the boot verdict can be driven both directions without ever touching real hardware
-    # (tests/tooling/stack/ops/engines-start.int.test.ts; the standing ban is lane-standing-facts.md).
+    # (tests/tooling/stack/ops/engines-start.int.test.ts; the standing ban is CLAUDE.md "Engines").
     echo "engines: START PROBE — no spawn; waiting on ${PORTS[*]} only."
   else
     # A REAL spawn attempt clears the stopped marker (#1929) — the operator/automation asked for the fleet to

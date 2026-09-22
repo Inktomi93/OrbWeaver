@@ -131,7 +131,7 @@ export const rpgGames = sqliteTable(
 // ids: `remapRpg` (`domain/import/verbs/import-chat-bundle.ts`) can only resolve them against the target
 // chat's freshly-minted `identity`, so a source-chat id has no path into the write.
 //
-// ENFORCER (constitution §2.3 — a boundary held by convention is a wish): the negative tests in
+// ENFORCER (constitution §2 — a boundary held by convention is a wish): the negative tests in
 // the "cross-chat lineage invariant" blocks in `tests/server/domain/rpg/persistence/{snapshots,turn-tool-calls,checkpoints}.int.test.ts`, which plant a cross-chat pair and
 // pin that today's writers refuse to produce it. A future arm that ACCEPTS a `(gameId, messageId)` pair
 // inherits no belt from the schema — it must validate, and that suite is where it says so.
