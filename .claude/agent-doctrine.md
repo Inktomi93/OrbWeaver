@@ -26,10 +26,10 @@ only when a rule's edge case is genuinely unclear.
 - **The harness AUTO-WRITES artifacts — READ them, never pipe or re-run to rediscover a failure**, and
   invoke the SCRIPTS (a bare `npx vitest run` drops the json reporter). Which artifact each run writes,
   and why the paths are `latest` POINTERS rather than files written in place: constitution §4.
-- **NEVER a tree-wide `biome check --write` / `biome format` / any fix-all** — INFO-level autofixes have
-  changed behavior and crashed the server; fix ERROR-level only, and never re-add `u` flags
-  (`useUnicodeRegex` is deliberately deleted). CARVE-OUT: `--write` SCOPED to files you touched is
-  sanctioned for the fixes biome owns — read the WHOLE diff, never widen past your own set.
+- **Use `pnpm exec biome check --write <your files>` freely on the files you touched** — read the whole
+  diff it produces. Never run `--write` / `biome format` / any fix-all TREE-WIDE: INFO-level autofixes
+  across the repo have changed behavior and crashed the server. Never re-add `u` regex flags
+  (`useUnicodeRegex` is deliberately off).
 - **`biome-ignore` is the comment IMMEDIATELY above the flagged line** (an `eslint-disable-next-line`
   goes ABOVE it). Suppress only a genuine false-positive, with a cited reason; never restructure real
   code to silence a linter.
