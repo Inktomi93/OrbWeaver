@@ -198,7 +198,6 @@ CREATE TABLE `chat_handoff_resumptions` (
 	`accepted_by_user_id` text NOT NULL,
 	`actor_rekeys` text NOT NULL,
 	`created_at` integer NOT NULL,
-	`updated_at` integer NOT NULL,
 	FOREIGN KEY (`chat_id`) REFERENCES `chats`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`accepted_by_user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade
 );
@@ -291,6 +290,7 @@ CREATE TABLE `chat_stream_events` (
 	`id` text PRIMARY KEY NOT NULL,
 	`chat_id` text NOT NULL,
 	`message_id` text,
+	`generation_id` text,
 	`seq` integer NOT NULL,
 	`kind` text NOT NULL,
 	`delta` text NOT NULL,
@@ -320,6 +320,7 @@ CREATE TABLE `chats` (
 	`variable_values` text,
 	`user_macro_values` text,
 	`runtime_variables` text,
+	`stream_seq` integer DEFAULT 0 NOT NULL,
 	`standalone_variable_deltas` text,
 	`imported_from` text,
 	`import_hash` text,
@@ -512,6 +513,19 @@ CREATE UNIQUE INDEX `connection_bindings_user_task_unique` ON `connection_bindin
 CREATE UNIQUE INDEX `connection_bindings_rule_task_unique` ON `connection_bindings` (`rule_id`,`task`) WHERE "connection_bindings"."actor_kind" = 'automation-rule';--> statement-breakpoint
 CREATE UNIQUE INDEX `connection_bindings_plugin_task_unique` ON `connection_bindings` (`plugin_id`,`task`) WHERE "connection_bindings"."actor_kind" = 'plugin-grant';--> statement-breakpoint
 CREATE INDEX `connection_bindings_connection_idx` ON `connection_bindings` (`connection_id`);--> statement-breakpoint
+CREATE TABLE `plugin_provider_contributions` (
+	`provider_id` text NOT NULL,
+	`plugin_id` text NOT NULL,
+	`definition_hash` text NOT NULL,
+	`provider_kind` text DEFAULT 'plugin' NOT NULL,
+	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	PRIMARY KEY(`provider_id`, `plugin_id`),
+	FOREIGN KEY (`plugin_id`) REFERENCES `plugins`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`provider_id`,`definition_hash`,`provider_kind`) REFERENCES `provider_rows`(`id`,`definition_hash`,`origin_kind`) ON UPDATE cascade ON DELETE cascade,
+	CONSTRAINT "plugin_provider_contributions_kind_check" CHECK(provider_kind = 'plugin')
+);
+--> statement-breakpoint
+CREATE INDEX `plugin_provider_contributions_plugin_idx` ON `plugin_provider_contributions` (`plugin_id`);--> statement-breakpoint
 CREATE TABLE `provider_rows` (
 	`id` text PRIMARY KEY NOT NULL,
 	`label` text NOT NULL,
@@ -525,21 +539,20 @@ CREATE TABLE `provider_rows` (
 	`metered` integer NOT NULL,
 	`docs_url` text,
 	`features` text,
+	`definition_hash` text NOT NULL,
 	`origin_kind` text NOT NULL,
-	`origin_plugin_id` text,
 	`origin_user_id` text,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
-	FOREIGN KEY (`origin_plugin_id`) REFERENCES `plugins`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`origin_user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE set null,
 	CONSTRAINT "provider_rows_wire_check" CHECK(wire in ('openai-compat', 'anthropic-messages', 'agent-sdk', 'local-light')),
 	CONSTRAINT "provider_rows_dialect_check" CHECK(dialect is null or dialect in ('openai-compatible', 'openrouter')),
 	CONSTRAINT "provider_rows_auth_check" CHECK(auth in ('apiKey', 'oauthToken', 'endpoint', 'none')),
 	CONSTRAINT "provider_rows_catalog_check" CHECK(catalog in ('url', 'builtin')),
 	CONSTRAINT "provider_rows_origin_kind_check" CHECK(origin_kind in ('plugin', 'admin')),
-	CONSTRAINT "provider_rows_origin_shape_check" CHECK((origin_kind = 'plugin' and origin_plugin_id is not null and origin_user_id is null) or (origin_kind = 'admin' and origin_plugin_id is null))
+	CONSTRAINT "provider_rows_origin_shape_check" CHECK((origin_kind = 'plugin' and origin_user_id is null) or origin_kind = 'admin')
 );
 --> statement-breakpoint
-CREATE INDEX `provider_rows_origin_plugin_idx` ON `provider_rows` (`origin_plugin_id`);--> statement-breakpoint
+CREATE UNIQUE INDEX `provider_rows_contribution_identity_unique` ON `provider_rows` (`id`,`definition_hash`,`origin_kind`);--> statement-breakpoint
 CREATE INDEX `provider_rows_origin_user_idx` ON `provider_rows` (`origin_user_id`);--> statement-breakpoint
 CREATE TABLE `user_credentials` (
 	`id` text PRIMARY KEY NOT NULL,
@@ -696,7 +709,6 @@ CREATE TABLE `theme_clusters` (
 	`level` text NOT NULL,
 	`cluster_idx` integer NOT NULL,
 	`name` text,
-	`centroid` F32_BLOB(1024) NOT NULL,
 	`size` integer NOT NULL,
 	`model` text NOT NULL,
 	`computed_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
@@ -805,7 +817,6 @@ CREATE TABLE `embed_generation_targets` (
 	`task` text NOT NULL,
 	`generation_id` text NOT NULL,
 	`epoch` integer NOT NULL,
-	`updated_at` integer NOT NULL,
 	PRIMARY KEY(`owner_id`, `task`),
 	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`generation_id`) REFERENCES `embed_generations`(`id`) ON UPDATE no action ON DELETE cascade,
@@ -1306,7 +1317,7 @@ CREATE TABLE `session_entries` (
 	`seeded_through_seq` integer NOT NULL,
 	`canon_hash` text NOT NULL,
 	`is_primary` integer DEFAULT false NOT NULL,
-	`connection_id` text,
+	`connection_id` text NOT NULL,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`chat_id`) REFERENCES `chats`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`connection_id`) REFERENCES `user_connections`(`id`) ON UPDATE no action ON DELETE cascade

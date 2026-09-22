@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-18
+updated: 2026-09-22
 ---
 
 # Orbweaver — `@orb/db`: the schema floor (drizzle + libSQL + migrations)
@@ -13,7 +13,7 @@ updated: 2026-09-18
 - **The drizzle schema** — every `sqliteTable`, one file per **producing** domain (`schema/<feature>.ts`) plus the reserved cross-cutting set (`users` · `audit` · `relations`; `custom-types/` is its own top-level dir, not a schema file — the former `agent-principals` schema file died with the 2026-07-25 agent-principal purge; only dormant DDL in `users.ts`/`chat.ts` survives, per the D60 build-state rider). `schema/index.ts` is the source-of-truth barrel; the `db-structure` gate enforces the domain split AND the re-export (a file missing from the barrel silently drops its tables from `typeof schema` and migrations).
 - **The DB row types** — `$inferSelect`/`$inferInsert` (the §7.4 DB-row home). The TypeID brand lives AT the column (`$type<CharacterId>()`), so rows come back branded with no `castId` at the row→view seam.
 - **The libSQL client + lifecycle** (`client/`) — `createDb(url, wrap?)`, the per-connection PRAGMA block, `runMigrations`, `assertReferentialIntegrity`, `backupBeforeMigrate` + the pinnable `pruneDbBackups` sweep, `forecastDevDbReset` (the chain-divergence tripwire `pnpm check` reads), `optimizeDb`, `preCloseHousekeeping`, and the `LibSqlWrap` injection seam (the OTel wrapper is passed IN from `foundation/observability` because `db` can't import `server`).
-- **The migrations** — the FROZEN `0000_baseline.sql` + every forward `000N` after it + `meta/` (the snapshot chain, committed, never gitignored, never hand-edited). The baseline was born with every ledger decision already applied — no cv-pin, no `chats.ownerId`, `content_hash` on all five vector tables (character_embeddings · image_embeddings · chat_digests · chat_segments · document_chunks).
+- **The migrations** — `0000_baseline.sql` (today the chain's only entry: the D163 pre-launch squash folds forward migrations into a regenerated baseline) + every forward `000N` after it + `meta/` (the snapshot chain, committed, never gitignored, never hand-edited). The baseline was born with every ledger decision already applied — no cv-pin, no `chats.ownerId`, `content_hash` on all five vector tables (character_embeddings · image_embeddings · chat_digests · chat_segments · document_chunks).
 - **The native vector column** (`custom-types/`) — `vector32` (libSQL `F32_BLOB(dim)`, raw little-endian Float32 blob), consumed by the five vector tables in `schema/embeddings.ts`.
 - **`@orb/db/kit`** — db-layer primitives that need drizzle types and cannot be kit-pure: `batch`, `db-errors` (the deep cause-walk constraint classifier), `fetch-owned` (`fetchOwned`/`OwnedTable`), `insert-chunk` (the libSQL 32766 bound-variable cap), `parsers` (the read-seam zod `.catch(null)` JSON-column coercion; the deliberate `null`-vs-`[]` contract asymmetry is load-bearing).
 
