@@ -54,7 +54,7 @@ import { estimateTokens } from "@orb/kit/tokens";
 import { applyReceivePostProcess } from "@orb/server/kit/post-process";
 import { parseReasoningTags } from "@orb/server/kit/reasoning";
 import { getLog } from "#foundation/observability";
-import type { ApplyPromptTransformsOp, ApplyRegexReplaceOp, ChatToolExecFrame, ChatToolOps, ChatToolSet, RunChatTurnOp } from "../contract/context.ts";
+import type { ApplyPromptTransformsOp, ApplyRegexReplaceOp, BoundToolExecution, ChatToolExecFrame, ChatToolOps, RunChatTurnOp } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
 import type { PromptHistoryRegexEnv } from "../contract/regex.ts";
 import type {
@@ -731,13 +731,13 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
 
   // REDUCE + the tool-recurse loop. The two request-builder gates chain (they touch disjoint fields, and by
   // construction a turn sets tools OR responseFormat, never both — 04 §8).
-  const attach = attachTools(args, baseRequest);
+  const attach = await attachTools(args, baseRequest);
   // The REGISTRY names that actually rode this turn — the left half of the tool-identity partition (#1404).
   // Empty when no set resolved (unwired ops / no capability), which is exactly when nothing may execute.
-  const registryNames: ReadonlySet<string> = new Set(attach.set === null ? [] : args.attachedToolNames);
+  const registryNames: ReadonlySet<string> = new Set(attach.execute === null ? [] : args.attachedToolNames);
   const terminal = attachTerminalTools(args, attach.request, registryNames);
   const structured = attachResponseFormat(args, terminal.request);
-  const loop = await runRecurseLoop({ args, request: structured.request, set: attach.set, terminalNames: terminal.names, carryReasoning });
+  const loop = await runRecurseLoop({ args, request: structured.request, execute: attach.execute, terminalNames: terminal.names, carryReasoning });
   // RECEIVE, applied once over the depth-cumulative text (prose flows across recursion depths into one variant).
   const received = applyReceiveTransforms({ content: loop.content, reasoning: loop.reasoning }, args, ctx);
   return {
@@ -783,49 +783,52 @@ function turnCarriesTools(args: RunTurnPipelineArgs): boolean {
 // Tools ride only when names were gather-contributed AND the ops are wired AND capability.tools declares
 // support — attached-but-unsupported drops them (runs tool-less) and flags tools_unsupported. A tool-less
 // request carries no tools field. The offer is BACKEND-NEUTRAL (`docs/design/inference-tool-delivery.md`): the
-// resolved set as definitions, the round ceiling, and ONE `execute` callback bound to the ONE `executeToolCalls`
-// path. `@orb/inference` decides the delivery: an array wire declares them in `tools[]` and hands the calls back
-// for `runRecurseLoop` to execute; the Agent SDK mounts them as an MCP server, owns the loop, and calls `execute`
-// per invocation — which is why `offerRecords` accumulates the SAME ToolCallRecords the recurse loop would.
-function attachTools(
+// resolved set as definitions, the round ceiling, and ONE `execute` callback over the ONE execute path.
+// `@orb/inference` decides the delivery: an array wire declares them in `tools[]` and hands the calls back for
+// `runRecurseLoop` to execute; the Agent SDK mounts them as an MCP server, owns the loop, and calls `execute` per
+// invocation — which is why `offerRecords` accumulates the SAME ToolCallRecords the recurse loop would.
+//
+// THE AUTHORITY IS BOUND HERE, BEFORE THE REQUEST EXISTS (`ChatToolOps.prepareExecution`): the host Principal is
+// resolved once and both loops run the bound executor. A failed lookup therefore rejects THIS await and fails the
+// turn before the model is called, identically on every wire — never inside an SDK-driven handler, where the
+// throw would reach the model as tool-result text and leave no record.
+async function attachTools(
   args: RunTurnPipelineArgs,
   baseRequest: TurnRequest,
-): { request: TurnRequest; set: ChatToolSet | null; unsupported: boolean; offerRecords: readonly ToolCallRecord[] } {
+): Promise<{ request: TurnRequest; execute: BoundToolExecution | null; unsupported: boolean; offerRecords: readonly ToolCallRecord[] }> {
   const wantTools = args.attachedToolNames.length > 0 && args.tools !== null;
   const toolsSupported = generationOf(args.connection).tools !== undefined;
   // Aliased narrowing: `!wantTools` returning implies `args.tools !== null` below (tsc 5.5+).
   if (!wantTools) {
-    return { request: baseRequest, set: null, unsupported: false, offerRecords: [] };
+    return { request: baseRequest, execute: null, unsupported: false, offerRecords: [] };
   }
   if (!toolsSupported) {
-    return { request: baseRequest, set: null, unsupported: true, offerRecords: [] };
+    return { request: baseRequest, execute: null, unsupported: true, offerRecords: [] };
   }
   // Resolved on the TURN HOST's shelf (#677) — the same identity the teaching contributions enumerated the
   // attach union from (`tctx.runAsUserId`). A guest in the room never pulls their own plugin's tools in, and
   // the host's copy of a plugin two people installed is the one that runs.
-  const tools = args.tools;
-  const set = tools.resolveTools(args.toolExecFrame.runAsUserId, args.attachedToolNames);
+  const set = args.tools.resolveTools(args.toolExecFrame.runAsUserId, args.attachedToolNames);
+  const execute = await args.tools.prepareExecution(set, args.toolExecFrame);
   const offerRecords: ToolCallRecord[] = [];
   const offer: ChatToolOffer = {
-    definitions: tools.toToolDefinitions(set),
-    execute: (call) => executeOfferedCall({ tools, set, frame: args.toolExecFrame, call, sink: offerRecords }),
+    definitions: args.tools.toToolDefinitions(set),
+    execute: (call) => executeOfferedCall({ execute, call, sink: offerRecords }),
     turnLimit: args.toolRecurseLimit,
   };
-  return { request: { ...baseRequest, tools: { offer } }, set, unsupported: false, offerRecords };
+  return { request: { ...baseRequest, tools: { offer } }, execute, unsupported: false, offerRecords };
 }
 
 /** ONE backend-driven invocation through the ONE execute path: single call in, single record out. The record is
  *  kept for persistence (the pipeline's, never the backend's) and its serialized result + error flag go back to
- *  the backend that asked. `executeToolCalls` always serializes a non-null result on the executed path — `null`
- *  is only the recurse loop's recorded-but-unexecuted case, which never rides this callback. */
+ *  the backend that asked. The execute path always serializes a non-null result on the executed path — `null` is
+ *  only the recurse loop's recorded-but-unexecuted case, which never rides this callback. */
 async function executeOfferedCall(input: {
-  readonly tools: ChatToolOps;
-  readonly set: ChatToolSet;
-  readonly frame: ChatToolExecFrame;
+  readonly execute: BoundToolExecution;
   readonly call: ToolCallInput;
   readonly sink: ToolCallRecord[];
 }): Promise<ChatToolExecution> {
-  const records = await input.tools.executeToolCalls(input.set, [input.call], input.frame);
+  const records = await input.execute([input.call]);
   const record = records[0];
   if (record === undefined) {
     throw new Error(`tool-use: executeToolCalls returned no record for ${input.call.name}`);
@@ -951,7 +954,8 @@ function attachResponseFormat(args: RunTurnPipelineArgs, baseRequest: TurnReques
 async function runRecurseLoop(input: {
   readonly args: RunTurnPipelineArgs;
   readonly request: TurnRequest;
-  readonly set: ChatToolSet | null;
+  /** The bound execute path, or null when no registry set rode (nothing may execute). */
+  readonly execute: BoundToolExecution | null;
   /** The TERMINAL half of the tool-identity partition (#1404) — {@link attachTerminalTools}'s name set. Calls
    *  in it are collected for the terminal channel and are structurally unreachable from the executor below. */
   readonly terminalNames: ReadonlySet<string>;
@@ -971,7 +975,7 @@ async function runRecurseLoop(input: {
   refused: boolean;
   reasoningMs: number | null;
 }> {
-  const { args, set, terminalNames } = input;
+  const { args, execute, terminalNames } = input;
   let history = input.request.history;
   let content = "";
   let reasoning: string | null = null;
@@ -1016,15 +1020,18 @@ async function runRecurseLoop(input: {
     // THE PARTITION (#1404): this depth's calls split by tool identity before either reader sees them.
     const split = partitionToolCalls(reduced.economics, terminalNames);
     terminalCalls.push(...split.terminal);
-    const calls = pivotCalls(set, args.tools, reduced.economics, split.registry);
-    if (calls === null || args.tools === null) {
+    const calls = pivotCalls(execute, reduced.economics, split.registry);
+    if (calls === null || execute === null) {
       break;
     }
     if (depth >= args.toolRecurseLimit) {
       records.push(...calls.map(asUnexecutedRecord));
       break;
     }
-    const batch = await args.tools.executeToolCalls(set, calls, args.toolExecFrame);
+    // `Promise.resolve` wrap: biome's nursery `useAwaitThenable` does not carry the `execute === null` break above
+    // into this line and reads the union as non-thenable (the same false positive `applyDynamicTransform` wraps
+    // for); the wrap is a no-op on an already-Promise and keeps the await honest without a suppression.
+    const batch = await Promise.resolve(execute(calls));
     records.push(...batch);
     history = [...history, ...toolExchangeMessages(reduced.content, batch, carriedReasoning(reduced.economics, input.carryReasoning))];
     depth += 1;
@@ -1067,12 +1074,11 @@ function partitionToolCalls(
  *  half holds ≥1 call; null means the turn is done. A completion whose only calls were terminal ends the
  *  loop at that depth — nothing to execute, and no second model call paid for a passenger. */
 function pivotCalls(
-  set: ChatToolSet | null,
-  tools: ChatToolOps | null,
+  execute: BoundToolExecution | null,
   economics: TurnEconomics | null,
   registryCalls: readonly ToolCallInput[],
 ): readonly ToolCallInput[] | null {
-  if (set === null || tools === null || economics?.finishReason !== "tool") {
+  if (execute === null || economics?.finishReason !== "tool") {
     return null;
   }
   return registryCalls.length > 0 ? registryCalls : null;

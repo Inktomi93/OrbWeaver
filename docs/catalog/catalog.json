@@ -10546,7 +10546,7 @@
               },
               {
                 "kind": "test",
-                "target": "tests/server/domain/chat/engine/pipeline.test.ts:2004"
+                "target": "tests/server/domain/chat/engine/pipeline.test.ts:2005"
               }
             ]
           }
@@ -10617,7 +10617,7 @@
               },
               {
                 "kind": "test",
-                "target": "tests/server/domain/chat/engine/pipeline.test.ts:2004"
+                "target": "tests/server/domain/chat/engine/pipeline.test.ts:2005"
               }
             ]
           }
@@ -10688,7 +10688,7 @@
               },
               {
                 "kind": "test",
-                "target": "tests/server/domain/chat/engine/pipeline.test.ts:2004"
+                "target": "tests/server/domain/chat/engine/pipeline.test.ts:2005"
               }
             ]
           }
@@ -10759,7 +10759,7 @@
               },
               {
                 "kind": "test",
-                "target": "tests/server/domain/chat/engine/pipeline.test.ts:2004"
+                "target": "tests/server/domain/chat/engine/pipeline.test.ts:2005"
               }
             ]
           }
@@ -10830,7 +10830,7 @@
               },
               {
                 "kind": "test",
-                "target": "tests/server/domain/chat/engine/pipeline.test.ts:2004"
+                "target": "tests/server/domain/chat/engine/pipeline.test.ts:2005"
               }
             ]
           }
@@ -10901,7 +10901,7 @@
               },
               {
                 "kind": "test",
-                "target": "tests/server/domain/chat/engine/pipeline.test.ts:2004"
+                "target": "tests/server/domain/chat/engine/pipeline.test.ts:2005"
               }
             ]
           }
@@ -10972,7 +10972,7 @@
               },
               {
                 "kind": "test",
-                "target": "tests/server/domain/chat/engine/pipeline.test.ts:2004"
+                "target": "tests/server/domain/chat/engine/pipeline.test.ts:2005"
               }
             ]
           }
@@ -13136,9 +13136,9 @@
       "path": "docs/design/inference-tool-delivery.md",
       "lane": "design",
       "issue": 5,
-      "lines": 107,
-      "bytes": 6973,
-      "sha256": "fd52f4c6783d2a604aa090562706d824824403e4b574040fbad4486a03999ed4",
+      "lines": 114,
+      "bytes": 7751,
+      "sha256": "c81a48827e413f763553291d12094eaff9249757144a4a6a3fb17a9cd7e5e0ba",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -13151,16 +13151,17 @@
       },
       "receipt": {
         "path": "docs/design/inference-tool-delivery.md",
-        "assignedSha256": "fd52f4c6783d2a604aa090562706d824824403e4b574040fbad4486a03999ed4",
+        "assignedSha256": "c81a48827e413f763553291d12094eaff9249757144a4a6a3fb17a9cd7e5e0ba",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "fd52f4c6783d2a604aa090562706d824824403e4b574040fbad4486a03999ed4",
-        "verifiedCommit": "0a4f4d53e691b4ddb455727fcc2b299f70c93074",
+        "verifiedSha256": "c81a48827e413f763553291d12094eaff9249757144a4a6a3fb17a9cd7e5e0ba",
+        "verifiedCommit": "a51f4e325e1823fa5f68f2e09de5115028ecb93d",
         "verifiedAt": "2026-09-22",
         "evidence": [
           "docs/design/inference-tool-delivery.md:1 (design; full read by lane inf-tools, its author, before and after the build)",
           "git log --oneline -1 -- docs/design/inference-tool-delivery.md: 0a4f4d53e docs(inference): design for inference-owned tool and history delivery",
+          "re-read in full at a51f4e325 by lane inf-tools-2: the verifier's parity finding — the host Principal now resolves once in ChatToolOps.prepareExecution before the request is built, and the project-mcp pins moved to the compose suite over an in-memory MCP client",
           "equivalence: the before/after matrix probe (agent-sdk + chat-completions x no tools / registry / terminal / both, plus bridge-only histories) serialized every ChatRequest the runner received and diffed byte-identical; planted id/label mutations made it differ",
           "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
         ],
@@ -13205,11 +13206,11 @@
             "evidence": [
               {
                 "kind": "code",
-                "target": "packages/server/src/domain/chat/engine/pipeline.ts:821"
+                "target": "packages/server/src/domain/chat/engine/pipeline.ts:826"
               },
               {
                 "kind": "test",
-                "target": "tests/server/domain/chat/engine/pipeline.test.ts:2004"
+                "target": "tests/server/domain/chat/engine/pipeline.test.ts:2005"
               }
             ]
           },
@@ -13223,6 +13224,23 @@
               {
                 "kind": "test",
                 "target": "tests/server/domain/tool-use/verbs/to-tool-definitions.test.ts:24"
+              }
+            ]
+          },
+          {
+            "claim": "The turn's host authority resolves once, before the request is built, so a failed lookup fails the turn before the model is called on every wire; the permission gate and record parity hold through the mounted MCP server.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/server/src/entry/compose/chat.ts:341"
+              },
+              {
+                "kind": "test",
+                "target": "tests/server/entry/compose/chat.test.ts:564"
+              },
+              {
+                "kind": "test",
+                "target": "tests/server/entry/compose/chat.test.ts:573"
               }
             ]
           }

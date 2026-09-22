@@ -3333,7 +3333,7 @@
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::catch::1",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 905,
+      "line": 910,
       "column": 9,
       "grammar": "default",
       "position": "catch",
@@ -3341,12 +3341,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — documented above: a gone card fail-closes to `[]` rather than throwing into the member-card read. Ends if a gone card needs to surface distinctly from an infra failure.",
-      "markerLine": 901
+      "markerLine": 906
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::catch::2",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 938,
+      "line": 943,
       "column": 9,
       "grammar": "empty",
       "position": "catch",
@@ -3354,12 +3354,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — the comment block above states",
-      "markerLine": 927
+      "markerLine": 932
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::catch::3",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 975,
+      "line": 980,
       "column": 11,
       "grammar": "empty",
       "position": "catch",
@@ -3367,12 +3367,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "optional-read-as-absent — a persona/handle",
-      "markerLine": 967
+      "markerLine": 972
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::err::1",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 675,
+      "line": 680,
       "column": 16,
       "grammar": "empty",
       "position": "err",
@@ -3380,12 +3380,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "narrow rethrow — documented below: only a",
-      "markerLine": 669
+      "markerLine": 674
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::runChatTurn::1",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 563,
+      "line": 568,
       "column": 8,
       "grammar": "promise",
       "position": "runChatTurn",
@@ -3393,7 +3393,7 @@
       "snippet": ".runChatTurn(chatReq)",
       "verdict": "deliberate-absorb",
       "reason": "propagated — the rejection reaches",
-      "markerLine": 559
+      "markerLine": 564
     },
     {
       "siteId": "packages/server/src/entry/compose/emit-chat-changed.ts::catch::1",

@@ -3176,7 +3176,7 @@ function fakeChatToolOps(): NonNullable<ChatContext["tools"]> {
     resolveTools: (_driverUserId, names) => ({ names }),
     toToolDefinitions: (set) =>
       (set as { readonly names: readonly string[] }).names.map((n) => ({ name: n, description: "d", parameters: { type: "object" as const }, inputShape: {} })),
-    executeToolCalls: () => Promise.resolve([]),
+    prepareExecution: () => Promise.resolve(() => Promise.resolve([])),
   };
 }
 
@@ -3244,7 +3244,7 @@ test("R2 end-to-end: a REAL plugin registration reaches the WIRE, and a deactiva
   const toolOps: NonNullable<ChatContext["tools"]> = {
     resolveTools: (driverUserId, toolNames) => toolUse.resolveTools(driverUserId, toolNames),
     toToolDefinitions: (set) => toolUse.toToolDefinitions(set as ReturnType<typeof toolUse.resolveTools>),
-    executeToolCalls: () => Promise.resolve([]),
+    prepareExecution: () => Promise.resolve(() => Promise.resolve([])),
   };
   const teaching = createToolUseTeachingContributions({ listDrivableToolNames: toolUse.listDrivableToolNames });
   const h = harness(db, names, { teaching, tools: toolOps, connection: TOOLS_CONNECTION, onChatRequest: (req) => requests.push(req) });
@@ -3286,7 +3286,7 @@ test("R2 end-to-end: a STRANGER holds the same plugin tool name, and the host's 
   const toolOps: NonNullable<ChatContext["tools"]> = {
     resolveTools: (driverUserId, toolNames) => toolUse.resolveTools(driverUserId, toolNames),
     toToolDefinitions: (set) => toolUse.toToolDefinitions(set as ReturnType<typeof toolUse.resolveTools>),
-    executeToolCalls: () => Promise.resolve([]),
+    prepareExecution: () => Promise.resolve(() => Promise.resolve([])),
   };
   const teaching = createToolUseTeachingContributions({ listDrivableToolNames: toolUse.listDrivableToolNames });
   const h = harness(db, names, { teaching, tools: toolOps, connection: TOOLS_CONNECTION, onChatRequest: (req) => requests.push(req) });

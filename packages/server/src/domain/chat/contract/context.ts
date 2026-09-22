@@ -143,11 +143,18 @@ export interface ChatToolOps {
    *  projected from). How they reach a wire is `@orb/inference`'s decision (`toChatRequest`), so chat carries
    *  one projection for every backend. */
   readonly toToolDefinitions: (set: ChatToolSet) => readonly ChatToolDefinition[];
-  /** The one execute path — sequential, errors-as-data; never throws per-call. Both loops run through it: the
-   *  pipeline's own recurse loop for an array wire, and the offer's `execute` callback when a backend owns the
-   *  loop (D48 — one execute path, one `ToolCallRecord` shape, whichever side drives). */
-  readonly executeToolCalls: (set: ChatToolSet, calls: readonly ToolCallInput[], frame: ChatToolExecFrame) => Promise<readonly ToolCallRecord[]>;
+  /** Bind the ONE execute path to this turn's authority, ONCE, before the request is built: the host Principal
+   *  every in-turn tool runs under (D152) is resolved here, so a failed lookup fails the TURN on every wire
+   *  before the model is called. Both loops run the bound executor — the pipeline's own recurse loop for an
+   *  array wire, and the offer's `execute` callback when a backend owns the loop — so neither can resolve the
+   *  authority late, where the Agent SDK would turn the throw into tool-result text the model reads (D48 — one
+   *  execute path, one `ToolCallRecord` shape, whichever side drives). */
+  readonly prepareExecution: (set: ChatToolSet, frame: ChatToolExecFrame) => Promise<BoundToolExecution>;
 }
+
+/** The execute path bound to one turn's resolved set and authority — sequential, errors-as-data; never throws
+ *  per-call. */
+export type BoundToolExecution = (calls: readonly ToolCallInput[]) => Promise<readonly ToolCallRecord[]>;
 
 /** Resolve the frozen room HOST's `chat` connection for a turn. A chat binds no connection (F20). */
 type ResolveChatConnectionOp = (params: { readonly funderUserId: UserId; readonly signal?: AbortSignal | undefined }) => Promise<Resolved<"chat">>;
