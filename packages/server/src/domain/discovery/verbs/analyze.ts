@@ -9,11 +9,10 @@
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { ResponseFormat, StructuredOptions } from "@orb/contracts/role-clients";
+import { runStructuredTurn, StructuredOutputError } from "@orb/inference";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
-import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
-import { runStructuredTurn, StructuredOutputError } from "@orb/server/kit/structured-turn";
 import { z } from "zod";
 import type { DiscoveryContext } from "../context.ts";
 import type { AskCardAnswer, CharacterComparison, CharacterComparisonDeep, ComparisonNarrative } from "../contract/results.ts";
@@ -57,7 +56,7 @@ async function compareCharactersDeep(
   const rc = await ctx.roleClientsFor(args.userId);
   const sampleOpts: StructuredOptions = {
     responseFormat: NARRATIVE_RESPONSE_FORMAT,
-    ...toSummarizeOptions(resolveSideGenSampling(SIDE_GEN_POSTURES.analyze, await ctx.resolveUserPresetParams(args.userId))),
+    ...resolveSideGenSampling(SIDE_GEN_POSTURES.analyze, await ctx.resolveUserPresetParams(args.userId)),
   };
   // The system prompt is a PROSE-1 slot resolved on the SAME caller rung as the sampling above — the library
   // being compared is this user's own. No override ⇒ the shipped prompt, byte for byte.
@@ -118,7 +117,7 @@ async function askCard(ctx: DiscoveryContext, userId: UserId, characterId: Chara
   const rc = await ctx.roleClientsFor(userId);
   const sampleOpts: StructuredOptions = {
     responseFormat: ANSWER_RESPONSE_FORMAT,
-    ...toSummarizeOptions(resolveSideGenSampling(SIDE_GEN_POSTURES.analyze, await ctx.resolveUserPresetParams(userId))),
+    ...resolveSideGenSampling(SIDE_GEN_POSTURES.analyze, await ctx.resolveUserPresetParams(userId)),
   };
   const system = resolveProseText("discovery.ask.system", await ctx.resolveUserProse(userId));
   // NO RETRY DRIFT — the compare-narrative invariant above, same shape: everything the retry sends is

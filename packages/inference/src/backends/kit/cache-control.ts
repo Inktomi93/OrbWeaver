@@ -7,6 +7,8 @@
 // `computeCacheBreakpointPlacements` is the pure positional core the openrouter runner maps onto its own
 // wire dialect; its DEPTH axis (role switches, tool exchanges transparent) is specified at that function.
 
+import { detectModelFamily } from "../../capability/families.ts";
+import type { Resolved } from "../../contract/resolved.ts";
 import type { ProviderLogger } from "./provider-log.ts";
 
 /** The openrouter routing-prefs slice this pin reads/writes. The full block is validated by the transport's
@@ -57,15 +59,13 @@ function anthropicCacheDirective(ttl: string, log?: ProviderLogger): AnthropicCa
 const SHIPPED_CACHE_TTL: CacheTtl = "1h";
 export const ANTHROPIC_CACHE_1H: AnthropicCacheDirective = anthropicCacheDirective(SHIPPED_CACHE_TTL);
 
-// Matches the bare Anthropic id and the OpenRouter `anthropic/claude-…` form ONLY — a third-party fork
-// (`some-org/claude-fork`) must never receive Anthropic-only cache_control. Mirrors connection's
-// `detectModelFamily` anchor; both must keep this exact shape.
-const ANTHROPIC_MODEL_ANCHOR = /^(?:anthropic\/)?claude[-/]/i;
-
 const ANTHROPIC_PROVIDER_NAME = "Anthropic";
 
-export function isAnthropicModel(model: string): boolean {
-  return ANTHROPIC_MODEL_ANCHOR.test(model);
+/** Is this connection's model Anthropic's? Read off `factsModel` through the family detector — the id the
+ *  capability fold used — so a floating OpenRouter alias of a Claude model routes like the Claude id it names,
+ *  and a third-party fork (`some-org/claude-fork`) never receives Anthropic-only `cache_control`. */
+export function isAnthropicModel(connection: Pick<Resolved, "factsModel">): boolean {
+  return detectModelFamily(connection.factsModel) === "anthropic";
 }
 
 // A caller-supplied routing always wins; otherwise pin Anthropic (order + NO fallbacks) so cache_control is
@@ -74,11 +74,14 @@ export function isAnthropicModel(model: string): boolean {
 // and re-bills the whole prefix (findings §2). This arm runs only when the user supplied NO routing, so it
 // can never override a user's own fallback choice; the MODEL-level chain is the orthogonal `models[]` axis
 // (`resolveFallbackModels`, which reads that same user routing) and is unaffected.
-export function effectiveProviderRouting<T extends OpenRouterRouting>(model: string, userRouting: T | undefined): T | OpenRouterRouting | undefined {
+export function effectiveProviderRouting<T extends OpenRouterRouting>(
+  connection: Pick<Resolved, "factsModel">,
+  userRouting: T | undefined,
+): T | OpenRouterRouting | undefined {
   if (userRouting !== undefined) {
     return userRouting;
   }
-  return isAnthropicModel(model) ? { order: [ANTHROPIC_PROVIDER_NAME], allow_fallbacks: false } : undefined;
+  return isAnthropicModel(connection) ? { order: [ANTHROPIC_PROVIDER_NAME], allow_fallbacks: false } : undefined;
 }
 
 // ── The breakpoint DEPTH axis ────────────────────────────────────────────────────────────────────────────

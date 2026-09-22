@@ -17,8 +17,8 @@
 // three fields it folds and ignores anything else a rung carries, so a preset's full `UserIntent` can be
 // passed as `presetParams` verbatim without the caller pre-projecting it.
 //
-// The output vocabulary is `userIntentSchema`'s (`maxOutputTokens`, not `maxTokens`): a call site whose
-// downstream seam wants `maxTokens` (the summarize role's `SummarizeOptions`) maps the field at that seam.
+// The output vocabulary is `userIntentSchema`'s (`maxOutputTokens`, not `maxTokens`), which the summarize
+// role's `SummarizeOptions` also speaks, so a resolved posture is passed to it as-is.
 
 /** One rung / the resolved result — the three knobs the ladder folds. Each optional; absent = "defer / the
  *  runner default stands". A superset object (e.g. a full `UserIntent`) satisfies this structurally. */

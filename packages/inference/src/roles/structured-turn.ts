@@ -1,63 +1,12 @@
-// @orb/server/kit/structured-turn — the ONE structured-output mechanics helper (D79). Turn-runner-INJECTED:
-// the caller closes its own role op (an agentTurn / a runChatTurn / a summarize client) over its already-built
-// wire request and hands us a `run(correction?)` closure plus the zod payload schema. We own the MECHANICS —
-// fence-strip / JSON-extract → JSON.parse → zod safeParse → ONE bounded retry with the issues appended → typed
-// payload or throw — and nothing else: recovery POLICY (workload `failed`, error result, canned fallback) stays
-// at the caller. Absorbs the extraction mechanics of the retired discovery/substrate/json-extract.ts.
-//
-// Imports ZERO infra by design (it sits at the bottom of the server tier list, below the ResponseFormat-carrying
-// requests) — that is what lets one implementation serve every structured lane.
+// `runStructuredTurn` — the ONE structured-output mechanics helper (D79), for every structured lane. The caller
+// closes its own role op over its already-built request and hands a `run(correction?)` closure plus the zod
+// payload schema; this owns fence-strip / JSON-extract → JSON.parse → zod safeParse → ONE bounded retry with the
+// issues appended → typed payload or throw. Recovery POLICY (workload `failed`, error result, canned fallback)
+// and the retry's tracing stay with the caller.
 
 import type { z } from "zod";
-
-/** Thrown when BOTH the first turn and the one bounded retry fail extraction/validation. Carries the last
- *  zod issue summary + the raw reply so the caller's policy surface can log/inspect. */
-export class StructuredOutputError extends Error {
-  readonly issues: string;
-  readonly raw: string;
-  constructor(issues: string, raw: string) {
-    super(`structured output failed validation after one retry: ${issues}`);
-    this.name = "StructuredOutputError";
-    this.issues = issues;
-    this.raw = raw;
-  }
-}
-
-/**
- * What the bounded retry reports to the caller's observability seam.
- *
- * METADATA ONLY, deliberately: the zod MESSAGES are absent because they quote the model's own output
- * ("…received 'Ambrose the Grey'"), i.e. RP content, which must never reach a span attribute or a log field.
- * The schema PATHS are ours — they name the contract, not the story — and a count plus the failing paths is
- * what actually answers "which field does this model keep getting wrong".
- */
-export interface StructuredRetrySummary {
-  readonly issueCount: number;
-  /** The failing schema paths in issue order; a root-level issue contributes `""`. */
-  readonly paths: readonly string[];
-}
-
-export interface StructuredTurnArgs<T> {
-  /** The caller's runtime validator — also the meaning of the payload (the caller owns it). */
-  readonly payloadSchema: z.ZodType<T>;
-  /** Runs one turn against the caller's wire request (which already carries the `ResponseFormat`). On the
-   *  retry, `correction` is the zod issue summary — the caller's closure appends it to its prompt. */
-  readonly run: (correction?: string) => Promise<string>;
-  /**
-   * Called EXACTLY ONCE, immediately before the bounded second attempt runs — never on a first-try success
-   * and never on the final failure (that one is the thrown {@link StructuredOutputError}, which the caller
-   * already sees).
-   *
-   * INJECTED because this module sits at the BOTTOM of the server tier list (it imports zero infra by
-   * design, which is what lets one implementation serve every structured lane) — it is BELOW `foundation`,
-   * so it cannot call `addSpanEvent` itself. Without this seam the retry was unobservable by construction: a
-   * lane that silently costs two provider calls instead of one looked identical to one that cost one, and
-   * the only trace of it was a wall-clock duration nobody could attribute.
-   *
-   * It must not throw and must not be async — it annotates, it does not participate.
-   */
-  readonly onRetry?: ((summary: StructuredRetrySummary) => void) | undefined;
-}
+import type { StructuredRetrySummary, StructuredTurnArgs } from "../contract/structured-turn.ts";
+import { StructuredOutputError } from "../contract/structured-turn.ts";
 
 type ParseOutcome<T> = { readonly ok: true; readonly value: T } | { readonly ok: false; readonly issues: string; readonly summary: StructuredRetrySummary };
 

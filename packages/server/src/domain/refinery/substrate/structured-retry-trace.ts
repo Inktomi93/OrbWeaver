@@ -6,7 +6,7 @@
 // METADATA ONLY: schema paths + a count, never zod messages (they quote model output — RP-adjacent
 // content that must not reach a span attribute; the structured-turn header's law).
 
-import type { StructuredRetrySummary } from "@orb/server/kit/structured-turn";
+import type { StructuredRetrySummary } from "@orb/inference";
 import { addSpanEvent } from "#foundation/observability";
 
 const STRUCTURED_RETRY_EVENT = "provider.structured.retry";

@@ -46,7 +46,8 @@ const deepPartialGeneration = generationCapabilitySchema.partial().extend({
   output: generationCapabilitySchema.shape.output.partial().optional(),
   context: generationCapabilitySchema.shape.context.partial().optional(),
   turns: generationCapabilitySchema.shape.turns.unwrap().partial().optional(),
-  tools: generationCapabilitySchema.shape.tools.unwrap().partial().optional(),
+  // `tools` stays WHOLE: its presence means "accepts tools[]", so a row stating a sub-fact must also state
+  // `parallel` — refused at parse rather than accepted and dropped by the fold. It still MERGES field by field.
 });
 
 export const capabilityOverrideSchema = z.object({

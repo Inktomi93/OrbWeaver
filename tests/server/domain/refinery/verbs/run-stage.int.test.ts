@@ -197,7 +197,7 @@ test("a score run: prompt carries card {{macros}} VERBATIM (belt 5 both directio
   // exact property whose absence caused the failure.
   expect(call.opts?.responseFormat?.name).toBe("refinery_score");
   expect(call.opts?.temperature).toBe(0.2);
-  const scoreBudget = call.opts?.maxTokens ?? 0;
+  const scoreBudget = call.opts?.maxOutputTokens ?? 0;
   expect(scoreBudget).toBeGreaterThanOrEqual(SIDE_GEN_POSTURES.refine_score.maxOutputTokens);
   const scorePre = (await h.svc.preflight({ principal: principal(owner), sessionId: session.id })).stages.find((s) => s.stage === "score");
   expect(scoreBudget).toBeGreaterThanOrEqual(scorePre?.outputEstimate ?? Number.POSITIVE_INFINITY);
@@ -289,7 +289,7 @@ test("a run whose own preset cap sits under its payload is REFUSED with the fit 
   h.queueReply(scoreReply());
   const run = await h.svc.runStage({ principal: p, sessionId: session.id, stage: "score" });
   expect(run.stage).toBe("score");
-  expect(h.summarizeCalls.at(-1)?.opts?.maxTokens).toBe(need);
+  expect(h.summarizeCalls.at(-1)?.opts?.maxOutputTokens).toBe(need);
 });
 
 test("rewrite→analyze stamps the ANALYSIS half and preserves the stamped score (independent halves)", async () => {

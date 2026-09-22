@@ -46,6 +46,9 @@ export const OPENROUTER_CHAT_ROWS: readonly Record<string, unknown>[] = [
   claudeRow("~anthropic/claude-mystery-latest", "~anthropic/claude-mystery-latest"),
   openAiRow("openai/o4-mini", "openai/o4-mini-2025-04-16"),
   openAiRow("openai/o4-mini:batch", "openai/o4-mini-2025-04-16"),
+  // `:free` shares its base's canonical slug but is a different serving: no tools and a small window.
+  { ...openAiRow("z-ai/glm-5.2", "z-ai/glm-5.2-20260616"), context_length: 1_048_576 },
+  { ...openAiRow("z-ai/glm-5.2:free", "z-ai/glm-5.2-20260616"), context_length: 32_768, supported_parameters: ["max_tokens"] },
 ];
 
 /** A `fetch` answering the three catalog lists: the chat rows on the bare list, nothing on the other two. */

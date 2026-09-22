@@ -11,7 +11,6 @@ import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, chunkRows, rowsPerInsert } from "@orb/db/kit";
 import type { ThemeClusterId, UserId } from "@orb/kit/ids";
 import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
-import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
 import { eq } from "drizzle-orm";
 import type { ComputeThemesOptions, ThemeLevel } from "../contract/params.ts";
 import type { ThemeComputeStats } from "../contract/results.ts";
@@ -198,7 +197,7 @@ export async function computeThemes(db: Db, deps: ComputeThemesDeps, opts: Compu
   const { drafts, owners } = buildDrafts(solo, opts, seed);
   // The `theme_name` posture ← the funder's default-preset params (§7.5-3 arm ii); prose `summarize`.
   const rc = await deps.roleClientsFor(opts.funderUserId);
-  const sampleOpts = toSummarizeOptions(resolveSideGenSampling(SIDE_GEN_POSTURES.theme_name, await deps.resolveUserPresetParams(opts.funderUserId)));
+  const sampleOpts = resolveSideGenSampling(SIDE_GEN_POSTURES.theme_name, await deps.resolveUserPresetParams(opts.funderUserId));
   const names = await nameDrafts(drafts, rc, sampleOpts);
   const computedAt = deps.now();
 

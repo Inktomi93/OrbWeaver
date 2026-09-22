@@ -254,6 +254,8 @@ describe("compose/assets-character.ts — resolveGreetingTemplate narrows to Pre
       providerId: providerIdSchema.parse(TEST_PROVIDER_ID),
       baseUrl: TEST_BASE_URL,
       model: modelIdSchema.parse("test-model"),
+      // `summarize` is a background task: the bind verb refuses a row without this, and the role client re-checks.
+      allowBackground: true,
     });
     await db.insert(connectionBindings).values({
       id: castId<ConnectionBindingId>("connection_binding_greet2"),

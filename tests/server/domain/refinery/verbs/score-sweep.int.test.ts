@@ -120,7 +120,7 @@ test("the batch's output cap is PAYLOAD-AWARE and covers the hungriest card, not
 
   await sweep({ ownerId: owner, rescoreAll: false, report: reporter().report, signal: undefined, funderUserId: owner });
 
-  const cap = h.summarizeCalls[0]?.opts?.maxTokens ?? 0;
+  const cap = h.summarizeCalls[0]?.opts?.maxOutputTokens ?? 0;
   expect(cap).toBeGreaterThanOrEqual(SIDE_GEN_POSTURES.refine_score.maxOutputTokens);
   // The hungriest card's need, read through the ONE estimator rather than re-spelled here: a SESSION on that
   // same card derives the same default selection, so its preflight prints exactly the number the sweep sized
@@ -129,7 +129,7 @@ test("the batch's output cap is PAYLOAD-AWARE and covers the hungriest card, not
   const need = (await h.svc.preflight({ principal: principal(owner), sessionId: session.id })).stages.find((s) => s.stage === "score")?.outputEstimate ?? 0;
   expect(need).toBeGreaterThan(SIDE_GEN_POSTURES.refine_score.maxOutputTokens);
   expect(cap).toBeGreaterThanOrEqual(need);
-  expect(h.summarizeCalls[1]?.opts?.maxTokens).toBe(cap);
+  expect(h.summarizeCalls[1]?.opts?.maxOutputTokens).toBe(cap);
 });
 
 test("the FILL arm skips already-scored cards; rescoreAll re-scores them", async () => {

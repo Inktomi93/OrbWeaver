@@ -23,7 +23,7 @@ import type {
   Task,
   UserConnection,
 } from "@orb/contracts/inference";
-import { canFund, connectionTasks, foldFeatures, requirementMet, taskDef } from "@orb/contracts/inference";
+import { canFund, connectionTasks, foldFeatures, modelIdSchema, requirementMet, taskDef } from "@orb/contracts/inference";
 import type { ModelId } from "@orb/kit/ids";
 import { resolveEmbedDtype } from "../backends/local-light/model-cache.ts";
 import { detectModelFamily } from "../capability/families.ts";
@@ -124,11 +124,12 @@ function advertisedFor(ctx: ResolverContext, provider: ProviderDef, connection: 
 /** The id the curated/measured rows and the family detector read: the model itself, or — on OpenRouter — the id
  *  its catalog row says it shares model facts with (a floating alias's target, a `:batch` variant's base). The
  *  advertised tier stays keyed on the connection's own id: it describes that row. */
-function factsModelFor(ctx: ResolverContext, provider: ProviderDef, model: ModelId): string {
+function factsModelFor(ctx: ResolverContext, provider: ProviderDef, model: ModelId): ModelId {
   if (provider.dialect !== "openrouter") {
     return model;
   }
-  return ctx.openRouterCatalog.get()?.find((entry) => entry.id === model)?.aliasOf ?? model;
+  const alias = ctx.openRouterCatalog.get()?.find((entry) => entry.id === model)?.aliasOf;
+  return alias === undefined ? model : modelIdSchema.parse(alias);
 }
 
 async function warmFor(ctx: ResolverContext, provider: ProviderDef, connection: UserConnection, secret: string | null): Promise<void> {
@@ -287,6 +288,7 @@ async function resolveTaskFold(ctx: ResolverContext, args: ResolveArgs, includeB
     extras: connection.extras,
     transport: connection.transport,
     allowBackground: connection.allowBackground,
+    factsModel,
   };
   const warnings: ResolvedWarning[] = [...synthesized.warnings];
   if (!canFund(connection, args.task)) {

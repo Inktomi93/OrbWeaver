@@ -1,5 +1,5 @@
 // domain/discovery/substrate — the ONE home for the structured-turn RETRY trace vocabulary, and the adapter that
-// carries it from `@orb/server/kit/structured-turn`'s injected `onRetry` seam onto the active span.
+// carries it from `@orb/inference`'s `runStructuredTurn` injected `onRetry` seam onto the active span.
 //
 // WHY IT IS HERE AND NOT IN THE KIT: `runStructuredTurn` sits at the BOTTOM of the server tier list (it
 // imports zero infra so one implementation can serve every structured lane) — below `foundation`, so it
@@ -17,7 +17,7 @@
 // METADATA ONLY: the summary deliberately carries schema PATHS and a count, never the zod messages — those
 // quote the model's own output (RP content), which never reaches a span attribute.
 
-import type { StructuredRetrySummary } from "@orb/server/kit/structured-turn";
+import type { StructuredRetrySummary } from "@orb/inference";
 import { addSpanEvent } from "#foundation/observability";
 
 const STRUCTURED_RETRY_EVENT = "provider.structured.retry";

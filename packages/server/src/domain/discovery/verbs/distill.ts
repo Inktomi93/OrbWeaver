@@ -24,12 +24,11 @@ import type { Db } from "@orb/db";
 import { characterSummaries } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, batchStmt } from "@orb/db/kit";
+import { runStructuredTurn } from "@orb/inference";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
-import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
-import { runStructuredTurn } from "@orb/server/kit/structured-turn";
 import { z } from "zod";
 import type { DiscoveryContext } from "../context.ts";
 import { CardNotDistillableError, DiscoveryNotConfiguredError, DistillFailedError } from "../contract/errors.ts";
@@ -172,7 +171,7 @@ async function distillCharacters(db: Db, deps: DistillCharactersDeps, opts: Dist
   }
   const sampleOpts: StructuredOptions = {
     responseFormat: DISTILL_RESPONSE_FORMAT,
-    ...toSummarizeOptions(resolveSideGenSampling(SIDE_GEN_POSTURES.distill, presetParams)),
+    ...resolveSideGenSampling(SIDE_GEN_POSTURES.distill, presetParams),
   };
   // The system prompt is a PROSE-1 slot on the SAME owner rung as the sampling above: an owner-narrowed run
   // reads that host's override, the mixed-owner library batch reads `{}` ⇒ the shipped prompt.

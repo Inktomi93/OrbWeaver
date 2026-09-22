@@ -312,6 +312,8 @@ export function fakeResolved<T extends Task>(args: {
   readonly declaredFeatures?: EndpointFeatures | undefined;
   readonly baseUrl?: string | null | undefined;
   readonly allowBackground?: boolean | undefined;
+  /** The id the model facts come from; defaults to `model` (an OpenRouter alias is the case that differs). */
+  readonly factsModel?: string | undefined;
 }): Resolved<T> {
   const provider = builtinProvider(args.providerId);
   if (provider === undefined) {
@@ -334,5 +336,6 @@ export function fakeResolved<T extends Task>(args: {
     extras: args.extras ?? null,
     transport: args.transport ?? null,
     allowBackground: args.allowBackground ?? false,
+    factsModel: castId<ModelId>(args.factsModel ?? args.model),
   };
 }

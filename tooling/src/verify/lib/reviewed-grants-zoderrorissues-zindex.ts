@@ -63,7 +63,7 @@ export const REVIEWED_GRANTS_ZODERRORISSUES_ZINDEX: readonly ReviewedGateGrant[]
   {
     id: "zod-error-issues-home:structured-turn",
     policyId: "zod-error-issues-home",
-    subject: "packages/server/src/kit/structured-turn/index.ts",
+    subject: "packages/inference/src/roles/structured-turn.ts",
     operation: "error-issues-read",
     why: "MODEL-facing: the issue summary is fed straight BACK to the model as the retry prompt (`args.run(first.issues)`), so it must be the schema-addressable `path: message` form rather than a human-formatted tree.",
     endsWhen: "the structured-turn retry stops re-prompting with the parse issues.",
