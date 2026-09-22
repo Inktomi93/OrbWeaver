@@ -19,6 +19,7 @@ import { castId } from "@orb/kit/ids";
 import { curatedRows } from "../../../../../packages/inference/src/capability/sources/curated/loader.ts";
 import { synthesizeCapability } from "../../../../../packages/inference/src/capability/synthesize.ts";
 import type { Mirror } from "../../../../../packages/inference/src/catalog/mirror.ts";
+import { fetchOpenRouterCatalog } from "../../../../../packages/inference/src/catalog/openrouter.ts";
 import type { ProviderExecutor } from "../../../../../packages/inference/src/contract/backend.ts";
 import type { StructuredRequest } from "../../../../../packages/inference/src/contract/roles.ts";
 import type { EndpointModel } from "../../../../../packages/inference/src/contract/runtime.ts";
@@ -28,6 +29,7 @@ import type { ResolverContext } from "../../../../../packages/inference/src/reso
 import { createRoleClientsFor } from "../../../../../packages/inference/src/roles/role-clients.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { wireSchema } from "../../../../support/wire-ready.ts";
+import { openRouterCatalogFetch } from "../../../_openrouter-catalog.ts";
 import { fakeConnection, fakeDeps, newUserId } from "../../../_support.ts";
 
 const DIRECT = { providerId: castId<ProviderId>("anthropic"), wire: "anthropic-messages", api: "anthropic-messages" } as const;
@@ -42,6 +44,15 @@ function emptyMirror<T>(): Mirror<T> {
   return {
     get: () => null,
     warm: () => Promise.resolve(null),
+    seed: () => undefined,
+    invalidate: () => undefined,
+  };
+}
+
+function fixedMirror<T>(value: T): Mirror<T> {
+  return {
+    get: () => value,
+    warm: () => Promise.resolve(value),
     seed: () => undefined,
     invalidate: () => undefined,
   };
@@ -64,7 +75,12 @@ function capturingExecutor(calls: StructuredRequest[]): ProviderExecutor {
   };
 }
 
-async function selectedStructuredVehicle(providerId: string, model: string, deployment: StructuredOutputVehicle = "auto"): Promise<string | undefined> {
+async function selectedStructuredVehicle(
+  providerId: string,
+  model: string,
+  deployment: StructuredOutputVehicle = "auto",
+  catalog: readonly ModelCatalogEntry[] | null = null,
+): Promise<string | undefined> {
   const deps = { ...fakeDeps(), structuredOutputVehicle: (): StructuredOutputVehicle => deployment };
   const ownerId = newUserId();
   const connection = fakeConnection({ ownerId, providerId, model, allowBackground: true });
@@ -74,7 +90,7 @@ async function selectedStructuredVehicle(providerId: string, model: string, depl
   const ctx: ResolverContext = {
     deps,
     registry: await createProviderRegistry(deps.providerStore),
-    openRouterCatalog: emptyMirror<ModelCatalogEntry[]>(),
+    openRouterCatalog: catalog === null ? emptyMirror<ModelCatalogEntry[]>() : fixedMirror([...catalog]),
     endpointModels: () => emptyMirror<EndpointModel[]>(),
     agentSdkCatalog: emptyMirror<AgentSdkModel[]>(),
     warmOpenRouter: () => Promise.resolve(),
@@ -197,4 +213,13 @@ test("#2575: a deployment-forced structured call on a forced-tool-rejecting mode
   for (const model of ["claude-opus-5", "claude-fable-5", "claude-mythos-5"]) {
     await expect(selectedStructuredVehicle("anthropic", model, "forced-tool"), model).resolves.toBe("forced-tool");
   }
+});
+
+test("#2575: the forced-tool refusal holds on the OpenRouter route WITH a live-shaped catalog advertising tools", async () => {
+  const catalog = await fetchOpenRouterCatalog({ fetch: openRouterCatalogFetch(), baseUrl: "https://openrouter.example/api/v1" });
+  for (const model of ["anthropic/claude-fable-5.1", "anthropic/claude-fable-5.1:batch", "anthropic/claude-opus-5.5", "~anthropic/claude-fable-latest"]) {
+    await expect(selectedStructuredVehicle("openrouter", model, "forced-tool", catalog), model).resolves.toBe("response-format");
+  }
+  // PLANTED CONTROL: Opus 5 on the same route keeps the deployment's forced tool.
+  await expect(selectedStructuredVehicle("openrouter", "anthropic/claude-opus-5", "forced-tool", catalog)).resolves.toBe("forced-tool");
 });

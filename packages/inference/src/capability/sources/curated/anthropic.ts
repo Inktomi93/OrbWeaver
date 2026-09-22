@@ -90,11 +90,8 @@ export const anthropicRows = [
         mandatory: true,
         defaultEffort: "medium",
       },
-      // Forced `tool_choice` (`any` / `tool`) 400s on this model (Opus 5 accepts both). A `tools` patch REPLACES the
-      // whole cell in the fold (`synthesize.ts` merges only reasoning/output/context/turns one level deep), so the
-      // family row's `parallel: true` is restated here rather than lost.
+      // Forced `tool_choice` (`any` / `tool`) 400s on this model; Opus 5 accepts both.
       tools: {
-        parallel: true,
         forcedChoice: false,
       },
     },
@@ -264,10 +261,8 @@ export const anthropicRows = [
     },
     generation: {
       // The 5.1 point releases 400 a forced `tool_choice` (`any` / `tool`); Fable 5 and Mythos 5 accept it, which is
-      // why this is its own row and not a cell on the family row above. `parallel: true` restated: a `tools` patch
-      // replaces the whole cell in the fold.
+      // why this is its own row and not a cell on the family row above.
       tools: {
-        parallel: true,
         forcedChoice: false,
       },
     },
