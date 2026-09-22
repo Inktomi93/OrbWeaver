@@ -1,0 +1,112 @@
+{
+  "schemaVersion": 2,
+  "capturedAt": "2026-09-22T17:05:00Z",
+  "capturedMainHead": "411ae3ab48d8b531a09b35ddb88c75736ca00160",
+  "purpose": "Durable recovery and semantic adjudication receipt for the 2026-09-22 worktree sweep. Patch-ID uniqueness was treated only as a preservation trigger; every retained branch was judged by intended outcome before removal.",
+  "before": {
+    "registeredWorktrees": 53
+  },
+  "firstPass": {
+    "removedWorktrees": 43,
+    "fullyContainedInMain": 20,
+    "patchEquivalentToMain": 19,
+    "dirtyButSuperseded": 4,
+    "dirtySupersededEvidence": [
+      "Three Codex audit worktrees contained receipts already present on main; two older copies differed only by a later session-store test path rename and JSON formatting.",
+      "The caught-failure-ownership inference worktree was superseded by main commit 65a7e8a4b, which landed the same 19 inference waiver sites under the broader @product population with current rationales and controls."
+    ]
+  },
+  "semanticAdjudication": [
+    {
+      "worktree": "agent-a0c354fb6113d2798",
+      "origin": "claude",
+      "branchHead": "52ef44ea48b77a6d1b920ce23749aa422c5c7e75",
+      "verdict": "landed-by-intent",
+      "mainEvidence": ["3cfea2e0f", "4f99cdaef"],
+      "reason": "All four structure findings and the catalog receipt landed; current main retains the strengthened marker and resource-reader behavior."
+    },
+    {
+      "worktree": "agent-a5635899d5dca345a",
+      "origin": "claude",
+      "branchHead": "b1be8f79572b7e5dc56a64b02ae0ac4e29b904e0",
+      "verdict": "missing-valid-test-integrated",
+      "mainEvidence": ["411ae3ab48d8b531a09b35ddb88c75736ca00160"],
+      "reason": "The numeric-string lexical-order edge case was absent and now has a focused regression assertion."
+    },
+    {
+      "worktree": "agent-a6a3822e022d7432c",
+      "origin": "claude",
+      "branchHead": "9754314821197a836de7fae33e1b25dc6663ae54",
+      "verdict": "landed-then-evolved",
+      "mainEvidence": ["81c7351d8"],
+      "reason": "The ten ledger-row intents landed exactly; later compaction and re-derivation made its derived rollups and appendices obsolete. Current row 187 remains a separate stale duplicate to reconcile."
+    },
+    {
+      "worktree": "agent-a9bb76f30c68383b7",
+      "origin": "claude",
+      "branchHead": "16d1bfeb2db4a05628c82a7260979ec6e60ab114",
+      "verdict": "landed-by-intent",
+      "mainEvidence": ["fbf62cc25", "337112ede"],
+      "reason": "All four gate repair groups landed; the later commit closed the remaining diagnostic-legibility findings."
+    },
+    {
+      "worktree": "agent-ae2b7090da7c31e75",
+      "origin": "claude",
+      "branchHead": "d5b73d5ae645b0878901adaea24a5a906570665a",
+      "verdict": "landed-by-intent",
+      "mainEvidence": ["0203a2b98", "3cfea2e0f"],
+      "reason": "Fourteen policy families landed in the first commit and the one residual waiver-identity finding landed with the structure irreducibles."
+    },
+    {
+      "worktree": "agent-aeb9f3c2cb4b24dd9",
+      "origin": "claude",
+      "branchHead": "bbbc4c7eaa84edc247c13a1330780301c17b64d0",
+      "verdict": "landed-then-evolved",
+      "mainEvidence": ["cc785195d", "61106f4d3"],
+      "reason": "All seventeen tooling-size split intents and their catalog receipt landed. Several seams later evolved; replaying the branch would regress concurrent resource-marker and lookup work."
+    },
+    {
+      "worktree": "qw-exception-authority",
+      "origin": "qwen",
+      "branchHead": "0d24f80267d976316e4c63d5739ef49fbb53f642",
+      "verdict": "outputs-integrated",
+      "mainEvidence": ["411ae3ab48d8b531a09b35ddb88c75736ca00160"],
+      "reason": "All five declared JSON shards were byte-copied, hash-checked, JSON-validated, and committed before teardown."
+    },
+    {
+      "worktree": "qw-vibe-kit-test",
+      "origin": "qwen",
+      "branchHead": "d1efe2182a5e3e47564047eb6e49a4b771230604",
+      "verdict": "discarded-invalid-contract",
+      "mainEvidence": [],
+      "reason": "The first test was order-blind; the repaired test attempted to promise general object enumeration order that pickKeys does not specify and JavaScript cannot preserve for integer-like keys."
+    },
+    {
+      "worktree": "qw-vibe-kit-test-high",
+      "origin": "qwen",
+      "branchHead": "11a4db4f0e369f70df0ccace03b14f54db2a971b",
+      "verdict": "missing-valid-test-integrated",
+      "mainEvidence": ["411ae3ab48d8b531a09b35ddb88c75736ca00160"],
+      "reason": "The bare-extension fallback interaction was absent and now has a focused regression assertion."
+    }
+  ],
+  "final": {
+    "registeredWorktrees": 1,
+    "remaining": ["/home/inktomi/inktomi-stack/development/orbweaver"],
+    "removedTotal": 52,
+    "preservedUnadjudicatedBranches": 0,
+    "liveProcessCwdHitsBeforeFinalRemoval": 0,
+    "liveStageBandRowsBeforeFinalRemoval": 0,
+    "branchPolicy": "Claude wt/* branches were removed through .claude/hooks/worktree-remove.sh; Qwen worktrees used git worktree remove and their worktree-* branches were deleted only after semantic adjudication and output preservation."
+  },
+  "verification": {
+    "kitTests": "pnpm test:scoped tests/kit/stable-stringify/index.test.ts tests/kit/model-name/index.test.ts \u2014 30 passed",
+    "qwenOutputs": "five files; jq-valid; source/destination SHA-256 pairs identical before Qwen worktree removal",
+    "docs": "pnpm check:docs \u2014 423 files formatted",
+    "catalog": "pnpm check:doc-catalog \u2014 1563 documents; 50 pending fact-checks"
+  },
+  "remainingProof": [
+    "Run the consolidated whole-tree check owed by the current audit integration train.",
+    "Reconcile the separately confirmed stale current refutation-ledger row 187 and active design row 33; neither justified retaining an obsolete worktree."
+  ]
+}

@@ -1,13 +1,13 @@
 {
   "schema": "orbweaver.ast-running-finding-ledger",
   "schemaVersion": 1,
-  "generatedAt": "2026-09-22T15:26:11.314Z",
+  "generatedAt": "2026-09-22T17:17:00Z",
   "currentTree": {
-    "head": "dc487a7ea3ece6f5db80c1407486ff2c25336a45",
+    "head": "14ac4a103e1d3e1de10c83758b5301d05cec79ec",
     "dirty": true,
-    "dirtyEntryCount": 33,
-    "statusSha256": "31941f579394c13c83977e6b91f69796b93a675564e1b423a31bc091c43843e1",
-    "warning": "Captured after the review receipt and immediately before this ledger rewrite; the ledger edit itself changes porcelain. Final current-tree claims require the clean committed-tree denominator receipt."
+    "dirtyEntryCount": 1,
+    "statusSha256": "6f7323ba40801df388cd4151c0252ad2884738ad26d4e6a66ee76edf65c150df",
+    "warning": "Captured after the recovery commit and before amending the final Qwen queue status plus this ledger hash. Final whole-tree claims still require the consolidated audit barrier."
   },
   "reconstruction": {
     "generator": "/tmp/world-tools-rebuild-ledger.mjs",
@@ -79,9 +79,9 @@
     }
   ],
   "sourceManifest": {
-    "currentHead": "dc487a7ea3ece6f5db80c1407486ff2c25336a45",
-    "count": 489,
-    "durableCount": 175,
+    "currentHead": "14ac4a103e1d3e1de10c83758b5301d05cec79ec",
+    "count": 495,
+    "durableCount": 181,
     "temporaryCount": 237,
     "transcriptCount": 77,
     "sources": [
@@ -4545,11 +4545,11 @@
         "path": "docs/reviews/ast-codebase-audit/world-tools-qwen-recon-queue.json",
         "durability": "repository-durable",
         "mediaType": "application/json",
-        "bytes": 6399,
-        "sha256": "84b0bd240b1a5c4dfcdcde3daf1a71cf0c2f40067fbc9f0264e959f4362fba80",
-        "modifiedAt": "2026-09-22T14:46:52.085Z",
-        "captureTime": "2026-09-22T13:00:00Z",
-        "capturedHead": "dc487a7ea3ece6f5db80c1407486ff2c25336a45"
+        "bytes": 16235,
+        "sha256": "7c398ac01fe90cf2eca4d9ef1aef79d44181515697cbe3e0980cbff697f18590",
+        "modifiedAt": "2026-09-22T17:17:00Z",
+        "captureTime": "2026-09-22T17:17:00Z",
+        "capturedHead": "14ac4a103e1d3e1de10c83758b5301d05cec79ec"
       },
       {
         "path": "docs/reviews/ast-codebase-audit/world-tools-refinery-schema-delete-ui-fix.json",
@@ -5134,6 +5134,66 @@
         "modifiedAt": "2026-09-22T15:22:51.076Z",
         "captureTime": "2026-09-22T15:20:41Z",
         "capturedHead": "dc487a7ea3ece6f5db80c1407486ff2c25336a45"
+      },
+      {
+        "path": "docs/reviews/ast-codebase-audit/world-tools-worktree-cleanup-recovery.json",
+        "durability": "repository-durable",
+        "mediaType": "application/json",
+        "bytes": 5798,
+        "sha256": "84445fa0f4c2ba8c11f84f03c18e5ada2bc1f8cc36146b756c2eb2757c44f5cb",
+        "modifiedAt": "2026-09-22T17:10:00Z",
+        "captureTime": "2026-09-22T17:10:00Z",
+        "capturedHead": "411ae3ab48d8b531a09b35ddb88c75736ca00160"
+      },
+      {
+        "path": "docs/reviews/ast-codebase-audit/qwen-exception-authority/manifest.json",
+        "durability": "repository-durable",
+        "mediaType": "application/json",
+        "bytes": 22222,
+        "sha256": "abf19c7a017910ed1616009e6e50cc29c9aefcc219feef25a27b8d886edbd000",
+        "modifiedAt": "2026-09-22T17:10:00Z",
+        "captureTime": "2026-09-22T17:10:00Z",
+        "capturedHead": "411ae3ab48d8b531a09b35ddb88c75736ca00160"
+      },
+      {
+        "path": "docs/reviews/ast-codebase-audit/qwen-exception-authority/ordinary-dominant-families.json",
+        "durability": "repository-durable",
+        "mediaType": "application/json",
+        "bytes": 4165392,
+        "sha256": "6a8b68241f14719e56057bf2e13c2438ebb9500a857a1d79c8b8dd9dff3c8634",
+        "modifiedAt": "2026-09-22T17:10:00Z",
+        "captureTime": "2026-09-22T17:10:00Z",
+        "capturedHead": "411ae3ab48d8b531a09b35ddb88c75736ca00160"
+      },
+      {
+        "path": "docs/reviews/ast-codebase-audit/qwen-exception-authority/ordinary-remainder.json",
+        "durability": "repository-durable",
+        "mediaType": "application/json",
+        "bytes": 1248167,
+        "sha256": "f51efedd79e8c8ec1a76448be6e1ab495e3ad80551e8eb6d5e7eace73d850f28",
+        "modifiedAt": "2026-09-22T17:10:00Z",
+        "captureTime": "2026-09-22T17:10:00Z",
+        "capturedHead": "411ae3ab48d8b531a09b35ddb88c75736ca00160"
+      },
+      {
+        "path": "docs/reviews/ast-codebase-audit/qwen-exception-authority/reviewed-grants.json",
+        "durability": "repository-durable",
+        "mediaType": "application/json",
+        "bytes": 1978198,
+        "sha256": "9930b9a1b81eaa026f16e4ab18dda7c3c93c9461256a0df93af28855eb75b8e6",
+        "modifiedAt": "2026-09-22T17:10:00Z",
+        "captureTime": "2026-09-22T17:10:00Z",
+        "capturedHead": "411ae3ab48d8b531a09b35ddb88c75736ca00160"
+      },
+      {
+        "path": "docs/reviews/ast-codebase-audit/qwen-exception-authority/foreign-and-native-suppressions.json",
+        "durability": "repository-durable",
+        "mediaType": "application/json",
+        "bytes": 804838,
+        "sha256": "9ca14f73525cd5dd105325fdb3ee31f1b0317051f9cc304a77645963a5aff360",
+        "modifiedAt": "2026-09-22T17:10:00Z",
+        "captureTime": "2026-09-22T17:10:00Z",
+        "capturedHead": "411ae3ab48d8b531a09b35ddb88c75736ca00160"
       }
     ]
   },
@@ -10017,21 +10077,27 @@
         "qwenContractPointer": "$.qwenOutputContract"
       },
       "currentCodeIdentity": {
-        "claimed": "1,732 ordinary waivers; 480 runtime reviewed grants across 67 policies; 564 foreign suppressions in 275 files; zero live retired gate-ignore markers",
+        "claimed": "1,732 ordinary waivers; 480 runtime reviewed grants across 67 policies; 564 foreign suppressions in 275 files and 67 observed rule/scope classes; zero live retired gate-ignore markers",
         "rederivedOnCurrentTree": true,
-        "capturedHead": "dc487a7ea3ece6f5db80c1407486ff2c25336a45",
-        "workingTreeWasDirty": true
+        "receiptCheckpoint": "0d24f80267d976316e4c63d5739ef49fbb53f642",
+        "integratedAtHead": "411ae3ab48d8b531a09b35ddb88c75736ca00160",
+        "workingTreeWasDirty": false
       },
       "status": "review-pending",
-      "disposition": "authority-model-validated-read-only-qwen-adjudication-prepared",
-      "reason": "The central authority model and current liveness paths are mechanically sound, but successful consumption proves binding rather than continued necessity. The read-only audit is split into closed resumable shards and keeps line waivers, file waivers, reviewed grants, foreign suppressions, native configuration permissions, retired markers and lens claims distinct.",
+      "disposition": "closed-denominator-qwen-receipts-integrated-follow-up-adjudication-shards-ready",
+      "reason": "The five Qwen shards reproduce the ordinary-waiver, reviewed-grant, suppression and retired-marker denominators with production readers and stable item identities. They expose authority gaps and missing end-condition evidence without making owner rulings; the finite follow-up shards in the Qwen queue now own item-level adjudication.",
       "issues": [],
       "implementationReceipts": [],
       "reviewReceipts": [
         "docs/reviews/ast-codebase-audit/world-tools-exception-authority-system-review.json",
-        "docs/reviews/ast-codebase-audit/world-tools-exception-authority-denominator.json"
+        "docs/reviews/ast-codebase-audit/world-tools-exception-authority-denominator.json",
+        "docs/reviews/ast-codebase-audit/qwen-exception-authority/manifest.json",
+        "docs/reviews/ast-codebase-audit/qwen-exception-authority/ordinary-dominant-families.json",
+        "docs/reviews/ast-codebase-audit/qwen-exception-authority/ordinary-remainder.json",
+        "docs/reviews/ast-codebase-audit/qwen-exception-authority/reviewed-grants.json",
+        "docs/reviews/ast-codebase-audit/qwen-exception-authority/foreign-and-native-suppressions.json"
       ],
-      "remainingProof": "Run the declared read-only Qwen shards, reconcile every stable item identity to repair, preserve with evidence, owner decision, or tool-reader defect, independently validate any proposed repair before editing, and merge the adjudicated results back into this ledger.",
+      "remainingProof": "Run and independently validate the declared follow-up shards, reconcile each stable item to repair, preservation, owner decision, tool-reader defect or supersession, then update this ledger. Refresh the checkpoint before any value-changing repair.",
       "supersededClaims": [
         "The central reviewed-grant denominator is 423 literal object rows.",
         "Every ordinary waiver is carrier-adjacent; @orb-waive-file has a distinct exact same-file binding.",
@@ -10085,6 +10151,152 @@
       "implementationReceipts": [],
       "reviewReceipts": [],
       "remainingProof": "Replace both direct walks using the governed factory/semantic reader, add red-first parity controls, rerun gate:contract and prove the membership denominator remains 420 with zero unresolved/effective findings."
+    },
+    {
+      "id": "finding:foreign-suppression-authority-population-gap",
+      "canonicalIdentity": "foreign suppression rule scope classes outside reviewed grant population",
+      "lens": "exception-authority",
+      "source": {
+        "path": "docs/reviews/ast-codebase-audit/qwen-exception-authority/foreign-and-native-suppressions.json",
+        "pointer": "$.foreignSuppressions"
+      },
+      "currentCodeIdentity": {
+        "claimed": "10 occurrences across 3 rule/scope classes outside the gate population",
+        "receiptCheckpoint": "0d24f80267d976316e4c63d5739ef49fbb53f642",
+        "rederivedWithProductionReader": true
+      },
+      "status": "review-pending",
+      "disposition": "bounded-site-adjudication-queued",
+      "reason": "The production suppression reader found 67 live rule/scope classes while the gate governs 64. The ten physical sites are recorded individually; continued need and the correct authority shape still require site-level review.",
+      "issues": [],
+      "implementationReceipts": [],
+      "reviewReceipts": [
+        "docs/reviews/ast-codebase-audit/qwen-exception-authority/foreign-and-native-suppressions.json"
+      ],
+      "remainingProof": "Complete qwen-foreign-suppression-authority-gaps, independently verify every site, then repair or grant only the confirmed cases."
+    },
+    {
+      "id": "finding:ordinary-waiver-end-condition-evidence-gap",
+      "canonicalIdentity": "ordinary waivers without an explicit retirement condition under the recorded vocabulary",
+      "lens": "exception-authority",
+      "source": {
+        "path": "docs/reviews/ast-codebase-audit/qwen-exception-authority/manifest.json",
+        "pointer": "$.denominators.ordinaryWaivers"
+      },
+      "currentCodeIdentity": {
+        "claimed": "720 of 1,732 ordinary waivers lack a detected end condition: 618 dominant-family and 102 remainder",
+        "receiptCheckpoint": "0d24f80267d976316e4c63d5739ef49fbb53f642",
+        "heuristicVocabularyRecorded": true
+      },
+      "status": "review-pending",
+      "disposition": "policy-family-adjudication-queued",
+      "reason": "The count is reproducible under the receipt vocabulary, but absence of that phrase is not itself proof that a waiver is invalid. Each policy family must be read against its contract and live boundary.",
+      "issues": [],
+      "implementationReceipts": [],
+      "reviewReceipts": [
+        "docs/reviews/ast-codebase-audit/qwen-exception-authority/ordinary-dominant-families.json",
+        "docs/reviews/ast-codebase-audit/qwen-exception-authority/ordinary-remainder.json"
+      ],
+      "remainingProof": "Complete the four waiver-family Qwen shards, independently validate candidates, and do not bulk-delete or bulk-grant."
+    },
+    {
+      "id": "finding:exception-authority-run-effective-findings",
+      "canonicalIdentity": "effective findings emitted during the exception authority production read",
+      "lens": "exception-authority",
+      "source": {
+        "path": "docs/reviews/ast-codebase-audit/qwen-exception-authority/manifest.json",
+        "pointer": "$.effectiveFindings"
+      },
+      "currentCodeIdentity": {
+        "claimed": "391 effective findings; 16 blocking findings across 5 blocking policies",
+        "receiptCheckpoint": "0d24f80267d976316e4c63d5739ef49fbb53f642",
+        "runWasRed": true
+      },
+      "status": "review-pending",
+      "disposition": "preserve-red-run-and-reconcile-against-current-structure-artifact",
+      "reason": "The authority audit correctly refused to present a clean tree: its production read also observed current non-authority findings. They may overlap later repair lanes, so they require identity reconciliation rather than duplication or dismissal.",
+      "issues": [],
+      "implementationReceipts": [],
+      "reviewReceipts": [
+        "docs/reviews/ast-codebase-audit/qwen-exception-authority/manifest.json"
+      ],
+      "remainingProof": "Match all 391 stable identities against the current ledger and latest completed structure artifact; add only missing current findings and preserve resolved history as superseded evidence."
+    },
+    {
+      "id": "finding:unmerged-worktree-recovery-2026-09-22",
+      "canonicalIdentity": "registered worktrees carrying patch-id-unique commits or uncommitted audit receipts",
+      "lens": "repository-recovery",
+      "source": {
+        "path": "docs/reviews/ast-codebase-audit/world-tools-worktree-cleanup-recovery.json",
+        "pointer": "$"
+      },
+      "currentCodeIdentity": {
+        "before": 53,
+        "after": 1,
+        "removed": 52,
+        "semanticAdjudications": 9,
+        "unadjudicatedBranches": 0,
+        "capturedHead": "411ae3ab48d8b531a09b35ddb88c75736ca00160"
+      },
+      "status": "resolved",
+      "disposition": "all-worktrees-adjudicated-integrated-superseded-or-discarded-with-evidence",
+      "reason": "Patch-ID uniqueness was used only to stop deletion. Six Claude branches were already landed by intent, two missing Kit tests were integrated, one Qwen test contract was rejected, and the completed Qwen audit outputs were preserved before teardown.",
+      "issues": [],
+      "implementationReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-worktree-cleanup-recovery.json",
+        "411ae3ab48d8b531a09b35ddb88c75736ca00160"
+      ],
+      "reviewReceipts": [],
+      "remainingProof": "None for recovery. The receipt separately records the whole-tree verification still owed by the audit integration train."
+    },
+    {
+      "id": "finding:refutation-ledger-stale-row-187",
+      "canonicalIdentity": "refutation ledger row 187 still records retired ops debt baselines as open",
+      "lens": "rot-follow-up",
+      "source": {
+        "path": "docs/reviews/ast-codebase-audit/world-tools-worktree-cleanup-recovery.json",
+        "pointer": "$.semanticAdjudication[2]"
+      },
+      "currentCodeIdentity": {
+        "path": "docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md",
+        "row": 187,
+        "mainEvidence": "81c7351d8",
+        "rederivedOnCurrentTree": true
+      },
+      "status": "valid-finding",
+      "disposition": "rederive-and-remove-stale-duplicate-open-row",
+      "reason": "The exact narrow closure landed and current ops/debt.ts records the baselines as retired, but current row 187 remains an OPEN duplicate.",
+      "issues": [],
+      "implementationReceipts": [],
+      "reviewReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-worktree-cleanup-recovery.json"
+      ],
+      "remainingProof": "Re-derive the row against current source, update the ledger without reviving obsolete rollups, and run its native ledger checks."
+    },
+    {
+      "id": "finding:open-json-parity-design-path-drift",
+      "canonicalIdentity": "active tooling size design names nonexistent open-json-writers seam",
+      "lens": "rot-follow-up",
+      "source": {
+        "path": "docs/reviews/ast-codebase-audit/world-tools-worktree-cleanup-recovery.json",
+        "pointer": "$.semanticAdjudication[5]"
+      },
+      "currentCodeIdentity": {
+        "path": "docs/design/tooling-size-mid-band-splits.md",
+        "staleName": "open-json-writers.ts",
+        "currentName": "open-json-vocabulary.ts",
+        "mainEvidence": "cc785195d",
+        "rederivedOnCurrentTree": true
+      },
+      "status": "valid-finding",
+      "disposition": "repair-active-design-path-and-refresh-catalog-receipt",
+      "reason": "The tooling split landed, but the active design still names a sibling path that never became the integrated seam.",
+      "issues": [],
+      "implementationReceipts": [],
+      "reviewReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-worktree-cleanup-recovery.json"
+      ],
+      "remainingProof": "Correct the active design path, sweep its citers, refresh its exact-byte catalog receipt, and run the documentation/catalog checks."
     }
   ],
   "transcriptClaims": [
@@ -22067,23 +22279,23 @@
     "warning": "No heavy all-lens rerun was performed during reconstruction. Absence of a normalized row is not a clean verdict; its exact source remains in ingestionBacklog."
   },
   "counts": {
-    "sourceManifest": 489,
+    "sourceManifest": 495,
     "lenses": 30,
     "normalizedLaunch63Rows": 63,
     "programOutcomeRows": 12,
-    "findings": 102,
+    "findings": 108,
     "findingStatus": {
-      "resolved": 58,
-      "review-pending": 16,
+      "resolved": 59,
+      "review-pending": 19,
       "preserve-governed": 14,
-      "valid-finding": 14
+      "valid-finding": 16
     },
     "transcriptClaims": 317,
     "transcriptIngestionBacklog": 232,
     "temporaryReceiptPromotions": 117,
     "ingestionBacklog": 215,
     "duplicateIds": 0,
-    "duplicateCanonicalIdentities": 4
+    "duplicateCanonicalIdentities": 6
   },
   "goalContract": {
     "path": "docs/reviews/ast-codebase-audit/world-tools-audit-goal.json",
@@ -22323,6 +22535,13 @@
       "updater": "AppRouter and Zod current-tree closure reconciliation",
       "updaterSha256": "f7954c0c9230530aeb19d67da6a12be25ec2e04a93447fdde435373690485962",
       "scope": "integrated AppRouter runtime output validation and security review, Zod export-membership closure and reader defect, Zod output-twin parity closure, and refreshed exception-authority/Qwen source receipts",
+      "fullSourceRebuildPerformed": false
+    },
+    {
+      "at": "2026-09-22T17:10:00Z",
+      "updater": "Qwen continuation and worktree semantic recovery reconciliation",
+      "updaterSha256": "10114b51f007c7f0ce859ca1fd229ec5094d7e798b8761c4ea216e806bd76a4b",
+      "scope": "integrated five Qwen exception-authority shards, queued bounded follow-up adjudication, recorded newly exposed authority/effective-finding gaps, and closed the 53-to-1 worktree recovery with semantic dispositions",
       "fullSourceRebuildPerformed": false
     }
   ]

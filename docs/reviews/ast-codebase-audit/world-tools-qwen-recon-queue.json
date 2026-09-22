@@ -44,7 +44,7 @@
     {
       "id": "qwen-exception-authority-audit",
       "priority": 9,
-      "status": "complete-awaiting-ledger-integration",
+      "status": "complete-integrated",
       "brief": "Perform a read-only, closed-denominator audit of Orbweaver exception authority in five resumable shards. Read the two named inputs and every source they require before classifying anything, including the declared reader limits and audit hazards. Reproduce the live denominators with production readers: 1,732 ordinary waivers across TypeScript and declared resource carriers; 480 runtime REVIEWED_GRANTS rows across 67 policies; 564 foreign suppression occurrences across 275 files and 64 rule/scope findings; zero live retired @orb-gate-ignore markers. Do not use literal object counting for reviewed grants: it undercounts the runtime roster (423 versus 480). Keep mechanisms separate: (1) hard policies have no exception door; (2) line-scoped @orb-waive binds one carrier and position; (3) @orb-waive-file binds one exact policy/position token anywhere in one file and still refuses multiple matches; (4) central reviewed grants bind exactly one policyId/subject/operation finding and require why plus endsWhen, with zero consumption stale and multi-match licensing nothing; (5) Biome/ESLint/TypeScript directives are foreign-tool data aggregated by rule and source/tests scope; (6) hand-authored Biome, ESLint, and dependency-cruiser configuration permissions are separate native-config data with dedicated liveness gates; (7) @orb-gate-ignore is retired and inert; (8) AST lens markers remain lens-specific two-sided claims. Preserve null-rule suppression sites, record the tested hyphenated-token ambiguity as reader uncertainty, and do not invent additional occurrences when several directive openers share one physical line. For every item record exact identity, authored site or sites, mechanism, owner policy/rule, reason/end condition when one exists, protected boundary, nearby healthy witness, tool-reader uncertainty, and only a disposition candidate: repair, preserve with evidence, owner decision, or tool-reader defect. A missing reason or witness is a finding, not permission to invent one. A consumed item proves binding, not continued justification. Prioritize caught-failure-ownership, no-test-fabrication, and ct-no-oneshot-live-read-assert in their own shard. Write only the declared new JSON outputs; include exact scanned/skipped counts, commands, mismatches, shard completion status, and stable IDs. Do not edit product/tooling/tests/gates/configs/existing ledgers, delete or rewrite authority, run a full verify barrier, stage, commit, merge, push, or make owner rulings.",
       "inputs": [
         "docs/reviews/ast-codebase-audit/world-tools-exception-authority-system-review.json",
@@ -149,7 +149,7 @@
       "inputs": [
         "docs/architecture/core/Documentation-Law.md",
         "docs/architecture/core/Core-Laws-and-Precedents.md",
-        "tooling/src/work-item",
+        "tooling/src/workboard",
         "docs/catalog"
       ],
       "output": "docs/reviews/ast-codebase-audit/qwen-results/docs-plans-adr-control-plane-poc.json",
