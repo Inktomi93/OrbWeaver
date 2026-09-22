@@ -1,8 +1,9 @@
-// The FAMILY test for the `mirror-index` family — `test-layout`, `test-presence` and
-// `test-presence-client`, converted from legacy `GateDescriptor`s at `aecbc6c6c` (#2061/#2062). The legacy
+// The FAMILY test for the `mirror-index` family — `test-layout`, `test-presence`,
+// `test-presence-inference` and `test-presence-client`. The original three were converted from legacy
+// `GateDescriptor`s at `aecbc6c6c` (#2061/#2062). The legacy
 // tree is that conversion's PARENT, `6b1d01be0` — the sha the three modules' own header lines cite (#2136:
 // this line read "the child of 90bbeb04f", which is a different commit, `90c7be9e7`).
-// The three share ONE subject reader: `ops/resource-mirror.ts` `loadMirrorIndex`, reached through the
+// The four share ONE subject reader: `ops/resource-mirror.ts` `loadMirrorIndex`, reached through the
 // `mirrorIndex` host door. This lane is what WIRED that kind — it shipped frozen with zero gate consumers.
 //
 // WHAT LIVES HERE AND WHAT DOES NOT (guide §6.6). The declared `mustFlag`/`mustPass` rows run on the static
@@ -37,14 +38,15 @@ import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/p
 import { gate as testLayout } from "../../../../tooling/src/verify/gates/test-layout.ts";
 import { gate as testPresence } from "../../../../tooling/src/verify/gates/test-presence.ts";
 import { gate as testPresenceClient } from "../../../../tooling/src/verify/gates/test-presence-client.ts";
+import { gate as testPresenceInference } from "../../../../tooling/src/verify/gates/test-presence-inference.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
-const policies = [testLayout, testPresence, testPresenceClient] as const;
+const policies = [testLayout, testPresence, testPresenceInference, testPresenceClient] as const;
 
-// The #2346 TEMPORARY WARNING POSTURE IS CLOSED OUT (owner ruling 2026-09-19, #2377): all three mirror
+// The #2346 TEMPORARY WARNING POSTURE IS CLOSED OUT (owner ruling 2026-09-19, #2377): all mirror
 // policies are hard/error again and NONE carries a `workItem`. This row is the closeout's pin — a
 // reintroduced `severity: "warning"` on either presence policy fails here, not only in the conformance
 // corpus. The warning-era promotion arms below survive as the proof that an ERROR blocks with and without
@@ -60,6 +62,7 @@ test("every mirror policy is a hard error with no temporary work item", () => {
   ).toEqual([
     { id: "test-layout", authority: "hard", severity: "error", workItem: null },
     { id: "test-presence", authority: "hard", severity: "error", workItem: null },
+    { id: "test-presence-inference", authority: "hard", severity: "error", workItem: null },
     { id: "test-presence-client", authority: "hard", severity: "error", workItem: null },
   ]);
 });

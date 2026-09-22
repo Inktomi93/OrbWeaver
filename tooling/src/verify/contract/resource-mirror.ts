@@ -1,8 +1,8 @@
 // The source/test MIRROR index — one derived identity over authored trees a policy already cannot walk.
 //
-// WHAT IT OWNS AND WHAT IT REFUSES TO OWN. Three policies (`test-presence`, `test-presence-client`,
-// `test-layout`) ask the same two questions thousands of times per run: "does a module exist at this exact
-// path" and "does a test exist at this exact path". Today each answers with its own `existsSync`
+// WHAT IT OWNS AND WHAT IT REFUSES TO OWN. Four policies (`test-presence`, `test-presence-inference`,
+// `test-presence-client`, `test-layout`) ask the same two questions thousands of times per run: "does a module
+// exist at this exact path" and "does a test exist at this exact path". Today each answers with its own `existsSync`
 // (`gates/test-presence.ts:82`, `gates/test-presence-client.ts:92,162,196,205`, `gates/test-layout.ts:29,113,
 // 122,137`), which is a per-gate filesystem read with no receipt and no refusal: an absent tree tree reads
 // exactly like a tree with no members. This door replaces the READS. It does NOT own the mirror RULE — the
@@ -30,6 +30,13 @@ export const MIRROR_FAMILY_DEFINITIONS = {
   "package-test": { sourceTree: "packages", sourceRoot: "packages", testTree: "tests", testRoot: "tests" },
   /** `tests/tooling/<dir>/<path>` ↔ `tooling/src/<dir>/<path>` (`Core-Tooling-Law.md` §4.7). */
   "tooling-test": { sourceTree: "tooling-slot", sourceRoot: "tooling/src", testTree: "tests", testRoot: "tests/tooling" },
+  /** The inference package's own bounded source/test corpus (`Spine-Testing.md` §5). */
+  "inference-test": {
+    sourceTree: "packages",
+    sourceRoot: "packages/inference/src",
+    testTree: "tests",
+    testRoot: "tests/inference",
+  },
 } as const;
 
 export type MirrorFamilyId = keyof typeof MIRROR_FAMILY_DEFINITIONS;
