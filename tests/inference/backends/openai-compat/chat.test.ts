@@ -14,10 +14,13 @@
 // row that spells it records the word the body carries. B6: the OpenAI-style rate-limit headers on the
 // response become `rateLimit`. B7: the endpoint's own response id is the row's `generationId`.
 
-import type { EFFORT_SPELLINGS } from "@orb/contracts/inference";
+import type { EFFORT_SPELLINGS, ProviderId } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
+import { castId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { runOpenAiCompatChatTurn } from "../../../../packages/inference/src/backends/openai-compat/chat.ts";
+import { curatedRows } from "../../../../packages/inference/src/capability/sources/curated/loader.ts";
+import { synthesizeCapability } from "../../../../packages/inference/src/capability/synthesize.ts";
 import type { ChatDeltaSubscription, ChatResult, OpenAiCompatChatRequest } from "../../../../packages/inference/src/contract/chat.ts";
 import { ProviderError } from "../../../../packages/inference/src/contract/errors.ts";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -442,4 +445,58 @@ test("a 400 that is NOT a mandatory-reasoning refusal is NOT replayed, and reach
   expect(failure, "an unrelated 400 must surface as the contract's ONE error class, never a raw SDK object").toBeInstanceOf(ProviderError);
   expect(failure instanceof ProviderError ? failure.kind : null, "a 400 is a structurally-invalid request").toBe("invalid");
   expect(recorded, "an unrelated failure is not replayed").toHaveLength(1);
+});
+
+// ── forced tool choice on the openai-compat wire ─────────────────────────────────────────────────────────
+// OpenRouter forwards `tool_choice` upstream verbatim, so a model that rejects forced tool use 400s here as it
+// does on the direct wire. The downgrade reads the capability: a row that states no refusal keeps `required`.
+
+/** An OpenRouter connection whose capability is the REAL curated fold for `model` on this route. */
+function orCuratedConnection(model: string): OpenAiCompatChatRequest["connection"] {
+  const { capability } = synthesizeCapability("generation", "anthropic", {
+    curated: curatedRows({ model, providerId: castId<ProviderId>("openrouter"), wire: "openai-compat", api: "chat-completions" }),
+  });
+  return fakeResolved({ task: "chat", providerId: "openrouter", model, capability, secret: fakeApiKeySecret("sk-or-not-a-real-key") });
+}
+
+const FORCED = [{ mode: "required" }, { mode: "tool", name: "get_weather" }] as const;
+
+test("#2575: OpenRouter + a model that rejects forced tool use sends `auto`, warned once", async () => {
+  for (const model of ["anthropic/claude-fable-5.1", "anthropic/claude-opus-5.5"]) {
+    for (const toolChoice of FORCED) {
+      const recorded: RecordedRequest[] = [];
+      const turn = await runOpenAiCompatChatTurn(
+        orRequest({ connection: orCuratedConnection(model), toolChoice }),
+        turnDeps(scriptedSseFetch([openAiTextStream("ok")], recorded)),
+      );
+      expect(recorded[0]?.body["tool_choice"], `${model} · ${toolChoice.mode}`).toBe("auto");
+      expect(recorded[0]?.body["tools"], model).toMatchObject([{ function: { name: "get_weather" } }]);
+      expect(
+        warningCodes(turn).filter((code) => code === "tool_choice_downgraded"),
+        model,
+      ).toHaveLength(1);
+    }
+  }
+});
+
+test("#2575 (controls): Opus 5 on OpenRouter and a vLLM-shaped endpoint keep the forced choice byte-for-byte", async () => {
+  const vllm = fakeResolved({
+    task: "chat",
+    providerId: "vllm",
+    model: "Qwen/Qwen3-8B",
+    capability: generationCapability({ tools: { parallel: true, silencesProse: true } }),
+    baseUrl: "http://127.0.0.1:8000/v1",
+  });
+  for (const connection of [orCuratedConnection("anthropic/claude-opus-5"), vllm]) {
+    const recorded: RecordedRequest[] = [];
+    const turn = await runOpenAiCompatChatTurn(
+      orRequest({ connection, toolChoice: { mode: "required" } }),
+      turnDeps(scriptedSseFetch([openAiTextStream("ok")], recorded)),
+    );
+    expect(recorded[0]?.body["tool_choice"], connection.model).toBe("required");
+    expect(warningCodes(turn), connection.model).not.toContain("tool_choice_downgraded");
+    const named: RecordedRequest[] = [];
+    await runOpenAiCompatChatTurn(orRequest({ connection, toolChoice: FORCED[1] }), turnDeps(scriptedSseFetch([openAiTextStream("ok")], named)));
+    expect(named[0]?.body["tool_choice"], connection.model).toMatchObject({ type: "function", function: { name: "get_weather" } });
+  }
 });

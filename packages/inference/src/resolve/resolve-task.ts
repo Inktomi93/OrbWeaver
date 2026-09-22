@@ -121,6 +121,16 @@ function advertisedFor(ctx: ResolverContext, provider: ProviderDef, connection: 
   return entry === undefined ? undefined : advertisedFromOpenAiCompat(entry);
 }
 
+/** The id the curated/measured rows and the family detector read: the model itself, or — on OpenRouter — the id
+ *  its catalog row says it shares model facts with (a floating alias's target, a `:batch` variant's base). The
+ *  advertised tier stays keyed on the connection's own id: it describes that row. */
+function factsModelFor(ctx: ResolverContext, provider: ProviderDef, model: ModelId): string {
+  if (provider.dialect !== "openrouter") {
+    return model;
+  }
+  return ctx.openRouterCatalog.get()?.find((entry) => entry.id === model)?.aliasOf ?? model;
+}
+
 async function warmFor(ctx: ResolverContext, provider: ProviderDef, connection: UserConnection, secret: string | null): Promise<void> {
   if (provider.catalog === "builtin") {
     return;
@@ -231,8 +241,9 @@ async function resolveTaskFold(ctx: ResolverContext, args: ResolveArgs, includeB
   const credential = await ctx.deps.resolveCredential({ credentialId: connection.credentialId, ownerId: connection.ownerId, providerId: provider.id });
   await warmFor(ctx, provider, connection, credential.secret);
   const model = normalizeModelId(connection.model, provider.wire === "agent-sdk" ? ctx.agentSdkCatalog.get() : null);
-  const family = detectModelFamily(model);
-  const rowQuery = { model, providerId: provider.id, wire: provider.wire, api };
+  const factsModel = factsModelFor(ctx, provider, model);
+  const family = detectModelFamily(factsModel);
+  const rowQuery = { model: factsModel, providerId: provider.id, wire: provider.wire, api };
   const evidence: Evidence = {
     declared,
     // Matched per (model × route) like the curated rows — a measurement through OpenRouter never reaches the

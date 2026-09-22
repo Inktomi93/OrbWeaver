@@ -51,6 +51,30 @@ test("higher tiers override only the fields they state; nested objects merge one
   expect(gen.tools).toEqual({ parallel: true });
 });
 
+// `tools` is a nested block like `reasoning`: a catalog that only knows "this model takes tools" must not erase
+// a curated sub-fact beneath it.
+test("tools merges field by field: an advertised cell keeps a curated sub-fact", () => {
+  const refusal: CapabilityOverride = {
+    kind: "generation",
+    generation: { tools: { parallel: true, forcedChoice: false } },
+    evidence: { tier: "curated", dated: "2026-09-22", cite: "test" },
+  };
+  const gen = generationOf(synthesizeCapability("generation", "other", { curated: [refusal], advertised: { tools: { parallel: false } } }).capability);
+  expect(gen.tools).toEqual({ parallel: false, forcedChoice: false });
+});
+
+test("a tools sub-fact alone never opens the cell: only a tier stating `parallel` establishes tool support", () => {
+  const subFactOnly: CapabilityOverride = {
+    kind: "generation",
+    generation: { tools: { forcedChoice: false } },
+    evidence: { tier: "curated", dated: "2026-09-22", cite: "test" },
+  };
+  expect(generationOf(synthesizeCapability("generation", "other", { curated: [subFactOnly] }).capability).tools).toBeUndefined();
+  // PLANTED CONTROL: the same sub-fact beneath a tier that DOES establish tools survives into the cell.
+  const opened = synthesizeCapability("generation", "other", { curated: [subFactOnly], advertised: { tools: { parallel: true } } });
+  expect(generationOf(opened.capability).tools).toEqual({ parallel: true, forcedChoice: false });
+});
+
 test("declared over measured warns per field, never silently", () => {
   const out = synthesizeCapability("generation", "other", {
     measured: [measured],

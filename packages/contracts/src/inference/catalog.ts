@@ -35,6 +35,10 @@ export const modelCatalogEntrySchema = z.object({
     })
     .nullable()
     .optional(),
+  /** The catalog id whose MODEL facts this row shares, when the catalog itself says so: a floating alias's named
+   *  target, or the base id a variant suffix (`:batch`) shares a canonical slug with. The capability rows match
+   *  on it; the row's own advertised fields still describe the row. Absent ⇒ the id is its own model. */
+  aliasOf: z.string().optional(),
 });
 export type ModelCatalogEntry = z.infer<typeof modelCatalogEntrySchema>;
 

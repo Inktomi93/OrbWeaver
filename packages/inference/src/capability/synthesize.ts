@@ -2,7 +2,7 @@
 // then the family floor OR-ed in, then the per-kind floor beneath everything. `declared` WINS over a dated
 // measurement WITH a `declared_overrides_measured` warning naming the field: the user's box is the truth
 // about the user's box; a shipped measurement describes OUR probe of SOME deployment. Every arm is a PARTIAL
-// (only the fields it states); nested objects (`reasoning`, `output`, `context`, `turns`) merge one level deep;
+// (only the fields it states); nested objects (`reasoning`, `output`, `context`, `turns`, `tools`) merge one level deep;
 // arrays replace — and so does `sampling`: it is the STATED SET of knobs a tier vouches for (§8.7 step 2:
 // absent ⇒ not honoured; D68: absence is the fail-closed truth), and a patch grammar cannot express a measured
 // ABSENCE. Founding case (inference audit B3, measured 2026-09-20 `gen-1789884252-n94Ebcm1uMVMG1XhxsbB`):
@@ -43,8 +43,9 @@ type GenerationPatch = NonNullable<CapabilityOverride["generation"]>;
  *  `exactOptionalPropertyTypes`; `mergeFlat` skips those. */
 type Patch<T> = { readonly [K in keyof T]?: T[K] | undefined };
 
-/** The blocks that merge one level deep. `sampling` is deliberately NOT here (a stated set replaces — header). */
-const NESTED_GENERATION_KEYS = ["reasoning", "output", "context", "turns"] as const;
+/** The blocks that merge one level deep. `sampling` is deliberately NOT here (a stated set replaces — header).
+ *  `tools` is: a catalog that only knows "this model takes tools" must not erase a curated sub-fact about them. */
+const NESTED_GENERATION_KEYS = ["reasoning", "output", "context", "turns", "tools"] as const;
 
 function mergeGeneration(base: GenerationCapability, patch: GenerationPatch | Partial<GenerationCapability> | undefined): GenerationCapability {
   if (patch === undefined) {
@@ -68,6 +69,14 @@ function mergeGeneration(base: GenerationCapability, patch: GenerationPatch | Pa
     merged["turns"] = { ...TURNS_FLOOR, ...turns };
   }
   return merged as GenerationCapability;
+}
+
+/** `tools` PRESENT means "accepts tools[]", which only a tier stating `parallel` establishes. Checked once the
+ *  whole fold has run, so a lower tier's sub-fact survives beneath a higher tier that establishes the cell; a
+ *  sub-fact no tier established describes nothing and does not open it. */
+function withEstablishedTools(capability: GenerationCapability): GenerationCapability {
+  const { tools, ...rest } = capability;
+  return tools === undefined || "parallel" in tools ? capability : rest;
 }
 
 function mergeFlat<T extends object>(base: T, patch: Patch<T> | undefined): T {
@@ -105,7 +114,7 @@ function synthesizeGeneration(family: ModelFamily, evidence: Evidence): Synthesi
     capability = mergeGeneration(capability, row);
   }
   const declared = evidence.declared?.generation;
-  capability = mergeGeneration(capability, declared);
+  capability = withEstablishedTools(mergeGeneration(capability, declared));
   // The window is ESTIMATED unless a tier above the floor stated one.
   const windowStated =
     [...(evidence.curated ?? []), ...(evidence.measured ?? [])].some((row) => row.generation?.context?.window !== undefined) ||
