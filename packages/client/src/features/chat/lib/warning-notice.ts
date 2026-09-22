@@ -188,6 +188,11 @@ function settingsAdjustedNotice(warning: ChatSettingsAdjustedWarning): NotifyNot
         description: "You gave the model text to continue, which it can't do while reasoning — so it continued your text instead.",
         title: "Reasoning was skipped for this reply",
       };
+    case "tool_choice_downgraded":
+      return {
+        description: "This model can't be made to call a tool, so the tools were offered and it chose whether to use one.",
+        title: "A required tool call became optional",
+      };
     // NOT a "wasn't used" sentence: the setting DID apply, with the provider's own value in place of the one
     // this model spells differently. Naming the knob when it is known keeps the notice actionable.
     case "provider_compatibility_mode":

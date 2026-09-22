@@ -2343,7 +2343,8 @@ function toChatWarning(warning: ResolvedWarning): ChatWarning {
     case "reasoning_budget_clamped":
     case "tool_result_error_dropped":
     case "reasoning_dropped_for_prefill":
-      // `adjustment: code` IS the MATCH: the ten infra spellings and `PROVIDER_ADJUSTMENT_KINDS` are separate
+    case "tool_choice_downgraded":
+      // `adjustment: code` IS the MATCH: the infra spellings above and `PROVIDER_ADJUSTMENT_KINDS` are separate
       // tuples (contracts sits below server and cannot import infra), so a rename on either side fails `tsc`
       // right here. The three detail fields ride straight through — the resolver is the only layer that knows
       // them, and re-deriving them in the domain would be inventing a fact. `undefined` is the honest absent

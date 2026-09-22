@@ -40,7 +40,7 @@ import { rateLimitCanaryEvent, rateLimitFromHeaders } from "../kit/rate-limit-he
 import { runWithPreCommitRetry } from "../kit/retry.ts";
 import { resolvedScrubSet } from "../kit/sanitize.ts";
 import { emitTurnSpanEvents } from "../kit/turn-span.ts";
-import { functionTools, jsonResponseFormat, standardSampling, toolChoiceOf } from "../v4/options.ts";
+import { functionTools, jsonResponseFormat, servableToolChoice, standardSampling, toolChoiceOf } from "../v4/options.ts";
 import type { WirePlan } from "../v4/prompt.ts";
 import { buildWirePlan, withMessageOptions } from "../v4/prompt.ts";
 import { appliedSampling, DROPPED_SAMPLING_CODES, measuredCostOf, sdkWarnings, toChatResult } from "../v4/result.ts";
@@ -74,7 +74,7 @@ function requireGeneration(connection: Resolved, label: string): GenerationCapab
   return connection.capability.generation;
 }
 
-function sdkEffortOf(effort: string | undefined, warnings: ResolvedWarning[], where: string): SdkEffort | undefined {
+export function sdkEffortOf(effort: string | undefined, warnings: ResolvedWarning[], where: string): SdkEffort | undefined {
   if (effort === undefined) {
     return;
   }
@@ -154,8 +154,9 @@ function placeCache(args: {
   return { patches, written: { historyDepths, systemBlocks, toolBlocks } };
 }
 
-/** The `thinking` block per the resolved reasoning MODE — the policy already ran in the funnel. */
-function thinkingOf(reasoning: ResolvedReasoning): JSONObject {
+/** The `thinking` block per the resolved reasoning MODE — the policy already ran in the funnel. The batch
+ *  tasks (`batch.ts`) spell their side-generation posture through this same function. */
+export function thinkingOf(reasoning: ResolvedReasoning): JSONObject {
   if (!reasoning.enabled) {
     return { type: "disabled" };
   }
@@ -178,8 +179,9 @@ function anthropicOptions(
   req: AnthropicChatRequest,
   knobs: ResolvedChatKnobs,
   warnings: ResolvedWarning[],
-  toolCache: SharedV4ProviderOptions | undefined,
+  model: { readonly generation: GenerationCapability; readonly toolCache: SharedV4ProviderOptions | undefined },
 ): Omit<LanguageModelV4CallOptions, "prompt" | "abortSignal"> {
+  const { generation, toolCache } = model;
   const effort = knobs.reasoning.enabled ? sdkEffortOf(knobs.reasoning.effort, warnings, "turn") : undefined;
   if (knobs.verbosity !== undefined) {
     warnings.push({ code: "verbosity_dropped", message: "verbosity ignored: the anthropic wire has no verbosity field" });
@@ -200,7 +202,7 @@ function anthropicOptions(
     ...(req.tools !== undefined
       ? { tools: functionTools(req.tools, { strictJson: req.connection.features.strictJson, warnings, cacheLastTool: toolCache }) }
       : {}),
-    ...(req.toolChoice !== undefined ? { toolChoice: toolChoiceOf(req.toolChoice) } : {}),
+    ...(req.toolChoice !== undefined ? { toolChoice: toolChoiceOf(servableToolChoice(req.toolChoice, generation, warnings)) } : {}),
     ...(req.responseFormat !== undefined
       ? { responseFormat: jsonResponseFormat(req.responseFormat, scrubWireSchema(req.responseFormat.schema, "anthropic-format").schema) }
       : {}),
@@ -351,7 +353,7 @@ export async function runAnthropicChatTurn(req: AnthropicChatRequest, deps: Anth
   const toolCache = toolCacheOptions(generation, req.tools !== undefined && req.tools.length > 0);
   const cache = placeCache({ plan, req, generation, log, toolBlocks: toolCache === undefined ? 0 : 1 });
   const prompt = withMessageOptions(plan.prompt, ANTHROPIC_KEY, cache.patches);
-  const options = anthropicOptions(req, knobs, warnings, toolCache);
+  const options = anthropicOptions(req, knobs, warnings, { generation, toolCache });
   const call: AnthropicCall = { connection, deps: deps.transport, label, api: req.api, chatId: req.chatId };
   const classify = (err: unknown): ProviderError => (err instanceof ProviderError ? err : providerErrorFromHttp(err, label, secrets));
   // THE TYPED-FAILURE BOUNDARY. `runWithPreCommitRetry` re-throws the ORIGINAL error on purpose (its JSDoc

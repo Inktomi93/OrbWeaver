@@ -185,7 +185,7 @@ export type ChatWarningCode = (typeof CHAT_WARNING_CODES)[number];
 
 /** WHICH provider degradation a `settings_adjusted` warning reports — the chat-side vocabulary for the
  *  resolve/wire drop classes the infra runners raise (`infra/providers/contract/resolve.ts` `WARNING_CODES`).
- *  Spelled IDENTICALLY to that tuple's ten degradation members so the domain map is a MATCH, never a
+ *  Spelled IDENTICALLY to that tuple's degradation members so the domain map is a MATCH, never a
  *  re-spell — the `custom_parameters_ignored` precedent. It is a SEPARATE tuple by necessity and by design:
  *  `contracts` sits below `server`, so it cannot import infra's vocabulary, and chat must stay free to
  *  classify a drop differently from the runner that raised it. One home; the union derives from it. */
@@ -218,6 +218,9 @@ export const PROVIDER_ADJUSTMENT_KINDS = [
   // The turn carried a content prefill AND asked for thinking — mutually exclusive on this wire, so the
   // prefill won and the thinking kwargs were dropped.
   "reasoning_dropped_for_prefill",
+  // A FORCED tool choice went out as `auto`: this model rejects forced tool use outright, so the tools were
+  // offered and the model decided whether to call one.
+  "tool_choice_downgraded",
   // The provider ran the turn in a COMPATIBILITY mode: it substituted its own value where this model spells
   // a setting differently (a default thinking budget, an output cap guessed for a model it does not know) or
   // accepted a deprecated spelling. Distinct from the drop classes above because the setting DID apply —

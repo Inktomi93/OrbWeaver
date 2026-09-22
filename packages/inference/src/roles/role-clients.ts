@@ -7,6 +7,7 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { Task } from "@orb/contracts/inference";
+import { acceptsForcedToolChoice } from "@orb/contracts/inference";
 import type { EmbedResult, ImageEmbedResult, RerankResult, SummarizeResult } from "@orb/contracts/providers";
 import type { ImageEmbedInput, RerankDocument, RerankQuery, ResponseFormat, SummarizeInput } from "@orb/contracts/role-clients";
 import type { UserId } from "@orb/kit/ids";
@@ -38,20 +39,39 @@ function samplerFields(opts: SummarizeCallOptions | undefined): SideGenSampling 
   };
 }
 
+/** What the resolved capability says about the two vehicles — read once at the call site, never re-derived. */
+interface VehicleFacts {
+  /** The model's endpoints advertise schema-constrained output (`output.structured`). */
+  readonly structured: boolean;
+  /** The model accepts a FORCED tool choice (`acceptsForcedToolChoice`). */
+  readonly forcedTool: boolean;
+}
+
+function vehicleFactsOf(conn: Resolved): VehicleFacts {
+  if (conn.capability.kind !== "generation") {
+    return { structured: false, forcedTool: true };
+  }
+  const generation = conn.capability.generation;
+  return { structured: generation.output.structured === true, forcedTool: acceptsForcedToolChoice(generation) };
+}
+
 /** The structured call's WIRE VEHICLE, decided where both the ask and the RESOLVED capability are in hand:
  *  `auto` ⇒ the enforcing `response-format` when the model's endpoints advertise structured output, else the
- *  servable-everywhere forced tool. An explicit per-call vehicle passes through untouched — including onto a
- *  model whose capability is unknown, where the backend's own 400 is the honest answer. */
-function resolveVehicle(
-  format: ResponseFormat,
-  deployment: ReturnType<InferenceDeps["structuredOutputVehicle"]>,
-  modelDoesStructured: boolean,
-): ResponseFormat {
+ *  servable-everywhere forced tool. An explicit vehicle (per-call or deployment) passes through untouched —
+ *  including onto a model whose capability is unknown, where the backend's own 400 is the honest answer — with
+ *  ONE exception, where the capability KNOWS the answer (#2575): a `forced-tool` ask on a model that rejects
+ *  forced tool use AND does structured output rides `response-format`, the vehicle Anthropic prescribes for a
+ *  forced call that only existed to extract JSON. Without structured output it stays a forced tool, which the
+ *  wire downgrades to `auto` loudly (`servableToolChoice`). */
+function resolveVehicle(format: ResponseFormat, deployment: ReturnType<InferenceDeps["structuredOutputVehicle"]>, facts: VehicleFacts): ResponseFormat {
   const asked = format.vehicle ?? deployment;
+  if (asked === "forced-tool" && !facts.forcedTool && facts.structured) {
+    return { ...format, vehicle: "response-format" };
+  }
   if (asked !== "auto") {
     return { ...format, vehicle: asked };
   }
-  return { ...format, vehicle: modelDoesStructured ? "response-format" : "forced-tool" };
+  return { ...format, vehicle: facts.structured ? "response-format" : "forced-tool" };
 }
 
 function providerFailureOf(err: unknown): ProviderError | null {
@@ -143,12 +163,11 @@ export function createRoleClientsFor(args: {
       },
       structured: async (inputs: readonly SummarizeInput[], opts: StructuredCallOptions): Promise<SummarizeResult> => {
         const conn = await live("structured");
-        const modelDoesStructured = conn.capability.kind === "generation" && conn.capability.generation.output.structured === true;
         return withStrikeOut(conn, () =>
           executor.structured({
             connection: conn,
             inputs,
-            responseFormat: resolveVehicle(opts.responseFormat, deps.structuredOutputVehicle(), modelDoesStructured),
+            responseFormat: resolveVehicle(opts.responseFormat, deps.structuredOutputVehicle(), vehicleFactsOf(conn)),
             ...(opts.signal !== undefined ? { signal: opts.signal } : {}),
             ...samplerFields(opts),
           }),

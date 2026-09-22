@@ -64,7 +64,8 @@ export const anthropicRows = [
       // sampling parameters, so the stated set is empty — a preset knob drops with `sampling_knob_dropped`
       // instead of the record claiming it applied (inference audit B3/H3). `rejectsThinkingDisabledAboveHighEffort`
       // needs no `mandatory`: our wire sends `effort` only when reasoning is ENABLED (chat.ts), so the
-      // disabled+xhigh combination the SDK lowers is unreachable.
+      // disabled+xhigh combination the SDK lowers is unreachable. This regex ALSO matches `opus-5-5`: Opus 5.5
+      // shares every fact stated here, and the row below states what differs (it would 400 on this row alone).
       sampling: {},
       context: {
         window: 200_000,
@@ -75,6 +76,32 @@ export const anthropicRows = [
       tier: "curated",
       dated: "2026-09-20",
       cite: "@ai-sdk/anthropic 4.0.58 getModelCapabilities (dist/index.js:5943-5953): supportsAdaptiveThinking, supportsXhighEffort, rejectsSamplingParameters: true; no curated row existed before 2026-09-20 (opus-5 resolved as non-reasoning on the direct wire)",
+    },
+  },
+  {
+    match: {
+      model: "^(anthropic/)?claude[-/].*opus-5[-.]5(?![0-9])",
+    },
+    generation: {
+      reasoning: {
+        // Thinking CANNOT be disabled at any effort (Opus 5 allows it at `high` or below): `{type:"disabled"}` and a
+        // `budget_tokens` form both 400, so the funnel clamps an off/absent effort UP with `reasoning_mandatory_clamp`.
+        // Effort is the only depth control, and the model's own default is `medium` (Opus 5's is `high`).
+        mandatory: true,
+        defaultEffort: "medium",
+      },
+      // Forced `tool_choice` (`any` / `tool`) 400s on this model (Opus 5 accepts both). A `tools` patch REPLACES the
+      // whole cell in the fold (`synthesize.ts` merges only reasoning/output/context/turns one level deep), so the
+      // family row's `parallel: true` is restated here rather than lost.
+      tools: {
+        parallel: true,
+        forcedChoice: false,
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-22",
+      cite: 'Anthropic claude-api skill, shared/model-migration.md "Migrating to Claude Opus 5.5" breaking change 1 ("thinking.type.disabled" is not supported for this model ... at every effort level; default effort medium) + breaking change 2 (tool_choice: type "tool" and "any" are not supported for this model, Messages/Batches/count_tokens); shared/error-codes.md. Documentation, not a live request id — no live probe was run for this row (#2575)',
     },
   },
   {
@@ -229,6 +256,25 @@ export const anthropicRows = [
       tier: "curated",
       dated: "2026-09-20",
       cite: "turns.ts FABLE_MYTHOS_MIN; mandatory = direct claude-fable-5-1 thinking.type: disabled → 400 'not supported for this model' (2026-09-19 req_011CfE8JTmHYvCZudukFufdG; 2026-09-20 rec-probe.mjs anth-fable-disabled req_011CfEBkabcoxXWyouHdYDxY), OpenRouter 'Reasoning is mandatory for this endpoint' (2026-09-19); sampling {} = @ai-sdk/anthropic 4.0.58 getModelCapabilities (dist/index.js:5954-5963) rejectsSamplingParameters: true",
+    },
+  },
+  {
+    match: {
+      model: "^(anthropic/)?claude[-/].*(fable|mythos)-5[-.]1(?![0-9])",
+    },
+    generation: {
+      // The 5.1 point releases 400 a forced `tool_choice` (`any` / `tool`); Fable 5 and Mythos 5 accept it, which is
+      // why this is its own row and not a cell on the family row above. `parallel: true` restated: a `tools` patch
+      // replaces the whole cell in the fold.
+      tools: {
+        parallel: true,
+        forcedChoice: false,
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-22",
+      cite: 'Anthropic claude-api skill, shared/tool-use-concepts.md + shared/error-codes.md: "Claude Fable 5.1, Claude Mythos 5.1, Claude Opus 5.5, and Mythos Preview reject forced tool use ... tool_choice: type "tool" and "any" are not supported for this model (on count_tokens and Batches too). Claude Fable 5 and Claude Opus 5 accept them". Documentation, not a live request id (#2575)',
     },
   },
   {
