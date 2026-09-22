@@ -19,11 +19,11 @@ only when a rule's edge case is genuinely unclear.
   gate-green and still fail `pnpm test`. After editing any gate or token file, run `check-gates.int`.
 - **Lane iteration is SCOPED.** The explicit inner loop is exactly the test files you touched
   (`pnpm test:scoped <paths>`, `pnpm test:ct <paths>` — niced scripts, never raw `npx`; pass NO worker
-  flag, the SHIPPED defaults ARE the shared-host caps since #1835, from `tooling/concurrency-profile.json`)
-  - scoped typecheck + biome/eslint on your files. Commit normally in your assigned worktree or clone;
-    its configured hooks may run required whole-project checks. Do not manually duplicate a full battery
-    solely to commit. Hook bypass requires a specific user- or coordinator-authorized exception with the
-    reason and executed/owed checks recorded; the orchestrator owns integrated graduation.
+  flag, the SHIPPED defaults ARE the shared-host caps since #1835, from `tooling/concurrency-profile.json`),
+  plus scoped typecheck and biome/eslint on your files. Commit normally in your assigned worktree or
+  clone; its configured hooks may run required whole-project checks. Do not manually duplicate a full
+  battery solely to commit. Hook bypass requires a specific user- or coordinator-authorized exception
+  with the reason and executed/owed checks recorded; the orchestrator owns integrated graduation.
 - **The harness AUTO-WRITES artifacts — READ them, never pipe or re-run to rediscover a failure**, and
   invoke the SCRIPTS (a bare `npx vitest run` drops the json reporter). Which artifact each run writes,
   and why the paths are `latest` POINTERS rather than files written in place: constitution §4.
