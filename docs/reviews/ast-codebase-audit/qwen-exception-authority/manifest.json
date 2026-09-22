@@ -1,0 +1,404 @@
+{
+  "manifest": "manifest",
+  "task": "qwen-exception-authority-audit",
+  "lane": "qwen-exception-authority",
+  "checkpoint": "0d24f80267d976316e4c63d5739ef49fbb53f642",
+  "worktree": "/home/inktomi/inktomi-stack/development/orbweaver/.qwen/worktrees/qw-exception-authority",
+  "generatedAt": "2026-09-22T17:20:00Z",
+  "status": "complete",
+  "shards": [
+    {
+      "path": "docs/reviews/ast-codebase-audit/qwen-exception-authority/manifest.json",
+      "status": "written",
+      "items": null
+    },
+    {
+      "path": "docs/reviews/ast-codebase-audit/qwen-exception-authority/ordinary-dominant-families.json",
+      "status": "written",
+      "items": 1353
+    },
+    {
+      "path": "docs/reviews/ast-codebase-audit/qwen-exception-authority/ordinary-remainder.json",
+      "status": "written",
+      "items": 379
+    },
+    {
+      "path": "docs/reviews/ast-codebase-audit/qwen-exception-authority/reviewed-grants.json",
+      "status": "written",
+      "items": 480
+    },
+    {
+      "path": "docs/reviews/ast-codebase-audit/qwen-exception-authority/foreign-and-native-suppressions.json",
+      "status": "written",
+      "items": 67
+    }
+  ],
+  "commandsRun": [
+    {
+      "command": "nohup nice -n 19 node --max-old-space-size=16384 tooling/src/verify/cli.ts structure --json",
+      "exit": 0,
+      "outcome": "ok=False, 2026-09-22T15:54:17.489Z → 2026-09-22T15:58:34.260Z (256s), 350 policies registered/ran, selection=all, scope=whole, incompleteReasons=[], artifact reports/runs/structure/qw-exception-authority-3734942-2026-09-22T15-54-17-489Z/check-structure.json",
+      "note": "the run slot is under gitignored /reports/ — no Git state touched"
+    },
+    {
+      "command": "node --max-old-space-size=16384 /tmp/qwen-authority-dump.ts",
+      "exit": 0,
+      "outcome": "/tmp/qwen-authority-dump.json — waivedFindings 1732, grantedFindings 480, effectiveFindings 391, authorityAlarms 0, toolErrors 0, withheld [], carrier refusals 1, descriptors for all 350 policies"
+    },
+    {
+      "command": "node /tmp/qwen-grants-dump.ts",
+      "exit": 0,
+      "outcome": "/tmp/qwen-grants-runtime.json — runtime REVIEWED_GRANTS import: rows 480, uniqueIds 480, uniqueIdentities 480, policies 67, rowsWithMissingFields 0"
+    },
+    {
+      "command": "node /tmp/qwen-suppress-probe.ts",
+      "exit": 0,
+      "outcome": "/tmp/qwen-suppress-probe.json — production suppressionSites over 8109 JS/TS-family files: 564 occurrences / 275 files / 346 source + 218 tests / 67 rule-scope classes"
+    },
+    {
+      "command": "nice -n 19 node --max-old-space-size=8192 /tmp/qwen-gate-ignore-probe.ts",
+      "exit": 0,
+      "outcome": "/tmp/qwen-gate-ignore-probe.json — production gate-ignore grammar over 7921 tracked .ts/.tsx: 0 live markers, 113 raw spellings (87 in comments, 27 in literal spans)"
+    },
+    {
+      "command": "python3 /tmp/qwen-literal-sweep.py ; python3 /tmp/qwen-delta.py",
+      "exit": 0,
+      "outcome": "/tmp/qwen-literal-sweep.json, /tmp/qwen-delta.json — literal corroboration ONLY, 10028 files scanned / 0 skipped, TS and TSX counted separately"
+    }
+  ],
+  "corpus": {
+    "semanticReaders": {
+      "suppressionSites": {
+        "listed": 8109,
+        "scanned": 8109,
+        "byFamily": {
+          "ts": 6516,
+          "tsx": 1405,
+          "jsFamily": 188
+        },
+        "skipped": 0
+      },
+      "gateIgnoreGrammar": {
+        "trackedTs_Tsx": 7921,
+        "byExtension": {
+          ".ts": 6516,
+          ".tsx": 1405
+        },
+        "parsedOnlyTokenBearing": 79,
+        "skipped": 0
+      },
+      "fullStructureRun": {
+        "tracked": 10827,
+        "authored": 10827,
+        "untracked": 0,
+        "policies": 350,
+        "registered": 350,
+        "ran": 350
+      }
+    },
+    "literalCorroboration": {
+      "filesScanned": 10028,
+      "filesSkipped": 0,
+      "byFamily": {
+        "ts": 6516,
+        "tsx": 1405,
+        "js-family": 188,
+        "resource": 1919
+      },
+      "note": "TS and TSX are swept as separate languages and each family's zero is a searched zero, not a skipped one"
+    },
+    "tsAndTsxScannedSeparately": true
+  },
+  "denominators": {
+    "ordinaryWaivers": {
+      "reproduced": 1732,
+      "seed": 1732,
+      "match": true,
+      "policies": {
+        "reproduced": 33,
+        "seed": 33
+      },
+      "byPolicyAllMatchSeed": true,
+      "dominantThree": {
+        "reproduced": {
+          "caught-failure-ownership": 625,
+          "no-test-fabrication": 416,
+          "ct-no-oneshot-live-read-assert": 312
+        },
+        "seed": {
+          "count": 1353,
+          "percent": 78.12
+        },
+        "match": true
+      },
+      "lineWaivers": 1730,
+      "fileWaivers": 2,
+      "oneToOne": "1732 findings bound to 1732 distinct waiver markers; zero waiver bound more than one finding"
+    },
+    "reviewedGrants": {
+      "reproducedRows": 480,
+      "seedRows": 480,
+      "match": true,
+      "policies": {
+        "reproduced": 67,
+        "seed": 67
+      },
+      "literalCountAntiPattern": {
+        "reproducedByThisLane": "not attempted as a denominator",
+        "seed": {
+          "rows": 423,
+          "policies": 64
+        }
+      },
+      "consumptionAllExactlyOnce": true
+    },
+    "foreignSuppressions": {
+      "reproduced": {
+        "occurrences": 564,
+        "files": 275,
+        "classes": 67,
+        "source": 346,
+        "tests": 218
+      },
+      "seed": {
+        "occurrences": 564,
+        "files": 275,
+        "governedRuleScopeClasses": 64,
+        "sourceOccurrences": 346,
+        "testOccurrences": 218
+      },
+      "occurrenceDenominatorsMatch": true,
+      "classMismatch": "67 live (rule, scope) classes vs 64 governed by a grant — see mismatches[1]"
+    },
+    "nativeConfigurationPermissions": {
+      "grants": {
+        "biome": 1,
+        "eslint": 6,
+        "depcruise": 2,
+        "total": 9,
+        "note": "inside the 480, never added"
+      },
+      "seedGrants": {
+        "biome": 1,
+        "eslint": 6,
+        "depcruise": 2
+      },
+      "match": true
+    },
+    "retiredAuthority": {
+      "reproducedLiveMarkers": 0,
+      "seedLiveMarkers": 0,
+      "match": true,
+      "population": {
+        "reproduced": 7862,
+        "seed": 7861
+      }
+    }
+  },
+  "mismatches": [
+    {
+      "id": 1,
+      "what": "JS/TS-family files scanned",
+      "reproduced": 8109,
+      "seed": 8108,
+      "delta": 1,
+      "reading": "one more authored JS/TS-family file exists at this checkpoint than the seed's artifact enumerated; every occurrence-level denominator is unchanged, so the drift is a corpus addition, not a reader disagreement Corroborated by mismatch 4: the tracked-files receipt grew by 19 files between the seed tree and this one, so a +1 code-file delta is expected, not a reader disagreement."
+    },
+    {
+      "id": 2,
+      "what": "foreign-suppression rule/scope classes",
+      "reproduced": 67,
+      "seedGovernedClasses": 64,
+      "delta": "3 classes / 10 occurrences with no reviewed grant",
+      "sites": [
+        "scripts/eslint.cjs:32,49",
+        "scripts/ts7.cjs:67,81,83",
+        "knip.ts:169",
+        "platform.d.ts:26,28,32,34"
+      ],
+      "reading": "the gate population is `{in:[@authored], notUnder:[scripts/probes/st-goldens/sillytavern-runtime/**]}` and none of these files is in it — they are root-level `.cjs`/`.ts`/`.d.ts` outside any requested tsconfig program. The gate reports 64 granted classes and zero effective findings BECAUSE it never sees these sites. An ungoverned plane the seed's 'all classes granted, zero effective' summary does not describe.",
+      "disposition": "owner decision"
+    },
+    {
+      "id": 3,
+      "what": "gate-ignore-inventory population",
+      "reproduced": 7862,
+      "seed": 7861,
+      "delta": 1,
+      "reading": "same single-file corpus drift as mismatch 1 (both populations grew by one authored source file) The population is derived at lib/policy-pass.ts:70 from the same authored corpus."
+    },
+    {
+      "id": 4,
+      "what": "biome-grant-liveness resource count",
+      "reproduced": "the SAME field reads tracked-files=10827 in this run's artifact (receipts of biome-grant-liveness and depcruise-grant-liveness); json:biome=1 and authored-text#1=1 unchanged",
+      "seed": "trackedResources=10808",
+      "reading": "RESOLVED AS TREE DRIFT ON AN IDENTIFIED FIELD, not an unreproducible number. 10808 is the `resources` value of the `tracked-files` semantic receipt (see nativeConfigurationPermissions.seedFieldMapping in foreign-and-native-suppressions.json); it is `git ls-files` length, so it moves with the checkout. This checkpoint measures 10827, i.e. +19 tracked files over the seed's tree. The +1 JS/TS-family delta of mismatches 1 and 3 is consistent with +19 total (18 of the additions are outside the JS/TS family). What remains unverifiable here is the seed's own value: the seed artifact is absent from this worktree, so 10808 is attributed to that field, not read from it.",
+      "status": "reconciled in kind (field identified, delta explained, seed-side value not directly readable)",
+      "fieldMapping": {
+        "what": "the receipt field the seed numbers come from, verified in this tree",
+        "trackedResources (10808 / this run 10827)": "the `resources` value of the semantic receipt whose `source` is \"tracked-files\". The row is emitted per distinct resource source by tooling/src/verify/lib/resource-policy.ts:68-70 (`{kind:\"resource\", source, resources: fact.members, unresolved}`); the source string is minted by `cached(\"tracked-files\", () => loadTrackedFiles(root))` at tooling/src/verify/ops/resource-host.ts:193. Independent corroboration of the field's meaning: `git ls-files | wc -l` = 10827 here.",
+        "nativeConfigResources (125 eslint / 233 depcruise)": "the same field on receipts `native-config:eslint` and `native-config:depcruise`; both reproduce the seed exactly in this run's artifact.",
+        "populationFiles (7861 / this run 7862)": "tooling/src/verify/lib/policy-pass.ts:70 — `populationFiles: [...new Set([...effectiveSourcePaths, ...effectiveResourcePaths])].toSorted()`; for gate-ignore-inventory (resources: []) it is the fact population, receipted as `{source:\"legacy-gate-ignore-sites\", members:7862}`.",
+        "grants consumed 1/6/2": "`policy.authority.reviewedGrantConsumption` — a `{id,count}[]` seeded to 0 for every validated grant (tooling/src/verify/lib/gate-authority.ts:363) and set to the matching-candidate count at :259. 1/6/2 with 9 grants total means every one of the nine consumed exactly once.",
+        "receiptsReadFrom": "reports/runs/structure/qw-exception-authority-3734942-2026-09-22T15-54-17-489Z/check-structure.json",
+        "evidenceCommands": [
+          "jq -c '.gates[]|select(.name==\"biome-grant-liveness\")|{population,receipts}' reports/runs/structure/qw-exception-authority-3734942-2026-09-22T15-54-17-489Z/check-structure.json",
+          "git ls-files | wc -l"
+        ]
+      }
+    },
+    {
+      "id": 5,
+      "what": "the run itself is red",
+      "reproduced": "ok=false, blocking=16",
+      "seed": "the seed artifacts describe the same kind of whole-tree run",
+      "reading": "16 blocking findings, none of them in the exception authority: policy-binding-resolution 9, diagnostic-legibility 3, policy-soundness 2, test-layout 1, no-inline-types 1. The exception denominators above are read from the authority bindings, which completed with 0 alarms and 0 tool errors; a red verdict elsewhere in the tree is NOT a reason to distrust them, and is NOT clean either — it is listed here."
+    }
+  ],
+  "hardPolicies": {
+    "count": 131,
+    "mechanism": "authority=hard — no inline door exists: no ordinary waiver, no reviewed grant, no foreign directive can bind a hard finding (GATE-AUTHORING.md §4 authority table)",
+    "proof": "0 of the 1732 waived findings and 0 of the 480 granted findings carry a hard-authority policy; every hard finding that fired this run is in effectiveFindings",
+    "waiverCarryingOrdinaryPolicies": 33,
+    "ordinaryAuthorityPolicies": 146,
+    "reviewedGrantAuthorityPolicies": 73,
+    "policyCountTotal": 350
+  },
+  "effectiveFindings": {
+    "total": 391,
+    "byPolicy": {
+      "query-freshness-coverage-debt": 1,
+      "test-layout": 1,
+      "real-corpus-liveness-manifest": 340,
+      "policy-refusal-coverage": 15,
+      "policy-family-readers": 19,
+      "policy-binding-resolution": 9,
+      "policy-soundness": 2,
+      "diagnostic-legibility": 3,
+      "no-inline-types": 1
+    },
+    "blockingPoliciesCount": 5,
+    "blockingFindingsTotal": 16,
+    "blockingFindingsBasis": "production verdict .blocking == 16 == count of effectiveFindings with severity==\"error\" (375 of the 391 are warnings); receipt jq '.verdict' /tmp/qwen-authority-dump.json",
+    "blockingNote": "blocking[] is ONE ENTRY PER BLOCKING POLICY, not per finding: `violations` is the finding count inside that policy and the entries sum to 16. A count of blocking[] therefore reads 5, a count of blocking FINDINGS reads 16.",
+    "blocking": [
+      {
+        "policyId": "diagnostic-legibility",
+        "severity": "error",
+        "violations": 3,
+        "granted": 0,
+        "waived": 0
+      },
+      {
+        "policyId": "no-inline-types",
+        "severity": "error",
+        "violations": 1,
+        "granted": 0,
+        "waived": 11
+      },
+      {
+        "policyId": "policy-binding-resolution",
+        "severity": "error",
+        "violations": 9,
+        "granted": 0,
+        "waived": 0
+      },
+      {
+        "policyId": "policy-soundness",
+        "severity": "error",
+        "violations": 2,
+        "granted": 0,
+        "waived": 0
+      },
+      {
+        "policyId": "test-layout",
+        "severity": "error",
+        "violations": 1,
+        "granted": 0,
+        "waived": 0
+      }
+    ],
+    "insideWaiverCarryingPolicies": [
+      {
+        "identity": "tooling/src/verify/lib/zod-output-twin.ts:11:13",
+        "mechanism": "effective finding (no waiver bound, no grant bound)",
+        "ownerPolicy": "no-inline-types",
+        "authoredSite": "tooling/src/verify/lib/zod-output-twin.ts:11:13",
+        "position": "ZodOutputTwinRead",
+        "severity": "error",
+        "message": "exported type/zod-schema outside a type home — feature types live in the feature's contract/ (or @orb/contracts), not in a verb/service/component/substrate. Move it to contract/ and import it. See Spine-TypeScript-and-Patterns.md §7.4.",
+        "protectedBoundary": "exported type/zod-schema outside a type home — feature types live in the feature's contract/ (or @orb/contracts), not in a verb/service/component/substrate. Move it to contract/ and import it. See Spine-TypeScript-and-Patterns.md §7.4.",
+        "nearbyHealthyWitness": null,
+        "witnessStatus": "not-derivable-from-production-readers: the verify pipeline emits population COUNTS and receipts per policy, never a site-level population membership list, so no healthy non-waived neighbour can be named without inventing one",
+        "readerUncertainty": [
+          "not an exception record; recorded because the owning policy carries a live violation while its waivers are being audited"
+        ],
+        "candidateDisposition": "repair",
+        "dispositionBasis": "an unwaived, ungranted finding is the system working: it needs the owner's ordinary waiver or grant, not an audit waiver",
+        "evidenceCommands": [
+          "jq '.effectiveFindings[]|select(.policyId==\"no-inline-types\")' /tmp/qwen-authority-dump.json"
+        ]
+      }
+    ],
+    "note": "recorded so no shard can be read as 'the tree is clean'; these are findings with NO authority bound, which is the system working, not an exception"
+  },
+  "toolReaderDefects": [
+    {
+      "identity": "tooling/src/verify/lib/gate-ignore.ts#GATE_IGNORE_SOURCE opener fence",
+      "kind": "tool-reader defect (measured, not assumed)",
+      "evidence": "113 raw spellings in tracked .ts/.tsx, 0 live markers; 87 spellings sit inside a comment but not at the opener and 27 inside a literal span",
+      "disposition": "tool-reader defect",
+      "note": "the reader is CORRECT here — the fence is the documented law — but it means a literal count of `@orb-gate-ignore` (225 lines tree-wide, 103 of them in .md) over-states the retired-marker population by 113x. A grep denominator would have been wrong; this is the case the brief's 'do not substitute grep' rule is about, measured."
+    },
+    {
+      "identity": "tooling/src/verify/lib/ordinary-waiver.ts carrier-bounded population",
+      "kind": "reader-boundary, quantified",
+      "evidence": "3644 literal `@orb-waive` mention lines across 10028 files (2399 in code, 1245 in docs) versus 1732 waivers bound by the production engine",
+      "disposition": "tool-reader defect",
+      "note": "the ordinary population is carrier-bounded: a marker is only a waiver inside a comment carrier the reader scans, in a file the policy's population admits, bound to a finding. The 1912-line gap is docs prose, gate fixtures, retired-vocabulary text and unbound trivia — not 1912 missing exceptions."
+    },
+    {
+      "identity": "hyphenated position token vs `\\b`",
+      "kind": "pinned grammar limit",
+      "evidence": "tests/tooling/verify/lib/suppression-directive.test.ts:43-49 pins `// biome-ignore-allocation lint/foo` reading as a rule-less `biome-ignore`; the ordinary-waiver marker grammar uses the same class of word boundary",
+      "disposition": "tool-reader defect",
+      "note": "measured 0 affected sites in this corpus; the limit is live in the grammar and an author can hit it by naming a position whose spelling is a prefix of a longer hyphenated token"
+    },
+    {
+      "identity": ".codex/agent-doctrine.md — waiver carrier refused",
+      "kind": "carrier refusal (NOT clean)",
+      "evidence": "[{\"path\": \".codex/agent-doctrine.md\", \"format\": \"markdown\", \"status\": \"unresolved\", \"reason\": \"authored resource traverses a symbolic link: .codex/agent-doctrine.md\"}]",
+      "disposition": "tool-reader defect",
+      "note": "an authored resource traverses a symbolic link, so the carrier reader never opened it. Any waiver authored in that file could not have been seen by this run. One refusal, recorded as a population gap rather than a clean result."
+    }
+  ],
+  "uncertainties": [
+    "nearby healthy witness: no production reader emits a site-level population membership list, so a non-waived neighbour could not be named for any of the 1732 waivers or 480 grants without inventing one — every item carries witnessStatus instead, and the gap is a finding against the readers, not against the exceptions",
+    "biome-grant-liveness 10808 (mismatch 4) is now identified as the `tracked-files` receipt field, which reads 10827 here; the residual uncertainty is only that the seed artifact is absent from this worktree, so the seed's own 10808 could not be read at its source — it is attributed, not observed.",
+    "@view-server-only and @nearpair-ok have no located consumer under tooling/src/verify by literal search; that is an unresolved reader question, not evidence of absence (the search covered tooling/src/verify only)",
+    "the lens-marker counts are literal corroboration only — no per-site semantic reader was driven for them in this lane",
+    "reasons are read from the single authored marker line; a marker continued onto a second `//` line loses its continuation in this reconstruction (the production reader binds the marker, so the count is unaffected; the recovered `statedReason` string for such a marker is truncated at end of line)",
+    "dispositions are mechanical triage classes derived from the recorded rule in each shard, never owner rulings",
+    "consumption proves that each exception BINDS a live finding this run; it says nothing about whether the underlying permission is still warranted, which is the owner's call and is not made anywhere in these files",
+    "an independent hand enumeration of candidate .ts/.tsx over the gate-ignore `under:` directories reported 7,852 against the production population of 7,862. The hand count is the weaker rung: it does not apply `@authored` membership across all 12 roots and did not run the production resolver, so it is recorded as an unexamined-figure check on 7,862, not as evidence against it. The scout that produced it also looked at a tree with no run artifact, so its environment was not this one.",
+    "the reviewed-grant table is 433 literal rows plus 47 rows generated from data by template literals; the generated rows have no own authored line, so their authoredSite is the literal data element they are mapped over (480 rows resolve to 480 distinct sites) — an audit that expects one hand-written row per permission is reading a different shape than the table has"
+  ],
+  "attestation": {
+    "filesWritten": [
+      "docs/reviews/ast-codebase-audit/qwen-exception-authority/manifest.json",
+      "docs/reviews/ast-codebase-audit/qwen-exception-authority/ordinary-dominant-families.json",
+      "docs/reviews/ast-codebase-audit/qwen-exception-authority/ordinary-remainder.json",
+      "docs/reviews/ast-codebase-audit/qwen-exception-authority/reviewed-grants.json",
+      "docs/reviews/ast-codebase-audit/qwen-exception-authority/foreign-and-native-suppressions.json"
+    ],
+    "nothingElseTouched": "product code, tooling, tests, gates, configuration, existing receipts, the central ledger, board state and Git state were not modified; nothing was deleted, staged, committed, merged or pushed. The only artifacts outside these five files are the gitignored run slot under reports/runs/ and the /tmp probe outputs named in commandsRun.",
+    "noOwnerRulings": "no finding in these shards is marked as ratified, and no successful consumption was read as continued justification"
+  },
+  "mismatchesSummary": {
+    "count": 5,
+    "reconciledInKind": 1,
+    "ownerDecision": 1,
+    "reportedUnreconciled": 3,
+    "note": "id 4 is now reconciled to an identified receipt field; id 2 is an owner decision; ids 1, 3 and 5 are reported and explained but remain differences against the seed"
+  }
+}
