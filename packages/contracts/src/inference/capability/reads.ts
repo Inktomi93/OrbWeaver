@@ -45,6 +45,13 @@ export function coEmitsProseWithTools(capability: GenerationCapability): boolean
   return capability.tools !== undefined && capability.tools.silencesProse !== true;
 }
 
+/** MAY a request FORCE a tool call (`required` / a named `tool`)? `tools.forcedChoice`, absent ⇒ true — the
+ *  refusal is a documented per-model fact, never the default (the field's own doc says why). The wire's
+ *  downgrade to `auto` and the structured-vehicle choice read this and nothing else. */
+export function acceptsForcedToolChoice(capability: GenerationCapability): boolean {
+  return capability.tools?.forcedChoice !== false;
+}
+
 /** MAY this wire carry `system` rows INSIDE the delivered history? Absent `turns` ⇒ floor ⇒ false. */
 export function acceptsHistorySystemRows(capability: GenerationCapability): boolean {
   return capability.turns?.historySystemRows === true;

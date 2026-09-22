@@ -9,6 +9,7 @@ import type { LanguageModelV4, LanguageModelV4CallOptions, LanguageModelV4Genera
 import type { SummarizeResult, SummarizeResultItem } from "@orb/contracts/providers";
 import type { ImageInput, ResponseFormat } from "@orb/contracts/role-clients";
 import { ProviderError } from "../../contract/errors.ts";
+import type { ResolvedWarning } from "../../contract/resolve.ts";
 import type { Resolved } from "../../contract/resolved.ts";
 import type { SideGenSampling, StructuredRequest, SummarizeRequest, SummarizeRequestItem } from "../../contract/roles.ts";
 import type { InferenceLog } from "../../deps.ts";
@@ -62,6 +63,10 @@ export interface BatchRun {
   readonly normalize: NormalizeImageBytes;
   /** The vendor `refusal` field where the wire surfaces one (OpenRouter under its metadata); `""` = none. */
   readonly refusalOf: (result: LanguageModelV4GenerateResult) => string;
+  /** What the wire's OWN option builder adjusted before any call (a mandatory-reasoning clamp, a forced tool
+   *  downgraded to `auto`). A side-generation batch has no bus, so — like the SDK's drops below — each is ONE
+   *  named `provider.resolve-warning` line per batch rather than a silent adjustment. */
+  readonly warnings?: readonly ResolvedWarning[] | undefined;
 }
 
 /** One image input → a URL a hosted wire accepts: a string passes through (URL / data-URL); raw bytes are
@@ -158,6 +163,9 @@ async function runItem(run: BatchRun, log: ProviderLogger, item: SummarizeReques
 export async function runV4Batch(run: BatchRun): Promise<SummarizeResult> {
   const { req } = run;
   const log = providerLogger(run.log, req.connection.wire, req.connection.providerId);
+  for (const warning of run.warnings ?? []) {
+    log.emit("warn", "provider.resolve-warning", { task: req.task, model: req.connection.model, code: warning.code, reason: warning.message });
+  }
   const items: (SummarizeResultItem | undefined)[] = new Array(req.inputs.length).fill(undefined);
   let next = 0;
   const worker = async (): Promise<void> => {

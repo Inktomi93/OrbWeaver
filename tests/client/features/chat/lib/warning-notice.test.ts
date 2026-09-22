@@ -91,6 +91,10 @@ test("the prefill drop explains the trade the turn actually made", () => {
   expect(adjusted("reasoning_dropped_for_prefill").description).toContain("continued your text");
 });
 
+test("the forced-tool downgrade says the call became the model's choice, not that tools were dropped", () => {
+  expect(adjusted("tool_choice_downgraded").description).toContain("chose whether to use one");
+});
+
 test("every provider-degradation class has its own distinct, split notice (exhaustive)", () => {
   const notices = PROVIDER_ADJUSTMENT_KINDS.map((kind) => adjusted(kind));
   for (const notice of notices) {

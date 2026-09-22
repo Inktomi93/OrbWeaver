@@ -13,10 +13,13 @@
 // the existing `refusal` event beside the `filter` finish; the Anthropic rate-limit headers become
 // `rateLimit`, and the `msg_…` id is the row's `generationId`.
 
-import type { GenerationCapability } from "@orb/contracts/inference";
+import type { GenerationCapability, ProviderId } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
+import { castId } from "@orb/kit/ids";
 import { runAnthropicChatTurn } from "../../../../packages/inference/src/backends/anthropic-messages/chat.ts";
 import { anthropicUserIdDigest } from "../../../../packages/inference/src/backends/anthropic-messages/extras.ts";
+import { curatedRows } from "../../../../packages/inference/src/capability/sources/curated/loader.ts";
+import { synthesizeCapability } from "../../../../packages/inference/src/capability/synthesize.ts";
 import type { AnthropicChatRequest, ChatDeltaSubscription, ChatResult } from "../../../../packages/inference/src/contract/chat.ts";
 import { ProviderError } from "../../../../packages/inference/src/contract/errors.ts";
 import type { InferenceLog } from "../../../../packages/inference/src/deps.ts";
@@ -226,6 +229,64 @@ test("B1 (control): a non-mandatory adaptive cell turns thinking OFF for effort 
   const { turn, body } = await recordedTurn(fableRequest(false), anthropicTextStream("ok"));
   expect(thinkingTypeOf(body)).toBe("disabled");
   expect(turn.appliedEffort).toBe("none");
+});
+
+/** A direct-wire connection whose capability is the REAL curated fold for `model` (the rows `resolve-task.ts`
+ *  folds for an `anthropic` connection), so the pin exercises the data the wire reads in production. */
+function curatedConnection(model: string): AnthropicChatRequest["connection"] {
+  const { capability } = synthesizeCapability("generation", "anthropic", {
+    curated: curatedRows({ model, providerId: castId<ProviderId>("anthropic"), wire: "anthropic-messages", api: "anthropic-messages" }),
+  });
+  return fakeResolved({
+    task: "chat",
+    providerId: "anthropic",
+    model,
+    capability,
+    baseUrl: "https://api.anthropic.com",
+    secret: fakeApiKeySecret("sk-ant-probe-not-a-real-key"),
+  });
+}
+
+function eventCodes(turn: ChatResult): readonly string[] {
+  return turn.events.flatMap((e) => (e.kind === "warning" ? [e.code] : []));
+}
+
+// #2575: Fable 5.1, Mythos 5.1 and Opus 5.5 answer a forced `tool_choice` (`any` / `tool`) with a 400
+// ("tool_choice: type "tool" and "any" are not supported for this model"). The rpg state round sends
+// `required`; on those models the wire must send `auto` instead and SAY so, never the request that 400s.
+const FORCED_CHOICES = [{ mode: "required" }, { mode: "tool", name: "get_weather" }] as const;
+
+test("#2575: a forced tool_choice on a model that rejects it goes out as `auto`, loudly", async () => {
+  for (const model of ["claude-fable-5-1", "claude-mythos-5-1", "claude-opus-5-5"]) {
+    for (const toolChoice of FORCED_CHOICES) {
+      const { turn, body } = await recordedTurn(turnRequest({ connection: curatedConnection(model), toolChoice }), anthropicTextStream("ok"));
+      expect(body?.body["tool_choice"], `${model} · ${toolChoice.mode}`).toMatchObject({ type: "auto" });
+      // The tools themselves still ride — only the forcing is withdrawn.
+      expect(body?.body["tools"], model).toMatchObject([{ name: "get_weather" }]);
+      expect(eventCodes(turn), `${model} · ${toolChoice.mode}`).toContain("tool_choice_downgraded");
+    }
+  }
+});
+
+test("#2575 (control): the models that accept a forced tool_choice keep it byte-for-byte", async () => {
+  for (const model of ["claude-opus-5", "claude-fable-5"]) {
+    const required = await recordedTurn(turnRequest({ connection: curatedConnection(model), toolChoice: { mode: "required" } }), anthropicTextStream("ok"));
+    expect(required.body?.body["tool_choice"], model).toMatchObject({ type: "any" });
+    expect(eventCodes(required.turn), model).not.toContain("tool_choice_downgraded");
+    const named = await recordedTurn(turnRequest({ connection: curatedConnection(model), toolChoice: FORCED_CHOICES[1] }), anthropicTextStream("ok"));
+    expect(named.body?.body["tool_choice"], model).toMatchObject({ type: "tool", name: "get_weather" });
+  }
+});
+
+test("#2575: Opus 5.5 with reasoning OFF never sends `thinking: disabled` — it is clamped to the lowest effort", async () => {
+  const { turn, body } = await recordedTurn(
+    turnRequest({ connection: curatedConnection("claude-opus-5-5"), params: { effort: "none" }, tools: undefined }),
+    anthropicTextStream("ok"),
+  );
+  expect(thinkingTypeOf(body)).toBe("adaptive");
+  expect(body?.body["output_config"]).toMatchObject({ effort: "low" });
+  expect(turn.appliedEffort).toBe("low");
+  expect(eventCodes(turn)).toContain("reasoning_mandatory_clamp");
 });
 
 test("B6 + B7: the Anthropic rate-limit headers become the snapshot (tightest axis = tokens) and the msg_ id is the generationId", async () => {

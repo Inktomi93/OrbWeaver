@@ -5,10 +5,15 @@
 // → 400). A6: the structured-output VEHICLE is `resolveVehicle` (role-clients.ts) — `auto` picks the enforcing
 // `response-format` iff `output.structured === true`, else the forced tool Fable rejects; the input to that
 // decision is what these cells must state.
+//
+// #2575: Opus 5.5 is its own row (mandatory thinking, default effort `medium` — under the opus-5 row alone a
+// reasoning-off intent sent `thinking: disabled`, a 400 there), and the three models that 400 a forced
+// `tool_choice` (Fable 5.1, Mythos 5.1, Opus 5.5) keep a deployment-forced structured call on `response-format`.
 
 import type { Principal } from "@orb/contracts/identity";
 import type { AgentSdkModel, GenerationCapability, ModelCatalogEntry, ProviderId } from "@orb/contracts/inference";
 import type { SummarizeResult } from "@orb/contracts/providers";
+import type { StructuredOutputVehicle } from "@orb/contracts/role-clients";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { curatedRows } from "../../../../../packages/inference/src/capability/sources/curated/loader.ts";
@@ -59,8 +64,8 @@ function capturingExecutor(calls: StructuredRequest[]): ProviderExecutor {
   };
 }
 
-async function selectedStructuredVehicle(providerId: string, model: string): Promise<string | undefined> {
-  const deps = fakeDeps();
+async function selectedStructuredVehicle(providerId: string, model: string, deployment: StructuredOutputVehicle = "auto"): Promise<string | undefined> {
+  const deps = { ...fakeDeps(), structuredOutputVehicle: (): StructuredOutputVehicle => deployment };
   const ownerId = newUserId();
   const connection = fakeConnection({ ownerId, providerId, model, allowBackground: true });
   deps.stores.connections.rows.set(connection.id, connection);
@@ -156,4 +161,40 @@ test("sonnet 4.5 / 4.6 keep the shared sonnet reasoning cell without the sonnet-
   expect(rows46.some((row) => row.match?.model === "^(anthropic/)?claude[-/].*sonnet-5")).toBe(false);
   expect(curatedRows({ model: "claude-sonnet-5", ...DIRECT }).some((row) => row.match?.model === "^(anthropic/)?claude[-/].*sonnet-5")).toBe(true);
   expect(direct("claude-sonnet-4-6").reasoning.mode).toBe("effort");
+});
+
+/** The ids Anthropic documents as rejecting a forced `tool_choice` (`any` / `tool` → 400 `tool_choice: type "tool"
+ *  and "any" are not supported for this model`, on Messages, Batches and count_tokens). Fable 5 and Opus 5 accept it. */
+const REJECTS_FORCED_TOOL = [
+  { providerId: "anthropic", model: "claude-fable-5-1" },
+  { providerId: "anthropic", model: "claude-mythos-5-1" },
+  { providerId: "anthropic", model: "claude-opus-5-5" },
+] as const;
+
+test("#2575: Opus 5.5 is MANDATORY — reasoning off resolves enabled at the lowest level, and the unset default is `medium`", () => {
+  const gen = direct("claude-opus-5-5");
+  expect(gen.reasoning).toMatchObject({ mode: "adaptive", enabled: true, mandatory: true, defaultEffort: "medium" });
+  const off = resolveChat({ effort: "none" }, gen);
+  expect(off.reasoning).toMatchObject({ enabled: true, effort: "low" });
+  expect(off.warnings.map((w) => [w.code, w.appliedEffort])).toEqual([["reasoning_mandatory_clamp", "low"]]);
+  // No explicit effort and no quality ⇒ the model's own advertised default, with no clamp to report.
+  const unset = resolveChat({}, gen);
+  expect(unset.reasoning).toMatchObject({ enabled: true, effort: "medium" });
+  expect(unset.warnings).toEqual([]);
+  // The opus-5 facts it shares still reach it (the 5.5 row refines, never replaces).
+  expect(gen.sampling.temperature).toBeUndefined();
+  expect(gen.context).toMatchObject({ supports1M: true });
+  // PLANTED CONTROL: Opus 5 itself stays switchable — effort `none` still turns thinking OFF there.
+  expect(resolveChat({ effort: "none" }, direct("claude-opus-5")).reasoning.enabled).toBe(false);
+  expect(direct("claude-opus-5").reasoning.defaultEffort).toBeUndefined();
+});
+
+test("#2575: a deployment-forced structured call on a forced-tool-rejecting model rides response-format instead", async () => {
+  for (const { providerId, model } of REJECTS_FORCED_TOOL) {
+    await expect(selectedStructuredVehicle(providerId, model, "forced-tool"), `${providerId} · ${model}`).resolves.toBe("response-format");
+  }
+  // PLANTED CONTROL: the models that ACCEPT a forced tool keep the deployment's explicit choice untouched.
+  for (const model of ["claude-opus-5", "claude-fable-5", "claude-mythos-5"]) {
+    await expect(selectedStructuredVehicle("anthropic", model, "forced-tool"), model).resolves.toBe("forced-tool");
+  }
 });

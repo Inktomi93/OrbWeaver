@@ -3,7 +3,9 @@
 // capability-gating + the exclusive-pair drop, the output-cap clamp, the dynamic-context channel and the
 // reply-images decision all live here — never re-derived per backend. Pure + clock-free. Its second consumer
 // is `preset.resolveEffective` (the editor projects the very same call so the deck shows what the next turn
-// will actually send).
+// will actually send). The anthropic-messages batch tasks (`summarize`/`structured`) take the reasoning half
+// alone, through `resolveSideGenReasoning`, so a side-generation call obeys the same mandatory clamp a chat
+// turn does.
 
 import type { AdjustedKnob } from "@orb/contracts/chat";
 import type { EffortLevel, GenerationCapability, Range, Verbosity } from "@orb/contracts/inference";
@@ -204,6 +206,21 @@ export function resolveCarryReasoning(params: UserIntent, capability: Generation
     return "off";
   }
   return wanted;
+}
+
+/** THE SIDE-GENERATION REASONING POSTURE (#2575) — what a `summarize` / `structured` call runs. The posture is
+ *  "reasoning OFF" (a summary is not worth thinking tokens), resolved through the SAME on/off decision and
+ *  mandatory clamp a chat turn takes, never spelled `disabled` straight at the wire: a model whose reasoning is
+ *  mandatory (Fable, Opus 5.5) 400s that, so it runs at its LOWEST effort with `reasoning_mandatory_clamp`.
+ *  No display is resolved — a batch reads only the reply text. */
+export function resolveSideGenReasoning(capability: GenerationCapability, warnings: ResolvedWarning[]): ResolvedReasoning {
+  const r = capability.reasoning;
+  const { enabled, effort } = reasoningEnabledFor({ effort: EFFORT_OFF }, capability, warnings);
+  if (!enabled) {
+    return { mode: r.mode, enabled: false };
+  }
+  const resolvedEffort = resolveEffort(effort, r.effortLevels, warnings);
+  return { mode: r.mode, enabled, ...(resolvedEffort !== undefined ? { effort: resolvedEffort } : {}) };
 }
 
 function resolveReasoning(

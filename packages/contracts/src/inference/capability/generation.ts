@@ -127,8 +127,14 @@ export const generationCapabilitySchema = z.object({
   input: z.array(modalitySchema),
   /** Present ⇒ accepts `tools[]`. `silencesProse` = MEASURED: attaching tools suppresses the assistant's
    *  prose on this (model × wire) — local vLLM's Qwen3-VL wrote 0 chars on 36/36 tool-attached turns. Absent
-   *  `silencesProse` ⇒ the wire CO-EMITS (the hosted 6/6). Read through `coEmitsProseWithTools`. */
-  tools: z.object({ parallel: z.boolean(), silencesProse: z.boolean().optional() }).optional(),
+   *  `silencesProse` ⇒ the wire CO-EMITS (the hosted 6/6). Read through `coEmitsProseWithTools`.
+   *
+   *  `forcedChoice: false` = the model REJECTS a forced tool choice (`required`/`tool` — Anthropic's `any`/`tool`)
+   *  with a 400, so a wire downgrades it to `auto` and the structured vehicle avoids the forced tool. Absent ⇒
+   *  ACCEPTED, deliberately not fail-closed: `required` is live-verified and load-bearing on the vLLM and
+   *  OpenRouter routes (the rpg state round), and only a documented model-specific refusal states `false`.
+   *  Read through `acceptsForcedToolChoice`. */
+  tools: z.object({ parallel: z.boolean(), silencesProse: z.boolean().optional(), forcedChoice: z.boolean().optional() }).optional(),
   output: z.object({
     maxTokens: rangeSchema,
     /** Accepts `response_format`/JSON-schema constrained output — separate from `tools`. */
