@@ -3,7 +3,8 @@
 // intentionally cross-wire or composed. Any runtime source outside those categories falls back to an exact
 // module mirror. Type-only contracts and barrels have no runtime behavior to assert. The inference-test mirror
 // resource owns the complete source/test denominator and refuses missing, empty, or unreadable corpora.
-import type { SourceFile } from "ts-morph";
+import type { Node as MorphNode, SourceFile } from "ts-morph";
+import { Node } from "ts-morph";
 import { TEST_KIND_DEFINITIONS } from "../../_shared/test-kinds.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { MirrorIndex } from "../contract/resource-mirror.ts";
@@ -30,17 +31,33 @@ const ROOT_SUITE = "tests/inference/index.test.ts";
 const MSG =
   "inference runtime source has no supported test topology — add an exact runtime test at tests/inference/<path> or place the source in a governed cross-cutting suite category (Spine-Testing.md §5).";
 
-function hasRuntimeExport(sourceFile: SourceFile): boolean {
+function isEmittedDeclaration(declaration: MorphNode, sourceFile: SourceFile): boolean {
+  if (declaration.getSourceFile() !== sourceFile) {
+    return false;
+  }
+  const variable = Node.isVariableDeclaration(declaration) ? declaration : declaration.getFirstAncestor(Node.isVariableDeclaration);
+  if (variable !== undefined) {
+    return variable.getVariableStatement()?.hasDeclareKeyword() === false;
+  }
   if (
-    sourceFile.getFunctions().some((decl) => decl.isExported() && !decl.hasDeclareKeyword()) ||
-    sourceFile.getClasses().some((decl) => decl.isExported() && !decl.hasDeclareKeyword()) ||
-    sourceFile.getEnums().some((decl) => decl.isExported() && !decl.hasDeclareKeyword()) ||
-    sourceFile.getModules().some((decl) => decl.isExported() && !decl.hasDeclareKeyword()) ||
-    sourceFile.getExportAssignments().length > 0
+    Node.isFunctionDeclaration(declaration) ||
+    Node.isClassDeclaration(declaration) ||
+    Node.isEnumDeclaration(declaration) ||
+    Node.isModuleDeclaration(declaration)
   ) {
+    return !declaration.hasDeclareKeyword();
+  }
+  return false;
+}
+
+function hasRuntimeExport(sourceFile: SourceFile): boolean {
+  if (sourceFile.getExportAssignments().length > 0) {
     return true;
   }
-  return sourceFile.getVariableStatements().some((statement) => statement.isExported() && !statement.hasDeclareKeyword());
+  return sourceFile.getExportSymbols().some((symbol) => {
+    const target = symbol.getAliasedSymbol() ?? symbol;
+    return target.getDeclarations().some((declaration) => isEmittedDeclaration(declaration, sourceFile));
+  });
 }
 
 function hasExactRuntimeTest(mirror: MirrorIndex, rel: string): boolean {
@@ -216,6 +233,24 @@ export const gate = defineGate({
       expect: { count: 1, messageIncludes: "no supported test topology" },
       why: "an exported non-ambient variable emits even when it has no initializer",
     },
+    {
+      mode: "resource",
+      files: {
+        "packages/inference/src/extensions/normalize.ts": "const live = buildNormalizer();\nexport { live };\n",
+        "tests/inference/other.test.ts": "export {};\n",
+      },
+      expect: { count: 1, messageIncludes: "no supported test topology" },
+      why: "a local named export resolves back to its emitted value declaration instead of reading as a barrel",
+    },
+    {
+      mode: "resource",
+      files: {
+        "packages/inference/src/extensions/normalize.ts": "const { live } = buildNormalizer();\nexport { live };\n",
+        "tests/inference/other.test.ts": "export {};\n",
+      },
+      expect: { count: 1, messageIncludes: "no supported test topology" },
+      why: "a destructured local export resolves through its binding element to the emitted variable declaration",
+    },
   ],
   mustPass: [
     {
@@ -243,6 +278,15 @@ export const gate = defineGate({
         "tests/inference/contract/chat.test-d.ts": "export {};\n",
       },
       why: "a pure contract has no runtime behavior and its type-only proof remains a valid separate kind",
+    },
+    {
+      mode: "resource",
+      files: {
+        "packages/inference/src/contract/index.ts": 'export { live } from "../../../kit/src/live.ts";\n',
+        "packages/kit/src/live.ts": "export const live = 1;\n",
+        "tests/inference/other.test.ts": "export {};\n",
+      },
+      why: "a cross-file re-export is a barrel edge, not runtime behavior owned by the inference source file",
     },
   ],
   mustRefuse: [

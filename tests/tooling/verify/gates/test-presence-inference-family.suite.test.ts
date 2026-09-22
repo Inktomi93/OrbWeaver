@@ -80,6 +80,38 @@ test("an uninitialized exported variable needs a supported test topology", ({ sc
   expect(result.authority.effectiveFindings).toMatchObject([{ policyId: gate.id, file: SOURCE, severity: "error" }]);
 });
 
+test.each(["export { live };\n", "export { live as default };\n"])("a local named export resolves back to its emitted declaration", (exportText) => {
+  const root = "/repo";
+  const result = pass(root, {
+    [SOURCE]: `const live = buildNormalizer();\n${exportText}`,
+    "tests/inference/other.test.ts": "export {};\n",
+  });
+
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.effectiveFindings).toMatchObject([{ policyId: gate.id, file: SOURCE, severity: "error" }]);
+});
+
+test("a destructured local export resolves through its binding element", ({ scratch }) => {
+  const result = pass(scratch, {
+    [SOURCE]: "const { live } = buildNormalizer();\nexport { live };\n",
+    "tests/inference/other.test.ts": "export {};\n",
+  });
+
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.effectiveFindings).toMatchObject([{ policyId: gate.id, file: SOURCE, severity: "error" }]);
+});
+
+test("a cross-file re-export remains a non-runtime barrel", ({ scratch }) => {
+  const result = pass(scratch, {
+    [SOURCE]: 'export { live } from "../../../kit/src/live.ts";\n',
+    "packages/kit/src/live.ts": "export const live = 1;\n",
+    "tests/inference/other.test.ts": "export {};\n",
+  });
+
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.effectiveFindings).toEqual([]);
+});
+
 test("ambient exported declarations remain type-only", ({ scratch }) => {
   const result = pass(scratch, {
     [SOURCE]: "export declare namespace Types { const value: number; }\nexport declare let live: number;\n",
