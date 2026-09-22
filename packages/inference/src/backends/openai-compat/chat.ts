@@ -34,7 +34,7 @@ import { rateLimitCanaryEvent, rateLimitFromHeaders } from "../kit/rate-limit-he
 import { runWithPreCommitRetry } from "../kit/retry.ts";
 import { NO_PROVIDER_SECRETS, resolvedScrubSet } from "../kit/sanitize.ts";
 import { emitTurnSpanEvents } from "../kit/turn-span.ts";
-import { functionTools, jsonResponseFormat, samplingExtras, standardSampling, toolChoiceOf, wireEffortOf } from "../v4/options.ts";
+import { functionTools, jsonResponseFormat, samplingExtras, servableToolChoice, standardSampling, toolChoiceOf, wireEffortOf } from "../v4/options.ts";
 import type { WirePlan } from "../v4/prompt.ts";
 import { buildWirePlan, withMessageOptions } from "../v4/prompt.ts";
 import { appliedSampling, DROPPED_SAMPLING_CODES, measuredCostOf, sdkWarnings, toChatResult } from "../v4/result.ts";
@@ -533,13 +533,17 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
     ...(deps.addSpanEvent !== undefined ? { addSpanEvent: deps.addSpanEvent } : {}),
   };
 
+  // Resolved once per turn, not per attempt: a retry or the mandatory-reasoning replay must not warn twice.
+  const wireReq: OpenAiCompatChatRequest =
+    req.toolChoice === undefined ? req : { ...req, toolChoice: servableToolChoice(req.toolChoice, generation, warnings) };
+
   const run = (includeReasoning: boolean): Promise<StreamDrain> =>
     runWithPreCommitRetry(
       (markCommitted) => {
         const shape =
           dialect === "openrouter"
-            ? openRouterShape(req, knobs, warnings, includeReasoning)
-            : openAiCompatibleShape(req, knobs, warnings, providerOptionsKey(connection.providerId));
+            ? openRouterShape(wireReq, knobs, warnings, includeReasoning)
+            : openAiCompatibleShape(wireReq, knobs, warnings, providerOptionsKey(connection.providerId));
         attempt.shape = shape;
         const call: ModelCall = {
           connection,

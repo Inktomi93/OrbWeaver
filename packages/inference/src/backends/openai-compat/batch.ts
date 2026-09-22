@@ -6,22 +6,25 @@
 // are in the tree's `backends/openrouter/index.ts` history): `response-format` = `response_format.json_schema`
 // in the ALL-REQUIRED shape + `strict:true` (servable on the anthropic-, openai- and google-family endpoints
 // once the schema rides `strict-compatible`); `forced-tool` = the schema as ONE forced tool call + no parallel
-// calls (servable everywhere, compiles no grammar). The CALLER decided which (`resolveVehicle` at the role
+// calls (servable everywhere, compiles no grammar; `auto` over the tool on a model whose capability refuses forced
+// tool use). The CALLER decided which (`resolveVehicle` at the role
 // seam); an `auto` reaching here means nobody could and the forced tool is the servable-everywhere answer. On
 // an endpoint row `features.strictJson` says whether `strict` rides at all.
 
 import type { JSONObject, LanguageModelV4CallOptions, LanguageModelV4GenerateResult } from "@ai-sdk/provider";
+import type { GenerationCapability } from "@orb/contracts/inference";
 import type { SummarizeResult } from "@orb/contracts/providers";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import { scrubWireSchema } from "@orb/kit/json-schema";
 import type { WireTool } from "../../contract/chat.ts";
 import { ProviderError } from "../../contract/errors.ts";
+import type { ResolvedWarning } from "../../contract/resolve.ts";
 import type { StructuredRequest, SummarizeRequest } from "../../contract/roles.ts";
 import type { InferenceLog } from "../../deps.ts";
 import type { NormalizeImageBytes } from "../kit/image-normalize.ts";
 import type { BatchRequest } from "../v4/batch.ts";
 import { batchRequestOf, runV4Batch, STRUCTURED_TOOL_DESCRIPTION } from "../v4/batch.ts";
-import { functionTools, jsonResponseFormat, samplingExtras, standardSampling, toolChoiceOf } from "../v4/options.ts";
+import { functionTools, jsonResponseFormat, samplingExtras, servableToolChoice, standardSampling, toolChoiceOf } from "../v4/options.ts";
 import type { ModelCall, TransportDeps } from "./model.ts";
 import { languageModelFor } from "./model.ts";
 
@@ -52,14 +55,15 @@ function structuredWireTool(format: ResponseFormat, hosted: boolean): WireTool {
 }
 
 /** The structured vehicle's option slice: the JSON response format (strict per the row / the measured cell)
- *  or the forced tool with parallel calls off. */
-function structuredOptions(req: BatchRequest, format: ResponseFormat): StructuredShape {
+ *  or the forced tool with parallel calls off — sent as `auto` over that one tool where the capability says the
+ *  model rejects forced tool use. */
+function structuredOptions(req: BatchRequest, format: ResponseFormat, generation: GenerationCapability, warnings: ResolvedWarning[]): StructuredShape {
   const { connection } = req;
   const hosted = connection.provider.dialect === "openrouter";
   if (vehicleOf(format) === "forced-tool" || connection.features.strictJson === "never") {
     const tool = structuredWireTool(format, hosted);
     return {
-      options: { tools: functionTools([tool]), toolChoice: toolChoiceOf({ mode: "tool", name: tool.name }) },
+      options: { tools: functionTools([tool]), toolChoice: toolChoiceOf(servableToolChoice({ mode: "tool", name: tool.name }, generation, warnings)) },
       openRouterChat: hosted ? { parallelToolCalls: false } : undefined,
     };
   }
@@ -86,8 +90,11 @@ function runBatch(req: BatchRequest, deps: BatchDeps): Promise<SummarizeResult> 
       message: `${label}: the connection's model is a ${connection.capability.kind} model, not a generation model`,
     });
   }
+  const warnings: ResolvedWarning[] = [];
   const structured: StructuredShape =
-    req.responseFormat !== undefined ? structuredOptions(req, req.responseFormat) : { options: {}, openRouterChat: undefined };
+    req.responseFormat !== undefined
+      ? structuredOptions(req, req.responseFormat, connection.capability.generation, warnings)
+      : { options: {}, openRouterChat: undefined };
   const call: ModelCall = {
     connection,
     deps: deps.transport,
@@ -110,6 +117,7 @@ function runBatch(req: BatchRequest, deps: BatchDeps): Promise<SummarizeResult> 
     log: deps.log,
     normalize: deps.normalize,
     refusalOf,
+    warnings,
   });
 }
 

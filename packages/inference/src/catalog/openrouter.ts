@@ -7,7 +7,7 @@
 // how "qwen/qwen3-reranker-8b" classifies as a reranker without a name regex. Normalizes the snake_case rows
 // into `ModelCatalogEntry`: pricing strings → numbers (blank → null, the UNPRICED signal, never a free model),
 // modalities + supported parameters stringified, the top provider's real output cap and moderation bit, the
-// per-model reasoning object.
+// per-model reasoning object, and the id a floating alias or a variant row shares its model facts with.
 
 import type { ModelCatalogEntry, ModelKind } from "@orb/contracts/inference";
 import { z } from "zod";
@@ -17,6 +17,9 @@ import { NO_PROVIDER_SECRETS } from "../backends/kit/sanitize.ts";
 const rowSchema = z
   .object({
     id: z.string(),
+    canonical_slug: z.string().optional(),
+    /** A floating alias (`~vendor/family-latest`) names what it currently redirects to. */
+    alias_target: z.object({ slug: z.string() }).loose().nullable().optional(),
     name: z.string().optional(),
     context_length: z.number().nullable().optional(),
     pricing: z
@@ -87,8 +90,38 @@ function kindOf(outputModalities: readonly string[]): ModelKind {
   return "generation";
 }
 
-function toEntry(row: z.infer<typeof rowSchema>): ModelCatalogEntry {
+type RawRow = z.infer<typeof rowSchema>;
+
+/** OpenRouter's variant suffix (`vendor/model:batch`) — the id before it names the model. */
+const VARIANT_SEPARATOR = ":";
+
+/** The base id each canonical slug belongs to, from the rows that carry no variant suffix. */
+function baseIdsBySlug(rows: readonly RawRow[]): ReadonlyMap<string, string> {
+  const bases = new Map<string, string>();
+  for (const row of rows) {
+    if (row.canonical_slug !== undefined && !row.id.includes(VARIANT_SEPARATOR)) {
+      bases.set(row.canonical_slug, row.id);
+    }
+  }
+  return bases;
+}
+
+/** The id whose model facts this row shares, ONLY as the catalog states it: an alias's named target, or the
+ *  un-suffixed row a variant shares its canonical slug with. A floating alias with no target stays itself. */
+function aliasOf(row: RawRow, bases: ReadonlyMap<string, string>): string | undefined {
+  const target = row.alias_target?.slug;
+  if (target !== undefined) {
+    return target;
+  }
+  if (!row.id.includes(VARIANT_SEPARATOR) || row.canonical_slug === undefined) {
+    return;
+  }
+  return bases.get(row.canonical_slug);
+}
+
+function toEntry(row: RawRow, bases: ReadonlyMap<string, string>): ModelCatalogEntry {
   const reasoning = row.reasoning;
+  const alias = aliasOf(row, bases);
   return {
     id: row.id,
     kind: kindOf(row.architecture?.output_modalities ?? []),
@@ -104,6 +137,7 @@ function toEntry(row: z.infer<typeof rowSchema>): ModelCatalogEntry {
     maxCompletionTokens: row.top_provider?.max_completion_tokens ?? null,
     ...(row.top_provider?.is_moderated !== undefined ? { isModerated: row.top_provider.is_moderated } : {}),
     reasoning: reasoning === null || reasoning === undefined ? null : toReasoning(reasoning),
+    ...(alias !== undefined ? { aliasOf: alias } : {}),
   };
 }
 
@@ -125,7 +159,9 @@ export async function fetchOpenRouterCatalog(args: {
         label: `openrouter catalog${query}`,
         ...(args.signal !== undefined ? { signal: args.signal } : {}),
       });
-      return catalogSchema.parse(result.json).data.map(toEntry);
+      const rows = catalogSchema.parse(result.json).data;
+      const bases = baseIdsBySlug(rows);
+      return rows.map((row) => toEntry(row, bases));
     }),
   );
   // Dedupe by id in list order — a row present in two lists keeps its first (chat-list) entry.
