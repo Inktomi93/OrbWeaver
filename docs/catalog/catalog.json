@@ -1654,26 +1654,26 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 169,
-      "bytes": 30367,
-      "sha256": "669db3692460fbf818458cec2d1d25ddc198c27256a90ddce75b358341221f2c",
+      "bytes": 30463,
+      "sha256": "0038e6ab777437d0e1673ce975d11908cf323ea020735a044467605f7cb91d01",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-09-20"
+          "updated": "2026-09-22"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/core/Tier-3b-Providers.md",
-        "assignedSha256": "669db3692460fbf818458cec2d1d25ddc198c27256a90ddce75b358341221f2c",
+        "assignedSha256": "0038e6ab777437d0e1673ce975d11908cf323ea020735a044467605f7cb91d01",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "669db3692460fbf818458cec2d1d25ddc198c27256a90ddce75b358341221f2c",
-        "verifiedCommit": "81d19ad83f9e7ce1b7bd89ed42a72b2abb361387",
+        "verifiedSha256": "0038e6ab777437d0e1673ce975d11908cf323ea020735a044467605f7cb91d01",
+        "verifiedCommit": "0a4f4d53e691b4ddb455727fcc2b299f70c93074",
         "verifiedAt": "2026-09-22",
         "evidence": [
           "re-attested after the agent-sdk frames fold (#1605 8946078de real tool_use/tool_result seed blocks; #1607 f8a754555 continue turn = frames + host stub) at 73c2fe6d1",
@@ -1694,7 +1694,7 @@
           }
         ],
         "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed.",
-        "verifiedCanonicalSha256": "669db3692460fbf818458cec2d1d25ddc198c27256a90ddce75b358341221f2c"
+        "verifiedCanonicalSha256": "0038e6ab777437d0e1673ce975d11908cf323ea020735a044467605f7cb91d01"
       },
       "receiptCurrent": true
     },
@@ -10530,7 +10530,7 @@
             ]
           },
           {
-            "claim": "Verified realized slice: the live tool-use domain exports its service, and tests cover the project-MCP wrapper through the shared executor; #28 retains revalidation of remaining program scope.",
+            "claim": "Verified realized slice: the live tool-use domain exports its service, and tests cover the MCP-mounted (backend-owned loop) tool path through the shared executor; #28 retains revalidation of remaining program scope.",
             "evidence": [
               {
                 "kind": "issue",
@@ -10546,7 +10546,7 @@
               },
               {
                 "kind": "test",
-                "target": "tests/server/domain/tool-use/verbs/project-mcp.test.ts:37"
+                "target": "tests/server/domain/chat/engine/pipeline.test.ts:2004"
               }
             ]
           }
@@ -10601,7 +10601,7 @@
             ]
           },
           {
-            "claim": "Verified realized slice: the live tool-use domain exports its service, and tests cover the project-MCP wrapper through the shared executor; #28 retains revalidation of remaining program scope.",
+            "claim": "Verified realized slice: the live tool-use domain exports its service, and tests cover the MCP-mounted (backend-owned loop) tool path through the shared executor; #28 retains revalidation of remaining program scope.",
             "evidence": [
               {
                 "kind": "issue",
@@ -10617,7 +10617,7 @@
               },
               {
                 "kind": "test",
-                "target": "tests/server/domain/tool-use/verbs/project-mcp.test.ts:37"
+                "target": "tests/server/domain/chat/engine/pipeline.test.ts:2004"
               }
             ]
           }
@@ -10672,7 +10672,7 @@
             ]
           },
           {
-            "claim": "Verified realized slice: the live tool-use domain exports its service, and tests cover the project-MCP wrapper through the shared executor; #28 retains revalidation of remaining program scope.",
+            "claim": "Verified realized slice: the live tool-use domain exports its service, and tests cover the MCP-mounted (backend-owned loop) tool path through the shared executor; #28 retains revalidation of remaining program scope.",
             "evidence": [
               {
                 "kind": "issue",
@@ -10688,7 +10688,7 @@
               },
               {
                 "kind": "test",
-                "target": "tests/server/domain/tool-use/verbs/project-mcp.test.ts:37"
+                "target": "tests/server/domain/chat/engine/pipeline.test.ts:2004"
               }
             ]
           }
@@ -10743,7 +10743,7 @@
             ]
           },
           {
-            "claim": "Verified realized slice: the live tool-use domain exports its service, and tests cover the project-MCP wrapper through the shared executor; #28 retains revalidation of remaining program scope.",
+            "claim": "Verified realized slice: the live tool-use domain exports its service, and tests cover the MCP-mounted (backend-owned loop) tool path through the shared executor; #28 retains revalidation of remaining program scope.",
             "evidence": [
               {
                 "kind": "issue",
@@ -10759,7 +10759,7 @@
               },
               {
                 "kind": "test",
-                "target": "tests/server/domain/tool-use/verbs/project-mcp.test.ts:37"
+                "target": "tests/server/domain/chat/engine/pipeline.test.ts:2004"
               }
             ]
           }
@@ -10814,7 +10814,7 @@
             ]
           },
           {
-            "claim": "Verified realized slice: the live tool-use domain exports its service, and tests cover the project-MCP wrapper through the shared executor; #28 retains revalidation of remaining program scope.",
+            "claim": "Verified realized slice: the live tool-use domain exports its service, and tests cover the MCP-mounted (backend-owned loop) tool path through the shared executor; #28 retains revalidation of remaining program scope.",
             "evidence": [
               {
                 "kind": "issue",
@@ -10830,7 +10830,7 @@
               },
               {
                 "kind": "test",
-                "target": "tests/server/domain/tool-use/verbs/project-mcp.test.ts:37"
+                "target": "tests/server/domain/chat/engine/pipeline.test.ts:2004"
               }
             ]
           }
@@ -10885,7 +10885,7 @@
             ]
           },
           {
-            "claim": "Verified realized slice: the live tool-use domain exports its service, and tests cover the project-MCP wrapper through the shared executor; #28 retains revalidation of remaining program scope.",
+            "claim": "Verified realized slice: the live tool-use domain exports its service, and tests cover the MCP-mounted (backend-owned loop) tool path through the shared executor; #28 retains revalidation of remaining program scope.",
             "evidence": [
               {
                 "kind": "issue",
@@ -10901,7 +10901,7 @@
               },
               {
                 "kind": "test",
-                "target": "tests/server/domain/tool-use/verbs/project-mcp.test.ts:37"
+                "target": "tests/server/domain/chat/engine/pipeline.test.ts:2004"
               }
             ]
           }
@@ -10956,7 +10956,7 @@
             ]
           },
           {
-            "claim": "Verified realized slice: the live tool-use domain exports its service, and tests cover the project-MCP wrapper through the shared executor; #28 retains revalidation of remaining program scope.",
+            "claim": "Verified realized slice: the live tool-use domain exports its service, and tests cover the MCP-mounted (backend-owned loop) tool path through the shared executor; #28 retains revalidation of remaining program scope.",
             "evidence": [
               {
                 "kind": "issue",
@@ -10972,7 +10972,7 @@
               },
               {
                 "kind": "test",
-                "target": "tests/server/domain/tool-use/verbs/project-mcp.test.ts:37"
+                "target": "tests/server/domain/chat/engine/pipeline.test.ts:2004"
               }
             ]
           }
@@ -13125,6 +13125,104 @@
               {
                 "kind": "code",
                 "target": "packages/db/src/schema/chat.ts:471"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/design/inference-tool-delivery.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 107,
+      "bytes": 6973,
+      "sha256": "fd52f4c6783d2a604aa090562706d824824403e4b574040fbad4486a03999ed4",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "active",
+          "updated": "2026-09-22"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/inference-tool-delivery.md",
+        "assignedSha256": "fd52f4c6783d2a604aa090562706d824824403e4b574040fbad4486a03999ed4",
+        "disposition": "current",
+        "authority": "design",
+        "fullRead": true,
+        "verifiedSha256": "fd52f4c6783d2a604aa090562706d824824403e4b574040fbad4486a03999ed4",
+        "verifiedCommit": "0a4f4d53e691b4ddb455727fcc2b299f70c93074",
+        "verifiedAt": "2026-09-22",
+        "evidence": [
+          "docs/design/inference-tool-delivery.md:1 (design; full read by lane inf-tools, its author, before and after the build)",
+          "git log --oneline -1 -- docs/design/inference-tool-delivery.md: 0a4f4d53e docs(inference): design for inference-owned tool and history delivery",
+          "equivalence: the before/after matrix probe (agent-sdk + chat-completions x no tools / registry / terminal / both, plus bridge-only histories) serialized every ChatRequest the runner received and diffed byte-identical; planted id/label mutations made it differ",
+          "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+        ],
+        "summary": "Design for moving chat-turn tool and history delivery behind @orb/inference: the neutral ChatTurnInput (history array + ChatTurnTools offer/terminal), the toChatRequest projection, what moved out of server compose/pipeline/tool-use, what stays (executeToolCalls, the registry, runRecurseLoop), the rejected neutral-ChatRequest alternative, coupled sites and the test plan. The code is the doc from here on.",
+        "claims": [
+          {
+            "claim": "`toChatRequest` is the one projection from the neutral chat turn onto the connection's request arm.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/inference/src/roles/chat-request.ts:71"
+              },
+              {
+                "kind": "test",
+                "target": "tests/inference/roles/chat-request.test.ts:77"
+              }
+            ]
+          },
+          {
+            "claim": "The Agent SDK seed split and the MCP mount of the caller's tools live in the agent-sdk backend.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/inference/src/backends/agent-sdk/turn-input.ts:176"
+              },
+              {
+                "kind": "code",
+                "target": "packages/inference/src/backends/agent-sdk/turn-input.ts:345"
+              },
+              {
+                "kind": "test",
+                "target": "tests/inference/backends/agent-sdk/turn-input.test.ts:124"
+              },
+              {
+                "kind": "test",
+                "target": "tests/inference/roles/chat-request.test.ts:120"
+              }
+            ]
+          },
+          {
+            "claim": "The chat pipeline binds the offer's execute callback to the one executeToolCalls path and keeps the record.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/server/src/domain/chat/engine/pipeline.ts:821"
+              },
+              {
+                "kind": "test",
+                "target": "tests/server/domain/chat/engine/pipeline.test.ts:2004"
+              }
+            ]
+          },
+          {
+            "claim": "tool-use has one backend-neutral projection, toToolDefinitions.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/server/src/domain/tool-use/verbs/to-tool-definitions.ts:11"
+              },
+              {
+                "kind": "test",
+                "target": "tests/server/domain/tool-use/verbs/to-tool-definitions.test.ts:24"
               }
             ]
           }

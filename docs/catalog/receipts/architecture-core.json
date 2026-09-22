@@ -1031,12 +1031,12 @@
     },
     {
       "path": "docs/architecture/core/Tier-3b-Providers.md",
-      "assignedSha256": "669db3692460fbf818458cec2d1d25ddc198c27256a90ddce75b358341221f2c",
+      "assignedSha256": "0038e6ab777437d0e1673ce975d11908cf323ea020735a044467605f7cb91d01",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "669db3692460fbf818458cec2d1d25ddc198c27256a90ddce75b358341221f2c",
-      "verifiedCommit": "81d19ad83f9e7ce1b7bd89ed42a72b2abb361387",
+      "verifiedSha256": "0038e6ab777437d0e1673ce975d11908cf323ea020735a044467605f7cb91d01",
+      "verifiedCommit": "0a4f4d53e691b4ddb455727fcc2b299f70c93074",
       "verifiedAt": "2026-09-22",
       "evidence": [
         "re-attested after the agent-sdk frames fold (#1605 8946078de real tool_use/tool_result seed blocks; #1607 f8a754555 continue turn = frames + host stub) at 73c2fe6d1",
@@ -1057,7 +1057,7 @@
         }
       ],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed.",
-      "verifiedCanonicalSha256": "669db3692460fbf818458cec2d1d25ddc198c27256a90ddce75b358341221f2c"
+      "verifiedCanonicalSha256": "0038e6ab777437d0e1673ce975d11908cf323ea020735a044467605f7cb91d01"
     },
     {
       "path": "docs/architecture/core/Tier-4-Transport.md",

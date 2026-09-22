@@ -31,7 +31,16 @@ import type { ApplyStatsDelta, BumpStatsCanonVersion } from "@orb/contracts/stat
 import type { MaterializeBackgroundOp, ThemeBackground, ThemeOverride } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
-import type { GeneratedImage, ProviderErrorKind, Resolved, RoleClientsWithSignal, SummarizeResult, ToolCallInput, WireTool } from "@orb/inference";
+import type {
+  ChatToolDefinition,
+  GeneratedImage,
+  ProviderErrorKind,
+  Resolved,
+  RoleClientsWithSignal,
+  SummarizeResult,
+  ToolCallInput,
+  WireTool,
+} from "@orb/inference";
 import type { ContentImageRef } from "@orb/kit/content";
 import type {
   AssetId,
@@ -130,15 +139,14 @@ export interface ChatToolOps {
    *  is resolved on the host's shelf too (#677 — the same namespaced plugin tool name exists once per
    *  installing user, so a name alone no longer identifies an entry). */
   readonly resolveTools: (driverUserId: UserId, names: readonly string[]) => ChatToolSet;
-  readonly toWireTools: (set: ChatToolSet) => readonly WireTool[];
-  /** The one execute path — sequential, errors-as-data; never throws per-call. */
+  /** The resolved set as BACKEND-NEUTRAL definitions (the JSON-Schema declaration + the zod shape it was
+   *  projected from). How they reach a wire is `@orb/inference`'s decision (`toChatRequest`), so chat carries
+   *  one projection for every backend. */
+  readonly toToolDefinitions: (set: ChatToolSet) => readonly ChatToolDefinition[];
+  /** The one execute path — sequential, errors-as-data; never throws per-call. Both loops run through it: the
+   *  pipeline's own recurse loop for an array wire, and the offer's `execute` callback when a backend owns the
+   *  loop (D48 — one execute path, one `ToolCallRecord` shape, whichever side drives). */
   readonly executeToolCalls: (set: ChatToolSet, calls: readonly ToolCallInput[], frame: ChatToolExecFrame) => Promise<readonly ToolCallRecord[]>;
-  /** The SECOND projection (D48) for the STATEFUL agent-sdk wire: wrap the resolved set as an in-process
-   *  MCP tool server (the opaque `AgentToolServer`, typed `unknown` here — chat never narrows it). The SDK
-   *  owns the tool loop; every invocation still runs the ONE `executeToolCalls` path, and `onRecord` fires
-   *  per completed invocation so the pipeline persists the SAME `ToolCallRecord`s the array-wire recurse
-   *  loop produces. */
-  readonly toAgentToolServer: (set: ChatToolSet, frame: ChatToolExecFrame, onRecord: (record: ToolCallRecord) => void) => Promise<unknown>;
 }
 
 /** Resolve the frozen room HOST's `chat` connection for a turn. A chat binds no connection (F20). */

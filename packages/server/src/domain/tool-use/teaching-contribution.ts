@@ -33,8 +33,9 @@
 // room-mate's (`substrate/reachability.ts` states why the PL-C ceiling is not sufficient for that question).
 //
 // NO INJECTIONS, deliberately. D145-a says teach and attach travel together, and they do here — the WIRE
-// carries the teaching for a tool. Every attached tool ships its own `description` in the request's `tools`
-// array (`toWireTools`), which is the model's native, structured channel for exactly this; adding a prose
+// carries the teaching for a tool. Every attached tool ships its own `description` in its declaration
+// (`toToolDefinitions`, placed on the wire by `@orb/inference`), which is the model's native, structured
+// channel for exactly this; adding a prose
 // injection that re-states it would spend the prompt budget twice to say one thing and would put
 // contributor-authored text into the prompt body, which the wire channel does not do.
 

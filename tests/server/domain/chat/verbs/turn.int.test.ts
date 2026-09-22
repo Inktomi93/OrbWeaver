@@ -32,7 +32,7 @@ import { createActiveTurns } from "../../../../../packages/server/src/domain/cha
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context.ts";
 import { ChatNotFoundError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
 import type { ChatBehaviorInputs } from "../../../../../packages/server/src/domain/chat/contract/foreign.ts";
-import type { TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
+import type { TurnRequest, TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
 import { createTurnEngine } from "../../../../../packages/server/src/domain/chat/engine/engine.ts";
 import { loadWitnessHorizons } from "../../../../../packages/server/src/domain/chat/memory/persistence/queries.ts";
 import { recallMemory } from "../../../../../packages/server/src/domain/chat/memory/recall/recall.ts";
@@ -3110,10 +3110,11 @@ test("R1 end-to-end: a send mounts the gather's terminal tools on the wire and h
 
   const out = await h.turn.send({ principal: makePrincipal(host), chatId, content: "I cross the river." });
 
-  // The gather's tools reached the WIRE — `auto`, so the prose is never at risk.
-  const req = requests[0] as { tools?: { name: string }[]; toolChoice?: unknown };
-  expect(req.tools?.map((t) => t.name)).toEqual(["update_scene"]);
-  expect(req.toolChoice).toEqual({ mode: "auto" });
+  // The gather's tools reached the request as the TERMINAL set (the wire's `auto`, which keeps the prose safe,
+  // is `@orb/inference`'s projection of it — tests/inference/roles/chat-request.test.ts).
+  const req = requests[0] as TurnRequest;
+  expect(req.tools?.terminal?.map((t) => t.name)).toEqual(["update_scene"]);
+  expect(req.tools?.offer).toBeUndefined();
   // The NARRATIVE committed exactly as always — the state channel changed nothing about the reply.
   expect(out.messages.at(-1)?.content).toBe("She fords the river.");
   // …and the calls arrived at the rpg flush (the fold's input), with nothing executed on the way.
@@ -3168,14 +3169,13 @@ function toolDeclaringTeacher(name: string): NonNullable<ChatContext["teaching"]
 }
 
 /** The tool-use ops the attach path needs: resolve the declared names into the opaque `ChatToolSet`, then
- *  project that set onto the wire. No fabrication — `ChatToolSet` is `unknown` by contract (chat never
- *  narrows it), so a fake owns its own shape and narrows it back on the way out. */
+ *  project that set into neutral definitions. No fabrication — `ChatToolSet` is `unknown` by contract (chat
+ *  never narrows it), so a fake owns its own shape and narrows it back on the way out. */
 function fakeChatToolOps(): NonNullable<ChatContext["tools"]> {
   return {
     resolveTools: (_driverUserId, names) => ({ names }),
-    toWireTools: (set) =>
-      (set as { readonly names: readonly string[] }).names.map((n) => ({ name: n, description: "d", parameters: { type: "object" as const } })),
-    toAgentToolServer: () => Promise.resolve({}),
+    toToolDefinitions: (set) =>
+      (set as { readonly names: readonly string[] }).names.map((n) => ({ name: n, description: "d", parameters: { type: "object" as const }, inputShape: {} })),
     executeToolCalls: () => Promise.resolve([]),
   };
 }
@@ -3192,9 +3192,8 @@ test("R2 end-to-end: a teaching contribution's declared tool name reaches the WI
 
   await h.turn.send({ principal: principal(host), chatId, content: "how long have we walked?" });
 
-  const attached = requests[0] as { tools?: { name: string }[]; toolChoice?: unknown };
-  expect(attached.tools?.map((t) => t.name)).toEqual(["tick_clock"]);
-  expect(attached.toolChoice).toEqual({ mode: "auto" });
+  const attached = requests[0] as TurnRequest;
+  expect(attached.tools?.offer?.definitions.map((t) => t.name)).toEqual(["tick_clock"]);
 });
 
 test("R2 end-to-end: the SAME declaration on a tools-INCAPABLE model is dropped — attach is capability-gated", async () => {
@@ -3225,7 +3224,7 @@ test("R2 end-to-end: NO contribution declares a name — the request carries no 
 // D146 / #648 — THE SAME HOP WITH NOTHING FAKED. The three rows above drive a hand-written teacher and a fake
 // `ChatToolSet`, which is right for pinning the pipeline's own behaviour; this one closes the last link the
 // row's outcome sentence is actually about: a tool a PLUGIN registered at activation, attached by tool-use's
-// REAL teaching contribution, resolved by the REAL registry, arriving in the wire's `tools` array of a real
+// REAL teaching contribution, resolved by the REAL registry, arriving in the request's tool offer of a real
 // send. Unit pins cover the matrix (`tests/server/domain/tool-use/teaching-contribution.test.ts`); this proves
 // the hop between them, which no other test can see.
 test("R2 end-to-end: a REAL plugin registration reaches the WIRE, and a deactivated one silently does not", async () => {
@@ -3244,15 +3243,14 @@ test("R2 end-to-end: a REAL plugin registration reaches the WIRE, and a deactiva
   // `ChatToolSet` IS the registry's `ResolvedToolSet`, round-tripped through this seam.
   const toolOps: NonNullable<ChatContext["tools"]> = {
     resolveTools: (driverUserId, toolNames) => toolUse.resolveTools(driverUserId, toolNames),
-    toWireTools: (set) => toolUse.toWireTools(set as ReturnType<typeof toolUse.resolveTools>),
-    toAgentToolServer: () => Promise.resolve({}),
+    toToolDefinitions: (set) => toolUse.toToolDefinitions(set as ReturnType<typeof toolUse.resolveTools>),
     executeToolCalls: () => Promise.resolve([]),
   };
   const teaching = createToolUseTeachingContributions({ listDrivableToolNames: toolUse.listDrivableToolNames });
   const h = harness(db, names, { teaching, tools: toolOps, connection: TOOLS_CONNECTION, onChatRequest: (req) => requests.push(req) });
 
   await h.turn.send({ principal: principal(host), chatId, content: "how do we feel?" });
-  expect((requests[0] as { tools?: { name: string }[] }).tools?.map((t) => t.name)).toEqual(["plugin_mood_report"]);
+  expect((requests[0] as TurnRequest).tools?.offer?.definitions.map((t) => t.name)).toEqual(["plugin_mood_report"]);
 
   // The owner switches the plugin off between turns. `resolveTools` THROWS on an unknown name at attach, so a
   // contribution that had cached its list would fail this send outright; the read-through contribution simply
@@ -3287,8 +3285,7 @@ test("R2 end-to-end: a STRANGER holds the same plugin tool name, and the host's 
   const requests: unknown[] = [];
   const toolOps: NonNullable<ChatContext["tools"]> = {
     resolveTools: (driverUserId, toolNames) => toolUse.resolveTools(driverUserId, toolNames),
-    toWireTools: (set) => toolUse.toWireTools(set as ReturnType<typeof toolUse.resolveTools>),
-    toAgentToolServer: () => Promise.resolve({}),
+    toToolDefinitions: (set) => toolUse.toToolDefinitions(set as ReturnType<typeof toolUse.resolveTools>),
     executeToolCalls: () => Promise.resolve([]),
   };
   const teaching = createToolUseTeachingContributions({ listDrivableToolNames: toolUse.listDrivableToolNames });
@@ -3298,7 +3295,7 @@ test("R2 end-to-end: a STRANGER holds the same plugin tool name, and the host's 
 
   // The wire `description` is the observable that says WHICH copy rode — the NAME is identical by construction,
   // so a resolve that picked "whoever registered first" would ship the stranger's tool into this room.
-  const tools = (requests[0] as { tools?: { name: string; description: string }[] }).tools;
+  const tools = (requests[0] as TurnRequest).tools?.offer?.definitions;
   expect(tools?.map((t) => t.name)).toEqual(["plugin_mood_report"]);
   expect(tools?.[0]?.description).toBe("the host's copy");
 });
