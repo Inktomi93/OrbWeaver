@@ -78,6 +78,7 @@ export { resolveCarryReasoning, resolveChat } from "./funnel/resolve-chat.ts";
 export type { ProviderRegistry } from "./registry/providers.ts";
 export type { ResolveArgs, ResolveOutcome } from "./resolve/resolve-task.ts";
 export { NoConnectionError } from "./resolve/resolve-task.ts";
+export { runStructuredTurn } from "./roles/structured-turn.ts";
 
 const OPENROUTER_CATALOG_KEY = "catalog:openrouter";
 const AGENT_SDK_CATALOG_KEY = "catalog:agent-sdk";

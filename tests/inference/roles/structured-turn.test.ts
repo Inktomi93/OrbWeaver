@@ -1,11 +1,11 @@
-// runStructuredTurn — the ONE structured-output mechanics helper (D79). Pins: valid first try never retries;
+// roles/structured-turn — runStructuredTurn, the ONE structured-output mechanics helper (D79). Pins: valid first try never retries;
 // invalid → ONE bounded retry with the zod issues appended → invalid again → throws; fence-wrapped / prose-
 // padded JSON extracts (the retired json-extract cases, now fixtures); a valid retry returns the typed payload.
 
-import type { StructuredRetrySummary } from "@orb/server/kit/structured-turn";
-import { runStructuredTurn, StructuredOutputError } from "@orb/server/kit/structured-turn";
+import type { StructuredRetrySummary } from "@orb/inference";
+import { runStructuredTurn, StructuredOutputError } from "@orb/inference";
 import { z } from "zod";
-import { expect, test } from "../../../support/fixtures.ts";
+import { expect, test } from "../../support/fixtures.ts";
 
 const SCHEMA = z.object({ genre: z.string(), score: z.number() });
 
