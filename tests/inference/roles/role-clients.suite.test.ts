@@ -85,3 +85,27 @@ test("a wrapped provider failure is rethrown unchanged after strike-out", async 
   await expect(runtime.roleClientsFor(principal(ownerId)).embed("hello")).rejects.toBe(wrapper);
   expect(strikes).toEqual([{ ownerId, credentialId: null, errorKind: "auth_failed", errorMessage: "bad credential" }]);
 });
+
+// A background task spends a row only when its owner allowed background work (`canFund`). The role clients
+// are the background path, so a row with `allowBackground` off is refused BEFORE any provider call, in the
+// same "nothing ran" class as no binding at all — never silently spent.
+test("a background role call on a row that disallows background work runs nothing and reads as no connection", async () => {
+  const stores = memoryStores();
+  const ownerId = newUserId();
+  const row = fakeConnection({ ownerId, providerId: "local-light", model: DEFAULT_EMBED_MODEL, allowBackground: false });
+  stores.connections.rows.set(row.id, row);
+  stores.bindings.bind({ actorKind: "user", actorId: ownerId, task: "embed", connectionId: row.id });
+  const cache = fakeModelCache();
+  const runtime = await createInferenceRuntime({ ...fakeDeps({ stores }), localLight: { cache } });
+  const clients = runtime.roleClientsFor(principal(ownerId));
+
+  await expect(clients.embed("text")).rejects.toMatchObject({ name: "NoConnectionError", message: expect.stringContaining("background") });
+  expect(
+    cache.calls.filter((call) => call.method === "embedTexts"),
+    "no provider call was made",
+  ).toHaveLength(0);
+  await expect(clients.resolved("embed")).resolves.toBeNull();
+  // PLANTED CONTROL: the same row with background work allowed runs.
+  stores.connections.rows.set(row.id, { ...row, allowBackground: true });
+  expect((await clients.embed("text")).model).toBe(`${DEFAULT_EMBED_MODEL}@q8`);
+});
