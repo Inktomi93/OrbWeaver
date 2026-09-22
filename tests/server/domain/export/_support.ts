@@ -25,7 +25,6 @@ const FROZEN_AT = FROZEN_AT_MS;
 
 // An 8×8 PNG (distinct from the 256×256 placeholder) — a real, decodable PNG so `writeCardChunk` accepts
 // it as a base image; being distinct lets a test prove the AVATAR (not the placeholder) was embedded.
-// biome-ignore format: keep the blob on one line so the noSecrets suppression attaches to it.
 const AVATAR_PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAEUlEQVR4nGM4ISeHFTEMLQkAkL9BAbKfPiIAAAAASUVORK5CYII=";
 
 export const AVATAR_PNG: Uint8Array = new Uint8Array(Buffer.from(AVATAR_PNG_BASE64, "base64"));

@@ -6,6 +6,7 @@
 import {
   NET_HOSTS_MAX,
   PLUGIN_CAPABILITIES,
+  PLUGIN_PROVIDERS_MAX,
   PLUGIN_SLUG_MAX,
   PLUGIN_TOOL_NAME_LOCAL_MAX,
   PLUGIN_TOOL_NAME_RE,
@@ -109,6 +110,54 @@ test("pluginManifestSchema accepts a minimal well-formed manifest", () => {
   expect(parsed.id).toBe("my-plugin");
   expect(parsed.capabilities).toEqual(["chat.read"]);
   expect(parsed.netHosts).toBeUndefined();
+});
+
+const PROVIDER = {
+  id: "plugin:my-plugin/acme",
+  label: "Acme",
+  wire: "openai-compat",
+  dialect: "openai-compatible",
+  auth: "endpoint",
+  apis: ["chat-completions"],
+  catalog: "url",
+  metered: false,
+} as const;
+
+const FIXED_PROVIDER = {
+  ...PROVIDER,
+  auth: "apiKey",
+  baseUrl: "https://api.example.com/v1",
+} as const;
+
+test("provider contributions are namespace-bound, unique, bounded, and use the closed wire axis", () => {
+  expect(pluginManifestSchema.parse({ ...BASE, providers: [PROVIDER] }).providers).toEqual([PROVIDER]);
+  expect(pluginManifestSchema.safeParse({ ...BASE, providers: [{ ...PROVIDER, id: "plugin:other/acme" }] }).success).toBe(false);
+  expect(pluginManifestSchema.safeParse({ ...BASE, providers: [PROVIDER, PROVIDER] }).success).toBe(false);
+  expect(pluginManifestSchema.safeParse({ ...BASE, providers: [{ ...PROVIDER, wire: "guest-backend" }] }).success).toBe(false);
+  const atCap = Array.from({ length: PLUGIN_PROVIDERS_MAX }, (_, index) => ({ ...PROVIDER, id: `plugin:my-plugin/p${index}` }));
+  expect(pluginManifestSchema.safeParse({ ...BASE, providers: atCap }).success).toBe(true);
+  expect(pluginManifestSchema.safeParse({ ...BASE, providers: [...atCap, { ...PROVIDER, id: "plugin:my-plugin/over" }] }).success).toBe(false);
+});
+
+test("fixed provider egress requires an egress capability and its normalized host in netHosts", () => {
+  expect(pluginManifestSchema.safeParse({ ...BASE, providers: [FIXED_PROVIDER] }).success).toBe(false);
+  expect(
+    pluginManifestSchema.safeParse({
+      ...BASE,
+      capabilities: ["net.fetch"],
+      netHosts: ["other.example.com"],
+      providers: [FIXED_PROVIDER],
+    }).success,
+  ).toBe(false);
+  expect(
+    pluginManifestSchema.safeParse({
+      ...BASE,
+      capabilities: ["net.fetch"],
+      netHosts: ["API.Example.com"],
+      providers: [FIXED_PROVIDER],
+    }).success,
+  ).toBe(true);
+  expect(pluginManifestSchema.safeParse({ ...BASE, providers: [PROVIDER] }).success).toBe(true);
 });
 
 test("pluginManifestSchema accepts net.fetch WITH a bounded netHosts allowlist", () => {

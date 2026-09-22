@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 1,
+  "status": "complete",
+  "scope": [
+    "tests/client/features/automation/components/rules-section.ct.tsx",
+    "tests/client/features/credentials/components/connection-editor.ct.tsx",
+    "tests/client/features/credentials/components/connections-roles-section.ct.tsx",
+    "tests/client/features/databank/fixtures.ts",
+    "tests/client/features/discovery/components/corpus-understanding-invitation.ct.tsx",
+    "tests/client/features/discovery/surfaces/corpus-home-surface.ct.tsx",
+    "tests/client/features/plugin/components/plugins-install-section.ct.tsx",
+    "tests/client/features/plugin/lib/tool-card.ct.tsx",
+    "tests/client/features/refinery/components/refinery-context-tabs.ct.tsx",
+    "tests/client/features/refinery/hooks/use-refinery-mutations.ct.tsx",
+    "tests/client/features/refinery/surfaces/refinery-list-surface.ct.tsx",
+    "tests/client/features/workloads/components/workloads-jobs-section.ct.tsx",
+    "tests/client/features/workloads/lib/workloads-group.ct.tsx"
+  ],
+  "findings": [
+    {
+      "kind": "output-erasing-cast",
+      "path": "tests/client/features/refinery/components/refinery-context-tabs.ct.tsx",
+      "before": "sessionView() as object",
+      "repair": "RefinerySessionView is NonNullable<TrpcWireOutput<refinery.getSession>>; named selection and guidance builders preserve that exact output."
+    },
+    {
+      "kind": "hand-written-input-cast",
+      "path": "tests/client/features/databank/fixtures.ts",
+      "before": "input: unknown plus locally re-spelled string-widened list/get inputs",
+      "repair": "Both databank.list and databank.get responders consume TrpcInput for their exact AppRouter procedure."
+    },
+    {
+      "kind": "discriminated-union-partial-smuggling",
+      "path": "tests/client/features/workloads/components/workloads-jobs-section.ct.tsx",
+      "before": "Partial<WorkloadRow> allowed kind, params, result, and poison arms to be mixed",
+      "repair": "Per-kind runnable factories and a poison factory derive each arm through Extract; workloadList accepts only canonical WorkloadRow values."
+    },
+    {
+      "kind": "discriminated-union-partial-smuggling",
+      "path": "tests/client/features/workloads/lib/workloads-group.ct.tsx",
+      "before": "Partial<WorkloadRow> allowed kind, params, result, and poison arms to be mixed",
+      "repair": "Per-kind runnable factories and a poison factory derive each arm through Extract; workloadList accepts only canonical WorkloadRow values."
+    },
+    {
+      "kind": "canonical-output-drift",
+      "paths": [
+        "tests/client/features/credentials/components/connection-editor.ct.tsx",
+        "tests/client/features/credentials/components/connections-roles-section.ct.tsx",
+        "tests/client/features/discovery/surfaces/corpus-home-surface.ct.tsx",
+        "tests/client/features/refinery/surfaces/refinery-list-surface.ct.tsx"
+      ],
+      "repair": "Added required baseline, wire/api, workload lifecycle, and character-page fields; replaced the obsolete exact token provenance spelling with measured."
+    },
+    {
+      "kind": "literal-and-array-widening",
+      "paths": [
+        "tests/client/features/automation/components/rules-section.ct.tsx",
+        "tests/client/features/plugin/components/plugins-install-section.ct.tsx",
+        "tests/client/features/plugin/lib/tool-card.ct.tsx",
+        "tests/client/features/refinery/hooks/use-refinery-mutations.ct.tsx"
+      ],
+      "repair": "Named AppRouter-derived output boundaries preserve exact recursive and array members without casts, any, unknown maps, responder annotations, or malformed-wire escapes."
+    },
+    {
+      "kind": "stale-behavior-assertion",
+      "path": "tests/client/features/workloads/components/workloads-jobs-section.ct.tsx",
+      "repair": "Canonical poison row now carries compute-themes consistently; retry assertion names Compute themes instead of the old smuggled Index label."
+    }
+  ],
+  "diagnostics": {
+    "command": "pnpm codemod:run -- /tmp/route-trpc-feature-b-diagnostics.ts",
+    "scannedOwnedFiles": 115,
+    "beforeRepair": 37,
+    "afterRepair": 0,
+    "repairedFileDiagnostics": {
+      "tests/client/features/refinery/components/refinery-context-tabs.ct.tsx": 0,
+      "tests/client/features/databank/fixtures.ts": 0,
+      "tests/client/features/workloads/components/workloads-jobs-section.ct.tsx": 0,
+      "tests/client/features/workloads/lib/workloads-group.ct.tsx": 0
+    },
+    "finalArtifact": "/tmp/world-tools-route-trpc-feature-b-current-diagnostics.json",
+    "ownedFileDiagnostics": "0 across all 115 owned files"
+  },
+  "structuralScans": [
+    {
+      "tool": "ast-grep",
+      "languages": ["tsx"],
+      "pattern": "$X as object",
+      "scope": "tests/client/features/refinery/components/refinery-context-tabs.ct.tsx",
+      "matches": 0
+    },
+    {
+      "tool": "ast-grep",
+      "languages": ["ts"],
+      "patterns": ["($X: unknown) => $BODY", "$X as $T"],
+      "scope": "tests/client/features/databank/fixtures.ts",
+      "matches": 0
+    },
+    {
+      "tool": "ast-grep",
+      "languages": ["tsx"],
+      "pattern": "Partial<WorkloadRow>",
+      "scope": "the two repaired workload CT files",
+      "matches": 0
+    }
+  ],
+  "verification": [
+    {
+      "command": "pnpm codemod:run -- /tmp/route-trpc-feature-b-diagnostics.ts",
+      "result": "pass: 115 owned files, 0 diagnostics"
+    },
+    {
+      "command": "pnpm biome check <13 changed owned files>",
+      "result": "pass: 13 files checked, no fixes applied"
+    },
+    {
+      "command": "git diff --check -- <13 changed owned files>",
+      "result": "pass"
+    },
+    {
+      "command": "pnpm test:ct <12 changed CT files> --workers=2",
+      "result": "219 passed, 1 failed: stale poison-row accessible-name assertion exposed by canonical discriminant repair"
+    },
+    {
+      "command": "pnpm test:ct tests/client/features/workloads/components/workloads-jobs-section.ct.tsx --workers=1",
+      "result": "pass: 21 passed, 0 failed, 0 flaky, 0 skipped after correcting the stale assertion"
+    }
+  ],
+  "unsafeCastsOrAnyIntroduced": [],
+  "stagedOrCommitted": false,
+  "malformedWireEscapesIntroduced": []
+}

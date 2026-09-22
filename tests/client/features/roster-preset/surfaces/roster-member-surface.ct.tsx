@@ -12,12 +12,13 @@ import type { RulePresetView } from "@orb/contracts/automation";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { measureContentColumn } from "../../../../support/browser/measure-content-column.ts";
 import { readProseMeasure } from "../../../../support/browser/prose-measure.ts";
+import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { RosterMemberContentColumnStory, RosterMemberEditorStory, RosterMemberEditorTwoWritersStory } from "../_ct-stories.tsx";
 
 /** `rosterPreset.get`'s view, narrowed to what the editor reads. The stored rule carries a NON-DEFAULT
  *  `everyN` (the catalogue default is 8) — the datum every surface used to collapse to "2 rules". */
-const ROSTER_VIEW = {
+const ROSTER_VIEW: TrpcWireOutput<"rosterPreset.get"> = {
   id: "roster_preset_ct_a",
   name: "Adventuring Roster",
   description: "",
@@ -27,7 +28,8 @@ const ROSTER_VIEW = {
     { characterId: "character_ct_1", position: 0, talkativeness: 0.5, disabled: false, name: "Ash", avatarHash: null },
     { characterId: "character_ct_2", position: 1, talkativeness: null, disabled: true, name: "Brook", avatarHash: null },
   ],
-  rules: [{ rulePresetId: "pacingNudge", position: 0, knobs: { everyN: 12, steer: "Take stock of the pacing." } }],
+  rules: [{ rulePresetId: "pacingNudge", knobs: { everyN: 12, steer: "Take stock of the pacing." } }],
+  createdAt: 1,
   updatedAt: 1,
 };
 
@@ -77,7 +79,7 @@ test("the editor's Start door reports what it applied and names the room after t
       configApplied: false,
       rulesMinted: ["pacingNudge"],
       rulesAlreadyPresent: [],
-      rulesSkipped: [{ rulePresetId: "loreAutoAdd", reason: "this chat has no world book attached" }],
+      rulesSkipped: [{ rulePresetId: "autoAddLore", reason: "this chat has no world book attached" }],
     },
   });
 
@@ -99,7 +101,7 @@ test("the editor's Start door reports what it applied and names the room after t
 // save-button form; the judge is now the value at OPEN time.
 
 /** The same roster after a second writer renamed it. */
-const RENAMED_VIEW = { ...ROSTER_VIEW, name: "The Lantern Crew", updatedAt: 2 };
+const RENAMED_VIEW: TrpcWireOutput<"rosterPreset.get"> = { ...ROSTER_VIEW, name: "The Lantern Crew", updatedAt: 2 };
 
 // A FENCE, not a defect proof, and labelled as one (#1587). The two text cells carried
 // `aria-label="Roster name"` / `"Roster description"` beside a `<Field label="Name">` / `"Description"`, and
@@ -123,11 +125,11 @@ test("an UNTOUCHED editor does not become dirty because the row moved underneath
   // WHAT THE STUB ANSWERS NEXT, as a PUSHED array rather than a boolean flip: biome narrows a
   // `= false` initializer to the literal type and reds the later flip as an always-falsy condition,
   // and the `: boolean` that would fix that is itself `noInferrableTypes`. Data, not a flag.
-  const rows: unknown[] = [ROSTER_VIEW];
+  const rows: TrpcWireOutput<"rosterPreset.get">[] = [ROSTER_VIEW];
   await routeTrpc(page, {
-    "rosterPreset.get": (): unknown => rows.at(-1),
+    "rosterPreset.get": () => rows.at(-1) ?? ROSTER_VIEW,
     "automation.listRulePresets": [PACING_PRESET],
-    "rosterPreset.update": null,
+    "rosterPreset.update": () => rows.at(-1) ?? ROSTER_VIEW,
   });
   const component = await mount(<RosterMemberEditorTwoWritersStory />);
   await expect(page.getByRole("heading", { level: 2, name: "Adventuring Roster" })).toBeVisible();
@@ -148,11 +150,11 @@ test("…and a real edit racing a rename SAYS so beside the Save it changes (#15
   // WHAT THE STUB ANSWERS NEXT, as a PUSHED array rather than a boolean flip: biome narrows a
   // `= false` initializer to the literal type and reds the later flip as an always-falsy condition,
   // and the `: boolean` that would fix that is itself `noInferrableTypes`. Data, not a flag.
-  const rows: unknown[] = [ROSTER_VIEW];
+  const rows: TrpcWireOutput<"rosterPreset.get">[] = [ROSTER_VIEW];
   await routeTrpc(page, {
-    "rosterPreset.get": (): unknown => rows.at(-1),
+    "rosterPreset.get": () => rows.at(-1) ?? ROSTER_VIEW,
     "automation.listRulePresets": [PACING_PRESET],
-    "rosterPreset.update": null,
+    "rosterPreset.update": () => rows.at(-1) ?? ROSTER_VIEW,
   });
   const component = await mount(<RosterMemberEditorTwoWritersStory />);
   // Barrier on the SETTLED editor — the surface suspends on `rosterPreset.get`, so the fields do not exist

@@ -19,7 +19,7 @@ import type { DocumentId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import type { TrpcInput, TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { AddChatDocumentDialogStory } from "../_ct-stories.tsx";
 
@@ -37,7 +37,7 @@ const TREATISE = {
   embeddedCount: 12,
   createdAt: 1_750_000_000_000,
   updatedAt: 1_750_000_000_000,
-};
+} satisfies TrpcWireOutput<"databank.list">["items"][number];
 
 const LEDGER = { ...TREATISE, id: castId<DocumentId>("document_00000000000000000012"), name: "The Ashfen Ledger", byteSize: 93_901 };
 
@@ -46,10 +46,10 @@ const LEDGER = { ...TREATISE, id: castId<DocumentId>("document_00000000000000000
  *  INPUT-AWARE on `search`, because the picker's box is a SERVER lens (2026-08-14): a stub that returned the
  *  whole bank regardless of the term would pass the search test while the component filtered nothing, which
  *  is precisely how a client-side-filter defect hides behind a green CT. */
-function stubPicker(page: Page, bank: readonly { readonly name: string }[]): Promise<TrpcRecorder> {
+function stubPicker(page: Page, bank: readonly TrpcWireOutput<"databank.list">["items"][number][]): Promise<TrpcRecorder> {
   return routeTrpc(page, {
-    "databank.list": (input: unknown) => {
-      const needle = ((input ?? {}) as { search?: string }).search?.trim().toLowerCase() ?? "";
+    "databank.list": (input: TrpcInput<"databank.list">) => {
+      const needle = input?.search?.trim().toLowerCase() ?? "";
       const items = needle === "" ? bank : bank.filter((doc) => doc.name.toLowerCase().includes(needle));
       return { items, nextCursor: null, totalCount: items.length };
     },

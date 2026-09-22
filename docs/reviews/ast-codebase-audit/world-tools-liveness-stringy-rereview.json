@@ -33,9 +33,5 @@
       "result": "PASS: no declaration or literal remains"
     }
   ],
-  "excluded": [
-    "No full pnpm ast lens run",
-    "No broad TypeScript program",
-    "No unrelated imagery or documentation changes"
-  ]
+  "excluded": ["No full pnpm ast lens run", "No broad TypeScript program", "No unrelated imagery or documentation changes"]
 }

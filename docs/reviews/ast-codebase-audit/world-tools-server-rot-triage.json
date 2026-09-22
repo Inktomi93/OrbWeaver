@@ -223,7 +223,9 @@
       "lensKind": "test-only-export",
       "classification": "deliberate-test-seam",
       "decision": "keep",
-      "evidence": ["Production birth uses the game-mint statement plan; integration fixtures use this eager twin, which shares parseGameRow with the live findGameByChat read."],
+      "evidence": [
+        "Production birth uses the game-mint statement plan; integration fixtures use this eager twin, which shares parseGameRow with the live findGameByChat read."
+      ],
       "recommendation": "Keep while RPG integration tests need an eager setup door that exercises the production parse belt."
     },
     {
@@ -233,7 +235,9 @@
       "lensKind": "test-only-export",
       "classification": "deliberate-test-seam",
       "decision": "keep",
-      "evidence": ["Only games.int.test.ts calls it; it shares parseGameRow and directly proves valid, corrupt, and retired-mode-heal behavior. Production resolves game-ness by chat id."],
+      "evidence": [
+        "Only games.int.test.ts calls it; it shares parseGameRow and directly proves valid, corrupt, and retired-mode-heal behavior. Production resolves game-ness by chat id."
+      ],
       "recommendation": "Keep unless tests are rewritten through findGameByChat with equivalent corruption controls."
     },
     {
@@ -243,7 +247,9 @@
       "lensKind": "test-only-export",
       "classification": "deliberate-test-seam",
       "decision": "keep",
-      "evidence": ["Persistence and flush suites use it for exact variant stamping/CASCADE assertions; product reads use policy-bearing listActiveJournal or fork-source listAllJournal."],
+      "evidence": [
+        "Persistence and flush suites use it for exact variant stamping/CASCADE assertions; product reads use policy-bearing listActiveJournal or fork-source listAllJournal."
+      ],
       "recommendation": "Keep as exact-row storage evidence; never substitute it for the active-lineage production read."
     },
     {
@@ -253,7 +259,9 @@
       "lensKind": "test-only-export",
       "classification": "deliberate-test-seam",
       "decision": "keep",
-      "evidence": ["Snapshot-edit tests use it for row before/after assertions. The source explicitly distinguishes this all-row census from live countBeatSnapshots, which excludes hand rows for cadence."],
+      "evidence": [
+        "Snapshot-edit tests use it for row before/after assertions. The source explicitly distinguishes this all-row census from live countBeatSnapshots, which excludes hand rows for cadence."
+      ],
       "recommendation": "Keep as the precise test census; never wire it into reconcile cadence."
     },
     {
@@ -263,7 +271,9 @@
       "lensKind": "test-only-export",
       "classification": "deliberate-test-seam",
       "decision": "keep",
-      "evidence": ["The function delegates to the production writeStagedSnapshotAndJournal boundary with an empty journal, preserving full schema validation, upsert, and post-read behavior across many integration suites."],
+      "evidence": [
+        "The function delegates to the production writeStagedSnapshotAndJournal boundary with an empty journal, preserving full schema validation, upsert, and post-read behavior across many integration suites."
+      ],
       "recommendation": "Keep; this is a delegating production-boundary proof, not duplicate implementation."
     },
     {
@@ -273,7 +283,9 @@
       "lensKind": "test-only-export",
       "classification": "deliberate-test-seam",
       "decision": "keep",
-      "evidence": ["Persistence, flush, and compose tests use it for exact per-variant/CASCADE evidence; product uses listTurnToolCalls with intentionally different turn-window semantics."],
+      "evidence": [
+        "Persistence, flush, and compose tests use it for exact per-variant/CASCADE evidence; product uses listTurnToolCalls with intentionally different turn-window semantics."
+      ],
       "recommendation": "Keep as exact-row introspection."
     },
     {
@@ -283,7 +295,9 @@
       "lensKind": "test-only-export",
       "classification": "deliberate-runtime-default-proof-seam",
       "decision": "keep",
-      "evidence": ["Derived from the versioned prose slot; product code resolves that same slot through host overrides, while substrate and field-reachability tests use the constant to pin shipped-default bytes and placement."],
+      "evidence": [
+        "Derived from the versioned prose slot; product code resolves that same slot through host overrides, while substrate and field-reachability tests use the constant to pin shipped-default bytes and placement."
+      ],
       "recommendation": "Keep as the default-byte reference for the live resolved-prose path."
     },
     {
@@ -293,7 +307,9 @@
       "lensKind": "test-only-export",
       "classification": "deliberate-runtime-default-proof-seam",
       "decision": "keep",
-      "evidence": ["Derived from the scene-opening prose slot and used by delta/field-reachability tests to distinguish the first-snapshot arm from ordinary changes."],
+      "evidence": [
+        "Derived from the scene-opening prose slot and used by delta/field-reachability tests to distinguish the first-snapshot arm from ordinary changes."
+      ],
       "recommendation": "Keep as the shipped-default proof reference."
     },
     {
@@ -303,7 +319,9 @@
       "lensKind": "test-only-export",
       "classification": "deliberate-runtime-default-proof-seam",
       "decision": "keep",
-      "evidence": ["Derived from the versioned prose catalog; live reminder composition resolves the slot while tests pin placement, ordering, and exact default behavior."],
+      "evidence": [
+        "Derived from the versioned prose catalog; live reminder composition resolves the slot while tests pin placement, ordering, and exact default behavior."
+      ],
       "recommendation": "Keep with the resolved-prose proof family."
     },
     {
@@ -313,7 +331,9 @@
       "lensKind": "test-only-export",
       "classification": "deliberate-runtime-default-proof-seam",
       "decision": "keep",
-      "evidence": ["The live reminder resolves the deception slot conditionally; tests use the exported default to prove applicability and relative placement."],
+      "evidence": [
+        "The live reminder resolves the deception slot conditionally; tests use the exported default to prove applicability and relative placement."
+      ],
       "recommendation": "Keep."
     },
     {
@@ -323,7 +343,9 @@
       "lensKind": "test-only-export",
       "classification": "deliberate-runtime-default-proof-seam",
       "decision": "keep",
-      "evidence": ["The live reminder resolves the omniscience-filter slot conditionally; tests pin its applicability and ordering against deception and the steering license."],
+      "evidence": [
+        "The live reminder resolves the omniscience-filter slot conditionally; tests pin its applicability and ordering against deception and the steering license."
+      ],
       "recommendation": "Keep."
     },
     {
@@ -333,7 +355,9 @@
       "lensKind": "test-only-export",
       "classification": "deliberate-runtime-default-proof-seam",
       "decision": "keep",
-      "evidence": ["This is the canonical composed interactive shipped default; live reminder assembly resolves its component slots, while tests pin grammar, placement, and interactive/static separation."],
+      "evidence": [
+        "This is the canonical composed interactive shipped default; live reminder assembly resolves its component slots, while tests pin grammar, placement, and interactive/static separation."
+      ],
       "recommendation": "Keep as the test-visible composed default."
     },
     {
@@ -353,7 +377,9 @@
       "lensKind": "test-only-export",
       "classification": "deliberate-runtime-default-proof-seam",
       "decision": "keep",
-      "evidence": ["This is the canonical composed static shipped default; tests prove it excludes interactive/JS language and shares the worked example safely."],
+      "evidence": [
+        "This is the canonical composed static shipped default; tests prove it excludes interactive/JS language and shares the worked example safely."
+      ],
       "recommendation": "Keep."
     },
     {
@@ -385,7 +411,9 @@
       "lensKind": "test-only-export",
       "classification": "deliberate-test-isolation-seam",
       "decision": "keep",
-      "evidence": ["The audit failure window is process-module state exposed on debug stats; the reset is explicitly internal and prevents cross-case contamination in failure-count integration tests."],
+      "evidence": [
+        "The audit failure window is process-module state exposed on debug stats; the reset is explicitly internal and prevents cross-case contamination in failure-count integration tests."
+      ],
       "recommendation": "Keep as test isolation for the process singleton."
     },
     {
@@ -395,7 +423,9 @@
       "lensKind": "test-only-export",
       "classification": "deliberate-test-isolation-seam",
       "decision": "keep",
-      "evidence": ["The source header makes the bounded request/outcome rings process singletons and explicitly requires resetting them between harness rows. Four suites use the reset to prevent foreign wire evidence from bleeding across cases."],
+      "evidence": [
+        "The source header makes the bounded request/outcome rings process singletons and explicitly requires resetting them between harness rows. Four suites use the reset to prevent foreign wire evidence from bleeding across cases."
+      ],
       "recommendation": "Keep as the recorder's isolation seam."
     },
     {
@@ -482,7 +512,9 @@
       "lensKind": "test-only-export",
       "classification": "framework-test-entrypoint",
       "decision": "keep",
-      "evidence": ["t.createCallerFactory(appRouter) is the supported tRPC in-process entry through the complete middleware/router ladder; shared test support and transport suites consume it without HTTP."],
+      "evidence": [
+        "t.createCallerFactory(appRouter) is the supported tRPC in-process entry through the complete middleware/router ladder; shared test support and transport suites consume it without HTTP."
+      ],
       "recommendation": "Keep as the framework-generated integration entrypoint."
     }
   ],

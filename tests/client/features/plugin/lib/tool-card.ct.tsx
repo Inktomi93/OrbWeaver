@@ -20,6 +20,7 @@ import type { ToolCallRecord } from "@orb/contracts/chat";
 import type { PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { PluginToolCardStory } from "../_ct-stories.tsx";
 
@@ -35,13 +36,15 @@ const LIST = '[data-slot="message-tool-calls"]';
 
 /** One installed row as `plugin.list` projects it — the join the shell's attribution line reads its name from.
  *  The wire shape is pinned by the router/domain tests, never re-typed here. */
-const PLUGIN_ROW: Record<string, unknown> = {
+const PLUGIN_ROW = {
   id: ORACLE_ID,
   slug: "oracle-deck",
   name: PLUGIN_NAME,
   version: "1.0.0",
   status: "enabled",
-  origin: "seed",
+  origin: "upload",
+  sourceUrl: null,
+  updateSource: "showcase",
   declaredCapabilities: ["storage.kv", "tools.register", "ui.surface"],
   grantedCapabilities: ["storage.kv", "tools.register", "ui.surface"],
   netHosts: null,
@@ -51,11 +54,11 @@ const PLUGIN_ROW: Record<string, unknown> = {
   lastError: null,
   installedAt: A_PAST_INSTANT,
   updatedAt: A_PAST_INSTANT,
-};
+} satisfies TrpcWireOutput<"plugin.list">[number];
 
 /** The seeded oracle-deck's OWN card, as its `main.js` registers it: badges + the narration + the commitment
  *  row + a deck meter, every value bound into the call's result document. */
-const DRAW_CARD: Record<string, unknown> = {
+const DRAW_CARD = {
   pluginId: ORACLE_ID,
   id: "draw_card",
   anchor: "tool-card",
@@ -80,7 +83,7 @@ const DRAW_CARD: Record<string, unknown> = {
       { kind: "meter", label: "Dealt", max: 22, value: { $state: "result.dealt" } },
     ],
   },
-};
+} satisfies TrpcWireOutput<"plugin.listSurfaces">[number];
 
 const DRAW_RESULT = JSON.stringify({
   drawn: "1. **The Road**\n2. **The Mask**",
@@ -102,8 +105,11 @@ function revealRecord(): ToolCallRecord {
 }
 
 /** The plugin routes both halves share. `surfaces` drives the arm. */
-function pluginRoutes(surfaces: readonly Record<string, unknown>[]): Record<string, unknown> {
-  return { "plugin.list": () => [PLUGIN_ROW], "plugin.listSurfaces": () => surfaces };
+function pluginRoutes(
+  surfaces: TrpcWireOutput<"plugin.listSurfaces">,
+  plugins: TrpcWireOutput<"plugin.list"> = [PLUGIN_ROW],
+): TrpcRoutes<"plugin.list" | "plugin.listSurfaces"> {
+  return { "plugin.list": () => plugins, "plugin.listSurfaces": () => surfaces };
 }
 
 test("a REGISTERED plugin tool renders its card inside the plugin-labelled shell, bound to THIS call", async ({ mount, page }) => {
@@ -189,7 +195,7 @@ test("a NON-plugin tool name is untouched by the contribution — byte-identical
 test("a plugin whose NAME has not resolved renders the generic block, never an unlabelled card (§4.8)", async ({ mount, page }) => {
   // `listSurfaces` and `plugin.list` are two different reads. A card drawn while the attribution line is
   // unknown would be a plugin surface with no author on it — the one thing the shell exists to prevent.
-  await routeTrpc(page, { "plugin.list": () => [], "plugin.listSurfaces": () => [DRAW_CARD] });
+  await routeTrpc(page, pluginRoutes([DRAW_CARD], []));
   const component = await mount(<PluginToolCardStory records={[record()]} />);
   await expect(component.locator(BLOCK)).toHaveCount(1);
   await expect(component.locator(LIST)).toContainText(DRAW);

@@ -456,13 +456,7 @@
       "BookAttachmentView"
     ],
     "serverOnly": ["GlobalVariableView", "BudgetView", "PresenceView"],
-    "externalPluginGuest": [
-      "PluginMessageView",
-      "PluginCharacterView",
-      "PluginWorldBookView",
-      "PluginWorldEntryView",
-      "PluginAssetView"
-    ],
+    "externalPluginGuest": ["PluginMessageView", "PluginCharacterView", "PluginWorldBookView", "PluginWorldEntryView", "PluginAssetView"],
     "deletionCandidatesAuthorizedByThisTriage": [],
     "toolAssessment": "No implementation correctness defect was found against clientgap's documented candidate semantics: wiring.ts explicitly warns that re-export barrels and Trpc inference are blind spots. Precision is poor for this corpus: 15 of 23 hits are live client output types. Track a world-aware enhancement that propagates client-consumed AppRouter procedure outputs back to their named contract declarations, including re-export barrels, Zod inferred aliases, nested constituent types, and composed intersections. Keep server-only and plugin-guest types as candidates or add an explicit consumer-plane classification; do not suppress them by assuming every View/Summary belongs to packages/client."
   },

@@ -10,6 +10,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import type { TrpcFixtureOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { CorpusDossierSurfaceStory } from "../_ct-stories.tsx";
 
@@ -26,7 +27,11 @@ const DOSSIER = {
 };
 
 /** The dossier's other reads, stubbed flat so only the ASK answer varies between cases. */
-async function routeDossier(page: Page, answer: Record<string, unknown>, dossier: Record<string, unknown> = DOSSIER): Promise<void> {
+async function routeDossier(
+  page: Page,
+  answer: TrpcFixtureOutput<"discovery.askCard">,
+  dossier: TrpcFixtureOutput<"discovery.characterDossier"> = DOSSIER,
+): Promise<void> {
   await routeTrpc(page, {
     "discovery.characterDossier": dossier,
     "discovery.characterKeywords": [],

@@ -9,6 +9,7 @@
 // defaults). DEF-14: every assertion is web-first / expect.poll — no bare live-DOM read.
 
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { TrpcFixtureOutput, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { WorldInfoEditorReorderStory, WorldInfoMemberStory } from "../_ct-stories.tsx";
 
@@ -26,7 +27,7 @@ const BOOK_ROW = {
   usage: { characters: 0, personas: 0, chats: 0, global: false, total: 0 },
 };
 
-function entry(id: string, title: string, priority: number): unknown {
+function entry(id: string, title: string, priority: number): TrpcWireOutput<"worldInfo.listEntries">[number] {
   return {
     id,
     worldBookId: BOOK_ID,
@@ -41,7 +42,7 @@ function entry(id: string, title: string, priority: number): unknown {
   };
 }
 
-const ENTRIES = [entry(ALPHA, "Alpha", 3), entry(BRAVO, "Bravo", 2), entry(CHARLIE, "Charlie", 1)];
+const ENTRIES: TrpcFixtureOutput<"worldInfo.listEntries"> = [entry(ALPHA, "Alpha", 3), entry(BRAVO, "Bravo", 2), entry(CHARLIE, "Charlie", 1)];
 
 test("a member id no book matches renders the GONE arm, not a dead form", async ({ mount, page }) => {
   await routeTrpc(page, { "worldInfo.listBooksWithUsage": () => [BOOK_ROW] });

@@ -13,7 +13,7 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { findSettingsColumnViolation, readSettingsPaneGeometry } from "../../../../support/browser/settings-geometry.ts";
-import type { TrpcRecorder, TrpcResponder } from "../../../../support/node/route-trpc.ts";
+import type { TrpcRecorder, TrpcResponder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { AppearanceGroupStory, ConfigHostStory } from "../_ct-stories.tsx";
 
@@ -31,8 +31,9 @@ const SETTINGS_VIEW = {
   userId: "user_ct_appearance_pane",
   schemaVersion: 1,
   config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, backgroundLibrary: [SEEDED_PLATE_ENTRY] } },
+  configUnreadable: null,
   updatedAt: 0,
-};
+} satisfies TrpcWireOutput<"settings.getUserSettings">;
 const UPDATE_PROC = "settings.updateUserSettingsSection";
 
 /** The anchors rendered AT REST, in door order (#866 S4): Looks leads (the theme fold), and the three
@@ -62,7 +63,7 @@ const LOOKS_THEMES = [
   { id: "theme_00000000000000000000000003", name: "Light", override: {}, css: null, isSeed: true, isDefault: false, createdAt: 0, updatedAt: 0 },
 ];
 
-function stub(page: Page, update: TrpcResponder = (): unknown => ({})): Promise<TrpcRecorder> {
+function stub(page: Page, update: TrpcResponder<typeof UPDATE_PROC> = () => SETTINGS_VIEW): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     // The config LIST paints every shelf, so the four collection bands read their rosters for the counts —
     // fed empty (the honest fresh-library arm) rather than left to routeTrpc's inert null.
@@ -72,7 +73,7 @@ function stub(page: Page, update: TrpcResponder = (): unknown => ({})): Promise<
     "rosterPreset.list": [],
     "settings.getUserSettings": () => SETTINGS_VIEW,
     "settings.listThemes": () => LOOKS_THEMES,
-    "sessions.me": () => ({ user: { id: SETTINGS_VIEW.userId, role: "user" } }),
+    "sessions.me": () => ({ userId: SETTINGS_VIEW.userId, handle: "ct_appearance", globalRole: "user" }),
     [UPDATE_PROC]: update,
   });
 }
@@ -162,7 +163,7 @@ test("library entries render as tiles; Remove-from-library of the selected entry
         backgroundLibrary: [entryA, entryB],
       },
     },
-  };
+  } satisfies TrpcWireOutput<"settings.getUserSettings">;
   const trpc = await routeTrpc(page, {
     "tag.listTagsWithUsage": [],
     "regex.listScripts": [],
@@ -170,8 +171,8 @@ test("library entries render as tiles; Remove-from-library of the selected entry
     "rosterPreset.list": [],
     "settings.getUserSettings": () => withLibrary,
     "settings.listThemes": () => LOOKS_THEMES,
-    "sessions.me": () => ({ user: { id: SETTINGS_VIEW.userId, role: "user" } }),
-    [UPDATE_PROC]: () => ({}),
+    "sessions.me": () => ({ userId: SETTINGS_VIEW.userId, handle: "ct_appearance", globalRole: "user" }),
+    [UPDATE_PROC]: () => withLibrary,
   });
   await mount(<AppearanceGroupStory />);
   await page.getByRole("heading", { name: "Message style" }).waitFor();

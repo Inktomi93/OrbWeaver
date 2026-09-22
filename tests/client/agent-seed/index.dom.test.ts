@@ -8,7 +8,7 @@
 // own "closed vocabulary" analogue (a legible refusal, never a silent no-op).
 
 import { buildAgentSeed } from "@orb/client/agent-seed";
-import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { afterEach, vi } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
@@ -17,40 +17,50 @@ const CHARACTER_ID = castId<CharacterId>("character_seed_a");
 const CHAT_ID = castId<ChatId>("chat_seed_a");
 const RETRY_CHAT_ID = castId<ChatId>("chat_seed_b");
 const USER_ID = castId<UserId>("user_seed_a");
-const PLAYER_HANDLE = castId<Handle>("orb-seed-hero");
+const PLAYER_HANDLE = castId<CharacterHandle>("orb-seed-hero");
 
 const EDITSNAPSHOT_REFUSAL_MSG = /rpg\.editSnapshot refused — scene plane refused/;
 const PATCHACTOR_REFUSAL_MSG = /rpg\.patchActor refused — actor plane refused/;
 const UNFINISHED_D20_MSG = /unfinished d20 seed/;
+
+type AgentSeedClient = Parameters<typeof buildAgentSeed>[0];
 
 /** Minimal structural fake of the `TRPCClient<AppRouter>` surface `buildAgentSeed` actually calls — every
  *  method the seeder touches, nothing else, each a `vi.fn()` so a test can assert exact call args (the
  *  same shape `agent-nav`'s `fakeTrpc` uses for the generated proxy). `existingHandle` controls whether
  *  `ensurePlayer` reuses a card or creates one.
  */
-// biome-ignore lint/suspicious/noExplicitAny: the return is a minimal structural fake of the full TRPCClient proxy — the seeder only touches the branches built below.
-function fakeClient(opts: { readonly existingHandle?: boolean; readonly editSnapshotOk?: boolean; readonly patchActorOk?: boolean } = {}): any {
+// biome-ignore lint/nursery/useExplicitReturnType: `satisfies AgentSeedClient` checks the port while inference preserves each vi.fn mock signature for call assertions below.
+function fakeClient(opts: { readonly existingHandle?: boolean; readonly editSnapshotOk?: boolean; readonly patchActorOk?: boolean } = {}) {
   const editSnapshotOk = opts.editSnapshotOk ?? true;
   const patchActorOk = opts.patchActorOk ?? true;
+  const editSnapshotResult = editSnapshotOk ? ({ ok: true } as const) : ({ ok: false, reason: "scene plane refused" } as const);
+  const patchActorResult = patchActorOk ? ({ ok: true } as const) : ({ ok: false, reason: "actor plane refused" } as const);
   return {
     character: {
-      list: { query: vi.fn().mockResolvedValue({ items: opts.existingHandle ? [{ id: CHARACTER_ID, handle: "orb-seed-hero" }] : [], totalCount: 0 }) },
-      create: { mutate: vi.fn().mockResolvedValue({ id: CHARACTER_ID }) },
+      list: {
+        query: vi
+          .fn<AgentSeedClient["character"]["list"]["query"]>()
+          .mockResolvedValue({ items: opts.existingHandle ? [{ id: CHARACTER_ID, handle: PLAYER_HANDLE }] : [] }),
+      },
+      create: { mutate: vi.fn<AgentSeedClient["character"]["create"]["mutate"]>().mockResolvedValue({ id: CHARACTER_ID }) },
     },
-    sessions: { me: { query: vi.fn().mockResolvedValue({ userId: USER_ID }) } },
-    chat: { startChat: { mutate: vi.fn().mockResolvedValue({ chat: { id: CHAT_ID } }) } },
+    sessions: { me: { query: vi.fn<AgentSeedClient["sessions"]["me"]["query"]>().mockResolvedValue({ userId: USER_ID }) } },
+    chat: { startChat: { mutate: vi.fn<AgentSeedClient["chat"]["startChat"]["mutate"]>().mockResolvedValue({ chat: { id: CHAT_ID } }) } },
     rpg: {
-      createGame: { mutate: vi.fn().mockResolvedValue(undefined) },
-      updateConfig: { mutate: vi.fn().mockResolvedValue(undefined) },
-      patchSheet: { mutate: vi.fn().mockResolvedValue(undefined) },
-      editSnapshot: { mutate: vi.fn().mockResolvedValue({ ok: editSnapshotOk, reason: editSnapshotOk ? undefined : "scene plane refused" }) },
-      patchActor: { mutate: vi.fn().mockResolvedValue({ ok: patchActorOk, reason: patchActorOk ? undefined : "actor plane refused" }) },
-      upsertQuest: { mutate: vi.fn().mockResolvedValue(undefined) },
-      addJournalEntry: { mutate: vi.fn().mockResolvedValue(undefined) },
-      // biome-ignore lint/suspicious/noExplicitAny: structural fake of the full TRPCClient proxy — buildAgentSeed only touches the branches built above.
-    } as any,
-    // biome-ignore lint/suspicious/noExplicitAny: structural fake of the full TRPCClient proxy — buildAgentSeed only touches the branches built above.
-  } as any;
+      createGame: { mutate: vi.fn<AgentSeedClient["rpg"]["createGame"]["mutate"]>().mockResolvedValue(undefined) },
+      updateConfig: { mutate: vi.fn<AgentSeedClient["rpg"]["updateConfig"]["mutate"]>().mockResolvedValue(undefined) },
+      patchSheet: { mutate: vi.fn<AgentSeedClient["rpg"]["patchSheet"]["mutate"]>().mockResolvedValue(undefined) },
+      editSnapshot: {
+        mutate: vi.fn<AgentSeedClient["rpg"]["editSnapshot"]["mutate"]>().mockResolvedValue(editSnapshotResult),
+      },
+      patchActor: {
+        mutate: vi.fn<AgentSeedClient["rpg"]["patchActor"]["mutate"]>().mockResolvedValue(patchActorResult),
+      },
+      upsertQuest: { mutate: vi.fn<AgentSeedClient["rpg"]["upsertQuest"]["mutate"]>().mockResolvedValue(undefined) },
+      addJournalEntry: { mutate: vi.fn<AgentSeedClient["rpg"]["addJournalEntry"]["mutate"]>().mockResolvedValue(undefined) },
+    },
+  } satisfies AgentSeedClient;
 }
 
 const SEED_WRITE_STEPS = [
@@ -79,7 +89,12 @@ function retryClient(failAt: (typeof SEED_WRITE_STEPS)[number]): {
   const applied: string[] = [];
   let failed = false;
   let starts = 0;
-  const apply = (chatId: ChatId, step: string, result?: unknown): Promise<unknown> => {
+  const apply = (
+    // @orb-waive brand-in-name-position(chatId): the fake records the pre-parse JSON input from the structural tRPC client, so this remains untrusted wire text; branding it would claim a parse the fake does not perform. Ends if the test client exposes parsed AppRouter inputs.
+    chatId: string,
+    step: string,
+    result?: unknown,
+  ): Promise<unknown> => {
     if (!failed && step === failAt) {
       failed = true;
       return Promise.reject(new Error(`injected failure at ${step}`));
@@ -88,21 +103,22 @@ function retryClient(failAt: (typeof SEED_WRITE_STEPS)[number]): {
     return Promise.resolve(result);
   };
 
-  client.chat.startChat.mutate = vi.fn(() => {
+  client.chat.startChat.mutate = vi.fn<AgentSeedClient["chat"]["startChat"]["mutate"]>(() => {
     const chatId = starts === 0 ? CHAT_ID : RETRY_CHAT_ID;
     starts += 1;
     return Promise.resolve({ chat: { id: chatId } });
   });
-  client.rpg.createGame.mutate = vi.fn(({ chatId }: { readonly chatId: ChatId }) => apply(chatId, "createGame"));
-  client.rpg.updateConfig.mutate = vi.fn(({ chatId }: { readonly chatId: ChatId }) => apply(chatId, "updateConfig"));
-  client.rpg.patchSheet.mutate = vi.fn(({ chatId }: { readonly chatId: ChatId }) => apply(chatId, "patchSheet"));
-  client.rpg.editSnapshot.mutate = vi.fn(({ chatId }: { readonly chatId: ChatId }) => apply(chatId, "editSnapshot", { ok: true }));
-  client.rpg.patchActor.mutate = vi.fn(
-    ({ chatId, targetRef }: { readonly chatId: ChatId; readonly targetRef: { readonly kind: string; readonly npcKey?: string } }) =>
-      apply(chatId, `patchActor:${targetRef.kind === "npc" ? targetRef.npcKey : targetRef.kind}`, { ok: true }),
+  client.rpg.createGame.mutate = vi.fn<AgentSeedClient["rpg"]["createGame"]["mutate"]>(({ chatId }) => apply(chatId, "createGame"));
+  client.rpg.updateConfig.mutate = vi.fn<AgentSeedClient["rpg"]["updateConfig"]["mutate"]>(({ chatId }) => apply(chatId, "updateConfig"));
+  client.rpg.patchSheet.mutate = vi.fn<AgentSeedClient["rpg"]["patchSheet"]["mutate"]>(({ chatId }) => apply(chatId, "patchSheet"));
+  client.rpg.editSnapshot.mutate = vi.fn<AgentSeedClient["rpg"]["editSnapshot"]["mutate"]>(({ chatId }) =>
+    apply(chatId, "editSnapshot").then(() => ({ ok: true as const })),
   );
-  client.rpg.upsertQuest.mutate = vi.fn(({ chatId, name }: { readonly chatId: ChatId; readonly name: string }) => apply(chatId, `upsertQuest:${name}`));
-  client.rpg.addJournalEntry.mutate = vi.fn(({ chatId, title }: { readonly chatId: ChatId; readonly title: string }) =>
+  client.rpg.patchActor.mutate = vi.fn<AgentSeedClient["rpg"]["patchActor"]["mutate"]>(({ chatId, targetRef }) =>
+    apply(chatId, `patchActor:${targetRef.kind === "npc" ? targetRef.npcKey : targetRef.kind}`).then(() => ({ ok: true as const })),
+  );
+  client.rpg.upsertQuest.mutate = vi.fn<AgentSeedClient["rpg"]["upsertQuest"]["mutate"]>(({ chatId, name }) => apply(chatId, `upsertQuest:${name}`));
+  client.rpg.addJournalEntry.mutate = vi.fn<AgentSeedClient["rpg"]["addJournalEntry"]["mutate"]>(({ chatId, title }) =>
     apply(chatId, `addJournalEntry:${title}`),
   );
   return { client, applied };
@@ -120,8 +136,9 @@ test("game({profile:'d20'}) maps the caller profile to the d20 ruleset and patch
 
   expect(result).toEqual({ chatId: CHAT_ID });
   expect(client.rpg.createGame.mutate).toHaveBeenCalledExactlyOnceWith({ chatId: CHAT_ID, mode: "lite", ruleset: "d20" });
-  const patchSheetArg = client.rpg.patchSheet.mutate.mock.calls[0][0];
-  expect(patchSheetArg.patch.attributes).toEqual({ str: 15, dex: 13, con: 14, int: 12, wis: 11, cha: 16 });
+  const patchSheetArg = client.rpg.patchSheet.mutate.mock.calls[0]?.[0];
+  expect(patchSheetArg).toBeDefined();
+  expect(patchSheetArg?.patch.attributes).toEqual({ str: 15, dex: 13, con: 14, int: 12, wis: 11, cha: 16 });
 });
 
 test("game({profile:'freeform'}) maps the caller profile to the freeform ruleset and patchSheet WITHOUT attributes", async () => {
@@ -131,8 +148,9 @@ test("game({profile:'freeform'}) maps the caller profile to the freeform ruleset
   await seed.game({ profile: "freeform" });
 
   expect(client.rpg.createGame.mutate).toHaveBeenCalledExactlyOnceWith({ chatId: CHAT_ID, mode: "lite", ruleset: "freeform" });
-  const patchSheetArg = client.rpg.patchSheet.mutate.mock.calls[0][0];
-  expect(patchSheetArg.patch).not.toHaveProperty("attributes");
+  const patchSheetArg = client.rpg.patchSheet.mutate.mock.calls[0]?.[0];
+  expect(patchSheetArg).toBeDefined();
+  expect(patchSheetArg?.patch).not.toHaveProperty("attributes");
 });
 
 test("game() fires updateConfig with the tracker defs + relationship hints, keyed to the seeded chat", async () => {
@@ -160,7 +178,7 @@ test("game() fires editSnapshot for the scene half + patchActor for player and b
 
   expect(client.rpg.editSnapshot.mutate).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ chatId: CHAT_ID }));
   expect(client.rpg.patchActor.mutate).toHaveBeenCalledTimes(3);
-  const targets = client.rpg.patchActor.mutate.mock.calls.map((c: readonly [{ readonly targetRef: unknown }]) => c[0].targetRef);
+  const targets = client.rpg.patchActor.mutate.mock.calls.map((call) => call[0].targetRef);
   expect(targets).toEqual([
     { kind: "user", userId: USER_ID },
     { kind: "npc", npcKey: "mira" },
@@ -263,8 +281,7 @@ test("concurrent first-seed failures reject every waiter and later resume the sa
 test("a different first-seed request is refused while the first prerequisite is still held", async () => {
   const client = fakeClient({ existingHandle: true });
   const characterPage = Promise.withResolvers<{
-    readonly items: readonly { readonly id: CharacterId; readonly handle: Handle }[];
-    readonly totalCount: number;
+    readonly items: readonly { readonly id: CharacterId; readonly handle: CharacterHandle }[];
   }>();
   client.character.list.query = vi.fn(() => characterPage.promise);
   const seed = buildAgentSeed(client);
@@ -283,7 +300,7 @@ test("a different first-seed request is refused while the first prerequisite is 
 
   await Promise.resolve();
   const outcomeBeforeRelease = secondOutcome;
-  characterPage.resolve({ items: [{ id: CHARACTER_ID, handle: PLAYER_HANDLE }], totalCount: 1 });
+  characterPage.resolve({ items: [{ id: CHARACTER_ID, handle: PLAYER_HANDLE }] });
   const settled = await Promise.allSettled([first, second]);
 
   expect(outcomeBeforeRelease).toBe("rejected");
@@ -329,7 +346,7 @@ test("concurrent retries join one in-flight finish without invoking the failed d
   const retryStarted = new Promise<void>((resolve) => {
     markRetryStarted = resolve;
   });
-  const retryCreate = vi.fn(({ chatId }: { readonly chatId: ChatId }) => {
+  const retryCreate = vi.fn<AgentSeedClient["rpg"]["createGame"]["mutate"]>(({ chatId }) => {
     markRetryStarted?.();
     return retryHeld.then(() => {
       applied.push(`${chatId}:createGame`);
@@ -363,12 +380,12 @@ test("a joined retry failure rejects every waiter and releases the finish for a 
     markRetryStarted = resolve;
   });
   const retryCreate = vi
-    .fn()
+    .fn<AgentSeedClient["rpg"]["createGame"]["mutate"]>()
     .mockImplementationOnce(() => {
       markRetryStarted?.();
       return retryHeld;
     })
-    .mockImplementation(({ chatId }: { readonly chatId: ChatId }) => {
+    .mockImplementation(({ chatId }) => {
       applied.push(`${chatId}:createGame`);
       return Promise.resolve();
     });

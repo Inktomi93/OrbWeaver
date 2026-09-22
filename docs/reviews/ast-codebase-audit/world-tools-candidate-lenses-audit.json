@@ -22,11 +22,7 @@
       "outputs": [],
       "implementation": "tooling/src/ast/ops/subset-callers.ts",
       "arg": "required symbol/procedure name",
-      "flags": [
-        "--in",
-        "--json",
-        "--max"
-      ],
+      "flags": ["--in", "--json", "--max"],
       "corpus": "syntactic harness globs; whole corpus, tests/tooling/scripts included; no type graph",
       "mechanism": "direct same-tail calls plus client mutation doors resolved through shared trpc-doors; compares statically resolved first-argument object keys; refuses when fewer than two comparable sites or unjudged doors prevent a sound comparison",
       "controls": [
@@ -48,11 +44,7 @@
       "outputs": [],
       "implementation": "tooling/src/ast/ops/dead.ts",
       "arg": "required symbol name",
-      "flags": [
-        "--in",
-        "--json",
-        "--max"
-      ],
+      "flags": ["--in", "--json", "--max"],
       "corpus": "typed native-program authored-root union; whole workspace declaration lookup",
       "mechanism": "semantic references unioned across every containing native program; partitions prod/test, excludes re-export passthroughs; combines swallowed/public marker/vendored/comment context into ALIVE, SWALLOWED-ONLY, TAGGED-KEEP, TEST-ANCHORED, CANDIDATE",
       "controls": [
@@ -72,12 +64,7 @@
       "outputs": [],
       "implementation": "tooling/src/ast/ops/prodonly.ts",
       "arg": "required package name or package src path",
-      "flags": [
-        "--in",
-        "--files",
-        "--json",
-        "--max"
-      ],
+      "flags": ["--in", "--files", "--json", "--max"],
       "corpus": "typed native-program authored-root union; scoped non-test non-declaration package source files",
       "mechanism": "file-level BFS from entries derived from knip workspace entry globs, package exports, package scripts, package-root tool configs, and client main.tsx; static/re-export/dynamic import edges; tests never graph nodes",
       "controls": [
@@ -94,11 +81,7 @@
       "outputs": [],
       "implementation": "tooling/src/ast/ops/wiring.ts",
       "arg": "optional procedure substring",
-      "flags": [
-        "--in",
-        "--json",
-        "--max"
-      ],
+      "flags": ["--in", "--json", "--max"],
       "corpus": "typed native-program authored-root union; server appRouter/t.router enumeration and non-test packages/client/src consumer scan",
       "mechanism": "structurally diffs <namespace>.<procedure> server router keys against client trpc dot/bracket/optional member chains and Trpc indexed-access types; reasoned @server-only/@test-fixture exemptions",
       "controls": [
@@ -118,18 +101,10 @@
       "outputs": [],
       "implementation": "tooling/src/ast/ops/wiring.ts",
       "arg": "optional package/path; default contracts",
-      "flags": [
-        "--in",
-        "--json",
-        "--max"
-      ],
+      "flags": ["--in", "--json", "--max"],
       "corpus": "typed native-program authored-root union; scoped non-test files; default contracts filter to *View/*Summary",
       "mechanism": "buildLiveness export identity split; used by server prod but not client prod and not tests; candidate only because inferred/re-exported client uses can be invisible",
-      "controls": [
-        "client/server production import buckets",
-        "default suffix filter encoded in source",
-        "zero path scope refuses via resolveScope"
-      ]
+      "controls": ["client/server production import buckets", "default suffix filter encoded in source", "zero path scope refuses via resolveScope"]
     },
     "respell": {
       "sourceSha": "5438cf0e4f5eba3170b7ff56e9b056f47abb1a6c",
@@ -138,12 +113,7 @@
       "outputs": [],
       "implementation": "tooling/src/ast/ops/respell.ts",
       "arg": "optional domain substring",
-      "flags": [
-        "--in",
-        "--near [pct]",
-        "--json",
-        "--max"
-      ],
+      "flags": ["--in", "--near [pct]", "--json", "--max"],
       "corpus": "typed native-program authored-root union; contracts shapes plus server domain contract shapes, test/declaration excluded",
       "mechanism": "exact mutual assignability for structurally equal contract/domain shapes; provenance resolution excludes aliases/typeof-derived schema twins; optional near tier uses field-name+resolved-type Jaccard, >=4 fields, excludes exact pairs; @nearpair-ok two-sided marker",
       "controls": [
@@ -164,12 +134,7 @@
       "outputs": [],
       "implementation": "tooling/src/ast/ops/columns.ts + lib/columns.ts + lib/column-reads.ts",
       "arg": "optional table/sql/schema substring",
-      "flags": [
-        "--in",
-        "--all",
-        "--json",
-        "--max"
-      ],
+      "flags": ["--in", "--all", "--json", "--max"],
       "corpus": "typed native-program authored-root union; candidates are Drizzle schema tables/columns, consumption substrate spans workspace excluding schema self-uses/tests as defined by helpers",
       "mechanism": "classifies columns as neither/write-only/read-only/provenance/read-write from semantic table-column refs plus deliberately generous row-shape reads and structural write scan; opaque whole-row writes prevent false unwritten claims; raw SQL name mention annotated; reasoned @column-ok with stale-marker failure",
       "controls": [
@@ -189,12 +154,7 @@
       "outputs": [],
       "implementation": "tooling/src/ast/ops/regkeys.ts",
       "arg": "optional registry substring",
-      "flags": [
-        "--in",
-        "--all",
-        "--json",
-        "--max"
-      ],
+      "flags": ["--in", "--all", "--json", "--max"],
       "corpus": "syntactic harness globs; registry declarations in production package source and non-test dispatch spelling substrate",
       "mechanism": "heuristically discovers exported uppercase typed/as-const object or row-array registries above size floor; a row is alive by qualified registry access or unqualified key spelling outside its declaration; informational, deliberately name-based",
       "controls": [
@@ -214,11 +174,7 @@
       "outputs": [],
       "implementation": "tooling/src/ast/ops/stringy.ts",
       "arg": "optional package/path; default all packages",
-      "flags": [
-        "--in",
-        "--json",
-        "--max"
-      ],
+      "flags": ["--in", "--json", "--max"],
       "corpus": "typed native-program authored-root union; non-test type aliases in scoped packages",
       "mechanism": "checker resolved alias type is intrinsic bare string; traces alias chain across imports/reexports; brands, template literals, unions, constrained params and containers excluded",
       "controls": [
@@ -236,12 +192,7 @@
       "outputs": [],
       "implementation": "tooling/src/ast/ops/apisurface.ts",
       "arg": "optional package/path; default all packages",
-      "flags": [
-        "--in",
-        "--public",
-        "--json",
-        "--max"
-      ],
+      "flags": ["--in", "--public", "--json", "--max"],
       "corpus": "typed native-program authored-root union; own exports in scoped non-test package files",
       "mechanism": "partitions export identity by consumer package into PUBLIC cross-package, INTERNAL same-package, TEST-ONLY, UNUSED; default emits non-public arms; UNUSED shares orphan collector; namespace imports err alive; records all-cross-package-type-only note",
       "controls": [
@@ -324,10 +275,7 @@
       "id": "candidate-pre-5",
       "lens": "subset-callers",
       "severity": "operability/coverage gap",
-      "evidence": [
-        "verb requires one subject and reloads the full corpus per invocation",
-        "there is no all-subject mode or emitted subject census"
-      ],
+      "evidence": ["verb requires one subject and reloads the full corpus per invocation", "there is no all-subject mode or emitted subject census"],
       "impact": "A complete stale-door audit lacks a native closed denominator and becomes prohibitively repetitive.",
       "neededControl": "derive every comparable production subject in one load and report refused/noncomparable subjects; preserve per-subject query mode."
     },
@@ -470,12 +418,8 @@
         "findings": [
           {
             "file": "/repo/tests/a.test.ts",
-            "keys": [
-              "a"
-            ],
-            "missing": [
-              "b"
-            ]
+            "keys": ["a"],
+            "missing": ["b"]
           }
         ]
       },
@@ -500,12 +444,8 @@
       "result": {
         "tables": 1,
         "klass": "read-write",
-        "reads": [
-          "/repo/tests/widget.test.ts:1"
-        ],
-        "writes": [
-          "/repo/tests/widget.test.ts:1"
-        ],
+        "reads": ["/repo/tests/widget.test.ts:1"],
+        "writes": ["/repo/tests/widget.test.ts:1"],
         "opaque": false
       },
       "interpretation": "a column with zero product consumers becomes read-write solely from one test read+insert",
@@ -515,9 +455,7 @@
       "id": "unwired-partial-router",
       "kind": "in-memory no-repo probe",
       "result": {
-        "procedures": [
-          "good.visible"
-        ]
+        "procedures": ["good.visible"]
       },
       "interpretation": "appRouter with one supported property plus a spread containing another router reports only the supported procedure and exposes no refusal",
       "repoMutation": false
@@ -526,9 +464,7 @@
       "id": "unwired-unrelated-root",
       "kind": "in-memory no-repo probe",
       "result": {
-        "consumed": [
-          "chat.send"
-        ]
+        "consumed": ["chat.send"]
       },
       "interpretation": "unrelated client object with a valid namespace/procedure spelling acquits the server procedure",
       "repoMutation": false
@@ -539,9 +475,7 @@
       "result": {
         "deadVerdict": "ALIVE",
         "deadProdCount": 2,
-        "typeonlyCandidates": [
-          "VALUE"
-        ]
+        "typeonlyCandidates": ["VALUE"]
       },
       "interpretation": "same value is ALIVE in dead and a typeonly-alive candidate; dead also counts neutral import binding plus typeof site as two prod refs",
       "repoMutation": false

@@ -34,8 +34,8 @@
   "ast_grep": {
     "scope": ["packages", "tests", "tooling", "scripts", "playwright"],
     "languages": {
-      "ts": {"scannedFileCount": 6446, "skippedFileCount": 0},
-      "tsx": {"scannedFileCount": 1409, "skippedFileCount": 0}
+      "ts": { "scannedFileCount": 6446, "skippedFileCount": 0 },
+      "tsx": { "scannedFileCount": 1409, "skippedFileCount": 0 }
     },
     "removed_identifiers": [
       "isConfigShelf",

@@ -37,6 +37,7 @@ import type {
   ChatInviteId,
   ChatParticipantId,
   ChatStreamEventId,
+  ChatStreamGenerationId,
   ChatTurnId,
   EmbedGenerationId,
   Handle,
@@ -53,7 +54,7 @@ import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { can } from "@orb/server/domain/admin";
 import { buildAuditStatement } from "@orb/server/foundation/observability";
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import type { ChatContext } from "../../../../packages/server/src/domain/chat/context.ts";
 import type { ClaimChatOp, SummarizeOp } from "../../../../packages/server/src/domain/chat/contract/context.ts";
 import type { MemoryRecallResult } from "../../../../packages/server/src/domain/chat/contract/memory.ts";
@@ -353,15 +354,10 @@ export async function seedChatEvent(
  *  delta streamed before its slot committed — the shape the D16 replay floor withholds from a clamped
  *  caller, since it carries no seq to classify against).
  *
- *  THE PAIR IS DERIVED, NOT ACCEPTED (#1379 item 1). `chat_stream_events` has no production writer yet —
- *  the READ half is fully built and wired (`loadStreamReplay`/`loadStreamBounds` → `replayStreamEvents`/
- *  `streamEventBounds`, including the D16 history-floor clamp), the id minter exists on `ChatContext`, and
- *  only the append verb is unlanded. So THIS FIXTURE IS THE EXEMPLAR whoever builds that verb will read,
- *  and it used to take `chatId` and `messageId` as two independent unvalidated parameters — the one shape
- *  every real chat writer avoids. Every one of them derives both arms from a single server-trusted root,
- *  which is exactly why this review's coherence questions all came back safe (#1380). Handing an anchored
- *  row a `messageId` now RE-READS that message's own `chatId` and refuses a cross-chat pair, so the
- *  fixture teaches derivation instead of trust. */
+ *  THE PAIR IS DERIVED, NOT ACCEPTED (#1379 item 1). The production writer derives both reference arms
+ *  from one server-trusted message root. This fixture keeps its older caller-friendly shape, then
+ *  re-reads an anchored message's own `chatId` and refuses a cross-chat pair so it models the same
+ *  invariant instead of trusting two independent parameters. */
 export async function seedStreamEvent(
   db: Db,
   chatId: ChatId,
@@ -377,7 +373,20 @@ export async function seedStreamEvent(
       throw new Error(`seedStreamEvent: messageId ${messageId} belongs to ${String(anchorChatId)}, not ${chatId} — a stream row's two arms share one chat`);
     }
   }
-  await db.insert(chatStreamEvents).values({ id, chatId, seq, kind: "text", delta, messageId, createdAt: FROZEN_AT });
+  await db
+    .update(chats)
+    .set({ streamSeq: sql`max(${chats.streamSeq}, ${seq})` })
+    .where(eq(chats.id, chatId));
+  await db.insert(chatStreamEvents).values({
+    id,
+    chatId,
+    seq,
+    kind: "text",
+    delta,
+    messageId,
+    generationId: castId<ChatStreamGenerationId>(`stream_generation_${chatId}_${seq}`),
+    createdAt: FROZEN_AT,
+  });
   return id;
 }
 
@@ -448,6 +457,7 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     newInjectionId: mint<ChatInjectionId>("chat_injection"),
     newEventId: mint<ChatEventId>("chat_event"),
     newStreamEventId: mint<ChatStreamEventId>("stream_event"),
+    newStreamGenerationId: mint<ChatStreamGenerationId>("stream_generation"),
     newInviteId: mint<ChatInviteId>("chat_invite"),
     newPendingTurnId: mint<PendingTurnId>("pending_turn"),
     newChatTurnId: mint<ChatTurnId>("chat_turn"),

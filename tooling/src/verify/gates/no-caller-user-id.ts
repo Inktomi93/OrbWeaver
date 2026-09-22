@@ -1,5 +1,6 @@
 // Gate: no-caller-user-id (Core-Path-Registry.md D19 turn-identity). The caller is `Principal.userId`; a turn's
-// RESPONSIBLE human is `triggeredBy` and the FUNDED identity is `runAsUserId`. The term `callerUserId`
+// RESPONSIBLE human is `triggeredBy`, the FUNDER is `funderUserId`, and assembly/tools run as `runAsUserId`.
+// The term `callerUserId`
 // conflates caller with turn-identity (the neo bug class: the caller's id reaching `resolveCredential`/
 // `loadUserSettings`). tsc cannot catch a NEWLY-INTRODUCED forbidden name, so this gate does — before the
 // turn-running/engine chunks accrete. AST identifiers only: comments, quoted/computed keys, and string literals are exempt;
@@ -21,7 +22,7 @@ import { defineGate } from "../contract/policy.ts";
 const FORBIDDEN = "callerUserId";
 
 const MESSAGE =
-  "`callerUserId` is forbidden (D19): the caller is `Principal.userId`; use `triggeredBy` (the responsible human) / `runAsUserId` (the funded identity). Never route the caller's id into credential/settings resolution. See Spine-Identity-and-Auth.md (turn-identity: triggeredBy vs runAsUserId; D19).";
+  "`callerUserId` is forbidden (D19): the caller is `Principal.userId`; use `triggeredBy` for attribution/abort, `funderUserId` for the funded connection/credentials, or `runAsUserId` for assembly/tools. Never route the caller's id into credential or settings resolution. See Core-Path-Registry.md D19.";
 export const gate = defineGate({
   id: "no-caller-user-id",
   family: "no-caller-user-id",
@@ -44,8 +45,8 @@ export const gate = defineGate({
   resources: [],
   message: MESSAGE,
   fix:
-    "use `triggeredBy` (the responsible human) or `runAsUserId` (the funded identity) — never the caller's " +
-    "id in credential/settings resolution. A deliberate site is waived with `@orb-waive " +
+    "use `triggeredBy` for attribution/abort, `funderUserId` for connection/credential funding, or " +
+    "`runAsUserId` for assembly/tools — never the caller's id in credential or settings resolution. A deliberate site is waived with `@orb-waive " +
     "no-caller-user-id(<position>): <reason>` on the line above, where <position> is the literal `callerUserId`.",
   create: (ctx) => ({
     visitors: [

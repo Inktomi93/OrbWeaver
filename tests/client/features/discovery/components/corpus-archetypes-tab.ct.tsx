@@ -20,6 +20,7 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import type { TrpcFixtureOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { CorpusArchetypesTabStory } from "../_ct-stories.tsx";
 
@@ -57,7 +58,7 @@ const PIXEL_PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAD
 
 /** A catalog whose `totalDistilled` is the tab's gate signal — the domain's own `count(*)` over
  *  `character_summaries` (`verbs/catalog.ts`), not a client heuristic. */
-function catalog(totalDistilled: number): Record<string, unknown> {
+function catalog(totalDistilled: number): TrpcFixtureOutput<"discovery.catalog"> {
   return { genres: [], tones: [], topTags: [], tagPairs: [], totalDistilled };
 }
 

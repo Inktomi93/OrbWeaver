@@ -76,12 +76,7 @@
       },
       "literalCorroboration": {
         "scope": "packages tests tooling scripts playwright",
-        "extensions": [
-          "ts",
-          "tsx",
-          "mts",
-          "cts"
-        ],
+        "extensions": ["ts", "tsx", "mts", "cts"],
         "matches": 0
       }
     },

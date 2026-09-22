@@ -1,0 +1,105 @@
+{
+  "schema": "orbweaver.world-tools-gate-reach-final-verification",
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-22T04:24:39.370Z",
+  "tree": {
+    "head": "8f7ed4c4b98c112429c3918483f3a172f66ae184",
+    "dirty": true,
+    "note": "Final verification of the shared audit worktree before the authorized checkpoint commit."
+  },
+  "plannerIntegrationRepair": {
+    "defect": "The final-policy planner derived source populations from the union of compiler manifests while execution walked the exact ts-morph Project; 17 compiler-only config/root paths made planned and executed populations disagree.",
+    "repair": "Production structure supplies the exact execution workspace to planning. Git-authored inventory and compiler ownership remain scope evidence, while programmatic callers retain their existing compiler-manifest behavior.",
+    "redControl": "A compiler-manifest-only b.ts entered the plan before repair and is excluded after repair.",
+    "focusedRun": "reports/runs/test/orbweaver-2278581-2026-09-22T03-48-51-771Z/test-report.json",
+    "realPolicyRun": "reports/runs/structure/orbweaver-2280480-2026-09-22T03-49-30-458Z/check-structure.json",
+    "population": {
+      "planned": 7527,
+      "executed": 7527
+    }
+  },
+  "verification": {
+    "fullTypecheck": {
+      "command": "pnpm typecheck",
+      "result": "PASS 13/13 native TypeScript programs"
+    },
+    "eslint": {
+      "command": "pnpm lint:eslint",
+      "result": "PASS across all 13 program buckets"
+    },
+    "biome": {
+      "command": "pnpm lint",
+      "result": "PASS 8159 files"
+    },
+    "focusedPlannerAndScope": {
+      "command": "pnpm exec vitest run tests/tooling/verify/lib/policy-plan.test.ts tests/tooling/verify/ops/gate-scope.suite.int.test.ts --pool=forks --maxWorkers=1",
+      "result": "PASS 55/55 tests"
+    },
+    "affectedInstruments": {
+      "command": "pnpm check:instrument-affected",
+      "result": "PASS 28 files, 488/488 tests",
+      "report": "reports/runs/test/orbweaver-2329436-2026-09-22T04-03-18-108Z/test-report.json"
+    },
+    "ledgerFreshness": {
+      "command": "pnpm check:ledgers-fresh",
+      "result": "PASS; caught-failure census 627 sites with 0 unproven and all derived ledgers fresh"
+    },
+    "structure": {
+      "command": "pnpm check:structure",
+      "result": "PASS; 347/347 final policies, 0 blocking, 0 alarms, 0 tool errors, 0 withheld",
+      "report": "reports/runs/structure/orbweaver-2352740-2026-09-22T04-09-59-903Z/check-structure.json",
+      "wallMs": 186452.9
+    },
+    "documentation": {
+      "result": "check:docs and check:doc-catalog passed before final receipt creation; final receipt/catalog rows are refreshed in the commit candidate"
+    }
+  },
+  "independentReviews": {
+    "structuralRepairs": "confirmed",
+    "policyCli": "confirmed after rerepair",
+    "biomeNaming": "confirmed after replacement-semantics repair"
+  },
+  "remainingDecisions": [],
+  "constraints": {
+    "pushed": false,
+    "merged": false,
+    "liveDatabaseMutated": false
+  },
+  "ownerDirection": {
+    "ruling": "Choose the complete structural solution even when it costs more work.",
+    "work": [
+      {
+        "id": "brand-inference-identity",
+        "direction": "Distinguish canonical Orb identities from foreign SDK identities structurally; brand canonical positions and give foreign identities an explicit foreign type instead of blanket branding or waivers."
+      },
+      {
+        "id": "inference-type-home",
+        "direction": "Sanction and enforce packages/inference/src/contract as the package-level contract type home."
+      },
+      {
+        "id": "inference-detach-seam",
+        "direction": "Build the injected supervised detach and tracing boundary, then widen occurrence and health coverage."
+      },
+      {
+        "id": "inference-test-mirror",
+        "direction": "Build an inference-specific test-presence topology with planted controls and complete source/test denominators."
+      },
+      {
+        "id": "package-layout-vs-inference-deps",
+        "direction": "Reconcile D15 with the intentional inference deps.ts boundary in law and enforcement; do not move the seam merely to satisfy the current gate shape."
+      },
+      {
+        "id": "showcase-default-membership",
+        "direction": "Include shipped showcase-plugins and default-content packages in generic authored/product coverage, allowing only policy-specific semantic exclusions with stated evidence."
+      }
+    ]
+  },
+  "remainingOwnerDirectedWork": [
+    "brand-inference-identity",
+    "inference-type-home",
+    "inference-detach-seam",
+    "inference-test-mirror",
+    "package-layout-vs-inference-deps",
+    "showcase-default-membership"
+  ]
+}

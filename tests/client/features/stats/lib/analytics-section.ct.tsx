@@ -2,6 +2,8 @@
 // the REAL section registry:
 //  · the N4/P4 CONTEXT band — the `defineContextTabs` `header` slot names the leaderboard-drilled character
 //    (avatar + name from `character.get`); nothing drilled shows the neutral "Analytics" identity.
+import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
+
 //  · the N1/N2 LIST band — the `listHeader` slot shows the "Analytics" title + the leaderboard census
 //    count, and (A2, read-only) exposes NO New action.
 
@@ -21,7 +23,7 @@ const DRILLED_CHARACTER = {
 
 // A minimal leaderboard census — the LIST-band count reads its length; the rows' other fields are inert
 // for the band (the surface below, not the band, renders them).
-function leaderboardRow(characterId: CharacterId, name: string): Record<string, unknown> {
+function leaderboardRow(characterId: CharacterId, name: string): TrpcWireOutput<"stats.leaderboard">["rows"][number] {
   return {
     characterId,
     name,
@@ -30,6 +32,7 @@ function leaderboardRow(characterId: CharacterId, name: string): Record<string, 
     assistantTurns: 1,
     swipes: 0,
     tokensOut: 5,
+    tokensOutProvenance: "measured",
     totalGenTimeMs: 50,
     reasoningRate: 0,
     firstChatAt: 1,
@@ -40,7 +43,7 @@ const LEADERBOARD_ROWS = [leaderboardRow(castId<CharacterId>("char_a"), "Aria"),
 
 /** The real CONTEXT host opens the Models tab by default. These are its honest fresh-library views: no
  * model buckets and a correctly shaped latency population with no recorded samples. */
-const EMPTY_CONTEXT_ROUTES: Readonly<Record<string, unknown>> = {
+const EMPTY_CONTEXT_ROUTES: TrpcRoutes<"stats.byModel" | "stats.latency"> = {
   "stats.byModel": [] satisfies ModelStatRow[],
   "stats.latency": {
     avgTtftMs: null,

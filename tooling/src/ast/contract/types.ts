@@ -1,6 +1,9 @@
 // The lens-fleet shapes of ast — every EXPORTED type of the pre-move monolith, one home
 // (no-inline-types: tool types live in contract/). Split from scripts/codemods/ast.ts (P4 of #393).
-import type { Node, SourceFile } from "ts-morph";
+import type { Node } from "ts-morph";
+import type { ColumnClass } from "./scan-types.ts";
+
+export type * from "./scan-types.ts";
 
 /** What ONE `buildLiveness` call is asked to produce beyond the liveness sets. `edges` turns on the
  *  DECLARATION-GRANULAR consumption map (`Liveness.consumers`) — off by default so the push-tier ratchet
@@ -118,11 +121,20 @@ export interface ColumnCandidate {
   readonly rawSql: boolean;
 }
 
-/** The whole audit for one scope: every column classified, plus the opaque-writer map the summary prints
- *  (returned WITH the candidates so the one expensive structural scan runs exactly once per invocation). */
+/** A table with production read evidence and no resolved production writer of any kind. */
+export interface ProducerlessTableCandidate {
+  readonly table: TableDef;
+  readonly anchor: Node;
+  readonly reads: readonly string[];
+}
+
+/** The whole audit for one scope: every column classified, table-level producerless candidates, and the
+ *  write maps the summary prints (returned together so the expensive structural scan runs once). */
 export interface ColumnAudit {
   readonly candidates: readonly ColumnCandidate[];
+  readonly producerlessTables: readonly ProducerlessTableCandidate[];
   readonly opaqueTables: ReadonlyMap<string, readonly string[]>;
+  readonly tableWrites: ReadonlyMap<string, readonly string[]>;
 }
 
 /** ONE declared contract field: its name, the declaration node, and the owner shape it belongs to. */
@@ -277,9 +289,10 @@ export interface ApiSurfaceEntry {
   readonly starSuppressed: boolean;
 }
 
-/** ONE drizzle column: its table (both spellings), its own two spellings, and the declaration node the
- *  `@column-ok` marker hangs on. */
+/** ONE drizzle column: its table's canonical declaration key and display spellings, its own two spellings,
+ *  and the declaration node the `@column-ok` marker hangs on. */
 export interface ColumnDef {
+  readonly tableKey: string;
   readonly tableVar: string;
   readonly sqlTable: string;
   readonly jsProp: string;
@@ -296,10 +309,13 @@ export interface TableDef {
   readonly columns: readonly ColumnDef[];
 }
 
-/** Where a table's writes land: per-column attributed write sites, plus the OPAQUE whole-row writer sites that
- *  make "no attributed write" mean UNKNOWN rather than "unwritten". */
+/** Where writes land: every resolved table-write site, per-column attributed sites, and the opaque whole-row
+ *  sites that make "no attributed write" mean UNKNOWN rather than "unwritten". */
 export interface WriteScan {
+  /** Keyed by {@link TableDef.key}, never the non-unique authored variable name. */
+  readonly perTable: Map<string, string[]>;
   readonly perColumn: Map<string, string[]>;
+  /** Keyed by {@link TableDef.key}; display names are never identities. */
   readonly opaqueTables: Map<string, string[]>;
 }
 
@@ -335,127 +351,3 @@ export interface WriteScan {
 // procedures / tables / registries / domains is a blind lens, not a clean one.
 /** Why a loaded source file is NOT in the scanned corpus. `out-of-filter` is the `--in` path filter: the
  *  file was walked but cannot contribute a hit (`dedupe` drops it), so it is skipped, never scanned. */
-const SKIP_REASONS = ["out-of-scope", "out-of-filter", "test-file", "declaration-file"] as const;
-export type SkipReason = (typeof SKIP_REASONS)[number];
-
-/** The epilogue as DATA — one stderr line, and the `--json` `meta` object, from the same record.
- *  `scanned`/`skipped` are null only for a pass-through verb whose corpus is not ours to count (the
- *  depcruise arm): a fabricated number would be exactly the lie this ledger exists to kill. */
-export interface ScanMeta {
-  readonly verb: string;
-  readonly scope: string;
-  readonly langs: Readonly<Record<string, number>>;
-  readonly scanned: number | null;
-  readonly skipped: number | null;
-  readonly skippedBy: Readonly<Record<SkipReason, number>>;
-  readonly matches: number;
-  readonly status: ScanStatus;
-}
-
-/** What files a verb's lens may look at: the scope, how it prints, and the verb's own exclusions. */
-export interface ScanSpec {
-  readonly scope: ScopeMatch;
-  readonly label: string;
-  readonly skip?: readonly SkipRule[];
-}
-
-/** The consumption arms a key can be marked alive by. `named` NAMES the member (a named/default import);
- *  `namespace` and `dynamic` mark a module's WHOLE surface without naming anything (the err-alive arms);
- *  `external` is a checked consumer outside the import graph. */
-const CONSUMPTION_ARMS = ["named", "namespace", "dynamic", "external"] as const;
-export type ConsumptionArm = (typeof CONSUMPTION_ARMS)[number];
-
-/** A production consumer that TypeScript imports cannot represent directly. Each fact is derived from
- *  checked source syntax at the real consumer, never from a marker or a symbol-name registry. */
-export interface ExternalConsumption {
-  readonly targetKey: string;
-  readonly consumerSite: string;
-  readonly consumerFile: string;
-  readonly consumerClass: "tooling";
-  readonly kind: "value" | "type";
-  readonly rootConsumerKey: string;
-}
-
-/** ONE `import * as <alias> from "…"` site: the importing file, the local alias, and the export NAMES the
- *  namespace exposes each origin key under (the spelling an `alias.<member>` access would have to use —
- *  it is the BARREL's name, which a renaming re-export hop can make differ from the origin's own). */
-export interface NamespaceSite {
-  readonly file: SourceFile;
-  readonly alias: string;
-  readonly binding: Node;
-  readonly exposed: ReadonlyMap<string, readonly string[]>;
-}
-
-export interface Liveness {
-  /** origin-keys reached by a NAMED import / namespace access / dynamic import outside tests —
-   *  the UNION of all product packages plus tool/script consumption (orphans/testonly key on this). */
-  usedProd: Set<string>;
-  /** the client-package slice of `usedProd` (importing file under `/packages/client/`). */
-  usedClientProd: Set<string>;
-  /** the exact server-package slice of `usedProd`. */
-  usedServerProd: Set<string>;
-  /** same, from TEST paths. */
-  usedTest: Set<string>;
-  /** files targeted by an `export *` clause somewhere — a candidate there may be reached by a
-   *  star-namespace consumer we can't cheaply name; suppress + count it for honesty. */
-  starTargets: Set<string>;
-  /** origin-key → the consumption ARMS that marked it (prod AND test importers alike — "no named import
-   *  reaches it ANYWHERE" is the swallowed question). Never consulted by a liveness verdict. */
-  arms: Map<string, Set<ConsumptionArm>>;
-  /** every `import * as` site in the workspace — the files `swallowed` re-scans for `alias.<member>`. */
-  namespaceSites: NamespaceSite[];
-  /** DECLARATION-GRANULAR consumption: origin-key → the keys of the declarations whose bodies hold a
-   *  consuming reference to it (plus the module-scope sentinel for a side-effect position). EMPTY unless
-   *  `buildLiveness` was asked for it — see the section below for why it is parallel AND opt-in. Never
-   *  consulted by a liveness verdict. */
-  consumers: Map<string, Set<string>>;
-  /** Checked consumers outside the ordinary TS import graph, normalized once for every coupled lens. */
-  externalConsumptions: readonly ExternalConsumption[];
-}
-
-export interface Scope {
-  prefix: string;
-  label: string;
-}
-
-/** ONE registry: the const's name, the file it lives in, and its row keys paired with the property nodes. */
-export interface RegistryDef {
-  readonly name: string;
-  readonly filePath: string;
-  readonly rows: readonly { readonly key: string; readonly node: Node }[];
-}
-
-const COLUMN_CLASSES = ["read-write", "write-only", "read-only", "neither", "provenance"] as const;
-export type ColumnClass = (typeof COLUMN_CLASSES)[number];
-
-export interface Flags {
-  in: string | null;
-  json: boolean;
-  max: number;
-  filesOnly: boolean;
-  public: boolean;
-  all: boolean;
-  near: number | null;
-}
-
-export interface Hit {
-  file: string;
-  line: number;
-  kind: string;
-  text: string;
-}
-
-/** complete = every match was displayed · partial = the display was capped (raise `--max`) · error = the
- *  run is NOT a verdict (the scope entered nothing, or a tool broke). Mirrors the verify exit contract. */
-const SCAN_STATUSES = ["complete", "partial", "error"] as const;
-export type ScanStatus = (typeof SCAN_STATUSES)[number];
-
-/** A path SUBSTRING (or several, OR'd) every candidate file must contain. `""` / `[]` = the whole corpus. */
-export type ScopeMatch = string | readonly string[];
-
-/** ONE exclusion a verb applies to its candidate corpus: the reason it is skipped and the predicate that
- *  decides it. Mirror the verb's OWN filter here — the point is that the count and the lens agree. */
-export interface SkipRule {
-  readonly reason: SkipReason;
-  readonly test: (filePath: string) => boolean;
-}

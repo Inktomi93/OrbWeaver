@@ -7,7 +7,7 @@
 
 import { personas } from "@orb/db";
 import type { AssetId, CharacterId, Handle, PersonaId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { PersonaCharacterNotFoundError, PersonaNotFoundError } from "../../../../../packages/server/src/domain/persona/contract/errors.ts";
 import {
@@ -15,6 +15,7 @@ import {
   ensureCharacterOwned,
   ensurePersonaOwned,
   loadOwnedPersonaWithAvatar,
+  loadPersonasForOwners,
 } from "../../../../../packages/server/src/domain/persona/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -83,6 +84,35 @@ describe("metadata read seam (detailOf)", () => {
       throw new Error("expected the seeded row to load");
     }
     expect(detailOf(row).metadata?.descriptionPosition).toBe("none");
+  });
+
+  test("degrades malformed and wrong-prefix sourceCharacterId on both persona read paths", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const malformed = await seedPersonaRow(db, owner, {
+      id: "persona_bad_source",
+      metadata: { sourceCharacterId: "character_not-a-typeid" },
+    });
+    const wrongPrefix = await seedPersonaRow(db, owner, {
+      id: "persona_wrong_source",
+      metadata: { sourceCharacterId: mintTypeId(ID_PREFIX.chat) },
+    });
+
+    for (const id of [malformed, wrongPrefix]) {
+      const row = await loadOwnedPersonaWithAvatar(db, owner, id);
+      if (row === undefined) {
+        throw new Error("expected the seeded row to load");
+      }
+      expect(detailOf(row).metadata).toBeNull();
+    }
+
+    const listed = await loadPersonasForOwners(db, [malformed, wrongPrefix], [owner]);
+    expect(new Map(listed.map((persona) => [persona.id, persona.metadata]))).toEqual(
+      new Map([
+        [malformed, null],
+        [wrongPrefix, null],
+      ]),
+    );
   });
 });
 

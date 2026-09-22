@@ -19,7 +19,7 @@ import { resolveMentions, selectSpeakers } from "../engine/select-speakers.ts";
 import { smartArbitrate } from "../engine/smart-arbitrate.ts";
 import { resolveTurnIdentity } from "../engine/turn-identity.ts";
 
-/** Resolve the D19 turn-identity triple (`triggeredBy`/`runAsUserId`) from the ids the verb holds. PURE. */
+/** Resolve the D19 turn-identity triple (`triggeredBy`/`funderUserId`/`runAsUserId`) from the ids the verb holds. PURE. */
 export function resolveTurnIdentityVia(...args: Parameters<typeof resolveTurnIdentity>): ReturnType<typeof resolveTurnIdentity> {
   return resolveTurnIdentity(...args);
 }

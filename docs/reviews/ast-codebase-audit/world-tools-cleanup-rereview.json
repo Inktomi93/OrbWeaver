@@ -4,10 +4,7 @@
     "worktree": "/home/inktomi/.codex/worktrees/world-aware-tools/orbweaver",
     "reviewedCommit": "0834e6bb2c4853474efc577e4557e07c96a108df",
     "liveHead": "f734f9f27347de2e0c5d2c3fac7dd190245c4777",
-    "followUpFiles": [
-      "tests/client/features/chat/lib/chats-section.ct.tsx",
-      "tests/server/domain/automation/verbs/run-rule-now.int.test.ts"
-    ]
+    "followUpFiles": ["tests/client/features/chat/lib/chats-section.ct.tsx", "tests/server/domain/automation/verbs/run-rule-now.int.test.ts"]
   },
   "result": "Commit 0834e6bb2 correctly removes the seven unread view fields and loadTurnForClassify. The first live-tree pass found two additional stale FireView automationDepth mirrors; the orchestrator removed both during this review. The resulting live tree has no confirmed stale production consumer or stale fixture member for the retired surface.",
   "findingsResolvedDuringReview": [

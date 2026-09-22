@@ -18,24 +18,29 @@
 // carried near-equal visual weight. (The stickler report calls that CTA "Summon to your library" — the
 // label was renamed before this lane; "Add to library" is what the card-atlas seed registers today.)
 
+import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { HOST_BAND, openContextSections } from "../../../../support/node/open-context-sections.ts";
 import { REGEX_READS_EMPTY } from "../../../../support/node/regex-reads-empty.ts";
+import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { userSettingsView } from "../../../../support/node/user-settings-view.ts";
 import { ExtensionsPageStory, PluginChatSettingsSectionStory, PluginDialogBodyStory } from "../_ct-stories.tsx";
+
+type PluginListRow = TrpcWireOutput<"plugin.list">[number];
+type PluginSurfaceRow = TrpcWireOutput<"plugin.listSurfaces">[number];
 
 const A_PAST_INSTANT = 1_760_000_000_000;
 const ATLAS_ID = castId<PluginId>("plugin_ct_affinity000001");
 const DIALOG_ID = castId<PluginId>("plugin_ct_dialog00000001");
 const PLUGIN_NAME = "Card Atlas";
-const USER_VIEWER = { userId: "user_ct_plugin", handle: "plugin_user", globalRole: "user" };
+const USER_VIEWER = { userId: "user_ct_plugin", handle: "plugin_user", globalRole: "user" } satisfies TrpcWireOutput<"sessions.me">;
 
 /** One installed row as `plugin.list` projects it — the join the attribution shell reads its name from. */
-function pluginRow(id: PluginId, name: string): Record<string, unknown> {
+function pluginRow(id: PluginId, name: string): PluginListRow {
   return {
     id,
     slug: "card-atlas",
@@ -43,6 +48,8 @@ function pluginRow(id: PluginId, name: string): Record<string, unknown> {
     version: "1.0.0",
     status: "enabled",
     origin: "upload",
+    sourceUrl: null,
+    updateSource: null,
     declaredCapabilities: ["ui.surface"],
     grantedCapabilities: ["ui.surface"],
     netHosts: null,
@@ -56,13 +63,19 @@ function pluginRow(id: PluginId, name: string): Record<string, unknown> {
 }
 
 /** One static `listSurfaces` row (the serializable meta + pluginId; the `onAction` handle stays server-side). */
-function surfaceRow(row: { pluginId: PluginId; anchor: string; id: string; title: string; spec: unknown }): Record<string, unknown> {
+function surfaceRow(row: {
+  pluginId: PluginId;
+  anchor: PluginSurfaceRow["anchor"];
+  id: string;
+  title: string;
+  spec: PluginSurfaceRow["spec"];
+}): PluginSurfaceRow {
   return { pluginId: row.pluginId, id: row.id, anchor: row.anchor, title: row.title, tier: "static", spec: row.spec };
 }
 
 /** The card-atlas detail stage, verbatim in shape (stickler F3): the decision CTA, the way back, and — the
  *  thing the ruling had to bound — a SECOND button that also claims the primary weight. */
-const DETAIL_SPEC = {
+const DETAIL_SPEC: NonNullable<PluginSurfaceRow["spec"]> = {
   kind: "stack",
   gap: "block",
   children: [
@@ -86,7 +99,7 @@ function warnings(page: Page): string[] {
 }
 
 /** The reads every plugin surface mount makes, whatever anchor it hangs at. */
-const SURFACE_ROUTES: Readonly<Record<string, unknown>> = {
+const SURFACE_ROUTES: TrpcRoutes<"plugin.getSurfaceState" | "plugin.getLog" | "assets.resolveBlobRefs" | "sessions.me"> = {
   "plugin.getSurfaceState": () => null,
   "plugin.getLog": () => [],
   "assets.resolveBlobRefs": () => [],
@@ -96,8 +109,18 @@ const SURFACE_ROUTES: Readonly<Record<string, unknown>> = {
 /** The "This chat" tab's own sections all suspend on reads of their own; a section left unfed renders its
  *  error arm and the composition contract silently stops being covered (#629). The proven feed, copied from
  *  chat-anchors.ct.tsx rather than re-derived. */
-const TAB_ROUTES: Readonly<Record<string, unknown>> = {
-  "chat.getGroupConfig": () => ({ toolRecurseLimit: 7, participants: [] }),
+const TAB_ROUTES: TrpcRoutes<
+  | "chat.getGroupConfig"
+  | "chat.setRoomOverrides"
+  | "databank.listActiveForChat"
+  | "worldInfo.listForChat"
+  | "chat.listChatInjections"
+  | "chat.getUserMacroPicks"
+  | "chat.getVariablePicks"
+  | "settings.getUserSettings"
+  | "chat.getChat"
+> = {
+  "chat.getGroupConfig": () => DEFAULT_GROUP_CONFIG,
   "chat.setRoomOverrides": () => ({}),
   "databank.listActiveForChat": () => [],
   "worldInfo.listForChat": () => [],

@@ -1,0 +1,68 @@
+{
+  "task": "Independent final review of #2557",
+  "commits": ["b7d5a448c", "3e5644415"],
+  "verdict": "CONFIRMED",
+  "issue": {
+    "number": 2557,
+    "title": "Sanitize Git fixture environments under hooks"
+  },
+  "findings": [],
+  "implementation": {
+    "shared_door": "tooling/src/_shared/git-fixture.ts",
+    "environment": "fixtureGitEnvironment removes every inherited GIT_* key through repoGitEnvironment, then installs GIT_CONFIG_GLOBAL=/dev/null and GIT_CONFIG_NOSYSTEM=1 while retaining ordinary variables.",
+    "command_posture": "runFixtureGit prepends -c core.hooksPath=/dev/null and -c core.fsmonitor=false to every fixture Git command; execFixtureGit is its throwing setup wrapper.",
+    "callers": "All ordinary temporary-repository initializers under tooling/tests found by the structural census route directly or through a local wrapper to runFixtureGit/execFixtureGit.",
+    "remaining_raw_initializer": "tests/tooling/verify/lib/repo-paths.test.ts:53 only; payloadRan deliberately bypasses one or both protections to prove repository fsmonitor and host filter payloads execute in the control arms."
+  },
+  "controls": {
+    "redirects": {
+      "GIT_DIR": "tests/tooling/_shared/git-fixture.test.ts:22",
+      "GIT_WORK_TREE": "tests/tooling/_shared/git-fixture.test.ts:23",
+      "GIT_INDEX_FILE": ["tests/tooling/_shared/git-fixture.test.ts:24", "tests/tooling/doc-catalog/ops/attest.int.test.ts:179-190"],
+      "GIT_COMMON_DIR": "tests/tooling/doc-catalog/ops/attest.int.test.ts:193-204",
+      "result": "fixture repositories initialize locally and sentinel config/index bytes remain unchanged"
+    },
+    "config_isolation": "tests/tooling/verify/lib/repo-paths.test.ts plants a live host-global attributes/filter command; the positive control executes it and fixtureGitEnvironment blocks it.",
+    "fsmonitor": "tests/tooling/verify/lib/repo-paths.test.ts plants a live repository core.fsmonitor command; the positive control executes it and FIXTURE_GIT_CONFIG_ARGS blocks it.",
+    "hooks": "Adversarial /tmp control installed an executable failing pre-commit hook after fixture init; add+commit through execFixtureGit succeeded and the hook sentinel remained absent.",
+    "ordinary_env": "Existing git-fixture test retains ORB_FIXTURE_ENV_CONTROL; independent /tmp control retained ORB_REVIEW_KEEP while stripping GIT_DIR/GIT_COMMON_DIR."
+  },
+  "census": {
+    "ast_grep": {
+      "languages": {
+        "ts": {
+          "files_scanned": 3790,
+          "init_array_matches": 55,
+          "files_with_matches": 37
+        },
+        "tsx": {
+          "files_scanned": 598,
+          "init_array_matches": 0
+        }
+      },
+      "raw_initializer_pattern": "$F(\"git\", [$$$A, \"init\", $$$B], $$$C)",
+      "raw_matches": 1,
+      "raw_match": "tests/tooling/verify/lib/repo-paths.test.ts:53",
+      "positive_controls": "The raw initializer pattern matched purpose-built TS and TSX controls in /tmp."
+    },
+    "rg": {
+      "raw_command_regex": "execFileSync/spawnSync/runNicedSync/spawnNiced with literal git and init",
+      "matches": 1,
+      "match": "tests/tooling/verify/lib/repo-paths.test.ts:53"
+    }
+  },
+  "verification": [
+    {
+      "command": "pnpm test:scoped tests/tooling/_shared/git-fixture.test.ts tests/tooling/verify/lib/repo-paths.test.ts tests/tooling/doc-catalog/ops/attest.int.test.ts",
+      "result": "PASS: 3 files, 16 tests"
+    },
+    {
+      "command": "node --experimental-strip-types /tmp/world-tools-git-hook-control.ts",
+      "result": "PASS: hook/config/env control PASS"
+    }
+  ],
+  "repository_mutation": "none",
+  "notes": [
+    "An attempted `pnpm exec tsx` could not run because tsx is not installed; it was not treated as evidence. The same /tmp control was then run successfully with Node's TypeScript stripping."
+  ]
+}

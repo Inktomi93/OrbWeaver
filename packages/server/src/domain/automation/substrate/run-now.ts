@@ -8,8 +8,8 @@
 // fire runs, minus the two WHETHER-TO-FIRE-BY-ITSELF gates (the fire-rate cap and the CEL predicate) and
 // minus nothing else. `engine/dispatch.ts::runGates` states that line, why each skip is load-bearing rather
 // than convenient, and what stays: the cascade-depth cap, the author's standing host authority, and every
-// belt inside the executed arm's own pipeline (D17 by-proxy consent, the turn engine's per-member budget,
-// imagery's gates). The fire row carries `runNow` + the invoking host, so the log never reads a forced run
+// belt inside the executed arm's own pipeline (including imagery's gates). The room's host funds any turn the
+// arm starts. The fire row carries `runNow` + the invoking host, so the log never reads a forced run
 // as a condition-met one.
 //
 // THE FACT IS SYNTHESIZED from the rule's own trigger (`substrate/dry-run.ts::synthFact` — the same

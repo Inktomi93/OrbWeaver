@@ -1,0 +1,49 @@
+{
+  "workItem": 2537,
+  "outcome": "Replaced the credentials writer's boolean providerKnown plus castId<ProviderId> seam with a findProvider operation that returns the registered ProviderDef. The writer now uses the registry row's branded id directly for persistence and credential AAD.",
+  "changedPaths": [
+    "packages/server/src/domain/credentials/contract/service.ts",
+    "packages/server/src/domain/credentials/verbs/add.ts",
+    "packages/server/src/entry/compose/services.ts",
+    "tests/server/domain/credentials/_support.ts",
+    "tests/server/domain/credentials/verbs/add.int.test.ts"
+  ],
+  "behavior": {
+    "preserved": "Unknown provider requests still throw CREDENTIALS_OP_CODES.providerUnknown before encryption or persistence.",
+    "control": "The focused add test supplies caller text distinct from the injected registered row and asserts the persisted view uses the returned row id. It fails if the writer resumes branding caller text, while the CredentialContext shape fails compilation if findProvider regresses to a boolean predicate."
+  },
+  "structuralEvidence": {
+    "command": "pnpm exec ast-grep run --lang ts --pattern 'castId<ProviderId>($A)' packages --inspect=summary",
+    "result": "0 matches, 2631 TypeScript files scanned, 0 skipped",
+    "textCorroboration": "rg found no castId<ProviderId> or providerKnown in packages/server/src",
+    "positiveControl": "ast-grep registry.get call pattern returned many production matches including packages/server/src/entry/compose/services.ts"
+  },
+  "verification": [
+    {
+      "command": "pnpm test:scoped tests/server/domain/credentials/verbs/add.int.test.ts tests/server/entry/compose/services.test.ts",
+      "result": "PASS: 2 files, 29 tests"
+    },
+    {
+      "command": "pnpm exec biome check <five rerepair paths> --diagnostic-level=error",
+      "result": "PASS: 5 files"
+    },
+    {
+      "command": "pnpm exec eslint <five rerepair paths>",
+      "result": "PASS: 5 files"
+    },
+    {
+      "command": "pnpm typecheck --config packages/server/tsconfig.json --config tsconfig.tests-iso.json",
+      "result": "PARTIAL: tsconfig.tests-iso.json passed; packages/server/tsconfig.json failed only at concurrent unrelated packages/server/src/domain/chat/verbs/invites.ts:229 (Handle | null not assignable to Handle)"
+    },
+    {
+      "command": "git diff --check -- <five rerepair paths>",
+      "result": "PASS"
+    }
+  ],
+  "updatedArtifacts": ["/tmp/world-tools-brand-inference-identity-files.txt", "/tmp/world-tools-brand-inference-identity-fix.json"],
+  "blockers": [
+    "A concurrent unrelated chat/invites edit prevents a green packages/server native typecheck; the isolated test program and all focused tests pass."
+  ],
+  "commitCreated": false,
+  "pushPerformed": false
+}

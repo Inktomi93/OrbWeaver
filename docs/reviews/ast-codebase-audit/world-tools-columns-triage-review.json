@@ -32,10 +32,7 @@
       "report_category": "scanner_blind_spot",
       "corrected_category": "scanner_blind_spot",
       "correction": "The classification is correct but the producer account is not. Production does not call `.values(speakerRows)`. It writes `digest_id` with Drizzle INSERT ... SELECT, selecting `chatDigests.id` and the aliased character id once per speaker. This row belongs to the same insert-select blind-spot class as the embed-space-state and refinery rows.",
-      "evidence": [
-        "packages/server/src/domain/embeddings/persistence/queries.ts:388-401",
-        "packages/db/src/schema/embeddings.ts:394-417"
-      ],
+      "evidence": ["packages/server/src/domain/embeddings/persistence/queries.ts:388-401", "packages/db/src/schema/embeddings.ts:394-417"],
       "independent_search": "rg found the sole production insert at queries.ts:394 followed by `.select(...)`; ast-grep independently found the direct digestId consumers in embeddings, chat memory, search display/scope, and handoff-restamp."
     }
   ],

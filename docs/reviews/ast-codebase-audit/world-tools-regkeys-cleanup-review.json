@@ -39,11 +39,7 @@
   "matrixEvidence": {
     "finalRegkeysFindings": 740,
     "baselineFindings": 743,
-    "removedExactly": [
-      "CHAT_OP_CODES.compactionEmpty stale finding",
-      "CREDENTIALS_OP_CODES.metadataInvalid",
-      "SETTINGS_OP_CODES.incoherentRoleModel"
-    ],
+    "removedExactly": ["CHAT_OP_CODES.compactionEmpty stale finding", "CREDENTIALS_OP_CODES.metadataInvalid", "SETTINGS_OP_CODES.incoherentRoleModel"],
     "added": [],
     "source": "/tmp/world-tools-candidate-lens-matrix.json"
   },

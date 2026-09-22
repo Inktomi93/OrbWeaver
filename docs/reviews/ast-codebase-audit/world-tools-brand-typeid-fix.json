@@ -1,0 +1,307 @@
+{
+  "schemaVersion": 1,
+  "workItem": 2536,
+  "title": "Require prefix-valid TypeID schemas at trust boundaries",
+  "status": "applied-and-scoped-verified; gate promotion remains orchestrator-owned",
+  "head": "12b865fa50b34fec23d54cebbc8a73d0348b80c9",
+  "baseline": {
+    "source": "docs/reviews/ast-codebase-audit/world-tools-brand-boundary-audit.json#BB-001",
+    "checkerResolvedBrandedIdCalls": 338,
+    "typeIdMisuse": 307,
+    "permittedPrefixless": 31
+  },
+  "tranche": {
+    "name": "contracts trust-boundary package",
+    "migratedTypeIdCalls": 17,
+    "files": [
+      "packages/contracts/src/character/index.ts",
+      "packages/contracts/src/chat/assemble.ts",
+      "packages/contracts/src/chat/messages.ts",
+      "packages/contracts/src/chat/roster.ts",
+      "packages/contracts/src/inference/connection.ts",
+      "packages/contracts/src/refinery/index.ts",
+      "packages/contracts/src/rpg/inputs.ts",
+      "packages/contracts/src/stream/index.ts"
+    ],
+    "behavior": "TypeID fields now use typeIdSchema with their canonical ID_PREFIX; prefixless UserId, Handle, ModelId, RpgQuestId, and SocketId sites remain on brandedId.",
+    "migratedSites": [
+      {
+        "path": "packages/contracts/src/character/index.ts",
+        "type": "CharacterId",
+        "count": 2
+      },
+      {
+        "path": "packages/contracts/src/chat/assemble.ts",
+        "type": "ChatInjectionId",
+        "count": 1
+      },
+      {
+        "path": "packages/contracts/src/chat/messages.ts",
+        "type": "MessageId",
+        "count": 1
+      },
+      {
+        "path": "packages/contracts/src/chat/roster.ts",
+        "type": "ChatInviteId",
+        "count": 1
+      },
+      {
+        "path": "packages/contracts/src/inference/connection.ts",
+        "type": "UserCredentialId",
+        "count": 1
+      },
+      {
+        "path": "packages/contracts/src/refinery/index.ts",
+        "type": "RefinerySchemaId",
+        "count": 2
+      },
+      {
+        "path": "packages/contracts/src/rpg/inputs.ts",
+        "type": "ChatId",
+        "count": 1
+      },
+      {
+        "path": "packages/contracts/src/rpg/inputs.ts",
+        "type": "PresetId",
+        "count": 1
+      },
+      {
+        "path": "packages/contracts/src/rpg/inputs.ts",
+        "type": "RpgJournalId",
+        "count": 2
+      },
+      {
+        "path": "packages/contracts/src/rpg/inputs.ts",
+        "type": "RpgCheckpointId",
+        "count": 1
+      },
+      {
+        "path": "packages/contracts/src/stream/index.ts",
+        "type": "ChatId",
+        "count": 3
+      },
+      {
+        "path": "packages/contracts/src/stream/index.ts",
+        "type": "WorkloadId",
+        "count": 1
+      }
+    ]
+  },
+  "enforcement": {
+    "policy": "typeid-prefix-boundary",
+    "severity": "warning",
+    "workItem": 2536,
+    "architecture": "derive TypeIdOf literal prefixes from the canonical kit ids home; resolve brandedId by callable origin and target brands by the checker; refuse unresolved helper doors and an empty prefix vocabulary; retain prefixless Branded aliases.",
+    "promotionCondition": "remainingTypeIdCalls reaches zero; change severity to error and remove workItem debt authority.",
+    "sharedReaderChanges": ["deriveCanonicalTypeIdPrefixes", "canonicalTypeIdPrefix", "barrel-candidate widening in createKitIdCallMatcher"]
+  },
+  "remaining": {
+    "typeIdCalls": 0,
+    "permittedPrefixlessCalls": 31,
+    "totalBrandedIdCalls": 31,
+    "closedEquation": "338 original = 17 contracts tranche + 290 Code Mod Kit tranche + 31 intentionally prefixless"
+  },
+  "corroboration": {
+    "checker": "final Code Mod Kit semantic pass: 31 canonical brandedId calls, all preserved prefixless; 0 TypeID replacements; 0 refusals",
+    "astGrep": {
+      "tsScannedFiles": 2631,
+      "tsxScannedFiles": 806,
+      "skippedFiles": 0,
+      "tsMatches": 31,
+      "tsxMatches": 0,
+      "remainingTypes": ["UserId", "Handle", "ExternalId", "SocketId", "ModelId", "CharacterHandle", "RpgQuestId"],
+      "outputs": ["/tmp/world-tools-brand-typeid-ast-ts.jsonl", "/tmp/world-tools-brand-typeid-ast-tsx.jsonl"]
+    },
+    "rg": {
+      "matches": 33,
+      "explanation": "31 call sites plus the brandedId helper declaration and one comment",
+      "output": "/tmp/world-tools-brand-typeid-rg.txt"
+    }
+  },
+  "verification": {
+    "baselineNativePrograms": {
+      "command": "pnpm typecheck --config tsconfig.json --config tsconfig.tests-dom.json",
+      "result": "2/2 pass after fixture repair"
+    },
+    "affectedNativeProgramsAfterApply": {
+      "command": "pnpm typecheck --config packages/server/tsconfig.json --config tsconfig.json",
+      "result": "2/2 pass"
+    },
+    "fixtureRuntime": {
+      "command": "pnpm test:scoped tests/inference/backends/anthropic-messages/chat.test.ts tests/inference/backends/openai-compat/chat.test.ts tests/server/domain/credentials/verbs/resolve.int.test.ts",
+      "result": "3 files, 45 tests pass",
+      "report": "reports/runs/test/orbweaver-3086793-2026-09-21T13-16-50-869Z/test-report.json"
+    },
+    "fixtureCt": {
+      "command": "pnpm test:ct tests/client/features/chat/components/message-metadata-row.ct.tsx",
+      "result": "18 pass"
+    },
+    "typeIdFocusedRuntime": {
+      "command": "pnpm test:scoped tests/tooling/codemod/typeid-prefix-boundaries.int.test.ts tests/tooling/verify/gates/id-brand-flow.suite.test.ts tests/kit/ids/index.test.ts",
+      "result": "3 files, 11 tests pass",
+      "report": "reports/runs/test/orbweaver-3140384-2026-09-21T13-31-54-762Z/test-report.json"
+    },
+    "typeIdFocusedTypes": {
+      "command": "pnpm test:types tests/kit/ids/index.test-d.ts",
+      "result": "1 file, 7 tests pass, no type errors"
+    },
+    "biome": "40 current changed TS/TSX files, including all 34 owned paths, pass after formatter repaired 5 layout-only router changes",
+    "eslint": "same 40-file invocation, including all 34 owned paths, pass",
+    "diffCheck": "pass"
+  },
+  "constraints": {
+    "fullCorpusBrandGateRun": "not run by instruction",
+    "staged": false,
+    "commit": false,
+    "push": false,
+    "concurrentChangesPreserved": true
+  },
+  "remainingPlan": [
+    "At the coordinated barrier, run the integrated typeid-prefix-boundary policy and promote it from warning to error/remove workItem 2536 debt authority if its full-tree receipt is clean."
+  ],
+  "codeModKit": {
+    "status": "implemented, applied once, and idempotence-proven",
+    "entry": "scripts/codemods/typeid-prefix-boundaries.ts",
+    "design": [
+      "runCodemod dry-run default; one all-or-nothing stale-node-safe replacement plan",
+      "native compiler-world discovery via ctx.semantic()",
+      "canonical brandedId identity resolved structurally through aliases and project barrels",
+      "TypeIdOf literal brands mapped to ID_PREFIX members derived from packages/kit/src/ids/index.ts",
+      "prefixless canonical brands preserved",
+      "unreadable origins, ambiguous or non-literal brands, incomplete prefix maps, and semantic/mutable span mismatch refuse before planning",
+      "addNamedImport/removeNamedImportBinding perform idempotent import surgery; removal keys by module, exported name, and exact local binding, and requires every reference to that binding to be consumed by a replacement"
+    ],
+    "files": [
+      "scripts/codemods/typeid-prefix-boundaries.ts",
+      "tests/tooling/codemod/typeid-prefix-boundaries.int.test.ts",
+      "tooling/src/codemod/index.ts",
+      "tooling/src/codemod/lib/imports.ts"
+    ],
+    "dryRun": {
+      "canonicalBrandedIdCalls": 321,
+      "typeIdReplacements": 290,
+      "permittedPrefixless": 31,
+      "refusals": 0,
+      "diagnostics": 0
+    },
+    "verification": {
+      "focusedTests": {
+        "command": "pnpm test:scoped tests/tooling/codemod/typeid-prefix-boundaries.int.test.ts tests/tooling/codemod/lib/imports.int.test.ts",
+        "files": 2,
+        "tests": 15,
+        "status": "pass",
+        "report": "reports/runs/test/orbweaver-3235927-2026-09-21T13-55-19-084Z/test-report.json"
+      },
+      "covered": [
+        "renamed helper and type through a project re-export barrel",
+        "prefixless preservation",
+        "value and separate type-only import cleanup",
+        "second-run idempotence",
+        "local same-named helper exclusion",
+        "unreadable helper refusal with no writes",
+        "ambiguous TypeID union refusal with no writes",
+        "separately aliased imports of one canonical TypeID: exhausted migrated binding removed, live binding preserved, zero post-emit diagnostics"
+      ],
+      "biome": {
+        "command": "pnpm biome check scripts/codemods/typeid-prefix-boundaries.ts tests/tooling/codemod/typeid-prefix-boundaries.int.test.ts tooling/src/codemod/index.ts tooling/src/codemod/lib/imports.ts",
+        "files": 4,
+        "status": "pass"
+      },
+      "eslint": {
+        "command": "pnpm eslint scripts/codemods/typeid-prefix-boundaries.ts tests/tooling/codemod/typeid-prefix-boundaries.int.test.ts tooling/src/codemod/index.ts tooling/src/codemod/lib/imports.ts",
+        "files": 4,
+        "status": "pass"
+      },
+      "toolingTypecheck": {
+        "command": "pnpm typecheck --config tooling/tsconfig.json",
+        "result": "1/1 pass"
+      },
+      "rootTypecheckAfterOwnFix": "blocked by three concurrent #2537 fixture errors; no #2536/Code Mod Kit file reported",
+      "diffCheck": "pass"
+    },
+    "apply": {
+      "filesWritten": 26,
+      "typeIdReplacements": 290,
+      "permittedPrefixless": 31,
+      "refusals": 0,
+      "output": "/tmp/world-tools-brand-typeid-apply.txt",
+      "sha256": "9b72f7d70a1265e71d430bc775d0bada9745f4f50f1e18747e485b9ce24d0580"
+    },
+    "idempotence": {
+      "canonicalBrandedIdCalls": 31,
+      "pendingReplacements": 0,
+      "pendingFiles": 0,
+      "permittedPrefixless": 31,
+      "refusals": 0,
+      "diagnostics": 0,
+      "output": "/tmp/world-tools-brand-typeid-idempotence-final.txt",
+      "sha256": "99e6ee17d0c7375d4f2cc6f274011a66772610cfec4ae12f86278ebc6204ccdf",
+      "lastVerified": "2026-09-21T13:52:00Z",
+      "command": "pnpm codemod:run scripts/codemods/typeid-prefix-boundaries.ts"
+    },
+    "importBindingRerepair": {
+      "defect": "module-plus-exported-name cleanup let one exhausted alias delete a second alias of the same export that still had live references",
+      "red": {
+        "command": "pnpm test:scoped tests/tooling/codemod/typeid-prefix-boundaries.int.test.ts",
+        "result": "1 failed, 4 passed; apply refused after broad removal broke the surviving alias",
+        "report": "reports/runs/test/orbweaver-3208133-2026-09-21T13-48-25-657Z/test-report.json"
+      },
+      "repair": "removeNamedImportBinding targets module specifier, exported name, and local binding name; removableImports returns exact exhausted bindings",
+      "green": {
+        "result": "2 focused files, 15/15 tests pass; transformed alias fixture reports 0 diagnostics",
+        "report": "reports/runs/test/orbweaver-3235927-2026-09-21T13-55-19-084Z/test-report.json"
+      },
+      "repositoryPreview": "31 canonical brandedId calls = 0 pending TypeID replacements + 31 preserved prefixless brands; 0 refusals; no files touched",
+      "productionSitesChangedByRerepair": 0
+    }
+  },
+  "migration": {
+    "before": {
+      "canonicalBrandedIdCalls": 321,
+      "typeIdReplacements": 290,
+      "permittedPrefixless": 31,
+      "refusals": 0,
+      "diagnostics": 0
+    },
+    "apply": {
+      "filesWritten": 26,
+      "typeIdReplacements": 290,
+      "permittedPrefixless": 31,
+      "refusals": 0,
+      "output": "/tmp/world-tools-brand-typeid-apply.txt",
+      "sha256": "9b72f7d70a1265e71d430bc775d0bada9745f4f50f1e18747e485b9ce24d0580"
+    },
+    "after": {
+      "canonicalBrandedIdCalls": 31,
+      "pendingReplacements": 0,
+      "pendingFiles": 0,
+      "permittedPrefixless": 31,
+      "refusals": 0,
+      "diagnostics": 0,
+      "output": "/tmp/world-tools-brand-typeid-idempotence-final.txt",
+      "sha256": "99e6ee17d0c7375d4f2cc6f274011a66772610cfec4ae12f86278ebc6204ccdf"
+    },
+    "preview": {
+      "output": "/tmp/world-tools-brand-typeid-preview.txt",
+      "sha256": "c012a78e67f06ac71be7da457a6f352e847c87f3895d8fa30cc14b3fc1a078cf"
+    },
+    "changedPathManifest": "/tmp/world-tools-brand-typeid-changed-paths.json"
+  },
+  "baselineFixtureRepairs": {
+    "diagnosticsCleared": 8,
+    "files": [
+      "tests/inference/backends/anthropic-messages/chat.test.ts",
+      "tests/inference/backends/openai-compat/chat.test.ts",
+      "tests/server/domain/credentials/verbs/resolve.int.test.ts",
+      "tests/client/features/chat/_ct-stories.tsx",
+      "tests/client/features/chat/components/message-metadata-row.ct.tsx"
+    ],
+    "behavior": [
+      "backend request builders preserve the ChatDeltaSubscription discriminated union",
+      "retired credential metadata fixture carries the canonical auth discriminator",
+      "client CT ModelId and ProviderId fixtures use shared parsing helpers"
+    ],
+    "baselineOutput": "/tmp/world-tools-brand-typeid-baseline-typecheck.txt",
+    "baselineSha256": "bcb3efecfea7f0b636ac7ecbe13e3c945c0390468ba7051c492b78ce59526d0e"
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "workItem": 2536,
+  "title": "Code Mod Kit TypeID alias-binding import cleanup repair",
+  "status": "repaired-and-scoped-verified",
+  "head": "12b865fa50b34fec23d54cebbc8a73d0348b80c9",
+  "defect": {
+    "failure": "The migration keyed removable imports by module specifier plus exported name. removeNamedImport then removed every alias of that export, including a separately aliased binding with surviving references.",
+    "failureScenario": "Two imports of canonical ChatId use local names MigratedChatId and SurvivingChatId. brandedId<MigratedChatId>() is migrated while export type Keep = SurvivingChatId remains. The old cleanup removed both import specifiers and broke Keep."
+  },
+  "repair": {
+    "architecture": "Code Mod Kit now exposes removeNamedImportBinding, which targets the module specifier, exported name, and exact local binding name. The TypeID codemod returns one binding-specific removal only when every reference to that local binding is inside a replaced call.",
+    "changedFiles": [
+      "scripts/codemods/typeid-prefix-boundaries.ts",
+      "tests/tooling/codemod/typeid-prefix-boundaries.int.test.ts",
+      "tooling/src/codemod/index.ts",
+      "tooling/src/codemod/lib/imports.ts"
+    ],
+    "productionSitesChanged": 0,
+    "fileSha256": {
+      "scripts/codemods/typeid-prefix-boundaries.ts": "e20b22c8850b95439489e791d1bc9c4fdc7b38cda08b24c04c32b8a92d4e00aa",
+      "tests/tooling/codemod/typeid-prefix-boundaries.int.test.ts": "4309a01aa633a7b5cd2cab7d4890e4a09e8b833869ee490e17395900f4d599e9",
+      "tooling/src/codemod/index.ts": "7453d72a4073ef610259a05931a917bd24383ad3cf0a23b6c1cd299537c44f62",
+      "tooling/src/codemod/lib/imports.ts": "69f8226a6e77f7cb6993d5d6a3956b38a7589eef1704cb11b0f75d1c6d55c088"
+    }
+  },
+  "verification": {
+    "red": {
+      "command": "pnpm test:scoped tests/tooling/codemod/typeid-prefix-boundaries.int.test.ts",
+      "result": "1 failed, 4 passed; apply refused after broad removal broke the surviving alias",
+      "report": "reports/runs/test/orbweaver-3208133-2026-09-21T13-48-25-657Z/test-report.json"
+    },
+    "focusedCodemod": {
+      "command": "pnpm test:scoped tests/tooling/codemod/typeid-prefix-boundaries.int.test.ts tests/tooling/codemod/lib/imports.int.test.ts",
+      "result": "2 files, 15 tests pass; alias fixture has 0 post-emit diagnostics",
+      "report": "reports/runs/test/orbweaver-3235927-2026-09-21T13-55-19-084Z/test-report.json"
+    },
+    "toolingTypecheck": {
+      "command": "pnpm typecheck --config tooling/tsconfig.json",
+      "result": "1/1 pass"
+    },
+    "repositoryPreview": {
+      "command": "pnpm codemod:run scripts/codemods/typeid-prefix-boundaries.ts",
+      "result": "31 canonical brandedId calls = 0 pending TypeID replacements + 31 preserved prefixless brands; 0 refusals; no files touched"
+    },
+    "biome": "4/4 changed TS files pass",
+    "eslint": "4/4 changed TS files pass",
+    "diffCheck": "pass"
+  },
+  "constraints": {
+    "appliedProductionMigration": false,
+    "staged": false,
+    "committed": false,
+    "auditDocsTouched": false,
+    "concurrentChangesPreserved": true
+  }
+}

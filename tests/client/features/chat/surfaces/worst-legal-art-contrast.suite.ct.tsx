@@ -19,7 +19,7 @@ const AA_NORMAL = 4.5;
 function routeRoom(page: Page): Promise<{ readonly count: (path: string) => number }> {
   return routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
-    "chat.previewContextFit": (): unknown => ({
+    "chat.previewContextFit": () => ({
       boundaryMessageId: null,
       usedTokens: 120,
       ceilingTokens: 32_768,
@@ -34,12 +34,12 @@ function routeRoom(page: Page): Promise<{ readonly count: (path: string) => numb
       identities: readonly ChatIdentity[];
       group: GroupConfig;
     } => ({ participants: [], anchorPersonaId: null, identities: [], group: DEFAULT_GROUP_CONFIG }),
-    "chat.listMessages": (): unknown =>
+    "chat.listMessages": () =>
       makeMessagesPage([
         makeMessageView({ id: castId<MessageId>("msg_contrast_user"), role: "user", content: "Is the path clear?", seq: 1 }),
         makeMessageView({ id: castId<MessageId>("msg_contrast_ai"), role: "assistant", content: "The lanterns answer in amber.", seq: 2 }),
       ]),
-    "chat.send": (): unknown => ({ ok: true }),
+    "chat.send": () => ({ messages: [], aborted: false }),
   });
 }
 

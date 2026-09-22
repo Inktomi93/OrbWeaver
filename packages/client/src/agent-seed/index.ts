@@ -29,8 +29,8 @@ import { CHARACTER_LIST_MAX_LIMIT } from "@orb/contracts/character";
 import type { RpgActorOp, RpgActorRef } from "@orb/contracts/rpg";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { TrpcClient } from "#data";
 import type { OrbSeedHandle, SeedProfile } from "../lib/agent-bridge.ts";
+import type { AgentSeedClient } from "./client.ts";
 import { GameSeedFlights, PendingGameSeed } from "./retry-attempt.ts";
 
 /**
@@ -311,7 +311,7 @@ const CAST_ACTOR_OPS: readonly { readonly npcKey: string; readonly ops: readonly
 
 /** Build the `__orb.seed` handle. `client` is the SAME wire client the app renders through, so every seed
  *  write goes over the real HTTP verb surface as the auto-resolved host (dev single-user). */
-export function buildAgentSeed(client: TrpcClient): OrbSeedHandle {
+export function buildAgentSeed(client: AgentSeedClient): OrbSeedHandle {
   const gameFlights = new GameSeedFlights();
   let pendingGame: PendingGameSeed | null = null;
 

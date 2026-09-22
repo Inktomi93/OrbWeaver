@@ -169,6 +169,7 @@ test("a hand-corrupted override blob reads as defaults at the seam (never throws
   const db = await freshDb();
   const id = castId<ThemeId>("theme_corrupt");
   // biome-ignore lint/suspicious/noExplicitAny: a deliberately hostile stored blob past the wire type.
+  // @orb-waive no-test-fabrication(any): deliberately corrupt persisted fields prove the schema read boundary degrades safely; ends when the insert seam accepts unknown input directly.
   const corrupt = { accent: "javascript:alert(1)", font: "NotAllowlisted" } as any;
   await db.insert(themes).values({ id, ownerId: null, name: "Corrupt", override: corrupt });
 

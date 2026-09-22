@@ -13,12 +13,7 @@
   "cli": {
     "entry": "tooling/src/ast/cli.ts",
     "typedCorpus": "native semantic workspace from generated TypeScript programs; test and production files participate in liveness, while candidate declarations are scoped to non-test package source",
-    "flags": [
-      "--json",
-      "--max n",
-      "--in substr",
-      "--files"
-    ],
+    "flags": ["--json", "--max n", "--in substr", "--files"],
     "scope": {
       "orphans": "required package name or packages/<pkg>/src path",
       "swallowed": "optional; empty means all packages",
@@ -50,12 +45,7 @@
     "chains": {
       "unit": "top-level exported or local declaration",
       "finding": "dead declaration with one or more declaration-granular consumers, all themselves dead; reported through fixpoint to head/cycle",
-      "roots": [
-        "module-scope effects",
-        "test/script/non-package-src consumers",
-        "reasoned public-family declarations",
-        "all packages/ui/src exports"
-      ],
+      "roots": ["module-scope effects", "test/script/non-package-src consumers", "reasoned public-family declarations", "all packages/ui/src exports"],
       "caveat": "name-based in-file attribution errs alive; unseen DB/proxy/template dispatch can false-positive and amplify"
     },
     "rot": {
@@ -96,9 +86,7 @@
       "export-default expression use",
       "edge map opt-in leaves all liveness sets identical"
     ],
-    "rot": [
-      "each section equality-compared to its standalone collector on planted fixture"
-    ]
+    "rot": ["each section equality-compared to its standalone collector on planted fixture"]
   },
   "runPlan": {
     "phase1": "After serialized slot, run rot --json --max high for all 9 canonical packages: kit, contracts, db, inference, server, default-content, showcase-plugins, ui, client.",
@@ -346,10 +334,7 @@
   "dispositions": {},
   "actionable": [
     {
-      "symbols": [
-        "PROMPT_TEMPLATES",
-        "CAPTION_INSTRUCTIONS"
-      ],
+      "symbols": ["PROMPT_TEMPLATES", "CAPTION_INSTRUCTIONS"],
       "status": "resolved-on-current-tree",
       "commit": "a040ed2888b3fa5f9d1f5a3b82635e65e06c6099",
       "sourceReport": "/tmp/world-tools-server-rot-triage.json"
@@ -1168,10 +1153,7 @@
       "decision": "preserve",
       "reason": "Explicit @public future per-table id-brand member; DB header confirms natural PK means no current typed-id column.",
       "semanticEvidence": "current rot ts-morph collector classified this as orphans; no stronger deletion claim is inferred",
-      "locatedFiles": [
-        "packages/db/src/schema/stats.ts",
-        "packages/kit/src/ids/index.ts"
-      ]
+      "locatedFiles": ["packages/db/src/schema/stats.ts", "packages/kit/src/ids/index.ts"]
     },
     {
       "package": "kit",
@@ -1198,10 +1180,7 @@
       "decision": "preserve",
       "reason": "Pure theme math proof helper; focused tests pin axis/hue conversion.",
       "semanticEvidence": "current rot ts-morph collector classified this as testonly; no stronger deletion claim is inferred",
-      "locatedFiles": [
-        "packages/kit/src/theme-derivation/index.ts",
-        "tests/kit/theme-derivation/index.test.ts"
-      ]
+      "locatedFiles": ["packages/kit/src/theme-derivation/index.ts", "tests/kit/theme-derivation/index.test.ts"]
     },
     {
       "package": "kit",
@@ -1212,10 +1191,7 @@
       "decision": "preserve",
       "reason": "Proof-facing derivation helper used to independently validate palette contrast.",
       "semanticEvidence": "current rot ts-morph collector classified this as testonly; no stronger deletion claim is inferred",
-      "locatedFiles": [
-        "tests/kit/theme-derivation/index.test.ts",
-        "packages/kit/src/theme-derivation/index.ts"
-      ]
+      "locatedFiles": ["tests/kit/theme-derivation/index.test.ts", "packages/kit/src/theme-derivation/index.ts"]
     },
     {
       "package": "kit",
@@ -1256,9 +1232,7 @@
       "decision": "preserve",
       "reason": "Declaration is an explicitly documented public schema/tuple/constant twin; task requires preserving schema/type twins.",
       "semanticEvidence": "current rot ts-morph collector classified this as orphans; no stronger deletion claim is inferred",
-      "locatedFiles": [
-        "packages/contracts/src/assets/index.ts"
-      ]
+      "locatedFiles": ["packages/contracts/src/assets/index.ts"]
     },
     {
       "package": "contracts",
@@ -1269,9 +1243,7 @@
       "decision": "preserve",
       "reason": "Declaration is an explicitly documented public schema/tuple/constant twin; task requires preserving schema/type twins.",
       "semanticEvidence": "current rot ts-morph collector classified this as orphans; no stronger deletion claim is inferred",
-      "locatedFiles": [
-        "packages/contracts/src/assets/index.ts"
-      ]
+      "locatedFiles": ["packages/contracts/src/assets/index.ts"]
     },
     {
       "package": "contracts",
@@ -1282,9 +1254,7 @@
       "decision": "preserve",
       "reason": "Declaration is an explicitly documented public schema/tuple/constant twin; task requires preserving schema/type twins.",
       "semanticEvidence": "current rot ts-morph collector classified this as orphans; no stronger deletion claim is inferred",
-      "locatedFiles": [
-        "packages/contracts/src/automation/index.ts"
-      ]
+      "locatedFiles": ["packages/contracts/src/automation/index.ts"]
     },
     {
       "package": "contracts",
@@ -1295,9 +1265,7 @@
       "decision": "preserve",
       "reason": "Declaration is an explicitly documented public schema/tuple/constant twin; task requires preserving schema/type twins.",
       "semanticEvidence": "current rot ts-morph collector classified this as orphans; no stronger deletion claim is inferred",
-      "locatedFiles": [
-        "packages/contracts/src/automation/index.ts"
-      ]
+      "locatedFiles": ["packages/contracts/src/automation/index.ts"]
     },
     {
       "package": "contracts",
@@ -1325,10 +1293,7 @@
       "decision": "preserve",
       "reason": "Declaration is an explicitly documented public schema/tuple/constant twin; task requires preserving schema/type twins.",
       "semanticEvidence": "current rot ts-morph collector classified this as orphans; no stronger deletion claim is inferred",
-      "locatedFiles": [
-        "packages/contracts/src/chat/index.ts",
-        "packages/contracts/src/chat/bus.ts"
-      ]
+      "locatedFiles": ["packages/contracts/src/chat/index.ts", "packages/contracts/src/chat/bus.ts"]
     },
     {
       "package": "contracts",
@@ -1339,10 +1304,7 @@
       "decision": "preserve",
       "reason": "Declaration is an explicitly documented public schema/tuple/constant twin; task requires preserving schema/type twins.",
       "semanticEvidence": "current rot ts-morph collector classified this as orphans; no stronger deletion claim is inferred",
-      "locatedFiles": [
-        "packages/contracts/src/chat/index.ts",
-        "packages/contracts/src/chat/bus.ts"
-      ]
+      "locatedFiles": ["packages/contracts/src/chat/index.ts", "packages/contracts/src/chat/bus.ts"]
     },
     {
       "package": "contracts",
@@ -1353,10 +1315,7 @@
       "decision": "preserve",
       "reason": "Declaration is an explicitly documented public schema/tuple/constant twin; task requires preserving schema/type twins.",
       "semanticEvidence": "current rot ts-morph collector classified this as orphans; no stronger deletion claim is inferred",
-      "locatedFiles": [
-        "packages/contracts/src/chat/index.ts",
-        "packages/contracts/src/chat/bus.ts"
-      ]
+      "locatedFiles": ["packages/contracts/src/chat/index.ts", "packages/contracts/src/chat/bus.ts"]
     },
     {
       "package": "contracts",
@@ -1367,10 +1326,7 @@
       "decision": "preserve",
       "reason": "Declaration is an explicitly documented public schema/tuple/constant twin; task requires preserving schema/type twins.",
       "semanticEvidence": "current rot ts-morph collector classified this as orphans; no stronger deletion claim is inferred",
-      "locatedFiles": [
-        "packages/contracts/src/chat/index.ts",
-        "packages/contracts/src/chat/participants.ts"
-      ]
+      "locatedFiles": ["packages/contracts/src/chat/index.ts", "packages/contracts/src/chat/participants.ts"]
     },
     {
       "package": "contracts",
@@ -1381,10 +1337,7 @@
       "decision": "preserve",
       "reason": "Declaration is an explicitly documented public schema/tuple/constant twin; task requires preserving schema/type twins.",
       "semanticEvidence": "current rot ts-morph collector classified this as orphans; no stronger deletion claim is inferred",
-      "locatedFiles": [
-        "packages/contracts/src/chat/roster.ts",
-        "packages/contracts/src/chat/index.ts"
-      ]
+      "locatedFiles": ["packages/contracts/src/chat/roster.ts", "packages/contracts/src/chat/index.ts"]
     },
     {
       "package": "contracts",
@@ -1395,10 +1348,7 @@
       "decision": "preserve",
       "reason": "Declaration is an explicitly documented public schema/tuple/constant twin; task requires preserving schema/type twins.",
       "semanticEvidence": "current rot ts-morph collector classified this as orphans; no stronger deletion claim is inferred",
-      "locatedFiles": [
-        "packages/contracts/src/chat/roster.ts",
-        "packages/contracts/src/chat/index.ts"
-      ]
+      "locatedFiles": ["packages/contracts/src/chat/roster.ts", "packages/contracts/src/chat/index.ts"]
     },
     {
       "package": "contracts",
@@ -1409,10 +1359,7 @@
       "decision": "preserve",
       "reason": "Declaration is an explicitly documented public schema/tuple/constant twin; task requires preserving schema/type twins.",
       "semanticEvidence": "current rot ts-morph collector classified this as orphans; no stronger deletion claim is inferred",
-      "locatedFiles": [
-        "packages/contracts/src/chat/index.ts",
-        "packages/contracts/src/chat/roster.ts"
-      ]
+      "locatedFiles": ["packages/contracts/src/chat/index.ts", "packages/contracts/src/chat/roster.ts"]
     },
     {
       "package": "contracts",
@@ -1423,9 +1370,7 @@
       "decision": "preserve",
       "reason": "Declaration is an explicitly documented public schema/tuple/constant twin; task requires preserving schema/type twins.",
       "semanticEvidence": "current rot ts-morph collector classified this as orphans; no stronger deletion claim is inferred",
-      "locatedFiles": [
-        "packages/contracts/src/identity/index.ts"
-      ]
+      "locatedFiles": ["packages/contracts/src/identity/index.ts"]
     },
     {
       "package": "contracts",
@@ -1436,9 +1381,7 @@
       "decision": "preserve",
       "reason": "Declaration is an explicitly documented public schema/tuple/constant twin; task requires preserving schema/type twins.",
       "semanticEvidence": "current rot ts-morph collector classified this as orphans; no stronger deletion claim is inferred",
-      "locatedFiles": [
-        "packages/contracts/src/imagery/index.ts"
-      ]
+      "locatedFiles": ["packages/contracts/src/imagery/index.ts"]
     },
     {
       "package": "contracts",
@@ -1449,10 +1392,7 @@
       "decision": "preserve",
       "reason": "Declaration carries explicit @public future intent for a named unbuilt consumer.",
       "semanticEvidence": "current rot ts-morph collector classified this as orphans; no stronger deletion claim is inferred",
-      "locatedFiles": [
-        "packages/contracts/src/plugin/host-v1.ts",
-        "packages/contracts/src/plugin/index.ts"
-      ]
+      "locatedFiles": ["packages/contracts/src/plugin/host-v1.ts", "packages/contracts/src/plugin/index.ts"]
     },
     {
       "package": "contracts",
@@ -1463,9 +1403,7 @@
       "decision": "preserve",
       "reason": "Declaration is an explicitly documented public schema/tuple/constant twin; task requires preserving schema/type twins.",
       "semanticEvidence": "current rot ts-morph collector classified this as orphans; no stronger deletion claim is inferred",
-      "locatedFiles": [
-        "packages/contracts/src/refinery/index.ts"
-      ]
+      "locatedFiles": ["packages/contracts/src/refinery/index.ts"]
     },
     {
       "package": "contracts",
@@ -1476,9 +1414,7 @@
       "decision": "preserve",
       "reason": "Declaration is an explicitly documented public schema/tuple/constant twin; task requires preserving schema/type twins.",
       "semanticEvidence": "current rot ts-morph collector classified this as orphans; no stronger deletion claim is inferred",
-      "locatedFiles": [
-        "packages/contracts/src/refinery/index.ts"
-      ]
+      "locatedFiles": ["packages/contracts/src/refinery/index.ts"]
     },
     {
       "package": "contracts",
@@ -1489,10 +1425,7 @@
       "decision": "preserve",
       "reason": "Declaration carries explicit @public future intent for a named unbuilt consumer.",
       "semanticEvidence": "current rot ts-morph collector classified this as orphans; no stronger deletion claim is inferred",
-      "locatedFiles": [
-        "packages/contracts/src/rpg/actor.ts",
-        "packages/contracts/src/rpg/index.ts"
-      ]
+      "locatedFiles": ["packages/contracts/src/rpg/actor.ts", "packages/contracts/src/rpg/index.ts"]
     },
     {
       "package": "contracts",
@@ -1503,10 +1436,7 @@
       "decision": "preserve",
       "reason": "Declaration is an explicitly documented public schema/tuple/constant twin; task requires preserving schema/type twins.",
       "semanticEvidence": "current rot ts-morph collector classified this as orphans; no stronger deletion claim is inferred",
-      "locatedFiles": [
-        "packages/contracts/src/rpg/ambient.ts",
-        "packages/contracts/src/rpg/index.ts"
-      ]
+      "locatedFiles": ["packages/contracts/src/rpg/ambient.ts", "packages/contracts/src/rpg/index.ts"]
     },
     {
       "package": "contracts",
@@ -1517,10 +1447,7 @@
       "decision": "preserve",
       "reason": "Declaration is an explicitly documented public schema/tuple/constant twin; task requires preserving schema/type twins.",
       "semanticEvidence": "current rot ts-morph collector classified this as orphans; no stronger deletion claim is inferred",
-      "locatedFiles": [
-        "packages/contracts/src/rpg/enums.ts",
-        "packages/contracts/src/rpg/index.ts"
-      ]
+      "locatedFiles": ["packages/contracts/src/rpg/enums.ts", "packages/contracts/src/rpg/index.ts"]
     },
     {
       "package": "contracts",
@@ -1531,10 +1458,7 @@
       "decision": "preserve",
       "reason": "Declaration carries explicit @public future intent for a named unbuilt consumer.",
       "semanticEvidence": "current rot ts-morph collector classified this as orphans; no stronger deletion claim is inferred",
-      "locatedFiles": [
-        "packages/contracts/src/rpg/enums.ts",
-        "packages/contracts/src/rpg/index.ts"
-      ]
+      "locatedFiles": ["packages/contracts/src/rpg/enums.ts", "packages/contracts/src/rpg/index.ts"]
     },
     {
       "package": "contracts",
@@ -1545,10 +1469,7 @@
       "decision": "preserve",
       "reason": "Declaration carries explicit @public future intent for a named unbuilt consumer.",
       "semanticEvidence": "current rot ts-morph collector classified this as orphans; no stronger deletion claim is inferred",
-      "locatedFiles": [
-        "packages/contracts/src/rpg/enums.ts",
-        "packages/contracts/src/rpg/index.ts"
-      ]
+      "locatedFiles": ["packages/contracts/src/rpg/enums.ts", "packages/contracts/src/rpg/index.ts"]
     },
     {
       "package": "contracts",
@@ -1559,10 +1480,7 @@
       "decision": "preserve",
       "reason": "Declaration carries explicit @public future intent for a named unbuilt consumer.",
       "semanticEvidence": "current rot ts-morph collector classified this as orphans; no stronger deletion claim is inferred",
-      "locatedFiles": [
-        "packages/contracts/src/rpg/extraction.ts",
-        "packages/contracts/src/rpg/index.ts"
-      ]
+      "locatedFiles": ["packages/contracts/src/rpg/extraction.ts", "packages/contracts/src/rpg/index.ts"]
     },
     {
       "package": "contracts",
@@ -1573,10 +1491,7 @@
       "decision": "preserve",
       "reason": "Declaration is an explicitly documented public schema/tuple/constant twin; task requires preserving schema/type twins.",
       "semanticEvidence": "current rot ts-morph collector classified this as orphans; no stronger deletion claim is inferred",
-      "locatedFiles": [
-        "packages/contracts/src/rpg/extraction.ts",
-        "packages/contracts/src/rpg/index.ts"
-      ]
+      "locatedFiles": ["packages/contracts/src/rpg/extraction.ts", "packages/contracts/src/rpg/index.ts"]
     },
     {
       "package": "contracts",
@@ -1587,10 +1502,7 @@
       "decision": "preserve",
       "reason": "Declaration carries explicit @public future intent for a named unbuilt consumer.",
       "semanticEvidence": "current rot ts-morph collector classified this as orphans; no stronger deletion claim is inferred",
-      "locatedFiles": [
-        "packages/contracts/src/rpg/index.ts",
-        "packages/contracts/src/rpg/mode.ts"
-      ]
+      "locatedFiles": ["packages/contracts/src/rpg/index.ts", "packages/contracts/src/rpg/mode.ts"]
     },
     {
       "package": "contracts",
@@ -1601,10 +1513,7 @@
       "decision": "preserve",
       "reason": "Declaration carries explicit @public future intent for a named unbuilt consumer.",
       "semanticEvidence": "current rot ts-morph collector classified this as orphans; no stronger deletion claim is inferred",
-      "locatedFiles": [
-        "packages/contracts/src/rpg/tools.ts",
-        "packages/contracts/src/rpg/index.ts"
-      ]
+      "locatedFiles": ["packages/contracts/src/rpg/tools.ts", "packages/contracts/src/rpg/index.ts"]
     },
     {
       "package": "contracts",
@@ -1615,10 +1524,7 @@
       "decision": "preserve",
       "reason": "Declaration is an explicitly documented public schema/tuple/constant twin; task requires preserving schema/type twins.",
       "semanticEvidence": "current rot ts-morph collector classified this as orphans; no stronger deletion claim is inferred",
-      "locatedFiles": [
-        "packages/contracts/src/rpg/tools.ts",
-        "packages/contracts/src/rpg/index.ts"
-      ]
+      "locatedFiles": ["packages/contracts/src/rpg/tools.ts", "packages/contracts/src/rpg/index.ts"]
     },
     {
       "package": "contracts",
@@ -1629,10 +1535,7 @@
       "decision": "preserve",
       "reason": "Public contracts value/function is directly exercised by focused proof tests; candidate status does not make the cross-package contract disposable.",
       "semanticEvidence": "current rot ts-morph collector classified this as testonly; no stronger deletion claim is inferred",
-      "locatedFiles": [
-        "tests/contracts/automation/index.contract.test.ts",
-        "packages/contracts/src/automation/index.ts"
-      ]
+      "locatedFiles": ["tests/contracts/automation/index.contract.test.ts", "packages/contracts/src/automation/index.ts"]
     },
     {
       "package": "contracts",
@@ -1743,10 +1646,7 @@
       "decision": "preserve",
       "reason": "Public contracts value/function is directly exercised by focused proof tests; candidate status does not make the cross-package contract disposable.",
       "semanticEvidence": "current rot ts-morph collector classified this as testonly; no stronger deletion claim is inferred",
-      "locatedFiles": [
-        "packages/contracts/src/databank/index.ts",
-        "tests/contracts/databank/index.contract.test.ts"
-      ]
+      "locatedFiles": ["packages/contracts/src/databank/index.ts", "tests/contracts/databank/index.contract.test.ts"]
     },
     {
       "package": "contracts",
@@ -1757,10 +1657,7 @@
       "decision": "preserve",
       "reason": "Public contracts value/function is directly exercised by focused proof tests; candidate status does not make the cross-package contract disposable.",
       "semanticEvidence": "current rot ts-morph collector classified this as testonly; no stronger deletion claim is inferred",
-      "locatedFiles": [
-        "tests/contracts/embeddings/index.contract.test.ts",
-        "packages/contracts/src/embeddings/index.ts"
-      ]
+      "locatedFiles": ["tests/contracts/embeddings/index.contract.test.ts", "packages/contracts/src/embeddings/index.ts"]
     },
     {
       "package": "contracts",
@@ -1802,10 +1699,7 @@
       "decision": "preserve",
       "reason": "Public contracts value/function is directly exercised by focused proof tests; candidate status does not make the cross-package contract disposable.",
       "semanticEvidence": "current rot ts-morph collector classified this as testonly; no stronger deletion claim is inferred",
-      "locatedFiles": [
-        "tests/contracts/inference/deltas.contract.test.ts",
-        "packages/contracts/src/inference/deltas.ts"
-      ]
+      "locatedFiles": ["tests/contracts/inference/deltas.contract.test.ts", "packages/contracts/src/inference/deltas.ts"]
     },
     {
       "package": "contracts",
@@ -1831,10 +1725,7 @@
       "decision": "preserve",
       "reason": "Public contracts value/function is directly exercised by focused proof tests; candidate status does not make the cross-package contract disposable.",
       "semanticEvidence": "current rot ts-morph collector classified this as testonly; no stronger deletion claim is inferred",
-      "locatedFiles": [
-        "tests/contracts/inference/finish-reasons.contract.test.ts",
-        "packages/contracts/src/inference/finish-reasons.ts"
-      ]
+      "locatedFiles": ["tests/contracts/inference/finish-reasons.contract.test.ts", "packages/contracts/src/inference/finish-reasons.ts"]
     },
     {
       "package": "contracts",
@@ -1845,10 +1736,7 @@
       "decision": "preserve",
       "reason": "Public contracts value/function is directly exercised by focused proof tests; candidate status does not make the cross-package contract disposable.",
       "semanticEvidence": "current rot ts-morph collector classified this as testonly; no stronger deletion claim is inferred",
-      "locatedFiles": [
-        "tests/contracts/inference/providers.contract.test.ts",
-        "packages/contracts/src/inference/policy.ts"
-      ]
+      "locatedFiles": ["tests/contracts/inference/providers.contract.test.ts", "packages/contracts/src/inference/policy.ts"]
     },
     {
       "package": "contracts",
@@ -1859,10 +1747,7 @@
       "decision": "preserve",
       "reason": "Declaration carries explicit @public pre-built memory-surface intent.",
       "semanticEvidence": "current rot ts-morph collector classified this as testonly; no stronger deletion claim is inferred",
-      "locatedFiles": [
-        "tests/contracts/memory/index.contract.test.ts",
-        "packages/contracts/src/memory/index.ts"
-      ]
+      "locatedFiles": ["tests/contracts/memory/index.contract.test.ts", "packages/contracts/src/memory/index.ts"]
     },
     {
       "package": "contracts",
@@ -1873,10 +1758,7 @@
       "decision": "preserve",
       "reason": "Declaration carries explicit @public pre-built memory-surface intent.",
       "semanticEvidence": "current rot ts-morph collector classified this as testonly; no stronger deletion claim is inferred",
-      "locatedFiles": [
-        "tests/contracts/memory/index.contract.test.ts",
-        "packages/contracts/src/memory/index.ts"
-      ]
+      "locatedFiles": ["tests/contracts/memory/index.contract.test.ts", "packages/contracts/src/memory/index.ts"]
     },
     {
       "package": "contracts",
@@ -1887,10 +1769,7 @@
       "decision": "preserve",
       "reason": "Declaration carries explicit @public pre-built memory-surface intent.",
       "semanticEvidence": "current rot ts-morph collector classified this as testonly; no stronger deletion claim is inferred",
-      "locatedFiles": [
-        "tests/contracts/memory/index.contract.test.ts",
-        "packages/contracts/src/memory/index.ts"
-      ]
+      "locatedFiles": ["tests/contracts/memory/index.contract.test.ts", "packages/contracts/src/memory/index.ts"]
     },
     {
       "package": "contracts",
@@ -1901,10 +1780,7 @@
       "decision": "preserve",
       "reason": "Declaration carries explicit @public pre-built memory-surface intent.",
       "semanticEvidence": "current rot ts-morph collector classified this as testonly; no stronger deletion claim is inferred",
-      "locatedFiles": [
-        "tests/contracts/memory/index.contract.test.ts",
-        "packages/contracts/src/memory/index.ts"
-      ]
+      "locatedFiles": ["tests/contracts/memory/index.contract.test.ts", "packages/contracts/src/memory/index.ts"]
     },
     {
       "package": "contracts",
@@ -1915,10 +1791,7 @@
       "decision": "preserve",
       "reason": "Declaration carries explicit @public pre-built memory-surface intent.",
       "semanticEvidence": "current rot ts-morph collector classified this as testonly; no stronger deletion claim is inferred",
-      "locatedFiles": [
-        "packages/contracts/src/memory/index.ts",
-        "tests/contracts/memory/index.contract.test.ts"
-      ]
+      "locatedFiles": ["packages/contracts/src/memory/index.ts", "tests/contracts/memory/index.contract.test.ts"]
     },
     {
       "package": "contracts",
@@ -1929,10 +1802,7 @@
       "decision": "preserve",
       "reason": "Declaration carries explicit @public pre-built memory-surface intent.",
       "semanticEvidence": "current rot ts-morph collector classified this as testonly; no stronger deletion claim is inferred",
-      "locatedFiles": [
-        "packages/contracts/src/memory/index.ts",
-        "tests/contracts/memory/index.contract.test.ts"
-      ]
+      "locatedFiles": ["packages/contracts/src/memory/index.ts", "tests/contracts/memory/index.contract.test.ts"]
     },
     {
       "package": "contracts",
@@ -1943,10 +1813,7 @@
       "decision": "preserve",
       "reason": "Public contracts value/function is directly exercised by focused proof tests; candidate status does not make the cross-package contract disposable.",
       "semanticEvidence": "current rot ts-morph collector classified this as testonly; no stronger deletion claim is inferred",
-      "locatedFiles": [
-        "packages/contracts/src/preset/index.ts",
-        "tests/contracts/preset/index.contract.test.ts"
-      ]
+      "locatedFiles": ["packages/contracts/src/preset/index.ts", "tests/contracts/preset/index.contract.test.ts"]
     },
     {
       "package": "contracts",
@@ -1957,11 +1824,7 @@
       "decision": "preserve",
       "reason": "Public contracts value/function is directly exercised by focused proof tests; candidate status does not make the cross-package contract disposable.",
       "semanticEvidence": "current rot ts-morph collector classified this as testonly; no stronger deletion claim is inferred",
-      "locatedFiles": [
-        "tests/contracts/prose/index.contract.test.ts",
-        "packages/contracts/src/preset/prose.ts",
-        "packages/contracts/src/preset/index.ts"
-      ]
+      "locatedFiles": ["tests/contracts/prose/index.contract.test.ts", "packages/contracts/src/preset/prose.ts", "packages/contracts/src/preset/index.ts"]
     },
     {
       "package": "contracts",
@@ -2006,11 +1869,7 @@
       "decision": "preserve",
       "reason": "Public contracts value/function is directly exercised by focused proof tests; candidate status does not make the cross-package contract disposable.",
       "semanticEvidence": "current rot ts-morph collector classified this as testonly; no stronger deletion claim is inferred",
-      "locatedFiles": [
-        "packages/contracts/src/rpg/snapshot.ts",
-        "packages/contracts/src/rpg/index.ts",
-        "tests/e2e/support/mirror-parity.dom.test-d.ts"
-      ]
+      "locatedFiles": ["packages/contracts/src/rpg/snapshot.ts", "packages/contracts/src/rpg/index.ts", "tests/e2e/support/mirror-parity.dom.test-d.ts"]
     },
     {
       "package": "contracts",
@@ -2021,11 +1880,7 @@
       "decision": "preserve",
       "reason": "Public contracts value/function is directly exercised by focused proof tests; candidate status does not make the cross-package contract disposable.",
       "semanticEvidence": "current rot ts-morph collector classified this as testonly; no stronger deletion claim is inferred",
-      "locatedFiles": [
-        "packages/contracts/src/rpg/tracker.ts",
-        "packages/contracts/src/rpg/index.ts",
-        "tests/contracts/rpg/tracker.contract.test.ts"
-      ]
+      "locatedFiles": ["packages/contracts/src/rpg/tracker.ts", "packages/contracts/src/rpg/index.ts", "tests/contracts/rpg/tracker.contract.test.ts"]
     },
     {
       "package": "contracts",
@@ -2068,9 +1923,7 @@
       "decision": "preserve",
       "reason": "Declaration is an explicitly documented public schema/tuple/constant twin; task requires preserving schema/type twins.",
       "semanticEvidence": "current rot ts-morph collector classified this as typeonly-alive; no stronger deletion claim is inferred",
-      "locatedFiles": [
-        "packages/contracts/src/character/index.ts"
-      ]
+      "locatedFiles": ["packages/contracts/src/character/index.ts"]
     }
   ],
   "delegatedAdjudication": {
@@ -2124,26 +1977,14 @@
             "packages/showcase-plugins/src",
             "their direct callers, package barrels, tests, and framework/tooling entrypoints"
           ],
-          "excluded": [
-            "kit and contracts rot outputs because those runs predated or overlapped candidate repair",
-            "tooling/src/ast",
-            "docs audit index"
-          ],
-          "heavyCommandsNotRun": [
-            "pnpm ast",
-            "native full typecheck",
-            "full/static verification",
-            "heap-heavy scans"
-          ]
+          "excluded": ["kit and contracts rot outputs because those runs predated or overlapped candidate repair", "tooling/src/ast", "docs audit index"],
+          "heavyCommandsNotRun": ["pnpm ast", "native full typecheck", "full/static verification", "heap-heavy scans"]
         },
         "method": {
           "sourceReading": "Read each candidate declaration, its package barrel, relevant callers, and the package headers that state intended ownership. Read the provider-row persistence writer in full to distinguish a truly live schema value from a documented but currently unconsumed export.",
           "structuralSearch": {
             "tool": "ast-grep run",
-            "languages": [
-              "ts",
-              "tsx"
-            ],
+            "languages": ["ts", "tsx"],
             "scope": ".",
             "coverage": {
               "tsScannedFileCount": 6526,
@@ -2524,9 +2365,7 @@
             "lensKind": "test-only-export",
             "classification": "deliberate-contract-proof-seam",
             "decision": "keep",
-            "evidence": [
-              "Derived from SOURCE_KINDS and used by the contract test as a compile-time membership pin; it is not a separate hand-written union."
-            ],
+            "evidence": ["Derived from SOURCE_KINDS and used by the contract test as a compile-time membership pin; it is not a separate hand-written union."],
             "recommendation": "Keep with its canonical tuple/type family."
           },
           {
@@ -2536,9 +2375,7 @@
             "lensKind": "test-only-export",
             "classification": "deliberate-contract-proof-seam",
             "decision": "keep",
-            "evidence": [
-              "The contract test proves it is exactly TEXT_LENSES plus canonical IMAGE_LENSES and has no duplicates."
-            ],
+            "evidence": ["The contract test proves it is exactly TEXT_LENSES plus canonical IMAGE_LENSES and has no duplicates."],
             "recommendation": "Keep as the aggregate vocabulary proof; do not re-spell the image subset."
           },
           {
@@ -2548,9 +2385,7 @@
             "lensKind": "test-only-export",
             "classification": "deliberate-contract-proof-seam",
             "decision": "keep",
-            "evidence": [
-              "Derived from TEXT_LENSES and ImageLens; the contract test makes the compile-time union and aggregate tuple agree."
-            ],
+            "evidence": ["Derived from TEXT_LENSES and ImageLens; the contract test makes the compile-time union and aggregate tuple agree."],
             "recommendation": "Keep with the tuple/type family."
           },
           {
@@ -2731,9 +2566,7 @@
             "lensKind": "test-only-export",
             "classification": "deliberate-runtime-default-proof-seam",
             "decision": "keep",
-            "evidence": [
-              "The live reminder conditionally resolves the CYOA slot; tests pin the :::choices grammar and feature-off omission."
-            ],
+            "evidence": ["The live reminder conditionally resolves the CYOA slot; tests pin the :::choices grammar and feature-off omission."],
             "recommendation": "Keep."
           },
           {
@@ -2814,9 +2647,7 @@
             "lensKind": "test-only-export",
             "classification": "deliberate-test-seam",
             "decision": "keep",
-            "evidence": [
-              "Explicit internal inspection seam used to prove the process-shared JWKS cache's LRU capacity and eviction behavior."
-            ],
+            "evidence": ["Explicit internal inspection seam used to prove the process-shared JWKS cache's LRU capacity and eviction behavior."],
             "recommendation": "Keep while the cache bound is verified by behavior."
           },
           {
@@ -2826,9 +2657,7 @@
             "lensKind": "test-only-export",
             "classification": "deliberate-test-isolation-seam",
             "decision": "keep",
-            "evidence": [
-              "Explicit internal reset used by JWKS and backchannel suites to isolate the process-shared cache."
-            ],
+            "evidence": ["Explicit internal reset used by JWKS and backchannel suites to isolate the process-shared cache."],
             "recommendation": "Keep as cache isolation."
           },
           {
@@ -2891,11 +2720,7 @@
         "verification": {
           "sourceStatus": "git status --short was clean before and after triage",
           "tests": "Not run: no source/test changes were made and the root agent reserved heap-heavy/focused execution for a later verification window.",
-          "forbiddenCommands": [
-            "pnpm ast",
-            "native full typecheck",
-            "full/static"
-          ],
+          "forbiddenCommands": ["pnpm ast", "native full typecheck", "full/static"],
           "forbiddenCommandsRun": false
         },
         "rootActions": [
@@ -2926,20 +2751,9 @@
         "method": {
           "structural": {
             "tool": "ast-grep",
-            "languages": [
-              "TypeScript",
-              "Tsx"
-            ],
-            "scopes": [
-              "packages/ui",
-              "packages/client",
-              "tests/ui",
-              "tests/kit"
-            ],
-            "rules": [
-              "/tmp/ui-rot-identifiers-ts.yml",
-              "/tmp/ui-rot-identifiers-tsx.yml"
-            ],
+            "languages": ["TypeScript", "Tsx"],
+            "scopes": ["packages/ui", "packages/client", "tests/ui", "tests/kit"],
+            "rules": ["/tmp/ui-rot-identifiers-ts.yml", "/tmp/ui-rot-identifiers-tsx.yml"],
             "notes": [
               "Exact identifier rules mapped declarations, re-export barrels, imports, JSX uses, and test callers.",
               "Type-alias syntax was additionally probed with the contextual pattern `type PolarityTokenPath = $T` because a kind:identifier rule does not match TypeScript type_identifier nodes.",
@@ -2994,9 +2808,7 @@
             "source": "packages/ui/src/primitives/command/command.tsx:221",
             "lens": "orphan-export",
             "primary_classification": "intended_but_unwired_feature",
-            "secondary_classifications": [
-              "framework_entrypoint"
-            ],
+            "secondary_classifications": ["framework_entrypoint"],
             "disposition": "preserve",
             "evidence": "Re-exported from the @orb/ui/command package entrypoint. The declaration comment defines the cmdk divider anatomy and its alwaysRender search behavior. ast-grep found declaration/import-alias/barrel structure and no runtime or test caller; the exact textual count was 3. This is a complete but currently unwired command-palette part, not accidental code."
           },
@@ -3005,9 +2817,7 @@
             "source": "packages/ui/src/primitives/command/command.tsx:230",
             "lens": "orphan-export",
             "primary_classification": "intended_but_unwired_feature",
-            "secondary_classifications": [
-              "framework_entrypoint"
-            ],
+            "secondary_classifications": ["framework_entrypoint"],
             "disposition": "preserve",
             "evidence": "Re-exported from @orb/ui/command. The declaration is the styled cmdk async-suggestions progressbar and the command file explicitly describes future omni-bar composition. ast-grep found declaration/import-alias/barrel structure and no caller; the exact textual count was 3."
           },
@@ -3016,10 +2826,7 @@
             "source": "packages/ui/src/tokens/index.ts:253",
             "lens": "orphan-export",
             "primary_classification": "intended_but_unwired_feature",
-            "secondary_classifications": [
-              "framework_entrypoint",
-              "generated_contract"
-            ],
+            "secondary_classifications": ["framework_entrypoint", "generated_contract"],
             "disposition": "preserve",
             "evidence": "The @orb/ui/tokens package entrypoint is the generated typed companion to TOKEN_POLARITY_ARMS. A contextual ast-grep type-alias pattern found the declaration; TSX ast-grep found no use; unrestricted rg found exactly two spellings: the generated declaration and the generator template at packages/ui/tokens.build.ts:422. git history shows both the map and key type were introduced together by e952dbc00. Removing only the type would narrow an intentionally generated map API, so absence of a current caller is insufficient deletion authority."
           },
@@ -3028,9 +2835,7 @@
             "source": "packages/ui/src/art/web-weave/web-glyph.ts:98",
             "lens": "test-only-export",
             "primary_classification": "deliberate_test_proof_seam",
-            "secondary_classifications": [
-              "framework_entrypoint"
-            ],
+            "secondary_classifications": ["framework_entrypoint"],
             "disposition": "preserve",
             "evidence": "Exported by @orb/ui/web-weave as part of the documented pure one-emblem/every-scale geometry API. Its caller is tests/ui/art/web-weave/web-weave-geometry.dom.test.ts; ast-grep found declaration, barrel, and test uses across 4 identifier nodes, matching 4 exact textual occurrences."
           },
@@ -3039,9 +2844,7 @@
             "source": "packages/ui/src/charts/meter/waystone-treatment.ts:38",
             "lens": "test-only-export",
             "primary_classification": "deliberate_test_proof_seam",
-            "secondary_classifications": [
-              "framework_entrypoint"
-            ],
+            "secondary_classifications": ["framework_entrypoint"],
             "disposition": "preserve",
             "evidence": "Exported by @orb/ui/meter as the identity alias of the canonical weather tuple. tests/ui/charts/meter/waystone-treatment.dom.test.ts iterates it to prove recipe coverage and distinctness. ast-grep found 14 structural identifiers in declaration/barrel/test; exact text count 15."
           },
@@ -3050,9 +2853,7 @@
             "source": "packages/ui/src/charts/meter/waystone-treatment.ts:219",
             "lens": "test-only-export",
             "primary_classification": "deliberate_test_proof_seam",
-            "secondary_classifications": [
-              "framework_entrypoint"
-            ],
+            "secondary_classifications": ["framework_entrypoint"],
             "disposition": "preserve",
             "evidence": "Exported by @orb/ui/meter so the treatment test can prove stop coverage, ordering, and noon resolution against the same table used by waystoneSkyAt. ast-grep found 7 structural identifiers and exact text count was 7."
           },
@@ -3061,9 +2862,7 @@
             "source": "packages/ui/src/content/theme-scope/clamp.ts:142",
             "lens": "test-only-export",
             "primary_classification": "runtime_consumer_with_proof_export",
-            "secondary_classifications": [
-              "deliberate_test_proof_seam"
-            ],
+            "secondary_classifications": ["deliberate_test_proof_seam"],
             "disposition": "preserve",
             "evidence": "This is not dead at runtime: packages/ui/src/content/theme-scope/derive-vars.ts imports and reads it for borders, input alpha, reading plates, and ramps. Its exported visibility additionally lets kit/theme-scope tests prove the UI alias remains identical to the one canonical @orb/kit declaration. ast-grep found 37 identifier nodes across runtime and tests; exact text count 66."
           },
@@ -3072,10 +2871,7 @@
             "source": "packages/ui/src/tokens/index.ts:295",
             "lens": "test-only-export",
             "primary_classification": "deliberate_test_proof_seam",
-            "secondary_classifications": [
-              "framework_entrypoint",
-              "generated_contract"
-            ],
+            "secondary_classifications": ["framework_entrypoint", "generated_contract"],
             "disposition": "preserve",
             "evidence": "Generated key type paired with SNAPPED_LENGTH_BASE_PX. tests/ui/tokens/index.test.ts uses it to type the touch-floor and integer-pixel exhaustive probes. Exact text count was 5; the type remains part of the @orb/ui/tokens entrypoint."
           },
@@ -3084,9 +2880,7 @@
             "source": "packages/ui/src/tokens/z-scope.ts:77",
             "lens": "test-only-export",
             "primary_classification": "deliberate_test_proof_seam",
-            "secondary_classifications": [
-              "framework_entrypoint"
-            ],
+            "secondary_classifications": ["framework_entrypoint"],
             "disposition": "preserve",
             "evidence": "The @orb/ui/z-scope package entrypoint is consumed by tests/ui/styles/css-structure.suite.test.ts to map live CSS vars back to governed stacking scopes. ast-grep and text both found 3 exact identifiers: declaration, import, and call."
           },
@@ -3095,10 +2889,7 @@
             "source": "packages/ui/src/layout/toolbar.tsx:27",
             "lens": "test-only-export",
             "primary_classification": "framework_entrypoint",
-            "secondary_classifications": [
-              "deliberate_test_proof",
-              "intended_but_unwired_feature"
-            ],
+            "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
             "disposition": "preserve",
             "evidence": "Public @orb/ui/layout toolbar anatomy; tests/ui/layout/toolbar.ct.tsx proves roving-focus behavior. ast-grep found 23 declaration/barrel/test identifiers; exact text count 26."
           },
@@ -3107,10 +2898,7 @@
             "source": "packages/ui/src/layout/toolbar.tsx:36",
             "lens": "test-only-export",
             "primary_classification": "framework_entrypoint",
-            "secondary_classifications": [
-              "deliberate_test_proof",
-              "intended_but_unwired_feature"
-            ],
+            "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
             "disposition": "preserve",
             "evidence": "Public @orb/ui/layout toolbar anatomy with focused CT coverage in tests/ui/layout/toolbar.ct.tsx. ast-grep found declaration/barrel/test structure; exact text count 5."
           },
@@ -3119,10 +2907,7 @@
             "source": "packages/ui/src/layout/toolbar.tsx:49",
             "lens": "test-only-export",
             "primary_classification": "framework_entrypoint",
-            "secondary_classifications": [
-              "deliberate_test_proof",
-              "intended_but_unwired_feature"
-            ],
+            "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
             "disposition": "preserve",
             "evidence": "Public @orb/ui/layout grouping primitive; tests/ui/layout/toolbar.ct.tsx exercises it. ast-grep found 7 structural identifiers; exact text count 10."
           },
@@ -3131,10 +2916,7 @@
             "source": "packages/ui/src/layout/toolbar.tsx:62",
             "lens": "test-only-export",
             "primary_classification": "framework_entrypoint",
-            "secondary_classifications": [
-              "deliberate_test_proof",
-              "intended_but_unwired_feature"
-            ],
+            "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
             "disposition": "preserve",
             "evidence": "Public @orb/ui/layout toolbar link wrapper; tests/ui/layout/toolbar.ct.tsx covers the composed toolbar contract. ast-grep found 5 structural identifiers; exact text count 7."
           },
@@ -3143,10 +2925,7 @@
             "source": "packages/ui/src/layout/toolbar.tsx:76",
             "lens": "test-only-export",
             "primary_classification": "framework_entrypoint",
-            "secondary_classifications": [
-              "deliberate_test_proof",
-              "intended_but_unwired_feature"
-            ],
+            "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
             "disposition": "preserve",
             "evidence": "Public @orb/ui/layout toolbar input wrapper; tests/ui/layout/toolbar.ct.tsx is its only current consumer. ast-grep found 4 structural identifiers; exact text count 6."
           },
@@ -3155,10 +2934,7 @@
             "source": "packages/ui/src/primitives/accordion/accordion.tsx:36",
             "lens": "test-only-export",
             "primary_classification": "framework_entrypoint",
-            "secondary_classifications": [
-              "deliberate_test_proof",
-              "intended_but_unwired_feature"
-            ],
+            "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
             "disposition": "preserve",
             "evidence": "Public @orb/ui/accordion Base UI anatomy. tests/ui/primitives/accordion/accordion.ct.tsx exercises header composition and accessibility. ast-grep found 19 structural identifiers; exact text count 19."
           },
@@ -3167,10 +2943,7 @@
             "source": "packages/ui/src/primitives/alert-dialog/handle.ts:4",
             "lens": "test-only-export",
             "primary_classification": "framework_entrypoint",
-            "secondary_classifications": [
-              "deliberate_test_proof",
-              "intended_but_unwired_feature"
-            ],
+            "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
             "disposition": "preserve",
             "evidence": "Public detached-handle API exported from @orb/ui/alert-dialog. tests/ui/primitives/alert-dialog/alert-dialog-handle.fixtures.tsx mounts the imperative contract. ast-grep found declaration/barrel/import/call; exact text count 5."
           },
@@ -3179,10 +2952,7 @@
             "source": "packages/ui/src/primitives/color-field/color-field.tsx:27",
             "lens": "test-only-export",
             "primary_classification": "framework_entrypoint",
-            "secondary_classifications": [
-              "deliberate_test_proof",
-              "intended_but_unwired_feature"
-            ],
+            "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
             "disposition": "preserve",
             "evidence": "Public display-only half of @orb/ui/color-field; the variants header explicitly says the skin is shared by ColorSwatch and the interactive field. tests/ui/primitives/color-field/color-field.ct.tsx covers it. ast-grep found 6 structural identifiers; exact text count 9."
           },
@@ -3191,10 +2961,7 @@
             "source": "packages/ui/src/primitives/command/command.tsx:235",
             "lens": "test-only-export",
             "primary_classification": "framework_entrypoint",
-            "secondary_classifications": [
-              "deliberate_test_proof",
-              "intended_but_unwired_feature"
-            ],
+            "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
             "disposition": "preserve",
             "evidence": "Public @orb/ui/command live-region part. tests/ui/primitives/command/command.fixtures.tsx composes it under Command so CT can prove filtered-result announcements. ast-grep and exact text both found 4 identifiers."
           },
@@ -3203,10 +2970,7 @@
             "source": "packages/ui/src/primitives/dialog/handle.ts:5",
             "lens": "test-only-export",
             "primary_classification": "framework_entrypoint",
-            "secondary_classifications": [
-              "deliberate_test_proof",
-              "intended_but_unwired_feature"
-            ],
+            "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
             "disposition": "preserve",
             "evidence": "Public @orb/ui/dialog detached-handle API with tests/ui/primitives/dialog/dialog-handle.fixtures.tsx as the current caller. ast-grep and exact text both found 4 identifiers."
           },
@@ -3215,10 +2979,7 @@
             "source": "packages/ui/src/primitives/drawer/drawer.tsx:44",
             "lens": "test-only-export",
             "primary_classification": "framework_entrypoint",
-            "secondary_classifications": [
-              "deliberate_test_proof",
-              "intended_but_unwired_feature"
-            ],
+            "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
             "disposition": "preserve",
             "evidence": "Public @orb/ui/drawer Base UI trigger, exercised in drawer.ct.tsx and drawer-handle.fixtures.tsx. ast-grep found 18 structural identifiers; exact text count 23."
           },
@@ -3227,10 +2988,7 @@
             "source": "packages/ui/src/primitives/drawer/drawer.tsx:97",
             "lens": "test-only-export",
             "primary_classification": "framework_entrypoint",
-            "secondary_classifications": [
-              "deliberate_test_proof",
-              "intended_but_unwired_feature"
-            ],
+            "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
             "disposition": "preserve",
             "evidence": "Public @orb/ui/drawer accessible-description part, exercised by tests/ui/primitives/drawer/drawer.ct.tsx. ast-grep and exact text both found 7 identifiers."
           },
@@ -3239,10 +2997,7 @@
             "source": "packages/ui/src/primitives/drawer/drawer.tsx:115",
             "lens": "test-only-export",
             "primary_classification": "framework_entrypoint",
-            "secondary_classifications": [
-              "deliberate_test_proof",
-              "intended_but_unwired_feature"
-            ],
+            "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
             "disposition": "preserve",
             "evidence": "Public swipe-area part of @orb/ui/drawer, exercised by drawer.ct.tsx. ast-grep and exact text both found 4 identifiers."
           },
@@ -3251,10 +3006,7 @@
             "source": "packages/ui/src/primitives/drawer/drawer.tsx:125",
             "lens": "test-only-export",
             "primary_classification": "framework_entrypoint",
-            "secondary_classifications": [
-              "deliberate_test_proof",
-              "intended_but_unwired_feature"
-            ],
+            "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
             "disposition": "preserve",
             "evidence": "Public context owner required by DrawerIndent and DrawerIndentBackground; its source contract explicitly says it renders no element. drawer.ct.tsx proves the depth composition. ast-grep found 5 structural identifiers; exact text count 10."
           },
@@ -3263,10 +3015,7 @@
             "source": "packages/ui/src/primitives/drawer/drawer.tsx:137",
             "lens": "test-only-export",
             "primary_classification": "framework_entrypoint",
-            "secondary_classifications": [
-              "deliberate_test_proof",
-              "intended_but_unwired_feature"
-            ],
+            "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
             "disposition": "preserve",
             "evidence": "Public drawer depth-effect part that must live inside DrawerProvider; drawer.ct.tsx is the proof consumer. ast-grep found 5 structural identifiers; exact text count 7."
           },
@@ -3275,10 +3024,7 @@
             "source": "packages/ui/src/primitives/drawer/drawer.tsx:150",
             "lens": "test-only-export",
             "primary_classification": "framework_entrypoint",
-            "secondary_classifications": [
-              "deliberate_test_proof",
-              "intended_but_unwired_feature"
-            ],
+            "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
             "disposition": "preserve",
             "evidence": "Public companion background for DrawerIndent, with an explicit source ordering/provider contract and drawer.ct.tsx coverage. ast-grep found 4 structural identifiers; exact text count 5."
           },
@@ -3287,10 +3033,7 @@
             "source": "packages/ui/src/primitives/drawer/handle.ts:4",
             "lens": "test-only-export",
             "primary_classification": "framework_entrypoint",
-            "secondary_classifications": [
-              "deliberate_test_proof",
-              "intended_but_unwired_feature"
-            ],
+            "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
             "disposition": "preserve",
             "evidence": "Public one-drawer-from-N-sources handle; its header explicitly states the use case and mirror with alert-dialog. drawer-handle.fixtures.tsx proves it. ast-grep and exact text both found 5 identifiers."
           },
@@ -3299,10 +3042,7 @@
             "source": "packages/ui/src/primitives/field/field.tsx:207",
             "lens": "test-only-export",
             "primary_classification": "framework_entrypoint",
-            "secondary_classifications": [
-              "deliberate_test_proof",
-              "intended_but_unwired_feature"
-            ],
+            "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
             "disposition": "preserve",
             "evidence": "Public @orb/ui/field Base UI validity part; field-validity.fixtures.tsx composes the browser-visible proof. ast-grep found 5 structural identifiers; exact text count 9."
           },
@@ -3311,10 +3051,7 @@
             "source": "packages/ui/src/primitives/icons/fillable.ts:56",
             "lens": "test-only-export",
             "primary_classification": "framework_entrypoint",
-            "secondary_classifications": [
-              "deliberate_test_proof",
-              "intended_but_unwired_feature"
-            ],
+            "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
             "disposition": "preserve",
             "evidence": "Public fillable-icon registry member exported by @orb/ui/icons. The source header has Pause-specific partial-fill behavior, and icon.fixtures.tsx exercises it. ast-grep found declaration/import/barrel/fixture structure; exact text count 17 includes prose and other pause concepts."
           },
@@ -3323,10 +3060,7 @@
             "source": "packages/ui/src/primitives/menu/handle.ts:7",
             "lens": "test-only-export",
             "primary_classification": "framework_entrypoint",
-            "secondary_classifications": [
-              "deliberate_test_proof",
-              "intended_but_unwired_feature"
-            ],
+            "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
             "disposition": "preserve",
             "evidence": "Public detached handle from @orb/ui/menu, with menu-handle.fixtures.tsx as current caller. ast-grep and exact text both found 4 identifiers."
           },
@@ -3335,10 +3069,7 @@
             "source": "packages/ui/src/primitives/menu/menu.tsx:85",
             "lens": "test-only-export",
             "primary_classification": "framework_entrypoint",
-            "secondary_classifications": [
-              "deliberate_test_proof",
-              "intended_but_unwired_feature"
-            ],
+            "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
             "disposition": "preserve",
             "evidence": "Public Base UI menu anatomy exported from @orb/ui/menu and exercised by menu.ct.tsx. ast-grep found 5 structural identifiers; exact text count 6."
           },
@@ -3347,10 +3078,7 @@
             "source": "packages/ui/src/primitives/menu/menu.tsx:95",
             "lens": "test-only-export",
             "primary_classification": "framework_entrypoint",
-            "secondary_classifications": [
-              "deliberate_test_proof",
-              "intended_but_unwired_feature"
-            ],
+            "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
             "disposition": "preserve",
             "evidence": "Public menu positioning arrow; menu.ct.tsx exercises it through the package entrypoint. ast-grep found 4 structural identifiers; exact text count 5."
           },
@@ -3359,10 +3087,7 @@
             "source": "packages/ui/src/primitives/menu/menu.tsx:149",
             "lens": "test-only-export",
             "primary_classification": "framework_entrypoint",
-            "secondary_classifications": [
-              "deliberate_test_proof",
-              "intended_but_unwired_feature"
-            ],
+            "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
             "disposition": "preserve",
             "evidence": "Public checked-item branch of the @orb/ui/menu API, covered in menu.ct.tsx. ast-grep and exact text both found 5 identifiers."
           },
@@ -3371,10 +3096,7 @@
             "source": "packages/ui/src/primitives/menu/menu.tsx:162",
             "lens": "test-only-export",
             "primary_classification": "framework_entrypoint",
-            "secondary_classifications": [
-              "deliberate_test_proof",
-              "intended_but_unwired_feature"
-            ],
+            "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
             "disposition": "preserve",
             "evidence": "Public radio-group branch of the menu anatomy, covered in menu.ct.tsx. ast-grep found 5 structural identifiers; exact text count 6."
           },
@@ -3383,10 +3105,7 @@
             "source": "packages/ui/src/primitives/menu/menu.tsx:174",
             "lens": "test-only-export",
             "primary_classification": "framework_entrypoint",
-            "secondary_classifications": [
-              "deliberate_test_proof",
-              "intended_but_unwired_feature"
-            ],
+            "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
             "disposition": "preserve",
             "evidence": "Public radio-item branch of the menu anatomy, covered in menu.ct.tsx. ast-grep and exact text both found 7 identifiers."
           },
@@ -3395,10 +3114,7 @@
             "source": "packages/ui/src/primitives/menu/menu.tsx:236",
             "lens": "test-only-export",
             "primary_classification": "framework_entrypoint",
-            "secondary_classifications": [
-              "deliberate_test_proof",
-              "intended_but_unwired_feature"
-            ],
+            "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
             "disposition": "preserve",
             "evidence": "Public backdrop part of @orb/ui/menu, exercised by menu.ct.tsx. ast-grep and exact text both found 4 identifiers."
           },
@@ -3407,10 +3123,7 @@
             "source": "packages/ui/src/primitives/popover/handle.ts:5",
             "lens": "test-only-export",
             "primary_classification": "framework_entrypoint",
-            "secondary_classifications": [
-              "deliberate_test_proof",
-              "intended_but_unwired_feature"
-            ],
+            "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
             "disposition": "preserve",
             "evidence": "Public detached handle from @orb/ui/popover; popover-handle.fixtures.tsx proves the contract. ast-grep found 4 structural identifiers; exact text count 5."
           },
@@ -3419,10 +3132,7 @@
             "source": "packages/ui/src/primitives/popover/popover.tsx:120",
             "lens": "test-only-export",
             "primary_classification": "framework_entrypoint",
-            "secondary_classifications": [
-              "deliberate_test_proof",
-              "intended_but_unwired_feature"
-            ],
+            "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
             "disposition": "preserve",
             "evidence": "Public Base UI popover anatomy, exercised by popover.ct.tsx. ast-grep found 5 structural identifiers; exact text count 6."
           },
@@ -3431,10 +3141,7 @@
             "source": "packages/ui/src/primitives/popover/popover.tsx:129",
             "lens": "test-only-export",
             "primary_classification": "framework_entrypoint",
-            "secondary_classifications": [
-              "deliberate_test_proof",
-              "intended_but_unwired_feature"
-            ],
+            "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
             "disposition": "preserve",
             "evidence": "Public popover positioning arrow, exercised by popover.ct.tsx. ast-grep and exact text both found 4 identifiers."
           },
@@ -3443,10 +3150,7 @@
             "source": "packages/ui/src/primitives/popover/popover.tsx:151",
             "lens": "test-only-export",
             "primary_classification": "framework_entrypoint",
-            "secondary_classifications": [
-              "deliberate_test_proof",
-              "intended_but_unwired_feature"
-            ],
+            "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
             "disposition": "preserve",
             "evidence": "Public accessible-description part used in popover.ct.tsx and popover-handle.fixtures.tsx. ast-grep and exact text both found 12 identifiers."
           },
@@ -3455,10 +3159,7 @@
             "source": "packages/ui/src/primitives/reveal-gate/reveal-gate.tsx:27",
             "lens": "test-only-export",
             "primary_classification": "framework_entrypoint",
-            "secondary_classifications": [
-              "deliberate_test_proof",
-              "intended_but_unwired_feature"
-            ],
+            "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
             "disposition": "preserve",
             "evidence": "Dedicated @orb/ui/reveal-gate package entrypoint with extensive CT and fixture coverage for secret reveal/hide, labels, default state, and disabled state. ast-grep found 34 structural identifiers; exact text count 34."
           },
@@ -3467,10 +3168,7 @@
             "source": "packages/ui/src/primitives/status-chip/status-chip.tsx:50",
             "lens": "test-only-export",
             "primary_classification": "framework_entrypoint",
-            "secondary_classifications": [
-              "deliberate_test_proof",
-              "intended_but_unwired_feature"
-            ],
+            "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
             "disposition": "preserve",
             "evidence": "Dedicated @orb/ui/status-chip package entrypoint; status-chip.ct.tsx, variant-attrs.ct.tsx, and the variant-arm matrix exercise its public status states. ast-grep found 19 structural identifiers; exact text count 20."
           },
@@ -3479,10 +3177,7 @@
             "source": "packages/ui/src/primitives/table/table.tsx:185",
             "lens": "test-only-export",
             "primary_classification": "framework_entrypoint",
-            "secondary_classifications": [
-              "deliberate_test_proof",
-              "intended_but_unwired_feature"
-            ],
+            "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
             "disposition": "preserve",
             "evidence": "Dedicated @orb/ui/table data-grid entrypoint; table.fixtures.tsx is the mounted proof surface. ast-grep found 9 exact identifier nodes in the bounded UI/test scope; the 35 exact-text occurrences include unrelated generic Table identifiers, so text is corroboration only."
           },
@@ -3491,10 +3186,7 @@
             "source": "packages/ui/src/primitives/tooltip/handle.ts:5",
             "lens": "test-only-export",
             "primary_classification": "framework_entrypoint",
-            "secondary_classifications": [
-              "deliberate_test_proof",
-              "intended_but_unwired_feature"
-            ],
+            "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
             "disposition": "preserve",
             "evidence": "Public detached handle from @orb/ui/tooltip; tooltip-handle.fixtures.tsx proves the contract. ast-grep found 4 structural identifiers; exact text count 5."
           },
@@ -3503,10 +3195,7 @@
             "source": "packages/ui/src/primitives/tooltip/tooltip.tsx:221",
             "lens": "test-only-export",
             "primary_classification": "framework_entrypoint",
-            "secondary_classifications": [
-              "deliberate_test_proof",
-              "intended_but_unwired_feature"
-            ],
+            "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
             "disposition": "preserve",
             "evidence": "Public Base UI tooltip anatomy, exercised by tooltip.ct.tsx. ast-grep found 5 structural identifiers; exact text count 6."
           },
@@ -3515,10 +3204,7 @@
             "source": "packages/ui/src/primitives/tooltip/tooltip.tsx:237",
             "lens": "test-only-export",
             "primary_classification": "framework_entrypoint",
-            "secondary_classifications": [
-              "deliberate_test_proof",
-              "intended_but_unwired_feature"
-            ],
+            "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
             "disposition": "preserve",
             "evidence": "Public tooltip positioning arrow, exercised by tooltip.ct.tsx. ast-grep and exact text both found 4 identifiers."
           },
@@ -3527,10 +3213,7 @@
             "source": "packages/ui/src/stream/stream-text.tsx:32",
             "lens": "test-only-export",
             "primary_classification": "framework_entrypoint",
-            "secondary_classifications": [
-              "deliberate_test_proof",
-              "intended_but_unwired_feature"
-            ],
+            "secondary_classifications": ["deliberate_test_proof", "intended_but_unwired_feature"],
             "disposition": "preserve",
             "evidence": "The @orb/ui/stream header names StreamText as the composed plain-text display over the domain-free pacer and pending affordances. stream-text.ct.tsx is its current consumer and behavioral proof. ast-grep found 13 structural identifiers; exact text count 15."
           }
@@ -3575,16 +3258,10 @@
           "unique_findings": 9
         },
         "scope_and_method": {
-          "source_scope": [
-            "packages/client/src",
-            "tests"
-          ],
+          "source_scope": ["packages/client/src", "tests"],
           "structural_search": {
             "tool": "ast-grep run",
-            "languages": [
-              "ts",
-              "tsx"
-            ],
+            "languages": ["ts", "tsx"],
             "per_symbol_scanned_file_counts": {
               "ts": 3019,
               "tsx": 1294,
@@ -3594,10 +3271,7 @@
           },
           "textual_corroboration": {
             "tool": "rg",
-            "globs": [
-              "*.ts",
-              "*.tsx"
-            ],
+            "globs": ["*.ts", "*.tsx"],
             "scanned_file_count": 4302,
             "note": "The textual inventory intentionally names the two file suffixes; ast-grep's parser inventory is 11 files larger. The occurrence totals below come from this independent literal pass."
           },
@@ -3630,10 +3304,7 @@
             "structural_evidence": {
               "ts_occurrences": 2,
               "tsx_occurrences": 0,
-              "matches": [
-                "declaration in use-refinery-schemas.ts",
-                "feature-front-door re-export in packages/client/src/features/refinery/index.ts:57"
-              ]
+              "matches": ["declaration in use-refinery-schemas.ts", "feature-front-door re-export in packages/client/src/features/refinery/index.ts:57"]
             },
             "text_occurrences": 2,
             "adjudication": "Preserve. The declaration is explicitly marked '@public future' and names the unbuilt schema-editor delete affordance. Its comment says the server verb and belts shipped with R3 so the surface can wire deletion without a contract round-trip. This is deliberate unwired product intent under the repository's unwired-is-not-worthless rule."
@@ -3718,10 +3389,7 @@
             "structural_evidence": {
               "ts_occurrences": 3,
               "tsx_occurrences": 0,
-              "matches": [
-                "exported oracle declaration",
-                "test import and invocation in tests/client/features/credentials/lib/connections-model.test.ts:21,256"
-              ]
+              "matches": ["exported oracle declaration", "test import and invocation in tests/client/features/credentials/lib/connections-model.test.ts:21,256"]
             },
             "text_occurrences": 3,
             "adjudication": "Preserve. Its header calls it 'THE ORACLE the unit test runs' and marks it '@public Test-anchored module surface'. It compares authored role requirements with every contract task riding that slot, catching silently dropped contract clauses that the rendered surface cannot prove."
@@ -3741,10 +3409,7 @@
             "structural_evidence": {
               "ts_occurrences": 2,
               "tsx_occurrences": 2,
-              "matches": [
-                "declaration and feature-front-door re-export",
-                "import and real hook call in tests/client/features/refinery/_ct-stories.tsx:42,85"
-              ]
+              "matches": ["declaration and feature-front-door re-export", "import and real hook call in tests/client/features/refinery/_ct-stories.tsx:42,85"]
             },
             "text_occurrences": 4,
             "adjudication": "Preserve. The hook is explicitly '@public future' for the R3 session-library delete affordance, while the component-test story currently drives the real hook through the feature front door, real QueryClient, toast surface, and routed network stub. It is both retained product intent and an exercised write-tier adapter."

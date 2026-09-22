@@ -3,7 +3,6 @@
 // idempotent on their unique key (re-upsert updates in place, never doubles); a re-upsert NEVER touches
 // hub_score; the round-trip Float32Array survives the F32_BLOB column.
 
-import type { ImageCaptionMeta } from "@orb/contracts/embeddings";
 import type { Db } from "@orb/db";
 import { characterEmbeddings, embedGenerations, imageEmbeddings } from "@orb/db";
 import type { CharacterEmbeddingId, EmbedGenerationId, Handle, ImageEmbeddingId, UserConnectionId, UserId } from "@orb/kit/ids";
@@ -172,7 +171,7 @@ describe("existingImageHash / upsertImageEmbedding", () => {
         assetId,
         lens: "image-captioned",
         caption: "a caption",
-        captionMeta: { artStyle: "invalid-art-style" } as unknown as ImageCaptionMeta,
+        captionMeta: { artStyle: "invalid-art-style" },
         embedding: fakeVector(EMBED_DIM, 3),
         contentHash: "img-hash",
         model: IMAGE_EMBED_MODEL,
@@ -210,7 +209,7 @@ describe("existingImageHash / upsertImageEmbedding", () => {
         assetId,
         lens: "image-captioned",
         caption: "changed caption",
-        captionMeta: { artStyle: "invalid-art-style" } as unknown as ImageCaptionMeta,
+        captionMeta: { artStyle: "invalid-art-style" },
         embedding: fakeVector(EMBED_DIM, 9),
         contentHash: "changed-hash",
         model: IMAGE_EMBED_MODEL,

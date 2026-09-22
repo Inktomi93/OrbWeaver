@@ -14,16 +14,10 @@
     "unique_findings": 9
   },
   "scope_and_method": {
-    "source_scope": [
-      "packages/client/src",
-      "tests"
-    ],
+    "source_scope": ["packages/client/src", "tests"],
     "structural_search": {
       "tool": "ast-grep run",
-      "languages": [
-        "ts",
-        "tsx"
-      ],
+      "languages": ["ts", "tsx"],
       "per_symbol_scanned_file_counts": {
         "ts": 3019,
         "tsx": 1294,
@@ -33,10 +27,7 @@
     },
     "textual_corroboration": {
       "tool": "rg",
-      "globs": [
-        "*.ts",
-        "*.tsx"
-      ],
+      "globs": ["*.ts", "*.tsx"],
       "scanned_file_count": 4302,
       "note": "The textual inventory intentionally names the two file suffixes; ast-grep's parser inventory is 11 files larger. The occurrence totals below come from this independent literal pass."
     },
@@ -69,10 +60,7 @@
       "structural_evidence": {
         "ts_occurrences": 2,
         "tsx_occurrences": 0,
-        "matches": [
-          "declaration in use-refinery-schemas.ts",
-          "feature-front-door re-export in packages/client/src/features/refinery/index.ts:57"
-        ]
+        "matches": ["declaration in use-refinery-schemas.ts", "feature-front-door re-export in packages/client/src/features/refinery/index.ts:57"]
       },
       "text_occurrences": 2,
       "adjudication": "Preserve. The declaration is explicitly marked '@public future' and names the unbuilt schema-editor delete affordance. Its comment says the server verb and belts shipped with R3 so the surface can wire deletion without a contract round-trip. This is deliberate unwired product intent under the repository's unwired-is-not-worthless rule."
@@ -157,10 +145,7 @@
       "structural_evidence": {
         "ts_occurrences": 3,
         "tsx_occurrences": 0,
-        "matches": [
-          "exported oracle declaration",
-          "test import and invocation in tests/client/features/credentials/lib/connections-model.test.ts:21,256"
-        ]
+        "matches": ["exported oracle declaration", "test import and invocation in tests/client/features/credentials/lib/connections-model.test.ts:21,256"]
       },
       "text_occurrences": 3,
       "adjudication": "Preserve. Its header calls it 'THE ORACLE the unit test runs' and marks it '@public Test-anchored module surface'. It compares authored role requirements with every contract task riding that slot, catching silently dropped contract clauses that the rendered surface cannot prove."
@@ -180,10 +165,7 @@
       "structural_evidence": {
         "ts_occurrences": 2,
         "tsx_occurrences": 2,
-        "matches": [
-          "declaration and feature-front-door re-export",
-          "import and real hook call in tests/client/features/refinery/_ct-stories.tsx:42,85"
-        ]
+        "matches": ["declaration and feature-front-door re-export", "import and real hook call in tests/client/features/refinery/_ct-stories.tsx:42,85"]
       },
       "text_occurrences": 4,
       "adjudication": "Preserve. The hook is explicitly '@public future' for the R3 session-library delete affordance, while the component-test story currently drives the real hook through the feature front door, real QueryClient, toast surface, and routed network stub. It is both retained product intent and an exercised write-tier adapter."
@@ -225,11 +207,7 @@
       "structural_evidence": {
         "ts_occurrences": 22,
         "tsx_occurrences": 0,
-        "matches": [
-          "declaration and state front-door re-export",
-          "import/call in apply-chat-bus-event.test.ts",
-          "import plus 16 calls in chat-stream.test.ts"
-        ]
+        "matches": ["declaration and state front-door re-export", "import/call in apply-chat-bus-event.test.ts", "import plus 16 calls in chat-stream.test.ts"]
       },
       "text_occurrences": 22,
       "adjudication": "Preserve. The declaration comment explicitly identifies today's chat-stream test suites as consumers and calls this a transient render-free observation seam, distinct from the production smooth-text hook path. Tests use it to observe real store transitions without mounting React, including the bus reducer handover behavior."

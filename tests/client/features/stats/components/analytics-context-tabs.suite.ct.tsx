@@ -1,5 +1,7 @@
 // CT: WHAT THE CONTEXT TABS CLAIM TO BE ABOUT (side-eye rail-analytics 2026-08-19 P1b).
 //
+import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
+
 // The CONTEXT band names the leaderboard-drilled character (§6.3 N4/P4), which reads as a claim that the
 // numbers under it are that character's. Two of the three dimension tabs cannot honour it — `model_stats`
 // is owner+model grain and `daily_stats` is owner+day grain, neither has a character axis — and the third
@@ -36,8 +38,8 @@ const MODEL_ROW = {
 
 const LATENCY = { avgTtftMs: 300, p50TtftMs: 280, p90TtftMs: 800, avgGenMs: 1200, p50GenMs: 1000, p90GenMs: 2400 };
 
-function personaRow(name: string, messageCount: number): Record<string, unknown> {
-  return { personaId: `persona_${name}`, name, chatCount: 2, messageCount, tokensOut: null, lastUsedAt: 1_750_000_000_000 };
+function personaRow(name: string, messageCount: number): TrpcWireOutput<"stats.personaUsage">[number] {
+  return { personaId: `persona_${name}`, name, chatCount: 2, messageCount, tokensOut: null, tokensOutProvenance: "unrecorded", lastUsedAt: 1_750_000_000_000 };
 }
 
 test("the Models tab says WHOSE numbers these are when a character is drilled", async ({ mount, page }) => {

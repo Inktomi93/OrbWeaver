@@ -51,13 +51,7 @@
     "ChatSummary participantCharacterIds and CredentialView.hasMetadata have no surviving TS/TSX member access or property-signature matches in the scanned code scope. Same-spelled local/domain concepts remain intentionally."
   ],
   "structuralEvidence": {
-    "scope": [
-      "packages",
-      "tests",
-      "tooling",
-      "scripts",
-      "playwright"
-    ],
+    "scope": ["packages", "tests", "tooling", "scripts", "playwright"],
     "astGrep": {
       "ts": {
         "scannedFiles": 6446,
@@ -110,10 +104,7 @@
       "result": "PASS"
     }
   ],
-  "inspectedPriorReports": [
-    "/tmp/world-tools-viewgap-cleanup-report.json",
-    "/tmp/world-tools-loadturn-cleanup-report.json"
-  ],
+  "inspectedPriorReports": ["/tmp/world-tools-viewgap-cleanup-report.json", "/tmp/world-tools-loadturn-cleanup-report.json"],
   "limitations": [
     "This is a pre-merge verdict against uncommitted changes on HEAD 41ae2d2e while main had advanced to 78e9989d5; integration with current main was not assessed.",
     "No whole-repository check or full behavioral suite was run; targeted native typecheck, 222 scoped node tests, and 66 scoped CTs were reproduced."

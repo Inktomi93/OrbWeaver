@@ -21,13 +21,7 @@
     "consumer_method": "Read each declaration/producer and relevant current consumers; corroborated field-name searches with actual ast-grep property-access sweeps.",
     "ast_grep": {
       "binary": "ast-grep 0.45.0",
-      "scope": [
-        "packages",
-        "tests",
-        "tooling",
-        "scripts",
-        "playwright"
-      ],
+      "scope": ["packages", "tests", "tooling", "scripts", "playwright"],
       "positive_control": {
         "ts": {
           "pattern": "$OBJ.id",
@@ -53,32 +47,17 @@
     {
       "pattern": "owner-fence mismatch",
       "detail": "The lens treats every interface named *View/*Summary under contracts or server as client-facing, then checks only packages/client/src. Internal server summaries therefore become guaranteed false positives.",
-      "observations": [
-        9,
-        10,
-        24,
-        25,
-        32,
-        33
-      ]
+      "observations": [9, 10, 24, 25, 32, 33]
     },
     {
       "pattern": "consumer-scope mismatch",
       "detail": "Shared cross-boundary MessageView fields can have load-bearing server consumers; a client-only reader census misses them.",
-      "observations": [
-        2,
-        3,
-        4
-      ]
+      "observations": [2, 3, 4]
     },
     {
       "pattern": "name-only ambiguity",
       "detail": "The lens and structural sweeps are name-based, so common names such as contentHash, parentChatId, and automationDepth need owner/type adjudication. A raw hit count is not a reader proof.",
-      "observations": [
-        13,
-        14,
-        15
-      ]
+      "observations": [13, 14, 15]
     }
   ],
   "bounded_tool_calibration": [
@@ -97,10 +76,7 @@
       },
       "disposition": "deliberate_write_only_external_protocol",
       "reason": "The whole-gallery wire must retain the optional subject association even though the current character gallery asks with subjectCharacterId and therefore does not need to re-read it.",
-      "evidence": [
-        "packages/contracts/src/assets/index.ts:128-156",
-        "packages/client/src/features/chat/anchors/character-gallery-dialog.tsx:101-102"
-      ],
+      "evidence": ["packages/contracts/src/assets/index.ts:128-156", "packages/client/src/features/chat/anchors/character-gallery-dialog.tsx:101-102"],
       "recommendation": "no_edit"
     },
     {
@@ -113,9 +89,7 @@
       },
       "disposition": "live_reader_missed_by_lens",
       "reason": "A production server consumer reads MessageView.finishReason to decide bounded auto-continue; a client-only name census cannot see that reader.",
-      "evidence": [
-        "packages/server/src/domain/chat/verbs/turn.ts:1325-1334"
-      ],
+      "evidence": ["packages/server/src/domain/chat/verbs/turn.ts:1325-1334"],
       "recommendation": "no_edit"
     },
     {
@@ -128,10 +102,7 @@
       },
       "disposition": "live_reader_missed_by_lens",
       "reason": "The duplicate-message path reads stopReason from a value explicitly typed MessageView and copies it into the new selected variant.",
-      "evidence": [
-        "packages/server/src/domain/chat/verbs/edit.ts:152-175",
-        "packages/server/src/domain/chat/verbs/edit.ts:953-955"
-      ],
+      "evidence": ["packages/server/src/domain/chat/verbs/edit.ts:152-175", "packages/server/src/domain/chat/verbs/edit.ts:953-955"],
       "recommendation": "no_edit"
     },
     {
@@ -144,10 +115,7 @@
       },
       "disposition": "live_reader_missed_by_lens",
       "reason": "The duplicate-message path reads terminalReason from a value explicitly typed MessageView and copies it into the new selected variant.",
-      "evidence": [
-        "packages/server/src/domain/chat/verbs/edit.ts:152-175",
-        "packages/server/src/domain/chat/verbs/edit.ts:953-955"
-      ],
+      "evidence": ["packages/server/src/domain/chat/verbs/edit.ts:152-175", "packages/server/src/domain/chat/verbs/edit.ts:953-955"],
       "recommendation": "no_edit"
     },
     {
@@ -160,10 +128,7 @@
       },
       "disposition": "unresolved",
       "reason": "No current client or MessageView-specific server reader was found. The contract says the cost pill needs this provenance, but the current UI settles cost through generationId/connectionId. That is evidence of either stale payload/comment or an unfinished provenance display, not enough to choose deletion.",
-      "evidence": [
-        "packages/contracts/src/chat/messages.ts:457-474",
-        "packages/server/src/domain/chat/verbs/fork.ts:165-184"
-      ],
+      "evidence": ["packages/contracts/src/chat/messages.ts:457-474", "packages/server/src/domain/chat/verbs/fork.ts:165-184"],
       "recommendation": "no_edit"
     },
     {
@@ -176,9 +141,7 @@
       },
       "disposition": "deliberate_write_only_external_protocol",
       "reason": "joinedAt is durable roster chronology in the cross-boundary participant record. The current client does not render it, but it remains semantically distinct from the server-only joinSeq field immediately below it.",
-      "evidence": [
-        "packages/contracts/src/chat/roster.ts:242-261"
-      ],
+      "evidence": ["packages/contracts/src/chat/roster.ts:242-261"],
       "recommendation": "no_edit"
     },
     {
@@ -191,10 +154,7 @@
       },
       "disposition": "deliberate_write_only_external_protocol",
       "reason": "The credential-free resolved connection protocol reports the task requirement verdict alongside capability. Current callers can derive their visible state elsewhere, but this is an explicit resolver result rather than accidental projection residue.",
-      "evidence": [
-        "packages/contracts/src/inference/resolved.ts:1-24",
-        "packages/server/src/domain/connection/substrate/resolved-view.ts:17"
-      ],
+      "evidence": ["packages/contracts/src/inference/resolved.ts:1-24", "packages/server/src/domain/connection/substrate/resolved-view.ts:17"],
       "recommendation": "no_edit"
     },
     {
@@ -207,9 +167,7 @@
       },
       "disposition": "deliberate_write_only_external_protocol",
       "reason": "EntryView is a reusable entry identity record; worldBookId preserves the parent association even when the current editor obtained the entry through a selected book.",
-      "evidence": [
-        "packages/contracts/src/world-info/index.ts:151-166"
-      ],
+      "evidence": ["packages/contracts/src/world-info/index.ts:151-166"],
       "recommendation": "no_edit"
     },
     {
@@ -238,9 +196,7 @@
       },
       "disposition": "tool_defect",
       "reason": "RuleView is reused inside the server testRule verb; predicateCel is evaluated there. A client-only reader search is incomplete for this owner.",
-      "evidence": [
-        "packages/server/src/domain/automation/verbs/test-rule.ts:20-37"
-      ],
+      "evidence": ["packages/server/src/domain/automation/verbs/test-rule.ts:20-37"],
       "recommendation": "no_edit"
     },
     {
@@ -270,10 +226,7 @@
       },
       "disposition": "confirmed_dead_cleanup",
       "reason": "Only the RuleView projector reads the row into this output field; mutation logic uses the persistence row/counter directly and no production consumer reads RuleView.consecutiveErrors.",
-      "evidence": [
-        "packages/server/src/domain/automation/persistence/rules.ts:81",
-        "packages/server/src/domain/automation/persistence/rules.ts:303-305"
-      ],
+      "evidence": ["packages/server/src/domain/automation/persistence/rules.ts:81", "packages/server/src/domain/automation/persistence/rules.ts:303-305"],
       "recommendation": "remove this member from the view/result projection and adjust only directly coupled fixtures/tests; preserve same-name persistence/domain fields",
       "structural_sweep": {
         "ts": {
@@ -606,10 +559,7 @@
       },
       "disposition": "confirmed_dead_cleanup",
       "reason": "The list projector emits contentHash, but character list/home consumers do not read it. The many same-name hits are detail rows, embeddings, discovery rows, and database records; none consumes CharacterSummary.contentHash.",
-      "evidence": [
-        "packages/server/src/domain/character/persistence/queries.ts:806",
-        "packages/server/src/domain/character/contract/views.ts:51-71"
-      ],
+      "evidence": ["packages/server/src/domain/character/persistence/queries.ts:806", "packages/server/src/domain/character/contract/views.ts:51-71"],
       "recommendation": "remove this member from the view/result projection and adjust only directly coupled fixtures/tests; preserve same-name persistence/domain fields",
       "structural_sweep": {
         "ts": {
@@ -1344,10 +1294,7 @@
       },
       "disposition": "confirmed_dead_cleanup",
       "reason": "The summary contract says this marks a fork in the list, but the current chat-list implementation never reads it. Same-name production reads are ChatDetail/database lineage consumers, not ChatSummary consumers.",
-      "evidence": [
-        "packages/server/src/domain/chat/contract/views.ts:60-70",
-        "packages/server/src/domain/chat/verbs/read.ts:308"
-      ],
+      "evidence": ["packages/server/src/domain/chat/contract/views.ts:60-70", "packages/server/src/domain/chat/verbs/read.ts:308"],
       "recommendation": "remove this member from the view/result projection and adjust only directly coupled fixtures/tests; preserve same-name persistence/domain fields",
       "structural_sweep": {
         "ts": {
@@ -1518,10 +1465,7 @@
       },
       "disposition": "confirmed_dead_cleanup",
       "reason": "Production list rendering now consumes participantPortraits; its comment explicitly says that projection replaced the client-side participantCharacterIds map. The sole member-access hit is a test fixture emulating server characterId filtering.",
-      "evidence": [
-        "packages/client/src/features/chat/lib/chat-summary-row.ts:29-33",
-        "tests/client/features/chat/fixtures.ts:54"
-      ],
+      "evidence": ["packages/client/src/features/chat/lib/chat-summary-row.ts:29-33", "tests/client/features/chat/fixtures.ts:54"],
       "recommendation": "remove this member from the view/result projection and adjust only directly coupled fixtures/tests; preserve same-name persistence/domain fields",
       "structural_sweep": {
         "ts": {
@@ -1560,10 +1504,7 @@
       },
       "disposition": "deliberate_write_only_external_protocol",
       "reason": "chain is the sole payload of the dedicated getChatLineage endpoint and is exercised by the endpoint integration test. There is no current client caller, but deleting the field is equivalent to deleting the protocol rather than trimming an accidental member.",
-      "evidence": [
-        "packages/server/src/domain/chat/contract/views.ts:263-269",
-        "tests/server/domain/chat/verbs/read.int.test.ts:891-901"
-      ],
+      "evidence": ["packages/server/src/domain/chat/contract/views.ts:263-269", "tests/server/domain/chat/verbs/read.int.test.ts:891-901"],
       "recommendation": "no_edit"
     },
     {
@@ -1593,10 +1534,7 @@
       },
       "disposition": "confirmed_dead_cleanup",
       "reason": "The credential projector emits this boolean and one server test asserts it, but no production consumer reads it; credential UI behavior uses provider/label/revocation identity instead.",
-      "evidence": [
-        "packages/server/src/domain/credentials/persistence/queries.ts:145",
-        "tests/server/domain/credentials/verbs/add.int.test.ts:64"
-      ],
+      "evidence": ["packages/server/src/domain/credentials/persistence/queries.ts:145", "tests/server/domain/credentials/verbs/add.int.test.ts:64"],
       "recommendation": "remove this member from the view/result projection and adjust only directly coupled fixtures/tests; preserve same-name persistence/domain fields",
       "structural_sweep": {
         "ts": {
@@ -1635,10 +1573,7 @@
       },
       "disposition": "unresolved",
       "reason": "The contract promises a re-extract-on-upgrade affordance, but the current document detail UI does not read the value. This may be stale payload or a missing promised affordance; source alone does not authorize deletion.",
-      "evidence": [
-        "packages/server/src/domain/databank/contract/views.ts:12-19",
-        "packages/server/src/domain/databank/verbs/get.ts:34"
-      ],
+      "evidence": ["packages/server/src/domain/databank/contract/views.ts:12-19", "packages/server/src/domain/databank/verbs/get.ts:34"],
       "recommendation": "no_edit"
     },
     {
@@ -1651,10 +1586,7 @@
       },
       "disposition": "confirmed_dead_cleanup",
       "reason": "Crash accounting remains live in persistence, but PluginView merely projects the counter and no production consumer reads that projected member.",
-      "evidence": [
-        "packages/server/src/domain/plugin/persistence/plugins.ts:65",
-        "packages/server/src/domain/plugin/persistence/plugins.ts:329-331"
-      ],
+      "evidence": ["packages/server/src/domain/plugin/persistence/plugins.ts:65", "packages/server/src/domain/plugin/persistence/plugins.ts:329-331"],
       "recommendation": "remove this member from the view/result projection and adjust only directly coupled fixtures/tests; preserve same-name persistence/domain fields",
       "structural_sweep": {
         "ts": {
@@ -1705,9 +1637,7 @@
       },
       "disposition": "deliberate_write_only_external_protocol",
       "reason": "installedAt is the immutable lifecycle timestamp of the installed-plugin wire record. The current surface does not render it, but it is protocol metadata distinct from mutable updatedAt.",
-      "evidence": [
-        "packages/server/src/domain/plugin/contract/results.ts:83-87"
-      ],
+      "evidence": ["packages/server/src/domain/plugin/contract/results.ts:83-87"],
       "recommendation": "no_edit"
     },
     {
@@ -1736,9 +1666,7 @@
       },
       "disposition": "tool_defect",
       "reason": "This internal server summary is destructured by the OIDC back-channel logout route and revoked is logged as the settled result.",
-      "evidence": [
-        "packages/server/src/entry/http/auth-routes.ts:873-880"
-      ],
+      "evidence": ["packages/server/src/entry/http/auth-routes.ts:873-880"],
       "recommendation": "no_edit"
     },
     {
@@ -1751,9 +1679,7 @@
       },
       "disposition": "tool_defect",
       "reason": "This internal server summary is destructured by the OIDC back-channel logout route and userIds drives live socket eviction.",
-      "evidence": [
-        "packages/server/src/entry/http/auth-routes.ts:873-879"
-      ],
+      "evidence": ["packages/server/src/entry/http/auth-routes.ts:873-879"],
       "recommendation": "no_edit"
     },
     {
@@ -1766,9 +1692,7 @@
       },
       "disposition": "deliberate_write_only_external_protocol",
       "reason": "systemTurns is a first-class owner/character rollup metric. The current analytics surface omits it, but it remains a coherent member of the externally returned statistics protocol.",
-      "evidence": [
-        "packages/server/src/domain/stats/contract/views.ts:30-39"
-      ],
+      "evidence": ["packages/server/src/domain/stats/contract/views.ts:30-39"],
       "recommendation": "no_edit"
     },
     {
@@ -1781,9 +1705,7 @@
       },
       "disposition": "deliberate_write_only_external_protocol",
       "reason": "contentBytes is a first-class corpus-size metric in the owner/character stats DTO. Current UI omission alone does not make the metric semantically dead.",
-      "evidence": [
-        "packages/server/src/domain/stats/contract/views.ts:45-56"
-      ],
+      "evidence": ["packages/server/src/domain/stats/contract/views.ts:45-56"],
       "recommendation": "no_edit"
     },
     {
@@ -1796,10 +1718,7 @@
       },
       "disposition": "deliberate_write_only_external_protocol",
       "reason": "firstChatAt is lifecycle chronology in the owner/character stats DTO. It is also independently meaningful in leaderboard/wrapped records even though this particular projection is not rendered.",
-      "evidence": [
-        "packages/server/src/domain/stats/contract/views.ts:53-56",
-        "packages/server/src/domain/stats/contract/views.ts:64-76"
-      ],
+      "evidence": ["packages/server/src/domain/stats/contract/views.ts:53-56", "packages/server/src/domain/stats/contract/views.ts:64-76"],
       "recommendation": "no_edit"
     },
     {
@@ -1828,9 +1747,7 @@
       },
       "disposition": "deliberate_write_only_external_protocol",
       "reason": "Average swipe depth is a meaningful generated metric of the wrapped analytics protocol; current overview omission is not evidence that its producer or external result is obsolete.",
-      "evidence": [
-        "packages/server/src/domain/stats/contract/views.ts:151-168"
-      ],
+      "evidence": ["packages/server/src/domain/stats/contract/views.ts:151-168"],
       "recommendation": "no_edit"
     },
     {
@@ -1843,9 +1760,7 @@
       },
       "disposition": "deliberate_write_only_external_protocol",
       "reason": "Swipe rate is a meaningful generated metric of the wrapped analytics protocol; current overview omission is not evidence that its producer or external result is obsolete.",
-      "evidence": [
-        "packages/server/src/domain/stats/contract/views.ts:151-168"
-      ],
+      "evidence": ["packages/server/src/domain/stats/contract/views.ts:151-168"],
       "recommendation": "no_edit"
     },
     {
@@ -1890,4 +1805,3 @@
     "The shared worktree had concurrent uncommitted registry-candidates changes; this review did not edit them or any product/tool source."
   ]
 }
-

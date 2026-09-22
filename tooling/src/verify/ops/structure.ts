@@ -15,13 +15,11 @@
 // clean/violations exit. A killed run therefore leaves an artifact that SAYS it is not a verdict instead of
 // leaving the previous run's complete-looking file for the next reader to consume.
 //
-// THE GATE-SCOPED DOOR (#1964/#1973/#1992). `--check <id>` / `--family <name>` narrow WHICH gates run — and
-// NOTHING ELSE. The ts-morph Project, the fileset and every population stay the whole real tree, because the
-// question the per-conversion floor (§8.8) asks is "what does MY policy report on the REAL tree", and
-// narrowing the population answers a different question: it would change what the gate SEES and therefore can
-// change its verdict. So the door filters the SELECTED SET and leaves the corpus alone: a floor asking about
-// one gate runs that gate's dispatchers and nobody else's, which is also why #1992 is DISCHARGED here rather
-// than optimized — `policy-soundness` is simply not in a selection that did not name it.
+// THE POLICY COMMAND DOOR (#1964/#1973/#1992). `--check <id>` / `--family <name>` narrow WHICH gates run.
+// With no scope flag their populations remain the whole real tree, preserving the per-conversion floor's
+// question. An explicit file/folder/package/project/changed scope narrows through the canonical planner and
+// records that different question in the manifest; `--strict-scope` refuses an entire-population owner that
+// cannot answer it completely.
 //
 // Two properties keep a partial run from ever being mistaken for the corpus verdict — they are the whole
 // difference between a useful door and a dangerous one, because a wrong answer with a real artifact behind it
@@ -56,23 +54,24 @@ import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { UsageError } from "@orb/tooling/_shared/run-tool";
 import type { GateCorpus, SelectedGateCorpus } from "../contract/gate-corpus.ts";
-import type { GatePolicy } from "../contract/policy.ts";
 import type { PolicyPassResult } from "../contract/policy-pass.ts";
-import type { PolicySelector } from "../contract/policy-plan.ts";
+import type { PolicyCommandRequest, PolicyInspectionPlan, PolicyRunPlan } from "../contract/policy-plan.ts";
+import type { PolicyScopeResolution } from "../contract/policy-scope.ts";
 import type { ProjectContext } from "../contract/project-context.ts";
-import type { RunManifest } from "../contract/run-manifest.ts";
+import type { RunManifest, StructureScopeManifest } from "../contract/run-manifest.ts";
 import type { FinalPolicyRow, StructureReport } from "../contract/structure-report.ts";
 import { STRUCTURE_REPORT_NAME } from "../contract/structure-report.ts";
 import { loadGateCorpus } from "../lib/loader.ts";
 import { nonVerdictReason, notQuietReasons, plantedPaths, stripProbePolicyFindings } from "../lib/planted-fixtures.ts";
-import { runPolicyPass } from "../lib/policy-pass.ts";
-import { policyPassExitCode } from "../lib/policy-plan.ts";
-import { isSelectionFailure, resolveGateSelection } from "../lib/policy-selection.ts";
-import { projectCtx } from "../lib/project-context.ts";
+import { parsePolicyCommand } from "../lib/policy-command.ts";
+import { planPolicyArgv, policyPassExitCode } from "../lib/policy-plan.ts";
+import { executePolicyPlan } from "../lib/policy-plan-execute.ts";
+import { resolvePolicyScope } from "../lib/policy-scope.ts";
+import { projectCtx, repoRel } from "../lib/project-context.ts";
 import { reviewedGrantsFor } from "../lib/reviewed-grants.ts";
 import { structureConsole } from "../lib/structure-console.ts";
 import { finalSide, finalToolErrorCount, structureCountReconciliation } from "../lib/structure-report.ts";
-import { parseStructureTail, tailRefusal, VOID_FLAG } from "../lib/structure-tail.ts";
+import { parseStructureTombstone, tailRefusal, VOID_FLAG } from "../lib/structure-tail.ts";
 import { policyTimingAlarms } from "../lib/timing.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:structure");
@@ -120,9 +119,31 @@ function writeInFlight(slot: RunSlot, run: RunManifest): void {
   });
 }
 
-function startManifest(root: string, slot: RunSlot, selection: PolicySelector): RunManifest {
+interface StructurePlanIdentity {
+  readonly selector: Extract<PolicyCommandRequest, { readonly mode: "run" }>["selector"];
+  readonly scope: PolicyScopeResolution;
+  readonly tier: PolicyRunPlan["tier"];
+  readonly strictScope: boolean;
+}
+
+function scopeManifest(plan: StructurePlanIdentity): StructureScopeManifest {
   return {
-    selection,
+    kind: plan.scope.kind,
+    label: plan.scope.label,
+    tier: plan.tier,
+    strict: plan.strictScope,
+    requestedPaths: plan.scope.requestedPaths === null ? null : structuredClone(plan.scope.requestedPaths),
+    requestedProgramIds: [...plan.scope.requestedProgramIds],
+    workspacePackage: plan.scope.workspacePackage === null ? null : { ...plan.scope.workspacePackage },
+    projectConfig: plan.scope.projectConfig,
+    inventory: structuredClone(plan.scope.inventory),
+  };
+}
+
+function startManifest(root: string, slot: RunSlot, plan: StructurePlanIdentity): RunManifest {
+  return {
+    selection: plan.selector,
+    scope: scopeManifest(plan),
     // The stub's honest value: nothing has been OBSERVED yet, and `complete: false` is already what refuses
     // this artifact as a verdict. The finished report carries the real answer.
     quiet: true,
@@ -147,6 +168,22 @@ function startManifest(root: string, slot: RunSlot, selection: PolicySelector): 
   };
 }
 
+async function loadCorpusWithFailureStub(root: string, request: PolicyCommandRequest, context: () => ProjectContext): Promise<GateCorpus> {
+  try {
+    return await loadGateCorpus(root);
+  } catch (error) {
+    if (request.mode === "run" && request.selector.kind === "all") {
+      const scope = resolvePolicyScope(root, request.scope, {
+        wholeWorkspacePaths: () => context().files.map((file) => repoRel(root, file.getFilePath())),
+      });
+      const slot = openRunSlot(root, "structure");
+      announceRacing(slot);
+      writeInFlight(slot, startManifest(root, slot, { selector: request.selector, scope, tier: request.tier, strictScope: request.strictScope }));
+    }
+    throw error;
+  }
+}
+
 /** A concurrent writer is NAMED, never silently last-write-wins (#1029). stderr, not stdout: the verdict
  *  stream stays parseable, and a lane reading only the artifact still finds the same list in `run.concurrent`. */
 function announceRacing(slot: RunSlot): void {
@@ -161,33 +198,6 @@ function announceRacing(slot: RunSlot): void {
 function keepProbeFindings(): boolean {
   // biome-ignore lint/style/noProcessEnv: ORB_GATE_FIXTURES is the check-gates suite's opt-out knob for its own child runs — harness plumbing, not app config.
   return process.env["ORB_GATE_FIXTURES"] === "1";
-}
-
-/** The dispatcher over the shared Project: the full roster as `knownPolicies` (a narrower roster
- *  manufactures unknown-policy waiver alarms) and the grant rows that name a LOADED policy. The
- *  door filters (`reviewedGrantsFor`) so a partial roster — every planted tree, every future scoped policy
- *  selection — is not buried under `invalid-grant` errors for rows naming policies it never loaded; the
- *  WHOLE table against the WHOLE roster is the conformance stage's job (ops/policy-conformance-stage.ts), where a
- *  row naming a legacy gate, a deleted policy or a non-reviewed-grant policy is a tool error on every check.
- *
- *  `failOnWarnings` arrives from the operator and DEFAULTS FALSE (see runStructure's tail): a final
- *  `severity: "warning"` finding is reported, counted in `verdict.warnings`, and blocks nothing. */
-function runFinalPass(corpus: GateCorpus, selectedFinal: readonly GatePolicy[], ctx: ProjectContext, failOnWarnings: boolean): PolicyPassResult | null {
-  if (selectedFinal.length === 0) {
-    return null;
-  }
-  const raw = runPolicyPass({
-    // `knownPolicies` stays the WHOLE loaded roster even under a selection (#1964): a narrower roster
-    // manufactures unknown-policy waiver alarms, and `assertSelectedPoliciesAreLoaded` already rules
-    // `policies ⊆ knownPolicies` as the supported scoped shape.
-    knownPolicies: corpus.gates,
-    policies: selectedFinal,
-    root: ctx.root,
-    project: ctx.project,
-    reviewedGrants: reviewedGrantsFor(corpus.gates),
-    failOnWarnings,
-  });
-  return keepProbeFindings() ? raw : stripProbePolicyFindings(raw);
 }
 
 /** THE EXPLICIT VOID (#2167 clause 2). The operator knows a published slot is not evidence — it overlapped a
@@ -218,25 +228,37 @@ function tombstoneSlot(root: string, request: { readonly slot: string; readonly 
   return EXIT.clean;
 }
 
-/** A SELECTED run resolves its names against the loader BEFORE the run slot opens (#1117): an id that matches
- *  nothing is misuse and must leave no artifact at all, and a selection that matched nothing must never run as
- *  a clean zero. The corpus it loaded is handed back so the run below loads it exactly ONCE.
- *
- *  `null` on the DEFAULT run — nothing moves, and the corpus still loads in its original position, which is
- *  what keeps the whole-corpus artifact identical to the pre-#1964 one. */
-async function preflightSelection(
-  root: string,
-  selection: PolicySelector,
-): Promise<{ readonly corpus: GateCorpus; readonly selected: SelectedGateCorpus } | null> {
-  if (selection.kind === "all") {
-    return null;
+function renderInspection(plan: PolicyInspectionPlan): string {
+  if (plan.json) {
+    return `${JSON.stringify(plan, null, 2)}\n`;
   }
-  const corpus = await loadGateCorpus(root);
-  const selected = resolveGateSelection(corpus, selection);
-  if (isSelectionFailure(selected)) {
-    throw new UsageError(tailRefusal(selected.message));
+  const heading =
+    plan.mode === "list" ? `${String(plan.policies.length)} final policies in ${String(plan.families.length)} families` : `policy ${plan.selector.kind}`;
+  const rows = plan.policies.map(
+    ({ id, family, analysis, execution, authority, severity }) => `${id}\tfamily=${family}\t${analysis}/${execution}\t${authority}/${severity}`,
+  );
+  return `${heading}\n${rows.join("\n")}\n`;
+}
+
+function selectedCorpus(corpus: GateCorpus, plan: PolicyRunPlan): SelectedGateCorpus {
+  const selectedIds = new Set(plan.policyIds);
+  return { gates: corpus.gates.filter(({ id }) => selectedIds.has(id)) };
+}
+
+function planningFailure(result: { readonly exitCode: 2 | 3; readonly message: string }): number {
+  if (result.exitCode === EXIT.misuse) {
+    throw new UsageError(tailRefusal(result.message));
   }
-  return { corpus, selected };
+  process.stderr.write(`check:structure: TOOL ERROR — ${result.message}\n`);
+  return EXIT.toolError;
+}
+
+function parseStructurePolicyCommand(argv: readonly string[]): PolicyCommandRequest {
+  const parsed = parsePolicyCommand(argv);
+  if (!parsed.ok) {
+    throw new UsageError(tailRefusal(parsed.message));
+  }
+  return parsed.request;
 }
 
 /** The single invocation: load the corpus, build ONE Project, run the dispatcher, render it, write the ONE
@@ -245,22 +267,47 @@ async function preflightSelection(
  *  `runTool` sets `process.exitCode` from it — never `process.exit`, which drops the buffered stdout write below
  *  and truncates a large report mid-line (the fixture-run report the check-gates anti-drift test parses). */
 export async function runStructure(root: string, argv: readonly string[]): Promise<number> {
-  const request = parseStructureTail(argv);
-  if (request.tombstone !== null) {
-    return tombstoneSlot(root, request.tombstone);
+  const tombstone = parseStructureTombstone(argv);
+  if (tombstone !== null) {
+    return tombstoneSlot(root, tombstone);
   }
-  const preflight = await preflightSelection(root, request.selection);
+  const command = parseStructurePolicyCommand(argv);
+  let cachedContext: ProjectContext | undefined;
+  const context = (): ProjectContext => {
+    cachedContext ??= projectCtx(root);
+    return cachedContext;
+  };
+  const corpus = await loadCorpusWithFailureStub(root, command, context);
+  const planned = planPolicyArgv(root, argv, corpus, {
+    wholeWorkspacePaths: () => context().files.map((file) => repoRel(root, file.getFilePath())),
+    executionWorkspacePaths: () => context().files.map((file) => repoRel(root, file.getFilePath())),
+    deferResourceFailuresToExecution: true,
+  });
+  if (!planned.ok) {
+    return planningFailure(planned);
+  }
+  if (planned.plan.mode !== "run") {
+    process.stdout.write(renderInspection(planned.plan));
+    return EXIT.clean;
+  }
+  const plan = planned.plan;
+  const selected = selectedCorpus(corpus, plan);
   const slot = openRunSlot(root, "structure");
   announceRacing(slot);
-  const started = startManifest(root, slot, request.selection);
+  const started = startManifest(root, slot, plan);
   writeInFlight(slot, started);
 
-  const corpus = preflight?.corpus ?? (await loadGateCorpus(root));
-  const selected = preflight?.selected ?? { gates: corpus.gates };
-  const ctx = projectCtx(root);
+  const ctx = context();
   // #2069 sample ONE: the tree as it stood when this run took its fileset.
   const plantedAtStart = plantedPaths(root);
-  const final = finalSide(selected.gates, runFinalPass(corpus, selected.gates, ctx, request.failOnWarnings));
+  const executed = executePolicyPlan({ root, project: ctx.project, corpus, plan, reviewedGrants: reviewedGrantsFor(corpus.gates) });
+  if (!executed.ok) {
+    process.stderr.write(`check:structure: TOOL ERROR — ${executed.message}\n`);
+    closeRunSlot(slot);
+    return EXIT.toolError;
+  }
+  const executedPass: PolicyPassResult = keepProbeFindings() ? executed.pass : stripProbePolicyFindings(executed.pass);
+  const final = finalSide(selected.gates, executedPass);
   // #2069 sample TWO: a plant that opened AFTER the project was built still poisons every fs-reading policy.
   const observed = keepProbeFindings() ? [] : [...new Set([...plantedAtStart, ...plantedPaths(root)])].toSorted();
 
@@ -299,17 +346,19 @@ export async function runStructure(root: string, argv: readonly string[]): Promi
   };
 
   // THE ONE console write — the text is composed in lib/structure-console.ts and lands here, once.
-  process.stdout.write(structureConsole({ selected, final, reconciliation, run, slotRelDir: slot.relDir }));
-
   const broken = incompleteReasons.length > 0 || (final.result !== null && finalToolErrorCount(final.result) > 0);
-  writeReport(slot, {
+  const report: StructureReport = {
     run,
     gates: final.rows,
     policy: final.report,
     reconciliation,
     total,
     ok: total === 0 && !broken,
-  });
+  };
+  process.stdout.write(
+    plan.json ? `${JSON.stringify(report, null, 2)}\n` : structureConsole({ selected, final, reconciliation, run, slotRelDir: slot.relDir }),
+  );
+  writeReport(slot, report);
   // Published at the END and only here: a reader arriving at reports/check-structure.json therefore always
   // resolves to a run that FINISHED — its own or a sibling's — never to an in-flight or torn artifact.
   //
@@ -322,7 +371,7 @@ export async function runStructure(root: string, argv: readonly string[]): Promi
   // a CONTAMINATED run read a tree that stopped existing. Both used to publish, and the pointer is what every
   // casual reader follows — that is precisely how slot `main-2930600`'s fixture findings reached a verifier as
   // real-tree liveness. A non-verdict keeps its slot and never becomes `latest`.
-  finishSlot(root, slot, request.selection, run);
+  finishSlot(root, slot, run);
 
   // A short run, an untimed policy, a contaminated tree and a refused owner ride the SAME severity: in all of
   // them the run is not a verdict. The dispatcher's own exit rule has ONE home (`policyPassExitCode`, the
@@ -344,8 +393,8 @@ export async function runStructure(root: string, argv: readonly string[]): Promi
  *  `pnpm check:show` refused the real, complete pointer with "that run never finished", about a run that
  *  finished perfectly and only declined to speak. Measured on main 2026-09-12 over `reports/runs/structure/`
  *  (N=32): 17 slots carried a marker, 13 of them FINISHED fixture-mode runs. */
-function finishSlot(root: string, slot: RunSlot, selection: PolicySelector, run: RunManifest): void {
-  if (selection.kind === "all" && run.verdict === "verdict") {
+function finishSlot(root: string, slot: RunSlot, run: RunManifest): void {
+  if (run.scope.kind === "whole" && run.selection.kind === "all" && run.verdict === "verdict") {
     publishRunSlot(root, slot, [{ alias: STRUCTURE_REPORT_NAME, target: STRUCTURE_REPORT_NAME }]);
     return;
   }

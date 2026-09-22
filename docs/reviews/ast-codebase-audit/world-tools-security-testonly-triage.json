@@ -7,13 +7,7 @@
     "networkCalls": 0
   },
   "scope": {
-    "symbols": [
-      "CHAT_VERB_AUTHORITY",
-      "authorityForSurface",
-      "jwksCacheSize",
-      "resetJwksCache",
-      "probeOpenAiEndpoint"
-    ],
+    "symbols": ["CHAT_VERB_AUTHORITY", "authorityForSurface", "jwksCacheSize", "resetJwksCache", "probeOpenAiEndpoint"],
     "structuralCorroboration": {
       "tool": "pnpm ast ident <symbol> --json --max 1000",
       "scope": "corpus:harness-globs(packages/*/src,tests,tooling/src/verify/gates)+workspace",
@@ -33,15 +27,8 @@
     ]
   },
   "summary": {
-    "retain": [
-      "CHAT_VERB_AUTHORITY",
-      "authorityForSurface",
-      "jwksCacheSize",
-      "resetJwksCache"
-    ],
-    "removeAsStaleInASeparateSecurityReviewedChange": [
-      "probeOpenAiEndpoint"
-    ],
+    "retain": ["CHAT_VERB_AUTHORITY", "authorityForSurface", "jwksCacheSize", "resetJwksCache"],
+    "removeAsStaleInASeparateSecurityReviewedChange": ["probeOpenAiEndpoint"],
     "missedProductionCallers": []
   },
   "items": [
@@ -55,10 +42,7 @@
       "ast": {
         "identifierMatches": 39,
         "productionRuntimeCallers": 0,
-        "productionIdentifierSites": [
-          "the declaration",
-          "the auth barrel re-export"
-        ],
+        "productionIdentifierSites": ["the declaration", "the auth barrel re-export"],
         "testIdentifierSites": 37
       },
       "evidence": [
@@ -80,10 +64,7 @@
       "ast": {
         "identifierMatches": 7,
         "productionRuntimeCallers": 0,
-        "productionIdentifierSites": [
-          "the declaration",
-          "the auth barrel re-export"
-        ],
+        "productionIdentifierSites": ["the declaration", "the auth barrel re-export"],
         "testIdentifierSites": 5,
         "testCallExpressions": 4
       },
@@ -105,10 +86,7 @@
       "ast": {
         "identifierMatches": 6,
         "productionRuntimeCallers": 0,
-        "productionIdentifierSites": [
-          "the declaration",
-          "the infra auth barrel re-export"
-        ],
+        "productionIdentifierSites": ["the declaration", "the infra auth barrel re-export"],
         "testIdentifierSites": 4,
         "testCallExpressions": 3
       },
@@ -130,10 +108,7 @@
       "ast": {
         "identifierMatches": 8,
         "productionRuntimeCallers": 0,
-        "productionIdentifierSites": [
-          "the declaration",
-          "the infra auth barrel re-export"
-        ],
+        "productionIdentifierSites": ["the declaration", "the infra auth barrel re-export"],
         "testIdentifierSites": 6,
         "testCallExpressions": 4
       },
@@ -155,10 +130,7 @@
       "ast": {
         "identifierMatches": 14,
         "productionRuntimeCallers": 0,
-        "productionIdentifierSites": [
-          "the declaration",
-          "the infra network barrel re-export"
-        ],
+        "productionIdentifierSites": ["the declaration", "the infra network barrel re-export"],
         "testIdentifierSites": 12,
         "testCallExpressions": 11
       },

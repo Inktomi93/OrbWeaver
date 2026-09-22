@@ -9,10 +9,20 @@
     "shown": 8,
     "hits": [
       { "file": "packages/client/src/features/chat/lib/chat-reading-port.ts", "line": 38, "kind": "test-only-export", "symbol": "CHAT_READING_PORT_MIN_PX" },
-      { "file": "packages/client/src/features/credentials/lib/connection-fact-model.ts", "line": 276, "kind": "test-only-export", "symbol": "QUIRK_LEAF_PATH_LIST" },
+      {
+        "file": "packages/client/src/features/credentials/lib/connection-fact-model.ts",
+        "line": 276,
+        "kind": "test-only-export",
+        "symbol": "QUIRK_LEAF_PATH_LIST"
+      },
       { "file": "packages/client/src/features/credentials/lib/connection-fact-model.ts", "line": 279, "kind": "test-only-export", "symbol": "QUIRK_ROW_PATHS" },
       { "file": "packages/client/src/features/credentials/lib/connections-model.ts", "line": 349, "kind": "test-only-export", "symbol": "roleRequirementGaps" },
-      { "file": "packages/client/src/features/refinery/hooks/use-refinery-mutations.ts", "line": 123, "kind": "test-only-export", "symbol": "useDeleteRefinerySession" },
+      {
+        "file": "packages/client/src/features/refinery/hooks/use-refinery-mutations.ts",
+        "line": 123,
+        "kind": "test-only-export",
+        "symbol": "useDeleteRefinerySession"
+      },
       { "file": "packages/client/src/lib/appearance-carrier-manifest.ts", "line": 316, "kind": "test-only-export", "symbol": "appearanceCarrierRowsFor" },
       { "file": "packages/client/src/state/chat-stream.ts", "line": 391, "kind": "test-only-export", "symbol": "subscribeTurnSlot" },
       { "file": "packages/client/src/state/rpg-round-store.ts", "line": 49, "kind": "test-only-export", "symbol": "readRpgRoundPendingForTest" }

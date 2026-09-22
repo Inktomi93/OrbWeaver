@@ -20,13 +20,15 @@
 // render in a PORTAL, so they are located on `page`, not the mounted component.
 
 import { duplicateActionName, rowActionsName } from "@orb/client/lib";
+import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { expectInstrumentTierLive } from "../../../../support/browser/tier-liveness.ts";
 import { resolveSpacingPxIn } from "../../../../support/browser/touch-floor.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
-import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import type { TrpcFixtureOutput, TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
 import {
   PresetLibraryAnnouncedStory,
@@ -144,7 +146,7 @@ function summary(fields: {
   updatedAt?: number;
   kind?: string;
   forkedFrom?: string;
-}): Record<string, unknown> {
+}): TrpcWireOutput<"preset.list">[number] {
   const isSystemDefault = fields.isSystemDefault ?? false;
   return {
     id: fields.id,
@@ -161,7 +163,7 @@ function summary(fields: {
 // clone sources, kept out of the readable list), so its lineage is UNRESOLVABLE and must print nothing.
 const PACKAGED_SOURCE = "preset_000000000000000000000rpggm";
 
-const PRESETS = [
+const PRESETS: TrpcFixtureOutput<"preset.list"> = [
   summary({ id: BUILT_IN, name: "Default", isSystemDefault: true }),
   summary({ id: EDITED_ONE, name: EDITED_ONE_NAME, updatedAt: EDITED_ONE_AT, forkedFrom: BUILT_IN }),
   summary({ id: EDITED_TWO, name: EDITED_TWO_NAME, updatedAt: EDITED_TWO_AT, forkedFrom: PACKAGED_SOURCE }),
@@ -184,9 +186,16 @@ function routeLibrary(page: Page, activeId: string | null): Promise<TrpcRecorder
       schemaVersion: 1,
       config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, defaultPresetId: activeId } },
       updatedAt: 0,
+      configUnreadable: null,
     }),
-    "preset.remove": () => ({}),
-    "settings.updateUserSettingsSection": () => ({}),
+    "preset.remove": () => undefined,
+    "settings.updateUserSettingsSection": () => ({
+      userId: "user_ct_preset",
+      schemaVersion: 1,
+      config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, defaultPresetId: activeId } },
+      updatedAt: 1,
+      configUnreadable: null,
+    }),
   });
 }
 
@@ -496,8 +505,20 @@ test("§12 the kebab's Duplicate fires preset.create for THAT row", async ({ mou
       schemaVersion: 1,
       config: DEFAULT_USER_SETTINGS,
       updatedAt: 0,
+      configUnreadable: null,
     }),
-    "preset.get": () => ({ id: EDITED_ONE, name: EDITED_ONE_NAME, kind: "generation", isSystemDefault: false, config: {}, createdAt: 0, updatedAt: 0 }),
+    "preset.get": () => ({
+      id: EDITED_ONE,
+      name: EDITED_ONE_NAME,
+      kind: "generation",
+      isSystemDefault: false,
+      config: DEFAULT_PROMPT_CONFIG,
+      createdAt: 0,
+      updatedAt: 0,
+      forkedFrom: null,
+      schemaVersion: DEFAULT_PROMPT_CONFIG.schemaVersion,
+      configUnreadable: null,
+    }),
     "preset.create": () => ({
       id: "preset_ct_copy00001",
       name: `Copy of ${EDITED_ONE_NAME}`,
@@ -548,7 +569,7 @@ test("P3a two forks with the SAME name expose distinct action names (the stamp d
       summary({ id: EDITED_ONE, name: EDITED_ONE_NAME, updatedAt: EDITED_ONE_AT }),
       summary({ id: EDITED_TWO, name: EDITED_ONE_NAME, updatedAt: EDITED_TWO_AT }),
     ],
-    "settings.getUserSettings": () => ({ userId: "user_ct_preset", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 }),
+    "settings.getUserSettings": () => ({ userId: "user_ct_preset", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0, configUnreadable: null }),
   });
   const component = await mount(<PresetLibrarySurfaceStory />);
   await expect(component.getByText(EDITED_ONE_NAME, { exact: true }).first()).toBeVisible();
@@ -570,8 +591,20 @@ test("P3 the built-in row IS duplicable — a kebab holding Duplicate and nothin
       schemaVersion: 1,
       config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, defaultPresetId: EDITED_ONE } },
       updatedAt: 0,
+      configUnreadable: null,
     }),
-    "preset.get": () => ({ id: BUILT_IN, name: "Default", kind: "system", isSystemDefault: true, config: {}, createdAt: 0, updatedAt: 0 }),
+    "preset.get": () => ({
+      id: BUILT_IN,
+      name: "Default",
+      kind: "system",
+      isSystemDefault: true,
+      config: DEFAULT_PROMPT_CONFIG,
+      createdAt: 0,
+      updatedAt: 0,
+      forkedFrom: null,
+      schemaVersion: DEFAULT_PROMPT_CONFIG.schemaVersion,
+      configUnreadable: null,
+    }),
     "preset.create": () => ({ id: "preset_ct_copy00002", name: "Copy of Default", kind: "generation", isSystemDefault: false, createdAt: 0, updatedAt: 0 }),
   });
   const component = await mount(<PresetLibrarySurfaceStory />);
@@ -799,8 +832,19 @@ test("G6 the kebab EXPORT downloads the bundle's own orb.preset bytes for that r
   const config = { schemaVersion: 5, params: { temperature: 0.42 }, sections: [] };
   await routeTrpc(page, {
     "preset.list": () => PRESETS,
-    "settings.getUserSettings": () => ({ userId: "user_ct_preset", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 }),
-    "preset.get": () => ({ id: EDITED_ONE, name: EDITED_ONE_NAME, kind: "generation", isSystemDefault: false, config, createdAt: 0, updatedAt: 0 }),
+    "settings.getUserSettings": () => ({ userId: "user_ct_preset", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0, configUnreadable: null }),
+    "preset.get": () => ({
+      id: EDITED_ONE,
+      name: EDITED_ONE_NAME,
+      kind: "generation",
+      isSystemDefault: false,
+      config,
+      createdAt: 0,
+      updatedAt: 0,
+      forkedFrom: null,
+      schemaVersion: DEFAULT_PROMPT_CONFIG.schemaVersion,
+      configUnreadable: null,
+    }),
   });
   const component = await mount(<PresetLibrarySurfaceStory />);
   await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
@@ -989,10 +1033,10 @@ interface ImportFileCall {
 }
 
 /** The library plus an import stub — `outcome` is what `preset.importFile` answers. */
-function routeImportLibrary(page: Page, outcome: unknown): Promise<TrpcRecorder> {
+function routeImportLibrary(page: Page, outcome: TrpcFixtureOutput<"preset.importFile">): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "preset.list": () => PRESETS,
-    "settings.getUserSettings": () => ({ userId: "user_ct_preset", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 }),
+    "settings.getUserSettings": () => ({ userId: "user_ct_preset", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0, configUnreadable: null }),
     "preset.importFile": () => outcome,
     "preset.create": () => ({ id: IMPORTED, name: IMPORTED_NAME, kind: "roleplay", isSystemDefault: false, createdAt: 0, updatedAt: 0 }),
   });
@@ -1148,6 +1192,7 @@ test("#1748 the search input survives the pending read, and the rows still reach
       schemaVersion: 1,
       config: DEFAULT_USER_SETTINGS,
       updatedAt: 0,
+      configUnreadable: null,
     }),
   });
 

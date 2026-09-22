@@ -323,9 +323,11 @@ export interface TurnPrep {
   readonly chatId: ChatId;
   readonly assembleContext: AssembleContext;
   readonly connection: Resolved<"chat">;
-  /** `triggeredBy` is the FUNDER (whose connection the turn runs on); `runAsUserId` is the host whose
-   *  books/cards/preset the turn assembles from (§8.4-3). The caller (Principal.userId) never reaches this path. */
+  /** The initiator who owns attribution and abort. The caller (`Principal.userId`) need not be the initiator. */
   readonly triggeredBy: UserId;
+  /** The frozen room host whose connection funds every inference call belonging to this turn. */
+  readonly funderUserId: UserId;
+  /** The same frozen host as the assembly and tool principal. */
   readonly runAsUserId: UserId;
   /** The turn's origin (the cascade guard's non-human-initiator seam). Absent ⇒
    *  a human turn (`'human'`/depth 0 — the DB column defaults), so every human/character/agent verb stays

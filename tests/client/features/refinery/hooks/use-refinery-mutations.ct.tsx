@@ -27,6 +27,7 @@ import { CHARACTER_STALE_BASIS_OP_CODE } from "@orb/contracts/character";
 import { REFINERY_OUTPUT_BUDGET_REASON, REFINERY_ROUND_IN_FLIGHT_REASON, REFINERY_STAGE_NOT_READY_REASON } from "@orb/contracts/refinery";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { makeCharacterDetail } from "../../character/fixtures.ts";
 import { RefineryDataStory } from "../_ct-stories.tsx";
@@ -38,6 +39,10 @@ const SESSION_ID = mintTypeId(ID_PREFIX.refinerySession);
 const CHARACTER_ID = mintTypeId(ID_PREFIX.character);
 
 const TOAST = '[data-slot="toast-root"]';
+
+function applyFieldsResult(result: TrpcWireOutput<"refinery.applyFields">): TrpcWireOutput<"refinery.applyFields"> {
+  return result;
+}
 
 /** One roster row on THIS test's minted ids (the fixture's own defaults are id-agnostic). */
 function rosterRow(name: string): ReturnType<typeof makeRefinerySessionSummary> {
@@ -55,7 +60,7 @@ function rosterRow(name: string): ReturnType<typeof makeRefinerySessionSummary> 
  * minted ids; the ledger is empty, which is honest for a session whose first stage has not been run and is
  * still a real array the ledger reader can select over.
  */
-const REFINERY_SESSION_ROUTES: Readonly<Record<string, unknown>> = {
+const REFINERY_SESSION_ROUTES: TrpcRoutes<"refinery.getSession" | "refinery.listRuns"> = {
   "refinery.getSession": {
     id: SESSION_ID,
     characterId: CHARACTER_ID,
@@ -191,11 +196,13 @@ test("an apply that dropped EVERY accepted entry toasts the refusal — the writ
     ...REFINERY_SESSION_ROUTES,
     "refinery.listSessions": () => [rosterRow("Rev")],
     // The zero-write arm of `applyFields`: every accept died on the intersection belts, itemized, HTTP 200.
-    "refinery.applyFields": () => ({
-      applied: [],
-      dropped: [{ field: "description", reason: "not_in_rewrite" }],
-      character: makeCharacterDetail(),
-    }),
+    "refinery.applyFields": () =>
+      applyFieldsResult({
+        applied: [],
+        dropped: [{ field: "description", reason: "not_in_rewrite" }],
+        character: makeCharacterDetail(),
+        snapshotId: null,
+      }),
   });
 
   const component = await mount(<RefineryDataStory characterId={CHARACTER_ID} sessionId={SESSION_ID} />);
@@ -241,15 +248,17 @@ test("a PARTIAL apply toasts NOTHING — the write landed, and its per-entry dro
     // roster, and it is pressed only after `applied=` has painted, i.e. after `onSuccess` (where a refusal
     // would have toasted) has already run and chosen silence.
     "refinery.listSessions": () => (rosterCalls++ === 0 ? [rosterRow("Rev")] : [rosterRow("Rev"), rosterRow("Second")]),
-    "refinery.applyFields": () => ({
-      // A consolidation round as the server itemizes it: one field took new text, one was EMPTIED.
-      applied: [
-        { field: "description", kind: "replaced" },
-        { field: "personality", kind: "cleared" },
-      ],
-      dropped: [{ field: "greetings", greetingIndex: 1, reason: "greeting_index_invalid" }],
-      character: makeCharacterDetail(),
-    }),
+    "refinery.applyFields": () =>
+      applyFieldsResult({
+        // A consolidation round as the server itemizes it: one field took new text, one was EMPTIED.
+        applied: [
+          { field: "description", kind: "replaced" },
+          { field: "personality", kind: "cleared" },
+        ],
+        dropped: [{ field: "greetings", greetingIndex: 1, reason: "greeting_index_invalid" }],
+        character: makeCharacterDetail(),
+        snapshotId: "casn_ct_partial_apply",
+      }),
   });
 
   const component = await mount(<RefineryDataStory characterId={CHARACTER_ID} sessionId={SESSION_ID} />);

@@ -12,19 +12,17 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { TrpcFixtureOutput } from "../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../support/node/route-trpc.ts";
 import { ColorQuotedSpeechStory } from "./_ct-stories.tsx";
 
-interface SettingsWire {
-  readonly userId: UserId;
-  readonly schemaVersion: number;
-  readonly config: unknown;
-  readonly updatedAt: number;
-}
+type AppearanceFixture =
+  | Pick<typeof DEFAULT_USER_SETTINGS.appearance, "colorQuotedSpeech">
+  | Omit<typeof DEFAULT_USER_SETTINGS.appearance, "colorQuotedSpeech">;
 
 /** The `settings.getUserSettings` wire row carrying one appearance blob. */
-function settingsWire(appearance: unknown): SettingsWire {
-  return { userId: castId<UserId>("user_ct"), schemaVersion: 1, config: { ...DEFAULT_USER_SETTINGS, appearance }, updatedAt: 0 };
+function settingsWire(appearance: AppearanceFixture): TrpcFixtureOutput<"settings.getUserSettings"> {
+  return { userId: castId<UserId>("user_ct"), config: { appearance } };
 }
 
 test("the pref ON projects colorQuotes=true", async ({ mount, page }) => {

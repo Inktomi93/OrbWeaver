@@ -6,15 +6,9 @@
   "reviewMode": "read-only",
   "result": "CLOSED",
   "summary": {
-    "wire": [
-      "useDeleteRefinerySession"
-    ],
-    "delete": [
-      "loadTurnForClassify"
-    ],
-    "preserveTestSeam": [
-      "ensureUserSettings"
-    ],
+    "wire": ["useDeleteRefinerySession"],
+    "delete": ["loadTurnForClassify"],
+    "preserveTestSeam": ["ensureUserSettings"],
     "frameworkOrContractEntry": [],
     "ownerDecision": []
   },
@@ -42,10 +36,7 @@
   ],
   "structuralSearch": {
     "tool": "ast-grep run",
-    "languages": [
-      "ts",
-      "tsx"
-    ],
+    "languages": ["ts", "tsx"],
     "wholeTree": {
       "ts": {
         "scannedFiles": 6515,
@@ -56,9 +47,7 @@
         "skippedFiles": 0
       },
       "callMatches": {
-        "useDeleteRefinerySession": [
-          "tests/client/features/refinery/_ct-stories.tsx:85"
-        ],
+        "useDeleteRefinerySession": ["tests/client/features/refinery/_ct-stories.tsx:85"],
         "loadTurnForClassify": [
           "tests/server/domain/chat/persistence/queries.int.test.ts:448",
           "tests/server/domain/chat/persistence/queries.int.test.ts:458",
@@ -75,12 +64,7 @@
       }
     },
     "productionOnly": {
-      "paths": [
-        "packages",
-        "tooling",
-        "scripts",
-        "playwright"
-      ],
+      "paths": ["packages", "tooling", "scripts", "playwright"],
       "ts": {
         "scannedFiles": 4058,
         "skippedFiles": 0
@@ -318,4 +302,3 @@
     "Historical archived review material was used only as corroboration; classifications rest on the current tree, current Git history, and scans performed in this review."
   ]
 }
-

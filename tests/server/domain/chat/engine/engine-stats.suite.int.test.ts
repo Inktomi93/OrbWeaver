@@ -185,6 +185,7 @@ function prepOf(chat: ChatId, over: Partial<TurnPrep>): TurnPrep {
     assembleContext: ASSEMBLE_CTX,
     connection: CONNECTION,
     triggeredBy: HOST,
+    funderUserId: HOST,
     runAsUserId: HOST,
     kind: "send",
     intent: {},

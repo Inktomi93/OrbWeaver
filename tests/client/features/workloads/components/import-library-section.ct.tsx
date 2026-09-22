@@ -20,11 +20,12 @@ import { join } from "node:path";
 import { driveFileDrop, driveFileUpload } from "@orb/tooling/_shared/upload";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { dropFiles } from "../../../../support/browser/drop-files.ts";
+import type { TrpcRoutes } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { BackupSettingsStory, LibraryImportEpochStory } from "../_ct-stories.tsx";
 
 /** The host's viewer projection (`useSettingsViewerView`) — the group body resolves each section's `when` off it. */
-const HOST_VIEWER_ROUTE: Readonly<Record<string, unknown>> = { "sessions.me": { userId: "user_ct_import", handle: "ct_import", globalRole: "user" } };
+const HOST_VIEWER_ROUTE: TrpcRoutes<"sessions.me"> = { "sessions.me": { userId: "user_ct_import", handle: "ct_import", globalRole: "user" } };
 
 const DROPZONE_ROOT = '[data-slot="file-dropzone"]';
 const A_CARD = { name: "villain.png", mimeType: "image/png", buffer: Buffer.from("PNG") };

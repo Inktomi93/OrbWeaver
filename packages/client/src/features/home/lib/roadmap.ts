@@ -18,7 +18,7 @@
 // file goes RED with the row named. That is what makes a curated list honest rather than rotting.
 //
 // EACH ENTRY IS A DORMANT DOORWAY TILE, not a new render path (H7/H8 — the mechanism `buddy-tile.tsx`'s
-// header states, applied six more times). The `{dormant}` body arm and the marker are the SAME field, so
+// header states, applied to every indexed program). The `{dormant}` body arm and the marker are the SAME field, so
 // building one of these means writing `body: () => <…/>`, which deletes the promise in the same edit: a
 // stale doorway stays unrepresentable. They are HOME-owned for the same reason buddy is — an empty
 // `features/expressions/` dir is `feature-owns-definition` RED, and the day the domain lands it takes its
@@ -73,7 +73,7 @@ export const HOME_ROADMAP: readonly RoadmapProgram[] = [
     title: "Expressions",
     icon: Drama,
     gloss: "Portraits that change with the mood of a reply, so a character's face answers you as well as their words.",
-    state: "Not started yet.",
+    state: "Partly built — image-sheet prep is in place; sprite storage, mood classification, and portrait swapping are still to come.",
     set: "expressions-design/",
     sprint: 20,
   },
@@ -82,9 +82,9 @@ export const HOME_ROADMAP: readonly RoadmapProgram[] = [
     title: "Reactions",
     icon: SmilePlus,
     gloss: "React to one line of a reply — and let your characters react to each other, where the next turn can see it.",
-    state: "Not started yet.",
+    state: "Partly built — reactions and reaction-triggered automations work; custom emoji is still to come.",
     set: "message-reactions-mini-spec.md",
-    sprint: 23,
+    sprint: 2565,
   },
   {
     id: "world-state",

@@ -1,0 +1,112 @@
+{
+  "schemaVersion": 1,
+  "task": 2560,
+  "outcome": "Canonical derived CharacterHandle construction now reserves suffix width in UTF-16 units, truncates only on code-point boundaries, validates the final value through characterHandleSchema, and is used by duplicate and handoff collision writers.",
+  "sourceCommit": "3e5644415596a5e267b2f6d21e63f0a967942bf6",
+  "changedPaths": [
+    "packages/contracts/src/character/index.ts",
+    "packages/server/src/domain/character/persistence/handoff-copy-write.ts",
+    "packages/server/src/domain/character/verbs/duplicate.ts",
+    "tests/server/domain/character/persistence/handoff-copy-write.int.test.ts",
+    "tests/server/domain/character/verbs/duplicate.int.test.ts"
+  ],
+  "manifest": {
+    "path": "/tmp/2560-files.txt",
+    "sha256": "e239b50a2dfbd3966bff2c2de6c3c497366c591dc1505f6723daad9c1e2af616",
+    "count": 5
+  },
+  "implementation": [
+    {
+      "path": "packages/contracts/src/character/index.ts",
+      "lines": [268, 305],
+      "detail": "Exports characterHandleSchema as the one handle brand boundary and deriveCharacterHandle as the suffix-reserving constructor. The constructor budgets with JavaScript UTF-16 length, walks source code points to avoid splitting surrogate pairs, refuses a suffix that leaves no source, and brands only through schema.parse."
+    },
+    {
+      "path": "packages/server/src/domain/character/verbs/duplicate.ts",
+      "lines": [29, 39],
+      "detail": "Routes -copy and numbered -copy-N candidates through deriveCharacterHandle while preserving deterministic first-free search."
+    },
+    {
+      "path": "packages/server/src/domain/character/persistence/handoff-copy-write.ts",
+      "lines": [44, 55],
+      "detail": "Routes numbered handoff collision candidates through deriveCharacterHandle while preserving the bounded 2..50 search."
+    }
+  ],
+  "redFirst": {
+    "command": "pnpm test:scoped tests/server/domain/character/verbs/duplicate.int.test.ts tests/server/domain/character/persistence/handoff-copy-write.int.test.ts",
+    "report": "reports/runs/test/orbweaver-3174273-2026-09-21T13-39-59-531Z/test-report.json",
+    "exitCode": 1,
+    "result": "20 passed, 2 failed as planted: 200-unit duplicate persisted 205 units; 200-unit non-BMP handoff collision persisted 202 units."
+  },
+  "verification": [
+    {
+      "command": "pnpm test:scoped tests/server/domain/character/verbs/duplicate.int.test.ts tests/server/domain/character/persistence/handoff-copy-write.int.test.ts tests/contracts/character/index.contract.test.ts",
+      "result": "PASS: 3 files, 42 tests",
+      "report": "reports/runs/test/orbweaver-3178749-2026-09-21T13-40-57-317Z/test-report.json"
+    },
+    {
+      "command": "pnpm typecheck --config packages/contracts/tsconfig.json --config packages/server/tsconfig.json --config tsconfig.tests-iso.json",
+      "result": "PASS: 3 discovered/runnable native programs"
+    },
+    {
+      "command": "pnpm exec biome check <five changed paths> --diagnostic-level=error",
+      "result": "PASS: checked 5 files"
+    },
+    {
+      "command": "pnpm exec eslint <five changed paths>",
+      "result": "PASS"
+    },
+    {
+      "command": "git diff --check -- <five changed paths>",
+      "result": "PASS"
+    }
+  ],
+  "structuralProof": {
+    "astGrepVersion": "0.45.0",
+    "castsTs": {
+      "pattern": "castId<CharacterHandle>($VALUE)",
+      "scope": "two owned TS call-site files plus /tmp/2560-cast-positive.ts",
+      "matches": 1,
+      "productionMatches": 0,
+      "controlMatches": 1,
+      "artifact": "/tmp/2560-sg-cast-ts.json"
+    },
+    "castsTsx": {
+      "pattern": "castId<CharacterHandle>($VALUE)",
+      "scope": "packages/client/src plus /tmp/2560-cast-positive.tsx",
+      "matches": 1,
+      "productionMatches": 0,
+      "controlMatches": 1,
+      "artifact": "/tmp/2560-sg-cast-tsx.json"
+    },
+    "derivedCalls": {
+      "pattern": "deriveCharacterHandle($SOURCE, $SUFFIX)",
+      "scope": "two owned TS call-site files",
+      "matches": 4,
+      "artifact": "/tmp/2560-sg-derived-ts.json"
+    },
+    "rg": {
+      "query": "castId<CharacterHandle>",
+      "scope": "two owned call-site files plus positive control",
+      "productionMatches": 0,
+      "controlMatches": 1
+    },
+    "conclusion": "Both cast-based persistence bypasses are absent from the owned product files; all four derived candidate expressions use the canonical constructor."
+  },
+  "controls": [
+    {
+      "path": "tests/server/domain/character/verbs/duplicate.int.test.ts",
+      "line": 65,
+      "proves": "A 200-unit ASCII source persists canonical -copy and -copy-2 handles at or below 200 units."
+    },
+    {
+      "path": "tests/server/domain/character/persistence/handoff-copy-write.int.test.ts",
+      "line": 171,
+      "proves": "A 200-unit source whose suffix budget lands inside a non-BMP surrogate pair truncates before the code point, remains well-formed, parses canonically, and is persisted."
+    }
+  ],
+  "limitations": [
+    "Verification is focused to the two behavior suites, the character contract suite, the three affected native type programs, and changed-file lint/format checks; no full-repository gate was run.",
+    "The shared worktree contains unrelated concurrent changes. This task did not stage, commit, push, revert, or touch shared audit documents."
+  ]
+}

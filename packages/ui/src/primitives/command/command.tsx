@@ -6,7 +6,6 @@ import {
   CommandList as BaseCommandList,
   CommandLoading as BaseCommandLoading,
   CommandRoot as BaseCommandRoot,
-  CommandSeparator as BaseCommandSeparator,
   useCommandState,
 } from "cmdk";
 import type { ComponentProps, ReactElement, KeyboardEvent as ReactKeyboardEvent, ReactNode } from "react";
@@ -213,20 +212,11 @@ export function CommandItem({ className, ...rest }: CommandItemProps): ReactElem
   return <BaseCommandItem className={cn(slots.item(), className)} data-slot="command-item" {...rest} />;
 }
 
-export interface CommandSeparatorProps extends Omit<ComponentProps<typeof BaseCommandSeparator>, "className"> {
-  className?: string;
-}
-
-/** A divider between groups/items — cmdk hides it during a search unless `alwaysRender` is set. */
-export function CommandSeparator({ className, ...rest }: CommandSeparatorProps): ReactElement {
-  return <BaseCommandSeparator className={cn(slots.separator(), className)} data-slot="command-separator" {...rest} />;
-}
-
 export interface CommandLoadingProps extends Omit<ComponentProps<typeof BaseCommandLoading>, "className"> {
   className?: string;
 }
 
-/** Progressbar shown while async suggestions load — render conditionally around it. */
+// @public-future: #2568 restores a model-picker pending-state consumer for this command-list progressbar.
 export function CommandLoading({ className, ...rest }: CommandLoadingProps): ReactElement {
   return <BaseCommandLoading className={cn(slots.loading(), className)} data-slot="command-loading" {...rest} />;
 }

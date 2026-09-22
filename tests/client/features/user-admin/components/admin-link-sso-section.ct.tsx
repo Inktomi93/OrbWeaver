@@ -6,12 +6,14 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder, TrpcRoutes } from "../../../../support/node/route-trpc.ts";
+import type { TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { AdminLinkSsoSectionStory } from "../_ct-stories.tsx";
 
 const T = 1_700_000_000_000;
-const row = (over: Record<string, unknown>): Record<string, unknown> => ({
+type AdminUser = TrpcWireOutput<"admin.listUsers">[number];
+
+const row = (over: Partial<AdminUser>): AdminUser => ({
   id: "user_x",
   handle: "x",
   externalId: null,
@@ -33,7 +35,7 @@ const USERS = [
   row({ id: "user_local2", handle: "bob", role: "admin" }),
 ];
 
-function stub(page: Page, users: readonly Record<string, unknown>[], extra: TrpcRoutes = {}): Promise<TrpcRecorder> {
+function stub(page: Page, users: readonly AdminUser[], extra: Partial<TrpcRoutes<"admin.linkSsoIdentity">> = {}): Promise<TrpcRecorder> {
   return routeTrpc(page, { "admin.listUsers": () => users, ...extra });
 }
 

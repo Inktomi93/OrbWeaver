@@ -51,10 +51,7 @@
     "orphans": {
       "category": "audit-candidate",
       "status": "contracts-run-complete-adjudication-in-progress",
-      "receipts": [
-        "/tmp/world-tools-contracts-rot.log",
-        "/tmp/world-tools-contracts-audit.md"
-      ]
+      "receipts": ["/tmp/world-tools-contracts-rot.log", "/tmp/world-tools-contracts-audit.md"]
     },
     "testonly": {
       "category": "audit-candidate",
@@ -94,18 +91,12 @@
     "viewgap": {
       "category": "audit-candidate",
       "status": "full-run-complete-adjudication-in-progress",
-      "receipts": [
-        "/tmp/world-tools-viewgap.json",
-        "/tmp/world-tools-viewgap.stderr"
-      ]
+      "receipts": ["/tmp/world-tools-viewgap.json", "/tmp/world-tools-viewgap.stderr"]
     },
     "swallowed": {
       "category": "audit-candidate",
       "status": "contracts-run-complete-adjudication-in-progress",
-      "receipts": [
-        "/tmp/world-tools-contracts-rot.log",
-        "/tmp/world-tools-contracts-audit.md"
-      ]
+      "receipts": ["/tmp/world-tools-contracts-rot.log", "/tmp/world-tools-contracts-audit.md"]
     },
     "respell": {
       "category": "audit-candidate",
@@ -115,10 +106,7 @@
     "typeonly-alive": {
       "category": "audit-candidate",
       "status": "contracts-run-complete-adjudication-in-progress",
-      "receipts": [
-        "/tmp/world-tools-contracts-rot.log",
-        "/tmp/world-tools-contracts-audit.md"
-      ]
+      "receipts": ["/tmp/world-tools-contracts-rot.log", "/tmp/world-tools-contracts-audit.md"]
     },
     "columns": {
       "category": "audit-candidate",
@@ -133,26 +121,17 @@
     "registry-candidates": {
       "category": "informational-heuristic",
       "status": "full-run-complete-adjudication-in-progress",
-      "receipts": [
-        "/tmp/world-tools-registry-candidates.json",
-        "/tmp/world-tools-registry-candidates.stderr"
-      ]
+      "receipts": ["/tmp/world-tools-registry-candidates.json", "/tmp/world-tools-registry-candidates.stderr"]
     },
     "contract-field-liveness": {
       "category": "informational-heuristic",
       "status": "full-run-complete-adjudication-in-progress",
-      "receipts": [
-        "/tmp/world-tools-contract-field-liveness.json",
-        "/tmp/world-tools-contract-field-liveness.stderr"
-      ]
+      "receipts": ["/tmp/world-tools-contract-field-liveness.json", "/tmp/world-tools-contract-field-liveness.stderr"]
     },
     "chains": {
       "category": "audit-candidate",
       "status": "contracts-run-complete-adjudication-in-progress",
-      "receipts": [
-        "/tmp/world-tools-contracts-rot.log",
-        "/tmp/world-tools-contracts-audit.md"
-      ]
+      "receipts": ["/tmp/world-tools-contracts-rot.log", "/tmp/world-tools-contracts-audit.md"]
     },
     "stringy": {
       "category": "audit-finding",
@@ -167,10 +146,7 @@
     "rot": {
       "category": "audit-composite",
       "status": "contracts-run-complete-adjudication-in-progress",
-      "receipts": [
-        "/tmp/world-tools-contracts-rot.log",
-        "/tmp/world-tools-contracts-audit.md"
-      ]
+      "receipts": ["/tmp/world-tools-contracts-rot.log", "/tmp/world-tools-contracts-audit.md"]
     },
     "flow": {
       "category": "query-navigation",

@@ -17,9 +17,7 @@
     },
     "postMatrixConcurrentState": {
       "observedAt": "2026-09-21T08:52:13.277Z",
-      "status": [
-        " M tests/tooling/ast/index.test.ts"
-      ],
+      "status": [" M tests/tooling/ast/index.test.ts"],
       "note": "This edit appeared after the final regkeys run completed and after its clean status hash was captured; it was not part of the measured final corpus."
     }
   },
@@ -1087,63 +1085,37 @@
   },
   "provenance": {
     "boundaryAssessment": {
-      "beforeCommit": [
-        "regkeys-all",
-        "unwired-global",
-        "clientgap-contracts",
-        "respell-global",
-        "columns-all"
-      ],
-      "overlappedCommit": [
-        "stringy-global"
-      ],
-      "afterCommit": [
-        "apisurface-global",
-        "all prodonly package runs",
-        "subset-callers-continueTurn",
-        "dead-MemoryLogEntry",
-        "regkeys-all-final"
-      ],
+      "beforeCommit": ["regkeys-all", "unwired-global", "clientgap-contracts", "respell-global", "columns-all"],
+      "overlappedCommit": ["stringy-global"],
+      "afterCommit": ["apisurface-global", "all prodonly package runs", "subset-callers-continueTurn", "dead-MemoryLogEntry", "regkeys-all-final"],
       "pathAndSemanticIntersection": [
         {
-          "runs": [
-            "clientgap-contracts"
-          ],
+          "runs": ["clientgap-contracts"],
           "decision": "retained",
           "proof": "corpus is packages/contracts (129 files); 3a2e348db touched no packages/contracts path"
         },
         {
-          "runs": [
-            "unwired-global"
-          ],
+          "runs": ["unwired-global"],
           "decision": "retained",
           "proof": "3a2e348db touched no tRPC router/procedure declaration"
         },
         {
-          "runs": [
-            "columns-all"
-          ],
+          "runs": ["columns-all"],
           "decision": "retained",
           "proof": "completed before commit; diff touched no database table/view/column declaration"
         },
         {
-          "runs": [
-            "respell-global"
-          ],
+          "runs": ["respell-global"],
           "decision": "retained-with-boundary-note",
           "proof": "completed before commit; diff removed error-registry object rows and changed implementation/prose/tests, with no type alias or contract shape declaration in the lens candidate class"
         },
         {
-          "runs": [
-            "stringy-global"
-          ],
+          "runs": ["stringy-global"],
           "decision": "retained-after-exact-nonintersection",
           "proof": "run overlapped commit, but all three findings are PluginPageKey (client), ChatHandle (showcase d.ts), RuntimeClassResult (ui); commit touched only listed server/docs/tests paths and no type-alias declaration"
         },
         {
-          "runs": [
-            "regkeys-all"
-          ],
+          "runs": ["regkeys-all"],
           "decision": "retained-only-as-pre-cleanup-baseline",
           "proof": "purpose is before/after comparison; it is not current-tree evidence"
         }
@@ -1233,16 +1205,7 @@
       "interpretation": "Non-empty real-repo probe exercises the strict-subset emitter and refusal census. Its sole result is explicitly CROSS-CLASS and a RULED door pair, so it is not a stale-door deletion recommendation.",
       "focusedControls": {
         "path": "tests/tooling/ast/ops/subset-callers.test.ts",
-        "lines": [
-          41,
-          60,
-          70,
-          79,
-          89,
-          98,
-          113,
-          122
-        ],
+        "lines": [41, 60, 70, 79, 89, 98, 113, 122],
         "contract": "positive strict-subset finding plus equal/disjoint/partial/empty negative controls and unresolved spread/computed/unfollowable cases",
         "execution": "read comparison only; controls were not rerun in this matrix"
       }
@@ -1276,15 +1239,7 @@
       "interpretation": "Non-empty real-repo probe confirms evidence priority: production references make the symbol ALIVE even with test references and a marker.",
       "focusedControls": {
         "path": "tests/tooling/ast/index.test.ts",
-        "lines": [
-          2286,
-          2300,
-          2314,
-          2326,
-          2342,
-          2351,
-          2362
-        ],
+        "lines": [2286, 2300, 2314, 2326, 2342, 2351, 2362],
         "contract": "ALIVE, TEST-ANCHORED, TOOL-ANCHORED, barrel pass-through, SWALLOWED-ONLY, TAGGED-KEEP, and CANDIDATE arms",
         "execution": "read comparison only; controls were not rerun in this matrix"
       }

@@ -1,0 +1,39 @@
+{
+  "workItem": 2546,
+  "outcome": "wired",
+  "surface": "The live refinery schema editor now offers deletion for saved library schemas through the existing useDeleteRefinerySchema hook and ConfirmDialog composition.",
+  "behavior": {
+    "confirmation": "The destructive action names the schema and explains that prior run results survive while sessions using the deleted schema must choose another before running again.",
+    "success": "The editor closes only after refinery.deleteSchema resolves and a success toast names the deleted schema.",
+    "failure": "The confirmation stays open, renders the server reason for retry, and the mutation hook emits its existing error toast.",
+    "freshness": "useDeleteRefinerySchema remains busDriven; the server delete verb emits refineryChanged and the canonical invalidation row path-invalidates trpc.refinery, including listSchemas and session readouts. No duplicate writer-local invalidation was added."
+  },
+  "files": [
+    "packages/client/src/features/refinery/components/schema-editor-dialog.tsx",
+    "packages/client/src/features/refinery/hooks/use-refinery-schemas.ts",
+    "tests/client/features/refinery/components/refinery-context-tabs.ct.tsx"
+  ],
+  "redFirst": {
+    "command": "pnpm test:ct tests/client/features/refinery/components/refinery-context-tabs.ct.tsx --workers=2",
+    "result": "failed as intended: 12 passed, 2 failed; both new delete tests could not reach the absent Delete schema affordance"
+  },
+  "verification": [
+    {
+      "command": "pnpm test:ct tests/client/features/refinery/components/refinery-context-tabs.ct.tsx --workers=2",
+      "result": "PASS: 14 passed, 0 failed, 0 flaky, 0 skipped"
+    },
+    {
+      "command": "pnpm typecheck --config packages/client/tsconfig.json --config tsconfig.tests-dom.json",
+      "result": "PASS: 2 runnable compiler programs passed"
+    },
+    {
+      "command": "pnpm exec biome check packages/client/src/features/refinery/components/schema-editor-dialog.tsx packages/client/src/features/refinery/hooks/use-refinery-schemas.ts tests/client/features/refinery/components/refinery-context-tabs.ct.tsx --diagnostic-level=error",
+      "result": "PASS: 3 files checked, no fixes applied"
+    },
+    {
+      "command": "pnpm exec eslint packages/client/src/features/refinery/components/schema-editor-dialog.tsx packages/client/src/features/refinery/hooks/use-refinery-schemas.ts tests/client/features/refinery/components/refinery-context-tabs.ct.tsx",
+      "result": "PASS"
+    }
+  ],
+  "scope": "No staging, commit, workboard mutation, server/provider/tooling changes, or unrelated document edits."
+}

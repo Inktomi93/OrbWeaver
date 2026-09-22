@@ -6,10 +6,7 @@
   },
   "worktree": {
     "head": "41ae2d2e04cde288c6175fce23435a54de78014d",
-    "ownedFiles": [
-      "tooling/src/ast/ops/registry-candidates.ts",
-      "tests/tooling/ast/ops/registry-candidates.test.ts"
-    ]
+    "ownedFiles": ["tooling/src/ast/ops/registry-candidates.ts", "tests/tooling/ast/ops/registry-candidates.test.ts"]
   },
   "implementation": [
     {

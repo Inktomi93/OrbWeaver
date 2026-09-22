@@ -2,11 +2,18 @@
   "task": "columns lens scanner blind spots",
   "status": "complete",
   "input_reports": ["/tmp/world-tools-columns-triage.json", "/tmp/world-tools-columns-triage-review.json"],
-  "finding_equality": {"classified_scanner_blind_spots": 9, "accounted_for": 9, "missing": 0, "extra": 0},
+  "finding_equality": { "classified_scanner_blind_spots": 9, "accounted_for": 9, "missing": 0, "extra": 0 },
   "blind_spots": [
     {
       "mechanism": "drizzle_insert_select_named_projection",
-      "columns": ["chat_digest_speakers.digest_id", "embed_space_state.owner_id", "embed_space_state.scope", "refinery_schemas.id", "refinery_schemas.owner_id", "refinery_schemas.created_at"],
+      "columns": [
+        "chat_digest_speakers.digest_id",
+        "embed_space_state.owner_id",
+        "embed_space_state.scope",
+        "refinery_schemas.id",
+        "refinery_schemas.owner_id",
+        "refinery_schemas.created_at"
+      ],
       "fix": "Walk insert(table).select(query) back to the resolved table and attribute the inner select object projection keys. A positional or raw select marks the table opaque instead of inventing column identity."
     },
     {
@@ -15,7 +22,13 @@
       "fix": "Tokenize static sql tagged templates, skip template expressions, strings, and comments, and attribute INSERT INTO table (columns...) by exact SQL table and column identity. Exact sql tags only; similarly spelled tags are excluded."
     }
   ],
-  "changed_files": ["tooling/src/ast/lib/columns.ts", "tooling/src/ast/lib/column-reads.ts", "tooling/src/ast/lib/usage.ts", "tooling/src/ast/ops/columns.ts", "tests/tooling/ast/index.test.ts"],
+  "changed_files": [
+    "tooling/src/ast/lib/columns.ts",
+    "tooling/src/ast/lib/column-reads.ts",
+    "tooling/src/ast/lib/usage.ts",
+    "tooling/src/ast/ops/columns.ts",
+    "tests/tooling/ast/index.test.ts"
+  ],
   "red_first": {
     "command": "pnpm test:scoped tests/tooling/ast/index.test.ts",
     "result": "failed 2 of 102: insert-select projections and static raw INSERT headers had no attributed writes",
@@ -34,17 +47,23 @@
       "raw_insert_columns_accounted": 3
     },
     "textual": {
-      "insert_target_counts": {"chatDigestSpeakers": 1, "embedSpaceState": 1, "refinerySchemas": 1},
+      "insert_target_counts": { "chatDigestSpeakers": 1, "embedSpaceState": 1, "refinerySchemas": 1 },
       "plugin_kv_exact_insert_header_count": 2
     },
     "deletions": 0
   },
   "verification": [
-    {"command": "pnpm test:scoped tests/tooling/ast/index.test.ts tests/tooling/ast/ops/verbs.test.ts", "result": "PASS: 122/122"},
-    {"command": "pnpm exec biome check tooling/src/ast/lib/columns.ts tooling/src/ast/lib/column-reads.ts tooling/src/ast/lib/usage.ts tooling/src/ast/ops/columns.ts tests/tooling/ast/index.test.ts --diagnostic-level=error", "result": "PASS"},
-    {"command": "pnpm typecheck --config tooling/tsconfig.json --config tsconfig.tests-iso.json", "result": "PASS: 2/2 native programs"},
-    {"command": "pnpm exec eslint tooling/src/ast/lib/columns.ts tooling/src/ast/lib/column-reads.ts tooling/src/ast/lib/usage.ts tooling/src/ast/ops/columns.ts tests/tooling/ast/index.test.ts", "result": "PASS"},
-    {"command": "git diff --check", "result": "PASS"}
+    { "command": "pnpm test:scoped tests/tooling/ast/index.test.ts tests/tooling/ast/ops/verbs.test.ts", "result": "PASS: 122/122" },
+    {
+      "command": "pnpm exec biome check tooling/src/ast/lib/columns.ts tooling/src/ast/lib/column-reads.ts tooling/src/ast/lib/usage.ts tooling/src/ast/ops/columns.ts tests/tooling/ast/index.test.ts --diagnostic-level=error",
+      "result": "PASS"
+    },
+    { "command": "pnpm typecheck --config tooling/tsconfig.json --config tsconfig.tests-iso.json", "result": "PASS: 2/2 native programs" },
+    {
+      "command": "pnpm exec eslint tooling/src/ast/lib/columns.ts tooling/src/ast/lib/column-reads.ts tooling/src/ast/lib/usage.ts tooling/src/ast/ops/columns.ts tests/tooling/ast/index.test.ts",
+      "result": "PASS"
+    },
+    { "command": "git diff --check", "result": "PASS" }
   ],
   "controls": [
     "named insert-select projection attributes only its keys",

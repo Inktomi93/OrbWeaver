@@ -12,10 +12,23 @@
 // satisfiable by the builtin catalog alone).
 
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { userSettingsView } from "../../../../support/node/user-settings-view.ts";
 import { PersonaEditorMacroStory } from "../_ct-stories.tsx";
 
+const PERSONA_RESULT: TrpcWireOutput<"persona.update"> = {
+  id: "persona_ct",
+  name: "Nova",
+  title: "the navigator",
+  description: "A steady hand at the helm.",
+  starred: false,
+  avatarAssetId: null,
+  avatarHash: null,
+  metadata: null,
+  createdAt: 1,
+  updatedAt: 1,
+};
 const USER_MACRO_ROW = "{{sceneTone}}";
 const USER_MACRO_GLOSS = "This game's tonal register.";
 
@@ -29,7 +42,7 @@ const USER_MACROS = [{ name: "sceneTone", description: USER_MACRO_GLOSS, args: [
  *  the book-catalog and per-persona attachment pipelines ran INERT in both tests. Empty ARRAYS are the honest
  *  default for a fresh viewer and a fresh persona — and unlike null they are real shapes the readers select
  *  over, so the attachment resolve path actually runs. */
-const PERSONA_EDITOR_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
+const PERSONA_EDITOR_AMBIENT_ROUTES: TrpcRoutes<"worldInfo.listBooks" | "worldInfo.listForPersona" | "persona.listConnectedCharacters"> = {
   // `WorldInfoBookView[]` — the viewer's whole book library, the picker's vocabulary.
   "worldInfo.listBooks": [],
   // The books already attached to THIS persona.
@@ -44,7 +57,7 @@ test("a persona description completes against the ACTIVE PRESET's user macros, g
     ...PERSONA_EDITOR_AMBIENT_ROUTES,
     "settings.getUserSettings": () => userSettingsView({ seeds: { defaultPresetId: ACTIVE_PRESET_ID } }),
     "preset.get": () => ({ config: { userMacros: USER_MACROS } }),
-    "persona.update": () => null,
+    "persona.update": () => PERSONA_RESULT,
   });
   const component = await mount(<PersonaEditorMacroStory />);
 
@@ -65,7 +78,7 @@ test("with the BUILT-IN preset active there is no plane to read — the builtin 
     ...PERSONA_EDITOR_AMBIENT_ROUTES,
     "settings.getUserSettings": () => userSettingsView({ seeds: { defaultPresetId: null } }),
     "preset.get": () => ({ config: { userMacros: USER_MACROS } }),
-    "persona.update": () => null,
+    "persona.update": () => PERSONA_RESULT,
   });
   const component = await mount(<PersonaEditorMacroStory />);
 
@@ -94,8 +107,8 @@ test("Connected characters lists the junction read; Disconnect fires with both i
     ...PERSONA_EDITOR_AMBIENT_ROUTES,
     "persona.listConnectedCharacters": () => CONNECTED,
     "settings.getUserSettings": () => userSettingsView({ seeds: { defaultPresetId: null } }),
-    "persona.update": () => null,
-    "persona.connectToCharacter": () => null,
+    "persona.update": () => PERSONA_RESULT,
+    "persona.connectToCharacter": () => undefined,
     "persona.disconnectFromCharacter": () => ({ disconnected: true }),
     "character.list": () => ({
       items: [
@@ -134,7 +147,7 @@ test("Duplicate admits one durable intent and rejection restores retry", async (
   const trpc = await routeTrpc(page, {
     ...PERSONA_EDITOR_AMBIENT_ROUTES,
     "settings.getUserSettings": () => userSettingsView({ seeds: { defaultPresetId: null } }),
-    "persona.update": () => null,
+    "persona.update": () => PERSONA_RESULT,
     "persona.duplicate": () => (attempts++ === 0 ? first : retry),
   });
   const component = await mount(<PersonaEditorMacroStory />);
@@ -157,6 +170,6 @@ test("Duplicate admits one durable intent and rejection restores retry", async (
   await retry.requested;
   await expect(duplicate).toBeDisabled();
   await expect.poll(() => trpc.count("persona.duplicate")).toBe(2);
-  retry.release(null);
+  retry.release(PERSONA_RESULT);
   await expect(duplicate).toBeEnabled();
 });

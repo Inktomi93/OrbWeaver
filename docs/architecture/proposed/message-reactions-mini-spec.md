@@ -1,22 +1,29 @@
 ---
 kind: spec
-status: draft
-updated: 2026-07-18
+status: active
+updated: 2026-09-21
 ---
 
 # MA-2 — message reactions mini-spec (segment-level · character-to-character · prompt-attribution)
 
+> **Current disposition (2026-09-21).** The Unicode reaction plane, segment anchoring, prompt
+> attribution, character `react` tool, and client controls shipped in `99b6ba2c6` and `24169def4`.
+> Reaction writes already emit the canonical `reactionsChanged` automation fact. Custom emoji is the
+> only launch remainder; [#2565](https://github.com/Inktomi93/orbweaver/issues/2565) owns it. This spec
+> therefore remains **PARTIAL**, not a dormant unstarted program.
+
 > **Source banner.** This mini-spec is the D55-style entry ticket for a build lane, minted from the
 > 2026-07-18 Marinara-Engine audit (v2.0.8→v2.3.3, `reports/research/marinara-delta-features.md` §6 +
 > RANKED shortlist #2). Marinara code read in full at
-> `references/marinara-engine` (paths cited inline). **DESIGN-FIRST per the BUILD-QUEUE
-> §Marinara-audit adoptions rule (MA-2): the mini-spec IS the deliverable; a build lane queues only
-> after owner review of the §Open-questions list.** Nothing here is queued yet.
+> `references/marinara-engine` (paths cited inline). \*\*DESIGN-FIRST per the BUILD-QUEUE
+> §Marinara-audit adoptions rule (MA-2). The proposal and chunk plan below are retained as design
+> provenance; the current-disposition banner and live code own what remains.
 
 ## Bottom line
 
-Orbweaver has **zero** user-facing message reactions today (`buddy/set-reactions` is ambient buddy mood
-agency, unrelated). Marinara shipped a complete, genuinely good reaction system: Discord-style emoji
+Orbweaver now ships user-facing Unicode message reactions, segment anchoring, prompt attribution, and
+character reactions. The remaining ruled piece is CAS-backed custom emoji. Marinara shipped a complete,
+genuinely good reaction system: Discord-style emoji
 chips on a message, optionally targeting one **speaker segment** of a multi-speaker turn, reactable by
 **humans AND characters** (`[react: emoji="😂" to "Name"]`), and — the clever part — **fed back into the
 next turn's prompt** as an inline note under the exact targeted line. The whole thing is single-user in
@@ -201,18 +208,12 @@ wants reactions in the tool vocabulary vs a lighter command surface. Either way 
 verb (the character's participant is the reactor); the model surface is the only difference. v1 could
 ship **human reactions only** and defer character-to-character to v2 (Open-Q C).
 
-## 8. The D46 automation-trigger question
+## 8. The D46 automation trigger — resolved
 
-Marinara's reactions feed generation (§6) but do not fire an automation-style rule. Orbweaver has the D46
-automation trigger taxonomy (`DOMAIN_TRIGGER_TYPES` / `ChatTriggerType`). Question: **is `reactionAdded`
-a reserved automation trigger?**
-
-- **RECOMMEND: reserve it, do not emit in v1** — the `lock-the-extensible-shape` standing answer. Declare
-  `reactionAdded` in the trigger tuple as a RESERVED member (born-declared, unemitted — the same pattern
-  as the `expression` bus member before E4, and the crew trigger names reserved in `DOMAIN_TRIGGER_TYPES`).
-  A future automation rule ("when a message gets 3 😂, …") then costs a flip, not a schema change. This is
-  **distinct from the §5 chat-bus member** (which IS emitted in v1 for canon sync) — the automation
-  trigger is the reserved automation-domain hook. **Open-Q F** if the owner would rather not reserve it.
+Orbweaver uses one canonical reaction event for both canon sync and automation: `reactionsChanged`.
+The durable reaction write emits it after commit with `added: true | false`; the automation fact resolver
+projects the same event. `reactionAdded` was a proposal spelling and is retired — adding it now would fork
+one state change into two competing trigger names.
 
 ## 9. Client surface (D66 A3 hover cluster)
 
@@ -246,7 +247,7 @@ a reserved automation trigger?**
 | C | **Character-to-character reactions? Tool or command?** | **YES, in the program — via the D48 `react` tool** on the built tool-loop (MR5 is not optional). |
 | D | **Custom-emoji reactions?** | **YES — custom emoji ships too** (CAS-backed, additive over the unicode path; the picker surface is a build item). |
 | E | **Block-level (media/card) reaction targeting?** | **No** — the one surviving "no", and it is a DESIGN no (segments live in the markdown block; Marinara precedent agrees), not a lack-driven one. Revisitable with its own row. |
-| F | **`reactionAdded` automation trigger?** | **LIVE — emitted, not reserved-inert.** Automation is fully built (A1–A7); a real trigger costs the same as a reservation now. |
+| F | **Reaction automation trigger?** | **LIVE as canonical `reactionsChanged`** for adds and removals. The proposed `reactionAdded` spelling is retired. |
 | G | **Attribution caps owner-tunable?** | **Yes** — K≈8 + 32k content cap, both knobs (as recommended). |
 | H | **Reaction bus member?** | **LIVE (emitted)** (as recommended — reactions are canon). |
 
@@ -257,7 +258,7 @@ Dependency-ordered; each chunk green (`pnpm check` + `pnpm test`) before the nex
 1. **MR0 — contracts + schema (born-whole).** `message_reactions` table (§4) on the baseline;
    `MessageReactionGroup` view + `reactionsChanged` bus-event member (`CHAT_BUS_EVENT_TYPES` +
    DEFERRED map + `check-gates.int` fixture — the three coupled sites); `ID_PREFIX.messageReaction`;
-   the RESERVED `reactionAdded` automation-trigger member (Open-Q F). Tests: schema DDL + the bus-member
+   the live `reactionsChanged` automation-trigger member (Open-Q F). Tests: schema DDL + the bus-member
    coverage fixture.
 2. **MR1 — domain/chat verbs + tRPC + sweep.** `toggleReaction` (or add/remove) verb, `requireParticipant`,
    grouped-read; the bus emit (durable-first); the tRPC route pair + **sweep classification** (PROBED).

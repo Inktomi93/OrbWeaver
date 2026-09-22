@@ -7,6 +7,8 @@
 // funnel compares it with {@link PLUGIN_HOST_VERSIONS} and raises its distinct unserved-version refusal.
 
 import { z } from "zod";
+import type { ProviderDef } from "../inference/provider-schema.ts";
+import { isPluginProviderId, pluginNameOfProviderId, providerDefSchema } from "../inference/provider-schema.ts";
 
 /** The closed capability axis. A manifest declares a SUBSET; a new capability is a member here + a
  *  host-function row in `CAPABILITY_HOST_FUNCTIONS` (host-v1.ts) — a capability with no function (or a
@@ -269,11 +271,76 @@ export const PLUGIN_UI_ASSET_MAX_BYTES = 2_097_152;
  *  stronger and simpler guard than a per-entry ratio, because a ratio computed per entry says nothing about
  *  what the entries sum to. */
 export const PLUGIN_UI_ASSETS_TOTAL_MAX_BYTES = 8_388_608;
+/** Provider definitions are metadata but each becomes a deployment-global registry row + contribution write
+ *  on activation. Bound the fan-out at the manifest trust edge, like capabilities and bundle assets. */
+export const PLUGIN_PROVIDERS_MAX = 16;
+
+interface ProviderManifestFields {
+  readonly id: string;
+  readonly capabilities: readonly PluginCapability[];
+  readonly netHosts?: readonly string[] | undefined;
+  readonly providers?: readonly ProviderDef[] | undefined;
+}
+
+/** The WHATWG URL global exists in every runtime that consumes contracts (Node and browsers), while this
+ * package deliberately carries neither the DOM nor Node ambient library. Keep the structural surface to the
+ * one parsed field the trust check needs. `providerDefSchema` has already admitted the input through `z.url()`.
+ */
+const WhatwgUrl = (globalThis as unknown as { readonly URL: new (input: string) => { readonly hostname: string } }).URL;
+
+function refineFixedProviderHost(args: {
+  readonly provider: ProviderDef;
+  readonly index: number;
+  readonly manifest: ProviderManifestFields;
+  readonly ctx: z.RefinementCtx;
+  readonly declaresEgress: boolean;
+}): void {
+  const { provider, index, manifest, ctx, declaresEgress } = args;
+  if (provider.baseUrl === undefined) {
+    return;
+  }
+  if (!declaresEgress) {
+    ctx.addIssue({ code: "custom", message: "a provider with a fixed baseUrl requires an egress capability", path: ["capabilities"] });
+  }
+  // This is the egress enforcer's exact identity: request hosts are URL-normalized, lowercased, and have one
+  // trailing root dot stripped; allowlist entries are lowercased but otherwise literal. Thus a mixed-case
+  // declaration matches, while a trailing-dot netHosts entry remains the enforcer's fail-closed dud.
+  const providerHost = new WhatwgUrl(provider.baseUrl).hostname.toLowerCase().replace(/\.$/u, "");
+  const hostDeclared = (manifest.netHosts ?? []).some((host) => host.toLowerCase() === providerHost);
+  if (!hostDeclared) {
+    ctx.addIssue({
+      code: "custom",
+      message: `provider baseUrl host "${providerHost}" must be declared in netHosts`,
+      path: ["providers", index, "baseUrl"],
+    });
+  }
+}
+
+/** Cross-field provider trust checks kept together: namespace identity and fixed-host egress consent are one
+ * install-time decision over the fully parsed manifest, not properties `providerDefSchema` can judge alone. */
+function refineManifestProviders(manifest: ProviderManifestFields, ctx: z.RefinementCtx, declaresEgress: boolean): void {
+  const seenProviderIds = new Set<string>();
+  for (const [index, provider] of (manifest.providers ?? []).entries()) {
+    if (!isPluginProviderId(provider.id) || pluginNameOfProviderId(provider.id) !== manifest.id) {
+      ctx.addIssue({
+        code: "custom",
+        message: `a plugin provider id must be plugin:${manifest.id}/<id>`,
+        path: ["providers", index, "id"],
+      });
+    }
+    if (seenProviderIds.has(provider.id)) {
+      ctx.addIssue({ code: "custom", message: `duplicate provider id "${provider.id}"`, path: ["providers", index, "id"] });
+    }
+    refineFixedProviderHost({ provider, index, manifest, ctx, declaresEgress });
+    seenProviderIds.add(provider.id);
+  }
+}
 
 /** The bundle manifest (`manifest.json` in the zip; the FULL validated copy is persisted for provenance and
- *  re-validated on load). `netHosts` ⟺ `net.fetch`: declaring the capability requires ≥ 1 host, and a
- *  host list is meaningless without the capability (the biconditional is the SSRF allowlist's integrity).
- *  `uiEntry` ⇒ `ui.surface` is the SECOND biconditional half (see the field). */
+ *  re-validated on load). `netHosts` ⟺ an egress capability: declaring one requires ≥ 1 host, and a host list
+ *  is meaningless without one. Every fixed provider `baseUrl` additionally names one of those exact hosts;
+ *  provider dispatch leaves the guest membrane and must not mint undeclared reach. `uiEntry` ⇒ `ui.surface`
+ *  is the SECOND cross-field gate (see the field). */
 export const pluginManifestSchema = z
   .object({
     id: z.string().regex(SLUG_RE),
@@ -291,6 +358,12 @@ export const pluginManifestSchema = z
     description: z.string().max(DESCRIPTION_MAX),
     author: z.string().max(AUTHOR_MAX).optional(),
     capabilities: z.array(z.enum(PLUGIN_CAPABILITIES)).max(PLUGIN_CAPABILITIES.length),
+    /** Optional provider DATA this plugin contributes while enabled. The wire stays the closed `WIRES` enum
+     *  inside `providerDefSchema`; a plugin can select a shipped backend, never add one. IDs are additionally
+     *  pinned to this manifest's own slug below, before bundle bytes can persist. A fixed `baseUrl` is egress
+     *  outside the guest membrane, so the cross-field checks below require the same declared capability and
+     *  exact-host consent as guest fetch. */
+    providers: z.array(providerDefSchema).max(PLUGIN_PROVIDERS_MAX).optional(),
     netHosts: z.array(pluginNetHostSchema).max(NET_HOSTS_MAX).optional(),
     /** The cascade opt-in — mirrors an automation rule's `matchAutomationEvents` column.
      *  `false`/absent (fail-closed default) ⇒ the plugin's `events.on` handlers receive ONLY human-plane
@@ -321,5 +394,8 @@ export const pluginManifestSchema = z
     if (m.uiEntry !== undefined && !m.capabilities.includes("ui.surface")) {
       ctx.addIssue({ code: "custom", message: "uiEntry requires the ui.surface capability", path: ["capabilities"] });
     }
+    refineManifestProviders(m, ctx, declaresEgress);
   });
 export type PluginManifest = z.infer<typeof pluginManifestSchema>;
+/** One fully validated provider contribution as stored in a plugin manifest. */
+export type PluginProviderContribution = ProviderDef;

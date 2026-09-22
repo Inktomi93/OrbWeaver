@@ -4,10 +4,11 @@
 // first row changes; a row exposes its replies + tokens summary.
 
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { TrpcResponder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { AnalyticsListSurfaceStory } from "../_ct-stories.tsx";
 
-const ARIA = {
+const ARIA: TrpcWireOutput<"stats.leaderboard">["rows"][number] = {
   characterId: "char_aria",
   name: "Aria Nightshade",
   chats: 4,
@@ -19,6 +20,7 @@ const ARIA = {
   reasoningRate: 0,
   firstChatAt: 1000,
   lastActivityAt: 5000,
+  tokensOutProvenance: "measured",
 };
 const BOLT = {
   ...ARIA,
@@ -29,15 +31,19 @@ const BOLT = {
   totalGenTimeMs: 4000,
   lastActivityAt: 9000,
 };
+const UNRECORDED_ARIA: TrpcWireOutput<"stats.leaderboard">["rows"][number] = { ...ARIA, tokensOut: null, tokensOutProvenance: "unrecorded" };
+
+type FunctionResponder<T> = T extends (input: infer TInput) => infer TOutput ? (input: TInput) => TOutput : never;
+type LeaderboardResponder = FunctionResponder<TrpcResponder<"stats.leaderboard">>;
 
 // stats.leaderboard — discriminate on the decoded `sort` so one responder serves every toggle.
-function leaderboardResponder(input: unknown): unknown {
-  const sort = (input as { sort?: string } | undefined)?.sort;
+const leaderboardResponder: LeaderboardResponder = (input) => {
+  const sort = input?.sort;
   // "Recent" ranks Bolt first (latest activity); the default (replies) ranks Aria first.
   const rows = sort === "lastActivityAt" ? [BOLT, ARIA] : [ARIA, BOLT];
   // A PAGE, not an array: the rows are capped and `total` is the population they were cut from.
   return { rows, total: 328 };
-}
+};
 
 test("the leaderboard renders ranked rows on the default sort", async ({ mount, page }) => {
   await routeTrpc(page, { "stats.leaderboard": leaderboardResponder });
@@ -53,7 +59,7 @@ test("the leaderboard renders ranked rows on the default sort", async ({ mount, 
 // `0 tok` asserted a measurement. Probed on the owner corpus: one character has 1,187 replies and 8,713
 // variants with NULL on both token columns.
 test("a row whose turns carry no token accounting renders a dash, not `0 tok`", async ({ mount, page }) => {
-  await routeTrpc(page, { "stats.leaderboard": () => ({ rows: [{ ...ARIA, tokensOut: null }], total: 1 }) });
+  await routeTrpc(page, { "stats.leaderboard": () => ({ rows: [UNRECORDED_ARIA], total: 1 }) });
   const component = await mount(<AnalyticsListSurfaceStory />);
 
   const row = component.getByRole("button", { name: "Aria Nightshade" });
@@ -83,7 +89,7 @@ test("duplicate names are disambiguated in the row and in its accessible name", 
 test("a first-load leaderboard error shows the retry surface (not a permanent skeleton), and Retry recovers", async ({ mount, page }) => {
   let calls = 0;
   await routeTrpc(page, {
-    "stats.leaderboard": (): unknown => (calls++ === 0 ? trpcError({ message: "leaderboard boom" }) : leaderboardResponder({ sort: "assistantTurns" })),
+    "stats.leaderboard": () => (calls++ === 0 ? trpcError({ message: "leaderboard boom" }) : leaderboardResponder({ sort: "assistantTurns" })),
   });
   const component = await mount(<AnalyticsListSurfaceStory />);
 
@@ -160,14 +166,13 @@ test("only one leaderboard row is tabbable (roving), and Arrow keys move focus",
 // rows — so a name below the cut is reachable. The responder keys on the decoded `search` input; the CT
 // proves the box drives a fresh, narrowed query.
 test("the LIST search narrows the rows through a fresh server query", async ({ mount, page }) => {
-  await routeTrpc(page, {
-    "stats.leaderboard": (input: unknown): unknown => {
-      const needle = ((input as { search?: string } | undefined)?.search ?? "").toLowerCase();
-      const all = [ARIA, BOLT];
-      const rows = needle === "" ? all : all.filter((r) => r.name.toLowerCase().includes(needle));
-      return { rows, total: rows.length };
-    },
-  });
+  const searchResponder: LeaderboardResponder = (input) => {
+    const needle = (input?.search ?? "").toLowerCase();
+    const all = [ARIA, BOLT];
+    const rows = needle === "" ? all : all.filter((row) => row.name.toLowerCase().includes(needle));
+    return { rows, total: rows.length };
+  };
+  await routeTrpc(page, { "stats.leaderboard": searchResponder });
   const component = await mount(<AnalyticsListSurfaceStory />);
   await expect(component.getByText("Aria Nightshade")).toBeVisible();
   await expect(component.getByText("Bolt")).toBeVisible();

@@ -19,10 +19,13 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { touchFloorPx } from "../../support/browser/touch-floor.ts";
+import type { TrpcFixtureOutput, TrpcResponder } from "../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../support/node/route-trpc.ts";
 import { TagPickerDialogHarness } from "./tag-picker-dialog.fixtures.tsx";
 
-const tag = (id: string, name: string, total: number): unknown => ({
+type TagWithUsageFixture = TrpcFixtureOutput<"tag.listTagsWithUsage">[number];
+
+const tag = (id: string, name: string, total: number): TagWithUsageFixture => ({
   id,
   name,
   color: null,
@@ -47,8 +50,9 @@ const CROWDED = [
  *  is the only state that keeps a full suggestion list open (an exact match ends the suggesting). */
 const CONFIRM = 'Create "fantas"';
 
-function stub(page: Page, tags: readonly unknown[]): Promise<unknown> {
-  return routeTrpc(page, { "tag.listTagsWithUsage": () => tags });
+function stub(page: Page, tags: TrpcFixtureOutput<"tag.listTagsWithUsage">): Promise<unknown> {
+  const listTags: TrpcResponder<"tag.listTagsWithUsage"> = () => tags;
+  return routeTrpc(page, { "tag.listTagsWithUsage": listTags });
 }
 
 /** What the browser's own hit test finds at a control's centre — the only honest answer to "is it
@@ -274,12 +278,11 @@ test("the read IN FLIGHT says so, and claims NO count", async ({ mount, page }) 
 
 test("a FAILED read says so, offers a retry, and the retry recovers", async ({ mount, page }) => {
   let attempt = 0;
-  await routeTrpc(page, {
-    "tag.listTagsWithUsage": () => {
-      attempt += 1;
-      return attempt === 1 ? trpcError({ message: "boom" }) : LIBRARY;
-    },
-  });
+  const listTags: TrpcResponder<"tag.listTagsWithUsage"> = () => {
+    attempt += 1;
+    return attempt === 1 ? trpcError({ message: "boom" }) : LIBRARY;
+  };
+  await routeTrpc(page, { "tag.listTagsWithUsage": listTags });
   await mount(<TagPickerDialogHarness />);
   await expect(page.getByText("Couldn't load your tags. You can still type a name — an existing one will be reused.")).toBeVisible();
 

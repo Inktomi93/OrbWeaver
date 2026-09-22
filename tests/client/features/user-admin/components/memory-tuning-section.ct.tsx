@@ -6,25 +6,30 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { setNumber } from "../../../../support/node/set-number.ts";
 import { MemoryTuningSectionNarrowStory, MemoryTuningSectionStory } from "../_ct-stories.tsx";
+import type { EffectiveAppSettings } from "../app-settings-fixtures.ts";
+import { appSettingsView, effectiveAppSettings } from "../app-settings-fixtures.ts";
 
 // The section reads its knob VALUES from `overrides` (⊕ the contract floors), not `resolved` — so a plain
 // partial resolved slice suffices (routeTrpc stubs are untyped; the admin-surface CT's APP_SETTINGS
 // precedent — no cast, no fabricated whole-shape).
-const RESOLVED = { memoryDefaults: {}, memorySummarizer: {} };
+const RESOLVED: Partial<EffectiveAppSettings> = { memoryDefaults: {}, memorySummarizer: {} };
 
 const UPDATE_PROC = "settings.updateAppSettings";
+
+type AppSettingsOverrides = TrpcWireOutput<"settings.getAppSettingsWithOverrides">["overrides"];
+
 const RAW_MODE_LABEL = /\b(?:mixA|mixB|mixC|tiered)\b/u;
 const SEARCH_CANDIDATES_GUIDANCE =
   "Matches kept after vector search. Higher values give Sharper semantic recall more choices but make reranking compare more memories; when reranking succeeds, Reranked memories still caps what reaches the prompt. If reranking is unavailable—or Semantic recall is selected—more candidates can use more prompt space. Embedding and vector-search work stay the same.";
 
-function stub(page: Page, overrides: Record<string, unknown> = {}): Promise<TrpcRecorder> {
+function stub(page: Page, overrides: Partial<AppSettingsOverrides> = {}): Promise<TrpcRecorder> {
   return routeTrpc(page, {
-    "settings.getAppSettingsWithOverrides": () => ({ resolved: RESOLVED, overrides }),
-    [UPDATE_PROC]: () => RESOLVED,
+    "settings.getAppSettingsWithOverrides": () => appSettingsView(RESOLVED, overrides),
+    [UPDATE_PROC]: () => effectiveAppSettings(RESOLVED),
   });
 }
 

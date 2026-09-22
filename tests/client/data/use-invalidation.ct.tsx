@@ -9,6 +9,7 @@
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { TrpcRoutes } from "../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../support/node/route-trpc.ts";
 import { InvalidationStory, StartChatBurstStory } from "./_ct-stories.tsx";
 
@@ -48,7 +49,7 @@ interface BurstChatRow {
   readonly id: ChatId;
 }
 
-const BURST_ROUTES = {
+const BURST_ROUTES: TrpcRoutes<"chat.getChat" | "chat.listChats"> = {
   "chat.getChat": (input: unknown): { title: string } => ({ title: `room for ${(input as { chatId: ChatId }).chatId}` }),
   // `listChats` is a keyset PAGE now — the probe reads `.items.length`, so the stub owes the page shape.
   "chat.listChats": (): { items: readonly BurstChatRow[]; nextCursor: null; totalCount: number } => ({

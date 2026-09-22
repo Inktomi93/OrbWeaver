@@ -1,0 +1,163 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-21",
+  "worktree": "/home/inktomi/.codex/worktrees/world-aware-tools/orbweaver",
+  "issues": [2533, 2551],
+  "changedPaths": [
+    "tests/support/node/route-trpc.ts",
+    "tests/support/node/route-trpc.test-d.ts",
+    "tests/client/features/databank/fixtures.ts",
+    "tests/client/features/config/components/config-collection-landing.ct.tsx",
+    "tests/client/features/config/lib/config-section.ct.tsx",
+    "tests/client/features/notifications/components/notification-bell.ct.tsx",
+    "tests/client/features/persona/components/persona-this-chat-section.ct.tsx",
+    "tests/client/features/stats/components/analytics-time-tab.ct.tsx",
+    "tooling/src/ast/lib/app-router-provenance.ts",
+    "tooling/src/ast/ops/wiring.ts",
+    "tests/tooling/ast/clientgap-provenance.test.ts"
+  ],
+  "routeTrpc": {
+    "contract": "Every ordinary direct routeTrpc fixture is inferred as a const route map and checked against AppRouter for procedure key, responder input, and success-output keys. Object outputs are compared only with canonical object branches, so null/primitive union arms cannot admit a stale object return. Zero-argument responders remain supported. trpcError and trpcHold remain supported. malformedOrForwardTrpcWire is the only named malformed/forward-version escape.",
+    "sourceCompatibility": "No call-site wrapper is required. Empty and wholly nonoverlapping legacy placeholder objects remain accepted; once a fixture models any canonical object field, all of its keys are checked against that canonical branch. Canonical arrays are checked against array branches.",
+    "plantedControls": [
+      "direct deleted static health output field fails",
+      "direct zero-argument function responder with deleted health output field fails",
+      "direct nonexistent procedure key fails",
+      "direct wrong databank.list string input fails",
+      "malformed/forward wire succeeds through malformedOrForwardTrpcWire"
+    ],
+    "redFirstReport": "reports/runs/test/orbweaver-4159484-2026-09-21T17-53-00-056Z/test-report.json",
+    "greenReport": "reports/runs/test/orbweaver-43687-2026-09-21T18-17-33-672Z/test-report.json"
+  },
+  "clientgap": {
+    "before": {
+      "findings": 23,
+      "classification": {
+        "liveClientViaAppRouter": 15,
+        "serverOnly": 3,
+        "externalPlugin": 5
+      }
+    },
+    "lastCompletedRealRunBeforeRerepair": {
+      "path": "/tmp/world-tools-app-router-clientgap-final.json",
+      "findings": 9,
+      "clientConsumedProcedures": 410,
+      "contractDeclarations": 272,
+      "contractFilesScanned": 130,
+      "status": "complete"
+    },
+    "rerepair": "Provenance now starts from the selected AppRouter procedure callback and follows only its call, signature, declaration, return, semantic-reference, barrel, Zod alias, nested constituent, and intersection edges. The global structural scan of unrelated intersection-returning functions was removed.",
+    "controls": [
+      "service return",
+      "re-export barrel",
+      "Zod inferred alias",
+      "nested constituent",
+      "FunctionType return",
+      "intersection composition",
+      "server-only negative",
+      "UnrelatedServerOnlyView structurally assignable unrelated-function negative"
+    ],
+    "deletions": [],
+    "wholeTreeRerun": "Intentionally not repeated after rerepair; orchestrator requested one later authoritative run."
+  },
+  "verification": [
+    {
+      "command": "pnpm test:scoped tests/support/node/route-trpc.test-d.ts tests/tooling/ast/clientgap-provenance.test.ts",
+      "result": "PASS: tooling 3/3; types-node 2/2; no type errors",
+      "report": "reports/runs/test/orbweaver-43687-2026-09-21T18-17-33-672Z/test-report.json"
+    },
+    {
+      "command": "pnpm typecheck --config tsconfig.tests-dom.json",
+      "result": "PASS"
+    },
+    {
+      "command": "pnpm exec biome check <11 lane paths> --diagnostic-level=error --reporter=concise",
+      "result": "PASS: 11 files"
+    },
+    {
+      "command": "pnpm exec eslint <11 lane paths>",
+      "result": "PASS"
+    },
+    {
+      "command": "git diff --check -- <11 lane paths>",
+      "result": "PASS"
+    },
+    {
+      "command": "pnpm test:scoped tests/tooling/ast/clientgap-provenance.test.ts",
+      "result": "PASS: 4/4 including 300-procedure cardinality control",
+      "report": "reports/runs/test/orbweaver-87088-2026-09-21T18-31-50-499Z/test-report.json"
+    },
+    {
+      "command": "pnpm test:scoped tests/tooling/ast/clientgap-provenance.test.ts tests/support/node/route-trpc.test-d.ts",
+      "result": "PASS: tooling 5/5 including production-shaped SessionView contextual implementation control; types-node 2/2",
+      "report": "reports/runs/test/orbweaver-118273-2026-09-21T18-41-42-921Z/test-report.json"
+    }
+  ],
+  "limitations": [
+    "The exact post-rerepair whole-tree clientgap denominator/classification is intentionally deferred to the orchestrator's single authoritative run.",
+    "Dynamic or untyped service construction cannot establish named declaration provenance.",
+    "For source compatibility with the direct fixture corpus, wholly nonoverlapping placeholder objects remain opaque; fixtures that model at least one canonical output field receive exact-key checking. The planted deleted-field controls cover both static and zero-argument function responders with a canonical field present."
+  ],
+  "remaining2554": "Runtime validation for wire payloads remains separate #2554 work; this change provides compile-time fixture fidelity and does not add runtime response validation.",
+  "clientgapPerformanceRepair": {
+    "authoritativeFailure": {
+      "command": "pnpm ast clientgap contracts --json --max 100000",
+      "elapsedSecondsApprox": 293,
+      "heapBudgetMb": 16384,
+      "exitCode": 134,
+      "failure": "V8 Ineffective mark-compacts near heap limit; lifecycle failure only, no verdict"
+    },
+    "rootCause": "Each reached procedure declaration called semanticReferenceNodes/findReferences, repeatedly traversing every semantic workspace and retaining whole-program language-service graphs.",
+    "repair": "Removed reverse-reference traversal. The selected procedure callback now follows only forward call-expression symbol, call-signature declaration, nested-call, and nested-function edges. Compiler-type provenance is memoized once across procedures.",
+    "cardinalityControl": {
+      "procedures": 300,
+      "result": "PASS with one SharedView contract key and zero unresolved procedures",
+      "report": "reports/runs/test/orbweaver-80019-2026-09-21T18-29-30-412Z/test-report.json",
+      "peakRssKb": 499036
+    },
+    "boundedRealTreeProfile": {
+      "proceduresEnumerated": 421,
+      "clientConsumed": 410,
+      "proceduresProfiled": 40,
+      "contractKeys": 17,
+      "unresolved": 0,
+      "provenanceMs": 2869,
+      "processPeakRssKbIncludingTypedCorpusLoad": 6222772,
+      "heapBudgetMb": 16384
+    },
+    "finalRetry": "Justified once by orchestrator; not run in this lane after repair.",
+    "authoritativePostOomRun": {
+      "command": "pnpm ast clientgap contracts --json --max 100000",
+      "status": "complete",
+      "wallSeconds": 60.94,
+      "maxRssKb": 8677412,
+      "clientConsumedProcedures": 410,
+      "contractDeclarations": 280,
+      "contractFilesScanned": 130,
+      "findings": 9,
+      "classificationAtRun": "Eight expected findings plus SessionView, subsequently proven to be a missed contextual implementation edge."
+    }
+  },
+  "sessionViewInvestigation": {
+    "classification": "missed procedure-specific provenance edge; not a server-only contract",
+    "sourceEvidence": [
+      "packages/client/src/features/user-admin/components/admin-user-sessions-dialog.tsx reads trpc.admin.listSessions",
+      "packages/server/src/transport/trpc/routers/admin.ts routes admin.listSessions to ctx.services.admin.listSessions",
+      "AdminService.listSessions returns ListSessionsResult -> SessionAdminView[]",
+      "packages/server/src/entry/compose/admin.ts injects SessionAdminPort.listForUser as Promise<(SessionView & { userId })[]>"
+    ],
+    "repair": "Build a fresh in-memory function-candidate index from the current compiler SourceCorpus each run. Candidates are discovered from current server-source variable/property function initializers and admitted only when the checker says their contextual call signature belongs to the exact property declaration reached by the selected procedure.",
+    "manualInventory": "none: no maintained symbol, path, procedure, contract, or allowlist list",
+    "redReport": "reports/runs/test/orbweaver-105432-2026-09-21T18-37-43-513Z/test-report.json",
+    "greenReport": "reports/runs/test/orbweaver-118273-2026-09-21T18-41-42-921Z/test-report.json",
+    "realTreeSingleProcedureProbe": {
+      "procedure": "admin.listSessions",
+      "sessionViewFound": true,
+      "contractKeys": 1,
+      "unresolved": [],
+      "provenanceMs": 4154,
+      "maxRssKbIncludingTypedCorpusLoad": 6204732
+    },
+    "fullClientgapRerun": "not repeated after the SessionView edge repair"
+  }
+}

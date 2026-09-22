@@ -43,7 +43,7 @@ test("cyoaChoiceBehavior:send — a choice click fires chat.send with the option
     ...CHAT_ROOM_ROUTES,
     "chat.getChat": () => engagedRpgPointer,
     "rpg.getGame": () => gameView("send"),
-    "chat.send": () => ({ ok: true }),
+    "chat.send": () => ({ messages: [], aborted: false }),
   });
   const component = await mount(<ChoiceProviderStory />);
 
@@ -63,7 +63,7 @@ test("cyoaChoiceBehavior:compose — a choice click seeds the composer draft wit
     ...CHAT_ROOM_ROUTES,
     "chat.getChat": () => engagedRpgPointer,
     "rpg.getGame": () => gameView("compose"),
-    "chat.send": () => ({ ok: true }),
+    "chat.send": () => ({ messages: [], aborted: false }),
   });
   const component = await mount(<ChoiceProviderStory />);
 

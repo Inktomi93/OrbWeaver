@@ -171,14 +171,6 @@ export interface PluginQuietOptions {
   readonly imageAssetIds?: readonly string[];
 }
 
-/** What a handler/entry receives about ITS invocation context.
- *
- *  @public future: the PluginHostV1 membrane delivery (unbuilt) — the guest-facing invocation-context shape the membrane does not deliver yet (surface unbuilt, not dead). */
-export interface PluginInvocation {
-  readonly chat: ChatHandle | null; // null for a non-chat-scoped invocation (e.g. install hook)
-  readonly reason: "event" | "tool" | "transform" | "snippet" | "activate";
-}
-
 // ── The surface ────────────────────────────────────────────────────────────────────────────────────────────
 export interface PluginHostV1 {
   readonly version: 1;

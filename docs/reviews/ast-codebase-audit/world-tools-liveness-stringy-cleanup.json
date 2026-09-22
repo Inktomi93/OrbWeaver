@@ -6,10 +6,7 @@
     {
       "finding": "prodonly client worker entry false positive",
       "change": "follow static relative new Worker(new URL(literal, import.meta.url)) TS/TSX edges and their transitive imports",
-      "negativeControls": [
-        "computed worker path remains unreachable",
-        "ordinary new URL asset remains unreachable"
-      ]
+      "negativeControls": ["computed worker path remains unreachable", "ordinary new URL asset remains unreachable"]
     },
     {
       "finding": "PluginPageKey exactly string",
@@ -25,13 +22,7 @@
     "toolingTests": "98/98",
     "combinedUnit": "172/172",
     "pluginCt": "21/21",
-    "typePrograms": [
-      "tooling",
-      "client",
-      "ui",
-      "tests-dom",
-      "tests-iso"
-    ],
+    "typePrograms": ["tooling", "client", "ui", "tests-dom", "tests-iso"],
     "biomeFiles": 9,
     "eslintFiles": 9,
     "diffCheck": "pass",

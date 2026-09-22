@@ -107,6 +107,8 @@ The split is load-bearing: `ResolvedConnectionView` must stay importable by a bu
 
 `packages/server/src/entry/compose/services.ts` constructs the runtime once and exposes `roleClientsFor(funderUserId)` — a PER-CALL bundle, not a boot-time binding. Each callable folds its task at call time, so a re-pointed binding governs the very next call with no restart and no invalidation hook to forget (`packages/inference/src/roles/role-clients.ts`). There is no `createDefaultRoleClients` and no floor default; a missing wire is a `tsc` error.
 
+The caller that owns a workload supplies `funderUserId`. Chat turns derive it from the room host seat and freeze it with `runAsUserId` at the turn boundary (D18/D19); `triggeredBy` never selects a connection. Owner-scoped background workloads keep their explicit owner funder.
+
 ## 8. Capability synthesis
 
 ONE fold in `EVIDENCE_TIERS` order — `declared → measured → advertised → curated → family-floor → kind-floor` (`packages/contracts/src/inference/evidence.ts`, folded by `packages/inference/src/capability/synthesize.ts`). Each tier is a PARTIAL that overrides only the fields it states; `family-floor` ORs in and never subtracts; `sampling` REPLACES because it is the stated SET a tier vouches for and a patch grammar cannot express a measured absence. `declared` wins over a dated measurement with a `declared_overrides_measured` warning naming the field — the user's box is the truth about the user's box.

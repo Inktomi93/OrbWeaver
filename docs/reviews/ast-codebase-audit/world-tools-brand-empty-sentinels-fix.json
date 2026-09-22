@@ -1,0 +1,118 @@
+{
+  "issue": 2539,
+  "scope": ["BB-005", "BB-006"],
+  "outcome": "implemented",
+  "findings": [
+    {
+      "id": "BB-005-a",
+      "path": "packages/client/src/data/use-display-scripts.ts",
+      "old_boundary": "chatId ?? (empty string as ChatId)",
+      "repair": "useGatedQuery prevents constructing the room query until ChatId exists",
+      "negative_control": "chat-less CT settles viewer scripts and records zero regex.listRoomDisplayScripts requests"
+    },
+    {
+      "id": "BB-005-b",
+      "path": "packages/client/src/data/use-plugin-display-text.ts",
+      "old_boundary": "INERT_ROW with empty ChatId and MessageId",
+      "repair": "skipToken prevents constructing transformForDisplay without both row ids",
+      "negative_control": "registered-transform/no-row CT records zero plugin.transformForDisplay requests"
+    },
+    {
+      "id": "BB-005-c",
+      "path": "packages/client/src/data/use-prompt-macro-suggestions.ts",
+      "old_boundary": "activePresetId null became empty string as PresetId",
+      "repair": "useGatedQuery prevents preset.get for the built-in preset",
+      "negative_control": "existing defaultPresetId:null CT records zero preset.get requests"
+    },
+    {
+      "id": "BB-005-d",
+      "path": "packages/client/src/features/chat/components/chat-documents-section.tsx",
+      "old_boundary": "activePresetId null became empty string as PresetId",
+      "repair": "useGatedQuery waits for settings and a real PresetId; recheck only refetches a real preset",
+      "negative_control": "built-in-preset CT feeds preset.get but records zero requests after data-databank-slot=placed"
+    },
+    {
+      "id": "BB-005-e",
+      "path": "packages/server/src/domain/chat/verbs/invites.ts",
+      "old_boundary": "missing host or handle became castId<Handle>(empty string)",
+      "repair": "hostless or handleless participant views throw an explicit invariant failure",
+      "negative_control": "two integration cases reject for absent host and host with null public handle"
+    },
+    {
+      "id": "BB-006",
+      "path": "packages/client/src/lib/session-channel.ts",
+      "old_boundary": "every received string was cast to Handle",
+      "repair": "received handle stays string|null; outbound authenticated messages still require Handle|null; stale-session only compares the untrusted string",
+      "negative_control": "malformed runtime handle normalizes to null; type assertions prove inbound string is not Handle and outbound plain string is rejected"
+    }
+  ],
+  "changed_paths": [
+    "packages/client/src/data/stale-session.ts",
+    "packages/client/src/data/use-display-scripts.ts",
+    "packages/client/src/data/use-plugin-display-text.ts",
+    "packages/client/src/data/use-prompt-macro-suggestions.ts",
+    "packages/client/src/features/chat/components/chat-documents-section.tsx",
+    "packages/client/src/lib/session-channel.ts",
+    "packages/server/src/domain/chat/verbs/invites.ts",
+    "tests/client/data/_ct-stories.tsx",
+    "tests/client/data/use-display-scripts.ct.tsx",
+    "tests/client/data/use-plugin-display-text.ct.tsx",
+    "tests/client/features/chat/components/chat-documents-section.ct.tsx",
+    "tests/client/lib/session-channel.test-d.ts",
+    "tests/client/lib/session-channel.test.ts",
+    "tests/server/domain/chat/verbs/invites.int.test.ts"
+  ],
+  "checks": {
+    "node_focused": {
+      "status": "pass",
+      "files": 3,
+      "tests": 73
+    },
+    "component_focused": {
+      "status": "pass",
+      "files": 4,
+      "tests": 28,
+      "workers": 2
+    },
+    "type_assertion_focused": {
+      "status": "pass",
+      "files": 1,
+      "tests": 2
+    },
+    "biome_scoped": {
+      "status": "pass",
+      "files": 14
+    },
+    "eslint_scoped": {
+      "status": "pass",
+      "files": 14
+    },
+    "native_type_programs": {
+      "selected": ["packages/client/tsconfig.json", "packages/server/tsconfig.json", "tooling/tsconfig.json", "tsconfig.json", "tsconfig.tests-dom.json"],
+      "pass": ["packages/client/tsconfig.json", "packages/server/tsconfig.json", "tooling/tsconfig.json"],
+      "fail_unrelated_concurrent": [
+        "tsconfig.json: inference chat request fixtures, credentials resolve fixture, and unused snap test import outside #2539 ownership",
+        "tsconfig.tests-dom.json: ModelId/ProviderId fixtures outside #2539 ownership"
+      ],
+      "owned_diagnostics": 0
+    },
+    "ast_grep": {
+      "scope": ["packages/client/src", "packages/server/src/domain/chat/verbs/invites.ts"],
+      "languages": ["ts", "tsx"],
+      "patterns": ["empty string as ChatId", "empty string as MessageId", "empty string as PresetId", "empty string as Handle"],
+      "target_matches": 0,
+      "positive_controls": 8,
+      "control_paths": ["/tmp/2539-positive.ts", "/tmp/2539-positive.tsx"]
+    },
+    "rg_corroboration": {
+      "pattern": "castId<(ChatId|MessageId|PresetId|Handle)>(empty) OR empty as identity OR as Handle",
+      "scope": ["packages/client/src", "packages/server/src/domain/chat/verbs/invites.ts"],
+      "matches": 0
+    }
+  },
+  "limitations": [
+    "There is no exported canonical runtime Handle schema at this boundary, so BroadcastChannel input deliberately remains unbranded string|null until the authenticated session read.",
+    "The two aggregate native programs were not green because of concurrent out-of-scope fixture diagnostics; all three product/tooling owners passed and neither failing aggregate reported a #2539-owned path.",
+    "No commit, staging, push, or shared audit document mutation was performed."
+  ]
+}

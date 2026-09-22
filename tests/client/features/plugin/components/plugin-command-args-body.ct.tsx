@@ -7,6 +7,7 @@
 import type { PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { TrpcRoutes } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { PluginCommandArgsStory } from "../_ct-stories.tsx";
 
@@ -14,7 +15,7 @@ const ARGS_PLUGIN_ID = castId<PluginId>("plugin_ct_argmodal0000001");
 
 /** `listCommands` must carry the SAME command the modal seeds (the shared runner resolves the invoke off it by
  *  slug+name), declaring one required enum arg. */
-const ROUTES: Readonly<Record<string, unknown>> = {
+const ROUTES: TrpcRoutes<"chat.listChats" | "plugin.listCommands"> = {
   "chat.listChats": () => ({ items: [], nextCursor: null }),
   "plugin.listCommands": () => [
     {
@@ -32,7 +33,7 @@ test("an enum arg renders a typed input and the run dispatches the TYPED value",
   let captured: { name: string; values: unknown } | null = null;
   await routeTrpc(page, {
     ...ROUTES,
-    "plugin.invokeUiCommand": (input: unknown): unknown => {
+    "plugin.invokeUiCommand": (input: unknown) => {
       const { name, values } = input as { name: string; values: unknown };
       captured = { name, values };
       return { toasts: [] };
@@ -58,7 +59,7 @@ test("a required arg left empty BLOCKS the dispatch with a clear message", async
   let invoked = false;
   await routeTrpc(page, {
     ...ROUTES,
-    "plugin.invokeUiCommand": (): unknown => {
+    "plugin.invokeUiCommand": () => {
       invoked = true;
       return { toasts: [] };
     },

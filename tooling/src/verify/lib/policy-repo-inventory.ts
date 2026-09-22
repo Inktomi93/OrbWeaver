@@ -73,6 +73,63 @@ export function readPolicyRepositoryInventory(root: string): PolicyRepositoryInv
   return { root: canonicalRoot, trackedPaths, untrackedPaths, paths, receipt };
 }
 
+function isStandaloneNonGitRoot(root: string): boolean {
+  const result = runNicedSync("git", ["--no-optional-locks", "rev-parse", "--is-inside-work-tree"], { cwd: root, env: repoGitEnvironment() });
+  if (result.status === 0) {
+    return result.stdout.trim() !== "true";
+  }
+  if (/not a git repository/iu.test(result.stderr)) {
+    return true;
+  }
+  throw new Error(`git repository probe failed with exit ${String(result.status)}: ${result.stderr.trim()}`);
+}
+
+function workspaceAuthoredPath(root: string, path: string): string {
+  assertPolicyRepoPath(path, "workspace inventory path");
+  const candidate = resolve(root, path);
+  const entry = lstatSync(candidate);
+  const canonical = realpathSync(candidate);
+  containedRelative(root, canonical, `workspace inventory path ${path}`);
+  if (!(entry.isFile() || entry.isSymbolicLink())) {
+    throw new Error(`workspace inventory path is not a file: ${path}`);
+  }
+  return path;
+}
+
+/** Whole-scope compatibility for standalone planted roots. A real Git worktree always takes the Git arm,
+ *  including every error raised after Git has identified it as a repository. Only the exact "no repository"
+ *  state may derive the authored TypeScript inventory from the workspace the structure pass will execute. */
+export function readPolicyWholeRepositoryInventory(root: string, workspacePaths: () => readonly string[]): PolicyRepositoryInventory {
+  // @orb-waive caught-failure-ownership(error): A confirmed standalone non-Git root deliberately falls through to the explicit workspace-sourced inventory receipt below; repository probe failures and every failure in a real worktree still propagate. Ends if this arm can swallow a real Git error or the fallback stops recording its distinct workspace authority.
+  try {
+    return readPolicyRepositoryInventory(root);
+  } catch (error) {
+    if (!isStandaloneNonGitRoot(root)) {
+      throw error;
+    }
+  }
+  const canonicalRoot = realpathSync(root);
+  if (!statSync(canonicalRoot).isDirectory()) {
+    throw new Error(`repository inventory root is not a directory: ${root}`);
+  }
+  const paths = [...new Set(workspacePaths().map((path) => workspaceAuthoredPath(canonicalRoot, path)))].toSorted(compare);
+  return {
+    root: canonicalRoot,
+    trackedPaths: [],
+    untrackedPaths: [],
+    paths,
+    receipt: {
+      source: "workspace",
+      trackedCommand: [],
+      untrackedCommand: [],
+      trackedCount: 0,
+      untrackedCount: 0,
+      authoredCount: paths.length,
+      mergeBase: null,
+    },
+  };
+}
+
 export function resolveExistingPolicyPath(inventory: PolicyRepositoryInventory, path: string, kind: "file" | "folder"): string {
   if (path !== ".") {
     assertPolicyRepoPath(path, `${kind} scope path`);

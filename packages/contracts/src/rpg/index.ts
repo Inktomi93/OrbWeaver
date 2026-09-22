@@ -33,7 +33,6 @@
 export type {
   RpgActorEntry,
   RpgActorIdentity,
-  RpgActorIdentityTextField,
   RpgActorOp,
   RpgActorOpField,
   RpgActorRef,
@@ -106,8 +105,6 @@ export type {
   RpgRelationshipKind,
   RpgTrackerCarrierClass,
   RpgTrackerShape,
-  RpgTrackerSubject,
-  RpgTrackerWrite,
 } from "./enums.ts";
 export {
   RPG_CHECKPOINT_TRIGGERS,
@@ -146,7 +143,6 @@ export type {
   RpgRecordedToolCall,
   RpgToolCall,
   RpgToolCallVerdict,
-  RpgToolRoundToolName,
 } from "./extraction.ts";
 export {
   cacheStableExtractionRefs,
@@ -203,7 +199,7 @@ export {
   rpgUpdateConfigInputSchema,
   rpgUpsertQuestInputSchema,
 } from "./inputs.ts";
-export type { RpgModeCapabilityAxis, RpgModePolicy } from "./mode.ts";
+export type { RpgModePolicy } from "./mode.ts";
 export { MODE_POLICY } from "./mode.ts";
 export type { ChatRpgPointer } from "./pointer.ts";
 export { chatRpgPointerSchema, isRpgEngaged } from "./pointer.ts";
@@ -256,7 +252,6 @@ export type {
   AddJournalEntryArgs,
   RollDiceArgs,
   RollDiceToolResult,
-  RpgQuestAction,
   RpgToolName,
   SetTrackerArgs,
   UpdateInventoryArgs,

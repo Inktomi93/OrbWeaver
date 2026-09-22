@@ -96,7 +96,7 @@ export function createSetGrant(ctx: PluginContext, deps: ActivationDeps): Plugin
 
     // Tear the resident down BEFORE the write (idempotent on a non-resident) — see the header: a running guest
     // holds the grants it was activated with, so the write must never leave one enforcing a superseded subset.
-    deps.deactivate(pluginId);
+    await deps.deactivate(pluginId);
     await applyGrant(ctx.db, pluginId, {
       grantedCapabilities: granted,
       status: "disabled",

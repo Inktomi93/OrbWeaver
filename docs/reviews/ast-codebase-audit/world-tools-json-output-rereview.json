@@ -135,4 +135,3 @@
     "The documented pnpm wrapper itself writes an ELIFECYCLE line on stdout after any nonzero script exit. The underlying AST CLI produced zero stdout bytes in all refusal probes, matching the repository process-boundary tests; the wrapper behavior is external and pre-existing."
   ]
 }
-

@@ -6,15 +6,16 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { WorldInfoSettingsSectionStory } from "../_ct-stories.tsx";
 
-const SETTINGS_VIEW = {
+const SETTINGS_VIEW: TrpcWireOutput<"settings.getUserSettings"> = {
   userId: "user_ct_world_info",
   schemaVersion: 1,
   config: DEFAULT_USER_SETTINGS,
   updatedAt: 0,
+  configUnreadable: null,
 };
 
 const UPDATE_PROC = "settings.updateUserSettingsSection";
@@ -22,7 +23,7 @@ const UPDATE_PROC = "settings.updateUserSettingsSection";
 function stub(page: Page): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "settings.getUserSettings": () => SETTINGS_VIEW,
-    [UPDATE_PROC]: () => ({}),
+    [UPDATE_PROC]: () => SETTINGS_VIEW,
   });
 }
 

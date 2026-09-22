@@ -10,7 +10,8 @@
 import { spawnSync } from "node:child_process";
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
-import { getWorkspace, moduleScopeCallees, soleExportedFunction } from "../../../tooling/src/_shared/ts-workspace.ts";
+import { moduleScopeCallees, soleExportedFunction } from "../../../tooling/src/_shared/module-entry.ts";
+import { getWorkspace } from "../../../tooling/src/_shared/ts-workspace.ts";
 import { REVIEWED_GRANTS } from "../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
 import { scaledBudget, spawnNodeWithBudget } from "../_load-budget.ts";

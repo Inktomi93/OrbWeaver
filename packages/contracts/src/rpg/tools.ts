@@ -195,10 +195,6 @@ export type SetTrackerArgs = z.infer<typeof setTrackerArgsSchema>;
 /** `upsert_quest` — staged-volatile (post-ratification: quests live IN the snapshot, §2.5). Create /
  *  update / complete / fail all ride the one staged-state overlay; abort discards, commit clone-forwards. */
 export const RPG_QUEST_ACTIONS = ["create", "update", "complete", "fail"] as const;
-/** @public future: a future typed quest-action dispatcher (e.g. an `applyUpsertQuest` switch keyed off the
- *  literal union, unbuilt) — derived from the live `RPG_QUEST_ACTIONS` tuple, which `upsertQuestArgsSchema`
- *  reads directly; the narrowed surface used instead of `string` (rpg/index.ts KISS/YAGNI SUSPENDED). */
-export type RpgQuestAction = (typeof RPG_QUEST_ACTIONS)[number];
 export const upsertQuestArgsSchema = z.object({
   name: z.string().min(1),
   action: z.enum(RPG_QUEST_ACTIONS),

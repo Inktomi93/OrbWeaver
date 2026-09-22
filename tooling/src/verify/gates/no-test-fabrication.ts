@@ -1,6 +1,7 @@
-// Policy: no-test-fabrication (core/Spine-Testing.md §5) — tests may not fabricate typed entities with
-// `X as unknown as Y` or an object/array literal asserted `as Y`. Both spellings survive Y gaining or
-// renaming a required field; use a typed factory or `satisfies` instead.
+// Policy: no-test-fabrication (core/Spine-Testing.md §5) — tests may not erase a contract with `X as any`,
+// fabricate typed entities with `X as unknown as Y`, or assert an object/array literal `as Y`. Every
+// spelling survives a receiving contract gaining or renaming a required field; use a typed factory,
+// `satisfies`, or an explicit unknown/raw validation boundary instead.
 //
 // AUTHORITY: ordinary/error. The gate-owned `FABRICATION-OK` parser, stale table, and line-based findings are
 // retired. A deliberate occurrence uses the central exact-position waiver. Double casts report the authored
@@ -18,7 +19,9 @@ import { defineGate } from "../contract/policy.ts";
 import { unwrapExpression } from "../lib/ast-read.ts";
 import { waivableCoordinate } from "../lib/waivable-coordinate.ts";
 
-const NON_FABRICATING_CAST_TARGETS: ReadonlySet<string> = new Set(["const", "any", "unknown"]);
+const NON_FABRICATING_CAST_TARGETS: ReadonlySet<string> = new Set(["const", "unknown"]);
+const ANY_CAST_MSG =
+  "`X as any` in a test erases the receiving contract, so contract drift cannot fail the fixture. Use a production-derived type/factory, or an exact waiver only when invalid runtime input is the subject (Spine-Testing.md §3).";
 const DOUBLE_CAST_MSG =
   "`X as unknown as Y` double-cast in a test — fabricates a typed value that survives Y gaining/renaming a " +
   "required field (test-support-dry-punchlist.md W1h). Use a typed factory or narrow the real value.";
@@ -26,9 +29,14 @@ const LITERAL_CAST_MSG = (typeText: string): string =>
   `object/array-literal \`as ${typeText}\` in a test — a hand-shaped literal asserted complete survives ` +
   `${typeText} growing a field (test-support-dry-punchlist.md W1h). Use a typed factory or \`satisfies ${typeText}\`.`;
 const FIX =
-  "use a typed factory (makeY(overrides?)) or `satisfies Y`. A deliberate invalid-input occurrence waives " +
-  "with `@orb-waive no-test-fabrication(<position>): <why + end condition>` on the line above; double casts " +
-  "report `unknown`, and literal casts report the asserted type's authored leading slice.";
+  "use a production-derived typed factory (makeY(overrides?)), `satisfies Y`, or an explicit unknown/raw boundary. " +
+  "A deliberate invalid-input occurrence waives with `@orb-waive no-test-fabrication(<position>): <why + end condition>` " +
+  "on the line above; any casts report `any`, double casts report `unknown`, and literal casts report the asserted type's authored leading slice.";
+
+function anyCastAnchor(node: AsExpression): TypeNode | undefined {
+  const type = node.getTypeNode();
+  return type?.getKind() === SyntaxKind.AnyKeyword ? type : undefined;
+}
 
 function doubleCastAnchor(node: AsExpression): TypeNode | undefined {
   const inner = node.getExpression();
@@ -64,6 +72,11 @@ export const gate = defineGate({
           if (!Node.isAsExpression(node)) {
             return;
           }
+          const any = anyCastAnchor(node);
+          if (any !== undefined) {
+            ctx.report.node(any, { token: "any", offset: 0, message: ANY_CAST_MSG, fix: FIX });
+            return;
+          }
           const double = doubleCastAnchor(node);
           if (double !== undefined) {
             ctx.report.node(double, { token: "unknown", offset: 0, message: DOUBLE_CAST_MSG, fix: FIX });
@@ -90,6 +103,18 @@ export const gate = defineGate({
     ],
   }),
   mustFlag: [
+    {
+      mode: "source",
+      files: { "tests/tooling/any-identifier.test.ts": "declare const source: unknown;\nexport const value = source as any;\n" },
+      expect: { count: 1, token: "any", messageIncludes: "as any" },
+      why: "an identifier cast to any erases the source contract just as completely as a fabricated typed literal",
+    },
+    {
+      mode: "source",
+      files: { "tests/tooling/any-literal.test.ts": "export const value = { n: 1 } as any;\n" },
+      expect: { count: 1, token: "any", messageIncludes: "as any" },
+      why: "an object literal cast to any bypasses both inference and every downstream contract",
+    },
     {
       mode: "source",
       files: { "tests/tooling/parenthesized-type.test.ts": "export const x = {} as (Widget);\nexport const f = {} as (() => void);\n" },
@@ -137,8 +162,16 @@ export const gate = defineGate({
     },
     {
       mode: "source",
-      files: { "tests/tooling/exempt.test.ts": "export const a = { n: 1 } as const;\nexport const b = { n: 1 } as unknown;\nexport const c = [1] as any;\n" },
-      why: "as const, as unknown, and as any do not claim that a literal is a complete concrete entity",
+      files: { "tests/tooling/exempt.test.ts": "export const a = { n: 1 } as const;\nexport const b = { n: 1 } as unknown;\n" },
+      why: "as const preserves inference and as unknown creates an explicit raw boundary without erasing the receiving contract",
+    },
+    {
+      mode: "source",
+      files: {
+        "tests/tooling/waived-any.test.ts":
+          "declare const source: unknown;\n// @orb-waive no-test-fabrication(any): deliberate invalid-input probe; ends when the boundary accepts unknown directly.\nexport const value = source as any;\n",
+      },
+      why: "the central positioned waiver licenses exactly one deliberate any cast at a runtime validation boundary",
     },
     {
       mode: "source",

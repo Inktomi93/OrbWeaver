@@ -15,7 +15,7 @@ import { renameActionName, rowActionsName } from "@orb/client/lib";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder, TrpcRoutes } from "../../../../support/node/route-trpc.ts";
+import type { TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { PersonaListStory } from "../_ct-stories.tsx";
 
@@ -36,7 +36,7 @@ const QUALIFIED_TRAVELER = /^Actions for "Traveler" · .+/;
 // THREE rows, two of them same-named — the shape the collision actually needs (see the old surface CT's
 // rationale, carried whole): with a third row holding "current", both Travelers are switch-targets and the
 // collision is reachable on both controls. Both Travelers carry the default-CLAIMING title.
-const PERSONAS = [
+const PERSONAS: TrpcWireOutput<"persona.list"> = [
   {
     id: NOVA,
     name: "Nova",
@@ -78,7 +78,10 @@ const PERSONAS = [
 /** Nova is BOTH the current and the default persona, so neither Traveler is current and neither is pinned.
  *  The three editor reads are fed with honest fresh-viewer empties — the Edit arm below EXPANDS a row's
  *  editor, which mounts the lorebook cluster and the Connected-characters section. */
-function stub(page: Page, extra: TrpcRoutes = {}): Promise<TrpcRecorder> {
+function stub(
+  page: Page,
+  extra: Partial<TrpcRoutes<"settings.updateUserSettingsSection" | "persona.duplicate" | "character.list" | "persona.createFromCharacter">> = {},
+): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "persona.list": () => PERSONAS,
     "settings.getUserSettings": () => ({
@@ -86,6 +89,7 @@ function stub(page: Page, extra: TrpcRoutes = {}): Promise<TrpcRecorder> {
       schemaVersion: 1,
       config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, currentPersonaId: NOVA, defaultPersonaId: NOVA } },
       updatedAt: 0,
+      configUnreadable: null,
     }),
     "worldInfo.listBooks": () => [],
     "worldInfo.listForPersona": () => [],
@@ -189,7 +193,15 @@ test("exactly ONE row wears the solid pin, however many rows CLAIM default in th
 });
 
 test("clicking a faint pin writes seeds.defaultPersonaId for THAT row's persona", async ({ mount, page }) => {
-  const trpc = await stub(page, { "settings.updateUserSettingsSection": () => ({}) });
+  const trpc = await stub(page, {
+    "settings.updateUserSettingsSection": () => ({
+      userId: "user_ct",
+      schemaVersion: 1,
+      config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, currentPersonaId: NOVA, defaultPersonaId: NOVA } },
+      updatedAt: 1,
+      configUnreadable: null,
+    }),
+  });
   await mount(<PersonaListStory />);
   await expect(page.getByText("Nova", { exact: true })).toBeVisible();
 

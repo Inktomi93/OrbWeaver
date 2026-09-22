@@ -9,10 +9,7 @@
   },
   "corroboration": {
     "astGrep": {
-      "languages": [
-        "ts",
-        "tsx"
-      ],
+      "languages": ["ts", "tsx"],
       "workerConstructionHits": 1,
       "workerConstruction": "packages/client/src/features/plugin/lib/ui-guest/plugin-ui-guest-host.ts:70"
     },

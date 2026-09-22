@@ -3,10 +3,7 @@
   "status": "implemented two general rules; two non-import consumer designs deferred; one claimed defect refuted",
   "implemented": [
     {
-      "identities": [
-        "packages/client/vite.config.ts:498:default",
-        "packages/db/drizzle.config.ts:13:default"
-      ],
+      "identities": ["packages/client/vite.config.ts:498:default", "packages/db/drizzle.config.ts:13:default"],
       "rule": "The default export of a package-root *.config.ts is consumed by the external build tool that loads the file by convention. Named exports and nested src/**/*.config.ts files receive no credit.",
       "mechanism": "A shared structural path predicate now feeds prodonly entry discovery, shared symbol liveness, and apisurface consumer attribution."
     },

@@ -14,6 +14,7 @@ import { createActivate } from "../../../../../packages/server/src/domain/plugin
 import { createCrashPolicy } from "../../../../../packages/server/src/domain/plugin/activation/crash-policy.ts";
 import type { PluginRegistry } from "../../../../../packages/server/src/domain/plugin/contract/service.ts";
 import { getById } from "../../../../../packages/server/src/domain/plugin/persistence/plugins.ts";
+import { createPluginLifecycleLanes } from "../../../../../packages/server/src/domain/plugin/substrate/lifecycle-lanes.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -215,7 +216,8 @@ test("a failed `enabled` write discards the activation — no resident is publis
   const activate = createActivate(
     brokenCtx,
     registry,
-    createCrashPolicy(brokenCtx, () => undefined),
+    createCrashPolicy(brokenCtx, () => Promise.resolve(), createPluginLifecycleLanes()),
+    { activate: () => Promise.resolve(), deactivate: () => Promise.resolve() },
   );
   const input = { caller: ownerPrincipalFor(owner), pluginId: installed.id, bundleAssetId: row.bundleAssetId, grants: [], withheldNetHosts: [] };
 

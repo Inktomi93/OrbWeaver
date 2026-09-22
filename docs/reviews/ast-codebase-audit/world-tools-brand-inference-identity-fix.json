@@ -1,0 +1,225 @@
+{
+  "workItem": 2537,
+  "finding": "BB-002",
+  "sourceHead": "2c57f180864f2f79dd7db9e40bc6e436f3cecbac",
+  "outcome": "Inference model/provider identity is validated and branded from producer through storage and read contracts; nullable imported attribution degrades to null, while only model_stats.provider owns the (unknown) sentinel.",
+  "identityRuling": {
+    "modelId": "Open provider-owned foreign identity. Valid when trimmed text is non-empty; catalog membership is discovery evidence, not validity.",
+    "providerId": "Open registry identity. Live producers obtain it from a registered ProviderDef; historical imports can retain grammar-valid built-in/plugin ids but cannot claim current registry membership.",
+    "unknownRepresentation": {
+      "nullableHistoryAttribution": null,
+      "modelStatsProvider": "(unknown)",
+      "reason": "model_stats.provider is a non-null natural-key component; nullable history columns do not need or admit the sentinel."
+    }
+  },
+  "sevenColumnEquality": {
+    "expected": [
+      "user_connections.model",
+      "message_variants.model",
+      "message_variants.provider",
+      "model_stats.model",
+      "model_stats.provider",
+      "imagery_generations.model",
+      "imagery_generations.provider"
+    ],
+    "actual": [
+      "user_connections.model",
+      "message_variants.model",
+      "message_variants.provider",
+      "model_stats.model",
+      "model_stats.provider",
+      "imagery_generations.model",
+      "imagery_generations.provider"
+    ],
+    "equal": true,
+    "expectedCount": 7,
+    "actualCount": 7,
+    "structuralEvidence": {
+      "modelPattern": "text(\"model\").$type<ModelId>()",
+      "modelMatches": 4,
+      "providerPattern": "text(\"provider\").$type<$T>()",
+      "providerMatches": 3,
+      "schemaFilesScanned": 4
+    }
+  },
+  "columns": [
+    {
+      "column": "user_connections.model",
+      "producer": [
+        "packages/server/src/domain/connection/verbs/connections.ts",
+        "packages/server/src/domain/connection/persistence/local-light-seed.ts",
+        "packages/server/src/transport/trpc/routers/connection.ts"
+      ],
+      "read": ["packages/contracts/src/inference/connection.ts", "packages/inference/src/resolve/resolve-task.ts", "packages/inference/src/resolve/heal.ts"],
+      "negativeTest": "tests/db/schema/inference-identity.test-d.ts: user_connections.model rejects a bare string at its producer contract",
+      "runtimeTest": "tests/server/domain/connection/verbs/connections.int.test.ts: blank foreign id is refused before persistence"
+    },
+    {
+      "column": "message_variants.model",
+      "producer": [
+        "packages/server/src/domain/chat/persistence/canon-write.ts",
+        "packages/server/src/domain/import/substrate/chat-input.ts",
+        "packages/server/src/domain/chat/persistence/import-write.ts"
+      ],
+      "read": ["packages/contracts/src/chat/messages.ts", "packages/server/src/domain/stats/write/rebuild-from-canon.ts"],
+      "negativeTest": "tests/db/schema/inference-identity.test-d.ts: message_variants.model rejects a bare string at its producer contract",
+      "runtimeTest": "tests/server/domain/import/substrate/chat-input.test.ts: blank imported model maps to null"
+    },
+    {
+      "column": "message_variants.provider",
+      "producer": [
+        "packages/server/src/domain/chat/engine/engine.ts",
+        "packages/server/src/domain/chat/persistence/canon-write.ts",
+        "packages/server/src/domain/import/substrate/chat-input.ts",
+        "packages/server/src/domain/chat/persistence/import-write.ts"
+      ],
+      "read": ["packages/contracts/src/chat/messages.ts", "packages/server/src/domain/stats/write/rebuild-from-canon.ts"],
+      "negativeTest": "tests/db/schema/inference-identity.test-d.ts: message_variants.provider rejects a bare string at its producer contract",
+      "runtimeTest": "tests/server/domain/import/substrate/chat-input.test.ts: malformed imported provider maps to null and a plugin id survives"
+    },
+    {
+      "column": "model_stats.model",
+      "producer": [
+        "packages/server/src/domain/chat/substrate/stats-delta.ts",
+        "packages/server/src/domain/stats/write/apply-delta.ts",
+        "packages/server/src/domain/stats/write/rebuild-from-canon.ts",
+        "packages/server/src/domain/imagery/substrate/generate-core.ts"
+      ],
+      "read": ["packages/contracts/src/stats/index.ts", "packages/db/src/schema/stats.ts"],
+      "negativeTest": "tests/db/schema/inference-identity.test-d.ts: model_stats.model rejects a bare string at its producer contract",
+      "runtimeTest": "tests/contracts/stats/index.contract.test.ts: blank foreign model id is rejected"
+    },
+    {
+      "column": "model_stats.provider",
+      "producer": [
+        "packages/server/src/domain/chat/substrate/stats-delta.ts",
+        "packages/server/src/domain/stats/write/apply-delta.ts",
+        "packages/server/src/domain/stats/write/rebuild-from-canon.ts",
+        "packages/server/src/domain/imagery/substrate/generate-core.ts"
+      ],
+      "read": ["packages/contracts/src/stats/index.ts", "packages/db/src/schema/stats.ts"],
+      "negativeTest": "tests/db/schema/inference-identity.test-d.ts: arbitrary strings are rejected and the ruled sentinel is admitted",
+      "runtimeTest": "tests/contracts/stats/index.contract.test.ts: malformed provider is rejected and (unknown) is admitted"
+    },
+    {
+      "column": "imagery_generations.model",
+      "producer": [
+        "packages/inference/src/backends/openai-compat/images.ts",
+        "packages/server/src/domain/imagery/substrate/generate-core.ts",
+        "packages/server/src/domain/imagery/persistence/queries.ts"
+      ],
+      "read": ["packages/server/src/domain/imagery/contract/results.ts"],
+      "negativeTest": "tests/db/schema/inference-identity.test-d.ts: imagery_generations.model rejects a bare string at its producer contract",
+      "runtimeTest": "tests/server/domain/imagery/substrate/generate-core.int.test.ts: blank provider-reported model is refused before persistence"
+    },
+    {
+      "column": "imagery_generations.provider",
+      "producer": [
+        "packages/server/src/domain/connection/verbs/connections.ts",
+        "packages/server/src/domain/imagery/substrate/generate-core.ts",
+        "packages/server/src/domain/imagery/persistence/queries.ts"
+      ],
+      "read": ["packages/server/src/domain/imagery/contract/results.ts"],
+      "negativeTest": "tests/db/schema/inference-identity.test-d.ts: imagery_generations.provider rejects a bare string at its producer contract",
+      "runtimeTest": "tests/server/domain/connection/verbs/connections.int.test.ts: an unregistered provider cannot originate an imagery connection"
+    }
+  ],
+  "migration": {
+    "required": false,
+    "reason": "Drizzle $type<> and TypeScript contract changes emit no SQLite DDL; schema-kit and DB-baseline parity checks remained green."
+  },
+  "structuralSweep": {
+    "scope": [
+      "packages/server/src/domain/connection",
+      "packages/server/src/domain/chat",
+      "packages/server/src/domain/imagery",
+      "packages/server/src/domain/import",
+      "packages/server/src/domain/stats",
+      "packages/inference/src"
+    ],
+    "typescriptFiles": 357,
+    "tsxFiles": 0,
+    "modelParserCalls": 9,
+    "providerParserCalls": 5,
+    "modelOrProviderCastBypasses": 0,
+    "methods": ["ast-grep TypeScript structural patterns", "rg textual corroboration"]
+  },
+  "verification": [
+    {
+      "check": "native package type programs",
+      "result": "PASS",
+      "detail": "packages/kit, contracts, db, inference, and server: 5/5"
+    },
+    {
+      "check": "root type program",
+      "result": "BB-002 CLEAN; repository FAIL from concurrent work",
+      "detail": "No ModelId/ProviderId errors remain. Only anthropic-messages chat fixture, openai-compat chat fixture, and credentials resolve fixture errors remain."
+    },
+    {
+      "check": "named seven-column type producers",
+      "result": "PASS",
+      "detail": "tests/db/schema/inference-identity.test-d.ts: 7/7, no type errors"
+    },
+    {
+      "check": "final affected chat/stats runtime set",
+      "result": "PASS",
+      "detail": "16 files, 478 tests"
+    },
+    {
+      "check": "inference alias normalization",
+      "result": "PASS",
+      "detail": "tests/inference/resolve/heal.test.ts: 3/3"
+    },
+    {
+      "check": "earlier producer/import/imagery/DB focused sets",
+      "result": "PASS",
+      "detail": "335 tests, followed by 292 tests after helper/contract refinement"
+    },
+    {
+      "check": "Biome",
+      "result": "PASS",
+      "detail": "final changed contract/engine/fixture set plus heal source/test"
+    },
+    {
+      "check": "ESLint",
+      "result": "PASS",
+      "detail": "final changed contract/engine/fixture set plus heal source/test"
+    },
+    {
+      "check": "git diff --check",
+      "result": "PASS"
+    },
+    {
+      "check": "Drizzle schema kit",
+      "result": "PASS"
+    },
+    {
+      "check": "DB baseline parity",
+      "result": "PASS"
+    }
+  ],
+  "limitations": [
+    "The root type program is not globally green because three concurrent #2536/#2538 fixture errors remain outside this lane.",
+    "SQLite stores these open identities as TEXT without a closed SQL CHECK by design; enforcement is at typed producer contracts and runtime trust boundaries.",
+    "Historical ST imports have no authoritative current registry snapshot, so provider attribution retains grammar-valid built-in/plugin ids and maps malformed values to null."
+  ],
+  "rerepair": {
+    "reason": "Independent review found one remaining production castId<ProviderId> in the credentials add writer.",
+    "outcome": "CredentialContext now returns the registered ProviderDef row; add persists and seals with that row's branded id. The boolean providerKnown plus cast seam is gone while credential_provider_unknown behavior is preserved.",
+    "changedPaths": [
+      "packages/server/src/domain/credentials/contract/service.ts",
+      "packages/server/src/domain/credentials/verbs/add.ts",
+      "packages/server/src/entry/compose/services.ts",
+      "tests/server/domain/credentials/_support.ts",
+      "tests/server/domain/credentials/verbs/add.int.test.ts"
+    ],
+    "structuralEvidence": "ast-grep castId<ProviderId> over packages: 0 matches across 2631 TypeScript files; rg also found no castId<ProviderId> or providerKnown in packages/server/src.",
+    "verification": [
+      "PASS focused credentials add plus compose services: 2 files, 29 tests",
+      "PASS scoped Biome and ESLint over the five rerepair paths",
+      "PASS tsconfig.tests-iso.json; packages/server/tsconfig.json is blocked by concurrent packages/server/src/domain/chat/verbs/invites.ts:229 Handle|null -> Handle"
+    ]
+  },
+  "commitCreated": false,
+  "pushPerformed": false
+}

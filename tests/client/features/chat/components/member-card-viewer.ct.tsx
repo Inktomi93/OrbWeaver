@@ -8,6 +8,7 @@
 // The read is GATED on `open` and the viewer starts open, so the CT asserts the loaded card directly.
 
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { TrpcFixtureOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { MemberCardViewerStory } from "../_ct-stories.tsx";
 
@@ -23,7 +24,7 @@ const FLOOR = {
 };
 
 // A `sheet`-level projection: sheet fields present, sheet+lore and full fields NULL (clamped away).
-function sheetCard(): unknown {
+function sheetCard(): TrpcFixtureOutput<"chat.getMemberCard"> {
   return {
     ...FLOOR,
     visibility: "sheet",
@@ -42,7 +43,7 @@ function sheetCard(): unknown {
 }
 
 // A `full` projection: every tier present.
-function fullCard(): unknown {
+function fullCard(): TrpcFixtureOutput<"chat.getMemberCard"> {
   return {
     ...FLOOR,
     visibility: "full",

@@ -23,7 +23,7 @@ import {
 // COUNT, because a key is shared across connections.
 test("remove is confirm-gated on a revoked row: cancel fires nothing, confirm fires credentials.remove", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
-    "credentials.remove": () => ({ ok: true }),
+    "credentials.remove": () => null,
   });
 
   await mount(<RevokedCredentialKeyRowStory />);

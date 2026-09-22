@@ -11,13 +11,15 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { findSettingsColumnViolation, readSettingsPaneGeometry } from "../../../../support/browser/settings-geometry.ts";
-import type { TrpcRecorder, TrpcRoutes } from "../../../../support/node/route-trpc.ts";
+import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ConfigHostStory } from "../../config/_ct-stories.tsx";
 import { AdminGroupStory } from "../_ct-stories.tsx";
+import type { EffectiveAppSettings } from "../app-settings-fixtures.ts";
+import { appSettingsView, EFFECTIVE_APP_SETTINGS } from "../app-settings-fixtures.ts";
 
-const OWNER_VIEWER = { userId: "user_owner", handle: "root", globalRole: "owner" };
-const PLAIN_VIEWER = { userId: "user_kes", handle: "kes", globalRole: "user" };
+const OWNER_VIEWER = { userId: "user_owner", handle: "root", globalRole: "owner" } satisfies TrpcWireOutput<"sessions.me">;
+const PLAIN_VIEWER = { userId: "user_kes", handle: "kes", globalRole: "user" } satisfies TrpcWireOutput<"sessions.me">;
 
 const USERS = [
   {
@@ -31,9 +33,7 @@ const USERS = [
     createdAt: 1_700_000_000_000,
     updatedAt: 1_700_000_000_000,
   },
-];
-
-const APP_SETTINGS = {};
+] satisfies TrpcWireOutput<"admin.listUsers">;
 
 /** The sections at the `admin` anchor, in the door's declared order (`compose/config-sections.ts`) — which IS
  *  the render order: the ones that merged in from the retired SYSTEM pane (SET-SEAMS stage 4 / §10 Q2), then
@@ -83,8 +83,7 @@ const NAV_LABELS = [
 
 // The resolved slice the AppSettings sections read together (each has its own CT pinning its own knobs; here
 // they all mount at once, so ONE stub must satisfy all of them). Untyped route stubs, so a partial suffices.
-const RESOLVED_APP = {
-  ...APP_SETTINGS,
+const RESOLVED_APP: Partial<EffectiveAppSettings> = {
   memoryDefaults: {},
   memorySummarizer: {},
   rateLimits: { publicIp: 60, authed: 600, aiTurn: 30, login: 10 },
@@ -109,7 +108,7 @@ const RESOLVED_APP = {
   structuredOutputShape: "as-projected",
 };
 
-function stub(page: Page, viewer: typeof OWNER_VIEWER, extra: TrpcRoutes = {}): Promise<TrpcRecorder> {
+function stub(page: Page, viewer: TrpcWireOutput<"sessions.me">): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     // The config LIST paints every shelf, so the four collection bands read their rosters for the counts —
     // fed empty (the honest fresh-library arm) rather than left to routeTrpc's inert null.
@@ -122,12 +121,11 @@ function stub(page: Page, viewer: typeof OWNER_VIEWER, extra: TrpcRoutes = {}): 
     // About (last at this anchor) suspends on the version identity — unfed, its boundary renders the error
     // state and its anchor never lands, which reads as a short pane rather than as a missing stub.
     "settings.getVersion": () => ({ version: "0.4.1", commit: "823d76f4343a1cea086b17a1b5bf212b44c17a7d", short: "823d76f4343a", source: "checkout" }),
-    "settings.getAppSettings": () => APP_SETTINGS,
-    "settings.getAppSettingsWithOverrides": () => ({ resolved: RESOLVED_APP, overrides: {} }),
+    "settings.getAppSettings": () => EFFECTIVE_APP_SETTINGS,
+    "settings.getAppSettingsWithOverrides": () => appSettingsView(RESOLVED_APP),
     // The plain-viewer arm lands on the default `appearance` pane, whose sections read the user settings.
-    "settings.getUserSettings": () => ({ userId: viewer.userId, schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 }),
+    "settings.getUserSettings": () => ({ userId: viewer.userId, schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0, configUnreadable: null }),
     "settings.listThemes": [],
-    ...extra,
   });
 }
 

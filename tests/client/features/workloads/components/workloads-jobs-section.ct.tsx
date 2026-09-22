@@ -21,6 +21,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { OrbSocketRecorder } from "../../../../support/node/route-orb-socket.ts";
 import { routeOrbSocket } from "../../../../support/node/route-orb-socket.ts";
+import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 // The bus's OWN transport mutations (#649). `stream.attach`/`detach` ride the BATCHED HTTP link, not the
 // SSE leg (`use-orb-socket.ts:7,139` — only `stream.connect` is the subscription), so `routeOrbSocket`
@@ -29,8 +30,8 @@ import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { STREAM_MUTATION_ROUTES } from "../../../data/bus/fixtures.ts";
 import { WorkloadsJobsSectionStory } from "../_ct-stories.tsx";
 
-const USER_VIEWER = { userId: "user_ct_kes", handle: "kes", globalRole: "user" };
-const OWNER_VIEWER = { userId: "user_ct_root", handle: "root", globalRole: "owner" };
+const USER_VIEWER = { userId: "user_ct_kes", handle: "kes", globalRole: "user" } satisfies TrpcWireOutput<"sessions.me">;
+const OWNER_VIEWER = { userId: "user_ct_root", handle: "root", globalRole: "owner" } satisfies TrpcWireOutput<"sessions.me">;
 
 const ADMIN_USERS = [
   {
@@ -55,29 +56,72 @@ const ADMIN_USERS = [
     createdAt: 1_700_000_000_000,
     updatedAt: 1_700_000_000_000,
   },
-];
+] satisfies TrpcWireOutput<"admin.listUsers">;
 
 /** One workload row in the wire shape (`WorkloadRowAnyKind` — domain/workloads/contract). */
-function workloadRow(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+type WorkloadRow = TrpcWireOutput<"workloads.list">[number];
+type RunnableWorkloadRow = Extract<WorkloadRow, { readonly poison: false }>;
+type WorkloadRowFor<K extends RunnableWorkloadRow["kind"]> = Extract<RunnableWorkloadRow, { readonly kind: K }>;
+type PoisonWorkloadRow = Extract<WorkloadRow, { readonly poison: true }>;
+type IndexWorkloadRow = WorkloadRowFor<"index">;
+type WorkloadRowBase = Omit<IndexWorkloadRow, "kind" | "params" | "poison" | "result">;
+
+function workloadRowBase(id = "workload_ct_1"): WorkloadRowBase {
   return {
-    id: "workload_ct_1",
-    kind: "index",
+    id,
     status: "running",
     mode: "singular",
-    source: "all",
     lane: "sweep",
     ownerId: "user_ct_kes",
     dependsOn: null,
     error: null,
     progress: null,
-    poison: false,
     scheduledAt: 1_750_000_000_000,
     createdAt: 1_750_000_000_000,
     updatedAt: 1_750_000_000_000,
+  };
+}
+
+function workloadRow(overrides: Partial<IndexWorkloadRow> = {}): IndexWorkloadRow {
+  return {
+    ...workloadRowBase(),
+    kind: "index",
+    poison: false,
     params: { source: "all" },
     result: null,
     ...overrides,
   };
+}
+
+function distillWorkloadRow(overrides: Partial<WorkloadRowFor<"distill-characters">> = {}): WorkloadRowFor<"distill-characters"> {
+  return { ...workloadRowBase(), kind: "distill-characters", poison: false, params: {}, result: null, ...overrides };
+}
+
+function themeWorkloadRow(overrides: Partial<WorkloadRowFor<"compute-themes">> = {}): WorkloadRowFor<"compute-themes"> {
+  return { ...workloadRowBase(), kind: "compute-themes", poison: false, params: {}, result: null, ...overrides };
+}
+
+function ingestWorkloadRow(overrides: Partial<WorkloadRowFor<"databank-ingest">> = {}): WorkloadRowFor<"databank-ingest"> {
+  return {
+    ...workloadRowBase(),
+    kind: "databank-ingest",
+    poison: false,
+    params: { documentId: "document_ct_ingest" },
+    result: null,
+    ...overrides,
+  };
+}
+
+function importWorkloadRow(overrides: Partial<WorkloadRowFor<"import-st">> = {}): WorkloadRowFor<"import-st"> {
+  return { ...workloadRowBase(), kind: "import-st", poison: false, params: {}, result: null, ...overrides };
+}
+
+function poisonWorkloadRow(overrides: Partial<PoisonWorkloadRow> = {}): PoisonWorkloadRow {
+  return { ...workloadRowBase(), kind: "index", poison: true, params: null, result: null, ...overrides };
+}
+
+function workloadList(...rows: readonly WorkloadRow[]): TrpcWireOutput<"workloads.list"> {
+  return rows;
 }
 
 /** The tab's ONE socket, scripted with this run's frames. A row's tail is a ROOM on it, so the stub holds
@@ -93,21 +137,20 @@ function routeWorkloadStream(page: Page, events: readonly WorkloadEvent[]): Prom
 test("lists the caller's own jobs with status badges; a plain user never fires admin.listUsers; tabs filter", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     ...STREAM_MUTATION_ROUTES,
-    "workloads.list": () => [
-      workloadRow(),
-      workloadRow({
-        id: "workload_ct_2",
-        kind: "distill-characters",
-        status: "failed",
-        error: "runtime: provider unreachable",
-      }),
-      workloadRow({
-        id: "workload_ct_3",
-        kind: "compute-themes",
-        status: "succeeded",
-        result: { scanned: 40, written: 7 },
-      }),
-    ],
+    "workloads.list": () =>
+      workloadList(
+        workloadRow(),
+        distillWorkloadRow({
+          id: "workload_ct_2",
+          status: "failed",
+          error: "runtime: provider unreachable",
+        }),
+        themeWorkloadRow({
+          id: "workload_ct_3",
+          status: "succeeded",
+          result: { scanned: 40, written: 7 },
+        }),
+      ),
     "sessions.me": () => USER_VIEWER,
   });
   await routeWorkloadStream(page, []);
@@ -396,17 +439,17 @@ test("an UNMAPPED failure falls back to the raw string verbatim (no disclosure)"
 test("cancel is confirm-gated (AlertDialog) and retry fires on a failure terminal", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     ...STREAM_MUTATION_ROUTES,
-    "workloads.list": () => [
-      workloadRow(),
-      workloadRow({
-        id: "workload_ct_2",
-        kind: "distill-characters",
-        status: "failed",
-        error: "runtime: boom",
-      }),
-    ],
+    "workloads.list": () =>
+      workloadList(
+        workloadRow(),
+        distillWorkloadRow({
+          id: "workload_ct_2",
+          status: "failed",
+          error: "runtime: boom",
+        }),
+      ),
     "sessions.me": () => USER_VIEWER,
-    "workloads.cancel": () => ({ ok: true }),
+    "workloads.cancel": () => ({ status: "cancelled" }),
     "workloads.retry": () => ({ id: "workload_ct_clone" }),
   });
   await routeWorkloadStream(page, []);
@@ -481,7 +524,7 @@ test("run dialog: 'Run after these complete' lists in-flight runs and wires depe
   const trpc = await routeTrpc(page, {
     ...STREAM_MUTATION_ROUTES,
     // One in-flight run owned by the viewer → offered as a dependency candidate.
-    "workloads.list": () => [workloadRow({ id: "workload_ct_dep", kind: "distill-characters", status: "running" })],
+    "workloads.list": () => workloadList(distillWorkloadRow({ id: "workload_ct_dep", status: "running" })),
     "sessions.me": () => USER_VIEWER,
     "workloads.start": () => ({ id: "workload_ct_new" }),
   });
@@ -529,8 +572,13 @@ test("list: rows in BOTH lanes render under their lane headings", async ({ mount
   await routeTrpc(page, {
     ...STREAM_MUTATION_ROUTES,
     "workloads.list": () => [
-      workloadRow({ id: "workload_ct_ingest", kind: "databank-ingest", lane: "interactive", status: "running", params: {} }),
-      workloadRow({ id: "workload_ct_sweep", kind: "import-st", lane: "sweep", status: "running", params: {} }),
+      ingestWorkloadRow({
+        id: "workload_ct_ingest",
+        lane: "interactive",
+        status: "running",
+        params: { documentId: "document_ct_ingest" },
+      }),
+      importWorkloadRow({ id: "workload_ct_sweep", lane: "sweep", status: "running" }),
     ],
     "sessions.me": () => USER_VIEWER,
   });
@@ -548,7 +596,7 @@ test("list: rows in BOTH lanes render under their lane headings", async ({ mount
 test("list: with every row in ONE lane the heading is dropped (a lone group label is noise)", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...STREAM_MUTATION_ROUTES,
-    "workloads.list": () => [workloadRow(), workloadRow({ id: "workload_ct_2", kind: "compute-themes", params: {} })],
+    "workloads.list": () => [workloadRow(), themeWorkloadRow({ id: "workload_ct_2" })],
     "sessions.me": () => USER_VIEWER,
   });
   await routeWorkloadStream(page, []);
@@ -617,7 +665,8 @@ test("list: the Bulk badge is a NEUTRAL category chip, never a warning beside a 
 test("list: a POISON row is visible, flagged, and retryable", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     ...STREAM_MUTATION_ROUTES,
-    "workloads.list": () => [workloadRow({ status: "failed", error: "unrecognized or malformed workload kind: compute-themes", params: null, poison: true })],
+    "workloads.list": () =>
+      workloadList(poisonWorkloadRow({ status: "failed", error: "unrecognized or malformed workload kind: compute-themes", kind: "compute-themes" })),
     "sessions.me": () => USER_VIEWER,
     "workloads.retry": () => ({ id: "workload_ct_retry" }),
   });
@@ -628,7 +677,7 @@ test("list: a POISON row is visible, flagged, and retryable", async ({ mount, pa
   const allPanel = page.getByRole("tabpanel", { name: "All" });
   await expect(allPanel.getByText("Unreadable", { exact: true })).toBeVisible();
   await expect(allPanel.getByText("This run's saved settings can no longer be read", { exact: false })).toBeVisible();
-  await allPanel.getByRole("button", { name: "Retry — Index (embeddings)" }).click();
+  await allPanel.getByRole("button", { name: "Retry — Compute themes" }).click();
   await expect.poll(() => trpc.count("workloads.retry")).toBe(1);
 });
 
@@ -705,12 +754,8 @@ test("THREE active rows attach THREE rooms over exactly ONE socket; a finished r
     ...STREAM_MUTATION_ROUTES,
     "workloads.list": () => {
       listCalls += 1;
-      const first = listCalls === 1 ? workloadRow() : workloadRow({ status: "succeeded", result: { embedded: 12 } });
-      return [
-        first,
-        workloadRow({ id: "workload_ct_2", kind: "compute-themes", params: {} }),
-        workloadRow({ id: "workload_ct_3", kind: "distill-characters", params: {} }),
-      ];
+      const first = listCalls === 1 ? workloadRow() : workloadRow({ status: "succeeded", result: { embedded: 12, skipped: 0 } });
+      return workloadList(first, themeWorkloadRow({ id: "workload_ct_2" }), distillWorkloadRow({ id: "workload_ct_3" }));
     },
     "sessions.me": () => USER_VIEWER,
     "workloads.listSchedules": () => [],

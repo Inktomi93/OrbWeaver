@@ -29,6 +29,7 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { MESSAGE_EDIT_NAME } from "../../../../packages/client/src/features/chat/lib/message-action-names.ts";
+import type { TrpcRoutes, TrpcWireOutput } from "../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../support/node/route-trpc.ts";
 import { ChatRoomTrackStory } from "./_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, makeMessagesPage, makeMessageView } from "./fixtures.ts";
@@ -69,8 +70,8 @@ const LONG_PROSE =
   "page that is rewritten, and every page rewritten is a page that will be read again by someone who does " +
   "not know they are the second reader of a sentence that was never finished the first time.";
 
-const PREVIEW_FIT_STUB = {
-  "chat.previewContextFit": (): unknown => ({
+const PREVIEW_FIT_STUB: TrpcRoutes<"chat.previewContextFit"> = {
+  "chat.previewContextFit": () => ({
     boundaryMessageId: null,
     usedTokens: 120,
     ceilingTokens: 32_768,
@@ -109,14 +110,16 @@ function seat(): ParticipantView {
   };
 }
 
-function routeRoom(page: Page, chatStyle: string, content: string = LONG_PROSE): Promise<unknown> {
+type ChatStyle = TrpcWireOutput<"settings.getUserSettings">["config"]["appearance"]["chatStyle"];
+function routeRoom(page: Page, chatStyle: ChatStyle, content: string = LONG_PROSE): Promise<unknown> {
   return routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
     ...PREVIEW_FIT_STUB,
-    "settings.getUserSettings": (): unknown => ({
+    "settings.getUserSettings": () => ({
       userId: castId<UserId>("user_ct"),
       schemaVersion: 1,
       config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, chatStyle } },
+      configUnreadable: null,
       updatedAt: 0,
     }),
     "chat.getChat": (): { participants: readonly ParticipantView[]; anchorPersonaId: null; identities: readonly ChatIdentity[]; group: GroupConfig } => ({
@@ -125,7 +128,7 @@ function routeRoom(page: Page, chatStyle: string, content: string = LONG_PROSE):
       identities: [{ kind: "character", id: AZAREAL_ID, name: "Azareal", avatarHash: "ct_cas_hash_track" }],
       group: DEFAULT_GROUP_CONFIG,
     }),
-    "chat.listMessages": (): unknown =>
+    "chat.listMessages": () =>
       makeMessagesPage([
         makeMessageView({
           id: castId<MessageId>("msg_track_tail"),
@@ -141,12 +144,12 @@ function routeRoom(page: Page, chatStyle: string, content: string = LONG_PROSE):
     // carries an avatarHash, so the row's portrait really does resolve a character. Both were answered `null`
     // and ran inert. Fed at the shapes the fixture already claims — three variants at the declared index, and
     // the same character the cast names — so the strip's counter and the row's face are computed, not skipped.
-    "chat.listMessageVariants": (): unknown => [
+    "chat.listMessageVariants": () => [
       { variantId: "msgvar_track_0", idx: 0 },
       { variantId: "msgvar_track_1", idx: 1 },
       { variantId: "msgvar_track_2", idx: 2 },
     ],
-    "character.get": (): unknown => ({ id: AZAREAL_ID, name: "Azareal", avatarHash: "ct_cas_hash_track", greetings: [] }),
+    "character.get": () => ({ id: AZAREAL_ID, name: "Azareal", avatarHash: "ct_cas_hash_track", greetings: [] }),
   });
 }
 

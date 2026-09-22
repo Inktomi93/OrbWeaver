@@ -25,12 +25,7 @@
       "tests/server/infra/network/openai-models.test.ts",
       "tests/server/kit/regex.test.ts"
     ],
-    "excluded": [
-      "ensureUserSettings",
-      "loadTurnForClassify",
-      "database schema",
-      "auth/domain redesign"
-    ]
+    "excluded": ["ensureUserSettings", "loadTurnForClassify", "database schema", "auth/domain redesign"]
   },
   "implementation": [
     {

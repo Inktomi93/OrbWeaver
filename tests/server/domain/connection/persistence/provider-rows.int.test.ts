@@ -1,25 +1,28 @@
-// persistence: `provider_rows` — the runtime `ProviderStore` over plugin-shipped and admin-added rows. Two
-// properties carry the weight: the read re-parses every stored row through `providerDefSchema` (a row this
-// deployment can no longer satisfy must fail LOUDLY at the read rather than reaching the registry as a
-// half-provider), and `put` is an UPSERT by id whose origin columns are the kind-shape pair — a plugin row
-// and an admin row are distinguishable at rest, which is what a later "drop everything this plugin added"
-// depends on.
+// Provider definitions are deployment-global while plugin ownership is many-to-one. These tests exercise the
+// actual DB transaction and FK belts: identical contributors share, conflicts write nothing, and only the
+// final contributor retires visibility while the immutable definition identity remains tombstoned.
 
 import type { ProviderDef, ProviderId } from "@orb/contracts/inference";
-import { providerRows } from "@orb/db";
-import type { PluginId, UserId } from "@orb/kit/ids";
+import { pluginProviderContributions, providerRows } from "@orb/db";
+import type { Handle, PluginId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { describe } from "vitest";
-import { deleteProviderRow, listProviderRows, putProviderRow } from "../../../../../packages/server/src/domain/connection/persistence/provider-rows.ts";
+import {
+  deleteAdminProviderRow,
+  deletePluginProviderRows,
+  listProviderRows,
+  putAdminProviderRow,
+  replacePluginProviderRows,
+} from "../../../../../packages/server/src/domain/connection/persistence/provider-rows.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { seedUser } from "../_support.ts";
+import type { PluginHarness } from "../../plugin/_support.ts";
+import { makeBundle, makePluginHarness, principalFor, seedUser } from "../../plugin/_support.ts";
 
 const ACME_ID = castId<ProviderId>("acme-endpoint");
-const PLUGIN_ID = castId<PluginId>("plugin_000001");
-
+const PLUGIN_PROVIDER_ID = castId<ProviderId>("plugin:test-plugin/acme");
 const ACME: ProviderDef = {
   id: ACME_ID,
   label: "Acme",
@@ -30,49 +33,81 @@ const ACME: ProviderDef = {
   catalog: "url",
   metered: false,
 };
+const PLUGIN_ACME: ProviderDef = { ...ACME, id: PLUGIN_PROVIDER_ID };
 
-describe("put / list", () => {
-  test("round-trips a row and UPSERTS by id rather than accumulating duplicates", async () => {
+async function installedPlugin(db: Awaited<ReturnType<typeof freshDb>>, harness: PluginHarness, userName: string): Promise<PluginId> {
+  const owner = await seedUser(db, { handle: castId<Handle>(userName) });
+  const caller = principalFor(owner);
+  const installed = await harness.service.install({ caller, bundle: makeBundle({ id: "test-plugin", providers: [PLUGIN_ACME] }), grant: [] });
+  await harness.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
+  return installed.id;
+}
+
+describe("admin ownership", () => {
+  test("round-trips and updates an admin row without adopting a plugin id", async () => {
     const db = await freshDb();
-    const admin: UserId = await seedUser(db, "user_admin");
-    await putProviderRow(db, ACME, { admin }, FROZEN_AT_MS);
-    expect(await listProviderRows(db)).toEqual([ACME]);
-    await putProviderRow(db, { ...ACME, label: "Acme v2" }, { admin }, FROZEN_AT_MS + 1000);
-    const rows = await listProviderRows(db);
-    expect(rows).toHaveLength(1);
-    expect(rows[0]?.label).toBe("Acme v2");
+    const harness = makePluginHarness(db);
+    const admin: UserId = await seedUser(db, { handle: castId<Handle>("user_admin") });
+    expect(await putAdminProviderRow(db, ACME, admin, FROZEN_AT_MS)).toBe(true);
+    expect(await putAdminProviderRow(db, { ...ACME, label: "Acme v2" }, admin, FROZEN_AT_MS + 1)).toBe(true);
+    expect(await listProviderRows(db)).toEqual([{ ...ACME, label: "Acme v2" }]);
+    expect(await replacePluginProviderRows(db, [PLUGIN_ACME], await installedPlugin(db, harness, "user_owner"), FROZEN_AT_MS)).toEqual({ ok: true });
+    expect(await putAdminProviderRow(db, PLUGIN_ACME, admin, FROZEN_AT_MS)).toBe(false);
   });
 
-  test("the ORIGIN is stored as the kind-shape pair, and a plugin origin must name a REAL plugin", async () => {
+  test("removes only an admin-owned row", async () => {
     const db = await freshDb();
-    const admin = await seedUser(db, "user_admin");
-    await putProviderRow(db, ACME, { admin }, FROZEN_AT_MS);
-    expect(await db.select().from(providerRows)).toMatchObject([{ originKind: "admin", originUserId: admin, originPluginId: null }]);
-    // The FK is the enforcement: a plugin-origin row for an uninstalled plugin cannot exist at rest, which
-    // is what "drop everything this plugin added" later depends on.
-    await expect(putProviderRow(db, { ...ACME, id: castId<ProviderId>("plugin-provider") }, { plugin: PLUGIN_ID }, FROZEN_AT_MS)).rejects.toThrow();
-    expect(await listProviderRows(db)).toHaveLength(1);
-  });
-
-  test("a stored row that no longer satisfies the schema fails LOUDLY at the read", async () => {
-    const db = await freshDb();
-    const admin = await seedUser(db, "user_admin");
-    await putProviderRow(db, ACME, { admin }, FROZEN_AT_MS);
-    // An `apis` member this build does not know — the column carries no CHECK (the tuple lives in zod), so
-    // this is exactly the shape an older/newer deployment's row arrives in.
-    await db.run(sql`update provider_rows set apis = '["telepathy"]' where id = ${ACME_ID}`);
-    await expect(listProviderRows(db), "a half-parsed provider must never reach the registry").rejects.toThrow();
+    const admin = await seedUser(db, { handle: castId<Handle>("user_admin") });
+    await putAdminProviderRow(db, ACME, admin, FROZEN_AT_MS);
+    expect(await deleteAdminProviderRow(db, ACME_ID)).toBe(true);
+    expect(await listProviderRows(db)).toEqual([]);
   });
 });
 
-describe("remove", () => {
-  test("drops exactly the named row", async () => {
+describe("plugin contributions", () => {
+  test("shares an identical definition and removes it only with the final contributor", async () => {
     const db = await freshDb();
-    const admin = await seedUser(db, "user_admin");
-    const other = castId<ProviderId>("other-endpoint");
-    await putProviderRow(db, ACME, { admin }, FROZEN_AT_MS);
-    await putProviderRow(db, { ...ACME, id: other }, { admin }, FROZEN_AT_MS);
-    await deleteProviderRow(db, ACME_ID);
-    expect((await listProviderRows(db)).map((row) => row.id)).toEqual([other]);
+    const harness = makePluginHarness(db);
+    const first = await installedPlugin(db, harness, "user_first");
+    const second = await installedPlugin(db, harness, "user_second");
+    expect(await replacePluginProviderRows(db, [PLUGIN_ACME], first, FROZEN_AT_MS)).toEqual({ ok: true });
+    expect(await replacePluginProviderRows(db, [PLUGIN_ACME], second, FROZEN_AT_MS + 1)).toEqual({ ok: true });
+    expect(await db.select().from(pluginProviderContributions)).toHaveLength(2);
+    await deletePluginProviderRows(db, first);
+    expect(await listProviderRows(db)).toEqual([PLUGIN_ACME]);
+    await deletePluginProviderRows(db, second);
+    expect(await listProviderRows(db)).toEqual([]);
+    expect(await db.select().from(providerRows)).toHaveLength(1);
+  });
+
+  test("refuses conflicting shared and admin definitions before any contribution write", async () => {
+    const db = await freshDb();
+    const harness = makePluginHarness(db);
+    const admin = await seedUser(db, { handle: castId<Handle>("user_admin") });
+    const first = await installedPlugin(db, harness, "user_first");
+    const second = await installedPlugin(db, harness, "user_second");
+    await replacePluginProviderRows(db, [PLUGIN_ACME], first, FROZEN_AT_MS);
+    expect(await replacePluginProviderRows(db, [{ ...PLUGIN_ACME, label: "Conflict" }], second, FROZEN_AT_MS + 1)).toEqual({
+      ok: false,
+      conflictingId: PLUGIN_PROVIDER_ID,
+    });
+    expect(await db.select().from(pluginProviderContributions)).toHaveLength(1);
+    await putAdminProviderRow(db, ACME, admin, FROZEN_AT_MS);
+    expect(await replacePluginProviderRows(db, [ACME], second, FROZEN_AT_MS)).toEqual({ ok: false, conflictingId: ACME_ID });
+  });
+
+  test("refuses definition replacement even by the sole contributor and reparses rows on read", async () => {
+    const db = await freshDb();
+    const harness = makePluginHarness(db);
+    const pluginId = await installedPlugin(db, harness, "user_owner");
+    const replacement = { ...PLUGIN_ACME, label: "Acme v2" };
+    await replacePluginProviderRows(db, [PLUGIN_ACME], pluginId, FROZEN_AT_MS);
+    expect(await replacePluginProviderRows(db, [replacement], pluginId, FROZEN_AT_MS + 1)).toEqual({
+      ok: false,
+      conflictingId: PLUGIN_PROVIDER_ID,
+    });
+    expect(await listProviderRows(db)).toEqual([PLUGIN_ACME]);
+    await db.run(sql`update provider_rows set apis = '["telepathy"]' where id = ${PLUGIN_PROVIDER_ID}`);
+    await expect(listProviderRows(db)).rejects.toThrow();
   });
 });

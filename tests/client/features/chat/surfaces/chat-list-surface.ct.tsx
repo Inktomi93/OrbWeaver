@@ -24,6 +24,7 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { expectInstrumentTierLive } from "../../../../support/browser/tier-liveness.ts";
+import type { TrpcInput, TrpcResponder } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ChatListBandAndSurfaceStory, ChatListHeaderStory, ChatListSurfaceStory } from "../_ct-stories.tsx";
 import { CHAT_ROOM_ROUTES, chatListResponder, makeChatSummary, makeSeatPortrait } from "../fixtures.ts";
@@ -58,9 +59,9 @@ const PAUSED_GAME = makeChatSummary({ id: "chat_game_paused", title: "The dorman
 const STARRED = makeChatSummary({ id: "chat_starred", title: "A pinned thread", starred: true });
 const ARCHIVED = makeChatSummary({ id: "chat_archived", title: "A shelved thread", archived: true });
 
-function datedChatListResponder(all: readonly ReturnType<typeof makeChatSummary>[]): (input: unknown) => unknown {
-  return (input: unknown): unknown => {
-    const beforeRecencyAt = (input as { beforeRecencyAt?: number } | undefined)?.beforeRecencyAt;
+function datedChatListResponder(all: readonly ReturnType<typeof makeChatSummary>[]): TrpcResponder<"chat.listChats"> {
+  return (input: TrpcInput<"chat.listChats">) => {
+    const beforeRecencyAt = input?.beforeRecencyAt;
     const scoped = beforeRecencyAt === undefined ? all : all.filter((chat) => (chat.lastMessageAt ?? chat.updatedAt) < beforeRecencyAt);
     return chatListResponder(scoped)(input);
   };
@@ -710,7 +711,7 @@ test("§12 the star is the row's state TOGGLE, and clicking it fires the star MU
     ...CHAT_ROOM_ROUTES,
     "chat.listChats": chatListResponder([ADVENTURE, STARRED]),
     "character.list": CHARACTERS,
-    "chat.star": {},
+    "chat.star": null,
   });
 
   const component = await mount(<ChatListSurfaceStory />);
@@ -1468,8 +1469,8 @@ test("#490 the chrome band's count reflects the pane's filters, and returns to t
   const library = [ADVENTURE, UNTITLED, GAME];
   await routeTrpc(page, {
     ...CHAT_ROOM_ROUTES,
-    "chat.listChats": (input: unknown): unknown => {
-      const search = (input as { search?: string } | undefined)?.search;
+    "chat.listChats": (input: TrpcInput<"chat.listChats">) => {
+      const search = input?.search;
       const scoped = search === undefined ? library : library.filter((chat) => (chat.title ?? "").toLowerCase().includes(search.toLowerCase()));
       // The band reads `totalCount` off the SCOPED page, so the responder must narrow it honestly.
       return chatListResponder(scoped)(input);

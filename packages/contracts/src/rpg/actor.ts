@@ -351,10 +351,6 @@ export const RPG_ACTOR_IDENTITY_TEXT_FIELDS = [
   "outfit",
   "thoughts",
 ] as const satisfies readonly (keyof RpgActorIdentity)[];
-/** @public future: the projected-grammar / full-mode actor-identity surface (unbuilt) — derived from the live
- *  `RPG_ACTOR_IDENTITY_TEXT_FIELDS` tuple, which every current consumer reads directly (rpg/index.ts
- *  KISS/YAGNI SUSPENDED: full-mode shapes ship as data from day one). */
-export type RpgActorIdentityTextField = (typeof RPG_ACTOR_IDENTITY_TEXT_FIELDS)[number];
 
 /** The tracked-value PATCH a `setTracker` op carries — each datum optional, each DERIVED from the resident
  *  value schema (never a re-spell): an omitted datum keeps the actor's current one, so a max edit never blanks

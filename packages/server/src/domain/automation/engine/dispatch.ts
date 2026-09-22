@@ -349,8 +349,8 @@ async function envFor(rc: RuleCtx): Promise<AutomationCelEnv> {
  *      answer "should this rule act on its own right now", and a HOST PRESSING RUN NOW HAS ANSWERED THAT
  *      QUESTION PERSONALLY. A manual run skips exactly these two.
  *    • WHETHER-IT-MAY-ACT-AT-ALL — the cascade-depth cap, the author's standing host authority, and every
- *      belt INSIDE the executed arm's own pipeline (`trigger_turn`'s D17 by-proxy consent wall and the turn
- *      engine's per-member budget, imagery's gates). A manual run skips NONE of these. A confirmed
+ *      belt INSIDE the executed arm's own pipeline (including imagery's gates). A chat turn freezes the room
+ *      host as funder. A manual run skips NONE of these. A confirmed
  *      invitation authorizes ONE run past a ceiling the host themselves set; it launders past nothing.
  *  WHY EACH SKIP IS LOAD-BEARING, not convenience: F4's invitation is RAISED BY a `budget_refused`, so a
  *  confirm that re-ran the rate cap would refuse identically for the rest of the hour; and a cadence rule

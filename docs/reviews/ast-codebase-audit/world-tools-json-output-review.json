@@ -38,10 +38,7 @@
   ],
   "independentInventory": {
     "registeredAstVerbs": 28,
-    "depcruisePassThroughs": [
-      "flow",
-      "reaches"
-    ],
+    "depcruisePassThroughs": ["flow", "reaches"],
     "singleResultByDefault": [
       "refs",
       "callers",

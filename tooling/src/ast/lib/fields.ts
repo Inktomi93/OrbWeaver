@@ -391,9 +391,7 @@ export function fieldClass(field: ContractField, indexes: FieldIndexes): FieldHi
   return FOREIGN_FORMAT_OWNER_RE.test(field.owner) ? "foreign-format" : "unclassified";
 }
 
-/** A zod field whose OWN chain carries `.default(…)` populates itself — the schema is the producer, and the
- *  value reaches every consumer of the parse. Only the field's top-level chain counts: a `.default()` on a
- *  NESTED key would otherwise absolve the outer field it is nested inside. */
+/** A field's own `.default(…)` chain produces it; a nested child's default does not. */
 function isSelfDefaulted(node: Node): boolean {
   let current = Node.isPropertyAssignment(node) ? node.getInitializer() : undefined;
   while (current !== undefined) {
@@ -409,10 +407,7 @@ function isSelfDefaulted(node: Node): boolean {
   return false;
 }
 
-/** The files that SPELL this field's name as a read, excluding the field's OWN declaration span. The fence is
- *  the declaration NODE, not its file: a contracts file that declares a foreign wire schema and consumes it
- *  in its own importer 400 lines below is a live producer/reader, and the old whole-file filter printed the
- *  strongest possible "nothing reads it" tail about 8 such fields (triage §4 F1). */
+/** Files that read the field name outside its own declaration node, including same-file consumers. */
 function readersOf(field: ContractField, consumed: ReadonlyMap<string, FieldReadSites>): string[] {
   const declFile = field.node.getSourceFile().getFilePath();
   const start = field.node.getStart();

@@ -1,0 +1,1400 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-09-21T15:19:17.870Z",
+  "source": "Aggregate of durable AST audit receipts under docs/reviews/ast-codebase-audit; exact source receipt and JSON path are retained per row.",
+  "posture": "Launch-readiness inventory. Every dormant/parked/future row requires live wiring, an explicit tracked launch decision, a proven framework/tool consumer, or removal. Historical preserve decisions are evidence, not standing acquittals.",
+  "limitations": [
+    "Rows are observations from receipts with different capture commits; identity and status must be re-derived before mutation.",
+    "GitHub Project 1 owns mutable lifecycle state; issue statuses embedded in older receipts can be stale.",
+    "Absence from this aggregate is not proof of absence; the consolidated lens rerun remains the final denominator."
+  ],
+  "currentProgramNotes": {
+    "hostFunding": "#2566 Done: the room's current host is the sole turn funder, host transfer funds later turns, deferred replay retains its captured host, and triggeredBy remains attribution/cancellation identity.",
+    "pluginProviders": "#2558 remains Running. Provider definitions are wired into activation and per-user/server-wide installation preserves owner-scoped authority, but final security review still requires fail-closed runtime invalidation when both activation publication and post-rollback refresh fail.",
+    "chatStream": "#2559 Done: production append, per-generation cursor allocation, populated backfill, concurrency, rollback, deletion/resume, and legacy-null behavior were independently confirmed.",
+    "refineryDeletes": ["#2527 Ready P2", "#2546 Running P2: implementation is complete with 14/14 focused CTs and is awaiting independent review"],
+    "publicFutureReview": "CommandSeparator and PolarityTokenPath were removed after UI-aware pnpm ast plus ast-grep/rg proved no consumer and current grouping/literal-key inference superseded them. CommandLoading remains explicitly @public-future for #2568, the missing hosted model catalog picker.",
+    "zodBrandAdjudication": "#2556 Done: all 13 brand-producing Zod sites were reconciled to the closed baseline; three trust-boundary repairs and five hostile control groups were independently confirmed.",
+    "appRouterFidelity": "#2533/#2551 remain Running. AppRouter-derived route fixtures and output-provenance tracing are implemented with five focused controls green; the last real-tree clientgap run was 9 rows, and the final expected 8-row denominator still requires one confirming run after the last precision fix.",
+    "inferenceStep9": "The inference cut-over is complete, so undelivered step-9 client behavior is launch work. #2549 tracks connection diagnostics; #2568 Ready P1 tracks the missing hosted model catalog picker and saved-key reuse path. A closed step-9-to-tree reconciliation is active to find any additional untracked rows.",
+    "agentDialogKind": "Removed from the working tree after TS, TSX, and literal searches found only declaration/barrel residue; live agent SDK callbacks already fail closed.",
+    "refineryFieldScore": "Removed from the working tree after the generic schema-driven score renderer proved the named future consumer had already landed without this alias.",
+    "pluginInvocation": "Removed from the working tree after TS, TSX, and literal searches found only declaration/barrel residue; the shipped membrane deliberately exposes room scope through chat.current() and handler-specific args.",
+    "dormantAliasResidue": "Removed RpgActorIdentityTextField, RpgToolRoundToolName, RpgTrackerWrite, RpgTrackerSubject, RpgModeCapabilityAxis, RpgQuestAction, and OwnerStatId after TS and TSX ast-grep plus exact-symbol rg found no consumers. The canonical RPG tuples/schemas remain live; owner_stats remains keyed directly by ownerId. Contracts and kit typechecks plus 236 focused tests pass.",
+    "automationBusBelt": "Preserve AUTOMATION_BUS_EVENT_TYPES. It is live source data consumed structurally by bus-definition and producer-coverage gates, and its future invalidation-map consumer has a concrete wake condition: the first automation event that invalidates durable query state (B2 ruleFired is the named candidate).",
+    "producerlessTables": "#2567 Done: canonical whole-table Drizzle reads now make a table reader-visible without fabricating per-column reads; four adversarial review passes closed whole-select, mutable-alias, and compile-floor false cleans.",
+    "messageReactions": "#2565 truth-repaired: Unicode, segment, prompt-attribution, character-tool, client, and canonical reactionsChanged automation paths are live. Custom emoji is the sole launch remainder; the obsolete reactionAdded spelling must not be built."
+  },
+  "count": 63,
+  "rows": [
+    {
+      "file": "index.json",
+      "path": "crossCuttingFindings.providerRowTaskAuthority",
+      "object": {
+        "issue": 2541,
+        "status": "Needs owner",
+        "finding": "PROVIDER_ROW_TASKS claims DB write-boundary validation but has no direct consumer; choose DB enforcement or retire the claimed seam",
+        "receipt": "world-tools-small-package-rot-triage.json"
+      }
+    },
+    {
+      "file": "index.json",
+      "path": "crossCuttingFindings.serverRotTriage",
+      "object": {
+        "status": "36 findings adjudicated: two bounded deletions, 27 deliberate seams, three external/compile-time consumers, two reserved unwired surfaces, two architecture forks",
+        "receipt": "world-tools-server-rot-triage.json",
+        "cleanup": ["PROMPT_TEMPLATES", "CAPTION_INSTRUCTIONS"],
+        "existingSeamFollowUp": 2526,
+        "ownerDecisions": [2542, 2543, 2544, 2545]
+      }
+    },
+    {
+      "file": "index.json",
+      "path": "crossCuttingFindings.uiRotTriage",
+      "object": {
+        "status": "46 findings adjudicated: 37 framework entrypoints, six proof/generated surfaces, three unwired exports, zero deletions",
+        "receipt": "world-tools-ui-rot-triage.json",
+        "featureWork": 2547
+      }
+    },
+    {
+      "file": "index.json",
+      "path": "crossCuttingFindings.wiringGapAudit",
+      "object": {
+        "status": "10 unwired and 23 clientgap findings adjudicated; follow-up work tracked",
+        "receipt": "world-tools-wiring-gap-triage.json"
+      }
+    },
+    {
+      "file": "world-tools-apisurface-coverage-fix.json",
+      "path": "",
+      "object": {
+        "task": "apisurface tool-coverage defects",
+        "status": "implemented two general rules; two non-import consumer designs deferred; one claimed defect refuted",
+        "implemented": [
+          {
+            "identities": ["packages/client/vite.config.ts:498:default", "packages/db/drizzle.config.ts:13:default"],
+            "rule": "The default export of a package-root *.config.ts is consumed by the external build tool that loads the file by convention. Named exports and nested src/**/*.config.ts files receive no credit.",
+            "mechanism": "A shared structural path predicate now feeds prodonly entry discovery, shared symbol liveness, and apisurface consumer attribution."
+          },
+          {
+            "identities": [
+              "packages/db/src/client/index.ts:638:forecastDevDbReset",
+              "packages/server/src/domain/assets/persistence/asset-refs.ts:88:DERIVED_ASSET_COLUMNS"
+            ],
+            "rule": "A checker-resolved package-alias dynamic import credits the statically selected module members, including object destructuring and renamed bindings.",
+            "mechanism": "The shared dynamic-import member reader now recognizes object binding patterns; apisurface reuses it and follows exact exported declaration identities through barrels. Relative dynamic imports retain the prior conservative whole-module behavior."
+          }
+        ],
+        "deferred": [
+          {
+            "identity": "packages/server/src/domain/chat/substrate/auth/matrix.ts:43:CHAT_VERB_AUTHORITY",
+            "reason": "A verification visitor consumes this declaration by configured file and declaration name, not a TypeScript import. Teaching apisurface about one gate's text protocol would special-case a symbol; a general machine-read declaration marker/grant needs its own design and two-sided enforcement."
+          },
+          {
+            "identity": "packages/server/src/foundation/version/index.ts:194:buildVersionStamp",
+            "reason": "docker/assemble-runtime.sh invokes this export from a node -e string. Shell is outside the TypeScript source corpus. Parsing shell command text would be fragile; a general externally consumed export marker/grant needs its own design and two-sided enforcement."
+          }
+        ],
+        "refuted": [
+          {
+            "identity": "packages/ui/src/content/theme-scope/clamp.ts:142:THEME_DERIVATION",
+            "reason": "The production derive-vars.ts import resolves to @orb/kit/theme-derivation, not this UI alias. Exact structural evidence finds the UI alias only in tests; its own header calls it a test-anchored module surface. apisurface's TEST-ONLY verdict is accurate."
+          }
+        ],
+        "redFirst": "tests/tooling/ast/index.test.ts failed 2/100 before source changes: aliased dynamic-import destructure remained api-unused and package-root config default remained api-unused.",
+        "verification": [
+          "pnpm test:scoped tests/tooling/ast/index.test.ts => PASS 100/100",
+          "pnpm exec biome check <5 touched files> --diagnostic-level=error => PASS",
+          "pnpm typecheck --config tooling/tsconfig.json --config tsconfig.tests-iso.json => PASS 2/2",
+          "ast-grep exact structural checks found the live destructuring consumers at db-baseline-parity.ts:160 and asset-refs-coverage.ts:181; buildVersionStamp had test calls only in TS/TSX and its live invocation is docker/assemble-runtime.sh:87"
+        ]
+      }
+    },
+    {
+      "file": "world-tools-apisurface-triage.json",
+      "path": "classifications.2083",
+      "object": {
+        "identity": "packages/client/src/features/refinery/hooks/use-refinery-mutations.ts:123:useDeleteRefinerySession",
+        "ordinal": 2083,
+        "package": "client",
+        "file": "packages/client/src/features/refinery/hooks/use-refinery-mutations.ts",
+        "line": 123,
+        "symbol": "useDeleteRefinerySession",
+        "declarationKind": "value",
+        "lensKind": "api-test-only",
+        "lensConsumer": "tests/client/features/refinery/_ct-stories.tsx:24",
+        "declarationContext": "/** @public future: the R3 refinery surface — the R2 write tier for session deletion (the runs cascade * with it). No prod consumer until the R3 session-library surface builds; the CT drives it today. */ export const useDeleteRefinerySession = createEntityMutation<inferInput<Trpc[\"refinery\"][\"deleteSession\"]>, unknown>({ options: (trpc) => trpc.refinery.deleteSession.mutationOptions(), // The verb emits AFTER the delete (the user bus is live-only — no durable event row to orphan). A cached // detail/ledger for a deleted session would otherwise be served verbatim to whatever still observes it",
+        "classification": "intended-unwired-feature",
+        "decision": "preserve",
+        "basis": "exact current identity matched durable adjudication",
+        "priorAdjudication": {
+          "artifact": "/tmp/world-tools-partial-lenses-audit.json",
+          "symbol": "useDeleteRefinerySession",
+          "file": "packages/client/src/features/refinery/hooks/use-refinery-mutations.ts",
+          "line": 123,
+          "priorClassification": "intended-but-unwired-feature",
+          "priorDisposition": null,
+          "rationale": "Preserve. The hook is explicitly '@public future' for the R3 session-library delete affordance, while the component-test story currently drives the real hook through the feature front door, real QueryClient, toast surface, and routed network stub. It is both retained product intent and an exercised write-tier adapter."
+        }
+      }
+    },
+    {
+      "file": "world-tools-apisurface-triage.json",
+      "path": "classifications.2093",
+      "object": {
+        "identity": "packages/client/src/features/refinery/hooks/use-refinery-schemas.ts:51:useDeleteRefinerySchema",
+        "ordinal": 2093,
+        "package": "client",
+        "file": "packages/client/src/features/refinery/hooks/use-refinery-schemas.ts",
+        "line": 51,
+        "symbol": "useDeleteRefinerySchema",
+        "declarationKind": "value",
+        "lensKind": "api-unused",
+        "lensConsumer": null,
+        "declarationContext": "/** @public future: the schema-editor delete affordance (unbuilt polish) — schema deletion for the R3 * schema library; the verb + belts shipped with R3 so the surface can wire it without a contract * round-trip. */ export const useDeleteRefinerySchema = createEntityMutation<inferInput<Trpc[\"refinery\"][\"deleteSchema\"]>, unknown>({ options: (trpc) => trpc.refinery.deleteSchema.mutationOptions(), busDriven: true, errorToast: \"Couldn't delete that schema.\",",
+        "classification": "intended-unwired-feature",
+        "decision": "preserve",
+        "basis": "exact current identity matched durable adjudication",
+        "priorAdjudication": {
+          "artifact": "/tmp/world-tools-partial-lenses-audit.json",
+          "symbol": "useDeleteRefinerySchema",
+          "file": "packages/client/src/features/refinery/hooks/use-refinery-schemas.ts",
+          "line": 51,
+          "priorClassification": "intended-but-unwired-feature",
+          "priorDisposition": null,
+          "rationale": "Preserve. The declaration is explicitly marked '@public future' and names the unbuilt schema-editor delete affordance. Its comment says the server verb and belts shipped with R3 so the surface can wire deletion without a contract round-trip. This is deliberate unwired product intent under the repository's unwired-is-not-worthless rule."
+        }
+      }
+    },
+    {
+      "file": "world-tools-apisurface-triage.json",
+      "path": "classifications.3609",
+      "object": {
+        "identity": "packages/contracts/src/automation/index.ts:929:AUTOMATION_BUS_EVENT_TYPES",
+        "ordinal": 3609,
+        "package": "contracts",
+        "file": "packages/contracts/src/automation/index.ts",
+        "line": 929,
+        "symbol": "AUTOMATION_BUS_EVENT_TYPES",
+        "declarationKind": "value",
+        "lensKind": "api-unused",
+        "lensConsumer": null,
+        "declarationContext": "* (no cursor, no replay), so there is no gap-heal set for this const to derive the way * `invalidation.ts::allUserRootFilters` derives one from USER_BUS_EVENT_TYPES. It gains that consumer the * day a bus member invalidates a query (B2's fire log off `ruleFired` is the named candidate). */ export const AUTOMATION_BUS_EVENT_TYPES = { quickReplySurfaced: true, suggestionRaised: true, suggestionResolved: true,",
+        "classification": "intended-unwired-feature",
+        "decision": "preserve",
+        "basis": "exact current identity matched durable adjudication",
+        "priorAdjudication": {
+          "artifact": "/tmp/world-tools-partial-lenses-audit.json",
+          "symbol": "AUTOMATION_BUS_EVENT_TYPES",
+          "file": "packages/contracts/src/automation/index.ts",
+          "line": 929,
+          "priorClassification": "intended-future-surface",
+          "priorDisposition": "preserve",
+          "rationale": "Declaration carries explicit @public future intent for a named unbuilt consumer."
+        }
+      }
+    },
+    {
+      "file": "world-tools-apisurface-triage.json",
+      "path": "classifications.3792",
+      "object": {
+        "identity": "packages/contracts/src/memory/index.ts:15:ClipKind",
+        "ordinal": 3792,
+        "package": "contracts",
+        "file": "packages/contracts/src/memory/index.ts",
+        "line": 15,
+        "symbol": "ClipKind",
+        "declarationKind": "type",
+        "lensKind": "api-test-only",
+        "lensConsumer": "tests/contracts/memory/index.contract.test.ts:5",
+        "declarationContext": "* (a reserved member of `@orb/contracts/workloads` WORKLOAD_KINDS with a no-op stub runner). */ export const CLIP_KINDS = [\"fact\", \"trait\", \"relationship\", \"world-state\", \"plot-thread\"] as const; /** @public pre-built memory surface — the clip vocabulary lands with the memory domain. */ export type ClipKind = (typeof CLIP_KINDS)[number]; /** @public pre-built memory surface — schema twin of `CLIP_KINDS`. */ export const clipKindSchema = z.enum(CLIP_KINDS);",
+        "classification": "intended-unwired-feature",
+        "decision": "preserve",
+        "basis": "exact current identity matched durable adjudication",
+        "priorAdjudication": {
+          "artifact": "/tmp/world-tools-partial-lenses-audit.json",
+          "symbol": "ClipKind",
+          "file": "packages/contracts/src/memory/index.ts",
+          "line": 15,
+          "priorClassification": "prebuilt-public-contract-surface",
+          "priorDisposition": "preserve",
+          "rationale": "Declaration carries explicit @public pre-built memory-surface intent."
+        }
+      }
+    },
+    {
+      "file": "world-tools-apisurface-triage.json",
+      "path": "classifications.3793",
+      "object": {
+        "identity": "packages/contracts/src/memory/index.ts:17:clipKindSchema",
+        "ordinal": 3793,
+        "package": "contracts",
+        "file": "packages/contracts/src/memory/index.ts",
+        "line": 17,
+        "symbol": "clipKindSchema",
+        "declarationKind": "value",
+        "lensKind": "api-test-only",
+        "lensConsumer": "tests/contracts/memory/index.contract.test.ts:6",
+        "declarationContext": "/** @public pre-built memory surface — the clip vocabulary lands with the memory domain. */ export type ClipKind = (typeof CLIP_KINDS)[number]; /** @public pre-built memory surface — schema twin of `CLIP_KINDS`. */ export const clipKindSchema = z.enum(CLIP_KINDS); /** Provenance of a clip. A `'user'` clip is NEVER auto-deleted (core/Knowledge-Cluster.md §9). */ export const CLIP_SOURCE_KINDS = [\"user\", \"synthesized\", \"promoted\"] as const;",
+        "classification": "intended-unwired-feature",
+        "decision": "preserve",
+        "basis": "exact current identity matched durable adjudication",
+        "priorAdjudication": {
+          "artifact": "/tmp/world-tools-partial-lenses-audit.json",
+          "symbol": "clipKindSchema",
+          "file": "packages/contracts/src/memory/index.ts",
+          "line": 17,
+          "priorClassification": "prebuilt-public-contract-surface",
+          "priorDisposition": "preserve",
+          "rationale": "Declaration carries explicit @public pre-built memory-surface intent."
+        }
+      }
+    },
+    {
+      "file": "world-tools-apisurface-triage.json",
+      "path": "classifications.3795",
+      "object": {
+        "identity": "packages/contracts/src/memory/index.ts:22:ClipSourceKind",
+        "ordinal": 3795,
+        "package": "contracts",
+        "file": "packages/contracts/src/memory/index.ts",
+        "line": 22,
+        "symbol": "ClipSourceKind",
+        "declarationKind": "type",
+        "lensKind": "api-test-only",
+        "lensConsumer": "tests/contracts/memory/index.contract.test.ts:5",
+        "declarationContext": "/** Provenance of a clip. A `'user'` clip is NEVER auto-deleted (core/Knowledge-Cluster.md §9). */ export const CLIP_SOURCE_KINDS = [\"user\", \"synthesized\", \"promoted\"] as const; /** @public pre-built memory surface — provenance vocabulary (Knowledge-Cluster.md S9). */ export type ClipSourceKind = (typeof CLIP_SOURCE_KINDS)[number]; /** @public pre-built memory surface — schema twin of `CLIP_SOURCE_KINDS`. */ export const clipSourceKindSchema = z.enum(CLIP_SOURCE_KINDS);",
+        "classification": "intended-unwired-feature",
+        "decision": "preserve",
+        "basis": "exact current identity matched durable adjudication",
+        "priorAdjudication": {
+          "artifact": "/tmp/world-tools-partial-lenses-audit.json",
+          "symbol": "ClipSourceKind",
+          "file": "packages/contracts/src/memory/index.ts",
+          "line": 22,
+          "priorClassification": "prebuilt-public-contract-surface",
+          "priorDisposition": "preserve",
+          "rationale": "Declaration carries explicit @public pre-built memory-surface intent."
+        }
+      }
+    },
+    {
+      "file": "world-tools-apisurface-triage.json",
+      "path": "classifications.3796",
+      "object": {
+        "identity": "packages/contracts/src/memory/index.ts:24:clipSourceKindSchema",
+        "ordinal": 3796,
+        "package": "contracts",
+        "file": "packages/contracts/src/memory/index.ts",
+        "line": 24,
+        "symbol": "clipSourceKindSchema",
+        "declarationKind": "value",
+        "lensKind": "api-test-only",
+        "lensConsumer": "tests/contracts/memory/index.contract.test.ts:6",
+        "declarationContext": "/** @public pre-built memory surface — provenance vocabulary (Knowledge-Cluster.md S9). */ export type ClipSourceKind = (typeof CLIP_SOURCE_KINDS)[number]; /** @public pre-built memory surface — schema twin of `CLIP_SOURCE_KINDS`. */ export const clipSourceKindSchema = z.enum(CLIP_SOURCE_KINDS); export const CLIP_SCOPES = [\"character\", \"chat\", \"global\"] as const; /** @public pre-built memory surface — clip scope vocabulary. */",
+        "classification": "intended-unwired-feature",
+        "decision": "preserve",
+        "basis": "exact current identity matched durable adjudication",
+        "priorAdjudication": {
+          "artifact": "/tmp/world-tools-partial-lenses-audit.json",
+          "symbol": "clipSourceKindSchema",
+          "file": "packages/contracts/src/memory/index.ts",
+          "line": 24,
+          "priorClassification": "prebuilt-public-contract-surface",
+          "priorDisposition": "preserve",
+          "rationale": "Declaration carries explicit @public pre-built memory-surface intent."
+        }
+      }
+    },
+    {
+      "file": "world-tools-apisurface-triage.json",
+      "path": "classifications.3798",
+      "object": {
+        "identity": "packages/contracts/src/memory/index.ts:28:ClipScope",
+        "ordinal": 3798,
+        "package": "contracts",
+        "file": "packages/contracts/src/memory/index.ts",
+        "line": 28,
+        "symbol": "ClipScope",
+        "declarationKind": "type",
+        "lensKind": "api-test-only",
+        "lensConsumer": "tests/contracts/memory/index.contract.test.ts:5",
+        "declarationContext": "export const CLIP_SCOPES = [\"character\", \"chat\", \"global\"] as const; /** @public pre-built memory surface — clip scope vocabulary. */ export type ClipScope = (typeof CLIP_SCOPES)[number]; /** @public pre-built memory surface — schema twin of `CLIP_SCOPES`. */ export const clipScopeSchema = z.enum(CLIP_SCOPES);",
+        "classification": "intended-unwired-feature",
+        "decision": "preserve",
+        "basis": "exact current identity matched durable adjudication",
+        "priorAdjudication": {
+          "artifact": "/tmp/world-tools-partial-lenses-audit.json",
+          "symbol": "ClipScope",
+          "file": "packages/contracts/src/memory/index.ts",
+          "line": 28,
+          "priorClassification": "prebuilt-public-contract-surface",
+          "priorDisposition": "preserve",
+          "rationale": "Declaration carries explicit @public pre-built memory-surface intent."
+        }
+      }
+    },
+    {
+      "file": "world-tools-apisurface-triage.json",
+      "path": "classifications.3799",
+      "object": {
+        "identity": "packages/contracts/src/memory/index.ts:30:clipScopeSchema",
+        "ordinal": 3799,
+        "package": "contracts",
+        "file": "packages/contracts/src/memory/index.ts",
+        "line": 30,
+        "symbol": "clipScopeSchema",
+        "declarationKind": "value",
+        "lensKind": "api-test-only",
+        "lensConsumer": "tests/contracts/memory/index.contract.test.ts:6",
+        "declarationContext": "/** @public pre-built memory surface — clip scope vocabulary. */ export type ClipScope = (typeof CLIP_SCOPES)[number]; /** @public pre-built memory surface — schema twin of `CLIP_SCOPES`. */ export const clipScopeSchema = z.enum(CLIP_SCOPES);",
+        "classification": "intended-unwired-feature",
+        "decision": "preserve",
+        "basis": "exact current identity matched durable adjudication",
+        "priorAdjudication": {
+          "artifact": "/tmp/world-tools-partial-lenses-audit.json",
+          "symbol": "clipScopeSchema",
+          "file": "packages/contracts/src/memory/index.ts",
+          "line": 30,
+          "priorClassification": "prebuilt-public-contract-surface",
+          "priorDisposition": "preserve",
+          "rationale": "Declaration carries explicit @public pre-built memory-surface intent."
+        }
+      }
+    },
+    {
+      "file": "world-tools-apisurface-triage.json",
+      "path": "classifications.3806",
+      "object": {
+        "identity": "packages/contracts/src/plugin/host-v1.ts:177:PluginInvocation",
+        "ordinal": 3806,
+        "package": "contracts",
+        "file": "packages/contracts/src/plugin/host-v1.ts",
+        "line": 177,
+        "symbol": "PluginInvocation",
+        "declarationKind": "type",
+        "lensKind": "api-unused",
+        "lensConsumer": null,
+        "declarationContext": "/** What a handler/entry receives about ITS invocation context. * * @public future: the PluginHostV1 membrane delivery (unbuilt) — the guest-facing invocation-context shape the membrane does not deliver yet (surface unbuilt, not dead). */ export interface PluginInvocation { readonly chat: ChatHandle | null; // null for a non-chat-scoped invocation (e.g. install hook) readonly reason: \"event\" | \"tool\" | \"transform\" | \"snippet\" | \"activate\"; }",
+        "classification": "intended-unwired-feature",
+        "decision": "preserve",
+        "basis": "exact current identity matched durable adjudication",
+        "priorAdjudication": {
+          "artifact": "/tmp/world-tools-partial-lenses-audit.json",
+          "symbol": "PluginInvocation",
+          "file": "packages/contracts/src/plugin/host-v1.ts",
+          "line": 177,
+          "priorClassification": "intended-future-surface",
+          "priorDisposition": "preserve",
+          "rationale": "Declaration carries explicit @public future intent for a named unbuilt consumer."
+        }
+      }
+    },
+    {
+      "file": "world-tools-apisurface-triage.json",
+      "path": "classifications.3995",
+      "object": {
+        "identity": "packages/contracts/src/rpg/actor.ts:357:RpgActorIdentityTextField",
+        "ordinal": 3995,
+        "package": "contracts",
+        "file": "packages/contracts/src/rpg/actor.ts",
+        "line": 357,
+        "symbol": "RpgActorIdentityTextField",
+        "declarationKind": "type",
+        "lensKind": "api-unused",
+        "lensConsumer": null,
+        "declarationContext": "/** @public future: the projected-grammar / full-mode actor-identity surface (unbuilt) — derived from the live * `RPG_ACTOR_IDENTITY_TEXT_FIELDS` tuple, which every current consumer reads directly (rpg/index.ts * KISS/YAGNI SUSPENDED: full-mode shapes ship as data from day one). */ export type RpgActorIdentityTextField = (typeof RPG_ACTOR_IDENTITY_TEXT_FIELDS)[number]; /** The tracked-value PATCH a `setTracker` op carries — each datum optional, each DERIVED from the resident * value schema (never a re-spell): an omitted datum keeps the actor's current one, so a max edit never blanks",
+        "classification": "intended-unwired-feature",
+        "decision": "preserve",
+        "basis": "exact current identity matched durable adjudication",
+        "priorAdjudication": {
+          "artifact": "/tmp/world-tools-partial-lenses-audit.json",
+          "symbol": "RpgActorIdentityTextField",
+          "file": "packages/contracts/src/rpg/actor.ts",
+          "line": 357,
+          "priorClassification": "intended-future-surface",
+          "priorDisposition": "preserve",
+          "rationale": "Declaration carries explicit @public future intent for a named unbuilt consumer."
+        }
+      }
+    },
+    {
+      "file": "world-tools-apisurface-triage.json",
+      "path": "classifications.4016",
+      "object": {
+        "identity": "packages/contracts/src/rpg/enums.ts:66:RpgTrackerWrite",
+        "ordinal": 4016,
+        "package": "contracts",
+        "file": "packages/contracts/src/rpg/enums.ts",
+        "line": 66,
+        "symbol": "RpgTrackerWrite",
+        "declarationKind": "type",
+        "lensKind": "api-unused",
+        "lensConsumer": null,
+        "declarationContext": "/** @public future: the not-yet-built typed tracker-write consumers — the type face of the canonical * `RPG_TRACKER_WRITES` tuple/schema pair and its `delta`/`set` discrimination surface * (rpg/index.ts KISS/YAGNI SUSPENDED). */ export type RpgTrackerWrite = (typeof RPG_TRACKER_WRITES)[number]; export const rpgTrackerWriteSchema = z.enum(RPG_TRACKER_WRITES); /** A tracker's SUBJECT — `actor` (per-carrier, resolved through `appliesTo`+grants−revokes) or `game` (ONE",
+        "classification": "intended-unwired-feature",
+        "decision": "preserve",
+        "basis": "exact current identity matched durable adjudication",
+        "priorAdjudication": {
+          "artifact": "/tmp/world-tools-partial-lenses-audit.json",
+          "symbol": "RpgTrackerWrite",
+          "file": "packages/contracts/src/rpg/enums.ts",
+          "line": 66,
+          "priorClassification": "intended-future-surface",
+          "priorDisposition": "preserve",
+          "rationale": "Declaration carries explicit @public future intent for a named unbuilt consumer."
+        }
+      }
+    },
+    {
+      "file": "world-tools-apisurface-triage.json",
+      "path": "classifications.4019",
+      "object": {
+        "identity": "packages/contracts/src/rpg/enums.ts:75:RpgTrackerSubject",
+        "ordinal": 4019,
+        "package": "contracts",
+        "file": "packages/contracts/src/rpg/enums.ts",
+        "line": 75,
+        "symbol": "RpgTrackerSubject",
+        "declarationKind": "type",
+        "lensKind": "api-unused",
+        "lensConsumer": null,
+        "declarationContext": "/** @public future: the not-yet-built typed full-mode tracker consumers — the type face of the canonical * `RPG_TRACKER_SUBJECTS` tuple/schema pair and its `game`/`actor` discrimination surface * (rpg/index.ts KISS/YAGNI SUSPENDED). */ export type RpgTrackerSubject = (typeof RPG_TRACKER_SUBJECTS)[number]; export const rpgTrackerSubjectSchema = z.enum(RPG_TRACKER_SUBJECTS); /** The carrier CLASSES an actor-subject tracker's `appliesTo` may name (the alternative is an explicit",
+        "classification": "intended-unwired-feature",
+        "decision": "preserve",
+        "basis": "exact current identity matched durable adjudication",
+        "priorAdjudication": {
+          "artifact": "/tmp/world-tools-partial-lenses-audit.json",
+          "symbol": "RpgTrackerSubject",
+          "file": "packages/contracts/src/rpg/enums.ts",
+          "line": 75,
+          "priorClassification": "intended-future-surface",
+          "priorDisposition": "preserve",
+          "rationale": "Declaration carries explicit @public future intent for a named unbuilt consumer."
+        }
+      }
+    },
+    {
+      "file": "world-tools-apisurface-triage.json",
+      "path": "classifications.4030",
+      "object": {
+        "identity": "packages/contracts/src/rpg/extraction.ts:415:RpgToolRoundToolName",
+        "ordinal": 4030,
+        "package": "contracts",
+        "file": "packages/contracts/src/rpg/extraction.ts",
+        "line": 415,
+        "symbol": "RpgToolRoundToolName",
+        "declarationKind": "type",
+        "lensKind": "api-unused",
+        "lensConsumer": null,
+        "declarationContext": "/** @public future: a future typed tool-round dispatcher (unbuilt) — derived from the live * `RPG_TOOL_ROUND_TOOL_NAMES` tuple, which the tool-round parse code reads by string; the narrowed surface a * dispatcher uses instead of `string` (rpg/index.ts KISS/YAGNI SUSPENDED). */ export type RpgToolRoundToolName = (typeof RPG_TOOL_ROUND_TOOL_NAMES)[number]; /** One parsed tool call off the round's `ChatResult.toolCalls`: the tool name + its raw JSON args string. */ export interface RpgToolCall {",
+        "classification": "intended-unwired-feature",
+        "decision": "preserve",
+        "basis": "exact current identity matched durable adjudication",
+        "priorAdjudication": {
+          "artifact": "/tmp/world-tools-partial-lenses-audit.json",
+          "symbol": "RpgToolRoundToolName",
+          "file": "packages/contracts/src/rpg/extraction.ts",
+          "line": 415,
+          "priorClassification": "intended-future-surface",
+          "priorDisposition": "preserve",
+          "rationale": "Declaration carries explicit @public future intent for a named unbuilt consumer."
+        }
+      }
+    },
+    {
+      "file": "world-tools-apisurface-triage.json",
+      "path": "classifications.4043",
+      "object": {
+        "identity": "packages/contracts/src/rpg/mode.ts:98:RpgModeCapabilityAxis",
+        "ordinal": 4043,
+        "package": "contracts",
+        "file": "packages/contracts/src/rpg/mode.ts",
+        "line": 98,
+        "symbol": "RpgModeCapabilityAxis",
+        "declarationKind": "type",
+        "lensKind": "api-unused",
+        "lensConsumer": null,
+        "declarationContext": "/** @public future: a full-mode generic/iterating capability consumer (the graft, unbuilt) — the derived * key-union over `RpgModePolicy`'s boolean engine axes; every current `requireModeCapability` call site reads * a specific axis literal, not this union (rpg/index.ts KISS/YAGNI SUSPENDED). */ export type RpgModeCapabilityAxis = { [K in keyof RpgModePolicy]: RpgModePolicy[K] extends boolean ? K : never; }[keyof RpgModePolicy];",
+        "classification": "intended-unwired-feature",
+        "decision": "preserve",
+        "basis": "exact current identity matched durable adjudication",
+        "priorAdjudication": {
+          "artifact": "/tmp/world-tools-partial-lenses-audit.json",
+          "symbol": "RpgModeCapabilityAxis",
+          "file": "packages/contracts/src/rpg/mode.ts",
+          "line": 98,
+          "priorClassification": "intended-future-surface",
+          "priorDisposition": "preserve",
+          "rationale": "Declaration carries explicit @public future intent for a named unbuilt consumer."
+        }
+      }
+    },
+    {
+      "file": "world-tools-apisurface-triage.json",
+      "path": "classifications.4062",
+      "object": {
+        "identity": "packages/contracts/src/rpg/tools.ts:201:RpgQuestAction",
+        "ordinal": 4062,
+        "package": "contracts",
+        "file": "packages/contracts/src/rpg/tools.ts",
+        "line": 201,
+        "symbol": "RpgQuestAction",
+        "declarationKind": "type",
+        "lensKind": "api-unused",
+        "lensConsumer": null,
+        "declarationContext": "/** @public future: a future typed quest-action dispatcher (e.g. an `applyUpsertQuest` switch keyed off the * literal union, unbuilt) — derived from the live `RPG_QUEST_ACTIONS` tuple, which `upsertQuestArgsSchema` * reads directly; the narrowed surface used instead of `string` (rpg/index.ts KISS/YAGNI SUSPENDED). */ export type RpgQuestAction = (typeof RPG_QUEST_ACTIONS)[number]; export const upsertQuestArgsSchema = z.object({ name: z.string().min(1), action: z.enum(RPG_QUEST_ACTIONS),",
+        "classification": "intended-unwired-feature",
+        "decision": "preserve",
+        "basis": "exact current identity matched durable adjudication",
+        "priorAdjudication": {
+          "artifact": "/tmp/world-tools-partial-lenses-audit.json",
+          "symbol": "RpgQuestAction",
+          "file": "packages/contracts/src/rpg/tools.ts",
+          "line": 201,
+          "priorClassification": "intended-future-surface",
+          "priorDisposition": "preserve",
+          "rationale": "Declaration carries explicit @public future intent for a named unbuilt consumer."
+        }
+      }
+    },
+    {
+      "file": "world-tools-apisurface-triage.json",
+      "path": "classifications.4401",
+      "object": {
+        "identity": "packages/inference/src/contract/agent.ts:18:AgentDialogKind",
+        "ordinal": 4401,
+        "package": "inference",
+        "file": "packages/inference/src/contract/agent.ts",
+        "line": 18,
+        "symbol": "AgentDialogKind",
+        "declarationKind": "type",
+        "lensKind": "api-unused",
+        "lensConsumer": null,
+        "declarationContext": "* BUILT; only dormant DDL survives) — the member type of `AGENT_DIALOG_KINDS`, whose tuple is same-package-only * (apisurface INTERNAL), so this is a kept future surface, not a twin. Carried over from the pre-extraction * home (`packages/server/src/infra/providers/contract/agent.ts`), where the marker was dropped in the move. */ export type AgentDialogKind = (typeof AGENT_DIALOG_KINDS)[number]; /** SDK-free external MCP server spec the caller may attach. SECURITY: egress/subprocess capability — the * caller owns authorization; this contract only names the concern. */",
+        "classification": "intended-unwired-feature",
+        "decision": "preserve",
+        "basis": "current declaration marker plus lens consumer plane",
+        "priorAdjudication": null
+      }
+    },
+    {
+      "file": "world-tools-apisurface-triage.json",
+      "path": "classifications.4511",
+      "object": {
+        "identity": "packages/kit/src/ids/index.ts:227:OwnerStatId",
+        "ordinal": 4511,
+        "package": "kit",
+        "file": "packages/kit/src/ids/index.ts",
+        "line": 227,
+        "symbol": "OwnerStatId",
+        "declarationKind": "type",
+        "lensKind": "api-unused",
+        "lensConsumer": null,
+        "declarationContext": "// --- Stats (precompute rollup rows) ------------------------------------------ export type CharacterStatId = TypeIdOf<\"character_stat\">; /** @public future: the owner_stats typed-id surface (unbuilt) — one member of the per-table id-brand block, kept for block completeness; unused as a column type only because owner_stats has a NATURAL PK. */ export type OwnerStatId = TypeIdOf<\"owner_stat\">; export type DailyStatId = TypeIdOf<\"daily_stat\">; export type ModelStatId = TypeIdOf<\"model_stat\">;",
+        "classification": "intended-unwired-feature",
+        "decision": "preserve",
+        "basis": "exact current identity matched durable adjudication",
+        "priorAdjudication": {
+          "artifact": "/tmp/world-tools-partial-lenses-audit.json",
+          "symbol": "OwnerStatId",
+          "file": "packages/kit/src/ids/index.ts",
+          "line": 227,
+          "priorClassification": "intended-future-surface",
+          "priorDisposition": "preserve",
+          "rationale": "Explicit @public future per-table id-brand member; DB header confirms natural PK means no current typed-id column."
+        }
+      }
+    },
+    {
+      "file": "world-tools-apisurface-triage.json",
+      "path": "classifications.5713",
+      "object": {
+        "identity": "packages/server/src/domain/chat/substrate/auth/matrix.ts:221:authorityForSurface",
+        "ordinal": 5713,
+        "package": "server",
+        "file": "packages/server/src/domain/chat/substrate/auth/matrix.ts",
+        "line": 221,
+        "symbol": "authorityForSurface",
+        "declarationKind": "function",
+        "lensKind": "api-test-only",
+        "lensConsumer": "tests/server/domain/chat/substrate/auth/matrix.test.ts:3",
+        "declarationContext": "* is exported infrastructure for the non-verb surfaces named in {@link CHAT_NONVERB_SURFACES}, kept * fail-closed here so that WIRING it later is not also a security decision. */ export function authorityForSurface(surface: string): ChatAuthority | typeof DENY { return Object.hasOwn(CHAT_SURFACE_AUTHORITY, surface) ? CHAT_SURFACE_AUTHORITY[surface as ChatNonVerbSurface] : DENY; }",
+        "classification": "intended-unwired-feature",
+        "decision": "preserve",
+        "basis": "exact current identity matched durable adjudication",
+        "priorAdjudication": {
+          "artifact": "/tmp/world-tools-partial-lenses-audit.json",
+          "symbol": "authorityForSurface",
+          "file": "packages/server/src/domain/chat/substrate/auth/matrix.ts",
+          "line": 221,
+          "priorClassification": "intended-but-unwired",
+          "priorDisposition": "keep",
+          "rationale": "Keep as reserved fail-closed infrastructure only if the named non-verb surfaces are still expected to converge on it. Root should file or locate the wiring work; otherwise obtain an owner decision to retire the function and its claim."
+        }
+      }
+    },
+    {
+      "file": "world-tools-apisurface-triage.json",
+      "path": "classifications.6587",
+      "object": {
+        "identity": "packages/server/src/domain/plugin/contract/errors.ts:91:HostVersionUnservedError",
+        "ordinal": 6587,
+        "package": "server",
+        "file": "packages/server/src/domain/plugin/contract/errors.ts",
+        "line": 91,
+        "symbol": "HostVersionUnservedError",
+        "declarationKind": "class",
+        "lensKind": "api-unused",
+        "lensConsumer": null,
+        "declarationContext": "* @public future: the hostVersion gate (unbuilt) — a member of the built lifecycle error taxonomy; zero throw sites because that gate is not built yet. */ // @nearpair-ok: near-matches `@orb/contracts/plugin::PluginCapabilityError` by design — see // `ManifestInvalidError` above (same host-side taxonomy, expected kinship). export class HostVersionUnservedError extends DomainOperationError { constructor(requested: number, served: readonly number[]) { super(\"plugin_host_version_unserved\", `plugin host version ${requested} not served (served: ${served.join(\", \")})`); }",
+        "classification": "intended-unwired-feature",
+        "decision": "preserve",
+        "basis": "exact current identity matched durable adjudication",
+        "priorAdjudication": {
+          "artifact": "/tmp/world-tools-partial-lenses-audit.json",
+          "symbol": "HostVersionUnservedError",
+          "file": "packages/server/src/domain/plugin/contract/errors.ts",
+          "line": 91,
+          "priorClassification": "intended-but-unwired",
+          "priorDisposition": "keep",
+          "rationale": "Do not delete from this rot pass. If the product still wants a caller-distinguishable host-version refusal, wire the post-parse lifecycle gate and its test; otherwise retire the error only with an explicit owner decision that also updates the historical/spec references."
+        }
+      }
+    },
+    {
+      "file": "world-tools-apisurface-triage.json",
+      "path": "classifications.9251",
+      "object": {
+        "identity": "packages/ui/src/primitives/command/command.tsx:221:CommandSeparator",
+        "ordinal": 9251,
+        "package": "ui",
+        "file": "packages/ui/src/primitives/command/command.tsx",
+        "line": 221,
+        "symbol": "CommandSeparator",
+        "declarationKind": "function",
+        "lensKind": "api-unused",
+        "lensConsumer": null,
+        "declarationContext": "} /** A divider between groups/items — cmdk hides it during a search unless `alwaysRender` is set. */ export function CommandSeparator({ className, ...rest }: CommandSeparatorProps): ReactElement { return <BaseCommandSeparator className={cn(slots.separator(), className)} data-slot=\"command-separator\" {...rest} />; }",
+        "classification": "intended-unwired-feature",
+        "decision": "preserve",
+        "basis": "exact current identity matched durable adjudication",
+        "priorAdjudication": {
+          "artifact": "/tmp/world-tools-partial-lenses-audit.json",
+          "symbol": "CommandSeparator",
+          "file": "packages/ui/src/primitives/command/command.tsx",
+          "line": 221,
+          "priorClassification": "intended_but_unwired_feature",
+          "priorDisposition": "preserve",
+          "rationale": "Re-exported from the @orb/ui/command package entrypoint. The declaration comment defines the cmdk divider anatomy and its alwaysRender search behavior. ast-grep found declaration/import-alias/barrel structure and no runtime or test caller; the exact textual count was 3. This is a complete but currently unwired command-palette part, not accidental code."
+        }
+      }
+    },
+    {
+      "file": "world-tools-apisurface-triage.json",
+      "path": "classifications.9253",
+      "object": {
+        "identity": "packages/ui/src/primitives/command/command.tsx:230:CommandLoading",
+        "ordinal": 9253,
+        "package": "ui",
+        "file": "packages/ui/src/primitives/command/command.tsx",
+        "line": 230,
+        "symbol": "CommandLoading",
+        "declarationKind": "function",
+        "lensKind": "api-unused",
+        "lensConsumer": null,
+        "declarationContext": "} /** Progressbar shown while async suggestions load — render conditionally around it. */ export function CommandLoading({ className, ...rest }: CommandLoadingProps): ReactElement { return <BaseCommandLoading className={cn(slots.loading(), className)} data-slot=\"command-loading\" {...rest} />; }",
+        "classification": "intended-unwired-feature",
+        "decision": "preserve",
+        "basis": "exact current identity matched durable adjudication",
+        "priorAdjudication": {
+          "artifact": "/tmp/world-tools-partial-lenses-audit.json",
+          "symbol": "CommandLoading",
+          "file": "packages/ui/src/primitives/command/command.tsx",
+          "line": 230,
+          "priorClassification": "intended_but_unwired_feature",
+          "priorDisposition": "preserve",
+          "rationale": "Re-exported from @orb/ui/command. The declaration is the styled cmdk async-suggestions progressbar and the command file explicitly describes future omni-bar composition. ast-grep found declaration/import-alias/barrel structure and no caller; the exact textual count was 3."
+        }
+      }
+    },
+    {
+      "file": "world-tools-apisurface-triage.json",
+      "path": "classifications.9479",
+      "object": {
+        "identity": "packages/ui/src/tokens/index.ts:253:PolarityTokenPath",
+        "ordinal": 9479,
+        "package": "ui",
+        "file": "packages/ui/src/tokens/index.ts",
+        "line": 253,
+        "symbol": "PolarityTokenPath",
+        "declarationKind": "type",
+        "lensKind": "api-unused",
+        "lensConsumer": null,
+        "declarationContext": "\"color.track-6\": { light: \"oklch(0.535 0.09 200)\", dark: \"oklch(0.72 0.1 200)\" }, } as const; export type PolarityTokenPath = keyof typeof TOKEN_POLARITY_ARMS; /** Resolved px at the 16px root for every snapped-output dimension — build-time consumers (the ui-audit ramp bindings) read THIS and never parse the round() serialization (the TOKEN_POLARITY_ARMS precedent). */ export const SNAPPED_LENGTH_BASE_PX = {",
+        "classification": "intended-unwired-feature",
+        "decision": "preserve",
+        "basis": "exact current identity matched durable adjudication",
+        "priorAdjudication": {
+          "artifact": "/tmp/world-tools-partial-lenses-audit.json",
+          "symbol": "PolarityTokenPath",
+          "file": "packages/ui/src/tokens/index.ts",
+          "line": 253,
+          "priorClassification": "intended_but_unwired_feature",
+          "priorDisposition": "preserve",
+          "rationale": "The @orb/ui/tokens package entrypoint is the generated typed companion to TOKEN_POLARITY_ARMS. A contextual ast-grep type-alias pattern found the declaration; TSX ast-grep found no use; unrestricted rg found exactly two spellings: the generated declaration and the generator template at packages/ui/tokens.build.ts:422. git history shows both the map and key type were introduced together by e952dbc00. Removing only the type would narrow an intentionally generated map API, so absence of a current caller is insufficient deletion authority."
+        }
+      }
+    },
+    {
+      "file": "world-tools-client-rot-triage.json",
+      "path": "findings.0",
+      "object": {
+        "symbol": "useDeleteRefinerySchema",
+        "reported_kind": "orphan-export",
+        "declaration": "packages/client/src/features/refinery/hooks/use-refinery-schemas.ts:51",
+        "classification": "intended-but-unwired-feature",
+        "live_runtime_consumer": false,
+        "framework_or_vite_entrypoint": false,
+        "deliberate_component_or_test_adapter_seam": false,
+        "intended_but_unwired_feature": true,
+        "genuine_deletion": false,
+        "tool_assessment": "accurate-liveness-candidate-not-a-deletion-finding",
+        "structural_evidence": {
+          "ts_occurrences": 2,
+          "tsx_occurrences": 0,
+          "matches": ["declaration in use-refinery-schemas.ts", "feature-front-door re-export in packages/client/src/features/refinery/index.ts:57"]
+        },
+        "text_occurrences": 2,
+        "adjudication": "Preserve. The declaration is explicitly marked '@public future' and names the unbuilt schema-editor delete affordance. Its comment says the server verb and belts shipped with R3 so the surface can wire deletion without a contract round-trip. This is deliberate unwired product intent under the repository's unwired-is-not-worthless rule."
+      }
+    },
+    {
+      "file": "world-tools-client-rot-triage.json",
+      "path": "findings.5",
+      "object": {
+        "symbol": "useDeleteRefinerySession",
+        "reported_kind": "test-only-export",
+        "declaration": "packages/client/src/features/refinery/hooks/use-refinery-mutations.ts:123",
+        "classification": "intended-but-unwired-feature",
+        "secondary_classification": "deliberate-component-test-adapter-seam",
+        "live_runtime_consumer": false,
+        "framework_or_vite_entrypoint": false,
+        "deliberate_component_or_test_adapter_seam": true,
+        "intended_but_unwired_feature": true,
+        "genuine_deletion": false,
+        "tool_assessment": "accurate-liveness-candidate-not-a-deletion-finding",
+        "structural_evidence": {
+          "ts_occurrences": 2,
+          "tsx_occurrences": 2,
+          "matches": ["declaration and feature-front-door re-export", "import and real hook call in tests/client/features/refinery/_ct-stories.tsx:42,85"]
+        },
+        "text_occurrences": 4,
+        "adjudication": "Preserve. The hook is explicitly '@public future' for the R3 session-library delete affordance, while the component-test story currently drives the real hook through the feature front door, real QueryClient, toast surface, and routed network stub. It is both retained product intent and an exercised write-tier adapter."
+      }
+    },
+    {
+      "file": "world-tools-client-testonly-triage.json",
+      "path": "items.4",
+      "object": {
+        "symbol": "useDeleteRefinerySession",
+        "file": "packages/client/src/features/refinery/hooks/use-refinery-mutations.ts",
+        "line": 123,
+        "classification": "missing_product_wiring",
+        "confidence": "high",
+        "production_direct_refs": 0,
+        "evidence": [
+          "Lines 121-122 call it future until the R3 session-library surface builds.",
+          "The R3 list is now present at packages/client/src/features/refinery/surfaces/refinery-list-surface.tsx:165-269, but its rows only select sessions and expose no delete action.",
+          "Only tests/client/features/refinery/_ct-stories.tsx:85,115-116 instantiates and fires the delete hook; the feature barrel re-export is not a consumer."
+        ],
+        "recommendation": "Owner decision required: wire an intentional, confirmed delete affordance into the existing session library, or retire the client hook/export/test if session deletion is not a product action. The current future marker is stale."
+      }
+    },
+    {
+      "file": "world-tools-client-testonly-triage.json",
+      "path": "items.10",
+      "object": {
+        "symbol": "parsePluginPageKey",
+        "file": "packages/client/src/state/plugin-page-selection-store.ts",
+        "line": 30,
+        "classification": "stale_tested_implementation",
+        "confidence": "high",
+        "production_direct_refs": 0,
+        "evidence": [
+          "Production mints keys with pluginPageKey, selects the opaque key, and resolves pages by exact key equality in use-extensions-selection-title.ts:20-28 and extensions-page-surface.tsx; it never splits the key.",
+          "There is no plugin-page deep-link reader.",
+          "Only tests/client/state/plugin-page-selection-store.test.ts:21-35 calls the parser. The function also checks only colon placement, not the TypeID/surface-id grammar its header claims makes the split valid."
+        ],
+        "recommendation": "Remove the parser/export/tests unless a real deep-link or boundary consumer is added; validate both halves at that future boundary."
+      }
+    },
+    {
+      "file": "world-tools-columns-triage.json",
+      "path": "findings.29",
+      "object": {
+        "key": "session_entries.connection_id",
+        "lens_kind": "column-read-only",
+        "category": "dormant_or_parked",
+        "producer": "No current writer. SessionEntryWriter carries no connection id.",
+        "consumer": "No application member read; lens count is homonym overcount. DDL FK/index/partial unique already prepare the column.",
+        "schema_intent": "Header explicitly says nullable until the per-user agent-sdk cut-over lands its writer; intended attribution and primary partition.",
+        "recommendation": "Do not delete. Complete the explicitly parked writer seam when that cut-over proceeds; optionally make the candidate lens understand recorded dormant columns.",
+        "evidence": [
+          "packages/db/src/schema/sdk-session.ts:65",
+          "packages/inference/src/backends/agent-sdk/session/store.ts:64",
+          "packages/server/src/entry/compose/session-entries.ts:31",
+          "tooling/src/verify/gates/domain-freshness-plane.ts:153"
+        ]
+      }
+    },
+    {
+      "file": "world-tools-external-consumer-design.json",
+      "path": "alternatives.2",
+      "object": {
+        "name": "parse every shell node -e",
+        "decision": "defer",
+        "reason": "Requires a Bash parser dependency plus nested JS parsing for one edge."
+      }
+    },
+    {
+      "file": "world-tools-partial-lenses-audit.json",
+      "path": "ownedAdjudication.0",
+      "object": {
+        "package": "kit",
+        "symbol": "OwnerStatId",
+        "lens": "orphans",
+        "declaration": "packages/kit/src/ids/index.ts:227",
+        "classification": "intended-future-surface",
+        "decision": "preserve",
+        "reason": "Explicit @public future per-table id-brand member; DB header confirms natural PK means no current typed-id column.",
+        "semanticEvidence": "current rot ts-morph collector classified this as orphans; no stronger deletion claim is inferred",
+        "locatedFiles": ["packages/db/src/schema/stats.ts", "packages/kit/src/ids/index.ts"]
+      }
+    },
+    {
+      "file": "world-tools-partial-lenses-audit.json",
+      "path": "ownedAdjudication.10",
+      "object": {
+        "package": "contracts",
+        "symbol": "AUTOMATION_BUS_EVENT_TYPES",
+        "lens": "orphans",
+        "declaration": "packages/contracts/src/automation/index.ts:929",
+        "classification": "intended-future-surface",
+        "decision": "preserve",
+        "reason": "Declaration carries explicit @public future intent for a named unbuilt consumer.",
+        "semanticEvidence": "current rot ts-morph collector classified this as orphans; no stronger deletion claim is inferred",
+        "locatedFiles": [
+          "tooling/src/verify/lib/bus-coverage.ts",
+          "tooling/src/verify/gates/bus-producer-coverage.ts",
+          "packages/client/src/features/automation/lib/apply-automation-bus-event.ts",
+          "packages/contracts/src/automation/index.ts",
+          "tests/tooling/verify/gates/bus-fact-health.test.ts"
+        ]
+      }
+    },
+    {
+      "file": "world-tools-partial-lenses-audit.json",
+      "path": "ownedAdjudication.20",
+      "object": {
+        "package": "contracts",
+        "symbol": "PluginInvocation",
+        "lens": "orphans",
+        "declaration": "packages/contracts/src/plugin/host-v1.ts:177",
+        "classification": "intended-future-surface",
+        "decision": "preserve",
+        "reason": "Declaration carries explicit @public future intent for a named unbuilt consumer.",
+        "semanticEvidence": "current rot ts-morph collector classified this as orphans; no stronger deletion claim is inferred",
+        "locatedFiles": ["packages/contracts/src/plugin/host-v1.ts", "packages/contracts/src/plugin/index.ts"]
+      }
+    },
+    {
+      "file": "world-tools-partial-lenses-audit.json",
+      "path": "ownedAdjudication.23",
+      "object": {
+        "package": "contracts",
+        "symbol": "RpgActorIdentityTextField",
+        "lens": "orphans",
+        "declaration": "packages/contracts/src/rpg/actor.ts:357",
+        "classification": "intended-future-surface",
+        "decision": "preserve",
+        "reason": "Declaration carries explicit @public future intent for a named unbuilt consumer.",
+        "semanticEvidence": "current rot ts-morph collector classified this as orphans; no stronger deletion claim is inferred",
+        "locatedFiles": ["packages/contracts/src/rpg/actor.ts", "packages/contracts/src/rpg/index.ts"]
+      }
+    },
+    {
+      "file": "world-tools-partial-lenses-audit.json",
+      "path": "ownedAdjudication.26",
+      "object": {
+        "package": "contracts",
+        "symbol": "RpgTrackerWrite",
+        "lens": "orphans",
+        "declaration": "packages/contracts/src/rpg/enums.ts:66",
+        "classification": "intended-future-surface",
+        "decision": "preserve",
+        "reason": "Declaration carries explicit @public future intent for a named unbuilt consumer.",
+        "semanticEvidence": "current rot ts-morph collector classified this as orphans; no stronger deletion claim is inferred",
+        "locatedFiles": ["packages/contracts/src/rpg/enums.ts", "packages/contracts/src/rpg/index.ts"]
+      }
+    },
+    {
+      "file": "world-tools-partial-lenses-audit.json",
+      "path": "ownedAdjudication.27",
+      "object": {
+        "package": "contracts",
+        "symbol": "RpgTrackerSubject",
+        "lens": "orphans",
+        "declaration": "packages/contracts/src/rpg/enums.ts:75",
+        "classification": "intended-future-surface",
+        "decision": "preserve",
+        "reason": "Declaration carries explicit @public future intent for a named unbuilt consumer.",
+        "semanticEvidence": "current rot ts-morph collector classified this as orphans; no stronger deletion claim is inferred",
+        "locatedFiles": ["packages/contracts/src/rpg/enums.ts", "packages/contracts/src/rpg/index.ts"]
+      }
+    },
+    {
+      "file": "world-tools-partial-lenses-audit.json",
+      "path": "ownedAdjudication.28",
+      "object": {
+        "package": "contracts",
+        "symbol": "RpgToolRoundToolName",
+        "lens": "orphans",
+        "declaration": "packages/contracts/src/rpg/extraction.ts:415",
+        "classification": "intended-future-surface",
+        "decision": "preserve",
+        "reason": "Declaration carries explicit @public future intent for a named unbuilt consumer.",
+        "semanticEvidence": "current rot ts-morph collector classified this as orphans; no stronger deletion claim is inferred",
+        "locatedFiles": ["packages/contracts/src/rpg/extraction.ts", "packages/contracts/src/rpg/index.ts"]
+      }
+    },
+    {
+      "file": "world-tools-partial-lenses-audit.json",
+      "path": "ownedAdjudication.30",
+      "object": {
+        "package": "contracts",
+        "symbol": "RpgModeCapabilityAxis",
+        "lens": "orphans",
+        "declaration": "packages/contracts/src/rpg/mode.ts:98",
+        "classification": "intended-future-surface",
+        "decision": "preserve",
+        "reason": "Declaration carries explicit @public future intent for a named unbuilt consumer.",
+        "semanticEvidence": "current rot ts-morph collector classified this as orphans; no stronger deletion claim is inferred",
+        "locatedFiles": ["packages/contracts/src/rpg/index.ts", "packages/contracts/src/rpg/mode.ts"]
+      }
+    },
+    {
+      "file": "world-tools-partial-lenses-audit.json",
+      "path": "ownedAdjudication.31",
+      "object": {
+        "package": "contracts",
+        "symbol": "RpgQuestAction",
+        "lens": "orphans",
+        "declaration": "packages/contracts/src/rpg/tools.ts:201",
+        "classification": "intended-future-surface",
+        "decision": "preserve",
+        "reason": "Declaration carries explicit @public future intent for a named unbuilt consumer.",
+        "semanticEvidence": "current rot ts-morph collector classified this as orphans; no stronger deletion claim is inferred",
+        "locatedFiles": ["packages/contracts/src/rpg/tools.ts", "packages/contracts/src/rpg/index.ts"]
+      }
+    },
+    {
+      "file": "world-tools-partial-lenses-audit.json",
+      "path": "delegatedAdjudication.small-package.report.findings.1",
+      "object": {
+        "id": "db.ProviderRowOrigin",
+        "package": "db",
+        "reportedLens": "namespace-swallowed-export",
+        "classification": "intended-but-unwired-or-schema-type-surface",
+        "disposition": "keep",
+        "productRuntimeConsumer": false,
+        "testOnlySeam": false,
+        "frameworkOrEntrypointUse": false,
+        "intendedButUnwired": true,
+        "genuineDeletion": false,
+        "reason": "No direct consumer uses the alias today, but it is the schema type twin derived from the live PROVIDER_ROW_ORIGINS tuple. The tuple itself drives the origin_kind Drizzle enum and SQL CHECK. The task explicitly requires preserving schema/type twins. The swallowed result comes from the complete schema barrel being imported as a namespace by the DB client; it is not evidence that this erased type executes at runtime.",
+        "evidence": [
+          "packages/db/src/schema/connection-bindings.ts:82-84 declares the tuple and derived alias",
+          "packages/db/src/schema/connection-bindings.ts:109 and :127 consume PROVIDER_ROW_ORIGINS in the live table definition",
+          "packages/db/src/schema/index.ts:1-8 states the complete-barrel contract and :34 re-exports connection-bindings",
+          "packages/db/src/client/index.ts:21 imports the schema namespace for Drizzle and typeof schema",
+          "explicit ast-grep type-alias search found the declaration; member-access searches found no direct ProviderRowOrigin consumer across 6526 TS files",
+          "repository-wide rg over TS/TSX found only the declaration"
+        ]
+      }
+    },
+    {
+      "file": "world-tools-partial-lenses-audit.json",
+      "path": "delegatedAdjudication.small-package.report.findings.2",
+      "object": {
+        "id": "db.PROVIDER_ROW_TASKS",
+        "package": "db",
+        "reportedLens": "namespace-swallowed-export",
+        "classification": "intended-but-unwired-feature-seam",
+        "disposition": "keep-and-flag-unwired",
+        "productRuntimeConsumer": false,
+        "testOnlySeam": false,
+        "frameworkOrEntrypointUse": false,
+        "intendedButUnwired": true,
+        "genuineDeletion": false,
+        "reason": "The export has no direct caller. Its declaration explicitly names it as the closed task tuple for validating provider_rows.serves on write, but the current writer accepts an already validated ProviderDef and writes row.serves directly; the contract schema is the present validation authority. This is intended validation surface that is presently unwired, not proven superseded residue. Preserve the explicit seam and route any decision to remove or wire it through the provider-row design owner.",
+        "evidence": [
+          "packages/db/src/schema/connection-bindings.ts:136-137 states the validation-seam intent and derives the value from canonical TASKS",
+          "packages/server/src/domain/connection/persistence/provider-rows.ts:1-4 states that providerDefSchema validates the JSON arrays on write",
+          "packages/server/src/domain/connection/persistence/provider-rows.ts:35-58 writes row.serves without consuming PROVIDER_ROW_TASKS",
+          "explicit ast-grep member-access search found no direct consumer across 6526 TS files; TSX search covered another 1469 files",
+          "repository-wide rg over TS/TSX found only the declaration"
+        ],
+        "followUp": "Architectural/product decision only: either wire this exported tuple into a DB-owned validation boundary or explicitly retire the claimed seam. Do not delete it as incidental rot."
+      }
+    },
+    {
+      "file": "world-tools-partial-lenses-audit.json",
+      "path": "delegatedAdjudication.small-package.report.findings.3",
+      "object": {
+        "id": "inference.AgentDialogKind",
+        "package": "inference",
+        "reportedLens": "orphan-export",
+        "classification": "intended-but-unwired-future-public-surface",
+        "disposition": "keep",
+        "productRuntimeConsumer": false,
+        "testOnlySeam": false,
+        "frameworkOrEntrypointUse": false,
+        "intendedButUnwired": true,
+        "genuineDeletion": false,
+        "reason": "The declaration carries an explicit @public future marker for unbuilt agent-principal dialog handling and says agents are the model of record while only dormant DDL exists. It is re-exported from the inference contract barrel. This is exactly the repository's unwired-intent case and must not be treated as deletion evidence.",
+        "evidence": [
+          "packages/inference/src/contract/agent.ts:12-18 declares the closed tuple and documents the kept future public surface",
+          "packages/inference/src/contract/index.ts:19-28 re-exports both the type and tuple",
+          "explicit ast-grep type-alias search found the declaration across 6526 TS files; TSX search covered another 1469 files",
+          "repository-wide rg over TS/TSX found the declaration and barrel re-export only"
+        ]
+      }
+    },
+    {
+      "file": "world-tools-partial-lenses-audit.json",
+      "path": "delegatedAdjudication.server.report.items.0",
+      "object": {
+        "symbol": "HostVersionUnservedError",
+        "file": "packages/server/src/domain/plugin/contract/errors.ts",
+        "line": 91,
+        "lensKind": "orphan-export",
+        "classification": "intended-but-unwired",
+        "decision": "keep",
+        "evidence": [
+          "Structural scan found only the declaration and domain front-door re-export; no TSX occurrence and no throw/catch site.",
+          "The declaration says the distinct hostVersion lifecycle gate is unbuilt and marks the class as a future taxonomy member.",
+          "docs/history/reviews/misc/2026-08-03-export-rot-dispositions.md already adjudicated this exact export as a pre-built/spec'd-not-built seam, not residue.",
+          "Current manifest validation accepts only hostVersion 1 through z.literal(1), so unsupported versions are rejected today through generic manifest validation rather than this typed domain error."
+        ],
+        "recommendation": "Do not delete from this rot pass. If the product still wants a caller-distinguishable host-version refusal, wire the post-parse lifecycle gate and its test; otherwise retire the error only with an explicit owner decision that also updates the historical/spec references."
+      }
+    },
+    {
+      "file": "world-tools-partial-lenses-audit.json",
+      "path": "delegatedAdjudication.server.report.items.7",
+      "object": {
+        "symbol": "authorityForSurface",
+        "file": "packages/server/src/domain/chat/substrate/auth/matrix.ts",
+        "line": 221,
+        "lensKind": "test-only-export",
+        "classification": "intended-but-unwired",
+        "decision": "keep",
+        "evidence": [
+          "The source explicitly records no production caller and the structural pass confirms only declaration, barrel re-export, and matrix tests.",
+          "It is the fail-closed classifier for string-keyed non-verb surfaces and uses Object.hasOwn to reject prototype-chain names."
+        ],
+        "recommendation": "Keep as reserved fail-closed infrastructure only if the named non-verb surfaces are still expected to converge on it. Root should file or locate the wiring work; otherwise obtain an owner decision to retire the function and its claim."
+      }
+    },
+    {
+      "file": "world-tools-partial-lenses-audit.json",
+      "path": "delegatedAdjudication.client.report.findings.0",
+      "object": {
+        "symbol": "useDeleteRefinerySchema",
+        "reported_kind": "orphan-export",
+        "declaration": "packages/client/src/features/refinery/hooks/use-refinery-schemas.ts:51",
+        "classification": "intended-but-unwired-feature",
+        "live_runtime_consumer": false,
+        "framework_or_vite_entrypoint": false,
+        "deliberate_component_or_test_adapter_seam": false,
+        "intended_but_unwired_feature": true,
+        "genuine_deletion": false,
+        "tool_assessment": "accurate-liveness-candidate-not-a-deletion-finding",
+        "structural_evidence": {
+          "ts_occurrences": 2,
+          "tsx_occurrences": 0,
+          "matches": ["declaration in use-refinery-schemas.ts", "feature-front-door re-export in packages/client/src/features/refinery/index.ts:57"]
+        },
+        "text_occurrences": 2,
+        "adjudication": "Preserve. The declaration is explicitly marked '@public future' and names the unbuilt schema-editor delete affordance. Its comment says the server verb and belts shipped with R3 so the surface can wire deletion without a contract round-trip. This is deliberate unwired product intent under the repository's unwired-is-not-worthless rule."
+      }
+    },
+    {
+      "file": "world-tools-partial-lenses-audit.json",
+      "path": "delegatedAdjudication.client.report.findings.5",
+      "object": {
+        "symbol": "useDeleteRefinerySession",
+        "reported_kind": "test-only-export",
+        "declaration": "packages/client/src/features/refinery/hooks/use-refinery-mutations.ts:123",
+        "classification": "intended-but-unwired-feature",
+        "secondary_classification": "deliberate-component-test-adapter-seam",
+        "live_runtime_consumer": false,
+        "framework_or_vite_entrypoint": false,
+        "deliberate_component_or_test_adapter_seam": true,
+        "intended_but_unwired_feature": true,
+        "genuine_deletion": false,
+        "tool_assessment": "accurate-liveness-candidate-not-a-deletion-finding",
+        "structural_evidence": {
+          "ts_occurrences": 2,
+          "tsx_occurrences": 2,
+          "matches": ["declaration and feature-front-door re-export", "import and real hook call in tests/client/features/refinery/_ct-stories.tsx:42,85"]
+        },
+        "text_occurrences": 4,
+        "adjudication": "Preserve. The hook is explicitly '@public future' for the R3 session-library delete affordance, while the component-test story currently drives the real hook through the feature front door, real QueryClient, toast surface, and routed network stub. It is both retained product intent and an exercised write-tier adapter."
+      }
+    },
+    {
+      "file": "world-tools-security-testonly-triage.json",
+      "path": "items.1",
+      "object": {
+        "symbol": "authorityForSurface",
+        "file": "packages/server/src/domain/chat/substrate/auth/matrix.ts",
+        "line": 221,
+        "classification": "intentional-dormant-fail-closed-seam",
+        "disposition": "retain",
+        "severity": "none",
+        "ast": {
+          "identifierMatches": 7,
+          "productionRuntimeCallers": 0,
+          "productionIdentifierSites": ["the declaration", "the auth barrel re-export"],
+          "testIdentifierSites": 5,
+          "testCallExpressions": 4
+        },
+        "evidence": [
+          "The source header explicitly records that there is no production caller and says the classifier is prebuilt for the named non-verb surfaces so future wiring does not invent a second authority decision.",
+          "Its tests prove a known fail-open pitfall is closed: Object.hasOwn is used, and inherited Object.prototype names plus empty and unknown strings return DENY.",
+          "The complete AST and literal sweeps found no missed runtime caller."
+        ],
+        "securityDecision": "This seam currently enforces nothing in production and must not be credited as an active authorization belt. Its value is the explicit, tested default-deny classifier prepared for non-verb wiring.",
+        "recommendation": "Keep as the documented intentional security seam. If project policy later rejects prewired dormant seams, remove the function, barrel export, and its four focused calls together; no production migration would be required."
+      }
+    },
+    {
+      "file": "world-tools-server-rot-triage.json",
+      "path": "items.0",
+      "object": {
+        "symbol": "HostVersionUnservedError",
+        "file": "packages/server/src/domain/plugin/contract/errors.ts",
+        "line": 91,
+        "lensKind": "orphan-export",
+        "classification": "intended-but-unwired",
+        "decision": "keep",
+        "evidence": [
+          "Structural scan found only the declaration and domain front-door re-export; no TSX occurrence and no throw/catch site.",
+          "The declaration says the distinct hostVersion lifecycle gate is unbuilt and marks the class as a future taxonomy member.",
+          "docs/history/reviews/misc/2026-08-03-export-rot-dispositions.md already adjudicated this exact export as a pre-built/spec'd-not-built seam, not residue.",
+          "Current manifest validation accepts only hostVersion 1 through z.literal(1), so unsupported versions are rejected today through generic manifest validation rather than this typed domain error."
+        ],
+        "recommendation": "Do not delete from this rot pass. If the product still wants a caller-distinguishable host-version refusal, wire the post-parse lifecycle gate and its test; otherwise retire the error only with an explicit owner decision that also updates the historical/spec references."
+      }
+    },
+    {
+      "file": "world-tools-server-rot-triage.json",
+      "path": "items.7",
+      "object": {
+        "symbol": "authorityForSurface",
+        "file": "packages/server/src/domain/chat/substrate/auth/matrix.ts",
+        "line": 221,
+        "lensKind": "test-only-export",
+        "classification": "intended-but-unwired",
+        "decision": "keep",
+        "evidence": [
+          "The source explicitly records no production caller and the structural pass confirms only declaration, barrel re-export, and matrix tests.",
+          "It is the fail-closed classifier for string-keyed non-verb surfaces and uses Object.hasOwn to reject prototype-chain names."
+        ],
+        "recommendation": "Keep as reserved fail-closed infrastructure only if the named non-verb surfaces are still expected to converge on it. Root should file or locate the wiring work; otherwise obtain an owner decision to retire the function and its claim."
+      }
+    },
+    {
+      "file": "world-tools-server-testonly-triage.json",
+      "path": "items.8",
+      "object": {
+        "symbol": "loadPendingTurns",
+        "file": "packages/server/src/domain/chat/persistence/invites.ts",
+        "line": 228,
+        "classification": "deliberate-test-seam",
+        "evidence": [
+          "Production drains use loadPendingTurnsForReclaim and loadPendingTurnsForHost, followed by atomic claimPendingTurn.",
+          "The chat-scoped sibling is used across turn/invite integration tests to assert queue state and ordering.",
+          "Source explicitly reserves it as a future per-chat pending surface while stating it is not the production drain scope."
+        ],
+        "recommendation": "Keep as a bounded queue-state test seam. Reassess only if the future surface is rejected and tests gain direct fixture queries.",
+        "confidence": "high"
+      }
+    },
+    {
+      "file": "world-tools-small-package-rot-triage.json",
+      "path": "findings.1",
+      "object": {
+        "id": "db.ProviderRowOrigin",
+        "package": "db",
+        "reportedLens": "namespace-swallowed-export",
+        "classification": "intended-but-unwired-or-schema-type-surface",
+        "disposition": "keep",
+        "productRuntimeConsumer": false,
+        "testOnlySeam": false,
+        "frameworkOrEntrypointUse": false,
+        "intendedButUnwired": true,
+        "genuineDeletion": false,
+        "reason": "No direct consumer uses the alias today, but it is the schema type twin derived from the live PROVIDER_ROW_ORIGINS tuple. The tuple itself drives the origin_kind Drizzle enum and SQL CHECK. The task explicitly requires preserving schema/type twins. The swallowed result comes from the complete schema barrel being imported as a namespace by the DB client; it is not evidence that this erased type executes at runtime.",
+        "evidence": [
+          "packages/db/src/schema/connection-bindings.ts:82-84 declares the tuple and derived alias",
+          "packages/db/src/schema/connection-bindings.ts:109 and :127 consume PROVIDER_ROW_ORIGINS in the live table definition",
+          "packages/db/src/schema/index.ts:1-8 states the complete-barrel contract and :34 re-exports connection-bindings",
+          "packages/db/src/client/index.ts:21 imports the schema namespace for Drizzle and typeof schema",
+          "explicit ast-grep type-alias search found the declaration; member-access searches found no direct ProviderRowOrigin consumer across 6526 TS files",
+          "repository-wide rg over TS/TSX found only the declaration"
+        ]
+      }
+    },
+    {
+      "file": "world-tools-small-package-rot-triage.json",
+      "path": "findings.2",
+      "object": {
+        "id": "db.PROVIDER_ROW_TASKS",
+        "package": "db",
+        "reportedLens": "namespace-swallowed-export",
+        "classification": "intended-but-unwired-feature-seam",
+        "disposition": "keep-and-flag-unwired",
+        "productRuntimeConsumer": false,
+        "testOnlySeam": false,
+        "frameworkOrEntrypointUse": false,
+        "intendedButUnwired": true,
+        "genuineDeletion": false,
+        "reason": "The export has no direct caller. Its declaration explicitly names it as the closed task tuple for validating provider_rows.serves on write, but the current writer accepts an already validated ProviderDef and writes row.serves directly; the contract schema is the present validation authority. This is intended validation surface that is presently unwired, not proven superseded residue. Preserve the explicit seam and route any decision to remove or wire it through the provider-row design owner.",
+        "evidence": [
+          "packages/db/src/schema/connection-bindings.ts:136-137 states the validation-seam intent and derives the value from canonical TASKS",
+          "packages/server/src/domain/connection/persistence/provider-rows.ts:1-4 states that providerDefSchema validates the JSON arrays on write",
+          "packages/server/src/domain/connection/persistence/provider-rows.ts:35-58 writes row.serves without consuming PROVIDER_ROW_TASKS",
+          "explicit ast-grep member-access search found no direct consumer across 6526 TS files; TSX search covered another 1469 files",
+          "repository-wide rg over TS/TSX found only the declaration"
+        ],
+        "followUp": "Architectural/product decision only: either wire this exported tuple into a DB-owned validation boundary or explicitly retire the claimed seam. Do not delete it as incidental rot."
+      }
+    },
+    {
+      "file": "world-tools-small-package-rot-triage.json",
+      "path": "findings.3",
+      "object": {
+        "id": "inference.AgentDialogKind",
+        "package": "inference",
+        "reportedLens": "orphan-export",
+        "classification": "intended-but-unwired-future-public-surface",
+        "disposition": "keep",
+        "productRuntimeConsumer": false,
+        "testOnlySeam": false,
+        "frameworkOrEntrypointUse": false,
+        "intendedButUnwired": true,
+        "genuineDeletion": false,
+        "reason": "The declaration carries an explicit @public future marker for unbuilt agent-principal dialog handling and says agents are the model of record while only dormant DDL exists. It is re-exported from the inference contract barrel. This is exactly the repository's unwired-intent case and must not be treated as deletion evidence.",
+        "evidence": [
+          "packages/inference/src/contract/agent.ts:12-18 declares the closed tuple and documents the kept future public surface",
+          "packages/inference/src/contract/index.ts:19-28 re-exports both the type and tuple",
+          "explicit ast-grep type-alias search found the declaration across 6526 TS files; TSX search covered another 1469 files",
+          "repository-wide rg over TS/TSX found the declaration and barrel re-export only"
+        ]
+      }
+    },
+    {
+      "file": "world-tools-wiring-gap-triage.json",
+      "path": "unwired.6",
+      "object": {
+        "key": "databank.attachToCharacter",
+        "classification": "intentional-deferred-ui",
+        "productionClientConsumer": false,
+        "dynamicClientDoorMissedByLens": false,
+        "toolDefect": false,
+        "evidence": [
+          "packages/server/src/transport/trpc/routers/databank.ts:112-116 exposes the owner-belted mutation.",
+          "docs/design/databank-surface-spec.md:65 records no present character-attach UI.",
+          "docs/reviews/trpc-procedure-liveness-2026-09-08.md:60-68 adjudicates it as the supported, explicitly designed character-rack API whose junction already affects retrieval."
+        ],
+        "disposition": "Keep as intentional deferred character-rack surface."
+      }
+    },
+    {
+      "file": "world-tools-wiring-gap-triage.json",
+      "path": "unwired.7",
+      "object": {
+        "key": "databank.detachFromCharacter",
+        "classification": "intentional-deferred-ui",
+        "productionClientConsumer": false,
+        "dynamicClientDoorMissedByLens": false,
+        "toolDefect": false,
+        "evidence": [
+          "packages/server/src/transport/trpc/routers/databank.ts:118-122 exposes the mutation.",
+          "The same databank spec and 2026-09-08 liveness adjudication preserve the paired character-rack operation."
+        ],
+        "disposition": "Keep paired with attachToCharacter."
+      }
+    },
+    {
+      "file": "world-tools-wiring-gap-triage.json",
+      "path": "unwired.8",
+      "object": {
+        "key": "discovery.swipeHotspots",
+        "classification": "intentional-parked-ui",
+        "productionClientConsumer": false,
+        "dynamicClientDoorMissedByLens": false,
+        "toolDefect": false,
+        "evidence": [
+          "packages/server/src/transport/trpc/routers/discovery.ts:121-125 exposes the per-chat analytic.",
+          "docs/reviews/trpc-procedure-liveness-2026-09-08.md:70-74 preserves it for a future chat-scoped inspector.",
+          "docs/Qwen_Offline_Investigation.md:533 records the owner PARK ALL ruling."
+        ],
+        "disposition": "Keep parked and visible; do not force it into the owner-wide Corpus UI."
+      }
+    },
+    {
+      "file": "world-tools-wiring-gap-triage.json",
+      "path": "unwired.9",
+      "object": {
+        "key": "discovery.similarChats",
+        "classification": "intentional-parked-ui",
+        "productionClientConsumer": false,
+        "dynamicClientDoorMissedByLens": false,
+        "toolDefect": false,
+        "evidence": [
+          "packages/server/src/transport/trpc/routers/discovery.ts:188-190 exposes the per-chat analytic.",
+          "docs/reviews/trpc-procedure-liveness-2026-09-08.md:70-74 preserves it for the future chat-scoped inspector.",
+          "docs/Qwen_Offline_Investigation.md:534 records the owner PARK ALL ruling."
+        ],
+        "disposition": "Keep parked and visible."
+      }
+    },
+    {
+      "file": "world-tools-wiring-gap-triage.json",
+      "path": "clientgap.1",
+      "object": {
+        "symbol": "GlobalVariableView",
+        "classification": "server-only-domain-view",
+        "flow": "Automation persistence projects GlobalVariableView; CEL environment and test-rule read listGlobalVariables directly server-side. No current tRPC property or client reader.",
+        "actualClientRead": null,
+        "disposition": "Retain as a server-side projection. Its settings-page comment is stale unless a future UI route is restored; absence is not deletion evidence."
+      }
+    },
+    {
+      "file": "world-tools-wiring-gap-triage.json",
+      "path": "clientgap.2",
+      "object": {
+        "symbol": "BudgetView",
+        "classification": "server-only-dormant-domain-view",
+        "flow": "AutomationService.getBudgets and selectBudgetView still type the chat budget domain read; the former tRPC wrapper was removed in the approved 2026-09-08 cleanup.",
+        "actualClientRead": null,
+        "disposition": "Do not delete from clientgap alone. Audit domain getBudgets/read-model liveness separately if chat-budget pruning is desired."
+      }
+    }
+  ]
+}

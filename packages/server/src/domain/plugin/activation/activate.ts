@@ -11,10 +11,11 @@
 // a view of it; publishing the view first meant a rejected write left a live instance with live registrations
 // behind a row that said `disabled`, and the owner's retry then built a SECOND instance next to it.
 
+import type { ProviderDef } from "@orb/contracts/inference";
 import type { PluginInstance } from "@orb/contracts/plugin";
 import { errorMessage } from "@orb/kit/error-message";
 import type { PluginActivationScope, PluginInvokeHandler, PluginRegistrationHandle } from "../contract/ops.ts";
-import type { ActivateInput, ActivateOutcome, CrashPolicy, PluginContext, PluginRegistry } from "../contract/service.ts";
+import type { ActivateInput, ActivateOutcome, CrashPolicy, PluginContext, PluginProviderLifecycle, PluginRegistry } from "../contract/service.ts";
 import { setStatus } from "../persistence/plugins.ts";
 import { buildPluginBridge } from "../substrate/bridge.ts";
 import { consentedNetHosts } from "../substrate/grants.ts";
@@ -93,6 +94,8 @@ interface RevalidatedBundle {
   readonly netHosts: readonly string[] | undefined;
   /** The cascade opt-in, fail-closed `false` when the manifest declares none. */
   readonly matchAutomationEvents: boolean;
+  /** Validated manifest data only; the connection registry validates it again at its persistence boundary. */
+  readonly providers: readonly ProviderDef[];
 }
 
 /** Re-parse and re-validate the stored bundle bytes. A corrupt stored bundle is CONTAINED (never thrown):
@@ -111,6 +114,7 @@ function revalidate(
         displayName: parsed.manifest.name,
         netHosts: consentedWall(parsed.manifest.netHosts, withheldNetHosts),
         matchAutomationEvents: parsed.manifest.matchAutomationEvents ?? false,
+        providers: parsed.manifest.providers ?? [],
       },
     };
   } catch (err) {
@@ -118,7 +122,27 @@ function revalidate(
   }
 }
 
-export function createActivate(ctx: PluginContext, registry: PluginRegistry, crashPolicy: CrashPolicy): (input: ActivateInput) => Promise<ActivateOutcome> {
+async function providerActivationError(
+  providerLifecycle: PluginProviderLifecycle,
+  rows: readonly ProviderDef[],
+  pluginId: ActivateInput["pluginId"],
+  pluginName: string,
+): Promise<string | null> {
+  try {
+    await providerLifecycle.activate(rows, { pluginId, pluginName });
+    return null;
+    // @orb-waive caught-failure-ownership(err): the refusal becomes the returned activation error string; createActivate persists it as `plugins.lastError` and returns `{ok:false,error}`. Ends if that caller stops recording and returning this detail.
+  } catch (err) {
+    return errorMessage(err);
+  }
+}
+
+export function createActivate(
+  ctx: PluginContext,
+  registry: PluginRegistry,
+  crashPolicy: CrashPolicy,
+  providerLifecycle: PluginProviderLifecycle,
+): (input: ActivateInput) => Promise<ActivateOutcome> {
   return async (input: ActivateInput): Promise<ActivateOutcome> => {
     const { bytes } = await ctx.assets.readBytes(input.caller, input.bundleAssetId);
     const revalidated = revalidate(bytes, input.withheldNetHosts);
@@ -130,13 +154,12 @@ export function createActivate(ctx: PluginContext, registry: PluginRegistry, cra
       });
       return { ok: false, error: revalidated.error };
     }
-    const { mainJs, slug, displayName, netHosts, matchAutomationEvents } = revalidated.bundle;
+    const { mainJs, slug, displayName, netHosts, matchAutomationEvents, providers } = revalidated.bundle;
 
     // The membrane bridge is built PER INSTALLER (global-vars closes over the installer); an installed plugin's
     // `main.js` runs registration-only, so no chat is admitted for the activation run (chat: null). (The
     // per-plugin spend gate was stripped for enterprise spend enforcement; a runaway plugin's turns are
-    // bounded by the engine's per-member turn RATE budget + the cascade-depth guard, and cost VISIBILITY rides
-    // the stats domain.)
+    // bounded by the cascade-depth guard, and the hosting room accepts their inference liability.)
     // The bridge carries the plugin's IDENTITY (id + the manifest's display name) because a posture-2 card has
     // to say who is asking. The name is DERIVED from the re-validated manifest, never guest-runtime-supplied —
     // the same rule the slug and the netHosts allowlist follow.
@@ -184,11 +207,13 @@ export function createActivate(ctx: PluginContext, registry: PluginRegistry, cra
     }
 
     // DURABLE FIRST, THEN THE REGISTRY — never the other way round. The row is the record; the registry is the
-    // in-process view of it, and the view may only be published once the record says so. Publishing first left
+    // in-process view of it, and provider contributions are part of that view: neither may be published until
+    // the record says `enabled`. Publishing first left
     // a LIVE instance (tools registered, handlers callable) behind a row that still said `disabled` whenever
     // this write rejected — and the owner's natural response, toggling again, then built a SECOND instance
-    // beside the first with the first's registrations still standing. A failed write discards the whole
-    // activation exactly like a registrar refusal does, so a retry starts from nothing.
+    // beside the first with the first's registrations still standing. This ordering is also the restart marker:
+    // a crash after this write is recovered by boot's enabled-row reactivation, whose clean-slate deactivate
+    // removes any partial contribution before registering the complete manifest again.
     try {
       await setStatus(ctx.db, input.pluginId, { status: "enabled", lastError: null, updatedAt: ctx.now() });
     } catch (err) {
@@ -197,6 +222,19 @@ export function createActivate(ctx: PluginContext, registry: PluginRegistry, cra
       // carries the detail (`errored` + `lastError`), and the row is exactly what could not be written. A
       // caller told "activation failed" by a value would read a row that says nothing happened.
       throw err;
+    }
+
+    // The complete provider set is one store transaction. A conflict writes nothing and converts the enabled
+    // recovery marker to `errored`; no provider row from a refused activation becomes globally discoverable.
+    const providerError = await providerActivationError(providerLifecycle, providers, input.pluginId, slug);
+    if (providerError !== null) {
+      discardActivation(ctx, instance, handles);
+      await setStatus(ctx.db, input.pluginId, {
+        status: "errored",
+        lastError: `provider registration failed: ${providerError}`,
+        updatedAt: ctx.now(),
+      });
+      return { ok: false, error: providerError };
     }
     registry.set(input.pluginId, { instance, handles, invoke });
     return { ok: true };

@@ -2,16 +2,16 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 622,
+    "sites": 627,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 622,
+      "deliberate-absorb": 627,
       "unproven": 0
     },
     "byGrammar": {
-      "default": 170,
-      "empty": 307,
-      "promise": 145
+      "default": 169,
+      "empty": 311,
+      "promise": 147
     }
   },
   "rows": [
@@ -432,9 +432,22 @@
       "markerLine": 221
     },
     {
+      "siteId": "packages/client/src/features/chat/components/chat-documents-section.tsx::Promise.all::1",
+      "path": "packages/client/src/features/chat/components/chat-documents-section.tsx",
+      "line": 95,
+      "column": 5,
+      "grammar": "promise",
+      "position": "Promise.all",
+      "ordinal": 1,
+      "snippet": "Promise.all([settings.refetch(), preset.refetch()]).catch(() => undefined);",
+      "verdict": "deliberate-absorb",
+      "reason": "each TanStack Query observer owns its rejection in `settings.isError`/`preset.isError`; this event only starts the paired retry. Ends if either refetch stops updating query error state.",
+      "markerLine": 94
+    },
+    {
       "siteId": "packages/client/src/features/chat/components/chat-documents-section.tsx::visibilityChainRef.current::1",
       "path": "packages/client/src/features/chat/components/chat-documents-section.tsx",
-      "line": 166,
+      "line": 170,
       "column": 34,
       "grammar": "promise",
       "position": "visibilityChainRef.current",
@@ -442,7 +455,7 @@
       "snippet": "visibilityChainRef.current = visibilityChainRef.current",
       "verdict": "deliberate-absorb",
       "reason": "the chain's own catch, never the mutation's — `useSetChatDocumentVisibility` still runs its errorToast and its optimistic `onError` rollback untouched. It exists so ONE rejected write cannot wedge the queue for every later toggle. Ends if that mutation stops wiring an errorToast.",
-      "markerLine": 165
+      "markerLine": 169
     },
     {
       "siteId": "packages/client/src/features/chat/components/chat-list-row-menu.tsx::actions.remove::1",
@@ -993,7 +1006,7 @@
     {
       "siteId": "packages/client/src/features/refinery/components/schema-editor-dialog.tsx::catch::1",
       "path": "packages/client/src/features/refinery/components/schema-editor-dialog.tsx",
-      "line": 103,
+      "line": 104,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -1001,7 +1014,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "null is the caller's own \"not parsing yet\"",
-      "markerLine": 97
+      "markerLine": 98
     },
     {
       "siteId": "packages/client/src/features/refinery/surfaces/refinery-list-surface.tsx::openRefinery::1",
@@ -1474,7 +1487,7 @@
     {
       "siteId": "packages/contracts/src/rpg/extraction.ts::catch::1",
       "path": "packages/contracts/src/rpg/extraction.ts",
-      "line": 439,
+      "line": 435,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -1482,7 +1495,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "errors-as-data — a malformed tool call is",
-      "markerLine": 433
+      "markerLine": 429
     },
     {
       "siteId": "packages/db/src/client/index.ts::catch::1",
@@ -1604,7 +1617,7 @@
     {
       "siteId": "packages/inference/src/backends/agent-sdk/runner.ts::catch::1",
       "path": "packages/inference/src/backends/agent-sdk/runner.ts",
-      "line": 298,
+      "line": 297,
       "column": 5,
       "grammar": "empty",
       "position": "catch",
@@ -1612,7 +1625,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "context fill is an optional bounded diagnostic and `undefined` omits only that sidecar. Precedent: packages/client/src/lib/perf-marks.ts accepts the same best-effort diagnostic loss. Ends if the probe starts governing the turn result.",
-      "markerLine": 297
+      "markerLine": 296
     },
     {
       "siteId": "packages/inference/src/backends/agent-sdk/session/frames.ts::catch::1",
@@ -1669,7 +1682,7 @@
     {
       "siteId": "packages/inference/src/backends/anthropic-messages/index.ts::err::1",
       "path": "packages/inference/src/backends/anthropic-messages/index.ts",
-      "line": 81,
+      "line": 85,
       "column": 12,
       "grammar": "empty",
       "position": "err",
@@ -1677,12 +1690,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "credential probes own failures as typed revoked/unreachable health with a sanitized reason. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if the returned health stops carrying that disposition.",
-      "markerLine": 80
+      "markerLine": 84
     },
     {
       "siteId": "packages/inference/src/backends/anthropic-messages/index.ts::listModels::1",
       "path": "packages/inference/src/backends/anthropic-messages/index.ts",
-      "line": 108,
+      "line": 112,
       "column": 26,
       "grammar": "promise",
       "position": "listModels",
@@ -1690,7 +1703,7 @@
       "snippet": "listModels: (req) => listModels(req, deps.fetch).catch((): ListModelsResult => ({ listed: false, models: [] })),",
       "verdict": "deliberate-absorb",
       "reason": "optional model discovery owns refusal as `listed:false`; generation remains usable with an explicit model. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if callers require a successful catalog.",
-      "markerLine": 107
+      "markerLine": 111
     },
     {
       "siteId": "packages/inference/src/backends/kit/error-classify.ts::catch::1",
@@ -1773,7 +1786,7 @@
     {
       "siteId": "packages/inference/src/backends/openai-compat/diagnostics.ts::catch::1",
       "path": "packages/inference/src/backends/openai-compat/diagnostics.ts",
-      "line": 154,
+      "line": 157,
       "column": 5,
       "grammar": "empty",
       "position": "catch",
@@ -1781,12 +1794,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "optional model discovery owns refusal as `listed:false`; generation remains usable with an explicit model. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if callers require a successful catalog.",
-      "markerLine": 153
+      "markerLine": 156
     },
     {
       "siteId": "packages/inference/src/backends/openai-compat/diagnostics.ts::err::1",
       "path": "packages/inference/src/backends/openai-compat/diagnostics.ts",
-      "line": 96,
+      "line": 98,
       "column": 12,
       "grammar": "empty",
       "position": "err",
@@ -1794,12 +1807,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "credential probes own failures as typed revoked/unreachable health with a sanitized reason. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if the returned health stops carrying that disposition.",
-      "markerLine": 95
+      "markerLine": 97
     },
     {
       "siteId": "packages/inference/src/backends/openai-compat/diagnostics.ts::readBodyPreview::1",
       "path": "packages/inference/src/backends/openai-compat/diagnostics.ts",
-      "line": 223,
+      "line": 226,
       "column": 24,
       "grammar": "promise",
       "position": "readBodyPreview",
@@ -1807,7 +1820,7 @@
       "snippet": "const text = await readBodyPreview(res, secretScrubOverhang(secrets)).catch((): string => \"\");",
       "verdict": "deliberate-absorb",
       "reason": "a preview read failure degrades to an explicit empty preview while status and headers remain inspectable. Precedent: the gate mustPass fixture tooling/src/probe/unproven-outcome.ts proves the same degraded inspection result. Ends if preview bytes become authoritative.",
-      "markerLine": 222
+      "markerLine": 225
     },
     {
       "siteId": "packages/inference/src/backends/openai-compat/reachability.ts::catch::1",
@@ -1901,6 +1914,45 @@
       "markerLine": 81
     },
     {
+      "siteId": "packages/inference/src/registry/providers.ts::error::1",
+      "path": "packages/inference/src/registry/providers.ts",
+      "line": 53,
+      "column": 14,
+      "grammar": "empty",
+      "position": "error",
+      "ordinal": 1,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "a synchronous store refusal becomes `read`'s rejection and is rethrown from the ordered publication below. Ends if the `!listed.ok` arm stops throwing `listed.error`.",
+      "markerLine": 52
+    },
+    {
+      "siteId": "packages/inference/src/registry/providers.ts::publication::1",
+      "path": "packages/inference/src/registry/providers.ts",
+      "line": 38,
+      "column": 23,
+      "grammar": "promise",
+      "position": "publication",
+      "ordinal": 1,
+      "snippet": "publicationTail = publication.then(",
+      "verdict": "deliberate-absorb",
+      "reason": "callers receive and own `publication`; this sibling chain only advances the serialization tail after either verdict. Ends if the returned promise stops carrying the rejection.",
+      "markerLine": 37
+    },
+    {
+      "siteId": "packages/inference/src/registry/providers.ts::read::1",
+      "path": "packages/inference/src/registry/providers.ts",
+      "line": 57,
+      "column": 22,
+      "grammar": "promise",
+      "position": "read",
+      "ordinal": 1,
+      "snippet": "const snapshot = read.then(",
+      "verdict": "deliberate-absorb",
+      "reason": "the rejection is retained as the `ok:false` snapshot and rethrown inside `publishInOrder`; it is never treated as an empty provider list. Ends if the `!listed.ok` arm stops throwing.",
+      "markerLine": 56
+    },
+    {
       "siteId": "packages/inference/src/roles/role-clients.ts::Promise.resolve::1",
       "path": "packages/inference/src/roles/role-clients.ts",
       "line": 95,
@@ -1929,7 +1981,7 @@
     {
       "siteId": "packages/kit/src/ids/index.ts::err::1",
       "path": "packages/kit/src/ids/index.ts",
-      "line": 335,
+      "line": 337,
       "column": 14,
       "grammar": "empty",
       "position": "err",
@@ -1937,7 +1989,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "zod transform pattern — fromString's throw is",
-      "markerLine": 329
+      "markerLine": 331
     },
     {
       "siteId": "packages/kit/src/json-schema/lift.ts::catch::1",
@@ -2397,7 +2449,7 @@
     {
       "siteId": "packages/server/src/domain/chat/engine/engine.ts::catch::1",
       "path": "packages/server/src/domain/chat/engine/engine.ts",
-      "line": 996,
+      "line": 1010,
       "column": 5,
       "grammar": "empty",
       "position": "catch",
@@ -2405,12 +2457,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "`deps.emit` is the chat bus, which already",
-      "markerLine": 991
+      "markerLine": 1005
     },
     {
       "siteId": "packages/server/src/domain/chat/engine/engine.ts::catch::2",
       "path": "packages/server/src/domain/chat/engine/engine.ts",
-      "line": 1980,
+      "line": 1997,
       "column": 13,
       "grammar": "empty",
       "position": "catch",
@@ -2418,12 +2470,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a failed WARNING emit must not mask `memErr` — the build failure the outer catch rethrows below is what the span must record, and it already reached the log. Ends if the emit ever becomes retryable (then it owns its own reporting).",
-      "markerLine": 1976
+      "markerLine": 1993
     },
     {
       "siteId": "packages/server/src/domain/chat/engine/engine.ts::deltaErr::1",
       "path": "packages/server/src/domain/chat/engine/engine.ts",
-      "line": 2006,
+      "line": 2023,
       "column": 14,
       "grammar": "empty",
       "position": "deltaErr",
@@ -2431,12 +2483,12 @@
       "snippet": "} catch (deltaErr) {",
       "verdict": "deliberate-absorb",
       "reason": "explicitly classified below — a `deltaErr` equal",
-      "markerLine": 2000
+      "markerLine": 2017
     },
     {
       "siteId": "packages/server/src/domain/chat/engine/engine.ts::releasedBody::1",
       "path": "packages/server/src/domain/chat/engine/engine.ts",
-      "line": 2121,
+      "line": 2138,
       "column": 10,
       "grammar": "promise",
       "position": "releasedBody",
@@ -2444,7 +2496,7 @@
       "snippet": "void releasedBody.catch((): undefined => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "this is not a second dispatch — it is the SAME promise the race above returns, and whichever arm won already delivered its outcome (the body's own value, or the barrier's `aborted` throw). Nothing here is invisible: the turn body traces itself, and the only work still pending is the holder-scoped `releaseLock`. Ends if the release moves off this promise.",
-      "markerLine": 2120
+      "markerLine": 2137
     },
     {
       "siteId": "packages/server/src/domain/chat/engine/smart-arbitrate.ts::catch::1",
@@ -2514,7 +2566,7 @@
     {
       "siteId": "packages/server/src/domain/chat/verbs/turn.ts::catch::1",
       "path": "packages/server/src/domain/chat/verbs/turn.ts",
-      "line": 1289,
+      "line": 1292,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -2522,12 +2574,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented above — non-fatal, mirrors neo: the",
-      "markerLine": 1283
+      "markerLine": 1286
     },
     {
       "siteId": "packages/server/src/domain/chat/verbs/turn.ts::err::1",
       "path": "packages/server/src/domain/chat/verbs/turn.ts",
-      "line": 2480,
+      "line": 2482,
       "column": 12,
       "grammar": "empty",
       "position": "err",
@@ -2535,12 +2587,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "fully classified below — a permanent verdict",
-      "markerLine": 2474
+      "markerLine": 2476
     },
     {
       "siteId": "packages/server/src/domain/chat/verbs/turn.ts::run::1",
       "path": "packages/server/src/domain/chat/verbs/turn.ts",
-      "line": 2270,
+      "line": 2274,
       "column": 14,
       "grammar": "promise",
       "position": "run",
@@ -2548,7 +2600,7 @@
       "snippet": "void run.catch((err: unknown) => {",
       "verdict": "deliberate-absorb",
       "reason": "the fault has NOWHERE to go — this generator",
-      "markerLine": 2266
+      "markerLine": 2270
     },
     {
       "siteId": "packages/server/src/domain/connection/substrate/embed-space.ts::catch::1",
@@ -2822,6 +2874,19 @@
       "verdict": "deliberate-absorb",
       "reason": "both arms of this stat converge on \"remove nothing\" — an absent path has nothing to delete, and an unreadable one is a path this belt can no longer vouch for. It runs in a `finally` whose loud half already fired at compute time (`resolveStagedPath` throws the escape), and a genuine fs fault re-surfaces on the next run's read of the same tree. Ends if this rm becomes the only proof a staged tree was removed.",
       "markerLine": 181
+    },
+    {
+      "siteId": "packages/server/src/domain/plugin/activation/activate.ts::err::1",
+      "path": "packages/server/src/domain/plugin/activation/activate.ts",
+      "line": 135,
+      "column": 12,
+      "grammar": "empty",
+      "position": "err",
+      "ordinal": 1,
+      "snippet": "} catch (err) {",
+      "verdict": "deliberate-absorb",
+      "reason": "the refusal becomes the returned activation error string; createActivate persists it as `plugins.lastError` and returns `{ok:false,error}`. Ends if that caller stops recording and returning this detail.",
+      "markerLine": 134
     },
     {
       "siteId": "packages/server/src/domain/plugin/substrate/plugin-macros.ts::catch::1",
@@ -3177,7 +3242,7 @@
     {
       "siteId": "packages/server/src/domain/workloads/persistence/queries.ts::catch::1",
       "path": "packages/server/src/domain/workloads/persistence/queries.ts",
-      "line": 145,
+      "line": 165,
       "column": 5,
       "grammar": "empty",
       "position": "catch",
@@ -3185,7 +3250,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented above — a params-schema failure",
-      "markerLine": 140
+      "markerLine": 160
     },
     {
       "siteId": "packages/server/src/domain/workloads/verbs/start.ts::err::1",
@@ -3229,7 +3294,7 @@
     {
       "siteId": "packages/server/src/entry/compose/automation-plugin.ts::catch::1",
       "path": "packages/server/src/entry/compose/automation-plugin.ts",
-      "line": 538,
+      "line": 541,
       "column": 11,
       "grammar": "default",
       "position": "catch",
@@ -3237,12 +3302,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — documented above: a refusal",
-      "markerLine": 532
+      "markerLine": 535
     },
     {
       "siteId": "packages/server/src/entry/compose/automation-plugin.ts::catch::2",
       "path": "packages/server/src/entry/compose/automation-plugin.ts",
-      "line": 557,
+      "line": 560,
       "column": 11,
       "grammar": "default",
       "position": "catch",
@@ -3250,12 +3315,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — documented above: a",
-      "markerLine": 551
+      "markerLine": 554
     },
     {
       "siteId": "packages/server/src/entry/compose/automation-plugin.ts::catch::3",
       "path": "packages/server/src/entry/compose/automation-plugin.ts",
-      "line": 577,
+      "line": 580,
       "column": 11,
       "grammar": "default",
       "position": "catch",
@@ -3263,12 +3328,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — documented above: `[]` if",
-      "markerLine": 566
+      "markerLine": 569
     },
     {
       "siteId": "packages/server/src/entry/compose/automation-plugin.ts::catch::4",
       "path": "packages/server/src/entry/compose/automation-plugin.ts",
-      "line": 728,
+      "line": 731,
       "column": 11,
       "grammar": "default",
       "position": "catch",
@@ -3276,7 +3341,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — documented above: any",
-      "markerLine": 717
+      "markerLine": 720
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::catch::1",
@@ -3294,7 +3359,7 @@
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::catch::2",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 1302,
+      "line": 1303,
       "column": 9,
       "grammar": "default",
       "position": "catch",
@@ -3302,12 +3367,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — documented above: a gone card fail-closes to `[]` rather than throwing into the member-card read. Ends if a gone card needs to surface distinctly from an infra failure.",
-      "markerLine": 1298
+      "markerLine": 1299
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::catch::3",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 1335,
+      "line": 1336,
       "column": 9,
       "grammar": "empty",
       "position": "catch",
@@ -3315,12 +3380,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — the comment block above states",
-      "markerLine": 1324
+      "markerLine": 1325
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::catch::4",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 1372,
+      "line": 1373,
       "column": 11,
       "grammar": "empty",
       "position": "catch",
@@ -3328,7 +3393,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "optional-read-as-absent — a persona/handle",
-      "markerLine": 1364
+      "markerLine": 1365
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::err::1",
@@ -3593,7 +3658,7 @@
     {
       "siteId": "packages/server/src/foundation/env/index.ts::catch::1",
       "path": "packages/server/src/foundation/env/index.ts",
-      "line": 160,
+      "line": 161,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -3601,7 +3666,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a missing .env is a normal deploy state —",
-      "markerLine": 155
+      "markerLine": 156
     },
     {
       "siteId": "packages/server/src/foundation/observability/debug/bug-report.ts::catch::1",
@@ -3825,35 +3890,9 @@
       "markerLine": 746
     },
     {
-      "siteId": "packages/server/src/infra/network/openai-models.ts::err::1",
-      "path": "packages/server/src/infra/network/openai-models.ts",
-      "line": 99,
-      "column": 12,
-      "grammar": "default",
-      "position": "err",
-      "ordinal": 1,
-      "snippet": "} catch (err) {",
-      "verdict": "deliberate-absorb",
-      "reason": "a best-effort /models fetch collapses any failure to an empty catalog; the logged error is credential-scrubbed by value (redactKnownSecrets over apiKey + every header value), so no key leaks and no auth verdict rides on it. Ends if an unscrubbed error is logged or the list gates auth.",
-      "markerLine": 81
-    },
-    {
-      "siteId": "packages/server/src/infra/network/openai-models.ts::err::2",
-      "path": "packages/server/src/infra/network/openai-models.ts",
-      "line": 147,
-      "column": 12,
-      "grammar": "empty",
-      "position": "err",
-      "ordinal": 2,
-      "snippet": "} catch (err) {",
-      "verdict": "deliberate-absorb",
-      "reason": "an unpinnable/malformed baseUrl yields \"unchecked\" — never a green and never the strike-worthy \"unreachable\", so a config typo can neither pass a bad key as healthy nor auto-revoke a working one; the reason is credential-scrubbed by value. Ends if the catch ever returns \"ok\" or \"unreachable\".",
-      "markerLine": 144
-    },
-    {
       "siteId": "packages/server/src/infra/plugin-host/membrane.ts::err::1",
       "path": "packages/server/src/infra/plugin-host/membrane.ts",
-      "line": 601,
+      "line": 599,
       "column": 14,
       "grammar": "empty",
       "position": "err",
@@ -3861,12 +3900,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "guest-supplied command metadata that fails to dump/validate is REFUSED registration (onRun handle disposed, warn logged) — a malformed untrusted plugin def can never register a live command, the fail-closed direction. Ends if a dump/parse failure ever returns a live command instead of ctx.undefined.",
-      "markerLine": 592
+      "markerLine": 590
     },
     {
       "siteId": "packages/server/src/infra/plugin-host/membrane.ts::Promise.race::1",
       "path": "packages/server/src/infra/plugin-host/membrane.ts",
-      "line": 1851,
+      "line": 1849,
       "column": 10,
       "grammar": "promise",
       "position": "Promise.race",
@@ -3874,12 +3913,12 @@
       "snippet": "void Promise.race([running, timeout])",
       "verdict": "deliberate-absorb",
       "reason": "the GUEST owns it — the rejection arm below reaches `deferred.reject(err)`, preserving the Error's NAME so a plugin can feature-detect by type. The one path that DROPS is the `!ctx.alive` guard, and dropping there is required: the guest promise this would settle no longer exists, so touching the disposed context is a use-after-free that escapes as an unhandled rejection. Ends if a disposed context gains a safe late-failure sink.",
-      "markerLine": 1850
+      "markerLine": 1848
     },
     {
       "siteId": "packages/server/src/infra/plugin-host/membrane.ts::running::1",
       "path": "packages/server/src/infra/plugin-host/membrane.ts",
-      "line": 1847,
+      "line": 1845,
       "column": 18,
       "grammar": "promise",
       "position": "running",
@@ -3887,7 +3926,7 @@
       "snippet": "settlement = running.then(releaseSlot, releaseSlot);",
       "verdict": "deliberate-absorb",
       "reason": "BOOKKEEPING ONLY — this chain exists so teardown can await in-flight work, and both arms deliberately do the same thing (exactly one release per acquisition, so the counter cannot drift). The REJECTION of `running` is owned by the sibling race chain below, which routes it to `deferred.reject` and thence to the guest. Ends if this chain becomes the only reader of `running`.",
-      "markerLine": 1846
+      "markerLine": 1844
     },
     {
       "siteId": "packages/server/src/infra/plugin-host/port.ts::run::1",
@@ -3901,19 +3940,6 @@
       "verdict": "deliberate-absorb",
       "reason": "the comment above is the contract — the tail is a `void`-typed BARRIER that must never reject, or one deadlined invoke wedges the chain for every later one. Both arms do the identical bookkeeping on purpose, and the caller still gets the real outcome from `return await run` on the next line. Ends if the tail becomes the only reader of `run`.",
       "markerLine": 368
-    },
-    {
-      "siteId": "packages/server/src/infra/plugin-host/sandbox.ts::Promise.race::1",
-      "path": "packages/server/src/infra/plugin-host/sandbox.ts",
-      "line": 713,
-      "column": 10,
-      "grammar": "promise",
-      "position": "Promise.race",
-      "ordinal": 1,
-      "snippet": "void Promise.race([out, timeout])",
-      "verdict": "deliberate-absorb",
-      "reason": "the GUEST owns it — the rejection arm below reaches `deferred.reject(handle)`. The one path that DROPS is the `!ctx.alive` guard, and dropping there is required: the guest promise this would settle no longer exists, so touching the disposed context is a use-after-free that escapes as an unhandled rejection. Guard-equivalent to the membrane's `attachAsync` by design (LOW-1). Ends if a disposed context gains a safe late-failure sink.",
-      "markerLine": 712
     },
     {
       "siteId": "packages/server/src/infra/storage/cas.ts::err::1",
@@ -4906,7 +4932,7 @@
     {
       "siteId": "tooling/src/ast/cli.ts::e::1",
       "path": "tooling/src/ast/cli.ts",
-      "line": 126,
+      "line": 135,
       "column": 12,
       "grammar": "empty",
       "position": "e",
@@ -4914,7 +4940,20 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "the verb's thrown error is mapped to a typed exit code via mapKnownError, not dropped — the return value is main()'s own contract, propagated to the process exit code. Ends if mapKnownError stops covering a real error class and silently returns clean.",
-      "markerLine": 123
+      "markerLine": 132
+    },
+    {
+      "siteId": "tooling/src/ast/ops/symbols.ts::catch::1",
+      "path": "tooling/src/ast/ops/symbols.ts",
+      "line": 116,
+      "column": 7,
+      "grammar": "empty",
+      "position": "catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "TypeScript intentionally probes nonexistent module candidates; an unreadable candidate is `undefined` so resolution continues. Ends if this callback reads an already-proven-existing path.",
+      "markerLine": 115
     },
     {
       "siteId": "tooling/src/bug-reports/lib/read.ts::catch::1",
@@ -7660,9 +7699,35 @@
       "markerLine": 157
     },
     {
+      "siteId": "tooling/src/verify/lib/policy-repo-inventory.ts::error::1",
+      "path": "tooling/src/verify/lib/policy-repo-inventory.ts",
+      "line": 106,
+      "column": 12,
+      "grammar": "empty",
+      "position": "error",
+      "ordinal": 1,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "A confirmed standalone non-Git root deliberately falls through to the explicit workspace-sourced inventory receipt below; repository probe failures and every failure in a real worktree still propagate. Ends if this arm can swallow a real Git error or the fallback stops recording its distinct workspace authority.",
+      "markerLine": 103
+    },
+    {
+      "siteId": "tooling/src/verify/lib/resource-declaration.ts::error::1",
+      "path": "tooling/src/verify/lib/resource-declaration.ts",
+      "line": 240,
+      "column": 14,
+      "grammar": "empty",
+      "position": "error",
+      "ordinal": 1,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "Acquisition failure is retained by owner so pure planning refuses and the structure-bound planner can let the dispatcher emit its canonical incomplete owner row and withheld authority. Ends if the failure map no longer drives both refusal paths.",
+      "markerLine": 237
+    },
+    {
       "siteId": "tooling/src/verify/lib/schema-fact.ts::error::1",
       "path": "tooling/src/verify/lib/schema-fact.ts",
-      "line": 141,
+      "line": 161,
       "column": 12,
       "grammar": "empty",
       "position": "error",
@@ -7675,7 +7740,7 @@
     {
       "siteId": "tooling/src/verify/lib/schema-fact.ts::error::2",
       "path": "tooling/src/verify/lib/schema-fact.ts",
-      "line": 195,
+      "line": 215,
       "column": 12,
       "grammar": "empty",
       "position": "error",
@@ -7683,12 +7748,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "drizzle column parse error: surfaced as a structured tool-error in the schema-fact report; the broken column is excluded from the fact census",
-      "markerLine": 192
+      "markerLine": 212
     },
     {
       "siteId": "tooling/src/verify/lib/schema-fact.ts::error::3",
       "path": "tooling/src/verify/lib/schema-fact.ts",
-      "line": 278,
+      "line": 298,
       "column": 22,
       "grammar": "empty",
       "position": "error",
@@ -7696,7 +7761,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "FK resolution error: surfaced as a structured tool-error in the schema-fact report; the broken FK is excluded from the fact census",
-      "markerLine": 272
+      "markerLine": 292
     },
     {
       "siteId": "tooling/src/verify/lib/show-stage.ts::catch::1",
@@ -7857,7 +7922,7 @@
     {
       "siteId": "tooling/src/verify/ops/policy-conformance.ts::error::3",
       "path": "tooling/src/verify/ops/policy-conformance.ts",
-      "line": 202,
+      "line": 198,
       "column": 12,
       "grammar": "empty",
       "position": "error",

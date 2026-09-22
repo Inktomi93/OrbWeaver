@@ -13,14 +13,8 @@
     "graph": "tooling/src/ast/ops/graph.ts",
     "depcruise": "tooling/src/ast/ops/depcruise.ts",
     "semanticWorkspace": "tooling/src/_shared/ts-workspace.ts",
-    "corpusAndEmission": [
-      "tooling/src/ast/lib/emit.ts",
-      "tooling/src/ast/lib/ledger.ts"
-    ],
-    "controls": [
-      "tests/tooling/ast/ops/verbs.test.ts",
-      "tests/tooling/ast/cli.repo.int.test.ts"
-    ],
+    "corpusAndEmission": ["tooling/src/ast/lib/emit.ts", "tooling/src/ast/lib/ledger.ts"],
+    "controls": ["tests/tooling/ast/ops/verbs.test.ts", "tests/tooling/ast/cli.repo.int.test.ts"],
     "worktreeNote": "Concurrent edits existed in other ast modules/tests during this read-only audit. symbols.ts, graph.ts, depcruise.ts, verbs.ts, emit.ts, ledger.ts, and ts-workspace.ts were not modified by this lane."
   },
   "lensMap": [
@@ -389,14 +383,7 @@
       "id": "GQ-001",
       "severity": "medium",
       "title": "Six query lenses intentionally scan a smaller corpus than the repository can author",
-      "affected": [
-        "callers",
-        "importers",
-        "exports",
-        "jsx",
-        "ident",
-        "aliases"
-      ],
+      "affected": ["callers", "importers", "exports", "jsx", "ident", "aliases"],
       "failure": "Package-root TypeScript, package/source MTS, and Playwright TSX are excluded. A positive result is still incomplete, and exports/aliases cannot enter an existing excluded path. The zero-result hint admits this only for name-lookup verbs; positive runs do not announce missing roots beyond the long corpus label.",
       "evidence": [
         {
@@ -430,13 +417,7 @@
       "id": "GQ-002",
       "severity": "medium",
       "title": "Source-query totals collapse distinct AST sites that share one line",
-      "affected": [
-        "callers",
-        "importers",
-        "jsx",
-        "ident",
-        "literal"
-      ],
+      "affected": ["callers", "importers", "jsx", "ident", "literal"],
       "failure": "The emitter deduplicates source hits by file, line, kind, and rendered source line. Two calls/tags/literals on one line become one match, so totals are line counts while help and output call them hits/call sites.",
       "evidence": [
         {
@@ -459,9 +440,7 @@
       "id": "GQ-003",
       "severity": "medium",
       "title": "importers answers a spelling query unless the caller already knows the resolved file path",
-      "affected": [
-        "importers"
-      ],
+      "affected": ["importers"],
       "failure": "The subject is compared as a substring against both raw specifier and resolved absolute path. Asking the documented package-spec form does not canonicalize it to the target, so differently spelled #aliases and relative imports disappear.",
       "evidence": [
         {
@@ -484,9 +463,7 @@
       "id": "GQ-004",
       "severity": "medium",
       "title": "refs cannot discover several ordinary module-local declaration kinds",
-      "affected": [
-        "refs"
-      ],
+      "affected": ["refs"],
       "failure": "Declaration discovery includes every exported declaration, but among non-exported declarations only functions and variable declarations. Module-local classes, interfaces, type aliases, enums, and named declarations therefore produce 'no declaration found' even though the native checker could resolve them.",
       "evidence": [
         {
@@ -508,10 +485,7 @@
       "id": "GQ-005",
       "severity": "medium",
       "title": "callers and jsx are spelling lenses presented as usage lenses",
-      "affected": [
-        "callers",
-        "jsx"
-      ],
+      "affected": ["callers", "jsx"],
       "failure": "callers matches every same-spelled bare callee/property tail and misses calls through import/local aliases; jsx compares exact tag text and misses renamed bindings/member paths while conflating unrelated same-name components. Neither follows declaration identity.",
       "evidence": [
         {
@@ -537,9 +511,7 @@
       "id": "GQ-006",
       "severity": "low",
       "title": "aliases help text overstates the const-rebinding population",
-      "affected": [
-        "aliases"
-      ],
+      "affected": ["aliases"],
       "failure": "The help says const Y = X, but implementation reports it only when Y is exported. Local const rebindings are invisible, as are other alias forms. The command has no dedicated behavior controls.",
       "evidence": [
         {
@@ -561,10 +533,7 @@
       "id": "GQ-007",
       "severity": "medium",
       "title": "flow and reaches hard-code the packages tree but do not state that boundary in the answer",
-      "affected": [
-        "flow",
-        "reaches"
-      ],
+      "affected": ["flow", "reaches"],
       "failure": "Dependency-cruiser receives only `packages`, so tests, tooling, scripts, Playwright, and root tools can never appear. Help says every module for reaches, and the epilogue reports the config/pattern with scanned=n/a rather than the actual root set. A zero or partial graph can be mistaken for workspace reachability.",
       "evidence": [
         {
@@ -587,9 +556,7 @@
       "id": "GQ-008",
       "severity": "low",
       "title": "cycles reports DFS back-edge witnesses rather than the closed cycle population",
-      "affected": [
-        "cycles"
-      ],
+      "affected": ["cycles"],
       "failure": "Once a node is fully visited, later edges into it cannot produce another cycle. Overlapping simple cycles can collapse to one DFS witness, and the output is traversal-order dependent. There is no direct cycle behavior control.",
       "evidence": [
         {
@@ -611,15 +578,7 @@
       "id": "GQ-009",
       "severity": "medium",
       "title": "The fragile lenses have the thinnest controls",
-      "affected": [
-        "refs",
-        "callers",
-        "importers",
-        "cycles",
-        "aliases",
-        "flow",
-        "reaches"
-      ],
+      "affected": ["refs", "callers", "importers", "cycles", "aliases", "flow", "reaches"],
       "failure": "There are no direct behavior controls for refs/importers/cycles/aliases; callers is tested only for an absent name; flow/reaches are tested for bad subprocess/argv but not a positive graph. Existing positive controls concentrate on exports, jsx, ident corpus, and literal.",
       "evidence": [
         {
@@ -650,29 +609,17 @@
     {
       "order": 1,
       "name": "Corpus and count honesty",
-      "items": [
-        "Move six syntactic verbs to wide roots",
-        "preserve node offsets through Hit/dedupe",
-        "print exact graph roots"
-      ]
+      "items": ["Move six syntactic verbs to wide roots", "preserve node offsets through Hit/dedupe", "print exact graph roots"]
     },
     {
       "order": 2,
       "name": "Identity queries",
-      "items": [
-        "canonicalize importer subject",
-        "complete refs declaration discovery",
-        "add semantic callers/jsx while retaining explicit spelling modes"
-      ]
+      "items": ["canonicalize importer subject", "complete refs declaration discovery", "add semantic callers/jsx while retaining explicit spelling modes"]
     },
     {
       "order": 3,
       "name": "Graph/alias contract",
-      "items": [
-        "choose SCC contract for cycles",
-        "settle local vs exported alias taxonomy",
-        "add positive depcruise graph controls"
-      ]
+      "items": ["choose SCC contract for cycles", "settle local vs exported alias taxonomy", "add positive depcruise graph controls"]
     }
   ],
   "limitations": [

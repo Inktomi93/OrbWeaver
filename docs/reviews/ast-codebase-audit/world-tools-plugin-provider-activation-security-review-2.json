@@ -1,0 +1,91 @@
+{
+  "task": "Orbweaver #2558 plugin provider activation repair security review",
+  "verdict": "REFUTED",
+  "reviewed_head": "8f7ed4c4b98c112429c3918483f3a172f66ae184",
+  "receipt": {
+    "path": "/tmp/world-tools-plugin-provider-activation-fix.json",
+    "sha256": "9e87e503be2d7cc592356d1e8069c67c98c45d0dacb5fb8fd9ebd89ba9289c90",
+    "changed_path_count": 39,
+    "repair_changed_path_count": 12
+  },
+  "summary": "The four previously reported lifecycle and migration defects are closed. The overall change is still REFUTED because two trust-boundary defects allow an ordinary user's plugin to publish deployment-global egress that can reclaim a retired provider ID and can name an unconsented fixed host. The first defect was reproduced against the real plugin, connection, registry, and database composition.",
+  "previous_findings": [
+    {
+      "id": "prior-1-crash-restart-reload",
+      "status": "CLOSED",
+      "evidence": [
+        "packages/server/src/domain/plugin/activation/crash-policy.ts:26-53 serializes crash and clean-run state through the shared per-plugin lane; threshold handling commits errored then awaits provider-aware deactivation.",
+        "packages/server/src/domain/plugin/activation/deactivate.ts:9-36 removes durable provider authority before clearing the resident plugin.",
+        "packages/server/src/domain/connection/persistence/provider-rows.ts:70-104 reconciles contributions from non-enabled plugins before load and applies an enabled-plugin join as a fail-closed read belt."
+      ]
+    },
+    {
+      "id": "prior-2-refresh-failure-persists-contribution",
+      "status": "CLOSED",
+      "evidence": [
+        "packages/inference/src/registry/providers.ts:34-45 builds the complete next registry before swapping the live map.",
+        "packages/inference/src/registry/providers.ts:73-98 compensates a successful durable replace when refresh fails; rollback failure retains the publish error as cause and exposes rollbackError."
+      ]
+    },
+    {
+      "id": "prior-3-same-plugin-lifecycle-races",
+      "status": "CLOSED",
+      "evidence": [
+        "packages/server/src/domain/plugin/substrate/lifecycle-lanes.ts:13-33 implements a promise-tail critical section per PluginId and releases it in finally.",
+        "packages/server/src/domain/plugin/service.ts:53-77 uses one lane instance for upgrade, grant, enable/disable, and uninstall; packages/server/src/domain/plugin/activation/crash-policy.ts:26-53 uses the same instance for crash and clean-run operations."
+      ]
+    },
+    {
+      "id": "prior-4-unverifiable-legacy-plugin-row-adoption",
+      "status": "CLOSED",
+      "evidence": [
+        "packages/db/src/migrations/0002_plugin_provider_contributions.sql:27-35 copies only origin_kind='admin' rows, so unverifiable legacy plugin rows are discarded while admin rows survive.",
+        "packages/db/src/migrations/0002_plugin_provider_contributions.sql:40-49 creates contribution ownership with a composite foreign key to the provider definition identity.",
+        "packages/db/src/migrations/meta/_journal.json orders 0002 at index 2 and 0003 at index 3; 0003_snapshot.prevId equals 0002_snapshot.id.",
+        "packages/db/src/migrations/0003_chat_stream_cursor_generation.sql:1-7 changes only chat stream continuity columns and composes after 0002. Removing those two additions from the 0003 snapshot produced byte-identical sorted table data to the 0002 snapshot."
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "F1-provider-id-reclamation-reroutes-existing-secrets",
+      "severity": "HIGH",
+      "status": "CONFIRMED",
+      "failure_scenario": "User A installs slug shared-name and publishes plugin:shared-name/relay at https://legit.example/v1. A victim stores a credential and connection for that provider. When A disables the last contributing plugin, the definition row is deleted but the victim's connection and credential remain. User B can install their own owner-scoped slug shared-name and publish the same provider ID with https://attacker.example/v1. The victim's unchanged connection now resolves against B's definition and sends the victim's decrypted credential to the attacker endpoint.",
+      "evidence": [
+        "packages/contracts/src/plugin/manifest.ts:158-165 defines the plugin slug as unique only per installing owner, while lines 274-276 state each provider becomes a deployment-global registry row.",
+        "packages/server/src/domain/connection/persistence/provider-rows.ts:161-185 rejects a definition mismatch only while an existing row retains another contributor; lines 240-244 and 260-269 delete the provider definition when its last contribution is removed.",
+        "packages/db/src/schema/connection.ts:41-58 and packages/db/src/schema/credentials.ts:32-47 retain provider IDs as text without a definition identity binding or provider-row foreign key.",
+        "packages/inference/src/resolve/resolve-task.ts:214-275 resolves the credential for the selected current provider and uses that provider's current fixed baseUrl; packages/server/src/domain/credentials/verbs/resolve.ts:32-45 decrypts using owner and provider ID, which is unchanged across the hostile rebind.",
+        "The read-only /tmp abuse probe composed freshDb, the real plugin service, connection service, registry, and persistence. Its result was: absentAfterDisable=true, reboundBaseUrl=https://attacker.example/v1, persistedConnectionProvider=plugin:shared-name/relay, persistedCredentialProvider=plugin:shared-name/relay."
+      ],
+      "minimal_fix": "Make the globally published provider identity unclaimable by a different install authority. Either include owner or a stable signed package identity in the provider namespace, or retain an immutable/tombstoned providerId-to-definitionHash binding while any credential or connection can refer to the ID (and preferably permanently). Add an end-to-end regression that disables the last contributor, installs the same owner-scoped slug as another user with a different definition, and proves the old connection cannot resolve or transmit its secret."
+    },
+    {
+      "id": "F2-provider-fixed-host-bypasses-plugin-consent-boundary",
+      "severity": "HIGH",
+      "status": "CONFIRMED",
+      "failure_scenario": "A plugin manifest declares capabilities=[], no netHosts, and a provider with baseUrl=https://attacker.example/v1. The manifest parser accepts it, activation publishes the provider deployment-wide, and provider dispatch can carry a user's sealed credential to that host even though the plugin's consent surface never named the host or granted an egress capability.",
+      "evidence": [
+        "docs/design/orbweaver-inference-package.md:1161-1171 explicitly requires every fixed provider baseUrl host to be in netHosts and requires an egress capability because provider traffic bypasses the plugin membrane SSRF allowlist and hourly belt.",
+        "packages/contracts/src/plugin/manifest.ts:282-324 applies the egress/netHosts biconditional only to declared plugin capabilities and netHosts. The provider loop at lines 333-345 checks only provider namespace and duplicate IDs; it never inspects provider.baseUrl.",
+        "The same real-composition abuse probe installed and enabled both provider manifests with capabilities=[] and no netHosts, proving the omitted cross-field validation reaches activation."
+      ],
+      "minimal_fix": "At pluginManifestSchema.superRefine, for every provider with a fixed baseUrl, normalize its hostname with the canonical egress-host logic and require both membership in netHosts and at least one EGRESS_CAPABILITIES member. Add contract controls for missing capability, missing host, mismatched host, normalized equivalent host, and auth:endpoint providers without a fixed baseUrl."
+    }
+  ],
+  "verification": {
+    "focused_test_command": "pnpm test:scoped tests/inference/index.test.ts tests/db/client.int.test.ts tests/server/domain/connection/persistence/provider-rows.int.test.ts tests/server/domain/plugin/activation/provider-contributions.int.test.ts tests/server/domain/plugin/activation/crash-policy.int.test.ts",
+    "focused_test_result": "PASS: 5 files, 69 tests",
+    "focused_test_receipt": "reports/runs/test/orbweaver-3585039-2026-09-21T15-17-17-283Z/test-report.json",
+    "abuse_probe_command": "node --experimental-strip-types /tmp/ow-2558-provider-takeover-probe.ts",
+    "abuse_probe_result": "PASS as an exploit reproduction: the victim's persisted plugin provider reference rebound to the second user's attacker baseUrl after last-contributor deletion."
+  },
+  "scope_and_mutation": {
+    "reviewed": "Receipt, 39-path manifest, repair delta, load-bearing production and test files, migration 0002, migration journal, and concurrent migration 0003 SQL/snapshot chain.",
+    "repository_source_edits": false,
+    "staged_or_committed": false,
+    "work_item_mutation": false,
+    "scratch_only": ["/tmp/ow-2558-provider-takeover-probe.ts", "/tmp/world-tools-plugin-provider-activation-security-review-2.json"]
+  }
+}

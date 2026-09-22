@@ -7,6 +7,7 @@
 
 import type { StoredAsset } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
+import type { ProviderDef } from "@orb/contracts/inference";
 import type {
   InvocationChat,
   PluginBridge,
@@ -176,7 +177,14 @@ export type ActivateOutcome = { readonly ok: true } | { readonly ok: false; read
  *  over the shared registry and injected (the imagery verb-to-verb dep pattern). */
 export interface ActivationDeps {
   readonly activate: (input: ActivateInput) => Promise<ActivateOutcome>;
-  readonly deactivate: (pluginId: PluginId) => void;
+  readonly deactivate: (pluginId: PluginId) => Promise<void>;
+}
+
+/** The connection domain owns provider persistence and the validated runtime registry. Plugin lifecycle only
+ * declares when one installed plugin's manifest contributions become authoritative or cease to be so. */
+export interface PluginProviderLifecycle {
+  readonly activate: (rows: readonly ProviderDef[], origin: { readonly pluginId: PluginId; readonly pluginName: string }) => Promise<void>;
+  readonly deactivate: (pluginId: PluginId) => Promise<void>;
 }
 
 /** The crash-policy surface the invocation loop drives (auto-disable posture). Homed here (not
@@ -268,7 +276,9 @@ export interface PluginContext {
   // `can()` kernel here would be a seam nothing asks — and a tempting one to answer WRONG, because the
   // obvious "admins may manage any row" branch would run one user's untrusted guest bundle under another
   // user's identity (the bridge and the PL-C ceiling both close over the ENABLING caller). The admin-gated
-  // SERVER-WIDE install is a separate, unbuilt shape (D147); it does not reuse these verbs.
+  // SERVER-WIDE path is the separate `PluginDistributionDeps` fan-out: it publishes one bundle, then invokes
+  // the ordinary install for each recipient under that recipient's Principal. Every copy lands disabled,
+  // ungranted, and consent-pending; distribution grants no cross-owner management or data access (D147).
   /** The per-user CAS ops the bundle bytes ride: `store` (kind fixed `"plugin"`), the owner-gated `readBytes`
    *  (activation re-reads + re-parses — "re-validated on load"), and `reapOrphans` (uninstall reaps the bundle
    *  asset AFTER the row's FK reference is deleted — the RESTRICT/`reapIfOrphan` posture). */

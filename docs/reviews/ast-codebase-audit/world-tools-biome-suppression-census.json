@@ -1,0 +1,3369 @@
+{
+  "schema": "orbweaver.ast-codebase-audit.biome-suppression-census",
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-21T23:16:10.615Z",
+  "status": "active-adjudication",
+  "purpose": "Closed parser-derived denominator for the Biome suppression review requested during the AST/codebase audit. This is evidence feeding the canonical ledger, not a second control plane.",
+  "canonicalLedger": "docs/reviews/ast-codebase-audit/world-tools-running-finding-ledger.json",
+  "scope": {
+    "paths": ["tests/**", "packages/**", "tooling/src/**", "scripts/**"],
+    "extensions": ["ts", "tsx", "mts"],
+    "reader": "tooling/src/verify/lib/suppression-directive.ts#suppressionSites",
+    "rawTextCounts": {
+      "tests": 198,
+      "all": 569
+    },
+    "note": "Raw text includes fixture strings and prose. Parser counts below are authoritative directive markers."
+  },
+  "counts": {
+    "all": 462,
+    "tests": 160,
+    "source": 302,
+    "files": 230,
+    "testFiles": 71
+  },
+  "byScope": [["source", 302], ["tests", 160]],
+  "testsByRule": [
+    ["lint/style/useNamingConvention", 67],
+    ["lint/style/noProcessEnv", 35],
+    ["lint/suspicious/noExplicitAny", 21],
+    ["lint/correctness/noProcessGlobal", 6],
+    ["lint/suspicious/noBitwiseOperators", 6],
+    ["lint/nursery/noPlaywrightWaitForTimeout", 4],
+    ["lint/performance/noNamespaceImport", 3],
+    ["lint/suspicious/noMisplacedAssertion", 3],
+    ["lint/nursery/useNullishCoalescing", 2],
+    ["lint/style/useConsistentMethodSignatures", 2],
+    ["lint/suspicious/noTemplateCurlyInString", 2],
+    ["lint/suspicious/useAwait", 2],
+    ["format", 1],
+    ["lint/correctness/useUniqueElementIds", 1],
+    ["lint/nursery/useExplicitReturnType", 1],
+    ["lint/style/noNonNullAssertion", 1],
+    ["lint/style/useThrowOnlyError", 1],
+    ["lint/suspicious/noUnknownAttribute", 1],
+    ["lint/suspicious/useErrorMessage", 1]
+  ],
+  "testsByTopArea": [
+    ["tests/server/domain", 45],
+    ["tests/server/infra", 13],
+    ["tests/server/transport", 13],
+    ["tests/tooling/verify", 13],
+    ["tests/server/entry", 10],
+    ["tests/server/foundation", 8],
+    ["tests/contracts/character", 6],
+    ["tests/tooling/stack", 6],
+    ["tests/support/tool-fixtures.ts", 4],
+    ["tests/tooling/snap", 4],
+    ["tests/tooling/wire-tap", 4],
+    ["tests/client/lib", 3],
+    ["tests/support/chat", 3],
+    ["tests/client/agent-nav", 2],
+    ["tests/contracts/versioned-config", 2],
+    ["tests/e2e/support", 2],
+    ["tests/kit/png-card-chunk", 2],
+    ["tests/support/iso", 2],
+    ["tests/tooling/review-mirror", 2],
+    ["tests/client/a11y", 1],
+    ["tests/client/agent-plugin", 1],
+    ["tests/client/agent-rpg", 1],
+    ["tests/client/agent-seed", 1],
+    ["tests/contracts/settings", 1],
+    ["tests/contracts/workloads", 1],
+    ["tests/db/schema", 1],
+    ["tests/kit/error-message", 1],
+    ["tests/support/db.ts", 1],
+    ["tests/support/matchers.ts", 1],
+    ["tests/tooling/_shared", 1],
+    ["tests/tooling/required-live-evidence-reporter.int.test.ts", 1],
+    ["tests/tooling/vitest-supervised.test.ts", 1],
+    ["tests/tooling/workboard", 1],
+    ["tests/ui/code-editor", 1],
+    ["tests/ui/primitives", 1]
+  ],
+  "testsByToken": [["biome-ignore", 122], ["biome-ignore-end", 19], ["biome-ignore-start", 19]],
+  "allByRule": [
+    ["lint/style/useNamingConvention", 105],
+    ["lint/style/noProcessEnv", 79],
+    ["lint/suspicious/noBitwiseOperators", 32],
+    ["lint/suspicious/noExplicitAny", 32],
+    ["lint/suspicious/noArrayIndexKey", 24],
+    ["lint/complexity/noExcessiveCognitiveComplexity", 18],
+    ["lint/suspicious/noUnnecessaryConditions", 17],
+    ["lint/style/noNonNullAssertion", 14],
+    ["lint/suspicious/noDeprecatedImports", 11],
+    ["lint/performance/noBarrelFile", 10],
+    ["lint/nursery/useNullishCoalescing", 9],
+    ["lint/style/useErrorCause", 9],
+    ["lint/complexity/noUselessUndefined", 8],
+    ["lint/nursery/noPlaywrightWaitForTimeout", 8],
+    ["lint/suspicious/noTemplateCurlyInString", 8],
+    ["lint/a11y/useSemanticElements", 7],
+    ["lint/style/noMagicNumbers", 7],
+    ["lint/correctness/noProcessGlobal", 6],
+    ["lint/performance/noNamespaceImport", 6],
+    ["lint/nursery/noComponentHookFactories", 5],
+    ["lint/style/useShorthandFunctionType", 4],
+    ["lint/a11y/noLabelWithoutControl", 3],
+    ["lint/a11y/noNoninteractiveElementInteractions", 3],
+    ["lint/correctness/useExhaustiveDependencies", 3],
+    ["lint/nursery/noConditionalExpect", 3],
+    ["lint/nursery/noPlaywrightWaitForSelector", 3],
+    ["lint/suspicious/noMisplacedAssertion", 3],
+    ["format", 2],
+    ["lint/complexity/useMaxParams", 2],
+    ["lint/nursery/noPlaywrightNetworkidle", 2],
+    ["lint/nursery/useExplicitReturnType", 2],
+    ["lint/style/useConsistentMethodSignatures", 2],
+    ["lint/suspicious/noControlCharactersInRegex", 2],
+    ["lint/suspicious/useAwait", 2],
+    ["lint/a11y/noNoninteractiveTabindex", 1],
+    ["lint/a11y/noStaticElementInteractions", 1],
+    ["lint/a11y/useFocusableInteractive", 1],
+    ["lint/complexity/noUselessConstructor", 1],
+    ["lint/complexity/noUselessReturn", 1],
+    ["lint/correctness/useUniqueElementIds", 1],
+    ["lint/correctness/useYield", 1],
+    ["lint/style/useNumericSeparators", 1],
+    ["lint/style/useThrowOnlyError", 1],
+    ["lint/suspicious/noUnknownAttribute", 1],
+    ["lint/suspicious/useErrorMessage", 1]
+  ],
+  "rows": [
+    {
+      "file": "scripts/build-version-stamp.ts",
+      "line": 8,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "source"
+    },
+    {
+      "file": "tests/server/transport/trpc/router.test.ts",
+      "line": 46,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noExplicitAny",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/transport/trpc/routers/workloads.test.ts",
+      "line": 40,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noExplicitAny",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/transport/trpc/routers/workloads.test.ts",
+      "line": 55,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noExplicitAny",
+      "scope": "tests"
+    },
+    {
+      "file": "tooling/src/motion-audit/contract/types.ts",
+      "line": 199,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/motion-audit/contract/types.ts",
+      "line": 202,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "source"
+    },
+    {
+      "file": "tests/server/transport/trpc/routers/chat.test.ts",
+      "line": 153,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noExplicitAny",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/transport/trpc/routers/chat.test.ts",
+      "line": 165,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noExplicitAny",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/transport/trpc/routers/chat.test.ts",
+      "line": 401,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noExplicitAny",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/transport/trpc/routers/chat.test.ts",
+      "line": 417,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noExplicitAny",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/transport/trpc/routers/chat.test.ts",
+      "line": 433,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noExplicitAny",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/transport/trpc/routers/chat.test.ts",
+      "line": 779,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noExplicitAny",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/transport/trpc/routers/chat.test.ts",
+      "line": 1009,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noExplicitAny",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/transport/trpc/routers/chat.test.ts",
+      "line": 1385,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noExplicitAny",
+      "scope": "tests"
+    },
+    {
+      "file": "scripts/probes/transcript-census.ts",
+      "line": 138,
+      "token": "biome-ignore",
+      "rule": "lint/style/noNonNullAssertion",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/transcript-census.ts",
+      "line": 220,
+      "token": "biome-ignore",
+      "rule": "lint/style/noNonNullAssertion",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/transcript-census.ts",
+      "line": 341,
+      "token": "biome-ignore",
+      "rule": "lint/style/noNonNullAssertion",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/transcript-census.ts",
+      "line": 350,
+      "token": "biome-ignore",
+      "rule": "lint/style/noNonNullAssertion",
+      "scope": "source"
+    },
+    {
+      "file": "tests/server/transport/trpc/error-mapping.test.ts",
+      "line": 114,
+      "token": "biome-ignore-start",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/transport/trpc/error-mapping.test.ts",
+      "line": 127,
+      "token": "biome-ignore-end",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/contracts/settings/index.contract.test.ts",
+      "line": 633,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/support/db.ts",
+      "line": 15,
+      "token": "biome-ignore",
+      "rule": "lint/performance/noNamespaceImport",
+      "scope": "tests"
+    },
+    {
+      "file": "packages/inference/src/backends/agent-sdk/catalog.ts",
+      "line": 28,
+      "token": "biome-ignore",
+      "rule": "lint/correctness/useYield",
+      "scope": "source"
+    },
+    {
+      "file": "tests/support/matchers.ts",
+      "line": 171,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noExplicitAny",
+      "scope": "tests"
+    },
+    {
+      "file": "packages/ui/token-contract.ts",
+      "line": 20,
+      "token": "biome-ignore",
+      "rule": "lint/performance/noNamespaceImport",
+      "scope": "source"
+    },
+    {
+      "file": "tests/server/entry/oidc-logout-roundtrip.suite.int.test.ts",
+      "line": 72,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/entry/oidc-logout-roundtrip.suite.int.test.ts",
+      "line": 88,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/support/chat/assertions.ts",
+      "line": 31,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noMisplacedAssertion",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/support/chat/assertions.ts",
+      "line": 43,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noMisplacedAssertion",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/support/chat/assertions.ts",
+      "line": 78,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noMisplacedAssertion",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/support/tool-fixtures.ts",
+      "line": 110,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/useAwait",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/support/tool-fixtures.ts",
+      "line": 135,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/support/tool-fixtures.ts",
+      "line": 144,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/support/tool-fixtures.ts",
+      "line": 150,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "tests"
+    },
+    {
+      "file": "packages/ui/src/lib/live-token-resolver.ts",
+      "line": 57,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "source"
+    },
+    {
+      "file": "tests/support/iso/hit-extent-walk.ts",
+      "line": 76,
+      "token": "biome-ignore",
+      "rule": "lint/style/useConsistentMethodSignatures",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/support/iso/hit-extent-walk.ts",
+      "line": 90,
+      "token": "biome-ignore",
+      "rule": "lint/style/useConsistentMethodSignatures",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/entry/http/import-chat.test.ts",
+      "line": 31,
+      "token": "biome-ignore-start",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/entry/http/import-chat.test.ts",
+      "line": 40,
+      "token": "biome-ignore-end",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "scripts/probes/rpg-extraction/steer-probe.ts",
+      "line": 46,
+      "token": "biome-ignore",
+      "rule": "lint/style/noNonNullAssertion",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/rpg-extraction/steer-probe.ts",
+      "line": 104,
+      "token": "biome-ignore",
+      "rule": "lint/style/noNonNullAssertion",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/rpg-extraction/steer-probe.ts",
+      "line": 117,
+      "token": "biome-ignore",
+      "rule": "lint/style/noNonNullAssertion",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/rpg-extraction/steer-probe.ts",
+      "line": 121,
+      "token": "biome-ignore",
+      "rule": "lint/style/noNonNullAssertion",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/rpg-extraction/steer-probe.ts",
+      "line": 124,
+      "token": "biome-ignore",
+      "rule": "lint/style/noNonNullAssertion",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/rpg-extraction/steer-probe.ts",
+      "line": 162,
+      "token": "biome-ignore",
+      "rule": "lint/style/noNonNullAssertion",
+      "scope": "source"
+    },
+    {
+      "file": "packages/ui/src/lib/portal-container.ts",
+      "line": 9,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/impersonate/run.ts",
+      "line": 42,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "source"
+    },
+    {
+      "file": "tests/contracts/workloads/axes.contract.test.ts",
+      "line": 136,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "packages/server/src/entry/lifecycle.ts",
+      "line": 307,
+      "token": "biome-ignore",
+      "rule": "lint/complexity/noExcessiveCognitiveComplexity",
+      "scope": "source"
+    },
+    {
+      "file": "packages/server/src/entry/lifecycle.ts",
+      "line": 782,
+      "token": "biome-ignore",
+      "rule": "lint/complexity/noExcessiveCognitiveComplexity",
+      "scope": "source"
+    },
+    {
+      "file": "packages/inference/src/backends/kit/image-normalize.ts",
+      "line": 29,
+      "token": "biome-ignore",
+      "rule": "lint/style/useShorthandFunctionType",
+      "scope": "source"
+    },
+    {
+      "file": "packages/inference/src/backends/kit/image-normalize.ts",
+      "line": 37,
+      "token": "biome-ignore",
+      "rule": "lint/style/useShorthandFunctionType",
+      "scope": "source"
+    },
+    {
+      "file": "tests/server/entry/import/residual-data-round-trip.suite.int.test.ts",
+      "line": 29,
+      "token": "biome-ignore-start",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/entry/import/residual-data-round-trip.suite.int.test.ts",
+      "line": 43,
+      "token": "biome-ignore-end",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/entry/import/residual-data-round-trip.suite.int.test.ts",
+      "line": 83,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/entry/import/residual-data-round-trip.suite.int.test.ts",
+      "line": 119,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/contracts/character/index.contract.test.ts",
+      "line": 233,
+      "token": "biome-ignore-start",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/contracts/character/index.contract.test.ts",
+      "line": 267,
+      "token": "biome-ignore-end",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/contracts/character/index.contract.test.ts",
+      "line": 271,
+      "token": "biome-ignore-start",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/contracts/character/index.contract.test.ts",
+      "line": 293,
+      "token": "biome-ignore-end",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/contracts/character/index.contract.test.ts",
+      "line": 297,
+      "token": "biome-ignore-start",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/contracts/character/index.contract.test.ts",
+      "line": 328,
+      "token": "biome-ignore-end",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "packages/inference/src/backends/kit/sanitize.ts",
+      "line": 63,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noControlCharactersInRegex",
+      "scope": "source"
+    },
+    {
+      "file": "tests/server/entry/import/run-bundle-import.test.ts",
+      "line": 190,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noBitwiseOperators",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/domain/settings/substrate/theme-views.test.ts",
+      "line": 75,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noExplicitAny",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/domain/settings/substrate/theme-views.test.ts",
+      "line": 84,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noExplicitAny",
+      "scope": "tests"
+    },
+    {
+      "file": "scripts/probes/st-goldens/rig-paths.ts",
+      "line": 12,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/st-goldens/generate-goldens.ts",
+      "line": 76,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noBitwiseOperators",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/st-goldens/generate-goldens.ts",
+      "line": 78,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noBitwiseOperators",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/st-goldens/generate-goldens.ts",
+      "line": 82,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noBitwiseOperators",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/st-goldens/generate-goldens.ts",
+      "line": 84,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noBitwiseOperators",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/st-goldens/generate-goldens.ts",
+      "line": 87,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noBitwiseOperators",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/st-goldens/generate-goldens.ts",
+      "line": 89,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noBitwiseOperators",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/st-goldens/generate-goldens.ts",
+      "line": 91,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noBitwiseOperators",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/st-goldens/generate-goldens.ts",
+      "line": 107,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noExplicitAny",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/st-goldens/generate-goldens.ts",
+      "line": 125,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noExplicitAny",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/st-goldens/generate-goldens.ts",
+      "line": 155,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noExplicitAny",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/st-goldens/generate-goldens.ts",
+      "line": 192,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noExplicitAny",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/st-goldens/generate-goldens.ts",
+      "line": 244,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/st-goldens/generate-goldens.ts",
+      "line": 245,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/st-goldens/generate-goldens.ts",
+      "line": 312,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/st-goldens/generate-goldens.ts",
+      "line": 315,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/st-goldens/generate-goldens.ts",
+      "line": 317,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/st-goldens/generate-goldens.ts",
+      "line": 336,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/st-goldens/generate-goldens.ts",
+      "line": 341,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/st-goldens/generate-goldens.ts",
+      "line": 343,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/st-goldens/generate-goldens.ts",
+      "line": 345,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/st-goldens/generate-goldens.ts",
+      "line": 365,
+      "token": "biome-ignore",
+      "rule": "lint/nursery/noPlaywrightNetworkidle",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/st-goldens/generate-goldens.ts",
+      "line": 367,
+      "token": "biome-ignore",
+      "rule": "lint/nursery/noPlaywrightWaitForSelector",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/st-goldens/generate-goldens.ts",
+      "line": 406,
+      "token": "biome-ignore",
+      "rule": "lint/nursery/noPlaywrightWaitForSelector",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/st-goldens/generate-goldens.ts",
+      "line": 444,
+      "token": "biome-ignore",
+      "rule": "lint/nursery/noPlaywrightWaitForSelector",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/st-goldens/generate-goldens.ts",
+      "line": 462,
+      "token": "biome-ignore",
+      "rule": "lint/nursery/noPlaywrightWaitForTimeout",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/st-goldens/generate-goldens.ts",
+      "line": 480,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noExplicitAny",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/st-goldens/generate-goldens.ts",
+      "line": 487,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/st-goldens/generate-goldens.ts",
+      "line": 498,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noExplicitAny",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/st-goldens/generate-goldens.ts",
+      "line": 513,
+      "token": "biome-ignore",
+      "rule": "lint/nursery/noPlaywrightWaitForTimeout",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/st-goldens/generate-goldens.ts",
+      "line": 522,
+      "token": "biome-ignore",
+      "rule": "lint/nursery/noPlaywrightWaitForTimeout",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/st-goldens/generate-goldens.ts",
+      "line": 562,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/st-goldens/generate-goldens.ts",
+      "line": 565,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/st-goldens/generate-goldens.ts",
+      "line": 568,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/st-goldens/generate-goldens.ts",
+      "line": 572,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/st-goldens/generate-goldens.ts",
+      "line": 577,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noExplicitAny",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/st-goldens/generate-goldens.ts",
+      "line": 584,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noExplicitAny",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/st-goldens/compare-runner.ts",
+      "line": 26,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/st-goldens/build-fixtures.ts",
+      "line": 28,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/st-goldens/build-fixtures.ts",
+      "line": 30,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/st-goldens/build-fixtures.ts",
+      "line": 32,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/st-goldens/build-fixtures.ts",
+      "line": 34,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/st-goldens/build-fixtures.ts",
+      "line": 36,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/st-goldens/build-fixtures.ts",
+      "line": 46,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/st-goldens/build-fixtures.ts",
+      "line": 48,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/st-goldens/build-fixtures.ts",
+      "line": 50,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/st-goldens/build-fixtures.ts",
+      "line": 52,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "source"
+    },
+    {
+      "file": "scripts/probes/st-goldens/build-fixtures.ts",
+      "line": 79,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "source"
+    },
+    {
+      "file": "tests/contracts/versioned-config/index.contract.test.ts",
+      "line": 56,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noExplicitAny",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/contracts/versioned-config/index.contract.test.ts",
+      "line": 87,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noExplicitAny",
+      "scope": "tests"
+    },
+    {
+      "file": "tooling/src/verify/lib/fixture-path-origin.ts",
+      "line": 147,
+      "token": "biome-ignore",
+      "rule": "lint/complexity/noExcessiveCognitiveComplexity",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/verify/lib/fixture-path-origin.ts",
+      "line": 275,
+      "token": "biome-ignore",
+      "rule": "lint/complexity/noExcessiveCognitiveComplexity",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/verify/lib/fixture-path-origin.ts",
+      "line": 340,
+      "token": "biome-ignore",
+      "rule": "lint/complexity/noUselessUndefined",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/verify/lib/fixture-path-origin.ts",
+      "line": 344,
+      "token": "biome-ignore",
+      "rule": "lint/complexity/noExcessiveCognitiveComplexity",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/verify/lib/type-member-origin-containment.ts",
+      "line": 103,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noBitwiseOperators",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/verify/lib/type-member-origin-containment.ts",
+      "line": 195,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noBitwiseOperators",
+      "scope": "source"
+    },
+    {
+      "file": "packages/ui/src/primitives/color-field/color-field.tsx",
+      "line": 189,
+      "token": "biome-ignore",
+      "rule": "lint/nursery/useNullishCoalescing",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/verify/lib/fixture-path-call-graph.ts",
+      "line": 37,
+      "token": "biome-ignore",
+      "rule": "lint/complexity/noUselessUndefined",
+      "scope": "source"
+    },
+    {
+      "file": "tests/server/entry/app.test.ts",
+      "line": 757,
+      "token": "biome-ignore",
+      "rule": "lint/style/useThrowOnlyError",
+      "scope": "tests"
+    },
+    {
+      "file": "packages/ui/src/primitives/log-viewer/log-viewer.tsx",
+      "line": 199,
+      "token": "biome-ignore",
+      "rule": "lint/a11y/noNoninteractiveTabindex",
+      "scope": "source"
+    },
+    {
+      "file": "packages/ui/src/primitives/log-viewer/log-viewer.tsx",
+      "line": 206,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noArrayIndexKey",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/verify/lib/stage-command.ts",
+      "line": 51,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noBitwiseOperators",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/verify/lib/stage-command.ts",
+      "line": 122,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "source"
+    },
+    {
+      "file": "packages/server/src/entry/http/import-tree.ts",
+      "line": 203,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noBitwiseOperators",
+      "scope": "source"
+    },
+    {
+      "file": "packages/server/src/entry/http/import-tree.ts",
+      "line": 226,
+      "token": "biome-ignore",
+      "rule": "lint/style/useErrorCause",
+      "scope": "source"
+    },
+    {
+      "file": "tests/server/domain/chat/_support.ts",
+      "line": 195,
+      "token": "biome-ignore",
+      "rule": "lint/nursery/useNullishCoalescing",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/domain/settings/verbs/create-theme.int.test.ts",
+      "line": 32,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noExplicitAny",
+      "scope": "tests"
+    },
+    {
+      "file": "packages/ui/src/primitives/crossfade-image/crossfade-image.tsx",
+      "line": 93,
+      "token": "biome-ignore",
+      "rule": "lint/a11y/noNoninteractiveElementInteractions",
+      "scope": "source"
+    },
+    {
+      "file": "packages/ui/src/primitives/highlighted-text/highlighted-text.tsx",
+      "line": 97,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noArrayIndexKey",
+      "scope": "source"
+    },
+    {
+      "file": "packages/ui/src/primitives/highlighted-text/highlighted-text.tsx",
+      "line": 102,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noArrayIndexKey",
+      "scope": "source"
+    },
+    {
+      "file": "packages/server/src/entry/http/auth-routes.ts",
+      "line": 393,
+      "token": "biome-ignore",
+      "rule": "lint/style/useShorthandFunctionType",
+      "scope": "source"
+    },
+    {
+      "file": "packages/ui/src/primitives/avatar-stack/avatar-stack.tsx",
+      "line": 47,
+      "token": "biome-ignore",
+      "rule": "lint/a11y/useSemanticElements",
+      "scope": "source"
+    },
+    {
+      "file": "packages/ui/src/primitives/avatar-stack/avatar-stack.tsx",
+      "line": 72,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noArrayIndexKey",
+      "scope": "source"
+    },
+    {
+      "file": "tests/db/schema/settings.int.test.ts",
+      "line": 171,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noExplicitAny",
+      "scope": "tests"
+    },
+    {
+      "file": "scripts/probes/guard-replay.ts",
+      "line": 100,
+      "token": "biome-ignore",
+      "rule": "lint/style/noNonNullAssertion",
+      "scope": "source"
+    },
+    {
+      "file": "packages/server/src/entry/http/import.ts",
+      "line": 47,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noBitwiseOperators",
+      "scope": "source"
+    },
+    {
+      "file": "packages/server/src/entry/http/blob.ts",
+      "line": 82,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/verify/lib/suppression-directive.ts",
+      "line": 58,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noUnnecessaryConditions",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/verify/lib/suppression-directive.ts",
+      "line": 63,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noUnnecessaryConditions",
+      "scope": "source"
+    },
+    {
+      "file": "packages/ui/src/primitives/file-dropzone/folder-picker.tsx",
+      "line": 61,
+      "token": "biome-ignore",
+      "rule": "lint/nursery/useNullishCoalescing",
+      "scope": "source"
+    },
+    {
+      "file": "packages/ui/src/primitives/file-dropzone/file-dropzone.tsx",
+      "line": 200,
+      "token": "biome-ignore",
+      "rule": "lint/nursery/useNullishCoalescing",
+      "scope": "source"
+    },
+    {
+      "file": "packages/ui/src/primitives/file-dropzone/file-dropzone.tsx",
+      "line": 268,
+      "token": "biome-ignore",
+      "rule": "lint/a11y/noStaticElementInteractions",
+      "scope": "source"
+    },
+    {
+      "file": "packages/ui/src/primitives/file-dropzone/file-dropzone.tsx",
+      "line": 269,
+      "token": "biome-ignore",
+      "rule": "lint/a11y/noNoninteractiveElementInteractions",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/verify/lib/http-route-body.ts",
+      "line": 127,
+      "token": "biome-ignore",
+      "rule": "lint/complexity/noUselessUndefined",
+      "scope": "source"
+    },
+    {
+      "file": "packages/db/src/schema/embeddings.ts",
+      "line": 66,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noDeprecatedImports",
+      "scope": "source"
+    },
+    {
+      "file": "packages/db/src/schema/discovery.ts",
+      "line": 58,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noDeprecatedImports",
+      "scope": "source"
+    },
+    {
+      "file": "packages/db/src/schema/databank.ts",
+      "line": 31,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noDeprecatedImports",
+      "scope": "source"
+    },
+    {
+      "file": "packages/db/src/schema/automation.ts",
+      "line": 45,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noDeprecatedImports",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/verify/lib/fixture-path-authored-record.ts",
+      "line": 34,
+      "token": "biome-ignore",
+      "rule": "lint/complexity/noUselessUndefined",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/verify/lib/fixture-path-authored-record.ts",
+      "line": 74,
+      "token": "biome-ignore",
+      "rule": "lint/complexity/noUselessUndefined",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/verify/lib/fixture-path-authored-record.ts",
+      "line": 106,
+      "token": "biome-ignore",
+      "rule": "lint/complexity/noExcessiveCognitiveComplexity",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/verify/lib/fixture-path-authored-record.ts",
+      "line": 164,
+      "token": "biome-ignore",
+      "rule": "lint/complexity/noExcessiveCognitiveComplexity",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/verify/lib/fixture-path-authored-record.ts",
+      "line": 220,
+      "token": "biome-ignore",
+      "rule": "lint/complexity/noExcessiveCognitiveComplexity",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/verify/lib/fixture-path-authored-record.ts",
+      "line": 287,
+      "token": "biome-ignore",
+      "rule": "lint/complexity/noExcessiveCognitiveComplexity",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/verify/lib/fixture-path-authored-record.ts",
+      "line": 307,
+      "token": "biome-ignore",
+      "rule": "lint/complexity/noExcessiveCognitiveComplexity",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/verify/lib/fixture-path-authored-record.ts",
+      "line": 349,
+      "token": "biome-ignore",
+      "rule": "lint/complexity/noExcessiveCognitiveComplexity",
+      "scope": "source"
+    },
+    {
+      "file": "packages/db/src/schema/roster-preset.ts",
+      "line": 24,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noDeprecatedImports",
+      "scope": "source"
+    },
+    {
+      "file": "packages/ui/src/fuzzy-search/fuzzy-search.ts",
+      "line": 115,
+      "token": "biome-ignore",
+      "rule": "lint/correctness/useExhaustiveDependencies",
+      "scope": "source"
+    },
+    {
+      "file": "packages/ui/src/fuzzy-search/fuzzy-search.ts",
+      "line": 139,
+      "token": "biome-ignore",
+      "rule": "lint/correctness/useExhaustiveDependencies",
+      "scope": "source"
+    },
+    {
+      "file": "packages/db/src/schema/plugin.ts",
+      "line": 17,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noDeprecatedImports",
+      "scope": "source"
+    },
+    {
+      "file": "packages/db/src/schema/connection-bindings.ts",
+      "line": 19,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noDeprecatedImports",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/verify/lib/type-member-origin.ts",
+      "line": 29,
+      "token": "biome-ignore",
+      "rule": "lint/performance/noBarrelFile",
+      "scope": "source"
+    },
+    {
+      "file": "packages/db/src/schema/character.ts",
+      "line": 26,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noDeprecatedImports",
+      "scope": "source"
+    },
+    {
+      "file": "packages/db/src/schema/regex.ts",
+      "line": 31,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noDeprecatedImports",
+      "scope": "source"
+    },
+    {
+      "file": "packages/db/src/schema/tag.ts",
+      "line": 36,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noDeprecatedImports",
+      "scope": "source"
+    },
+    {
+      "file": "packages/ui/src/charts/meter/segmented-clock.tsx",
+      "line": 75,
+      "token": "biome-ignore",
+      "rule": "lint/a11y/useSemanticElements",
+      "scope": "source"
+    },
+    {
+      "file": "packages/ui/src/charts/meter/segmented-clock.tsx",
+      "line": 95,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noArrayIndexKey",
+      "scope": "source"
+    },
+    {
+      "file": "packages/db/src/schema/world-info.ts",
+      "line": 34,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noDeprecatedImports",
+      "scope": "source"
+    },
+    {
+      "file": "packages/db/src/client/index.ts",
+      "line": 20,
+      "token": "biome-ignore",
+      "rule": "lint/performance/noNamespaceImport",
+      "scope": "source"
+    },
+    {
+      "file": "tests/server/domain/chat/engine/turn-fault-outcome.suite.int.test.ts",
+      "line": 31,
+      "token": "biome-ignore-start",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/domain/chat/engine/turn-fault-outcome.suite.int.test.ts",
+      "line": 32,
+      "token": "biome-ignore-start",
+      "rule": "lint/correctness/noProcessGlobal",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/domain/chat/engine/turn-fault-outcome.suite.int.test.ts",
+      "line": 38,
+      "token": "biome-ignore-end",
+      "rule": "lint/correctness/noProcessGlobal",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/domain/chat/engine/turn-fault-outcome.suite.int.test.ts",
+      "line": 57,
+      "token": "biome-ignore-end",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "tests"
+    },
+    {
+      "file": "packages/ui/src/primitives/media-grid/media-grid.tsx",
+      "line": 146,
+      "token": "biome-ignore",
+      "rule": "lint/a11y/useSemanticElements",
+      "scope": "source"
+    },
+    {
+      "file": "packages/ui/src/primitives/media-grid/media-grid.tsx",
+      "line": 319,
+      "token": "biome-ignore",
+      "rule": "lint/a11y/useSemanticElements",
+      "scope": "source"
+    },
+    {
+      "file": "packages/ui/src/primitives/media-grid/media-grid.tsx",
+      "line": 336,
+      "token": "biome-ignore",
+      "rule": "lint/a11y/useFocusableInteractive",
+      "scope": "source"
+    },
+    {
+      "file": "packages/ui/src/primitives/media-grid/media-grid.tsx",
+      "line": 337,
+      "token": "biome-ignore",
+      "rule": "lint/a11y/useSemanticElements",
+      "scope": "source"
+    },
+    {
+      "file": "packages/server/src/entry/compose/services.ts",
+      "line": 783,
+      "token": "biome-ignore",
+      "rule": "lint/complexity/useMaxParams",
+      "scope": "source"
+    },
+    {
+      "file": "packages/server/src/entry/compose/chat.ts",
+      "line": 664,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noExplicitAny",
+      "scope": "source"
+    },
+    {
+      "file": "tests/ui/primitives/message-list/message-list.ct.tsx",
+      "line": 539,
+      "token": "biome-ignore",
+      "rule": "lint/nursery/noPlaywrightWaitForTimeout",
+      "scope": "tests"
+    },
+    {
+      "file": "tooling/src/verify/lib/bus-fact-read.ts",
+      "line": 439,
+      "token": "biome-ignore",
+      "rule": "lint/performance/noBarrelFile",
+      "scope": "source"
+    },
+    {
+      "file": "packages/ui/src/content/message-media/message-media.tsx",
+      "line": 118,
+      "token": "biome-ignore",
+      "rule": "lint/a11y/noNoninteractiveElementInteractions",
+      "scope": "source"
+    },
+    {
+      "file": "packages/ui/src/primitives/radio-group/radio-group.tsx",
+      "line": 35,
+      "token": "biome-ignore",
+      "rule": "lint/a11y/noLabelWithoutControl",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/verify/lib/query-freshness-fact.ts",
+      "line": 157,
+      "token": "biome-ignore",
+      "rule": "lint/complexity/noExcessiveCognitiveComplexity",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/verify/lib/query-freshness-fact.ts",
+      "line": 200,
+      "token": "biome-ignore",
+      "rule": "lint/complexity/noExcessiveCognitiveComplexity",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/verify/lib/policy-program-membership.ts",
+      "line": 8,
+      "token": "biome-ignore",
+      "rule": "lint/performance/noBarrelFile",
+      "scope": "source"
+    },
+    {
+      "file": "tests/server/domain/rpg/contract/service.int.test.ts",
+      "line": 46,
+      "token": "biome-ignore",
+      "rule": "lint/style/noNonNullAssertion",
+      "scope": "tests"
+    },
+    {
+      "file": "tooling/src/verify/ops/db-baseline-parity.ts",
+      "line": 107,
+      "token": "biome-ignore",
+      "rule": "lint/performance/noNamespaceImport",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/verify/ops/db-baseline-parity.ts",
+      "line": 158,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "source"
+    },
+    {
+      "file": "packages/client/src/lib/registry-contracts.ts",
+      "line": 265,
+      "token": "biome-ignore",
+      "rule": "lint/nursery/noComponentHookFactories",
+      "scope": "source"
+    },
+    {
+      "file": "packages/ui/src/primitives/virtual-list/virtual-list.tsx",
+      "line": 217,
+      "token": "biome-ignore",
+      "rule": "lint/a11y/useSemanticElements",
+      "scope": "source"
+    },
+    {
+      "file": "packages/ui/src/primitives/virtual-list/virtual-list.tsx",
+      "line": 233,
+      "token": "biome-ignore",
+      "rule": "lint/a11y/useSemanticElements",
+      "scope": "source"
+    },
+    {
+      "file": "packages/client/src/lib/motion-stats.ts",
+      "line": 324,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noExplicitAny",
+      "scope": "source"
+    },
+    {
+      "file": "tests/server/domain/assets/persistence/asset-refs.int.test.ts",
+      "line": 15,
+      "token": "biome-ignore",
+      "rule": "lint/performance/noNamespaceImport",
+      "scope": "tests"
+    },
+    {
+      "file": "packages/ui/src/primitives/slider/slider.tsx",
+      "line": 117,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noArrayIndexKey",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/verify/lib/type-member-origin-graph.ts",
+      "line": 226,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noBitwiseOperators",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/verify/ops/ledgers-fresh.ts",
+      "line": 313,
+      "token": "biome-ignore",
+      "rule": "lint/performance/noBarrelFile",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/verify/ops/structure.ts",
+      "line": 162,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "source"
+    },
+    {
+      "file": "packages/client/src/data/create-collection-surface.ts",
+      "line": 84,
+      "token": "biome-ignore",
+      "rule": "lint/nursery/noComponentHookFactories",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/verify/lib/child-env.ts",
+      "line": 25,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "source"
+    },
+    {
+      "file": "tests/server/domain/export/_support.ts",
+      "line": 28,
+      "token": "biome-ignore",
+      "rule": "format",
+      "scope": "tests"
+    },
+    {
+      "file": "tooling/src/verify/ops/tests-execution-membership.ts",
+      "line": 178,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "source"
+    },
+    {
+      "file": "packages/client/src/data/create-entity-mutation.ts",
+      "line": 157,
+      "token": "biome-ignore",
+      "rule": "lint/nursery/noComponentHookFactories",
+      "scope": "source"
+    },
+    {
+      "file": "packages/ui/src/stream/snap.ts",
+      "line": 42,
+      "token": "biome-ignore",
+      "rule": "lint/style/noNonNullAssertion",
+      "scope": "source"
+    },
+    {
+      "file": "packages/ui/src/stream/snap.ts",
+      "line": 51,
+      "token": "biome-ignore",
+      "rule": "lint/style/noNonNullAssertion",
+      "scope": "source"
+    },
+    {
+      "file": "tests/server/domain/export/verbs/export-chat.int.test.ts",
+      "line": 196,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "packages/ui/src/primitives/compare-blocks/compare-blocks.tsx",
+      "line": 207,
+      "token": "biome-ignore",
+      "rule": "lint/a11y/noLabelWithoutControl",
+      "scope": "source"
+    },
+    {
+      "file": "packages/ui/src/primitives/compare-blocks/compare-blocks.tsx",
+      "line": 237,
+      "token": "biome-ignore",
+      "rule": "lint/a11y/noLabelWithoutControl",
+      "scope": "source"
+    },
+    {
+      "file": "packages/ui/src/primitives/compare-blocks/compare-blocks.tsx",
+      "line": 267,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noArrayIndexKey",
+      "scope": "source"
+    },
+    {
+      "file": "packages/ui/src/primitives/compare-blocks/compare-blocks.tsx",
+      "line": 281,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noArrayIndexKey",
+      "scope": "source"
+    },
+    {
+      "file": "packages/ui/src/code-editor/code-editor.tsx",
+      "line": 280,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noArrayIndexKey",
+      "scope": "source"
+    },
+    {
+      "file": "packages/client/src/data/bus/apply-chat-bus-event.ts",
+      "line": 121,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noUnnecessaryConditions",
+      "scope": "source"
+    },
+    {
+      "file": "packages/client/src/data/bus/apply-chat-bus-event.ts",
+      "line": 123,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noUnnecessaryConditions",
+      "scope": "source"
+    },
+    {
+      "file": "packages/client/src/data/bus/apply-chat-bus-event.ts",
+      "line": 125,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noUnnecessaryConditions",
+      "scope": "source"
+    },
+    {
+      "file": "packages/client/src/data/bus/apply-chat-bus-event.ts",
+      "line": 127,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noUnnecessaryConditions",
+      "scope": "source"
+    },
+    {
+      "file": "packages/client/src/data/bus/apply-chat-bus-event.ts",
+      "line": 129,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noUnnecessaryConditions",
+      "scope": "source"
+    },
+    {
+      "file": "packages/client/src/forms/editor/create-saved-entity-form.ts",
+      "line": 50,
+      "token": "biome-ignore",
+      "rule": "lint/nursery/noComponentHookFactories",
+      "scope": "source"
+    },
+    {
+      "file": "packages/client/src/forms/editor/create-saved-entity-form.ts",
+      "line": 51,
+      "token": "biome-ignore",
+      "rule": "lint/nursery/useExplicitReturnType",
+      "scope": "source"
+    },
+    {
+      "file": "packages/kit/src/image-sniff/index.ts",
+      "line": 49,
+      "token": "biome-ignore",
+      "rule": "lint/style/noMagicNumbers",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/verify/ops/scoped.ts",
+      "line": 249,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/verify/lib/repo-paths.ts",
+      "line": 14,
+      "token": "biome-ignore",
+      "rule": "lint/performance/noBarrelFile",
+      "scope": "source"
+    },
+    {
+      "file": "packages/client/src/forms/editor/use-app-form.ts",
+      "line": 48,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noExplicitAny",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/verify/lib/tenancy-scope.ts",
+      "line": 70,
+      "token": "biome-ignore",
+      "rule": "lint/performance/noBarrelFile",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/verify/lib/tenancy-scope.ts",
+      "line": 138,
+      "token": "biome-ignore",
+      "rule": "lint/performance/noBarrelFile",
+      "scope": "source"
+    },
+    {
+      "file": "packages/client/src/components/entry-list-editor.tsx",
+      "line": 120,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noArrayIndexKey",
+      "scope": "source"
+    },
+    {
+      "file": "packages/client/src/components/user-macro-editor-dialog.tsx",
+      "line": 172,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noArrayIndexKey",
+      "scope": "source"
+    },
+    {
+      "file": "packages/client/src/components/user-macro-editor-dialog.tsx",
+      "line": 240,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noArrayIndexKey",
+      "scope": "source"
+    },
+    {
+      "file": "packages/client/src/components/user-macro-editor-dialog.tsx",
+      "line": 368,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noArrayIndexKey",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/verify/lib/bus-payload-fact.ts",
+      "line": 93,
+      "token": "biome-ignore",
+      "rule": "lint/performance/noBarrelFile",
+      "scope": "source"
+    },
+    {
+      "file": "packages/client/src/features/config/lib/config-context.tsx",
+      "line": 293,
+      "token": "biome-ignore",
+      "rule": "lint/nursery/noComponentHookFactories",
+      "scope": "source"
+    },
+    {
+      "file": "tests/server/domain/stats/write/drift-gate.suite.int.test.ts",
+      "line": 98,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "packages/client/src/features/config/lib/theme-contrast.ts",
+      "line": 8,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNumericSeparators",
+      "scope": "source"
+    },
+    {
+      "file": "tests/server/domain/stats/_support.ts",
+      "line": 90,
+      "token": "biome-ignore",
+      "rule": "lint/nursery/useNullishCoalescing",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/domain/stats/_support.ts",
+      "line": 150,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/ui/code-editor/code-editor.ct.tsx",
+      "line": 257,
+      "token": "biome-ignore",
+      "rule": "lint/nursery/noPlaywrightWaitForTimeout",
+      "scope": "tests"
+    },
+    {
+      "file": "packages/kit/src/png-card-chunk/index.ts",
+      "line": 426,
+      "token": "biome-ignore-start",
+      "rule": "lint/suspicious/noBitwiseOperators",
+      "scope": "source"
+    },
+    {
+      "file": "packages/kit/src/png-card-chunk/index.ts",
+      "line": 555,
+      "token": "biome-ignore-end",
+      "rule": "lint/suspicious/noBitwiseOperators",
+      "scope": "source"
+    },
+    {
+      "file": "packages/server/src/domain/chat/substrate/stats-delta.ts",
+      "line": 284,
+      "token": "biome-ignore",
+      "rule": "lint/complexity/noExcessiveCognitiveComplexity",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/verify/lib/dangling-ref-citations.ts",
+      "line": 76,
+      "token": "biome-ignore",
+      "rule": "lint/complexity/noUselessReturn",
+      "scope": "source"
+    },
+    {
+      "file": "packages/server/src/domain/credentials/verbs/resolve.ts",
+      "line": 22,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noUnnecessaryConditions",
+      "scope": "source"
+    },
+    {
+      "file": "packages/server/src/domain/chat/assembly/assemble.ts",
+      "line": 489,
+      "token": "biome-ignore-start",
+      "rule": "lint/suspicious/noUnnecessaryConditions",
+      "scope": "source"
+    },
+    {
+      "file": "packages/server/src/domain/chat/assembly/assemble.ts",
+      "line": 598,
+      "token": "biome-ignore-end",
+      "rule": "lint/suspicious/noUnnecessaryConditions",
+      "scope": "source"
+    },
+    {
+      "file": "packages/server/src/domain/chat/persistence/canon-write.ts",
+      "line": 178,
+      "token": "biome-ignore",
+      "rule": "lint/complexity/noExcessiveCognitiveComplexity",
+      "scope": "source"
+    },
+    {
+      "file": "packages/client/src/features/character/components/character-facet-editor.tsx",
+      "line": 315,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noArrayIndexKey",
+      "scope": "source"
+    },
+    {
+      "file": "tests/server/foundation/observability/debug/wire-capture.suite.test.ts",
+      "line": 49,
+      "token": "biome-ignore-start",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/foundation/observability/debug/wire-capture.suite.test.ts",
+      "line": 68,
+      "token": "biome-ignore-end",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/foundation/observability/debug/wire-capture.suite.test.ts",
+      "line": 73,
+      "token": "biome-ignore-start",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/foundation/observability/debug/wire-capture.suite.test.ts",
+      "line": 84,
+      "token": "biome-ignore-end",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/foundation/observability/debug/errors-ring.suite.test.ts",
+      "line": 28,
+      "token": "biome-ignore-start",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/foundation/observability/debug/errors-ring.suite.test.ts",
+      "line": 29,
+      "token": "biome-ignore-start",
+      "rule": "lint/correctness/noProcessGlobal",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/foundation/observability/debug/errors-ring.suite.test.ts",
+      "line": 35,
+      "token": "biome-ignore-end",
+      "rule": "lint/correctness/noProcessGlobal",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/foundation/observability/debug/errors-ring.suite.test.ts",
+      "line": 46,
+      "token": "biome-ignore-end",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "tests"
+    },
+    {
+      "file": "packages/client/src/features/character/components/character-greeting-preview.tsx",
+      "line": 138,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noArrayIndexKey",
+      "scope": "source"
+    },
+    {
+      "file": "packages/server/src/domain/chat/verbs/turn.ts",
+      "line": 1509,
+      "token": "biome-ignore",
+      "rule": "lint/nursery/useNullishCoalescing",
+      "scope": "source"
+    },
+    {
+      "file": "packages/server/src/domain/chat/verbs/turn.ts",
+      "line": 1539,
+      "token": "biome-ignore",
+      "rule": "lint/nursery/useNullishCoalescing",
+      "scope": "source"
+    },
+    {
+      "file": "packages/server/src/domain/chat/verbs/turn.ts",
+      "line": 2204,
+      "token": "biome-ignore",
+      "rule": "lint/nursery/useNullishCoalescing",
+      "scope": "source"
+    },
+    {
+      "file": "tests/server/infra/auth/oidc-exchange.test.ts",
+      "line": 41,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/infra/auth/oidc-exchange.test.ts",
+      "line": 61,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/infra/auth/jwks.test.ts",
+      "line": 34,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/infra/auth/jwks.test.ts",
+      "line": 104,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/infra/auth/jwks.test.ts",
+      "line": 165,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/infra/auth/jwks.test.ts",
+      "line": 186,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/kit/png-card-chunk/index.test.ts",
+      "line": 57,
+      "token": "biome-ignore-start",
+      "rule": "lint/suspicious/noBitwiseOperators",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/kit/png-card-chunk/index.test.ts",
+      "line": 69,
+      "token": "biome-ignore-end",
+      "rule": "lint/suspicious/noBitwiseOperators",
+      "scope": "tests"
+    },
+    {
+      "file": "packages/client/src/features/app-shell/components/context-bracket.tsx",
+      "line": 116,
+      "token": "biome-ignore",
+      "rule": "lint/correctness/useExhaustiveDependencies",
+      "scope": "source"
+    },
+    {
+      "file": "tests/server/infra/crypto/key.test.ts",
+      "line": 69,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noBitwiseOperators",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/infra/storage/zip.int.test.ts",
+      "line": 49,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/useAwait",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/infra/storage/zip.int.test.ts",
+      "line": 117,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noBitwiseOperators",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/infra/storage/zip.int.test.ts",
+      "line": 299,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noBitwiseOperators",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/kit/error-message/index.test.ts",
+      "line": 10,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/useErrorMessage",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/infra/network/egress.int.test.ts",
+      "line": 321,
+      "token": "biome-ignore-start",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/infra/network/egress.int.test.ts",
+      "line": 361,
+      "token": "biome-ignore-end",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/infra/image/index.int.test.ts",
+      "line": 41,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "packages/server/src/domain/rpg/chat-ops/index.ts",
+      "line": 79,
+      "token": "biome-ignore",
+      "rule": "lint/complexity/useMaxParams",
+      "scope": "source"
+    },
+    {
+      "file": "tests/server/domain/import/substrate/token-usage.test.ts",
+      "line": 12,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/domain/import/substrate/token-usage.test.ts",
+      "line": 19,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/domain/import/substrate/token-usage.test.ts",
+      "line": 21,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/domain/import/substrate/world.test.ts",
+      "line": 49,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/domain/import/substrate/tags.test.ts",
+      "line": 14,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/domain/import/substrate/tags.test.ts",
+      "line": 26,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/domain/import/substrate/tags.test.ts",
+      "line": 41,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/domain/import/substrate/tags.test.ts",
+      "line": 50,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/domain/import/substrate/tags.test.ts",
+      "line": 64,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/domain/import/substrate/preset.test.ts",
+      "line": 13,
+      "token": "biome-ignore-start",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/domain/import/substrate/preset.test.ts",
+      "line": 17,
+      "token": "biome-ignore-end",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/domain/import/substrate/preset.test.ts",
+      "line": 35,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/domain/import/substrate/preset.test.ts",
+      "line": 45,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/domain/import/substrate/preset.test.ts",
+      "line": 90,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/domain/import/substrate/group.test.ts",
+      "line": 33,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/domain/import/substrate/group.test.ts",
+      "line": 35,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/domain/import/substrate/appearance.test.ts",
+      "line": 33,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/domain/import/substrate/appearance.test.ts",
+      "line": 35,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "packages/server/src/domain/character/substrate/card-merge.ts",
+      "line": 10,
+      "token": "biome-ignore",
+      "rule": "lint/nursery/useNullishCoalescing",
+      "scope": "source"
+    },
+    {
+      "file": "tests/server/domain/import/loader/collect.test.ts",
+      "line": 31,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/domain/import/loader/collect.test.ts",
+      "line": 35,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "packages/server/src/domain/assets/substrate/variant-policy.ts",
+      "line": 6,
+      "token": "biome-ignore",
+      "rule": "lint/style/noMagicNumbers",
+      "scope": "source"
+    },
+    {
+      "file": "packages/server/src/domain/assets/substrate/variant-policy.ts",
+      "line": 24,
+      "token": "biome-ignore",
+      "rule": "lint/style/noMagicNumbers",
+      "scope": "source"
+    },
+    {
+      "file": "packages/server/src/domain/assets/substrate/variant-policy.ts",
+      "line": 49,
+      "token": "biome-ignore",
+      "rule": "lint/style/noMagicNumbers",
+      "scope": "source"
+    },
+    {
+      "file": "packages/server/src/domain/assets/substrate/variant-policy.ts",
+      "line": 51,
+      "token": "biome-ignore",
+      "rule": "lint/style/noMagicNumbers",
+      "scope": "source"
+    },
+    {
+      "file": "tests/server/domain/import/verbs/import-presets.test.ts",
+      "line": 20,
+      "token": "biome-ignore-start",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/domain/import/verbs/import-presets.test.ts",
+      "line": 25,
+      "token": "biome-ignore-end",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/domain/import/verbs/import-presets.test.ts",
+      "line": 177,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/domain/import/verbs/import-presets.test.ts",
+      "line": 191,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/domain/import/verbs/import-themes.test.ts",
+      "line": 25,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/domain/import/verbs/import-themes.test.ts",
+      "line": 27,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/domain/import/verbs/import-themes.test.ts",
+      "line": 29,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/domain/import/verbs/import-themes.test.ts",
+      "line": 101,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "packages/server/src/domain/preset/contract/errors.ts",
+      "line": 21,
+      "token": "biome-ignore",
+      "rule": "lint/complexity/noUselessConstructor",
+      "scope": "source"
+    },
+    {
+      "file": "tests/server/domain/import/verbs/import-chat-file.test.ts",
+      "line": 28,
+      "token": "biome-ignore-start",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/server/domain/import/verbs/import-chat-file.test.ts",
+      "line": 32,
+      "token": "biome-ignore-end",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "packages/client/src/features/refinery/components/payload-view.tsx",
+      "line": 340,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noArrayIndexKey",
+      "scope": "source"
+    },
+    {
+      "file": "packages/client/src/features/refinery/components/payload-view.tsx",
+      "line": 407,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noArrayIndexKey",
+      "scope": "source"
+    },
+    {
+      "file": "packages/client/src/features/refinery/components/scope-editor-dialog.tsx",
+      "line": 157,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noArrayIndexKey",
+      "scope": "source"
+    },
+    {
+      "file": "packages/client/src/features/plugin/components/plugin-surface-renderer.tsx",
+      "line": 277,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noArrayIndexKey",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/verify/gates/no-off-token-radius-shadow.ts",
+      "line": 132,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noTemplateCurlyInString",
+      "scope": "source"
+    },
+    {
+      "file": "packages/server/src/domain/export/substrate/placeholder-png.ts",
+      "line": 8,
+      "token": "biome-ignore",
+      "rule": "format",
+      "scope": "source"
+    },
+    {
+      "file": "packages/client/src/features/plugin/components/plugin-leaf-nodes.tsx",
+      "line": 216,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noArrayIndexKey",
+      "scope": "source"
+    },
+    {
+      "file": "packages/server/src/domain/import/workload-contributions.ts",
+      "line": 143,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noBitwiseOperators",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/codemod/lib/kit.ts",
+      "line": 32,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/codemod/lib/kit.ts",
+      "line": 82,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/codemod/lib/kit.ts",
+      "line": 84,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "source"
+    },
+    {
+      "file": "tests/e2e/support/actors.ts",
+      "line": 201,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tooling/src/codemod/lib/example.ts",
+      "line": 42,
+      "token": "biome-ignore-start",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/codemod/lib/example.ts",
+      "line": 46,
+      "token": "biome-ignore-end",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/codemod/lib/files.ts",
+      "line": 64,
+      "token": "biome-ignore",
+      "rule": "lint/nursery/noConditionalExpect",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/codemod/lib/files.ts",
+      "line": 221,
+      "token": "biome-ignore",
+      "rule": "lint/nursery/noConditionalExpect",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/codemod/lib/files.ts",
+      "line": 246,
+      "token": "biome-ignore",
+      "rule": "lint/nursery/noConditionalExpect",
+      "scope": "source"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 47,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "tests"
+    },
+    {
+      "file": "tooling/src/codemod/lib/diagnostics.ts",
+      "line": 46,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/verify/gates/no-hardcoded-model-prose.ts",
+      "line": 235,
+      "token": "biome-ignore",
+      "rule": "lint/complexity/noUselessUndefined",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/verify/gates/no-hardcoded-model-prose.ts",
+      "line": 250,
+      "token": "biome-ignore",
+      "rule": "lint/complexity/noUselessUndefined",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/verify/gates/no-hardcoded-model-prose.ts",
+      "line": 296,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noUnnecessaryConditions",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/verify/gates/no-hardcoded-model-prose.ts",
+      "line": 298,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noUnnecessaryConditions",
+      "scope": "source"
+    },
+    {
+      "file": "packages/client/src/features/rpg/components/rpg-scene-tab.tsx",
+      "line": 358,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noArrayIndexKey",
+      "scope": "source"
+    },
+    {
+      "file": "tests/client/lib/_ct-stories.tsx",
+      "line": 511,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noUnknownAttribute",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/client/lib/motion-flaggers.ct.tsx",
+      "line": 528,
+      "token": "biome-ignore",
+      "rule": "lint/nursery/noPlaywrightWaitForTimeout",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/client/lib/motion-flaggers.ct.tsx",
+      "line": 554,
+      "token": "biome-ignore",
+      "rule": "lint/nursery/noPlaywrightWaitForTimeout",
+      "scope": "tests"
+    },
+    {
+      "file": "tooling/src/doc-catalog/ops/format.ts",
+      "line": 297,
+      "token": "biome-ignore",
+      "rule": "lint/complexity/noExcessiveCognitiveComplexity",
+      "scope": "source"
+    },
+    {
+      "file": "packages/server/src/domain/databank/verbs/scrape/scrape-wiki.ts",
+      "line": 59,
+      "token": "biome-ignore",
+      "rule": "lint/style/useErrorCause",
+      "scope": "source"
+    },
+    {
+      "file": "packages/server/src/domain/databank/verbs/scrape/scrape-wiki.ts",
+      "line": 67,
+      "token": "biome-ignore",
+      "rule": "lint/style/useErrorCause",
+      "scope": "source"
+    },
+    {
+      "file": "packages/server/src/domain/databank/verbs/scrape/scrape-web.ts",
+      "line": 37,
+      "token": "biome-ignore",
+      "rule": "lint/style/useErrorCause",
+      "scope": "source"
+    },
+    {
+      "file": "packages/server/src/domain/databank/verbs/scrape/scrape-youtube.ts",
+      "line": 92,
+      "token": "biome-ignore",
+      "rule": "lint/style/useErrorCause",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/_shared/process-env.ts",
+      "line": 19,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/_shared/devtools-assets.ts",
+      "line": 22,
+      "token": "biome-ignore",
+      "rule": "lint/performance/noBarrelFile",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/_shared/devtools-assets.ts",
+      "line": 390,
+      "token": "biome-ignore",
+      "rule": "lint/performance/noBarrelFile",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/wire-tap/ops/sse.ts",
+      "line": 43,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/wire-tap/ops/sse.ts",
+      "line": 45,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/wire-tap/ops/sse.ts",
+      "line": 47,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/wire-tap/ops/sse.ts",
+      "line": 67,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/wire-tap/ops/sse.ts",
+      "line": 76,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "source"
+    },
+    {
+      "file": "packages/client/src/features/chat/lib/speaker-color.ts",
+      "line": 23,
+      "token": "biome-ignore-start",
+      "rule": "lint/suspicious/noBitwiseOperators",
+      "scope": "source"
+    },
+    {
+      "file": "packages/client/src/features/chat/lib/speaker-color.ts",
+      "line": 32,
+      "token": "biome-ignore-end",
+      "rule": "lint/suspicious/noBitwiseOperators",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/wire-tap/ops/captures.ts",
+      "line": 76,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/wire-tap/ops/captures.ts",
+      "line": 78,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/wire-tap/ops/captures.ts",
+      "line": 83,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/wire-tap/ops/trpc.ts",
+      "line": 63,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/wire-tap/ops/trpc.ts",
+      "line": 65,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/_shared/load-budget.ts",
+      "line": 121,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/_shared/load-budget.ts",
+      "line": 224,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/render-trace/lib/render.ts",
+      "line": 10,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/render-trace/lib/render.ts",
+      "line": 173,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noControlCharactersInRegex",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/render-trace/ops/tail.ts",
+      "line": 20,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/render-trace/ops/tail.ts",
+      "line": 22,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/render-trace/ops/tail.ts",
+      "line": 28,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/render-trace/ops/tail.ts",
+      "line": 101,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/render-trace/ops/fire.ts",
+      "line": 109,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "source"
+    },
+    {
+      "file": "packages/server/src/kit/serde/card/index.ts",
+      "line": 581,
+      "token": "biome-ignore",
+      "rule": "lint/style/noMagicNumbers",
+      "scope": "source"
+    },
+    {
+      "file": "packages/server/src/kit/serde/card/index.ts",
+      "line": 583,
+      "token": "biome-ignore",
+      "rule": "lint/style/noMagicNumbers",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/_shared/ffmpeg.ts",
+      "line": 22,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "source"
+    },
+    {
+      "file": "tests/tooling/verify/ops/gate-scope.suite.int.test.ts",
+      "line": 255,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/tooling/verify/ops/gate-scope.suite.int.test.ts",
+      "line": 256,
+      "token": "biome-ignore",
+      "rule": "lint/correctness/noProcessGlobal",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/tooling/verify/ops/gate-scope.suite.int.test.ts",
+      "line": 257,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/tooling/verify/ops/gate-scope.suite.int.test.ts",
+      "line": 288,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/tooling/verify/ops/gate-scope.suite.int.test.ts",
+      "line": 289,
+      "token": "biome-ignore",
+      "rule": "lint/correctness/noProcessGlobal",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/tooling/verify/ops/gate-scope.suite.int.test.ts",
+      "line": 290,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tooling/src/_shared/browser.ts",
+      "line": 23,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/_shared/browser.ts",
+      "line": 25,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/_shared/browser.ts",
+      "line": 37,
+      "token": "biome-ignore",
+      "rule": "lint/nursery/noPlaywrightWaitForTimeout",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/verify/gates/no-hover-display-swap.ts",
+      "line": 184,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noTemplateCurlyInString",
+      "scope": "source"
+    },
+    {
+      "file": "packages/server/src/kit/reasoning/index.ts",
+      "line": 40,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noUnnecessaryConditions",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/stack/lib/dev-process-identity.ts",
+      "line": 47,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/stack/ops/served-probe.ts",
+      "line": 49,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "source"
+    },
+    {
+      "file": "tests/client/agent-plugin/index.test.ts",
+      "line": 13,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noExplicitAny",
+      "scope": "tests"
+    },
+    {
+      "file": "tooling/src/stack/ops/prod-state.ts",
+      "line": 31,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "source"
+    },
+    {
+      "file": "tests/client/agent-rpg/index.dom.test.ts",
+      "line": 12,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noExplicitAny",
+      "scope": "tests"
+    },
+    {
+      "file": "tooling/src/seed/ops/multi-user.ts",
+      "line": 43,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/review-mirror/lib/strip.ts",
+      "line": 68,
+      "token": "biome-ignore",
+      "rule": "lint/complexity/noExcessiveCognitiveComplexity",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/review-mirror/lib/strip.ts",
+      "line": 118,
+      "token": "biome-ignore",
+      "rule": "lint/complexity/noExcessiveCognitiveComplexity",
+      "scope": "source"
+    },
+    {
+      "file": "packages/client/src/features/preset/components/variable-editor-dialog.tsx",
+      "line": 90,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noArrayIndexKey",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/review-mirror/ops/pending-guard.ts",
+      "line": 76,
+      "token": "biome-ignore",
+      "rule": "lint/complexity/noUselessUndefined",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/verify/gates/no-rejected-cors-proxy.ts",
+      "line": 63,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noTemplateCurlyInString",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/verify/gates/no-rejected-cors-proxy.ts",
+      "line": 68,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noTemplateCurlyInString",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/verify/gates/no-rejected-cors-proxy.ts",
+      "line": 73,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noTemplateCurlyInString",
+      "scope": "source"
+    },
+    {
+      "file": "packages/client/src/features/chat/components/message-content.tsx",
+      "line": 40,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noUnnecessaryConditions",
+      "scope": "source"
+    },
+    {
+      "file": "packages/client/src/features/chat/components/message-content.tsx",
+      "line": 48,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noUnnecessaryConditions",
+      "scope": "source"
+    },
+    {
+      "file": "packages/client/src/features/chat/components/message-content.tsx",
+      "line": 63,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noUnnecessaryConditions",
+      "scope": "source"
+    },
+    {
+      "file": "packages/client/src/features/chat/components/message-content.tsx",
+      "line": 69,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noUnnecessaryConditions",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/verify/gates/scroll-container-positioned.ts",
+      "line": 161,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noTemplateCurlyInString",
+      "scope": "source"
+    },
+    {
+      "file": "tests/tooling/verify/ops/run.int.test.ts",
+      "line": 81,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/tooling/verify/ops/run.int.test.ts",
+      "line": 152,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/tooling/verify/ops/run.int.test.ts",
+      "line": 218,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/tooling/verify/ops/run.int.test.ts",
+      "line": 1221,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/tooling/verify/ops/run.int.test.ts",
+      "line": 1323,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/tooling/verify/ops/run.int.test.ts",
+      "line": 1614,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "tests"
+    },
+    {
+      "file": "packages/server/src/infra/extraction/loader.ts",
+      "line": 19,
+      "token": "biome-ignore",
+      "rule": "lint/style/useShorthandFunctionType",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/snap/lib/budgets.ts",
+      "line": 66,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "source"
+    },
+    {
+      "file": "tests/tooling/verify/cli.int.test.ts",
+      "line": 37,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "tests"
+    },
+    {
+      "file": "packages/server/src/infra/auth/password.ts",
+      "line": 30,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/ui-audit/ops/report.ts",
+      "line": 20,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "source"
+    },
+    {
+      "file": "tests/tooling/vitest-supervised.test.ts",
+      "line": 145,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/tooling/review-mirror/index.test.ts",
+      "line": 64,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noTemplateCurlyInString",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/tooling/review-mirror/index.test.ts",
+      "line": 68,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noTemplateCurlyInString",
+      "scope": "tests"
+    },
+    {
+      "file": "packages/server/src/infra/storage/stage-dir.ts",
+      "line": 17,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noBitwiseOperators",
+      "scope": "source"
+    },
+    {
+      "file": "packages/server/src/infra/storage/zip.ts",
+      "line": 220,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noBitwiseOperators",
+      "scope": "source"
+    },
+    {
+      "file": "packages/server/src/infra/storage/zip.ts",
+      "line": 286,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noBitwiseOperators",
+      "scope": "source"
+    },
+    {
+      "file": "packages/server/src/infra/storage/zip.ts",
+      "line": 303,
+      "token": "biome-ignore",
+      "rule": "lint/style/useErrorCause",
+      "scope": "source"
+    },
+    {
+      "file": "packages/server/src/infra/storage/zip.ts",
+      "line": 308,
+      "token": "biome-ignore",
+      "rule": "lint/style/useErrorCause",
+      "scope": "source"
+    },
+    {
+      "file": "packages/server/src/infra/storage/zip.ts",
+      "line": 368,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noBitwiseOperators",
+      "scope": "source"
+    },
+    {
+      "file": "packages/server/src/infra/storage/zip.ts",
+      "line": 379,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noBitwiseOperators",
+      "scope": "source"
+    },
+    {
+      "file": "packages/server/src/infra/storage/zip.ts",
+      "line": 516,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noBitwiseOperators",
+      "scope": "source"
+    },
+    {
+      "file": "tests/tooling/stack/lib/engine-fleet/engine-url.test.ts",
+      "line": 41,
+      "token": "biome-ignore-start",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/tooling/stack/lib/engine-fleet/engine-url.test.ts",
+      "line": 52,
+      "token": "biome-ignore-end",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/tooling/stack/lib/engine-fleet/engine-url.test.ts",
+      "line": 54,
+      "token": "biome-ignore-start",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/tooling/stack/lib/engine-fleet/engine-url.test.ts",
+      "line": 74,
+      "token": "biome-ignore-end",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/tooling/stack/lib/engine-fleet/engine-url.test.ts",
+      "line": 77,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/tooling/stack/lib/engine-fleet/engine-url.test.ts",
+      "line": 85,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "packages/client/src/features/chat/components/message-row-parts.tsx",
+      "line": 182,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noArrayIndexKey",
+      "scope": "source"
+    },
+    {
+      "file": "packages/server/src/infra/network/ip-ranges.ts",
+      "line": 30,
+      "token": "biome-ignore-start",
+      "rule": "lint/suspicious/noBitwiseOperators",
+      "scope": "source"
+    },
+    {
+      "file": "packages/server/src/infra/network/ip-ranges.ts",
+      "line": 161,
+      "token": "biome-ignore-end",
+      "rule": "lint/suspicious/noBitwiseOperators",
+      "scope": "source"
+    },
+    {
+      "file": "packages/server/src/infra/network/egress.ts",
+      "line": 670,
+      "token": "biome-ignore",
+      "rule": "lint/style/useErrorCause",
+      "scope": "source"
+    },
+    {
+      "file": "packages/server/src/infra/network/egress.ts",
+      "line": 710,
+      "token": "biome-ignore",
+      "rule": "lint/style/useErrorCause",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/workboard/lib/vocab.ts",
+      "line": 45,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/workboard/lib/vocab.ts",
+      "line": 67,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "source"
+    },
+    {
+      "file": "packages/client/src/features/chat/components/assembly-preview-diagnostics.tsx",
+      "line": 51,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noArrayIndexKey",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/snap/ops/session-registry.ts",
+      "line": 43,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "source"
+    },
+    {
+      "file": "tests/client/agent-nav/index.dom.test.ts",
+      "line": 11,
+      "token": "biome-ignore",
+      "rule": "lint/performance/noNamespaceImport",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/client/agent-nav/index.dom.test.ts",
+      "line": 28,
+      "token": "biome-ignore",
+      "rule": "lint/suspicious/noExplicitAny",
+      "scope": "tests"
+    },
+    {
+      "file": "tooling/src/snap/ops/stage-marker.ts",
+      "line": 91,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "source"
+    },
+    {
+      "file": "tests/tooling/snap/ops/browser-diagnostics.suite.int.test.ts",
+      "line": 237,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/tooling/snap/ops/browser-diagnostics.suite.int.test.ts",
+      "line": 239,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/tooling/snap/ops/browser-diagnostics.suite.int.test.ts",
+      "line": 245,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/tooling/snap/ops/browser-diagnostics.suite.int.test.ts",
+      "line": 248,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "tests"
+    },
+    {
+      "file": "tooling/src/snap/ops/drive.ts",
+      "line": 438,
+      "token": "biome-ignore",
+      "rule": "lint/nursery/noPlaywrightNetworkidle",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/snap/ops/stage-probe.ts",
+      "line": 222,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/snap/ops/stage-census.ts",
+      "line": 33,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/snap/ops/fixture.ts",
+      "line": 65,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "source"
+    },
+    {
+      "file": "tooling/src/snap/ops/stage.ts",
+      "line": 115,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "source"
+    },
+    {
+      "file": "tests/tooling/workboard/cli.test.ts",
+      "line": 276,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/client/a11y/accessible-name-quality.suite.ct.tsx",
+      "line": 131,
+      "token": "biome-ignore",
+      "rule": "lint/correctness/useUniqueElementIds",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/tooling/wire-tap/cli.int.test.ts",
+      "line": 17,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/tooling/wire-tap/cli.int.test.ts",
+      "line": 71,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/tooling/wire-tap/cli.int.test.ts",
+      "line": 96,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/tooling/wire-tap/cli.int.test.ts",
+      "line": 151,
+      "token": "biome-ignore",
+      "rule": "lint/style/useNamingConvention",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/client/agent-seed/index.dom.test.ts",
+      "line": 33,
+      "token": "biome-ignore",
+      "rule": "lint/nursery/useExplicitReturnType",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/tooling/_shared/proc.int.test.ts",
+      "line": 48,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "tests"
+    },
+    {
+      "file": "tests/tooling/required-live-evidence-reporter.int.test.ts",
+      "line": 31,
+      "token": "biome-ignore",
+      "rule": "lint/style/noProcessEnv",
+      "scope": "tests"
+    }
+  ],
+  "requiredDisposition": "Adjudicate all 160 test markers site by site. Preserve a marker only when the suppressed rule is wrong for the boundary or the invalid/foreign shape is the behavioral subject; otherwise repair the code and remove the directive. Treat each biome-ignore-start/end pair as one logical range while retaining both marker rows for denominator closure."
+}

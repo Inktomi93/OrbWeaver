@@ -27,7 +27,7 @@ import type { ParticipantRole } from "@orb/contracts/identity";
 import type { ChoiceBlockSpec, TemplateDefId, UserMacroValues } from "@orb/contracts/preset";
 import type { ChatRpgPointer } from "@orb/contracts/rpg";
 import type { ThemeBackground } from "@orb/contracts/theme";
-import type { CharacterId, ChatId, ChatInjectionId, MessageVariantId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ChatInjectionId, ChatStreamGenerationId, MessageVariantId, UserId } from "@orb/kit/ids";
 import type { MacroSourceRef, UserMacroInputDef } from "@orb/kit/macro";
 
 export type {
@@ -364,6 +364,7 @@ export interface VariablePicksView {
 export interface ChatStreamReplayEvent {
   readonly seq: number;
   readonly messageId: MessageView["id"] | null;
+  readonly generationId: ChatStreamGenerationId | null;
   readonly kind: "text" | "reasoning";
   readonly delta: string;
 }

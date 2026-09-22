@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "capturedAt": "2026-09-21T11:44:08.691122+00:00",
-  "sourceCommit": "cb4503d08",
+  "capturedAt": "2026-09-22T04:24:39.786Z",
+  "sourceCommit": "8f7ed4c4b98c112429c3918483f3a172f66ae184",
   "purpose": "Full AST audit observations and agent reasoning. Dated evidence, not a replacement for GitHub work-item lifecycle.",
   "entryPoints": {
     "coverage": "world-tools-lens-manifest.json",
@@ -33,6 +33,8 @@
     "graphQueryLensAudit": "world-tools-graph-query-lenses-audit.json",
     "brandBoundaryAudit": "world-tools-brand-boundary-audit.json",
     "brandBoundarySummary": "world-tools-brand-boundary-audit.md",
+    "zodBrandAdjudication": "world-tools-zod-brand-adjudication.json",
+    "zodBrandReview": "world-tools-zod-brand-review.json",
     "cleanupFinalRereview": "world-tools-cleanup-rereview.json",
     "graphQueryLensReview": "world-tools-graph-query-review.json",
     "smallPackageRotTriage": "world-tools-small-package-rot-triage.json",
@@ -41,6 +43,8 @@
     "imageryAliasCleanupReview": "world-tools-imagery-alias-review.json",
     "clientRotTriage": "world-tools-client-rot-triage.json",
     "uiRotTriage": "world-tools-ui-rot-triage.json",
+    "uiConsumptionToolAudit": "world-tools-ui-consumption-tool-audit.json",
+    "gateReachProductAudit": "world-tools-gate-reach-product.json",
     "knipAstIntegrationAudit": "world-tools-knip-ast-integration-audit.json",
     "knipGrantRepairReview": "world-tools-knip-grant-review.json",
     "partialLensAudit": "world-tools-partial-lenses-audit.json",
@@ -70,7 +74,20 @@
     "columnsLensFix": "world-tools-columns-lens-fix.json",
     "externalConsumerDesign": "world-tools-external-consumer-design.json",
     "externalConsumerFix": "world-tools-external-consumer-fix.json",
-    "finalVerification": "world-tools-final-verification.json"
+    "finalVerification": "world-tools-final-verification.json",
+    "launchDormancyInventory": "world-tools-launch-dormancy-inventory.json",
+    "producerlessTableRepair": "world-tools-columns-full-select-repair.json",
+    "producerlessTableFinalReview": "world-tools-columns-producerless-table-final-review-4.json",
+    "chatStreamFinalReview": "world-tools-chat-stream-append-final-review.json",
+    "hostFundingFinalReview": "world-tools-chat-host-funding-review.json",
+    "pluginProviderSecurityReview": "world-tools-plugin-provider-activation-security-review-2.json",
+    "coverageDrizzleReadyCurrent": "world-tools-coverage-drizzle-ready-current.json",
+    "gateReachServerDbAudit": "world-tools-gate-reach-server-db.json",
+    "gateReachToolingTestsAudit": "world-tools-gate-reach-tooling-tests.json",
+    "gatePolicyCliRepair": "world-tools-gate-policy-cli-repair.json",
+    "biomeNamingConventionAudit": "world-tools-biome-naming-convention-audit.json",
+    "gateReachReconciliation": "world-tools-gate-reach-reconciliation.json",
+    "gateReachFinalVerification": "world-tools-gate-reach-final-verification.json"
   },
   "limitations": [
     "30 CLI verbs identified; coverage remains incomplete. A candidate is not a confirmed defect or deletion authorization.",
@@ -134,22 +151,11 @@
       "cleanupRereviewReceipt": "world-tools-cleanup-rereview.json"
     },
     "testonly": {
-      "coverage": [
-        "client",
-        "server",
-        "security",
-        "contracts"
-      ],
+      "coverage": ["client", "server", "security", "contracts"],
       "remainingQuestionsClosed": 3,
-      "wire": [
-        "useDeleteRefinerySession"
-      ],
-      "delete": [
-        "loadTurnForClassify"
-      ],
-      "preserveTestSeam": [
-        "ensureUserSettings"
-      ],
+      "wire": ["useDeleteRefinerySession"],
+      "delete": ["loadTurnForClassify"],
+      "preserveTestSeam": ["ensureUserSettings"],
       "ownerDecision": [],
       "receipt": "world-tools-testonly-remaining-triage.json",
       "cleanupCommit": "0834e6bb2"
@@ -168,11 +174,7 @@
     },
     {
       "commit": "166280900",
-      "issues": [
-        2513,
-        2514,
-        2515
-      ],
+      "issues": [2513, 2514, 2515],
       "result": "Actual corpus receipts, compound assignment producers, distinct same-line findings"
     },
     {
@@ -197,10 +199,7 @@
     },
     {
       "commit": "0834e6bb2",
-      "issues": [
-        2524,
-        2525
-      ],
+      "issues": [2524, 2525],
       "result": "Removed seven unread public view/result fields, impossible untyped CT fixture fields, and retired loadTurnForClassify residue; final rereview confirmed after two stale FireView mirrors were removed"
     },
     {
@@ -597,6 +596,20 @@
       "bytes": 5030
     },
     {
+      "file": "world-tools-zod-brand-adjudication.json",
+      "source": "/tmp/world-tools-zod-brand-adjudication.json",
+      "sourceSha256": "91d4aa54cf2a425feb90d44afec394ff6b68f88db89f5de4837f6093ba32f7dd",
+      "sha256": "91d4aa54cf2a425feb90d44afec394ff6b68f88db89f5de4837f6093ba32f7dd",
+      "bytes": 11467
+    },
+    {
+      "file": "world-tools-zod-brand-review.json",
+      "source": "/tmp/world-tools-zod-brand-review.json",
+      "sourceSha256": "871df01d7c333f0f553f4af372fa21582a8918782dae2e7a6223ecd2dd30cf20",
+      "sha256": "871df01d7c333f0f553f4af372fa21582a8918782dae2e7a6223ecd2dd30cf20",
+      "bytes": 3926
+    },
+    {
       "file": "world-tools-candidate-lenses-audit.json",
       "source": "/tmp/world-tools-candidate-lenses-audit.json",
       "sourceSha256": "d7e4c3897d037bbf474f019824f56b4588db2549d8a85652b170f5320da52ce8",
@@ -669,9 +682,16 @@
     {
       "file": "world-tools-ui-rot-triage.json",
       "source": "/tmp/world-tools-ui-rot-triage.json",
-      "sourceSha256": "633d46c0f1f85107904342f018eb1e6e5748ec22cffff3a60ae4b0a100bf5ddd",
-      "sha256": "633d46c0f1f85107904342f018eb1e6e5748ec22cffff3a60ae4b0a100bf5ddd",
-      "bytes": 29907
+      "sourceSha256": "1428610f67e9b0bdc8ad44f542c2078d2a1824ed82d4cdc83f1839f046051a39",
+      "sha256": "1428610f67e9b0bdc8ad44f542c2078d2a1824ed82d4cdc83f1839f046051a39",
+      "bytes": 31122
+    },
+    {
+      "file": "world-tools-ui-consumption-tool-audit.json",
+      "source": "/tmp/world-tools-ui-consumption-tool-audit.json",
+      "sourceSha256": "4d9e9a5a20e40eaab67d288cc19da1d4e8c63b971416565d67588cdb4fef0edf",
+      "sha256": "4d9e9a5a20e40eaab67d288cc19da1d4e8c63b971416565d67588cdb4fef0edf",
+      "bytes": 17415
     },
     {
       "file": "world-tools-knip-ast-integration-audit.json",
@@ -882,31 +902,91 @@
       "sourceSha256": "5988809bd98771ec4992738d74fc444adb7f6fbc0c4d0b07c6cba7e08bef243f",
       "sha256": "5988809bd98771ec4992738d74fc444adb7f6fbc0c4d0b07c6cba7e08bef243f",
       "bytes": 3078
+    },
+    {
+      "file": "world-tools-coverage-drizzle-ready-current.json",
+      "source": "/tmp/world-tools-coverage-drizzle-ready-current.json",
+      "sourceSha256": "9de1afdd7a0be4b93481ce6fd24c40198b17c0e58159fef515c1b97e8d5c5c72",
+      "sha256": "9de1afdd7a0be4b93481ce6fd24c40198b17c0e58159fef515c1b97e8d5c5c72",
+      "bytes": 15789
+    },
+    {
+      "file": "world-tools-gate-reach-product.json",
+      "source": "current-tree closed audit/repair receipt",
+      "sourceSha256": "688cf7c2a94b959087dea4f7645000cd9d499467c7cd2acfccdcc3cb76a731cb",
+      "sha256": "688cf7c2a94b959087dea4f7645000cd9d499467c7cd2acfccdcc3cb76a731cb",
+      "bytes": 205080
+    },
+    {
+      "file": "world-tools-gate-reach-server-db.json",
+      "source": "current-tree closed audit/repair receipt",
+      "sourceSha256": "ec869c5d0b334215be9a9f15846d60692dddaf83da54d82b4d8d686d2621dea0",
+      "sha256": "ec869c5d0b334215be9a9f15846d60692dddaf83da54d82b4d8d686d2621dea0",
+      "bytes": 81221
+    },
+    {
+      "file": "world-tools-gate-reach-tooling-tests.json",
+      "source": "current-tree closed audit/repair receipt",
+      "sourceSha256": "c3d7d753ef056e8d6869bcb5487ba5f0640edbbfbf6ed0998cbf0edbbd93c579",
+      "sha256": "c3d7d753ef056e8d6869bcb5487ba5f0640edbbfbf6ed0998cbf0edbbd93c579",
+      "bytes": 21695
+    },
+    {
+      "file": "world-tools-gate-policy-cli-repair.json",
+      "source": "current-tree closed audit/repair receipt",
+      "sourceSha256": "c17a993145c4260f10973e0bff333fc67eb0db7a4c62d68592e8df0052838cda",
+      "sha256": "c17a993145c4260f10973e0bff333fc67eb0db7a4c62d68592e8df0052838cda",
+      "bytes": 11315
+    },
+    {
+      "file": "world-tools-biome-naming-convention-audit.json",
+      "source": "current-tree closed audit/repair receipt",
+      "sourceSha256": "5713f1a1e165264e7022a6af602036e8a07473c0a80875042f45c78801ac967f",
+      "sha256": "5713f1a1e165264e7022a6af602036e8a07473c0a80875042f45c78801ac967f",
+      "bytes": 15914
+    },
+    {
+      "file": "world-tools-gate-reach-reconciliation.json",
+      "source": "current-tree closed audit/repair receipt",
+      "sourceSha256": "f0ae41cafce47cec5b1864db5428a4f279e23e2def949f03730e4bfa45421f4a",
+      "sha256": "f0ae41cafce47cec5b1864db5428a4f279e23e2def949f03730e4bfa45421f4a",
+      "bytes": 6659
+    },
+    {
+      "file": "world-tools-gate-reach-final-verification.json",
+      "source": "current-tree closed audit/repair receipt",
+      "sourceSha256": "d2d66fdfd1ab5d6e56da945259a8ba1b879cc110d94d5f20eef65727f712ab55",
+      "sha256": "d2d66fdfd1ab5d6e56da945259a8ba1b879cc110d94d5f20eef65727f712ab55",
+      "bytes": 4703
+    },
+    {
+      "file": "world-tools-audit-goal.json",
+      "source": "current-tree closed audit/repair receipt",
+      "sourceSha256": "0367e833cefd9cca6b46d35717dd4c66eeca200b4968a878111cd280e78486c1",
+      "sha256": "0367e833cefd9cca6b46d35717dd4c66eeca200b4968a878111cd280e78486c1",
+      "bytes": 7671
     }
   ],
   "crossCuttingFindings": {
     "routeTrpcContractFidelity": {
       "issue": 2533,
-      "status": "Ready",
+      "status": "Ready P1 (#2533)",
       "finding": "CT route responders are unknown and can serve response shapes AppRouter production cannot emit"
     },
     "brandBoundaryAudit": {
       "issue": 2531,
-      "status": "complete audit; repair work split to Ready items",
+      "status": "Running program #2531; original five repair rows #2534/#2536-#2539 are Done; #2556's closed 13-row implementation/adjudication and corrected receipt are independently CONFIRMED; AppRouter output #2554 remains Ready",
       "receipt": "world-tools-brand-boundary-audit.json",
+      "zodBrandAdjudication": "world-tools-zod-brand-adjudication.json",
+      "zodBrandReview": "world-tools-zod-brand-review.json",
       "denominator": "7,847 unique physical files across all native TypeScript worlds plus bounded root configs",
-      "trackedFindings": [
-        2534,
-        2536,
-        2537,
-        2538,
-        2539
-      ]
+      "trackedFindings": [2534, 2536, 2537, 2538, 2539, 2554, 2556]
     },
     "workloadDependencyAuthority": {
       "issue": 2534,
-      "status": "Ready",
-      "finding": "Caller-authored workload dependencies reach an unscoped scheduler read without canonical ID and owner validation"
+      "status": "Done",
+      "finding": "Caller-authored workload dependencies reach an unscoped scheduler read without canonical ID and owner validation",
+      "commit": "f1b241e41"
     },
     "candidateLensCorpusRepair": {
       "issue": 2535,
@@ -924,37 +1004,27 @@
     },
     "providerRowTaskAuthority": {
       "issue": 2541,
-      "status": "Needs owner",
+      "status": "Done",
       "finding": "PROVIDER_ROW_TASKS claims DB write-boundary validation but has no direct consumer; choose DB enforcement or retire the claimed seam",
-      "receipt": "world-tools-small-package-rot-triage.json"
+      "receipt": "world-tools-small-package-rot-triage.json",
+      "commit": "2c3897021"
     },
     "serverRotTriage": {
-      "status": "36 findings adjudicated: two bounded deletions, 27 deliberate seams, three external/compile-time consumers, two reserved unwired surfaces, two architecture forks",
+      "status": "Initial 36 findings adjudicated; original decisions #2542-#2545/#2550 are Done; newly exposed provider activation #2558 and chat append #2559 are under repair/review",
       "receipt": "world-tools-server-rot-triage.json",
-      "cleanup": [
-        "PROMPT_TEMPLATES",
-        "CAPTION_INSTRUCTIONS"
-      ],
+      "cleanup": ["PROMPT_TEMPLATES", "CAPTION_INSTRUCTIONS"],
       "existingSeamFollowUp": 2526,
-      "ownerDecisions": [
-        2542,
-        2543,
-        2544,
-        2545
-      ]
+      "ownerDecisions": [2542, 2543, 2544, 2545]
     },
     "clientRotTriage": {
-      "status": "nine findings adjudicated: seven deliberate adapters, two intended refinery affordances, zero deletions",
+      "status": "Nine initial findings adjudicated; refinery delete affordances #2527/#2546 remain Ready for launch wiring",
       "receipt": "world-tools-client-rot-triage.json",
-      "featureWork": [
-        2527,
-        2546
-      ]
+      "featureWork": [2527, 2546]
     },
     "uiRotTriage": {
-      "status": "46 findings adjudicated: 37 framework entrypoints, six proof/generated surfaces, three unwired exports, zero deletions",
+      "status": "Final cleanup removed never-consumed CommandSeparator and generated PolarityTokenPath; CommandLoading remains deliberately unwired for filed work item #2568; 43 test-only framework/proof surfaces remain preserved.",
       "receipt": "world-tools-ui-rot-triage.json",
-      "featureWork": 2547
+      "featureWork": 2568
     },
     "knipAstIntegration": {
       "status": "audited: 11 Knip workspaces remain a separate conservative evidence plane; stale prodonly grant repaired and independently confirmed",
@@ -982,7 +1052,7 @@
       "commit": "1767e0267"
     },
     "columnLensAudit": {
-      "status": "31 findings reviewed; all nine scanner blind spots repaired structurally; bounded cleanup and provenance decisions complete",
+      "status": "Original 31 findings adjudicated; producerless-table enhancement repaired two false-clean counterexamples and a compile-floor defect, passed four adversarial reviews, and closed as #2567",
       "receipt": "world-tools-columns-triage.json",
       "review": "world-tools-columns-triage-review.json",
       "correctedTotals": {
@@ -1005,7 +1075,7 @@
       "commit": "fbfc09721"
     },
     "wiringGapAudit": {
-      "status": "10 unwired and 23 clientgap findings adjudicated; follow-up work tracked",
+      "status": "Initial 10 unwired and 23 clientgap findings adjudicated; launch re-evaluation is tracked in world-tools-launch-dormancy-inventory.json",
       "receipt": "world-tools-wiring-gap-triage.json"
     },
     "stringyAudit": {
@@ -1050,9 +1120,15 @@
       "commit": "014ed4ee1"
     },
     "finalVerification": {
-      "status": "consolidated focused verification complete for the liveness/dead-code lens phase; brand program #2531 remains open",
+      "status": "Superseded by continued launch-readiness work: #2556/#2559/#2566 and the producerless-table repair are Done; #2533/#2551/#2546/#2558 remain active; #2549/#2552/#2554/#2561-#2565/#2568 remain Ready. A new consolidated verification receipt is owed after those settle.",
       "receipt": "world-tools-final-verification.json",
-      "remainingTrackedIssue": 2552
+      "supersededBy": "world-tools-launch-dormancy-inventory.json"
+    },
+    "launchReadiness": {
+      "status": "Active launch re-evaluation of 63 historical dormant/future observations plus newly exposed gaps; every row must resolve to live wiring, tracked launch work, explicit owner/post-launch decision, proven framework/tool consumption, or removal. Twelve declaration-only aliases/surfaces have now been removed after structural confirmation; #2568 records the missing inference step-9 hosted model picker.",
+      "receipt": "world-tools-launch-dormancy-inventory.json",
+      "active": [2531, 2533, 2546, 2551, 2558],
+      "ready": [2527, 2549, 2552, 2554, 2561, 2562, 2563, 2564, 2565, 2568]
     }
   }
 }

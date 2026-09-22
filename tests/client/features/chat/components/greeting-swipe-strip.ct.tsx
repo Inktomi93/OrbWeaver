@@ -20,18 +20,20 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { GreetingSwipeStripStory } from "../_ct-stories.tsx";
+import { makeMessageView } from "../fixtures.ts";
 
 const ALT_0 = "The night market hums.";
 const ALT_1 = "She looks up from the ledger.";
 const ALT_2 = "Rain, again.";
 /** The card's openings, in card order — the strip's `n / m` domain and the verb's index space. */
 const ALTERNATES = [ALT_0, ALT_1, ALT_2];
+const GREETING_RESULT = makeMessageView({ content: ALT_1 });
 
 /** The fired index, polled — a recorder read is mutable async state (`ct-no-oneshot-live-read-assert`). */
 const STEP = "chat.setSeededGreeting";
 
 test("the counter reads the CURRENT text's position, and Next steps to the following alternate", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { [STEP]: { ok: true } });
+  const trpc = await routeTrpc(page, { [STEP]: GREETING_RESULT });
 
   const component = await mount(<GreetingSwipeStripStory variants={ALTERNATES} current={ALT_1} />);
 
@@ -43,7 +45,7 @@ test("the counter reads the CURRENT text's position, and Next steps to the follo
 });
 
 test("Previous steps back", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { [STEP]: { ok: true } });
+  const trpc = await routeTrpc(page, { [STEP]: GREETING_RESULT });
 
   const component = await mount(<GreetingSwipeStripStory variants={ALTERNATES} current={ALT_1} />);
   await component.getByRole("button", { name: "Previous greeting" }).click();
@@ -52,7 +54,7 @@ test("Previous steps back", async ({ mount, page }) => {
 });
 
 test("at the FIRST alternate there is nowhere back to go — Previous is disabled, Next is live", async ({ mount, page }) => {
-  await routeTrpc(page, { [STEP]: { ok: true } });
+  await routeTrpc(page, { [STEP]: GREETING_RESULT });
 
   const component = await mount(<GreetingSwipeStripStory variants={ALTERNATES} current={ALT_0} />);
 
@@ -65,7 +67,7 @@ test("at the LAST alternate Next is disabled — unlike the variant strip, there
   // The one place the two strips' shared chrome means different things: the variant strip's right chevron
   // at the tip fires a fresh generation, so it is never disabled. A card has a fixed set of openings — there
   // is no "make me another one" — so this end really is an end.
-  await routeTrpc(page, { [STEP]: { ok: true } });
+  await routeTrpc(page, { [STEP]: GREETING_RESULT });
 
   const component = await mount(<GreetingSwipeStripStory variants={ALTERNATES} current={ALT_2} />);
 
@@ -75,7 +77,7 @@ test("at the LAST alternate Next is disabled — unlike the variant strip, there
 });
 
 test("a HAND-EDITED greeting (matching no alternate) reads “— / m” and still steps — never a dead strip", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { [STEP]: { ok: true } });
+  const trpc = await routeTrpc(page, { [STEP]: GREETING_RESULT });
 
   // The row was edited through the message-edit verb, so its text is nobody's alternate. A strip that
   // clamped on a -1 index would render two disabled chevrons over a meaningless counter — a control that
@@ -92,7 +94,7 @@ test("a HAND-EDITED greeting (matching no alternate) reads “— / m” and sti
 });
 
 test("Previous from a hand-edited greeting enters at the LAST alternate", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { [STEP]: { ok: true } });
+  const trpc = await routeTrpc(page, { [STEP]: GREETING_RESULT });
 
   const component = await mount(<GreetingSwipeStripStory variants={ALTERNATES} current="still nobody's alternate" />);
   await component.getByRole("button", { name: "Previous greeting" }).click();

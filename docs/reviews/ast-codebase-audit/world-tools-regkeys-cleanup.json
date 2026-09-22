@@ -13,19 +13,13 @@
       "registry": "CHAT_OP_CODES",
       "row": "compactionEmpty",
       "action": "kept registry row; replaced raw compaction_empty throw argument with CHAT_OP_CODES.compactionEmpty",
-      "files": [
-        "packages/server/src/domain/chat/verbs/compaction.ts",
-        "tests/server/domain/chat/verbs/compaction.int.test.ts"
-      ]
+      "files": ["packages/server/src/domain/chat/verbs/compaction.ts", "tests/server/domain/chat/verbs/compaction.int.test.ts"]
     },
     {
       "registry": "CREDENTIALS_OP_CODES",
       "row": "metadataInvalid",
       "action": "removed stale reason-code row; added integration control for retired/malformed metadata degrading to apiKey",
-      "files": [
-        "packages/server/src/domain/credentials/contract/errors.ts",
-        "tests/server/domain/credentials/verbs/resolve.int.test.ts"
-      ]
+      "files": ["packages/server/src/domain/credentials/contract/errors.ts", "tests/server/domain/credentials/verbs/resolve.int.test.ts"]
     },
     {
       "registry": "SETTINGS_OP_CODES",
@@ -80,9 +74,7 @@
     "incoherentRoleModelTsMatches": 0,
     "incoherentRoleModelTsxMatches": 0,
     "livingTextualSweepMatchesForRetiredSpellings": 0,
-    "frozenHistoryPreserved": [
-      "docs/architecture/history/neo-test-steal-list.md"
-    ]
+    "frozenHistoryPreserved": ["docs/architecture/history/neo-test-steal-list.md"]
   },
   "verification": [
     {

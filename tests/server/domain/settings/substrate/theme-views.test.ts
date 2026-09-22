@@ -73,6 +73,7 @@ describe("toThemeView — lenient override parse seam", () => {
 
   test("a hostile field degrades to undefined; the row is never rejected", () => {
     // biome-ignore lint/suspicious/noExplicitAny: deliberately hostile stored value past the wire type.
+    // @orb-waive no-test-fabrication(any): deliberately corrupt persisted fields prove the lenient projection boundary; ends when the projection accepts unknown stored input directly.
     const corrupt = { accent: "javascript:alert(1)", font: "NotAllowlisted" } as any;
     const view = toThemeView(row({ override: corrupt }));
     expect(view.override.accent).toBeUndefined();
@@ -81,6 +82,7 @@ describe("toThemeView — lenient override parse seam", () => {
 
   test("a completely non-object override blob degrades to {} (never throws)", () => {
     // biome-ignore lint/suspicious/noExplicitAny: deliberately hostile stored value past the wire type.
+    // @orb-waive no-test-fabrication(any): deliberately non-object persisted data proves the lenient projection boundary; ends when the projection accepts unknown stored input directly.
     const view = toThemeView(row({ override: "not even an object" as any }));
     expect(view.override).toEqual({});
   });

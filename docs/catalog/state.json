@@ -3,6 +3,7 @@
   "allowed": {
     "pending": [
       "docs/design/mixed-hook-splits-1950.md",
+      "docs/reviews/ast-codebase-audit/world-tools-brand-boundary-audit.md",
       "docs/reviews/gate-runtime/bypass-enumeration-2026-09-12.md",
       "docs/reviews/gate-runtime/policing-surface-audit-2026-09-12.md",
       "docs/reviews/gate-runtime/sec-barrier-review-2026-09-13.md",

@@ -20,13 +20,17 @@ import { PLUGIN_FRAME_ROUTE } from "@orb/contracts/plugin";
 import type { PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ExtensionsPageStory, PluginDialogBodyStory } from "../_ct-stories.tsx";
+
+type PluginListRow = TrpcWireOutput<"plugin.list">[number];
+type PluginSurfaceRow = TrpcWireOutput<"plugin.listSurfaces">[number];
 
 const A_PAST_INSTANT = 1_760_000_000_000;
 const ORACLE_ID = castId<PluginId>("plugin_ct_oracle00000001");
 const DIALOG_ID = castId<PluginId>("plugin_ct_dialog00000001");
-const USER_VIEWER = { userId: "user_ct_plugin", handle: "plugin_user", globalRole: "user" };
+const USER_VIEWER = { userId: "user_ct_plugin", handle: "plugin_user", globalRole: "user" } satisfies TrpcWireOutput<"sessions.me">;
 const HANDLE = "0123456789abcdef0123456789abcdef";
 const FRAME_URL = `${PLUGIN_FRAME_ROUTE}/${HANDLE}`;
 
@@ -53,7 +57,7 @@ const BOARD_DOC = `<!doctype html><html><head><style>body{margin:0}</style><scri
 </script></head><body><div id="board" style="height:480px">CHESS BOARD</div></body></html>`;
 
 /** One installed row as `plugin.list` projects it, holding the hatch's `ui.frame` grant. */
-function pluginRow(id: PluginId, slug: string, name: string): Record<string, unknown> {
+function pluginRow(id: PluginId, slug: string, name: string): PluginListRow {
   return {
     id,
     slug,
@@ -61,6 +65,8 @@ function pluginRow(id: PluginId, slug: string, name: string): Record<string, unk
     version: "1.0.0",
     status: "enabled",
     origin: "upload",
+    sourceUrl: null,
+    updateSource: null,
     declaredCapabilities: ["ui.surface", "ui.frame"],
     grantedCapabilities: ["ui.surface", "ui.frame"],
     netHosts: null,
@@ -75,12 +81,12 @@ function pluginRow(id: PluginId, slug: string, name: string): Record<string, unk
 
 /** One `listSurfaces` row for a FRAME-tier surface: no `spec`, no document bytes — the client names a surface and
  *  the server holds the frame. */
-function frameRow(pluginId: PluginId, id: string, anchor: string, title: string): Record<string, unknown> {
+function frameRow(pluginId: PluginId, id: string, anchor: PluginSurfaceRow["anchor"], title: string): PluginSurfaceRow {
   return { pluginId, id, anchor, title, tier: "frame" };
 }
 
 /** Stub the tRPC reads + the doorway (mint POST → handle URL, document GET → the policied HTML). */
-async function setup(page: Parameters<typeof routeTrpc>[0], rows: Readonly<Record<string, unknown>>): Promise<void> {
+async function setup(page: Parameters<typeof routeTrpc>[0], rows: TrpcRoutes<"plugin.list" | "plugin.listSurfaces">): Promise<void> {
   await routeTrpc(page, {
     "plugin.getSurfaceState": () => null,
     "plugin.getLog": () => [],

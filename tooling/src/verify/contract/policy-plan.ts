@@ -82,6 +82,8 @@ export interface PolicyRunPlan {
   readonly requestedPaths: readonly PolicySemanticPath[] | null;
   readonly resourcePathsByPolicy: Readonly<Record<string, readonly string[]>>;
   readonly resourcePathsByFact: Readonly<Record<string, readonly string[]>>;
+  readonly resourceFailuresByPolicy: Readonly<Record<string, string>>;
+  readonly resourceFailuresByFact: Readonly<Record<string, string>>;
 }
 
 export type PolicyInspectionPlan =
@@ -110,6 +112,12 @@ export interface PolicyPlannerInput {
   readonly scope?: PolicyScopeResolution;
   /** Required only when a selected descriptor declares resources. */
   readonly resourceOptions?: ResourceHostOptions;
+  /** Exact source paths in the Project execution will walk. Omission preserves the programmatic planner's
+   *  compiler-manifest behavior; production structure supplies this to make plan and execution identical. */
+  readonly executionWorkspacePaths?: readonly string[];
+  /** The structure composition root preserves dispatcher-owned incomplete rows; pure/programmatic planning
+   *  remains fail-closed unless it explicitly selects this execution-bound behavior. */
+  readonly deferResourceFailuresToExecution?: boolean;
 }
 
 export interface PolicyPlanExecutionInput extends Pick<PolicyPassInput, "reviewedGrants" | "resourceOptions"> {

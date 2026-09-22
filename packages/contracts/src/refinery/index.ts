@@ -372,15 +372,6 @@ export const refineryFieldScoreSchema = z.object({
   weaknesses: critiqueProseSchema,
   suggestions: critiqueProseSchema,
 });
-/** @public future: the R3 refinery score-render surface (board C15, design-gated on the owner's mockup ruling,
- *  unbuilt) — the per-field score ROW that surface maps `refineryScorePayloadSchema.fieldScores` into. NOT a
- *  twin: `refineryFieldScoreSchema` is apisurface-INTERNAL (same-package-only). R1 handles the payload whole,
- *  and R2 (the client data tier, shipped) types through the tRPC WIRE types (`inferInput`/`inferOutput` off the
- *  options proxy) so a router reshape breaks at the hook, not at a hand-picked alias — which is why the row
- *  type still has no importer. Do not re-try consuming it from the data tier: it belongs to whatever RENDERS a
- *  score row. (Amended 2026-08-08: the reason previously named R2; R2 landed without one.) */
-export type RefineryFieldScore = z.infer<typeof refineryFieldScoreSchema>;
-
 export const refineryScorePayloadSchema = z.object({
   fieldScores: z.array(refineryFieldScoreSchema).max(ENTRIES_MAX),
   /** Weighted average over `fieldScores` — the value R1 stamps into `characters.refinery.score` (F6). */

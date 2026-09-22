@@ -17,6 +17,7 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import { MESSAGE_ACTIONS_MENU_NAME, MESSAGE_REACTION_ADD_NAME } from "../../../../../packages/client/src/features/chat/lib/message-action-names.ts";
 import { touchFloorPx } from "../../../../support/browser/touch-floor.ts";
+import type { TrpcFixtureOutput, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { MessageActionsDoorsStory, MessageReactionsStory } from "../_reaction-stories.tsx";
 
@@ -38,7 +39,9 @@ const CHAT_DETAIL = {
   ],
 };
 
-function group(emoji: string, reactors: readonly string[]): Record<string, unknown> {
+type ReactionGroup = TrpcWireOutput<"chat.listReactions">["groups"][number];
+
+function group(emoji: ReactionGroup["emoji"], reactors: readonly string[]): ReactionGroup {
   // Whole-message groups (all-null trio — B7): a chip missing the trio would gloss as a bogus segment.
   return {
     variantId: VARIANT_ID,
@@ -52,7 +55,7 @@ function group(emoji: string, reactors: readonly string[]): Record<string, unkno
 }
 
 /** The B7 wire view — `listReactions` carries the room's resolved posture beside the groups. */
-function view(groups: readonly Record<string, unknown>[]): Record<string, unknown> {
+function view(groups: readonly ReactionGroup[]): TrpcFixtureOutput<"chat.listReactions"> {
   return { reactionsEnabled: true, groups };
 }
 
@@ -60,7 +63,8 @@ function view(groups: readonly Record<string, unknown>[]): Record<string, unknow
 const TWO_CHIPS = [group("👍", [VIEWER_SEAT, OTHER_SEAT]), group("😂", [OTHER_SEAT])];
 
 /** Nine chips — three past the six-chip display cap, so the tail must read "+3". */
-const NINE_CHIPS = ["👍", "❤️", "😂", "😮", "😢", "😡", "🔥", "🎉", "👀"].map((e) => group(e, [OTHER_SEAT]));
+const NINE_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "😡", "🔥", "🎉", "👀"] satisfies readonly ReactionGroup["emoji"][];
+const NINE_CHIPS = NINE_EMOJIS.map((emoji) => group(emoji, [OTHER_SEAT]));
 
 test.describe("the pill row", () => {
   test("renders one chip per emoji with its reactor COUNT, and presses only the viewer's own", async ({ mount, page }) => {
@@ -126,7 +130,7 @@ test.describe("the segment-anchored chip", () => {
       segmentSnippet: "Bob: Fine day.",
       reactorParticipantIds: [OTHER_SEAT],
     },
-  ];
+  ] satisfies readonly ReactionGroup[];
 
   test("glosses its target, carries the snippet on title, and a press re-keys the SAME anchor on the wire", async ({ mount, page }) => {
     const trpc = await routeTrpc(page, { "chat.listReactions": view(SegmentChip), "chat.getChat": CHAT_DETAIL, "chat.toggleReaction": true });

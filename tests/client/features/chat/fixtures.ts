@@ -8,14 +8,12 @@ import type { ParticipantRole } from "@orb/contracts/identity";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { CharacterId, ChatId, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { TrpcInput, TrpcRoutes, TrpcWireOutput } from "../../../support/node/route-trpc.ts";
 
 /** The `chat.listMessages` wire shape (MessagesPage — packages/server/src/domain/chat/contract/
  *  views.ts). A plain client read-model literal (see the header) — the return type CHANGED from a
  *  bare `MessageView[]` (Chat-Macro-Resolution.md §1/§3; the D137 kind-polymorphic `cast`). */
-export interface MessagesPageFixture {
-  readonly messages: readonly MessageView[];
-  readonly identities: readonly ChatIdentity[];
-}
+export type MessagesPageFixture = TrpcWireOutput<"chat.listMessages">;
 
 /** Wrap a `chat.listMessages` stub's messages array into its actual `MessagesPage` wire shape. The
  *  default empty cast is still a real (if empty) shape, never routeTrpc's generic unlisted-procedure
@@ -25,11 +23,7 @@ export function makeMessagesPage(messages: readonly MessageView[], identities: r
 }
 
 /** The `chat.listChats` wire shape (`ChatListPage`) — keyset page + the server's real census. */
-export interface ChatListPageFixture {
-  readonly items: readonly ChatSummaryFixture[];
-  readonly nextCursor: { readonly updatedAt: number; readonly id: string } | null;
-  readonly totalCount: number;
-}
+export type ChatListPageFixture = TrpcWireOutput<"chat.listChats">;
 
 /**
  * An INPUT-AWARE `chat.listChats` responder — the stub applies the same narrowing the server does
@@ -45,11 +39,11 @@ export interface ChatListPageFixture {
  * It PAGES (2026-08-14, the `character.list` twin's shape): the stub used to answer every request with the
  * first `limit` rows and `nextCursor: null`, so no CT could ever reach a second page — which is precisely why
  * the client-side page-window eviction (`maxPages: 5`, head page unrecoverable) lived behind a green chat CT
- * suite. Ordering is the ARRAY's; the cursor is the last served row's `(updatedAt, id)`, the real wire shape.
+ * suite. Ordering is the ARRAY's; the cursor is the last served row's `(recencyAt, id)`, the real wire shape.
  */
-export function chatListResponder(all: readonly ScopedChatSummaryFixture[]): (input: unknown) => ChatListPageFixture {
-  return (input: unknown): ChatListPageFixture => {
-    const args = (input ?? {}) as { characterId?: CharacterId; search?: string; limit?: number; cursor?: { id?: string } };
+export function chatListResponder(all: readonly ScopedChatSummaryFixture[]): (input: TrpcInput<"chat.listChats">) => ChatListPageFixture {
+  return (input): ChatListPageFixture => {
+    const args = input ?? {};
     const needle = args.search?.trim().toLowerCase() ?? "";
     const scoped = all.filter((chat) => args.characterId === undefined || chat.filterCharacterIds.includes(args.characterId));
     const matched = scoped.filter(
@@ -69,7 +63,7 @@ export function chatListResponder(all: readonly ScopedChatSummaryFixture[]): (in
       // A FULL page always carries a cursor — the verb mints one from a full page without a lookahead peek
       // (`domain/chat/verbs/read.ts`), so exhaustion is discovered on the next (short) fetch. Reproduced here
       // or the tail-fetch guard stops one page early.
-      nextCursor: items.length === limit && last !== undefined ? { updatedAt: last.updatedAt, id: last.id } : null,
+      nextCursor: items.length === limit && last !== undefined ? { recencyAt: last.lastMessageAt ?? last.updatedAt, id: last.id } : null,
       totalCount: matched.length,
     };
   };
@@ -103,10 +97,27 @@ const FROZEN_AT = 1_750_000_000_000;
  * key AFTER the spread (`{ ...CHAT_AMBIENT_ROUTES, "chat.checkSendAvailability": … }`) — composer.ct.tsx's
  * engine-off/engine-down/no-connection arms are exactly that, and they still win.
  */
-export const CHAT_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
+export const CHAT_AMBIENT_ROUTES: TrpcRoutes<
+  | "settings.getUserSettings"
+  | "preset.list"
+  | "regex.listScripts"
+  | "regex.listRoomDisplayScripts"
+  | "chat.checkSendAvailability"
+  | "rosterPreset.list"
+  | "stream.attach"
+  | "chat.listReactions"
+  | "plugin.listDisplayTransforms"
+  | "notifications.presence"
+> = {
   // The viewer's settings row, at the production defaults (`userSettingsSchema.parse({})`) — the same shape
   // the workloads/admin CTs feed. Real config, so a reader that keys off a tier gets a tier.
-  "settings.getUserSettings": { userId: castId<UserId>("user_ct_viewer"), schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: FROZEN_AT },
+  "settings.getUserSettings": {
+    userId: castId<UserId>("user_ct_viewer"),
+    schemaVersion: 1,
+    config: DEFAULT_USER_SETTINGS,
+    configUnreadable: null,
+    updatedAt: FROZEN_AT,
+  },
   // The context band's PRESET chip (#860) resolves the viewer's active preset by name against the library
   // (`chat-context-band.tsx`); the defaults above seed `null` (the built-in), so an EMPTY library is the
   // honest companion — the chip prints "Built-in preset" and the read pipeline runs for real.
@@ -128,9 +139,9 @@ export const CHAT_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
   // never on the EventSource path the #629 instrument fix excluded — `use-orb-socket.ts` states plainly that
   // attach/detach "ride the BATCHED HTTP" link and only `stream.connect` is the SSE leg. So it is a genuine
   // unstubbed mutation, not the instrument reporting its own posture. Its result is never read
-  // (`await client.stream.attach.mutate(…)` discards it), so feeding `{}` changes nothing observable — it
+  // (`await client.stream.attach.mutate(…)` discards it), so feeding `null` changes nothing observable — it
   // simply stops a real mutation riding the lenient null fulfil.
-  "stream.attach": {},
+  "stream.attach": null,
   // B6's per-row reaction WINDOW — read by every COMMITTED row's action strip, so it is ambient to any CT that
   // mounts a transcript rather than a fact about reactions. EMPTY is the honest default (a fresh room has no
   // reactions), and an empty GROUPS array runs the grouping path for real where `null` would skip it. B7: the
@@ -166,13 +177,12 @@ export const CHAT_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
  * persona, no room overrides, the default group config, no RPG pointer, and a viewer who IS the host (the
  * un-gated arm every non-permission CT assumes).
  */
-export const CHAT_ROOM_ROUTES: Readonly<Record<string, unknown>> = {
+export const CHAT_ROOM_ROUTES: TrpcRoutes<"chat.getChat" | "chat.listMessages"> = {
   "chat.getChat": {
     title: null,
     participants: [],
     identities: [],
     anchorPersonaId: null,
-    roomOverrides: {},
     group: DEFAULT_GROUP_CONFIG,
     rpg: null,
     viewerIsHost: true,
@@ -234,7 +244,7 @@ export function makeMessageView(overrides: Partial<MessageView> = {}): MessageVi
  *  `participantPortraits` is what the row PAINTS its leading slot from (F7 + #192 — the seats ride the row
  *  now; there is no character-library read to stub for a portrait). Ids are plain strings — the wire shape
  *  routeTrpc fulfills. */
-export interface ChatSummaryFixture {
+interface ChatSummaryFixture {
   readonly id: string;
   readonly title: string | null;
   readonly starred: boolean;

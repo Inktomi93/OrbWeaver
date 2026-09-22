@@ -6,19 +6,21 @@
 // The roster stub returns only what the bar reads (`participants` with kind/characterId/displayName/
 // disabled) — a partial `ChatDetail`, the same posture as chats-section.ct's stub.
 
-import type { ChatIdentity, GroupConfig } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { CharacterId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import type { TrpcFixtureOutput, TrpcInput, TrpcRoutes } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ChatCharacterBarStory, ChatRoomPhoneStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, makeMessagesPage, makeMessageView } from "../fixtures.ts";
 
 /** A character seat — only the fields the character bar reads; the rest is filler the bar ignores. */
-function character(key: string, name: string, over: Record<string, unknown> = {}): unknown {
+type ParticipantFixture = NonNullable<TrpcFixtureOutput<"chat.getChat">["participants"]>[number];
+
+function character(key: string, name: string, over: Partial<ParticipantFixture> = {}): ParticipantFixture {
   return {
     id: `chat_participant_${key}`,
     kind: "character",
@@ -32,7 +34,7 @@ function character(key: string, name: string, over: Record<string, unknown> = {}
   };
 }
 
-function roster(...members: unknown[]): unknown {
+function roster(...members: ParticipantFixture[]): TrpcFixtureOutput<"chat.getChat"> {
   return { participants: members };
 }
 
@@ -42,19 +44,19 @@ function roster(...members: unknown[]): unknown {
  * the REQUESTED id keeps one responder honest for every roster below (each seat asks for its own character),
  * rather than a single hard-coded card that would be right for one test and a lie for the rest.
  */
-const CHARACTER_ROUTE: Record<string, unknown> = {
-  "character.get": (input: unknown): unknown => ({
-    id: (input as { characterId?: CharacterId } | undefined)?.characterId ?? castId<CharacterId>("character_unknown"),
+const CHARACTER_ROUTE = {
+  "character.get": (input: TrpcInput<"character.get">): TrpcFixtureOutput<"character.get"> => ({
+    id: input?.characterId ?? castId<CharacterId>("character_unknown"),
     name: "Character seat",
     avatarHash: null,
     description: "",
     greetings: [],
   }),
-};
+} satisfies TrpcRoutes<"character.get">;
 
 /** A human seat — `role` seats a host/member; the bar's add-member gate is the separate server-resolved
  *  `viewerIsHost` field, NOT this seat's role (a member behind a host seat must not see the "+"). */
-function human(role: ParticipantRole): unknown {
+function human(role: ParticipantRole): ParticipantFixture {
   return {
     id: `participant_${role}`,
     kind: "human",
@@ -66,7 +68,7 @@ function human(role: ParticipantRole): unknown {
 
 /** A committed `ChatDetail` stub carrying the server-resolved host gate + a 2-character roster (so the bar
  *  renders past the D16 size-gate). A host FIRST human seat trips the retired first-seat proxy. */
-function charactersWithHost(viewerIsHost: boolean): unknown {
+function charactersWithHost(viewerIsHost: boolean): TrpcFixtureOutput<"chat.getChat"> {
   return {
     participants: [human("host"), human("member"), character("aria", "Aria"), character("bryn", "Bryn")],
     viewerIsHost,
@@ -204,7 +206,7 @@ test("#229: over a wallpaper the strip takes the derived plate + blur; without o
 
 /** A human seat the strip actually PAINTS — `resolveHumanParticipants` filters on `leftSeq === null`, so
  *  a stub without it renders no human chips at all (which is why the older cases here show none). */
-function seatedHuman(role: ParticipantRole, displayName: string): unknown {
+function seatedHuman(role: ParticipantRole, displayName: string): ParticipantFixture {
   return {
     id: `participant_${role}`,
     kind: "human",
@@ -229,10 +231,10 @@ const CROWDED_ROSTER = [
   character("sera", "Sera of the Long Winter Court"),
 ];
 
-const PHONE_ROOM_STUB = {
+const PHONE_ROOM_STUB: TrpcRoutes<"chat.previewContextFit" | "chat.listMessages" | "chat.getChat"> = {
   ...CHAT_AMBIENT_ROUTES,
   ...CHARACTER_ROUTE,
-  "chat.previewContextFit": (): unknown => ({
+  "chat.previewContextFit": () => ({
     boundaryMessageId: null,
     usedTokens: 120,
     ceilingTokens: 32_768,
@@ -241,9 +243,8 @@ const PHONE_ROOM_STUB = {
     droppedCount: 0,
     compactSummary: null,
   }),
-  "chat.listMessages": (): unknown =>
-    makeMessagesPage([makeMessageView({ id: castId<MessageId>("msg_phone"), role: "assistant", content: "North, past the spire." })]),
-  "chat.getChat": (): { participants: readonly unknown[]; anchorPersonaId: null; identities: readonly ChatIdentity[]; group: GroupConfig } => ({
+  "chat.listMessages": () => makeMessagesPage([makeMessageView({ id: castId<MessageId>("msg_phone"), role: "assistant", content: "North, past the spire." })]),
+  "chat.getChat": (): TrpcFixtureOutput<"chat.getChat"> => ({
     participants: CROWDED_ROSTER,
     anchorPersonaId: null,
     identities: [],

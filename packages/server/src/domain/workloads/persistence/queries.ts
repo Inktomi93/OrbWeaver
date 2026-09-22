@@ -49,11 +49,10 @@ async function loadScopedDependencyStatuses(
   dependsOn: readonly WorkloadId[],
   ownerId: UserId | null,
 ): Promise<readonly { readonly id: WorkloadId; readonly status: WorkloadStatus }[]> {
-  const ownerScope = ownerId === null ? isNull(workloads.ownerId) : eq(workloads.ownerId, ownerId);
   return await db
     .select({ id: workloads.id, status: workloads.status })
     .from(workloads)
-    .where(and(inArray(workloads.id, [...dependsOn]), ownerScope));
+    .where(and(inArray(workloads.id, [...dependsOn]), ownerId === null ? isNull(workloads.ownerId) : eq(workloads.ownerId, ownerId)));
 }
 
 /** The first absent-or-foreign dependency, collapsed to one answer so the enqueue door cannot become an
@@ -63,8 +62,7 @@ export async function findUnavailableWorkloadDependency(db: Db, dependsOn: reado
     return;
   }
   const rows = await loadScopedDependencyStatuses(db, dependsOn, ownerId);
-  const visible = new Set(rows.map((row) => row.id));
-  return dependsOn.find((id) => !visible.has(id));
+  return dependsOn.find((id) => !rows.some((row) => row.id === id));
 }
 
 async function resolveDependencyGate(db: Db, dependsOn: readonly WorkloadId[], ownerId: UserId | null): Promise<DependencyGate> {

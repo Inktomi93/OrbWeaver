@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "workItem": 2541,
+  "title": "Choose provider row task validation authority",
+  "status": "implemented-awaiting-integration",
+  "head": "15ea1458af6c817bd3c5566132502705a7712ad2",
+  "decision": {
+    "outcome": "retire-db-tuple",
+    "authority": "providerDefSchema",
+    "reason": "The registry accepts unknown input, parses it through providerDefSchema, and passes only parsed ProviderDef rows through the typed ProviderStore into persistence. Reads re-parse stored rows through the same schema. A DB-exported TASKS alias has no consumer and no enforcement role."
+  },
+  "baseline": {
+    "scanScope": {
+      "roots": ["packages", "tests", "tooling", "scripts"],
+      "tsFiles": 6449,
+      "tsxFiles": 1403
+    },
+    "astGrep": {
+      "ts_PROVIDER_ROW_TASKS": 1,
+      "tsx_PROVIDER_ROW_TASKS": 0,
+      "tsPositive_providerDefSchema": 29,
+      "tsxPositive_useState": 957
+    },
+    "textualCorroboration": "Repository-wide rg found PROVIDER_ROW_TASKS only at its declaration. Related prose claims existed in the DB schema header/block, server persistence header, and inference design; only the DB prose could imply a second local enforcement seam."
+  },
+  "authorityTrace": {
+    "registryParse": "packages/inference/src/registry/providers.ts: providerDefSchema.safeParse(raw), one structural match",
+    "parsedWrites": "The registry calls store.put(row, origin) in exactly two origin arms after parse success.",
+    "typedPorts": "ProviderStore.put accepts ProviderDef; createConnectionPorts forwards that ProviderDef to putProviderRow.",
+    "persistence": "putProviderRow accepts ProviderDef; listProviderRows parses every stored row through providerDefSchema before returning it.",
+    "existingNegativeProof": "tests/contracts/inference/provider-schema.contract.test.ts rejects a serves task outside the selected wire ceiling and other malformed provider rows."
+  },
+  "implementation": {
+    "changedFiles": ["packages/db/src/schema/connection-bindings.ts"],
+    "changes": [
+      "Removed exported PROVIDER_ROW_TASKS and its TASKS value import.",
+      "Reworded DB schema comments to name providerDefSchema as the sole validation authority and the registry/read parse points.",
+      "Kept Task type usage for the Drizzle serves column; no DDL or migration change."
+    ]
+  },
+  "postDeletion": {
+    "astGrep": {
+      "ts_PROVIDER_ROW_TASKS": 0,
+      "tsx_PROVIDER_ROW_TASKS": 0,
+      "tsPositive_providerDefSchema": 29,
+      "tsxPositive_useState": 957
+    },
+    "textualCorroboration": "Repository-wide rg found zero PROVIDER_ROW_TASKS spellings."
+  },
+  "verification": [
+    {
+      "command": "pnpm exec biome check packages/db/src/schema/connection-bindings.ts --diagnostic-level=error",
+      "result": "pass"
+    },
+    {
+      "command": "pnpm exec eslint packages/db/src/schema/connection-bindings.ts",
+      "result": "pass"
+    },
+    {
+      "command": "pnpm test:scoped tests/contracts/inference/provider-schema.contract.test.ts tests/server/domain/connection/persistence/provider-rows.int.test.ts",
+      "result": "pass, 11/11",
+      "artifact": "reports/runs/test/orbweaver-2899660-2026-09-21T12-35-18-881Z/test-report.json"
+    },
+    {
+      "command": "pnpm typecheck --config packages/db/tsconfig.json",
+      "result": "pass"
+    },
+    {
+      "command": "git diff --check -- packages/db/src/schema/connection-bindings.ts",
+      "result": "pass"
+    }
+  ],
+  "constraints": [
+    "No migration generated because the removed tuple was TypeScript-only and emitted no DDL.",
+    "No commit, push, merge, or live database mutation performed.",
+    "No sibling-owned inference identity, Code Mod Kit, or git-fixture file edited."
+  ]
+}

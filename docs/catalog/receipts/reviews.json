@@ -41,13 +41,13 @@
     },
     {
       "path": "docs/reviews/2026-09-20-inference-warning-home-cadence-audit.md",
-      "assignedSha256": "0218dfb5b74a18b9b92ab6ff527f2d1c85bd8018fb49936e2cc23715171478e8",
+      "assignedSha256": "067dff8a6c69d379f4ce745bc9dc9fc1ece8b8062bcda45ddc3831df3f683b45",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "0218dfb5b74a18b9b92ab6ff527f2d1c85bd8018fb49936e2cc23715171478e8",
-      "verifiedCommit": "ad4db75c6edb141ced392fae6f2aee9e156d4262",
-      "verifiedAt": "2026-09-20",
+      "verifiedSha256": "067dff8a6c69d379f4ce745bc9dc9fc1ece8b8062bcda45ddc3831df3f683b45",
+      "verifiedCommit": "8f7ed4c4b98c112429c3918483f3a172f66ae184",
+      "verifiedAt": "2026-09-22",
       "evidence": [
         "docs/reviews/2026-09-20-inference-warning-home-cadence-audit.md:1-148 read in full 2026-09-20 by lane cb-heal-catalog while clearing the check:doc-catalog stage for #2494. A read-only audit (snapshot `f106f1bf8`) of every inference warning code's assigned home and cadence against the inference program's §5.3a: the required previous-turn-per-connection comparison semantics, a nineteen-row home/cadence table separating **ruled** from **proposed** rows, the current path through emit → translation → bus → toast, the three absent homes, and the implementation boundaries the cadence fix runs into.",
         "Spot-verified against the tree at the receipting commit: the audit's central mechanical claim holds — `emitCapabilityDropWarnings` filters exactly one code out of the turn stream and emits every other runner warning independently."
@@ -82,7 +82,7 @@
         }
       ],
       "summary": "Evidence, not a work queue: every inference warning code has a server translation or a deliberate turn-stream filter, but several assigned homes are absent and the cadence does not match the inference program. Eleven adjustment warnings can become eleven durable chat events and eleven toasts on a single turn, because the only suppression is whole-warning dedup inside one backend result and across recursion depths — never a comparison with the previous turn on the same connection. Three ruled homes do not exist at all (the capability panel receives no warning state, the connection row has no `declared_overrides_measured` badge, and there is no Extras authoring row for `custom_parameters_ignored{key}`, whose key the server drops); smart-arbitration and background degradation reach the room but implement no session/shared cadence. `image_edit_dropped` is the one infra warning whose operation-scoped home already matches its behaviour.",
-      "verifiedCanonicalSha256": "0218dfb5b74a18b9b92ab6ff527f2d1c85bd8018fb49936e2cc23715171478e8"
+      "verifiedCanonicalSha256": "067dff8a6c69d379f4ce745bc9dc9fc1ece8b8062bcda45ddc3831df3f683b45"
     },
     {
       "path": "docs/reviews/2026-09-20-typed-options-conditional-spread-census.md",
@@ -123,6 +123,18 @@
       ],
       "summary": "A closed census of `{ ...(cond ? { … } : {}) }`-shaped option construction over every tracked TypeScript and TSX file, run by `ast-grep` and by an independent syntax walk with planted controls in the same invocations (1,787 occurrences; 1,433 typed object literals after excluding JSX prop spreads). The population divides without overlap into 1,233 sites whose every conditional-arm key is already declared, 84 string-indexed contexts, 52 with no contextual target type, eight outside every configured compiler program, and 56 apparent misses — of which exactly four are real declared-target omissions. Three were repaired (`k`/`minScore`/`rerank` on the databank gather op, `size` on the picture op, `terminalTools` on the rpg gather result) with a `satisfies Pick<…>` check on each nonempty arm, preserving omission rather than writing `undefined`; the fourth (`signal`) is left alone because no resolver cancellation contract exists to mirror, and the `playwright-ct.config.ts` custom-reporter seam is fenced as tooling ownership.",
       "verifiedCanonicalSha256": "82c8dedd545b1dec6c42c7e2cc9dab1499a5c13f05080545b8f3d6fb7279b63d"
+    },
+    {
+      "path": "docs/reviews/ast-codebase-audit/world-tools-brand-boundary-audit.md",
+      "assignedSha256": "d0f678bf1d0ac481c305f5a525058cef7de61c6fceb5662876007f9e9112170c",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
     },
     {
       "path": "docs/reviews/board-rederive/scout-A-plugin-cap.md",
@@ -6312,6 +6324,45 @@
       ]
     },
     {
+      "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-final.md",
+      "assignedSha256": "a662a8117752afd687b901b771c438c4e4dd854cbd87d7b6a5835ec109264705",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "a662a8117752afd687b901b771c438c4e4dd854cbd87d7b6a5835ec109264705",
+      "verifiedCommit": "b23839843a46cf0755fc4794d5dd330c246309ce",
+      "verifiedAt": "2026-09-02",
+      "summary": "CT corpus audit FINAL closeout (#1229, lane cb-ct-audit-final): derived the true covered/remainder arithmetic from the ten folded shard reports' own per-file verdicts rather than their stated totals — corpus 469 files/113,931 lines, covered by the ten reports 414 files/105,540 lines (8 confirmed cross-shard duplicate reads, all tracing to leg4b), true remainder 55 files/8,391 lines (vs. the brief's naive 428/~41 hypothesis). Full-read all 55 remainder files (user-admin x14, discovery x8, world-info x5, stats x5, regex x5, auth x5, credentials x3, tag x2, chat x2, routes x2, plus 5 singles) against leg1's unchanged rubric — zero new findings. Re-checked leg4b's PROVISIONAL corpus-search-results.ct.tsx SCENES-door verdict against today's post-#1249 source and confirmed CLEAN. Campaign declared COMPLETE at 469/469 files, 113,931/113,931 lines, five total findings (#1240 #1241 #1242 #1258 #1261), severity ceiling P3.",
+      "evidence": [
+        "born-reviewed at b23839843a46cf0755fc4794d5dd330c246309ce: authored and full-read by lane cb-ct-audit-final (stickler) in the same session — the derived-arithmetic section, the 55-file per-area verdict tables, the taxonomy sweep receipts, the corpus-search-results.ct.tsx re-check, and the #1229 issue summary"
+      ],
+      "claims": [
+        {
+          "claim": "The ten folded shard reports' stated-population sum (428) is neither the covered count nor the remainder complement: cross-referencing each report's own per-file verdicts (not its stated totals or 'excl' cross-references) surfaces 8 confirmed cross-shard duplicate full-reads (all traced to leg4b) and a true remainder of 55 files never verdicted by any report — corpus 469 = covered 414 + remainder 55.",
+          "evidence": [
+            {
+              "kind": "test",
+              "target": "tests/client/state/character-selection-store.ct.tsx:1",
+              "note": "one of the 8 confirmed cross-shard duplicates (L4-client-core state/ chunk and leg4b batch 1 item 3 each independently read and verdicted this file)"
+            }
+          ]
+        },
+        {
+          "claim": "leg4b's PROVISIONAL verdict on corpus-search-results.ct.tsx's SCENES door-look block (flagged against a pre-#1249 base) resolves CLEAN on today's tree: the RoomDoor component's post-#1249 className applies RECEDED_INK per the assertion's relational checks (justify-start, arrow present, colour !== bodyColour), and the source's own header comment names this exact CT assertion as the fix's target.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/discovery/components/corpus-hit-rows.tsx:158"
+            },
+            {
+              "kind": "test",
+              "target": "tests/client/features/discovery/components/corpus-search-results.ct.tsx:483"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-L1-ui.md",
       "assignedSha256": "c00698488c8efe87b9d06936d1cfe9417f5be7517b81d76dc7e3184b3c416db6",
       "disposition": "current",
@@ -6410,45 +6461,6 @@
             {
               "kind": "code",
               "target": "packages/client/src/data/use-carried-appearance.ts:1"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-final.md",
-      "assignedSha256": "a662a8117752afd687b901b771c438c4e4dd854cbd87d7b6a5835ec109264705",
-      "disposition": "current",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "a662a8117752afd687b901b771c438c4e4dd854cbd87d7b6a5835ec109264705",
-      "verifiedCommit": "b23839843a46cf0755fc4794d5dd330c246309ce",
-      "verifiedAt": "2026-09-02",
-      "summary": "CT corpus audit FINAL closeout (#1229, lane cb-ct-audit-final): derived the true covered/remainder arithmetic from the ten folded shard reports' own per-file verdicts rather than their stated totals — corpus 469 files/113,931 lines, covered by the ten reports 414 files/105,540 lines (8 confirmed cross-shard duplicate reads, all tracing to leg4b), true remainder 55 files/8,391 lines (vs. the brief's naive 428/~41 hypothesis). Full-read all 55 remainder files (user-admin x14, discovery x8, world-info x5, stats x5, regex x5, auth x5, credentials x3, tag x2, chat x2, routes x2, plus 5 singles) against leg1's unchanged rubric — zero new findings. Re-checked leg4b's PROVISIONAL corpus-search-results.ct.tsx SCENES-door verdict against today's post-#1249 source and confirmed CLEAN. Campaign declared COMPLETE at 469/469 files, 113,931/113,931 lines, five total findings (#1240 #1241 #1242 #1258 #1261), severity ceiling P3.",
-      "evidence": [
-        "born-reviewed at b23839843a46cf0755fc4794d5dd330c246309ce: authored and full-read by lane cb-ct-audit-final (stickler) in the same session — the derived-arithmetic section, the 55-file per-area verdict tables, the taxonomy sweep receipts, the corpus-search-results.ct.tsx re-check, and the #1229 issue summary"
-      ],
-      "claims": [
-        {
-          "claim": "The ten folded shard reports' stated-population sum (428) is neither the covered count nor the remainder complement: cross-referencing each report's own per-file verdicts (not its stated totals or 'excl' cross-references) surfaces 8 confirmed cross-shard duplicate full-reads (all traced to leg4b) and a true remainder of 55 files never verdicted by any report — corpus 469 = covered 414 + remainder 55.",
-          "evidence": [
-            {
-              "kind": "test",
-              "target": "tests/client/state/character-selection-store.ct.tsx:1",
-              "note": "one of the 8 confirmed cross-shard duplicates (L4-client-core state/ chunk and leg4b batch 1 item 3 each independently read and verdicted this file)"
-            }
-          ]
-        },
-        {
-          "claim": "leg4b's PROVISIONAL verdict on corpus-search-results.ct.tsx's SCENES door-look block (flagged against a pre-#1249 base) resolves CLEAN on today's tree: the RoomDoor component's post-#1249 className applies RECEDED_INK per the assertion's relational checks (justify-start, arrow present, colour !== bodyColour), and the source's own header comment names this exact CT assertion as the fix's target.",
-          "evidence": [
-            {
-              "kind": "code",
-              "target": "packages/client/src/features/discovery/components/corpus-hit-rows.tsx:158"
-            },
-            {
-              "kind": "test",
-              "target": "tests/client/features/discovery/components/corpus-search-results.ct.tsx:483"
             }
           ]
         }

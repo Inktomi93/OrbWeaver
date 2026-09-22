@@ -7,7 +7,15 @@ import { readMemberReference, resolveModuleMemberOrigin, resolveStableExpression
 import type { ReferenceFact } from "@orb/tooling/_shared/reference-fact-contract";
 import type { CallExpression, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
-import type { SchemaColumn, SchemaColumnIdentity, SchemaForeignKey, SchemaIndex, SchemaTable, SchemaTableIdentity } from "../contract/schema-fact.ts";
+import type {
+  SchemaColumn,
+  SchemaColumnIdentity,
+  SchemaForeignKey,
+  SchemaIndex,
+  SchemaTable,
+  SchemaTableForeignKey,
+  SchemaTableIdentity,
+} from "../contract/schema-fact.ts";
 import type { ColumnDraft, TableDraft } from "./schema-fact-value.ts";
 import {
   effectiveObjectProperty,
@@ -292,4 +300,109 @@ export function indexesOf(table: TableDraft): readonly SchemaIndex[] {
     });
   }
   return indexes;
+}
+
+interface TableForeignKeyInput {
+  table: TableDraft;
+  tables: ReadonlyMap<string, SchemaTable>;
+  allColumns: ReadonlyMap<string, SchemaColumn>;
+  canonicalPath: (sourceFile: SourceFile) => string;
+}
+
+function tableForeignKeyContext(table: TableDraft): {
+  readonly elements: readonly MorphNode[];
+  readonly parameter: MorphNode | null;
+  readonly columns: ReadonlyMap<string, SchemaColumnIdentity>;
+} | null {
+  if (table.extra === null) {
+    return null;
+  }
+  const callback = resolveStableExpression(table.extra);
+  if (callback.kind === "unresolved") {
+    return refuse({ ...callback, detail: `${table.identity.key} extras callback: ${callback.detail}` });
+  }
+  const functionNode = callback.value;
+  if (!(Node.isArrowFunction(functionNode) || Node.isFunctionExpression(functionNode))) {
+    return refuse(unresolved("unsupported", functionNode, `${table.identity.key} extras is not an authored callback`));
+  }
+  const parameters = functionNode.getParameters();
+  const name = parameters[0]?.getNameNode();
+  const parameter = name !== undefined && Node.isIdentifier(name) ? name : null;
+  if (parameters.length > 1 || (parameters.length === 1 && parameter === null)) {
+    return refuse(unresolved("unsupported", functionNode, `${table.identity.key} extras must have zero parameters or one identifier table parameter`));
+  }
+  return {
+    elements: arrayElements(returnedExpression(functionNode, `${table.identity.key} extras`), `${table.identity.key} extras return`),
+    parameter,
+    columns: new Map(table.columns.map((column) => [column.identity.propertyName, column.identity])),
+  };
+}
+
+function tableForeignKeyOf(
+  element: MorphNode,
+  context: Exclude<ReturnType<typeof tableForeignKeyContext>, null>,
+  input: TableForeignKeyInput,
+): SchemaTableForeignKey | null {
+  const chain = operationChain(element);
+  const builder = exactDrizzleExport(chain.root);
+  if (builder.kind === "unresolved") {
+    return refuse({ ...builder, detail: `${input.table.identity.key} extra: ${builder.detail}` });
+  }
+  if (builder.value.exportedName !== "foreignKey") {
+    return null;
+  }
+  const config = chain.root.getArguments()[0];
+  if (config === undefined) {
+    return refuse(unresolved("missing", chain.root, `${input.table.identity.key} foreign key has no config`));
+  }
+  const childValue = effectiveObjectProperty(config, "columns", `${input.table.identity.key} foreign key config`);
+  const parentValue = effectiveObjectProperty(config, "foreignColumns", `${input.table.identity.key} foreign key config`);
+  if (childValue === null || parentValue === null) {
+    return refuse(unresolved("missing", config, `${input.table.identity.key} foreign key config must declare columns and foreignColumns`));
+  }
+  const children = arrayElements(childValue, `${input.table.identity.key} foreign key columns`).map((node) => {
+    const child = callbackColumn(node, context.parameter, input.table.identity, context.columns);
+    return child ?? refuse(unresolved("unsupported", node, `${input.table.identity.key} foreign key child is not a column of its table`));
+  });
+  const parents = arrayElements(parentValue, `${input.table.identity.key} foreign key foreignColumns`).map((node) => {
+    const parent = foreignTarget(node, input.tables, input.allColumns, input.canonicalPath);
+    return parent.kind === "resolved" ? parent.value : refuse({ ...parent, detail: `${input.table.identity.key} foreign key parent: ${parent.detail}` });
+  });
+  if (children.length === 0 || children.length !== parents.length) {
+    return refuse(unresolved("unsupported", config, `${input.table.identity.key} foreign key child/parent arity differs or is empty`));
+  }
+  const onDeleteCalls = chain.operations.get("onDelete") ?? [];
+  if (onDeleteCalls.length > 1) {
+    return refuse(unresolved("ambiguous", element, `${input.table.identity.key} foreign key has multiple onDelete operations`));
+  }
+  const onDeleteArg = onDeleteCalls[0]?.getArguments()[0];
+  return {
+    children,
+    parents,
+    onDelete:
+      onDeleteArg === undefined
+        ? { kind: "unspecified" }
+        : { kind: "specified", value: staticString(onDeleteArg, `${input.table.identity.key} foreign key onDelete`) },
+    call: chain.root,
+  };
+}
+
+/** Resolve table-level composite foreign keys from the extras callback. The child side must name this
+ * callback's table parameter; the parent side uses the same canonical column resolver as inline
+ * `.references()`, so aliases, re-exports, and selected-file external parents retain one identity. */
+export function tableForeignKeysOf(
+  table: TableDraft,
+  tables: ReadonlyMap<string, SchemaTable>,
+  allColumns: ReadonlyMap<string, SchemaColumn>,
+  canonicalPath: (sourceFile: SourceFile) => string,
+): readonly SchemaTableForeignKey[] {
+  const context = tableForeignKeyContext(table);
+  if (context === null) {
+    return [];
+  }
+  const input = { table, tables, allColumns, canonicalPath } satisfies TableForeignKeyInput;
+  return context.elements.flatMap((element) => {
+    const foreignKey = tableForeignKeyOf(element, context, input);
+    return foreignKey === null ? [] : [foreignKey];
+  });
 }

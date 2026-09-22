@@ -5,12 +5,14 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder, TrpcRoutes } from "../../../../support/node/route-trpc.ts";
+import type { TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { AdminApprovalsSectionStory } from "../_ct-stories.tsx";
 
 const T = 1_700_000_000_000;
-const row = (over: Record<string, unknown>): Record<string, unknown> => ({
+type AdminUser = TrpcWireOutput<"admin.listUsers">[number];
+
+const row = (over: Partial<AdminUser>): AdminUser => ({
   id: "user_x",
   handle: "x",
   externalId: null,
@@ -31,7 +33,7 @@ const USERS = [
   row({ id: "user_pend2", handle: "pending-admin", role: "admin", enabled: false, externalId: "authentik|pa" }),
 ];
 
-function stub(page: Page, users: readonly Record<string, unknown>[], extra: TrpcRoutes = {}): Promise<TrpcRecorder> {
+function stub(page: Page, users: readonly AdminUser[], extra: Partial<TrpcRoutes<"admin.setEnabled">> = {}): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "admin.listUsers": () => users,
     ...extra,
@@ -50,7 +52,9 @@ test("lists ONLY the pending set (disabled, non-owner) — enabled + owner rows 
 });
 
 test("Approve fires admin.setEnabled({enabled:true}) for that row", async ({ mount, page }) => {
-  const trpc = await stub(page, USERS, { "admin.setEnabled": () => ({ ok: true }) });
+  const trpc = await stub(page, USERS, {
+    "admin.setEnabled": () => row({ id: "user_pend1", handle: "newbie", enabled: true, externalId: "authentik|newbie" }),
+  });
   const component = await mount(<AdminApprovalsSectionStory />);
 
   // The first pending row (newbie) — click its Approve.

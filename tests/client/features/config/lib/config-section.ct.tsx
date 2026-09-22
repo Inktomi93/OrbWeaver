@@ -29,7 +29,7 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import type { TrpcFixtureOutput, TrpcRecorder } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ConfigMobileShellStory } from "../_ct-stories.tsx";
 
@@ -69,7 +69,7 @@ const TAG = {
   sortOrder: 0,
   isHiddenOnCard: false,
   usage: { characters: 9, chats: 3, worldBooks: 0, personas: 0, presets: 0, total: 12 },
-};
+} satisfies TrpcFixtureOutput<"tag.listTagsWithUsage">[number];
 
 const BOOK = {
   id: "world_book_reach000001",
@@ -79,41 +79,32 @@ const BOOK = {
   entryCount: 1,
   usage: { characters: 0, personas: 0, chats: 0, global: false, total: 0 },
 };
+const BOOK_DETAIL = { id: BOOK.id, name: BOOK.name, description: BOOK.description, createdAt: BOOK.createdAt };
 
 const ENTRY = {
   id: "world_entry_spire00000001",
-  bookId: BOOK.id,
+  worldBookId: BOOK.id,
   title: "The Spire",
+  description: null,
   content: "A tower of ash.",
   keys: ["spire"],
-  secondaryKeys: [],
   enabled: true,
-  constant: false,
-  position: 0,
   priority: 100,
-  probability: 100,
-  depth: 4,
-  scanDepth: null,
-  caseSensitive: false,
-  matchWholeWords: null,
-  selectiveLogic: "AND_ANY",
-  group: null,
-  comment: null,
-  createdAt: 1,
-  updatedAt: 1,
-};
+  ignoreBudget: false,
+  metadata: null,
+} satisfies TrpcFixtureOutput<"worldInfo.listEntries">[number];
 
 function stub(page: Page): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "sessions.me": { userId: "user_ct_config", handle: "ct_config", globalRole: "user" },
-    "settings.getUserSettings": () => ({ userId: "user_ct_config", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 }),
+    "settings.getUserSettings": () => ({ userId: "user_ct_config", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, configUnreadable: null, updatedAt: 0 }),
     "settings.listThemes": () => [],
     "tag.listTagsWithUsage": () => [TAG],
     "regex.listScripts": () => [],
     "regex.listGlobal": () => [],
     "worldInfo.listBooksWithUsage": () => [BOOK],
     "worldInfo.listGlobal": () => [],
-    "worldInfo.getBook": () => BOOK,
+    "worldInfo.getBook": () => BOOK_DETAIL,
     "worldInfo.listEntries": () => [ENTRY],
     "rosterPreset.list": () => [],
     "persona.list": () => [],
@@ -122,10 +113,10 @@ function stub(page: Page): Promise<TrpcRecorder> {
     // notifications bell, and the home/databank tiles the rail's other sections keep warm. Fed rather than
     // baselined: an empty list is a real view for every one of them, and the unfed-read ratchet is right
     // that a `null` would leave those pipelines inert inside a mount that does render them.
-    "notifications.list": () => ({ items: [], unreadCount: 0, nextCursor: null }),
+    "notifications.list": () => ({ items: [], nextCursor: null }),
     "chat.listChats": () => ({ items: [], nextCursor: null }),
     "databank.list": () => ({ items: [], nextCursor: null }),
-    "databank.bankHealth": () => ({ documents: 0, chunks: 0, embedded: 0, pending: 0, failed: 0 }),
+    "databank.bankHealth": () => ({ total: 0, passages: 0, chunks: 0, byPhase: { embedding: 0, empty: 0, indexing: 0, ready: 0, stalled: 0 } }),
   });
 }
 

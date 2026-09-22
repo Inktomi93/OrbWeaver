@@ -16,11 +16,12 @@
 // `stubDatabank` pins the page clock with `page.clock.setFixedTime` — the date reader ONLY, no timer faking,
 // so the surface's own 4s ingest poll and playwright's auto-waiting still run for real.
 
+import type { INGEST_PHASES } from "@orb/contracts/databank";
 import { DATABANK_LIST_DEFAULT_LIMIT, STALE_INGEST_MS } from "@orb/contracts/databank";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { Page } from "@playwright/test";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
-import type { TrpcRecorder, TrpcRoutes } from "../../../support/node/route-trpc.ts";
+import type { TrpcInput, TrpcProcedurePath, TrpcRecorder, TrpcResponder, TrpcRoutes, TrpcWireOutput } from "../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../support/node/route-trpc.ts";
 
 /** Comfortably past the model's 5-minute stall threshold — a frozen row, not a slow one. */
@@ -33,7 +34,7 @@ export const READY_DOC = {
   id: "document_00000000000000000001",
   name: "The Crimson Court",
   mime: "application/pdf",
-  origin: "upload",
+  origin: "upload" as const,
   sourceUrl: null,
   byteSize: 25_088,
   charCount: 4200,
@@ -47,7 +48,7 @@ export const INDEXING_DOC = {
   ...READY_DOC,
   id: "document_00000000000000000002",
   name: "Duskwater Barony",
-  origin: "wiki",
+  origin: "wiki" as const,
   byteSize: 93_901,
   chunkCount: 39,
   embeddedCount: 22,
@@ -69,7 +70,7 @@ const STALLED_DOC = {
   ...READY_DOC,
   id: "document_00000000000000000004",
   name: "Treaty of Ashfen",
-  origin: "text",
+  origin: "text" as const,
   byteSize: 8192,
   chunkCount: 0,
   embeddedCount: 0,
@@ -86,16 +87,18 @@ export const SOURCE_TEXT = "HOUSE VALEROTH — the elder line, seated at Duskwat
 
 /** The four-phase bank every databank CT reads unless it overrides the route. Named because the LIST and the
  *  CENSUS must be built from the SAME array — see `bankCensus`. */
-const DEFAULT_BANK = [READY_DOC, INDEXING_DOC, EMPTY_DOC, STALLED_DOC];
-
 /** One row as the stub serves it — the fixture shape, structural (a CT never mints a branded id). */
-type StubDocument = typeof READY_DOC;
+type StubDocument = TrpcWireOutput<"databank.list">["items"][number];
+
+const DEFAULT_BANK: readonly StubDocument[] = [READY_DOC, INDEXING_DOC, EMPTY_DOC, STALLED_DOC];
 
 /** The SERVER's phase rule, spelled here because this stub stands in for the server (`domain/databank/
  *  persistence/queries.ts` `phasePredicate`, whose arithmetic is the client's `countedPhase` + stall
  *  overlay). Deliberately NOT imported from the client's `databank-model`: a stub that reuses the code under
  *  test can only ever agree with it. */
-function phaseOf(doc: StubDocument): string {
+type IngestPhase = (typeof INGEST_PHASES)[number];
+
+function phaseOf(doc: StubDocument): IngestPhase {
   if (doc.charCount === 0) {
     return "empty";
   }
@@ -116,15 +119,9 @@ function phaseOf(doc: StubDocument): string {
  * is exactly how the client-side-filtering defect survived behind green CTs (the character lane's finding,
  * 2026-08-14). The fake carries the verb's contract, so a passing lens test is a claim about the wire.
  */
-function pagedBank(documents: readonly StubDocument[]): (input: unknown) => { items: readonly StubDocument[]; nextCursor: unknown; totalCount: number } {
-  return (input: unknown) => {
-    const { limit, cursor, search, phase, origin } = (input ?? {}) as {
-      limit?: number;
-      cursor?: { readonly id: string } | null;
-      search?: string;
-      phase?: string;
-      origin?: string;
-    };
+function pagedBank(documents: readonly StubDocument[]): TrpcResponder<"databank.list"> {
+  return (input: TrpcInput<"databank.list">) => {
+    const { limit, cursor, search, phase, origin } = input;
     const needle = search?.trim().toLowerCase() ?? "";
     const matched = documents.filter(
       (doc) =>
@@ -148,10 +145,16 @@ function bankCensus(documents: readonly StubDocument[]): () => {
   total: number;
   passages: number;
   chunks: number;
-  byPhase: Record<string, number>;
+  byPhase: Record<IngestPhase, number>;
 } {
   return () => {
-    const byPhase: Record<string, number> = { embedding: 0, empty: 0, indexing: 0, ready: 0, stalled: 0 };
+    const byPhase: Record<IngestPhase, number> = {
+      embedding: 0,
+      empty: 0,
+      indexing: 0,
+      ready: 0,
+      stalled: 0,
+    };
     let chunks = 0;
     let passages = 0;
     for (const doc of documents) {
@@ -167,7 +170,11 @@ function bankCensus(documents: readonly StubDocument[]): () => {
  *  documents — it feeds the LIST and the CENSUS from one array, so a test can never stub a list that its
  *  tile's chips disagree with. `over` replaces any route (a failing write, an empty global set) without
  *  re-spelling the rest. */
-export async function stubDatabank(page: Page, over: TrpcRoutes = {}, bank: readonly StubDocument[] = DEFAULT_BANK): Promise<TrpcRecorder> {
+export async function stubDatabank(
+  page: Page,
+  over: Partial<TrpcRoutes<TrpcProcedurePath>> = {},
+  bank: readonly StubDocument[] = DEFAULT_BANK,
+): Promise<TrpcRecorder> {
   // Pin the page's `Date.now` so `dataUpdatedAt` — the clock the stall verdict reads — is the same instant
   // the rows below are dated against, on every run and every machine.
   await page.clock.setFixedTime(NOW);
@@ -176,16 +183,22 @@ export async function stubDatabank(page: Page, over: TrpcRoutes = {}, bank: read
     // null, so every appearance/tier reader in these mounts fell to its default branch and the settings-driven
     // presentation path never ran in ANY of the three files this helper routes. Production defaults, so no
     // existing assertion moves; a test that needs a different config passes it through `over`.
-    "settings.getUserSettings": { userId: "user_ct_databank", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: NOW },
+    "settings.getUserSettings": {
+      userId: "user_ct_databank",
+      schemaVersion: 1,
+      config: DEFAULT_USER_SETTINGS,
+      updatedAt: NOW,
+      configUnreadable: null,
+    },
     "databank.list": pagedBank(bank),
     "databank.bankHealth": bankCensus(bank),
     "databank.listGlobal": () => [READY_DOC.id],
     // Resolve the REQUESTED document, so "the row you clicked is the document you got" is a real assertion
     // rather than a stub that would answer the same either way.
-    "databank.get": (input: unknown) => {
-      const { id, includeText } = input as { id: string; includeText?: boolean };
+    "databank.get": (input: TrpcInput<"databank.get">) => {
+      const { id, includeText } = input;
       const row = bank.find((d) => d.id === id) ?? READY_DOC;
-      return { ...row, ...(includeText === true ? { extractedText: SOURCE_TEXT } : {}) };
+      return { ...row, extractorVersion: "ct-extractor-v1", ...(includeText === true ? { extractedText: SOURCE_TEXT } : {}) };
     },
     // NAMED, the way the verb answers since #276: rooms arrive already membership-filtered (the server drops
     // what the caller may not see), carrying the client title chain's INPUTS — `title` null here on purpose,

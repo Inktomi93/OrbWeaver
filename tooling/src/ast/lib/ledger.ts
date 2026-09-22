@@ -33,7 +33,7 @@ interface ScanLedger {
 
 /** The invocation's ledger. Undefined when this module is IMPORTED rather than run (the self-test and the
  *  push-tier ratchet drive the pure collectors) — every note is a no-op then, so importing prints nothing. */
-export let ledger: ScanLedger | undefined;
+let ledger: ScanLedger | undefined;
 
 const TOOL_ERROR_EXIT = 2;
 

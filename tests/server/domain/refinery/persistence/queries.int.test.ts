@@ -10,7 +10,13 @@ import type { Db } from "@orb/db";
 import { characters, refineryRuns, refinerySessions } from "@orb/db";
 import type { CharacterHandle, CharacterId, Handle, ModelId, RefineryRunId, RefinerySessionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { latestRunRowOf, latestVerdictsOf, loadOwnedSessionRow } from "../../../../../packages/server/src/domain/refinery/persistence/queries.ts";
+import { sql } from "drizzle-orm";
+import {
+  latestRunRowOf,
+  latestVerdictsOf,
+  loadOwnedSessionRow,
+  sessionViewOf,
+} from "../../../../../packages/server/src/domain/refinery/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedUser } from "../_support.ts";
@@ -61,6 +67,24 @@ test("loadOwnedSessionRow: the owner predicate rides the character JOIN (foreign
 
   expect((await loadOwnedSessionRow(db, owner, sessionId))?.id).toBe(sessionId);
   expect(await loadOwnedSessionRow(db, stranger, sessionId)).toBeUndefined();
+});
+
+test("sessionViewOf heals a corrupt stored stageConfig to the canonical default", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, { id: "user_rq_config" });
+  const sessionId = await seedSession(db, owner, "rq_config");
+  const healthy = await loadOwnedSessionRow(db, owner, sessionId);
+  if (healthy === undefined) {
+    throw new Error("expected the seeded refinery session to load");
+  }
+  expect(sessionViewOf(healthy).stageConfig).toEqual(DEFAULT_REFINERY_STAGE_CONFIG);
+
+  await db.run(sql`UPDATE refinery_sessions SET stage_config = ${JSON.stringify({ stages: "corrupt" })} WHERE id = ${sessionId}`);
+  const corrupt = await loadOwnedSessionRow(db, owner, sessionId);
+  if (corrupt === undefined) {
+    throw new Error("expected the corrupted refinery session to load");
+  }
+  expect(sessionViewOf(corrupt).stageConfig).toEqual(DEFAULT_REFINERY_STAGE_CONFIG);
 });
 
 test("latestRunRowOf picks the newest of THAT stage; latestVerdictsOf groups newest-analyze per session", async () => {

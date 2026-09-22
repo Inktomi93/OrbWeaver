@@ -1,0 +1,64 @@
+{
+  "lane": "ast-columns-honesty-repair-3",
+  "workItem": 2567,
+  "verdict": "REPAIRED",
+  "pathManifest": [
+    "tooling/src/ast/lib/column-reads.ts",
+    "tooling/src/ast/lib/columns.ts",
+    "tests/tooling/ast/index.test.ts",
+    "tests/tooling/ast/ops/verbs.test.ts"
+  ],
+  "change": "A separate table-level read scan now resolves db.select().from(table) through canonical table declaration identity. Producerless aggregation unions those table sites with existing column-read sites without adding reads to any ColumnCandidate.",
+  "compileRepair": "resolvedInitializers now returns readonly ts-morph Expression[] and narrows undefined initializers with an Expression predicate, matching VariableDeclaration.getInitializer without broadening to Node.",
+  "controls": [
+    "A production full-table select creates one column-table-producerless finding",
+    "The selected table's named column remains neither with zero column reads",
+    "A table that is only imported and aliased remains absent from producerless findings",
+    "The import-only table's named column also remains neither with zero column reads",
+    "Mutable raw SQL alias refusal, direct and const raw SQL, batches, duplicate table variable names, canonical keys, and empty-corpus controls remain green"
+  ],
+  "red": {
+    "command": "pnpm test:scoped tests/tooling/ast/index.test.ts tests/tooling/ast/ops/verbs.test.ts",
+    "log": "/tmp/world-tools-columns-full-select-live-red.log",
+    "result": "FAIL as intended: 2 failed, 132 passed; collector and command-level full-table-select controls both reproduced the blind spot",
+    "exitCode": 1,
+    "report": "reports/runs/test/orbweaver-3554071-2026-09-21T15-09-10-692Z/test-report.json"
+  },
+  "green": {
+    "command": "pnpm test:scoped tests/tooling/ast/index.test.ts tests/tooling/ast/ops/verbs.test.ts",
+    "log": "/tmp/world-tools-columns-compile-green.log",
+    "result": "PASS: 2 files, 134 tests",
+    "exitCode": 0,
+    "report": "reports/runs/test/orbweaver-3592773-2026-09-21T15-19-14-866Z/test-report.json"
+  },
+  "staticVerification": [
+    {
+      "command": "pnpm typecheck --config tooling/tsconfig.json",
+      "log": "/tmp/world-tools-columns-typecheck-tooling.log",
+      "result": "PASS: tooling/tsconfig.json"
+    },
+    {
+      "command": "pnpm typecheck --config tsconfig.json",
+      "log": "/tmp/world-tools-columns-typecheck-root.log",
+      "result": "BLOCKED by unrelated sibling edit: tests/server/domain/plugin/substrate/bridge.test.ts:136 TS2339 funderUserId"
+    },
+    {
+      "command": "pnpm exec biome check tooling/src/ast/lib/column-reads.ts tooling/src/ast/lib/columns.ts tests/tooling/ast/index.test.ts tests/tooling/ast/ops/verbs.test.ts --diagnostic-level=error",
+      "log": "/tmp/world-tools-columns-compile-biome.log",
+      "result": "PASS: Checked 4 files; no fixes applied"
+    },
+    {
+      "command": "pnpm exec eslint tooling/src/ast/lib/column-reads.ts tooling/src/ast/lib/columns.ts tests/tooling/ast/index.test.ts tests/tooling/ast/ops/verbs.test.ts",
+      "log": "/tmp/world-tools-columns-compile-eslint.log",
+      "result": "PASS"
+    },
+    {
+      "command": "git diff --check -- tooling/src/ast/lib/column-reads.ts tooling/src/ast/lib/columns.ts tests/tooling/ast/index.test.ts tests/tooling/ast/ops/verbs.test.ts",
+      "result": "PASS"
+    }
+  ],
+  "remainingLimitations": [
+    "The new table-level arm recognizes the governed db.select(...).from(table) structural shape. Raw SQL reads remain intentionally table-agnostic.",
+    "The root tsconfig compiler was run after the host stabilized but is red on an unrelated sibling plugin test edit; the owning tooling compiler passes. No whole-repository AST corpus was run per the lane brief."
+  ]
+}

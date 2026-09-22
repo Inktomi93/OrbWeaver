@@ -284,7 +284,7 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
                                 suggested arm was to fold the count into the trigger's accessible name, and
                                 that is the one thing the paragraph above forbids: #482 and #833 both ruled
                                 on that exact string. So the unit word rides INSIDE the chip instead, as
-                                real screen-reader-only text — the chip announces "7 items", the trigger's
+                                real screen-reader-only text — the chip announces the derived “N items”, the trigger's
                                 name is untouched, and the band still paints the bare figure the mock draws
                                 (`sr-only` clips it to a 1px box, asserted in the CT). */}
                             <Badge size="sm" tone="ghost">

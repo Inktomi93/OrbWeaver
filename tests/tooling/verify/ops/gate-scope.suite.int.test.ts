@@ -27,6 +27,8 @@
 // asserts `id === basename` — is the loader's own law and is pinned in `tests/tooling/verify/lib/loader.test.ts`.
 import { existsSync, lstatSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import process from "node:process";
+import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
 import type { StructureReport } from "../../../../tooling/src/verify/contract/structure-report.ts";
 import type { PlantedPolicyRequest } from "../../../support/planted-gate-corpus.ts";
 import { plantedPolicySource, SUBJECT_COLUMN, plantedSubject as subject } from "../../../support/planted-gate-corpus.ts";
@@ -61,6 +63,7 @@ const plantedPolicy = (repoRoot: string, request: Omit<PlantedPolicyRequest, "re
 
 function plantedTreeFiles(repoRoot: string): Readonly<Record<string, string>> {
   return {
+    "tsconfig.json": '{"compilerOptions":{"noEmit":true},"include":["packages/**/*.ts","tooling/**/*.ts"]}\n',
     [`${GATES}/${ALPHA}.ts`]: plantedPolicy(repoRoot, { id: ALPHA, family: DUO_FAMILY, subjectPath: ALPHA_SUBJECT, token: "alpha" }),
     [`${GATES}/${BETA}.ts`]: plantedPolicy(repoRoot, { id: BETA, family: DUO_FAMILY, subjectPath: BETA_SUBJECT, token: "beta" }),
     [`${GATES}/${LONE}.ts`]: plantedPolicy(repoRoot, { id: LONE, family: LONE, subjectPath: LONE_SUBJECT, token: "lone" }),
@@ -72,6 +75,18 @@ function plantedTreeFiles(repoRoot: string): Readonly<Record<string, string>> {
     [LOUD_SUBJECT]: subject("loud"),
     [`${SUBJECT_DIR}/quiet.ts`]: subject("quiet"),
   };
+}
+
+type PlantTree = (files: Readonly<Record<string, string>>) => Promise<string>;
+
+/** The policy scope resolver reads the authored inventory from git. The former structure door did not, so
+ *  this suite's historical planted trees were plain directories; initialize and index the same fixture files
+ *  so the production planner sees the exact authored tree the dispatcher sees. */
+async function plantedRepository(plantedTree: PlantTree, files: Readonly<Record<string, string>>): Promise<string> {
+  const root = await plantedTree(files);
+  execFixtureGit(root, ["init", "--quiet"]);
+  execFixtureGit(root, ["add", "--all"]);
+  return root;
 }
 
 const POINTER = ["reports", "check-structure.json"];
@@ -107,7 +122,7 @@ test("the DEFAULT run is unchanged: every gate, the whole roster, and the publis
   repoRoot,
   runCli,
 }) => {
-  const root = await plantedTree(plantedTreeFiles(repoRoot));
+  const root = await plantedRepository(plantedTree, plantedTreeFiles(repoRoot));
   const whole = await runCli("verify", ["structure"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
   // three planted violations (alpha, beta, loud) — a verdict about the TREE, never a tool error
   await expect(whole).toExitWith(1);
@@ -124,7 +139,7 @@ test("the DEFAULT run is unchanged: every gate, the whole roster, and the publis
 test("--check <id> runs ONLY that policy over the SAME whole tree, and leaves the published pointer alone", {
   timeout: RUN_TIMEOUT_MS * 2,
 }, async ({ plantedTree, repoRoot, runCli }) => {
-  const root = await plantedTree(plantedTreeFiles(repoRoot));
+  const root = await plantedRepository(plantedTree, plantedTreeFiles(repoRoot));
   // publish a whole-corpus verdict FIRST, so "the selected run did not republish" is a real claim
   await runCli("verify", ["structure"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
   const wholeReport = readPointer(root);
@@ -151,7 +166,7 @@ test("--check <id> runs ONLY that policy over the SAME whole tree, and leaves th
   // #1973's two numbers, now reachable for ONE policy
   expect(scoped.stdout).toContain("tool error(s)");
   expect(scoped.stdout).toContain("0 withheld");
-  expect(scoped.stdout).toContain("SELECTED RUN");
+  expect(scoped.stdout).toContain("SCOPED RUN");
   expect(scoped.stdout).toContain("NOT a whole-corpus verdict");
 
   // the pointer still resolves to the WHOLE run: a partial report can never be picked up as the corpus verdict
@@ -160,7 +175,7 @@ test("--check <id> runs ONLY that policy over the SAME whole tree, and leaves th
 });
 
 test("--family <name> pulls the whole family and nothing else", { timeout: RUN_TIMEOUT_MS }, async ({ plantedTree, repoRoot, runCli }) => {
-  const root = await plantedTree(plantedTreeFiles(repoRoot));
+  const root = await plantedRepository(plantedTree, plantedTreeFiles(repoRoot));
   const scoped = await runCli("verify", ["structure", "--family", DUO_FAMILY], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
   await expect(scoped).toExitWith(1);
   const report = readSlotArtifact(root, scoped.stdout);
@@ -170,12 +185,68 @@ test("--family <name> pulls the whole family and nothing else", { timeout: RUN_T
   expect(report.run.incompleteReasons).toEqual([]);
 });
 
+test("--list/--explain expose the loaded policy roster as JSON without opening a run slot", { timeout: RUN_TIMEOUT_MS }, async ({
+  plantedTree,
+  repoRoot,
+  runCli,
+}) => {
+  const root = await plantedRepository(plantedTree, plantedTreeFiles(repoRoot));
+  const list = await runCli("verify", ["structure", "--list", "--json"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
+  await expect(list).toExitWith(0);
+  const listed = JSON.parse(list.stdout) as { readonly mode: string; readonly policies: readonly { readonly id: string }[] };
+  expect(listed.mode).toBe("list");
+  expect(listed.policies.map(({ id }) => id)).toEqual(EVERY_GATE);
+  expect(existsSync(join(root, "reports"))).toBe(false);
+
+  const explain = await runCli("verify", ["structure", "--explain", "--family", DUO_FAMILY, "--json"], {
+    cwd: root,
+    timeoutMs: RUN_TIMEOUT_MS,
+  });
+  await expect(explain).toExitWith(0);
+  const explained = JSON.parse(explain.stdout) as { readonly mode: string; readonly policies: readonly { readonly id: string }[] };
+  expect(explained.mode).toBe("explain");
+  expect(explained.policies.map(({ id }) => id)).toEqual([ALPHA, BETA].toSorted());
+  expect(existsSync(join(root, "reports"))).toBe(false);
+});
+
+test("--file runs the selected-files intersection, records its scope, and leaves the whole pointer alone", {
+  timeout: RUN_TIMEOUT_MS * 2,
+}, async ({ plantedTree, repoRoot, runCli }) => {
+  const root = await plantedRepository(plantedTree, plantedTreeFiles(repoRoot));
+  await runCli("verify", ["structure"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
+  const wholeRunId = readPointer(root).run.runId;
+
+  const scoped = await runCli("verify", ["structure", "--file", ALPHA_SUBJECT], {
+    cwd: root,
+    timeoutMs: RUN_TIMEOUT_MS,
+  });
+  await expect(scoped).toExitWith(1);
+  const report = readSlotArtifact(root, scoped.stdout);
+  expect(report.run.selection).toEqual({ kind: "all" });
+  const recordedScope = report.run.scope;
+  expect(recordedScope).toMatchObject({
+    kind: "file",
+    tier: "changed",
+    strict: false,
+    requestedPaths: [{ path: ALPHA_SUBJECT, status: "present", previousPath: null }],
+    inventory: { source: "git" },
+  });
+  expect(report.gates.find(({ name }) => name === ALPHA)?.population).toMatchObject({
+    requestedPaths: 1,
+    effectiveSourcePaths: 1,
+  });
+  expect(scoped.stdout).toContain("SCOPED RUN");
+  expect(scoped.stdout).toContain("files (1)");
+  expect(scoped.stdout).toContain("NOT a whole-corpus verdict");
+  expect(readPointer(root).run.runId).toBe(wholeRunId);
+});
+
 test("a selection that names nothing is MISUSE, refused before the slot opens — never a clean zero", { timeout: RUN_TIMEOUT_MS }, async ({
   plantedTree,
   repoRoot,
   runCli,
 }) => {
-  const root = await plantedTree(plantedTreeFiles(repoRoot));
+  const root = await plantedRepository(plantedTree, plantedTreeFiles(repoRoot));
 
   const unknown = await runCli("verify", ["structure", "--check", "no-such-gate"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
   await expect(unknown).toExitWith(3);
@@ -212,7 +283,7 @@ test("a QUIET run says so — the negative control the positive arm is worthless
   repoRoot,
   runCli,
 }) => {
-  const root = await plantedTree(plantedTreeFiles(repoRoot));
+  const root = await plantedRepository(plantedTree, plantedTreeFiles(repoRoot));
   const quiet = await runCli("verify", ["structure", "--check", SILENT], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
   await expect(quiet).toExitWith(0);
   const report = readSlotArtifact(root, quiet.stdout);
@@ -224,7 +295,7 @@ test("a QUIET run says so — the negative control the positive arm is worthless
 test("a run that OBSERVES a planted fixture path refuses to be a verdict (exit 2), by file AND by directory", {
   timeout: RUN_TIMEOUT_MS * 2,
 }, async ({ plantedTree, repoRoot, runCli }) => {
-  const byFile = await plantedTree({ ...plantedTreeFiles(repoRoot), [PLANTED_FILE]: subject("planted") });
+  const byFile = await plantedRepository(plantedTree, { ...plantedTreeFiles(repoRoot), [PLANTED_FILE]: subject("planted") });
   const file = await runCli("verify", ["structure", "--check", SILENT], { cwd: byFile, timeoutMs: RUN_TIMEOUT_MS });
   // exit 2, not 1: the run is not a verdict at all — it is not "a verdict with a violation in it"
   await expect(file).toExitWith(2);
@@ -236,7 +307,7 @@ test("a run that OBSERVES a planted fixture path refuses to be a verdict (exit 2
 
   // the planter creates `__g_` DIRECTORIES too (`packages/server/src/domain/__g_struct/index.ts`) — the sweep
   // names the directory, which is the entry that matches
-  const byDir = await plantedTree({ ...plantedTreeFiles(repoRoot), [PLANTED_DIR_FILE]: subject("planted") });
+  const byDir = await plantedRepository(plantedTree, { ...plantedTreeFiles(repoRoot), [PLANTED_DIR_FILE]: subject("planted") });
   const dir = await runCli("verify", ["structure", "--check", SILENT], { cwd: byDir, timeoutMs: RUN_TIMEOUT_MS });
   await expect(dir).toExitWith(2);
   expect(readSlotArtifact(byDir, dir.stdout).run.incompleteReasons.join(" ")).toContain("packages/server/src/domain/__g_dir");
@@ -247,13 +318,12 @@ test("the PLANTER's own child run is exempt: ORB_GATE_FIXTURES=1 must see what i
   repoRoot,
   runCli,
 }) => {
-  const root = await plantedTree({ ...plantedTreeFiles(repoRoot), [PLANTED_FILE]: subject("planted") });
+  const root = await plantedRepository(plantedTree, { ...plantedTreeFiles(repoRoot), [PLANTED_FILE]: subject("planted") });
   const own = await runCli("verify", ["structure", "--check", SILENT], {
     cwd: root,
     timeoutMs: RUN_TIMEOUT_MS,
     // @orb-waive no-test-fabrication(Record<string, string>): process.env includes undefined values; the spawned child accepts string-only
     // biome-ignore lint/style/noProcessEnv: passthrough env for the spawned child — harness plumbing, not app config.
-    // biome-ignore lint/correctness/noProcessGlobal: same passthrough; this file is node-run tooling.
     // biome-ignore lint/style/useNamingConvention: ORB_GATE_FIXTURES is an environment variable name.
     env: { ...process.env, ORB_GATE_FIXTURES: "1" } as Record<string, string>,
   });
@@ -274,7 +344,7 @@ test("the PLANTER's own child run is exempt: ORB_GATE_FIXTURES=1 must see what i
 test("a FIXTURE-MODE run stamps itself a non-verdict, keeps its exit code, and never publishes the pointer", {
   timeout: RUN_TIMEOUT_MS * 2,
 }, async ({ plantedTree, repoRoot, runCli }) => {
-  const root = await plantedTree(plantedTreeFiles(repoRoot));
+  const root = await plantedRepository(plantedTree, plantedTreeFiles(repoRoot));
   // a REAL run first, so "the pointer was not republished" is a claim about an existing pointer
   await runCli("verify", ["structure"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
   const realRunId = readPointer(root).run.runId;
@@ -286,7 +356,6 @@ test("a FIXTURE-MODE run stamps itself a non-verdict, keeps its exit code, and n
     timeoutMs: RUN_TIMEOUT_MS,
     // @orb-waive no-test-fabrication(Record<string, string>): process.env includes undefined values; the spawned child accepts string-only
     // biome-ignore lint/style/noProcessEnv: passthrough env for the spawned child — harness plumbing, not app config.
-    // biome-ignore lint/correctness/noProcessGlobal: same passthrough; this file is node-run tooling.
     // biome-ignore lint/style/useNamingConvention: ORB_GATE_FIXTURES is an environment variable name.
     env: { ...process.env, ORB_GATE_FIXTURES: "1" } as Record<string, string>,
   });
@@ -323,7 +392,7 @@ test("a FIXTURE-MODE run stamps itself a non-verdict, keeps its exit code, and n
 });
 
 test("a CONTAMINATED run is a non-verdict too — same field, different reason", { timeout: RUN_TIMEOUT_MS }, async ({ plantedTree, repoRoot, runCli }) => {
-  const root = await plantedTree({ ...plantedTreeFiles(repoRoot), [PLANTED_FILE]: subject("planted") });
+  const root = await plantedRepository(plantedTree, { ...plantedTreeFiles(repoRoot), [PLANTED_FILE]: subject("planted") });
   const run = await runCli("verify", ["structure", "--check", SILENT], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
   await expect(run).toExitWith(2);
   const report = readSlotArtifact(root, run.stdout);
@@ -335,7 +404,7 @@ test("a CONTAMINATED run is a non-verdict too — same field, different reason",
 test("--void tombstones an existing slot, and check:show then REFUSES it and prints the reason", {
   timeout: RUN_TIMEOUT_MS * 2,
 }, async ({ plantedTree, repoRoot, runCli }) => {
-  const root = await plantedTree(plantedTreeFiles(repoRoot));
+  const root = await plantedRepository(plantedTree, plantedTreeFiles(repoRoot));
   await runCli("verify", ["structure"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
   const slot = readPointer(root).run.runId;
 
@@ -360,7 +429,7 @@ test("--void refuses what it cannot do: an absent slot, a missing reason, and a 
   repoRoot,
   runCli,
 }) => {
-  const root = await plantedTree(plantedTreeFiles(repoRoot));
+  const root = await plantedRepository(plantedTree, plantedTreeFiles(repoRoot));
 
   const absent = await runCli("verify", ["structure", "--void", "no-such-slot", "--reason", "x"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
   await expect(absent).toExitWith(3);
@@ -387,7 +456,7 @@ test("--void refuses what it cannot do: an absent slot, a missing reason, and a 
 test("structure-delta: an identical pair is exit 0, a FALL is exit 0, and a RISE is exit 1 naming the policy", {
   timeout: RUN_TIMEOUT_MS * 5,
 }, async ({ plantedTree, repoRoot, runCli }) => {
-  const root = await plantedTree(plantedTreeFiles(repoRoot));
+  const root = await plantedRepository(plantedTree, plantedTreeFiles(repoRoot));
   await runCli("verify", ["structure"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
   const first = readPointer(root).run.runId;
   await runCli("verify", ["structure"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
@@ -433,7 +502,7 @@ test("structure-delta: an identical pair is exit 0, a FALL is exit 0, and a RISE
 test("structure-delta REFUSES rather than returning a serene zero: no prior slot, and a tombstoned end", {
   timeout: RUN_TIMEOUT_MS * 3,
 }, async ({ plantedTree, repoRoot, runCli }) => {
-  const root = await plantedTree(plantedTreeFiles(repoRoot));
+  const root = await plantedRepository(plantedTree, plantedTreeFiles(repoRoot));
   await runCli("verify", ["structure"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
   const only = readPointer(root).run.runId;
 

@@ -13,25 +13,35 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { GovernanceSectionsStory } from "../_ct-stories.tsx";
+import type { EffectiveAppSettings } from "../app-settings-fixtures.ts";
+import { appSettingsView, effectiveAppSettings } from "../app-settings-fixtures.ts";
 
 const UPDATE_PROC = "settings.updateAppSettings";
-const OWNER = { userId: "user_owner", handle: "owner", globalRole: "owner" };
-const DELEGATED_ADMIN = { userId: "user_admin", handle: "admin", globalRole: "admin" };
 
-const RESOLVED = {
+type AppSettingsOverrides = TrpcWireOutput<"settings.getAppSettingsWithOverrides">["overrides"];
+
+const OWNER = { userId: "user_owner", handle: "owner", globalRole: "owner" } satisfies TrpcWireOutput<"sessions.me">;
+const DELEGATED_ADMIN = { userId: "user_admin", handle: "admin", globalRole: "admin" } satisfies TrpcWireOutput<"sessions.me">;
+
+const RESOLVED: Partial<EffectiveAppSettings> = {
   localMultiUser: false,
   discreetLogin: false,
   privateEndpointAllowlist: ["127.0.0.1", "::1"],
 };
 
-function stub(page: Page, viewer: typeof OWNER, overrides: Record<string, unknown> = {}, resolved: typeof RESOLVED = RESOLVED): Promise<TrpcRecorder> {
+function stub(
+  page: Page,
+  viewer: TrpcWireOutput<"sessions.me">,
+  overrides: Partial<AppSettingsOverrides> = {},
+  resolved: typeof RESOLVED = RESOLVED,
+): Promise<TrpcRecorder> {
   return routeTrpc(page, {
-    "settings.getAppSettingsWithOverrides": () => ({ resolved, overrides }),
+    "settings.getAppSettingsWithOverrides": () => appSettingsView(resolved, overrides),
     "sessions.me": () => viewer,
-    [UPDATE_PROC]: () => RESOLVED,
+    [UPDATE_PROC]: () => effectiveAppSettings(RESOLVED),
   });
 }
 

@@ -8,12 +8,17 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { StructuredOutputSectionStory } from "../_ct-stories.tsx";
+import type { EffectiveAppSettings } from "../app-settings-fixtures.ts";
+import { appSettingsView, effectiveAppSettings } from "../app-settings-fixtures.ts";
 
 const UPDATE_PROC = "settings.updateAppSettings";
-const RESOLVED = { structuredOutputShape: "as-projected", structuredOutputVehicle: "auto" };
+
+type AppSettingsOverrides = TrpcWireOutput<"settings.getAppSettingsWithOverrides">["overrides"];
+
+const RESOLVED: Partial<EffectiveAppSettings> = { structuredOutputShape: "as-projected", structuredOutputVehicle: "auto" };
 const AS_PROJECTED_LABEL = "As projected";
 const STRICT_LABEL = "Strict-compatible";
 /** The always-visible teaching paragraph — the section's reason for existing, in the copy an admin reads. */
@@ -21,10 +26,10 @@ const TEACHING_COPY = /Switch to Strict-compatible when a provider REJECTS our s
 /** The VEHICLE row's own always-visible teaching (task #36) — same rule, second axis. */
 const VEHICLE_TEACHING_COPY = /Automatic sends the enforced schema/;
 
-function stub(page: Page, resolved: Record<string, unknown> = RESOLVED, overrides: Record<string, unknown> = {}): Promise<TrpcRecorder> {
+function stub(page: Page, resolved: typeof RESOLVED = RESOLVED, overrides: Partial<AppSettingsOverrides> = {}): Promise<TrpcRecorder> {
   return routeTrpc(page, {
-    "settings.getAppSettingsWithOverrides": () => ({ resolved, overrides }),
-    [UPDATE_PROC]: () => resolved,
+    "settings.getAppSettingsWithOverrides": () => appSettingsView(resolved, overrides),
+    [UPDATE_PROC]: () => effectiveAppSettings(resolved),
   });
 }
 

@@ -9,6 +9,7 @@
 
 import type { ParticipantRole } from "@orb/contracts/identity";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { TrpcFixtureOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { ChatContextHeaderStory, ChatHeaderNarrowStory, ChatHeaderStory } from "../_ct-stories.tsx";
 import { makeMessagesPage } from "../fixtures.ts";
@@ -17,7 +18,9 @@ import { makeMessagesPage } from "../fixtures.ts";
 const ANY_MEMBERS_CHIP = /^Members — /u;
 
 /** A human seat — `role` seats a host/member (the roster shape); `displayName` names the seat. */
-function human(role: ParticipantRole): Record<string, unknown> {
+type ParticipantFixture = NonNullable<TrpcFixtureOutput<"chat.getChat">["participants"]>[number];
+
+function human(role: ParticipantRole): ParticipantFixture {
   return {
     id: `participant_${role}`,
     kind: "human",
@@ -31,7 +34,7 @@ function human(role: ParticipantRole): Record<string, unknown> {
 }
 
 /** A present character seat (the Cast population). */
-function character(name: string): Record<string, unknown> {
+function character(name: string): ParticipantFixture {
   return {
     id: `participant_${name.toLowerCase()}`,
     kind: "character",
@@ -51,14 +54,7 @@ test("a GROUP chat shows the chip counting PRESENT participants (\u00a7 6.1: Mem
       participants: [
         human("host"),
         // A DEPARTED human (leftSeq stamped) — must NOT count toward the Members population.
-        {
-          id: "participant_gone",
-          kind: "human",
-          role: "member",
-          userId: "user_gone",
-          characterId: null,
-          leftSeq: 41,
-        },
+        { ...human("member"), id: "participant_gone", userId: "user_gone", leftSeq: 41 },
         character("Aria"),
         character("Bolt"),
       ],

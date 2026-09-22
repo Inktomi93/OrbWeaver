@@ -9,17 +9,41 @@
 // false. The retry re-reads both, and the pin proves it by scripting a fail-then-succeed on each in turn.
 
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { CharacterRelationsTabStory } from "../_ct-stories.tsx";
 
-const BOOK = { id: "world_book_relations001", name: "The Ninefold Reach", description: null, role: "auxiliary" };
-const PERSONA = { id: "persona_00000000000000000001", name: "Nate", title: null };
+const BOOK: TrpcWireOutput<"worldInfo.listForCharacter">[number] = {
+  id: "world_book_relations001",
+  name: "The Ninefold Reach",
+  description: null,
+  createdAt: 1,
+  role: "auxiliary",
+};
+const BOOK_CATALOGUE: TrpcWireOutput<"worldInfo.listBooks">[number] = {
+  id: BOOK.id,
+  name: BOOK.name,
+  description: BOOK.description,
+  createdAt: BOOK.createdAt,
+};
+const PERSONA: TrpcWireOutput<"persona.list">[number] = {
+  id: "persona_00000000000000000001",
+  name: "Nate",
+  title: null,
+  description: "",
+  starred: false,
+  avatarAssetId: null,
+  avatarHash: null,
+  metadata: null,
+  createdAt: 1,
+  updatedAt: 1,
+};
 
 test("a FAILED linked-books read never says 'No world books linked', and its Retry re-reads BOTH (#1500)", async ({ mount, page }) => {
   let attempts = 0;
   const trpc = await routeTrpc(page, {
     "worldInfo.listForCharacter": () => (attempts++ === 0 ? trpcError({ message: "linked books read failed" }) : [BOOK]),
-    "worldInfo.listBooks": () => [BOOK],
+    "worldInfo.listBooks": () => [BOOK_CATALOGUE],
     "persona.listConnectedToCharacter": () => [PERSONA],
     "persona.list": () => [PERSONA],
   });

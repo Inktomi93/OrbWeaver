@@ -4,10 +4,10 @@ import type { SourceFile, Type } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
 import { semanticReferenceNodes } from "../../_shared/ts-workspace.ts";
-import type { ColumnAudit, ColumnCandidate, ColumnClass, ColumnDef, TableDef } from "../contract/types.ts";
+import type { ColumnAudit, ColumnCandidate, ColumnClass, ColumnDef, ProducerlessTableCandidate, TableDef } from "../contract/types.ts";
 import { byProdFirst, relPath } from "../ops/swallowed.ts";
 import { memberReadOf } from "../ops/wiring.ts";
-import { columnKey, isColumnConsumer, scanColumnWrites } from "./columns.ts";
+import { columnKey, isColumnConsumer, resolveTableDef, scanColumnWrites } from "./columns.ts";
 
 export function rawSqlBlob(project: SourceCorpus): string {
   const parts: string[] = [];
@@ -85,15 +85,16 @@ function isConventionTimestamp(column: ColumnDef): boolean {
 /** Every column of `tables`, classified. Pure enumeration — no exemption policy, no printing (the verb owns
  *  both), so the self-test drives the same function the CLI does. */
 export function collectColumnCandidates(project: SourceCorpus, tables: readonly TableDef[]): ColumnAudit {
-  const { perColumn, opaqueTables } = scanColumnWrites(project, tables);
+  const { perTable, perColumn, opaqueTables } = scanColumnWrites(project, tables);
   const rowReads = scanRowReads(project, tables);
+  const tableReads = scanTableReads(project, tables);
   const blob = rawSqlBlob(project);
   const candidates: ColumnCandidate[] = [];
   for (const table of tables) {
-    const opaque = opaqueTables.has(table.varName);
+    const opaque = opaqueTables.has(table.key);
     for (const column of table.columns) {
-      const reads = [...new Set([...columnQueryReadSites(column), ...(rowReads.get(columnKey(column.tableVar, column.jsProp)) ?? [])])].sort(byProdFirst);
-      const writes = perColumn.get(columnKey(column.tableVar, column.jsProp)) ?? [];
+      const reads = [...new Set([...columnQueryReadSites(column), ...(rowReads.get(columnKey(column.tableKey, column.jsProp)) ?? [])])].sort(byProdFirst);
+      const writes = perColumn.get(columnKey(column.tableKey, column.jsProp)) ?? [];
       const klass = classifyColumn(reads.length, writes.length, opaque);
       candidates.push({
         column,
@@ -108,7 +109,70 @@ export function collectColumnCandidates(project: SourceCorpus, tables: readonly 
       });
     }
   }
-  return { candidates, opaqueTables };
+  const producerlessTables = collectProducerlessTables(tables, candidates, tableReads, perTable);
+  return { candidates, producerlessTables, opaqueTables, tableWrites: perTable };
+}
+
+/** Join table- and column-level read reach against table-level writes without changing any column verdict. */
+function collectProducerlessTables(
+  tables: readonly TableDef[],
+  candidates: readonly ColumnCandidate[],
+  tableReads: ReadonlyMap<string, readonly string[]>,
+  tableWrites: ReadonlyMap<string, readonly string[]>,
+): ProducerlessTableCandidate[] {
+  const out: ProducerlessTableCandidate[] = [];
+  for (const table of tables) {
+    const readColumns = candidates.filter((candidate) => candidate.column.tableKey === table.key && candidate.reads.length > 0);
+    const reads = [...new Set([...readColumns.flatMap((candidate) => candidate.reads), ...(tableReads.get(table.key) ?? [])])].sort(byProdFirst);
+    const anchor = reads.length === 0 ? undefined : (readColumns[0]?.column.decl ?? table.columns[0]?.decl);
+    if (anchor !== undefined && !tableWrites.has(table.key)) {
+      out.push({
+        table,
+        anchor,
+        reads,
+      });
+    }
+  }
+  return out;
+}
+
+/** The table-level read reach that a full-row `db.select().from(table)` carries without naming any column.
+ *  Kept separate from the two column-read arms: selecting a row proves the TABLE is consumed, but does not
+ *  prove which returned properties a caller reads. */
+function scanTableReads(project: SourceCorpus, tables: readonly TableDef[]): ReadonlyMap<string, readonly string[]> {
+  const byKey = new Map(tables.map((table) => [table.key, table]));
+  const out = new Map<string, string[]>();
+  for (const sf of project.getSourceFiles()) {
+    if (!isColumnConsumer(sf.getFilePath())) {
+      continue;
+    }
+    for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+      const target = fullTableSelectTarget(call);
+      const table = target === undefined ? undefined : resolveTableDef(target, byKey);
+      if (table !== undefined) {
+        const site = `${relPath(sf.getFilePath())}:${call.getStartLineNumber()}`;
+        out.set(table.key, [...(out.get(table.key) ?? []), site]);
+      }
+    }
+  }
+  return out;
+}
+
+/** The table argument of `*.select(…).from(table)`, or undefined for every other call shape. */
+function fullTableSelectTarget(call: Node): Node | undefined {
+  if (!Node.isCallExpression(call)) {
+    return;
+  }
+  const from = call.getExpression();
+  if (!Node.isPropertyAccessExpression(from) || from.getName() !== "from") {
+    return;
+  }
+  const selectCall = from.getExpression();
+  if (!Node.isCallExpression(selectCall)) {
+    return;
+  }
+  const select = selectCall.getExpression();
+  return Node.isPropertyAccessExpression(select) && select.getName() === "select" ? call.getArguments()[0] : undefined;
 }
 
 /** READ arm 1 — every language-service reference to the column property outside the schema dir. This is the
@@ -129,7 +193,7 @@ function columnQueryReadSites(column: ColumnDef): string[] {
   return [...sites];
 }
 
-/** READ arm 2 — the row-shape scan. Keyed `<tableVar>\0<jsProp>` like the write scan, built in ONE pass over
+/** READ arm 2 — the row-shape scan. Keyed `<table declaration key>\0<jsProp>` like the write scan, built in ONE pass over
  *  the workspace so the per-column cost stays a map lookup. */
 type RowReadScan = ReadonlyMap<string, string[]>;
 
@@ -166,7 +230,7 @@ export function scanRowReads(project: SourceCorpus, tables: readonly TableDef[])
     columnNames: new Set(tables.flatMap((t) => t.columns.map((c) => c.jsProp))),
     cache: new Map<unknown, readonly TableDef[]>(),
     add: (table, name, node) => {
-      const key = columnKey(table.varName, name);
+      const key = columnKey(table.key, name);
       out.set(key, [...(out.get(key) ?? []), `${relPath(node.getSourceFile().getFilePath())}:${node.getStartLineNumber()}`]);
     },
   };

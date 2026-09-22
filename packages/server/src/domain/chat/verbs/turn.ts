@@ -1,8 +1,8 @@
 // Turn-running front doors: gate → resolve the identity triple → resolve the connection → build the one
 // immutable assemble ctx → arbitrate the speaker(s) → drive the round (per-turn-locked) → return the outcome.
 // Group-ness is data (roster size + arbitration), never a branch — solo is a roster-of-1 through the same path.
-// The triple is never callerUserId: caller is principal.userId, runAsUserId is the host, triggeredBy is the
-// responsible human (the caller for a direct send; the chain-starter for an auto-mode turn).
+// The triple is never callerUserId: caller is principal.userId, the frozen host supplies funderUserId and
+// runAsUserId, and triggeredBy is the responsible human (caller for direct send; chain starter for auto-mode).
 //
 // One createTurn(ctx, deps) factory bundles: round-driving/control verbs send/forceCharacterTurn/abort, plus
 // the auxiliary single-speaker turns swipe/continueTurn(+undo/revert)/impersonate/generate. Every generating
@@ -231,14 +231,15 @@ async function reasoningHostOnlyFor(ctx: ChatContext, chatId: ChatId, membership
   return await resolveReasoningHostOnlyFor(ctx, chatId);
 }
 
-/** Loads the present roster → the {@link Room}. Hostless is unusable (leak-free NOT_FOUND). Cards read under
- *  the host's ownership. */
-async function loadRoom(ctx: ChatContext, chatId: ChatId): Promise<Room> {
+/** Loads the present roster → the {@link Room}. Hostless is unusable (leak-free NOT_FOUND). A deferred turn
+ *  supplies its already-frozen host so cards, assembly, tools, and funding retain one identity across replay. */
+async function loadRoom(ctx: ChatContext, chatId: ChatId, frozenHostUserId?: UserId): Promise<Room> {
   const participants = await loadParticipants(ctx.db, chatId);
-  const hostUserId = hostUserIdOf(participants);
-  if (hostUserId === null) {
+  const currentHostUserId = hostUserIdOf(participants);
+  if (currentHostUserId === null) {
     throw new ChatNotFoundError(chatId);
   }
+  const hostUserId = frozenHostUserId ?? currentHostUserId;
   const aiRows = participants.filter((r) => isAiDriven(r.kind));
   const charRows = aiRows.flatMap((r) => {
     const actor = classifyParticipant(r);
@@ -384,6 +385,7 @@ type SharedTurnPrepFields = Pick<
   | "assembleContext"
   | "connection"
   | "triggeredBy"
+  | "funderUserId"
   | "runAsUserId"
   | "intent"
   | "extraStopSequences"
@@ -402,7 +404,7 @@ function sharedTurnPrepFields(env: {
   /** The turn's resolved identity pair — taken WHOLE (never as two fields) so the call stays one line: the
    *  multi-line argument literal an unpacked signature forces is itself a duplicated block, which is this
    *  same clone one level up. `resolveTurnIdentityVia`'s result and the deferred-drain `row` both satisfy it. */
-  readonly identity: { readonly triggeredBy: UserId; readonly runAsUserId: UserId };
+  readonly identity: { readonly triggeredBy: UserId; readonly funderUserId: UserId; readonly runAsUserId: UserId };
   readonly connection: Resolved<"chat">;
   readonly intent: UserIntent | undefined;
   readonly toolRecurseLimit: number | undefined;
@@ -412,6 +414,7 @@ function sharedTurnPrepFields(env: {
     assembleContext: built.assembleContext,
     connection,
     triggeredBy: identity.triggeredBy,
+    funderUserId: identity.funderUserId,
     runAsUserId: identity.runAsUserId,
     intent: intent ?? {},
     extraStopSequences: built.chatBehavior.customStoppingStrings,
@@ -972,7 +975,7 @@ async function runChain(
       // half is the room's candidate lists — a builder for them would hide exactly the arguments that differ.
       const arbitration = await arbitrate(ctx, deps, {
         chatId: args.base.chatId,
-        funderUserId: args.base.triggeredBy,
+        funderUserId: args.base.funderUserId,
         group: args.group,
         candidates: args.room.candidates,
         speakerCandidates: args.room.speakerCandidates,
@@ -1063,7 +1066,7 @@ async function runAiRound(
   const facts = await canonFacts(ctx, args.base.chatId);
   const arbitration = await arbitrate(ctx, deps, {
     chatId: args.base.chatId,
-    funderUserId: args.base.triggeredBy,
+    funderUserId: args.base.funderUserId,
     group: args.group,
     candidates: args.room.candidates,
     speakerCandidates: args.room.speakerCandidates,
@@ -1482,7 +1485,7 @@ async function commitUserTurn(
     principalUserId: principal.userId,
     hostUserId: room.hostUserId,
   });
-  const connection = await deps.resolveConnection({ funderUserId: identity.triggeredBy, chatId });
+  const connection = await deps.resolveConnection({ funderUserId: identity.funderUserId, chatId });
   const group = membership.chat.metadata.group ?? DEFAULT_GROUP_CONFIG;
 
   // Built with the pending user text in the WI haystack before the user row commits; the engine reloads
@@ -1494,7 +1497,7 @@ async function commitUserTurn(
     {
       chatId,
       runAsUserId: identity.runAsUserId,
-      funderUserId: identity.triggeredBy,
+      funderUserId: identity.funderUserId,
       model: connection.model,
       kind: "send",
       characterIds: room.characterIds,
@@ -1659,13 +1662,13 @@ function createForceCharacterTurn(ctx: ChatContext, deps: TurnDeps): ChatService
     // — open the client's slot NOW, before the connection resolve + the multi-second context build. Ordered
     // AFTER the NOT_FOUND throw above so a bad character id never opens a slot at all.
     const { connection, built } = await withAcceptedSlot(deps, { chatId, kind: "force", speakerCharacterId: characterId, targetMessageId: null }, async () => {
-      const resolved = await deps.resolveConnection({ funderUserId: identity.triggeredBy, chatId });
+      const resolved = await deps.resolveConnection({ funderUserId: identity.funderUserId, chatId });
       return {
         connection: resolved,
         built: await buildTurnContext(ctx, deps, {
           chatId,
           runAsUserId: identity.runAsUserId,
-          funderUserId: identity.triggeredBy,
+          funderUserId: identity.funderUserId,
           model: resolved.model,
           kind: "force",
           characterIds: room.characterIds,
@@ -1742,7 +1745,7 @@ function createAbort(ctx: ChatContext, deps: TurnDeps): ChatService["abort"] {
 /** The resolved single-turn substrate — assumes `requireParticipant`/`requireHost` already ran. */
 interface TurnBase {
   readonly room: Room;
-  readonly identity: { readonly triggeredBy: UserId; readonly runAsUserId: UserId };
+  readonly identity: { readonly triggeredBy: UserId; readonly funderUserId: UserId; readonly runAsUserId: UserId };
   readonly connection: Resolved<"chat">;
   readonly assembleContext: AssembleContext;
   readonly memoryConfig: MemoryConfig | null | undefined;
@@ -1813,7 +1816,7 @@ async function resolveTurnBase(
     principalUserId: principal.userId,
     hostUserId: room.hostUserId,
   });
-  const connection = await deps.resolveConnection({ funderUserId: identity.triggeredBy, chatId });
+  const connection = await deps.resolveConnection({ funderUserId: identity.funderUserId, chatId });
   const {
     assembleContext,
     memoryConfig,
@@ -1829,7 +1832,7 @@ async function resolveTurnBase(
   } = await buildTurnContext(ctx, deps, {
     chatId,
     runAsUserId: identity.runAsUserId,
-    funderUserId: identity.triggeredBy,
+    funderUserId: identity.funderUserId,
     model: connection.model,
     kind: args.kind,
     characterIds: room.characterIds,
@@ -2220,6 +2223,7 @@ function createImpersonateStream(ctx: ChatContext, deps: TurnDeps): ChatService[
           assembleContext,
           connection,
           triggeredBy: identity.triggeredBy,
+          funderUserId: identity.funderUserId,
           runAsUserId: identity.runAsUserId,
           kind: "impersonate",
           intent: intent ?? {},
@@ -2398,9 +2402,8 @@ function createRevertContinue(ctx: ChatContext, deps: TurnDeps): ChatService["re
 
 /** A drain VERDICT drop — a PERMANENT refusal, so the claimed row stays deleted (never re-queued). Exactly
  *  ONE verdict is permanent today: `ChatNotFoundError` — the chat row, or its host participant, is gone, so
- *  there is nothing left to run and no later edge can change that. (The by-proxy owner-consent verdict that
- *  was the second member left with the inference program §14 F13, and the per-member turn budget with F11; neither
- *  belt has a raiser on the tree.)
+ *  there is nothing left to run and no later edge can change that. (The separate owner-consent verdict and
+ *  per-member turn budget were retired; neither belt has a raiser on the tree.)
  *  Everything else RE-QUEUES: a transient fault (a provider outage) is "not now", not "never", so the
  *  member's owed reply waits for the next drain edge. Drains fire only at boot + host-return edges, so a
  *  re-queued row can't hot-loop. */
@@ -2409,8 +2412,8 @@ function isDrainVerdictDrop(err: unknown): boolean {
 }
 
 /** Reconstruct + run ONE deferred AI round from a durable `pending_turns` row — no principal, no new user
- *  line: the row's frozen triple (`triggeredBy`/`runAsUserId`) funds it, and the room/host/connection are
- *  re-resolved at drain time (a room that lost its host, or a funder that lost its connection, refuses here
+ *  line: the row's frozen initiator + host (`triggeredBy`/`runAsUserId`) identify it, and the connection is
+ *  resolved from that frozen host at drain time (a room that lost its host, or a host that lost its connection, refuses here
  *  rather than at queue time). Throws (→ the drain drops or re-queues the row by class) or completes (→ the
  *  drain deletes it). Cards + assemble resolve under the row's frozen host; a mid-defer host-handoff funds the
  *  frozen host per D19. */
@@ -2423,14 +2426,14 @@ async function runDeferredRound(
   if (chat === undefined) {
     throw new ChatNotFoundError(row.chatId);
   }
-  const room = await loadRoom(ctx, row.chatId); // hostless/gone → ChatNotFoundError (a drop)
-  // The deferred row's "change key" is `triggered_by` — the FUNDER whose connection the drained turn spends.
-  const connection = await deps.resolveConnection({ funderUserId: row.triggeredBy, chatId: row.chatId });
+  const room = await loadRoom(ctx, row.chatId, row.runAsUserId); // current hostless/gone → ChatNotFoundError (a drop)
+  const identity = { triggeredBy: row.triggeredBy, funderUserId: row.runAsUserId, runAsUserId: row.runAsUserId };
+  const connection = await deps.resolveConnection({ funderUserId: identity.funderUserId, chatId: row.chatId });
   const group = chat.metadata.group ?? DEFAULT_GROUP_CONFIG;
   const built = await buildTurnContext(ctx, deps, {
     chatId: row.chatId,
-    runAsUserId: row.runAsUserId,
-    funderUserId: row.triggeredBy,
+    runAsUserId: identity.runAsUserId,
+    funderUserId: identity.funderUserId,
     model: connection.model,
     kind: "send",
     characterIds: room.characterIds,
@@ -2449,11 +2452,10 @@ async function runDeferredRound(
     chatMetadata: chat.metadata,
   });
   using handle = deps.activeTurns.register(row.chatId, row.triggeredBy);
-  // `row` IS the identity pair here (the queued turn's frozen triggeredBy/runAsUserId) — no `identity`
-  // resolve happens on a drain, which is why the shared block takes the pair rather than the resolver.
+  // Persistence carries the initiator plus the frozen host. Reconstitute the triple once and pass it whole.
   const base: RoundBase = {
     chatId: row.chatId,
-    ...sharedTurnPrepFields({ built, identity: row, connection, intent: undefined, toolRecurseLimit: chat.metadata.toolRecurseLimit }),
+    ...sharedTurnPrepFields({ built, identity, connection, intent: undefined, toolRecurseLimit: chat.metadata.toolRecurseLimit }),
     kind: "send",
     respondsToLatestUserTurn: built.respondsToLatestUserTurn,
     signal: handle.signal,
@@ -2553,8 +2555,8 @@ function createDrainDeferredTurns(ctx: ChatContext, deps: TurnDeps): ChatService
  *   1. DEPTH (loop-prevention) — refuse a stamp DEEPER than {@link AUTOMATION_DEPTH_HARD_CAP} (the write-side
  *      belt for a non-dispatch caller; automation's dispatch already bounds its own path), and thread
  *      `initiator`/`automationDepth` onto the reply slot so the reply's events resolve their cascade depth.
- *   2. AUTHORITY (cross-tenant) — the funder must be a PRESENT participant of the chat, else a leak-free
- *      NOT_FOUND (a user with no membership cannot fund a turn on it). The funding host is resolved from the
+ *   2. AUTHORITY (cross-tenant) — the initiator must be a PRESENT participant of the chat, else a leak-free
+ *      NOT_FOUND. The funding host is resolved from the
  *      ROOM, never a caller-supplied id.
  *   3. RATE — automation's own §3 spend gate, in the arm ABOVE this; requestTurn re-implements nothing.
  *      (This wall used to name two engine belts of its own: the per-member turn/request COUNT budget, retired
@@ -2571,13 +2573,13 @@ interface RequestTurnResolved {
   readonly chat: NonNullable<Awaited<ReturnType<typeof loadChatRow>>>;
   readonly room: Room;
   readonly connection: Resolved<"chat">;
-  readonly identity: { readonly triggeredBy: UserId; readonly runAsUserId: UserId };
+  readonly identity: { readonly triggeredBy: UserId; readonly funderUserId: UserId; readonly runAsUserId: UserId };
 }
 
 /** requestTurn WALLS 1+2 + room/host/connection resolution. Throws the coded refusal on any wall breach; else
  *  returns the resolved substrate. Split out so the round-driver closure stays under the complexity bar. */
 async function resolveRequestTurn(ctx: ChatContext, deps: TurnDeps, params: RequestTurnParams): Promise<RequestTurnResolved> {
-  const { chatId, initiator, funderUserId, automationDepth } = params;
+  const { chatId, initiator, triggeredBy, automationDepth } = params;
   // WALL 1 (write side). `"human"` is never a requestTurn origin (it would forge a human turn); refuse it.
   if (initiator === "human") {
     throw new ChatOperationError(CHAT_OP_CODES.forbiddenOverride, `chat ${chatId}: requestTurn cannot stamp a 'human' initiator`);
@@ -2594,15 +2596,14 @@ async function resolveRequestTurn(ctx: ChatContext, deps: TurnDeps, params: Requ
   }
   // Resolves the FUNDING host from canon (never a caller-supplied id); hostless is unusable (leak-free).
   const room = await loadRoom(ctx, chatId);
-  // WALL 2 — the funder must be a PRESENT participant (leak-free NOT_FOUND). The upstream callers additionally
+  // WALL 2 — the initiator must be a PRESENT participant (leak-free NOT_FOUND). The upstream callers additionally
   // require HOST (automation's holdsAuthority; the membrane's canWrite); this is the defense-in-depth backstop.
-  if ((await loadPresentRole(ctx.db, chatId, funderUserId)) === null) {
+  if ((await loadPresentRole(ctx.db, chatId, triggeredBy)) === null) {
     throw new ChatNotFoundError(chatId);
   }
-  // The identity triple: runAsUserId = the host (the ASSEMBLY scope), triggeredBy = the funder (whose
-  // CONNECTION the turn runs on, §8.4-3; attribution/abort).
-  const identity = { triggeredBy: funderUserId, runAsUserId: room.hostUserId };
-  const connection = await deps.resolveConnection({ funderUserId: identity.triggeredBy, chatId });
+  // Freeze the room's host once for funding and assembly; the responsible human remains the initiator.
+  const identity = { triggeredBy, funderUserId: room.hostUserId, runAsUserId: room.hostUserId };
+  const connection = await deps.resolveConnection({ funderUserId: identity.funderUserId, chatId });
   return { chat, room, connection, identity };
 }
 
@@ -2616,7 +2617,7 @@ export function createRequestTurn(ctx: ChatContext, deps: TurnDeps): RequestTurn
     const built = await buildTurnContext(ctx, deps, {
       chatId,
       runAsUserId: identity.runAsUserId,
-      funderUserId: identity.triggeredBy,
+      funderUserId: identity.funderUserId,
       model: connection.model,
       kind: "auto",
       characterIds: room.characterIds,

@@ -37,7 +37,7 @@ test("a FAILED transcript read never says 'No cards yet', and its Retry re-reads
   let attempts = 0;
   const trpc = await routeTrpc(page, {
     "chat.listMessages": () => (attempts++ === 0 ? trpcError({ message: "transcript read failed" }) : { messages: [] }),
-    "chat.getChat": () => ({ id: "chat_ct_rpg000000000000001", participants: [], viewerUserId: null }),
+    "chat.getChat": () => ({ id: "chat_ct_rpg000000000000001" }),
   });
   const section = await mount(<RpgSceneCardsStory />);
 

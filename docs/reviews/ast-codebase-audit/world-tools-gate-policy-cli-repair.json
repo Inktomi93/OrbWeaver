@@ -1,0 +1,150 @@
+{
+  "schema": "orbweaver.world-tools-gate-policy-cli-repair",
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-22T04:14:46.201Z",
+  "status": "verified-current-tree",
+  "tree": {
+    "head": "8f7ed4c4b98c112429c3918483f3a172f66ae184",
+    "dirty": true,
+    "note": "Implemented in the shared world-aware-tools audit worktree without staging or committing. Pre-existing staged edits in gate-scope.suite.int.test.ts were preserved."
+  },
+  "outcome": {
+    "canonicalFrontDoor": "structure now routes normal run, list, explain, JSON, and whole/changed/file/folder/package/project requests through planPolicyArgv and executePolicyPlan. The disjoint --void tombstone grammar remains on structure; verify --list stage semantics were not changed.",
+    "scopedArtifacts": "Every run records its requested source scope. Narrowed source scopes and policy selections remain available only through their run slot; reports/check-structure.json publishes only for an all-policy, whole-scope verdict. structure-delta refuses source-scoped slots because they do not share the whole-corpus denominator.",
+    "unpopulatedResources": "The planner accepts an empty authored resource-path contribution only when every declared resource kind is classified as unpopulated by contract/resource-declaration.ts. Empty resource rows are omitted from the execution manifest, preserving exact planner/executor reconciliation.",
+    "nonGitWholeScope": "A standalone planted root with no Git repository derives whole-scope source identity from the exact ts-morph workspace the pass executes and records inventory.source=workspace. Git is still attempted first, and any inventory failure in a real Git worktree remains a refusal; no fixture is Git-initialized to hide the distinction.",
+    "stableRefusal": "Structure refusals again begin with the documented `structure takes at most --fail-on-warnings` compatibility prefix while retaining the precise parser reason and expanded usage.",
+    "legacyWholeRunSemantics": "All-policy load failures still leave an incomplete run stub. Resource acquisition failures remain programmatic-planner refusals by default, while structure explicitly carries them into execution so the dispatcher can write the established incomplete owner, withholding, and authority receipts.",
+    "executionWorkspaceParity": "Production planning now derives source populations from the exact ts-morph workspace execution will walk, while retaining Git inventory and compiler membership as separate scope evidence."
+  },
+  "reviewRefutation": {
+    "status": "confirmed",
+    "command": "node scripts/vitest-supervised.mjs run tests/tooling/verify/ops/warning-promotion.suite.int.test.ts --runtime-only --reporter=default --reporter=json --outputFile.json=reports/test-report-gate-cli-rerepair-red.json",
+    "result": "RED: 1 file, 3 tests, 2 failed. The default structure run exited 2 because Git inventory was required in a standalone planted root; the typo refusal omitted the stable prefix.",
+    "report": "reports/runs/test/orbweaver-2018065-2026-09-22T02-43-33-044Z/test-report.json"
+  },
+  "ownedFiles": [
+    "tooling/src/verify/contract/policy-plan.ts",
+    "tooling/src/verify/contract/policy-scope.ts",
+    "tooling/src/verify/contract/run-manifest.ts",
+    "tooling/src/verify/lib/policy-plan.ts",
+    "tooling/src/verify/lib/policy-plan-execute.ts",
+    "tooling/src/verify/lib/policy-repo-inventory.ts",
+    "tooling/src/verify/lib/policy-scope.ts",
+    "tooling/src/verify/lib/resource-declaration.ts",
+    "tooling/src/verify/lib/structure-console.ts",
+    "tooling/src/verify/lib/structure-tail.ts",
+    "tooling/src/verify/ops/structure.ts",
+    "tooling/src/verify/ops/structure-delta.ts",
+    "tests/tooling/verify/cli.int.test.ts",
+    "tests/tooling/verify/lib/policy-plan.test.ts",
+    "tests/tooling/verify/ops/gate-scope.suite.int.test.ts",
+    "tests/tooling/verify/ops/structure-delta.int.test.ts",
+    "tests/tooling/verify/ops/warning-promotion.suite.int.test.ts",
+    "tooling/src/verify/lib/policy-plan-source-candidates.ts"
+  ],
+  "redFirstProof": {
+    "method": "The touched production sources were temporarily restored to HEAD while the new tests remained, then restored from lane-local backups; no stash, checkout, or restore command was used.",
+    "command": "node scripts/vitest-supervised.mjs run tests/tooling/verify/cli.int.test.ts tests/tooling/verify/lib/policy-plan.test.ts tests/tooling/verify/ops/gate-scope.suite.int.test.ts tests/tooling/verify/ops/structure-delta.int.test.ts --runtime-only --reporter=default --reporter=json --outputFile.json=reports/test-report-gate-reach.json",
+    "result": "RED as intended: 54 tests, 50 passed, 4 failed. Failures were list/explain reach, file-scope reach, installed-package zero-path resource planning, and authored-path zero-path resource planning.",
+    "report": "reports/runs/test/orbweaver-1839056-2026-09-22T01-59-25-922Z/test-report.json"
+  },
+  "currentProof": [
+    {
+      "command": "node scripts/vitest-supervised.mjs run tests/tooling/verify/cli.int.test.ts tests/tooling/verify/lib/policy-plan.test.ts tests/tooling/verify/ops/gate-scope.suite.int.test.ts tests/tooling/verify/ops/structure-delta.int.test.ts --runtime-only --reporter=default --reporter=json --outputFile.json=reports/test-report-gate-reach.json",
+      "result": "PASS: 4 files, 108/108 tests",
+      "report": "reports/runs/test/orbweaver-1877770-2026-09-22T02-09-43-597Z/test-report.json"
+    },
+    {
+      "command": "node scripts/vitest-supervised.mjs run tests/tooling/verify/ops/gate-scope.suite.int.test.ts tests/tooling/verify/ops/structure-delta.int.test.ts --runtime-only --reporter=default --reporter=json --outputFile.json=reports/test-report-gate-reach.json",
+      "result": "PASS after strengthening the all-policy source-scope pointer control: 2 files, 26/26 tests",
+      "report": "reports/runs/test/orbweaver-1943244-2026-09-22T02-24-54-363Z/test-report.json"
+    },
+    {
+      "command": "pnpm exec biome check <the ten owned source and test files>",
+      "result": "PASS: 10 files, no fixes applied"
+    },
+    {
+      "command": "pnpm exec eslint <the ten owned source and test files>",
+      "result": "PASS: exit 0"
+    },
+    {
+      "command": "pnpm typecheck --config tooling/tsconfig.json --config tsconfig.json",
+      "result": "PASS: 2/2 runnable programs"
+    },
+    {
+      "command": "git diff --check -- <the ten owned source and test files>",
+      "result": "PASS"
+    },
+    {
+      "command": "node scripts/vitest-supervised.mjs run tests/tooling/verify/ops/warning-promotion.suite.int.test.ts --runtime-only --reporter=default --reporter=json --outputFile.json=reports/test-report-gate-cli-rerepair-warning.json",
+      "result": "PASS after rerepair: 1 file, 3/3 tests; the artifact discriminates workspace fallback and the stable refusal prefix is live",
+      "report": "reports/runs/test/orbweaver-2041324-2026-09-22T02-49-45-152Z/test-report.json"
+    },
+    {
+      "command": "node scripts/vitest-supervised.mjs run tests/tooling/verify/ops/structure-corpus.suite.int.test.ts tests/tooling/verify/ops/structure.int.test.ts --runtime-only --reporter=default --reporter=json --outputFile.json=reports/test-report-gate-cli-rerepair-raw-roots.json",
+      "result": "PASS: 2 raw non-Git structure files, 19/19 tests, including load-failure stubs and missing-resource owner withholding",
+      "report": "reports/runs/test/orbweaver-2069551-2026-09-22T02-57-13-667Z/test-report.json"
+    },
+    {
+      "command": "node scripts/vitest-supervised.mjs run tests/tooling/verify/cli.int.test.ts tests/tooling/verify/lib/policy-plan.test.ts tests/tooling/verify/ops/gate-scope.suite.int.test.ts tests/tooling/verify/ops/structure-delta.int.test.ts --runtime-only --reporter=default --reporter=json --outputFile.json=reports/test-report-gate-cli-rerepair-original.json",
+      "result": "COMPOSED PASS: cli 44/44, gate-scope 15/15, and structure-delta 11/11 passed in the four-file run; its three policy-plan failures were observed by the already-running worker before the final default-refusal mode patch and were rerun below",
+      "report": "reports/runs/test/orbweaver-2072827-2026-09-22T02-58-03-124Z/test-report.json"
+    },
+    {
+      "command": "node scripts/vitest-supervised.mjs run tests/tooling/verify/lib/policy-plan.test.ts --runtime-only --reporter=default --reporter=json --outputFile.json=reports/test-report-gate-cli-rerepair-policy-plan.json",
+      "result": "PASS after the final planner-mode patch: 1 file, 39/39 tests; programmatic resource failures remain fail-closed",
+      "report": "reports/runs/test/orbweaver-2081540-2026-09-22T02-59-56-406Z/test-report.json"
+    },
+    {
+      "command": "pnpm exec biome check <the seventeen owned source and test files>",
+      "result": "PASS: 17 files, no fixes applied"
+    },
+    {
+      "command": "pnpm exec eslint <the seventeen owned source and test files>",
+      "result": "PASS: exit 0"
+    },
+    {
+      "command": "pnpm typecheck --config tooling/tsconfig.json --config tsconfig.json",
+      "result": "PASS after rerepair: 2/2 runnable programs"
+    },
+    {
+      "command": "pnpm check:structure",
+      "result": "PASS current tree: 347/347 policies, 0 blocking, 0 alarms, 0 tool errors, 0 withheld",
+      "report": "reports/runs/structure/orbweaver-2352740-2026-09-22T04-09-59-903Z/check-structure.json"
+    }
+  ],
+  "realPlannerProbes": [
+    {
+      "command": "node tooling/src/verify/cli.ts structure --list --json",
+      "result": "exit 0; 347 final policies in 199 families; no run slot opened"
+    },
+    {
+      "command": "node tooling/src/verify/cli.ts structure --explain --check no-manual-memo-compiler-health --json",
+      "result": "exit 0; JSON inspection plan returned"
+    },
+    {
+      "command": "node tooling/src/verify/cli.ts structure --check no-manual-memo-compiler-health --json",
+      "result": "exit 0; installed-package resource receipt carried one resource while the authored resource-path count remained zero"
+    },
+    {
+      "command": "node tooling/src/verify/cli.ts structure --package @orb/tooling --check no-raw-id --json",
+      "result": "exit 0; requested source count 1932, effective source count 1399, one policy registered and run, zero findings; artifact remained scoped"
+    },
+    {
+      "command": "node tooling/src/verify/cli.ts structure --project tooling/tsconfig.json --check no-raw-id --json",
+      "result": "exit 0; requested source count 1401, effective source count 1399, one policy registered and run, zero findings; tooling compiler program recorded"
+    }
+  ],
+  "excludedEvidence": {
+    "command": "pnpm test:tooling tests/tooling/verify/ops/gate-scope.suite.int.test.ts tests/tooling/verify/ops/structure-delta.int.test.ts",
+    "disposition": "EXCLUDED. The package script already embeds tests/tooling, so the appended paths did not narrow collection. The run was interrupted immediately after three unrelated files reported, never produced a final report, and is not cited as verification evidence. The exact supervised two-file command above replaced it."
+  },
+  "constraints": {
+    "sourceOrTestsChangedByThisReceiptTurn": true,
+    "centralLedgerEdited": false,
+    "staged": false,
+    "committed": false,
+    "fullStructureRun": true
+  }
+}

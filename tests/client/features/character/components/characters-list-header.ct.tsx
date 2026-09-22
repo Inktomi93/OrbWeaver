@@ -15,6 +15,7 @@
 // and `.shell-panel` is the `container-type: inline-size` box the stand-down resolves against, so a bare
 // mount of the composite would measure a layout the shell never produces.
 
+import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
@@ -38,7 +39,7 @@ const CONTROL_SM_FINE_PX = 32;
 function routeCensus(page: Page): Promise<unknown> {
   return routeTrpc(page, {
     "character.list": () => ({ items: [], nextCursor: null, totalCount: LIBRARY_TOTAL }),
-    "settings.getUserSettings": () => null,
+    "settings.getUserSettings": () => ({ userId: "user_ct", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0, configUnreadable: null }),
   });
 }
 

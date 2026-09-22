@@ -1,23 +1,23 @@
 // domain/chat/engine/turn-identity — the turn-identity triple. Pure: no db, no clock, no I/O.
 //
-// The triple: the CALLER (Principal.userId, membership/CSRF only — never reaches connection resolution);
-// `triggeredBy` (the FUNDER — the human whose CONNECTION the turn runs on, and who owns abort/attribution:
-// the caller for a direct send, the chain-starter for auto-mode; inference program §8.4-3, D19 amended);
-// `runAsUserId` (the room HOST — the ASSEMBLY scope: books, cards, preset, prose, settings, the tool
-// execution principal, D152). There is no by-proxy spend any more, so there is no consent belt: a funder
-// with no chat connection reads `no-connection` at send, never the host's bill.
+// The triple: `triggeredBy` is the initiator who owns attribution/abort (the caller for a direct send, the
+// chain-starter for auto-mode); `funderUserId` is the frozen room host whose connection pays; and
+// `runAsUserId` is that same frozen host as the assembly/tool principal (books, cards, preset, prose,
+// settings, D18/D19/D152). The caller (`Principal.userId`) is only the request principal.
 
 import type { UserId } from "@orb/kit/ids";
 
 interface TurnIdentity {
-  /** The FUNDER — whose connection the turn runs on; abort/attribution (the caller for a send; the chain-starter for auto). */
+  /** The initiator — owns abort/attribution (the caller for a send; the chain-starter for auto). */
   readonly triggeredBy: UserId;
-  /** The room host — the ASSEMBLY scope (books/cards/preset/prose/settings), never the connection. */
+  /** The room host whose connection funds the turn. */
+  readonly funderUserId: UserId;
+  /** The frozen room host — the ASSEMBLY/tool principal. */
   readonly runAsUserId: UserId;
 }
 
-/** Resolve the identity triple from the ids the verb holds. Pure. `runAsUserId` is always the host (never
- *  the caller); `triggeredBy` is the caller unless an auto-mode chain-starter is supplied. */
+/** Resolve the identity triple from the ids the verb holds. Pure. Funding and assembly freeze the same host;
+ *  `triggeredBy` is the caller unless an auto-mode chain-starter is supplied. */
 export function resolveTurnIdentity(params: {
   readonly principalUserId: UserId;
   readonly hostUserId: UserId;
@@ -25,6 +25,7 @@ export function resolveTurnIdentity(params: {
 }): TurnIdentity {
   return {
     triggeredBy: params.triggeredBy ?? params.principalUserId,
+    funderUserId: params.hostUserId,
     runAsUserId: params.hostUserId,
   };
 }

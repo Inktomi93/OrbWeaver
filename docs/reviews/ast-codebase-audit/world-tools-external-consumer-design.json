@@ -92,13 +92,33 @@
   "coupledLenses": [
     { "name": "buildLiveness", "path": "tooling/src/ast/lib/liveness.ts:359-392", "change": "ingest normalized edges, record an external arm and exact sites" },
     { "name": "orphans/testonly/rot", "path": "tooling/src/ast/ops/orphans.ts and rot.ts", "change": "inherit usedProd" },
-    { "name": "apisurface", "path": "tooling/src/ast/ops/apisurface.ts:203-273", "change": "its separate ApiConsumption map must ingest the same facts or it disagrees with orphans" },
-    { "name": "dead", "path": "tooling/src/ast/ops/dead.ts:111-144", "change": "include exact external sites in TOOL-ANCHORED; semantic refs alone cannot see them" },
+    {
+      "name": "apisurface",
+      "path": "tooling/src/ast/ops/apisurface.ts:203-273",
+      "change": "its separate ApiConsumption map must ingest the same facts or it disagrees with orphans"
+    },
+    {
+      "name": "dead",
+      "path": "tooling/src/ast/ops/dead.ts:111-144",
+      "change": "include exact external sites in TOOL-ANCHORED; semantic refs alone cannot see them"
+    },
     { "name": "chains", "path": "tooling/src/ast/ops/chains.ts:121-176", "change": "add an outside-surface root consumer edge" },
     { "name": "swallowed", "path": "tooling/src/ast/ops/swallowed.ts", "change": "the external arm prevents namespace-only classification" },
-    { "name": "prodonly", "path": "tooling/src/ast/ops/prodonly.ts:25-90", "change": "recognize root package script entries and fail loud for missing literal targets" },
-    { "name": "orphan export ratchet", "path": "tooling/src/verify/ops/orphan-export-ratchet.ts:78-185", "change": "inherits both buildLiveness and collectApiSurface; both must agree in one commit" },
-    { "name": "clientgap", "path": "tooling/src/ast/ops/wiring.ts:317-350", "change": "preserve bucket boundaries; external tooling is neither server nor client product evidence" }
+    {
+      "name": "prodonly",
+      "path": "tooling/src/ast/ops/prodonly.ts:25-90",
+      "change": "recognize root package script entries and fail loud for missing literal targets"
+    },
+    {
+      "name": "orphan export ratchet",
+      "path": "tooling/src/verify/ops/orphan-export-ratchet.ts:78-185",
+      "change": "inherits both buildLiveness and collectApiSurface; both must agree in one commit"
+    },
+    {
+      "name": "clientgap",
+      "path": "tooling/src/ast/ops/wiring.ts:317-350",
+      "change": "preserve bucket boundaries; external tooling is neither server nor client product evidence"
+    }
   ],
   "controls": {
     "sourceReader": [
@@ -124,8 +144,16 @@
     { "name": "producer @external-consumer marker", "decision": "reject", "reason": "Presence-only permission repeats the @public parking-permit failure." },
     { "name": "hand-written symbol/path allowlist", "decision": "reject", "reason": "Names incidents rather than deriving the class and can silently rot." },
     { "name": "parse every shell node -e", "decision": "defer", "reason": "Requires a Bash parser dependency plus nested JS parsing for one edge." },
-    { "name": "type-only import solely to fool liveness", "decision": "reject", "reason": "Can outlive the actual source reader and greens the lens without binding evidence to the consumed key." },
-    { "name": "one normalized fact with source-native producers", "decision": "recommend", "reason": "Centralizes lens semantics while tying evidence to the actual mechanism." }
+    {
+      "name": "type-only import solely to fool liveness",
+      "decision": "reject",
+      "reason": "Can outlive the actual source reader and greens the lens without binding evidence to the consumed key."
+    },
+    {
+      "name": "one normalized fact with source-native producers",
+      "decision": "recommend",
+      "reason": "Centralizes lens semantics while tying evidence to the actual mechanism."
+    }
   ],
   "implementationAssessment": {
     "tinyIsolated": false,

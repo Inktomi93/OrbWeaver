@@ -30,6 +30,7 @@ import type { Locator, Page } from "@playwright/test";
 import { MESSAGE_EDIT_NAME } from "../../../../../packages/client/src/features/chat/lib/message-action-names.ts";
 import { pixelContrast } from "../../../../support/browser/pixel-contrast.ts";
 import { routeOrbSocket } from "../../../../support/node/route-orb-socket.ts";
+import type { TrpcFixtureOutput, TrpcRoutes } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import {
   MessageListFooterDisclosureStory,
@@ -45,7 +46,7 @@ import { CHAT_AMBIENT_ROUTES, CHAT_ID, makeMessagesPage, makeMessageView } from 
 // The divider's present-tense preview (PD-#7). Every map stubs it with a VALID resolved shape — the
 // harness's unlisted-proc default (`data: null`) is out-of-contract for this query and crashes the
 // surface (integration find, 2026-07-24). boundaryMessageId null = "everything fits" (no divider).
-const PREVIEW_FIT_STUB = {
+const PREVIEW_FIT_STUB: TrpcRoutes<"chat.previewContextFit"> = {
   "chat.previewContextFit": (): {
     boundaryMessageId: null;
     usedTokens: number;
@@ -81,7 +82,7 @@ const AI_VIEW = makeMessageView({
 // The roster stub every test below wires alongside `chat.listMessages` (see header) — an empty roster
 // + empty cast, just enough for `ChatThread`'s `chat.getChat` suspense read to resolve to a real
 // (if empty) shape rather than routeTrpc's generic `null` unlisted-procedure default.
-const ROSTER_STUB = {
+const ROSTER_STUB: TrpcRoutes<"chat.getChat"> = {
   ...PREVIEW_FIT_STUB,
   "chat.getChat": (): {
     participants: never[];
@@ -313,7 +314,7 @@ test("#937 a streaming card theme carries palette but inherits viewer density", 
     ...CHAT_AMBIENT_ROUTES,
     ...PREVIEW_FIT_STUB,
     "chat.listMessages": () => makeMessagesPage([USER_VIEW], [{ kind: "character", id: THEMED_STREAM_CHARACTER, name: "Aria", avatarHash: null }]),
-    "chat.getChat": () => ({
+    "chat.getChat": (): TrpcFixtureOutput<"chat.getChat"> => ({
       participants: [
         {
           id: "cp_stream_theme",
@@ -536,7 +537,7 @@ test("a chatOpened on the room's FIRST attach refetches NOTHING — the open's o
 const COMPACTED_INTO_SUMMARY = /compacted into a summary/i;
 const IN_CONTEXT_FROM_HERE = /in context from here/i;
 
-const COMPACTED_PREVIEW_FIT = {
+const COMPACTED_PREVIEW_FIT: TrpcRoutes<"chat.previewContextFit"> = {
   "chat.previewContextFit": (): {
     boundaryMessageId: MessageId;
     usedTokens: number;
@@ -1369,7 +1370,7 @@ const WARNED_TURN: ChatBusEvent[] = [
 
 /** A room whose output dial is `narrator`, so the GHOST resolves a real speaker name (and therefore a
  *  real name row to make sticky) against this file's empty roster — the #113 test's own idiom. */
-const NARRATOR_ROSTER_STUB = {
+const NARRATOR_ROSTER_STUB: TrpcRoutes<"chat.getChat"> = {
   ...PREVIEW_FIT_STUB,
   "chat.getChat": (): { participants: never[]; anchorPersonaId: null; identities: readonly ChatIdentity[]; group: GroupConfig } => ({
     participants: [],

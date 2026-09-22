@@ -15,10 +15,7 @@
       "tool": "ast-grep",
       "languages": ["TypeScript", "Tsx"],
       "scopes": ["packages/ui", "packages/client", "tests/ui", "tests/kit"],
-      "rules": [
-        "/tmp/ui-rot-identifiers-ts.yml",
-        "/tmp/ui-rot-identifiers-tsx.yml"
-      ],
+      "rules": ["/tmp/ui-rot-identifiers-ts.yml", "/tmp/ui-rot-identifiers-tsx.yml"],
       "notes": [
         "Exact identifier rules mapped declarations, re-export barrels, imports, JSX uses, and test callers.",
         "Type-alias syntax was additionally probed with the contextual pattern `type PolarityTokenPath = $T` because a kind:identifier rule does not match TypeScript type_identifier nodes.",
@@ -46,21 +43,21 @@
       "runtime_consumer_with_proof_export": 1,
       "framework_entrypoint": 37,
       "deliberate_test_proof_seam": 5,
-      "intended_but_unwired_feature": 3,
+      "intended_but_unwired_feature": 1,
       "tool_false_positive": 0,
       "tool_false_negative": 0,
-      "genuine_deletion": 0
+      "genuine_deletion": 2
     },
     "disposition_counts": {
-      "preserve": 46,
-      "delete": 0
+      "preserve": 44,
+      "delete": 2
     },
-    "conclusion": "No deletion is justified. The three orphan exports are intentional package API surfaces with explicit anatomy or generated-map provenance. The 43 test-only exports divide into 37 public component/framework entrypoints and six proof-facing exports, one of which also has live runtime consumers. The rot lens is accurate as a candidate generator; treating candidate status as deletion authority would produce 46 false-positive deletions."
+    "conclusion": "Final owner disposition removes CommandSeparator because headed CommandGroup composition supersedes a divider that never had a client consumer, and removes the generated PolarityTokenPath alias because live TOKEN_POLARITY_ARMS consumers infer literal keys without the named type. CommandLoading remains intentionally unwired for filed work item #2568. The other 43 test-only exports remain deliberate framework/proof surfaces."
   },
   "tool_assessment": {
     "false_positives": {
       "count": 0,
-      "explanation": "No candidate is falsely labeled under the lens's narrow meanings of orphan-export or test-only-export. Every label matches the semantic graph inspected. All 46 are non-actionable for deletion because package entrypoints and proof seams are deliberately retained contracts."
+      "explanation": "No candidate is falsely labeled under the lens's narrow meanings of orphan-export or test-only-export. Every label matches the semantic graph inspected. Owner review converted two accurate orphan facts into bounded deletions, retained CommandLoading for #2568, and retained the 43 deliberate test-only contracts."
     },
     "false_negatives": {
       "count": 0,
@@ -72,10 +69,10 @@
       "name": "CommandSeparator",
       "source": "packages/ui/src/primitives/command/command.tsx:221",
       "lens": "orphan-export",
-      "primary_classification": "intended_but_unwired_feature",
+      "primary_classification": "genuine_deletion",
       "secondary_classifications": ["framework_entrypoint"],
-      "disposition": "preserve",
-      "evidence": "Re-exported from the @orb/ui/command package entrypoint. The declaration comment defines the cmdk divider anatomy and its alwaysRender search behavior. ast-grep found declaration/import-alias/barrel structure and no runtime or test caller; the exact textual count was 3. This is a complete but currently unwired command-palette part, not accidental code."
+      "disposition": "delete",
+      "evidence": "Removed from the cmdk import, declaration surface, props export, and @orb/ui/command barrel. git log -S found no client consumer in its history; the live palette, configuration search, and character picker organize rows with headed CommandGroup composition instead."
     },
     {
       "name": "CommandLoading",
@@ -84,16 +81,16 @@
       "primary_classification": "intended_but_unwired_feature",
       "secondary_classifications": ["framework_entrypoint"],
       "disposition": "preserve",
-      "evidence": "Re-exported from @orb/ui/command. The declaration is the styled cmdk async-suggestions progressbar and the command file explicitly describes future omni-bar composition. ast-grep found declaration/import-alias/barrel structure and no caller; the exact textual count was 3."
+      "evidence": "Preserved without speculative product wiring for filed work item #2568, recorded on the declaration as a reasoned @public-future claim. Historical model-picker consumers were removed with their owning surfaces; #2568 owns restoring a pending-state consumer."
     },
     {
       "name": "PolarityTokenPath",
       "source": "packages/ui/src/tokens/index.ts:253",
       "lens": "orphan-export",
-      "primary_classification": "intended_but_unwired_feature",
+      "primary_classification": "genuine_deletion",
       "secondary_classifications": ["framework_entrypoint", "generated_contract"],
-      "disposition": "preserve",
-      "evidence": "The @orb/ui/tokens package entrypoint is the generated typed companion to TOKEN_POLARITY_ARMS. A contextual ast-grep type-alias pattern found the declaration; TSX ast-grep found no use; unrestricted rg found exactly two spellings: the generated declaration and the generator template at packages/ui/tokens.build.ts:422. git history shows both the map and key type were introduced together by e952dbc00. Removing only the type would narrow an intentionally generated map API, so absence of a current caller is insufficient deletion authority."
+      "disposition": "delete",
+      "evidence": "Removed from both packages/ui/tokens.build.ts and its generated packages/ui/src/tokens/index.ts output. TOKEN_POLARITY_ARMS remains live; chart and Shiki consumers index it with exact literal keys, so TypeScript inference owns the key contract and no consumer needs the named alias."
     },
     {
       "name": "WEB_GLYPH_COMPACT",
@@ -484,9 +481,26 @@
     }
   ],
   "changes": {
-    "source_edits": [],
+    "source_edits": [
+      "packages/ui/src/primitives/command/command.tsx",
+      "packages/ui/src/primitives/command/index.ts",
+      "packages/ui/tokens.build.ts",
+      "packages/ui/src/tokens/index.ts"
+    ],
     "test_edits": [],
-    "reason": "No candidate met the deletion bar after package-entrypoint, declaration, caller, test, generator, and history inspection."
+    "reason": "Owner-ratified cleanup removes the never-consumed separator surface and the unconsumed generated polarity key alias. CommandLoading is preserved without speculative wiring for filed work item #2568."
+  },
+  "final_cleanup": {
+    "removed": ["CommandSeparator", "CommandSeparatorProps", "PolarityTokenPath"],
+    "preserved": {
+      "symbol": "CommandLoading",
+      "reason": "Filed work item #2568 owns restoring a model-picker pending-state consumer; the declaration carries the same @public-future reason and remains deliberately unwired in this cleanup."
+    },
+    "post_cleanup_orphans": {
+      "count": 1,
+      "symbols": ["CommandLoading"],
+      "receipt": "pnpm ast orphans ui --json --max 100000: 368 files scanned, 7,518 out of scope, status complete"
+    }
   },
   "verification": {
     "commands_run": [
@@ -496,10 +510,17 @@
       "ast-grep --lang tsx --pattern 'PolarityTokenPath' packages/ui packages/client tests --json=compact",
       "rg exact word-bounded candidate alternation across all *.ts and *.tsx",
       "rg PolarityTokenPath across all repository file types",
+      "pnpm test:scoped tests/ui/tokens/index.test.ts (red control: generator/output drift, 39 passed and freshness test failed)",
+      "pnpm --filter @orb/ui tokens:build",
+      "pnpm test:scoped tests/ui/tokens/index.test.ts (green: 40 passed)",
+      "pnpm test:ct tests/ui/primitives/command/command.ct.tsx (18 passed)",
+      "pnpm typecheck --config packages/ui/tsconfig.json",
+      "pnpm ast orphans ui --json --max 100000",
+      "ast-grep command-function and token-key-type structural controls plus rg alternation corroboration",
       "git status --short"
     ],
-    "tests_run": [],
-    "tests_skipped_reason": "Adjudication produced no source or test change. The task explicitly prohibited heap-heavy/full commands while the contracts rot owner holds the box.",
-    "worktree_status_before_report": "clean"
+    "tests_run": ["tests/ui/tokens/index.test.ts: 40 passed after the expected red freshness control", "tests/ui/primitives/command/command.ct.tsx: 18 passed"],
+    "tests_skipped_reason": "No broad suite was authorized; verification stayed on the command primitive, token generator/freshness contract, UI compiler, scoped lints, and the UI orphan lens.",
+    "worktree_status_before_report": "shared dirty worktree; only the bounded owned paths were changed"
   }
 }

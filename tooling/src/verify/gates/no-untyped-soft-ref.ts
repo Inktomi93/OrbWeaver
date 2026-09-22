@@ -55,24 +55,33 @@ const UNREADABLE = MESSAGE;
 const FIX = "add the `.references(() => target.id)` FK; a genuinely non-relational id column takes an exact reviewed grant with its D-cite.";
 
 /** Is this an id-shaped column with no FK — the D24 subject? */
-function isSoftReference(column: SchemaColumn): boolean {
-  return ID_KEY.test(column.identity.propertyName) && ID_COLUMN_BUILDERS.has(column.builder.exportedName) && !column.primaryKey && column.foreignKey === null;
+function isSoftReference(column: SchemaColumn, tableForeignKeyChildren: ReadonlySet<string>): boolean {
+  return (
+    ID_KEY.test(column.identity.propertyName) &&
+    ID_COLUMN_BUILDERS.has(column.builder.exportedName) &&
+    !column.primaryKey &&
+    column.foreignKey === null &&
+    !tableForeignKeyChildren.has(column.identity.key)
+  );
 }
 
 /** Every soft reference in the ready schema, as a grant candidate keyed on the SQL `table.column` pair. */
 function softReferences(schema: SchemaModel): readonly ReviewedGrantCandidate[] {
-  return schema.tables.flatMap((table) =>
-    table.columns.filter(isSoftReference).map((column) => {
-      const name = column.identity.propertyName;
-      return {
-        node: column.declaration,
-        subject: `${table.sqlName}.${name}`,
-        operation: OPERATION,
-        token: name,
-        offset: Math.max(column.declaration.getText().indexOf(name), 0),
-      };
-    }),
-  );
+  return schema.tables.flatMap((table) => {
+    const tableForeignKeyChildren = new Set(table.foreignKeys.flatMap((foreignKey) => foreignKey.children.map((child) => child.key)));
+    return table.columns
+      .filter((column) => isSoftReference(column, tableForeignKeyChildren))
+      .map((column) => {
+        const name = column.identity.propertyName;
+        return {
+          node: column.declaration,
+          subject: `${table.sqlName}.${name}`,
+          operation: OPERATION,
+          token: name,
+          offset: Math.max(column.declaration.getText().indexOf(name), 0),
+        };
+      });
+  });
 }
 
 export const gate = defineGate({
@@ -133,6 +142,15 @@ export const gate = defineGate({
       expect: { count: 1 },
       why: "THE PERMISSION IS NOT A CARVE-OUT IN THE RULE: the sole D24 sanctioned pair reds like any other soft ref and is licensed by its exact grant row, so a SECOND soft ref on the same table is a finding until someone reviews it",
     },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/x.ts":
+          'import { foreignKey, sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const providers = sqliteTable("providers", { id: text("id").primaryKey(), hash: text("hash").unique() });\nexport const contributions = sqliteTable("contributions", { providerId: text("provider_id"), hash: text("hash") }, (t) => [foreignKey({ columns: [t.hash], foreignColumns: [providers.hash] })]);\n',
+      },
+      expect: { count: 1, token: "providerId" },
+      why: "THE COMPOSITE-FK DISCRIMINATOR'S RED TWIN: a table-level FK on a sibling column must not acquit an uncovered id-shaped column",
+    },
   ],
   mustPass: [
     {
@@ -150,6 +168,14 @@ export const gate = defineGate({
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const w = sqliteTable("w", { id: text("id").primaryKey() });\nconst widgetId = text("widget_id").references(() => w.id);\nexport const t = sqliteTable("t", { widgetId });\n',
       },
       why: "the SHORTHAND's green twin: resolving the member kind widens the obligation set, never the accusation",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/x.ts":
+          'import { foreignKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";\nexport const providers = sqliteTable("providers", { id: text("id").primaryKey(), hash: text("hash") }, (t) => [uniqueIndex("providers_identity").on(t.id, t.hash)]);\nexport const contributions = sqliteTable("contributions", { providerId: text("provider_id"), hash: text("hash") }, (t) => [foreignKey({ columns: [t.providerId, t.hash], foreignColumns: [providers.id, providers.hash] }).onDelete("cascade")]);\n',
+      },
+      why: "a child term of a table-level composite foreign key has FK-enforced physics and is not a soft reference; the sibling red row proves coverage is per child column, not per table",
     },
     {
       mode: "types",

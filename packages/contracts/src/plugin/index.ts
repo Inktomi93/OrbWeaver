@@ -40,7 +40,6 @@ export type {
   PluginAssetView,
   PluginCharacterView,
   PluginHostV1,
-  PluginInvocation,
   PluginLogLevel,
   PluginMessageView,
   PluginQuietOptions,
@@ -63,13 +62,14 @@ export {
 } from "./host-v1.ts";
 export type { PluginOrigin, PluginStatus } from "./lifecycle.ts";
 export { PLUGIN_ORIGINS, PLUGIN_STATUSES } from "./lifecycle.ts";
-export type { PluginBuiltAgainst, PluginCapability, PluginManifest } from "./manifest.ts";
+export type { PluginBuiltAgainst, PluginCapability, PluginManifest, PluginProviderContribution } from "./manifest.ts";
 export {
   NET_HOSTS_MAX,
   PLUGIN_CAPABILITIES,
   PLUGIN_HOST_VERSIONS,
   PLUGIN_MAIN_ENTRY,
   PLUGIN_MANIFEST_ENTRY,
+  PLUGIN_PROVIDERS_MAX,
   PLUGIN_SLUG_MAX,
   PLUGIN_TOOL_NAME_LOCAL_MAX,
   PLUGIN_TOOL_WIRE_NAME_MAX,

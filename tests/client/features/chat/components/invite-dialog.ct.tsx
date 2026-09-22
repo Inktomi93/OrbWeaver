@@ -6,17 +6,27 @@
 // riding the wire, and the outstanding list (status per row; Revoke only on pending).
 
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { TrpcFixtureOutput, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { InviteDialogStory } from "../_ct-stories.tsx";
 
 const REVOKE_RE = /Revoke/u;
 
 const MINT = {
-  invite: { id: "chatinvite_ct_new", status: "pending" },
+  invite: {
+    id: "chatinvite_ct_new",
+    chatId: "chat_ct_keystone",
+    status: "pending",
+    maxUses: null,
+    remainingUses: null,
+    expiresAt: null,
+    invitedUserId: null,
+    createdAt: 1,
+  },
   token: "tok_ct_minted",
-};
+} satisfies TrpcWireOutput<"invites.createInvite">;
 
-function outstanding(): unknown[] {
+function outstanding(): TrpcFixtureOutput<"invites.listInvites"> {
   return [
     {
       id: "chatinvite_ct_a",

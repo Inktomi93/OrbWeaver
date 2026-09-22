@@ -1,0 +1,79 @@
+{
+  "task": "Independent review of uncommitted #2534 workload dependency security repair",
+  "verdict": "CONFIRMED",
+  "issue": {
+    "number": 2534,
+    "title": "Validate workload dependencies before unscoped scheduling reads"
+  },
+  "claims_source": "/tmp/world-tools-workload-dependency-security.json was treated as untrusted claims",
+  "manifest": {
+    "files_read_in_full": 8,
+    "paths": [
+      "packages/server/src/transport/trpc/routers/workloads.ts",
+      "packages/server/src/domain/workloads/persistence/queries.ts",
+      "packages/server/src/domain/workloads/verbs/start.ts",
+      "packages/server/src/domain/workloads/verbs/retry.ts",
+      "tests/server/transport/trpc/routers/workloads.test.ts",
+      "tests/server/domain/workloads/verbs/start.int.test.ts",
+      "tests/server/domain/workloads/verbs/retry.int.test.ts",
+      "tests/server/domain/workloads/persistence/queries.int.test.ts"
+    ],
+    "concurrency": "The additional typeIdSchema changes for cancel/retry/get/schedule IDs in workloads.ts are concurrent Code Mod Kit work; they were reviewed for interaction but are not attributed to #2534."
+  },
+  "findings": [],
+  "evidence": {
+    "rpc_boundary": "workloads.ts:33-56 validates dependsOn with z.array(typeIdSchema(ID_PREFIX.workload)) before forwarding. Router tests at workloads.test.ts:23-59 prove canonical pass, wrong-prefix BAD_REQUEST, and malformed BAD_REQUEST without invoking the service.",
+    "start_authority": "start.ts:25-44 resolves owner from caller/mode/target. At 122-150 it validates every dependency against that resolved owner before assertAdmissible and before admit/insert; absent or foreign throws DomainNotFoundError('workload', callerSuppliedId).",
+    "retry_authority": "retry.ts:43-62 validates inherited dependencies against original.ownerId after visibility/bulk authorization and before clone parameter resolution or insert; legacy cross-owner edges cannot be laundered.",
+    "shared_scope": "queries.ts:47-67 uses id IN dependsOn plus owner_id = owner for owned rows or owner_id IS NULL for system rows. Admission and scheduler use this same helper.",
+    "scheduler": "queries.ts:400-430 passes view.ownerId into resolveDependencyGate; a missing or foreign dependency has no scoped status and returns failed, leading to durable dependency_failed rather than dispatch.",
+    "leak_equivalence": "findUnavailableWorkloadDependency returns the first caller-supplied id absent from the scoped result set. For a fixed input ID, absent and foreign take the identical DomainNotFoundError path and no row is inserted.",
+    "no_sharing_capability": "Production census found no workload ACL/share table, verb, capability, or dependency-sharing producer. Non-admin lists are owner-forced; admin/system read visibility does not mint a cross-owner dependency authority.",
+    "workflow_compatibility": [
+      "No-dependency starts return before querying.",
+      "A non-null caller's singular row is scoped to caller.userId.",
+      "A null system caller's singular row uses its explicit ownerId; null stays the system scope.",
+      "Bulk sweep rows resolve to null owner and can depend only on null-owned rows.",
+      "Bulk create rows resolve to targetOwnerId and can depend only on that target's rows.",
+      "Admin/system retry preserves original.ownerId and validates dependencies in that same scope.",
+      "Existing scheduler tests exercise legitimate null-owned dependency chains, including waiting, success, failure, absent, and multipage cases."
+    ],
+    "attack_controls": [
+      "start.int.test.ts:160-212 proves same-owner acceptance plus missing/foreign leak-free refusal without dependent persistence.",
+      "retry.int.test.ts:109-128 proves cross-owner legacy edge refusal with no clone.",
+      "queries.int.test.ts:455-470 plants a direct cross-owner edge and proves a foreign succeeded row cannot dispatch the dependent.",
+      "router workloads.test.ts:23-59 proves canonical wire validation and service non-invocation for bad IDs."
+    ]
+  },
+  "scans": {
+    "ast_grep_reads": {
+      "ts": {
+        "files_scanned": 4022,
+        "matches": 12
+      },
+      "tsx": {
+        "files_scanned": 805,
+        "matches": 1
+      },
+      "scope": "packages and tooling",
+      "pattern": "$X.dependsOn",
+      "classification": "Relevant server readers are router forwarding, persistence view/gate, start, and retry; client reader is display-only. Appearance-carrier dependsOn is unrelated."
+    },
+    "rg": "Corroborated all production dependsOn occurrences across workload domain/router, UI producer, portability runner, and other internal producers. Only start and retry persist workload rows; only portability DAG and UI provide dependencies."
+  },
+  "verification": [
+    {
+      "command": "pnpm test:scoped tests/server/transport/trpc/routers/workloads.test.ts tests/server/domain/workloads/verbs/start.int.test.ts tests/server/domain/workloads/verbs/retry.int.test.ts tests/server/domain/workloads/persistence/queries.int.test.ts",
+      "result": "PASS: 4 files, 76 tests"
+    },
+    {
+      "command": "pnpm typecheck --config packages/server/tsconfig.json --config tsconfig.json",
+      "result": "PASS: 2 runnable native programs"
+    }
+  ],
+  "limitations": [
+    "The review did not inspect a live database for historical cross-owner rows.",
+    "Direct database writers can still plant invalid JSON, but both retry and the scheduler fail closed on absent/foreign scoped dependencies."
+  ],
+  "repository_mutation": "none"
+}

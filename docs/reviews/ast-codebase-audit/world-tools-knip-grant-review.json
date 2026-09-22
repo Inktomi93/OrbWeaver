@@ -25,14 +25,23 @@
     ]
   },
   "commands": [
-    {"command": "pnpm test:scoped tests/tooling/verify/gates/tooling-front-door-family.suite.test.ts", "result": "PASS, 7/7"},
-    {"command": "pnpm test:scoped tests/tooling/ast/index.test.ts -t a knip-only nested index is analysis configuration, not a shipped entry", "result": "PASS, 1/1 selected; 96 skipped"},
-    {"command": "pnpm gate:contract", "result": "PASS, 0 findings across 345 modules"},
-    {"command": "pnpm exec biome check <six scoped files> --diagnostic-level=error", "result": "PASS, 5 admitted files checked; docs markdown not admitted by Biome"},
-    {"command": "pnpm exec eslint <three changed TypeScript files>", "result": "PASS"},
-    {"command": "pnpm typecheck --config tooling/tsconfig.json", "result": "PASS, 1 runnable config"},
-    {"command": "pnpm check:doc-catalog", "result": "EXPECTED EXTERNAL RED, 7 violations; Core-Enforcement-Active-Gates.md was absent from the violation list"},
-    {"command": "git diff --check HEAD -- <six scoped files>", "result": "PASS"}
+    { "command": "pnpm test:scoped tests/tooling/verify/gates/tooling-front-door-family.suite.test.ts", "result": "PASS, 7/7" },
+    {
+      "command": "pnpm test:scoped tests/tooling/ast/index.test.ts -t a knip-only nested index is analysis configuration, not a shipped entry",
+      "result": "PASS, 1/1 selected; 96 skipped"
+    },
+    { "command": "pnpm gate:contract", "result": "PASS, 0 findings across 345 modules" },
+    {
+      "command": "pnpm exec biome check <six scoped files> --diagnostic-level=error",
+      "result": "PASS, 5 admitted files checked; docs markdown not admitted by Biome"
+    },
+    { "command": "pnpm exec eslint <three changed TypeScript files>", "result": "PASS" },
+    { "command": "pnpm typecheck --config tooling/tsconfig.json", "result": "PASS, 1 runnable config" },
+    {
+      "command": "pnpm check:doc-catalog",
+      "result": "EXPECTED EXTERNAL RED, 7 violations; Core-Enforcement-Active-Gates.md was absent from the violation list"
+    },
+    { "command": "git diff --check HEAD -- <six scoped files>", "result": "PASS" }
   ],
   "external_state": {
     "doc_catalog": "The checker reported unrelated current-tree violations for Core-Path-Registry.md, gate-runtime-read-first.md, inference-warning-home-cadence-audit.md, world-tools-brand-boundary-audit.md, and consequent generated/index staleness. None names Core-Enforcement-Active-Gates.md; this review does not charge #2535 for them.",

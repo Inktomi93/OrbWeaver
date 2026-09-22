@@ -14,6 +14,7 @@
 // only `data-tile-reserved` would keep passing for the wrong reason if the measurement were ever lost.
 
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { TrpcFixtureOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { CorpusThemeSectionStory } from "../_ct-stories.tsx";
 
@@ -27,16 +28,16 @@ const DETAIL_A = {
     { characterId: "character_ct_theme_2", name: "Starla", count: 4 },
     { characterId: "character_ct_theme_3", name: "Nova", count: 3 },
   ],
-};
+} satisfies TrpcFixtureOutput<"discovery.themeDetail">;
 
-const DETAIL_B = { ...DETAIL_A, name: "The map changes hands", size: 7 };
+const DETAIL_B = { ...DETAIL_A, name: "The map changes hands", size: 7 } satisfies TrpcFixtureOutput<"discovery.themeDetail">;
 
 test("#1098: picking a SECOND story theme holds the detail card's measured box — the column below does not jump", async ({ mount, page }) => {
   const hold = trpcHold();
   let reads = 0;
   const trpc = await routeTrpc(page, {
     // The first pick answers; the SECOND is parked, which is the pending arm the reservation exists for.
-    "discovery.themeDetail": (): unknown => (reads++ === 0 ? DETAIL_A : hold),
+    "discovery.themeDetail": () => (reads++ === 0 ? DETAIL_A : hold),
   });
   const component = await mount(<CorpusThemeSectionStory />);
 

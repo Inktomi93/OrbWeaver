@@ -2,12 +2,14 @@
 
 import type { SchemaTable } from "@orb/tooling/_shared/schema-read";
 import { schemaTables } from "@orb/tooling/_shared/schema-read";
-import { Node, SyntaxKind } from "ts-morph";
+import type { Expression } from "ts-morph";
+import { Node, SyntaxKind, VariableDeclarationKind } from "ts-morph";
 import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
 import type { TableDef, WriteScan } from "../contract/types.ts";
 import { relPath } from "../ops/swallowed.ts";
 import { declKey } from "./keys.ts";
 import { isPackageSourcePath, isTestPath, KEY_SEP } from "./root.ts";
+import { rawInsertHeaders } from "./sql-insert-header.ts";
 
 // ── columns: drizzle columns classified by CONSUMPTION (READ+WRITE / WRITE-only / READ-only / NEITHER) ─
 // The owner-named RV-11 class: "the model writes a column nobody renders". Every liveness lens above keys on
@@ -48,7 +50,8 @@ import { isPackageSourcePath, isTestPath, KEY_SEP } from "./root.ts";
 //     names the table; an object-literal `<arg>`'s property keys ARE the written columns. For
 //     `insert(<T>).select(db.select({ … }))`, the select projection keys are the destination columns. A
 //     static raw-SQL `INSERT INTO table (columns…)` header also carries both identities, so a small SQL token
-//     reader attributes it without guessing from unrelated mentions of the same column spelling.
+//     reader attributes it when that statement reaches `db.run`/`db.execute`/`db.batch`, without treating
+//     construction of an inert SQL object as a write.
 //
 // THE OPAQUE-WRITER ARM (the honest half). `db.insert(sessions).values(row)` — a whole typed row, no literal —
 // names no column, and `.set({ ...patch, … })` names only some. Such a site marks the TABLE `opaque`: every
@@ -61,8 +64,8 @@ import { isPackageSourcePath, isTestPath, KEY_SEP } from "./root.ts";
 //   1. RAW SQL READS are NOT table-attributable. `sql\`… m.character_id …\`` names a column through a query
 //      ALIAS; no cheap pass maps `m` to `messages`. So the raw-SQL read arm is deliberately TABLE-AGNOSTIC and
 //      over-inclusive: a column whose SQL name appears as a word inside ANY raw `sql` template / `sql.raw()`
-//      text in the workspace is annotated `raw?`. Static INSERT headers now count as writes; dynamic SQL and
-//      raw reads never change a class — `raw?` tells the reader to inspect them before calling a column rot.
+//      text in the workspace is annotated `raw?`. Executed static INSERT headers count as writes; dynamic SQL,
+//      inert SQL objects, and raw reads never change a class — `raw?` tells the reader to inspect them.
 //   2. A column reached ONLY through `Pick<NewX, "col">`-style string-literal type members is invisible to
 //      both arms (measured: those LiteralType nodes resolve to `symbol=<none> decls=0`). It is a type-level
 //      narrowing, never a read or a write on its own, so this is a non-loss — but a reader who sees a column
@@ -173,19 +176,21 @@ function tableDefOf(table: SchemaTable): TableDef | undefined {
     return;
   }
   const varName = table.variableName;
+  const key = declKey(binding);
   const columns = table.columns.map((column) => ({
+    tableKey: key,
     tableVar: varName,
     sqlTable: sqlName,
     jsProp: column.name,
     sqlColumn: sqlColumnName(column.initializer, column.name),
     decl: column.node as Node,
   }));
-  return { varName, sqlName, key: declKey(binding), columns };
+  return { varName, sqlName, key, columns };
 }
 
-/** `<tableVar>\0<jsProp>` — the pair identity the write scan and the read scan agree on. */
-export function columnKey(tableVar: string, jsProp: string): string {
-  return `${tableVar}${KEY_SEP}${jsProp}`;
+/** `<table declaration key>\0<jsProp>` — the canonical identity every read/write/grouping arm shares. */
+export function columnKey(tableKey: string, jsProp: string): string {
+  return `${tableKey}${KEY_SEP}${jsProp}`;
 }
 
 /** A production file that CONSUMES columns: schema declarations and tests are evidence about the model,
@@ -220,7 +225,7 @@ function drizzleWriteTarget(receiver: Node): Node | undefined {
 
 /** Resolve a table EXPRESSION (`rpgGames`, `schema.rpgGames`) to its TableDef through the definition graph —
  *  never by bare identifier text, so a local alias or a renaming import hop still lands on one table. */
-function resolveTableDef(expr: Node, byKey: ReadonlyMap<string, TableDef>): TableDef | undefined {
+export function resolveTableDef(expr: Node, byKey: ReadonlyMap<string, TableDef>): TableDef | undefined {
   const id = Node.isPropertyAccessExpression(expr) ? expr.getNameNode() : expr;
   if (!Node.isIdentifier(id)) {
     return;
@@ -288,181 +293,98 @@ function insertSelectKeysOf(arg: Node | undefined): { names: string[]; opaque: b
   return select === undefined ? { names: [], opaque: true } : writtenKeysOf(select.getArguments()[0]);
 }
 
-interface SqlToken {
-  readonly kind: "word" | "punct";
-  readonly text: string;
-}
-
-interface SqlTokenStep {
-  readonly next: number;
-  readonly token?: SqlToken;
-}
-
-function skipTemplateExpression(text: string, start: number): number {
-  let depth = 1;
-  let index = start + 2;
-  while (index < text.length && depth > 0) {
-    if (text[index] === "{") {
-      depth += 1;
-    } else if (text[index] === "}") {
-      depth -= 1;
-    }
-    index += 1;
-  }
-  return index;
-}
-
-function skipQuoted(text: string, start: number, quote: string): number {
-  let index = start + 1;
-  while (index < text.length) {
-    if (text[index] !== quote) {
-      index += 1;
-    } else if (text[index + 1] === quote) {
-      index += 2;
-    } else {
-      return index + 1;
-    }
-  }
-  return index;
-}
-
-/** Return the end of a non-code SQL region, or undefined when `index` begins ordinary SQL. */
-function skippedSqlRegionEnd(text: string, index: number): number | undefined {
-  const char = text[index];
-  const next = text[index + 1];
-  let end: number | undefined;
-  if (char === "$" && next === "{") {
-    end = skipTemplateExpression(text, index);
-  } else if (char === "-" && next === "-") {
-    const newline = text.indexOf("\n", index + 2);
-    end = newline < 0 ? text.length : newline + 1;
-  } else if (char === "/" && next === "*") {
-    const close = text.indexOf("*/", index + 2);
-    end = close < 0 ? text.length : close + 2;
-  } else if (char === "'") {
-    end = skipQuoted(text, index, char);
-  }
-  return end;
-}
-
-/** Read one SQL token or skip one comment/string/template-expression region. */
-function nextSqlToken(text: string, index: number): SqlTokenStep {
-  const skipped = skippedSqlRegionEnd(text, index);
-  if (skipped !== undefined) {
-    return { next: skipped };
-  }
-  const char = text[index];
-  if (char === '"') {
-    const end = skipQuoted(text, index, char);
-    const value = text.slice(index + 1, Math.max(index + 1, end - 1)).replaceAll('""', '"');
-    return { next: end, token: { kind: "word", text: value } };
-  }
-  if (char !== undefined && /[A-Za-z_]/u.test(char)) {
-    let end = index + 1;
-    while (end < text.length && /[A-Za-z0-9_]/u.test(text[end] ?? "")) {
-      end += 1;
-    }
-    return { next: end, token: { kind: "word", text: text.slice(index, end) } };
-  }
-  return char === "(" || char === ")" || char === "," ? { next: index + 1, token: { kind: "punct", text: char } } : { next: index + 1 };
-}
-
-/** Tokenize the SQL identity alphabet needed by an INSERT header. */
-function sqlTokens(text: string): SqlToken[] {
-  const out: SqlToken[] = [];
-  let index = 0;
-  while (index < text.length) {
-    const step = nextSqlToken(text, index);
-    if (step.token !== undefined) {
-      out.push(step.token);
-    }
-    index = step.next;
-  }
-  return out;
-}
-
-const INSERT_COLUMN_START_OFFSET = 3;
-
-function rawInsertColumnsAt(tokens: readonly SqlToken[], start: number): readonly string[] | undefined {
-  const columns: string[] = [];
-  let cursor = start;
-  let expectWord = true;
-  while (cursor < tokens.length && tokens[cursor]?.text !== ")") {
-    const token = tokens[cursor];
-    if (token === undefined || (expectWord ? token.kind !== "word" : token.text !== ",")) {
-      return;
-    }
-    if (expectWord) {
-      columns.push(token.text);
-    }
-    expectWord = !expectWord;
-    cursor += 1;
-  }
-  return columns.length > 0 && !expectWord && tokens[cursor]?.text === ")" ? columns : undefined;
-}
-
-/** Parse one INSERT header beginning at `start`, or decline when its target list is not static. */
-function rawInsertHeaderAt(tokens: readonly SqlToken[], start: number): { table: string; columns: readonly string[] } | undefined {
-  let cursor = start + 1;
-  if (tokens[cursor]?.text.toLowerCase() === "or") {
-    cursor += 2;
-  }
-  if (tokens[cursor]?.text.toLowerCase() !== "into" || tokens[cursor + 1]?.kind !== "word" || tokens[cursor + 2]?.text !== "(") {
-    return;
-  }
-  const table = tokens[cursor + 1]?.text;
-  if (table === undefined) {
-    return;
-  }
-  const columns = rawInsertColumnsAt(tokens, cursor + INSERT_COLUMN_START_OFFSET);
-  return columns === undefined ? undefined : { table, columns };
-}
-
-/** Parse static `INSERT [OR …] INTO table (column, …)` headers. */
-function rawInsertHeaders(text: string): readonly { table: string; columns: readonly string[] }[] {
-  const tokens = sqlTokens(text);
-  const out: { table: string; columns: readonly string[] }[] = [];
-  for (let start = 0; start < tokens.length; start += 1) {
-    if (tokens[start]?.kind !== "word" || tokens[start]?.text.toLowerCase() !== "insert") {
-      continue;
-    }
-    const header = rawInsertHeaderAt(tokens, start);
-    if (header !== undefined) {
-      out.push(header);
-    }
-  }
-  return out;
-}
-
-function recordRawHeader(
-  header: { table: string; columns: readonly string[] },
-  tables: readonly TableDef[],
-  site: string,
-  perColumn: Map<string, string[]>,
-): void {
+function recordRawHeader(header: { table: string; columns: readonly string[] }, tables: readonly TableDef[], site: string, writes: WriteScan): void {
   const table = tables.find((candidate) => candidate.sqlName.toLowerCase() === header.table.toLowerCase());
   if (table === undefined) {
     return;
   }
+  writes.perTable.set(table.key, [...(writes.perTable.get(table.key) ?? []), site]);
   for (const sqlName of header.columns) {
     const column = table.columns.find((candidate) => candidate.sqlColumn.toLowerCase() === sqlName.toLowerCase());
     if (column !== undefined) {
-      const key = columnKey(table.varName, column.jsProp);
-      perColumn.set(key, [...(perColumn.get(key) ?? []), site]);
+      const key = columnKey(table.key, column.jsProp);
+      writes.perColumn.set(key, [...(writes.perColumn.get(key) ?? []), site]);
     }
   }
 }
 
-/** Attribute static raw INSERT headers by SQL table+column identity. Other SQL remains advisory `raw?`. */
-function recordRawSqlWrites(sf: import("ts-morph").SourceFile, tables: readonly TableDef[], perColumn: Map<string, string[]>): void {
-  for (const tagged of sf.getDescendantsOfKind(SyntaxKind.TaggedTemplateExpression)) {
-    const tag = tagged.getTag();
-    if (!Node.isIdentifier(tag) || tag.getText() !== "sql") {
-      continue;
-    }
-    const site = `${relPath(sf.getFilePath())}:${tagged.getStartLineNumber()}`;
-    for (const header of rawInsertHeaders(tagged.getTemplate().getText())) {
-      recordRawHeader(header, tables, site, perColumn);
+/** Resolve a const-bound expression through symbol identity. An unresolved/dynamic value returns no nodes,
+ *  which is the honest result for a producer audit: text construction alone is never execution evidence. */
+function resolvedInitializers(node: Node, seen: Set<Node>): readonly Expression[] {
+  if (!Node.isIdentifier(node) || seen.has(node)) {
+    return [];
+  }
+  seen.add(node);
+  return node
+    .getDefinitionNodes()
+    .filter(Node.isVariableDeclaration)
+    .filter((declaration) => declaration.getParentIfKind(SyntaxKind.VariableDeclarationList)?.getDeclarationKind() === VariableDeclarationKind.Const)
+    .map((declaration) => declaration.getInitializer())
+    .filter((initializer): initializer is Expression => initializer !== undefined);
+}
+
+/** Static raw SQL constructors reachable from one executed statement expression. */
+function rawSqlNodes(node: Node, seen: Set<Node>): readonly { node: Node; text: string }[] {
+  if (Node.isTaggedTemplateExpression(node)) {
+    const tag = node.getTag();
+    return Node.isIdentifier(tag) && tag.getText() === "sql" ? [{ node, text: node.getTemplate().getText() }] : [];
+  }
+  if (Node.isCallExpression(node)) {
+    const expression = node.getExpression();
+    const argument = node.getArguments()[0];
+    return Node.isPropertyAccessExpression(expression) &&
+      expression.getExpression().getText() === "sql" &&
+      expression.getName() === "raw" &&
+      (Node.isStringLiteral(argument) || Node.isNoSubstitutionTemplateLiteral(argument))
+      ? [{ node, text: argument.getLiteralText() }]
+      : [];
+  }
+  return resolvedInitializers(node, seen).flatMap((initializer) => rawSqlNodes(initializer, seen));
+}
+
+/** Statements passed to an executed batch, following the house `batchMany([…])` wrapper and const aliases. */
+function batchStatements(node: Node, seen: Set<Node>): readonly Node[] {
+  if (Node.isArrayLiteralExpression(node)) {
+    return node.getElements();
+  }
+  if (Node.isCallExpression(node) && Node.isIdentifier(node.getExpression()) && node.getExpression().getText() === "batchMany") {
+    const argument = node.getArguments()[0];
+    return argument === undefined ? [] : batchStatements(argument, seen);
+  }
+  const initializers = resolvedInitializers(node, seen);
+  return initializers.length === 0 ? [] : initializers.flatMap((initializer) => batchStatements(initializer, seen));
+}
+
+function isDatabaseReceiver(node: Node): boolean {
+  return (Node.isIdentifier(node) && node.getText() === "db") || (Node.isPropertyAccessExpression(node) && node.getName() === "db");
+}
+
+/** Attribute raw INSERTs only when their statement reaches an executing db.run/db.execute/db.batch sink. */
+function recordRawSqlWrites(call: Node, tables: readonly TableDef[], writes: WriteScan): void {
+  if (!Node.isCallExpression(call)) {
+    return;
+  }
+  const expression = call.getExpression();
+  if (!(Node.isPropertyAccessExpression(expression) && isDatabaseReceiver(expression.getExpression()))) {
+    return;
+  }
+  const argument = call.getArguments()[0];
+  if (argument === undefined) {
+    return;
+  }
+  const method = expression.getName();
+  let statements: readonly Node[] = [];
+  if (method === "batch") {
+    statements = batchStatements(argument, new Set<Node>());
+  } else if (method === "run" || method === "execute") {
+    statements = [argument];
+  }
+  for (const statement of statements) {
+    for (const raw of rawSqlNodes(statement, new Set<Node>())) {
+      const site = `${relPath(raw.node.getSourceFile().getFilePath())}:${raw.node.getStartLineNumber()}`;
+      for (const header of rawInsertHeaders(raw.text)) {
+        recordRawHeader(header, tables, site, writes);
+      }
     }
   }
 }
@@ -470,23 +392,22 @@ function recordRawSqlWrites(sf: import("ts-morph").SourceFile, tables: readonly 
 /** ONE structural pass for every drizzle write in the workspace (outside the schema dir). */
 export function scanColumnWrites(project: SourceCorpus, tables: readonly TableDef[]): WriteScan {
   const byKey = new Map(tables.map((t) => [t.key, t]));
-  const perColumn = new Map<string, string[]>();
-  const opaqueTables = new Map<string, string[]>();
+  const writes: WriteScan = { perTable: new Map<string, string[]>(), perColumn: new Map<string, string[]>(), opaqueTables: new Map<string, string[]>() };
   for (const sf of project.getSourceFiles()) {
     if (!isColumnConsumer(sf.getFilePath())) {
       continue;
     }
     for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
-      recordWriteCall(call, byKey, perColumn, opaqueTables);
+      recordWriteCall(call, byKey, writes);
+      recordRawSqlWrites(call, tables, writes);
     }
-    recordRawSqlWrites(sf, tables, perColumn);
   }
-  return { perColumn, opaqueTables };
+  return writes;
 }
 
 /** Record ONE call expression's contribution to the write scan (a no-op for the overwhelming majority — any
  *  call whose chain does not reach a drizzle `insert`/`update`). */
-function recordWriteCall(call: Node, byKey: ReadonlyMap<string, TableDef>, perColumn: Map<string, string[]>, opaqueTables: Map<string, string[]>): void {
+function recordWriteCall(call: Node, byKey: ReadonlyMap<string, TableDef>, writes: WriteScan): void {
   if (!Node.isCallExpression(call)) {
     return;
   }
@@ -504,14 +425,15 @@ function recordWriteCall(call: Node, byKey: ReadonlyMap<string, TableDef>, perCo
     return;
   }
   const site = `${relPath(call.getSourceFile().getFilePath())}:${call.getStartLineNumber()}`;
+  writes.perTable.set(table.key, [...(writes.perTable.get(table.key) ?? []), site]);
   const arg = writeArgOf(call, method);
   const { names, opaque } = method === "select" ? insertSelectKeysOf(arg) : writtenKeysOf(arg);
   for (const name of names) {
-    const key = columnKey(table.varName, name);
-    perColumn.set(key, [...(perColumn.get(key) ?? []), site]);
+    const key = columnKey(table.key, name);
+    writes.perColumn.set(key, [...(writes.perColumn.get(key) ?? []), site]);
   }
   if (opaque) {
-    opaqueTables.set(table.varName, [...(opaqueTables.get(table.varName) ?? []), site]);
+    writes.opaqueTables.set(table.key, [...(writes.opaqueTables.get(table.key) ?? []), site]);
   }
 }
 

@@ -327,7 +327,7 @@ test("the resolver's funder fence answers a stranger's row exactly as it answers
   expect(s.securityEvents[0]?.fields["owner"]).toBe(s.bobId);
 });
 
-test("providers.register refuses a built-in id and a mis-namespaced plugin row; drop removes a runtime row", async () => {
+test("providers.register refuses a built-in id and a mis-namespaced plugin row; dropPlugin removes its runtime row", async () => {
   const s = scene();
   const runtime = await createInferenceRuntime(s.deps);
   const adminId = newUserId();
@@ -345,10 +345,46 @@ test("providers.register refuses a built-in id and a mis-namespaced plugin row; 
   };
   await expect(runtime.providers.register(bad, { plugin: newPluginId(), pluginName: "acme" })).rejects.toMatchObject({ kind: "invalid" });
   const good = { ...bad, id: "plugin:acme/relay" };
-  const row = await runtime.providers.register(good, { plugin: newPluginId(), pluginName: "acme" });
+  const pluginId = newPluginId();
+  const row = await runtime.providers.register(good, { plugin: pluginId, pluginName: "acme" });
   expect(runtime.providers.registry.get(row.id)?.label).toBe("Relay");
   expect(s.stores.providerStore.rows.has(row.id)).toBe(true);
-  await runtime.providers.drop(row.id);
+  await runtime.providers.dropPlugin(pluginId);
   expect(runtime.providers.registry.get(row.id)).toBeUndefined();
-  expect(s.stores.providerStore.rows.has(row.id)).toBe(false);
+  expect(s.stores.providerStore.rows.has(row.id)).toBe(true);
+});
+
+test("a registry refresh failure compensates the durable plugin contribution before activation fails", async () => {
+  const s = scene();
+  const durable = s.stores.providerStore;
+  const listFailures: Error[] = [];
+  const providerStore = {
+    ...durable,
+    list: (): ReturnType<typeof durable.list> => {
+      const failure = listFailures.shift();
+      if (failure !== undefined) {
+        return Promise.reject(failure);
+      }
+      return durable.list();
+    },
+  };
+  const runtime = await createInferenceRuntime({ ...s.deps, providerStore });
+  const pluginId = newPluginId();
+  const row = {
+    id: "plugin:acme/rollback",
+    label: "Rollback",
+    wire: "openai-compat",
+    dialect: "openai-compatible",
+    auth: "endpoint",
+    apis: ["chat-completions"],
+    catalog: "url",
+    metered: false,
+  };
+
+  listFailures.push(new Error("test: provider snapshot unavailable"));
+  await expect(runtime.providers.registerPlugin([row], { plugin: pluginId, pluginName: "acme" })).rejects.toThrow("provider snapshot unavailable");
+  expect(durable.rows.has(row.id)).toBe(true);
+
+  const restarted = await createInferenceRuntime(s.deps);
+  expect(restarted.providers.registry.get(row.id)).toBeUndefined();
 });

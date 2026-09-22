@@ -11,12 +11,12 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { RegexMemberStory } from "../_ct-stories.tsx";
 
 /** The subject — the script whose editor the panel sits under. It strips parenthesised OOC asides. */
-const SUBJECT = {
+const SUBJECT: TrpcWireOutput<"regex.updateScript"> = {
   id: "regex_script_stripooc",
   name: "strip ooc",
   findRegex: "\\(ooc\\)",
@@ -33,7 +33,7 @@ const SUBJECT = {
 };
 
 /** An always-on script that runs BEFORE the subject when both are global — it shouts the word "loud". */
-const SHOUT = {
+const SHOUT: TrpcWireOutput<"regex.updateScript"> = {
   ...SUBJECT,
   id: "regex_script_shout0000000",
   name: "shout",
@@ -42,7 +42,14 @@ const SHOUT = {
 };
 
 /** An always-on script that is SWITCHED OFF — the gate the panel must name rather than silently drop. */
-const OFF = { ...SHOUT, id: "regex_script_off000000000", name: "sleeper", enabled: false, findRegex: "goblin", replaceString: "ORC" };
+const OFF: TrpcWireOutput<"regex.updateScript"> = {
+  ...SHOUT,
+  id: "regex_script_off000000000",
+  name: "sleeper",
+  enabled: false,
+  findRegex: "goblin",
+  replaceString: "ORC",
+};
 
 const STREAM = "Model output";
 const SAMPLE = "the quiet goblin says (ooc) hush";
@@ -52,7 +59,7 @@ const SAMPLE = "the quiet goblin says (ooc) hush";
 const OTHER_SCOPES_CAVEAT = /adds its own scripts AFTER these/;
 const DEPTH_CAVEAT = /this script’s depth range is not applied/;
 
-function stub(page: Page, globals: readonly unknown[], subject: Record<string, unknown> = SUBJECT): Promise<TrpcRecorder> {
+function stub(page: Page, globals: TrpcWireOutput<"regex.listGlobal">, subject: TrpcWireOutput<"regex.updateScript"> = SUBJECT): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "regex.listScripts": () => [subject],
     "regex.listGlobal": () => globals,
@@ -166,7 +173,7 @@ test("it states that preset / character / room scripts are not in this run", asy
 });
 
 test("on the history leg with a depth bound, it says the bound is not honoured here", async ({ mount, page }) => {
-  const scoped = { ...SUBJECT, placement: ["PROMPT_HISTORY"], historyDepth: { min: 3, max: null } };
+  const scoped = { ...SUBJECT, placement: ["PROMPT_HISTORY"] as const, historyDepth: { min: 3, max: null } };
   await stub(page, [scoped], scoped);
   await mount(<RegexMemberStory />);
   await page.getByRole("combobox", { name: "Stream" }).click();

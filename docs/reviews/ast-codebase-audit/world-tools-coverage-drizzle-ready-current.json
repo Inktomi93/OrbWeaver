@@ -1,0 +1,219 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-09-21T10:23:27-06:00",
+  "worktree": "/home/inktomi/.codex/worktrees/world-aware-tools/orbweaver",
+  "head": "8f7ed4c4b98c112429c3918483f3a172f66ae184",
+  "worktreePosture": {
+    "dirtyEntries": 158,
+    "readOnlyAudit": true,
+    "repoEdits": [],
+    "boardMutations": [],
+    "broadOrHeavySuitesRun": []
+  },
+  "boardSnapshot": {
+    "command": "pnpm work:item show 2555 2546 2547 2549 2551 2552",
+    "items": [
+      { "issue": 2555, "boardStatus": "Done", "githubState": "CLOSED" },
+      { "issue": 2546, "boardStatus": "Ready", "githubState": "OPEN" },
+      { "issue": 2547, "boardStatus": "Ready", "githubState": "OPEN" },
+      { "issue": 2549, "boardStatus": "Ready", "githubState": "OPEN" },
+      { "issue": 2551, "boardStatus": "Ready", "githubState": "OPEN" },
+      { "issue": 2552, "boardStatus": "Ready", "githubState": "OPEN" }
+    ]
+  },
+  "brandedDrizzleGraph": {
+    "durableReceipt": {
+      "path": "docs/reviews/ast-codebase-audit/world-tools-branded-drizzle-graph.json",
+      "sha256": "8983046e0d5eb415bd646d9972aad3bd5d91030025077049697cf226774221af",
+      "sourceCommit": "3e5644415596a5e267b2f6d21e63f0a967942bf6",
+      "statusInThisWorktree": "untracked but byte-identical to the checksum recorded on closed issue #2555",
+      "closedDenominator": {
+        "drizzleColumnSites": 357,
+        "directBrand": 260,
+        "brandBearingContainer": 11,
+        "brandBearingTotal": 271,
+        "unbranded": 86,
+        "tablesWithBrandColumns": 100,
+        "schemaFiles": 29,
+        "unmappedBrandSites": 0
+      },
+      "edgeCounts": {
+        "attributedWriterEdges": 358,
+        "opaqueWriterEdges": 419,
+        "conservativeReaderEdges": 14084
+      },
+      "adjudication": {
+        "manualRows": 24,
+        "rawSqlRows": 2,
+        "confirmedFindings": 2,
+        "findingOutcomes": [
+          {
+            "id": "BBG-001",
+            "issue": 2559,
+            "outcome": "implemented and independently verified outside HEAD; issue closed; current shared tree carries the append implementation as dirty/untracked files"
+          },
+          {
+            "id": "BBG-002",
+            "issue": 2560,
+            "outcome": "implemented and verified in commit e6ff10457, which is an ancestor of this HEAD"
+          }
+        ]
+      }
+    },
+    "currentTreeReconciliation": {
+      "method": "Closed delta from the durable 271-row graph: git diff from the receipt source commit over all 29 schema files, literal $type inventory, and TS plus TSX ast-grep producer/read searches for every added or removed brand-bearing column. This is not a regenerated 8 MB graph.",
+      "literalTypeSiteReceipt": {
+        "currentDollarTypeOccurrences": 364,
+        "schemaFilesContainingDollarType": 29,
+        "note": "The durable graph intentionally admitted 357 column sites while the source tree had 362 literal $type occurrences; five literals are not Drizzle column sites. The current schema has 364 literal occurrences. The closed semantic delta is plus two brand-bearing columns net."
+      },
+      "currentDenominator": {
+        "drizzleColumnSites": 359,
+        "directBrand": 262,
+        "brandBearingContainer": 11,
+        "brandBearingTotal": 273,
+        "unbranded": 86,
+        "tablesWithBrandColumns": 101,
+        "schemaFiles": 29,
+        "unmappedBrandSites": 0
+      },
+      "delta": [
+        {
+          "operation": "add",
+          "identity": "chatStreamEvents.generationId",
+          "brand": "ChatStreamGenerationId",
+          "schema": "packages/db/src/schema/chat.ts:949",
+          "producer": "packages/server/src/domain/chat/persistence/stream-events.ts:39,54-63; one server-minted generation id is written with the message-root anchored event batch",
+          "reader": "packages/server/src/domain/chat/persistence/queries.ts:935-952 projects generationId through the replay read",
+          "classification": "read-write trusted constructor",
+          "structuralReceipt": "ast-grep scanned 5,038 TS and 1,406 TSX files; the table-qualified reader and production db.insert(chatStreamEvents) writer were both found"
+        },
+        {
+          "operation": "remove",
+          "identity": "providerRows.originPluginId",
+          "brand": "PluginId",
+          "oldSchema": "packages/db/src/schema/connection-bindings.ts:113 in the durable receipt",
+          "classification": "intentional replacement by the contribution junction; no deletion gap"
+        },
+        {
+          "operation": "add",
+          "identity": "pluginProviderContributions.providerId",
+          "brand": "ProviderId",
+          "schema": "packages/db/src/schema/connection-bindings.ts:152",
+          "producer": "packages/server/src/domain/connection/persistence/provider-rows.ts:157-185 writes schema-parsed ProviderDef.row.id",
+          "readers": "packages/server/src/domain/connection/persistence/provider-rows.ts:83-94,183,188-192 resolve active definitions and contribution identity",
+          "classification": "read-write parsed boundary plus composite FK",
+          "structuralReceipt": "ast-grep scanned 5,038 TS and 1,406 TSX files and found the exact table-qualified reads and production insert"
+        },
+        {
+          "operation": "add",
+          "identity": "pluginProviderContributions.pluginId",
+          "brand": "PluginId",
+          "schema": "packages/db/src/schema/connection-bindings.ts:153-156",
+          "producer": "packages/server/src/domain/connection/persistence/provider-rows.ts:157-185 writes the typed pluginId parameter",
+          "readers": "packages/server/src/domain/connection/persistence/provider-rows.ts:73-89,183,188-192,206-207 uses plugin identity for enabled-plugin authority, conflict keying, stale cleanup, and deletion",
+          "classification": "read-write typed propagation plus FK",
+          "structuralReceipt": "ast-grep scanned 5,038 TS and 1,406 TSX files and found the exact table-qualified reads and production insert"
+        }
+      ],
+      "verdict": "The saved #2555 receipt is complete and verified for its 357-site captured denominator. It is no longer a current full-tree graph because three brand columns were added and one removed after capture. The four-row delta closes the present 359-site denominator manually and exposes no new producer/read gap, but the durable graph should be regenerated only after the concurrent schema and #2559 changes land."
+    }
+  },
+  "readyItemMatrix": [
+    {
+      "issue": 2555,
+      "title": "Build producer and reader graph for branded Drizzle columns",
+      "classification": "complete_and_verified",
+      "evidence": [
+        "The durable receipt checksum matches the issue evidence exactly.",
+        "The captured graph maps all 271 brand-bearing columns and adjudicates all 24 manual candidates.",
+        "Both confirmed findings were dispatched; #2560 is in HEAD and #2559 is closed with independent evidence, though its implementation remains dirty/untracked in this shared tree."
+      ],
+      "currentLimitation": "The receipt predates the current three-add/one-remove schema delta. The manual reconciliation closes the current denominator at 273 brand-bearing columns but does not update the durable edge corpus.",
+      "nextSmallestCompleteAction": "After the current schema and chat-stream work is committed, regenerate world-tools-branded-drizzle-graph.json and its index entry once, confirm 359 total sites, 273 brand-bearing rows, 101 tables, zero unmapped, and retain the four-row delta classifications."
+    },
+    {
+      "issue": 2546,
+      "title": "Wire refinery schema deletion into the live editor",
+      "classification": "concrete_missing_repair",
+      "evidence": [
+        "useDeleteRefinerySchema remains only its declaration at packages/client/src/features/refinery/hooks/use-refinery-schemas.ts:51 and front-door re-export at packages/client/src/features/refinery/index.ts:57.",
+        "Call-pattern ast-grep found zero calls after scanning 844 TS and 1,137 TSX files under packages/client/src plus tests/client; rg found exactly the same two declaration/export occurrences.",
+        "The server deleteSchema mutation remains live at packages/server/src/transport/trpc/routers/refinery.ts:166-168."
+      ],
+      "nextSmallestCompleteAction": "Add the affordance to the existing refinery schema list/editor surface, call the existing hook, reuse the destructive confirmation and toast/query-invalidation idioms, and add a rendered route-level control for confirm, success, refusal/error, and list invalidation."
+    },
+    {
+      "issue": 2547,
+      "title": "Build the app-level command omni-bar",
+      "classification": "stale_tracker",
+      "evidence": [
+        "A production app-level palette has existed since July: packages/client/src/features/chat/surfaces/command-palette-surface.tsx:59-266 composes @orb/ui/command with real thread, section, slash-command, and dynamic source registries.",
+        "packages/client/src/features/chat/lib/command-modal.tsx:11-25 installs it in the app modal registry; ModalHost supplies the real dialog, and the surface owns Escape at line 103.",
+        "tests/client/features/chat/surfaces/command-palette-surface.ct.tsx covers real tRPC rows, registry groups, filtering, loading/error/retry, and invocation; app-shell CTs cover open, Escape, focus return, roving selection, and geometry.",
+        "Commit 370243fe7 is an ancestor of main and HEAD, so this is landed behavior, not concurrent WIP.",
+        "CommandSeparator and CommandLoading remain unused optional anatomy: ast-grep over 5,038 TS and 1,406 TSX files found only barrel/import-alias/declaration sites. The live palette uses semantic CommandGroup headings and a visible QueryBoundary loading group instead."
+      ],
+      "nextSmallestCompleteAction": "Refute or close #2547 with the landed surface and CT receipts. Keep CommandSeparator and CommandLoading as intentional optional package API unless a separate product requirement actually needs visual separators or progressbar semantics; their non-use does not prove the omni-bar is absent."
+    },
+    {
+      "issue": 2549,
+      "title": "Complete the connection diagnostics UI",
+      "classification": "concrete_missing_repair",
+      "evidence": [
+        "Client-only ast-grep found zero accountCredits, verifyAuth, or inspectEndpoint identifiers across 625 TS and 694 TSX production client files.",
+        "The current mutation layer wires only connection.listEndpointModels and connection.probe at packages/client/src/features/credentials/hooks/use-connections-mutations.ts:55,85.",
+        "The three server procedures remain live at packages/server/src/transport/trpc/routers/connection.ts:123-146."
+      ],
+      "ownerDecision": "The row itself retains a real fork only for inspectEndpoint: build the shaped sample-response inspector or explicitly retire that RPC and repair the active design claim. accountCredits and verifyAuth are unambiguous missing UI wiring.",
+      "nextSmallestCompleteAction": "Wire verifyAuth into Claude subscription save, add supported per-row accountCredits state, then obtain the inspectEndpoint ruling and either implement its dialog or retire the wrapper and claim. Cover loading, success, refusal, and error through real tRPC doors."
+    },
+    {
+      "issue": 2551,
+      "title": "Trace clientgap through AppRouter output provenance",
+      "classification": "concrete_missing_repair",
+      "evidence": [
+        "tooling/src/ast/ops/wiring.ts:298-337 still computes clientgap only from import-based liveness and explicitly warns that AppRouter, barrel, and Trpc inference can be missed.",
+        "The focused tests at tests/tooling/ast/index.test.ts:2486-2558 cover only direct client/server imports; there are no controls for AppRouter outputs, Zod aliases, nested members, or intersections.",
+        "No source diff exists in wiring.ts, liveness.ts, or edges.ts. The only dirty clientgap-adjacent source is usage text for unrelated column-lens work."
+      ],
+      "nextSmallestCompleteAction": "Add red-first in-memory controls for direct router returns, service return types, barrel re-exports, z.infer aliases, nested constituents, and intersections; then resolve AppRouter procedure output provenance to exact contract declaration identities and fail loud on unresolved provenance."
+    },
+    {
+      "issue": 2552,
+      "title": "Reconcile live dev DB migration record with frozen 0000 baseline",
+      "classification": "concrete_missing_repair",
+      "evidence": [
+        "The only production migration-ledger template strings are two SELECTs in packages/db/src/client/index.ts:459,463; structural scan covered 4,026 TS and 807 TSX production/tooling files and found no write repair path.",
+        "The 12 test-side ledger template strings include eight UPDATE fixtures; this is a positive control proving the structural rule sees ledger writes when present.",
+        "checkBaseline at packages/db/src/client/index.ts:564-575 still classifies any unmatched hash/timestamp as regenerated, and launched boot at packages/server/src/entry/boot/migrate.ts:68-81 still refuses it.",
+        "The dirty 0002/0003 migrations and journal entries do not reconcile the orphaned 0000 record and do not touch the client/boot implementation."
+      ],
+      "nextSmallestCompleteAction": "Implement an explicit one-shot repair path that first proves a DB+WAL+SHM copy has the expected legacy 0000 schema/data and exact known old identity, records before/after metadata, updates only the migration ledger to the frozen shipped 0000 identity, then runs checkBaseline and the full forward chain on the copy. Refuse unknown hashes or schema drift and never point it at the live database during development."
+    }
+  ],
+  "categoryCounts": {
+    "complete_and_verified": 1,
+    "implemented_but_awaiting_review_or_landing": 0,
+    "intentional_preservation": 0,
+    "concrete_missing_repair": 4,
+    "owner_decision": 0,
+    "stale_tracker": 1,
+    "notes": "#2549 contains one owner-decision subpart, but the item as a whole remains concrete missing repair. CommandSeparator and CommandLoading are intentional-preservation subfacts inside stale #2547."
+  },
+  "searchReceipts": {
+    "readySymbolsAllPackagesAndTests": "ast-grep identifier scans: 5,038 TS and 1,406 TSX files per symbol",
+    "clientDiagnostics": "ast-grep identifier scans: 625 TS and 694 TSX production client files per symbol",
+    "refineryDeleteCalls": "ast-grep call scan: 844 TS and 1,137 TSX files under client source plus client tests; zero calls",
+    "migrationLedgerProduction": "ast-grep template_string rule: 4,026 TS and 807 TSX production/tooling files; two SELECT templates, zero writes",
+    "migrationLedgerTests": "ast-grep template_string rule: 2,405 TS and 600 TSX test files; 12 matches including eight UPDATE fixtures",
+    "textualCorroboration": "rg over explicit *.ts and *.tsx scopes corroborated every structural negative and identified declaration, barrel, server-door, and test-only occurrences",
+    "testsRun": []
+  },
+  "limitations": [
+    "The worktree is shared and changed during the audit. Every live-tree conclusion is timestamped and scoped to the stated HEAD plus 158 dirty entries.",
+    "No whole-repository AST command, typecheck, component suite, migration run, or live database access was performed.",
+    "The present 273-row brand denominator is a closed source delta over the checksummed 271-row graph, not a regenerated graph artifact. Edge totals remain those of the durable receipt until regeneration.",
+    "The #2559 append implementation is visible in this working tree but not in HEAD; its issue is closed on a separate independent verification receipt."
+  ]
+}

@@ -6,6 +6,7 @@
 // and appends the next page, and it stays a no-op once the collection is exhausted.
 
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { TrpcFixtureOutput } from "../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../support/node/route-trpc.ts";
 import { NotificationsSurfaceStory } from "./_ct-stories.tsx";
 
@@ -15,11 +16,11 @@ const PAGE_1 = {
     { id: "notif_2", type: "kicked", createdAt: 2 },
   ],
   nextCursor: 2,
-};
+} satisfies TrpcFixtureOutput<"notifications.list">;
 const PAGE_2 = {
   items: [{ id: "notif_3", type: "handoff-nominated", createdAt: 3 }],
   nextCursor: null,
-};
+} satisfies TrpcFixtureOutput<"notifications.list">;
 
 test("onEndApproach fetches the next page and appends its rows (the guarded tail-fetch)", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {

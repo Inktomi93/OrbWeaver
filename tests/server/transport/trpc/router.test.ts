@@ -44,6 +44,7 @@ describe("clientError (PD-58 — the client error boundary's report verb)", () =
     const ctx = makeContext({ auth: null });
     await expect(
       // biome-ignore lint/suspicious/noExplicitAny: deliberately malformed input — proving the zod gate rejects it, not the type layer.
+      // @orb-waive no-test-fabrication(any): deliberately missing required wire field to prove the real tRPC/Zod boundary returns BAD_REQUEST; ends when the caller accepts unknown input directly.
       caller(ctx).clientError({ message: "boom" } as any),
     ).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });

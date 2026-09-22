@@ -672,7 +672,7 @@ test("#129 the shipped first boot reserves the grid a FULL page settles into", a
 
   chats.release(chatListResponder(FIRST_BOOT_ROOMS)({ limit: RECENTS_LIMIT }));
   characters.release(characterListResponder(FIRST_BOOT_FACES)({ limit: QUICK_PICKS_FACES }));
-  settings.release({ config: DEFAULT_USER_SETTINGS, schemaVersion: 1, updatedAt: 0, userId: "user_ct_first_boot" });
+  settings.release({ config: DEFAULT_USER_SETTINGS, configUnreadable: null, schemaVersion: 1, updatedAt: 0, userId: "user_ct_first_boot" });
   documents.release(FIRST_BOOT_BANK);
   health.release(FIRST_BOOT_HEALTH);
 
@@ -736,7 +736,7 @@ test("#835 the read-less jump tile keeps its own box across every neighbour's re
 
   chats.release(chatListResponder(FIRST_BOOT_ROOMS)({ limit: RECENTS_LIMIT }));
   characters.release(characterListResponder(FIRST_BOOT_FACES)({ limit: QUICK_PICKS_FACES }));
-  settings.release({ config: DEFAULT_USER_SETTINGS, schemaVersion: 1, updatedAt: 0, userId: "user_ct_read_less" });
+  settings.release({ config: DEFAULT_USER_SETTINGS, configUnreadable: null, schemaVersion: 1, updatedAt: 0, userId: "user_ct_read_less" });
   documents.release(FIRST_BOOT_BANK);
   health.release(FIRST_BOOT_HEALTH);
 
@@ -789,7 +789,7 @@ test("#177 a tile whose settled box is a CONSTANT reserves it exactly — no res
 
   chats.release(chatListResponder(FIRST_BOOT_ROOMS)({ limit: RECENTS_LIMIT }));
   characters.release(characterListResponder(FIRST_BOOT_FACES)({ limit: QUICK_PICKS_FACES }));
-  settings.release({ config: DEFAULT_USER_SETTINGS, schemaVersion: 1, updatedAt: 0, userId: "user_ct_first_boot" });
+  settings.release({ config: DEFAULT_USER_SETTINGS, configUnreadable: null, schemaVersion: 1, updatedAt: 0, userId: "user_ct_first_boot" });
   documents.release(FIRST_BOOT_BANK);
   health.release(FIRST_BOOT_HEALTH);
 
@@ -842,7 +842,7 @@ test("#188 a sweep that DID reap reconciles the chats list (the arm the fix must
     "chat.listChats": chatListResponder(REAP_SETTLED_ROOMS),
     "chat.reapTemporaryChats": { reaped: 3 },
     "character.list": characterListResponder(FIRST_BOOT_FACES),
-    "settings.getUserSettings": { config: DEFAULT_USER_SETTINGS, schemaVersion: 1, updatedAt: 0, userId: "user_ct_reap_hit" },
+    "settings.getUserSettings": { config: DEFAULT_USER_SETTINGS, configUnreadable: null, schemaVersion: 1, updatedAt: 0, userId: "user_ct_reap_hit" },
   });
 
   const home = await mount(<HomeShippedFirstBootStory />);
@@ -858,7 +858,7 @@ test("#188 a sweep that reaped NOTHING costs the landing no second chats read", 
     "chat.listChats": chatListResponder(REAP_SETTLED_ROOMS),
     "chat.reapTemporaryChats": { reaped: 0 },
     "character.list": characterListResponder(FIRST_BOOT_FACES),
-    "settings.getUserSettings": { config: DEFAULT_USER_SETTINGS, schemaVersion: 1, updatedAt: 0, userId: "user_ct_reap_miss" },
+    "settings.getUserSettings": { config: DEFAULT_USER_SETTINGS, configUnreadable: null, schemaVersion: 1, updatedAt: 0, userId: "user_ct_reap_miss" },
   });
 
   const home = await mount(<HomeShippedFirstBootStory />);
@@ -1010,7 +1010,7 @@ test("#499 the databank empty state's CTAs clear the 1280x800 fold — and the s
       "chat.listChats": chatListResponder(FIRST_BOOT_ROOMS),
       "chat.reapTemporaryChats": { reaped: 0 },
       "character.list": characterListResponder(FIRST_BOOT_FACES),
-      "settings.getUserSettings": { config: DEFAULT_USER_SETTINGS, schemaVersion: 1, updatedAt: 0, userId: "user_ct_fold" },
+      "settings.getUserSettings": { config: DEFAULT_USER_SETTINGS, configUnreadable: null, schemaVersion: 1, updatedAt: 0, userId: "user_ct_fold" },
     },
     [],
   );
@@ -1181,7 +1181,7 @@ for (const polarity of ["dark", "light"] as const) {
         "chat.listChats": chatListResponder(FIRST_BOOT_ROOMS),
         "chat.reapTemporaryChats": { reaped: 0 },
         "character.list": characterListResponder(FIRST_BOOT_FACES),
-        "settings.getUserSettings": { config: DEFAULT_USER_SETTINGS, schemaVersion: 1, updatedAt: 0, userId: "user_ct_fade" },
+        "settings.getUserSettings": { config: DEFAULT_USER_SETTINGS, configUnreadable: null, schemaVersion: 1, updatedAt: 0, userId: "user_ct_fade" },
       },
       [],
     );
@@ -1403,7 +1403,7 @@ test("#1145 the teaching paragraphs take the PROSE measure, and it reads inside 
       "chat.listChats": chatListResponder(FIRST_BOOT_ROOMS),
       "chat.reapTemporaryChats": { reaped: 0 },
       "character.list": characterListResponder(FIRST_BOOT_FACES),
-      "settings.getUserSettings": { config: DEFAULT_USER_SETTINGS, schemaVersion: 1, updatedAt: 0, userId: "user_ct_measure" },
+      "settings.getUserSettings": { config: DEFAULT_USER_SETTINGS, configUnreadable: null, schemaVersion: 1, updatedAt: 0, userId: "user_ct_measure" },
     },
     [],
   );
@@ -1478,7 +1478,7 @@ test("#1145 the prose measure is a LINE, not a width — font scale moves its px
       "chat.listChats": chatListResponder(FIRST_BOOT_ROOMS),
       "chat.reapTemporaryChats": { reaped: 0 },
       "character.list": characterListResponder(FIRST_BOOT_FACES),
-      "settings.getUserSettings": { config: DEFAULT_USER_SETTINGS, schemaVersion: 1, updatedAt: 0, userId: "user_ct_measure" },
+      "settings.getUserSettings": { config: DEFAULT_USER_SETTINGS, configUnreadable: null, schemaVersion: 1, updatedAt: 0, userId: "user_ct_measure" },
     },
     [],
   );
@@ -1592,7 +1592,7 @@ test("#1121 the hero's art band exists wherever the host can afford one — and 
       "chat.listChats": chatListResponder(ART_ROOMS),
       "chat.reapTemporaryChats": { reaped: 0 },
       "character.list": characterListResponder(FIRST_BOOT_FACES),
-      "settings.getUserSettings": { config: DEFAULT_USER_SETTINGS, schemaVersion: 1, updatedAt: 0, userId: "user_ct_bleed" },
+      "settings.getUserSettings": { config: DEFAULT_USER_SETTINGS, configUnreadable: null, schemaVersion: 1, updatedAt: 0, userId: "user_ct_bleed" },
     },
     [],
   );
@@ -1684,7 +1684,7 @@ test("#1130 the jump rail's population is width-invariant — the wrap re-flows,
       "chat.listChats": chatListResponder(FIRST_BOOT_ROOMS),
       "chat.reapTemporaryChats": { reaped: 0 },
       "character.list": characterListResponder(FIRST_BOOT_FACES),
-      "settings.getUserSettings": { config: DEFAULT_USER_SETTINGS, schemaVersion: 1, updatedAt: 0, userId: "user_ct_wide" },
+      "settings.getUserSettings": { config: DEFAULT_USER_SETTINGS, configUnreadable: null, schemaVersion: 1, updatedAt: 0, userId: "user_ct_wide" },
     },
     [],
   );

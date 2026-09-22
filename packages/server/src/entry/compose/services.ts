@@ -5,8 +5,9 @@
 // the `Services` bundle transport reads + the boot handles the lifecycle supervises/probes/wires.
 //
 // THERE IS NO BOOT-GLOBAL ROLE-CLIENTS BUNDLE (§8.5b, verify9 H3): every side call resolves through
-// `roleClientsFor(funderUserId)` — the runtime's per-funder fold over `connection_bindings` — so a member's
-// digest, arbiter or caption spends the MEMBER's rows, never the box owner's. `roleClientsFor` is the one
+// `roleClientsFor(funderUserId)` — the runtime's per-funder fold over `connection_bindings`. Room turns and
+// their side calls pass the frozen host funder (D19); non-room background work passes its explicit owner.
+// Neither path falls back to the box owner. `roleClientsFor` is the one
 // binder every seam receives; it reads the funder's real `Principal` off `users.role` (D135 clause G).
 //
 // Determinism: `now` is an injected param (compose never calls Date.now()); id minters are built from
@@ -1002,6 +1003,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const { automation, plugin } = await buildAutomationPlugin({
     db,
     now,
+    connection,
     chatCompose,
     pluginMacros,
     resolveViewerVisibility,

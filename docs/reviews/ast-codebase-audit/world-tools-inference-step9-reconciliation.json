@@ -1,0 +1,560 @@
+{
+  "schemaVersion": 1,
+  "audit": {
+    "title": "Inference client step 9 closed-manifest reconciliation",
+    "repository": "/home/inktomi/.codex/worktrees/world-aware-tools/orbweaver",
+    "snapshotHead": "8f7ed4c4b98c112429c3918483f3a172f66ae184",
+    "branch": "codex/world-aware-tools",
+    "date": "2026-09-21",
+    "mode": "read-only",
+    "testsRun": false,
+    "testPolicy": "No suites were executed. The task prohibited state-mutating tests; classifications use current source, checked-in focused tests, structural scans, and live GitHub issue state.",
+    "worktreeCaveat": "The worktree was already heavily dirty and shared. No repository file was changed. The active design document itself was modified in the working tree, so this report describes the current working-tree text and current source, not a clean commit-only snapshot."
+  },
+  "specSources": [
+    {
+      "path": "docs/design/orbweaver-inference-package.md",
+      "sections": ["5.3a", "13 step 9", "15c client compile pass", "15c closing-day step-9 lessons"],
+      "keyLines": [849, 865, 868, 880, 910, 922, 936, 2413, 2753, 2776, 3420, 3493]
+    },
+    {
+      "path": "AGENTS.md",
+      "note": "Read in full before the audit."
+    }
+  ],
+  "denominator": {
+    "count": 38,
+    "basis": "Each independently observable behavior or acceptance obligation named by current section 5.3a, landing-order step 9, or the section 15c client cut-over/build log. Compound prose was split where one half can be delivered while another is tracked or missing.",
+    "classificationCounts": {
+      "delivered": 23,
+      "already_tracked": 6,
+      "missing_needs_new_work_item": 9
+    }
+  },
+  "checklist": [
+    {
+      "id": 1,
+      "deliverable": "Connections group is on the user shelf with user-facing navigation copy",
+      "classification": "delivered",
+      "evidence": [
+        "packages/client/src/features/credentials/lib/connections-group.tsx:8-15 declares shelf: user.",
+        "packages/client/src/features/credentials/lib/connections-nav.ts:13-79 defines Connections, Model roles, and Saved keys navigation.",
+        "tests/client/features/config/components/config-search-input.ct.tsx:113-119 pins Model roles on the user shelf."
+      ]
+    },
+    {
+      "id": 2,
+      "deliverable": "Connection list and saved-row editor are live client surfaces",
+      "classification": "delivered",
+      "evidence": [
+        "packages/client/src/features/credentials/components/connections-list-section.tsx:48-124 reads connection.list/listBindings/credentials.list and swaps a selected row into ConnectionEditor.",
+        "tests/client/features/credentials/components/connections-roles-section.ct.tsx:209-254 renders a connection row and drives its actions."
+      ]
+    },
+    {
+      "id": 3,
+      "deliverable": "Connection editor has Essential, Purpose, Advanced, and Diagnostics tiers; Advanced and Diagnostics collapse by default and show counts",
+      "classification": "delivered",
+      "evidence": [
+        "packages/client/src/features/credentials/components/connection-editor.tsx:126-250 renders all four tiers and their default-open states.",
+        "tests/client/features/credentials/components/connection-editor.ct.tsx:141-150 pins collapsed Advanced/Diagnostics and tier copy; lines 184-189 opens both and asserts their contents."
+      ]
+    },
+    {
+      "id": 4,
+      "deliverable": "Inline credential mint during connection creation",
+      "classification": "delivered",
+      "evidence": [
+        "packages/client/src/features/credentials/components/add-connection-dialog.tsx:98-121 calls credentials.add first, then connection.create with the returned credential id.",
+        "packages/client/src/features/credentials/hooks/use-connections-mutations.ts:59-63 binds the live credentials.add mutation."
+      ]
+    },
+    {
+      "id": 5,
+      "deliverable": "Provider picker is grouped as Hosted (key), Your own server (URL), Subscription, Built-in and disables unavailable providers with a reason",
+      "classification": "delivered",
+      "evidence": [
+        "packages/client/src/features/credentials/lib/connections-model.ts:138-169 derives grouped items from ProviderAvailability.",
+        "tests/client/features/credentials/lib/connections-model.test.ts:89-113 pins group order and the disabled subscription-runtime arm.",
+        "packages/client/src/features/credentials/components/add-connection-dialog.tsx:64-83 consumes connection.providersAvailable and the grouped items."
+      ]
+    },
+    {
+      "id": 6,
+      "deliverable": "Claude subscription paste step offers a copyable claude setup-token command",
+      "classification": "missing_needs_new_work_item",
+      "proposedIssueKey": "provider-specific-add-flow",
+      "evidence": [
+        "packages/client/src/features/credentials/components/add-connection-dialog.tsx:205-219 renders claude setup-token only inside description prose; there is no copy control or action.",
+        "The open-issue JSON search found setup-token only in #2549's verifyAuth diagnostics scope; it does not cover this copy affordance."
+      ]
+    },
+    {
+      "id": 7,
+      "deliverable": "Hosted-provider model catalog picker with loading, search, empty/error, and typed fallback",
+      "classification": "already_tracked",
+      "issue": 2568,
+      "evidence": [
+        "packages/client/src/features/credentials/components/add-connection-dialog.tsx:228-235 still renders a typed Model field for hosted rows; only endpoint drafts populate listedModels.",
+        "Open issue #2568 is titled Complete the hosted model catalog picker after the inference cut-over and carries this exact acceptance."
+      ]
+    },
+    {
+      "id": 8,
+      "deliverable": "Endpoint draft can list models server-side and fall back to a typed id with honest empty/error copy",
+      "classification": "delivered",
+      "evidence": [
+        "packages/client/src/features/credentials/components/add-connection-dialog.tsx:287-339 calls connection.listEndpointModels, keys the verdict to the URL/key draft, and preserves typed fallback.",
+        "tests/server/domain/connection/verbs/catalogs.int.test.ts:18-67 pins successful, refused, malformed, foreign-credential, empty, and error endpoint-list arms."
+      ]
+    },
+    {
+      "id": 9,
+      "deliverable": "Purpose tier renders the inferred model-kind verdict in task words and lets the user change it",
+      "classification": "delivered",
+      "evidence": [
+        "packages/client/src/features/credentials/components/connection-editor-purpose.tsx:26-54 renders This looks like a chat & writing model and the three task-word options.",
+        "tests/client/features/credentials/components/connection-editor.ct.tsx:253-281 renders the verdict and changes it to Search vectors.",
+        "tests/client/features/credentials/lib/connection-editor-model.test.ts:221 onward pins use of the server task verdict."
+      ]
+    },
+    {
+      "id": 10,
+      "deliverable": "Endpoint quirks are read-only by default with one per-field Override/Reset affordance",
+      "classification": "delivered",
+      "evidence": [
+        "packages/client/src/features/credentials/components/connection-fact-rows.tsx:49-101 renders one fact row with Override or Reset and a revealed typed editor.",
+        "packages/client/src/features/credentials/components/connection-editor.tsx:202-226 mounts What this server accepts and Endpoint quirks.",
+        "tests/client/features/credentials/components/connection-editor.ct.tsx:218-240 pins colour, replacement copy, Override/Reset, and unaffected rows."
+      ]
+    },
+    {
+      "id": 11,
+      "deliverable": "Capability overrides restate the baseline value they replaced",
+      "classification": "already_tracked",
+      "issue": 2528,
+      "evidence": [
+        "packages/client/src/features/credentials/lib/connection-fact-model.ts:382-400 can consume a baseline.",
+        "Open issue #2528 records that ConnectionCapabilityView.baseline is produced and accepted but omitted by the production call, leaving the editor unable to restate the replaced value."
+      ]
+    },
+    {
+      "id": 12,
+      "deliverable": "Extra request fields uses stable row ids, holds unfinished rows, and gives per-belt-key authoring glosses",
+      "classification": "delivered",
+      "evidence": [
+        "packages/client/src/features/credentials/components/connection-extras-editor.tsx:38-125 implements id-keyed rows, held empty rows, autosave on blur/removal, and beltKeyGloss.",
+        "tests/client/features/credentials/components/connection-editor.ct.tsx:291-361 exercises extras row editing, held drafts, removal, and belt warnings."
+      ]
+    },
+    {
+      "id": 13,
+      "deliverable": "Endpoint-only Request & response shaping editor includes a pasted sample-response map preview",
+      "classification": "delivered",
+      "evidence": [
+        "packages/client/src/features/credentials/components/connection-editor.tsx:233-249 gates transport on endpoint auth.",
+        "packages/client/src/features/credentials/components/connection-transport-editor.tsx:1-258 edits headers/exclusions/response paths and resolves a pasted JSON sample live.",
+        "tests/client/features/credentials/components/connection-editor.ct.tsx:329-354 exercises transport authoring and the sample preview."
+      ]
+    },
+    {
+      "id": 14,
+      "deliverable": "Server-backed shaped endpoint inspector is wired into Diagnostics",
+      "classification": "already_tracked",
+      "issue": 2549,
+      "evidence": [
+        "packages/server/src/transport/trpc/routers/connection.ts:144-146 exposes connection.inspectEndpoint.",
+        "A structural scan of packages/client/src found no inspectEndpoint consumer among 625 TS and 694 TSX files, zero skipped.",
+        "Open issue #2549 explicitly tracks wiring or retiring inspectEndpoint with rendered states."
+      ]
+    },
+    {
+      "id": 15,
+      "deliverable": "Protocol/API control renders only when provider.apis has more than one member",
+      "classification": "delivered",
+      "evidence": [
+        "packages/client/src/features/credentials/lib/connections-model.ts:173-175 implements apis.length > 1.",
+        "packages/client/src/features/credentials/components/add-connection-dialog.tsx:237-245 gates Protocol on showsApiControl.",
+        "tests/client/features/credentials/lib/connections-model.test.ts:118-130 pins one-option absence and multi-option presence."
+      ]
+    },
+    {
+      "id": 16,
+      "deliverable": "Connection labels auto-mint as provider plus model and collision-suffix per owner",
+      "classification": "delivered",
+      "evidence": [
+        "packages/server/src/domain/connection/verbs/connections.ts:5,141 mints the label through mintLabel.",
+        "tests/server/domain/connection/verbs/connections.int.test.ts:42-58 pins the base spelling, collision suffix, and per-owner scope."
+      ]
+    },
+    {
+      "id": 17,
+      "deliverable": "modelListed false carries the specified sent-as-is warning and a re-check action",
+      "classification": "delivered",
+      "evidence": [
+        "packages/client/src/features/credentials/components/connection-editor-essential.tsx:90-100 renders the warning and Check the list again.",
+        "tests/client/features/credentials/components/connection-editor.ct.tsx:124-156 pins the Essential tier and unlisted model state."
+      ]
+    },
+    {
+      "id": 18,
+      "deliverable": "Owner sees inline Admit host affordance for an unlisted private endpoint",
+      "classification": "delivered",
+      "evidence": [
+        "packages/client/src/features/credentials/components/connection-reachability.tsx:107-156 gates the deployment allowlist read by owner and writes the named host.",
+        "tests/client/features/credentials/components/connection-editor.ct.tsx:365-442 exercises admitted and non-admitted endpoint arms."
+      ]
+    },
+    {
+      "id": 19,
+      "deliverable": "Model roles include the renamed Utility row and per-clause requirement badges",
+      "classification": "delivered",
+      "evidence": [
+        "packages/client/src/features/credentials/lib/connections-model.ts:40-133 defines all routable rows, including Utility requirements.",
+        "packages/client/src/features/credentials/components/connections-roles-section.tsx:214-236 renders the Needs rail.",
+        "tests/client/features/credentials/lib/connections-model.test.ts:208-222 pins Utility heading and prose, structured JSON, image input clauses."
+      ]
+    },
+    {
+      "id": 20,
+      "deliverable": "Role rows render steady, draft-divergent, unset, and blocked readouts from persisted resolution",
+      "classification": "delivered",
+      "evidence": [
+        "packages/client/src/features/credentials/components/connections-roles-section.tsx:143-212 keeps draft separate from listBindings and writes only through connection.setBinding.",
+        "packages/client/src/features/credentials/components/connections-roles-section.tsx:239-270 spells all four readout arms.",
+        "tests/client/features/credentials/lib/connections-model.test.ts:152-194 and tests/client/features/credentials/components/connections-roles-section.ct.tsx:330-429 pin all arms and endpoint-unreachable copy."
+      ]
+    },
+    {
+      "id": 21,
+      "deliverable": "Background-task binding refusal is inline and offers an adjacent allow-background switch",
+      "classification": "delivered",
+      "evidence": [
+        "packages/client/src/features/credentials/components/connections-roles-section.tsx:154-166 disables refused picks and derives repairs.",
+        "packages/client/src/features/credentials/components/connections-roles-section.tsx:238-290 renders the refusal and repair switch.",
+        "tests/client/features/credentials/components/connections-roles-section.ct.tsx:447-575 exercises refusal and repair."
+      ]
+    },
+    {
+      "id": 22,
+      "deliverable": "Use this connection for everything it can serve is a visible action",
+      "classification": "delivered",
+      "evidence": [
+        "packages/client/src/features/credentials/components/connections-list-section.tsx:236-258 calls connection.useForEverything and names affected roles before the write.",
+        "tests/client/features/credentials/components/connections-roles-section.ct.tsx:209-250 opens the row menu and drives the action."
+      ]
+    },
+    {
+      "id": 23,
+      "deliverable": "Add another model on this key pre-fills provider and credential and lands on the model picker",
+      "classification": "already_tracked",
+      "issue": 2568,
+      "evidence": [
+        "A literal scan found zero Add another model on this key matches in packages/client/src and tests/client.",
+        "Open issue #2568 explicitly includes the saved-key action and secret-free prefill in its Done when section."
+      ]
+    },
+    {
+      "id": 24,
+      "deliverable": "Saved keys shows reuse count and state-specific replace/revoke/clear/remove actions without exposing the secret",
+      "classification": "delivered",
+      "evidence": [
+        "packages/client/src/features/credentials/components/connections-keys-section.tsx:30-69 joins credential rows to connection reuse counts and registry labels.",
+        "packages/client/src/features/credentials/components/credential-key-row.tsx:68-157 renders state-specific actions and ConfirmDialog descriptions.",
+        "tests/client/features/credentials/components/credential-key-row.ct.tsx:36-185 drives replace, revoke, clear, and remove; credential-key-model.test.ts:22-25 pins reuse copy."
+      ]
+    },
+    {
+      "id": 25,
+      "deliverable": "Automation-rule editor has per-task connection role slots",
+      "classification": "missing_needs_new_work_item",
+      "proposedIssueKey": "actor-role-slots",
+      "evidence": [
+        "The connection router and domain support actor kind automation-rule (packages/server/src/transport/trpc/routers/connection.ts:47; tests/server/domain/connection/verbs/bindings.int.test.ts:52-69).",
+        "Validated ast-grep object scans found zero automation-rule actor objects in packages/client/src across 625 TS and 694 TSX files, zero skipped; the literal cross-check found only an unrelated roster comment.",
+        "No current open issue body names this step-9 slot."
+      ]
+    },
+    {
+      "id": 26,
+      "deliverable": "Plugin grant surface has per-task connection role slots",
+      "classification": "missing_needs_new_work_item",
+      "proposedIssueKey": "actor-role-slots",
+      "evidence": [
+        "The connection router and domain support actor kind plugin-grant (packages/server/src/transport/trpc/routers/connection.ts:48; tests/server/domain/connection/verbs/bindings.int.test.ts:55).",
+        "Validated ast-grep object scans found zero plugin-grant actor objects in packages/client/src across 625 TS and 694 TSX files, zero skipped; literal hits are names of PluginGrantList, the unrelated permission surface.",
+        "No current open issue body names this step-9 slot."
+      ]
+    },
+    {
+      "id": 27,
+      "deliverable": "Rooms do not expose a chat-level connection override",
+      "classification": "delivered",
+      "evidence": [
+        "packages/client/src/features/credentials/lib/connections-nav.ts:32-37 and connections-roles-section.tsx:120-123 state the no-room-override rule.",
+        "tests/client/features/credentials/components/connection-editor.ct.tsx:362-369 asserts no per-room override copy/control."
+      ]
+    },
+    {
+      "id": 28,
+      "deliverable": "Capability panel has an explicit connection switcher and names the role/provider/model currently in view",
+      "classification": "missing_needs_new_work_item",
+      "proposedIssueKey": "capability-warning-surface",
+      "evidence": [
+        "packages/client/src/features/preset/surfaces/preset-editor-surface.tsx:154-162 reads only connection.resolveChatCapability with no selected connection/role input.",
+        "The full structural connection-call scan shows the preset surface's only relevant production call is resolveChatCapability.queryOptions(); no list/binding selector is composed there.",
+        "The showing what literal hits in client code are unrelated macro/published-state prose; none names a capability connection switcher.",
+        "No current open issue body covers this switcher."
+      ]
+    },
+    {
+      "id": 29,
+      "deliverable": "Room composer shows a quiet running on connection/model readout",
+      "classification": "missing_needs_new_work_item",
+      "proposedIssueKey": "room-inference-readouts",
+      "evidence": [
+        "A literal scan across packages/client/src and tests/client found no relevant running on inference copy; all four hits concern animations, stale sessions, or display scripts.",
+        "No current open issue body covers the room running-on readout."
+      ]
+    },
+    {
+      "id": 30,
+      "deliverable": "Transcript renders per-swipe connection/provider/model attribution",
+      "classification": "missing_needs_new_work_item",
+      "proposedIssueKey": "room-inference-readouts",
+      "evidence": [
+        "packages/client/src/features/chat/components/message-row.tsx:124-129 and 334 expose only an optional model credit.",
+        "packages/client/src/features/chat/components/message-actions-row.tsx:165-187 renders only the model glyph/name-on-hover.",
+        "packages/client/src/features/chat/lib/message-readout.ts:47-51 consumes connectionId/provider only to qualify the OpenRouter cost readout, not attribution.",
+        "The server does persist and project connectionId/provider/model, so this is a missing client consumer rather than a missing record seam."
+      ]
+    },
+    {
+      "id": 31,
+      "deliverable": "Shared rooms explain that generated pictures live in the room and offer a room gallery filter",
+      "classification": "missing_needs_new_work_item",
+      "proposedIssueKey": "room-inference-readouts",
+      "evidence": [
+        "A literal scan across packages/client/src and tests/client found zero pictures you make here matches.",
+        "No room-scoped image-line/filter implementation or current open issue was found."
+      ]
+    },
+    {
+      "id": 32,
+      "deliverable": "Every chat warning code has typed, user-facing client copy and the bus forwards structured warning detail",
+      "classification": "delivered",
+      "evidence": [
+        "packages/client/src/features/chat/lib/warning-notice.ts:39-205 is exhaustive over ChatWarning and provider adjustment kinds.",
+        "packages/client/src/features/chat/components/chat-content.tsx:43-56 surfaces every warning and gives custom_parameters_ignored an Open Connections action.",
+        "tests/client/features/chat/lib/warning-notice.test.ts:94-162 pins distinct copy and totality; tests/client/data/bus/apply-chat-bus-event.test.ts:277-286 pins detail forwarding."
+      ]
+    },
+    {
+      "id": 33,
+      "deliverable": "Warning codes land in their specified homes: ambient capability panel plus at-most-one changed-set turn notice, authoring-row custom-parameter warning, connection-row declared override badge, and per-session background/arbitration notices",
+      "classification": "missing_needs_new_work_item",
+      "proposedIssueKey": "capability-warning-surface",
+      "evidence": [
+        "The authoring-row belt gloss and declared-override tier badge are delivered, but packages/client/src/features/chat/components/chat-content.tsx:43-56 turns every bus warning into a toast.",
+        "packages/server/src/domain/chat/engine/engine.ts:2290-2300 emits every independent runner warning concurrently on every turn; repository search found no previous-turn/changed-set cadence state.",
+        "No capability-panel ambient warning consumer exists; the preset surface only reads resolveChatCapability.",
+        "No current open issue covers the full homes/cadence obligation."
+      ]
+    },
+    {
+      "id": 34,
+      "deliverable": "endpoint-unreachable is translated to actionable client copy rather than leaked as a raw code",
+      "classification": "delivered",
+      "evidence": [
+        "packages/client/src/lib/injection-copy.ts:181 maps the send refusal.",
+        "packages/client/src/features/credentials/lib/connections-model.ts:248-265 maps role-readout copy with an endpoint host when available.",
+        "tests/client/features/chat/components/composer.ct.tsx:98-107 and connections-roles-section.ct.tsx:418-429 pin both surfaces and absence of raw code."
+      ]
+    },
+    {
+      "id": 35,
+      "deliverable": "providers.available is exposed by the server and consumed by provider/editor/key client surfaces",
+      "classification": "delivered",
+      "evidence": [
+        "packages/server/src/domain/connection/verbs/providers.ts:12-14 delegates to runtime.providers.available(principal).",
+        "packages/server/src/transport/trpc/routers/connection.ts:149 exposes connection.providersAvailable.",
+        "packages/client/src/features/credentials/components/add-connection-dialog.tsx:64, connection-editor.tsx:97, and connections-keys-section.tsx:43 consume it.",
+        "tests/server/domain/connection/verbs/providers.int.test.ts:27-48 pins built-in and registered-provider visibility."
+      ]
+    },
+    {
+      "id": 36,
+      "deliverable": "Saving a Claude subscription connection runs and presents verifyAuth",
+      "classification": "already_tracked",
+      "issue": 2549,
+      "evidence": [
+        "packages/server/src/transport/trpc/routers/connection.ts:140-142 exposes connection.verifyAuth.",
+        "The structural scan of packages/client/src found no verifyAuth consumer among 625 TS and 694 TSX files, zero skipped.",
+        "Open issue #2549 explicitly tracks verifyAuth in the save flow."
+      ]
+    },
+    {
+      "id": 37,
+      "deliverable": "Supported connections show a per-row account-credit diagnostic tile",
+      "classification": "already_tracked",
+      "issue": 2549,
+      "evidence": [
+        "packages/server/src/transport/trpc/routers/connection.ts:123-125 exposes connection.accountCredits.",
+        "The structural scan of packages/client/src found no accountCredits consumer among 625 TS and 694 TSX files, zero skipped.",
+        "Open issue #2549 explicitly tracks the per-connection credits tile."
+      ]
+    },
+    {
+      "id": 38,
+      "deliverable": "Step-9 acceptance matrix drives add-connection live for every built-in provider and the three named personas, with CT per host and 870/486/mobile review",
+      "classification": "missing_needs_new_work_item",
+      "proposedIssueKey": "provider-specific-add-flow",
+      "evidence": [
+        "The focused credential CT corpus has editor, role, and key-row coverage, but no test drives AddConnectionDialog through credentials.add plus connection.create.",
+        "Search of tests/client/features/credentials found no connection.create or credentials.add add-flow route; the only credentials.add CT is saved-key replacement.",
+        "Existing #2549 and #2568 require rendered diagnostics/hosted-picker arms but do not cover the residual built-in/provider/persona denominator or the copyable subscription command."
+      ]
+    }
+  ],
+  "issueMapping": {
+    "2528": {
+      "title": "Finish wiring connection capability baseline into the editor",
+      "status": "OPEN",
+      "checklistIds": [11]
+    },
+    "2549": {
+      "title": "Complete the connection diagnostics UI",
+      "status": "OPEN",
+      "checklistIds": [14, 36, 37]
+    },
+    "2568": {
+      "title": "Complete the hosted model catalog picker after the inference cut-over",
+      "status": "OPEN",
+      "checklistIds": [7, 23]
+    }
+  },
+  "proposedIssues": [
+    {
+      "key": "actor-role-slots",
+      "title": "Complete automation-rule and plugin-grant model role slots",
+      "coversChecklistIds": [25, 26],
+      "body": "## Missing step-9 behavior\n\nThe inference cut-over's client step 9 requires the automation-rule editor and plugin grant surface to write actor-specific connection bindings. The server/router already support `automation-rule` and `plugin-grant` actors, and domain tests cover their ownership/refusal rules, but the production client constructs neither actor shape. Rules therefore fall back to the author's user bindings, while plugins have no grant-time route to the per-task rows the design requires.\n\n## Done when\n\n- the rule editor lists the rule author's compatible connections per routable task and reads/writes `connection.listBindings` / `setBinding` with `{ kind: \"automation-rule\", ruleId }`;\n- the plugin grant surface lists only tasks the plugin declared and reads/writes the installing user's `{ kind: \"plugin-grant\", pluginId }` bindings;\n- unavailable, background-refused, unset, deleted-connection, loading, error, and cross-owner refusal states are rendered and tested through real tRPC doors;\n- plugin execution never silently inherits a user's defaults, while rule fallback follows the current actor-to-user fold;\n- focused server and component tests pin the actor id and task carried by every write.\n\n## Evidence\n\nCurrent structural scan: zero actor objects for either kind across 625 TS and 694 TSX production client files, zero skipped. Server doors: `packages/server/src/transport/trpc/routers/connection.ts`; ownership/fold tests: `tests/server/domain/connection/verbs/bindings.int.test.ts`; active spec: `docs/design/orbweaver-inference-package.md` sections 5.3a, 7.1, and step 9."
+    },
+    {
+      "key": "capability-warning-surface",
+      "title": "Finish the connection-aware capability panel and warning cadence",
+      "coversChecklistIds": [28, 33],
+      "body": "## Missing step-9 behavior\n\nThe capability panel still resolves only the user's chat binding and cannot say which role/connection it describes. Provider degradation warnings are exhaustively translated, but every bus warning becomes a toast and runner warnings fan out independently each turn. Step 9 requires an explicit connection switcher, ambient capability-panel homes for sampling/effort/conflict warnings, and at most one turn notice when the dropped set changes for that connection.\n\n## Done when\n\n- the panel switcher defaults to the chat binding, can inspect another role/connection, and names the role, provider, and model in view;\n- sampling-knob, effort, and conflict drops have an ambient home on that selected connection's capability panel;\n- a turn emits at most one aggregated notice, and only when the dropped set differs from the preceding turn on that connection;\n- `custom_parameters_ignored` remains visible at the offending Extras row before a turn, `declared_overrides_measured` remains a connection-row/editor badge, and background/arbitration degradation retains one session-level notice;\n- switching connections, stale/deleted bindings, pending/error reads, and warning-set changes are covered in rendered tests through canonical reads.\n\n## Evidence\n\n`packages/client/src/features/preset/surfaces/preset-editor-surface.tsx` calls only `resolveChatCapability`; `packages/client/src/features/chat/components/chat-content.tsx` toasts each event; `packages/server/src/domain/chat/engine/engine.ts` fans independent runner warnings. Active spec: inference design section 5.3a and step 9."
+    },
+    {
+      "key": "room-inference-readouts",
+      "title": "Add room connection readouts and per-swipe inference attribution",
+      "coversChecklistIds": [29, 30, 31],
+      "body": "## Missing step-9 behavior\n\nThe server persists and returns each assistant swipe's connection id, provider id, and model, but the room UI only offers an optional model glyph and uses connection/provider solely to qualify the OpenRouter cost readout. The composer has no quiet `running on …` line, and shared rooms do not explain that generated pictures live in the room or offer the specified room gallery filter.\n\n## Done when\n\n- the composer names the connection/model the next turn will use, with honest unset, blocked, and host-funded shared-room states;\n- every assistant swipe can reveal the generating connection/provider/model from the persisted variant snapshot, and attribution survives connection rename/deletion without inventing current routing;\n- shared rooms show `pictures you make here live in this room` at the image affordance and provide a room-scoped gallery filter;\n- imported/user-authored/null-attribution rows, swipe changes, deleted connections, mobile density, keyboard/AT names, and mixed-provider rooms are covered through rendered tests.\n\n## Evidence\n\n`message-row.tsx`/`message-actions-row.tsx` render model only; `message-readout.ts` uses connection/provider only for cost eligibility; the current client corpus has no inference `running on` or shared-room image sentence. Active spec: inference design section 5.3a and step 9."
+    },
+    {
+      "key": "provider-specific-add-flow",
+      "title": "Complete provider-specific add-connection affordances and the step-9 acceptance matrix",
+      "coversChecklistIds": [6, 38],
+      "body": "## Missing step-9 behavior and proof\n\nThe add dialog renders `claude setup-token` as prose rather than a copyable command, and the focused client corpus never drives a full add through credential mint plus connection creation. Step 9 explicitly requires CT per host and live drives for every built-in provider and three named personas. Existing #2549 owns diagnostics/verifyAuth and #2568 owns the hosted picker plus saved-key second-model action; this item owns the remaining provider-specific affordance and closed acceptance denominator without duplicating those implementations.\n\n## Done when\n\n- the Claude subscription arm provides a keyboard/AT-operable copy action for `claude setup-token` and keeps the machine-specific instruction;\n- focused component coverage drives `credentials.add` then `connection.create`, including secret-free state and honest partial-failure recovery;\n- the matrix covers every built-in provider and the OpenRouter one-pass/use-for-everything, subscription/background-refusal, endpoint/list-or-type, and built-in/keyless personas;\n- evidence covers loading, empty, refusal, error, unavailable-provider, typed fallback, 870px, 486px, and mobile;\n- the final matrix references #2549/#2568 receipts for their owned diagnostics and hosted-picker arms rather than reimplementing them.\n\n## Evidence\n\n`add-connection-dialog.tsx:205-219` has prose-only setup-token copy. Search of `tests/client/features/credentials` finds no add-flow `connection.create` call and only the saved-key replacement use of `credentials.add`. Active spec: inference design section 5.3a and step 9 receipts."
+    }
+  ],
+  "structuralReceipts": {
+    "scope": "packages/client/src",
+    "astGrep": {
+      "typescript": {
+        "scannedFileCount": 625,
+        "skippedFileCount": 0
+      },
+      "tsx": {
+        "scannedFileCount": 694,
+        "skippedFileCount": 0
+      },
+      "connectionCalls": [
+        "capabilities.queryOptions",
+        "catalogModels.queryOptions/queryFilter",
+        "create.mutationOptions",
+        "generationCost.queryOptions",
+        "get.queryOptions",
+        "list.queryOptions",
+        "listBindings.queryOptions",
+        "listEndpointModels.mutationOptions",
+        "probe.mutationOptions",
+        "providersAvailable.queryOptions",
+        "refreshCatalog.mutationOptions",
+        "remove.mutationOptions",
+        "resolveChatCapability.queryOptions/pathFilter/queryFilter",
+        "setBinding.mutationOptions",
+        "update.mutationOptions",
+        "useForEverything.mutationOptions"
+      ],
+      "confirmedAbsentConnectionCalls": ["accountCredits", "verifyAuth", "inspectEndpoint"],
+      "confirmedAbsentActorObjects": ["automation-rule", "plugin-grant"]
+    },
+    "literalCrossChecks": [
+      {
+        "term": "Add another model on this key",
+        "relevantMatches": 0
+      },
+      {
+        "term": "pictures you make here",
+        "relevantMatches": 0
+      },
+      {
+        "term": "running on",
+        "relevantMatches": 0,
+        "note": "Four literal hits existed, all unrelated to inference readouts."
+      },
+      {
+        "term": "showing what",
+        "relevantMatches": 0,
+        "note": "Hits were macro/published-state prose, not the capability panel."
+      },
+      {
+        "term": "automation-rule",
+        "relevantMatches": 0,
+        "note": "One unrelated roster comment."
+      },
+      {
+        "term": "plugin-grant",
+        "relevantMatches": 0,
+        "note": "Hits name PluginGrantList permission components, not the inference actor kind."
+      }
+    ],
+    "truncation": "No structural scan was truncated. Some exploratory terminal displays were output-truncated, but no classification relies on those displays; the final scans were machine-counted and the relevant source/test files were read directly."
+  },
+  "explicitExclusions": [
+    {
+      "topic": "local-light per-row downloading/ready/failed status",
+      "reason": "Not in the denominator. Section 8.3 lines 1847-1852 explicitly strikes the earlier step-9 obligation by owner ruling because prefetch is a latency optimization with automatic lazy fallback. The stale section 15c build-log sentence at line 2734 is superseded by that ruling; current client comments/tests also record the strike."
+    }
+  ],
+  "bottomLine": "Step 9 is not completely delivered. Twenty-three behaviors have current implementation plus focused evidence, six undelivered behaviors are already covered by open issues #2528/#2549/#2568, and nine required behaviors/acceptance obligations form four genuinely untracked work items proposed above.",
+  "filedIssues": {
+    "2569": {
+      "key": "actor-role-slots",
+      "status": "Ready",
+      "priority": "P1",
+      "review": "Security"
+    },
+    "2570": {
+      "key": "capability-warning-surface",
+      "status": "Ready",
+      "priority": "P1",
+      "review": "UX"
+    },
+    "2571": {
+      "key": "room-inference-readouts",
+      "status": "Ready",
+      "priority": "P1",
+      "review": "UX"
+    },
+    "2573": {
+      "key": "provider-specific-add-flow",
+      "status": "Ready",
+      "priority": "P1",
+      "review": "UX"
+    },
+    "deploymentGrouping": "Implement and review these four rows as one coherent inference/client lane; keep row-level acceptance evidence separate."
+  }
+}

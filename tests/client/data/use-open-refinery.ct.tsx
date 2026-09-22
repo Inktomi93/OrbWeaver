@@ -13,7 +13,7 @@
 import type { CharacterId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { TrpcRoutes } from "../../support/node/route-trpc.ts";
+import type { TrpcFixtureOutput, TrpcRoutes } from "../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../support/node/route-trpc.ts";
 import { OpenRefineryStory } from "./_ct-stories.tsx";
 
@@ -28,7 +28,12 @@ const MINTED_SESSION = mintTypeId(ID_PREFIX.refinerySession);
 const FROZEN_AT = 1_750_000_000_000;
 
 /** One `refinery.listSessions` row, at a chosen card / status / freshness. */
-function rosterRow(row: { id: string; characterId: CharacterId; status: string; updatedAt: number }): unknown {
+function rosterRow(row: {
+  id: string;
+  characterId: CharacterId;
+  status: "active" | "completed";
+  updatedAt: number;
+}): TrpcFixtureOutput<"refinery.listSessions">[number] {
   return {
     id: row.id,
     characterId: row.characterId,
@@ -46,10 +51,10 @@ function rosterRow(row: { id: string; characterId: CharacterId; status: string; 
 /** A mint that WOULD SUCCEED is scripted in every case on purpose: with the mint working, the only thing
  *  separating resume from mint is WHICH session the flow opens, which is the claim. Leaving it unlisted
  *  would make the resume tests fail on a null response instead of on the count. */
-function routes(roster: readonly unknown[]): TrpcRoutes {
+function routes(roster: TrpcFixtureOutput<"refinery.listSessions">): TrpcRoutes<"refinery.listSessions" | "refinery.startSession"> {
   return {
-    "refinery.listSessions": (): readonly unknown[] => roster,
-    "refinery.startSession": (): unknown => ({ id: MINTED_SESSION }),
+    "refinery.listSessions": () => roster,
+    "refinery.startSession": () => ({ id: MINTED_SESSION }),
   };
 }
 

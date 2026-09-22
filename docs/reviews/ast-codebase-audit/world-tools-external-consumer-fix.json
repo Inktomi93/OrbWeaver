@@ -6,10 +6,7 @@
   "committed": false,
   "summary": {
     "result": "implemented",
-    "targets": [
-      "CHAT_VERB_AUTHORITY",
-      "buildVersionStamp"
-    ],
+    "targets": ["CHAT_VERB_AUTHORITY", "buildVersionStamp"],
     "clientgapSemantics": "unchanged"
   },
   "design": {
@@ -17,25 +14,10 @@
     "collector": "tooling/src/ast/lib/tooling-entries.ts",
     "sourceReaderWitness": "string literal satisfies keyof typeof import(static module), checker-resolved through barrels, exactly one origin, live non-test carrier required",
     "launcher": "root package build:version-stamp -> checked scripts/build-version-stamp.ts -> ordinary static import/call",
-    "rejectedMechanisms": [
-      "@public",
-      "waiver/grant",
-      "symbol-name registry",
-      "Bash parser",
-      "regex/name exception"
-    ]
+    "rejectedMechanisms": ["@public", "waiver/grant", "symbol-name registry", "Bash parser", "regex/name exception"]
   },
   "coupling": {
-    "lenses": [
-      "buildLiveness",
-      "orphans/testonly/rot",
-      "apisurface",
-      "dead",
-      "chains",
-      "swallowed",
-      "prodonly",
-      "orphan export ratchet via shared collectors"
-    ],
+    "lenses": ["buildLiveness", "orphans/testonly/rot", "apisurface", "dead", "chains", "swallowed", "prodonly", "orphan export ratchet via shared collectors"],
     "buckets": {
       "usedProd": true,
       "usedTooling": true,

@@ -32,7 +32,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { testId } from "../../../../../packages/client/src/lib/test-ids.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
-import type { TrpcRoutes } from "../../../../support/node/route-trpc.ts";
+import type { TrpcFixtureOutput, TrpcInput, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { characterListResponder, makeCharacterDetail, makeCharacterSummary } from "../../character/fixtures.ts";
 import { RefineryContentStory, RefineryStartStory } from "../_ct-stories.tsx";
@@ -71,13 +71,13 @@ const CARD = makeCharacterDetail({
   personality: LIVE_PERSONALITY,
 });
 
-const STAGE_CONFIG = {
+const STAGE_CONFIG: TrpcWireOutput<"refinery.getSession">["stageConfig"] = {
   score: { kind: "fixed", mode: "full" },
   rewrite: { kind: "fixed", mode: "balanced" },
   analyze: { kind: "fixed", mode: "full" },
 };
 
-function sessionView(sessionId: RefinerySessionId = SESSION_ID): unknown {
+function sessionView(sessionId: RefinerySessionId = SESSION_ID): TrpcWireOutput<"refinery.getSession"> {
   return {
     id: sessionId,
     characterId: CHARACTER_ID,
@@ -95,7 +95,7 @@ function sessionView(sessionId: RefinerySessionId = SESSION_ID): unknown {
   };
 }
 
-function scoreRun(row: { id: string; iteration: number; overallScore: number; summary: string }): unknown {
+function scoreRun(row: { id: string; iteration: number; overallScore: number; summary: string }): TrpcWireOutput<"refinery.listRuns">[number] {
   const { id, iteration, overallScore, summary } = row;
   return {
     id,
@@ -114,7 +114,7 @@ function scoreRun(row: { id: string; iteration: number; overallScore: number; su
   };
 }
 
-function rewriteRun(): unknown {
+function rewriteRun(): TrpcWireOutput<"refinery.listRuns">[number] {
   return {
     id: REWRITE_RUN,
     sessionId: SESSION_ID,
@@ -138,7 +138,7 @@ function rewriteRun(): unknown {
 }
 
 /** An analyze whose DAG parent is `sourceRunId` — the rewrite it judged. */
-function analyzeRun(sourceRunId: string): unknown {
+function analyzeRun(sourceRunId: string): TrpcWireOutput<"refinery.listRuns">[number] {
   return {
     id: ANALYZE_RUN,
     sessionId: SESSION_ID,
@@ -165,7 +165,7 @@ function analyzeRun(sourceRunId: string): unknown {
   };
 }
 
-function preflight(): unknown {
+function preflight(): TrpcWireOutput<"refinery.preflight"> {
   return {
     contextTokens: 8000,
     stages: (["score", "rewrite", "analyze"] as const).map((stage) => ({
@@ -182,7 +182,7 @@ function preflight(): unknown {
 /** Preflight where the named stages breach the CONTEXT ceiling — the arm whose sentence is stage-neutral
  *  ("the assembled prompt likely exceeds the model's context"), i.e. the one two lanes can duplicate.
  *  `maxOutputTokens` stays generous so the output arm, which words itself per stage, does not fire. */
-function preflightOver(over: readonly string[]): unknown {
+function preflightOver(over: readonly string[]): TrpcFixtureOutput<"refinery.preflight"> {
   return {
     contextTokens: 8000,
     stages: (["score", "rewrite", "analyze"] as const).map((stage) => ({
@@ -198,7 +198,7 @@ function preflightOver(over: readonly string[]): unknown {
 
 /** Preflight where score is over its OUTPUT ceiling and analyze is over the CONTEXT — two different facts,
  *  so two different sentences, so no hoist. */
-function preflightDiverged(): unknown {
+function preflightDiverged(): TrpcFixtureOutput<"refinery.preflight"> {
   return {
     contextTokens: 8000,
     stages: [
@@ -207,11 +207,6 @@ function preflightDiverged(): unknown {
       { stage: "analyze", model: "test-model", temperature: null, maxOutputTokens: 4096, inputEstimate: 12_000, outputEstimate: 1490 },
     ],
   };
-}
-
-/** The accepts the surface sent, as `routeTrpc` decoded them off the wire. */
-interface ApplyInput {
-  readonly accepts: readonly { readonly field: string; readonly greetingIndex?: number }[];
 }
 
 // The review verbs are anchored because
@@ -223,9 +218,22 @@ const ANY_APPLY_COUNT = /^Apply \d+ kept$/;
 const RUN_ANY_STAGE = /^(Run|Re-run) (score|rewrite|analyze)$/;
 const BACK_TO_LATEST = /^Back to latest$/;
 
+function applyResult(input: TrpcInput<"refinery.applyFields">): TrpcWireOutput<"refinery.applyFields"> {
+  return {
+    applied: input.accepts.map((accept) =>
+      accept.field === "greetings"
+        ? { field: "greetings", greetingIndex: accept.greetingIndex ?? 0, kind: "replaced" }
+        : { field: accept.field, kind: "replaced" },
+    ),
+    dropped: [],
+    character: CARD,
+    snapshotId: "casn_ct_snapshot",
+  };
+}
+
 /** The ledger the surface reads, OLDEST FIRST (the wire's order — the lane fold keeps the last write per
  *  stage, so a newest-first fixture would silently invert which score is "latest"). */
-function ledger(): unknown[] {
+function ledger(): TrpcWireOutput<"refinery.listRuns"> {
   return [
     scoreRun({ id: SCORE_RUN_SUPERSEDED, iteration: 0, overallScore: 4.1, summary: "Thin in the middle." }),
     scoreRun({ id: SCORE_RUN_LATEST, iteration: 1, overallScore: 8.2, summary: "Much sharper after the rewrite." }),
@@ -234,12 +242,12 @@ function ledger(): unknown[] {
 }
 
 /** The three reads plus the gated card — everything the session pane joins. */
-function baseRoutes(): TrpcRoutes {
+function baseRoutes(): TrpcRoutes<"refinery.getSession" | "refinery.listRuns" | "refinery.preflight" | "character.get"> {
   return {
-    "refinery.getSession": (): unknown => sessionView(),
+    "refinery.getSession": () => sessionView(),
     "refinery.listRuns": ledger,
     "refinery.preflight": preflight,
-    "character.get": (): unknown => CARD,
+    "character.get": () => CARD,
   };
 }
 
@@ -276,19 +284,25 @@ const DEEPEST_CARD = `Ward ${String(BIG_LIBRARY_SIZE).padStart(3, "0")}`;
 /** The landing's reads: the roster the resume check consults, plus the library the picker lists. The four
  *  session-scoped reads answer for WHICHEVER session gets opened, so the id the surface asked for is the
  *  observable — a fixed-session responder would paint the same pane either way. */
-function landingRoutes(roster: readonly unknown[]): TrpcRoutes {
+function landingRoutes(
+  roster: TrpcWireOutput<"refinery.listSessions">,
+): TrpcRoutes<"refinery.listSessions" | "character.list" | "refinery.getSession" | "refinery.listRuns" | "refinery.preflight" | "character.get"> {
   return {
-    "refinery.listSessions": (): readonly unknown[] => roster,
+    "refinery.listSessions": () => roster,
     "character.list": characterListResponder([makeCharacterSummary({ id: CHARACTER_ID, name: "Zephyrine Vale" })]),
-    "refinery.getSession": (input: unknown): unknown => sessionView((input as { sessionId: RefinerySessionId }).sessionId),
+    "refinery.getSession": (input: unknown) => sessionView((input as { sessionId: RefinerySessionId }).sessionId),
     "refinery.listRuns": ledger,
     "refinery.preflight": preflight,
-    "character.get": (): unknown => CARD,
+    "character.get": () => CARD,
   };
 }
 
 /** One roster row about THIS card, at a chosen status and freshness. */
-function rosterRow(id: string, status: string, updatedAt: number): unknown {
+function rosterRow(
+  id: string,
+  status: TrpcWireOutput<"refinery.listSessions">[number]["status"],
+  updatedAt: number,
+): TrpcWireOutput<"refinery.listSessions">[number] {
   return makeRefinerySessionSummary({ id, characterId: CHARACTER_ID, characterName: "Zephyrine Vale", name: null, status, createdAt: FROZEN_AT, updatedAt });
 }
 
@@ -314,7 +328,7 @@ test("picking a character that already has an OPEN session RESUMES the newest on
     // always-mint behaviour fail on a null response instead of on the count below — a red about the stub
     // rather than about the defect. With the mint working, the only thing separating the two behaviours is
     // WHICH session the pane opens, which is exactly the claim.
-    "refinery.startSession": (): unknown => sessionView(MINTED_SESSION_ID),
+    "refinery.startSession": () => sessionView(MINTED_SESSION_ID),
   });
   await mount(<RefineryStartStory />);
   await pickZephyrine(page);
@@ -343,7 +357,7 @@ test("picking a character whose only session is FINISHED mints a fresh one and o
     // The roster is NOT empty — it carries a `completed` session on this very card. Resumable is the OPEN
     // status alone: an applied session is finished work, so picking the card again starts over.
     ...landingRoutes([rosterRow(COMPLETED_SESSION_ID, "completed", FROZEN_AT + 10_000)]),
-    "refinery.startSession": (): unknown => sessionView(MINTED_SESSION_ID),
+    "refinery.startSession": () => sessionView(MINTED_SESSION_ID),
   });
   await mount(<RefineryStartStory />);
   await pickZephyrine(page);
@@ -485,7 +499,7 @@ test("the masthead credits the model by NAME — a local weights path never reac
   await routeTrpc(page, {
     ...baseRoutes(),
     // The masthead reads the REWRITE run's model first, so this is the run that decides the credit line.
-    "refinery.listRuns": (): unknown[] => [...ledger().slice(0, 2), { ...(rewriteRun() as Record<string, unknown>), model: LOCAL_WEIGHTS_PATH }],
+    "refinery.listRuns": () => [...ledger().slice(0, 2), { ...rewriteRun(), model: LOCAL_WEIGHTS_PATH }],
   });
   await mount(<RefineryContentStory sessionId={SESSION_ID} />);
 
@@ -504,7 +518,7 @@ test("ALL THREE STAGES are on one canvas: the score lane's latest payload, the r
   await freeze(page);
   await routeTrpc(page, {
     ...baseRoutes(),
-    "refinery.listRuns": (): unknown[] => [...ledger(), analyzeRun(REWRITE_RUN)],
+    "refinery.listRuns": () => [...ledger(), analyzeRun(REWRITE_RUN)],
   });
   await mount(<RefineryContentStory sessionId={SESSION_ID} />);
 
@@ -535,7 +549,7 @@ test("the canvas says when its lanes DISAGREE: a verdict about a rewrite the can
     ...baseRoutes(),
     // The analyze's DAG parent is a rewrite that is not in the ledger — the engine's own `sourceRunId` edge
     // is the whole signal; nothing new is asked of the server.
-    "refinery.listRuns": (): unknown[] => [...ledger(), analyzeRun(ORPHANED_REWRITE)],
+    "refinery.listRuns": () => [...ledger(), analyzeRun(ORPHANED_REWRITE)],
   });
   await mount(<RefineryContentStory sessionId={SESSION_ID} />);
 
@@ -582,7 +596,7 @@ test("the §16.1 WALKER pins a superseded run — ONE lane follows it, the other
 // buttons the issue named is disabled here and the other's CAPTION was the thing that lied.
 
 /** A session with NOTHING run yet — round 0, the state the owner's screenshot was taken in. */
-function emptyLedger(): unknown[] {
+function emptyLedger(): TrpcFixtureOutput<"refinery.listRuns"> {
   return [];
 }
 
@@ -648,7 +662,7 @@ test("exactly ONE run control on the canvas is filled, and it is the FOCAL lane'
 
 test("two stages breaching with the SAME sentence print ONE session-level warning, not the same paragraph twice", async ({ mount, page }) => {
   await freeze(page);
-  await routeTrpc(page, { ...baseRoutes(), "refinery.preflight": (): unknown => preflightOver(["score", "analyze"]) });
+  await routeTrpc(page, { ...baseRoutes(), "refinery.preflight": () => preflightOver(["score", "analyze"]) });
   await mount(<RefineryContentStory sessionId={SESSION_ID} />);
   await expect(page.getByTestId(testId("refineryContent"))).toBeVisible();
 
@@ -657,14 +671,14 @@ test("two stages breaching with the SAME sentence print ONE session-level warnin
   // selection. Once, now — and the button says what it narrows for.
   await expect(page.getByTestId(testId("refineryPreflightWarn"))).toHaveCount(1);
   await expect(page.getByRole("button", { name: "Narrow the selection for score and analyze" })).toBeVisible();
-  // The ⚠ stays per-lane: that mark is about THIS stage's numbers, and suppressing it would lose the
+  // The warning glyph stays per-lane: that mark is about THIS stage's numbers, and suppressing it would lose the
   // reason the hoisted paragraph is on screen at all.
   await expect(page.locator('[data-lane="score"]').getByTestId(testId("refineryFitLine"))).toContainText("⚠");
 });
 
 test("…and stages breaching DIFFERENTLY keep their own warnings, each named for its own stage", async ({ mount, page }) => {
   await freeze(page);
-  await routeTrpc(page, { ...baseRoutes(), "refinery.preflight": (): unknown => preflightDiverged() });
+  await routeTrpc(page, { ...baseRoutes(), "refinery.preflight": () => preflightDiverged() });
   await mount(<RefineryContentStory sessionId={SESSION_ID} />);
   await expect(page.getByTestId(testId("refineryContent"))).toBeVisible();
 
@@ -690,20 +704,14 @@ test("a per-field KEEP/DISCARD decision drives the apply: only the kept field is
   // Recorded as a LIST, not a nullable single: the count is an assertion of its own (one press, one call),
   // and reading `[0]` needs no cast — a `let x: T | null` written only inside a closure stays narrowed to
   // `null` for tsc, which is exactly the pressure that produces a banned `as unknown as` double-cast.
-  const applyInputs: ApplyInput[] = [];
+  const applyInputs: TrpcInput<"refinery.applyFields">[] = [];
   await routeTrpc(page, {
     ...baseRoutes(),
     // INPUT-AWARE (header): the outcome is a function of the accepts the surface actually sent. Hand this
     // a fixed two-field array and the Discard below stops proving anything.
-    "refinery.applyFields": (input: unknown): unknown => {
-      const decoded = input as ApplyInput;
-      applyInputs.push(decoded);
-      return {
-        applied: decoded.accepts.map((accept) => ({ field: accept.field, kind: "replaced" })),
-        dropped: [],
-        character: CARD,
-        snapshotId: "casn_ct_snapshot",
-      };
+    "refinery.applyFields": (input: TrpcInput<"refinery.applyFields">) => {
+      applyInputs.push(input);
+      return applyResult(input);
     },
   });
   const component = await mount(<RefineryContentStory sessionId={SESSION_ID} />);

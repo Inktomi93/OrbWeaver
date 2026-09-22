@@ -18,6 +18,7 @@ import type { Locator, Page } from "@playwright/test";
 import { ariaTreeFindings } from "../../../../support/browser/accessible-names.ts";
 import { hitBoxes, resolveSpacingPx, touchFloorPx } from "../../../../support/browser/touch-floor.ts";
 import { REGEX_READS_EMPTY } from "../../../../support/node/regex-reads-empty.ts";
+import type { TrpcFixtureOutput, TrpcResponder, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { ctSnapPath } from "../../../../support/node/snap-out.ts";
 import { RpgTakeoverDockedStory, RpgTakeoverFloorStory, RpgTakeoverNotifyStory, RpgTakeoverReferenceStory, RpgTakeoverStory } from "../_ct-stories.tsx";
@@ -37,7 +38,7 @@ const VITALITY_CELLS = /^(Mara )?Vitality (value|max)$/;
 
 // A `chat.getChat` stub carrying the rpg POINTER (fires the takeover) + the host gate + the viewer identity.
 // `viewerActivePersonaId` is what the resync control's opt-in restamp stamps TO (null ⇒ nothing to stamp to).
-function gameChat(viewerActivePersonaId: string | null = PERSONA_ID): unknown {
+function gameChat(viewerActivePersonaId: string | null = PERSONA_ID): TrpcFixtureOutput<"chat.getChat"> {
   return {
     participants: [{ kind: "human", role: "host", userId: "user_ct", characterId: null }],
     viewerUserId: "user_ct",
@@ -53,7 +54,7 @@ function gameChat(viewerActivePersonaId: string | null = PERSONA_ID): unknown {
 // A `rpg.getGame` stub — the lite mode trim + the read-only flag (the CP pill gate) + the delivery-model
 // knob and its EFFECTIVE resolution (the freshness-indicator driver since EFF-3). Defaults `cheap` (the
 // two-call arm — the lagging label) unless overridden.
-function gameView(trackersReadOnly: boolean, extractionMode: RpgExtractionMode = "cheap"): unknown {
+function gameView(trackersReadOnly: boolean, extractionMode: RpgExtractionMode = "cheap"): TrpcWireOutput<"rpg.getGame"> {
   return {
     id: GAME_ID,
     chatId: "chat_ct_keystone",
@@ -78,6 +79,8 @@ function gameView(trackersReadOnly: boolean, extractionMode: RpgExtractionMode =
         perceptionAttribute: "",
         resolution: { kind: "house-d20" },
       },
+      ruleset: "freeform",
+      dateMode: "structured",
       // The member-safe play-style trim (§5.4/§6.4) the Scene echo + card archive gate on.
       cyoa: false,
       cyoaChoiceBehavior: "compose",
@@ -106,7 +109,7 @@ const VITALITY = {
 const RESOLVE = { ...VITALITY, key: "resolve", label: "Resolve", max: 10, sort: 1 } satisfies RpgTrackerDef;
 
 // A `rpg.getTrackerView` stub — one participant actor with trackers + a condition, ambient + orbs, cast, a goal, beats.
-function trackerView(trackersReadOnly: boolean): unknown {
+function trackerView(trackersReadOnly: boolean): TrpcWireOutput<"rpg.getTrackerView"> {
   return {
     ambient: {
       location: "The Rusted Lantern — Common Room",
@@ -125,7 +128,7 @@ function trackerView(trackersReadOnly: boolean): unknown {
         // the readings on its volatile row — the panel renders exactly these, never a re-derivation.
         trackers: [VITALITY, RESOLVE],
         volatile: {
-          trackerValues: { vitality: { value: 24, items: null }, resolve: { value: 7, items: null } },
+          trackerValues: { vitality: { value: 24, items: null, max: 30 }, resolve: { value: 7, items: null, max: 10 } },
           conditions: [{ name: "poisoned", stat: null, modifier: 0, turnsLeft: null }],
           inventory: [],
           wallet: [],
@@ -175,7 +178,7 @@ function trackerView(trackersReadOnly: boolean): unknown {
 // EMPTY (no hidden content ⇒ the ledger renders nothing); `standingLies` carries the crown-gold rows.
 function revealView(
   lies: readonly { readonly character: string; readonly type: string; readonly truth: string; readonly reason: string; readonly messageId: MessageId }[] = [],
-): unknown {
+): TrpcWireOutput<"rpg.revealHidden"> {
   const byCharacter = new Map<string, typeof lies>();
   for (const lie of lies) {
     byCharacter.set(lie.character, [...(byCharacter.get(lie.character) ?? []), lie]);
@@ -188,7 +191,11 @@ function revealView(
 
 // A `rpg.getConfigView` stub — the HOST GM-console read (steering note, delivery model, the TRACKER defs,
 // relationship hints, the deception knobs). Empty-but-valid defaults; the console renders it.
-function configView(macros: readonly unknown[] = [], presetNames: readonly string[] = [], gmPresetId: string | null = null): unknown {
+function configView(
+  macros: TrpcWireOutput<"rpg.getConfigView">["userMacros"] = [],
+  presetNames: readonly string[] = [],
+  gmPresetId: string | null = null,
+): TrpcWireOutput<"rpg.getConfigView"> {
   return {
     statProfile: {
       attributes: [{ key: "str", label: "Strength", hint: "raw power" }],
@@ -199,6 +206,8 @@ function configView(macros: readonly unknown[] = [], presetNames: readonly strin
       perceptionAttribute: "str",
       resolution: { kind: "house-d20" },
     },
+    ruleset: "freeform",
+    dateMode: "structured",
     steeringNote: "Keep the tone grim.",
     // #1032 — the GM-VOICE knob. Default null (the born "your own preset" arm every other pin here drives).
     gmPresetId,
@@ -257,21 +266,42 @@ function configView(macros: readonly unknown[] = [], presetNames: readonly strin
  * `cacheBreakpointFromEnd` — that field is present only on the `placed` decision, assemble.ts:400-402).
  * They are DEFAULTS: a test whose subject is one of these lists the key after the spread and wins.
  */
-const EMPTY_ASSEMBLE_TRACE = {
+const EMPTY_ASSEMBLE_TRACE: TrpcWireOutput<"chat.previewAssembly">["trace"] = {
   staticSections: [],
   dynamicSections: [],
   worldInfoIncluded: 0,
-  worldInfoDropped: 0,
+  worldInfoDropped: [],
   worldInfoActivated: [],
   matchedKeys: [],
   compactSummaryIncluded: false,
   memoryIncluded: false,
+  memoryRecall: null,
+  databankIncluded: false,
   guidedInstructionIncluded: false,
   staticCacheBusters: [],
   chatInjectionsIncluded: 0,
   afterHistorySections: [],
 };
-const CHAT_PANEL_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
+
+type FunctionResponder<T> = T extends (input: infer TInput) => infer TOutput ? (input: TInput) => TOutput : never;
+type TrackerActor = TrpcWireOutput<"rpg.getTrackerView">["actors"][number];
+type TrackerVolatile = NonNullable<TrackerActor["volatile"]>;
+type PatchSheetResponder = FunctionResponder<TrpcResponder<"rpg.patchSheet">>;
+
+const CHAT_PANEL_AMBIENT_ROUTES: TrpcRoutes<
+  | "preset.list"
+  | "chat.getUserMacroPicks"
+  | "chat.getVariablePicks"
+  | "databank.listActiveForChat"
+  | "chat.listEffectiveRegex"
+  | "regex.listForChat"
+  | "regex.listScripts"
+  | "regex.listRoomDisplayScripts"
+  | "worldInfo.listForChat"
+  | "chat.previewAssembly"
+  | "settings.getUserSettings"
+  | "chat.getShapeTrace"
+> = {
   // The chat context BAND's preset chip (#860): the non-game arms of this file (the Game DOOR on a plain
   // chat) render chat's own band, which resolves the viewer's active preset against the library. Empty is
   // the honest companion to the settings default (`defaultPresetId: null` — "Built-in preset").
@@ -304,7 +334,7 @@ const CHAT_PANEL_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
   // this file because it was UNREACHABLE while the reads above answered null — the panel's meta tabs died in
   // their boundary before any settings reader mounted. Feeding them made this one fire, and the ratchet
   // named it on the very next run. Production defaults, so nothing this file asserts moves.
-  "settings.getUserSettings": { userId: "user_ct_rpg", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 },
+  "settings.getUserSettings": { userId: "user_ct_rpg", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0, configUnreadable: null },
   // The Diagnostics tab's `ShapeTrace` over an empty wire history.
   "chat.getShapeTrace": {
     multiCharacter: false,
@@ -319,7 +349,7 @@ const CHAT_PANEL_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
 // (the tab can't tell them apart, and the edit verb deliberately reaches both).
 // R4c: a `custom` entry carries its OWN free `label` ("prophecy") — the row must render that word, not the
 // generic "Custom" (the label was stored + model-written and no surface showed it).
-const JOURNAL_ENTRIES = [
+const JOURNAL_ENTRIES: TrpcWireOutput<"rpg.listJournal"> = [
   { id: "rpg_journal_ct_1", type: "npc", label: "", title: "Sera's debt", content: "She owes the party a favour.", createdAt: 2000 },
   { id: "rpg_journal_ct_2", type: "location", label: "", title: "The Rusted Lantern", content: "", createdAt: 1000 },
   { id: "rpg_journal_ct_3", type: "custom", label: "prophecy", title: "The drowned crown", content: "", createdAt: 500 },
@@ -329,12 +359,12 @@ function stubTakeover(
   page: Page,
   opts: {
     readonly readOnly?: boolean;
-    readonly reveal?: unknown;
-    readonly tracker?: unknown;
-    readonly game?: unknown;
-    readonly messages?: unknown;
-    readonly chat?: unknown;
-    readonly config?: unknown;
+    readonly reveal?: TrpcWireOutput<"rpg.revealHidden">;
+    readonly tracker?: TrpcWireOutput<"rpg.getTrackerView"> | ReturnType<typeof trpcHold>;
+    readonly game?: TrpcWireOutput<"rpg.getGame">;
+    readonly messages?: TrpcFixtureOutput<"chat.listMessages"> | ReturnType<typeof trpcError>;
+    readonly chat?: TrpcFixtureOutput<"chat.getChat">;
+    readonly config?: TrpcWireOutput<"rpg.getConfigView">;
     /** Fail the resync dialog's opt-in restamp (the ordering probe — a failed stamp must abort the rebuild). */
     readonly restampFails?: boolean;
     /** EDITSNAP-OK — make every hand door answer with this errors-as-data REFUSAL instead of `{ok:true}`. */
@@ -346,8 +376,8 @@ function stubTakeover(
     /** GRANTS-EDITOR — a LIVE getTrackerView that re-resolves per read (so a persisted grant flips carriage on
      *  the post-write refetch), and the patchSheet handler that mutates the store it reads. Both default to the
      *  static arms above, so every existing caller is unchanged. */
-    readonly liveTracker?: () => unknown;
-    readonly patchSheet?: (input: unknown) => unknown;
+    readonly liveTracker?: () => TrpcWireOutput<"rpg.getTrackerView">;
+    readonly patchSheet?: FunctionResponder<TrpcResponder<"rpg.patchSheet">>;
     /** #878 F7 — the viewer's TYPE SCALE. At `>= 1.25` (what the `reading` appearance preset sets) the
      *  satellite row leaves the head band for the game tab's own scroll region. Default: the schema's born
      *  1, so every other pin in this file keeps the orbs in the band. */
@@ -382,8 +412,8 @@ function stubTakeover(
     // "filled" from "the round never ran". A stub returning `undefined` would test a contract the server no
     // longer has.
     "rpg.populateFromCharacter": () => opts.populateVerdict ?? { ok: true, populated: true },
-    "rpg.updateConfig": () => undefined,
-    "rpg.upsertQuest": () => undefined,
+    "rpg.updateConfig": undefined,
+    "rpg.upsertQuest": () => "rpg_quest_ct_new",
     "rpg.editQuestObjective": () => undefined,
     "rpg.deleteQuest": () => undefined,
     // The Journal tab's own reads + the RV-6 hand-authoring verbs (all host-gated server-side).
@@ -400,6 +430,7 @@ function stubTakeover(
             schemaVersion: 1,
             config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, fontScale: opts.fontScale } },
             updatedAt: 0,
+            configUnreadable: null,
           },
         }),
     "rpg.getConfigView": () => opts.config ?? configView(),
@@ -408,7 +439,7 @@ function stubTakeover(
     // read the Scene choice echo / card archive projects (fetched only when the play-style knobs gate on).
     "chat.listChatInjections": () => [],
     "chat.listMessages": () => opts.messages ?? { messages: [] },
-    "chat.send": () => undefined,
+    "chat.send": () => ({ messages: [], aborted: false }),
     ...(opts.presets === undefined ? {} : { "preset.list": opts.presets }),
   });
 }
@@ -440,7 +471,7 @@ test("the band renders EVERY server-derived orb — no client cap drops a pinned
   // yield 4 rendered orb data lines — a client `.slice(0,3)` would silently drop the 4th (the bug this pins).
   await stubTakeover(page, {
     tracker: {
-      ...(trackerView(false) as Record<string, unknown>),
+      ...trackerView(false),
       trackerOrbs: [
         { key: "vitality", label: "Vitality", value: 24, max: 30, color: null },
         { key: "resolve", label: "Resolve", value: 7, max: 10, color: null },
@@ -606,12 +637,14 @@ test("a tab body renders real tracker data (Status: participant row + pool meter
 /** Two characters carrying the SAME trackers and the same editable planes — the collision shape #1383
  *  measured. The stock fixture has ONE character (plus an npc Status filters out), which cannot
  *  express a collision at all. */
-function twoCharacterTrackerView(): unknown {
-  const base = trackerView(false) as Record<string, unknown>;
-  const actors = base["actors"] as Record<string, unknown>[];
-  const mara = actors.find((a) => a["name"] === "Mara") as Record<string, unknown>;
-  const bryn = { ...mara, actorRef: { kind: "character", characterId: "character_ct_bryn" }, name: "Bryn" };
-  return { ...base, actors: [...actors, bryn] };
+function twoCharacterTrackerView(): TrpcWireOutput<"rpg.getTrackerView"> {
+  const base = trackerView(false);
+  const mara = base.actors.find((actor) => actor.name === "Mara");
+  if (mara === undefined) {
+    throw new Error("tracker fixture must contain Mara");
+  }
+  const bryn: (typeof base.actors)[number] = { ...mara, actorRef: { kind: "character", characterId: "character_ct_bryn" }, name: "Bryn" };
+  return { ...base, actors: [...base.actors, bryn] };
 }
 
 test("#1383 Status: every character block is a NAMED GROUP and no control name collides across the participants", async ({ mount, page }) => {
@@ -656,12 +689,14 @@ test("#1383 Status: every character block is a NAMED GROUP and no control name c
 /** Two characters carrying the SAME display name. Legal by construction — #1366 keys distinct SPELLINGS
  *  distinctly, so identical spellings remain a thing the participants can hold — and the shape #1531 measured: the
  *  whole #1383 repair is built on `actor.name`, so an identical name collapses BOTH halves at once. */
-function sameNameTrackerView(): unknown {
-  const base = trackerView(false) as Record<string, unknown>;
-  const actors = base["actors"] as Record<string, unknown>[];
-  const mara = actors.find((a) => a["name"] === "Mara") as Record<string, unknown>;
-  const twin = { ...mara, actorRef: { kind: "character", characterId: "character_ct_mara_twin" } };
-  return { ...base, actors: [...actors, twin] };
+function sameNameTrackerView(): TrpcWireOutput<"rpg.getTrackerView"> {
+  const base = trackerView(false);
+  const mara = base.actors.find((actor) => actor.name === "Mara");
+  if (mara === undefined) {
+    throw new Error("tracker fixture must contain Mara");
+  }
+  const twin: (typeof base.actors)[number] = { ...mara, actorRef: { kind: "character", characterId: "character_ct_mara_twin" } };
+  return { ...base, actors: [...base.actors, twin] };
 }
 
 // #1531 — the #1383 repair's own blind spot. Two entries named "Mara" published two groups with ONE
@@ -864,14 +899,14 @@ test("RV-11: the Scene npcs card shows the standing guides, omits the unwritten 
 
 // The npc's whole volatile half, as `getTrackerView` projects it on her ONE actor row (R2) — a pack, a
 // purse, conditions and a status the story wrote onto her `npc:sera` plane.
-const SERA_VOLATILE = {
-  trackerValues: { trust: { value: 3, items: null } },
+const SERA_VOLATILE: TrackerVolatile = {
+  trackerValues: { trust: { value: 3, items: null, max: 10 } },
   conditions: [{ name: "poisoned", stat: null, modifier: 0, turnsLeft: 2 }],
   inventory: [{ id: "item_ct_key", name: "bone key", description: "", quantity: 1, location: "", type: "" }],
   wallet: [{ name: "gold", amount: 40 }],
   status: "guarding the stair",
 };
-const TRUST_METER = { ...VITALITY, key: "trust", label: "Trust", appliesTo: "npcs", max: 10, sort: 0, pinned: false };
+const TRUST_METER = { ...VITALITY, key: "trust", label: "Trust", appliesTo: "npcs", max: 10, sort: 0, pinned: false } satisfies RpgTrackerDef;
 
 // The plane-loss defect, killed STRUCTURALLY (R1). The Scene npcs edit used to build a whole-`actorState`
 // IMAGE from the PARTICIPANT half of the view only, so a `npc:` target was never "found" and an EMPTY volatile got
@@ -880,12 +915,12 @@ const TRUST_METER = { ...VITALITY, key: "trust", label: "Trust", appliesTo: "npc
 // The op door cannot express that mistake: the wire payload carries the ONE datum the human touched and names
 // no sibling plane at all. The receipt is the WIRE payload, not a UI reaction.
 test("editing an npc's tracker sends ONE op naming only that datum (her other planes are unmentionable)", async ({ mount, page }) => {
-  const base = trackerView(false) as { actors: Record<string, unknown>[] };
+  const base = trackerView(false);
   const trpc = await stubTakeover(page, {
     tracker: {
-      ...(base as Record<string, unknown>),
+      ...base,
       // Her carried tracker + its reading ride her OWN row — there is no second cast-value projection.
-      actors: base.actors.map((a) => ((a["name"] as string) === "Sera" ? { ...a, trackers: [TRUST_METER], volatile: SERA_VOLATILE } : a)),
+      actors: base.actors.map((actor) => (actor.name === "Sera" ? { ...actor, trackers: [TRUST_METER], volatile: SERA_VOLATILE } : actor)),
     },
   });
   const component = await mount(<RpgTakeoverStory />);
@@ -928,11 +963,14 @@ test("editing an npc's tracker sends ONE op naming only that datum (her other pl
 // projected: the host could not see her, edit her, or remove her, and the model could still be told to wound
 // her. Departure is a presence drop now, and this section is where the retained person lives.
 test("R2: an OFFSTAGE npc is listed, editable and dismissable — never on the On-stage list", async ({ mount, page }) => {
-  const base = trackerView(false) as { actors: Record<string, unknown>[]; cast: readonly string[] };
-  const sera = base.actors.find((a) => a["name"] === "Sera") as Record<string, unknown>;
+  const base = trackerView(false);
+  const sera = base.actors.find((actor) => actor.name === "Sera");
+  if (sera === undefined || sera.identity === null) {
+    throw new Error("tracker fixture must contain Sera identity");
+  }
   const trpc = await stubTakeover(page, {
     tracker: {
-      ...(base as Record<string, unknown>),
+      ...base,
       // Sera stays on stage; Vesna is TRACKED but absent from the presence plane — the offstage row.
       actors: [
         ...base.actors,
@@ -941,7 +979,7 @@ test("R2: an OFFSTAGE npc is listed, editable and dismissable — never on the O
           actorRef: { kind: "npc", npcKey: "vesna" },
           name: "Sister Vesna",
           presence: false,
-          identity: { ...(sera["identity"] as Record<string, unknown>), name: "Sister Vesna", mood: "guarded", appearance: "", thoughts: "" },
+          identity: { ...sera.identity, name: "Sister Vesna", mood: "guarded", appearance: "", thoughts: "" },
         },
       ],
     },
@@ -982,11 +1020,14 @@ test("R2: an OFFSTAGE npc is listed, editable and dismissable — never on the O
 // re-key; her MOOD and her RELATIONSHIP stance do not, because a participant has no home for them (R2: a
 // stance is an npc's datum). A host who learns that after the fact learns it as a bug.
 test("R4: an offstage npc can be PROMOTED to the room's characters — two-step, named by whose it is, and honest about the stance", async ({ mount, page }) => {
-  const base = trackerView(false) as { actors: Record<string, unknown>[]; cast: readonly string[] };
-  const sera = base.actors.find((a) => a["name"] === "Sera") as Record<string, unknown>;
+  const base = trackerView(false);
+  const sera = base.actors.find((actor) => actor.name === "Sera");
+  if (sera === undefined || sera.identity === null) {
+    throw new Error("tracker fixture must contain Sera identity");
+  }
   const trpc = await stubTakeover(page, {
     tracker: {
-      ...(base as Record<string, unknown>),
+      ...base,
       actors: [
         ...base.actors,
         {
@@ -994,7 +1035,7 @@ test("R4: an offstage npc can be PROMOTED to the room's characters — two-step,
           actorRef: { kind: "npc", npcKey: "vesna" },
           name: "Sister Vesna",
           presence: false,
-          identity: { ...(sera["identity"] as Record<string, unknown>), name: "Sister Vesna", mood: "guarded", appearance: "", thoughts: "" },
+          identity: { ...sera.identity, name: "Sister Vesna", mood: "guarded", appearance: "", thoughts: "" },
         },
       ],
     },
@@ -1164,7 +1205,7 @@ test("a beat row's confirmed delete fires deleteJournalEntry (host) — the muta
 });
 
 test("a MEMBER reads the chronicle with NO authoring affordances (PERMISSION-omit, never a disabled twin)", async ({ mount, page }) => {
-  await stubTakeover(page, { chat: { ...(gameChat() as Record<string, unknown>), viewerIsHost: false } });
+  await stubTakeover(page, { chat: { ...gameChat(), viewerIsHost: false } });
   const component = await mount(<RpgTakeoverStory />);
 
   await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Journal" }).click();
@@ -1181,7 +1222,7 @@ test("P5: the ACT RAIL renders the snapshot plot plane (current act embered; nul
   // The default stub carries `plot: null` — the sibling Quests CTs prove the rail ABSENT there (no
   // client-invented acts). This mount overrides the tracker with a real plot plane.
   const tracker = {
-    ...(trackerView(false) as Record<string, unknown>),
+    ...trackerView(false),
     plot: {
       act: 2,
       title: "The Bone Key",
@@ -1243,13 +1284,16 @@ test("a tracker max edit writes THIS CHARACTER's ceiling override (patchActor, n
 
 test("typing the game DEFAULT back into a character's ceiling CLEARS the override (the anti-drift rule)", async ({ mount, page }) => {
   // This actor carries an override (28 against the def's 30) — the row says so; writing 30 stores `null`.
-  const tracker = trackerView(false) as Record<string, unknown>;
-  const actors = (tracker["actors"] as Record<string, unknown>[]).map((a) => ({
-    ...a,
-    volatile: {
-      ...(a["volatile"] as Record<string, unknown>),
-      trackerValues: { vitality: { value: 24, items: null, max: 28 }, resolve: { value: 7, items: null } },
-    },
+  const tracker = trackerView(false);
+  const actors = tracker.actors.map((actor) => ({
+    ...actor,
+    volatile:
+      actor.volatile === null
+        ? null
+        : {
+            ...actor.volatile,
+            trackerValues: { vitality: { value: 24, items: null, max: 28 }, resolve: { value: 7, items: null, max: 10 } },
+          },
   }));
   const trpc = await stubTakeover(page, { tracker: { ...tracker, actors } });
   const component = await mount(<RpgTakeoverStory />);
@@ -1272,14 +1316,17 @@ test("typing the game DEFAULT back into a character's ceiling CLEARS the overrid
 // and any actor the story wrote a max onto without changing it printed `Vitality ceiling 30 — default: 30`
 // under its bar, once per meter per actor. A value equal to the default IS the default, however it got there.
 test("a stored ceiling EQUAL to the game default states nothing — the note is for divergence only", async ({ mount, page }) => {
-  const tracker = trackerView(false) as Record<string, unknown>;
-  const actors = (tracker["actors"] as Record<string, unknown>[]).map((a) => ({
-    ...a,
-    volatile: {
-      ...(a["volatile"] as Record<string, unknown>),
-      // max 30 === the def's default 30 (the shape a model write leaves behind).
-      trackerValues: { vitality: { value: 24, items: null, max: 30 }, resolve: { value: 7, items: null } },
-    },
+  const tracker = trackerView(false);
+  const actors = tracker.actors.map((actor) => ({
+    ...actor,
+    volatile:
+      actor.volatile === null
+        ? null
+        : {
+            ...actor.volatile,
+            // max 30 === the def's default 30 (the shape a model write leaves behind).
+            trackerValues: { vitality: { value: 24, items: null, max: 30 }, resolve: { value: 7, items: null, max: 10 } },
+          },
   }));
   await stubTakeover(page, { tracker: { ...tracker, actors } });
   const component = await mount(<RpgTakeoverStory />);
@@ -1293,15 +1340,16 @@ test("a stored ceiling EQUAL to the game default states nothing — the note is 
 test("the Scene CHOICE echo renders the transcript's LIVE :::choices (info-blue; send-mode line) and a pick fires chat.send", async ({ mount, page }) => {
   // A cyoa game in `send` mode + a transcript whose LAST message is an assistant turn carrying a choices
   // fence — the echo's exact live condition (a later user reply would settle it → no echo).
-  const game = {
-    ...(gameView(false) as Record<string, unknown>),
+  const baseGame = gameView(false);
+  const game: TrpcWireOutput<"rpg.getGame"> = {
+    ...baseGame,
     publicConfig: {
-      ...((gameView(false) as { publicConfig: Record<string, unknown> }).publicConfig ?? {}),
+      ...baseGame.publicConfig,
       cyoa: true,
       cyoaChoiceBehavior: "send",
     },
   };
-  const messages = {
+  const messages: TrpcFixtureOutput<"chat.listMessages"> = {
     messages: [
       { id: "message_ct_u1", role: "user", content: "We hold the door.", createdAt: 1000 },
       {
@@ -1311,6 +1359,7 @@ test("the Scene CHOICE echo renders the transcript's LIVE :::choices (info-blue;
         createdAt: 2000,
       },
     ],
+    identities: [],
   };
   const trpc = await stubTakeover(page, { game, messages });
   const component = await mount(<RpgTakeoverStory />);
@@ -1331,12 +1380,12 @@ test("the Scene CHOICE echo renders the transcript's LIVE :::choices (info-blue;
 // SAME `chat.listMessages` cache the transcript reads (no second round-trip), opens a card in the archive
 // lightbox, and — with cards enabled but none written yet — says so instead of vanishing (an invisible
 // section reads as an absent feature, which is exactly how the owner read it).
-function cardsGame(): unknown {
-  const base = gameView(false) as { publicConfig: Record<string, unknown> };
-  return { ...(base as Record<string, unknown>), publicConfig: { ...base.publicConfig, immersiveHtml: true } };
+function cardsGame(): TrpcWireOutput<"rpg.getGame"> {
+  const base = gameView(false);
+  return { ...base, publicConfig: { ...base.publicConfig, immersiveHtml: true } };
 }
 
-const CARD_MESSAGES = {
+const CARD_MESSAGES: TrpcFixtureOutput<"chat.listMessages"> = {
   messages: [
     {
       id: "message_ct_card1",
@@ -1345,6 +1394,7 @@ const CARD_MESSAGES = {
       createdAt: 1000,
     },
   ],
+  identities: [],
 };
 
 test("RV-2: the Scene CARD ARCHIVE lists the transcript's cards and opens one in the sandboxed lightbox", async ({ mount, page }) => {
@@ -1397,7 +1447,7 @@ test("RV-2: an archived-card row wears the artifact chrome — title, turn ref, 
 // chat_01kym4b1y…), verbatim in shape: a nested-closer card and two generations truncated mid-attribute.
 // Each showed the reader a raw `:::card title="…"` line in the transcript and NOTHING in the archive.
 // With the committed EOF-close they are cards again — in the archive AND in the transcript.
-const BROKEN_CARD_MESSAGES = {
+const BROKEN_CARD_MESSAGES: TrpcFixtureOutput<"chat.listMessages"> = {
   messages: [
     {
       id: "message_ct_nest1",
@@ -1408,6 +1458,7 @@ const BROKEN_CARD_MESSAGES = {
     { id: "message_ct_trunc2", role: "assistant", content: ':::card title="Ashfell Night Market"\n\n<div style="font-family: \'Courier New', createdAt: 2000 },
     { id: "message_ct_trunc3", role: "assistant", content: ':::card title="The Watcher’s Shadow"\n<div style="background: #1a', createdAt: 3000 },
   ],
+  identities: [],
 };
 
 test("RV-2 root cause: unterminated cards (truncated + nested-closer) reach the archive once committed", async ({ mount, page }) => {
@@ -1553,7 +1604,7 @@ test.describe("§3.3 — the dangling-pointer heal (typed NOT_FOUND, not a retry
     await routeTrpc(page, {
       ...CHAT_PANEL_AMBIENT_ROUTES,
       // A member viewer (not host) on a chat with a dangling pointer.
-      "chat.getChat": () => ({ ...(gameChat() as Record<string, unknown>), viewerIsHost: false }),
+      "chat.getChat": () => ({ ...gameChat(), viewerIsHost: false }),
       "rpg.getGame": () => trpcError({ code: "NOT_FOUND", message: "game" }),
       "rpg.getTrackerView": () => trpcError({ code: "NOT_FOUND", message: "game" }),
       "chat.listChatInjections": () => [],
@@ -1574,8 +1625,10 @@ test.describe("§3.3 — the dangling-pointer heal (typed NOT_FOUND, not a retry
 
 /** A d20 game — a real attribute vocabulary, so the takeover renders the stat grid (the surface d20 must
  *  not ship ugly on, RV-13) instead of the no-attributes teaching line. */
-function d20Game(): unknown {
+function d20Game(): TrpcWireOutput<"rpg.getGame"> {
+  const base = gameView(false);
   return {
+    ...base,
     id: GAME_ID,
     chatId: "chat_ct_keystone",
     mode: "lite",
@@ -1585,6 +1638,7 @@ function d20Game(): unknown {
     extractionMode: "cheap",
     effectiveDelivery: { path: "tool-round", fallbackReason: null },
     publicConfig: {
+      ...base.publicConfig,
       statProfile: {
         attributes: [{ key: "str", label: "STR", hint: "raw physical power" }],
         range: { min: 1, max: 20 },
@@ -1604,9 +1658,9 @@ function d20Game(): unknown {
 
 /** A participant list whose one actor carries everything Sheet-the-tab used to show — title, level, wallet, attribute
  *  values — plus a packed item (the RV-5 surface). */
-function richTracker(): unknown {
+function richTracker(): TrpcWireOutput<"rpg.getTrackerView"> {
   return {
-    ...(trackerView(false) as Record<string, unknown>),
+    ...trackerView(false),
     actors: [
       {
         actorRef: { kind: "character", characterId: "character_ct_mara" },
@@ -1627,7 +1681,7 @@ function richTracker(): unknown {
         },
         trackers: [VITALITY, RESOLVE],
         volatile: {
-          trackerValues: { vitality: { value: 24, items: null }, resolve: { value: 7, items: null } },
+          trackerValues: { vitality: { value: 24, items: null, max: 30 }, resolve: { value: 7, items: null, max: 10 } },
           conditions: [{ name: "poisoned", stat: null, modifier: 0, turnsLeft: null }],
           inventory: [{ id: "item_ct_key", name: "Bone key", description: "cold to the touch", quantity: 1, location: "belt pouch", type: "quest" }],
           wallet: [{ name: "gold", amount: 128 }],
@@ -1658,10 +1712,13 @@ const PACKED_ITEMS = [
   { id: "i8", name: "Torch", description: "", quantity: 4, location: "pack", type: "tool" },
 ];
 
-function packedTracker(): unknown {
-  const base = richTracker() as { readonly actors: readonly { readonly volatile: Record<string, unknown> }[] };
+function packedTracker(): TrpcWireOutput<"rpg.getTrackerView"> {
+  const base = richTracker();
   const actor = base.actors[0];
-  return { ...base, actors: [{ ...actor, volatile: { ...actor?.volatile, inventory: PACKED_ITEMS } }] };
+  if (actor?.volatile === null || actor?.volatile === undefined) {
+    throw new Error("tracker fixture must contain a volatile actor");
+  }
+  return { ...base, actors: [{ ...actor, volatile: { ...actor.volatile, inventory: PACKED_ITEMS } }] };
 }
 
 // The party purse SUMS the party's wallets and deliberately EXCLUDES npcs (an NPC's coin is hers, not
@@ -1670,15 +1727,16 @@ function packedTracker(): unknown {
 // so pairing it with an EXCLUDED purse states the opposite of what the total counted, and the reader has no
 // way to tell which number is lying.
 test("R2: the purse's carried note is coherent with the party-total exclusion — omitted for a CAST subject", async ({ mount, page }) => {
-  const base = richTracker() as { readonly actors: readonly Record<string, unknown>[] };
-  const mara = base.actors[0] as Record<string, unknown>;
-  const purse = (amount: number): Record<string, unknown> => ({
-    ...(mara["volatile"] as Record<string, unknown>),
-    wallet: [{ name: "gold", amount }],
-  });
+  const base = richTracker();
+  const mara = base.actors[0];
+  if (mara?.volatile === null || mara?.volatile === undefined) {
+    throw new Error("tracker fixture must contain a volatile actor");
+  }
+  const volatile = mara.volatile;
+  const purse = (amount: number): TrackerVolatile => ({ ...volatile, wallet: [{ name: "gold", amount }] });
   await stubTakeover(page, {
     tracker: {
-      ...(base as Record<string, unknown>),
+      ...base,
       actors: [
         { ...mara, volatile: purse(50) },
         {
@@ -1928,7 +1986,7 @@ test("a CUSTOM journal entry renders its own label; an entry without one falls b
 });
 
 test("RV-5: a MEMBER reads the pack with no authoring affordances (PERMISSION-omit, never a disabled twin)", async ({ mount, page }) => {
-  await stubTakeover(page, { tracker: richTracker(), chat: { ...(gameChat() as Record<string, unknown>), viewerIsHost: false } });
+  await stubTakeover(page, { tracker: richTracker(), chat: { ...gameChat(), viewerIsHost: false } });
   const component = await mount(<RpgTakeoverStory />);
   await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Inventory" }).click();
 
@@ -2037,7 +2095,7 @@ const MARA_PACK_BASE = "actorState.character:character_ct_mara.volatile.inventor
 
 test("#78: a hand-pinned ITEM carries its own pin and ONE click releases it — the pack itself stays the story's", async ({ mount, page }) => {
   const trpc = await stubTakeover(page, {
-    tracker: { ...(richTracker() as Record<string, unknown>), lockedPaths: [`${MARA_PACK_BASE}.name`, `${MARA_PACK_BASE}.quantity`] },
+    tracker: { ...richTracker(), lockedPaths: [`${MARA_PACK_BASE}.name`, `${MARA_PACK_BASE}.quantity`] },
   });
   const component = await mount(<RpgTakeoverStory />);
   await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Inventory" }).click();
@@ -2077,7 +2135,7 @@ test("#78: a LEGACY plane-wide pack lock still renders its section Release (no s
   // locks are never migrated (the dev corpus is the owner's), so the READ side keeps honoring the old path and
   // the section keeps the affordance that lets a host let it go.
   const trpc = await stubTakeover(page, {
-    tracker: { ...(richTracker() as Record<string, unknown>), lockedPaths: ["actorState.character:character_ct_mara.volatile.inventory"] },
+    tracker: { ...richTracker(), lockedPaths: ["actorState.character:character_ct_mara.volatile.inventory"] },
   });
   const component = await mount(<RpgTakeoverStory />);
   await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Inventory" }).click();
@@ -2186,7 +2244,7 @@ test("the Game tab's numeric knobs write through the config door — the reminde
 });
 
 test("a MEMBER's grid tile is a card, not a door (PERMISSION-omit, never a disabled twin)", async ({ mount, page }) => {
-  await stubTakeover(page, { tracker: packedTracker(), chat: { ...(gameChat() as Record<string, unknown>), viewerIsHost: false } });
+  await stubTakeover(page, { tracker: packedTracker(), chat: { ...gameChat(), viewerIsHost: false } });
   const component = await mount(<RpgTakeoverStory />);
   await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Inventory" }).click();
 
@@ -2219,7 +2277,7 @@ test("Status takeover: a connection with no structured writer DISABLES the born-
   page,
 }) => {
   const trpc = await stubTakeover(page, {
-    game: { ...(d20Game() as Record<string, unknown>), canPopulate: false },
+    game: { ...d20Game(), canPopulate: false },
     tracker: richTracker(),
   });
   const component = await mount(<RpgTakeoverStory />);
@@ -2287,7 +2345,7 @@ test("POPLOUD: a fill that LANDED stays quiet — the repainted panel is the fee
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 /** One authored macro as `getConfigView` returns it (the full `UserMacroSpec` — the editor binds every field). */
-function gameMacro(name: string, description = ""): unknown {
+function gameMacro(name: string, description = ""): TrpcWireOutput<"rpg.getConfigView">["userMacros"][number] {
   return { name, description, args: [], body: "the stone hums", inputs: [], strict: false };
 }
 
@@ -2373,7 +2431,7 @@ test("WAVE MU: with no macros the section says what empty MEANS (never a blank t
 });
 
 test("WAVE MU: a MEMBER never reaches the macro editor — the whole crown console is host-gated (PERMISSION-omit)", async ({ mount, page }) => {
-  await stubTakeover(page, { chat: { ...(gameChat() as Record<string, unknown>), viewerIsHost: false } });
+  await stubTakeover(page, { chat: { ...gameChat(), viewerIsHost: false } });
   const component = await mount(<RpgTakeoverStory />);
 
   // The console tab itself is omitted for a member (never a disabled twin), so the section cannot be reached.
@@ -3232,8 +3290,8 @@ test("#102: in the WRAPPED rail the active cell drops its edge bar — a bar bet
 
 /** The tracker read of a game whose story has set NO scene — the exact state F6 measured burning ~140px of
  *  band on a dial and the words "No ambient set". Everything else about the game is unchanged. */
-function ambientLessTrackerView(): unknown {
-  return { ...(trackerView(false) as Record<string, unknown>), ambient: null };
+function ambientLessTrackerView(): TrpcWireOutput<"rpg.getTrackerView"> {
+  return { ...trackerView(false), ambient: null };
 }
 
 test("HUD-1 §7.3: with no ambient set the band COMPRESSES to one row — a smaller stone with the cues beside it", async ({ mount, page }) => {
@@ -3393,7 +3451,7 @@ test("side-eye 08-01: a POOLLESS pinned tracker is a DISC, not a full ring — s
   const grit = { key: "grit", label: "Grit", value: 5, max: null, color: null };
   await stubTakeover(page, {
     tracker: {
-      ...(trackerView(false) as Record<string, unknown>),
+      ...trackerView(false),
       trackerOrbs: [{ key: "vitality", label: "Vitality", value: 24, max: 30, color: null }, grit],
     },
   });
@@ -3453,12 +3511,15 @@ test("side-eye 08-01: at 320px the SIX-cell game rail wraps too — the caption 
 
 /** The same participant actor with NO tracker readings written — the state a fresh game is in before the story
  *  has touched anyone's pools (the defs exist; the values do not). */
-function unwrittenTrackerView(): unknown {
-  const base = trackerView(false) as { readonly actors: readonly Record<string, unknown>[] };
-  const actor = base.actors[0] as Record<string, unknown>;
+function unwrittenTrackerView(): TrpcWireOutput<"rpg.getTrackerView"> {
+  const base = trackerView(false);
+  const actor = base.actors[0];
+  if (actor?.volatile === null || actor?.volatile === undefined) {
+    throw new Error("tracker fixture must contain a volatile actor");
+  }
   return {
     ...base,
-    actors: [{ ...actor, volatile: { ...(actor["volatile"] as Record<string, unknown>), trackerValues: {} } }],
+    actors: [{ ...actor, volatile: { ...actor.volatile, trackerValues: {} } }],
     trackerOrbs: [],
   };
 }
@@ -3496,11 +3557,14 @@ test("side-eye 08-01: the pack grid ends on the LAST ITEM — no empty ghost soc
 test("side-eye 08-01: a npc card's tracked readings are named by WHOSE they are", async ({ mount, page }) => {
   // Two npcs carrying the same tracker gave a name-navigating reader two buttons called "Trust
   // value" and no way to tell Sera's from Mara's — the card's own name was in the DOM, not in the control's.
-  const trust = { ...VITALITY, key: "trust", label: "Trust", shape: "text", max: null, appliesTo: "npcs" };
-  const base = trackerView(false) as { actors: Record<string, unknown>[]; cast: readonly string[] } & Record<string, unknown>;
-  const sera = base.actors.find((a) => a["name"] === "Sera") as Record<string, unknown>;
-  const reading = (value: string): Record<string, unknown> => ({
-    trackerValues: { trust: { value, items: null } },
+  const trust = { ...VITALITY, key: "trust", label: "Trust", shape: "text", max: null, appliesTo: "npcs" } satisfies RpgTrackerDef;
+  const base = trackerView(false);
+  const sera = base.actors.find((actor) => actor.name === "Sera");
+  if (sera === undefined || sera.identity === null) {
+    throw new Error("tracker fixture must contain Sera identity");
+  }
+  const reading = (value: string): TrackerVolatile => ({
+    trackerValues: { trust: { value, items: null, max: null } },
     conditions: [],
     inventory: [],
     wallet: [],
@@ -3515,7 +3579,7 @@ test("side-eye 08-01: a npc card's tracked readings are named by WHOSE they are"
           ...sera,
           actorRef: { kind: "npc", npcKey: "mara-npc" },
           name: "Mara the elder",
-          identity: { ...(sera["identity"] as Record<string, unknown>), name: "Mara the elder", appearance: "", thoughts: "" },
+          identity: { ...sera.identity, name: "Mara the elder", appearance: "", thoughts: "" },
           trackers: [trust],
           volatile: reading("warm"),
         },
@@ -3823,9 +3887,12 @@ test("GLYPHFIX: at the 272px panel floor the quest glyph buttons are SQUARE, tok
 
 /** The default config's ONE tracker def re-shaped to a `meter` — the arm that renders the colour SWATCH
  *  (`def.shape === "meter"`), which the default `text` def never mounts. */
-function meterTrackerConfig(): unknown {
-  const base = configView() as Record<string, unknown>;
-  const def = (base["trackers"] as readonly Record<string, unknown>[])[0] as Record<string, unknown>;
+function meterTrackerConfig(): TrpcWireOutput<"rpg.getConfigView"> {
+  const base = configView();
+  const def = base.trackers[0];
+  if (def === undefined) {
+    throw new Error("config fixture must contain a tracker");
+  }
   return { ...base, trackers: [{ ...def, shape: "meter", write: "delta", max: 30 }] };
 }
 
@@ -4233,14 +4300,14 @@ const MARA_KEY = actorRefKey({ kind: "character", characterId: castId<CharacterI
 /** A LIVE grants/revokes store: `tracker()` re-resolves Mara's carried set through the ONE carrier predicate on
  *  every read, `patch()` mutates the store from a whole-list `patchSheet` payload. So a persisted grant really
  *  starts carrying on the refetch — the applicability half, not just a payload assertion. */
-function grantsStore(): { readonly tracker: () => unknown; readonly patch: (input: unknown) => void } {
+function grantsStore(): { readonly tracker: () => TrpcWireOutput<"rpg.getTrackerView">; readonly patch: PatchSheetResponder } {
   const grants: string[] = [];
   const revokes: string[] = [];
   const defs = GRANT_DEFS;
   const carrier = (): RpgTrackerCarrier => ({ actorKey: MARA_KEY, name: "Mara", kind: "party", grants, revokes });
   return {
-    tracker: (): unknown => ({
-      ...(trackerView(false) as Record<string, unknown>),
+    tracker: (): TrpcWireOutput<"rpg.getTrackerView"> => ({
+      ...trackerView(false),
       trackerDefs: defs,
       actors: [
         {
@@ -4255,8 +4322,8 @@ function grantsStore(): { readonly tracker: () => unknown; readonly patch: (inpu
         },
       ],
     }),
-    patch: (input: unknown): undefined => {
-      const patch = (input as { readonly patch?: { readonly trackerGrants?: string[]; readonly trackerRevokes?: string[] } }).patch ?? {};
+    patch: (input): undefined => {
+      const patch = input?.patch ?? {};
       if (patch.trackerGrants !== undefined) {
         grants.splice(0, grants.length, ...patch.trackerGrants);
       }
@@ -4333,7 +4400,7 @@ test("a MEMBER sees NO grants editor in the takeover — grants are the host's c
     game: d20Game(),
     liveTracker: store.tracker,
     patchSheet: store.patch,
-    chat: { ...(gameChat() as Record<string, unknown>), viewerIsHost: false },
+    chat: { ...gameChat(), viewerIsHost: false },
   });
   const component = await mount(<RpgTakeoverStory />);
   await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Status" }).click();
@@ -4357,17 +4424,20 @@ test("a MEMBER sees NO grants editor in the takeover — grants are the host's c
 
 /** The default participant list with ONE meter on its actor (Vitality) instead of two — see the hit-tree test below
  *  for why the second meter makes that test unfalsifiable. Everything else is `trackerView(false)` verbatim. */
-function singleMeterTrackerView(): unknown {
-  const base = trackerView(false) as Record<string, unknown>;
-  const actors = base["actors"] as readonly Record<string, unknown>[];
-  const mara = actors[0] as Record<string, unknown>;
+function singleMeterTrackerView(): TrpcWireOutput<"rpg.getTrackerView"> {
+  const base = trackerView(false);
+  const actors = base.actors;
+  const mara = actors[0];
+  if (mara === undefined) {
+    throw new Error("tracker fixture must contain Mara");
+  }
   return {
     ...base,
     actors: [
       {
         ...mara,
         trackers: [VITALITY],
-        volatile: { ...(mara["volatile"] as Record<string, unknown>), trackerValues: { vitality: { value: 24, items: null } } },
+        volatile: mara.volatile === null ? null : { ...mara.volatile, trackerValues: { vitality: { value: 24, items: null, max: 30 } } },
       },
       ...actors.slice(1),
     ],
@@ -4599,15 +4669,22 @@ test.describe("#869 — the coarse tap on a visible tracker datum", () => {
   test.use({ hasTouch: true, viewport: { width: 430, height: 900 } });
 
   /** A just-started game's card: no trackers written, no conditions — a status line above `+ condition`. */
-  function bareCardTrackerView(): unknown {
-    const base = trackerView(false) as Record<string, unknown>;
-    const mara = (base["actors"] as Record<string, unknown>[]).filter((a) => a["name"] === "Mara");
-    return { ...base, actors: mara.map((a) => ({ ...a, trackers: [], volatile: { ...(a["volatile"] as object), trackerValues: {}, conditions: [] } })) };
+  function bareCardTrackerView(): TrpcWireOutput<"rpg.getTrackerView"> {
+    const base = trackerView(false);
+    const mara = base.actors.filter((actor) => actor.name === "Mara");
+    return {
+      ...base,
+      actors: mara.map((actor) => ({
+        ...actor,
+        trackers: [],
+        volatile: actor.volatile === null ? null : { ...actor.volatile, trackerValues: {}, conditions: [] },
+      })),
+    };
   }
 
   for (const arm of [
     { name: "a just-started card (status line above `+ condition`)", tracker: bareCardTrackerView, values: 2 },
-    { name: "a populated card (two meter rows above `+ condition`)", tracker: (): unknown => trackerView(false), values: 6 },
+    { name: "a populated card (two meter rows above `+ condition`)", tracker: (): TrpcWireOutput<"rpg.getTrackerView"> => trackerView(false), values: 6 },
   ]) {
     test(`every editable value owns the coarse touch floor on BOTH axes — ${arm.name}`, async ({ mount, page }) => {
       await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);

@@ -1,0 +1,56 @@
+{
+  "workItem": 2542,
+  "repairKind": "wording-only active-guidance rerepair after independent review",
+  "verdict": "REPAIRED",
+  "changedPaths": [
+    "docs/architecture/proposed/hub-browse-design/01-network-guard.md",
+    "docs/architecture/proposed/hub-browse-design/02-domain-and-adapters.md",
+    ".dependency-cruiser.cjs"
+  ],
+  "before": [
+    "01-network-guard.md named credentials.fetchModels as the injected-op precedent.",
+    "02-domain-and-adapters.md named credentials.fetchModels as the domain-verb-over-injected-network-adapter precedent.",
+    ".dependency-cruiser.cjs named fetchOpenAiModels -> infra/network and the removed Tier-3 openai-models move in persistence-no-io guidance."
+  ],
+  "after": "All three now cite the same current seam: DatabankContext.fetchUrl -> entry/compose/databank.ts -> infra/network.fetchWebDocument.",
+  "livePrecedentEvidence": {
+    "declaration": "packages/server/src/domain/databank/contract/service.ts:177 readonly fetchUrl: SafeFetchOp",
+    "import": "packages/server/src/entry/compose/databank.ts:23 imports fetchWebDocument from #infra/network",
+    "binding": "packages/server/src/entry/compose/databank.ts:114 binds fetchUrl: fetchWebDocument",
+    "consumers": [
+      "packages/server/src/domain/databank/verbs/scrape/scrape-web.ts:35",
+      "packages/server/src/domain/databank/verbs/scrape/scrape-wiki.ts:57",
+      "packages/server/src/domain/databank/verbs/scrape/scrape-youtube.ts:90"
+    ]
+  },
+  "structuralCorroboration": {
+    "scope": "packages/server/src, TypeScript, ast-grep 0.45.0",
+    "scannedFiles": 1390,
+    "fetchWebDocumentImports": 1,
+    "databankContextBindings": 1,
+    "ctxFetchUrlCalls": 3
+  },
+  "textCorroboration": {
+    "retiredTerms": "0 matches across the three owned paths for credentials.fetchModels|fetchOpenAiModels|openai-models",
+    "currentTerms": "all three owned paths name DatabankContext.fetchUrl/fetchWebDocument; rg corroborates the declaration, binding, and scrape-web consumer"
+  },
+  "verification": [
+    {
+      "command": "pnpm check:docs",
+      "result": "PASS: 423 files formatted"
+    },
+    {
+      "command": "pnpm test:scoped tests/tooling/dependency-cruiser.int.test.ts",
+      "result": "PASS: 1 file, 81 tests",
+      "report": "reports/runs/test/orbweaver-3193900-2026-09-21T13-44-55-655Z/test-report.json"
+    },
+    {
+      "command": "git diff --check -- <three owned paths>",
+      "result": "PASS"
+    }
+  ],
+  "historicalRecords": "untouched",
+  "staged": false,
+  "committed": false,
+  "pushed": false
+}

@@ -13,7 +13,7 @@
 // feature plus ONE array member HERE — home is never edited. Canonical `(order, id)` at the door: chat's
 // masthead line is order 0, its recents hero 10, its also-open list 15, the face shelf 20 and temp chat 30;
 // home's own "Elsewhere in the house" rail is 40; databank's tile 50; the buddy dormant doorway 80, and the
-// six roadmap doorways 81-86 (automation's dormant tile 90 was RETIRED with B3 — its own contract said it
+// the indexed roadmap doorways from 81 (automation's dormant tile 90 was RETIRED with B3 — its own contract said it
 // stays "until B3", and B3's chips now consume the channel it stood for). WHICH COLUMN each lands in is the
 // tile's own `region`, never a list here. Home consumes the registry BLIND through `makeHomeSection`.
 //

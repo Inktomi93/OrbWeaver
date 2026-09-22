@@ -11,6 +11,7 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { testId } from "../../../../../packages/client/src/lib/test-ids.ts";
+import type { TrpcRoutes } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { characterListResponder, makeCharacterSummary } from "../../character/fixtures.ts";
 import { CreateOnStartClickStory, NarrowNewChatPickerStory, NewChatPickerStory, TemporaryNewChatPickerStory } from "../_ct-stories.tsx";
@@ -326,13 +327,13 @@ const PREVIEW_FIT_STUB = {
 
 /** Everything a created room needs to paint: the row itself (as `startChat`'s response AND as the read),
  *  its empty canon, and the fit preview. */
-const CREATED_ROOM_ROUTES = {
+const CREATED_ROOM_ROUTES: TrpcRoutes<"character.list" | "chat.startChat" | "chat.getChat" | "chat.listMessages" | "chat.previewContextFit"> = {
   ...CHAT_AMBIENT_ROUTES,
   "character.list": { items: [ARIA, BOLT], nextCursor: null, totalCount: 2 },
   "chat.startChat": { chat: CREATED_CHAT_DETAIL, opening: null },
   "chat.getChat": CREATED_CHAT_DETAIL,
-  "chat.listMessages": (): unknown => makeMessagesPage([]),
-  "chat.previewContextFit": (): unknown => PREVIEW_FIT_STUB,
+  "chat.listMessages": () => makeMessagesPage([]),
+  "chat.previewContextFit": () => PREVIEW_FIT_STUB,
 };
 
 test("the Start click MINTS THE ROOM — the picker fires chat.startChat and lands in a real room, not a draft", async ({ mount, page }) => {

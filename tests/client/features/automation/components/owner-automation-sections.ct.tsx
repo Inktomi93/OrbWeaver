@@ -15,7 +15,7 @@
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { TrpcResponder } from "../../../../support/node/route-trpc.ts";
+import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { OwnerAutomationSectionsStory } from "../_ct-stories.tsx";
 
@@ -29,10 +29,10 @@ const EMPTY_LINE = /Nothing is watching your library yet/u;
 
 /** The viewer's settings row — spread FIRST into every `routeTrpc` call. Not this file's subject, but unfed
  *  it resolves `routeTrpc`'s null and every appearance/tier reader falls to its default branch. */
-const VIEWER_SETTINGS_ROUTE: Readonly<Record<string, unknown>> = {
+const VIEWER_SETTINGS_ROUTE: TrpcRoutes<"sessions.me" | "settings.getUserSettings"> = {
   // The host's viewer projection (`useSettingsViewerView`) — the group body resolves each section's `when` off it.
   "sessions.me": { userId: "user_ct_owner", handle: "ct_owner", globalRole: "owner" },
-  "settings.getUserSettings": { userId: "user_ct_owner", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: A_PAST_INSTANT },
+  "settings.getUserSettings": { userId: "user_ct_owner", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: A_PAST_INSTANT, configUnreadable: null },
 };
 
 /** One minted owner-global rule — `chatId: null` IS the scope, and it is what the row's mutations carry back
@@ -46,15 +46,19 @@ const GLOBAL_RULE = {
   position: 0,
   trigger: { bus: "domain", type: "character.updated" },
   predicateCel: "has(event.character) && event.character.contentChanged",
-  actions: [{ type: "generate_image", mode: "character_multimodal", n: 1, useAvatarReference: false, reuse: "prefer", quiet: true }],
+  actions: [{ type: "generate_image", mode: "character_multimodal", n: 1, useAvatarReference: false, reuse: "prefer", quiet: true, confirmFirst: false }],
+  actionsCorrupt: false,
+  rulePresetId: "livingLibrary",
+  rulePresetKnobs: null,
   matchAutomationEvents: false,
+  suggestOnRefusal: true,
   cooldownSeconds: 0,
   maxFiresPerHour: 30,
   lastError: null,
   lastFiredAt: null,
   createdAt: 1,
   updatedAt: 1,
-};
+} satisfies TrpcWireOutput<"automation.listOwnerRules">[number];
 
 /** The catalogue as the picker reads it: one GLOBAL row and one CHAT row, so the partition is provable
  *  rather than vacuous (a catalogue of only global rows could not show that filtering happens). */
@@ -79,9 +83,22 @@ const PRESETS = [
     spends: false,
     knobs: [],
   },
-];
+] satisfies TrpcWireOutput<"automation.listRulePresets">;
 
-function ownerRoutes(overrides: Readonly<Record<string, TrpcResponder | unknown>> = {}): Readonly<Record<string, TrpcResponder | unknown>> {
+const OWNER_BASE_ROUTES = [
+  "sessions.me",
+  "settings.getUserSettings",
+  "automation.listOwnerRules",
+  "automation.getOwnerBudgets",
+  "automation.listRulePresets",
+  "automation.listFires",
+] as const;
+type OwnerBaseRoute = (typeof OWNER_BASE_ROUTES)[number];
+const OWNER_OPTIONAL_ROUTES = ["automation.createRuleFromPreset", "automation.setRuleEnabled", "automation.setOwnerBudgets"] as const;
+type OwnerOptionalRoute = (typeof OWNER_OPTIONAL_ROUTES)[number];
+type OwnerRouteOverrides = Partial<TrpcRoutes<OwnerOptionalRoute | "automation.listOwnerRules" | "automation.getOwnerBudgets">>;
+
+function ownerRoutes(overrides: OwnerRouteOverrides = {}): TrpcRoutes<OwnerBaseRoute> & OwnerRouteOverrides {
   return {
     ...VIEWER_SETTINGS_ROUTE,
     "automation.listOwnerRules": [GLOBAL_RULE],

@@ -1,19 +1,22 @@
 // CT: the Analytics CONTEXT "Time" tab — three canvases (two histograms + the 7×24 heatmap) that carried
+
 // no reading at all for a screen reader, and a token axis that printed raw digits while every figure beside
 // it printed "1.2M" (side-eye ANALYTICS 2026-08-19, P1e + P2f).
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { TrpcFixtureOutput, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { AnalyticsTimeTabStory } from "../_ct-stories.tsx";
 
 const POINTS = [
   { day: "2026-07-01", assistantTurns: 12, tokensOut: 1_200_000, tokensOutProvenance: "measured" as const },
   { day: "2026-07-02", assistantTurns: 40, tokensOut: 3400, tokensOutProvenance: "measured" as const },
-];
+] as const satisfies TrpcFixtureOutput<"stats.timeseries">;
 
-const TEMPORAL = { activeDays: 2, currentStreak: 2, longestStreakDays: 2, busiestDay: null, dayOfWeek: [1, 2, 3, 4, 5, 6, 7] };
+const TEMPORAL: TrpcWireOutput<"stats.temporal"> = { activeDays: 2, longestStreakDays: 2, busiestDay: null, dayOfWeek: [1, 2, 3, 4, 5, 6, 7] };
 
-const HEATMAP = {
+const HEATMAP: TrpcWireOutput<"stats.activityHeatmap"> = {
   peak: null,
+  total: 504,
   matrix: Array.from({ length: 7 }, (_unused, day) => Array.from({ length: 24 }, (_hour, hour) => day * hour)),
 };
 

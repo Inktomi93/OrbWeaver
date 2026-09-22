@@ -585,7 +585,7 @@ test("error surface renders when either read fails", async ({ mount, page }) => 
 test("retry refetches both reads (the reset handshake) and renders on recovery", async ({ mount, page }) => {
   let previewCalls = 0;
   const trpc = await routeTrpc(page, {
-    "chat.previewAssembly": (): unknown => (previewCalls++ === 0 ? trpcError({ message: "boom" }) : PREVIEW_ASSEMBLY_DATA),
+    "chat.previewAssembly": () => (previewCalls++ === 0 ? trpcError({ message: "boom" }) : PREVIEW_ASSEMBLY_DATA),
     "chat.getShapeTrace": () => SHAPE_TRACE_DATA,
   });
 

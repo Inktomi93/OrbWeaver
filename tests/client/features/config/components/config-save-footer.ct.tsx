@@ -11,13 +11,14 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { ReactElement } from "react";
-import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
+import { defineTrpcRoutes, routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { ConfigHostStory } from "../_ct-stories.tsx";
 
 const SETTINGS_VIEW = {
   userId: "user_ct_save_status",
   schemaVersion: 1,
   config: DEFAULT_USER_SETTINGS,
+  configUnreadable: null,
   updatedAt: 0,
 };
 
@@ -26,7 +27,7 @@ const UPDATE_PROC = "settings.updateUserSettingsSection";
 /** The config host's viewer-identity read (#649) — the nav resolves the admin/owner-gated panes off it,
  *  and it is nobody's subject in this file. Unfed it resolved `routeTrpc`'s null, so the whole identity-gated
  *  nav pipeline ran INERT here. A plain `user` viewer is the un-privileged arm these save-status tests assume. */
-const SHELL_VIEWER_ROUTE: Readonly<Record<string, unknown>> = {
+const SHELL_VIEWER_ROUTE = defineTrpcRoutes({
   "sessions.me": { userId: SETTINGS_VIEW.userId, handle: "ct_save_status", globalRole: "user" },
   // The LIST paints every shelf, so the four collection bands read their rosters for the counts — fed empty
   // (the honest fresh-library arm) rather than left to routeTrpc's inert null.
@@ -38,7 +39,7 @@ const SHELL_VIEWER_ROUTE: Readonly<Record<string, unknown>> = {
   // group (Appearance) before these tests click their way to Chat behavior, and its Looks section reads the
   // theme library — so this file's mounts exercise that pipeline whether or not they are about it.
   "settings.listThemes": [],
-};
+});
 
 /** The host at the chat-behavior group, whose contributed sections (memory ① · world-info ② · databank ④)
  *  all report into the host. `failSaves` makes every section save fail (the P4 error arm). */
@@ -46,7 +47,7 @@ async function openChatBehavior(mount: (c: ReactElement) => Promise<unknown>, pa
   await routeTrpc(page, {
     ...SHELL_VIEWER_ROUTE,
     "settings.getUserSettings": () => SETTINGS_VIEW,
-    [UPDATE_PROC]: () => (failSaves ? trpcError({ code: "INTERNAL_SERVER_ERROR", message: "nope" }) : {}),
+    [UPDATE_PROC]: () => (failSaves ? trpcError({ code: "INTERNAL_SERVER_ERROR", message: "nope" }) : SETTINGS_VIEW),
   });
   await mount(<ConfigHostStory />);
   await page.getByRole("button", { name: "Chat behavior" }).click();
@@ -123,7 +124,15 @@ test("BLOCKED: a section holding its write flips the footer off 'Saved' and stay
         prose: { [ARBITER_SLOT]: { text: "y".repeat(PROSE_MAX_CHARS + 500), baseVersion: PROSE_SLOTS[ARBITER_SLOT].version } },
       },
     }),
-    [UPDATE_PROC]: () => ({}),
+    [UPDATE_PROC]: () => ({
+      ...SETTINGS_VIEW,
+      config: {
+        ...DEFAULT_USER_SETTINGS,
+        // Longer than the cap can ever be TYPED — the shape only pre-existing data has, and exactly what the
+        // editor refuses rather than silently deleting.
+        prose: { [ARBITER_SLOT]: { text: "y".repeat(PROSE_MAX_CHARS + 500), baseVersion: PROSE_SLOTS[ARBITER_SLOT].version } },
+      },
+    }),
   });
   await mount(<ConfigHostStory />);
   await page.getByRole("button", { name: "Chat behavior" }).click();

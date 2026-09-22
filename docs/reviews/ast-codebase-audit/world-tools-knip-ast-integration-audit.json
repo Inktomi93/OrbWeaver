@@ -4,13 +4,7 @@
     "kind": "read-only Knip and pnpm ast integration audit",
     "worktree": "/home/inktomi/.codex/worktrees/world-aware-tools/orbweaver",
     "head": "ec84ed686",
-    "restrictions": [
-      "no source edits",
-      "no pnpm ast run",
-      "no Knip run",
-      "no typecheck",
-      "no full-suite run"
-    ]
+    "restrictions": ["no source edits", "no pnpm ast run", "no Knip run", "no typecheck", "no full-suite run"]
   },
   "knipConfiguration": {
     "configFiles": [
@@ -50,32 +44,11 @@
       "evidence": "knip.ts:15-47"
     },
     "rootWorkspace": {
-      "entries": [
-        "scripts/**/*.ts",
-        "!scripts/probes/st-goldens/sillytavern-runtime/**",
-        "playwright/**/*.{ts,tsx}",
-        "tests/support/**/*.{ts,tsx}"
-      ],
-      "project": [
-        "scripts/**/*.ts",
-        "!scripts/probes/st-goldens/sillytavern-runtime/**",
-        "tests/**/*.{ts,tsx}",
-        "playwright/**/*.{ts,tsx}"
-      ],
-      "ignoreBinaries": [
-        "orb-nonexistent-binary-xyz-123",
-        "orb-fake-probe-bin"
-      ],
-      "ignoreDependencies": [
-        "pino-pretty",
-        "ts7",
-        "@typescript/native"
-      ],
-      "ignoreUnresolved": [
-        "./scripts/openai.js",
-        "./scripts/extensions.js",
-        "./scripts/tool-calling.js"
-      ],
+      "entries": ["scripts/**/*.ts", "!scripts/probes/st-goldens/sillytavern-runtime/**", "playwright/**/*.{ts,tsx}", "tests/support/**/*.{ts,tsx}"],
+      "project": ["scripts/**/*.ts", "!scripts/probes/st-goldens/sillytavern-runtime/**", "tests/**/*.{ts,tsx}", "playwright/**/*.{ts,tsx}"],
+      "ignoreBinaries": ["orb-nonexistent-binary-xyz-123", "orb-fake-probe-bin"],
+      "ignoreDependencies": ["pino-pretty", "ts7", "@typescript/native"],
+      "ignoreUnresolved": ["./scripts/openai.js", "./scripts/extensions.js", "./scripts/tool-calling.js"],
       "evidence": "knip.ts:49-71"
     },
     "toolingWorkspace": {
@@ -90,24 +63,13 @@
         "src/stack/ops/engines-compose.ts",
         "src/verify/ops/required-live-evidence-reporter.ts"
       ],
-      "project": [
-        "src/**/*.ts"
-      ],
-      "ignoreDependencies": [
-        "chrome-devtools-mcp"
-      ],
+      "project": ["src/**/*.ts"],
+      "ignoreDependencies": ["chrome-devtools-mcp"],
       "evidence": "knip.ts:72-100"
     },
     "packageWorkspaces": [
       {
-        "names": [
-          "kit",
-          "contracts",
-          "db",
-          "inference",
-          "default-content",
-          "showcase-plugins"
-        ],
+        "names": ["kit", "contracts", "db", "inference", "default-content", "showcase-plugins"],
         "entry": "src/**/index.ts!",
         "project": "src/**/*.ts!",
         "evidence": "knip.ts:101-131"
@@ -115,32 +77,20 @@
       {
         "name": "ui",
         "entry": "package.json exports plus package-script auto-detection",
-        "project": [
-          "src/**/*.{ts,tsx}!",
-          "*.ts"
-        ],
+        "project": ["src/**/*.{ts,tsx}!", "*.ts"],
         "evidence": "knip.ts:132-143; packages/ui/package.json:10-110"
       },
       {
         "name": "server",
         "entry": "package.json exports, including wildcard subpaths",
-        "project": [
-          "src/**/*.ts!"
-        ],
+        "project": ["src/**/*.ts!"],
         "evidence": "knip.ts:144-147; packages/server/package.json:9-14"
       },
       {
         "name": "client",
-        "entry": [
-          "index.html"
-        ],
-        "project": [
-          "src/**/*.{ts,tsx}!",
-          "!src/features/chat/lib/chat-reading-port.ts!"
-        ],
-        "ignoreDependencies": [
-          "tailwindcss"
-        ],
+        "entry": ["index.html"],
+        "project": ["src/**/*.{ts,tsx}!", "!src/features/chat/lib/chat-reading-port.ts!"],
+        "ignoreDependencies": ["tailwindcss"],
         "evidence": "knip.ts:148-165"
       }
     ],
@@ -159,13 +109,7 @@
     "consumesKnipConfig": false,
     "negativeSearchScope": "tooling/src/ast",
     "negativeSearchResult": "Only prose mentions of Knip remain; no Knip config import or output reader exists.",
-    "typedVerbs": [
-      "dead",
-      "orphans",
-      "testonly",
-      "prodonly",
-      "apisurface"
-    ],
+    "typedVerbs": ["dead", "orphans", "testonly", "prodonly", "apisurface"],
     "typedVerbEvidence": "tooling/src/ast/ops/verbs.ts:58-81",
     "nativeSemanticLoader": {
       "claim": "Typed verbs load createSemanticWorkspace({ root }).sourceCorpus().",

@@ -22,21 +22,24 @@
 
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { TrpcFixtureOutput } from "../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../support/node/route-trpc.ts";
 import { CarriedAppearanceCastStory } from "./_ct-stories.tsx";
 
 const ARIA = mintTypeId(ID_PREFIX.character);
+const COMMITTED_CHAT = {
+  viewerUserId: "user_ct_carried_appearance",
+  participants: [
+    { id: "cp_h", kind: "human", characterId: null, displayName: "Nate", leftSeq: null },
+    { id: "cp_a", kind: "character", characterId: ARIA, displayName: "Aria", leftSeq: null },
+  ],
+  background: null,
+} satisfies TrpcFixtureOutput<"chat.getChat">;
 
 test("COMMITTED: the roster projects into the cast (humans counted, characters carried)", async ({ mount, page }) => {
   const chatId = mintTypeId(ID_PREFIX.chat);
   await routeTrpc(page, {
-    "chat.getChat": () => ({
-      participants: [
-        { id: "cp_h", kind: "human", characterId: null, displayName: "Nate", leftSeq: null },
-        { id: "cp_a", kind: "character", characterId: ARIA, displayName: "Aria", leftSeq: null },
-      ],
-      background: null,
-    }),
+    "chat.getChat": () => COMMITTED_CHAT,
   });
 
   await mount(<CarriedAppearanceCastStory chatId={chatId} />);

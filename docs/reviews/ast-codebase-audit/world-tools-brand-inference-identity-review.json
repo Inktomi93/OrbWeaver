@@ -1,0 +1,99 @@
+{
+  "workItem": 2537,
+  "verdict": "REFUTED",
+  "summary": "The seven requested Drizzle columns, their focused runtime boundaries, ST normalization, open ModelId parser, and sentinel placement are coherent and pass focused verification. The completion claim is nevertheless false because one production castId<ProviderId> bypass remains in the credentials producer.",
+  "findings": [
+    {
+      "id": "R2537-1",
+      "severity": "P2",
+      "title": "The credentials writer still brands provider identity with castId",
+      "evidence": [
+        "packages/server/src/domain/credentials/verbs/add.ts:30-33 first asks a boolean providerKnown predicate, then creates ProviderId with castId<ProviderId>(params.provider).",
+        "packages/server/src/entry/compose/services.ts:390-395 binds providerKnown to registry.get(id) !== undefined, so the current composition validates membership, but the branded registry row is discarded and the writer still uses the unchecked cast primitive.",
+        "Actual ast-grep: pnpm exec ast-grep run --lang ts --pattern 'castId<ProviderId>($A)' packages --inspect=summary returned exactly this production hit after scanning 2,631 TypeScript files.",
+        "The matching ModelId scan returned zero after the same 2,631-file scan."
+      ],
+      "impact": "The stated no-bypass invariant is not true, and the CredentialContext contract can brand any string if providerKnown is ever misbound or weakened. This is especially material because the value is persisted and used in credential AAD.",
+      "recommendedRepair": "Replace the boolean predicate plus cast with an operation that returns the registered ProviderDef/ProviderId and use that row's branded id, matching connection/verbs/connections.ts:35-39 and 135-149. Add a type or behavior pin so the credentials producer cannot recover ProviderId from a boolean check plus cast."
+    }
+  ],
+  "confirmedArms": {
+    "sevenColumns": {
+      "status": "confirmed",
+      "columns": [
+        "user_connections.model -> ModelId",
+        "message_variants.model -> ModelId | null",
+        "message_variants.provider -> ProviderId | null",
+        "model_stats.model -> ModelId",
+        "model_stats.provider -> ProviderId | '(unknown)'",
+        "imagery_generations.model -> ModelId",
+        "imagery_generations.provider -> ProviderId | null"
+      ],
+      "evidence": [
+        "packages/db/src/schema/connection.ts:63",
+        "packages/db/src/schema/chat.ts:447,458",
+        "packages/db/src/schema/stats.ts:240-243",
+        "packages/db/src/schema/imagery.ts:65-68",
+        "tests/db/schema/inference-identity.test-d.ts:11-45"
+      ],
+      "structuralNote": "Schema-wide ast-grep also found the pre-existing refinery model and credentials provider branded columns; the exact seven under review match the requested equality set."
+    },
+    "modelIdentity": {
+      "status": "confirmed",
+      "evidence": [
+        "packages/contracts/src/inference/model-schema.ts:1-12 defines open provider-owned identity as trim plus nonempty, with no catalog/registry closure.",
+        "packages/server/src/domain/connection/verbs/connections.ts:42-47 and 135-151 parse before persistence.",
+        "packages/server/src/domain/imagery/substrate/generate-core.ts:121-136 parses the provider-reported model before any persistence."
+      ]
+    },
+    "providerIdentityForSevenColumns": {
+      "status": "confirmed",
+      "evidence": [
+        "Connection writes obtain provider.id from the runtime registry at packages/server/src/domain/connection/verbs/connections.ts:35-39 and 135-149.",
+        "Chat turn and imagery provenance carry ProviderId from resolved registered connections.",
+        "Historical/import provider strings are parsed through providerIdSchema and malformed values become null."
+      ]
+    },
+    "stImport": {
+      "status": "confirmed",
+      "evidence": [
+        "packages/server/src/domain/import/substrate/chat-input.ts:23-39 maps blank model/malformed provider to null and normalizes valid model ids.",
+        "packages/server/src/domain/chat/persistence/import-write.ts:256-264 and 343-349 revalidate at the final database writer.",
+        "tests/server/domain/import/substrate/chat-input.test.ts:156-163 proves blank model and custom_openai become null while trimmed model and plugin provider survive."
+      ]
+    },
+    "unknownSentinel": {
+      "status": "confirmed for storage",
+      "evidence": [
+        "Only model_stats.provider among the seven is typed to admit '(unknown)' at packages/db/src/schema/stats.ts:241-243.",
+        "message_variants.provider and imagery_generations.provider remain ProviderId | null.",
+        "MODEL_PROVIDER_UNKNOWN is centralized in packages/kit/src/stats-tally/index.ts and consumed by the stats write/rebuild paths."
+      ]
+    }
+  },
+  "verification": [
+    {
+      "command": "pnpm test:types tests/db/schema/inference-identity.test-d.ts",
+      "result": "PASS: 1 file, 7 type tests, no type errors"
+    },
+    {
+      "command": "pnpm test:scoped tests/contracts/inference/connection.contract.test.ts tests/contracts/stats/index.contract.test.ts tests/server/domain/connection/verbs/connections.int.test.ts tests/server/domain/import/substrate/chat-input.test.ts tests/server/domain/imagery/substrate/generate-core.int.test.ts tests/inference/resolve/heal.test.ts",
+      "result": "PASS: 6 files, 70 tests"
+    },
+    {
+      "command": "pnpm typecheck --config packages/kit/tsconfig.json --config packages/contracts/tsconfig.json --config packages/db/tsconfig.json --config packages/inference/tsconfig.json --config packages/server/tsconfig.json",
+      "result": "PASS: 5/5 native programs"
+    },
+    {
+      "command": "git diff --check -- <closed manifest>",
+      "result": "PASS"
+    }
+  ],
+  "reviewScope": {
+    "manifest": "/tmp/world-tools-brand-inference-identity-files.txt",
+    "claim": "/tmp/world-tools-brand-inference-identity-fix.json",
+    "mode": "read-only independent review",
+    "concurrency": "The tree contains unrelated #2541/#2542/tooling WIP. Findings and checks were attributed only to the closed manifest and the explicit global cast sweep."
+  },
+  "mutationsPerformed": []
+}

@@ -1,0 +1,96 @@
+{
+  "review_kind": "independent_read_and_run_correctness_review",
+  "worktree": "/home/inktomi/.codex/worktrees/world-aware-tools/orbweaver",
+  "read_only": true,
+  "reviewed_commits": ["2c68d04539609c729ce54bfeb798596dfba4ba68", "15ea1458af6c817bd3c5566132502705a7712ad2"],
+  "verdicts": {
+    "2545": {
+      "verdict": "CONFIRMED",
+      "commit": "2c68d04539609c729ce54bfeb798596dfba4ba68",
+      "issue_intent": "Trace the string-keyed non-verb authority classifier; wire real consumers or retire it without inventing one, while preserving the actual typed authorization paths.",
+      "evidence": [
+        {
+          "claim": "The retired classifier had no production caller in its parent commit.",
+          "receipt": "ast-grep call-expression scan of the full parent TS corpus found four authorityForSurface(...) calls, all in tests/server/domain/chat/substrate/auth/matrix.test.ts:85-87,97; TS scannedFileCount=6458 and TSX scannedFileCount=1407. The positive-control requireParticipant(...) scan found production and test calls. git grep independently found only the matrix declaration, barrel export, and that focused test for authorityForSurface."
+        },
+        {
+          "claim": "The removal did not delete a live dispatch plane.",
+          "receipt": "The four-file diff removes CHAT_NONVERB_SURFACES, CHAT_SURFACE_AUTHORITY, DENY, authorityForSurface, their barrel exports, and their unit-only assertions. A post-commit ast-grep scan found zero authorityForSurface(...) calls across the same 6458 TS and 1407 TSX files."
+        },
+        {
+          "claim": "SSE attach/replay/live delivery still uses typed member authorization.",
+          "receipt": "packages/server/src/transport/trpc/stream/sources/chat.ts at commit 2c68d0453 calls memberBounds/service.chatEventBounds at lines 96,183,256 before attach and each live yield, and service.replayChatEvents at line 244. packages/server/src/domain/chat/verbs/read.ts calls requireParticipant inside createReplayChatEvents and createChatEventBounds at lines 1571 and 1613."
+        },
+        {
+          "claim": "Lineage, roster-card, and injection surfaces retain their real typed guards.",
+          "receipt": "read.ts createGetChatLineage calls requireParticipant then gateLineagePerAncestor at lines 728-731; createGetMemberCard calls requireParticipant before roster/card reads at line 861. chat-lifecycle.ts calls requireHost for set/delete injection at lines 565 and 626, and requireParticipant for list at line 609. guard.ts retains requireParticipant/requireHost/requireAuthorOrHost/gateLineagePerAncestor at commit lines 48,61,72,89."
+        },
+        {
+          "claim": "The remaining authority declaration is still exhaustive over ChatService verbs.",
+          "receipt": "matrix.ts retains CHAT_VERB_AUTHORITY satisfies Record<keyof ChatService, VerbAuthority>; the relevant rows are getChatLineage=lineage-per-ancestor, getMemberCard=member-card, replayChatEvents/chatEventBounds=member, set/deleteChatInjection=host, and listChatInjections=member (commit lines 43-174)."
+        }
+      ],
+      "tests": [
+        {
+          "command": "pnpm test:scoped tests/server/domain/chat/substrate/auth/matrix.test.ts tests/server/domain/chat/guard.int.test.ts tests/server/domain/chat/verbs/chat-lifecycle.int.test.ts tests/server/domain/chat/verbs/read.int.test.ts tests/server/transport/trpc/stream/sources/chat.test.ts -t 'per-verb matrix|present member loads|non-member|ancestors|injection|withhold-not-throw|replayChatEvents resumes|getMemberCard'",
+          "result": "24 passed, 1 failed, 171 skipped",
+          "artifact": "reports/runs/test/orbweaver-2953865-2026-09-21T12-45-44-301Z/test-report.json",
+          "interpretation": "The matrix, guard, lineage, injection, replay/bounds, and member-card assertions passed. The one stream test did not reach the authority seam: concurrent uncommitted TypeID-boundary work made its legacy chat_x fixture fail wire validation with 'Suffix should have 26 characters, got 1'. No reviewed file was dirty."
+        }
+      ],
+      "limitations": [
+        "The live-stream withhold test could not execute past current-tree TypeID validation. The committed source call graph plus the passing member-gated replay/bounds and guard tests support the verdict; the fixture incompatibility is external to commit 2c68d0453."
+      ]
+    },
+    "2550": {
+      "verdict": "CONFIRMED",
+      "commit": "15ea1458af6c817bd3c5566132502705a7712ad2",
+      "issue_intent": "Retain a supported external health API, remove only unsupported provider-management RPC wrappers, keep the internal provider registry service, and remove coupled router-classification exemptions.",
+      "evidence": [
+        {
+          "claim": "The only router procedures removed were connection.registerProvider and connection.dropProvider.",
+          "receipt": "ast-grep pair scans over transport/trpc (53 TS files) found both procedure properties in the parent and zero after 15ea1458a. connectionRouter still ends with providersAvailable at line 150; all other procedures remain. The same commit also contains an additive model input change from z.string() to modelIdSchema at connection.ts:17,37; that unrelated #2537-style hunk is not an RPC removal and was not adjudicated here."
+        },
+        {
+          "claim": "The internal provider registry service was preserved.",
+          "receipt": "ConnectionService still declares registerProvider/dropProvider at contract/service.ts:117-118; verbs/providers.ts still builds them at lines 16-31 and delegates to runtime.providers.register/drop. Focused domain tests for registration, built-in collision, malformed rows, drop, and dropped-provider resolution all passed."
+        },
+        {
+          "claim": "The public health API remains explicit and documented.",
+          "receipt": "router.ts:44-46 marks health @server-only for the boot supervisor/external health checks and defines it as publicProcedure.query with no input. Tier-4-Transport.md lists health among the loose public procedures. Boot tests poll /api/trpc/health (local-light-prefetch-boot.suite.int.test.ts:117 and local-light-prefetch-off.suite.int.test.ts:101). Real-mount health tests passed, including a cross-origin GET returning 200 without a CORS grant."
+        },
+        {
+          "claim": "The exemption cleanup matches the actual router.",
+          "receipt": "cross-tenant-sweep retains only connection.refreshCatalog at line 1958 and removes both deleted provider-wrapper exemptions. Its completeness test enumerates appRouter._def.procedures and checks both uncovered and stale rows at lines 1981-1996; the focused test passed on the current tree."
+        },
+        {
+          "claim": "No client or other production code was silently depending on the removed provider RPCs.",
+          "receipt": "After 15ea1458a, ast-grep call scans over 5026 TS and 1406 TSX files found registerProvider/dropProvider calls only in tests/server/domain/connection/verbs/providers.int.test.ts. git grep independently found only the service contract, verb factories, and those tests."
+        }
+      ],
+      "tests": [
+        {
+          "command": "pnpm test:scoped tests/server/transport/cross-tenant-sweep.suite.int.test.ts -t 'EVERY router procedure is classified as either a PROBE or an EXEMPT'",
+          "result": "1 passed, 1 skipped",
+          "artifact": "reports/runs/test/orbweaver-2956376-2026-09-21T12-46-12-808Z/test-report.json"
+        },
+        {
+          "command": "pnpm test:scoped tests/server/domain/connection/verbs/providers.int.test.ts tests/server/entry/app.test.ts -t 'registered row|runtime row may not shadow|malformed row|dropping a provider|dropped provider|cross-origin GET on the tRPC mount|a tRPC 200 carries'",
+          "result": "7 passed, 41 skipped",
+          "artifact": "reports/runs/test/orbweaver-2958574-2026-09-21T12-46-41-802Z/test-report.json"
+        }
+      ],
+      "follow_up": {
+        "severity": "architecture-gap",
+        "finding": "The issue premise and commit body say the preserved internal provider service is used by plugin activation, but the committed tree does not support that liveness claim.",
+        "receipt": "A full exact-reference sweep after 15ea1458a finds no production call to ConnectionService.registerProvider/dropProvider; calls are test-only. The plugin domain/activation, plugin contracts, and compose automation-plugin corpus contains zero registerProvider references and no provider-row manifest field (ast-grep scanned 77 TS and 1 TSX files with a positive nonzero census).",
+        "minimal_action": "Do not restore the dead RPCs. Correct the liveness claim and, if plugin-supplied inference providers are still intended, track and build the missing plugin manifest/activation-to-registry integration with activation/deactivation tests. Otherwise explicitly classify the internal register/drop service as a dormant or admin-composition doorway."
+      }
+    }
+  },
+  "tree_integrity": {
+    "reviewed_paths_dirty_after_review": false,
+    "repo_edits_made": false,
+    "commit_or_push": false
+  }
+}

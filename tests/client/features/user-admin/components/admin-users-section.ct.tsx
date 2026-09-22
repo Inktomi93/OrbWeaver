@@ -10,53 +10,55 @@ import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder, TrpcRoutes } from "../../../../support/node/route-trpc.ts";
+import type { TrpcInput, TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { AdminUsersSectionStory } from "../_ct-stories.tsx";
 
-const OWNER_VIEWER = { userId: "user_owner", handle: "root", globalRole: "owner" };
-const ADMIN_VIEWER = { userId: "user_mira", handle: "mira", globalRole: "admin" };
+const OWNER_VIEWER = { userId: "user_owner", handle: "root", globalRole: "owner" } satisfies TrpcWireOutput<"sessions.me">;
+const ADMIN_VIEWER = { userId: "user_mira", handle: "mira", globalRole: "admin" } satisfies TrpcWireOutput<"sessions.me">;
 /** The row-name builders take the canonical `Handle` brand (the column they name is `users.handle`), so a
  *  spec subject is MINTED rather than spelled as a bare string. */
 const handle = (raw: string): Handle => castId<Handle>(raw);
 
 const USER_OPTION_RE = /^User$/u;
 
-const USERS = [
-  {
-    id: "user_owner",
-    handle: "root",
-    externalId: null,
-    role: "owner",
-    enabled: true,
-    kind: "human",
-    ownerHandle: null,
-    createdAt: 1_700_000_000_000,
-    updatedAt: 1_700_000_000_000,
-  },
-  {
-    id: "user_mira",
-    handle: "mira",
-    externalId: null,
-    role: "admin",
-    enabled: true,
-    kind: "human",
-    ownerHandle: null,
-    createdAt: 1_700_000_000_000,
-    updatedAt: 1_700_000_000_000,
-  },
-  {
-    id: "user_kes",
-    handle: "kes",
-    externalId: null,
-    role: "user",
-    enabled: true,
-    kind: "human",
-    ownerHandle: null,
-    createdAt: 1_700_000_000_000,
-    updatedAt: 1_700_000_000_000,
-  },
-];
+type AdminUser = TrpcWireOutput<"admin.listUsers">[number];
+type Viewer = TrpcWireOutput<"sessions.me">;
+
+const OWNER_USER: AdminUser = {
+  id: "user_owner",
+  handle: "root",
+  externalId: null,
+  role: "owner",
+  enabled: true,
+  kind: "human",
+  ownerHandle: null,
+  createdAt: 1_700_000_000_000,
+  updatedAt: 1_700_000_000_000,
+};
+const ADMIN_USER: AdminUser = {
+  id: "user_mira",
+  handle: "mira",
+  externalId: null,
+  role: "admin",
+  enabled: true,
+  kind: "human",
+  ownerHandle: null,
+  createdAt: 1_700_000_000_000,
+  updatedAt: 1_700_000_000_000,
+};
+const MEMBER_USER: AdminUser = {
+  id: "user_kes",
+  handle: "kes",
+  externalId: null,
+  role: "user",
+  enabled: true,
+  kind: "human",
+  ownerHandle: null,
+  createdAt: 1_700_000_000_000,
+  updatedAt: 1_700_000_000_000,
+};
+const USERS: TrpcWireOutput<"admin.listUsers"> = [OWNER_USER, ADMIN_USER, MEMBER_USER];
 
 const SESSIONS = [
   {
@@ -83,17 +85,25 @@ const SESSIONS = [
  *  input asked to change. Falls back to the first row only when the id matches nothing — a shape the surface
  *  cannot produce, kept non-throwing so a wrong-target write reds on the assertion rather than on the stub.
  *
- *  The decoded input is read as an OPEN record rather than through a `{ userId: string }` shape: this is the
- *  fixture layer, where ids are plain wire strings (the `characterListResponder` precedent), and a
- *  `userId: string` field declaration is a `brand-in-name-position` violation — the gate is right, and the
- *  fixture layer is the exception it does not need to learn. */
-function applyToUser(input: unknown, change: (args: Record<string, unknown>) => Record<string, unknown>): unknown {
-  const args = (input ?? {}) as Record<string, unknown>;
-  const row = USERS.find((user) => user.id === args["userId"]) ?? USERS[0];
-  return { ...row, ...change(args) };
+ *  The decoded input uses the procedure's plain JSON wire fields; branded ids have already crossed the
+ *  transport boundary and are strings here. */
+function applyToUser(input: Pick<TrpcInput<"admin.setRole">, "userId">, change: Partial<AdminUser>): AdminUser {
+  const row = USERS.find((user) => user.id === input.userId) ?? OWNER_USER;
+  return { ...row, ...change };
 }
 
-function stub(page: Page, viewer: typeof OWNER_VIEWER, extra: TrpcRoutes = {}): Promise<TrpcRecorder> {
+const ADMIN_EXTRA_PATHS = [
+  "admin.createUser",
+  "admin.listSessions",
+  "admin.resetPassword",
+  "admin.revokeSession",
+  "admin.revokeUserSessions",
+  "admin.setEnabled",
+  "admin.setRole",
+] as const;
+type AdminExtraPath = (typeof ADMIN_EXTRA_PATHS)[number];
+
+function stub(page: Page, viewer: Viewer, extra: Partial<TrpcRoutes<AdminExtraPath>> = {}): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "admin.listUsers": () => USERS,
     "sessions.me": () => viewer,
@@ -102,8 +112,8 @@ function stub(page: Page, viewer: typeof OWNER_VIEWER, extra: TrpcRoutes = {}): 
     // the mutation's settle/invalidate path ran INERT. INPUT-AWARE rather than a fixed row, so the answer is
     // the user the caller actually named carrying the change they actually asked for — a fixed row would let
     // a wrong-target write pass. A test scripting a refusal lists the key in `extra` and wins.
-    "admin.setRole": (input: unknown) => applyToUser(input, ({ role }) => ({ role })),
-    "admin.setEnabled": (input: unknown) => applyToUser(input, ({ enabled }) => ({ enabled })),
+    "admin.setRole": (input) => applyToUser(input, { role: input.role }),
+    "admin.setEnabled": (input) => applyToUser(input, { enabled: input.enabled }),
     ...extra,
   });
 }
@@ -134,7 +144,7 @@ test("as the owner, changing a member's role fires setRole", async ({ mount, pag
 test("role writes lock only their target row while a sibling remains actionable", async ({ mount, page }) => {
   const held = trpcHold();
   const trpc = await stub(page, OWNER_VIEWER, {
-    "admin.setRole": (input: unknown) => ((input as Record<string, unknown>)["userId"] === "user_kes" ? held : applyToUser(input, ({ role }) => ({ role }))),
+    "admin.setRole": (input) => (input.userId === "user_kes" ? held : applyToUser(input, { role: input.role })),
   });
   const component = await mount(<AdminUsersSectionStory />);
   const kes = component.getByRole("combobox", { name: userRoleFieldName(handle("kes")) });
@@ -152,7 +162,7 @@ test("role writes lock only their target row while a sibling remains actionable"
   await userOption.focus();
   await userOption.press("Enter");
   await expect.poll(() => trpc.count("admin.setRole")).toBe(2);
-  held.release(applyToUser({ userId: "user_kes", role: "admin" }, ({ role }) => ({ role })));
+  held.release(applyToUser({ userId: "user_kes" }, { role: "admin" }));
 });
 
 test("as a delegated admin, the role controls are DISABLED (requireOwner honesty)", async ({ mount, page }) => {
@@ -190,7 +200,7 @@ test("the self + owner guards: no enabled switch on the owner row, own switch di
 });
 
 test("the create-user dialog submits handle + password (+ admin role when picked)", async ({ mount, page }) => {
-  const trpc = await stub(page, OWNER_VIEWER, { "admin.createUser": () => USERS[2] });
+  const trpc = await stub(page, OWNER_VIEWER, { "admin.createUser": () => MEMBER_USER });
   const component = await mount(<AdminUsersSectionStory />);
 
   await component.getByTestId("admin-create-user").click();
@@ -211,7 +221,7 @@ test("the create-user dialog submits handle + password (+ admin role when picked
 });
 
 test("as a delegated admin, the create-user dialog offers NO Admin role (owner-only mint honesty)", async ({ mount, page }) => {
-  const trpc = await stub(page, ADMIN_VIEWER, { "admin.createUser": () => USERS[2] });
+  const trpc = await stub(page, ADMIN_VIEWER, { "admin.createUser": () => MEMBER_USER });
   const component = await mount(<AdminUsersSectionStory />);
 
   await component.getByTestId("admin-create-user").click();

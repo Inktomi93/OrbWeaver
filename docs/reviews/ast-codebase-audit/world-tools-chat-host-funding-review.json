@@ -1,0 +1,106 @@
+{
+  "task": "Room turn host-funding identity review",
+  "verdict": "CONFIRMED",
+  "manifest": {
+    "path": "/tmp/world-tools-chat-host-funding.paths",
+    "path_count": 37,
+    "sha256": "ceed3d0beb0281b3496edd49cc75e4e3a2612d18a91fbc6c9b4d5ee0bd5302c8"
+  },
+  "summary": "The current room host is the sole funder for room turns. The implementation freezes the host into both funderUserId and runAsUserId at each turn boundary while preserving triggeredBy as initiation, attribution, and cancellation identity. Host handoff affects later turns, durable deferred turns replay with their captured host, a missing host or missing host connection refuses without member fallback, and autonomous/plugin callers cannot name a funder.",
+  "findings": [],
+  "properties": [
+    {
+      "property": "The host funds and runs each newly resolved room turn; triggeredBy remains the initiator.",
+      "status": "CONFIRMED",
+      "evidence": [
+        "packages/server/src/domain/chat/engine/turn-identity.ts:19-30 is the pure identity home: triggeredBy is caller/chain starter, while funderUserId and runAsUserId both come only from hostUserId.",
+        "packages/server/src/domain/chat/verbs/turn.ts:402-425 copies the resolved triple into every shared TurnPrep without re-derivation.",
+        "packages/server/src/domain/chat/verbs/turn.ts:1483-1501 resolves send/commit from loadRoom().hostUserId and resolves the connection only with identity.funderUserId.",
+        "packages/server/src/domain/chat/verbs/turn.ts:1814-1835 applies the same host-derived identity and connection to the shared swipe/continue/impersonate/generate base.",
+        "packages/server/src/domain/chat/verbs/turn.ts:1651-1672 applies the same host-derived identity to forceCharacterTurn."
+      ]
+    },
+    {
+      "property": "Chained and side-model calls retain the frozen host funder while attribution and abort remain with the initiating human.",
+      "status": "CONFIRMED",
+      "evidence": [
+        "packages/server/src/domain/chat/verbs/turn.ts:937-990 reuses one RoundBase for auto-mode and sends base.funderUserId to each chained smart-arbitration call; the base keeps the original triggeredBy.",
+        "packages/server/src/domain/chat/verbs/turn.ts:1064-1077 uses base.funderUserId for initial smart arbitration too.",
+        "packages/server/src/domain/chat/verbs/turn.ts:835-880 binds the smart arbiter summarize call to its explicit funderUserId.",
+        "packages/server/src/domain/chat/engine/engine.ts:1387-1396 scopes failed-credential strikeout to prep.funderUserId.",
+        "packages/server/src/domain/chat/engine/engine.ts:1940-1985 supplies prep.funderUserId to segment and digest generation while retaining prep.runAsUserId for the host-owned embedding/corpus scope.",
+        "packages/server/src/domain/chat/engine/engine.ts:1834-1838 retains prep.triggeredBy in tool execution for attribution/cancellation while runAsUserId remains the host tool principal."
+      ]
+    },
+    {
+      "property": "Host transfer changes only later turn funding; deferred turns retain the host captured when requested.",
+      "status": "CONFIRMED",
+      "evidence": [
+        "packages/server/src/domain/chat/verbs/turn.ts:1144-1167 persists triggeredBy and the frozen runAsUserId host into pending_turns.",
+        "packages/server/src/domain/chat/verbs/turn.ts:2414-2455 reconstructs deferred identity as triggeredBy from the row and both funderUserId/runAsUserId from the row's frozen host; the connection is resolved under that frozen host.",
+        "tests/server/domain/chat/verbs/turn.int.test.ts:1504-1518 proves host transfer changes the next turn's connection funder.",
+        "tests/server/domain/chat/verbs/turn.int.test.ts:1567-1584 proves the queued identity separates member initiator from host, and lines 1618-1630 prove replay after handoff still resolves the original captured host."
+      ]
+    },
+    {
+      "property": "No room-turn trust boundary lets a member, automation rule, or plugin guest choose the funder.",
+      "status": "CONFIRMED",
+      "evidence": [
+        "packages/server/src/domain/chat/contract/params.ts:278-301 exposes triggeredBy but no funderUserId on the principal-free RequestTurnParams boundary.",
+        "packages/server/src/domain/chat/verbs/turn.ts:2581-2607 validates the autonomous initiator's membership, resolves the room, and derives both funderUserId and runAsUserId from room.hostUserId.",
+        "packages/server/src/domain/plugin/substrate/bridge.ts:123-136 closes triggeredBy over the installer; the guest supplies only chat/depth/hints.",
+        "packages/server/src/entry/compose/automation-plugin.ts:231-245 and 513-525 hardcode automation/plugin origin and pass only author/installer attribution to requestTurn.",
+        "tests/server/domain/chat/verbs/turn.int.test.ts:2653-2719 proves autonomous host funding, initiator attribution, membership refusal, and forged-human refusal; tests/server/domain/plugin/substrate/bridge.test.ts:100-136 proves the guest cannot forge installer attribution."
+      ]
+    },
+    {
+      "property": "Preview, availability, missing-host behavior, and background work agree with host funding.",
+      "status": "CONFIRMED",
+      "evidence": [
+        "packages/server/src/domain/chat/verbs/read.ts:401-475 resolves preview connection and all preview foreign inputs under the room host.",
+        "packages/server/src/domain/chat/verbs/read.ts:759-773 refuses a hostless room and checks send availability using the resolved host.",
+        "packages/server/src/domain/chat/verbs/turn.ts:234-243 refuses hostless rooms before identity can be minted.",
+        "tests/server/domain/chat/verbs/turn.int.test.ts:1520-1532 proves a missing host connection refuses without consulting or falling back to the member's connection; lines 1643-1668 exercise permanent hostless deferred refusal.",
+        "packages/server/src/domain/chat/workload-contributions.ts:39-49 and 108-118 preserve explicit acting-user funders for owner-scoped non-room background workloads."
+      ]
+    }
+  ],
+  "coverage": {
+    "direct_send": "host-derived through commitUserTurn",
+    "auto_mode_chain": "frozen RoundBase funder retained across beats",
+    "force": "host-derived before connection and context build",
+    "swipe": "shared resolveTurnBase",
+    "continue": "shared resolveTurnBase",
+    "impersonate": "shared resolveTurnBase and explicit funder on generateText",
+    "generate": "shared resolveTurnBase and explicit funder on TurnPrep",
+    "automation_and_plugin": "only triggeredBy crosses their boundary; requestTurn derives the host",
+    "arbitration": "summarize receives frozen host funder",
+    "rpg": "receives the already-resolved host connection; triggeredBy only scopes cancellation",
+    "memory": "segment/digest role calls receive frozen host funder",
+    "preview_and_availability": "resolve/check under current host",
+    "deferred_replay": "uses persisted frozen host after handoff",
+    "missing_host": "leak-free refusal",
+    "owner_background_workloads": "retain explicit workload owner/actor funder"
+  },
+  "verification": {
+    "command": "pnpm test:scoped tests/server/domain/chat/engine/credential-strikeout.suite.int.test.ts tests/server/domain/chat/engine/engine-stats.suite.int.test.ts tests/server/domain/chat/engine/engine.int.test.ts tests/server/domain/chat/engine/inline-reply-images.suite.int.test.ts tests/server/domain/chat/engine/managed-compaction.suite.int.test.ts tests/server/domain/chat/engine/memory-optout.suite.int.test.ts tests/server/domain/chat/engine/round.int.test.ts tests/server/domain/chat/engine/turn-fault-outcome.suite.int.test.ts tests/server/domain/chat/engine/turn-identity.test.ts tests/server/domain/chat/solo-byte-identical.suite.int.test.ts tests/server/domain/chat/verbs/turn.int.test.ts tests/server/domain/plugin/substrate/bridge.test.ts tests/server/domain/plugin/substrate/confirmed-act.test.ts",
+    "result": "PASS: 13 files, 330 tests",
+    "receipt": "reports/runs/test/orbweaver-3678419-2026-09-21T15-38-43-365Z/test-report.json"
+  },
+  "review_scope": {
+    "manifest_paths_reviewed": 37,
+    "additional_live_bindings_inspected": [
+      "packages/server/src/entry/compose/chat.ts",
+      "packages/server/src/domain/chat/engine/round.ts",
+      "packages/server/src/domain/chat/workload-contributions.ts",
+      "packages/server/src/domain/rpg/chat-ops/index.ts"
+    ],
+    "repository_source_edits": false,
+    "staged_or_committed": false,
+    "work_item_mutation": false
+  },
+  "limitations": [
+    "This is source, integration, and trust-boundary proof on the current shared worktree; it does not claim a live-provider billing receipt.",
+    "Some pre-existing comments outside the closed manifest still describe the former member-funded routing, but the live composition binding resolves the supplied host funder and the reviewed behavior is correct."
+  ]
+}

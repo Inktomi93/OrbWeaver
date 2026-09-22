@@ -11,8 +11,6 @@
 
 import type { PortableParse } from "@orb/contracts/portability";
 import { rpgGameConfigSchema, rpgSheetSchema, rpgSnapshotStateSchema } from "@orb/contracts/rpg";
-import type { CharacterHandle } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import type { PortableChat, PortableChatMessage, PortableRpgGame } from "@orb/server/kit/serde/chat-bundle";
 import { buildChatBundleFile, CHAT_BUNDLE_SCHEMA_KIND, CHAT_BUNDLE_SCHEMA_VERSION, parseChatBundleFile } from "@orb/server/kit/serde/chat-bundle";
 import { describe } from "vitest";
@@ -71,7 +69,7 @@ function game(over: Partial<PortableRpgGame> = {}): PortableRpgGame {
     sessionNumber: 3,
     config: rpgGameConfigSchema.parse({}),
     createdAt: 1_700_000_000_000,
-    sheets: [{ characterHandle: castId<CharacterHandle>("hero"), sheet: rpgSheetSchema.parse({ className: "Wanderer", level: 4 }) }],
+    sheets: [{ characterHandle: "hero", sheet: rpgSheetSchema.parse({ className: "Wanderer", level: 4 }) }],
     snapshots: [
       {
         messageIndex: 0,
@@ -147,6 +145,23 @@ describe("kit/serde/chat-bundle", () => {
   test("a gameless chat round-trips with rpg null (the common case is not a special case)", () => {
     const gameless = chat({ rpg: null });
     expect(must(parseChatBundleFile(buildChatBundleFile(gameless)))).toEqual(gameless);
+  });
+
+  test("rpg sheet handles are opaque wire strings: blank heals to null and over-cap text is carried", () => {
+    const overCap = "h".repeat(201);
+    const wire = JSON.parse(DEC.decode(buildChatBundleFile(chat()))) as {
+      rpg: { sheets: { characterHandle: unknown }[] };
+    };
+    const sheet = wire.rpg.sheets[0];
+    if (sheet === undefined) {
+      throw new Error("chat fixture has no rpg sheet");
+    }
+
+    sheet.characterHandle = "";
+    expect(must(parseChatBundleFile(ENC.encode(JSON.stringify(wire)))).rpg?.sheets[0]?.characterHandle).toBeNull();
+
+    sheet.characterHandle = overCap;
+    expect(must(parseChatBundleFile(ENC.encode(JSON.stringify(wire)))).rpg?.sheets[0]?.characterHandle).toBe(overCap);
   });
 
   test("the ENVELOPE discriminates, not the extension: an ST transcript and a foreign orb family both refuse by name", () => {

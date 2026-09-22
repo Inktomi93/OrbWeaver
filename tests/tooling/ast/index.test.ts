@@ -1337,6 +1337,9 @@ export declare const db: {
   insert: (t: unknown) => { values: (v: unknown) => { onConflictDoUpdate: (c: unknown) => void } };
   update: (t: unknown) => { set: (v: unknown) => { where: (w: unknown) => void } };
   select: () => { from: (t: unknown) => unknown[] };
+  run: (statement: unknown) => unknown;
+  execute: (statement: unknown) => unknown;
+  batch: (statements: readonly unknown[]) => unknown;
 };
 `;
 
@@ -1422,6 +1425,139 @@ export function seed(): unknown {
     expect(ghost?.writes).toEqual([]);
   });
 
+  test("table-level write evidence separates a consumed producerless table from empty, opaque, raw, and named writers", () => {
+    const project = projectOf({
+      "packages/db/src/drizzle.ts": MINI_DRIZZLE,
+      "packages/db/src/schema/tables.ts": `
+import { sqliteTable, text } from "../drizzle";
+export const producerless = sqliteTable("producerless", { seen: text("seen") });
+export const emptyInsert = sqliteTable("empty_insert", { emptySeen: text("empty_seen") });
+export const opaqueInsert = sqliteTable("opaque_insert", { opaqueSeen: text("opaque_seen") });
+export const rawInsert = sqliteTable("raw_insert", { rawSeen: text("raw_seen") });
+export const healthy = sqliteTable("healthy", { healthySeen: text("healthy_seen") });
+`,
+      "packages/server/src/domain/widget/table-writes.ts": `
+import { db } from "../../../../db/src/drizzle";
+import { emptyInsert, healthy, opaqueInsert, producerless, rawInsert } from "../../../../db/src/schema/tables";
+declare const sql: { raw: (text: string) => unknown };
+declare const row: unknown;
+export const reads = [producerless.seen, emptyInsert.emptySeen, opaqueInsert.opaqueSeen, rawInsert.rawSeen, healthy.healthySeen];
+db.insert(emptyInsert).values({});
+db.insert(opaqueInsert).values(row);
+db.insert(healthy).values({ healthySeen: "written" });
+db.run(sql.raw("INSERT INTO raw_insert DEFAULT VALUES"));
+`,
+      "tests/server/producerless.test.ts": `
+import { db } from "../../packages/db/src/drizzle";
+import { producerless } from "../../packages/db/src/schema/tables";
+db.insert(producerless).values({ seen: "fixture-only" });
+`,
+    });
+
+    const tables = collectSchemaTables(project);
+    const audit = collectColumnCandidates(project, tables);
+    expect(audit.producerlessTables.map(({ table }) => table.varName)).toEqual(["producerless"]);
+    expect(tables.filter(({ key }) => audit.tableWrites.has(key)).map(({ varName }) => varName)).toEqual([
+      "emptyInsert",
+      "opaqueInsert",
+      "rawInsert",
+      "healthy",
+    ]);
+    expect(tables.filter(({ key }) => audit.opaqueTables.has(key)).map(({ varName }) => varName)).toEqual(["opaqueInsert"]);
+  });
+
+  test("raw INSERT evidence requires an executing database sink", () => {
+    const project = projectOf({
+      "packages/db/src/drizzle.ts": MINI_DRIZZLE,
+      "packages/db/src/schema/tables.ts": `
+import { sqliteTable, text } from "../drizzle";
+export const inertTagged = sqliteTable("inert_tagged", { seen: text("seen") });
+export const inertRaw = sqliteTable("inert_raw", { seen: text("seen") });
+export const dynamicRaw = sqliteTable("dynamic_raw", { seen: text("seen") });
+export const reassignedStatement = sqliteTable("reassigned_statement", { seen: text("seen") });
+export const executedRaw = sqliteTable("executed_raw", { seen: text("seen") });
+export const batchedRaw = sqliteTable("batched_raw", { seen: text("seen") });
+`,
+      "packages/server/src/domain/widget/raw-writes.ts": `
+import { db } from "../../../../db/src/drizzle";
+declare const sql: {
+  (parts: TemplateStringsArray, ...values: unknown[]): unknown;
+  raw: (text: string) => unknown;
+};
+import { batchedRaw, dynamicRaw, executedRaw, inertRaw, inertTagged, reassignedStatement } from "../../../../db/src/schema/tables";
+declare const dynamicText: string;
+export const reads = [inertTagged.seen, inertRaw.seen, dynamicRaw.seen, reassignedStatement.seen, executedRaw.seen, batchedRaw.seen];
+export const taggedStatement = sql\`INSERT INTO inert_tagged DEFAULT VALUES\`;
+export const rawStatement = sql.raw("INSERT INTO inert_raw DEFAULT VALUES");
+db.run(sql.raw(dynamicText));
+let statement = sql\`INSERT INTO reassigned_statement DEFAULT VALUES\`;
+statement = sql.raw(dynamicText);
+db.execute(statement);
+db.run(sql\`INSERT INTO executed_raw DEFAULT VALUES\`);
+const batchedStatement = sql\`INSERT INTO batched_raw DEFAULT VALUES\`;
+db.batch([batchedStatement]);
+`,
+    });
+
+    const tables = collectSchemaTables(project);
+    const audit = collectColumnCandidates(project, tables);
+    expect(audit.producerlessTables.map(({ table }) => table.sqlName)).toEqual(["inert_tagged", "inert_raw", "dynamic_raw", "reassigned_statement"]);
+    expect(tables.filter(({ key }) => audit.tableWrites.has(key)).map(({ sqlName }) => sqlName)).toEqual(["executed_raw", "batched_raw"]);
+  });
+
+  test("table identity does not cross-contaminate same-named schema exports", () => {
+    const project = projectOf({
+      "packages/db/src/drizzle.ts": MINI_DRIZZLE,
+      "packages/db/src/schema/a.ts": `
+import { sqliteTable, text } from "../drizzle";
+export const events = sqliteTable("a_events", { aValue: text("a_value") });
+`,
+      "packages/db/src/schema/b.ts": `
+import { sqliteTable, text } from "../drizzle";
+export const events = sqliteTable("b_events", { bValue: text("b_value") });
+`,
+      "packages/server/src/domain/widget/events.ts": `
+import { db } from "../../../../db/src/drizzle";
+import { events as aEvents } from "../../../../db/src/schema/a";
+export function useA(): unknown {
+  db.insert(aEvents).values({ aValue: "written" });
+  return aEvents.aValue;
+}
+`,
+    });
+
+    const audit = collectColumnCandidates(project, collectSchemaTables(project));
+    const byTable = new Map(audit.candidates.map((candidate) => [candidate.column.sqlTable, candidate]));
+    expect(byTable.get("a_events")?.klass).toBe("read-write");
+    expect(byTable.get("b_events")?.klass).toBe("neither");
+    expect(audit.producerlessTables).toEqual([]);
+  });
+
+  test("a full-table select reaches a producerless table without fabricating named-column reads", () => {
+    const project = projectOf({
+      "packages/db/src/drizzle.ts": MINI_DRIZZLE,
+      "packages/db/src/schema/tables.ts": `
+import { sqliteTable, text } from "../drizzle";
+export const selected = sqliteTable("selected", { value: text("value") });
+export const mentioned = sqliteTable("mentioned", { value: text("value") });
+`,
+      "packages/server/src/domain/widget/full-table-read.ts": `
+import { db } from "../../../../db/src/drizzle";
+import { mentioned, selected } from "../../../../db/src/schema/tables";
+export const tableAlias = mentioned;
+export function readAll(): unknown[] {
+  return db.select().from(selected);
+}
+`,
+    });
+
+    const audit = collectColumnCandidates(project, collectSchemaTables(project));
+    expect(audit.producerlessTables.map(({ table }) => table.sqlName)).toEqual(["selected"]);
+    const byTable = new Map(audit.candidates.map((candidate) => [candidate.column.sqlTable, candidate]));
+    expect(byTable.get("selected")).toMatchObject({ klass: "neither", reads: [] });
+    expect(byTable.get("mentioned")).toMatchObject({ klass: "neither", reads: [] });
+  });
+
   test("READ arm 2 counts a row-shaped access with NO link back to the table (the mapped-type hole)", () => {
     const project = projectOf({
       ...COLUMN_FILES,
@@ -1472,7 +1608,7 @@ export function bulk(row: { id: string }): void {
     // The load-bearing assertion: `neither` is no longer reachable for this table, but the READ half is
     // untouched, so `ghost` stays a WRITE-only hit rather than silently disappearing into read-write.
     expect(ghost?.klass).toBe("write-only");
-    expect(audit.opaqueTables.has("widgets")).toBe(true);
+    expect([...audit.opaqueTables.keys()]).toEqual([collectSchemaTables(project)[0]?.key]);
   });
 
   test("an `insert(table).select(query)` attributes the select projection as writes", () => {
@@ -1497,7 +1633,7 @@ export function copy(): void {
     expect(byName.get("label")?.writes).toHaveLength(2);
     expect(byName.get("origin")?.writes).toHaveLength(2);
     expect(byName.get("ghost")?.writes).toEqual([]);
-    expect(audit.opaqueTables.has("widgets")).toBe(false);
+    expect([...audit.opaqueTables.keys()]).toEqual([]);
   });
 
   test("a positional insert-select marks the target table opaque instead of inventing destination columns", () => {
@@ -1512,7 +1648,7 @@ export function copy(): void {
 `,
     });
     const audit = collectColumnCandidates(project, collectSchemaTables(project));
-    expect(audit.opaqueTables.has("widgets")).toBe(true);
+    expect([...audit.opaqueTables.keys()]).toEqual([collectSchemaTables(project)[0]?.key]);
     expect(audit.candidates.find((candidate) => candidate.column.jsProp === "ghost")?.klass).toBe("write-only");
   });
 
@@ -2385,6 +2521,14 @@ describe("ast clientgap lens (liveness split)", () => {
       "packages/contracts/src/thing/index.ts": "export interface MissingView { id: string; }",
       "packages/server/src/domain/thing/service.ts":
         'import type { MissingView } from "../../../../contracts/src/thing/index"; export const y: MissingView | null = null;',
+      "packages/server/src/transport/trpc/router.ts": `
+        type Procedure<Output> = { _def: { procedure: true; $types: { input: void; output: Output } } };
+        declare const t: { router<T>(record: T): T };
+        declare const p: { query<T>(callback: () => T): Procedure<T> };
+        const thingRouter = t.router({ missing: p.query(() => ({ id: "missing" })) });
+        export const appRouter = t.router({ thing: thingRouter });
+        export type AppRouter = { thing: { missing: Procedure<{ id: string }> } };
+      `,
       "tests/thing/view.test.ts":
         'import type { MissingView } from "../../packages/contracts/src/thing/index"; export const fixture: MissingView | null = null;',
     };

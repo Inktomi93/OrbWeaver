@@ -20,6 +20,7 @@ import { beginAutosaveStatusTranscript, readAutosaveStatusTranscript } from "../
 import { readPhantomScrollers } from "../../../../support/browser/scroll-containing-block.ts";
 import { touchFloorPx } from "../../../../support/browser/touch-floor.ts";
 import { resolvedTokenColor } from "../../../../support/node/resolved-token-color.ts";
+import type { TrpcFixtureOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { userSettingsView } from "../../../../support/node/user-settings-view.ts";
 import type { ScopedChatSummaryFixture } from "../../chat/fixtures.ts";
@@ -107,16 +108,17 @@ const CARD_AI_BUBBLE = "oklch(0.24 0.04 305)";
 test("#937 greeting and hero card scopes inherit viewer density while carrying palette and prose", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...CHARACTER_EDITOR_AMBIENT_ROUTES,
-    "character.get": () => ({
-      ...CARD,
-      themeOverride: {
-        accent: CARD_ACCENT,
-        aiBubble: { bg: CARD_AI_BUBBLE },
-        dialogueColor: "oklch(0.82 0.08 305)",
-        font: "Georgia",
-        density: "compact",
-      },
-    }),
+    "character.get": () =>
+      makeCharacterDetail({
+        ...CARD,
+        themeOverride: {
+          accent: CARD_ACCENT,
+          aiBubble: { bg: CARD_AI_BUBBLE },
+          dialogueColor: "oklch(0.82 0.08 305)",
+          font: "Georgia",
+          density: "compact",
+        },
+      }),
     "chat.listChats": chatListResponder([]),
     "character.update": () => CARD,
   });
@@ -141,7 +143,7 @@ test("#937 greeting and hero card scopes inherit viewer density while carrying p
 test("#937 a density-only card does not claim an Own look", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...CHARACTER_EDITOR_AMBIENT_ROUTES,
-    "character.get": () => ({ ...CARD, themeOverride: { density: "compact" } }),
+    "character.get": () => makeCharacterDetail({ ...CARD, themeOverride: { density: "compact" } }),
     "chat.listChats": chatListResponder([]),
     "character.update": () => CARD,
   });
@@ -190,7 +192,7 @@ async function stubDeploymentFloor(page: Page, trustHtml: boolean): Promise<void
   await routeTrpc(page, {
     ...CHARACTER_EDITOR_AMBIENT_ROUTES,
     "character.get": () => HTML_GREETING_CARD,
-    "chat.listChats": () => [],
+    "chat.listChats": chatListResponder([]),
     "character.update": () => HTML_GREETING_CARD,
   });
 }
@@ -458,7 +460,7 @@ const TOKEN_SENT_EVERY_TURN_RE = /sent every turn/;
 const INSPECT_HINT_RE = /to inspect it here/;
 
 /** Twelve pending suggestions on this character (`TagSuggestionView` = a TagView + its characterId). */
-function suggestionFixtures(): readonly unknown[] {
+function suggestionFixtures(): TrpcFixtureOutput<"tag.listPendingSuggestions"> {
   return SUGGESTION_NAMES.map((name, index) => ({ ...makeTagFixture({ id: `tag_sug_${index}`, name }), characterId: "char_ct_1" }));
 }
 
@@ -885,7 +887,7 @@ test.describe("P2-5 suggestion chips at a coarse pointer", () => {
 test("P2-7 the OWN LOOK badge points at the tab that actually holds the theme editor", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...CHARACTER_EDITOR_AMBIENT_ROUTES,
-    "character.get": () => ({ ...CARD, themeOverride: OWN_LOOK_OVERRIDE }),
+    "character.get": () => makeCharacterDetail({ ...CARD, themeOverride: OWN_LOOK_OVERRIDE }),
     "chat.listChats": chatListResponder([]),
     "character.update": () => CARD,
   });
@@ -934,7 +936,7 @@ test("#840 the spoiler eye keeps ONE name and lets aria-pressed carry the state"
 test("#840 the Own look chip is named by its visible text and its gloss is keyboard-reachable", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...CHARACTER_EDITOR_AMBIENT_ROUTES,
-    "character.get": () => ({ ...CARD, themeOverride: OWN_LOOK_OVERRIDE }),
+    "character.get": () => makeCharacterDetail({ ...CARD, themeOverride: OWN_LOOK_OVERRIDE }),
     "chat.listChats": chatListResponder([]),
     "character.update": () => CARD,
   });
@@ -969,7 +971,7 @@ test.describe("#2443 the Own look gloss under a real touch", () => {
   test("a TAP on the Own look chip opens the gloss — the sentence that says where the look is edited", async ({ mount, page }) => {
     await routeTrpc(page, {
       ...CHARACTER_EDITOR_AMBIENT_ROUTES,
-      "character.get": () => ({ ...CARD, themeOverride: OWN_LOOK_OVERRIDE }),
+      "character.get": () => makeCharacterDetail({ ...CARD, themeOverride: OWN_LOOK_OVERRIDE }),
       "chat.listChats": chatListResponder([]),
       "character.update": () => CARD,
     });

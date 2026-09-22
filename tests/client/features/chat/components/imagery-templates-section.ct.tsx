@@ -8,21 +8,21 @@ import { DEFAULT_PROMPT_TEMPLATES } from "@orb/contracts/imagery";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import type { TrpcFixtureOutput, TrpcRecorder } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ImageryTemplatesSectionStory } from "../_ct-stories.tsx";
 
 const UPDATE_PROC = "settings.updateUserSettingsSection";
 
 /** Build the getUserSettings view with an optional imagery override seed (default: virgin — no overrides). */
-function settingsView(imagery = DEFAULT_USER_SETTINGS.imagery): Record<string, unknown> {
-  return { userId: "user_ct_imagery", schemaVersion: 6, config: { ...DEFAULT_USER_SETTINGS, imagery }, updatedAt: 0 };
+function settingsView(imagery = DEFAULT_USER_SETTINGS.imagery): TrpcFixtureOutput<"settings.getUserSettings"> {
+  return { userId: "user_ct_imagery", schemaVersion: 6, config: { ...DEFAULT_USER_SETTINGS, imagery }, configUnreadable: null, updatedAt: 0 };
 }
 
 function stub(page: Page, imagery?: (typeof DEFAULT_USER_SETTINGS)["imagery"]): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "settings.getUserSettings": () => settingsView(imagery),
-    [UPDATE_PROC]: () => ({}),
+    [UPDATE_PROC]: () => settingsView(imagery),
     // IMGMAC — the section now reads the active-preset plane (the built-in default declares none, so the
     // pre-IMGMAC tests below are unaffected: the hook doesn't even fetch when `defaultPresetId` is null).
     "preset.get": () => ({ config: { userMacros: [] } }),
@@ -89,7 +89,7 @@ function stubWithPlane(page: Page): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "settings.getUserSettings": () => ({ ...settingsView(), config: { ...DEFAULT_USER_SETTINGS, seeds: { defaultPresetId: ACTIVE_PRESET_ID } } }),
     "preset.get": () => ({ config: { userMacros: USER_MACROS } }),
-    [UPDATE_PROC]: () => ({}),
+    [UPDATE_PROC]: () => ({ ...settingsView(), config: { ...DEFAULT_USER_SETTINGS, seeds: { defaultPresetId: ACTIVE_PRESET_ID } } }),
   });
 }
 

@@ -1,7 +1,7 @@
 ---
 kind: index
 status: active
-updated: 2026-09-10
+updated: 2026-09-21
 ---
 
 # proposed/ Index — committed program map
@@ -23,7 +23,7 @@ and dependency lists are not lifecycle authority; Project relations own the curr
 | ~~`saved-rosters-design.md`~~ (DELETED 2026-08-28 — superseded by [`interaction-direction-spec.md`](../../design/interaction-direction-spec.md) row B10 "saved casts"; BUILT as `domain/roster-preset`, record: [`saved-rosters-build-record.md`](../../history/design/saved-rosters-build-record.md)) | **REALIZED** | [#26](https://github.com/Inktomi93/orbweaver/issues/26) |
 | `hub-browse-design/` | **SUPERSEDED** | [#21](https://github.com/Inktomi93/orbweaver/issues/21) |
 | `imagery-design/` | **REALIZED** | [#22](https://github.com/Inktomi93/orbweaver/issues/22) |
-| `expressions-design/` | **FUTURE** | [#20](https://github.com/Inktomi93/orbweaver/issues/20) |
+| `expressions-design/` | **PARTIAL** | [#20](https://github.com/Inktomi93/orbweaver/issues/20) |
 | `databank-design/` | **REALIZED** | — |
 | `automation-design/` | **REALIZED** | [#15](https://github.com/Inktomi93/orbweaver/issues/15) |
 | `rpg-design/` | **PARTIAL** | [#25](https://github.com/Inktomi93/orbweaver/issues/25) |
@@ -31,6 +31,6 @@ and dependency lists are not lifecycle authority; Project relations own the curr
 | `plugin-design/` | **REALIZED** | [#24](https://github.com/Inktomi93/orbweaver/issues/24) |
 | `autosave-form-doctrine.md` | **REALIZED** | — |
 | `bg-video-background-mini-spec.md` | **REALIZED** | — |
-| `message-reactions-mini-spec.md` | **FUTURE** | [#23](https://github.com/Inktomi93/orbweaver/issues/23) |
+| `message-reactions-mini-spec.md` | **PARTIAL** | [#2565](https://github.com/Inktomi93/orbweaver/issues/2565) |
 | `spatial-maps-design-capture.md` | **FUTURE** | [#27](https://github.com/Inktomi93/orbweaver/issues/27) |
 | `world-state-clips-trackers-spec.md` | **FUTURE** | [#29](https://github.com/Inktomi93/orbweaver/issues/29) |

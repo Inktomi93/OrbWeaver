@@ -77,10 +77,7 @@
     }
   ],
   "midReviewCorrection": {
-    "initialCounterexamples": [
-      "callers returned a clean zero for a class method",
-      "cycles returned a clean zero for a resolved self-import"
-    ],
+    "initialCounterexamples": ["callers returned a clean zero for a class method", "cycles returned a clean zero for a resolved self-import"],
     "resolution": "Both were converted into bounded regression controls and repaired in the live shared diff. The refreshed full bounded suite and independent probes are green."
   },
   "notRun": [

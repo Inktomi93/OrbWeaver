@@ -21,7 +21,7 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { DocumentId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder, TrpcRoutes } from "../../../../support/node/route-trpc.ts";
+import type { TrpcInput, TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { ChatDocumentsSectionStory } from "../_ct-stories.tsx";
 
@@ -33,11 +33,12 @@ const ACTIVE_PRESET_ID = "preset_00000000000000000000mine";
 
 /** The host's settings with NO preset picked — `defaultPresetId: null` is the built-in arrangement, exactly
  *  as the server resolves it (`resolvePromptConfigFor`), so no `preset.get` is issued at all. */
-const SETTINGS_BUILT_IN = { userId: "user_ct_docs", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };
+const SETTINGS_BUILT_IN = { userId: "user_ct_docs", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, configUnreadable: null, updatedAt: 0 };
 const DETACH = "databank.detachFromChat";
 const ATTACH = "databank.attachToChat";
 
-const BASE_DOC = {
+type BankDocument = TrpcWireOutput<"databank.list">["items"][number];
+const BASE_DOC: Omit<BankDocument, "id" | "name"> = {
   mime: "text/markdown",
   origin: "text",
   sourceUrl: null,
@@ -51,24 +52,33 @@ const BASE_DOC = {
 
 // The three provenance arms the rack must tell apart: this room's own attachment (detachable), a member's
 // Everywhere document (hide-only), and one riding a roster character (hide-only, and already hidden).
-const CHAT_DOC = { ...BASE_DOC, id: "document_00000000000000000001", name: "The Crimson Court", hidden: false, sources: ["chat"] };
-const GLOBAL_DOC = { ...BASE_DOC, id: "document_00000000000000000002", name: "Duskwater Barony", hidden: false, sources: ["global"] };
-const HIDDEN_CHAR_DOC = { ...BASE_DOC, id: "document_00000000000000000003", name: "Heraldry plates", hidden: true, sources: ["character"] };
+type ActiveDocument = TrpcWireOutput<"databank.listActiveForChat">[number];
+const CHAT_DOC = { ...BASE_DOC, id: "document_00000000000000000001", name: "The Crimson Court", hidden: false, sources: ["chat"] } satisfies ActiveDocument;
+const GLOBAL_DOC = { ...BASE_DOC, id: "document_00000000000000000002", name: "Duskwater Barony", hidden: false, sources: ["global"] } satisfies ActiveDocument;
+const HIDDEN_CHAR_DOC = {
+  ...BASE_DOC,
+  id: "document_00000000000000000003",
+  name: "Heraldry plates",
+  hidden: true,
+  sources: ["character"],
+} satisfies ActiveDocument;
 
 /** The rack as the host sees it (the whole union, hidden rows flagged), plus the picker's bank read. */
-function stubRack(page: Page, over: TrpcRoutes = {}): Promise<TrpcRecorder> {
+const RACK_OVERRIDE_PATHS = ["databank.listActiveForChat", "settings.getUserSettings", "preset.get", "chat.setChatDocumentVisibility"] as const;
+type RackOverridePath = (typeof RACK_OVERRIDE_PATHS)[number];
+function stubRack(page: Page, over: Partial<TrpcRoutes<RackOverridePath>> = {}): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "databank.listActiveForChat": () => [CHAT_DOC, GLOBAL_DOC, HIDDEN_CHAR_DOC],
     // The caller's own bank: two of the three active documents plus one that reaches no room yet. The
     // picker's search is a SERVER lens, so the stub narrows by the term it is handed (a fixed array would
     // pass a search assertion while the component filtered nothing).
-    "databank.list": (input: unknown) => {
+    "databank.list": (input: TrpcInput<"databank.list">) => {
       const bank = [
         { ...BASE_DOC, id: CHAT_DOC.id, name: CHAT_DOC.name },
         { ...BASE_DOC, id: HIDDEN_CHAR_DOC.id, name: HIDDEN_CHAR_DOC.name },
         { ...BASE_DOC, id: "document_00000000000000000004", name: "Unattached notes" },
-      ];
-      const needle = ((input ?? {}) as { search?: string }).search?.trim().toLowerCase() ?? "";
+      ] satisfies TrpcWireOutput<"databank.list">["items"];
+      const needle = input?.search?.trim().toLowerCase() ?? "";
       const items = needle === "" ? bank : bank.filter((doc) => doc.name.toLowerCase().includes(needle));
       return { items, nextCursor: null, totalCount: items.length };
     },

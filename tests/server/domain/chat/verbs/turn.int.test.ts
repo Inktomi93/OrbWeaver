@@ -17,7 +17,7 @@ import type { RegexScriptRow } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
-import { chats, personaBooks, personas, statsCanonVersions, worldBooks, worldEntries } from "@orb/db";
+import { chatParticipants, chats, personaBooks, personas, statsCanonVersions, worldBooks, worldEntries } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import type { Resolved } from "@orb/inference";
 import { generationOf } from "@orb/inference";
@@ -26,7 +26,7 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { resolveRowMacros } from "@orb/kit/macro";
 import { initTracing, recentTraces, withRequestSpan } from "@orb/server/foundation/observability";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { createActiveTurns } from "../../../../../packages/server/src/domain/chat/active-turns.ts";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context.ts";
@@ -76,6 +76,48 @@ function principal(userId: UserId): Principal {
   return makePrincipal(userId, { handle: castId<Handle>("h") });
 }
 
+/** Transfer the one host seat while keeping both humans present. */
+async function transferHost(chatId: ChatId, from: UserId, to: UserId): Promise<void> {
+  await db
+    .update(chatParticipants)
+    .set({ role: "member" })
+    .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.userId, from)));
+  await db
+    .update(chatParticipants)
+    .set({ role: "host" })
+    .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.userId, to)));
+}
+
+/** Minimal rpg collaborator that records the initiator owning each completed turn. */
+function triggeredBySpyRpg(): { triggeredBy: UserId[]; rpg: NonNullable<ChatContext["rpg"]> } {
+  const triggeredBy: UserId[] = [];
+  const unreachable = (): never => {
+    throw new Error("test: unexpected RPG collaborator call");
+  };
+  const rpg: NonNullable<ChatContext["rpg"]> = {
+    planGameBirth: unreachable,
+    gameBirthCommitted: unreachable,
+    resolvePresetOverride: () => Promise.resolve(null),
+    resolveUserMacros: () => Promise.resolve([]),
+    gatherTurnContext: () => Promise.resolve(null),
+    markDicePreRollEligible: () => undefined,
+    onUserCommit: () => Promise.resolve(),
+    onTurnCompleted: (...args: Parameters<NonNullable<ChatContext["rpg"]>["onTurnCompleted"]>) => {
+      triggeredBy.push(args[4].triggeredBy);
+      return Promise.resolve();
+    },
+    onTurnAborted: () => Promise.resolve(),
+    cancelStateRounds: () => 0,
+    resolveGmSeatHolderKind: () => Promise.resolve(null),
+    resolveReasoningHostOnly: () => Promise.resolve(false),
+    forkGame: () => Promise.resolve({ cloned: false }),
+    handoffHealStatements: () => Promise.resolve([]),
+    handoffWouldCopyGmPreset: () => Promise.resolve(false),
+    handoffRekeyActors: () => Promise.resolve(),
+  };
+  return { triggeredBy, rpg };
+}
+
 /** A scripted role turn — text delta + a terminal `final` carrying the content/economics. */
 function scripted(content: string, finishReason?: NormalizedFinishReason): ChatContext["runChatTurn"] {
   return () =>
@@ -120,6 +162,7 @@ interface Harness {
   events: ChatBusEvent[];
   deltas: StatsDelta[];
   notifications: NotificationEvent[];
+  connectionFunders: UserId[];
   turn: ReturnType<typeof createTurn>;
   requestTurn: ReturnType<typeof createRequestTurn>;
   activeTurns: ReturnType<typeof createActiveTurns>;
@@ -165,6 +208,8 @@ function harness(
     /** Override the resolved connection wholesale (the R1 pin needs a TOOLS-capable capability, which
      *  `testConnection`'s minimal descriptor deliberately lacks). */
     connection?: Resolved<"chat">;
+    /** Override connection resolution while retaining the ordered funder capture. */
+    resolveConnection?: Parameters<typeof createTurn>[1]["resolveConnection"];
     /** The S2 teaching registry (default = the composition root's own: chat's rpg-gather projection). The R2
      *  attach-matrix pins add a contribution that DECLARES a registry tool name. */
     teaching?: ChatContext["teaching"];
@@ -176,6 +221,7 @@ function harness(
   const events: ChatBusEvent[] = [];
   const deltas: StatsDelta[] = [];
   const notifications: NotificationEvent[] = [];
+  const connectionFunders: UserId[] = [];
   let replyIdx = 0;
   const ctx = makeChatContext(database, {
     // D121-E: the host-tier regex set reaches a turn through the injected four-scope resolver, not through
@@ -242,7 +288,10 @@ function harness(
     claimChat: createClaimChat(ctx),
     prng: over.prng ?? seededPrng(),
     delay: () => Promise.resolve(),
-    resolveConnection: () => Promise.resolve(over.connection ?? testConnection("vllm")),
+    resolveConnection: (args) => {
+      connectionFunders.push(args.funderUserId);
+      return over.resolveConnection?.(args) ?? Promise.resolve(over.connection ?? testConnection("vllm"));
+    },
     resolveForeignInputs: (args) => {
       over.onForeignInputs?.(args);
       return Promise.resolve({
@@ -256,7 +305,7 @@ function harness(
   };
   const turn = createTurn(ctx, turnDeps);
   const requestTurn = createRequestTurn(ctx, turnDeps);
-  return { ctx, events, deltas, notifications, turn, requestTurn, activeTurns };
+  return { ctx, events, deltas, notifications, connectionFunders, turn, requestTurn, activeTurns };
 }
 
 let db: Db;
@@ -1442,12 +1491,54 @@ describe("send — the D19 triple (run-as-host attribution)", () => {
     const outcome = await h.turn.send({ principal: principal(member), chatId, content: "hi" });
 
     expect(outcome.messages[0]?.authorUserId).toBe(member); // the user row is the caller's
+    expect(h.connectionFunders).toEqual([host]);
     // TWO deltas ride the send (the stats design doc canon-mutator push): the USER row's (owner-grain only —
     // characterId null) then the assistant turn's — BOTH attributed to the host (runAsUserId, D19).
     expect(h.deltas).toHaveLength(2);
     expect(h.deltas[0]?.userTurns).toBe(1);
     expect(h.deltas[0]?.characterId).toBeNull();
     expect(h.deltas.map((d) => d.ownerId)).toEqual([host, host]);
+  });
+
+  test("auto-mode retains the member chain starter for attribution while the host funds every beat", async () => {
+    const { host, chatId, names } = await seedRoom("list", ["aria", "bryn"], { autoMode: true, autoModeMaxTurns: 2 });
+    const member = await seedUser(db, castId<Handle>("member-auto"));
+    await seedParticipant(db, { chatId, key: "member-auto", userId: member, role: "member" });
+    const attribution = triggeredBySpyRpg();
+    const h = harness(db, names, { rpg: attribution.rpg });
+
+    await h.turn.send({ principal: principal(member), chatId, content: "go" });
+
+    expect(h.connectionFunders).toEqual([host]);
+    expect(attribution.triggeredBy.length).toBeGreaterThan(1);
+    expect(attribution.triggeredBy.every((id) => id === member)).toBe(true);
+  });
+
+  test("transferring the host seat transfers liability for subsequent turns", async () => {
+    const { host, chatId, names } = await seedRoom("natural", ["aria"]);
+    const nextHost = await seedUser(db, castId<Handle>("next-host"));
+    await seedParticipant(db, { chatId, key: "next-host", userId: nextHost, role: "member" });
+    const h = harness(db, names);
+
+    await h.turn.send({ principal: principal(nextHost), chatId, content: "before" });
+    await transferHost(chatId, host, nextHost);
+    await h.turn.send({ principal: principal(host), chatId, content: "after" });
+
+    expect(h.connectionFunders).toEqual([host, nextHost]);
+  });
+
+  test("a missing host connection refuses without falling back to the member's connection", async () => {
+    const { host, chatId, names } = await seedRoom("natural", ["aria"]);
+    const member = await seedUser(db, castId<Handle>("member-no-host-connection"));
+    await seedParticipant(db, { chatId, key: "member-no-host-connection", userId: member, role: "member" });
+    const h = harness(db, names, {
+      resolveConnection: ({ funderUserId }) =>
+        funderUserId === host ? Promise.reject(new Error("host has no chat connection")) : Promise.resolve(testConnection("vllm")),
+    });
+
+    await expect(h.turn.send({ principal: principal(member), chatId, content: "hi" })).rejects.toThrow("host has no chat connection");
+    expect(h.connectionFunders).toEqual([host]);
+    expect(await loadCanonHistory(db, chatId)).toHaveLength(0);
   });
 
   test("a non-member is refused (leak-free NOT_FOUND — can() default-deny)", async () => {
@@ -1534,6 +1625,20 @@ describe("send / drainDeferredTurns — host-offline defer + reclaim (D16 / Part
     expect(assistants[0]?.characterId).toBe(chars[0]);
   });
 
+  test("deferred replay preserves the host funder frozen when the turn was queued", async () => {
+    const { host, member, chatId, names } = await seedMemberRoom();
+    const nextHost = await seedUser(db, castId<Handle>("deferred-next-host"));
+    await seedParticipant(db, { chatId, key: "deferred-next-host", userId: nextHost, role: "member" });
+    const h = harness(db, names, { readPresence: hostOffline(host) });
+
+    await h.turn.send({ principal: principal(member), chatId, content: "hi" });
+    await transferHost(chatId, host, nextHost);
+    h.connectionFunders.splice(0);
+
+    await expect(h.turn.drainDeferredTurns({ all: true })).resolves.toStrictEqual({ ran: 1, dropped: 0 });
+    expect(h.connectionFunders).toEqual([host]);
+  });
+
   test("the boot reclaim ({all}) drains every chat's queued turns", async () => {
     const { host, member, chatId, names } = await seedMemberRoom();
     const h = harness(db, names, { readPresence: hostOffline(host) });
@@ -1545,8 +1650,8 @@ describe("send / drainDeferredTurns — host-offline defer + reclaim (D16 / Part
     expect(await loadPendingTurns(db, chatId)).toHaveLength(0);
   });
 
-  // THE PERMANENT-VERDICT DROP PATH. The consent drop-pin that stood here was deleted with its subject
-  // (@orb/inference §14 F13 took by-proxy funding and the whole owner-consent belt), which left the drop
+  // THE PERMANENT-VERDICT DROP PATH. The consent drop-pin that stood here was deleted with its separate
+  // owner-consent belt (the host seat itself accepts room-turn liability), which left the drop
   // MECHANISM — claim, notify the frozen `triggeredBy`, stay deleted — with no coverage at all. It is
   // re-pinned on the ONE arm that still raises it: `loadRoom` refuses a room whose host participant is gone
   // (`turn.ts` `loadRoom` → `ChatNotFoundError`), which is a verdict no later drain edge can change.
@@ -2556,23 +2661,25 @@ describe("storage stays RAW (D51) — macros in message content are never resolv
 });
 
 // The non-human turn seam (automation-design/03 §4 / 05 §AC-B) — the walls, none optional. requestTurn is
-// principal-free: the funding host is resolved from the room and the funder is the responsible human whose
-// connection the turn spends (@orb/inference §8.4-3). No infinite cascade, no cross-tenant funding. The
+// principal-free: the funding host is resolved from the room and the responsible human remains the initiator.
+// No infinite cascade, no cross-tenant trigger. The
 // budget and consent walls were retired with their belts (§14 F11/F13), so two of the original four remain.
 describe("requestTurn — the non-human turn seam (walls: depth · authority)", () => {
   test("FIRES + STAMPS initiator/depth on the reply (the getTurnOrigin round-trip)", async () => {
     const { host, chatId, names } = await seedRoom("natural", ["aria"]);
-    const h = harness(db, names);
+    const author = await seedUser(db, castId<Handle>("automation-author"));
+    await seedParticipant(db, { chatId, key: "automation-author", userId: author, role: "member" });
+    const attribution = triggeredBySpyRpg();
+    const h = harness(db, names, { rpg: attribution.rpg });
 
-    const outcome = await h.requestTurn({ chatId, initiator: "automation", funderUserId: host, automationDepth: 2 });
+    const outcome = await h.requestTurn({ chatId, initiator: "automation", triggeredBy: author, automationDepth: 2 });
 
     // FIRES — one assistant reply committed; a non-human turn adds NO user line.
     expect(outcome.aborted).toBe(false);
     expect(outcome.messages).toHaveLength(1);
     expect(outcome.messages[0]?.role).toBe("assistant");
-    // The SPENDS assertion that stood here is deleted with the per-member budget belt (@orb/inference §14
-    // F11) — there is no debit op on the turn path to observe. The funder still decides WHOSE connection
-    // pays (§8.4-3), which `resolveConnection`'s funder key is the pin for, not a budget count.
+    expect(h.connectionFunders).toEqual([host]);
+    expect(attribution.triggeredBy).toEqual([author]);
     // ORIGIN — the reply slot carries the non-human origin the cascade guard reads back through getTurnOrigin.
     const replyId = outcome.messages[0]?.id;
     expect(replyId).toBeDefined();
@@ -2587,37 +2694,36 @@ describe("requestTurn — the non-human turn seam (walls: depth · authority)", 
     const { host, chatId, names } = await seedRoom("natural", ["aria"]);
     const h = harness(db, names);
 
-    await expect(h.requestTurn({ chatId, initiator: "automation", funderUserId: host, automationDepth: AUTOMATION_DEPTH_HARD_CAP + 1 })).rejects.toMatchObject({
+    await expect(h.requestTurn({ chatId, initiator: "automation", triggeredBy: host, automationDepth: AUTOMATION_DEPTH_HARD_CAP + 1 })).rejects.toMatchObject({
       code: "cascade_depth_exceeded",
     });
     expect(await loadCanonHistory(db, chatId)).toHaveLength(0);
   });
 
-  test("WALL 2 (cross-tenant): a funder with NO membership cannot fund a turn — leak-free NOT_FOUND, nothing commits", async () => {
+  test("WALL 2 (cross-tenant): an initiator with NO membership cannot trigger a turn — leak-free NOT_FOUND, nothing commits", async () => {
     const { chatId, names } = await seedRoom("natural", ["aria"]);
     const stranger = await seedUser(db, castId<Handle>("stranger")); // a real user, but NOT a participant of this chat
     const h = harness(db, names);
 
-    await expect(h.requestTurn({ chatId, initiator: "automation", funderUserId: stranger, automationDepth: 1 })).rejects.toMatchObject({
+    await expect(h.requestTurn({ chatId, initiator: "automation", triggeredBy: stranger, automationDepth: 1 })).rejects.toMatchObject({
       name: "ChatNotFoundError",
     });
     expect(await loadCanonHistory(db, chatId)).toHaveLength(0);
   });
 
-  // WALL 4 (consent, D17) is DELETED, subject gone (@orb/inference §14 F13): there is no by-proxy hosted
-  // funding left to consent to — every turn spends the FUNDER's own connection (§8.4-3) — so
+  // A separate by-proxy consent wall is gone: accepting the host seat accepts room-turn liability, so
   // `assertMaxProSubConsent` and `consent_required` no longer exist. The walls that remain are pinned above.
 
   test("a 'plugin' initiator is accepted + stamped (the membrane seam); a 'human' initiator is refused (no forged human turn)", async () => {
     const { host, chatId, names } = await seedRoom("natural", ["aria"]);
     const h = harness(db, names);
 
-    // The plugin membrane calls this exact shape (installer as funder, cascade depth from the invocation).
-    const outcome = await h.requestTurn({ chatId, initiator: "plugin", funderUserId: host, automationDepth: 1 });
+    // The plugin membrane calls this exact shape (installer as initiator, cascade depth from the invocation).
+    const outcome = await h.requestTurn({ chatId, initiator: "plugin", triggeredBy: host, automationDepth: 1 });
     const replyId = outcome.messages[0]?.id;
     expect(replyId !== undefined ? await loadTurnOrigin(db, chatId, replyId) : null).toEqual({ initiator: "plugin", automationDepth: 1 });
 
-    await expect(h.requestTurn({ chatId, initiator: "human", funderUserId: host, automationDepth: 0 })).rejects.toMatchObject({
+    await expect(h.requestTurn({ chatId, initiator: "human", triggeredBy: host, automationDepth: 0 })).rejects.toMatchObject({
       code: "forbidden_override",
     });
   });

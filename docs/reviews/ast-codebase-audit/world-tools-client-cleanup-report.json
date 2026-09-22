@@ -102,12 +102,7 @@
       "semanticIdentityTiming": "/tmp/world-tools-testonly-after.time",
       "astGrepOutput": null
     },
-    "productionScope": [
-      "packages",
-      "tooling",
-      "scripts",
-      "playwright"
-    ],
+    "productionScope": ["packages", "tooling", "scripts", "playwright"],
     "languages": {
       "TypeScript": {
         "scannedFilesPerInvocation": 4059,
@@ -118,15 +113,9 @@
         "skippedFilesPerInvocation": 0
       }
     },
-    "patternsRunForEveryIdentifier": [
-      "identifier: <symbol>",
-      "direct call: <symbol>($$$ARGS)",
-      "member call: $OBJ.<symbol>($$$ARGS)"
-    ],
+    "patternsRunForEveryIdentifier": ["identifier: <symbol>", "direct call: <symbol>($$$ARGS)", "member call: $OBJ.<symbol>($$$ARGS)"],
     "productionClassification": "Identifier hits were limited to declarations, state barrel re-exports, and internal references within the recent-models cluster. Direct-call and member-call patterns had zero production hits.",
-    "testScope": [
-      "tests"
-    ],
+    "testScope": ["tests"],
     "testScanCounts": "not retained in a durable artifact",
     "testHitClassification": {
       "isConfigShelf": "config-group ids unit test",
@@ -142,17 +131,9 @@
   },
   "postDeletionStructuralProof": {
     "tool": "ast-grep 0.45.0",
-    "ruleArtifacts": [
-      "/tmp/world-tools-stale-symbols-ts.yml",
-      "/tmp/world-tools-stale-symbols-tsx.yml"
-    ],
+    "ruleArtifacts": ["/tmp/world-tools-stale-symbols-ts.yml", "/tmp/world-tools-stale-symbols-tsx.yml"],
     "outputArtifact": null,
-    "scope": [
-      "packages",
-      "tooling",
-      "scripts",
-      "playwright"
-    ],
+    "scope": ["packages", "tooling", "scripts", "playwright"],
     "TypeScript": {
       "scannedFiles": 4058,
       "skippedFiles": 0,

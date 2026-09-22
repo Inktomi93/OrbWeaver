@@ -205,11 +205,7 @@
     {
       "risk": "Using import form or Liveness.usedProd as a prefilter",
       "reason": "Liveness marks a named import without classifying its actual use position. A plain value import used only through typeof is an intentional positive control and would be lost.",
-      "evidence": [
-        "tooling/src/ast/lib/liveness.ts:52-77",
-        "tooling/src/ast/lib/liveness.ts:346-361",
-        "tests/tooling/ast/index.test.ts:943-974"
-      ]
+      "evidence": ["tooling/src/ast/lib/liveness.ts:52-77", "tooling/src/ast/lib/liveness.ts:346-361", "tests/tooling/ast/index.test.ts:943-974"]
     },
     {
       "risk": "Using isReferencedInOwnFile unchanged as a fast skip",

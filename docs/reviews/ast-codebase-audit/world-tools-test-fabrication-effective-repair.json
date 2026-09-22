@@ -1,0 +1,108 @@
+{
+  "schema": "orbweaver.ast-test-fabrication-effective-repair",
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-21T22:55:28.000Z",
+  "status": "complete-receipt",
+  "purpose": "Receipt feeding docs/reviews/ast-codebase-audit/world-tools-running-finding-ledger.json. This records the five effective no-test-fabrication repairs exposed by the honest any-cast gate and is not a second tracker.",
+  "references": {
+    "canonicalLedger": "docs/reviews/ast-codebase-audit/world-tools-running-finding-ledger.json",
+    "predecessorReceipt": "docs/reviews/ast-codebase-audit/world-tools-test-any-contract-integrity.json",
+    "gate": "tooling/src/verify/gates/no-test-fabrication.ts"
+  },
+  "tree": {
+    "head": "8f7ed4c4b98c112429c3918483f3a172f66ae184",
+    "dirty": true,
+    "quiescent": false,
+    "stagedOrCommitted": false,
+    "note": "Captured in the shared world-aware-tools checkout while sibling work remained active. This lane changed only the five finding subjects, their production-derived fixture boundary, and this receipt."
+  },
+  "counts": {
+    "before": {
+      "raw": 421,
+      "waived": 416,
+      "effective": 5,
+      "population": 3004
+    },
+    "after": {
+      "raw": 416,
+      "waived": 416,
+      "effective": 0,
+      "population": 3004
+    }
+  },
+  "sites": [
+    {
+      "before": "tests/server/domain/chat/verbs/turn.int.test.ts:107",
+      "finding": "partial ChatRpgOps object double-cast through unknown",
+      "disposition": "repaired",
+      "repair": "The attribution spy now builds a complete collaborator typed directly as NonNullable<ChatContext['rpg']>. Every method signature is contextual from the production port; unused hooks fail loudly and the completed-turn hook still records turn.triggeredBy."
+    },
+    {
+      "before": "tests/server/domain/embeddings/persistence/queries.int.test.ts:175",
+      "finding": "invalid insert caption metadata double-cast to ImageCaptionMeta",
+      "disposition": "repaired",
+      "repair": "The file-local upsert input now names captionMeta as unknown at the existing parse-before-write trust edge. The malformed artStyle reaches imageCaptionMetaSchema.parse without a cast and the test still proves no row is inserted."
+    },
+    {
+      "before": "tests/server/domain/embeddings/persistence/queries.int.test.ts:213",
+      "finding": "invalid update caption metadata double-cast to ImageCaptionMeta",
+      "disposition": "repaired",
+      "repair": "The same parsed unknown input boundary admits the malformed runtime value honestly; the test still proves the original persisted row is unchanged after refusal."
+    },
+    {
+      "before": "tests/server/domain/plugin/activation/provider-contributions.int.test.ts:125",
+      "finding": "invalid provider definition double-cast to ProviderDef",
+      "disposition": "repaired",
+      "repair": "The bundle factory retains its typed providers arm for healthy fixtures and adds a distinct rawProviders unknown arm for untrusted manifest JSON. The invalid wire reaches the real bundle parser and persistence remains empty."
+    },
+    {
+      "before": "tests/server/domain/refinery/persistence/queries.int.test.ts:84",
+      "finding": "corrupt stageConfig object asserted as never",
+      "disposition": "repaired",
+      "repair": "The fixture writes malformed JSON through db.run(sql), the raw SQLite persistence boundary, then proves sessionViewOf heals it to DEFAULT_REFINERY_STAGE_CONFIG. The healthy-row witness remains before corruption."
+    }
+  ],
+  "verification": [
+    {
+      "command": "pnpm check:structure --check no-test-fabrication (before)",
+      "result": "Selected gate receipt orbweaver-1047142: 421 raw = 416 waived + 5 effective; 0 alarms; 0 tool errors; population 3004."
+    },
+    {
+      "command": "pnpm check:structure --check no-test-fabrication (after)",
+      "result": "PASS, final receipt reports/runs/structure/orbweaver-1091220-2026-09-21T22-57-27-466Z/check-structure.json: 416 raw = 416 waived + 0 effective; 0 alarms; 0 tool errors; population 3004."
+    },
+    {
+      "command": "pnpm typecheck --config tsconfig.tests-iso.json --config packages/server/tsconfig.json",
+      "result": "PASS: packages/server/tsconfig.json and tsconfig.tests-iso.json."
+    },
+    {
+      "command": "pnpm test:scoped tests/server/domain/chat/verbs/turn.int.test.ts tests/server/domain/embeddings/persistence/queries.int.test.ts tests/server/domain/plugin/activation/provider-contributions.int.test.ts tests/server/domain/refinery/persistence/queries.int.test.ts",
+      "result": "PASS: 4 files and 142 tests (128 chat, 5 embeddings, 6 plugin, 3 refinery); report reports/runs/test/orbweaver-1076249-2026-09-21T22-53-28-584Z/test-report.json."
+    },
+    {
+      "command": "pnpm exec ast-grep run --lang <ts|tsx> --pattern <each exact former chat-helper, invalid-caption, invalid-provider, or corrupt-stageConfig cast shape> tests --globs '**/*.<ts|tsx>' --json=compact --inspect summary",
+      "result": "All four exact former shapes returned [] in both languages. ast-grep reported 2406 TS files and 598 TSX files scanned for each pattern; exit 1 is its expected no-match status."
+    },
+    {
+      "command": "rg -n -F <the four former source spellings> <five subject files>; rg --files tests -g '*.ts'; rg --files tests -g '*.tsx'",
+      "result": "The two invalid caption casts, invalid provider cast, corrupt stageConfig cast, and triggeredBySpyRpg cast spelling are absent; the helper's production-typed annotation is present at line 97. rg inventory: 2399 TS and 598 TSX files. ast-grep's TS traversal reports seven additional parser candidates; the independent counts and exact no-matches are both recorded rather than conflated."
+    },
+    {
+      "command": "pnpm exec biome check <six changed source/test files>",
+      "result": "PASS: checked 6 files; no fixes applied."
+    },
+    {
+      "command": "pnpm exec eslint <six changed source/test files>",
+      "result": "PASS with no diagnostics."
+    },
+    {
+      "command": "git diff --check -- <six changed source/test files>",
+      "result": "PASS with no whitespace errors."
+    }
+  ],
+  "limitations": [
+    "The structural scan intentionally adjudicates only the five effective rows named by the selected gate. Other exact-waived or separately owned fabricated test shapes remain outside this receipt.",
+    "The selected gate is a one-policy verdict, not a whole check:structure verdict.",
+    "The shared checkout was dirty and non-quiescent; no files were staged or committed."
+  ]
+}

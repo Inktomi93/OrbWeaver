@@ -7,8 +7,7 @@
 // file that dropped it would turn every re-import into a duplicate library.
 
 import type { PortableParse } from "@orb/contracts/portability";
-import type { AssetId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { CanonicalDocument } from "@orb/server/kit/serde/databank";
 import { buildDocumentFile, DATABANK_SCHEMA_KIND, parseDocumentFile } from "@orb/server/kit/serde/databank";
 import { describe } from "vitest";
@@ -16,7 +15,7 @@ import { expect, test } from "../../../../support/fixtures.ts";
 
 const ENC = new TextEncoder();
 const DEC = new TextDecoder();
-const ASSET = castId<AssetId>("asset_source_blob");
+const ASSET = mintTypeId(ID_PREFIX.asset);
 
 /** The parse outcome's value — the spine returns a typed refusal reason, never null. */
 function refusalOf<T>(result: PortableParse<T>): string {
@@ -107,6 +106,18 @@ describe("parseDocumentFile", () => {
     expect(parsed.sourceUrl).toBeNull();
     expect(parsed.sourceAssetId).toBeNull();
     expect(parsed.createdAt).toBeNull();
+  });
+
+  test("sourceAssetId preserves a canonical asset id and heals malformed or wrong-prefix ids to null", () => {
+    const wire = JSON.parse(DEC.decode(buildDocumentFile(doc()))) as Record<string, unknown>;
+    for (const [sourceAssetId, expected] of [
+      [ASSET, ASSET],
+      ["asset_not-a-typeid", null],
+      [mintTypeId(ID_PREFIX.character), null],
+    ] as const) {
+      const parsed = must(parseDocumentFile(ENC.encode(JSON.stringify({ ...wire, sourceAssetId }))));
+      expect(parsed.sourceAssetId).toBe(expected);
+    }
   });
 
   test("a document missing its CANON is refused — extractedText is not optional", () => {

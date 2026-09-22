@@ -16,8 +16,7 @@ async function storeChunk(svc: ReturnType<typeof createEmbeddingsService>, docum
     content: `chunk ${chunkIdx} content`,
     model: EMBED_MODEL,
     dim: EMBED_DIM,
-    // biome-ignore lint/suspicious/noExplicitAny: the branded DocumentId is produced by seedDocument; the test passes it straight back through the store arm.
-    fkRefs: { documentId: documentId as any, chunkIdx, charStart: chunkIdx * 10, charEnd: chunkIdx * 10 + 10 },
+    fkRefs: { documentId, chunkIdx, charStart: chunkIdx * 10, charEnd: chunkIdx * 10 + 10 },
     ownerId,
   });
 }

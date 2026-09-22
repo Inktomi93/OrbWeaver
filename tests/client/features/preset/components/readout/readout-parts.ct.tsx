@@ -28,6 +28,7 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { makeCapability, makeGenerationCapability, makeResolvedView } from "../../../../../support/factories/resolved-connection.ts";
+import type { TrpcResponder, TrpcRoutes, TrpcWireOutput } from "../../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../../support/node/route-trpc.ts";
 import {
   EffectiveProfileFailedStory,
@@ -204,7 +205,7 @@ test("PENDING — the skeleton is SHAPE-MATCHED: settling does not collapse the 
 
 const PRESET = "preset_ct_readoutbind";
 
-const PRESET_DETAIL = {
+const PRESET_DETAIL: TrpcWireOutput<"preset.get"> = {
   id: PRESET,
   name: "Preset R",
   kind: "custom",
@@ -214,9 +215,16 @@ const PRESET_DETAIL = {
   updatedAt: 0,
   config: DEFAULT_PROMPT_CONFIG,
   schemaVersion: DEFAULT_PROMPT_CONFIG.schemaVersion,
+  configUnreadable: null,
 };
 
-const SETTINGS_VIEW = { userId: "user_ct_readout", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };
+const SETTINGS_VIEW: TrpcWireOutput<"settings.getUserSettings"> = {
+  userId: "user_ct_readout",
+  schemaVersion: 1,
+  config: DEFAULT_USER_SETTINGS,
+  updatedAt: 0,
+  configUnreadable: null,
+};
 
 /** The SETTLED-successful capability read, through the typed factory (a new required descriptor field is a
  *  compile error there, never a silently-absent key here). Settled in BOTH wiring arms: this file pins the
@@ -232,21 +240,37 @@ const CAPABILITY = makeResolvedView({ capability: makeCapability(makeGenerationC
 // `error-mapping.ts`), and it is what makes the wiring assertion below a pin on the CALLER handing the error
 // OBJECT down. A caller that flattened it to `.message` first would strip `data.code`, and the band would
 // fall to its causeless arm — so the routing verdict appearing here proves the whole error travelled.
-function failingResolve(): unknown {
+function failingResolve(): ReturnType<typeof trpcError> {
   return trpcError({ code: "BAD_REQUEST", message: ROUTING_FAULT });
 }
 
-function settledResolve(): unknown {
+function settledResolve(): TrpcWireOutput<"preset.resolveEffective"> {
   return { presetId: PRESET, model: "qwen3-32b", knobs: { maxOutputTokens: { value: 2048, provenance: "floor" } }, stale: [], qualityMapping: null };
 }
 
 /** A settled resolve carrying a STALE knob — the one arm that renders the "…this model ignores…" sentence
  *  P3-3 is about. `top_k` is a real knob name; the readout only counts the array. */
-function staleResolve(): unknown {
-  return { presetId: PRESET, model: "qwen3-32b", knobs: { maxOutputTokens: { value: 2048, provenance: "floor" } }, stale: ["topK"], qualityMapping: null };
+function staleResolve(): TrpcWireOutput<"preset.resolveEffective"> {
+  return {
+    presetId: PRESET,
+    model: "qwen3-32b",
+    knobs: { maxOutputTokens: { value: 2048, provenance: "floor" } },
+    stale: [{ knob: "topK", value: 40 }],
+    qualityMapping: null,
+  };
 }
 
-function readoutRoutes(effective: () => unknown): Record<string, unknown> {
+function readoutRoutes(
+  effective: TrpcResponder<"preset.resolveEffective">,
+): TrpcRoutes<
+  | "preset.get"
+  | "preset.list"
+  | "settings.getUserSettings"
+  | "connection.resolveChatCapability"
+  | "preset.resolveEffective"
+  | "preset.listUsage"
+  | "chat.getChat"
+> {
   return {
     "preset.get": () => PRESET_DETAIL,
     "preset.list": () => [PRESET_DETAIL],
@@ -258,7 +282,7 @@ function readoutRoutes(effective: () => unknown): Record<string, unknown> {
     // ran INERT here. The honest default for a preset nobody has picked and no room routes its GM voice to;
     // `usage-readout.ct.tsx` is the suite that varies it.
     "preset.listUsage": () => ({ isUserDefault: false, gmRooms: [] }),
-    "chat.getChat": () => null,
+    "chat.getChat": () => ({ id: "chat_ct_readout" }),
   };
 }
 
@@ -307,7 +331,7 @@ test("WIRING — Retry fires a REAL re-read: the click issues a second resolve t
   // panel does NOT recover on its own (no auto-refetch of an idle errored query — retry:false, staleTime:∞),
   // so the settled row appearing after the click is attributable to Retry's refetch and nothing else.
   let calls = 0;
-  const resolve = (): unknown => (calls++ === 0 ? failingResolve() : settledResolve());
+  const resolve = (): ReturnType<typeof failingResolve> | TrpcWireOutput<"preset.resolveEffective"> => (calls++ === 0 ? failingResolve() : settledResolve());
   await routeTrpc(page, readoutRoutes(resolve));
   // The FOCUS-SAFE story: an errored query is stale, so react-query's `refetchOnWindowFocus` default would
   // heal this panel on any focus event between the barrier and the assertion — a pass with the Retry button

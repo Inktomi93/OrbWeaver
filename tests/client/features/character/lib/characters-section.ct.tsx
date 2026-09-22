@@ -32,7 +32,7 @@ const CHARACTER_PAGE = {
   totalCount: 2,
 };
 
-const SETTINGS = { userId: "user_ct_pane", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };
+const SETTINGS = { userId: "user_ct_pane", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0, configUnreadable: null };
 
 /** The band + the context tabs + the editor all read this key; the editor seeds every field off it. The
  *  RAW inputs are named separately because a derived field is re-derived from THEM, never from a finished
@@ -271,7 +271,7 @@ test("#860 a card with its own look carries the Own look mark in the band", asyn
     "character.list": () => CHARACTER_PAGE,
     // `accent` is a card-embeddable `ThemeOverride` key; `primary` is a rendered CSS custom property and
     // never a wire key, so a stub carrying it projects to an empty card theme and the mark stays hidden.
-    "character.get": () => ({ ...AZARAEL_DETAIL, themeOverride: { accent: "#ff8800" } }),
+    "character.get": () => makeCharacterDetail({ ...AZARAEL_DETAIL, themeOverride: { accent: "#ff8800" } }),
     "character.update": () => AZARAEL_DETAIL,
     "chat.listChats": chatListResponder([]),
     "settings.getUserSettings": () => SETTINGS,

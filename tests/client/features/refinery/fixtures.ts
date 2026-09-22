@@ -9,28 +9,15 @@
 // alphabet would fail at a `typeIdSchema` seam instead of at an assertion — and minting ONCE keeps the
 // fixture deterministic across calls within a run (`test-determinism`).
 
-import type { CharacterId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import type { TrpcWireOutput } from "../../../support/node/route-trpc.ts";
 
 const FROZEN_AT = 1_750_000_000_000;
 const DEFAULT_CHARACTER_ID = mintTypeId(ID_PREFIX.character);
 const DEFAULT_SESSION_ID = mintTypeId(ID_PREFIX.refinerySession);
 
 /** The `refinery.listSessions` row shape (`RefinerySessionSummary`) — a plain fixture literal, see header. */
-export interface RefinerySessionSummaryFixture {
-  readonly id: string;
-  readonly characterId: CharacterId;
-  /** Joined SERVER-SIDE since 2026-08-09 (the roster names every session it lists, past any
-   *  `character.list` page) — so a roster fixture carries the display name, not just the id. */
-  readonly characterName: string;
-  readonly characterAvatarHash: string | null;
-  readonly name: string | null;
-  readonly status: string;
-  readonly iterationCount: number;
-  readonly latestVerdict: string | null;
-  readonly createdAt: number;
-  readonly updatedAt: number;
-}
+export type RefinerySessionSummaryFixture = TrpcWireOutput<"refinery.listSessions">[number];
 
 export function makeRefinerySessionSummary(overrides: Partial<RefinerySessionSummaryFixture> = {}): RefinerySessionSummaryFixture {
   return {

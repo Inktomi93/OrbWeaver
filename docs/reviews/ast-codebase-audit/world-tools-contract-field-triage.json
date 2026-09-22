@@ -551,10 +551,7 @@
       "snapshotKind": "field-consumed-never-populated",
       "classification": "proven-live-flow-missed-by-lens",
       "disposition": "KEEP",
-      "evidence": [
-        "stats-delta.ts tokenSampleSlice computes this field for prefix=model, TokensIn, provenance=estimated.",
-        "apply-delta.ts:287 consumes it."
-      ],
+      "evidence": ["stats-delta.ts tokenSampleSlice computes this field for prefix=model, TokensIn, provenance=estimated.", "apply-delta.ts:287 consumes it."],
       "reason": "Computed-key production is outside the lens's explicit property-write evidence."
     },
     {
@@ -575,10 +572,7 @@
       "snapshotKind": "field-consumed-never-populated",
       "classification": "proven-live-flow-missed-by-lens",
       "disposition": "KEEP",
-      "evidence": [
-        "stats-delta.ts tokenSampleSlice computes this field for prefix=model, TokensOut, provenance=estimated.",
-        "apply-delta.ts:289 consumes it."
-      ],
+      "evidence": ["stats-delta.ts tokenSampleSlice computes this field for prefix=model, TokensOut, provenance=estimated.", "apply-delta.ts:289 consumes it."],
       "reason": "Computed-key production is outside the lens's explicit property-write evidence."
     },
     {

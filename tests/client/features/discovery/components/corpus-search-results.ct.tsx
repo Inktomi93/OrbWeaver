@@ -57,7 +57,19 @@ import { CorpusFieldsSearchStory, CorpusListSurfaceNavStory, CorpusSearchToDossi
  * (`tests/client/routes/app-root.ct.tsx`), and pinned by the ambient-feed test at the bottom of this file
  * so the observation no longer depends on load.
  */
-const CORPUS_AMBIENT_ROUTES: TrpcRoutes = {
+const CORPUS_AMBIENT_ROUTES: TrpcRoutes<
+  | "search.suggest"
+  | "discovery.characterFacets"
+  | "discovery.catalog"
+  | "discovery.browseCharacters"
+  | "discovery.home"
+  | "discovery.visualArchetypes"
+  | "discovery.forgottenGems"
+  | "workloads.list"
+  | "discovery.topKeywords"
+  | "discovery.unusedCharacters"
+  | "discovery.modelRouting"
+> = {
   // The omnibox typeahead. `[]` is a real (empty) list, where null skipped the suggestion resolve entirely.
   "search.suggest": [],
   // The LIST pane's lens vocabularies, at the pre-distill floor.
@@ -98,7 +110,7 @@ const FARM_TEXT = "[Nate, Kira — farmhouse porch] The harvest is in and the ev
 
 /** Two digest hits whose CSLS `score` is identical at the clamp floor — so the only thing that can order or
  *  distinguish them on screen is the relevance the fix adds. */
-const MEMORY_HITS: TrpcRoutes = {
+const MEMORY_HITS: TrpcRoutes<"search.search"> = {
   "search.search": {
     over: "digests",
     hits: [
@@ -220,7 +232,7 @@ test("an open typeahead never covers a result: row 1 is clickable with the sugge
 // BELOW gibberish on the digest index) is why hiding rows would be the wrong arm. These two tests are the
 // pair: the degraded arm SAYS it, and a real answer is untouched.
 /** Digest relevances under the measured digest band (0.61) — what gibberish scores against that index. */
-const NOISE_HITS: TrpcRoutes = {
+const NOISE_HITS: TrpcRoutes<"search.search"> = {
   "search.search": {
     over: "digests",
     hits: [
@@ -285,7 +297,7 @@ const ORPHAN_CAPTION = "an empty throne room";
 /** A 1x1 transparent PNG — the smallest thing the CAS blob route can serve. */
 const PIXEL = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
 
-const IMAGE_HITS: TrpcRoutes = {
+const IMAGE_HITS: TrpcRoutes<"search.search"> = {
   "search.search": {
     over: "images",
     hits: [
@@ -418,7 +430,7 @@ test("a memory row's accessible name is its ROOM, short and readable — not the
 // mid-word, then closed by the row's own quotation mark. C2: a duplicated room yields digest blocks whose
 // text is byte-identical, and the ranked list showed both.
 const MARKDOWN_DIGEST = "**Selene** said:\n\n> ### the copper tub\n\nThey settle in, and the steam takes the room.";
-const DUPLICATE_HITS: TrpcRoutes = {
+const DUPLICATE_HITS: TrpcRoutes<"search.search"> = {
   "search.search": {
     over: "digests",
     hits: [
@@ -453,7 +465,7 @@ const DUPLICATE_HITS: TrpcRoutes = {
 const PASSAGE = "The rain came sideways off the harbour and neither of them moved for a long moment.";
 const OTHER_PASSAGE = "She counted the coins twice, then pushed the whole stack back across the table.";
 /** Three rooms: two share the passage (a duplicated import — note the numbered title), one has its own. */
-const SCENE_HITS: TrpcRoutes = {
+const SCENE_HITS: TrpcRoutes<"search.search"> = {
   "search.search": {
     over: "discover",
     hits: [
@@ -542,7 +554,7 @@ test("SCENES: the honesty line is readable, not clipped to '…— showin' (P2-3
 // room, which printed byte-identical doors under each of them. The grouping is NOT inverted back (that trade
 // was measured and lost); the door lifts out only when it is true of every passage — which is what the
 // SCENE_HITS fixture above is the control for, since its rooms differ per passage.
-const ONE_ROOM_HITS: TrpcRoutes = {
+const ONE_ROOM_HITS: TrpcRoutes<"search.search"> = {
   "search.search": {
     over: "discover",
     hits: [

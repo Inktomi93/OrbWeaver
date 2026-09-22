@@ -1,0 +1,72 @@
+{
+  "label": "clientgap contracts (client-facing *View/*Summary names)",
+  "total": 8,
+  "shown": 8,
+  "hits": [
+    {
+      "file": "packages/contracts/src/automation/index.ts",
+      "line": 148,
+      "kind": "client-gap",
+      "text": "GlobalVariableView  —  export interface GlobalVariableView {"
+    },
+    {
+      "file": "packages/contracts/src/automation/index.ts",
+      "line": 185,
+      "kind": "client-gap",
+      "text": "BudgetView  —  export interface BudgetView {"
+    },
+    {
+      "file": "packages/contracts/src/notifications/index.ts",
+      "line": 281,
+      "kind": "client-gap",
+      "text": "PresenceView  —  export interface PresenceView {"
+    },
+    {
+      "file": "packages/contracts/src/plugin/host-v1.ts",
+      "line": 32,
+      "kind": "client-gap",
+      "text": "PluginMessageView  —  export interface PluginMessageView {"
+    },
+    {
+      "file": "packages/contracts/src/plugin/host-v1.ts",
+      "line": 49,
+      "kind": "client-gap",
+      "text": "PluginCharacterView  —  export interface PluginCharacterView {"
+    },
+    {
+      "file": "packages/contracts/src/plugin/host-v1.ts",
+      "line": 87,
+      "kind": "client-gap",
+      "text": "PluginWorldBookView  —  export interface PluginWorldBookView {"
+    },
+    {
+      "file": "packages/contracts/src/plugin/host-v1.ts",
+      "line": 97,
+      "kind": "client-gap",
+      "text": "PluginWorldEntryView  —  export interface PluginWorldEntryView {"
+    },
+    {
+      "file": "packages/contracts/src/plugin/host-v1.ts",
+      "line": 117,
+      "kind": "client-gap",
+      "text": "PluginAssetView  —  export interface PluginAssetView {"
+    }
+  ],
+  "meta": {
+    "verb": "clientgap",
+    "scope": "corpus:native-program-authored-roots(per-tsconfig)+path:/packages/contracts/src/+client-consumed-procedures:410+client-output-contract-declarations:283",
+    "langs": {
+      "ts": 130
+    },
+    "scanned": 130,
+    "skipped": 7756,
+    "skippedBy": {
+      "out-of-scope": 7756,
+      "out-of-filter": 0,
+      "test-file": 0,
+      "declaration-file": 0
+    },
+    "matches": 8,
+    "status": "complete"
+  }
+}

@@ -17,10 +17,13 @@ import type { PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
+import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { CHAT_AMBIENT_ROUTES, makeMessagesPage, makeMessageView } from "../../chat/fixtures.ts";
 import { PluginMessageFooterRoomStory } from "../_ct-stories.tsx";
 
+type PluginListRow = TrpcWireOutput<"plugin.list">[number];
+type PluginSurfaceRow = TrpcWireOutput<"plugin.listSurfaces">[number];
 type Box = Awaited<ReturnType<Locator["boundingBox"]>>;
 
 const A_PAST_INSTANT = 1_760_000_000_000;
@@ -32,7 +35,7 @@ const FOOTER_SLOT = '[data-slot="message-footer"]';
 const SCROLLER = '[data-slot="message-list-scroll"]';
 
 /** One installed row as `plugin.list` projects it — the join the shell's attribution line reads its name from. */
-function pluginRow(): Record<string, unknown> {
+function pluginRow(): PluginListRow {
   return {
     id: ORACLE_ID,
     slug: "oracle-deck",
@@ -40,6 +43,8 @@ function pluginRow(): Record<string, unknown> {
     version: "1.0.0",
     status: "enabled",
     origin: "upload",
+    sourceUrl: null,
+    updateSource: null,
     declaredCapabilities: ["ui.surface"],
     grantedCapabilities: ["ui.surface"],
     netHosts: null,
@@ -52,17 +57,17 @@ function pluginRow(): Record<string, unknown> {
   };
 }
 
-function surfaceRow(spec: unknown): Record<string, unknown> {
+function surfaceRow(spec: PluginSurfaceRow["spec"]): PluginSurfaceRow {
   return { pluginId: ORACLE_ID, id: "draw_badge", anchor: "message-footer", title: "Draw", tier: "static", spec };
 }
 
 /** The decoration strip a footer surface is allowed to be: a `row` of badges (the registration schema refuses
  *  anything interactive, bulk or prose at this anchor — pinned in tests/contracts/plugin/ui.contract.test.ts). */
-const BADGE_SPEC = { kind: "row", gap: "tight", children: [{ kind: "badge", intent: "info", text: "Ace of Cups" }] };
+const BADGE_SPEC: NonNullable<PluginSurfaceRow["spec"]> = { kind: "row", gap: "tight", children: [{ kind: "badge", intent: "info", text: "Ace of Cups" }] };
 /** A spec that BINDS state — the silence arm: the gate is on the SPEC, so it cannot pass by a timing race. */
-const BOUND_SPEC = { kind: "badge", text: { $state: "card" } };
+const BOUND_SPEC: NonNullable<PluginSurfaceRow["spec"]> = { kind: "badge", text: { $state: "card" } };
 
-const ROOM_ROUTES: Readonly<Record<string, unknown>> = {
+const ROOM_ROUTES: TrpcRoutes<"chat.listMessages" | "chat.getChat" | "chat.previewContextFit" | "plugin.getSurfaceState"> = {
   "chat.listMessages": () => makeMessagesPage([makeMessageView({ content: "Hi Aria", role: "user", seq: 1 })]),
   "chat.getChat": () => ({ participants: [], anchorPersonaId: null, identities: [], group: DEFAULT_GROUP_CONFIG }),
   "chat.previewContextFit": () => ({

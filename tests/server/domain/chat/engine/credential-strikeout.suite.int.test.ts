@@ -90,6 +90,7 @@ function prepOf(chatId: ChatId, over: Partial<TurnPrep> = {}): TurnPrep {
     assembleContext: ASSEMBLE_CTX,
     connection: byoConnection(),
     triggeredBy: HOST,
+    funderUserId: HOST,
     runAsUserId: HOST,
     kind: "send",
     intent: {},
@@ -282,7 +283,9 @@ describe("the main turn's fault path strikes out the credential it ran under", (
     const otherHost = castId<UserId>("user_someone_else");
     const engine = engineOver(throwingTurn(authFailed()));
 
-    await expect(engine.runTurn(prepOf(chatId, { runAsUserId: otherHost, triggeredBy: otherHost }))).rejects.toThrow("rejected the key");
+    await expect(engine.runTurn(prepOf(chatId, { runAsUserId: otherHost, funderUserId: otherHost, triggeredBy: otherHost }))).rejects.toThrow(
+      "rejected the key",
+    );
 
     expect(strikes.at(0)?.ownerId).toBe(otherHost);
     expect(strikes.at(0)?.ownerId).not.toBe(HOST);

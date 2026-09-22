@@ -113,6 +113,14 @@ export const REVIEWED_GRANTS_NO_TO_FACTORY: readonly ReviewedGateGrant[] = [
     endsWhen: "the factory's reset stops being driven behind the storage blindfold.",
   },
   {
+    id: "no-untyped-soft-ref:chat-stream-generation",
+    policyId: "no-untyped-soft-ref",
+    subject: "chat_stream_events.generationId",
+    operation: "soft-reference",
+    why: "an internally minted correlation identity for one committed token-stream generation, not a row reference: swipe and continue can reuse a message slot, so member replay needs this boundary to reset its hidden-span scrubber without inventing a redundant generation entity.",
+    endsWhen: "stream generations become persisted orbweaver rows, at which point this column can carry a real FK.",
+  },
+  {
     id: "no-untyped-soft-ref:user-connections-provider",
     policyId: "no-untyped-soft-ref",
     subject: "user_connections.providerId",

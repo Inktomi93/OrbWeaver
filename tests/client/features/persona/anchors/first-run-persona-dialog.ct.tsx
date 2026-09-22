@@ -13,22 +13,50 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { testId } from "../../../../../packages/client/src/lib/test-ids.ts";
-import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { FirstRunPersonaDialogStory } from "../_ct-stories.tsx";
 
 // The gate is a `FormDialog`, which PORTALS to the body — so every locator here is PAGE-scoped. A mount-handle
 // locator resolves inside `#root` and can never see it (the notification-bell popover precedent).
 
-const CREATED = { id: "persona_000000000000000000001", name: "Nate", description: "", title: null };
+const CREATED: TrpcWireOutput<"persona.create"> = {
+  id: "persona_000000000000000000001",
+  name: "Nate",
+  description: "",
+  title: null,
+  starred: false,
+  avatarAssetId: null,
+  avatarHash: null,
+  metadata: null,
+  createdAt: 1,
+  updatedAt: 1,
+};
 
 /** A SECOND owned persona, with a LOWER id than {@link CREATED} — the orphan pick has to be a property of
  *  the set, not of the order the server happened to return it in. */
-const OLDER = { id: "persona_000000000000000000000", name: "Ada", description: "A cartographer.", title: null };
+const OLDER: TrpcWireOutput<"persona.create"> = {
+  id: "persona_000000000000000000000",
+  name: "Ada",
+  description: "A cartographer.",
+  title: null,
+  starred: false,
+  avatarAssetId: null,
+  avatarHash: null,
+  metadata: null,
+  createdAt: 0,
+  updatedAt: 0,
+};
 
 /** The viewer's settings row with BOTH persona pointers unset — the orphan state a create-succeeds /
  *  seed-fails run leaves behind, and the state a RELOAD lands back in. */
-const UNSEEDED_SETTINGS = { userId: "user_ct_firstrun", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };
+const UNSEEDED_SETTINGS: TrpcWireOutput<"settings.getUserSettings"> = {
+  userId: "user_ct_firstrun",
+  schemaVersion: 1,
+  config: DEFAULT_USER_SETTINGS,
+  updatedAt: 0,
+  configUnreadable: null,
+};
 
 /** …and the same row once the seed has landed: a viewer who can speak, whom the gate must leave alone. */
 const SEEDED_SETTINGS = {
@@ -71,7 +99,7 @@ test("both writes landing closes the gate, and the seed points at the persona ju
     "persona.list": () => [],
     "persona.create": () => CREATED,
     "settings.getUserSettings": () => UNSEEDED_SETTINGS,
-    "settings.updateUserSettingsSection": () => null,
+    "settings.updateUserSettingsSection": () => SEEDED_SETTINGS,
   });
   await mount(<FirstRunPersonaDialogStory />);
 
@@ -95,7 +123,7 @@ test("a FRESH mount over an unseeded library recovers the ORPHAN instead of mint
     "persona.list": () => [CREATED],
     "persona.create": () => CREATED,
     "settings.getUserSettings": () => UNSEEDED_SETTINGS,
-    "settings.updateUserSettingsSection": () => null,
+    "settings.updateUserSettingsSection": () => SEEDED_SETTINGS,
   });
   await mount(<FirstRunPersonaDialogStory />);
 
@@ -137,7 +165,7 @@ test("editing the fields on the RECOVERY arm actually saves them (#1570)", async
     "persona.create": () => CREATED,
     "persona.update": () => CREATED,
     "settings.getUserSettings": () => UNSEEDED_SETTINGS,
-    "settings.updateUserSettingsSection": () => null,
+    "settings.updateUserSettingsSection": () => SEEDED_SETTINGS,
   });
   await mount(<FirstRunPersonaDialogStory />);
 
@@ -163,7 +191,7 @@ test("an untouched RECOVERY arm writes no update — only the seed (#1570)", asy
     "persona.list": () => [CREATED],
     "persona.update": () => CREATED,
     "settings.getUserSettings": () => UNSEEDED_SETTINGS,
-    "settings.updateUserSettingsSection": () => null,
+    "settings.updateUserSettingsSection": () => SEEDED_SETTINGS,
   });
   await mount(<FirstRunPersonaDialogStory />);
   await page.getByTestId(testId("firstRunPersonaCreate")).click();
@@ -184,7 +212,7 @@ for (const [label, rows] of [
     await routeTrpc(page, {
       "persona.list": () => rows,
       "settings.getUserSettings": () => UNSEEDED_SETTINGS,
-      "settings.updateUserSettingsSection": () => null,
+      "settings.updateUserSettingsSection": () => SEEDED_SETTINGS,
     });
     await mount(<FirstRunPersonaDialogStory />);
 

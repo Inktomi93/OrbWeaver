@@ -60,19 +60,11 @@ export const rpgTrackerShapeSchema = z.enum(RPG_TRACKER_SHAPES);
  *  `{key, value}`). It drives the tool arg shape, the model's mental model, and the panel read (a bar you
  *  drain vs a gauge that tracks). */
 export const RPG_TRACKER_WRITES = ["delta", "set"] as const;
-/** @public future: the not-yet-built typed tracker-write consumers — the type face of the canonical
- *  `RPG_TRACKER_WRITES` tuple/schema pair and its `delta`/`set` discrimination surface
- *  (rpg/index.ts KISS/YAGNI SUSPENDED). */
-export type RpgTrackerWrite = (typeof RPG_TRACKER_WRITES)[number];
 export const rpgTrackerWriteSchema = z.enum(RPG_TRACKER_WRITES);
 
 /** A tracker's SUBJECT — `actor` (per-carrier, resolved through `appliesTo`+grants−revokes) or `game` (ONE
  *  value on the snapshot; the old game-scoped widgets, no carrier resolution). */
 export const RPG_TRACKER_SUBJECTS = ["actor", "game"] as const;
-/** @public future: the not-yet-built typed full-mode tracker consumers — the type face of the canonical
- *  `RPG_TRACKER_SUBJECTS` tuple/schema pair and its `game`/`actor` discrimination surface
- *  (rpg/index.ts KISS/YAGNI SUSPENDED). */
-export type RpgTrackerSubject = (typeof RPG_TRACKER_SUBJECTS)[number];
 export const rpgTrackerSubjectSchema = z.enum(RPG_TRACKER_SUBJECTS);
 
 /** The carrier CLASSES an actor-subject tracker's `appliesTo` may name (the alternative is an explicit

@@ -5,24 +5,28 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { setNumber } from "../../../../support/node/set-number.ts";
 import { RateLimitsSectionStory } from "../_ct-stories.tsx";
+import type { EffectiveAppSettings } from "../app-settings-fixtures.ts";
+import { appSettingsView, effectiveAppSettings } from "../app-settings-fixtures.ts";
 
 // The resolved slice the section reads (getAppSettingsWithOverrides.resolved). Only `rateLimits` is read
 // here; routeTrpc handler returns are untyped stubs, so a plain partial suffices (the admin-surface CT's
 // APP_SETTINGS precedent — no cast, no fabricated whole-shape).
-const RESOLVED = {
+const RESOLVED: Partial<EffectiveAppSettings> = {
   rateLimits: { publicIp: 60, authed: 600, aiTurn: 30, login: 10 },
 };
 
 const UPDATE_PROC = "settings.updateAppSettings";
 
-function stub(page: Page, overrides: Record<string, unknown> = {}): Promise<TrpcRecorder> {
+type AppSettingsOverrides = TrpcWireOutput<"settings.getAppSettingsWithOverrides">["overrides"];
+
+function stub(page: Page, overrides: Partial<AppSettingsOverrides> = {}): Promise<TrpcRecorder> {
   return routeTrpc(page, {
-    "settings.getAppSettingsWithOverrides": () => ({ resolved: RESOLVED, overrides }),
-    [UPDATE_PROC]: () => RESOLVED,
+    "settings.getAppSettingsWithOverrides": () => appSettingsView(RESOLVED, overrides),
+    [UPDATE_PROC]: () => effectiveAppSettings(RESOLVED),
   });
 }
 

@@ -1189,13 +1189,13 @@
     },
     {
       "path": "docs/design/gate-runtime-read-first.md",
-      "assignedSha256": "18228c24e921ae8ce8302680b1e279b11c48d80ad9de977692fd10b7c5673079",
+      "assignedSha256": "0f90c02efbbd0396becd8d3680b730a6809307008927184e517babd5c324e550",
       "disposition": "repaired",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "18228c24e921ae8ce8302680b1e279b11c48d80ad9de977692fd10b7c5673079",
-      "verifiedCommit": "4c688c915c97f2e31abe5ecb898e35eb932bd1c4",
-      "verifiedAt": "2026-09-21",
+      "verifiedSha256": "0f90c02efbbd0396becd8d3680b730a6809307008927184e517babd5c324e550",
+      "verifiedCommit": "8f7ed4c4b98c112429c3918483f3a172f66ae184",
+      "verifiedAt": "2026-09-22",
       "evidence": [
         "Prior receipt at 46f233e25afb95787c0249fa76249762a2f294bc: Full three-document reads in this session, followed by review of intervening changes and the current contradiction-repair diff. Scoped check:docs passed; read-first-costs and ledgers:fresh passed. Independent Sol review identified residual table instructions, corrected before this receipt. No claim of full gate implementation or #2071 completion.",
         "Prior receipt at 46f233e25afb95787c0249fa76249762a2f294bc: 2026-09-13 consolidation: complete document reads and independent citation/source-diff audit; standing law, procedure, reading router and dated worked cases now have separate homes. Scoped Markdown and agent checks passed; native tooling/root programs passed, and refusal-envelope, text-citation and focused policy-soundness controls passed. Read-first costs were generated after committing priced bytes. Catalog-wide freshness, remaining program defects and integrated acceptance are not claimed complete.",
@@ -1230,7 +1230,7 @@
           ]
         }
       ],
-      "verifiedCanonicalSha256": "18228c24e921ae8ce8302680b1e279b11c48d80ad9de977692fd10b7c5673079"
+      "verifiedCanonicalSha256": "0f90c02efbbd0396becd8d3680b730a6809307008927184e517babd5c324e550"
     },
     {
       "path": "docs/design/gate-runtime-standardization.md",
@@ -2080,13 +2080,13 @@
     },
     {
       "path": "docs/design/orbweaver-inference-package.md",
-      "assignedSha256": "cd2b5c9325c61bfb43e8f3b467b1d4e06c55f8cb861784dc4bc057650fd8a3ba",
+      "assignedSha256": "04df0c4cf0443280aea8906be80ee65165f3d1b948f2c680961293ec0fd82996",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "cd2b5c9325c61bfb43e8f3b467b1d4e06c55f8cb861784dc4bc057650fd8a3ba",
-      "verifiedCommit": "23df227ffc49898dd1e4fa02289735d0585f55d6",
-      "verifiedAt": "2026-09-20",
+      "verifiedSha256": "04df0c4cf0443280aea8906be80ee65165f3d1b948f2c680961293ec0fd82996",
+      "verifiedCommit": "8f7ed4c4b98c112429c3918483f3a172f66ae184",
+      "verifiedAt": "2026-09-22",
       "evidence": [
         "re-attested at 29a8b0eaa by lane cb-record-tail: §15c item 18 gained the RECORD-TRUTH TAIL bullet (the B7 client gate, the refusal/rate_limit compose ruling, the retired budgetExceeded code, the eight repaired comments, the re-pinned drain drop). SCOPE OF THIS RE-ATTESTATION, stated rather than implied: the receipt's sha was ALREADY stale at this lane's branch point — 215 lines had landed since bd99e9ad3 across 9ef00397d/100ee1db9/fe77a1f36/2e2871dd6/e0cc98c3a/a45c5f746, every one an APPEND to §8.8/§14/§15c, and none of those lanes re-attested. This lane read §5.3b, §5.3c, §8.5b and §15c-18 in full and appended within §15c-18; it did not re-read the other ~2600 lines. A full re-read is owed by the barrier.",
         "docs/design/orbweaver-inference-package.md:1-2602 full read 2026-09-20 by the orchestrator driving the program (re-read in full after compaction, per the owner's standing order)",
@@ -2123,7 +2123,7 @@
           ]
         }
       ],
-      "verifiedCanonicalSha256": "cd2b5c9325c61bfb43e8f3b467b1d4e06c55f8cb861784dc4bc057650fd8a3ba"
+      "verifiedCanonicalSha256": "04df0c4cf0443280aea8906be80ee65165f3d1b948f2c680961293ec0fd82996"
     },
     {
       "path": "docs/design/pane-standardization-design.md",

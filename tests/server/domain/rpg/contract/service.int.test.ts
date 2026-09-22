@@ -43,8 +43,15 @@ describe("snapshotRowToState", () => {
     expect(state.plot).not.toBeNull();
     expect(state.plot).not.toBe(row.plot);
     expect(state.plot?.acts).not.toBe(row.plot?.acts);
-    // biome-ignore lint/style/noNonNullAssertion: asserted non-null above
-    state.plot!.acts[0]!.title = "mutated";
+    const plot = state.plot;
+    if (plot === null) {
+      throw new Error("snapshot projection lost the seeded plot");
+    }
+    const firstAct = plot.acts[0];
+    if (firstAct === undefined) {
+      throw new Error("snapshot projection lost the seeded first act");
+    }
+    firstAct.title = "mutated";
     expect(row.plot?.acts[0]?.title).toBe("Act One");
   });
 });

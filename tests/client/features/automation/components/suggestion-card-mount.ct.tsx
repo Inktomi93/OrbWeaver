@@ -60,7 +60,7 @@ async function routeRoom(page: Page, frames: readonly StreamFrame[]): Promise<{ 
   const trpc = await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
     ...STREAM_MUTATION_ROUTES,
-    "chat.previewContextFit": (): unknown => ({
+    "chat.previewContextFit": () => ({
       boundaryMessageId: null,
       usedTokens: 120,
       ceilingTokens: 32_768,
@@ -75,10 +75,9 @@ async function routeRoom(page: Page, frames: readonly StreamFrame[]): Promise<{ 
       identities: [],
       group: DEFAULT_GROUP_CONFIG,
     }),
-    "chat.listMessages": (): unknown =>
-      makeMessagesPage([makeMessageView({ id: castId<MessageId>("msg_audit_room"), role: "assistant", content: BEFORE, seq: 1 })]),
-    "automation.confirmSuggestion": (): unknown => ({ ran: "stashed-arm", outcome: "fired" }),
-    "automation.dismissSuggestion": (): unknown => ({ dismissed: true }),
+    "chat.listMessages": () => makeMessagesPage([makeMessageView({ id: castId<MessageId>("msg_audit_room"), role: "assistant", content: BEFORE, seq: 1 })]),
+    "automation.confirmSuggestion": () => ({ ran: "stashed-arm", outcome: "fired" }),
+    "automation.dismissSuggestion": () => null,
   });
   const socket = await routeOrbSocket(page, { frames });
   await page.route("**/api/trpc/**", async (route) => {

@@ -45,26 +45,14 @@
       "packages/showcase-plugins/src",
       "their direct callers, package barrels, tests, and framework/tooling entrypoints"
     ],
-    "excluded": [
-      "kit and contracts rot outputs because those runs predated or overlapped candidate repair",
-      "tooling/src/ast",
-      "docs audit index"
-    ],
-    "heavyCommandsNotRun": [
-      "pnpm ast",
-      "native full typecheck",
-      "full/static verification",
-      "heap-heavy scans"
-    ]
+    "excluded": ["kit and contracts rot outputs because those runs predated or overlapped candidate repair", "tooling/src/ast", "docs audit index"],
+    "heavyCommandsNotRun": ["pnpm ast", "native full typecheck", "full/static verification", "heap-heavy scans"]
   },
   "method": {
     "sourceReading": "Read each candidate declaration, its package barrel, relevant callers, and the package headers that state intended ownership. Read the provider-row persistence writer in full to distinguish a truly live schema value from a documented but currently unconsumed export.",
     "structuralSearch": {
       "tool": "ast-grep run",
-      "languages": [
-        "ts",
-        "tsx"
-      ],
+      "languages": ["ts", "tsx"],
       "scope": ".",
       "coverage": {
         "tsScannedFileCount": 6526,

@@ -30,7 +30,8 @@
 // is looking at the last run STARTED. The killed-run tell now reaches that reader through
 // `abandonedRuns()`: a slot whose in-flight marker outlived its pid. That is strictly finer than the old
 // signal, which could not distinguish "my run died" from "a sibling lane is mid-run".
-import type { PolicySelector } from "./policy-plan.ts";
+import type { PolicyRunTier, PolicySelector } from "./policy-plan.ts";
+import type { PolicyScopeInventoryReceipt, PolicyScopeKind, PolicySemanticPath, PolicyWorkspacePackage } from "./policy-scope.ts";
 
 /** IS THIS ARTIFACT A STATEMENT ABOUT THE REAL TREE? (#2167) — the axis `complete` was never able to carry.
  *
@@ -53,6 +54,21 @@ export const RUN_VERDICT_KINDS = ["verdict", "non-verdict"] as const;
  *  referenced by its own name at any call site. */
 export type RunVerdictKind = (typeof RUN_VERDICT_KINDS)[number];
 
+/** The operator-visible scope receipt. This deliberately omits the complete compiler program graph: the
+ *  plan owns that large execution manifest, while the durable report needs the requested identity needed to
+ *  distinguish a whole verdict from a file/package/project answer. */
+export interface StructureScopeManifest {
+  readonly kind: PolicyScopeKind;
+  readonly label: string;
+  readonly tier: PolicyRunTier;
+  readonly strict: boolean;
+  readonly requestedPaths: readonly PolicySemanticPath[] | null;
+  readonly requestedProgramIds: readonly string[];
+  readonly workspacePackage: PolicyWorkspacePackage | null;
+  readonly projectConfig: string | null;
+  readonly inventory: PolicyScopeInventoryReceipt;
+}
+
 export interface RunManifest {
   /** `non-verdict` when this run cannot speak for the real tree: it is in flight, it ran in FIXTURE MODE, it
    *  OBSERVED planted paths it did not plant, or an operator TOMBSTONED it (`structure --void`). A
@@ -67,6 +83,9 @@ export interface RunManifest {
    *  denominator over the SELECTION, and the artifact is reachable only through its own slot, so a partial
    *  run can never be picked up as the corpus verdict by a reader holding the fixed path. */
   readonly selection: PolicySelector;
+  /** WHICH authored/compiler scope this run answered. Whole scope is the only shape eligible to publish the
+   *  fixed pointer; every narrowed scope remains reachable only through its private slot. */
+  readonly scope: StructureScopeManifest;
   /** FALSE when this run OBSERVED PLANTED FIXTURE PATHS (`__g_` / `__dc_`) it did not plant (#2069). A
    *  fixture-planting suite and a real-tree structure run are mutually exclusive in BOTH directions: the
    *  planter's files are materialized inside the real package tree for the milliseconds-to-minutes of its own

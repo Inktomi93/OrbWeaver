@@ -24,7 +24,7 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import type { TrpcFixtureOutput, TrpcRecorder } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ConfigHostStory } from "../_ct-stories.tsx";
 
@@ -44,7 +44,8 @@ const RETIRED_CAP_PX = 384;
  *  is judging proves only that the source agrees with itself. */
 const WINDOWED_TAG_COUNT = 60;
 
-function tagRow(index: number): Record<string, unknown> {
+type TagWithUsage = TrpcFixtureOutput<"tag.listTagsWithUsage">[number];
+function tagRow(index: number): TagWithUsage {
   return {
     id: `tag_${String(index).padStart(3, "0")}`,
     name: `tag-${String(index).padStart(3, "0")}`,
@@ -82,9 +83,9 @@ const SCRIPT = {
   runOnEdit: false,
   trimStrings: [],
   updatedAt: 1_760_000_000_000,
-  substituteRegex: "none",
+  substituteRegex: 0,
   placement: ["AI_OUTPUT"],
-};
+} satisfies TrpcFixtureOutput<"regex.listScripts">[number];
 
 /** One saved roster — the library that declares NEITHER an import door NOR an action, and therefore the
  *  one that must draw no kebab. It has to be POPULATED to make that claim: a zero-member library renders
@@ -109,11 +110,12 @@ const BOOK = {
   entryCount: 42,
   usage: { characters: 2, personas: 0, chats: 0, global: true, total: 3 },
 };
+const BOOK_DETAIL = { id: BOOK.id, name: BOOK.name, description: BOOK.description, createdAt: BOOK.createdAt };
 
-function stub(page: Page, tags: readonly unknown[] = WINDOWED_TAGS): Promise<TrpcRecorder> {
+function stub(page: Page, tags: TrpcFixtureOutput<"tag.listTagsWithUsage"> = WINDOWED_TAGS): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "rosterPreset.list": () => [ROSTER],
-    "settings.getUserSettings": () => ({ userId: "user_ct_config", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 }),
+    "settings.getUserSettings": () => ({ userId: "user_ct_config", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, configUnreadable: null, updatedAt: 0 }),
     "settings.listThemes": () => [],
     "sessions.me": { userId: "user_ct_config", handle: "ct_config", globalRole: "user" },
     "tag.listTagsWithUsage": () => tags,
@@ -126,7 +128,7 @@ function stub(page: Page, tags: readonly unknown[] = WINDOWED_TAGS): Promise<Trp
     "worldInfo.listGlobal": () => [],
     // The BOOK EDITOR's own two reads — the drill-row pin below opens a book, and an unstubbed suspense
     // read resolves `null` and throws INSIDE the boundary, which reads as "the header is missing".
-    "worldInfo.getBook": () => BOOK,
+    "worldInfo.getBook": () => BOOK_DETAIL,
     "worldInfo.listEntries": () => [],
     "persona.list": () => [],
     "character.list": () => ({ items: [], nextCursor: null }),

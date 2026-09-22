@@ -7,7 +7,7 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { PersonaId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import type { TrpcFixtureOutput, TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { PersonaThisChatStory } from "../_ct-stories.tsx";
 
@@ -15,7 +15,7 @@ const CHAT_ID = "chat_persona_ct"; // matches the story's seeded active chat
 const NOVA = "persona_nova";
 const ORION = "persona_orion";
 
-const PERSONAS = [
+const PERSONAS: TrpcWireOutput<"persona.list"> = [
   { id: NOVA, name: "Nova", title: null, description: "", starred: false, avatarAssetId: null, avatarHash: null, metadata: null, createdAt: 1, updatedAt: 1 },
   { id: ORION, name: "Orion", title: null, description: "", starred: false, avatarAssetId: null, avatarHash: null, metadata: null, createdAt: 1, updatedAt: 1 },
 ];
@@ -25,7 +25,7 @@ const ZARA = "persona_zara"; // a MEMBER's persona — never in the viewer's own
 /** A base chat detail: the viewer hosts a solo room, anchored on their own persona. `cast` is the
  *  member-gated kind-polymorphic producer every real `chat.getChat` payload carries
  *  (Chat-Macro-Resolution §1 / D137). */
-const CHAT = {
+const CHAT: TrpcFixtureOutput<"chat.getChat"> = {
   id: CHAT_ID,
   viewerUserId: "user_ct",
   viewerActivePersonaId: NOVA,
@@ -37,14 +37,18 @@ const CHAT = {
 
 /** The MULTI-HUMAN room: a second present human plays "Zara", and the host has pinned HER persona as the
  *  chat anchor — the exact state `setChatAnchorPersona` permits and the widened resolver now renders. */
-const MULTI_HUMAN_CHAT = {
+const MULTI_HUMAN_CHAT: TrpcFixtureOutput<"chat.getChat"> = {
   ...CHAT,
   anchorPersonaId: ZARA,
   participants: [
     { kind: "human", userId: "user_ct", displayName: "You", activePersonaId: NOVA, leftSeq: null },
     { kind: "human", userId: "user_member", displayName: "Rowan", activePersonaId: ZARA, leftSeq: null },
   ],
-  identities: [...CHAT.identities, { kind: "persona", id: ZARA, name: "Zara", description: "", avatarHash: null }],
+  identities: [
+    { kind: "persona", id: NOVA, name: "Nova", description: "", avatarHash: null },
+    { kind: "persona", id: ORION, name: "Orion", description: "", avatarHash: null },
+    { kind: "persona", id: ZARA, name: "Zara", description: "", avatarHash: null },
+  ],
 };
 
 const UPDATE_PROC = "persona.setActivePersona";
@@ -59,12 +63,13 @@ function stub(page: Page, showNotifications: boolean): Promise<TrpcRecorder> {
       schemaVersion: 1,
       config: { ...DEFAULT_USER_SETTINGS, persona: { ...DEFAULT_USER_SETTINGS.persona, showNotifications } },
       updatedAt: 0,
+      configUnreadable: null,
     }),
-    [UPDATE_PROC]: () => ({}),
-    [RESTAMP_PROC]: () => ({}),
+    "persona.setActivePersona": () => undefined,
+    "chat.reattributePersona": () => undefined,
     // Present so a window read would SUCCEED if one were fired — the "no window read" assertion below is
     // then about the client's shape, not about a stub that would have failed anyway.
-    "chat.listMessages": () => ({ messages: [], hasMore: false }),
+    "chat.listMessages": () => ({ messages: [], identities: [] }),
   });
 }
 
@@ -165,7 +170,7 @@ test("with showNotifications OFF, the restamp still fires and stays quiet", asyn
 // had no affordance at all.
 
 /** Stub with an explicit chat payload (the multi-human arms need their own). */
-function stubChat(page: Page, chat: unknown): Promise<TrpcRecorder> {
+function stubChat(page: Page, chat: TrpcFixtureOutput<"chat.getChat">): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "persona.list": () => PERSONAS,
     "chat.getChat": () => chat,
@@ -174,8 +179,9 @@ function stubChat(page: Page, chat: unknown): Promise<TrpcRecorder> {
       schemaVersion: 1,
       config: DEFAULT_USER_SETTINGS,
       updatedAt: 0,
+      configUnreadable: null,
     }),
-    "chat.setChatAnchorPersona": () => ({}),
+    "chat.setChatAnchorPersona": () => undefined,
   });
 }
 
@@ -225,7 +231,7 @@ test("a SOLO room's menu renders no members' group (the affordance appears only 
 // writes through `persona.setActivePersona`, whose verb defaults its target to the caller — but NOTHING
 // pinned that: every arm above mounts `viewerIsHost: true`, so the member seat had zero coverage and a gate
 // could have appeared on it silently, exactly as one appeared on the anchor. These are that pin.
-const MEMBER_CHAT = {
+const MEMBER_CHAT: TrpcFixtureOutput<"chat.getChat"> = {
   ...MULTI_HUMAN_CHAT,
   viewerIsHost: false,
   viewerUserId: "user_member",
@@ -233,17 +239,17 @@ const MEMBER_CHAT = {
 };
 
 /** The member's stub — their own `persona.list`, their own settings, and the section's write. */
-function stubMember(page: Page, procs: Record<string, () => unknown> = {}): Promise<TrpcRecorder> {
+function stubMember(page: Page, withUpdate = false): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "persona.list": () => PERSONAS,
     "chat.getChat": () => MEMBER_CHAT,
-    "settings.getUserSettings": () => ({ userId: "user_member", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 }),
-    ...procs,
+    "settings.getUserSettings": () => ({ userId: "user_member", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0, configUnreadable: null }),
+    ...(withUpdate ? { "persona.setActivePersona": () => undefined } : {}),
   });
 }
 
 test("a MEMBER sees the same Playing-as switch, and it fires for their own seat", async ({ mount, page }) => {
-  const trpc = await stubMember(page, { [UPDATE_PROC]: () => ({}) });
+  const trpc = await stubMember(page, true);
   await mount(<PersonaThisChatStory />);
 
   await switchToOrion(page);

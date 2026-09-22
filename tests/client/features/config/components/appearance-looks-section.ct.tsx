@@ -28,7 +28,7 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { themeActionsName } from "../../../../../packages/client/src/features/config/lib/theme-row-names.ts";
-import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import type { TrpcProcedurePath, TrpcRecorder, TrpcRoutes } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { LooksSectionNarrowStory, LooksSectionReopenStory, LooksSectionStory } from "../_ct-stories.tsx";
 
@@ -79,6 +79,7 @@ const SETTINGS_VIEW = {
   userId: "user_ct_theme",
   schemaVersion: 1,
   config: DEFAULT_USER_SETTINGS, // theme.selectedThemeId defaults to null ⇒ Hearth is current
+  configUnreadable: null,
   updatedAt: 0,
 };
 const APPLY_PROC = "settings.updateUserSettingsSection";
@@ -88,11 +89,11 @@ const MOCHA_CURRENT_VIEW = {
   config: { ...DEFAULT_USER_SETTINGS, theme: { ...DEFAULT_USER_SETTINGS.theme, selectedThemeId: MOCHA.id } },
 };
 
-function stub(page: Page, extra: Record<string, unknown> = {}): Promise<TrpcRecorder> {
+function stub(page: Page, extra: Partial<TrpcRoutes<TrpcProcedurePath>> = {}): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "settings.listThemes": () => THEMES,
     "settings.getUserSettings": () => SETTINGS_VIEW,
-    [APPLY_PROC]: () => ({}),
+    [APPLY_PROC]: () => SETTINGS_VIEW,
     ...extra,
   });
 }
@@ -205,7 +206,7 @@ for (const [name, expected] of [
     // A radio does not re-fire on the ALREADY-CHECKED option (the old `aria-pressed` button did), and the
     // group's value is CONTROLLED by the server read — which the stub holds still. So the Hearth arm, the
     // one that proves the NULL write, mounts with Mocha current instead of clicking its way there.
-    const trpc = await stub(page, expected === null ? { "settings.getUserSettings": (): unknown => MOCHA_CURRENT_VIEW } : {});
+    const trpc = await stub(page, expected === null ? { "settings.getUserSettings": () => MOCHA_CURRENT_VIEW } : {});
     const component = await mount(<LooksSectionStory />);
     await component.getByRole("radio", { name, exact: true }).click();
     await expect.poll(() => trpc.lastInput(APPLY_PROC), { intervals: [20, 50, 100] }).toEqual({ section: "theme", patch: { selectedThemeId: expected } });
@@ -226,7 +227,7 @@ test("a RENAMED default look is still the current card, and still applies as NUL
     // so a first-position default would hide the defect behind the fallback.
     "settings.listThemes": () => [MOCHA, renamedDefault, LIGHT],
     "settings.getUserSettings": () => SETTINGS_VIEW, // selectedThemeId: null ⇒ the default row is current
-    [APPLY_PROC]: () => ({}),
+    [APPLY_PROC]: () => SETTINGS_VIEW,
   });
   const component = await mount(<LooksSectionStory />);
   const collection = component.getByRole("radiogroup", { name: "Theme" });
@@ -304,7 +305,7 @@ test("Edit in builder autosaves an OWNED row — no Save button, no mint", async
 });
 
 test("Delete does not destroy immediately — it opens an AlertDialog confirm (F4)", async ({ mount, page }) => {
-  const trpc = await stub(page, { "settings.removeTheme": () => ({}) });
+  const trpc = await stub(page, { "settings.removeTheme": () => null });
   const component = await mount(<LooksSectionStory />);
   await component.getByRole("button", { name: themeActionsName("My Theme") }).click();
   await page.getByRole("menuitem", { name: "Delete" }).click();
@@ -353,7 +354,7 @@ test("#1100 reopening Looks holds its box: the heading stays, the boundary reser
   const hold = trpcHold();
   let reads = 0;
   // First open answers; the SECOND read is parked, which is the pending arm a user sees on the way back in.
-  const trpc = await stub(page, { "settings.listThemes": (): unknown => (reads++ === 0 ? THEMES : hold) });
+  const trpc = await stub(page, { "settings.listThemes": () => (reads++ === 0 ? THEMES : hold) });
   const component = await mount(<LooksSectionReopenStory />);
   await expect(component.getByRole("radiogroup", { name: "Theme" })).toBeVisible();
 

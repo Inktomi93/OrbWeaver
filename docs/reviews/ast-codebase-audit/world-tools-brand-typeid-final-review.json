@@ -1,0 +1,90 @@
+{
+  "verdict": "CONFIRMED",
+  "verdict_scope": "final repaired working tree",
+  "commit_727a1b001_verdict": "REFUTED",
+  "reviewed_head": "727a1b001",
+  "issue": 2536,
+  "finding": {
+    "severity": "high",
+    "claim_refuted": "Commit 727a1b001 cleans exact imports through aliases and barrels",
+    "counterexample": {
+      "fixture": "/tmp/typeid-review.4E0d6k/exact-import-probe.ts",
+      "input": [
+        "import { brandedId } from the canonical ids module",
+        "import type { ChatId as Migrated } from the canonical ids module",
+        "import type { ChatId as StillUsed } from the canonical ids module",
+        "brandedId<Migrated>() is the migration target",
+        "StillUsed remains referenced by an exported type"
+      ],
+      "expected": "Migrate brandedId<Migrated>() and remove only brandedId and Migrated; retain the separately aliased StillUsed binding.",
+      "actual": "The codemod removed every ChatId import from the module and emitted `export type Kept = StillUsed;` with no StillUsed import.",
+      "root_cause": "scripts/codemods/typeid-prefix-boundaries.ts removableImports keys removals by module specifier plus exported name. Once one alias binding is removable, a second alias binding of that exported name with surviving references does not cancel the key. tooling/src/codemod/lib/imports.ts removeNamedImport then removes that exported name from every matching declaration.",
+      "locations": [
+        "scripts/codemods/typeid-prefix-boundaries.ts:167",
+        "scripts/codemods/typeid-prefix-boundaries.ts:178",
+        "scripts/codemods/typeid-prefix-boundaries.ts:274",
+        "tooling/src/codemod/lib/imports.ts:278"
+      ]
+    }
+  },
+  "working_tree_after_review_started": {
+    "state": "A sibling added a binding-specific uncommitted repair to the transform, import helper, public export, and focused test after the 727a1b001 counterexample was reported.",
+    "verdict": "CONFIRMED",
+    "behavior": "The final repair removes only the exhausted local alias binding and preserves a separately aliased live binding of the same exported TypeID. The independent noUnusedLocals fixture applied cleanly and emitted only the surviving alias plus ID_PREFIX/typeIdSchema imports.",
+    "focused_test": "The expanded focused suite passed all 5 tests, including the surviving-alias regression with diagnostics enabled.",
+    "receipt": "reports/runs/test/orbweaver-3225235-2026-09-21T13-52-31-779Z/test-report.json",
+    "additional_receipts": [
+      "pnpm typecheck --config tooling/tsconfig.json passed",
+      "final dry-run preview reported 31 canonical brandedId calls = 0 TypeID replacements + 31 prefixless brands; 0 refusals; no files touched"
+    ]
+  },
+  "confirmed_subclaims": {
+    "denominator": {
+      "original": 338,
+      "prior_contract_and_inference": 17,
+      "code_mod_kit_total": 290,
+      "code_mod_kit_overlap_already_in_f1b241e41": 7,
+      "code_mod_kit_applied_in_727a1b001": 283,
+      "remaining": 31,
+      "evidence": [
+        "ast-grep on 4e398fcda^: 338 TypeScript call expressions and 0 TSX call expressions; scanned 2631 TS and 806 TSX files",
+        "ast-grep on f1b241e41: 314 TypeScript call expressions and 0 TSX call expressions",
+        "ast-grep on 727a1b001: 31 TypeScript call expressions and 0 TSX call expressions",
+        "git history shows 16 replacements in 4e398fcda, 1 in 05f9a717f, and 7 overlapping workload replacements in f1b241e41; scratch replay from f1b241e41 applied 283 replacements"
+      ]
+    },
+    "final_tree": {
+      "preview": "31 canonical brandedId calls = 0 TypeID replacements + 31 preserved prefixless brands; 0 refusals; no files touched",
+      "remaining_types": {
+        "UserId": 18,
+        "SocketId": 3,
+        "RpgQuestId": 4,
+        "Handle": 3,
+        "ExternalId": 1,
+        "ModelId": 1,
+        "CharacterHandle": 1
+      },
+      "classification": "All seven remaining type aliases are direct Branded<...> aliases in packages/kit/src/ids/index.ts, not TypeIdOf<...> aliases. The canonical file has 62 direct TypeIdOf aliases and 62 ID_PREFIX entries.",
+      "structural_scope": "All 25 production files changed by 727a1b001 were scanned. The f1b241e41 versions contained 296 brandedId calls and 1 typeIdSchema call; the final versions contain 13 brandedId calls and 284 typeIdSchema calls, a net migration of 283. TSX scans were also run and returned zero with nonzero scanned-file receipts. rg independently found 34 brandedId< literals in final packages: 31 calls plus the helper declaration and two comments."
+    },
+    "semantic_resolution_and_refusals": "The focused suite passed renamed-barrel resolution, prefixless preservation, idempotency, a foreign same-named helper, an unreadable import refusal, and an ambiguous union refusal. Source inspection also confirmed that the prefix map is derived from canonical TypeIdOf aliases and the authored ID_PREFIX object, and refuses missing or duplicate mappings.",
+    "replay": "Applying the final codemod implementation to an f1b241e41 scratch tree with diagnostics intentionally skipped migrated 283 calls across the same 25 files and preserved 31 prefixless calls. Eighteen resulting production files matched 727a1b001 byte-for-byte; five differed only by formatting and two only by comments repaired after the mechanical run. No migration site depended on a manual replacement.",
+    "current_tree_typecheck": "packages/contracts/tsconfig.json, packages/server/tsconfig.json, and tooling/tsconfig.json all passed through pnpm typecheck."
+  },
+  "commands": [
+    "pnpm codemod:run scripts/codemods/typeid-prefix-boundaries.ts",
+    "pnpm test:scoped tests/tooling/codemod/typeid-prefix-boundaries.int.test.ts",
+    "pnpm typecheck --config packages/server/tsconfig.json --config packages/contracts/tsconfig.json",
+    "pnpm typecheck --config tooling/tsconfig.json",
+    "ast-grep run -p 'brandedId<$T>($$$ARGS)' -l ts and -l tsx over archived packages trees",
+    "rg -n 'brandedId\\s*<' packages -g '*.ts' -g '*.tsx'",
+    "pnpm exec node /tmp/typeid-review.4E0d6k/exact-import-probe.ts (final repair: clean apply with exact surviving binding)",
+    "pnpm test:scoped tests/tooling/codemod/typeid-prefix-boundaries.int.test.ts (final repair: 5 passed / 0 failed)"
+  ],
+  "test_receipt": "reports/runs/test/orbweaver-3225235-2026-09-21T13-52-31-779Z/test-report.json",
+  "notes": [
+    "No tracked or untracked workspace file was created, edited, staged, committed, or pushed by this review.",
+    "A historical scratch-tree replay without diagnostics failed because archived workspace dependency links were absent; the replay was rerun with --no-diagnostics-check solely to compare codemod output. Current-tree native typechecks passed separately.",
+    "The reviewed transform and focused test changed in the shared worktree after review began. Commit 727a1b001 has the binding-deletion counterexample recorded above; the final uncommitted binding-specific repair passed that same counterexample and its focused regression suite."
+  ]
+}

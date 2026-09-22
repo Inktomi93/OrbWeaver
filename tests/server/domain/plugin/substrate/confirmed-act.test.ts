@@ -135,7 +135,7 @@ describe("buildConfirmedActRunner — a confirmed act meets the PLUGIN's gates, 
     const rec = recordingOps();
     await run(rec.ops, { kind: "requestTurn", automationDepth: 3, guided: "push the scene" });
 
-    expect(rec.turns).toEqual([{ funderUserId: INSTALLER, chatId: CHAT, automationDepth: 3, guided: "push the scene" }]);
+    expect(rec.turns).toEqual([{ triggeredBy: INSTALLER, chatId: CHAT, automationDepth: 3, guided: "push the scene" }]);
   });
 
   test("omitted turn hints stay ABSENT, not undefined (exactOptionalPropertyTypes, as on the direct path)", async () => {

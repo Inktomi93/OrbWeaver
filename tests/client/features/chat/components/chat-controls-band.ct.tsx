@@ -26,14 +26,17 @@ import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { CHAT_READING_PORT_MIN_PX } from "../../../../../packages/client/src/features/chat/lib/chat-reading-port.ts";
 import { pixelContrast } from "../../../../support/browser/pixel-contrast.ts";
+import type { TrpcProcedurePath, TrpcRoutes } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ChatControlsStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, makeMessagesPage, makeMessageView } from "../fixtures.ts";
 
 /** A non-empty `aria-describedby` — the disabled chip points at a real reason element, not title-only. */
 const NON_EMPTY = /\S/;
+/** The rendered transcript floor at the ruled coarse 430×740 viewport: never smaller than the measured
+ *  212px composer below it. This is an assertion budget, so the CT owns it instead of production code. */
+const CHAT_READING_PORT_MIN_PX = 212;
 /** WCAG AA for normal text — what an interactive chip's label owes its backdrop. */
 const AA_NORMAL = 4.5;
 /** The house body-adjacent icon step (`ICON_SM`), in rendered px — a bare lucide glyph is 24. */
@@ -49,11 +52,11 @@ const CHIPS = '[data-slot="chat-control-chips"]';
  *  unlisted proc's `data: null` default is out-of-contract for the last one and crashes the surface). */
 function routeRoom(
   page: Page,
-  extra: Record<string, unknown> = {},
+  extra: Partial<TrpcRoutes<TrpcProcedurePath>> = {},
 ): Promise<{ readonly count: (p: string) => number; readonly lastInput: (p: string) => unknown }> {
   return routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
-    "chat.previewContextFit": (): unknown => ({
+    "chat.previewContextFit": () => ({
       boundaryMessageId: null,
       usedTokens: 120,
       ceilingTokens: 32_768,
@@ -68,9 +71,9 @@ function routeRoom(
       identities: readonly ChatIdentity[];
       group: GroupConfig;
     } => ({ participants: [], anchorPersonaId: null, identities: [], group: DEFAULT_GROUP_CONFIG }),
-    "chat.listMessages": (): unknown =>
+    "chat.listMessages": () =>
       makeMessagesPage([makeMessageView({ id: castId<MessageId>("msg_controls_room"), role: "assistant", content: "The corridor forks.", seq: 1 })]),
-    "chat.send": (): unknown => ({ ok: true }),
+    "chat.send": () => ({ messages: [], aborted: false }),
     ...extra,
   });
 }

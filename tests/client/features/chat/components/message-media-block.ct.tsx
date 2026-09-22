@@ -66,7 +66,7 @@ test("#618: clicking a room image with an ACTIVE chat opens the detail modal BOU
     // The provenance strip's read — absent is a legal render (the strip says so), it just must not throw.
     "imagery.readProvenance": () => null,
     "assets.resolveBlobRefs": () => [{ assetId: "asset_ct_attach", hash: "deadbeef", mime: "image/png" }],
-    "chat.setChatBackground": () => ({}),
+    "chat.setChatBackground": () => ({ kind: "asset" }),
   });
 
   const component = await mount(<RoomImageDetailStory />);

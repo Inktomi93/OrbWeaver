@@ -13,7 +13,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { findSettingsColumnViolation, readSettingsPaneGeometry } from "../../../../support/browser/settings-geometry.ts";
 import { routeOrbSocket } from "../../../../support/node/route-orb-socket.ts";
-import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 // The bus's OWN transport mutations (#649). `stream.attach`/`detach` ride the BATCHED HTTP link, not the
 // SSE leg (`use-orb-socket.ts:7,139` — only `stream.connect` is the subscription), so `routeOrbSocket`
@@ -23,7 +23,7 @@ import { STREAM_MUTATION_ROUTES } from "../../../data/bus/fixtures.ts";
 import { ConfigHostStory } from "../../config/_ct-stories.tsx";
 import { WorkloadsGroupStory } from "../_ct-stories.tsx";
 
-const USER_VIEWER = { userId: "user_ct_kes", handle: "kes", globalRole: "user" };
+const USER_VIEWER = { userId: "user_ct_kes", handle: "kes", globalRole: "user" } satisfies TrpcWireOutput<"sessions.me">;
 
 /** The three sections at the `workloads` anchor, in the door's declared order (main.tsx) — which IS the
  *  render order: the two that moved out of the retired pane surface, then the analysis-tuning section. */
@@ -340,30 +340,66 @@ test("a sub-level deep link lands on the moved section's anchor", async ({ mount
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════
 
 /** One workload row in the wire shape (`WorkloadRowAnyKind` — domain/workloads/contract). */
-function workloadRow(overrides: Record<string, unknown>): Record<string, unknown> {
+type WorkloadRow = TrpcWireOutput<"workloads.list">[number];
+type ScheduleRow = TrpcWireOutput<"workloads.listSchedules">[number];
+type RunnableWorkloadRow = Extract<WorkloadRow, { readonly poison: false }>;
+type WorkloadRowFor<K extends RunnableWorkloadRow["kind"]> = Extract<RunnableWorkloadRow, { readonly kind: K }>;
+type PoisonWorkloadRow = Extract<WorkloadRow, { readonly poison: true }>;
+type IndexWorkloadRow = WorkloadRowFor<"index">;
+type WorkloadRowBase = Omit<IndexWorkloadRow, "kind" | "params" | "poison" | "result">;
+
+function workloadRowBase(id = "workload_ct_pane"): WorkloadRowBase {
   return {
-    id: "workload_ct_pane",
-    kind: "index",
+    id,
     status: "running",
     mode: "singular",
-    source: "all",
     lane: "sweep",
     ownerId: USER_VIEWER.userId,
     dependsOn: null,
     error: null,
     progress: null,
-    poison: false,
     scheduledAt: 1_750_000_000_000,
     createdAt: 1_750_000_000_000,
     updatedAt: 1_750_000_000_000,
-    params: {},
+  };
+}
+
+function ingestWorkloadRow(overrides: Partial<WorkloadRowFor<"databank-ingest">> = {}): WorkloadRowFor<"databank-ingest"> {
+  return {
+    ...workloadRowBase(),
+    kind: "databank-ingest",
+    poison: false,
+    params: { documentId: "document_ct_pane_ingest" },
     result: null,
     ...overrides,
   };
 }
 
+function importWorkloadRow(overrides: Partial<WorkloadRowFor<"import-st">> = {}): WorkloadRowFor<"import-st"> {
+  return { ...workloadRowBase(), kind: "import-st", poison: false, params: {}, result: null, ...overrides };
+}
+
+function statsWorkloadRow(overrides: Partial<WorkloadRowFor<"reconcile-stats">> = {}): WorkloadRowFor<"reconcile-stats"> {
+  return { ...workloadRowBase(), kind: "reconcile-stats", poison: false, params: {}, result: null, ...overrides };
+}
+
+function poisonWorkloadRow(overrides: Partial<PoisonWorkloadRow> = {}): PoisonWorkloadRow {
+  return {
+    ...workloadRowBase(),
+    kind: "compute-themes",
+    poison: true,
+    params: null,
+    result: null,
+    ...overrides,
+  };
+}
+
+function workloadList(...rows: readonly WorkloadRow[]): TrpcWireOutput<"workloads.list"> {
+  return rows;
+}
+
 /** One schedule row (`WorkloadScheduleRow` — domain/workloads/contract/schedule). */
-function scheduleRow(overrides: Record<string, unknown>): Record<string, unknown> {
+function scheduleRow(overrides: Partial<ScheduleRow>): ScheduleRow {
   return {
     id: "workload_schedule_ct_pane",
     ownerId: USER_VIEWER.userId,
@@ -391,36 +427,32 @@ test("POPULATED: both lanes, a job in flight, a poison row, a finished stats reb
     ...STREAM_MUTATION_ROUTES,
     "settings.getUserSettings": () => ({ userId: USER_VIEWER.userId, schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 }),
     "sessions.me": () => USER_VIEWER,
-    "workloads.list": () => [
-      // INTERACTIVE lane + the DURABLE progress column: the position a reload actually reads, with no live
-      // event at all. Two lanes present ⇒ the lane headings render (a single lane drops them).
-      workloadRow({
-        id: "workload_ct_pane_ingest",
-        kind: "databank-ingest",
-        lane: "interactive",
-        status: "running",
-        progress: { pct: 61, message: "Embedded 610 of 1000" },
-      }),
-      // The SWEEP lane, mid-flight with no durable position yet — the indeterminate bar.
-      workloadRow({ id: "workload_ct_pane_sweep", kind: "import-st", lane: "sweep", status: "running" }),
-      // A POISON row: stored params this build can no longer read. Visibly broken, still retryable.
-      workloadRow({
-        id: "workload_ct_pane_poison",
-        kind: "compute-themes",
-        status: "failed",
-        error: "unrecognized or malformed workload kind: compute-themes",
-        params: null,
-        poison: true,
-      }),
-      // The stats rebuild — the queue twin of the analytics pane's "Recompute now" — with its result SENTENCE.
-      workloadRow({
-        id: "workload_ct_pane_stats",
-        kind: "reconcile-stats",
-        lane: "sweep",
-        status: "succeeded",
-        result: { owners: 1, characters: 128 },
-      }),
-    ],
+    "workloads.list": () =>
+      workloadList(
+        // INTERACTIVE lane + the DURABLE progress column: the position a reload actually reads, with no live
+        // event at all. Two lanes present ⇒ the lane headings render (a single lane drops them).
+        ingestWorkloadRow({
+          id: "workload_ct_pane_ingest",
+          lane: "interactive",
+          status: "running",
+          progress: { pct: 61, message: "Embedded 610 of 1000" },
+        }),
+        // The SWEEP lane, mid-flight with no durable position yet — the indeterminate bar.
+        importWorkloadRow({ id: "workload_ct_pane_sweep", lane: "sweep", status: "running" }),
+        // A POISON row: stored params this build can no longer read. Visibly broken, still retryable.
+        poisonWorkloadRow({
+          id: "workload_ct_pane_poison",
+          status: "failed",
+          error: "unrecognized or malformed workload kind: compute-themes",
+        }),
+        // The stats rebuild — the queue twin of the analytics pane's "Recompute now" — with its result SENTENCE.
+        statsWorkloadRow({
+          id: "workload_ct_pane_stats",
+          lane: "sweep",
+          status: "succeeded",
+          result: { owners: 1, characters: 128 },
+        }),
+      ),
     "workloads.listSchedules": () => [
       scheduleRow({}),
       scheduleRow({ id: "workload_schedule_ct_pane_2", kind: "reconcile-stats", cadence: "weekly", enabled: false }),

@@ -13,13 +13,13 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { readSwitchRowOrientation } from "../../../../support/browser/settings-geometry.ts";
-import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { RegexContextStory } from "../_ct-stories.tsx";
 
 const SCRIPT_ID = "regex_script_000000000000000a";
 
-const SCRIPT = {
+const SCRIPT: TrpcWireOutput<"regex.listScripts">[number] = {
   id: SCRIPT_ID,
   name: "strip ooc",
   findRegex: "a",
@@ -35,7 +35,7 @@ const SCRIPT = {
   substituteRegex: 0,
 };
 
-const FULL_USAGE = {
+const FULL_USAGE: TrpcWireOutput<"regex.listScriptUsage"> = {
   presets: [
     { id: "preset_novella", name: "Novella long-form" },
     { id: "preset_cheap", name: "Local 8B — cheap mode" },
@@ -44,9 +44,9 @@ const FULL_USAGE = {
   rooms: [],
 };
 
-const EMPTY_USAGE = { presets: [], characters: [], rooms: [] };
+const EMPTY_USAGE: TrpcWireOutput<"regex.listScriptUsage"> = { presets: [], characters: [], rooms: [] };
 
-function stubPane(page: Page, usage: unknown): Promise<TrpcRecorder> {
+function stubPane(page: Page, usage: TrpcWireOutput<"regex.listScriptUsage">): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "regex.listScripts": () => [SCRIPT],
     "regex.listGlobal": () => [],

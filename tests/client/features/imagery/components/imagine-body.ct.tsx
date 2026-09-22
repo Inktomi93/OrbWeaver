@@ -18,7 +18,7 @@ const GENERATING_ELAPSED = /Generating the image… \d+s/u;
 
 test("imagine free mode: Generate requests chat.generateImage with the verbatim prompt", async ({ mount, page }) => {
   const chatId = mintTypeId(ID_PREFIX.chat);
-  const rec = await routeTrpc(page, { "chat.generateImage": {} });
+  const rec = await routeTrpc(page, { "chat.generateImage": { id: "message_ct_generated" } });
   const cmp = await mount(<ImagineFreeStory chatId={chatId} />);
 
   const generate = cmp.getByRole("button", { name: "Generate" });
@@ -35,7 +35,7 @@ test("imagine extraction mode: Preview fills the prompt from extractPrompt, then
   const extracted = "a dim tavern, wooden beams, candlelight";
   const rec = await routeTrpc(page, {
     "imagery.extractPrompt": { prompt: extracted, mode: "scenario", source: "extracted", costUsd: 0.001 },
-    "chat.generateImage": {},
+    "chat.generateImage": { id: "message_ct_generated" },
   });
   const cmp = await mount(<ImagineExtractStory chatId={chatId} />);
 

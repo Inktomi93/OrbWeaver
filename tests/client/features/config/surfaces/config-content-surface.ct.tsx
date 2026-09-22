@@ -16,7 +16,8 @@ import type { Locator, Page } from "@playwright/test";
 import { strToU8, zipSync } from "fflate";
 import { readEscapedAbsolutes } from "../../../../support/browser/settings-geometry.ts";
 import { makeResolvedView } from "../../../../support/factories/resolved-connection.ts";
-import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
+import type { TrpcFixtureOutput, TrpcProcedurePath, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
+import { defineTrpcRoutes, routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { ConfigHostInScrollingHostStory, ConfigHostStory } from "../_ct-stories.tsx";
 
 /** The getUserSettings read-model the Appearance group suspends on — defaults are enough to render it. */
@@ -82,10 +83,12 @@ const APP_CONFIG = {
   logLevel: "info",
   forbidExternalMedia: true,
   trustHtml: false,
+  allowInteractiveCards: false,
   memoryDefaults: {},
   memorySummarizer: {},
   rateLimits: { login: 10, aiTurn: 10, publicIp: 50, authed: 200 },
   agentSdkConcurrency: { summarize: 4 },
+  privateEndpointAllowlist: [],
   localMultiUser: false,
   discreetLogin: false,
   maxImageBytes: 5_000_000,
@@ -95,8 +98,9 @@ const APP_CONFIG = {
   imageVariantQuality: 80,
   promptCacheMinDepth: 0,
   structuredOutputShape: "as-projected",
-};
-const OWNER_VIEWER = { userId: "user_owner", handle: "owner", globalRole: "owner" };
+  structuredOutputVehicle: "auto",
+} satisfies TrpcWireOutput<"settings.getAppSettings">;
+const OWNER_VIEWER = { userId: "user_owner", handle: "owner", globalRole: "owner" } satisfies TrpcWireOutput<"sessions.me">;
 
 /** The owner-global fire-rate ceiling the Automation group's budget section renders. */
 const OWNER_RATE_CEILING = 30;
@@ -118,7 +122,7 @@ const AUTOMATION_GLOSS = "These rules watch your library and act on their own �
  *
  * DEFAULTS, NOT A CEILING. The identity-gate tests below list `sessions.me` AFTER the spread and win.
  */
-const HOST_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
+const HOST_AMBIENT_ROUTES = defineTrpcRoutes({
   "sessions.me": { userId: USER_SETTINGS_VIEW.userId, handle: "ct_settings", globalRole: "user" },
   "settings.getAppSettings": APP_CONFIG,
   "settings.getAppSettingsWithOverrides": { resolved: APP_CONFIG, overrides: {} },
@@ -148,9 +152,9 @@ const HOST_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
   "worldInfo.listBooksWithUsage": [],
   "worldInfo.listGlobal": [],
   "rosterPreset.list": [],
-};
+});
 
-async function stub(page: Page, extra: Readonly<Record<string, unknown>> = {}): Promise<void> {
+async function stub(page: Page, extra: Partial<TrpcRoutes<TrpcProcedurePath>> = {}): Promise<void> {
   await routeTrpc(page, { ...HOST_AMBIENT_ROUTES, "settings.getUserSettings": () => USER_SETTINGS_VIEW, "settings.listThemes": () => LOOKS_THEMES, ...extra });
 }
 
@@ -378,7 +382,7 @@ test("switching to Automation shows ITS distinct content — the owner-global ru
 // their sections are contributions, so "real" means the contributed headings render at the group's anchors.
 test("Admin absorbed the System sections; Connections and Automation are real groups of contributed sections", async ({ mount, page }) => {
   await stub(page, {
-    "sessions.me": () => OWNER_VIEWER,
+    "sessions.me": OWNER_VIEWER,
     "admin.listUsers": () => [],
   });
   const component = await mount(<ConfigHostStory />);
@@ -409,7 +413,7 @@ test("Admin absorbed the System sections; Connections and Automation are real gr
 // The admin gate (the group's `when` — UX honesty over the server's adminProcedure floor): the Admin band
 // exists ONLY for owner ∪ admin viewers.
 test("a plain user never sees the Admin band", async ({ mount, page }) => {
-  await stub(page, { "sessions.me": () => ({ userId: "user_plain", handle: "plain", globalRole: "user" }) });
+  await stub(page, { "sessions.me": { userId: "user_plain", handle: "plain", globalRole: "user" } });
   const component = await mount(<ConfigHostStory />);
 
   await expect(component.getByRole("button", { name: "Connections" })).toBeVisible();
@@ -420,7 +424,7 @@ test("a plain user never sees the Admin band", async ({ mount, page }) => {
 // Asserted on the RENDERED sections, not on the band alone: the band existing while the body refused would
 // be the same failure one screen further in.
 test("a plain user DOES see the Plugins band, and it mounts the real per-user sections", async ({ mount, page }) => {
-  await stub(page, { "sessions.me": () => ({ userId: "user_plain", handle: "plain", globalRole: "user" }) });
+  await stub(page, { "sessions.me": { userId: "user_plain", handle: "plain", globalRole: "user" } });
   const component = await mount(<ConfigHostStory />);
 
   await component.getByRole("button", { name: "Plugins" }).click();
@@ -437,7 +441,7 @@ test("a plain user DOES see the Plugins band, and it mounts the real per-user se
 // sides on the SAME screen: a plain user reaches their own plugins and does NOT see the deployment-wide
 // control, an admin sees both. One `when`, three consumers: the body, the LIST row, and (S2) the search.
 test("a plain user does NOT see the Distribute section on their Plugins group", async ({ mount, page }) => {
-  await stub(page, { "sessions.me": () => ({ userId: "user_plain", handle: "plain", globalRole: "user" }) });
+  await stub(page, { "sessions.me": { userId: "user_plain", handle: "plain", globalRole: "user" } });
   const component = await mount(<ConfigHostStory />);
 
   await component.getByRole("button", { name: "Plugins" }).click();
@@ -447,9 +451,9 @@ test("a plain user does NOT see the Distribute section on their Plugins group", 
 });
 
 test("an ADMIN sees the Distribute section on the Plugins group, and publishing lands in the published list", async ({ mount, page }) => {
-  let published: readonly unknown[] = [];
+  let published: TrpcWireOutput<"plugin.listDistributed"> = [];
   await stub(page, {
-    "sessions.me": () => ({ userId: "user_admin", handle: "admin", globalRole: "admin" }),
+    "sessions.me": { userId: "user_admin", handle: "admin", globalRole: "admin" },
     "plugin.listDistributed": () => published,
     "plugin.installForAllUsers": () => {
       published = [{ slug: "house-style", name: "House Style", version: "1.0.0", distributedAt: 0, updatedAt: 0 }];
@@ -478,7 +482,7 @@ test("an ADMIN sees the Distribute section on the Plugins group, and publishing 
 
 test("an admin viewer sees the Admin band and it mounts the REAL group", async ({ mount, page }) => {
   await stub(page, {
-    "sessions.me": () => ({ userId: "user_admin", handle: "admin", globalRole: "admin" }),
+    "sessions.me": { userId: "user_admin", handle: "admin", globalRole: "admin" },
     "admin.listUsers": () => [],
   });
   const component = await mount(<ConfigHostStory />);
@@ -495,7 +499,7 @@ test("an admin viewer sees the Admin band and it mounts the REAL group", async (
 // the still-unsatisfied target once visibility GROWS — not fall back to the welcome forever.
 test("a deep link to a when-gated group lands on it once the viewer probe resolves (not stuck on the fallback)", async ({ mount, page }) => {
   await stub(page, {
-    "sessions.me": () => ({ userId: "user_admin", handle: "admin", globalRole: "admin" }),
+    "sessions.me": { userId: "user_admin", handle: "admin", globalRole: "admin" },
     "admin.listUsers": () => [],
   });
   const component = await mount(<ConfigHostStory target="admin" />);
@@ -742,7 +746,7 @@ test("a navLabel section shows the SHORT name in the LIST, the FULL one in its h
 // bands are skipped: their disclosure shows MEMBER rows, not section rows.
 test("no section row clips at the LIST column, in ANY group", async ({ mount, page }) => {
   await stub(page, {
-    "sessions.me": () => OWNER_VIEWER,
+    "sessions.me": OWNER_VIEWER,
     "admin.listUsers": () => [],
   });
   const component = await mount(<ConfigHostStory />);
@@ -851,9 +855,9 @@ const POPULATED_SCRIPTS = [
     runOnEdit: false,
     trimStrings: [],
     updatedAt: 1_760_000_000_000,
-    substituteRegex: "none",
+    substituteRegex: 0,
   },
-];
+] satisfies TrpcWireOutput<"regex.listScripts">;
 /** The regex group's own blurb, from its `ConfigGroupDefinition` — the landing draws the CONTRIBUTION's copy,
  *  never a host string, which is the claim this literal is here to hold. */
 const REGEX_BLURB = "Find/replace that runs on input, output, or both; everywhere, or only where you attach it.";
@@ -906,7 +910,7 @@ test("#1725: a collection band ENTERS its library in one act — the location mo
 // "the old text is gone" assertion.
 
 /** One tag row in the `tag.listTagsWithUsage` shape — the tag preview ranks by usage total. */
-function switchTagRow(index: number): Record<string, unknown> {
+function switchTagRow(index: number): TrpcWireOutput<"tag.listTagsWithUsage">[number] {
   return {
     id: `tag_switch_${String(index)}`,
     name: `switch-tag-${String(index)}`,
@@ -1027,10 +1031,10 @@ const INSIGHT_TAGS = [
     isHiddenOnCard: false,
     usage: { characters: 0, chats: 0, worldBooks: 0, personas: 0, presets: 0, total: 0 },
   },
-];
+] satisfies TrpcWireOutput<"tag.listTagsWithUsage">;
 
 test("a populated library's landing states its own FACTS — and every affordance on it is a real door", async ({ mount, page }) => {
-  await stub(page, { "tag.listTagsWithUsage": () => INSIGHT_TAGS, "tag.getTag": () => INSIGHT_TAGS[2] });
+  await stub(page, { "tag.listTagsWithUsage": () => INSIGHT_TAGS });
   const component = await mount(<ConfigHostStory />);
 
   await component.locator(TAGS_BAND).click();
@@ -1091,8 +1095,8 @@ test("a library whose census FAILED says so on the landing, and offers a retry t
   // WHAT THE STUB ANSWERS NEXT, as a PUSHED array rather than a boolean flip: biome narrows a
   // `= false` initializer to the literal type and reds the later flip as an always-falsy condition,
   // and the `: boolean` that would fix that is itself `noInferrableTypes`. Data, not a flag.
-  const rows: unknown[] = [trpcError({ message: "the census is down" })];
-  await stub(page, { "regex.listScripts": (): unknown => rows.at(-1) });
+  let current: TrpcWireOutput<"regex.listScripts"> | ReturnType<typeof trpcError> = trpcError({ message: "the census is down" });
+  await stub(page, { "regex.listScripts": () => current });
   const component = await mount(<ConfigHostStory />);
 
   await component.locator(EMPTY_BAND).click();
@@ -1106,7 +1110,7 @@ test("a library whose census FAILED says so on the landing, and offers a retry t
   await expect(landing.locator('[data-slot="collection-control-row"]')).toHaveCount(0);
   await expect(landing.getByRole("button", { name: "New script" })).toHaveCount(0);
 
-  rows.push(POPULATED_SCRIPTS);
+  current = POPULATED_SCRIPTS;
   await landing.getByRole("button", { name: "Retry" }).click();
   // A real refetch, and the pane returns to the arm the answer earns — control row, and the members it
   // controls.
@@ -1144,7 +1148,7 @@ test("the empty landing shows the library's blurb AND its empty sentence AND its
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 
 /** The unreadable-blob read: same defaults on the wire, plus the server's verdict. */
-function unreadableSettings(failure: "schema-rejected" | "version-from-future"): Record<string, unknown> {
+function unreadableSettings(failure: "schema-rejected" | "version-from-future"): TrpcFixtureOutput<"settings.getUserSettings"> {
   return { ...USER_SETTINGS_VIEW, configUnreadable: failure };
 }
 

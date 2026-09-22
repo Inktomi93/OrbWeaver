@@ -1,0 +1,77 @@
+{
+  "task": "Independent review of #2539",
+  "commit": "afd224197ee46ae1abe273d9cdbcb03dfb941378",
+  "verdict": "CONFIRMED",
+  "issue": {
+    "number": 2539,
+    "title": "Remove empty branded sentinels at client and session boundaries"
+  },
+  "review_scope": {
+    "changed_files_read_in_full": 14,
+    "changed_files": [
+      "packages/client/src/data/stale-session.ts",
+      "packages/client/src/data/use-display-scripts.ts",
+      "packages/client/src/data/use-plugin-display-text.ts",
+      "packages/client/src/data/use-prompt-macro-suggestions.ts",
+      "packages/client/src/features/chat/components/chat-documents-section.tsx",
+      "packages/client/src/lib/session-channel.ts",
+      "packages/server/src/domain/chat/verbs/invites.ts",
+      "tests/client/data/_ct-stories.tsx",
+      "tests/client/data/use-display-scripts.ct.tsx",
+      "tests/client/data/use-plugin-display-text.ct.tsx",
+      "tests/client/features/chat/components/chat-documents-section.ct.tsx",
+      "tests/client/lib/session-channel.test-d.ts",
+      "tests/client/lib/session-channel.test.ts",
+      "tests/server/domain/chat/verbs/invites.int.test.ts"
+    ],
+    "source_basis": "Immutable git objects at afd224197; current copies of all 14 paths are byte-identical to the commit."
+  },
+  "findings": [],
+  "evidence": {
+    "query_sites": [
+      "use-display-scripts.ts:76-87 gates ChatId|null through useGatedQuery",
+      "use-plugin-display-text.ts:46-63 supplies real ChatId+MessageId or skipToken",
+      "use-prompt-macro-suggestions.ts:44-55 gates PresetId|null through useGatedQuery",
+      "chat-documents-section.tsx:84-94 gates until settings settle and skips built-in null preset"
+    ],
+    "disabled_behavior": "Settled CT assertions prove zero regex.listRoomDisplayScripts, plugin.transformForDisplay, and preset.get requests in disabled arms.",
+    "invite_preview": "invites.ts:220-229 explicitly throws when host seat is absent or host handle is null; integration tests cover both.",
+    "channel": [
+      "session-channel.ts:42-55 exposes inbound handle as string|null and requires outbound Handle|null",
+      "session-channel.ts:75-85 parses transport strings without branding and maps nonstrings to null",
+      "stale-session.ts:118-133 posts only Handle|null values from authenticated reads",
+      "stale-session.ts:277 is the sole inbound message.handle consumer and uses it only for equality/invalidation"
+    ]
+  },
+  "structural_scans": {
+    "positive_controls": {
+      "files": "/tmp/world-tools-2539-tree/__controls__/empty-brand-control.{ts,tsx}",
+      "patterns": ["\"\" as $T", "($X ?? \"\") as $T", "castId<$T>(\"\")"],
+      "result": "all six language/pattern controls matched"
+    },
+    "production_packages": {
+      "ts_scanned_per_pattern": 2630,
+      "tsx_scanned_per_pattern": 805,
+      "matches": 0
+    },
+    "downstream": {
+      "gated_query_sites": 3,
+      "plugin_skip_token_site": 1,
+      "inbound_message_handle_equality_site": 1,
+      "stale_session_post_sites": 4
+    },
+    "disclosure": "Tests contain 16 pre-existing castId<T>(\"\") matches across 2,398 TS files and zero across 598 TSX files. The confirmed negative is zero in production packages, not zero in the entire repository."
+  },
+  "textual_corroboration": {
+    "production_ts_tsx_files": 3428,
+    "empty_brand_cast_matches": 0,
+    "session_message_consumers": "Only stale-session.ts reads message.handle; other hits are the definition/re-export."
+  },
+  "verification": [
+    "PASS pnpm test:scoped tests/client/lib/session-channel.test.ts tests/server/domain/chat/verbs/invites.int.test.ts — 49 tests",
+    "PASS pnpm test:types tests/client/lib/session-channel.test-d.ts — 2 type tests, no errors",
+    "PASS pnpm test:ct tests/client/data/use-display-scripts.ct.tsx tests/client/data/use-plugin-display-text.ct.tsx tests/client/features/chat/components/chat-documents-section.ct.tsx --workers=2 — 25 tests",
+    "PASS pnpm test:ct tests/client/data/use-prompt-macro-suggestions.ct.tsx --workers=2 — 3 tests"
+  ],
+  "repository_mutation": "none"
+}

@@ -1,7 +1,7 @@
 ---
 kind: spec
 status: active
-updated: 2026-07-03
+updated: 2026-09-21
 ---
 
 # Expressions Design — the prescriptive plan for `domain/expressions` (doc-set index)
@@ -14,7 +14,11 @@ updated: 2026-07-03
 > `extensions/expressions/index.js` source audit (the archived `proposed/expression-stage/` proposal,
 > git history at `982fd99^`) + marinara `sprites.routes.ts` (sprite-sheet generation — the
 
-> **Triage 2026-07-09 (dispatch board — `../README.md` §0):** READY-TO-BUILD. E1 + the E2 schema landed 2026-07-09; next is the E2 CRUD leaf + E3 classify (needs the chat hook ops, obligation #8). E4 consumes imagery (BUILT).
+> **Current disposition (2026-09-21): PARTIAL, [#20](https://github.com/Inktomi93/orbweaver/issues/20) Ready.**
+> The former E1/E2 domain rows were purged. E4's image-sheet preparation substrate remains banked and
+> tested (`sliceGrid`, `matteFlood`, `createLocalLightMatte`), and chat still carries the optional classify
+> injection seam. The product domain, persistence, classify hook, and client portrait swap remain to be
+> built. Re-derive the event member and D21 blob-route amendment against current contracts before build.
 > Marinara-Residue B1 fold-in, decided into this domain). Everything here is prescriptive and
 > self-contained: a builder with ONLY this doc set + the orbweaver law docs (AGENTS-1/2/3, the domain
 > docs it cites) can build the whole system. Every decision carries its WHY + the rejected

@@ -7,6 +7,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import type { TrpcInput, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { CharacterGalleryDialogStory, CharacterGalleryDialogToastStory } from "../_ct-stories.tsx";
 
@@ -21,9 +22,9 @@ const ITEM = {
 };
 
 const OWNED = [
-  { assetId: "asset_ct_owned_1", hash: "b".repeat(64), mime: "image/png", animated: false, kind: "upload" },
-  { assetId: "asset_ct_owned_2", hash: "c".repeat(64), mime: "image/png", animated: false, kind: "upload" },
-];
+  { assetId: "asset_ct_owned_1", hash: "b".repeat(64), mime: "image/png", size: 1024, uploadedAt: 1, animated: false, kind: "gallery" },
+  { assetId: "asset_ct_owned_2", hash: "c".repeat(64), mime: "image/png", size: 2048, uploadedAt: 2, animated: false, kind: "gallery" },
+] satisfies TrpcWireOutput<"assets.listOwned">;
 
 /** The one asset the partial-batch pin scripts a rejection for — named, so the stub reads no indexed
  *  element and the claim "the SECOND one failed" is legible where the assertion is. */
@@ -74,7 +75,7 @@ test("P2: removal goes through a confirm — the mutation fires only AFTER confi
   await page.setViewportSize({ width: 1280, height: 800 });
   const trpc = await routeTrpc(page, {
     "assets.listGallery": () => [ITEM],
-    "assets.removeFromGallery": () => ({}),
+    "assets.removeFromGallery": () => null,
   });
 
   await mount(<CharacterGalleryDialogStory />);
@@ -95,7 +96,7 @@ test("P2: cancelling the confirm removes nothing", async ({ mount, page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   const trpc = await routeTrpc(page, {
     "assets.listGallery": () => [ITEM],
-    "assets.removeFromGallery": () => ({}),
+    "assets.removeFromGallery": () => null,
   });
 
   await mount(<CharacterGalleryDialogStory />);
@@ -141,7 +142,7 @@ test("the add picker owns the whole held batch, ignores repeat confirmation, and
   await expect(page.getByText("Add images to the gallery")).toBeVisible();
   await expect.poll(() => trpc.count("assets.addToGallery")).toBe(2);
 
-  hold.release({});
+  hold.release(ITEM);
   await expect(page.getByText("Add images to the gallery")).toHaveCount(0);
 });
 
@@ -168,7 +169,7 @@ test("a rejected add batch stays visible and retryable, then closes after the re
 
   await confirm.click();
   await retry.requested;
-  retry.release({});
+  retry.release(ITEM);
   await expect(page.getByText("Add images to the gallery")).toHaveCount(0);
 });
 
@@ -262,9 +263,7 @@ test("a PARTIAL add prunes the selection to what did not land (#1501)", async ({
     "assets.listGallery": () => [],
     "assets.listOwned": () => OWNED,
     // The FIRST asset lands, the second does not — and which is which is the whole claim. Read through an
-    // index rather than a typed `assetId` field: a bare-string field of that NAME is a brand-in-name-position
-    // violation, and this stub is deliberately looking at the RAW decoded wire object.
-    "assets.addToGallery": (input: unknown) => ((input as Record<string, unknown>)["assetId"] === FAILING_ASSET ? trpcError({ message: "add failed" }) : null),
+    "assets.addToGallery": (input: TrpcInput<"assets.addToGallery">) => (input?.assetId === FAILING_ASSET ? trpcError({ message: "add failed" }) : ITEM),
   });
 
   await mount(<CharacterGalleryDialogStory />);

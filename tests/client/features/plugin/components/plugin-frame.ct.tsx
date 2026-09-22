@@ -20,12 +20,16 @@ import { PLUGIN_FRAME_ROUTE } from "@orb/contracts/plugin";
 import type { PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { PluginsSurfaceStory } from "../_ct-stories.tsx";
 
+type PluginListRow = TrpcWireOutput<"plugin.list">[number];
+type PluginSurfaceRow = TrpcWireOutput<"plugin.listSurfaces">[number];
+
 const A_PAST_INSTANT = 1_760_000_000_000;
 const CHESS_ID = castId<PluginId>("plugin_ct_chess0000000001");
-const USER_VIEWER = { userId: "user_ct_plugin", handle: "plugin_user", globalRole: "user" };
+const USER_VIEWER = { userId: "user_ct_plugin", handle: "plugin_user", globalRole: "user" } satisfies TrpcWireOutput<"sessions.me">;
 const HANDLE = "0123456789abcdef0123456789abcdef";
 const FRAME_URL = `${PLUGIN_FRAME_ROUTE}/${HANDLE}`;
 
@@ -54,7 +58,7 @@ const BOARD_DOC = `<!doctype html><html><head><style>body{margin:0}</style><scri
 </script></head><body><div id="board" style="height:640px">CHESS BOARD</div></body></html>`;
 
 /** An enabled installed row holding the hatch's grant. */
-function enabledRow(declared: readonly string[]): Record<string, unknown> {
+function enabledRow(declared: PluginListRow["declaredCapabilities"]): PluginListRow {
   return {
     id: CHESS_ID,
     slug: "chess",
@@ -62,6 +66,8 @@ function enabledRow(declared: readonly string[]): Record<string, unknown> {
     version: "1.0.0",
     status: "enabled",
     origin: "upload",
+    sourceUrl: null,
+    updateSource: null,
     declaredCapabilities: declared,
     grantedCapabilities: declared,
     netHosts: null,
@@ -76,7 +82,13 @@ function enabledRow(declared: readonly string[]): Record<string, unknown> {
 
 /** One `listSurfaces` row for a FRAME-tier settings surface. Note what is ABSENT: any `spec`, and any document
  *  bytes — the client names a surface and the server holds the frame. */
-const FRAME_SURFACE = { pluginId: CHESS_ID, id: "board", anchor: "settings", title: "Chess board", tier: "frame" };
+const FRAME_SURFACE = {
+  pluginId: CHESS_ID,
+  id: "board",
+  anchor: "settings",
+  title: "Chess board",
+  tier: "frame",
+} satisfies PluginSurfaceRow;
 
 /** Stub the tRPC reads + the doorway. `mintable: false` makes the mint fail, which is the degrade arm. */
 async function setup(page: Parameters<typeof routeTrpc>[0], opts: { readonly mintable: boolean }): Promise<void> {

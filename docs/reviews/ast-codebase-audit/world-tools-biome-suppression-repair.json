@@ -1,0 +1,91 @@
+{
+  "schema": "orbweaver.ast-codebase-audit.biome-suppression-repair",
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-21T23:58:00.000Z",
+  "status": "implemented-and-focused-verified",
+  "sourceAudit": {
+    "path": "docs/reviews/ast-codebase-audit/world-tools-biome-suppression-adjudication.json",
+    "sha256": "36d779462d5c576d5d07ebcf0dba37c54165108bbaaebdd977f80e13afbdf933",
+    "declaredRepairRegions": 8
+  },
+  "outcome": {
+    "repairedRegions": 6,
+    "preservedBoundedRegions": 2,
+    "ownerDecisions": 0,
+    "summary": "Removed or repaired six stale, ordinary-global, non-null, and type-erasing suppression sites. Two noExplicitAny tRPC fixture regions remain governed because the production builders accept the full generated client rather than a narrow port; replacing the suppressions would require fabricating unrelated procedures or changing the product boundary."
+  },
+  "changedPaths": [
+    "packages/client/src/agent-plugin/index.ts",
+    "tests/client/agent-plugin/index.test.ts",
+    "tests/server/domain/rpg/contract/service.int.test.ts",
+    "tests/tooling/verify/ops/gate-scope.suite.int.test.ts",
+    "tests/server/domain/export/_support.ts",
+    "tests/support/tool-fixtures.ts",
+    "tooling/src/verify/lib/reviewed-grants-suppressions-b.ts"
+  ],
+  "repairs": [
+    {
+      "area": "agent plugin fixture",
+      "result": "buildAgentPlugin now exposes the two-read port it actually consumes; the fake derives that port and its mock signatures without fabricating the rest of AppRouter or using noExplicitAny."
+    },
+    {
+      "area": "RPG contract fixture",
+      "result": "Postfix non-null assertions were replaced with explicit guards and narrowed bindings."
+    },
+    {
+      "area": "gate-scope process access",
+      "result": "The ordinary module imports node:process and its two noProcessGlobal suppressions were removed; hoisted pre-import sites remain governed."
+    },
+    {
+      "area": "stale directives",
+      "result": "The redundant format and useAwait suppressions were removed."
+    },
+    {
+      "area": "reviewed grants",
+      "result": "Added the missing tests useExplicitReturnType grant, retired the dead noNonNullAssertion grant, and narrowed the surviving noProcessGlobal, noExplicitAny, useAwait, naming, and bitwise rationales to their actual boundaries."
+    }
+  ],
+  "preservedBoundaries": [
+    {
+      "path": "tests/client/agent-nav/index.test.ts",
+      "rule": "lint/suspicious/noExplicitAny",
+      "reason": "Parameters<typeof buildAgentNav>[0] is the full generated TRPCOptionsProxy; the structural fake intentionally supplies only the procedures under test.",
+      "wakeCondition": "buildAgentNav exposes a narrow production port that the focused fake can satisfy without inventing unrelated router procedures."
+    },
+    {
+      "path": "tests/client/agent-rpg/index.test.ts",
+      "rule": "lint/suspicious/noExplicitAny",
+      "reason": "The builder accepts the full TrpcClient while the structural fake intentionally supplies only its RPG procedures.",
+      "wakeCondition": "the RPG builder exposes a narrow production port that the focused fake can satisfy without fabricating the rest of AppRouter."
+    }
+  ],
+  "verification": {
+    "focusedTests": {
+      "result": "pass",
+      "tests": 8,
+      "artifact": "reports/runs/test/orbweaver-1470418-2026-09-22T00-29-30-975Z/test-report.json"
+    },
+    "nativeTypePrograms": {
+      "result": "pass",
+      "programs": ["packages/client/tsconfig.json", "tsconfig.json"]
+    },
+    "biomeChangedFiles": {
+      "result": "pass",
+      "fileCount": 7
+    },
+    "selectedSuppressionGate": {
+      "command": "pnpm check:structure --check suppressions",
+      "result": "pass",
+      "artifact": "reports/runs/structure/orbweaver-1312444-2026-09-21T23-51-15-735Z/check-structure.json",
+      "checksRan": 1,
+      "findings": 0,
+      "granted": 64,
+      "withheld": 0,
+      "authorityAlarms": 0,
+      "toolErrors": 0
+    },
+    "diffCheck": "pass",
+    "integrationCorrection": "The first focused repair run omitted the root native program. The commit hook exposed that the agent-plugin fake still targeted the full generated client. The product builder was narrowed to its real two-read port, branded fixture ids now pass the canonical TypeID parser, and both affected native programs plus the focused type and unit suites pass."
+  },
+  "remainingProof": "Re-derive the suppression denominator on the committed current tree. The two preserved noExplicitAny regions remain governed until their product builders expose narrow ports."
+}

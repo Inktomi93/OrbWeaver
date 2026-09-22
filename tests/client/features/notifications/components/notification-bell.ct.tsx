@@ -9,12 +9,14 @@
 //
 // The bell button is addressed by ROLE + accessible name (its aria-label carries the unread count) —
 // deliberate: the name IS the a11y contract (see the component header for why no testid rides it).
-
+import { notificationEventSchema } from "@orb/contracts/notifications";
 import type { StreamFrame } from "@orb/contracts/stream";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { OrbSocketRecorder } from "../../../../support/node/route-orb-socket.ts";
 import { routeOrbSocket } from "../../../../support/node/route-orb-socket.ts";
+import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 // The bus's OWN transport mutations (#649). `stream.attach` rides the BATCHED HTTP link, not the SSE leg
 // (`use-orb-socket.ts:7,139` — only `stream.connect` is the subscription), so `routeOrbSocket` never answers
@@ -23,8 +25,14 @@ import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-t
 import { STREAM_MUTATION_ROUTES } from "../../../data/bus/fixtures.ts";
 import { NotificationBellDestinationStory, NotificationBellSheetStory, NotificationBellStory, NotificationBellToastStory } from "../_ct-stories.tsx";
 
+type InboxRow = TrpcWireOutput<"notifications.list">["items"][number];
+type InboxRowOf<TType extends InboxRow["type"]> = Omit<InboxRow, "type" | "payload"> & {
+  readonly type: TType;
+  readonly payload: Extract<InboxRow["payload"], { readonly type: TType }>;
+};
+
 /** One inbox row in the wire shape (`InboxView` — domain/notifications/contract/views.ts). */
-function inviteRow(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+function inviteRow(overrides: Partial<InboxRowOf<"invite">> = {}): InboxRowOf<"invite"> {
   return {
     id: "ntf_ct_1",
     type: "invite",
@@ -48,7 +56,7 @@ function inviteRow(overrides: Record<string, unknown> = {}): Record<string, unkn
 
 /** The aggregate pending-consent row (#1041 / #924 item 2) — the fresh-boot ask, whose whole payload is a
  *  count. Same raw-wire posture as `inviteRow` above. */
-function consentRow(pendingCount: number, overrides: Record<string, unknown> = {}): Record<string, unknown> {
+function consentRow(pendingCount: number, overrides: Partial<InboxRowOf<"plugins-awaiting-consent">> = {}): InboxRowOf<"plugins-awaiting-consent"> {
   return {
     id: "ntf_ct_consent",
     type: "plugins-awaiting-consent",
@@ -64,11 +72,45 @@ function consentRow(pendingCount: number, overrides: Record<string, unknown> = {
   };
 }
 
-/** One inbox row as a `notifications` FRAME on the socket — the InboxView rides verbatim under `event`, and
- *  `seq` is the durable cursor that used to be the tracked envelope id (SSE-1 §3.2/§3.3). */
-function arrivalFrame(row: Record<string, unknown>): StreamFrame {
-  // @orb-waive no-test-fabrication(unknown): this CT stubs the NETWORK, so its rows are deliberately authored as the raw JSON wire object (`inviteRow`, which the `notifications.list` stub serves verbatim too) rather than as a typed InboxView — what the browser parses off the wire IS the fixture. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-  return { channel: "notifications", seq: row["seq"], event: row } as unknown as StreamFrame;
+function kickedRow(): InboxRowOf<"kicked"> {
+  return {
+    id: "ntf_ct_notice",
+    type: "kicked",
+    payload: { type: "kicked", recipientUserId: "user_ct_invitee", chatId: "chat_ct_target" },
+    seq: 2,
+    readAt: null,
+    dismissedAt: null,
+    actionable: false,
+    createdAt: 1_750_000_000_000,
+  };
+}
+
+function liveArrivalFrame(): StreamFrame {
+  const payload = notificationEventSchema.parse({
+    type: "invite",
+    recipientUserId: "user_ct_invitee",
+    chatId: mintTypeId(ID_PREFIX.chat),
+    inviteId: mintTypeId(ID_PREFIX.chatInvite),
+    invitedByHandle: "nate",
+  });
+  return {
+    channel: "notifications",
+    seq: 1,
+    event: {
+      id: mintTypeId(ID_PREFIX.notification),
+      type: payload.type,
+      payload,
+      actionable: true,
+      seq: 1,
+      readAt: null,
+      dismissedAt: null,
+      createdAt: 1_750_000_000_000,
+    },
+  };
+}
+
+function dismissedRow(row: InboxRow): InboxRow {
+  return { ...row, dismissedAt: 1_750_000_000_002, actionable: false };
 }
 
 /** Stub the tab's ONE socket and serve the given frames once the inbox room has attached. `awaitAttaches`
@@ -135,7 +177,7 @@ test("Accept fires acceptInvite with the notification's inviteId, then dismisses
     ...STREAM_MUTATION_ROUTES,
     "notifications.list": () => ({ items: [inviteRow()], nextCursor: null }),
     "notifications.markAllRead": () => ({ markedCount: 1 }),
-    "notifications.dismiss": () => null,
+    "notifications.dismiss": () => dismissedRow(inviteRow()),
     "invites.acceptInvite": () => ({
       chat: { id: "chat_ct_target", participants: [] },
       participant: { id: "participant_ct_new" },
@@ -172,7 +214,7 @@ test("each inbox row owns its pending action: double-click is singular while a s
     ...STREAM_MUTATION_ROUTES,
     "notifications.list": () => ({ items: [first, second], nextCursor: null }),
     "notifications.markAllRead": () => ({ markedCount: 2 }),
-    "notifications.dismiss": () => null,
+    "notifications.dismiss": () => dismissedRow(inviteRow()),
     "invites.acceptInvite": (input: unknown) =>
       (input as { inviteId?: string }).inviteId === "chatinvite_ct_1"
         ? held
@@ -211,9 +253,9 @@ test("Decline fires declineInvite + dismisses; the row leaves the inbox on refet
     "notifications.markAllRead": () => ({ markedCount: 1 }),
     "notifications.dismiss": () => {
       dismissed = true;
-      return null;
+      return dismissedRow(inviteRow());
     },
-    "invites.declineInvite": () => null,
+    "invites.declineInvite": () => undefined,
   });
   await routeInboxStream(page, []);
 
@@ -238,7 +280,7 @@ test("a LIVE invite arrival re-renders the badge without a refresh (the SSE-driv
       return listCalls === 1 ? { items: [], nextCursor: null } : { items: [inviteRow()], nextCursor: null };
     },
   });
-  await routeInboxStream(page, [arrivalFrame(inviteRow())]);
+  await routeInboxStream(page, [liveArrivalFrame()]);
 
   // Deterministic-race gate (same class as message-list-surface.ct.tsx's canonSettled pattern): hold the
   // EventSource response until the mount's first `notifications.list` read has rendered. Without this, the
@@ -399,7 +441,9 @@ test.describe("the phone's inbox block", () => {
 
 /** A handoff-nominated inbox row (the two-party host handoff, step 1's delivery). `offer` is the nominate
  *  verb's frozen disclosure — what an accept would copy. */
-function handoffRow(offer: Record<string, unknown> = { characters: 2, worldBooks: 1, regexScripts: 1, gmPreset: true }): Record<string, unknown> {
+function handoffRow(
+  offer: InboxRowOf<"handoff-nominated">["payload"]["offer"] = { characters: 2, worldBooks: 1, regexScripts: 1, gmPreset: true },
+): InboxRowOf<"handoff-nominated"> {
   return {
     id: "ntf_ct_handoff",
     type: "handoff-nominated",
@@ -413,16 +457,17 @@ function handoffRow(offer: Record<string, unknown> = { characters: 2, worldBooks
     readAt: null,
     dismissedAt: null,
     createdAt: 1_750_000_000_001,
+    actionable: true,
   };
 }
 
 test("Accept opens a confirm that reads out what the offer copies — and fires nothing until it is confirmed", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     ...STREAM_MUTATION_ROUTES,
-    "notifications.list": () => ({ items: [handoffRow()], unreadCount: 1 }),
-    "notifications.markAllRead": () => null,
-    "notifications.dismiss": () => null,
-    "invites.acceptHostHandoff": () => null,
+    "notifications.list": () => ({ items: [handoffRow()], nextCursor: null }),
+    "notifications.markAllRead": () => ({ markedCount: 1 }),
+    "notifications.dismiss": () => dismissedRow(inviteRow()),
+    "invites.acceptHostHandoff": () => undefined,
   });
   await routeInboxStream(page, []);
 
@@ -455,10 +500,10 @@ test("Accept opens a confirm that reads out what the offer copies — and fires 
 test("cancelling the confirm accepts nothing and dismisses nothing", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     ...STREAM_MUTATION_ROUTES,
-    "notifications.list": () => ({ items: [handoffRow()], unreadCount: 1 }),
-    "notifications.markAllRead": () => null,
-    "notifications.dismiss": () => null,
-    "invites.acceptHostHandoff": () => null,
+    "notifications.list": () => ({ items: [handoffRow()], nextCursor: null }),
+    "notifications.markAllRead": () => ({ markedCount: 1 }),
+    "notifications.dismiss": () => dismissedRow(inviteRow()),
+    "invites.acceptHostHandoff": () => undefined,
   });
   await routeInboxStream(page, []);
 
@@ -477,10 +522,10 @@ test("cancelling the confirm accepts nothing and dismisses nothing", async ({ mo
 test("an offer of NOTHING says so — the confirm still runs, and it does not list an empty gift", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...STREAM_MUTATION_ROUTES,
-    "notifications.list": () => ({ items: [handoffRow({ characters: 0, worldBooks: 0, regexScripts: 0, gmPreset: false })], unreadCount: 1 }),
-    "notifications.markAllRead": () => null,
-    "notifications.dismiss": () => null,
-    "invites.acceptHostHandoff": () => null,
+    "notifications.list": () => ({ items: [handoffRow({ characters: 0, worldBooks: 0, regexScripts: 0, gmPreset: false })], nextCursor: null }),
+    "notifications.markAllRead": () => ({ markedCount: 1 }),
+    "notifications.dismiss": () => dismissedRow(inviteRow()),
+    "invites.acceptHostHandoff": () => undefined,
   });
   await routeInboxStream(page, []);
 
@@ -636,7 +681,7 @@ test("Review sends the shell to the Plugins group and closes the inbox", async (
 //     …resolved to `<span data-slot="badge" data-size="sm" … class="… px-row py-field text-label …">2</span>`
 //   ✘ the dot sits in the button's top-end corner … — BOTH pointer arms
 //     toMatchObject   corner: false · small: false · square: false   (the pill measured 24×28)
-//   ✔ no unread → no mark at all   (a FENCE, green in both regimes: it pins that the DOT did not become
+//   √ no unread → no mark at all   (a FENCE, green in both regimes: it pins that the DOT did not become
 //     an always-on ornament, which is the one way this fix could have regressed the zero state.)
 /** The dot's whole geometric verdict, measured IN THE BROWSER from the mark outwards. One evaluate, three
  *  boxes: the relationships under test are BETWEEN them, so separate round-trips would let a re-layout land
@@ -788,7 +833,7 @@ test.describe("the unread mark (#1798)", () => {
 test.describe("the indicator's two halves (#1799)", () => {
   /** An invite that has ALREADY been read (`readAt` set) and is STILL waiting on a decision. It is the
    *  whole ruling in one row: the NEW half is spent, the PENDING half is not. */
-  function readPendingInvite(): Record<string, unknown> {
+  function readPendingInvite(): InboxRowOf<"invite"> {
     return inviteRow({ readAt: 1_750_000_000_001, actionable: true });
   }
 
@@ -823,15 +868,7 @@ test.describe("the indicator's two halves (#1799)", () => {
     await routeTrpc(page, {
       ...STREAM_MUTATION_ROUTES,
       "notifications.list": () => ({
-        items: [
-          inviteRow({
-            id: "ntf_ct_notice",
-            type: "kicked",
-            payload: { type: "kicked", recipientUserId: "user_ct_invitee", chatId: "chat_ct_target" },
-            actionable: false,
-            readAt: read ? 1_750_000_000_001 : null,
-          }),
-        ],
+        items: [{ ...kickedRow(), readAt: read ? 1_750_000_000_001 : null }],
         nextCursor: null,
       }),
       "notifications.markAllRead": () => {
@@ -859,10 +896,10 @@ test.describe("the indicator's two halves (#1799)", () => {
       "notifications.markAllRead": () => ({ markedCount: 0 }),
       // Declining is a REAL verb + its follow-up dismiss (`InboxRow.declineInvite`), so both are fed — an
       // unstubbed decline would run inert and this pin would be measuring the dismiss alone.
-      "invites.declineInvite": () => null,
+      "invites.declineInvite": () => undefined,
       "notifications.dismiss": () => {
         dismissed = true;
-        return null;
+        return dismissedRow(inviteRow());
       },
     });
     await routeInboxStream(page, []);
@@ -903,14 +940,17 @@ test.describe("the indicator's two halves (#1799)", () => {
 // screenshot cannot make on its own — that pending and informational rows are told apart by an ATTRIBUTE
 // and not only by paint, so the distinction survives a theme, a contrast mode, and this test.
 test.describe("pending rows are marked, not merely painted (#1799)", () => {
-  function noticeRow(): Record<string, unknown> {
-    return inviteRow({
+  function noticeRow(): InboxRowOf<"kicked"> {
+    return {
       id: "ntf_ct_notice",
       type: "kicked",
       payload: { type: "kicked", recipientUserId: "user_ct_invitee", chatId: "chat_ct_target" },
       seq: 2,
+      readAt: null,
+      dismissedAt: null,
       actionable: false,
-    });
+      createdAt: 1_750_000_000_000,
+    };
   }
 
   test("the popover marks the row that wants a decision and leaves the notice unmarked", async ({ mount, page }) => {
@@ -974,7 +1014,7 @@ test.describe("navigating out of the inbox closes it (#1795 class)", () => {
       ...STREAM_MUTATION_ROUTES,
       "notifications.list": () => ({ items: [inviteRow()], nextCursor: null }),
       "notifications.markAllRead": () => ({ markedCount: 1 }),
-      "notifications.dismiss": () => null,
+      "notifications.dismiss": () => dismissedRow(inviteRow()),
       "invites.acceptInvite": () => ({ chat: { id: "chat_ct_target", participants: [] }, participant: { id: "participant_ct_new" } }),
     });
     await routeInboxStream(page, []);
@@ -1000,8 +1040,8 @@ test.describe("navigating out of the inbox closes it (#1795 class)", () => {
       ...STREAM_MUTATION_ROUTES,
       "notifications.list": () => ({ items: [handoffRow()], nextCursor: null }),
       "notifications.markAllRead": () => ({ markedCount: 1 }),
-      "notifications.dismiss": () => null,
-      "invites.acceptHostHandoff": () => null,
+      "notifications.dismiss": () => dismissedRow(inviteRow()),
+      "invites.acceptHostHandoff": () => undefined,
     });
     await routeInboxStream(page, []);
 
@@ -1024,7 +1064,7 @@ test.describe("navigating out of the inbox closes it (#1795 class)", () => {
       ...STREAM_MUTATION_ROUTES,
       "notifications.list": () => ({ items: [inviteRow()], nextCursor: null }),
       "notifications.markAllRead": () => ({ markedCount: 1 }),
-      "notifications.dismiss": () => null,
+      "notifications.dismiss": () => dismissedRow(inviteRow()),
       "invites.acceptInvite": () => ({ chat: { id: "chat_ct_target", participants: [] }, participant: { id: "participant_ct_new" } }),
     });
     await routeInboxStream(page, []);

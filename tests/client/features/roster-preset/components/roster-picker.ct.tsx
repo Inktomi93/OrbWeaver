@@ -16,6 +16,7 @@ import type { RosterPresetSummary } from "@orb/contracts/roster-preset";
 import type { CharacterId, RosterPresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { TrpcFixtureOutput, TrpcRoutes } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { RosterPickerHostStory, RosterPickerStory } from "../_ct-stories.tsx";
 
@@ -53,15 +54,16 @@ const ROSTER_B: RosterPresetSummary = {
 // that makes two rosters carrying the same preset distinguishable, and the whole reason the rider stores a
 // bag rather than an id. A partial `automation.listRules` row: the capture reads exactly these four fields
 // (`hooks/use-saved-rosters.ts::deriveEnabledRosterRules`).
-const ROOM_RULE = {
-  id: "rule_ct_pacing",
-  name: "Periodic pacing nudge",
-  enabled: true,
-  rulePresetId: "pacingNudge",
-  rulePresetKnobs: { everyN: 12, steer: "Take stock of the pacing: raise a complication, or let the scene breathe." },
-  createdAt: 5,
-};
-
+const ROOM_RULES: TrpcFixtureOutput<"automation.listRules"> = [
+  {
+    id: "rule_ct_pacing",
+    name: "Periodic pacing nudge",
+    enabled: true,
+    rulePresetId: "pacingNudge",
+    rulePresetKnobs: { everyN: 12, steer: "Take stock of the pacing: raise a complication, or let the scene breathe." },
+    createdAt: 5,
+  },
+];
 /** The catalogue row the gloss reads its knob LABELS off (never hand-spelled per preset). */
 const PACING_PRESET: RulePresetView = {
   id: "pacingNudge",
@@ -78,16 +80,15 @@ const PACING_PRESET: RulePresetView = {
 };
 
 /** The open room the host stories act on — `chat.getChat`'s shape, narrowed to what the picker reads. */
-const HOST_CHAT = {
+const HOST_CHAT: TrpcFixtureOutput<"chat.getChat"> = {
   id: "chat_roster_ct",
   viewerIsHost: true,
   anchorPersonaId: null,
-  group: null,
   participants: [{ id: "participant_ct_1", kind: "character", characterId: "character_ct_1", talkativeness: 0.5, disabled: false, leftSeq: null }],
 };
 
 /** The apply result's arms, defaulted — a test names only the arm it drives. */
-function applyResult(over: Record<string, unknown> = {}): Record<string, unknown> {
+function applyResult(over: Partial<TrpcFixtureOutput<"rosterPreset.applyToChat">> = {}): TrpcFixtureOutput<"rosterPreset.applyToChat"> {
   return { added: [], alreadyPresent: [], skipped: [], configApplied: false, rulesMinted: [], rulesAlreadyPresent: [], rulesSkipped: [], ...over };
 }
 
@@ -148,7 +149,7 @@ test("#848: a HOST's empty library offers no room-abandoning CTA, and says why S
 test("delete rides the ConfirmDialog and fires the REAL remove wire call with the row's presetId", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "rosterPreset.list": [ROSTER_A],
-    "rosterPreset.remove": {},
+    "rosterPreset.remove": undefined,
     "automation.listRulePresets": [PACING_PRESET],
     "automation.listRules": [],
   });
@@ -178,10 +179,10 @@ test("delete rides the ConfirmDialog and fires the REAL remove wire call with th
 // The geometry mount is the HOSTED room, which is where the defect lives and where a host meets it: the
 // picker is reached from the room's Members toolbar, so the row carries THREE actions (Start · Add to this
 // chat · Delete), not the library plane's two.
-const GEOMETRY_ROUTES = {
+const GEOMETRY_ROUTES: TrpcRoutes<"rosterPreset.list" | "chat.getChat" | "automation.listRules" | "automation.listRulePresets"> = {
   "rosterPreset.list": [ROSTER_A, ROSTER_B],
   "chat.getChat": HOST_CHAT,
-  "automation.listRules": [ROOM_RULE],
+  "automation.listRules": ROOM_RULES,
   "automation.listRulePresets": [PACING_PRESET],
 };
 
@@ -304,7 +305,7 @@ test("Start reports the rules it switched on plus each skipped rule's REASON, an
     "rosterPreset.applyToChat": applyResult({
       added: ["character_ct_1", "character_ct_2"],
       rulesMinted: ["pacingNudge"],
-      rulesSkipped: [{ rulePresetId: "loreAutoAdd", reason: "this chat has no world book attached" }],
+      rulesSkipped: [{ rulePresetId: "autoAddLore", reason: "this chat has no world book attached" }],
     }),
   });
 
@@ -323,7 +324,7 @@ test("the add-to-chat door reports an idempotent re-apply without a leading 'Add
   await routeTrpc(page, {
     "rosterPreset.list": [ROSTER_A],
     "chat.getChat": HOST_CHAT,
-    "automation.listRules": [ROOM_RULE],
+    "automation.listRules": ROOM_RULES,
     "automation.listRulePresets": [PACING_PRESET],
     "rosterPreset.applyToChat": applyResult({ alreadyPresent: ["character_ct_1", "character_ct_2"], rulesAlreadyPresent: ["pacingNudge"] }),
   });
@@ -340,7 +341,7 @@ test("the include-line names each rule WITH its resolved knobs", async ({ mount,
   await routeTrpc(page, {
     "rosterPreset.list": [ROSTER_A],
     "chat.getChat": HOST_CHAT,
-    "automation.listRules": [ROOM_RULE],
+    "automation.listRules": ROOM_RULES,
     "automation.listRulePresets": [PACING_PRESET],
   });
 

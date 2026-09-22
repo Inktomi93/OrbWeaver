@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-09-21
+---
+
 # Brand boundary audit — merged tree 5438cf0e4f5e
 
 This is a TypeScript-checker audit, not a regex census. It used one native tsconfig project per process through `pnpm exec node`, resolved unique-symbol brand properties and declarations, compared assignability, classified Zod input/output types, and then used real ast-grep over 6457 TS + 1409 TSX files as independent structural corroboration. `rg` only located source for reading.

@@ -3,6 +3,7 @@ import { characterProvenanceOf } from "@orb/contracts/character";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
+import type { TrpcResponder, TrpcRoutes, TrpcWireOutput } from "../../../support/node/route-trpc.ts";
 import { VIEWER_AMBIENT_ROUTES } from "../fixtures.ts";
 
 // Character CT fixtures — plain client read-model literals matching `CharacterSummary`'s wire shape
@@ -32,60 +33,20 @@ const DEFAULT_PROVENANCE: CharacterProvenance = "authored";
  * NOT A CEILING: a file whose subject IS one of these lists the same key AFTER the spread and wins
  * (character-editor-surface.ct.tsx's `suggestionFixtures()` is exactly that).
  */
-export const CHARACTER_EDITOR_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
-  ...VIEWER_AMBIENT_ROUTES,
-  // `RegexScriptRow[]` — the scripts attached to this character, in execution order
-  // (domain/regex/verbs/attachments/list-for-character.ts).
-  "regex.listForCharacter": [],
-  // `TagSuggestionView[]` — the owner-scoped read of STAGED (`status:'pending'`) tag suggestions
-  // (domain/tag/verbs/list-pending-suggestions.ts).
-  "tag.listPendingSuggestions": [],
-};
+export const CHARACTER_EDITOR_AMBIENT_ROUTES: TrpcRoutes<"sessions.me" | "settings.getUserSettings" | "regex.listForCharacter" | "tag.listPendingSuggestions"> =
+  {
+    ...VIEWER_AMBIENT_ROUTES,
+    // `RegexScriptRow[]` — the scripts attached to this character, in execution order
+    // (domain/regex/verbs/attachments/list-for-character.ts).
+    "regex.listForCharacter": [],
+    // `TagSuggestionView[]` — the owner-scoped read of STAGED (`status:'pending'`) tag suggestions
+    // (domain/tag/verbs/list-pending-suggestions.ts).
+    "tag.listPendingSuggestions": [],
+  };
 
-export interface CharacterSummaryFixtureTag {
-  readonly id: string;
-  readonly name: string;
-  readonly color: string | null;
-  readonly color2: string | null;
-  readonly source: string | null;
-  readonly folderType: string;
-  readonly sortOrder: number | null;
-  readonly isHiddenOnCard: boolean;
-}
+export type CharacterSummaryFixtureTag = TrpcWireOutput<"character.list">["items"][number]["tags"][number];
 
-/** The `character.list` row shape (CharacterSummary) — a plain fixture literal, see header. */
-export interface CharacterSummaryFixture {
-  readonly id: string;
-  readonly handle: CharacterHandle;
-  readonly name: string;
-  readonly starred: boolean;
-  readonly archived: boolean;
-  readonly forbidExternalMedia: boolean | null;
-  readonly trustHtml: boolean | null;
-  readonly themeOverride: Record<string, unknown> | null;
-  readonly avatarAssetId: string | null;
-  readonly avatarHash: string | null;
-  readonly createdAt: number;
-  readonly tokenSize: number;
-  readonly tags: readonly CharacterSummaryFixtureTag[];
-  readonly elevatorPitch: string | null;
-  readonly lastChattedAt: number | null;
-  /** #1662 — WHICH room that stamp belongs to (`CharacterSummary.lastChatId`); null = never chatted. The
-   *  landing's Recently-chatted faces are a door into it, so a fixture that omits it renders an OPEN door
-   *  where the product renders a RESUME one. */
-  readonly lastChatId: string | null;
-  /** #865 — the `character_stats.chats` rollup, projected onto the row (0 when the join misses; never null). */
-  readonly chatCount: number;
-  /** #865 — the CLOSED where-it-came-from verdict the server derives once (`characterProvenanceOf`). The
-   *  REAL union, not a loose string: the brands are what this file spells as plain strings (they are
-   *  compile-time only), and a closed wire vocabulary is a value a fixture must not be able to invent. */
-  readonly provenance: CharacterProvenance;
-  /** #517 — does ANOTHER of this owner's characters carry the same name (case-insensitively)? The server
-   *  answers it library-wide; {@link characterListResponder} recomputes it over the whole fixture library
-   *  for the same reason the handle is derived from the name — a fixture whose shape the server cannot mint
-   *  tests a product nobody ships. Hand-built page responders set it themselves. */
-  readonly nameIsAmbiguous: boolean;
-}
+export type CharacterSummaryFixture = TrpcWireOutput<"character.list">["items"][number];
 
 export function makeTagFixture(overrides: Partial<CharacterSummaryFixtureTag> = {}): CharacterSummaryFixtureTag {
   return {
@@ -101,52 +62,7 @@ export function makeTagFixture(overrides: Partial<CharacterSummaryFixtureTag> = 
   };
 }
 
-/** The `character.get` row shape (CharacterDetail = the full card + identity columns) — the editor read. A
- *  plain fixture literal (see header); `routeTrpc` fulfills it as raw JSON. */
-export interface CharacterDetailFixture {
-  readonly id: string;
-  readonly handle: CharacterHandle;
-  readonly name: string;
-  readonly description: string | null;
-  readonly personality: string | null;
-  readonly scenario: string | null;
-  readonly greetings: readonly { readonly text: string; readonly groupOnly?: boolean }[];
-  readonly exampleMessages: string | null;
-  readonly systemPrompt: string | null;
-  readonly postHistoryInstructions: string | null;
-  readonly depthPrompt: {
-    readonly prompt: string;
-    readonly depth: number;
-    readonly role?: string;
-  } | null;
-  readonly creatorNotes: string | null;
-  readonly creator: string | null;
-  readonly cardVersion: string | null;
-  readonly regexScripts: readonly Record<string, unknown>[];
-  readonly extensions: Record<string, unknown> | null;
-  readonly residualData: Record<string, unknown> | null;
-  readonly avatarAssetId: string | null;
-  readonly refinery: {
-    readonly score: number | null;
-    readonly analysis: Record<string, unknown> | null;
-  } | null;
-  readonly starred: boolean;
-  readonly archived: boolean;
-  readonly synthetic: boolean;
-  readonly forbidExternalMedia: boolean | null;
-  readonly trustHtml: boolean | null;
-  readonly interactiveHtml: boolean | null;
-  readonly themeOverride: Record<string, unknown> | null;
-  readonly importedFrom: string | null;
-  readonly importHash: string | null;
-  /** #865 — the server-derived provenance verdict the Origin readout DISPATCHES on (it no longer re-derives
-   *  it from `importedFrom` + `creator`, so a story that wants the shipped arm states THIS, not the creator). */
-  readonly provenance: CharacterProvenance;
-  readonly contentHash: string;
-  readonly createdAt: number;
-  readonly avatarHash: string | null;
-  readonly tags: readonly CharacterSummaryFixtureTag[];
-}
+export type CharacterDetailFixture = TrpcWireOutput<"character.get">;
 
 /** A fully-valid `CharacterDetail` literal (the editor read).
  *
@@ -180,6 +96,10 @@ export function makeCharacterDetail(overrides: Partial<CharacterDetailFixture> =
     creatorNotes: null,
     creator: null,
     cardVersion: null,
+    nickname: null,
+    source: null,
+    creationDate: null,
+    modificationDate: null,
     regexScripts: [],
     extensions: null,
     residualData: null,
@@ -192,6 +112,7 @@ export function makeCharacterDetail(overrides: Partial<CharacterDetailFixture> =
     trustHtml: null,
     interactiveHtml: null,
     themeOverride: null,
+    backgroundOverride: null,
     importedFrom: null,
     importHash: null,
     contentHash: "hash_ct_1",
@@ -228,6 +149,7 @@ export function makeCharacterSummary(overrides: Partial<CharacterSummaryFixture>
     tags: [],
     elevatorPitch: null,
     lastChattedAt: null,
+    backgroundOverride: null,
     lastChatId: null,
     chatCount: 0,
     provenance: DEFAULT_PROVENANCE,
@@ -237,13 +159,10 @@ export function makeCharacterSummary(overrides: Partial<CharacterSummaryFixture>
   return { ...base, handle: overrides.handle ?? castId<CharacterHandle>(slugifyHandle(base.name)) };
 }
 
-/** One `character.list` page (`ListCharactersResult`) — `totalCount` is the server's census over the
- *  request's scope, which the library's live region and the list band both print. */
-export interface CharacterListPageFixture {
-  readonly items: readonly CharacterSummaryFixture[];
-  readonly nextCursor: { readonly sort: "recent"; readonly lastChattedAt: number | null; readonly createdAt: number; readonly id: string } | null;
-  readonly totalCount: number;
-}
+type CharacterListPageFixture = TrpcWireOutput<"character.list">;
+type FunctionResponder<T> = T extends (input: infer TInput) => infer TOutput ? (input: TInput) => TOutput : never;
+export type CharacterListResponder = FunctionResponder<TrpcResponder<"character.list">>;
+type CharacterListInput = NonNullable<Parameters<CharacterListResponder>[0]>;
 
 /**
  * An INPUT-AWARE `character.list` responder — the stub applies the same narrowing the server does (`search`
@@ -257,7 +176,7 @@ export interface CharacterListPageFixture {
  * The `chat.listChats` twin (`features/chat/fixtures.ts`) is the shape this mirrors. Ordering is the
  * ARRAY's — a fixture author states the order they want to assert; the cursor is the last served row's id.
  */
-export function characterListResponder(all: readonly CharacterSummaryFixture[]): (input: unknown) => CharacterListPageFixture {
+export function characterListResponder(all: readonly CharacterSummaryFixture[]): CharacterListResponder {
   // #517 — the AMBIGUITY signal is LIBRARY-WIDE and lens-independent, exactly as the server computes it
   // (`ambiguousNamesFor`): a name is ambiguous when another of the owner's characters carries it, whatever
   // the current page or filter happens to hold. Derived here once so no fixture can claim an ambiguity the
@@ -268,16 +187,8 @@ export function characterListResponder(all: readonly CharacterSummaryFixture[]):
     nameCounts.set(key, (nameCounts.get(key) ?? 0) + 1);
   }
   const stamped = all.map((character) => ({ ...character, nameIsAmbiguous: (nameCounts.get(character.name.toLowerCase()) ?? 0) > 1 }));
-  return (input: unknown): CharacterListPageFixture => {
-    const args = (input ?? {}) as {
-      search?: string;
-      starred?: boolean;
-      archived?: boolean;
-      includeTagIds?: readonly string[];
-      excludeTagIds?: readonly string[];
-      limit?: number;
-      cursor?: { id?: string };
-    };
+  return (input: Parameters<CharacterListResponder>[0]): CharacterListPageFixture => {
+    const args: CharacterListInput = input ?? {};
     const needle = args.search?.trim().toLowerCase() ?? "";
     // `wanted` rather than `tagId`: fixture ids are plain wire strings (see the header), and a `tagId:
     // string` parameter is a `brand-in-name-position` violation — the gate is right, the fixture layer is

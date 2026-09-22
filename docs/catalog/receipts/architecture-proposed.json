@@ -2286,13 +2286,13 @@
     },
     {
       "path": "docs/architecture/proposed/expressions-design/README.md",
-      "assignedSha256": "b39e1a86ba0616bf9fddae66faed983e4665c08077cd87425b4ea9d38f1bb78d",
+      "assignedSha256": "430c170fcb692076bfcf406a4cc293a9d9c078fba27e59149dc694ef9946fd70",
       "disposition": "needs-owner",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "b39e1a86ba0616bf9fddae66faed983e4665c08077cd87425b4ea9d38f1bb78d",
-      "verifiedCommit": "2d0807247befdd5e615711bf0abf2c177f534561",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "430c170fcb692076bfcf406a4cc293a9d9c078fba27e59149dc694ef9946fd70",
+      "verifiedCommit": "8f7ed4c4b98c112429c3918483f3a172f66ae184",
+      "verifiedAt": "2026-09-22",
       "evidence": [
         "docs/architecture/proposed/expressions-design/README.md:1 (full read; lifecycle/frontmatter evaluated)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
@@ -2326,17 +2326,18 @@
             }
           ]
         }
-      ]
+      ],
+      "verifiedCanonicalSha256": "c2afbc0a613bbfc499658b5b82be2fc7ca0a834447cfb68710a5dbee730ed80d"
     },
     {
       "path": "docs/architecture/proposed/hub-browse-design/01-network-guard.md",
-      "assignedSha256": "f7b1d5793b8c5a20e05541385c0cf8800ab83080325fed637aeabc0d044523e3",
+      "assignedSha256": "ff7e47be3549f96178b3ac5a29549fa37e5a293997e9222728e53fd7e52dea0c",
       "disposition": "needs-owner",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "f7b1d5793b8c5a20e05541385c0cf8800ab83080325fed637aeabc0d044523e3",
-      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
-      "verifiedAt": "2026-08-30",
+      "verifiedSha256": "ff7e47be3549f96178b3ac5a29549fa37e5a293997e9222728e53fd7e52dea0c",
+      "verifiedCommit": "8f7ed4c4b98c112429c3918483f3a172f66ae184",
+      "verifiedAt": "2026-09-22",
       "evidence": [
         "docs/architecture/proposed/hub-browse-design/01-network-guard.md:1 (full read; lifecycle/frontmatter evaluated)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
@@ -2375,17 +2376,18 @@
             }
           ]
         }
-      ]
+      ],
+      "verifiedCanonicalSha256": "a3ebdd39a03f227b76365cdd7f1998ae3acf86a81c819afed2ee31f0cb22f80f"
     },
     {
       "path": "docs/architecture/proposed/hub-browse-design/02-domain-and-adapters.md",
-      "assignedSha256": "7e74fcad439277d7881a39c355f4cf54c175685b04a45ac4053229647ae1d846",
+      "assignedSha256": "6371ef60740c2582d2cefc3d003364a1492c6cf56487d345c5880d4842bcc739",
       "disposition": "needs-owner",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "7e74fcad439277d7881a39c355f4cf54c175685b04a45ac4053229647ae1d846",
-      "verifiedCommit": "2d0807247befdd5e615711bf0abf2c177f534561",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "6371ef60740c2582d2cefc3d003364a1492c6cf56487d345c5880d4842bcc739",
+      "verifiedCommit": "8f7ed4c4b98c112429c3918483f3a172f66ae184",
+      "verifiedAt": "2026-09-22",
       "evidence": [
         "docs/architecture/proposed/hub-browse-design/02-domain-and-adapters.md:1 (full read; lifecycle/frontmatter evaluated)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
@@ -2423,7 +2425,8 @@
             }
           ]
         }
-      ]
+      ],
+      "verifiedCanonicalSha256": "920e908055ad083b795fe6a6f1e7393d8298cbc19c04d0f68cb5ef81c1bb41ea"
     },
     {
       "path": "docs/architecture/proposed/hub-browse-design/03-flow-rings-and-client.md",
@@ -2811,13 +2814,13 @@
     },
     {
       "path": "docs/architecture/proposed/INDEX.md",
-      "assignedSha256": "b781289c550c2c326b0e1e7c27c6273f80a3077fdb2722161b54fb7b15b80521",
+      "assignedSha256": "79ef387321ceac754172a4241bb7472bc4d78c7cd14bac837c6b9549b138eaf2",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "b781289c550c2c326b0e1e7c27c6273f80a3077fdb2722161b54fb7b15b80521",
-      "verifiedCommit": "ee4a545f633d9f20f35f225e144aa16e2d22821e",
-      "verifiedAt": "2026-09-10",
+      "verifiedSha256": "79ef387321ceac754172a4241bb7472bc4d78c7cd14bac837c6b9549b138eaf2",
+      "verifiedCommit": "8f7ed4c4b98c112429c3918483f3a172f66ae184",
+      "verifiedAt": "2026-09-22",
       "evidence": [
         "Full index read; world-program row removed with its archived record and future Home tile in the closeout candidate. Remaining program rows are unchanged. The source roadmap parity test and rendered roadmap control both pass.",
         "re-attested at bbecbfc78 — full-file read under #930; the superseded D66 program row moved out of proposed with the document, leaving no duplicate lifecycle status",
@@ -2844,17 +2847,18 @@
             }
           ]
         }
-      ]
+      ],
+      "verifiedCanonicalSha256": "79ef387321ceac754172a4241bb7472bc4d78c7cd14bac837c6b9549b138eaf2"
     },
     {
       "path": "docs/architecture/proposed/message-reactions-mini-spec.md",
-      "assignedSha256": "ac31da0ea593a84b62a9ef49102572fdbc3a3234e78478f7d066d1afa4237eef",
+      "assignedSha256": "4bb3a6be365527526c562841cfe2e9d6b73c8f89a5c6ceef6933d9e57da0e3af",
       "disposition": "needs-owner",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "ac31da0ea593a84b62a9ef49102572fdbc3a3234e78478f7d066d1afa4237eef",
-      "verifiedCommit": "2d0807247befdd5e615711bf0abf2c177f534561",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "4bb3a6be365527526c562841cfe2e9d6b73c8f89a5c6ceef6933d9e57da0e3af",
+      "verifiedCommit": "8f7ed4c4b98c112429c3918483f3a172f66ae184",
+      "verifiedAt": "2026-09-22",
       "evidence": [
         "docs/architecture/proposed/message-reactions-mini-spec.md:1 (full read; lifecycle/frontmatter evaluated)",
         "docs/architecture/proposed/INDEX.md:1 (parked/non-authoritative program routing)",
@@ -2888,7 +2892,8 @@
             }
           ]
         }
-      ]
+      ],
+      "verifiedCanonicalSha256": "4bb3a6be365527526c562841cfe2e9d6b73c8f89a5c6ceef6933d9e57da0e3af"
     },
     {
       "path": "docs/architecture/proposed/plugin-design/01-runtime-and-membrane.md",
@@ -2945,13 +2950,13 @@
     },
     {
       "path": "docs/architecture/proposed/plugin-design/02-manifest-capabilities-lifecycle.md",
-      "assignedSha256": "866857af94a8c10dbd81c8a11ea712770d1631cf29716f6ca216e88d228f91f2",
+      "assignedSha256": "8c62e6b6f4773ee3701474e8ab8d046819e2b3f0c37462cec6ea183de4baaa70",
       "disposition": "needs-owner",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "866857af94a8c10dbd81c8a11ea712770d1631cf29716f6ca216e88d228f91f2",
-      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
-      "verifiedAt": "2026-08-30",
+      "verifiedSha256": "8c62e6b6f4773ee3701474e8ab8d046819e2b3f0c37462cec6ea183de4baaa70",
+      "verifiedCommit": "8f7ed4c4b98c112429c3918483f3a172f66ae184",
+      "verifiedAt": "2026-09-22",
       "evidence": [
         "docs/architecture/proposed/plugin-design/02-manifest-capabilities-lifecycle.md:1 (full read; lifecycle/frontmatter evaluated)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
@@ -2994,7 +2999,8 @@
             }
           ]
         }
-      ]
+      ],
+      "verifiedCanonicalSha256": "8c62e6b6f4773ee3701474e8ab8d046819e2b3f0c37462cec6ea183de4baaa70"
     },
     {
       "path": "docs/architecture/proposed/plugin-design/03-execution-model.md",

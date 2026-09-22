@@ -231,6 +231,31 @@ export const posts = table("posts", { id: text("id"), userId: text("user_id").no
   expect(queriedColumn.identity.key).toContain("#posts.userId");
 });
 
+test("derives table-level composite foreign keys with exact child and parent column identities", () => {
+  const { query } = queryOf({
+    "packages/db/src/schema/x.ts": `import { foreignKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+export const providers = sqliteTable("providers", { id: text("id").primaryKey(), hash: text("hash") }, (t) => [
+  uniqueIndex("providers_identity").on(t.id, t.hash),
+]);
+export const contributions = sqliteTable("contributions", { providerId: text("provider_id"), definitionHash: text("definition_hash") }, (t) => [
+  foreignKey({ columns: [t.providerId, t.definitionHash], foreignColumns: [providers.id, providers.hash] }).onDelete("cascade"),
+]);`,
+  });
+
+  const fact = query.schema();
+  const contributions = ready(fact).tables.find((table) => table.identity.declarationName === "contributions");
+  expect(contributions?.foreignKeys).toHaveLength(1);
+  expect(contributions?.foreignKeys[0]).toMatchObject({
+    children: [{ propertyName: "providerId" }, { propertyName: "definitionHash" }],
+    parents: [
+      { kind: "population-column", column: { propertyName: "id" } },
+      { kind: "population-column", column: { propertyName: "hash" } },
+    ],
+    onDelete: { kind: "specified", value: "cascade" },
+  });
+  expect(fact.receipt).toMatchObject({ tables: 2, columns: 4, foreignKeys: 1, indexes: 1, members: 8 });
+});
+
 test("derives canonical kit id brands without treating arbitrary type overrides as ids", () => {
   const { query } = queryOf({
     "packages/kit/src/ids/index.ts":

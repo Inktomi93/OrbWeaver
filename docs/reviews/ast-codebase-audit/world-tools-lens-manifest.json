@@ -66,16 +66,8 @@
     }
   ],
   "testCoverageGaps": {
-    "noFocusedCommandOrCollectorTest": [
-      "refs",
-      "importers",
-      "cycles",
-      "aliases",
-      "reaches"
-    ],
-    "failurePathOnly": [
-      "flow"
-    ],
+    "noFocusedCommandOrCollectorTest": ["refs", "importers", "cycles", "aliases", "reaches"],
+    "failurePathOnly": ["flow"],
     "note": "dead has a real CLI dispatch test for an absent symbol plus collector-level behavior tests; it is not a positive end-to-end reference-resolution proof for refs."
   },
   "minimalFixPlanIfClaimed": {
@@ -85,12 +77,7 @@
       "Update usage.ts's three-corpus prose and remove the false ident scripts/dev zero example."
     ],
     "redFirstProof": "Add a tiny isolated workspace or existing production-verb test with a scripts/dev/*.ts identifier. Drive the production load/ledger path and assert the syntactic run scans and finds it while the epilogue scope text names scripts. Also assert the excluded SillyTavern capture remains outside the corpus.",
-    "nonGoals": [
-      "No corpus expansion",
-      "No typed-world changes",
-      "No lens algorithm changes",
-      "No CLI verb redesign"
-    ]
+    "nonGoals": ["No corpus expansion", "No typed-world changes", "No lens algorithm changes", "No CLI verb redesign"]
   },
   "verbs": [
     {
@@ -112,9 +99,7 @@
       "category": "query-navigation",
       "implementation": "tooling/src/ast/ops/symbols.ts#cmdCallers",
       "corpus": "syntactic",
-      "tests": [
-        "tests/tooling/ast/ops/verbs.test.ts (absent result and ledger)"
-      ],
+      "tests": ["tests/tooling/ast/ops/verbs.test.ts (absent result and ledger)"],
       "recommendedRun": "pnpm ast callers <function-or-method-tail> --in <narrow-path> --json",
       "rootSemantics": "Tests and production files are searched equally; no prod/test classification.",
       "risk": "high-if-used-as-identity",
@@ -125,9 +110,7 @@
       "category": "audit-candidate",
       "implementation": "tooling/src/ast/ops/subset-callers.ts#cmdSubsetCallers",
       "corpus": "syntactic",
-      "tests": [
-        "tests/tooling/ast/ops/subset-callers.test.ts"
-      ],
+      "tests": ["tests/tooling/ast/ops/subset-callers.test.ts"],
       "recommendedRun": "pnpm ast subset-callers <domain-verb-or-hook> --in <feature-path> --json",
       "rootSemantics": "Compares direct and recognized client mutation doors across loaded production and test syntax; unresolved/escaping doors are named rather than treated clean.",
       "risk": "medium",
@@ -149,10 +132,7 @@
       "category": "query-navigation",
       "implementation": "tooling/src/ast/ops/symbols.ts#cmdExports",
       "corpus": "syntactic",
-      "tests": [
-        "tests/tooling/ast/ops/verbs.test.ts",
-        "tests/tooling/ast/cli.repo.int.test.ts"
-      ],
+      "tests": ["tests/tooling/ast/ops/verbs.test.ts", "tests/tooling/ast/cli.repo.int.test.ts"],
       "recommendedRun": "pnpm ast exports <file-or-directory-substring> --json --max <complete-count>",
       "rootSemantics": "Enumerates resolved exported declarations from every matched loaded file; test paths can be targeted explicitly.",
       "risk": "low-medium",
@@ -163,10 +143,7 @@
       "category": "query-navigation",
       "implementation": "tooling/src/ast/ops/symbols.ts#cmdJsx",
       "corpus": "syntactic",
-      "tests": [
-        "tests/tooling/ast/ops/verbs.test.ts",
-        "tests/tooling/ast/cli.repo.int.test.ts"
-      ],
+      "tests": ["tests/tooling/ast/ops/verbs.test.ts", "tests/tooling/ast/cli.repo.int.test.ts"],
       "recommendedRun": "pnpm ast jsx <tag-spelling> --in <ui-path> --json",
       "rootSemantics": "Production and test TSX are searched equally.",
       "risk": "medium",
@@ -177,10 +154,7 @@
       "category": "query-navigation",
       "implementation": "tooling/src/ast/ops/symbols.ts#cmdIdent",
       "corpus": "syntactic",
-      "tests": [
-        "tests/tooling/ast/ops/verbs.test.ts",
-        "tests/tooling/ast/cli.repo.int.test.ts"
-      ],
+      "tests": ["tests/tooling/ast/ops/verbs.test.ts", "tests/tooling/ast/cli.repo.int.test.ts"],
       "recommendedRun": "pnpm ast ident <exact-identifier> --json",
       "rootSemantics": "Production, tests, tooling, and scripts in harnessGlobs are all searched.",
       "risk": "medium",
@@ -191,10 +165,7 @@
       "category": "query-navigation",
       "implementation": "tooling/src/ast/ops/symbols.ts#cmdLiteral",
       "corpus": "wideSyntactic",
-      "tests": [
-        "tests/tooling/ast/ops/verbs.test.ts",
-        "tests/tooling/ast/cli.repo.int.test.ts"
-      ],
+      "tests": ["tests/tooling/ast/ops/verbs.test.ts", "tests/tooling/ast/cli.repo.int.test.ts"],
       "recommendedRun": "pnpm ast literal <wire-value-or-label> --json --max <complete-count>",
       "rootSemantics": "Intentionally searches production, tests, fixtures, scripts, package roots, MTS, and Playwright TSX.",
       "risk": "low",
@@ -205,10 +176,7 @@
       "category": "audit-candidate",
       "implementation": "tooling/src/ast/ops/dead.ts#cmdDead",
       "corpus": "typed",
-      "tests": [
-        "tests/tooling/ast/index.test.ts",
-        "tests/tooling/ast/cli.repo.int.test.ts (absent query dispatch)"
-      ],
+      "tests": ["tests/tooling/ast/index.test.ts", "tests/tooling/ast/cli.repo.int.test.ts (absent query dispatch)"],
       "recommendedRun": "pnpm ast dead <exact-symbol> --json --max <complete-count>",
       "rootSemantics": "Separates production references from test-path references; re-export pass-through is not consumption. Verdict priority is ALIVE, SWALLOWED-ONLY, TAGGED-KEEP, TEST-ANCHORED, CANDIDATE.",
       "risk": "medium",
@@ -219,9 +187,7 @@
       "category": "audit-candidate",
       "implementation": "tooling/src/ast/ops/orphans.ts#cmdOrphans",
       "corpus": "typed",
-      "tests": [
-        "tests/tooling/ast/index.test.ts"
-      ],
+      "tests": ["tests/tooling/ast/index.test.ts"],
       "recommendedRun": "pnpm ast orphans <package-or-source-path> --json --max <complete-count>",
       "rootSemantics": "Any production import, any test import, or declaration-identity same-file use keeps an export alive. Test-only code therefore is deliberately not an orphan.",
       "risk": "medium",
@@ -232,9 +198,7 @@
       "category": "audit-candidate",
       "implementation": "tooling/src/ast/ops/orphans.ts#cmdTestOnly",
       "corpus": "typed",
-      "tests": [
-        "tests/tooling/ast/index.test.ts"
-      ],
+      "tests": ["tests/tooling/ast/index.test.ts"],
       "recommendedRun": "pnpm ast testonly <package-or-source-path> --json --max <complete-count>",
       "rootSemantics": "Reports exports reached by tests but not production or same-file production use; __-prefixed declared test seams are named in a non-hit bucket.",
       "risk": "medium",
@@ -245,9 +209,7 @@
       "category": "audit-candidate",
       "implementation": "tooling/src/ast/ops/prodonly.ts#cmdProdOnly",
       "corpus": "typed",
-      "tests": [
-        "tests/tooling/ast/index.test.ts"
-      ],
+      "tests": ["tests/tooling/ast/index.test.ts"],
       "recommendedRun": "pnpm ast prodonly <package-or-source-path> --json --max <complete-count>",
       "rootSemantics": "File reachability starts from package.json exports, knip workspace entries, package scripts, and explicit production anchors. Tests are neither entries nor graph nodes; test-only-reachable files are findings.",
       "risk": "medium-high",
@@ -280,9 +242,7 @@
       "category": "audit-candidate",
       "implementation": "tooling/src/ast/ops/wiring.ts#cmdUnwired",
       "corpus": "typed",
-      "tests": [
-        "tests/tooling/ast/index.test.ts"
-      ],
+      "tests": ["tests/tooling/ast/index.test.ts"],
       "recommendedRun": "pnpm ast unwired [namespace-or-procedure-substring] --json --max <complete-count>",
       "rootSemantics": "Server procedure declarations are compared only with non-test client production trpc chains and Trpc indexed-access inference.",
       "risk": "medium",
@@ -293,9 +253,7 @@
       "category": "audit-candidate",
       "implementation": "tooling/src/ast/ops/wiring.ts#cmdClientGap",
       "corpus": "typed",
-      "tests": [
-        "tests/tooling/ast/index.test.ts"
-      ],
+      "tests": ["tests/tooling/ast/index.test.ts"],
       "recommendedRun": "pnpm ast clientgap contracts --json --max <complete-count>",
       "rootSemantics": "Requires server-production consumption and excludes client-production and test consumption. Default contracts scope narrows to *View/*Summary names.",
       "risk": "high-clean-is-weak",
@@ -306,9 +264,7 @@
       "category": "audit-candidate",
       "implementation": "tooling/src/ast/ops/viewgap.ts#cmdViewGap",
       "corpus": "syntactic",
-      "tests": [
-        "tests/tooling/ast/index.test.ts"
-      ],
+      "tests": ["tests/tooling/ast/index.test.ts"],
       "recommendedRun": "pnpm ast viewgap [field-owner-or-path] --json --max <complete-count>",
       "rootSemantics": "Owners come from contracts/server production *View/*Summary declarations; readers are non-test packages/client/src files only.",
       "risk": "high-clean-is-weak",
@@ -319,9 +275,7 @@
       "category": "audit-candidate",
       "implementation": "tooling/src/ast/ops/swallowed.ts#cmdSwallowed",
       "corpus": "typed",
-      "tests": [
-        "tests/tooling/ast/index.test.ts"
-      ],
+      "tests": ["tests/tooling/ast/index.test.ts"],
       "recommendedRun": "pnpm ast swallowed [package-or-source-path] --json --max <complete-count>",
       "rootSemantics": "A named import in production or tests, same-file use, or an explicit namespace member read removes the candidate; remaining exports are alive only through whole-module namespace consumption.",
       "risk": "high-candidate-only",
@@ -332,9 +286,7 @@
       "category": "audit-candidate",
       "implementation": "tooling/src/ast/ops/respell.ts#cmdRespell",
       "corpus": "typed",
-      "tests": [
-        "tests/tooling/ast/index.test.ts"
-      ],
+      "tests": ["tests/tooling/ast/index.test.ts"],
       "recommendedRun": "pnpm ast respell [domain] --near 80 --json --max <complete-count>",
       "rootSemantics": "Compares server domain contract shapes with sibling @orb/contracts domain shapes in co-located native programs; tests are not the shape homes.",
       "risk": "medium-high",
@@ -345,9 +297,7 @@
       "category": "audit-candidate",
       "implementation": "tooling/src/ast/ops/typeonly.ts#cmdTypeOnly",
       "corpus": "typed",
-      "tests": [
-        "tests/tooling/ast/index.test.ts"
-      ],
+      "tests": ["tests/tooling/ast/index.test.ts"],
       "recommendedRun": "pnpm ast typeonly-alive [package-or-source-path] --json --max <complete-count>",
       "rootSemantics": "Classifies all references by position, including tests; candidates have references but every reference is type-position. Unreferenced exports belong to orphans.",
       "risk": "medium-high",
@@ -358,11 +308,7 @@
       "category": "audit-candidate",
       "implementation": "tooling/src/ast/ops/columns.ts#cmdColumns",
       "corpus": "typed",
-      "tests": [
-        "tests/tooling/ast/index.test.ts",
-        "tests/tooling/ast/ops/verbs.test.ts",
-        "tests/tooling/ast/lib/emit.repo.int.test.ts (real table discovery)"
-      ],
+      "tests": ["tests/tooling/ast/index.test.ts", "tests/tooling/ast/ops/verbs.test.ts", "tests/tooling/ast/lib/emit.repo.int.test.ts (real table discovery)"],
       "recommendedRun": "pnpm ast columns [sql-table-variable-or-schema-path] --all --json --max <complete-count>",
       "rootSemantics": "Schema columns are production declarations; read references span the loaded workspace, while writes are structural insert/update/set sites. Tests can contribute references unless filtered by the collector's specific path rules.",
       "risk": "high-candidate-only",
@@ -373,10 +319,7 @@
       "category": "informational-heuristic",
       "implementation": "tooling/src/ast/ops/regkeys.ts#cmdRegKeys",
       "corpus": "syntactic",
-      "tests": [
-        "tests/tooling/ast/index.test.ts",
-        "tests/tooling/ast/ops/verbs.test.ts"
-      ],
+      "tests": ["tests/tooling/ast/index.test.ts", "tests/tooling/ast/ops/verbs.test.ts"],
       "recommendedRun": "pnpm ast regkeys [registry-name-or-file] --all --json --max <complete-count>",
       "rootSemantics": "Registry definitions and consumers exclude test paths; same-file qualified property reads count, while the row declaration itself does not.",
       "risk": "high-false-positive",
@@ -387,9 +330,7 @@
       "category": "informational-heuristic",
       "implementation": "tooling/src/ast/ops/registry-candidates.ts#cmdRegistryCandidates",
       "corpus": "syntactic",
-      "tests": [
-        "tests/tooling/ast/ops/registry-candidates.test.ts"
-      ],
+      "tests": ["tests/tooling/ast/ops/registry-candidates.test.ts"],
       "recommendedRun": "pnpm ast registry-candidates --json --max <complete-count>",
       "rootSemantics": "Only non-test, non-declaration production source files participate.",
       "risk": "high-human-triage",
@@ -400,9 +341,7 @@
       "category": "informational-heuristic",
       "implementation": "tooling/src/ast/ops/fields.ts#cmdContractFieldLiveness",
       "corpus": "syntactic",
-      "tests": [
-        "tests/tooling/ast/index.test.ts"
-      ],
+      "tests": ["tests/tooling/ast/index.test.ts"],
       "recommendedRun": "pnpm ast contract-field-liveness [field-owner-or-file] --json --max <complete-count>",
       "rootSemantics": "Field declarations come from packages/contracts/src; producer/consumer indexes exclude tests so fixtures do not keep a field alive.",
       "risk": "high-false-positive-and-negative",
@@ -413,9 +352,7 @@
       "category": "audit-candidate",
       "implementation": "tooling/src/ast/ops/chains.ts#cmdChains",
       "corpus": "typed",
-      "tests": [
-        "tests/tooling/ast/index.test.ts"
-      ],
+      "tests": ["tests/tooling/ast/index.test.ts"],
       "recommendedRun": "pnpm ast chains [package-or-source-path] --json --max <complete-count>",
       "rootSemantics": "Audits non-test packages/*/src declarations. Tests, scripts/configs outside package src, module-scope side effects, reasoned public markers, and every UI export are alive roots.",
       "risk": "high-amplification",
@@ -426,9 +363,7 @@
       "category": "audit-finding",
       "implementation": "tooling/src/ast/ops/stringy.ts#cmdStringy",
       "corpus": "typed",
-      "tests": [
-        "tests/tooling/ast/index.test.ts"
-      ],
+      "tests": ["tests/tooling/ast/index.test.ts"],
       "recommendedRun": "pnpm ast stringy [package-or-source-path] --json --max <complete-count>",
       "rootSemantics": "Examines aliases under package source; usage/test roots do not affect whether an alias resolves exactly to string.",
       "risk": "medium",
@@ -439,9 +374,7 @@
       "category": "audit-candidate",
       "implementation": "tooling/src/ast/ops/apisurface.ts#cmdApiSurface",
       "corpus": "typed",
-      "tests": [
-        "tests/tooling/ast/index.test.ts"
-      ],
+      "tests": ["tests/tooling/ast/index.test.ts"],
       "recommendedRun": "pnpm ast apisurface [package-or-source-path] --public --json --max <complete-count>",
       "rootSemantics": "Separates cross-package production/tooling consumers, own-package production consumers, tests, and no consumers into PUBLIC, INTERNAL, TEST-ONLY, and UNUSED.",
       "risk": "medium-high",
@@ -452,10 +385,7 @@
       "category": "audit-composite",
       "implementation": "tooling/src/ast/ops/rot.ts#cmdRot",
       "corpus": "typed",
-      "tests": [
-        "tests/tooling/ast/index.test.ts",
-        "tests/tooling/ast/ops/verbs.test.ts"
-      ],
+      "tests": ["tests/tooling/ast/index.test.ts", "tests/tooling/ast/ops/verbs.test.ts"],
       "recommendedRun": "pnpm ast rot <package-or-source-path> --json --max <complete-count>",
       "rootSemantics": "One native workspace/liveness build feeds orphans, testonly, chains, typeonly-alive, and swallowed collectors with their existing prod/test semantics.",
       "risk": "high-summary-only",
@@ -466,9 +396,7 @@
       "category": "query-navigation",
       "implementation": "tooling/src/ast/ops/depcruise.ts#runDepcruise(--focus)",
       "corpus": "depcruise",
-      "tests": [
-        "tests/tooling/ast/cli.repo.int.test.ts (broken subprocess refusal only)"
-      ],
+      "tests": ["tests/tooling/ast/cli.repo.int.test.ts (broken subprocess refusal only)"],
       "recommendedRun": "pnpm ast flow <module-pattern>",
       "rootSemantics": "Uses dependency-cruiser config rather than AST liveness buckets; returns direct edges both ways around the focus.",
       "risk": "medium",

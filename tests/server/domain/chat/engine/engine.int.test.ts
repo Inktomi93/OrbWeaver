@@ -9,12 +9,12 @@ import type { GenerationCapability } from "@orb/contracts/inference";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
-import { characterStats, chatLocks, chats, dailyStats, messages, messageVariants, ownerStats } from "@orb/db";
+import { characterStats, chatLocks, chatStreamEvents, chats, dailyStats, messages, messageVariants, ownerStats } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import type { ChatEvent, ChatResult } from "@orb/inference";
 import { generationOf, resolveChat } from "@orb/inference";
 import type { CharacterId, ChatId, Handle, MessageId, MessageVariantId, ModelId, UserId, WorldEntryId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { applyStatsDelta } from "@orb/server/domain/stats";
 import { createRunChatTurnBridge } from "@orb/server/entry/compose";
@@ -30,7 +30,7 @@ import { loadWitnessHorizons } from "../../../../../packages/server/src/domain/c
 import { recallMemory } from "../../../../../packages/server/src/domain/chat/memory/recall/recall.ts";
 import type { WitnessInterval } from "../../../../../packages/server/src/domain/chat/memory/types.ts";
 import { tryAcquireLock } from "../../../../../packages/server/src/domain/chat/persistence/lock.ts";
-import { loadCanonHistory, loadMaxMessageSeq, loadTurnOrigin } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
+import { loadCanonHistory, loadMaxMessageSeq, loadStreamReplay, loadTurnOrigin } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
 import { createTurnRetrievalWarningEpisode } from "../../../../../packages/server/src/domain/chat/substrate/turn-retrieval-warning.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { makeCapability } from "../../../../support/factories/resolved-connection.ts";
@@ -84,6 +84,7 @@ function prepOf(chatId: ChatId, over: Partial<TurnPrep> = {}): TurnPrep {
     assembleContext: ASSEMBLE_CTX,
     connection: testConnection(),
     triggeredBy: HOST,
+    funderUserId: HOST,
     runAsUserId: HOST,
     kind: "send",
     intent: {},
@@ -128,6 +129,8 @@ function harness(
   const deltas: StatsDelta[] = [];
   const chatChangedFans: { chatId: ChatId; options: unknown }[] = [];
   const ctx = makeChatContext(database, {
+    newStreamEventId: () => mintTypeId(ID_PREFIX.chatStreamEvent),
+    newStreamGenerationId: () => mintTypeId(ID_PREFIX.chatStreamGeneration),
     runChatTurn: over.runChatTurn ?? OK_TURN,
     ...(over.now !== undefined ? { now: over.now } : {}),
     ...(over.rpg !== undefined ? { rpg: over.rpg } : {}),
@@ -242,6 +245,41 @@ describe("createTurnEngine — the born message KIND", () => {
 });
 
 describe("createTurnEngine — happy path", () => {
+  test("commits streamed deltas to the resumable token log under the committed message root", async () => {
+    const chatId = await seedChat(db, "stream-log");
+    const h = harness(db, {
+      runChatTurn: scripted([
+        { kind: "reasoning", text: "think" },
+        { kind: "text", text: "Hi" },
+        { kind: "text", text: " there" },
+        { kind: "final", economics: { content: "Hi there", reasoning: "think", model: testModelId("test-model") } },
+      ]),
+    });
+
+    const outcome = await h.engine.runTurn(prepOf(chatId));
+    const messageId = outcome.messages[0]?.id;
+    expect(messageId).toBeDefined();
+
+    const rows = await db.select().from(chatStreamEvents).where(eq(chatStreamEvents.chatId, chatId)).orderBy(chatStreamEvents.seq);
+    expect(
+      rows.map(({ seq, chatId: rowChatId, messageId: rowMessageId, kind, delta }) => ({ seq, chatId: rowChatId, messageId: rowMessageId, kind, delta })),
+    ).toEqual([
+      { seq: 1, chatId, messageId, kind: "reasoning", delta: "think" },
+      { seq: 2, chatId, messageId, kind: "text", delta: "Hi" },
+      { seq: 3, chatId, messageId, kind: "text", delta: " there" },
+    ]);
+    expect(new Set(rows.map(({ seq }) => seq)).size).toBe(rows.length);
+    expect(rows.every(({ id }) => id.startsWith(`${ID_PREFIX.chatStreamEvent}_`))).toBe(true);
+    const generationId = rows[0]?.generationId;
+    expect(generationId?.startsWith(`${ID_PREFIX.chatStreamGeneration}_`)).toBe(true);
+    expect(new Set(rows.map((row) => row.generationId))).toEqual(new Set([generationId]));
+    expect(await loadStreamReplay(db, chatId, undefined, 0)).toEqual([
+      { seq: 1, messageId, generationId, kind: "reasoning", delta: "think" },
+      { seq: 2, messageId, generationId, kind: "text", delta: "Hi" },
+      { seq: 3, messageId, generationId, kind: "text", delta: " there" },
+    ]);
+  });
+
   test("commits the assistant turn + emits the lifecycle in order", async () => {
     const chatId = await seedChat(db, "a");
     const h = harness(db);
@@ -1021,8 +1059,8 @@ describe("createTurnEngine — error path (turnAborted then rethrow)", () => {
 describe("createTurnEngine — pre-start belt refusals (no turnStarted)", () => {
   // The BUDGET and CONSENT refusals that stood here are DELETED, subjects gone (@orb/inference program
   // §14 F11 + F13): F11 retired the D17 member-budget belt (there is no owner compute to budget any more)
-  // and F13 deleted by-proxy funding with the whole consent belt, so `budget_exceeded`/`consent_required`
-  // have no raiser on this path. `locked` is the surviving pre-start refusal.
+  // and F13 retired the separate owner-consent belt. The host seat itself now accepts room-turn liability,
+  // so `budget_exceeded`/`consent_required` have no raiser on this path. `locked` survives.
   test("a turn already in flight (held lock) → locked", async () => {
     const chatId = await seedChat(db, "a");
     await tryAcquireLock(db, {

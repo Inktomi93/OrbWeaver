@@ -125,6 +125,14 @@ test("structure: a warning finding blocks NOTHING by default and blocks with --f
   const off = await runCli("verify", ["structure"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
   await expect(off).toExitWith(0);
   const offReport = readArtifact(root);
+  expect(offReport.run.scope.inventory).toMatchObject({
+    source: "workspace",
+    trackedCommand: [],
+    untrackedCommand: [],
+    trackedCount: 0,
+    untrackedCount: 0,
+    authoredCount: 4,
+  });
   expect(policyOf(offReport).authority.verdict).toEqual({ errors: 0, warnings: 1, blocking: 0, failOnWarnings: false });
   expect(offReport.reconciliation).toEqual({
     finalEffectiveFindings: 1,

@@ -172,6 +172,33 @@ test.describe("final policy planner", () => {
     });
   });
 
+  test("an execution-workspace omission cannot enter the planned population through compiler membership alone", () => {
+    const gate = policy("workspace-exact");
+    const input: Parameters<typeof planPolicyCommand>[0] & { readonly executionWorkspacePaths: readonly string[] } = {
+      request: runRequest({ tier: "static", scope: { kind: "whole" } }),
+      corpus: { gates: [gate], families: [gate.family] },
+      scope: scope(PROGRAM.files),
+      // b.ts is a valid authored compiler member but absent from the exact Project the dispatcher will walk.
+      executionWorkspacePaths: ["tooling/src/a.ts"],
+    };
+    const result = planPolicyCommand(input);
+
+    expect(result).toMatchObject({
+      ok: true,
+      plan: {
+        policies: [
+          {
+            policyId: gate.id,
+            population: {
+              declaredSourcePaths: ["tooling/src/a.ts"],
+              effectiveSourcePaths: ["tooling/src/a.ts"],
+            },
+          },
+        ],
+      },
+    });
+  });
+
   test("plans and reconciles a provider's independent population before policy execution", () => {
     const provider = defineFact({
       id: "planned-fact",
@@ -273,6 +300,41 @@ test.describe("final policy planner", () => {
               declaredResourcePaths: ["tooling/package.json"],
               requestedPaths: ["tooling/package.json"],
               effectiveResourcePaths: ["tooling/package.json"],
+            },
+          },
+        ],
+      },
+    });
+  });
+
+  test.each([
+    ["installed-package", { kind: "installed-package", id: "react-compiler", mode: "metadata" }],
+    ["authored-path", { kind: "authored-path" }],
+  ] as const)("%s resource declarations plan with zero authored resource paths", (_case, request) => {
+    const resource = policy(`unpopulated-${_case}`, {
+      analysis: "resource",
+      resources: [request],
+    });
+    const result = planPolicyCommand({
+      request: runRequest({ tier: "static", scope: { kind: "whole" } }),
+      corpus: { gates: [resource], families: [resource.family] },
+      scope: scope(PROGRAM.files),
+      resourceOptions: { root: "/repo", overlay: {} },
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      plan: {
+        resourcePathsByPolicy: {},
+        policies: [
+          {
+            policyId: resource.id,
+            mode: "run",
+            population: {
+              declaredSourcePaths: PROGRAM.files,
+              declaredResourcePaths: [],
+              effectiveSourcePaths: PROGRAM.files,
+              effectiveResourcePaths: [],
             },
           },
         ],

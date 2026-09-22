@@ -172,6 +172,27 @@ describe("importChatBundle (routed through the importChatFile door)", () => {
     expect(h.chatCalls[0]?.characterId).toBe(ARIA);
   });
 
+  test("only canonical carried handles reach the library lookup", async () => {
+    const h = makeProfileHarness(OWNER);
+    const lookedUp: string[] = [];
+    const verb = createImportService({
+      ...h.ctx,
+      findByHandle: ({ handle }: { readonly handle: CharacterHandle }): Promise<CharacterId | null> => {
+        lookedUp.push(handle);
+        return Promise.resolve(handle === "aria" ? ARIA : null);
+      },
+    }).importChatFile;
+
+    const outcome = await verb({
+      filename: "chat_x.orb.json",
+      bytes: bundle({ characterHandles: ["x".repeat(201), "aria"] }),
+    });
+
+    expect(outcome).toEqual({ ok: true, created: true, skippedOverlays: [] });
+    expect(lookedUp).toEqual(["aria"]);
+    expect(h.chatCalls[0]?.characterId).toBe(ARIA);
+  });
+
   test("#723 retry resolves deduplicated canon and completes an interrupted tag overlay", async () => {
     const h = makeProfileHarness(OWNER);
     const identity = {

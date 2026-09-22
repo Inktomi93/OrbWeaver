@@ -1205,6 +1205,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     newInjectionId: minter(ID_PREFIX.chatInjection),
     newEventId: minter(ID_PREFIX.chatEvent),
     newStreamEventId: minter(ID_PREFIX.chatStreamEvent),
+    newStreamGenerationId: minter(ID_PREFIX.chatStreamGeneration),
     newInviteId: minter(ID_PREFIX.chatInvite),
     newPendingTurnId: minter(ID_PREFIX.pendingTurn),
     newChatTurnId: minter(ID_PREFIX.chatTurn),

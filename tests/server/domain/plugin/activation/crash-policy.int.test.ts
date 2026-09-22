@@ -7,6 +7,7 @@ import { castId } from "@orb/kit/ids";
 import { PLUGIN_CRASH_DISABLE_THRESHOLD } from "@orb/server/domain/plugin";
 import { createCrashPolicy } from "../../../../../packages/server/src/domain/plugin/activation/crash-policy.ts";
 import { getById } from "../../../../../packages/server/src/domain/plugin/persistence/plugins.ts";
+import { createPluginLifecycleLanes } from "../../../../../packages/server/src/domain/plugin/substrate/lifecycle-lanes.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeBundle, makeInertOps, makePluginHarness, ownerPrincipalFor, seedUser } from "../_support.ts";
@@ -34,7 +35,14 @@ test("crashes below the threshold record the detail but keep the plugin runnable
   const installed = await h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: "mood" }), grant: [] });
 
   const deactivated: string[] = [];
-  const policy = createCrashPolicy(h.ctx, (pluginId) => deactivated.push(pluginId));
+  const policy = createCrashPolicy(
+    h.ctx,
+    (pluginId) => {
+      deactivated.push(pluginId);
+      return Promise.resolve();
+    },
+    createPluginLifecycleLanes(),
+  );
 
   // Below the threshold: counter climbs, detail recorded, NOT disabled, NO notification.
   for (let i = 1; i < PLUGIN_CRASH_DISABLE_THRESHOLD; i += 1) {
@@ -82,7 +90,7 @@ test("two crashes racing across the threshold notify the owner ONCE (the crossin
   const h = makePluginHarness(db, { ops });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: "mood" }), grant: [] });
-  const policy = createCrashPolicy(h.ctx, () => undefined);
+  const policy = createCrashPolicy(h.ctx, () => Promise.resolve(), createPluginLifecycleLanes());
 
   // Park the counter one short of the threshold…
   for (let i = 1; i < PLUGIN_CRASH_DISABLE_THRESHOLD; i += 1) {
@@ -90,8 +98,8 @@ test("two crashes racing across the threshold notify the owner ONCE (the crossin
   }
   expect(emitted).toEqual([]);
 
-  // …then two guest invocations crash CONCURRENTLY (two resident handlers, two tabs' UI actions — the invoke
-  // closure is per-handler, nothing serialises these). A REAL interleaving, not a scripted one.
+  // …then two guest invocations arrive concurrently (two resident handlers, two tabs' UI actions). The
+  // lifecycle lane serializes their durable transition while preserving the one-notification crossing.
   await Promise.all([
     policy.recordCrash({ pluginId: installed.id, recipientUserId: owner, error: "race a" }),
     policy.recordCrash({ pluginId: installed.id, recipientUserId: owner, error: "race b" }),
@@ -106,7 +114,7 @@ test("a clean run resets the crash counter", async () => {
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: "mood" }), grant: [] });
-  const policy = createCrashPolicy(h.ctx, () => undefined);
+  const policy = createCrashPolicy(h.ctx, () => Promise.resolve(), createPluginLifecycleLanes());
 
   await policy.recordCrash({ pluginId: installed.id, recipientUserId: owner, error: "flake" });
   await policy.recordCleanRun(installed.id);

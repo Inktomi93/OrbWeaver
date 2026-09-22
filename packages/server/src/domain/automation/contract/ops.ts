@@ -135,7 +135,7 @@ export interface AutomationImageResult {
 }
 
 /** The `trigger_turn` arm's request onto chat's non-human turn seam. `authorUserId` = the rule
- *  author (→ chat's `funderUserId`/`triggeredBy` — spend attribution + the D17 by-proxy consent subject);
+ *  author (→ chat's `triggeredBy` for initiation/attribution/abort; the room host is `funderUserId`);
  *  `automationDepth` = the cascade depth (parentDepth + 1), stamped on the reply slot so the guard bounds the
  *  chain. Compose maps this onto chat's `requestTurn` with `initiator:"automation"` HARDCODED (automation
  *  cannot spoof a different origin) + the funder resolved from the room's host. */
@@ -249,10 +249,9 @@ export interface AutomationOps {
      *  is exactly what makes this automation write scope-safe. */
     readonly setChatBackground: (args: { readonly authorUserId: UserId; readonly chatId: ChatId; readonly background: ThemeBackground }) => Promise<void>;
     /** The `trigger_turn` arm's autonomous chat turn, wired to chat's `requestTurn` at
-     *  compose (`initiator:"automation"`, the funder = the rule author, the funding host resolved from the
-     *  room). Loop-safety belts: the cascade-depth guard inside `requestTurn` + the per-chat turn lock + the
-     *  dispatch rate gate above — which is the SPEND wall now that the engine's per-member turn budget and the
-     *  by-proxy owner-consent belt are gone (the inference program §14 F11/F13). Any refusal surfaces as an
+     *  compose (`initiator:"automation"`, the rule author as `triggeredBy`, the room host as funder).
+     *  Loop-safety belts: the cascade-depth guard inside `requestTurn` + the per-chat turn lock + the dispatch
+     *  rate gate above. Any refusal surfaces as an
      *  `arm_error`. */
     readonly requestTurn: (req: AutomationTurnRequest) => Promise<AutomationTurnResult>;
   };

@@ -40,17 +40,8 @@
     },
     {
       "verb": "testonly",
-      "coverage": [
-        "client",
-        "server",
-        "security",
-        "contracts"
-      ],
-      "committedCleanup": [
-        "7bccc3b0f",
-        "af02c2480",
-        "0834e6bb2"
-      ],
+      "coverage": ["client", "server", "security", "contracts"],
+      "committedCleanup": ["7bccc3b0f", "af02c2480", "0834e6bb2"],
       "remainingQuestionsClosed": {
         "wire": "useDeleteRefinerySession",
         "delete": "loadTurnForClassify",
@@ -83,33 +74,9 @@
     }
   ],
   "notYetIndependentlyAdjudicated": {
-    "candidateOrAudit": [
-      "subset-callers",
-      "dead",
-      "prodonly",
-      "unwired",
-      "clientgap",
-      "respell",
-      "columns",
-      "regkeys",
-      "stringy",
-      "apisurface"
-    ],
-    "graphOrInventory": [
-      "cycles",
-      "aliases"
-    ],
-    "queryNavigationTruthfulness": [
-      "refs",
-      "callers",
-      "importers",
-      "exports",
-      "jsx",
-      "ident",
-      "literal",
-      "flow",
-      "reaches"
-    ]
+    "candidateOrAudit": ["subset-callers", "dead", "prodonly", "unwired", "clientgap", "respell", "columns", "regkeys", "stringy", "apisurface"],
+    "graphOrInventory": ["cycles", "aliases"],
+    "queryNavigationTruthfulness": ["refs", "callers", "importers", "exports", "jsx", "ident", "literal", "flow", "reaches"]
   },
   "crossCuttingWork": {
     "jsonOutput": {
@@ -123,13 +90,7 @@
       "status": "complete checker-first audit across 7,847 unique physical files; repairs split to tracked work",
       "issue": 2531,
       "receipt": "world-tools-brand-boundary-audit.json",
-      "trackedFindings": [
-        2534,
-        2536,
-        2537,
-        2538,
-        2539
-      ]
+      "trackedFindings": [2534, 2536, 2537, 2538, 2539]
     },
     "activeLensLanes": {
       "candidateAudit": "behavior/corpus repair committed at f734f9f27 and independently confirmed; whole-corpus result adjudication still pending",

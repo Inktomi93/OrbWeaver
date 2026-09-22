@@ -53,7 +53,7 @@
 // `tooling/src/agent-sync/ops/__cbbhr_in_render.ts` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { SourceFile } from "ts-morph";
-import { moduleScopeCalls } from "../../_shared/ts-workspace.ts";
+import { moduleScopeCalls } from "../../_shared/module-entry.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { LocatedProjectHome } from "../lib/project-home-origin.ts";
 import { classifyProjectHomeOrigin, locateProjectHome } from "../lib/project-home-origin.ts";

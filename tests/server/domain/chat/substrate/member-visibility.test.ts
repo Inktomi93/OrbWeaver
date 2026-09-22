@@ -4,7 +4,7 @@
 
 import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
 import type { ProviderId } from "@orb/contracts/inference";
-import type { ChatId, MessageId } from "@orb/kit/ids";
+import type { ChatId, ChatStreamGenerationId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ChatBusReplayEvent, ChatStreamReplayEvent } from "../../../../../packages/server/src/domain/chat/contract/views.ts";
 import {
@@ -200,11 +200,11 @@ test("scrubStreamReplayForMember: the DURABLE token-log replay drops hidden byte
   const msgA = castId<MessageId>("msg_a");
   const msgB = castId<MessageId>("msg_b");
   const rows: ChatStreamReplayEvent[] = [
-    { seq: 1, messageId: msgA, kind: "text", delta: "He said " },
-    { seq: 2, messageId: msgB, kind: "text", delta: "meanwhile " },
-    { seq: 3, messageId: msgA, kind: "text", delta: LIE },
-    { seq: 4, messageId: msgA, kind: "text", delta: " nothing." },
-    { seq: 5, messageId: msgA, kind: "reasoning", delta: "raw <lie thought" },
+    { seq: 1, messageId: msgA, generationId: null, kind: "text", delta: "He said " },
+    { seq: 2, messageId: msgB, generationId: null, kind: "text", delta: "meanwhile " },
+    { seq: 3, messageId: msgA, generationId: null, kind: "text", delta: LIE },
+    { seq: 4, messageId: msgA, generationId: null, kind: "text", delta: " nothing." },
+    { seq: 5, messageId: msgA, generationId: null, kind: "reasoning", delta: "raw <lie thought" },
   ];
   const memberRows = scrubStreamReplayForMember(rows, { role: "member" });
   const memberText = memberRows
@@ -216,6 +216,25 @@ test("scrubStreamReplayForMember: the DURABLE token-log replay drops hidden byte
   // The reasoning row passes through (out of scope), and the host reads every row verbatim.
   expect(memberRows.some((r) => r.kind === "reasoning")).toBe(true);
   expect(scrubStreamReplayForMember(rows, { role: "host" })).toEqual(rows);
+});
+
+test("scrubStreamReplayForMember resets hidden-span state between generations on one slot", () => {
+  const sharedMessageId = castId<MessageId>("msg_same_slot");
+  // A swipe/continue reuses the slot id. The durable generation marker is the boundary the live stream gets
+  // from its per-turn stamper lifecycle; an incomplete tag prefix from the first generation must not join
+  // with public prose from the second.
+  const rows = [
+    { seq: 1, messageId: sharedMessageId, generationId: castId<ChatStreamGenerationId>("stream_generation_first"), kind: "text" as const, delta: "<li" },
+    {
+      seq: 2,
+      messageId: sharedMessageId,
+      generationId: castId<ChatStreamGenerationId>("stream_generation_second"),
+      kind: "text" as const,
+      delta: "teral public",
+    },
+  ];
+
+  expect(scrubStreamReplayForMember(rows, { role: "member" }).map(({ delta }) => delta)).toEqual(["teral public"]);
 });
 
 // ── §3.6 the MUTATION-RETURN channel — a member who ran the turn must not get the reply's truth in the return ──
@@ -304,8 +323,8 @@ test("scrubDeltaEventForMember: a reasoning delta is DROPPED on a deception game
 test("scrubStreamReplayForMember: reasoning replay rows are DROPPED on a deception game; kept otherwise", () => {
   const msgA = castId<MessageId>("msg_a");
   const rows: ChatStreamReplayEvent[] = [
-    { seq: 1, messageId: msgA, kind: "text", delta: "He said nothing." },
-    { seq: 2, messageId: msgA, kind: "reasoning", delta: REASONING_SPILL },
+    { seq: 1, messageId: msgA, generationId: null, kind: "text", delta: "He said nothing." },
+    { seq: 2, messageId: msgA, generationId: null, kind: "reasoning", delta: REASONING_SPILL },
   ];
   const deception = scrubStreamReplayForMember(rows, { role: "member" }, true);
   expect(deception.some((r) => r.kind === "reasoning")).toBe(false);

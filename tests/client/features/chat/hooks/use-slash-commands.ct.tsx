@@ -19,7 +19,7 @@ const LOCKED_OFFER = /\/locked/u;
 const SPY_OFFER = /\/spy/u;
 
 test("a registered /command dispatches to its runner with the args after the token, and posts nothing", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.send": () => ({ ok: true }) });
+  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.send": () => ({ messages: [], aborted: false }) });
   const component = await mount(<SlashComposerStory />);
 
   await component.getByLabel("Message", { exact: true }).fill("/spy hello world");
@@ -32,7 +32,7 @@ test("a registered /command dispatches to its runner with the args after the tok
 });
 
 test("an UNKNOWN /command is refused with a visible reason and is NOT posted as a message", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.send": () => ({ ok: true }) });
+  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.send": () => ({ messages: [], aborted: false }) });
   const component = await mount(<SlashComposerStory />);
   const textarea = component.getByLabel("Message", { exact: true });
 
@@ -49,7 +49,7 @@ test("an UNKNOWN /command is refused with a visible reason and is NOT posted as 
 });
 
 test("the // escape sends a message that legitimately starts with a slash", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.send": () => ({ ok: true }) });
+  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.send": () => ({ messages: [], aborted: false }) });
   const component = await mount(<SlashComposerStory />);
 
   await component.getByLabel("Message", { exact: true }).fill("//nope thing");
@@ -61,7 +61,7 @@ test("the // escape sends a message that legitimately starts with a slash", asyn
 });
 
 test("an UNAVAILABLE command is still offered (disabled, with its reason) and is refused on send", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.send": () => ({ ok: true }) });
+  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.send": () => ({ messages: [], aborted: false }) });
   const component = await mount(<SlashComposerStory />);
   const textarea = component.getByLabel("Message", { exact: true });
 
@@ -83,7 +83,7 @@ test("an UNAVAILABLE command is still offered (disabled, with its reason) and is
 });
 
 test("picking an offer completes the draft to that command's token", async ({ mount, page }) => {
-  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.send": () => ({ ok: true }) });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.send": () => ({ messages: [], aborted: false }) });
   const component = await mount(<SlashComposerStory />);
   const textarea = component.getByLabel("Message", { exact: true });
 
@@ -105,7 +105,7 @@ const SLASH_LISTBOX_ID = "composer-slash-listbox";
 const ANY_NONEMPTY = /.+/u;
 
 test("ArrowDown/Up cycle the highlight over the offers while focus STAYS in the textarea", async ({ mount, page }) => {
-  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.send": () => ({ ok: true }) });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.send": () => ({ messages: [], aborted: false }) });
   const component = await mount(<SlashComposerStory />);
   const textarea = component.getByLabel("Message", { exact: true });
 
@@ -146,7 +146,7 @@ test("ArrowDown/Up cycle the highlight over the offers while focus STAYS in the 
 });
 
 test("Enter picks the HIGHLIGHTED offer (completing the draft), not the first-typed command", async ({ mount, page }) => {
-  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.send": () => ({ ok: true }) });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.send": () => ({ messages: [], aborted: false }) });
   const component = await mount(<SlashComposerStory />);
   const textarea = component.getByLabel("Message", { exact: true });
 
@@ -163,7 +163,7 @@ test("Enter picks the HIGHLIGHTED offer (completing the draft), not the first-ty
 });
 
 test("with NO row highlighted, Enter still sends the full-typed command (the typed path is not regressed)", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.send": () => ({ ok: true }) });
+  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.send": () => ({ messages: [], aborted: false }) });
   const component = await mount(<SlashComposerStory />);
   const textarea = component.getByLabel("Message", { exact: true });
 
@@ -182,7 +182,7 @@ test("Enter on a HIGHLIGHTED unavailable offer refuses it with its reason (never
   mount,
   page,
 }) => {
-  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.send": () => ({ ok: true }) });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.send": () => ({ messages: [], aborted: false }) });
   const component = await mount(<SlashComposerStory />);
   const textarea = component.getByLabel("Message", { exact: true });
 
@@ -200,7 +200,7 @@ test("Enter on a HIGHLIGHTED unavailable offer refuses it with its reason (never
 });
 
 test("when the strip is CLOSED, ArrowUp/Down are NOT hijacked (multiline caret movement is sacred)", async ({ mount, page }) => {
-  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.send": () => ({ ok: true }) });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.send": () => ({ messages: [], aborted: false }) });
   const component = await mount(<SlashComposerStory />);
   const textarea = component.getByLabel("Message", { exact: true });
 
@@ -226,7 +226,7 @@ test("when the strip is CLOSED, ArrowUp/Down are NOT hijacked (multiline caret m
 // ── the zero-registrant baseline ────────────────────────────────────────────────────────────────────
 
 test("with ZERO registrations a normal message still sends normally", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.send": () => ({ ok: true }) });
+  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.send": () => ({ messages: [], aborted: false }) });
   const component = await mount(<SlashComposerStory registered={false} />);
 
   await component.getByLabel("Message", { exact: true }).fill("Hello there");
@@ -237,7 +237,7 @@ test("with ZERO registrations a normal message still sends normally", async ({ m
 });
 
 test("with ZERO registrations /nope is still refused, never silently posted", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.send": () => ({ ok: true }) });
+  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.send": () => ({ messages: [], aborted: false }) });
   const component = await mount(<SlashComposerStory registered={false} />);
 
   await component.getByLabel("Message", { exact: true }).fill("/nope thing");

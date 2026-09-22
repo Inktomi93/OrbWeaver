@@ -79,11 +79,18 @@ describe("parseGallery", () => {
     expect(refusalOf(parseGallery(encode({ items: [] })))).toBe("foreign-kind");
   });
 
-  test("a malformed row is dropped, not fatal (blank / missing assetId, non-object)", () => {
+  test("a malformed row is dropped, including malformed same-prefix and wrong-prefix asset ids", () => {
     const bytes = encode({
       schemaKind: GALLERY_SCHEMA_KIND,
       schemaVersion: 1,
-      items: [{ assetId: ASSET_A, subjectCharacterHandle: "keep", createdAt: 5 }, { assetId: "" }, 42, { subjectCharacterHandle: "orphan" }],
+      items: [
+        { assetId: ASSET_A, subjectCharacterHandle: "keep", createdAt: 5 },
+        { assetId: "" },
+        { assetId: "asset_not-a-typeid" },
+        { assetId: mintTypeId(ID_PREFIX.character) },
+        42,
+        { subjectCharacterHandle: "orphan" },
+      ],
     });
     const gallery = must(parseGallery(bytes));
     expect(gallery.items).toHaveLength(1);

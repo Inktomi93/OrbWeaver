@@ -250,8 +250,6 @@ export const TOKEN_POLARITY_ARMS = {
   "color.track-6": { light: "oklch(0.535 0.09 200)", dark: "oklch(0.72 0.1 200)" },
 } as const;
 
-export type PolarityTokenPath = keyof typeof TOKEN_POLARITY_ARMS;
-
 /** Resolved px at the 16px root for every snapped-output dimension — build-time consumers (the ui-audit ramp bindings) read THIS and never parse the round() serialization (the TOKEN_POLARITY_ARMS precedent). */
 export const SNAPPED_LENGTH_BASE_PX = {
   "spacing.micro": 2,

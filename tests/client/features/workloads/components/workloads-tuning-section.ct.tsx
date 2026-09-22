@@ -23,7 +23,7 @@ const UPDATE_PROC = "settings.updateUserSettingsSection";
 function stub(page: Page): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "settings.getUserSettings": () => SETTINGS_VIEW,
-    [UPDATE_PROC]: () => ({}),
+    [UPDATE_PROC]: () => SETTINGS_VIEW,
   });
 }
 

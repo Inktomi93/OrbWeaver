@@ -87,18 +87,11 @@
     },
     {
       "change": "Removed the chat-summary-only loadChatParticipantCharacterIds query and direct helper tests; characterId list filtering remains in memberChatScope and is covered at the verb level.",
-      "evidence": [
-        "packages/server/src/domain/chat/persistence/queries.ts:354",
-        "tests/server/domain/chat/verbs/read.int.test.ts"
-      ]
+      "evidence": ["packages/server/src/domain/chat/persistence/queries.ts:354", "tests/server/domain/chat/verbs/read.int.test.ts"]
     },
     {
       "change": "Preserved client character-filter test behavior with harness-only filterCharacterIds, stripped before returning wire rows.",
-      "evidence": [
-        "tests/client/features/chat/fixtures.ts:50",
-        "tests/client/features/chat/fixtures.ts:65",
-        "tests/client/features/chat/fixtures.ts:261"
-      ]
+      "evidence": ["tests/client/features/chat/fixtures.ts:50", "tests/client/features/chat/fixtures.ts:65", "tests/client/features/chat/fixtures.ts:261"]
     },
     {
       "change": "Moved persistence behavior assertions behind direct DB reads instead of reintroducing deleted view members.",
@@ -119,13 +112,7 @@
   },
   "astGrep": {
     "binaryVersion": "ast-grep 0.45.0",
-    "scope": [
-      "packages",
-      "tests",
-      "tooling",
-      "scripts",
-      "playwright"
-    ],
+    "scope": ["packages", "tests", "tooling", "scripts", "playwright"],
     "languages": {
       "ts": {
         "scannedFiles": 6446,
@@ -222,21 +209,13 @@
       "name": "affected typecheck plan",
       "result": "PASS",
       "receipt": "/tmp/world-tools-viewgap-green-attempt2.log",
-      "details": [
-        "packages/client/tsconfig.json",
-        "packages/server/tsconfig.json",
-        "tooling/tsconfig.json",
-        "tsconfig.json",
-        "tsconfig.tests-dom.json"
-      ]
+      "details": ["packages/client/tsconfig.json", "packages/server/tsconfig.json", "tooling/tsconfig.json", "tsconfig.json", "tsconfig.tests-dom.json"]
     },
     {
       "name": "final root contract typecheck after run-now test repair",
       "result": "PASS",
       "receipt": "/tmp/world-tools-viewgap-typecheck-final.log",
-      "details": [
-        "tsconfig.json"
-      ]
+      "details": ["tsconfig.json"]
     },
     {
       "name": "focused node battery",
@@ -259,19 +238,13 @@
     {
       "name": "Biome",
       "result": "PASS",
-      "receipt": [
-        "/tmp/world-tools-viewgap-biome.log",
-        "/tmp/world-tools-viewgap-biome-final.log"
-      ],
+      "receipt": ["/tmp/world-tools-viewgap-biome.log", "/tmp/world-tools-viewgap-biome-final.log"],
       "details": "37 changed files plus final run-now test; initial pass found one import-order issue, corrected mechanically, rerun green"
     },
     {
       "name": "ESLint",
       "result": "PASS",
-      "receipt": [
-        "/tmp/world-tools-viewgap-eslint.log",
-        "/tmp/world-tools-viewgap-eslint-final.log"
-      ],
+      "receipt": ["/tmp/world-tools-viewgap-eslint.log", "/tmp/world-tools-viewgap-eslint-final.log"],
       "details": "37 changed files plus final run-now test"
     },
     {
@@ -342,13 +315,7 @@
     },
     "astGrep": {
       "version": "0.45.0",
-      "scope": [
-        "packages",
-        "tests",
-        "tooling",
-        "scripts",
-        "playwright"
-      ],
+      "scope": ["packages", "tests", "tooling", "scripts", "playwright"],
       "ts": {
         "scannedFiles": 6446,
         "skippedFiles": 0,

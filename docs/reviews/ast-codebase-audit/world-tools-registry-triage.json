@@ -31,10 +31,7 @@
   "actionable_findings": [
     {
       "kind": "tool_false_positive",
-      "observations": [
-        113,
-        116
-      ],
+      "observations": [113, 116],
       "evidence": [
         "tooling/src/ast/ops/registry-candidates.ts:149",
         "tooling/src/ast/ops/registry-candidates.ts:205",
@@ -49,12 +46,7 @@
     },
     {
       "kind": "tool_false_positive",
-      "observations": [
-        105,
-        108,
-        132,
-        142
-      ],
+      "observations": [105, 108, 132, 142],
       "evidence": [
         "tooling/src/ast/ops/registry-candidates.ts:220",
         "tooling/src/ast/ops/registry-candidates.ts:247",
@@ -69,14 +61,7 @@
     },
     {
       "kind": "tool_noise",
-      "observations": [
-        77,
-        80,
-        82,
-        83,
-        115,
-        121
-      ],
+      "observations": [77, 80, 82, 83, 115, 121],
       "evidence": [
         "tooling/src/ast/ops/registry-candidates.ts:238",
         "packages/contracts/src/regex/index.ts:176",
@@ -89,22 +74,7 @@
     },
     {
       "kind": "tool_noise",
-      "observations": [
-        9,
-        10,
-        22,
-        25,
-        33,
-        40,
-        54,
-        55,
-        56,
-        58,
-        59,
-        112,
-        129,
-        150
-      ],
+      "observations": [9, 10, 22, 25, 33, 40, 54, 55, 56, 58, 59, 112, 129, 150],
       "evidence": [
         "tooling/src/ast/ops/registry-candidates.ts:71",
         "tooling/src/ast/ops/registry-candidates.ts:92",
@@ -119,31 +89,19 @@
     }
   ],
   "structural_calibration_evidence": {
-    "scope": [
-      "packages",
-      "tests",
-      "tooling",
-      "scripts",
-      "playwright"
-    ],
+    "scope": ["packages", "tests", "tooling", "scripts", "playwright"],
     "queries": [
       {
         "pattern": "$ROOT.$MID.$LEAF = $VALUE",
         "typescript": {
           "scanned_files": 6446,
           "matches": 202,
-          "positive_controls": [
-            "tests/support/browser/prose-measure.ts:65",
-            "scripts/probes/st-goldens/generate-goldens.ts:133"
-          ]
+          "positive_controls": ["tests/support/browser/prose-measure.ts:65", "scripts/probes/st-goldens/generate-goldens.ts:133"]
         },
         "tsx": {
           "scanned_files": 1409,
           "matches": 209,
-          "positive_controls": [
-            "packages/ui/src/art/web-weave/web-weave.tsx:136",
-            "packages/ui/src/primitives/file-trigger/file-trigger.tsx:46"
-          ]
+          "positive_controls": ["packages/ui/src/art/web-weave/web-weave.tsx:136", "packages/ui/src/primitives/file-trigger/file-trigger.tsx:46"]
         },
         "interpretation": "Chained instance-member assignments are common and the query reproduces both false-positive families. Syntax alone does not establish shared object identity; lexical/module-origin analysis must do that."
       },
@@ -152,18 +110,12 @@
         "typescript": {
           "scanned_files": 6446,
           "matches": 479,
-          "positive_controls": [
-            "packages/server/src/entry/app.ts:220",
-            "packages/server/src/infra/auth/dispatch.ts:46"
-          ]
+          "positive_controls": ["packages/server/src/entry/app.ts:220", "packages/server/src/infra/auth/dispatch.ts:46"]
         },
         "tsx": {
           "scanned_files": 1409,
           "matches": 93,
-          "positive_controls": [
-            "packages/ui/src/primitives/log-viewer/log-viewer.tsx:14",
-            "packages/client/src/components/tag-picker-dialog.tsx:224"
-          ]
+          "positive_controls": ["packages/ui/src/primitives/log-viewer/log-viewer.tsx:14", "packages/client/src/components/tag-picker-dialog.tsx:224"]
         },
         "interpretation": "The record-dispatch population is present in both dialects and includes the quoted auth-mode controls."
       },
@@ -172,17 +124,12 @@
         "typescript": {
           "scanned_files": 6446,
           "matches": 123,
-          "positive_controls": [
-            "tooling/src/verify/cli.ts:88"
-          ]
+          "positive_controls": ["tooling/src/verify/cli.ts:88"]
         },
         "tsx": {
           "scanned_files": 1409,
           "matches": 20,
-          "positive_controls": [
-            "packages/client/src/features/auth/surfaces/login-surface.tsx:82",
-            "packages/client/src/components/regex-script-picker.tsx:65"
-          ]
+          "positive_controls": ["packages/client/src/features/auth/surfaces/login-surface.tsx:82", "packages/client/src/components/regex-script-picker.tsx:65"]
         },
         "interpretation": "The switch-dispatch population is present in both dialects and includes the matching unquoted auth-mode control."
       }
@@ -203,10 +150,7 @@
       "candidate_text": "switch(scope.kind) vs switch(scope.kind) (packages/client/src/components/regex-script-picker.tsx): common={character, chat, preset} left-only={global} right-only={}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "Both homes dispatch regex attachment scopes, but scope ordering includes the global library while the picker handles attachable character/chat/preset homes only.",
-      "evidence": [
-        "packages/client/src/components/regex-scope-order.tsx:163",
-        "packages/client/src/components/regex-script-picker.tsx:65"
-      ],
+      "evidence": ["packages/client/src/components/regex-scope-order.tsx:163", "packages/client/src/components/regex-script-picker.tsx:65"],
       "recommendation": "no_edit"
     },
     {
@@ -218,10 +162,7 @@
       "candidate_text": "switch(scope.kind) vs DOMAIN_FRESHNESS (tooling/src/verify/gates/domain-freshness-plane.ts): common={character, chat, preset} left-only={} right-only={\"roster-preset\", \"world-info\", admin, assets, automation, connection, credentials, databank, discovery, embeddings, imagery, notifications, persona, plugin, refinery, regex, rpg, sessions, settings, stats, tag, workloads}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "The compared maps/switches serve different contracts or layers; overlapping ordinary key names do not establish one semantic axis.",
-      "evidence": [
-        "packages/client/src/components/regex-script-picker.tsx:65",
-        "tooling/src/verify/gates/domain-freshness-plane.ts:111"
-      ],
+      "evidence": ["packages/client/src/components/regex-script-picker.tsx:65", "tooling/src/verify/gates/domain-freshness-plane.ts:111"],
       "recommendation": "no_edit"
     },
     {
@@ -233,10 +174,7 @@
       "candidate_text": "switch(scope.kind) vs DOMAIN_FRESHNESS (tooling/src/verify/gates/domain-freshness-plane.ts): common={character, chat, preset} left-only={} right-only={\"roster-preset\", \"world-info\", admin, assets, automation, connection, credentials, databank, discovery, embeddings, imagery, notifications, persona, plugin, refinery, regex, rpg, sessions, settings, stats, tag, workloads}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "The compared maps/switches serve different contracts or layers; overlapping ordinary key names do not establish one semantic axis.",
-      "evidence": [
-        "packages/client/src/components/regex-script-picker.tsx:344",
-        "tooling/src/verify/gates/domain-freshness-plane.ts:111"
-      ],
+      "evidence": ["packages/client/src/components/regex-script-picker.tsx:344", "tooling/src/verify/gates/domain-freshness-plane.ts:111"],
       "recommendation": "no_edit"
     },
     {
@@ -248,10 +186,7 @@
       "candidate_text": "RESTING_COPY vs IN_FLIGHT_WORD (packages/client/src/features/databank/lib/databank-model.ts): common={empty, ready} left-only={error, exhausted, loading} right-only={embedding, indexing}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "UI loading-state copy and databank ingestion words merely share empty/ready.",
-      "evidence": [
-        "packages/client/src/components/tag-picker-dialog.tsx:224",
-        "packages/client/src/features/databank/lib/databank-model.ts:58"
-      ],
+      "evidence": ["packages/client/src/components/tag-picker-dialog.tsx:224", "packages/client/src/features/databank/lib/databank-model.ts:58"],
       "recommendation": "no_edit"
     },
     {
@@ -263,10 +198,7 @@
       "candidate_text": "AMBIENT_VOCAB vs AMBIENT_CLEAR (packages/client/src/features/rpg/components/rpg-scene-tab.tsx): common={date, location, weather} left-only={timeOfDay} right-only={}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "Both maps use ambient field keys; AMBIENT_VOCAB classifies all four editor fields, while AMBIENT_CLEAR intentionally omits timeOfDay because its clear preserves the current day via clearTimePatch.",
-      "evidence": [
-        "packages/client/src/components/tracker-blocks/ambient-strip.tsx:57",
-        "packages/client/src/features/rpg/components/rpg-scene-tab.tsx:47"
-      ],
+      "evidence": ["packages/client/src/components/tracker-blocks/ambient-strip.tsx:57", "packages/client/src/features/rpg/components/rpg-scene-tab.tsx:47"],
       "recommendation": "no_edit"
     },
     {
@@ -278,10 +210,7 @@
       "candidate_text": "RELATIONSHIP_DECOR vs RELATIONSHIP_GLYPHS (packages/client/src/features/rpg/lib/glyphs.ts): common={ally, enemy, friend, lover, neutral} left-only={} right-only={custom}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "Both cover relationship kinds; custom is intentionally rendered as a text-only neutral badge and therefore has no decorative glyph row.",
-      "evidence": [
-        "packages/client/src/components/tracker-blocks/relationship-badge.tsx:18",
-        "packages/client/src/features/rpg/lib/glyphs.ts:221"
-      ],
+      "evidence": ["packages/client/src/components/tracker-blocks/relationship-badge.tsx:18", "packages/client/src/features/rpg/lib/glyphs.ts:221"],
       "recommendation": "no_edit"
     },
     {
@@ -293,10 +222,7 @@
       "candidate_text": "MACRO_ARG_TYPE_LABELS vs switch(spec.type) (packages/contracts/src/plugin/ui.ts): common={boolean, number, string} left-only={} right-only={enum}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "User macro argument types and plugin command argument types are different contracts; plugin enum has no user-macro counterpart.",
-      "evidence": [
-        "packages/client/src/components/user-macro-editor-dialog.tsx:65",
-        "packages/contracts/src/plugin/ui.ts:1572"
-      ],
+      "evidence": ["packages/client/src/components/user-macro-editor-dialog.tsx:65", "packages/contracts/src/plugin/ui.ts:1572"],
       "recommendation": "no_edit"
     },
     {
@@ -308,10 +234,7 @@
       "candidate_text": "switch(event.type) vs switch(type) (packages/client/src/features/automation/lib/rule-copy.ts): common={chatCreated, chatOpened, chatUpdated, messageCommitted, messageEdited, messageHidden, messagesDeleted, personaSwitched, reactionsChanged, turnAborted, turnCompleted, turnStarted, variantSelected, wiEntryAttached, wiEntryDetached, worldInfoActivated} left-only={chatDeleted, delta, historyTruncated, memoryRecall, messagesReordered, reasoningCleared, reasoningEdited, reasoningStreamDone, roomEntityChanged, turnAccepted, warning, wiBookAttached, wiBookDetached, wiEntryScopeChanged} right-only={}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "The chat bus consumes the full event union; automation trigger copy is intentionally a subset of events that can trigger rules.",
-      "evidence": [
-        "packages/client/src/data/bus/apply-chat-bus-event.ts:36",
-        "packages/client/src/features/automation/lib/rule-copy.ts:29"
-      ],
+      "evidence": ["packages/client/src/data/bus/apply-chat-bus-event.ts:36", "packages/client/src/features/automation/lib/rule-copy.ts:29"],
       "recommendation": "no_edit"
     },
     {
@@ -323,9 +246,7 @@
       "candidate_text": "3 sibling exports share fields {advanced, anchor, body, id, nav, owns}; aggregation=hand-maintained at packages/client/src/compose/config-sections.ts, packages/client/src/features/app-shell/index.ts",
       "disposition": "intentional_hand_composition",
       "rationale": "The contribution is exported and explicitly imported by the named composition/barrel sites; the composer is hand-maintained but already has a live door, and typed records/tuples provide the relevant completeness fence where required.",
-      "evidence": [
-        "packages/client/src/features/app-shell/lib/appearance-effects-section.tsx:11"
-      ],
+      "evidence": ["packages/client/src/features/app-shell/lib/appearance-effects-section.tsx:11"],
       "recommendation": "no_edit"
     },
     {
@@ -337,9 +258,7 @@
       "candidate_text": "3 sibling exports share fields {behavior, id, label, order, useVisible, zone}; aggregation=hand-maintained at packages/client/src/compose/authed-app.tsx, packages/client/src/features/app-shell/index.ts",
       "disposition": "intentional_hand_composition",
       "rationale": "The contribution is exported and explicitly imported by the named composition/barrel sites; the composer is hand-maintained but already has a live door, and typed records/tuples provide the relevant completeness fence where required.",
-      "evidence": [
-        "packages/client/src/features/app-shell/lib/bug-report-chrome.tsx:21"
-      ],
+      "evidence": ["packages/client/src/features/app-shell/lib/bug-report-chrome.tsx:21"],
       "recommendation": "no_edit"
     },
     {
@@ -351,10 +270,7 @@
       "candidate_text": "switch(type) vs switch(type) (packages/server/src/domain/automation/substrate/suggestions.ts): common={generate_image, insert_world_info_entry, set_chat_background, trigger_turn} left-only={post_notification, run_analysis, run_tool, set_variable, surface_quick_reply, transform_draft} right-only={}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "Automation executors cover every action; suggestions intentionally expose only actions that can be proposed safely.",
-      "evidence": [
-        "packages/client/src/features/automation/lib/rule-copy.ts:106",
-        "packages/server/src/domain/automation/substrate/suggestions.ts:142"
-      ],
+      "evidence": ["packages/client/src/features/automation/lib/rule-copy.ts:106", "packages/server/src/domain/automation/substrate/suggestions.ts:142"],
       "recommendation": "no_edit"
     },
     {
@@ -456,10 +372,7 @@
       "candidate_text": "SOURCE_COLOR vs ORIGIN_SOURCE (packages/server/src/domain/chat/assembly/budget.ts): common={[\"game-state\"], [\"world-info\"]} left-only={[\"cards\"], [\"history\"], [\"steering\"], [\"system\"]} right-only={[\"authors-note\"], [\"guided\"], [\"new-chat-marker\"], [\"persona\"], [\"user\"]}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "Assembly display source buckets and server origin-source accounting classify different layers.",
-      "evidence": [
-        "packages/client/src/features/chat/components/assembly-preview-panel.tsx:91",
-        "packages/server/src/domain/chat/assembly/budget.ts:58"
-      ],
+      "evidence": ["packages/client/src/features/chat/components/assembly-preview-panel.tsx:91", "packages/server/src/domain/chat/assembly/budget.ts:58"],
       "recommendation": "no_edit"
     },
     {
@@ -471,10 +384,7 @@
       "candidate_text": "SOURCE_LABEL vs ORIGIN_SOURCE (packages/server/src/domain/chat/assembly/budget.ts): common={[\"game-state\"], [\"world-info\"]} left-only={[\"cards\"], [\"history\"], [\"steering\"], [\"system\"]} right-only={[\"authors-note\"], [\"guided\"], [\"new-chat-marker\"], [\"persona\"], [\"user\"]}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "Assembly display labels and server origin-source accounting classify different layers.",
-      "evidence": [
-        "packages/client/src/features/chat/components/assembly-preview-panel.tsx:101",
-        "packages/server/src/domain/chat/assembly/budget.ts:58"
-      ],
+      "evidence": ["packages/client/src/features/chat/components/assembly-preview-panel.tsx:101", "packages/server/src/domain/chat/assembly/budget.ts:58"],
       "recommendation": "no_edit"
     },
     {
@@ -516,9 +426,7 @@
       "candidate_text": "9 sibling exports share fields {anchor, body, id, nav, owns}; aggregation=hand-maintained at packages/client/src/compose/config-sections.ts, packages/client/src/features/chat/index.ts",
       "disposition": "intentional_hand_composition",
       "rationale": "The contribution is exported and explicitly imported by the named composition/barrel sites; the composer is hand-maintained but already has a live door, and typed records/tuples provide the relevant completeness fence where required.",
-      "evidence": [
-        "packages/client/src/features/chat/lib/appearance-avatars-section.tsx:11"
-      ],
+      "evidence": ["packages/client/src/features/chat/lib/appearance-avatars-section.tsx:11"],
       "recommendation": "no_edit"
     },
     {
@@ -545,10 +453,7 @@
       "candidate_text": "SOURCE_LABELS vs switch(scope) (packages/client/src/features/chat/lib/regex-section-model.ts): common={chat, global} left-only={character} right-only={preset}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "Document ownership sources and regex attachment scopes are distinct axes.",
-      "evidence": [
-        "packages/client/src/features/chat/lib/chat-documents-model.ts:53",
-        "packages/client/src/features/chat/lib/regex-section-model.ts:123"
-      ],
+      "evidence": ["packages/client/src/features/chat/lib/chat-documents-model.ts:53", "packages/client/src/features/chat/lib/regex-section-model.ts:123"],
       "recommendation": "no_edit"
     },
     {
@@ -560,9 +465,7 @@
       "candidate_text": "3 sibling exports share fields {id, keywords, label, teach}; aggregation=hand-maintained at packages/client/src/features/chat/components/databank-settings-section.tsx, packages/client/src/features/chat/components/imagery-templates-section.tsx, packages/client/src/features/chat/components/memory-settings-section.tsx, packages/client/src/features/chat/lib/databank-settings-section.tsx, packages/client/src/features/chat/lib/imagery-templates-section.tsx, packages/client/src/features/chat/lib/memory-settings-section.tsx",
       "disposition": "intentional_hand_composition",
       "rationale": "The contribution is exported and explicitly imported by the named composition/barrel sites; the composer is hand-maintained but already has a live door, and typed records/tuples provide the relevant completeness fence where required.",
-      "evidence": [
-        "packages/client/src/features/chat/lib/databank-settings-section-nav.ts:7"
-      ],
+      "evidence": ["packages/client/src/features/chat/lib/databank-settings-section-nav.ts:7"],
       "recommendation": "no_edit"
     },
     {
@@ -574,10 +477,7 @@
       "candidate_text": "switch(scope) vs PORTABLE_KIND_LABELS (packages/client/src/features/workloads/lib/portability-model.ts): common={chat, preset} left-only={global} right-only={\"user-settings\", \"world-info\", assets, character, databank, gallery, persona, regex, tag, theme}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "The compared maps/switches serve different contracts or layers; overlapping ordinary key names do not establish one semantic axis.",
-      "evidence": [
-        "packages/client/src/features/chat/lib/regex-section-model.ts:123",
-        "packages/client/src/features/workloads/lib/portability-model.ts:17"
-      ],
+      "evidence": ["packages/client/src/features/chat/lib/regex-section-model.ts:123", "packages/client/src/features/workloads/lib/portability-model.ts:17"],
       "recommendation": "no_edit"
     },
     {
@@ -589,10 +489,7 @@
       "candidate_text": "switch(scope) vs PORTABLE_KIND_LABELS (packages/client/src/features/workloads/lib/portability-model.ts): common={chat, preset} left-only={global} right-only={\"user-settings\", \"world-info\", assets, character, databank, gallery, persona, regex, tag, theme}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "The compared maps/switches serve different contracts or layers; overlapping ordinary key names do not establish one semantic axis.",
-      "evidence": [
-        "packages/client/src/features/chat/lib/regex-section-model.ts:137",
-        "packages/client/src/features/workloads/lib/portability-model.ts:17"
-      ],
+      "evidence": ["packages/client/src/features/chat/lib/regex-section-model.ts:137", "packages/client/src/features/workloads/lib/portability-model.ts:17"],
       "recommendation": "no_edit"
     },
     {
@@ -604,10 +501,7 @@
       "candidate_text": "switch(scope) vs PORTABLE_KIND_LABELS (packages/client/src/features/workloads/lib/portability-model.ts): common={chat, preset} left-only={global} right-only={\"user-settings\", \"world-info\", assets, character, databank, gallery, persona, regex, tag, theme}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "The compared maps/switches serve different contracts or layers; overlapping ordinary key names do not establish one semantic axis.",
-      "evidence": [
-        "packages/client/src/features/chat/lib/regex-section-model.ts:158",
-        "packages/client/src/features/workloads/lib/portability-model.ts:17"
-      ],
+      "evidence": ["packages/client/src/features/chat/lib/regex-section-model.ts:158", "packages/client/src/features/workloads/lib/portability-model.ts:17"],
       "recommendation": "no_edit"
     },
     {
@@ -619,10 +513,7 @@
       "candidate_text": "switch(code) vs switch(code) (packages/server/src/domain/chat/engine/engine.ts): common={background_task_degraded, custom_parameters_ignored, image_edit_dropped} left-only={compaction_failed, context_trimmed_no_summary, guided_placed_as_injection, image_dropped, memory_build_failed, memory_rerank_unavailable, prompt_transform_skipped, provider_refused, reply_image_failed, smart_arbitration_degraded, structured_output_unsupported, tools_unsupported, video_dropped} right-only={adaptive_budget_dropped, declared_overrides_measured, display_dropped, dynamic_context_demoted, effort_dropped, reasoning_budget_clamped, reasoning_dropped_for_prefill, reasoning_mandatory_clamp, sampling_knob_conflict, sampling_knob_dropped, sdk_compatibility, sdk_unsupported_setting, sdk_unsupported_tool, tool_result_error_dropped, verbosity_dropped}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "The client has separate user-facing warning and negotiation-detail dispatches; the engine switch shown here is one producer family, not the total client presentation union.",
-      "evidence": [
-        "packages/client/src/features/chat/lib/warning-notice.ts:49",
-        "packages/server/src/domain/chat/engine/engine.ts:2294"
-      ],
+      "evidence": ["packages/client/src/features/chat/lib/warning-notice.ts:49", "packages/server/src/domain/chat/engine/engine.ts:2294"],
       "recommendation": "no_edit"
     },
     {
@@ -634,10 +525,7 @@
       "candidate_text": "switch(kind) vs switch(code) (packages/server/src/domain/chat/engine/engine.ts): common={adaptive_budget_dropped, display_dropped, dynamic_context_demoted, effort_dropped, reasoning_budget_clamped, reasoning_dropped_for_prefill, reasoning_mandatory_clamp, sampling_knob_conflict, sampling_knob_dropped, tool_result_error_dropped, verbosity_dropped} left-only={provider_compatibility_mode} right-only={background_task_degraded, custom_parameters_ignored, declared_overrides_measured, image_edit_dropped, sdk_compatibility, sdk_unsupported_setting, sdk_unsupported_tool}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "Negotiation-detail kinds and engine warning codes overlap where the detail payload is rendered but are not one closed discriminant.",
-      "evidence": [
-        "packages/client/src/features/chat/lib/warning-notice.ts:120",
-        "packages/server/src/domain/chat/engine/engine.ts:2294"
-      ],
+      "evidence": ["packages/client/src/features/chat/lib/warning-notice.ts:120", "packages/server/src/domain/chat/engine/engine.ts:2294"],
       "recommendation": "no_edit"
     },
     {
@@ -649,10 +537,7 @@
       "candidate_text": "switch(knob) vs KNOB_LABELS (packages/client/src/features/preset/lib/effective-knobs.ts): common={frequencyPenalty, minP, presencePenalty, repetitionPenalty, seed, temperature, thinkingBudgetTokens, topA, topK, topP} left-only={carryReasoning, logitBias, quality, replyMedia, stop} right-only={effort, maxContextTokens, maxOutputTokens, thinkingDisplay, verbosity}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "Warning copy labels request knobs that may be dropped; effective preset knobs include resolved display-only controls. Each is a typed subset of a different contract.",
-      "evidence": [
-        "packages/client/src/features/chat/lib/warning-notice.ts:207",
-        "packages/client/src/features/preset/lib/effective-knobs.ts:39"
-      ],
+      "evidence": ["packages/client/src/features/chat/lib/warning-notice.ts:207", "packages/client/src/features/preset/lib/effective-knobs.ts:39"],
       "recommendation": "no_edit"
     },
     {
@@ -664,10 +549,7 @@
       "candidate_text": "KNOB_LABELS vs KNOB_LABELS (packages/client/src/features/preset/lib/effective-knobs.ts): common={frequencyPenalty, minP, presencePenalty, repetitionPenalty, seed, temperature, thinkingBudgetTokens, topA, topK, topP} left-only={carryReasoning, logitBias, quality, replyMedia, stop} right-only={effort, maxContextTokens, maxOutputTokens, thinkingDisplay, verbosity}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "The two KNOB_LABELS maps serve dropped-request warnings and effective-preset readout respectively; their extra keys follow those distinct typed contracts.",
-      "evidence": [
-        "packages/client/src/features/chat/lib/warning-notice.ts:246",
-        "packages/client/src/features/preset/lib/effective-knobs.ts:39"
-      ],
+      "evidence": ["packages/client/src/features/chat/lib/warning-notice.ts:246", "packages/client/src/features/preset/lib/effective-knobs.ts:39"],
       "recommendation": "no_edit"
     },
     {
@@ -679,9 +561,7 @@
       "candidate_text": "3 sibling exports share fields {anchor, body, id, nav}; aggregation=hand-maintained at packages/client/src/compose/config-sections.ts, packages/client/src/features/credentials/index.ts",
       "disposition": "intentional_hand_composition",
       "rationale": "The contribution is exported and explicitly imported by the named composition/barrel sites; the composer is hand-maintained but already has a live door, and typed records/tuples provide the relevant completeness fence where required.",
-      "evidence": [
-        "packages/client/src/features/credentials/lib/connections-keys-section.tsx:8"
-      ],
+      "evidence": ["packages/client/src/features/credentials/lib/connections-keys-section.tsx:8"],
       "recommendation": "no_edit"
     },
     {
@@ -693,10 +573,7 @@
       "candidate_text": "ORIGIN_LABELS vs SCRAPER_LABELS (packages/client/src/features/databank/lib/scrape-form-model.ts): common={web, wiki, youtube} left-only={text, upload} right-only={}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "Databank origins include text/upload; the scraper form only offers remote web/wiki/youtube inputs.",
-      "evidence": [
-        "packages/client/src/features/databank/lib/databank-model.ts:24",
-        "packages/client/src/features/databank/lib/scrape-form-model.ts:13"
-      ],
+      "evidence": ["packages/client/src/features/databank/lib/databank-model.ts:24", "packages/client/src/features/databank/lib/scrape-form-model.ts:13"],
       "recommendation": "no_edit"
     },
     {
@@ -708,10 +585,7 @@
       "candidate_text": "IN_FLIGHT_WORD vs switch(phase) (packages/server/src/domain/databank/persistence/queries.ts): common={embedding, empty, indexing, ready} left-only={} right-only={stalled}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "IN_FLIGHT_WORD labels UI progress states; persistence also recognizes stalled as a recovery state, not an in-flight word.",
-      "evidence": [
-        "packages/client/src/features/databank/lib/databank-model.ts:58",
-        "packages/server/src/domain/databank/persistence/queries.ts:162"
-      ],
+      "evidence": ["packages/client/src/features/databank/lib/databank-model.ts:58", "packages/server/src/domain/databank/persistence/queries.ts:162"],
       "recommendation": "no_edit"
     },
     {
@@ -738,10 +612,7 @@
       "candidate_text": "CORPUS_TARGET_REST_HINTS vs switch(over) (packages/server/src/domain/search/verbs/search.ts): common={characters, digests, discover, images} left-only={fields} right-only={corpus, documents, entities, segments}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "Client corpus-search targets are the supported UI subset plus the fields pseudo-target; the server search verb accepts additional internal/API targets.",
-      "evidence": [
-        "packages/client/src/features/discovery/lib/corpus-search-targets.ts:32",
-        "packages/server/src/domain/search/verbs/search.ts:5"
-      ],
+      "evidence": ["packages/client/src/features/discovery/lib/corpus-search-targets.ts:32", "packages/server/src/domain/search/verbs/search.ts:5"],
       "recommendation": "no_edit"
     },
     {
@@ -753,10 +624,7 @@
       "candidate_text": "CORPUS_NEAREST_ONLY_BELOW vs switch(over) (packages/server/src/domain/search/verbs/search.ts): common={characters, digests, discover, images} left-only={} right-only={corpus, documents, entities, segments}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "Nearest-only behavior applies to four client targets; the server verb accepts a wider search-over union.",
-      "evidence": [
-        "packages/client/src/features/discovery/lib/corpus-search-targets.ts:78",
-        "packages/server/src/domain/search/verbs/search.ts:5"
-      ],
+      "evidence": ["packages/client/src/features/discovery/lib/corpus-search-targets.ts:78", "packages/server/src/domain/search/verbs/search.ts:5"],
       "recommendation": "no_edit"
     },
     {
@@ -768,10 +636,7 @@
       "candidate_text": "MODE_LABELS vs DEFAULT_SIZE_BY_MODE (packages/server/src/domain/imagery/substrate/size.ts): common={background, character, face, free, scenario} left-only={} right-only={character_multimodal, face_multimodal}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "Multimodal imagery modes are internal extraction modes; the user mode picker intentionally exposes the five authoring modes.",
-      "evidence": [
-        "packages/client/src/features/imagery/components/imagine-body.tsx:46",
-        "packages/server/src/domain/imagery/substrate/size.ts:19"
-      ],
+      "evidence": ["packages/client/src/features/imagery/components/imagine-body.tsx:46", "packages/server/src/domain/imagery/substrate/size.ts:19"],
       "recommendation": "no_edit"
     },
     {
@@ -783,9 +648,7 @@
       "candidate_text": "3 sibling exports share fields {body, id, onClose, size, title, trigger}; aggregation=hand-maintained at packages/client/src/compose/authed-app.tsx, packages/client/src/features/imagery/index.ts",
       "disposition": "intentional_hand_composition",
       "rationale": "The contribution is exported and explicitly imported by the named composition/barrel sites; the composer is hand-maintained but already has a live door, and typed records/tuples provide the relevant completeness fence where required.",
-      "evidence": [
-        "packages/client/src/features/imagery/lib/image-detail-modal.tsx:11"
-      ],
+      "evidence": ["packages/client/src/features/imagery/lib/image-detail-modal.tsx:11"],
       "recommendation": "no_edit"
     },
     {
@@ -797,10 +660,7 @@
       "candidate_text": "TOAST_ARMS vs BANNER_TONE_CLASSES (packages/client/src/features/refinery/components/payload-view.tsx): common={info, warn} left-only={error, success} right-only={bad, good, neutral}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "Plugin toast outcomes and refinery banner tones are unrelated presentation vocabularies.",
-      "evidence": [
-        "packages/client/src/features/plugin/lib/plugin-ui-outcome.ts:23",
-        "packages/client/src/features/refinery/components/payload-view.tsx:154"
-      ],
+      "evidence": ["packages/client/src/features/plugin/lib/plugin-ui-outcome.ts:23", "packages/client/src/features/refinery/components/payload-view.tsx:154"],
       "recommendation": "no_edit"
     },
     {
@@ -812,10 +672,7 @@
       "candidate_text": "GENERATION_TYPE_LABELS vs GUIDED_SCAFFOLD_ONLY_ACTIONS (packages/server/src/domain/chat/assembly/macros.ts): common={continue, impersonate, swipe} left-only={normal, quiet, regenerate} right-only={greeting_new, greeting_rewrite, opening, response, rewrite}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "Generation actions and guided-scaffold actions are distinct discriminants.",
-      "evidence": [
-        "packages/client/src/features/preset/lib/assembly-model.ts:148",
-        "packages/server/src/domain/chat/assembly/macros.ts:214"
-      ],
+      "evidence": ["packages/client/src/features/preset/lib/assembly-model.ts:148", "packages/server/src/domain/chat/assembly/macros.ts:214"],
       "recommendation": "no_edit"
     },
     {
@@ -887,10 +744,7 @@
       "candidate_text": "BANNER_TONE_CLASSES vs LOG_LEVEL_LABELS (packages/client/src/features/user-admin/lib/log-level-items.ts): common={info, warn} left-only={bad, good, neutral} right-only={debug, error, fatal, silent, trace}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "Refinery banner tones and log severity levels are unrelated.",
-      "evidence": [
-        "packages/client/src/features/refinery/components/payload-view.tsx:154",
-        "packages/client/src/features/user-admin/lib/log-level-items.ts:9"
-      ],
+      "evidence": ["packages/client/src/features/refinery/components/payload-view.tsx:154", "packages/client/src/features/user-admin/lib/log-level-items.ts:9"],
       "recommendation": "no_edit"
     },
     {
@@ -902,10 +756,7 @@
       "candidate_text": "TONE_CLASSES vs LOG_LEVEL_LABELS (packages/client/src/features/user-admin/lib/log-level-items.ts): common={info, warn} left-only={bad, good, neutral} right-only={debug, error, fatal, silent, trace}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "Refinery chip tones and log severity levels are unrelated.",
-      "evidence": [
-        "packages/client/src/features/refinery/components/refinery-chip.tsx:12",
-        "packages/client/src/features/user-admin/lib/log-level-items.ts:9"
-      ],
+      "evidence": ["packages/client/src/features/refinery/components/refinery-chip.tsx:12", "packages/client/src/features/user-admin/lib/log-level-items.ts:9"],
       "recommendation": "no_edit"
     },
     {
@@ -947,10 +798,7 @@
       "candidate_text": "BUILTIN_STAGE_HINTS vs CORE_TEXTS (packages/server/src/domain/refinery/substrate/schema-forge.ts): common={analyze, score} left-only={rewrite} right-only={}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "The schema forge only authors RefinerySchemaStage score/analyze; rewrite has a fixed/manual payload and no schema-forge core.",
-      "evidence": [
-        "packages/client/src/features/refinery/lib/builtin-hints.ts:39",
-        "packages/server/src/domain/refinery/substrate/schema-forge.ts:59"
-      ],
+      "evidence": ["packages/client/src/features/refinery/lib/builtin-hints.ts:39", "packages/server/src/domain/refinery/substrate/schema-forge.ts:59"],
       "recommendation": "no_edit"
     },
     {
@@ -962,10 +810,7 @@
       "candidate_text": "switch(field) vs FIELD_BOOSTS (packages/server/src/domain/search/substrate/field-index.ts): common={creatorNotes, description, personality, scenario} left-only={depthPrompt, exampleMessages, postHistoryInstructions, systemPrompt} right-only={name}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "The compared maps/switches serve different contracts or layers; overlapping ordinary key names do not establish one semantic axis.",
-      "evidence": [
-        "packages/client/src/features/refinery/lib/manual-targets.ts:57",
-        "packages/server/src/domain/search/substrate/field-index.ts:15"
-      ],
+      "evidence": ["packages/client/src/features/refinery/lib/manual-targets.ts:57", "packages/server/src/domain/search/substrate/field-index.ts:15"],
       "recommendation": "no_edit"
     },
     {
@@ -977,10 +822,7 @@
       "candidate_text": "STAGE_NOT_RUN_COPY vs CORE_TEXTS (packages/server/src/domain/refinery/substrate/schema-forge.ts): common={analyze, score} left-only={rewrite} right-only={}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "Not-run copy covers all runtime stages; schema forge core text only exists for the two customizable stages.",
-      "evidence": [
-        "packages/client/src/features/refinery/lib/stage-not-run-copy.ts:20",
-        "packages/server/src/domain/refinery/substrate/schema-forge.ts:59"
-      ],
+      "evidence": ["packages/client/src/features/refinery/lib/stage-not-run-copy.ts:20", "packages/server/src/domain/refinery/substrate/schema-forge.ts:59"],
       "recommendation": "no_edit"
     },
     {
@@ -992,9 +834,7 @@
       "candidate_text": "5 sibling exports share fields {anchor, body, id, nav}; aggregation=hand-maintained at packages/client/src/compose/config-sections.ts, packages/client/src/lib/test-ids.ts, packages/client/src/features/user-admin/index.ts",
       "disposition": "intentional_hand_composition",
       "rationale": "The contribution is exported and explicitly imported by the named composition/barrel sites; the composer is hand-maintained but already has a live door, and typed records/tuples provide the relevant completeness fence where required.",
-      "evidence": [
-        "packages/client/src/features/user-admin/lib/about-section.tsx:20"
-      ],
+      "evidence": ["packages/client/src/features/user-admin/lib/about-section.tsx:20"],
       "recommendation": "no_edit"
     },
     {
@@ -1006,9 +846,7 @@
       "candidate_text": "6 sibling exports share fields {id, keywords, label, settings, teach}; aggregation=hand-maintained at packages/client/src/features/user-admin/components/admin-approvals-section.tsx, packages/client/src/features/user-admin/components/admin-link-sso-section.tsx, packages/client/src/features/user-admin/components/admin-users-section.tsx, packages/client/src/features/user-admin/components/governance-sections.tsx, packages/client/src/features/user-admin/components/media-trust-section.tsx, packages/client/src/features/user-admin/components/operations-section.tsx, packages/client/src/features/user-admin/components/structured-output-section.tsx, packages/client/src/features/user-admin/components/system-tuning-section.tsx, packages/client/src/features/user-admin/lib/admin-approvals-section.tsx, packages/client/src/features/user-admin/lib/admin-link-sso-section.tsx, packages/client/src/features/user-admin/lib/admin-users-section.tsx, packages/client/src/features/user-admin/lib/structured-output-section.tsx, packages/client/src/features/user-admin/lib/system-config-sections.tsx, packages/client/src/features/user-admin/lib/system-tuning-section.tsx",
       "disposition": "intentional_hand_composition",
       "rationale": "The contribution is exported and explicitly imported by the named composition/barrel sites; the composer is hand-maintained but already has a live door, and typed records/tuples provide the relevant completeness fence where required.",
-      "evidence": [
-        "packages/client/src/features/user-admin/lib/admin-approvals-nav.ts:7"
-      ],
+      "evidence": ["packages/client/src/features/user-admin/lib/admin-approvals-nav.ts:7"],
       "recommendation": "no_edit"
     },
     {
@@ -1020,9 +858,7 @@
       "candidate_text": "3 sibling exports share fields {id, keywords, label, teach}; aggregation=hand-maintained at packages/client/src/features/user-admin/components/admin-ops-section.tsx, packages/client/src/features/user-admin/components/memory-tuning-section.tsx, packages/client/src/features/user-admin/components/rate-limits-section.tsx, packages/client/src/features/user-admin/lib/admin-ops-sections.tsx, packages/client/src/features/user-admin/lib/memory-tuning-section.tsx, packages/client/src/features/user-admin/lib/rate-limits-section.tsx",
       "disposition": "intentional_hand_composition",
       "rationale": "The contribution is exported and explicitly imported by the named composition/barrel sites; the composer is hand-maintained but already has a live door, and typed records/tuples provide the relevant completeness fence where required.",
-      "evidence": [
-        "packages/client/src/features/user-admin/lib/admin-ops-nav.ts:9"
-      ],
+      "evidence": ["packages/client/src/features/user-admin/lib/admin-ops-nav.ts:9"],
       "recommendation": "no_edit"
     },
     {
@@ -1034,10 +870,7 @@
       "candidate_text": "LOG_LEVEL_LABELS vs LOG_LEVEL_VALUES (packages/server/src/foundation/observability/debug/log-ring-read.ts): common={debug, error, fatal, info, trace, warn} left-only={silent} right-only={}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "silent is a selectable logging threshold but cannot occur as the level of a stored log-ring event.",
-      "evidence": [
-        "packages/client/src/features/user-admin/lib/log-level-items.ts:9",
-        "packages/server/src/foundation/observability/debug/log-ring-read.ts:6"
-      ],
+      "evidence": ["packages/client/src/features/user-admin/lib/log-level-items.ts:9", "packages/server/src/foundation/observability/debug/log-ring-read.ts:6"],
       "recommendation": "no_edit"
     },
     {
@@ -1049,9 +882,7 @@
       "candidate_text": "5 sibling exports share fields {anchor, body, id, nav, owns}; aggregation=hand-maintained at packages/client/src/compose/config-sections.ts, packages/client/src/features/user-admin/index.ts",
       "disposition": "intentional_hand_composition",
       "rationale": "The contribution is exported and explicitly imported by the named composition/barrel sites; the composer is hand-maintained but already has a live door, and typed records/tuples provide the relevant completeness fence where required.",
-      "evidence": [
-        "packages/client/src/features/user-admin/lib/memory-tuning-section.tsx:14"
-      ],
+      "evidence": ["packages/client/src/features/user-admin/lib/memory-tuning-section.tsx:14"],
       "recommendation": "no_edit"
     },
     {
@@ -1063,9 +894,7 @@
       "candidate_text": "4 sibling exports share fields {anchor, body, id, nav}; aggregation=hand-maintained at packages/client/src/compose/config-sections.ts, packages/client/src/lib/test-ids.ts, packages/client/src/features/workloads/index.ts",
       "disposition": "intentional_hand_composition",
       "rationale": "The contribution is exported and explicitly imported by the named composition/barrel sites; the composer is hand-maintained but already has a live door, and typed records/tuples provide the relevant completeness fence where required.",
-      "evidence": [
-        "packages/client/src/features/workloads/lib/backup-export-section.tsx:9"
-      ],
+      "evidence": ["packages/client/src/features/workloads/lib/backup-export-section.tsx:9"],
       "recommendation": "no_edit"
     },
     {
@@ -1077,10 +906,7 @@
       "candidate_text": "PORTABLE_KIND_LABELS vs switch(kind) (packages/server/src/domain/automation/persistence/canon-reads.ts): common={character, persona} left-only={\"user-settings\", \"world-info\", assets, chat, databank, gallery, preset, regex, tag, theme} right-only={asset, worldBook}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "Portable bundle kinds and automation canon subject kinds are distinct axes.",
-      "evidence": [
-        "packages/client/src/features/workloads/lib/portability-model.ts:17",
-        "packages/server/src/domain/automation/persistence/canon-reads.ts:86"
-      ],
+      "evidence": ["packages/client/src/features/workloads/lib/portability-model.ts:17", "packages/server/src/domain/automation/persistence/canon-reads.ts:86"],
       "recommendation": "no_edit"
     },
     {
@@ -1092,10 +918,7 @@
       "candidate_text": "CONTROL_MODE_CONSEQUENCE vs BEHAVIOR_LINE (packages/client/src/features/rpg/components/rpg-choice-echo.tsx): common={compose, send} left-only={execute} right-only={}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "Generic injection control copy covers execute; RPG choice echo intentionally supports compose/send only.",
-      "evidence": [
-        "packages/client/src/lib/injection-copy.ts:64",
-        "packages/client/src/features/rpg/components/rpg-choice-echo.tsx:29"
-      ],
+      "evidence": ["packages/client/src/lib/injection-copy.ts:64", "packages/client/src/features/rpg/components/rpg-choice-echo.tsx:29"],
       "recommendation": "no_edit"
     },
     {
@@ -1107,10 +930,7 @@
       "candidate_text": "CONTROL_MODE_WORD vs BEHAVIOR_LINE (packages/client/src/features/rpg/components/rpg-choice-echo.tsx): common={compose, send} left-only={execute} right-only={}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "Generic injection control words cover execute; RPG choice echo intentionally supports compose/send only.",
-      "evidence": [
-        "packages/client/src/lib/injection-copy.ts:77",
-        "packages/client/src/features/rpg/components/rpg-choice-echo.tsx:29"
-      ],
+      "evidence": ["packages/client/src/lib/injection-copy.ts:77", "packages/client/src/features/rpg/components/rpg-choice-echo.tsx:29"],
       "recommendation": "no_edit"
     },
     {
@@ -1122,10 +942,7 @@
       "candidate_text": "BUBBLE_TOKENS vs switch(message.type) (packages/inference/src/backends/agent-sdk/runner.ts): common={assistant, system, user} left-only={} right-only={auth_status, conversation_reset, prompt_suggestion, rate_limit_event, result, stream_event, tool_progress, tool_use_summary}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "Chat bubble roles and Agent SDK protocol message variants are distinct unions.",
-      "evidence": [
-        "packages/client/src/lib/message-bubble-class.ts:16",
-        "packages/inference/src/backends/agent-sdk/runner.ts:343"
-      ],
+      "evidence": ["packages/client/src/lib/message-bubble-class.ts:16", "packages/inference/src/backends/agent-sdk/runner.ts:343"],
       "recommendation": "no_edit"
     },
     {
@@ -1137,10 +954,7 @@
       "candidate_text": "MESSAGE_ROLE_LABELS vs switch(message.type) (packages/inference/src/backends/agent-sdk/runner.ts): common={assistant, system, user} left-only={} right-only={auth_status, conversation_reset, prompt_suggestion, rate_limit_event, result, stream_event, tool_progress, tool_use_summary}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "Chat role labels and Agent SDK protocol message variants are distinct unions.",
-      "evidence": [
-        "packages/client/src/lib/message-role-labels.ts:10",
-        "packages/inference/src/backends/agent-sdk/runner.ts:343"
-      ],
+      "evidence": ["packages/client/src/lib/message-role-labels.ts:10", "packages/inference/src/backends/agent-sdk/runner.ts:343"],
       "recommendation": "no_edit"
     },
     {
@@ -1152,10 +966,7 @@
       "candidate_text": "CONTENT_CLASS_POLICY vs FENCE_BUILDERS (packages/kit/src/content/index.ts): common={card, choices} left-only={\"unknown-directive\", hidden, image, text} right-only={}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "Only card and choices content classes require fenced builders; the policy table covers all content classes.",
-      "evidence": [
-        "packages/contracts/src/chat/content-classes.ts:55",
-        "packages/kit/src/content/index.ts:100"
-      ],
+      "evidence": ["packages/contracts/src/chat/content-classes.ts:55", "packages/kit/src/content/index.ts:100"],
       "recommendation": "no_edit"
     },
     {
@@ -1167,10 +978,7 @@
       "candidate_text": "CHAT_IDENTITY_KIND_POLICY vs DOMAIN_FRESHNESS (tooling/src/verify/gates/domain-freshness-plane.ts): common={character, persona} left-only={} right-only={\"roster-preset\", \"world-info\", admin, assets, automation, chat, connection, credentials, databank, discovery, embeddings, imagery, notifications, plugin, preset, refinery, regex, rpg, sessions, settings, stats, tag, workloads}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "The compared maps/switches serve different contracts or layers; overlapping ordinary key names do not establish one semantic axis.",
-      "evidence": [
-        "packages/contracts/src/chat/producers.ts:70",
-        "tooling/src/verify/gates/domain-freshness-plane.ts:111"
-      ],
+      "evidence": ["packages/contracts/src/chat/producers.ts:70", "tooling/src/verify/gates/domain-freshness-plane.ts:111"],
       "recommendation": "no_edit"
     },
     {
@@ -1182,10 +990,7 @@
       "candidate_text": "switch(entry.kind) vs DOMAIN_FRESHNESS (tooling/src/verify/gates/domain-freshness-plane.ts): common={character, persona} left-only={} right-only={\"roster-preset\", \"world-info\", admin, assets, automation, chat, connection, credentials, databank, discovery, embeddings, imagery, notifications, plugin, preset, refinery, regex, rpg, sessions, settings, stats, tag, workloads}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "The compared maps/switches serve different contracts or layers; overlapping ordinary key names do not establish one semantic axis.",
-      "evidence": [
-        "packages/contracts/src/chat/producers.ts:79",
-        "tooling/src/verify/gates/domain-freshness-plane.ts:111"
-      ],
+      "evidence": ["packages/contracts/src/chat/producers.ts:79", "tooling/src/verify/gates/domain-freshness-plane.ts:111"],
       "recommendation": "no_edit"
     },
     {
@@ -1197,10 +1002,7 @@
       "candidate_text": "switch(entry.kind) vs DOMAIN_FRESHNESS (tooling/src/verify/gates/domain-freshness-plane.ts): common={character, persona} left-only={} right-only={\"roster-preset\", \"world-info\", admin, assets, automation, chat, connection, credentials, databank, discovery, embeddings, imagery, notifications, plugin, preset, refinery, regex, rpg, sessions, settings, stats, tag, workloads}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "The compared maps/switches serve different contracts or layers; overlapping ordinary key names do not establish one semantic axis.",
-      "evidence": [
-        "packages/contracts/src/chat/producers.ts:111",
-        "tooling/src/verify/gates/domain-freshness-plane.ts:111"
-      ],
+      "evidence": ["packages/contracts/src/chat/producers.ts:111", "tooling/src/verify/gates/domain-freshness-plane.ts:111"],
       "recommendation": "no_edit"
     },
     {
@@ -1212,10 +1014,7 @@
       "candidate_text": "switch(entry.kind) vs DOMAIN_FRESHNESS (tooling/src/verify/gates/domain-freshness-plane.ts): common={character, persona} left-only={} right-only={\"roster-preset\", \"world-info\", admin, assets, automation, chat, connection, credentials, databank, discovery, embeddings, imagery, notifications, plugin, preset, refinery, regex, rpg, sessions, settings, stats, tag, workloads}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "The compared maps/switches serve different contracts or layers; overlapping ordinary key names do not establish one semantic axis.",
-      "evidence": [
-        "packages/contracts/src/chat/producers.ts:143",
-        "tooling/src/verify/gates/domain-freshness-plane.ts:111"
-      ],
+      "evidence": ["packages/contracts/src/chat/producers.ts:143", "tooling/src/verify/gates/domain-freshness-plane.ts:111"],
       "recommendation": "no_edit"
     },
     {
@@ -1227,10 +1026,7 @@
       "candidate_text": "VECTOR_SCOPES_BY_TASK vs ROLE_ROWS (packages/client/src/features/credentials/lib/connections-model.ts): common={embed, imageEmbed} left-only={} right-only={chat, generateImage, rerank, summarize}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "Vector scopes are defined only for embedding roles; connection roles enumerate all inference capabilities.",
-      "evidence": [
-        "packages/contracts/src/embeddings/index.ts:53",
-        "packages/client/src/features/credentials/lib/connections-model.ts:71"
-      ],
+      "evidence": ["packages/contracts/src/embeddings/index.ts:53", "packages/client/src/features/credentials/lib/connections-model.ts:71"],
       "recommendation": "no_edit"
     },
     {
@@ -1242,10 +1038,7 @@
       "candidate_text": "DEFAULT_PROMPT_TEMPLATES vs MODE_LABELS (packages/client/src/features/imagery/components/imagine-body.tsx): common={background, character, face, scenario} left-only={} right-only={free}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "free mode is direct prompting and therefore has no default template slot.",
-      "evidence": [
-        "packages/contracts/src/imagery/index.ts:42",
-        "packages/client/src/features/imagery/components/imagine-body.tsx:46"
-      ],
+      "evidence": ["packages/contracts/src/imagery/index.ts:42", "packages/client/src/features/imagery/components/imagine-body.tsx:46"],
       "recommendation": "no_edit"
     },
     {
@@ -1257,10 +1050,7 @@
       "candidate_text": "DEFAULT_CAPTION_INSTRUCTIONS vs DEFAULT_SIZE_BY_MODE (packages/server/src/domain/imagery/substrate/size.ts): common={character_multimodal, face_multimodal} left-only={} right-only={background, character, face, free, scenario}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "Caption instructions apply only to multimodal extraction modes; size defaults apply to every imagery mode.",
-      "evidence": [
-        "packages/contracts/src/imagery/index.ts:70",
-        "packages/server/src/domain/imagery/substrate/size.ts:19"
-      ],
+      "evidence": ["packages/contracts/src/imagery/index.ts:70", "packages/server/src/domain/imagery/substrate/size.ts:19"],
       "recommendation": "no_edit"
     },
     {
@@ -1272,10 +1062,7 @@
       "candidate_text": "IMAGERY_TEMPLATE_SLOT_IDS vs MODE_LABELS (packages/client/src/features/imagery/components/imagine-body.tsx): common={background, character, face, scenario} left-only={} right-only={free}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "free mode has no named stored template slot; the picker still labels it as an authoring mode.",
-      "evidence": [
-        "packages/contracts/src/imagery/index.ts:208",
-        "packages/client/src/features/imagery/components/imagine-body.tsx:46"
-      ],
+      "evidence": ["packages/contracts/src/imagery/index.ts:208", "packages/client/src/features/imagery/components/imagine-body.tsx:46"],
       "recommendation": "no_edit"
     },
     {
@@ -1287,10 +1074,7 @@
       "candidate_text": "switch(spec.type) vs LEAF_CONSTRAINTS (packages/contracts/src/refinery/schema-forge.ts): common={boolean, number, string} left-only={enum} right-only={integer}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "Plugin argument kinds and JSON-schema leaf constraint kinds are distinct contracts.",
-      "evidence": [
-        "packages/contracts/src/plugin/ui.ts:1572",
-        "packages/contracts/src/refinery/schema-forge.ts:279"
-      ],
+      "evidence": ["packages/contracts/src/plugin/ui.ts:1572", "packages/contracts/src/refinery/schema-forge.ts:279"],
       "recommendation": "no_edit"
     },
     {
@@ -1302,10 +1086,7 @@
       "candidate_text": "switch(spec.type) vs LEAF_CONSTRAINTS (packages/contracts/src/refinery/schema-forge.ts): common={boolean, number, string} left-only={enum} right-only={integer}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "Plugin argument kinds and JSON-schema leaf constraint kinds are distinct contracts.",
-      "evidence": [
-        "packages/contracts/src/plugin/ui.ts:1616",
-        "packages/contracts/src/refinery/schema-forge.ts:279"
-      ],
+      "evidence": ["packages/contracts/src/plugin/ui.ts:1616", "packages/contracts/src/refinery/schema-forge.ts:279"],
       "recommendation": "no_edit"
     },
     {
@@ -1317,10 +1098,7 @@
       "candidate_text": "DEFAULT_MARKER_TEMPLATES vs SERVER_MARKER_VALUE (packages/server/src/domain/chat/assembly/assemble.ts): common={[\"compact_summary\"], [\"databank\"], [\"guided_instruction\"], [\"memory\"]} left-only={[\"char_description\"], [\"char_personality\"], [\"dialogue_examples\"], [\"main_prompt\"], [\"persona\"], [\"post_history\"], [\"scenario\"]} right-only={}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "Server marker values cover markers synthesized by assembly; preset defaults additionally define ordinary prompt-section markers.",
-      "evidence": [
-        "packages/contracts/src/preset/index.ts:1963",
-        "packages/server/src/domain/chat/assembly/assemble.ts:464"
-      ],
+      "evidence": ["packages/contracts/src/preset/index.ts:1963", "packages/server/src/domain/chat/assembly/assemble.ts:464"],
       "recommendation": "no_edit"
     },
     {
@@ -1332,10 +1110,7 @@
       "candidate_text": "CONFIG_LIFTS vs ST_REGEX_PLACEMENT_BY_NUMBER (packages/contracts/src/regex/index.ts): common={1, 2, 5, 6} left-only={3, 4} right-only={0}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "Numeric config lift versions and regex placement numbers are unrelated numeric keys.",
-      "evidence": [
-        "packages/contracts/src/preset/index.ts:2433",
-        "packages/contracts/src/regex/index.ts:176"
-      ],
+      "evidence": ["packages/contracts/src/preset/index.ts:2433", "packages/contracts/src/regex/index.ts:176"],
       "recommendation": "no_edit"
     },
     {
@@ -1347,10 +1122,7 @@
       "candidate_text": "REFINERY_FORGE_CORE_NODES vs STAGE_TONE (packages/client/src/features/refinery/components/context-tabs.tsx): common={analyze, score} left-only={} right-only={rewrite}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "Forge core nodes exist only for customizable score/analyze schemas; context tabs cover rewrite too.",
-      "evidence": [
-        "packages/contracts/src/refinery/schema-forge.ts:239",
-        "packages/client/src/features/refinery/components/context-tabs.tsx:35"
-      ],
+      "evidence": ["packages/contracts/src/refinery/schema-forge.ts:239", "packages/client/src/features/refinery/components/context-tabs.tsx:35"],
       "recommendation": "no_edit"
     },
     {
@@ -1362,10 +1134,7 @@
       "candidate_text": "LEAF_CONSTRAINTS vs switch(typeof value) (packages/server/src/infra/plugin-host/marshal.ts): common={boolean, number, string} left-only={integer} right-only={bigint, function, object, symbol, undefined}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "JSON-schema leaf constraint names and JavaScript typeof results are unrelated.",
-      "evidence": [
-        "packages/contracts/src/refinery/schema-forge.ts:279",
-        "packages/server/src/infra/plugin-host/marshal.ts:17"
-      ],
+      "evidence": ["packages/contracts/src/refinery/schema-forge.ts:279", "packages/server/src/infra/plugin-host/marshal.ts:17"],
       "recommendation": "no_edit"
     },
     {
@@ -1377,10 +1146,7 @@
       "candidate_text": "ST_REGEX_PLACEMENT_BY_NUMBER vs APP_SETTINGS_LIFTS (packages/contracts/src/settings/index.ts): common={1, 2, 5, 6} left-only={0} right-only={3, 4, 7}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "Regex placement numbers and settings migration lift numbers are unrelated.",
-      "evidence": [
-        "packages/contracts/src/regex/index.ts:176",
-        "packages/contracts/src/settings/index.ts:361"
-      ],
+      "evidence": ["packages/contracts/src/regex/index.ts:176", "packages/contracts/src/settings/index.ts:361"],
       "recommendation": "no_edit"
     },
     {
@@ -1392,10 +1158,7 @@
       "candidate_text": "RPG_PACKAGED_PROFILE_BY_KEY vs RPG_RULESET_PROFILE (packages/contracts/src/rpg/ruleset.ts): common={d20, freeform} left-only={special} right-only={}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "special is a packaged profile alias; the ruleset profile union contains the two executable rule profiles.",
-      "evidence": [
-        "packages/contracts/src/rpg/profile.ts:159",
-        "packages/contracts/src/rpg/ruleset.ts:37"
-      ],
+      "evidence": ["packages/contracts/src/rpg/profile.ts:159", "packages/contracts/src/rpg/ruleset.ts:37"],
       "recommendation": "no_edit"
     },
     {
@@ -1407,10 +1170,7 @@
       "candidate_text": "APP_SETTINGS_LIFTS vs SWATCH_FILL (packages/ui/src/primitives/series-row/series-row.tsx): common={1, 2, 3, 4, 5, 6} left-only={7} right-only={}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "Settings migration versions and UI swatch ordinals are unrelated numeric keys.",
-      "evidence": [
-        "packages/contracts/src/settings/index.ts:361",
-        "packages/ui/src/primitives/series-row/series-row.tsx:36"
-      ],
+      "evidence": ["packages/contracts/src/settings/index.ts:361", "packages/ui/src/primitives/series-row/series-row.tsx:36"],
       "recommendation": "no_edit"
     },
     {
@@ -1422,10 +1182,7 @@
       "candidate_text": "USER_SETTINGS_LIFTS vs SWATCH_FILL (packages/ui/src/primitives/series-row/series-row.tsx): common={1, 2, 3, 4, 5, 6} left-only={7, 8} right-only={}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "Settings migration versions and UI swatch ordinals are unrelated numeric keys.",
-      "evidence": [
-        "packages/contracts/src/settings/index.ts:861",
-        "packages/ui/src/primitives/series-row/series-row.tsx:36"
-      ],
+      "evidence": ["packages/contracts/src/settings/index.ts:861", "packages/ui/src/primitives/series-row/series-row.tsx:36"],
       "recommendation": "no_edit"
     },
     {
@@ -1437,10 +1194,7 @@
       "candidate_text": "switch(message.type) vs AGENT_ROW_LABELS (packages/server/src/entry/compose/chat.ts): common={assistant, system, user} left-only={auth_status, conversation_reset, prompt_suggestion, rate_limit_event, result, stream_event, tool_progress, tool_use_summary} right-only={tool}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "Agent SDK protocol message variants and composed chat row roles are different unions.",
-      "evidence": [
-        "packages/inference/src/backends/agent-sdk/runner.ts:343",
-        "packages/server/src/entry/compose/chat.ts:274"
-      ],
+      "evidence": ["packages/inference/src/backends/agent-sdk/runner.ts:343", "packages/server/src/entry/compose/chat.ts:274"],
       "recommendation": "no_edit"
     },
     {
@@ -1452,10 +1206,7 @@
       "candidate_text": "switch(code) vs switch(kind) (packages/server/src/transport/trpc/error-mapping.ts): common={rate_limit, unknown} left-only={authentication_failed, billing_error, invalid_request, max_output_tokens, model_not_found, oauth_org_not_allowed, overloaded, server_error} right-only={aborted, auth_failed, billing, forbidden, invalid, max_output, model_unavailable, moderation, refused, server}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "Agent SDK error codes are normalized into the server transport error-kind vocabulary; different names are an explicit boundary mapping.",
-      "evidence": [
-        "packages/inference/src/backends/agent-sdk/verify.ts:39",
-        "packages/server/src/transport/trpc/error-mapping.ts:125"
-      ],
+      "evidence": ["packages/inference/src/backends/agent-sdk/verify.ts:39", "packages/server/src/transport/trpc/error-mapping.ts:125"],
       "recommendation": "no_edit"
     },
     {
@@ -1467,10 +1218,7 @@
       "candidate_text": "switch(name) vs FACET_BODY_RENDERERS (packages/client/src/features/character/components/character-facet-editor.tsx): common={description, personality, scenario} left-only={appearance, backstory, char, chatId, input, lastCharMessage, lastMessage, lastUserMessage, model, persona, user} right-only={creatorNotes, depthPrompt, exampleMessages, postHistoryInstructions, provenance, regexScripts, systemPrompt}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "Macro names and character facet field names only overlap on ordinary prose words.",
-      "evidence": [
-        "packages/kit/src/macro/registry.ts:149",
-        "packages/client/src/features/character/components/character-facet-editor.tsx:96"
-      ],
+      "evidence": ["packages/kit/src/macro/registry.ts:149", "packages/client/src/features/character/components/character-facet-editor.tsx:96"],
       "recommendation": "no_edit"
     },
     {
@@ -1482,10 +1230,7 @@
       "candidate_text": "ST_NUM_BY_ROLE vs switch(message.type) (packages/inference/src/backends/agent-sdk/runner.ts): common={assistant, system, user} left-only={} right-only={auth_status, conversation_reset, prompt_suggestion, rate_limit_event, result, stream_event, tool_progress, tool_use_summary}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "SillyTavern role numbers and Agent SDK protocol message variants are different axes.",
-      "evidence": [
-        "packages/kit/src/message-role/index.ts:22",
-        "packages/inference/src/backends/agent-sdk/runner.ts:343"
-      ],
+      "evidence": ["packages/kit/src/message-role/index.ts:22", "packages/inference/src/backends/agent-sdk/runner.ts:343"],
       "recommendation": "no_edit"
     },
     {
@@ -1497,10 +1242,7 @@
       "candidate_text": "switch(resource.kind) vs SOURCE_LABELS (packages/client/src/features/chat/lib/chat-documents-model.ts): common={chat, global} left-only={} right-only={character}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "The compared maps/switches serve different contracts or layers; overlapping ordinary key names do not establish one semantic axis.",
-      "evidence": [
-        "packages/server/src/domain/admin/guard.ts:49",
-        "packages/client/src/features/chat/lib/chat-documents-model.ts:53"
-      ],
+      "evidence": ["packages/server/src/domain/admin/guard.ts:49", "packages/client/src/features/chat/lib/chat-documents-model.ts:53"],
       "recommendation": "no_edit"
     },
     {
@@ -1512,10 +1254,7 @@
       "candidate_text": "switch(type) vs switch(type) (packages/server/src/domain/automation/substrate/suggestions.ts): common={generate_image, insert_world_info_entry, set_chat_background, trigger_turn} left-only={post_notification, run_analysis, run_tool, set_variable, surface_quick_reply, transform_draft} right-only={}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "The executor is exhaustive over automation actions; suggestions intentionally offer the safe suggestible subset.",
-      "evidence": [
-        "packages/server/src/domain/automation/engine/arm-executors.ts:577",
-        "packages/server/src/domain/automation/substrate/suggestions.ts:142"
-      ],
+      "evidence": ["packages/server/src/domain/automation/engine/arm-executors.ts:577", "packages/server/src/domain/automation/substrate/suggestions.ts:142"],
       "recommendation": "no_edit"
     },
     {
@@ -1527,10 +1266,7 @@
       "candidate_text": "switch(kind) vs TARGET_GUARDS (packages/server/src/domain/tag/persistence/junctions.ts): common={character, persona, worldBook} left-only={asset} right-only={chat, preset}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "Automation canon entity kinds and tag junction targets are separate domains.",
-      "evidence": [
-        "packages/server/src/domain/automation/persistence/canon-reads.ts:86",
-        "packages/server/src/domain/tag/persistence/junctions.ts:44"
-      ],
+      "evidence": ["packages/server/src/domain/automation/persistence/canon-reads.ts:86", "packages/server/src/domain/tag/persistence/junctions.ts:44"],
       "recommendation": "no_edit"
     },
     {
@@ -1542,10 +1278,7 @@
       "candidate_text": "SERVER_MARKER_VALUE vs MARKER_SOURCE (packages/server/src/domain/chat/assembly/budget.ts): common={[\"compact_summary\"], [\"databank\"], [\"guided_instruction\"], [\"memory\"]} left-only={} right-only={[\"char_description\"], [\"char_personality\"], [\"chat_history\"], [\"dialogue_examples\"], [\"main_prompt\"], [\"persona\"], [\"post_history\"], [\"scenario\"], [\"world_info_after\"], [\"world_info_before\"]}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "SERVER_MARKER_VALUE is the synthesized-marker subset of the complete MARKER_SOURCE registry.",
-      "evidence": [
-        "packages/server/src/domain/chat/assembly/assemble.ts:464",
-        "packages/server/src/domain/chat/assembly/budget.ts:35"
-      ],
+      "evidence": ["packages/server/src/domain/chat/assembly/assemble.ts:464", "packages/server/src/domain/chat/assembly/budget.ts:35"],
       "recommendation": "no_edit"
     },
     {
@@ -1557,10 +1290,7 @@
       "candidate_text": "MARKER_SOURCE vs CARRIER_ATTRIBUTION (packages/client/src/features/preset/components/prompt-assembly/marker-copy.ts): common={[\"chat_history\"], [\"world_info_after\"], [\"world_info_before\"]} left-only={[\"char_description\"], [\"char_personality\"], [\"compact_summary\"], [\"databank\"], [\"dialogue_examples\"], [\"guided_instruction\"], [\"main_prompt\"], [\"memory\"], [\"persona\"], [\"post_history\"], [\"scenario\"]} right-only={}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "Carrier attribution is needed only for history/world-info markers; budget sources cover every assembly marker.",
-      "evidence": [
-        "packages/server/src/domain/chat/assembly/budget.ts:35",
-        "packages/client/src/features/preset/components/prompt-assembly/marker-copy.ts:6"
-      ],
+      "evidence": ["packages/server/src/domain/chat/assembly/budget.ts:35", "packages/client/src/features/preset/components/prompt-assembly/marker-copy.ts:6"],
       "recommendation": "no_edit"
     },
     {
@@ -1572,10 +1302,7 @@
       "candidate_text": "GUIDED_SCAFFOLD_ONLY_ACTIONS vs KIND_TO_INTENT (packages/server/src/domain/chat/contract/results.ts): common={continue, impersonate, opening, swipe} left-only={greeting_new, greeting_rewrite, response, rewrite} right-only={auto, force, generate, send}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "Guided scaffold action names and result intent names are separate discriminants.",
-      "evidence": [
-        "packages/server/src/domain/chat/assembly/macros.ts:214",
-        "packages/server/src/domain/chat/contract/results.ts:67"
-      ],
+      "evidence": ["packages/server/src/domain/chat/assembly/macros.ts:214", "packages/server/src/domain/chat/contract/results.ts:67"],
       "recommendation": "no_edit"
     },
     {
@@ -1587,10 +1314,7 @@
       "candidate_text": "MULTIMODAL_TO_EXTRACTION vs DEFAULT_SIZE_BY_MODE (packages/server/src/domain/imagery/substrate/size.ts): common={character_multimodal, face_multimodal} left-only={} right-only={background, character, face, free, scenario}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "The multimodal-to-extraction map is intentionally a two-mode subset of the size-default table.",
-      "evidence": [
-        "packages/server/src/domain/imagery/substrate/mode.ts:14",
-        "packages/server/src/domain/imagery/substrate/size.ts:19"
-      ],
+      "evidence": ["packages/server/src/domain/imagery/substrate/mode.ts:14", "packages/server/src/domain/imagery/substrate/size.ts:19"],
       "recommendation": "no_edit"
     },
     {
@@ -1602,10 +1326,7 @@
       "candidate_text": "DEFAULT_SIZE_BY_MODE vs REQUIRED_PREFIXES (packages/server/src/domain/imagery/substrate/templates.ts): common={background, character, character_multimodal, face, face_multimodal, scenario} left-only={free} right-only={}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "free mode has no required template prefix; every templated imagery mode does.",
-      "evidence": [
-        "packages/server/src/domain/imagery/substrate/size.ts:19",
-        "packages/server/src/domain/imagery/substrate/templates.ts:5"
-      ],
+      "evidence": ["packages/server/src/domain/imagery/substrate/size.ts:19", "packages/server/src/domain/imagery/substrate/templates.ts:5"],
       "recommendation": "no_edit"
     },
     {
@@ -1617,10 +1338,7 @@
       "candidate_text": "switch(field) vs FIELD_BOOSTS (packages/server/src/domain/search/substrate/field-index.ts): common={creatorNotes, description, personality, scenario} left-only={depthPrompt, exampleMessages, postHistoryInstructions, systemPrompt} right-only={name}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "The compared maps/switches serve different contracts or layers; overlapping ordinary key names do not establish one semantic axis.",
-      "evidence": [
-        "packages/server/src/domain/refinery/substrate/accept-belts.ts:50",
-        "packages/server/src/domain/search/substrate/field-index.ts:15"
-      ],
+      "evidence": ["packages/server/src/domain/refinery/substrate/accept-belts.ts:50", "packages/server/src/domain/search/substrate/field-index.ts:15"],
       "recommendation": "no_edit"
     },
     {
@@ -1632,10 +1350,7 @@
       "candidate_text": "switch(field) vs FIELD_BOOSTS (packages/server/src/domain/search/substrate/field-index.ts): common={creatorNotes, description, personality, scenario} left-only={depthPrompt, exampleMessages, postHistoryInstructions, systemPrompt} right-only={name}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "The compared maps/switches serve different contracts or layers; overlapping ordinary key names do not establish one semantic axis.",
-      "evidence": [
-        "packages/server/src/domain/refinery/substrate/refine-prompt.ts:64",
-        "packages/server/src/domain/search/substrate/field-index.ts:15"
-      ],
+      "evidence": ["packages/server/src/domain/refinery/substrate/refine-prompt.ts:64", "packages/server/src/domain/search/substrate/field-index.ts:15"],
       "recommendation": "no_edit"
     },
     {
@@ -1647,10 +1362,7 @@
       "candidate_text": "switch(field) vs FIELD_BOOSTS (packages/server/src/domain/search/substrate/field-index.ts): common={creatorNotes, description, personality, scenario} left-only={depthPrompt, exampleMessages, postHistoryInstructions, systemPrompt} right-only={name}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "The compared maps/switches serve different contracts or layers; overlapping ordinary key names do not establish one semantic axis.",
-      "evidence": [
-        "packages/server/src/domain/refinery/substrate/refine-prompt.ts:151",
-        "packages/server/src/domain/search/substrate/field-index.ts:15"
-      ],
+      "evidence": ["packages/server/src/domain/refinery/substrate/refine-prompt.ts:151", "packages/server/src/domain/search/substrate/field-index.ts:15"],
       "recommendation": "no_edit"
     },
     {
@@ -1662,10 +1374,7 @@
       "candidate_text": "CORE_TEXTS vs REFINERY_RESPONSE_FORMATS (packages/server/src/domain/refinery/substrate/stage-resolution.ts): common={analyze, score} left-only={} right-only={rewrite}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "CORE_TEXTS is total over customizable schema stages; response formats cover all runtime stages including fixed rewrite.",
-      "evidence": [
-        "packages/server/src/domain/refinery/substrate/schema-forge.ts:59",
-        "packages/server/src/domain/refinery/substrate/stage-resolution.ts:26"
-      ],
+      "evidence": ["packages/server/src/domain/refinery/substrate/schema-forge.ts:59", "packages/server/src/domain/refinery/substrate/stage-resolution.ts:26"],
       "recommendation": "no_edit"
     },
     {
@@ -1677,10 +1386,7 @@
       "candidate_text": "switch(scope.kind) vs TARGET_GUARDS (packages/server/src/domain/tag/persistence/junctions.ts): common={character, chat} left-only={owner} right-only={persona, preset, worldBook}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "Search scopes and tag targets are separate domain vocabularies.",
-      "evidence": [
-        "packages/server/src/domain/search/verbs/search.ts:137",
-        "packages/server/src/domain/tag/persistence/junctions.ts:44"
-      ],
+      "evidence": ["packages/server/src/domain/search/verbs/search.ts:137", "packages/server/src/domain/tag/persistence/junctions.ts:44"],
       "recommendation": "no_edit"
     },
     {
@@ -1692,10 +1398,7 @@
       "candidate_text": "TARGET_GUARDS vs switch(scope.kind) (packages/server/src/domain/regex/verbs/attachments/apply-scope-order.ts): common={character, chat, preset} left-only={persona, worldBook} right-only={global}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "Tag target kinds and regex attachment scopes are separate domain vocabularies.",
-      "evidence": [
-        "packages/server/src/domain/tag/persistence/junctions.ts:44",
-        "packages/server/src/domain/regex/verbs/attachments/apply-scope-order.ts:52"
-      ],
+      "evidence": ["packages/server/src/domain/tag/persistence/junctions.ts:44", "packages/server/src/domain/regex/verbs/attachments/apply-scope-order.ts:52"],
       "recommendation": "no_edit"
     },
     {
@@ -1707,10 +1410,7 @@
       "candidate_text": "INSERTERS vs switch(scope.kind) (packages/server/src/domain/regex/verbs/attachments/apply-scope-order.ts): common={character, chat, preset} left-only={persona, worldBook} right-only={global}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "Tag inserter keys and regex attachment scopes are separate domain vocabularies.",
-      "evidence": [
-        "packages/server/src/domain/tag/persistence/junctions.ts:97",
-        "packages/server/src/domain/regex/verbs/attachments/apply-scope-order.ts:52"
-      ],
+      "evidence": ["packages/server/src/domain/tag/persistence/junctions.ts:97", "packages/server/src/domain/regex/verbs/attachments/apply-scope-order.ts:52"],
       "recommendation": "no_edit"
     },
     {
@@ -1722,10 +1422,7 @@
       "candidate_text": "BULK_INSERTERS vs switch(scope.kind) (packages/server/src/domain/regex/verbs/attachments/apply-scope-order.ts): common={character, chat, preset} left-only={persona, worldBook} right-only={global}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "Tag bulk-inserter keys and regex attachment scopes are separate domain vocabularies.",
-      "evidence": [
-        "packages/server/src/domain/tag/persistence/junctions.ts:179",
-        "packages/server/src/domain/regex/verbs/attachments/apply-scope-order.ts:52"
-      ],
+      "evidence": ["packages/server/src/domain/tag/persistence/junctions.ts:179", "packages/server/src/domain/regex/verbs/attachments/apply-scope-order.ts:52"],
       "recommendation": "no_edit"
     },
     {
@@ -1737,10 +1434,7 @@
       "candidate_text": "DELETERS vs switch(scope.kind) (packages/server/src/domain/regex/verbs/attachments/apply-scope-order.ts): common={character, chat, preset} left-only={persona, worldBook} right-only={global}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "Tag deleter keys and regex attachment scopes are separate domain vocabularies.",
-      "evidence": [
-        "packages/server/src/domain/tag/persistence/junctions.ts:232",
-        "packages/server/src/domain/regex/verbs/attachments/apply-scope-order.ts:52"
-      ],
+      "evidence": ["packages/server/src/domain/tag/persistence/junctions.ts:232", "packages/server/src/domain/regex/verbs/attachments/apply-scope-order.ts:52"],
       "recommendation": "no_edit"
     },
     {
@@ -1752,10 +1446,7 @@
       "candidate_text": "MULTI_HUMAN_CAPABLE vs switch(config.mode) (packages/client/src/features/auth/surfaces/login-surface.tsx): common={local, oidc} left-only={\"forward-header\", \"single-user\"} right-only={forward-header, single-user}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "The semantic auth-mode sets are equal; the lens compares quoted object property text with unquoted switch literal text and manufactures a difference.",
-      "evidence": [
-        "packages/server/src/entry/app.ts:220",
-        "packages/client/src/features/auth/surfaces/login-surface.tsx:82"
-      ],
+      "evidence": ["packages/server/src/entry/app.ts:220", "packages/client/src/features/auth/surfaces/login-surface.tsx:82"],
       "recommendation": "no_edit"
     },
     {
@@ -1767,10 +1458,7 @@
       "candidate_text": "AGENT_ROW_LABELS vs TRANSCRIPT_ROLE_FALLBACK (packages/server/src/entry/compose/rpg.ts): common={assistant, system, user} left-only={tool} right-only={}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "Chat agent rows include tool messages; the RPG transcript fallback is for human-readable assistant/system/user roles only.",
-      "evidence": [
-        "packages/server/src/entry/compose/chat.ts:274",
-        "packages/server/src/entry/compose/rpg.ts:341"
-      ],
+      "evidence": ["packages/server/src/entry/compose/chat.ts:274", "packages/server/src/entry/compose/rpg.ts:341"],
       "recommendation": "no_edit"
     },
     {
@@ -1782,10 +1470,7 @@
       "candidate_text": "AGENT_SEED_FRAMES vs TRANSCRIPT_ROLE_FALLBACK (packages/server/src/entry/compose/rpg.ts): common={assistant, system, user} left-only={tool} right-only={}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "Agent seed frames include tool messages; the RPG transcript fallback is for human-readable assistant/system/user roles only.",
-      "evidence": [
-        "packages/server/src/entry/compose/chat.ts:288",
-        "packages/server/src/entry/compose/rpg.ts:341"
-      ],
+      "evidence": ["packages/server/src/entry/compose/chat.ts:288", "packages/server/src/entry/compose/rpg.ts:341"],
       "recommendation": "no_edit"
     },
     {
@@ -1797,10 +1482,7 @@
       "candidate_text": "MODE_RESOLVERS vs switch(config.mode) (packages/client/src/features/auth/surfaces/login-surface.tsx): common={local, oidc} left-only={\"forward-header\", \"single-user\"} right-only={forward-header, single-user}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "The semantic auth-mode sets are equal; the lens compares quoted object property text with unquoted switch literal text and manufactures a difference.",
-      "evidence": [
-        "packages/server/src/infra/auth/dispatch.ts:46",
-        "packages/client/src/features/auth/surfaces/login-surface.tsx:82"
-      ],
+      "evidence": ["packages/server/src/infra/auth/dispatch.ts:46", "packages/client/src/features/auth/surfaces/login-surface.tsx:82"],
       "recommendation": "no_edit"
     },
     {
@@ -1812,10 +1494,7 @@
       "candidate_text": "XML_ENTITIES vs XML_ENTITIES (packages/server/src/domain/databank/verbs/scrape/scrape-youtube.ts): common={\"&amp;\", \"&apos;\", \"&gt;\", \"&lt;\", \"&quot;\"} left-only={} right-only={\"&#39;\"}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "DOCX decodes the five predefined XML entities; YouTube timed-text additionally accepts the observed HTML-style numeric apostrophe entity.",
-      "evidence": [
-        "packages/server/src/infra/extraction/loaders/docx.ts:34",
-        "packages/server/src/domain/databank/verbs/scrape/scrape-youtube.ts:29"
-      ],
+      "evidence": ["packages/server/src/infra/extraction/loaders/docx.ts:34", "packages/server/src/domain/databank/verbs/scrape/scrape-youtube.ts:29"],
       "recommendation": "no_edit"
     },
     {
@@ -1827,10 +1506,7 @@
       "candidate_text": "XML_ENTITIES vs XML_ENTITIES (packages/server/src/domain/databank/verbs/scrape/scrape-youtube.ts): common={\"&amp;\", \"&apos;\", \"&gt;\", \"&lt;\", \"&quot;\"} left-only={} right-only={\"&#39;\"}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "EPUB decodes the five predefined XML entities; YouTube timed-text additionally accepts the observed HTML-style numeric apostrophe entity.",
-      "evidence": [
-        "packages/server/src/infra/extraction/loaders/epub.ts:44",
-        "packages/server/src/domain/databank/verbs/scrape/scrape-youtube.ts:29"
-      ],
+      "evidence": ["packages/server/src/infra/extraction/loaders/epub.ts:44", "packages/server/src/domain/databank/verbs/scrape/scrape-youtube.ts:29"],
       "recommendation": "no_edit"
     },
     {
@@ -1842,10 +1518,7 @@
       "candidate_text": "RECEIVE_TRANSFORMS vs POST_PROCESS_LABEL (packages/client/src/features/preset/components/readout/transforms-readout.tsx): common={dropIncompleteSentence, singleLine, trimTrailingWhitespace} left-only={} right-only={collapseNewlines}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "RECEIVE_TRANSFORMS intentionally excludes collapseNewlines, which belongs to ASSEMBLE_TRANSFORMS; the UI label map is total over both lanes.",
-      "evidence": [
-        "packages/server/src/kit/post-process/index.ts:64",
-        "packages/client/src/features/preset/components/readout/transforms-readout.tsx:47"
-      ],
+      "evidence": ["packages/server/src/kit/post-process/index.ts:64", "packages/client/src/features/preset/components/readout/transforms-readout.tsx:47"],
       "recommendation": "no_edit"
     },
     {
@@ -1857,9 +1530,7 @@
       "candidate_text": "6 sibling exports share fields {authorizeAttach, resumable, run}; aggregation=hand-maintained at packages/server/src/transport/trpc/stream/room-sources.ts",
       "disposition": "intentional_hand_composition",
       "rationale": "The contribution is exported and explicitly imported by the named composition/barrel sites; the composer is hand-maintained but already has a live door, and typed records/tuples provide the relevant completeness fence where required.",
-      "evidence": [
-        "packages/server/src/transport/trpc/stream/sources/automation.ts:43"
-      ],
+      "evidence": ["packages/server/src/transport/trpc/stream/sources/automation.ts:43"],
       "recommendation": "no_edit"
     },
     {
@@ -1871,9 +1542,7 @@
       "candidate_text": "probe.style is mutated from 3 modules: packages/client/src/features/config/lib/theme-contrast.ts, packages/ui/src/art/web-weave/web-weave.tsx, packages/ui/src/primitives/tabs/tabs.tsx",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "probe.style resolves through the external HTMLElement.style member even though each probe is a distinct local DOM instance.",
-      "evidence": [
-        "packages/ui/src/art/web-weave/web-weave.tsx:136"
-      ],
+      "evidence": ["packages/ui/src/art/web-weave/web-weave.tsx:136"],
       "recommendation": "no_edit"
     },
     {
@@ -1885,10 +1554,7 @@
       "candidate_text": "LANGUAGE_LOADERS vs switch(format) (tooling/src/verify/lib/ordinary-waiver-carrier.ts): common={css, json, markdown, sql} left-only={bash, diff, go, html, javascript, js, jsx, md, py, python, rs, rust, sh, shell, ts, tsx, typescript, yaml, yml} right-only={jsonc}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "Syntax-highlighter languages and waiver file formats are unrelated.",
-      "evidence": [
-        "packages/ui/src/markdown/shiki-plugin.ts:40",
-        "tooling/src/verify/lib/ordinary-waiver-carrier.ts:152"
-      ],
+      "evidence": ["packages/ui/src/markdown/shiki-plugin.ts:40", "tooling/src/verify/lib/ordinary-waiver-carrier.ts:152"],
       "recommendation": "no_edit"
     },
     {
@@ -1900,10 +1566,7 @@
       "candidate_text": "AVATAR_HUE_STEPS vs COST_ROWS (tooling/src/verify/ops/gen/read-first-costs.ts): common={\"1\", \"2\", \"3\", \"4\", \"5\"} left-only={} right-only={\"\u2014\", \"5b\", \"6\", \"7\"}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "Avatar hue ordinals and documentation cost-row labels are unrelated strings.",
-      "evidence": [
-        "packages/ui/src/primitives/avatar/hue.ts:52",
-        "tooling/src/verify/ops/gen/read-first-costs.ts:72"
-      ],
+      "evidence": ["packages/ui/src/primitives/avatar/hue.ts:52", "tooling/src/verify/ops/gen/read-first-costs.ts:72"],
       "recommendation": "no_edit"
     },
     {
@@ -1915,9 +1578,7 @@
       "candidate_text": "event.target is mutated from 3 modules: packages/ui/src/primitives/file-dropzone/file-dropzone.tsx, packages/ui/src/primitives/file-dropzone/folder-picker.tsx, packages/ui/src/primitives/file-trigger/file-trigger.tsx",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "event.target resolves through the external event target member even though each handler receives a distinct input instance.",
-      "evidence": [
-        "packages/ui/src/primitives/file-dropzone/file-dropzone.tsx:233"
-      ],
+      "evidence": ["packages/ui/src/primitives/file-dropzone/file-dropzone.tsx:233"],
       "recommendation": "no_edit"
     },
     {
@@ -1929,10 +1590,7 @@
       "candidate_text": "LEVEL_GLYPH vs TOAST_ARMS (packages/client/src/features/plugin/lib/plugin-ui-outcome.ts): common={error, info, warn} left-only={} right-only={success}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "Log severity glyphs and plugin toast outcomes are unrelated UI contracts.",
-      "evidence": [
-        "packages/ui/src/primitives/log-viewer/log-viewer.tsx:14",
-        "packages/client/src/features/plugin/lib/plugin-ui-outcome.ts:23"
-      ],
+      "evidence": ["packages/ui/src/primitives/log-viewer/log-viewer.tsx:14", "packages/client/src/features/plugin/lib/plugin-ui-outcome.ts:23"],
       "recommendation": "no_edit"
     },
     {
@@ -1944,10 +1602,7 @@
       "candidate_text": "LEVEL_LABEL vs TOAST_ARMS (packages/client/src/features/plugin/lib/plugin-ui-outcome.ts): common={error, info, warn} left-only={} right-only={success}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "Log severity labels and plugin toast outcomes are unrelated UI contracts.",
-      "evidence": [
-        "packages/ui/src/primitives/log-viewer/log-viewer.tsx:22",
-        "packages/client/src/features/plugin/lib/plugin-ui-outcome.ts:23"
-      ],
+      "evidence": ["packages/ui/src/primitives/log-viewer/log-viewer.tsx:22", "packages/client/src/features/plugin/lib/plugin-ui-outcome.ts:23"],
       "recommendation": "no_edit"
     },
     {
@@ -1959,10 +1614,7 @@
       "candidate_text": "switch(event.key) vs switch(key) (packages/ui/src/primitives/message-list/row-roving.ts): common={ArrowDown, ArrowUp, End, Home} left-only={ArrowLeft, ArrowRight} right-only={}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "The compared homes are on the same broad axis, but source types, comments, and consumers show that one is intentionally a role-, stage-, transport-, or UI-specific subset/superset rather than a drifting twin.",
-      "evidence": [
-        "packages/ui/src/primitives/media-grid/media-grid.tsx:274",
-        "packages/ui/src/primitives/message-list/row-roving.ts:102"
-      ],
+      "evidence": ["packages/ui/src/primitives/media-grid/media-grid.tsx:274", "packages/ui/src/primitives/message-list/row-roving.ts:102"],
       "recommendation": "no_edit"
     },
     {
@@ -1974,10 +1626,7 @@
       "candidate_text": "switch(key) vs switch(key) (packages/client/src/features/character/hooks/use-roving-chip-focus.ts): common={ArrowDown, ArrowUp, End, Home} left-only={} right-only={ArrowLeft, ArrowRight}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "The compared homes are on the same broad axis, but source types, comments, and consumers show that one is intentionally a role-, stage-, transport-, or UI-specific subset/superset rather than a drifting twin.",
-      "evidence": [
-        "packages/ui/src/primitives/message-list/row-roving.ts:102",
-        "packages/client/src/features/character/hooks/use-roving-chip-focus.ts:45"
-      ],
+      "evidence": ["packages/ui/src/primitives/message-list/row-roving.ts:102", "packages/client/src/features/character/hooks/use-roving-chip-focus.ts:45"],
       "recommendation": "no_edit"
     },
     {
@@ -1989,10 +1638,7 @@
       "candidate_text": "SWATCH_FILL vs ST_NOTE_POSITIONS (packages/server/src/domain/import/substrate/chat-input.ts): common={1, 2} left-only={3, 4, 5, 6} right-only={0}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "Series swatch ordinals and import note positions are unrelated numeric keys.",
-      "evidence": [
-        "packages/ui/src/primitives/series-row/series-row.tsx:36",
-        "packages/server/src/domain/import/substrate/chat-input.ts:129"
-      ],
+      "evidence": ["packages/ui/src/primitives/series-row/series-row.tsx:36", "packages/server/src/domain/import/substrate/chat-input.ts:129"],
       "recommendation": "no_edit"
     },
     {
@@ -2004,10 +1650,7 @@
       "candidate_text": "STATUS_META vs switch(status.kind) (packages/client/src/features/app-shell/components/bug-report-button.tsx): common={failed, idle} left-only={running, succeeded} right-only={saved, saving}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "Generic job status chips and bug-report save status are different state machines.",
-      "evidence": [
-        "packages/ui/src/primitives/status-chip/status-chip.tsx:24",
-        "packages/client/src/features/app-shell/components/bug-report-button.tsx:152"
-      ],
+      "evidence": ["packages/ui/src/primitives/status-chip/status-chip.tsx:24", "packages/client/src/features/app-shell/components/bug-report-button.tsx:152"],
       "recommendation": "no_edit"
     },
     {
@@ -2019,10 +1662,7 @@
       "candidate_text": "STATUS_ICON vs WORKLOAD_STATUS_LABELS (packages/client/src/features/workloads/lib/workloads-model.ts): common={failed, succeeded} left-only={} right-only={cancelled, cancelling, queued, running, worker_died}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "Status-chip kinds and workload lifecycle statuses are different state machines.",
-      "evidence": [
-        "packages/ui/src/primitives/status-chip/status-chip.tsx:32",
-        "packages/client/src/features/workloads/lib/workloads-model.ts:91"
-      ],
+      "evidence": ["packages/ui/src/primitives/status-chip/status-chip.tsx:32", "packages/client/src/features/workloads/lib/workloads-model.ts:91"],
       "recommendation": "no_edit"
     },
     {
@@ -2034,10 +1674,7 @@
       "candidate_text": "NAV_FLAG_METHOD vs NON_ARM_FLAG_SUMMARIES (tooling/src/snap/ops/flags-metadata.ts): common={\"--context-tab\", \"--focus\", \"--goto\", \"--open-character\", \"--open-chat\", \"--panel\"} left-only={} right-only={\"--appearance-preset\", \"--appearance\", \"--as\", \"--base\", \"--baseline\", \"--checkpoint\", \"--click\", \"--contexts\", \"--cpu-throttle\", \"--dark\", \"--debug-token\", \"--desktop\", \"--diagnostics\", \"--diff\", \"--dirty\", \"--dom-click\", \"--drop-files\", \"--every\", \"--file\", \"--fill\", \"--fixture-base\", \"--fixture-server\", \"--force-click\", \"--force\", \"--fresh\", \"--full-motion\", \"--help\", \"--hover\", \"--idle\", \"--include-hidden\", \"--isolated\", \"--json\", \"--key\", \"--light\", \"--local-storage\", \"--materialize-devtools-assets\", \"--matrix\", \"--mobile\", \"--network\", \"--no-failure-evidence\", \"--out\", \"--pages\", \"--panels\", \"--probe\", \"--reduced-motion\", \"--ref\", \"--scale\", \"--scenario-summary\", \"--scenario\", \"--session-close\", \"--session-daemon\", \"--session-export\", \"--session-status\", \"--session-sweep\", \"--session-ttl\", \"--session\", \"--stage-down\", \"--stage-keeper\", \"--stage-owner\", \"--stage-status\", \"--stage-sweep\", \"--stream-settle\", \"--strict-console\", \"--tap\", \"--theme\", \"--upload\", \"--viewport\", \"--vnc\", \"--wait-for\", \"--wait\", \"--watch\", \"--wide\", \"-h\"}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "NAV_FLAG_METHOD is the navigation-flag subset of the complete non-arm flag metadata.",
-      "evidence": [
-        "tooling/src/_shared/nav.ts:36",
-        "tooling/src/snap/ops/flags-metadata.ts:49"
-      ],
+      "evidence": ["tooling/src/_shared/nav.ts:36", "tooling/src/snap/ops/flags-metadata.ts:49"],
       "recommendation": "no_edit"
     },
     {
@@ -2049,10 +1686,7 @@
       "candidate_text": "NAV_BRIDGE_METHOD vs NAV_METHOD_FLAG (tooling/src/snap/ops/drive-failure-naming.ts): common={\"context-tab\", \"open-character\", \"open-chat\", focus} left-only={} right-only={goto, panel}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "The bridge method table covers bridge-driven focus/open operations; goto and panel are handled as non-bridge navigation methods.",
-      "evidence": [
-        "tooling/src/_shared/nav.ts:50",
-        "tooling/src/snap/ops/drive-failure-naming.ts:37"
-      ],
+      "evidence": ["tooling/src/_shared/nav.ts:50", "tooling/src/snap/ops/drive-failure-naming.ts:37"],
       "recommendation": "no_edit"
     },
     {
@@ -2064,10 +1698,7 @@
       "candidate_text": "ENGINE_PORTS vs CAPABILITY_PATH (tooling/src/stack/lib/engine-adoption.ts): common={embed, rerank} left-only={generate} right-only={gen}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "Engine ports use the public role name generate while engine adoption paths use the internal fleet key gen; consumers translate at the boundary.",
-      "evidence": [
-        "tooling/src/_shared/ports.ts:95",
-        "tooling/src/stack/lib/engine-adoption.ts:8"
-      ],
+      "evidence": ["tooling/src/_shared/ports.ts:95", "tooling/src/stack/lib/engine-adoption.ts:8"],
       "recommendation": "no_edit"
     },
     {
@@ -2079,10 +1710,7 @@
       "candidate_text": "TS_LIKE vs READER_BY_EXT (tooling/src/verify/gates/no-blanket-suppression.ts): common={\".cjs\", \".cts\", \".js\", \".json\", \".jsx\", \".mjs\", \".mts\", \".ts\", \".tsx\"} left-only={} right-only={\".css\", \".jsonc\"}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "Review-mirror TS-like extensions and suppression-gate readable extensions serve different scanners.",
-      "evidence": [
-        "tooling/src/review-mirror/lib/strip.ts:15",
-        "tooling/src/verify/gates/no-blanket-suppression.ts:46"
-      ],
+      "evidence": ["tooling/src/review-mirror/lib/strip.ts:15", "tooling/src/verify/gates/no-blanket-suppression.ts:46"],
       "recommendation": "no_edit"
     },
     {
@@ -2094,10 +1722,7 @@
       "candidate_text": "STATE_RANK vs MARKER_HEALTH_LABEL (packages/client/src/features/preset/components/actions-view.tsx): common={absent, off} left-only={\"load-suspect\", failed, passed, refused, withheld} right-only={healthy}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "Run-bundle verdict states and preset marker health are different state machines.",
-      "evidence": [
-        "tooling/src/snap/lib/run-bundle-verdict.ts:46",
-        "packages/client/src/features/preset/components/actions-view.tsx:67"
-      ],
+      "evidence": ["tooling/src/snap/lib/run-bundle-verdict.ts:46", "packages/client/src/features/preset/components/actions-view.tsx:67"],
       "recommendation": "no_edit"
     },
     {
@@ -2109,9 +1734,7 @@
       "candidate_text": "19 sibling exports share fields {defaults, flags, help, level, lifecycle, needs, result, sessionCallBaseMs}; aggregation=hand-maintained at tooling/src/snap/ops/capture.ts, tooling/src/snap/ops/arms/registry.ts",
       "disposition": "intentional_hand_composition",
       "rationale": "The contribution is exported and explicitly imported by the named composition/barrel sites; the composer is hand-maintained but already has a live door, and typed records/tuples provide the relevant completeness fence where required.",
-      "evidence": [
-        "tooling/src/snap/ops/arms/aria.ts:54"
-      ],
+      "evidence": ["tooling/src/snap/ops/arms/aria.ts:54"],
       "recommendation": "no_edit"
     },
     {
@@ -2123,10 +1746,7 @@
       "candidate_text": "NON_ARM_FLAG_SUMMARIES vs SESSION_FLAG_HANDLERS (tooling/src/snap/ops/flags-session.ts): common={\"--session-close\", \"--session-daemon\", \"--session-export\", \"--session-status\", \"--session-sweep\", \"--session-ttl\", \"--session\"} left-only={\"--appearance-preset\", \"--appearance\", \"--as\", \"--base\", \"--baseline\", \"--checkpoint\", \"--click\", \"--context-tab\", \"--contexts\", \"--cpu-throttle\", \"--dark\", \"--debug-token\", \"--desktop\", \"--diagnostics\", \"--diff\", \"--dirty\", \"--dom-click\", \"--drop-files\", \"--every\", \"--file\", \"--fill\", \"--fixture-base\", \"--fixture-server\", \"--focus\", \"--force-click\", \"--force\", \"--fresh\", \"--full-motion\", \"--goto\", \"--help\", \"--hover\", \"--idle\", \"--include-hidden\", \"--isolated\", \"--json\", \"--key\", \"--light\", \"--local-storage\", \"--materialize-devtools-assets\", \"--matrix\", \"--mobile\", \"--network\", \"--no-failure-evidence\", \"--open-character\", \"--open-chat\", \"--out\", \"--pages\", \"--panel\", \"--panels\", \"--probe\", \"--reduced-motion\", \"--ref\", \"--scale\", \"--scenario-summary\", \"--scenario\", \"--stage-down\", \"--stage-keeper\", \"--stage-owner\", \"--stage-status\", \"--stage-sweep\", \"--stream-settle\", \"--strict-console\", \"--tap\", \"--theme\", \"--upload\", \"--viewport\", \"--vnc\", \"--wait-for\", \"--wait\", \"--watch\", \"--wide\", \"-h\"} right-only={}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "SESSION_FLAG_HANDLERS is intentionally the session-only subset of complete non-arm flag metadata.",
-      "evidence": [
-        "tooling/src/snap/ops/flags-metadata.ts:49",
-        "tooling/src/snap/ops/flags-session.ts:26"
-      ],
+      "evidence": ["tooling/src/snap/ops/flags-metadata.ts:49", "tooling/src/snap/ops/flags-session.ts:26"],
       "recommendation": "no_edit"
     },
     {
@@ -2138,10 +1758,7 @@
       "candidate_text": "VERB_ALIASES vs VERBS (tooling/src/stack/ops/engines-ctl.ts): common={status, stop} left-only={_leader, \"force-restart\", \"start-fg\", down, logs, restart, start, up} right-only={reconcile, sleep, wake}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "Top-level stack verbs and engine-control subverbs are different command surfaces.",
-      "evidence": [
-        "tooling/src/stack/lib/argv.ts:19",
-        "tooling/src/stack/ops/engines-ctl.ts:300"
-      ],
+      "evidence": ["tooling/src/stack/lib/argv.ts:19", "tooling/src/stack/ops/engines-ctl.ts:300"],
       "recommendation": "no_edit"
     },
     {
@@ -2153,10 +1770,7 @@
       "candidate_text": "VERB_TO_SHELL_LABEL vs switch(invocation.verb) (tooling/src/stack/ops/prod.ts): common={_leader, down, logs, restart, status, up} left-only={\"up-fg\"} right-only={up-fg}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "The semantic verb sets are equal; quoted object keys versus switch literals create a textual phantom difference.",
-      "evidence": [
-        "tooling/src/stack/lib/argv.ts:37",
-        "tooling/src/stack/ops/prod.ts:117"
-      ],
+      "evidence": ["tooling/src/stack/lib/argv.ts:37", "tooling/src/stack/ops/prod.ts:117"],
       "recommendation": "no_edit"
     },
     {
@@ -2168,10 +1782,7 @@
       "candidate_text": "CAPABILITY_PATH vs ROLE_ROWS (packages/client/src/features/credentials/lib/connections-model.ts): common={embed, rerank} left-only={gen} right-only={chat, generateImage, imageEmbed, summarize}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "Internal engine capability paths and user connection role rows are different namespaces.",
-      "evidence": [
-        "tooling/src/stack/lib/engine-adoption.ts:8",
-        "packages/client/src/features/credentials/lib/connections-model.ts:71"
-      ],
+      "evidence": ["tooling/src/stack/lib/engine-adoption.ts:8", "packages/client/src/features/credentials/lib/connections-model.ts:71"],
       "recommendation": "no_edit"
     },
     {
@@ -2183,10 +1794,7 @@
       "candidate_text": "ARGV_BUILDERS vs ROLE_ROWS (packages/client/src/features/credentials/lib/connections-model.ts): common={embed, rerank} left-only={gen} right-only={chat, generateImage, imageEmbed, summarize}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "Internal engine argv builders and user connection role rows are different namespaces.",
-      "evidence": [
-        "tooling/src/stack/lib/engine-fleet/build-argv.ts:387",
-        "packages/client/src/features/credentials/lib/connections-model.ts:71"
-      ],
+      "evidence": ["tooling/src/stack/lib/engine-fleet/build-argv.ts:387", "packages/client/src/features/credentials/lib/connections-model.ts:71"],
       "recommendation": "no_edit"
     },
     {
@@ -2198,10 +1806,7 @@
       "candidate_text": "switch(engine) vs ROLE_ROWS (packages/client/src/features/credentials/lib/connections-model.ts): common={embed, rerank} left-only={gen} right-only={chat, generateImage, imageEmbed, summarize}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "Internal engine fleet keys and user connection role rows are different namespaces.",
-      "evidence": [
-        "tooling/src/stack/lib/engine-fleet/build-argv.ts:433",
-        "packages/client/src/features/credentials/lib/connections-model.ts:71"
-      ],
+      "evidence": ["tooling/src/stack/lib/engine-fleet/build-argv.ts:433", "packages/client/src/features/credentials/lib/connections-model.ts:71"],
       "recommendation": "no_edit"
     },
     {
@@ -2213,10 +1818,7 @@
       "candidate_text": "PORTS vs ROLE_ROWS (packages/client/src/features/credentials/lib/connections-model.ts): common={embed, rerank} left-only={gen} right-only={chat, generateImage, imageEmbed, summarize}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "Internal engine port keys and user connection role rows are different namespaces.",
-      "evidence": [
-        "tooling/src/stack/lib/engine-fleet/engine-url.ts:16",
-        "packages/client/src/features/credentials/lib/connections-model.ts:71"
-      ],
+      "evidence": ["tooling/src/stack/lib/engine-fleet/engine-url.ts:16", "packages/client/src/features/credentials/lib/connections-model.ts:71"],
       "recommendation": "no_edit"
     },
     {
@@ -2228,10 +1830,7 @@
       "candidate_text": "MAX_MODEL_LEN vs ROLE_ROWS (packages/client/src/features/credentials/lib/connections-model.ts): common={embed, rerank} left-only={gen} right-only={chat, generateImage, imageEmbed, summarize}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "Internal engine metric keys and user connection role rows are different namespaces.",
-      "evidence": [
-        "tooling/src/stack/lib/engine-fleet/fleet-metrics.ts:109",
-        "packages/client/src/features/credentials/lib/connections-model.ts:71"
-      ],
+      "evidence": ["tooling/src/stack/lib/engine-fleet/fleet-metrics.ts:109", "packages/client/src/features/credentials/lib/connections-model.ts:71"],
       "recommendation": "no_edit"
     },
     {
@@ -2243,10 +1842,7 @@
       "candidate_text": "ENGINE_CONTAINER vs ROLE_ROWS (packages/client/src/features/credentials/lib/connections-model.ts): common={embed, rerank} left-only={gen} right-only={chat, generateImage, imageEmbed, summarize}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "Internal engine container keys and user connection role rows are different namespaces.",
-      "evidence": [
-        "tooling/src/stack/lib/engines-compose.ts:72",
-        "packages/client/src/features/credentials/lib/connections-model.ts:71"
-      ],
+      "evidence": ["tooling/src/stack/lib/engines-compose.ts:72", "packages/client/src/features/credentials/lib/connections-model.ts:71"],
       "recommendation": "no_edit"
     },
     {
@@ -2258,10 +1854,7 @@
       "candidate_text": "RELATIONAL_SAMPLE_FAMILIES vs RAW_SAMPLE_SHAPE (tooling/src/ui-audit/ops/page-validate.ts): common={cohortAnatomies, emptyStates, headlineOverhangs, inlinePaddingLeaks, offGridTexts, offGridTransforms, paneInks, promotedLayerOffsets, quietStates, rowVoids, selectionIdioms, tierDrifts} left-only={} right-only={accentBorders, accessibleNames, actionDoors, animatedImgHovers, bgPatterns, borderContrasts, brokenImages, buriedRasters, censusCaps, censusReach, clippedOverflows, controlAspects, documentFrame, edgeFlushCards, fontCensus, gradientTexts, headings, hoverScan, hoverStates, iconTiles, images, mainLandmarkPresent, motionStatics, nestedCards, obscuredScan, obscuredTargets, overflows, pointerCoarse, radialGlows, relationalAccounting, repeatedTexts, shadowGlows, subjectAccounting, tabIndexes, tapTargets, texts, textStyles, themeRender, truncatedTexts, unreachableHints, zIndexes}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "RELATIONAL_SAMPLE_FAMILIES is one typed partition of RAW_SAMPLE_SHAPE.",
-      "evidence": [
-        "tooling/src/ui-audit/lib/evidence.ts:31",
-        "tooling/src/ui-audit/ops/page-validate.ts:38"
-      ],
+      "evidence": ["tooling/src/ui-audit/lib/evidence.ts:31", "tooling/src/ui-audit/ops/page-validate.ts:38"],
       "recommendation": "no_edit"
     },
     {
@@ -2273,10 +1866,7 @@
       "candidate_text": "COUNTED_FLAT_FAMILIES vs RAW_SAMPLE_SHAPE (tooling/src/ui-audit/ops/page-validate.ts): common={accentBorders, accessibleNames, actionDoors, animatedImgHovers, bgPatterns, borderContrasts, brokenImages, buriedRasters, clippedOverflows, controlAspects, edgeFlushCards, gradientTexts, headings, hoverStates, iconTiles, images, motionStatics, nestedCards, obscuredTargets, overflows, radialGlows, repeatedTexts, shadowGlows, tabIndexes, tapTargets, texts, textStyles, truncatedTexts, unreachableHints, zIndexes} left-only={} right-only={censusCaps, censusReach, cohortAnatomies, documentFrame, emptyStates, fontCensus, headlineOverhangs, hoverScan, inlinePaddingLeaks, mainLandmarkPresent, obscuredScan, offGridTexts, offGridTransforms, paneInks, pointerCoarse, promotedLayerOffsets, quietStates, relationalAccounting, rowVoids, selectionIdioms, subjectAccounting, themeRender, tierDrifts}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "COUNTED_FLAT_FAMILIES is another typed partition of RAW_SAMPLE_SHAPE.",
-      "evidence": [
-        "tooling/src/ui-audit/lib/evidence.ts:72",
-        "tooling/src/ui-audit/ops/page-validate.ts:38"
-      ],
+      "evidence": ["tooling/src/ui-audit/lib/evidence.ts:72", "tooling/src/ui-audit/ops/page-validate.ts:38"],
       "recommendation": "no_edit"
     },
     {
@@ -2288,10 +1878,7 @@
       "candidate_text": "SEAM_MATCHERS vs switch(typeof value) (packages/server/src/infra/plugin-host/marshal.ts): common={boolean, object} left-only={array} right-only={bigint, function, number, string, symbol, undefined}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "UI audit seam matcher categories and JavaScript typeof results are unrelated.",
-      "evidence": [
-        "tooling/src/ui-audit/ops/page-validate.ts:98",
-        "packages/server/src/infra/plugin-host/marshal.ts:17"
-      ],
+      "evidence": ["tooling/src/ui-audit/ops/page-validate.ts:98", "packages/server/src/infra/plugin-host/marshal.ts:17"],
       "recommendation": "no_edit"
     },
     {
@@ -2303,10 +1890,7 @@
       "candidate_text": "switch(verb) vs VERB_HELP (tooling/src/verify/lib/cli-help.ts): common={baseline, debt, eslint, run, scoped, show, structure, typecheck} left-only={asset-refs, biome-rule-liveness, board-citations, boot-chunk, config-snapshot, db-baseline, gate-contract, instrument-affected, ledger-claims, ledgers-fresh, new-gate, orphan-ratchet, policy-conformance, ratchet-gate, scoped-test, structure-delta, tests-execution-membership, tests-membership, typecheck-plan} right-only={\"asset-refs\", \"biome-rule-liveness\", \"board-citations\", \"boot-chunk\", \"config-snapshot\", \"db-baseline\", \"gate-contract\", \"instrument-affected\", \"ledger-claims\", \"ledgers-fresh\", \"new-gate\", \"orphan-ratchet\", \"policy-conformance\", \"ratchet-gate\", \"scoped-test\", \"structure-delta\", \"tests-execution-membership\", \"tests-membership\", \"typecheck-plan\"}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "The CLI switch and help maps are semantically equal; hyphenated quoted property text is not normalized before comparison.",
-      "evidence": [
-        "tooling/src/verify/cli.ts:88",
-        "tooling/src/verify/lib/cli-help.ts:20"
-      ],
+      "evidence": ["tooling/src/verify/cli.ts:88", "tooling/src/verify/lib/cli-help.ts:20"],
       "recommendation": "no_edit"
     },
     {
@@ -2318,10 +1902,7 @@
       "candidate_text": "DOMAIN_FRESHNESS vs DOMAIN_SPECIFIC_ALLOWED_ROOT_FILES (tooling/src/verify/gates/feature-structure.ts): common={chat, preset, rpg, settings, stats} left-only={\"roster-preset\", \"world-info\", admin, assets, automation, character, connection, credentials, databank, discovery, embeddings, imagery, notifications, persona, plugin, refinery, regex, sessions, tag, workloads} right-only={}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "DOMAIN_SPECIFIC_ALLOWED_ROOT_FILES is the small set of feature-root exceptions; DOMAIN_FRESHNESS covers the domain inventory.",
-      "evidence": [
-        "tooling/src/verify/gates/domain-freshness-plane.ts:111",
-        "tooling/src/verify/gates/feature-structure.ts:19"
-      ],
+      "evidence": ["tooling/src/verify/gates/domain-freshness-plane.ts:111", "tooling/src/verify/gates/feature-structure.ts:19"],
       "recommendation": "no_edit"
     },
     {
@@ -2333,10 +1914,7 @@
       "candidate_text": "DOMAIN_SPECIFIC_ALLOWED_ROOT_FILES vs PORTABLE_CANON_TABLES (tooling/src/verify/gates/lifecycle-portability.ts): common={chat, preset} left-only={rpg, settings, stats} right-only={\"user-settings\", \"world-info\", assets, character, databank, gallery, persona, regex, tag, theme}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "Feature-root exception domains and portable bundle kinds are separate governance axes.",
-      "evidence": [
-        "tooling/src/verify/gates/feature-structure.ts:97",
-        "tooling/src/verify/gates/lifecycle-portability.ts:100"
-      ],
+      "evidence": ["tooling/src/verify/gates/feature-structure.ts:97", "tooling/src/verify/gates/lifecycle-portability.ts:100"],
       "recommendation": "no_edit"
     },
     {
@@ -2348,10 +1926,7 @@
       "candidate_text": "PORTABLE_CANON_TABLES vs SOURCE_LABELS (packages/client/src/features/chat/lib/chat-documents-model.ts): common={character, chat} left-only={\"user-settings\", \"world-info\", assets, databank, gallery, persona, preset, regex, tag, theme} right-only={global}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "Portable canon bundle kinds and chat document source labels are separate axes.",
-      "evidence": [
-        "tooling/src/verify/gates/lifecycle-portability.ts:100",
-        "packages/client/src/features/chat/lib/chat-documents-model.ts:53"
-      ],
+      "evidence": ["tooling/src/verify/gates/lifecycle-portability.ts:100", "packages/client/src/features/chat/lib/chat-documents-model.ts:53"],
       "recommendation": "no_edit"
     },
     {
@@ -2363,10 +1938,7 @@
       "candidate_text": "NON_PORTABLE_CANON vs OWNERID_CLASSIFICATIONS (tooling/src/verify/gates/ownerid-registry.ts): common={plugins, workloads} left-only={automationOwnerBudgets, automationRules, characterSummaries, dailyStats, embedGenerations, embedGenerationTargets, embedSpaceState, globalVariables, keywordCooccurrence, modelStats, ownerStats, pluginKv, refinerySchemas, rosterPresets, statsCanonVersions, themeClusters, userConnections, userCredentials, workloadSchedules} right-only={assets, automation_owner_budgets, automation_rules, characters, chat_tags, daily_stats, documents, embed_generation_targets, embed_generations, embed_space_state, global_documents, global_variables, keyword_cooccurrence, model_stats, owner_stats, personas, plugin_kv, presets, refinery_schemas, regex_scripts, roster_presets, stats_canon_versions, tags, theme_clusters, themes, user_connections, user_credentials, workload_schedules, world_books}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "Portability classifications use schema export identifiers; owner-id rulings use SQL table names and answer a different governance question.",
-      "evidence": [
-        "tooling/src/verify/gates/lifecycle-portability.ts:126",
-        "tooling/src/verify/gates/ownerid-registry.ts:5"
-      ],
+      "evidence": ["tooling/src/verify/gates/lifecycle-portability.ts:126", "tooling/src/verify/gates/ownerid-registry.ts:5"],
       "recommendation": "no_edit"
     },
     {
@@ -2378,10 +1950,7 @@
       "candidate_text": "LIFECYCLE_DOORS vs SOURCE_LABELS (packages/client/src/features/chat/lib/chat-documents-model.ts): common={character, chat} left-only={\"user-settings\", \"world-info\", assets, databank, gallery, persona, preset, regex, tag, theme} right-only={global}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "Lifecycle door bundle kinds and chat document source labels are separate axes.",
-      "evidence": [
-        "tooling/src/verify/gates/lifecycle-portability.ts:260",
-        "packages/client/src/features/chat/lib/chat-documents-model.ts:53"
-      ],
+      "evidence": ["tooling/src/verify/gates/lifecycle-portability.ts:260", "packages/client/src/features/chat/lib/chat-documents-model.ts:53"],
       "recommendation": "no_edit"
     },
     {
@@ -2393,10 +1962,7 @@
       "candidate_text": "OWNERID_CLASSIFICATIONS vs USAGE_LABELS (packages/client/src/features/tag/lib/tags-model.ts): common={characters, personas, presets} left-only={assets, automation_owner_budgets, automation_rules, chat_tags, daily_stats, documents, embed_generation_targets, embed_generations, embed_space_state, global_documents, global_variables, keyword_cooccurrence, model_stats, owner_stats, plugin_kv, plugins, refinery_schemas, regex_scripts, roster_presets, stats_canon_versions, tags, theme_clusters, themes, user_connections, user_credentials, workload_schedules, workloads, world_books} right-only={chats, worldBooks}",
       "disposition": "unrelated_vocabulary_heuristic_collision",
       "rationale": "Owner-id SQL tables and user-facing tag usage labels are separate axes.",
-      "evidence": [
-        "tooling/src/verify/gates/ownerid-registry.ts:56",
-        "packages/client/src/features/tag/lib/tags-model.ts:75"
-      ],
+      "evidence": ["tooling/src/verify/gates/ownerid-registry.ts:56", "packages/client/src/features/tag/lib/tags-model.ts:75"],
       "recommendation": "no_edit"
     },
     {
@@ -2408,10 +1974,7 @@
       "candidate_text": "TOPOLOGY_FIXTURE vs CLEAN_PRODUCT_CSS (tooling/src/verify/lib/css-family-proof-fixtures.ts): common={[CLIENT_GLOBALS], [UI_GLOBALS]} left-only={\"packages/client/src/features/app-shell/surfaces/shell.css\", \"packages/ui/src/styles/theme.css\", \"packages/ui/src/styles/tiers.css\", [APP_SHELL], [CSS_ENTRY], [CT_BOOT], [CT_CONFIG], [CT_EXTENSION], [MAIN]} right-only={[SHELL], [THEME], [TIERS]}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "CLEAN_PRODUCT_CSS is the clean witness subset used inside the larger topology proof fixture.",
-      "evidence": [
-        "tooling/src/verify/gates/playwright-css-topology.ts:314",
-        "tooling/src/verify/lib/css-family-proof-fixtures.ts:19"
-      ],
+      "evidence": ["tooling/src/verify/gates/playwright-css-topology.ts:314", "tooling/src/verify/lib/css-family-proof-fixtures.ts:19"],
       "recommendation": "no_edit"
     },
     {
@@ -2423,9 +1986,7 @@
       "candidate_text": "3 sibling exports share fields {in, under}; aggregation=hand-maintained at tooling/src/verify/gates/appearance-carrier-contract.ts, tooling/src/verify/gates/appearance-carrier-health.ts, tooling/src/verify/gates/db-enum-from-tuple.ts, tooling/src/verify/gates/fk-columns-indexed.ts, tooling/src/verify/gates/fk-ondelete-stated.ts, tooling/src/verify/gates/gate-ignore-inventory.ts, tooling/src/verify/gates/no-untyped-soft-ref.ts, tooling/src/verify/gates/ownerid-registry.ts, tooling/src/verify/gates/schema-banned-shapes.ts, tooling/src/verify/gates/schema-branding.ts, tooling/src/verify/gates/table-explicit-primary-key.ts, tooling/src/verify/gates/table-scoping-class.ts",
       "disposition": "intentional_hand_composition",
       "rationale": "The contribution is exported and explicitly imported by the named composition/barrel sites; the composer is hand-maintained but already has a live door, and typed records/tuples provide the relevant completeness fence where required.",
-      "evidence": [
-        "tooling/src/verify/lib/appearance-carrier-fact.ts:10"
-      ],
+      "evidence": ["tooling/src/verify/lib/appearance-carrier-fact.ts:10"],
       "recommendation": "no_edit"
     },
     {
@@ -2437,10 +1998,7 @@
       "candidate_text": "switch(request.kind) vs switch(req.kind) (tooling/src/verify/lib/selection.ts): common={changed, file, package} left-only={folder, project, whole} right-only={scope}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "Policy requests accept folder/project/whole and normalize them; selection receives the narrower changed/file/package/scope form.",
-      "evidence": [
-        "tooling/src/verify/lib/policy-scope.ts:282",
-        "tooling/src/verify/lib/selection.ts:184"
-      ],
+      "evidence": ["tooling/src/verify/lib/policy-scope.ts:282", "tooling/src/verify/lib/selection.ts:184"],
       "recommendation": "no_edit"
     },
     {
@@ -2452,10 +2010,7 @@
       "candidate_text": "switch(request.kind) vs switch(req.kind) (tooling/src/verify/lib/selection.ts): common={changed, file, package} left-only={folder, project, whole} right-only={scope}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "Policy requests accept folder/project/whole and normalize them; selection receives the narrower changed/file/package/scope form.",
-      "evidence": [
-        "tooling/src/verify/lib/policy-scope.ts:373",
-        "tooling/src/verify/lib/selection.ts:184"
-      ],
+      "evidence": ["tooling/src/verify/lib/policy-scope.ts:373", "tooling/src/verify/lib/selection.ts:184"],
       "recommendation": "no_edit"
     },
     {
@@ -2467,10 +2022,7 @@
       "candidate_text": "BASELINES vs LEDGER_CHECKS (tooling/src/verify/ops/ledgers-fresh.ts): common={\"caught-failure-population\", \"read-first-costs\", \"snap-flags-index\", \"type-configs\", [THEME_BASELINE]} left-only={\"baseui-surface\", prose} right-only={}",
       "disposition": "deliberate_subset_or_superset",
       "rationale": "LEDGER_CHECKS is the ledger-producing subset of the complete BASELINES registry.",
-      "evidence": [
-        "tooling/src/verify/ops/baseline.ts:23",
-        "tooling/src/verify/ops/ledgers-fresh.ts:304"
-      ],
+      "evidence": ["tooling/src/verify/ops/baseline.ts:23", "tooling/src/verify/ops/ledgers-fresh.ts:304"],
       "recommendation": "no_edit"
     }
   ]

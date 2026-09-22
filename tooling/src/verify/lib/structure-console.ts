@@ -56,12 +56,13 @@ export function structureConsole({ selected, final, reconciliation, run, slotRel
 /** The visible half of the #410 guarantee: the console says how many of the corpus actually ran. */
 function completenessLine(run: RunManifest): string {
   const split = `${run.final.ran}/${run.final.registered} policies`;
-  if (run.selection.kind !== "all") {
-    // A selected run's own line says what it is NOT, in the same place a reader looks for the verdict.
+  if (run.selection.kind !== "all" || run.scope.kind !== "whole") {
+    const selection = run.selection.kind === "all" ? "all policies" : `--${run.selection.kind} ${run.selection.names.join(`, --${run.selection.kind} `)}`;
+    // A scoped run's own line says what it is NOT, in the same place a reader looks for the verdict.
     return [
-      `check:structure: SELECTED RUN (--${run.selection.kind} ${run.selection.names.join(`, --${run.selection.kind} `)}) — ran ${run.ran}/${run.active} selected gate(s) (${split}) of ${run.corpusFiles} corpus file(s)`,
+      `check:structure: SCOPED RUN (${selection}; ${run.scope.label}) — ran ${run.ran}/${run.active} selected gate(s) (${split}) of ${run.corpusFiles} corpus file(s)`,
       `  this is NOT a whole-corpus verdict and reports/${STRUCTURE_REPORT_NAME} was NOT republished — read ${run.artifactDir}/${STRUCTURE_REPORT_NAME}`,
-      ...(run.incompleteReasons.length === 0 ? [] : ["  the SELECTED run is itself INCOMPLETE:", ...run.incompleteReasons.map((r) => `  ‼ ${r}`)]),
+      ...(run.incompleteReasons.length === 0 ? [] : ["  the SCOPED run is itself INCOMPLETE:", ...run.incompleteReasons.map((r) => `  ‼ ${r}`)]),
     ].join("\n");
   }
   if (run.incompleteReasons.length === 0) {

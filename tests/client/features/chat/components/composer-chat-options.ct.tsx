@@ -19,17 +19,20 @@
 
 import type { ParticipantRole } from "@orb/contracts/identity";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { TrpcFixtureOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ComposerChatOptionsStory } from "../_ct-stories.tsx";
 import { makeMessagesPage } from "../fixtures.ts";
 
 /** A human seat — `role` seats a host/member (the roster shape). The host gate is the separate
  *  server-resolved `viewerIsHost` field, NOT this seat's role. */
-function human(role: ParticipantRole): Record<string, unknown> {
+type ParticipantFixture = NonNullable<TrpcFixtureOutput<"chat.getChat">["participants"]>[number];
+
+function human(role: ParticipantRole): ParticipantFixture {
   return { id: `participant_${role}`, kind: "human", role, userId: `user_${role}`, characterId: null, leftSeq: null };
 }
 
-function chatDetail(viewerIsHost: boolean): unknown {
+function chatDetail(viewerIsHost: boolean): TrpcFixtureOutput<"chat.getChat"> {
   return { title: "Council of Two", participants: [human("host"), human("member")], viewerIsHost };
 }
 

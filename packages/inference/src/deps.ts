@@ -54,8 +54,18 @@ export interface BindingStore {
 /** Runtime provider rows (`provider_rows`: plugin-shipped + admin-added), beside the built-ins. */
 export interface ProviderStore {
   readonly list: () => Promise<readonly ProviderDef[]>;
-  readonly put: (row: ProviderDef, origin: { readonly plugin: PluginId } | { readonly admin: UserId }) => Promise<void>;
-  readonly remove: (id: ProviderId) => Promise<void>;
+  /** Upsert one admin-owned row; false means the id belongs to plugin contributions. */
+  readonly putAdmin: (row: ProviderDef, admin: UserId) => Promise<boolean>;
+  /** Remove one admin-owned row; false means the id is absent or plugin-owned. */
+  readonly removeAdmin: (id: ProviderId) => Promise<boolean>;
+  /** Atomically replace one enabled plugin install's complete contribution set. A ProviderId is permanently
+   *  bound to its first canonical definition; a conflicting definition or admin-owned id writes nothing. */
+  readonly replacePlugin: (
+    rows: readonly ProviderDef[],
+    pluginId: PluginId,
+  ) => Promise<{ readonly ok: true } | { readonly ok: false; readonly conflictingId: ProviderId }>;
+  /** Remove only this install's active contributions; immutable provider identity rows remain tombstoned. */
+  readonly removePlugin: (pluginId: PluginId) => Promise<void>;
 }
 
 export interface InferenceDeps {

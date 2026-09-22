@@ -91,6 +91,7 @@ function useSlotState(): { readonly slot: SlotState; readonly recheck: () => voi
       settings.refetch().catch(() => undefined);
       return;
     }
+    // @orb-waive caught-failure-ownership(Promise.all): each TanStack Query observer owns its rejection in `settings.isError`/`preset.isError`; this event only starts the paired retry. Ends if either refetch stops updating query error state.
     Promise.all([settings.refetch(), preset.refetch()]).catch(() => undefined);
   };
 

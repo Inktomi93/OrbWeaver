@@ -409,10 +409,6 @@ export const RPG_TOOL_ROUND_TOOL_NAMES = [
   "add_journal_entry",
   RPG_NO_CHANGES_TOOL,
 ] as const;
-/** @public future: a future typed tool-round dispatcher (unbuilt) — derived from the live
- *  `RPG_TOOL_ROUND_TOOL_NAMES` tuple, which the tool-round parse code reads by string; the narrowed surface a
- *  dispatcher uses instead of `string` (rpg/index.ts KISS/YAGNI SUSPENDED). */
-export type RpgToolRoundToolName = (typeof RPG_TOOL_ROUND_TOOL_NAMES)[number];
 
 /** One parsed tool call off the round's `ChatResult.toolCalls`: the tool name + its raw JSON args string. */
 export interface RpgToolCall {

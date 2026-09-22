@@ -12,17 +12,22 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder, TrpcRoutes } from "../../../../support/node/route-trpc.ts";
+import type { TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { AboutSectionStory } from "../_ct-stories.tsx";
 
 const LOCAL_COMMIT = "823d76f4343a1cea086b17a1b5bf212b44c17a7d";
 const REMOTE_COMMIT = "f00dcafe1234567890abcdef1234567890abcdef";
 
-const VERSION = { version: "0.4.1", commit: LOCAL_COMMIT, short: LOCAL_COMMIT.slice(0, 12), source: "checkout" };
+const VERSION = {
+  version: "0.4.1",
+  commit: LOCAL_COMMIT,
+  short: LOCAL_COMMIT.slice(0, 12),
+  source: "checkout",
+} satisfies TrpcWireOutput<"settings.getVersion">;
 const CHECK_BUTTON = "Check for updates";
 
-function stub(page: Page, extra: TrpcRoutes = {}): Promise<TrpcRecorder> {
+function stub(page: Page, extra: Partial<TrpcRoutes<"settings.checkForUpdate" | "settings.getVersion">> = {}): Promise<TrpcRecorder> {
   return routeTrpc(page, { "settings.getVersion": () => VERSION, ...extra });
 }
 

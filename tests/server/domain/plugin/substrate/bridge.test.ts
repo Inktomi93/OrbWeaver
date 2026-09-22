@@ -1,10 +1,10 @@
 // substrate: bridge — the per-installer PluginBridge builder (P4b-CORE / P4b-tail). Pure: no db, no Principal
-// minting. The security-load-bearing property proven here is the turn.trigger FUNDER — the membrane passes only
-// (chatId, depth, p); the funder is closed over the INSTALLER domain-side, so a guest can never fund a foreign
-// turn (requestTurn resolves the room-host box + gates the funder's membership downstream). Also pins that the
+// minting. The security-load-bearing property proven here is the turn.trigger INITIATOR — the membrane passes only
+// (chatId, depth, p); the installer is closed over domain-side, so a guest cannot forge attribution or abort
+// ownership (requestTurn resolves the host funder + gates the initiator's membership downstream). Also pins that the
 // global-vars ops close over the installer (a cross-user KV read is structurally impossible). (The per-plugin
-// spend wrap was stripped 2026-07-24 — enterprise spend enforcement; loop safety rides the per-member turn RATE
-// budget + the cascade guard downstream in requestTurn, the n≤4 clamp + the ≤32 host-call cap for imagery.)
+// spend wrap was stripped 2026-07-24 — enterprise spend enforcement; loop safety rides the cascade guard
+// downstream in requestTurn, the n≤4 clamp + the ≤32 host-call cap for imagery.)
 
 import { historyFloor } from "@orb/contracts/chat";
 import type { PluginInvocationLiveness } from "@orb/contracts/plugin";
@@ -97,8 +97,8 @@ function recordingOps(): {
   return { ops, turns, varGets };
 }
 
-describe("buildPluginBridge — turn.trigger funder is the installer (can't fund a foreign turn)", () => {
-  test("requestTurn closes the funder over the installer + threads the child depth + maps speaker/guided", async () => {
+describe("buildPluginBridge — turn.trigger initiator is the installer", () => {
+  test("requestTurn closes the initiator over the installer + threads the child depth + maps speaker/guided", async () => {
     const rec = recordingOps();
     const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN_REF, freeBelts());
 
@@ -106,8 +106,8 @@ describe("buildPluginBridge — turn.trigger funder is the installer (can't fund
 
     expect(rec.turns.calls).toHaveLength(1);
     const call = rec.turns.calls[0];
-    // The FUNDER is the installer — NEVER a guest/infra-supplied id (the membrane never passes it).
-    expect(call?.funderUserId).toBe(INSTALLER);
+    // The initiator is the installer — NEVER a guest/infra-supplied id (the membrane never passes it).
+    expect(call?.triggeredBy).toBe(INSTALLER);
     expect(call?.chatId).toBe(CHAT);
     expect(call?.automationDepth).toBe(2);
     expect(call?.speakerCharacterId).toBe("char_x00000000000000000000000");
@@ -121,19 +121,18 @@ describe("buildPluginBridge — turn.trigger funder is the installer (can't fund
     await bridge.chat.requestTurn(CHAT, 0, {});
 
     const call = rec.turns.calls[0];
-    expect(call).toEqual({ funderUserId: INSTALLER, chatId: CHAT, automationDepth: 0 });
+    expect(call).toEqual({ triggeredBy: INSTALLER, chatId: CHAT, automationDepth: 0 });
     expect("speakerCharacterId" in (call ?? {})).toBe(false);
     expect("guided" in (call ?? {})).toBe(false);
   });
 
-  test("a bridge for one installer NEVER funds another installer's turn (funder is structural)", async () => {
+  test("a bridge for one installer never attributes another installer as the initiator", async () => {
     const rec = recordingOps();
     const otherBridge = buildPluginBridge(rec.ops, OTHER, PLUGIN_REF, freeBelts());
 
     await otherBridge.chat.requestTurn(CHAT, 1, {});
 
-    // The funder is whichever installer the bridge was built FOR — the guest has no lever on it.
-    expect(rec.turns.calls[0]?.funderUserId).toBe(OTHER);
+    expect(rec.turns.calls[0]?.triggeredBy).toBe(OTHER);
   });
 });
 

@@ -19,6 +19,7 @@ import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import type { TrpcFixtureOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { RpgDiceAskStory } from "../../chat/_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, CHAT_ID, makeMessagesPage, makeMessageView } from "../../chat/fixtures.ts";
@@ -42,7 +43,7 @@ function gameView(ruleset: RpgRuleset): RpgGameView {
 
 /** A baked `rpg.rollDice` outcome — the wire shape (`RollDiceResult`) verbatim. Network-stubbed, so a fixed
  *  roll; the stamp is what the source appends to the composer. */
-function rollOutcome(notation: string, rolls: readonly number[], total: number): unknown {
+function rollOutcome(notation: string, rolls: readonly number[], total: number): TrpcFixtureOutput<"rpg.rollDice"> {
   return { notation, rolls, modifier: 0, total, stamp: `[dice: ${notation} → ${total}]` };
 }
 
@@ -55,7 +56,7 @@ function routeRoom(
 ): Promise<{ readonly count: (p: string) => number; readonly lastInput: (p: string) => unknown }> {
   return routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
-    "chat.previewContextFit": (): unknown => ({
+    "chat.previewContextFit": () => ({
       boundaryMessageId: null,
       usedTokens: 120,
       ceilingTokens: 32_768,
@@ -77,12 +78,12 @@ function routeRoom(
       group: DEFAULT_GROUP_CONFIG,
       rpg: engaged ? { gameId: "rpg_game_ct_dice", engaged: true } : null,
     }),
-    "chat.listMessages": (): unknown =>
+    "chat.listMessages": () =>
       makeMessagesPage([makeMessageView({ id: castId<MessageId>("msg_dice_room"), role: "assistant", content: "The corridor forks.", seq: 1 })]),
     // The engaged room's game-aware chrome suspends on getGame; a plain chat never asks for it (no unfed read).
     ...(engaged ? { "rpg.getGame": (): RpgGameView => gameView(ruleset) } : {}),
-    "rpg.rollDice": (): unknown => rollOutcome("d20", [14], 14),
-    "chat.send": (): unknown => ({ ok: true }),
+    "rpg.rollDice": () => rollOutcome("d20", [14], 14),
+    "chat.send": () => ({ messages: [], aborted: false }),
   });
 }
 

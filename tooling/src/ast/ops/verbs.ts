@@ -10,7 +10,7 @@ import { cmdContractFieldLiveness } from "./fields.ts";
 import { cmdAliases, cmdCycles } from "./graph.ts";
 import { cmdOrphans, cmdTestOnly } from "./orphans.ts";
 import { cmdProdOnly } from "./prodonly.ts";
-import { cmdRegistryCandidates } from "./registry-candidates.ts";
+import { cmdRegistryCandidates } from "./registry-candidates-command.ts";
 import { cmdRegKeys } from "./regkeys.ts";
 import { cmdRespell } from "./respell.ts";
 import { cmdRot } from "./rot.ts";

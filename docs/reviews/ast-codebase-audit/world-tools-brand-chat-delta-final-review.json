@@ -1,0 +1,99 @@
+{
+  "task": "issue-2538-chat-delta-identity-current-tree",
+  "verdict": "CONFIRMED",
+  "scope": {
+    "repository": "/home/inktomi/.codex/worktrees/world-aware-tools/orbweaver",
+    "head": "103cadb60833bbfc5f20086ae14c93cab25b8ede",
+    "issue": 2538,
+    "composition": [
+      {
+        "commit": "0e961ef6302f23c44b3c038c269904982e2fcea9",
+        "role": "introduces the correlated ChatDeltaSubscription contract and runtime suppression of incomplete callback/identity pairs"
+      },
+      {
+        "commit": "2c57f180864f2f79dd7db9e40bc6e436f3cecbac",
+        "role": "adds backend-specific api-discriminant request narrowing and typed rejection for a wrong request arm"
+      },
+      {
+        "commit": "727a1b001",
+        "role": "repairs both hosted-backend test helpers so overrides preserve ChatDeltaSubscription instead of flattening the correlated pair with Partial"
+      }
+    ],
+    "ancestry": "git merge-base --is-ancestor returned 0 for all three commits against HEAD"
+  },
+  "summary": "The present tree satisfies issue #2538. A delta callback cannot be expressed without a real ChatId through the typed ChatRequest contract; all three emitting backends suppress an incomplete runtime pair; no empty ChatId fabrication remains in inference; hosted backend dispatch narrows by the api discriminant and rejects mismatches; and ordinary callback-free requests still execute. The later helper repair in 727a1b001 makes the current native TypeScript program clean.",
+  "contract_and_runtime": {
+    "type_boundary": {
+      "location": "packages/inference/src/contract/chat.ts:104",
+      "evidence": "ChatDeltaSubscription is `{ chatId: ChatId; onDelta: callback } | { chatId?: ChatId; onDelta?: undefined }`, and ChatRequestCommon intersects that union into every ChatRequest arm.",
+      "type_test": "tests/inference/contract/chat.test-d.ts accepts the paired callback and callback-free arm, and rejects both callback-without-chatId and callback-with-explicit-undefined-chatId."
+    },
+    "runtime_backstops": [
+      "packages/inference/src/backends/agent-sdk/runner.ts:845 destructures chatId/onDelta and returns before emission if either is undefined.",
+      "packages/inference/src/backends/anthropic-messages/chat.ts:256 creates deltaTarget only when both fields exist; both text and reasoning emission use that target.",
+      "packages/inference/src/backends/openai-compat/chat.ts:407 applies the same paired target check for both delta kinds."
+    ],
+    "runtime_malformed_pair": "The conformance test deletes chatId through Reflect while retaining onDelta. OpenAI-compatible, Anthropic Messages, and Agent SDK all returned the truthful completed reply and delivered no fabricated delta callback.",
+    "fabricated_identity_sweep": "Structural and literal sweeps found no inference castId<ChatId> or `as ChatId` fabrication in packages/inference or tests/inference. The parent of 0e961ef63 had exactly three castId<ChatId>(... ?? empty-string) sites; HEAD has zero.",
+    "backend_narrowing": [
+      "packages/inference/src/backends/anthropic-messages/index.ts:32 narrows ChatRequest to AnthropicChatRequest with req.api === anthropic-messages; runChatTurn rejects a mismatch with ProviderError before calling the specific backend.",
+      "packages/inference/src/backends/openai-compat/index.ts:27 narrows ChatRequest to OpenAiCompatChatRequest with req.api === chat-completions; runChatTurn rejects a mismatch with ProviderError before calling the specific backend."
+    ],
+    "chatless_no_delta": "Both hosted backend suites use a default request with neither chatId nor onDelta and pass all 33 backend tests. The callback-free union arm also permits an optional chatId for session lineage without enabling delivery."
+  },
+  "helper_repair": {
+    "commit": "727a1b001",
+    "anthropic": "tests/inference/backends/anthropic-messages/chat.test.ts:53 defines Partial<Omit<AnthropicChatRequest, chatId | onDelta>> & ChatDeltaSubscription and checks the base with satisfies AnthropicChatRequest.",
+    "openai": "tests/inference/backends/openai-compat/chat.test.ts:43 defines Partial<Omit<OpenAiCompatChatRequest, chatId | onDelta>> & ChatDeltaSubscription and checks the base with satisfies OpenAiCompatChatRequest.",
+    "effect": "Override helpers can no longer manufacture an optional callback independently of identity, and the root native program accepts them."
+  },
+  "structural_sweep": {
+    "tool": "pnpm exec ast-grep with TypeScript and TSX languages, corroborated with rg",
+    "typescript_files_scanned": 6470,
+    "tsx_files_scanned": 1407,
+    "results": [
+      "TypeScript `$OBJ.onDelta` scan: 9 matches.",
+      "TypeScript `$OBJ?.onDelta` scan: 4 matches, the two text/reasoning sites in each hosted backend.",
+      "TypeScript `onDelta($$$ARGS)` scan: 2 matches, the agent-sdk text/reasoning emissions.",
+      "TSX member scan: 0 matches; a TSX identifier positive control matched tests/support/browser/ct-providers.tsx, so the zero was not a parser/tool failure.",
+      "rg over TS and TSX corroborated the inference producers and server compose/engine consumers; no additional delta producer was hidden in TSX."
+    ]
+  },
+  "verification": {
+    "focused_runtime": {
+      "command": "pnpm test:scoped tests/inference/conformance/streaming-completion.suite.test.ts tests/inference/backends/openai-compat/chat.test.ts tests/inference/backends/anthropic-messages/chat.test.ts tests/inference/contract/chat.test-d.ts",
+      "report": "reports/runs/test/orbweaver-3277031-2026-09-21T14-05-31-294Z/test-report.json",
+      "result": "success true; 4/4 suites passed; 43 passed, 3 expected local-light-unserved skips, 0 failed",
+      "observed_cases": [
+        "The type assertion suite passed.",
+        "All three served chat wires passed the malformed callback-without-ChatId suppression case.",
+        "All three served chat wires passed the positive stream case where the observed deltas equal the committed reply.",
+        "All three served chat wires passed the truncated-stream fail-closed case.",
+        "Anthropic hosted backend: 16 passed; OpenAI-compatible hosted backend: 17 passed."
+      ]
+    },
+    "native_types": [
+      {
+        "command": "pnpm typecheck --config packages/inference/tsconfig.json --config packages/server/tsconfig.json",
+        "result": "PASS packages/inference/tsconfig.json; PASS packages/server/tsconfig.json"
+      },
+      {
+        "command": "pnpm typecheck --config tsconfig.json",
+        "result": "PASS tsconfig.json"
+      }
+    ],
+    "target_cleanliness": "git diff --name-only over the inference contract, three backends, focused backend/conformance/type tests returned no paths; the reviewed implementation and helper repair are committed."
+  },
+  "exact_range_receipt": {
+    "preserved_report": "/tmp/world-tools-brand-chat-delta-review.json",
+    "verdict": "REFUTED",
+    "reason": "At exact commit 2c57f1808, before 727a1b001, the two hosted-backend test helpers used Partial<BackendChatRequest>. Native root typecheck produced TS2322 at tests/inference/backends/anthropic-messages/chat.test.ts:71 and tests/inference/backends/openai-compat/chat.test.ts:59 because the flattened helper could express onDelta without required chatId.",
+    "isolated_checkout": "/tmp/chat-delta-2538.yW6Avi",
+    "compiler_log": "/tmp/chat-delta-2538-tsgo.log",
+    "relationship_to_current_verdict": "That exact-range verdict remains valid. Commit 727a1b001 is outside the original two-commit range and is the committed repair that changes the current-tree verdict to CONFIRMED."
+  },
+  "limitations": [
+    "The worktree contains unrelated concurrent modifications and untracked audit/plugin/chat-persistence work. One modified consumer file is packages/server/src/domain/chat/engine/engine.ts. The reviewed inference target files are clean, the focused inference suites passed on the actual current worktree, and both inference/server plus root native type programs passed with the concurrent state present.",
+    "The three local-light conformance cases were skipped as explicitly unserved; the same contract/backstop behavior was exercised and passed on all three served delta-producing wires."
+  ]
+}

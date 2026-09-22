@@ -12,6 +12,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
 import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
 import { spawnNiced, spawnNicedTranscript } from "@orb/tooling/_shared/proc";
+import { vi } from "vitest";
 import YAML from "yaml";
 import type { Parsed, StageDef, StageResult, VerifyReport } from "../../../../tooling/src/verify/index.ts";
 import {
@@ -295,25 +296,17 @@ test("noticesIn lifts `[verify-notice]` lines and nothing else", () => {
   expect(noticesIn("nothing to declare here\n  ✓ clean")).toEqual([]);
 });
 
-/** Run `emit` with `process.stdout.write` captured, and return everything it wrote. ONE home (#1566):
- *  three tests had copy-pasted this block, which meant three copies of the same two ruled `any`
- *  suppressions in one file. (Until 2026-09-12 the enforcement was the per-file COUNT RATCHET, which only
- *  ever shrank, so a fourth copy was a gate failure outright; #2063 replaced it with a per-rule-class
- *  reviewed grant, which no longer counts occurrences — the reason to stop making copies is now the
- *  duplication itself.) */
+/** Run `emit` with `process.stdout.write` captured, and return everything it wrote. ONE home (#1566). */
 function captureStdout(emit: () => void): string {
   const written: string[] = [];
-  const original = process.stdout.write.bind(process.stdout);
-  // biome-ignore lint/suspicious/noExplicitAny: a stdout capture — the write overloads are irrelevant to what these tests assert.
-  (process.stdout as any).write = (chunk: string): boolean => {
-    written.push(chunk);
+  const write = vi.spyOn(process.stdout, "write").mockImplementation((chunk) => {
+    written.push(String(chunk));
     return true;
-  };
+  });
   try {
     emit();
   } finally {
-    // biome-ignore lint/suspicious/noExplicitAny: restoring the captured write, same reason.
-    (process.stdout as any).write = original;
+    write.mockRestore();
   }
   return written.join("");
 }

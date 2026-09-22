@@ -10,17 +10,8 @@
   },
   "corroboration": {
     "astGrep": {
-      "languages": [
-        "ts",
-        "tsx"
-      ],
-      "scope": [
-        "packages/client",
-        "packages/ui",
-        "packages/showcase-plugins",
-        "packages/contracts",
-        "packages/server"
-      ],
+      "languages": ["ts", "tsx"],
+      "scope": ["packages/client", "packages/ui", "packages/showcase-plugins", "packages/contracts", "packages/server"],
       "result": "exact declarations confirmed; no duplicate PluginPageKey or RuntimeClassResult declarations; ChatHandle has three intentionally distinct domain declarations"
     },
     "literalSearch": "rg over packages/tooling/tests; all call sites read and classified"

@@ -64,8 +64,6 @@ import {
   rpgSheetSchema,
   rpgSnapshotStateSchema,
 } from "@orb/contracts/rpg";
-import type { CharacterHandle } from "@orb/kit/ids";
-import { brandedId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { z } from "zod";
 import { defineJsonObjectSerde } from "#kit/serde/lib";
@@ -126,7 +124,9 @@ export interface PortableChatInjection {
 /** One `rpg_sheets` row. The actor is a character (by handle) XOR the HOST human — `characterHandle: null`
  *  means the user seat, which on restore is the importer (the only human the room has). */
 export interface PortableRpgSheet {
-  readonly characterHandle: CharacterHandle | null;
+  /** Foreign-file identity. The import verb validates and resolves it against the destination library. */
+  // @orb-waive brand-in-name-position(characterHandle): this is untrusted portable-file text, parsed and resolved against the destination library only by the import verb; branding it here would claim validation the serde boundary has not performed. Ends if the bundle schema parses this field to CharacterHandle before exposing it.
+  readonly characterHandle: string | null;
   readonly sheet: RpgSheet;
 }
 
@@ -274,10 +274,9 @@ const wireRpgSchema = z.object({
   sessionNumber: z.number().int().positive().catch(1),
   config: rpgGameConfigSchema,
   createdAt: z.number().int(),
-  // `brandedId`, deliberately not a bare `z.string()`: the brand is type-only at runtime, so an opaque
-  // carried handle stays exactly what it is (a slug off a foreign file) while every consumer of this shape is
-  // forced to say WHICH id vocabulary it holds — the `sourceAssetId` precedent in the databank serde.
-  sheets: z.array(z.object({ characterHandle: brandedId<CharacterHandle>().nullish().catch(null), sheet: rpgSheetSchema })),
+  // A foreign handle is opaque carriage until the import verb resolves it against the owner's canonical
+  // library. Keep the wire value unbranded here; the lookup boundary validates the real handle contract.
+  sheets: z.array(z.object({ characterHandle: z.string().min(1).nullish().catch(null), sheet: rpgSheetSchema })),
   snapshots: z.array(
     z.object({
       messageIndex: nullableIndex,

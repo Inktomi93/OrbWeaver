@@ -44,7 +44,11 @@
       "consumer": "No TS/TSX member read, raw-SQL use, index, FK, CHECK, ordering, projection, admin, debug, or tooling consumer. loadHandoffResumption projects only chatId, acceptedByUserId, actorRekeys.",
       "schema_intent": "No comment assigns meaning to updatedAt; marker is insert-once and then deleted, never updated.",
       "recommendation": "Remove updated_at after checking the equally unused created_at sibling; deployed databases require an explicit forward migration, not only a baseline edit.",
-      "evidence": ["packages/db/src/schema/chat.ts:265", "packages/server/src/domain/chat/persistence/handoff-resume.ts:20", "packages/server/src/domain/chat/persistence/handoff-resume.ts:36"]
+      "evidence": [
+        "packages/db/src/schema/chat.ts:265",
+        "packages/server/src/domain/chat/persistence/handoff-resume.ts:20",
+        "packages/server/src/domain/chat/persistence/handoff-resume.ts:36"
+      ]
     },
     {
       "key": "chat_stream_events.id",
@@ -54,7 +58,12 @@
       "consumer": "No production member read; the lens read count is homonym row-shape overcount. It remains the future append row primary key.",
       "schema_intent": "The table header explicitly says RETAINED and records #1380: replay/bounds/minter/clamp exist and the missing piece is exactly the append verb.",
       "recommendation": "Do not delete. Complete the ruled append verb or separately reverse the recorded retention decision.",
-      "evidence": ["packages/db/src/schema/chat.ts:920", "packages/db/src/schema/chat.ts:938", "packages/server/src/domain/chat/persistence/queries.ts:935", "git:b588b9d0a"]
+      "evidence": [
+        "packages/db/src/schema/chat.ts:920",
+        "packages/db/src/schema/chat.ts:938",
+        "packages/server/src/domain/chat/persistence/queries.ts:935",
+        "git:b588b9d0a"
+      ]
     },
     {
       "key": "chat_stream_events.chat_id",
@@ -64,7 +73,11 @@
       "consumer": "Directly filters replay and bounds reads in queries.ts:942 and :959; also FK CASCADE and unique(chat_id, seq).",
       "schema_intent": "Room scope and replay partition for the explicitly retained resumable SSE log.",
       "recommendation": "Retain; append-verb work is missing.",
-      "evidence": ["packages/db/src/schema/chat.ts:939", "packages/server/src/domain/chat/persistence/queries.ts:942", "packages/server/src/domain/chat/persistence/queries.ts:959"]
+      "evidence": [
+        "packages/db/src/schema/chat.ts:939",
+        "packages/server/src/domain/chat/persistence/queries.ts:942",
+        "packages/server/src/domain/chat/persistence/queries.ts:959"
+      ]
     },
     {
       "key": "chat_stream_events.message_id",
@@ -74,7 +87,11 @@
       "consumer": "Selected into replay events and inner-joined to messages for the D16 floor; FK CASCADE plus child-FK index.",
       "schema_intent": "Nullable message anchor for the retained stream log; the header warns the future writer must prove chat/message coherence.",
       "recommendation": "Retain; append-verb work is missing.",
-      "evidence": ["packages/db/src/schema/chat.ts:944", "packages/server/src/domain/chat/persistence/queries.ts:938", "packages/server/src/domain/chat/persistence/queries.ts:949"]
+      "evidence": [
+        "packages/db/src/schema/chat.ts:944",
+        "packages/server/src/domain/chat/persistence/queries.ts:938",
+        "packages/server/src/domain/chat/persistence/queries.ts:949"
+      ]
     },
     {
       "key": "chat_stream_events.seq",
@@ -84,7 +101,12 @@
       "consumer": "Replay cursor projection/filter/order and min/max bounds; unique with chat_id.",
       "schema_intent": "The resumable cursor itself.",
       "recommendation": "Retain; append-verb work is missing.",
-      "evidence": ["packages/db/src/schema/chat.ts:948", "packages/server/src/domain/chat/persistence/queries.ts:937", "packages/server/src/domain/chat/persistence/queries.ts:942", "packages/server/src/domain/chat/persistence/queries.ts:957"]
+      "evidence": [
+        "packages/db/src/schema/chat.ts:948",
+        "packages/server/src/domain/chat/persistence/queries.ts:937",
+        "packages/server/src/domain/chat/persistence/queries.ts:942",
+        "packages/server/src/domain/chat/persistence/queries.ts:957"
+      ]
     },
     {
       "key": "chat_stream_events.kind",
@@ -124,7 +146,11 @@
       "consumer": "Not projected to ProviderDef, but SQL CHECK constrains the enum and origin-shape invariant.",
       "schema_intent": "Distinguishes plugin and admin provenance and controls which nullable origin field is legal.",
       "recommendation": "Retain; application-read-only analysis cannot treat DDL consumers as unused.",
-      "evidence": ["packages/server/src/domain/connection/persistence/provider-rows.ts:36", "packages/db/src/schema/connection-bindings.ts:109", "packages/db/src/schema/connection-bindings.ts:127"]
+      "evidence": [
+        "packages/server/src/domain/connection/persistence/provider-rows.ts:36",
+        "packages/db/src/schema/connection-bindings.ts:109",
+        "packages/db/src/schema/connection-bindings.ts:127"
+      ]
     },
     {
       "key": "provider_rows.origin_plugin_id",
@@ -134,7 +160,11 @@
       "consumer": "FK CASCADE removes plugin-provided runtime rows on plugin deletion; indexed for the FK scan and constrained by origin-shape CHECK.",
       "schema_intent": "Lifecycle owner of plugin-origin providers.",
       "recommendation": "Retain.",
-      "evidence": ["packages/server/src/domain/connection/persistence/provider-rows.ts:50", "packages/db/src/schema/connection-bindings.ts:111", "packages/db/src/schema/connection-bindings.ts:121"]
+      "evidence": [
+        "packages/server/src/domain/connection/persistence/provider-rows.ts:50",
+        "packages/db/src/schema/connection-bindings.ts:111",
+        "packages/db/src/schema/connection-bindings.ts:121"
+      ]
     },
     {
       "key": "provider_rows.origin_user_id",
@@ -144,7 +174,11 @@
       "consumer": "FK SET NULL on user deletion, FK-scan index, and origin-shape CHECK. It is also explicit publisher provenance even though ProviderDef omits it.",
       "schema_intent": "Admin-origin attribution without making the provider row die with the admin.",
       "recommendation": "Retain; add a column exemption only if the lens is intended to report DDL-only consumers.",
-      "evidence": ["packages/server/src/domain/connection/persistence/provider-rows.ts:52", "packages/db/src/schema/connection-bindings.ts:115", "packages/db/src/schema/connection-bindings.ts:122"]
+      "evidence": [
+        "packages/server/src/domain/connection/persistence/provider-rows.ts:52",
+        "packages/db/src/schema/connection-bindings.ts:115",
+        "packages/db/src/schema/connection-bindings.ts:122"
+      ]
     },
     {
       "key": "theme_clusters.centroid",
@@ -154,7 +188,12 @@
       "consumer": "No application, raw-SQL, admin, debug, or tooling read. readThemes explicitly omits it. Only schema integration tests round-trip it.",
       "schema_intent": "Header says a downstream cosineDistance should use the re-normalized centroid, but no such downstream exists in the scanned corpus.",
       "recommendation": "Design decision: implement the promised centroid consumer or remove the blob column and writer. Current state is real dead storage, not a scanner false positive.",
-      "evidence": ["packages/db/src/schema/discovery.ts:284", "packages/server/src/domain/discovery/themes/generate.ts:216", "packages/server/src/domain/discovery/themes/retrieve.ts:20", "tests/db/schema/discovery.int.test.ts:491"]
+      "evidence": [
+        "packages/db/src/schema/discovery.ts:284",
+        "packages/server/src/domain/discovery/themes/generate.ts:216",
+        "packages/server/src/domain/discovery/themes/retrieve.ts:20",
+        "tests/db/schema/discovery.int.test.ts:491"
+      ]
     },
     {
       "key": "embed_generations.connection_ref",
@@ -164,7 +203,12 @@
       "consumer": "No application/raw-SQL/tooling read; readGeneration returns connectionId, fingerprint, and space, not connectionRef.",
       "schema_intent": "Likely intended immutable id provenance beside SET-NULL connectionId, but neither source comment nor a consumer establishes that use; introduced in the recent generation migration.",
       "recommendation": "Either expose/use it as immutable provenance or delete it. As implemented it is a duplicated write-only value. Forward migration required.",
-      "evidence": ["packages/db/src/schema/embeddings.ts:118", "packages/server/src/domain/embeddings/substrate/generation.ts:53", "packages/server/src/domain/search/persistence/active-space.ts:50", "git:610937682"]
+      "evidence": [
+        "packages/db/src/schema/embeddings.ts:118",
+        "packages/server/src/domain/embeddings/substrate/generation.ts:53",
+        "packages/server/src/domain/search/persistence/active-space.ts:50",
+        "git:610937682"
+      ]
     },
     {
       "key": "embed_generation_targets.updated_at",
@@ -174,7 +218,11 @@
       "consumer": "No application/raw-SQL/tooling read, index, CHECK, ordering, or projection.",
       "schema_intent": "Timestamp-shaped provenance, but no adjacent reason explains why it is retained; repeated same-generation resolution also refreshes it, so it is not strictly a transition timestamp.",
       "recommendation": "Remove, or document the manual/diagnostic consumer with an adjacent @column-ok reason. Current source does not justify the write.",
-      "evidence": ["packages/db/src/schema/embeddings.ts:145", "packages/server/src/domain/embeddings/substrate/generation.ts:57", "packages/server/src/domain/embeddings/substrate/generation.ts:64"]
+      "evidence": [
+        "packages/db/src/schema/embeddings.ts:145",
+        "packages/server/src/domain/embeddings/substrate/generation.ts:57",
+        "packages/server/src/domain/embeddings/substrate/generation.ts:64"
+      ]
     },
     {
       "key": "chat_digest_speakers.digest_id",
@@ -184,7 +232,12 @@
       "consumer": "Direct filters/joins in embeddings, chat memory, search display/scope, and handoff restamp; composite PK and CASCADE FK.",
       "schema_intent": "Identity half of the digest-character junction.",
       "recommendation": "Retain; teach the writer arm about typed row-array/whole-row values if feasible.",
-      "evidence": ["packages/db/src/schema/embeddings.ts:403", "packages/server/src/domain/embeddings/persistence/queries.ts:389", "packages/server/src/domain/chat/memory/persistence/queries.ts:172", "packages/server/src/domain/search/persistence/display.ts:148"]
+      "evidence": [
+        "packages/db/src/schema/embeddings.ts:403",
+        "packages/server/src/domain/embeddings/persistence/queries.ts:389",
+        "packages/server/src/domain/chat/memory/persistence/queries.ts:172",
+        "packages/server/src/domain/search/persistence/display.ts:148"
+      ]
     },
     {
       "key": "embed_space_state.owner_id",
@@ -194,7 +247,12 @@
       "consumer": "Direct filters/joins throughout space-state, active-space, and nearest reads; composite PK and owner FK CASCADE; raw promotion guard uses s.owner_id.",
       "schema_intent": "Required owner dimension of a parentless per-owner aggregate.",
       "recommendation": "Retain; add insert-select projection attribution to the lens.",
-      "evidence": ["packages/db/src/schema/embeddings.ts:547", "packages/server/src/domain/embeddings/persistence/space-state.ts:96", "packages/server/src/domain/embeddings/persistence/space-state.ts:121", "packages/server/src/domain/search/persistence/nearest.ts:115"]
+      "evidence": [
+        "packages/db/src/schema/embeddings.ts:547",
+        "packages/server/src/domain/embeddings/persistence/space-state.ts:96",
+        "packages/server/src/domain/embeddings/persistence/space-state.ts:121",
+        "packages/server/src/domain/search/persistence/nearest.ts:115"
+      ]
     },
     {
       "key": "embed_space_state.scope",
@@ -204,7 +262,12 @@
       "consumer": "Direct selection/filtering and ON CONFLICT target, composite PK, tuple-derived CHECK, and raw completion guard.",
       "schema_intent": "Vector corpus subspace discriminator.",
       "recommendation": "Retain; add insert-select projection attribution to the lens.",
-      "evidence": ["packages/db/src/schema/embeddings.ts:553", "packages/server/src/domain/embeddings/persistence/space-state.ts:97", "packages/server/src/domain/embeddings/persistence/space-state.ts:114", "packages/server/src/domain/search/persistence/active-space.ts:25"]
+      "evidence": [
+        "packages/db/src/schema/embeddings.ts:553",
+        "packages/server/src/domain/embeddings/persistence/space-state.ts:97",
+        "packages/server/src/domain/embeddings/persistence/space-state.ts:114",
+        "packages/server/src/domain/search/persistence/active-space.ts:25"
+      ]
     },
     {
       "key": "embed_space_state.completed_at",
@@ -214,7 +277,12 @@
       "consumer": "No production read; one integration test asserts the stamp. Not part of promotion correctness, which uses generation id and epoch.",
       "schema_intent": "Completion-time provenance on the durable receipt.",
       "recommendation": "If manual/diagnostic completion time is intended, add adjacent @column-ok with that reason; otherwise remove it. It is genuinely write-only.",
-      "evidence": ["packages/db/src/schema/embeddings.ts:563", "packages/server/src/domain/embeddings/persistence/space-state.ts:101", "packages/server/src/domain/embeddings/persistence/space-state.ts:133", "tests/server/domain/embeddings/persistence/space-state.int.test.ts:58"]
+      "evidence": [
+        "packages/db/src/schema/embeddings.ts:563",
+        "packages/server/src/domain/embeddings/persistence/space-state.ts:101",
+        "packages/server/src/domain/embeddings/persistence/space-state.ts:133",
+        "tests/server/domain/embeddings/persistence/space-state.int.test.ts:58"
+      ]
     },
     {
       "key": "imagery_generations.provider",
@@ -224,7 +292,13 @@
       "consumer": "None. The lens read count is generic provider-property overcount; provenance projection omits it.",
       "schema_intent": "Explicit inference-program attribution pair matching chat swipes; added during inference cut-over.",
       "recommendation": "Wire resolved connection.providerId through runGeneration/persistImage/insertGeneration and decide whether the provenance view should expose it. Do not delete as rot without reversing the recorded attribution design.",
-      "evidence": ["packages/db/src/schema/imagery.ts:67", "packages/server/src/domain/imagery/persistence/queries.ts:13", "packages/server/src/domain/imagery/persistence/queries.ts:29", "packages/server/src/domain/imagery/contract/service.ts:119", "git:146f71cd5"]
+      "evidence": [
+        "packages/db/src/schema/imagery.ts:67",
+        "packages/server/src/domain/imagery/persistence/queries.ts:13",
+        "packages/server/src/domain/imagery/persistence/queries.ts:29",
+        "packages/server/src/domain/imagery/contract/service.ts:119",
+        "git:146f71cd5"
+      ]
     },
     {
       "key": "imagery_generations.connection_id",
@@ -234,7 +308,12 @@
       "consumer": "No application member read; lens count is homonym overcount. DDL does consume it via FK SET NULL and child index, but every current row is inserted NULL.",
       "schema_intent": "Connection attribution pair; domain-freshness-plane explicitly classifies it as attribution.",
       "recommendation": "Wire the resolved connection id into inserts. Do not delete; current bug is missing provenance, not unused schema.",
-      "evidence": ["packages/db/src/schema/imagery.ts:68", "packages/server/src/domain/imagery/substrate/generate-core.ts:64", "packages/server/src/domain/imagery/contract/service.ts:119", "tooling/src/verify/gates/domain-freshness-plane.ts:153"]
+      "evidence": [
+        "packages/db/src/schema/imagery.ts:68",
+        "packages/server/src/domain/imagery/substrate/generate-core.ts:64",
+        "packages/server/src/domain/imagery/contract/service.ts:119",
+        "tooling/src/verify/gates/domain-freshness-plane.ts:153"
+      ]
     },
     {
       "key": "admin_distributed_plugins.distributed_by",
@@ -244,7 +323,12 @@
       "consumer": "Deliberately omitted from admin view, but FK CASCADE and index make deleting the publishing admin remove the policy row; tooling tenancy registry documents the attribution role.",
       "schema_intent": "Publisher provenance plus lifecycle coupling.",
       "recommendation": "Retain; direct TS reads are not required for a physical FK consumer.",
-      "evidence": ["packages/db/src/schema/plugin.ts:163", "packages/server/src/domain/plugin/persistence/distributed-plugins.ts:22", "packages/server/src/domain/plugin/persistence/distributed-plugins.ts:68", "tooling/src/verify/lib/tenancy-scope-rows.ts:328"]
+      "evidence": [
+        "packages/db/src/schema/plugin.ts:163",
+        "packages/server/src/domain/plugin/persistence/distributed-plugins.ts:22",
+        "packages/server/src/domain/plugin/persistence/distributed-plugins.ts:68",
+        "tooling/src/verify/lib/tenancy-scope-rows.ts:328"
+      ]
     },
     {
       "key": "plugin_assets.fetched_at",
@@ -254,7 +338,11 @@
       "consumer": "No production/admin/tooling read or schema constraint uses its value.",
       "schema_intent": "Table header explicitly calls it provenance: last time the plugin pulled or unpacked the bytes.",
       "recommendation": "The intent supports an adjacent @column-ok diagnostic/provenance exemption; if nobody will inspect it, remove the column and replace refresh-upserts with the appropriate no-op conflict behavior.",
-      "evidence": ["packages/db/src/schema/plugin.ts:241", "packages/server/src/domain/plugin/persistence/plugin-assets.ts:26", "packages/server/src/domain/plugin/persistence/plugin-assets.ts:44"]
+      "evidence": [
+        "packages/db/src/schema/plugin.ts:241",
+        "packages/server/src/domain/plugin/persistence/plugin-assets.ts:26",
+        "packages/server/src/domain/plugin/persistence/plugin-assets.ts:44"
+      ]
     },
     {
       "key": "plugin_kv.plugin_id",
@@ -264,7 +352,12 @@
       "consumer": "Direct Drizzle predicates on every read/update/delete/list, raw cap/exists predicates, composite PK, FK CASCADE.",
       "schema_intent": "Plugin partition and first half of KV identity.",
       "recommendation": "Retain; attribute raw SQL table/columns or suppress read-only verdict when raw? names the table and column.",
-      "evidence": ["packages/server/src/domain/plugin/persistence/plugin-kv.ts:27", "packages/server/src/domain/plugin/persistence/plugin-kv.ts:60", "packages/server/src/domain/plugin/persistence/plugin-kv.ts:125", "packages/db/src/schema/plugin.ts:262"]
+      "evidence": [
+        "packages/server/src/domain/plugin/persistence/plugin-kv.ts:27",
+        "packages/server/src/domain/plugin/persistence/plugin-kv.ts:60",
+        "packages/server/src/domain/plugin/persistence/plugin-kv.ts:125",
+        "packages/db/src/schema/plugin.ts:262"
+      ]
     },
     {
       "key": "plugin_kv.owner_id",
@@ -274,7 +367,12 @@
       "consumer": "Direct guard predicate on every operation, raw cap/exists and conflict guard, FK CASCADE, owner index. Header records why this denormalized belt is retained.",
       "schema_intent": "Cross-owner safety belt for the hot plugin KV path.",
       "recommendation": "Retain; raw SQL attribution is the missing tool arm.",
-      "evidence": ["packages/server/src/domain/plugin/persistence/plugin-kv.ts:27", "packages/server/src/domain/plugin/persistence/plugin-kv.ts:60", "packages/server/src/domain/plugin/persistence/plugin-kv.ts:65", "packages/db/src/schema/plugin.ts:281"]
+      "evidence": [
+        "packages/server/src/domain/plugin/persistence/plugin-kv.ts:27",
+        "packages/server/src/domain/plugin/persistence/plugin-kv.ts:60",
+        "packages/server/src/domain/plugin/persistence/plugin-kv.ts:65",
+        "packages/db/src/schema/plugin.ts:281"
+      ]
     },
     {
       "key": "plugin_kv.key",
@@ -284,7 +382,12 @@
       "consumer": "Direct lookup/CAS/delete/list/order predicates, raw cap/exists predicates, composite PK and length CHECK.",
       "schema_intent": "KV key and second half of identity.",
       "recommendation": "Retain; raw SQL attribution is the missing tool arm.",
-      "evidence": ["packages/server/src/domain/plugin/persistence/plugin-kv.ts:27", "packages/server/src/domain/plugin/persistence/plugin-kv.ts:60", "packages/server/src/domain/plugin/persistence/plugin-kv.ts:82", "packages/db/src/schema/plugin.ts:285"]
+      "evidence": [
+        "packages/server/src/domain/plugin/persistence/plugin-kv.ts:27",
+        "packages/server/src/domain/plugin/persistence/plugin-kv.ts:60",
+        "packages/server/src/domain/plugin/persistence/plugin-kv.ts:82",
+        "packages/db/src/schema/plugin.ts:285"
+      ]
     },
     {
       "key": "refinery_schemas.id",
@@ -294,7 +397,12 @@
       "consumer": "Direct uniqueness subquery, update/load/delete predicates, PK, and row projection to the wire.",
       "schema_intent": "Schema identity.",
       "recommendation": "Retain; recognize insert-select aliased projection writes.",
-      "evidence": ["packages/server/src/domain/refinery/persistence/queries.ts:350", "packages/server/src/domain/refinery/persistence/queries.ts:364", "packages/server/src/domain/refinery/persistence/queries.ts:399", "packages/db/src/schema/refinery.ts:165"]
+      "evidence": [
+        "packages/server/src/domain/refinery/persistence/queries.ts:350",
+        "packages/server/src/domain/refinery/persistence/queries.ts:364",
+        "packages/server/src/domain/refinery/persistence/queries.ts:399",
+        "packages/db/src/schema/refinery.ts:165"
+      ]
     },
     {
       "key": "refinery_schemas.owner_id",
@@ -304,7 +412,12 @@
       "consumer": "Direct owner scope on insert uniqueness, update/load/list/delete; FK RESTRICT and owner index.",
       "schema_intent": "Direct owner dimension and authorization belt.",
       "recommendation": "Retain; recognize insert-select aliased projection writes.",
-      "evidence": ["packages/server/src/domain/refinery/persistence/queries.ts:351", "packages/server/src/domain/refinery/persistence/queries.ts:366", "packages/server/src/domain/refinery/persistence/queries.ts:400", "packages/db/src/schema/refinery.ts:166"]
+      "evidence": [
+        "packages/server/src/domain/refinery/persistence/queries.ts:351",
+        "packages/server/src/domain/refinery/persistence/queries.ts:366",
+        "packages/server/src/domain/refinery/persistence/queries.ts:400",
+        "packages/db/src/schema/refinery.ts:166"
+      ]
     },
     {
       "key": "refinery_schemas.created_at",
@@ -314,7 +427,11 @@
       "consumer": "Full-row selects flow through RefinerySchemaRow and schemaSummaryOf returns row.createdAt to the library wire view.",
       "schema_intent": "User-visible schema creation time with a DB default fallback.",
       "recommendation": "Retain; carrier-row reads are valid here and insert-select write attribution is missing.",
-      "evidence": ["packages/server/src/domain/refinery/persistence/queries.ts:357", "packages/server/src/domain/refinery/persistence/queries.ts:433", "packages/db/src/schema/refinery.ts:181"]
+      "evidence": [
+        "packages/server/src/domain/refinery/persistence/queries.ts:357",
+        "packages/server/src/domain/refinery/persistence/queries.ts:433",
+        "packages/db/src/schema/refinery.ts:181"
+      ]
     },
     {
       "key": "session_entries.is_primary",
@@ -324,7 +441,11 @@
       "consumer": "Partial unique index session_entries_primary_unique uses is_primary = 1; header also parks it for the dual-session reap keepPrimary flow.",
       "schema_intent": "Current-primary discriminator and future reap substrate.",
       "recommendation": "Retain. The column lens must count DDL expression/index use or classify it separately.",
-      "evidence": ["packages/server/src/entry/compose/session-entries.ts:40", "packages/db/src/schema/sdk-session.ts:64", "packages/db/src/schema/sdk-session.ts:82"]
+      "evidence": [
+        "packages/server/src/entry/compose/session-entries.ts:40",
+        "packages/db/src/schema/sdk-session.ts:64",
+        "packages/db/src/schema/sdk-session.ts:82"
+      ]
     },
     {
       "key": "session_entries.connection_id",
@@ -334,7 +455,12 @@
       "consumer": "No application member read; lens count is homonym overcount. DDL FK/index/partial unique already prepare the column.",
       "schema_intent": "Header explicitly says nullable until the per-user agent-sdk cut-over lands its writer; intended attribution and primary partition.",
       "recommendation": "Do not delete. Complete the explicitly parked writer seam when that cut-over proceeds; optionally make the candidate lens understand recorded dormant columns.",
-      "evidence": ["packages/db/src/schema/sdk-session.ts:65", "packages/inference/src/backends/agent-sdk/session/store.ts:64", "packages/server/src/entry/compose/session-entries.ts:31", "tooling/src/verify/gates/domain-freshness-plane.ts:153"]
+      "evidence": [
+        "packages/db/src/schema/sdk-session.ts:65",
+        "packages/inference/src/backends/agent-sdk/session/store.ts:64",
+        "packages/server/src/entry/compose/session-entries.ts:31",
+        "tooling/src/verify/gates/domain-freshness-plane.ts:153"
+      ]
     },
     {
       "key": "session_entries.created_at",
@@ -344,11 +470,19 @@
       "consumer": "No production member read; lens count is generic createdAt carrier overcount. Debug consumers count session rows, not this field.",
       "schema_intent": "Schema header explicitly describes timestamp provenance; this is exactly the lens's intended default-provenance class, obscured by over-inclusive row-shape reads.",
       "recommendation": "Retain as provenance or make row-shape attribution type/table-specific enough that this lands in provenance rather than read-only.",
-      "evidence": ["packages/db/src/schema/sdk-session.ts:73", "packages/server/src/foundation/observability/debug/inspect/inspect-chat.ts:98", "packages/server/src/foundation/observability/debug/inspect/stats.ts:50"]
+      "evidence": [
+        "packages/db/src/schema/sdk-session.ts:73",
+        "packages/server/src/foundation/observability/debug/inspect/inspect-chat.ts:98",
+        "packages/server/src/foundation/observability/debug/inspect/stats.ts:50"
+      ]
     }
   ],
   "migration_behavior": {
-    "files": ["packages/db/src/migrations/0000_baseline.sql", "packages/db/src/migrations/meta/0000_snapshot.json", "packages/db/src/migrations/meta/_journal.json"],
+    "files": [
+      "packages/db/src/migrations/0000_baseline.sql",
+      "packages/db/src/migrations/meta/0000_snapshot.json",
+      "packages/db/src/migrations/meta/_journal.json"
+    ],
     "observation": "The repository currently carries a squashed baseline only. Every candidate column is present in the baseline/snapshot. A cleanup against already-created databases cannot be represented safely by editing only 0000; it needs the repository's approved forward-migration/rebaseline procedure. FK/index/CHECK dependent columns require dependent DDL changes in the same migration.",
     "warning": "No schema or migration edit was made during the candidate matrix."
   },
