@@ -168,9 +168,10 @@ it into the linked Project issue — no lane touches `work:item`.
 - **Every landing runs `scripts/commit-msg-check.sh --range main..<branch>` first** — lanes commit with the whole-tree
   check excluded (`LEFTHOOK_EXCLUDE=check`), so the message contract is re-verified at the merge; a refused row is
   reworded on the branch, never merged as-is.
-- **Hook bypass is an explicit measured-load exception, never the lane default.** Lanes commit normally
-  through configured hooks in their assigned worktrees/clones. Only the user or coordinator may
-  authorize a specific bypass when measured load or coordinated integration makes the hook run
+- **Hook bypass is an explicit authorized exception.** Until the #1584 cutover, the standing exception in
+  constitution §0.1 item 6 (`LEFTHOOK_EXCLUDE=check`) IS the lane and merge default. Outside it, lanes
+  commit normally through configured hooks in their assigned worktrees/clones, and only the user or
+  coordinator may authorize a specific bypass when measured load or coordinated integration makes the hook run
   inappropriate; record the reason and the checks already executed or still owed, then run the owed
   consolidated check when the merge train is quiescent. Main integration and push remain
   coordinator/owner scope. Never chain board edits behind a possibly-conflicting merge in one command —

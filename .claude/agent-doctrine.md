@@ -1,9 +1,9 @@
 # Orbweaver executor doctrine (build-process hard rules)
 
-Every role reads this BEFORE touching code (all seven role bodies order the full read): the recurring
-gotchas that break this repo's gates or ship broken pixels. `docs/architecture/core/AGENTS.md` (the
-constitution) is separate, higher, and wins on any conflict — read it IN FULL first, then this file,
-then the docs/file-headers your task touches (per-domain law is the CODE + its headers). Do not skim.
+Every role reads this IN FULL before touching code: the recurring gotchas that break this repo's gates
+or ship broken pixels. The constitution (`docs/architecture/core/AGENTS.md`) is higher and wins on any
+conflict; it is already in your context via CLAUDE.md, so do not Read it again. Then read the
+docs/file-headers your task touches (per-domain law is the CODE + its headers).
 
 Every line below is a RULE; the incident that minted it is in
 `docs/architecture/history/agent-doctrine-accretion-2026-08.md` and the shared memory store — go there
