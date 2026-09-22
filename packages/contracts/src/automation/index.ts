@@ -125,7 +125,7 @@ export const AUTOMATION_FIRE_OUTCOMES = [
   "test_run",
 ] as const;
 export type AutomationFireOutcome = (typeof AUTOMATION_FIRE_OUTCOMES)[number];
-export const automationFireOutcomeSchema = z.enum(AUTOMATION_FIRE_OUTCOMES);
+export const automationFireOutcomeSchema = z.enum(AUTOMATION_FIRE_OUTCOMES) satisfies z.ZodType<AutomationFireOutcome>;
 
 /** The `automation.listFires` fire-log page CEILING, enforced at the transport trust boundary (the
  *  `CHARACTER_LIST_MAX_LIMIT` precedent) — the host-only debug surface is a growing per-rule catalog, so an
@@ -666,7 +666,12 @@ export function isConfirmFirstArm(action: AutomationAction): action is Suggestib
 }
 
 /** The stored ordered action list (1..8 arms) — the `automation_rules.actions` json column. */
-export const automationActionsSchema = z.array(automationActionSchema).min(AUTOMATION_ACTION_ARMS_MIN).max(AUTOMATION_ACTION_ARMS_MAX);
+export type AutomationActions = readonly AutomationAction[];
+export const automationActionsSchema = z
+  .array(automationActionSchema)
+  .min(AUTOMATION_ACTION_ARMS_MIN)
+  .max(AUTOMATION_ACTION_ARMS_MAX)
+  .transform((actions): AutomationActions => actions) satisfies z.ZodType<AutomationActions>;
 
 // ── TriggerFact + the CEL activation ────────────────────────────────────────────────────────────
 /** The per-event fact CEL binds as `event` AND the fact a plugin `events.on` handler receives across the

@@ -87,7 +87,7 @@ export type StageResolution =
   | {
       readonly kind: "custom";
       readonly runConfig: RefineryCustomRunConfig;
-      readonly payloadSchema: z.ZodType;
+      readonly payloadSchema: z.ZodObject;
       readonly responseFormat: ResponseFormat;
       readonly shapeText: string;
       readonly instruction: string;

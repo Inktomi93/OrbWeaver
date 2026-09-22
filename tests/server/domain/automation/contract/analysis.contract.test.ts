@@ -5,6 +5,8 @@
 // (the needle wall's server-side tier: an un-authored route's field is STRIPPED by the very zod the wire
 // schema projects from).
 
+import { expectTypeOf } from "vitest";
+import type { z } from "zod";
 import type { AnalysisPayload, AnalysisState } from "../../../../../packages/server/src/domain/automation/contract/analysis.ts";
 import {
   ANALYSIS_ARC_MAX,
@@ -231,6 +233,12 @@ const FULL_PROSE_PAYLOAD = {
   score: 9,
 };
 
+test("buildAnalysisPayloadSchema retains route-specific required output fields", () => {
+  const schema = buildAnalysisPayloadSchema({ vars: { key: "tension" } });
+  expectTypeOf<z.output<typeof schema>["score"]>().toEqualTypeOf<number>();
+  expect(schema.parse({ arcStatus: "active", updatedArc: null, successorArc: null, twistOps: [], score: 6 }).score).toBe(6);
+});
+
 test("buildAnalysisPayloadSchema: `score` is STRIPPED when the vars route is un-authored — the model-independent needle pin", () => {
   // The route-composed zod is the SAME composition the wire schema projects from; on a non-enforcing wire
   // vehicle a stray `score` arrives here and must die BEFORE any applier can see it.
@@ -255,4 +263,27 @@ test("buildAnalysisPayloadSchema: the suggest route admits at most ONE suggestio
   const base = { arcStatus: "active", updatedArc: null, successorArc: null, twistOps: [] };
   expect(schema.safeParse({ ...base, suggestions: [{ text: "cut to the chase" }] }).success).toBe(true);
   expect(schema.safeParse({ ...base, suggestions: [{ text: "one" }, { text: "two" }] }).success).toBe(false);
+});
+
+test("buildAnalysisPayloadSchema: every enabled route field remains required in the composed runtime schema", () => {
+  const schema = buildAnalysisPayloadSchema({
+    steer: { apply: "direct" },
+    lore: {},
+    suggest: {},
+    rewrite: {},
+    vars: { key: "tension" },
+  });
+  const base = { arcStatus: "active", updatedArc: null, successorArc: null, twistOps: [] };
+  for (const missing of ["guidance", "lore", "suggestions", "rewrite", "score"] as const) {
+    const payload = {
+      ...base,
+      guidance: "",
+      lore: [],
+      suggestions: [],
+      rewrite: { verdict: "clean" },
+      score: 5,
+    };
+    delete payload[missing];
+    expect(schema.safeParse(payload).success, `${missing} must be required when its route is enabled`).toBe(false);
+  }
 });

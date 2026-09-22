@@ -59,7 +59,7 @@ export {
   rpgPromotedCardDescription,
   rpgRelationshipSchema,
 } from "./actor.ts";
-export type { RpgClockTime, RpgWeather, RpgWeatherType, TimeOfDay } from "./ambient.ts";
+export type { RpgClockTime, RpgWeather, RpgWeatherLabel, RpgWeatherType, TimeOfDay } from "./ambient.ts";
 export {
   clockTimeOfDay,
   RPG_WEATHER_TYPES,
@@ -105,6 +105,8 @@ export type {
   RpgRelationshipKind,
   RpgTrackerCarrierClass,
   RpgTrackerShape,
+  RpgTrackerSubject,
+  RpgTrackerWrite,
 } from "./enums.ts";
 export {
   RPG_CHECKPOINT_TRIGGERS,
@@ -175,6 +177,28 @@ export {
   EXTRACTION_PLANE_PROMPTS,
   RPG_BASELINE_TOOL_DESCRIPTIONS,
 } from "./extraction-prompt.ts";
+export type {
+  RpgAddJournalEntryInput,
+  RpgCreateCheckpointInput,
+  RpgCreateGameInput,
+  RpgDeleteJournalEntryInput,
+  RpgDeleteQuestInput,
+  RpgDismissActorInput,
+  RpgEditJournalEntryInput,
+  RpgEditQuestObjectiveInput,
+  RpgEditSnapshotInput,
+  RpgListJournalInput,
+  RpgListTurnToolCallsInput,
+  RpgPatchActorInput,
+  RpgPatchSheetInput,
+  RpgPopulateFromCharacterInput,
+  RpgPromoteActorInput,
+  RpgReadGameInput,
+  RpgRestoreCheckpointInput,
+  RpgRollDiceInput,
+  RpgUpdateConfigInput,
+  RpgUpsertQuestInput,
+} from "./inputs.ts";
 export {
   RPG_JOURNAL_LIST_MAX_LIMIT,
   RPG_TURN_TOOL_CALLS_LIST_MAX_LIMIT,

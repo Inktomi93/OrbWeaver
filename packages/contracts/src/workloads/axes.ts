@@ -39,13 +39,13 @@ export const WORKLOAD_KINDS = [
 
 export type WorkloadKind = (typeof WORKLOAD_KINDS)[number];
 
-export const workloadKindSchema = z.enum(WORKLOAD_KINDS);
+export const workloadKindSchema = z.enum(WORKLOAD_KINDS) satisfies z.ZodType<WorkloadKind>;
 
 /** Which embed source(s) an `index` run sweeps. Also that kind's ADMISSION KEY (below): `text` and `image`
  *  runs hold different single-active slots (concurrent) while two `text` runs collide. */
 export const INDEX_SOURCES = ["text", "image", "all"] as const;
 export type IndexSource = (typeof INDEX_SOURCES)[number];
-export const indexSourceSchema = z.enum(INDEX_SOURCES);
+export const indexSourceSchema = z.enum(INDEX_SOURCES) satisfies z.ZodType<IndexSource>;
 
 /** The `workloads.admission_key` a kind that declares NO sub-partition carries — the shared bucket that
  *  keeps its lock exactly per-(kind, owner) / per-(kind). NOT NULL and never empty: SQLite treats NULLs as
@@ -56,7 +56,7 @@ export const DEFAULT_ADMISSION_KEY = "none";
  *  global pass (a maintenance sweep across all owners, or — for a create-kind — a mint into a target). */
 export const WORKLOAD_MODES = ["singular", "bulk"] as const;
 export type WorkloadMode = (typeof WORKLOAD_MODES)[number];
-export const workloadModeSchema = z.enum(WORKLOAD_MODES);
+export const workloadModeSchema = z.enum(WORKLOAD_MODES) satisfies z.ZodType<WorkloadMode>;
 
 /** A kind's mode policy — which modes it supports + (for bulk) whether it MINTS owner-owned rows. */
 export interface WorkloadModePolicy {
@@ -106,7 +106,7 @@ export const WORKLOAD_KIND_MODES = {
  *  (interval-from-last-run), so "nightly" is a daily interval, not a wall-clock time-of-day. */
 export const SCHEDULE_CADENCES = ["hourly", "daily", "weekly", "monthly"] as const;
 export type ScheduleCadence = (typeof SCHEDULE_CADENCES)[number];
-export const scheduleCadenceSchema = z.enum(SCHEDULE_CADENCES);
+export const scheduleCadenceSchema = z.enum(SCHEDULE_CADENCES) satisfies z.ZodType<ScheduleCadence>;
 
 /** The interval (ms) each cadence advances by. `satisfies Record<ScheduleCadence, number>` pins
  *  exhaustiveness. `monthly` is a fixed 30-day interval (no calendar-month notion — KISS). */
@@ -124,7 +124,7 @@ export const WORKLOAD_STATUSES = ["queued", "running", "succeeded", "failed", "c
 
 export type WorkloadStatus = (typeof WORKLOAD_STATUSES)[number];
 
-export const workloadStatusSchema = z.enum(WORKLOAD_STATUSES);
+export const workloadStatusSchema = z.enum(WORKLOAD_STATUSES) satisfies z.ZodType<WorkloadStatus>;
 
 /** The statuses that hold a kind's single-active slot — the db `workloads_kind_active` partial unique
  *  index derives its predicate list from this tuple. `cancelling` MUST stay in the set — dropping it

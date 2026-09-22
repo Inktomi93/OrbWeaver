@@ -57,6 +57,8 @@ export const personaMetadataWriteSchema = z.record(z.string(), z.unknown()).supe
     }
   }
 });
+/** The intentionally open metadata record accepted and preserved by the persona write boundary. */
+export type PersonaMetadataWrite = z.output<typeof personaMetadataWriteSchema>;
 
 // The FACE fields spread `cardFaceFields` (D137(E) — one home, reference-equality-pinned); the wraps
 // (`description` bare = REQUIRED, starred/avatarAssetId `.optional()`) are persona's write semantics.
@@ -78,8 +80,8 @@ export type UpdatePersonaInput = z.infer<typeof updatePersonaSchema>;
 // The export/import round-trip shape: `createPersonaSchema` minus `avatarAssetId` (a binary asset
 // reference can't travel in a JSON backup).
 export const personaBackupSchema = createPersonaSchema.omit({ avatarAssetId: true });
-// (No z.infer twin: the persona serde defines its own concrete PersonaBackup interface — the
-// alias orphaned at the serde re-home 2026-08-03 and the ratchet retired it.)
+/** The portable JSON body before the persona serde narrows it to its canonical `PersonaBackup`. */
+export type PersonaBackupWire = z.output<typeof personaBackupSchema>;
 
 /** One resolved persona to bulk-import. `isDefault` marks the profile's `power_user.default_persona`.
  *  `avatarAssetId` is set by the driver after storing the `User Avatars/<file>` bytes. */

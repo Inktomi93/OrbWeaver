@@ -302,8 +302,6 @@ export interface ActionTemplatesPreview {
 
 /** One persisted positional injection (the `chat_injections` row resolved) — the `ChatInjection` wire shape
  *  plus its id. Returned by setChatInjection / listChatInjections. */
-// @nearpair-ok: near-matches `@orb/contracts/chat::ChatInjection` by design — a view is the wire shape PLUS
-// the persisted row's id (the standard params-vs-view pairing).
 export interface ChatInjectionView extends ChatInjection {
   readonly id: ChatInjectionId;
 }

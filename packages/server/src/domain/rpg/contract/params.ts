@@ -140,9 +140,8 @@ export interface ExtractionMints {
 }
 
 /** A journal entry a tool staged mid-turn — flushed at commit stamped with the COMMITTED variant's id
- *  (rpg-design/05 §2.5). The `variantId`/`sourceMessageId` are supplied by the flush, not the tool. */
-// @nearpair-ok: near-matches `@orb/contracts/rpg::RpgJournalEntryView` by design — the STAGED (pre-persist)
-// shape lacks `id`/`createdAt` because they are minted at insert, not while the tool is still staging.
+ *  (rpg-design/05 §2.5). The `variantId`/`sourceMessageId` are supplied by the flush, not the tool; `id` and
+ *  `createdAt` do not exist until persistence mints them. */
 export interface StagedJournalEntry {
   readonly type: string;
   /** R4c — the free gloss for a `custom`-typed beat (""/absent on the seven built-ins). */

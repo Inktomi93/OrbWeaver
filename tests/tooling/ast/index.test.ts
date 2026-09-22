@@ -11,6 +11,7 @@
 // `deps:orphan-ratchet` also reads — so that suite pins the six liveness sets identical with the edge flag
 // off and on. Perturbing them is a GATE regression, not a lens change. Do not weaken it.
 
+import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { ModuleResolutionKind, Project } from "ts-morph";
 import { describe } from "vitest";
@@ -27,7 +28,6 @@ import type {
 } from "../../../tooling/src/ast/index.ts";
 import {
   AstToolError,
-  assignabilityChecker,
   buildLiveness,
   collectApiSurface,
   collectChainAudit,
@@ -49,7 +49,6 @@ import {
   fieldIndexes,
   isColumnExempt,
   isCompositionAlias,
-  isNearPairExempt,
   isProdConsumed,
   isPublicTagged,
   isSwallowedExempt,
@@ -59,8 +58,6 @@ import {
   parseFlags,
   qualifiedAccessIndex,
   regKeyHitsFor,
-  respellHitsFor,
-  respellNearCandidatesFor,
   rotChainHits,
   rotOrphanHits,
   rotSwallowedHits,
@@ -76,6 +73,8 @@ import {
   viewFieldsOf,
   viewGapHit,
 } from "../../../tooling/src/ast/index.ts";
+import { respellNearCandidatesFor } from "../../../tooling/src/ast/lib/respell-near-analysis.ts";
+import { assignabilityChecker, respellHitsFor } from "../../../tooling/src/ast/lib/respell-shapes.ts";
 import { REPO_ROOT as AST_REPO_ROOT } from "../../../tooling/src/ast/lib/root.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
@@ -1057,6 +1056,89 @@ const NEAR_FILES: Record<string, string> = {
 };
 
 describe("ast respell --near lens (Jaccard field-diff tier)", () => {
+  function runNearVerb(
+    project: Project,
+    threshold = 60,
+    json = false,
+    inPath?: string,
+  ): { readonly lines: readonly string[]; readonly warnings: readonly string[]; readonly exitCode: number } {
+    const lines: string[] = [];
+    const warnings: string[] = [];
+    const previousExitCode = process.exitCode;
+    const release = installOutputSink({ line: (line) => lines.push(line), warn: (line) => warnings.push(line) });
+    process.exitCode = undefined;
+    try {
+      const respell = VERBS["respell"];
+      if (respell === undefined) {
+        throw new Error("respell verb is not registered");
+      }
+      respell(project, "chat", parseFlags(["--near", String(threshold), ...(json ? ["--json"] : []), ...(inPath === undefined ? [] : ["--in", inPath])]));
+      return { lines, warnings, exitCode: typeof process.exitCode === "number" ? process.exitCode : 0 };
+    } finally {
+      process.exitCode = previousExitCode;
+      release();
+    }
+  }
+
+  test("a name-only upper bound below threshold rejects a pair without checker calls", () => {
+    const project = projectOf({
+      "packages/contracts/src/chat/disjoint.ts": "export interface ContractShape { alpha: string; beta: string; gamma: string; delta: string; }\n",
+      "packages/server/src/domain/chat/contract/disjoint.ts": "export interface DomainShape { one: string; two: string; three: string; four: string; }\n",
+    });
+    const delegate = assignabilityChecker(project);
+    let calls = 0;
+    const checker = {
+      isTypeAssignableTo(source: unknown, target: unknown): boolean {
+        calls += 1;
+        return delegate.isTypeAssignableTo(source, target);
+      },
+    };
+
+    expect(respellNearCandidatesFor(project, checker, "chat", 80)).toEqual([]);
+    expect(calls).toBe(0);
+  });
+
+  test("a name-bound survivor below the semantic threshold performs no report-only rename checks", () => {
+    const project = projectOf({
+      "packages/contracts/src/chat/semantic.ts": "export interface ContractShape { a: string; b: string; c: string; d: string; e: number; f: string; }\n",
+      "packages/server/src/domain/chat/contract/semantic.ts": "export interface DomainShape { a: string; b: string; c: string; d: string; e: string; }\n",
+    });
+    const delegate = assignabilityChecker(project);
+    let calls = 0;
+    const checker = {
+      isTypeAssignableTo(source: unknown, target: unknown): boolean {
+        calls += 1;
+        return delegate.isTypeAssignableTo(source, target);
+      },
+    };
+
+    expect(respellNearCandidatesFor(project, checker, "chat", 80)).toEqual([]);
+    // Four equal same-name fields take two directional checks each; the mismatched `e` short-circuits
+    // after one. Any greedy rename classification would add calls against the remaining `f` field.
+    expect(calls).toBe(9);
+  });
+
+  test("threshold zero still evaluates and reports a legitimate zero-percent candidate", () => {
+    const project = projectOf({
+      "packages/contracts/src/chat/zero.ts": "export interface ContractShape { alpha: string; beta: string; gamma: string; delta: string; }\n",
+      "packages/server/src/domain/chat/contract/zero.ts": "export interface DomainShape { one: string; two: string; three: string; four: string; }\n",
+    });
+    const delegate = assignabilityChecker(project);
+    let calls = 0;
+    const checker = {
+      isTypeAssignableTo(source: unknown, target: unknown): boolean {
+        calls += 1;
+        return delegate.isTypeAssignableTo(source, target);
+      },
+    };
+
+    const candidates = respellNearCandidatesFor(project, checker, "chat", 0);
+    expect(candidates).toHaveLength(1);
+    const candidate = candidates[0] as NearPairCandidate;
+    expect(candidate.diff.pct).toBe(0);
+    expect(calls).toBeGreaterThan(0);
+  });
+
   test("a renamed-same-type field pair scores exactly 60% — admitted at the boundary, excluded one point above", () => {
     const project = projectOf(NEAR_FILES);
     const checker = assignabilityChecker(project);
@@ -1118,21 +1200,215 @@ export interface DomainShape { id: TypeIdOf<"CharacterId">; name: string; role: 
     expect(respellNearCandidatesFor(project, checker, "chat", 0)).toEqual([]);
   });
 
-  test("`// @nearpair-ok: <reason>` marks a deliberate keep; raising the threshold past its score is the STALE precondition (tagged, no longer a candidate)", () => {
+  test("direct heritage excludes only its resolved target while a handwritten sibling remains detectable", () => {
     const project = projectOf({
-      ...NEAR_FILES,
-      "packages/server/src/domain/chat/contract/seat.ts": `// @nearpair-ok: independent concepts; the field overlap is coincidence.\n${NEAR_DOMAIN_SHAPE}`,
+      "packages/contracts/src/chat/views.ts": `
+export interface ContractView { id: string; name: string; role: string; active: boolean; }
+export interface HandwrittenTwin { id: string; name: string; role: string; active: boolean; memo: string; }
+`,
+      "packages/server/src/domain/chat/contract/views.ts": `
+import type { ContractView } from "../../../../../contracts/src/chat/views";
+export interface DerivedView extends ContractView { note: string; }
+`,
     });
-    const seat = project.getSourceFileOrThrow(`${ROOT}/packages/server/src/domain/chat/contract/seat.ts`).getInterfaceOrThrow("SeatKnobs");
-    expect(isNearPairExempt(seat)).toBe(true);
 
-    const checker = assignabilityChecker(project);
-    // At its own score the marked shape is STILL a raw candidate — the CLI's exempt filter reads the
-    // marker, the collector does not (so the stale check can compare "tagged" against "still a candidate").
-    expect(respellNearCandidatesFor(project, checker, "chat", 60).map((c) => c.domainName)).toContain("SeatKnobs");
-    // Raise the bar past its 60% score: the marker is now tagged on a shape that near-matches NOTHING —
-    // exactly the precondition `printStaleNearPairTags` reds on.
-    expect(respellNearCandidatesFor(project, checker, "chat", 90)).toEqual([]);
+    expect(respellNearCandidatesFor(project, assignabilityChecker(project), "chat", 60).map(({ contractsName }) => contractsName)).toEqual(["HandwrittenTwin"]);
+  });
+
+  test("class candidates use authored own instance fields, excluding inherited Error shape without hiding an own-field copy", () => {
+    const project = projectOf({
+      "packages/contracts/src/chat/errors.ts": `
+export class InheritedNoise extends Error { readonly capability: string = "x"; }
+export class AuthoredContract extends Error {
+  readonly alpha: string = "";
+  readonly beta: string = "";
+  readonly gamma: string = "";
+  readonly delta: string = "";
+  readonly contractOnly: string = "";
+}
+`,
+      "packages/server/src/domain/chat/contract/errors.ts": `
+export class InheritedDomainNoise extends Error {}
+export class AuthoredDomain extends Error {
+  readonly alpha: string = "";
+  readonly beta: string = "";
+  readonly gamma: string = "";
+  readonly delta: string = "";
+  readonly domainOnly: string = "";
+}
+`,
+    });
+
+    const names = respellNearCandidatesFor(project, assignabilityChecker(project), "chat", 60).map(
+      ({ domainName, contractsName }) => `${domainName}:${contractsName}`,
+    );
+    expect(names).toEqual(["AuthoredDomain:AuthoredContract"]);
+  });
+
+  test("a reasoned marker exempts only its named contracts declaration and prints that pair's identity and diff", () => {
+    const project = projectOf({
+      "packages/contracts/src/chat/views.ts": `
+export interface ContractA { id: string; name: string; role: string; active: boolean; }
+export interface ContractB { id: string; title: string; role: string; active: boolean; }
+`,
+      "packages/server/src/domain/chat/contract/views.ts": `
+// @nearpair-ok: near-matches \`@orb/contracts/chat::ContractA\` by design — independent concepts.
+export interface DomainView { id: string; label: string; role: string; active: boolean; }
+`,
+    });
+
+    const run = runNearVerb(project);
+    expect(run.lines.join("\n")).toContain("DomainView  ≈  @orb/contracts/chat::ContractB");
+    expect(run.lines.join("\n")).not.toContain("[respell-near]  DomainView  ≈  @orb/contracts/chat::ContractA");
+    expect(run.lines.join("\n")).toContain("EXEMPT @orb/contracts/chat::ContractA");
+    expect(run.lines.join("\n")).toContain("3/5 shared (60%)");
+    expect(run.exitCode).toBe(0);
+
+    const jsonRun = runNearVerb(project, 60, true);
+    const sections = jsonRun.lines
+      .join("\n")
+      .split(/\n(?=\{)/u)
+      .map((section) => JSON.parse(section) as { label: string; total: number; hits: Hit[]; exemptions?: unknown[] });
+    expect(sections).toContainEqual(
+      expect.objectContaining({
+        label: "respell --near>=60 chat",
+        total: 1,
+        hits: [expect.objectContaining({ text: expect.stringContaining("ContractB") })],
+        exemptions: [
+          {
+            domainName: "DomainView",
+            target: "@orb/contracts/chat::ContractA",
+            reason: "by design — independent concepts.",
+            diff: "3/5 shared (60%) · renamed-same-type: label→name",
+          },
+        ],
+      }),
+    );
+    expect(jsonRun.warnings.some((line) => line.startsWith('{"kind":"nearpair-ok"'))).toBe(false);
+  });
+
+  test("a marker whose named target disappeared is stale even while a sibling pair remains", () => {
+    const project = projectOf({
+      "packages/contracts/src/chat/views.ts": "export interface ContractB { id: string; title: string; role: string; active: boolean; }\n",
+      "packages/server/src/domain/chat/contract/views.ts": `
+// @nearpair-ok: near-matches \`@orb/contracts/chat::ContractA\` by design — independent concepts.
+export interface DomainView { id: string; label: string; role: string; active: boolean; }
+`,
+    });
+
+    const run = runNearVerb(project);
+    expect(run.lines.join("\n")).toContain("DomainView  ≈  @orb/contracts/chat::ContractB");
+    expect(run.lines.join("\n")).toContain("STALE @orb/contracts/chat::ContractA");
+    expect(run.exitCode).toBe(1);
+  });
+
+  test("bare and wrong-grammar near-pair markers are named errors and do not exempt a candidate", () => {
+    for (const marker of ["// @nearpair-ok:", "// @nearpair-ok: independent concepts without a target identity."]) {
+      const project = projectOf({
+        ...NEAR_FILES,
+        "packages/server/src/domain/chat/contract/seat.ts": `${marker}\n${NEAR_DOMAIN_SHAPE}`,
+      });
+      const run = runNearVerb(project);
+      expect(run.lines.join("\n")).toContain("SeatKnobs  ≈  @orb/contracts/chat::RosterMemberSpec");
+      expect(run.lines.join("\n")).toContain("[malformed-nearpair-ok]");
+      expect(run.exitCode).toBe(1);
+
+      const jsonRun = runNearVerb(project, 60, true);
+      const near = jsonRun.lines
+        .join("\n")
+        .split(/\n(?=\{)/u)
+        .map((section) => JSON.parse(section) as { label: string; malformedMarkers?: unknown[] })
+        .find(({ label }) => label === "respell --near>=60 chat");
+      expect(near?.malformedMarkers).toEqual([
+        expect.objectContaining({ domainName: "SeatKnobs", kind: "malformed-nearpair-ok", marker: expect.stringContaining("@nearpair-ok:") }),
+      ]);
+      expect(jsonRun.exitCode).toBe(1);
+    }
+  });
+
+  test("every marker in one block comment is classified independently", () => {
+    const project = projectOf({
+      "packages/contracts/src/chat/views.ts": `
+export interface ContractA { id: string; name: string; role: string; active: boolean; }
+export interface ContractB { id: string; title: string; role: string; active: boolean; }
+`,
+      "packages/server/src/domain/chat/contract/views.ts": `
+/*
+ * @nearpair-ok: near-matches \`@orb/contracts/chat::ContractA\` first deliberate pair.
+ * @nearpair-ok: near-matches \`@orb/contracts/chat::ContractB\` second deliberate pair.
+ * @nearpair-ok:
+ */
+export interface DomainView { id: string; label: string; role: string; active: boolean; }
+`,
+    });
+
+    const run = runNearVerb(project, 60, true);
+    const near = run.lines
+      .join("\n")
+      .split(/\n(?=\{)/u)
+      .map((section) => JSON.parse(section) as { label: string; total: number; exemptions?: { target: string }[]; malformedMarkers?: unknown[] })
+      .find(({ label }) => label === "respell --near>=60 chat");
+    expect(near).toMatchObject({
+      total: 0,
+      exemptions: [{ target: "@orb/contracts/chat::ContractA" }, { target: "@orb/contracts/chat::ContractB" }],
+      malformedMarkers: [expect.objectContaining({ kind: "malformed-nearpair-ok" })],
+    });
+    expect(run.exitCode).toBe(1);
+  });
+
+  test("--in scopes exemption, stale-marker, and malformed-marker evidence to the declaration hit file", () => {
+    const project = projectOf({
+      "packages/contracts/src/chat/selected.ts": "export interface SelectedContract { a: string; b: string; c: string; d: string; }\n",
+      "packages/server/src/domain/chat/contract/selected.ts": `
+// @nearpair-ok: near-matches \`@orb/contracts/chat::SelectedContract\` selected exemption.
+export interface SelectedExempt { a: string; b: string; c: string; renamed: string; }
+// @nearpair-ok: near-matches \`@orb/contracts/chat::MissingSelected\` selected stale.
+export interface SelectedStale { p: number; q: number; r: number; s: number; }
+// @nearpair-ok:
+export interface SelectedMalformed { u: boolean; v: boolean; w: boolean; x: boolean; }
+`,
+      "packages/server/src/domain/chat/contract/unrelated.ts": `
+// @nearpair-ok: near-matches \`@orb/contracts/chat::SelectedContract\` unrelated exemption.
+export interface UnrelatedExempt { a: string; b: string; c: string; other: string; }
+// @nearpair-ok: near-matches \`@orb/contracts/chat::MissingUnrelated\` unrelated stale.
+export interface UnrelatedStale { ap: number; aq: number; ar: number; as: number; }
+// @nearpair-ok: wrong grammar.
+export interface UnrelatedMalformed { au: boolean; av: boolean; aw: boolean; ax: boolean; }
+`,
+    });
+
+    const run = runNearVerb(project, 60, true, "selected.ts");
+    const near = run.lines
+      .join("\n")
+      .split(/\n(?=\{)/u)
+      .map(
+        (section) =>
+          JSON.parse(section) as {
+            label: string;
+            total: number;
+            exemptions?: { domainName: string }[];
+            staleMarkers?: { domainName: string }[];
+            malformedMarkers?: { domainName: string }[];
+          },
+      )
+      .find(({ label }) => label === "respell --near>=60 chat");
+    expect(near).toMatchObject({
+      total: 0,
+      exemptions: [{ domainName: "SelectedExempt" }],
+      staleMarkers: [{ domainName: "SelectedStale" }],
+      malformedMarkers: [{ domainName: "SelectedMalformed" }],
+    });
+    expect(JSON.stringify(near)).not.toContain("Unrelated");
+    expect(run.warnings.join("\n")).not.toContain("Unrelated");
+    expect(run.exitCode).toBe(1);
+  });
+
+  test("analysis helpers stay internal instead of leaking through the production AST barrel", async () => {
+    const astPublic: Record<string, unknown> = await import("../../../tooling/src/ast/index.ts");
+    expect(astPublic).not.toHaveProperty("assignabilityChecker");
+    expect(astPublic).not.toHaveProperty("isNearPairExempt");
+    expect(astPublic).not.toHaveProperty("respellHitsFor");
+    expect(astPublic).not.toHaveProperty("respellNearCandidatesFor");
   });
 });
 

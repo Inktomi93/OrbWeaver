@@ -31,6 +31,7 @@ export const injectionDirectiveSchema = z.object({
   depth: z.number().int().min(0).max(MAX_INJECTION_DEPTH),
   role: z.enum(MESSAGE_ROLES).optional(),
 });
+export type InjectionDirective = z.output<typeof injectionDirectiveSchema>;
 
 const depthSchema = z.number().int().min(0).max(MAX_INJECTION_DEPTH);
 const roleSchema = z.enum(MESSAGE_ROLES);

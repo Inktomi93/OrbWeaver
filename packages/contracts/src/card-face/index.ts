@@ -23,6 +23,12 @@ import { z } from "zod";
  *  non-face `TEXT_MAX` uses — greetings/systemPrompt/… — stay character-local: card content, not face). */
 export const CARD_FACE_LIMITS = { nameMin: 1, nameMax: 200, textMax: 100_000 } as const;
 
+/** The raw shared validators' outputs. `description` is non-null here; a character composer adds its
+ * nullable write semantics after taking this shared field. */
+type CardFaceFieldSchemas = {
+  readonly [Field in keyof CardFace<string>]: z.ZodType<CardFace<string>[Field]>;
+};
+
 /** The shared field VALIDATORS — composers spread these; per-domain optionality/nullability wraps per
  *  composer (write semantics, see the header). These objects ARE the single home: never re-spell one. */
 export const cardFaceFields = {
@@ -30,7 +36,7 @@ export const cardFaceFields = {
   description: z.string().max(CARD_FACE_LIMITS.textMax),
   starred: z.boolean(),
   avatarAssetId: typeIdSchema(ID_PREFIX.asset).nullable(),
-} as const;
+} as const satisfies CardFaceFieldSchemas;
 
 /** The AUTHORED face (row-plane): description nullability is the composer's
  *  (persona: `string`; character: `string | null`). */

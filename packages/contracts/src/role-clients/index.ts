@@ -42,7 +42,7 @@ import type { EmbedResult, ImageEmbedResult, RerankResult, SummarizeResult } fro
  *    compiles no grammar, and stays the fallback arm — nothing was ripped out. */
 export const STRUCTURED_OUTPUT_VEHICLES = ["auto", "response-format", "forced-tool"] as const;
 export type StructuredOutputVehicle = (typeof STRUCTURED_OUTPUT_VEHICLES)[number];
-export const structuredOutputVehicleSchema = z.enum(STRUCTURED_OUTPUT_VEHICLES);
+export const structuredOutputVehicleSchema = z.enum(STRUCTURED_OUTPUT_VEHICLES) satisfies z.ZodType<StructuredOutputVehicle>;
 
 // @typeonly-ok: the wire vocabulary lives in `ResponseFormat` (the type consumers import); the runtime
 // schema itself is only referenced in type position here in contracts — infra's wire arms build their

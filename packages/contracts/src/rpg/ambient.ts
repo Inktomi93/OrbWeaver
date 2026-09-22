@@ -46,7 +46,7 @@ export const RPG_WEATHER_TYPES = WEATHER_TYPES;
 /** @public twin: RPG_WEATHER_TYPES — the type face of the weather tuple (cross-package PUBLIC); the
  *  full-mode weather-engine surface, shipped as data from day one (rpg/index.ts KISS/YAGNI SUSPENDED). */
 export type RpgWeatherType = (typeof RPG_WEATHER_TYPES)[number];
-export const rpgWeatherTypeSchema = z.enum(RPG_WEATHER_TYPES);
+export const rpgWeatherTypeSchema = z.enum(RPG_WEATHER_TYPES) satisfies z.ZodType<RpgWeatherType>;
 
 /** The weather label cap — a short flavor phrase ("torrential sleet"), not a sentence of prose. */
 const WEATHER_LABEL_MAX = 40;
@@ -54,6 +54,8 @@ const WEATHER_LABEL_MAX = 40;
 /** The free flavor label beside the closed `type` — ONE home for the field (the stored shape below and the
  *  `update_scene` write share it, so the cap can never diverge between the wire and the store). */
 export const rpgWeatherLabelSchema = z.string().max(WEATHER_LABEL_MAX);
+/** The bounded free-text flavor label carried beside the closed weather type. */
+export type RpgWeatherLabel = z.output<typeof rpgWeatherLabelSchema>;
 
 /** Weather — a CLOSED `type` + an optional free `label`, everything else optional (the relationship-kind
  *  `{kind, label}` precedent, §2.1). `type` is the eight-state vocabulary the Waystone renders and the

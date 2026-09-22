@@ -258,7 +258,7 @@ export const SIDE_GEN_POSTURES = {
 // `EffortLevel` set (never redeclared) so the two can't diverge.
 export const EFFORT_LEVELS = ["none", ...MODEL_EFFORT_LEVELS] as const;
 export type EffortLevel = (typeof EFFORT_LEVELS)[number];
-export const effortLevelSchema = z.enum(EFFORT_LEVELS);
+export const effortLevelSchema = z.enum(EFFORT_LEVELS) satisfies z.ZodType<EffortLevel>;
 
 export const THINKING_DISPLAYS = ["summarized", "omitted"] as const;
 export type ThinkingDisplay = (typeof THINKING_DISPLAYS)[number];
@@ -335,6 +335,29 @@ const COMPACTION_VERBATIM_TAIL_MAX = 100;
 // tuned against zero evidence. Build it when a `finishReason:"length"` empty turn is actually recorded.
 export const DEFAULT_MAX_OUTPUT_TOKENS = 2048;
 
+/** The bounded numeric knobs shared by user intent and the runner translation. Every member is optional
+ * at the wire boundary, so each reusable field validator outputs `number | undefined`. */
+interface GenerationKnobValues {
+  readonly thinkingBudgetTokens?: number;
+  readonly maxOutputTokens?: number;
+  readonly maxContextTokens?: number;
+  readonly temperature?: number;
+  readonly topP?: number;
+  readonly topK?: number;
+  readonly minP?: number;
+  readonly topA?: number;
+  readonly frequencyPenalty?: number;
+  readonly presencePenalty?: number;
+  readonly repetitionPenalty?: number;
+  readonly seed?: number;
+  readonly compactionThresholdPct?: number;
+  readonly compactionVerbatimTail?: number;
+}
+
+type GenerationKnobSchemas = {
+  readonly [Field in keyof GenerationKnobValues]-?: z.ZodType<GenerationKnobValues[Field]>;
+};
+
 // ONE place per numeric bound — no split source between server/client (client accepts → server rejects).
 export const generationKnobSchemas = {
   thinkingBudgetTokens: z.number().int().positive().optional(),
@@ -351,7 +374,7 @@ export const generationKnobSchemas = {
   seed: z.number().int().optional(),
   compactionThresholdPct: z.number().min(COMPACTION_THRESHOLD_MIN).max(COMPACTION_THRESHOLD_MAX).optional(),
   compactionVerbatimTail: z.number().int().min(COMPACTION_VERBATIM_TAIL_MIN).max(COMPACTION_VERBATIM_TAIL_MAX).optional(),
-} as const;
+} as const satisfies GenerationKnobSchemas;
 
 // `z.strictObject` rejects unknown keys (a typo'd knob is a real bug; `.catch({})` at the params field bounds
 // the blast radius). HISTORICAL NOTE: this site used `.strict()` on a plain `z.object` because an early Zod v4
@@ -444,7 +467,7 @@ export type GuidedActionKind = (typeof GUIDED_ACTION_KINDS)[number];
 // templates. ONE importable union so the composer picker and the domain steer field can't drift apart.
 export const GUIDED_IMPERSONATE_PERSONS = ["first", "second", "third"] as const satisfies readonly string[];
 export type GuidedImpersonatePerson = (typeof GUIDED_IMPERSONATE_PERSONS)[number];
-export const guidedActionKindSchema = z.enum(GUIDED_ACTION_KINDS);
+export const guidedActionKindSchema = z.enum(GUIDED_ACTION_KINDS) satisfies z.ZodType<GuidedActionKind>;
 
 // The guided-action default TEMPLATES are PROSE-1 slots — the bytes are authored once in `./prose` (census
 // rows 38-44) and read here, so the shipped default, the registry row and the editor's ghosted placeholder
@@ -489,6 +512,8 @@ export const guidedActionConfigSchema = z.object({
    *  role: that steer rides the `guided_instruction` marker inside the system block, which has no depth. */
   depth: z.number().int().min(MIN_INJECT_DEPTH).max(MAX_INJECTION_DEPTH).optional(),
 });
+/** One guided-action template as accepted by the preset wire. */
+export type GuidedActionConfig = z.output<typeof guidedActionConfigSchema>;
 
 export const guidedActionsSchema = z.object({
   response: guidedActionConfigSchema,
@@ -2156,6 +2181,8 @@ export const formatStringsSchema = z.object({
   wiFormat: z.string().max(MAX_INJECTION_TEMPLATE_LENGTH).optional(),
   newChatMarker: z.string().max(MAX_INJECTION_TEMPLATE_LENGTH).optional(),
 });
+/** The per-preset format-string override bag. */
+export type FormatStrings = z.output<typeof formatStringsSchema>;
 
 export const promptConfigSchema = z.object({
   schemaVersion: z.number().int().positive().default(PROMPT_CONFIG_SCHEMA_VERSION),
@@ -2380,7 +2407,7 @@ export const promptConfigWriteSchema = promptConfigSchema.superRefine((config, c
       message: `${slotId} must contain ${token} — that is where the injection's own content lands, so without it the note ships as an empty frame. Leave it blank to use the default.`,
     });
   }
-});
+}) satisfies z.ZodType<PromptConfig>;
 
 // ── The lift chain (maps a blob at version N → N+1; the versioned-config primitive walks it) ───────
 type RawSection = Record<string, unknown>;

@@ -24,10 +24,9 @@ export type TagSource = z.infer<typeof tagSourceSchema>;
 /** ST's tags-as-folders state. `NONE` = plain tag · `OPEN` = folder, members stay in the main list ·
  *  `CLOSED` = folder, members hidden until entered. */
 export const TAG_FOLDER_TYPES = ["NONE", "OPEN", "CLOSED"] as const;
-// DECLARED off the tuple, not `z.infer` of the schema — identical type, but biome's type service cannot see
-// through a zod inference, so an exhaustive `switch` over an inferred member is reported as UNREACHABLE
-// while tsc is happy (`character-list-view.ts`'s `groupStartsOpen` is the live dispatch). `satisfies` pins
-// the schema to the declared union so the two can never drift apart.
+// DECLARED off the tuple to keep the vocabulary's type face at its one home. Biome 2.5.1 now follows this
+// `z.infer` correctly through exhaustive switches, so compiler reachability no longer requires the split.
+// `satisfies` is only a one-way assignability check; the output-twin gate proves exact parity.
 export type TagFolderType = (typeof TAG_FOLDER_TYPES)[number];
 export const tagFolderTypeSchema = z.enum(TAG_FOLDER_TYPES) satisfies z.ZodType<TagFolderType>;
 

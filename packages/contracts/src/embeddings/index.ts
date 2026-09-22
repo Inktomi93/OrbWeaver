@@ -12,7 +12,7 @@ export const IMAGE_LENSES = ["image-raw", "image-captioned"] as const;
 
 export type ImageLens = (typeof IMAGE_LENSES)[number];
 
-export const imageLensSchema = z.enum(IMAGE_LENSES);
+export const imageLensSchema = z.enum(IMAGE_LENSES) satisfies z.ZodType<ImageLens>;
 
 /** Why the image indexer REFUSED to caption+embed an asset — a durable, attributable skip-record (the
  *  `image_index_skips.reason` column derives this tuple, as `lens` does IMAGE_LENSES). Promoted here so

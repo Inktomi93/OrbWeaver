@@ -6,6 +6,8 @@
 // is refused before any guest code runs. A well-formed `hostVersion` is compatibility data: the lifecycle
 // funnel compares it with {@link PLUGIN_HOST_VERSIONS} and raises its distinct unserved-version refusal.
 
+import type { Branded } from "@orb/kit/ids";
+import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
 import type { ProviderDef } from "../inference/provider-schema.ts";
 import { isPluginProviderId, pluginNameOfProviderId, providerDefSchema } from "../inference/provider-schema.ts";
@@ -159,10 +161,11 @@ export const PLUGIN_TOOL_NAME_LOCAL_MAX = PLUGIN_TOOL_WIRE_NAME_MAX - PLUGIN_TOO
  *  type and logs show). Also the tool namespace prefix root. Length capped at {@link PLUGIN_SLUG_MAX} (the
  *  wire-mint budget above), tighter than an arbitrary "reasonable identifier" cap would otherwise need to be. */
 const SLUG_RE = new RegExp(`^[a-z0-9][a-z0-9-]{1,${PLUGIN_SLUG_MAX - 1}}$`);
+export type PluginSlug = Branded<"PluginSlug">;
 /** The slug as a STANDALONE input schema — the manifest field's own grammar, exported so a transport verb
  *  that takes a slug (`plugin.uninstallForAllUsers`) validates with the ONE rule rather than re-spelling a
  *  length cap that would drift from it. Same regex object, so the two can never disagree. */
-export const pluginSlugSchema = z.string().regex(SLUG_RE);
+export const pluginSlugSchema = z.string().regex(SLUG_RE).pipe(brandedId<PluginSlug>()) satisfies z.ZodType<PluginSlug, string>;
 /** The plugin's OWN semver (display + upgrade ordering) — distinct from `hostVersion` (the membrane major). */
 const PLUGIN_SEMVER_RE = /^\d+\.\d+\.\d+$/;
 /** An exact hostname `net.fetch` may reach (the SSRF posture; the per-request enforcer is `validateUrl`

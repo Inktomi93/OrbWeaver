@@ -9,9 +9,6 @@ import { DomainConflictError, DomainNotFoundError, DomainOperationError, DomainU
 /** The bundle failed unzip/validation: a bad zip, extra/unknown entries, a decompression-bomb over the caps,
  *  malformed `manifest.json`, or a manifest that fails `pluginManifestSchema` (bad slug/version/hostVersion shape/
  *  netHosts). Thrown BEFORE anything persists — a 400/415-class refusal, never retried. */
-// @nearpair-ok: near-matches `@orb/contracts/plugin::PluginCapabilityError` by design — this is the sibling
-// lifecycle-error taxonomy (host-side, a CALLER sees it), never the guest-observable membrane error the
-// contracts shape is (file header above). Expected subclass kinship across the whole taxonomy, not drift.
 export class ManifestInvalidError extends DomainOperationError {
   constructor(message: string, options?: { readonly cause?: unknown }) {
     super("plugin_manifest_invalid", message);
@@ -31,8 +28,6 @@ export class ManifestInvalidError extends DomainOperationError {
  *  precedent — infra performs the guarded fetch and THROWS; the verb collapses every throw here). The message
  *  names the caller-supplied URL and nothing about what it resolved to. Thrown BEFORE anything persists.
  *  Maps to BAD_REQUEST. */
-// @nearpair-ok: near-matches `@orb/contracts/plugin::PluginCapabilityError` by design — see `ManifestInvalidError`
-// below (same host-side lifecycle taxonomy, a CALLER sees it, never the guest-observable membrane error).
 export class PluginBundleFetchError extends DomainOperationError {
   constructor(url: string, options?: { readonly cause?: unknown }) {
     super("plugin_bundle_fetch_failed", `could not fetch a plugin bundle from ${url} (unreachable, refused, or not a permitted destination)`);
@@ -50,8 +45,6 @@ export class PluginBundleFetchError extends DomainOperationError {
  *  caller's own; what is absent is a URL to re-fetch from, and the honest answer is "this one was installed from a
  *  file — upload a new bundle to update it", not "not found". Thrown AFTER the owner-scoped load (so it never
  *  leaks across tenants — a stranger gets NOT_FOUND first) and BEFORE any fetch. Maps to BAD_REQUEST. */
-// @nearpair-ok: near-matches `@orb/contracts/plugin::PluginCapabilityError` by design — see `ManifestInvalidError`
-// above (same host-side lifecycle taxonomy, a CALLER sees it, never the guest-observable membrane error).
 export class PluginNoSourceUrlError extends DomainOperationError {
   // @orb-waive brand-in-name-position(pluginId): echoes the caller's OWN pluginId (owner-scoped load ran first) into an operator-facing message; no foreign existence is oracled — a stranger's id NOT_FOUNDs before this throws.
   constructor(pluginId: string) {
@@ -70,8 +63,6 @@ export class PluginNoSourceUrlError extends DomainOperationError {
  *
  *  It is also the SWEEP's teeth: A's seeded probe row is not a showcase slug, so a dropped ownership pre-check
  *  would surface this distinguishable BAD_REQUEST instead of the leak-free NOT_FOUND the probe pins. */
-// @nearpair-ok: near-matches `@orb/contracts/plugin::PluginCapabilityError` by design — see `ManifestInvalidError`
-// above (same host-side lifecycle taxonomy, a CALLER sees it, never the guest-observable membrane error).
 export class PluginNotShowcaseError extends DomainOperationError {
   // @orb-waive brand-in-name-position(pluginId): echoes the caller's OWN pluginId (owner-scoped load ran first) into an operator-facing message; no foreign existence is oracled — a stranger's id NOT_FOUNDs before this throws.
   constructor(pluginId: string) {
@@ -86,8 +77,6 @@ export class PluginNotShowcaseError extends DomainOperationError {
  *  fault so the caller can be told to rebuild against the served major, not "fix your manifest".
  *
  *  @public thrown by the common bundle funnel before install, upgrade, preview, or activation accepts bytes. */
-// @nearpair-ok: near-matches `@orb/contracts/plugin::PluginCapabilityError` by design — see
-// `ManifestInvalidError` above (same host-side taxonomy, expected kinship).
 export class HostVersionUnservedError extends DomainOperationError {
   readonly requested: number;
   readonly served: readonly number[];
@@ -100,8 +89,6 @@ export class HostVersionUnservedError extends DomainOperationError {
 
 /** The confirmed grant is NOT ⊆ the manifest's declared capabilities — the install/upgrade refuses
  *  a grant the manifest never asked for. */
-// @nearpair-ok: near-matches `@orb/contracts/plugin::PluginCapabilityError` by design — see
-// `ManifestInvalidError` above (same host-side taxonomy, expected kinship).
 export class CapabilityNotGrantedError extends DomainOperationError {
   constructor(ungrantable: readonly string[]) {
     super("plugin_capability_not_granted", `grant includes capabilities the manifest does not declare: ${ungrantable.join(", ")}`);
@@ -119,8 +106,6 @@ export class CapabilityNotGrantedError extends DomainOperationError {
  *  re-opened at the consent act rather than at the upgrade. So the caller echoes the exact host list it
  *  displayed, and a manifest host missing from that echo is a typed refusal. Fail-closed: an empty echo with
  *  `net.fetch` in the grant refuses every declared host. */
-// @nearpair-ok: near-matches `@orb/contracts/plugin::PluginCapabilityError` by design — see
-// `ManifestInvalidError` above (same host-side taxonomy, expected kinship).
 export class PluginNetHostsUnacknowledgedError extends DomainOperationError {
   constructor(unacknowledged: readonly string[]) {
     super(
@@ -133,8 +118,6 @@ export class PluginNetHostsUnacknowledgedError extends DomainOperationError {
 /** An install/upgrade whose bundle version is LOWER than the currently-installed version for the same plugin
  *  id (owner-ruled). Refused so a re-uploaded old bundle can never silently
  *  roll a plugin back. */
-// @nearpair-ok: near-matches `@orb/contracts/plugin::PluginCapabilityError` by design — see
-// `ManifestInvalidError` above (same host-side taxonomy, expected kinship).
 export class PluginDowngradeRefusedError extends DomainOperationError {
   constructor(candidate: string, installed: string) {
     super("plugin_downgrade_refused", `cannot install version ${candidate} over the newer installed ${installed} (downgrades are refused)`);
@@ -142,15 +125,11 @@ export class PluginDowngradeRefusedError extends DomainOperationError {
 }
 
 /** The instance auto-disabled after the crash threshold. Maps to SERVICE_UNAVAILABLE. */
-// @nearpair-ok: near-matches `@orb/contracts/plugin::PluginCapabilityError` by design — see
-// `ManifestInvalidError` above (same host-side taxonomy, expected kinship).
 export class PluginCrashedError extends DomainUnavailableError {}
 
 /** An owned-plugin verb (upgrade/setEnabled/uninstall/getLog) was handed a pluginId that is missing OR not the
  *  caller's — collapsed leak-free (no foreign-existence oracle; the owner-scoped read returns undefined either
  *  way). Maps to NOT_FOUND. */
-// @nearpair-ok: near-matches `@orb/contracts/plugin::PluginCapabilityError` by design — see
-// `ManifestInvalidError` above (same host-side taxonomy, expected kinship).
 export class PluginNotFoundError extends DomainNotFoundError {
   // @orb-waive brand-in-name-position(pluginId): the plugin SANDBOX wire DTO — an untrusted guest's JSON, branded only after the host parses it; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
   constructor(pluginId: string) {
@@ -163,8 +142,6 @@ export class PluginNotFoundError extends DomainNotFoundError {
  *  themselves — what is absent is the DISTRIBUTION RECORD, and an admin who mistypes a slug needs to be told
  *  which of those two things is missing. Maps to NOT_FOUND. No leak concern: the published set is deployment
  *  policy the caller is already admin over, not an owned entity whose existence could be oracled. */
-// @nearpair-ok: near-matches `@orb/contracts/plugin::PluginCapabilityError` by design — see
-// `ManifestInvalidError` above (same host-side taxonomy, expected kinship).
 export class PluginNotDistributedError extends DomainNotFoundError {
   constructor(slug: string) {
     super("plugin distribution", slug);
@@ -175,8 +152,6 @@ export class PluginNotDistributedError extends DomainNotFoundError {
  *  a personal REPL — one at a time is the real usage shape — and each concurrent run pins a whole
  *  `QuickJSContext` (32 MiB ceiling) for up to its settlement wall. Maps to CONFLICT: retryable the moment the
  *  caller's own run finishes, and it says so. */
-// @nearpair-ok: near-matches `@orb/contracts/plugin::PluginCapabilityError` by design — see
-// `ManifestInvalidError` above (same host-side taxonomy, expected kinship).
 export class PluginSnippetBusyError extends DomainConflictError {
   constructor(max: number) {
     super(`you already have ${max} snippet${max === 1 ? "" : "s"} running — wait for one to finish before running another`);
@@ -185,8 +160,6 @@ export class PluginSnippetBusyError extends DomainConflictError {
 
 /** `installPlugin` for a slug the caller already has installed — install is create-only; changing the bundle is
  *  `upgradePlugin` (the `(owner, slug)` UNIQUE, checked before the write for a clean message). Maps to CONFLICT. */
-// @nearpair-ok: near-matches `@orb/contracts/plugin::PluginCapabilityError` by design — see
-// `ManifestInvalidError` above (same host-side taxonomy, expected kinship).
 export class PluginAlreadyInstalledError extends DomainConflictError {
   constructor(slug: string) {
     // "Update", not "upgrade": the client forwards this sentence VERBATIM as a single-homing choice

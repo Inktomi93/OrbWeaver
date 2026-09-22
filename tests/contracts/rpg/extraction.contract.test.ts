@@ -417,6 +417,25 @@ test("folds PARALLEL calls into one extraction (same-plane calls accumulate, sce
   expect(ex.journal).toHaveLength(1);
 });
 
+test("the mapped array-arm registry routes every tool through the identical structured-extraction plane", () => {
+  const party = { targetRef: "You", status: "ready" };
+  const inventory = { targetRef: "You", add: [{ name: "Bone Key" }] };
+  const trackerWrite = { key: "momentum", delta: 1 };
+  const quest = { name: "Open the Gate", action: "create" as const };
+  const journal = { type: "event" as const, content: "The gate opened." };
+  const viaCalls = toolCallsToExtraction([
+    { name: "update_party", arguments: JSON.stringify(party) },
+    { name: "update_inventory", arguments: JSON.stringify(inventory) },
+    { name: "set_tracker", arguments: JSON.stringify(trackerWrite) },
+    { name: "upsert_quest", arguments: JSON.stringify(quest) },
+    { name: "add_journal_entry", arguments: JSON.stringify(journal) },
+  ]);
+  const viaStructured = salvageExtraction({ party: [party], inventory: [inventory], trackers: [trackerWrite], quests: [quest], journal: [journal] });
+
+  expect(viaStructured.dropped).toEqual([]);
+  expect(viaStructured.extraction).toEqual(viaCalls);
+});
+
 test("no_changes (and any unknown tool) contributes nothing — the quiet-turn no-op", () => {
   const ex = toolCallsToExtraction([{ name: RPG_NO_CHANGES_TOOL, arguments: "{}" }]);
   expect(ex.party).toEqual([]);

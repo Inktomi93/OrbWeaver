@@ -53,6 +53,31 @@ test("round-trip: nested object + array-of-object, every object node pinned clos
   expect(roundTrip(input)).toEqual(input);
 });
 
+test("a heterogeneous runtime-generated tree keeps identical wire bytes and executable parse behavior", () => {
+  const input = {
+    type: "object",
+    properties: {
+      target: {
+        type: "object",
+        properties: {
+          label: { type: "string", minLength: 2 },
+          value: { anyOf: [{ type: "number" }, { type: "boolean" }] },
+        },
+        required: ["label", "value"],
+        additionalProperties: false,
+      },
+      tags: { type: "array", items: { type: "string", enum: ["a", "b"] } },
+    },
+    required: ["target"],
+    additionalProperties: false,
+  };
+  const lifted = liftJsonSchema(input);
+
+  expect(roundTrip(input)).toEqual(input);
+  expect(lifted.safeParse({ target: { label: "ok", value: true }, tags: ["a"] }).success).toBe(true);
+  expect(lifted.safeParse({ target: { label: "x", value: null }, tags: ["c"] }).success).toBe(false);
+});
+
 test("round-trip: a const literal survives", () => {
   const input = { type: "object", properties: { kind: { type: "string", const: "fixed" } }, required: ["kind"], additionalProperties: false };
   expect(roundTrip(input)).toEqual(input);

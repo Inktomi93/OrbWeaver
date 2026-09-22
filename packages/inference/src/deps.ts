@@ -11,5 +11,4 @@ export type {
   SnapshotStore,
   SpanAttrs,
   SpanFn,
-  SuperviseDetached,
 } from "./contract/runtime.ts";

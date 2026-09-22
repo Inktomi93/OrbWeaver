@@ -458,7 +458,9 @@ interface SalvagedArgs<T> {
  * REQUIRED fields need no special case: removing one cannot parse, so the retry fails and the call drops
  * exactly as before. Salvage never invents a value and never widens what the schema accepts.
  */
-function salvageArgs<T>(schema: z.ZodType<T>, args: unknown): SalvagedArgs<T> | null {
+function salvageArgs<T>(schema: z.ZodType<T>, args: unknown): SalvagedArgs<T> | null;
+function salvageArgs(schema: z.ZodType, args: unknown): SalvagedArgs<unknown> | null;
+function salvageArgs(schema: z.ZodType, args: unknown): SalvagedArgs<unknown> | null {
   const first = schema.safeParse(args);
   if (first.success) {
     return { data: first.data, dropped: [] };
@@ -490,17 +492,43 @@ function salvageArgs<T>(schema: z.ZodType<T>, args: unknown): SalvagedArgs<T> | 
   return second.success ? { data: second.data, dropped: [...offending].sort() } : null;
 }
 
-// The ARRAY-plane tool name → { schema, extraction field } — a MAP (keys are VALUES, the snake_case wire tool
-// names, not JS property identifiers, so useNamingConvention doesn't apply and no suppression is needed). The
-// `scene` plane is handled separately (single, last-wins, not an array). `no_changes`/unknown names are absent
-// from this map ⇒ they contribute nothing (the quiet-turn no-op).
-const TOOL_ROUND_ARRAY_ARMS: ReadonlyMap<string, { readonly schema: z.ZodType; readonly field: keyof RpgExtraction }> = new Map([
-  ["update_party", { schema: updatePartyArgsSchema, field: "party" }],
-  ["update_inventory", { schema: updateInventoryArgsSchema, field: "inventory" }],
-  ["set_tracker", { schema: setTrackerArgsSchema, field: "trackers" }],
-  ["upsert_quest", { schema: upsertQuestArgsSchema, field: "quests" }],
-  ["add_journal_entry", { schema: addJournalEntryArgsSchema, field: "journal" }],
-]);
+type ExtractionArrayPlane = Exclude<keyof RpgExtraction, "scene">;
+
+interface ToolRoundArrayPlaneByKey {
+  readonly party: "party";
+  readonly inventory: "inventory";
+  readonly tracker: "trackers";
+  readonly quest: "quests";
+  readonly journal: "journal";
+}
+
+type ToolRoundArrayArmByKey = {
+  readonly [Key in keyof ToolRoundArrayPlaneByKey]: {
+    readonly name: string;
+    readonly schema: z.ZodType<RpgExtraction[ToolRoundArrayPlaneByKey[Key]][number]>;
+    readonly field: ToolRoundArrayPlaneByKey[Key];
+  };
+};
+
+// The ARRAY-plane tool name → { schema, extraction field } — authored once as a kind-correlated mapped
+// contract, then indexed as a Map because tool names arrive as untrusted string values. The `scene` plane is
+// handled separately (single, last-wins, not an array). `no_changes`/unknown names are absent ⇒ no contribution.
+const TOOL_ROUND_ARRAY_ARM_DEFS = {
+  party: { name: "update_party", schema: updatePartyArgsSchema, field: "party" },
+  inventory: { name: "update_inventory", schema: updateInventoryArgsSchema, field: "inventory" },
+  tracker: { name: "set_tracker", schema: setTrackerArgsSchema, field: "trackers" },
+  quest: { name: "upsert_quest", schema: upsertQuestArgsSchema, field: "quests" },
+  journal: { name: "add_journal_entry", schema: addJournalEntryArgsSchema, field: "journal" },
+} as const satisfies ToolRoundArrayArmByKey;
+
+interface ToolRoundArrayRuntimeArm {
+  readonly schema: z.ZodType;
+  readonly field: ExtractionArrayPlane;
+}
+
+const TOOL_ROUND_ARRAY_ARMS: ReadonlyMap<string, ToolRoundArrayRuntimeArm> = new Map(
+  Object.values(TOOL_ROUND_ARRAY_ARM_DEFS).map((arm) => [arm.name, arm] as const),
+);
 
 /**
  * Fold a tool round's PARALLEL tool calls into ONE `RpgExtraction` — each call's args are re-validated against
@@ -579,9 +607,7 @@ export interface RpgExtractionSalvage {
 
 // The ARRAY planes' field → arg-schema pairing, DERIVED from the tool-round arm map (never re-spelled: the
 // shared-plane proof means the structured plane and its tool validate through the identical schema).
-const EXTRACTION_ARRAY_PLANES: ReadonlyMap<keyof RpgExtraction, z.ZodType> = new Map(
-  [...TOOL_ROUND_ARRAY_ARMS.values()].map((arm) => [arm.field, arm.schema] as const),
-);
+const EXTRACTION_ARRAY_PLANES = new Map(Object.values(TOOL_ROUND_ARRAY_ARM_DEFS).map((arm) => [arm.field, arm.schema] as const));
 
 // A zod error's issues as `path: message` lines (the log-ready shape the structured arm already emitted).
 function issueLines(error: z.ZodError): string[] {

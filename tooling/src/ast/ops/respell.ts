@@ -1,60 +1,21 @@
-// respell (+ --near): domain contract/ shapes structurally identical to @orb/contracts shapes.
+// respell (+ --near): command orchestration for domain contract shapes matching @orb/contracts shapes.
 
 import process from "node:process";
-import type { Project } from "ts-morph";
-import { Node } from "ts-morph";
+import type { Node, Project } from "ts-morph";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
-import { coLocatedSemanticNodes, semanticWorkspaceOf } from "../../_shared/ts-workspace.ts";
-import type { Flags, Hit, NearFieldDiff, NearPairCandidate } from "../contract/types.ts";
+import { semanticWorkspaceOf } from "../../_shared/ts-workspace.ts";
+import type { Flags, MalformedNearPairMarker, NearPairExemption, StaleNearPairMarker } from "../contract/types.ts";
 import { emit, hitOf, narrate } from "../lib/emit.ts";
 import { declKey } from "../lib/keys.ts";
 import { exitToolError, noteUnits, scanCorpus } from "../lib/ledger.ts";
-import { commentHost } from "../lib/public-markers.ts";
-import { nearPairHit } from "../lib/respell-near-report.ts";
-import { TEST_FILE_RE } from "../lib/root.ts";
-import { ownExports } from "../lib/scope.ts";
+import { RESPELL_NEAR_PROPERTY_FLOOR } from "../lib/respell-near-analysis.ts";
+import { respellNearAuditFor } from "../lib/respell-near-markers.ts";
+import { malformedNearPairMarkerEvidence, nearPairExemptionEvidence, nearPairHit, staleNearPairMarkerEvidence } from "../lib/respell-near-report.ts";
+import type { AssignabilityChecker } from "../lib/respell-shapes.ts";
+import { assignabilityChecker, domainsWithContracts, RESPELL_PROPERTY_FLOOR, respellHitsFor } from "../lib/respell-shapes.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
-
-// ── respell: a domain `contract/` shape STRUCTURALLY identical to an @orb/contracts shape ───────
-// The gate (`contract-derives-not-respells`) catches a re-spell that kept the OWNER'S NAME. This lens
-// catches the one that renamed it — the shape a syntactic reader cannot see, because nothing about
-// `interface SeatKnobs { … }` in `domain/chat/contract/` says it is `RosterMemberSpec`'s body again.
-//
-// It is a CANDIDATE lens, and deliberately NOT a gate: structural identity is EVIDENCE of a re-spell, never
-// proof of one. Two shapes may agree today by coincidence (`{id, name, createdAt}`) and be free to diverge
-// tomorrow — reding a commit on that would train agents to rename a field to dodge the gate, which is worse
-// than the rot. So it prints candidates for a human/agent to judge, exactly like `clientgap`.
-//
-// The comparison is the shape's PROPERTY SIGNATURE — sorted `name:typeText` pairs, resolved through the
-// checker so a `z.infer<…>` contracts export compares as its inferred object. Floor: 3 properties (a 1-2
-// property agreement is noise — every `{id}` in the repo would match).
-/** How many properties a shape needs before an exact structural match means anything. */
-const RESPELL_PROPERTY_FLOOR = 3;
-
-interface ShapeEntry {
-  readonly name: string;
-  readonly decl: Node;
-  readonly signature: string;
-}
-
-/** The compiler checker's mutual-assignability primitive. It is a TS INTERNAL, so it is resolved once and
- *  its ABSENCE is a tool error (exit 2), never a silent zero — a lens that quietly stops comparing is worse
- *  than no lens. (Present on TS 5.x/TS7's checker object; re-verify on a TypeScript bump.) */
-interface AssignabilityChecker {
-  isTypeAssignableTo: (source: unknown, target: unknown) => boolean;
-}
-
-export function assignabilityChecker(project: Pick<Project, "getTypeChecker">): AssignabilityChecker {
-  const compiler = project.getTypeChecker().compilerObject as unknown as Partial<AssignabilityChecker>;
-  if (typeof compiler.isTypeAssignableTo !== "function") {
-    exitToolError(
-      "ast respell: this TypeScript build exposes no `checker.isTypeAssignableTo` (a TS internal this lens depends on) — the comparison cannot run. Re-verify the API after a TypeScript bump; tooling/src/ast/ops/respell.ts.",
-    );
-  }
-  return { isTypeAssignableTo: compiler.isTypeAssignableTo.bind(compiler) };
-}
 
 function checkerProjectOf(corpus: SourceCorpus): Pick<Project, "getTypeChecker"> {
   if ("getTypeChecker" in corpus && typeof corpus.getTypeChecker === "function") {
@@ -67,382 +28,103 @@ function checkerProjectOf(corpus: SourceCorpus): Pick<Project, "getTypeChecker">
   return project;
 }
 
-/** MUTUALLY assignable = the same shape, whatever the two spell their fields' types as. Assignability (not
- *  type TEXT) is the comparison because a text signature is ALIAS-SENSITIVE: `CharacterId` and
- *  `TypeIdOf<"character">` print differently and are the same type, so a text lens reports a clean zero on a
- *  literal re-spell (measured — the first cut of this lens missed a planted twin for exactly that reason). */
-function mutuallyAssignable(checker: AssignabilityChecker, a: Node, b: Node): boolean {
-  const colocated = coLocatedSemanticNodes(a, b);
-  if (colocated.length === 0) {
-    if (a.getProject() !== b.getProject()) {
-      exitToolError("ast respell: compared declarations share no native compiler program");
-    }
-    const ta = a.getType().compilerType;
-    const tb = b.getType().compilerType;
-    return checker.isTypeAssignableTo(ta, tb) && checker.isTypeAssignableTo(tb, ta);
+function declarationIsInScope(decl: Node, flags: Flags): boolean {
+  return flags.in === null || hitOf(decl, "respell-near-scope").file.includes(flags.in);
+}
+
+function printNearPairExemptions(exemptions: readonly NearPairExemption[], flags: Flags): void {
+  if (flags.json) {
+    return;
   }
-  const answers = new Set(
-    colocated.map(({ project, left, right }) => {
-      const effectiveChecker = assignabilityChecker(project);
-      const ta = left.getType().compilerType;
-      const tb = right.getType().compilerType;
-      return effectiveChecker.isTypeAssignableTo(ta, tb) && effectiveChecker.isTypeAssignableTo(tb, ta);
-    }),
+  for (const exemption of exemptions) {
+    const evidence = nearPairExemptionEvidence(exemption);
+    narrate(flags, `  = ${evidence.domainName} EXEMPT ${evidence.target} — ${evidence.diff} — ${evidence.reason}`);
+  }
+}
+
+/** The STALE side of `@nearpair-ok:` — the marker's named target is absent even when a different sibling
+ *  remains a candidate. Printed and exit-1, so target drift cannot leave a blanket exemption behind. */
+function printStaleNearPairTags(staleMarkers: readonly StaleNearPairMarker[], flags: Flags): void {
+  if (staleMarkers.length === 0) {
+    return;
+  }
+  narrate(
+    flags,
+    `respell --near: ${staleMarkers.length} STALE \`@nearpair-ok:\` marker(s) — the named contracts declaration is no longer this shape's candidate at the current threshold. Delete the marker or name the surviving pair:`,
   );
-  if (answers.size !== 1) {
-    exitToolError("ast respell: native compiler programs disagree about declaration assignability");
+  for (const marker of staleMarkers) {
+    const evidence = staleNearPairMarkerEvidence(marker);
+    narrate(flags, `  ! ${evidence.file}:${evidence.line}  [${evidence.kind}]  ${marker.domainName} STALE ${evidence.target} — ${marker.reason}`);
   }
-  return answers.has(true);
+  process.exitCode = 1;
 }
 
-/** The sorted PROPERTY-NAME signature of a declaration's type — the cheap prefilter that keeps the O(n²)
- *  assignability probe off every unrelated pair. Undefined when it is not an object shape with at least
- *  {@link RESPELL_PROPERTY_FLOOR} properties (a union/primitive/function type has no signature here). */
-function shapeSignature(decl: Node): string | undefined {
-  const type = decl.getType();
-  if (type.isUnion() || type.isIntersection()) {
-    return; // a discriminated union is not the re-spell class; its arms are compared on their own if exported
-  }
-  // OBJECT shapes only. A primitive (a numeric `const` such as TOOL_RECURSE_LIMIT_DEFAULT) reports its
-  // APPARENT type's members — `toFixed`/`toString`/… — which sails past the property floor and matched every
-  // other numeric constant in the repo (measured, first run of this lens). Functions and arrays are likewise
-  // not the re-spell class.
-  if (!type.isObject() || type.isArray() || type.isTuple() || type.getCallSignatures().length > 0) {
+function printMalformedNearPairTags(malformedMarkers: readonly MalformedNearPairMarker[], flags: Flags): void {
+  if (malformedMarkers.length === 0) {
     return;
   }
-  const props = type.getProperties();
-  if (props.length < RESPELL_PROPERTY_FLOOR) {
-    return;
+  narrate(
+    flags,
+    `respell --near: ${malformedMarkers.length} MALFORMED \`@nearpair-ok:\` marker(s) — use \`@nearpair-ok: near-matches @orb/contracts/<domain>::<Name> <nonblank reason>\`:`,
+  );
+  for (const marker of malformedMarkers) {
+    const evidence = malformedNearPairMarkerEvidence(marker);
+    narrate(flags, `  ! ${evidence.file}:${evidence.line}  [${evidence.kind}]  ${marker.domainName} — ${marker.marker}`);
   }
-  return props
-    .map((p) => p.getName())
-    .sort()
-    .join("|");
+  process.exitCode = 1;
 }
 
-/** Every exported declaration of the files under `prefix` that HAS a shape signature. */
-function shapesUnder(project: SourceCorpus, prefix: string): ShapeEntry[] {
-  const out: ShapeEntry[] = [];
-  for (const sf of project.getSourceFiles()) {
-    const fp = sf.getFilePath();
-    if (!fp.includes(prefix) || TEST_FILE_RE.test(fp)) {
-      continue;
-    }
-    for (const { name, decl } of ownExports(sf)) {
-      const signature = shapeSignature(decl);
-      if (signature !== undefined) {
-        out.push({ name, decl, signature });
-      }
-    }
-  }
-  return out;
+interface RespellNearScope {
+  readonly domains: readonly string[];
+  readonly thresholdPct: number;
 }
 
-/** Domain dirs under `packages/server/src/domain/` that have a `contract/`, filtered by an optional arg. */
-function domainsWithContracts(project: SourceCorpus, arg: string): string[] {
-  const found = new Set<string>();
-  for (const sf of project.getSourceFiles()) {
-    const domain = DOMAIN_CONTRACT_DIR_RE.exec(sf.getFilePath())?.groups?.["domain"];
-    if (domain !== undefined && (arg === "" || domain === arg)) {
-      found.add(domain);
-    }
-  }
-  return [...found].sort();
-}
-
-const DOMAIN_CONTRACT_DIR_RE = /\/packages\/server\/src\/domain\/(?<domain>[^/]+)\/contract\//u;
-
-/** Origin declarations named by a bare alias (`type X = Y`), resolved through import/re-export hops.
- *  Direct aliases are the recommended derive, so reporting their mutual assignability would flag the fix. */
-function bareAliasTargetKeys(decl: Node): Set<string> {
-  const keys = new Set<string>();
-  if (!Node.isTypeAliasDeclaration(decl)) {
-    return keys;
-  }
-  const typeNode = decl.getTypeNode();
-  if (typeNode === undefined || !Node.isTypeReference(typeNode) || typeNode.getTypeArguments().length > 0) {
-    return keys;
-  }
-  const entity = typeNode.getTypeName();
-  const identifier = Node.isQualifiedName(entity) ? entity.getRight() : entity;
-  const symbol = identifier.getSymbol();
-  if (symbol === undefined) {
-    return keys;
-  }
-  // An IMPORTED name's own symbol is the import alias; getAliasedSymbol follows the whole re-export chain to
-  // the declaration the contracts side keys on. A same-file reference has no alias — use the symbol itself.
-  for (const d of (symbol.getAliasedSymbol() ?? symbol).getDeclarations()) {
-    keys.add(declKey(d));
-  }
-  return keys;
-}
-
-/** Shared `typeof value` provenance through a generic derive (`z.infer`, `ReturnType`, and equivalents).
- * The generic's spelling is irrelevant: two aliases are already derived when TypeScript resolves their
- * type-query operand to the same declaration. Other generic aliases remain candidates. */
-function typeQueryDerivationKeys(decl: Node): Set<string> {
-  const keys = new Set<string>();
-  if (!Node.isTypeAliasDeclaration(decl)) {
-    return keys;
-  }
-  const typeNode = decl.getTypeNode();
-  if (typeNode === undefined || !Node.isTypeReference(typeNode)) {
-    return keys;
-  }
-  const [argument] = typeNode.getTypeArguments();
-  if (argument === undefined || typeNode.getTypeArguments().length !== 1 || !Node.isTypeQuery(argument)) {
-    return keys;
-  }
-  const genericSymbol = typeNode.getTypeName().getSymbol();
-  const genericKeys = ((genericSymbol?.getAliasedSymbol() ?? genericSymbol)?.getDeclarations() ?? []).map(declKey);
-  const operandSymbol = argument.getExprName().getSymbol();
-  const operandKeys = ((operandSymbol?.getAliasedSymbol() ?? operandSymbol)?.getDeclarations() ?? []).map(declKey);
-  for (const genericKey of genericKeys) {
-    for (const operandKey of operandKeys) {
-      keys.add(`${genericKey}\0${operandKey}`);
-    }
-  }
-  return keys;
-}
-
-function overlaps(left: ReadonlySet<string>, right: ReadonlySet<string>): boolean {
-  return [...left].some((key) => right.has(key));
-}
-
-/** ONE domain's structural twins, excluding aliases with the same direct target or resolved generic
- *  `typeof` provenance because those already derive from the shared declaration. */
-export function respellHitsFor(project: SourceCorpus, checker: AssignabilityChecker, domain: string): Hit[] {
-  const contractsShapes = shapesUnder(project, `/packages/contracts/src/${domain}/`);
-  if (contractsShapes.length === 0) {
-    return [];
-  }
-  const bySignature = new Map<string, ShapeEntry[]>();
-  for (const shape of contractsShapes) {
-    bySignature.set(shape.signature, [...(bySignature.get(shape.signature) ?? []), shape]);
-  }
-  const hits: Hit[] = [];
-  for (const domainShape of shapesUnder(project, `/packages/server/src/domain/${domain}/contract/`)) {
-    const derivedFrom = bareAliasTargetKeys(domainShape.decl);
-    const domainOrigins = typeQueryDerivationKeys(domainShape.decl);
-    for (const twin of bySignature.get(domainShape.signature) ?? []) {
-      // The domain shape IS this contracts symbol, under a local name — the recommended derive, not a hit.
-      if (
-        derivedFrom.has(declKey(twin.decl)) ||
-        overlaps(domainOrigins, typeQueryDerivationKeys(twin.decl)) ||
-        !mutuallyAssignable(checker, domainShape.decl, twin.decl)
-      ) {
-        continue;
-      }
-      const h = hitOf(domainShape.decl, domainShape.name === twin.name ? "respell-same-name" : "respell-renamed");
-      h.text = `${domainShape.name}  ≡  @orb/contracts/${domain}::${twin.name}`;
-      hits.push(h);
-    }
-  }
-  return hits;
+/** The additive near tier: classify all markers once, then emit a separate result beside exact respell. */
+function cmdRespellNear(project: SourceCorpus, checker: AssignabilityChecker, scope: RespellNearScope, flags: Flags): void {
+  const { domains, thresholdPct } = scope;
+  const audits = domains.map((domain) => respellNearAuditFor(project, checker, domain, thresholdPct));
+  const candidates = audits.flatMap((audit) => audit.candidates);
+  const exemptions = audits.flatMap((audit) => audit.exemptions).filter(({ candidate }) => declarationIsInScope(candidate.domainDecl, flags));
+  const staleMarkers = audits.flatMap((audit) => audit.staleMarkers).filter(({ domainDecl }) => declarationIsInScope(domainDecl, flags));
+  const malformedMarkers = audits.flatMap((audit) => audit.malformedMarkers).filter(({ domainDecl }) => declarationIsInScope(domainDecl, flags));
+  const exemptKeys = new Set(exemptions.map(({ candidate }) => `${declKey(candidate.domainDecl)}\0${declKey(candidate.contractsDecl)}`));
+  const reportable = candidates.filter((candidate) => !exemptKeys.has(`${declKey(candidate.domainDecl)}\0${declKey(candidate.contractsDecl)}`));
+  printStaleNearPairTags(staleMarkers, flags);
+  printMalformedNearPairTags(malformedMarkers, flags);
+  printNearPairExemptions(exemptions, flags);
+  narrate(
+    flags,
+    `respell --near is a CANDIDATE lens — Jaccard similarity over (fieldName, semanticType) pairs at ≥${thresholdPct}%, where semantic type identity is bidirectional checker assignability in every co-located native program; floor ${RESPELL_NEAR_PROPERTY_FLOOR}+ fields on both sides, EXCLUDING every pair the exact tier already resolves. A near-twin that STARTED as a copy and drifted a field is the drift class this exists to catch; a genuinely deliberate near-pair (two shapes that happen to share most fields) is legitimate — verify before acting. Keep one deliberately with \`// @nearpair-ok: near-matches @orb/contracts/<domain>::<Name> <reason>\` on the domain declaration.${exemptions.length === 0 ? "" : ` (${exemptions.length} pair(s) exempted by a reasoned marker and printed above.)`}`,
+  );
+  emit(reportable.map(nearPairHit), flags, `respell --near>=${thresholdPct} ${domains.length === 1 ? domains[0] : "(all domains)"}`, {
+    jsonFields: {
+      exemptions: exemptions.map(nearPairExemptionEvidence),
+      staleMarkers: staleMarkers.map(staleNearPairMarkerEvidence),
+      malformedMarkers: malformedMarkers.map(malformedNearPairMarkerEvidence),
+    },
+  });
 }
 
 /** Domain `contract/` shapes structurally identical to a shape the sibling `@orb/contracts/<domain>` already
- *  exports — the RENAMED re-spell the syntactic gate cannot see. Optional arg = one domain; bare = all. */
+ *  exports. Optional arg selects one domain; bare selects all domains. */
 export function cmdRespell(project: SourceCorpus, arg: string, flags: Flags): void {
   const domains = domainsWithContracts(project, arg);
   noteUnits("domains", domains.length);
   if (domains.length === 0) {
     exitToolError(`ast respell: no domain contract/ dir matched "${arg}" — try a domain name (chat, rpg, preset, …) or run bare for all.`);
   }
-  // The candidate corpus is BOTH sides of the comparison: the domain `contract/` dirs and their sibling
-  // `@orb/contracts/<domain>` packages. A domain whose contracts package is empty is why a run can be
-  // legitimately quiet — `scanned` shows which side actually held files.
   scanCorpus(project, {
-    scope: domains.flatMap((d) => [`/packages/contracts/src/${d}/`, `/packages/server/src/domain/${d}/contract/`]),
+    scope: domains.flatMap((domain) => [`/packages/contracts/src/${domain}/`, `/packages/server/src/domain/${domain}/contract/`]),
     label: `path:domain-contracts(${domains.length})`,
   });
   const checker = assignabilityChecker(checkerProjectOf(project));
-  const hits: Hit[] = [];
-  for (const domain of domains) {
-    hits.push(...respellHitsFor(project, checker, domain));
-  }
+  const hits = domains.flatMap((domain) => respellHitsFor(project, checker, domain));
   narrate(
     flags,
     `respell is a CANDIDATE lens — structural identity is EVIDENCE of a re-spell, not proof: two shapes may agree today and be free to diverge tomorrow. Verify intent before acting, and prefer a derive when the domain shape IS the contracts shape. (${RESPELL_PROPERTY_FLOOR}+ properties, checker-resolved; a \`respell-same-name\` hit is already RED at the \`contract-derives-not-respells\` gate.)`,
   );
   emit(hits, flags, `respell ${arg === "" ? "(all domains)" : arg}`);
-  // `--near` is ADDITIVE: when it is absent, nothing below this line runs and the exact tier's output
-  // (everything above) is byte-identical to before it existed.
   if (flags.near !== null) {
     cmdRespellNear(project, checker, { domains, thresholdPct: flags.near }, flags);
   }
-}
-
-// `respell --near` adds a Jaccard field-identity tier beside exact mutual assignability. It stays on the
-// domain-contracts axis, reports the field diff, ignores tiny shapes, and excludes exact or derived twins.
-const RESPELL_NEAR_PROPERTY_FLOOR = 4;
-const PCT_SCALE = 100;
-
-/** One field's name and report-only display type; the checker decides identity. */
-interface FieldPair {
-  readonly name: string;
-  readonly type: string;
-}
-
-interface FieldIdentity {
-  readonly decl: Node;
-  readonly name: string;
-}
-
-/** A shape's checker-resolved fields. */
-function fieldPairsOf(decl: Node): FieldPair[] {
-  const type = decl.getType();
-  return type.getProperties().map((prop) => ({ name: prop.getName(), type: prop.getTypeAtLocation(decl).getText() }));
-}
-
-/** Whether two fields are mutually assignable in every native compiler program that owns both. */
-function semanticallyEqualFieldType(checker: AssignabilityChecker, leftField: FieldIdentity, rightField: FieldIdentity): boolean {
-  const compare = (effectiveChecker: AssignabilityChecker, left: Node, right: Node): boolean => {
-    const leftType = left.getType().getProperty(leftField.name)?.getTypeAtLocation(left).compilerType;
-    const rightType = right.getType().getProperty(rightField.name)?.getTypeAtLocation(right).compilerType;
-    return (
-      leftType !== undefined &&
-      rightType !== undefined &&
-      effectiveChecker.isTypeAssignableTo(leftType, rightType) &&
-      effectiveChecker.isTypeAssignableTo(rightType, leftType)
-    );
-  };
-  const colocated = coLocatedSemanticNodes(leftField.decl, rightField.decl);
-  if (colocated.length === 0) {
-    if (leftField.decl.getProject() !== rightField.decl.getProject()) {
-      exitToolError("ast respell --near: compared fields share no native compiler program");
-    }
-    return compare(checker, leftField.decl, rightField.decl);
-  }
-  const answers = new Set(colocated.map(({ project, left, right }) => compare(assignabilityChecker(project), left, right)));
-  if (answers.size !== 1) {
-    exitToolError("ast respell --near: native compiler programs disagree about field assignability");
-  }
-  return answers.has(true);
-}
-
-function nearFieldDiffOf(checker: AssignabilityChecker, domainDecl: Node, contractsDecl: Node): NearFieldDiff {
-  const domainFields = fieldPairsOf(domainDecl);
-  const contractsFields = fieldPairsOf(contractsDecl);
-  const sharedNames = new Set(
-    domainFields
-      .filter((domainField) => {
-        const contractsField = contractsFields.find((candidate) => candidate.name === domainField.name);
-        return (
-          contractsField !== undefined &&
-          semanticallyEqualFieldType(checker, { decl: domainDecl, name: domainField.name }, { decl: contractsDecl, name: contractsField.name })
-        );
-      })
-      .map((field) => field.name),
-  );
-  const sharedCount = sharedNames.size;
-  const totalFields = domainFields.length + contractsFields.length - sharedCount;
-  const pct = totalFields === 0 ? 0 : (sharedCount / totalFields) * PCT_SCALE;
-  const contractsRemainder = contractsFields.filter((field) => !sharedNames.has(field.name));
-  const renamed: { from: string; to: string; type: string }[] = [];
-  const domainOnly: string[] = [];
-  for (const df of domainFields.filter((field) => !sharedNames.has(field.name))) {
-    const matchAt = contractsRemainder.findIndex(
-      (cf) =>
-        cf.name !== df.name &&
-        !renamed.some((rename) => rename.to === cf.name) &&
-        semanticallyEqualFieldType(checker, { decl: domainDecl, name: df.name }, { decl: contractsDecl, name: cf.name }),
-    );
-    if (matchAt === -1) {
-      domainOnly.push(df.name);
-      continue;
-    }
-    const match = contractsRemainder[matchAt] as FieldPair;
-    renamed.push({ from: df.name, to: match.name, type: df.type });
-  }
-  const renamedTo = new Set(renamed.map((r) => r.to));
-  const contractsOnly = contractsRemainder.filter((f) => !renamedTo.has(f.name)).map((f) => f.name);
-  return { pct, sharedCount, totalFields, renamed, domainOnly, contractsOnly };
-}
-
-/** One domain's near-tier candidates, excluding exact/derived matches and shapes below the field floor. */
-export function respellNearCandidatesFor(project: SourceCorpus, checker: AssignabilityChecker, domain: string, thresholdPct: number): NearPairCandidate[] {
-  const contractsShapes = shapesUnder(project, `/packages/contracts/src/${domain}/`).filter((s) => fieldPairsOf(s.decl).length >= RESPELL_NEAR_PROPERTY_FLOOR);
-  if (contractsShapes.length === 0) {
-    return [];
-  }
-  const out: NearPairCandidate[] = [];
-  for (const domainShape of shapesUnder(project, `/packages/server/src/domain/${domain}/contract/`)) {
-    const domainFields = fieldPairsOf(domainShape.decl);
-    if (domainFields.length < RESPELL_NEAR_PROPERTY_FLOOR) {
-      continue;
-    }
-    const derivedFrom = bareAliasTargetKeys(domainShape.decl);
-    for (const twin of contractsShapes) {
-      // The exact-tier exclusion — same predicate `respellHitsFor` uses for both its arms.
-      if (derivedFrom.has(declKey(twin.decl)) || (twin.signature === domainShape.signature && mutuallyAssignable(checker, domainShape.decl, twin.decl))) {
-        continue;
-      }
-      const diff = nearFieldDiffOf(checker, domainShape.decl, twin.decl);
-      if (diff.pct >= thresholdPct) {
-        out.push({ domain, domainName: domainShape.name, domainDecl: domainShape.decl, contractsName: twin.name, contractsDecl: twin.decl, diff });
-      }
-    }
-  }
-  return out;
-}
-
-const NEARPAIR_OK_RE = /@nearpair-ok:\s*\S/u;
-
-/** True if the domain shape carries a leading `// @nearpair-ok: <reason>` — a deliberate keep of a
- *  near-match (the discipline `@typeonly-ok:`/`@swallowed-ok:` already use). */
-export function isNearPairExempt(decl: Node): boolean {
-  return commentHost(decl)
-    .getLeadingCommentRanges()
-    .some((range) => NEARPAIR_OK_RE.test(range.getText()));
-}
-
-/** The STALE side of `@nearpair-ok:` — a marker on a domain shape that no longer near-matches ANY
- *  contracts sibling above the current threshold (the exact tier resolved it, a field diverged past the
- *  floor, or the shape/contract disappeared). Printed and exit-1, the two-sided-gate law every other
- *  marker in this file follows. */
-function printStaleNearPairTags(project: SourceCorpus, domains: readonly string[], candidateKeys: ReadonlySet<string>, flags: Flags): void {
-  const stale: Hit[] = [];
-  for (const domain of domains) {
-    for (const shape of shapesUnder(project, `/packages/server/src/domain/${domain}/contract/`)) {
-      if (!isNearPairExempt(shape.decl) || candidateKeys.has(declKey(shape.decl))) {
-        continue;
-      }
-      const h = hitOf(shape.decl, "stale-nearpair-ok");
-      h.text = `${shape.name}  —  ${h.text}`;
-      stale.push(h);
-    }
-  }
-  if (stale.length === 0) {
-    return;
-  }
-  narrate(
-    flags,
-    `respell --near: ${stale.length} STALE \`@nearpair-ok:\` marker(s) — the shape no longer near-matches any contracts sibling at the current threshold. Delete the marker or re-state the reason:`,
-  );
-  for (const h of stale) {
-    narrate(flags, `  ! ${h.file}:${h.line}  [${h.kind}]  ${h.text}`);
-  }
-  process.exitCode = 1;
-}
-
-/** The `--near` tier's own args, bundled to keep `cmdRespellNear` under the house parameter budget. */
-interface RespellNearScope {
-  readonly domains: readonly string[];
-  readonly thresholdPct: number;
-}
-
-/** The `--near` tier: run for every domain already resolved by the exact tier, at `thresholdPct`. A
- *  SEPARATE `emit` call (its own RESULT line) beside the exact tier's — additive, never mixed into it. */
-function cmdRespellNear(project: SourceCorpus, checker: AssignabilityChecker, scope: RespellNearScope, flags: Flags): void {
-  const { domains, thresholdPct } = scope;
-  const candidates = domains.flatMap((domain) => respellNearCandidatesFor(project, checker, domain, thresholdPct));
-  printStaleNearPairTags(project, domains, new Set(candidates.map((c) => declKey(c.domainDecl))), flags);
-  const reportable = candidates.filter((c) => !isNearPairExempt(c.domainDecl));
-  const exempt = candidates.length - reportable.length;
-  narrate(
-    flags,
-    `respell --near is a CANDIDATE lens — Jaccard similarity over (fieldName, semanticType) pairs at ≥${thresholdPct}%, where semantic type identity is bidirectional checker assignability in every co-located native program; floor ${RESPELL_NEAR_PROPERTY_FLOOR}+ fields on both sides, EXCLUDING every pair the exact tier already resolves. A near-twin that STARTED as a copy and drifted a field is the drift class this exists to catch; a genuinely deliberate near-pair (two shapes that happen to share most fields) is legitimate — verify before acting. Keep one deliberately with \`// @nearpair-ok: <reason>\` on the domain declaration.${exempt === 0 ? "" : ` (${exempt} candidate(s) exempted by a reasoned marker.)`}`,
-  );
-  emit(reportable.map(nearPairHit), flags, `respell --near>=${thresholdPct} ${domains.length === 1 ? domains[0] : "(all domains)"}`);
 }

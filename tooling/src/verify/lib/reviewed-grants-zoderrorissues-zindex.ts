@@ -1,9 +1,41 @@
-// Reviewed grants: zod-error-issues-home, z-index-tier-permission.
+// Reviewed grants: zod-export-membership, zod-error-issues-home, z-index-tier-permission.
 // Split from reviewed-grants-tooling-to-permission.ts at the 450-line cap — see reviewed-grants.ts for
 // the central home comment.
 import type { ReviewedGateGrant } from "../contract/gate-authority.ts";
 
 export const REVIEWED_GRANTS_ZODERRORISSUES_ZINDEX: readonly ReviewedGateGrant[] = [
+  {
+    id: "zod-export-membership:global-variable-key-schema",
+    policyId: "zod-export-membership",
+    subject: "packages/contracts/src/automation/index.ts",
+    operation: "schema-only-export:globalVariableKeySchema",
+    why: "a reusable runtime constraint for natural string keys: the canonical schema owns nonempty/length validation at the set-global-variable producer and the CEL projection deliberately admits every valid JavaScript property name. Branding the key would invent nominal identity that the map protocol does not have.",
+    endsWhen: "global-variable keys become a nominal domain identity, or the public schema and its production parser disappear together.",
+  },
+  {
+    id: "zod-export-membership:json-schema-lift",
+    policyId: "zod-export-membership",
+    subject: "packages/kit/src/json-schema/lift.ts",
+    operation: "schema-only-export:liftJsonSchema",
+    why: "a runtime JSON-Schema interpreter whose returned Zod object shape is determined by untrusted schema data. Its output cannot truthfully depend on the static Record<string, unknown> input without implementing a type-level JSON-Schema interpreter; the function's conservative-or-refuse runtime grammar is the contract.",
+    endsWhen: "the lift gains a truthful type-level schema/output contract, or the public runtime-generated schema boundary disappears.",
+  },
+  {
+    id: "zod-export-membership:plugin-net-host-schema",
+    policyId: "zod-export-membership",
+    subject: "packages/contracts/src/plugin/manifest.ts",
+    operation: "schema-only-export:pluginNetHostSchema",
+    why: "a reusable runtime hostname constraint at the plugin manifest and transport SSRF boundary. A hostname is validated data rather than an Orb identity, so a branded static twin would overstate the contract while adding no representable hostname guarantee.",
+    endsWhen: "plugin network hosts gain a semantic domain type that carries useful static identity, or this public validation boundary disappears.",
+  },
+  {
+    id: "zod-export-membership:tool-recurse-limit-schema",
+    policyId: "zod-export-membership",
+    subject: "packages/server/src/domain/chat/contract/metadata.ts",
+    operation: "schema-only-export:toolRecurseLimitSchema",
+    why: "a runtime-only bounded integer setting shared by chat metadata, transport input and participant updates. TypeScript cannot express the inclusive numeric bounds, and a nominal brand would turn a host-editable number into a false identity type.",
+    endsWhen: "the recurse limit gains a semantic domain type with useful static guarantees, or the shared public schema ceases to exist.",
+  },
   {
     id: "zod-error-issues-home:persona-write-guard",
     policyId: "zod-error-issues-home",

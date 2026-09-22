@@ -72,9 +72,9 @@ export interface StoredAsset {
 }
 
 /** An `asset_…` TypeID at a request boundary — validates shape AND prefix (`typeIdSchema`). */
-export const assetIdSchema = typeIdSchema(ID_PREFIX.asset);
+export const assetIdSchema = typeIdSchema(ID_PREFIX.asset) satisfies z.ZodType<AssetId>;
 /** A `character_…` TypeID — the gallery `subjectCharacterId` association ref. */
-export const characterIdSchema = typeIdSchema(ID_PREFIX.character);
+export const characterIdSchema = typeIdSchema(ID_PREFIX.character) satisfies z.ZodType<CharacterId>;
 
 /** The sha-256 hex digest length the CAS emits — 32 bytes, two hex chars each. */
 const CAS_HASH_HEX_LENGTH = 64;
@@ -91,9 +91,9 @@ export const storedAssetSchema = z.object({
   hash: z.string().length(CAS_HASH_HEX_LENGTH),
   size: z.number().int().nonnegative(),
   created: z.boolean(),
-});
+}) satisfies z.ZodType<StoredAsset>;
 /** A `gallery_item_…` TypeID — the gallery v2 curation row id. */
-export const galleryItemIdSchema = typeIdSchema(ID_PREFIX.galleryItem);
+export const galleryItemIdSchema = typeIdSchema(ID_PREFIX.galleryItem) satisfies z.ZodType<GalleryItemId>;
 
 /** Keyset page-size bounds (shared by `listOwned` + `listGallery`). */
 export const ASSET_LIST_LIMIT_MIN = 1;

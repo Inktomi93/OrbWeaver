@@ -73,7 +73,7 @@ function pinObjectNodes(node: unknown): void {
 /** Project a zod schema (a tool's args OR a structured-output payload) to the wire JSON Schema. The ONE
  *  producer of {@link WireReady} — the single `as WireReady` in the tree, so "was this projected?" has one
  *  provable answer and a send-site cannot skip it. */
-export function projectJsonSchema(schema: z.ZodType): WireReady {
+export function projectJsonSchema<Schema extends z.ZodType>(schema: Schema): WireReady {
   const projected: Record<string, unknown> = { ...z.toJSONSchema(schema) };
   pinObjectNodes(projected);
   return projected as WireReady;

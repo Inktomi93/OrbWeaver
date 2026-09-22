@@ -147,6 +147,21 @@ describe("kit/serde/chat-bundle", () => {
     expect(must(parseChatBundleFile(buildChatBundleFile(gameless)))).toEqual(gameless);
   });
 
+  test("a recorded tool call with missing issues heals to an unfrozen readonly output array", () => {
+    const wire = JSON.parse(DEC.decode(buildChatBundleFile(chat()))) as {
+      rpg: { turnToolCalls: { calls: Record<string, unknown>[] }[] };
+    };
+    const call = wire.rpg.turnToolCalls[0]?.calls[0];
+    if (call === undefined) {
+      throw new Error("chat fixture has no recorded tool call");
+    }
+    call["issues"] = undefined;
+    const parsed = must(parseChatBundleFile(ENC.encode(JSON.stringify(wire))));
+    const issues = parsed.rpg?.turnToolCalls[0]?.calls[0]?.issues;
+    expect(issues).toEqual([]);
+    expect(Object.isFrozen(issues)).toBe(false);
+  });
+
   test("rpg sheet handles are opaque wire strings: blank heals to null and over-cap text is carried", () => {
     const overCap = "h".repeat(201);
     const wire = JSON.parse(DEC.decode(buildChatBundleFile(chat()))) as {

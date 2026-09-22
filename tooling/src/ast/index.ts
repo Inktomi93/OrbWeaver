@@ -56,7 +56,6 @@ export { collectOrphanCandidates, isProdConsumed, testOnlyClassOf } from "./ops/
 export { scriptEntryFiles, scriptEntryPaths, toolingConfigNames } from "./ops/prodonly.ts";
 export { collectRegistryCandidates } from "./ops/registry-candidates.ts";
 export { collectRegistries, qualifiedAccessIndex, regKeyHitsFor, spellingIndex } from "./ops/regkeys.ts";
-export { assignabilityChecker, isNearPairExempt, respellHitsFor, respellNearCandidatesFor } from "./ops/respell.ts";
 export { rotChainHits, rotOrphanHits, rotSwallowedHits, rotTestOnlyHits, rotTypeOnlyHits } from "./ops/rot.ts";
 export { collectStringyAudit } from "./ops/stringy.ts";
 export {

@@ -8,4 +8,4 @@ import { z } from "zod";
 /** The Anthropic Agent SDK daemon's opaque UUID handle. It is never Orb's BFF SessionId. */
 export type AgentSdkSessionId = Branded<"AgentSdkSessionId">;
 const foreignAgentSdkSessionId = brandedId<AgentSdkSessionId>();
-export const agentSdkSessionIdSchema = z.uuid().transform((value) => foreignAgentSdkSessionId.parse(value));
+export const agentSdkSessionIdSchema = z.uuid().transform((value) => foreignAgentSdkSessionId.parse(value)) satisfies z.ZodType<AgentSdkSessionId>;

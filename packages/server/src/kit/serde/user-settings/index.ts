@@ -84,7 +84,7 @@ function takeShareSafe(raw: unknown): Partial<PortableUserSettings> {
 
 // The fence PROJECTION stays outside the spine (it is this family's security property, not a serde
 // mechanic); the spine owns only the envelope, decode, and version gate.
-const userSettingsSerde = defineJsonObjectSerde<Partial<PortableUserSettings>, { readonly settings?: unknown }>({
+const userSettingsSerde = defineJsonObjectSerde<Partial<PortableUserSettings>, { readonly settings: unknown }>({
   schemaKind: USER_SETTINGS_SCHEMA_KIND,
   schemaVersion: USER_SETTINGS_BACKUP_SCHEMA_VERSION,
   bodySchema: z.object({ settings: z.unknown() }),

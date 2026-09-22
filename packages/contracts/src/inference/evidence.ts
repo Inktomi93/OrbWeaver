@@ -15,7 +15,7 @@ import { z } from "zod";
 
 export const EVIDENCE_TIERS = ["declared", "measured", "advertised", "curated", "family-floor", "kind-floor"] as const;
 export type EvidenceTier = (typeof EVIDENCE_TIERS)[number];
-export const evidenceTierSchema = z.enum(EVIDENCE_TIERS);
+export const evidenceTierSchema = z.enum(EVIDENCE_TIERS) satisfies z.ZodType<EvidenceTier>;
 
 /** Lower index = higher authority. */
 export function evidenceRank(tier: EvidenceTier): number {

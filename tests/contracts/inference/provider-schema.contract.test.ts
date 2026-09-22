@@ -5,7 +5,7 @@
 // built-in's sealed credentials); `apis`/`serves` ⊆ the wire's ceiling (a row may narrow, never widen);
 // `dialect` present exactly on the openai-compat wire; and the base-URL rule per auth kind.
 
-import { isPluginProviderId, pluginNameOfProviderId, providerDefSchema, providerIdSchema } from "@orb/contracts/inference";
+import { isPluginProviderId, modelIdSchema, pluginNameOfProviderId, providerDefSchema, providerIdSchema } from "@orb/contracts/inference";
 import { expect, test } from "../../support/fixtures.ts";
 
 const ENDPOINT_ROW = {
@@ -25,6 +25,11 @@ test("an id is bare or plugin-namespaced, and nothing else", () => {
   for (const bad of ["Acme", "acme endpoint", "plugin:acme", "plugin:/x", "acme/endpoint", ""]) {
     expect(providerIdSchema.safeParse(bad).success, `"${bad}" must not parse as a provider id`).toBe(false);
   }
+});
+
+test("model ids normalize before the output brand is minted", () => {
+  expect(modelIdSchema.parse("  provider/model  ")).toBe("provider/model");
+  expect(modelIdSchema.safeParse("   ").success).toBe(false);
 });
 
 test("the namespace helpers agree with the id shape", () => {

@@ -30,6 +30,7 @@ test("brandedId accepts only non-empty strings", () => {
   expect(schema.safeParse("anything").success).toBe(true);
   expect(schema.safeParse(42).success).toBe(false);
   expect(schema.safeParse({ wrong: true }).success).toBe(false);
+  expect(schema.parse("anything")).toBe("anything");
 });
 
 test("castId brands without altering the runtime value", () => {

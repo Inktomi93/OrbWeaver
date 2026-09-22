@@ -12,18 +12,18 @@ import { modalitySchema } from "../modalities.ts";
 /** How a model reasons — distinct from on/off (`reasoning.enabled`); `EFFORT_LEVELS` has no `'none'`. */
 export const REASONING_MODES = ["none", "effort", "budget", "adaptive"] as const;
 export type ReasoningMode = (typeof REASONING_MODES)[number];
-export const reasoningModeSchema = z.enum(REASONING_MODES);
+export const reasoningModeSchema = z.enum(REASONING_MODES) satisfies z.ZodType<ReasoningMode>;
 
 /** The model's real effort levels, deliberately EXCLUDING `'none'` — the on/off decision is
  *  `reasoning.enabled`. `contracts/preset.EFFORT_LEVELS` derives from this set, never redeclares it. */
 export const EFFORT_LEVELS = ["minimal", "low", "medium", "high", "xhigh", "max"] as const;
 export type EffortLevel = (typeof EFFORT_LEVELS)[number];
-export const effortLevelSchema = z.enum(EFFORT_LEVELS);
+export const effortLevelSchema = z.enum(EFFORT_LEVELS) satisfies z.ZodType<EffortLevel>;
 
 /** The verbosity axis (OpenAI) — a real, model-gated control, present only when the model honors it. */
 export const VERBOSITY_LEVELS = ["low", "medium", "high"] as const;
 export type Verbosity = (typeof VERBOSITY_LEVELS)[number];
-export const verbositySchema = z.enum(VERBOSITY_LEVELS);
+export const verbositySchema = z.enum(VERBOSITY_LEVELS) satisfies z.ZodType<Verbosity>;
 
 /** WHAT THE MODEL WILL ACCEPT BACK when a prior reply's thinking rides the next request (§8.8). A
  *  CAPABILITY, not an `EndpointFeatures` quirk: features is the openai-compat chat body/stream schema
@@ -38,18 +38,18 @@ export const verbositySchema = z.enum(VERBOSITY_LEVELS);
  *  never gets a signed block it may reject. Read through `reasoningReplayOf`, never re-spelled. */
 export const REASONING_REPLAY_MODES = ["signed", "text", "none"] as const;
 export type ReasoningReplayMode = (typeof REASONING_REPLAY_MODES)[number];
-export const reasoningReplayModeSchema = z.enum(REASONING_REPLAY_MODES);
+export const reasoningReplayModeSchema = z.enum(REASONING_REPLAY_MODES) satisfies z.ZodType<ReasoningReplayMode>;
 
 /** The Anthropic-only reasoning-display knob. */
 export const REASONING_DISPLAY_MODES = ["summarized", "omitted"] as const;
 export type ReasoningDisplayMode = (typeof REASONING_DISPLAY_MODES)[number];
-export const reasoningDisplayModeSchema = z.enum(REASONING_DISPLAY_MODES);
+export const reasoningDisplayModeSchema = z.enum(REASONING_DISPLAY_MODES) satisfies z.ZodType<ReasoningDisplayMode>;
 
 /** Adjacent-same-role handling floor, ordered `none` \< `merge` \< `semi-strict` \< `strict`. SHAPE's effective
  *  strategy is the stricter of the model/wire floor + the user knob (may go stricter, never looser). */
 export const ROLE_HANDLING = ["none", "merge", "semi-strict", "strict"] as const;
 export type RoleHandling = (typeof ROLE_HANDLING)[number];
-export const roleHandlingSchema = z.enum(ROLE_HANDLING);
+export const roleHandlingSchema = z.enum(ROLE_HANDLING) satisfies z.ZodType<RoleHandling>;
 
 /** An inclusive numeric range — the ONE place a knob's bounds live; the client reads them for slider
  *  min/max and never re-hardcodes them. */

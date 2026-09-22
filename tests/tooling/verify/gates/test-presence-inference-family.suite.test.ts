@@ -7,6 +7,7 @@ import { Project } from "ts-morph";
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
 import { gate } from "../../../../tooling/src/verify/gates/test-presence-inference.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
+import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const SOURCE = "packages/inference/src/extensions/normalize.ts";
@@ -44,6 +45,10 @@ function refusalShape(result: PolicyPassResult): Record<string, unknown> {
 function refusalFor(fragment: string): Record<string, unknown> {
   return { findings: [], effective: [], withheld: [POLICY_ID], errors: [expect.stringContaining(fragment)] };
 }
+
+test("the declared inference topology proofs hold through policy conformance", () => {
+  expect(verifyPolicyProofs([gate])).toEqual([]);
+});
 
 test("a missing required inference mirror is a blocking finding", ({ scratch }) => {
   const result = pass(scratch, { [SOURCE]: SOURCE_TEXT, "tests/inference/other.test.ts": "export {};\n" });

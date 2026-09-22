@@ -1,6 +1,6 @@
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { Unprojected, WireReady } from "@orb/kit/json-schema";
-import { projectJsonSchema, scrubWireSchema } from "@orb/kit/json-schema";
+import { liftJsonSchema, projectJsonSchema, scrubWireSchema } from "@orb/kit/json-schema";
 import { expectTypeOf, test } from "vitest";
 import { z } from "zod";
 
@@ -9,9 +9,14 @@ import { z } from "zod";
 // (`Unprojected`) schema at a send-site is a `tsc` error, not a doc-note (task #41 → compile-time).
 
 test("projectJsonSchema is the ONE producer of WireReady, and its output fills ResponseFormat.schema", () => {
+  expectTypeOf(projectJsonSchema).toEqualTypeOf<<Schema extends z.ZodType>(schema: Schema) => WireReady>();
   expectTypeOf(projectJsonSchema(z.object({ a: z.string() }))).toEqualTypeOf<WireReady>();
   const ok: ResponseFormat = { name: "x", schema: projectJsonSchema(z.object({ a: z.string() })) };
   expectTypeOf(ok.schema).toEqualTypeOf<WireReady>();
+});
+
+test("liftJsonSchema exposes the runtime-generated root's truthful object class", () => {
+  expectTypeOf(liftJsonSchema).returns.toEqualTypeOf<z.ZodObject>();
 });
 
 test("scrubWireSchema is brand-transparent — a WireReady in stays WireReady out (the strict-compatible arm)", () => {

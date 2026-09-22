@@ -3,6 +3,7 @@
 // domain verb can read, dial or write. `setBinding(null)` remains the deliberate clear-binding arm.
 
 import type { ConnectionBinding } from "@orb/contracts/inference";
+import type { VerifyAuthResult } from "@orb/contracts/providers";
 import type { UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { ConnectionService } from "@orb/server/domain/connection";
@@ -119,5 +120,45 @@ describe("connection.* — canonical connection id boundary", () => {
       task: "chat",
       connectionId: null,
     });
+  });
+});
+
+describe("connection.verifyAuth — output boundary", () => {
+  const validResult: VerifyAuthResult = {
+    source: "max-pro-sub",
+    ok: true,
+    apiKeySource: "none",
+    model: "claude-opus-4-1",
+    reply: "ok",
+    costUsd: 0,
+  };
+
+  test("returns a valid auth diagnostic", async () => {
+    const verifyAuth = vi.fn<ConnectionService["verifyAuth"]>(async () => validResult);
+
+    await expect(caller(ctxWith({ verifyAuth })).connection.verifyAuth({ connectionId: VALID_CONNECTION_ID })).resolves.toEqual(validResult);
+  });
+
+  test("rejects a malformed auth diagnostic", async () => {
+    const verifyAuth = vi.fn<ConnectionService["verifyAuth"]>(async () => validResult);
+    const ctx = ctxWith({ verifyAuth });
+    Object.defineProperty(ctx.services.connection, "verifyAuth", {
+      value: () => Promise.resolve({ ...validResult, source: "unexpected-auth-source" }),
+    });
+
+    await expect(caller(ctx).connection.verifyAuth({ connectionId: VALID_CONNECTION_ID })).rejects.toThrow("Output validation failed");
+  });
+
+  test("strips an unexpected secret-like field from the auth diagnostic", async () => {
+    const verifyAuth = vi.fn<ConnectionService["verifyAuth"]>(async () => validResult);
+    const ctx = ctxWith({ verifyAuth });
+    Object.defineProperty(ctx.services.connection, "verifyAuth", {
+      value: () => Promise.resolve({ ...validResult, apiKey: "must-not-cross-the-wire" }),
+    });
+
+    const result = await caller(ctx).connection.verifyAuth({ connectionId: VALID_CONNECTION_ID });
+
+    expect(result).toEqual(validResult);
+    expect(result).not.toHaveProperty("apiKey");
   });
 });

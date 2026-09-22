@@ -258,7 +258,7 @@ export const PROSE_SLOT_IDS = [
 ] as const;
 export type ProseSlotId = (typeof PROSE_SLOT_IDS)[number];
 
-export const proseSlotIdSchema = z.enum(PROSE_SLOT_IDS);
+export const proseSlotIdSchema = z.enum(PROSE_SLOT_IDS) satisfies z.ZodType<ProseSlotId>;
 
 const SLOT_ID_SET: ReadonlySet<string> = new Set<string>(PROSE_SLOT_IDS);
 export function isProseSlotId(value: string): value is ProseSlotId {

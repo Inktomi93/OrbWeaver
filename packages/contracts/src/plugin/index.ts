@@ -62,7 +62,7 @@ export {
 } from "./host-v1.ts";
 export type { PluginOrigin, PluginStatus } from "./lifecycle.ts";
 export { PLUGIN_ORIGINS, PLUGIN_STATUSES } from "./lifecycle.ts";
-export type { PluginBuiltAgainst, PluginCapability, PluginManifest, PluginProviderContribution } from "./manifest.ts";
+export type { PluginBuiltAgainst, PluginCapability, PluginManifest, PluginProviderContribution, PluginSlug } from "./manifest.ts";
 export {
   NET_HOSTS_MAX,
   PLUGIN_CAPABILITIES,
@@ -118,6 +118,8 @@ export type {
   PluginButtonNode,
   PluginButtonVariant,
   PluginCommandArgSpec,
+  PluginCommandArgs,
+  PluginCommandArgsFor,
   PluginCommandArgType,
   PluginCommandArgValue,
   PluginCommandRegistrationMeta,

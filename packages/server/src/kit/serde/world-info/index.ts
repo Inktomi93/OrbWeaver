@@ -24,7 +24,7 @@ const fileEntrySchema = z.object({
   title: z.string(),
   description: z.string().nullable(),
   content: z.string(),
-  keys: z.array(z.string()),
+  keys: z.array(z.string()).transform((keys): readonly string[] => keys),
   enabled: z.boolean(),
   priority: z.number(),
   ignoreBudget: z.boolean(),

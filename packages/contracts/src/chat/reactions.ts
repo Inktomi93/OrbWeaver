@@ -39,7 +39,7 @@ import { z } from "zod";
  *  wire (this schema) plus the verb's own re-parse instead, and the column stays plain TEXT. */
 export const REACTION_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "😡", "🔥", "🎉", "👀", "🤔"] as const;
 export type ReactionEmoji = (typeof REACTION_EMOJIS)[number];
-export const reactionEmojiSchema = z.enum(REACTION_EMOJIS);
+export const reactionEmojiSchema = z.enum(REACTION_EMOJIS) satisfies z.ZodType<ReactionEmoji>;
 
 /** How deep a scrollback the pill row can answer for, in reacted MESSAGE SLOTS. The room-scoped read is one
  *  bounded window the client indexes by `variantId` (the `rpg.listTurnToolCalls` shape, and windowed by SLOT

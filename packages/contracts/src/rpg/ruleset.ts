@@ -27,7 +27,7 @@ import type { RpgTrackerDef } from "./tracker.ts";
  *  derive from it, so a third ruleset is one row here plus the `tsc`-forced records below. */
 export const RPG_RULESETS = ["freeform", "d20"] as const;
 export type RpgRuleset = (typeof RPG_RULESETS)[number];
-export const rpgRulesetSchema = z.enum(RPG_RULESETS);
+export const rpgRulesetSchema = z.enum(RPG_RULESETS) satisfies z.ZodType<RpgRuleset>;
 
 /** The default a game is BORN with — prose-steered play, no mechanical vocabulary at all (the retired
  *  "Freeform story" door's arm, now the birth default because starting is one action). */

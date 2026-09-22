@@ -18,7 +18,10 @@ import {
   rulePresetKnobValuesSchema,
   rulePresetScopeSchema,
 } from "@orb/contracts/automation";
+import type { WorldBookId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { expectTypeOf } from "vitest";
+import type { z } from "zod";
 import { expect, test } from "../../support/fixtures.ts";
 
 test("RULE_PRESET_IDS is the pinned 22-member catalogue (the 19 committed rows + the three OPTIONAL owner-picks: illustrate-on-lore-reveal, react-to-lore-activation, auto-set-scene-background), in §4 build order", () => {
@@ -82,6 +85,7 @@ test("#630: the entity axis carries a validator and a HOST NOUN for every member
   expect(Object.values(RULE_PRESET_ENTITY_NOUNS)).toEqual(["world book"]);
   // The schema pins the PREFIX, not just the TypeID shape — a character id is not a world book.
   const books = RULE_PRESET_ENTITY_REF_SCHEMAS.worldInfoBook;
+  expectTypeOf<z.output<typeof books>>().toEqualTypeOf<WorldBookId>();
   expect(books.safeParse(mintTypeId(ID_PREFIX.worldBook)).success).toBe(true);
   expect(books.safeParse(mintTypeId(ID_PREFIX.character)).success).toBe(false);
   expect(books.safeParse("").success).toBe(false);

@@ -75,7 +75,7 @@ export const ROUTABLE_TASKS: readonly RoutableTask[] = TASKS.filter((task): task
 
 const ROUTABLE_TASK_SET: ReadonlySet<string> = new Set<string>(ROUTABLE_TASKS);
 
-export const routableTaskSchema = z.enum(ROUTABLE_TASKS as unknown as readonly [RoutableTask, ...RoutableTask[]]);
+export const routableTaskSchema = z.enum(ROUTABLE_TASKS as unknown as readonly [RoutableTask, ...RoutableTask[]]) satisfies z.ZodType<RoutableTask>;
 
 export function isRoutableTask(task: Task): task is RoutableTask {
   return ROUTABLE_TASK_SET.has(task);

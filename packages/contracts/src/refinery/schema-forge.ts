@@ -86,7 +86,7 @@ import {
  *    pass, and for re-hinting a schema that already exists. */
 export const REFINERY_FORGE_ARMS = ["single", "guided", "two-stage"] as const;
 export type RefineryForgeArm = (typeof REFINERY_FORGE_ARMS)[number];
-export const refineryForgeArmSchema = z.enum(REFINERY_FORGE_ARMS);
+export const refineryForgeArmSchema = z.enum(REFINERY_FORGE_ARMS) satisfies z.ZodType<RefineryForgeArm>;
 /** The arm a caller gets when it expresses no preference (the editor's initial selection). */
 export const REFINERY_FORGE_ARM_DEFAULT: RefineryForgeArm = "single";
 

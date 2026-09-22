@@ -27,6 +27,7 @@ export const responseMapSchema = z.object({
   errorCodePath: z.string().optional(),
   toolCallsPath: z.string().optional(),
 });
+export type ResponseMap = z.output<typeof responseMapSchema>;
 
 export const connectionTransportSchema = z.object({
   headers: z.record(z.string(), z.string()).optional(),

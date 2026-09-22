@@ -8,4 +8,4 @@ import { z } from "zod";
 
 export const NORMALIZED_FINISH_REASONS = ["stop", "length", "filter", "tool", "other"] as const;
 export type NormalizedFinishReason = (typeof NORMALIZED_FINISH_REASONS)[number];
-export const normalizedFinishReasonSchema = z.enum(NORMALIZED_FINISH_REASONS);
+export const normalizedFinishReasonSchema = z.enum(NORMALIZED_FINISH_REASONS) satisfies z.ZodType<NormalizedFinishReason>;
