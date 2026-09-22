@@ -40,8 +40,8 @@
 //      across this family). So no ordinary door exists, and a policy has ONE authority.
 //   2. `tracked-files` publishes the WHOLE repository inventory as this policy's resource population, and
 //      an ORDINARY owner's waiver-carrier demand covers every one of those paths
-//      (`lib/policy-pass.ts#ordinaryWaiverAcquisition`). `.codex/agent-doctrine.md` is a TRACKED SYMLINK
-//      with a Markdown waiver format, and the authored reader refuses a symlink by design, so an ordinary
+//      (`lib/policy-pass.ts#ordinaryWaiverAcquisition`). The inventory includes tracked symlinks, and the
+//      authored reader refuses a symlink by design, so a tracked Markdown symlink under an ordinary
 //      spelling would file a standing carrier refusal on every run. Guide §12.4 states this hazard for
 //      `native-config` and records that both shipped consumers of a whole-inventory kind are `hard`.
 // The legacy runtime did bind a line-adjacent `@orb-gate-ignore` to arm A's comment-resident findings

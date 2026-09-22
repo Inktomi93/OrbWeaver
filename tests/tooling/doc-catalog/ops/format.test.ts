@@ -218,7 +218,7 @@ test("WIDENING: class 2 is admitted, and only the bytes this repo does not AUTHO
   const targets = formatTargets([]);
 
   expect(targets).toContain("tooling/src/verify/gates/GATE-AUTHORING.md");
-  expect(targets).toContain(".claude/skills/orchestrator-runbook/SKILL.md");
+  expect(targets).toContain(".claude/skills/orchestrator/SKILL.md");
   expect(targets).toContain(".claude/skills/snap-driving/reference/flags.md");
   expect(targets.filter((path) => path.startsWith("tooling/src/snap/lib/devtools-frontend/"))).toStrictEqual([]);
 });

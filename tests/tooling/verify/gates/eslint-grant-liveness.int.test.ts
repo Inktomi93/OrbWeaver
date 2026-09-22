@@ -13,9 +13,9 @@
 //
 // THE REAL-ROOT ARM IS BACK (#1947, 2026-09-11). The #1932 lane retired it and recorded the retirement as
 // a law about this policy: `native-config`'s resolved resource population is the WHOLE tracked+untracked
-// repository inventory (`lib/policy-repo-inventory.ts`), one member of which is the tracked SYMLINK
-// `.codex/agent-doctrine.md` that `ops/resource-reader.ts` refuses by design — so `runPolicyPass` at the
-// real root threw `ordinary waiver resource population has no exact text carrier: .codex/agent-doctrine.md`
+// repository inventory (`lib/policy-repo-inventory.ts`), which then held a tracked Markdown SYMLINK
+// that `ops/resource-reader.ts` refuses by design — so `runPolicyPass` at the
+// real root threw `ordinary waiver resource population has no exact text carrier: <that symlink>`
 // after ~4.2s and the plan classified exit 2. The MEASUREMENT was right and the DIAGNOSIS was right; the
 // RULING ("no `native-config` policy can run at repository scope") was a defect in `lib/policy-pass.ts`,
 // which demanded an ordinary-waiver text carrier from EVERY completed owner's resource population. Only an

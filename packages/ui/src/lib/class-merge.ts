@@ -13,7 +13,7 @@
 // COLORS and drops the size as a conflict. Building `cn` on our OWN configured merger makes the
 // unconfigured one unrepresentable: there is no shared state left to lose a race with.
 //
-// Enforcers (a prose-only boundary is a wish — AGENTS §2.3): dep-cruiser seals both tailwind-merge and
+// Enforcers (a prose-only boundary is a wish — constitution §2): dep-cruiser seals both tailwind-merge and
 // runtime tailwind-variants imports to this file. Type-only VariantProps imports remain legal.
 import { extendTailwindMerge } from "tailwind-merge";
 import type { CnOptions, CnReturn, TV } from "tailwind-variants";

@@ -90,9 +90,9 @@ else
   echo "!!! FIRST ACTIONS, in order: (1) BRIDGE MONITOR: NONE running on your inbox — arm it NOW as your first tool call (Monitor tool, persistent; stdbuf is load-bearing: into a pipe inotifywait BLOCK-buffers, paid 2026-09-01), then probe with a throwaway file and rm it:"
 fi
 echo "      ${MON_CMD}"
-echo "    (2) LOAD THE orchestrator-runbook SKILL (Skill tool) BEFORE your first work:item transition, bridge note, or worktree action — a compaction summary carries DIGESTED runbook knowledge, which is exactly what fails on CLI detail (2026-09-02: ready-before-claim + lowercase --kind were both paid for skipping this)."
+echo "    (2) LOAD THE orchestrator SKILL (Skill tool) and follow its first actions before any lane, merge, bridge note or worktree action. A compaction summary carries a digest of it, and a digest fails on command detail."
 echo "    (3) READ IN FULL (cat), never the 2KB head printed below: ~/.claude/bridge/SESSIONS.md, then EVERY unacked note in ~/.claude/bridge/${INBOX}/ (ls it first). A SELF-prefixed note is your own compact map: act on it, THEN ack by mv into done/. Read the scratch dispatch map too if the line below found it."
-echo "    (4) BOARD: pnpm work:item overview before EVERY refill decision (Triage / Verify / Parked / Needs-owner are queues too). Honor every MERGE HOLD / sequencing line in the notes; resume live lanes by SendMessage to their agentIds, NEVER respawn."
+echo "    (4) Honor every MERGE HOLD / sequencing line in the notes; resume live lanes by SendMessage to their agentIds, NEVER respawn."
 if [ "$WHO" = "claude-b" ]; then
   echo "    (5) ROLE (contract note 235, 2026-09-04): you are the second LANE DRIVER on your own account — you write ONLY claim --lane cb-<x>, file --ready, and file --kind decision + needs-owner; primary does every other transition, every fold, every memory write. If no unacked assignment note is in your inbox, write a QUESTION note to primary asking for your lanes (state a DEFAULT + deadline), pre-derive the default set while waiting, and fill to 3 lanes of your own. Owner-word items: ask in chat ONCE and tell primary 'asked in chat — do not re-ask'."
 else
@@ -130,20 +130,14 @@ else
   echo "--- bridge (to-primary/ and to-b/): both empty"
 fi
 
-# 2) THE BOARD (mutable truth; titles capped so the section stays small).
-echo "--- board (pnpm work:item overview, titles capped):"
-timeout 45 pnpm work:item overview 2>/dev/null | /usr/bin/grep -v "^\$" | cut -c1-100 | head -14 \
-  || echo "(overview unavailable — run pnpm work:item overview manually)"
-echo "(board capped at 14 lines — pnpm work:item overview for the rest; never track it from memory)"
-
-# 3) POINTERS (each one line; the content is re-derivable on demand).
+# 2) POINTERS (each one line; the content is re-derivable on demand).
 WT_COUNT=$(git worktree list 2>/dev/null | tail -n +2 | wc -l | tr -d ' ')
 echo "--- worktrees: ${WT_COUNT:-?} beyond main (run: git worktree list — resume live lanes via SendMessage to the dispatch map's agentIds, NEVER respawn; sweep only under containment proofs)"
 DIRTY=$(git status --short 2>/dev/null | head -5)
 if [ -n "$DIRTY" ]; then echo "--- UNCOMMITTED on main (investigate before merging anything):"; echo "$DIRTY"; else echo "--- main working tree: clean"; fi
-echo "--- standing posture: .claude/rules/orchestration.md (auto-loaded, POLICY only); PROCEDURE = the orchestrator-runbook skill (FIRST ACTION 2 above). claude-b registry: ~/.claude/bridge/SESSIONS.md (resume, never re-mint)."
+echo "--- standing posture and procedure: the orchestrator skill (FIRST ACTION 2 above). claude-b registry: ~/.claude/bridge/SESSIONS.md (resume, never re-mint)."
 
-# 4) CONTEXT-BUDGET GUARD (2026-08-24, #638). Two always-on injections have no other signal when they
+# 3) CONTEXT-BUDGET GUARD (2026-08-24, #638). Two always-on injections have no other signal when they
 #    near their caps — MEMORY.md truncates silently past 200 lines OR the harness's byte cap (whichever
 #    binds first; bytes bind in practice), and every un-path-scoped .claude/rules/*.md is rent every lane
 #    pays, budgeted at 200 lines. Quiet when healthy; loud only when something is at risk. Never fail.

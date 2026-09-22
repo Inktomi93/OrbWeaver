@@ -1,9 +1,31 @@
 # snap driving recipes
 
-Worked chains for the recurring drive shapes. Every recipe is one Bash call unless stated. Flags
-are current as of 2026-09-19 — reconcile against `pnpm snap --help` (source:
-`tooling/src/snap/contract/help.ts`) and `flags.md` beside this file before copying blindly; the help
-outranks this file. Redirect every run to a log and Read it (SKILL.md §0); never pipe snap into head/tail.
+Worked chains for the recurring drive shapes. Every recipe is one Bash call unless stated. Reconcile
+against `pnpm snap --help` (source: `tooling/src/snap/contract/help.ts`) and `flags.md` beside this
+file before copying blindly; the help outranks this file. Redirect every run to a log and read the log
+(SKILL.md, "Read the output").
+
+## The evidence cases (each a typed fact in `run.json`)
+
+| Case | Flag | What it answers | Refuses to combine with |
+| - | - | - | - |
+| shot | (default) / `--shot-of` / `--full` / `--crop` | what it looks like (PNG, one image px per CSS px) | — |
+| dead-css | on by default (`--no-deadcss`) | Tailwind classes never compiled, used-but-empty rules | — |
+| aria | `--aria` / `--text` | the accessible tree, the oracle for names, roles, landmarks | — |
+| map | `--map [sel]` | every control as a unique locator plus actionability; the SPA destination atlas | — |
+| eval | `--eval <js>` | any in-page value, including `__orb.*` | — |
+| contrast | `--contrast <sel>` (+`--contrast-pixel`) | WCAG ratio against the effective backdrop | — |
+| cascade | `--cascade <sel=prop>` | why a property has that value (active/overloaded declarations) | `--lighthouse` |
+| assert | `--expect-*` | a rendered fact as a PASS/FAIL result | — |
+| app-snapshot | always on | coarse boot timing plus `__orb.snap()` overview | measured under load labels `load-suspect`; withheld only on an unproven or software-rendered browser |
+| motion | `--motion [sel]` | one motion window: LoAF, CLS (non-virtualized), dirty animations, dropped frames | `--filmstrip`, `--cpu-profile` |
+| perf | `--perf` | per-step input delay, long tasks, rAF gaps, CLS over the action tape (a meter, not a gate) | `--filmstrip`, `--cpu-profile` |
+| cpu-profile | `--cpu-profile` / `--boot-trace` / `--react-profile` | who burns the frame, the boot trace, hottest components | `--perf`, `--motion`, `--filmstrip` |
+| heap | `--heap <label>` / `--heap-compare` / `--heap-retainers` | memory growth, detached trees, retainers (diagnostic, never a budget) | `--filmstrip` |
+| lighthouse | `--lighthouse desktop\|mobile` | axe/best-practices/seo on the settled page | `--cascade`; mobile fills the device slot |
+| requests | `--requests [url]` / `--request-body <url>` | reads the surface issued, plus one JSON body | — |
+| filmstrip | `--filmstrip` | a transition as a labelled contact sheet | every profiler/measurement case |
+| design-audit | `--design-audit` | deterministic UI defect scan, population verdict, `--fail-on`, `--mobile` | positive control is a trailing `--eval`, run before the walk; a cold `--dirty` stage needs `--idle` |
 
 ## Reach + inspect one surface (the default drive)
 
@@ -13,7 +35,7 @@ pnpm snap / --goto config:appearance --aria
 pnpm snap / --goto modal:theme --shot-of '[role=dialog]'
 ```
 
-Map first, then target what the map printed. Add assertions to make the run a receipt:
+Map first, then target what the map printed. Add assertions to make the run evidence:
 
 ```bash
 pnpm snap / --goto presets --expect-visible 'role=button[name="New preset"]' --text
@@ -21,11 +43,11 @@ pnpm snap / --goto presets --expect-visible 'role=button[name="New preset"]' --t
 
 ## Create a room and act in it (one browser lifetime)
 
-State does not survive a snap call — the create, the act, and the read all ride one chain.
+State does not survive a snap call; the create, the act, and the read all ride one chain.
 `current` (not `latest`) names the room you just created: a fresh unsent room is unlisted until
 the chat-list query refetches. The new-chat picker is a two-stage affordance: `modal:newChat`
 opens a character picker; `Blank chat` / a character pick + `Start chat with N` is the click that
-mints the room. Note the fill selector — the `composer` testid is on the footer WRAPPER; the
+mints the room. Note the fill selector: the `composer` testid is on the footer wrapper, and the
 editable is the `textarea` inside it.
 
 ```bash
@@ -53,9 +75,8 @@ those combinations so its JPEG encoding cannot contaminate the measurement windo
 ## Scenario: a multi-step flow with checkpointed evidence
 
 `{name?, defaults?, checkpoints:[{name, args}]}`; `args` is ordinary snap argv per checkpoint.
-Checkpoints on the SAME url keep the live page — client state carries, which is the whole point:
-a create in checkpoint one is still open in checkpoint three. Save the file lane-prefixed in the
-scratchpad, not in the repo.
+Checkpoints on the same url keep the live page, so client state carries: a create in checkpoint one
+is still open in checkpoint three. Save the file lane-prefixed in the scratchpad, not in the repo.
 
 ```json
 {
@@ -76,25 +97,25 @@ pnpm snap / --scenario "$SCRATCHPAD/skill-author-room-roundtrip.json" --scenario
 `--scenario-summary` prints one `CHECKPOINT <name> PASS/FAIL` line each; the `--json` manifest keeps
 per-checkpoint console/page-error slices. Checkpoints cannot carry
 `--pages`/`--contexts`/`--as`/`--watch`/`--baseline`/`--diff` or nest scenarios; stage flags go on
-the outer command. Durability across a RELOAD is a separate, later plain call (a new browser is
-the honest persistence test): `pnpm snap / --open-chat latest --expect-visible '[role=article]'`
-— `latest` works there because the committed room is listed by then.
+the outer command. Durability across a reload is a separate, later plain call in a new browser, the
+honest persistence test: `pnpm snap / --open-chat latest --expect-visible '[role=article]'`.
+`latest` works there because the committed room is listed by then.
 
 ## Read a finished run without a browser
 
 ```bash
 pnpm snap --reports                                   # every indexed run: id · checkout · sha · lane · verdict
 pnpm snap --report latest --problems                  # the newest run's findings (default view)
-pnpm snap --report <abs run.json> --all --arm contrast  # everything one arm produced
+pnpm snap --report <abs run.json> --all --arm contrast  # everything one case produced
 ```
 
-The `FINDING` rows carry `next=` — the exact reader command narrowed to that finding's arm. Free: no
-browser, no stage, no run slot.
+The `FINDING` rows carry `next=`: the exact reader command narrowed to that finding's case. No
+browser, no stage, no run slot needed.
 
 ## Matrix: the pairwise appearance-invariant sweep
 
-16 rated cells derived from the live Appearance carrier contract (theme × device × OS media × the app's
-own rows, pairwise-planned — not the retired 8-variant Cartesian sweep). Needs a stage:
+Rated cells derived from the live Appearance carrier contract (theme × device × OS media × the app's
+own rows, pairwise-planned, never a Cartesian sweep). Needs a stage:
 
 ```bash
 pnpm snap / --isolated --goto chats --matrix
@@ -105,7 +126,7 @@ Read `MATRIX PLAN … cells=N pairs-uncovered=M` first: uncovered pairs are a st
 
 Refuses `--pages`/`--contexts`/`--as`/`--watch`/`--baseline`/`--diff`.
 Each cell is a disposable device/theme/media environment context, not a user identity; the owning
-browser survives. The executable F10 proof is `tests/tooling/snap/ops/session-matrix.suite.int.test.ts`.
+browser survives. Verified by `tests/tooling/snap/ops/session-matrix.suite.int.test.ts`.
 
 ## Watch: streams and transients
 
@@ -135,9 +156,9 @@ pnpm snap / --pages 2 --open-chat@0 <id> --open-chat@1 <id> \
 
 ## Multi-user: host vs member (fixture sidecar)
 
-The fixture must already be up (`pnpm fixture up` — operator call, snap
-never boots it). Contexts are ISOLATED (own cookies), logged in as different dev users
-(roster order: owner, member); same `@<idx>` targeting, shots suffix `-u<idx>`:
+The fixture must already be up (`pnpm fixture up`; an operator call, snap never boots it). Contexts
+are isolated (own cookies), logged in as different dev users (roster order: owner, member); same
+`@<idx>` targeting, shots suffix `-u<idx>`:
 
 ```bash
 pnpm snap / --contexts 2 --eval@0 '__orb.snap()' --eval@1 '__orb.snap()'
@@ -160,11 +181,12 @@ has no `__orb` bridge.
 ## Staged drive: don't fight the dev stack
 
 ```bash
-pnpm snap / --isolated --goto chats --text     # frozen HEAD stage on :8888/:5273
+pnpm snap / --isolated --goto chats --text     # frozen HEAD stage, banded ports (SKILL.md §8)
 pnpm snap / --dirty --goto chats --text        # working tree, re-syncs per call
 pnpm snap --stage-status                       # marker + port owners + dirs
 pnpm snap --stage-down                         # teardown (marker-less fallback included)
 ```
 
-First boot pays worktree+install+boot; the stage stays warm across calls. Separate DB from the
-dev stack — ids do not transfer.
+The default stage sits on band 0 (`:8888`/`:5273`); a later concurrent stage takes the next band.
+First boot pays worktree+install+boot; the stage stays warm across calls. Stage db provenance:
+`rules/instruments.md`.

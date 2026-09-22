@@ -26,7 +26,7 @@
 //      reason the mirror alone is not enough: a family test routinely lives under its WAVE's name rather
 //      than its gate's (`contract-shape-wave-1.test.ts`, `simple-visitors-wave-2.test.ts`, …), so the
 //      mirror maps a converted policy to a file that does not exist while its real proofs sit one
-//      directory over. `.claude/rules/gates-and-tooling.md` states this as a rule for humans; this is the
+//      directory over. `.claude/rules/verify-and-gates.md` states this as a rule for humans; this is the
 //      same rule with a machine behind it.
 //
 // THE BRANCH ANSWER, NEVER THE WORKING-TREE ONE. At `--push` the changes are COMMITTED and the working

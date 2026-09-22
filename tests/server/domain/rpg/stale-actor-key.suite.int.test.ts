@@ -7,7 +7,7 @@
 // WHY IT EXISTS. #906 renamed the scene-only extra's actor-ref arm from `{kind:"cast", castKey}` to
 // `{kind:"npc", npcKey}`, which moves `actorRefKey`'s projection from `cast:<slug>` to `npc:<slug>`. That
 // string is not a type — it is DATA, persisted in three `rpg_snapshots` JSON columns, and a JSON *value*
-// change trips NO db-schema auto-reset (`.claude/rules/db-schema.md` keys off the drizzle schema hash, and
+// change trips NO db-schema auto-reset (`.claude/rules/db.md` keys off the drizzle schema hash, and
 // no column moved). So every snapshot written before the rename keeps the old spelling, and the three planes
 // fail in three DIFFERENT ways — one loud, two silent. The owner ruled the remedy is a dev-db WIPE, not a
 // one-shot migration (#906: "does that involve nuking the db? if so idgaf"); these pins are the receipt for

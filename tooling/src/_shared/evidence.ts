@@ -60,7 +60,7 @@ export function printEvidenceGaps(gaps: readonly EvidenceGap[]): void {
 }
 
 /** Print the gaps and hand back the exit code, for the fail-fast call sites that have nothing else to
- *  report. `EXIT.toolError` is the contract's "the run is NOT a verdict" code (AGENTS.md §4). */
+ *  report. `EXIT.toolError` is the contract's "the run is NOT a verdict" code (CLAUDE.md "Verification tiers"). */
 export function instrumentError(...gaps: readonly EvidenceGap[]): number {
   printEvidenceGaps(gaps);
   return EXIT.toolError;

@@ -1,6 +1,6 @@
 // The read/ingress verbs: show (one item, one request), list (the only enumeration, cursor-paginated),
 // create (issue → labels → Project item → class metadata), and the help text that IS the operator
-// cookbook `.claude/rules/orchestration.md` points at.
+// cookbook.
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { print } from "../../_shared/artifacts.ts";

@@ -311,7 +311,7 @@ function renderPolicyVerdict(stored: RenderPolicyOverride, deployment: Deploymen
 /** One character's full row + its resolved render policy. `null` when the id does not exist. */
 // @orb-waive owner-scoped-reads(characters): un-principal HOST read (D20). Every caller is `/api/_debug/*`, and the ADMITTED SET there is exactly two things: a holder of the `DEBUG_TOKEN` operator secret (a box-level credential, not a principal at all), or a SESSION whose principal satisfies `can(p,'admin',global)` — i.e. `role` is `owner` OR `admin` (D17). Both are box administrators; per D17 an `admin` already holds `admin.resetPassword`/`setEnabled`/`setRole` and can assume any account at will, so filtering these reads by the caller's own ownerId would raise the confidentiality bar by zero while breaking the probe's actual job — answering "what does this row hold" about OTHER users' rows for an operator debugging their deployment. There is no per-user principal at this seam to scope BY, and adding one would be a boundary that looks like a control without being one.
 //
-// THIS EXEMPTION IS ENFORCED, NOT ASSERTED (constitution §2.3 — a prose-only boundary is a wish). Its whole
+// THIS EXEMPTION IS ENFORCED, NOT ASSERTED (constitution §2 — a prose-only boundary is a wish). Its whole
 // premise is "the gate ran first", and until AUTHFIX-2 (2026-08-07) that premise was FALSE: the gate's admin
 // arm admitted the un-credentialed owner fallback, so these reads served anyone who could reach the port.
 // The enforcer is now `tests/server/entry/debug-gate.suite.test.ts` — every AUTH_MODE × Host × token state,

@@ -1301,18 +1301,17 @@ defineTest(
 // single-option tails, `refuseUnknownFlags` for the composites, an explicit refusal for the tails that
 // take none). What was missing is the other side of the acceptance bar: nothing pinned that the spellings
 // the two orchestrators drive HOURLY still parse. A refused working spelling at a merge fold is a P1, so
-// the sweep is the floor. Every row below is a spelling live in `.claude/rules/orchestration.md`
-// §Work control, `.claude/skills/orchestrator-runbook/SKILL.md`, or `.claude/hooks/session-onboard.sh` —
+// the sweep is the floor. Every row below is a spelling the orchestrator drives —
 // parse-only (a pure function), so no board write can escape.
 const LIVE_SPELLINGS: readonly (readonly string[])[] = [
-  ["overview"], // session-onboard.sh + "before EVERY refill decision"
-  ["--help"], // orchestration.md §Work control
-  ["list", "--status", "Needs owner"], // runbook §42
-  ["show", "11", "12"], // runbook §43 — the id LIST form
-  ["create", "work", "--title", "A finding", "--body-file", "issue.md"], // runbook §47
+  ["overview"],
+  ["--help"],
+  ["list", "--status", "Needs owner"],
+  ["show", "11", "12"], // the id LIST form
+  ["create", "work", "--title", "A finding", "--body-file", "issue.md"],
   ["file", "--title", "A finding", "--kind", "work", "--priority", "P2", "--area", "Client", "--review", "side-eye", "--claim", "p-argv-tail"],
   ["file", "--title", "A finding", "--kind", "bug", "--priority", "P1", "--area", "Tooling", "--review", "verifier", "--body-file", "b.md", "--ready"],
-  ["land", "11", "12", "--evidence", "abc1234", "--lane", "p-argv-tail"], // orchestration.md #870
+  ["land", "11", "12", "--evidence", "abc1234", "--lane", "p-argv-tail"],
   ["land", "11", "--evidence", "abc1234", "--comment-file", "c.md"],
   ["claim", "11", "--lane", "p-argv-tail"],
   ["ready", "11", "12"],

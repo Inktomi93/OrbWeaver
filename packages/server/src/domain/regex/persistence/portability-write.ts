@@ -46,7 +46,7 @@ export function createImportCardScripts(ctx: RegexPortabilityContext): ImportCar
     // row this owner does not have simply does not come back, so the reference channel can never launder a
     // foreign script onto this character. The TARGET side is this gate: the junction insert used to take
     // `characterId` unverified, and while every live caller passes an already-owned id, a persistence
-    // factory's own signature is the boundary the next wiring inherits (AGENTS §2.3).
+    // factory's own signature is the boundary the next wiring inherits (constitution §2).
     await ensureCharacterOwned(ctx.db, ownerId, characterId);
     const [carriedRows, existing] = await Promise.all([loadOwnedScriptsByIds(ctx.db, ownerId, carried), listOwnedScripts(ctx.db, ownerId)]);
 

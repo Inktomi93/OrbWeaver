@@ -49,7 +49,7 @@ export const TEST_LANE_STAGES: readonly StageDef[] = [
     // `--passWithNoTests` RIDES THE SCOPED ARGV ONLY (#1272) — the whole-scope `pnpm test` above must never
     // carry it. THE DEFECT: `--changed` on a CLEAN COMMITTED TREE selects nothing, vitest prints "No test
     // files found, exiting with code 1", and `asViolations` reads that digit as VIOLATIONS — so a lane that
-    // verified green BEFORE committing gets a RED after committing, at the exact door §L tells it to walk.
+    // verified green BEFORE committing gets a RED after committing, at the exact door the lane skill tells it to walk.
     // A red meaning "there was nothing to run" either sends a lane chasing a phantom or teaches it that
     // reds from this door are ignorable.
     // THE RULING IT REOPENS: vitest 4 DEFAULTS `passWithNoTests` to true; `vitest.config.ts` turns it OFF
@@ -58,7 +58,7 @@ export const TEST_LANE_STAGES: readonly StageDef[] = [
     // PD-115, 2026-07-03). That ruling SURVIVES; its INPUT changed. PD-115 judges an ASSERTED selector — a
     // lane's config include glob, which asserts a fileset — while this argv's selector is always the
     // DERIVED one (`--changed`), and derived-empty is CLEAN by the same asymmetry ops/scoped.ts's
-    // `emptyScopeNotice` already draws (AGENTS.md §4: an asserted selector resolving to zero is exit 2,
+    // `emptyScopeNotice` already draws (CLAUDE.md "Verification tiers": an asserted selector resolving to zero is exit 2,
     // a derived one resolving to zero is an ordinary state). PD-115's own class stays guarded without this
     // door: `tests:execution-membership` REDs a runner view matching ZERO files at the STATIC tier, and
     // every whole-scope `pnpm test` still runs under `passWithNoTests: false`.
@@ -98,7 +98,7 @@ export const TEST_LANE_STAGES: readonly StageDef[] = [
     // NOWHERE ELSE. Measured twice at five days each: `registry-family.test.ts` red from `ab675b23b` (95
     // refused proof rows across eight policies, #1953) and `static-class-consumers.int.test.ts` red from
     // `1416f2c98` (#1956). Both commits ran and passed their named scoped floor; neither touched a family
-    // test, which is why the prose per-conversion floor rule did not fire — and per constitution §2.3 a
+    // test, which is why the prose per-conversion floor rule did not fire — and per constitution §2 a
     // prose-only boundary is not a placement, it is a wish.
     //
     // THIS ROW IS THE NARROW THING: the family tests of the instruments the BRANCH changed, reached

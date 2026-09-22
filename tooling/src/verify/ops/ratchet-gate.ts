@@ -39,7 +39,7 @@
 // `tests/tooling/check-gates.repo.int.test.ts` is NOT a candidate under the naming convention (its basename
 // matches none of ratchet/presence/conformance) — it stays out by construction, not because it's listed in
 // `EXCLUDED`. It is listed there anyway, rename-safe: it is NOT concurrency-safe with itself (shared `__g_`
-// fixture paths, `.claude/rules/gates-and-tooling.md`) and stays `check:structure`'s own harness /
+// fixture paths) and stays `check:structure`'s own harness /
 // the orchestrator's to run at a train — never this aggregate's, even if a future rename would otherwise
 // make it name-match.
 import { readdirSync } from "node:fs";
@@ -87,8 +87,7 @@ const EXCLUDED: readonly RatchetExclusion[] = [
     path: "tests/tooling/check-gates.repo.int.test.ts",
     reason:
       "NOT concurrency-safe with itself (shared __g_ fixture paths) — never overlaps a sibling invocation " +
-      "or a drain battery. Stays check:structure's own harness / the orchestrator's to run at a train " +
-      "(.claude/rules/gates-and-tooling.md).",
+      "or a drain battery. Stays check:structure's own harness / the orchestrator's to run at a train.",
   },
   {
     path: "tests/tooling/gate-conformance.repo.int.test.ts",

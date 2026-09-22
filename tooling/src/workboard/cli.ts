@@ -1,6 +1,5 @@
 // workboard — the Project 1 operator CLI (`pnpm work:item`). Argv parse + dispatch ONLY (the five-slot
-// cap); the programmatic surface is ./index.ts. Lifecycle law: .claude/rules/orchestration.md §Work
-// control quick path.
+// cap); the programmatic surface is ./index.ts.
 //
 // Exit: 0 clean · 2 the operation could not be performed (a guard refusal, a GitHub failure, a rate
 // limit) · 3 misuse (a malformed command). A refusal is reported as ONE operator-readable line, never a

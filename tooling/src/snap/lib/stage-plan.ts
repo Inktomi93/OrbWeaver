@@ -315,7 +315,7 @@ export function stageInheritedEnv(envFileContent: string): Record<string, string
 // shared file, so "am I allowed to read this?" is answerable EXACTLY, without a heuristic: a base at a
 // band port whose row names another checkout is a REFUSAL, and so is one no row accounts for — an unowned
 // band is "I cannot say whose tree this is", which is the same defect
-// (.claude/rules/gates-and-tooling.md: a bare zero is "I couldn't measure", never "it isn't there").
+// (a bare zero is "I couldn't measure", never "it isn't there").
 // #1276 widened this from one hardcoded pair to the whole range: a `--base` on ANY band is arbitrated.
 //
 // AND THE ANSWER HAS A THIRD READABLE ARM NOW (#2441). "Another checkout's row" was doing double duty: it

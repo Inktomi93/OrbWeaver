@@ -204,7 +204,7 @@ export function cmdDead(project: SourceCorpus, name: string, flags: Flags): void
   }
   narrate(
     flags,
-    'dead is a CANDIDATE lens — an evidence-ladder verdict for ONE symbol (product refs / tool-script refs / test-only refs / namespace-swallowed consumption / the @public marker / a vendored-file home / raw comment mentions). TAGGED-KEEP records an unadjudicated marker claim; the push-tier ratchet decides whether it is legal. "Unwired ≠ worthless" (constitution §1): the verdict is a human\'s, never a delete signal.',
+    'dead is a CANDIDATE lens — an evidence-ladder verdict for ONE symbol (product refs / tool-script refs / test-only refs / namespace-swallowed consumption / the @public marker / a vendored-file home / raw comment mentions). TAGGED-KEEP records an unadjudicated marker claim; the push-tier ratchet decides whether it is legal. "Unwired ≠ worthless" (CLAUDE.md "Build the full shape"): the verdict is a human\'s, never a delete signal.',
   );
   emit(hits, flags, `dead ${name} (${decls.length} declaration(s))`);
 }

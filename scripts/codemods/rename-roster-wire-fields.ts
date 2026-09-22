@@ -274,7 +274,7 @@ function renameParams(targets: typeof PARAM_RENAMES): Plan {
 /** The JSDoc / comment mentions the language service cannot see: an `{@link X.field}` target and the two
  *  prose lines that name a field this codemod renames. Addressed as exact one-line strings so a near-miss
  *  throws instead of silently skipping — a drifted comment is the honesty mechanism for a prose-enforced
- *  vocabulary rule (constitution §3), so it lands in the SAME pass as the rename. */
+ *  vocabulary rule (constitution §6), so it lands in the SAME pass as the rename. */
 const COMMENT_FIXES: ReadonlyArray<{ readonly file: string; readonly from: string; readonly to: string }> = [
   // NOT listed: `{@link BulkImportChatInput.roster}` in `bulk-import.ts`. Measured, not assumed — the first
   // dry run threw here because TypeScript's rename engine treats a JSDoc `{@link Owner.field}` target as a
