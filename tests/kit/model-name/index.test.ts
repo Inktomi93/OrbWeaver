@@ -66,6 +66,12 @@ describe("modelDisplayName", () => {
     expect(modelDisplayName(input)).toBe("unknown model");
   });
 
+  test("falls back when the weights-extension strip eats the whole basename", () => {
+    expect(modelDisplayName(".gguf")).toBe("unknown model");
+    expect(modelDisplayName("/models/.safetensors")).toBe("unknown model");
+    expect(modelDisplayName("/.bin")).toBe("unknown model");
+  });
+
   // A basename that is nothing BUT a quant tag has no identity to split off — printing " · W8A8" with an
   // empty head would be worse than printing the tag.
   test("prints a quant-only basename whole", () => {

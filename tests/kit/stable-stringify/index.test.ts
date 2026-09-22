@@ -46,3 +46,10 @@ test("nested structures serialize identically regardless of key order at every d
   const b = { outer: { inner: { a: [{ x: 2, y: 1 }], z: 1 } } };
   expect(stableStringify(a)).toBe(stableStringify(b));
 });
+
+test("numeric string keys sort lexicographically, not numerically (edge case: 10 sorts after 1 but before 2)", () => {
+  const a = { "10": "ten", "2": "two", "1": "one" };
+  const b = { "1": "one", "2": "two", "10": "ten" };
+  expect(stableStringify(a)).toBe(stableStringify(b));
+  expect(stableStringify(a)).toBe('{"1":"one","10":"ten","2":"two"}');
+});
