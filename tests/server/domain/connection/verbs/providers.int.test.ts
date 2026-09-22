@@ -10,7 +10,7 @@ import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { makeHarness, seedOwner } from "../_support.ts";
+import { makeHarness, seedOwner, seedPlugin } from "../_support.ts";
 
 const ACME_ID = castId<ProviderId>("acme-endpoint");
 const PLUGIN_ID = castId<PluginId>("plugin_provider_test");
@@ -45,6 +45,9 @@ describe("registerProvider / dropProvider", () => {
   test("registerPluginProviders and dropPluginProviders publish and withdraw one plugin's rows", async () => {
     const db = await freshDb();
     const h = await makeHarness(db);
+    const owner = await seedOwner(db);
+    // A contribution is an installed plugin's claim: `plugin_provider_contributions.plugin_id` FKs `plugins`.
+    await seedPlugin(db, owner.userId, PLUGIN_ID);
     await h.svc.registerPluginProviders({
       pluginId: PLUGIN_ID,
       pluginName: "provider-test",

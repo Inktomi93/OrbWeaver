@@ -9,11 +9,12 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { ProviderId } from "@orb/contracts/inference";
+import { pluginManifestSchema } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
-import { automationRules, users } from "@orb/db";
+import { assets, automationRules, plugins, users } from "@orb/db";
 import type { InferenceDeps, InferenceRuntime } from "@orb/inference";
 import { createInferenceRuntime } from "@orb/inference";
-import type { AutomationRuleId, ConnectionBindingId, Handle, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
+import type { AssetId, AutomationRuleId, ConnectionBindingId, Handle, PluginId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ConnectionContext, ConnectionService, EndpointAdmission } from "@orb/server/domain/connection";
 import { createConnectionPorts, createConnectionService } from "@orb/server/domain/connection";
@@ -109,6 +110,32 @@ export async function seedAutomationRule(db: Db, ownerId: UserId, id = "automati
     updatedAt: FROZEN_AT_MS,
   });
   return ruleId;
+}
+
+/** The FK target a plugin provider contribution needs: one installed plugin row (and the bundle asset its own
+ *  FK requires). A contribution is an install's claim, so a scenario without the install cannot publish rows. */
+export async function seedPlugin(db: Db, ownerId: UserId, id = "plugin_provider_test", slug = "provider-test"): Promise<PluginId> {
+  const pluginId = castId<PluginId>(id);
+  const bundleAssetId = castId<AssetId>(`asset_${id}`);
+  await db
+    .insert(assets)
+    .values({ id: bundleAssetId, ownerId, kind: "plugin", mime: "application/zip", size: 10, hash: `hash-${id}`, uploadedAt: FROZEN_AT_MS });
+  await db.insert(plugins).values({
+    id: pluginId,
+    ownerId,
+    slug,
+    name: slug,
+    version: "1.0.0",
+    manifest: pluginManifestSchema.parse({ id: slug, name: slug, version: "1.0.0", hostVersion: 1, entry: "main.js", description: "x", capabilities: [] }),
+    bundleAssetId,
+    grantedCapabilities: [],
+    status: "enabled",
+    origin: "upload",
+    sourceUrl: null,
+    installedAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
+  });
+  return pluginId;
 }
 
 /** A seeded owner + its `Principal` (the pair every scenario opens with). */
