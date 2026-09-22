@@ -10,6 +10,7 @@ Every line below is a RULE; the incident that minted it is in
 only when a rule's edge case is genuinely unclear.
 
 ## The hard rules
+
 - **Tokens only.** No raw px / hex / arbitrary Tailwind in features (a biome hook enforces it); compose
   from `@orb/ui` primitives + `<Stack>/<Row>/<Section>/<Container>`; never `className` on raw HTML.
   Tokens are `packages/ui/src/tokens/tokens.json` → `pnpm --filter @orb/ui tokens:build` after editing
@@ -19,10 +20,10 @@ only when a rule's edge case is genuinely unclear.
 - **Lane iteration is SCOPED.** The explicit inner loop is exactly the test files you touched
   (`pnpm test:scoped <paths>`, `pnpm test:ct <paths>` — niced scripts, never raw `npx`; pass NO worker
   flag, the SHIPPED defaults ARE the shared-host caps since #1835, from `tooling/concurrency-profile.json`)
-  + scoped typecheck + biome/eslint on your files. Commit normally in your assigned worktree or clone;
-  its configured hooks may run required whole-project checks. Do not manually duplicate a full battery
-  solely to commit. Hook bypass requires a specific user- or coordinator-authorized exception with the
-  reason and executed/owed checks recorded; the orchestrator owns integrated graduation.
+  - scoped typecheck + biome/eslint on your files. Commit normally in your assigned worktree or clone;
+    its configured hooks may run required whole-project checks. Do not manually duplicate a full battery
+    solely to commit. Hook bypass requires a specific user- or coordinator-authorized exception with the
+    reason and executed/owed checks recorded; the orchestrator owns integrated graduation.
 - **The harness AUTO-WRITES artifacts — READ them, never pipe or re-run to rediscover a failure**, and
   invoke the SCRIPTS (a bare `npx vitest run` drops the json reporter). Which artifact each run writes,
   and why the paths are `latest` POINTERS rather than files written in place: constitution §4.
@@ -53,6 +54,7 @@ only when a rule's edge case is genuinely unclear.
   has nobody to ask. Report the EXACT command and stop cleanly; the fix is the allowlist, not the guard.
 
 ## Search and recon
+
 - **`ast-grep` for code STRUCTURE, the Grep tool for literal text, `pnpm ast` for reference/liveness.**
   Type `ast-grep`, NEVER `sg` (`/usr/bin/sg` is `newgrp`; upstream deprecated the alias). `ast-grep -r`
   and `pnpm codemod` DRY-RUN by default — nothing hits disk without `-U`/`-i`/`--apply`; read the whole
@@ -72,6 +74,7 @@ only when a rule's edge case is genuinely unclear.
   checkout/worktree/cp into the tree. SillyTavern needs `-l js` AND `-l html` (its UI hides in templates).
 
 ## Boundaries
+
 - **You are a leaf agent — never spawn other agents** (no Agent tool, no `claude -p` from Bash). If the
   task needs another role, stop and report.
 - **Never `git stash` / `git checkout <path>` / `git restore`** — they silently destroy uncommitted work.
@@ -81,12 +84,14 @@ only when a rule's edge case is genuinely unclear.
 - **A precise "blocked because X" is a successful outcome; a guessed implementation is not.**
 
 ## Reporting
+
 Audit every progress claim against a tool result from THIS session; report skipped steps as skipped and
 failures with their output; lead with the outcome. Surface durable lessons to the orchestrator (it owns
 the memory store) — never write memory yourself. **Authored text goes in a FILE, not in your report:**
 specs, drafted ledger entries and owner-facing copy land under `docs/…` and you cite the path.
 
 ## Lane invariants (every worktree lane; briefs do not repeat these)
+
 - `git -C <your-worktree>` on EVERY git call (cwd silently resets across notification boundaries).
 - Staging is ruled in `.claude/rules/lane-standing-facts.md` §Staging and commits (pathspec on a SHARED
   tree, `git add -A` in your own worktree). Lane-unique scratch filenames; `git show --stat` in the
@@ -138,6 +143,7 @@ specs, drafted ledger entries and owner-facing copy land under `docs/…` and yo
   oldest, which is the run you were watching.
 
 ## Your instruments lie (the green may be the tool failing open)
+
 - **`biome.json` is STRICT JSON: a `//` comment is a parse error and biome silently falls back to
   BUILT-IN DEFAULTS.** Tells: phantom TAB diffs, rules the repo has off, absurd file counts. Probe:
   `pnpm exec biome check <one-known-clean-file>`.
@@ -150,6 +156,7 @@ specs, drafted ledger entries and owner-facing copy land under `docs/…` and yo
   same commit.
 
 ## Verify before building
+
 - **A ledger clause's cited SEAM, a brief's cited MECHANISM, and a review's tree-claims are all
   HYPOTHESES that AGE** — re-derive each against TODAY'S tree (or a live drive) before building to its
   letter, and report which premise died. A brief's SYMPTOM and RULINGS stay law; its why does not.
@@ -167,6 +174,7 @@ specs, drafted ledger entries and owner-facing copy land under `docs/…` and yo
   `tests/`. **"No CT" is a claim you owe a grep for, not a default.**
 
 ## Rendered proof
+
 - **Shoot the NARROWEST REAL production mount, not the story width** — a `shrink-0` cluster sized wide is
   this repo's most common rendered defect; a narrow CT needs a FIXED-width container with
   `overflow: visible` (a content-sized root agrees with the bug).
