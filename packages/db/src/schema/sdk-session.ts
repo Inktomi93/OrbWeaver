@@ -63,12 +63,13 @@ export const sessionEntries = sqliteTable(
     // is the live primary; reseeds spawn a secondary that is later reaped. NOT a staleness flag.
     isPrimary: integer("is_primary", { mode: "boolean" }).notNull().default(false),
     // The CONNECTION the session was spawned under (inference program §5.3b): per-user runtime dirs mean a
-    // session file is reachable only from the dir it was written in, so a funder change reseeds and the
-    // primary is per `(chat, connection)`. CASCADE with the connection (its dir goes with the row). NULLABLE
-    // until the per-user agent-sdk cut-over lands its writer (the pre-cutover writer has no connection to
-    // name); the partial unique below already keys on it.
+    // session file is reachable only from the dir it was written in, so every row names its connection, a
+    // funder change reseeds, and the primary is per `(chat, connection)`. CASCADE with the connection (its
+    // runtime dir goes with the row). Historical rows that predated this identity were deleted by the
+    // forward migration rather than assigned an owner the stored data could not prove.
     connectionId: text("connection_id")
       .$type<UserConnectionId>()
+      .notNull()
       .references(() => userConnections.id, { onDelete: "cascade" }),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },

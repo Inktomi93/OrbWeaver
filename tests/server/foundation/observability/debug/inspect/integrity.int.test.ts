@@ -5,7 +5,7 @@
 // column logic for integrity_check is exercised on the way through.
 
 import { sessionEntries } from "@orb/db";
-import type { ChatId, SessionEntryId } from "@orb/kit/ids";
+import type { ChatId, SessionEntryId, UserConnectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { integrityProbe } from "@orb/server/foundation/observability/debug";
 import { sql } from "drizzle-orm";
@@ -33,6 +33,7 @@ test("an orphan FK row (planted with enforcement OFF) flips ok=false and is surf
   await db.insert(sessionEntries).values({
     id: castId<SessionEntryId>("session_entry_orphan"),
     chatId: castId<ChatId>("chat_does_not_exist"),
+    connectionId: castId<UserConnectionId>("user_connection_does_not_exist"),
     sdkSessionId: "sdk-orphan",
     seq: 0,
     seededThroughSeq: SEEDED_THROUGH_SEQ,

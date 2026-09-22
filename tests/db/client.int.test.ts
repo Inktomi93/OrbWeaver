@@ -336,6 +336,68 @@ test("the provider-contribution migration preserves admin rows and discards unva
   }
 });
 
+test("the session-connection migration deletes ownerless legacy rows and requires connection identity", async () => {
+  const dir = mkdtempSync(join(tmpdir(), `orb-session-connection-migration-${pid}-`));
+  try {
+    const journal = JSON.parse(readFileSync(join(MIGRATIONS_DIR, "meta", "_journal.json"), "utf8")) as {
+      readonly entries: readonly { readonly tag: string; readonly when: number }[];
+    };
+    const entry = (tag: string): ChainEntry => {
+      const metadata = journal.entries.find((candidate) => candidate.tag === tag);
+      if (metadata === undefined) {
+        throw new Error(`missing migration ${tag}`);
+      }
+      return { ...metadata, sqlText: readFileSync(join(MIGRATIONS_DIR, `${tag}.sql`), "utf8") };
+    };
+    const prior = [
+      entry("0000_baseline"),
+      entry("0001_remove_dead_storage"),
+      entry("0002_plugin_provider_contributions"),
+      entry("0003_chat_stream_cursor_generation"),
+    ];
+    const requireConnection = entry("0004_require_session_entry_connection");
+    const folder = chainFixture(dir, prior);
+    const db = await createDb(":memory:");
+    await runMigrations(db, folder);
+
+    await db.run(sql`INSERT INTO users (id, handle) VALUES ('user_session_migration', 'session-migration')`);
+    await db.run(sql`INSERT INTO chats (id) VALUES ('chat_session_migration')`);
+    await db.run(sql`INSERT INTO user_connections (id, owner_id, label, provider_id, model)
+      VALUES ('user_connection_session_migration', 'user_session_migration', 'Session migration', 'custom-openai', 'test-model')`);
+    await db.run(sql`INSERT INTO session_entries
+      (id, chat_id, sdk_session_id, seq, seeded_through_seq, canon_hash, connection_id)
+      VALUES ('session_entry_bound_migration', 'chat_session_migration', 'bound-sdk-session', 0, 1, 'bound-hash', 'user_connection_session_migration')`);
+    await db.run(sql`INSERT INTO session_entries
+      (id, chat_id, sdk_session_id, seq, seeded_through_seq, canon_hash, connection_id)
+      VALUES ('session_entry_ownerless_migration', 'chat_session_migration', 'ownerless-sdk-session', 1, 1, 'ownerless-hash', NULL)`);
+
+    chainFixture(dir, [...prior, requireConnection]);
+    await runMigrations(db, folder);
+    await expect(assertReferentialIntegrity(db)).resolves.toBeUndefined();
+
+    expect(await db.all(sql`SELECT id, connection_id AS connectionId FROM session_entries`)).toEqual([
+      { id: "session_entry_bound_migration", connectionId: "user_connection_session_migration" },
+    ]);
+    const columns = await db.all<Record<string, unknown>>(sql`PRAGMA table_info(session_entries)`);
+    expect(columns.find((column) => column["name"] === "connection_id")?.["notnull"]).toBe(1);
+
+    let caught: unknown;
+    try {
+      await db.run(sql`INSERT INTO session_entries
+        (id, chat_id, sdk_session_id, seq, seeded_through_seq, canon_hash, connection_id)
+        VALUES ('session_entry_null_after_migration', 'chat_session_migration', 'null-after-migration', 2, 1, 'null-hash', NULL)`);
+    } catch (err) {
+      caught = err;
+    }
+    expect(isConstraintViolation(caught)?.kind).toBe("not-null");
+
+    await db.run(sql`DELETE FROM user_connections WHERE id = 'user_connection_session_migration'`);
+    expect(await db.all(sql`SELECT id FROM session_entries`)).toEqual([]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("runMigrations restores foreign_keys ON afterward (the finally-restore contract)", async () => {
   // runMigrations toggles FK enforcement OFF for the table-rebuild, then restores ON in finally. If a
   // future migration left it OFF, every subsequent write would bypass FK enforcement silently.

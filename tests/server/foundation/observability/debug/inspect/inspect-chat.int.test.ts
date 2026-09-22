@@ -4,7 +4,7 @@
 // with its SELECTED variant's content/provenance (D26), the session-cache frame count (keyed by chatId,
 // D8/D25), and recent events (newest-first). Plus the NOT_FOUND short-circuit for an unknown chat.
 
-import { characters, chatEvents, chatParticipants, chats, messages, messageVariants, sessionEntries, users } from "@orb/db";
+import { characters, chatEvents, chatParticipants, chats, messages, messageVariants, sessionEntries, userConnections, users } from "@orb/db";
 import type {
   CharacterHandle,
   CharacterId,
@@ -15,6 +15,7 @@ import type {
   MessageId,
   MessageVariantId,
   SessionEntryId,
+  UserConnectionId,
   UserId,
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -41,6 +42,14 @@ interface Seeded {
 async function seedFullChat(db: Awaited<ReturnType<typeof freshDb>>): Promise<Seeded> {
   const userId = castId<UserId>("user_inspect");
   await db.insert(users).values({ id: userId, handle: castId<Handle>("user_inspect") });
+  const connectionId = castId<UserConnectionId>("user_connection_inspect");
+  await db.insert(userConnections).values({
+    id: connectionId,
+    ownerId: userId,
+    label: "Inspect",
+    providerId: testProviderId("openrouter"),
+    model: testModelId("anthropic/claude-opus-4"),
+  });
 
   const characterId = castId<CharacterId>("character_inspect");
   await db.insert(characters).values({
@@ -89,6 +98,7 @@ async function seedFullChat(db: Awaited<ReturnType<typeof freshDb>>): Promise<Se
   await db.insert(sessionEntries).values({
     id: castId<SessionEntryId>("session_entry_inspect"),
     chatId,
+    connectionId,
     sdkSessionId: "sdk-inspect",
     seq: 0,
     seededThroughSeq: SEEDED_THROUGH_SEQ,
