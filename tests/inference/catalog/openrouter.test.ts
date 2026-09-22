@@ -117,6 +117,15 @@ test("OpenRouter catalog merges its three modality lists and preserves the first
   ]);
 });
 
+test("a `:free` variant keeps its own id even though it shares its base's canonical slug (a different serving)", async () => {
+  const rows = await fetchOpenRouterCatalog({ fetch: openRouterCatalogFetch(), baseUrl: "https://openrouter.example/api/v1" });
+  const free = rows.find((row) => row.id === "z-ai/glm-5.2:free");
+  expect(free?.aliasOf).toBeUndefined();
+  expect(free?.supportedParameters).not.toContain("tools");
+  // PLANTED CONTROL: the same slug pairing on a `:batch` variant does map.
+  expect(rows.find((row) => row.id === "openai/o4-mini:batch")?.aliasOf).toBe("openai/o4-mini");
+});
+
 test("aliasOf is read only where the catalog states it: an alias's named target, a variant's canonical-slug base", async () => {
   const rows = await fetchOpenRouterCatalog({ fetch: openRouterCatalogFetch(), baseUrl: "https://openrouter.example/api/v1" });
   const aliasOf = (id: string): string | undefined => rows.find((row) => row.id === id)?.aliasOf;
@@ -128,7 +137,7 @@ test("aliasOf is read only where the catalog states it: an alias's named target,
   expect(aliasOf("~anthropic/claude-mystery-latest")).toBeUndefined();
   // A variant with no un-suffixed sibling in the catalog has nothing to share.
   const orphan = await fetchOpenRouterCatalog({
-    fetch: openRouterCatalogFetch([{ id: "acme/solo:free", canonical_slug: "acme/solo-2026", supported_parameters: [] }]),
+    fetch: openRouterCatalogFetch([{ id: "acme/solo:batch", canonical_slug: "acme/solo-2026", supported_parameters: [] }]),
     baseUrl: "https://openrouter.example/api/v1",
   });
   expect(orphan[0]?.aliasOf).toBeUndefined();

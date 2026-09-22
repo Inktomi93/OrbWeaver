@@ -5,7 +5,7 @@
 
 import type { ResolvedSecret } from "@orb/contracts/credentials";
 import type { EndpointFeatures, GenerationCapability, ProviderDef, ResolvedConnectionView, Task } from "@orb/contracts/inference";
-import type { UserId } from "@orb/kit/ids";
+import type { ModelId, UserId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { ProviderError } from "./errors.ts";
 
@@ -50,6 +50,10 @@ export interface Resolved<T extends Task = Task> extends ResolvedConnectionView 
   readonly extras: Readonly<Record<string, JsonValue>> | null;
   readonly transport: ConnectionTransport | null;
   readonly allowBackground: boolean;
+  /** The id the model's FACTS come from: `model` itself, or the id an OpenRouter catalog row says it shares
+   *  them with (a floating alias's target, a `:batch` variant's base). The capability fold read it, so every
+   *  wire decision keyed on the vendor (routing, cache placement) reads it too, never the raw `model`. */
+  readonly factsModel: ModelId;
 }
 
 /** The GENERATION half of a chat-shaped resolve. The resolver only hands a chat/summarize/structured task a

@@ -309,7 +309,7 @@ function openRouterExtras(
     warnings.push({ code: "custom_parameters_ignored", key: "models", message: "extras.models ignored: not a non-empty list of model ids" });
   }
   return {
-    routing: effectiveProviderRouting(connection.model, parsedRouting?.success === true ? parsedRouting.data : undefined),
+    routing: effectiveProviderRouting(connection, parsedRouting?.success === true ? parsedRouting.data : undefined),
     models: parsedModels?.success === true ? parsedModels.data : undefined,
   };
 }
@@ -512,7 +512,7 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
   // attempt's intent — and the rate-limit snapshot off its response headers.
   const attempt: { shape: TurnShape | undefined; rateLimit: RateLimitSnapshot | null } = { shape: undefined, rateLimit: null };
   const secrets = resolvedScrubSet(connection);
-  const anthropicRoute = dialect === "openrouter" && isAnthropicModel(connection.model);
+  const anthropicRoute = dialect === "openrouter" && isAnthropicModel(connection);
   const plan = buildWirePlan({
     systemPrompt: req.systemPrompt,
     dynamicContextChannel: knobs.dynamicContextChannel,

@@ -115,6 +115,7 @@ export function makeResolved<T extends Task = "chat">(overrides: MakeResolvedOve
     extras: null,
     transport: null,
     allowBackground: false,
+    factsModel: rest.model ?? castId<ModelId>("test-model"),
     ...rest,
   };
 }
