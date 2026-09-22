@@ -2,6 +2,7 @@
 // through the injected supervisor; server composition supplies the traced/logged owner while package tests
 // can supply a deterministic observer without reaching process-global tracing state.
 
+import { modelIdSchema } from "@orb/contracts/inference";
 import { createLocalLightBackend } from "../../../../packages/inference/src/backends/local-light/index.ts";
 import type { InferenceLog } from "../../../../packages/inference/src/deps.ts";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -34,7 +35,7 @@ test("detached prefetch enters through the injected supervisor", async () => {
     config: { cache: fakeModelCache() },
   });
 
-  expect(() => local.prefetch.start([{ slot: "embed", modelId: "local/test" }])).not.toThrow();
+  expect(() => local.prefetch.start([{ slot: "embed", modelId: modelIdSchema.parse("local/test") }])).not.toThrow();
   await Promise.resolve();
   await Promise.resolve();
 
