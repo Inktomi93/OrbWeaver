@@ -101,7 +101,7 @@ export const anthropicRows = [
     evidence: {
       tier: "curated",
       dated: "2026-09-22",
-      cite: 'Anthropic claude-api skill, shared/model-migration.md "Migrating to Claude Opus 5.5" breaking change 1 ("thinking.type.disabled" is not supported for this model ... at every effort level; default effort medium) + breaking change 2 (tool_choice: type "tool" and "any" are not supported for this model, Messages/Batches/count_tokens); shared/error-codes.md. Documentation, not a live request id — no live probe was run for this row (#2575)',
+      cite: 'live 2026-09-22 direct claude-opus-5-5: thinking.type disabled -> 400 "not supported for this model" (req_011CfKDSu4dFAHQSAt8Sttn6); tool_choice any -> 400 (req_011CfKDSuxTCH6PtrxUkqCvf); OpenRouter anthropic/claude-opus-5.5 tool_choice required -> upstream 400 (req_011CfKDWYL4K21BXuXPJ4eKU). Default effort medium per Anthropic model-migration docs',
     },
   },
   {
@@ -274,7 +274,7 @@ export const anthropicRows = [
     evidence: {
       tier: "curated",
       dated: "2026-09-22",
-      cite: 'Anthropic claude-api skill, shared/tool-use-concepts.md + shared/error-codes.md: "Claude Fable 5.1, Claude Mythos 5.1, Claude Opus 5.5, and Mythos Preview reject forced tool use ... tool_choice: type "tool" and "any" are not supported for this model (on count_tokens and Batches too). Claude Fable 5 and Claude Opus 5 accept them". Documentation, not a live request id (#2575)',
+      cite: 'live 2026-09-22 direct claude-fable-5-1: tool_choice any -> 400 "tool_choice: type tool and any are not supported for this model" (req_011CfKDSt2rkNRQpvSiYH8Ly); OpenRouter anthropic/claude-fable-5.1 tool_choice required -> upstream 400 (req_011CfKDWRATCcLYJ3wtdrpip); control claude-fable-5 tool_choice any -> 200 (req_011CfKDUqhmXPSzWjeFHjxyM). Mythos 5.1 per Anthropic docs (not available on this account)',
     },
   },
   {
