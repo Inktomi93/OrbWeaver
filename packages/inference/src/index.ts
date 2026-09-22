@@ -79,6 +79,9 @@ export type { ProviderRegistry } from "./registry/providers.ts";
 export type { ResolveArgs, ResolveOutcome } from "./resolve/resolve-task.ts";
 export { NoConnectionError } from "./resolve/resolve-task.ts";
 export { runStructuredTurn } from "./roles/structured-turn.ts";
+// The chat turn's ONE neutral-to-backend projection: a caller hands over a history array and its tools as
+// definitions + an execute callback, and never branches on the connection's wire itself.
+export { toChatRequest } from "./roles/chat-request.ts";
 
 const OPENROUTER_CATALOG_KEY = "catalog:openrouter";
 const AGENT_SDK_CATALOG_KEY = "catalog:agent-sdk";

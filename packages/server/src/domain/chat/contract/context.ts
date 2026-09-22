@@ -31,7 +31,16 @@ import type { ApplyStatsDelta, BumpStatsCanonVersion } from "@orb/contracts/stat
 import type { MaterializeBackgroundOp, ThemeBackground, ThemeOverride } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
-import type { GeneratedImage, ProviderErrorKind, Resolved, RoleClientsWithSignal, SummarizeResult, ToolCallInput, WireTool } from "@orb/inference";
+import type {
+  ChatToolDefinition,
+  GeneratedImage,
+  ProviderErrorKind,
+  Resolved,
+  RoleClientsWithSignal,
+  SummarizeResult,
+  ToolCallInput,
+  WireTool,
+} from "@orb/inference";
 import type { ContentImageRef } from "@orb/kit/content";
 import type {
   AssetId,
@@ -130,16 +139,22 @@ export interface ChatToolOps {
    *  is resolved on the host's shelf too (#677 — the same namespaced plugin tool name exists once per
    *  installing user, so a name alone no longer identifies an entry). */
   readonly resolveTools: (driverUserId: UserId, names: readonly string[]) => ChatToolSet;
-  readonly toWireTools: (set: ChatToolSet) => readonly WireTool[];
-  /** The one execute path — sequential, errors-as-data; never throws per-call. */
-  readonly executeToolCalls: (set: ChatToolSet, calls: readonly ToolCallInput[], frame: ChatToolExecFrame) => Promise<readonly ToolCallRecord[]>;
-  /** The SECOND projection (D48) for the STATEFUL agent-sdk wire: wrap the resolved set as an in-process
-   *  MCP tool server (the opaque `AgentToolServer`, typed `unknown` here — chat never narrows it). The SDK
-   *  owns the tool loop; every invocation still runs the ONE `executeToolCalls` path, and `onRecord` fires
-   *  per completed invocation so the pipeline persists the SAME `ToolCallRecord`s the array-wire recurse
-   *  loop produces. */
-  readonly toAgentToolServer: (set: ChatToolSet, frame: ChatToolExecFrame, onRecord: (record: ToolCallRecord) => void) => Promise<unknown>;
+  /** The resolved set as BACKEND-NEUTRAL definitions (the JSON-Schema declaration + the zod shape it was
+   *  projected from). How they reach a wire is `@orb/inference`'s decision (`toChatRequest`), so chat carries
+   *  one projection for every backend. */
+  readonly toToolDefinitions: (set: ChatToolSet) => readonly ChatToolDefinition[];
+  /** Bind the ONE execute path to this turn's authority, ONCE, before the request is built: the host Principal
+   *  every in-turn tool runs under (D152) is resolved here, so a failed lookup fails the TURN on every wire
+   *  before the model is called. Both loops run the bound executor — the pipeline's own recurse loop for an
+   *  array wire, and the offer's `execute` callback when a backend owns the loop — so neither can resolve the
+   *  authority late, where the Agent SDK would turn the throw into tool-result text the model reads (D48 — one
+   *  execute path, one `ToolCallRecord` shape, whichever side drives). */
+  readonly prepareExecution: (set: ChatToolSet, frame: ChatToolExecFrame) => Promise<BoundToolExecution>;
 }
+
+/** The execute path bound to one turn's resolved set and authority — sequential, errors-as-data; never throws
+ *  per-call. */
+export type BoundToolExecution = (calls: readonly ToolCallInput[]) => Promise<readonly ToolCallRecord[]>;
 
 /** Resolve the frozen room HOST's `chat` connection for a turn. A chat binds no connection (F20). */
 type ResolveChatConnectionOp = (params: { readonly funderUserId: UserId; readonly signal?: AbortSignal | undefined }) => Promise<Resolved<"chat">>;

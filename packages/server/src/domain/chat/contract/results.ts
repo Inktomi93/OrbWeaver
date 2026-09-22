@@ -25,7 +25,7 @@ import type { ChatMembership } from "@orb/contracts/identity";
 import type { CostDetails, NormalizedFinishReason, ProviderId } from "@orb/contracts/inference";
 import type { EffortLevel, UserIntent } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
-import type { GeneratedImage, HistoryRole, ReasoningContentPart, Resolved, ResolvedWarning, ToolCallInput, ToolChoice, WireTool } from "@orb/inference";
+import type { ChatTurnTools, GeneratedImage, HistoryRole, ReasoningContentPart, Resolved, ResolvedWarning, ToolCallInput, WireTool } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId, MessageId, ModelId, PersonaId, UserConnectionId, UserId } from "@orb/kit/ids";
 import type { MacroRegistry, RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
@@ -145,23 +145,12 @@ export interface TurnRequest {
    *  (`applyReceiveTransforms`) stays for every shape and wire the middleware cannot express, and no-ops
    *  when the wire already produced a reasoning channel. */
   readonly reasoningTags?: { readonly prefix: string; readonly suffix: string } | undefined;
-  /** Absent (never []) on a tool-less turn, so the request stays byte-identical to pre-tools. */
-  readonly tools?: readonly WireTool[] | undefined;
-  readonly toolChoice?: ToolChoice | undefined;
-  /** The in-process MCP tool server for a STATEFUL (agent-sdk) tool turn — built by the pipeline via
-   *  `ChatToolOps.toAgentToolServer` when tools ride an agent-sdk connection (the array wires carry
-   *  `tools`/`toolChoice` instead; the SDK owns its own loop and executes through the ONE
-   *  `executeToolCalls` path). Opaque (`unknown`) — only the agent-sdk backend narrows it. Absent on
-   *  every other turn (byte-identical pre-existing shape). */
-  readonly agentToolServer?: unknown;
-  /** The stateful arm's tool-loop round ceiling (mirrors `toolRecurseLimit`; the SDK owns the loop).
-   *  Present only alongside `agentToolServer`. */
-  readonly agentToolTurnLimit?: number | undefined;
-  /** The STATEFUL arm's TERMINAL tools (D112 R1) — the same declarations the array wires carry in `tools` with
-   *  `toolChoice:"auto"`; only the DELIVERY differs (the SDK reads no tools array, so its backend mounts them as
-   *  a deny-on-use MCP server). Set by the same request-builder gate, which picks the field by wire and never by
-   *  eligibility: a wire that cannot co-emit gets NEITHER. Absent on every other turn. */
-  readonly agentTerminalTools?: readonly WireTool[] | undefined;
+  /** The tools this turn offers, BACKEND-NEUTRAL (`docs/design/inference-tool-delivery.md`): the executable set
+   *  as definitions + the ONE `execute` callback the pipeline binds to `executeToolCalls`, and the TERMINAL (D112
+   *  R1) declarations. How they reach the wire — an MCP server the SDK loops over, or a `tools[]` array the
+   *  pipeline's own recurse loop answers — is `@orb/inference`'s `toChatRequest` decision, never this domain's.
+   *  Absent on a tool-less turn, so the request stays byte-identical to pre-tools. */
+  readonly tools?: ChatTurnTools | undefined;
   /** The structured-output request for this turn (D79) — set by the request-builder gate only when the model
    *  supports it; the runChatTurn translator maps it onto the wire arm's `responseFormat`. */
   readonly responseFormat?: ResponseFormat | undefined;

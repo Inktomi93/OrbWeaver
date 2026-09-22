@@ -3,9 +3,9 @@
 // on ChatContext, never a sideways import.
 
 import type { Can } from "@orb/contracts/identity";
-import type { AgentToolServer, WireTool } from "@orb/inference";
+import type { ChatToolDefinition } from "@orb/inference";
 import type { UserId } from "@orb/kit/ids";
-import type { CreateAgentToolServer, PluginToolSpec, ToolCallBatch, ToolDefinition, ToolExecutionContext } from "./params.ts";
+import type { PluginToolSpec, ToolCallBatch, ToolDefinition, ToolExecutionContext } from "./params.ts";
 import type { PluginToolHandle, ResolvedToolSet, ToolCallRecord } from "./results.ts";
 
 export interface ToolUseContext {
@@ -38,15 +38,9 @@ export interface ToolUseService {
   readonly resolveTools: (driverUserId: UserId, names: readonly string[]) => ResolvedToolSet;
   /** Run model-emitted calls sequentially, in array order; never throws for a per-call failure. */
   readonly executeToolCalls: (set: ResolvedToolSet, calls: ToolCallBatch, exec: ToolExecutionContext) => Promise<readonly ToolCallRecord[]>;
-  readonly toWireTools: (set: ResolvedToolSet) => readonly WireTool[];
-  /** Wrap the resolved set as an agent-sdk tool server (tool-use-design/02 §3). Each wrapped handler routes
-   *  back through executeToolCalls (the SAME pipeline), and `onRecord` fires per invocation so the caller
-   *  persists the same ToolCallRecord[] the wire path persists. `createAgentToolServer` is injected (the D47
-   *  factory) so this domain never imports the SDK. */
-  readonly toAgentToolServer: (
-    set: ResolvedToolSet,
-    exec: ToolExecutionContext,
-    deps: { readonly createAgentToolServer: CreateAgentToolServer },
-    onRecord: (record: ToolCallRecord) => void,
-  ) => AgentToolServer;
+  /** The resolved set as backend-neutral definitions (the cached JSON schema + the zod shape it came from).
+   *  `@orb/inference` projects them onto whichever wire the turn rides — an array wire's `tools[]`, or the Agent
+   *  SDK's in-process MCP server whose every invocation still funnels back through `executeToolCalls` (via the
+   *  caller's execute callback) — so this domain has ONE projection and never learns a backend. */
+  readonly toToolDefinitions: (set: ResolvedToolSet) => readonly ChatToolDefinition[];
 }

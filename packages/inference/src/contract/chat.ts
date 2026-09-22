@@ -7,6 +7,7 @@ import type { ChatUsage, NormalizedFinishReason } from "@orb/contracts/inference
 import type { EffortLevel, UserIntent } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ChatId } from "@orb/kit/ids";
+import type { ZodRawShape } from "zod";
 import type { ChatDeltaEvent, ChatEvent, RateLimitSnapshot } from "./events.ts";
 import type { Resolved } from "./resolved.ts";
 import type { GeneratedImage } from "./roles.ts";
@@ -70,6 +71,41 @@ export interface ToolCallInput {
   readonly arguments: string;
 }
 
+/** One tool a caller EXECUTES, offered backend-neutrally: the {@link WireTool} declaration every array wire
+ *  sends, plus the zod raw shape that declaration was projected from. The in-process MCP projection needs the
+ *  shape — the Agent SDK's `tool()` takes no JSON Schema — and it must be the SAME schema, never a re-lift of
+ *  `parameters`, or the two wires would validate different argument sets for one tool. */
+export interface ChatToolDefinition extends WireTool {
+  readonly inputShape: ZodRawShape;
+}
+
+/** What one executed call hands back to a backend that runs the tool loop itself: the serialized result the
+ *  model reads, and whether it is an error. */
+export interface ChatToolExecution {
+  readonly text: string;
+  readonly isError: boolean;
+}
+
+/** The tools the caller executes this turn. `execute` runs ONE model-emitted call and is invoked only by a
+ *  backend that owns the tool loop (the Agent SDK); an array wire returns its calls on
+ *  {@link ChatResult.toolCalls} with `finishReason: "tool"` and the CALLER's loop runs them. So the caller keeps
+ *  every decision about what happens after a call, whichever side drives the loop. */
+export interface ChatToolOffer {
+  readonly definitions: readonly ChatToolDefinition[];
+  readonly execute: (call: ToolCallInput) => Promise<ChatToolExecution>;
+  /** The round ceiling a backend that owns the loop enforces. A caller-owned loop enforces its own. */
+  readonly turnLimit: number;
+}
+
+/** The tools offered on one chat turn, in their two classes. Both absent ⇒ a tool-less turn, byte-identical to a
+ *  request with no tool field at all. */
+export interface ChatTurnTools {
+  readonly offer?: ChatToolOffer | undefined;
+  /** TERMINAL tools (D112 R1): declared on the completion, never executed; the co-emitted calls come back on
+   *  {@link ChatResult.toolCalls}. */
+  readonly terminal?: readonly WireTool[] | undefined;
+}
+
 /** The content a seed frame may carry — DERIVED from `ChatContentPart`, never re-spelled. Media is excluded
  *  (the agent-sdk seed has no image channel); the tool-exchange parts ride as STRUCTURE (#1605). */
 export type AgentSeedBlock = Extract<ChatContentPart, { type: "text" | "tool-call" | "tool-result" }>;
@@ -110,6 +146,13 @@ export type ChatDeltaSubscription =
 
 type ChatRequestCommon = ChatRequestBase & ChatDeltaSubscription;
 
+/** Re-pack a request's delta pair as ONE of its two legal shapes. A projection that copies `chatId` and
+ *  `onDelta` field by field loses the correlation the union carries; this keeps a callback only ever beside the
+ *  chat id every delta names. */
+export function deltaSubscriptionOf(input: ChatDeltaSubscription): ChatDeltaSubscription {
+  return input.onDelta === undefined ? { chatId: input.chatId } : { chatId: input.chatId, onDelta: input.onDelta };
+}
+
 /** The array-shaped wires share one arm body: an assembled history + the OpenAI-spec tool channel. */
 type HistoryChatRequest = ChatRequestCommon & {
   readonly history: readonly ChatHistoryMessage[];
@@ -147,6 +190,21 @@ export type ChatRequest =
       readonly terminalTools?: readonly WireTool[] | undefined;
     })
   | (HistoryChatRequest & { readonly api: "chat-completions" | "anthropic-messages" });
+
+/**
+ * The BACKEND-NEUTRAL chat turn: one shape whatever the connection's wire, projected onto the {@link ChatRequest}
+ * arm that wire reads by `toChatRequest` (`roles/chat-request.ts`). The history is always an array and the tools
+ * are always {@link ChatTurnTools}; how either reaches a backend — seed frames and a prompt, an MCP server, a
+ * `tools[]` array — is this package's decision, so a caller never branches on a backend. The array-wire knobs
+ * (`cacheBreakpointDepth`, `reasoningTags`) ride here and a backend with no slot for them drops them.
+ */
+export type ChatTurnInput = ChatRequestCommon & {
+  readonly history: readonly ChatHistoryMessage[];
+  readonly tools?: ChatTurnTools | undefined;
+  readonly responseFormat?: ResponseFormat | undefined;
+  readonly cacheBreakpointDepth?: number | undefined;
+  readonly reasoningTags?: { readonly prefix: string; readonly suffix: string } | undefined;
+};
 
 export type AgentSdkChatRequest = ChatRequest & { readonly api: "agent-sdk" };
 export type OpenAiCompatChatRequest = ChatRequest & { readonly api: "chat-completions" };

@@ -18,8 +18,8 @@ import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import { characterPersonas, chatParticipants, personas, users } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
-import type { AgentSeedBlock, AgentSeedTurn, ChatDeltaEvent, ChatEvent, ChatRequest, ChatResult, Resolved, RoleClientsWithSignal } from "@orb/inference";
-import { AGENT_CONTINUATION_PROMPT_STUB, AGENT_PROMPT_TAIL_JOINER, createAgentToolServer, NoConnectionError, ProviderError } from "@orb/inference";
+import type { ChatDeltaEvent, ChatEvent, ChatRequest, ChatResult, ChatTurnInput, Resolved, RoleClientsWithSignal } from "@orb/inference";
+import { NoConnectionError, toChatRequest } from "@orb/inference";
 import type { AssetId, ChatId, Handle, PersonaId, PresetId, TypeIdOf, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
@@ -49,7 +49,6 @@ import type {
   ResolveRpgCardCorpus,
   ResolveRpgParticipants,
   SetRpgPointer,
-  TurnMessage,
   TurnRequest,
   TurnStreamChunk,
   TurnTrigger,
@@ -107,98 +106,11 @@ function minter<P extends string>(prefix: P): () => TypeIdOf<P> {
   return (): TypeIdOf<P> => mintTypeId(prefix);
 }
 
-// Agent-sdk turn shape: the stateful backend wants a session seed (transcript before this turn) + a prompt
-// tail (trailing user rows). With both it resumes its cached session and reseeds on divergence, so history
-// rides the session instead of being re-sent flattened every turn. Tool and system rows ride the seed as
-// their own frames (#1593), and a history with NO trailing user row seeds everything and asks the
-// host-authored continuation stub (#1607) — there is no flattened-transcript prompt string on this wire at all.
-
-/**
- * What a NON-TEXT content part leaves behind in a seed frame's text — TOTAL over `ChatContentPart`, because the
- * honest answer is per-KIND (#1606). It used to be one literal `[Image]` for every part, so a real `tool` row —
- * which carries a `tool-result` part and no text (`domain/chat/engine/pipeline.ts::toolExchangeMessages` is the
- * only producer) — announced itself to the model as `Tool result: [Image]`: a false statement about the
- * transcript, and one that hides the drop (the model cannot tell that bytes it was told about are missing).
- *
- * NAMES THE KIND, NEVER THE PAYLOAD. Emitting a tool result's bytes here would widen what the agent-sdk request
- * carries — the separate structural arm (#1605), not a rendering decision. The wording follows the house drop
- * vocabulary already used at the engine's own media seam (`droppedMediaPlaceholder`, `[<kind> omitted]`).
- *
- * A MAPPED RECORD, not a switch (§5.5 admits both, and only one of them lints): a `switch` over a value typed
- * `Exclude<TurnContentPart, {type:"text"}>` makes biome's type service call EVERY case unreachable
- * (`lint/suspicious/noUnnecessaryConditions` — the computed-type sibling of the cross-module-union and
- * intersection cases). The Record keeps the enforcement identical: a new content-part member is a missing
- * property here and fails `tsc` (verified by planting one — `TS2741` at this site).
- */
-/**
- * One part of a row compose was handed — DERIVED from the domain message, never re-spelled and deliberately
- * not the D51 seam symbol: compose does not PRODUCE content parts (the engine request seam does) and does not
- * put them on a wire (the sealed runners do). It maps the message it is given onto the provider request, and
- * this alias is the type of what is already in its hand.
- */
-type TurnContentPart = TurnMessage["content"][number];
-
-const DROPPED_PART_TEXT: Record<Exclude<TurnContentPart, { type: "text" }>["type"], string> = {
-  image: "[image omitted]",
-  video: "[video omitted]",
-  // The agent-sdk wire is a subprocess with no reasoning-replay channel, so a replayed thinking part cannot
-  // ride here. Named rather than blank for the same reason as the rest: a silent drop tells the model the
-  // turn had no reasoning, which is a false statement about the transcript.
-  reasoning: "[reasoning omitted]",
-  "tool-call": "[tool call omitted]",
-  "tool-result": "[tool result omitted]",
-};
-
-/**
- * One rendered row: a non-text part leaves the marker naming its own kind ({@link DROPPED_PART_TEXT}); the wire
- * `name` label is stamped into the text (agent-sdk seed frames carry no `name` field).
- *
- * `parts` defaults to the whole row and is narrowed by the seed builder, which lifts the parts that ride as
- * REAL SDK blocks (#1605) out first and renders only what is left. An EMPTY render takes no name stamp: an
- * empty row is not a turn, and `Alice: ` is not a truer statement of that than an empty string is.
- */
-function agentRowText(m: TurnMessage, parts: readonly TurnContentPart[] = m.content): string {
-  const text = parts.map((c) => (c.type === "text" ? c.text : DROPPED_PART_TEXT[c.type])).join("");
-  if (text.length === 0) {
-    return "";
-  }
-  return m.name !== undefined && m.name.length > 0 ? `${m.name}: ${text}` : text;
-}
-
-/**
- * Lift the capability-kept `system` rows near the tail (depth-0 mid-conversation system injections — SHAPE
- * emits them only when `turns.midConversationSystem`) off the shaped history. On the agent-sdk wire-shape
- * the honest system-authority channel is the dynamic-context hook (`routeDynamicContext` "message-tail"),
- * not a transcript row: the caller joins the extracted text onto `systemPrompt.dynamic`, and the remaining
- * history keeps a clean user prompt — the volatile injection never enters the recorded transcript, so the
- * session↔seed comparator still matches next turn (resume, not reseed).
- *
- * NOT strictly tail-FINAL (F3 fix): SHAPE appends the group/CONTINUATION nudge as a trailing USER row AFTER
- * the depth-0 system row (`shape.ts` `[...named, {role:"user", nudge}]`), so the real shape is
- * `[…canon…, system, user-nudge]` — a system row with a nudge tail AFTER it, not a tail-final run. A pure
- * trailing-run scan misses it and leaves the reminder to fall bare into the prompt tail (unframed system-
- * authority text reaching the model as user content + entering the transcript → reseed churn). So we scan for
- * a contiguous SYSTEM run and lift it even when NON-system (nudge) rows trail it; those trailing rows stay in
- * `rows` (the nudge is a legitimate user turn — only the system row folds into the hook). A system run inside
- * canon (a non-injection system row, if one ever existed) is NOT reachable here — the splice only ever emits
- * depth-0 system at/after the last canon assistant, so the run we find is always the injection band. Exported
- * for bridge tests only — not a composition surface.
- *
- * THAT LAST CLAIM IS NOW CAPABILITY-CONDITIONAL, and the condition holds on this wire (2026-08-18, #201).
- * SHAPE can also emit a MID-ARRAY system row — a depth \> 0 system injection — gated on
- * `turns.historySystemRows`, which is declared ONLY by the vLLM arm (`VLLM_TURNS`) and by no
- * agent-sdk arm (every anthropic cell is `false`, and only a live probe may flip one). (A D129(B) narrator
- * row was briefly a second producer on that same bit; owner-ruled out 2026-08-18 — narrator delivers
- * assistant on every wire, so canon contributes no system row here at all.) This walk-back would
- * lift a mid-array run out of position if one ever reached it, so a future arm declaring `historySystemRows`
- * on the agent-sdk wire-shape MUST come here first — the enforcer is the capability cell, and this is the
- * coupling it protects.
- */
 /**
  * THE TRIGGER BINDING — which persona id prompt-config `{{user}}` (the assemble ctx's ACTIVE persona)
  * resolves against, dispatched exhaustively over {@link TurnTrigger} (Chat-Macro-Resolution §3–§4; the
- * union's own doc carries the arm semantics). PURE; exported for its unit pin only (the
- * `extractTrailingSystemRows` precedent — not a composition surface).
+ * union's own doc carries the arm semantics). PURE; exported for its unit pin only — not a composition
+ * surface.
  *
  *   • `human`  → THAT human's persona ("who's speaking right now", §A.1), and `null` when their seat holds
  *     none — the kit floor, NEVER the anchor. Borrowing the anchor here is INVITE-JOIN-NULL-PERSONA: it
@@ -232,248 +144,6 @@ export function activePersonaIdFor(args: { readonly trigger: TurnTrigger; readon
 
 function assertNeverTrigger(trigger: never): never {
   throw new Error(`activePersonaIdFor: unhandled TurnTrigger ${JSON.stringify(trigger)}`);
-}
-
-export function extractTrailingSystemRows(history: readonly TurnMessage[]): { rows: readonly TurnMessage[]; systemText: string | null } {
-  // Walk back past a trailing NON-system tail (the appended nudge — at most a short user run) to find the end
-  // of the system band, then past the system run to its start. `[…, system, user-nudge]` → sysStart..sysEnd
-  // brackets the system rows; everything else (canon head + the nudge tail) stays in `rows`.
-  let sysEnd = history.length;
-  while (sysEnd > 0 && history[sysEnd - 1]?.role !== "system") {
-    sysEnd -= 1; // skip the trailing nudge (non-system) rows
-  }
-  let sysStart = sysEnd;
-  while (sysStart > 0 && history[sysStart - 1]?.role === "system") {
-    sysStart -= 1; // the contiguous system run
-  }
-  if (sysStart === sysEnd) {
-    return { rows: history, systemText: null }; // no system rows to lift
-  }
-  const text = history
-    .slice(sysStart, sysEnd)
-    .map((m) => agentRowText(m))
-    .filter((t) => t.length > 0)
-    .join(AGENT_PROMPT_TAIL_JOINER);
-  // Drop the system band; keep the canon head AND the nudge tail (the nudge is a real user turn).
-  const rows = [...history.slice(0, sysStart), ...history.slice(sysEnd)];
-  return { rows, systemText: text.length > 0 ? text : null };
-}
-
-/**
- * The turn label a history row announces itself with on the agent-sdk arm. TOTAL over `HistoryRole`, and that
- * is the security property, not a tidiness one (#1457): it used to be a `Partial<Record<…>>` with a
- * `?? "User"` default, so every tool RESULT rendered as `User: <tool output>` — promoting attacker-influenced
- * bytes (a fetched page, a databank row, a search hit) from DATA the model may reason about to an INSTRUCTION
- * apparently authored by the human, which is the confusion role separation exists to prevent. TOTAL, not
- * defaulted, so the recurrence is a COMPILE error: a new `HISTORY_ROLES` member with no label here fails `tsc`
- * instead of silently inheriting the user's voice (the §5.5 mapped-Record dispatch shape).
- *
- * The labels now announce a SEED FRAME rather than a line in a flattened blob (#1607 deleted the blob), so a
- * label is no longer a boundary anything could forge — but it is still the only thing that says whose voice a
- * `user`-framed row speaks in, which is the whole of #1457.
- */
-const AGENT_ROW_LABELS: Record<TurnMessage["role"], string> = { user: "User", assistant: "Assistant", system: "System", tool: "Tool result" };
-
-/**
- * How each history role rides the SESSION SEED. TOTAL, and both facts are load-bearing: `frame` is the SDK
- * frame role (the seed vocabulary has exactly two — {@link AgentSeedTurn}), and `announce` says whether the
- * frame's text must carry its own label. A role with no native frame (`tool`, `system`) can only ride as a
- * `user` frame, so it MUST announce itself or it wears the human's voice — #1457's confusion, relocated. A new
- * `HISTORY_ROLES` member fails `tsc` here instead of silently inheriting `user`.
- *
- * `announce` governs the TEXT half only. A tool exchange that rides as real `tool_use`/`tool_result` blocks
- * (#1605) needs no label at all — the wire carries the role — and {@link seedBlocksFor} stamps one only on what
- * is left as prose. The `tool` row's `user` frame is therefore the CARRIER of the blocks, not a claim about who
- * spoke.
- */
-const AGENT_SEED_FRAMES: Record<TurnMessage["role"], { readonly frame: AgentSeedTurn["role"]; readonly announce: boolean }> = {
-  user: { frame: "user", announce: false },
-  assistant: { frame: "assistant", announce: false },
-  system: { frame: "user", announce: true },
-  tool: { frame: "user", announce: true },
-};
-
-/**
- * Split the shaped history into the session seed + the prompt this turn queries with. TOTAL — every history
- * reaches the SDK as frames plus one prompt, and there is no other agent-sdk turn shape (#1607).
- *
- * THIS IS THE STRUCTURAL ARM (#1593, completed by #1607). The seed is not a nicety —
- * `session/frames.ts::buildSeedFrames` emits ONE `SessionStoreEntry` per seed turn, so a turn boundary here is a
- * JSON frame and content inside a frame cannot create another frame. A `tool` row therefore never forces a flat
- * string: it rides as an ANNOUNCED `user` frame instead.
- *
- * THE TAIL IS THE TRAILING RUN OF `user` ROWS, never "everything after the last assistant". The two rules agree
- * on every tool-free history (system rows near the tail are lifted by {@link extractTrailingSystemRows} first),
- * and they differ exactly where it matters: a `tool` row after the last assistant would otherwise become the
- * QUERY PROMPT — tool output handed to the model as the human's own message, #1457 arriving by the other door.
- * The tail carries NO host labels, so there is nothing in it for content to imitate.
- *
- * NO TAIL ⇒ THE HOST-AUTHORED {@link AGENT_CONTINUATION_PROMPT_STUB}, and the WHOLE history seeds. That case is
- * live, not theoretical: a tool exchange leaves `[…, assistant, tool]` on the recursion's next request, and a
- * turn whose verb appends no user row ends on an assistant. It used to flatten the entire transcript into one
- * prompt string with a text turn boundary; the stub deletes that string, so the paragraph-collapse fence #1593
- * had to install is gone too (rows keep their bytes — they are separate frames).
- *
- * AN EMPTY-TEXT ROW IS NOT A TURN and never becomes a frame: `message.content: [{type:"text", text:""}]` is a
- * body the Anthropic wire rejects, which would fail every later turn on that lineage rather than this one.
- */
-export function splitAgentHistory(history: readonly TurnMessage[]): { seed: readonly AgentSeedTurn[]; prompt: string } {
-  let tailStart = history.length;
-  while (tailStart > 0 && history[tailStart - 1]?.role === "user") {
-    tailStart -= 1;
-  }
-  const tail = history
-    .slice(tailStart)
-    .map((m) => agentRowText(m))
-    .filter((t) => t.length > 0)
-    .join(AGENT_PROMPT_TAIL_JOINER);
-  // An empty tail means the trailing user run said nothing (or there was none): the whole history seeds and the
-  // stub is the query. Never a blank prompt, and never a bare tool row promoted to one.
-  const seedRows = tail.length > 0 ? history.slice(0, tailStart) : history;
-  return { seed: seedTurnsFor(seedRows), prompt: tail.length > 0 ? tail : AGENT_CONTINUATION_PROMPT_STUB };
-}
-
-/**
- * The tool-call ids whose exchange may ride the seed STRUCTURALLY — both halves present AND ADJACENT: a
- * `tool-call` part on an assistant row, answered by a `tool-result` with the same id in the tool run that
- * immediately follows it.
- *
- * THE ADJACENCY IS A FAIL-CLOSED RULE, not tidiness. The Anthropic wire requires every `tool_use` to be
- * answered by a `tool_result` in the very next message and refuses an orphan in either direction, so a seed
- * that emits half a pair is not a degraded turn — it is a 400 on EVERY later turn of that lineage. A history
- * can arrive half-paired for ordinary reasons (a context-window slide cuts between the call and its result,
- * an assembly materializes a recorded-but-unexecuted call), so the unpaired half degrades to the announced
- * text it rode as before #1605 and the turn still runs.
- *
- * PARSEABILITY IS PART OF THE SAME QUESTION. The wire's `tool_use.input` is an OBJECT and `arguments` is the
- * RAW model-emitted string, so a blob that is not a JSON object cannot become a valid `tool_use` — and the
- * decision has to be made HERE, with the pair, or the frame builder would drop one half of a pair this
- * function had already blessed and mint the orphan itself.
- */
-function pairedToolCallIds(history: readonly TurnMessage[]): ReadonlySet<string> {
-  const paired = new Set<string>();
-  history.forEach((row, index) => {
-    if (row.role !== "assistant") {
-      return;
-    }
-    const answered = answeredIdsAfter(history, index);
-    for (const part of row.content) {
-      if (part.type === "tool-call" && answered.has(part.toolCallId) && isJsonObject(part.arguments)) {
-        paired.add(part.toolCallId);
-      }
-    }
-  });
-  return paired;
-}
-
-/** The tool-call ids answered by the run of `tool` rows IMMEDIATELY following `index` — the only place the wire
- *  accepts an answer, so a result further down the transcript does not count as one. */
-function answeredIdsAfter(history: readonly TurnMessage[], index: number): ReadonlySet<string> {
-  const answered = new Set<string>();
-  for (let j = index + 1; j < history.length && history[j]?.role === "tool"; j += 1) {
-    for (const part of history[j]?.content ?? []) {
-      if (part.type === "tool-result") {
-        answered.add(part.toolCallId);
-      }
-    }
-  }
-  return answered;
-}
-
-/** Does this raw model-emitted argument blob parse to a JSON OBJECT — the only thing the wire's `tool_use.input`
- *  may be? `JSON.parse`, never an object literal: `parse` defines a `__proto__` key as an OWN property where a
- *  literal would set the prototype. */
-function isJsonObject(raw: string): boolean {
-  let parsed: unknown;
-  // @orb-waive caught-failure-ownership(catch): CLASSIFIER, not a failure — "does this model-emitted blob parse to an object" is the question, and `false` IS the answer (the pair degrades to announced text, which the caller renders). Reporting it would raise a user-facing error for a turn that runs correctly. Ends if this ever gates something other than the structural-vs-text choice.
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    return false;
-  }
-  return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed);
-}
-
-/** Is this part riding as a REAL SDK block rather than as announced text? Only a tool part, and only when its
- *  other half is present and adjacent ({@link pairedToolCallIds}). */
-function ridesAsBlock(part: TurnContentPart, paired: ReadonlySet<string>): boolean {
-  return (part.type === "tool-call" || part.type === "tool-result") && paired.has(part.toolCallId);
-}
-
-/**
- * One history row's seed blocks: the rendered text (label- and name-stamped) FIRST, then the structural tool
- * blocks in their own order — the shape the engine actually produces (`[text?, tool-call…]` on the assistant
- * row, `[tool-result]` on each tool row).
- *
- * A STRUCTURAL BLOCK TAKES NO LABEL, and that is the point of the arm: `Tool result:` is a host claim the
- * model has to believe, where a `tool_result` block is a role the wire itself carries. The label survives for
- * everything that still rides as text — a degraded pair, a system row — so nothing ever wears the human's
- * voice by default (#1457).
- */
-function seedBlocksFor(m: TurnMessage, paired: ReadonlySet<string>): AgentSeedBlock[] {
-  const structural: AgentSeedBlock[] = [];
-  const rendered: TurnContentPart[] = [];
-  for (const part of m.content) {
-    if (ridesAsBlock(part, paired)) {
-      structural.push(part as AgentSeedBlock);
-    } else {
-      rendered.push(part);
-    }
-  }
-  const text = agentRowText(m, rendered);
-  const labelled = text.length > 0 && AGENT_SEED_FRAMES[m.role].announce ? `${AGENT_ROW_LABELS[m.role]}: ${text}` : text;
-  return [...(labelled.length > 0 ? [{ type: "text", text: labelled } as const] : []), ...structural];
-}
-
-/**
- * The seed: one turn per history row, EXCEPT that a contiguous run of `tool` rows folds into ONE `user` turn.
- * The fold is required by the same wire rule the pairing check serves — every `tool_result` answering one
- * assistant message must ride in a SINGLE following user message, and the engine emits one `tool` row per
- * executed call, so a row-per-turn seed would split a two-call batch across two user messages and 400.
- *
- * A row that renders to nothing contributes NO frame: `content: [{type:"text", text:""}]` is a body the
- * Anthropic wire rejects, and an empty frame is not a turn anyone took.
- */
-function seedTurnsFor(rows: readonly TurnMessage[]): AgentSeedTurn[] {
-  const paired = pairedToolCallIds(rows);
-  const seed: AgentSeedTurn[] = [];
-  let i = 0;
-  while (i < rows.length) {
-    const row = rows[i];
-    if (row === undefined) {
-      i += 1;
-      continue;
-    }
-    if (row.role === "tool") {
-      const run = foldToolRun(rows, i, paired);
-      if (run.content.length > 0) {
-        seed.push({ role: AGENT_SEED_FRAMES.tool.frame, content: run.content });
-      }
-      i = run.next;
-      continue;
-    }
-    const content = seedBlocksFor(row, paired);
-    if (content.length > 0) {
-      seed.push({ role: AGENT_SEED_FRAMES[row.role].frame, content });
-    }
-    i += 1;
-  }
-  return seed;
-}
-
-/** The blocks of the whole contiguous `tool` run starting at `start`, plus the index after it. */
-function foldToolRun(rows: readonly TurnMessage[], start: number, paired: ReadonlySet<string>): { content: AgentSeedBlock[]; next: number } {
-  const content: AgentSeedBlock[] = [];
-  let i = start;
-  while (i < rows.length) {
-    const row = rows[i];
-    if (row === undefined || row.role !== "tool") {
-      break;
-    }
-    content.push(...seedBlocksFor(row, paired));
-    i += 1;
-  }
-  return { content, next: i };
 }
 
 /** What `buildChatService` needs from the composition root — boot primitives + the already-built sibling
@@ -665,33 +335,21 @@ function buildChatToolOps(toolUse: ToolUseService, resolveHostPrincipal: (userId
   const asResolvedSet = (set: ChatToolSet): ResolvedToolSet => set as any as ResolvedToolSet;
   return {
     resolveTools: (driverUserId, names) => toolUse.resolveTools(driverUserId, names),
-    toWireTools: (set) => toolUse.toWireTools(asResolvedSet(set)),
-    executeToolCalls: async (set, calls, frame) =>
-      toolUse.executeToolCalls(asResolvedSet(set), calls, {
+    toToolDefinitions: (set) => toolUse.toToolDefinitions(asResolvedSet(set)),
+    // The host Principal is resolved ONCE per turn, here, before the request is built — a failed lookup fails
+    // the turn on every wire instead of surfacing inside an SDK-driven tool handler as text the model reads.
+    prepareExecution: async (set, frame) => {
+      const exec = {
         principal: await resolveHostPrincipal(frame.runAsUserId),
         triggeredBy: frame.triggeredBy,
         chatId: frame.chatId,
         membership: frame.membership,
         turnId: frame.turnId,
         ...(frame.signal !== undefined ? { signal: frame.signal } : {}),
-      }),
-    // The stateful-arm projection: the SAME resolved set + exec frame, wrapped as an in-process MCP server
-    // (project-mcp funnels every SDK invocation back through executeToolCalls — one execute path, two
-    // projections). The D47 SDK factory is injected HERE so tool-use never imports infra.
-    toAgentToolServer: async (set, frame, onRecord) =>
-      toolUse.toAgentToolServer(
-        asResolvedSet(set),
-        {
-          principal: await resolveHostPrincipal(frame.runAsUserId),
-          triggeredBy: frame.triggeredBy,
-          chatId: frame.chatId,
-          membership: frame.membership,
-          turnId: frame.turnId,
-          ...(frame.signal !== undefined ? { signal: frame.signal } : {}),
-        },
-        { createAgentToolServer },
-        onRecord,
-      ),
+      };
+      const resolved = asResolvedSet(set);
+      return (calls) => toolUse.executeToolCalls(resolved, calls, exec);
+    },
   };
 }
 
@@ -735,77 +393,35 @@ function outOfBandChunks(events: readonly ChatEvent[]): TurnStreamChunk[] {
   return refused ? [...seen.values(), { kind: "refusal" }] : [...seen.values()];
 }
 
-/** The AGENT-SDK arm of the turn mapping: the stateful wire. Trailing depth-0 system rows have already been
- *  lifted out of the transcript by {@link extractTrailingSystemRows} and joined onto `dynamic`, because the SDK
- *  delivers mid-conversation system authority through the dynamic-context hook channel rather than as history
- *  rows. The shape is ONE (#1607): chatId + seed frames + a prompt, which is the trailing user run when there is
- *  one and the host-authored continuation stub when there is not. */
-function agentSdkChatRequest(args: { readonly req: TurnRequest; readonly onDelta: (delta: ChatDeltaEvent) => void }): ChatRequest {
+/** The domain {@link TurnRequest} → the BACKEND-NEUTRAL {@link ChatTurnInput}. No wire branch lives here: how
+ *  the history and the tools reach a backend (Agent SDK seed frames + an MCP server, or a history array + a
+ *  `tools[]` declaration) is `@orb/inference`'s `toChatRequest` (`docs/design/inference-tool-delivery.md`). What
+ *  stays is this seam's own concern — the deployment's cache-depth FLOOR, layered onto SHAPE's depth. */
+function chatTurnInputOf(args: {
+  readonly req: TurnRequest;
+  readonly onDelta: (delta: ChatDeltaEvent) => void;
+  readonly promptCacheMinDepth: number;
+}): ChatTurnInput {
   const { req, onDelta } = args;
-  const extract = extractTrailingSystemRows(req.history);
-  const split = splitAgentHistory(extract.rows);
-  const dynamic =
-    extract.systemText === null
-      ? req.prompt.dynamic
-      : [req.prompt.dynamic, extract.systemText].filter((s) => s.trim().length > 0).join(AGENT_PROMPT_TAIL_JOINER);
   return {
-    api: "agent-sdk",
     // The WHOLE resolved connection rides the request (§8.4-3): provider row, credential, folded features,
     // extras and capability — the runtime picks the wire off it; nothing here re-derives a routing fact.
     connection: req.connection,
     params: req.intent,
-    // `dynamic` carries the extracted trailing system injections — they ride the resolved
-    // dynamic-context channel (the hook on a midConversationSystem model) as real system authority.
-    systemPrompt: { static: req.prompt.static, dynamic },
-    // The stateful tool + structured-output channels (the array wires spread tools/responseFormat
-    // on their own arm below): the MCP server mounts the domain's resolved set; responseFormat
-    // rides the SDK's own outputFormat (json_schema) — never silently dropped.
-    ...(req.agentToolServer !== undefined ? { toolServer: req.agentToolServer, toolTurnLimit: req.agentToolTurnLimit } : {}),
-    ...(req.responseFormat !== undefined ? { responseFormat: req.responseFormat } : {}),
-    // The TERMINAL channel (D112 R1): the backend mounts these as its own deny-on-use MCP server and
-    // hands the co-emitted calls back on `result.toolCalls` — the SAME field the array wires report,
-    // so the pipeline's fold reads one shape.
-    ...(req.agentTerminalTools !== undefined ? { terminalTools: req.agentTerminalTools } : {}),
-    chatId: req.chatId,
-    seed: split.seed,
-    prompt: split.prompt,
-    onDelta,
-    signal: req.signal,
-  };
-}
-
-/** The ARRAY-WIRE arm of the turn mapping (chat-completions / anthropic-messages): the transcript travels as
- *  real history rows and the preset's passthrough channels ride the request as-is. Both apis share one shape
- *  (`HistoryChatRequest`); the discriminant is the connection's own `api`. */
-function arrayWireChatRequest(args: {
-  readonly req: TurnRequest;
-  readonly api: "chat-completions" | "anthropic-messages";
-  readonly onDelta: (delta: ChatDeltaEvent) => void;
-  readonly promptCacheMinDepth: number;
-}): ChatRequest {
-  const { req, onDelta } = args;
-  return {
-    api: args.api,
-    connection: req.connection,
-    params: req.intent,
     systemPrompt: { static: req.prompt.static, dynamic: req.prompt.dynamic },
-    // Carried so the wire-capture sink keys the recorded body by chat (the debug endpoint's `chatId`
-    // filter); the agent-sdk arm sets it on the seeded spread above.
+    // Carried so the wire-capture sink keys the recorded body by chat (the debug endpoint's `chatId` filter),
+    // and so the stateful backend keys its resume cache by it.
     chatId: req.chatId,
     history: req.history,
-    // The cache breakpoint DEPTH (role switches from the end — `backends/kit/cache-control.ts` owns
-    // the axis). SHAPE computes the turn's MINIMUM SAFE depth and returns nothing at all when the
-    // stable prefix is disrupted; the admin knob is a FLOOR layered on top, so it can only push the
-    // breakpoint DEEPER (more of the tail kept volatile), never shallower — a shallower breakpoint
-    // pins bytes that change every turn, which is a guaranteed wasted cache write, not a preference.
-    // SHAPE's abort therefore stays absolute: no safe depth ⇒ no breakpoint, whatever the knob says.
+    // The cache breakpoint DEPTH (role switches from the end — `backends/kit/cache-control.ts` owns the axis).
+    // SHAPE computes the turn's MINIMUM SAFE depth and returns nothing at all when the stable prefix is
+    // disrupted; the admin knob is a FLOOR layered on top, so it can only push the breakpoint DEEPER (more of
+    // the tail kept volatile), never shallower — a shallower breakpoint pins bytes that change every turn, which
+    // is a guaranteed wasted cache write, not a preference. SHAPE's abort therefore stays absolute: no safe depth
+    // ⇒ no breakpoint, whatever the knob says.
     cacheBreakpointDepth: req.cacheBreakpointFromEnd === null ? undefined : Math.max(req.cacheBreakpointFromEnd, args.promptCacheMinDepth),
-    // Endpoint body extras ride the CONNECTION (`connection.extras`, §8.1c) — the preset carries none.
     ...(req.tools !== undefined ? { tools: req.tools } : {}),
-    ...(req.toolChoice !== undefined ? { toolChoice: req.toolChoice } : {}),
     ...(req.responseFormat !== undefined ? { responseFormat: req.responseFormat } : {}),
-    // The preset's inline-reasoning tags (the F-table "Adopt" row) — only the openai-compat transport reads
-    // them, and only when the row declares no native reasoning delta field.
     ...(req.reasoningTags !== undefined ? { reasoningTags: req.reasoningTags } : {}),
     onDelta,
     signal: req.signal,
@@ -922,9 +538,9 @@ function createChunkPump<T>(): {
   return { push, close, fail, drain };
 }
 
-/** The domain→infra turn bridge: maps a domain {@link TurnRequest} to the infra {@link ChatRequest} (the
- *  agent-sdk split + the chat-completions/responses passthrough spreads — customParameters/tools/toolChoice/
- *  responseFormat/cacheBreakpoint), runs it through the injected infra `runChatTurn`, and adapts its
+/** The domain→infra turn bridge: maps a domain {@link TurnRequest} to the neutral turn and through `toChatRequest`
+ *  to the infra {@link ChatRequest} (the per-wire delivery of history and tools is inference's; this seam adds the
+ *  admin cache-depth floor), runs it through the injected infra `runChatTurn`, and adapts its
  *  Promise+onDelta shape back onto the chat role's streaming AsyncIterable. Extracted so the four-layer
  *  fidelity harness drives THIS real mapping (injecting only the leaf infra surface), not a facsimile. */
 export function createRunChatTurnBridge(deps: {
@@ -941,18 +557,9 @@ export function createRunChatTurnBridge(deps: {
       pump.push({ kind: delta.kind, text: delta.text });
     };
 
-    // The wire SHAPE is the connection's own `api` (validated ∈ the provider's `apis` on write and at resolve,
-    // §7.3): the stateful agent-sdk seed+prompt split, or one of the two history-array wires.
-    const api = req.connection.api;
-    if (api === null) {
-      // A chat task resolved to a row with no chat api (an embedding-kind connection bound to `chat`) — the
-      // resolver's `requirementMet` refuses this upstream; here it is an invariant, not a branch.
-      throw new ProviderError({ kind: "invalid", retryable: false, message: `connection ${req.connection.connectionId} carries no chat api` });
-    }
-    const chatReq =
-      api === "agent-sdk"
-        ? agentSdkChatRequest({ req, onDelta })
-        : arrayWireChatRequest({ req, api, onDelta, promptCacheMinDepth: deps.promptCacheMinDepth?.() ?? 0 });
+    // The wire SHAPE is `@orb/inference`'s to decide off the connection's own `api` (validated ∈ the provider's
+    // `apis` on write and at resolve, §7.3) — including the refusal of a chat row with no chat api.
+    const chatReq = toChatRequest(chatTurnInputOf({ req, onDelta, promptCacheMinDepth: deps.promptCacheMinDepth?.() ?? 0 }));
 
     // @orb-waive caught-failure-ownership(runChatTurn): propagated — the rejection reaches
     // `pump.fail(err)` in the `.catch` below, which the consuming `yield* pump.drain()` surfaces to the

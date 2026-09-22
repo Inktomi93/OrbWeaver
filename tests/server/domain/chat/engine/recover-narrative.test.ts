@@ -194,11 +194,9 @@ describe("resolveTurnNarrative — the recoverable class", () => {
     const { requests } = await driveTurn([PROSELESS_PASS, prosePass("Torchlight.")]);
 
     const [pass1, pass2] = requests;
-    expect(pass1?.tools?.map((t) => t.name)).toEqual(["rpg_apply_state"]);
-    expect(pass1?.toolChoice).toEqual({ mode: "auto" });
+    expect(pass1?.tools?.terminal?.map((t) => t.name)).toEqual(["rpg_apply_state"]);
     // Absent, never `[]`: an empty array would still take the attach path on some wires.
     expect(pass2?.tools).toBeUndefined();
-    expect(pass2?.toolChoice).toBeUndefined();
   });
 
   test("the ask is APPENDED to the turn's own trailing user row, never replacing it", async () => {
