@@ -94,6 +94,9 @@ type RawRow = z.infer<typeof rowSchema>;
 
 /** OpenRouter's variant suffix (`vendor/model:batch`) — the id before it names the model. */
 const VARIANT_SEPARATOR = ":";
+/** The ONE variant that is the same serving as its base. `:free` shares the canonical slug but is a different
+ *  serving (its own window and parameter set), so it keeps its own id. */
+const SAME_SERVING_VARIANT = ":batch";
 
 /** The base id each canonical slug belongs to, from the rows that carry no variant suffix. */
 function baseIdsBySlug(rows: readonly RawRow[]): ReadonlyMap<string, string> {
@@ -107,13 +110,13 @@ function baseIdsBySlug(rows: readonly RawRow[]): ReadonlyMap<string, string> {
 }
 
 /** The id whose model facts this row shares, ONLY as the catalog states it: an alias's named target, or the
- *  un-suffixed row a variant shares its canonical slug with. A floating alias with no target stays itself. */
+ *  un-suffixed row a `:batch` variant shares its canonical slug with. Anything else stays itself. */
 function aliasOf(row: RawRow, bases: ReadonlyMap<string, string>): string | undefined {
   const target = row.alias_target?.slug;
   if (target !== undefined) {
     return target;
   }
-  if (!row.id.includes(VARIANT_SEPARATOR) || row.canonical_slug === undefined) {
+  if (!row.id.endsWith(SAME_SERVING_VARIANT) || row.canonical_slug === undefined) {
     return;
   }
   return bases.get(row.canonical_slug);
