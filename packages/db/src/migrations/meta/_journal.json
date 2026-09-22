@@ -29,6 +29,13 @@
       "when": 1790002041377,
       "tag": "0003_chat_stream_cursor_generation",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1790059091704,
+      "tag": "0004_require_session_entry_connection",
+      "breakpoints": true
     }
   ]
 }
