@@ -64,9 +64,19 @@ test("a design becomes a belt-legal draft; the call rides the ENFORCED grammar a
   expect(call?.system).toContain("overallScore");
   expect(call?.system).toContain("Design the whole schema now");
   expect(call?.user).toContain("rate the vibe");
-  // The schema_forge posture (the summarize seam speaks `maxTokens`), re-budgeted for the row language.
-  expect(call?.opts?.maxTokens).toBe(2048);
+  // The schema_forge posture, re-budgeted for the row language.
+  expect(call?.opts?.maxOutputTokens).toBe(2048);
   expect(call?.opts?.temperature).toBe(0.2);
+});
+
+// The side-gen posture ladder folds the owner's preset `topP` in; the call must carry it, not drop it at a seam.
+test("the owner's preset sampling reaches the forge call whole — topP included", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, { id: "user_gsch_topp" });
+  const h = makeRefineryHarness(db, { presetParams: { topP: 0.85, temperature: 0.5 } });
+  h.queueReply(designReply());
+  asArm(await h.svc.generateSchema({ principal: principal(owner), description: "rate the vibe", stage: "score" }), "draft");
+  expect(h.summarizeCalls.at(-1)?.opts).toMatchObject({ topP: 0.85, temperature: 0.5 });
 });
 
 test("a row the transpiler cannot place is itemized on the draft, never silently dropped", async () => {

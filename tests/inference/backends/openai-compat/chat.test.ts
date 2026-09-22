@@ -16,15 +16,18 @@
 
 import type { EFFORT_SPELLINGS, ProviderId } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
-import { castId } from "@orb/kit/ids";
+import { createInferenceRuntime } from "@orb/inference";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { runOpenAiCompatChatTurn } from "../../../../packages/inference/src/backends/openai-compat/chat.ts";
 import { curatedRows } from "../../../../packages/inference/src/capability/sources/curated/loader.ts";
 import { synthesizeCapability } from "../../../../packages/inference/src/capability/synthesize.ts";
 import type { ChatDeltaSubscription, ChatResult, OpenAiCompatChatRequest } from "../../../../packages/inference/src/contract/chat.ts";
 import { ProviderError } from "../../../../packages/inference/src/contract/errors.ts";
+import { principal } from "../../../support/factories/principal.ts";
 import { expect, test } from "../../../support/fixtures.ts";
-import { fakeApiKeySecret, fakeResolved } from "../../_support.ts";
+import { openRouterCatalogFetch } from "../../_openrouter-catalog.ts";
+import { fakeApiKeySecret, fakeConnection, fakeDeps, fakeResolved, memoryStores, newUserId } from "../../_support.ts";
 import type { RecordedRequest } from "../_hosted-support.ts";
 import { generationCapability, openAiTextStream, openRouterReasoningToolStream, scriptedSseFetch } from "../_hosted-support.ts";
 
@@ -445,6 +448,43 @@ test("a 400 that is NOT a mandatory-reasoning refusal is NOT replayed, and reach
   expect(failure, "an unrelated 400 must surface as the contract's ONE error class, never a raw SDK object").toBeInstanceOf(ProviderError);
   expect(failure instanceof ProviderError ? failure.kind : null, "a 400 is a structurally-invalid request").toBe("invalid");
   expect(recorded, "an unrelated failure is not replayed").toHaveLength(1);
+});
+
+// ── the Anthropic route follows the id the model FACTS come from ─────────────────────────────────────────
+// A floating `~anthropic/…-latest` alias folds Claude's capability through its catalog target, so the wire's
+// Anthropic decisions (the pinned provider routing, the system split and cache placement) must read the same
+// id — never the raw alias spelling.
+
+async function runtimeTurnBody(model: string): Promise<Record<string, unknown>> {
+  const recorded: RecordedRequest[] = [];
+  const catalog = openRouterCatalogFetch();
+  const chat = scriptedSseFetch([openAiTextStream("ok")], recorded);
+  const fetchImpl: typeof fetch = (input, init) => (String(input).includes("/chat/completions") ? chat(input, init) : catalog(input, init));
+  const stores = memoryStores();
+  const ownerId = newUserId();
+  const credentialId = mintTypeId(ID_PREFIX.userCredential);
+  const row = fakeConnection({ ownerId, providerId: "openrouter", model, allowBackground: true, credentialId });
+  stores.connections.rows.set(row.id, row);
+  stores.bindings.bind({ actorKind: "user", actorId: ownerId, task: "chat", connectionId: row.id });
+  const secrets = new Map([[credentialId, fakeApiKeySecret("sk-or-not-a-real-key")]]);
+  const runtime = await createInferenceRuntime(fakeDeps({ stores, fetch: fetchImpl, secrets }));
+  const { resolved } = await runtime.resolve({ task: "chat", principal: principal(ownerId) });
+  await runtime.executor.runChatTurn({
+    api: "chat-completions",
+    connection: { ...resolved, task: "chat" },
+    params: {},
+    systemPrompt: { static: "You are a helpful assistant.", dynamic: "" },
+    history: [{ role: "user", content: [{ type: "text", text: "Hi." }] }],
+  });
+  return recorded[0]?.body ?? {};
+}
+
+test("a `~anthropic/…-latest` alias rides the Anthropic route: pinned routing and a cached system block", async () => {
+  const body = await runtimeTurnBody("~anthropic/claude-fable-latest");
+  expect(body["provider"]).toEqual({ order: ["Anthropic"], allow_fallbacks: false });
+  expect(body["messages"]).toMatchObject([{ role: "system", content: [{ type: "text", cache_control: { type: "ephemeral", ttl: "1h" } }] }, { role: "user" }]);
+  // PLANTED CONTROL: an alias whose catalog row names no target is not treated as Claude by its spelling.
+  expect((await runtimeTurnBody("~anthropic/claude-mystery-latest"))["provider"]).toBeUndefined();
 });
 
 // ── forced tool choice on the openai-compat wire ─────────────────────────────────────────────────────────

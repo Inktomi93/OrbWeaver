@@ -91,7 +91,9 @@ export const anthropicRows = [
         defaultEffort: "medium",
       },
       // Forced `tool_choice` (`any` / `tool`) 400s on this model; Opus 5 accepts both.
+      // A `tools` cell restates `parallel`: a sub-fact alone is refused at parse (the cell means "accepts tools[]").
       tools: {
+        parallel: true,
         forcedChoice: false,
       },
     },
@@ -262,7 +264,9 @@ export const anthropicRows = [
     generation: {
       // The 5.1 point releases 400 a forced `tool_choice` (`any` / `tool`); Fable 5 and Mythos 5 accept it, which is
       // why this is its own row and not a cell on the family row above.
+      // A `tools` cell restates `parallel`: a sub-fact alone is refused at parse (the cell means "accepts tools[]").
       tools: {
+        parallel: true,
         forcedChoice: false,
       },
     },

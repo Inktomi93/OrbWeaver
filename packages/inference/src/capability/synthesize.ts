@@ -71,14 +71,6 @@ function mergeGeneration(base: GenerationCapability, patch: GenerationPatch | Pa
   return merged as GenerationCapability;
 }
 
-/** `tools` PRESENT means "accepts tools[]", which only a tier stating `parallel` establishes. Checked once the
- *  whole fold has run, so a lower tier's sub-fact survives beneath a higher tier that establishes the cell; a
- *  sub-fact no tier established describes nothing and does not open it. */
-function withEstablishedTools(capability: GenerationCapability): GenerationCapability {
-  const { tools, ...rest } = capability;
-  return tools === undefined || "parallel" in tools ? capability : rest;
-}
-
 function mergeFlat<T extends object>(base: T, patch: Patch<T> | undefined): T {
   if (patch === undefined) {
     return base;
@@ -114,7 +106,7 @@ function synthesizeGeneration(family: ModelFamily, evidence: Evidence): Synthesi
     capability = mergeGeneration(capability, row);
   }
   const declared = evidence.declared?.generation;
-  capability = withEstablishedTools(mergeGeneration(capability, declared));
+  capability = mergeGeneration(capability, declared);
   // The window is ESTIMATED unless a tier above the floor stated one.
   const windowStated =
     [...(evidence.curated ?? []), ...(evidence.measured ?? [])].some((row) => row.generation?.context?.window !== undefined) ||

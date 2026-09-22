@@ -28,7 +28,6 @@ import type { AssetId, CharacterId, ChatId, MessageId, PendingTurnId, PersonaId,
 import type { MacroFreeze, MacroRegistry, UserMacroDef } from "@orb/kit/macro";
 import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
 import { foreignLabelStops } from "@orb/kit/speaker-label";
-import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
 import { getLog, withRequestSpan } from "#foundation/observability";
 import type { ChatContext } from "../context.ts";
 import type { ActiveTurns } from "../contract/active-turns.ts";
@@ -867,8 +866,8 @@ async function arbitrate(
   if (args.group.policy === "smart" && forced.length === 0 && args.group.output !== "narrator") {
     // The side-gen sampling ladder: the `arbiter` floor (temp 0.2, 24 out — a deterministic name pick) ← the
     // chat host's default-preset params. A user with no preset params gets byte-identical behavior; a user WITH
-    // preset params can now widen/tune it. Mapped to the summarize seam's `{temperature, maxTokens}`.
-    const arbiterSampling = toSummarizeOptions(resolveSideGenSampling(SIDE_GEN_POSTURES.arbiter, await ctx.resolveChatPresetParams(args.chatId)));
+    // preset params can now widen/tune it. The resolved posture is the summarize options as-is.
+    const arbiterSampling = resolveSideGenSampling(SIDE_GEN_POSTURES.arbiter, await ctx.resolveChatPresetParams(args.chatId));
     const smart = await smartArbitrateVia({
       summarize: (inputs, opts) => ctx.summarize(args.funderUserId, inputs, opts),
       candidates: args.candidates,

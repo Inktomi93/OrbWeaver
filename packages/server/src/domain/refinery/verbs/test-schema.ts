@@ -6,11 +6,10 @@
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { refinerySchemaDocumentSchema } from "@orb/contracts/refinery";
 import type { StructuredOptions } from "@orb/contracts/role-clients";
+import { runStructuredTurn, StructuredOutputError } from "@orb/inference";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { liftJsonSchema, projectJsonSchema } from "@orb/kit/json-schema";
 import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
-import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
-import { runStructuredTurn, StructuredOutputError } from "@orb/server/kit/structured-turn";
 import type { RefineryContext } from "../context.ts";
 import { RefineryRunFailedError } from "../contract/errors.ts";
 import type { RefineryService } from "../contract/service.ts";
@@ -36,7 +35,7 @@ export function createTestSchema(ctx: RefineryContext): RefineryService["testSch
     const posture = stage === "score" ? SIDE_GEN_POSTURES.refine_score : SIDE_GEN_POSTURES.refine_analyze;
     const sampleOpts: StructuredOptions = {
       responseFormat: { name: "refinery_schema_preview", schema: projected },
-      ...toSummarizeOptions(resolveSideGenSampling(posture, presetParams)),
+      ...resolveSideGenSampling(posture, presetParams),
     };
     // The drill prompt: the whole card's populated core in scope (a preview wants the full treatment),
     // the draft's own shape spliced, no guidance. An analyze drill has no rewrite to judge — it reads the
