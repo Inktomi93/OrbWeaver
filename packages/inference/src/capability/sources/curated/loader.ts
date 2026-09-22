@@ -36,7 +36,7 @@ const CURATED: readonly CompiledRow[] = [
   ...compileRows("curated/embedders.ts", embeddersRows),
 ];
 
-export type CuratedQuery = RowQuery;
+type CuratedQuery = RowQuery;
 
 /** Every curated row that matches, in composition order. Empty ⇒ nothing curated for this model. */
 export function curatedRows(query: CuratedQuery): readonly CapabilityOverride[] {

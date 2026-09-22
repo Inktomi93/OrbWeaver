@@ -5,6 +5,8 @@
 // constructs messages from the task/wire/provider vocabulary only; the wire-level secret scrub
 // (`backends/kit/sanitize.ts`) is a backend concern.
 
+import type { AgentSdkSessionId } from "./identity.ts";
+
 declare const providerScrubSet: unique symbol;
 
 /** The by-value scrub set an HTTP boundary hands the error classifier: a `readonly string[]` with a phantom
@@ -53,7 +55,7 @@ export interface ProviderErrorInit {
   /** The specific SDK code the classification narrowed from (`oauth_org_not_allowed` under `auth_failed`). */
   readonly detail?: string;
   /** The backend-internal session this failure occurred on (the agent-sdk resume-cache id) — provenance only. */
-  readonly sessionId?: string;
+  readonly sessionId?: AgentSdkSessionId;
   /** The upstream request/generation id, when the response exposes one. */
   readonly requestId?: string;
   readonly cause?: unknown;
@@ -67,7 +69,7 @@ export class ProviderError extends Error {
   readonly model: string | undefined;
   readonly terminalReason: string | undefined;
   readonly detail: string | undefined;
-  readonly sessionId: string | undefined;
+  readonly sessionId: AgentSdkSessionId | undefined;
   readonly requestId: string | undefined;
 
   constructor(init: ProviderErrorInit) {

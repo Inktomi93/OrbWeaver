@@ -99,6 +99,7 @@ import {
   recordWireCapture,
   securityEvent,
   span,
+  superviseDetached,
 } from "#foundation/observability";
 import { versionIdentity } from "#foundation/version";
 import { createPasswordHasher } from "#infra/auth";
@@ -404,6 +405,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     now,
     log: getLog(),
     span: (name, fn, attrs) => span(name, () => fn(), attrs),
+    superviseDetached: (name, attrs, operation) => superviseDetached(`inference:${randomUUID()}`, name, attrs, operation),
     addSpanEvent,
     securityEvent: (kind, fields) => securityEvent(kind, { ...fields }),
     env: {

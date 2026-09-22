@@ -6,6 +6,7 @@
 
 import type { ImageInput } from "@orb/contracts/role-clients";
 import { ProviderError } from "../../contract/errors.ts";
+import type { AnthImageBlock, AnthImageMediaType } from "../../contract/runtime.ts";
 import type { NormalizeImageBytes } from "./image-normalize.ts";
 
 const BASE64 = "base64";
@@ -15,13 +16,6 @@ const DATA_URL_RE = /^data:(?<mime>[^;,]+);base64,(?<data>.*)$/s;
 /** The four image media types the Anthropic Messages wire accepts — its OWN closed set, spelled here so the
  *  block is assignable to the SDK's `ImageBlockParam` without a cast; anything else is refused up front. */
 const ANTH_IMAGE_MEDIA_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"] as const;
-type AnthImageMediaType = (typeof ANTH_IMAGE_MEDIA_TYPES)[number];
-
-/** An Anthropic Messages `image` content block — `base64` with a media type, or a `url` the provider fetches. */
-export type AnthImageBlock =
-  | { readonly type: "image"; readonly source: { readonly type: "base64"; readonly media_type: AnthImageMediaType; readonly data: string } }
-  | { readonly type: "image"; readonly source: { readonly type: "url"; readonly url: string } };
-
 function anthMediaType(mime: string): AnthImageMediaType {
   const found = ANTH_IMAGE_MEDIA_TYPES.find((candidate) => candidate === mime);
   if (found === undefined) {

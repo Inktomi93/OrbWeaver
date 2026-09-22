@@ -69,7 +69,7 @@ export const gate = defineGate({
   family: "detached-work-traced",
   authority: "hard",
   severity: "error",
-  population: "@server",
+  population: ["@server", "@inference"],
   // `types`, NOT `syntax` (#2256, corrected 2026-09-13). This policy derives its subject through
   // `lib/detached-work.ts#deriveRootSpanOpeners`, which reaches `staticStringValue` —
   // `node.getType().getLiteralValue()` plus `value.getSymbol()`. Asking a node for its TYPE is the checker,
@@ -119,6 +119,17 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        [TRACING_MODULE]:
+          "export function withRequestSpan(id: string, name: string, attrs: A, fn: () => Promise<void>): Promise<void> {\n" +
+          "  return t.startActiveSpan(name, { attributes: attrs, root: true }, fn);\n}\n",
+        "packages/inference/src/backends/local-light/model-cache.ts":
+          "export function dispose(superviseDetached: D, model: M): void {\n  superviseDetached(id, NAME, {}, () => model.dispose());\n}\n",
+      },
+      why: "the health verdict remains measurable when the family judges the inference package as well as server",
+    },
     {
       mode: "types",
       files: {

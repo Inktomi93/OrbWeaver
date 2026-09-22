@@ -77,7 +77,7 @@ export function buildBackends(deps: InferenceDeps): BuiltBackends {
   };
   const openAiCompat = createOpenAiCompatBackend({ ...shared, app: deps.app, embedSpaceDims: deps.embedSpace.dims });
   const anthropic = createAnthropicBackend(shared);
-  const localLight = createLocalLightBackend({ now: deps.now, log: deps.log, span: deps.span, config: deps.localLight });
+  const localLight = createLocalLightBackend({ now: deps.now, log: deps.log, superviseDetached: deps.superviseDetached, config: deps.localLight });
   const agentSdk = skipped.has("agent-sdk")
     ? undefined
     : createAgentSdkBackend({

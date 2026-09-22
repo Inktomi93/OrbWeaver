@@ -164,7 +164,7 @@ export const gate = defineGate({
   family: "detached-work-traced",
   authority: "ordinary",
   severity: "error",
-  population: "@server",
+  population: ["@server", "@inference"],
   // `literalMember` resolves a bracket key through its literal TYPE, so a `const link = 'catch' as const`
   // key is the same read as `.catch` — that is a checker question, not a syntactic one.
   analysis: "types",
@@ -203,6 +203,18 @@ export const gate = defineGate({
     };
   },
   mustFlag: [
+    {
+      mode: "types",
+      files: {
+        [TRACING_MODULE]:
+          "export function withRequestSpan(id: string, name: string, attrs: A, fn: () => Promise<void>): Promise<void> {\n" +
+          "  return t.startActiveSpan(name, { attributes: attrs, root: true }, fn);\n}\n",
+        "packages/inference/src/backends/local-light/model-cache.ts":
+          "export function dispose(model: M): void {\n  void model.dispose().catch(() => undefined);\n}\n",
+      },
+      expect: { count: 1, token: "model.dispose" },
+      why: "inference model disposal is detached work and must enter through the injected supervised boundary",
+    },
     {
       mode: "types",
       files: {
@@ -307,6 +319,19 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        [TRACING_MODULE]:
+          "export function withRequestSpan(id: string, name: string, attrs: A, fn: () => Promise<void>): Promise<void> {\n" +
+          "  return t.startActiveSpan(name, { attributes: attrs, root: true }, fn);\n}\n" +
+          "export function superviseDetached(id: string, name: string, attrs: A, fn: () => Promise<void>): void {\n" +
+          "  withRequestSpan(id, name, attrs, fn).catch((err) => log.error({ err }));\n}\n",
+        "packages/inference/src/backends/local-light/model-cache.ts":
+          "export function dispose(superviseDetached: D, model: M): void {\n  superviseDetached(id, NAME, {}, () => model.dispose());\n}\n",
+      },
+      why: "an inference caller may use the server-injected supervisor without importing above its package boundary",
+    },
     {
       mode: "types",
       files: {

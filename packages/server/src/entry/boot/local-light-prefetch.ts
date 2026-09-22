@@ -17,6 +17,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { RoutableTask } from "@orb/contracts/inference";
 import type { InferenceRuntime, LocalLightModelSlot, LocalLightPrefetchTarget } from "@orb/inference";
 import { DEFAULT_MATTE_MODEL, LOCAL_LIGHT_MODEL_SLOTS, NoConnectionError } from "@orb/inference";
+import type { ModelId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 
 const LOCAL_LIGHT_PROVIDER_ID = "local-light";
@@ -41,7 +42,7 @@ export interface LocalLightPrefetchPlanDeps {
 /** Resolve one task for one principal and report the local-light model it would use, or `null` when it lands
  *  elsewhere or nowhere. `no-connection` is the ordinary "not local-light" answer here; any OTHER resolver
  *  failure is logged and treated the same — the prefetch is an optimization and must never fail a boot. */
-async function localLightModelFor(deps: LocalLightPrefetchPlanDeps, principal: Principal, task: RoutableTask): Promise<string | null> {
+async function localLightModelFor(deps: LocalLightPrefetchPlanDeps, principal: Principal, task: RoutableTask): Promise<ModelId | null> {
   try {
     const { resolved } = await deps.resolve({ task, principal });
     return resolved.provider.id === LOCAL_LIGHT_PROVIDER_ID ? resolved.model : null;
@@ -58,7 +59,7 @@ async function localLightModelFor(deps: LocalLightPrefetchPlanDeps, principal: P
 }
 
 /** The first of a slot's tasks that lands on local-light for this principal claims the slot (header). */
-async function firstLocalLightModel(deps: LocalLightPrefetchPlanDeps, principal: Principal, tasks: readonly RoutableTask[]): Promise<string | null> {
+async function firstLocalLightModel(deps: LocalLightPrefetchPlanDeps, principal: Principal, tasks: readonly RoutableTask[]): Promise<ModelId | null> {
   for (const task of tasks) {
     const modelId = await localLightModelFor(deps, principal, task);
     if (modelId !== null) {
@@ -73,7 +74,7 @@ export async function planLocalLightPrefetch(deps: LocalLightPrefetchPlanDeps): 
   if (!deps.enabled) {
     return [];
   }
-  const bySlot = new Map<LocalLightModelSlot, string>();
+  const bySlot = new Map<LocalLightModelSlot, ModelId>();
   for (const principal of deps.principals) {
     for (const { slot, tasks } of TASK_SLOTS) {
       const modelId = bySlot.has(slot) ? null : await firstLocalLightModel(deps, principal, tasks);

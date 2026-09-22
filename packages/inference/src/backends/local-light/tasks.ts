@@ -4,9 +4,10 @@
 // PAIR kind is refused — jina-clip has two encoders and defines no fused vector), and the `matte` op
 // (RMBG background removal — NOT a task; the composition root binds it as a narrow op).
 
-import { LOCAL_LIGHT_SEED_ROWS } from "@orb/contracts/inference";
+import { LOCAL_LIGHT_SEED_ROWS, modelIdSchema } from "@orb/contracts/inference";
 import type { EmbedResult, ImageEmbedResult, RerankResult } from "@orb/contracts/providers";
 import type { ImageEmbedInput, ImageInput, RerankQuery } from "@orb/contracts/role-clients";
+import type { ModelId } from "@orb/kit/ids";
 import { ProviderError } from "../../contract/errors.ts";
 import type { EmbedRequest, ImageEmbedRequest, RerankRequest } from "../../contract/roles.ts";
 import type { LocalLightModelCache } from "./model-cache.ts";
@@ -14,9 +15,9 @@ import { normalizeVector, throwIfAborted } from "./model-cache.ts";
 
 /** The bundled models — the rows `curated/local-light.ts` lists; the encoder + reranker are the SEEDED rows
  *  (`LOCAL_LIGHT_SEED_ROWS`, contracts), the matte is the imagery op's default. */
-export const DEFAULT_EMBED_MODEL: string = LOCAL_LIGHT_SEED_ROWS[0].model;
-export const DEFAULT_RERANK_MODEL: string = LOCAL_LIGHT_SEED_ROWS[1].model;
-export const DEFAULT_MATTE_MODEL = "briaai/RMBG-1.4";
+export const DEFAULT_EMBED_MODEL = modelIdSchema.parse(LOCAL_LIGHT_SEED_ROWS[0].model);
+export const DEFAULT_RERANK_MODEL = modelIdSchema.parse(LOCAL_LIGHT_SEED_ROWS[1].model);
+export const DEFAULT_MATTE_MODEL = modelIdSchema.parse("briaai/RMBG-1.4");
 
 interface KeptInput {
   readonly index: number;
@@ -35,7 +36,7 @@ function selectInputs(inputs: readonly string[], instruction: string | undefined
 }
 
 /** MRL truncation + L2. A request for MORE dims than the model emits is refused — padding invents coordinates. */
-function finalizeVector(vec: Float32Array, dimensions: number | undefined, modelId: string): Float32Array<ArrayBuffer> {
+function finalizeVector(vec: Float32Array, dimensions: number | undefined, modelId: ModelId): Float32Array<ArrayBuffer> {
   if (dimensions === undefined || dimensions === vec.length) {
     return normalizeVector(vec);
   }
@@ -67,7 +68,7 @@ function scatter(
 }
 
 /** `spaceTag` maps the loaded repo id to the VECTOR-SPACE identity reported as `result.model` (dtype folded in). */
-export function createLocalLightEmbed(cache: LocalLightModelCache, spaceTag: (modelId: string) => string): (req: EmbedRequest) => Promise<EmbedResult> {
+export function createLocalLightEmbed(cache: LocalLightModelCache, spaceTag: (modelId: ModelId) => string): (req: EmbedRequest) => Promise<EmbedResult> {
   return async (req) => {
     throwIfAborted(req.signal);
     const modelId = req.connection.model;
@@ -117,7 +118,7 @@ export function createLocalLightRerank(cache: LocalLightModelCache): (req: Reran
 
 async function embedImageSide(
   cache: LocalLightModelCache,
-  modelId: string,
+  modelId: ModelId,
   input: ImageInput | readonly ImageInput[],
 ): Promise<(Float32Array<ArrayBuffer> | null)[]> {
   const images: readonly ImageInput[] = typeof input === "string" || input instanceof Uint8Array ? [input] : input;
@@ -132,7 +133,7 @@ async function embedImageSide(
   return raw.map((vec) => normalizeVector(vec));
 }
 
-async function embedTextSide(cache: LocalLightModelCache, modelId: string, input: string | readonly string[]): Promise<(Float32Array<ArrayBuffer> | null)[]> {
+async function embedTextSide(cache: LocalLightModelCache, modelId: ModelId, input: string | readonly string[]): Promise<(Float32Array<ArrayBuffer> | null)[]> {
   const texts: readonly string[] = typeof input === "string" ? [input] : input;
   const kept = selectInputs(texts, undefined);
   if (kept.length === 0) {
@@ -145,7 +146,7 @@ async function embedTextSide(cache: LocalLightModelCache, modelId: string, input
   return scatter(texts.length, kept, raw, normalizeVector);
 }
 
-function embedByKind(cache: LocalLightModelCache, modelId: string, input: ImageEmbedInput): Promise<(Float32Array<ArrayBuffer> | null)[]> {
+function embedByKind(cache: LocalLightModelCache, modelId: ModelId, input: ImageEmbedInput): Promise<(Float32Array<ArrayBuffer> | null)[]> {
   if (input.kind === "image") {
     return embedImageSide(cache, modelId, input.input);
   }
@@ -163,7 +164,7 @@ function embedByKind(cache: LocalLightModelCache, modelId: string, input: ImageE
 
 export function createLocalLightImageEmbed(
   cache: LocalLightModelCache,
-  spaceTag: (modelId: string) => string,
+  spaceTag: (modelId: ModelId) => string,
 ): (req: ImageEmbedRequest) => Promise<ImageEmbedResult> {
   return async (req) => {
     throwIfAborted(req.signal);
@@ -180,7 +181,7 @@ export function createLocalLightMatte(
 ): (bytes: Uint8Array, opts?: { model?: string; signal?: AbortSignal }) => Promise<Uint8Array> {
   return async (bytes, opts) => {
     throwIfAborted(opts?.signal);
-    const modelId = opts?.model !== undefined && opts.model.trim().length > 0 ? opts.model : DEFAULT_MATTE_MODEL;
+    const modelId = opts?.model !== undefined && opts.model.trim().length > 0 ? modelIdSchema.parse(opts.model) : DEFAULT_MATTE_MODEL;
     const out = await cache.removeBackground(modelId, bytes);
     throwIfAborted(opts?.signal);
     return out;

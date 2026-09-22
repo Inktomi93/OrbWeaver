@@ -10,10 +10,12 @@ import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import process from "node:process";
 import type { DataType, DeviceType, Tensor } from "@huggingface/transformers";
-import { embedSpaceOf } from "@orb/contracts/inference";
+import { embedSpaceOf, modelIdSchema } from "@orb/contracts/inference";
 import type { ImageInput } from "@orb/contracts/role-clients";
+import type { ModelId } from "@orb/kit/ids";
 import { l2Normalize } from "@orb/kit/vector-math";
 import { ProviderError } from "../../contract/errors.ts";
+import type { LocalLightModelSlot } from "../../contract/runtime.ts";
 import type { InferenceLog } from "../../deps.ts";
 
 // Small on purpose — each ONNX session holds native (off-heap) memory.
@@ -51,16 +53,13 @@ export function resolveEmbedDtype(configured: string | undefined): DataType {
  *  `${modelId}@${dtype}`: the read side derives the same tag from the owner's resolved capability, and a
  *  private copy here is how the two sides silently drifted apart once already (§10-2). This function
  *  survives only to narrow `DataType` onto the derivation's `string | undefined`. */
-export function localLightEmbedSpaceTag(modelId: string, dtype: DataType): string {
+export function localLightEmbedSpaceTag(modelId: ModelId, dtype: DataType): string {
   return embedSpaceOf(modelId, dtype);
 }
 
 /** The MODEL SLOTS this cache loads, in PREFETCH ORDER — smallest weights first. */
-export const LOCAL_LIGHT_MODEL_SLOTS = ["rerank", "embed", "matte"] as const;
-export type LocalLightModelSlot = (typeof LOCAL_LIGHT_MODEL_SLOTS)[number];
-
 export interface LocalLightLoadProgress {
-  readonly modelId: string;
+  readonly modelId: ModelId;
   readonly loaded: number;
   readonly total: number;
 }
@@ -78,18 +77,18 @@ function toLoadProgress(info: TransformersProgressInfo): LocalLightLoadProgress 
   }
   const loaded = Number.isFinite(info.loaded) ? Math.max(0, info.loaded ?? 0) : 0;
   const total = Number.isFinite(info.total) ? Math.max(0, info.total ?? 0) : 0;
-  return { modelId: info.name, loaded, total };
+  return { modelId: modelIdSchema.parse(info.name), loaded, total };
 }
 
 /** The inference seam the task files depend on — raw un-normalized vectors; task files own L2 + MRL. */
 export interface LocalLightModelCache {
-  readonly embedTexts: (modelId: string, texts: readonly string[]) => Promise<Float32Array[]>;
-  readonly scorePairs: (modelId: string, query: string, documents: readonly string[]) => Promise<number[]>;
-  readonly embedImages: (modelId: string, images: readonly ImageInput[]) => Promise<Float32Array[]>;
-  readonly embedClipTexts: (modelId: string, texts: readonly string[]) => Promise<Float32Array[]>;
-  readonly removeBackground: (modelId: string, image: ImageInput) => Promise<Uint8Array>;
+  readonly embedTexts: (modelId: ModelId, texts: readonly string[]) => Promise<Float32Array[]>;
+  readonly scorePairs: (modelId: ModelId, query: string, documents: readonly string[]) => Promise<number[]>;
+  readonly embedImages: (modelId: ModelId, images: readonly ImageInput[]) => Promise<Float32Array[]>;
+  readonly embedClipTexts: (modelId: ModelId, texts: readonly string[]) => Promise<Float32Array[]>;
+  readonly removeBackground: (modelId: ModelId, image: ImageInput) => Promise<Uint8Array>;
   /** Warm a slot's memos WITHOUT running inference — the prefetch's whole surface. */
-  readonly preload: (slot: LocalLightModelSlot, modelId: string) => Promise<void>;
+  readonly preload: (slot: LocalLightModelSlot, modelId: ModelId) => Promise<void>;
 }
 
 export interface ModelCacheConfig {
@@ -142,7 +141,7 @@ function tensorRows(t: Tensor): Float32Array[] {
   return rows;
 }
 
-function requireTensor(out: Record<string, unknown>, key: string, modelId: string, TensorCtor: TransformersModule["Tensor"]): Tensor {
+function requireTensor(out: Record<string, unknown>, key: string, modelId: ModelId, TensorCtor: TransformersModule["Tensor"]): Tensor {
   const value = out[key];
   if (!(value instanceof TensorCtor)) {
     throw new ProviderError({ kind: "server", retryable: false, message: `local-light model "${modelId}" produced no "${key}" output tensor` });
@@ -228,15 +227,21 @@ interface ModelMemo<T> {
 }
 
 /** The lease-counted single-flight memo every model slot below is built from. */
-function createMemo<T>(load: (id: string) => Promise<T>, dispose: (value: T) => void): ModelMemo<T> {
+function createMemo<T>(
+  load: (id: string) => Promise<T>,
+  dispose: (value: T) => Promise<void>,
+  detach: ModelCacheConfig["detach"],
+  disposeName: string,
+): ModelMemo<T> {
   const entries = new Map<string, MemoEntry<T>>();
   const disposeEntry = (entry: MemoEntry<T>): void => {
     if (entry.disposed || !entry.evictionPending || entry.refs > 0) {
       return;
     }
     entry.disposed = true;
-    // @orb-waive caught-failure-ownership(entry.promise): terminal cleanup after eviction; a load rejection has no value, while every concrete dispose callback is a no-op or delegates to the sync-safe, warning-owned detach root. Precedent: the gate mustPass fixture packages/server/src/infra/probe/cleanup.ts proves the same terminal cleanup absorber. Ends if a dispose callback can throw outside detach or cleanup gains an acknowledgement contract.
-    void entry.promise.then(dispose).catch(() => undefined);
+    detach(disposeName, async () => {
+      await dispose(await entry.promise);
+    });
   };
   const getEntry = (id: string): MemoEntry<T> => {
     const existing = entries.get(id);
@@ -350,47 +355,52 @@ export function createModelCache(config: ModelCacheConfig): LocalLightModelCache
       const { AutoModel } = await transformers();
       return await loadWithCpuFallback(device, log, (dev) => AutoModel.from_pretrained(id, { device: dev, dtype: embedDtype, ...loadOpts }));
     },
-    (m) =>
-      config.detach("local-light.model.dispose:jina", async () => {
-        await m.dispose();
-      }),
+    async (m) => {
+      await m.dispose();
+    },
+    config.detach,
+    "local-light.model.dispose:jina",
   );
   const reranker = createMemo(
     async (id) => {
       const { AutoModelForSequenceClassification } = await transformers();
       return await loadWithCpuFallback(device, log, (dev) => AutoModelForSequenceClassification.from_pretrained(id, { device: dev, dtype, ...loadOpts }));
     },
-    (m) =>
-      config.detach("local-light.model.dispose:reranker", async () => {
-        await m.dispose();
-      }),
+    async (m) => {
+      await m.dispose();
+    },
+    config.detach,
+    "local-light.model.dispose:reranker",
   );
   const tokenizer = createMemo(
     async (id) => {
       const { AutoTokenizer } = await transformers();
       return await AutoTokenizer.from_pretrained(id, loadOpts);
     },
-    () => undefined,
+    () => Promise.resolve(),
+    config.detach,
+    "local-light.model.dispose:tokenizer",
   );
   const processor = createMemo(
     async (id) => {
       const { AutoProcessor } = await transformers();
       return await AutoProcessor.from_pretrained(id, loadOpts);
     },
-    () => undefined,
+    () => Promise.resolve(),
+    config.detach,
+    "local-light.model.dispose:processor",
   );
   const bgRemover = createMemo(
     async (id) => {
       const { pipeline } = await transformers();
       return await loadWithCpuFallback(device, log, (dev) => pipeline("background-removal", id, { device: dev, dtype, ...loadOpts }));
     },
-    (p) =>
-      config.detach("local-light.model.dispose:background-removal", async () => {
-        await p.dispose();
-      }),
+    async (p) => p.dispose(),
+    config.detach,
+    "local-light.model.dispose:background-removal",
   );
 
-  const embedJinaTexts = async (modelId: string, texts: readonly string[]): Promise<Float32Array[]> =>
+  const embedJinaTexts = async (modelId: ModelId, texts: readonly string[]): Promise<Float32Array[]> =>
     processor.withLease(modelId, (proc) =>
       jinaEmbedder.withLease(modelId, async (model) => {
         const { Tensor: TensorCtor } = await transformers();
@@ -400,7 +410,7 @@ export function createModelCache(config: ModelCacheConfig): LocalLightModelCache
       }),
     );
 
-  const slotLoaders: { readonly [K in LocalLightModelSlot]: (modelId: string) => Promise<void> } = {
+  const slotLoaders: { readonly [K in LocalLightModelSlot]: (modelId: ModelId) => Promise<void> } = {
     rerank: async (modelId) => {
       await Promise.all([tokenizer(modelId), reranker(modelId)]);
     },

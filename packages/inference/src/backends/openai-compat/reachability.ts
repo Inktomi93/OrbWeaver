@@ -5,7 +5,7 @@
 // availability reads (every composer render) shares one probe; a wake invalidates it.
 
 import { setTimeout as sleep } from "node:timers/promises";
-import type { Reachability } from "../../resolve/availability.ts";
+import type { Reachability } from "../../contract/runtime.ts";
 import { authHeaders, fetchJson, openAiPath } from "../kit/fetch-json.ts";
 import { NO_PROVIDER_SECRETS } from "../kit/sanitize.ts";
 

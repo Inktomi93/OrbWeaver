@@ -25,8 +25,7 @@ import { resolvedScrubSet } from "./backends/kit/sanitize.ts";
 import type { LocalLightBackend } from "./backends/local-light/index.ts";
 import { curatedIdsFor, curatedKind } from "./capability/sources/curated/loader.ts";
 import type { SynthesizedCapability } from "./capability/synthesize.ts";
-import type { EndpointModel } from "./catalog/endpoint.ts";
-import { endpointModelsSchema, fetchEndpointModels } from "./catalog/endpoint.ts";
+import { fetchEndpointModels } from "./catalog/endpoint.ts";
 import type { Mirror, MirrorDeps } from "./catalog/mirror.ts";
 import { createMirror } from "./catalog/mirror.ts";
 import { fetchOpenRouterCatalog } from "./catalog/openrouter.ts";
@@ -34,19 +33,20 @@ import type { ProviderExecutor } from "./contract/backend.ts";
 import type { ProviderDiagnostics } from "./contract/diagnostics.ts";
 import { ProviderError } from "./contract/errors.ts";
 import type { ResolvedChatKnobs, ResolvedEmbedKnobs } from "./contract/resolve.ts";
+import type { EndpointModel, ProviderOrigin, RoleClientsFor } from "./contract/runtime.ts";
+import { endpointModelsSchema } from "./contract/runtime.ts";
 import type { InferenceDeps } from "./deps.ts";
 import { resolveChat } from "./funnel/resolve-chat.ts";
 import type { EmbedOptions } from "./funnel/resolve-embed.ts";
 import { resolveEmbed } from "./funnel/resolve-embed.ts";
 import { buildBackends } from "./registry/backends.ts";
-import type { ProviderOrigin, ProviderRegistry } from "./registry/providers.ts";
+import type { ProviderRegistry } from "./registry/providers.ts";
 import { createProviderRegistry } from "./registry/providers.ts";
 import { checkAvailability } from "./resolve/availability.ts";
 import type { ResolveArgs, ResolveOutcome, ResolverContext } from "./resolve/resolve-task.ts";
 import { connectionNotFoundMessage, resolveTask, resolveTaskWithBaseline } from "./resolve/resolve-task.ts";
 import { createProviderDiagnostics } from "./roles/diagnostics.ts";
 import { createProviderExecutor } from "./roles/executor.ts";
-import type { RoleClientsFor } from "./roles/role-clients.ts";
 import { createRoleClientsFor } from "./roles/role-clients.ts";
 
 export { resolveClaudeExecutable } from "./backends/agent-sdk/executable.ts";
@@ -69,15 +69,15 @@ export { localLightEmbedSpaceTag } from "./backends/local-light/model-cache.ts";
 export { curatedKind } from "./capability/sources/curated/loader.ts";
 export * from "./contract/index.ts";
 export type { ResolvedWarning } from "./contract/resolve.ts";
+export type { ProviderOrigin, RoleClientsFor } from "./contract/runtime.ts";
 export type { BindingActor, BindingStore, ConnectionStore, InferenceDeps, InferenceLog, ProviderStore, SnapshotStore, SpanFn } from "./deps.ts";
 // `resolveCarryReasoning` is exported BESIDE the whole funnel because the chat engine needs exactly one of
 // its answers BEFORE the first wire call: the `conversation` rung materializes prior thinking at the
 // history-build seam, which runs upstream of `resolveChat`. One policy home, two readers (§8.8).
 export { resolveCarryReasoning, resolveChat } from "./funnel/resolve-chat.ts";
-export type { ProviderOrigin, ProviderRegistry } from "./registry/providers.ts";
+export type { ProviderRegistry } from "./registry/providers.ts";
 export type { ResolveArgs, ResolveOutcome } from "./resolve/resolve-task.ts";
 export { NoConnectionError } from "./resolve/resolve-task.ts";
-export type { RoleClientsFor } from "./roles/role-clients.ts";
 
 const OPENROUTER_CATALOG_KEY = "catalog:openrouter";
 const AGENT_SDK_CATALOG_KEY = "catalog:agent-sdk";

@@ -3,7 +3,9 @@
 // backend seeds frames before any spawn, so replicating the SDK's cwd-derived projectKey would couple us to a wrapper internal.
 
 import type { SessionKey, SessionStore, SessionStoreEntry } from "@anthropic-ai/claude-agent-sdk";
-import type { ChatId } from "@orb/kit/ids";
+import type { ChatId, UserConnectionId } from "@orb/kit/ids";
+import type { SessionEntryWriter } from "../../../contract/agent.ts";
+import type { AgentSdkSessionId } from "../../../contract/identity.ts";
 import type { InferenceLog } from "../../../deps.ts";
 import type { SeedTurn } from "./frames.ts";
 import { buildSeedFrames, canonHashOf, isBranchDivergence, seedSessionId, sessionContainsSeedPrefix, sessionMatchesSeed, toSeedTurns } from "./frames.ts";
@@ -48,7 +50,7 @@ function canReplace(store: SessionStore): store is ReplaceableSessionStore {
  *   • `cleared`   — an empty seed dropped the mapping.
  */
 export interface SeededSessionDecision {
-  readonly sessionId: string | null;
+  readonly sessionId: AgentSdkSessionId | null;
   readonly disposition: "resumed" | "forked" | "reseeded" | "seeded" | "readopted" | "fresh" | "cleared";
 }
 
@@ -61,16 +63,6 @@ export interface SeededSessionDecision {
  * `sdkSessionId`, changed content). Absent ⇒ no persistence (the in-memory cache alone still works — a
  * durable row is an optimization per Tier-3b-Providers.md Esoteric §3, not a correctness need).
  */
-export interface SessionEntryWriter {
-  readonly insert: (entry: {
-    readonly chatId: ChatId;
-    readonly sdkSessionId: string;
-    readonly seededThroughSeq: number;
-    readonly canonHash: string;
-  }) => Promise<void>;
-  readonly update: (entry: { readonly sdkSessionId: string; readonly seededThroughSeq: number; readonly canonHash: string }) => Promise<void>;
-}
-
 /** Best-effort INSERT: a `session_entries` write failure never takes down a chat turn (the in-memory
  *  cache is the correctness path; the row is an observability/reap-substrate optimization). */
 async function persistInsert(writer: SessionEntryWriter | undefined, log: InferenceLog, entry: Parameters<SessionEntryWriter["insert"]>[0]): Promise<void> {
@@ -180,7 +172,7 @@ const INTERNAL_PROJECT_KEY = "orbweaver";
  */
 export class SessionCache {
   readonly store: SessionStore;
-  private readonly byChat = new Map<string, string>();
+  private readonly byChatConnection = new Map<string, AgentSdkSessionId>();
   private readonly writer: SessionEntryWriter | undefined;
   private readonly log: InferenceLog;
 
@@ -190,12 +182,12 @@ export class SessionCache {
     this.writer = writer;
   }
 
-  resolveResumeId(chatId: ChatId): string | undefined {
-    return this.byChat.get(chatId);
+  resolveResumeId(chatId: ChatId, connectionId: UserConnectionId): AgentSdkSessionId | undefined {
+    return this.byChatConnection.get(`${chatId}${KEY_SEP}${connectionId}`);
   }
 
-  record(chatId: ChatId, sessionId: string): void {
-    this.byChat.set(chatId, sessionId);
+  record(chatId: ChatId, connectionId: UserConnectionId, sessionId: AgentSdkSessionId): void {
+    this.byChatConnection.set(`${chatId}${KEY_SEP}${connectionId}`, sessionId);
   }
 
   /**
@@ -203,13 +195,14 @@ export class SessionCache {
    * `forkSession`: it mints a random id, but swipe-back discovery is content-addressed (recomputes a
    * branch's id with `seedSessionId` from canon alone) — a random fork id would be unfindable on return.
    */
-  async ensureSeededSession(chatId: ChatId, seed: readonly SeedTurn[]): Promise<SeededSessionDecision> {
+  async ensureSeededSession(chatId: ChatId, connectionId: UserConnectionId, seed: readonly SeedTurn[]): Promise<SeededSessionDecision> {
+    const cacheKey = `${chatId}${KEY_SEP}${connectionId}`;
     const turns = toSeedTurns(seed);
     if (turns.length === 0) {
-      this.byChat.delete(chatId);
+      this.byChatConnection.delete(cacheKey);
       return { sessionId: null, disposition: "cleared" };
     }
-    const recorded = this.byChat.get(chatId);
+    const recorded = this.byChatConnection.get(cacheKey);
     if (recorded !== undefined) {
       const rows = await this.loadSession(recorded);
       if (sessionMatchesSeed(rows, turns)) {
@@ -218,24 +211,24 @@ export class SessionCache {
       // Diverged from the recorded lineage — probe the deterministic candidate for THIS seed first: an
       // A→B→A swipe-back re-derives lineage A's own id, and if the live subprocess grew it since, a plain
       // exact-match walk would miss it, so this probe matches on a grown-superset prefix instead.
-      const readopted = await this.readoptDeterministicCandidate(chatId, turns);
+      const readopted = await this.readoptDeterministicCandidate(chatId, connectionId, turns);
       if (readopted !== null) {
         return readopted;
       }
       // Branch divergence (shares a prefix): fork under a new deterministic lineage, leaving the recorded
       // one intact so a later swipe-back re-derives + re-adopts it as a plain resume.
       if (isBranchDivergence(rows, turns)) {
-        return await this.seedFresh(chatId, turns, "forked");
+        return await this.seedFresh(chatId, connectionId, turns, "forked");
       }
       // Non-branch divergence (no shared prefix, e.g. window-slide): reseed in place — preserving the
       // lineage buys nothing here, so the cheapest rewrite (same id, changed suffix) wins.
       if (canReplace(this.store)) {
         await this.store.replace({ projectKey: INTERNAL_PROJECT_KEY, sessionId: recorded }, buildSeedFrames(turns, recorded));
-        await persistUpdate(this.writer, this.log, { sdkSessionId: recorded, seededThroughSeq: turns.length, canonHash: canonHashOf(turns) });
+        await persistUpdate(this.writer, this.log, { connectionId, sdkSessionId: recorded, seededThroughSeq: turns.length, canonHash: canonHashOf(turns) });
         return { sessionId: recorded, disposition: "reseeded" };
       }
     }
-    return await this.seedFresh(chatId, turns);
+    return await this.seedFresh(chatId, connectionId, turns);
   }
 
   /**
@@ -244,12 +237,17 @@ export class SessionCache {
    * prefix (exact or grown-superset) — the live subprocess appends its own frames after a turn runs, so
    * the pre-turn seed becomes a strict prefix of the stored lineage.
    */
-  private async readoptDeterministicCandidate(chatId: ChatId, turns: readonly SeedTurn[]): Promise<SeededSessionDecision | null> {
+  private async readoptDeterministicCandidate(
+    chatId: ChatId,
+    connectionId: UserConnectionId,
+    turns: readonly SeedTurn[],
+  ): Promise<SeededSessionDecision | null> {
+    const cacheKey = `${chatId}${KEY_SEP}${connectionId}`;
     for (let salt = 0; salt < MAX_SEED_SALT; salt++) {
-      const sessionId = seedSessionId(chatId, turns, salt);
+      const sessionId = seedSessionId(chatId, connectionId, turns, salt);
       const rows = await this.loadSession(sessionId);
       if (rows.length > 0 && sessionContainsSeedPrefix(rows, turns)) {
-        this.byChat.set(chatId, sessionId);
+        this.byChatConnection.set(cacheKey, sessionId);
         return { sessionId, disposition: "readopted" };
       }
     }
@@ -257,26 +255,38 @@ export class SessionCache {
   }
 
   /** Seek (or seed) the deterministic lineage for this seed state; returns `fresh` past the salt ceiling. */
-  private async seedFresh(chatId: ChatId, turns: readonly SeedTurn[], seededAs: "seeded" | "forked" = "seeded"): Promise<SeededSessionDecision> {
+  private async seedFresh(
+    chatId: ChatId,
+    connectionId: UserConnectionId,
+    turns: readonly SeedTurn[],
+    seededAs: "seeded" | "forked" = "seeded",
+  ): Promise<SeededSessionDecision> {
+    const cacheKey = `${chatId}${KEY_SEP}${connectionId}`;
     for (let salt = 0; salt < MAX_SEED_SALT; salt++) {
-      const sessionId = seedSessionId(chatId, turns, salt);
+      const sessionId = seedSessionId(chatId, connectionId, turns, salt);
       const rows = await this.loadSession(sessionId);
       if (rows.length === 0) {
         await this.store.append({ projectKey: INTERNAL_PROJECT_KEY, sessionId }, buildSeedFrames(turns, sessionId));
-        this.byChat.set(chatId, sessionId);
-        await persistInsert(this.writer, this.log, { chatId, sdkSessionId: sessionId, seededThroughSeq: turns.length, canonHash: canonHashOf(turns) });
+        this.byChatConnection.set(cacheKey, sessionId);
+        await persistInsert(this.writer, this.log, {
+          chatId,
+          connectionId,
+          sdkSessionId: sessionId,
+          seededThroughSeq: turns.length,
+          canonHash: canonHashOf(turns),
+        });
         return { sessionId, disposition: seededAs };
       }
       if (sessionMatchesSeed(rows, turns)) {
-        this.byChat.set(chatId, sessionId);
+        this.byChatConnection.set(cacheKey, sessionId);
         return { sessionId, disposition: "readopted" };
       }
     }
-    this.byChat.delete(chatId);
+    this.byChatConnection.delete(cacheKey);
     return { sessionId: null, disposition: "fresh" };
   }
 
-  private async loadSession(sessionId: string): Promise<SessionStoreEntry[]> {
+  private async loadSession(sessionId: AgentSdkSessionId): Promise<SessionStoreEntry[]> {
     return (await this.store.load({ projectKey: INTERNAL_PROJECT_KEY, sessionId })) ?? [];
   }
 }

@@ -22,7 +22,7 @@ import type {
 import { EMBEDDING_FLOOR, GENERATION_FLOOR, RERANK_FLOOR, TURNS_FLOOR } from "@orb/contracts/inference";
 import { assertNever } from "../contract/errors.ts";
 import type { ResolvedWarning } from "../contract/resolve.ts";
-import type { ModelFamily } from "./families.ts";
+import type { ModelFamily } from "../contract/runtime.ts";
 import { applyFamilyFloor } from "./sources/family-floor.ts";
 
 /** What the resolver assembled for one (connection × model), lowest tier last. */

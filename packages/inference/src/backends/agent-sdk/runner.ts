@@ -22,6 +22,8 @@ import type { AgentSdkChatRequest, ChatResult, ContextUsage, ToolCallInput } fro
 import { normalizeFinishReason } from "../../contract/chat.ts";
 import { ProviderError } from "../../contract/errors.ts";
 import type { ChatEvent, RateLimitSnapshot } from "../../contract/events.ts";
+import type { AgentSdkSessionId } from "../../contract/identity.ts";
+import { agentSdkSessionIdSchema } from "../../contract/identity.ts";
 import type { ResolvedWarning } from "../../contract/resolve.ts";
 import { resolveDynamicContext } from "../../funnel/resolve-chat.ts";
 import { agentSdkVariantMetadata } from "../kit/provider-metadata.ts";
@@ -187,7 +189,7 @@ export async function runChatTurn(req: AgentSdkChatRequest, deps: AgentSdkDeps, 
       ...(chatId !== undefined ? { chatId } : {}),
       ...(req.onEvent !== undefined ? { onEvent: req.onEvent } : {}),
       ...(req.onDelta !== undefined ? { onDelta: req.onDelta } : {}),
-      ...(chatId !== undefined ? { onSessionId: (sessionId: string): void => sessions.record(chatId, sessionId) } : {}),
+      ...(chatId !== undefined ? { onSessionId: (sessionId: AgentSdkSessionId): void => sessions.record(chatId, connection.connectionId, sessionId) } : {}),
       configuredMaxOutputTokens: gen.envOverrides.maxOutputTokens ?? null,
       configuredMaxContextTokens: gen.envOverrides.maxContextTokens ?? null,
     },
@@ -246,19 +248,24 @@ function routeDynamicContext(
 async function resolveResume(
   req: AgentSdkChatRequest,
   sessions: SessionCache,
-): Promise<{ resume: string | undefined; disposition: SeededSessionDecision["disposition"] }> {
+): Promise<{ resume: AgentSdkSessionId | undefined; disposition: SeededSessionDecision["disposition"] }> {
   if (req.chatId === undefined) {
     return { resume: undefined, disposition: "fresh" };
   }
   if (req.seed !== undefined) {
-    const decision = await sessions.ensureSeededSession(req.chatId, req.seed);
+    const decision = await sessions.ensureSeededSession(req.chatId, req.connection.connectionId, req.seed);
     return { resume: decision.sessionId ?? undefined, disposition: decision.disposition };
   }
-  const recorded = sessions.resolveResumeId(req.chatId);
+  const recorded = sessions.resolveResumeId(req.chatId, req.connection.connectionId);
   return { resume: recorded, disposition: recorded !== undefined ? "resumed" : "fresh" };
 }
 
-function logSessionDecision(chatId: ChatId | undefined, resume: string | undefined, disposition: SeededSessionDecision["disposition"], log: AgentSdkLog): void {
+function logSessionDecision(
+  chatId: ChatId | undefined,
+  resume: AgentSdkSessionId | undefined,
+  disposition: SeededSessionDecision["disposition"],
+  log: AgentSdkLog,
+): void {
   if (chatId === undefined || disposition === "resumed" || disposition === "fresh") {
     return;
   }
@@ -309,7 +316,7 @@ export async function consumeTurnStream(stream: AsyncIterable<SDKMessage>, ctx: 
   try {
     for await (const message of stream) {
       if (typeof message.session_id === "string" && message.session_id.length > 0) {
-        acc.observeSessionId(message.session_id);
+        acc.observeSessionId(agentSdkSessionIdSchema.parse(message.session_id));
       }
       dispatch(acc, message);
     }
@@ -398,7 +405,7 @@ class TurnAccumulator {
   reply = "";
   structuredOutput: unknown;
   reasoning = "";
-  sessionId = "";
+  sessionId: AgentSdkSessionId | null = null;
   stopReason: string | null = null;
   terminalReason: string | null = null;
   private terminalFrames = 0;
@@ -460,8 +467,8 @@ class TurnAccumulator {
     return this.terminalFrames > 0;
   }
 
-  observeSessionId(id: string): void {
-    const firstSighting = this.sessionId === "";
+  observeSessionId(id: AgentSdkSessionId): void {
+    const firstSighting = this.sessionId === null;
     this.sessionId = id;
     this.meta.sdkSessionId = id;
     if (firstSighting) {
@@ -478,7 +485,7 @@ class TurnAccumulator {
     this.log.turn({
       ...(this.ctx.turnId !== undefined ? { turnId: this.ctx.turnId } : {}),
       ...(this.ctx.chatId !== undefined ? { chatId: this.ctx.chatId } : {}),
-      ...(this.sessionId !== "" ? { sessionId: this.sessionId } : {}),
+      ...(this.sessionId !== null ? { sessionId: this.sessionId } : {}),
       ...(this.meta.apiKeySource !== null ? { apiKeySource: this.meta.apiKeySource } : {}),
       requestedModel: this.ctx.model,
       ...(this.meta.servedModel !== null ? { servedModel: this.meta.servedModel } : {}),
@@ -552,8 +559,8 @@ class TurnAccumulator {
     return perr;
   }
 
-  get errorSessionId(): string | undefined {
-    return this.sessionId !== "" ? this.sessionId : undefined;
+  get errorSessionId(): AgentSdkSessionId | undefined {
+    return this.sessionId ?? undefined;
   }
 
   private toProviderError(error: unknown): ProviderError {

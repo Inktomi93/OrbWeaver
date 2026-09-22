@@ -8,10 +8,12 @@
 // state to render — an earlier draft promised a Connections-pane readout and that surface was struck.
 // ONE attempt per slot per boot; a failure is a WARN, never a crash — the lazy path is untouched.
 
+import type { ModelId } from "@orb/kit/ids";
 import { formatBytes } from "@orb/kit/strings";
+import type { LocalLightModelSlot } from "../../contract/runtime.ts";
+import { LOCAL_LIGHT_MODEL_SLOTS } from "../../contract/runtime.ts";
 import type { InferenceLog } from "../../deps.ts";
-import type { LocalLightLoadProgress, LocalLightModelCache, LocalLightModelSlot } from "./model-cache.ts";
-import { LOCAL_LIGHT_MODEL_SLOTS } from "./model-cache.ts";
+import type { LocalLightLoadProgress, LocalLightModelCache } from "./model-cache.ts";
 
 const LOCAL_LIGHT_PREFETCH_STATUSES = ["queued", "downloading", "ready", "failed"] as const;
 type LocalLightPrefetchStatus = (typeof LOCAL_LIGHT_PREFETCH_STATUSES)[number];
@@ -24,7 +26,7 @@ export interface LocalLightPrefetchRecord {
 
 export interface LocalLightPrefetchTarget {
   readonly slot: LocalLightModelSlot;
-  readonly modelId: string;
+  readonly modelId: ModelId;
 }
 
 export interface LocalLightPrefetchHandle {
@@ -56,8 +58,8 @@ function downloadDetail(progress: LocalLightLoadProgress): string {
 
 export function createLocalLightPrefetch(deps: LocalLightPrefetchDeps): LocalLightPrefetchHandle {
   const registry = new Map<LocalLightModelSlot, LocalLightPrefetchRecord>();
-  const slotByModelId = new Map<string, LocalLightModelSlot>();
-  const modelIdBySlot = new Map<LocalLightModelSlot, string>();
+  const slotByModelId = new Map<ModelId, LocalLightModelSlot>();
+  const modelIdBySlot = new Map<LocalLightModelSlot, ModelId>();
   const inFlight = new Map<LocalLightModelSlot, Promise<void>>();
   let stopped = false;
 
@@ -65,7 +67,7 @@ export function createLocalLightPrefetch(deps: LocalLightPrefetchDeps): LocalLig
     registry.set(slot, { status, detail, updatedAt: deps.now() });
   };
 
-  async function warm(slot: LocalLightModelSlot, modelId: string): Promise<void> {
+  async function warm(slot: LocalLightModelSlot, modelId: ModelId): Promise<void> {
     const existing = inFlight.get(slot);
     if (existing !== undefined) {
       return await existing;

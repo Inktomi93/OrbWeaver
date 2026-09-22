@@ -16,7 +16,7 @@ import type { ResponseFormat, ToolChoice, WireTool } from "../../contract/chat.t
 import type { ResolvedSampling, ResolvedWarning } from "../../contract/resolve.ts";
 
 /** The V4 `reasoning` vocabulary — our `max` is the wire's `xhigh` (no provider spells `max` on this axis). */
-export type WireEffort = Exclude<NonNullable<LanguageModelV4CallOptions["reasoning"]>, "provider-default">;
+type WireEffort = Exclude<NonNullable<LanguageModelV4CallOptions["reasoning"]>, "provider-default">;
 
 export function wireEffortOf(effort: EffortLevel): WireEffort {
   return effort === "max" ? "xhigh" : effort;

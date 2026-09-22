@@ -19,14 +19,17 @@ function recordingLog(warnings: { fields: Readonly<Record<string, unknown>>; mes
   };
 }
 
-test("detached work warning-owns a synchronous span failure", async () => {
+test("detached prefetch enters through the injected supervisor", async () => {
   const warnings: { fields: Readonly<Record<string, unknown>>; message: string }[] = [];
-  const failure = new Error("tracer unavailable");
+  const supervised: string[] = [];
   const local = createLocalLightBackend({
     now: () => 1_700_000_000_000,
     log: recordingLog(warnings),
-    span: () => {
-      throw failure;
+    superviseDetached: (name, _attrs, operation): void => {
+      supervised.push(name);
+      Promise.resolve()
+        .then(operation)
+        .catch(() => undefined);
     },
     config: { cache: fakeModelCache() },
   });
@@ -35,10 +38,6 @@ test("detached work warning-owns a synchronous span failure", async () => {
   await Promise.resolve();
   await Promise.resolve();
 
-  expect(warnings).toEqual([
-    {
-      fields: { err: failure, name: "local-light.prefetch.walk" },
-      message: "local-light: detached work failed",
-    },
-  ]);
+  expect(supervised).toEqual(["local-light.prefetch.walk"]);
+  expect(warnings).toEqual([]);
 });

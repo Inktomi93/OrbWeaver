@@ -14,6 +14,7 @@ import type { ListModelsRequest, ListModelsResult, VerifyAuthRequest } from "../
 import { ProviderError } from "../../contract/errors.ts";
 import type { Resolved } from "../../contract/resolved.ts";
 import type { StructuredRequest, SummarizeRequest } from "../../contract/roles.ts";
+import type { SpawnIdentity } from "../../contract/runtime.ts";
 import type { InferenceDeps } from "../../deps.ts";
 import type { NormalizeImageBytes } from "../kit/image-normalize.ts";
 import { createImageNormalizer, passthroughImageNormalizer } from "../kit/image-normalize.ts";
@@ -25,7 +26,7 @@ import { createAgentSdkLog } from "./log.ts";
 import { runChatTurn } from "./runner.ts";
 import { SessionCache } from "./session/index.ts";
 import { summarize } from "./summarize.ts";
-import type { AgentSdkDeps, SpawnIdentity } from "./types.ts";
+import type { AgentSdkDeps } from "./types.ts";
 
 export type { SessionEntryWriter } from "./session/index.ts";
 
@@ -62,10 +63,6 @@ function isSessionStore(value: unknown): value is AgentSdkDeps["sessionStore"] {
   return value !== null && typeof value === "object" && "append" in value && "load" in value;
 }
 
-function isSessionWriter(value: unknown): value is NonNullable<AgentSdkDeps["sessionWriter"]> {
-  return value !== null && typeof value === "object" && "insert" in value && "update" in value;
-}
-
 /** A daemon catalog row → the shared catalog entry shape (the pane lists aliases; nothing else is known). */
 function catalogEntryOf(row: { readonly alias: string; readonly displayName: string }): ListModelsResult["models"][number] {
   return {
@@ -93,11 +90,7 @@ export interface AgentSdkBackend {
 }
 
 export function createAgentSdkBackend(deps: AgentSdkBackendDeps): AgentSdkBackend {
-  const sessions = new SessionCache(
-    deps.log,
-    isSessionStore(deps.agentSdk.sessionStore) ? deps.agentSdk.sessionStore : undefined,
-    isSessionWriter(deps.agentSdk.sessionWriter) ? deps.agentSdk.sessionWriter : undefined,
-  );
+  const sessions = new SessionCache(deps.log, isSessionStore(deps.agentSdk.sessionStore) ? deps.agentSdk.sessionStore : undefined, deps.agentSdk.sessionWriter);
   const normalizeImageBytes: NormalizeImageBytes = deps.imageToPng !== undefined ? createImageNormalizer(deps.imageToPng) : passthroughImageNormalizer;
   const childEnv = (connection: SpawnIdentity, overrides?: ClaudeRuntimeOverrides): Record<string, string | undefined> =>
     buildClaudeSdkEnv({
@@ -111,7 +104,7 @@ export function createAgentSdkBackend(deps: AgentSdkBackendDeps): AgentSdkBacken
     log: deps.log,
     query: isQuery(deps.agentSdk.query) ? deps.agentSdk.query : query,
     sessionStore: sessions.store,
-    ...(isSessionWriter(deps.agentSdk.sessionWriter) ? { sessionWriter: deps.agentSdk.sessionWriter } : {}),
+    ...(deps.agentSdk.sessionWriter !== undefined ? { sessionWriter: deps.agentSdk.sessionWriter } : {}),
     normalizeImageBytes,
     scheduleTimeout: deps.scheduleTimeout ?? realScheduleTimeout,
     summarizeConcurrency: deps.agentSdk.summarizeConcurrency,

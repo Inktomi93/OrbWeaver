@@ -15,6 +15,7 @@ import { ProviderError } from "../contract/errors.ts";
 import type { ResolvedEmbedKnobs } from "../contract/resolve.ts";
 import type { Resolved } from "../contract/resolved.ts";
 import type { EmbedRequest, RoleClientsWithSignal, SideGenSampling, StructuredCallOptions, SummarizeCallOptions } from "../contract/roles.ts";
+import type { RoleClientsFor } from "../contract/runtime.ts";
 import type { BindingActor, InferenceDeps } from "../deps.ts";
 import { resolveEmbed } from "../funnel/resolve-embed.ts";
 import type { ResolverContext } from "../resolve/resolve-task.ts";
@@ -74,8 +75,6 @@ function embedRequestOf(conn: Resolved<"embed">, input: string | readonly string
     ...(knobs.instruction !== undefined ? { instruction: knobs.instruction } : {}),
   };
 }
-
-export type RoleClientsFor = (funder: Principal, actor?: BindingActor) => RoleClientsWithSignal;
 
 /** Run one task's provider call; on failure let the credentials domain decide whether it costs the key the
  *  call ran under (#1800), then rethrow the ORIGINAL error (the recall seam reads this exact object). */

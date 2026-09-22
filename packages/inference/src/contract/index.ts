@@ -23,6 +23,7 @@ export type {
   AgentMcpStdioServer,
   AgentToolServer,
   AgentTurnRequest,
+  SessionEntryWriter,
 } from "./agent.ts";
 export type { BackendRegistry, ProviderBackend, ProviderExecutor, WireCaptureSink } from "./backend.ts";
 export type {
@@ -59,6 +60,8 @@ export type {
 export type { ProviderErrorInit, ProviderErrorKind, ProviderScrubSet } from "./errors.ts";
 export { assertNever, PROVIDER_ERROR_KINDS, ProviderError } from "./errors.ts";
 export type { ChatDeltaEvent, ChatEvent, RateLimitSnapshot } from "./events.ts";
+export type { AgentSdkSessionId } from "./identity.ts";
+export { agentSdkSessionIdSchema } from "./identity.ts";
 export type {
   DynamicContextChannel,
   ResolvedChatKnobs,

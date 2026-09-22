@@ -16,7 +16,7 @@
 // D19/D16 payload rules that keep prompt bytes off the bus apply to it for the same reason.
 
 import type { ChatResult } from "../../contract/chat.ts";
-import type { AddSpanEvent } from "./retry.ts";
+import type { AddSpanEvent } from "../../contract/runtime.ts";
 
 /** One turn's cache placement, as the two hosted wires already count it for their own receipts. */
 export interface TurnCacheSpan {

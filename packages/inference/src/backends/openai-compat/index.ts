@@ -7,10 +7,10 @@
 import type { ProviderBackend } from "../../contract/backend.ts";
 import type { ChatRequest, ChatResult, OpenAiCompatChatRequest } from "../../contract/chat.ts";
 import { ProviderError } from "../../contract/errors.ts";
+import type { AddSpanEvent } from "../../contract/runtime.ts";
 import type { InferenceDeps } from "../../deps.ts";
 import type { NormalizeImageBytes } from "../kit/image-normalize.ts";
 import { createImageNormalizer, passthroughImageNormalizer } from "../kit/image-normalize.ts";
-import type { AddSpanEvent } from "../kit/retry.ts";
 import { runOpenAiCompatStructured, runOpenAiCompatSummarize } from "./batch.ts";
 import { runOpenAiCompatChatTurn } from "./chat.ts";
 import { inspectOpenAiCompatEndpoint, listOpenAiCompatModels, openRouterCredits, openRouterGenerationCost, probeOpenAiCompat } from "./diagnostics.ts";

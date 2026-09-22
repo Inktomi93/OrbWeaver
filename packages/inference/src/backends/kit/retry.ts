@@ -19,7 +19,8 @@ import { ProviderError } from "../../contract/errors.ts";
 
 /** The span-event seam — the package never imports the tracer; the composition root hands the request span's
  *  `addSpanEvent` in through the backend deps, and a test that passes none gets a silent no-op. */
-export type AddSpanEvent = (name: string, attrs: Readonly<Record<string, string | number | boolean>>) => void;
+import type { AddSpanEvent } from "../../contract/runtime.ts";
+
 const NO_SPAN_EVENT: AddSpanEvent = () => undefined;
 
 const DEFAULT_MAX_ATTEMPTS = 3; // total tries including the first

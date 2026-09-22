@@ -4,7 +4,25 @@
 // factor, D60/Spine §4) is MANDATORY on this path because tools execute under the chat HOST principal (D152).
 
 import type { ResponseFormat } from "@orb/contracts/role-clients";
+import type { ChatId, UserConnectionId } from "@orb/kit/ids";
+import type { AgentSdkSessionId } from "./identity.ts";
 import type { Resolved } from "./resolved.ts";
+
+export interface SessionEntryWriter {
+  readonly insert: (entry: {
+    readonly chatId: ChatId;
+    readonly connectionId: UserConnectionId;
+    readonly sdkSessionId: AgentSdkSessionId;
+    readonly seededThroughSeq: number;
+    readonly canonHash: string;
+  }) => Promise<void>;
+  readonly update: (entry: {
+    readonly connectionId: UserConnectionId;
+    readonly sdkSessionId: AgentSdkSessionId;
+    readonly seededThroughSeq: number;
+    readonly canonHash: string;
+  }) => Promise<void>;
+}
 
 /** The core treats it as opaque; the agent-sdk backend narrows it to its MCP server-config-with-instance. */
 export type AgentToolServer = unknown;

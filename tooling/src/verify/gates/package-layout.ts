@@ -28,7 +28,7 @@ import { defineGate } from "../contract/policy.ts";
 import type { ResourceTreeEntry } from "../contract/resource.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
 
-const PACKAGES = new Set(["kit", "contracts", "client", "db", "ui"]);
+const PACKAGES = new Set(["kit", "contracts", "client", "db", "ui", "inference"]);
 const MESSAGE =
   "a loose `.ts` file (not index.ts) sits at the root of a package's src/ — every importable module must be a DIRECTORY with an index.ts front door (core/Core-0-Architecture-and-Structure.md §7 D15).";
 
@@ -44,6 +44,7 @@ function looseModule(entry: ResourceTreeEntry): { readonly packageName: string; 
     file !== undefined &&
     rest.length === 0 &&
     file !== "index.ts" &&
+    !(packageName === "inference" && file === "deps.ts") &&
     file.endsWith(".ts")
     ? { packageName, file }
     : undefined;
@@ -54,7 +55,7 @@ export const gate = defineGate({
   family: "package-layout",
   authority: "reviewed-grant",
   severity: "error",
-  population: { in: ["@client", "@ui", "@db", "@contracts", "@kit"] },
+  population: { in: ["@client", "@ui", "@db", "@contracts", "@kit", "@inference"] },
   analysis: "resource",
   execution: "entire-population",
   facts: [],
@@ -74,6 +75,20 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "resource",
+      grant: { subject: "packages/inference/src/loose.ts", operation: "loose-package-root-module" },
+      files: { "packages/inference/src/loose.ts": "export const x = 1;\n" },
+      expect: { count: 1 },
+      why: "the inference package's exact deps.ts seam does not open arbitrary loose root modules",
+    },
+    {
+      mode: "resource",
+      grant: { subject: "packages/kit/src/deps.ts", operation: "loose-package-root-module" },
+      files: { "packages/kit/src/deps.ts": "export interface Deps {}\n" },
+      expect: { count: 1 },
+      why: "deps.ts is sanctioned only for inference and does not become a general package-root filename",
+    },
+    {
+      mode: "resource",
       grant: { subject: "packages/kit/src/loose.ts", operation: "loose-package-root-module" },
       files: { "packages/kit/src/loose.ts": "export const x = 1;\n" },
       expect: { count: 1 },
@@ -81,6 +96,11 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "resource",
+      files: { "packages/inference/src/index.ts": "export const x = 1;\n", "packages/inference/src/deps.ts": "export interface Deps {}\n" },
+      why: "D15 sanctions the inference package's one injected-dependency seam at src/deps.ts",
+    },
     {
       mode: "resource",
       files: { "packages/kit/src/index.ts": "export const x = 1;\n", "packages/kit/src/mod/index.ts": "export const y = 1;\n" },

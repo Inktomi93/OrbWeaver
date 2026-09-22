@@ -4,9 +4,11 @@
 
 import { createHash } from "node:crypto";
 import type { SessionStoreEntry } from "@anthropic-ai/claude-agent-sdk";
-import type { ChatId } from "@orb/kit/ids";
+import type { ChatId, UserConnectionId } from "@orb/kit/ids";
 import type { AgentSeedBlock, AgentSeedTurn } from "../../../contract/chat.ts";
 import { AGENT_PROMPT_TAIL_JOINER } from "../../../contract/chat.ts";
+import type { AgentSdkSessionId } from "../../../contract/identity.ts";
+import { agentSdkSessionIdSchema } from "../../../contract/identity.ts";
 
 /** The contract's seed turn plus the assistant model this frame should claim — EXTENDED, never re-spelled, so
  *  the two cannot drift into different content vocabularies. */
@@ -54,7 +56,7 @@ export function toSeedTurns(canon: readonly { role: string; content: readonly Ag
 interface FrameArgs {
   readonly turn: SeedTurn;
   readonly index: number;
-  readonly sessionId: string;
+  readonly sessionId: AgentSdkSessionId;
   readonly parentUuid: string | null;
   readonly common: Record<string, unknown>;
 }
@@ -154,7 +156,7 @@ function buildFrame(args: FrameArgs): SessionStoreEntry {
 }
 
 // sessionId must be a valid uuidv4 — the SDK rejects arbitrary resume ids.
-export function buildSeedFrames(canon: readonly SeedTurn[], sessionId: string): SessionStoreEntry[] {
+export function buildSeedFrames(canon: readonly SeedTurn[], sessionId: AgentSdkSessionId): SessionStoreEntry[] {
   const common = {
     isSidechain: false,
     cwd: SEED_CWD,
@@ -316,8 +318,8 @@ export function isBranchDivergence(entries: readonly SessionStoreEntry[], seed: 
   return shared >= 1;
 }
 
-export function seedSessionId(chatId: ChatId, seed: readonly SeedTurn[], salt = 0): string {
-  return deterministicId(`${chatId}\u0000${salt}\u0000${seedBody(seed)}`);
+export function seedSessionId(chatId: ChatId, connectionId: UserConnectionId, seed: readonly SeedTurn[], salt = 0): AgentSdkSessionId {
+  return agentSdkSessionIdSchema.parse(deterministicId(`${chatId}\u0000${connectionId}\u0000${salt}\u0000${seedBody(seed)}`));
 }
 
 /** The content-addressing body BOTH the lineage id and the staleness hash fold: role + the SAME projection the
