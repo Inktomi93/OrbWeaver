@@ -41,10 +41,10 @@ import {
   transpileForgeDesign,
 } from "@orb/contracts/refinery";
 import type { RoleClients, StructuredOptions, SummarizeOptions } from "@orb/contracts/role-clients";
+import { runStructuredTurn, StructuredOutputError } from "@orb/inference";
 import type { UserId } from "@orb/kit/ids";
 import { dropNullValues, projectJsonSchema } from "@orb/kit/json-schema";
 import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
-import { runStructuredTurn, StructuredOutputError } from "@orb/server/kit/structured-turn";
 import { z } from "zod";
 import { addSpanEvent } from "#foundation/observability";
 import type { RefineryContext } from "../context.ts";

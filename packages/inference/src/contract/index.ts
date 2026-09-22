@@ -90,3 +90,5 @@ export type {
   SummarizeRequestItem,
   WireEmbedding,
 } from "./roles.ts";
+export type { StructuredRetrySummary, StructuredTurnArgs } from "./structured-turn.ts";
+export { StructuredOutputError } from "./structured-turn.ts";

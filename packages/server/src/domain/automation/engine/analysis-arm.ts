@@ -48,11 +48,11 @@ import { ANALYSIS_GUIDANCE_MAX, ANALYSIS_REWRITE_MAX, ANALYSIS_SCORE_MAX } from 
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
+import { runStructuredTurn, StructuredOutputError } from "@orb/inference";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import type { VarOp } from "@orb/kit/macro";
 import { neutralizeMacros, setVarKey } from "@orb/kit/macro";
 import { sha256Hex } from "@orb/server/kit/content-hash";
-import { runStructuredTurn, StructuredOutputError } from "@orb/server/kit/structured-turn";
 import { getLog } from "#foundation/observability";
 import type {
   AnalysisAuditTarget,
