@@ -62,7 +62,7 @@
     "packages/server/src/entry/compose/services.ts",
     "packages/server/src/entry/compose/session-entries.ts",
     "tests/inference/_support.ts",
-    "tests/inference/backends/agent-sdk/session-store.test.ts",
+    "tests/inference/backends/agent-sdk/session/store.test.ts",
     "tests/inference/backends/local-light/index.test.ts",
     "tests/inference/capability/sources/curated/anthropic.test.ts",
     "tests/inference/conformance/_harness.ts",
@@ -78,7 +78,7 @@
   "evidence": {
     "foreign_identity_boundary": "packages/inference/src/contract/identity.ts:8-11 gives the daemon UUID a distinct AgentSdkSessionId brand and validates it with z.uuid(); packages/inference/src/backends/agent-sdk/runner.ts:312-325 parses every observed session_id before it reaches the accumulator, cache callback, error, or persistence seam.",
     "principal_and_connection_authority": "packages/inference/src/resolve/resolve-task.ts:144-169 derives the funder from Principal, loads the connection, and leak-free refuses an owner mismatch before constructing Resolved; runner.ts:175-193 carries that resolved connectionId into the session callback.",
-    "cache_isolation": "packages/inference/src/backends/agent-sdk/session/store.ts:173-231 keys record, resolve, clear, resume, reseed, and persistence by chatId plus a NUL separator plus UserConnectionId. TypeID values cannot contain NUL, so concatenation is unambiguous. The regression at tests/inference/backends/agent-sdk/session-store.test.ts:12-22 is red against the former chat-only API.",
+    "cache_isolation": "packages/inference/src/backends/agent-sdk/session/store.ts:173-231 keys record, resolve, clear, resume, reseed, and persistence by chatId plus a NUL separator plus UserConnectionId. TypeID values cannot contain NUL, so concatenation is unambiguous. The regression at tests/inference/backends/agent-sdk/session/store.test.ts:12-22 is red against the former chat-only API.",
     "deterministic_namespace": "packages/inference/src/backends/agent-sdk/session/frames.ts:38-41 derives a version-4-shaped UUID from SHA-256, and lines 321-328 include chatId, connectionId, salt, and the canonical seed body with distinct separators. This gives each connection its own approximately 122-bit content-addressed UUID namespace while preserving deterministic swipe-back.",
     "persistence_isolation": "packages/inference/src/contract/agent.ts:11-24 requires connectionId for both operations. packages/server/src/entry/compose/session-entries.ts:24-47 writes it and chooses primary per chat plus connection; lines 49-57 update only sdkSessionId plus connectionId, inspect RETURNING, and throw unless exactly one row changed. packages/db/src/schema/sdk-session.ts:77-84 makes sdk_session_id globally unique and the primary partial index connection-scoped, so a successful update cannot mutate multiple lineages.",
     "credential_exposure": "SessionEntryWriter accepts only chatId, connectionId, sdkSessionId, seed count, and canon hash. tests/server/entry/compose/session-entries.int.test.ts:207-226 pins the inserted row keys; no credential, token, secret, provider headers, or runtime-directory path can ride the persistence seam.",
@@ -114,7 +114,7 @@
   ],
   "verification": [
     {
-      "command": "pnpm test:scoped tests/inference/backends/agent-sdk/session-store.test.ts tests/inference/backends/local-light/index.test.ts tests/server/entry/compose/session-entries.int.test.ts tests/server/foundation/observability/tracing.test.ts",
+      "command": "pnpm test:scoped tests/inference/backends/agent-sdk/session/store.test.ts tests/inference/backends/local-light/index.test.ts tests/server/entry/compose/session-entries.int.test.ts tests/server/foundation/observability/tracing.test.ts",
       "result": "PASS: 4 requested files, 7 project suites, 16 tests; report reports/runs/test/orbweaver-2998110-2026-09-22T06-19-47-392Z/test-report.json success=true"
     },
     {

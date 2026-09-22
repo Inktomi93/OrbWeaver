@@ -93,7 +93,7 @@ export const RULE_PRESET_IDS = [
   "autoSetSceneBackground",
 ] as const;
 export type RulePresetId = (typeof RULE_PRESET_IDS)[number];
-export const rulePresetIdSchema = z.enum(RULE_PRESET_IDS);
+export const rulePresetIdSchema = z.enum(RULE_PRESET_IDS) satisfies z.ZodType<RulePresetId>;
 
 /** C5 — WHERE a preset's rules live: inside one room, or on the author's owner-GLOBAL lane
  *  (`automation_rules.chat_id IS NULL`). It is the preset's own declaration, not a caller's choice: a
@@ -106,7 +106,7 @@ export const rulePresetIdSchema = z.enum(RULE_PRESET_IDS);
  *  catalogue has already paid for once (#655). */
 export const RULE_PRESET_SCOPES = ["chat", "global"] as const;
 export type RulePresetScope = (typeof RULE_PRESET_SCOPES)[number];
-export const rulePresetScopeSchema = z.enum(RULE_PRESET_SCOPES);
+export const rulePresetScopeSchema = z.enum(RULE_PRESET_SCOPES) satisfies z.ZodType<RulePresetScope>;
 
 /** The knob editor kinds. A new kind fails every exhaustive descriptor dispatch (`tsc`). */
 export const RULE_PRESET_KNOB_KINDS = ["number", "text", "textList", "choice", "entityRef"] as const;
@@ -125,7 +125,7 @@ export type RulePresetEntityKind = (typeof RULE_PRESET_ENTITY_KINDS)[number];
  *  the mint substrate parses the caller's raw string through this before a preset builder ever reads it. */
 export const RULE_PRESET_ENTITY_REF_SCHEMAS = {
   worldInfoBook: typeIdSchema(ID_PREFIX.worldBook),
-} as const satisfies { readonly [TEntity in RulePresetEntityKind]: z.ZodType<string> };
+} as const satisfies { readonly [TEntity in RulePresetEntityKind]: z.ZodType<RulePresetEntityRefValueOf<TEntity>> };
 
 /** The NOUN a refusal names an entity by — host vocabulary, never the wire key ("world book", not
  *  "worldInfoBook"). Mapped over the axis for the same `tsc` reason as the schemas. */
@@ -246,7 +246,7 @@ export const rulePresetKnobValuesSchema = z.record(z.string(), z.union([z.number
  *  the mutable-array sibling of `RulePresetKnobValue`: the wire takes `string[]` and a `readonly string[]`
  *  will not assign into it, so a picker form holding its own editable list needs this shape rather than the
  *  resolved one. */
-export type RulePresetKnobValueInputs = z.input<typeof rulePresetKnobValuesSchema>;
+export type RulePresetKnobValueInputs = z.output<typeof rulePresetKnobValuesSchema>;
 /** ONE knob's value in that bag. */
 export type RulePresetKnobValueInput = RulePresetKnobValueInputs[string];
 
@@ -258,8 +258,8 @@ export type RulePresetKnobValueInput = RulePresetKnobValueInputs[string];
  *  descriptor default, and a knob it LOST refuses loudly at the re-mint, never silently). */
 export type RulePresetKnobValues = Readonly<Record<string, RulePresetKnobValue>>;
 
-/** A stored/resolved bag re-spelled as the WIRE INPUT bag (mutable arrays — the values schema's
- *  `z.input` takes `string[]`, and a `readonly string[]` will not assign into it). For surfaces that
+/** A stored/resolved bag re-spelled as the WIRE INPUT bag (mutable arrays — the values schema takes
+ *  `string[]`, and a `readonly string[]` will not assign into it). For surfaces that
  *  ECHO a view's bag back into a write (the saved-cast capture + the library editor's full-replace
  *  rename), so neither hand-rolls the readonly→mutable conversion or reaches for a cast. */
 export function rulePresetKnobBagToInputs(bag: RulePresetKnobValues): RulePresetKnobValueInputs {

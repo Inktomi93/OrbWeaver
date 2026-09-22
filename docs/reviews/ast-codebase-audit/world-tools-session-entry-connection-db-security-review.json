@@ -3,12 +3,7 @@
   "task": "Independent security review of the inference identity/session database follow-up",
   "verdict": "CONFIRMED",
   "reviewedHead": "92e229b112bb318e63186cbf9ba6274a66461b3b",
-  "reviewedCommits": [
-    "cb989016d",
-    "899f10a9a",
-    "cbf80c5d9",
-    "92e229b112bb318e63186cbf9ba6274a66461b3b"
-  ],
+  "reviewedCommits": ["cb989016d", "899f10a9a", "cbf80c5d9", "92e229b112bb318e63186cbf9ba6274a66461b3b"],
   "scope": "The session_entries schema, forward migration 0004, generated migration metadata, migration and schema tests, the SessionEntryWriter, the agent-sdk in-memory resume cache, connection resolution, and the chat host-to-funder path. No implementation, test, migration, ledger, or lifecycle file was changed.",
   "summary": "Commit 92e229b1 closes the legacy nullable-connection state without inventing ownership. The migration deletes only session_entries rows whose connection_id is NULL, copies bound rows unchanged, makes connection_id NOT NULL, and preserves the chat and connection ON DELETE CASCADE foreign keys, global sdk_session_id uniqueness, per-chat (chat_id, seq) uniqueness, the connection lookup index, and the partial one-primary-per-(chat, connection) index. Production session resume and persistence update paths are connection-scoped, and the resolved connection is owner-checked against the frozen room host principal before the agent-sdk backend runs.",
   "findings": [],
@@ -48,12 +43,12 @@
   "behavioralProof": {
     "migration": "tests/db/client.int.test.ts applies migrations 0000-0003 to an isolated :memory: database, inserts one bound and one NULL legacy session row, applies 0004, proves only the bound row survives, reads PRAGMA table_info to prove NOT NULL, proves a new NULL insert is rejected, and proves deleting the connection cascades the surviving row.",
     "schema": "tests/db/schema/sdk-session.int.test.ts proves NULL refusal, valid round-trip, missing-chat FK refusal, chat cascade, connection cascade limited to that lineage, per-chat sequence uniqueness, global SDK-session uniqueness, and independent primaries per connection with duplicate-primary refusal.",
-    "resume": "tests/inference/backends/agent-sdk/session-store.test.ts proves a session recorded for one connection is not resolved through a second connection for the same chat.",
+    "resume": "tests/inference/backends/agent-sdk/session/store.test.ts proves a session recorded for one connection is not resolved through a second connection for the same chat.",
     "update": "tests/server/entry/compose/session-entries.int.test.ts proves a foreign connection cannot rewrite another connection's SDK session and that the original row is unchanged; it also proves independent primaries for two connections in one chat."
   },
   "verification": [
     {
-      "command": "pnpm test:scoped tests/db/client.int.test.ts tests/db/schema/sdk-session.int.test.ts tests/server/entry/compose/session-entries.int.test.ts tests/inference/backends/agent-sdk/session-store.test.ts tests/inference/index.test.ts tests/inference/resolve/resolve-task.suite.test.ts",
+      "command": "pnpm test:scoped tests/db/client.int.test.ts tests/db/schema/sdk-session.int.test.ts tests/server/entry/compose/session-entries.int.test.ts tests/inference/backends/agent-sdk/session/store.test.ts tests/inference/index.test.ts tests/inference/resolve/resolve-task.suite.test.ts",
       "result": "PASS: 6 files, 78 tests",
       "artifact": "reports/runs/test/orbweaver-3152485-2026-09-22T06-48-02-399Z/test-report.json"
     },

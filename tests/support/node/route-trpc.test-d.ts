@@ -2,12 +2,24 @@ import { DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { Page } from "@playwright/test";
 import { expectTypeOf, test } from "vitest";
-import type { TrpcFixtureOutput, TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "./route-trpc.ts";
+import type { TrpcFixtureOutput, TrpcProcedurePath, TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "./route-trpc.ts";
 import { defineTrpcRoutes, malformedOrForwardTrpcWire, routeTrpc, trpcError, trpcHold } from "./route-trpc.ts";
 
 declare const page: Page;
 declare const broadRecord: Record<string, unknown>;
 declare const broadRoutes: TrpcRoutes;
+
+type NeverWireOutputPaths<TPath extends TrpcProcedurePath = TrpcProcedurePath> = TPath extends TrpcProcedurePath
+  ? [TrpcWireOutput<TPath>] extends [never]
+    ? TPath
+    : never
+  : never;
+
+type NeverFixtureOutputPaths<TPath extends TrpcProcedurePath = TrpcProcedurePath> = TPath extends TrpcProcedurePath
+  ? [TrpcFixtureOutput<TPath>] extends [never]
+    ? TPath
+    : never
+  : never;
 
 const completeSettingsOutput = {
   userId: "user_complete_wire",
@@ -43,6 +55,8 @@ const pageSurfaceRow = (): PluginSurfaceRow => ({
 });
 
 test("ordinary direct fixtures derive keys, input, and output from AppRouter", async () => {
+  expectTypeOf<NeverWireOutputPaths>().toEqualTypeOf<never>();
+  expectTypeOf<NeverFixtureOutputPaths>().toEqualTypeOf<never>();
   expectTypeOf(routeTrpc(page, { health: { ok: true } })).toEqualTypeOf<Promise<TrpcRecorder>>();
   expectTypeOf(routeTrpc(page, { health: () => ({ ok: true }) })).toEqualTypeOf<Promise<TrpcRecorder>>();
   expectTypeOf(routeTrpc(page, { "assets.listOwned": [{ assetId: "asset_wire_id" }] })).toEqualTypeOf<Promise<TrpcRecorder>>();

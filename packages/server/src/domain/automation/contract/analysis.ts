@@ -170,6 +170,17 @@ type AnalysisLoreEntry = z.infer<typeof analysisLoreEntrySchema>;
 
 const twistOpSchema = z.object({ op: z.enum(["add", "retire"]), twist: z.string().min(1).max(ANALYSIS_TWIST_MAX) });
 
+const analysisGuidanceSchema = z.string().max(ANALYSIS_ARC_MAX + ANALYSIS_TWIST_MAX);
+const analysisLoreSchema = z
+  .array(analysisLoreEntrySchema)
+  .max(LORE_PER_PASS)
+  .transform((entries): readonly AnalysisLoreEntry[] => entries);
+const analysisSuggestionsSchema = z
+  .array(z.object({ text: z.string().min(1).max(SUGGESTION_TEXT_MAX) }))
+  .max(SUGGESTIONS_PER_PASS)
+  .transform((suggestions): readonly { readonly text: string }[] => suggestions);
+const analysisScoreSchema = z.number().min(0).max(ANALYSIS_SCORE_MAX);
+
 /** C3 — the PROSE AUDIT's verdict, as the model emits it. `clean` is the COMMON case and is spelled as a
  *  first-class arm rather than an empty `text`: the legacy prose-audit's when-in-doubt-clean posture only
  *  survives if "nothing is wrong" is something the model is asked to SAY, and the executor keys the
@@ -193,24 +204,77 @@ const payloadBase = {
   updatedArc: z.string().max(ANALYSIS_ARC_MAX).nullable(),
   /** The next arc, read ONLY when `arcStatus === "completed"`; `null` otherwise. */
   successorArc: z.string().max(ANALYSIS_ARC_MAX).nullable(),
-  twistOps: z.array(twistOpSchema).max(TWIST_OPS_PER_PASS),
+  twistOps: z
+    .array(twistOpSchema)
+    .max(TWIST_OPS_PER_PASS)
+    .transform((ops): AnalysisPayload["twistOps"] => ops),
 };
+
+/** The concrete implementation face after the route-built wall has required enabled fields and stripped
+ *  disabled ones. Piping through this stable envelope gives the body-bearing factory an exact authored output
+ *  without changing bytes; route-specific requiredness remains the public generic overload's narrower face. */
+const analysisPayloadEnvelopeSchema = z.object({
+  ...payloadBase,
+  guidance: analysisGuidanceSchema.optional(),
+  lore: analysisLoreSchema.optional(),
+  suggestions: analysisSuggestionsSchema.optional(),
+  rewrite: analysisRewriteSchema.optional(),
+  score: analysisScoreSchema.optional(),
+}) satisfies z.ZodType<AnalysisPayload>;
+
+type AnalysisPayloadBase = Pick<AnalysisPayload, "arcStatus" | "updatedArc" | "successorArc" | "twistOps">;
+type RequiredAnalysisPayloadField<TField extends keyof AnalysisPayload> = {
+  readonly [TKey in TField]-?: Exclude<AnalysisPayload[TKey], undefined>;
+};
+type AnalysisRoutePayload<
+  TRoutes extends AnalysisRoutes,
+  TRoute extends keyof AnalysisRoutes,
+  TField extends keyof AnalysisPayload,
+> = TRoute extends keyof TRoutes
+  ? undefined extends TRoutes[TRoute]
+    ? Pick<AnalysisPayload, TField>
+    : RequiredAnalysisPayloadField<TField>
+  : Record<never, never>;
+type AnalysisPayloadForRoutes<TRoutes extends AnalysisRoutes> = AnalysisPayloadBase &
+  AnalysisRoutePayload<TRoutes, "steer", "guidance"> &
+  AnalysisRoutePayload<TRoutes, "lore", "lore"> &
+  AnalysisRoutePayload<TRoutes, "suggest", "suggestions"> &
+  AnalysisRoutePayload<TRoutes, "rewrite", "rewrite"> &
+  AnalysisRoutePayload<TRoutes, "vars", "score">;
 
 /** Build the pass's payload validator FROM the enabled routes. This composition is load-bearing twice:
  *  the projected JSON Schema of THIS zod is the wire `responseFormat` (an enforcing vehicle cannot emit a
  *  disabled field), and the zod itself is the server-side wall (a non-enforcing vehicle's stray field is
  *  stripped here before any applier runs — the needle pin's model-independent receipt). */
-export function buildAnalysisPayloadSchema(routes: AnalysisRoutes): z.ZodType<AnalysisPayload> {
-  return z.object({
-    ...payloadBase,
-    // "" = nothing needs steering — the COMMON case, and it CLEARS standing guidance (each pass replaces
-    // guidance wholesale; the legacy director refreshed its one instruction every pass).
-    ...(routes.steer !== undefined ? { guidance: z.string().max(ANALYSIS_ARC_MAX + ANALYSIS_TWIST_MAX) } : {}),
-    ...(routes.lore !== undefined ? { lore: z.array(analysisLoreEntrySchema).max(LORE_PER_PASS) } : {}),
-    ...(routes.suggest !== undefined ? { suggestions: z.array(z.object({ text: z.string().min(1).max(SUGGESTION_TEXT_MAX) })).max(SUGGESTIONS_PER_PASS) } : {}),
-    ...(routes.rewrite !== undefined ? { rewrite: analysisRewriteSchema } : {}),
-    ...(routes.vars !== undefined ? { score: z.number().min(0).max(ANALYSIS_SCORE_MAX) } : {}),
-  }) as z.ZodType<AnalysisPayload>;
+// GENERATED-SCHEMA CORRELATION: each invocation has a route-dependent output narrower than AnalysisPayload
+// (enabled fields are required; disabled fields do not exist). The public output is their route-optional
+// specialization; the body-bearing signature names the broader concrete envelope that the stable final pipe
+// proves. End this split when TypeScript can infer the value-dependent route shape without a 32-arm branch set.
+export function buildAnalysisPayloadSchema<TRoutes extends AnalysisRoutes>(routes: TRoutes): z.ZodType<AnalysisPayloadForRoutes<TRoutes>>;
+export function buildAnalysisPayloadSchema<TRoutes extends AnalysisRoutes>(routes: TRoutes): z.ZodType<AnalysisPayload | AnalysisPayloadForRoutes<TRoutes>> {
+  const routeShape: {
+    guidance?: typeof analysisGuidanceSchema;
+    lore?: typeof analysisLoreSchema;
+    suggestions?: typeof analysisSuggestionsSchema;
+    rewrite?: typeof analysisRewriteSchema;
+    score?: typeof analysisScoreSchema;
+  } = {};
+  if (routes.steer !== undefined) {
+    routeShape.guidance = analysisGuidanceSchema;
+  }
+  if (routes.lore !== undefined) {
+    routeShape.lore = analysisLoreSchema;
+  }
+  if (routes.suggest !== undefined) {
+    routeShape.suggestions = analysisSuggestionsSchema;
+  }
+  if (routes.rewrite !== undefined) {
+    routeShape.rewrite = analysisRewriteSchema;
+  }
+  if (routes.vars !== undefined) {
+    routeShape.score = analysisScoreSchema;
+  }
+  return z.object({ ...payloadBase, ...routeShape }).pipe(analysisPayloadEnvelopeSchema);
 }
 
 /** The parsed pass payload. Route-gated fields are optional at the TYPE level (they exist only when their
@@ -221,12 +285,12 @@ export interface AnalysisPayload {
   readonly updatedArc: string | null;
   readonly successorArc: string | null;
   readonly twistOps: readonly { readonly op: "add" | "retire"; readonly twist: string }[];
-  readonly guidance?: string;
-  readonly lore?: readonly AnalysisLoreEntry[];
-  readonly suggestions?: readonly { readonly text: string }[];
+  readonly guidance?: string | undefined;
+  readonly lore?: readonly AnalysisLoreEntry[] | undefined;
+  readonly suggestions?: readonly { readonly text: string }[] | undefined;
   /** C3 — present only when the arm authored `routes.rewrite`; `verdict: "clean"` draws nothing. */
-  readonly rewrite?: AnalysisRewrite;
-  readonly score?: number;
+  readonly rewrite?: AnalysisRewrite | undefined;
+  readonly score?: number | undefined;
 }
 
 // ── the pure state merge (legacy semantics, property-tested) ──────────────────────────────────────────

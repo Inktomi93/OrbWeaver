@@ -16,7 +16,7 @@ import { z } from "zod";
 // `admin` = delegated administrator; `user` = normal. The one home every gating domain derives from.
 export const USER_ROLES = ["owner", "admin", "user"] as const;
 export type UserRole = (typeof USER_ROLES)[number];
-export const userRoleSchema = z.enum(USER_ROLES);
+export const userRoleSchema = z.enum(USER_ROLES) satisfies z.ZodType<UserRole>;
 
 // Principal-KIND axis — currently `human` only (post-rollback: the agent-principal seat wave was purged
 // 2026-07-25). A tuple, never an `isAgent` boolean, so it can grow a third flavor without `if`-branching —
@@ -24,7 +24,7 @@ export const userRoleSchema = z.enum(USER_ROLES);
 export const USER_KINDS = ["human"] as const;
 export type UserKind = (typeof USER_KINDS)[number];
 /** @public twin: USER_KINDS — drives the users.kind enum (cross-package PUBLIC). */
-export const userKindSchema = z.enum(USER_KINDS);
+export const userKindSchema = z.enum(USER_KINDS) satisfies z.ZodType<UserKind>;
 
 /** The custom CSRF request header. Cross-boundary wire fact: the client sends it every request and the
  *  server gate keys on it. `SameSite=Lax` + this header is the whole CSRF story. */
@@ -33,7 +33,7 @@ export const CSRF_HEADER = "x-orb-csrf";
 // The SSO mechanism selector; `foundation/env` and `infra/auth`'s `MODE_RESOLVERS` derive from this tuple.
 export const AUTH_MODES = ["single-user", "local", "forward-header", "oidc"] as const;
 export type AuthMode = (typeof AUTH_MODES)[number];
-export const authModeSchema = z.enum(AUTH_MODES);
+export const authModeSchema = z.enum(AUTH_MODES) satisfies z.ZodType<AuthMode>;
 
 /** The pre-row output: identity resolved to its stable SSO fields, BEFORE the `users` row exists. Carries
  *  no `userId` by design. `email` is a mutable contact attribute, never an identity/join key — `null`

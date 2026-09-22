@@ -90,7 +90,7 @@ export async function healLegacyBackgroundPins(db: Db): Promise<number> {
         healed++;
       }
     } catch {
-      // Skipped — see the @orb-gate-ignore above the try.
+      // Skipped — see the @orb-waive above the try.
     }
   }
   return healed;

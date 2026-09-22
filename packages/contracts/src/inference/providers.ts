@@ -21,7 +21,7 @@ import { WIRE_DEFS } from "./wires.ts";
 export const builtinProviderDefSchema = providerDefSchema.refine((row) => !isPluginProviderId(row.id), {
   message: "a built-in provider id is bare, never plugin:-namespaced",
   path: ["id"],
-});
+}) satisfies z.ZodType<ProviderDef>;
 
 /** The shipped rows, parsed ONCE at module load through the same schema a plugin or admin row goes
  *  through. A malformed row is a boot failure, not a runtime surprise. */

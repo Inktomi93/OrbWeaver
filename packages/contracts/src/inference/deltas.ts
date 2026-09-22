@@ -6,4 +6,4 @@ import { z } from "zod";
 
 export const DELTA_KINDS = ["text", "reasoning", "image", "audio", "tool-call", "citation", "usage"] as const;
 export type DeltaKind = (typeof DELTA_KINDS)[number];
-export const deltaKindSchema = z.enum(DELTA_KINDS);
+export const deltaKindSchema = z.enum(DELTA_KINDS) satisfies z.ZodType<DeltaKind>;

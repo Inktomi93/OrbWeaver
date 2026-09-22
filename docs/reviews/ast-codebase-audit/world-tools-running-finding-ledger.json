@@ -1,13 +1,13 @@
 {
   "schema": "orbweaver.ast-running-finding-ledger",
   "schemaVersion": 1,
-  "generatedAt": "2026-09-22T07:27:57.698Z",
+  "generatedAt": "2026-09-22T15:26:11.314Z",
   "currentTree": {
-    "head": "81d19ad83f9e7ce1b7bd89ed42a72b2abb361387",
+    "head": "dc487a7ea3ece6f5db80c1407486ff2c25336a45",
     "dirty": true,
-    "dirtyEntryCount": 18,
-    "statusSha256": "70f759f7873bf9c6163537b75237023bf5f888d04c5795fd16650839473163a8",
-    "warning": "HEAD alone does not identify this shared dirty tree; current-tree claims require a receipt that names both its capture and scope."
+    "dirtyEntryCount": 33,
+    "statusSha256": "31941f579394c13c83977e6b91f69796b93a675564e1b423a31bc091c43843e1",
+    "warning": "Captured after the review receipt and immediately before this ledger rewrite; the ledger edit itself changes porcelain. Final current-tree claims require the clean committed-tree denominator receipt."
   },
   "reconstruction": {
     "generator": "/tmp/world-tools-rebuild-ledger.mjs",
@@ -79,9 +79,9 @@
     }
   ],
   "sourceManifest": {
-    "currentHead": "81d19ad83f9e7ce1b7bd89ed42a72b2abb361387",
-    "count": 470,
-    "durableCount": 156,
+    "currentHead": "dc487a7ea3ece6f5db80c1407486ff2c25336a45",
+    "count": 489,
+    "durableCount": 175,
     "temporaryCount": 237,
     "transcriptCount": 77,
     "sources": [
@@ -3379,6 +3379,36 @@
         "capturedHead": null
       },
       {
+        "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
+        "durability": "repository-durable",
+        "mediaType": "text/markdown",
+        "bytes": 413287,
+        "sha256": "0d682a74b9ab0f3bebb2806c1d6fb2989109b8c671caaeb3a2441c307b975459",
+        "modifiedAt": "2026-09-22T10:08:43.787Z",
+        "captureTime": "2026-09-22T11:00:57.858Z",
+        "capturedHead": "dc487a7ea3ece6f5db80c1407486ff2c25336a45"
+      },
+      {
+        "path": "docs/catalog/catalog.json",
+        "durability": "repository-durable",
+        "mediaType": "application/json",
+        "bytes": 3178041,
+        "sha256": "f30e5a1171d3f34e9493027794880f98031f83fcb0c9e2934578bce13fff90bd",
+        "modifiedAt": "2026-09-22T11:00:31.803Z",
+        "captureTime": "2026-09-22T11:00:57.858Z",
+        "capturedHead": "dc487a7ea3ece6f5db80c1407486ff2c25336a45"
+      },
+      {
+        "path": "docs/catalog/receipts/architecture-core.json",
+        "durability": "repository-durable",
+        "mediaType": "application/json",
+        "bytes": 173850,
+        "sha256": "36443e53a95b5e25fda519e514cdd1037e3b320ae6bfa189ef2d11c609507590",
+        "modifiedAt": "2026-09-22T10:58:04.794Z",
+        "captureTime": "2026-09-22T11:00:57.858Z",
+        "capturedHead": "dc487a7ea3ece6f5db80c1407486ff2c25336a45"
+      },
+      {
         "path": "docs/reviews/ast-codebase-audit/index.json",
         "durability": "repository-durable",
         "mediaType": "application/json",
@@ -3980,6 +4010,16 @@
         "capturedHead": "8f7ed4c4b98c112429c3918483f3a172f66ae184"
       },
       {
+        "path": "docs/reviews/ast-codebase-audit/world-tools-dead-code-masking-audit.json",
+        "durability": "repository-durable",
+        "mediaType": "application/json",
+        "bytes": 24077,
+        "sha256": "adf09f38b1109c4aec20ceebd3df92b60f928bad55eddd3b1a3ed41103e78af0",
+        "modifiedAt": "2026-09-22T12:22:58.283207Z",
+        "captureTime": "2026-09-22T12:22:58.320902Z",
+        "capturedHead": "dc487a7ea3ece6f5db80c1407486ff2c25336a45"
+      },
+      {
         "path": "docs/reviews/ast-codebase-audit/world-tools-dead-storage-cleanup.json",
         "durability": "repository-durable",
         "mediaType": "application/json",
@@ -3998,6 +4038,26 @@
         "modifiedAt": "2026-09-21T09:34:46.559Z",
         "captureTime": "2026-09-21T09:34:46.559Z",
         "capturedHead": "8f7ed4c4b98c112429c3918483f3a172f66ae184"
+      },
+      {
+        "path": "docs/reviews/ast-codebase-audit/world-tools-exception-authority-denominator.json",
+        "durability": "repository-durable",
+        "mediaType": "application/json",
+        "bytes": 7506,
+        "sha256": "877f856f8e40733a67af549c642ca5c3bbf549105dbad06c5e4d2b128176196c",
+        "modifiedAt": "2026-09-22T14:27:13.704Z",
+        "captureTime": "2026-09-22T14:23:22Z",
+        "capturedHead": "dc487a7ea3ece6f5db80c1407486ff2c25336a45"
+      },
+      {
+        "path": "docs/reviews/ast-codebase-audit/world-tools-exception-authority-system-review.json",
+        "durability": "repository-durable",
+        "mediaType": "application/json",
+        "bytes": 12519,
+        "sha256": "dc75120e3d07e11e95e139ab5e316c6ad861a59cc421d85c7df8769a81f434f2",
+        "modifiedAt": "2026-09-22T14:46:14.489Z",
+        "captureTime": "2026-09-22T14:45:00Z",
+        "capturedHead": "dc487a7ea3ece6f5db80c1407486ff2c25336a45"
       },
       {
         "path": "docs/reviews/ast-codebase-audit/world-tools-external-consumer-design.json",
@@ -4204,10 +4264,10 @@
         "durability": "repository-durable",
         "mediaType": "application/json",
         "bytes": 14155,
-        "sha256": "ff5468815706dc9157ed1b079c5f68fea38269dac731ce35e1460973d2c823e3",
-        "modifiedAt": "2026-09-22T07:01:51.123Z",
-        "captureTime": "2026-09-22T07:04:11.847Z",
-        "capturedHead": "cb989016d56780846bd2973ec0bb96b2f3642eb0",
+        "sha256": "7cf78b86d2306256e0e86a919573f0eea91e201ab23caa09bacd148261073f80",
+        "modifiedAt": "2026-09-22T10:16:18.607Z",
+        "captureTime": "2026-09-22T10:43:56.384Z",
+        "capturedHead": "dc487a7ea3ece6f5db80c1407486ff2c25336a45",
         "capturedWorktreeState": "clean reviewed source stack plus receipt only"
       },
       {
@@ -4482,6 +4542,16 @@
         "capturedHead": "8f7ed4c4b98c112429c3918483f3a172f66ae184"
       },
       {
+        "path": "docs/reviews/ast-codebase-audit/world-tools-qwen-recon-queue.json",
+        "durability": "repository-durable",
+        "mediaType": "application/json",
+        "bytes": 6399,
+        "sha256": "84b0bd240b1a5c4dfcdcde3daf1a71cf0c2f40067fbc9f0264e959f4362fba80",
+        "modifiedAt": "2026-09-22T14:46:52.085Z",
+        "captureTime": "2026-09-22T13:00:00Z",
+        "capturedHead": "dc487a7ea3ece6f5db80c1407486ff2c25336a45"
+      },
+      {
         "path": "docs/reviews/ast-codebase-audit/world-tools-refinery-schema-delete-ui-fix.json",
         "durability": "repository-durable",
         "mediaType": "application/json",
@@ -4593,14 +4663,74 @@
         "capturedHead": "8f7ed4c4b98c112429c3918483f3a172f66ae184"
       },
       {
+        "path": "docs/reviews/ast-codebase-audit/world-tools-respell-near-closure-repair.json",
+        "durability": "repository-durable",
+        "mediaType": "application/json",
+        "bytes": 6396,
+        "sha256": "e1f04bb9e33e316af64408801247a4d4f63c9d7aa7d5ef7307b0ff8e934db9e2",
+        "modifiedAt": "2026-09-22T10:44:45.048Z",
+        "captureTime": "2026-09-22T10:43:56.384Z",
+        "capturedHead": "dc487a7ea3ece6f5db80c1407486ff2c25336a45"
+      },
+      {
+        "path": "docs/reviews/ast-codebase-audit/world-tools-respell-near-closure-review.json",
+        "durability": "repository-durable",
+        "mediaType": "application/json",
+        "bytes": 3804,
+        "sha256": "74a8dee66486876ea0c3557106fadc956571c99a31ef50eb15565efc38e17272",
+        "modifiedAt": "2026-09-22T10:43:56.384Z",
+        "captureTime": "2026-09-22T10:43:56.384Z",
+        "capturedHead": "dc487a7ea3ece6f5db80c1407486ff2c25336a45"
+      },
+      {
+        "path": "docs/reviews/ast-codebase-audit/world-tools-respell-near-performance-repair.json",
+        "durability": "repository-durable",
+        "mediaType": "application/json",
+        "bytes": 5506,
+        "sha256": "8e252218c761d1f84d22ffc0e27c099e8676c39b2dd0f9e2025b0bcf90946660",
+        "modifiedAt": "2026-09-22T09:44:06.119Z",
+        "captureTime": "2026-09-22T10:43:56.384Z",
+        "capturedHead": "dc487a7ea3ece6f5db80c1407486ff2c25336a45"
+      },
+      {
+        "path": "docs/reviews/ast-codebase-audit/world-tools-respell-near-performance-review.json",
+        "durability": "repository-durable",
+        "mediaType": "application/json",
+        "bytes": 2664,
+        "sha256": "b4aae71309e3582f6df2aedd1c4f99f1ef65ba33fc7856139b2ad31b9cbbb239",
+        "modifiedAt": "2026-09-22T08:54:37.428Z",
+        "captureTime": "2026-09-22T10:43:56.384Z",
+        "capturedHead": "dc487a7ea3ece6f5db80c1407486ff2c25336a45"
+      },
+      {
+        "path": "docs/reviews/ast-codebase-audit/world-tools-respell-post-hook-repair.json",
+        "durability": "repository-durable",
+        "mediaType": "application/json",
+        "bytes": 6432,
+        "sha256": "0f5d64147e82daabbe61fb6d92c4a7cfdd3eb4cc87e7a7ba237548768b0677b8",
+        "modifiedAt": "2026-09-22T10:48:21.350Z",
+        "captureTime": "2026-09-22T10:48:21.393Z",
+        "capturedHead": "dc487a7ea3ece6f5db80c1407486ff2c25336a45"
+      },
+      {
+        "path": "docs/reviews/ast-codebase-audit/world-tools-respell-post-hook-review.json",
+        "durability": "repository-durable",
+        "mediaType": "application/json",
+        "bytes": 2532,
+        "sha256": "d74dbc355cab24acb8fbb95982904305dd6f656c9641341fadde8c241941693a",
+        "modifiedAt": "2026-09-22T10:48:20.979Z",
+        "captureTime": "2026-09-22T10:48:21.393Z",
+        "capturedHead": "dc487a7ea3ece6f5db80c1407486ff2c25336a45"
+      },
+      {
         "path": "docs/reviews/ast-codebase-audit/world-tools-reviewed-lanes-integration.json",
         "durability": "repository-durable",
         "mediaType": "application/json",
-        "bytes": 3715,
-        "sha256": "196dabf2abaf0f9ce5e58a434d5275af0876c1c4401579eb9b625be3804913b1",
-        "modifiedAt": "2026-09-22T07:27:57.698Z",
-        "captureTime": "2026-09-22T07:27:57.698Z",
-        "capturedHead": "81d19ad83f9e7ce1b7bd89ed42a72b2abb361387",
+        "bytes": 3637,
+        "sha256": "c680aa151de29f9e843090350036a695dab89ebbdaa13d1799613fd74e3e13ad",
+        "modifiedAt": "2026-09-22T10:08:37.547Z",
+        "captureTime": "2026-09-22T10:43:56.384Z",
+        "capturedHead": "dc487a7ea3ece6f5db80c1407486ff2c25336a45",
         "capturedWorktreeState": "staged integration checkpoint"
       },
       {
@@ -4697,11 +4827,11 @@
         "path": "docs/reviews/ast-codebase-audit/world-tools-session-entry-connection-db-security-review.json",
         "durability": "repository-durable",
         "mediaType": "application/json",
-        "bytes": 9314,
-        "sha256": "d71ff6d41b3761723752c2b36a6cc7d75dac1bf30542dc3d090d1df4c682ad57",
-        "modifiedAt": "2026-09-22T07:01:51.124Z",
-        "captureTime": "2026-09-22T07:04:11.847Z",
-        "capturedHead": "92e229b112bb318e63186cbf9ba6274a66461b3b",
+        "bytes": 9294,
+        "sha256": "150cefad2fcd5fdb4769ec00c590557e556cb90ec12c83ae814b885e16ad1517",
+        "modifiedAt": "2026-09-22T10:16:18.607Z",
+        "captureTime": "2026-09-22T10:43:56.384Z",
+        "capturedHead": "dc487a7ea3ece6f5db80c1407486ff2c25336a45",
         "capturedWorktreeState": "clean reviewed source stack plus receipt only"
       },
       {
@@ -4723,6 +4853,26 @@
         "modifiedAt": "2026-09-22T00:25:33.682Z",
         "captureTime": "2026-09-22T00:25:33.682Z",
         "capturedHead": "8f7ed4c4b98c112429c3918483f3a172f66ae184"
+      },
+      {
+        "path": "docs/reviews/ast-codebase-audit/world-tools-structure-hook-repair.json",
+        "durability": "repository-durable",
+        "mediaType": "application/json",
+        "bytes": 3611,
+        "sha256": "c8450e405ff7e03b42332543dd498e614fd99216a33ca1dbfa09f0c50bf7ec95",
+        "modifiedAt": "2026-09-22T12:05:57.461486Z",
+        "captureTime": "2026-09-22T12:06:35.562277Z",
+        "capturedHead": "dc487a7ea3ece6f5db80c1407486ff2c25336a45"
+      },
+      {
+        "path": "docs/reviews/ast-codebase-audit/world-tools-structure-hook-review.json",
+        "durability": "repository-durable",
+        "mediaType": "application/json",
+        "bytes": 2067,
+        "sha256": "afdeea460f68fe5ffabde9d148c4ce683eacf7db670b5bc83cd259bbb7a8f4d7",
+        "modifiedAt": "2026-09-22T12:05:57.461486Z",
+        "captureTime": "2026-09-22T12:06:35.562277Z",
+        "capturedHead": "dc487a7ea3ece6f5db80c1407486ff2c25336a45"
       },
       {
         "path": "docs/reviews/ast-codebase-audit/world-tools-test-any-contract-integrity.json",
@@ -4788,11 +4938,11 @@
         "path": "docs/reviews/ast-codebase-audit/world-tools-testonly-client-after-refinery-wiring.json",
         "durability": "repository-durable",
         "mediaType": "application/json",
-        "bytes": 7323,
-        "sha256": "bb07a4819ffe68bc81ced835851fe9dc7acc04d9180b973f90fa6319ffa9f668",
-        "modifiedAt": "2026-09-22T05:41:17.092Z",
-        "captureTime": "2026-09-22T05:35:15.693Z",
-        "capturedHead": "dc0f8eb092bd6706c8458cf1d59578ba07db9181",
+        "bytes": 7235,
+        "sha256": "01a22a4e3a44d69bfc6a49ba28335b20776aec6d378859f882b6ca4e29df9b2c",
+        "modifiedAt": "2026-09-22T10:08:37.547Z",
+        "captureTime": "2026-09-22T10:43:56.384Z",
+        "capturedHead": "dc487a7ea3ece6f5db80c1407486ff2c25336a45",
         "capturedWorktreeState": "dirty repair candidate"
       },
       {
@@ -4944,6 +5094,46 @@
         "modifiedAt": "2026-09-21T17:10:40.574Z",
         "captureTime": "2026-09-21T17:10:40.574Z",
         "capturedHead": "8f7ed4c4b98c112429c3918483f3a172f66ae184"
+      },
+      {
+        "path": "docs/reviews/ast-codebase-audit/world-tools-app-router-runtime-output-validation-current.json",
+        "durability": "repository-durable",
+        "mediaType": "application/json",
+        "bytes": 163118,
+        "sha256": "defa29fb1c37d7930e7b5d995eef79d2da5f3834540026149844cf1957921b85",
+        "modifiedAt": "2026-09-22T14:58:55.281Z",
+        "captureTime": "2026-09-22T15:26:11.314Z",
+        "capturedHead": "dc487a7ea3ece6f5db80c1407486ff2c25336a45"
+      },
+      {
+        "path": "docs/reviews/ast-codebase-audit/world-tools-app-router-runtime-output-security-review.json",
+        "durability": "repository-durable",
+        "mediaType": "application/json",
+        "bytes": 11059,
+        "sha256": "771135d50c1fef5360f65df3eddd4420133dc887d32f5856ce330b4d7bcac513",
+        "modifiedAt": "2026-09-22T15:11:21.774Z",
+        "captureTime": "2026-09-22T15:26:11.314Z",
+        "capturedHead": "dc487a7ea3ece6f5db80c1407486ff2c25336a45"
+      },
+      {
+        "path": "docs/reviews/ast-codebase-audit/world-tools-zod-export-membership-current.json",
+        "durability": "repository-durable",
+        "mediaType": "application/json",
+        "bytes": 9370,
+        "sha256": "b834e00e59b5805833d6834b41b7562bfe477d20ecf08696ea31fded6b453834",
+        "modifiedAt": "2026-09-22T15:06:00.498Z",
+        "captureTime": "2026-09-22T15:26:11.314Z",
+        "capturedHead": "dc487a7ea3ece6f5db80c1407486ff2c25336a45"
+      },
+      {
+        "path": "docs/reviews/ast-codebase-audit/world-tools-zod-output-twin-parity-dynamic-schema-closure.json",
+        "durability": "repository-durable",
+        "mediaType": "application/json",
+        "bytes": 7658,
+        "sha256": "dbf6596700ae50456e8db91afa8398d7df089e2af9e922bb9b0602224e588fd5",
+        "modifiedAt": "2026-09-22T15:22:51.076Z",
+        "captureTime": "2026-09-22T15:20:41Z",
+        "capturedHead": "dc487a7ea3ece6f5db80c1407486ff2c25336a45"
       }
     ]
   },
@@ -4984,9 +5174,10 @@
       ]
     },
     "coverageCounts": {
+      "current-dirty-tree-complete-reviewed": 1,
       "current-rerepair-attempt-tool-error": 1,
       "stale-or-unanchored-evidence": 9,
-      "unrun-or-no-machine-readable-receipt": 20
+      "unrun-or-no-machine-readable-receipt": 19
     },
     "verbs": [
       {
@@ -5350,12 +5541,33 @@
         "corpus": "typed",
         "implementation": "tooling/src/ast/ops/respell.ts#cmdRespell",
         "recommendedRun": "pnpm ast respell [domain] --near 80 --json --max <complete-count>",
-        "limitations": "Exact means mutual assignability, not shared runtime schema identity. Near mode is field/type-text Jaccard with a four-field floor. Generic/type-query derivations are exempt only when provenance matches; distinct validation refinements still require source review.",
-        "coverageStatus": "unrun-or-no-machine-readable-receipt",
-        "historicalStatus": null,
-        "latestEvidence": null,
-        "evidenceCount": 0,
-        "remainingProof": "Run this lens on the settled current tree with uncapped JSON output (or a recorded complete denominator), then inspect and normalize every finding."
+        "limitations": "Exact uses mutual checker assignability; near uses same-name semantic field identity with a sound name-only Jaccard upper bound and a four-field floor. Direct aliases, shared type-query provenance, and resolved direct heritage targets are derived rather than findings. Class comparison uses authored own instance fields. Pair-specific exemptions require a named contracts target and reason; stale and malformed markers are explicit exit-1 evidence.",
+        "coverageStatus": "current-dirty-tree-complete-reviewed",
+        "historicalStatus": "The pre-hook governed run was repaired and reviewed, then the normal commit hook forced module decomposition and public-surface/topology cleanup. The current refactored tree completes in 75.51s/9.01GiB.",
+        "latestEvidence": {
+          "verb": "respell",
+          "source": "docs/reviews/ast-codebase-audit/world-tools-respell-post-hook-repair.json",
+          "pointer": "$.productionWitness",
+          "captureTime": "2026-09-22T10:43:56.384Z",
+          "capturedHead": "dc487a7ea3ece6f5db80c1407486ff2c25336a45",
+          "scope": "corpus:native-program-authored-roots(per-tsconfig)+domains:29+path:domain-contracts(29)",
+          "scanned": 262,
+          "skipped": 7651,
+          "matches": 0,
+          "shown": 0,
+          "status": "complete",
+          "currentHeadMatch": true,
+          "workingTreeIdentityKnown": true,
+          "codeDiffSha256": "6bd9dd66c8f4c88964642e9307a0d4e4555cc30228363567f5f0f953a64581b3",
+          "exactTotal": 0,
+          "nearTotal": 0,
+          "exemptions": 0,
+          "staleMarkers": 0,
+          "malformedMarkers": 0,
+          "independentReview": "CONFIRMED"
+        },
+        "evidenceCount": 5,
+        "remainingProof": "Commit through the normal hook, then rerun the full 30-verb denominator from the clean tree."
       },
       {
         "verb": "typeonly-alive",
@@ -5655,6 +5867,141 @@
       "redFirst": "The planner admitted 17 compiler-manifest paths absent from the exact ts-morph Project, causing planned and executed populations to disagree.",
       "repair": "Production structure planning now uses the exact execution workspace while retaining Git inventory and compiler membership as scope evidence.",
       "rerunReview": "Fresh-context review confirmed the current-tree repair; focused controls and native programs are recorded in the reconciliation receipt."
+    },
+    {
+      "id": "ast:respell-near-impossible-pair-explosion",
+      "status": "resolved",
+      "source": "docs/reviews/ast-codebase-audit/world-tools-respell-near-closure-repair.json",
+      "summary": "The old collector ran semantic and rename comparisons on 21,268 pairs mathematically incapable of reaching 80%.",
+      "redFirst": "A name-only upper-bound control failed against old source; the full old run aborted after 1943.57s and 12.61GiB.",
+      "repair": "Pairs below the sound upper bound are pruned before checker work; semantic admission precedes report-only rename classification.",
+      "rerunReview": "Fresh-context review CONFIRMED the final diff; 145/145 focused AST tests and the 29-domain production witness passed."
+    },
+    {
+      "id": "ast:respell-near-declaration-wide-marker",
+      "status": "resolved",
+      "source": "docs/reviews/ast-codebase-audit/world-tools-respell-near-closure-repair.json",
+      "summary": "One declaration marker exempted every near pair and could stay live through the wrong sibling.",
+      "redFirst": "A marker naming A also hid B, and a disappeared A was not stale while B remained.",
+      "repair": "Markers name one contracts target; exemption and staleness key the exact declaration pair.",
+      "rerunReview": "Fresh-context review CONFIRMED the final diff; 145/145 focused AST tests and the 29-domain production witness passed."
+    },
+    {
+      "id": "ast:respell-direct-heritage-false-positive",
+      "status": "resolved",
+      "source": "docs/reviews/ast-codebase-audit/world-tools-respell-near-closure-repair.json",
+      "summary": "Interfaces directly extending the contracts shape were reported as re-spells.",
+      "redFirst": "Direct-derived target plus handwritten sibling control reported both before repair.",
+      "repair": "Resolved direct heritage target identity is excluded while unrelated siblings remain visible.",
+      "rerunReview": "Fresh-context review CONFIRMED the final diff; 145/145 focused AST tests and the 29-domain production witness passed."
+    },
+    {
+      "id": "ast:respell-inherited-class-shape-noise",
+      "status": "resolved",
+      "source": "docs/reviews/ast-codebase-audit/world-tools-respell-near-closure-repair.json",
+      "summary": "Inherited Error/base-class members created unrelated class near pairs.",
+      "redFirst": "Inherited-only class control reported noise before repair.",
+      "repair": "Class shapes use authored own instance fields and still report copied own-field contracts.",
+      "rerunReview": "Fresh-context review CONFIRMED the final diff; 145/145 focused AST tests and the 29-domain production witness passed."
+    },
+    {
+      "id": "ast:emit-json-extra-reserved-collision",
+      "status": "resolved",
+      "source": "docs/reviews/ast-codebase-audit/world-tools-respell-near-closure-repair.json",
+      "summary": "Additive JSON metadata could overwrite label, totals, hits, or meta.",
+      "redFirst": "jsonFields {total:999} emitted the corrupted total.",
+      "repair": "emit rejects all reserved-key collisions before any output.",
+      "rerunReview": "Fresh-context review CONFIRMED the final diff; 145/145 focused AST tests and the 29-domain production witness passed."
+    },
+    {
+      "id": "ast:respell-malformed-marker-invisible",
+      "status": "resolved",
+      "source": "docs/reviews/ast-codebase-audit/world-tools-respell-near-closure-repair.json",
+      "summary": "Bare, wrong-grammar, or later block-comment markers were silently ignored.",
+      "redFirst": "Bare/wrong grammar produced no marker error; only the first tag in a block was classified.",
+      "repair": "Every marker occurrence is classified; malformed evidence is named in human/JSON output and exits 1.",
+      "rerunReview": "Fresh-context review CONFIRMED the final diff; 145/145 focused AST tests and the 29-domain production witness passed."
+    },
+    {
+      "id": "ast:respell-supplemental-in-filter-leak",
+      "status": "resolved",
+      "source": "docs/reviews/ast-codebase-audit/world-tools-respell-near-closure-repair.json",
+      "summary": "--in filtered findings but leaked unrelated exemption/stale/malformed evidence.",
+      "redFirst": "selected.ts result contained an unrelated.ts exemption.",
+      "repair": "All supplemental marker evidence is filtered by the same declaration-file substring scope.",
+      "rerunReview": "Fresh-context review CONFIRMED the final diff; 145/145 focused AST tests and the 29-domain production witness passed."
+    },
+    {
+      "id": "ast:respell-tooling-size-post-hook",
+      "status": "resolved",
+      "source": "docs/reviews/ast-codebase-audit/world-tools-respell-post-hook-repair.json",
+      "summary": "The complete respell repair grew ops/respell.ts to 650 lines and failed the 450-line tooling-size gate.",
+      "redFirst": "The normal commit hook failed tooling-size on the integrated repair.",
+      "repair": "The command shell is 130 lines; shapes, near analysis, and marker audit are separate acyclic internal modules.",
+      "rerunReview": "Fresh independent code and documentation review and the selected tooling-size gate passed on the decomposed tree."
+    },
+    {
+      "id": "ast:respell-test-only-public-helpers",
+      "status": "resolved",
+      "source": "docs/reviews/ast-codebase-audit/world-tools-respell-post-hook-repair.json",
+      "summary": "Four internal respell helpers were exported only so tests could import them.",
+      "redFirst": "Knip and fresh review identified the test-only public surface.",
+      "repair": "Public exports were removed; tests use production-used internal seams and assert the four names are absent from the public module.",
+      "rerunReview": "Knip, 145 AST tests, and fresh independent code review passed."
+    },
+    {
+      "id": "docs:enforcement-registry-count-drift",
+      "status": "resolved",
+      "source": "docs/reviews/ast-codebase-audit/world-tools-respell-post-hook-repair.json",
+      "summary": "The gate catalog claimed 347 active gates while the live registry contained 348.",
+      "redFirst": "The normal commit hook failed enforcement-registry-parity.",
+      "repair": "The catalog count now matches the measured 348-gate registry.",
+      "rerunReview": "The selected enforcement-registry-parity gate passed."
+    },
+    {
+      "id": "docs:audit-receipt-format-path-drift",
+      "status": "resolved",
+      "source": "docs/reviews/ast-codebase-audit/world-tools-respell-post-hook-repair.json",
+      "summary": "Three audit receipts were unformatted and two retained the old flat Agent SDK session-store test path.",
+      "redFirst": "The normal hook failed Biome and test-layout/path corroboration.",
+      "repair": "Receipts are formatted and identify the current exact-mirror test path.",
+      "rerunReview": "Scoped Biome and selected topology gates passed."
+    },
+    {
+      "id": "ast:own-exports-first-declaration-only",
+      "status": "review-pending",
+      "source": "docs/reviews/ast-codebase-audit/world-tools-dead-code-masking-audit.json",
+      "summary": "Export liveness takes only decls[0] from each getExportedDeclarations entry, leaving merged declarations and overload sets unpinned.",
+      "redFirst": "No focused merged-declaration or overload-set control exists yet; the package census found no current exported namespace or enum merge demonstrating product loss.",
+      "repair": "Pending a discriminating in-memory control and complete-declaration-set semantics.",
+      "rerunReview": "Not yet run."
+    },
+    {
+      "id": "inference:inline-anth-image-media-union-after-public-surface-cleanup",
+      "status": "resolved",
+      "source": "docs/reviews/ast-codebase-audit/world-tools-structure-hook-repair.json",
+      "summary": "AnthImageMediaType repeated the runtime validator tuple as an inline four-string union.",
+      "redFirst": "The normal commit hook failed no-inline-union-redecl.",
+      "repair": "Export one package-internal ANTH_IMAGE_MEDIA_TYPES tuple, derive the type, and consume the tuple in anthMediaType.",
+      "rerunReview": "Selected structure, six native type programs, Knip, lint, runtime accept/refuse probe, and independent review passed."
+    },
+    {
+      "id": "verify:test-presence-inference-private-binding-resolution",
+      "status": "resolved",
+      "source": "docs/reviews/ast-codebase-audit/world-tools-structure-hook-repair.json",
+      "summary": "The inference topology gate bypassed the shared exported-declaration resolver at two sites.",
+      "redFirst": "The normal commit hook failed policy-binding-resolution twice.",
+      "repair": "Use resolveExportedDeclarations and preserve same-file emitted-declaration filtering.",
+      "rerunReview": "Shared-reader/family tests, selected structure, six native type programs, lint, Knip, and independent review passed."
+    },
+    {
+      "id": "verify:test-presence-inference-nondiscriminating-proof-expectations",
+      "status": "resolved",
+      "source": "docs/reviews/ast-codebase-audit/world-tools-structure-hook-repair.json",
+      "summary": "Eight mustFlag rows asserted the gate one static message and therefore did not distinguish their intended behavior.",
+      "redFirst": "The normal commit hook failed policy-proof-expectations eight times.",
+      "repair": "Remove tautological messageIncludes, retain exact one-candidate counts and behavioral reasons, and run declared proofs through production conformance in the family suite.",
+      "rerunReview": "47/47 focused tests and selected structure passed; independent review confirmed the count fixtures remain discriminating."
     }
   ],
   "findings": [
@@ -8702,24 +9049,31 @@
     },
     {
       "currentCodeIdentity": {
-        "claimed": "AppRouter runtime output validation",
-        "rederivedOnCurrentTree": false
+        "claimed": "421 terminal procedures; 3 confirmed runtime output validators; zero TrpcWireOutput/TrpcFixtureOutput never collapses",
+        "rederivedOnCurrentTree": true,
+        "capturedHead": "dc487a7ea3ece6f5db80c1407486ff2c25336a45",
+        "workingTreeWasDirty": true
       },
       "id": "program:app-router-runtime-output-validation",
       "canonicalIdentity": "AppRouter runtime output validation",
       "lens": "multi-lens-or-unknown",
       "source": {
-        "path": "/tmp/world-tools-coverage-app-zod-current.json",
-        "pointer": "$.program2554"
+        "path": "docs/reviews/ast-codebase-audit/world-tools-app-router-runtime-output-validation-current.json",
+        "pointer": "$"
       },
-      "status": "valid-finding",
-      "disposition": "421 terminal procedures and zero runtime output validators in the captured transport denominator; a closed per-row consequence adjudication is missing.",
+      "status": "review-pending",
+      "disposition": "closed-denominator-adjudicated-three-confirmed-boundaries-repaired-security-review-confirmed",
       "issues": [
         2554
       ],
-      "implementationReceipts": [],
-      "reviewReceipts": [],
-      "remainingProof": "Inventory and adjudicate all current terminal outputs, add selective schemas and negative controls for confirmed high-consequence rows, then security review."
+      "implementationReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-app-router-runtime-output-validation-current.json"
+      ],
+      "reviewReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-app-router-runtime-output-security-review.json"
+      ],
+      "remainingProof": "Resolve the ten documented protocol/security owner-decision routes and either confirm or disprove the 227 high-consequence candidates without bulk-adding output schemas. Preserve the current 421-path denominator and never-collapse controls.",
+      "reason": "The current AppRouter has exactly 421 terminal procedures (169 query, 250 mutation, 2 subscription). The type programs resolve all 421 output roots without any/unknown/never collapse. Runtime consequence adjudication confirmed three missing boundaries: two character bulk-tag results and connection.verifyAuth. All three now use canonical output schemas; focused controls reject malformed output, and verifyAuth strips an injected apiKey. Independent security review confirmed the producer/schema trace and allowlist projection."
     },
     {
       "currentCodeIdentity": {
@@ -9340,6 +9694,397 @@
       ],
       "remainingProof": "Final consolidated whole-tree verification remains a program-level obligation; the row-local implementation and independent security review are complete.",
       "supersededClaims": []
+    },
+    {
+      "id": "finding:respell-settings-seeded-library-entry",
+      "canonicalIdentity": "packages/server/src/domain/settings/contract/seeder.ts:SeededLibraryEntry",
+      "lens": "respell",
+      "source": {
+        "path": "docs/reviews/ast-codebase-audit/world-tools-respell-near-closure-repair.json",
+        "pointer": "$.closedFindings[0]"
+      },
+      "currentCodeIdentity": {
+        "path": "packages/server/src/domain/settings/contract/seeder.ts",
+        "symbol": "SeededLibraryEntry",
+        "rederivedOnCurrentTree": true,
+        "capturedBaseCommit": "dc487a7ea3ece6f5db80c1407486ff2c25336a45",
+        "worktreeState": "dirty reviewed repair"
+      },
+      "status": "resolved",
+      "disposition": "derived-from-canonical-background-library-entry",
+      "reason": "The local five-field row was a drift-prone copy of BackgroundLibraryEntry and omitted optional provenanceUrl; it is now a direct alias.",
+      "issues": [],
+      "implementationReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-respell-near-closure-repair.json",
+        "packages/server/src/domain/settings/contract/seeder.ts"
+      ],
+      "reviewReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-respell-near-closure-review.json"
+      ],
+      "remainingProof": "Clean committed-tree denominator only; row-local implementation and independent review are complete.",
+      "supersededClaims": []
+    },
+    {
+      "id": "finding:respell-refinery-create-schema-params",
+      "canonicalIdentity": "packages/server/src/domain/refinery/contract/params.ts:CreateSchemaParams",
+      "lens": "respell",
+      "source": {
+        "path": "docs/reviews/ast-codebase-audit/world-tools-respell-near-closure-repair.json",
+        "pointer": "$.closedFindings[1]"
+      },
+      "currentCodeIdentity": {
+        "path": "packages/server/src/domain/refinery/contract/params.ts",
+        "symbol": "CreateSchemaParams",
+        "rederivedOnCurrentTree": true,
+        "capturedBaseCommit": "dc487a7ea3ece6f5db80c1407486ff2c25336a45",
+        "worktreeState": "dirty reviewed repair"
+      },
+      "status": "resolved",
+      "disposition": "derived-from-canonical-refinery-schema-document",
+      "reason": "The verb params hand-copied all four RefinerySchemaDocument fields while claiming to wrap it; they now extend the canonical document plus the actor params.",
+      "issues": [],
+      "implementationReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-respell-near-closure-repair.json",
+        "packages/server/src/domain/refinery/contract/params.ts"
+      ],
+      "reviewReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-respell-near-closure-review.json"
+      ],
+      "remainingProof": "Clean committed-tree denominator only; row-local implementation and independent review are complete.",
+      "supersededClaims": []
+    },
+    {
+      "id": "finding:inference-session-store-test-flat-path",
+      "canonicalIdentity": "tests/inference/backends/agent-sdk/session-store.test.ts test mirror",
+      "lens": "gate-reach",
+      "source": {
+        "path": "docs/reviews/ast-codebase-audit/world-tools-respell-post-hook-repair.json",
+        "pointer": "$.repairs[?(@.id==\"inference-test-mirror\")]"
+      },
+      "currentCodeIdentity": {
+        "path": "tests/inference/backends/agent-sdk/session/store.test.ts",
+        "rederivedOnCurrentTree": true,
+        "capturedBaseCommit": "dc487a7ea3ece6f5db80c1407486ff2c25336a45",
+        "worktreeState": "dirty post-hook repair"
+      },
+      "status": "resolved",
+      "disposition": "moved-to-exact-production-module-mirror",
+      "reason": "The flat test path did not mirror packages/inference/src/backends/agent-sdk/session/store.ts and failed test-layout after the inference package split.",
+      "issues": [],
+      "implementationReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-respell-post-hook-repair.json",
+        "tests/inference/backends/agent-sdk/session/store.test.ts"
+      ],
+      "reviewReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-respell-post-hook-review.json"
+      ],
+      "remainingProof": "Clean committed-tree denominator only; implementation and independent review are complete."
+    },
+    {
+      "id": "finding:inference-unused-public-contract-surface",
+      "canonicalIdentity": "packages/inference runtime contract values exported only to tests or no consumers",
+      "lens": "testonly-follow-up",
+      "source": {
+        "path": "docs/reviews/ast-codebase-audit/world-tools-respell-post-hook-repair.json",
+        "pointer": "$.repairs[?(@.id==\"inference-public-surface\")]"
+      },
+      "currentCodeIdentity": {
+        "path": "packages/inference/src/contract/runtime.ts",
+        "symbols": [
+          "MODEL_FAMILIES",
+          "REACHABILITY_STATES",
+          "endpointModelSchema",
+          "SuperviseDetached"
+        ],
+        "rederivedOnCurrentTree": true,
+        "capturedBaseCommit": "dc487a7ea3ece6f5db80c1407486ff2c25336a45",
+        "worktreeState": "dirty post-hook repair"
+      },
+      "status": "resolved",
+      "disposition": "made-private-and-removed-redundant-reexport",
+      "reason": "Knip proved these implementation contracts had no production public consumer; their internal canonical uses remain intact.",
+      "issues": [],
+      "implementationReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-respell-post-hook-repair.json",
+        "packages/inference/src/contract/runtime.ts",
+        "packages/inference/src/deps.ts"
+      ],
+      "reviewReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-respell-post-hook-review.json"
+      ],
+      "remainingProof": "Clean committed-tree denominator only; implementation and independent review are complete."
+    },
+    {
+      "id": "program:dead-code-masking-coverage",
+      "canonicalIdentity": "complete masking-class coverage for production TypeScript dead-code claims",
+      "lens": "cross-lens-coverage",
+      "source": {
+        "path": "docs/reviews/ast-codebase-audit/world-tools-dead-code-masking-audit.json",
+        "pointer": "$"
+      },
+      "currentCodeIdentity": {
+        "rederivedOnCurrentTree": true,
+        "capturedBaseCommit": "dc487a7ea3ece6f5db80c1407486ff2c25336a45",
+        "worktreeState": "dirty audit in progress"
+      },
+      "status": "valid-finding",
+      "disposition": "read-only-masking-catalog-complete-bounded-repairs-open",
+      "reason": "All four audit lanes are complete. The receipt closes the masking-class catalog and separates current valid repairs, conservative candidate buckets, legitimate modern patterns, and runtime-only proof planes.",
+      "issues": [],
+      "implementationReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-dead-code-masking-audit.json"
+      ],
+      "reviewReceipts": [],
+      "remainingProof": "Implement and independently review the normalized bounded repairs, then reconcile current-tree lens denominators."
+    },
+    {
+      "id": "finding:zod-authored-twin-exact-parity",
+      "canonicalIdentity": "24 product Zod schema/output-type semantic pairs",
+      "lens": "typeonly-alive-follow-up",
+      "source": {
+        "path": "docs/reviews/ast-codebase-audit/world-tools-zod-output-twin-parity-dynamic-schema-closure.json",
+        "pointer": "$"
+      },
+      "currentCodeIdentity": {
+        "claimed": "243 whole-product semantic Zod output-twin members; zero unresolved or effective findings",
+        "rederivedOnCurrentTree": true,
+        "capturedHead": "dc487a7ea3ece6f5db80c1407486ff2c25336a45",
+        "workingTreeWasDirty": true
+      },
+      "status": "review-pending",
+      "disposition": "hard-semantic-parity-gate-implemented-current-tree-closed-awaits-independent-review",
+      "reason": "The hard semantic gate now owns 243 members (10 declarations, 104 expression pairs, 129 contextual pairs, 1 raw cast) with zero unresolved, effective findings, authority alarms, tool errors or withheld policies. Product repairs preserve exact authored outputs. Runtime-generated schemas cross the reader only through compiler-resolved nominal unique-symbol provenance; counterfeit wrappers, bare members, fixed authored schemas and erased outputs remain findings or refusals.",
+      "issues": [],
+      "implementationReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-zod-output-twin-parity-dynamic-schema-closure.json"
+      ],
+      "reviewReceipts": [],
+      "remainingProof": "Obtain an independent whole-batch correctness review of the gate, shared semantic reader, product repairs and counterexample controls before declaring the substantial Zod batch resolved."
+    },
+    {
+      "id": "finding:client-product-css-bundle-retention",
+      "canonicalIdentity": "client production build product CSS side-effect retention",
+      "lens": "sideeffect-follow-up",
+      "source": {
+        "path": "docs/reviews/ast-codebase-audit/world-tools-dead-code-masking-audit.json",
+        "pointer": "$"
+      },
+      "currentCodeIdentity": {
+        "rederivedOnCurrentTree": true,
+        "capturedBaseCommit": "dc487a7ea3ece6f5db80c1407486ff2c25336a45",
+        "worktreeState": "dirty read-only audit"
+      },
+      "status": "valid-finding",
+      "disposition": "production-css-sentinel-and-sideeffects-ban-required",
+      "reason": "Five bare side-effect imports include the style front door. Static graph tools see the edge but do not prove emitted CSS; a prior sideEffects allowlist removed product CSS without a static finding.",
+      "issues": [],
+      "implementationReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-dead-code-masking-audit.json"
+      ],
+      "reviewReceipts": [],
+      "remainingProof": "Add a red-first production-build control requiring an Orbweaver CSS sentinel in emitted stylesheet output and reject packages/client sideEffects configuration; independently review."
+    },
+    {
+      "id": "finding:prodonly-dev-branch-bundle-gap",
+      "canonicalIdentity": "three DEV-only instrumentation imports counted as production source reachable",
+      "lens": "prodonly-follow-up",
+      "source": {
+        "path": "docs/reviews/ast-codebase-audit/world-tools-dead-code-masking-audit.json",
+        "pointer": "$"
+      },
+      "currentCodeIdentity": {
+        "rederivedOnCurrentTree": true,
+        "capturedBaseCommit": "dc487a7ea3ece6f5db80c1407486ff2c25336a45",
+        "worktreeState": "dirty read-only audit"
+      },
+      "status": "valid-finding",
+      "disposition": "separate-source-and-emitted-bundle-proof",
+      "reason": "prodonly follows three literal imports guarded by import.meta.env.DEV and does not constant-fold the production branch, so source reachability conservatively overstates shipped-bundle liveness.",
+      "issues": [],
+      "implementationReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-dead-code-masking-audit.json"
+      ],
+      "reviewReceipts": [],
+      "remainingProof": "Pin the documented source-reachability semantics and add a production bundle absence control for the three instrumentation modules."
+    },
+    {
+      "id": "finding:non-ts-shipped-byte-surface",
+      "canonicalIdentity": "shipped QuickJS guest and exported asset byte surface outside TypeScript liveness",
+      "lens": "prodonly-follow-up",
+      "source": {
+        "path": "docs/reviews/ast-codebase-audit/world-tools-dead-code-masking-audit.json",
+        "pointer": "$"
+      },
+      "currentCodeIdentity": {
+        "rederivedOnCurrentTree": true,
+        "capturedBaseCommit": "dc487a7ea3ece6f5db80c1407486ff2c25336a45",
+        "worktreeState": "dirty read-only audit"
+      },
+      "status": "review-pending",
+      "disposition": "runtime-byte-manifest-and-existing-proof-reconciliation",
+      "reason": "Thirty QuickJS bundle files and other exported non-TS bytes are outside Knip and TypeScript symbol reachability by design; existing pack/install/runtime proof must be reconciled into a closed byte-surface contract.",
+      "issues": [],
+      "implementationReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-dead-code-masking-audit.json"
+      ],
+      "reviewReceipts": [],
+      "remainingProof": "Inventory all shipped non-TS byte roots, link the existing QuickJS and generated-asset proofs, and add only the missing manifest controls."
+    },
+    {
+      "id": "finding:knip-stale-negative-glob",
+      "canonicalIdentity": "deleted chat-reading-port.ts retained as a negative Knip project glob",
+      "lens": "knip-follow-up",
+      "source": {
+        "path": "docs/reviews/ast-codebase-audit/world-tools-dead-code-masking-audit.json",
+        "pointer": "$"
+      },
+      "currentCodeIdentity": {
+        "rederivedOnCurrentTree": true,
+        "capturedBaseCommit": "dc487a7ea3ece6f5db80c1407486ff2c25336a45",
+        "worktreeState": "dirty read-only audit"
+      },
+      "status": "valid-finding",
+      "disposition": "negative-glob-liveness-validator-required",
+      "reason": "treatConfigHintsAsErrors did not report a literal negative project glob whose target no longer exists. The current row masks nothing but can silently exclude a future moved or recreated file.",
+      "issues": [],
+      "implementationReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-dead-code-masking-audit.json"
+      ],
+      "reviewReceipts": [],
+      "remainingProof": "Remove the stale row and add a cheap validator requiring each literal negative entry/project glob to match its intended mode."
+    },
+    {
+      "id": "finding:member-and-intrafile-deadness-plane",
+      "canonicalIdentity": "class members private members local functions and unreachable branches outside export liveness",
+      "lens": "dead-follow-up",
+      "source": {
+        "path": "docs/reviews/ast-codebase-audit/world-tools-dead-code-masking-audit.json",
+        "pointer": "$"
+      },
+      "currentCodeIdentity": {
+        "rederivedOnCurrentTree": true,
+        "capturedBaseCommit": "dc487a7ea3ece6f5db80c1407486ff2c25336a45",
+        "worktreeState": "dirty read-only audit"
+      },
+      "status": "review-pending",
+      "disposition": "bounded-member-and-intrafile-coverage-design-required",
+      "reason": "The current AST dead-code model primarily classifies exported declarations; 104 exported classes and 187 private-member spellings exist without a general member-deadness plane.",
+      "issues": [],
+      "implementationReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-dead-code-masking-audit.json"
+      ],
+      "reviewReceipts": [],
+      "remainingProof": "Determine the existing compiler/Biome coverage first, then add only the missing member/local/unreachable checks with explicit scope and planted controls."
+    },
+    {
+      "id": "finding:zod-twin-rationale-comment-drift",
+      "canonicalIdentity": "Zod twin comments claiming current Biome inference failure and no-drift satisfies semantics",
+      "lens": "rot-follow-up",
+      "source": {
+        "path": "docs/reviews/ast-codebase-audit/world-tools-dead-code-masking-audit.json",
+        "pointer": "$.lanes[?(@.id==\"zod-twin-parity-audit\")].currentMechanismProbes"
+      },
+      "currentCodeIdentity": {
+        "paths": [
+          "packages/contracts/src/tag/index.ts",
+          "packages/contracts/src/chat/messages.ts",
+          "packages/contracts/src/plugin/ui.ts"
+        ],
+        "rederivedOnCurrentTree": true,
+        "capturedHead": "dc487a7ea3ece6f5db80c1407486ff2c25336a45",
+        "worktreeState": "dirty repaired tree"
+      },
+      "status": "review-pending",
+      "disposition": "stale-rationales-repaired-valid-recursive-and-type-first-reasons-preserved",
+      "reason": "Stale claims about current Biome inference and one-way satisfies drift protection were repaired while the valid recursive and external canonical-type reasons were preserved. The new hard parity gate now supplies the exact two-direction semantic proof those comments previously overstated.",
+      "issues": [],
+      "implementationReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-dead-code-masking-audit.json",
+        "docs/reviews/ast-codebase-audit/world-tools-zod-output-twin-parity-dynamic-schema-closure.json"
+      ],
+      "reviewReceipts": [],
+      "remainingProof": "Include the comment truth repairs in the independent whole-batch Zod review."
+    },
+    {
+      "id": "program:exception-authority-adjudication",
+      "canonicalIdentity": "complete waiver grant suppression and native-configuration authority adjudication",
+      "lens": "exception-authority",
+      "source": {
+        "path": "docs/reviews/ast-codebase-audit/world-tools-exception-authority-system-review.json",
+        "pointer": "$",
+        "denominatorPointer": "$.denominators",
+        "verificationPointer": "$.verification",
+        "qwenContractPointer": "$.qwenOutputContract"
+      },
+      "currentCodeIdentity": {
+        "claimed": "1,732 ordinary waivers; 480 runtime reviewed grants across 67 policies; 564 foreign suppressions in 275 files; zero live retired gate-ignore markers",
+        "rederivedOnCurrentTree": true,
+        "capturedHead": "dc487a7ea3ece6f5db80c1407486ff2c25336a45",
+        "workingTreeWasDirty": true
+      },
+      "status": "review-pending",
+      "disposition": "authority-model-validated-read-only-qwen-adjudication-prepared",
+      "reason": "The central authority model and current liveness paths are mechanically sound, but successful consumption proves binding rather than continued necessity. The read-only audit is split into closed resumable shards and keeps line waivers, file waivers, reviewed grants, foreign suppressions, native configuration permissions, retired markers and lens claims distinct.",
+      "issues": [],
+      "implementationReceipts": [],
+      "reviewReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-exception-authority-system-review.json",
+        "docs/reviews/ast-codebase-audit/world-tools-exception-authority-denominator.json"
+      ],
+      "remainingProof": "Run the declared read-only Qwen shards, reconcile every stable item identity to repair, preserve with evidence, owner decision, or tool-reader defect, independently validate any proposed repair before editing, and merge the adjudicated results back into this ledger.",
+      "supersededClaims": [
+        "The central reviewed-grant denominator is 423 literal object rows.",
+        "Every ordinary waiver is carrier-adjacent; @orb-waive-file has a distinct exact same-file binding.",
+        "A consumed waiver, grant, or foreign-suppression class is thereby justified."
+      ]
+    },
+    {
+      "id": "program:zod-export-membership-current",
+      "canonicalIdentity": "whole-product exported Zod schema ownership membership",
+      "lens": "typeonly-alive-follow-up",
+      "source": {
+        "path": "docs/reviews/ast-codebase-audit/world-tools-zod-export-membership-current.json",
+        "pointer": "$"
+      },
+      "currentCodeIdentity": {
+        "claimed": "420 exported schema members: 285 derived, 126 twins, 5 factories, 4 governed schema-only; zero unresolved/effective findings",
+        "rederivedOnCurrentTree": true,
+        "capturedHead": "dc487a7ea3ece6f5db80c1407486ff2c25336a45",
+        "workingTreeWasDirty": true
+      },
+      "status": "review-pending",
+      "disposition": "semantic-membership-gate-closed-reader-false-positive-repaired-awaits-batch-review",
+      "reason": "Three previously unresolved schema factories now have semantic ownership. Seven schema-only rows were false positives caused by following ordinary property accesses through property symbols into unrelated schema declarations; the reader now follows the concrete receiver value while opposite controls preserve real object/static schema properties. The selected gate closes at 420 members with four exact reviewed grants and no unresolved or effective finding.",
+      "issues": [],
+      "implementationReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-zod-export-membership-current.json"
+      ],
+      "reviewReceipts": [],
+      "remainingProof": "Include the membership reader, factory repairs and property-access controls in the independent whole-batch Zod review."
+    },
+    {
+      "id": "finding:zod-export-membership-direct-walk-contract-debt",
+      "canonicalIdentity": "zod-export-membership direct ts-morph descendant walks at current gate lines 437 and 473",
+      "lens": "tooling-contract-follow-up",
+      "source": {
+        "path": "docs/reviews/ast-codebase-audit/world-tools-zod-export-membership-current.json",
+        "pointer": "$.remainingToolDebt"
+      },
+      "currentCodeIdentity": {
+        "paths": [
+          "tooling/src/verify/gates/zod-export-membership.ts"
+        ],
+        "rederivedOnCurrentTree": true,
+        "capturedHead": "dc487a7ea3ece6f5db80c1407486ff2c25336a45",
+        "workingTreeWasDirty": true
+      },
+      "status": "valid-finding",
+      "disposition": "replace-two-direct-descendant-walks-with-governed-semantic-reader-path",
+      "reason": "pnpm gate:contract reports two direct getDescendantsOfKind walks in the newly authored membership gate. The selected membership behavior is green, but the implementation still violates the repository's governed semantic-reader contract and must be repaired without changing the 420-member denominator.",
+      "issues": [],
+      "implementationReceipts": [],
+      "reviewReceipts": [],
+      "remainingProof": "Replace both direct walks using the governed factory/semantic reader, add red-first parity controls, rerun gate:contract and prove the membership denominator remains 420 with zero unresolved/effective findings."
     }
   ],
   "transcriptClaims": [
@@ -19505,6 +20250,36 @@
       "temporary": "/tmp/world-tools-zod-brand-review.json",
       "durable": "docs/reviews/ast-codebase-audit/world-tools-zod-brand-review.json",
       "sha256": "871df01d7c333f0f553f4af372fa21582a8918782dae2e7a6223ecd2dd30cf20"
+    },
+    {
+      "temporary": "/tmp/world-tools-respell-final-v2.stdout",
+      "durable": "docs/reviews/ast-codebase-audit/world-tools-respell-near-closure-repair.json",
+      "sha256": "62273b87d4050adfca863d97b2f36b1434897b3aba9284bae2b84fb2403117b4"
+    },
+    {
+      "temporary": "/tmp/world-tools-respell-final-v2.stderr",
+      "durable": "docs/reviews/ast-codebase-audit/world-tools-respell-near-closure-repair.json",
+      "sha256": "22935f43ebca2d8a01c90087d8af130bc23605a91c2068776ca91a279689a784"
+    },
+    {
+      "temporary": "/tmp/world-tools-respell-final-v2.time",
+      "durable": "docs/reviews/ast-codebase-audit/world-tools-respell-near-closure-repair.json",
+      "sha256": "591722ef2d5b50dbff25b6389117a7f7e17da7347e01ccaf549ffe3394dcf7a4"
+    },
+    {
+      "temporary": "/tmp/world-tools-respell-post-hook.stdout",
+      "durable": "docs/reviews/ast-codebase-audit/world-tools-respell-post-hook-repair.json",
+      "sha256": "f19b9d865b1a5ae6366a09e47c49fe17a2d7252a63abcb9a489c5750bac96db4"
+    },
+    {
+      "temporary": "/tmp/world-tools-respell-post-hook.stderr",
+      "durable": "docs/reviews/ast-codebase-audit/world-tools-respell-post-hook-repair.json",
+      "sha256": "5e83a96a4e189164b67df62cd37d3ca4a0562e2e568f1144a50cd81c345e23ba"
+    },
+    {
+      "temporary": "/tmp/world-tools-respell-post-hook.time",
+      "durable": "docs/reviews/ast-codebase-audit/world-tools-respell-post-hook-repair.json",
+      "sha256": "b7d4287d7773564dce7700a036d508d7e9c596d0ff91f0c7316d183e9f0b3096"
     }
   ],
   "ingestionBacklog": [
@@ -21292,23 +22067,23 @@
     "warning": "No heavy all-lens rerun was performed during reconstruction. Absence of a normalized row is not a clean verdict; its exact source remains in ingestionBacklog."
   },
   "counts": {
-    "sourceManifest": 470,
+    "sourceManifest": 489,
     "lenses": 30,
     "normalizedLaunch63Rows": 63,
-    "programOutcomeRows": 16,
-    "findings": 87,
+    "programOutcomeRows": 12,
+    "findings": 102,
     "findingStatus": {
+      "resolved": 58,
+      "review-pending": 16,
       "preserve-governed": 14,
-      "resolved": 54,
-      "review-pending": 9,
-      "valid-finding": 10
+      "valid-finding": 14
     },
     "transcriptClaims": 317,
     "transcriptIngestionBacklog": 232,
-    "temporaryReceiptPromotions": 111,
+    "temporaryReceiptPromotions": 117,
     "ingestionBacklog": 215,
     "duplicateIds": 0,
-    "duplicateCanonicalIdentities": 6
+    "duplicateCanonicalIdentities": 4
   },
   "goalContract": {
     "path": "docs/reviews/ast-codebase-audit/world-tools-audit-goal.json",
@@ -21443,6 +22218,111 @@
       "updater": "/tmp/record-reviewed-lanes-integration.mjs",
       "updaterSha256": "9aa6819cfe28d0cb9bd2268da5a3acd0885fa576af5f7f728165ffe27a74aa79",
       "scope": "recorded the merged-tree verification for the reviewed inference, database, authored-membership, and refinery UI lanes and corrected the integrated topology denominator to 114 sources and 50 tests",
+      "fullSourceRebuildPerformed": false
+    },
+    {
+      "at": "2026-09-22T09:46:43.467Z",
+      "updater": "/tmp/update-respell-ledger.py",
+      "updaterSha256": "58000b576c174f392c01f111726c6d7f76bc78dc7fc3c5f9655633bfdd68b988",
+      "scope": "closed the governed respell tool and finding slice: performance, marker governance, heritage/class shaping, JSON evidence safety, two canonical derivations, production witness, and independent review",
+      "fullSourceRebuildPerformed": false
+    },
+    {
+      "at": "2026-09-22T10:43:56.384Z",
+      "updater": "/tmp/reconcile-post-hook-ledger.py",
+      "updaterSha256": "a9a0546fde2a8abae5f210fab58d75c754d6765c2dba3dfa6d6991fc7151eeb5",
+      "scope": "reconciled the failed normal hook, refactored respell witness, inference topology/public-surface cleanup, historical receipt boundary, and pending final document rereview",
+      "fullSourceRebuildPerformed": false
+    },
+    {
+      "at": "2026-09-22T10:48:21.393Z",
+      "updater": "/tmp/seal-post-hook-review.py + ledger seal",
+      "updaterSha256": "75942b3ca9163ba7bc1e8a20d1cfe84fd17ff3f03e97cf11ff18872fa2f7fdf5",
+      "scope": "sealed the independent post-hook document reread after correcting the exact 130-line respell shell count",
+      "fullSourceRebuildPerformed": false
+    },
+    {
+      "at": "2026-09-22T11:00:57.858Z",
+      "updater": "/tmp/record-catalog-reconciliation.py",
+      "updaterSha256": "f7acb21c018f384be32a952de0f6bd0810d12a6b98393d47b5df5dd1758846b2",
+      "scope": "recorded the exact 348-gate catalog re-attestation and one-row generated catalog refresh discovered by the normal hook",
+      "fullSourceRebuildPerformed": false
+    },
+    {
+      "at": "2026-09-22T11:50:17.262748Z",
+      "updater": "/tmp/reconcile-dead-code-mask-ledger.py",
+      "updaterSha256": "9a0e45a76d115c3a603842d099bc7035cd2d3f92463fd71d02ea245b417503ba",
+      "scope": "linked the in-progress masking-class audit, the completed type/barrel/member and Knip lanes, and the first-declaration analyzer fragility; runtime lane remains explicit",
+      "fullSourceRebuildPerformed": false
+    },
+    {
+      "at": "2026-09-22T11:54:21.345116Z",
+      "updater": "inline zod-twin audit registration",
+      "updaterSha256": "489da03d78f1dcb8debfe1704ea529481873ae800c17d9d4053a09be1f931b76",
+      "scope": "registered the hand-authored Zod schema/type twin parity denominator as an explicit running lane in the durable masking audit",
+      "fullSourceRebuildPerformed": false
+    },
+    {
+      "at": "2026-09-22T11:57:33.385500Z",
+      "updater": "/tmp/reconcile-zod-twin-audit.py",
+      "updaterSha256": "b3ac897d30514ca6677353338bf190e33443743f7323521c6cccdb4d31112373",
+      "scope": "closed the hand-authored Zod twin census and normalized the missing exact output-parity contract as a valid finding",
+      "fullSourceRebuildPerformed": false
+    },
+    {
+      "at": "2026-09-22T11:59:53.696230Z",
+      "updater": "/tmp/reconcile-runtime-mask-audit.py",
+      "updaterSha256": "11fd1a8dfed8964eb9437e6ae29f963b4b6bfee538dce8bf4719b4400a38473f",
+      "scope": "closed the runtime loader/side-effect census and normalized CSS retention, DEV-bundle reachability, non-TS byte surface, stale Knip glob, and member-plane findings",
+      "fullSourceRebuildPerformed": false
+    },
+    {
+      "at": "2026-09-22T12:01:23.365563Z",
+      "updater": "masking receipt format seal",
+      "updaterSha256": "27d18e9711cad895bef4e6952c8f88b32fc747cb2ff60e945707f8697e58c53d",
+      "scope": "sealed the formatted masking audit and refreshed its canonical source-manifest identity",
+      "fullSourceRebuildPerformed": false
+    },
+    {
+      "at": "2026-09-22T12:03:33.064510Z",
+      "updater": "zod history ruling correction",
+      "updaterSha256": "4ff0b771421a32265582097a9ec17ddcf9a40163fbaa1c2696b579c40794471b",
+      "scope": "corrected the Zod disposition against the spine and historical leverage audit: preserve intentional twins and strengthen exact output parity",
+      "fullSourceRebuildPerformed": false
+    },
+    {
+      "at": "2026-09-22T12:06:35.562277Z",
+      "updater": "/tmp/reconcile-structure-hook-ledger.py",
+      "updaterSha256": "8c77a0199c143ca64ab47f814c629de880e8f76d881d0848d1fd9bd6908ecbc2",
+      "scope": "recorded the eleven-finding structure hook failure, its three bounded repairs, selected verification, and independent confirmation",
+      "fullSourceRebuildPerformed": false
+    },
+    {
+      "at": "2026-09-22T12:17:06.985414Z",
+      "updater": "/tmp/reconcile-zod-history-probes.py",
+      "updaterSha256": "d85245838dd53e391885b5fc1603877e6d81811a70943063e6e086453a909088",
+      "scope": "verified the historical Zod twin rationales on the current toolchain and normalized stale mechanism comments separately from valid architecture",
+      "fullSourceRebuildPerformed": false
+    },
+    {
+      "at": "2026-09-22T12:22:58.320902Z",
+      "updater": "/tmp/reconcile-zod-semantic-denominator.py",
+      "updaterSha256": "61e118019b717ed0990c4b865f79964dab1612c32e13cb378b3a460315eb7b09",
+      "scope": "widened the Zod twin control from the earlier 15-pair syntax lead to the complete 24-pair @product semantic denominator and recorded all 12 mismatches",
+      "fullSourceRebuildPerformed": false
+    },
+    {
+      "at": "2026-09-22T14:23:22Z",
+      "updater": "exception authority system validation",
+      "updaterSha256": "fa44190094aee549b195e35b2bac99227990af67c6a8bd390260118aa42bf0a3",
+      "scope": "validated the authority pipeline, corrected runtime denominators, separated native and retired mechanisms, and prepared a read-only sharded Qwen adjudication contract",
+      "fullSourceRebuildPerformed": false
+    },
+    {
+      "at": "2026-09-22T15:26:11.314Z",
+      "updater": "AppRouter and Zod current-tree closure reconciliation",
+      "updaterSha256": "f7954c0c9230530aeb19d67da6a12be25ec2e04a93447fdde435373690485962",
+      "scope": "integrated AppRouter runtime output validation and security review, Zod export-membership closure and reader defect, Zod output-twin parity closure, and refreshed exception-authority/Qwen source receipts",
       "fullSourceRebuildPerformed": false
     }
   ]

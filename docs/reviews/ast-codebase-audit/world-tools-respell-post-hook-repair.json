@@ -1,0 +1,143 @@
+{
+  "schema": "orbweaver.ast-post-hook-reconciliation-receipt",
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-22T10:43:56.384Z",
+  "parentHead": "dc487a7ea3ece6f5db80c1407486ff2c25336a45",
+  "phase": "post-hook-current-dirty-tree",
+  "codeDiffSha256": "6bd9dd66c8f4c88964642e9307a0d4e4555cc30228363567f5f0f953a64581b3",
+  "scope": {
+    "reason": "The normal commit hook found integration defects after the earlier respell review; this receipt owns the corrected decomposed tree and preserves the earlier receipt as historical evidence.",
+    "codePaths": [
+      "packages/inference/src/contract/runtime.ts",
+      "packages/inference/src/deps.ts",
+      "packages/server/src/domain/chat/contract/params.ts",
+      "packages/server/src/domain/chat/contract/views.ts",
+      "packages/server/src/domain/databank/contract/views.ts",
+      "packages/server/src/domain/plugin/contract/errors.ts",
+      "packages/server/src/domain/refinery/contract/params.ts",
+      "packages/server/src/domain/rpg/contract/params.ts",
+      "packages/server/src/domain/settings/contract/seeder.ts",
+      "tests/inference/backends/agent-sdk/session/store.test.ts",
+      "tests/tooling/ast/index.test.ts",
+      "tests/tooling/ast/ops/verbs.test.ts",
+      "tooling/src/ast/contract/types.ts",
+      "tooling/src/ast/index.ts",
+      "tooling/src/ast/lib/emit.ts",
+      "tooling/src/ast/lib/respell-near-analysis.ts",
+      "tooling/src/ast/lib/respell-near-markers.ts",
+      "tooling/src/ast/lib/respell-near-report.ts",
+      "tooling/src/ast/lib/respell-shapes.ts",
+      "tooling/src/ast/lib/usage.ts",
+      "tooling/src/ast/ops/respell.ts"
+    ]
+  },
+  "historicalEvidence": {
+    "preHookRepair": "docs/reviews/ast-codebase-audit/world-tools-respell-near-closure-repair.json",
+    "preHookReview": "docs/reviews/ast-codebase-audit/world-tools-respell-near-closure-review.json",
+    "boundary": "Those receipts prove the pre-hook implementation only. Their 5d6d... diff identity and 7,648 skipped-file witness are intentionally retained rather than rewritten."
+  },
+  "hookFailure": {
+    "command": "git commit (normal static verification hook)",
+    "exitCode": 1,
+    "commitCreated": false,
+    "findings": [
+      "tooling-size: tooling/src/ast/ops/respell.ts was 650 lines, above the 450-line limit",
+      "Knip: four respell helpers were exported only for tests",
+      "test-layout: the Agent SDK session-store test did not mirror packages/inference/src/backends/agent-sdk/session/store.ts",
+      "Knip: inference contract constants/schema and SuperviseDetached were publicly exported without production consumers",
+      "enforcement-registry-parity: the catalog said 347 while the live registry contained 348 gates",
+      "Biome and receipt-path checks exposed three unformatted receipts and stale flat session-store paths"
+    ]
+  },
+  "repairs": [
+    {
+      "id": "respell-module-decomposition",
+      "result": "ops/respell.ts is 130 lines; shape extraction, near analysis, and marker audit live in three acyclic internal modules of 242, 164, and 93 lines."
+    },
+    {
+      "id": "respell-test-only-public-surface",
+      "result": "The four test-only respell exports were removed from both ops/respell.ts and the public AST index; tests exercise internal production-used helpers and assert the public names are absent."
+    },
+    {
+      "id": "inference-test-mirror",
+      "result": "session-store.test.ts moved to tests/inference/backends/agent-sdk/session/store.test.ts, exactly mirroring the production module."
+    },
+    {
+      "id": "inference-public-surface",
+      "result": "MODEL_FAMILIES, REACHABILITY_STATES, endpointModelSchema, and SuperviseDetached are private implementation contracts; the redundant deps.ts re-export was removed."
+    },
+    {
+      "id": "registry-and-receipt-drift",
+      "result": "The enforcement catalog now records 348 gates; affected receipts are formatted and point at the current mirrored test path."
+    }
+  ],
+  "productionWitness": {
+    "command": "pnpm ast respell --near 80 --json --max 100000",
+    "exitCode": 0,
+    "wallSeconds": 75.51,
+    "peakRssKiB": 9005516,
+    "denominator": {
+      "domains": 29,
+      "scopedTypedFiles": 262,
+      "loadedFiles": 7913,
+      "skippedOutOfScope": 7651
+    },
+    "exact": {
+      "total": 0,
+      "shown": 0,
+      "status": "complete"
+    },
+    "near": {
+      "total": 0,
+      "shown": 0,
+      "exemptions": 0,
+      "staleMarkers": 0,
+      "malformedMarkers": 0,
+      "status": "complete"
+    },
+    "stdout": {
+      "temporary": "/tmp/world-tools-respell-post-hook.stdout",
+      "sha256": "f19b9d865b1a5ae6366a09e47c49fe17a2d7252a63abcb9a489c5750bac96db4"
+    },
+    "stderr": {
+      "temporary": "/tmp/world-tools-respell-post-hook.stderr",
+      "sha256": "5e83a96a4e189164b67df62cd37d3ca4a0562e2e568f1144a50cd81c345e23ba"
+    },
+    "time": {
+      "temporary": "/tmp/world-tools-respell-post-hook.time",
+      "sha256": "b7d4287d7773564dce7700a036d508d7e9c596d0ff91f0c7316d183e9f0b3096"
+    }
+  },
+  "verification": [
+    {
+      "command": "pnpm test:scoped tests/tooling/ast/index.test.ts tests/tooling/ast/ops/verbs.test.ts",
+      "result": "145/145 passed"
+    },
+    {
+      "command": "affected inference tests",
+      "result": "8 files, 50 tests passed"
+    },
+    {
+      "command": "pnpm typecheck for inference, tooling, and tests-iso native programs",
+      "result": "3/3 passed"
+    },
+    {
+      "command": "structure --whole --check tooling-size --check test-layout --check test-presence-inference --check enforcement-registry-parity",
+      "result": "all four selected gates passed; registry 348; inference topology 114 sources and 50 tests"
+    },
+    {
+      "command": "pnpm knip; scoped Biome and ESLint; git diff --check; depcruise over 49 AST modules",
+      "result": "passed; no AST dependency cycle"
+    },
+    {
+      "command": "pnpm exec vitest run tests/tooling/ast/index.test.ts -t 'TEST-ANCHORED|re-export PASS-THROUGH'",
+      "result": "2/2 passed; test imports and production re-export pass-through do not make product code ALIVE"
+    }
+  ],
+  "independentReview": {
+    "status": "CONFIRMED",
+    "reviewer": "/root/post_hook_combined_review",
+    "receipt": "docs/reviews/ast-codebase-audit/world-tools-respell-post-hook-review.json"
+  },
+  "remainingProof": ["Normal commit hook on the complete staged tree.", "Clean committed-tree full AST denominator."]
+}

@@ -39,7 +39,7 @@ export {
 
 export const LOG_LEVELS = ["fatal", "error", "warn", "info", "debug", "trace", "silent"] as const;
 export type LogLevel = (typeof LOG_LEVELS)[number];
-export const logLevelSchema = z.enum(LOG_LEVELS);
+export const logLevelSchema = z.enum(LOG_LEVELS) satisfies z.ZodType<LogLevel>;
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════════
 // AppSettings — the admin-runtime override tier. Every field nullable+optional (null=CLEAR).

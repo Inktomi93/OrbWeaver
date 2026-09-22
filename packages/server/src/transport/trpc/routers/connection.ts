@@ -18,6 +18,7 @@ import {
   providerIdSchema,
   routableTaskSchema,
 } from "@orb/contracts/inference";
+import { verifyAuthResultSchema } from "@orb/contracts/providers";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { adminProcedure, authedProcedure, t } from "../trpc.ts";
@@ -139,6 +140,7 @@ export const connectionRouter = t.router({
   // The `claude-sub` row's runtime auth check: a tiny generation, so a mutation (§8.4-6).
   verifyAuth: authedProcedure
     .input(z.object({ connectionId }))
+    .output(verifyAuthResultSchema)
     .mutation(({ ctx, input, signal }) => ctx.services.connection.verifyAuth({ principal: ctx.auth, connectionId: input.connectionId, signal })),
 
   inspectEndpoint: authedProcedure

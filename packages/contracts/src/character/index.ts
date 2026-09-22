@@ -33,8 +33,8 @@ const REGEX_SCRIPTS_MAX = 500;
 export const CHARA_CARD_V2_SPEC = "chara_card_v2";
 export const CHARA_CARD_V3_SPEC = "chara_card_v3";
 export const CARD_SPECS = [CHARA_CARD_V2_SPEC, CHARA_CARD_V3_SPEC] as const;
-export const cardSpecSchema = z.enum(CARD_SPECS);
 export type CardSpec = (typeof CARD_SPECS)[number];
+export const cardSpecSchema = z.enum(CARD_SPECS) satisfies z.ZodType<CardSpec>;
 
 /**
  * The `creator` every SHIPPED example card carries — the tell that a row in the library is app-authored
@@ -149,6 +149,8 @@ export const cardAssetSchema = z
     ext: z.string().catch(""),
   })
   .loose();
+/** One preserved Character Card V3 asset manifest entry. */
+export type CardAsset = z.output<typeof cardAssetSchema>;
 
 // Character's Note @ Depth: reuses the shared `@orb/kit/injection` `{depth, role?}` directive.
 export const cardDepthPromptSchema = injectionDirectiveSchema.extend({
@@ -203,6 +205,8 @@ export type Greeting = z.infer<typeof greetingSchema>;
 /** The always-a-list DB read-seam coercion for the `characters.greetings` JSON column (+ snapshot blobs): a
  *  corrupt/non-array value collapses to `[]`. The ONE home the row→view readers share (queries `cardOf`). */
 export const greetingsColumnSchema = z.array(greetingSchema).catch([]);
+/** The healed DB/snapshot representation emitted by {@link greetingsColumnSchema}. */
+export type GreetingsColumn = z.output<typeof greetingsColumnSchema>;
 
 // Identity-free (no id/handle/ownerId — those are row identity columns, not card content).
 export const characterCardSchema = z.object({
@@ -269,7 +273,7 @@ export const characterHandleSchema = z
   .string()
   .min(HANDLE_MIN)
   .max(HANDLE_MAX)
-  .transform((value) => castId<CharacterHandle>(value));
+  .transform((value) => castId<CharacterHandle>(value)) satisfies z.ZodType<CharacterHandle>;
 
 /** Append a machine suffix while keeping the result inside {@link characterHandleSchema}.
  *
@@ -422,7 +426,7 @@ export const CHARACTER_LIST_SORTS = [
   "worstScore",
 ] as const;
 export type CharacterListSort = (typeof CHARACTER_LIST_SORTS)[number];
-export const characterListSortSchema = z.enum(CHARACTER_LIST_SORTS);
+export const characterListSortSchema = z.enum(CHARACTER_LIST_SORTS) satisfies z.ZodType<CharacterListSort>;
 
 // `sort` is carried in the payload so the server can reject a cursor minted under a different sort.
 export const characterListCursorSchema = z.discriminatedUnion("sort", [

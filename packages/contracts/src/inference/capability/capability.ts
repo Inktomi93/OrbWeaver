@@ -15,13 +15,19 @@ export const capabilitySchema = z.discriminatedUnion("kind", [
 ]);
 export type Capability = z.infer<typeof capabilitySchema>;
 
-export interface KindDef {
-  readonly capabilitySchema: z.ZodType;
-  readonly floor: Capability;
+type CapabilityPayloadByKind = {
+  readonly [K in ModelKind]: Extract<Capability, { readonly kind: K }> extends Readonly<Record<K, infer Payload>> ? Payload : never;
+};
+
+export interface KindDef<K extends ModelKind = ModelKind> {
+  readonly capabilitySchema: z.ZodType<CapabilityPayloadByKind[K]>;
+  readonly floor: Extract<Capability, { readonly kind: K }>;
 }
 
-export const KIND_DEFS: Record<ModelKind, KindDef> = {
+export type KindDefs = { readonly [K in ModelKind]: KindDef<K> };
+
+export const KIND_DEFS = {
   generation: { capabilitySchema: generationCapabilitySchema, floor: { kind: "generation", generation: GENERATION_FLOOR } },
   embedding: { capabilitySchema: embeddingCapabilitySchema, floor: { kind: "embedding", embedding: EMBEDDING_FLOOR } },
   rerank: { capabilitySchema: rerankCapabilitySchema, floor: { kind: "rerank", rerank: RERANK_FLOOR } },
-};
+} satisfies KindDefs;

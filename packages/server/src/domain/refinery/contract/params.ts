@@ -7,6 +7,7 @@ import type {
   RefinableField,
   RefineryForgeArm,
   RefineryRewritePayload,
+  RefinerySchemaDocument,
   RefinerySchemaStage,
   RefinerySelectionPatch,
   RefinerySessionStatus,
@@ -147,14 +148,8 @@ export interface PreflightParams extends RefineryActorParams {
 
 // ── the custom-schema library (R3/SF — the NL design §4.4's verbs) ─────────────────────────────────────
 
-// @nearpair-ok: near-matches `@orb/contracts/refinery::RefinerySchemaDocument` by design — the verb params
-// WRAP the document shape with the resolved `principal` (one-home rule).
-export interface CreateSchemaParams extends RefineryActorParams {
-  readonly name: string;
-  readonly description: string;
-  readonly stage: RefinerySchemaStage;
-  readonly schema: Record<string, unknown>;
-}
+/** The canonical schema document plus the resolved actor. */
+export interface CreateSchemaParams extends RefineryActorParams, RefinerySchemaDocument {}
 
 export interface UpdateSchemaParams extends RefineryActorParams {
   readonly schemaId: RefinerySchemaId;

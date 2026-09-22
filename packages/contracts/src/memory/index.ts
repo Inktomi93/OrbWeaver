@@ -14,17 +14,17 @@ export const CLIP_KINDS = ["fact", "trait", "relationship", "world-state", "plot
 /** @public pre-built memory surface — the clip vocabulary lands with the memory domain. */
 export type ClipKind = (typeof CLIP_KINDS)[number];
 /** @public pre-built memory surface — schema twin of `CLIP_KINDS`. */
-export const clipKindSchema = z.enum(CLIP_KINDS);
+export const clipKindSchema = z.enum(CLIP_KINDS) satisfies z.ZodType<ClipKind>;
 
 /** Provenance of a clip. A `'user'` clip is NEVER auto-deleted (core/Knowledge-Cluster.md §9). */
 export const CLIP_SOURCE_KINDS = ["user", "synthesized", "promoted"] as const;
 /** @public pre-built memory surface — provenance vocabulary (Knowledge-Cluster.md S9). */
 export type ClipSourceKind = (typeof CLIP_SOURCE_KINDS)[number];
 /** @public pre-built memory surface — schema twin of `CLIP_SOURCE_KINDS`. */
-export const clipSourceKindSchema = z.enum(CLIP_SOURCE_KINDS);
+export const clipSourceKindSchema = z.enum(CLIP_SOURCE_KINDS) satisfies z.ZodType<ClipSourceKind>;
 
 export const CLIP_SCOPES = ["character", "chat", "global"] as const;
 /** @public pre-built memory surface — clip scope vocabulary. */
 export type ClipScope = (typeof CLIP_SCOPES)[number];
 /** @public pre-built memory surface — schema twin of `CLIP_SCOPES`. */
-export const clipScopeSchema = z.enum(CLIP_SCOPES);
+export const clipScopeSchema = z.enum(CLIP_SCOPES) satisfies z.ZodType<ClipScope>;

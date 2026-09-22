@@ -19,11 +19,12 @@ export interface SpanAttrs {
 
 export type SpanFn = <T>(name: string, fn: () => Promise<T> | T, attrs?: SpanAttrs) => Promise<T>;
 
-export type SuperviseDetached = (name: string, attrs: SpanAttrs, operation: () => Promise<unknown> | unknown) => void;
+type SuperviseDetached = (name: string, attrs: SpanAttrs, operation: () => Promise<unknown> | unknown) => void;
 
 export type AddSpanEvent = (name: string, attrs: Readonly<Record<string, string | number | boolean>>) => void;
 
-export type AnthImageMediaType = "image/jpeg" | "image/png" | "image/gif" | "image/webp";
+export const ANTH_IMAGE_MEDIA_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"] as const;
+export type AnthImageMediaType = (typeof ANTH_IMAGE_MEDIA_TYPES)[number];
 export type AnthImageBlock =
   | { readonly type: "image"; readonly source: { readonly type: "base64"; readonly media_type: AnthImageMediaType; readonly data: string } }
   | { readonly type: "image"; readonly source: { readonly type: "url"; readonly url: string } };
@@ -39,10 +40,10 @@ export type SpawnIdentity = Pick<Resolved, "ownerId" | "credential">;
 export const LOCAL_LIGHT_MODEL_SLOTS = ["rerank", "embed", "matte"] as const;
 export type LocalLightModelSlot = (typeof LOCAL_LIGHT_MODEL_SLOTS)[number];
 
-export const MODEL_FAMILIES = ["anthropic", "openai", "google", "meta", "deepseek", "qwen", "mistral", "xai", "other"] as const;
+const MODEL_FAMILIES = ["anthropic", "openai", "google", "meta", "deepseek", "qwen", "mistral", "xai", "other"] as const;
 export type ModelFamily = (typeof MODEL_FAMILIES)[number];
 
-export const REACHABILITY_STATES = ["up", "down", "asleep", "unknown"] as const;
+const REACHABILITY_STATES = ["up", "down", "asleep", "unknown"] as const;
 export type Reachability = (typeof REACHABILITY_STATES)[number];
 export type ReachabilityProbe = (args: {
   readonly baseUrl: string;
@@ -51,9 +52,9 @@ export type ReachabilityProbe = (args: {
   readonly sleepPath: string | undefined;
 }) => Promise<Reachability>;
 
-export const endpointModelSchema = z.object({ id: z.string(), contextLength: z.number().nullable() });
-export const endpointModelsSchema = z.array(endpointModelSchema);
+const endpointModelSchema = z.object({ id: z.string(), contextLength: z.number().nullable() });
 export type EndpointModel = z.infer<typeof endpointModelSchema>;
+export const endpointModelsSchema = z.array(endpointModelSchema) satisfies z.ZodType<EndpointModel[]>;
 
 export type RoleClientsFor = (funder: Principal, actor?: BindingActor) => RoleClientsWithSignal;
 

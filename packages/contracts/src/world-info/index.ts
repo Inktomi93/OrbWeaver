@@ -90,6 +90,8 @@ export const entryMetadataWriteSchema = z.record(z.string(), z.unknown()).superR
     }
   }
 });
+/** The intentionally open metadata record accepted and preserved by the lore-entry write boundary. */
+export type EntryMetadataWrite = z.output<typeof entryMetadataWriteSchema>;
 
 export const createEntrySchema = z.object({
   title: z.string().min(1).max(NAME_MAX),

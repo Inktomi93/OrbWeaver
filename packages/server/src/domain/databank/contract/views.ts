@@ -11,8 +11,6 @@ export type { DocumentView } from "@orb/contracts/databank";
 
 /** `get({ includeText })` — the panel's source view. `extractedText` present iff asked (list payloads never
  *  haul the canon); `extractorVersion` surfaces the re-extract-on-upgrade affordance. */
-// @nearpair-ok: near-matches `@orb/contracts/databank::DocumentView` by design — the detail view is the
-// list-safe wire shape PLUS the two fields the list projection deliberately omits.
 export interface DocumentDetailView extends DocumentView {
   readonly extractedText?: string;
   readonly extractorVersion: string;
@@ -61,8 +59,6 @@ export interface DocumentAttachmentsView {
  *  `hidden` = the host excluded it from retrieval (`chats.metadata.databankVisibility`). Only the HOST ever
  *  receives hidden rows (they own the toggle); a member's payload is filtered to the visible set, so a member
  *  never learns a host-hidden document's name (`hidden` is always `false` in a member's payload). */
-// @nearpair-ok: near-matches `@orb/contracts/databank::DocumentView` by design — this row is the wire shape
-// PLUS the host-visibility/crediting data `listActiveForChat` (D85) is the one place that needs.
 export interface ActiveChatDocumentView extends DocumentView {
   readonly hidden: boolean;
   /** WHY this document is active (D-2): the scope junction(s) crediting it — `global` (a present member's

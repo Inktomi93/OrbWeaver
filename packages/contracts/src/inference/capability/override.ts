@@ -31,6 +31,7 @@ export const capabilityMatchSchema = z
     api: chatApiSchema.optional(),
   })
   .refine((match) => (match.model === undefined) !== (match.ids === undefined), { message: "a match names `model` (a regex) or `ids`, not both" });
+export type CapabilityMatch = z.output<typeof capabilityMatchSchema>;
 
 /** A DATED, CITED provenance line: which tier this row is evidence at, when, and where the reader can look. */
 export const capabilityEvidenceSchema = z.object({
@@ -38,6 +39,7 @@ export const capabilityEvidenceSchema = z.object({
   dated: z.string().min(1),
   cite: z.string().min(1),
 });
+export type CapabilityEvidence = z.output<typeof capabilityEvidenceSchema>;
 
 const deepPartialGeneration = generationCapabilitySchema.partial().extend({
   reasoning: generationCapabilitySchema.shape.reasoning.partial().optional(),

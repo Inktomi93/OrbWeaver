@@ -76,6 +76,8 @@ describe("parseWorldBookFile", () => {
   test("round-trips the canonical shape (keys, metadata blob, and the null/empty fields all survive)", () => {
     const canonical = must(parseWorldBookFile(buildWorldBookFile(book())));
     expect(canonical).toEqual(book());
+    expect(canonical.entries[0]?.keys).toEqual(["kingdom", "realm"]);
+    expect(Object.isFrozen(canonical.entries[0]?.keys)).toBe(false);
   });
 
   test("null for non-JSON text", () => {

@@ -103,38 +103,27 @@
   },
   "survivorAdjudication": [
     {
-      "symbols": [
-        "QUIRK_LEAF_PATH_LIST",
-        "QUIRK_ROW_PATHS"
-      ],
+      "symbols": ["QUIRK_LEAF_PATH_LIST", "QUIRK_ROW_PATHS"],
       "verdict": "preserve-governed",
       "basis": "Two independently derived completeness sets over the live QUIRK_LEAVES registry; focused tests compare them while production quirkFactRows consumes the registry."
     },
     {
-      "symbols": [
-        "roleRequirementGaps"
-      ],
+      "symbols": ["roleRequirementGaps"],
       "verdict": "preserve-governed",
       "basis": "Contract-completeness oracle: tests prove every TASK_DEFS clause has an authored role requirement; production renders the sibling roleRequirementVerdicts path."
     },
     {
-      "symbols": [
-        "appearanceCarrierRowsFor"
-      ],
+      "symbols": ["appearanceCarrierRowsFor"],
       "verdict": "preserve-governed",
       "basis": "Derived proof projection over the production-consumed APPEARANCE_CARRIER_MANIFEST; focused tests prove every carrier plane has a generated family."
     },
     {
-      "symbols": [
-        "subscribeTurnSlot"
-      ],
+      "symbols": ["subscribeTurnSlot"],
       "verdict": "preserve-governed",
       "basis": "Documented render-free observation seam over the live chat stream store; the UI consumes sibling selectors and focused transient-stream tests consume this subscription."
     },
     {
-      "symbols": [
-        "readRpgRoundPendingForTest"
-      ],
+      "symbols": ["readRpgRoundPendingForTest"],
       "verdict": "preserve-governed",
       "basis": "Self-identifying test snapshot seam over the live RPG round store; production consumes useRpgRoundPending and focused lifecycle tests consume the snapshot."
     }

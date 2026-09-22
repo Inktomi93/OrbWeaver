@@ -456,9 +456,9 @@
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 516,
-      "bytes": 413287,
-      "sha256": "34360608b9b96fac01816f9c78fd2201c107da92a79e836be5f4b9f474d8ee10",
+      "lines": 518,
+      "bytes": 414783,
+      "sha256": "f2750facfd9650540848f71071db144a7f080a806906851bf4c1db7a4f51bb9e",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -471,12 +471,12 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-        "assignedSha256": "34360608b9b96fac01816f9c78fd2201c107da92a79e836be5f4b9f474d8ee10",
+        "assignedSha256": "f2750facfd9650540848f71071db144a7f080a806906851bf4c1db7a4f51bb9e",
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "34360608b9b96fac01816f9c78fd2201c107da92a79e836be5f4b9f474d8ee10",
-        "verifiedCommit": "81d19ad83f9e7ce1b7bd89ed42a72b2abb361387",
+        "verifiedSha256": "f2750facfd9650540848f71071db144a7f080a806906851bf4c1db7a4f51bb9e",
+        "verifiedCommit": "dc487a7ea3ece6f5db80c1407486ff2c25336a45",
         "verifiedAt": "2026-09-22",
         "evidence": [
           "Bounded #2312 citation correction; existing reviewed CSS-family changes and earlier evidence remain attributable to their own receipts. Selected dangling-refs drive clean over199 docs: reports/runs/structure/main-72765-2026-09-13T06-11-26-874Z/check-structure.json. This receipt does not certify the whole gate roster or close ongoing CSS verification.",
@@ -645,7 +645,7 @@
           }
         ],
         "summary": "Active enforcement catalog, fully read as text; current Q11 health-row correction verified against canonical generation and namespace-health ownership. Prior per-row evidence remains attributed; no new whole-roster implementation certification.",
-        "verifiedCanonicalSha256": "34360608b9b96fac01816f9c78fd2201c107da92a79e836be5f4b9f474d8ee10"
+        "verifiedCanonicalSha256": "f2750facfd9650540848f71071db144a7f080a806906851bf4c1db7a4f51bb9e"
       },
       "receiptCurrent": true
     },

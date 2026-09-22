@@ -1,0 +1,49 @@
+{
+  "schema": "orbweaver.ast-tool-independent-review",
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-22T10:48:20.976Z",
+  "reviewer": "/root/post_hook_combined_review",
+  "verdict": "CONFIRMED",
+  "parentHead": "dc487a7ea3ece6f5db80c1407486ff2c25336a45",
+  "codeDiffSha256": "6bd9dd66c8f4c88964642e9307a0d4e4555cc30228363567f5f0f953a64581b3",
+  "reviewedPaths": [
+    "docs/reviews/ast-codebase-audit/world-tools-respell-post-hook-repair.json",
+    "docs/reviews/ast-codebase-audit/world-tools-respell-near-closure-repair.json",
+    "docs/reviews/ast-codebase-audit/world-tools-respell-near-closure-review.json",
+    "docs/reviews/ast-codebase-audit/world-tools-running-finding-ledger.json"
+  ],
+  "initialRefutation": {
+    "finding": "The first post-hook receipt and ledger said ops/respell.ts was 135 lines; the current file was 130 after the later test-only-export removal.",
+    "repair": "Both current-tree claims now say 130 lines and match wc -l.",
+    "recheck": "CONFIRMED"
+  },
+  "confirmedClaims": [
+    "Both pre-hook receipts are historical-pre-hook, retain diff 5d6d..., and point to the post-hook successor.",
+    "The post-hook receipt covers the three extracted modules and the complete code path set, including both sides of the session-test rename, reproduces diff 6bd9....",
+    "The production witness matches all three temporary artifacts: exit 0, 29 domains, 262 scanned, 7,651 skipped, exact/near/exemption/stale/malformed all zero, 75.51 seconds, and 9,005,516 KiB.",
+    "The durable ledger points current respell evidence at the post-hook receipt and records every hook-discovered defect or finding without overwriting the historical evidence.",
+    "The 130-line decomposition claim, manifest size, and current receipt hash match the files."
+  ],
+  "verification": [
+    {
+      "check": "code diff identity",
+      "result": "reproduced 6bd9dd66c8f4c88964642e9307a0d4e4555cc30228363567f5f0f953a64581b3"
+    },
+    {
+      "check": "temporary witness hashes",
+      "result": "stdout, stderr, and time SHA-256 values all match"
+    },
+    {
+      "check": "JSON parsing",
+      "result": "all four reviewed artifacts parse successfully"
+    },
+    {
+      "check": "documentation reread after exactness correction",
+      "result": "CONFIRMED"
+    }
+  ],
+  "limitations": [
+    "The review reused the already-completed independent code review and did not rerun code. Normal commit-hook verification and the clean committed-tree denominator remain separate proof."
+  ],
+  "filesEditedByReviewer": []
+}

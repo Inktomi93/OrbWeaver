@@ -100,6 +100,56 @@ export interface NearPairCandidate {
   readonly diff: NearFieldDiff;
 }
 
+/** One reasoned, pair-specific near-match exemption. The candidate carries both declaration identities and
+ *  the exact diff the marker exempts, so human and machine evidence never need to re-derive the pair. */
+export interface NearPairExemption {
+  readonly candidate: NearPairCandidate;
+  readonly reason: string;
+}
+
+/** Plain-data machine evidence for one exempt pair; declaration nodes never enter the JSON plane. */
+export interface NearPairExemptionEvidence {
+  readonly domainName: string;
+  readonly target: string;
+  readonly reason: string;
+  readonly diff: string;
+}
+
+/** A valid marker whose named contracts declaration is no longer a candidate at the governed threshold. */
+export interface StaleNearPairMarker {
+  readonly domainName: string;
+  readonly domainDecl: Node;
+  readonly targetDomain: string;
+  readonly targetName: string;
+  readonly reason: string;
+}
+
+/** A leading comment claimed `@nearpair-ok:` but did not carry the complete target-specific grammar. */
+export interface MalformedNearPairMarker {
+  readonly domainName: string;
+  readonly domainDecl: Node;
+  readonly marker: string;
+}
+
+/** Plain-data machine evidence for one stale or malformed marker; declaration nodes stay out of JSON. */
+export interface NearPairMarkerEvidence {
+  readonly kind: "stale-nearpair-ok" | "malformed-nearpair-ok";
+  readonly domainName: string;
+  readonly file: string;
+  readonly line: number;
+  readonly target?: string;
+  readonly reason?: string;
+  readonly marker?: string;
+}
+
+/** The near tier's single classified result: raw candidates and every marker disposition. */
+export interface NearPairAudit {
+  readonly candidates: readonly NearPairCandidate[];
+  readonly exemptions: readonly NearPairExemption[];
+  readonly staleMarkers: readonly StaleNearPairMarker[];
+  readonly malformedMarkers: readonly MalformedNearPairMarker[];
+}
+
 /** ONE type-only-alive candidate: the export, and the type-position reference SITES that are its entire
  *  liveness (the files a human must read to render the verdict — "is this shape-conformance deliberate?").
  *  `unionSource` marks the repo's `as const` + `typeof X[number]` idiom — a bucketed row, never a hit. */

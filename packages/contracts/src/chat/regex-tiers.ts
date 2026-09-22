@@ -64,7 +64,7 @@ export const regexTierKeySchema = z.custom<RegexTierKey>((value): boolean => {
     return true;
   }
   return value.startsWith(CHARACTER_TIER_PREFIX) && tierCharacterIdSchema.safeParse(value.slice(CHARACTER_TIER_PREFIX.length)).success;
-}, "not a regex tier key");
+}, "not a regex tier key") satisfies z.ZodType<RegexTierKey>;
 
 /**
  * The host's per-chat tier allows — a SPARSE override map (`ChatMetadata.regexTiers`). A key present with
@@ -74,9 +74,9 @@ export const regexTierKeySchema = z.custom<RegexTierKey>((value): boolean => {
  */
 export type RegexTierAllow = Partial<Record<RegexTierKey, boolean>>;
 
-/** The stored blob. `z.record` over the validated key: an unaddressable key fails the sub-blob, which the
+/** The stored blob. `z.partialRecord` over the validated key: an unaddressable key fails the sub-blob, which the
  *  chat-metadata parser heals to absent (every tier runs) rather than nuking its siblings. */
-export const regexTierAllowSchema: z.ZodType<RegexTierAllow> = z.record(regexTierKeySchema, z.boolean());
+export const regexTierAllowSchema: z.ZodType<RegexTierAllow> = z.partialRecord(regexTierKeySchema, z.boolean());
 
 /** THE PRECEDENCE, one home: a tier runs unless the room explicitly switched it off. Read by the server
  *  resolver, by the lever strip's switch state, and by the in-force count in the section's kicker — three

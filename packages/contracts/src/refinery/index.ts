@@ -153,13 +153,13 @@ const SESSION_NAME_MAX = 200;
 
 export const REFINERY_STAGES = ["score", "rewrite", "analyze"] as const;
 export type RefineryStage = (typeof REFINERY_STAGES)[number];
-export const refineryStageSchema = z.enum(REFINERY_STAGES);
+export const refineryStageSchema = z.enum(REFINERY_STAGES) satisfies z.ZodType<RefineryStage>;
 
 // (REFINERY_VERDICTS / refineryVerdictSchema re-homed to ./core.ts — see the note above.)
 
 export const REFINERY_SESSION_STATUSES = ["active", "completed", "abandoned"] as const;
 export type RefinerySessionStatus = (typeof REFINERY_SESSION_STATUSES)[number];
-export const refinerySessionStatusSchema = z.enum(REFINERY_SESSION_STATUSES);
+export const refinerySessionStatusSchema = z.enum(REFINERY_SESSION_STATUSES) satisfies z.ZodType<RefinerySessionStatus>;
 
 /** The coded reason for a stage run refused out of order (analyze with no rewrite to judge; a refinement
  *  round with no analyze to refine against). The client reads it off the BAD_REQUEST error body. */
@@ -182,15 +182,15 @@ export const REFINERY_ROUND_IN_FLIGHT_REASON = "refinery_round_in_flight";
 
 export const REFINERY_SCORE_MODES = ["full", "quick"] as const;
 export type RefineryScoreMode = (typeof REFINERY_SCORE_MODES)[number];
-export const refineryScoreModeSchema = z.enum(REFINERY_SCORE_MODES);
+export const refineryScoreModeSchema = z.enum(REFINERY_SCORE_MODES) satisfies z.ZodType<RefineryScoreMode>;
 
 export const REFINERY_REWRITE_MODES = ["conservative", "balanced", "expansive"] as const;
 export type RefineryRewriteMode = (typeof REFINERY_REWRITE_MODES)[number];
-export const refineryRewriteModeSchema = z.enum(REFINERY_REWRITE_MODES);
+export const refineryRewriteModeSchema = z.enum(REFINERY_REWRITE_MODES) satisfies z.ZodType<RefineryRewriteMode>;
 
 export const REFINERY_ANALYZE_MODES = ["full", "iteration", "quick"] as const;
 export type RefineryAnalyzeMode = (typeof REFINERY_ANALYZE_MODES)[number];
-export const refineryAnalyzeModeSchema = z.enum(REFINERY_ANALYZE_MODES);
+export const refineryAnalyzeModeSchema = z.enum(REFINERY_ANALYZE_MODES) satisfies z.ZodType<RefineryAnalyzeMode>;
 
 // ── F5 refinable fields (card text fields, canonical-card order; per-greeting via indexes) ──────────────
 
@@ -212,7 +212,7 @@ export const REFINABLE_FIELDS = [
   "creatorNotes",
 ] as const;
 export type RefinableField = (typeof REFINABLE_FIELDS)[number];
-export const refinableFieldSchema = z.enum(REFINABLE_FIELDS);
+export const refinableFieldSchema = z.enum(REFINABLE_FIELDS) satisfies z.ZodType<RefinableField>;
 
 // The two selection AXES, spelled once and reused by both the VALUE shape and the PATCH shape below —
 // the bounds are the same question in either direction, and a second spelling is a bound that drifts.
@@ -259,10 +259,14 @@ export type RefinerySelectionPatch = z.infer<typeof refinerySelectionPatchSchema
  *  ONE home for the `refinery_sessions.guidance` bound: R1's start/iterate inputs parse through THIS, and
  *  the prompt substrate neutralizes it before splicing (the `{{input}}` guided precedent). */
 export const refineryGuidanceSchema = z.string().max(HOST_PROSE_MAX_CHARS);
+/** The bounded host-authored steering text persisted on a refinery session. */
+export type RefineryGuidance = z.output<typeof refineryGuidanceSchema>;
 
 /** The session's optional roster label — host-authored, never model-facing. Bounded like the card's own
  *  `name`: it is a row label rendered in the D62 LIST pane, not a prose field. */
 export const refinerySessionNameSchema = z.string().max(SESSION_NAME_MAX);
+/** The bounded optional roster label persisted on a refinery session. */
+export type RefinerySessionName = z.output<typeof refinerySessionNameSchema>;
 
 // ── Per-stage payload config — the kind-tagged union (the SF seam, now TWO-ARMED on score/analyze) ──────
 // The SESSION-side custom arm is a POINTER (`{kind:"custom", schemaId}`): the session's in-force schema
@@ -305,9 +309,11 @@ export type RefineryCustomStageConfig = z.infer<typeof refineryCustomStageConfig
 
 /** Session score config: fixed mode, or a custom schema pointer. */
 export const refineryScoreConfigSchema = z.union([refineryScoreFixedConfigSchema, refineryCustomStageConfigSchema]);
+export type RefineryScoreConfig = z.output<typeof refineryScoreConfigSchema>;
 
 /** Session analyze config: fixed mode, or a custom schema pointer. */
 export const refineryAnalyzeConfigSchema = z.union([refineryAnalyzeFixedConfigSchema, refineryCustomStageConfigSchema]);
+export type RefineryAnalyzeConfig = z.output<typeof refineryAnalyzeConfigSchema>;
 
 /** The session's in-force per-stage config (stored on `refinery_sessions.stage_config`). */
 export const refineryStageConfigSchema = z.object({
@@ -372,6 +378,8 @@ export const refineryFieldScoreSchema = z.object({
   weaknesses: critiqueProseSchema,
   suggestions: critiqueProseSchema,
 });
+/** One field-level score row emitted by the score stage. */
+export type RefineryFieldScore = z.output<typeof refineryFieldScoreSchema>;
 export const refineryScorePayloadSchema = z.object({
   fieldScores: z.array(refineryFieldScoreSchema).max(ENTRIES_MAX),
   /** Weighted average over `fieldScores` — the value R1 stamps into `characters.refinery.score` (F6). */
@@ -481,6 +489,16 @@ export type RefineryAnalyzePayload = z.infer<typeof refineryAnalyzePayloadSchema
 
 export type RefineryStagePayload = RefineryScorePayload | RefineryRewritePayload | RefineryAnalyzePayload;
 
+interface RefineryStagePayloadByStage {
+  readonly score: RefineryScorePayload;
+  readonly rewrite: RefineryRewritePayload;
+  readonly analyze: RefineryAnalyzePayload;
+}
+
+type RefineryStagePayloadSchemas = {
+  readonly [Stage in RefineryStage]: z.ZodType<RefineryStagePayloadByStage[Stage]>;
+};
+
 /** The exhaustive per-stage FIXED payload-schema dispatch (spine §7.5 mapped-Record). Since the custom
  *  arm landed this is no longer the whole dispatch home — {@link payloadSchemaFor} is: fixed/manual runs
  *  resolve here, custom runs lift their EMBEDDED schema. A new stage member fails tsc here first. */
@@ -488,13 +506,27 @@ export const REFINERY_STAGE_PAYLOADS = {
   score: refineryScorePayloadSchema,
   rewrite: refineryRewritePayloadSchema,
   analyze: refineryAnalyzePayloadSchema,
-} as const satisfies Record<RefineryStage, z.ZodType>;
+} as const satisfies RefineryStagePayloadSchemas;
+
+/** The payload schema selected by the two runtime discriminants. Fixed/manual runs select the stage's
+ * authored schema; a custom run lifts its embedded object schema and therefore has only the truthful
+ * static `ZodObject` contract. */
+type RefineryPayloadSchemaFor<TStage extends RefineryStage, TConfig extends RefineryStagePayloadConfig> = TConfig extends RefineryCustomRunConfig
+  ? z.ZodObject
+  : (typeof REFINERY_STAGE_PAYLOADS)[TStage];
 
 /** THE payload-schema dispatch (the honest one-home once the custom arm exists):
  *  a fixed or manual run parses the stage's typed contract; a custom run parses the schema EMBEDDED in
  *  its own provenance (never a live row — P1-B). Throws `JsonSchemaLiftError` only on a corrupt embed,
  *  which the read seam treats as the payload-no-longer-parses heal. */
-export function payloadSchemaFor(stage: RefineryStage, payloadConfig: RefineryStagePayloadConfig): z.ZodType {
+export function payloadSchemaFor<TStage extends RefineryStage, TConfig extends RefineryStagePayloadConfig>(
+  stage: TStage,
+  payloadConfig: TConfig,
+): RefineryPayloadSchemaFor<TStage, TConfig>;
+export function payloadSchemaFor<TStage extends RefineryStage>(
+  stage: TStage,
+  payloadConfig: RefineryStagePayloadConfig,
+): z.ZodObject | (typeof REFINERY_STAGE_PAYLOADS)[TStage] {
   return payloadConfig.kind === "custom" ? liftJsonSchema(payloadConfig.schema) : REFINERY_STAGE_PAYLOADS[stage];
 }
 

@@ -170,12 +170,26 @@ describe("ast command output over bounded projects", () => {
       emit(hits, flags, "contract-field-liveness fixture");
       finishRun();
       const payload = JSON.parse(stdout.join("\n")) as { total: number; shown: number; hits: Hit[]; meta: { matches: number; status: string } };
+      expect(Object.keys(payload)).toEqual(["label", "total", "shown", "hits", "meta"]);
       expect(payload).toMatchObject({ total: 2, shown: 1, meta: { matches: 2, status: "partial" } });
       expect(payload.hits.map(({ text }) => text)).toEqual(["probeSchema.first"]);
       expect(stderr.join("\n")).toContain("2 hit(s) found, 1 displayed");
       expect(parseEpilogue(stderr.join("\n"))).toMatchObject({ matches: "2", status: "partial" });
     } finally {
       process.exitCode = previousExitCode;
+      release();
+    }
+  });
+
+  test("JSON extras cannot overwrite reserved result protocol fields", () => {
+    const stdout: string[] = [];
+    const release = installOutputSink({ line: (line) => stdout.push(line), warn: () => undefined });
+    try {
+      expect(() => emit([], parseFlags(["--json"]), "collision fixture", { jsonFields: { total: 999 } })).toThrow(
+        /jsonFields collides with reserved result field "total"/u,
+      );
+      expect(stdout).toEqual([]);
+    } finally {
       release();
     }
   });

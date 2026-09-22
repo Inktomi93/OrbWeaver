@@ -25,7 +25,7 @@ import type { ParticipantKind } from "./participants.ts";
  *  root) — every consumer imports them from there (no second name, no alias); this only derives the schema.
  *
  *  @public twin: PARTICIPANT_ROLES — drives the chat_participants role enum + CHECK (cross-package PUBLIC). */
-export const participantRoleSchema = z.enum(PARTICIPANT_ROLES);
+export const participantRoleSchema = z.enum(PARTICIPANT_ROLES) satisfies z.ZodType<ParticipantRole>;
 
 /** How much history a (re)joining member sees: `full` (the whole room canon — the COLUMN DEFAULT, owner
  *  ruling: inviting someone into a room grants them its history) or `from-join` (only from their own
@@ -33,7 +33,7 @@ export const participantRoleSchema = z.enum(PARTICIPANT_ROLES);
  *  OPT-IN per-participant restriction, never the ambient posture. */
 export const JOIN_HISTORY_VISIBILITIES = ["from-join", "full"] as const;
 export type JoinHistoryVisibility = (typeof JOIN_HISTORY_VISIBILITIES)[number];
-export const joinHistoryVisibilitySchema = z.enum(JOIN_HISTORY_VISIBILITIES);
+export const joinHistoryVisibilitySchema = z.enum(JOIN_HISTORY_VISIBILITIES) satisfies z.ZodType<JoinHistoryVisibility>;
 
 // A viewer's INCLUSIVE `messages.seq` read floor (the D16 join-history clamp resolved to a number): rows
 // with `seq >= HistoryFloorSeq` are visible, rows below are pre-join and withheld. Branded (the phantom
@@ -88,6 +88,7 @@ export const characterMemberSpecSchema = z.object({
   position: z.number().int().nonnegative(),
   ...seatKnobsSchema.shape,
 });
+export type CharacterMemberSpec = z.output<typeof characterMemberSpecSchema>;
 
 /** A seat the caller WANTS to exist — the ONE template/creation-time member vocabulary (D16/D61/D60). Every
  *  membership-template lifetime PROJECTS through it; nothing mints a flat characterId array beside it.
@@ -97,6 +98,7 @@ export const characterMemberSpecSchema = z.object({
  *  template cannot carry an invite's runtime preconditions); `observer` and `agent` were purged 2026-07-25
  *  (the rebuild re-adds their arms here if either domain returns) — `character` is the only live arm. */
 export const rosterMemberSpecSchema = z.discriminatedUnion("kind", [characterMemberSpecSchema]);
+export type RosterMemberSpec = z.output<typeof rosterMemberSpecSchema>;
 
 /** The RESOLVED per-participant content-render policy (D44 §12.0/§12.3). The chat domain resolves each
  *  character's tri-state overrides against the deployment effective config at roster-build time (the ONE
@@ -537,7 +539,7 @@ const INVITE_TOKEN_MIN = 1;
 export const INVITE_STATUSES = ["pending", "accepted", "declined", "revoked", "expired"] as const;
 export type InviteStatus = (typeof INVITE_STATUSES)[number];
 /** @public twin: INVITE_STATUSES — drives the chat_invites status enum + CHECK (cross-package PUBLIC). */
-export const inviteStatusSchema = z.enum(INVITE_STATUSES);
+export const inviteStatusSchema = z.enum(INVITE_STATUSES) satisfies z.ZodType<InviteStatus>;
 
 /** Create an invite (host action). Two creation paths: a share-link (no target) OR targeted-by-handle
  *  (`invitedHandle`, resolved to a user server-side). The `token` is CSPRNG-minted + stored HASHED on the

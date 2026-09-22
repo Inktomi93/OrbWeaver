@@ -1,0 +1,136 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-09-22T14:23:22Z",
+  "purpose": "Seed denominator for a read-only exception-authority audit. Consumption proves that authority binds a live finding; it does not prove the exception remains necessary. Counts come from runtime/production readers; source-literal counts are diagnostic only.",
+  "authorityModel": {
+    "hard": "No waiver or reviewed-grant door.",
+    "ordinary": "A line-scoped @orb-waive binds one exact authored carrier and reported position. A file-scoped @orb-waive-file binds one exact policy/position token anywhere in its file for otherwise unwaivable spans; it still fails over-broad and is not a blanket file suppression. Malformed, stale, unbound, wrong-authority, duplicate-target and over-broad markers alarm centrally.",
+    "reviewedGrant": "One central row binds exactly one policyId/subject/operation finding and carries why plus endsWhen. Zero consumption is stale; more than one match is over-broad and licenses nothing.",
+    "foreignSuppression": "Biome, ESLint and TypeScript suppression directives are foreign-tool data classified by the suppressions policy; they are not Orb waiver syntax.",
+    "lensMarkers": "AST diagnostic markers such as @public, @view-server-only, @swallowed-ok, @typeonly-ok, @column-ok and @nearpair-ok remain lens-specific two-sided claims and are not central gate authority.",
+    "nativeConfigGrant": "Biome, ESLint and dependency-cruiser configurations contain hand-authored native rule/path permissions. Dedicated liveness policies read the native configuration and tracked corpus; genuinely absent-by-construction cases are licensed through exact central reviewed grants.",
+    "retiredGateIgnore": "@orb-gate-ignore is retired and inert. gate-ignore-inventory is hard/error and reports any live marker."
+  },
+  "ordinaryWaivers": {
+    "count": 1732,
+    "authorityAlarms": 0,
+    "evidenceArtifact": "reports/runs/structure/orbweaver-2657329-2026-09-22T11-10-13-158Z/check-structure.json",
+    "treeDriftCheck": "The authoritative full artifact counted all TypeScript and declared resource carriers. Current git diff and cached diff contain zero added or removed @orb-waive/@orb-waive-file marker lines.",
+    "byPolicy": {
+      "caught-failure-ownership": 625,
+      "no-test-fabrication": 416,
+      "ct-no-oneshot-live-read-assert": 312,
+      "brand-in-name-position": 56,
+      "persistence-no-in-memory-state": 47,
+      "test-determinism": 40,
+      "owner-scoped-writes": 32,
+      "owner-scoped-reads": 28,
+      "no-raw-id": 25,
+      "empty-state-has-action": 21,
+      "no-arbitrary-tw-values": 20,
+      "motion-token-purity": 17,
+      "no-hardcoded-model-prose": 15,
+      "no-inline-types": 11,
+      "dialog-via-composite": 10,
+      "no-await-db-in-loop": 9,
+      "baseui-derives-not-respells": 7,
+      "no-loose-id-cast": 6,
+      "integer-line-boxes": 5,
+      "detached-work-traced": 4,
+      "one-principal-mint-population": 4,
+      "chat-viewer-plane-canon-reads": 3,
+      "css-length-tokens": 2,
+      "membership-enforcer": 2,
+      "no-floorless-control-in-wrap": 2,
+      "no-legacy-react-api": 2,
+      "sub-floor-disclosure": 2,
+      "surface-a11y-focus": 2,
+      "tooling-clock-budget": 2,
+      "ui-size-via-variant": 2,
+      "audit-client-tests": 1,
+      "fetch-fn-in-features": 1,
+      "nullable-column-inequality": 1
+    },
+    "dominantThree": {
+      "count": 1353,
+      "percent": 78.12
+    }
+  },
+  "reviewedGrants": {
+    "runtimeRows": 480,
+    "policyCount": 67,
+    "source": "tooling/src/verify/lib/reviewed-grants.ts runtime REVIEWED_GRANTS export",
+    "sourceLiteralRows": 423,
+    "sourceLiteralPolicyCount": 64,
+    "literalCountWarning": "Literal object counting is incomplete: several partitions construct rows through mapped/generated values and the central barrel composes spreads. Import the runtime REVIEWED_GRANTS roster; do not use grep or object-literal counts as the denominator.",
+    "largestPolicies": {
+      "suppressions": 64,
+      "density-tier": 57,
+      "dangling-ref-citations": 51,
+      "query-freshness-coverage": 34,
+      "css-length-tokens-grants": 28,
+      "css-var-defined-grants": 19
+    },
+    "identityValidation": {
+      "uniqueIds": 480,
+      "uniquePolicySubjectOperation": 480
+    }
+  },
+  "foreignSuppressions": {
+    "occurrences": 564,
+    "files": 275,
+    "filesScanned": 8108,
+    "sourceOccurrences": 346,
+    "testOccurrences": 218,
+    "byToken": {
+      "@ts-expect-error": 69,
+      "biome-ignore": 429,
+      "biome-ignore-start": 24,
+      "biome-ignore-end": 24,
+      "eslint-disable": 1,
+      "eslint-disable-line": 1,
+      "eslint-disable-next-line": 15,
+      "eslint-enable": 1
+    },
+    "governedRuleScopeClasses": 64,
+    "selectedGateArtifact": "reports/runs/structure/orbweaver-3373230-2026-09-22T14-22-37-663Z/check-structure.json",
+    "method": "Enumerate tracked plus untracked JS/TS-family authored files, excluding captured SillyTavern runtime, and call the production suppressionSites reader for every file. The selected suppressions gate then proved all 64 rule/scope classes granted with zero effective findings, alarms, tool errors or withholding."
+  },
+  "interpretation": [
+    "The ordinary-waiver total comes from the authoritative complete all-policy artifact and remains current because no marker line changed; a selected-policy run alone sees only the carriers acquired for that selection and is not a substitute denominator.",
+    "The reviewed-grant denominator is the imported runtime REVIEWED_GRANTS array. Literal object counting undercounts it by 57 rows and three policies.",
+    "A reviewed grant may govern many source occurrences because the grant identity is the policy's subject/operation finding, not necessarily a source coordinate.",
+    "The 564 foreign suppression occurrences collapse to 64 rule/scope findings and 64 central grants; occurrences and grants overlap and must not be summed as independent exceptions.",
+    "A successful authority run proves exact binding and liveness only. Continued necessity requires behavioral and architectural evidence.",
+    "No exception should be removed until the underlying finding is repaired or an existing healthy witness proves the marker is redundant."
+  ],
+  "nativeConfigurationPermissions": {
+    "selectedGateArtifact": "reports/runs/structure/orbweaver-3373230-2026-09-22T14-22-37-663Z/check-structure.json",
+    "gates": {
+      "biome-grant-liveness": {
+        "centralReviewedGrantsConsumed": 1,
+        "trackedResources": 10808,
+        "unresolved": 0
+      },
+      "eslint-grant-liveness": {
+        "centralReviewedGrantsConsumed": 6,
+        "nativeConfigResources": 125,
+        "unresolved": 0
+      },
+      "depcruise-grant-liveness": {
+        "centralReviewedGrantsConsumed": 2,
+        "nativeConfigResources": 233,
+        "trackedResources": 10808,
+        "unresolved": 0
+      }
+    },
+    "result": "All three owners completed with zero violations, authority alarms, tool errors or withholding. Their nine central grants are already included in the 480-row reviewed-grant denominator; do not add them again."
+  },
+  "retiredAuthority": {
+    "legacyMarker": "@orb-gate-ignore",
+    "liveMarkers": 0,
+    "selectedGateArtifact": "reports/runs/structure/orbweaver-3373230-2026-09-22T14-22-37-663Z/check-structure.json",
+    "populationFiles": 7861,
+    "result": "gate-ignore-inventory completed as hard/error with zero violations and no withholding."
+  }
+}

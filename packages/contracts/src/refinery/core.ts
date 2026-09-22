@@ -15,4 +15,4 @@ export const SCORE_MAX = 10;
  *  exact uppercase spellings, and REGRESSION is the iterate loop's stop condition). */
 export const REFINERY_VERDICTS = ["ACCEPT", "NEEDS_REFINEMENT", "REGRESSION"] as const;
 export type RefineryVerdict = (typeof REFINERY_VERDICTS)[number];
-export const refineryVerdictSchema = z.enum(REFINERY_VERDICTS);
+export const refineryVerdictSchema = z.enum(REFINERY_VERDICTS) satisfies z.ZodType<RefineryVerdict>;

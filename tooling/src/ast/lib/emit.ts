@@ -176,7 +176,26 @@ function warnTruncated(total: number, shown: number, flags: Flags, label: string
   );
 }
 
-export function emit(hits: Hit[], flags: Flags, label: string): void {
+export interface EmitOptions {
+  /** Additive fields for this verb's machine result. Omit entirely to preserve every existing JSON payload. */
+  readonly jsonFields?: Readonly<Record<string, unknown>>;
+}
+
+const RESERVED_JSON_FIELDS = new Set(["label", "total", "shown", "hits", "meta"]);
+
+function assertJsonFieldsAreAdditive(jsonFields: Readonly<Record<string, unknown>> | undefined): void {
+  if (jsonFields === undefined) {
+    return;
+  }
+  for (const field of Object.keys(jsonFields)) {
+    if (RESERVED_JSON_FIELDS.has(field)) {
+      throw new Error(`ast emit: jsonFields collides with reserved result field ${JSON.stringify(field)}`);
+    }
+  }
+}
+
+export function emit(hits: Hit[], flags: Flags, label: string, options: EmitOptions = {}): void {
+  assertJsonFieldsAreAdditive(options.jsonFields);
   const unique = dedupe(hits, flags).sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
   const files = new Set(unique.map((h) => h.file)).size;
   if (flags.json) {
@@ -185,7 +204,9 @@ export function emit(hits: Hit[], flags: Flags, label: string): void {
     warnTruncated(unique.length, shown.length, flags, label);
     // `meta` is ADDITIVE and last — every pre-existing key keeps its name, order and value, so a consumer
     // reading `total`/`hits` is untouched while a new one can audit the scope the answer came from.
-    print(JSON.stringify({ label, total: unique.length, shown: shown.length, hits: shown, meta: scanMeta() }, null, 1));
+    const common = { label, total: unique.length, shown: shown.length, hits: shown };
+    const payload = options.jsonFields === undefined ? { ...common, meta: scanMeta() } : { ...common, ...options.jsonFields, meta: scanMeta() };
+    print(JSON.stringify(payload, null, 1));
     return;
   }
   if (flags.filesOnly || (unique.length > Math.max(flags.max, COLLAPSE_THRESHOLD) && flags.max === DEFAULT_MAX)) {

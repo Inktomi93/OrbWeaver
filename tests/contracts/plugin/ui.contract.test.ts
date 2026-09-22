@@ -46,6 +46,7 @@ import {
   pluginCommandRegistrationMetaSchema,
   pluginFrameBodySchema,
   pluginSlugSchema,
+  pluginSurfaceNodeSchema,
   pluginSurfaceRegistrationMetaSchema,
   pluginSurfaceSpecSchema,
   pluginToolWireName,
@@ -747,6 +748,22 @@ test("#791: pluginCommandArgsSchema is the MEMBRANE re-validation over an alread
   expect(schema.safeParse({ suit: "cups", count: "2" }).success).toBe(false);
   const stripped = schema.safeParse({ suit: "cups", extra: "dropped" });
   expect(stripped.success && stripped.data).toEqual({ suit: "cups" });
+  expect(schema.parse({ suit: "cups" })).toEqual({ suit: "cups" });
+  expect(schema.parse({ suit: "cups", count: undefined })).toEqual({ suit: "cups" });
+});
+
+test("plugin surface readonly collection outputs preserve order without freezing guest values", () => {
+  const parsed = pluginSurfaceNodeSchema.parse({
+    kind: "grid",
+    tiles: [{ id: "first", title: "First", tags: ["one", "two"] }],
+  });
+  if (parsed.kind !== "grid" || parsed.tiles === undefined) {
+    throw new Error("expected a parsed grid with declared tiles");
+  }
+  expect(parsed.tiles.map((tile) => tile.id)).toEqual(["first"]);
+  expect(parsed.tiles[0]?.tags).toEqual(["one", "two"]);
+  expect(Object.isFrozen(parsed.tiles)).toBe(false);
+  expect(Object.isFrozen(parsed.tiles[0]?.tags)).toBe(false);
 });
 
 /** The DECODE RULE `registrations.ts` states in its injectivity proof, implemented HERE rather than shipped.

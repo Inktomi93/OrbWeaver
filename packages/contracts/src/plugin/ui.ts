@@ -416,7 +416,7 @@ export interface PluginFrameBody {
 export const pluginFrameBodySchema = z.strictObject({
   html: z.string().max(PLUGIN_FRAME_HTML_MAX_CHARS),
   css: z.string().max(PLUGIN_FRAME_CSS_MAX_CHARS).optional(),
-});
+}) satisfies z.ZodType<PluginFrameBody>;
 
 const LABEL_MAX = 200;
 const STATE_PATH_MAX = 128;
@@ -439,8 +439,9 @@ export type PluginBoundNumber = number | PluginStateBinding;
  *  whole point is that it FLIPS between two publishes. */
 export type PluginBoundBoolean = boolean | PluginStateBinding;
 
-// ── The node union (declared explicitly, then the schema is PINNED to it — biome cannot see switch-reachability
-//    through a `z.infer` of a lazy discriminated union, so the type leads and `z.ZodType<…>` follows) ──────────
+// ── The node union (declared explicitly, then the schema is PINNED to it — an unannotated recursive
+//    `z.lazy` cannot infer through its own initializer under TS7022/TS7024, so the type leads and the exact
+//    `z.ZodType<…>` output twin follows) ─────────────────────────────────────────────────────────────────────
 
 export interface PluginStackNode {
   readonly kind: "stack";
@@ -870,26 +871,29 @@ const gapSchema = z.enum(PLUGIN_GAP_TOKENS);
  *  looser spelling here would admit names the map can never contain and turn a wall into a shrug. */
 const bundleAssetPathSchema = z.string().regex(PLUGIN_UI_ASSET_ENTRY_RE);
 
+/** Give a parsed array its contract's readonly OUTPUT type without freezing or cloning the runtime value. */
+function readonlyArrayOutput<Item>(schema: z.ZodType<Item[]>): z.ZodType<readonly Item[], z.input<typeof schema>> {
+  return schema.transform((items): readonly Item[] => items);
+}
+
 /** The node schema. Recursive via `z.lazy` (the container arms reference this const by the time the thunk
- *  runs); the explicit `z.ZodType<PluginSurfaceNode>` annotation breaks the circular inference and keeps the
- *  DECLARED union authoritative (biome's type service cannot see reachability through an inferred lazy union). */
+ *  runs); the explicit `z.ZodType<PluginSurfaceNode>` annotation breaks TS7022/TS7024's circular inference and
+ *  keeps the DECLARED union authoritative. The annotation is one-way, so the parity gate separately proves the
+ *  schema's output has not narrowed or grown away from the declared union. */
 export const pluginSurfaceNodeSchema: z.ZodType<PluginSurfaceNode> = z.lazy(() =>
   z.discriminatedUnion("kind", [
-    z.object({ kind: z.literal("stack"), gap: gapSchema.optional(), children: z.array(pluginSurfaceNodeSchema) }),
-    z.object({ kind: z.literal("row"), gap: gapSchema.optional(), children: z.array(pluginSurfaceNodeSchema) }),
-    z.object({ kind: z.literal("section"), kicker: labelSchema, children: z.array(pluginSurfaceNodeSchema) }),
+    z.object({ kind: z.literal("stack"), gap: gapSchema.optional(), children: readonlyArrayOutput(z.array(pluginSurfaceNodeSchema)) }),
+    z.object({ kind: z.literal("row"), gap: gapSchema.optional(), children: readonlyArrayOutput(z.array(pluginSurfaceNodeSchema)) }),
+    z.object({ kind: z.literal("section"), kicker: labelSchema, children: readonlyArrayOutput(z.array(pluginSurfaceNodeSchema)) }),
     z.object({ kind: z.literal("text"), value: boundString(PLUGIN_TEXT_MAX_BYTES), voice: z.enum(PLUGIN_TEXT_VOICES).optional() }),
     z.object({ kind: z.literal("badge"), text: boundString(LABEL_MAX), intent: z.enum(PLUGIN_BADGE_INTENTS).optional() }),
     z.object({ kind: z.literal("meter"), value: boundNumber, max: finiteNumber.optional(), label: labelSchema.optional() }),
     z.object({
       kind: z.literal("keyValue"),
-      rows: z
-        .array(z.object({ key: labelSchema, value: boundString(LABEL_MAX) }))
-        .max(PLUGIN_ROWS_MAX)
-        .optional(),
+      rows: readonlyArrayOutput(z.array(z.object({ key: labelSchema, value: boundString(LABEL_MAX) })).max(PLUGIN_ROWS_MAX)).optional(),
       rowsFrom: stateBindingSchema.optional(),
     }),
-    z.object({ kind: z.literal("list"), items: z.array(boundString(LABEL_MAX)).max(PLUGIN_ROWS_MAX) }),
+    z.object({ kind: z.literal("list"), items: readonlyArrayOutput(z.array(boundString(LABEL_MAX)).max(PLUGIN_ROWS_MAX)) }),
     z.object({
       kind: z.literal("image"),
       assetId: typeIdSchema(ID_PREFIX.asset).optional(),
@@ -920,10 +924,7 @@ export const pluginSurfaceNodeSchema: z.ZodType<PluginSurfaceNode> = z.lazy(() =
       kind: z.literal("select"),
       name: identSchema,
       label: labelSchema,
-      options: z
-        .array(z.object({ value: z.string().max(LABEL_MAX), label: labelSchema }))
-        .max(PLUGIN_ROWS_MAX)
-        .optional(),
+      options: readonlyArrayOutput(z.array(z.object({ value: z.string().max(LABEL_MAX), label: labelSchema })).max(PLUGIN_ROWS_MAX)).optional(),
       optionsFrom: stateBindingSchema.optional(),
       value: z.string().max(LABEL_MAX).optional(),
       actionId: identSchema.optional(),
@@ -949,22 +950,23 @@ export const pluginSurfaceNodeSchema: z.ZodType<PluginSurfaceNode> = z.lazy(() =
     //    genre's signal lives, so an absent `assetId` is a shape-matched placeholder, not a row.
     z.object({
       kind: z.literal("grid"),
-      tiles: z
-        .array(
-          z.object({
-            id: identSchema,
-            title: boundString(LABEL_MAX),
-            subtitle: boundString(LABEL_MAX).optional(),
-            badge: boundString(LABEL_MAX).optional(),
-            assetId: typeIdSchema(ID_PREFIX.asset).optional(),
-            bundleAsset: bundleAssetPathSchema.optional(),
-            alt: z.string().max(LABEL_MAX).optional(),
-            tags: z.array(z.string().max(LABEL_MAX)).max(PLUGIN_TILE_TAGS_MAX).optional(),
-            actionId: identSchema.optional(),
-          }),
-        )
-        .max(PLUGIN_GRID_TILES_MAX)
-        .optional(),
+      tiles: readonlyArrayOutput(
+        z
+          .array(
+            z.object({
+              id: identSchema,
+              title: boundString(LABEL_MAX),
+              subtitle: boundString(LABEL_MAX).optional(),
+              badge: boundString(LABEL_MAX).optional(),
+              assetId: typeIdSchema(ID_PREFIX.asset).optional(),
+              bundleAsset: bundleAssetPathSchema.optional(),
+              alt: z.string().max(LABEL_MAX).optional(),
+              tags: readonlyArrayOutput(z.array(z.string().max(LABEL_MAX)).max(PLUGIN_TILE_TAGS_MAX)).optional(),
+              actionId: identSchema.optional(),
+            }),
+          )
+          .max(PLUGIN_GRID_TILES_MAX),
+      ).optional(),
       tilesFrom: stateBindingSchema.optional(),
       tileAction: identSchema.optional(),
       aspect: z.enum(PLUGIN_IMAGE_ASPECTS).optional(),
@@ -981,35 +983,34 @@ export const pluginSurfaceNodeSchema: z.ZodType<PluginSurfaceNode> = z.lazy(() =
       kind: z.literal("tabs"),
       name: identSchema,
       label: labelSchema,
-      options: z
-        .array(z.object({ value: z.string().max(LABEL_MAX), label: labelSchema }))
-        .max(PLUGIN_TABS_OPTIONS_MAX)
-        .optional(),
+      options: readonlyArrayOutput(z.array(z.object({ value: z.string().max(LABEL_MAX), label: labelSchema })).max(PLUGIN_TABS_OPTIONS_MAX)).optional(),
       optionsFrom: stateBindingSchema.optional(),
       value: z.string().max(LABEL_MAX).optional(),
       actionId: identSchema.optional(),
     }),
     z.object({
       kind: z.literal("masterDetail"),
-      stages: z
-        .array(
-          z.object({
-            id: identSchema,
-            kind: z.enum(PLUGIN_PAGE_STAGE_KINDS),
-            title: boundString(LABEL_MAX).optional(),
-            hero: z
-              .object({
-                assetId: typeIdSchema(ID_PREFIX.asset).optional(),
-                assetFrom: stateBindingSchema.optional(),
-                bundleAsset: bundleAssetPathSchema.optional(),
-                alt: z.string().max(LABEL_MAX).optional(),
-              })
-              .optional(),
-            body: pluginSurfaceNodeSchema,
-          }),
-        )
-        .min(1)
-        .max(PLUGIN_PAGE_STAGES_MAX),
+      stages: readonlyArrayOutput(
+        z
+          .array(
+            z.object({
+              id: identSchema,
+              kind: z.enum(PLUGIN_PAGE_STAGE_KINDS),
+              title: boundString(LABEL_MAX).optional(),
+              hero: z
+                .object({
+                  assetId: typeIdSchema(ID_PREFIX.asset).optional(),
+                  assetFrom: stateBindingSchema.optional(),
+                  bundleAsset: bundleAssetPathSchema.optional(),
+                  alt: z.string().max(LABEL_MAX).optional(),
+                })
+                .optional(),
+              body: pluginSurfaceNodeSchema,
+            }),
+          )
+          .min(1)
+          .max(PLUGIN_PAGE_STAGES_MAX),
+      ),
       active: boundString(LABEL_MAX).optional(),
     }),
     z.object({
@@ -1019,7 +1020,7 @@ export const pluginSurfaceNodeSchema: z.ZodType<PluginSurfaceNode> = z.lazy(() =
       placeholder: z.string().max(LABEL_MAX).optional(),
       value: z.string().max(LABEL_MAX).optional(),
       actionId: identSchema.optional(),
-      filters: z.array(pluginSurfaceNodeSchema).max(PLUGIN_ROWS_MAX).optional(),
+      filters: readonlyArrayOutput(z.array(pluginSurfaceNodeSchema).max(PLUGIN_ROWS_MAX)).optional(),
       filtersLabel: labelSchema.optional(),
     }),
   ]),
@@ -1218,8 +1219,8 @@ export const pluginBoundGridTileSchema = z.object({
   badge: z.string().max(LABEL_MAX).optional(),
   assetId: typeIdSchema(ID_PREFIX.asset).optional(),
   alt: z.string().max(LABEL_MAX).optional(),
-  tags: z.array(z.string().max(LABEL_MAX)).max(PLUGIN_TILE_TAGS_MAX).optional(),
-});
+  tags: readonlyArrayOutput(z.array(z.string().max(LABEL_MAX)).max(PLUGIN_TILE_TAGS_MAX)).optional(),
+}) satisfies z.ZodType<PluginBoundGridTile>;
 
 /** Resolve a grid's `tilesFrom` binding against published state: read the path, validate EVERY entry, clamp
  *  the count. The three postures, each deliberate:
@@ -1273,7 +1274,7 @@ function resolveBoundArray<T>(state: Record<string, unknown>, binding: PluginSta
 
 /** ONE bound select option as published state — the declared `PluginSelectOption` shape, judged at
  *  RESOLVE (the registration gate cannot see state). */
-export const pluginBoundSelectOptionSchema = z.object({ value: z.string().max(LABEL_MAX), label: labelSchema });
+export const pluginBoundSelectOptionSchema = z.object({ value: z.string().max(LABEL_MAX), label: labelSchema }) satisfies z.ZodType<PluginSelectOption>;
 
 /** Resolve a select's `optionsFrom` binding (hub v1.3): the per-entry gate + the {@link PLUGIN_ROWS_MAX}
  *  clamp, the `resolvePluginBoundTiles` posture exactly. A miss resolves to NO options — the renderer
@@ -1490,6 +1491,25 @@ export interface PluginCommandArgSpec {
  *  the wire (`invokeUiCommand`), the server validator and the guest payload all speak it. */
 export type PluginCommandArgValue = string | number | boolean;
 
+/** The typed values bag delivered to one plugin command after client coercion and independent membrane
+ *  validation. Keys are the resident command's declared arg names; unknown and absent optional args are
+ *  omitted before guest code receives the bag. */
+export type PluginCommandArgs = Record<string, PluginCommandArgValue>;
+
+type RequiredPluginCommandArgName<TSpecs extends readonly PluginCommandArgSpec[]> = TSpecs[number] extends infer TSpec
+  ? TSpec extends { readonly name: infer TName extends string; readonly required: true }
+    ? TName
+    : never
+  : never;
+
+/** The values bag produced for one concrete command declaration. Literal spec tuples retain required versus
+ *  optional names; dynamically collected spec arrays deliberately fall back to the open string-keyed bag. */
+export type PluginCommandArgsFor<TSpecs extends readonly PluginCommandArgSpec[]> = string extends TSpecs[number]["name"]
+  ? PluginCommandArgs
+  : { [TName in RequiredPluginCommandArgName<TSpecs>]: PluginCommandArgValue } & {
+      [TName in Exclude<TSpecs[number]["name"], RequiredPluginCommandArgName<TSpecs>>]?: PluginCommandArgValue;
+    };
+
 /** A declared arg spec, validated host-side at registration. The enum biconditional lives here so a malformed
  *  arg is a REGISTRATION refusal (the command absent, a log line), never activation-fatal. */
 export const pluginCommandArgSpecSchema = z
@@ -1498,13 +1518,13 @@ export const pluginCommandArgSpecSchema = z
     type: z.enum(PLUGIN_COMMAND_ARG_TYPES),
     required: z.boolean().optional(),
     describe: z.string().min(1).max(PLUGIN_COMMAND_DESCRIBE_MAX).optional(),
-    enumValues: z.array(z.string().min(1).max(LABEL_MAX)).min(1).max(PLUGIN_COMMAND_ENUM_VALUES_MAX).optional(),
+    enumValues: readonlyArrayOutput(z.array(z.string().min(1).max(LABEL_MAX)).min(1).max(PLUGIN_COMMAND_ENUM_VALUES_MAX)).optional(),
   })
   .superRefine((arg, ctx) => {
     if ((arg.type === "enum") !== (arg.enumValues !== undefined)) {
       ctx.addIssue({ code: "custom", message: "an enum arg must name its enumValues, and only an enum arg may", path: ["enumValues"] });
     }
-  });
+  }) satisfies z.ZodType<PluginCommandArgSpec>;
 
 /** The SERIALIZABLE part of a `host.ui.registerCommand` def — validated host-side at collection (the trust
  *  boundary) and the exact descriptor `plugin.listCommands` projects to the client. The `onRun` handler is NOT
@@ -1542,8 +1562,8 @@ export type PluginCommandRegistrationMeta = z.infer<typeof pluginCommandRegistra
 export function coercePluginCommandArgs(
   specs: readonly PluginCommandArgSpec[],
   raw: Readonly<Record<string, string>>,
-): { readonly values: Record<string, PluginCommandArgValue>; readonly errors: readonly string[] } {
-  const values: Record<string, PluginCommandArgValue> = {};
+): { readonly values: PluginCommandArgs; readonly errors: readonly string[] } {
+  const values: PluginCommandArgs = {};
   const errors: string[] = [];
   for (const spec of specs) {
     const input = raw[spec.name];
@@ -1602,26 +1622,37 @@ function assertNever(value: never): never {
  *  `values` bag the client sent. This is the trust boundary — the server re-derives it from the RESIDENT command's
  *  own specs (never anything the client claimed) and rejects a bag that omits a required arg, mistypes one, or
  *  names an off-enum value. Unknown keys are STRIPPED (the guest receives only declared args). */
-export function pluginCommandArgsSchema(specs: readonly PluginCommandArgSpec[]): z.ZodType<Record<string, PluginCommandArgValue>> {
+export function pluginCommandArgsSchema<const TSpecs extends readonly PluginCommandArgSpec[]>(specs: TSpecs): z.ZodType<PluginCommandArgsFor<TSpecs>>;
+export function pluginCommandArgsSchema<const TSpecs extends readonly PluginCommandArgSpec[]>(
+  specs: TSpecs,
+): z.ZodType<PluginCommandArgs | PluginCommandArgsFor<TSpecs>> {
   const shape: Record<string, z.ZodType<PluginCommandArgValue> | z.ZodOptional<z.ZodType<PluginCommandArgValue>>> = {};
   for (const spec of specs) {
     const base = argValueSchema(spec);
     shape[spec.name] = spec.required === true ? base : base.optional();
   }
-  return z.object(shape) as z.ZodType<Record<string, PluginCommandArgValue>>;
+  return z.object(shape).transform((values): PluginCommandArgs => {
+    const defined: PluginCommandArgs = {};
+    for (const [name, value] of Object.entries(values)) {
+      if (value !== undefined) {
+        defined[name] = value;
+      }
+    }
+    return defined;
+  });
 }
 
 /** One declared arg's value schema — the exhaustive `type` dispatch, matching {@link coerceArgValue}. */
-function argValueSchema(spec: PluginCommandArgSpec): z.ZodType<PluginCommandArgValue> {
+function argValueSchema(spec: PluginCommandArgSpec): z.ZodString | z.ZodNumber | z.ZodBoolean | z.ZodEnum {
   switch (spec.type) {
     case "string":
-      return z.string() as z.ZodType<PluginCommandArgValue>;
+      return z.string();
     case "number":
-      return z.number().refine((n) => Number.isFinite(n), { message: "must be a finite number" }) as z.ZodType<PluginCommandArgValue>;
+      return z.number().refine((n) => Number.isFinite(n), { message: "must be a finite number" });
     case "boolean":
-      return z.boolean() as z.ZodType<PluginCommandArgValue>;
+      return z.boolean();
     case "enum":
-      return z.enum((spec.enumValues ?? [""]) as [string, ...string[]]) as z.ZodType<PluginCommandArgValue>;
+      return z.enum((spec.enumValues ?? [""]) as [string, ...string[]]);
     default:
       return assertNever(spec.type);
   }

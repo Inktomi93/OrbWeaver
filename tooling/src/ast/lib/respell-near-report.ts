@@ -1,4 +1,13 @@
-import type { Hit, NearFieldDiff, NearPairCandidate } from "../contract/types.ts";
+import type {
+  Hit,
+  MalformedNearPairMarker,
+  NearFieldDiff,
+  NearPairCandidate,
+  NearPairExemption,
+  NearPairExemptionEvidence,
+  NearPairMarkerEvidence,
+  StaleNearPairMarker,
+} from "../contract/types.ts";
 import { hitOf } from "./emit.ts";
 
 function nearFieldDiffText(diff: NearFieldDiff): string {
@@ -12,4 +21,30 @@ export function nearPairHit(candidate: NearPairCandidate): Hit {
   const hit = hitOf(candidate.domainDecl, "respell-near");
   hit.text = `${candidate.domainName}  ≈  @orb/contracts/${candidate.domain}::${candidate.contractsName}  —  ${nearFieldDiffText(candidate.diff)}`;
   return hit;
+}
+
+export function nearPairExemptionEvidence({ candidate, reason }: NearPairExemption): NearPairExemptionEvidence {
+  return {
+    domainName: candidate.domainName,
+    target: `@orb/contracts/${candidate.domain}::${candidate.contractsName}`,
+    reason,
+    diff: nearFieldDiffText(candidate.diff),
+  };
+}
+
+export function staleNearPairMarkerEvidence(marker: StaleNearPairMarker): NearPairMarkerEvidence {
+  const hit = hitOf(marker.domainDecl, "stale-nearpair-ok");
+  return {
+    kind: "stale-nearpair-ok",
+    domainName: marker.domainName,
+    file: hit.file,
+    line: hit.line,
+    target: `@orb/contracts/${marker.targetDomain}::${marker.targetName}`,
+    reason: marker.reason,
+  };
+}
+
+export function malformedNearPairMarkerEvidence(marker: MalformedNearPairMarker): NearPairMarkerEvidence {
+  const hit = hitOf(marker.domainDecl, "malformed-nearpair-ok");
+  return { kind: "malformed-nearpair-ok", domainName: marker.domainName, file: hit.file, line: hit.line, marker: marker.marker };
 }

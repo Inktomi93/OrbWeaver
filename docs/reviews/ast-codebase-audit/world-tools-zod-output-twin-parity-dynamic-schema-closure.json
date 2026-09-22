@@ -1,0 +1,130 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-09-22T15:20:41Z",
+  "purpose": "Current-tree closure receipt for the hard zod-output-twin-parity family. It distinguishes authored fixed-schema twins from schemas whose output is determined by untrusted JSON Schema at runtime, without a waiver, reviewed grant, path population exclusion, or weakened fixed-schema control.",
+  "denominators": {
+    "before": {
+      "artifact": "reports/runs/structure/orbweaver-3436448-2026-09-22T14-40-07-026Z/check-structure.json",
+      "declarations": 10,
+      "expressionPairs": 104,
+      "contextualPairs": 173,
+      "rawCasts": 1,
+      "members": 231,
+      "unresolved": 56
+    },
+    "afterProductAdjudication": {
+      "artifact": "reports/runs/structure/orbweaver-3504544-2026-09-22T14-57-17-859Z/check-structure.json",
+      "declarations": 10,
+      "expressionPairs": 104,
+      "contextualPairs": 128,
+      "rawCasts": 1,
+      "members": 235,
+      "unresolved": 7,
+      "remaining": [
+        "three canonical runtime-generated-schema member operands in packages/kit/src/json-schema/lift.ts",
+        "REFINERY_STAGE_PAYLOADS.score/rewrite/analyze",
+        "EXTRACTION_ARRAY_PLANES"
+      ]
+    },
+    "afterSevenRepairsBeforeRuntimeViewWidening": {
+      "artifact": "reports/runs/structure/orbweaver-3562747-2026-09-22T15-12-50-781Z/check-structure.json",
+      "declarations": 10,
+      "expressionPairs": 104,
+      "contextualPairs": 132,
+      "rawCasts": 1,
+      "members": 243,
+      "unresolved": 3,
+      "remaining": ["three incidental heterogeneous-union call contexts in packages/contracts/src/rpg/extraction.ts"]
+    },
+    "final": {
+      "artifact": "reports/runs/structure/orbweaver-3573512-2026-09-22T15-15-50-590Z/check-structure.json",
+      "declarations": 10,
+      "expressionPairs": 104,
+      "contextualPairs": 129,
+      "rawCasts": 1,
+      "members": 243,
+      "unresolved": 0,
+      "effectiveFindings": 0,
+      "authorityAlarms": 0,
+      "toolErrors": 0,
+      "withheldPolicies": 0
+    }
+  },
+  "productRepairs": [
+    {
+      "surface": "packages/kit/src/json-schema/index.ts",
+      "change": "projectJsonSchema is a Schema extends z.ZodType generic pass-through, so callers retain their authored output instead of acquiring a contextual ZodType<any/unknown>."
+    },
+    {
+      "surface": "packages/contracts/src/inference/capability/capability.ts",
+      "change": "KIND_DEFS uses a mapped KindDefs contract whose schema and floor are correlated through Extract<Capability, { kind: K }> and its payload."
+    },
+    {
+      "surface": "packages/kit/src/json-schema/lift.ts",
+      "change": "Recursive lift products live in a nominal RuntimeGeneratedSchema container branded by a unique symbol. Composition unwraps only through its schema member; liftJsonSchema still returns the same plain ZodObject and round-trips the same JSON Schema bytes."
+    },
+    {
+      "surface": "packages/server/src/domain/refinery/contract/prompts.ts and packages/server/src/domain/refinery/persistence/queries.ts",
+      "change": "Known object-only lift results use the truthful ZodObject contract instead of a bare ZodType output erasure."
+    },
+    {
+      "surface": "packages/contracts/src/refinery/index.ts",
+      "change": "REFINERY_STAGE_PAYLOADS satisfies a mapped per-stage schema contract for RefineryScorePayload, RefineryRewritePayload, and RefineryAnalyzePayload."
+    },
+    {
+      "surface": "packages/contracts/src/rpg/extraction.ts",
+      "change": "The five tool-round array arms are authored once under a mapped field-to-element-output contract. Runtime maps derive from that exact registry; their broad lookup view is limited to the untrusted string lookup seam."
+    }
+  ],
+  "toolingRepair": {
+    "surface": "tooling/src/verify/lib/zod-output-twin.ts",
+    "rule": "A contextual erased output is omitted only when the operand is a property access whose resolved member declaration belongs to the canonical RuntimeGeneratedSchema class and that class carries the canonical unique-symbol brand declaration. Textual class/member resemblance is insufficient.",
+    "populationIntegrity": "Fixed schemas, bare ZodType members, and same-named wrappers with local counterfeit brands remain ordinary findings or unresolved refusals."
+  },
+  "controls": {
+    "productionConformance": [
+      "canonical branded generated.schema is accepted while a healthy authored pair keeps the denominator live",
+      "a same-named shadow wrapper with its own unique-symbol brand is flagged",
+      "a bare ZodType member is flagged",
+      "an authored fixed schema is flagged",
+      "an erased counterfeit wrapper withholds the policy"
+    ],
+    "focusedBehavior": [
+      "lift round-trip bytes, accepted input, and rejected input",
+      "six capability schema/floor exact-output type assertions",
+      "three refinery stage exact-output type assertions",
+      "all five RPG array arms route identically through tool-call and structured-extraction paths"
+    ]
+  },
+  "verification": {
+    "focusedTests": {
+      "command": "pnpm test:scoped tests/kit/json-schema/index.test.ts tests/kit/json-schema/lift.test.ts tests/contracts/inference/kinds.contract.test.ts tests/contracts/refinery/index.contract.test.ts tests/contracts/rpg/extraction.contract.test.ts tests/tooling/verify/gates/zod-output-twin-parity.suite.test.ts",
+      "result": "6 files, 143 tests passed",
+      "artifact": "reports/runs/test/orbweaver-3596875-2026-09-22T15-22-19-516Z/test-report.json"
+    },
+    "typeTests": {
+      "command": "pnpm test:types tests/contracts/inference/capability/capability.test-d.ts tests/contracts/role-clients/index.test-d.ts",
+      "result": "2 files, 6 tests passed, no type errors"
+    },
+    "nativeTypePrograms": {
+      "command": "pnpm typecheck --config packages/kit/tsconfig.json --config packages/contracts/tsconfig.json --config packages/server/tsconfig.json --config tooling/tsconfig.json",
+      "result": "4 programs passed"
+    },
+    "formatAndWhitespace": {
+      "biome": "15 touched product/tool/test files checked with no diagnostics",
+      "gitDiffCheck": "clean"
+    },
+    "provenance": "ast-grep structural searches covered TypeScript and TSX projectJsonSchema/liftJsonSchema call shapes; literal rg searches corroborated declarations and callers. The hard gate's final whole-product population is the authoritative closure denominator."
+  },
+  "initialScopeManifest": {
+    "ownedSites": 43,
+    "disposition": "All 43 initial dynamic-cluster sites closed: accidental erasure was repaired at the projector, capability aggregate, and two object-only refinery annotations; recursive lift sites moved behind the nominal runtime-generated contract. Discovery, embeddings, schema-forge, stage-resolution, and tool-use caller findings disappeared when projector provenance remained generic.",
+    "outsideInitialScope": 13,
+    "outsideInitialScopeDisposition": "The expanded parity-family closure repaired the four authored refinery/RPG aggregate sites here. The remaining nine client, automation, and entry-compose sites were concurrently repaired elsewhere and are included in the final authoritative zero-unresolved denominator."
+  },
+  "limitations": [
+    "This is a selected hard-gate run over the whole product population, not a complete all-policy check:structure verdict.",
+    "The generated-schema distinction is intentionally narrow: only the compiler-resolved canonical unique-symbol brand and its resolved schema member qualify.",
+    "No waiver, reviewed grant, cast, any/unknown laundering, inline suppression, or product path/name population exclusion was added."
+  ]
+}

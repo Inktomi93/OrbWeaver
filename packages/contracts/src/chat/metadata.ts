@@ -51,7 +51,7 @@ export const DEFAULT_ROOM_OVERRIDES: RoomOverrides = {};
  *  sees `full`; the member view is read-only + while-present. */
 export const MEMBER_CARD_VISIBILITY_LEVELS = ["name-avatar", "sheet", "sheet+lore", "full"] as const;
 export type MemberCardVisibility = (typeof MEMBER_CARD_VISIBILITY_LEVELS)[number];
-export const memberCardVisibilitySchema = z.enum(MEMBER_CARD_VISIBILITY_LEVELS);
+export const memberCardVisibilitySchema = z.enum(MEMBER_CARD_VISIBILITY_LEVELS) satisfies z.ZodType<MemberCardVisibility>;
 
 // ── Group config (the `chatMetadata.group` sub-blob) ──
 /** The canonical arbitration-policy union (spine §5.5 — ONE importable tuple; the derived Select items +
@@ -65,7 +65,7 @@ export type GroupPolicy = (typeof GROUP_POLICIES)[number];
  *  (`domain/chat/engine/smart-arbitrate`) picks the one next speaker, roster-validated; `natural` is its
  *  DEGRADE arm — a thrown/garbled/off-roster reply falls back to the weighted math and says so out loud
  *  (`smart_arbitration_degraded`, D41). A NARRATOR round never buys that arbiter call (see the arm below). */
-export const groupPolicySchema = z.enum(GROUP_POLICIES).catch("natural").default("natural");
+export const groupPolicySchema = z.enum(GROUP_POLICIES).catch("natural").default("natural") satisfies z.ZodType<GroupPolicy>;
 
 // Auto-mode (opt-in AI→AI chaining) — MUST live on BOTH union arms (both arms are strict).
 // Defaults make the OFF path byte-identical (no timer / no auto-turn / no scheduling).
@@ -168,7 +168,7 @@ function stripRetiredGroupKeys(raw: unknown): unknown {
  *  room defaults) to a different mode. `roomOverrides` heals to "inherit", which costs nothing; this heals to
  *  "a different room", which is a data-loss disguised as fault isolation. Use the raw
  *  {@link groupConfigSchema} at every WRITE boundary, where a stray key must still be refused loudly. */
-export const storedGroupConfigSchema = z.preprocess(stripRetiredGroupKeys, groupConfigSchema);
+export const storedGroupConfigSchema = z.preprocess(stripRetiredGroupKeys, groupConfigSchema) satisfies z.ZodType<GroupConfig>;
 /** The LENIENT input (pre-default): callers may omit the defaulted knobs; `setGroupConfig` parses to
  *  {@link GroupConfig} before persisting, so a stored blob is always fully-defaulted. */
 export type GroupConfigInput = z.input<typeof groupConfigSchema>;

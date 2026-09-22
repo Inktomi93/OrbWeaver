@@ -1,0 +1,170 @@
+{
+  "schema": "orbweaver.ast-codebase-audit.app-router-runtime-output-security-review",
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-22T15:09:00Z",
+  "task": "Independent security review of the AppRouter runtime output-validation repair for connection.verifyAuth, with a sanity check of the character bulk-tag validators.",
+  "reviewedHead": "dc487a7ea3ece6f5db80c1407486ff2c25336a45",
+  "status": "complete",
+  "verdict": "CONFIRMED",
+  "summary": "connection.verifyAuth now parses the service result through the canonical verifyAuthResultSchema before tRPC returns it. Known-field shape drift rejects, unknown properties such as apiKey are stripped before serialization, and the schema matches the sole runtime producer. The two character bulk-tag procedures also use their canonical result schema and reject malformed branded ids.",
+  "scope": "Review-only inspection of the changed connection and character tRPC routers and tests, the canonical provider and character schemas, the connection diagnostic delegation, the agent-sdk verifyAuth producer, and the durable AppRouter output-validation receipt. No source, test, central-ledger, staging, commit, push, or board mutation was performed.",
+  "reviewedPaths": [
+    {
+      "path": "packages/server/src/transport/trpc/routers/connection.ts",
+      "lines": "1-152",
+      "focus": "Full router; verifyAuth installs verifyAuthResultSchema at lines 141-144."
+    },
+    {
+      "path": "tests/server/transport/trpc/routers/connection.test.ts",
+      "lines": "1-164",
+      "focus": "Full test; valid output, malformed source rejection, and injected apiKey stripping at lines 126-163."
+    },
+    {
+      "path": "packages/contracts/src/providers/index.ts",
+      "lines": "132-160",
+      "focus": "Canonical verifyAuthAccountSchema and verifyAuthResultSchema."
+    },
+    {
+      "path": "packages/inference/src/backends/agent-sdk/catalog.ts",
+      "lines": "102-172",
+      "focus": "Sole verifyAuth producer: stream reduction, account projection, and final result construction."
+    },
+    {
+      "path": "packages/inference/src/backends/agent-sdk/verify.ts",
+      "lines": "16-31",
+      "focus": "Upstream init-frame shape guard for apiKeySource."
+    },
+    {
+      "path": "packages/server/src/domain/connection/verbs/diagnostics.ts",
+      "lines": "79-84",
+      "focus": "Connection-domain delegation returns the runtime diagnostic unchanged."
+    },
+    {
+      "path": "packages/server/src/transport/trpc/routers/character.ts",
+      "lines": "1-217",
+      "focus": "Full router; both bulk-tag procedures install characterBulkTagResultSchema at lines 126-156."
+    },
+    {
+      "path": "tests/server/transport/trpc/routers/character.test.ts",
+      "lines": "1-200",
+      "focus": "Full test; both bulk-tag routes accept valid output and reject malformed character ids at lines 147-198."
+    },
+    {
+      "path": "packages/contracts/src/character/index.ts",
+      "lines": "620-639",
+      "focus": "Canonical bulk-tag result and closed failure schemas."
+    },
+    {
+      "path": "packages/server/src/domain/character/substrate/bulk-tag-result.ts",
+      "lines": "1-43",
+      "focus": "Producer builds the canonical applied/failed projection."
+    },
+    {
+      "path": "docs/reviews/ast-codebase-audit/world-tools-app-router-runtime-output-validation-current.json",
+      "lines": "1-4860",
+      "focus": "Durable denominator, implementation claims, red-first evidence, focused verification, source hashes, and declared limitations."
+    }
+  ],
+  "findings": [],
+  "stripSemantics": {
+    "decision": "CONFIRMED",
+    "behavior": "Zod object parsing strips unknown properties at the top level and in nested object schemas. tRPC returns the parsed value, so an unexpected top-level apiKey property does not reach the caller.",
+    "rationale": "The route is a credential-adjacent diagnostic projection. Strip semantics enforce a field allowlist while preserving a valid diagnostic if an internal producer gains unrelated metadata. Strict rejection would detect all producer expansion but would turn harmless expansion into diagnostic failure; it is not required to prevent excess fields from crossing the wire.",
+    "truthfulness": "The repair and its upstream receipt explicitly describe strip behavior rather than claiming that extra producer properties are rejected. The schema is exact as the returned projection, not strict as an acceptance policy.",
+    "malformedKnownFields": "Known fields still validate normally. In particular, source must equal the literal max-pro-sub, and a different source rejects with tRPC output validation failure.",
+    "secretLikeUnknownFields": "The focused route test injects apiKey with a credential-like value and proves the returned object equals the canonical result and has no apiKey property."
+  },
+  "producerSchemaTrace": {
+    "route": "connection.verifyAuth installs verifyAuthResultSchema, then delegates to ctx.services.connection.verifyAuth.",
+    "domain": "createVerifyAuth resolves the caller-owned connection and delegates to ctx.runtime.diagnostics.verifyAuth without reshaping the result.",
+    "runtime": "The only backend implementation is the agent-sdk verifyAuth function. reduceVerifyStream produces apiKeySource:string, reply:string, ok:boolean, and costUsd:number; toVerifyAuthAccount projects only email, organization, subscriptionType, and the declared apiProvider union; the final producer adds source:max-pro-sub and connection.model.",
+    "schema": "verifyAuthResultSchema declares the same source, ok, apiKeySource, model, reply, costUsd, and optional account fields. Its account schema matches the producer projection and SDK-declared apiProvider union.",
+    "result": "MATCH"
+  },
+  "bulkTagSanity": {
+    "verdict": "CONFIRMED",
+    "trace": "Both bulkAddCardTag and bulkRemoveCardTag install characterBulkTagResultSchema. buildBulkTagResult returns applied CharacterId values plus failed entries with CharacterId, a closed error code, and a string message, matching the canonical schema.",
+    "controls": "Focused router tests prove valid results pass and malformed applied ids reject for both routes; contract tests separately reject malformed and wrong-prefix character ids."
+  },
+  "receiptHashConfirmation": {
+    "receipt": "docs/reviews/ast-codebase-audit/world-tools-app-router-runtime-output-validation-current.json",
+    "allReviewedChangeHashesMatch": true,
+    "hashes": [
+      {
+        "path": "packages/server/src/transport/trpc/routers/connection.ts",
+        "receiptSha256": "caae095ad0086afe96ad50995dcf645da0d4c050f2286a7ee69c9feec54e9418",
+        "currentSha256": "caae095ad0086afe96ad50995dcf645da0d4c050f2286a7ee69c9feec54e9418",
+        "match": true
+      },
+      {
+        "path": "tests/server/transport/trpc/routers/connection.test.ts",
+        "receiptSha256": "38ca51bccbc77b9b15fe64c81e4c139b54ff8bfc74d21a47d2e279ea30f60e05",
+        "currentSha256": "38ca51bccbc77b9b15fe64c81e4c139b54ff8bfc74d21a47d2e279ea30f60e05",
+        "match": true
+      },
+      {
+        "path": "packages/server/src/transport/trpc/routers/character.ts",
+        "receiptSha256": "3177296ac56cfd5398e262a3e3a7505dc87d4352a3b0acd04deecf21de42c49d",
+        "currentSha256": "3177296ac56cfd5398e262a3e3a7505dc87d4352a3b0acd04deecf21de42c49d",
+        "match": true
+      },
+      {
+        "path": "tests/server/transport/trpc/routers/character.test.ts",
+        "receiptSha256": "b1e554bad3ca6b2c48e499c8ed0342eb1c36538d802b00774327dad444cc8af4",
+        "currentSha256": "b1e554bad3ca6b2c48e499c8ed0342eb1c36538d802b00774327dad444cc8af4",
+        "match": true
+      }
+    ]
+  },
+  "verification": [
+    {
+      "command": "pnpm test:scoped tests/server/transport/trpc/routers/connection.test.ts tests/server/transport/trpc/routers/character.test.ts tests/contracts/providers/index.contract.test.ts tests/contracts/character/index.contract.test.ts",
+      "result": "PASS: 4 requested files, 4 reported suites, 55 tests; valid outputs pass, malformed source and character ids reject, and injected apiKey is stripped.",
+      "artifact": "reports/runs/test/orbweaver-3535596-2026-09-22T15-05-19-968Z/test-report.json",
+      "artifactSummary": {
+        "success": true,
+        "numTotalTests": 55,
+        "numPassedTests": 55,
+        "numFailedTests": 0
+      }
+    },
+    {
+      "command": "pnpm typecheck --config packages/server/tsconfig.json",
+      "result": "PASS: 13 discovered native programs, 1 selected runnable program, packages/server/tsconfig.json passed."
+    },
+    {
+      "command": "git diff --check -- packages/server/src/transport/trpc/routers/connection.ts tests/server/transport/trpc/routers/connection.test.ts packages/server/src/transport/trpc/routers/character.ts tests/server/transport/trpc/routers/character.test.ts",
+      "result": "PASS"
+    },
+    {
+      "source": "docs/reviews/ast-codebase-audit/world-tools-app-router-runtime-output-validation-current.json",
+      "command": "Red-first route tests with output parsers removed, recorded by the implementation receipt.",
+      "result": "RED as intended: malformed service outputs resolved before the parsers; removing connection.verifyAuth output parsing allowed invalid source and injected apiKey to reach the caller.",
+      "artifacts": [
+        "reports/runs/test/orbweaver-3485897-2026-09-22T14-52-28-177Z/test-report.json",
+        "reports/runs/test/orbweaver-3493408-2026-09-22T14-54-22-321Z/test-report.json"
+      ]
+    }
+  ],
+  "securityAssumptions": [
+    "The agent SDK's apiKeySource field is a credential-source label, not credential bytes. The local init-frame guard proves only that it is a string.",
+    "The verify prompt is fixed and tool-free, and the runtime producer remains the sole verifyAuth implementation.",
+    "The authenticated route and caller-owned connection resolution remain unchanged and were outside this output-parser repair."
+  ],
+  "limitations": [
+    "This is a structural field allowlist, not scrub-by-value. Allowed strings including apiKeySource, reply, model, email, organization, and subscriptionType are validated by type or declared enum only; the output schema does not detect credential bytes placed inside an allowed string.",
+    "The focused test proves an unexpected top-level apiKey is stripped. Nested Zod objects also use strip semantics, and the account producer constructs a fresh allowlisted object, but no separate route test injects a nested secret-like property.",
+    "The shared worktree contains unrelated concurrent edits. This review ran the focused router and contract suites plus the server native typecheck; it does not claim a clean-tree, full pnpm check, or push-tier verdict."
+  ],
+  "repositoryMutation": {
+    "added": [
+      "docs/reviews/ast-codebase-audit/world-tools-app-router-runtime-output-security-review.json"
+    ],
+    "sourceOrTestsChangedByReviewer": false,
+    "centralLedgerChangedByReviewer": false,
+    "staged": false,
+    "committed": false,
+    "pushed": false,
+    "boardMutated": false
+  }
+}

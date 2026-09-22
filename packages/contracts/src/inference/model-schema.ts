@@ -6,7 +6,12 @@
 // supported fallback and every model a plugin or endpoint learns after startup.
 
 import type { ModelId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { z } from "zod";
 
 /** Parse a provider-owned model id: trim transport/import whitespace, refuse empty, then apply the brand. */
-export const modelIdSchema: z.ZodType<ModelId, string> = z.string().trim().min(1) as unknown as z.ZodType<ModelId, string>;
+export const modelIdSchema: z.ZodType<ModelId, string> = z
+  .string()
+  .trim()
+  .min(1)
+  .transform((value): ModelId => castId<ModelId>(value));

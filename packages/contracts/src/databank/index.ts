@@ -32,7 +32,7 @@ export const scraperKindSchema = z.enum(SCRAPER_KINDS);
 export type ScraperKind = z.infer<typeof scraperKindSchema>;
 
 /** The branded `documents.id` schema (strict TypeID — validates the `document_…` prefix at a boundary). */
-export const documentIdSchema = typeIdSchema(ID_PREFIX.document);
+export const documentIdSchema = typeIdSchema(ID_PREFIX.document) satisfies z.ZodType<DocumentId>;
 
 /** The page `databank.list` serves when a caller names no `limit` — the verb's default, promoted here
  *  because the CLIENT has to know it too. A surface that summarizes the returned rows ("46 documents")
@@ -66,7 +66,7 @@ export const INGEST_PHASES = ["empty", "indexing", "embedding", "ready", "stalle
  *  everything else. */
 export type IngestPhase = (typeof INGEST_PHASES)[number];
 
-export const ingestPhaseSchema = z.enum(INGEST_PHASES);
+export const ingestPhaseSchema = z.enum(INGEST_PHASES) satisfies z.ZodType<IngestPhase>;
 
 /** A document still in an IN-FLIGHT phase this long after its last write reads as a STUCK job. Derived from
  *  `updatedAt` because there is no status column: a live ingest bumps `updatedAt` as chunks land, so a frozen

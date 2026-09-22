@@ -1,0 +1,87 @@
+{
+  "schema": "orbweaver.ast-tool-independent-review",
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-22T03:41:49-06:00",
+  "reviewer": "/root/respell_combined_review",
+  "verdict": "CONFIRMED",
+  "parentHead": "dc487a7ea3ece6f5db80c1407486ff2c25336a45",
+  "repairDiffSha256": "5d6d4f526a3970adcc0c89646a5212e498dccdae55b91605c584da2b6afde6f1",
+  "reviewedPaths": [
+    "packages/server/src/domain/chat/contract/params.ts",
+    "packages/server/src/domain/chat/contract/views.ts",
+    "packages/server/src/domain/databank/contract/views.ts",
+    "packages/server/src/domain/plugin/contract/errors.ts",
+    "packages/server/src/domain/refinery/contract/params.ts",
+    "packages/server/src/domain/rpg/contract/params.ts",
+    "packages/server/src/domain/settings/contract/seeder.ts",
+    "tests/tooling/ast/index.test.ts",
+    "tests/tooling/ast/ops/verbs.test.ts",
+    "tooling/src/ast/contract/types.ts",
+    "tooling/src/ast/lib/emit.ts",
+    "tooling/src/ast/lib/respell-near-report.ts",
+    "tooling/src/ast/lib/usage.ts",
+    "tooling/src/ast/ops/respell.ts"
+  ],
+  "initialRefutations": [
+    {
+      "defect": "reserved JSON keys were overwriteable",
+      "repairVerified": "collision now refuses before output"
+    },
+    {
+      "defect": "malformed markers were invisible",
+      "repairVerified": "every occurrence is classified and malformed evidence exits 1"
+    },
+    {
+      "defect": "--in leaked unrelated supplemental rows",
+      "repairVerified": "exemptions, stale markers, and malformed markers use the same declaration-file substring scope"
+    },
+    {
+      "defect": "one block comment could hide later tags",
+      "repairVerified": "multiple valid and malformed occurrences are classified independently"
+    }
+  ],
+  "confirmedClaims": [
+    "The name-only Jaccard percentage is a sound upper bound because semantic equality can only remove same-name intersections.",
+    "Threshold zero, exact-pair exclusion, alias/type-query derivation, direct-heritage identity, class own-field behavior, and native-program agreement remain covered.",
+    "Existing emit JSON keys are unchanged when no extras are supplied; extras cannot overwrite reserved protocol fields.",
+    "Finding totals remain reportable-only while scoped exemptions and marker errors are present as additive plain-data JSON evidence.",
+    "SeededLibraryEntry and CreateSchemaParams now derive from their canonical contract shapes without a runtime behavior change."
+  ],
+  "verification": [
+    {
+      "command": "pnpm test:scoped tests/tooling/ast/index.test.ts tests/tooling/ast/ops/verbs.test.ts",
+      "result": "145/145 passed"
+    },
+    {
+      "command": "scoped Biome, ESLint, git diff --check",
+      "result": "passed"
+    },
+    {
+      "command": "pnpm typecheck --config tooling/tsconfig.json --config packages/server/tsconfig.json",
+      "result": "2/2 programs passed"
+    },
+    {
+      "command": "pnpm ast respell --near 80 --json --max 100000",
+      "result": "exit 0; 29 domains; 262 typed files; exact 0; near 0; exemptions 0; stale 0; malformed 0"
+    },
+    {
+      "probe": "reserved total override",
+      "result": "refused"
+    },
+    {
+      "probe": "two marker occurrences in one block, one malformed",
+      "result": "both classified independently"
+    },
+    {
+      "probe": "--in with unrelated exemption/stale/malformed rows",
+      "result": "only selected-file evidence emitted"
+    }
+  ],
+  "limitations": [
+    "Whole-repository pnpm check and push-tier verification were not run for this slice.",
+    "A clean committed-tree 30-verb denominator remains required by the audit goal."
+  ],
+  "filesEditedByReviewer": [],
+  "phase": "historical-pre-hook",
+  "supersededForCurrentTreeBy": "docs/reviews/ast-codebase-audit/world-tools-respell-post-hook-repair.json"
+}

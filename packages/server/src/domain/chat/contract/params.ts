@@ -401,10 +401,8 @@ export interface ForkChatParams extends ChatScopedParams {
   readonly title?: string | null | undefined;
 }
 
-/** `setChatInjection` — upserts a persisted positional injection. `id` set means update; absent means create. */
-// @nearpair-ok: near-matches `@orb/contracts/chat::ChatInjectionInput` by design — the verb params WRAP the
-// wire input with the resolved `chatId`/`principal` (one-home rule: params never re-derive what the entry
-// seam already resolved).
+/** `setChatInjection` — upserts a persisted positional injection. The resolved actor/chat scope wraps the
+ *  wire input fields; `id` set means update, absent means create. */
 export interface SetChatInjectionParams extends ChatScopedParams {
   readonly id?: ChatInjectionId | undefined;
   readonly position: ChatInjection["position"];

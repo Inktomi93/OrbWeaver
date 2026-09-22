@@ -332,3 +332,26 @@ export const rpgListTurnToolCallsInputSchema = z.object({
   chatId: chatIdField,
   turnLimit: z.number().int().min(1).max(RPG_TURN_TOOL_CALLS_LIST_MAX_LIMIT).optional(),
 });
+
+// Public post-parse faces for the transport schemas above. These are the branded/defaulted values the
+// router actually hands to the server domain, rather than pre-parse caller input approximations.
+export type RpgCreateGameInput = z.output<typeof rpgCreateGameInputSchema>;
+export type RpgUpdateConfigInput = z.output<typeof rpgUpdateConfigInputSchema>;
+export type RpgPatchSheetInput = z.output<typeof rpgPatchSheetInputSchema>;
+export type RpgPopulateFromCharacterInput = z.output<typeof rpgPopulateFromCharacterInputSchema>;
+export type RpgEditSnapshotInput = z.output<typeof rpgEditSnapshotInputSchema>;
+export type RpgPatchActorInput = z.output<typeof rpgPatchActorInputSchema>;
+export type RpgDismissActorInput = z.output<typeof rpgDismissActorInputSchema>;
+export type RpgPromoteActorInput = z.output<typeof rpgPromoteActorInputSchema>;
+export type RpgUpsertQuestInput = z.output<typeof rpgUpsertQuestInputSchema>;
+export type RpgEditQuestObjectiveInput = z.output<typeof rpgEditQuestObjectiveInputSchema>;
+export type RpgDeleteQuestInput = z.output<typeof rpgDeleteQuestInputSchema>;
+export type RpgAddJournalEntryInput = z.output<typeof rpgAddJournalEntryInputSchema>;
+export type RpgEditJournalEntryInput = z.output<typeof rpgEditJournalEntryInputSchema>;
+export type RpgDeleteJournalEntryInput = z.output<typeof rpgDeleteJournalEntryInputSchema>;
+export type RpgCreateCheckpointInput = z.output<typeof rpgCreateCheckpointInputSchema>;
+export type RpgRestoreCheckpointInput = z.output<typeof rpgRestoreCheckpointInputSchema>;
+export type RpgRollDiceInput = z.output<typeof rpgRollDiceInputSchema>;
+export type RpgReadGameInput = z.output<typeof rpgReadGameInputSchema>;
+export type RpgListJournalInput = z.output<typeof rpgListJournalInputSchema>;
+export type RpgListTurnToolCallsInput = z.output<typeof rpgListTurnToolCallsInputSchema>;

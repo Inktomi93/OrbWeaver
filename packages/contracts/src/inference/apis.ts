@@ -18,4 +18,4 @@ import { z } from "zod";
 
 export const CHAT_APIS = ["chat-completions", "agent-sdk", "anthropic-messages"] as const;
 export type ChatApi = (typeof CHAT_APIS)[number];
-export const chatApiSchema = z.enum(CHAT_APIS);
+export const chatApiSchema = z.enum(CHAT_APIS) satisfies z.ZodType<ChatApi>;

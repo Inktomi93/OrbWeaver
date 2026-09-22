@@ -7,6 +7,7 @@ import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 
 export const connectionRefSchema = z.object({ connectionId: typeIdSchema(ID_PREFIX.userConnection) });
+export type ConnectionRef = z.output<typeof connectionRefSchema>;
 
 /** The actor kinds a binding row may carry — ALL per-user: `user` (that user's defaults per task, replacing
  *  the settings blob's `roleDefaults` leaves), `automation-rule` (the rule's AUTHOR picks a row for it),
@@ -14,4 +15,4 @@ export const connectionRefSchema = z.object({ connectionId: typeIdSchema(ID_PREF
  *  defaults silently). An agent principal is a future kind when D60 builds it. */
 export const BINDING_ACTOR_KINDS = ["user", "automation-rule", "plugin-grant"] as const;
 export type BindingActorKind = (typeof BINDING_ACTOR_KINDS)[number];
-export const bindingActorKindSchema = z.enum(BINDING_ACTOR_KINDS);
+export const bindingActorKindSchema = z.enum(BINDING_ACTOR_KINDS) satisfies z.ZodType<BindingActorKind>;

@@ -11,6 +11,7 @@
 // what retires the `seeded` kind.
 
 import type { Principal } from "@orb/contracts/identity";
+import type { BackgroundLibraryEntry } from "@orb/contracts/settings";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { AssetId, UserId } from "@orb/kit/ids";
 
@@ -56,16 +57,8 @@ export interface DefaultBackgroundSeederDeps {
 /** slug → the caller's owned plate ref, or `null` when this pack ships no such plate. */
 export type SeededSlugResolver = (slug: string) => Promise<ThemeBackground | null>;
 
-/** The `appearance.backgroundLibrary` row shape this seeder reads and writes. Structurally
- *  `BackgroundLibraryEntry`; spelled here as the injected-op vocabulary so the seeder needs no contracts
- *  import beyond the background source it returns. */
-export interface SeededLibraryEntry {
-  readonly entryId: string;
-  readonly assetId: AssetId;
-  readonly assetHash: string;
-  readonly mime: string;
-  readonly name: string;
-}
+/** The canonical `appearance.backgroundLibrary` row this seeder reads and writes. */
+export type SeededLibraryEntry = BackgroundLibraryEntry;
 
 export interface DefaultBackgroundSeeder {
   /** Idempotent per-user seed: the ten plates land as owned assets + library entries, then every stored

@@ -14,6 +14,7 @@ import {
   GREETING_SLOTS_MAX,
   isAppendedRewrite,
   isClearedRewrite,
+  payloadSchemaFor,
   REFINABLE_FIELDS,
   REFINERY_STAGE_PAYLOADS,
   REFINERY_STAGES,
@@ -34,6 +35,8 @@ import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 // The PRODUCTION estimator the contract's token cap is measured by — imported so the fixtures below assert
 // their own token count instead of assuming it (a fixture that is not really at-cap proves nothing).
 import { estimateTokens } from "@orb/kit/tokens";
+import { expectTypeOf } from "vitest";
+import type { z } from "zod";
 import { expect, test } from "../../support/fixtures.ts";
 
 // The 1-10 rubric's probe values + the card TEXT_MAX twin (contracts/character caps text fields at
@@ -69,6 +72,21 @@ const CARD_GREETINGS_MAX = 100;
 const SESSION_ID = "refinery_session_01h455vb4pex5vsknk084sn02q";
 const RUN_ID = "refinery_run_01h455vb4pex5vsknk084sn02q";
 const CHARACTER_ID = "character_01h455vb4pex5vsknk084sn02q";
+
+test("payloadSchemaFor preserves fixed-stage and embedded-custom schema inference", () => {
+  const fixed = payloadSchemaFor("score", { kind: "fixed", mode: "full" });
+  expectTypeOf<z.output<typeof fixed>>().toEqualTypeOf<RefineryScorePayload>();
+  expect(fixed).toBe(REFINERY_STAGE_PAYLOADS.score);
+
+  const custom = payloadSchemaFor("score", {
+    kind: "custom",
+    schemaId: mintTypeId(ID_PREFIX.refinerySchema),
+    schemaVersion: 1,
+    schema: { type: "object", properties: { note: { type: "string" } } },
+  });
+  expectTypeOf(custom).toMatchTypeOf<z.ZodObject>();
+  expect(custom.safeParse({ note: "kept verbatim" }).success).toBe(true);
+});
 
 test("custom stage schema ids reject malformed and wrong-prefix TypeIDs", () => {
   const schemaId = mintTypeId(ID_PREFIX.refinerySchema);
@@ -492,6 +510,9 @@ test("REFINABLE_FIELDS names real canonical-card fields (the cycle-free ⊆-Char
 });
 
 test("REFINERY_STAGE_PAYLOADS is the exhaustive per-stage dispatch (keys mirror the stage tuple)", () => {
+  expectTypeOf<z.output<(typeof REFINERY_STAGE_PAYLOADS)["score"]>>().toEqualTypeOf<RefineryScorePayload>();
+  expectTypeOf<z.output<(typeof REFINERY_STAGE_PAYLOADS)["rewrite"]>>().toEqualTypeOf<RefineryRewritePayload>();
+  expectTypeOf<z.output<(typeof REFINERY_STAGE_PAYLOADS)["analyze"]>>().toEqualTypeOf<RefineryAnalyzePayload>();
   expect(Object.keys(REFINERY_STAGE_PAYLOADS).toSorted()).toEqual([...REFINERY_STAGES].toSorted());
 });
 

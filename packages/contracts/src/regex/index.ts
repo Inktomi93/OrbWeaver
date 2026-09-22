@@ -69,7 +69,7 @@ const placementSchema = z
  *  the shared `REGEX_PLACEMENT_ITEMS`, so a garbage value is a bug to surface, not a card to salvage. The
  *  server re-derives each script's tier flags + history-depth scope FROM this set (`@orb/kit/regex`), so no
  *  flag or depth rides the wire. */
-export const regexPlacementListSchema = z.array(z.enum(REGEX_PLACEMENTS)).max(REGEX_PLACEMENTS.length);
+export const regexPlacementListSchema = z.array(z.enum(REGEX_PLACEMENTS)).max(REGEX_PLACEMENTS.length) satisfies z.ZodType<RegexPlacement[]>;
 
 /** How deep in the assembled history a `PROMPT_HISTORY` script applies — DEPTH 0 IS THE NEWEST MESSAGE,
  *  counting backwards (the kit `RegexHistoryDepth` header cites the ST source for the semantic). The two

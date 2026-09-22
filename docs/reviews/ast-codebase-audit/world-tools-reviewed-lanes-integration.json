@@ -5,22 +5,9 @@
   "integrationHead": "81d19ad83f9e7ce1b7bd89ed42a72b2abb361387",
   "base": "dc0f8eb092bd6706c8458cf1d59578ba07db9181",
   "integratedCommits": {
-    "authoredProductMembership": [
-      "0f9fc4aa5"
-    ],
-    "inferenceIdentityAndDatabase": [
-      "28ecc2db4",
-      "47e03a8b1",
-      "8bdff8690",
-      "1627d3c9a"
-    ],
-    "inferenceTestTopology": [
-      "ca118c6e0",
-      "1de8973a8",
-      "e07b72d6e",
-      "9dec43747",
-      "81d19ad83"
-    ]
+    "authoredProductMembership": ["0f9fc4aa5"],
+    "inferenceIdentityAndDatabase": ["28ecc2db4", "47e03a8b1", "8bdff8690", "1627d3c9a"],
+    "inferenceTestTopology": ["ca118c6e0", "1de8973a8", "e07b72d6e", "9dec43747", "81d19ad83"]
   },
   "independentReviews": [
     "docs/reviews/ast-codebase-audit/world-tools-authored-product-membership-review.json",

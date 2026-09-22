@@ -14,7 +14,7 @@ import { z } from "zod";
 
 export const RELATIONS = ["duplicate", "forked"] as const;
 export type DuplicateRelation = (typeof RELATIONS)[number];
-export const duplicateRelationSchema = z.enum(RELATIONS);
+export const duplicateRelationSchema = z.enum(RELATIONS) satisfies z.ZodType<DuplicateRelation>;
 
 /** The page CEILING for every discovery top-N read (`similarChats`, `swipeHotspots`, `forgottenGems`,
  *  `topKeywords`, `cooccurringKeywords`, `characterKeywords`, `duplicate*`, `browseCharacters`), enforced at
@@ -44,7 +44,7 @@ export const DISCOVERY_GRAPH_MAX_NODES = 500;
  *  §5.5 forbids. The domain re-exports the type. */
 export const BROWSE_SORTS = ["recent", "name"] as const;
 export type BrowseSort = (typeof BROWSE_SORTS)[number];
-export const browseSortSchema = z.enum(BROWSE_SORTS);
+export const browseSortSchema = z.enum(BROWSE_SORTS) satisfies z.ZodType<BrowseSort>;
 
 /** The browse page size when the caller names none. Small enough that the corpus pane's first paint is one
  *  short page, large enough that a scroll past it is rare — the `VirtualList` tail-fetch covers the rest. */

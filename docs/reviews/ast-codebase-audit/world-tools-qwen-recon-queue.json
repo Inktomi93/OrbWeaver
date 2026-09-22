@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-09-22T13:00:00Z",
+  "purpose": "Small read-only Qwen investigations that recover evidence and write durable audit receipts without editing product or tooling code.",
+  "globalRules": [
+    "Work from current local main in an isolated Qwen worktree.",
+    "Read the named inputs before searching.",
+    "Use structural evidence and literal corroboration; TS and TSX are separate scans.",
+    "Do not edit product, tooling, tests, gates, board state, or existing ledger entries.",
+    "Write only the named new JSON receipt, with a closed denominator, commands, scanned/skipped counts, findings, exclusions, and uncertainty.",
+    "A tool error, timeout, empty corpus, or truncated result is not a clean verdict.",
+    "Do not delete, stage, commit, merge, or push."
+  ],
+  "tasks": [
+    {
+      "id": "qwen-transcript-promises",
+      "output": "docs/reviews/ast-codebase-audit/world-tools-transcript-promise-reconciliation.json",
+      "brief": "Refresh the filtered root-conversation prose and child terminal reports from the current Codex JSONL. Exclude tool calls, tool outputs, reasoning, and child intermediate chatter. From user and assistant prose, extract every concrete promised action, claimed completion, deferred obligation, owner ruling, and explicit prohibition. Compare each item with the canonical ledger, durable receipts, current Git tree, and current main history. Classify it as delivered with evidence, still open and already tracked, missing from the ledger, superseded with evidence, or too vague to adjudicate. Preserve stable timestamp/turn/item identifiers and quote only the minimum phrase needed to identify the promise."
+    },
+    {
+      "id": "qwen-zod-export-membership",
+      "status": "superseded-by-implemented-gates-and-repair-lanes",
+      "output": "docs/reviews/ast-codebase-audit/world-tools-zod-export-membership-audit.json",
+      "brief": "Build a product-wide semantic census of exported Zod schemas and schema factories. Classify each exported concrete schema as type derived by z.infer/z.output, explicit authored ZodType twin covered by zod-output-twin-parity, generic/generated factory, or schema-only boundary. Separately list possible unlinked authored type/schema twins as similarity candidates, never as proven ownership. Do not use name matching as proof. Include barrels and re-exports, all @product roots, TS and TSX, and a zero/unreadable refusal check."
+    },
+    {
+      "id": "qwen-shared-semantic-callsite-census",
+      "output": "docs/reviews/ast-codebase-audit/world-tools-shared-semantic-callsite-census.json",
+      "brief": "Re-derive every AST, Verify, Codemod Kit, and _shared call site that resolves modules, projects a node into a compiler world, chooses an exported declaration, follows aliases/origins, or opens a reference cache. Map each site to the existing shared helper it uses or the reason it remains tool-specific. Confirm or refute every gap in world-tools-shared-semantic-lookup-recon.json. Produce an exact migration manifest and test obligations; make no source changes."
+    },
+    {
+      "id": "qwen-exception-authority-audit",
+      "brief": "Perform a read-only, closed-denominator audit of Orbweaver exception authority in five resumable shards. Read the two named inputs and every source they require before classifying anything, including the declared reader limits and audit hazards. Reproduce the live denominators with production readers: 1,732 ordinary waivers across TypeScript and declared resource carriers; 480 runtime REVIEWED_GRANTS rows across 67 policies; 564 foreign suppression occurrences across 275 files and 64 rule/scope findings; zero live retired @orb-gate-ignore markers. Do not use literal object counting for reviewed grants: it undercounts the runtime roster (423 versus 480). Keep mechanisms separate: (1) hard policies have no exception door; (2) line-scoped @orb-waive binds one carrier and position; (3) @orb-waive-file binds one exact policy/position token anywhere in one file and still refuses multiple matches; (4) central reviewed grants bind exactly one policyId/subject/operation finding and require why plus endsWhen, with zero consumption stale and multi-match licensing nothing; (5) Biome/ESLint/TypeScript directives are foreign-tool data aggregated by rule and source/tests scope; (6) hand-authored Biome, ESLint, and dependency-cruiser configuration permissions are separate native-config data with dedicated liveness gates; (7) @orb-gate-ignore is retired and inert; (8) AST lens markers remain lens-specific two-sided claims. Preserve null-rule suppression sites, record the tested hyphenated-token ambiguity as reader uncertainty, and do not invent additional occurrences when several directive openers share one physical line. For every item record exact identity, authored site or sites, mechanism, owner policy/rule, reason/end condition when one exists, protected boundary, nearby healthy witness, tool-reader uncertainty, and only a disposition candidate: repair, preserve with evidence, owner decision, or tool-reader defect. A missing reason or witness is a finding, not permission to invent one. A consumed item proves binding, not continued justification. Prioritize caught-failure-ownership, no-test-fabrication, and ct-no-oneshot-live-read-assert in their own shard. Write only the declared new JSON outputs; include exact scanned/skipped counts, commands, mismatches, shard completion status, and stable IDs. Do not edit product/tooling/tests/gates/configs/existing ledgers, delete or rewrite authority, run a full verify barrier, stage, commit, merge, push, or make owner rulings.",
+      "inputs": [
+        "docs/reviews/ast-codebase-audit/world-tools-exception-authority-system-review.json",
+        "docs/reviews/ast-codebase-audit/world-tools-exception-authority-denominator.json"
+      ],
+      "outputs": [
+        "docs/reviews/ast-codebase-audit/qwen-exception-authority/manifest.json",
+        "docs/reviews/ast-codebase-audit/qwen-exception-authority/ordinary-dominant-families.json",
+        "docs/reviews/ast-codebase-audit/qwen-exception-authority/ordinary-remainder.json",
+        "docs/reviews/ast-codebase-audit/qwen-exception-authority/reviewed-grants.json",
+        "docs/reviews/ast-codebase-audit/qwen-exception-authority/foreign-and-native-suppressions.json"
+      ]
+    }
+  ]
+}

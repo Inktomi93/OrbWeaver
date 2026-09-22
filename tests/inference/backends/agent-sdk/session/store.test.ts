@@ -1,6 +1,6 @@
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { SessionCache } from "../../../../packages/inference/src/backends/agent-sdk/session/store.ts";
-import { expect, test } from "../../../support/fixtures.ts";
+import { SessionCache } from "../../../../../packages/inference/src/backends/agent-sdk/session/store.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const log = {
   debug: (): void => undefined,

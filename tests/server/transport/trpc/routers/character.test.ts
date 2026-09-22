@@ -4,7 +4,7 @@
 // page verbatim. Driven through the real ladder via `createCaller` (authed).
 
 import type { CharacterId, TagId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { CharacterService, ListCharactersResult } from "@orb/server/domain/character";
 import { describe, vi } from "vitest";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -142,5 +142,59 @@ describe("character.bulkRemoveCardTag — wire-through", () => {
       }),
     ).rejects.toThrow();
     expect(bulkRemoveCardTag).not.toHaveBeenCalled();
+  });
+
+  test("returns a valid bulk-tag result through the output boundary", async () => {
+    const characterId = mintTypeId(ID_PREFIX.character);
+    const result = { applied: [characterId], failed: [] };
+    const bulkRemoveCardTag = vi.fn<CharacterService["bulkRemoveCardTag"]>(async () => result);
+    const ctx = makeContext({
+      auth: principal("user", { userId: ACTOR }),
+      services: { character: { bulkRemoveCardTag } },
+    });
+
+    await expect(caller(ctx).character.bulkRemoveCardTag({ tagName: "hero", characterIds: [characterId] })).resolves.toEqual(result);
+  });
+
+  test("rejects a malformed bulk-tag result at the output boundary", async () => {
+    const characterId = mintTypeId(ID_PREFIX.character);
+    const bulkRemoveCardTag = vi.fn<CharacterService["bulkRemoveCardTag"]>(async () => ({ applied: [], failed: [] }));
+    const ctx = makeContext({
+      auth: principal("user", { userId: ACTOR }),
+      services: { character: { bulkRemoveCardTag } },
+    });
+    Object.defineProperty(ctx.services.character, "bulkRemoveCardTag", {
+      value: () => Promise.resolve({ applied: ["not-a-character-id"], failed: [] }),
+    });
+
+    await expect(caller(ctx).character.bulkRemoveCardTag({ tagName: "hero", characterIds: [characterId] })).rejects.toThrow("Output validation failed");
+  });
+});
+
+describe("character.bulkAddCardTag — output boundary", () => {
+  test("returns a valid bulk-tag result", async () => {
+    const characterId = mintTypeId(ID_PREFIX.character);
+    const result = { applied: [characterId], failed: [] };
+    const bulkAddCardTag = vi.fn<CharacterService["bulkAddCardTag"]>(async () => result);
+    const ctx = makeContext({
+      auth: principal("user", { userId: ACTOR }),
+      services: { character: { bulkAddCardTag } },
+    });
+
+    await expect(caller(ctx).character.bulkAddCardTag({ tagName: "hero", characterIds: [characterId] })).resolves.toEqual(result);
+  });
+
+  test("rejects a malformed bulk-tag result", async () => {
+    const characterId = mintTypeId(ID_PREFIX.character);
+    const bulkAddCardTag = vi.fn<CharacterService["bulkAddCardTag"]>(async () => ({ applied: [], failed: [] }));
+    const ctx = makeContext({
+      auth: principal("user", { userId: ACTOR }),
+      services: { character: { bulkAddCardTag } },
+    });
+    Object.defineProperty(ctx.services.character, "bulkAddCardTag", {
+      value: () => Promise.resolve({ applied: ["not-a-character-id"], failed: [] }),
+    });
+
+    await expect(caller(ctx).character.bulkAddCardTag({ tagName: "hero", characterIds: [characterId] })).rejects.toThrow("Output validation failed");
   });
 });

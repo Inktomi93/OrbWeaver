@@ -103,7 +103,33 @@ function rejectUnsupportedKeys(node: Record<string, unknown>, type: string, path
   }
 }
 
-function liftString(node: Record<string, unknown>, path: string): z.ZodType {
+/** A schema whose output is determined by an untrusted JSON-Schema node at runtime. Keeping the generated
+ *  schema inside this container prevents its deliberately opaque output from masquerading as an authored
+ *  `ZodType<T>` twin while the recursive builder composes it. */
+declare const RUNTIME_GENERATED_SCHEMA_BRAND: unique symbol;
+
+class RuntimeGeneratedSchema<Schema extends z.ZodType = z.ZodType> {
+  declare readonly [RUNTIME_GENERATED_SCHEMA_BRAND]: true;
+  readonly schema: Schema;
+
+  constructor(schema: Schema) {
+    this.schema = schema;
+  }
+}
+
+function generatedArray<Schema extends z.ZodType>(schema: Schema): z.ZodArray<Schema> {
+  return z.array(schema);
+}
+
+function generatedUnion<const Schemas extends readonly z.ZodType[]>(schemas: Schemas): z.ZodUnion<Schemas> {
+  return z.union(schemas);
+}
+
+function generatedObject<Shape extends z.ZodRawShape>(shape: Shape): z.ZodObject<Shape> {
+  return z.object(shape);
+}
+
+function liftString(node: Record<string, unknown>, path: string): RuntimeGeneratedSchema {
   let schema = z.string();
   if (typeof node["minLength"] === "number") {
     schema = schema.min(node["minLength"]);
@@ -118,7 +144,7 @@ function liftString(node: Record<string, unknown>, path: string): z.ZodType {
     }
     schema = schema.regex(compiled);
   }
-  return schema;
+  return new RuntimeGeneratedSchema(schema);
 }
 
 /** Compile a guest `pattern` to a RegExp, or `null` when it is malformed (the caller turns null into a typed
@@ -134,7 +160,7 @@ function compilePattern(pattern: string): RegExp | null {
   }
 }
 
-function liftNumber(node: Record<string, unknown>, isInt: boolean): z.ZodType {
+function liftNumber(node: Record<string, unknown>, isInt: boolean): RuntimeGeneratedSchema {
   let schema = isInt ? z.number().int() : z.number();
   if (typeof node["minimum"] === "number") {
     schema = schema.min(node["minimum"]);
@@ -142,10 +168,10 @@ function liftNumber(node: Record<string, unknown>, isInt: boolean): z.ZodType {
   if (typeof node["maximum"] === "number") {
     schema = schema.max(node["maximum"]);
   }
-  return schema;
+  return new RuntimeGeneratedSchema(schema);
 }
 
-function liftEnum(values: readonly unknown[], path: string): z.ZodType {
+function liftEnum(values: readonly unknown[], path: string): RuntimeGeneratedSchema {
   if (values.length === 0) {
     throw new JsonSchemaLiftError("enum (empty)", path);
   }
@@ -153,7 +179,7 @@ function liftEnum(values: readonly unknown[], path: string): z.ZodType {
   if (!values.every((v) => typeof v === "string")) {
     throw new JsonSchemaLiftError("enum (non-string members)", path);
   }
-  return z.enum(values as [string, ...string[]]);
+  return new RuntimeGeneratedSchema(z.enum(values as [string, ...string[]]));
 }
 
 /** Lift an `enum` sitting on a TYPED node. The lift is type-dependent because the ROUND-TRIP is: only a form
@@ -171,7 +197,7 @@ function liftEnum(values: readonly unknown[], path: string): z.ZodType {
  *  · `integer` is REFUSED: zod has no integer literal, so the projection comes back `type:"number"` and the
  *    guest's own constraint would silently widen. `type:"number"` with the same members is the lifting spelling.
  *  · A MIXED-type enum is refused everywhere — no lossy literal union. */
-function liftTypedEnum(values: readonly unknown[], type: string, path: string): z.ZodType {
+function liftTypedEnum(values: readonly unknown[], type: string, path: string): RuntimeGeneratedSchema {
   if (values.length === 0) {
     throw new JsonSchemaLiftError("enum (empty)", path);
   }
@@ -191,12 +217,12 @@ function liftTypedEnum(values: readonly unknown[], type: string, path: string): 
   if (values.length === 1) {
     throw new JsonSchemaLiftError(`enum with ONE ${expected} member (projects as \`const\` — spell it \`const\`)`, path);
   }
-  return z.literal(values as readonly (number | boolean)[]);
+  return new RuntimeGeneratedSchema(z.literal(values as readonly (number | boolean)[]));
 }
 
-function liftConst(value: unknown, path: string): z.ZodType {
+function liftConst(value: unknown, path: string): RuntimeGeneratedSchema {
   if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
-    return z.literal(value);
+    return new RuntimeGeneratedSchema(z.literal(value));
   }
   throw new JsonSchemaLiftError("const (non-primitive)", path);
 }
@@ -207,7 +233,7 @@ const UNION_KEYS: ReadonlySet<string> = new Set<string>([...LIFTABLE_JSON_SCHEMA
 
 /** Lift a `type`-less `anyOf` node into `z.union`. Each member is lifted through the SAME recursion (so an
  *  unsupported construct inside a member still refuses), and a sibling keyword is refused rather than ignored. */
-function liftUnion(node: Record<string, unknown>, path: string, depth: number): z.ZodType {
+function liftUnion(node: Record<string, unknown>, path: string, depth: number): RuntimeGeneratedSchema {
   for (const key of Object.keys(node)) {
     if (!UNION_KEYS.has(key)) {
       throw new JsonSchemaLiftError(key, path);
@@ -224,10 +250,10 @@ function liftUnion(node: Record<string, unknown>, path: string, depth: number): 
     }
     return liftNode(member, memberPath, depth + 1);
   });
-  return z.union(lifted);
+  return new RuntimeGeneratedSchema(generatedUnion(lifted.map((member) => member.schema)));
 }
 
-function liftArray(node: Record<string, unknown>, path: string, depth: number): z.ZodType {
+function liftArray(node: Record<string, unknown>, path: string, depth: number): RuntimeGeneratedSchema {
   const items = node["items"];
   if (items === undefined) {
     throw new JsonSchemaLiftError("array (missing items)", path);
@@ -236,17 +262,17 @@ function liftArray(node: Record<string, unknown>, path: string, depth: number): 
     // A tuple schema (items: []) is refused — only a single homogeneous item schema lifts.
     throw new JsonSchemaLiftError("items (tuple/array form)", path);
   }
-  let schema = z.array(liftNode(items, `${path}/items`, depth + 1));
+  let schema = generatedArray(liftNode(items, `${path}/items`, depth + 1).schema);
   if (typeof node["minItems"] === "number") {
     schema = schema.min(node["minItems"]);
   }
   if (typeof node["maxItems"] === "number") {
     schema = schema.max(node["maxItems"]);
   }
-  return schema;
+  return new RuntimeGeneratedSchema(schema);
 }
 
-function liftObject(node: Record<string, unknown>, path: string, depth: number): z.ZodType {
+function liftObject(node: Record<string, unknown>, path: string, depth: number): RuntimeGeneratedSchema<z.ZodObject> {
   const properties = node["properties"] ?? {};
   if (!isPlainObject(properties)) {
     throw new JsonSchemaLiftError("properties (not an object)", path);
@@ -257,13 +283,13 @@ function liftObject(node: Record<string, unknown>, path: string, depth: number):
   }
   const requiredSet = new Set<string>(Array.isArray(required) ? (required as string[]) : []);
 
-  const shape: Record<string, z.ZodType> = {};
+  const shape: Record<string, RuntimeGeneratedSchema> = {};
   for (const [key, propNode] of Object.entries(properties)) {
     if (!isPlainObject(propNode)) {
       throw new JsonSchemaLiftError("property (not an object schema)", `${path}/properties/${key}`);
     }
     const lifted = liftNode(propNode, `${path}/properties/${key}`, depth + 1);
-    shape[key] = requiredSet.has(key) ? lifted : lifted.optional();
+    shape[key] = requiredSet.has(key) ? lifted : new RuntimeGeneratedSchema(lifted.schema.optional());
   }
 
   // `additionalProperties` — the registry pins objects closed (projectJsonSchema forces false); accept only
@@ -272,12 +298,12 @@ function liftObject(node: Record<string, unknown>, path: string, depth: number):
   if (additional !== undefined && additional !== false) {
     throw new JsonSchemaLiftError("additionalProperties (open/schema form)", path);
   }
-  return z.object(shape);
+  return new RuntimeGeneratedSchema(generatedObject(Object.fromEntries(Object.entries(shape).map(([key, generated]) => [key, generated.schema]))));
 }
 
 /** Lift one JSON Schema node into zod. A node with no `type` but an `anyOf`/`enum`/`const` lifts by those;
  *  otherwise a missing/unknown `type` is refused. */
-function liftNode(node: Record<string, unknown>, path: string, depth: number): z.ZodType {
+function liftNode(node: Record<string, unknown>, path: string, depth: number): RuntimeGeneratedSchema {
   // Refuse an over-deep guest schema with a TYPED error BEFORE the recursion blows the host V8 stack (INFO-3).
   if (depth > MAX_LIFT_DEPTH) {
     throw new JsonSchemaLiftError("max-depth-exceeded", path);
@@ -320,7 +346,7 @@ function liftNode(node: Record<string, unknown>, path: string, depth: number): z
     case INTEGER_TYPE:
       return liftNumber(node, true);
     case BOOLEAN_TYPE:
-      return z.boolean();
+      return new RuntimeGeneratedSchema(z.boolean());
     case ARRAY_TYPE:
       return liftArray(node, path, depth);
     case OBJECT_TYPE:
@@ -338,5 +364,5 @@ export function liftJsonSchema(schema: Record<string, unknown>): z.ZodObject {
     throw new JsonSchemaLiftError("root (tool args must be a JSON Schema object)", "#");
   }
   rejectUnsupportedKeys(schema, OBJECT_TYPE, "#");
-  return liftObject(schema, "#", 0) as z.ZodObject;
+  return liftObject(schema, "#", 0).schema;
 }

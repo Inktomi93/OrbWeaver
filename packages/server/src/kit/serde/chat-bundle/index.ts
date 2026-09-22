@@ -265,7 +265,10 @@ const wireRecordedToolCallSchema = z.object({
   name: z.string(),
   args: z.string(),
   verdict: z.enum(RPG_TOOL_CALL_VERDICTS),
-  issues: z.array(z.string()).catch([]),
+  issues: z
+    .array(z.string())
+    .catch([])
+    .transform((issues): readonly string[] => issues),
 }) satisfies z.ZodType<RpgRecordedToolCall, unknown>;
 
 const wireRpgSchema = z.object({

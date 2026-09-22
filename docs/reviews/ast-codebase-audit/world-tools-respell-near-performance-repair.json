@@ -1,0 +1,143 @@
+{
+  "schema": "orbweaver.ast-tool-repair-receipt",
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-22T08:47:42.037Z",
+  "toolDefectId": "ast:respell-near-impossible-pair-explosion",
+  "tree": {
+    "parentHead": "dc487a7ea3ece6f5db80c1407486ff2c25336a45",
+    "statusSha256": "11a141481615f0c53d5cdf957885dc5624819aa264abe1dd084959121b44c64d",
+    "dirtyEntries": ["M tests/tooling/ast/index.test.ts", " M tooling/src/ast/ops/respell.ts"],
+    "repairDiffSha256": "f70f0c2312cfbbf237edd2a8a29b557010fe5940780c0f22c37945fc21593706"
+  },
+  "failedCurrentTreeRun": {
+    "command": "pnpm ast respell --near 80 --json --max 100000",
+    "exitCode": 2,
+    "elapsedMs": 1943572,
+    "wallSeconds": 1943.57,
+    "peakRssKiB": 12609940,
+    "denominator": {
+      "domains": 29,
+      "scopedFiles": 262,
+      "loadedFiles": 7910,
+      "nativePrograms": 13
+    },
+    "exactTier": {
+      "total": 0,
+      "shown": 0,
+      "status": "complete"
+    },
+    "failure": "ast respell --near: native compiler programs disagree about field assignability",
+    "stdoutSha256": "7cb3ac91aeb845a836b9aa6958e8bff6afbd638fae9a151f848f7178d1216907",
+    "stderrSha256": "74253cc744ae643784090417918b0021f560ce2c567780297a8e910fcdf3f2fa",
+    "timeSha256": "453a00b0eee746309bf5b96d9bf361d12e5c07865bd4b852ec3e5a78b1287595",
+    "note": "The exact tier emitted a complete zero before the near tier failed. The pnpm lifecycle line appended to stdout after nonzero exit was a secondary parse failure in the denominator runner, not a verdict."
+  },
+  "diagnosis": {
+    "totalShapePairs": 21296,
+    "nameOnlyUpperBoundEligibleAt80": 28,
+    "impossibleAt80": 21268,
+    "semanticFieldComparisonRangeBeforeProgramMultiplicity": [179526, 6186892],
+    "eligiblePairsProgramMultiplicity": 5,
+    "eligibleSameNameComparisonsChecked": 28,
+    "eligibleReportOnlyRenameComparisonsChecked": 1541,
+    "eligibleCrossProgramDisagreements": 0,
+    "rootCause": "The old collector computed semantic same-name identity and greedy report-only rename classification for every domain-shape x contracts-shape pair, then applied the threshold. A cross-program disagreement in a pair mathematically incapable of reaching 80 percent aborted the run."
+  },
+  "redFirst": {
+    "command": "pnpm test:scoped tests/tooling/ast/index.test.ts",
+    "oldSourceResult": {
+      "exitCode": 1,
+      "passed": 113,
+      "failed": 2
+    },
+    "controls": [
+      {
+        "name": "name-only upper bound below threshold",
+        "expectedCheckerCalls": 0,
+        "oldCheckerCalls": 8
+      },
+      {
+        "name": "semantic admission below threshold skips report-only renames",
+        "expectedCheckerCalls": 9,
+        "oldCheckerCalls": 11
+      },
+      {
+        "name": "threshold zero remains observable",
+        "oldResult": "passed"
+      }
+    ]
+  },
+  "repair": {
+    "paths": ["tooling/src/ast/ops/respell.ts", "tests/tooling/ast/index.test.ts"],
+    "behavior": [
+      "Materialize field metadata once per shape.",
+      "Reject pairs below the sound name-only Jaccard upper bound before checker calls.",
+      "Compute semantic same-name admission before greedy report-only rename classification.",
+      "Preserve derived/exact exclusions, threshold-zero behavior, and all-program agreement for comparisons capable of affecting the verdict.",
+      "Name declaration fields and per-program answers when a relevant comparison disagrees."
+    ]
+  },
+  "focusedVerification": [
+    {
+      "command": "pnpm exec biome check tooling/src/ast/ops/respell.ts tests/tooling/ast/index.test.ts --diagnostic-level=error",
+      "exitCode": 0
+    },
+    {
+      "command": "pnpm exec eslint tooling/src/ast/ops/respell.ts tests/tooling/ast/index.test.ts",
+      "exitCode": 0
+    },
+    {
+      "command": "pnpm test:scoped tests/tooling/ast/index.test.ts",
+      "exitCode": 0,
+      "passed": 115,
+      "failed": 0
+    },
+    {
+      "command": "pnpm typecheck --config tooling/tsconfig.json --config tsconfig.json",
+      "exitCode": 0,
+      "passedPrograms": 2
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0
+    }
+  ],
+  "postRepairCurrentTreeRun": {
+    "command": "pnpm ast respell --near 80 --json --max 100000",
+    "exitCode": 1,
+    "exitClass": "lens-verdict",
+    "wallSeconds": 76.13,
+    "peakRssKiB": 9002968,
+    "denominator": {
+      "domains": 29,
+      "scopedFiles": 262,
+      "loadedFiles": 7910
+    },
+    "exactTier": {
+      "total": 0,
+      "shown": 0,
+      "status": "complete"
+    },
+    "nearTier": {
+      "total": 1,
+      "shown": 1,
+      "status": "complete",
+      "hit": "SeededLibraryEntry ~= @orb/contracts/settings::BackgroundLibraryEntry; 5/6 shared (83%); contracts-only provenanceUrl"
+    },
+    "staleMarkers": 9,
+    "exemptedCandidates": 15,
+    "stdoutSha256": "201ab667348ae5db2afb4d3fbce4d99a5e822dcb4d4066c6ad9faa3edb9876a3",
+    "stderrSha256": "2542857088d3c901dfc1b70856716970fef56d84bb8824dc5ef4badebe41f071",
+    "timeSha256": "ea34f14514efb30970762ce327b78b7a5008dbe93fee50582101656731d39559",
+    "performanceChange": {
+      "wallSpeedup": 25.53,
+      "peakRssReductionKiB": 3606972
+    }
+  },
+  "review": {
+    "status": "CONFIRMED",
+    "receipt": "docs/reviews/ast-codebase-audit/world-tools-respell-near-performance-review.json"
+  },
+  "remainingProof": ["Commit the reviewed slice and rerun the complete 30-verb denominator from that clean tree."],
+  "closureReceipt": "docs/reviews/ast-codebase-audit/world-tools-respell-near-closure-repair.json"
+}

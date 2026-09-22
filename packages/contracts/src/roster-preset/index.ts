@@ -28,6 +28,8 @@ const DESCRIPTION_MAX = 2000;
  *  position + the optional seat knobs). The preset write verb normalizes `position` (sort, re-stamp
  *  dense 0..n-1), so wire positions only need to ORDER, not to be contiguous. */
 export const rosterPresetMemberSchema = characterMemberSpecSchema;
+/** One authored seat in a roster-preset write. */
+export type RosterPresetMember = z.output<typeof rosterPresetMemberSchema>;
 
 /** The full member list: 1..MAX seats, one seat per character (the junction PK made wire-visible —
  *  a duplicate characterId would silently collapse into one row on insert otherwise). */
@@ -38,6 +40,8 @@ export const rosterPresetMembersSchema = z
   .refine((members) => new Set(members.map((m) => m.characterId)).size === members.length, {
     message: "a roster lists each character once",
   });
+/** The normalized, duplicate-free member list accepted by a roster-preset write. */
+export type RosterPresetMembers = z.output<typeof rosterPresetMembersSchema>;
 
 /** One captured automation rule preset on the wire (B10's rules rider — build record §6): the CLOSED
  *  catalogue id + the knob bag as the capture read it (`RuleView.rulePresetKnobs` — the room rule's own
@@ -48,6 +52,8 @@ export const rosterPresetRuleSchema = z.object({
   rulePresetId: rulePresetIdSchema,
   knobs: rulePresetKnobValuesSchema.default({}),
 });
+/** One captured automation rule in a roster-preset write. */
+export type RosterPresetRule = z.output<typeof rosterPresetRuleSchema>;
 
 /** The captured rule-preset list. Array order IS capture/apply order (re-stamped dense at the write
  *  verb — the members posture, minus the explicit position field the D80 member vocabulary carries);
@@ -58,6 +64,8 @@ export const rosterPresetRulesSchema = z
   .refine((rules) => new Set(rules.map((r) => r.rulePresetId)).size === rules.length, {
     message: "a roster lists each rule preset once",
   });
+/** The normalized, duplicate-free captured-rule list. */
+export type RosterPresetRules = z.output<typeof rosterPresetRulesSchema>;
 
 /** `create` — the authored artifact: a name + the curated roster, plus the optional chat-open POV anchor
  *  and the optional room-behavior blob. `update` deliberately reuses this WHOLE shape (full replace,
@@ -75,6 +83,8 @@ export const createRosterPresetSchema = z.object({
    *  library editor's rename ECHOES the stored list back verbatim. */
   rules: rosterPresetRulesSchema.default([]),
 });
+/** The post-parse create payload, including schema defaults and branded ids. */
+export type CreateRosterPreset = z.output<typeof createRosterPresetSchema>;
 /** The LENIENT input (`z.input` — pre-default, pre-brand): what a caller hands the verb. The ROUTER
  *  parses the wire through {@link createRosterPresetSchema} (strict TypeIDs, caps); the VERB re-parses
  *  only the `groupConfig` sub-blob (the one field whose garbage would otherwise be STORED and detonate

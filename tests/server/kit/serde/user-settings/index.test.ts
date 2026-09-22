@@ -88,6 +88,11 @@ describe("parseUserSettingsBackup", () => {
     expect(refusalOf(parseUserSettingsBackup(foreign))).toBe("foreign-kind");
   });
 
+  test("refuses an envelope with no required settings body", () => {
+    const missing = new TextEncoder().encode(JSON.stringify({ schemaKind: USER_SETTINGS_SCHEMA_KIND, schemaVersion: 1 }));
+    expect(refusalOf(parseUserSettingsBackup(missing))).toBe("malformed");
+  });
+
   test("returns ONLY the namespaces the file carried (R7 merge-only-present)", () => {
     const bytes = buildUserSettingsBackup({ appearance: DEFAULT_USER_SETTINGS.appearance });
     const parsed = must(parseUserSettingsBackup(bytes));

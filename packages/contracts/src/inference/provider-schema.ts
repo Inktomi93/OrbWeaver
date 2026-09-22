@@ -3,6 +3,7 @@
 // for the doctrine (rows are data, the id is half the credential AAD, namespaced plugin ids).
 
 import type { Branded } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { z } from "zod";
 import type { ChatApi } from "./apis.ts";
 import { CHAT_APIS } from "./apis.ts";
@@ -22,7 +23,8 @@ const PLUGIN_PROVIDER_ID = /^plugin:([a-z0-9-]+)\/[a-z0-9-]+$/;
 export type ProviderId = Branded<"ProviderId">;
 export const providerIdSchema: z.ZodType<ProviderId, string> = z
   .string()
-  .regex(PROVIDER_ID, "a provider id is bare [a-z0-9-]+ (built-in) or plugin:<name>/<id>") as unknown as z.ZodType<ProviderId, string>;
+  .regex(PROVIDER_ID, "a provider id is bare [a-z0-9-]+ (built-in) or plugin:<name>/<id>")
+  .transform((value): ProviderId => castId<ProviderId>(value));
 
 export function isPluginProviderId(id: string): boolean {
   return PLUGIN_PROVIDER_ID.test(id);

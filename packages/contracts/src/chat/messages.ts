@@ -42,7 +42,7 @@ export const INLINE_REPLY_ORIGIN: MessageAssetOrigin = "inline-reply";
 
 export const TOKEN_PROVENANCES = ["measured", "estimated", "unrecorded"] as const;
 export type TokenProvenance = (typeof TOKEN_PROVENANCES)[number];
-export const tokenProvenanceSchema = z.enum(TOKEN_PROVENANCES);
+export const tokenProvenanceSchema = z.enum(TOKEN_PROVENANCES) satisfies z.ZodType<TokenProvenance>;
 
 /** Combine accounting origins for a displayed total. One estimate makes the sum approximate; measured
  *  wins only over absence. Keeping this beside the vocabulary prevents cross-domain rollups from inventing
@@ -106,10 +106,10 @@ export const chatReasoningPartSchema = z.object({
   meta: z
     .object({
       anthropic: z.object({ signature: z.string().optional(), redactedData: z.string().optional() }).optional(),
-      openrouter: z.object({ reasoningDetails: z.array(jsonValueSchema) }).optional(),
+      openrouter: z.object({ reasoningDetails: z.array(jsonValueSchema).transform((details): readonly JsonValue[] => details) }).optional(),
     })
     .optional(),
-});
+}) satisfies z.ZodType<ChatReasoningPart>;
 
 /** THE ONE SPELLING of the `message_variants.metadata` key carrying a generation's REASONING TIME in ms.
  *
@@ -298,8 +298,8 @@ export type MessageSlot = z.infer<typeof messageSlotSchema>;
 /** ONE recorded runtime variable mutation (D46) — the read-parse boundary for `message_variants.variable_delta`.
  *  A discriminated union on `op` MIRRORING the kit {@link VarOp} (`set`/`add` carry a string `value`; `inc`/`dec`/
  *  `delete` don't). The db column is `$type<readonly VarOp[]>`; every read parses through {@link variableDeltaSchema}
- *  (the `parseChatMetadata` `.safeParse` pattern — never a cast). `satisfies z.ZodType<VarOp>` keeps this schema
- *  and the kit union from drifting: change the kit `VarOp` and this stops compiling. */
+ *  (the `parseChatMetadata` `.safeParse` pattern — never a cast). `satisfies z.ZodType<VarOp>` checks the
+ *  schema-to-contract direction; the output-twin gate checks the reverse direction so neither may drift. */
 export const varOpSchema = z.discriminatedUnion("op", [
   z.object({ op: z.literal("set"), key: z.string(), value: z.string() }),
   z.object({ op: z.literal("add"), key: z.string(), value: z.string() }),
@@ -310,7 +310,8 @@ export const varOpSchema = z.discriminatedUnion("op", [
 
 /** The ordered per-variant delta (`message_variants.variable_delta`). Parsed at the read seam; folded along the
  *  selected-variant chain (`foldVarOps`) into `chats.runtime_variables` (D46 runtime plane). */
-export const variableDeltaSchema = z.array(varOpSchema);
+export type VariableDelta = readonly VarOp[];
+export const variableDeltaSchema = z.array(varOpSchema).transform((ops): VariableDelta => ops) satisfies z.ZodType<VariableDelta>;
 
 /** ONE write-time precondition on a runtime-variable write (#1555): "I believe `key` currently reads
  *  `expected`" — `null` meaning "I believe the key is UNSET". The writer applies its ops only if EVERY
@@ -332,7 +333,10 @@ export interface VariablePrecondition {
   readonly expected: string | null;
 }
 export const variablePreconditionSchema = z.object({ key: z.string(), expected: z.string().nullable() }) satisfies z.ZodType<VariablePrecondition>;
-export const variablePreconditionsSchema = z.array(variablePreconditionSchema);
+export type VariablePreconditions = readonly VariablePrecondition[];
+export const variablePreconditionsSchema = z
+  .array(variablePreconditionSchema)
+  .transform((preconditions): VariablePreconditions => preconditions) satisfies z.ZodType<VariablePreconditions>;
 
 /** What a runtime-variable write answers (#1555). `applied` = the ops landed. `stale` = at least one
  *  {@link VariablePrecondition} did not hold, NOTHING was written, and `actual` carries the live value of every
@@ -349,8 +353,9 @@ export type VariableWriteResult = { readonly outcome: "applied" } | { readonly o
  *  a seq-stamped `applyVariableOps` write made with no turn in flight. Parsed at the read seam; folded into
  *  `chats.runtime_variables` interleaved with the message-variant deltas by `seq`. */
 export const standaloneVariableDeltaSchema = z.object({ seq: z.number(), delta: variableDeltaSchema });
-export const standaloneVariableDeltasSchema = z.array(standaloneVariableDeltaSchema);
 export type StandaloneVariableDelta = z.infer<typeof standaloneVariableDeltaSchema>;
+export type StandaloneVariableDeltas = StandaloneVariableDelta[];
+export const standaloneVariableDeltasSchema = z.array(standaloneVariableDeltaSchema) satisfies z.ZodType<StandaloneVariableDeltas>;
 
 /** The per-turn user-macro random-pick draw record (WAVE MU delivery) — the read-parse boundary for
  *  `message_variants.macro_draws`: macro name → input name → the drawn option value (a bare string per
@@ -366,8 +371,8 @@ export type UserMacroDraws = z.infer<typeof userMacroDrawsSchema>;
  *  `message_variants.macro_freezes`. `name` is the REGISTERED macro name (`roll`/`random`/`pick`/the clock
  *  family), `args` its delivered argument text when it took one (`{{roll::2d6}}` ⇒ `"2d6"`), `value` the
  *  string the freeze substituted. Occurrence-ordered, so a replay walks it positionally exactly as the freeze
- *  wrote it. `satisfies z.ZodType<MacroFreeze>` keeps this schema pinned to the kit {@link MacroFreeze} the
- *  macro engine EMITS — change the kit shape and this stops compiling (the {@link varOpSchema} arrangement). */
+ *  wrote it. `satisfies z.ZodType<MacroFreeze>` checks the schema-to-contract direction, and the output-twin
+ *  gate checks the reverse direction against the kit {@link MacroFreeze} the macro engine EMITS. */
 export const macroFreezeSchema = z.object({
   name: z.string(),
   args: z.string().optional(),

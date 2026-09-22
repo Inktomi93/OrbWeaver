@@ -5,6 +5,7 @@
 
 import {
   CHARACTER_LIST_MAX_LIMIT,
+  characterBulkTagResultSchema,
   characterListCursorSchema,
   characterListSortSchema,
   createCharacterSchema,
@@ -129,6 +130,7 @@ export const characterRouter = t.router({
         characterIds: z.array(typeIdSchema(ID_PREFIX.character)).min(1),
       }),
     )
+    .output(characterBulkTagResultSchema)
     .mutation(({ ctx, input }) =>
       ctx.services.character.bulkAddCardTag({
         principal: ctx.auth,
@@ -144,6 +146,7 @@ export const characterRouter = t.router({
         characterIds: z.array(typeIdSchema(ID_PREFIX.character)).min(1),
       }),
     )
+    .output(characterBulkTagResultSchema)
     .mutation(({ ctx, input }) =>
       ctx.services.character.bulkRemoveCardTag({
         principal: ctx.auth,

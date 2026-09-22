@@ -10,6 +10,7 @@
 // orthogonal to (stickler 2026-08-08 §R1; deviation from that report's letter, endorsed 2026-08-07).
 
 import type { CharacterId } from "@orb/kit/ids";
+import type { MessageRole } from "@orb/kit/message-role";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { z } from "zod";
 
@@ -21,7 +22,7 @@ import { z } from "zod";
 export const PARTICIPANT_KINDS = ["human", "character"] as const;
 export type ParticipantKind = (typeof PARTICIPANT_KINDS)[number];
 /** @public twin: PARTICIPANT_KINDS — drives the chat_participants enum + CHECK (cross-package PUBLIC). */
-export const participantKindSchema = z.enum(PARTICIPANT_KINDS);
+export const participantKindSchema = z.enum(PARTICIPANT_KINDS) satisfies z.ZodType<ParticipantKind>;
 
 // `kind` carries TWO facts: the identity table (userId vs characterId) AND who DRIVES the seat.
 // `AI_DRIVEN_KINDS` splits out the DRIVE axis (the seats arbitration schedules/voices) — an agent is
@@ -44,7 +45,7 @@ export function speakerKey(ref: SpeakerRef): string {
 
 // The tuple is `@orb/kit/message-role`; the WIRE schema lives HERE (§5 tuple-in-kit rule). Every role
 // field across this node goes through this one axis — no inline re-spell.
-export const messageRoleSchema = z.enum(MESSAGE_ROLES);
+export const messageRoleSchema = z.enum(MESSAGE_ROLES) satisfies z.ZodType<MessageRole>;
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // MESSAGE KIND — what a canon row IS, DECLARED at mint (stickler 2026-08-08, canon-message-identity §2/§R1)
@@ -76,7 +77,7 @@ export const messageRoleSchema = z.enum(MESSAGE_ROLES);
 export const MESSAGE_KINDS = ["standard", "narrator", "comment"] as const;
 export type MessageKind = (typeof MESSAGE_KINDS)[number];
 /** Schema twin of {@link MESSAGE_KINDS}, which drives the `messages.kind` enum + CHECK. */
-export const messageKindSchema = z.enum(MESSAGE_KINDS);
+export const messageKindSchema = z.enum(MESSAGE_KINDS) satisfies z.ZodType<MessageKind>;
 
 /** The DB/wire default: every writer that does not deliberately declare a purpose mints `standard`. One home
  *  so the column default, the read-seam floor and a test factory can never spell three different defaults. */

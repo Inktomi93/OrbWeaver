@@ -11,7 +11,7 @@ import { z } from "zod";
 // from this tuple.
 export const MEMORY_RETRIEVAL_MODES = ["off", "mixA", "mixB", "mixC", "tiered"] as const;
 export type MemoryRetrievalMode = (typeof MEMORY_RETRIEVAL_MODES)[number];
-export const memoryRetrievalModeSchema = z.enum(MEMORY_RETRIEVAL_MODES);
+export const memoryRetrievalModeSchema = z.enum(MEMORY_RETRIEVAL_MODES) satisfies z.ZodType<MemoryRetrievalMode>;
 
 /** The `search.suggest` autocomplete page CEILING, enforced at the transport trust boundary (the
  *  `CHARACTER_LIST_MAX_LIMIT` precedent) — an over-bound ask is a BAD_REQUEST rather than an unbounded

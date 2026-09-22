@@ -46,7 +46,7 @@ export const REFINERY_SCHEMA_MAX_ENUM = 32;
 /** Which stage a custom schema serves (no `rewrite`, no `any` — header). */
 export const REFINERY_SCHEMA_STAGES = ["score", "analyze"] as const;
 export type RefinerySchemaStage = (typeof REFINERY_SCHEMA_STAGES)[number];
-export const refinerySchemaStageSchema = z.enum(REFINERY_SCHEMA_STAGES);
+export const refinerySchemaStageSchema = z.enum(REFINERY_SCHEMA_STAGES) satisfies z.ZodType<RefinerySchemaStage>;
 
 // ── the x-orb-ui render-hint vocabulary (CLOSED, save-validated) ─────────────────
 
