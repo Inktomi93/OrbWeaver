@@ -176,12 +176,12 @@
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-      "assignedSha256": "00686e3c6f778eb13902d791c18bf4ae64b66ce899473315aa251f2106adf487",
+      "assignedSha256": "34360608b9b96fac01816f9c78fd2201c107da92a79e836be5f4b9f474d8ee10",
       "disposition": "current",
       "authority": "operational",
       "fullRead": true,
-      "verifiedSha256": "00686e3c6f778eb13902d791c18bf4ae64b66ce899473315aa251f2106adf487",
-      "verifiedCommit": "dc0f8eb092bd6706c8458cf1d59578ba07db9181",
+      "verifiedSha256": "34360608b9b96fac01816f9c78fd2201c107da92a79e836be5f4b9f474d8ee10",
+      "verifiedCommit": "41803bd4fb5f01dac841437e30120a7601a9c7ea",
       "verifiedAt": "2026-09-22",
       "evidence": [
         "Bounded #2312 citation correction; existing reviewed CSS-family changes and earlier evidence remain attributable to their own receipts. Selected dangling-refs drive clean over199 docs: reports/runs/structure/main-72765-2026-09-13T06-11-26-874Z/check-structure.json. This receipt does not certify the whole gate roster or close ongoing CSS verification.",
@@ -350,7 +350,7 @@
         }
       ],
       "summary": "Active enforcement catalog, fully read as text; current Q11 health-row correction verified against canonical generation and namespace-health ownership. Prior per-row evidence remains attributed; no new whole-roster implementation certification.",
-      "verifiedCanonicalSha256": "00686e3c6f778eb13902d791c18bf4ae64b66ce899473315aa251f2106adf487"
+      "verifiedCanonicalSha256": "34360608b9b96fac01816f9c78fd2201c107da92a79e836be5f4b9f474d8ee10"
     },
     {
       "path": "docs/architecture/core/Core-Laws-and-Precedents.md",
@@ -833,12 +833,12 @@
     },
     {
       "path": "docs/architecture/core/Spine-Testing.md",
-      "assignedSha256": "5ae6d85e04eaed2a6ffb4bd61fb4861755fbae1165b86a1c4df5f02523bf6363",
+      "assignedSha256": "3e556c8f8987a133c26a232255c4bcd7039bd0223e09f2459a80ae3f91a89919",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "5ae6d85e04eaed2a6ffb4bd61fb4861755fbae1165b86a1c4df5f02523bf6363",
-      "verifiedCommit": "dc0f8eb092bd6706c8458cf1d59578ba07db9181",
+      "verifiedSha256": "3e556c8f8987a133c26a232255c4bcd7039bd0223e09f2459a80ae3f91a89919",
+      "verifiedCommit": "41803bd4fb5f01dac841437e30120a7601a9c7ea",
       "verifiedAt": "2026-09-22",
       "evidence": [
         "Full document read by the scoped documentation lane; current changes checked against cfb9cea2fea7a109cd65c44485ada4d30437fc5c. Repository-resource citations and native execution guidance reflect 46b658696/cfb9cea2f; independent scheduling and compiler-executor controls passed. Exact ambient enforcement and remaining native-config integration are still separate program requirements.",
@@ -877,7 +877,7 @@
         }
       ],
       "summary": "Test layout and current scheduling policy; structural browser suites run in parallel and rate validity remains separate from deadlines.",
-      "verifiedCanonicalSha256": "5ae6d85e04eaed2a6ffb4bd61fb4861755fbae1165b86a1c4df5f02523bf6363"
+      "verifiedCanonicalSha256": "3e556c8f8987a133c26a232255c4bcd7039bd0223e09f2459a80ae3f91a89919"
     },
     {
       "path": "docs/architecture/core/Spine-TypeScript-and-Patterns.md",

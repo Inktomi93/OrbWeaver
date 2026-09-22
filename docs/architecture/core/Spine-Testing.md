@@ -135,10 +135,13 @@ because deleting it restores a known blind class across every theme polarity at 
 
 `test-presence-inference` owns the inference package's distinct topology. It reads the bounded
 `packages/inference/src` and `tests/inference` mirror family, proves both complete denominators, and classifies
-every source as exact-module covered, cross-cutting-suite covered, or non-runtime contract/data. Backend wire
-behavior is intentionally cross-cutting through the conformance suite; catalog, capability, resolution and role
-behavior use their subsystem suites; contract, funnel, registry and package-root runtime behavior use the package
-integration suite. A new runtime source outside those declared categories owes an exact mirror.
+every source as exact-module covered, structurally reached from a governed subsystem test root, or non-runtime
+type-only contract/barrel. Every emitted export — including data, namespaces, uninitialized variables and local
+named/default exports — is runtime. A suite path or category alone proves nothing: static import/re-export edges
+from that subsystem's tests must reach the source. Backend behavior uses the backend/conformance test roots;
+catalog, capability, resolution and role behavior use their subsystem roots; contract, funnel, registry and
+package-root behavior use the package integration root. A new runtime source outside those declared categories
+owes an exact mirror.
 Missing, empty, unreadable, or dispatch-incomplete source/test corpora refuse evaluation rather than returning a
 clean zero.
 
