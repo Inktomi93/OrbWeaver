@@ -1474,7 +1474,7 @@
     {
       "siteId": "packages/contracts/src/preset/index.ts::catch::1",
       "path": "packages/contracts/src/preset/index.ts",
-      "line": 3096,
+      "line": 3122,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -1482,7 +1482,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "ST mirror — JSON.parse of custom_stopping_strings",
-      "markerLine": 3091
+      "markerLine": 3117
     },
     {
       "siteId": "packages/contracts/src/rpg/extraction.ts::catch::1",
@@ -1942,7 +1942,7 @@
     {
       "siteId": "packages/inference/src/roles/role-clients.ts::Promise.resolve::1",
       "path": "packages/inference/src/roles/role-clients.ts",
-      "line": 94,
+      "line": 116,
       "column": 13,
       "grammar": "promise",
       "position": "Promise.resolve",
@@ -1950,7 +1950,20 @@
       "snippet": "await Promise.resolve(",
       "verdict": "deliberate-absorb",
       "reason": "strike-out is a passenger side effect; its failure is warning-logged and the provider's original error is rethrown. Precedent: packages/server/src/entry/import/run-profile-import.ts accepts the same passenger-side-effect failure while preserving the primary owner. Ends if either owner changes.",
-      "markerLine": 93
+      "markerLine": 115
+    },
+    {
+      "siteId": "packages/inference/src/roles/structured-turn.ts::catch::1",
+      "path": "packages/inference/src/roles/structured-turn.ts",
+      "line": 101,
+      "column": 5,
+      "grammar": "default",
+      "position": "catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "null flows to extractJsonObject's null →",
+      "markerLine": 96
     },
     {
       "siteId": "packages/kit/src/cel/index.ts::err::1",
@@ -1968,7 +1981,7 @@
     {
       "siteId": "packages/kit/src/ids/index.ts::err::1",
       "path": "packages/kit/src/ids/index.ts",
-      "line": 337,
+      "line": 338,
       "column": 14,
       "grammar": "empty",
       "position": "err",
@@ -1976,12 +1989,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "zod transform pattern — fromString's throw is",
-      "markerLine": 331
+      "markerLine": 332
     },
     {
       "siteId": "packages/kit/src/json-schema/lift.ts::catch::1",
       "path": "packages/kit/src/json-schema/lift.ts",
-      "line": 132,
+      "line": 158,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -1989,7 +2002,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented — the caller (liftString) turns",
-      "markerLine": 127
+      "markerLine": 153
     },
     {
       "siteId": "packages/kit/src/macro/evaluator.ts::err::1",
@@ -2553,7 +2566,7 @@
     {
       "siteId": "packages/server/src/domain/chat/verbs/turn.ts::catch::1",
       "path": "packages/server/src/domain/chat/verbs/turn.ts",
-      "line": 1292,
+      "line": 1291,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -2561,12 +2574,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented above — non-fatal, mirrors neo: the",
-      "markerLine": 1286
+      "markerLine": 1285
     },
     {
       "siteId": "packages/server/src/domain/chat/verbs/turn.ts::err::1",
       "path": "packages/server/src/domain/chat/verbs/turn.ts",
-      "line": 2482,
+      "line": 2481,
       "column": 12,
       "grammar": "empty",
       "position": "err",
@@ -2574,12 +2587,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "fully classified below — a permanent verdict",
-      "markerLine": 2476
+      "markerLine": 2475
     },
     {
       "siteId": "packages/server/src/domain/chat/verbs/turn.ts::run::1",
       "path": "packages/server/src/domain/chat/verbs/turn.ts",
-      "line": 2274,
+      "line": 2273,
       "column": 14,
       "grammar": "promise",
       "position": "run",
@@ -2587,7 +2600,7 @@
       "snippet": "void run.catch((err: unknown) => {",
       "verdict": "deliberate-absorb",
       "reason": "the fault has NOWHERE to go — this generator",
-      "markerLine": 2270
+      "markerLine": 2269
     },
     {
       "siteId": "packages/server/src/domain/connection/substrate/embed-space.ts::catch::1",
@@ -2644,7 +2657,7 @@
     {
       "siteId": "packages/server/src/domain/discovery/verbs/analyze.ts::err::1",
       "path": "packages/server/src/domain/discovery/verbs/analyze.ts",
-      "line": 81,
+      "line": 80,
       "column": 12,
       "grammar": "empty",
       "position": "err",
@@ -2652,12 +2665,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "narrow rethrow — only a validation failure",
-      "markerLine": 75
+      "markerLine": 74
     },
     {
       "siteId": "packages/server/src/domain/discovery/verbs/analyze.ts::err::2",
       "path": "packages/server/src/domain/discovery/verbs/analyze.ts",
-      "line": 141,
+      "line": 140,
       "column": 12,
       "grammar": "empty",
       "position": "err",
@@ -2665,12 +2678,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "narrow rethrow — only a validation failure",
-      "markerLine": 133
+      "markerLine": 132
     },
     {
       "siteId": "packages/server/src/domain/discovery/verbs/distill.ts::catch::1",
       "path": "packages/server/src/domain/discovery/verbs/distill.ts",
-      "line": 300,
+      "line": 299,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -2678,7 +2691,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "bookkeeping — the header states the contract:",
-      "markerLine": 293
+      "markerLine": 292
     },
     {
       "siteId": "packages/server/src/domain/import/loader/collect.ts::error::1",
@@ -2917,7 +2930,7 @@
     {
       "siteId": "packages/server/src/domain/refinery/substrate/schema-forge.ts::catch::1",
       "path": "packages/server/src/domain/refinery/substrate/schema-forge.ts",
-      "line": 172,
+      "line": 171,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -2925,12 +2938,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "bookkeeping — documented above: a malformed",
-      "markerLine": 166
+      "markerLine": 165
     },
     {
       "siteId": "packages/server/src/domain/refinery/verbs/score-sweep.ts::catch::1",
       "path": "packages/server/src/domain/refinery/verbs/score-sweep.ts",
-      "line": 294,
+      "line": 293,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -2938,7 +2951,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "bookkeeping — documented above: `null` is the",
-      "markerLine": 289
+      "markerLine": 288
     },
     {
       "siteId": "packages/server/src/domain/rpg/chat-ops/gather.ts::err::1",
@@ -3281,7 +3294,7 @@
     {
       "siteId": "packages/server/src/entry/compose/automation-plugin.ts::catch::1",
       "path": "packages/server/src/entry/compose/automation-plugin.ts",
-      "line": 541,
+      "line": 540,
       "column": 11,
       "grammar": "default",
       "position": "catch",
@@ -3289,12 +3302,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — documented above: a refusal",
-      "markerLine": 535
+      "markerLine": 534
     },
     {
       "siteId": "packages/server/src/entry/compose/automation-plugin.ts::catch::2",
       "path": "packages/server/src/entry/compose/automation-plugin.ts",
-      "line": 560,
+      "line": 559,
       "column": 11,
       "grammar": "default",
       "position": "catch",
@@ -3302,12 +3315,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — documented above: a",
-      "markerLine": 554
+      "markerLine": 553
     },
     {
       "siteId": "packages/server/src/entry/compose/automation-plugin.ts::catch::3",
       "path": "packages/server/src/entry/compose/automation-plugin.ts",
-      "line": 580,
+      "line": 579,
       "column": 11,
       "grammar": "default",
       "position": "catch",
@@ -3315,12 +3328,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — documented above: `[]` if",
-      "markerLine": 569
+      "markerLine": 568
     },
     {
       "siteId": "packages/server/src/entry/compose/automation-plugin.ts::catch::4",
       "path": "packages/server/src/entry/compose/automation-plugin.ts",
-      "line": 731,
+      "line": 730,
       "column": 11,
       "grammar": "default",
       "position": "catch",
@@ -3328,7 +3341,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — documented above: any",
-      "markerLine": 720
+      "markerLine": 719
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::catch::1",
@@ -3992,19 +4005,6 @@
       "verdict": "deliberate-absorb",
       "reason": "typed refusal — returns a PortableParse",
       "markerLine": 129
-    },
-    {
-      "siteId": "packages/server/src/kit/structured-turn/index.ts::catch::1",
-      "path": "packages/server/src/kit/structured-turn/index.ts",
-      "line": 152,
-      "column": 5,
-      "grammar": "default",
-      "position": "catch",
-      "ordinal": 1,
-      "snippet": "} catch {",
-      "verdict": "deliberate-absorb",
-      "reason": "null flows to extractJsonObject's null →",
-      "markerLine": 147
     },
     {
       "siteId": "packages/server/src/transport/rate-limit.ts::where::1",
