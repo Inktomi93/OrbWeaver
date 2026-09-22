@@ -1,10 +1,9 @@
 // Policy: test-presence-inference (core/Spine-Testing.md §5) — the inference package's bounded test
 // topology. Exact module tests answer isolated behavior; declared suite categories answer behavior that is
 // intentionally cross-wire or composed. Any runtime source outside those categories falls back to an exact
-// module mirror. Pure contracts/data/barrels have no runtime behavior to assert. The inference-test mirror
+// module mirror. Type-only contracts and barrels have no runtime behavior to assert. The inference-test mirror
 // resource owns the complete source/test denominator and refuses missing, empty, or unreadable corpora.
 import type { SourceFile } from "ts-morph";
-import { Node } from "ts-morph";
 import { TEST_KIND_DEFINITIONS } from "../../_shared/test-kinds.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { MirrorIndex } from "../contract/resource-mirror.ts";
@@ -13,16 +12,18 @@ import { readyResourceValue } from "../lib/resource-declaration.ts";
 const SOURCE_ROOT = "packages/inference/src/";
 const EXT_RE = /\.tsx?$/u;
 
-/** Cross-cutting test homes whose subject is a semantic inference subsystem rather than one module. */
+/** Cross-cutting test homes whose subject is a semantic inference subsystem rather than one module. A
+ *  category names its governed test subtree(s), but membership there is only the ROOT of proof: the test
+ *  graph must still reach each runtime source before the category can cover it. */
 const SUITE_TOPOLOGY = [
-  { under: "backends/", test: "tests/inference/conformance/applicability.suite.test.ts" },
-  { under: "capability/", test: "tests/inference/capability/synthesize.test.ts" },
-  { under: "catalog/", test: "tests/inference/catalog/mirror.suite.test.ts" },
-  { under: "contract/", test: "tests/inference/index.test.ts" },
-  { under: "funnel/", test: "tests/inference/index.test.ts" },
-  { under: "registry/", test: "tests/inference/index.test.ts" },
-  { under: "resolve/", test: "tests/inference/resolve/resolve-task.suite.test.ts" },
-  { under: "roles/", test: "tests/inference/roles/role-clients.suite.test.ts" },
+  { under: "backends/", testRoots: ["tests/inference/backends/", "tests/inference/conformance/"] },
+  { under: "capability/", testRoots: ["tests/inference/capability/"] },
+  { under: "catalog/", testRoots: ["tests/inference/catalog/"] },
+  { under: "contract/", testRoots: ["tests/inference/index.test.ts"] },
+  { under: "funnel/", testRoots: ["tests/inference/funnel/", "tests/inference/index.test.ts"] },
+  { under: "registry/", testRoots: ["tests/inference/registry/", "tests/inference/index.test.ts"] },
+  { under: "resolve/", testRoots: ["tests/inference/resolve/"] },
+  { under: "roles/", testRoots: ["tests/inference/roles/"] },
 ] as const;
 
 const ROOT_SUITE = "tests/inference/index.test.ts";
@@ -30,17 +31,17 @@ const MSG =
   "inference runtime source has no supported test topology — add an exact runtime test at tests/inference/<path> or place the source in a governed cross-cutting suite category (Spine-Testing.md §5).";
 
 function hasRuntimeExport(sourceFile: SourceFile): boolean {
-  if (sourceFile.getFunctions().some((fn) => fn.isExported()) || sourceFile.getClasses().some((cls) => cls.isExported())) {
+  if (
+    sourceFile.getFunctions().some((fn) => fn.isExported()) ||
+    sourceFile.getClasses().some((cls) => cls.isExported()) ||
+    sourceFile.getEnums().some((decl) => decl.isExported()) ||
+    sourceFile.getExportAssignments().length > 0
+  ) {
     return true;
   }
-  return sourceFile.getVariableStatements().some(
-    (statement) =>
-      statement.isExported() &&
-      statement.getDeclarations().some((declaration) => {
-        const initializer = declaration.getInitializer();
-        return initializer !== undefined && (Node.isArrowFunction(initializer) || Node.isFunctionExpression(initializer));
-      }),
-  );
+  return sourceFile
+    .getVariableStatements()
+    .some((statement) => statement.isExported() && statement.getDeclarations().some((declaration) => declaration.getInitializer() !== undefined));
 }
 
 function hasExactRuntimeTest(mirror: MirrorIndex, rel: string): boolean {
@@ -50,16 +51,59 @@ function hasExactRuntimeTest(mirror: MirrorIndex, rel: string): boolean {
   );
 }
 
-function suiteFor(rel: string): string | undefined {
+type SuiteTopology = (typeof SUITE_TOPOLOGY)[number] | { readonly under: ""; readonly testRoots: readonly [typeof ROOT_SUITE] };
+
+function suiteFor(rel: string): SuiteTopology | undefined {
   if (!rel.includes("/")) {
-    return ROOT_SUITE;
+    return { under: "", testRoots: [ROOT_SUITE] };
   }
-  return SUITE_TOPOLOGY.find(({ under }) => rel.startsWith(under))?.test;
+  return SUITE_TOPOLOGY.find(({ under }) => rel.startsWith(under));
 }
 
-function hasSuiteTest(mirror: MirrorIndex, rel: string): boolean {
+function hasSuiteTest(rel: string, reachableBySuite: ReadonlyMap<string, ReadonlySet<string>>): boolean {
   const suite = suiteFor(rel);
-  return suite !== undefined && mirror.testFiles.has(suite);
+  return suite !== undefined && reachableBySuite.get(suite.under)?.has(`${SOURCE_ROOT}${rel}`) === true;
+}
+
+/** Every in-population module reachable through static import/re-export edges from each declared suite.
+ *  A suite filename alone is not evidence: the suite must actually enter the source module graph that
+ *  contains the runtime file it claims to cover. This keeps a newly parked file under `backends/` from
+ *  inheriting conformance coverage merely because an unrelated suite happens to exist. */
+function suiteReachability(files: readonly SourceFile[], relativePath: (sourceFile: SourceFile) => string): ReadonlyMap<string, ReadonlySet<string>> {
+  const pathByAbsolute = new Map(files.map((sourceFile) => [sourceFile.getFilePath(), relativePath(sourceFile)]));
+  const fileByPath = new Map(files.map((sourceFile) => [relativePath(sourceFile), sourceFile]));
+  const targetsOf = (sourceFile: SourceFile): readonly string[] => {
+    const targets = [
+      ...sourceFile.getImportDeclarations().map((declaration) => declaration.getModuleSpecifierSourceFile()),
+      ...sourceFile.getExportDeclarations().map((declaration) => declaration.getModuleSpecifierSourceFile()),
+    ];
+    return targets.flatMap((target) => {
+      if (target === undefined) {
+        return [];
+      }
+      const path = pathByAbsolute.get(target.getFilePath());
+      return path === undefined ? [] : [path];
+    });
+  };
+  const out = new Map<string, ReadonlySet<string>>();
+  const topologies: readonly SuiteTopology[] = [{ under: "", testRoots: [ROOT_SUITE] }, ...SUITE_TOPOLOGY];
+  for (const topology of topologies) {
+    const reached = new Set<string>();
+    const pending = [...fileByPath.keys()].filter((path) => topology.testRoots.some((root) => (root.endsWith("/") ? path.startsWith(root) : path === root)));
+    while (pending.length > 0) {
+      const path = pending.pop();
+      if (path === undefined || reached.has(path)) {
+        continue;
+      }
+      reached.add(path);
+      const sourceFile = fileByPath.get(path);
+      if (sourceFile !== undefined) {
+        pending.push(...targetsOf(sourceFile));
+      }
+    }
+    out.set(topology.under, reached);
+  }
+  return out;
 }
 
 export const gate = defineGate({
@@ -67,7 +111,7 @@ export const gate = defineGate({
   family: "mirror-index",
   authority: "hard",
   severity: "error",
-  population: "@inference",
+  population: { in: ["@inference", "@tests"], under: ["packages/inference/src/**", "tests/inference/**"] },
   analysis: "resource",
   execution: "entire-population",
   facts: [],
@@ -77,7 +121,8 @@ export const gate = defineGate({
   create: (ctx) => ({
     evaluate: () => {
       const mirror = readyResourceValue(ctx.resources.mirrorIndex("inference-test"));
-      const dispatchedSources = new Set(ctx.files.map((sourceFile) => ctx.relativePath(sourceFile)));
+      const inferenceSources = ctx.files.filter((sourceFile) => ctx.relativePath(sourceFile).startsWith(SOURCE_ROOT));
+      const dispatchedSources = new Set(inferenceSources.map((sourceFile) => ctx.relativePath(sourceFile)));
       const undispatched = [...mirror.sourceFiles].filter((path) => !dispatchedSources.has(path));
       if (undispatched.length > 0 || dispatchedSources.size !== mirror.sourceFiles.size) {
         throw new Error(
@@ -90,7 +135,8 @@ export const gate = defineGate({
       let suiteCovered = 0;
       let nonRuntime = 0;
       let uncovered = 0;
-      for (const sourceFile of ctx.files) {
+      const reachableBySuite = suiteReachability(ctx.files, ctx.relativePath);
+      for (const sourceFile of inferenceSources) {
         const path = ctx.relativePath(sourceFile);
         const rel = path.slice(SOURCE_ROOT.length);
         if (!hasRuntimeExport(sourceFile)) {
@@ -101,7 +147,7 @@ export const gate = defineGate({
           exact += 1;
           continue;
         }
-        if (hasSuiteTest(mirror, rel)) {
+        if (hasSuiteTest(rel, reachableBySuite)) {
           suiteCovered += 1;
           continue;
         }
@@ -135,6 +181,24 @@ export const gate = defineGate({
       expect: { count: 1, messageIncludes: "no supported test topology" },
       why: "a cross-cutting category is coverage only while its governed suite anchor exists",
     },
+    {
+      mode: "resource",
+      files: {
+        "packages/inference/src/backends/v4/stream.ts": "export function stream(): string {\n  return 'ok';\n}\n",
+        "tests/inference/conformance/applicability.suite.test.ts": "export {};\n",
+      },
+      expect: { count: 1, messageIncludes: "no supported test topology" },
+      why: "a suite path with no structural edge into the claimed runtime source is not coverage",
+    },
+    {
+      mode: "resource",
+      files: {
+        "packages/inference/src/extensions/normalize.ts": "export const normalize = buildNormalizer();\n",
+        "tests/inference/other.test.ts": "export {};\n",
+      },
+      expect: { count: 1, messageIncludes: "no supported test topology" },
+      why: "an exported call initializer is runtime behavior even though it is not function syntax",
+    },
   ],
   mustPass: [
     {
@@ -149,7 +213,9 @@ export const gate = defineGate({
       mode: "resource",
       files: {
         "packages/inference/src/backends/v4/stream.ts": "export function stream(): string {\n  return 'ok';\n}\n",
-        "tests/inference/conformance/applicability.suite.test.ts": "export {};\n",
+        "packages/inference/src/backends/v4/index.ts": 'export { stream } from "./stream.ts";\n',
+        "tests/inference/conformance/applicability.suite.test.ts":
+          'import { stream } from "../../../packages/inference/src/backends/v4/index.ts";\nvoid stream;\n',
       },
       why: "backend behavior may be proved through the governed cross-wire conformance suite",
     },
