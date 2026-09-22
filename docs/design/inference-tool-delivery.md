@@ -62,8 +62,12 @@ raised.
   aggregation, reasoning replay.
 - The pipeline's gates: capability (`tools` declared), terminal eligibility (`coEmitsProseWithTools`),
   name-collision refusal, prefill suppression.
-- The `execute` callback itself: the pipeline binds it to `executeToolCalls` for one call, keeps the
-  record for persistence, and returns the record's text and error flag.
+- The `execute` callback itself: the pipeline binds it to the turn's bound execute path for one call,
+  keeps the record for persistence, and returns the record's text and error flag.
+- The turn's authority. `ChatToolOps.prepareExecution` resolves the host Principal once, before the
+  request is built, and returns the bound execute path both loops run. A failed lookup fails the turn
+  before the model is called on every wire; it never surfaces inside an SDK-driven handler, where the
+  SDK would hand the exception to the model as tool-result text and keep no record.
 - The compose bridge's own concerns: the admin cache-depth floor, the stream pump, warning/refusal
   chunks, economics mapping.
 
@@ -82,7 +86,7 @@ exactly as they are.
 - `packages/server/src/domain/chat/contract/results.ts` — `TurnRequest` drops `tools`, `toolChoice`,
   `agentToolServer`, `agentToolTurnLimit`, `agentTerminalTools` for one `tools?: ChatTurnTools`.
 - `packages/server/src/domain/chat/contract/context.ts` — `ChatToolOps` becomes `resolveTools`,
-  `toToolDefinitions`, `executeToolCalls`.
+  `toToolDefinitions`, `prepareExecution` (which returns the bound execute path).
 - `packages/server/src/domain/tool-use/**` — `toToolDefinitions` replaces `toWireTools` and
   `toAgentToolServer`; `project-mcp.ts` and the `CreateAgentToolServer` type are deleted.
 - `packages/server/src/entry/compose/chat.ts` and `compose/index.ts` — the bridge calls `toChatRequest`;
@@ -101,7 +105,10 @@ exactly as they are.
 - `tests/inference/roles/chat-request.test.ts` pins both projections: the array `tools`/`toolChoice`
   shape and order, the agent-sdk MCP mount (call-id synthesis, outcome mapping, `execute` routing), the
   terminal channel on both arms, and the no-api refusal.
-- `tests/server/domain/tool-use/verbs/to-tool-definitions.test.ts` replaces the `toWireTools` and
-  `project-mcp` pins; record parity (an `execute` call equals the direct `executeToolCalls` record) moves
-  to the pipeline test.
+- `tests/server/domain/tool-use/verbs/to-tool-definitions.test.ts` replaces the `toWireTools` pin. The
+  `project-mcp` pins move to `tests/server/entry/compose/chat.test.ts`, which drives the real pipeline,
+  bridge, `toChatRequest` and tool-use service and calls the mounted MCP server over JSON-RPC the way the
+  SDK does (`tests/support/mcp-in-memory.ts`): the permission gate fires through the mount, a call through
+  the mount records byte-equal to the direct execute path, and a failed authority lookup fails the turn
+  before the model is called on both wires.
 - Pipeline, engine and turn tests assert the neutral `tools` field instead of the per-wire fields.
