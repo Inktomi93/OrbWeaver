@@ -191,8 +191,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 374,
-      "bytes": 36114,
-      "sha256": "7755a550d8348d8affe080c7e7ae54e6975fc4c85f4904b3b4382fa58b852413",
+      "bytes": 36212,
+      "sha256": "e2aaa8d2dc3c0ab5154cd206173c48121b636b82d2e2da3b2e74b8bae9452804",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -205,13 +205,13 @@
       },
       "receipt": {
         "path": "docs/architecture/core/AGENTS.md",
-        "assignedSha256": "7755a550d8348d8affe080c7e7ae54e6975fc4c85f4904b3b4382fa58b852413",
+        "assignedSha256": "e2aaa8d2dc3c0ab5154cd206173c48121b636b82d2e2da3b2e74b8bae9452804",
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "7755a550d8348d8affe080c7e7ae54e6975fc4c85f4904b3b4382fa58b852413",
-        "verifiedCommit": "4c688c915c97f2e31abe5ecb898e35eb932bd1c4",
-        "verifiedAt": "2026-09-21",
+        "verifiedSha256": "e2aaa8d2dc3c0ab5154cd206173c48121b636b82d2e2da3b2e74b8bae9452804",
+        "verifiedCommit": "81d19ad83f9e7ce1b7bd89ed42a72b2abb361387",
+        "verifiedAt": "2026-09-22",
         "evidence": [
           "Owner ruling 2026-09-10: lanes may commit normally in their assigned worktree or clone, including configured hook checks. Explicit iteration stays scoped; hook bypass requires a specific user/coordinator exception with its reason and executed or owed checks. Main integration and push remain coordinator/owner operations. Coupled doctrine, role and runbook guidance was reconciled without changing hook commands.",
           "#1842 (cb-push-tier): tests:tooling is --full-only; tooling-serial lane; SERIAL_INT_PRODUCT/TOOLING; push = product node tests",
@@ -260,7 +260,7 @@
           }
         ],
         "summary": "Constitution with configured-hook commits in assigned lane checkouts, scoped explicit iteration, and specifically authorized recorded bypass exceptions; integrated verification and push ownership remain separate.",
-        "verifiedCanonicalSha256": "7755a550d8348d8affe080c7e7ae54e6975fc4c85f4904b3b4382fa58b852413"
+        "verifiedCanonicalSha256": "e2aaa8d2dc3c0ab5154cd206173c48121b636b82d2e2da3b2e74b8bae9452804"
       },
       "receiptCurrent": true
     },
@@ -476,7 +476,7 @@
         "authority": "operational",
         "fullRead": true,
         "verifiedSha256": "34360608b9b96fac01816f9c78fd2201c107da92a79e836be5f4b9f474d8ee10",
-        "verifiedCommit": "41803bd4fb5f01dac841437e30120a7601a9c7ea",
+        "verifiedCommit": "81d19ad83f9e7ce1b7bd89ed42a72b2abb361387",
         "verifiedAt": "2026-09-22",
         "evidence": [
           "Bounded #2312 citation correction; existing reviewed CSS-family changes and earlier evidence remain attributable to their own receipts. Selected dangling-refs drive clean over199 docs: reports/runs/structure/main-72765-2026-09-13T06-11-26-874Z/check-structure.json. This receipt does not certify the whole gate roster or close ongoing CSS verification.",
@@ -739,8 +739,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 581,
-      "bytes": 315980,
-      "sha256": "232113f7e4f92fac9729fdccfa05b4ef412caaed4e53e310b06149748bba7da4",
+      "bytes": 316318,
+      "sha256": "14533a97c9ea1580a47a6b26252f8bde8265653c12f5dc35c926cdcc49edebb1",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -753,13 +753,13 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Path-Registry.md",
-        "assignedSha256": "232113f7e4f92fac9729fdccfa05b4ef412caaed4e53e310b06149748bba7da4",
+        "assignedSha256": "14533a97c9ea1580a47a6b26252f8bde8265653c12f5dc35c926cdcc49edebb1",
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "232113f7e4f92fac9729fdccfa05b4ef412caaed4e53e310b06149748bba7da4",
-        "verifiedCommit": "8f7ed4c4b98c112429c3918483f3a172f66ae184",
-        "verifiedAt": "2026-09-21",
+        "verifiedSha256": "14533a97c9ea1580a47a6b26252f8bde8265653c12f5dc35c926cdcc49edebb1",
+        "verifiedCommit": "81d19ad83f9e7ce1b7bd89ed42a72b2abb361387",
+        "verifiedAt": "2026-09-22",
         "evidence": [
           "Bounded D61 repair independently investigated under #2312; root read the complete relevant entry and exact diff. Prior whole-document read and claims below are retained, not repeated. Final selected dangling-refs drive over199 docs was clean: reports/runs/structure/main-72765-2026-09-13T06-11-26-874Z/check-structure.json. Historical note is a separate line so it does not suppress current citations.",
           "bounded re-attestation at 0f28e6b15: the existing full-read 174cc2961 receipt covers #1351's helper-world path move; current source retains tests/support/browser/ct-data-providers.tsx and the old tests/support/ct path is absent; #1351 remains the live program",
@@ -846,7 +846,7 @@
           }
         ],
         "summary": "D61 distinguishes the proposed hub feature from its removed implementation while preserving existing egress and roster claims.",
-        "verifiedCanonicalSha256": "232113f7e4f92fac9729fdccfa05b4ef412caaed4e53e310b06149748bba7da4"
+        "verifiedCanonicalSha256": "14533a97c9ea1580a47a6b26252f8bde8265653c12f5dc35c926cdcc49edebb1"
       },
       "receiptCurrent": true
     },
@@ -1380,7 +1380,7 @@
         "authority": "current-reference",
         "fullRead": true,
         "verifiedSha256": "3e556c8f8987a133c26a232255c4bcd7039bd0223e09f2459a80ae3f91a89919",
-        "verifiedCommit": "41803bd4fb5f01dac841437e30120a7601a9c7ea",
+        "verifiedCommit": "81d19ad83f9e7ce1b7bd89ed42a72b2abb361387",
         "verifiedAt": "2026-09-22",
         "evidence": [
           "Full document read by the scoped documentation lane; current changes checked against cfb9cea2fea7a109cd65c44485ada4d30437fc5c. Repository-resource citations and native execution guidance reflect 46b658696/cfb9cea2f; independent scheduling and compiler-executor controls passed. Exact ambient enforcement and remaining native-config integration are still separate program requirements.",
@@ -1427,9 +1427,9 @@
       "path": "docs/architecture/core/Spine-TypeScript-and-Patterns.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 135,
-      "bytes": 15004,
-      "sha256": "dfc83abed3efc0c868e31d234625cb8f8bc3f6e27a7a4c2e56244f90c89874b9",
+      "lines": 136,
+      "bytes": 15177,
+      "sha256": "ae2e0e28cc01f8b84d6ac3eb90306973f30fc64137e1ff9e0512302f5be42f3d",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1442,13 +1442,13 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Spine-TypeScript-and-Patterns.md",
-        "assignedSha256": "6b868fe0e9dc52b3778b188ee663b9ce40c933d6223786445ddd37c8486b11fe",
+        "assignedSha256": "ae2e0e28cc01f8b84d6ac3eb90306973f30fc64137e1ff9e0512302f5be42f3d",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "6b868fe0e9dc52b3778b188ee663b9ce40c933d6223786445ddd37c8486b11fe",
-        "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
-        "verifiedAt": "2026-08-30",
+        "verifiedSha256": "ae2e0e28cc01f8b84d6ac3eb90306973f30fc64137e1ff9e0512302f5be42f3d",
+        "verifiedCommit": "81d19ad83f9e7ce1b7bd89ed42a72b2abb361387",
+        "verifiedAt": "2026-09-22",
         "evidence": [
           "docs/architecture/core/Spine-TypeScript-and-Patterns.md:1 (full read; header/status evaluated)",
           "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
@@ -1467,9 +1467,10 @@
             ]
           }
         ],
-        "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
+        "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed.",
+        "verifiedCanonicalSha256": "ae2e0e28cc01f8b84d6ac3eb90306973f30fc64137e1ff9e0512302f5be42f3d"
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/architecture/core/Tier-1-DB.md",
@@ -1652,9 +1653,9 @@
       "path": "docs/architecture/core/Tier-3b-Providers.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 167,
-      "bytes": 30008,
-      "sha256": "6508cfd6f8b141cf01882626b03f6a9296cf8bfc22dd5283b0d105746093771d",
+      "lines": 169,
+      "bytes": 30367,
+      "sha256": "669db3692460fbf818458cec2d1d25ddc198c27256a90ddce75b358341221f2c",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1667,13 +1668,13 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Tier-3b-Providers.md",
-        "assignedSha256": "6508cfd6f8b141cf01882626b03f6a9296cf8bfc22dd5283b0d105746093771d",
+        "assignedSha256": "669db3692460fbf818458cec2d1d25ddc198c27256a90ddce75b358341221f2c",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "6508cfd6f8b141cf01882626b03f6a9296cf8bfc22dd5283b0d105746093771d",
-        "verifiedCommit": "8f7ed4c4b98c112429c3918483f3a172f66ae184",
-        "verifiedAt": "2026-09-21",
+        "verifiedSha256": "669db3692460fbf818458cec2d1d25ddc198c27256a90ddce75b358341221f2c",
+        "verifiedCommit": "81d19ad83f9e7ce1b7bd89ed42a72b2abb361387",
+        "verifiedAt": "2026-09-22",
         "evidence": [
           "re-attested after the agent-sdk frames fold (#1605 8946078de real tool_use/tool_result seed blocks; #1607 f8a754555 continue turn = frames + host stub) at 73c2fe6d1",
           "docs/architecture/core/Tier-3b-Providers.md:1 (full read; header/status evaluated)",
@@ -1693,7 +1694,7 @@
           }
         ],
         "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed.",
-        "verifiedCanonicalSha256": "6508cfd6f8b141cf01882626b03f6a9296cf8bfc22dd5283b0d105746093771d"
+        "verifiedCanonicalSha256": "669db3692460fbf818458cec2d1d25ddc198c27256a90ddce75b358341221f2c"
       },
       "receiptCurrent": true
     },
@@ -12857,7 +12858,7 @@
       "issue": 5,
       "lines": 58,
       "bytes": 4459,
-      "sha256": "0f90c02efbbd0396becd8d3680b730a6809307008927184e517babd5c324e550",
+      "sha256": "5cfe1987284c0e972589d428ff34b264522ef7f55aa24cf29efad6e163b4a2e5",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -12870,12 +12871,12 @@
       },
       "receipt": {
         "path": "docs/design/gate-runtime-read-first.md",
-        "assignedSha256": "0f90c02efbbd0396becd8d3680b730a6809307008927184e517babd5c324e550",
+        "assignedSha256": "5cfe1987284c0e972589d428ff34b264522ef7f55aa24cf29efad6e163b4a2e5",
         "disposition": "repaired",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "0f90c02efbbd0396becd8d3680b730a6809307008927184e517babd5c324e550",
-        "verifiedCommit": "8f7ed4c4b98c112429c3918483f3a172f66ae184",
+        "verifiedSha256": "5cfe1987284c0e972589d428ff34b264522ef7f55aa24cf29efad6e163b4a2e5",
+        "verifiedCommit": "81d19ad83f9e7ce1b7bd89ed42a72b2abb361387",
         "verifiedAt": "2026-09-22",
         "evidence": [
           "Prior receipt at 46f233e25afb95787c0249fa76249762a2f294bc: Full three-document reads in this session, followed by review of intervening changes and the current contradiction-repair diff. Scoped check:docs passed; read-first-costs and ledgers:fresh passed. Independent Sol review identified residual table instructions, corrected before this receipt. No claim of full gate implementation or #2071 completion.",
@@ -12911,7 +12912,7 @@
             ]
           }
         ],
-        "verifiedCanonicalSha256": "0f90c02efbbd0396becd8d3680b730a6809307008927184e517babd5c324e550"
+        "verifiedCanonicalSha256": "5cfe1987284c0e972589d428ff34b264522ef7f55aa24cf29efad6e163b4a2e5"
       },
       "receiptCurrent": true
     },
@@ -14326,27 +14327,27 @@
       "lane": "design",
       "issue": 5,
       "lines": 417,
-      "bytes": 35613,
-      "sha256": "0b195b4b3b6d008ca091e8546dc500a5bf40a6bd5d13e9cb742aab5022c4ad99",
+      "bytes": 35507,
+      "sha256": "b0ec5cf35579513607c7d5969c7dbbfc6f8090cd8271537dcfab02fb8de4a9d7",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "draft",
-          "updated": "2026-09-06"
+          "updated": "2026-09-22"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/pane-standardization-design.md",
-        "assignedSha256": "774710734c4a1a7595395e7f938b2edfe65d5ec0860aa83719cca51b8e7dae54",
+        "assignedSha256": "b0ec5cf35579513607c7d5969c7dbbfc6f8090cd8271537dcfab02fb8de4a9d7",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "774710734c4a1a7595395e7f938b2edfe65d5ec0860aa83719cca51b8e7dae54",
-        "verifiedCommit": "0f28e6b15f375cdec237acf22bb0149991f2f636",
-        "verifiedAt": "2026-09-10",
+        "verifiedSha256": "b0ec5cf35579513607c7d5969c7dbbfc6f8090cd8271537dcfab02fb8de4a9d7",
+        "verifiedCommit": "81d19ad83f9e7ce1b7bd89ed42a72b2abb361387",
+        "verifiedAt": "2026-09-22",
         "claims": [
           {
             "claim": "The pane axes that never drifted are exactly the structural/type-forced ones (band presence, shell-panel-body padding, required content/context/useSelectionTitle); every optional slot and prose convention drifted (listHeader, CONTENT padding, band anatomy, empty/loading arms) — so each axis moves to the highest enforcement tier its variance allows.",
@@ -14383,15 +14384,19 @@
             ]
           },
           {
-            "claim": "Refinery's hand-rolled LIST band suspends (useSuspenseQuery) with no boundary inside the pane, against an explicit non-suspending-count contract in all seven ListPaneHeader callers.",
+            "claim": "Refinery historically violated the non-suspending ListPaneHeader contract with a hand-rolled suspending header; the current header uses the non-suspending census hook, while the incident remains evidence that optional authored band JSX permits drift.",
             "evidence": [
               {
                 "kind": "code",
-                "target": "packages/client/src/features/refinery/surfaces/refinery-list-surface.tsx:301"
+                "target": "packages/client/src/features/refinery/surfaces/refinery-list-surface.tsx:348"
               },
               {
                 "kind": "code",
                 "target": "packages/client/src/features/chat/components/chat-list-header.tsx:8"
+              },
+              {
+                "kind": "provenance",
+                "target": "git:99df082889dcf9ef413c894f4f84aab5488ffbf2"
               }
             ]
           },
@@ -14421,9 +14426,10 @@
           "born-reviewed by lane cb-pane-design (author, forge) 2026-09-02 at 6a437c76c: full source read of all ten SectionDefinitions, the shell consumers (app-shell/panel-chrome/section-content/section-context-host/use-shell-layout/region-anchor), the shared composites (list-pane-header, library-surface, create-collection-surface) and every LIST surface; the measured matrix (#1191 second comment) re-verified against tip 0e1b33e11 receipts",
           "docs/design/config-revamp-design.md:724-817 (the section 8 species contract this design's divergence grammar generalizes)",
           "docs/architecture/core/client-architecture-lockdown.md sections 6a/6b/11/14 (the registry law, three-states law and browse adjudication the standards extend)"
-        ]
+        ],
+        "verifiedCanonicalSha256": "b0ec5cf35579513607c7d5969c7dbbfc6f8090cd8271537dcfab02fb8de4a9d7"
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/design/parked-options-config-port.md",

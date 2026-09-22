@@ -1,7 +1,7 @@
 ---
 kind: design
 status: draft
-updated: 2026-09-06
+updated: 2026-09-22
 ---
 
 # Pane standardization — what the shell forces vs what a section declares (#1191)
@@ -35,7 +35,7 @@ this pass adds to the matrix, each with its receipt:
 
 | # | Finding | Receipt |
 | - | - | - |
-| E1 | The band contract is already "non-suspending `useQuery` count" by explicit comment in ALL SEVEN `ListPaneHeader` callers — and Refinery's hand-rolled band **suspends** (`useSuspenseQuery`), with no boundary in the pane: the suspension bubbles past `PanelChrome` to the router tier. | `chat-list-header.tsx:8`, `corpus-list-header.tsx:8`, `analytics-list-header.tsx:9`, `databank-list-header.tsx:18`, `preset-list-header.tsx:16` vs `refinery-list-surface.tsx:301`; no `Suspense`/`QueryBoundary` in `app-shell.tsx` or `app-root.tsx` |
+| E1 | The band contract is "non-suspending `useQuery` count" in every `ListPaneHeader` caller. Refinery historically violated it with a hand-rolled suspending header at `99df0828`; `ba042d7e` repaired the instance with the current non-suspending census hook. The incident remains the proof that optional authored band JSX permits this drift. | `chat-list-header.tsx:8`, current `refinery-list-surface.tsx:348`; provenance `99df0828` |
 | E2 | CONTEXT band identity: 6 of 7 non-`none` contexts supply the `header` band (chats/characters/corpus/analytics via the tabs mint; databank/presets on the `single` arm; config via `makeConfigContext`); **Refinery supplies none** — its bracket column starts bandless (`ResolvedContextTabs.header` absent ⇒ no band). | `refinery-section.tsx:84-91` vs `registry-contracts.ts:140-153` |
 | E3 | `context.empty` (the F-12 no-selection arm): declared by chats/characters/refinery/databank/config; absent on corpus/analytics — **legitimately**, because both projections are never-`null` with unconditional tabs, so the arm is unreachable; absent on presets **by ruling** (the readout's no-selection panel is a first-class arm, preset-surface-redesign §7 D2, `presets-section.tsx:6-11`). | `corpus-section.tsx:49-50`, `analytics-section.tsx:25-30` |
 | E4 | **Extensions ships a capability lie**: `context: { kind: "none" }` with no `panels.context: "unavailable"` ⇒ `contextAvailable` stays true (`use-shell-layout.ts:111` reads ONLY `panels`), the topbar ships the detail toggle, and the pane opens onto the generic "Nothing selected — pick something from the list and its details appear here" — false: selecting a page changes nothing there. Home is the only section coupling the two spellings. | `extensions-section.tsx:48` (no `panels`), `home-section.tsx:31`, `section-context-host.tsx:27,50-52` |

@@ -21,7 +21,11 @@ export const listRowVariants = tv({
     // a marker living inside the content column can only key on the whole row's hover/focus-within through a
     // name (`group-hover/row:`). That is what lets a rest-visible marker yield to the revealed control that
     // carries the same datum (`ROW_REVEAL_SWAP`) instead of both painting at once.
-    root: "@container/list-row group/row relative flex w-full min-w-0 items-center gap-row",
+    // BOTH group spellings are load-bearing: `group/row` drives the named marker swaps below, while the
+    // client-shared ROW_REVEAL posture and this variant's floated-action hit-test arm use the unnamed
+    // `group-hover` / `group-focus-within` selectors. Dropping the unnamed group leaves the action painted
+    // but pointer-inert over the clickable body (the body intercepts every attempted press).
+    root: "@container/list-row group group/row relative flex w-full min-w-0 items-center gap-row",
     // Keeps `min-w-0` so it can shrink and let `title`'s `truncate` engage — starvation is prevented by
     // `content`'s own `min-w-24` floor below (a floor RAISES a min-content contribution, so if it lived
     // here on `body` it would pin `body` to the title's full width and force a horizontal scrollbar in a

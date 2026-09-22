@@ -1189,12 +1189,12 @@
     },
     {
       "path": "docs/design/gate-runtime-read-first.md",
-      "assignedSha256": "0f90c02efbbd0396becd8d3680b730a6809307008927184e517babd5c324e550",
+      "assignedSha256": "5cfe1987284c0e972589d428ff34b264522ef7f55aa24cf29efad6e163b4a2e5",
       "disposition": "repaired",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "0f90c02efbbd0396becd8d3680b730a6809307008927184e517babd5c324e550",
-      "verifiedCommit": "8f7ed4c4b98c112429c3918483f3a172f66ae184",
+      "verifiedSha256": "5cfe1987284c0e972589d428ff34b264522ef7f55aa24cf29efad6e163b4a2e5",
+      "verifiedCommit": "81d19ad83f9e7ce1b7bd89ed42a72b2abb361387",
       "verifiedAt": "2026-09-22",
       "evidence": [
         "Prior receipt at 46f233e25afb95787c0249fa76249762a2f294bc: Full three-document reads in this session, followed by review of intervening changes and the current contradiction-repair diff. Scoped check:docs passed; read-first-costs and ledgers:fresh passed. Independent Sol review identified residual table instructions, corrected before this receipt. No claim of full gate implementation or #2071 completion.",
@@ -1230,7 +1230,7 @@
           ]
         }
       ],
-      "verifiedCanonicalSha256": "0f90c02efbbd0396becd8d3680b730a6809307008927184e517babd5c324e550"
+      "verifiedCanonicalSha256": "5cfe1987284c0e972589d428ff34b264522ef7f55aa24cf29efad6e163b4a2e5"
     },
     {
       "path": "docs/design/gate-runtime-standardization.md",
@@ -2127,13 +2127,13 @@
     },
     {
       "path": "docs/design/pane-standardization-design.md",
-      "assignedSha256": "774710734c4a1a7595395e7f938b2edfe65d5ec0860aa83719cca51b8e7dae54",
+      "assignedSha256": "b0ec5cf35579513607c7d5969c7dbbfc6f8090cd8271537dcfab02fb8de4a9d7",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "774710734c4a1a7595395e7f938b2edfe65d5ec0860aa83719cca51b8e7dae54",
-      "verifiedCommit": "0f28e6b15f375cdec237acf22bb0149991f2f636",
-      "verifiedAt": "2026-09-10",
+      "verifiedSha256": "b0ec5cf35579513607c7d5969c7dbbfc6f8090cd8271537dcfab02fb8de4a9d7",
+      "verifiedCommit": "81d19ad83f9e7ce1b7bd89ed42a72b2abb361387",
+      "verifiedAt": "2026-09-22",
       "claims": [
         {
           "claim": "The pane axes that never drifted are exactly the structural/type-forced ones (band presence, shell-panel-body padding, required content/context/useSelectionTitle); every optional slot and prose convention drifted (listHeader, CONTENT padding, band anatomy, empty/loading arms) — so each axis moves to the highest enforcement tier its variance allows.",
@@ -2170,15 +2170,19 @@
           ]
         },
         {
-          "claim": "Refinery's hand-rolled LIST band suspends (useSuspenseQuery) with no boundary inside the pane, against an explicit non-suspending-count contract in all seven ListPaneHeader callers.",
+          "claim": "Refinery historically violated the non-suspending ListPaneHeader contract with a hand-rolled suspending header; the current header uses the non-suspending census hook, while the incident remains evidence that optional authored band JSX permits drift.",
           "evidence": [
             {
               "kind": "code",
-              "target": "packages/client/src/features/refinery/surfaces/refinery-list-surface.tsx:301"
+              "target": "packages/client/src/features/refinery/surfaces/refinery-list-surface.tsx:348"
             },
             {
               "kind": "code",
               "target": "packages/client/src/features/chat/components/chat-list-header.tsx:8"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:99df082889dcf9ef413c894f4f84aab5488ffbf2"
             }
           ]
         },
@@ -2208,7 +2212,8 @@
         "born-reviewed by lane cb-pane-design (author, forge) 2026-09-02 at 6a437c76c: full source read of all ten SectionDefinitions, the shell consumers (app-shell/panel-chrome/section-content/section-context-host/use-shell-layout/region-anchor), the shared composites (list-pane-header, library-surface, create-collection-surface) and every LIST surface; the measured matrix (#1191 second comment) re-verified against tip 0e1b33e11 receipts",
         "docs/design/config-revamp-design.md:724-817 (the section 8 species contract this design's divergence grammar generalizes)",
         "docs/architecture/core/client-architecture-lockdown.md sections 6a/6b/11/14 (the registry law, three-states law and browse adjudication the standards extend)"
-      ]
+      ],
+      "verifiedCanonicalSha256": "b0ec5cf35579513607c7d5969c7dbbfc6f8090cd8271537dcfab02fb8de4a9d7"
     },
     {
       "path": "docs/design/parked-options-config-port.md",

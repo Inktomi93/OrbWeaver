@@ -1,0 +1,122 @@
+{
+  "schemaVersion": 1,
+  "task": "authored and product shipped-content membership review",
+  "result": "CONFIRMED",
+  "reviewedCommit": "c90152b7dfa7b31ac29c3ac49ba6f09334fda1a7",
+  "checkout": "/home/inktomi/.codex/worktrees/ast-authored-membership/orbweaver",
+  "reviewIsolation": {
+    "reviewer": "fresh-context verifier lane",
+    "startingState": "clean checkout at the reviewed commit",
+    "authorEvidenceTreatment": "The supplied 19/20 hook run, regenerated stale cost row, and lane-reported focused totals were treated as leads only. The verdict rests on source inspection and checks reproduced in this review session.",
+    "mutations": "No implementation, test, policy, or generated report source was edited. This durable review receipt is the only intentional worktree change."
+  },
+  "issueSummary": "The implementation is sound, but the lane's 45-policy denominator is false. The production policy loader returns 44 final GatePolicy descriptors whose resolved populations reference @authored or @product: 33 populations widen to admit shipped showcase/default-content source, 4 simplified declarations remain set-identical because those roots were already explicit, and 7 policies retain narrower filters that admit neither package. The apparent 45th match is tooling/src/verify/gates/bus-fact-health.ts:44, a historical header comment containing @authored rather than a loaded policy declaration. No committed test asserts the false 45 denominator, and the commit subject makes no numeric claim.",
+  "populationAccounting": {
+    "productionLoadedCompositeConsumers": 44,
+    "widened": 33,
+    "setIdenticalAfterRedundantRootRemoval": 4,
+    "filteredToNeitherShippedContentRoot": 7,
+    "sum": 44,
+    "setIdenticalPolicies": ["caught-failure-ownership", "dangling-ref-citations", "dangling-refs", "no-blanket-suppression"],
+    "filteredPolicies": [
+      "no-chat-trpc-in-surface",
+      "no-context-returntype",
+      "no-inline-optimistic-in-surface",
+      "no-test-fabrication",
+      "persistence-no-in-memory-state",
+      "test-fixture-imports",
+      "test-mock-doctrine"
+    ],
+    "widenedPolicies": [
+      "chat-stream-writes-in-bus-only",
+      "content-part-seam",
+      "d-citation-integrity",
+      "dangling-doc-cite",
+      "gate-ignore-inventory",
+      "member-card-clamped",
+      "no-await-db-in-loop",
+      "no-context-provider",
+      "no-decorators",
+      "no-direct-useform",
+      "no-forward-ref",
+      "no-hardcoded-model-prose",
+      "no-if-is-group",
+      "no-inline-union-redecl",
+      "no-legacy-react-api",
+      "no-loose-id-cast",
+      "no-mint-via-cast",
+      "no-raw-clock",
+      "no-raw-id",
+      "no-raw-intl-time",
+      "no-raw-random",
+      "no-static-staletime",
+      "no-use-context",
+      "no-vanity-alias",
+      "pd-citation-integrity",
+      "platform-spellings",
+      "query-machine-seals",
+      "scrubber-home",
+      "suppressions",
+      "typeid-prefix-boundary",
+      "zod-error-issues-home",
+      "zod-modern-spellings",
+      "zustand-selector-stability"
+    ],
+    "literalSearchFalsePositive": "tooling/src/verify/gates/bus-fact-health.ts:44 is comment text describing an earlier conversion population; it is not the final descriptor's population.",
+    "shippedSourceFilesAtReview": ["packages/showcase-plugins/src/index.ts", "packages/default-content/src/index.ts"],
+    "fixtureAndTestBoundary": "The generic product roots resolve only package src directories. A source-tree search found no test, spec, tests, or fixtures path below the nine product src roots, and packages/default-content/package.json remains excluded by populationIncludes."
+  },
+  "sourceFindings": [
+    {
+      "path": "tooling/src/verify/contract/population.ts",
+      "lines": "25-56, 90-109, 140-188",
+      "finding": "The root table maps showcase/default-content to their package src directories; both exhaustive classifications mark them true; @product and @authored derive from those maps while the fixed six-root @packages snapshot stays unchanged."
+    },
+    {
+      "path": "tests/tooling/verify/contract/population.test.ts",
+      "lines": "173-188",
+      "finding": "The contract test pins the strict-subset relationship and both shipped-content memberships, including the 12-root authored and 9-root product totals."
+    },
+    {
+      "path": "tests/tooling/verify/lib/population-resolver.test.ts",
+      "lines": "22-49",
+      "finding": "The resolver test pins the full composite expansion and proves source admission while excluding packages/default-content/package.json."
+    },
+    {
+      "path": "tooling/src/verify/gates/bus-fact-health.ts",
+      "lines": "43-48",
+      "finding": "The extra literal-search match is historical comment prose; the current descriptor is scoped to contracts/server and is not a composite consumer."
+    }
+  ],
+  "verification": [
+    {
+      "command": "pnpm test:scoped tests/tooling/verify/contract/population.test.ts tests/tooling/verify/lib/population-resolver.test.ts",
+      "result": "PASS: 2 files, 57/57 tests",
+      "artifact": "reports/runs/test/orbweaver-2874499-2026-09-22T06-05-58-593Z/test-report.json"
+    },
+    {
+      "command": "pnpm gate:contract",
+      "result": "PASS: 0 findings across 347 gate modules"
+    },
+    {
+      "command": "pnpm exec node --experimental-strip-types --input-type=module -e '<loadPolicies plus populationIncludes census over final and parent descriptors>'",
+      "result": "PASS: 44 production-loaded composite consumers; 33 widened, 4 set-identical, 7 filtered to neither root. All 37 consumers whose final populations admit the content roots include both real source paths."
+    },
+    {
+      "command": "pnpm check:structure --check caught-failure-ownership,chat-stream-writes-in-bus-only,content-part-seam,d-citation-integrity,dangling-doc-cite,dangling-ref-citations,dangling-refs,gate-ignore-inventory,member-card-clamped,no-await-db-in-loop,no-blanket-suppression,no-context-provider,no-decorators,no-direct-useform,no-forward-ref,no-hardcoded-model-prose,no-if-is-group,no-inline-union-redecl,no-legacy-react-api,no-loose-id-cast,no-mint-via-cast,no-raw-clock,no-raw-id,no-raw-intl-time,no-raw-random,no-static-staletime,no-use-context,no-vanity-alias,pd-citation-integrity,platform-spellings,query-machine-seals,scrubber-home,suppressions,typeid-prefix-boundary,zod-error-issues-home,zod-modern-spellings,zustand-selector-stability",
+      "result": "PASS: whole-repository scope, 37/37 selected policies ran, 0 effective findings, 0 authority alarms, 0 tool errors, 0 withheld, complete verdict",
+      "artifact": "reports/runs/structure/orbweaver-2876707-2026-09-22T06-06-38-599Z/check-structure.json"
+    },
+    {
+      "command": "find <nine product src roots> for test/spec basenames and tests/fixtures path segments",
+      "result": "PASS: 0 matching shipped-source paths; the widened roots do not currently import test or fixture files into @product"
+    }
+  ],
+  "behavioralConclusion": "The resolver, exhaustive membership tables, policy headers, shared fact populations, and policy proof rows agree. Generic composite consumers now see the two shipped source files; redundant explicit roots were removed only where the derived composite supplies the same membership; nested filters retain their declared narrower subjects. The focused real-tree run exercised every final consumer that actually admits those roots and found no policy, authority, fact, tool, or withholding failure.",
+  "limitations": [
+    "This review ran the 37 affected policies that actually admit showcase/default-content over the whole repository, not the consolidated all-policy pnpm check. The consolidated whole-tree check remains owed.",
+    "The seven filtered composite consumers were accounted from their resolved declarations and excluded paths; they were not included in the 37-policy structure command because the changed package roots remain outside their final evidence planes.",
+    "The supplied 19/20 hook run was not independently replayed or promoted to verdict evidence."
+  ],
+  "findings": []
+}

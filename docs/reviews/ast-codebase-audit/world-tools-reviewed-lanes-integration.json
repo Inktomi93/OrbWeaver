@@ -1,0 +1,83 @@
+{
+  "schema": "orbweaver.world-tools-reviewed-lanes-integration",
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-22T07:27:57.698Z",
+  "integrationHead": "81d19ad83f9e7ce1b7bd89ed42a72b2abb361387",
+  "base": "dc0f8eb092bd6706c8458cf1d59578ba07db9181",
+  "integratedCommits": {
+    "authoredProductMembership": [
+      "0f9fc4aa5"
+    ],
+    "inferenceIdentityAndDatabase": [
+      "28ecc2db4",
+      "47e03a8b1",
+      "8bdff8690",
+      "1627d3c9a"
+    ],
+    "inferenceTestTopology": [
+      "ca118c6e0",
+      "1de8973a8",
+      "e07b72d6e",
+      "9dec43747",
+      "81d19ad83"
+    ]
+  },
+  "independentReviews": [
+    "docs/reviews/ast-codebase-audit/world-tools-authored-product-membership-review.json",
+    "docs/reviews/ast-codebase-audit/world-tools-inference-boundaries-security-review.json",
+    "docs/reviews/ast-codebase-audit/world-tools-session-entry-connection-db-security-review.json",
+    "docs/reviews/ast-codebase-audit/world-tools-inference-test-topology-review.json",
+    "docs/reviews/ast-codebase-audit/world-tools-refinery-session-delete-ui-review.json"
+  ],
+  "mergedTreeVerification": [
+    {
+      "command": "pnpm check:structure --check test-presence-inference",
+      "result": "PASS: 114 inference sources; 50 inference tests; exact=34; suite=71; non-runtime=9; uncovered=0; zero findings, alarms, tool errors, or withheld policies",
+      "artifact": "reports/runs/structure/orbweaver-3240521-2026-09-22T07-07-20-204Z/check-structure.json"
+    },
+    {
+      "command": "pnpm test:scoped tests/tooling/verify/gates/test-presence-inference-family.suite.test.ts tests/inference/backends/agent-sdk/executable.test.ts tests/inference/catalog/endpoint.test.ts tests/inference/catalog/openrouter.test.ts",
+      "result": "PASS: 4 files, 20 tests",
+      "artifact": "reports/runs/test/orbweaver-3331246-2026-09-22T07-26-10-379Z/test-report.json"
+    },
+    {
+      "command": "pnpm test:ct tests/client/features/refinery/surfaces/refinery-list-surface.ct.tsx",
+      "result": "PASS: 14 tests"
+    },
+    {
+      "command": "pnpm typecheck --config packages/client/tsconfig.json --config packages/ui/tsconfig.json --config packages/inference/tsconfig.json --config packages/db/tsconfig.json --config packages/server/tsconfig.json --config tooling/tsconfig.json --config tsconfig.tests-dom.json --config tsconfig.json",
+      "result": "PASS: 8 selected native programs"
+    },
+    {
+      "command": "pnpm check:drizzle-kit",
+      "result": "PASS"
+    },
+    {
+      "command": "pnpm check:db-baseline",
+      "result": "PASS: five-migration chain through 0004"
+    },
+    {
+      "command": "pnpm check:ledgers-fresh",
+      "result": "PASS: 625 caught-failure sites and all other derived ledgers fresh"
+    },
+    {
+      "command": "pnpm check:docs",
+      "result": "PASS: 423 files"
+    },
+    {
+      "command": "pnpm check:doc-catalog",
+      "result": "PASS: 1,563 documents; 50 allowed pending fact-checks"
+    }
+  ],
+  "repairedIntegrationDrift": [
+    "Regenerated caught-failure ownership after two supervised-detach sites disappeared and merged source lines moved.",
+    "Regenerated gate-runtime read-first sizes after the 348th policy landed.",
+    "Re-attested cherry-picked law bytes on the integrated ancestry.",
+    "Corrected the pane design and catalog claim that had continued to describe Refinery's already-fixed suspending list header and had cited an unrelated line."
+  ],
+  "limitations": [
+    "The whole-repository pnpm check and final 30-verb AST denominator remain program-level obligations.",
+    "The topology policy proves test presence and static reachability, not branch-level assertion coverage.",
+    "No live database was opened or mutated."
+  ]
+}

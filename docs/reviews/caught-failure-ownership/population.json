@@ -2,16 +2,16 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 627,
+    "sites": 625,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 627,
+      "deliberate-absorb": 625,
       "unproven": 0
     },
     "byGrammar": {
       "default": 169,
       "empty": 311,
-      "promise": 147
+      "promise": 145
     }
   },
   "rows": [
@@ -1019,7 +1019,7 @@
     {
       "siteId": "packages/client/src/features/refinery/surfaces/refinery-list-surface.tsx::openRefinery::1",
       "path": "packages/client/src/features/refinery/surfaces/refinery-list-surface.tsx",
-      "line": 155,
+      "line": 187,
       "column": 18,
       "grammar": "promise",
       "position": "openRefinery",
@@ -1027,7 +1027,7 @@
       "snippet": "void openRefinery(id).catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "useOpenRefinery's own errorToast",
-      "markerLine": 153
+      "markerLine": 185
     },
     {
       "siteId": "packages/client/src/features/roster-preset/components/roster-picker.tsx::startChat::1",
@@ -1578,7 +1578,7 @@
     {
       "siteId": "packages/inference/src/backends/agent-sdk/catalog.ts::catch::1",
       "path": "packages/inference/src/backends/agent-sdk/catalog.ts",
-      "line": 147,
+      "line": 148,
       "column": 5,
       "grammar": "empty",
       "position": "catch",
@@ -1586,12 +1586,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "account identity is an optional verify diagnostic and `undefined` is its documented miss result. Precedent: packages/client/src/lib/perf-marks.ts accepts the same best-effort diagnostic loss. Ends if account identity becomes part of the auth verdict.",
-      "markerLine": 146
+      "markerLine": 147
     },
     {
       "siteId": "packages/inference/src/backends/agent-sdk/catalog.ts::err::1",
       "path": "packages/inference/src/backends/agent-sdk/catalog.ts",
-      "line": 95,
+      "line": 96,
       "column": 14,
       "grammar": "empty",
       "position": "err",
@@ -1599,7 +1599,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "bounded best-effort teardown is owned by the warning log; the model-discovery result or primary failure remains authoritative. Precedent: the gate mustPass fixture packages/server/src/infra/probe/cleanup.ts proves the same bounded teardown absorber. Ends if the warning disappears.",
-      "markerLine": 94
+      "markerLine": 95
     },
     {
       "siteId": "packages/inference/src/backends/agent-sdk/executable.ts::catch::1",
@@ -1617,7 +1617,7 @@
     {
       "siteId": "packages/inference/src/backends/agent-sdk/runner.ts::catch::1",
       "path": "packages/inference/src/backends/agent-sdk/runner.ts",
-      "line": 297,
+      "line": 304,
       "column": 5,
       "grammar": "empty",
       "position": "catch",
@@ -1625,12 +1625,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "context fill is an optional bounded diagnostic and `undefined` omits only that sidecar. Precedent: packages/client/src/lib/perf-marks.ts accepts the same best-effort diagnostic loss. Ends if the probe starts governing the turn result.",
-      "markerLine": 296
+      "markerLine": 303
     },
     {
       "siteId": "packages/inference/src/backends/agent-sdk/session/frames.ts::catch::1",
       "path": "packages/inference/src/backends/agent-sdk/session/frames.ts",
-      "line": 111,
+      "line": 113,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -1638,12 +1638,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "malformed model-emitted arguments become `null`, which toSdkBlock maps to an empty object so the tool pair remains wire-valid. Precedent: the gate mustPass fixture packages/server/src/infra/auth/parser.ts proves the same fail-closed parse default. Ends if null loses that owner.",
-      "markerLine": 110
+      "markerLine": 112
     },
     {
       "siteId": "packages/inference/src/backends/agent-sdk/session/store.ts::err::1",
       "path": "packages/inference/src/backends/agent-sdk/session/store.ts",
-      "line": 83,
+      "line": 75,
       "column": 12,
       "grammar": "empty",
       "position": "err",
@@ -1651,12 +1651,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "this best-effort persistence failure is owned by the injected warning log; the in-memory session remains authoritative. Precedent: the gate mustPass fixture packages/server/src/domain/probe/logged.ts proves the same contextual warning owner. Ends if the warning or cache owner disappears.",
-      "markerLine": 82
+      "markerLine": 74
     },
     {
       "siteId": "packages/inference/src/backends/agent-sdk/session/store.ts::err::2",
       "path": "packages/inference/src/backends/agent-sdk/session/store.ts",
-      "line": 97,
+      "line": 89,
       "column": 12,
       "grammar": "empty",
       "position": "err",
@@ -1664,7 +1664,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "this best-effort persistence failure is owned by the injected warning log; the in-memory session remains authoritative. Precedent: the gate mustPass fixture packages/server/src/domain/probe/logged.ts proves the same contextual warning owner. Ends if the warning or cache owner disappears.",
-      "markerLine": 96
+      "markerLine": 88
     },
     {
       "siteId": "packages/inference/src/backends/agent-sdk/terminal-tools.ts::err::1",
@@ -1721,7 +1721,7 @@
     {
       "siteId": "packages/inference/src/backends/kit/retry.ts::raw::1",
       "path": "packages/inference/src/backends/kit/retry.ts",
-      "line": 126,
+      "line": 127,
       "column": 14,
       "grammar": "empty",
       "position": "raw",
@@ -1729,25 +1729,12 @@
       "snippet": "} catch (raw) {",
       "verdict": "deliberate-absorb",
       "reason": "the caught value is retained in lastError and either rethrown unchanged or followed by a span-recorded retry. Precedent: the gate mustFlag fixture packages/server/src/domain/probe/opaque-rethrow-helper.ts documents the same real but syntactically opaque propagation. Ends if either terminal propagation path disappears.",
-      "markerLine": 125
-    },
-    {
-      "siteId": "packages/inference/src/backends/local-light/index.ts::Promise.resolve::1",
-      "path": "packages/inference/src/backends/local-light/index.ts",
-      "line": 43,
-      "column": 10,
-      "grammar": "promise",
-      "position": "Promise.resolve",
-      "ordinal": 1,
-      "snippet": "void Promise.resolve()",
-      "verdict": "deliberate-absorb",
-      "reason": "Promise.resolve turns a synchronous span throw into the same rejection path as async work, and the injected warning log names the detached root. Precedent: the gate mustPass fixture packages/server/src/domain/probe/logged.ts proves the same contextual warning owner. Ends if detach stops owning both failure modes in that log.",
-      "markerLine": 42
+      "markerLine": 126
     },
     {
       "siteId": "packages/inference/src/backends/local-light/model-cache.ts::created::1",
       "path": "packages/inference/src/backends/local-light/model-cache.ts",
-      "line": 251,
+      "line": 256,
       "column": 10,
       "grammar": "promise",
       "position": "created",
@@ -1755,25 +1742,12 @@
       "snippet": "void created.catch(() => {",
       "verdict": "deliberate-absorb",
       "reason": "the rejection arm deletes the failed single-flight entry, while every awaiting caller still receives the original rejection. Precedent: the gate mustFlag fixture packages/server/src/domain/probe/opaque-rethrow-helper.ts documents the same real but syntactically opaque propagation. Ends if either behavior changes.",
-      "markerLine": 250
-    },
-    {
-      "siteId": "packages/inference/src/backends/local-light/model-cache.ts::entry.promise::1",
-      "path": "packages/inference/src/backends/local-light/model-cache.ts",
-      "line": 239,
-      "column": 10,
-      "grammar": "promise",
-      "position": "entry.promise",
-      "ordinal": 1,
-      "snippet": "void entry.promise.then(dispose).catch(() => undefined);",
-      "verdict": "deliberate-absorb",
-      "reason": "terminal cleanup after eviction; a load rejection has no value, while every concrete dispose callback is a no-op or delegates to the sync-safe, warning-owned detach root. Precedent: the gate mustPass fixture packages/server/src/infra/probe/cleanup.ts proves the same terminal cleanup absorber. Ends if a dispose callback can throw outside detach or cleanup gains an acknowledgement contract.",
-      "markerLine": 238
+      "markerLine": 255
     },
     {
       "siteId": "packages/inference/src/backends/local-light/prefetch.ts::preload::1",
       "path": "packages/inference/src/backends/local-light/prefetch.ts",
-      "line": 77,
+      "line": 79,
       "column": 8,
       "grammar": "promise",
       "position": "preload",
@@ -1781,7 +1755,7 @@
       "snippet": ".preload(slot, modelId)",
       "verdict": "deliberate-absorb",
       "reason": "speculative prefetch owns failure through a warning and published `failed` state; first use retains the lazy load path. Precedent: packages/server/src/entry/boot/local-light-prefetch.ts accepts the same warning plus lazy-path fallback. Ends if prefetch becomes required.",
-      "markerLine": 76
+      "markerLine": 78
     },
     {
       "siteId": "packages/inference/src/backends/openai-compat/diagnostics.ts::catch::1",
@@ -1916,7 +1890,7 @@
     {
       "siteId": "packages/inference/src/registry/providers.ts::error::1",
       "path": "packages/inference/src/registry/providers.ts",
-      "line": 53,
+      "line": 52,
       "column": 14,
       "grammar": "empty",
       "position": "error",
@@ -1924,12 +1898,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "a synchronous store refusal becomes `read`'s rejection and is rethrown from the ordered publication below. Ends if the `!listed.ok` arm stops throwing `listed.error`.",
-      "markerLine": 52
+      "markerLine": 51
     },
     {
       "siteId": "packages/inference/src/registry/providers.ts::publication::1",
       "path": "packages/inference/src/registry/providers.ts",
-      "line": 38,
+      "line": 37,
       "column": 23,
       "grammar": "promise",
       "position": "publication",
@@ -1937,12 +1911,12 @@
       "snippet": "publicationTail = publication.then(",
       "verdict": "deliberate-absorb",
       "reason": "callers receive and own `publication`; this sibling chain only advances the serialization tail after either verdict. Ends if the returned promise stops carrying the rejection.",
-      "markerLine": 37
+      "markerLine": 36
     },
     {
       "siteId": "packages/inference/src/registry/providers.ts::read::1",
       "path": "packages/inference/src/registry/providers.ts",
-      "line": 57,
+      "line": 56,
       "column": 22,
       "grammar": "promise",
       "position": "read",
@@ -1950,12 +1924,12 @@
       "snippet": "const snapshot = read.then(",
       "verdict": "deliberate-absorb",
       "reason": "the rejection is retained as the `ok:false` snapshot and rethrown inside `publishInOrder`; it is never treated as an empty provider list. Ends if the `!listed.ok` arm stops throwing.",
-      "markerLine": 56
+      "markerLine": 55
     },
     {
       "siteId": "packages/inference/src/roles/role-clients.ts::Promise.resolve::1",
       "path": "packages/inference/src/roles/role-clients.ts",
-      "line": 95,
+      "line": 94,
       "column": 13,
       "grammar": "promise",
       "position": "Promise.resolve",
@@ -1963,7 +1937,7 @@
       "snippet": "await Promise.resolve(",
       "verdict": "deliberate-absorb",
       "reason": "strike-out is a passenger side effect; its failure is warning-logged and the provider's original error is rethrown. Precedent: packages/server/src/entry/import/run-profile-import.ts accepts the same passenger-side-effect failure while preserving the primary owner. Ends if either owner changes.",
-      "markerLine": 94
+      "markerLine": 93
     },
     {
       "siteId": "packages/kit/src/cel/index.ts::err::1",
@@ -3281,7 +3255,7 @@
     {
       "siteId": "packages/server/src/entry/boot/local-light-prefetch.ts::err::1",
       "path": "packages/server/src/entry/boot/local-light-prefetch.ts",
-      "line": 49,
+      "line": 50,
       "column": 12,
       "grammar": "default",
       "position": "err",
@@ -3289,7 +3263,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "DELIBERATE fail-closed. The owner of a resolver failure is the REQUEST that hits it — this is a speculative pre-warm asking a question it is allowed not to get an answer to, and the only consequence of `null` here is that the box keeps the lazy path it had before this file existed. `no-connection` is the ordinary answer; anything else is surfaced as a structured log naming the task + reason. Ends if the prefetch ever becomes required for correctness rather than latency.",
-      "markerLine": 48
+      "markerLine": 49
     },
     {
       "siteId": "packages/server/src/entry/compose/automation-plugin.ts::catch::1",

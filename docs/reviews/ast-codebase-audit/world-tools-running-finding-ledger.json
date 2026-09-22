@@ -1,12 +1,12 @@
 {
   "schema": "orbweaver.ast-running-finding-ledger",
   "schemaVersion": 1,
-  "generatedAt": "2026-09-22T04:25:17.931Z",
+  "generatedAt": "2026-09-22T07:27:57.698Z",
   "currentTree": {
-    "head": "8f7ed4c4b98c112429c3918483f3a172f66ae184",
+    "head": "81d19ad83f9e7ce1b7bd89ed42a72b2abb361387",
     "dirty": true,
-    "dirtyEntryCount": 572,
-    "statusSha256": "fbf5cbcea8cc143f39d6633bca5c8094833a6e4b51737dc7d3ffe29458f6f729",
+    "dirtyEntryCount": 18,
+    "statusSha256": "70f759f7873bf9c6163537b75237023bf5f888d04c5795fd16650839473163a8",
     "warning": "HEAD alone does not identify this shared dirty tree; current-tree claims require a receipt that names both its capture and scope."
   },
   "reconstruction": {
@@ -79,9 +79,9 @@
     }
   ],
   "sourceManifest": {
-    "currentHead": "8f7ed4c4b98c112429c3918483f3a172f66ae184",
-    "count": 463,
-    "durableCount": 149,
+    "currentHead": "81d19ad83f9e7ce1b7bd89ed42a72b2abb361387",
+    "count": 470,
+    "durableCount": 156,
     "temporaryCount": 237,
     "transcriptCount": 77,
     "sources": [
@@ -3509,6 +3509,17 @@
         "capturedHead": "8f7ed4c4b98c112429c3918483f3a172f66ae184"
       },
       {
+        "path": "docs/reviews/ast-codebase-audit/world-tools-authored-product-membership-review.json",
+        "durability": "repository-durable",
+        "mediaType": "application/json",
+        "bytes": 8089,
+        "sha256": "d69c6fa73343e3740c8f9d036c8a3297b57cfb82dd9600acc0c0339f069c716b",
+        "modifiedAt": "2026-09-22T06:16:57.445Z",
+        "captureTime": "2026-09-22T06:17:45.048Z",
+        "capturedHead": "c90152b7dfa7b31ac29c3ac49ba6f09334fda1a7",
+        "capturedWorktreeState": "clean reviewed commit plus receipt only"
+      },
+      {
         "path": "docs/reviews/ast-codebase-audit/world-tools-biome-naming-convention-audit.json",
         "durability": "repository-durable",
         "mediaType": "application/json",
@@ -4189,6 +4200,17 @@
         "capturedHead": "8f7ed4c4b98c112429c3918483f3a172f66ae184"
       },
       {
+        "path": "docs/reviews/ast-codebase-audit/world-tools-inference-boundaries-security-review.json",
+        "durability": "repository-durable",
+        "mediaType": "application/json",
+        "bytes": 14155,
+        "sha256": "ff5468815706dc9157ed1b079c5f68fea38269dac731ce35e1460973d2c823e3",
+        "modifiedAt": "2026-09-22T07:01:51.123Z",
+        "captureTime": "2026-09-22T07:04:11.847Z",
+        "capturedHead": "cb989016d56780846bd2973ec0bb96b2f3642eb0",
+        "capturedWorktreeState": "clean reviewed source stack plus receipt only"
+      },
+      {
         "path": "docs/reviews/ast-codebase-audit/world-tools-inference-step9-reconciliation.json",
         "durability": "repository-durable",
         "mediaType": "application/json",
@@ -4197,6 +4219,17 @@
         "modifiedAt": "2026-09-22T00:25:33.667Z",
         "captureTime": "2026-09-22T00:25:33.667Z",
         "capturedHead": "8f7ed4c4b98c112429c3918483f3a172f66ae184"
+      },
+      {
+        "path": "docs/reviews/ast-codebase-audit/world-tools-inference-test-topology-review.json",
+        "durability": "repository-durable",
+        "mediaType": "application/json",
+        "bytes": 8238,
+        "sha256": "caa0ee58314bbfbb49c852916df73cb7a7a36ae9cf188567641fb61de1a4c740",
+        "modifiedAt": "2026-09-22T07:05:38.684Z",
+        "captureTime": "2026-09-22T07:06:17.434Z",
+        "capturedHead": "ab02d359c42eeb1ce4a22f2c73848f3fc080f493",
+        "capturedWorktreeState": "exact quiescent reviewed source stack plus receipt only"
       },
       {
         "path": "docs/reviews/ast-codebase-audit/world-tools-json-output-report.json",
@@ -4469,6 +4502,17 @@
         "capturedHead": "8f7ed4c4b98c112429c3918483f3a172f66ae184"
       },
       {
+        "path": "docs/reviews/ast-codebase-audit/world-tools-refinery-session-delete-ui-review.json",
+        "durability": "repository-durable",
+        "mediaType": "application/json",
+        "bytes": 7365,
+        "sha256": "5d373e73323db80ee2728fc963cc4bfbc696d89f16ccfc53463938cca9c886d8",
+        "modifiedAt": "2026-09-22T06:04:09.039Z",
+        "captureTime": "2026-09-22T06:05:00.322Z",
+        "capturedHead": "dc0f8eb092bd6706c8458cf1d59578ba07db9181",
+        "capturedWorktreeState": "dirty repair candidate"
+      },
+      {
         "path": "docs/reviews/ast-codebase-audit/world-tools-registry-candidates.json",
         "durability": "repository-durable",
         "mediaType": "application/json",
@@ -4547,6 +4591,17 @@
         "modifiedAt": "2026-09-21T08:53:51.871Z",
         "captureTime": "2026-09-21T08:53:51.871Z",
         "capturedHead": "8f7ed4c4b98c112429c3918483f3a172f66ae184"
+      },
+      {
+        "path": "docs/reviews/ast-codebase-audit/world-tools-reviewed-lanes-integration.json",
+        "durability": "repository-durable",
+        "mediaType": "application/json",
+        "bytes": 3715,
+        "sha256": "196dabf2abaf0f9ce5e58a434d5275af0876c1c4401579eb9b625be3804913b1",
+        "modifiedAt": "2026-09-22T07:27:57.698Z",
+        "captureTime": "2026-09-22T07:27:57.698Z",
+        "capturedHead": "81d19ad83f9e7ce1b7bd89ed42a72b2abb361387",
+        "capturedWorktreeState": "staged integration checkpoint"
       },
       {
         "path": "docs/reviews/ast-codebase-audit/world-tools-route-trpc-migration-ledger.json",
@@ -4639,6 +4694,17 @@
         "capturedHead": "8f7ed4c4b98c112429c3918483f3a172f66ae184"
       },
       {
+        "path": "docs/reviews/ast-codebase-audit/world-tools-session-entry-connection-db-security-review.json",
+        "durability": "repository-durable",
+        "mediaType": "application/json",
+        "bytes": 9314,
+        "sha256": "d71ff6d41b3761723752c2b36a6cc7d75dac1bf30542dc3d090d1df4c682ad57",
+        "modifiedAt": "2026-09-22T07:01:51.124Z",
+        "captureTime": "2026-09-22T07:04:11.847Z",
+        "capturedHead": "92e229b112bb318e63186cbf9ba6274a66461b3b",
+        "capturedWorktreeState": "clean reviewed source stack plus receipt only"
+      },
+      {
         "path": "docs/reviews/ast-codebase-audit/world-tools-small-package-rot-triage.json",
         "durability": "repository-durable",
         "mediaType": "application/json",
@@ -4717,6 +4783,17 @@
         "modifiedAt": "2026-09-22T00:25:33.685Z",
         "captureTime": "2026-09-22T00:25:33.685Z",
         "capturedHead": "8f7ed4c4b98c112429c3918483f3a172f66ae184"
+      },
+      {
+        "path": "docs/reviews/ast-codebase-audit/world-tools-testonly-client-after-refinery-wiring.json",
+        "durability": "repository-durable",
+        "mediaType": "application/json",
+        "bytes": 7323,
+        "sha256": "bb07a4819ffe68bc81ced835851fe9dc7acc04d9180b973f90fa6319ffa9f668",
+        "modifiedAt": "2026-09-22T05:41:17.092Z",
+        "captureTime": "2026-09-22T05:35:15.693Z",
+        "capturedHead": "dc0f8eb092bd6706c8458cf1d59578ba07db9181",
+        "capturedWorktreeState": "dirty repair candidate"
       },
       {
         "path": "docs/reviews/ast-codebase-audit/world-tools-testonly-remaining-triage.json",
@@ -5502,19 +5579,34 @@
     },
     {
       "id": "ast:clientgap-app-router-provenance",
-      "status": "tool-defect",
+      "status": "resolved",
       "source": "docs/reviews/ast-codebase-audit/world-tools-app-router-fidelity-review.json",
       "redFirst": "Direct routeTrpc stale-output/wrong-input controls both produced unused @ts-expect-error directives; an in-memory unrelated intersection made UnrelatedServerOnlyView live with no procedure edge.",
-      "repair": "Prior provenance and route fixture repair is REFUTED and back in rework under #2533/#2551.",
-      "rerunReview": "The 8-row real-tree receipt is internally consistent but insufficient. Both blocking counterexamples must turn green, followed by the focused suites, current-tree clientgap rerun, and independent review."
+      "repair": "Procedure-specific provenance now follows the called AppRouter procedure and routeTrpc direct calls derive key, input, and success output without an opt-in wrapper.",
+      "rerunReview": "CONFIRMED by world-tools-app-router-final-current-review.json: both planted counterexamples discriminate, focused tests pass 8/8, the 500-procedure scale control resolves all 500 in 260ms, and the complete whole-tree clientgap rerun reports 8/8 findings.",
+      "implementationReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-app-router-fidelity-rerepair.json",
+        "docs/reviews/ast-codebase-audit/world-tools-app-router-clientgap-final.json"
+      ],
+      "reviewReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-app-router-final-current-review.json"
+      ]
     },
     {
       "id": "ast:clientgap-provenance-heap-exhaustion",
-      "status": "tool-defect",
+      "status": "resolved",
       "source": "/tmp/world-tools-app-router-clientgap-rerepair-confirm.json",
       "redFirst": "The production whole-tree command exhausted the configured 16GB heap after approximately 293 seconds and exited 134; lifecycle-only output proves no result was produced.",
-      "repair": "Implementation lane is optimizing procedure-specific provenance while retaining procedure-linked identity and the healthy/refusal controls.",
-      "rerunReview": "Exactly one final whole-tree retry is owed after focused controls pass; an OOM/error cannot be classified as zero findings or a denominator."
+      "repair": "Procedure-indexed provenance replaced the whole-world structural assignability path while preserving procedure-linked identity and refusal controls.",
+      "rerunReview": "CONFIRMED by world-tools-app-router-final-current-review.json: the 500-procedure scale control completed in 260ms and the final whole-tree clientgap command exited 0 with status=complete, 410 consumed procedures, 283 contract declarations, and all 8 findings shown.",
+      "implementationReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-app-router-fidelity-rerepair.json",
+        "docs/reviews/ast-codebase-audit/world-tools-app-router-clientgap-final.json"
+      ],
+      "reviewReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-app-router-final-current-review.json"
+      ],
+      "historicalFailureRetainedAt": "explicitCoverageGaps.errorRuns"
     },
     {
       "id": "verify:brand-header-population-contradiction",
@@ -5576,18 +5668,25 @@
         "aggregatePointer": "$.rows[0]"
       },
       "currentCodeIdentity": {
-        "claimed": "world-tools-small-package-rot-triage.json",
-        "rederivedOnCurrentTree": false
+        "path": "packages/db/src/schema/connection-bindings.ts",
+        "symbol": "PROVIDER_ROW_TASKS",
+        "state": "removed",
+        "rederivedOnCurrentTree": true,
+        "implementationCommit": "2c3897021"
       },
-      "status": "owner-decision",
-      "disposition": "Needs owner",
-      "reason": "PROVIDER_ROW_TASKS claims DB write-boundary validation but has no direct consumer; choose DB enforcement or retire the claimed seam",
+      "status": "resolved",
+      "disposition": "retired-duplicate-provider-task-authority",
+      "reason": "Owner direction selected providerDefSchema as the sole runtime authority; the unused DB tuple and its false enforcement claim were removed without DDL change.",
       "issues": [
         2541
       ],
-      "implementationReceipts": [],
-      "reviewReceipts": [],
-      "remainingProof": "Re-derive this identity and disposition on the settled current tree; source receipts span different captures.",
+      "implementationReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-owner-2541-repair.json"
+      ],
+      "reviewReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-cleanup-combined-review.json"
+      ],
+      "remainingProof": "None for #2541; current index records Done at 2c3897021.",
       "supersededClaims": [],
       "sourceClaim": {
         "issue": 2541,
@@ -5606,12 +5705,13 @@
         "aggregatePointer": "$.rows[1]"
       },
       "currentCodeIdentity": {
-        "claimed": "world-tools-server-rot-triage.json",
-        "rederivedOnCurrentTree": false
+        "claimed": "36-row server rot triage aggregate",
+        "rederivedOnCurrentTree": true,
+        "currentIndexStatus": "Initial 36 findings adjudicated; original decisions #2542-#2545/#2550 are Done; later provider activation and chat append findings are tracked separately."
       },
-      "status": "owner-decision",
-      "disposition": "36 findings adjudicated: two bounded deletions, 27 deliberate seams, three external/compile-time consumers, two reserved unwired surfaces, two architecture forks",
-      "reason": "36 findings adjudicated: two bounded deletions, 27 deliberate seams, three external/compile-time consumers, two reserved unwired surfaces, two architecture forks",
+      "status": "resolved",
+      "disposition": "aggregate-adjudicated-and-owner-forks-implemented",
+      "reason": "The original cleanup and deliberate seams were adjudicated, and owner-directed #2542-#2545 were implemented and independently reviewed. Later #2558/#2559 findings have separate ledger identities and do not keep this historical aggregate open.",
       "issues": [
         2526,
         2542,
@@ -5619,9 +5719,21 @@
         2544,
         2545
       ],
-      "implementationReceipts": [],
-      "reviewReceipts": [],
-      "remainingProof": "Re-derive this identity and disposition on the settled current tree; source receipts span different captures.",
+      "implementationReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-server-cleanup-report.json",
+        "docs/reviews/ast-codebase-audit/world-tools-owner-2542-repair.json",
+        "docs/reviews/ast-codebase-audit/world-tools-owner-2542-rerepair.json",
+        "docs/reviews/ast-codebase-audit/world-tools-plugin-host-wrapper-retirement.json",
+        "docs/reviews/ast-codebase-audit/world-tools-owner-2544-repair.json",
+        "docs/reviews/ast-codebase-audit/world-tools-owner-2545-repair.json"
+      ],
+      "reviewReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-server-cleanup-review.json",
+        "docs/reviews/ast-codebase-audit/world-tools-owner-2542-2544-review.json",
+        "docs/reviews/ast-codebase-audit/world-tools-plugin-host-wrapper-retirement-review.json",
+        "docs/reviews/ast-codebase-audit/world-tools-owner-2545-2550-review.json"
+      ],
+      "remainingProof": "None for the original 36-row aggregate or #2542-#2545; follow-on findings remain separate rows.",
       "supersededClaims": [],
       "sourceClaim": {
         "status": "36 findings adjudicated: two bounded deletions, 27 deliberate seams, three external/compile-time consumers, two reserved unwired surfaces, two architecture forks",
@@ -5773,16 +5885,23 @@
       "currentCodeIdentity": {
         "path": "packages/client/src/features/refinery/hooks/use-refinery-mutations.ts",
         "symbol": "useDeleteRefinerySession",
-        "capturedLine": 123,
-        "rederivedOnCurrentTree": false
+        "rederivedOnCurrentTree": true,
+        "rederivedBaseCommit": "dc0f8eb092bd6706c8458cf1d59578ba07db9181",
+        "worktreeState": "dirty repair candidate"
       },
-      "status": "preserve-governed",
-      "disposition": "preserve",
-      "reason": "Carried exactly from the 63-row inventory pending current-tree re-derivation.",
+      "status": "resolved",
+      "disposition": "wired-refinery-session-delete-and-independently-confirmed",
+      "reason": "The shipped refinery session roster now consumes the real delete hook through a confirmation-gated row action and clears a successfully deleted active drill.",
       "issues": [],
-      "implementationReceipts": [],
-      "reviewReceipts": [],
-      "remainingProof": "Re-derive this identity and disposition on the settled current tree; source receipts span different captures.",
+      "implementationReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-testonly-client-after-refinery-wiring.json",
+        "packages/client/src/features/refinery/surfaces/refinery-list-surface.tsx",
+        "tests/client/features/refinery/surfaces/refinery-list-surface.ct.tsx"
+      ],
+      "reviewReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-refinery-session-delete-ui-review.json"
+      ],
+      "remainingProof": "Committed/integrated-tree verification only; the implementation and independent UI acceptance scope are complete.",
       "supersededClaims": [],
       "sourceClaim": {
         "identity": "packages/client/src/features/refinery/hooks/use-refinery-mutations.ts:123:useDeleteRefinerySession",
@@ -6705,16 +6824,21 @@
       "currentCodeIdentity": {
         "path": "packages/server/src/domain/chat/substrate/auth/matrix.ts",
         "symbol": "authorityForSurface",
-        "capturedLine": 221,
-        "rederivedOnCurrentTree": false
+        "state": "removed",
+        "rederivedOnCurrentTree": true,
+        "implementationCommit": "2c68d0453"
       },
-      "status": "preserve-governed",
-      "disposition": "preserve",
-      "reason": "Carried exactly from the 63-row inventory pending current-tree re-derivation.",
+      "status": "resolved",
+      "disposition": "retired-duplicate-nonverb-authority-plane",
+      "reason": "Owner-directed caller tracing proved the string-keyed classifier enforced no production path and duplicated the live typed verb/stream authorization planes; the function, export, and test-only anchors were removed together.",
       "issues": [],
-      "implementationReceipts": [],
-      "reviewReceipts": [],
-      "remainingProof": "Re-derive this identity and disposition on the settled current tree; source receipts span different captures.",
+      "implementationReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-owner-2545-repair.json"
+      ],
+      "reviewReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-owner-2545-2550-review.json"
+      ],
+      "remainingProof": "None for #2545; post-deletion AST TS+TSX and textual receipts are recorded in the cited artifacts.",
       "supersededClaims": [],
       "sourceClaim": {
         "identity": "packages/server/src/domain/chat/substrate/auth/matrix.ts:221:authorityForSurface",
@@ -6753,16 +6877,22 @@
       "currentCodeIdentity": {
         "path": "packages/server/src/domain/plugin/contract/errors.ts",
         "symbol": "HostVersionUnservedError",
-        "capturedLine": 91,
-        "rederivedOnCurrentTree": false
+        "currentLine": 91,
+        "producer": "packages/server/src/domain/plugin/substrate/manifest.ts:304",
+        "rederivedOnCurrentTree": true,
+        "implementationCommit": "e339fc8f2"
       },
-      "status": "preserve-governed",
-      "disposition": "preserve",
-      "reason": "Carried exactly from the 63-row inventory pending current-tree re-derivation.",
+      "status": "resolved",
+      "disposition": "wired-distinct-host-version-refusal",
+      "reason": "The former future error is now thrown by the shared parsed-manifest lifecycle funnel, using the contract-owned served-major tuple before install or upgrade writes.",
       "issues": [],
-      "implementationReceipts": [],
-      "reviewReceipts": [],
-      "remainingProof": "Re-derive this identity and disposition on the settled current tree; source receipts span different captures.",
+      "implementationReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-owner-2544-repair.json"
+      ],
+      "reviewReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-owner-2542-2544-review.json"
+      ],
+      "remainingProof": "None for #2544; lifecycle, install/upgrade, runtime, types, and structural consumers were independently confirmed.",
       "supersededClaims": [],
       "sourceClaim": {
         "identity": "packages/server/src/domain/plugin/contract/errors.ts:91:HostVersionUnservedError",
@@ -7007,16 +7137,25 @@
         "aggregatePointer": "$.rows[29]"
       },
       "currentCodeIdentity": {
-        "claimed": "useDeleteRefinerySession",
-        "rederivedOnCurrentTree": false
+        "path": "packages/client/src/features/refinery/hooks/use-refinery-mutations.ts",
+        "symbol": "useDeleteRefinerySession",
+        "rederivedOnCurrentTree": true,
+        "rederivedBaseCommit": "dc0f8eb092bd6706c8458cf1d59578ba07db9181",
+        "worktreeState": "dirty repair candidate"
       },
-      "status": "valid-finding",
-      "disposition": "intended-but-unwired-feature",
-      "reason": "Carried exactly from the 63-row inventory pending current-tree re-derivation.",
+      "status": "resolved",
+      "disposition": "wired-refinery-session-delete-and-independently-confirmed",
+      "reason": "The shipped refinery session roster now consumes the real delete hook through a confirmation-gated row action and clears a successfully deleted active drill.",
       "issues": [],
-      "implementationReceipts": [],
-      "reviewReceipts": [],
-      "remainingProof": "Re-derive this identity and disposition on the settled current tree; source receipts span different captures.",
+      "implementationReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-testonly-client-after-refinery-wiring.json",
+        "packages/client/src/features/refinery/surfaces/refinery-list-surface.tsx",
+        "tests/client/features/refinery/surfaces/refinery-list-surface.ct.tsx"
+      ],
+      "reviewReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-refinery-session-delete-ui-review.json"
+      ],
+      "remainingProof": "Committed/integrated-tree verification only; the implementation and independent UI acceptance scope are complete.",
       "supersededClaims": [],
       "sourceClaim": {
         "symbol": "useDeleteRefinerySession",
@@ -7054,16 +7193,23 @@
       "currentCodeIdentity": {
         "path": "packages/client/src/features/refinery/hooks/use-refinery-mutations.ts",
         "symbol": "useDeleteRefinerySession",
-        "capturedLine": 123,
-        "rederivedOnCurrentTree": false
+        "rederivedOnCurrentTree": true,
+        "rederivedBaseCommit": "dc0f8eb092bd6706c8458cf1d59578ba07db9181",
+        "worktreeState": "dirty repair candidate"
       },
-      "status": "valid-finding",
-      "disposition": "missing_product_wiring",
-      "reason": "Carried exactly from the 63-row inventory pending current-tree re-derivation.",
+      "status": "resolved",
+      "disposition": "wired-refinery-session-delete-and-independently-confirmed",
+      "reason": "The shipped refinery session roster now consumes the real delete hook through a confirmation-gated row action and clears a successfully deleted active drill.",
       "issues": [],
-      "implementationReceipts": [],
-      "reviewReceipts": [],
-      "remainingProof": "Re-derive this identity and disposition on the settled current tree; source receipts span different captures.",
+      "implementationReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-testonly-client-after-refinery-wiring.json",
+        "packages/client/src/features/refinery/surfaces/refinery-list-surface.tsx",
+        "tests/client/features/refinery/surfaces/refinery-list-surface.ct.tsx"
+      ],
+      "reviewReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-refinery-session-delete-ui-review.json"
+      ],
+      "remainingProof": "Committed/integrated-tree verification only; the implementation and independent UI acceptance scope are complete.",
       "supersededClaims": [],
       "sourceClaim": {
         "symbol": "useDeleteRefinerySession",
@@ -7092,16 +7238,19 @@
       "currentCodeIdentity": {
         "path": "packages/client/src/state/plugin-page-selection-store.ts",
         "symbol": "parsePluginPageKey",
-        "capturedLine": 30,
-        "rederivedOnCurrentTree": false
+        "rederivedOnCurrentTree": true,
+        "rederivedBaseCommit": "dc0f8eb092bd6706c8458cf1d59578ba07db9181"
       },
-      "status": "review-pending",
-      "disposition": "stale_tested_implementation",
-      "reason": "Carried exactly from the 63-row inventory pending current-tree re-derivation.",
+      "status": "resolved",
+      "disposition": "removed-superseded-parser",
+      "reason": "Commit af02c2480 removed the obsolete parser; current PluginPageKey consumers treat the minted key as opaque, and current TS plus TSX structural scans find no residual parser identity.",
       "issues": [],
-      "implementationReceipts": [],
+      "implementationReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-testonly-client-after-refinery-wiring.json",
+        "af02c24808af5f4b2b29681875c25a2bcab00890"
+      ],
       "reviewReceipts": [],
-      "remainingProof": "Re-derive this identity and disposition on the settled current tree; source receipts span different captures.",
+      "remainingProof": "None for this bounded stale-candidate identity; final integrated reconciliation remains.",
       "supersededClaims": [],
       "sourceClaim": {
         "symbol": "parsePluginPageKey",
@@ -7626,16 +7775,23 @@
         "aggregatePointer": "$.rows[44]"
       },
       "currentCodeIdentity": {
-        "claimed": "world-tools-partial-lenses-audit.json:delegatedAdjudication.small-package.report.findings.2",
-        "rederivedOnCurrentTree": false
+        "path": "packages/db/src/schema/connection-bindings.ts",
+        "symbol": "PROVIDER_ROW_TASKS",
+        "state": "removed",
+        "rederivedOnCurrentTree": true,
+        "implementationCommit": "2c3897021"
       },
-      "status": "valid-finding",
-      "disposition": "keep-and-flag-unwired",
-      "reason": "The export has no direct caller. Its declaration explicitly names it as the closed task tuple for validating provider_rows.serves on write, but the current writer accepts an already validated ProviderDef and writes row.serves directly; the contract schema is the present validation authority. This is intended validation surface that is presently unwired, not proven superseded residue. Preserve the explicit seam and route any decision to remove or wire it through the provider-row design owner.",
+      "status": "resolved",
+      "disposition": "retired-duplicate-provider-task-authority",
+      "reason": "The owner chose providerDefSchema as the sole parse/write/read authority. The unused DB tuple and false enforcement claim were removed, so these two older swallowed-lens copies are superseded by the implemented #2541 outcome.",
       "issues": [],
-      "implementationReceipts": [],
-      "reviewReceipts": [],
-      "remainingProof": "Re-derive this identity and disposition on the settled current tree; source receipts span different captures.",
+      "implementationReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-owner-2541-repair.json"
+      ],
+      "reviewReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-cleanup-combined-review.json"
+      ],
+      "remainingProof": "None; this is the same removed symbol as launch63:01, retained as a distinct provenance row only.",
       "supersededClaims": [],
       "sourceClaim": {
         "id": "db.PROVIDER_ROW_TASKS",
@@ -7712,16 +7868,22 @@
       "currentCodeIdentity": {
         "path": "packages/server/src/domain/plugin/contract/errors.ts",
         "symbol": "HostVersionUnservedError",
-        "capturedLine": 91,
-        "rederivedOnCurrentTree": false
+        "currentLine": 91,
+        "producer": "packages/server/src/domain/plugin/substrate/manifest.ts:304",
+        "rederivedOnCurrentTree": true,
+        "implementationCommit": "e339fc8f2"
       },
-      "status": "valid-finding",
-      "disposition": "keep",
-      "reason": "Carried exactly from the 63-row inventory pending current-tree re-derivation.",
+      "status": "resolved",
+      "disposition": "wired-distinct-host-version-refusal",
+      "reason": "The former future error is now thrown by the shared parsed-manifest lifecycle funnel, using the contract-owned served-major tuple before install or upgrade writes.",
       "issues": [],
-      "implementationReceipts": [],
-      "reviewReceipts": [],
-      "remainingProof": "Re-derive this identity and disposition on the settled current tree; source receipts span different captures.",
+      "implementationReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-owner-2544-repair.json"
+      ],
+      "reviewReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-owner-2542-2544-review.json"
+      ],
+      "remainingProof": "None for #2544; lifecycle, install/upgrade, runtime, types, and structural consumers were independently confirmed.",
       "supersededClaims": [],
       "sourceClaim": {
         "symbol": "HostVersionUnservedError",
@@ -7751,16 +7913,21 @@
       "currentCodeIdentity": {
         "path": "packages/server/src/domain/chat/substrate/auth/matrix.ts",
         "symbol": "authorityForSurface",
-        "capturedLine": 221,
-        "rederivedOnCurrentTree": false
+        "state": "removed",
+        "rederivedOnCurrentTree": true,
+        "implementationCommit": "2c68d0453"
       },
-      "status": "valid-finding",
-      "disposition": "keep",
-      "reason": "Carried exactly from the 63-row inventory pending current-tree re-derivation.",
+      "status": "resolved",
+      "disposition": "retired-duplicate-nonverb-authority-plane",
+      "reason": "Owner-directed caller tracing proved the string-keyed classifier enforced no production path and duplicated the live typed verb/stream authorization planes; the function, export, and test-only anchors were removed together.",
       "issues": [],
-      "implementationReceipts": [],
-      "reviewReceipts": [],
-      "remainingProof": "Re-derive this identity and disposition on the settled current tree; source receipts span different captures.",
+      "implementationReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-owner-2545-repair.json"
+      ],
+      "reviewReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-owner-2545-2550-review.json"
+      ],
+      "remainingProof": "None for #2545; post-deletion AST TS+TSX and textual receipts are recorded in the cited artifacts.",
       "supersededClaims": [],
       "sourceClaim": {
         "symbol": "authorityForSurface",
@@ -7834,16 +8001,25 @@
         "aggregatePointer": "$.rows[49]"
       },
       "currentCodeIdentity": {
-        "claimed": "useDeleteRefinerySession",
-        "rederivedOnCurrentTree": false
+        "path": "packages/client/src/features/refinery/hooks/use-refinery-mutations.ts",
+        "symbol": "useDeleteRefinerySession",
+        "rederivedOnCurrentTree": true,
+        "rederivedBaseCommit": "dc0f8eb092bd6706c8458cf1d59578ba07db9181",
+        "worktreeState": "dirty repair candidate"
       },
-      "status": "valid-finding",
-      "disposition": "intended-but-unwired-feature",
-      "reason": "Carried exactly from the 63-row inventory pending current-tree re-derivation.",
+      "status": "resolved",
+      "disposition": "wired-refinery-session-delete-and-independently-confirmed",
+      "reason": "The shipped refinery session roster now consumes the real delete hook through a confirmation-gated row action and clears a successfully deleted active drill.",
       "issues": [],
-      "implementationReceipts": [],
-      "reviewReceipts": [],
-      "remainingProof": "Re-derive this identity and disposition on the settled current tree; source receipts span different captures.",
+      "implementationReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-testonly-client-after-refinery-wiring.json",
+        "packages/client/src/features/refinery/surfaces/refinery-list-surface.tsx",
+        "tests/client/features/refinery/surfaces/refinery-list-surface.ct.tsx"
+      ],
+      "reviewReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-refinery-session-delete-ui-review.json"
+      ],
+      "remainingProof": "Committed/integrated-tree verification only; the implementation and independent UI acceptance scope are complete.",
       "supersededClaims": [],
       "sourceClaim": {
         "symbol": "useDeleteRefinerySession",
@@ -7881,16 +8057,21 @@
       "currentCodeIdentity": {
         "path": "packages/server/src/domain/chat/substrate/auth/matrix.ts",
         "symbol": "authorityForSurface",
-        "capturedLine": 221,
-        "rederivedOnCurrentTree": false
+        "state": "removed",
+        "rederivedOnCurrentTree": true,
+        "implementationCommit": "2c68d0453"
       },
-      "status": "valid-finding",
-      "disposition": "retain",
-      "reason": "Carried exactly from the 63-row inventory pending current-tree re-derivation.",
+      "status": "resolved",
+      "disposition": "retired-duplicate-nonverb-authority-plane",
+      "reason": "Owner-directed caller tracing proved the string-keyed classifier enforced no production path and duplicated the live typed verb/stream authorization planes; the function, export, and test-only anchors were removed together.",
       "issues": [],
-      "implementationReceipts": [],
-      "reviewReceipts": [],
-      "remainingProof": "Re-derive this identity and disposition on the settled current tree; source receipts span different captures.",
+      "implementationReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-owner-2545-repair.json"
+      ],
+      "reviewReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-owner-2545-2550-review.json"
+      ],
+      "remainingProof": "None for #2545; post-deletion AST TS+TSX and textual receipts are recorded in the cited artifacts.",
       "supersededClaims": [],
       "sourceClaim": {
         "symbol": "authorityForSurface",
@@ -7930,16 +8111,22 @@
       "currentCodeIdentity": {
         "path": "packages/server/src/domain/plugin/contract/errors.ts",
         "symbol": "HostVersionUnservedError",
-        "capturedLine": 91,
-        "rederivedOnCurrentTree": false
+        "currentLine": 91,
+        "producer": "packages/server/src/domain/plugin/substrate/manifest.ts:304",
+        "rederivedOnCurrentTree": true,
+        "implementationCommit": "e339fc8f2"
       },
-      "status": "valid-finding",
-      "disposition": "keep",
-      "reason": "Carried exactly from the 63-row inventory pending current-tree re-derivation.",
+      "status": "resolved",
+      "disposition": "wired-distinct-host-version-refusal",
+      "reason": "The former future error is now thrown by the shared parsed-manifest lifecycle funnel, using the contract-owned served-major tuple before install or upgrade writes.",
       "issues": [],
-      "implementationReceipts": [],
-      "reviewReceipts": [],
-      "remainingProof": "Re-derive this identity and disposition on the settled current tree; source receipts span different captures.",
+      "implementationReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-owner-2544-repair.json"
+      ],
+      "reviewReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-owner-2542-2544-review.json"
+      ],
+      "remainingProof": "None for #2544; lifecycle, install/upgrade, runtime, types, and structural consumers were independently confirmed.",
       "supersededClaims": [],
       "sourceClaim": {
         "symbol": "HostVersionUnservedError",
@@ -7969,16 +8156,21 @@
       "currentCodeIdentity": {
         "path": "packages/server/src/domain/chat/substrate/auth/matrix.ts",
         "symbol": "authorityForSurface",
-        "capturedLine": 221,
-        "rederivedOnCurrentTree": false
+        "state": "removed",
+        "rederivedOnCurrentTree": true,
+        "implementationCommit": "2c68d0453"
       },
-      "status": "valid-finding",
-      "disposition": "keep",
-      "reason": "Carried exactly from the 63-row inventory pending current-tree re-derivation.",
+      "status": "resolved",
+      "disposition": "retired-duplicate-nonverb-authority-plane",
+      "reason": "Owner-directed caller tracing proved the string-keyed classifier enforced no production path and duplicated the live typed verb/stream authorization planes; the function, export, and test-only anchors were removed together.",
       "issues": [],
-      "implementationReceipts": [],
-      "reviewReceipts": [],
-      "remainingProof": "Re-derive this identity and disposition on the settled current tree; source receipts span different captures.",
+      "implementationReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-owner-2545-repair.json"
+      ],
+      "reviewReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-owner-2545-2550-review.json"
+      ],
+      "remainingProof": "None for #2545; post-deletion AST TS+TSX and textual receipts are recorded in the cited artifacts.",
       "supersededClaims": [],
       "sourceClaim": {
         "symbol": "authorityForSurface",
@@ -8084,16 +8276,23 @@
         "aggregatePointer": "$.rows[55]"
       },
       "currentCodeIdentity": {
-        "claimed": "world-tools-small-package-rot-triage.json:findings.2",
-        "rederivedOnCurrentTree": false
+        "path": "packages/db/src/schema/connection-bindings.ts",
+        "symbol": "PROVIDER_ROW_TASKS",
+        "state": "removed",
+        "rederivedOnCurrentTree": true,
+        "implementationCommit": "2c3897021"
       },
-      "status": "valid-finding",
-      "disposition": "keep-and-flag-unwired",
-      "reason": "The export has no direct caller. Its declaration explicitly names it as the closed task tuple for validating provider_rows.serves on write, but the current writer accepts an already validated ProviderDef and writes row.serves directly; the contract schema is the present validation authority. This is intended validation surface that is presently unwired, not proven superseded residue. Preserve the explicit seam and route any decision to remove or wire it through the provider-row design owner.",
+      "status": "resolved",
+      "disposition": "retired-duplicate-provider-task-authority",
+      "reason": "The owner chose providerDefSchema as the sole parse/write/read authority. The unused DB tuple and false enforcement claim were removed, so these two older swallowed-lens copies are superseded by the implemented #2541 outcome.",
       "issues": [],
-      "implementationReceipts": [],
-      "reviewReceipts": [],
-      "remainingProof": "Re-derive this identity and disposition on the settled current tree; source receipts span different captures.",
+      "implementationReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-owner-2541-repair.json"
+      ],
+      "reviewReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-cleanup-combined-review.json"
+      ],
+      "remainingProof": "None; this is the same removed symbol as launch63:01, retained as a distinct provenance row only.",
       "supersededClaims": [],
       "sourceClaim": {
         "id": "db.PROVIDER_ROW_TASKS",
@@ -8899,9 +9098,9 @@
     {
       "id": "decision:brand-inference-identity",
       "canonicalIdentity": "canonical identity semantics for inference modelId and foreign Agent SDK sessionId positions",
-      "status": "valid-finding",
-      "disposition": "owner-directed structural work",
-      "reason": "The blocked widening adds 21 modelId and 11 foreign sessionId findings; bulk branding would encode an unruled semantic claim. Owner ruling: Distinguish canonical Orb identities from foreign SDK identities structurally; brand canonical positions and give foreign identities an explicit foreign type instead of blanket branding or waivers.",
+      "status": "resolved",
+      "disposition": "implemented-canonical-and-foreign-inference-identity-boundaries",
+      "reason": "Canonical model positions now use ModelId validation while foreign Agent SDK UUIDs use the distinct AgentSdkSessionId brand; cache, deterministic lineage, persistence, and updates are connection-scoped.",
       "lens": "gate-reach",
       "source": {
         "path": "docs/reviews/ast-codebase-audit/world-tools-gate-reach-reconciliation.json",
@@ -8911,21 +9110,27 @@
         "claimed": "canonical identity semantics for inference modelId and foreign Agent SDK sessionId positions",
         "rederivedOnCurrentTree": true,
         "capturedHead": "8f7ed4c4b98c112429c3918483f3a172f66ae184",
-        "workingTreeWasDirty": true
+        "workingTreeWasDirty": true,
+        "implementationCommit": "28ecc2db4"
       },
       "issues": [],
-      "implementationReceipts": [],
-      "reviewReceipts": [
-        "docs/reviews/ast-codebase-audit/world-tools-gate-reach-reconciliation.json"
+      "implementationReceipts": [
+        "packages/inference/src/contract/identity.ts",
+        "packages/inference/src/backends/agent-sdk/session/store.ts",
+        "docs/reviews/ast-codebase-audit/world-tools-reviewed-lanes-integration.json"
       ],
-      "remainingProof": "Distinguish canonical Orb identities from foreign SDK identities structurally; brand canonical positions and give foreign identities an explicit foreign type instead of blanket branding or waivers."
+      "reviewReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-gate-reach-reconciliation.json",
+        "docs/reviews/ast-codebase-audit/world-tools-inference-boundaries-security-review.json"
+      ],
+      "remainingProof": "Final consolidated whole-tree verification remains a program-level obligation; the row-local implementation and independent security review are complete."
     },
     {
       "id": "decision:inference-type-home",
       "canonicalIdentity": "packages/inference/src/contract as a valid package-level type home",
-      "status": "valid-finding",
-      "disposition": "owner-directed structural work",
-      "reason": "The widening finds 16 inference positions, but placement law has not ruled the package contract directory. Owner ruling: Sanction and enforce packages/inference/src/contract as the package-level contract type home.",
+      "status": "resolved",
+      "disposition": "implemented-and-enforced-inference-contract-home",
+      "reason": "packages/inference/src/contract is now the sanctioned package-level type home, with runtime and identity contracts exported through the package boundary and covered by the widened type-placement gate.",
       "lens": "gate-reach",
       "source": {
         "path": "docs/reviews/ast-codebase-audit/world-tools-gate-reach-reconciliation.json",
@@ -8935,21 +9140,27 @@
         "claimed": "packages/inference/src/contract as a valid package-level type home",
         "rederivedOnCurrentTree": true,
         "capturedHead": "8f7ed4c4b98c112429c3918483f3a172f66ae184",
-        "workingTreeWasDirty": true
+        "workingTreeWasDirty": true,
+        "implementationCommit": "28ecc2db4"
       },
       "issues": [],
-      "implementationReceipts": [],
-      "reviewReceipts": [
-        "docs/reviews/ast-codebase-audit/world-tools-gate-reach-reconciliation.json"
+      "implementationReceipts": [
+        "packages/inference/src/contract/runtime.ts",
+        "tooling/src/verify/gates/no-inline-types.ts",
+        "docs/reviews/ast-codebase-audit/world-tools-reviewed-lanes-integration.json"
       ],
-      "remainingProof": "Sanction and enforce packages/inference/src/contract as the package-level contract type home."
+      "reviewReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-gate-reach-reconciliation.json",
+        "docs/reviews/ast-codebase-audit/world-tools-inference-boundaries-security-review.json"
+      ],
+      "remainingProof": "Final consolidated whole-tree verification remains a program-level obligation; the row-local implementation and independent security review are complete."
     },
     {
       "id": "finding:inference-supervised-detach-seam",
       "canonicalIdentity": "inference detached work supervision and tracing boundary",
-      "status": "valid-finding",
-      "disposition": "owner-directed structural work",
-      "reason": "A live detached-work shape remains in local-light/model-cache.ts and server tracing cannot observe below the package boundary. Owner ruling: Build the injected supervised detach and tracing boundary, then widen occurrence and health coverage.",
+      "status": "resolved",
+      "disposition": "implemented-injected-inference-detached-supervisor",
+      "reason": "Local-light prefetch and cache disposal now delegate detached work to the injected inference supervisor, and the occurrence and health gates cover the inference package with planted controls.",
       "lens": "gate-reach",
       "source": {
         "path": "docs/reviews/ast-codebase-audit/world-tools-gate-reach-reconciliation.json",
@@ -8959,21 +9170,28 @@
         "claimed": "inference detached work supervision and tracing boundary",
         "rederivedOnCurrentTree": true,
         "capturedHead": "8f7ed4c4b98c112429c3918483f3a172f66ae184",
-        "workingTreeWasDirty": true
+        "workingTreeWasDirty": true,
+        "implementationCommit": "28ecc2db4"
       },
       "issues": [],
-      "implementationReceipts": [],
-      "reviewReceipts": [
-        "docs/reviews/ast-codebase-audit/world-tools-gate-reach-reconciliation.json"
+      "implementationReceipts": [
+        "packages/inference/src/backends/local-light/index.ts",
+        "tooling/src/verify/gates/detached-work-traced.ts",
+        "tooling/src/verify/gates/detached-work-traced-health.ts",
+        "docs/reviews/ast-codebase-audit/world-tools-reviewed-lanes-integration.json"
       ],
-      "remainingProof": "Build the injected supervised detach and tracing boundary, then widen occurrence and health coverage."
+      "reviewReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-gate-reach-reconciliation.json",
+        "docs/reviews/ast-codebase-audit/world-tools-inference-boundaries-security-review.json"
+      ],
+      "remainingProof": "Final consolidated whole-tree verification remains a program-level obligation; the row-local implementation and independent security review are complete."
     },
     {
       "id": "finding:inference-test-mirror",
       "canonicalIdentity": "inference-specific test-presence topology",
-      "status": "valid-finding",
-      "disposition": "owner-directed structural work",
-      "reason": "Inference has 112 source candidates and tests/inference; widening the server-tier policy produces a false zero because the router has no inference topology. Owner ruling: Build an inference-specific test-presence topology with planted controls and complete source/test denominators.",
+      "status": "resolved",
+      "disposition": "implemented-and-independently-confirmed-inference-test-topology",
+      "reason": "The integrated inference-specific presence gate classifies all 114 source modules through exact mirrors, real static reachability from governed subsystem test roots, or non-runtime type-only barrels; the merged-tree run covered 50 tests with zero uncovered modules.",
       "lens": "gate-reach",
       "source": {
         "path": "docs/reviews/ast-codebase-audit/world-tools-gate-reach-reconciliation.json",
@@ -8983,21 +9201,28 @@
         "claimed": "inference-specific test-presence topology",
         "rederivedOnCurrentTree": true,
         "capturedHead": "8f7ed4c4b98c112429c3918483f3a172f66ae184",
-        "workingTreeWasDirty": true
+        "workingTreeWasDirty": true,
+        "implementationCommit": "9dec43747",
+        "governingDocsCommit": "81d19ad83"
       },
       "issues": [],
-      "implementationReceipts": [],
-      "reviewReceipts": [
-        "docs/reviews/ast-codebase-audit/world-tools-gate-reach-reconciliation.json"
+      "implementationReceipts": [
+        "tooling/src/verify/gates/test-presence-inference.ts",
+        "tests/tooling/verify/gates/test-presence-inference-family.suite.test.ts",
+        "docs/reviews/ast-codebase-audit/world-tools-reviewed-lanes-integration.json"
       ],
-      "remainingProof": "Build an inference-specific test-presence topology with planted controls and complete source/test denominators."
+      "reviewReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-gate-reach-reconciliation.json",
+        "docs/reviews/ast-codebase-audit/world-tools-inference-test-topology-review.json"
+      ],
+      "remainingProof": "Final consolidated whole-tree verification remains a program-level obligation; the row-local implementation and exact-stack independent review are complete."
     },
     {
       "id": "decision:package-layout-vs-inference-deps",
       "canonicalIdentity": "package layout law for packages/inference/src/deps.ts",
-      "status": "valid-finding",
-      "disposition": "owner-directed structural work",
-      "reason": "D15 limits package roots to index.ts plus directories while the inference design explicitly requires src/deps.ts. Owner ruling: Reconcile D15 with the intentional inference deps.ts boundary in law and enforcement; do not move the seam merely to satisfy the current gate shape.",
+      "status": "resolved",
+      "disposition": "sanctioned-and-enforced-inference-deps-seam",
+      "reason": "D15 and package-layout now encode packages/inference/src/deps.ts as the one intentional loose dependency-injection seam while retaining the prohibition for other packages and loose root files.",
       "lens": "gate-reach",
       "source": {
         "path": "docs/reviews/ast-codebase-audit/world-tools-gate-reach-reconciliation.json",
@@ -9007,38 +9232,114 @@
         "claimed": "package layout law for packages/inference/src/deps.ts",
         "rederivedOnCurrentTree": true,
         "capturedHead": "8f7ed4c4b98c112429c3918483f3a172f66ae184",
-        "workingTreeWasDirty": true
+        "workingTreeWasDirty": true,
+        "implementationCommit": "28ecc2db4"
       },
       "issues": [],
-      "implementationReceipts": [],
-      "reviewReceipts": [
-        "docs/reviews/ast-codebase-audit/world-tools-gate-reach-reconciliation.json"
+      "implementationReceipts": [
+        "packages/inference/src/deps.ts",
+        "tooling/src/verify/gates/package-layout.ts",
+        "docs/architecture/core/Core-Path-Registry.md",
+        "docs/reviews/ast-codebase-audit/world-tools-reviewed-lanes-integration.json"
       ],
-      "remainingProof": "Reconcile D15 with the intentional inference deps.ts boundary in law and enforcement; do not move the seam merely to satisfy the current gate shape."
+      "reviewReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-gate-reach-reconciliation.json",
+        "docs/reviews/ast-codebase-audit/world-tools-inference-boundaries-security-review.json"
+      ],
+      "remainingProof": "Final consolidated whole-tree verification remains a program-level obligation; the row-local implementation and independent security review are complete."
     },
     {
       "id": "decision:showcase-default-membership",
       "canonicalIdentity": "showcase and default-content membership in generic authored and product universes",
-      "status": "valid-finding",
-      "disposition": "owner-directed structural work",
-      "reason": "Both are shipped runtime packages but @authored and @product currently exclude them as an open question. Owner ruling: Include shipped showcase-plugins and default-content packages in generic authored/product coverage, allowing only policy-specific semantic exclusions with stated evidence.",
+      "status": "resolved",
+      "disposition": "generic-authored-product-membership-widened-and-independently-confirmed",
+      "reason": "The shared root authority now classifies showcase-plugins and default-content as shipped product/authored source. Independent production loading found 44 composite consumers: 33 widen, 4 remain set-identical after redundant roots disappear, and 7 retain intentional narrower filters. The earlier 45 count was comment-text noise.",
       "lens": "gate-reach",
       "source": {
         "path": "docs/reviews/ast-codebase-audit/world-tools-gate-reach-reconciliation.json",
         "pointer": "$.decisionBriefs[?(@.id==\"showcase-default-membership\")]"
       },
       "currentCodeIdentity": {
-        "claimed": "showcase and default-content membership in generic authored and product universes",
+        "path": "tooling/src/verify/contract/population.ts",
+        "symbols": [
+          "authoredRoots",
+          "productRoots"
+        ],
         "rederivedOnCurrentTree": true,
-        "capturedHead": "8f7ed4c4b98c112429c3918483f3a172f66ae184",
-        "workingTreeWasDirty": true
+        "implementationCommit": "c90152b7dfa7b31ac29c3ac49ba6f09334fda1a7",
+        "integratedCommit": "0f9fc4aa5"
       },
       "issues": [],
-      "implementationReceipts": [],
-      "reviewReceipts": [
-        "docs/reviews/ast-codebase-audit/world-tools-gate-reach-reconciliation.json"
+      "implementationReceipts": [
+        "c90152b7dfa7b31ac29c3ac49ba6f09334fda1a7",
+        "reports/runs/test/orbweaver-2874499-2026-09-22T06-05-58-593Z/test-report.json"
       ],
-      "remainingProof": "Include shipped showcase-plugins and default-content packages in generic authored/product coverage, allowing only policy-specific semantic exclusions with stated evidence."
+      "reviewReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-authored-product-membership-review.json"
+      ],
+      "remainingProof": "Only the consolidated post-merge whole-tree check remains; the implementation and independent review scope are complete."
+    },
+    {
+      "id": "finding:list-row-floated-actions-unnamed-group",
+      "canonicalIdentity": "packages/ui/src/primitives/list-row/variants.ts:listRowVariants.root",
+      "lens": "testonly-follow-up",
+      "source": {
+        "path": "docs/reviews/ast-codebase-audit/world-tools-testonly-client-after-refinery-wiring.json",
+        "pointer": "$.discoveredRepair"
+      },
+      "currentCodeIdentity": {
+        "path": "packages/ui/src/primitives/list-row/variants.ts",
+        "symbol": "listRowVariants.root",
+        "rederivedOnCurrentTree": true,
+        "rederivedBaseCommit": "dc0f8eb092bd6706c8458cf1d59578ba07db9181",
+        "worktreeState": "dirty repair candidate"
+      },
+      "status": "resolved",
+      "disposition": "shared-ui-selector-contract-repaired-and-independently-confirmed",
+      "reason": "ListRow's root lacked the unnamed group consumed by ROW_REVEAL and its floated-action hit-test arm, leaving hover-revealed action controls pointer-inert behind the clickable body.",
+      "issues": [],
+      "implementationReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-testonly-client-after-refinery-wiring.json",
+        "packages/ui/src/primitives/list-row/variants.ts"
+      ],
+      "reviewReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-refinery-session-delete-ui-review.json"
+      ],
+      "remainingProof": "Committed/integrated-tree verification only; the implementation and independent UI acceptance scope are complete.",
+      "supersededClaims": []
+    },
+    {
+      "id": "finding:session-entry-connection-schema-nullability",
+      "canonicalIdentity": "packages/db/src/schema/sdk-session.ts:session_entries.connection_id nullability",
+      "lens": "columns-follow-up",
+      "source": {
+        "path": "packages/db/src/schema/sdk-session.ts",
+        "pointer": "sessionEntries.connectionId"
+      },
+      "currentCodeIdentity": {
+        "path": "packages/db/src/schema/sdk-session.ts",
+        "symbol": "sessionEntries.connectionId",
+        "capturedLine": 68,
+        "rederivedOnCurrentTree": true,
+        "capturedBaseCommit": "dc0f8eb092bd6706c8458cf1d59578ba07db9181",
+        "implementationCommit": "1627d3c9a"
+      },
+      "status": "resolved",
+      "disposition": "forward-migrated-to-required-session-entry-connection",
+      "reason": "Migration 0004 deletes only unowned legacy NULL rows, makes connection_id NOT NULL, preserves both cascade foreign keys and all uniqueness/index contracts, and leaves current resume/update paths connection-scoped.",
+      "issues": [],
+      "implementationReceipts": [
+        "packages/db/src/migrations/0004_require_session_entry_connection.sql",
+        "packages/db/src/schema/sdk-session.ts",
+        "tests/db/schema/sdk-session.int.test.ts",
+        "docs/reviews/ast-codebase-audit/world-tools-reviewed-lanes-integration.json"
+      ],
+      "reviewReceipts": [
+        "docs/reviews/ast-codebase-audit/world-tools-inference-boundaries-security-review.json",
+        "docs/reviews/ast-codebase-audit/world-tools-session-entry-connection-db-security-review.json"
+      ],
+      "remainingProof": "Final consolidated whole-tree verification remains a program-level obligation; the row-local implementation and independent security review are complete.",
+      "supersededClaims": []
     }
   ],
   "transcriptClaims": [
@@ -20991,17 +21292,16 @@
     "warning": "No heavy all-lens rerun was performed during reconstruction. Absence of a normalized row is not a clean verdict; its exact source remains in ingestionBacklog."
   },
   "counts": {
-    "sourceManifest": 463,
+    "sourceManifest": 470,
     "lenses": 30,
     "normalizedLaunch63Rows": 63,
     "programOutcomeRows": 16,
-    "findings": 85,
+    "findings": 87,
     "findingStatus": {
-      "owner-decision": 2,
-      "preserve-governed": 17,
-      "resolved": 30,
-      "review-pending": 10,
-      "valid-finding": 26
+      "preserve-governed": 14,
+      "resolved": 54,
+      "review-pending": 9,
+      "valid-finding": 10
     },
     "transcriptClaims": 317,
     "transcriptIngestionBacklog": 232,
@@ -21066,6 +21366,83 @@
       "updater": "inline owner ruling 2026-09-21",
       "updaterSha256": null,
       "scope": "converted six gate-reach architecture forks from owner-decision to owner-directed structural work",
+      "fullSourceRebuildPerformed": false
+    },
+    {
+      "at": "2026-09-22T05:35:15.693Z",
+      "updater": "/tmp/ingest-refinery-testonly-repair.mjs",
+      "updaterSha256": "d2b1a2f862de7d289e19a2ba68114e4f562b843baace25c5559fd1c369ed146c",
+      "scope": "ingested the refinery session-delete product wiring, current client testonly proof, and the shared ListRow floated-action reachability repair",
+      "fullSourceRebuildPerformed": false
+    },
+    {
+      "at": "2026-09-22T05:41:17.136Z",
+      "updater": "inline current-tree stale parser reconciliation",
+      "updaterSha256": null,
+      "scope": "resolved parsePluginPageKey from current structural TS+TSX and textual evidence plus the implementation commit",
+      "fullSourceRebuildPerformed": false
+    },
+    {
+      "at": "2026-09-22T05:52:12.876Z",
+      "updater": "/tmp/reconcile-app-router-tool-defects.mjs",
+      "updaterSha256": "1d55e145acc6fdff14d1aec0e6ddccafc72a66f3f47f96e42b50e4572e303583",
+      "scope": "reconciled the two stale AppRouter/clientgap tool-defect rows with the already-ingested final current-tree independent review; retained the superseded OOM as historical error evidence",
+      "fullSourceRebuildPerformed": false
+    },
+    {
+      "at": "2026-09-22T06:03:18.366Z",
+      "updater": "/tmp/reconcile-owner-decision-rows.mjs",
+      "updaterSha256": "c4fc68086b0a48c8c04f7705f726ef5d2e9032d1a81e6b9185efa7c771d43156",
+      "scope": "reconciled the two stale owner-decision aggregates and seven duplicate future/keep rows with current implemented and independently reviewed #2541-#2545 outcomes",
+      "fullSourceRebuildPerformed": false
+    },
+    {
+      "at": "2026-09-22T06:05:00.322Z",
+      "updater": "/tmp/ingest-refinery-ui-review.mjs",
+      "updaterSha256": "da3bd4e0d64b1b178c0934d0cf4cfa101ed8d3efe91b3bc476479affb88b8a5a",
+      "scope": "ingested the independent refinery-session delete and shared ListRow UI review; resolved four duplicate wiring rows plus the selector-contract defect",
+      "fullSourceRebuildPerformed": false
+    },
+    {
+      "at": "2026-09-22T06:06:58.406Z",
+      "updater": "/tmp/record-session-entry-schema-residual.mjs",
+      "updaterSha256": "6d95280d068abfb7cdec3ed0af2e217c448242abcfc199e9eaa4a93e605b17cb",
+      "scope": "retained the session_entries.connection_id historical-null/schema-nullability residual separately from the completed runtime producer and cache-identity repair",
+      "fullSourceRebuildPerformed": false
+    },
+    {
+      "at": "2026-09-22T06:15:29.884Z",
+      "updater": "/tmp/reconcile-provider-row-task-duplicates.mjs",
+      "updaterSha256": "77308a4c6bfb265718e950939608a1ddb8dbbbc38821e428f0ef5f6d06a0e25a",
+      "scope": "reconciled the two swallowed-lens PROVIDER_ROW_TASKS duplicates with the implemented and reviewed #2541 retirement",
+      "fullSourceRebuildPerformed": false
+    },
+    {
+      "at": "2026-09-22T06:17:45.048Z",
+      "updater": "/tmp/ingest-authored-product-membership-review.mjs",
+      "updaterSha256": "e85ef8a776f479866e164a5b5f533cfdd4efef8ce73b55160ba8c5eab6da1034",
+      "scope": "ingested the corrected 44-policy authored/product membership review and resolved the owner-directed showcase/default-content population row",
+      "fullSourceRebuildPerformed": false
+    },
+    {
+      "at": "2026-09-22T07:04:11.847Z",
+      "updater": "/tmp/ingest-inference-boundary-reviews.mjs",
+      "updaterSha256": "fb120b45095790d0b1aa8508dba22693cb391d0768ab5606ff3850e3f8d331c7",
+      "scope": "integrated the independently confirmed inference identity/session boundary and forward DB migration; resolved five rows and ingested both exact-stack security reviews",
+      "fullSourceRebuildPerformed": false
+    },
+    {
+      "at": "2026-09-22T07:06:17.434Z",
+      "updater": "/tmp/ingest-inference-topology-review.mjs",
+      "updaterSha256": "bf5ca2cbd833cbda4dae58d3752e9ca4a17dd8a71984fb0681f2328738c39633",
+      "scope": "integrated the independently confirmed inference test topology and governing docs; resolved the inference-test-mirror row and ingested its exact-stack review",
+      "fullSourceRebuildPerformed": false
+    },
+    {
+      "at": "2026-09-22T07:27:57.698Z",
+      "updater": "/tmp/record-reviewed-lanes-integration.mjs",
+      "updaterSha256": "9aa6819cfe28d0cb9bd2268da5a3acd0885fa576af5f7f728165ffe27a74aa79",
+      "scope": "recorded the merged-tree verification for the reviewed inference, database, authored-membership, and refinery UI lanes and corrected the integrated topology denominator to 114 sources and 50 tests",
       "fullSourceRebuildPerformed": false
     }
   ]

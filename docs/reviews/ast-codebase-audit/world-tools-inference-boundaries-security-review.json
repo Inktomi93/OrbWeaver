@@ -1,0 +1,135 @@
+{
+  "task": "Fresh-context security and correctness review of inference identity boundaries",
+  "reviewed_commit": "cb989016d56780846bd2973ec0bb96b2f3642eb0",
+  "parent_commit": "dc0f8eb092bd6706c8458cf1d59578ba07db9181",
+  "verdict": "CONFIRMED",
+  "issue_summary": "Commit cb989016d closes the connection-confusion path: an Agent SDK session handle is a validated foreign UUID, the process cache and deterministic lineage both include UserConnectionId, inserts cannot omit that connection, and updates require the globally unique SDK handle plus the same connection and loudly refuse a zero-row match. No reviewed path can resume or rewrite another connection's lineage through the old chat-only identity. Detached local-light prefetch and disposal enter the injected server supervisor, whose request-root span and terminal catch make failures visible. The remaining nullable session_entries.connection_id column and stale pre-cutover comment are real schema debt but do not block this commit because current writers are connection-bound and no persistence reader resumes from historical rows; the exact follow-up is recorded below.",
+  "review_isolation": {
+    "mode": "fresh-context independent review",
+    "claims_treatment": "The task statement and lane evidence were treated as untrusted claims and checked against the complete commit, full touched-file manifest, call sites, tests, and bounded reruns.",
+    "range": "dc0f8eb092bd6706c8458cf1d59578ba07db9181..cb989016d56780846bd2973ec0bb96b2f3642eb0",
+    "files_read_in_full": 59,
+    "product_code_edited": false,
+    "commit_merge_push_performed": false,
+    "subagents_used": false
+  },
+  "manifest": [
+    "docs/architecture/core/AGENTS.md",
+    "docs/architecture/core/Core-Path-Registry.md",
+    "docs/architecture/core/Spine-TypeScript-and-Patterns.md",
+    "docs/architecture/core/Tier-3b-Providers.md",
+    "packages/inference/src/backends/agent-sdk/catalog.ts",
+    "packages/inference/src/backends/agent-sdk/index.ts",
+    "packages/inference/src/backends/agent-sdk/log.ts",
+    "packages/inference/src/backends/agent-sdk/runner.ts",
+    "packages/inference/src/backends/agent-sdk/session/frames.ts",
+    "packages/inference/src/backends/agent-sdk/session/index.ts",
+    "packages/inference/src/backends/agent-sdk/session/store.ts",
+    "packages/inference/src/backends/agent-sdk/summarize.ts",
+    "packages/inference/src/backends/agent-sdk/types.ts",
+    "packages/inference/src/backends/anthropic-messages/chat.ts",
+    "packages/inference/src/backends/anthropic-messages/index.ts",
+    "packages/inference/src/backends/anthropic-messages/refusal.ts",
+    "packages/inference/src/backends/kit/anth-image-block.ts",
+    "packages/inference/src/backends/kit/retry.ts",
+    "packages/inference/src/backends/kit/turn-span.ts",
+    "packages/inference/src/backends/local-light/index.ts",
+    "packages/inference/src/backends/local-light/model-cache.ts",
+    "packages/inference/src/backends/local-light/prefetch.ts",
+    "packages/inference/src/backends/local-light/tasks.ts",
+    "packages/inference/src/backends/openai-compat/chat.ts",
+    "packages/inference/src/backends/openai-compat/index.ts",
+    "packages/inference/src/backends/openai-compat/reachability.ts",
+    "packages/inference/src/backends/v4/options.ts",
+    "packages/inference/src/capability/families.ts",
+    "packages/inference/src/capability/sources/curated/loader.ts",
+    "packages/inference/src/capability/sources/family-floor.ts",
+    "packages/inference/src/capability/synthesize.ts",
+    "packages/inference/src/catalog/endpoint.ts",
+    "packages/inference/src/contract/agent.ts",
+    "packages/inference/src/contract/errors.ts",
+    "packages/inference/src/contract/identity.ts",
+    "packages/inference/src/contract/index.ts",
+    "packages/inference/src/contract/runtime.ts",
+    "packages/inference/src/deps.ts",
+    "packages/inference/src/index.ts",
+    "packages/inference/src/registry/backends.ts",
+    "packages/inference/src/registry/providers.ts",
+    "packages/inference/src/resolve/availability.ts",
+    "packages/inference/src/resolve/resolve-task.ts",
+    "packages/inference/src/roles/role-clients.ts",
+    "packages/server/src/entry/boot/local-light-prefetch.ts",
+    "packages/server/src/entry/compose/services.ts",
+    "packages/server/src/entry/compose/session-entries.ts",
+    "tests/inference/_support.ts",
+    "tests/inference/backends/agent-sdk/session-store.test.ts",
+    "tests/inference/backends/local-light/index.test.ts",
+    "tests/inference/capability/sources/curated/anthropic.test.ts",
+    "tests/inference/conformance/_harness.ts",
+    "tests/server/domain/connection/_support.ts",
+    "tests/server/entry/compose/session-entries.int.test.ts",
+    "tooling/src/verify/gates/brand-in-name-position.ts",
+    "tooling/src/verify/gates/detached-work-traced-health.ts",
+    "tooling/src/verify/gates/detached-work-traced.ts",
+    "tooling/src/verify/gates/no-inline-types.ts",
+    "tooling/src/verify/gates/package-layout.ts"
+  ],
+  "findings": [],
+  "evidence": {
+    "foreign_identity_boundary": "packages/inference/src/contract/identity.ts:8-11 gives the daemon UUID a distinct AgentSdkSessionId brand and validates it with z.uuid(); packages/inference/src/backends/agent-sdk/runner.ts:312-325 parses every observed session_id before it reaches the accumulator, cache callback, error, or persistence seam.",
+    "principal_and_connection_authority": "packages/inference/src/resolve/resolve-task.ts:144-169 derives the funder from Principal, loads the connection, and leak-free refuses an owner mismatch before constructing Resolved; runner.ts:175-193 carries that resolved connectionId into the session callback.",
+    "cache_isolation": "packages/inference/src/backends/agent-sdk/session/store.ts:173-231 keys record, resolve, clear, resume, reseed, and persistence by chatId plus a NUL separator plus UserConnectionId. TypeID values cannot contain NUL, so concatenation is unambiguous. The regression at tests/inference/backends/agent-sdk/session-store.test.ts:12-22 is red against the former chat-only API.",
+    "deterministic_namespace": "packages/inference/src/backends/agent-sdk/session/frames.ts:38-41 derives a version-4-shaped UUID from SHA-256, and lines 321-328 include chatId, connectionId, salt, and the canonical seed body with distinct separators. This gives each connection its own approximately 122-bit content-addressed UUID namespace while preserving deterministic swipe-back.",
+    "persistence_isolation": "packages/inference/src/contract/agent.ts:11-24 requires connectionId for both operations. packages/server/src/entry/compose/session-entries.ts:24-47 writes it and chooses primary per chat plus connection; lines 49-57 update only sdkSessionId plus connectionId, inspect RETURNING, and throw unless exactly one row changed. packages/db/src/schema/sdk-session.ts:77-84 makes sdk_session_id globally unique and the primary partial index connection-scoped, so a successful update cannot mutate multiple lineages.",
+    "credential_exposure": "SessionEntryWriter accepts only chatId, connectionId, sdkSessionId, seed count, and canon hash. tests/server/entry/compose/session-entries.int.test.ts:207-226 pins the inserted row keys; no credential, token, secret, provider headers, or runtime-directory path can ride the persistence seam.",
+    "persistence_role": "The production census found only the compose writer plus count/integrity observability readers; no reader uses session_entries to resume a session. packages/inference/src/backends/agent-sdk/session/store.ts:57-92 explicitly keeps the in-memory cache authoritative and warning-owns best-effort persistence failures.",
+    "detached_supervision": "packages/inference/src/backends/local-light/index.ts:39-49 adapts both prefetch and cache disposal to the injected supervisor. prefetch.ts:101-115 supervises its walk; model-cache.ts:230-245 supervises async disposal after lease-safe eviction. packages/server/src/entry/compose/services.ts:403-410 injects a fresh inference request id into superviseDetached; packages/server/src/foundation/observability/tracing.ts:342-350 opens the operation inside its own root and terminally logs rejection.",
+    "contract_home_and_d15": "packages/inference/src/contract/runtime.ts owns runtime shapes; packages/inference/src/deps.ts only re-exports the injection contract. tooling/src/verify/gates/package-layout.ts:31-48 permits only inference/src/deps.ts beside index.ts and lines 75-108 contain both inference and non-inference counterfactuals, matching Core-Path-Registry D15.",
+    "gate_truthfulness": "brand-in-name-position adds @inference to the typed population and a foreign-brand counterfactual; no-inline-types adds inference while excluding contract homes; package-layout has exact loose.ts and foreign-package deps.ts controls; detached-work-traced plants an unsupervised inference disposal and the health sibling keeps the tracing source measurable. Their four family suites reran with 48/48 tests passing, including planted red controls rather than clean-only assertions.",
+    "fixture_uuid": "tests/inference/conformance/_harness.ts changes the single shared Agent SDK session fixture from a non-UUID token to a valid v4 UUID. Every changed occurrence still denotes the same session; the correction is required by the new producer boundary and does not weaken or split the conformance scenarios."
+  },
+  "non_blocking_observations": [
+    {
+      "severity": "P3 evidence hygiene",
+      "scenario": "tests/inference/backends/local-light/index.test.ts:1-3 still describes the deleted local wrapper's synchronous span-construction failure behavior, while the test at lines 22-42 now proves delegation into an injected supervisor. A reader could mistake that header for coverage the file no longer owns.",
+      "minimal_fix": "Rewrite the file header to describe the injected-supervisor boundary, or add a composed supervisor test if synchronous supervisor-construction failure is intended to remain a contract. Production rejection visibility is independently covered at tests/server/foundation/observability/tracing.test.ts:99-128."
+    }
+  ],
+  "nullable_connection_residual": {
+    "classification": "Safely separable from cb989016d, but required before any persistence read, reap, or promotion treats all rows as connection-owned.",
+    "why_non_blocking": "packages/db/src/schema/sdk-session.ts:65-72 remains nullable, but every new runtime insert has a non-optional branded UserConnectionId, a historical NULL row cannot satisfy the update's equality predicate, zero-row updates throw, and no resume reader consumes these rows. The cache correctness path is process-local and connection-bound.",
+    "exact_follow_up_contract": [
+      "Inventory session_entries rows with connection_id IS NULL before migration and record the count.",
+      "Delete those legacy NULL rows rather than infer an owner: the table is a reconstructible cache/observability substrate and the old rows contain no trustworthy connection identity to backfill.",
+      "Rebuild or migrate session_entries.connection_id to NOT NULL while preserving its user_connections(id) ON DELETE CASCADE foreign key, session_entries_connection_idx, global sdk_session_id uniqueness, per-chat seq uniqueness, and the partial one-primary-per-(chat,connection) index.",
+      "Change the Drizzle column to .notNull() and replace the stale pre-cutover comment with the post-cutover invariant.",
+      "Add migration/schema proof that NULL insertion is refused and that connection deletion, uniqueness, and partial-primary behavior still hold. Land this before introducing a lineage reader or reap/promote job."
+    ]
+  },
+  "security_assumptions": [
+    "UserConnectionId identifies one immutable owner through the connection row and FK; the resolver's owner check is the authorization boundary before a Resolved request reaches the backend.",
+    "The locally bundled Agent SDK executable is a trusted runtime component. Its UUID namespace is treated as foreign and validated, but a malicious executable that deliberately reuses another process's UUID is outside this commit's threat model.",
+    "SHA-256 collision resistance is adequate for deterministic session lineage identity; cryptographic collision search was not attempted.",
+    "session_entries remains a best-effort non-secret metadata substrate and does not become a resume authority until the nullable-column follow-up lands."
+  ],
+  "verification": [
+    {
+      "command": "pnpm test:scoped tests/inference/backends/agent-sdk/session-store.test.ts tests/inference/backends/local-light/index.test.ts tests/server/entry/compose/session-entries.int.test.ts tests/server/foundation/observability/tracing.test.ts",
+      "result": "PASS: 4 requested files, 7 project suites, 16 tests; report reports/runs/test/orbweaver-2998110-2026-09-22T06-19-47-392Z/test-report.json success=true"
+    },
+    {
+      "command": "pnpm test:scoped tests/tooling/verify/gates/id-brand-flow.suite.test.ts tests/tooling/verify/gates/ordinary-visitors-family.suite.test.ts tests/tooling/verify/gates/resource-layout-wave-1.suite.test.ts tests/tooling/verify/gates/callback-provenance-family.suite.test.ts",
+      "result": "PASS: 4 files, 48 tests; report reports/runs/test/orbweaver-3019276-2026-09-22T06-20-21-507Z/test-report.json success=true"
+    },
+    {
+      "command": "git diff cb989016d^ cb989016d --check",
+      "result": "PASS"
+    }
+  ],
+  "limitations": [
+    "No live production database was inspected, so the number and provenance of historical NULL connection_id rows is unknown.",
+    "The review reran bounded security and gate probes, not the lane's entire 43-file inference/session or full repository verification battery.",
+    "The local-light composition unit test proves prefetch delegation; disposal supervision is established by the shared detach adapter, source trace, and planted gate control rather than a disposal-specific runtime assertion."
+  ],
+  "repository_mutation": "Added this requested review receipt only; product code, tests, commits, branches, and runtime state were not modified."
+}
