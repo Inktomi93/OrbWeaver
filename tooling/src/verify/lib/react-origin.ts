@@ -36,6 +36,8 @@
 // `7ed48eca8^`: legacy − final = {`packages/showcase-plugins/src/index.ts`}, final − legacy = ∅. The port is a
 // one-file NARROWING in ONE direction; the zero-React-import measurement above stays true and is now simply not
 // needed to justify a widening that never happened. Each member header carries the sets and controls.
+// CURRENT 2026-09-21: shipped showcase/default-content packages now belong to `@authored`; the historical
+// showcase narrowing above is closed by classification, and the family remains green on the widened tree.
 // The other two members — `no-effect-on-shared-selection` and `registry-context-via-mint` — each had a real
 // legacy `scanRoot`, so each states its own port in its own header rather than sharing this one.
 

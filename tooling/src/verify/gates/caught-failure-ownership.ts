@@ -66,17 +66,10 @@
 // ── POPULATION PORT ─────────────────────────────────────────────────────────────────────────────────────
 // Legacy `scanRoot` was `/^packages\/[^/]+\/src\//.test(path) || path.startsWith("tooling/src/")` — every
 // package's `src`, plus `tooling/src`. `["@packages", "@tooling"]` is NOT that set: `@packages` is a
-// frozen explicit root list that omits `packages/showcase-plugins/src`, `packages/default-content/src`,
-// and `packages/inference/src`. The current census records governed sites in those omitted packages, so
-// the obvious spelling would silently narrow the policy and dead-letter their markers.
-// The `@showcase` ROOT was therefore added to the population vocabulary (contract/population.ts — §12.4
-// admits an independently selectable workspace package; it is deliberately NOT folded into `@packages`,
-// which would widen every existing policy). The declared population therefore names all five current roots:
-// `["@packages", "@showcase", "@default-content", "@inference", "@tooling"]`. The three explicit package
-// roots restore today's legacy-regex corpus coverage without claiming the frozen list will automatically
-// admit a future package. `@default-content` joined 2026-09-18 with the package of that name (D160's avatars
-// + demo-chat transcripts), and `@inference` restores the inference package's governed sites; without
-// either root, markers there bind to no finding and become stale-waiver alarms over ungoverned source.
+// frozen six-root snapshot. The generic `@product` classification now includes every shipped product
+// package (`@showcase`, `@default-content`, and `@inference` included), so `["@product", "@tooling"]` states the
+// legacy reach without duplicating package roots. Removing a shipped package from `@product` would silently
+// dead-letter its markers; the population-fence proof below keeps showcase reach live.
 // The `{ of: "all", notUnder: [...] }` spelling was tried FIRST and rejected as
 // dishonest: `of: "all"` admits whatever the invocation's candidate set happens to hold, which on the real
 // tree excludes `packages/client/vite.config.ts` only because `harnessGlobs` never loads it — the declared
@@ -98,15 +91,9 @@
 // the `@orb-gate-ignore` grammar named above and its own inline three-arm reader before this conversion
 // extracted `lib/caught-failure.ts`.
 //
-// RE-SPELLED 2026-09-20 (lane cb-population-truth, #2488): `["@packages", "@showcase",
-// "@default-content", "@inference", "@tooling"]` → `["@product", "@showcase", "@default-content",
-// "@tooling"]`. SET-IDENTICAL, not a widening: `@product` IS `@packages` + `@inference`, and the run proves
-// it — population 4,804 and 614 waived findings, byte-for-byte before and after (`pnpm check:structure
-// --check caught-failure-ownership`, whole tree). The three-explicit-package spelling above was the right
-// answer with the vocabulary that existed; `@product` is the same answer said once, so the NEXT product
-// package is a classification decision in `contract/population.ts` rather than a fifth root here. The two
-// remaining explicit roots are the ones `PRODUCT_MEMBERSHIP` holds OUTSIDE the set as a recorded open
-// question, so naming them stays load-bearing.
+// RE-SPELLED 2026-09-20 (lane cb-population-truth, #2488) from explicit package roots to `@product` plus
+// the then-excluded content packages. The 2026-09-21 owner decision classifies both shipped content
+// packages into `@product`, making those explicit refs redundant while keeping the intended corpus.
 import { SyntaxKind } from "ts-morph";
 import type { CaughtFailureArm } from "../contract/caught-failure.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
@@ -145,7 +132,7 @@ export const gate = defineGate({
   family: "caught-failure-ownership",
   authority: "ordinary",
   severity: "error",
-  population: ["@product", "@showcase", "@default-content", "@tooling"],
+  population: ["@product", "@tooling"],
   analysis: "types",
   execution: "selected-files",
   facts: [],

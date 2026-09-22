@@ -65,7 +65,7 @@ export const gate = defineGate({
         "packages/showcase-plugins/src/index.ts": "// @orb-gate-ignore old-gate: showcase residue\nexport const plugin = true;\n",
       },
       expect: { count: 1, line: 1, token: "old-gate" },
-      why: "the legacy packages/<member>/src scan included the showcase workspace; @authored excludes it, so @showcase is an explicit required population member",
+      why: "the legacy packages/<member>/src scan included the showcase workspace; the shipped-package classification keeps that workspace inside @authored",
     },
   ],
   mustPass: [

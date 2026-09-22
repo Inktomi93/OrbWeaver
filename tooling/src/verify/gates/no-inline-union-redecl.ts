@@ -39,12 +39,11 @@
 // ── POPULATION PORT: byte-identical, measured ──────────────────────────────────────────────────────────
 // Legacy scanned the harness corpus (`_shared/ts-workspace.ts#harnessGlobs`: `packages/*/src/**`,
 // `tests/**`, `tooling/src/**`, `scripts/**`) minus its own `scanRoot` subtraction of
-// `tooling/src/verify/gates/`. `@authored` + `@showcase` + `notUnder: ["tooling/src/verify/gates/**"]` is
+// `tooling/src/verify/gates/`. `@authored` + `notUnder: ["tooling/src/verify/gates/**"]` is
 // that set: driven over the 7,475 tracked `.ts`/`.tsx` paths, legacy admits 7,165 and this population
 // admits the same 7,165, symmetric difference 0, with both directions controlled (293 gate-module paths
-// subtracted; `packages/showcase-plugins/src` admitted). `@showcase` is named EXPLICITLY because
-// `@authored` deliberately excludes it (contract/population.ts) while `packages/*/src/**` did not — the
-// only way the port stays lossless. The gate-directory subtraction is LOAD-BEARING, not cosmetic: proof
+// subtracted; `packages/showcase-plugins/src` admitted). The shipped-package classification keeps this
+// port lossless through `@authored`. The gate-directory subtraction is LOAD-BEARING, not cosmetic: proof
 // fixtures re-spell axes by design, and every module's `mustFlag` strings would otherwise be real subjects.
 //
 // ── §4.1 NARROWINGS: THIRTEEN, ALL CUT, ALL ENFORCED ───────────────────────────────────────────────────
@@ -55,7 +54,7 @@
 // contracts/kit trusted-home list, the D54 `ui`/`contracts` clause, the whole cake-reach fence, arm B's
 // alias-parent skip, the `.enum` callee test, the union's string-member test, the tuple's string-element
 // test, the `satisfies` co-declaration exemption (which kills TWO rows), the gate-directory subtraction and
-// the `@showcase` root. The tuple's string-element test was the one CLEAN cut on the legacy row set, and
+// the shipped-package membership. The tuple's string-element test was the one CLEAN cut on the legacy row set, and
 // §4.1's rule was applied rather than filing it UNFALSIFIABLE: the discriminating fixture — a numeric
 // `[1, 2, 3] as const` beside the union `'1' | '2' | '3'` — was written, run, and reds under the cut.
 // The thirteenth is the derived-position fallback below, and it is a CATCH rather than a narrowing: cut it
@@ -153,7 +152,7 @@ export const gate = defineGate({
   family: "no-inline-union-redecl",
   authority: "ordinary",
   severity: "error",
-  population: { in: ["@authored", "@showcase"], notUnder: ["tooling/src/verify/gates/**"] },
+  population: { in: ["@authored"], notUnder: ["tooling/src/verify/gates/**"] },
   // The `satisfies readonly Interface["prop"][]` co-declaration exemption resolves the indexed access
   // through the compiler (`union-axis.ts#coDeclarationUnionNode`), so the evidence plane is types, not
   // syntax — declared rather than smuggled behind a `lib/` hop.
@@ -280,7 +279,7 @@ export const gate = defineGate({
         "packages/showcase-plugins/src/plugin.ts": "export interface S { mode: 'a' | 'b' | 'c' }\n",
       },
       expect: { count: 1, token: "'a' | 'b' | 'c'" },
-      why: "THE `@showcase` ROOT, pinned: `@authored` deliberately EXCLUDES `packages/showcase-plugins/src` (contract/population.ts) while the legacy `packages/*/src/**` glob covered it, so naming `@showcase` is the only thing that keeps the port lossless. Drop it from `in` and this row is the one that dies — the contracts home stays admitted, so the fixture still admits paths and the failure is a missing FINDING rather than an empty-population tool error",
+      why: "THE SHIPPED-PACKAGE MEMBERSHIP, pinned: `@authored` includes `packages/showcase-plugins/src` because the legacy `packages/*/src/**` glob covered it. Classify `@showcase` outside `@authored` and this row is the one that dies — the contracts home stays admitted, so the fixture still admits paths and the failure is a missing FINDING rather than an empty-population tool error",
     },
     {
       mode: "types",

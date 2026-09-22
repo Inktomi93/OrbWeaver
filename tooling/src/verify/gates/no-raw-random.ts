@@ -54,6 +54,8 @@
 // `backends/kit/retry.ts:65` as a live violation. That is `opts.random ?? Math.random` — a REFERENCE, not a
 // call — and it is the site named by this header's own THE SUBJECT IS THE CALL paragraph, at its
 // pre-extraction path. The limit is deliberate and pinned; widening onto it remains its own decision.
+// CURRENT 2026-09-21: the generic authored classification closes the historical showcase narrowing;
+// showcase and default-content are now judged with the rest of the shipped source tree.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { readMemberReference } from "../../_shared/reference-fact.ts";

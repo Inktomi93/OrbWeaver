@@ -21,9 +21,9 @@
 // fenced as a RANGE ANNOUNCEMENT below, not allowlisted. Live violations after the fence: 0 over both
 // arms (3,387 package sources + 36 core docs; the same scan without the fence returns 1, which is the
 // positive control that the scanner can fail).
-// The TS half ports as `@packages` + `@showcase`: the legacy predicate was `rel.startsWith("packages/")`
-// and `harnessGlobs` globs `packages/*/src/**`, which includes the showcase package that `@packages`
-// deliberately does not.
+// The TS half now declares `@product`: the legacy predicate was `rel.startsWith("packages/")` and
+// `harnessGlobs` globs `packages/*/src/**`. The shipped-package classification admits showcase and
+// default-content without duplicate roots.
 //
 // `D<n>+` IS A RANGE ANNOUNCEMENT, NOT A CITATION, and this is a subject rule rather than an exemption
 // table. The registry's own prose announces the next unminted id ("Next free number is D161+", "reserved
@@ -134,7 +134,7 @@ export const gate = defineGate({
   family: "text-citation",
   authority: "hard",
   severity: "error",
-  population: { in: ["@product", "@showcase"] },
+  population: "@product",
   analysis: "resource",
   execution: "entire-population",
   facts: [],

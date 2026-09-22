@@ -29,16 +29,16 @@ export const POPULATION_ROOTS = {
   "@db": ["packages/db/src/"],
   "@contracts": ["packages/contracts/src/"],
   "@kit": ["packages/kit/src/"],
-  /** The example-plugin package. An independently selectable workspace member (`packages/*`), so §12.4
-   *  admits it as a root — deliberately NOT a member of `@packages`, which is an explicit six-root list
-   *  every existing policy was authored against and which must not widen silently. Added 2026-09-11 with
+  /** The example-plugin package. An independently selectable shipped workspace member (`packages/*`), so
+   *  §12.4 admits it as a root. It is not a member of the fixed six-root `@packages` snapshot, but belongs
+   *  to both generic `@authored` and `@product` composites below. Added 2026-09-11 with
    *  the `caught-failure-ownership` conversion, whose legacy `scanRoot` covered `packages/<any>/src` and
    *  whose census records four live sites here; without the root the conversion would have narrowed the
    *  policy and dead-lettered those markers. */
   "@showcase": ["packages/showcase-plugins/src/"],
   /** The default-content package (D160's second family — the seeded avatars + demo-chat transcripts and
-   *  their reader). Same standing as `@showcase` and for the same reason: an independently selectable
-   *  workspace member that §12.4 admits as a root, deliberately NOT folded into `@packages`. Added
+   *  their reader). Same standing as `@showcase`: an independently selectable shipped workspace member
+   *  admitted to `@authored` and `@product`, while the fixed `@packages` snapshot remains unchanged. Added
    *  2026-09-18 with the package itself, because its reader carries two `optional-read-as-absent` waivers
    *  that the `caught-failure-ownership` policy must be able to BIND — an unbindable waiver is a stale-waiver
    *  alarm and an ungoverned package, which is the narrowing the `@showcase` row exists to have prevented. */
@@ -61,7 +61,7 @@ export type PopulationRoot = keyof typeof POPULATION_ROOTS;
  *
  *  A `false` row MUST carry its `why`: an omission with no stated reason is indistinguishable from the
  *  omission this shape exists to make impossible.
- *  @public knip type-face false positive — the `satisfies Readonly<Record<PopulationRoot, AuthoredMembership>>` contract of the classification table below —
+ *  @public knip type-face false positive — the `Readonly<Record<PopulationRoot, AuthoredMembership>>` contract of the classification table below —
  *  what makes a missing `why` a compile error — never named at a call site. */
 export type AuthoredMembership = { readonly authored: true } | { readonly authored: false; readonly why: string };
 
@@ -71,8 +71,12 @@ export type AuthoredMembership = { readonly authored: true } | { readonly author
  *  added to `POPULATION_ROOTS` on 2026-09-11 it silently did not join, and `packages/showcase-plugins/src`
  *  fell outside every policy declaring `@authored` with no author ever deciding that. The set is now
  *  DERIVED from this map and the map is EXHAUSTIVE over `PopulationRoot`, so the enforcer is tsc itself
- *  (constitution §2.2 rung 2): a new root that is not classified here fails the `satisfies` below with a
- *  missing-property error naming the root. The decision cannot be skipped, only made and stated.
+ *  (constitution §2.2 rung 2): a new root that is not classified here fails the exhaustive annotation
+ *  below with a missing-property error naming the root. The decision cannot be skipped, only made and stated.
+ *
+ *  OWNER DECISION 2026-09-21: shipped `@showcase` and `@default-content` sources are authored product
+ *  code, so both belong to this generic composite. Policy-specific semantic exclusions remain possible,
+ *  but a package-wide generic exclusion is no longer a valid way to preserve a stable count.
  *
  *  `populationResolver`'s own test asserts `POPULATION_ROOTS` and `POPULATION_SETS` by literal, which REDS
  *  when a root is added — but it reds on the ROOT list alone and asks the author nothing about `@authored`,
@@ -83,37 +87,20 @@ export type AuthoredMembership = { readonly authored: true } | { readonly author
  *  over `scanned=7518 status=complete`, while its JSDoc named two consumers ("a gate diagnostic, this
  *  contract's own test") that did not exist. A reader with no reader is a claim about an architecture
  *  nobody built; the `why` string below is the one home, and a future diagnostic reads it directly. */
-const AUTHORED_MEMBERSHIP = {
+const AUTHORED_MEMBERSHIP: Readonly<Record<PopulationRoot, AuthoredMembership>> = {
   "@client": { authored: true },
   "@ui": { authored: true },
   "@server": { authored: true },
   "@db": { authored: true },
   "@contracts": { authored: true },
   "@kit": { authored: true },
-  "@showcase": {
-    authored: false,
-    why:
-      "an authored workspace package that is deliberately OUTSIDE `@authored` today, so the 23 policies declaring it do not " +
-      "see `packages/showcase-plugins/src`. That is an OPEN QUESTION rather than a settled boundary: widening it is a " +
-      "behaviour change across all 23, so it is measured and ruled, never done in passing. Measured 2026-09-11 " +
-      "(`@showcase` added as a root, `pnpm check:structure` + `pnpm check:policy-conformance`): ZERO new findings and zero " +
-      "proof-row failures — the blast radius is empty today because the package holds one file, which is why the decision " +
-      "is cheap now and gets more expensive with every file added to it. A policy that needs the package TODAY declares " +
-      "both refs (`['@authored', '@showcase']`), which is what the `harnessGlobs`-derived conversions do",
-  },
-  "@default-content": {
-    authored: false,
-    why:
-      "the same OPEN QUESTION as `@showcase`, taken deliberately rather than by omission: widening `@authored` is a " +
-      "behaviour change across every policy declaring it, so a new workspace package joins the vocabulary as its own root " +
-      "and the widening stays a measured, ruled decision. A policy that needs this package TODAY declares both refs " +
-      "(`['@authored', '@default-content']`), which is what `caught-failure-ownership` does",
-  },
+  "@showcase": { authored: true },
+  "@default-content": { authored: true },
   "@inference": { authored: true },
   "@tooling": { authored: true },
   "@tests": { authored: true },
   "@scripts": { authored: true },
-} as const satisfies Readonly<Record<PopulationRoot, AuthoredMembership>>;
+};
 
 /** The classified roots, in `POPULATION_ROOTS` declaration order — the same order the literal carried, so
  *  the derivation is byte-comparable with what it replaced. */
@@ -157,18 +144,8 @@ const PRODUCT_MEMBERSHIP = {
   "@db": { product: true },
   "@contracts": { product: true },
   "@kit": { product: true },
-  "@showcase": {
-    product: false,
-    why:
-      "the SAME open question `AUTHORED_MEMBERSHIP` records, and `@product` deliberately takes no new position on " +
-      "it: an authored workspace package whose admission is a measured, ruled behaviour change across every policy " +
-      "declaring the set, never something a second set resolves in passing. A policy that needs the package TODAY " +
-      "declares both refs (`['@product', '@showcase']`), which is what `d-citation-integrity` and `no-vanity-alias` do",
-  },
-  "@default-content": {
-    product: false,
-    why: "the same open question as `@showcase`, held for the same reason; `caught-failure-ownership` declares both refs",
-  },
+  "@showcase": { product: true },
+  "@default-content": { product: true },
   "@inference": { product: true },
   "@tooling": {
     product: false,
@@ -201,8 +178,8 @@ export const POPULATION_SETS = {
   "@frontend": ["@client", "@ui"],
   "@backend": ["@server", "@db", "@contracts"],
   /** THE SIX ROOTS THE DECLARING POLICIES WERE AUTHORED AGAINST — a recorded snapshot, not "the packages".
-   *  Hand-typed on purpose: it must not widen when a package lands, which is the ruling the `@showcase` root
-   *  above states. A policy that means "the authored code the product is built from" says `@product`. */
+   *  Hand-typed on purpose: it must not widen when a package lands. A policy that means "the authored code
+   *  the product is built from" says `@product`, whose exhaustive classification includes shipped packages. */
   "@packages": ["@client", "@ui", "@server", "@db", "@contracts", "@kit"],
   /** "the authored code the PRODUCT is built from" — DERIVED from `PRODUCT_MEMBERSHIP` above, never re-typed here. */
   "@product": PRODUCT_ROOTS,

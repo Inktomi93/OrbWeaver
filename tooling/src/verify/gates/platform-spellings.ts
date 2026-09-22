@@ -14,7 +14,7 @@
 // identity, with no arbitrary hop cap.
 //
 // POPULATION PORT: the legacy packages/ predicate maps to @packages across the six product roots. The final
-// population also includes @showcase explicitly, retaining that independently registered workspace.
+// `@product` includes both shipped showcase and default-content workspaces by classification.
 // Authority is the central ordinary positional waiver. Findings name exact authored positions: Promise for
 // sleep/deferred, the array expression for spread-sort, and the declared escape function name.
 //
@@ -539,7 +539,7 @@ export const gate = defineGate({
   family: "platform-spellings",
   authority: "ordinary",
   severity: "error",
-  population: ["@product", "@showcase"],
+  population: "@product",
   analysis: "types",
   execution: "selected-files",
   facts: [],

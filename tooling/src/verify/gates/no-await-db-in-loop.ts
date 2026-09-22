@@ -29,6 +29,8 @@
 // `@authored`/`@packages`, #1980, `contract/population.ts`); a one-file NARROWING. final − legacy = ∅. Controls:
 // inside `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
 // `tests/client/a11y/__cbbhr_out__ct-stories.tsx` (virtual) rejected by both.
+// CURRENT 2026-09-21: the generic authored classification closes the historical showcase narrowing;
+// showcase and default-content are now judged with the rest of the shipped source tree.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GatePolicyNodeFindingDetails } from "../contract/policy.ts";

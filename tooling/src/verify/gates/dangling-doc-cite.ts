@@ -11,8 +11,8 @@
 //
 // POPULATION PORT (legacy SHA `1f5e25c00`, verified byte-identical to HEAD at conversion). Arm A walked
 // `ctx.files` — the harness corpus, `_shared/ts-workspace.ts#harnessGlobs` — which is `@authored` plus
-// `packages/showcase-plugins` (an authored workspace package `@authored` deliberately excludes), so both
-// are declared. The st-goldens captured runtime needs no `notUnder`: it is excluded from the PROJECT, and
+// shipped `packages/showcase-plugins` and default content, now members of `@authored`. The st-goldens
+// captured runtime needs no `notUnder`: it is excluded from the PROJECT, and
 // a policy's candidates are the project's own files (`lib/policy-pass.ts:402`).
 //
 // ONE INVENTORY, THE GIT INDEX, FOR BOTH HALVES — A DELIBERATE AND STATED DELTA. The legacy descriptor
@@ -299,7 +299,7 @@ export const gate = defineGate({
   family: "text-citation",
   authority: "hard",
   severity: "error",
-  population: { in: ["@authored", "@showcase"] },
+  population: "@authored",
   analysis: "resource",
   execution: "entire-population",
   facts: [],

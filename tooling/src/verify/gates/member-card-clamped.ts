@@ -15,6 +15,8 @@
 // conversion `7be684811` itself declared `@authored`: legacy 7,353 vs final 7,352, legacy − final =
 // {`packages/showcase-plugins/src/index.ts`}, final − legacy = ∅. Later change, recorded separately: `03dd7329e`
 // widened it to `{ in: ["@authored", "@showcase"] }` (#1980), restoring that file and giving the ∅/∅ above.
+// The 2026-09-21 classification decision now places showcase inside `@authored`, so the same reach needs
+// no redundant root in this descriptor.
 // OUTSIDE-CONTROL CAVEAT (verifier cb-v-header-residue): `docs/__cbbhr_out_control.ts` is rejected by `harnessGlobs`,
 // not by the legacy descriptor — which has no path predicate of its own and admits it — so it proves only that
 // neither side reaches outside the harness corpus, not that the legacy filter discriminates.
@@ -75,17 +77,12 @@ export const gate = defineGate({
   severity: "error",
   // No scanRoot in the legacy shape: absence there means admit-all over the shared harness workspace —
   // `_shared/ts-workspace.ts#harnessGlobs`, whose first glob is `packages/*/src/**`, a WILDCARD over every
-  // workspace package. `@authored` alone is therefore NOT that corpus: it is a nine-root classification
-  // (contract/population.ts) that deliberately excludes `packages/showcase-plugins/src`, so declaring it by
-  // itself SILENTLY NARROWED this policy against its own legacy. Corrected 2026-09-12 (#1980) to the pair
-  // the other two `harnessGlobs`-derived conversions already declare — `pd-citation-integrity:92`,
-  // `dangling-doc-cite:222` — which is exactly the legacy corpus and nothing wider. This is NOT a widening
-  // of `@authored` itself (that remains the open, ruled question recorded at `AUTHORED_MEMBERSHIP`); it is
-  // one policy naming both roots. Blast radius measured at the correction: `packages/showcase-plugins/src`
-  // holds one file and it carries none of the three arms' tokens, so zero new findings today.
+  // workspace package. The old `@authored` classification excluded showcase and silently narrowed this
+  // policy until #1980 added the explicit root. The shipped-package decision now admits showcase and
+  // default-content through `@authored`; this descriptor keeps the same generic package reach with one ref.
   // The three arms scope themselves per-file (contracts / server-src / clamp-home) inside the visitor,
   // unchanged from the legacy `visit`.
-  population: { in: ["@authored", "@showcase"] },
+  population: "@authored",
   analysis: "syntax",
   execution: "selected-files",
   facts: [],

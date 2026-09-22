@@ -12,7 +12,7 @@
 //
 // POPULATION PORT. Legacy arm A admitted the harness TS/TSX files under every authored root, including
 // showcase and scripts, minus the captured SillyTavern runtime. The final population spells that same set
-// as `@authored + @showcase` with the same exclusion. Arms B/C are resource populations: `tracked-files`
+// as `@authored` with the same exclusion; shipped package roots are members of that composite. Arms B/C are resource populations: `tracked-files`
 // provides candidate-index membership, `authored-text` provides working bytes, `json:biome` provides the
 // strict config and its top-level ignores, and candidateIndexDelta provides only staged/worktree divergence.
 // Missing or unreadable resources withhold the owner instead of producing a clean zero.
@@ -370,7 +370,7 @@ export const gate = defineGate({
   family: "no-blanket-suppression",
   authority: "hard",
   severity: "error",
-  population: { in: ["@authored", "@showcase", "@default-content"], notUnder: ["scripts/probes/st-goldens/sillytavern-runtime/**"] },
+  population: { in: ["@authored"], notUnder: ["scripts/probes/st-goldens/sillytavern-runtime/**"] },
   analysis: "resource",
   execution: "entire-population",
   facts: [],

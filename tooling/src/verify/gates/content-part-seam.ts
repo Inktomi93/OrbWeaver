@@ -54,6 +54,8 @@
 // check:structure --check content-part-seam`, whole tree). This policy was the in-tree PRECEDENT for the
 // #2488 defect: it had already discovered that `@packages` does not mean "the authored product code" and
 // paid for the discovery per-policy, which is the cost `@product` removes.
+// CURRENT 2026-09-21: `@product` also includes shipped showcase/default-content sources. The widened
+// real-tree run is the authority for their current reach; the 3,427 figure remains the dated #2488 receipt.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

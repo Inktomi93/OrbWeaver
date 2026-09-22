@@ -4,7 +4,7 @@
 // marker parser and stale-marker state from the legacy descriptor are deleted.
 //
 // POPULATION PORT: the legacy descriptor had no scanRoot and was dispatched over the harness workspace.
-// Include @showcase explicitly because the predecessor harness admitted that workspace too.
+// `@authored` includes every shipped workspace the predecessor harness admitted.
 import type { ClassDeclaration, Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { resolveModuleMemberOrigin } from "../../_shared/reference-fact.ts";
@@ -108,7 +108,7 @@ export const gate = defineGate({
   family: "react-origin",
   authority: "ordinary",
   severity: "error",
-  population: ["@authored", "@showcase"],
+  population: "@authored",
   analysis: "types",
   execution: "selected-files",
   facts: [],
