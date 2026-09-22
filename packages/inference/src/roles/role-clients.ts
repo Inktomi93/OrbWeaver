@@ -7,7 +7,7 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { Task } from "@orb/contracts/inference";
-import { acceptsForcedToolChoice } from "@orb/contracts/inference";
+import { acceptsForcedToolChoice, canFund } from "@orb/contracts/inference";
 import type { EmbedResult, ImageEmbedResult, RerankResult, SummarizeResult } from "@orb/contracts/providers";
 import type { ImageEmbedInput, RerankDocument, RerankQuery, ResponseFormat, SummarizeInput } from "@orb/contracts/role-clients";
 import type { UserId } from "@orb/kit/ids";
@@ -20,7 +20,7 @@ import type { RoleClientsFor } from "../contract/runtime.ts";
 import type { BindingActor, InferenceDeps } from "../deps.ts";
 import { resolveEmbed } from "../funnel/resolve-embed.ts";
 import type { ResolverContext } from "../resolve/resolve-task.ts";
-import { resolveTask } from "../resolve/resolve-task.ts";
+import { NoConnectionError, resolveTask } from "../resolve/resolve-task.ts";
 
 /** The tasks the bundle serves — the derive roles; chat/agent/generateImage reach the executor directly. */
 const DERIVE_TASKS = ["embed", "rerank", "imageEmbed", "summarize", "structured"] as const satisfies readonly Task[];
@@ -131,6 +131,11 @@ export function createRoleClientsFor(args: {
   return (funder: Principal, actor?: BindingActor): RoleClientsWithSignal => {
     const live = async <T extends DeriveTask>(task: T): Promise<Resolved<T>> => {
       const { resolved } = await resolveTask(ctx, { task, principal: funder, ...(actor !== undefined ? { actor } : {}) });
+      // The owner's per-row consent to unattended spend: a background task on a row that withholds it runs
+      // nothing, and reads as the same "nothing ran" class as no binding (the callers' existing degrade).
+      if (!canFund(resolved, task)) {
+        throw new NoConnectionError(`the connection bound for "${task}" does not allow background work — enable it in Connections`);
+      }
       return resolved as Resolved<T>;
     };
 
