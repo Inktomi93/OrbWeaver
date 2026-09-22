@@ -96,10 +96,9 @@
 //
 // POPULATION PORT, and it is a WIDENING recorded rather than a silent one. Legacy admitted
 // `harnessGlobs ∩ scanRoot`: `packages/*/src/**`, `tooling/src/**`, `scripts/**`, `tests/**` in `.ts`/`.tsx`,
-// minus the captured SillyTavern runtime. `@authored` is the nine-root list MINUS `@showcase`, while
-// `harnessGlobs`' `packages/*/src/**` and the legacy `PACKAGE_SOURCE_RE` both matched
-// `packages/showcase-plugins/src` — so `@showcase` is declared explicitly beside `@authored` and the port is
-// lossless. Measured through the real reader over the real project on 2026-09-12: 7,484 paths admitted on
+// minus the captured SillyTavern runtime. `@authored` now includes the shipped showcase/default-content
+// roots that `harnessGlobs`' `packages/*/src/**` and the legacy `PACKAGE_SOURCE_RE` both matched, so the port
+// is lossless without duplicate roots. Measured through the real reader over the real project on 2026-09-12: 7,484 paths admitted on
 // BOTH sides with symmetric difference ZERO and a planted out-of-population control rejected by both. The
 // census AT LANDING is 597 occurrences across 283 files in 65 `(rule, scope)` classes, every one licensed by
 // exactly one grant row consumed exactly once. (It was 602 / 284 / 66 before this commit burned the five
@@ -184,11 +183,10 @@ export const gate = defineGate({
   family: "suppressions",
   authority: "reviewed-grant",
   severity: "error",
-  // The legacy `harnessGlobs ∩ scanRoot` set, losslessly: `@authored` is the nine authored roots and
-  // `@showcase` is the tenth authored package that `packages/*/src/**` always matched but `@authored`
-  // deliberately excludes. `notUnder` is the captured foreign SillyTavern runtime, which Orbweaver does not
+  // The legacy `harnessGlobs ∩ scanRoot` set, losslessly: `@authored` includes every shipped package root.
+  // `notUnder` is the captured foreign SillyTavern runtime, which Orbweaver does not
   // author and therefore does not rule on — the authored generator BESIDE it stays governed.
-  population: { in: ["@authored", "@showcase"], notUnder: ["scripts/probes/st-goldens/sillytavern-runtime/**"] },
+  population: { in: ["@authored"], notUnder: ["scripts/probes/st-goldens/sillytavern-runtime/**"] },
   analysis: "syntax",
   // A per-class verdict cannot compose over a subset: a scoped run seeing one file of a class would report
   // that class from one site, and — worse — grant liveness is a whole-population question, so a partial run

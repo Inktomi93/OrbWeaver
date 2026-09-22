@@ -54,6 +54,8 @@
 // OUTSIDE-CONTROL CAVEAT (verifier cb-v-header-residue): `docs/__cbbhr_out_control.ts` is rejected by `harnessGlobs`,
 // not by the legacy descriptor — which has no path predicate of its own and admits it — so it proves only that
 // neither side reaches outside the harness corpus, not that the legacy filter discriminates.
+// CURRENT 2026-09-21: the generic authored classification closes the historical showcase narrowing;
+// showcase and default-content are now judged with the rest of the shipped source tree.
 import type { CallExpression, Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { resolveCallableOrigin } from "../../_shared/reference-fact-call.ts";

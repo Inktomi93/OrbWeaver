@@ -10,7 +10,7 @@ import type { GatePolicyContext } from "../contract/policy.ts";
 import { findGateIgnoreMarkersWithSpans, GATE_IGNORE_MENTION_SPAN_KINDS } from "./gate-ignore.ts";
 
 export const GATE_IGNORE_POPULATION = {
-  in: ["@authored", "@showcase"],
+  in: ["@authored"],
   under: ["packages/**", "tests/**", "tooling/src/**"],
 } as const;
 

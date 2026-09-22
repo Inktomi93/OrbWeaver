@@ -41,6 +41,8 @@
 // OUTSIDE-CONTROL CAVEAT (verifier cb-v-header-residue): `docs/__cbbhr_out_control.ts` is rejected by `harnessGlobs`,
 // not by the legacy descriptor — which has no path predicate of its own and admits it — so it proves only that
 // neither side reaches outside the harness corpus, not that the legacy filter discriminates.
+// CURRENT 2026-09-21: showcase/default-content are members of `@authored`, closing the dated one-file
+// narrowing above. The widened policy remains clean on the real tree.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

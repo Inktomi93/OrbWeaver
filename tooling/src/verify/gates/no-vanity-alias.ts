@@ -12,7 +12,7 @@
 // population NAME census, not a resolved identity. No shared `lib/` reader applies.
 // POPULATION PORT. Legacy `scanRoot` was `p.startsWith("packages/") && p.includes("/src/")` minus
 // `TEST_FILE` — i.e. EVERY workspace package's `src/`, tests excluded. The final population is the declared
-// `["@product", "@showcase"]`; the `TEST_FILE` suffix exclusion is not expressible in the population algebra
+// `@product`; the `TEST_FILE` suffix exclusion is not expressible in the population algebra
 // (a content suffix, not a path prefix) and stays a code-level filter, ported verbatim.
 // THE ROOT MEMBERSHIP IS NOT RE-TYPED HERE. It was, as "the exact seven `packages/<pkg>/src/` roots", beside
 // an UNDATED claim of byte-identity — and both rotted the moment a package landed: `packages/inference/src/`
@@ -25,8 +25,8 @@
 // the one worth reading: 4 findings, all in `packages/inference/src/contract/diagnostics.ts`, all the
 // SANCTIONED distinct-alias-per-verb shape — a false positive this policy's own `mustPass` fixture path had
 // been modelling at the pre-extraction path. Fixed at `isContractVocabHome` (below) rather than waived.
-// The `@showcase`/`@default-content` halves of the legacy regex remain outside, by the open question
-// `AUTHORED_MEMBERSHIP`/`PRODUCT_MEMBERSHIP` record — `@showcase` is declared here, `@default-content` is not.
+// The 2026-09-21 shipped-package decision admits both showcase and default-content through `@product`.
+// Their inclusion is generic classification rather than a policy-local exception.
 // LEGACY at 86ce80b6c.
 //
 // THE IDENTIFIER-FREQUENCY CENSUS IS A VISITOR, NOT A DESCENDANT WALK (guide §3: gate modules cannot
@@ -251,7 +251,7 @@ export const gate = defineGate({
   family: "no-vanity-alias",
   authority: "ordinary",
   severity: "error",
-  population: ["@product", "@showcase"],
+  population: "@product",
   analysis: "syntax",
   execution: "entire-population",
   facts: [],

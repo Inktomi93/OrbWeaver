@@ -23,8 +23,8 @@ test.describe("population vocabulary", () => {
       "@frontend": ["@client", "@ui"],
       "@backend": ["@server", "@db", "@contracts"],
       "@packages": ["@client", "@ui", "@server", "@db", "@contracts", "@kit"],
-      "@product": ["@client", "@ui", "@server", "@db", "@contracts", "@kit", "@inference"],
-      "@authored": ["@client", "@ui", "@server", "@db", "@contracts", "@kit", "@inference", "@tooling", "@tests", "@scripts"],
+      "@product": ["@client", "@ui", "@server", "@db", "@contracts", "@kit", "@showcase", "@default-content", "@inference"],
+      "@authored": ["@client", "@ui", "@server", "@db", "@contracts", "@kit", "@showcase", "@default-content", "@inference", "@tooling", "@tests", "@scripts"],
     });
   });
 });
@@ -37,6 +37,9 @@ test.describe("populationIncludes", () => {
     expect(populationIncludes(["@contracts", "@tooling"], "tooling/src/verify/cli.ts")).toBe(true);
     expect(populationIncludes("@authored", "tests/tooling/example.test.ts")).toBe(true);
     expect(populationIncludes("@authored", "scripts/probes/example.ts")).toBe(true);
+    expect(populationIncludes("@authored", "packages/showcase-plugins/src/index.ts")).toBe(true);
+    expect(populationIncludes("@product", "packages/default-content/src/index.ts")).toBe(true);
+    expect(populationIncludes("@product", "packages/default-content/package.json")).toBe(false);
     expect(populationIncludes("@backend", "packages/client/src/api.ts")).toBe(false);
   });
 

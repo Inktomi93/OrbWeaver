@@ -179,3 +179,10 @@ test("`@product` is a strict subset of `@authored` — the two classification ma
   expect(POPULATION_SETS["@product"].filter((root) => !authored.has(root))).toEqual([]);
   expect(POPULATION_SETS["@authored"].filter((root) => !product.has(root))).toEqual(["@tooling", "@tests", "@scripts"]);
 });
+
+test("shipped showcase and default-content packages belong to both generic composites", () => {
+  expect(POPULATION_SETS["@authored"]).toHaveLength(12);
+  expect(POPULATION_SETS["@product"]).toHaveLength(9);
+  expect(POPULATION_SETS["@authored"]).toEqual(expect.arrayContaining(["@showcase", "@default-content"]));
+  expect(POPULATION_SETS["@product"]).toEqual(expect.arrayContaining(["@showcase", "@default-content"]));
+});

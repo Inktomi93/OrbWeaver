@@ -52,6 +52,8 @@
 // reachable there and judged by nothing — and that package is now the tree's primary credentialed-egress
 // surface. MEASURED (`pnpm check:structure --check scrubber-home`, whole tree): population 3,315 → 3,427,
 // findings 0 → 0, grant consumption unchanged at 1. A security SEAL over a clean tree.
+// CURRENT 2026-09-21: `@product` includes shipped showcase/default-content sources, closing the historical
+// showcase narrowing above. The widened policy remains clean on the real tree.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { readMemberReference } from "../../_shared/reference-fact.ts";

@@ -22,10 +22,9 @@
 //
 // POPULATION PORT (legacy SHA `50088b39b`, verified byte-identical to HEAD at conversion). The legacy
 // descriptor walked `project.getSourceFiles()` — the harness corpus, `_shared/ts-workspace.ts#harnessGlobs`
-// — and subtracted `tooling/src/verify/gates/`. `@authored` is that corpus minus
-// `packages/showcase-plugins`, an authored workspace package `harnessGlobs` DOES glob and `@authored`
-// deliberately does not, so `@showcase` is declared beside it; without it the conversion would silently
-// narrow. The st-goldens captured runtime needs no `notUnder`: it is excluded from the PROJECT, and a
+// — and subtracted `tooling/src/verify/gates/`. `@authored` now includes the shipped showcase and
+// default-content packages, so it carries the complete package reach without duplicate roots. The
+// st-goldens captured runtime needs no `notUnder`: it is excluded from the PROJECT, and a
 // policy's candidates are the project's own files (`lib/policy-pass.ts:402`).
 //
 // THE GATE-CORPUS SUBTRACTION IS A POPULATION FENCE, NOT AN EXEMPTION TABLE: a gate module's
@@ -89,7 +88,7 @@ export const gate = defineGate({
   family: "text-citation",
   authority: "hard",
   severity: "error",
-  population: { in: ["@authored", "@showcase"], notUnder: [GATES_DIR] },
+  population: { in: ["@authored"], notUnder: [GATES_DIR] },
   analysis: "resource",
   execution: "entire-population",
   facts: [],

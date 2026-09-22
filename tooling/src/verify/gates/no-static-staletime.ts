@@ -30,6 +30,8 @@
 // `lib/project-home-origin.ts#classifyPackageMemberOrigin` instead. Each member shares a canonical production
 // dependency with at least one sibling (§2); the three local `QUERY_CORE` spellings and the
 // `_proof/client-vendors.ts` plants are not that dependency.
+// CURRENT 2026-09-21: the generic authored classification closes the historical showcase narrowing;
+// showcase and default-content are now judged with the rest of the shipped source tree.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { readStaticString } from "../../_shared/reference-fact.ts";

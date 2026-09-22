@@ -7,10 +7,10 @@ import { defineFact } from "../contract/fact.ts";
 const QUERY_MACHINE_MODULE = "@tanstack/react-query";
 const QUERY_MACHINE_NAMES = ["useMutation", "useInfiniteQuery"] as const;
 /** Byte-for-byte port of the legacy harness population under `scanRoot: () => true`, with its
- * `.test.tsx?` scope subtraction. `@showcase` is explicit because it is deliberately outside
- * `@authored` while the harness still loads that workspace package. */
+ * `.test.tsx?` scope subtraction. Shipped showcase/default-content sources now enter through
+ * `@authored`, preserving the harness reach without duplicate roots. */
 export const QUERY_MACHINE_POPULATION = {
-  in: ["@authored", "@showcase"],
+  in: ["@authored"],
   notNamed: ["*.test.ts", "*.test.tsx"],
 } as const;
 // @orb-waive no-inline-types(QueryMachineName): derived from the module-private QUERY_MACHINE_NAMES tuple; splitting the axis from the fact creates a cross-module coupling worse than the lib/ home; ends when the fact moves to contract/
