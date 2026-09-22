@@ -14,6 +14,8 @@ const SOURCE = "packages/server/src/domain/act.ts";
 const MIRROR = "tests/server/domain/act.test.ts";
 const TOOL = "tooling/src/verify/ops/thing.ts";
 const TOOL_MIRROR = "tests/tooling/verify/ops/thing.test.ts";
+const INFERENCE_SOURCE = "packages/inference/src/resolve/task.ts";
+const INFERENCE_MIRROR = "tests/inference/resolve/task.test.ts";
 
 function load(scratch: string, overlay: Readonly<Record<string, string | null>>, family: MirrorFamilyId = "package-test"): ResourceLoad<MirrorIndex> {
   return loadMirrorIndex(createResourceReader({ root: scratch, overlay }), family);
@@ -67,6 +69,19 @@ test("the tooling family bounds its own spaces rather than inheriting the whole 
   // even though both families are derived from the one `tests` tree.
   expect(tooling.testFiles.has(MIRROR)).toBe(false);
   expect(ready(load(scratch, overlay, "package-test")).testFiles.has(MIRROR)).toBe(true);
+});
+
+test("the inference family publishes its complete bounded source and test denominator", ({ scratch }) => {
+  const overlay = {
+    [INFERENCE_SOURCE]: "export const task = 1;\n",
+    [INFERENCE_MIRROR]: "test('task', () => {});\n",
+    [SOURCE]: "export const act = 1;\n",
+    [MIRROR]: "test('server', () => {});\n",
+  };
+  const inference = ready(load(scratch, overlay, "inference-test"));
+
+  expect([...inference.sourceFiles]).toEqual([INFERENCE_SOURCE]);
+  expect([...inference.testFiles]).toEqual([INFERENCE_MIRROR]);
 });
 
 test("members is the DENOMINATOR walked, and an unknown family refuses", ({ scratch }) => {

@@ -456,9 +456,9 @@
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 515,
-      "bytes": 412136,
-      "sha256": "0d38ea8dbf80c3589f4d20528eef9a44f6b93f3f43f5535d0a6b92bcd64173d3",
+      "lines": 516,
+      "bytes": 413096,
+      "sha256": "00686e3c6f778eb13902d791c18bf4ae64b66ce899473315aa251f2106adf487",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -471,12 +471,12 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-        "assignedSha256": "0d38ea8dbf80c3589f4d20528eef9a44f6b93f3f43f5535d0a6b92bcd64173d3",
+        "assignedSha256": "00686e3c6f778eb13902d791c18bf4ae64b66ce899473315aa251f2106adf487",
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "0d38ea8dbf80c3589f4d20528eef9a44f6b93f3f43f5535d0a6b92bcd64173d3",
-        "verifiedCommit": "8f7ed4c4b98c112429c3918483f3a172f66ae184",
+        "verifiedSha256": "00686e3c6f778eb13902d791c18bf4ae64b66ce899473315aa251f2106adf487",
+        "verifiedCommit": "dc0f8eb092bd6706c8458cf1d59578ba07db9181",
         "verifiedAt": "2026-09-22",
         "evidence": [
           "Bounded #2312 citation correction; existing reviewed CSS-family changes and earlier evidence remain attributable to their own receipts. Selected dangling-refs drive clean over199 docs: reports/runs/structure/main-72765-2026-09-13T06-11-26-874Z/check-structure.json. This receipt does not certify the whole gate roster or close ongoing CSS verification.",
@@ -645,7 +645,7 @@
           }
         ],
         "summary": "Active enforcement catalog, fully read as text; current Q11 health-row correction verified against canonical generation and namespace-health ownership. Prior per-row evidence remains attributed; no new whole-roster implementation certification.",
-        "verifiedCanonicalSha256": "0d38ea8dbf80c3589f4d20528eef9a44f6b93f3f43f5535d0a6b92bcd64173d3"
+        "verifiedCanonicalSha256": "00686e3c6f778eb13902d791c18bf4ae64b66ce899473315aa251f2106adf487"
       },
       "receiptCurrent": true
     },
@@ -1360,9 +1360,9 @@
       "path": "docs/architecture/core/Spine-Testing.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 293,
-      "bytes": 31865,
-      "sha256": "77d7111451383a5fd22b4ac891ac5d7ba15c5de94264ed74e16ae10cb141df81",
+      "lines": 303,
+      "bytes": 32777,
+      "sha256": "5ae6d85e04eaed2a6ffb4bd61fb4861755fbae1165b86a1c4df5f02523bf6363",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1375,13 +1375,13 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Spine-Testing.md",
-        "assignedSha256": "77d7111451383a5fd22b4ac891ac5d7ba15c5de94264ed74e16ae10cb141df81",
+        "assignedSha256": "5ae6d85e04eaed2a6ffb4bd61fb4861755fbae1165b86a1c4df5f02523bf6363",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "77d7111451383a5fd22b4ac891ac5d7ba15c5de94264ed74e16ae10cb141df81",
-        "verifiedCommit": "fd3c84456025412565dc40dc16f08194226de8c2",
-        "verifiedAt": "2026-09-20",
+        "verifiedSha256": "5ae6d85e04eaed2a6ffb4bd61fb4861755fbae1165b86a1c4df5f02523bf6363",
+        "verifiedCommit": "dc0f8eb092bd6706c8458cf1d59578ba07db9181",
+        "verifiedAt": "2026-09-22",
         "evidence": [
           "Full document read by the scoped documentation lane; current changes checked against cfb9cea2fea7a109cd65c44485ada4d30437fc5c. Repository-resource citations and native execution guidance reflect 46b658696/cfb9cea2f; independent scheduling and compiler-executor controls passed. Exact ambient enforcement and remaining native-config integration are still separate program requirements.",
           "Full current 277-line document read by the orchestrator; registered test kinds and phase-4 native reclassification receipts checked against f6c2ae500. Remaining serial lists, tags and predictive ownership are explicitly transitional; this receipt does not claim those migrations complete.",
@@ -1419,7 +1419,7 @@
           }
         ],
         "summary": "Test layout and current scheduling policy; structural browser suites run in parallel and rate validity remains separate from deadlines.",
-        "verifiedCanonicalSha256": "77d7111451383a5fd22b4ac891ac5d7ba15c5de94264ed74e16ae10cb141df81"
+        "verifiedCanonicalSha256": "5ae6d85e04eaed2a6ffb4bd61fb4861755fbae1165b86a1c4df5f02523bf6363"
       },
       "receiptCurrent": true
     },

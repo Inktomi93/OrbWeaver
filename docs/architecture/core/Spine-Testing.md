@@ -98,6 +98,7 @@ tests/
 | **every OTHER `domain/**` file with runtime logic** — `substrate/`, a named subsystem (`engine/`, `assembly/`, `memory/`, `themes/`…), `guard.ts`, a sanctioned feature-root singleton, a `contract/` file carrying real logic | a `.test.ts` or `.int.test.ts` |
 | infra/foundation files with runtime logic | a `.test.ts` or `.int.test.ts` (security belts, adapters, dispatchers) |
 | **every `entry/**` + `transport/**` file with runtime logic** — a boot step, a composition seam, an HTTP registrar, a job driver, a bus, a ladder primitive | a `.test.ts` or `.int.test.ts` |
+| **every `@orb/inference` runtime source** | an exact registered runtime mirror, or the governed cross-cutting suite for its semantic subsystem |
 
 The domain arm is DEMAND-BY-DEFAULT (#767, 2026-08-28): it was an enumerated slot list, the template outgrew
 it, and 127 files with runtime logic — 54 in `substrate/`, the second-largest slot in the tree — sat outside
@@ -131,6 +132,15 @@ statement, a branch (including a ternary), or a computed argument is behavior an
 lanes are not generally presence-gated. The deliberate exception is the standing #883
 `worst-legal-art-contrast.suite.ct.tsx`: `test-presence-client` requires that one cross-cutting rendered floor
 because deleting it restores a known blind class across every theme polarity at once.
+
+`test-presence-inference` owns the inference package's distinct topology. It reads the bounded
+`packages/inference/src` and `tests/inference` mirror family, proves both complete denominators, and classifies
+every source as exact-module covered, cross-cutting-suite covered, or non-runtime contract/data. Backend wire
+behavior is intentionally cross-cutting through the conformance suite; catalog, capability, resolution and role
+behavior use their subsystem suites; contract, funnel, registry and package-root runtime behavior use the package
+integration suite. A new runtime source outside those declared categories owes an exact mirror.
+Missing, empty, unreadable, or dispatch-incomplete source/test corpora refuse evaluation rather than returning a
+clean zero.
 
 **`test-presence` checks EXISTENCE, not coverage:** it confirms a store's mirror `.ct.tsx` EXISTS — NOT
 that new actions are ASSERTED. Adding an action to an existing store passes presence WITHOUT covering it.

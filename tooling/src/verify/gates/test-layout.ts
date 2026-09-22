@@ -5,11 +5,12 @@
 // mirror-exempt; `.spec.ts` is e2e-only; `tests/{support,e2e}` and flat `tests/tooling` files are exempt.
 //
 // FAMILY `mirror-index` — the SHARED SUBJECT READER is `ops/resource-mirror.ts` `loadMirrorIndex`, reached
-// through the `mirrorIndex` host door (`contract/resource-host.ts`). Its two siblings are `test-presence`
-// and `test-presence-client`; `contract/resource-mirror.ts:3-8` names exactly this trio as the kind's
-// reason for existing and enumerates their `existsSync` sites by `file:line`. The three keep separate
+// through the `mirrorIndex` host door (`contract/resource-host.ts`). Its siblings are `test-presence`,
+// `test-presence-inference` and `test-presence-client`; `contract/resource-mirror.ts` names this family as
+// the kind's
+// reason for existing and enumerates their `existsSync` sites by `file:line`. The four keep separate
 // policy ids because they judge different SPACES (the test corpus · server/contracts source · client/ui
-// source) with different rules; what they share — and what makes them one family — is the membership
+// source · inference source) with different rules; what they share — and what makes them one family — is the membership
 // reader, not a theme.
 //
 // THIS POLICY WIRES THE `mirror-index` KIND. Until this conversion the kind was SHIPPED with ZERO gate
