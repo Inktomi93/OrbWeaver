@@ -41,11 +41,12 @@ import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { CharacterPicker, LibraryListLayout, ListPaneHeader } from "#components";
-import { useOpenRefinery, useTRPC } from "#data";
+import { CharacterPicker, LibraryListLayout, ListPaneHeader, RowActionsMenu } from "#components";
+import { useInvalidation, useOpenRefinery, useTRPC } from "#data";
 import { timeLib, useFocusOnMount } from "#lib";
-import { requestRefineryLandingFocus, selectRefinerySessionFromList, useMobileViewport, useSelectedRefinerySessionId } from "#state";
+import { refinerySectionSelection, requestRefineryLandingFocus, selectRefinerySessionFromList, useMobileViewport, useSelectedRefinerySessionId } from "#state";
 import { RefineryChip } from "../components/refinery-chip.tsx";
+import { useDeleteRefinerySession } from "../hooks/use-refinery-mutations.ts";
 import { useRefineryCensus } from "../hooks/use-refinery-sessions.ts";
 
 const VERDICT_TONE: Record<string, RenderHintTone> = {
@@ -107,6 +108,37 @@ function readoutSubtitleOf(row: ResolvedRow): string {
   const stage = row.latestVerdict === null ? "not analyzed · " : "";
   const readout = `${stage}iteration ${row.iterationCount} · started ${timeLib.formatDateTime(row.createdAt)}`;
   return row.sessionName === null ? readout : `${row.sessionName} · ${readout}`;
+}
+
+/** The roster owns the session lifecycle door: deleting a session removes its full refinery run history,
+ * while leaving the character itself untouched. The shared row composite keeps the destructive action
+ * outside the clickable row body and puts the irreversible write behind the house confirmation. */
+function RefinerySessionRowActions({ row, selected }: { readonly row: ResolvedRow; readonly selected: boolean }): ReactElement {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  const remove = useDeleteRefinerySession({ trpc, invalidation });
+  const started = timeLib.formatDateTime(row.createdAt);
+
+  const deleteSession = (): Promise<void> =>
+    remove.mutateAsync({ sessionId: row.id }).then((): void => {
+      // A successful delete cannot leave CONTENT drilled into the now-missing row. This is the same
+      // section-selection clear the shell's back door uses, so it also releases an open mobile roster.
+      if (selected) {
+        refinerySectionSelection.clear();
+      }
+    });
+
+  return (
+    <RowActionsMenu
+      label={`Session actions for ${row.characterName}, started ${started}`}
+      reveal={true}
+      destructive={{
+        title: "Delete this refinery session?",
+        description: `This permanently deletes this session and all of its refinery runs. ${row.characterName}'s character card is unchanged.`,
+        onConfirm: deleteSession,
+      }}
+    />
+  );
 }
 
 /**
@@ -243,6 +275,8 @@ export function RefineryListSurface(): ReactElement {
       >
         {rows.map((row) => (
           <ListRow
+            actions={<RefinerySessionRowActions row={row} selected={selectedId === row.rawId} />}
+            actionsFloat={true}
             clickable={true}
             key={row.rawId}
             leading={

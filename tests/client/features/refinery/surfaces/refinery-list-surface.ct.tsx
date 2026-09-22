@@ -18,6 +18,8 @@ import { makeRefinerySessionSummary } from "../fixtures.ts";
 const HEADER_PICK_CHARACTER_ID = mintTypeId(ID_PREFIX.character);
 /** A session for the arm where CONTENT shows the pipeline rather than the landing picker. */
 const OPEN_SESSION_ID = mintTypeId(ID_PREFIX.refinerySession);
+/** The selected row whose destructive roster action is exercised end to end. */
+const DELETE_SESSION_ID = mintTypeId(ID_PREFIX.refinerySession);
 
 // The affordance names and copy pins.
 const START_A_NEW_SESSION = /^Start a new session$/;
@@ -222,13 +224,37 @@ test("…and with a SESSION open the + is back on the desktop too — the landin
   await expect(page.getByRole("button", { name: START_A_NEW_SESSION })).toBeEnabled();
 });
 
+test("a roster row deletes its session only after confirmation and clears that session's open drill", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "refinery.listSessions": () => [
+      makeRefinerySessionSummary({ id: DELETE_SESSION_ID, characterName: "Zephyrine Vale", name: null, createdAt: STARTED_EARLIER }),
+    ],
+    "refinery.deleteSession": (): null => null,
+  });
+  await mount(<RefineryRosterStory selectedSessionId={DELETE_SESSION_ID} />);
+
+  const row = page.getByRole("button", { name: "Zephyrine Vale", exact: true });
+  await expect(row).toHaveAttribute("aria-current", "true");
+
+  await row.hover();
+  await page.getByRole("button", { name: /Session actions for Zephyrine Vale, started/ }).click();
+  await page.getByRole("menuitem", { name: "Delete" }).click();
+  await expect(page.getByRole("alertdialog", { name: "Delete this refinery session?" })).toBeVisible();
+  await expect.poll(() => trpc.count("refinery.deleteSession")).toBe(0);
+
+  await page.getByRole("alertdialog", { name: "Delete this refinery session?" }).getByRole("button", { name: "Delete" }).click();
+
+  await expect.poll(() => trpc.lastInput("refinery.deleteSession")).toEqual({ sessionId: DELETE_SESSION_ID });
+  await expect(row).not.toHaveAttribute("aria-current", "true");
+});
+
 test("the row folds the readout into its accessible DESCRIPTION — a screen reader hears more than the name (P2 a11y)", async ({ mount, page }) => {
   await routeTrpc(page, {
     "refinery.listSessions": () => [makeRefinerySessionSummary({ characterName: "Zephyrine Vale", name: null, iterationCount: 3, latestVerdict: "ACCEPT" })],
     "character.list": emptyCharacterPage,
   });
   await mount(<RefineryRosterStory />);
-  const row = page.getByRole("button", { name: "Zephyrine Vale" });
+  const row = page.getByRole("button", { name: "Zephyrine Vale", exact: true });
   await expect(row).toBeVisible();
   // The NAME is the character; the readout rides the DESCRIPTION (aria-describedby → subtitle), where the
   // old `actions`-slot readout never reached — so a screen reader no longer hears the bare name alone.
@@ -254,7 +280,7 @@ test("a session with NO verdict wears no chip at all — the state is stated in 
   });
   await mount(<RefineryRosterStory />);
 
-  const row = page.getByRole("button", { name: "Zephyrine Vale" });
+  const row = page.getByRole("button", { name: "Zephyrine Vale", exact: true });
   await expect(row).toBeVisible();
   // The absent arm carries NO tone chip: `RefineryChip` stamps its own typed test id, so its absence
   // under this row is the rendered proof that a filled, uppercase pill is no longer drawn for "not run
@@ -291,7 +317,7 @@ test("two sessions on ONE card are distinguishable — the start stamp differs t
     "character.list": emptyCharacterPage,
   });
   await mount(<RefineryRosterStory />);
-  const rows = page.getByRole("button", { name: "Elias Thorn" });
+  const rows = page.getByRole("button", { name: "Elias Thorn", exact: true });
   await expect(rows).toHaveCount(2);
   const first = await accessibleDescriptionOf(rows.nth(0));
   const second = await accessibleDescriptionOf(rows.nth(1));
