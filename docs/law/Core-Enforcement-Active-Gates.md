@@ -52,7 +52,7 @@ dropping a valid `defineGate` module in that directory, nothing else to register
 `tooling/src/verify/gates/GATE-AUTHORING.md` is the authoring guide; a gate's rule and its reason live
 in its own module header, never restated here.
 
-(351 registered gates)
+(350 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -258,7 +258,6 @@ in its own module header, never restated here.
 | `nullable-column-inequality` | drizzle-schema | ordinary/error | @packages,@tests | an inequality predicate (ne /… |
 | `one-principal-mint-population` | — | ordinary/error | @server,@inference | a new Principal construction site in… |
 | `open-json-column-key-parity` | — | reviewed-grant/error | @db,@server\* | an OPEN JSON column (mode:"json" +… |
-| `open-json-column-key-parity-deferred` | open-json-column-key-parity | hard/warning | @db,@server\* | messageVariants.metadata has a named… |
 | `open-json-column-key-parity-health` | open-json-column-key-parity | hard/error | @db,@server\* | open-json-column-key-parity: DERIVED… |
 | `over-art-plate-arm` | — | ordinary/error | none | over-art plate law (UI-Theming-and-Con… |
 | `own-tables-only` | drizzle-schema | hard/error | @server\* | a domain touches its OWN tables… |
