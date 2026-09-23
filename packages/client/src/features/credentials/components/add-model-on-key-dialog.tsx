@@ -7,7 +7,7 @@
 // A failed or empty catalog is the picker's typed arm, never an error boundary for the dialog: the read dials
 // the provider (or the user's own box), and a model can still be named by id where policy permits it.
 
-import type { ProviderDef } from "@orb/contracts/inference";
+import type { ModelListing, ProviderDef } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import { Button } from "@orb/ui/button";
 import { DialogClose } from "@orb/ui/dialog";
@@ -17,6 +17,7 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { FormDialog, QueryBoundary } from "#components";
 import type { Invalidation, Trpc } from "#data";
+import { peekQueryData } from "#data";
 import { touchedFieldError } from "#forms/editor";
 import { notify } from "#lib";
 import { pushRecentModel } from "#state";
@@ -71,7 +72,7 @@ function AddModelOnKeyBody({
   const catalogKey = trpc.connection.catalogModels.queryKey({ connectionId: connection.id });
 
   const save = async (values: AddModelOnKeyFormValues): Promise<AddModelOnKeyFormValues> => {
-    const catalog = queryClient.getQueryData(catalogKey);
+    const catalog = peekQueryData<ModelListing>(queryClient, catalogKey);
     const source: ModelCatalogSource = catalog === undefined ? { status: "loading" } : modelListSource(catalog, null);
     const label = values.label.trim();
     const modelListed = isListedModel(source, values.model);
