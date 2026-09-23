@@ -51,7 +51,7 @@ export type ChatContentPart =
    * resolver — a translator dispatches on `type` and never re-sniffs. `url` is a data URI/model-fetchable
    * URL exactly like `image.url`. */
   | { readonly type: "video"; readonly url: string }
-  /* The D48 tool exchange (tool-use-design/02 §1): parts are the WIRE form only — persisted form is
+  /* The D48 tool exchange: parts are the WIRE form only — persisted form is
    * `ToolCallRecord[]` on the variant (never markdown in a body, never a slot row); assembly MATERIALIZES
    * a recorded exchange into `assistant(tool-call)` + `tool(tool-result)` messages at the engine REQUEST
    * seam, so the string-shaped assemble/SHAPE transforms stay parts-blind (the D51 law, both directions). */
@@ -385,7 +385,7 @@ export interface PromptTransformEnv {
  *  because it is untrusted text (a guest writes it) that reaches a refusal surface. */
 export const PROMPT_TRANSFORM_ABORT_REASON_MAX = 200;
 
-/** A transform's deliberate ABORT of the generation (plugin-ui-plane §5.14, U6). It is NOT the D53 skip:
+/** A transform's deliberate ABORT of the generation. It is NOT the D53 skip:
  *  a skip means "this transform did not run, keep the draft"; an abort means "this transform ran and says
  *  the turn must not happen". The two are different outcomes and the shape makes them un-confusable — a
  *  timeout can never be mistaken for a refusal, and a transform can never abort by returning nothing. */
@@ -417,7 +417,7 @@ export interface PromptTransform {
 }
 
 /** The entity kinds whose OWNER-PLANE edits reach a room's member-visible projections (the entity→room
- *  member-freshness bridge, `docs/design/entity-room-member-freshness-bridge.md` §3.3). ONE axis, keyed on
+ *  member-freshness bridge). ONE axis, keyed on
  *  by three places that must never disagree: the `roomEntityChanged` member below, the composition root's
  *  `ROOM_REACH` resolver table (`entry/compose/room-reach.ts` — a `satisfies Record<RoomEntityKind, …>`, so
  *  a new kind cannot ship unresolved), and the client's `BUS_FILTERS.roomEntityChanged` Record. Presets are

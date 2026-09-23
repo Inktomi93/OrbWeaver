@@ -1,5 +1,5 @@
-// verb: listGlobal — WHICH of the caller's documents are global, as an id SET (databank-surface-spec.md
-// D-1, ruled IN). The `worldInfo.listGlobal` twin, with one deliberate shape difference: world-info returns
+// verb: listGlobal — WHICH of the caller's documents are global, as an id SET (D-1,
+// ruled IN). The `worldInfo.listGlobal` twin, with one deliberate shape difference: world-info returns
 // full `BookAttachmentView[]` because its consumer is an attachment PANEL, whereas this one's consumer is
 // the library row's `Everywhere` toggle — a membership TEST against a list the surface has already fetched.
 // Returning views would ship the same rows twice on one pane render, so the payload is the ids alone.

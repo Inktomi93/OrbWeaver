@@ -15,7 +15,7 @@ export interface GeneratedPictureImage {
   readonly block: MessageContentBlock;
 }
 
-/** The imagery drop codes surfaced to a caller (imagery-design/03 §2): `image_edit_dropped` = the whole edit/
+/** The imagery drop codes surfaced to a caller: `image_edit_dropped` = the whole edit/
  *  avatar reference dropped for a non-edit model.
  *  Structural subset of the infra `WARNING_CODES` image members (imagery never imports `#infra`; mapped at compose). */
 export interface ImageryWarning {
@@ -55,7 +55,7 @@ export interface GenerationProvenance {
   readonly model: ModelId;
   readonly costUsd: number | null;
   readonly subjectCharacterId: CharacterId | null;
-  /** The reuse hash stored on this generation (rpg-design/08 §2): the portrait-mode subject hash, an external
+  /** The reuse hash stored on this generation (docs/plans/rpg/design.md): the portrait-mode subject hash, an external
    *  free-mode consumer's precomputed hash, or `null`. Exposed so a non-character consumer's own reuse gate can
    *  read it back + compare (rpg's NPC-portrait short-circuit) — the internal imagery gate matches by query, not
    *  through this read. */

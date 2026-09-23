@@ -505,7 +505,7 @@ const RETIRED_COMMANDS = ["pnpm design-audit", "pnpm motion-audit", "pnpm perf-m
  *  not a semantic one: they are the orchestrator's files, outside every lane's write scope (the fold's
  *  brief lists them for the orchestrator instead), so this sweep would be asserting over a corpus it is
  *  forbidden to repair. Each prefix is the WHOLE reason it is here — do not add one without one. */
-const RECEIPT_PREFIXES = ["docs/history/", "docs/reviews/", "docs/catalog/", ".claude/", ".codex/"] as const;
+const RECEIPT_PREFIXES = ["docs/reviews/", "docs/catalog/", ".claude/", ".codex/"] as const;
 
 /** A LINE THAT NAMES THE SPELLING AS DEAD IS NOT A RECIPE. "the retired pnpm design-audit" is exactly
  *  the sentence the fold's own headers and doc edits needed to write, and a sweep that refused it would

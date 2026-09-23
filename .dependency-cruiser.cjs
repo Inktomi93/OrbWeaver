@@ -122,7 +122,7 @@ module.exports = {
     {
       name: "kit-no-node-builtins",
       comment:
-        "@orb/kit must not import node:* — it is browser-safe (isomorphic). The node:vm ReDoS guard and any other Node-only-pure helper live in @orb/server/kit, not here. (Core-Shared-Dissolution.md §0; per-symbol map: history/Shared-Drawer-Dissolution-Map.md §2.)",
+        "@orb/kit must not import node:* — it is browser-safe (isomorphic). The node:vm ReDoS guard and any other Node-only-pure helper live in @orb/server/kit, not here. (Core-Shared-Dissolution.md §0.)",
       severity: "error",
       from: { path: KIT },
       to: { dependencyTypes: ["core"] },
@@ -154,7 +154,7 @@ module.exports = {
     {
       name: "inference-cake",
       comment:
-        "@orb/inference is the provider RUNTIME (executor · one backend per wire · funnel · capability synthesis — docs/design/orbweaver-inference-package.md §3.1): kit ← contracts ← db ← inference ← server. It may reach @orb/kit + @orb/contracts and the provider SDKs; NEVER @orb/db (snapshot/connection/binding persistence are PORTS the server wires), @orb/server, @orb/client or @orb/ui. The package.json dependency list is the resolve-time physics; this is the tier-3 backstop that names the direction.",
+        "@orb/inference is the provider RUNTIME (executor · one backend per wire · funnel · capability synthesis): kit ← contracts ← db ← inference ← server. It may reach @orb/kit + @orb/contracts and the provider SDKs; NEVER @orb/db (snapshot/connection/binding persistence are PORTS the server wires), @orb/server, @orb/client or @orb/ui. The package.json dependency list is the resolve-time physics; this is the tier-3 backstop that names the direction.",
       severity: "error",
       from: { path: INFERENCE },
       to: { path: [DB, "^packages/server/", CLIENT, UI] },
@@ -554,7 +554,7 @@ module.exports = {
     {
       name: "server-kit-reaches-up-to-nothing",
       comment:
-        "@orb/server/kit is the server-only-pure bottom tier (node-only-pure: post-process, serde, content-hash, the node:vm regex guard). It may use node:* + @orb/db + @orb/contracts + @orb/kit (all at/below it), but must reach UP to nothing in server — no entry/transport/domain/infra import. (history/Shared-Drawer-Dissolution-Map.md §2 — the per-symbol map; the surviving law is Core-Shared-Dissolution.md.)",
+        "@orb/server/kit is the server-only-pure bottom tier (node-only-pure: post-process, serde, content-hash, the node:vm regex guard). It may use node:* + @orb/db + @orb/contracts + @orb/kit (all at/below it), but must reach UP to nothing in server — no entry/transport/domain/infra import. (Core-Shared-Dissolution.md.)",
       severity: "error",
       from: { path: `${SRV}kit/` },
       to: { path: `${SRV}(entry|transport|domain|infra|foundation)/` },
@@ -633,7 +633,7 @@ module.exports = {
     {
       name: "domain-teaching-contribution-compose-only",
       comment:
-        "The ratified `teaching-contribution.ts` root slot (the S2 model-teaching seam) is a COMPOSITION SURFACE: a domain's teaching contributions reach the turn ONLY by being registered onto `ChatContext.teaching` at entry/compose, never by a verb (or anything else) importing the factory and calling it inline. So the ONLY legal importer is the owning domain's own front door (index.ts), which is what entry/compose imports through — every other reader, in this domain or any other, would be bypassing the injected registry and re-creating the hard-wired call site the seam exists to delete. Not type-only-exempt: the factory is a VALUE and its shapes live in chat's contract/, so nobody needs a type from this file. (interaction-direction-spec §3-S2; the workload-contributions.ts precedent, D117.)",
+        "The ratified `teaching-contribution.ts` root slot (the S2 model-teaching seam) is a COMPOSITION SURFACE: a domain's teaching contributions reach the turn ONLY by being registered onto `ChatContext.teaching` at entry/compose, never by a verb (or anything else) importing the factory and calling it inline. So the ONLY legal importer is the owning domain's own front door (index.ts), which is what entry/compose imports through — every other reader, in this domain or any other, would be bypassing the injected registry and re-creating the hard-wired call site the seam exists to delete. Not type-only-exempt: the factory is a VALUE and its shapes live in chat's contract/, so nobody needs a type from this file. (the workload-contributions.ts precedent, D117.)",
       severity: "error",
       from: { pathNot: `${SRV}domain/[^/]+/index\\.ts$` },
       to: { path: `${SRV}domain/[^/]+/teaching-contribution\\.ts$` },
@@ -655,8 +655,8 @@ module.exports = {
     },
 
     // ══════════════════ @orb/inference — the sealed provider executor (was infra/providers) ══════════
-    // ALL FOUR STANZAS BELOW WERE RE-POINTED 2026-09-20 (the `@orb/inference` extraction, #2 of
-    // docs/design/orbweaver-inference-package.md): the provider runtime moved WHOLE out of
+    // ALL FOUR STANZAS BELOW WERE RE-POINTED 2026-09-20 (the `@orb/inference`
+    // extraction): the provider runtime moved WHOLE out of
     // `packages/server/src/infra/providers/` into `packages/inference/src/`, and every one of these rules
     // was still aimed at the deleted tree — a `pathNot` exemption over an empty set is an over-grant nobody
     // can see, which `depcruise-grant-liveness` is what caught. The program's own §12 names the successor
@@ -671,7 +671,7 @@ module.exports = {
     {
       name: "providers-public-surface-only",
       comment:
-        'Code outside @orb/inference may import ONLY its public surface — the package front door (packages/inference/src/index.ts). Reaching INTO a sealed family (backends/<x>), the funnel, the registry or the contract internals is RED: the family boundary is internal, and the agent-sdk credential firewall must not leak through a deep import. RE-POINTED 2026-09-20 from `packages/server/src/infra/providers/**`, a tree the extraction deleted; the seal that used to need a per-subdir enumeration is now the whole package, because `packages/inference/package.json` exports exactly `".": "./src/index.ts"` — so this stanza is the deep-relative-escape backstop over resolver physics, exactly like `ui-cake`. tests/support is exempt (mock runners instantiate family shapes); tooling is governed by its own narrower half, `tooling-no-provider-families`. (docs/design/orbweaver-inference-package.md §12; Tier-3b-Providers.md invariants #1/#4, whose body still describes the pre-extraction tree.)',
+        'Code outside @orb/inference may import ONLY its public surface — the package front door (packages/inference/src/index.ts). Reaching INTO a sealed family (backends/<x>), the funnel, the registry or the contract internals is RED: the family boundary is internal, and the agent-sdk credential firewall must not leak through a deep import. RE-POINTED 2026-09-20 from `packages/server/src/infra/providers/**`, a tree the extraction deleted; the seal that used to need a per-subdir enumeration is now the whole package, because `packages/inference/package.json` exports exactly `".": "./src/index.ts"` — so this stanza is the deep-relative-escape backstop over resolver physics, exactly like `ui-cake`. tests/support is exempt (mock runners instantiate family shapes); tooling is governed by its own narrower half, `tooling-no-provider-families`. (Tier-3b-Providers.md invariants #1/#4, whose body still describes the pre-extraction tree.)',
       severity: "error",
       from: { pathNot: [INFERENCE, "^tests/support/", "^tooling/"] },
       to: {
@@ -682,7 +682,7 @@ module.exports = {
     {
       name: "infra-strategy-isolation",
       comment:
-        "Strategy-pattern backends stay independent: a module in `packages/inference/src/backends/<wire>/` must not import a SIBLING backend's internals. Cross-backend work goes through the role contract or the two SHARED PURE seams — `backends/kit/` (the openai-compat reducer, cache-control, retry, error-classify) and `backends/v4/` (the Vercel `LanguageModelV4` slice both hosted wires spell identically) — never a direct reach. One generic rule covers every future wire. THE TWO EXEMPT DIRS ARE DERIVED, NOT PICKED: `WIRES` (`packages/contracts/src/inference/wires.ts:10`) is the closed four-member tuple `openai-compat · anthropic-messages · agent-sdk · local-light`, and everything else under `backends/` is by construction a shared seam — a fifth wire inherits the seal for free, while a third shared seam has to be added here on purpose. RE-POINTED 2026-09-20 from `packages/server/src/infra/(providers/backends|auth/modes)/<x>/`: the providers half moved into @orb/inference, and the auth half went dead in the SAME window for an unrelated reason — `infra/auth/modes/` is five FLAT FILES (cookie-session · forward-header · local · oidc · single-user), so the `<group>/<strategy>/` shape this rule is built on has no member there and a mode has no internals to seal. THE NAME still says `infra`, which is now only historically true; it is kept because `Core-Enforcement-Active-Gates.md` and `Tier-3b-Providers.md` cite it by name and those live outside this change's fence. (docs/design/orbweaver-inference-package.md §12; Tier-3b-Providers.md invariant #2.)",
+        "Strategy-pattern backends stay independent: a module in `packages/inference/src/backends/<wire>/` must not import a SIBLING backend's internals. Cross-backend work goes through the role contract or the two SHARED PURE seams — `backends/kit/` (the openai-compat reducer, cache-control, retry, error-classify) and `backends/v4/` (the Vercel `LanguageModelV4` slice both hosted wires spell identically) — never a direct reach. One generic rule covers every future wire. THE TWO EXEMPT DIRS ARE DERIVED, NOT PICKED: `WIRES` (`packages/contracts/src/inference/wires.ts:10`) is the closed four-member tuple `openai-compat · anthropic-messages · agent-sdk · local-light`, and everything else under `backends/` is by construction a shared seam — a fifth wire inherits the seal for free, while a third shared seam has to be added here on purpose. RE-POINTED 2026-09-20 from `packages/server/src/infra/(providers/backends|auth/modes)/<x>/`: the providers half moved into @orb/inference, and the auth half went dead in the SAME window for an unrelated reason — `infra/auth/modes/` is five FLAT FILES (cookie-session · forward-header · local · oidc · single-user), so the `<group>/<strategy>/` shape this rule is built on has no member there and a mode has no internals to seal. THE NAME still says `infra`, which is now only historically true; it is kept because `Core-Enforcement-Active-Gates.md` and `Tier-3b-Providers.md` cite it by name and those live outside this change's fence. (Tier-3b-Providers.md invariant #2.)",
       severity: "error",
       from: { path: `${INFERENCE}backends/([^/]+)/` },
       to: {
@@ -762,7 +762,7 @@ module.exports = {
     {
       name: "tooling-no-provider-families",
       comment:
-        "The tooling half of `providers-public-surface-only`. Tools sit ABOVE the cake and may import any app package (Core-Tooling-Law.md §1), so a tool reaching @orb/inference's front door is legal — what stays SEALED is the part the original rule's WHY is about: the provider FAMILIES (backends/<x>, where the agent-sdk credential firewall lives) and the contract internals. RE-POINTED 2026-09-20 from `packages/server/src/infra/providers/(backends|contract)/`, a tree the @orb/inference extraction deleted. THE OLD CARVE-OUT IS GONE WITH ITS SUBJECT: this comment used to exempt `vllm/engine`'s spawn-spec/wake-budget builders because the fleet launcher and the in-server supervisor shared them and must not drift — there is no in-server supervisor any more, the fleet moved WHOLE to `tooling/src/stack/lib/engine-fleet/`, and nothing in @orb/inference builds an engine argv. (Core-Tooling-Law.md §1/§4.6; docs/design/orbweaver-inference-package.md §12.)",
+        "The tooling half of `providers-public-surface-only`. Tools sit ABOVE the cake and may import any app package (Core-Tooling-Law.md §1), so a tool reaching @orb/inference's front door is legal — what stays SEALED is the part the original rule's WHY is about: the provider FAMILIES (backends/<x>, where the agent-sdk credential firewall lives) and the contract internals. RE-POINTED 2026-09-20 from `packages/server/src/infra/providers/(backends|contract)/`, a tree the @orb/inference extraction deleted. THE OLD CARVE-OUT IS GONE WITH ITS SUBJECT: this comment used to exempt `vllm/engine`'s spawn-spec/wake-budget builders because the fleet launcher and the in-server supervisor shared them and must not drift — there is no in-server supervisor any more, the fleet moved WHOLE to `tooling/src/stack/lib/engine-fleet/`, and nothing in @orb/inference builds an engine argv. (Core-Tooling-Law.md §1/§4.6.)",
       severity: "error",
       from: { path: "^tooling/" },
       to: {
@@ -791,7 +791,7 @@ module.exports = {
       // nothing, and reports `couldNotResolve` while the file sits right there on disk (probed: its `resolved`
       // is the raw specifier).
       //
-      // THE THREE ALTERNATIVES WERE PROBED, ALL LOST (2026-08-28, plugin-ui-plane #679 U4 — the Tier-C QuickJS
+      // THE THREE ALTERNATIVES WERE PROBED, ALL LOST (2026-08-28 U4 — the Tier-C QuickJS
       // wasm): (1) `enhancedResolveOptions.alias` is REFUSED BY THE CONFIG SCHEMA ("must NOT have additional
       // properties"); (2) `options.exclude.path` does NOT reach an unresolvable dependency node (the pattern
       // matched its `resolved` string and the violation still fired); (3) dropping the suffix in favour of
@@ -847,7 +847,7 @@ module.exports = {
       // is the cheap in-graph tripwire for NEW orphans.
       name: "no-orphans",
       comment:
-        "A module nothing imports (and that imports nothing reachable) is dead weight or a wiring mistake — delete it or wire it. knip (`pnpm knip`) is the full dead-code/dead-export authority. instruments.ts is carved: the tooling-instrument-proof gate reads it STRUCTURALLY (an AST read, no import edge exists by design — Core-Tooling-Law.md §4.5); knip covers it via the tooling workspace entry. The seeded EXAMPLE-PLUGIN bundles are carved for a stronger reason: `seed-assets/plugins/<slug>/{main,ui}.js` is GUEST source, not host source — it is read as BYTES by `packSeedPluginBundle`, zipped, and executed inside a QuickJS sandbox against a global that does not exist in this graph (`orb.host(1)` on the server, `orb.ui(1)` in the browser worker — plugin-ui-plane #679 U4). An import edge is not merely absent, it is impossible: neither guest realm has a module loader. They live in the `@orb/showcase-plugins` workspace package the server declares as a dependency (#1692 — they used to ride `packages/server/src` because that was the only tree the image copies, which is exactly the image-copy dependence the #1238 ruling refused), and their liveness is proven behaviourally by `tests/server/entry/boot/seed-example-plugins.int.test.ts`, which installs each one and round-trips the scripted example's `ui.js` back out through `getUiBundle`.",
+        "A module nothing imports (and that imports nothing reachable) is dead weight or a wiring mistake — delete it or wire it. knip (`pnpm knip`) is the full dead-code/dead-export authority. instruments.ts is carved: the tooling-instrument-proof gate reads it STRUCTURALLY (an AST read, no import edge exists by design — Core-Tooling-Law.md §4.5); knip covers it via the tooling workspace entry. The seeded EXAMPLE-PLUGIN bundles are carved for a stronger reason: `seed-assets/plugins/<slug>/{main,ui}.js` is GUEST source, not host source — it is read as BYTES by `packSeedPluginBundle`, zipped, and executed inside a QuickJS sandbox against a global that does not exist in this graph (`orb.host(1)` on the server, `orb.ui(1)` in the browser worker). An import edge is not merely absent, it is impossible: neither guest realm has a module loader. They live in the `@orb/showcase-plugins` workspace package the server declares as a dependency (#1692 — they used to ride `packages/server/src` because that was the only tree the image copies, which is exactly the image-copy dependence the #1238 ruling refused), and their liveness is proven behaviourally by `tests/server/entry/boot/seed-example-plugins.int.test.ts`, which installs each one and round-trips the scripted example's `ui.js` back out through `getUiBundle`.",
       severity: "warn",
       from: {
         // Helper entry roots omit their test consumers; native runner/Knip discovery owns their liveness.
@@ -857,7 +857,7 @@ module.exports = {
           "\\.d\\.ts$",
           "(^|/)index\\.ts$",
           "^tooling/src/_shared/instruments\\.ts$",
-          // `main.js` (the SERVER guest) and `ui.js` (the Tier-C CLIENT guest, plugin-ui-plane #679 U4) — the
+          // `main.js` (the SERVER guest) and `ui.js` (the Tier-C CLIENT guest U4) — the
           // SAME carve for the same reason, widened to the second entry name rather than loosened to a
           // directory glob, so a stray `helper.js` beside them is still a real orphan.
           "^packages/showcase-plugins/bundles/[^/]+/(main|ui)\\.js$",

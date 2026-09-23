@@ -1,4 +1,4 @@
-// The three BROWSE-GENRE node renderers (plugin-ui-plane #679 U5, §4.5b) — `grid`, `masterDetail`,
+// The three BROWSE-GENRE node renderers — `grid`, `masterDetail`,
 // `searchBar` — split out of `plugin-surface-renderer.tsx`, which owns the walk, the caps and the leaves.
 //
 // THE SPLIT IS A DEPENDENCY DECISION, not a line-count one. Each component here takes the CONCRETE values it
@@ -224,7 +224,7 @@ export function SurfaceSearchBar({
       {filters.length === 0 ? null : (
         <Collapsible>
           {/* "Filters" — the house neutral name for a narrowing-control group's own disclosure, never
-              minted here: docs/design/vocabulary-map.md's "A group of controls that NARROW a list…" row
+              minted here: docs/law/vocabulary-map.md's "A group of controls that NARROW a list…" row
               names this exact fallback as one of its landed carriers, beside the Characters pane's group
               and the chats pane's phone Filters row (#1735, side-eye 2026-09-05). */}
           <CollapsibleTrigger size="control">{node.filtersLabel ?? "Filters"}</CollapsibleTrigger>

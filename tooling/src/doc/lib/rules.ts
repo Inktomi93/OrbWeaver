@@ -41,9 +41,6 @@ const RESERVED = { lo: FIRST_RESERVED_RULING, hi: LAST_RESERVED_RULING } as cons
 /** The legacy top-level entries of `docs/`, kept until each migrates. SHRINK-ONLY and two-sided: a row
  *  whose entry is gone is itself a finding, so the list cannot outlive what it exempts. */
 export const LEGACY_ROOTS: readonly string[] = [
-  "architecture",
-  "design",
-  "history",
   "reviews",
 ];
 

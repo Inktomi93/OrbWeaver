@@ -1,4 +1,4 @@
-// Macro-DX layer (automation-design/02 §5) + the M3 runtime enforcement (§12A.3): registry metadata
+// Macro-DX layer + the M3 runtime enforcement (§12A.3): registry metadata
 // completeness, the typed violation core (checkMacroArgs), arg validation (strict-author /
 // lenient-render), execution-path defaults, positional diagnostics, and the queryMacros autocomplete API.
 

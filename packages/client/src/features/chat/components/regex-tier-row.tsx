@@ -1,5 +1,5 @@
 // ONE ROW of the room's Regex section — a script, where it bites, whether it runs here, and the two
-// controls the room is allowed to point at it (`docs/design/mocks/regex-section/DESIGN.md` §3, the row).
+// controls the room is allowed to point at it (the row).
 //
 // THE ANATOMY, left to right: the RANK (only while it runs) · the stage glyphs + the name · the pattern ·
 // the row's own switch · the `⋯`. Each of those is a decision, not a layout:

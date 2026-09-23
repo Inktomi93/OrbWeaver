@@ -272,7 +272,7 @@ export const REVIEWED_GRANTS_DEPCRUISE_TO_EGRESS: readonly ReviewedGateGrant[] =
     policyId: "no-direct-useform",
     subject: "packages/client/src/forms/editor/contexts.ts",
     operation: "tanstack-form-mint:createFormHookContexts",
-    why: "the ONE `createFormHookContexts()` call the whole toolkit is built on (UI-Lib-TanStack-Form.md §Composition: 'define this once'); it is split from `use-app-form.ts` only so the bound components can import the contexts without a circular edge.",
+    why: "the ONE `createFormHookContexts()` call the whole toolkit is built on (TanStack Form's own guidance: 'define this once'); it is split from `use-app-form.ts` only so the bound components can import the contexts without a circular edge.",
     endsWhen: "the form toolkit stops minting its own contexts (a vendor change), or the contexts move.",
   },
   {

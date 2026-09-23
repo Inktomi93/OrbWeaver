@@ -1,5 +1,5 @@
 // CT: the config HOST — the LIST (shelves · group bands · the derived section rows) and the CONTENT pane
-// (the skimmer over the contributed sections) as ONE workspace (config-revamp-design.md §3 / §6.8; the
+// (the skimmer over the contributed sections) as ONE workspace (the
 // settings shell's CT, re-homed when the shell dissolved into the `config` section, #866 S1). Drives the
 // PRODUCTION path — the real door registries, the real contributed sections, `openConfigTo` deep links,
 // the scroll-spy and the programmatic jump.
@@ -295,7 +295,7 @@ test("a sectioned group is a disclosure group whose FIRST section is the one ari
   await expect(automation).toHaveAttribute("aria-expanded", "true");
   await expect(automation).not.toHaveAttribute("aria-current", "true");
   // Landing at the top of the group IS landing on its first section — "Library-wide rules", the first of the
-  // two sections the automation feature contributes (config-revamp-design.md §6.8).
+  // two sections the automation feature contributes.
   await expect(component.getByRole("button", { name: "Library-wide rules" })).toHaveAttribute("aria-current", "true");
   const list = component.getByRole("region", { name: LIST_REGION });
   await expect(list.locator('[aria-current="true"]')).toHaveCount(1);

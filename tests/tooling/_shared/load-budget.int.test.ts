@@ -1,4 +1,4 @@
-// T16's REAL-SUBJECT half (docs/design/1208-instrument-substrate.md §8): the pure arms live in the
+// T16's REAL-SUBJECT half: the pure arms live in the
 // `.test.ts` twin beside this file; this one spawns an actual child that HANGS FOREVER, because the claim
 // under test is that the ceiling FIRES — and only a real process can fail to return. It rides the real
 // `spawnNiced` door (the nice -19 floor), which is also the door whose default ceiling is now

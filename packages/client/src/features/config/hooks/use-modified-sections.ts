@@ -1,4 +1,4 @@
-// The `@modified` derivation (config-revamp-design.md §3.3, owner fork F-7: modified = DIFFERS FROM
+// The `@modified` derivation (owner fork F-7: modified = DIFFERS FROM
 // DEFAULT): a user-tier section's `owns` claim already names its keys, so the cached `UserSettings` vs
 // `DEFAULT_USER_SETTINGS` at those keys says whether any differs; an app-tier claim resolves against
 // `getAppSettingsWithOverrides.overrides` — an override PRESENT at a claimed path is modified (the D120 S4

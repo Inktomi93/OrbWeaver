@@ -1,5 +1,5 @@
 // The imagery-templates settings-section autosave form (Phase B ⑫), mounted through the D78 session boundary
-// at module scope — the boundary OWNS the (constant) entity key (autosave-form-doctrine.md §1/§8). The surface
+// at module scope — the boundary OWNS the (constant) entity key (D78). The surface
 // renders inside a QueryBoundary after getUserSettings resolves, so the projected server values fully override
 // the type-level `defaultValues` seed.
 

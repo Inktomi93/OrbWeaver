@@ -1,4 +1,4 @@
-// The rpg CONTEXT-panel projection hook (client-architecture-lockdown.md §6b; Context-Panel-Program §4.1)
+// The rpg CONTEXT-panel projection hook (client-architecture-lockdown.md §6b)
 // — resolves the active game chat into the takeover's panel state, or `null` when the chat carries no game.
 // The takeover is APPLICABILITY (§4.1): it renders only when `chat.rpg !== null` (the pointer already on
 // `chat.getChat`, read off data the panel already holds — no per-chat probe on every switch). When a game

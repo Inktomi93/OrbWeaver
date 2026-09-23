@@ -1,4 +1,4 @@
-// The session substrate's shapes (docs/design/1208-instrument-substrate.md §3.2–§3.5 + §10.1): the
+// The session substrate's shapes: the
 // repo-keyed registry ROW a daemon writes, the NDJSON request/event protocol on its unix socket, and the
 // pure verdict vocabularies lib/session-plan.ts derives. Shapes only — the readers that validate a line
 // off the wire (`readSessionRequest` / `readSessionRow`) live beside the other pure derivations in

@@ -1,4 +1,4 @@
-// verbs/journal/edit-journal-entry — editJournalEntry (rpg-design/05 §4.4, §6.2). Host-gated, game-scoped.
+// verbs/journal/edit-journal-entry — editJournalEntry (docs/plans/rpg/design.md). Host-gated, game-scoped.
 // Asserted at the lineage-projected read.
 
 import type { Db } from "@orb/db";

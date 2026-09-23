@@ -29,7 +29,7 @@ export function levelValue(name: string | undefined): number {
  * The consequences ran in opposite directions and only one of them was visible:
  *   • the error collector (`NaN >= 50` → false) returned `[]` for EVERY input. `/api/_debug/errors` was
  *     structurally incapable of ever reporting an error, which is how a live turn produced an ERROR-level
- *     `provider.error` line, an HTTP 500, and a blank panel (docs/design/streaming-shape-churn.md §7.5).
+ *     `provider.error` line, an HTTP 500, and a blank panel.
  *   • the log collector (`NaN < minLevel` → false) excluded NOTHING, so `?level=` silently returned every line
  *     and read as a working filter.
  * The ring WRITE was never the problem — pino's multistream fed it correctly the whole time.

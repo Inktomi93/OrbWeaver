@@ -1,4 +1,4 @@
-// verb: readProvenance — read a generated image's durable provenance by asset (imagery-design/04 §3). Proves
+// verb: readProvenance — read a generated image's durable provenance by asset. Proves
 // against a real db: a free-mode generation's provenance is readable by its owner, and a foreign caller reads
 // null (owner-scoped through the `assets` join — no cross-owner leak).
 

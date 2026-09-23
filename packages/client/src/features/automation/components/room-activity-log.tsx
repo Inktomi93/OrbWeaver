@@ -1,4 +1,4 @@
-// B11 (interaction-direction-spec §7 B11) — the room ACTIVITY log: a READ-ONLY, host-only readout of what
+// B11 — the room ACTIVITY log: a READ-ONLY, host-only readout of what
 // THIS room did out-of-band while you were away. It reads `automation.listChatActivity` — the chat's fire
 // log ACROSS all its rules, newest first — which is the SAME durable `automation_fires` store the per-rule
 // `RuleFireLog` consumes (ONE-HOME; B11 invents no second store). Every automation dispatch is a row here:

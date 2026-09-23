@@ -1,4 +1,4 @@
-// The autosave save-driver circuit breaker (`autosave-form-doctrine.md` §11). A save
+// The autosave save-driver circuit breaker (D78). A save
 // driver that submits on every store-values change can enter a save→revert→save oscillation when a
 // non-idempotent save/echo/projection hop keeps flipping the resolved values (the localStorage-brick
 // class: a poisoned draft resurrects, the versioned-config lift or a zod `.catch` rewrites the echo,

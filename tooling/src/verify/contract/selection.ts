@@ -58,7 +58,7 @@ export interface Selection {
   /** paths ∩ packages/ TS/JS ∩ EXISTING (depcruise's guard; a deleted path is dropped — depcruise can't
    *  open it, same reasoning as eslintPaths). */
   readonly depcruisePaths: readonly string[];
-  /** paths ∩ docs/architecture/**.md (excluding proposed/) ∩ EXISTING (a deleted .md can't be format-checked). */
+  /** paths ∩ the doc tool's trees' `.md` ∩ EXISTING (a deleted .md can't be format-checked). */
   readonly docsPaths: readonly string[];
   /** Every distinct native program affected through roots, config inputs, or imported closures. */
   readonly tsconfigs: readonly string[];

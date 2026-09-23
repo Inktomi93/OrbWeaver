@@ -1,4 +1,4 @@
-// The Plugins config group (client-architecture-lockdown.md §8 · config-revamp-design.md §6.8) — a
+// The Plugins config group (client-architecture-lockdown.md §8) — a
 // `sections` SKIMMER on the extensions shelf: its rows are the Installed and Add-a-plugin contributions
 // (`plugins-installed-section.tsx` / `plugins-install-section.tsx`) plus the admin-gated distribute section,
 // all assembled at the door in that order.

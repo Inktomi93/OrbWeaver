@@ -1228,7 +1228,7 @@ test("a Chrome-truncated computed line-height AT the floor does not fire tight-l
   expect(truncated.map((f) => f.rule)).not.toContain("tight-leading");
   // …and the epsilon stays a rounding allowance, not a weakened floor: genuinely tight leading still fires.
   // DERIVED from the floor, not spelled: this number was `1.24` while the floor was the unitless 1.25
-  // token, and the integer-line-box change (docs/design/integer-line-boxes.md §3a) moved the floor to
+  // token, and the integer-line-box change (docs/law/integer-line-boxes.md §3a) moved the floor to
   // 16/13 = 1.2308 — which makes 1.24 LEGAL leading and silently turned this arm into a test that could
   // only fail. A pin whose job is "one step under the floor" says that, so it survives the next ratified
   // move instead of encoding one era's number.

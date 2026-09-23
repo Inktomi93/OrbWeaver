@@ -44,7 +44,7 @@ const FAMILY_FIELD = "family";
 const SHARED_BY = 2;
 
 const MESSAGE =
-  "the family reader resolves no shared canonical production dependency for this member (gate-runtime-standardization.md §2/§7). " +
+  "the family reader resolves no shared canonical production dependency for this member (docs/law/gate-runtime-standardization.md §2/§7). " +
   "Its create function and source-reachable helpers must consume a declaration in tooling/src/verify/lib/ that another family member consumes. " +
   "A common module import, proof-only reference, or type-only reference does not establish production sharing. " +
   "This check proves source reach and identity; the dependency's semantic fitness for the family still requires review.";

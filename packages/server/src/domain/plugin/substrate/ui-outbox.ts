@@ -1,6 +1,6 @@
 // domain/plugin/substrate/ui-outbox — the in-memory per-plugin UI OUTBOX: where `host.ui.toast` and
 // `host.ui.openDialog` land, and the ONE place the plugin-name attribution prefix and the toast rate floor are
-// applied (plugin-ui-plane #679 U5, §4.5a). The surface-state plane's sibling: process-wide, ONE per service,
+// applied. The surface-state plane's sibling: process-wide, ONE per service,
 // `ASSUMES(single-replica)`, respawn wipes, cleared per-plugin on deactivate.
 //
 // WHY AN OUTBOX AND NOT A BUS. A toast and a dialog-open are HOST-MEDIATED CHROME, not state changes. The user

@@ -1,6 +1,6 @@
 // domain/refinery/contract/params — every verb's *Params, declared ONCE. Every verb carries the resolved
 // principal; ownership derives through the CHARACTER join off `principal.userId` (D23 — refinery tables
-// stamp no owner; docs/history/design/refinery-r0.md §3.1), never a caller-supplied ownerId.
+// stamp no owner), never a caller-supplied ownerId.
 
 import type { Principal } from "@orb/contracts/identity";
 import type {

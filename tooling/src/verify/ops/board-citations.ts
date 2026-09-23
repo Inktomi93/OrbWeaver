@@ -40,13 +40,13 @@ import { CLOSED_CONTROL_ISSUE } from "../lib/workitem-liveness.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:board-citations");
 
-/** The ledger whose state cells carry `(board #N)` tracking pointers — the work queue `gate-runtime-read-first.md`
+/** The ledger whose state cells carry `(board #N)` tracking pointers — the work queue `docs/law/gate-runtime-read-first.md`
  *  row 3 names, and the only document written under that grammar today. A second one joins this tuple; it is
  *  never discovered by glob, because a glob over `docs/reviews/**` would silently start judging prose. */
 export const LEDGERS = ["docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md"] as const;
 /** Both enforcement rosters. Resolution only — the openness half is refused, and the refusal's evidence is
  *  in `lib/board-citations.ts`'s class table. */
-export const ROSTERS = ["docs/law/Core-Enforcement-Active-Gates.md", "docs/architecture/history/Core-Enforcement-Deferred-Dropped.md"] as const;
+export const ROSTERS = ["docs/law/Core-Enforcement-Active-Gates.md", "docs/law/Core-Enforcement-Deferred-Dropped.md"] as const;
 
 function read(root: string, rel: string): CitedDocument {
   const abs = join(root, rel);

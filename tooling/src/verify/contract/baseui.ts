@@ -101,6 +101,6 @@ export interface RenderSite {
  *  WHY A REASON RATHER THAN `undefined`. A `json` resource that PARSED is `ready`; the runtime has already
  *  said "this file exists and is JSON". A committed artifact that is valid JSON and not a manifest is a
  *  PRODUCT defect, not a broken resource, so the honest outcome is a FINDING carrying what was wrong —
- *  which is why this returns the reason rather than collapsing to "absent" (`resource-policy-contract.md`
+ *  which is why this returns the reason rather than collapsing to "absent" (`docs/law/resource-policy-contract.md`
  *  §2, the READY-but-degenerate case). */
 export type SurfaceManifestRead = { readonly ok: true; readonly manifest: SurfaceManifest } | { readonly ok: false; readonly reason: string };

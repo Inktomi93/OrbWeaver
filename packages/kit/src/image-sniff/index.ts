@@ -124,7 +124,7 @@ function isAnimatedWebp(bytes: Uint8Array): boolean {
 /** Whether `bytes` is an animated image (GIF / APNG / animated WebP). Pure byte inspection — never throws,
  *  never decodes. The variant pipeline calls this to BAIL on a downscale (sharp's webp encoder drops
  *  animation), and the asset store computes it ONCE so `AssetListItem.animated` is a stored fact rather
- *  than a per-list re-sniff (gallery-design §2/§3).
+ *  than a per-list re-sniff.
  *
  *  THIS IS A DISPLAY HINT, NOT A TRUSTED FACT. The APNG/WebP arms scan a bounded byte WINDOW for the ASCII
  *  chunk tags, with no chunk-length validation — the four characters `acTL` inside an unrelated payload read

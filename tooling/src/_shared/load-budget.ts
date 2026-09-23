@@ -1,4 +1,4 @@
-// THE ONE READING OF THE BOX (docs/design/1208-instrument-substrate.md §7.1, owner addition 2026-09-02).
+// THE ONE READING OF THE BOX (owner addition 2026-09-02).
 // A wall-clock budget written for a quiet box reads as a RED on a contended one, and a measured RATE taken
 // on a contended box is a number about the box, not the code. Both wear the clothes of a real verdict.
 // Before this module the fleet carried FOUR unrelated answers to that class (a test-only helper, five

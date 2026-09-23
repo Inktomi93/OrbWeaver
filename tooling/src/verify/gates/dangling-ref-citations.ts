@@ -15,7 +15,7 @@ import {
   shorthandCandidates,
   shorthandExists,
 } from "../lib/dangling-ref-citations.ts";
-import { CATALOG_REL, danglingRefCorpora, danglingRefTextIndex, GITIGNORED_ABSENT, LAW_OUTSIDE_DOCS } from "../lib/dangling-ref-corpus.ts";
+import { CATALOG_REL, danglingRefCorpora, danglingRefTextIndex, LAW_OUTSIDE_DOCS } from "../lib/dangling-ref-corpus.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
 import type { ReviewedGrantFileCandidate } from "../lib/reviewed-grant-findings.ts";
 import { reportReviewedGrantFileCandidates } from "../lib/reviewed-grant-findings.ts";
@@ -56,7 +56,7 @@ function reportCitations(ctx: GatePolicyContext, declaredNames: ReadonlySet<stri
   );
   const entries = [...packageEntries, ...toolingEntries];
   const pathCandidates: ReviewedGrantFileCandidate[] = pathScan.cites
-    .filter(({ ref }) => !(ref in GITIGNORED_ABSENT || shorthandExists(paths, entries, ref)))
+    .filter(({ ref }) => !shorthandExists(paths, entries, ref))
     .map(({ file, line, ref }) => ({ file, line, note: ref, subject: ref, operation: DANGLING_PATH_OPERATION }));
   const symbolCandidates: ReviewedGrantFileCandidate[] = scanSymbolCitations(texts, docs.symbols, declaredNames).map(({ file, line, ref }) => ({
     file,
@@ -154,13 +154,11 @@ export const gate = defineGate({
       mode: "resource" as const,
       files: {
         ...PROOF_FILES,
-        [CATALOG_REL]:
-          '{"documents":[{"path":"docs/design/__probe6.md","lane":"design","frontmatter":{"fields":{"status":"active"}},"receipt":{"authority":"design"}}]}\n',
-        "docs/design/__probe6.md": "---\nkind: design\n---\n\nThe write boundary is `domain/__ghost_domain__/x.ts`.\n",
+        "docs/plans/__probe6/design.md": "---\nkind: plan\nstatus: active\n---\n\nThe write boundary is `domain/__ghost_domain__/x.ts`.\n",
       },
       expect: { count: 1 },
       grant: { subject: "domain/__ghost_domain__/x.ts", operation: DANGLING_PATH_OPERATION },
-      why: "LEGACY mustFlag[5]: a catalogued living design home participates in path citation integrity",
+      why: "LEGACY mustFlag[5]: a plan's design document is a living design home and participates in path citation integrity",
     },
     {
       mode: "resource" as const,
@@ -224,9 +222,9 @@ export const gate = defineGate({
     proof(
       {
         [CATALOG_REL]:
-          '{"documents":[{"path":"docs/history/__probe8.md","lane":"history","frontmatter":{"fields":{"status":"active"}},"receipt":{"authority":"historical"}},{"path":"docs/design/__probe9.md","lane":"design","frontmatter":{"fields":{"status":"active"}},"receipt":{"authority":"design"}}]}\n',
-        "docs/history/__probe8.md": "---\nkind: history\n---\n\nIt used to live at `domain/__ghost_domain__/x.ts`.\n",
-        "docs/design/__probe9.md": "---\nkind: design\n---\n\nThe cap would be `GHOST_PROPOSED_CONST`.\n",
+          '{"documents":[{"path":"docs/reviews/__probe8.md","lane":"reviews","frontmatter":{"fields":{"status":"active"}},"receipt":{"authority":"review"}}]}\n',
+        "docs/reviews/__probe8.md": "---\nkind: review\n---\n\nIt used to live at `domain/__ghost_domain__/x.ts`.\n",
+        "docs/plans/__probe9/design.md": "---\nkind: plan\nstatus: active\n---\n\nThe cap would be `GHOST_PROPOSED_CONST`.\n",
       },
       "LEGACY mustPass[7]: frozen evidence stays outside the corpus and arm 4 remains law-only",
     ),

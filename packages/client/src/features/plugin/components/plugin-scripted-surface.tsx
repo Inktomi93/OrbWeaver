@@ -1,4 +1,4 @@
-// plugin-scripted-surface — the MOUNT for a Tier-C surface (plugin-ui-plane #679 U4, §4.6). It is the seam
+// plugin-scripted-surface — the MOUNT for a Tier-C surface. It is the seam
 // between React and the worker guest: fetch the `ui.js` bytes, start a guest lazily, hold whatever tree the
 // guest last published, and route interactions back INTO it.
 //

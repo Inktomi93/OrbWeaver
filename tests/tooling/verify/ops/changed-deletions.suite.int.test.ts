@@ -36,8 +36,8 @@ test("git-changed classification keeps deletions for semantic stages and removes
     renameOld: "packages/client/src/rename-old.ts",
     renameNew: "packages/client/src/rename-new.ts",
     deleted: "packages/client/src/deleted.ts",
-    docModified: "docs/architecture/modified.md",
-    docDeleted: "docs/architecture/deleted.md",
+    docModified: "docs/law/modified.md",
+    docDeleted: "docs/law/deleted.md",
     testDeleted: "tests/tooling/deleted.test.ts",
   } as const;
   writeFileSync(join(scratch, ".gitignore"), "node_modules\n");

@@ -1,4 +1,4 @@
-// verb: listConstantCanon — a chat's CONSTANT ("always"-scope) lorebook canon (rpg-design/06 §4: "only
+// verb: listConstantCanon — a chat's CONSTANT ("always"-scope) lorebook canon (docs/plans/rpg/design.md: "only
 // constant entries exist pre-play"). Principal-LESS: a chat's attached books are room-public prompt content
 // (the caller gated membership upstream — the rpg crew gated its run), mirroring `listChatBooks`'s
 // not-owner-filtered read. Projects title+content only; the persistence query resolves each entry's scope.

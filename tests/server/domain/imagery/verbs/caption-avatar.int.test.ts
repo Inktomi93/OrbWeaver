@@ -1,4 +1,4 @@
-// verb: captionAvatar (internal) — the multimodal caption step (imagery-design/02 §3). Captions the subject's
+// verb: captionAvatar (internal) — the multimodal caption step. Captions the subject's
 // avatar via the ONE vision op; returns null when there's nothing to caption (no subject / no avatar) so the
 // caller falls back to text extraction. Empty caption after processReply → PromptExtractionFailedError.
 

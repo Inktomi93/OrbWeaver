@@ -47,12 +47,12 @@ interface SendRegexSink {
 
 type GatherDatabankParams = Parameters<NonNullable<ChatContext["gatherDatabank"]>>[0];
 
-// ── the {{databank}} slot GATHER (DB6, databank-design/07 §4/§6) ──────────────────────────────────────────
-/** The retrieval query = pending + the last N committed turns (databank-design/07 §4). LEAN: code constants
+// ── the {{databank}} slot GATHER ──────────────────────────────────────────
+/** The retrieval query = pending + the last N committed turns. LEAN: code constants
  *  until retrieval complaints trace to query construction. */
 const DATABANK_QUERY_RECENT_TURNS = 2;
 const DATABANK_QUERY_MAX_CHARS = 1000;
-/** The `{{databank}}` slot's share of the turn budget (databank-design/07 §6) — the baked FALLBACK when the
+/** The `{{databank}}` slot's share of the turn budget — the baked FALLBACK when the
  *  host's `UserSettings.databank.slotTokenBudget` isn't threaded (a test fake / byte-identity pin). The real
  *  turn supplies it via `foreign.databankSlotTokenBudget`. Sized to seat the default retrieval (k=5 ×
  *  2500-char chunks ≈ 3.1k tokens) while capping a pathological huge-chunk config. */
@@ -336,7 +336,7 @@ export async function gatherAssembleContext(
     /** The `injection_trigger` gate — maps the driving `TurnKind` → `GenerationType` at the verb so
      *  trigger-gated preset sections fire on the right turn kind. Absent ⇒ "normal". */
     readonly generationType?: GenerationType | undefined;
-    /** A game turn's GATHER macros (rpg-design/06 §1), keyed by the RpgGatherMacros field names — fed to the
+    /** A game turn's GATHER macros (docs/plans/rpg/design.md), keyed by the RpgGatherMacros field names — fed to the
      *  pure build as `rpgMacros`; absent ⇒ every rpg macro resolves empty (byte-identical non-game turn). */
     readonly rpgMacros?: Readonly<Record<string, string>> | undefined;
     /** A game turn's `{{expr::…}}` CEL activation (parity-plus §12) — the data-only `{ rpg: <tracker view tree> }`,

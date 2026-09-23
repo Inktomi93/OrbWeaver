@@ -1,4 +1,4 @@
-// The session CLIENT (docs/design/1208-instrument-substrate.md §3.2 + §10.1). `--session <name> …` boots the
+// The session CLIENT. `--session <name> …` boots the
 // daemon on first use through the ONE detached full-priority door (_shared/proc.ts `spawnFullPriorityChild`:
 // own process group, its stdio a LOG FILE beside the socket — a detached child that outlives its launcher must never
 // hold a pipe to it), then forwards every call's raw argv over the repo-keyed unix socket and prints the

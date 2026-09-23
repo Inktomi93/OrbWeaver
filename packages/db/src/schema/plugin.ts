@@ -54,7 +54,7 @@ export const plugins = sqliteTable(
     // How the host obtained the bytes (`upload` file install · `url` fetched through the egress guard; a
     // future `catalog` rides an additive member — the CHECK derives from the ONE contract tuple).
     origin: text("origin", { enum: PLUGIN_ORIGINS }).notNull(),
-    // The URL a `url`-origin install was FETCHED FROM (plugin-ui-plane #679 U8 2b), remembered so the auto
+    // The URL a `url`-origin install was FETCHED FROM (U8 2b), remembered so the auto
     // update-check re-fetches the manifest and the one-click upgrade re-fetches the bundle without the owner
     // re-pasting it. NULL for an `upload` install (a handed-over file has no remembered source). It is not
     // derivable from anything else — the bytes are in the CAS but the URL they came from is not — which is the

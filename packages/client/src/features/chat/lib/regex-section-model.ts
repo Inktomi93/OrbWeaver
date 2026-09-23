@@ -1,7 +1,7 @@
 // The room's Regex section — its PURE projection of `chat.listEffectiveRegex`
-// (`docs/design/mocks/regex-section/DESIGN.md` §3, owner-approved 2026-09-05, #1742).
+// (owner-approved 2026-09-05, #1742).
 //
-// THE CLIENT NEVER RE-UNIONS AND NEVER RE-RANKS (`DESIGN.md` §7.1). The read already answers both halves —
+// THE CLIENT NEVER RE-UNIONS AND NEVER RE-RANKS (the mock design §7.1). The read already answers both halves —
 // the per-tier LISTING (including the tiers this room switched off) and the EFFECTIVE run order — so
 // everything here is a question about WHERE TO DRAW a row the server already decided, never about whether
 // it runs. `runsAt` is copied, never computed.
@@ -112,7 +112,7 @@ function characterLabel(scope: RegexTierKey, labels: ReadonlyMap<RegexTierKey, s
 }
 
 /**
- * The LEVER's label — the switch in the strip (`DESIGN.md` §3: `Everywhere` · `Preset · <name>` ·
+ * The LEVER's label — the switch in the strip (the mock design §3: `Everywhere` · `Preset · <name>` ·
  * `<character name>` · `This chat`).
  *
  * The preset arm degrades to the bare `Preset` when the read carried no name (a preset-less room), which is

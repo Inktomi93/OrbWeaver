@@ -1,9 +1,9 @@
-// Databank's HOME tile contribution (databank-surface-spec D-7 — "recent documents + an ingest-health
+// Databank's HOME tile contribution (D-7 — "recent documents + an ingest-health
 // line", the rider the spec attached to the D-0 library-home fork precisely because it holds either way:
 // the bank is reachable from the front door whether the library is a rail section or a folded family).
 //
 // The whole cost of databank's presence on home is THIS FILE plus one array member at the main.tsx door
-// (home-section-spec §3.1) — home imports nothing from here, and this feature imports nothing from home
+// — home imports nothing from here, and this feature imports nothing from home
 // beyond the tier-4 contract.
 //
 // `order` 50 — after the shell-derived jump grid (40) and before the dormant doorways (80/90): a bank you

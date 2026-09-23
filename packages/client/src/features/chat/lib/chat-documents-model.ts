@@ -1,7 +1,7 @@
 // The per-chat DOCUMENTS rack's pure model — the D85 visibility write's set arithmetic, the source-chip
 // vocabulary, the detachability test, and the picker's offer set. Zero I/O, zero React: every value is a
 // function of what the rack already fetched, so the section stays thin and these rules are unit-tested in
-// isolation (databank-surface-spec §9).
+// isolation.
 //
 // WHY THIS FEATURE OWNS IT: chat, not databank. `features/chat/lib/databank-settings-section.tsx` is the
 // landed precedent — "chat owns the {{databank}} slot's consumption, so it lands here" — and per-chat
@@ -87,7 +87,7 @@ export function attachableDocuments(bank: readonly BankDocument[], activeIds: re
 // preset whose arrangement never writes that macro drops them silently — the whole rack above says "feeds
 // this chat" while the model sees nothing. The shipped default now places the slot, but an ST-imported or
 // hand-built arrangement never will, and no server error marks the case (an unreferenced slot is a legal
-// no-op by design, databank-design/07 §3). So the rack SAYS it, where the documents are.
+// no-op by design). So the rack SAYS it, where the documents are.
 
 /** One `{{…}}` occurrence, inner text captured — the engine's own display grammar
  *  (`kit/macro/parser.ts`), so a written `{{databank }}` counts exactly as the engine resolves it.

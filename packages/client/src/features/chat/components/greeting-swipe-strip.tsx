@@ -3,7 +3,7 @@
 // (`n / m` counter + prev/next chevrons) so a greeting behaves identically to a real swipe; only the source
 // and the verb differ.
 //
-// IT USED TO WRITE A CLIENT STORE (chat-creation-draft-mode-replacement.md §4.8 / fork F6). Before R1 a
+// IT USED TO WRITE A CLIENT STORE (D166). Before R1 a
 // pre-send room had no chat row, so this strip wrote the picked text into `draft-config-store` and the first
 // send carried it to `startChat`. R1 deleted that store — the greeting is REAL CANON from the creation click
 // — and the affordance went dark until this (R3). It now fires `chat.setSeededGreeting`, which is:

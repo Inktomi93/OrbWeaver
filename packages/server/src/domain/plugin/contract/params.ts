@@ -8,7 +8,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { PluginCapability, PluginCommandArgValue, PluginOrigin } from "@orb/contracts/plugin";
 import type { ChatId, MessageId, PluginId } from "@orb/kit/ids";
 
-/** WHERE an install got its bytes — the honest origin + the URL to remember (plugin-ui-plane #679 U8 2b). The
+/** WHERE an install got its bytes — the honest origin + the URL to remember (U8 2b). The
  *  install verb is source-agnostic (`substrate/manifest.ts`); the CALLING verb states the source, never the
  *  client. Absent ⇒ a file upload (`origin:"upload"`, no `sourceUrl`); `installFromUrl` passes
  *  `{ origin:"url", sourceUrl:url }` so the row records the honest origin AND the URL the update-check re-fetches.
@@ -44,7 +44,7 @@ export interface UpgradePluginParams {
 }
 
 /** `previewFromUrl` — fetch a bundle at a caller-supplied URL through the egress guard and return its MANIFEST
- *  for the consent screen (plugin-ui-plane #679 U8, seam 15). READ-ONLY: nothing persists, no owned id. It is
+ *  for the consent screen (U8, seam 15). READ-ONLY: nothing persists, no owned id. It is
  *  the primitive behind both "show the same consent screen a file install shows" and the update-version check
  *  (the client compares the previewed `version` to the installed one). SELF-authority: any authenticated
  *  principal — the fetch spends the server's egress, so it is authed, but it touches no owned row. */
@@ -54,7 +54,7 @@ export interface PreviewFromUrlParams {
 }
 
 /** `installFromUrl` — fetch a bundle at a caller-supplied URL through the egress guard, then run it through the
- *  EXACT SAME funnel + consent/grant checks a file install takes (plugin-ui-plane #679 U8, seam 15). The
+ *  EXACT SAME funnel + consent/grant checks a file install takes (U8, seam 15). The
  *  distinct-from-runtime-loading arm: this is an INSTALL ACT under the user's eyes (they picked the URL and
  *  confirmed the grant), not code loaded at runtime (row 23, refused). Origin stays `"upload"` — the bundle
  *  funnel is source-agnostic (a URL is just another byte source; `substrate/manifest.ts`'s own header). */
@@ -76,7 +76,7 @@ export interface UpgradeFromUrlParams {
   readonly url: string;
 }
 
-/** `checkForUpdates` — the auto update-check (plugin-ui-plane #679 U8 2b, the thing ST's loader does: check every
+/** `checkForUpdates` — the auto update-check (U8 2b, the thing ST's loader does: check every
  *  URL-installed extension's version). BATCH + SELF-scoped: no id, like `list`/`listSurfaces` — it walks the
  *  caller's OWN plugins, checks only the `url`-origin ones (a file install has no source to check, so it is
  *  simply absent from the result, never a dishonest "unreachable"), and re-fetches each remote manifest through
@@ -85,7 +85,7 @@ export interface CheckForUpdatesParams {
   readonly caller: Principal;
 }
 
-/** `upgradeFromStoredUrl` — the TRUE one-click upgrade (plugin-ui-plane #679 U8 2b): re-fetch from the URL the
+/** `upgradeFromStoredUrl` — the TRUE one-click upgrade (U8 2b): re-fetch from the URL the
  *  plugin was installed from (`plugins.source_url`) and run it through the EXISTING `upgrade` verb, so #615's
  *  reach-widening→disabled re-consent wall applies UNCHANGED — never a silent auto-update. Owner-scoped: the
  *  plugin's OWN row is loaded (foreign/missing ⇒ leak-free NOT_FOUND) BEFORE any fetch, exactly like
@@ -208,7 +208,7 @@ export interface RunSnippetParams {
   readonly code: string;
 }
 
-/** `listSurfaces` — the CALLER's OWN enabled plugins' registered UI surfaces (plugin-ui-plane #679 U1). No id,
+/** `listSurfaces` — the CALLER's OWN enabled plugins' registered UI surfaces. No id,
  *  no foreign scope: like `list`, the owner-scoped read of the caller's rows IS the gate — a foreign plugin's
  *  surfaces are simply never in the result. */
 export interface ListSurfacesParams {
@@ -235,7 +235,7 @@ export interface GetSurfaceStateParams {
   readonly chatId?: ChatId;
 }
 
-/** `uiHostCall` — the Tier-C client guest's ONE relay to the membrane (plugin-ui-plane #679 U4, §4.6). A
+/** `uiHostCall` — the Tier-C client guest's ONE relay to the membrane. A
  *  scripted `ui.js` running in the browser worker has NO network of its own; when it needs host data it names a
  *  proxyable host function and this verb performs it SERVER-side through the same `PluginBridge` every
  *  server-guest call rides, under the installer.
@@ -260,13 +260,13 @@ export interface UiHostCallParams {
   readonly chatId?: ChatId;
 }
 
-/** `reportUiCrash` — the client half of the 3-strike crash policy (plugin-ui-plane §4.9). A Tier-C guest that
+/** `reportUiCrash` — the client half of the 3-strike crash policy. A Tier-C guest that
  *  hangs past its wall-clock deadline, fails to boot, or publishes an unparseable tree is TERMINATED in the
  *  browser and the surface collapses to null; this verb feeds that fact into the SAME `consecutive_crashes`
  *  counter a throwing server handler drives, so a UI half that dies every mount auto-disables like a server half
  *  that throws. Owner-scoped on `pluginId` (leak-free NOT_FOUND) — the counter is on the caller's own row, so a
  *  stranger can neither read nor advance it. */
-/** `getUiBundle` — the `ui.js` SOURCE for a plugin the caller OWNS (plugin-ui-plane #679 U4, seam 8), re-parsed
+/** `getUiBundle` — the `ui.js` SOURCE for a plugin the caller OWNS (U4, seam 8), re-parsed
  *  out of the stored bundle so the bytes always come through the ONE unzip funnel. `null` when the plugin ships
  *  no client guest, which is a normal answer (every Tier-S plugin), not an error. Owner-scoped on `pluginId`
  *  (leak-free NOT_FOUND) AND owner-scoped again at the CAS read — a bundle is a user's own uploaded file. */
@@ -284,7 +284,7 @@ export interface ReportUiCrashParams {
   readonly reason: string;
 }
 
-/** `getFrameBody` — the DOCUMENT BYTES of one owned `frame`-tier surface (plugin-ui-plane #679 U7, §6.2). Owner-
+/** `getFrameBody` — the DOCUMENT BYTES of one owned `frame`-tier surface. Owner-
  *  scoped on `pluginId` (leak-free NOT_FOUND) AND re-gated per call on the row's live `ui.frame` grant, because a
  *  resident instance outlives a re-grant and a consent that cannot be withdrawn is not a consent. Its ONE caller
  *  is the plugin-frame doorway; the bytes never reach a projected wire shape. */
@@ -294,7 +294,7 @@ export interface GetFrameBodyParams {
   readonly surfaceId: string;
 }
 
-/** `invokeUiAction` — the guest-action round-trip (plugin-ui-plane #679 U1). Owner-scoped on `pluginId`
+/** `invokeUiAction` — the guest-action round-trip. Owner-scoped on `pluginId`
  *  (leak-free NOT_FOUND); re-enters the surface's `onAction` handler under the crash policy + the per-instance
  *  invoke queue. `values` is the collected form-field bag (all strings on the wire); the guest may publish new
  *  state via `host.ui.setState`, whose bus poke refreshes the caller's own client. Returns void — the effect is
@@ -314,7 +314,7 @@ export interface InvokeUiActionParams {
   readonly chatId?: ChatId;
 }
 
-/** `listCommands` — the CALLER's OWN enabled plugins' registered commands (plugin-ui-plane #679 U5). No id, no
+/** `listCommands` — the CALLER's OWN enabled plugins' registered commands. No id, no
  *  foreign scope: the `listSurfaces` posture exactly — the owner-scoped read of the caller's rows IS the gate. */
 export interface ListCommandsParams {
   readonly caller: Principal;
@@ -342,15 +342,15 @@ export interface InvokeUiCommandParams {
   readonly chatId: ChatId | null;
 }
 
-/** `listDisplayTransforms` — the caller's OWN enabled plugins' registered DISPLAY transforms (plugin-ui-plane
- *  seam 14, U6). Same shape and same gate as `listSurfaces`: no id, owner-scoped read. Its ONE job is the
+/** `listDisplayTransforms` — the caller's OWN enabled plugins' registered DISPLAY transforms
+ *  (seam 14, U6). Same shape and same gate as `listSurfaces`: no id, owner-scoped read. Its ONE job is the
  *  BYTE-IDENTITY gate — a viewer with no display transforms learns so in one query and their transcript makes
  *  no per-row calls at all. */
 export interface ListDisplayTransformsParams {
   readonly caller: Principal;
 }
 
-/** `transformForDisplay` — the per-row display round-trip (plugin-ui-plane seam 14, U6).
+/** `transformForDisplay` — the per-row display round-trip (seam 14, U6).
  *
  *  THE TRUST POSTURE, IN ONE LINE: `text` is CLIENT-SUPPLIED and is reflected ONLY to the same caller — no
  *  authority, no persistence and no other viewer's render derives from it, so the server neither re-derives it

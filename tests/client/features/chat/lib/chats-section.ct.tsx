@@ -1097,7 +1097,7 @@ test("a chatDeleted for the OPEN room takes the reader to landing, not a room wh
   await expect(component.getByText("No chat selected")).toBeVisible();
 });
 
-// ── B11: the room ACTIVITY tab (interaction-direction-spec §7 B11) ──────────────────────────────────
+// ── B11: the room ACTIVITY tab ──────────────────────────────────
 // A host-only CONTEXT-strip sibling grafted through the SAME contributor seam as the fake tab above, but
 // with the REAL `automationActivityTab` def: it renders `RoomActivityLog` over `automation.listChatActivity`
 // — this room's fire log across all its rules (fires · notices · plugin-tool runs · confirmed cards), each a

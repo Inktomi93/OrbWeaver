@@ -26,7 +26,7 @@
 // cli/engine/rules/checks.mjs — Copyright 2025 Paul Bakaus, Apache License 2.0). The code is
 // re-written for this walker's raw-facts-only architecture and MODIFIED against orbweaver law
 // (token-ramp bindings, sanctioned-effect exemptions) — see
-// docs/design/impeccable-adoption.md for the full 59-rule
+// tooling/src/ui-audit/ops/walker/IMPECCABLE-ADOPTION.md for the full 59-rule
 // triage, the divergences, and the license statement.
 
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";

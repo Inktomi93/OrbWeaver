@@ -1,4 +1,4 @@
-// DoD execution + the close gate (#923; docs/design/work-item-dod.md) — the I/O half of lib/dod.ts.
+// DoD execution + the close gate (#923) — the I/O half of lib/dod.ts.
 // Every run rides the niced subprocess door with the per-DoD timeout, cwd at the repo root, and the
 // ambient env (so the workspace NODE_OPTIONS heap floor reaches node children). The timeout kill lands
 // on the direct child (`nice` execs in-process); a compound command's grandchildren can survive it —

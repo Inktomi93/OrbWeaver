@@ -1,4 +1,4 @@
-// substrate/merge — the [merge-clear] contract + lock-honoring (rpg-design/05 §2.4). Pure unit. The
+// substrate/merge — the [merge-clear] contract + lock-honoring (docs/plans/rpg/design.md). Pure unit. The
 // {}-noop / null-clear transition seam is the OPPOSITE of settings' deepMergePlain, so it gets its own
 // explicit transition test (memory: merge-clear needs a transition test). Locks: manual-edit-wins — a
 // tool patch on a locked path is dropped.

@@ -1,5 +1,5 @@
-// The chrome registry as a React CONTEXT (shell-chrome-unification.md §A/§D) — the context/hook/provider
-// trio is the `createRegistryContext` mint (derive-modernization-audit.md §W3, G26); this file binds it to
+// The chrome registry as a React CONTEXT — the context/hook/provider
+// trio is the `createRegistryContext` mint; this file binds it to
 // the chrome ContributorRegistry. Assembled ONCE at the door (main.tsx, G8), read by app-shell's topbar trail.
 
 import type { ContributorRegistry } from "#lib";

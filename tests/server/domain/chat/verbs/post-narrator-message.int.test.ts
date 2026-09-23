@@ -1,4 +1,4 @@
-// op: postNarratorMessage (rpg-design/02 §1.1 #2) — the rpg-facing narrator-post op, against a real libSQL db.
+// op: postNarratorMessage (docs/plans/rpg/design.md) — the rpg-facing narrator-post op, against a real libSQL db.
 // Proves: ONE assistant-role message commits authored by the synthetic group CHARACTER (never a user id — the
 // D19/D16-inv-9 rule: authorUserId NULL, characterId = the group char), the body is a STRING carrying one
 // `asset:` ref per media (D51) with a `message_assets` retaining row, `messageCommitted` is emitted, and the

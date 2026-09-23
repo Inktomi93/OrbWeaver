@@ -1,4 +1,4 @@
-// verb: dismissSuggestion — S4's HOST NO (interaction-direction-spec §3-S4). The mirror test for the verb;
+// verb: dismissSuggestion — S4's HOST NO. The mirror test for the verb;
 // its behavior ALONGSIDE a live fire (an arm stashes, the host dismisses, nothing runs) is proven in
 // `confirm-suggestion.int.test.ts`, which drives the real dispatch. What is proven HERE is the verb's own
 // contract against a store the test raises into directly: the take, the gate, and the collapse.

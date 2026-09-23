@@ -1,4 +1,4 @@
-// verbs/game/update-config — updateConfig (rpg-design/05 §4.4, §6.2). The knob defaults + the profile
+// verbs/game/update-config — updateConfig (docs/plans/rpg/design.md). The knob defaults + the profile
 // mutability matrix (add / referenced-remove refused). Mutations asserted at the ROW (assert-the-mutation-fired).
 
 import { userMacroSchema } from "@orb/contracts/preset";

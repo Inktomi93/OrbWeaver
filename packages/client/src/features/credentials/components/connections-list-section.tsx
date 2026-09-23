@@ -1,6 +1,6 @@
 // The CONNECTIONS section (Settings → Connections) — the user's connection rows: label · provider · model ·
 // key, the Model roles each row may serve, the background switch, and a row MENU carrying §5.3a's
-// no-defaults survivability actions. Owns its own `QueryBoundary` (config-revamp-design.md §6.8 — one
+// no-defaults survivability actions. Owns its own `QueryBoundary` (one
 // contributed section per read).
 //
 // THE BADGE RAIL SITS OUTSIDE THE ROW BODY, ON PURPOSE. `ListRow`'s `leading`/`markers`/`subtitleLead` all
@@ -207,7 +207,7 @@ function ConnectionRow({
           the row's own name and meta, so the thing you point at stops being the thing under the pointer).
           Its accessible name is the CONNECTION, not "Edit <the connection>": `list-row.tsx:1-10` records the
           #512 owner ruling that a clickable row's name IS its title, so voice control can say what is on
-          screen, and the primitive offers no aria-label door. DESIGN.md §2.2 says otherwise and is wrong.
+          screen, and the primitive offers no aria-label door. the mock design §2.2 says otherwise and is wrong.
           The badge rail is already OUT of the body (the file header's own decision, `ConnectionBadges`
           below), which is exactly the landing this door needed. */}
       <ListRow

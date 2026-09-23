@@ -53,7 +53,7 @@ import type { CharacterDetail } from "./views.ts";
 export type ReapAssetsOp = (assetIds: readonly AssetId[]) => Promise<void>;
 
 /** READS the assetIds bound to a character's expression sprites, so remove can fold them into the
- *  `reapAssets` set AFTER the character row is actually gone (expressions-design/01 §8). Injected +
+ *  `reapAssets` set AFTER the character row is actually gone (docs/plans/expressions/design.md). Injected +
  *  OPTIONAL: a deploy without the expressions leaf (tests/scripts) omits it and the FK cascade still wipes
  *  the bindings — the now-unreferenced blobs are reclaimed by the next `assets:gc` mark-sweep instead of the
  *  targeted reap.
@@ -109,7 +109,7 @@ export interface CharacterContext {
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   readonly emit: (event: DomainEvent) => void;
   readonly reapAssets: ReapAssetsOp;
-  /** Injected sprite-asset READ (expressions-design/01 §8); OPTIONAL — absent = the FK cascade + a later GC sweep. */
+  /** Injected sprite-asset READ (docs/plans/expressions/design.md); OPTIONAL — absent = the FK cascade + a later GC sweep. */
   readonly listCharacterSpriteAssets?: ListCharacterSpriteAssetsOp;
   readonly attachCardTag: AttachCardTagOp;
   readonly detachCardTag: DetachCardTagOp;

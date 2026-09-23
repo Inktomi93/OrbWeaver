@@ -132,7 +132,7 @@ export interface PluginTransformRegistration {
 }
 
 /** A DISPLAY transform the guest registered via `host.transforms.registerDisplay` — collected at activation
- *  (plugin-ui-plane §5.5/§5.29, seam 14). Unlike its D50 sibling it needs NO external registrar: it is read
+ *  (seam 14). Unlike its D50 sibling it needs NO external registrar: it is read
  *  directly off the resident instance by the display round-trip verb and re-entered through the port's
  *  `invoke`, exactly as a `PluginSurfaceRegistration`'s `onAction` is. Order among a plugin's own display
  *  transforms is REGISTRATION order (the collected array's order) — the same "the guest declared it first"
@@ -142,7 +142,7 @@ export interface PluginDisplayTransformRegistration {
   readonly handler: PluginHandlerRef;
 }
 
-/** A macro the guest registered via `host.macros.register` — collected at activation (plugin-ui-plane §5.15).
+/** A macro the guest registered via `host.macros.register` — collected at activation.
  *  `name` is the HOST-NAMESPACED spelling (`plugin_<slug'>_<name>`, assigned domain-side from the re-validated
  *  manifest slug — never guest-supplied, and minted through {@link pluginToolWireName} so the tool plane and
  *  the macro plane can never spell one namespace two ways), so a plugin macro can shadow neither a builtin
@@ -162,7 +162,7 @@ export interface PluginEventSubscription {
   readonly handler: PluginHandlerRef;
 }
 
-/** A PRIVATE plugin-event subscription the guest registered via `host.pubsub.on` (plugin-ui-plane §5a). This is
+/** A PRIVATE plugin-event subscription the guest registered via `host.pubsub.on`. This is
  *  a DIFFERENT plane from {@link PluginEventSubscription} and the difference is the whole forgery wall: the
  *  Tier-1 trigger taxonomy is the DOMAIN's closed vocabulary (a plugin-emitted one would be a forged fact,
  *  §5.24), whereas this plane is INSTALLER-PRIVATE and plugin-authored — `emitterSlug`/`name` are free-text
@@ -188,8 +188,8 @@ export const PLUGIN_PUBSUB_SUBSCRIPTIONS_MAX = 32;
  *  tight per-emit cap is what keeps a fan-out bounded. Over cap is a REFUSAL (a rejected guest promise). */
 export const PLUGIN_PUBSUB_PAYLOAD_MAX_BYTES = 16_384;
 
-/** A UI surface the guest registered via `host.ui.register` — collected at activation (plugin-ui-plane #679
- *  U1, seam 4). Unlike tools/transforms/events, a surface needs NO external registrar: it is READ directly off
+/** A UI surface the guest registered via `host.ui.register` — collected at activation
+ *  (U1, seam 4). Unlike tools/transforms/events, a surface needs NO external registrar: it is READ directly off
  *  the resident instance by `plugin.listSurfaces`, and its `onAction` handler is re-entered by
  *  `plugin.invokeUiAction` through the port's `invoke`. `spec` is the guest-supplied declarative node tree
  *  (zod-validated host-side at collection — an invalid spec is a REGISTRATION refusal, the surface absent, never
@@ -205,8 +205,8 @@ export type PluginSurfaceRegistration = PluginSurfaceRegistrationMeta & {
   readonly frame?: PluginFrameBody;
 };
 
-/** A COMMAND the guest registered via `host.ui.registerCommand` — collected at activation (plugin-ui-plane #679
- *  U5, §4.5). Like a surface it needs NO external registrar: it is read directly off the resident instance by
+/** A COMMAND the guest registered via `host.ui.registerCommand` — collected at activation
+ *  (U5). Like a surface it needs NO external registrar: it is read directly off the resident instance by
  *  `plugin.listCommands` (which the `/plugin` dispatcher and the Plugins chrome menu both fan off) and re-entered
  *  by `plugin.invokeUiCommand` through the port's `invoke`. `onRun` is REQUIRED — unlike a surface, a command
  *  with nothing to run is not a display-only affordance, it is a dead menu row. */

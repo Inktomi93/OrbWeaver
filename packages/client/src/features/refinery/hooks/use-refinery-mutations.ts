@@ -2,7 +2,7 @@
 // (`transport/trpc/routers/refinery.ts`), never an inline `useMutation` at a call site (§13.1).
 //
 // FRESHNESS IS THE BUS NOW, and that is a REVERSAL of this file's founding note — the event-bus coverage
-// survey's H1 (docs/history/design/event-bus-coverage-survey.md §2.2) is closed. Refinery used to emit nothing on any
+// survey's H1 is closed. Refinery used to emit nothing on any
 // plane, so every write here carried its own `invalidates` and the reads carried cited STATIC rows in
 // `tooling/src/verify/gates/query-freshness-coverage.ts`. That was writer-local freshness: it reconciled the tab
 // that wrote and NOTHING else, so at `staleTime: Infinity` a second tab or device sat on the pre-write

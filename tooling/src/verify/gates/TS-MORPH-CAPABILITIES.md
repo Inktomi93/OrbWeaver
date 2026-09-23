@@ -6,7 +6,7 @@ updated: 2026-09-13
 
 # ts-morph capabilities for Orb gate authors
 
-This is the API-selection companion to [GATE-AUTHORING.md](GATE-AUTHORING.md) and the destination runtime in [gate-runtime-standardization.md](../../../../docs/design/gate-runtime-standardization.md). Read it before writing a new AST reader or shared fact. Filesystem-backed tooling also reads [NODE-26-FILESYSTEM-CAPABILITIES.md](NODE-26-FILESYSTEM-CAPABILITIES.md). The installed authority is `ts-morph@28.0.0` over `typescript@6.0.3`; re-audit this reference when either version changes.
+This is the API-selection companion to [GATE-AUTHORING.md](GATE-AUTHORING.md) and the destination runtime in [gate-runtime-standardization.md](../../../../docs/law/gate-runtime-standardization.md). Read it before writing a new AST reader or shared fact. Filesystem-backed tooling also reads [NODE-26-FILESYSTEM-CAPABILITIES.md](NODE-26-FILESYSTEM-CAPABILITIES.md). The installed authority is `ts-morph@28.0.0` over `typescript@6.0.3`; re-audit this reference when either version changes.
 
 Upstream references: [AST navigation](https://ts-morph.com/navigation/), [types](https://ts-morph.com/details/types), [type checker](https://ts-morph.com/navigation/type-checker), [source files](https://ts-morph.com/details/source-files), [project population](https://ts-morph.com/setup/adding-source-files), and the installed declaration surface at `node_modules/ts-morph/lib/ts-morph.d.ts`. The declarations win when the website is incomplete.
 

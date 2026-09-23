@@ -1,4 +1,4 @@
-// Chat's "Temp chat" HOME tile contribution (home-section-spec §5).
+// Chat's "Temp chat" HOME tile contribution.
 //
 // CD3 RE-RULED, 2026-08-16 (owner pick on program #102). This header used to read: "This tile carries the
 // ONE accent primary on the whole home screen (CD3 — every other tile's affordance is a ghost or plain

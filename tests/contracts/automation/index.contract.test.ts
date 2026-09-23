@@ -178,7 +178,7 @@ test("automationActionSchema parses each live arm; the generate_image arm import
   expect(img).toMatchObject({ type: "generate_image", mode: "scenario", n: 1, reuse: "prefer" });
 });
 
-// S1 (interaction-direction-spec.md §3-S1) — the per-choice consumption MODE. Without it the diegetic-chip
+// S1 — the per-choice consumption MODE. Without it the diegetic-chip
 // authoring law has no lever: send-vs-compose was a per-chat GAME knob the `:::choices` fence reads, which a
 // rule-surfaced chip has no access to. The DEFAULT is the arm's built semantic (`send` — a chip has always
 // fired as the clicking member's message), so an existing stored rule keeps behaving exactly as it did.
@@ -330,7 +330,7 @@ test("every arm id is a real AutomationActionType (compile + runtime pin)", () =
   expect(seen).toEqual([...AUTOMATION_ACTION_TYPES]);
 });
 
-// ── TF-1: triggerFactSchema — the guest-marshalling contract (01 §2 / plugin-design 04 §P4) ────────
+// ── TF-1: triggerFactSchema — the guest-marshalling contract ────────
 
 test("triggerFactSchema round-trips a full fact (every trigger-type projection)", () => {
   const message: TriggerFact = {

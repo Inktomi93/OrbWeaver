@@ -1,5 +1,5 @@
-// THE POINT OF THE REGISTRY IS THIS FILE (tooling/src/_shared/ports.ts,
-// docs/design/1208-instrument-substrate.md §3.6). The band range and the reserved rows are disjoint by
+// THE POINT OF THE REGISTRY IS THIS FILE (tooling/src/_shared/ports.ts).
+// The band range and the reserved rows are disjoint by
 // ARITHMETIC — two bases chosen above every reserved number, a stride of 10, ten bands — and arithmetic
 // nobody asserts is a coincidence waiting for an edit. Widening STAGE_BAND_COUNT, shrinking the stride,
 // lowering a base or reserving a new pair inside the band range all go RED here rather than at 2am on a

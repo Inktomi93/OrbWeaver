@@ -1,4 +1,4 @@
-// The PROMPT view's CONTEXT readout (preset-surface-redesign.md §7): the zone BUDGET, per-section token
+// The PROMPT view's CONTEXT readout: the zone BUDGET, per-section token
 // BARS with the selected section highlighted, the PIVOT health, and the assembled PREVIEW on demand.
 //
 // Each element names the decision it informs: what to trim or disable when the system block bloats (the

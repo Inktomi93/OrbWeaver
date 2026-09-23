@@ -3,8 +3,8 @@
 // specifiers; a repo-root CONFIG whose data would otherwise be re-spelled requires an exact reviewed grant.
 // Prodonly derives runtime entries from package manifests and tool conventions; knip.ts stays analysis-only.
 //
-// AUTHORITY IS reviewed-grant, and that is the whole reason this arm has its own policy id (docs/history/gate-runtime-worked-cases-2026-09.md §"Mixed-hook arity amendments",
-// #1950). The exception is not a per-occurrence mistake an author waives with a reason — it is a recurring
+// AUTHORITY IS reviewed-grant, and that is the whole reason this arm has its own policy id
+// (#1950). The exception is not a per-occurrence mistake an author waives with a reason — it is a recurring
 // repository PERMISSION: one exact `(subject, operation)` row in the central reviewed-grant table with its
 // own `why` and `endsWhen`. After a complete run a row consumed zero times is STALE and a row matching more
 // than one finding is OVER-BROAD and licenses nothing — the two-sided stale sweep is owned centrally.

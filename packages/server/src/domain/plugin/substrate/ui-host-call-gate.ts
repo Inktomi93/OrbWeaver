@@ -1,5 +1,5 @@
 // domain/plugin/substrate/ui-host-call-gate — the per-plugin CONCURRENCY belt on `plugin.uiHostCall`
-// (plugin-ui-plane #679 U4, §9 "flood"). One process-wide counter, minted ONCE at compose beside the notify
+// (the "flood" case). One process-wide counter, minted ONCE at compose beside the notify
 // floor and the snippet gate (the same `ASSUMES(single-replica)` posture they carry).
 //
 // WHY A BELT AT ALL, given the tRPC bucket. The transport's authed per-user `general` bucket

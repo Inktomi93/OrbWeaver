@@ -1,7 +1,7 @@
 # The design-verb vocabulary
 
 Adapted from impeccable's commands (Apache-2.0); triage and attribution in
-`docs/design/impeccable-adoption.md`. A shared vocabulary so a review can prescribe in one word and a
+`tooling/src/ui-audit/ops/walker/IMPECCABLE-ADOPTION.md`. A shared vocabulary so a review can prescribe in one word and a
 fix inherits an exact, law-bound meaning. Each verb binds to SKILL.md's law and instruments, never a
 license to invent values. A report using one of these verbs names the target surfaces and the evidence
 that will prove the verb landed. Prescription grammar: `<verb>: <targets> — <evidence>`. A verb with no
@@ -24,7 +24,7 @@ target is not usable; a verb with no evidence is not proven.
 | **harden** | survive Riley: long strings/emoji/RTL, empty/error/loading, refresh mid-flow — §5 + §9 | seeded stress fixtures + shots of every state |
 | **clarify** | UX copy in UI chrome: controls name their action, errors name problem+recovery — never model/user prose | before/after copy table |
 | **onboard** | design the landing/teaching and empty states that guide to first value — §14 CONTENT law | shots of first-run and empty states |
-| **shape** | plan before code: a mock under `docs/design/mocks/`, driven through the same instruments | `snap --file <mock>` + the mock-vs-rendered delta table below |
+| **shape** | plan before code: a mock under `reports/mocks/<name>/`, driven through the same instruments | `snap --file <mock>` + the mock-vs-rendered delta table below |
 | **document** | re-derive `reference/design-context.md` from the law sources it maps | the updated file, evidence per changed fact |
 | **extract** | promote a repeated shape to a token/primitive via the governed process — `UI-Primitives-and-Reuse.md` §13.7/§13.8 | the primitive/token delta + its component test |
 | **delight** | rationed personality through the sanctioned effect axes (§11) and motion — never decorative pulse/marquee/confetti | shots + the axes' guards verified |
@@ -33,4 +33,4 @@ target is not usable; a verb with no evidence is not proven.
 
 "craft" is not a verb in this vocabulary. Say what you mean with one of the verbs above.
 
-**Mocks:** build a mock through the Claude Design canvas flow, matched to app tokens and components, never forge-drawn HTML. Commit the canvas source, renders, and a `DESIGN.md` under `docs/design/mocks/<name>/`. Render and look at each board's default state before publishing. Comparing a mock to the rendered surface is an image comparison, not a subjective check: shoot both at the same viewport (`pnpm snap --file <mock.html> --viewport WxH`) and build a per-element delta table: `RENDERED-WRONG` (the build missed the mock), `MOCK-STALE-SANCTIONED` (a later ruling overtook the drawing, cite it), or `DELIBERATE-WITH-CITE` (the build diverged on purpose, cite the line that says so). A row you cannot classify is a question for the orchestrator, not a silent pass.
+**Mocks:** build a mock through the Claude Design canvas flow, matched to app tokens and components, never forge-drawn HTML. Keep the canvas source and renders under `reports/mocks/<name>/` (tool output, not committed), and record the settled design in the plan or ADR it belongs to. Render and look at each board's default state before publishing. Comparing a mock to the rendered surface is an image comparison, not a subjective check: shoot both at the same viewport (`pnpm snap --file <mock.html> --viewport WxH`) and build a per-element delta table: `RENDERED-WRONG` (the build missed the mock), `MOCK-STALE-SANCTIONED` (a later ruling overtook the drawing, cite it), or `DELIBERATE-WITH-CITE` (the build diverged on purpose, cite the line that says so). A row you cannot classify is a question for the orchestrator, not a silent pass.

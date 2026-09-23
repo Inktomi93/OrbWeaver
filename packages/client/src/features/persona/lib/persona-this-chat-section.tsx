@@ -1,4 +1,4 @@
-// The persona THIS-CHAT config-section CONTRIBUTION (config-revamp-design.md §6.8.2) — the per-chat picker
+// The persona THIS-CHAT config-section CONTRIBUTION — the per-chat picker
 // (Playing as · the pinned {{user}} row · Restamp) as the Personas group's third section. The SAME component
 // the rail popover and the You sheet render; only this mount hands it the anchor and an `idle` body, so its
 // LIST row lands on real words when no chat is open instead of scrolling to nothing (F-12 as superseded).

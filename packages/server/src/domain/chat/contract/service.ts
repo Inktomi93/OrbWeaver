@@ -351,7 +351,7 @@ export interface ChatService {
   readonly addCharacterToChat: (params: AddCharacterToChatParams) => Promise<ParticipantView>;
   /** Remove a character seat from the roster (host-only) — the symmetric drop for `addCharacterToChat`.
    *  leftSeq-stamps the present character seat; an absent/already-left character is an idempotent no-op. Has
-   *  a tRPC row today; the rpg-design scene-cast prune (parked, `rpg-design/07 §2.2`) is a future INJECTED
+   *  a tRPC row today; the docs/plans/rpg/design.md scene-cast prune (parked, `docs/plans/rpg/design.md``) is a future INJECTED
    *  consumer of this same verb, not a caller that exists yet. */
   readonly removeCharacterFromChat: (params: RemoveCharacterFromChatParams) => Promise<void>;
 

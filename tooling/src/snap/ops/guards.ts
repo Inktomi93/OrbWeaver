@@ -19,7 +19,7 @@ refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 // --file: resolve the (possibly relative) path to an absolute one + its file:// URL + the default artifact
 // slug (the file's basename, so `--file …/config-rail/workspace.html` writes reports/snaps/workspace.png).
-// A relative path resolves against the CWD the operator typed it in — `pnpm snap --file docs/design/mocks/…`
+// A relative path resolves against the CWD the operator typed it in — `pnpm snap --file reports/mocks/…`
 // from the repo root is the documented shape.
 interface FileTarget {
   readonly path: string;

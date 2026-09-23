@@ -6,7 +6,7 @@ updated: 2026-09-22
 
 # `@orb/tooling` — tooling-tree law
 
-> The detail home for the tooling tree. `Core-0-Architecture-and-Structure.md` §9 is the summary and the entry point; this doc owns the roster, the plumbing floor, the per-gate contracts, the coupled-site census, and the move playbook. Gate authoring starts at `../design/gate-runtime-read-first.md`; `../../tooling/src/verify/gates/GATE-AUTHORING.md` is the final authoring guide and links the verbatim legacy archive. Live gate catalog: `Core-Enforcement-Active-Gates.md`. The research zone's roster: `../../scripts/README.md`.
+> The detail home for the tooling tree. `Core-0-Architecture-and-Structure.md` §9 is the summary and the entry point; this doc owns the roster, the plumbing floor, the per-gate contracts, the coupled-site census, and the move playbook. Gate authoring starts at `docs/law/gate-runtime-read-first.md`; `../../tooling/src/verify/gates/GATE-AUTHORING.md` is the final authoring guide and links the verbatim legacy archive. Live gate catalog: `Core-Enforcement-Active-Gates.md`. The research zone's roster: `../../scripts/README.md`.
 
 ## 1. Standing rulings (owner — do not relitigate)
 
@@ -212,7 +212,7 @@ Worked precedents for step 3: `no-raw-clock` was FENCED with a `mustPass` row (t
 
 ## 4. Enforcement
 
-The live roster derives from the loader. Final policies follow `../design/gate-runtime-standardization.md` and the final `../../tooling/src/verify/gates/GATE-AUTHORING.md`; legacy descriptor maintenance uses that guide’s verbatim archive. **Live violations found at any landing are FIXED in that lane** — no debt baselines are minted for tooling.
+The live roster derives from the loader. Final policies follow `docs/law/gate-runtime-standardization.md` and the final `../../tooling/src/verify/gates/GATE-AUTHORING.md`; legacy descriptor maintenance uses that guide’s verbatim archive. **Live violations found at any landing are FIXED in that lane** — no debt baselines are minted for tooling.
 
 ### 4.1 `tooling-slot-template`
 
@@ -289,7 +289,7 @@ Everything else — `ops/`, `lib/`, `contract/`, and every `ops/parse.ts` — ta
 
 **Threading argv in is a REQUIRED field, not an optional one.** `RunCodemodOptions.argv` is required precisely because the omission's failure mode is silent: `resolveIsDryRun([])` returns "dry run", so a forgotten argv would swallow an operator's `--apply` and report a clean preview. A required field makes it a tsc error instead.
 
-Arms: **(A)** the read outside a sanctioned home, both spellings (an element-access-blind matcher would be the loophole) — a reviewed-grant finding; **(B)** the two-sided stale sweep is CENTRAL grant liveness — a grant row consumed zero times after a complete run is STALE, whether its file merely stopped reading argv or is GONE, so the two modes collapse to one check by construction; **(C)** the `docs/design/gate-runtime-standardization.md` §6.1 blindness tripwire, its own hard policy `tooling-argv-front-door-health` — zero `cli.ts` readers on a real-tree run means the matcher stopped recognising the shape, and every arm above is vacuously green. Both whole-tree arms are anchored on `_shared/exit-contract.ts` (arm B by the entire-population deferral, arm C by the anchor guard), never on a scope kind.
+Arms: **(A)** the read outside a sanctioned home, both spellings (an element-access-blind matcher would be the loophole) — a reviewed-grant finding; **(B)** the two-sided stale sweep is CENTRAL grant liveness — a grant row consumed zero times after a complete run is STALE, whether its file merely stopped reading argv or is GONE, so the two modes collapse to one check by construction; **(C)** the `docs/law/gate-runtime-standardization.md` §6.1 blindness tripwire, its own hard policy `tooling-argv-front-door-health` — zero `cli.ts` readers on a real-tree run means the matcher stopped recognising the shape, and every arm above is vacuously green. Both whole-tree arms are anchored on `_shared/exit-contract.ts` (arm B by the entire-population deferral, arm C by the anchor guard), never on a scope kind.
 
 **DECLARED LIMIT (its own `mustPass` row): this gate pins WHERE argv is read, never HOW STRICTLY each tool's grammar parses it.** The 27-reader census behind #971 classified each CLI's real grammar — strict-ordered (`snap`), positional/subcommand (`ast`/`verify`/`workboard`/`doc-catalog`/`seed`/`wire-tap`/`render-trace`), flag-bag, and `--`-forwarding (`stack`) — and closed the lenient ones by hand. `ui-audit`'s strict-ordered parser was the second rendered grammar and is GONE with its CLI (#1315): the scan rides snap's, so there is one rendered-argv reader left rather than two byte-stable ones. The engine dirs' `cli.ts` files parse nothing at all. There is deliberately NO generic `parseArgv(spec)`: flattening the remaining grammars into one would change every tool's contract, and each existing contract stays byte-stable.
 
@@ -360,9 +360,7 @@ Type assertions use the type-test kinds defined by `tooling/src/_shared/test-kin
 ## 6. The verification floor for a tooling change
 
 The scoped lane floor and shared-host scheduling live in the `lane` skill
-(`.claude/skills/lane/SKILL.md`), sections “Running tools” and “Floor”. Gate-program integration
-follows `../design/gate-runtime-orchestrator-playbook.md`; a lane must not launch whole-tree checks
-alongside the integration train.
+(`.claude/skills/lane/SKILL.md`), sections “Running tools” and “Floor”. A lane must not launch whole-tree checks alongside an integration train.
 
 Run scoped Biome and ESLint, the behavioral suites for the changed contract, and every affected native
 compiler program. A shared-value change also runs coupled literal assertions. Moves require the §3.1
