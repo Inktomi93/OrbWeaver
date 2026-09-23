@@ -117,7 +117,7 @@ post-checkout:
       env:
         NO_COLOR: "1"
 
-# AUTO-LAND for the in-repo work items (docs/work/, `docs/plans/doc-system/design.md`). After a merge
+# AUTO-LAND for the in-repo work items (docs/work/, a plan's `docs/plans/<slug>/design.md`). After a merge
 # INTO main that `git merge` itself completes (a fast-forward or a clean `--no-ff`), `pnpm doc land
 # --merged` reads the `Closes: 12, 14` trailers of the commits the merge brought in (ORIG_HEAD..HEAD),
 # DELETES those items with the merge commit as evidence (the commit message records each one), regenerates

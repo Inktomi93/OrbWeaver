@@ -148,7 +148,7 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D161 | [Chat read-visibility: two planes, one verdict](0161-chat-read-visibility-two-planes-one-verdict.md) | active |
 | D162 | [Firehose import allowlist: the unclamped all-chat stream may be named only by the server composition root and its transport barrel](0162-firehose-import-allowlist-the-unclamped-all-chat-stream.md) | active |
 | D163 | [schema history has a post-launch rule and a pre-launch standing exception](0163-schema-history-has-a-post-launch-rule-and.md) | active |
-| D164 | [Docs, plans and ADRs are markdown with one structural writer](0164-docs-plans-adrs.md) | active |
+| D164 | [Docs, plans and ADRs are markdown with one structural writer](0164-docs-plans-adrs.md) | superseded by [0222-docs-plans-adrs-no-archive.md](0222-docs-plans-adrs-no-archive.md) |
 | D165 | [Async work is awaited, owned by its boundary, or supervised-detached](0165-async-work-is-awaited-owned-or-supervised.md) | active |
 | D166 | [A chat row exists from the creation click](0166-a-chat-row-exists-from-the-creation-click.md) | active |
 | D167 | [Token usage carries provenance at variant grain](0167-token-usage-carries-provenance.md) | active |
@@ -195,5 +195,6 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D219 | [The cast read axis is renamed to the chat identity axis](0219-cast-axis-renamed-to-identity-axis.md) | active |
 | D220 | [Rejected neo-derived and report-only enforcement proposals](0220-rejected-neo-and-report-only-gates.md) | rejected |
 | D221 | [Resource-policy contract: alternatives rejected](0221-resource-policy-contract-rejected-alternatives.md) | active |
+| D222 | [Docs, plans and ADRs are markdown with one structural writer](0222-docs-plans-adrs-no-archive.md) | active |
 | D250 | [The anchor human's persona binds prompt-config {{user}}](0250-anchor-human-binds-preset-user.md) | active |
 | D251 | [Prompt sections keep their prompt-order position on every model](0251-prompt-sections-keep-prompt-order.md) | active |
