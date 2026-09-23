@@ -74,7 +74,7 @@ test("frontmatter is judged per kind: a wrong kind for the tree, a status outsid
   const wrongKind = tree({ ...CLEAN, [ADR]: adrTemplate("x", TODAY).replace("kind: adr", "kind: plan") });
   expect(docProblems(wrongKind)).toContain(`${ADR}: kind plan is not allowed here; this path takes adr`);
   const wrongStatus = tree({ ...CLEAN, [ADR]: adrTemplate("x", TODAY).replace("status: active", "status: done") });
-  expect(docProblems(wrongStatus)).toContain(`${ADR}: status done is not one of active | superseded for kind adr`);
+  expect(docProblems(wrongStatus)).toContain(`${ADR}: status done is not one of active | superseded | rejected for kind adr`);
   const foreignKey = tree({ ...CLEAN, [ADR]: adrTemplate("x", TODAY).replace("status: active", "status: active\nlane: cb-x") });
   expect(docProblems(foreignKey)).toContain(`${ADR}: key lane is not allowed on kind adr`);
   const noBlock = tree({ ...CLEAN, [PLAN]: "# Plan\n\n## Goal\n" });
@@ -89,20 +89,43 @@ test("a required section is demanded by kind and a cap is enforced by kind", () 
   expect(docProblems(fat).some((line) => line.startsWith(`${ADR}: `) && line.includes("exceeds the 8 KiB cap"))).toBe(true);
 });
 
-test("a plan needs its own folder with a design, and an archived plan is dated and archived", () => {
+test("a plan needs its own folder with a design; there is no archive folder, and an item never lives in a plan folder", () => {
   const loose = tree({ ...CLEAN, "docs/plans/loose.md": planTemplate("Loose", TODAY) });
   expect(docProblems(loose)).toContain("docs/plans/loose.md: a plan lives in its own folder: docs/plans/<slug>/design.md");
   const extra = tree({ ...CLEAN, "docs/plans/doc-system/notes.md": planTemplate("Notes", TODAY) });
   expect(docProblems(extra)).toContain("docs/plans/doc-system/notes.md: a plan folder holds design.md and tasks.md only");
-  const undated = tree({ ...CLEAN, "docs/plans/archive/old-plan/design.md": planTemplate("Old", TODAY).replace("status: active", "status: archived") });
-  expect(docProblems(undated)).toContain("docs/plans/archive/old-plan/design.md: an archived plan folder is YYYY-MM-DD-<slug>");
-  const live = tree({ ...CLEAN, "docs/plans/archive/2026-09-01-old-plan/design.md": planTemplate("Old", TODAY) });
-  expect(docProblems(live)).toContain("docs/plans/archive/2026-09-01-old-plan/design.md: an archived plan's status is archived");
-  const archived = tree({
-    ...CLEAN,
-    "docs/plans/archive/2026-09-01-old-plan/design.md": planTemplate("Old", TODAY).replace("status: active", "status: archived"),
-  });
-  expect(docProblems(archived)).toEqual([]);
+  const archived = tree({ ...CLEAN, "docs/plans/archive/2026-09-01-old/design.md": planTemplate("Old", TODAY).replace("status: active", "status: archived") });
+  expect(docProblems(archived)).toEqual(
+    expect.arrayContaining([
+      "docs/plans/archive/2026-09-01-old/design.md: a plan folder holds design.md and tasks.md only",
+      "docs/plans/archive/2026-09-01-old/design.md: status archived is not one of active | parked for kind plan",
+    ]),
+  );
+  const moved = tree({ ...CLEAN, "docs/plans/doc-system/0002-moved.md": itemSource() });
+  expect(docProblems(moved)).toContain("docs/plans/doc-system/0002-moved.md: a plan folder holds design.md and tasks.md only");
+});
+
+test("a parked plan carries a wake condition in the blocker grammar, and only a parked plan carries one", () => {
+  const parked = (blocked: string): string => planTemplate("Doc system", TODAY).replace("status: active", `status: parked\nblocked: ${blocked}`);
+  expect(docProblems(tree({ ...CLEAN, [PLAN]: parked("owner") }))).toEqual([]);
+  expect(docProblems(tree({ ...CLEAN, [PLAN]: parked("wake path docs/adr/0200-x.md") }))).toEqual([]);
+  expect(docProblems(tree({ ...CLEAN, [PLAN]: parked("on 1") }))).toEqual([]);
+  expect(docProblems(tree({ ...CLEAN, [PLAN]: parked("on 99") }))).toEqual([`${PLAN}: blocked on 99, which is not an item under docs/work/`]);
+  expect(docProblems(tree({ ...CLEAN, [PLAN]: parked("someday") }))).toEqual([
+    `${PLAN}: a parked plan carries a reason: blocked: owner | on <id> | wake path <repo path> | wake gone <repo path>`,
+  ]);
+  const bare = planTemplate("Doc system", TODAY).replace("status: active", "status: parked");
+  expect(docProblems(tree({ ...CLEAN, [PLAN]: bare }))).toEqual([
+    `${PLAN}: a parked plan carries a reason: blocked: owner | on <id> | wake path <repo path> | wake gone <repo path>`,
+  ]);
+  const activeWithReason = planTemplate("Doc system", TODAY).replace("status: active", "status: active\nblocked: owner");
+  expect(docProblems(tree({ ...CLEAN, [PLAN]: activeWithReason }))).toEqual([
+    `${PLAN}: only a parked plan carries blocked — pnpm doc status active ${PLAN} clears it`,
+  ]);
+});
+
+test("an ADR may be rejected", () => {
+  expect(docProblems(tree({ ...CLEAN, [ADR]: adrTemplate("x", TODAY).replace("status: active", "status: rejected") }))).toEqual([]);
 });
 
 test("an ADR id must be unique and numbered; a re-minted reserved id is legal", () => {

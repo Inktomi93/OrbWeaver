@@ -7,7 +7,7 @@ import { DATE_RE, DOC_TOOL_TREES, ITEM_KINDS, ITEM_STATES } from "#doc-catalog";
 import type { Blocker, ItemKind, ItemPatch, ItemSectionFlag, ItemState, NewItemInput, WorkItem } from "../contract/types.ts";
 import { ITEM_SECTION_FLAGS } from "../contract/types.ts";
 import { splitDocument, titleOf, withFields, withTitle } from "./frontmatter-write.ts";
-import { basenameOf, parseNumberedName } from "./names.ts";
+import { basenameOf, padId, parseNumberedName } from "./names.ts";
 
 const PRIORITY_RE = /^P[0-3]$/u;
 const AREA_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
@@ -93,15 +93,21 @@ function fieldGrammarProblems(item: WorkItem): readonly string[] {
   return problems;
 }
 
-function blockedProblem(item: WorkItem, known: ReadonlySet<number>): string | null {
-  const blocker = item.blocked === null ? null : parseBlocker(item.blocked);
+/** What is wrong with a `blocked` value in the blocker grammar, or null: `what` names the carrier (a
+ *  blocked item, a parked plan) in the message. `known` is every item id on the tree. */
+export function blockerProblem(value: string | null, known: ReadonlySet<number>, what: string): string | null {
+  const blocker = value === null ? null : parseBlocker(value);
   if (blocker === null) {
-    return `a blocked item carries a reason: ${BLOCKER_GRAMMAR}`;
+    return `${what} carries a reason: ${BLOCKER_GRAMMAR}`;
   }
   if (blocker.kind === "on" && !known.has(blocker.id)) {
     return `blocked on ${String(blocker.id)}, which is not an item under ${DOC_TOOL_TREES.work}`;
   }
   return null;
+}
+
+function blockedProblem(item: WorkItem, known: ReadonlySet<number>): string | null {
+  return blockerProblem(item.blocked, known, "a blocked item");
 }
 
 /** The companion a state owes, or null when the state is complete. */
@@ -205,4 +211,30 @@ export function parseItemBatch(json: unknown): { readonly items: readonly NewIte
       };
     }),
   };
+}
+
+/** One landed item as its landing commit records it: the file is deleted, so this is the record. */
+export interface LandingRecord {
+  readonly id: number;
+  readonly title: string;
+  readonly what: string;
+  readonly evidence: string;
+}
+
+const MAX_HEADER = 200;
+
+/** The landing commit message: one block per item with its title, evidence and What text. Every body line
+ *  is indented, so no line of an item's prose can read as a `Closes:` or `Co-Authored-By:` trailer. */
+export function landingMessage(records: readonly LandingRecord[], trailer: string): string {
+  const ids = records.map((record) => String(record.id)).join(", ");
+  const full = `chore(work): land ${ids}`;
+  const header = full.length > MAX_HEADER ? `chore(work): land ${String(records.length)} items` : full;
+  const blocks = records.map((record) =>
+    [
+      `${padId(record.id)} ${record.title}`,
+      `  evidence: ${record.evidence}`,
+      ...record.what.split("\n").map((line) => (line.trim() === "" ? "" : `  ${line.trimEnd()}`)),
+    ].join("\n"),
+  );
+  return `${header}\n\n${blocks.join("\n\n")}\n\n${trailer}`;
 }
