@@ -104,7 +104,7 @@ else
   echo "--- scratch dispatch map: none for this session (fresh session, or purged) — your SELF note in the bridge block is the digest"
 fi
 
-# WORK-ITEM DRIFT (docs/work/, `docs/plans/doc-system/design.md`). `pnpm doc drift` prints NOTHING when the
+# WORK-ITEM DRIFT (docs/work/, a plan's `docs/plans/<slug>/design.md`). `pnpm doc drift` prints NOTHING when the
 # item state agrees with the tree, else one line per drift with its exact fixing command: a doing item with
 # no live worktree or unmerged branch, a main commit whose Closes trailer names an unlanded item, a blocked-on
 # item whose blocker is done, a met wake condition. Never the full board — that is `pnpm doc overview`.
