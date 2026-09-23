@@ -190,29 +190,30 @@
       "path": "docs/architecture/core/AGENTS.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 374,
-      "bytes": 36212,
-      "sha256": "e2aaa8d2dc3c0ab5154cd206173c48121b636b82d2e2da3b2e74b8bae9452804",
+      "lines": 149,
+      "bytes": 8884,
+      "sha256": "96a3141eb8518d826da6a0ad96e739f7f2088fac6dfece8fd9e2c85eb2c9c776",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-09-18"
+          "updated": "2026-09-22"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/core/AGENTS.md",
-        "assignedSha256": "e2aaa8d2dc3c0ab5154cd206173c48121b636b82d2e2da3b2e74b8bae9452804",
+        "assignedSha256": "96a3141eb8518d826da6a0ad96e739f7f2088fac6dfece8fd9e2c85eb2c9c776",
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "e2aaa8d2dc3c0ab5154cd206173c48121b636b82d2e2da3b2e74b8bae9452804",
-        "verifiedCommit": "81d19ad83f9e7ce1b7bd89ed42a72b2abb361387",
+        "verifiedSha256": "96a3141eb8518d826da6a0ad96e739f7f2088fac6dfece8fd9e2c85eb2c9c776",
+        "verifiedCommit": "d0e004fa5d160506528653c886bfaf2bfd6fc9cc",
         "verifiedAt": "2026-09-22",
         "evidence": [
+          "Rewritten at d0e004fa5d160506528653c886bfaf2bfd6fc9cc (lean instruction layer): full read of the new file. CLAUDE.md is no longer an importer; every live citation of a dropped section (§0.x, §2.x, §4 content, §5.x, §L.x) was repointed in the same commit.",
           "Owner ruling 2026-09-10: lanes may commit normally in their assigned worktree or clone, including configured hook checks. Explicit iteration stays scoped; hook bypass requires a specific user/coordinator exception with its reason and executed or owed checks. Main integration and push remain coordinator/owner operations. Coupled doctrine, role and runbook guidance was reconciled without changing hook commands.",
           "#1842 (cb-push-tier): tests:tooling is --full-only; tooling-serial lane; SERIAL_INT_PRODUCT/TOOLING; push = product node tests",
           "re-attested at 32f5554d3 by the orchestrator after reading the #1627 leg-3 diff in full: the domain map’s notifications row now lists chat + plugin + automation producers, the last three addressing a SINGLE human (why the inbox is no longer multi-human-gated, #1627); row shape unchanged; frontmatter dated 2026-09-05.",
@@ -246,21 +247,17 @@
             ]
           },
           {
-            "claim": "Project 1 owns mutable work, the slim workboard owns cold-start recovery, and proposed/INDEX maps committed programs to sprint issues.",
+            "claim": "Project 1 owns mutable work, the onboard hook and the orchestrator skill own cold-start recovery, and proposed/INDEX maps committed programs.",
             "evidence": [
               {
                 "kind": "ruling",
                 "target": "D140"
-              },
-              {
-                "kind": "issue",
-                "target": "#4"
               }
             ]
           }
         ],
-        "summary": "Constitution with configured-hook commits in assigned lane checkouts, scoped explicit iteration, and specifically authorized recorded bypass exceptions; integrated verification and push ownership remain separate.",
-        "verifiedCanonicalSha256": "e2aaa8d2dc3c0ab5154cd206173c48121b636b82d2e2da3b2e74b8bae9452804"
+        "summary": "Lean constitution: doctrine, one-directional flow, placement, cross-cutting thread homes, the domain map and the index of law. CLAUDE.md owns the always-on core and reading router; the lane and orchestrator skills own lane and dispatch rules.",
+        "verifiedCanonicalSha256": "96a3141eb8518d826da6a0ad96e739f7f2088fac6dfece8fd9e2c85eb2c9c776"
       },
       "receiptCurrent": true
     },
@@ -370,8 +367,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 354,
-      "bytes": 55025,
-      "sha256": "f93ed6be39239e56af64d49745102df61ed5c1119a70747a40d723d5fda35cfd",
+      "bytes": 55023,
+      "sha256": "c5f620834db2b71450f7492132416bd25611d4f07523eaba4a7b678e11d29d54",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -384,13 +381,13 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Audits-and-Debt.md",
-        "assignedSha256": "f93ed6be39239e56af64d49745102df61ed5c1119a70747a40d723d5fda35cfd",
+        "assignedSha256": "c5f620834db2b71450f7492132416bd25611d4f07523eaba4a7b678e11d29d54",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "f93ed6be39239e56af64d49745102df61ed5c1119a70747a40d723d5fda35cfd",
-        "verifiedCommit": "4c688c915c97f2e31abe5ecb898e35eb932bd1c4",
-        "verifiedAt": "2026-09-21",
+        "verifiedSha256": "c5f620834db2b71450f7492132416bd25611d4f07523eaba4a7b678e11d29d54",
+        "verifiedCommit": "d0e004fa5d160506528653c886bfaf2bfd6fc9cc",
+        "verifiedAt": "2026-09-22",
         "evidence": [
           "delta re-verify 2026-09-02 (#1193, the debug-gate amendment): the AUTHFIX-2 entry's two changed blocks were re-derived against the commit they describe (a67ef0ea8) — the credential allow-list is built per request in entry/auth/seam.ts::debugGateCredentialed, its fallback arm reads foundation/env::resolveOwnerFallbackCredential, its header arm reads infra/auth::selectSignedForwardJwt, and the enforcer row's counts are the planted-control results (4 admission rows red on fallback:false, 2 header rows red on header:true)",
           "docs/architecture/core/Core-Audits-and-Debt.md:1 (full read; header/status evaluated)",
@@ -401,7 +398,7 @@
           "docs/architecture/core/Core-Audits-and-Debt.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
         ],
         "summary": "Historical/parked record retained for provenance; assessed against its stated lifecycle rather than as current implementation law.",
-        "verifiedCanonicalSha256": "f93ed6be39239e56af64d49745102df61ed5c1119a70747a40d723d5fda35cfd"
+        "verifiedCanonicalSha256": "c5f620834db2b71450f7492132416bd25611d4f07523eaba4a7b678e11d29d54"
       },
       "receiptCurrent": true
     },
@@ -457,8 +454,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 518,
-      "bytes": 414783,
-      "sha256": "f2750facfd9650540848f71071db144a7f080a806906851bf4c1db7a4f51bb9e",
+      "bytes": 414808,
+      "sha256": "cbf4a5fd213a505c68d4360e9ff475b7cbd07db8f4a4ba076b587640f9e1fcc1",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -471,12 +468,12 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-        "assignedSha256": "f2750facfd9650540848f71071db144a7f080a806906851bf4c1db7a4f51bb9e",
+        "assignedSha256": "cbf4a5fd213a505c68d4360e9ff475b7cbd07db8f4a4ba076b587640f9e1fcc1",
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "f2750facfd9650540848f71071db144a7f080a806906851bf4c1db7a4f51bb9e",
-        "verifiedCommit": "dc487a7ea3ece6f5db80c1407486ff2c25336a45",
+        "verifiedSha256": "cbf4a5fd213a505c68d4360e9ff475b7cbd07db8f4a4ba076b587640f9e1fcc1",
+        "verifiedCommit": "d0e004fa5d160506528653c886bfaf2bfd6fc9cc",
         "verifiedAt": "2026-09-22",
         "evidence": [
           "Bounded #2312 citation correction; existing reviewed CSS-family changes and earlier evidence remain attributable to their own receipts. Selected dangling-refs drive clean over199 docs: reports/runs/structure/main-72765-2026-09-13T06-11-26-874Z/check-structure.json. This receipt does not certify the whole gate roster or close ongoing CSS verification.",
@@ -645,7 +642,7 @@
           }
         ],
         "summary": "Active enforcement catalog, fully read as text; current Q11 health-row correction verified against canonical generation and namespace-health ownership. Prior per-row evidence remains attributed; no new whole-roster implementation certification.",
-        "verifiedCanonicalSha256": "f2750facfd9650540848f71071db144a7f080a806906851bf4c1db7a4f51bb9e"
+        "verifiedCanonicalSha256": "cbf4a5fd213a505c68d4360e9ff475b7cbd07db8f4a4ba076b587640f9e1fcc1"
       },
       "receiptCurrent": true
     },
@@ -654,8 +651,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 68,
-      "bytes": 6887,
-      "sha256": "19beb5583f0fcc0695a773078f77239ef194e6b062174c80ff6926861ebb6e53",
+      "bytes": 6905,
+      "sha256": "7d3dbf9413d0649c5f93ded5bdb8ac0e7d1205d756aeb3b920243b5ff7f23c27",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -668,13 +665,13 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Laws-and-Precedents.md",
-        "assignedSha256": "19beb5583f0fcc0695a773078f77239ef194e6b062174c80ff6926861ebb6e53",
+        "assignedSha256": "7d3dbf9413d0649c5f93ded5bdb8ac0e7d1205d756aeb3b920243b5ff7f23c27",
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "19beb5583f0fcc0695a773078f77239ef194e6b062174c80ff6926861ebb6e53",
-        "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
-        "verifiedAt": "2026-09-19",
+        "verifiedSha256": "7d3dbf9413d0649c5f93ded5bdb8ac0e7d1205d756aeb3b920243b5ff7f23c27",
+        "verifiedCommit": "d0e004fa5d160506528653c886bfaf2bfd6fc9cc",
+        "verifiedAt": "2026-09-22",
         "evidence": [
           "re-attested at eb01a72ab (#1055): §4 recovery-index sentence repaired; D140's retired retro-workboard arm named — and amended in the registry at the same sha",
           "docs/architecture/core/Core-Laws-and-Precedents.md:1-66 full read; registry range and Project/recovery redirects reconcile through D141",
@@ -695,7 +692,7 @@
           }
         ],
         "summary": "Normative ledger redirect re-read after D140-D141; the registry remains conflict authority.",
-        "verifiedCanonicalSha256": "19beb5583f0fcc0695a773078f77239ef194e6b062174c80ff6926861ebb6e53"
+        "verifiedCanonicalSha256": "7d3dbf9413d0649c5f93ded5bdb8ac0e7d1205d756aeb3b920243b5ff7f23c27"
       },
       "receiptCurrent": true
     },
@@ -739,8 +736,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 581,
-      "bytes": 316318,
-      "sha256": "14533a97c9ea1580a47a6b26252f8bde8265653c12f5dc35c926cdcc49edebb1",
+      "bytes": 316310,
+      "sha256": "24b9ef177078f2e886b82c9efd0d386ea1994dfbc0b650a4923b4eb625e9284c",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -753,12 +750,12 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Path-Registry.md",
-        "assignedSha256": "14533a97c9ea1580a47a6b26252f8bde8265653c12f5dc35c926cdcc49edebb1",
+        "assignedSha256": "24b9ef177078f2e886b82c9efd0d386ea1994dfbc0b650a4923b4eb625e9284c",
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "14533a97c9ea1580a47a6b26252f8bde8265653c12f5dc35c926cdcc49edebb1",
-        "verifiedCommit": "81d19ad83f9e7ce1b7bd89ed42a72b2abb361387",
+        "verifiedSha256": "24b9ef177078f2e886b82c9efd0d386ea1994dfbc0b650a4923b4eb625e9284c",
+        "verifiedCommit": "d0e004fa5d160506528653c886bfaf2bfd6fc9cc",
         "verifiedAt": "2026-09-22",
         "evidence": [
           "Bounded D61 repair independently investigated under #2312; root read the complete relevant entry and exact diff. Prior whole-document read and claims below are retained, not repeated. Final selected dangling-refs drive over199 docs was clean: reports/runs/structure/main-72765-2026-09-13T06-11-26-874Z/check-structure.json. Historical note is a separate line so it does not suppress current citations.",
@@ -846,7 +843,7 @@
           }
         ],
         "summary": "D61 distinguishes the proposed hub feature from its removed implementation while preserving existing egress and roster claims.",
-        "verifiedCanonicalSha256": "14533a97c9ea1580a47a6b26252f8bde8265653c12f5dc35c926cdcc49edebb1"
+        "verifiedCanonicalSha256": "24b9ef177078f2e886b82c9efd0d386ea1994dfbc0b650a4923b4eb625e9284c"
       },
       "receiptCurrent": true
     },
@@ -1000,8 +997,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 433,
-      "bytes": 55431,
-      "sha256": "2ff452d5e18873ec5a8da684a5d417406a45e86ed37cdd607afac477662b3e6b",
+      "bytes": 55402,
+      "sha256": "081b7263aa2b9f4ce1bae5aebfc2d73326b798588a4c8de9e9ebfb9629b8ea12",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1014,13 +1011,13 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Tooling-Law.md",
-        "assignedSha256": "2ff452d5e18873ec5a8da684a5d417406a45e86ed37cdd607afac477662b3e6b",
+        "assignedSha256": "081b7263aa2b9f4ce1bae5aebfc2d73326b798588a4c8de9e9ebfb9629b8ea12",
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "2ff452d5e18873ec5a8da684a5d417406a45e86ed37cdd607afac477662b3e6b",
-        "verifiedCommit": "4c688c915c97f2e31abe5ecb898e35eb932bd1c4",
-        "verifiedAt": "2026-09-21",
+        "verifiedSha256": "081b7263aa2b9f4ce1bae5aebfc2d73326b798588a4c8de9e9ebfb9629b8ea12",
+        "verifiedCommit": "d0e004fa5d160506528653c886bfaf2bfd6fc9cc",
+        "verifiedAt": "2026-09-22",
         "evidence": [
           "Program #1351 is complete; acceptance is recorded at https://github.com/Inktomi93/orbweaver/issues/1351#issuecomment-5626592009 . The law bytes are unchanged from 06c560d8e. Shared compiler, capacity and native-tool execution changes have current native/behavioral verification; inherited gate-cutover work remains separately tracked in #1584.",
           "Full law read and closeout delta verified: standing generated compiler-root and separately scoped ambient intent promoted from the world program; all five tsconfig-entry-liveness grants retain their reasons and end conditions and cite this law. Scoped liveness/routing/roadmap controls passed. Compiler ownership and relocation-ledger instructions reconciled with current generated configs and deriveTestBaselineManifest; generated testFiles is never hand-maintained.",
@@ -1072,7 +1069,7 @@
             ]
           }
         ],
-        "verifiedCanonicalSha256": "2ff452d5e18873ec5a8da684a5d417406a45e86ed37cdd607afac477662b3e6b"
+        "verifiedCanonicalSha256": "081b7263aa2b9f4ce1bae5aebfc2d73326b798588a4c8de9e9ebfb9629b8ea12"
       },
       "receiptCurrent": true
     },
@@ -1081,8 +1078,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 222,
-      "bytes": 28996,
-      "sha256": "5f78f733eb5b702e02bbb32caa667f61d51a1fd4b14db41823f7347267505da4",
+      "bytes": 29028,
+      "sha256": "bd87ec7ac811f1208eec36206ede22bab26f6a017c8cc763e5b0d50e0a802bcd",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1095,13 +1092,13 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Documentation-Law.md",
-        "assignedSha256": "5f78f733eb5b702e02bbb32caa667f61d51a1fd4b14db41823f7347267505da4",
+        "assignedSha256": "bd87ec7ac811f1208eec36206ede22bab26f6a017c8cc763e5b0d50e0a802bcd",
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "5f78f733eb5b702e02bbb32caa667f61d51a1fd4b14db41823f7347267505da4",
-        "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
-        "verifiedAt": "2026-09-19",
+        "verifiedSha256": "bd87ec7ac811f1208eec36206ede22bab26f6a017c8cc763e5b0d50e0a802bcd",
+        "verifiedCommit": "d0e004fa5d160506528653c886bfaf2bfd6fc9cc",
+        "verifiedAt": "2026-09-22",
         "evidence": [
           "Full document read and bounded enforcement correction at ee4a545f6: ESLint derives non-browser package coverage from PACKAGE_WORLDS; native resolution for packages/showcase-plugins/src/index.ts enables tsdoc/syntax and @typescript-eslint/no-deprecated as errors with the TypeScript parser and project service. pnpm check executes lint:eslint. Removed the stale four-package/showcase omission and retired types:graph claim; TypeScript compilation remains distinct from TSDoc syntax checking.",
           "2ff1248088a97d83053f7c9d38b4d6da0055805f re-words the second TSDOC_SURFACE cite on the #1571 bullet (train 79 dangling-refs)",
@@ -1141,7 +1138,7 @@
           }
         ],
         "summary": "Active documentation and comment law with TSDoc enforcement delegated to the current ESLint coverage authority, including the typed showcase packer.",
-        "verifiedCanonicalSha256": "5f78f733eb5b702e02bbb32caa667f61d51a1fd4b14db41823f7347267505da4"
+        "verifiedCanonicalSha256": "bd87ec7ac811f1208eec36206ede22bab26f6a017c8cc763e5b0d50e0a802bcd"
       },
       "receiptCurrent": true
     },
@@ -1186,8 +1183,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 35,
-      "bytes": 6944,
-      "sha256": "7b9682e7f26702d77a431f53175e9d9972ada0d9f3a1b842fe9b2bb9f63eac0d",
+      "bytes": 6937,
+      "sha256": "10fac46eda4f52975a7d5d21985b168580730c5773397216dc600a43ed2f798e",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1200,13 +1197,13 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Spine-Config-and-Serialization.md",
-        "assignedSha256": "7b9682e7f26702d77a431f53175e9d9972ada0d9f3a1b842fe9b2bb9f63eac0d",
+        "assignedSha256": "10fac46eda4f52975a7d5d21985b168580730c5773397216dc600a43ed2f798e",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "7b9682e7f26702d77a431f53175e9d9972ada0d9f3a1b842fe9b2bb9f63eac0d",
-        "verifiedCommit": "fd3c84456025412565dc40dc16f08194226de8c2",
-        "verifiedAt": "2026-09-20",
+        "verifiedSha256": "10fac46eda4f52975a7d5d21985b168580730c5773397216dc600a43ed2f798e",
+        "verifiedCommit": "d0e004fa5d160506528653c886bfaf2bfd6fc9cc",
+        "verifiedAt": "2026-09-22",
         "evidence": [
           "re-attested at a718abf09 by the orchestrator after reading the #1026 diff in full (cb-preset-writers): the #471 'degrading is a read-only privilege' clause's guard pointer moves with the one-home relocation of requireIntactStoredConfig from domain/settings/substrate/stored-config.ts to packages/server/src/kit/stored-config/index.ts; the preset update verb now takes the same refusal, the reseed/import/reset writers are recorded as the guard-exempt class; no other prose changed.",
           "docs/architecture/core/Spine-Config-and-Serialization.md:1 (full read; header/status evaluated)",
@@ -1249,7 +1246,7 @@
           }
         ],
         "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed. Re-attested 2026-08-22 after the #471 degrade-vs-write law was added to the Settings/config section.",
-        "verifiedCanonicalSha256": "7b9682e7f26702d77a431f53175e9d9972ada0d9f3a1b842fe9b2bb9f63eac0d"
+        "verifiedCanonicalSha256": "10fac46eda4f52975a7d5d21985b168580730c5773397216dc600a43ed2f798e"
       },
       "receiptCurrent": true
     },
@@ -1258,8 +1255,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 149,
-      "bytes": 25553,
-      "sha256": "30dba3ae8d2da80186fe19a84309190b1ab04b92ea535818b133fc08db901da1",
+      "bytes": 25551,
+      "sha256": "1a89f7e99e81df38a707a8dbc0a1cc8c7679eb89814697b664a167f819dbd0f9",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1272,13 +1269,13 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Spine-Identity-and-Auth.md",
-        "assignedSha256": "30dba3ae8d2da80186fe19a84309190b1ab04b92ea535818b133fc08db901da1",
+        "assignedSha256": "1a89f7e99e81df38a707a8dbc0a1cc8c7679eb89814697b664a167f819dbd0f9",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "30dba3ae8d2da80186fe19a84309190b1ab04b92ea535818b133fc08db901da1",
-        "verifiedCommit": "fd3c84456025412565dc40dc16f08194226de8c2",
-        "verifiedAt": "2026-09-20",
+        "verifiedSha256": "1a89f7e99e81df38a707a8dbc0a1cc8c7679eb89814697b664a167f819dbd0f9",
+        "verifiedCommit": "d0e004fa5d160506528653c886bfaf2bfd6fc9cc",
+        "verifiedAt": "2026-09-22",
         "evidence": [
           "re-attested after #1010 (three cites of the moved roster files repaired) at 532758261",
           "docs/architecture/core/Spine-Identity-and-Auth.md:1 (full read, 2026-08-19; FRESH fact-check — not the authoring lane — after the tRPC content-type belt landed at 621ac2218 and rewrote invariant #9 open->closed; every claim re-derived against merged packages/server/src)",
@@ -1352,7 +1349,7 @@
           }
         ],
         "summary": "Active core reference re-attested at the #969 implementation: D71 now requires a total accepted-base foreground contract without narrowing custom themes; the derivation, ThemeScope, token, rendered, and import homes carry the proof.",
-        "verifiedCanonicalSha256": "30dba3ae8d2da80186fe19a84309190b1ab04b92ea535818b133fc08db901da1"
+        "verifiedCanonicalSha256": "1a89f7e99e81df38a707a8dbc0a1cc8c7679eb89814697b664a167f819dbd0f9"
       },
       "receiptCurrent": true
     },
@@ -1428,8 +1425,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 136,
-      "bytes": 15177,
-      "sha256": "ae2e0e28cc01f8b84d6ac3eb90306973f30fc64137e1ff9e0512302f5be42f3d",
+      "bytes": 15170,
+      "sha256": "48cff5b270d5c0d1a5066e8d83a1fffce79437ec699cd3bb69efcd8408f57336",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1442,12 +1439,12 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Spine-TypeScript-and-Patterns.md",
-        "assignedSha256": "ae2e0e28cc01f8b84d6ac3eb90306973f30fc64137e1ff9e0512302f5be42f3d",
+        "assignedSha256": "48cff5b270d5c0d1a5066e8d83a1fffce79437ec699cd3bb69efcd8408f57336",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "ae2e0e28cc01f8b84d6ac3eb90306973f30fc64137e1ff9e0512302f5be42f3d",
-        "verifiedCommit": "81d19ad83f9e7ce1b7bd89ed42a72b2abb361387",
+        "verifiedSha256": "48cff5b270d5c0d1a5066e8d83a1fffce79437ec699cd3bb69efcd8408f57336",
+        "verifiedCommit": "d0e004fa5d160506528653c886bfaf2bfd6fc9cc",
         "verifiedAt": "2026-09-22",
         "evidence": [
           "docs/architecture/core/Spine-TypeScript-and-Patterns.md:1 (full read; header/status evaluated)",
@@ -1468,7 +1465,7 @@
           }
         ],
         "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed.",
-        "verifiedCanonicalSha256": "ae2e0e28cc01f8b84d6ac3eb90306973f30fc64137e1ff9e0512302f5be42f3d"
+        "verifiedCanonicalSha256": "48cff5b270d5c0d1a5066e8d83a1fffce79437ec699cd3bb69efcd8408f57336"
       },
       "receiptCurrent": true
     },
@@ -2103,8 +2100,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 573,
-      "bytes": 48844,
-      "sha256": "bd0370a2bc35b1a06ee2395e7b1626590a72c10d73265fa5f9b02e71c9d8f15a",
+      "bytes": 48909,
+      "sha256": "f2828ffa693f6f74ddba005c1e1a16920f606d00e05c1f93f914f8e36b34a001",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -2117,13 +2114,13 @@
       },
       "receipt": {
         "path": "docs/architecture/core/UNIFIED-VERIFICATION-DESIGN.md",
-        "assignedSha256": "bd0370a2bc35b1a06ee2395e7b1626590a72c10d73265fa5f9b02e71c9d8f15a",
+        "assignedSha256": "f2828ffa693f6f74ddba005c1e1a16920f606d00e05c1f93f914f8e36b34a001",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "bd0370a2bc35b1a06ee2395e7b1626590a72c10d73265fa5f9b02e71c9d8f15a",
-        "verifiedCommit": "31247426185b7216659c79c71c93619db32fb1e7",
-        "verifiedAt": "2026-09-18",
+        "verifiedSha256": "f2828ffa693f6f74ddba005c1e1a16920f606d00e05c1f93f914f8e36b34a001",
+        "verifiedCommit": "d0e004fa5d160506528653c886bfaf2bfd6fc9cc",
+        "verifiedAt": "2026-09-22",
         "evidence": [
           "Full document read by root and independent operations reviewer for #2323. Corrected current operational pointers, successful finish semantics, CT owner, parity prefix, Vitest project names, and affected native compiler routing through 9c451ed6f. Scoped docs check and source review pass. Historical timings and whole-runtime behavior were not replayed; prior evidence remains dated provenance.",
           "Full document read by the reconciliation lane; independent review accepted ee165b3a7, 8f765deda and final11a359f84 cleanup. Root checked final scope changes against registry/ledgers-fresh source; document formatting passed. Prior evidence below remains historical and is not a new whole-runtime certification.",
@@ -2203,7 +2200,7 @@
           }
         ],
         "summary": "Current tier membership is owned by the executable registry; this document retains purpose, execution semantics and historical measurements without a copied current stage roster.",
-        "verifiedCanonicalSha256": "bd0370a2bc35b1a06ee2395e7b1626590a72c10d73265fa5f9b02e71c9d8f15a"
+        "verifiedCanonicalSha256": "f2828ffa693f6f74ddba005c1e1a16920f606d00e05c1f93f914f8e36b34a001"
       },
       "receiptCurrent": true
     },
@@ -2298,8 +2295,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 631,
-      "bytes": 43620,
-      "sha256": "c78478201e2202c3eada20e0290ea35d17e5069e21c002584c0c36f95212d795",
+      "bytes": 43618,
+      "sha256": "f4b10efdf81fe3545e55f4f724d29b0ecfdd7734dc7cfbc4669813d224830114",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -2312,13 +2309,13 @@
       },
       "receipt": {
         "path": "docs/architecture/core/motion-and-animation-guide.md",
-        "assignedSha256": "c78478201e2202c3eada20e0290ea35d17e5069e21c002584c0c36f95212d795",
+        "assignedSha256": "f4b10efdf81fe3545e55f4f724d29b0ecfdd7734dc7cfbc4669813d224830114",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "c78478201e2202c3eada20e0290ea35d17e5069e21c002584c0c36f95212d795",
-        "verifiedCommit": "92fe26becaa4055b6d7cc10c85cb7d9cde6c75b6",
-        "verifiedAt": "2026-09-19",
+        "verifiedSha256": "f4b10efdf81fe3545e55f4f724d29b0ecfdd7734dc7cfbc4669813d224830114",
+        "verifiedCommit": "d0e004fa5d160506528653c886bfaf2bfd6fc9cc",
+        "verifiedAt": "2026-09-22",
         "evidence": [
           "Full document read by component-owner doc lane and current ownership edits reviewed at 370243fe7a30d10328d9ba98d766731688fe074f; current source/test pointers resolve. Component CT11/11, policy12/12 and20gate controls pass. Whole gate-runtime cutover remains separate; this is not a composed enforcement-green claim.",
           "aab83d0a2 (#1795 cb-vt-floats: CONTENT-only View Transition contract — only captured content loses painting/hit-testing) — re-attested at the fold",
@@ -2375,7 +2372,7 @@
           }
         ],
         "summary": "Active motion law reverified against the sealed Select evidence ledger, one-shot first-entrance allowance, attribution veto, browser plus tooling controls, and the owner-ruled interactive-state colour carve-out with its two-directional pin.",
-        "verifiedCanonicalSha256": "c78478201e2202c3eada20e0290ea35d17e5069e21c002584c0c36f95212d795"
+        "verifiedCanonicalSha256": "f4b10efdf81fe3545e55f4f724d29b0ecfdd7734dc7cfbc4669813d224830114"
       },
       "receiptCurrent": true
     },
@@ -11250,8 +11247,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 1539,
-      "bytes": 193094,
-      "sha256": "e90bc94b8afd917a212712e0415730e4ab21d8e41b3ae127e5086ba049878d9a",
+      "bytes": 193124,
+      "sha256": "790b9a36afe71b7b9af95905723367b1f2cf4b9c37ea6f7b352bd83fd14066aa",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -11264,13 +11261,13 @@
       },
       "receipt": {
         "path": "docs/design/1208-instrument-substrate.md",
-        "assignedSha256": "e90bc94b8afd917a212712e0415730e4ab21d8e41b3ae127e5086ba049878d9a",
+        "assignedSha256": "790b9a36afe71b7b9af95905723367b1f2cf4b9c37ea6f7b352bd83fd14066aa",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "e90bc94b8afd917a212712e0415730e4ab21d8e41b3ae127e5086ba049878d9a",
-        "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
-        "verifiedAt": "2026-09-19",
+        "verifiedSha256": "790b9a36afe71b7b9af95905723367b1f2cf4b9c37ea6f7b352bd83fd14066aa",
+        "verifiedCommit": "d0e004fa5d160506528653c886bfaf2bfd6fc9cc",
+        "verifiedAt": "2026-09-22",
         "evidence": [
           "Full document read by the scoped documentation lane; current changes checked against cfb9cea2fea7a109cd65c44485ada4d30437fc5c. Repository-resource citations and native execution guidance reflect 46b658696/cfb9cea2f; independent scheduling and compiler-executor controls passed. Exact ambient enforcement and remaining native-config integration are still separate program requirements.",
           "type-worlds phase 1 (#1351): `tests/support/ct/<file>` spellings repointed to `tests/support/{browser,node}/<file>` after the helper split",
@@ -11329,7 +11326,7 @@
           }
         ],
         "summary": "Landed instrument substrate program (#1208): stateful Snap sessions, registered stage bands, shared browser/environment/artifact seams, a total five-tool CLI grammar, Lighthouse and request-log arms, load-aware watchdogs, one-browser matrix contexts, and the reconciled phase 0–4 control set.",
-        "verifiedCanonicalSha256": "e90bc94b8afd917a212712e0415730e4ab21d8e41b3ae127e5086ba049878d9a"
+        "verifiedCanonicalSha256": "790b9a36afe71b7b9af95905723367b1f2cf4b9c37ea6f7b352bd83fd14066aa"
       },
       "receiptCurrent": true
     },
@@ -11452,8 +11449,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 120,
-      "bytes": 27733,
-      "sha256": "350cad3e488d1d15ad7d2cb4954f948b0da53321021359c4a7be8b8b482639a5",
+      "bytes": 27726,
+      "sha256": "a9294fa271a9cebc10290f039a45a4c46976c247ffe2629000d5a997746585f0",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -11466,13 +11463,13 @@
       },
       "receipt": {
         "path": "docs/design/1238-plugin-distribution.md",
-        "assignedSha256": "350cad3e488d1d15ad7d2cb4954f948b0da53321021359c4a7be8b8b482639a5",
+        "assignedSha256": "a9294fa271a9cebc10290f039a45a4c46976c247ffe2629000d5a997746585f0",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "350cad3e488d1d15ad7d2cb4954f948b0da53321021359c4a7be8b8b482639a5",
-        "verifiedCommit": "62e021bb765859cb51c63083b339f426bd6b3713",
-        "verifiedAt": "2026-09-18",
+        "verifiedSha256": "a9294fa271a9cebc10290f039a45a4c46976c247ffe2629000d5a997746585f0",
+        "verifiedCommit": "d0e004fa5d160506528653c886bfaf2bfd6fc9cc",
+        "verifiedAt": "2026-09-22",
         "claims": [
           {
             "claim": "The teaching plugins live in the server package's entry tier and their guest .js sources are typechecked by NO program (allowJs is false repo-wide); only the SDK mirror is pinned, and the seeds ride the image's whole-src copy — the rot and reachability the ruling names are structural.",
@@ -11553,7 +11550,7 @@
           "authored born-reviewed by the designing lane at fe7e41eed: full reads of the plugin domain's install/upgrade/url-verb family, the substrate funnel, the seeder + packer, the contracts manifest/lifecycle homes, the db CHECKs, the client install card + bundle reader, and the SillyTavern reference (src/endpoints/extensions.js install/update/branches flow) — receipts inline in the doc",
           "owner rulings 2026-09-02 quoted verbatim in the doc's commission block (new package; no forced zips; app-does-the-clone; disclaimer text without a separate click; no container-build asset moving)"
         ],
-        "verifiedCanonicalSha256": "350cad3e488d1d15ad7d2cb4954f948b0da53321021359c4a7be8b8b482639a5"
+        "verifiedCanonicalSha256": "a9294fa271a9cebc10290f039a45a4c46976c247ffe2629000d5a997746585f0"
       },
       "receiptCurrent": true
     },
@@ -12696,8 +12693,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 476,
-      "bytes": 42080,
-      "sha256": "567a89d7ce5c40e9d524125dc494710ae33eddbe494faf0e15e5f3dfe35e1c0c",
+      "bytes": 42078,
+      "sha256": "f757f8527085318f97679f5410138851766a943fe934e5f31c4437113393a808",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -12710,13 +12707,13 @@
       },
       "receipt": {
         "path": "docs/design/entity-room-member-freshness-bridge.md",
-        "assignedSha256": "567a89d7ce5c40e9d524125dc494710ae33eddbe494faf0e15e5f3dfe35e1c0c",
+        "assignedSha256": "f757f8527085318f97679f5410138851766a943fe934e5f31c4437113393a808",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "567a89d7ce5c40e9d524125dc494710ae33eddbe494faf0e15e5f3dfe35e1c0c",
-        "verifiedCommit": "ad4db75c6edb141ced392fae6f2aee9e156d4262",
-        "verifiedAt": "2026-09-20",
+        "verifiedSha256": "f757f8527085318f97679f5410138851766a943fe934e5f31c4437113393a808",
+        "verifiedCommit": "d0e004fa5d160506528653c886bfaf2bfd6fc9cc",
+        "verifiedAt": "2026-09-22",
         "evidence": [
           "docs/design/entity-room-member-freshness-bridge.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
           "docs/architecture/core/Core-Path-Registry.md:523-533 (D139-D141 authority boundary)",
@@ -12742,7 +12739,7 @@
             ]
           }
         ],
-        "verifiedCanonicalSha256": "567a89d7ce5c40e9d524125dc494710ae33eddbe494faf0e15e5f3dfe35e1c0c"
+        "verifiedCanonicalSha256": "f757f8527085318f97679f5410138851766a943fe934e5f31c4437113393a808"
       },
       "receiptCurrent": true
     },
@@ -12751,8 +12748,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 295,
-      "bytes": 41322,
-      "sha256": "8d55a673f0e5c73502b655336129d0f06aa09a62ccf31b191f28cc9e90f9c420",
+      "bytes": 41347,
+      "sha256": "81d820b260941728483aeedef79b607861af084a40a0fb4aefef113182117b10",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -12765,13 +12762,13 @@
       },
       "receipt": {
         "path": "docs/design/gate-config-system.md",
-        "assignedSha256": "8d55a673f0e5c73502b655336129d0f06aa09a62ccf31b191f28cc9e90f9c420",
+        "assignedSha256": "81d820b260941728483aeedef79b607861af084a40a0fb4aefef113182117b10",
         "disposition": "superseded",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "8d55a673f0e5c73502b655336129d0f06aa09a62ccf31b191f28cc9e90f9c420",
-        "verifiedCommit": "cf7ce412c444942b602ec1a200b91383f64ea18d",
-        "verifiedAt": "2026-09-13",
+        "verifiedSha256": "81d820b260941728483aeedef79b607861af084a40a0fb4aefef113182117b10",
+        "verifiedCommit": "d0e004fa5d160506528653c886bfaf2bfd6fc9cc",
+        "verifiedAt": "2026-09-22",
         "evidence": [
           "docs/design/gate-config-system.md:1-295 read in full for #2067 first-review receipt; the document marks itself superseded by gate-runtime-standardization.md and retains its measurements and rejected dispatch-fence design as historical design input.",
           "2026-09-13 integrated #2071/Q11 refresh at cf7ce412c444942b602ec1a200b91383f64ea18d. Final document full reads retained by exact Git-blob equality to lane79c317527; final generated read-first and Q11 disposition reread in full. All ten document bytes are committed at this verification SHA. Independent closing #2071 review CONFIRMED conservation; scoped Q11 review CONFIRMED corrections. Eight authored-doc format checks and native read-first-costs --check (9 derived) passed. No whole consolidated barrier or lifecycle closure is claimed.",
@@ -12788,7 +12785,8 @@
             ]
           }
         ],
-        "summary": "Superseded design for a declarative gate dispatch fence. Retained for its measured scope taxonomy, explicit limits, and rejected alternatives; it is not current runtime law."
+        "summary": "Superseded design for a declarative gate dispatch fence. Retained for its measured scope taxonomy, explicit limits, and rejected alternatives; it is not current runtime law.",
+        "verifiedCanonicalSha256": "81d820b260941728483aeedef79b607861af084a40a0fb4aefef113182117b10"
       },
       "receiptCurrent": true
     },
@@ -13024,6 +13022,63 @@
               {
                 "kind": "issue",
                 "target": "#55"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/design/impeccable-adoption.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 189,
+      "bytes": 14000,
+      "sha256": "799b145965e80355014bb36c0b5ca394e8ac747f86ffe6fd788c96a7abe364b8",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "reference",
+          "status": "active",
+          "updated": "2026-09-22"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/impeccable-adoption.md",
+        "assignedSha256": "799b145965e80355014bb36c0b5ca394e8ac747f86ffe6fd788c96a7abe364b8",
+        "disposition": "current",
+        "authority": "current-reference",
+        "fullRead": true,
+        "verifiedSha256": "799b145965e80355014bb36c0b5ca394e8ac747f86ffe6fd788c96a7abe364b8",
+        "verifiedCommit": "d0e004fa5d160506528653c886bfaf2bfd6fc9cc",
+        "verifiedAt": "2026-09-22",
+        "evidence": [
+          "Relocated from .claude/skills/side-eye-design-review/reference/impeccable-adoption.md and rewritten to the instruction charter at d0e004fa5d160506528653c886bfaf2bfd6fc9cc; full read of the new text. The ui-audit citers (lib/collect.ts, ops/walker.ts) point here in the same commit."
+        ],
+        "summary": "Adoption record for the impeccable detector rules: license and attribution, why the rules were adapted in place, and the adopt/adapt/reject triage per rule.",
+        "claims": [
+          {
+            "claim": "The adapted detector logic carries a per-file attribution header that names this record.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "tooling/src/ui-audit/lib/collect.ts:12"
+              },
+              {
+                "kind": "code",
+                "target": "tooling/src/ui-audit/ops/walker.ts:29"
+              }
+            ]
+          },
+          {
+            "claim": "The adapted rules are tested under tests/tooling/ui-audit.",
+            "evidence": [
+              {
+                "kind": "test",
+                "target": "tests/tooling/ui-audit/lib/css-color.test.ts:1"
               }
             ]
           }
@@ -13965,8 +14020,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 438,
-      "bytes": 43127,
-      "sha256": "306ca43dd811cec723aac90ff49ba611225e1f7d04d4a39bd9e849ad922d7e12",
+      "bytes": 43150,
+      "sha256": "b40dad65959628fc511b20c2fe0b5feb270171c8136fcd001c71ff667554b915",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -13979,13 +14034,13 @@
       },
       "receipt": {
         "path": "docs/design/mocks/regex-section/REVIEW-stickler.md",
-        "assignedSha256": "7584f5cb75f795055467e847073f52795afb9c3d591d0e0c172951ed8489bfb0",
+        "assignedSha256": "b40dad65959628fc511b20c2fe0b5feb270171c8136fcd001c71ff667554b915",
         "disposition": "current",
         "authority": "review",
         "fullRead": true,
-        "verifiedSha256": "7584f5cb75f795055467e847073f52795afb9c3d591d0e0c172951ed8489bfb0",
-        "verifiedCommit": "174cc2961a0010352021a34ecbdb93d321308f42",
-        "verifiedAt": "2026-09-06",
+        "verifiedSha256": "b40dad65959628fc511b20c2fe0b5feb270171c8136fcd001c71ff667554b915",
+        "verifiedCommit": "d0e004fa5d160506528653c886bfaf2bfd6fc9cc",
+        "verifiedAt": "2026-09-22",
         "evidence": [
           "type-worlds phase 1 (#1351): `tests/support/ct/<file>` spellings repointed to `tests/support/{browser,node}/<file>` after the helper split",
           "Read in full by the orchestrator at the fold: frozen review evidence of v1; #1739 filed from it as a prerequisite/arm of step 4."
@@ -14005,9 +14060,10 @@
             ]
           }
         ],
-        "summary": "Stickler review of the regex section mock v1 (IA vs law, coupled sites): the findings v2 answered, plus #1739 (chat-tier regex survives a host handoff but the new host cannot switch/detach it)."
+        "summary": "Stickler review of the regex section mock v1 (IA vs law, coupled sites): the findings v2 answered, plus #1739 (chat-tier regex survives a host handoff but the new host cannot switch/detach it).",
+        "verifiedCanonicalSha256": "b40dad65959628fc511b20c2fe0b5feb270171c8136fcd001c71ff667554b915"
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/design/mocks/regex-section/STUDY.md",
@@ -14261,8 +14317,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 3528,
-      "bytes": 381351,
-      "sha256": "04df0c4cf0443280aea8906be80ee65165f3d1b948f2c680961293ec0fd82996",
+      "bytes": 381342,
+      "sha256": "ac1deae8116cfa27d1d1c280cb93cc88cdf563de6f08a645aedc7c2c45b491c6",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -14275,12 +14331,12 @@
       },
       "receipt": {
         "path": "docs/design/orbweaver-inference-package.md",
-        "assignedSha256": "04df0c4cf0443280aea8906be80ee65165f3d1b948f2c680961293ec0fd82996",
+        "assignedSha256": "ac1deae8116cfa27d1d1c280cb93cc88cdf563de6f08a645aedc7c2c45b491c6",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "04df0c4cf0443280aea8906be80ee65165f3d1b948f2c680961293ec0fd82996",
-        "verifiedCommit": "8f7ed4c4b98c112429c3918483f3a172f66ae184",
+        "verifiedSha256": "ac1deae8116cfa27d1d1c280cb93cc88cdf563de6f08a645aedc7c2c45b491c6",
+        "verifiedCommit": "d0e004fa5d160506528653c886bfaf2bfd6fc9cc",
         "verifiedAt": "2026-09-22",
         "evidence": [
           "re-attested at 29a8b0eaa by lane cb-record-tail: §15c item 18 gained the RECORD-TRUTH TAIL bullet (the B7 client gate, the refusal/rate_limit compose ruling, the retired budgetExceeded code, the eight repaired comments, the re-pinned drain drop). SCOPE OF THIS RE-ATTESTATION, stated rather than implied: the receipt's sha was ALREADY stale at this lane's branch point — 215 lines had landed since bd99e9ad3 across 9ef00397d/100ee1db9/fe77a1f36/2e2871dd6/e0cc98c3a/a45c5f746, every one an APPEND to §8.8/§14/§15c, and none of those lanes re-attested. This lane read §5.3b, §5.3c, §8.5b and §15c-18 in full and appended within §15c-18; it did not re-read the other ~2600 lines. A full re-read is owed by the barrier.",
@@ -14318,7 +14374,7 @@
             ]
           }
         ],
-        "verifiedCanonicalSha256": "04df0c4cf0443280aea8906be80ee65165f3d1b948f2c680961293ec0fd82996"
+        "verifiedCanonicalSha256": "ac1deae8116cfa27d1d1c280cb93cc88cdf563de6f08a645aedc7c2c45b491c6"
       },
       "receiptCurrent": true
     },
@@ -14327,8 +14383,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 417,
-      "bytes": 35507,
-      "sha256": "b0ec5cf35579513607c7d5969c7dbbfc6f8090cd8271537dcfab02fb8de4a9d7",
+      "bytes": 35499,
+      "sha256": "494def7a9b14e4b8ed76a3e75d437004e3dc8b6afad0da8c5e6653e99aa05517",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -14341,12 +14397,12 @@
       },
       "receipt": {
         "path": "docs/design/pane-standardization-design.md",
-        "assignedSha256": "b0ec5cf35579513607c7d5969c7dbbfc6f8090cd8271537dcfab02fb8de4a9d7",
+        "assignedSha256": "494def7a9b14e4b8ed76a3e75d437004e3dc8b6afad0da8c5e6653e99aa05517",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "b0ec5cf35579513607c7d5969c7dbbfc6f8090cd8271537dcfab02fb8de4a9d7",
-        "verifiedCommit": "81d19ad83f9e7ce1b7bd89ed42a72b2abb361387",
+        "verifiedSha256": "494def7a9b14e4b8ed76a3e75d437004e3dc8b6afad0da8c5e6653e99aa05517",
+        "verifiedCommit": "d0e004fa5d160506528653c886bfaf2bfd6fc9cc",
         "verifiedAt": "2026-09-22",
         "claims": [
           {
@@ -14427,7 +14483,7 @@
           "docs/design/config-revamp-design.md:724-817 (the section 8 species contract this design's divergence grammar generalizes)",
           "docs/architecture/core/client-architecture-lockdown.md sections 6a/6b/11/14 (the registry law, three-states law and browse adjudication the standards extend)"
         ],
-        "verifiedCanonicalSha256": "b0ec5cf35579513607c7d5969c7dbbfc6f8090cd8271537dcfab02fb8de4a9d7"
+        "verifiedCanonicalSha256": "494def7a9b14e4b8ed76a3e75d437004e3dc8b6afad0da8c5e6653e99aa05517"
       },
       "receiptCurrent": true
     },
@@ -14436,8 +14492,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 220,
-      "bytes": 15570,
-      "sha256": "0aa1e88f41cea3ae89ffae5885b1b74a87e9ad6f10ab9715c53cbcf681a41bed",
+      "bytes": 15589,
+      "sha256": "eed47d2255a5fd25cf480ce0f1e91775f578301dcf1b1ee80e54996831eaa502",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -14450,13 +14506,13 @@
       },
       "receipt": {
         "path": "docs/design/parked-options-config-port.md",
-        "assignedSha256": "ba64418ec539a817dbaf286d9908465046f98a072f0cfada99bf585a08fb173c",
+        "assignedSha256": "eed47d2255a5fd25cf480ce0f1e91775f578301dcf1b1ee80e54996831eaa502",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "0aa1e88f41cea3ae89ffae5885b1b74a87e9ad6f10ab9715c53cbcf681a41bed",
-        "verifiedCommit": "a0f648df2ebdd1491690355e2a5e7ff333fb2b6d",
-        "verifiedAt": "2026-09-13",
+        "verifiedSha256": "eed47d2255a5fd25cf480ce0f1e91775f578301dcf1b1ee80e54996831eaa502",
+        "verifiedCommit": "d0e004fa5d160506528653c886bfaf2bfd6fc9cc",
+        "verifiedAt": "2026-09-22",
         "evidence": [
           "Full document read by the #2067 repair lane; source-fidelity delimiter repair independently reviewed through b6c1065b3. Historical measurements, authority and issue qualifiers are retained rather than reasserted as current implementation behavior.",
           "docs/design/parked-options-config-port.md:1 (design-options; decision-input)",
@@ -14478,7 +14534,8 @@
               }
             ]
           }
-        ]
+        ],
+        "verifiedCanonicalSha256": "eed47d2255a5fd25cf480ce0f1e91775f578301dcf1b1ee80e54996831eaa502"
       },
       "receiptCurrent": true
     },
@@ -14539,8 +14596,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 322,
-      "bytes": 22793,
-      "sha256": "f3f12d74d136cec26a4084053562c8b1d3991164122d41fe7f3727519dd67b0c",
+      "bytes": 22821,
+      "sha256": "1c3b6093c7afd3b73141c822aaf1649f9631a25b9e93352ed51e79725884d613",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -14553,13 +14610,13 @@
       },
       "receipt": {
         "path": "docs/design/parked-options-persona-prose.md",
-        "assignedSha256": "72e0f21197cd5b9825e08ed2256ba687d7c01b9af6a6b226bd587d7c14b9f7dd",
+        "assignedSha256": "1c3b6093c7afd3b73141c822aaf1649f9631a25b9e93352ed51e79725884d613",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "72e0f21197cd5b9825e08ed2256ba687d7c01b9af6a6b226bd587d7c14b9f7dd",
-        "verifiedCommit": "79e8ffb1f3ae551fbf605c42fb5d583e147ef6bd",
-        "verifiedAt": "2026-08-30",
+        "verifiedSha256": "1c3b6093c7afd3b73141c822aaf1649f9631a25b9e93352ed51e79725884d613",
+        "verifiedCommit": "d0e004fa5d160506528653c886bfaf2bfd6fc9cc",
+        "verifiedAt": "2026-09-22",
         "evidence": [
           "docs/design/parked-options-persona-prose.md:1 full read after the workboard split; changed routing/citations checked against Project 1, D139-D141, and current code/test evidence",
           "git:68271889b1746b513defea44b0787bab7a89176f contains the exact current document blob",
@@ -14582,9 +14639,10 @@
               }
             ]
           }
-        ]
+        ],
+        "verifiedCanonicalSha256": "1c3b6093c7afd3b73141c822aaf1649f9631a25b9e93352ed51e79725884d613"
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/design/parked-options-tag-contract.md",
@@ -14825,8 +14883,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 264,
-      "bytes": 27344,
-      "sha256": "61c8fca484706abefab60f9770b7b10cac4f8a58cfd69c1120aee8472262d9c5",
+      "bytes": 27342,
+      "sha256": "42009c30cc738dbb849c0748754972c3d99cdbe49fae29b06517d0e54be58eaf",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -14839,13 +14897,13 @@
       },
       "receipt": {
         "path": "docs/design/resource-policy-contract.md",
-        "assignedSha256": "61c8fca484706abefab60f9770b7b10cac4f8a58cfd69c1120aee8472262d9c5",
+        "assignedSha256": "42009c30cc738dbb849c0748754972c3d99cdbe49fae29b06517d0e54be58eaf",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "61c8fca484706abefab60f9770b7b10cac4f8a58cfd69c1120aee8472262d9c5",
-        "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
-        "verifiedAt": "2026-09-19",
+        "verifiedSha256": "42009c30cc738dbb849c0748754972c3d99cdbe49fae29b06517d0e54be58eaf",
+        "verifiedCommit": "d0e004fa5d160506528653c886bfaf2bfd6fc9cc",
+        "verifiedAt": "2026-09-22",
         "evidence": [
           "Full revised document and load-bearing runtime read by independent reviewer; accepted after correcting receipt cardinality. Historical measurements remain dated. Root scoped docs formatting and comment Biome/ESLint passed; no runtime change.",
           "2026-09-13 consolidation: complete document reads and independent citation/source-diff audit; standing law, procedure, reading router and dated worked cases now have separate homes. Scoped Markdown and agent checks passed; native tooling/root programs passed, and refusal-envelope, text-citation and focused policy-soundness controls passed. Read-first costs were generated after committing priced bytes. Catalog-wide freshness, remaining program defects and integrated acceptance are not claimed complete."
@@ -14870,7 +14928,7 @@
             ]
           }
         ],
-        "verifiedCanonicalSha256": "61c8fca484706abefab60f9770b7b10cac4f8a58cfd69c1120aee8472262d9c5"
+        "verifiedCanonicalSha256": "42009c30cc738dbb849c0748754972c3d99cdbe49fae29b06517d0e54be58eaf"
       },
       "receiptCurrent": true
     },
@@ -15305,8 +15363,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 216,
-      "bytes": 47573,
-      "sha256": "4c04b5bc65c53cb68e48d5f4e67a010b78cc4d7d48b80aa94efc597bdeacc9dc",
+      "bytes": 47546,
+      "sha256": "5e14cd9a9f0de97118d520779df4c764c401f8b29309d5784cd9d8fea49c0495",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -15319,13 +15377,13 @@
       },
       "receipt": {
         "path": "docs/design/vocabulary-map.md",
-        "assignedSha256": "4c04b5bc65c53cb68e48d5f4e67a010b78cc4d7d48b80aa94efc597bdeacc9dc",
+        "assignedSha256": "5e14cd9a9f0de97118d520779df4c764c401f8b29309d5784cd9d8fea49c0495",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "4c04b5bc65c53cb68e48d5f4e67a010b78cc4d7d48b80aa94efc597bdeacc9dc",
-        "verifiedCommit": "4c688c915c97f2e31abe5ecb898e35eb932bd1c4",
-        "verifiedAt": "2026-09-21",
+        "verifiedSha256": "5e14cd9a9f0de97118d520779df4c764c401f8b29309d5784cd9d8fea49c0495",
+        "verifiedCommit": "d0e004fa5d160506528653c886bfaf2bfd6fc9cc",
+        "verifiedAt": "2026-09-22",
         "evidence": [
           "#1774 prose half (cb-rpg-prose): row 155 status + residue updated at the fold commit",
           "#1774 persona+compose halves (cb-roster-tail): row 155 LANDED for all three halves; stale RosterRefIndex/PersonaRosterView targets corrected",
@@ -15390,7 +15448,7 @@
           }
         ],
         "summary": "The living concept→word map: room seats are Characters, the saved template is a Roster (code rosterPreset, conforming), roster is reserved and never spent as English for a list, the rpg register is fenced with the chat word winning at the boundary, and castId is deliberately no-action. Prose-enforced by owner ruling with no gate; the enforcement section records the wave-union defect that produced it.",
-        "verifiedCanonicalSha256": "4c04b5bc65c53cb68e48d5f4e67a010b78cc4d7d48b80aa94efc597bdeacc9dc"
+        "verifiedCanonicalSha256": "5e14cd9a9f0de97118d520779df4c764c401f8b29309d5784cd9d8fea49c0495"
       },
       "receiptCurrent": true
     },
@@ -35396,10 +35454,6 @@
               {
                 "kind": "test",
                 "target": "tests/tooling/workboard/cli.test.ts:392"
-              },
-              {
-                "kind": "code",
-                "target": ".claude/skills/orchestrator-runbook/SKILL.md:268"
               },
               {
                 "kind": "provenance",
