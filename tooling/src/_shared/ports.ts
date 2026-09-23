@@ -184,3 +184,11 @@ export function stageBandForPort(port: number): number | null {
     }) ?? null
   );
 }
+
+// ── which ports serve the orbweaver client ────────────────────────────────────────────────────────────
+
+/** Every port an orbweaver stack serves its client on, BOTH halves: `stack up prod` serves the built client
+ *  from the server port. The CT vite, model-ab, the provider stub and the engines serve no app router. */
+export const ORB_APP_PORT_NUMBERS: ReadonlySet<number> = new Set(
+  [DEV_PORTS, FIXTURE_PORTS, ...Object.values(E2E_PORTS), ...STAGE_BANDS.map(stageBandPorts)].flatMap((pair) => [pair.server, pair.vite]),
+);
