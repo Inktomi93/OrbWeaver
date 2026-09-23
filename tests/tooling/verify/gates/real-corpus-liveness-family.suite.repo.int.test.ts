@@ -27,10 +27,15 @@
 // the two controls 6s. At 82 arms (the `@client` + `@ui` chunk added heavier policies: its members cost
 // ~45s of the structure run's own policy time) the file measured 392-414s of test time on a box at loadavg
 // 21-31: baseline 104-209s, every overlaid pass together 186-238s, controls 50s. No quiet-box figure exists
-// for 82 arms yet; the budgets below are quiet-box bases that `scaledBudget` stretches under load. It stays
-// in the `repository` project (`.suite.repo.int`, file-serial, inside `--full`'s `tests:tooling`), with
-// per-test budgets rather than the project's 30s default. Solo passes are the growth term: each rewriting
-// arm that plants a distinct overlay costs one program rebuild.
+// for 82 arms yet; the budgets below are quiet-box bases that `scaledBudget` stretches under load. At 109
+// arms the baseline was scoped to the arms whose silence is a measurement (an `add` arm is silent by
+// construction): measured back to back at loadavg 27-36, the scoped pass over 24 policies took 153s and the
+// old whole-roster pass over 109 took 290s. It stays in the `repository` project (`.suite.repo.int`,
+// inside `--full`'s `tests:tooling`), with per-test budgets rather than the project's 30s default.
+// SPLITTING THIS FILE PER CHUNK BUYS NOTHING HERE: that project runs its files one at a time
+// (`fileParallelism: false`, vitest.config.ts; Core-Tooling-Law.md serialises repository-resource tests), so N
+// files would each pay a corpus load and a baseline, in series. Solo passes are the growth term: each
+// rewriting arm that plants a distinct overlay costs one program rebuild.
 
 import { gate as queryBoundaryReservation } from "../../../../tooling/src/verify/gates/query-boundary-reservation.ts";
 import { gate as queryBoundaryReservationHealth } from "../../../../tooling/src/verify/gates/query-boundary-reservation-health.ts";
@@ -44,6 +49,7 @@ import { FRONTEND_ARMS } from "./_liveness/frontend.ts";
 import { SERVER_ARMS } from "./_liveness/server.ts";
 import { TESTS_ARMS } from "./_liveness/tests.ts";
 import { TOOLING_ARMS } from "./_liveness/tooling.ts";
+import { TOOLING_AND_AUTHORED_ARMS } from "./_liveness/tooling-and-authored.ts";
 
 const CHUNKS = {
   client: CLIENT_ARMS,
@@ -52,6 +58,7 @@ const CHUNKS = {
   server: SERVER_ARMS,
   tests: TESTS_ARMS,
   tooling: TOOLING_ARMS,
+  toolingAndAuthored: TOOLING_AND_AUTHORED_ARMS,
 } as const;
 const ARMS: readonly RealCorpusLivenessArm[] = Object.values(CHUNKS).flat();
 
@@ -104,9 +111,15 @@ test("the batch plan puts every arm in exactly one pass, and a rewriting arm sha
   expect(mixedRewriters, "a rewriting arm shares its pass with an arm that plants something else").toEqual([]);
 });
 
-test("every armed policy is refusal-free and silent in its arm's scope on the real tree", { timeout: scaledBudget(BASELINE_BASE_MS) }, ({ repoRoot }) => {
-  const ran = liveness(repoRoot).assertBaseline();
-  expect(ran.toSorted(), "the shared pass ran every armed policy").toEqual(ARMS.map((arm) => arm.policy.id).toSorted());
+test("every measured arm's policy is refusal-free and silent in its scope on the real tree", { timeout: scaledBudget(BASELINE_BASE_MS) }, ({ repoRoot }) => {
+  const opened = liveness(repoRoot);
+  const ran = opened.assertBaseline();
+  expect(ran.toSorted(), "the shared pass ran every measured arm's policy").toEqual(
+    opened
+      .baselineArms()
+      .map((arm) => arm.policy.id)
+      .toSorted(),
+  );
 });
 
 test("the overlaid batches produce a verdict for every arm", { timeout: scaledBudget(BATCHES_BASE_MS) }, ({ repoRoot }) => {
@@ -168,7 +181,7 @@ test("a RESOURCE overlay that plants nothing is refused — the reader's overlay
 }, ({ repoRoot }) => {
   // The planted negative for `kind: "resource"`: the ownership arm's real sheet, handed a tail that is only a
   // comment. If the overlay alone made the policy report, every green resource arm would be unfalsified.
-  const ownership = FRONTEND_ARMS.find((arm) => arm.overlays.some((overlay) => overlay.kind === "resource"));
+  const ownership = FRONTEND_ARMS.find((arm) => arm.grantConsumption !== true && arm.overlays.some((overlay) => overlay.kind === "resource"));
   const [planted] = ownership?.overlays ?? [];
   if (ownership === undefined || planted === undefined) {
     throw new Error("the frontend chunk carries no resource arm, so the control has nothing to drive");
@@ -179,4 +192,21 @@ test("a RESOURCE overlay that plants nothing is refused — the reader's overlay
     throw new Error("the control batch produced no verdict for its arm");
   }
   expect(() => assertArmVerdict(dead, verdict)).toThrow("reported NOTHING for a real-corpus positive control");
+});
+
+test("a GRANT-CONSUMPTION arm whose overlay leaves the licensed subject in place is refused", { timeout: scaledBudget(CONTROL_BASE_MS) }, ({ repoRoot }) => {
+  // The planted negative for `grantConsumption`: the same policy, its real sheet plus a comment. The recipes
+  // are still painted, so the grants stay consumed and the arm must fail — otherwise "went stale" would be
+  // something the runner produces rather than something the policy's reading of the subject produces.
+  const consuming = FRONTEND_ARMS.find((arm) => arm.grantConsumption === true);
+  const [planted] = consuming?.overlays ?? [];
+  if (consuming === undefined || planted === undefined) {
+    throw new Error("the frontend chunk carries no grant-consumption arm, so the control has nothing to drive");
+  }
+  const dead: RealCorpusLivenessArm = { ...consuming, overlays: [{ kind: "resource", path: planted.path, append: "\n/* liveness clean control */\n" }] };
+  const verdict = liveness(repoRoot).proveBatch([dead]).get(dead.policy.id);
+  if (verdict === undefined) {
+    throw new Error("the control batch produced no verdict for its arm");
+  }
+  expect(() => assertArmVerdict(dead, verdict)).toThrow("its grants stayed consumed");
 });

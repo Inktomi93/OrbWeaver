@@ -11,6 +11,7 @@
 // would make each other speak.
 import { gate as baseuiRenderPropComposition } from "../../../../../tooling/src/verify/gates/baseui-render-prop-composition.ts";
 import { gate as classTokenSplice } from "../../../../../tooling/src/verify/gates/class-token-splice.ts";
+import { gate as cssFamilyDirectClientMechanism } from "../../../../../tooling/src/verify/gates/css-family-direct-client-mechanism.ts";
 import { gate as cssFamilyOwnership } from "../../../../../tooling/src/verify/gates/css-family-ownership.ts";
 import { gate as cssSelectorHasAWriter } from "../../../../../tooling/src/verify/gates/css-selector-has-a-writer.ts";
 import { gate as densityTier } from "../../../../../tooling/src/verify/gates/density-tier.ts";
@@ -71,6 +72,15 @@ export const FRONTEND_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: classTokenSplice,
     overlays: [add("packages/ui/src/liveness-splice.tsx", 'const side = "end";\nexport const x = <div className={`inset-${side}-0 p-2`} />;\n')],
     messageIncludes: "INSIDE a class token",
+  },
+  {
+    policy: cssFamilyDirectClientMechanism,
+    // Every report this policy can make is one of three hardcoded recipes, all licensed by the central grant
+    // table, so no overlay can plant a new one: its liveness is GRANT CONSUMPTION. On the real tree all three
+    // grants are consumed; with the client sheet carrying no recipe at all, they go stale.
+    overlays: [{ kind: "resource", path: CLIENT_GLOBALS, source: ":root {\n  --liveness-probe: 0;\n}\n" }],
+    messageIncludes: "css-family-direct-client-mechanism:dialog-popup",
+    grantConsumption: true,
   },
   {
     policy: cssFamilyOwnership,
