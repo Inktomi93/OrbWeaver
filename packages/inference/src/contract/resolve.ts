@@ -67,6 +67,11 @@ export type WarningCode = (typeof WARNING_CODES)[number];
 export const DYNAMIC_CONTEXT_CHANNELS = ["system-block", "message-tail"] as const;
 export type DynamicContextChannel = (typeof DYNAMIC_CONTEXT_CHANNELS)[number];
 
+/** The house default effort (owner ruling): a turn whose caller set neither an effort nor a quality runs a model
+ *  that supports adaptive thinking (`reasoning.mode: "adaptive"`) at this effort, on every route. It outranks any
+ *  model- or catalog-stated default; an explicit caller value, `none` included, always wins. */
+export const ADAPTIVE_DEFAULT_EFFORT = "high" as const satisfies EffortLevel;
+
 export interface ResolvedWarning {
   readonly code: WarningCode;
   /** OPERATOR prose — logs and the wire-outcome ring read it; the USER never does (the chat bus admits no
