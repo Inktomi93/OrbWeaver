@@ -1,0 +1,28 @@
+---
+kind: decision
+status: open
+updated: 2026-09-23
+priority: P1
+area: rpg
+---
+
+# Decide whether spatial world maps become a program
+
+## What
+
+`docs/architecture/proposed/spatial-maps-design-capture.md` records a hierarchical world-map feature from
+another app and sketches its cost and seams here. It states that a build needs its own owner ruling. The
+owner rules whether to make it a program, and where it sits relative to the RPG program.
+
+## Why
+
+The capture is not queued work. Without a ruling it stays a document that item 0011 cannot place.
+
+## Done when
+
+The ruling is recorded. For yes, a plan under `docs/plans/` exists and names its dependencies on the RPG
+program. For no, the capture is deleted.
+
+## Evidence
+
+Filled at landing: what ran and where its output is.

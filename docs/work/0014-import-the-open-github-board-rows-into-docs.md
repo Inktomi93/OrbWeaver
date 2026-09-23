@@ -31,4 +31,6 @@ lists both sets. `pnpm doc overview` shows the imported rows. Item 0013 can star
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The closing commit's body holds the import table: each open board row with its new item, or the reason
+it was not imported. Imported: items 0048 to 0060. Not imported: rows the tree already satisfies, a
+stale census, and a watch whose only control is recorded in `packages/kit/src/card-frame/index.ts`.
