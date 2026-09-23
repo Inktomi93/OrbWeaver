@@ -563,3 +563,95 @@ describe("engine stats — the live turn stamps the reasoning window (#184)", ()
     expect(arm !== undefined && arm.provider === "claude-sub" && arm.warmSpareClaimed).toBe(true);
   });
 });
+
+// A CONTINUE re-stamps the variant's economics with the continuation's (tokens, cost, the gen window; #184's
+// sibling defect, docs/work/0146): the engine's stats delta adds the continuation's reasoning window and
+// subtracts the base's, but `continueVariantStatements` left `metadata` insert-only, so the row kept the
+// BASE's `reasoning_duration` forever. The live rollup (which folds what the delta computed — the
+// continuation's window) then permanently disagrees with a `reconcileStats` rebuild (which reads the row's
+// stale base window straight off the column). RED-FIRST against the unmodified source.
+describe("engine stats — a reasoning continue keeps the row's reasoning window in step with the delta (#146)", () => {
+  const baseWindowMs = 400;
+  const continueWindowMs = 150;
+
+  test("new-slot reasoning turn, then a reasoning continue: the row and the live rollup both settle on the continuation's window", async () => {
+    let t = FROZEN_AT;
+    // A scripted turn that reasons for `windowMs` (measured on the shared, mutable `t`) then answers `content`.
+    function thinkingTurn(windowMs: number, content: string): RunChatTurn {
+      return (): AsyncGenerator<TurnStreamChunk> =>
+        (async function* (): AsyncGenerator<TurnStreamChunk> {
+          await Promise.resolve();
+          yield { kind: "reasoning", text: "weighing it" };
+          t += windowMs;
+          yield { kind: "text", text: content };
+          yield {
+            kind: "final",
+            economics: {
+              content,
+              reasoning: "weighing it",
+              tokensIn: 10,
+              tokensOut: 20,
+              contextWindow: 1000,
+              model: testModelId("gpt"),
+              provider: testProviderId("openrouter"),
+            },
+          };
+        })();
+    }
+    const queue = [thinkingTurn(baseWindowMs, "a reply"), thinkingTurn(continueWindowMs, " and more")];
+    let idx = 0;
+    const deltas: StatsDelta[] = [];
+    const ctx = makeChatContext(db, {
+      now: () => t,
+      runChatTurn: ((request: Parameters<RunChatTurn>[0]) => {
+        const next = queue[idx];
+        idx += 1;
+        if (next === undefined) {
+          throw new Error("engine-stats: no scripted turn");
+        }
+        return next(request);
+      }) as never,
+      applyStatsDelta: (_batch: unknown, _db: Db, delta: StatsDelta): void => {
+        deltas.push(delta);
+      },
+    });
+    const engine = createTurnEngine(ctx, {
+      emit: (): Promise<void> => Promise.resolve(),
+      holder: "replica-1",
+      lockTtlMs: 60_000,
+      generateSegments: async () => ({ written: 0, skipped: 0 }),
+      generateDigests: async () => ({ written: 0, skipped: 0 }),
+      loadWitnessHorizons,
+      recallMemory,
+      runCompaction: stubRunCompaction,
+    });
+
+    const first = await engine.runTurn(prepOf(chatId, { kind: "send", speakerCharacterId: charId }));
+    const slotId = first.messages[0]?.id;
+    if (slotId === undefined) {
+      throw new Error("turn 1 committed no message");
+    }
+    await engine.runTurn(prepOf(chatId, { kind: "continue", appendUserTurn: "[continue]", persist: { mode: "continue", targetMessageId: slotId } }));
+
+    // (a) THE ROW — a continue re-stamps the sidecar to the continuation's window, mirroring how it
+    // re-stamps the gen window and the tokens (never the base's, never a sum of both).
+    const variant = (await db.select().from(messageVariants))[0];
+    expect(variant?.metadata).toEqual({ [VARIANT_METADATA_REASONING_MS_KEY]: continueWindowMs });
+
+    // (b) THE LIVE WRITER vs (c) THE REBUILD — replay the engine's recorded deltas into a clean set of
+    // rollups and compare against `reconcileStats` reading the same engine-produced canon.
+    await reconcileStats(db, { ownerId: HOST, now: createFrozenClock(FROZEN_AT + 5000).now });
+    const reconciled = await snapshotRollups(db, HOST);
+    await wipeRollups(db);
+    const batch: BatchStmt[] = [];
+    for (const delta of deltas) {
+      applyStatsDelta(batch, db, delta);
+    }
+    await db.batch(batchMany(batch));
+    const live = await snapshotRollups(db, HOST);
+
+    expect(live.owner).toMatchObject({ reasoningMs: continueWindowMs });
+    expect(reconciled.owner).toMatchObject({ reasoningMs: continueWindowMs });
+    expect(live.models[0]?.["reasoningMs"]).toBe(reconciled.models[0]?.["reasoningMs"]);
+  });
+});
