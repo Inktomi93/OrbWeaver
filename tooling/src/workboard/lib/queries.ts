@@ -78,7 +78,7 @@ export function dependencyMutation(remove: boolean): string {
  *  WHY IT IS NOT THE THINNEST SELECTION ANY MORE (codex review F1, 2026-09-13). `number state` alone can
  *  only answer "does this id resolve"; #2156's filed contract is that the cited row NAMES the ledger row's
  *  subject, and its founding defect (#2153) crossed two ids that BOTH existed. Answering that needs the
- *  row's own text, so `title body` come back with it and the join is `lib/citation-subject.ts`. The
+ *  row's own text, so `title body` come back with it for the subject join. The
  *  `projectItems` slice answers the other half of "a BOARD row": an issue on no board is not one.
  *  Measured 2026-09-13: 2328 issues over 24 pages, ~125 KB and ~1 s per page.
  *

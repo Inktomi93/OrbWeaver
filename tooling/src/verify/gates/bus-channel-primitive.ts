@@ -220,7 +220,7 @@ export const gate = defineGate({
       files: {
         "packages/server/src/transport/trpc/local-class.ts": "class EventEmitter {\n  on(): void {}\n}\nexport const bus = new EventEmitter();\n",
       },
-      why: 'THE PROVEN-OTHER arm of the refusal classifier, and the row that makes the header\'s sentence *a construction that PROVABLY binds another declaration is a different class and passes* an enforced claim rather than a paragraph. A FILE-LOCAL class named `EventEmitter` names the export (the prefilter admits it) and resolves through NEITHER door, so `constructsEventEmitter` reaches `classifyOriginRefusal`, which answers case (a) because the leaf binds a `ClassDeclaration` and not an import alias. Replacing that call with the constant `"unreadable"` — fail-closure with no acquittal — turns this row red; before it, no declared row reached the `other` outcome at all (wave-8 D5, `v-audit-wave8-2026-09-12.md:253`)',
+      why: 'THE PROVEN-OTHER arm of the refusal classifier, and the row that makes the header\'s sentence *a construction that PROVABLY binds another declaration is a different class and passes* an enforced claim rather than a paragraph. A FILE-LOCAL class named `EventEmitter` names the export (the prefilter admits it) and resolves through NEITHER door, so `constructsEventEmitter` reaches `classifyOriginRefusal`, which answers case (a) because the leaf binds a `ClassDeclaration` and not an import alias. Replacing that call with the constant `"unreadable"` — fail-closure with no acquittal — turns this row red; before it, no declared row reached the `other` outcome at all (wave-8 D5, gate-runtime audit wave 8',
     },
     {
       mode: "types",
@@ -237,7 +237,7 @@ export const gate = defineGate({
         "packages/server/src/transport/trpc/renamed-export-bus.ts":
           'import { EventEmitter } from "./renamed-export-barrel.ts";\nexport const bus = new EventEmitter();\n',
       },
-      why: "THE EXPORTED-NAME COUNTERFACTUAL, and the only row that dies without the `canonical.exportedName` half: a barrel re-exports a DIFFERENT `node:events` export UNDER the name `EventEmitter`, so the name prefilter admits it AND the door comparison passes (it genuinely IS the `node:events` door) — only the canonical exported name rejects it. Dropping that half leaves every other row in this module green (wave-8 D1, `v-audit-wave8-2026-09-12.md:140`). It is the mirror of the `mustPass` row above it: that one holds the NAME and moves the door, this one holds the DOOR and moves the name",
+      why: "THE EXPORTED-NAME COUNTERFACTUAL, and the only row that dies without the `canonical.exportedName` half: a barrel re-exports a DIFFERENT `node:events` export UNDER the name `EventEmitter`, so the name prefilter admits it AND the door comparison passes (it genuinely IS the `node:events` door) — only the canonical exported name rejects it. Dropping that half leaves every other row in this module green (wave-8 D1, gate-runtime audit wave 8. It is the mirror of the `mustPass` row above it: that one holds the NAME and moves the door, this one holds the DOOR and moves the name",
     },
     {
       mode: "types",
@@ -245,7 +245,7 @@ export const gate = defineGate({
         ...emitterGlobalLookalikeProof(),
         "packages/server/src/transport/trpc/global-emitter.ts": "export const bus = new EventEmitter();\n",
       },
-      why: `THE ORIGIN-KIND FENCE, PINNED: a TRUSTED AMBIENT GLOBAL constructor spelled \`EventEmitter\` (${EMITTER_GLOBAL_HOME}) is admitted by the name prefilter and RESOLVES — to a global origin rather than a module one — so it is the only fixture that reaches \`target.kind !== "module"\`. Node declares no such global; the twin exists so that comparison is enforced rather than asserted. Before it the branch was reached by zero rows, and the row that claimed it planted \`new Map()\`/\`new Set()\`, which the name prefilter rejects before any origin is resolved (wave-8 D5, \`v-audit-wave8-2026-09-12.md:253\`)`,
+      why: `THE ORIGIN-KIND FENCE, PINNED: a TRUSTED AMBIENT GLOBAL constructor spelled \`EventEmitter\` (${EMITTER_GLOBAL_HOME}) is admitted by the name prefilter and RESOLVES — to a global origin rather than a module one — so it is the only fixture that reaches \`target.kind !== "module"\`. Node declares no such global; the twin exists so that comparison is enforced rather than asserted. Before it the branch was reached by zero rows, and the row that claimed it planted \`new Map()\`/\`new Set()\`, which the name prefilter rejects before any origin is resolved (wave-8 D5, \gate-runtime audit wave 8\`)`,
     },
     {
       mode: "types",

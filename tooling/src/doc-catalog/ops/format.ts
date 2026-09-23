@@ -20,12 +20,12 @@
 // `--check` (`pnpm check:docs`) and `--write` (`pnpm format:docs`) both resolve through `formatTargets`, so
 // a tree missing here is missing from BOTH: it is neither checked nor formattable, and `pnpm format:docs`
 // silently declines to touch it. That was the defect — the scope was `docs/architecture/**` alone, so
-// `docs/design/**` and `docs/reviews/**` (the program guides and every review/ledger a lane writes) were
-// outside both doors while reading exactly like docs the formatter owned.
+// `docs/design/**` (the program guides a lane writes) was outside both doors while reading exactly like
+// docs the formatter owned.
 //
 // WHICH TREES, AND WHY THE EXCLUSION IS NOT LAZINESS:
 //   · `docs/architecture/**` minus `proposed/` — in-flight drafts are never auto-touched (unchanged);
-//   · `docs/design/**` and `docs/reviews/**` — LIVING law and live review output, written by lanes daily;
+//   · `docs/design/**` — LIVING law, written by lanes daily;
 //   · NOT the FROZEN archaeology trees — and there are TWO, which is the correction (owner ruling via
 //     claude-b, 2026-09-12). `docs/history/**` (558) is excluded by omission, but
 //     `docs/architecture/history/**` (70) nests INSIDE a living tree, so prefix-matching had admitted it
@@ -73,7 +73,7 @@ refuseDirectInvocation(import.meta.url, "pnpm check:docs (node tooling/src/doc-c
 
 /** The LIVING trees this formatter owns. Prefix-matched against repo-relative tracked paths. The `doc`
  *  tool's trees are living by construction: every write there goes through `formatMarkdown` first. */
-const LIVING_TREES = ["docs/architecture/", "docs/design/", "docs/reviews/", ...DOC_TOOL_TREE_PREFIXES] as const;
+const LIVING_TREES = ["docs/architecture/", "docs/design/", ...DOC_TOOL_TREE_PREFIXES] as const;
 /** In-flight drafts inside a living tree — never auto-touched. The FROZEN trees need their own list,
  *  below, because one of them nests INSIDE a living tree and so cannot be excluded by omission. */
 const EXCLUDED = /^docs\/architecture\/proposed\//u;
@@ -224,7 +224,7 @@ function visibleAt(text: string, index: number): string {
  *
  * `edge` is `info.before`/`info.after` — the output characters on either side of THIS node, which the
  * node's own value cannot show. Without them the first character of a text node has no left neighbour
- * and the rule misreads it: measured on `refutation-ledger-2026-09-12.md`, a `delete` node opening with
+ * and the rule misreads it: measured on the gate-runtime refutation ledger, a `delete` node opening with
  * `\~110` un-escaped to `~110` directly after the `~~` the parent had just emitted, and `~~~110` re-parsed
  * as something else. That refusal is the reason this function takes an edge at all.
  */

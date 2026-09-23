@@ -200,7 +200,7 @@ export const gate = defineGate({
   family: "real-corpus-liveness-manifest",
   authority: "hard",
   severity: "warning",
-  workItem: 2149,
+  workItem: 42,
   population: {
     in: ["@tooling", "@tests"],
     under: ["tooling/src/verify/gates/**", "tests/tooling/verify/gates/**"],

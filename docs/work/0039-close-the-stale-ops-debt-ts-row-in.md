@@ -10,7 +10,7 @@ area: docs
 
 ## What
 
-The row ROW-CB-FORGE-POLICING-AUDIT-54 in `docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md` still says OPEN. It claims tooling/src/verify/ops/debt.ts imports the BASELINE_REL of the legacy density-tier and duplicate-action-doors gates. That coupling no longer exists: debt.ts imports only the ct-unfed and orphan-export ratchet baselines, and its comments record that both legacy gates' ledgers were replaced by reviewed grants. Mark the row CLOSED. Give it evidence that cites the commits converting density-tier and duplicate-action-doors to reviewed-grant authority, plus the current debt.ts import lines. Update the section's OPEN/CLOSED rollup to match. Do not revive any other rollup.
+The row ROW-CB-FORGE-POLICING-AUDIT-54 in the gate-runtime refutation ledger still says OPEN. It claims tooling/src/verify/ops/debt.ts imports the BASELINE_REL of the legacy density-tier and duplicate-action-doors gates. That coupling no longer exists: debt.ts imports only the ct-unfed and orphan-export ratchet baselines, and its comments record that both legacy gates' ledgers were replaced by reviewed grants. Mark the row CLOSED. Give it evidence that cites the commits converting density-tier and duplicate-action-doors to reviewed-grant authority, plus the current debt.ts import lines. Update the section's OPEN/CLOSED rollup to match. Do not revive any other rollup.
 
 ## Why
 

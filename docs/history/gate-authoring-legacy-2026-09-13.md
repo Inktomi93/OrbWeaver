@@ -10,7 +10,7 @@ Historical descriptor-runtime instructions, retained for conservation under #212
 complete original `tooling/src/verify/gates/GATE-AUTHORING.md` at `b72960781cd933b58ac9fde52ef285cae1949903`.
 Its legacy procedures and exemplar recommendations are historical evidence, never final-policy authoring instructions.
 Current authoring: [GATE-AUTHORING.md](../../tooling/src/verify/gates/GATE-AUTHORING.md).
-Disposition: [preservation map](../reviews/gate-runtime/authoring-guide-preservation-map-2126.md).
+Disposition: the #2126 preservation map, deleted with the gate-runtime working set; the repository's commit log holds it.
 
 Payload: 60347 bytes; SHA-256 `3505368a62d0fa78d7745dba0c6d6b811ba7d7999369d2c46554f492d6ad3747`. Everything inside the four-backtick fence is unchanged,
 including the original frontmatter. The wrapper and fence are outside that payload.

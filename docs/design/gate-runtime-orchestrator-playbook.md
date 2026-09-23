@@ -7,7 +7,7 @@ updated: 2026-09-22
 # Gate-runtime orchestrator playbook
 
 Procedure only. Read [`gate-runtime-read-first.md`](gate-runtime-read-first.md), then the standing law in
-[`gate-runtime-standardization.md`](gate-runtime-standardization.md). GitHub Project 1 and the refutation ledger own
+[`gate-runtime-standardization.md`](gate-runtime-standardization.md). The `docs/work` items own
 mutable work; this file contains no row roster or wave-status table.
 
 ## 1. Start or resume a session
@@ -39,7 +39,7 @@ requirements. After the last conversion, complete verification and repair its fi
 the program finished. A converted commit is not a verified completion. Do not dispatch more Claude B
 work; the owner ended that account's work for the night.
 
-The board and refutation ledger determine current work. Re-read the cited source and recent path history before putting
+The `docs/work` items determine current work. Re-read the cited source and recent path history before putting
 a row in a batch. Claim every row at dispatch and verify its Lane field. Treat historical refusal, Verify status, and a
 prior audit as claims against an older tree. An already-closed row is a successful re-derivation: report its closing
 SHA rather than building replacement work. A work-row body’s central measured claim carries its measurement date
@@ -143,8 +143,7 @@ second result byte-identical and required literal searchability preserved. Froze
 6. Fold repeated corrections into the law or procedure source after verifying the mechanism. Chat, a bridge note, and
    a GitHub comment are transport, not the durable home of a standing rule.
 
-For rewritten docs, format and check them. Regenerate the read-first cost block
-on the exact committed set of priced bytes; a generated value measured beside an uncommitted priced edit is invalid.
+For rewritten docs, format and check them.
 An in-place correction to a dated claim in a live-law review keeps the original sentence and adds
 `**LANDED <date> (<sha>)**` beside it; rewriting that evidence as if it had always been current falsifies the record.
 

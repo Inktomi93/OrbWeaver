@@ -50,7 +50,7 @@ interface MutableWork {
 }
 
 /** HOW MANY COLLECTORS HAVE BEEN BUILT IN THIS PROCESS — the one thing an instance-level counter cannot
- *  say (#2305, `v-css-family-2026-09-13.md` ledger row 1).
+ *  say (#2305, the 2026-09-13 CSS-family verifier review ledger row 1).
  *
  *  `StaticClassCollector` already publishes `work.evaluators`, and that reads off ONE instance. A second
  *  collector built beside it therefore has the same `work`, produces byte-identical findings, and is

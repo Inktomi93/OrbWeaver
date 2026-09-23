@@ -13,8 +13,7 @@ headers. The standing contract governs; this guide connects authoring decisions 
 
 The [legacy guide](../../../../docs/history/gate-authoring-legacy-2026-09-13.md) is preserved verbatim for remaining
 legacy maintenance and conversion archaeology. Its descriptor fields, private exemptions, fixture ritual and exemplar
-recommendations are not final-policy templates. The [preservation map](../../../../docs/reviews/gate-runtime/authoring-guide-preservation-map-2126.md)
-classifies every original section. The 2026-09-11 exemplar report is refuted history: never copy a module on its authority.
+recommendations are not final-policy templates. The 2026-09-11 exemplar report is refuted history: never copy a module on its authority.
 Numbered references below retain the relevant subject; explicitly legacy rules route to that archive.
 
 ## 0. Start from the mechanism
@@ -56,7 +55,7 @@ There is no final `status`, registration-count edit, `scanRoot`, `scopeSafety`, 
 | Fields | Derive them from |
 | - | - |
 | `id`, `family` | Filename identity; a meaningful shared production dependency or a reasoned singleton whose family equals its id. |
-| `authority`, `severity`, `workItem` | The rule's permitted exception and debt posture. A warning needs a positive live issue; error forbids `workItem`; hard plus warning is invalid. |
+| `authority`, `severity`, `workItem` | The rule's permitted exception and debt posture. A warning needs the id of a `docs/work` item that is not done; error forbids `workItem`; `hard` + `warning` is valid only as an owner-authorized, time-bounded transition whose findings stay unsuppressible (standing law §5). |
 | `population`, `analysis`, `execution` | The actual evidence plane and dependency closure; §3. |
 | `facts`, `resources` | Only capabilities consumed by this policy; explicit `[]` when unused. |
 | `message`, `fix` | The actual population, carrier, predicate and report site. An ordinary fix spells the exact waiver door and reported position. |
@@ -294,7 +293,7 @@ mechanically sealed. The following table distinguishes load/runtime guarantees f
 | Mechanism | Current enforcer and limit |
 | - | - |
 | descriptor keys, enums, authority/severity, proof-row shape | [`lib/policy-validation.ts`](../lib/policy-validation.ts) — `assertGatePolicyDescriptor`; exact keys and branded facts, not semantic fitness of the chosen contract. |
-| warning issue liveness | [`lib/workitem-liveness.ts`](../lib/workitem-liveness.ts) derives warning citations; [`lib/board-citations.ts`](../lib/board-citations.ts) judges board existence, membership and openness at the coordinated online barrier. Positive-integer schema validation alone does not establish liveness. |
+| warning work-item liveness | [`warning-workitem-liveness`](./warning-workitem-liveness.ts) holds every warning descriptor's `workItem` against the `docs/work` item it names, offline on every structure run; a missing or done item is a finding. Positive-integer schema validation alone does not establish liveness. |
 | branded export, filename/id, duplicate id, singleton identity | [`lib/policy-module.ts`](../lib/policy-module.ts) assertions through [`lib/loader.ts`](../lib/loader.ts); a cast or cloned object cannot counterfeit `defineGate` registration. |
 | direct descriptor, private walk and module state | [`policy-soundness`](./policy-soundness.ts) delegates to [`lib/gate-contract.ts`](../lib/gate-contract.ts) `inspectGateContract`; its closed walk-method set is not proof against every possible external traversal library. |
 | inert population extension, missing ordinary fix, raw resource result, forbidden I/O and retired grammar | [`policy-soundness`](./policy-soundness.ts); resource calls use canonical `readyResourceValue`, and I/O/grammar checks cover their declared shapes, not every possible wrapper or private permission implementation. |

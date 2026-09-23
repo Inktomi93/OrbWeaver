@@ -20,7 +20,7 @@ kept only because it cited them.
 
 ## Why
 
-The audit ledger is the last live work state inside `docs/reviews/`. One tool holds all open work, so
+The audit ledger is the last live work state inside docs/reviews/. One tool holds all open work, so
 its findings belong in `docs/work`.
 
 ## Done when
