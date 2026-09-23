@@ -1,6 +1,6 @@
 // Consumer: the refinery payload view (bounded-number fields — the hero `size="display"` readout and
 // the `showValue` row, payload-view.tsx) — the PREBUILT marker was deleted when it landed
-// (ui-package-design.md §8b), the same self-cleaning shape SegmentedClock took.
+// (UI-Gates-and-Lessons.md §9b), the same self-cleaning shape SegmentedClock took.
 // The rpg HUD resource/pool widgets it was originally sealed for (docs/plans/rpg/design.md) are still
 // unbuilt; they inherit a consumed primitive rather than a sealed one.
 // Base UI Meter.Root supplies the a11y shell (role="meter", aria-valuemin/max/now, aria-valuetext)

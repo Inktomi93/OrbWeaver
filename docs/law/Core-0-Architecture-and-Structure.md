@@ -240,7 +240,7 @@ finding anything is a path derivation, and "where does this go?" has exactly one
 > `tsc` for the union-dispatch row, which has no gate file); `no-internal-mocks` stays advisory in `Spine-Testing.md §3`, not a hard gate.
 > **This table is the constitution; the full live-gate catalog is `Core-Enforcement-Active-Gates.md`**
 > (the single enforcement source of truth; a not-yet-buildable gate is a `docs/work` decision item, and a
-> rejected gate proposal is a rejected ADR, for example `docs/adr/0220`).
+> rejected gate proposal is a rejected ADR, for example `docs/adr/0220-rejected-neo-and-report-only-gates.md`).
 
 ## 8. Cross-cutting invariants (the laws no single file shows)
 

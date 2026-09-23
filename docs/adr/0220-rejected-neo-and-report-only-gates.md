@@ -48,23 +48,24 @@ scratch.
   anchor — is ruled prose-enforced by the constitution's register-boundary paragraph. A report-only metric
   over that residue would report a number with no remedy attached.
 - `comment-density` (report-only: comment-line share, capped or floored) — dropped because a single
-  repo-wide cap or floor is refuted by the house style, measured: the gate corpus runs 18.3% comment share
-  across 309 files, the product packages run 36.9% across 2,574, with a per-file spread of 0.0% to 96.9%.
-  Documentation law makes the machine-first file header load-bearing, so a cap would penalize the files
-  carrying the most law, while a floor is satisfiable by noise.
+  repo-wide cap or floor is refuted by the house style: the gate corpus and the product packages carry very different comment
+  shares, and the per-file spread runs from near-zero to near-total. Documentation law makes the
+  machine-first file header a heavy load, so a cap would penalize the files carrying the most law, while
+  a floor is satisfiable by noise.
 - `arch-metrics` (ArchUnitTS class-quality metrics, report-only) — dropped because the dependency is not on
   the tree (verified against every package manifest), and its subject — module/class quality and layering
   — is already held at a stronger tier: resolve-time by the package cake, lint-time by `pnpm depcruise`,
   and structurally by `package-layout`, `server-layout`, `client-structure`, `feature-structure` and
   `ui-primitive-structure`. A report-only score beside a red boundary is a second, weaker opinion on a
   settled question.
-- The tuple-vs-tuple arm of `no-inline-union-redecl` (a second `as const` tuple duplicating a first tuple's
+- The tuple-vs-tuple case of `no-inline-union-redecl` (a second `as const` tuple duplicating a first tuple's
   members) — decided against. Two axes whose members coincide get two tuples, and neither derives from the
-  other, because the coincidence is exactly what breaks when one axis grows. A census of 2,574 tracked
-  package sources found 295 exported `as const` string tuples with 9 colliding member sets, and all 9 are
-  sanctioned: six are distinct axes that happen to share a spelling, and three are contracts-to-ui pairs
+  other, because the coincidence is exactly what breaks when one axis grows. A census of every tracked
+  package source found a small number of exported `as const` string tuples with colliding member sets,
+  and every one is sanctioned: most are distinct axes that happen to share a spelling, and the rest are
+  contracts-to-ui pairs
   that the package cake forces apart (`@orb/ui` declares only `@orb/kit` as a workspace dependency, so it
-  cannot import the `@orb/contracts` half at resolve time). The live gate's other arm (an inline union or a
+  cannot import the `@orb/contracts` half at resolve time). The live gate's other case (an inline union or a
   `z.enum([…])` literal re-spelling a canonical tuple) still stands.
 
 ## Consequences

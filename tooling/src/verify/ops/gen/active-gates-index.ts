@@ -43,7 +43,7 @@ is a change to the generator's source, never a diff against the committed file.
 > What fails a build today, across five active layers (Biome, ts-morph structural gates,
 > dependency-cruiser, jscpd, Stryker). GritQL, the former Layer 2, is gone — do not add a plugin,
 > add a Layer-3 gate. A gate proposed but not yet buildable is a \`docs/work\` decision item; a gate
-> proposal turned down stays as a rejected ADR (for example \`docs/adr/0220\`).
+> proposal turned down stays as a rejected ADR (for example \`docs/adr/0220-rejected-neo-and-report-only-gates.md\`).
 
 Gates are written before the code they govern, so code is born compliant. A gate that would only
 false-fire on a placeholder tree is not missing — it is a \`docs/work\` item, keyed to the code that

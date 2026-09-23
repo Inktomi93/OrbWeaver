@@ -119,6 +119,16 @@ shadcn copy-paste · Radix · the react-markdown stack · react-syntax-highlight
 routes) · `compact`/`inDrawer`/`density` layout props (container queries replace them) · per-feature
 `useVirtualizer` (the `@orb/ui/virtual-list` seal replaces it).
 
+## 9b. PREBUILT seals
+
+A consumer-less sealed primitive carries `PREBUILT[for:<doc>]`, naming the doc for its future consumer.
+Delete the marker in the same edit that lands the consumer; a `PREBUILT` whose cited doc is missing or
+deleted is a documentation defect, fixed at the next audit of this table.
+
+Open today: `packages/ui/src/stream/stream-text.tsx` (no named feature yet — a convenience wrapper for a
+future plain-text streaming surface, `ui-package-design.md` §6.3.1) and
+`packages/ui/src/primitives/status-chip/status-chip.tsx` (workloads/automation run-status chips).
+
 ## 10. Deferred forks (DEFERRED-with-a-committed-default)
 
 - **Token enforcement level** — DEFAULT: Tailwind v4 + DTCG + the gates. Deferred upgrade: Panda
