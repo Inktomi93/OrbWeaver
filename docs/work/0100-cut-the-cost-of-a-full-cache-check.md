@@ -22,4 +22,4 @@ A measured cost reduction (e.g. a per-case floor, or a smaller calibration) with
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Cases that share a room now share one chat. Each room writes its long prefix once, with a committed user line and one generate, instead of sending it uncached and then writing it for every case. The prefix is 1.25 times the calibration prefix instead of 1.5, which still keeps the largest healthy loss (the narrator cue) inside the floor at a ratio of 0.985. On OpenRouter a full run fell from $0.4765 to $0.3427, with direct at the same token counts. Every case is still judged: the group case keeps its opening call in the judged sequence, so the first round boundary still reads 0 on main. The planted regression (the OpenRouter content-part marker stripped) still fails solo and continue at a ratio of 0.000.

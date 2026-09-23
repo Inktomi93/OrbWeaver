@@ -120,3 +120,12 @@ export type EnvFile = Readonly<Record<string, string | undefined>>;
 
 /** The typed client the check drives orb through. */
 export type OrbApi = TRPCClient<AppRouter>;
+
+/** One case's result inside a room: what it measured, or why it could not. */
+export type RoomCaseResult = { readonly case: CacheCase; readonly run: CaseRun } | { readonly case: CacheCase; readonly error: string };
+
+/** A room's results: the spend of its prefix steps, and each case's result in run order. */
+export interface RoomResult {
+  readonly prefixCosts: readonly (number | null)[];
+  readonly cases: readonly RoomCaseResult[];
+}
