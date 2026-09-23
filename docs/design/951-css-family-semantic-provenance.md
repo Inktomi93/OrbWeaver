@@ -156,8 +156,8 @@ while escalating whether a copied count earned that description. ARM B resolved 
 constant and parity fixtures. `ledgers:fresh` and `baseline theme-css --check` now compare the complete CSS bytes
 with canonical `generateArtifacts`; 203 is only the dated observed count. The health policy keeps its separate
 nonempty direct-custom-property namespace check. This correction does not change the historical mint deltas below.
-See [the dated disposition](../reviews/gate-runtime/theme-freshness-doc-disposition-2026-09-13.md) for validation
-requirements, the scratch-root limitation, and the primary-owned whole-stage proof.
+See [the standing contract](gate-runtime-standardization.md) §5 for the validation requirements and the whole-stage
+proof.
 
 **Two transcription corrections, stated because a moved comment is where a silent edit hides.** A
 continuation line beginning "+8 on the sheet total above" was re-joined to the bullet it belongs to (the

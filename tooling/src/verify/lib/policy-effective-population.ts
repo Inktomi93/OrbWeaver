@@ -10,7 +10,7 @@
 //     `ops/structure.ts` call `runPolicyPass` directly and supply no plan) and stays the live door until the
 //     planner cutover.
 // Before #2309 each door computed the split itself and they did not agree; the disagreements are recorded in
-// the two rules below and in `docs/reviews/gate-runtime/x-resource-selection-2026-09-13.md`.
+// the two rules below (the 2026-09-13 resource-selection repair).
 //
 // THE TWO RULES, and why they are not the same rule.
 //

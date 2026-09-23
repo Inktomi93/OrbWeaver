@@ -12,8 +12,8 @@ plan: doc-migration
 ## What
 
 Create a plan named gate-runtime with `pnpm doc new plan gate-runtime`, and move the files of
-`docs/reviews/gate-runtime/` into it. Re-point the two tools that read that folder:
-`tooling/src/verify/ops/gen/read-first-costs.ts` and `tooling/src/verify/ops/ledgers-fresh-rollup.ts`.
+docs/reviews/gate-runtime/ into it. Re-point the two tools that read that folder:
+tooling/src/verify/ops/gen/read-first-costs.ts and tooling/src/verify/ops/ledgers-fresh-rollup.ts.
 Rewrite the moved files' citations of the old census path and of the deleted registry.
 
 ## Why
@@ -23,7 +23,7 @@ the last reason `LEGACY_ROOTS` keeps a `reviews` row.
 
 ## Done when
 
-`docs/reviews/` no longer exists. `pnpm check:ledgers-fresh` and `pnpm check:structure` are green.
+docs/reviews/ no longer exists. `pnpm check:ledgers-fresh` and `pnpm check:structure` are green.
 `LEGACY_ROOTS` has no `reviews` row.
 
 ## Evidence

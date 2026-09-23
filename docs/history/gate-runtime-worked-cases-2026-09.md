@@ -164,7 +164,7 @@ does not preserve account-specific division or live concurrency numbers as autho
 ## Dated ruling and transcript dispositions
 
 These summaries identify the former owner chronology at `cd8a25c91a6bbee2e37e6a79195138f87759fac2`.
-The durable conservation map is [the #2071 repair receipt](../reviews/gate-runtime/docs-preservation-map-2071.md).
+The durable conservation map was the #2071 repair receipt, deleted with the gate-runtime working set; the repository's commit log holds it.
 Summarizing an incident retires its narration, not any standing protection it produced.
 
 | Parent span | Historical outcome retained here | Current rule destination |

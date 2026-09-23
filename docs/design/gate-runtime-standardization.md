@@ -225,8 +225,7 @@ no policy or fixture maintains an expected declaration count. Canonical validati
 including required token history: inability to derive is exit 2; successfully derived but missing or different output
 is exit 1. The coordinating primary's whole-stage controls on integrated main `1ef220c20` observed same-count drift,
 loss of the theme verdict when its stage edge was cut, and malformed-token refusal. These are primary-run receipts,
-not final integration acceptance; the dated evidence and code/data limitation are in
-[the theme-freshness disposition](../reviews/gate-runtime/theme-freshness-doc-disposition-2026-09-13.md).
+not final integration acceptance.
 
 The only sanctioned non-derivable cardinality guard is `depcruise-grant-liveness-health.BACKREF_BUDGET`. It covers the
 `$1` backreference dependency-cruiser rules whose bound member set exists only at cruise time and cannot be

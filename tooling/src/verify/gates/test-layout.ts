@@ -14,10 +14,10 @@
 // reader, not a theme.
 //
 // THIS POLICY WIRES THE `mirror-index` KIND. Until this conversion the kind was SHIPPED with ZERO gate
-// consumers (`docs/reviews/gate-runtime/v-world-gates-2026-09-12.md` D-7), so it had never been exercised
+// consumers (the 2026-09-12 world-gates review, finding D-7), so it had never been exercised
 // through a policy declaration on a real tree. The mirror RULE stays here: the prefix swap, the kind
-// suffixes, the exemption classes and the §4.7 tooling arm are policy classifiers, which
-// `docs/reviews/gate-runtime/resource-gate-access-patterns.md:107` reserves for the gate.
+// suffixes, the exemption classes and the §4.7 tooling arm are policy classifiers, which the ResourceHost
+// access-pattern ruling reserves for the gate.
 //
 // POPULATION PORT — legacy at 6b1d01be0 (the parent of the conversion commit aecbc6c6c), where the module was a
 // `GateDescriptor` with `scopeSafety: "whole-project"` and `fsBacked: true`. The legacy corpus was the

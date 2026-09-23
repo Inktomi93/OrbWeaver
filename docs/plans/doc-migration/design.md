@@ -8,7 +8,7 @@ updated: 2026-09-23
 
 ## Goal
 
-Move every document that survives out of `docs/architecture/`, `docs/design/`, `docs/history/` and `docs/reviews/` into `docs/law/`, `docs/adr/`, `docs/plans/` or the plan archive under `docs/plans/`, delete what does not survive, and remove the attestation catalog and the GitHub board tool, so that `pnpm check:agents` is the one docs checker and `tooling/src/doc/lib/rules.ts` its one rule home. The vendored-doc mirrors this plan formerly named already landed a straight deletion instead of a migration (`docs/work/0010-vendored-docs-leave-git.md`) — nothing there survived to move. The ruling is `docs/adr/0164-docs-plans-adrs.md`; the design of the tool is `docs/plans/doc-system/design.md`.
+Move every document that survives out of `docs/architecture/`, `docs/design/` and `docs/history/` into `docs/law/`, `docs/adr/`, `docs/plans/` or the plan archive under `docs/plans/`, delete what does not survive, and remove the attestation catalog and the GitHub board tool, so that `pnpm check:agents` is the one docs checker and `tooling/src/doc/lib/rules.ts` its one rule home. The vendored-doc mirrors this plan formerly named already landed a straight deletion instead of a migration (`docs/work/0010-vendored-docs-leave-git.md`) — nothing there survived to move. The ruling is `docs/adr/0164-docs-plans-adrs.md`; the design of the tool is `docs/plans/doc-system/design.md`.
 
 ## Shape
 
