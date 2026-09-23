@@ -48,8 +48,8 @@ bullet per deviation lands there). Memory lessons used (by filename): `new-db-ta
 | direct OpenAI `gpt-5-mini`, `max_completion_tokens` via `providerOptions.openai` + `reasoning: low` | `req_8eff1a4cbff5461b820f47331f2c26b2` | 200 "ok" — the shim + a renamed cap + `reasoning_effort` is a working chat-completions turn |
 
 Not measurable here: an OR BYOK account (`is_byok: false` on every probe) — the BYOK arm of A4 is pinned by a fixture
-shaped per the vendored OR README (`docs/vendor/ai-sdk/openrouter/README.md:416-449`) and the dist's own schema
-(`@openrouter/ai-sdk-provider/dist/index.js:3399-3400, 3994-3998`); a Fable classifier block (not triggered on purpose) —
+shaped per the installed `@openrouter/ai-sdk-provider` package's own README and dist schema
+(`node_modules/@openrouter/ai-sdk-provider/{README.md,dist/index.js:3399-3400, 3994-3998}`); a Fable classifier block (not triggered on purpose) —
 A5's fold is pinned over the dist's `mapAnthropicStopDetails` shape (`@ai-sdk/anthropic/dist/index.js:5855-5875, 6140-6150`).
 
 ## 2. The architecture, per row

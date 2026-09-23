@@ -33,10 +33,6 @@
       "id": "history",
       "patterns": ["docs/history/**/*.md"],
       "excludePatterns": ["docs/history/reviews/repository-audit-*/**/*.md"]
-    },
-    {
-      "id": "vendor",
-      "patterns": ["docs/vendor/**/*.md"]
     }
   ]
 }

@@ -42,22 +42,11 @@ export const VALID_KINDS = new Set([
   "review",
   "runbook",
   "spec",
-  "vendor",
 ]);
 export const VALID_STATUSES = new Set(["active", "archived", "complete", "draft", "parked", "snapshot", "superseded"]);
 /** The human classification per document. `dangling-refs` reads `normative`/`current-reference`/
  *  `operational` as law and `design` as design; `unclassified` is what `--sync` adopts a new document as. */
-export const VALID_AUTHORITIES = new Set([
-  "current-reference",
-  "design",
-  "generated",
-  "historical",
-  "normative",
-  "operational",
-  "review",
-  "unclassified",
-  "vendor",
-]);
+export const VALID_AUTHORITIES = new Set(["current-reference", "design", "generated", "historical", "normative", "operational", "review", "unclassified"]);
 
 /** The D-numbers reserved by the ledger's own renumbering window. The `doc` tool refuses an ADR inside it
  *  from here, so the window outlives the registry's note. */
@@ -70,7 +59,6 @@ export const LEDGER_ENTRY_BOLD_RE = /^- \*\*D([1-9]\d*)\b/u;
 export const REQUIRED_FRONTMATTER_KEYS = ["kind", "status", "updated"];
 export const ALLOWED_FRONTMATTER_KEYS = new Set([...REQUIRED_FRONTMATTER_KEYS, "supersedes"]);
 
-export const VENDOR_PREFIX = "docs/vendor/";
 /** The trees the `doc` tool governs, checked by `pnpm check:agents` and OUTSIDE this catalog's corpus
  *  (`ops/tree.ts#trackedDocs`): a document there needs no lane row and no inventory row. The formatter
  *  still owns them (`ops/format.ts`). One home for the four paths. */

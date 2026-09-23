@@ -1,31 +1,17 @@
-// The VENDOR CSS surface: the one identity that spans the committed Base UI Markdown mirror, the installed
-// Base UI `CssVars` declarations and version, and the installed Streamdown bundles that are the only writers
-// of its selectors (`resource-gate-access-patterns.md` §4).
+// The VENDOR CSS surface: the installed Base UI `CssVars` declarations and version, and the installed
+// Streamdown bundles that are the only writers of its selectors (`resource-gate-access-patterns.md` §4).
 //
-// ONE COMPOSITE FACT, NOT THREE. Its two consumers (`css-var-defined`, `css-selector-has-a-writer`) each
-// adjudicate a COMMITTED claim against an INSTALLED reality, and the whole point of both is that the two
-// sides are compared. Splitting the sides into separate declarations would let a policy acquire one and
-// judge as if it had both — which is the stale-vendor arm those gates exist to catch, reappearing one layer
-// down.
-//
-// EVERY MEMBER IS REQUIRED, INCLUDING THE MIRROR INDEX. The index carries the mirror's version banner, and a
-// version reconciliation whose left side silently became `undefined` does not fail — it PASSES, which is the
-// worst available outcome for a contract whose job is to notice an upgrade. So an absent mirror, an absent
-// index, an uninstalled package or a package with no declarations all REFUSE the fact; only the comparison
-// itself — mirror version vs installed version, documented set vs declared set — is left to the policy.
+// NO COMMITTED MIRROR SIDE (retired #10, `docs/work/0010-vendored-docs-leave-git.md`): a measured diff
+// proved the committed `docs/vendor/base-ui` Markdown mirror's documented custom-property set was IDENTICAL
+// to the set this reader already parses from the installed `*CssVars.d.ts` declarations — the mirror carried
+// no fact the installed side didn't already carry, so it was deleted rather than relocated. Base UI's own
+// public-surface version drift is caught independently by `baseui-surface-manifest`
+// (`tooling/src/verify/gates/baseui-surface.manifest.json`, generated from the installed package by
+// `ops/gen/baseui-surface.ts`) — this surface owns no version-comparison arm of its own.
 //
 // THE INSTALLED SIDE PUBLISHES NO REPO PATHS. Under pnpm those files live in the content-addressed store,
 // reached through a symlink the authored reader refuses by construction. Their paths are ABSOLUTE and
-// labelled as such; only the `docs/vendor/base-ui` mirror contributes to the authored population.
-
-export const VENDOR_MIRROR_ROOT = "docs/vendor/base-ui";
-export const VENDOR_MIRROR_INDEX = "docs/vendor/base-ui/INDEX.md";
-
-/** A committed mirror document. Path is repo-relative; the API-table grammar stays in the consuming policy. */
-export interface VendorMirrorDocument {
-  readonly path: string;
-  readonly text: string;
-}
+// labelled as such — this whole surface is now an UNPOPULATED resource kind (`resource-declaration.ts`).
 
 /** An installed file. Path is ABSOLUTE — a store path is not a member of any authored population, and
  *  spelling it repo-relative would be a path that resolves nowhere. */
@@ -35,11 +21,6 @@ export interface VendorInstalledFile {
 }
 
 export interface VendorCssSurface {
-  readonly mirrorRoot: string;
-  /** Every `.md` under the mirror root, sorted, INDEX included. */
-  readonly mirrorDocuments: readonly VendorMirrorDocument[];
-  /** The index document's text, hoisted because it is the version banner's one home. */
-  readonly mirrorIndexText: string;
   /** The installed Base UI version, from its manifest. */
   readonly packageVersion: string;
   /** Every installed `*CssVars.d.ts`, sorted by absolute path. */

@@ -14,7 +14,6 @@ import {
   REQUIRED_FRONTMATTER_KEYS,
   VALID_KINDS,
   VALID_STATUSES,
-  VENDOR_PREFIX,
 } from "./vocab.ts";
 
 export function parseFrontmatter(source: string, path = "document.md"): Frontmatter {
@@ -50,10 +49,10 @@ export function parseFrontmatter(source: string, path = "document.md"): Frontmat
   return { present: true, malformed: errors.length > 0, fields, errors };
 }
 
-/** Schema errors for a document's frontmatter. Vendor mirrors keep upstream frontmatter verbatim, so
- *  they are exempt; an absent block is DEBT (the ratchet's `missingFrontmatter` lane), not an error. */
+/** Schema errors for a document's frontmatter. An absent block is DEBT (the ratchet's
+ *  `missingFrontmatter` lane), not an error. */
 export function frontmatterErrors(path: string, frontmatter: Frontmatter): readonly string[] {
-  if (path.startsWith(VENDOR_PREFIX) || !frontmatter.present) {
+  if (!frontmatter.present) {
     return [];
   }
   const errors = [...frontmatter.errors];

@@ -35,7 +35,7 @@ const MESSAGE =
   "`asChild` is Radix's composition idiom and has no meaning in Base UI. Base UI does not read the prop, so " +
   "it renders its own element as well as the child you meant to merge into — two DOM nodes, two sets of " +
   "handlers, and a doubled accessible name, with no error anywhere. Base UI composes through `render` " +
-  "instead (docs/vendor/base-ui/handbook/composition.md).";
+  "instead (https://base-ui.com/react/handbook/composition; tooling/src/verify/gates/baseui-render-prop-composition.ts).";
 
 const FIX =
   'pass the element to `render`: `<Menu.Trigger render={<Button intent="ghost" />}>Label</Menu.Trigger>`, or ' +

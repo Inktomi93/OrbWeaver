@@ -49,7 +49,6 @@ export const LEGACY_ROOTS: readonly string[] = [
   "design",
   "history",
   "reviews",
-  "vendor",
   "retro-workboard.md",
   "Qwen_Offline_Investigation.md",
   "client-smalls-lane.md",

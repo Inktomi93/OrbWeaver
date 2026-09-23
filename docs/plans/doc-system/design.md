@@ -8,13 +8,13 @@ updated: 2026-09-22
 
 ## Goal
 
-Replace the doc sprawl with four homes (`docs/law/`, `docs/adr/`, `docs/plans/`, `docs/work/`) plus `docs/Mission.md`, where agents write prose and every structural change goes through `pnpm doc`. `pnpm check:agents` checks the new tree. The legacy tree (`docs/architecture/`, `docs/design/`, `docs/history/`, `docs/reviews/`, `docs/vendor/`) keeps its current checker until each folder migrates; the migration is `docs/plans/doc-migration/`.
+Replace the doc sprawl with four homes (`docs/law/`, `docs/adr/`, `docs/plans/`, `docs/work/`) plus `docs/Mission.md`, where agents write prose and every structural change goes through `pnpm doc`. `pnpm check:agents` checks the new tree. The legacy tree (`docs/architecture/`, `docs/design/`, `docs/history/`, `docs/reviews/`) keeps its current checker until each folder migrates; the migration is `docs/plans/doc-migration/`. The vendored-doc mirrors this plan formerly named already left git entirely rather than migrating into a home here (`docs/work/0010-vendored-docs-leave-git.md`).
 
 ## Premises re-derived against the tree
 
 | Brief premise | Tree | Verdict |
 | - | - | - |
-| ~2,000 tracked files under `docs/` | `git ls-files docs` in this worktree counts a little over two thousand; `docs/vendor/` is roughly a third, `docs/history/` and `docs/reviews/` together about half | holds |
+| ~2,000 tracked files under `docs/` | `git ls-files docs` in this worktree counts a little over two thousand; the vendored-doc mirrors this plan formerly named (`docs/work/0010-vendored-docs-leave-git.md`, now deleted) were roughly a third, `docs/history/` and `docs/reviews/` together about half | holds |
 | history has three homes | `docs/history/`, `docs/architecture/history/`, `docs/history/design/` all exist | holds |
 | reviews have two homes | `docs/reviews/` and `docs/history/reviews/` (the audit per-lane folders live under the second) | holds |
 | `docs/design/` is a flat drawer of about sixty files | sixty-two flat files plus a `mocks/` subtree of about a hundred | holds |

@@ -16,7 +16,6 @@ import {
   LEDGER_ENTRY_HEADING_RE,
   OUTPUT_PATH,
   RECEIPTS_DIR,
-  VENDOR_PREFIX,
 } from "../lib/vocab.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:docs (node tooling/src/doc-catalog/cli.ts <verb>)");
@@ -72,12 +71,10 @@ function trackedDocs(repoRoot = root, isolateGitEnvironment = false): readonly s
 export function documents(repoRoot = root, isolateGitEnvironment = false): readonly Doc[] {
   return trackedDocs(repoRoot, isolateGitEnvironment).map((path) => {
     const frontmatter = parseFrontmatter(readFileSync(join(repoRoot, path), "utf8"), path);
-    const vendor = path.startsWith(VENDOR_PREFIX);
     return {
       path,
       frontmatter: {
         ...frontmatter,
-        malformed: vendor ? false : frontmatter.malformed,
         errors: frontmatterErrors(path, frontmatter),
       },
     };

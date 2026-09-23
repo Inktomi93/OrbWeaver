@@ -155,7 +155,7 @@ test("quiet-state records a cohort that paints no fill of its own as a closed ex
 /** The ratified picture picker (#981) as it renders on the Settings Appearance surface: one `role=radio` cell per
  *  choice carrying `aria-checked` + `data-checked`/`data-unchecked`, and the CHECKED cell alone mounting
  *  its `Radio.Indicator` — a role-less, text-less, absolutely-positioned painted span whose `keepMounted`
- *  defaults to false (docs/vendor/base-ui/components/radio.md :492), so it can never have an OFF twin.
+ *  defaults to false (https://base-ui.com/react/components/radio), so it can never have an OFF twin.
  *  `aria-label` names the cells so this fixture pins the quiet-state family alone. */
 const PICKER_INDICATOR = `<span data-slot="picker-item-check" data-checked style="position:absolute;top:4px;right:4px;width:12px;height:12px;background:#fff"></span>`;
 
