@@ -70,6 +70,7 @@ async function twoHumanRoom(opts: {
   readonly namesBehavior: NamesBehavior;
   readonly output?: GroupOutput;
   readonly characters?: readonly string[];
+  readonly cardScope?: "merged" | "scoped";
 }): Promise<TwoHumanRoom> {
   const personaById = new Map<PersonaId, AssemblePersona>();
   const triggerBound: ResolveForeignInputsOp = ({ trigger }) => {
@@ -81,9 +82,10 @@ async function twoHumanRoom(opts: {
       injectionTokenBudget: 0,
     });
   };
-  const scn = await scenario.chat(tape().reply("r1").reply("r2").reply("r3"), {
+  const scn = await scenario.chat(tape().reply("r1").reply("r2").reply("r3").reply("r4").reply("r5").reply("r6"), {
     characters: opts.characters ?? ["aria"],
     output: opts.output ?? "per-speaker",
+    ...(opts.cardScope !== undefined ? { cardScope: opts.cardScope } : {}),
     resolveForeignInputs: triggerBound,
   });
   const alice = scn.host;
@@ -118,6 +120,18 @@ describe("F3 — a multi-human room's history labels do not depend on who presse
     expect(labels[0]?.endsWith("\n\nAlice: hello")).toBe(true);
     expect(labels.slice(1)).toEqual(["Bob: hey", "Alice: again"]);
     expect(userTexts(scn.requests[0])).toEqual([labels[0]]);
+  });
+
+  test("a scoped room's folded character line is never relabelled with a human's name", async () => {
+    const { scn, alice, bob } = await twoHumanRoom({ namesBehavior: "default", characters: ["aria", "kai"], cardScope: "scoped" });
+
+    await scn.send("hello", { principal: scn.principal(alice) });
+    await scn.send("hey", { principal: scn.principal(bob) });
+
+    const allUserText = scn.requests.flatMap((req) => userTexts(req)).join("\n\n");
+    // Positive control: the fold happened (another character's reply rides a user row, its speaker inline).
+    expect(allUserText).toMatch(/(?:^|\n\n)(?:aria|kai): r\d/u);
+    expect(allUserText).not.toMatch(/(?:Alice|Bob): (?:aria|kai): /u);
   });
 
   test('names "none" in a two-human narrator room: user rows are labelled, the narrator row is not', async () => {

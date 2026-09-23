@@ -127,6 +127,9 @@ export function applyNamesBehavior(
     /** Set by the injection splice on a row that carries NO speaker — an instruction/operator injection
      *  that had to take a participant wire role because the backend refuses mid-conversation system. */
     speakerless?: true | undefined;
+    /** A character's line the scoped fold re-roled to `user`. Its speaker already rides inline, so it takes no
+     *  second label — least of all the human's. */
+    folded?: true | undefined;
   }[],
   presetMode: NamesBehavior,
   speakers: { user: string; assistant: string },
@@ -148,7 +151,7 @@ export function applyNamesBehavior(
     // DEMOTED injection (the `speakerless` marker — assembly-internal, spliced rows have no slot and so can
     // never carry a kind), and now the row's own declared PURPOSE (`mayBeLabelled`). The kind arm is the one
     // that answers for CANON rows, which is the half neither of the other two could ever see.
-    if (m.role === "system" || m.speakerless === true || !mayBeLabelled(m.kind)) {
+    if (m.role === "system" || m.speakerless === true || m.folded === true || !mayBeLabelled(m.kind)) {
       // The marker is CONSUMED here, not forwarded: it exists to answer "may this row be labelled?", and
       // that question is now answered. Forwarding it would let a later squash merge stamp it onto a row that
       // contains the player's real text (the depth-1 re-frame merges the user tail INTO the injection), and

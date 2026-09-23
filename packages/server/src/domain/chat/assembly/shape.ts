@@ -64,6 +64,8 @@ interface CanonRow {
   characterId?: CharacterId | null;
   messageId?: MessageId | undefined;
   kind?: MessageKind | undefined;
+  /** A character's line the scoped fold re-roled to `user`; its speaker already rides inline. */
+  folded?: true;
 }
 
 /** A name-stamped wire row (the SHAPE output row). */
@@ -179,6 +181,7 @@ function scopeHistoryToTarget(canon: readonly CanonRow[], targetId: CharacterId)
         // Purpose survives the fold: the WIRE role changed, the row did not stop being what it is (D129's
         // three orthogonal axes — the fold moves DELIVERY, never PURPOSE).
         kind: m.kind,
+        folded: true,
       };
     }
     return m;

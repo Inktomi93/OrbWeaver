@@ -84,6 +84,8 @@ export interface ChatScenarioOptions {
   readonly policy?: GroupPolicy;
   /** The output axis (`per-speaker` vs `narrator`). Default `"per-speaker"`. */
   readonly output?: GroupOutput;
+  /** The per-speaker card scope. Default the room's own default (`merged`). */
+  readonly cardScope?: "merged" | "scoped";
   /** Enable the auto-mode AI→AI chain (`autoModeDelayMs:0`, deterministic). */
   readonly autoMode?: boolean;
   /** The auto-mode chained-turn cap when `autoMode` is on. Default 2. */
@@ -182,6 +184,7 @@ async function seedRoom(
   const group: Record<string, unknown> = {
     output: options.output ?? "per-speaker",
     policy: options.policy ?? "natural",
+    ...(options.cardScope !== undefined ? { cardScope: options.cardScope } : {}),
     ...(options.autoMode === true ? { autoMode: true, autoModeMaxTurns: options.autoModeMaxTurns ?? 2, autoModeDelayMs: 0 } : {}),
   };
   const chatId = await seedChat(db, "a", { metadata: { group } });
