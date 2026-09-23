@@ -155,9 +155,11 @@ export function spliceInChatInjections<T extends { role: WireRole; content: stri
      *  shipped frames, byte-identical. */
     prose?: ProseOverrides | undefined;
   } = {},
-): (T | { role: WireRole; content: string })[] {
+): (T | { role: WireRole; content: string; anchored?: true })[] {
   // Generic over the row shape: canon rows keep their authorName/characterId so the downstream
-  // name-stamp reads them at the type level. Spliced injection rows are bare `{role, content}`.
+  // name-stamp reads them at the type level. Spliced injection rows are bare `{role, content}`; one anchored
+  // above the first canon row ({@link BEFORE_HISTORY_DEPTH}) says so, because its bytes and position repeat
+  // every turn and the cache may pin it.
   if (injections === undefined || injections.length === 0) {
     return [...history];
   }
@@ -185,7 +187,7 @@ export function spliceInChatInjections<T extends { role: WireRole; content: stri
   // the cached prefix once squashed → re-frame it to a user operator note instead.
   const boundaryLen = opts.prefixBoundaryLen;
   const stableTailRole = boundaryLen !== undefined && boundaryLen >= 1 ? history[boundaryLen - 1]?.role : undefined;
-  const result: (T | { role: WireRole; content: string; speakerless?: true })[] = [...history];
+  const result: (T | { role: WireRole; content: string; speakerless?: true; anchored?: true })[] = [...history];
   for (const { inj, depth } of spliceList) {
     // A depth-1 assistant injection sits immediately above the volatile tail — adjacent to the last stable
     // canon row. When that row is also assistant, keeping the injection assistant-role would fold it into
@@ -212,7 +214,12 @@ export function spliceInChatInjections<T extends { role: WireRole; content: stri
     // user's voice". That was wrong and it reintroduced the exact reported bug for a host's post-history
     // teach: the final user turn arrived as `Alex: <the player's words>` + `Alex: [Note from user: <the
     // instruction>]` — two speaker labels, the second one attributing the game rules to the player.
-    result.splice(insertAt, 0, { role: effectiveRole, content: framed, speakerless: true as const });
+    result.splice(insertAt, 0, {
+      role: effectiveRole,
+      content: framed,
+      speakerless: true as const,
+      ...(inj.depth === BEFORE_HISTORY_DEPTH ? { anchored: true as const } : {}),
+    });
   }
   return result;
 }

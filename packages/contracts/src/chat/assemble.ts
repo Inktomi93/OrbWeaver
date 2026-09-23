@@ -423,8 +423,9 @@ export interface ShapeTrace {
   /** Adjacent same-role merges the squash performed (a non-zero count flags a boundary the breakpoint math
    *  must be conservative around). */
   squashMerges: number;
-  /** Offset-from-end of the pinned cache breakpoint; ABSENT when none was placed (the `placed` decision
-   *  carries it, every other decision omits it). */
+  /** The pinned cache breakpoint's DEPTH, in role groups from the end (the runner's own counter, where a system
+   *  row is transparent); ABSENT when none was placed (the `placed` decision carries it, every other decision
+   *  omits it). */
   cacheBreakpointFromEnd?: number;
   breakpointDecision: ShapeBreakpointDecision;
   /** The DELIVERED wire history in order (post-nudge, pre-fit), one entry per row. The block-order/role datum

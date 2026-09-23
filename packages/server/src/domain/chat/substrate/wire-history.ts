@@ -23,6 +23,7 @@
 // the `assembly-access.ts` DI seam this directory already owns.
 
 import type { ChatContentPart, ChatReasoningPart, MessageView } from "@orb/contracts/chat";
+import { cacheDepthCovering, rowIndexAtCacheDepth } from "@orb/inference";
 import type { ContentImageRef, ContentSpan, ContentSpanKind } from "@orb/kit/content";
 import { cardWireStub, tokenizeContent } from "@orb/kit/content";
 import type { AssetId, MessageId } from "@orb/kit/ids";
@@ -451,33 +452,42 @@ export function dropEmptyWireRows(
   cacheBreakpointFromEnd: number | undefined,
 ): { kept: WireRow[]; cacheBreakpointFromEnd: number | null } {
   const lastIdx = built.length - 1;
-  const kept = built.filter((wire, i) => i === lastIdx || !isEmptyWireRow(wire));
-  return { kept, cacheBreakpointFromEnd: shiftBreakpoint(cacheBreakpointFromEnd, built, kept.length) };
+  const keeps = built.map((wire, i) => i === lastIdx || !isEmptyWireRow(wire));
+  const kept = built.filter((_, i) => keeps[i] === true);
+  return { kept, cacheBreakpointFromEnd: shiftBreakpoint(cacheBreakpointFromEnd, built, keeps, kept) };
 }
 
 /** Re-anchor the §8 cache breakpoint after a MID-ARRAY drop (#1543).
  *
- *  The breakpoint is an OFFSET FROM THE END (`shape.ts` computes it as `length − stablePrefixLength`, and
- *  the runner counts back from the tail of the body it writes). That representation is what lets the FIT
- *  trim the front for free — a front-drop shortens the array and the prefix by the same amount. A drop from
- *  anywhere else does NOT commute with it: removing an empty choices row from inside the last
- *  `offsetFromEnd` rows shortens the array without shortening the stable prefix, so the same offset now
- *  points one row EARLIER and the breakpoint lands on bytes that are not the boundary SHAPE measured —
- *  silently re-billing the cached prefix on exactly the expensive turns the breakpoint exists for.
- *
- *  So the offset is recomputed from the invariant it actually encodes: the stable PREFIX LENGTH
- *  (`before − offset`) is what the drop may or may not have shortened, and the new offset is
- *  `after − (the prefix as it now stands)`. A drop inside the prefix leaves the offset alone; a drop after
- *  it shrinks the offset by one per row. `< 1` means the whole tail was dropped away — `shape.ts` refuses
- *  that same case, so it resolves to NO breakpoint rather than to a placement nobody measured. */
-function shiftBreakpoint(cacheBreakpointFromEnd: number | undefined, before: readonly WireRow[], afterLength: number): number | null {
+ *  The breakpoint is a DEPTH in role groups from the end (`@orb/inference` `rowIndexAtCacheDepth`, the counter
+ *  SHAPE and the runner share). The fit's front-trim leaves it alone for free; a drop from anywhere else can
+ *  merge two role groups (an emptied assistant row between two user rows) or remove the pinned row itself, so
+ *  the depth is resolved to the row it pins, that row is carried across the drop (or the nearest kept row above
+ *  it, when the drop took it), and the depth is recomputed on the kept rows. `null` ⇒ nothing is left to pin —
+ *  `shape.ts` refuses that same case, so it resolves to NO breakpoint rather than to a placement nobody
+ *  measured. */
+function shiftBreakpoint(
+  cacheBreakpointFromEnd: number | undefined,
+  before: readonly WireRow[],
+  keeps: readonly boolean[],
+  kept: readonly WireRow[],
+): number | null {
   if (cacheBreakpointFromEnd === undefined) {
     return null;
   }
-  const prefixLength = before.length - cacheBreakpointFromEnd;
-  const droppedFromPrefix = before.slice(0, prefixLength).filter(isEmptyWireRow).length;
-  const shifted = afterLength - (prefixLength - droppedFromPrefix);
-  return shifted >= 1 ? shifted : null;
+  const pinned = rowIndexAtCacheDepth(
+    before.map((wire) => wire.row),
+    cacheBreakpointFromEnd,
+  );
+  if (pinned === undefined) {
+    return null;
+  }
+  const keptAtOrAbove = keeps.slice(0, pinned + 1).filter(Boolean).length - 1;
+  const shifted = cacheDepthCovering(
+    kept.map((wire) => wire.row),
+    keptAtOrAbove,
+  );
+  return shifted !== undefined && shifted >= 1 ? shifted : null;
 }
 
 /** The ROWS THE FIT PRICES — the single spelling of the fit's input (#1540). Both callers hand
