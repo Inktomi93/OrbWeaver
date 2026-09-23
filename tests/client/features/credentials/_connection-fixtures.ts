@@ -16,12 +16,15 @@ import { routeTrpc } from "../../../support/node/route-trpc.ts";
 export type ConnectionRow = TrpcWireOutput<"connection.list">[number];
 export type CredentialRow = TrpcWireOutput<"credentials.list">[number];
 export type CatalogRead = TrpcWireOutput<"connection.catalogModels">;
-export type CatalogEntry = CatalogRead["models"][number];
+export type CatalogEntry = Extract<CatalogRead, { readonly listed: true }>["models"][number];
 
-/** The list-or-reason answer `catalogModels` gives for these rows — `listed: false` with the server's own
- *  "listed no models" reason when there are none. */
+/** The server's own reason for a list that came back empty. */
+export const NO_MODELS_LISTED = "the provider listed no models";
+
+/** The list-or-reason answer every catalog read gives — `listed: false` with the server's own "listed no
+ *  models" reason when there are none, and no model list on that branch. */
 export function catalogOf(models: readonly CatalogEntry[]): CatalogRead {
-  return models.length > 0 ? { listed: true, models, reason: null } : { listed: false, models: [], reason: "the provider listed no models" };
+  return models.length > 0 ? { listed: true, models: [...models] } : { listed: false, reason: NO_MODELS_LISTED };
 }
 type BindingView = TrpcWireOutput<"connection.listBindings">[number];
 type AvailabilityRow = TrpcWireOutput<"connection.providersAvailable">[number];
@@ -115,7 +118,8 @@ export interface PaneStubOptions {
   /** Replaces `connection.create`; the default builds the row from the request and appends it. */
   readonly createConnection?: TrpcResponder<"connection.create">;
   readonly catalogModels?: TrpcResponder<"connection.catalogModels">;
-  readonly listEndpointModels?: TrpcResponder<"connection.listEndpointModels">;
+  /** Replaces `connection.draftCatalogModels` — the add dialog's list for an endpoint or built-in draft. */
+  readonly draftCatalogModels?: TrpcResponder<"connection.draftCatalogModels">;
 }
 
 /** The whole Connections pane's network, stateful across an add (header). */
@@ -152,7 +156,7 @@ export async function stubConnectionsPane(page: Page, opts: PaneStubOptions = {}
     "credentials.add": opts.addCredential ?? mintCredential,
     "connection.create": opts.createConnection ?? createConnection,
     "connection.catalogModels": opts.catalogModels ?? catalogOf([]),
-    "connection.listEndpointModels": opts.listEndpointModels ?? { listed: false, models: [], reason: "the endpoint listed no models" },
+    "connection.draftCatalogModels": opts.draftCatalogModels ?? catalogOf([]),
     "connection.useForEverything": [],
   });
 }

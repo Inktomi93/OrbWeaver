@@ -3,7 +3,7 @@
 
 import type { ResolvedSecret } from "@orb/contracts/credentials";
 import type { Principal } from "@orb/contracts/identity";
-import type { BindingActorKind, ConnectionBinding, ModelCatalogEntry, ProviderDef, ProviderId, RoutableTask, UserConnection } from "@orb/contracts/inference";
+import type { BindingActorKind, ConnectionBinding, ProviderDef, ProviderId, RoutableTask, UserConnection } from "@orb/contracts/inference";
 import type { StructuredOutputVehicle } from "@orb/contracts/role-clients";
 import type { AutomationRuleId, PluginId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { z } from "zod";
@@ -54,16 +54,30 @@ export type ReachabilityProbe = (args: {
 
 const endpointModelSchema = z.object({ id: z.string(), contextLength: z.number().nullable() });
 export type EndpointModel = z.infer<typeof endpointModelSchema>;
-
-/** One `catalogs.models` read: the rows the provider listed, and — when a `url` list came back empty because
- *  its fetch failed — the fetch's own reason, so the pane can tell a failed list from an empty one. */
-export interface CatalogRead {
-  readonly models: readonly ModelCatalogEntry[];
-  readonly failure: string | null;
-}
 export const endpointModelsSchema = z.array(endpointModelSchema) satisfies z.ZodType<EndpointModel[]>;
 
 export type RoleClientsFor = (funder: Principal, actor?: BindingActor) => RoleClientsWithSignal;
+
+/** One catalog mirror warm: the value it now holds, or why the live fetch failed, already scrubbed of the
+ *  secrets that warm dialed with. Every caller coalesced onto one warm shares this one answer, so the reason is
+ *  scrubbed where the secret is known, never by a later reader. The resolve path degrades on `ok: false`; the
+ *  model-list read reports the reason as its `listed: false` reason. */
+export type MirrorWarm<T> = { readonly ok: true; readonly value: T } | { readonly ok: false; readonly reason: string };
+
+/** The secret a model-list read dials with: the CALLER's saved credential by id (re-read through the credentials
+ *  domain, never hand-minted), or a raw key typed into a draft that has not been saved yet. */
+export type CatalogSecret = { readonly credentialId: UserCredentialId | null } | { readonly key: string };
+
+/** A model-list read for a connection that may not exist yet. A saved row reads through the same shape, so
+ *  there is one catalog read. `baseUrl` is an `auth: endpoint` row's own server; a hosted provider's fixed URL
+ *  wins over it. */
+export interface CatalogDraft {
+  readonly principal: Principal;
+  readonly providerId: ProviderId;
+  readonly secret: CatalogSecret;
+  readonly baseUrl: string | null;
+  readonly headers?: Readonly<Record<string, string>> | undefined;
+}
 
 export interface InferenceLog {
   readonly debug: (fields: Readonly<Record<string, unknown>>, message: string) => void;

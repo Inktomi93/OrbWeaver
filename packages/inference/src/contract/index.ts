@@ -59,7 +59,6 @@ export type {
   GenerationCostRequest,
   InspectRequest,
   ListModelsRequest,
-  ListModelsResult,
   ProbeRequest,
   ProviderDiagnostics,
   VerifyAuthRequest,

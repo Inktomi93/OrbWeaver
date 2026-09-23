@@ -11,21 +11,22 @@ import type {
   EmbeddingCapability,
   GenerationCapability,
   ModelCatalogEntry,
+  ModelListing,
   ProviderAvailability,
   ProviderDef,
   SendAvailability,
   Task,
   UserConnection,
 } from "@orb/contracts/inference";
-import { agentSdkModelSchema, connectionTasks, modelCatalogEntrySchema, providerIdSchema } from "@orb/contracts/inference";
+import { agentSdkModelSchema, connectionTasks, modelCatalogEntrySchema } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
-import type { UserCredentialId, UserId } from "@orb/kit/ids";
 import { z } from "zod";
-import { resolvedScrubSet } from "./backends/kit/sanitize.ts";
+import { NO_PROVIDER_SECRETS, resolvedScrubSet } from "./backends/kit/sanitize.ts";
 import type { LocalLightBackend } from "./backends/local-light/index.ts";
-import { curatedIdsFor, curatedKind } from "./capability/sources/curated/loader.ts";
+import { curatedKind } from "./capability/sources/curated/loader.ts";
 import type { SynthesizedCapability } from "./capability/synthesize.ts";
 import { fetchEndpointModels } from "./catalog/endpoint.ts";
+import { builtinCatalog, createCatalogListing } from "./catalog/listing.ts";
 import type { Mirror, MirrorDeps } from "./catalog/mirror.ts";
 import { createMirror } from "./catalog/mirror.ts";
 import { fetchOpenRouterCatalog } from "./catalog/openrouter.ts";
@@ -33,7 +34,7 @@ import type { ProviderExecutor } from "./contract/backend.ts";
 import type { ProviderDiagnostics } from "./contract/diagnostics.ts";
 import { ProviderError } from "./contract/errors.ts";
 import type { ResolvedChatKnobs, ResolvedEmbedKnobs } from "./contract/resolve.ts";
-import type { CatalogRead, EndpointModel, ProviderOrigin, RoleClientsFor } from "./contract/runtime.ts";
+import type { CatalogDraft, EndpointModel, MirrorWarm, ProviderOrigin, RoleClientsFor, SpawnIdentity } from "./contract/runtime.ts";
 import { endpointModelsSchema } from "./contract/runtime.ts";
 import type { InferenceDeps } from "./deps.ts";
 import { resolveChat } from "./funnel/resolve-chat.ts";
@@ -70,7 +71,7 @@ export { localLightEmbedSpaceTag } from "./backends/local-light/model-cache.ts";
 export { curatedKind } from "./capability/sources/curated/loader.ts";
 export * from "./contract/index.ts";
 export type { ResolvedWarning } from "./contract/resolve.ts";
-export type { CatalogRead, ProviderOrigin, RoleClientsFor } from "./contract/runtime.ts";
+export type { ProviderOrigin, RoleClientsFor } from "./contract/runtime.ts";
 export type { BindingActor, BindingStore, ConnectionStore, InferenceDeps, InferenceLog, ProviderStore, SnapshotStore, SpanFn } from "./deps.ts";
 // `resolveCarryReasoning` is exported BESIDE the whole funnel because the chat engine needs exactly one of
 // its answers BEFORE the first wire call: the `conversation` rung materializes prior thinking at the
@@ -115,20 +116,10 @@ export interface InferenceRuntime {
   };
   readonly roleClientsFor: RoleClientsFor;
   readonly catalogs: {
-    /** What a connection's provider can pick — strategy = `PROVIDER.catalog`: `url` reads the provider's
-     *  fixed list (OpenRouter's enriched catalog, the daemon's aliases) or the CONNECTION's own `/v1/models`;
-     *  `builtin` lists the curated rows. `failure` says why a `url` list came back empty (a failed fetch),
-     *  `null` when the list was read — an empty read list is the pane's typed-id fallback (§7.4). */
-    readonly models: (args: { readonly connection: UserConnection; readonly principal: Principal }) => Promise<CatalogRead>;
-    /** The pane's SERVER-SIDE `GET <baseUrl>/v1/models` for an endpoint row being AUTHORED (no row yet): a
-     *  saved credential (by id, the caller's) or a raw draft key; the deployment's egress guard judges the dial. */
-    readonly endpoint: (args: {
-      readonly baseUrl: string;
-      readonly ownerId: UserId;
-      readonly credentialId?: UserCredentialId | undefined;
-      readonly key?: string | undefined;
-      readonly headers?: Readonly<Record<string, string>> | undefined;
-    }) => Promise<readonly ModelCatalogEntry[]>;
+    /** What a provider can list, for a connection being authored or a saved row read through the same draft
+     *  (`catalog/listing.ts` owns the strategy arms). A failed or empty list is `listed: false` with its reason —
+     *  the pane's typed-id fallback (§7.4); a credential the caller does not hold is a thrown refusal. */
+    readonly models: (draft: CatalogDraft) => Promise<ModelListing>;
     /** A `builtin` provider's closed model set (the curated rows), or `null` for a `url` provider, whose list
      *  can lag the provider and so admits a typed id. The write seam refuses an id outside a closed set. */
     readonly builtin: (providerId: string) => readonly ModelCatalogEntry[] | null;
@@ -151,40 +142,6 @@ export interface InferenceRuntime {
   /** The in-process tier's handles for the composition root: the boot prefetch (`start` with the slots that
    *  ACTUALLY resolved, §8.3), the alpha-matte op imagery binds narrowly, and the active embed-space tag. */
   readonly localLight: Pick<LocalLightBackend, "prefetch" | "matte" | "embedSpace">;
-}
-
-/** The BYO row a DRAFT endpoint key is resolved under (§7.4 `listEndpointModels`): there is no connection yet, so
- *  no provider id — the draft is judged exactly as a `custom-openai` row would be. */
-const CUSTOM_OPENAI_PROVIDER_ID = providerIdSchema.parse("custom-openai");
-
-function catalogEntryOf(id: string, contextLength: number | null): ModelCatalogEntry {
-  return {
-    id,
-    name: id,
-    contextLength,
-    promptPrice: null,
-    completionPrice: null,
-    cacheReadPrice: null,
-    cacheWritePrice: null,
-    inputModalities: [],
-    outputModalities: [],
-    supportedParameters: [],
-    maxCompletionTokens: null,
-    reasoning: null,
-  };
-}
-
-/** A mirror's current list as a catalog read: its rows when warm, else nothing plus why the warm failed. */
-function mirrorRead<T>(mirror: Mirror<T>, entries: (value: T) => readonly ModelCatalogEntry[]): CatalogRead {
-  const value = mirror.get();
-  return value === null ? { models: [], failure: mirror.failure() ?? "the model list did not answer" } : { models: entries(value), failure: null };
-}
-
-function builtinCatalog(provider: ProviderDef): readonly ModelCatalogEntry[] {
-  return curatedIdsFor(provider.id).map((id) => {
-    const kind = curatedKind({ model: id, providerId: provider.id, wire: provider.wire });
-    return { ...catalogEntryOf(id, null), ...(kind !== undefined ? { kind } : {}) };
-  });
 }
 
 function requireProvider(registry: ProviderRegistry, providerId: string): ProviderDef {
@@ -256,8 +213,11 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
     }
     return row.baseUrl;
   };
+  // The OpenRouter catalog is keyless: nothing secret rides the dial, so nothing is scrubbed from its reason.
+  const warmOpenRouterCatalog = (): Promise<MirrorWarm<ModelCatalogEntry[]>> =>
+    openRouterCatalog.warm(() => fetchOpenRouterCatalog({ fetch: fetchImpl, baseUrl: openRouterBaseUrl() }), NO_PROVIDER_SECRETS);
   const warmOpenRouter = async (): Promise<void> => {
-    await openRouterCatalog.warm(() => fetchOpenRouterCatalog({ fetch: fetchImpl, baseUrl: openRouterBaseUrl() }));
+    await warmOpenRouterCatalog();
   };
   const warmEndpoint = async (connection: UserConnection, provider: ProviderDef, secret: string | null): Promise<void> => {
     const baseUrl = provider.baseUrl ?? connection.baseUrl;
@@ -265,23 +225,21 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
       return;
     }
     const secrets = resolvedScrubSet({ credential: { secret }, transport: connection.transport });
-    await endpointModels(baseUrl).warm(() => fetchEndpointModels({ fetch: fetchImpl, baseUrl, secret, headers: connection.transport?.headers, secrets }));
+    await endpointModels(baseUrl).warm(
+      () => fetchEndpointModels({ fetch: fetchImpl, baseUrl, secret, headers: connection.transport?.headers, secrets }),
+      secrets,
+    );
   };
-  // The daemon runs under the USER's token: the secret is re-read by id (never hand-minted — `ResolvedSecret`
-  // is branded at the credentials domain) and the spawn identity is the row's owner.
-  const warmAgentSdk = async (connection: UserConnection): Promise<void> => {
-    const backend = built.agentSdk;
-    if (backend === undefined) {
-      return;
-    }
-    await agentSdkCatalog.warm(async () => {
-      const credential = await deps.resolveCredential({
-        credentialId: connection.credentialId,
-        ownerId: connection.ownerId,
-        providerId: connection.providerId,
-      });
-      return await backend.catalog({ ownerId: connection.ownerId, credential });
-    });
+  // The daemon runs under the USER's token (`identity.credential`, re-read by id through the credentials door,
+  // never hand-minted), and the warm's failure reason is scrubbed of that same token.
+  const agentSdkBackend = built.agentSdk;
+  const warmAgentSdkCatalog =
+    agentSdkBackend === undefined
+      ? undefined
+      : (identity: SpawnIdentity): Promise<MirrorWarm<AgentSdkModel[]>> =>
+          agentSdkCatalog.warm(() => agentSdkBackend.catalog(identity), resolvedScrubSet({ credential: identity.credential, transport: null }));
+  const warmAgentSdk = async (identity: SpawnIdentity): Promise<void> => {
+    await warmAgentSdkCatalog?.(identity);
   };
 
   const ctx: ResolverContext = { deps, registry, openRouterCatalog, endpointModels, agentSdkCatalog, warmOpenRouter, warmEndpoint, warmAgentSdk };
@@ -299,35 +257,14 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
     return connection;
   };
 
-  const catalogModels = async (args: { readonly connection: UserConnection; readonly principal: Principal }): Promise<CatalogRead> => {
-    const { connection, principal } = args;
-    requireOwned(connection, principal);
-    const provider = requireProvider(registry, connection.providerId);
-    if (provider.catalog === "builtin") {
-      return { models: builtinCatalog(provider), failure: null };
-    }
-    if (provider.dialect === "openrouter") {
-      await warmOpenRouter();
-      return mirrorRead(openRouterCatalog, (rows) => rows);
-    }
-    const credential = await deps.resolveCredential({ credentialId: connection.credentialId, ownerId: connection.ownerId, providerId: provider.id });
-    if (provider.wire === "agent-sdk") {
-      await warmAgentSdk(connection);
-      return mirrorRead(agentSdkCatalog, (rows) => rows.map((row) => ({ ...catalogEntryOf(row.alias, null), name: row.displayName })));
-    }
-    if (provider.wire === "anthropic-messages") {
-      // No mirror: the anthropic backend's `listModels` is a plain authenticated read the pane calls directly,
-      // and it answers `listed: false` for any refusal (its own header), so an unlisted answer is a failure.
-      const resolved = await resolveTask(ctx, { task: "chat", principal, connectionId: connection.id });
-      const answer = await diagnostics.listModels({ connection: resolved.resolved });
-      return { models: answer.models, failure: answer.listed ? null : `${provider.label} did not answer its model list` };
-    }
-    await warmEndpoint(connection, provider, credential.secret);
-    const baseUrl = provider.baseUrl ?? connection.baseUrl;
-    return baseUrl === null
-      ? { models: [], failure: null }
-      : mirrorRead(endpointModels(baseUrl), (rows) => rows.map((row) => catalogEntryOf(row.id, row.contextLength)));
-  };
+  const catalogModels = createCatalogListing({
+    registry,
+    resolveCredential: deps.resolveCredential,
+    fetch: fetchImpl,
+    warmOpenRouter: warmOpenRouterCatalog,
+    warmAgentSdk: warmAgentSdkCatalog,
+    listModels: diagnostics.listModels,
+  });
 
   return {
     resolve: (args) => resolveTask(ctx, args),
@@ -361,16 +298,6 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
       builtin: (providerId): readonly ModelCatalogEntry[] | null => {
         const provider = requireProvider(registry, providerId);
         return provider.catalog === "builtin" ? builtinCatalog(provider) : null;
-      },
-      endpoint: async (args): Promise<readonly ModelCatalogEntry[]> => {
-        const secret =
-          args.key ??
-          (args.credentialId === undefined
-            ? null
-            : (await deps.resolveCredential({ credentialId: args.credentialId, ownerId: args.ownerId, providerId: CUSTOM_OPENAI_PROVIDER_ID })).secret);
-        const secrets = resolvedScrubSet({ credential: { secret }, transport: args.headers === undefined ? null : { headers: args.headers } });
-        const rows = await fetchEndpointModels({ fetch: fetchImpl, baseUrl: args.baseUrl, secret, headers: args.headers, secrets });
-        return rows.map((row) => catalogEntryOf(row.id, row.contextLength));
       },
       refresh: async (providerId): Promise<{ readonly models: number | null }> => {
         const provider = requireProvider(registry, providerId);

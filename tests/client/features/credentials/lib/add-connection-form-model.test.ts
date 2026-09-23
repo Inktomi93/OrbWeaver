@@ -39,7 +39,8 @@ test("the subscription's missing-token message names the command it asks the use
 test("a hosted draft's typed-model reason points at the saved-key action by its exact label", () => {
   expect(draftModelReason(builtin("openrouter"))).toContain(`“${addModelActionLabel("key")}”`);
   expect(draftModelReason(builtin("claude-sub"))).toContain("as Claude subscription spells it");
-  expect(draftModelReason(builtin("local-light"))).toContain(`“${addModelActionLabel("builtin")}”`);
+  // The built-in provider lists in the dialog itself, so its reason points at no menu a new user lacks.
+  expect(draftModelReason(builtin("local-light"))).toBe("Pick one of the models Built-in (this device) runs.");
   expect(draftModelReason(builtin("vllm"))).toBe("Type the model id your server serves, or list them from the URL above.");
 });
 

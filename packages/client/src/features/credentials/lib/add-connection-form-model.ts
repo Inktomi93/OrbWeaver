@@ -65,13 +65,13 @@ const KEYED_DRAFT_REASON = (provider: ProviderDef): string =>
   `Type the model id as ${provider.label} spells it. Once the connection is added, “${addModelActionLabel("key")}” in its menu lists the models the key can use.`;
 
 /** Why the dialog offers a typed model id before any list is read, per auth kind. The add dialog has no
- *  catalog read for a hosted or built-in draft, so it names the saved-connection action that has one. */
+ *  catalog read for a hosted draft, so it names the saved-connection action that has one. A keyless draft
+ *  lists as soon as its provider is picked, so its reason is only the list's own. */
 const DRAFT_MODEL_REASONS: Record<ProviderAuth, (provider: ProviderDef) => string> = {
   endpoint: () => "Type the model id your server serves, or list them from the URL above.",
   apiKey: KEYED_DRAFT_REASON,
   oauthToken: KEYED_DRAFT_REASON,
-  none: () =>
-    `Built-in models are picked from their list, and this dialog has none to show. Use “${addModelActionLabel("builtin")}” in a built-in connection's menu.`,
+  none: (provider) => `Pick one of the models ${provider.label} runs.`,
 };
 
 export function draftModelReason(provider: ProviderDef): string {
@@ -125,10 +125,11 @@ export const CONNECTION_FORM_COPY = {
   submitFailed: "Couldn't submit the connection.",
 } as const;
 
-/** The draft an endpoint list answer is ABOUT (#1502: a verdict must carry the inputs it was taken for, so an
- *  edited URL or key retires it in the same commit). */
-export function draftKeyOf(baseUrl: string, keyValue: string): string {
-  return JSON.stringify([baseUrl.trim(), keyValue.trim()]);
+/** The draft a model-list answer is ABOUT (#1502: a verdict must carry the inputs it was taken for, so an
+ *  edited provider, URL or key retires it in the same commit). The provider is part of it because the list is
+ *  read under that provider, and a saved key opens only under the provider it was saved for. */
+export function draftKeyOf(draft: Pick<AddConnectionFormValues, "providerId" | "baseUrl" | "key">): string {
+  return JSON.stringify([draft.providerId, draft.baseUrl.trim(), draft.key.trim()]);
 }
 
 /** Whether two drafts are the same, field for field — a failure statement stands only for the draft it failed. */

@@ -63,6 +63,9 @@ export interface HarnessOptions {
   readonly localLight?: boolean | undefined;
   /** The scripted local-light deployment's actual encoder precision. Omitted exercises the shipped q8 default. */
   readonly localLightEmbedDtype?: string | undefined;
+  /** The credentials door. Default: a fake that ignores the provider id; a scenario that pins the id a secret is
+   *  opened under passes the REAL credentials service's `resolve` (its AAD binds owner and provider). */
+  readonly resolveCredential?: InferenceDeps["resolveCredential"] | undefined;
 }
 
 export interface ConnectionHarness {
@@ -214,8 +217,9 @@ export async function makeHarness(db: Db, options: HarnessOptions = {}): Promise
     snapshotStore: ports.snapshotStore,
     // The secret is the credentials domain's to mint; here a row WITH a credential resolves to a keyed
     // secret (so an auth header is spellable) and a keyless row keeps the domain's `none` kind.
-    resolveCredential: ({ credentialId }) =>
-      Promise.resolve(credentialId === null ? makeResolvedSecret() : makeResolvedSecret("apiKey", "sk-test", credentialId)),
+    resolveCredential:
+      options.resolveCredential ??
+      (({ credentialId }) => Promise.resolve(credentialId === null ? makeResolvedSecret() : makeResolvedSecret("apiKey", "sk-test", credentialId))),
     structuredOutputVehicle: (): "auto" => "auto",
     connections: ports.connections,
     bindings: ports.bindings,

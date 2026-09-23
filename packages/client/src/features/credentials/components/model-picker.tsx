@@ -74,6 +74,8 @@ const RECENT_VALUE_PREFIX = "recent:";
 /** Two values that name no row. cmdk re-reads a controlled `value` only when the prop CHANGES, and moves its
  *  own selection to the first row on every search; alternating these re-asserts "nothing highlighted". */
 const NO_ROW_VALUES = ["orb:no-row:0", "orb:no-row:1"] as const;
+/** No list yet: one array, so the search index keyed on its identity is not rebuilt per render. */
+const NO_MODELS: readonly ModelCatalogEntry[] = [];
 
 /** The model id a highlight names (a Recent row's value carries a prefix). */
 function modelIdOf(highlight: string): string {
@@ -309,18 +311,20 @@ function usePickerView(args: {
   readonly recentEntries: readonly PickerEntry[];
   readonly showChips: boolean;
 } {
-  const pool = (args.models ?? []).map(pickerEntryOf);
-  const poolById = new Map(pool.map((entry) => [entry.id, entry] as const));
+  const models = args.models ?? NO_MODELS;
+  const pool = models.map(pickerEntryOf);
   const showChips = offersCapabilityChips(pool);
-  const chipFiltered = showChips ? filterByChips(pool, args.chips) : pool;
-  // An empty query bypasses the fuzzy result (minisearch returns nothing for "") and shows the pool directly.
+  // The search runs over the SOURCE's own array, never one derived here: the index is cached on the array's
+  // identity, and the React Compiler does not keep a derived pool across renders, so a derived array rebuilt the
+  // index on every keystroke. The chip filter applies to the matches instead, with no result cap before it.
   const deferredQuery = useDeferredValue(args.term);
-  const matched = useFuzzySearch(chipFiltered, deferredQuery, { fields: ["label", "id"] });
-  const searched = deferredQuery.trim() === "" ? chipFiltered : matched;
-  const recentEntries = resolveRecentEntries(args.recentIds, poolById, args.term.trim() === "");
+  const matched = useFuzzySearch(models, deferredQuery, { fields: ["name", "id"], limit: models.length });
+  const searched = deferredQuery.trim() === "" ? pool : matched.map(pickerEntryOf);
+  const chipFiltered = showChips ? filterByChips(searched, args.chips) : searched;
+  const recentEntries = resolveRecentEntries(args.recentIds, new Map(pool.map((entry) => [entry.id, entry] as const)), args.term.trim() === "");
   const inRecent = new Set(recentEntries.map((entry) => entry.id));
   const grouped = groupModelEntries(
-    searched.filter((entry) => !inRecent.has(entry.id)),
+    chipFiltered.filter((entry) => !inRecent.has(entry.id)),
     { unprefixedHeading: args.listOwner, query: deferredQuery, pinnedIds: args.pinnedIds, sectioned: hasMultiModelVendor(pool) },
   );
   return { groups: grouped.groups, overflow: grouped.overflow, recentEntries, showChips };

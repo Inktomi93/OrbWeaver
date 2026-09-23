@@ -79,8 +79,8 @@ test("a row's label is its name, or its id when the list carries no name", () =>
 
 test("a list read's listed:false answer is the failed arm carrying the server's reason and the retry", () => {
   const retry = (): void => undefined;
-  expect(modelListSource({ listed: true, models: MODELS, reason: null }, retry)).toEqual(LISTED);
-  expect(modelListSource({ listed: false, models: [], reason: "connect ECONNREFUSED" }, retry)).toEqual({
+  expect(modelListSource({ listed: true, models: [...MODELS] }, retry)).toEqual(LISTED);
+  expect(modelListSource({ listed: false, reason: "connect ECONNREFUSED" }, retry)).toEqual({
     status: "failed",
     reason: "connect ECONNREFUSED",
     retry,

@@ -26,6 +26,7 @@ import {
   ALL_AVAILABLE,
   AUTHORING_ARMS,
   catalogEntry,
+  catalogOf,
   connectionRow,
   dialogNamed,
   expectInsideViewport,
@@ -144,7 +145,7 @@ test("a partial failure says the key IS saved and the connection is NOT, and the
 test("a keyed endpoint's partial-failure retry keeps the list and saves the listed pick as listed", async ({ mount, page }) => {
   const trpc = await stubConnectionsPane(page, {
     createConnection: failFirstCreate(),
-    listEndpointModels: { listed: true, models: [catalogEntry("Qwen/Qwen3-32B"), catalogEntry("Qwen/Qwen3-8B")], reason: null },
+    draftCatalogModels: catalogOf([catalogEntry("Qwen/Qwen3-32B"), catalogEntry("Qwen/Qwen3-8B")]),
   });
   const component = await mount(<ConnectionsAuthoringStory width={870} />);
   const dialog = await openAddDialog(page);
@@ -161,9 +162,12 @@ test("a keyed endpoint's partial-failure retry keeps the list and saves the list
   await expect(dialog.getByRole("option", { name: "Qwen/Qwen3-8B" })).toHaveCount(1);
   await expect(dialog.getByRole("status").filter({ hasText: "Picked:" })).toHaveText("Picked: Qwen/Qwen3-8B");
   await expect(component.getByTestId("held-secrets")).toHaveText("0");
-  // A re-list now names the SAVED key by id — dialing without it would be a 401 read as "no models".
+  // A re-list now names the SAVED key by id, under the provider it was saved for — dialing without it would be a
+  // 401 read as "no models", and under another provider the key would not open.
   await dialog.getByRole("button", { name: "List models" }).click();
-  await expect.poll(() => trpc.lastInput("connection.listEndpointModels")).toEqual({ baseUrl: VLLM_URL, credentialId: "user_credential_ctminted001" });
+  await expect
+    .poll(() => trpc.lastInput("connection.draftCatalogModels"))
+    .toEqual({ providerId: "vllm", baseUrl: VLLM_URL, credentialId: "user_credential_ctminted001" });
   await expect(dialog.getByRole("option", { name: "Qwen/Qwen3-32B" })).toHaveCount(1);
 
   await submit(dialog);
@@ -173,7 +177,7 @@ test("a keyed endpoint's partial-failure retry keeps the list and saves the list
 });
 
 test("a keyed endpoint add with its list read leaves no key in any mutation", async ({ mount, page }) => {
-  await stubConnectionsPane(page, { listEndpointModels: { listed: true, models: [catalogEntry("Qwen/Qwen3-8B")], reason: null } });
+  await stubConnectionsPane(page, { draftCatalogModels: catalogOf([catalogEntry("Qwen/Qwen3-8B")]) });
   const component = await mount(<ConnectionsAuthoringStory width={870} />);
   const dialog = await openAddDialog(page);
   await pickProvider(page, dialog, "vLLM");
@@ -416,11 +420,9 @@ test("a subscription added with background work off is refused inline by the Uti
 test("an endpoint lists its models and the pick is saved as listed; a failed list falls back to a typed id saved unlisted", async ({ mount, page }) => {
   let lists = 0;
   const trpc = await stubConnectionsPane(page, {
-    listEndpointModels: () => {
+    draftCatalogModels: () => {
       lists += 1;
-      return lists === 1
-        ? { listed: true, models: [catalogEntry("Qwen/Qwen3-32B"), catalogEntry("Qwen/Qwen3-8B")], reason: null }
-        : { listed: false, models: [], reason: "connect ECONNREFUSED" };
+      return lists === 1 ? catalogOf([catalogEntry("Qwen/Qwen3-32B"), catalogEntry("Qwen/Qwen3-8B")]) : { listed: false, reason: "connect ECONNREFUSED" };
     },
   });
   await mount(<ConnectionsAuthoringStory width={870} />);
@@ -456,38 +458,29 @@ test("an endpoint lists its models and the pick is saved as listed; a failed lis
   await expect.poll(() => trpc.lastInput("connection.create")).toMatchObject({ model: "Qwen/Qwen3-32B-AWQ", modelListed: false });
 });
 
-test("the built-in provider refuses a typed id in the add dialog and points at its row's built-in picker", async ({ mount, page }) => {
+// THE BUILT-IN PROVIDER LISTS WHAT THIS DEVICE RUNS. Its catalog is closed, so the dialog reads it the moment
+// the provider is picked (keyless, no URL) and offers only that list — never a typed id, and never a pointer at
+// a row menu a first-time user does not have.
+test("the built-in provider lists the models this device runs as soon as it is picked, and the pick is saved as listed", async ({ mount, page }) => {
   const trpc = await stubConnectionsPane(page, {
-    connections: [
-      connectionRow({
-        id: "user_connection_ctauthor0002",
-        label: "Built-in (this device) · jinaai/jina-clip-v2",
-        providerId: "local-light",
-        providerLabel: "Built-in (this device)",
-        credentialId: null,
-        model: "jinaai/jina-clip-v2",
-        tasks: ["embed"],
-      }),
-    ],
+    draftCatalogModels: catalogOf([catalogEntry("jinaai/jina-clip-v2"), catalogEntry("Xenova/bge-reranker-base")]),
   });
   await mount(<ConnectionsAuthoringStory width={870} />);
   const dialog = await openAddDialog(page);
   await pickProvider(page, dialog, "Built-in (this device)");
+
+  await expect.poll(() => trpc.inputs("connection.draftCatalogModels")).toEqual([{ providerId: "local-light" }]);
   await expect(dialog.getByLabel(/API key|Setup token/)).toHaveCount(0);
   await expect(dialog.getByRole("textbox", { name: "Model" })).toHaveCount(0);
-  await expect(
-    dialog.getByText(
-      "Built-in models are picked from their list, and this dialog has none to show. Use “Add another built-in model” in a built-in connection's menu.",
-    ),
-  ).toBeVisible();
+  await expect(dialog.getByText(/menu/)).toHaveCount(0);
+  await dialog.getByRole("option", { name: "jinaai/jina-clip-v2" }).click();
   await submit(dialog);
-  await expect(dialog.getByRole("alert")).toHaveText("Pick a model or type its id.");
-  await expect.poll(() => trpc.count("connection.create")).toBe(0);
-  await dialog.getByRole("button", { name: "Cancel" }).click();
-  await expect(dialog).toBeHidden();
 
-  await openRowMenu(page, "Built-in (this device) · jinaai/jina-clip-v2");
-  await expect(page.getByRole("menuitem", { name: /Add another built-in model/ })).toBeVisible();
+  await expect(dialog).toBeHidden();
+  expect(trpc.count("credentials.add")).toBe(0);
+  await expect
+    .poll(() => trpc.lastInput("connection.create"))
+    .toMatchObject({ providerId: "local-light", credentialId: null, baseUrl: null, model: "jinaai/jina-clip-v2", modelListed: true });
 });
 
 // ── the state matrix, at the two settings-body widths and a phone ───────────────────────────────────────
@@ -499,7 +492,7 @@ for (const { arm, width, device } of AUTHORING_ARMS) {
     test(`${arm}: loading — key storage is checked first, then the model list shows skeleton rows while it loads`, async ({ mount, page }) => {
       const storage = trpcHold();
       const listing = trpcHold();
-      await stubConnectionsPane(page, { storageStatus: storage, listEndpointModels: listing });
+      await stubConnectionsPane(page, { storageStatus: storage, draftCatalogModels: listing });
       await mount(<ConnectionsAuthoringStory width={width} />);
       const dialog = await openAddDialog(page);
       await expect(dialog.getByText("Checking key storage…")).toBeVisible();
@@ -520,7 +513,7 @@ for (const { arm, width, device } of AUTHORING_ARMS) {
       expect(skeleton?.width ?? 0).toBeGreaterThan(0);
       await expect(dialog.getByRole("status").filter({ hasText: /result/ })).toHaveCount(0);
       await expectInsideViewport(page, dialog);
-      listing.release({ listed: true, models: [catalogEntry("Qwen/Qwen3-32B")], reason: null });
+      listing.release(catalogOf([catalogEntry("Qwen/Qwen3-32B")]));
       await expect(dialog.getByRole("option", { name: "Qwen/Qwen3-32B" })).toBeVisible();
       // …and the caret moves to the search box the list arrived with.
       await expect(dialog.getByRole("combobox", { name: "Search 127.0.0.1:8000 models" })).toBeFocused();
@@ -535,7 +528,7 @@ for (const { arm, width, device } of AUTHORING_ARMS) {
       await dialog.getByLabel("Server URL", { exact: true }).fill("http://127.0.0.1:11434/v1");
       await dialog.getByRole("button", { name: "List models" }).click();
       await expect(dialog.getByRole("textbox", { name: "Model" })).toHaveAccessibleDescription(
-        "Couldn't list 127.0.0.1:11434's models — the endpoint listed no models. Type the id; it'll be sent as-is.",
+        "Couldn't list 127.0.0.1:11434's models — the provider listed no models. Type the id; it'll be sent as-is.",
       );
       await expectInsideViewport(page, dialog);
     });

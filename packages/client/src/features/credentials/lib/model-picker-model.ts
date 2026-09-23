@@ -2,15 +2,15 @@
 // copy)", §7.4 for the policy). Ported from the picker the inference cut-over deleted: the render cap spent
 // across provider groups, price and context formatting, the Vision/Tools chip filter and the Recent-pool
 // resolve. Beside those, the picker's INPUT: it never reads a catalog itself — its caller hands it a
-// `ModelCatalogSource` (loading · listed · failed · unlisted), so the saved-key path (`connection.catalogModels`),
-// the endpoint draft (`connection.listEndpointModels`) and any later draft read feed one control through one
-// shape. The device-local Recent MRU's persistence lives in `state/recent-models-store.ts`.
+// `ModelCatalogSource` (loading · listed · failed · unlisted), so the saved-key path (`connection.catalogModels`)
+// and the draft read (`connection.draftCatalogModels`, an endpoint or the built-in provider) feed one control
+// through one shape. The device-local Recent MRU's persistence lives in `state/recent-models-store.ts`.
 //
 // THE TYPED-ID POLICY IS THE PROVIDER'S CATALOG STRATEGY (§7.4). A `url` catalog is a fetched list that can lag
 // the provider, so a typed id is always offered beside it and saved `modelListed: false`. A `builtin` catalog
 // IS the set the in-process runtime can run, so a typed id there names a model nothing can load.
 
-import type { ModelCatalogEntry, ProviderDef } from "@orb/contracts/inference";
+import type { ModelCatalogEntry, ModelListing, ProviderDef } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
 
 /** Where the picker's models come from, as the caller last saw it. `unlisted` is a source with no list to
@@ -423,14 +423,11 @@ export function failedCatalogSource(error: unknown, retry: (() => void) | null):
   return { status: "failed", reason: errorMessage(error), retry };
 }
 
-/** A model-list read (`catalogModels` or `listEndpointModels`) as a source. Neither verb throws for a list
+/** A model-list read (`catalogModels` or `draftCatalogModels`) as a source. Neither verb throws for a list
  *  that failed or came back empty: each answers `listed: false` with the reason, which is the failed arm with
  *  the typed field and the retry beside it. */
-export function modelListSource(
-  result: { readonly listed: boolean; readonly models: readonly ModelCatalogEntry[]; readonly reason: string | null },
-  retry: (() => void) | null,
-): ModelCatalogSource {
-  return result.listed ? { status: "listed", models: result.models } : { status: "failed", reason: result.reason ?? "no answer", retry };
+export function modelListSource(result: ModelListing, retry: (() => void) | null): ModelCatalogSource {
+  return result.listed ? { status: "listed", models: result.models } : { status: "failed", reason: result.reason, retry };
 }
 
 /** The model field's required-value message, shared by every form that writes a connection's model. */

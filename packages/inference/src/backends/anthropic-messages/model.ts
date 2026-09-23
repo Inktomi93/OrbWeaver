@@ -32,7 +32,7 @@ export interface AnthropicCall {
   readonly chatId?: ChatId | undefined;
 }
 
-export function anthropicBaseUrl(connection: Resolved, label: string): string {
+export function anthropicBaseUrl(connection: Pick<Resolved, "baseUrl">, label: string): string {
   if (connection.baseUrl === null) {
     throw new ProviderError({ kind: "invalid", retryable: false, message: `${label}: the connection carries no base URL` });
   }

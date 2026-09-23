@@ -9,7 +9,7 @@ import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
 
 type ConnectionView = inferOutput<Trpc["connection"]["get"]>;
-type EndpointModels = inferOutput<Trpc["connection"]["listEndpointModels"]>;
+type DraftModelListing = inferOutput<Trpc["connection"]["draftCatalogModels"]>;
 type CredentialView = inferOutput<Trpc["credentials"]["add"]>;
 
 const connectionReads = (trpc: Trpc): ReturnType<Trpc["connection"]["pathFilter"]>[] => [trpc.connection.pathFilter()];
@@ -58,15 +58,16 @@ export const useUseForEverything = createEntityMutation<inferInput<Trpc["connect
   errorToast: "Couldn't apply that connection to your roles.",
 });
 
-/** The SERVER-SIDE `GET <baseUrl>/v1/models` for an endpoint row being authored (§7.4). A failed dial is the
- *  typed-id fallback WITH its reason and never throws; what does throw is a refusal before the dial (a URL that
- *  is not http(s), a private address this deployment does not admit, a key that is not the caller's), which
- *  the toast names while the picker shows the same message inline. */
-export const useListEndpointModels = createEntityMutation<inferInput<Trpc["connection"]["listEndpointModels"]>, EndpointModels>({
+/** The add dialog's model list for a draft that has no row yet (§7.4): an endpoint's SERVER-SIDE
+ *  `GET <baseUrl>/v1/models`, or the built-in provider's own list. A failed dial is the typed-id fallback WITH
+ *  its reason and never throws; what does throw is a refusal before the dial (a URL that is not http(s), a
+ *  private address this deployment does not admit, a key that is not the caller's), which the toast names
+ *  while the picker shows the same message inline. */
+export const useDraftCatalogModels = createEntityMutation<inferInput<Trpc["connection"]["draftCatalogModels"]>, DraftModelListing>({
   // `gcTime: 0` for the same reason as `useAddCredential`: the variables can carry a draft key.
-  options: (trpc) => ({ ...trpc.connection.listEndpointModels.mutationOptions(), gcTime: 0 }),
+  options: (trpc) => ({ ...trpc.connection.draftCatalogModels.mutationOptions(), gcTime: 0 }),
   invalidates: () => [],
-  errorToast: "Couldn't list that server's models.",
+  errorToast: "Couldn't list that provider's models.",
 });
 
 /** `gcTime: 0`: the mutation cache keeps a settled mutation's VARIABLES — here the plaintext key — for the

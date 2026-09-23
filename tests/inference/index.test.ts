@@ -1,7 +1,7 @@
 // `createInferenceRuntime` — the §3.3 surface over in-memory ports: the §7.1 binding fold (actor → funder →
 // none, no born default), the owner fence (a binding naming a stranger's row is refused AND recorded), the
-// `canFund`/requirement verdicts on availability, `providers.available` with `runtime-missing`, the builtin
-// catalog for local-light, and `capabilities.for`.
+// `canFund`/requirement verdicts on availability, `providers.available` with `runtime-missing`, and
+// `capabilities.for`. The catalog read is `tests/inference/catalog/listing.test.ts`.
 //
 // The owner-fence arms are the NON-ORACLE proof: an id-taking read must answer a caller who does not own the
 // id identically whether or not a row is behind it. They probe the SAME id in both states, so any difference
@@ -220,25 +220,6 @@ test("a claude-sub binding without the runtime reads runtime-missing, not no-con
   expect(await runtime.availability({ task: "chat", principal: s.alice })).toEqual({ available: false, cause: "runtime-missing" });
 });
 
-test("catalogs.models: the builtin strategy lists the curated local-light rows with their kinds", async () => {
-  const s = scene();
-  const ids = seedLocalLight(s, s.aliceId);
-  const runtime = await createInferenceRuntime(s.deps);
-  const connection = s.stores.connections.rows.get(ids.embed);
-  if (connection === undefined) {
-    throw new Error("seeded row missing");
-  }
-  const { models, failure } = await runtime.catalogs.models({ connection, principal: s.alice });
-  expect(failure).toBeNull();
-  expect(models.map((m) => m.id)).toContain(DEFAULT_EMBED_MODEL);
-  expect(models.find((m) => m.id === DEFAULT_EMBED_MODEL)?.kind).toBe("embedding");
-  expect(models.find((m) => m.id === DEFAULT_RERANK_MODEL)?.kind).toBe("rerank");
-  // Another principal cannot list through someone else's row — and the refusal says NOTHING about the row
-  // existing (it used to answer `forbidden` / "is not the caller's", which named the row as someone's).
-  const refusal = await caught(runtime.catalogs.models({ connection, principal: s.bob }));
-  expect(refusal).toMatchObject({ kind: "invalid", message: `connection ${connection.id} not found` });
-});
-
 test("catalogs.builtin: a builtin provider answers the same closed set its rows list; a url provider has none", async () => {
   const s = scene();
   const runtime = await createInferenceRuntime(s.deps);
@@ -304,13 +285,8 @@ test("POSITIVE CONTROL — the collapse did not blunt the fence: the owner still
   const s = scene();
   const ids = seedLocalLight(s, s.aliceId);
   const runtime = await createInferenceRuntime(s.deps);
-  // The owner resolves through both id-taking belts.
+  // The owner resolves through the id-taking belt.
   expect((await runtime.capabilities.for({ connectionId: ids.embed, principal: s.alice })).capability.kind).toBe("embedding");
-  const row = s.stores.connections.rows.get(ids.embed);
-  if (row === undefined) {
-    throw new Error("seeded row missing");
-  }
-  expect((await runtime.catalogs.models({ connection: row, principal: s.alice })).models.length).toBeGreaterThan(0);
   // And `forbidden` still means what it meant — the row cannot serve the task. The two live readers of that
   // kind (`resolve/availability.ts`, `entry/compose/rpg.ts`) sit on THIS arm, never on the owner fence.
   s.stores.bindings.bind({ actorKind: "user", actorId: s.aliceId, task: "rerank", connectionId: ids.embed });
