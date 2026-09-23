@@ -330,7 +330,7 @@ function memorySegmentReceipts(rows: readonly EmbeddingSegmentRow[], results: Aw
  * D152: an in-turn tool therefore executes under the HOST Principal — there is no per-speaker authority
  * swap at this seam, so attaching a mutating tool to a non-human speak turn is zero-human host authority.
  *
- * Exported so the compose pins drive THIS adapter rather than a hand mirror of it.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
 export function buildChatToolOps(toolUse: ToolUseService, resolveHostPrincipal: (userId: UserId) => Promise<Principal>): ChatToolOps {
   // biome-ignore lint/suspicious/noExplicitAny: the opaque ChatToolSet round-trip (see the header note).
@@ -584,7 +584,9 @@ export function createRunChatTurnBridge(deps: {
 
 /** The two model-window FACTS memory reads off the funder's role clients (§7.5-1b): the summarize model's window
  *  sizes the digest token guard; the embed model's input cap bounds a segment. A task with no window is
- *  `NoConnectionError` — the honest refusal, never a default window. Exported so its pins drive this reader. */
+ *  `NoConnectionError` — the honest refusal, never a default window.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export function createTaskWindowReaders(deps: {
   readonly roleClientsFor: (funderUserId: UserId) => Promise<Pick<RoleClientsWithSignal, "resolved">>;
   readonly availability: ConnectionService["availability"];
