@@ -76,6 +76,12 @@ function resolveVehicle(format: ResponseFormat, deployment: ReturnType<Inference
   return { ...format, vehicle: facts.structured ? "response-format" : "forced-tool" };
 }
 
+/** The refusal a background task meets on a row whose owner turned background work off. One home, so a caller
+ *  that learns the cause another way tells the user the same thing the role call does. */
+export function backgroundWorkRefusal(task: Task): NoConnectionError {
+  return new NoConnectionError(`the connection bound for "${task}" does not allow background work — enable it in Connections`);
+}
+
 function providerFailureOf(err: unknown): ProviderError | null {
   let cause: unknown = err;
   const seen = new Set<unknown>();
@@ -136,7 +142,7 @@ export function createRoleClientsFor(args: {
       // The owner's per-row consent to unattended spend: a background task on a row that withholds it runs
       // nothing, and reads as the same "nothing ran" class as no binding (the callers' existing degrade).
       if (!canFund(resolved, task)) {
-        throw new NoConnectionError(`the connection bound for "${task}" does not allow background work — enable it in Connections`);
+        throw backgroundWorkRefusal(task);
       }
       return resolved as Resolved<T>;
     };
