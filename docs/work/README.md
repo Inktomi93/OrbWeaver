@@ -28,12 +28,12 @@ None.
 
 ## Blocked
 
-- [0002](0002-adr-prose-cleanup-d1-to-d60.md) P1 ADR prose cleanup D1 to D60 `doc-migration` (on 1)
-- [0003](0003-adr-prose-cleanup-d61-to-d120.md) P1 ADR prose cleanup D61 to D120 `doc-migration` (on 1)
-- [0004](0004-adr-prose-cleanup-d121-to-d163.md) P1 ADR prose cleanup D121 to D163 `doc-migration` (on 1)
 - [0012](0012-catalog-and-attestation-removal.md) P2 Catalog and attestation removal `doc-migration` (on 11)
 - [0013](0013-board-tool-removal-pnpm-work-item-and-its.md) P2 Board tool removal: pnpm work:item and its spellings `doc-migration` (on 12)
 
 ## Done
 
+- [0002](0002-adr-prose-cleanup-d1-to-d60.md) P1 ADR prose cleanup D1 to D60 `doc-migration` (c80f0bcda)
+- [0003](0003-adr-prose-cleanup-d61-to-d120.md) P1 ADR prose cleanup D61 to D120 `doc-migration` (c80f0bcda)
+- [0004](0004-adr-prose-cleanup-d121-to-d163.md) P1 ADR prose cleanup D121 to D163 `doc-migration` (c80f0bcda)
 - [0010](0010-vendored-docs-leave-git.md) P2 Vendored docs leave git `doc-migration` (220991d39)

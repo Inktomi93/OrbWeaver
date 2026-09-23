@@ -1,11 +1,11 @@
 ---
 kind: work
-status: blocked
+status: done
 updated: 2026-09-23
 priority: P1
 area: docs
-blocked: on 1
 plan: doc-migration
+evidence: c80f0bcda
 ---
 
 # ADR prose cleanup D121 to D163
