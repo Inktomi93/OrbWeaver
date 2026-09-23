@@ -1,9 +1,10 @@
 ---
 kind: decision
-status: open
+status: done
 updated: 2026-09-23
 priority: P3
 area: verify
+evidence: e08e444a186ef89a683b20715602e081407d4fb2
 ---
 
 # Decide whether the suppressions gate covers authored files outside its population roots

@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
+status: done
 updated: 2026-09-23
 priority: P3
 area: verify
+evidence: f28bc2f11ab321e1ed5bb9f25e69e492eb7dc4fc
 ---
 
 # Remove the dead chat-reading-port knip exclusion and gate literal knip negatives on file existence

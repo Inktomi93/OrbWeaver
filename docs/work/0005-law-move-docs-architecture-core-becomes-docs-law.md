@@ -1,10 +1,11 @@
 ---
 kind: work
-status: open
+status: done
 updated: 2026-09-23
 priority: P1
 area: docs
 plan: doc-migration
+evidence: 42675832e11e02d5e2e71d5634a76020f32aaa25
 ---
 
 # Law move: docs/architecture/core becomes docs/law with its citers

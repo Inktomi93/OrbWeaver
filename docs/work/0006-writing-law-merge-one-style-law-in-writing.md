@@ -1,10 +1,11 @@
 ---
 kind: work
-status: open
+status: done
 updated: 2026-09-23
 priority: P1
 area: docs
 plan: doc-migration
+evidence: 7743be9a89dd6e079547a0424b92f1967c7a0ec8
 ---
 
 # Writing-law merge: one style law in writing.md

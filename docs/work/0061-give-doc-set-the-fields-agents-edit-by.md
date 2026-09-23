@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
+status: done
 updated: 2026-09-23
 priority: P2
 area: tooling
+evidence: edda595b161a49ccca984f02ed6149edc8ee695b
 ---
 
 # Give doc set the fields agents edit by hand today

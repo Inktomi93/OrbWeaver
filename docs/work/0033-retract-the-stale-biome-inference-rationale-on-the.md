@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: done
 updated: 2026-09-23
 priority: P3
 area: contracts
+evidence: af573a067f8ec755db86069e8c3209751c638f41
 ---
 
 # Retract the stale Biome-inference rationale on the databank ingest-phase twin

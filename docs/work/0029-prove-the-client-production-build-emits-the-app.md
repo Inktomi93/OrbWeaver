@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
+status: done
 updated: 2026-09-23
 priority: P2
 area: verify
+evidence: 64af3802453f7cb9f8af18a4981bd14dd4de119c
 ---
 
 # Prove the client production build emits the app stylesheet, and ban sideEffects on the client package
