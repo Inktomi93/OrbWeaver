@@ -1576,7 +1576,7 @@ test("#1673 a draft-rewriting rule refuses Run now — and keeps every affordanc
 });
 
 // ── #886 — THE ROW WEARS THE FIELD-OVERRIDES IDIOM ─────────────────────────────────────────────────────
-// Owner ruling 2026-09-06 on side-eye `docs/reviews/side-eye/2026-08-30-this-chat-cls.md` (§5-P3-Rules and
+// Owner ruling 2026-09-06 on side-eye 2026-08-30 (§5-P3-Rules and
 // the §7 taste finding): "collapse Injections + Rules to the Field-overrides idiom". #821 did the injection
 // rows and moved this section ~800px UP the pane, into the viewport its +519px desktop / +1063px mobile
 // under-reserve had been hiding from.

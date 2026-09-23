@@ -11,8 +11,8 @@ test("no --evidence-out means no tracked deposit (behavior is unchanged without 
 });
 
 test("a relative --evidence-out lands in-repo, resolved against the root", ({ scratch }) => {
-  const resolved = resolveTrackedEvidencePath(scratch, "docs/reviews/tooling/sweep.json");
-  expect(resolved).toBe(join(scratch, "docs/reviews/tooling/sweep.json"));
+  const resolved = resolveTrackedEvidencePath(scratch, "reports/tooling/sweep.json");
+  expect(resolved).toBe(join(scratch, "reports/tooling/sweep.json"));
   expect(isAbsolute(resolved ?? "")).toBe(true);
 });
 

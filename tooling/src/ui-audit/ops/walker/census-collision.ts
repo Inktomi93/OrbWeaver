@@ -10,7 +10,7 @@
 // not a function). Provenance + attribution: ops/walker.ts.
 //
 // WHY THIS SEGMENT EXISTS — the two blind spots a whole UX review fell through (side-eye
-// docs/reviews/side-eye/2026-08-29-saved-casts-rules.md §9). At `--mobile` on the saved-casts picker the
+// 2026-08-29 §9). At `--mobile` on the saved-casts picker the
 // audit censused 420 nodes, reached 21 controls and returned ZERO P0/P1/P2 over BOTH of these, while a
 // screenshot plus hand geometry caught them immediately:
 //

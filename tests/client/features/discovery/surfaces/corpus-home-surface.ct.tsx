@@ -733,7 +733,7 @@ test("the mobile masthead STACKS rather than squeezing the headline into a colum
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════════
 // THE POPULATED ARM — the same surface at 327 characters / 896 chats (side-eye 2026-08-23,
-// docs/reviews/side-eye/2026-08-23-rail-corpus-populated.md; issues #553 #535 #536 #556 #557).
+// 2026-08-23; issues #553 #535 #536 #556 #557).
 //
 // Everything above pins the surface's COMPOSITION on a library small enough that its every list fits.
 // Everything below is a VOLUME finding — a 142-route economics table whose cost column is 141/142 null, a

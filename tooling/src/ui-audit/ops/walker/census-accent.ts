@@ -8,7 +8,7 @@
 // The census as born read `borderTopWidth/RightWidth/BottomWidth/LeftWidth` on the element and nothing
 // else, and reported `side-tab candidates=0 judged=0 affected=0 withheld() excluded()` — a clean-looking
 // zero — on the very surface carrying the §6-banned bar it exists to catch. Measured live on the config
-// landing (docs/reviews/side-eye/2026-09-02-config-surface-live-drive-2.md F12 + its Instrument Delta):
+// landing (2026-09-02 F12 + its Instrument Delta):
 // `[aria-label="Tags"]::after` = `content:""`, `background: oklch(0.72 0.175 52)`, `width: 3px`,
 // `height: 252px`, `inset: 0px 503.641px 0px 0px`, `position: absolute`, on a `border-radius: 10px` card
 // with a `1px` hairline — the textbook shape of BOTH §6 bans, invisible to a border-width read. The same

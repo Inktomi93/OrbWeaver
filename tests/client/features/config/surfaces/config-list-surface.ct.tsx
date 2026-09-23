@@ -1273,8 +1273,7 @@ test("an expanded band's rows are an OWNED, NAMED group, not flat siblings", asy
 
 // ── #1169 · THE MAP'S LAST MILE, AND THE PANE'S VOICE BUDGET ────────────────────────────────────────
 //
-// The 2026-09-05 cohort census across the four LIST panes (docs/reviews/misc/
-// 2026-09-05-config-list-pane-divergence.md) found the `@modified` verdict propagating UP — shelf, band —
+// The 2026-09-05 cohort census across the four LIST panes found the `@modified` verdict propagating UP — shelf, band —
 // and stopping one level above the row that NAMES the location: `useConfigModified` derives BOTH grains in
 // one pass and the LIST spent only the group one, so a reader who had changed one setting was told "a
 // group under User changed" and then handed nine identical section rows. The same census judged the pane's

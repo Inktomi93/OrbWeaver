@@ -2,7 +2,7 @@
 // lie: `sqliteTable("x", importedColumns, …)` returned an EMPTY column set, and eight integrity gates
 // (asset FK coverage, FK indexing, JSON write parity, lifecycle portability, soft refs, ownerId registry,
 // banned shapes, branding) reported ✓ over zero obligations while their schema file scan stayed healthy
-// (docs/reviews/stickler/2026-08-31-gate-member-discovery-rehome-audit.md). An empty column set is the
+// (2026-08-31). An empty column set is the
 // silent-green shape, so every composition this reader cannot establish REFUSES instead.
 import { Project } from "ts-morph";
 import { columnProperties, schemaScan, schemaTables } from "../../../tooling/src/_shared/schema-read.ts";

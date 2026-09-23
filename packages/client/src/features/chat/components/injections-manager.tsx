@@ -7,7 +7,7 @@
 // deliberate re-export, not a leftover door. No enabled/disabled toggle — "off" = delete the row,
 // and an EMPTY-content row is inert (assembly skips it at every position), which the row says out loud.
 //
-// COLLAPSE-UNTIL-NEEDED (#821, side-eye `docs/reviews/side-eye/2026-08-30-this-chat-cls.md` §5-P1/§7).
+// COLLAPSE-UNTIL-NEEDED (#821, side-eye 2026-08-30 §5-P1/§7).
 // Every row used to render six stacked full-width fields, always open — measured 362px and 385px at the
 // production 367px context width, so ONE injection was taller than the eleven sections above and below it
 // could show, and the section's one-line `SkeletonRows` fallback stood in for 920px of forms. At 4× CPU on

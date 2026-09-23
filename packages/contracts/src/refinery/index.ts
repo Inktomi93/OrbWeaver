@@ -1,5 +1,5 @@
 // @orb/contracts/refinery — the card-refinery pipeline contracts (R0 of the owner-signed port:
-// docs/history/design/refinery-r0.md; the study is docs/history/reviews/stickler/2026-08-08-card-refinery-port-study.md).
+// docs/history/design/refinery-r0.md; the study is 2026-08-08).
 // SCORE → REWRITE → ANALYZE with an anti-drift invariant (analyze always compares against the session's
 // original-card snapshot) and a REGRESSION-bearing verdict enum — the loop's contract, carried verbatim
 // from the source extension.
@@ -52,7 +52,7 @@ export * from "./schema-forge.ts";
 const REWRITE_TEXT_MAX = 100_000;
 
 // ── The MODEL-AUTHORED payload ceilings (security pass 2026-08-08 —
-//    docs/history/reviews/security/2026-08-08-refinery-r0-security-pass.md gap 1) ──────────────────────────────
+// 2026-08-08 gap 1) ──────────────────────────────
 // A character card is UNTRUSTED text; a prompt-injected card can steer the model that AUTHORS these
 // payloads. The analyze payload is stamped into CANON (`characters.refinery.analysis`), rides every card
 // detail read AND every `character_snapshots` blob; the score/rewrite payloads land in append-only run
