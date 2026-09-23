@@ -11,7 +11,7 @@
 // `slot:alert-dialog-popup: 1`, `slot:message-list-scroll: 3`) compared exactly inside
 // `reportClosedSeamDrift`, which the §5b audit measured reached by ZERO proof rows (cut f07) and whose
 // numbers moved without killing anything (cut f08). §12.5 bans a count ratchet outright, and
-// `exception-authority-census.md:178` disposes only the DECLARATION counts, so these were a §12.5 residual
+// the gate-runtime exception-authority census disposes only the DECLARATION counts, so these were a §12.5 residual
 // the audit filed as ledger row 11. The EXEMPTION half is real and survives; the COUNT half is deleted.
 //
 // AND THE MIGRATION FORCED THE FINDING GRANULARITY, which is the behavioural delta to look for. A reviewed
@@ -83,7 +83,7 @@ export const gate = defineGate({
       // ERROR — the finding never reported at all. The denominator is the SHEET COUNT, which is ≥ 1
       // past the resource guard by construction; the census rides the receipt SOURCE string
       // (§12.3's "-health consumers receipt a CONSTANT", one layer out; refuted-and-repaired on the
-      // sibling CSS train by `v-css-train-3-2026-09-13.md`).
+      // sibling CSS train by the CSS train-3 verifier review).
       ctx.receipt({
         kind: "population",
         source: `css-family-direct-client-mechanism [candidates=${String(candidates)}]`,

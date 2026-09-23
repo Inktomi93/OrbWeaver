@@ -139,7 +139,7 @@ not revisit the already-accepted six-home census or migrate product CSS.
 **WHY THIS PROSE IS HERE AND NOT IN THE CODE.** `lib/css-family-census.ts` carried
 `EXPECTED_DECLARATION_CENSUS` (five per-sheet declaration counts), `EXPECTED_DECLARATION_TOTAL` (1029)
 and, hanging off them, ~140 lines annotating every delta since the #938 baseline — what was minted, what
-measurement forced it, and what it must never become. `exception-authority-census.md:178` rules those
+measurement forced it, and what it must never become. The gate-runtime exception-authority census rules those
 counts out: *"the five per-file declaration counts and aggregate total are current-population counts and
 retire."* The counts retire; **the reasoning does not**, because nobody can reconstruct it from the
 stylesheets. It is moved here verbatim, grouped by the constant it annotated, before the constants are
@@ -156,8 +156,8 @@ while escalating whether a copied count earned that description. ARM B resolved 
 constant and parity fixtures. `ledgers:fresh` and `baseline theme-css --check` now compare the complete CSS bytes
 with canonical `generateArtifacts`; 203 is only the dated observed count. The health policy keeps its separate
 nonempty direct-custom-property namespace check. This correction does not change the historical mint deltas below.
-See [the dated disposition](../reviews/gate-runtime/theme-freshness-doc-disposition-2026-09-13.md) for validation
-requirements, the scratch-root limitation, and the primary-owned whole-stage proof.
+See [the standing contract](gate-runtime-standardization.md) §5 for the validation requirements and the whole-stage
+proof.
 
 **Two transcription corrections, stated because a moved comment is where a silent edit hides.** A
 continuation line beginning "+8 on the sheet total above" was re-joined to the bullet it belongs to (the

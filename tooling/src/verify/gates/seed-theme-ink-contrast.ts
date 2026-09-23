@@ -44,7 +44,7 @@
 // ledger verdict, not a site an author may absolve") — which is TRUE and survives: there is no marker door
 // here and an author cannot absolve anything inline. But the module also carried
 // `DECORATIVE_STROKE_CARRIERS`, a NINE-ROW `ExemptionTable`, and §12.5 bans a gate-owned exemption grammar
-// outright. `exception-authority-census.md:124` classifies those rows by name — "9 decorative-stroke
+// outright. the gate-runtime exception-authority census classifies those rows by name — "9 decorative-stroke
 // GRANTS" — so they migrate to `lib/reviewed-grants.ts` and the policy's authority follows its exception
 // mechanism. The ruling survives; its INPUT changed: an AUTHOR still cannot absorb a contrast failure, and
 // a REVIEWER now must, in one central table with a mandatory `why` and `endsWhen`.

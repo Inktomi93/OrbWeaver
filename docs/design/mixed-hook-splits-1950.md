@@ -818,7 +818,7 @@ to lane `p-hooks-single` and `no-inline-union-redecl` is unassigned — neither 
 | Premise | Receipt |
 | - | - |
 | `ui-variant-axes-stamped` is byte-identical to its legacy SHA | the module's whole history is `da01f7eb9`, its only touch |
-| **THE BASELINE IS EMPTY — the ruled arity's warning-debt half has NO POPULATION** | `ui-variant-axes-stamped.baseline.json` is `{}`, three bytes. 11 rows at mint (`da01f7eb9`), ALL DRAINED at `fc5f99e4c` (#1097, tranche 2). `exception-authority-census.md:38` independently records "`ui-variant-axes-stamped`: 0 rows" and `:164` rules the empty ledger "can delete immediately at cutover" |
+| **THE BASELINE IS EMPTY — the ruled arity's warning-debt half has NO POPULATION** | `ui-variant-axes-stamped.baseline.json` is `{}`, three bytes. 11 rows at mint (`da01f7eb9`), ALL DRAINED at `fc5f99e4c` (#1097, tranche 2). the gate-runtime exception-authority census independently records "`ui-variant-axes-stamped`: 0 rows" and `:164` rules the empty ledger "can delete immediately at cutover" |
 | Zero live markers for the id | a literal sweep over `packages/ tests/ tooling/ scripts/ docs/` returns nothing; positive control `@orb-gate-ignore` in `lib/gate-ignore.ts` = 4 |
 | The legacy gate is GREEN on the real tree | `runPass([ui-variant-axes-stamped], projectCtx(root))` → `scanned=366 findings=0 toolErrors=0` |
 | The baseline has FIVE coupled sites, one of which breaks the build | the ledger JSON · `ops/gen/ui-variant-axes-stamped.ts` · `ops/baseline.ts:40` (the verb row + its import) · `verify/index.ts:168` (the export) · **`ops/debt.ts:55,92` — `debt.ts` imports `BASELINE_REL` FROM THE GATE MODULE**, so deleting the gate's export without touching `debt.ts` fails the whole tooling program to parse |

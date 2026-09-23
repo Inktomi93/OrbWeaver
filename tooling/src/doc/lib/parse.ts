@@ -13,16 +13,17 @@ export const USAGE = [
   "usage: pnpm doc <verb> …",
   "  new adr <slug> [--title <t>] [--context <text>] [--decision <text>] [--consequences <text>] [--alternatives <text>]",
   "  new plan <slug> [--title <t>] [--goal <text>] [--shape <text>] [--rejected <text>] [--coupled <text>] [--test-plan <text>]",
+  "  new law <slug> [--title <t>]",
   "  item <title> --kind bug|work|decision|tooling [--priority P0..P3] [--area a] [--plan slug] [--lane x | --blocked <reason>]",
   "       [--what <text>] [--why <text>] [--done <text>]",
   "  item --from <file.json>             a JSON array of items (title, kind, priority, area, plan, lane, blocked,",
   "                                      what, why, done), written all-or-nothing",
-  "  status <status> <path…> [--by <path>] [--kind <k>]",
+  "  status <status> <path…> [--by <path>] [--kind <k>] [--blocked <reason> (status parked, a plan)]",
   "  set <id…> [open|doing|blocked|done] [--kind k] [--title <t> (one id)] [--lane x] [--blocked <reason>] [--priority P] [--area a]",
   "       [--plan s] [--reviewed x] [--evidence sha]      (--<field> - or --<field> none clears a field)",
-  "  remove <id…>                        delete items filed by mistake",
-  "  land <id…> --evidence <sha>       land --merged",
-  "  archive <plan-slug|item-id…>      index      review <path|glob…>      due [glob…]",
+  "  remove <id|path…>                   delete governed docs nothing cites (a plan by its design.md)",
+  "  land <id…> --evidence <sha>       land --merged       (landing deletes the item and commits the record)",
+  "  index      review <path|glob…>      due [glob…]",
   "  overview      drift",
 ].join("\n");
 
@@ -107,10 +108,14 @@ const ITEM_CONTENT_FLAGS = ITEM_SECTION_FLAGS;
 
 function parseNew(args: readonly string[]): DocCommand {
   const [kind, slug, ...rest] = args;
-  if (kind !== "adr" && kind !== "plan") {
-    throw new UsageError(`new takes adr or plan\n${USAGE}`);
+  if (kind !== "adr" && kind !== "plan" && kind !== "law") {
+    throw new UsageError(`new takes adr, plan or law\n${USAGE}`);
   }
   const title = flagValue(rest, "--title");
+  if (kind === "law") {
+    refuseUnknownFlags(rest, ["--title"], "new law");
+    return { kind: "new-law", slug: slugArg(slug, "new"), title };
+  }
   if (kind === "adr") {
     refuseUnknownFlags(rest, ["--title", ...contentFlagNames(ADR_FLAGS)], "new adr");
     return { kind: "new-adr", slug: slugArg(slug, "new"), title, content: parseContent(rest, ADR_FLAGS) };
@@ -221,7 +226,7 @@ function parseLand(args: readonly string[]): DocCommand {
   return { kind: "land", ids: ids(positionals(args, ["--evidence"]), "land"), evidence: requiredFlag(args, "--evidence") };
 }
 
-const STATUS_FLAGS = ["--by", "--kind"];
+const STATUS_FLAGS = ["--by", "--kind", "--blocked"];
 
 function parseStatus(args: readonly string[]): DocCommand {
   refuseUnknownFlags(args, STATUS_FLAGS, "status");
@@ -229,21 +234,21 @@ function parseStatus(args: readonly string[]): DocCommand {
   if (status === undefined || paths.length === 0) {
     throw new UsageError(`status takes a status and one or more paths\n${USAGE}`);
   }
-  return { kind: "status", status, paths, by: flagValue(args, "--by"), docKind: flagValue(args, "--kind") };
+  return { kind: "status", status, paths, by: flagValue(args, "--by"), docKind: flagValue(args, "--kind"), blocked: flagValue(args, "--blocked") };
 }
 
 function parseRemove(args: readonly string[]): DocCommand {
   refuseUnknownFlags(args, [], "remove");
-  return { kind: "remove", ids: ids(args, "remove") };
+  if (args.length === 0) {
+    throw new UsageError(`remove takes one or more item ids or doc paths\n${USAGE}`);
+  }
+  return { kind: "remove", targets: args };
 }
 
-function parseListVerb(name: "archive" | "review" | "due", args: readonly string[]): DocCommand {
+function parseListVerb(name: "review" | "due", args: readonly string[]): DocCommand {
   refuseUnknownFlags(args, [], name);
   if (name !== "due" && args.length === 0) {
     throw new UsageError(`${name} takes one or more arguments\n${USAGE}`);
-  }
-  if (name === "archive") {
-    return { kind: "archive", targets: args };
   }
   return { kind: name, patterns: args };
 }
@@ -267,7 +272,6 @@ const VERBS: ReadonlyMap<string, Parser> = new Map<string, Parser>([
   ["set", parseSet],
   ["remove", parseRemove],
   ["land", parseLand],
-  ["archive", (tail): DocCommand => parseListVerb("archive", tail)],
   ["review", (tail): DocCommand => parseListVerb("review", tail)],
   ["due", (tail): DocCommand => parseListVerb("due", tail)],
   ["index", (tail): DocCommand => parseBare("index", tail)],

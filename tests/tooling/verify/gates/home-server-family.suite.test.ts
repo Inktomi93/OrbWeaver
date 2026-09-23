@@ -11,7 +11,7 @@
 // module's own proof rows, so a reviewed-grant policy's `(subject, operation)` grain, its STALE alarm and
 // its over-broad behaviour cannot be proven by ANY `mustFlag`/`mustPass` row — the pin exists only if it
 // exists here. This file used to claim grant liveness for "every policy here" and had it for ONE of ten
-// (wave-8 D7, `docs/reviews/gate-runtime/v-audit-wave8-2026-09-12.md:289`). It is now a `GRANT_CASES` table
+// (gate-runtime audit wave 8, finding D7). It is now a `GRANT_CASES` table
 // with three arms per policy — exact consumption, WRONG operation, RENAMED subject — plus a completeness
 // test asserting the table's policy set EQUALS the family's reviewed-grant set, so a twelfth sanctioned-home
 // policy added to `FAMILY` without a grant case REDS rather than inheriting a claim nobody checked. That
@@ -292,8 +292,8 @@ test.each([
 // THE TWIN'S PIN COVERS THE TWIN, AND NOTHING ELSE. `owner-role-split` ends `evaluate` with the identical
 // `if (members.size === 0) { return; }` after the identical receipt helper, and its header makes the identical
 // claim — *a vocabulary that stops resolving takes the receipt to zero and WITHHOLDS the verdict* — with no
-// pin of its own: a `throw` planted in that branch fired on ZERO of its 13 declared rows (wave-8 D8,
-// `docs/reviews/gate-runtime/v-audit-wave8-2026-09-12.md:326`). The mechanism is shared, which is an argument
+// pin of its own: a `throw` planted in that branch fired on ZERO of its 13 declared rows (gate-runtime
+// audit wave 8, finding D8). The mechanism is shared, which is an argument
 // and not a receipt, so the arms are driven separately against the OTHER vocabulary.
 test.each([
   ["absent", { [IDENTITY_HOME]: "export const OTHER = 1;\n" }],
