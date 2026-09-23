@@ -87,7 +87,7 @@ export function attachableDocuments(bank: readonly BankDocument[], activeIds: re
 // preset whose arrangement never writes that macro drops them silently — the whole rack above says "feeds
 // this chat" while the model sees nothing. The shipped default now places the slot, but an ST-imported or
 // hand-built arrangement never will, and no server error marks the case (an unreferenced slot is a legal
-// no-op by design, databank-design/07 §3). So the rack SAYS it, where the documents are.
+// no-op by design). So the rack SAYS it, where the documents are.
 
 /** One `{{…}}` occurrence, inner text captured — the engine's own display grammar
  *  (`kit/macro/parser.ts`), so a written `{{databank }}` counts exactly as the engine resolves it.

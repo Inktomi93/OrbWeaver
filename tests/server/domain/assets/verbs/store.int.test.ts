@@ -227,7 +227,7 @@ describe("store", () => {
 
 // DBK-A: the `enforceMagic` belt was image-only, so every REAL document upload (the databank producer's
 // `assets.store(..., { enforceMagic: true })`) threw at the CAS. The belt now dispatches on the claimed mime
-// family (databank-design/02 §6): pdf/zip by signature, text-family by strict-UTF-8 validity. These drive the
+// family: pdf/zip by signature, text-family by strict-UTF-8 validity. These drive the
 // REAL sniff belt (no faked store) — a valid doc lands, a mislabeled binary still throws.
 describe("store — enforceMagic over document mimes (DBK-A)", () => {
   const markdownBytes = new TextEncoder().encode("# Notes\n\nThe keeper mends the vellum each dawn.\n");

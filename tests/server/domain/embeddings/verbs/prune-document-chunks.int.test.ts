@@ -1,4 +1,4 @@
-// verb: pruneDocumentChunks — databank-design/05 §2.4, the reindex-shrink seam. After the ingest upserts a
+// verb: pruneDocumentChunks, the reindex-shrink seam. After the ingest upserts a
 // document's current chunks, this reclaims the strays: tail rows (chunkIdx >= keepCount, a shrunk set) AND
 // rows in a retired (model) space, scoped to the one document. Load-bearing: it is the ONLY non-store write
 // to document_chunks the databank domain reaches (via injection), and it must never touch another document.
@@ -38,7 +38,7 @@ function storeChunks(
   );
 }
 
-describe("pruneDocumentChunks (databank-design/05 §2.4)", () => {
+describe("pruneDocumentChunks", () => {
   test("shrinks the tail: keepCount deletes exactly chunkIdx >= keepCount, survivors intact", async () => {
     const db = await freshDb();
     const harness = makeStoreHarness(db);

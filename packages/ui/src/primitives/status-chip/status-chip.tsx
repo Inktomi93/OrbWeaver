@@ -1,4 +1,4 @@
-// PREBUILT[for:automation-design/03-actions.md] — no current consumer; sealed for the workloads/
+// PREBUILT[for:] — no current consumer; sealed for the workloads/
 // automation run-status chips (statuses `idle`/`running`/`succeeded`/`failed` mirror the workloads
 // run lifecycle). Delete this marker (and re-check for
 // consumers) if that plan is ever dropped instead of built.

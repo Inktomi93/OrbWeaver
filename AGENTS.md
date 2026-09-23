@@ -156,7 +156,7 @@ without a path are in that folder.
 | A code comment | `.claude/rules/comments.md` |
 | Which word names a concept | `docs/law/vocabulary-map.md` |
 | Where a concept lives | `docs/law/Constitution.md` §6 (domain map), `Core-0-Architecture-and-Structure.md` §6 (partitioning) |
-| A parked design set | `docs/architecture/proposed/INDEX.md` |
+| A parked program | its plan under `docs/plans/`, linked from its work item |
 | Why the codebase has this shape | `docs/Mission.md`, `docs/law/Constitution.md` §1 (doctrine) |
 
 ## Glossary

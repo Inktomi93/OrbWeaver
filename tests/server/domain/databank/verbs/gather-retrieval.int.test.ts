@@ -1,4 +1,4 @@
-// verb: gatherRetrieval — the chat GATHER op (DB6, databank-design/07 §2/§3/§6). Asserts the slot FORMAT
+// verb: gatherRetrieval — the chat GATHER op. Asserts the slot FORMAT
 // (`# {name}` headers, `\n` within a document, `\n\n` between), the NULL contract (no hits ⇒ null; budget too
 // small ⇒ null — the byte-identity pin), and BUDGET fitting (whole-chunk drop from the tail, reading order
 // preserved, `tokensEstimated <= tokenBudget`). The `search.documents` lens is a scripted fake — the lens's

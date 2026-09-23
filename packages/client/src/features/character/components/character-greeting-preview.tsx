@@ -248,7 +248,7 @@ function GreetingActions({
             intent="ghost"
             onClick={(): void => {
               // The D78 store-subscription driver persists structural array ops (removeFieldValue routes
-              // through setFieldValue) — no call-site flush (autosave-form-doctrine.md §3, G-A).
+              // through setFieldValue) — no call-site flush (D78).
               form.removeFieldValue("greetings", index).catch(() => notify.error("Couldn't remove the greeting."));
               onActiveIndexChange(Math.max(0, index - 1));
               // This Remove button unmounts when the new active greeting is the solo first message, dropping
@@ -268,7 +268,7 @@ function GreetingActions({
           intent="ghost"
           onClick={(): void => {
             // The D78 store-subscription driver persists the structural push (pushFieldValue routes through
-            // setFieldValue) — no call-site flush (autosave-form-doctrine.md §3, G-A). The new slot then
+            // setFieldValue) — no call-site flush (D78). The new slot then
             // autosaves its content on the first keystroke.
             form.pushFieldValue("greetings", { text: "" });
             onStartAlternate(greetingCount);

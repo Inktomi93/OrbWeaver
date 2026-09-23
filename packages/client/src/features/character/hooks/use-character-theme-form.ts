@@ -2,7 +2,7 @@
 // no dirty pill; a debounced change persists the whole `themeOverride` blob. Mounted through the D78
 // session boundary (`CharacterThemeForm`), which OWNS the characterId key: a character switch is a
 // boundary-driven teardown/remount seeded from the new server override, so there is no manual `key` to
-// place wrong (autosave-form-doctrine.md §1/§8, D78 L2). `save` is supplied at call time
+// place wrong (D78 L2). `save` is supplied at call time
 // (character-appearance-tab.tsx). No `draft` mirror — a low-stakes tweak, not worth a crash-survival slot.
 
 import { createAutosaveEntityForm } from "#forms/editor";

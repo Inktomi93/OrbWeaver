@@ -254,7 +254,7 @@ describe("runTurnPipeline — reduce", () => {
   });
 });
 
-describe("runTurnPipeline — the D50 assembled_dynamic PromptTransform point (automation-design/04 §6)", () => {
+describe("runTurnPipeline — the D50 assembled_dynamic PromptTransform point", () => {
   test("transforms the DYNAMIC half only; the static (cache-stable) half stays byte-identical", async () => {
     // Baseline: no transform → the built halves.
     const baseline = await runTurnPipeline(baseArgs().args);
@@ -1671,7 +1671,7 @@ describe("runTurnPipeline — RECEIVE <think> demux (D47 #3)", () => {
   });
 });
 
-// ── The D48 recurse loop (tool-use-design/03 §2 — the 05 §T4 goldens) ────────────────────────────
+// ── The D48 recurse loop (the goldens) ────────────────────────────────────────────
 // A REAL resolved descriptor for a tool-capable OpenRouter model (§U0 checkpoint: the loop's capability
 // gate keys on the real synthesis output, not a synthetic literal). The OR arm sets `tools.parallel:true`;
 // the loop gate reads only the PRESENCE of `capability.tools`, so the parallel flag is inert here.

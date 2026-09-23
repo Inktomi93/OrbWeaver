@@ -1,4 +1,4 @@
-// domain/chat/verbs/resolve-rpg-participants — the participants-resolution op (rpg-design/05 §4.3): resolve a
+// domain/chat/verbs/resolve-rpg-participants — the participants-resolution op (docs/plans/rpg/design.md): resolve a
 // chat's PRESENT participants into rpg actor refs + display name + avatar hash.
 //
 // THE TWINS NOW AGREE (#1774 closed the asymmetry #1010 opened): this side ships

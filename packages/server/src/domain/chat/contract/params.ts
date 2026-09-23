@@ -272,7 +272,7 @@ export interface ForceCharacterTurnParams extends ChatScopedParams {
 }
 
 /**
- * `requestTurn` — the NON-HUMAN turn seam (automation-design/03 §4 / 05 §AC-B). PRINCIPAL-FREE by design: it
+ * `requestTurn` — the NON-HUMAN turn seam. PRINCIPAL-FREE by design: it
  * is NOT on `ChatService` and never routed — it is an injected op the composition root hands automation's
  * `trigger_turn` arm and the Tier-2 plugin membrane's `turn.trigger` host-fn. The verb resolves the funding
  * host from the room itself (never a caller-supplied id), gates the initiator's membership, threads the origin
@@ -290,7 +290,7 @@ export interface RequestTurnParams {
    *  must be a PRESENT participant (else a leak-free NOT_FOUND). The room's frozen host funds and runs the
    *  turn. */
   readonly triggeredBy: UserId;
-  /** The parent depth + 1 (automation-design/03 §4). Stamped on the reply slot so the reply's events resolve
+  /** The parent depth + 1. Stamped on the reply slot so the reply's events resolve
    *  their cascade depth; the verb REFUSES a value past `AUTOMATION_DEPTH_HARD_CAP` (the plugin-path belt —
    *  automation's dispatch gate already bounds its own path). */
   readonly automationDepth: number;
@@ -314,7 +314,7 @@ export interface GenerateImageParams extends ChatScopedParams {
   readonly mode: PromptTemplateMode;
   readonly prompt?: string | undefined;
   readonly n?: number | undefined;
-  /** The semantic size preset (imagery-design/02 §6) — forwarded to `imagery.generatePicture`; when absent
+  /** The semantic size preset — forwarded to `imagery.generatePicture`; when absent
    *  the leaf uses `defaultSizeFor(mode)`. The I5 mode picker surfaces it. */
   readonly size?: SizePresetName | undefined;
 }
@@ -550,7 +550,7 @@ export interface AddCharacterToChatParams extends ChatScopedParams {
 
 /** `removeCharacterFromChat` — leftSeq-stamps a character seat out of the roster (host-only). The symmetric
  *  drop for {@link AddCharacterToChatParams}; the only server consumer today is rpg's scene-cast prune
- *  (rpg-design/07 §2.2, injected). */
+ *  (docs/plans/rpg/design.md, injected). */
 export interface RemoveCharacterFromChatParams extends ChatScopedParams {
   readonly characterId: CharacterId;
 }

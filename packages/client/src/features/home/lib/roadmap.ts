@@ -65,7 +65,7 @@ export const HOME_ROADMAP: readonly RoadmapProgram[] = [
     icon: Swords,
     gloss: "Turn a chat into a table — dice, character sheets, trackers, and a GM that plays by the rules instead of vibing them.",
     state: "Partly built — the table runs; encounters and handing the GM seat to a person are still to come.",
-    set: "rpg-design/",
+    set: "docs/plans/rpg/design.md",
     sprint: 25,
   },
   {
@@ -74,7 +74,7 @@ export const HOME_ROADMAP: readonly RoadmapProgram[] = [
     icon: Drama,
     gloss: "Portraits that change with the mood of a reply, so a character's face answers you as well as their words.",
     state: "Partly built — image-sheet prep is in place; sprite storage, mood classification, and portrait swapping are still to come.",
-    set: "expressions-design/",
+    set: "docs/plans/expressions/design.md",
     sprint: 20,
   },
   {
@@ -83,7 +83,7 @@ export const HOME_ROADMAP: readonly RoadmapProgram[] = [
     icon: SmilePlus,
     gloss: "React to one line of a reply — and let your characters react to each other, where the next turn can see it.",
     state: "Partly built — reactions and reaction-triggered automations work; custom emoji is still to come.",
-    set: "message-reactions-mini-spec.md",
+    set: "docs/plans/message-reactions/design.md",
     sprint: 2565,
   },
   {
@@ -92,7 +92,7 @@ export const HOME_ROADMAP: readonly RoadmapProgram[] = [
     icon: ListChecks,
     gloss: "Trackers and durable notes that hold what is true in a story — relationships, open threads, standing facts — not just what was said.",
     state: "Not started yet.",
-    set: "world-state-clips-trackers-spec.md",
+    set: "docs/plans/world-state-clips/design.md",
     sprint: 29,
   },
   {
@@ -101,7 +101,7 @@ export const HOME_ROADMAP: readonly RoadmapProgram[] = [
     icon: UserPlus,
     gloss: "An agent that holds its own name and seat in a room, so what it does is attributed to it and bounded on its own terms.",
     state: "Not started yet — an agent still acts under your name.",
-    set: "agent-principal-design/",
+    set: "docs/plans/agent-principals/design.md",
     sprint: 13,
   },
   {
@@ -110,7 +110,7 @@ export const HOME_ROADMAP: readonly RoadmapProgram[] = [
     icon: MapIcon,
     gloss: "A map of the place you are playing in — regions, rooms and the ways between them — that the story can move through.",
     state: "Not started yet.",
-    set: "spatial-maps-design-capture.md",
+    set: "docs/plans/spatial-maps/design.md",
     sprint: 27,
   },
 ];

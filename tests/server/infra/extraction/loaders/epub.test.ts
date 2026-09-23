@@ -1,4 +1,4 @@
-// infra/extraction/loaders/epub — the epub loader (databank-design/04 §2). Asserts the OPF spine walk: chapters
+// infra/extraction/loaders/epub — the epub loader. Asserts the OPF spine walk: chapters
 // extract in READING order (not zip/manifest order), each through the html loader, joined `\n\n`; the `<dc:title>`;
 // and the failure modes (missing container.xml / missing OPF). The fixture zips REAL container/OPF/XHTML.
 

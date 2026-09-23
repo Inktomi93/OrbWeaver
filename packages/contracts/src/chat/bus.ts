@@ -51,7 +51,7 @@ export type ChatContentPart =
    * resolver — a translator dispatches on `type` and never re-sniffs. `url` is a data URI/model-fetchable
    * URL exactly like `image.url`. */
   | { readonly type: "video"; readonly url: string }
-  /* The D48 tool exchange (tool-use-design/02 §1): parts are the WIRE form only — persisted form is
+  /* The D48 tool exchange: parts are the WIRE form only — persisted form is
    * `ToolCallRecord[]` on the variant (never markdown in a body, never a slot row); assembly MATERIALIZES
    * a recorded exchange into `assistant(tool-call)` + `tool(tool-result)` messages at the engine REQUEST
    * seam, so the string-shaped assemble/SHAPE transforms stay parts-blind (the D51 law, both directions). */

@@ -75,7 +75,7 @@ export interface ChatSummary {
    *  row (their whole readable window is empty, so a preview would be the one surface leaking pre-join canon).
    *  Per-caller by construction: the floor is resolved from the viewer's own participant row, never stamped. */
   readonly lastMessagePreview: string | null;
-  /** Is this chat a LIVE GAME (rpg-design/05 §2.1)? The ONE takeover-gate predicate (`isRpgEngaged`) over the
+  /** Is this chat a LIVE GAME (docs/plans/rpg/design.md)? The ONE takeover-gate predicate (`isRpgEngaged`) over the
    *  opaque `metadata.rpg` pointer this row already carries — the SAME sync surface `ChatDetail.rpg` and every
    *  client rpg gate read, so the list marker can never disagree with the chat it opens (chat stays
    *  rpg-table-blind: no join, no cross-domain read; a detached/healed pointer, or a game toggled OFF, is

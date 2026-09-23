@@ -106,8 +106,8 @@ import { configSections } from "./config-sections.ts";
 // assembly, still door-owned — it moved for `component-size`, not for architecture. See that file's header.
 import { homeTiles } from "./home-tiles.ts";
 
-// The chat-context contributor seam (§6c): the rpg takeover's four LITE game tabs (Context-Panel-Program
-// §4.4) — the FIRST real consumer of this seam. rpg exports the SELF-CONTAINED factory `makeRpgContextTabs`
+// The chat-context contributor seam (§6c): the rpg takeover's four LITE game tabs — the
+// FIRST real consumer of this seam. rpg exports the SELF-CONTAINED factory `makeRpgContextTabs`
 // ({trpc, queryClient}) — the door injects the cross-domain read channel (§12) and assembles the result into
 // the registry, which chat merges at `defineContextTabs`'s `contributors` arm. rpg never imports chat; the
 // `when`/`strip:"game"` gating (a cache-first getChat.rpg read) drives the §4.2 bracket.

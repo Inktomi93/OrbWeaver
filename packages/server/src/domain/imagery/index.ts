@@ -21,8 +21,8 @@ export type {
   ResolvedGenerateImage,
 } from "./contract/service.ts";
 export { createImageryService } from "./service.ts";
-// The pure I3 reuse-hash primitive (imagery-design/03 §4.3) — exposed so the composition root can bind it into a
-// non-character consumer's injected op (rpg-design/08 §2: rpg's NPC-portrait reuse consumes imagery's OWN hash
+// The pure I3 reuse-hash primitive — exposed so the composition root can bind it into a
+// non-character consumer's injected op (docs/plans/rpg/design.md: rpg's NPC-portrait reuse consumes imagery's OWN hash
 // machinery, never a fork).
 export { identityHashFor } from "./substrate/identity-hash.ts";
 export { imageryToolDefinitions } from "./tool/index.ts";

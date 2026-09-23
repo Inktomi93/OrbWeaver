@@ -1,4 +1,4 @@
-// verb: upsertEntries — the SHARED hand-edit-safe machine-writer bulk upsert (chat-crew-design/02 §7, CC-D).
+// verb: upsertEntries — the SHARED hand-edit-safe machine-writer bulk upsert (D59).
 // Load-bearing: insert-by-title, replace-same-title (idempotent re-run), and the HAND-EDIT GUARD — an entry a
 // human curated (its content no longer hashes to the stored `metadata.provenance.contentHash`) is SKIPPED, never
 // overwritten. A foreign book is NotFound.

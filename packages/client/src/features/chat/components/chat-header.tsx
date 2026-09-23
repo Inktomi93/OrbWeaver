@@ -5,7 +5,7 @@
 //    gutter (`composer-chat-options.tsx`, owner ruling 2026-08-09), and the trail widget was removed with
 //    the move — one menu, one home. (It briefly lived at the end of the trail per north-star §4 N1.)
 // (The CONTEXT-panel band twin `ChatContextHeader` was DELETED with CP-1's header de-dup — the topbar
-// owns identity, the band is neutral chrome; Context-Panel-Program.md §1 Q3. CP-4's scene banner will be
+// owns identity, the band is neutral chrome Q3. CP-4's scene banner will be
 // a NEW component.)
 // It reads the same chat.getChat query the room already suspends on via a plain useQuery, so the surface
 // never suspends on its own account — it renders a title-width SKELETON until the cache populates (it used
@@ -221,7 +221,7 @@ function CharacterAvatars({ characters }: { readonly characters: readonly Charac
 }
 
 // The CONTEXT-panel band identity (`ChatContextHeader`, north-star §4 N4/P4) was DELETED with CP-1's
-// header de-dup (the topbar owns identity; the band reduces to neutral chrome — Context-Panel-Program.md
+// header de-dup (the topbar owns identity; the band reduces to neutral chrome 
 // §1 Q3). CP-4's scene banner is a NEW component, not a resurrection — git history holds the old one.
 //
 // `DraftChatHeader` (the pre-send twin: founding-card avatars, `draftChatTitle`, a `1 + characters` seat count,

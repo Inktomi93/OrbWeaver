@@ -1,4 +1,4 @@
-// domain/rpg/tools — the 7 cheap-mode state tool DEFINITIONS (rpg-design/05 §4.5). Int test (the handlers
+// domain/rpg/tools — the 7 cheap-mode state tool DEFINITIONS (docs/plans/rpg/design.md). Int test (the handlers
 // read the game + resolution-ladder base from the db, then stage into the accumulator). Pins the DEF shape
 // (7 names, member-floor, projectable args), and — assert-the-mutation-fired — that each stateful handler
 // STAGES into the `ChatTurnId` accumulator (asserted via `ctx.staging.peek`, the effective state the flush

@@ -330,7 +330,7 @@ test("every arm id is a real AutomationActionType (compile + runtime pin)", () =
   expect(seen).toEqual([...AUTOMATION_ACTION_TYPES]);
 });
 
-// ── TF-1: triggerFactSchema — the guest-marshalling contract (01 §2 / plugin-design 04 §P4) ────────
+// ── TF-1: triggerFactSchema — the guest-marshalling contract ────────
 
 test("triggerFactSchema round-trips a full fact (every trigger-type projection)", () => {
   const message: TriggerFact = {

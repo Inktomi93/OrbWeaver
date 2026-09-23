@@ -6,7 +6,7 @@ export { createActiveTurns } from "./active-turns.ts";
 export { createChatBus } from "./bus.ts";
 export type { ChatContext, ChatServiceDeps } from "./context.ts";
 // `ChatRpgGatherResult` + `ChatRpgOps` are PREBUILT[for: rpg push-2] — the injected rpg turn-ops seam +
-// its structural gather result (rpg-design/05 §0). `ChatContext.rpg` binds a real value only when domain/rpg
+// its structural gather result (docs/plans/rpg/design.md). `ChatContext.rpg` binds a real value only when domain/rpg
 // lands (chat.ts `input.rpg`); until then the field is null and the names have no by-name consumer, so the
 // door keeps the seam reachable (the rpg-facing `GetMembership`/`PostNarratorMessage` precedent).
 // The S2 teaching seam ships its types on this same door:
@@ -146,23 +146,23 @@ export { scrubDeltaEventForMember, stripChatEventForMember, stripMessagesForView
 // a room in the reverse roster, and it must land on the SAME word chat's own roster read does for a seat
 // whose backing actor is gone — a second spelling would be a second vocabulary for one sentinel.
 export { REMOVED_CHARACTER_LABEL, REMOVED_MEMBER_LABEL } from "./substrate/participant-name.ts";
-// The D50 PromptTransform registrar (automation-design/04 §6) — created ONCE at compose; its `apply` is wired
+// The D50 PromptTransform registrar — created ONCE at compose; its `apply` is wired
 // as `ChatContext.promptTransforms`, its `register`/`unregister` onto automation's rule lifecycle + the plugin
 // host (a later chunk). Zero registrants ⇒ byte-identical no-op. (`PromptTransformRegistry` type is homed in
 // contract/context, re-exported above.)
 export { createPromptTransformRegistry, PROMPT_TRANSFORM_DEADLINE_MS } from "./substrate/prompt-transforms.ts";
-// The standalone (out-of-turn) variable write (automation-design/03 §1.1) — the injected `applyVariableOps`
+// The standalone (out-of-turn) variable write — the injected `applyVariableOps`
 // op automation wires at the composition root; principal-free, teaches chat nothing automation-shaped.
 export { applyStandaloneVariableOps } from "./substrate/variable-ops.ts";
 // Chat's OWN S2 teaching contributions (the ratified `teaching-contribution.ts` root slot) — contributor #0,
 // the rpg-gather projection. Assembled into `ChatContext.teaching` at `entry/compose` and nowhere else.
 export { createChatTeachingContributions } from "./teaching-contribution.ts";
-// The rpg-facing generic chat surface (rpg-design/02 §1.1) — wired into `RpgContext.chat` at the composition
+// The rpg-facing generic chat surface (docs/plans/rpg/design.md) — wired into `RpgContext.chat` at the composition
 // root; each is principal-free (rpg gates game authority) and teaches chat nothing rpg-shaped.
 // THE husk→real claim chokepoint (R0). Exported because the narrator op is built OUTSIDE
 // `createChatService` (it is an injected rpg op, not a routed verb) and needs the SAME one behavior.
 export { createClaimChat } from "./verbs/claim-chat.ts";
-// The imagery quiet-extraction shaper (imagery-design/02 §2) — imagery consumes it as an injected op at the
+// The imagery quiet-extraction shaper — imagery consumes it as an injected op at the
 // composition root; chat owns the history window + the {{char}}/{{user}} MacroContext.
 export { createExtractQuiet } from "./verbs/extract-quiet.ts";
 export { createGetMembership } from "./verbs/get-membership.ts";
@@ -177,7 +177,7 @@ export { createReactAsCharacter } from "./verbs/reactions.ts";
 // human see this chat's CONTENT" (today: the automation plugin fan-out + the plugin membrane's chat read).
 // Exported for the same reason `isBelowHistoryFloor` is: the verdict must be chat's everywhere it is applied,
 // and a sibling domain re-deriving it is the defect class this op exists to make impossible.
-// The rpg roster-resolution op (rpg-design/05 §4.3) — resolves present participants into rpg actor refs +
+// The rpg roster-resolution op (docs/plans/rpg/design.md) — resolves present participants into rpg actor refs +
 // name/avatar; wired into `RpgContext.resolveParticipants` at the composition root (W1c-b). Standalone + principal-free.
 export { createResolveCanonWindow } from "./verbs/resolve-canon-window.ts";
 // The BORN-STATE corpus read op (the host populate round) — one character's card prose + the room's opening
@@ -190,7 +190,7 @@ export { createResolveRpgParticipants } from "./verbs/resolve-rpg-participants.t
 // composition root joins them; notifications declares the op type it consumes and never learns a table name.
 export { createResolveStandingAsks } from "./verbs/resolve-standing-asks.ts";
 export { createResolveViewerVisibility } from "./verbs/resolve-viewer-visibility.ts";
-// The opaque rpg-pointer WRITE op (rpg-design/05 §3.1) — merges `metadata.rpg`; wired into `RpgContext.setPointer`
+// The opaque rpg-pointer WRITE op (docs/plans/rpg/design.md) — merges `metadata.rpg`; wired into `RpgContext.setPointer`
 // at the composition root (W1c). Standalone + principal-free (createGame gated host; the getMembership precedent).
 export { createSetRpgPointer } from "./verbs/set-rpg-pointer.ts";
 export { createChatWorkloadContributions } from "./workload-contributions.ts";

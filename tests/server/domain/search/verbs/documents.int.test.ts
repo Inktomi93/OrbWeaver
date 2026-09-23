@@ -1,4 +1,4 @@
-// verb: documents — the databank RAG lens (DB5, databank-design/05 §3). Asserts the reading-order restore
+// verb: documents — the databank RAG lens. Asserts the reading-order restore
 // (group by document, best-doc first, chunks ascending by chunkIdx even when a higher-idx chunk ranked
 // better), the minScore floor, the content-hash collapse (fork/near-copy chunks → one better-ranked
 // representative), the empty-allowlist ZERO-embed short-circuit (the trigger-discipline mirror), and THE

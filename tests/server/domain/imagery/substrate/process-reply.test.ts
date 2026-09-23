@@ -1,4 +1,4 @@
-// substrate: processReply — the pure LLM-reply→keyword-prompt normalizer (imagery-design/02 §7). One golden
+// substrate: processReply — the pure LLM-reply→keyword-prompt normalizer. One golden
 // row per numbered step; case is PRESERVED; the caller owns empty-is-error.
 
 import { describe } from "vitest";

@@ -717,7 +717,7 @@ const TEMPLATED_MARKERS = [
   "post_history",
   "persona",
   "memory",
-  // The `{{databank}}` retrieval slot (DB6, databank-design/07 §3) — a TEMPLATED marker "exactly parallel to
+  // The `{{databank}}` retrieval slot — a TEMPLATED marker "exactly parallel to
   // {{memory}}": the wrapper prose ("Related information:", ST `file_template_db`) belongs to the SECTION
   // TEMPLATE around the slot, never to databank's own value, so the framing is a preset-editable default here
   // and databank supplies only the retrieved chunks.
@@ -2007,7 +2007,7 @@ export const DEFAULT_MARKER_TEMPLATES: Record<TemplatedMarker, string> = {
   ["persona"]: macro("persona"),
   ["compact_summary"]: `Summary of the conversation so far:\n${macro("compact_summary")}`,
   ["memory"]: `Past events:\n${macro("memory")}`,
-  // ST's `file_template_db` wrapper, per databank-design/07 §3. The section renders NOTHING when retrieval is
+  // ST's `file_template_db` wrapper. The section renders NOTHING when retrieval is
   // empty (the assembler's server-marker arm gates on the value, so this header can never ship alone) — which
   // is what keeps a bankless turn byte-identical to a pre-slot one.
   ["databank"]: `Related information:\n${macro("databank")}`,
@@ -2630,8 +2630,8 @@ export const DEFAULT_PROMPT_CONFIG: PromptConfig = {
     // Attached documents feed OUT OF THE BOX (issue #80). The gather, the budget and the macro all shipped
     // wired while no built-in arrangement named the slot, so a live drive retrieved a document and the model
     // saw none of it — every databank surface promised feeding the default preset made impossible. Seated
-    // immediately after `memory` (databank-design/07 §3 "exactly parallel to {{memory}}"; the rpg GM preset's
-    // `continuity` region, rpg-design/09 §d) and DYNAMIC, so per-turn retrieval never busts the cached prefix.
+    // immediately after `memory` ("exactly parallel to {{memory}}"; the rpg GM preset's
+    // `continuity` region, docs/plans/rpg/design.md) and DYNAMIC, so per-turn retrieval never busts the cached prefix.
     {
       type: "marker",
       id: "databank",

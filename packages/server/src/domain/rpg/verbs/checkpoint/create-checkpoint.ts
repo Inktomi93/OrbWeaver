@@ -1,4 +1,4 @@
-// domain/rpg/verbs/checkpoint/create-checkpoint — createCheckpoint (rpg-design/05 §4.4). Labels the CURRENT
+// domain/rpg/verbs/checkpoint/create-checkpoint — createCheckpoint (docs/plans/rpg/design.md). Labels the CURRENT
 // resolved snapshot. Host-gated. Safe to bookmark the head because a COMMITTED snapshot is never edited in
 // place (`editSnapshot` clone-forwards off a committed head), so the labeled state stays frozen.
 

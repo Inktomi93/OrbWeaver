@@ -1,4 +1,4 @@
-// persistence/checkpoints — labeled snapshot bookmarks + the restore clone-forward (rpg-design/05 §4.4).
+// persistence/checkpoints — labeled snapshot bookmarks + the restore clone-forward (docs/plans/rpg/design.md).
 // .int: real FK. Create/list + the restore statement builder (born COMMITTED) + the RESTRICT belt (a
 // checkpoint pins its snapshot against delete). Marker/snapshot batch rollback is pinned at the verb mirror.
 

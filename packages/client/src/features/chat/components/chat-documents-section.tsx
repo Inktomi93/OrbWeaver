@@ -21,7 +21,7 @@
 // fact it cannot see from its own read: the running preset must place `{{databank}}` somewhere, or the
 // retrieved passages are gathered, budgeted — and then dropped, with no error anywhere. The shipped default
 // arrangement now carries the slot, but an imported ST preset never will, and an unreferenced slot is a
-// legal no-op by design (databank-design/07 §3), so nothing else in the system can complain. The rack is
+// legal no-op by design, so nothing else in the system can complain. The rack is
 // where the user is standing when the promise is made, so the rack is where it gets qualified.
 
 import type { PromptConfig } from "@orb/contracts/preset";

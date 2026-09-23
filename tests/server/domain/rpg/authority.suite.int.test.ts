@@ -1,4 +1,4 @@
-// verbs/authority — THE per-verb authority matrix (rpg-design/05 §4.4, §6.2). The cross-tenant trust boundary:
+// verbs/authority — THE per-verb authority matrix (docs/plans/rpg/design.md). The cross-tenant trust boundary:
 // host-gated verbs require the room host; a member may write their OWN `user` row; shared planes are
 // host-write; reads are member-gated. Refusals are LEAK-FREE — a non-member gets the SAME not-found a no-game
 // chat gets (the not-a-member and no-game cases are indistinguishable). Every verb is probed here across the

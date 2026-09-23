@@ -1,4 +1,4 @@
-// CT: the tracker BLOCK KIT (Context-Panel-Program §3.2) — the seven blocks, both arms. The kit's
+// CT: the tracker BLOCK KIT — the seven blocks, both arms. The kit's
 // contracts under test:
 //   • LABEL always present + value TEXT is the datum (§3.2/§4.9) — a bare number is the named failure;
 //   • EDITABLE IN PLACE by default, but DISPLAY-AT-REST (panel-redesign DESIGN.md §12.4.1): an

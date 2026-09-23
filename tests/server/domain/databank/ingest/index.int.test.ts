@@ -1,4 +1,4 @@
-// The ingest subsystem (chunk→embed→prune) — the DB4 round-trip checkpoint (databank-design/08 §3).
+// The ingest subsystem (chunk→embed→prune) — the DB4 round-trip checkpoint.
 // Load-bearing assertions:
 //   • the derived layer: contiguous chunkIdx 0..n-1, the [charStart,charEnd) spans PARTITION the canon
 //     losslessly, every row carries the active (model,dim) space tag + a content_hash;

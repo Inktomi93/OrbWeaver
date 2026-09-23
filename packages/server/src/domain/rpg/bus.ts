@@ -1,4 +1,4 @@
-// domain/rpg/bus — the feature-root rpg bus RUNTIME (rpg-design/05 §4.9). A LIVE-ONLY, self-healing,
+// domain/rpg/bus — the feature-root rpg bus RUNTIME (docs/plans/rpg/design.md). A LIVE-ONLY, self-healing,
 // per-`chatId` event fan-out — it MIRRORS the per-user `transport/trpc/user-events-bus.ts` (NOT the durable
 // `chat/bus.ts`): there is no durable table, no replay ring, no `chat_events`-style log. A domain verb emits
 // AFTER its durable write commits; a subscriber attaches and goes live; the client gap-heals every (re)connect

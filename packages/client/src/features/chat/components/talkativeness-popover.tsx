@@ -61,7 +61,7 @@ export function TalkativenessPopover({
             // out here ("level N of 100") because an aria-label has room for what a two-glyph chip does not.
             aria-label={talkativenessAccessibleName(row.displayName, row.talkativeness)}
           >
-            {/* Labeled value — a bare number fails the cold read (Context-Panel-Program §1 ride-along):
+            {/* Labeled value — a bare number fails the cold read:
                 the "Talks" label names WHAT the number is; the level stays mono for column alignment.
                 BOTH halves sit at the `label` step, not `micro`: this is INTERACTIVE text (the chip is the
                 popover's trigger), and `design-audit` reds interactive type under the 11px functional floor
