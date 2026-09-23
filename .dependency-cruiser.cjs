@@ -138,7 +138,7 @@ module.exports = {
     {
       name: "bus-contract-no-credentials",
       comment:
-        "D16 bus-payload firewall: a bus-event contract module (chat/user-bus/notifications/events/world-info/rpg/automation/workloads — the room-public / per-user / durable-inbox streams) must NEVER import @orb/contracts/credentials, the ONLY home of the secret-bearing shapes (ResolvedCredential, apiKey, baseUrl, headers). This is the resolve-time (tier-1) arm of the allowlist — even a TYPE import of a credential shape into a bus module is forbidden, so a producer can't structurally place a secret onto the wire. The SAFE `CredentialSource` enum reaches chat via #connection's verbatim re-export (routing's source axis), which is NOT this module — that path stays legal. THE SCOPE IS EVERY LIVE WIRE-EVENT UNION, not the original four (#1030 F4): world-info (WiBusEvent, embedded in ChatBusEvent), rpg (RpgBusEvent — the room stream), automation (AutomationBusEvent) and workloads (WorkloadEvent) were outside this arm while carrying real fan-out, so for the rpg room stream NEITHER D16 arm applied. Paired with the `bus-payload-allowlist` ts-morph gate (field-name arm). (D16; client-architecture-lockdown.md §13.)",
+        "D16 bus-payload firewall: a bus-event contract module (chat/user-bus/notifications/events/world-info/rpg/automation/workloads — the room-public / per-user / durable-inbox streams) must NEVER import @orb/contracts/credentials, the ONLY home of the secret-bearing shapes (ResolvedCredential, apiKey, baseUrl, headers). This is the resolve-time (tier-1) arm of the allowlist — even a TYPE import of a credential shape into a bus module is forbidden, so a producer can't structurally place a secret onto the wire. The SAFE `CredentialSource` enum reaches chat via #connection's verbatim re-export (routing's source axis), which is NOT this module — that path stays legal. THE SCOPE IS EVERY LIVE WIRE-EVENT UNION, not the original four (#1030 F4): world-info (WiBusEvent, embedded in ChatBusEvent), rpg (RpgBusEvent — the room stream), automation (AutomationBusEvent) and workloads (WorkloadEvent) were outside this arm while carrying real fan-out, so for the rpg room stream NEITHER D16 arm applied. Paired with the `bus-payload-allowlist` ts-morph gate (field-name arm). (D16; client-architecture-state-and-gates.md §13.)",
       severity: "error",
       from: { path: `${CONTRACTS}(chat|user-bus|notifications|events|world-info|rpg|automation|workloads)/` },
       to: { path: `${CONTRACTS}credentials/` },
@@ -256,7 +256,7 @@ module.exports = {
     {
       name: "client-features-no-cross",
       comment:
-        "Client features stay independent: a module in features/<a>/ must not import another feature's internals at RUNTIME. There is NO features/_shared drawer (dissolved — generics → @orb/ui, the form toolkit → forms/). TYPE-ONLY imports across features ARE allowed (a shape wired at the composition root). What replaces the import is CHANNEL-SPECIFIC — the blanket 'cross-feature reads → trpc.*' is WRONG for client-ephemeral state (there is no row to fetch): the eleven-row decision table is client-architecture-lockdown.md §12 (server-persisted entity → cache-first trpc; ephemeral pointer/selection → the #state commons; EXTENDING a host surface → a contributor registry assembled at the door).",
+        "Client features stay independent: a module in features/<a>/ must not import another feature's internals at RUNTIME. There is NO features/_shared drawer (dissolved — generics → @orb/ui, the form toolkit → forms/). TYPE-ONLY imports across features ARE allowed (a shape wired at the composition root). What replaces the import is CHANNEL-SPECIFIC — the blanket 'cross-feature reads → trpc.*' is WRONG for client-ephemeral state (there is no row to fetch): the eleven-row decision table is client-architecture-state-and-gates.md §12 (server-persisted entity → cache-first trpc; ephemeral pointer/selection → the #state commons; EXTENDING a host surface → a contributor registry assembled at the door).",
       severity: "error",
       from: { path: `${CLIENT}features/([^/]+)/` },
       to: {
@@ -268,7 +268,7 @@ module.exports = {
     {
       name: "confirm-uses-composite",
       comment:
-        "ConfirmDialog (client-shared, tier-2 components/) is the ONLY feature-tier confirm — a features/** module must not reach past it for the raw alert-dialog primitive (client-architecture-lockdown.md §14/§16 G7).",
+        "ConfirmDialog (client-shared, tier-2 components/) is the ONLY feature-tier confirm — a features/** module must not reach past it for the raw alert-dialog primitive (client-architecture-state-and-gates.md §14/§16 G7).",
       severity: "error",
       from: { path: `${CLIENT}features/` },
       to: { path: "^packages/ui/src/primitives/alert-dialog/" },
@@ -472,7 +472,7 @@ module.exports = {
     {
       name: "client-components-tier",
       comment:
-        "components/ (tier 2, domain-aware cross-feature composites) never imports UP into features/routes/main.tsx — a composite is consumed BY features, it never depends on one (client-architecture-lockdown.md §3/§16 G5).",
+        "components/ (tier 2, domain-aware cross-feature composites) never imports UP into features/routes/main.tsx — a composite is consumed BY features, it never depends on one (client-architecture-lockdown.md §3/client-architecture-state-and-gates.md §16 G5).",
       severity: "error",
       from: { path: `${CLIENT}components/` },
       to: { path: [`${CLIENT}features/`, `${CLIENT}routes/`, `${CLIENT}main\\.tsx$`] },
@@ -480,7 +480,7 @@ module.exports = {
     {
       name: "client-lib-below-components",
       comment:
-        "lib/ (tier 4, the util floor) sits BELOW components/ (tier 2) — the reuse ladder's tier order, not just the existing client-lib-floor edges (client-architecture-lockdown.md §3/§16 G5).",
+        "lib/ (tier 4, the util floor) sits BELOW components/ (tier 2) — the reuse ladder's tier order, not just the existing client-lib-floor edges (client-architecture-lockdown.md §3/client-architecture-state-and-gates.md §16 G5).",
       severity: "error",
       from: { path: `${CLIENT}lib/` },
       to: { path: `${CLIENT}components/` },
@@ -488,7 +488,7 @@ module.exports = {
     {
       name: "client-state-below-components",
       comment:
-        "state/ (tier 3, the gated stores) sits below components/ (tier 2) — a store never reads a cross-feature composite (client-architecture-lockdown.md §3/§16 G5).",
+        "state/ (tier 3, the gated stores) sits below components/ (tier 2) — a store never reads a cross-feature composite (client-architecture-lockdown.md §3/client-architecture-state-and-gates.md §16 G5).",
       severity: "error",
       from: { path: `${CLIENT}state/` },
       to: { path: `${CLIENT}components/` },

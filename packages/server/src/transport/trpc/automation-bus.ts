@@ -5,7 +5,7 @@
 // host-only fire/error/disable events) reach every subscriber to that chat's channel. TRANSIENT by design:
 // unlike the notifications bus this half is the WHOLE story — there is no durable row, no resume cursor (the
 // chips are ephemeral, 03 §1.4). Rides `defineBusChannel` keyed by chatId (the rpg/agents own-bus precedent —
-// NOT the frozen chat bus, D50), with NO firehose opt-in (client-architecture-lockdown.md §13/§16 G10).
+// NOT the frozen chat bus, D50), with NO firehose opt-in (client-architecture-state-and-gates.md §13/§16 G10).
 //
 // ASSUMES(single-replica): module-scope emitter, per-process — the enabled-index / rpg-bus annotation. The
 // VISIBILITY gate is NOT here: the room refuses at ATTACH and its pump resolves the caller's

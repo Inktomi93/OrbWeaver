@@ -8,7 +8,7 @@
 //
 // WHY a feature bus, not new chat-bus members: the chat bus vocabulary is frozen-ish public surface with a
 // 5-site coupling cost per member and D19/D50 allowlist constraints; game events are feature-scoped, and the
-// feature bus is the D70 event-spine tier for exactly this (client-architecture-lockdown.md §13).
+// feature bus is the D70 event-spine tier for exactly this (client-architecture-state-and-gates.md §13).
 //
 // SWIPE INVALIDATION RIDES THE CHAT BUS, NOT a new rpg event (the ratification consequence, §4.9): a swipe
 // emits chat's existing `variantSelected`; the server writes NOTHING on swipe-select (the snapshot plane +

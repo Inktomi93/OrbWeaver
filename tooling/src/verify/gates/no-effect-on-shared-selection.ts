@@ -1,4 +1,4 @@
-// Policy: no-effect-on-shared-selection (UI-Architecture-and-Layout.md §5.1) — §5.1 sanctions three
+// Policy: no-effect-on-shared-selection (ui-architecture-state-and-stack.md §5.1) — §5.1 sanctions three
 // render-only reader shapes for the shared selection stores; what it bans is subscribe-and-EFFECT. A
 // `useEffect`/`useLayoutEffect`/`useInsertionEffect` in `features/**` keyed on a value TAINTED by a
 // shared-selection pointer is a surface reacting to ambient selection with side effects — the neo
@@ -92,7 +92,7 @@ const STATE_BARREL = "packages/client/src/state/index.ts";
 const OPERATION = "effect-on-shared-selection";
 
 const MESSAGE =
-  "an effect keyed on a shared-selection pointer — the neo `this_chid` chase (UI-Architecture-and-Layout.md " +
+  "an effect keyed on a shared-selection pointer — the neo `this_chid` chase (ui-architecture-state-and-stack.md " +
   "§5.1: selection readers are RENDER-only). Derive in render instead, or use `useEffectEvent` for a " +
   "non-reactive read inside an unrelated effect; if this surface genuinely cannot be render-driven, that is " +
   "a §5.1 amendment conversation, not a workaround.";

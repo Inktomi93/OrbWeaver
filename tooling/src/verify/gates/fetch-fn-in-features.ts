@@ -1,7 +1,7 @@
 // A client feature must NEVER hand-write a global `fetch(` call. HTTP-route egress (multipart/binary/
 // streaming — anything not tRPC) gets ONE `data/` fetch fn each (upload-asset, import-tree, the auth-session
 // me/login/logout seam), sharing http-error.ts + the CSRF_HEADER; a feature imports that fn, never the wire
-// primitive. This is R5 in client-architecture-lockdown.md §10/§16.
+// primitive. This is R5 in client-architecture-state-and-gates.md §10/§16.
 //
 // THE SUBJECT IS THE AMBIENT GLOBAL, resolved through `resolveGlobalMemberOrigin` — not the four letters.
 // The legacy gate matched a bare Identifier callee whose text was "fetch", which meant:
@@ -35,9 +35,9 @@ const FETCH = "fetch";
 const MESSAGE =
   "a client feature hand-writes a global `fetch(` — a feature NEVER writes fetch(). HTTP-route egress " +
   "gets ONE data/ fetch fn each (beside upload-asset.ts / auth-session.ts), imported via #data; " +
-  "everything else is tRPC. See client-architecture-lockdown.md §10/§16 R5.";
+  "everything else is tRPC. See client-architecture-state-and-gates.md §10/§16 R5.";
 const UNREADABLE =
-  "this feature call is spelled like the global `fetch` but the shared readers cannot place its binding, so whether it is the wire primitive R5 bans CANNOT be established. Reported rather than passed: the spelling alone is not the identity. (client-architecture-lockdown.md §10)";
+  "this feature call is spelled like the global `fetch` but the shared readers cannot place its binding, so whether it is the wire primitive R5 bans CANNOT be established. Reported rather than passed: the spelling alone is not the identity. (client-architecture-state-and-gates.md §10)";
 
 /** Could this callee name the global at all? A bare `fetch`, or any member read whose leaf is `fetch`
  *  (`globalThis.fetch`, `window.fetch`, `self["fetch"]`). `q.refetch()` has a different leaf and is not a

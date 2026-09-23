@@ -1,4 +1,4 @@
-// Policy: no-mutating-register-api (client-architecture-lockdown.md §5 rule 1, §16 G8) — a function-valued
+// Policy: no-mutating-register-api (client-architecture-lockdown.md §5 rule 1, client-architecture-state-and-gates.md §16 G8) — a function-valued
 // declaration named exactly `register` is banned in client source, wherever it is declared. Side-effect
 // registration reintroduces the import-order nondeterminism the assembled-at-the-door rule removes: what a
 // registry contains then depends on which module happened to be imported first.

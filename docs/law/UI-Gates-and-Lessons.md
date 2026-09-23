@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-13
+updated: 2026-09-23
 ---
 
 # UI-Gates-and-Lessons
@@ -242,7 +242,7 @@ per-theme `color-scheme`).
 - **Persist versioning — partly irreversible, pin first.** 9 of 11 neo stores `persist()` a non-primitive
   shape with no `version`/`migrate`; once stale blobs are in users' `localStorage` you can't migrate from
   a version line you never shipped. \*Gates `no-raw-zustand-persist` + `persist-partialize-and-total-migrate`
-  - a `STORAGE_KEYS` uniqueness registry *(PHANTOM-REF — never built; only a code-comment concept in `create-gated-store.ts`)*.\*
+  - a STORAGE_KEYS uniqueness registry *(PHANTOM-REF — never built; only a code-comment concept in `create-gated-store.ts`)*.\*
 - **Determinism reaches the client.** Extend the server's no-`Date.now()`/`new Date()`/`Math.random()`
   rule to client render + optimistic code (seeded PRNG allowed). **Timezone pipeline:** the wire is
   ALWAYS a UTC epoch number; localization to browser-local tz happens exactly ONCE, at the display edge,

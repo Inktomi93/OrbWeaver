@@ -12,7 +12,9 @@
 // The law corpus derives from each document's own frontmatter (status active, kind law/reference) under
 // docs/law and docs/Mission.md, plus docs/adr unconditionally; the design corpus is each plan's design
 // document. Dated reviews do not participate. The two named law files outside docs are explicit because
-// no directory walk can derive them. A missing member of that named set is a hard blindness finding.
+// no directory walk can derive them. A missing member of that named set is a hard blindness finding, and so
+// is a law corpus that resolves to zero documents — a walk pointed at a moved or wrong root goes silently
+// empty exactly like a stale census would, and arms 2-4 would then judge only the hand-named directories.
 //
 // BINDING RESOLUTION (#2163): descriptor const aliases resolve through _shared/reference-fact.ts
 // resolveStableExpression. Bare descriptor names resolve docs/law, then repository root;
@@ -190,6 +192,11 @@ const ARM2_MSG = (ref: string): string =>
   `markdown link \`(${ref})\` resolves to no file (relative to this doc, then docs/law/, then ` +
   "root). A dead doc link is drift — repoint it to the real home or delete the link.";
 
+const BLIND_LAW_MSG =
+  "the law corpus resolved ZERO living law documents — the directory walk under docs/law/ and docs/Mission.md found " +
+  "nothing with status active and kind law/reference, the blindness this gate's derived corpus exists to prevent " +
+  "(GATE-AUTHORING.md §4.6). Check the walk root in tooling/src/verify/lib/dangling-ref-corpus.ts, or that the law tree moved.";
+
 const LAW_OUTSIDE_MISSING_MSG = (rel: string): string =>
   `\`${rel}\` is named by LAW_OUTSIDE_DOCS in tooling/src/verify/gates/dangling-refs.ts (law the constitution's §7 index ` +
   "cites, living outside docs/ where no directory walk can see it) and no longer resolves — the widened corpus lost a " +
@@ -269,7 +276,10 @@ function referenceViolations(descriptors: readonly DescriptorCite[], links: read
 }
 
 function livenessViolations(docs: DanglingRefCorpora): readonly Violation[] {
-  return docs.lawOutsideDocsMissing.map((rel) => ({ file: CORE_ANCHOR, line: 0, message: LAW_OUTSIDE_MISSING_MSG(rel) }));
+  return [
+    ...docs.lawOutsideDocsMissing.map((rel) => ({ file: CORE_ANCHOR, line: 0, message: LAW_OUTSIDE_MISSING_MSG(rel) })),
+    ...(docs.law === 0 ? [{ file: CORE_ANCHOR, line: 0, message: BLIND_LAW_MSG }] : []),
+  ];
 }
 
 function evaluateDanglingRefs(ctx: GatePolicyContext, descriptorRefs: readonly DescriptorCite[]): void {
@@ -355,6 +365,21 @@ export const gate = defineGate({
       },
       expect: { count: 2, messageIncludes: "named by LAW_OUTSIDE_DOCS" },
       why: "§4.6 blindness tripwire: a literally-named law doc that stops resolving is REPORTED, never silently dropped from the corpus",
+    },
+    {
+      mode: "resource" as const,
+      files: {
+        ...PROOF_FILES,
+        // The other blindness half: a directory walk that finds every path but no LIVING status/kind on any of
+        // them would silently return arms 2-4 to the hand-named directories — a placebo with a healthy file count.
+        [PROOF_DOC]: "---\nkind: law\nstatus: draft\n---\n\nResource proof anchor.\n",
+        [ANCHOR_PATH]: "---\nkind: law\nstatus: draft\n---\n\nMission anchor.\n",
+        "docs/law/Constitution.md": "---\nkind: law\nstatus: draft\n---\n\nplanted anchor.\n",
+        "tooling/src/verify/gates/GATE-AUTHORING.md": "---\nkind: law\n---\n\nplanted.\n",
+        "tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md": "---\nkind: law\n---\n\nplanted.\n",
+      },
+      expect: { count: 1, messageIncludes: "resolved ZERO living law documents" },
+      why: "the derived corpus must fail LOUD when the walk resolves zero living documents — a silently empty derivation is the blind-gate placebo, not a clean tree",
     },
   ],
   mustPass: [

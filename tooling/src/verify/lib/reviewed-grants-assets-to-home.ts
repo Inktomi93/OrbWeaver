@@ -106,7 +106,7 @@ export const REVIEWED_GRANTS_ASSETS_TO_HOME: readonly ReviewedGateGrant[] = [
     policyId: "bus-channel-primitive",
     subject: "packages/server/src/transport/trpc/bus-channel.ts",
     operation: "event-emitter-construction",
-    why: "`defineBusChannel`'s own module — the emitter it wraps is constructed HERE, which is the entire point of the mint (M9, client-architecture-lockdown.md §13/§16 G10).",
+    why: "`defineBusChannel`'s own module — the emitter it wraps is constructed HERE, which is the entire point of the mint (M9, client-architecture-state-and-gates.md §13/§16 G10).",
     endsWhen:
       "the mint moves or stops wrapping a node EventEmitter; the row is then consumed zero times and reds at its dead subject, which is the rename tripwire the legacy SANCTIONED_HOMES table owned by hand.",
   },

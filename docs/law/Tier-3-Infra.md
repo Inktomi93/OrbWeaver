@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-08-19
+updated: 2026-09-23
 ---
 
 # Orbweaver — `infra`: the sealed I/O adapters (auth · crypto · network · storage · image)
@@ -84,7 +84,7 @@ Composition asymmetry: storage/crypto/network/image are *called by* domains via 
 
 **CSRF: infra PRODUCES the signal, the gate is SPLIT above it.** Infra yields `via` + `hasCsrfHeader`; enforcement lives at the seam + the route/procedure ladder, split by content-type: the four CORS-simple byte-ingest routes gate `via !== "header"` (cookie AND the loopback fallback both need `x-orb-csrf`), tRPC keys on `cookie` only. `SameSite=Lax` + the custom header is the whole CSRF story; that split and the OPEN tRPC finding live in `Spine-Identity-and-Auth.md` invariant 9, which is that gate's one home.
 
-**The owner-fallback gate reads the raw LOOPBACK TCP PEER, never the `Host` header.** `ownerFallbackAllowed(peerIp)` (`dispatch.ts`) is true iff the socket peer is in `127.0.0.0/8`/`::1` — the unspoofable value the kernel reports — and `undefined` fails closed. It is ONE rule across all four modes, **`single-user` included: its fallback is not unconditional**, so a non-loopback caller in single-user authenticates nobody and 401s. The old Host/trusted-ranges gate and its `TRUSTED_LOCAL_HOSTS` env are deleted: a client-supplied `Host:` is never a fact about the network — a proxy/vite `changeOrigin` hop can launder a LAN request into a loopback-looking Host — so the gate must not read it. Consequence to hold onto: a SAME-HOST reverse proxy that forwards over `127.0.0.1` makes every external request a loopback peer, which is why prod + an SSO mode + `AUTH_FALLBACK=owner` is boot-fatal in `foundation/env` unless `AUTH_BREAK_GLASS=true`.
+**The owner-fallback gate reads the raw LOOPBACK TCP PEER, never the `Host` header.** `ownerFallbackAllowed(peerIp)` (`dispatch.ts`) is true iff the socket peer is in `127.0.0.0/8`/`::1` — the unspoofable value the kernel reports — and `undefined` fails closed. It is ONE rule across all four modes, **`single-user` included: its fallback is not unconditional**, so a non-loopback caller in single-user authenticates nobody and 401s. The old Host/trusted-ranges gate and its TRUSTED_LOCAL_HOSTS env are deleted: a client-supplied `Host:` is never a fact about the network — a proxy/vite `changeOrigin` hop can launder a LAN request into a loopback-looking Host — so the gate must not read it. Consequence to hold onto: a SAME-HOST reverse proxy that forwards over `127.0.0.1` makes every external request a loopback peer, which is why prod + an SSO mode + `AUTH_FALLBACK=owner` is boot-fatal in `foundation/env` unless `AUTH_BREAK_GLASS=true`.
 
 **`password.ts` — pepper, constant-time floor, loud-on-misconfig.** Passwords are HMAC-peppered with `SESSION_SECRET` before scrypt (a stolen DB alone can't offline-brute-force); `pepper()` THROWS if `SESSION_SECRET` is unset. Unknown/SSO-only handles verify against `DUMMY_PASSWORD_HASH` so scrypt always runs (defeats the enumeration timing oracle). Cost pinned (`N=2^15,r=8,p=1`); format `scrypt$salt$hash` carries an algo prefix for lazy KDF migration. **Rotating `SESSION_SECRET` invalidates all local passwords.**
 
@@ -107,5 +107,5 @@ Composition asymmetry: storage/crypto/network/image are *called by* domains via 
 
 ## Open decisions
 
-- **`ip-ranges.ts` — infra substrate vs `@orb/kit/net`.** Isomorphic-pure, but every consumer is infra. Kept infra-local until a client consumer appears (the code comments cite this deferral).
+- **`ip-ranges.ts` — infra substrate vs a future `@orb/kit` net module (not yet built).** Isomorphic-pure, but every consumer is infra. Kept infra-local until a client consumer appears (the code comments cite this deferral).
 - **`safeFetch`** is wired; consumers today are the fetch helpers in `egress.ts`, the plugin membrane, and the entry-composed background/update/inline-image fetches. Endpoint model discovery is a distinct `@orb/inference` capability over direct fetch plus the global dispatcher; it is not an infra adapter.
