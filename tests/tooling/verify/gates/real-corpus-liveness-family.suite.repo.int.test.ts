@@ -53,6 +53,8 @@ import { CLIENT_ARMS } from "./_liveness/client.ts";
 import { CLIENT_APP_ARMS } from "./_liveness/client-app.ts";
 import { CLIENT_UI_ARMS } from "./_liveness/client-ui.ts";
 import { FRONTEND_ARMS } from "./_liveness/frontend.ts";
+import { MULTI_ROOT_A_ARMS } from "./_liveness/multi-root-a.ts";
+import { MULTI_ROOT_B_ARMS } from "./_liveness/multi-root-b.ts";
 import { PRODUCT_DB_SERVER_ARMS } from "./_liveness/product-db-server.ts";
 import { RESOURCE_ARMS } from "./_liveness/resources.ts";
 import { SERVER_ARMS } from "./_liveness/server.ts";
@@ -68,6 +70,8 @@ const CHUNKS = {
   clientApp: CLIENT_APP_ARMS,
   clientUi: CLIENT_UI_ARMS,
   frontend: FRONTEND_ARMS,
+  multiRootA: MULTI_ROOT_A_ARMS,
+  multiRootB: MULTI_ROOT_B_ARMS,
   server: SERVER_ARMS,
   productDbServer: PRODUCT_DB_SERVER_ARMS,
   resources: RESOURCE_ARMS,

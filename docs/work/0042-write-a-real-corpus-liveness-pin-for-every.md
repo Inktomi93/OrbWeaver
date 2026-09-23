@@ -85,3 +85,21 @@ this chunk:
 
 None of the 32 was blind on the real tree. Item 0145 tracks `no-manual-memo-compiler-health`, which needs an
 installed-package overlay. `real-corpus-liveness-manifest`: 101 unpinned before, 69 after.
+
+Chunk 10 (lane cb-pins). The multi-root policies gained pins in `_liveness/multi-root-a.ts` and
+`_liveness/multi-root-b.ts`. The runner gained an `edit` overlay: one exact search/replace of a real project
+file, for a defect that is a member of a real declaration (a field on `EffectiveAppConfig`, a code on
+`PLAIN_CHAT_WARNING_CODES`, a row in `INSTRUMENT_TOOLS`). Edit arms prove alone, so a plant that leaves the shared
+bus fact incomplete no longer withholds every bus consumer in its batch. A resource-analysis policy that lists
+the tree through the ResourceHost gets its new file in both views, or its two denominators disagree and it
+refuses. Three multi-root policies have no pin:
+
+- `open-json-column-key-parity-deferred` has lost its subject. `VariantMetadata` closed
+  `messageVariants.metadata` and the stats rollup no longer json_extracts `reasoning_duration`. Reopening the
+  column in memory, with an open-typed writer and a raw key reader, still left it silent. The warning looks
+  retirable with work item 67, which the owner of that item should confirm.
+- `open-json-column-key-parity-health` and `css-var-defined-health` count every JSON column, or every product
+  stylesheet and class root. No bounded overlay empties those counts.
+
+`real-corpus-liveness-manifest`: 69 unpinned before, 5 after (the three above, `byte-check-cast` and
+`no-manual-memo-compiler-health`).

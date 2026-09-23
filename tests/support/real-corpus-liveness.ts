@@ -65,7 +65,11 @@
 //   NEUTRALISE — a blindness tripwire over CONTENT: an EXISTING file overwritten so the watched subject is
 //               gone. The finding lands wherever the tripwire anchors (usually a constant), NOT at the
 //               overwritten path, so the assertion scope is the whole run.
-//   REMOVE    — a blindness tripwire over PRESENCE: every corpus file at a path (or under a directory path
+//   EDIT      — an occurrence policy whose defect is a MEMBER of a real declaration (a field on a real
+//               interface, a code on a real tuple, a row in a real registry): one exact search/replace of an
+//               existing file, the search text matching exactly once. A new file cannot express it and a
+//               NEUTRALISE would bury it under every other change. The finding must land AT THAT PATH.
+//   REMOVE   — a blindness tripwire over PRESENCE: every corpus file at a path (or under a directory path
 //               ending in `/`) taken out of the project. Minted for `pointer-capability-tier-health`, whose
 //               subject is that the reviewed shell home HAS files at all — overwriting them leaves them
 //               present, so no content overlay can reach it. Whole-run scope, as for NEUTRALISE.
@@ -93,6 +97,15 @@ export type RealCorpusOverlay =
        *  watches. */
       readonly path: string;
       readonly source: string;
+    }
+  | {
+      /** One exact edit of an EXISTING project file: the planted defect is a member added to a real declaration
+       *  (a field on a real interface, a code on a real tuple), which no new file can express and a whole-file
+       *  `neutralise` would bury under every other change. `search` must occur exactly once, or the arm throws.
+       *  The finding must land AT THAT PATH, as for ADD. */
+      readonly kind: "edit";
+      readonly path: string;
+      readonly replace: readonly [string, string];
     }
   | {
       readonly kind: "remove";
@@ -273,7 +286,7 @@ function captureOriginals(project: Project, repoRoot: string, arm: RealCorpusLiv
     }
     const absolute = `${repoRoot}/${overlay.path}`;
     const original = project.getSourceFile(absolute)?.getFullText();
-    if (overlay.kind === "neutralise" && original === undefined) {
+    if ((overlay.kind === "neutralise" || overlay.kind === "edit") && original === undefined) {
       throw new Error(
         `${arm.policy.id}: neutralise overlay ${overlay.path} is not in the structure run's corpus — the arm would ADD a file rather than blind the tripwire, and would then pass for the wrong reason.`,
       );
@@ -309,10 +322,23 @@ function applyOverlays(project: Project, repoRoot: string, arm: RealCorpusLivene
       for (const absolute of removedPaths(project, repoRoot, overlay.path)) {
         project.removeSourceFile(project.getSourceFileOrThrow(absolute));
       }
+    } else if (overlay.kind === "edit") {
+      const absolute = `${repoRoot}/${overlay.path}`;
+      replaceSourceFile(project, absolute, editedText(project.getSourceFileOrThrow(absolute).getFullText(), arm, overlay.path, overlay.replace));
     } else if (overlay.kind !== "resource") {
       replaceSourceFile(project, `${repoRoot}/${overlay.path}`, overlay.source);
     }
   }
+}
+
+/** One exact edit, refusing a search text that matches anything but once — an edit that matched nothing, or
+ *  matched somewhere else too, would plant something other than what the arm states. */
+function editedText(text: string, arm: RealCorpusLivenessArm, path: string, [search, replacement]: readonly [string, string]): string {
+  const occurrences = text.split(search).length - 1;
+  if (occurrences !== 1) {
+    throw new Error(`${arm.policy.id}: the edit of ${path} must match its search text exactly once, and matched ${String(occurrences)} times`);
+  }
+  return text.replace(search, () => replacement);
 }
 
 type ResourceOverlayEntry = Extract<RealCorpusOverlay, { readonly kind: "resource" }>;
@@ -334,12 +360,7 @@ function resourceText(repoRoot: string, arm: RealCorpusLivenessArm, entry: Resou
   if ("append" in entry) {
     return `${text}${entry.append}`;
   }
-  const [search, replacement] = entry.replace;
-  const occurrences = text.split(search).length - 1;
-  if (occurrences !== 1) {
-    throw new Error(`${arm.policy.id}: resource overlay on ${entry.path} must match its search text exactly once, and matched ${String(occurrences)} times`);
-  }
-  return text.replace(search, () => replacement);
+  return editedText(text, arm, entry.path, entry.replace);
 }
 
 /** The ResourceHost overlay a batch's `resource` overlays make, keyed by repo-relative path. */
