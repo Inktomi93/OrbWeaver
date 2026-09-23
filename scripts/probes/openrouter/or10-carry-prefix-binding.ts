@@ -21,6 +21,7 @@
 // A second wire, OpenRouter's Anthropic-compatible /api/v1/messages, runs S1 and S2 on opus to show whether the
 // beta headers, block_binding and clear_at pass through.
 
+import type { MessageRole } from "@orb/kit/message-role";
 import { ANTHROPIC_PIN, addSpend, jsonl, printTable, readEnvKey, totalSpend } from "./_kit.ts";
 
 export const id = "or10";
@@ -74,7 +75,7 @@ function gardenLog(nonce: string): string {
 
 type Block = Readonly<Record<string, unknown>>;
 interface Message {
-  readonly role: "user" | "assistant" | "system";
+  readonly role: MessageRole;
   readonly content: string | readonly Block[];
   readonly clear_at?: string;
 }

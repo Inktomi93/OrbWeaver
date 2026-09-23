@@ -71,7 +71,7 @@ export interface HumanSeatPersona {
 /** Whose persona a turn's prompt-config `{{user}}` binds to. `anchor`: the room's anchor human (every canon
  *  turn — the cached prefix may not depend on who pressed send). `trigger`: the pressing human (an impersonate
  *  draft is that human's own next line). */
-export const TURN_VOICES = ["anchor", "trigger"] as const;
+const TURN_VOICES = ["anchor", "trigger"] as const;
 export type TurnVoice = (typeof TURN_VOICES)[number];
 
 /**
