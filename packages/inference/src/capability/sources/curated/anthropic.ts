@@ -36,6 +36,10 @@ export const anthropicRows = [
         replay: "signed",
       },
       turns: {
+        // False on every Claude id and route. The newer ids 400 a trailing assistant row; the 4.5 ids accept it
+        // but answer a continue (the finished reply as the prefill) with three tokens of nothing — OpenRouter
+        // haiku-4.5 gen-1790137541-jdHgdXhju27JwK4tK9XH, opus-4.5 gen-1790141538-eBRpWlikU1TqDrHB1EWH, direct
+        // haiku-4-5 req_011CfKpkas4tLck9X6hodkK7.
         assistantPrefill: false,
         midConversationSystem: false,
         historySystemRows: false,
@@ -67,15 +71,23 @@ export const anthropicRows = [
       // disabled+xhigh combination the SDK lowers is unreachable. This regex ALSO matches `opus-5-5`: Opus 5.5
       // shares every fact stated here, and the row below states what differs (it would 400 on this row alone).
       sampling: {},
+      output: {
+        maxTokens: {
+          min: 1,
+          max: 128_000,
+        },
+      },
       context: {
-        window: 200_000,
-        supports1M: true,
+        window: 1_000_000,
+      },
+      turns: {
+        cacheMinTokens: 512,
       },
     },
     evidence: {
       tier: "curated",
-      dated: "2026-09-20",
-      cite: "@ai-sdk/anthropic 4.0.58 getModelCapabilities (dist/index.js:5943-5953): supportsAdaptiveThinking, supportsXhighEffort, rejectsSamplingParameters: true; no curated row existed before 2026-09-20 (opus-5 resolved as non-reasoning on the direct wire)",
+      dated: "2026-09-23",
+      cite: "@ai-sdk/anthropic 4.0.58 getModelCapabilities (dist/index.js:5943-5953): supportsAdaptiveThinking, supportsXhighEffort, rejectsSamplingParameters: true; Models API 2026-09-23 max_input_tokens 1,000,000 / max_tokens 128,000 / thinking adaptive only (opus-5 req_011CfKrpkFiR5L4pT2WAm3oB, opus-5-5 req_011CfKrpmWsQRi4sLnPujdx9); cacheMinTokens 512 = a 555-token prefix cached and a 504-token one did not (opus-5 req_011CfKrvqD3Be1mTJTWssMeJ / req_011CfKrudXJBP64sXedecYct, opus-5-5 req_011CfKrw9dKMDf2PWQv4YasA / req_011CfKruzHTfrbWs8aMaoosm)",
     },
   },
   {
@@ -85,10 +97,12 @@ export const anthropicRows = [
     generation: {
       reasoning: {
         // Thinking CANNOT be disabled at any effort (Opus 5 allows it at `high` or below): `{type:"disabled"}` and a
-        // `budget_tokens` form both 400, so the funnel clamps an off/absent effort UP with `reasoning_mandatory_clamp`.
-        // Effort is the only depth control, and the model's own default is `medium` (Opus 5's is `high`).
+        // `budget_tokens` form both 400, so the funnel clamps an explicit `none` UP with `reasoning_mandatory_clamp`.
+        // Effort is the only depth control; an unset effort takes the house default (`ADAPTIVE_DEFAULT_EFFORT`).
         mandatory: true,
-        defaultEffort: "medium",
+        // Replayed thinking is bound to the conversation prefix (preserved thinking), so a carried block asks the
+        // API to drop itself on a prefix mismatch instead of a 400.
+        prefixBound: true,
       },
       // Forced `tool_choice` (`any` / `tool`) 400s on this model; Opus 5 accepts both.
       // A `tools` cell restates `parallel`: a sub-fact alone is refused at parse (the cell means "accepts tools[]").
@@ -100,7 +114,7 @@ export const anthropicRows = [
     evidence: {
       tier: "curated",
       dated: "2026-09-22",
-      cite: 'live 2026-09-22 direct claude-opus-5-5: thinking.type disabled -> 400 "not supported for this model" (req_011CfKDSu4dFAHQSAt8Sttn6); tool_choice any -> 400 (req_011CfKDSuxTCH6PtrxUkqCvf); OpenRouter anthropic/claude-opus-5.5 tool_choice required -> upstream 400 (req_011CfKDWYL4K21BXuXPJ4eKU). Default effort medium per Anthropic model-migration docs',
+      cite: 'live 2026-09-22 direct claude-opus-5-5: thinking.type disabled -> 400 "not supported for this model" (req_011CfKDSu4dFAHQSAt8Sttn6); tool_choice any -> 400 (req_011CfKDSuxTCH6PtrxUkqCvf); OpenRouter anthropic/claude-opus-5.5 tool_choice required -> upstream 400 (req_011CfKDWYL4K21BXuXPJ4eKU); prefixBound = preserved thinking per the Claude API model-migration notes (the 400 lands on accounts created from 2026-08-31; this key predates it: edited-prefix replay 200 req_011CfKs6JMgTb3Y9up4Y1F3N, drop_block accepted req_011CfKs6a4VLio7HdQpBMWwz)',
     },
   },
   {
@@ -115,9 +129,14 @@ export const anthropicRows = [
       },
       // Rejects sampling parameters (the SDK table) — the stated set is empty on every wire.
       sampling: {},
+      output: {
+        maxTokens: {
+          min: 1,
+          max: 128_000,
+        },
+      },
       context: {
-        window: 200_000,
-        supports1M: true,
+        window: 1_000_000,
       },
       turns: {
         cacheMinTokens: 1024,
@@ -125,8 +144,8 @@ export const anthropicRows = [
     },
     evidence: {
       tier: "curated",
-      dated: "2026-09-20",
-      cite: "chat-models.ts Opus 4.8 entry; turns.ts OPUS_48_MIN; sampling {} = @ai-sdk/anthropic 4.0.58 getModelCapabilities (dist/index.js:5954-5963) rejectsSamplingParameters: true",
+      dated: "2026-09-23",
+      cite: "chat-models.ts Opus 4.8 entry; turns.ts OPUS_48_MIN; sampling {} = @ai-sdk/anthropic 4.0.58 getModelCapabilities (dist/index.js:5954-5963) rejectsSamplingParameters: true; Models API 2026-09-23 max_input_tokens 1,000,000 / max_tokens 128,000 / thinking adaptive only (req_011CfKrpnME92ak8htGAZfQK)",
     },
   },
   {
@@ -135,20 +154,29 @@ export const anthropicRows = [
     },
     generation: {
       reasoning: {
-        mode: "effort",
+        mode: "adaptive",
         enabled: true,
         effortLevels: ["low", "medium", "high", "xhigh", "max"],
       },
       // Rejects sampling parameters (the SDK table) — the stated set is empty on every wire.
       sampling: {},
+      output: {
+        maxTokens: {
+          min: 1,
+          max: 128_000,
+        },
+      },
+      context: {
+        window: 1_000_000,
+      },
       turns: {
         cacheMinTokens: 2048,
       },
     },
     evidence: {
       tier: "curated",
-      dated: "2026-09-20",
-      cite: "turns.ts OPUS_47_MIN; effort mode = the anthropic family default (resolve-model-capability.ts FAMILY_REASONING); sampling {} = @ai-sdk/anthropic 4.0.58 getModelCapabilities (dist/index.js:5954-5963) rejectsSamplingParameters: true",
+      dated: "2026-09-23",
+      cite: "turns.ts OPUS_47_MIN; sampling {} = @ai-sdk/anthropic 4.0.58 getModelCapabilities (dist/index.js:5954-5963) rejectsSamplingParameters: true; Models API 2026-09-23 max_input_tokens 1,000,000 / max_tokens 128,000 / thinking adaptive only (req_011CfKrpo1QuJJXt5KDz6ZRQ)",
     },
   },
   {
@@ -196,14 +224,27 @@ export const anthropicRows = [
       model: "^(anthropic/)?claude[-/].*sonnet-5",
     },
     generation: {
+      // Sonnet 5 thinks adaptively only (the shared sonnet row above states effort for 4.5/4.6).
+      reasoning: {
+        mode: "adaptive",
+      },
       // Sonnet 5 alone of the sonnet row above rejects sampling parameters (4.5/4.6 accept them: the SDK table
       // says `rejectsSamplingParameters: false`, and the direct wire stays D68 fail-closed for them regardless).
       sampling: {},
+      output: {
+        maxTokens: {
+          min: 1,
+          max: 128_000,
+        },
+      },
+      context: {
+        window: 1_000_000,
+      },
     },
     evidence: {
       tier: "curated",
-      dated: "2026-09-20",
-      cite: "@ai-sdk/anthropic 4.0.58 getModelCapabilities (dist/index.js:5954-5963) rejectsSamplingParameters: true for claude-sonnet-5; :5964-5973 false for sonnet-4-6",
+      dated: "2026-09-23",
+      cite: "@ai-sdk/anthropic 4.0.58 getModelCapabilities (dist/index.js:5954-5963) rejectsSamplingParameters: true for claude-sonnet-5; :5964-5973 false for sonnet-4-6; Models API 2026-09-23 max_input_tokens 1,000,000 / max_tokens 128,000 / thinking adaptive only (req_011CfKrpqBszB95ktdqBoGas)",
     },
   },
   {
@@ -211,14 +252,20 @@ export const anthropicRows = [
       model: "^(anthropic/)?claude[-/].*haiku-4[-.]5",
     },
     generation: {
+      // Extended thinking with a token budget (`thinking: {type: "enabled", budget_tokens}`) and no effort. The
+      // budget stays below the 64k output cap, which the SDK enforces on `max_tokens` + budget.
       reasoning: {
-        mode: "none",
-        enabled: false,
+        mode: "budget",
+        enabled: true,
+        budgetRange: {
+          min: 1024,
+          max: 63_000,
+        },
       },
       output: {
         maxTokens: {
           min: 1,
-          max: 8192,
+          max: 64_000,
         },
       },
       turns: {
@@ -227,8 +274,8 @@ export const anthropicRows = [
     },
     evidence: {
       tier: "curated",
-      dated: "2026-09-19",
-      cite: "chat-models.ts Haiku 4.5 entry (HAIKU_MAX_OUTPUT); turns.ts HAIKU_45_MIN",
+      dated: "2026-09-23",
+      cite: "turns.ts HAIKU_45_MIN; Models API 2026-09-23 claude-haiku-4-5: max_input_tokens 200,000 / max_tokens 64,000 / thinking enabled (budget), adaptive and effort unsupported (req_011CfKrpqx2Hs1U4Rg1DZ9C6); direct budget_tokens 1024 -> 200 with a thinking block (req_011CfKrzCmQjgUPfUvzv1MBC)",
     },
   },
   {
@@ -247,14 +294,23 @@ export const anthropicRows = [
       },
       // Rejects sampling parameters (the SDK table) — the stated set is empty on every wire.
       sampling: {},
+      output: {
+        maxTokens: {
+          min: 1,
+          max: 128_000,
+        },
+      },
+      context: {
+        window: 1_000_000,
+      },
       turns: {
         cacheMinTokens: 512,
       },
     },
     evidence: {
       tier: "curated",
-      dated: "2026-09-20",
-      cite: "turns.ts FABLE_MYTHOS_MIN; mandatory = direct claude-fable-5-1 thinking.type: disabled → 400 'not supported for this model' (2026-09-19 req_011CfE8JTmHYvCZudukFufdG; 2026-09-20 rec-probe.mjs anth-fable-disabled req_011CfEBkabcoxXWyouHdYDxY), OpenRouter 'Reasoning is mandatory for this endpoint' (2026-09-19); sampling {} = @ai-sdk/anthropic 4.0.58 getModelCapabilities (dist/index.js:5954-5963) rejectsSamplingParameters: true",
+      dated: "2026-09-23",
+      cite: "Models API 2026-09-23 max_input_tokens 1,000,000 / max_tokens 128,000 / thinking adaptive only (fable-5 req_011CfKrpofqzmcm2uuqUF1FC, fable-5-1 req_011CfKrppViCfcxQkR1Qiurp); turns.ts FABLE_MYTHOS_MIN; mandatory = direct claude-fable-5-1 thinking.type: disabled → 400 'not supported for this model' (2026-09-19 req_011CfE8JTmHYvCZudukFufdG; 2026-09-20 rec-probe.mjs anth-fable-disabled req_011CfEBkabcoxXWyouHdYDxY), OpenRouter 'Reasoning is mandatory for this endpoint' (2026-09-19); sampling {} = @ai-sdk/anthropic 4.0.58 getModelCapabilities (dist/index.js:5954-5963) rejectsSamplingParameters: true",
     },
   },
   {
@@ -262,6 +318,10 @@ export const anthropicRows = [
       model: "^(anthropic/)?claude[-/].*(fable|mythos)-5[-.]1(?![0-9])",
     },
     generation: {
+      // Replayed thinking is bound to the conversation prefix on the 5.1 point releases (preserved thinking).
+      reasoning: {
+        prefixBound: true,
+      },
       // The 5.1 point releases 400 a forced `tool_choice` (`any` / `tool`); Fable 5 and Mythos 5 accept it, which is
       // why this is its own row and not a cell on the family row above.
       // A `tools` cell restates `parallel`: a sub-fact alone is refused at parse (the cell means "accepts tools[]").
@@ -273,23 +333,7 @@ export const anthropicRows = [
     evidence: {
       tier: "curated",
       dated: "2026-09-22",
-      cite: 'live 2026-09-22 direct claude-fable-5-1: tool_choice any -> 400 "tool_choice: type tool and any are not supported for this model" (req_011CfKDSt2rkNRQpvSiYH8Ly); OpenRouter anthropic/claude-fable-5.1 tool_choice required -> upstream 400 (req_011CfKDWRATCcLYJ3wtdrpip); control claude-fable-5 tool_choice any -> 200 (req_011CfKDUqhmXPSzWjeFHjxyM). Mythos 5.1 per Anthropic docs (not available on this account)',
-    },
-  },
-  {
-    match: {
-      model: "^(anthropic/)?claude[-/].*(opus-4[-.]5|haiku-4[-.]5)",
-      api: "chat-completions",
-    },
-    generation: {
-      turns: {
-        assistantPrefill: true,
-      },
-    },
-    evidence: {
-      tier: "curated",
-      dated: "2026-09-19",
-      cite: "turns.ts anthropicPrefill: opus-4.5/haiku-4.5 continue a prefill on the openai-compat shape; every newer Claude does not",
+      cite: 'live 2026-09-22 direct claude-fable-5-1: tool_choice any -> 400 "tool_choice: type tool and any are not supported for this model" (req_011CfKDSt2rkNRQpvSiYH8Ly); OpenRouter anthropic/claude-fable-5.1 tool_choice required -> upstream 400 (req_011CfKDWRATCcLYJ3wtdrpip); control claude-fable-5 tool_choice any -> 200 (req_011CfKDUqhmXPSzWjeFHjxyM). Mythos 5.1 per Anthropic docs (not available on this account); prefixBound = preserved thinking per the Claude API model-migration notes (drop_block accepted on fable-5-1: req_011CfKs7QaWYrtm7Zhq5SnGE)',
     },
   },
   {
@@ -334,11 +378,16 @@ export const anthropicRows = [
     },
     generation: {
       sampling: {},
+      // The spawn pins `CLAUDE_CODE_DISABLE_1M_CONTEXT=1` (`backends/agent-sdk/env.ts`), which caps the runtime's
+      // window at 200k on every id; this row states the window that route serves. Lifting the pin lifts this row.
+      context: {
+        window: 200_000,
+      },
     },
     evidence: {
       tier: "curated",
-      dated: "2026-09-19",
-      cite: "the Claude runtime exposes no sampler knob (chat-models.ts `sampling: {}` on every entry); the funnel drops each preset knob with sampling_knob_dropped",
+      dated: "2026-09-23",
+      cite: "the Claude runtime exposes no sampler knob (chat-models.ts `sampling: {}` on every entry); the funnel drops each preset knob with sampling_knob_dropped; window = runtime-reported contextWindow with the 1M pin set: 200,000 (claude-opus-5 session 00e4fcde-278d-4b8a-b81b-bd1d38275462, claude-sonnet-5 4080457f-12cb-43c4-8084-af4da34fe705), 1,000,000 without it (9d89eb4f-05b1-4d1f-85c2-b8baafb194f5)",
     },
   },
 ] as const satisfies readonly CapabilityOverrideInput[];

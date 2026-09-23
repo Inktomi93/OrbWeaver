@@ -17,8 +17,11 @@
 //   • `container` — the code-execution sandbox and its skill list. Tool execution in this product happens
 //     under the HOST principal in our own engine (D152); a provider-side executor is a different trust
 //     model and is an owner fork, not an extras key.
-//   • `toolStreaming` — streams partial tool INPUT, which our reducer has no part kind for (`tool-input-delta`
-//     is dropped, audit E3). Exposing a toggle whose effect the reducer discards is a lie about the wire.
+//   • `toolStreaming` — eager (fine-grained) streaming of tool INPUT. The SDK turns it ON by default for every
+//     streamed call, so each function tool carries `eager_input_streaming: true` and the API does not check the
+//     input's JSON. The engine parses and schema-validates every call before it runs
+//     (`server/.../tool-use/verbs/execute-tool-calls.ts`, `register.ts`), so the default is safe. Our reducer drops
+//     `tool-input-delta` (audit E3), so a toggle would change nothing a user sees.
 // All three are agent-shaped: they make the PROVIDER act, which is the one thing `anthropic-messages` is not
 // for (§8.5 — the subscription wire is the agent path, and an API-key row has none).
 //

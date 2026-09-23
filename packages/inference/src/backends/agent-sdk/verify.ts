@@ -40,8 +40,16 @@ export function classifyAssistantError(code: SDKAssistantMessageError): Classifi
     case "authentication_failed":
     case "oauth_org_not_allowed":
       return { kind: "auth_failed", retryable: false };
+    // A held account or a pending verification blocks the ACCOUNT, not the token: `auth_failed` would strike
+    // out a key that works again once the account clears, so these ride the account-state kind.
+    case "account_on_hold":
+    case "verification_required":
     case "billing_error":
       return { kind: "billing", retryable: false };
+    // A Bedrock/Vertex credential fault: the spawn authenticates with the stored setup token, which is not
+    // the credential that failed, so this must not strike it out.
+    case "cloud_credential_error":
+      return { kind: "unknown", retryable: false };
     case "rate_limit":
       return { kind: "rate_limit", retryable: true };
     case "invalid_request":
