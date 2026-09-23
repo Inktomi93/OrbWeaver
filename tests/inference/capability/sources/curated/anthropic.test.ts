@@ -223,3 +223,28 @@ test("#2575: the forced-tool refusal holds on the OpenRouter route WITH a live-s
   // PLANTED CONTROL: Opus 5 on the same route keeps the deployment's forced tool.
   await expect(selectedStructuredVehicle("openrouter", "anthropic/claude-opus-5", "forced-tool", catalog)).resolves.toBe("forced-tool");
 });
+
+const OPENROUTER = { providerId: castId<ProviderId>("openrouter"), wire: "openai-compat", api: "chat-completions" } as const;
+
+function viaOpenRouter(model: string): GenerationCapability {
+  const out = synthesizeCapability("generation", "anthropic", { curated: curatedRows({ model, ...OPENROUTER }) });
+  if (out.capability.kind !== "generation") {
+    throw new Error("expected a generation capability");
+  }
+  return out.capability.generation;
+}
+
+// A continue by prefill sends the finished reply as a trailing assistant row, and the 4.5 Claude ids answer it
+// with three tokens of nothing, so orb raised `empty_generation` on every continue: OpenRouter haiku-4.5 3/3
+// (gen-1790136293-3HzFJAEZLWdWhVIMTuaj, gen-1790137541-jdHgdXhju27JwK4tK9XH, gen-1790137552-8L83X2LFGBxR3JUcK918),
+// and on the same body OpenRouter opus-4.5 (gen-1790141538-eBRpWlikU1TqDrHB1EWH, gen-1790141540-B9bltq0wuWN94AjGl7VH)
+// and direct haiku-4-5 (req_011CfKpkas4tLck9X6hodkK7, req_011CfKpkkjtZhF2cGfwxDHav). Without prefill, continue
+// sends its own user cue and the model writes more.
+test("no Claude route claims assistant prefill: a continue by prefill returns nothing on the 4.5 ids", () => {
+  for (const model of ["anthropic/claude-haiku-4.5", "anthropic/claude-opus-4.5", "anthropic/claude-sonnet-5", "anthropic/claude-opus-5.5"]) {
+    expect(viaOpenRouter(model).turns?.assistantPrefill, model).toBe(false);
+  }
+  for (const model of ["claude-haiku-4-5", "claude-opus-4-5-20251101"]) {
+    expect(direct(model).turns?.assistantPrefill, model).toBe(false);
+  }
+});

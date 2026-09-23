@@ -36,6 +36,10 @@ export const anthropicRows = [
         replay: "signed",
       },
       turns: {
+        // False on every Claude id and route. The newer ids 400 a trailing assistant row; the 4.5 ids accept it
+        // but answer a continue (the finished reply as the prefill) with three tokens of nothing — OpenRouter
+        // haiku-4.5 gen-1790137541-jdHgdXhju27JwK4tK9XH, opus-4.5 gen-1790141538-eBRpWlikU1TqDrHB1EWH, direct
+        // haiku-4-5 req_011CfKpkas4tLck9X6hodkK7.
         assistantPrefill: false,
         midConversationSystem: false,
         historySystemRows: false,
@@ -274,22 +278,6 @@ export const anthropicRows = [
       tier: "curated",
       dated: "2026-09-22",
       cite: 'live 2026-09-22 direct claude-fable-5-1: tool_choice any -> 400 "tool_choice: type tool and any are not supported for this model" (req_011CfKDSt2rkNRQpvSiYH8Ly); OpenRouter anthropic/claude-fable-5.1 tool_choice required -> upstream 400 (req_011CfKDWRATCcLYJ3wtdrpip); control claude-fable-5 tool_choice any -> 200 (req_011CfKDUqhmXPSzWjeFHjxyM). Mythos 5.1 per Anthropic docs (not available on this account)',
-    },
-  },
-  {
-    match: {
-      model: "^(anthropic/)?claude[-/].*(opus-4[-.]5|haiku-4[-.]5)",
-      api: "chat-completions",
-    },
-    generation: {
-      turns: {
-        assistantPrefill: true,
-      },
-    },
-    evidence: {
-      tier: "curated",
-      dated: "2026-09-19",
-      cite: "turns.ts anthropicPrefill: opus-4.5/haiku-4.5 continue a prefill on the openai-compat shape; every newer Claude does not",
     },
   },
   {
