@@ -37,15 +37,6 @@ export const REVIEWED_GRANTS_DBSTRUCTUREPRODUCERHOME_DANGLINGREFCITATIONS: reado
     endsWhen: "the schema module gains a same-named producer domain, moves under its producer, or packages/db/src/schema/sdk-session.ts is removed.",
   },
   {
-    id: "dangling-ref-citations:account-action",
-    policyId: "dangling-ref-citations",
-    subject: "ACCOUNT_ACTION",
-    operation: "dangling-symbol-cite",
-    why: "Temporary CERD truth-audit scope split carried from the legacy dangling-refs authority table: a living architecture doc still names this purged or pre-M4 shape. The reviewed row preserves only this exact citation identity while its owning doc repair lands; it does not classify the cited code as present.",
-    endsWhen:
-      "the owning documentation repair removes, strikes, riders, or repoints `ACCOUNT_ACTION`; the grouped finding disappears and central zero-use reconciliation stales this row.",
-  },
-  {
     id: "dangling-ref-citations:anth-direct-sampling",
     policyId: "dangling-ref-citations",
     subject: "ANTH_DIRECT_SAMPLING",
@@ -53,51 +44,6 @@ export const REVIEWED_GRANTS_DBSTRUCTUREPRODUCERHOME_DANGLINGREFCITATIONS: reado
     why: "Temporary CERD truth-audit scope split carried from the legacy dangling-refs authority table: a living architecture doc still names this purged or pre-M4 shape. The reviewed row preserves only this exact citation identity while its owning doc repair lands; it does not classify the cited code as present.",
     endsWhen:
       "the owning documentation repair removes, strikes, riders, or repoints `ANTH_DIRECT_SAMPLING`; the grouped finding disappears and central zero-use reconciliation stales this row.",
-  },
-  {
-    id: "dangling-ref-citations:chat-context-slots",
-    policyId: "dangling-ref-citations",
-    subject: "CHAT_CONTEXT_SLOTS",
-    operation: "dangling-symbol-cite",
-    why: "Temporary CERD truth-audit scope split carried from the legacy dangling-refs authority table: a living architecture doc still names this purged or pre-M4 shape. The reviewed row preserves only this exact citation identity while its owning doc repair lands; it does not classify the cited code as present.",
-    endsWhen:
-      "the owning documentation repair removes, strikes, riders, or repoints `CHAT_CONTEXT_SLOTS`; the grouped finding disappears and central zero-use reconciliation stales this row.",
-  },
-  {
-    id: "dangling-ref-citations:chat-surface-slots",
-    policyId: "dangling-ref-citations",
-    subject: "CHAT_SURFACE_SLOTS",
-    operation: "dangling-symbol-cite",
-    why: "Temporary CERD truth-audit scope split carried from the legacy dangling-refs authority table: a living architecture doc still names this purged or pre-M4 shape. The reviewed row preserves only this exact citation identity while its owning doc repair lands; it does not classify the cited code as present.",
-    endsWhen:
-      "the owning documentation repair removes, strikes, riders, or repoints `CHAT_SURFACE_SLOTS`; the grouped finding disappears and central zero-use reconciliation stales this row.",
-  },
-  {
-    id: "dangling-ref-citations:command-action",
-    policyId: "dangling-ref-citations",
-    subject: "COMMAND_ACTION",
-    operation: "dangling-symbol-cite",
-    why: "Temporary CERD truth-audit scope split carried from the legacy dangling-refs authority table: a living architecture doc still names this purged or pre-M4 shape. The reviewed row preserves only this exact citation identity while its owning doc repair lands; it does not classify the cited code as present.",
-    endsWhen:
-      "the owning documentation repair removes, strikes, riders, or repoints `COMMAND_ACTION`; the grouped finding disappears and central zero-use reconciliation stales this row.",
-  },
-  {
-    id: "dangling-ref-citations:context-slots",
-    policyId: "dangling-ref-citations",
-    subject: "CONTEXT_SLOTS",
-    operation: "dangling-symbol-cite",
-    why: "Temporary CERD truth-audit scope split carried from the legacy dangling-refs authority table: a living architecture doc still names this purged or pre-M4 shape. The reviewed row preserves only this exact citation identity while its owning doc repair lands; it does not classify the cited code as present.",
-    endsWhen:
-      "the owning documentation repair removes, strikes, riders, or repoints `CONTEXT_SLOTS`; the grouped finding disappears and central zero-use reconciliation stales this row.",
-  },
-  {
-    id: "dangling-ref-citations:domain-buddy",
-    policyId: "dangling-ref-citations",
-    subject: "domain/buddy",
-    operation: "dangling-path-cite",
-    why: "Temporary CERD truth-audit scope split carried from the legacy dangling-refs authority table: a living architecture doc still names this purged or pre-M4 shape. The reviewed row preserves only this exact citation identity while its owning doc repair lands; it does not classify the cited code as present.",
-    endsWhen:
-      "the owning documentation repair removes, strikes, riders, or repoints `domain/buddy`; the grouped finding disappears and central zero-use reconciliation stales this row.",
   },
   {
     id: "dangling-ref-citations:hub-adapters",
@@ -216,22 +162,13 @@ export const REVIEWED_GRANTS_DBSTRUCTUREPRODUCERHOME_DANGLINGREFCITATIONS: reado
       "the owning documentation repair removes, strikes, riders, or repoints `@orb/tokens`; the grouped finding disappears and central zero-use reconciliation stales this row.",
   },
   {
-    id: "dangling-ref-citations:transport-buddy-bus",
+    id: "dangling-ref-citations:system-prompt-dynamic-boundary",
     policyId: "dangling-ref-citations",
-    subject: "transport/trpc/buddy-bus.ts",
-    operation: "dangling-path-cite",
-    why: "Temporary CERD truth-audit scope split carried from the legacy dangling-refs authority table: a living architecture doc still names this purged or pre-M4 shape. The reviewed row preserves only this exact citation identity while its owning doc repair lands; it does not classify the cited code as present.",
-    endsWhen:
-      "the owning documentation repair removes, strikes, riders, or repoints `transport/trpc/buddy-bus.ts`; the grouped finding disappears and central zero-use reconciliation stales this row.",
-  },
-  {
-    id: "dangling-ref-citations:you-modal-rows",
-    policyId: "dangling-ref-citations",
-    subject: "YOU_MODAL_ROWS",
+    subject: "SYSTEM_PROMPT_DYNAMIC_BOUNDARY",
     operation: "dangling-symbol-cite",
-    why: "Temporary CERD truth-audit scope split carried from the legacy dangling-refs authority table: a living architecture doc still names this purged or pre-M4 shape. The reviewed row preserves only this exact citation identity while its owning doc repair lands; it does not classify the cited code as present.",
+    why: "Tier-3b-Providers.md cites `SYSTEM_PROMPT_DYNAMIC_BOUNDARY`, an export of the external `@anthropic-ai/claude-agent-sdk` package imported by packages/inference/src/backends/agent-sdk/translate.ts. It is not a repository declaration, so the declaration index correctly cannot resolve it; this exact external symbol is the classified reviewed exception.",
     endsWhen:
-      "the owning documentation repair removes, strikes, riders, or repoints `YOU_MODAL_ROWS`; the grouped finding disappears and central zero-use reconciliation stales this row.",
+      "the doc stops citing `SYSTEM_PROMPT_DYNAMIC_BOUNDARY` or the repository defines its own symbol with that name; the finding disappears and central zero-use reconciliation stales this row.",
   },
   // THE TWO SYMBOLS THE 2026-09-13 CONVERSIONS DELETED, STILL NAMED BY LAW DOCS ON PURPOSE (#1584, #1939).
   // These are NOT the pending-doc-repair class above. The conversions deleted both gate-local tables and the
