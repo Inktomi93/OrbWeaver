@@ -212,13 +212,7 @@ export async function ledgerFreshness(root: string): Promise<readonly LedgerFres
   const census = censusDrift(readCommitted<CaughtFailurePopulation>(root, POPULATION_REL), deriveCaughtFailurePopulation(root));
   const snapFlagsIndex = snapFlagsIndexDrift(root);
   const typeConfigs = typeConfigsDrift(root);
-  return [
-    census,
-    snapFlagsIndex,
-    typeConfigs,
-    await themeCssDrift(root),
-    deferredRosterDrift(root),
-  ];
+  return [census, snapFlagsIndex, typeConfigs, await themeCssDrift(root), deferredRosterDrift(root)];
 }
 
 /** A derivation that came back EMPTY is blindness, not cleanliness: a broken `scanRoot`, a `git ls-files`

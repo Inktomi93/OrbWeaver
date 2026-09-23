@@ -15,7 +15,7 @@
 // `css-family-direct-client-mechanism` — so `create`-owned state would build the collector three times over
 // and triple the walk that the legacy sharing existed to avoid.
 //
-// THREE, NOT FIVE, AND THE COUNT IS PINNED (#2305, `v-css-family-2026-09-13.md` ledger row 5). Four prose
+// THREE, NOT FIVE, AND THE COUNT IS PINNED (#2305, the 2026-09-13 CSS-family verifier review ledger row 5). Four prose
 // homes said FIVE by counting the FAMILY rather than the consumers: both `-health` siblings declare
 // `facts: []` and never call `ctx.fact`, because their subjects are the CSS identity and the vendor surface
 // rather than the TS writer census. `tests/tooling/verify/gates/css-hook-provenance-family.suite.test.ts` now

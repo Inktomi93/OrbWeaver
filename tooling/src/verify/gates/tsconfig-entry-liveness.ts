@@ -32,7 +32,7 @@
 // AUTHORITY — a DELIBERATE divergence from the two siblings that converted first; the reasoning is written
 // once, in `biome-grant-liveness.ts`'s header, and is not restated here. In short: the nine retired
 // `EXEMPT`/`RATIFIED` rows are now exact `(policy, subject, operation)` rows in `lib/reviewed-grants.ts`
-// per `exception-authority-census.md:96-100`, so this policy is `reviewed-grant` and its blindness
+// per the gate-runtime exception-authority census, so this policy is `reviewed-grant` and its blindness
 // tripwires live in the `hard` `-health` sibling. The census counted FOUR rows on 2026-09-05; the tables
 // had grown to NINE by 2026-09-12 (1 `EXEMPT` + 8 `RATIFIED`), and all nine port one-for-one — the grant
 // subject is the table's OWN key, so the per-config narrowing the legacy table lacked is not silently

@@ -405,7 +405,7 @@ export const gate = defineGate({
   id: "lifecycle-portability",
   family: "drizzle-schema",
   // HARD, and the census agrees: `lifecycle-portability.ts:92` is "17 authoritative portability
-  // classifications" under exception-authority-census.md's "Hard policy and authoritative runtime data" —
+  // classifications" under the gate-runtime exception-authority census's "Hard policy and authoritative runtime data" —
   // "not exception rows", so there is no per-site waiver door to preserve. The escape from a finding is a
   // ROW (register the kind, or classify it with its end condition), never a comment at a call site. The
   // legacy descriptor was suppressible only because it never declared otherwise; its findings anchored on

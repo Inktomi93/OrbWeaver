@@ -40,8 +40,8 @@
 // grammar was empty, so nothing was translated and the whole vocabulary is deleted rather than migrated.
 // Re-derived on this tree rather than remembered: a literal sweep of `packages/` returns 0, and the three
 // residual matches repo-wide are this gate's own retired proof fixtures plus one string in the central
-// engine's foreign-marker list. That matches the two standing censuses, `exception-authority-census.md:73`
-// and `ordinary-waiver-source-migration.md:80`, both of which record the count as 0 and prescribe "delete
+// engine's foreign-marker list. That matches the two standing censuses, the gate-runtime exception-authority census
+// and the waiver-migration manifest, both of which record the count as 0 and prescribe "delete
 // the empty grammar". The five surfaces those documents describe as "becoming warning debt" did NOT need
 // to: they were already carried by the ratchet, which this conversion preserves.
 //
@@ -60,8 +60,8 @@
 // STRUCTURAL findings pending a framebuffer measurement (the per-role `[data-slot="message-bubble"]` rules
 // at `--blur-fill-dense`) — and guide §6.2 is explicit that "debt is never converted into a grant to make a
 // run clean". Both standing censuses reached the same answer independently:
-// `exception-authority-census.md:35,73` ("4 rows / 4 burnable findings … four current violations become
-// warning debt") and `ordinary-waiver-source-migration.md:80` ("the four live plate findings become
+// the gate-runtime exception-authority census ("4 rows / 4 burnable findings … four current violations become
+// warning debt") and the waiver-migration manifest ("the four live plate findings become
 // `workItem: 2024` warning debt").
 //
 // THE OWNER IS #2326 SINCE 2026-09-13, AND THE POINTER HAS NOW ROTTED TWICE — which is why the flip condition
