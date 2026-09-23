@@ -10,7 +10,6 @@ import { UsageError } from "../../_shared/run-tool.ts";
 import { generateBaseuiSurface } from "./gen/baseui-surface.ts";
 import { generateCaughtFailurePopulation } from "./gen/caught-failure-population.ts";
 import { generateProseBaseline } from "./gen/prose.ts";
-import { generateReadFirstCosts } from "./gen/read-first-costs.ts";
 import { generateSnapFlagsIndex } from "./gen/snap-flags-index.ts";
 import { generateThemeCss, THEME_BASELINE } from "./gen/theme-css.ts";
 import { generateTypeConfigs } from "./gen/type-configs.ts";
@@ -30,10 +29,6 @@ const BASELINES: Readonly<Record<string, (root: string) => number | Promise<numb
   // ratified row to an exact reviewed grant in `lib/reviewed-grants.ts`. There is no derivable number left
   // for a single writer to own in either case.
   prose: generateProseBaseline,
-  // A generated COLUMN inside a hand-authored document, not a generated file: the read-first table's SIZE
-  // cells are derived and its Read/Stop-rule prose is authored, joined by the row id. #2017 — every one of
-  // those eight numbers was stale at once, the work queue by 7x.
-  "read-first-costs": generateReadFirstCosts,
   "snap-flags-index": generateSnapFlagsIndex,
   "type-configs": generateTypeConfigs,
   [THEME_BASELINE]: generateThemeCss,

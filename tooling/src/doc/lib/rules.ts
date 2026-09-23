@@ -44,7 +44,6 @@ export const LEGACY_ROOTS: readonly string[] = [
   "architecture",
   "design",
   "history",
-  "reviews",
 ];
 
 interface KindRule {
