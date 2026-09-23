@@ -224,7 +224,7 @@ function visibleAt(text: string, index: number): string {
  *
  * `edge` is `info.before`/`info.after` — the output characters on either side of THIS node, which the
  * node's own value cannot show. Without them the first character of a text node has no left neighbour
- * and the rule misreads it: measured on `refutation-ledger-2026-09-12.md`, a `delete` node opening with
+ * and the rule misreads it: measured on the gate-runtime refutation ledger, a `delete` node opening with
  * `\~110` un-escaped to `~110` directly after the `~~` the parent had just emitted, and `~~~110` re-parsed
  * as something else. That refusal is the reason this function takes an edge at all.
  */
