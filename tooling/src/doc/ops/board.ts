@@ -9,7 +9,7 @@ import { splitDocument } from "../lib/frontmatter-write.ts";
 import { planSlugOf } from "../lib/indexes.ts";
 import { padId } from "../lib/names.ts";
 import { loadItems } from "./items.ts";
-import { governedPaths, pathExists, readDoc, recentMainCommits, root, unmergedBranches, worktreeBranches } from "./tree.ts";
+import { closingCommits, governedPaths, pathExists, readDoc, root, unmergedBranches, worktreeBranches } from "./tree.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm doc <overview|drift>");
 
@@ -83,7 +83,7 @@ export function driftFacts(repoRoot = root): DriftFacts {
     wokenPlans,
     worktreeBranches: worktreeBranches(repoRoot),
     unmergedBranches: unmergedBranches(repoRoot),
-    closedOnMain: recentMainCommits(repoRoot).map((commit) => ({ sha: commit.sha, ids: closesTrailer(commit.message) })),
+    closedOnMain: closingCommits(repoRoot).map((commit) => ({ sha: commit.sha, ids: closesTrailer(commit.message) })),
     wokenItems: woken,
   };
 }
