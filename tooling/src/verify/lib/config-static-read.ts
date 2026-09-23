@@ -271,11 +271,10 @@ function readValueInner(node: Node, seen: Set<Node>, escaped: ReadonlySet<object
 
 /** The ordered string evaluator's PUBLIC face (#910): evaluate ONE expression to the strings it provably
  *  contributes, plus every shape it could not read. Same contract as the row extractor (`createRowExtractor`) — a caller that ignores
- *  `unresolved` is printing a clean zero over a value it never read. Exported because a second reader of
- *  authored CODE strings (`enforcement-registry-parity`, comparing a doc row against a gate descriptor's
- *  runtime `message`) must not re-spell this evaluation: a hand-rolled `Node.isStringLiteral(x)` read is
- *  the literal-shape blindness class (tooling/src/verify/gates/GATE-AUTHORING.md §5), and every message in the gate corpus is built
- *  from `+`-concatenated fragments. */
+ *  `unresolved` is printing a clean zero over a value it never read. Exported so every reader of
+ *  authored CODE strings shares this evaluation rather than re-spelling it: a hand-rolled
+ *  `Node.isStringLiteral(x)` read is the literal-shape blindness class (tooling/src/verify/gates/
+ *  GATE-AUTHORING.md §5), and every message in the gate corpus is built from `+`-concatenated fragments. */
 export function readExpressionString(node: Node): StaticRead {
   return readValue(node);
 }

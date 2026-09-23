@@ -773,12 +773,26 @@ function handleAuthStatus(acc: TurnAccumulator, message: Narrow<"auth_status">):
   acc.log.warn({ isAuthenticating: message.isAuthenticating, authError: message.error }, "agent-sdk: auth status change");
 }
 
+// Tokens come from the result's `usage`, never from `modelUsage`: a resumed or forked session's `modelUsage`
+// continues from the totals its transcript saved, so on every turn after the first it reports the whole
+// session. `usage` covers only this turn's main loop, which is every call a tool-less orb turn makes.
+// `input_tokens` is the UNCACHED part only; the normalized `tokensIn` is the whole prompt, as on every wire.
+// A crash or startup-error result can carry an empty `usage`, so it is read through a Partial view: an absent
+// billed count stays null, an absent cache count is 0.
+function accumulateTurnTokens(acc: TurnAccumulator, usage: Partial<Narrow<"result">["usage"]>): void {
+  const cacheRead = usage.cache_read_input_tokens ?? 0;
+  const cacheWrite = usage.cache_creation_input_tokens ?? 0;
+  acc.usageAcc.tokensIn = usage.input_tokens === undefined ? null : usage.input_tokens + cacheRead + cacheWrite;
+  acc.usageAcc.tokensOut = usage.output_tokens ?? null;
+  acc.usageAcc.cacheReadTokens = cacheRead;
+  acc.usageAcc.cacheWriteTokens = cacheWrite;
+}
+
 function accumulateUsage(acc: TurnAccumulator, message: Narrow<"result">): void {
+  accumulateTurnTokens(acc, message.usage);
   for (const [model, modelUsage] of Object.entries(message.modelUsage)) {
-    acc.usageAcc.tokensIn = (acc.usageAcc.tokensIn ?? 0) + modelUsage.inputTokens;
-    acc.usageAcc.tokensOut = (acc.usageAcc.tokensOut ?? 0) + modelUsage.outputTokens;
-    acc.usageAcc.cacheReadTokens += modelUsage.cacheReadInputTokens;
-    acc.usageAcc.cacheWriteTokens += modelUsage.cacheCreationInputTokens;
+    // Known gap: `costUSD` and `webSearchRequests` are session totals on a resumed or forked turn (see
+    // `accumulateTurnTokens`) and have no per-turn field; a per-turn figure needs the session's previous total.
     acc.usageAcc.costUsd = (acc.usageAcc.costUsd ?? 0) + modelUsage.costUSD;
     acc.meta.webSearchRequests += modelUsage.webSearchRequests;
     acc.meta.modelUsage[model] = { inputTokens: modelUsage.inputTokens, outputTokens: modelUsage.outputTokens, costUsd: modelUsage.costUSD };
