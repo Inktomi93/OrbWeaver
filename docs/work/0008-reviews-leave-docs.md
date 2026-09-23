@@ -29,7 +29,7 @@ is deleted down to three survivors, each a real dependency this pass proved, not
   path — a scripted sweep of every citation caught seven that had been deleted along with the trees that
   formerly held them, restored from the pre-migration commit at their original paths). Remaining work: its
   open findings become individual work items, then the tree goes.
-- `docs/reviews/caught-failure-ownership/` — a sibling lane's item; not touched here.
+- `tooling/src/verify/gates/caught-failure-ownership.population.json` (moved there by its own item) — a sibling lane's item; not touched here.
 
 Every other citation is rewritten or dropped: dozens of code-comment citations of a deleted review now
 name a date or finding id instead of the dead path (no fabricated commit sha — not cheap to derive at

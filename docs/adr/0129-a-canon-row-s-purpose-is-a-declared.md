@@ -12,7 +12,7 @@ Not recorded in the ledger row.
 
 ## Decision
 
-Design: `docs/history/reviews/stickler/2026-08-08-canon-message-identity.md` §R1/§R2; owner rulings 2026-08-07.
+Design: commit `09cd25525` §R1/§R2; owner rulings 2026-08-07.
 
 **(A) THREE ORTHOGONAL AXES, ONE HOME EACH.** DRIVE (who runs the seat) = `chat_participants.kind`; AUTHORSHIP (whose voice or hand it is) = the slot's attribution stamps + the per-chat name producer; PURPOSE (what sort of row it is) = `messages.kind`. Collapsing any two re-creates the overload this axis unwinds. The non-obvious constraint that forces the split: all three attribution FKs are `onDelete:'set null'` BY DESIGN (history preservation), so **attribution is designed to degrade and purpose must not** — deleting the synthetic group character or a user used to reclassify a narrator row into an indistinguishable standard one across render tint, speaker split, memory label and export, and a per-room `output` dial flip re-classified every historical row the instant it moved. Deliberately NO `agent` kind: an agent's room speech is `standard` + `authorUserId` (real canon, D60) and its out-of-band, unseated reaction is `comment`.
 

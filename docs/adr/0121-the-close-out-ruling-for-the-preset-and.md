@@ -12,7 +12,7 @@ Not recorded in the ledger row.
 
 ## Decision
 
-Reviews behind it: `docs/history/reviews/stickler/2026-08-03-role-authority-model.md` (§6 = clause 1 verbatim) · `2026-08-03-lifecycle-portability-model.md` §4d · `2026-08-03-regex-model.md` §0/§3 · `2026-08-03-client-architecture.md` F-2 · `docs/history/reviews/stickler/2026-08-02-actor-state-model.md` §4.3/§5.
+Reviews behind it: commit `09cd25525` (§6 = clause 1 verbatim) · `2026-08-03-lifecycle-portability-model.md` §4d · `2026-08-03-regex-model.md` §0/§3 · `2026-08-03-client-architecture.md` F-2 · commit `f551bb42e` §4.3/§5.
 
 **(A) The role-authority law — one kernel, cited chokepoints, and the two comparison classes.** Authority derives from two role axes with one home each (`UserRole` and `ParticipantRole`, `@orb/contracts/identity` — D17/D18) and is decided in ONE kernel: the injected `can()` (`domain/admin/guard.ts`; spine invariant #6). `owner ⊇ admin` and the chat `host` verdict are encoded there and nowhere else. Every read of a role vocabulary falls in exactly one of two classes, split by a MECHANICAL test — what the verdict DOES:
 

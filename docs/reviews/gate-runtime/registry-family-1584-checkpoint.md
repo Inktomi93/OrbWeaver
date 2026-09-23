@@ -138,7 +138,7 @@ The test baseline was regenerated in this isolated worktree through its single w
 the ledger's own documented motion. Two of the 34 added `testFiles` are this lane's; the other 32 are
 gate-runtime specs the program branch had added without a regen, and folding them in is what makes the
 ledger fresh rather than an act of this lane. `check:ledgers-fresh`'s OTHER half —
-`docs/reviews/caught-failure-ownership/population.json` — is stale by 21 rows, and every one of them names
+`tooling/src/verify/gates/caught-failure-ownership.population.json` — is stale by 21 rows, and every one of them names
 a file this lane never touched (`lib/policy-pass.ts`, `lib/schema-fact.ts`, `ops/policy-conformance.ts`,
 `ops/resource-*.ts`, `entry/compose/automation-plugin.ts`). Sixteen are NEW `unproven` caught-failure
 sites in the program branch's own foundation, which need ownership rows rather than a silent regen, so
