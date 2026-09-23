@@ -50,10 +50,13 @@ export const useUseForEverything = createEntityMutation<inferInput<Trpc["connect
 });
 
 /** The SERVER-SIDE `GET <baseUrl>/v1/models` for an endpoint row being authored (§7.4). A failed dial is the
- *  typed-id fallback WITH its reason — the verb never throws for it, so no errorToast. */
+ *  typed-id fallback WITH its reason and never throws; what does throw is a refusal before the dial (a URL that
+ *  is not http(s), a private address this deployment does not admit, a key that is not the caller's), which
+ *  the toast names while the picker shows the same message inline. */
 export const useListEndpointModels = createEntityMutation<inferInput<Trpc["connection"]["listEndpointModels"]>, EndpointModels>({
   options: (trpc) => trpc.connection.listEndpointModels.mutationOptions(),
   invalidates: () => [],
+  errorToast: "Couldn't list that server's models.",
 });
 
 /** Add a provider key (plaintext key in, redacted row out). */

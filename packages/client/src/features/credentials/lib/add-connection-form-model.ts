@@ -5,6 +5,8 @@
 // write-seam refusals as teaching; the verb stays the enforcement floor.
 
 import type { ProviderAuth, ProviderDef } from "@orb/contracts/inference";
+import { addModelActionLabel } from "./add-model-on-key-form-model.ts";
+import { MODEL_REQUIRED_MESSAGE } from "./model-catalog-model.ts";
 
 export interface AddConnectionFormValues {
   readonly providerId: string;
@@ -50,6 +52,22 @@ export function acceptsKey(provider: ProviderDef | undefined): boolean {
   return needsKey(provider) || provider?.auth === "endpoint";
 }
 
+const KEYED_DRAFT_REASON = (provider: ProviderDef): string =>
+  `Type the model id as ${provider.label} spells it. Once the connection is added, “${addModelActionLabel("key")}” in its menu lists the models the key can use.`;
+
+/** Why the dialog offers a typed model id before any list is read, per auth kind. The add dialog has no
+ *  catalog read for a hosted or built-in draft, so it names the saved-connection action that has one. */
+const DRAFT_MODEL_REASONS: Record<ProviderAuth, (provider: ProviderDef) => string> = {
+  endpoint: () => "Type the model id your server serves, or list them from the URL above.",
+  apiKey: KEYED_DRAFT_REASON,
+  oauthToken: KEYED_DRAFT_REASON,
+  none: () => `Type the built-in model's id. Once the connection is added, “${addModelActionLabel("builtin")}” in its menu lists the built-in models.`,
+};
+
+export function draftModelReason(provider: ProviderDef): string {
+  return DRAFT_MODEL_REASONS[provider.auth](provider);
+}
+
 /** The plain-function field validator — provider picked, secret present where the auth kind needs one, a
  *  URL on an endpoint row, and a model (never defaulted). Reads the DERIVED `auth` value, never a registry. */
 export function validateAddConnection(value: AddConnectionFormValues): { fields: Record<string, string> } | undefined {
@@ -64,7 +82,17 @@ export function validateAddConnection(value: AddConnectionFormValues): { fields:
     fields["baseUrl"] = "Your server's base URL is required.";
   }
   if (value.model.trim() === "") {
-    fields["model"] = "Pick a model or type its id.";
+    fields["model"] = MODEL_REQUIRED_MESSAGE;
   }
   return Object.keys(fields).length > 0 ? { fields } : undefined;
 }
+
+/** The copy every connection-writing form shares, so the add dialog and the saved-key dialog name the same
+ *  fields and the same switch the same way. */
+export const CONNECTION_FORM_COPY = {
+  labelHint: "Optional — defaults to “provider · model”.",
+  backgroundLabel: "Allow background work",
+  backgroundDescription: "Let summaries, captions and memory digests run on this connection unattended.",
+  submit: "Add connection",
+  submitFailed: "Couldn't submit the connection.",
+} as const;

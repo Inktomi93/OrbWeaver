@@ -216,7 +216,6 @@ export interface CommandLoadingProps extends Omit<ComponentProps<typeof BaseComm
   className?: string;
 }
 
-// @public-future: #2568 restores a model-picker pending-state consumer for this command-list progressbar.
 export function CommandLoading({ className, ...rest }: CommandLoadingProps): ReactElement {
   return <BaseCommandLoading className={cn(slots.loading(), className)} data-slot="command-loading" {...rest} />;
 }
