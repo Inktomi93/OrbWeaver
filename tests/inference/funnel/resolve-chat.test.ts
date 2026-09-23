@@ -139,6 +139,62 @@ test("replyMedia: text+image on a TEXT-ONLY model drops the knob BY NAME — the
   expect(knobs.warnings.filter((w) => w.code === "sampling_knob_dropped").map((w) => w.knob)).toEqual(["replyMedia"]);
 });
 
+// ── the default effort (owner ruling) ────────────────────────────────────────────────────────────────────
+// A caller who set neither an effort nor a quality gets adaptive thinking at the house effort on a model that
+// supports adaptive thinking, whatever a model row or a catalog says its own default is. Before it, the same
+// preset ran direct opus-5 with thinking disabled and fable at the mandatory clamp's `low`
+// (req_011CfKgrsFJ9ypUKNm5nkoM3, req_011CfKh2z379oimcJwSMD7tv) while OpenRouter ran them at `high`.
+
+const EFFORT_LADDER = ["low", "medium", "high", "xhigh", "max"] as const;
+
+test("default effort: an adaptive model with nothing set runs adaptive at high, over any stated per-model default", () => {
+  for (const reasoning of [
+    { mode: "adaptive", enabled: true, effortLevels: [...EFFORT_LADDER] },
+    { mode: "adaptive", enabled: true, effortLevels: [...EFFORT_LADDER], defaultEnabled: false, defaultEffort: "low" },
+    { mode: "adaptive", enabled: true, effortLevels: [...EFFORT_LADDER], mandatory: true },
+  ] satisfies GenerationCapability["reasoning"][]) {
+    const knobs = resolveChat({} satisfies UserIntent, generation({ reasoning }));
+    expect(knobs.reasoning, JSON.stringify(reasoning)).toMatchObject({ mode: "adaptive", enabled: true, effort: "high" });
+    expect(knobs.warnings, JSON.stringify(reasoning)).toEqual([]);
+  }
+});
+
+test("default effort: an explicit caller value always wins, `none` included where the model can switch off", () => {
+  const adaptive = generation({ reasoning: { mode: "adaptive", enabled: true, effortLevels: [...EFFORT_LADDER] } });
+  expect(resolveChat({ effort: "none" } satisfies UserIntent, adaptive).reasoning.enabled).toBe(false);
+  expect(resolveChat({ effort: "medium" } satisfies UserIntent, adaptive).reasoning).toMatchObject({ enabled: true, effort: "medium" });
+  expect(resolveChat({ quality: "balanced" } satisfies UserIntent, adaptive).reasoning.effort).toBe("medium");
+  // A mandatory model still refuses `none`: the explicit ask clamps UP to its lowest level, loudly.
+  const mandatory = generation({ reasoning: { mode: "adaptive", enabled: true, effortLevels: [...EFFORT_LADDER], mandatory: true } });
+  const off = resolveChat({ effort: "none" } satisfies UserIntent, mandatory);
+  expect(off.reasoning).toMatchObject({ enabled: true, effort: "low" });
+  expect(off.warnings.map((w) => w.code)).toEqual(["reasoning_mandatory_clamp"]);
+});
+
+test("default effort: a non-adaptive reasoning model keeps its catalog-advertised default (OpenAI / Gemini on OpenRouter)", () => {
+  const onByDefault = generation({
+    reasoning: { mode: "effort", enabled: true, effortLevels: ["low", "medium", "high"], defaultEnabled: true, defaultEffort: "medium" },
+  });
+  expect(resolveChat({} satisfies UserIntent, onByDefault).reasoning).toMatchObject({ mode: "effort", enabled: true, effort: "medium" });
+  const offByDefault = generation({
+    reasoning: { mode: "effort", enabled: true, effortLevels: ["low", "medium", "high"], defaultEnabled: false, defaultEffort: "medium" },
+  });
+  expect(resolveChat({} satisfies UserIntent, offByDefault).reasoning.enabled).toBe(false);
+});
+
+// A budget-mode model with no explicit budget used to get the range MAX for any effort — `low` on haiku-4-5 sent
+// `budget_tokens: 63000`. The effort now picks a point in the range, low < medium < high, `max` at the top.
+test("budget mode: the effort level picks the budget when none is set, and an explicit budget still wins", () => {
+  const cap = generation({ reasoning: { mode: "budget", enabled: true, budgetRange: { min: 1024, max: 63_000 } } });
+  const budgetFor = (effort: UserIntent["effort"]): number | undefined => resolveChat({ effort } satisfies UserIntent, cap).reasoning.budgetTokens;
+  const ladder = (["minimal", "low", "medium", "high", "xhigh", "max"] as const).map(budgetFor);
+  expect(ladder).toEqual([...ladder].sort((a, b) => (a ?? 0) - (b ?? 0)));
+  expect(new Set(ladder).size).toBe(ladder.length);
+  expect(budgetFor("low")).toBeLessThan(8000);
+  expect(budgetFor("max")).toBe(63_000);
+  expect(resolveChat({ effort: "low", thinkingBudgetTokens: 2048 } satisfies UserIntent, cap).reasoning.budgetTokens).toBe(2048);
+});
+
 test("replyMedia: the DEFAULT (absent / text) asks for nothing and warns about nothing, on either model", () => {
   expect(resolveChat({} satisfies UserIntent, generation({ output: IMAGE_OUT })).replyImages).toBe(false);
   const textOnly = resolveChat({ replyMedia: "text" } satisfies UserIntent, generation());
