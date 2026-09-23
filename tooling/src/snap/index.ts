@@ -145,7 +145,7 @@ export { prepareScenario } from "./ops/scenario-prepare.ts";
 // The stateful-session substrate (docs/design/1208-instrument-substrate.md §10.1): the admin verbs, the
 // client (boot + call + export), and the daemon's own entry — all three dispatched by cli.ts.
 export { runSessionAdmin } from "./ops/session-admin.ts";
-export { runSessionCall } from "./ops/session-client.ts";
+export { runSessionCall, sessionRouteErrors } from "./ops/session-client.ts";
 export { runSessionDaemon } from "./ops/session-daemon.ts";
 // The isolated stage is snap-OWNED plumbing. Its second consumer (#678, design-audit's own `--isolated`)
 // went away when that CLI folded into the `--design-audit` arm (#1315) — the arm rides snap's stage the

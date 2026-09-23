@@ -34,6 +34,7 @@ import {
 } from "../lib/session-plan.ts";
 import { foreignSessionRefusal, sessionCapRefusal, sessionDeadText } from "../lib/session-refusals.ts";
 import { readSessionEvent } from "../lib/session-wire.ts";
+import { validateRouteSection } from "./parse-route.ts";
 import { registerSnapDiagnosticCompleteness, registerSnapFactBatch, registerSnapResultPairs, registerSnapSessionProvenance } from "./run-bundle.ts";
 import { liveRows, readRow, releaseSessionBoot, reserveSessionBoot, rowIsLive, sessionLimitsFromEnv, sessionRegistryHome } from "./session-registry.ts";
 import { repoRoot } from "./stage-git.ts";
@@ -274,6 +275,17 @@ async function forwardRequest(kind: SessionRequestKind, ctx: SessionCallContext,
     print(row === null ? `SESSION ERROR  ${name}: ${errorMessage(error)}` : sessionDeadText(row, errorMessage(error)));
     return EXIT.toolError;
   }
+}
+
+/** The route check for a `--session` call, judged on what the call reaches: a live session's binding, else
+ *  the boot args. The parse defers it here because the argv of a later call does not name the target. */
+export function sessionRouteErrors(opts: Args): string[] {
+  if (opts.session === null) {
+    return [];
+  }
+  const row = readRow(sessionRegistryHome(repoRoot()), opts.session);
+  const target = row !== null && rowIsLive(row) ? { ...opts, base: row.binding.url, isolated: row.binding.kind === "stage" } : opts;
+  return validateRouteSection(target);
 }
 
 /** `--session <name> …` (boot + call) and `--session-export <name>` — both run inside THIS run's slot. */

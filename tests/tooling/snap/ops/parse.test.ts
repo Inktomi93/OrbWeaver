@@ -13,9 +13,11 @@ import { vi } from "vitest";
 // the barrel 0.86-2.05s vs the three own modules 0.73-0.76s. Both doors have a module of their own, so
 // the cheap seam is simply naming them (`ops/flags-handlers.ts` was already named this way below).
 import { parseGotoTarget } from "../../../../tooling/src/_shared/argv.ts";
+import { DEV_PORTS, ORB_APP_PORT_NUMBERS, stageBandPorts } from "../../../../tooling/src/_shared/ports.ts";
 import { snapFlagDescriptors } from "../../../../tooling/src/snap/ops/flag-grammar.ts";
 import { FLAG_HANDLERS } from "../../../../tooling/src/snap/ops/flags-handlers.ts";
 import { parseSnapArgs } from "../../../../tooling/src/snap/ops/parse.ts";
+import { validateRouteSection } from "../../../../tooling/src/snap/ops/parse-route.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
@@ -171,6 +173,49 @@ test("a live section, a retired-but-healed section, the bare root and a non-rout
   for (const argv of [["/chats"], ["/config"], ["/worldInfo"], ["/"], []]) {
     expect(parseSnapArgs(argv).errors, argv.join(" ") || "(no route)").toEqual([]);
   }
+});
+
+// @instrument-proof: the section refusal fired on every `/<x>` whatever the target, so `--base` at a test's
+// fixture HTTP server (`/bad.html`, `/no-settings`) and the router's own static `/login` on a real stage
+// both refused as "unknown section". The check now judges only an orb app target and reads the router's
+// static routes; the controls below keep every orb target refusing `/settings`.
+const FIXTURE_PORT = 43_123;
+const FIXTURE_ORIGIN = `http://127.0.0.1:${FIXTURE_PORT}`;
+
+test("a fixture-server route, the router's static /login and an inherited-target call all parse clean", () => {
+  expect(ORB_APP_PORT_NUMBERS.has(FIXTURE_PORT), "the fixture origin must not be a registered orb port").toBe(false);
+  const argvs = [
+    ["/no-settings", "--base", FIXTURE_ORIGIN],
+    ["/bad.html", "--base", FIXTURE_ORIGIN],
+    ["/login"],
+    ["/login", "--isolated"],
+    // A session call reaches its session's binding, which the argv cannot name; the session client judges it.
+    ["--session", "p-route", "/settings"],
+  ];
+  for (const argv of argvs) {
+    expect(parseSnapArgs(argv).errors, argv.join(" ")).toEqual([]);
+  }
+  expect(parseSnapArgs(["/settings"], { inheritedSessionBinding: true }).errors).toEqual([]);
+  expect(parseSnapArgs(["/settings"], { scenarioCheckpoint: true }).errors).toEqual([]);
+});
+
+test("an unknown section still refuses on every orb target: default, stage, registered --base, and an inherited stage base", () => {
+  const argvs = [
+    ["/settings"],
+    ["/settings", "--isolated"],
+    ["/settings", "--base", `http://localhost:${DEV_PORTS.vite}`],
+    ["/settings", "--base", `http://localhost:${DEV_PORTS.server}`],
+    ["/settings", "--base", `http://127.0.0.1:${stageBandPorts(3).vite}`],
+  ];
+  for (const argv of argvs) {
+    expect(parseSnapArgs(argv).errors, argv.join(" ")).toContainEqual(expect.stringContaining('unknown section "settings"'));
+  }
+  // The door an inheriting caller uses: the call's own args over the target it inherits.
+  const call = parseSnapArgs(["/settings"], { scenarioCheckpoint: true });
+  expect(validateRouteSection({ ...call, base: `http://127.0.0.1:${stageBandPorts(0).vite}` })).toContainEqual(
+    expect.stringContaining('unknown section "settings"'),
+  );
+  expect(validateRouteSection({ ...call, base: FIXTURE_ORIGIN })).toEqual([]);
 });
 
 // ── the design-audit arm's grammar (#1315) ───────────────────────────────────────────────────────────

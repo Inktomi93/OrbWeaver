@@ -40,7 +40,7 @@ import { expect, test } from "../../../../support/tool-fixtures.ts";
 
 function pairInput(): ArmPairInput {
   return {
-    opts: parseSnapArgs(["/x"]),
+    opts: parseSnapArgs(["/chats"]),
     outcomes: [],
     ctx: { url: "/x", out: "reports/snaps/x.png", produceShot: true, failed: [], totalPages: 1 },
   };
@@ -65,17 +65,17 @@ test("every arm reaches the CLI through its own row: flags, scanner class, handl
     expect(PAGE_TARGET_FLAGS.has(spec.flag), spec.flag).toBe(spec.pageTargetable);
   }
   // A boolean arm flag really parses, and a page suffix on a non-targetable one really refuses.
-  expect(parseSnapArgs(["/x", "--no-deadcss"]).deadCss).toBe(false);
-  expect(parseSnapArgs(["/x", "--no-deadcss@1"]).errors).toEqual([expect.stringContaining("does not accept a @<page> suffix")]);
+  expect(parseSnapArgs(["/chats", "--no-deadcss"]).deadCss).toBe(false);
+  expect(parseSnapArgs(["/chats", "--no-deadcss@1"]).errors).toEqual([expect.stringContaining("does not accept a @<page> suffix")]);
 });
 
 // The derived scanner class BITES: `--contrast` is required-value ONLY because its `ArmDef` row says so,
 // and the value it consumes is held to the selector-shape refusal. Drop the row's `kind` and this run
 // counts "choose who speaks next" as four positional routes instead.
 test("an arm's derived value class is what refuses a bad value", () => {
-  expect(parseSnapArgs(["/x", "--contrast", "choose who speaks next"]).errors).not.toEqual([]);
-  expect(parseSnapArgs(["/x", "--contrast", ".rail"]).errors).toEqual([]);
-  expect(parseSnapArgs(["/x", "--contrast"]).errors).toEqual([expect.stringContaining("--contrast requires a value")]);
+  expect(parseSnapArgs(["/chats", "--contrast", "choose who speaks next"]).errors).not.toEqual([]);
+  expect(parseSnapArgs(["/chats", "--contrast", ".rail"]).errors).toEqual([]);
+  expect(parseSnapArgs(["/chats", "--contrast"]).errors).toEqual([expect.stringContaining("--contrast requires a value")]);
 });
 
 test("the session-level flag set derives from each arm's declared level, not from a second list", () => {
@@ -130,23 +130,23 @@ test("a page arm that files NO evidence for what it prints is refused (#1342)", 
 
 test("every arm defaults its own slice of Args, and parseSnapArgs takes those defaults verbatim", () => {
   const defaults = armArgDefaults();
-  const parsed = parseSnapArgs(["/x"]);
+  const parsed = parseSnapArgs(["/chats"]);
   for (const key of Object.keys(defaults) as (keyof ArmArgs)[]) {
     expect(parsed[key], key).toEqual(defaults[key]);
   }
   // The factory shape is load-bearing: two parses must not share one arm's queue array.
-  const a = parseSnapArgs(["/x", "--eval", "1"]);
-  const b = parseSnapArgs(["/x"]);
+  const a = parseSnapArgs(["/chats", "--eval", "1"]);
+  const b = parseSnapArgs(["/chats"]);
   expect(a.eval).toHaveLength(1);
   expect(b.eval).toHaveLength(0);
 });
 
 test("launch provisions are asked for only by the arms this argv turned on", () => {
-  expect(armLaunchNeeds(parseSnapArgs(["/x"]))).toEqual({});
-  expect(armLaunchNeeds(parseSnapArgs(["/x", "--lighthouse", "desktop"]))).toEqual({ debuggingPort: true });
-  expect(armLaunchNeeds(parseSnapArgs(["/x", "--cascade", "p=color"]))).toEqual({ devtoolsSdk: true });
+  expect(armLaunchNeeds(parseSnapArgs(["/chats"]))).toEqual({});
+  expect(armLaunchNeeds(parseSnapArgs(["/chats", "--lighthouse", "desktop"]))).toEqual({ debuggingPort: true });
+  expect(armLaunchNeeds(parseSnapArgs(["/chats", "--cascade", "p=color"]))).toEqual({ devtoolsSdk: true });
   // #1259: ONE mechanism, so the pair composes instead of being refused.
-  expect(armLaunchNeeds(parseSnapArgs(["/x", "--lighthouse", "desktop", "--cascade", "p=color"]))).toEqual({ debuggingPort: true, devtoolsSdk: true });
+  expect(armLaunchNeeds(parseSnapArgs(["/chats", "--lighthouse", "desktop", "--cascade", "p=color"]))).toEqual({ debuggingPort: true, devtoolsSdk: true });
 });
 
 test("the page pass runs the arms in ARMS order, and the pixel arm runs LAST", () => {
@@ -211,7 +211,7 @@ test("HELP IS DERIVED: every arm's operator block reaches --help, and no arm can
 
 test("every arm flag is a flag the parser actually accepts — no advertised spelling is unknown", () => {
   for (const spec of armFlags()) {
-    const argv = ["/x", spec.flag, spec.kind === "required-value" ? "body" : "--json"];
+    const argv = ["/chats", spec.flag, spec.kind === "required-value" ? "body" : "--json"];
     expect(parseSnapArgs(argv).errors.join(" "), spec.flag).not.toContain(`unknown flag ${spec.flag}`);
   }
 });
@@ -220,8 +220,8 @@ test("the page-target class is exactly the arms that declared it (a @<page> suff
   const declared = new Set(pageTargetableArmFlags());
   expect(declared.has("--eval")).toBe(true);
   expect(declared.has("--lighthouse")).toBe(false);
-  expect(parseSnapArgs(["/x", "--pages", "2", "--eval@1", "1"]).errors).toEqual([]);
-  expect(parseSnapArgs(["/x", "--lighthouse@1", "desktop"]).errors).toEqual([expect.stringContaining("does not accept a @<page> suffix")]);
+  expect(parseSnapArgs(["/chats", "--pages", "2", "--eval@1", "1"]).errors).toEqual([]);
+  expect(parseSnapArgs(["/chats", "--lighthouse@1", "desktop"]).errors).toEqual([expect.stringContaining("does not accept a @<page> suffix")]);
 });
 
 test("the optional-inline classes are entirely arm-owned, which is why they exist", () => {
@@ -229,7 +229,7 @@ test("the optional-inline classes are entirely arm-owned, which is why they exis
   expect([...OPTIONAL_VALUE_FLAGS].sort()).toEqual([...armFlagsOfKind("optional-value")].sort());
   // `--requests /route` leaves the ROUTE alone; `--map .rail` swallows its selector.
   expect(parseSnapArgs(["--requests", "/chat"]).route).toBe("/chat");
-  expect(parseSnapArgs(["/x", "--map", ".rail"]).mapSelector).toBe(".rail");
+  expect(parseSnapArgs(["/chats", "--map", ".rail"]).mapSelector).toBe(".rail");
 });
 
 /** #1259: the refusal that stood through phase 1 is GONE, and the pair is a legal argv. */

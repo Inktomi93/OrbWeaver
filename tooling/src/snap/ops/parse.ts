@@ -14,7 +14,7 @@ import { NO_CPU_THROTTLE } from "../lib/throttle.ts";
 import { armArgDefaults } from "./arms/registry.ts";
 import { FLAG_HANDLERS } from "./flags-handlers.ts";
 import { validatePageTargets } from "./parse-page-targets.ts";
-import { validateRouteSection } from "./parse-route.ts";
+import { validateParsedRouteSection } from "./parse-route.ts";
 import { scanArgv } from "./parse-scan.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
@@ -247,7 +247,7 @@ function validateParsedArgs(args: Args, inheritedSessionBinding: boolean, seen: 
   const budget = args.device === null ? shotScaleBudgetRefusal(args.scale, args.viewport) : null;
   return [
     ...validatePageTargets(args, contextsMode),
-    ...validateRouteSection(args),
+    ...validateParsedRouteSection(args, inheritedSessionBinding || scenarioCheckpoint),
     ...invalidModes.filter(([invalid]) => invalid).map(([, message]) => message),
     ...sessionNameErrors(args),
     ...(budget === null ? [] : [budget]),
