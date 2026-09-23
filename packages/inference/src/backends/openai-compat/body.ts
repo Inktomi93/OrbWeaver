@@ -16,6 +16,11 @@
 //   8. the output-cap spelling: `features.outputCapField: "max_completion_tokens"` renames the SDK's `max_tokens`
 //      (OpenAI's reasoning models 400 on the old word — inference audit H2, measured 2026-09-20). Never on the
 //      openrouter dialect, which speaks OR's own body.
+//   9. the cache-marker spelling (openrouter only): a message-level `cache_control` moves onto the row's last
+//      text part. OpenRouter forwards a marker to Anthropic only from a content part and drops a message-level
+//      one (measured: gen-1790134941-TdEvy3D9exFNfO6cf830 read only the system block; the content-part A/B,
+//      gen-1790135929 vs gen-1790135933, read the history). The provider converter writes assistant and tool
+//      rows as strings with a message-level marker, and the history breakpoints land on those rows.
 // Warnings are collected on a per-call sink the caller folds into the turn's `warning` events (D41).
 
 import type { Dialect, EndpointFeatures } from "@orb/contracts/inference";
@@ -39,6 +44,7 @@ const ENABLE_THINKING_KEY = "enable_thinking";
 const IMAGE_URL_TYPE = "image_url";
 const VIDEO_URL_TYPE = "video_url";
 const TEXT_TYPE = "text";
+const CACHE_CONTROL_KEY = "cache_control";
 
 /** The keys the `openrouter` transport MODELS off `extras` — everything else is dropped loudly.
  *
@@ -183,6 +189,29 @@ function applyOutputCapSpelling(body: Record<string, unknown>, args: ShapeArgs):
   return { ...rest, [MAX_COMPLETION_TOKENS_KEY]: cap };
 }
 
+/** Rule 9 for one row: the marker onto the last text part, the message-level key removed. A row with no text
+ *  to carry it is left as the converter wrote it. */
+function markerOnContentPart(message: unknown): unknown {
+  if (!isRecord(message) || message[CACHE_CONTROL_KEY] === undefined) {
+    return message;
+  }
+  const { [CACHE_CONTROL_KEY]: marker, ...rest } = message;
+  const parts = contentParts(message["content"]);
+  const last = parts.findLastIndex((part) => isRecord(part) && part["type"] === TEXT_TYPE);
+  if (last === -1) {
+    return message;
+  }
+  return { ...rest, content: parts.map((part, index) => (index === last && isRecord(part) ? { ...part, [CACHE_CONTROL_KEY]: marker } : part)) };
+}
+
+function applyCacheMarkerSpelling(body: Record<string, unknown>, args: ShapeArgs): Record<string, unknown> {
+  const messages = body["messages"];
+  if (args.dialect !== "openrouter" || !Array.isArray(messages)) {
+    return body;
+  }
+  return { ...body, messages: messages.map(markerOnContentPart) };
+}
+
 /** The whole shaper, in rule order. Pure: returns a new object, never mutates the SDK's argument. */
 export function shapeOutboundBody(raw: Record<string, unknown>, args: ShapeArgs): Record<string, unknown> {
   let body = mergeExtras(raw, args);
@@ -194,5 +223,5 @@ export function shapeOutboundBody(raw: Record<string, unknown>, args: ShapeArgs)
   if (args.replyImages) {
     body = { ...body, [MODALITIES_KEY]: [...REPLY_MODALITIES] };
   }
-  return applyOutputCapSpelling(applyEffortSpelling(body, args), args);
+  return applyCacheMarkerSpelling(applyOutputCapSpelling(applyEffortSpelling(body, args), args), args);
 }
