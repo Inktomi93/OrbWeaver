@@ -149,3 +149,23 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D162 | [Firehose import allowlist: the unclamped all-chat stream may be named only by the server composition root and its transport barrel](0162-firehose-import-allowlist-the-unclamped-all-chat-stream.md) | active |
 | D163 | [schema history has a post-launch rule and a pre-launch standing exception](0163-schema-history-has-a-post-launch-rule-and.md) | active |
 | D164 | [Docs, plans and ADRs are markdown with one structural writer](0164-docs-plans-adrs.md) | active |
+| D200 | [Shadow ingredients derive per polarity from the base surface](0200-theme-shadow-ingredient-derivation.md) | active |
+| D201 | [The neutral surface ramp derives two cases from the same pivot](0201-theme-surface-ramp-two-case-derivation.md) | active |
+| D202 | [Accepted-base foreground contract supersedes the raw-L pivot](0202-theme-accepted-base-foreground-contract.md) | active |
+| D203 | [The admin tier wires eight AppSettings system-tuning knobs](0203-admin-tier-system-tuning-knobs.md) | active |
+| D204 | [Imagery prompt templates home in per-user UserSettings, not preset cards](0204-imagery-prompt-templates-per-user-home.md) | active |
+| D205 | [Folded extraction mode is the born default](0205-folded-extraction-is-born-default.md) | active |
+| D206 | [The agent-sdk wire gets a terminal-tool channel for folded extraction](0206-agent-sdk-terminal-tool-channel.md) | active |
+| D207 | [A local vLLM chat wire guards folded extraction to the cheap round](0207-local-engine-fold-guard.md) | active |
+| D208 | [The reliable structured-output extraction mode is deleted](0208-reliable-extraction-mode-deleted.md) | active |
+| D209 | [Workloads stage E: lanes, durable progress, and visible poison rows](0209-workloads-stage-e-lanes-progress-poison.md) | active |
+| D210 | [The permissions model has one page: Spine-Identity-and-Auth](0210-permissions-model-one-page.md) | active |
+| D211 | [The rail is eight sections and home is the born default](0211-rail-is-eight-sections-home-is-default.md) | active |
+| D212 | [The lifecycle chrome anatomy: band, kebab, and zero chrome in editors](0212-lifecycle-chrome-anatomy.md) | active |
+| D213 | [The regex script library is a first-class scoped store](0213-regex-script-library-storage.md) | active |
+| D214 | [The R4 promotion doorway ships with two named gaps](0214-r4-promotion-doorway-named-gaps.md) | active |
+| D215 | [The preset readout binding chip is honest by membership](0215-preset-readout-binding-chip-lane-d8.md) | active |
+| D216 | [Variant raw content and freeze provenance are host-plane](0216-variant-raw-and-freeze-provenance-is-host-plane.md) | active |
+| D217 | [The message-kind dispatch fan-out is committed](0217-message-kind-dispatch-fan-out-committed.md) | active |
+| D218 | [The role verdict has one home in every tier, not just the auth seam](0218-role-verdict-one-home-every-tier.md) | active |
+| D219 | [The cast read axis is renamed to the chat identity axis](0219-cast-axis-renamed-to-identity-axis.md) | active |

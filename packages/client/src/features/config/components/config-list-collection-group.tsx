@@ -37,7 +37,7 @@
 //  · #1211's "a library that says nothing about being empty reads as a feature that was never built". Its
 //    COPY half survives verbatim and its ADDRESS changed: the sentence is `emptyText` on the CONTENT landing
 //    (F5 arm A, board 07), and the band still states the honest `0` beside it.
-//  · D121(D) `band=Import` and the band's create `+`. Both were band chrome because the band was the
+//  · D212 `band=Import` and the band's create `+`. Both were band chrome because the band was the
 //    library's only chrome in this workspace. The library has a pane now, so they move to its control row
 //    (DESIGN.md §3.2) — one home each, in the pane the reader is looking at. The C-2 no-aggregate-primary
 //    ruling is untouched; only the address changed.

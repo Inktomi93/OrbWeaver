@@ -260,7 +260,7 @@ function ContentArm({ groups, selection, active, collection }: ContentArmProps):
  * boundary's FALLBACK and its error arm, so precisely one of the two rows paints at any moment and the exit
  * is never missing. It carries the same `data-slot`, because it is the same row in its pending state.
  *
- * NO LIFECYCLE CHROME ON EITHER SPELLING (D121(D), #271). Delete is the ROW's kebab in every collection, and
+ * NO LIFECYCLE CHROME ON EITHER SPELLING (D212, #271). Delete is the ROW's kebab in every collection, and
  * the fork "the kebab is off-screen while drilled" is answered by this Back — precisely what world info's
  * entry level already does.
  */

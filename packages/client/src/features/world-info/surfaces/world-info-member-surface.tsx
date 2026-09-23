@@ -118,7 +118,7 @@ function BookEditor({ bookId, back }: { readonly bookId: WorldBookId; readonly b
         {/* THE DRILL ROW (#1747, DESIGN.md §3.4, board 06): `← Back to <library>` · the book's name · this
             book's OWN verbs — Edit details · Backfill · New entry, exactly the trio the board draws, moved
             up out of the two rows that used to carry them (the name+pencil row and the census row). No
-            lifecycle chrome: Delete is the LIST row's kebab (D121(D), #271).
+            lifecycle chrome: Delete is the LIST row's kebab (D212, #271).
             EDIT DETAILS IS A LABELLED BUTTON NOW, not a bare pencil: the board names it, and the icon-only
             trigger's whole accessible name lived in an `aria-label` nothing on screen said. */}
         <MemberDrillHeader

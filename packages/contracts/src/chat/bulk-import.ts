@@ -82,7 +82,7 @@ export interface BulkImportMessageInput {
   /** The slot's DECLARED PURPOSE (`messages.kind`, D129) — carried through the import boundary rather than
    *  re-derived on the far side, because purpose is a per-row fact and every inference for it (role ×
    *  attribution × the room's dial) degrades. ABSENT ⇒ `DEFAULT_MESSAGE_KIND` (`standard`): a plain ST
-   *  transcript declares no purpose, and saying so here is the explicit default D129(G) asks for.
+   *  transcript declares no purpose, and saying so here is the explicit default D217 asks for.
    *
    *  `narrator` ALSO routes attribution: the row is voiced by the room's SYNTHETIC group identity — the
    *  `output:"narrator"` grammar, where one message voices all the seated characters and is authored by the per-room
