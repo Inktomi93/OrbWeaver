@@ -51,6 +51,7 @@ function host(overrides: Partial<ResourceHost> = {}): ResourceHost {
         scripts: {},
         dependencies: { runtime: {}, development: {}, peer: {}, optional: {} },
         exports: {},
+        declaresSideEffects: false,
       }),
     staticConfig: (id) => fact(`static-config:${id}`, [`${id}.config.ts`], { id, path: `${id}.config.ts`, rows: [{ key: "include", value: "src", line: 1 }] }),
     nativeConfig: (): never => {

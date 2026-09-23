@@ -47,6 +47,10 @@ export interface PackageMetadata {
   readonly scripts: PackageStringMap;
   readonly dependencies: PackageDependencyFacts;
   readonly exports: PackageStringMap;
+  /** Whether the manifest declares a `sideEffects` field at all, whatever its value. Presence is the whole
+   *  fact: `client-package-no-side-effects` bans the field on the app package, where any value lets the
+   *  bundler drop a bare side-effect import (#1752). */
+  readonly declaresSideEffects: boolean;
 }
 
 export interface StaticConfigRow {
