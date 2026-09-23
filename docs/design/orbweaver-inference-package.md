@@ -3060,7 +3060,7 @@ it is a SERVER-side fetch inside the F12 admission — the pane calls a `connect
       - *BUILD LOG, 2026-09-20 (lane cb-affected-base — `tests:instrument-affected`, #2472, `541abae6d`)*.
         TWO instruments lying at once. (1) A SIGKILLed vitest worker fork exited **1** — indistinguishable
         from a failed assertion — and wrote NO json report at all. Now exit **2** naming what died and which
-        specs never reported, with the genuine reds still present. Landed in `scripts/vitest-supervised.mjs`
+        specs never reported, with the genuine reds still present. Landed in `scripts/vitest-supervised.ts`
         rather than stage-locally, because that runner already owns the #1490 "a contained wedge is a TOOL
         ERROR, never a verdict" ruling and a pool crash is that ruling with a new input; stage-local would
         have left `pnpm test` reporting a dead harness as a product red. CONSEQUENCE: a pool crash is exit 2

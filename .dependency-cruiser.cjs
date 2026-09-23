@@ -1,13 +1,18 @@
 /**
  * dependency-cruiser — the import-graph backstop for the layer cake + the server tier order.
  *
+ * WHY THIS FILE IS COMMONJS (work item 0036 converted every other script to TypeScript): dependency-cruiser
+ * 18 imports a config only for the `.js`/`.cjs`/`.mjs` extensions and parses every other extension as JSON5
+ * (`node_modules/dependency-cruiser/src/config-utl/extract-depcruise-config/read-config.mjs`), so a `.ts`
+ * config fails to parse. Revisit when that reader accepts TypeScript.
+ *
  * The cake (kit ← contracts ← db ← server ← client) is PRIMARILY resolver-physics (a package can't
  * import an undeclared dep). dep-cruiser is the tier-3 backstop that (a) catches deep relative `../../`
  * escapes that dodge the package boundary, (b) distinguishes type-only edges (the client→server tRPC
  * AppRouter bridge, drivers' param types), and (c) enforces everything INSIDE @orb/server — the server
  * tier order + per-feature isolation — which the resolver cannot see (it's all one package).
  *
- * Scanned via `pnpm depcruise` = `node scripts/depcruise.mjs`, which cruises `packages`, `tooling`, and
+ * Scanned via `pnpm depcruise` = `node scripts/depcruise.ts`, which cruises `packages`, `tooling`, and
  * every helper world root that exists (`HELPER_WORLD_DIRS` — tests/support/{iso,node,browser}). The scope
  * is DERIVED there, not spelled here, so a new helper world joins the cruise without a header edit; this
  * file's own tooling section (tooling-cli-via-index, tooling-shared-floor, tooling-no-provider-families,

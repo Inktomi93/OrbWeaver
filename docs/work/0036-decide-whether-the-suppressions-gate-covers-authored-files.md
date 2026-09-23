@@ -26,4 +26,18 @@ One of two outcomes holds. (A) The suppressions population admits the repo-root 
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Outcome (A), from lane cb-suppress. The commit messages carry the full list of checks.
+
+- Converted, with every caller updated: `scripts/{ts7,eslint,depcruise,vitest-supervised}.ts`,
+  `scripts/probes/st-goldens/write-v2-png.ts` and `stryker{,.gate}.config.ts`. `pnpm typecheck` covers
+  each one through the root or tests-dom program, and a planted type error turned it red.
+- Kept as JavaScript, each with its reason in its header: `eslint.config.js` and
+  `.dependency-cruiser.cjs`. The showcase QuickJS guest bundles keep theirs in
+  `packages/showcase-plugins/src/index.ts`.
+- `harnessGlobs` loads the repo-root files, the package files outside `src/` and `playwright/`. The
+  `suppressions` population is `of: "all"`, and `population.test.ts` holds the corpus to git's tracked list.
+- Directives: the `knip.ts` one is removed, because a Biome config block now covers that file.
+  `suppressions:source-lint-style-use-consistent-method-signatures` grants the `platform.d.ts` ones.
+  `token-contract.ts` falls under an existing grant.
+- `pnpm check:structure` shows `suppressions` green with 0 tool errors. `pnpm check:policy-conformance`,
+  `pnpm typecheck` and `pnpm depcruise` are clean.

@@ -391,7 +391,7 @@ The behavioral suites are ONE `tests` concept expressed as stages with tier + sc
   zero runtime dependents; that derived empty is explicitly printed and exits cleanly through a local
   `--passWithNoTests` flag. The default config and whole-suite commands retain `passWithNoTests: false`.
   Direct `test:scoped --related` requires source files before runner flags; directories are refused with
-  guidance to use `verify --scope` for authored-folder expansion. **The vitest run is wrapped by `scripts/vitest-supervised.mjs`
+  guidance to use `verify --scope` for authored-folder expansion. **The vitest run is wrapped by `scripts/vitest-supervised.ts`
   (#345, re-rooted #1012):** vitest 4.1.11's run path has exactly ONE unbounded await — `Pool.run`'s
   `await testFinish.promise`, settled only by a worker's `testfileFinished` message or a runner error/exit
   event — and the CLI reaches `ctx.exit()` (which arms vitest's own unref'd `teardownTimeout` force-exit)
