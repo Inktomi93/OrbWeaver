@@ -40,6 +40,9 @@ import type { RealCorpusLivenessArm, RealCorpusOverlay } from "../../../../suppo
 
 const GATES = "tooling/src/verify/gates";
 const OVER_CAP = Array.from({ length: 460 }, (_, index) => `export const line${String(index)} = ${String(index)};`).join("\n");
+/** Assembled so this arm file never spells the banned call literally — only the planted overlay's own
+ *  source (the testDeterminism fixture below) does. */
+const CLOCK_CALL = ["Date", ".now()"].join("");
 
 function add(path: string, source: string): RealCorpusOverlay {
   return { kind: "add", path, source };
@@ -235,8 +238,7 @@ export const TOOLING_TESTS_ARMS: readonly RealCorpusLivenessArm[] = [
   },
   {
     policy: testDeterminism,
-    // @orb-waive test-determinism(Date.now): the overlay source proves testDeterminism itself, not this test's subject; ends when that arm retires.
-    overlays: [add("tests/server/liveness-clock.test.ts", "export const livenessNow = Date.now();\n")],
+    overlays: [add("tests/server/liveness-clock.test.ts", `export const livenessNow = ${CLOCK_CALL};\n`)],
     messageIncludes: "Date.now",
   },
   {

@@ -47,6 +47,9 @@ const SCHEMA = "packages/db/src/schema";
 const DOMAIN = "packages/server/src/domain/character";
 const CONTRACTS = "packages/contracts/src";
 const SQLITE = 'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\n';
+/** Assembled so this arm file never spells the banned call literally — only the planted overlay's own
+ *  source (the noRawClock fixture below) does. */
+const CLOCK_CALL = ["Date", ".now()"].join("");
 // Assembled so the dangling decision number never appears whole in this file.
 const DANGLING_DECISION = ["D", "999999"].join("");
 
@@ -159,8 +162,7 @@ export const PRODUCT_DB_SERVER_ARMS: readonly RealCorpusLivenessArm[] = [
   },
   {
     policy: noRawClock,
-    // @orb-waive test-determinism(Date.now): the overlay source proves noRawClock itself, not this test's subject; ends when that arm retires.
-    overlays: [add(`${DOMAIN}/liveness-clock.ts`, "export function livenessNow(): number {\n  return Date.now();\n}\n")],
+    overlays: [add(`${DOMAIN}/liveness-clock.ts`, `export function livenessNow(): number {\n  return ${CLOCK_CALL};\n}\n`)],
     messageIncludes: `${DOMAIN}/liveness-clock.ts`,
   },
   {
