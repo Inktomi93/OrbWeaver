@@ -5,43 +5,55 @@ paths:
 
 # Docs
 
-Write to `docs/architecture/core/Documentation-Law.md` (content) and `Core-Docs-Formatting-Law.md`
-(mechanics). They own doc style; do not restate it here. `.claude/rules/writing.md` covers instruction
-files and code comments, not docs.
+Style is `.claude/rules/writing.md`; this file covers only the docs mechanics.
+
+## The tree
+
+Four homes plus `docs/Mission.md`: `docs/law/` (standing law), `docs/adr/` (one decision per file,
+immutable), `docs/plans/<slug>/design.md` (a program), `docs/work/` (one work item per file). A done
+plan moves to the archive folder under `docs/plans/`. The other folders under `docs/` are legacy and
+migrate under `docs/plans/doc-migration/design.md`; do not add a file to them.
+
+## Write prose, not structure
+
+Every structural change goes through `pnpm doc` (run `pnpm doc help` for the verbs): minting, status
+and supersession, work-item transitions and landing, archiving, `review`, and the generated indexes
+(`README.md` in each home, a plan's `tasks.md`). Never edit a generated file or a frontmatter block by
+hand. `pnpm check:agents` reds a stale index, a missing section, a size cap, a dead link or path, and a
+writing-rule finding; its message names the fixing command.
 
 ## Frontmatter
 
-Every `docs/**` file carries `kind`, `status`, and `updated` in its frontmatter block. This is a docs
-exception to writing.md's ban on dates. `docs/architecture/history/` and `docs/reviews/` are dated
-records by design.
+Every `docs/**` file carries `kind`, `status` and `updated`. `updated` is the one sanctioned date and
+doubles as the review mark: `pnpm doc due` lists docs whose cited code changed after it, and
+`pnpm doc review <path|glob…>` sets it in batch. The legacy tree keeps its dated-by-design exemption
+until it moves.
+
+## Work items
+
+States are `open`, `doing` (with `lane`), `blocked` (with `blocked: owner | on <id> | wake <command>`)
+and `done` (with `evidence`, a commit on `main`). Any transition is legal; the checker validates the
+final shape. Lanes never write item state: add a `Closes: 12, 14` trailer and the post-merge hook lands
+the items. `pnpm doc overview` is the column view; `pnpm doc drift` names each inconsistency with its fix.
 
 ## Checks
 
-`pnpm check:docs` runs the doc formatter. `pnpm check:doc-catalog` checks catalog freshness.
-`pnpm check:structure` runs dangling-reference and D-citation gates. A floor touching docs
-runs all three.
+`pnpm check:agents` (the governed tree), `pnpm check:docs` (the formatter), `pnpm check:structure`
+(dangling references and D citations), `pnpm check:doc-catalog` (the legacy tree only). A floor touching
+docs runs all four.
 
 ## Editing a formatted doc
 
-A scripted find-and-replace against a formatted doc asserts the match count is 1 before
-replacing. The formatter rewrites characters such as `~`, so an unverified anchor can
-silently do nothing.
+A scripted find-and-replace against a formatted doc asserts the match count is 1 before replacing. The
+formatter rewrites characters such as `~`, so an unverified anchor can silently do nothing.
 
 ## `docs/architecture/proposed/`
 
-This tree is rebuild reference, not current plan or status. Its own status lines can be
-stale. Before relying on a claim inside it, check the claim against the code and tests.
-Never edit a status line here to match reality; treat drift as expected.
-
-A dispatch into a `proposed/<set>/` folder reads every file in that set, starting with its
-`README.md`, before writing any code. List the set with `find` or a tree listing, not a bare
-`ls`, so no file is missed.
-
-Graduating a set to `docs/architecture/history/`: annotate drift in place, close real test
-gaps with code, `git mv` the files, fix self-links and sibling cross-links, run
-`pnpm format:docs`, flip its `INDEX.md` row, and mint a ledger entry.
+Rebuild reference, not current plan or status; its own status lines can be stale. Check a claim against
+the code and tests before relying on it, and never edit a status line to match reality. A dispatch into a
+set reads every file in it, `README.md` first.
 
 ## `docs/catalog/receipts/**`
 
-After rebasing a branch that added rows to these files, remap any `verifiedCommit` value that now
-points at an orphaned sha to its rebased equivalent before treating the merge as done.
+After rebasing a branch that added rows to these files, remap any `verifiedCommit` value that now points
+at an orphaned sha to its rebased equivalent before treating the merge as done.

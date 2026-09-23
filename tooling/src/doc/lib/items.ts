@@ -1,0 +1,141 @@
+// Work items as data: parse a `docs/work/NNNN-<slug>.md` file into a `WorkItem`, judge a state's final
+// shape, and apply a transition patch. Any transition is legal — only the resulting shape is checked —
+// which is what lets the orchestrator batch `set 12 14 17 done` without walking a lifecycle.
+import { DATE_RE, DOC_TOOL_TREES, ITEM_KINDS, ITEM_STATES } from "#doc-catalog";
+import type { Blocker, ItemKind, ItemPatch, ItemState, WorkItem } from "../contract/types.ts";
+import { splitDocument, titleOf, withFields } from "./frontmatter-write.ts";
+import { basenameOf, parseNumberedName } from "./names.ts";
+
+const PRIORITY_RE = /^P[0-3]$/u;
+const AREA_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
+const ON_RE = /^on (\d+)$/u;
+const WAKE_RE = /^wake (.+)$/u;
+/** A full commit id. The checker proves it exists on `main`; the shape is judged here. */
+const COMMIT_RE = /^[a-f0-9]{7,40}$/u;
+
+export function isItemKind(value: string | undefined): value is ItemKind {
+  return ITEM_KINDS.some((kind) => kind === value);
+}
+
+export function isItemState(value: string | undefined): value is ItemState {
+  return ITEM_STATES.some((state) => state === value);
+}
+
+export function isItemPath(path: string): boolean {
+  return path.startsWith(DOC_TOOL_TREES.work) && parseNumberedName(basenameOf(path)) !== null;
+}
+
+/** The blocker a `blocked:` value names, or null when the value is in no grammar. */
+export function parseBlocker(value: string): Blocker | null {
+  if (value === "owner") {
+    return { kind: "owner" };
+  }
+  const on = ON_RE.exec(value)?.[1];
+  if (on !== undefined) {
+    return { kind: "on", id: Number(on) };
+  }
+  const wake = WAKE_RE.exec(value)?.[1];
+  return wake === undefined ? null : { kind: "wake", command: wake.trim() };
+}
+
+/** `null` when the file is not an item (wrong tree, no block, unknown kind or state); the schema rules
+ *  report those separately, so a caller listing items never sees a half-parsed one. */
+export function parseItem(path: string, source: string): WorkItem | null {
+  const name = parseNumberedName(basenameOf(path));
+  const { fields, body } = splitDocument(source);
+  if (name === null || fields === null || !isItemKind(fields["kind"]) || !isItemState(fields["status"])) {
+    return null;
+  }
+  const field = (key: string): string | null => fields[key] ?? null;
+  return {
+    id: name.id,
+    path,
+    title: titleOf(body) ?? name.slug,
+    kind: fields["kind"],
+    state: fields["status"],
+    updated: fields["updated"] ?? "",
+    priority: field("priority"),
+    area: field("area"),
+    lane: field("lane"),
+    blocked: field("blocked"),
+    plan: field("plan"),
+    evidence: field("evidence"),
+    reviewed: field("reviewed"),
+  };
+}
+
+function fieldGrammarProblems(item: WorkItem): readonly string[] {
+  const problems: string[] = [];
+  if (item.priority !== null && !PRIORITY_RE.test(item.priority)) {
+    problems.push(`priority must be P0..P3, found ${item.priority}`);
+  }
+  if (item.area !== null && !AREA_RE.test(item.area)) {
+    problems.push(`area must be one lowercase token, found ${item.area}`);
+  }
+  if (!DATE_RE.test(item.updated)) {
+    problems.push("updated must be YYYY-MM-DD");
+  }
+  return problems;
+}
+
+function blockedProblem(item: WorkItem, known: ReadonlySet<number>): string | null {
+  const blocker = item.blocked === null ? null : parseBlocker(item.blocked);
+  if (blocker === null) {
+    return "a blocked item carries a reason: blocked: owner | on <id> | wake <command>";
+  }
+  if (blocker.kind === "on" && !known.has(blocker.id)) {
+    return `blocked on ${String(blocker.id)}, which is not an item under ${DOC_TOOL_TREES.work}`;
+  }
+  return null;
+}
+
+/** The companion a state owes, or null when the state is complete. */
+function stateProblem(item: WorkItem, known: ReadonlySet<number>): string | null {
+  if (item.state === "doing" && item.lane === null) {
+    return "a doing item names its lane: pnpm doc set <id> doing --lane <lane>";
+  }
+  if (item.state === "blocked") {
+    return blockedProblem(item, known);
+  }
+  if (item.state === "done" && (item.evidence === null || !COMMIT_RE.test(item.evidence))) {
+    return "a done item carries its evidence commit: pnpm doc land <id> --evidence <sha>";
+  }
+  return null;
+}
+
+/** Every way an item's FINAL shape is wrong: a state without its companion, a companion in a wrong
+ *  grammar, or an `on <id>` blocker naming no item. `known` is every item id on the tree. */
+export function itemShapeProblems(item: WorkItem, known: ReadonlySet<number>): readonly string[] {
+  const state = stateProblem(item, known);
+  return [...fieldGrammarProblems(item), ...(state === null ? [] : [state])].map((what) => `${item.path}: ${what}`);
+}
+
+/** The item file with a transition applied as a whole-block rewrite. A state change clears the companions
+ *  that belong to the states left behind, so a `blocked` reason never survives into `doing`. */
+export function applyPatch(source: string, item: WorkItem, patch: ItemPatch, today: string): string {
+  const next: Record<string, string | null> = { updated: today };
+  const state = patch.state ?? item.state;
+  if (patch.state !== undefined) {
+    next["status"] = patch.state;
+    if (state !== "doing") {
+      next["lane"] = null;
+    }
+    if (state !== "blocked") {
+      next["blocked"] = null;
+    }
+    if (state !== "done") {
+      next["evidence"] = null;
+    }
+  }
+  for (const key of ["priority", "area", "lane", "blocked", "plan", "evidence", "reviewed"] as const) {
+    const value = patch[key];
+    if (value !== undefined) {
+      next[key] = value;
+    }
+  }
+  return withFields(source, next);
+}
+
+export function nextItemId(items: readonly WorkItem[]): number {
+  return items.reduce((max, item) => Math.max(max, item.id), 0) + 1;
+}

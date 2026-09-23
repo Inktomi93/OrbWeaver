@@ -12,6 +12,7 @@ import {
   CATALOG_DIR,
   COMMIT_RE,
   CORE_PATH_REGISTRY_PATH,
+  DOC_TOOL_TREE_PREFIXES,
   LEDGER_ENTRY_BOLD_RE,
   LEDGER_ENTRY_HEADING_RE,
   NUMERIC_HEADING_RE,
@@ -286,7 +287,8 @@ function canonicalSha256(content: string): string | null {
 }
 
 /** The catalog's corpus = TRACKED markdown under docs/ (git, not a glob — an untracked draft is not a
- *  document, and a deleted-but-unstaged one is). */
+ *  document, and a deleted-but-unstaged one is) MINUS the trees the `doc` tool governs: those carry no
+ *  lane row and no attestation by design (`lib/vocab.ts#DOC_TOOL_TREES`), and `pnpm check:agents` is their checker. */
 function trackedDocs(repoRoot = root, isolateGitEnvironment = false): readonly string[] {
   return execNicedSync(
     isolateGitEnvironment ? "env" : "git",
@@ -296,7 +298,7 @@ function trackedDocs(repoRoot = root, isolateGitEnvironment = false): readonly s
     { cwd: repoRoot },
   )
     .split("\0")
-    .filter((path) => path.endsWith(".md"))
+    .filter((path) => path.endsWith(".md") && !DOC_TOOL_TREE_PREFIXES.some((prefix) => path.startsWith(prefix)))
     .sort();
 }
 

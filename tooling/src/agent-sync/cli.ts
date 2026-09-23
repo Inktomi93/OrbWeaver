@@ -2,9 +2,9 @@
 // ONLY (the five-slot cap); the programmatic surface is ./index.ts.
 //
 //   pnpm agents:sync            rewrite .codex/agents/*.toml
-//   pnpm check:agents           (--check) report staleness and instruction-layer problems, write nothing
+//   pnpm check:agents           (--check) report staleness, instruction-layer and docs-tree problems, write nothing
 //
-// Exit: 0 clean · 1 the mirror is stale (--check) · 2 the tool broke · 3 misuse.
+// Exit: 0 clean · 1 the mirror is stale or a layer has problems (--check) · 2 the tool broke · 3 misuse.
 import process from "node:process";
 import { print, REPO_ROOT } from "../_shared/artifacts.ts";
 import { EXIT } from "../_shared/exit-contract.ts";
@@ -13,10 +13,11 @@ import { runTool, UsageError } from "../_shared/run-tool.ts";
 import {
   ALWAYS_ON_LINE_BUDGET,
   alwaysOnLines,
+  checkedDocCount,
+  checkedLayerProblems,
   codexAgentSyncProblems,
   codexRoleCount,
   instructionFileCount,
-  instructionLayerProblems,
   syncCodexAgents,
 } from "./index.ts";
 
@@ -32,7 +33,11 @@ function main(): number {
     if (fileCount === 0) {
       throw new Error("the instruction-layer walk found no files; the check cannot measure");
     }
-    const problems = [...codexAgentSyncProblems(), ...instructionLayerProblems(REPO_ROOT)];
+    const docCount = checkedDocCount(REPO_ROOT);
+    if (docCount === 0) {
+      throw new Error("the docs-tree walk found no governed document; the check cannot measure");
+    }
+    const problems = [...codexAgentSyncProblems(), ...checkedLayerProblems(REPO_ROOT)];
     if (problems.length > 0) {
       for (const problem of problems) {
         warn(problem);
@@ -41,6 +46,7 @@ function main(): number {
     }
     print(`checked ${codexRoleCount()} Codex agent manifests: current`);
     print(`checked ${fileCount} instruction files; always-on text is ${alwaysOnLines(REPO_ROOT).total} lines (budget: under ${ALWAYS_ON_LINE_BUDGET})`);
+    print(`checked ${docCount} governed docs under docs/`);
     return EXIT.clean;
   }
   const roles = syncCodexAgents();

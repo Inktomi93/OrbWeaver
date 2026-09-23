@@ -2,20 +2,23 @@
 paths:
   - ".claude/**"
   - "AGENTS.md"
+  - "docs/**"
 ---
 
-# Writing instruction files
+# Writing instruction files and docs
 
-Rules for every instruction file: `AGENTS.md`, `.claude/rules`, agents, skills, memory, and code
-comments. Docs under `docs/**` follow their own style doc; see `.claude/rules/docs.md`.
+Rules for every instruction file (`AGENTS.md`, `.claude/rules`, agents, skills, memory), for code
+comments, and for every doc under `docs/**`. The docs mechanics (the tree, `pnpm doc`, frontmatter)
+are in `.claude/rules/docs.md`.
 
 Owner-voice sections — personality, communication, and philosophy written in the owner's own words —
 are exempt from this style. Never rewrite them into plain style. Wrap one in `<!-- owner-voice -->` and
 `<!-- /owner-voice -->` so the check skips it.
 
-`pnpm check:agents` checks `AGENTS.md` and every `.claude/**` Markdown file against rules 1, 4 and 12,
-and checks that every link and backticked repository path exists. It skips code spans and code
-blocks, so quote a literal name in backticks.
+`pnpm check:agents` checks `AGENTS.md`, every `.claude/**` Markdown file and the governed docs tree
+against rules 1, 2, 4 and 12, and checks that every link and backticked repository path exists. It
+skips frontmatter, code spans, code blocks and link targets, so quote a literal name in backticks. The
+legacy docs folders are exempt from rules 1, 2 and 4 until they migrate.
 
 ## Writing
 

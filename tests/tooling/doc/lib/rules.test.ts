@@ -1,0 +1,130 @@
+// The governed-tree rules on hand-built snapshots: each failure class beside the clean control that
+// proves the same walk passes. No tree, no git — `docProblems` is pure over a `DocTree`.
+import type { DocTree, GovernedDoc } from "../../../../tooling/src/doc/index.ts";
+import { adrTemplate, docProblems, expectedGeneratedFiles, itemTemplate, LEGACY_ROOTS, planTemplate } from "../../../../tooling/src/doc/index.ts";
+import { expect, test } from "../../../support/tool-fixtures.ts";
+
+const TODAY = "2026-09-23";
+const ADR = "docs/adr/0164-docs-plans-adrs.md";
+const PLAN = "docs/plans/doc-system/design.md";
+const ITEM = "docs/work/0001-ledger-split.md";
+const MISSION = "docs/Mission.md";
+
+function itemSource(fields: Readonly<Record<string, string>> = {}): string {
+  return itemTemplate({ kind: "work", status: "open", updated: TODAY, ...fields }, "Ledger split");
+}
+
+/** A tree whose generated files are exactly what a fresh render produces, so it is clean by construction. */
+function tree(docs: Readonly<Record<string, string>>, overrides: Partial<DocTree> = {}): DocTree {
+  const authored: GovernedDoc[] = Object.entries(docs).map(([path, source]) => ({ path, source }));
+  const generated: GovernedDoc[] = [...expectedGeneratedFiles(authored)].map(([path, source]) => ({ path, source }));
+  return {
+    root: [...LEGACY_ROOTS, "adr", "plans", "work", "law", "Mission.md", "catalog"].map((name) => ({ name, directory: !name.endsWith(".md") })),
+    docs: [...authored, ...generated],
+    registryIds: new Set([1, 163]),
+    reserved: { lo: 79, hi: 105 },
+    ...overrides,
+  };
+}
+
+const CLEAN = {
+  [ADR]: adrTemplate("Docs, plans and ADRs", TODAY),
+  [PLAN]: planTemplate("Doc system", TODAY),
+  [ITEM]: itemSource({ priority: "P1", area: "docs", plan: "doc-system" }),
+  [MISSION]: "---\nkind: law\nstatus: active\nupdated: 2026-07-03\n---\n\n# Mission\n\nWhy.\n",
+};
+
+test("a tree whose generated files match a fresh render is clean", () => {
+  expect(docProblems(tree(CLEAN))).toEqual([]);
+});
+
+test("an unknown top-level folder and a vanished legacy row are both findings (two-sided)", () => {
+  const snapshot = tree(CLEAN);
+  const root = [...snapshot.root.filter((entry) => entry.name !== "vendor"), { name: "notes", directory: true }];
+  const problems = docProblems({ ...snapshot, root });
+  expect(problems.some((line) => line.startsWith("docs/notes: not a docs home"))).toBe(true);
+  expect(problems.some((line) => line.startsWith("docs/vendor: named by LEGACY_ROOTS"))).toBe(true);
+});
+
+test("a stale generated index is a finding that names the regenerating command", () => {
+  const snapshot = tree(CLEAN);
+  const docs = snapshot.docs.map((doc) => (doc.path === "docs/adr/README.md" ? { ...doc, source: `${doc.source}\nstale line\n` } : doc));
+  expect(docProblems({ ...snapshot, docs })).toEqual(["docs/adr/README.md: stale generated file — run pnpm doc index"]);
+});
+
+test("a missing generated file is a finding", () => {
+  const snapshot = tree(CLEAN);
+  expect(docProblems({ ...snapshot, docs: snapshot.docs.filter((doc) => doc.path !== "docs/work/README.md") })).toEqual([
+    "docs/work/README.md: missing generated file — run pnpm doc index",
+  ]);
+});
+
+test("frontmatter is judged per kind: a wrong kind for the tree, a status outside the kind's set, a foreign key", () => {
+  const wrongKind = tree({ ...CLEAN, [ADR]: adrTemplate("x", TODAY).replace("kind: adr", "kind: plan") });
+  expect(docProblems(wrongKind)).toContain(`${ADR}: kind plan is not allowed here; this path takes adr`);
+  const wrongStatus = tree({ ...CLEAN, [ADR]: adrTemplate("x", TODAY).replace("status: active", "status: done") });
+  expect(docProblems(wrongStatus)).toContain(`${ADR}: status done is not one of active | superseded for kind adr`);
+  const foreignKey = tree({ ...CLEAN, [ADR]: adrTemplate("x", TODAY).replace("status: active", "status: active\nlane: cb-x") });
+  expect(docProblems(foreignKey)).toContain(`${ADR}: key lane is not allowed on kind adr`);
+  const noBlock = tree({ ...CLEAN, [PLAN]: "# Plan\n\n## Goal\n" });
+  expect(docProblems(noBlock)).toContain(`${PLAN}: missing frontmatter (kind, status, updated)`);
+});
+
+test("a required section is demanded by kind and a cap is enforced by kind", () => {
+  const missing = tree({ ...CLEAN, [ADR]: adrTemplate("x", TODAY).replace("## Consequences", "## Outcomes") });
+  expect(docProblems(missing)).toEqual([`${ADR}: missing required section ## Consequences`]);
+  const eightKib = 8192;
+  const fat = tree({ ...CLEAN, [ADR]: `${adrTemplate("x", TODAY)}${"z".repeat(eightKib)}\n` });
+  expect(docProblems(fat).some((line) => line.startsWith(`${ADR}: `) && line.includes("exceeds the 8 KiB cap"))).toBe(true);
+});
+
+test("a plan needs its own folder with a design, and an archived plan is dated and archived", () => {
+  const loose = tree({ ...CLEAN, "docs/plans/loose.md": planTemplate("Loose", TODAY) });
+  expect(docProblems(loose)).toContain("docs/plans/loose.md: a plan lives in its own folder: docs/plans/<slug>/design.md");
+  const extra = tree({ ...CLEAN, "docs/plans/doc-system/notes.md": planTemplate("Notes", TODAY) });
+  expect(docProblems(extra)).toContain("docs/plans/doc-system/notes.md: a plan folder holds design.md and tasks.md only");
+  const undated = tree({ ...CLEAN, "docs/plans/archive/old-plan/design.md": planTemplate("Old", TODAY).replace("status: active", "status: archived") });
+  expect(docProblems(undated)).toContain("docs/plans/archive/old-plan/design.md: an archived plan folder is YYYY-MM-DD-<slug>");
+  const live = tree({ ...CLEAN, "docs/plans/archive/2026-09-01-old-plan/design.md": planTemplate("Old", TODAY) });
+  expect(docProblems(live)).toContain("docs/plans/archive/2026-09-01-old-plan/design.md: an archived plan's status is archived");
+  const archived = tree({
+    ...CLEAN,
+    "docs/plans/archive/2026-09-01-old-plan/design.md": planTemplate("Old", TODAY).replace("status: active", "status: archived"),
+  });
+  expect(docProblems(archived)).toEqual([]);
+});
+
+test("an ADR id must be unique, unreserved and not still anchored in the legacy registry", () => {
+  const twin = tree({ ...CLEAN, "docs/adr/0164-other.md": adrTemplate("Other", TODAY) });
+  expect(docProblems(twin)).toContain(`docs/adr/0164-other.md: id 164 is already ${ADR}`);
+  const anchored = tree({ ...CLEAN, "docs/adr/0163-schema.md": adrTemplate("Schema", TODAY) });
+  expect(docProblems(anchored).some((line) => line.includes("id 163 is still anchored in the legacy registry"))).toBe(true);
+  const reserved = tree({ ...CLEAN, "docs/adr/0080-main-era.md": adrTemplate("Main era", TODAY) });
+  expect(docProblems(reserved)).toContain("docs/adr/0080-main-era.md: id 80 is inside the reserved range D79–D105");
+  const named = tree({ ...CLEAN, "docs/adr/notes.md": adrTemplate("Notes", TODAY) });
+  expect(docProblems(named)).toContain("docs/adr/notes.md: an ADR file is NNNN-<slug>.md — mint one with pnpm doc new adr <slug>");
+});
+
+test("a work item's final shape is judged: doing needs a lane, blocked needs a reason naming an item, done needs evidence", () => {
+  const doing = tree({ ...CLEAN, [ITEM]: itemSource({ status: "doing" }) });
+  expect(docProblems(doing)).toEqual([`${ITEM}: a doing item names its lane: pnpm doc set <id> doing --lane <lane>`]);
+  const blockedBare = tree({ ...CLEAN, [ITEM]: itemSource({ status: "blocked" }) });
+  expect(docProblems(blockedBare)).toEqual([`${ITEM}: a blocked item carries a reason: blocked: owner | on <id> | wake <command>`]);
+  const blockedGhost = tree({ ...CLEAN, [ITEM]: itemSource({ status: "blocked", blocked: "on 42" }) });
+  expect(docProblems(blockedGhost)).toEqual([`${ITEM}: blocked on 42, which is not an item under docs/work/`]);
+  const done = tree({ ...CLEAN, [ITEM]: itemSource({ status: "done" }) });
+  expect(docProblems(done)).toEqual([`${ITEM}: a done item carries its evidence commit: pnpm doc land <id> --evidence <sha>`]);
+  const badPriority = tree({ ...CLEAN, [ITEM]: itemSource({ priority: "high" }) });
+  expect(docProblems(badPriority)).toEqual([`${ITEM}: priority must be P0..P3, found high`]);
+  const complete = tree({ ...CLEAN, [ITEM]: itemSource({ status: "blocked", blocked: "owner" }) });
+  expect(docProblems(complete)).toEqual([]);
+});
+
+test("a generated file carries exactly kind: index and status: active", () => {
+  const snapshot = tree(CLEAN);
+  const docs = snapshot.docs.map((doc) =>
+    doc.path === "docs/law/README.md" ? { ...doc, source: doc.source.replace("status: active", "status: active\nupdated: 2026-09-23") } : doc,
+  );
+  const problems = docProblems({ ...snapshot, docs });
+  expect(problems).toContain("docs/law/README.md: a generated file carries exactly kind: index and status: active");
+});
