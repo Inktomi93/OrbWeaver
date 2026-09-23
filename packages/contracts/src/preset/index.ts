@@ -842,11 +842,8 @@ export const DEFAULT_FORMAT_STRINGS = {
   responseNudge: PRESET_PROSE_SLOTS["preset.format.responseNudge"].text,
   wiFormat: PRESET_PROSE_SLOTS["preset.format.wiFormat"].text,
   /** The history-START boundary (ST `new_chat_prompt`/`new_group_chat_prompt` — ONE key covers both; we have
-   *  no chat/group split). BLANK by design, which is exactly today's behavior: the assembler emits nothing
-   *  until a preset sets it (`assembly/context.ts` newChatMarkerCandidate). Spelled here rather than read
-   *  from a PROSE-1 slot precisely BECAUSE it is blank — a slot is authored bytes (no slot may ship empty
-   *  text), and "no boundary marker" is a product behavior, not a sentence someone wrote. */
-  newChatMarker: "",
+   *  no chat/group split). Always a user row (`assembly/context.ts` newChatMarkerCandidate). */
+  newChatMarker: PRESET_PROSE_SLOTS["preset.format.newChatMarker"].text,
 } as const;
 
 /** The editable/importable format-string vocabulary, DERIVED from the one literal above (never re-spelled —
@@ -974,12 +971,8 @@ export interface TemplateDef {
    *  click, and the editable trigger vocabulary lives exclusively in the section drill-in (§5.0). */
   readonly fires: string;
   readonly caps: readonly TemplateCapability[];
-  /** The ghost's byte source — the PROSE-1 one-home for every default (`./prose`). `undefined` ⇒ this slot
-   *  ships NO default bytes (`newChatMarker`: blank means the feature is off until the host writes it), so
-   *  its editor ghosts nothing. A prose slot is authored bytes; an empty one is not a slot. Spelled
-   *  `| undefined` (and written explicitly on that one row) so the property exists on EVERY def — a reader
-   *  walking the table never has to narrow before asking for it. */
-  readonly defaultSlot?: ProseSlotId | undefined;
+  /** The ghost's byte source — the PROSE-1 one-home for every default (`./prose`). */
+  readonly defaultSlot: ProseSlotId;
   /** The Actions-list SUB-CLUSTER this row renders under ({@link TEMPLATE_CLUSTERS}) — declared on every
    *  `extract` row and on nothing else, a pairing the type system cannot state (the kind and the cluster are
    *  two independent fields), so it is enforced two-sidedly by the registry contract test instead: an
@@ -1254,11 +1247,9 @@ export const TEMPLATE_DEFS = [
     id: "newChatMarker",
     kind: "format",
     label: "New-chat marker",
-    fires: "Marks where the conversation starts, at the top of the history",
+    fires: "Opens the conversation as a user message, at the top of the history",
     caps: [],
-    // No prose slot: blank by design — nothing is emitted until the host writes a marker, and a PROSE-1
-    // slot is authored bytes (no slot may ship empty text).
-    defaultSlot: undefined,
+    defaultSlot: "preset.format.newChatMarker",
   },
   // ── THE TURN-WIRE FRAMINGS (owner ruling 2026-08-07) ──────────────────────────────────────────────────
   // The three wrappers assembly puts AROUND content on the way to the model. They are `format`, not `nudge`:

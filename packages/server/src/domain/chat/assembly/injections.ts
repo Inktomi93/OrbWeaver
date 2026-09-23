@@ -208,7 +208,12 @@ export function spliceInChatInjections<T extends { role: WireRole; content: stri
       midConversationSystem: opts.allowMidConversationSystem === true,
       historySystemRows: opts.allowHistorySystemRows === true,
     });
-    const framed = frameInjection(effectiveRole, resolveContent(inj.content), originalRole, opts.prose ?? {});
+    // The new-chat marker is the conversation's own opening line (ST `new_chat_prompt`), not an operator note,
+    // so it takes no note frame.
+    const framed =
+      inj.origin === "new-chat-marker"
+        ? resolveContent(inj.content).trim()
+        : frameInjection(effectiveRole, resolveContent(inj.content), originalRole, opts.prose ?? {});
     if (framed.length === 0) {
       continue;
     }
