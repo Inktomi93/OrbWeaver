@@ -63,5 +63,4 @@ None.
 
 ## Done
 
-- [0010](0010-vendored-docs-leave-git.md) P2 Vendored docs leave git `doc-migration` (220991d39)
-- [0033](0033-retract-the-stale-biome-inference-rationale-on-the.md) P3 Retract the stale Biome-inference rationale on the databank ingest-phase twin (af573a067f8e)
+None.
