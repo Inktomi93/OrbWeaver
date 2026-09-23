@@ -18,7 +18,7 @@ import type { StreamDataFrame, StreamFrame } from "@orb/contracts/stream";
 import type { Db } from "@orb/db";
 import { chatParticipants, chats } from "@orb/db";
 import type { ChatId, ChatParticipantId, Handle, MessageId, SocketId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { publishChatEvent } from "@orb/server/transport/trpc";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
@@ -110,7 +110,7 @@ describe("the chat room — durable delta replay over a real reads-slice (the #1
   test("a fresh chat's head deltas persisted through the real bus replay via sinceSeq 0, in seq order", async () => {
     // Seed a chat whose caller is the host member (so the per-yield membership gate passes).
     const host = await seedUser(db, castId<Handle>("host"));
-    const chatId: ChatId = await seedChat(db, "room");
+    const chatId: ChatId = await seedChat(db, "room", { id: mintTypeId(ID_PREFIX.chat) });
     await seedParticipant(db, { chatId, key: "room_h", userId: host, role: "host" });
 
     // Write the HEAD of a turn through the REAL domain bus (durable-first: chat_events INSERT commits
@@ -170,7 +170,7 @@ describe("the chat room — durable delta replay over a real reads-slice (the #1
     // replay the durable head — that would re-animate a finished turn as a ghost. With head deltas already
     // durable, only a LIVE event comes through, and `replayChatEvents` is never consulted.
     const host = await seedUser(db, castId<Handle>("host"));
-    const chatId: ChatId = await seedChat(db, "room2");
+    const chatId: ChatId = await seedChat(db, "room2", { id: mintTypeId(ID_PREFIX.chat) });
     await seedParticipant(db, { chatId, key: "room2_h", userId: host, role: "host" });
 
     const ctx = makeChatContext(db);
@@ -231,7 +231,7 @@ describe("the chat room — the D16 join-history clamp on the LIVE half (real pa
   ): Promise<{ host: UserId; joiner: UserId; chatId: ChatId; preId: MessageId; postId: MessageId }> {
     const host = await seedUser(db, castId<Handle>(`${key}_host`));
     const joiner = await seedUser(db, castId<Handle>(`${key}_joiner`));
-    const chatId: ChatId = await seedChat(db, key);
+    const chatId: ChatId = await seedChat(db, key, { id: mintTypeId(ID_PREFIX.chat) });
     await seedParticipant(db, { chatId, key: `${key}_h`, userId: host, role: "host" });
     const pre = await seedMessage(db, chatId, 1, { role: "assistant", content: "pre-join greeting" });
     const post = await seedMessage(db, chatId, 5, { role: "assistant", content: "post-join reply" });
@@ -370,7 +370,7 @@ describe("the chat room — a hidden span open across a MEMBER's reconnect never
   test("the opener lands DURING the disconnect gap; the closer arrives LIVE on the resumed room", async () => {
     const host = await seedUser(db, castId<Handle>("reopen_host"));
     const member = await seedUser(db, castId<Handle>("reopen_member"));
-    const chatId: ChatId = await seedChat(db, "reopen");
+    const chatId: ChatId = await seedChat(db, "reopen", { id: mintTypeId(ID_PREFIX.chat) });
     await seedParticipant(db, { chatId, key: "reopen_h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "reopen_m", userId: member, role: "member" });
 
@@ -445,7 +445,7 @@ describe("the chat room — a hidden span open across a MEMBER's reconnect never
 describe("the chat room — the LIVE-ONLY lane (durable-append-free fan)", () => {
   test("a live-only fan is DELIVERED at the current cursor, does not advance it, and does not trip the dedup", async () => {
     const host = await seedUser(db, castId<Handle>("liveonly_host"));
-    const chatId: ChatId = await seedChat(db, "liveonly");
+    const chatId: ChatId = await seedChat(db, "liveonly", { id: mintTypeId(ID_PREFIX.chat) });
     await seedParticipant(db, { chatId, key: "liveonly_h", userId: host, role: "host" });
 
     const ctx = makeChatContext(db);
@@ -482,7 +482,7 @@ describe("the chat room — the LIVE-ONLY lane (durable-append-free fan)", () =>
   test("a KICKED-but-attached member is withheld the live-only fan; the host on the same publish receives it", async () => {
     const host = await seedUser(db, castId<Handle>("liveonly_kick_host"));
     const kicked = await seedUser(db, castId<Handle>("liveonly_kick_member"));
-    const chatId: ChatId = await seedChat(db, "liveonly_kick");
+    const chatId: ChatId = await seedChat(db, "liveonly_kick", { id: mintTypeId(ID_PREFIX.chat) });
     await seedParticipant(db, { chatId, key: "lk_h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "lk_m", userId: kicked, role: "member" });
 
@@ -532,7 +532,7 @@ describe("the chat room — the LIVE-ONLY lane (durable-append-free fan)", () =>
   test("F-A: a chatDeleted published AFTER the row is gone reaches a KICKED-but-attached member — the gate-free death notice", async () => {
     const host = await seedUser(db, castId<Handle>("del_host"));
     const kicked = await seedUser(db, castId<Handle>("del_member"));
-    const chatId: ChatId = await seedChat(db, "del_room");
+    const chatId: ChatId = await seedChat(db, "del_room", { id: mintTypeId(ID_PREFIX.chat) });
     await seedParticipant(db, { chatId, key: "del_h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "del_m", userId: kicked, role: "member" });
 
@@ -559,7 +559,7 @@ describe("the chat room — the LIVE-ONLY lane (durable-append-free fan)", () =>
 
   test("#723 a never-authorized draft listener receives no deletion bit, then can be admitted normally", async () => {
     const user = await seedUser(db, castId<Handle>("never_auth_user"));
-    const chatId = castId<ChatId>("chat_never_auth_room");
+    const chatId = mintTypeId(ID_PREFIX.chat);
     const read = createRead(makeChatContext(db), readDeps());
     let markInitialChecked: (() => void) | undefined;
     const initialChecked = new Promise<void>((resolve) => {

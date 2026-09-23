@@ -61,21 +61,12 @@
       "failureMode": "Blank/control-bearing fields, unknown or wrong-authority policies, duplicate ids, duplicate identities, zero consumption and multi-consumption fail closed."
     },
     "foreignSuppression": {
-      "examples": [
-        "biome-ignore",
-        "eslint-disable",
-        "@ts-expect-error",
-        "@ts-nocheck"
-      ],
+      "examples": ["biome-ignore", "eslint-disable", "@ts-expect-error", "@ts-nocheck"],
       "purpose": "Instructions to foreign lint/type tools. They are product data for the suppressions policy, not Orb waiver syntax.",
       "binding": "Occurrences aggregate into one finding per foreign rule and source/tests scope. One central reviewed grant licenses that class; a scope ruling does not cross into the other scope."
     },
     "nativeConfigurationPermission": {
-      "homes": [
-        "biome.json",
-        "eslint.config.js",
-        ".dependency-cruiser.cjs"
-      ],
+      "homes": ["biome.json", "eslint.config.js", ".dependency-cruiser.cjs"],
       "purpose": "Hand-authored native rule, selector and path policy that cannot safely be generated from current violations.",
       "binding": "Dedicated liveness gates load the native configuration and current tracked corpus. Dead selectors or file-exact paths are findings; absent-by-construction cases require exact central grants.",
       "failureMode": "The liveness reader refuses malformed, truncated, empty or otherwise unreadable native-tool evidence rather than declaring every grant dead or live."
@@ -87,14 +78,7 @@
       "failureMode": "gate-ignore-inventory is hard/error and reports every live authored marker."
     },
     "lensMarker": {
-      "examples": [
-        "@public",
-        "@view-server-only",
-        "@swallowed-ok",
-        "@typeonly-ok",
-        "@column-ok",
-        "@nearpair-ok"
-      ],
+      "examples": ["@public", "@view-server-only", "@swallowed-ok", "@typeonly-ok", "@column-ok", "@nearpair-ok"],
       "purpose": "Lens-specific two-sided evidence or classification.",
       "binding": "Owned by its lens reader and controls, outside central gate authority.",
       "failureMode": "Do not translate to a waiver or reviewed grant without an owner ruling."
@@ -159,13 +143,7 @@
     }
   },
   "qwenOutputContract": {
-    "requiredShards": [
-      "manifest",
-      "ordinary dominant families",
-      "ordinary remainder",
-      "reviewed grants",
-      "foreign and native suppressions"
-    ],
+    "requiredShards": ["manifest", "ordinary dominant families", "ordinary remainder", "reviewed grants", "foreign and native suppressions"],
     "perItem": [
       "stable identity",
       "mechanism",
@@ -180,12 +158,7 @@
       "candidate disposition",
       "evidence commands"
     ],
-    "allowedDispositions": [
-      "repair",
-      "preserve with evidence",
-      "owner decision",
-      "tool-reader defect"
-    ],
+    "allowedDispositions": ["repair", "preserve with evidence", "owner decision", "tool-reader defect"],
     "prohibitions": [
       "Do not infer justification from successful consumption.",
       "Do not invent a reason, end condition, consumer or owner ruling.",

@@ -262,10 +262,14 @@ export async function seedMessage(
     /** Override the frozen commit time — the per-chat `lastMessageAt` aggregate is a MAX over this, so a
      *  test that asserts which row set "last activity" needs distinguishable stamps. */
     readonly createdAt?: number;
+    /** REAL minted TypeIDs (the `seedChat` `id` precedent) for a test whose message or variant id crosses a
+     *  contract-schema check, e.g. a tRPC input. */
+    readonly id?: MessageId;
+    readonly variantId?: MessageVariantId;
   } = {},
 ): Promise<{ messageId: MessageId; variantId: MessageVariantId }> {
-  const messageId = castId<MessageId>(`message_${chatId}_${seq}`);
-  const variantId = castId<MessageVariantId>(`variant_${chatId}_${seq}_0`);
+  const messageId = overrides.id ?? castId<MessageId>(`message_${chatId}_${seq}`);
+  const variantId = overrides.variantId ?? castId<MessageVariantId>(`variant_${chatId}_${seq}_0`);
   await db.insert(messages).values({
     id: messageId,
     chatId,

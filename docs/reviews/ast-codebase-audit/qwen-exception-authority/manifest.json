@@ -210,12 +210,7 @@
       "reproduced": 67,
       "seedGovernedClasses": 64,
       "delta": "3 classes / 10 occurrences with no reviewed grant",
-      "sites": [
-        "scripts/eslint.cjs:32,49",
-        "scripts/ts7.cjs:67,81,83",
-        "knip.ts:169",
-        "platform.d.ts:26,28,32,34"
-      ],
+      "sites": ["scripts/eslint.cjs:32,49", "scripts/ts7.cjs:67,81,83", "knip.ts:169", "platform.d.ts:26,28,32,34"],
       "reading": "the gate population is `{in:[@authored], notUnder:[scripts/probes/st-goldens/sillytavern-runtime/**]}` and none of these files is in it — they are root-level `.cjs`/`.ts`/`.d.ts` outside any requested tsconfig program. The gate reports 64 granted classes and zero effective findings BECAUSE it never sees these sites. An ungoverned plane the seed's 'all classes granted, zero effective' summary does not describe.",
       "disposition": "owner decision"
     },
@@ -330,14 +325,10 @@
         "protectedBoundary": "exported type/zod-schema outside a type home — feature types live in the feature's contract/ (or @orb/contracts), not in a verb/service/component/substrate. Move it to contract/ and import it. See Spine-TypeScript-and-Patterns.md §7.4.",
         "nearbyHealthyWitness": null,
         "witnessStatus": "not-derivable-from-production-readers: the verify pipeline emits population COUNTS and receipts per policy, never a site-level population membership list, so no healthy non-waived neighbour can be named without inventing one",
-        "readerUncertainty": [
-          "not an exception record; recorded because the owning policy carries a live violation while its waivers are being audited"
-        ],
+        "readerUncertainty": ["not an exception record; recorded because the owning policy carries a live violation while its waivers are being audited"],
         "candidateDisposition": "repair",
         "dispositionBasis": "an unwaived, ungranted finding is the system working: it needs the owner's ordinary waiver or grant, not an audit waiver",
-        "evidenceCommands": [
-          "jq '.effectiveFindings[]|select(.policyId==\"no-inline-types\")' /tmp/qwen-authority-dump.json"
-        ]
+        "evidenceCommands": ["jq '.effectiveFindings[]|select(.policyId==\"no-inline-types\")' /tmp/qwen-authority-dump.json"]
       }
     ],
     "note": "recorded so no shard can be read as 'the tree is clean'; these are findings with NO authority bound, which is the system working, not an exception"

@@ -28,7 +28,14 @@ import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";
 import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts";
-import { readAnnotatedZodOutputTwin, readContextualZodOutputTwin, readExpressionZodOutputTwin, zodTypeReferenceIdentity } from "../lib/zod-output-twin.ts";
+import {
+  ownReturnExpressions,
+  readAnnotatedZodOutputTwin,
+  readContextualZodOutputTwin,
+  readExpressionZodOutputTwin,
+  typeNodeIdentifierSymbols,
+  zodTypeReferenceIdentity,
+} from "../lib/zod-output-twin.ts";
 
 const OPERATION_PREFIX = "schema-only-export:";
 const ZOD_PACKAGE_SEGMENT = "/node_modules/zod/";
@@ -423,26 +430,6 @@ function callableReturnType(declaration: FunctionDeclaration | VariableDeclarati
   return callable.find((signature) => readableZodSchema(signature.getReturnType()))?.getReturnType();
 }
 
-function functionReturnExpressions(node: MorphNode): readonly Expression[] {
-  if (!(Node.isFunctionDeclaration(node) || Node.isArrowFunction(node) || Node.isFunctionExpression(node))) {
-    return [];
-  }
-  const body = node.getBody();
-  if (body === undefined) {
-    return [];
-  }
-  if (Node.isExpression(body)) {
-    return [body];
-  }
-  return body
-    .getDescendantsOfKind(SyntaxKind.ReturnStatement)
-    .filter((statement) => statement.getFirstAncestor(Node.isFunctionLikeDeclaration) === node)
-    .flatMap((statement) => {
-      const expression = statement.getExpression();
-      return expression === undefined ? [] : [expression];
-    });
-}
-
 function factoryDeclarations(declaration: FunctionDeclaration | VariableDeclaration): readonly MorphNode[] {
   if (Node.isFunctionDeclaration(declaration)) {
     return declaration.getSymbol()?.getDeclarations().filter(Node.isFunctionDeclaration) ?? [declaration];
@@ -452,7 +439,7 @@ function factoryDeclarations(declaration: FunctionDeclaration | VariableDeclarat
 }
 
 function factoryReturnExpressions(declaration: FunctionDeclaration | VariableDeclaration): readonly Expression[] {
-  return factoryDeclarations(declaration).flatMap(functionReturnExpressions);
+  return factoryDeclarations(declaration).flatMap(ownReturnExpressions);
 }
 
 function returnContractDependsOnOwnParameter(node: MorphNode): boolean {
@@ -470,23 +457,21 @@ function returnContractDependsOnOwnParameter(node: MorphNode): boolean {
       owned.add(identity);
     }
   }
-  return returnType.getDescendantsOfKind(SyntaxKind.Identifier).some((identifier) => {
-    const identity = symbolIdentity(identifier.getSymbol());
+  return typeNodeIdentifierSymbols(returnType).some((symbol) => {
+    const identity = symbolIdentity(symbol);
     return identity !== undefined && owned.has(identity);
   });
 }
 
 function factoryOutputOwned(declaration: FunctionDeclaration | VariableDeclaration): boolean {
-  return factoryDeclarations(declaration).some(
-    (candidate) => functionReturnExpressions(candidate).length > 0 && returnContractDependsOnOwnParameter(candidate),
-  );
+  return factoryDeclarations(declaration).some((candidate) => ownReturnExpressions(candidate).length > 0 && returnContractDependsOnOwnParameter(candidate));
 }
 
 function hasGenericOverloadLaundering(declaration: FunctionDeclaration | VariableDeclaration): boolean {
   const declarations = factoryDeclarations(declaration);
   return (
-    declarations.some((candidate) => functionReturnExpressions(candidate).length === 0 && returnContractDependsOnOwnParameter(candidate)) &&
-    !declarations.some((candidate) => functionReturnExpressions(candidate).length > 0 && returnContractDependsOnOwnParameter(candidate))
+    declarations.some((candidate) => ownReturnExpressions(candidate).length === 0 && returnContractDependsOnOwnParameter(candidate)) &&
+    !declarations.some((candidate) => ownReturnExpressions(candidate).length > 0 && returnContractDependsOnOwnParameter(candidate))
   );
 }
 

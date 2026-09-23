@@ -8,6 +8,7 @@
 
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
 import "../../../../support/composed-real.ts";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { expect, OTHER_USER_ID, OWNER_USER_ID, test } from "../../../../support/fixtures.ts";
 import { seedChat, seedParticipant } from "../../../domain/chat/_support.ts";
@@ -70,7 +71,7 @@ describe("runSnippet — inline mode over the real graph", () => {
     db,
     ownerCaller,
   }) => {
-    const chatId = await seedChat(db, "snippet_host");
+    const chatId = await seedChat(db, "snippet_host", { id: mintTypeId(ID_PREFIX.chat) });
     await seedParticipant(db, { chatId, key: "sh_h", userId: OWNER_USER_ID, role: "host" });
     const code = `
       const h = orb.host(1);
@@ -90,7 +91,7 @@ describe("runSnippet — inline mode over the real graph", () => {
     otherCaller,
   }) => {
     void ownerCaller; // seeds OWNER_USER_ID (the host) so the participant FKs resolve
-    const chatId = await seedChat(db, "snippet_member");
+    const chatId = await seedChat(db, "snippet_member", { id: mintTypeId(ID_PREFIX.chat) });
     await seedParticipant(db, { chatId, key: "sm_h", userId: OWNER_USER_ID, role: "host" });
     await seedParticipant(db, { chatId, key: "sm_m", userId: OTHER_USER_ID, role: "member" });
     // ONE awaited chain (the snippet's completion value) so the run waits for settlement: read succeeds, then
@@ -116,7 +117,7 @@ describe("runSnippet — inline mode over the real graph", () => {
     otherCaller,
   }) => {
     void ownerCaller;
-    const chatId = await seedChat(db, "snippet_foreign");
+    const chatId = await seedChat(db, "snippet_foreign", { id: mintTypeId(ID_PREFIX.chat) });
     await seedParticipant(db, { chatId, key: "sf_h", userId: OWNER_USER_ID, role: "host" });
     await expect(otherCaller.plugin.runSnippet({ chatId, code: "orb.host(1).log.info('should never run');" })).rejects.toThrow();
   });

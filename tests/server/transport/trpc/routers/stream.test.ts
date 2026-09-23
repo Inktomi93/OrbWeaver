@@ -17,8 +17,8 @@
 import type { StreamFrame, StreamRoomRef } from "@orb/contracts/stream";
 import { STREAM_CHANNELS } from "@orb/contracts/stream";
 import { DomainNotFoundError, DomainUnavailableError } from "@orb/kit/errors";
-import type { ChatId, SocketId, UserId, WorkloadId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import type { SocketId, UserId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { ChatService } from "@orb/server/domain/chat";
 import { publishRpgEvent } from "@orb/server/domain/rpg";
 import type { WorkloadRowAnyKind } from "@orb/server/domain/workloads";
@@ -28,10 +28,16 @@ import { describe, vi } from "vitest";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../_support.ts";
 
+// MINTED, never readable literals: these ids cross `typeIdSchema` tRPC inputs, which validate the TypeID suffix.
+const ID = {
+  chatStream1: mintTypeId(ID_PREFIX.chat),
+  workloadStream1: mintTypeId(ID_PREFIX.workload),
+} as const;
+
 const MEMBER = castId<UserId>("user_member");
 const STRANGER = castId<UserId>("user_stranger");
-const CHAT = castId<ChatId>("chat_stream_1");
-const WORKLOAD = castId<WorkloadId>("workload_stream_1");
+const CHAT = ID.chatStream1;
+const WORKLOAD = ID.workloadStream1;
 
 /** A fresh socketId per test. The registry is per-Context (isolated), but the buses are process-local, so a
  *  distinct id keeps a stray publish from a prior test out of this one's frames. */

@@ -49,13 +49,7 @@
     }
   ],
   "boundary": {
-    "share": [
-      "compiler-world discovery",
-      "node projection",
-      "module resolution",
-      "binding/declaration/export/origin facts",
-      "physical-span identity"
-    ],
+    "share": ["compiler-world discovery", "node projection", "module resolution", "binding/declaration/export/origin facts", "physical-span identity"],
     "keepToolSpecific": [
       "AST lens classification and rendering",
       "Verify populations, policy authority, findings, and receipts",

@@ -4,16 +4,21 @@
 // (never input). These assert the pass-through (the wired `sort` reaches the service; the parsed scope
 // reaches `latency`) — driven through the real ladder via `createCaller`.
 
-import type { CharacterId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import type { UserId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { LatencyStats, LeaderboardRow, StatsService } from "@orb/server/domain/stats";
 import type { Context } from "@orb/server/transport/trpc";
 import { describe, vi } from "vitest";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../_support.ts";
 
+// MINTED, never readable literals: these ids cross `typeIdSchema` tRPC inputs, which validate the TypeID suffix.
+const ID = {
+  character1: mintTypeId(ID_PREFIX.character),
+} as const;
+
 const OWNER = castId<UserId>("user_owner");
-const CHARACTER = castId<CharacterId>("character_1");
+const CHARACTER = ID.character1;
 
 const NO_LATENCY: LatencyStats = {
   avgTtftMs: null,

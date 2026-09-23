@@ -16,13 +16,18 @@
 // The inbox CRUD trio is NO LONGER on that belt (#1627 — see the second describe below); `presence` is, and
 // its belt row lives with the others in `trpc.test.ts` (the `beltSurfaces` table).
 
-import type { NotificationId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import type { UserId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { NotificationsService } from "@orb/server/domain/notifications";
 import { createPresenceRegistry } from "@orb/server/transport/trpc";
 import { describe, vi } from "vitest";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../_support.ts";
+
+// MINTED, never readable literals: these ids cross `typeIdSchema` tRPC inputs, which validate the TypeID suffix.
+const ID = {
+  notificationOwn: mintTypeId(ID_PREFIX.notification),
+} as const;
 
 const VIEWER = castId<UserId>("user_viewer");
 /** A user the caller shares NOTHING with — no room, no invite, no prior contact. */
@@ -126,7 +131,7 @@ describe("the inbox CRUD trio on a deployment that cannot seat a second human (#
   });
 
   test("dismiss reaches the verb with the caller's principal AND the asked id — the pairing IS the belt", async () => {
-    const notificationId = castId<NotificationId>("notification_own");
+    const notificationId = ID.notificationOwn;
     // @orb-waive no-test-fabrication(never): the router is a thin pass-through; the returned view is never read by this assertion. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const dismiss = vi.fn<NotificationsService["dismiss"]>(() => Promise.resolve({} as never));
     const ctx = makeContext({ ...notCapable, services: { notifications: { dismiss } } });

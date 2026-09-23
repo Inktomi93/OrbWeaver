@@ -1,7 +1,7 @@
 // Refinery test substrate: the composed harness (real freshDb + the REAL character service over the
 // character harness + the REAL injected character ops) with the model faked at the ONE edge — a scripted
-// `summarize` TAPE (FIFO; exhaustion throws LOUD, the Spine-Testing tape doctrine). Deterministic clock +
-// seeded ids (no wall clock, no unseeded typeids).
+// `summarize` TAPE (FIFO; exhaustion throws LOUD, the Spine-Testing tape doctrine). Deterministic clock;
+// the refinery ids are MINTED TypeIDs because the stage-config and run contracts parse them with `typeIdSchema`.
 
 import type { SummarizeResult } from "@orb/contracts/providers";
 import type { RefineryAnalyzePayload, RefineryRewritePayload, RefineryScorePayload } from "@orb/contracts/refinery";
@@ -9,7 +9,7 @@ import type { ResponseFormat, RoleClients, SummarizeInput, SummarizeOptions } fr
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { CharacterHandle, CharacterId, RefineryRunId, RefinerySchemaId, RefinerySessionId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { CharacterService } from "@orb/server/domain/character";
 import {
   createCharacterService,
@@ -22,7 +22,6 @@ import type { RefineryContext, RefineryService, RefineryWorkloadDeps } from "@or
 import { createRefineryService } from "@orb/server/domain/refinery";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
 import { FAKE_SUMMARIZE_MODEL, makeFakeRoleClients } from "../../../support/factories/role-clients.ts";
-import { createSeededIds } from "../../../support/ids.ts";
 import { makeHarness as makeCharacterHarness, principal } from "../character/_support.ts";
 
 export { principal, seedUser } from "../character/_support.ts";
@@ -67,7 +66,6 @@ export function makeRefineryHarness(db: Db, options: RefineryHarnessOptions = {}
   const charHarness = makeCharacterHarness(db);
   const character = createCharacterService(charHarness.ctx);
   const clock = createFrozenClock(FROZEN_AT_MS);
-  const ids = createSeededIds();
   const replies: string[] = [];
   const summarizeCalls: SummarizeCall[] = [];
   const userEvents: UserEventCall[] = [];
@@ -89,9 +87,9 @@ export function makeRefineryHarness(db: Db, options: RefineryHarnessOptions = {}
   const ctx: RefineryContext = {
     db,
     now: (): number => clock.now(),
-    newRefinerySessionId: (): RefinerySessionId => castId<RefinerySessionId>(ids.next("refinery_session")),
-    newRefineryRunId: (): RefineryRunId => castId<RefineryRunId>(ids.next("refinery_run")),
-    newRefinerySchemaId: (): RefinerySchemaId => castId<RefinerySchemaId>(ids.next("refinery_schema")),
+    newRefinerySessionId: (): RefinerySessionId => mintTypeId(ID_PREFIX.refinerySession),
+    newRefineryRunId: (): RefineryRunId => mintTypeId(ID_PREFIX.refineryRun),
+    newRefinerySchemaId: (): RefinerySchemaId => mintTypeId(ID_PREFIX.refinerySchema),
     roleClientsFor,
     resolveUserPresetParams: () => Promise.resolve(options.presetParams ?? {}),
     resolveUserProse: () => Promise.resolve({}),

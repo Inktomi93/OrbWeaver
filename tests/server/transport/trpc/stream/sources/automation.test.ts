@@ -21,8 +21,8 @@
 import type { AutomationBusEvent } from "@orb/contracts/automation";
 import type { StreamFrame } from "@orb/contracts/stream";
 import { DomainUnavailableError } from "@orb/kit/errors";
-import type { AutomationRuleId, ChatId, SocketId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import type { AutomationRuleId, SocketId, UserId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { AutomationService } from "@orb/server/domain/automation";
 import { AutomationChatNotFoundError } from "@orb/server/domain/automation";
 import type { Context } from "@orb/server/transport/trpc";
@@ -31,8 +31,13 @@ import { describe, vi } from "vitest";
 import { expect, test } from "../../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../../_support.ts";
 
+// MINTED, never readable literals: these ids cross `typeIdSchema` tRPC inputs, which validate the TypeID suffix.
+const ID = {
+  chatAutomation1: mintTypeId(ID_PREFIX.chat),
+} as const;
+
 const MEMBER = castId<UserId>("user_automation_member");
-const CHAT = castId<ChatId>("chat_automation_1");
+const CHAT = ID.chatAutomation1;
 const RULE = castId<AutomationRuleId>("automationrule_1");
 
 const CHIPS: AutomationBusEvent = {

@@ -56,7 +56,6 @@ import type {
   UserConnectionId,
   UserCredentialId,
   WorkloadId,
-  WorkloadScheduleId,
 } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { AutomationService } from "@orb/server/domain/automation";
@@ -341,11 +340,15 @@ interface Probe {
 // Synthesized secondary ids — `brandedId` is `z.string().min(1)` (no prefix check), and the OWNER/MEMBER
 // gate is the chokepoint (it rejects before any secondary-id existence check), so a stranger sees NOT_FOUND
 // regardless of whether these resolve to a real row.
+// MINTED, never readable literals: every one crosses a `typeIdSchema` tRPC input, and a malformed id bounces at
+// input validation (BAD_REQUEST) before the probe ever reaches the ownership gate it exists to test.
 const FAKE = {
-  variantId: "variant_fake",
-  injectionId: "chat_injection_fake",
-  participantId: "chat_participant_fake",
-  inviteId: "chatinvite_fake",
+  variantId: mintTypeId(ID_PREFIX.messageVariant),
+  injectionId: mintTypeId(ID_PREFIX.chatInjection),
+  participantId: mintTypeId(ID_PREFIX.chatParticipant),
+  inviteId: mintTypeId(ID_PREFIX.chatInvite),
+  tagId: mintTypeId(ID_PREFIX.tag),
+  characterId: mintTypeId(ID_PREFIX.character),
   // A raw invite token that hashes to nothing — token-authenticated probes collapse to NOT_FOUND.
   inviteToken: "stranger-guess-token",
 } as const;
@@ -727,7 +730,7 @@ const PROBES: readonly Probe[] = [
   // ── tag (owner-scoped) ──
   {
     path: "tag.mergeTags",
-    call: (c, i) => c.tag.mergeTags({ sourceTagId: i.tagId, targetTagId: "tag_other_fake" }),
+    call: (c, i) => c.tag.mergeTags({ sourceTagId: i.tagId, targetTagId: FAKE.tagId }),
   },
   {
     path: "tag.updateTag",
@@ -773,13 +776,13 @@ const PROBES: readonly Probe[] = [
   // the `idA === idB` short-circuit doesn't mask the belt), a leak-free non-answer.
   {
     path: "discovery.compareCharacters",
-    call: (c, i) => c.discovery.compareCharacters({ idA: i.characterId, idB: "character_other_fake" }),
+    call: (c, i) => c.discovery.compareCharacters({ idA: i.characterId, idB: FAKE.characterId }),
   },
   // discovery.compareCharactersDeep — same two-id owner belt as compareCharacters (it DECORATES that diff);
   // a stranger comparing A's card gets null before any summarize call (each card's belt joins characters.ownerId).
   {
     path: "discovery.compareCharactersDeep",
-    call: (c, i) => c.discovery.compareCharactersDeep({ idA: i.characterId, idB: "character_other_fake" }),
+    call: (c, i) => c.discovery.compareCharactersDeep({ idA: i.characterId, idB: FAKE.characterId }),
   },
   // discovery.askCard — owner-belted via readOwnedCardFacet (characters.ownerId ∩ characterId): a stranger
   // asking about A's card reads no owned/distilled row → null before any summarize/scene read (leak-free).
@@ -2055,7 +2058,7 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     // The credential is seeded DIRECTLY — the `app` fixture's SecretBox is keyless (CREDENTIALS_KEY unset),
     // so the front-door `credentials.add` is disabled. The ownership probes never decrypt; they gate on the
     // owner. The `label` is the leak marker (a returned CredentialView would carry it).
-    const credentialId = castId<UserCredentialId>("user_credential_alpha");
+    const credentialId = mintTypeId(ID_PREFIX.userCredential);
     await db.insert(userCredentials).values({
       id: credentialId,
       ownerId: OWNER_USER_ID,
@@ -2081,9 +2084,11 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     });
 
     // The turn/canon rows sidestep the provider — seed them directly (owner A is the host member).
-    const chatId = await seedChat(db, "idor", { title: "AlphaSecretChatTitle" });
+    const chatId = await seedChat(db, "idor", { id: mintTypeId(ID_PREFIX.chat), title: "AlphaSecretChatTitle" });
     await seedParticipant(db, { chatId, key: "idor_h", userId: OWNER_USER_ID, role: "host" });
     const { messageId } = await seedMessage(db, chatId, 1, {
+      id: mintTypeId(ID_PREFIX.message),
+      variantId: mintTypeId(ID_PREFIX.messageVariant),
       role: "user",
       authorUserId: OWNER_USER_ID,
       content: MARK.message,
@@ -2118,7 +2123,7 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
 
     // A workload owned by A — a USER-scope kind, `failed` so `retry` is meaningful. Its `error` carries A's
     // marker (a leaked `get`/`retry` result would surface it), so the probe has teeth (F3 owner-scoping).
-    const workloadId = castId<WorkloadId>("workload_alpha");
+    const workloadId = mintTypeId(ID_PREFIX.workload);
     await db.insert(workloads).values({
       id: workloadId,
       kind: "reconcile-stats",
@@ -2140,7 +2145,7 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     // single-ACTIVE partial unique index per kind, so a queued `reconcile-stats` here would make the
     // `workloads.retry` clone collide and refuse — silently disarming the retry pin below. Measured: with
     // both rows the same kind, retry's belt could be deleted and the clone-count pin still passed.
-    const queuedWorkloadId = castId<WorkloadId>("workload_alpha_queued");
+    const queuedWorkloadId = mintTypeId(ID_PREFIX.workload);
     await db.insert(workloads).values({
       id: queuedWorkloadId,
       kind: "compute-themes",
@@ -2155,7 +2160,7 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
 
     // A recurring schedule owned by A — its `params.token` carries A's marker (a leaked update/setEnabled
     // result row would surface it), so the schedule probes have teeth (F3 owner-scoping over the TIME dimension).
-    const scheduleId = castId<WorkloadScheduleId>("workload_schedule_alpha");
+    const scheduleId = mintTypeId(ID_PREFIX.workloadSchedule);
     await db.insert(workloadSchedules).values({
       id: scheduleId,
       ownerId: OWNER_USER_ID,
@@ -2296,7 +2301,7 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     // A's owner-global rule, the same chat-less lane whose auto-disable notice a single-user deployment
     // could not read while the PD-106 belt was on. `seq` is the per-recipient cursor (unique with the
     // recipient), and the row is born UNREAD + UNDISMISSED — both are post-sweep witnesses below.
-    const notificationId = castId<NotificationId>("notification_alpha");
+    const notificationId = mintTypeId(ID_PREFIX.notification);
     await db.insert(notifications).values({
       id: notificationId,
       recipientUserId: OWNER_USER_ID,
@@ -2314,7 +2319,7 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
 
     // A theme row seeded directly (the front-door createTheme needs a full color-token override — the
     // lenient read seam accepts a partial blob, so this is representative for the ownership probe).
-    const themeId = castId<ThemeId>("theme_alpha");
+    const themeId = mintTypeId(ID_PREFIX.theme);
     await db.insert(themes).values({
       id: themeId,
       ownerId: OWNER_USER_ID,
