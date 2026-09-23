@@ -2,15 +2,15 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 622,
+    "sites": 624,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 622,
+      "deliberate-absorb": 624,
       "unproven": 0
     },
     "byGrammar": {
-      "default": 164,
-      "empty": 313,
+      "default": 163,
+      "empty": 316,
       "promise": 145
     }
   },
@@ -2384,6 +2384,11 @@
       "siteId": "tooling/src/snap/ops/design-audit-walk.ts::readSamples::error::1",
       "verdict": "deliberate-absorb",
       "reason": "the walk throwing is an INSTRUMENT failure, returned as walkError and turned into walkFailureGap (exit 2) by the caller. Ends if walkError stops reaching the gap ladder."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/drive.ts::appReadiness::page.evaluate::1",
+      "verdict": "deliberate-absorb",
+      "reason": "probe-whose-failure-is-its-return-value — a build without the __orb-free declare, or a probe that throws, reads null and falls through to the ordinary ladder below. Ends if a caller starts trusting null as \"not not-found\"."
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::appReadiness::waitFor::1",
