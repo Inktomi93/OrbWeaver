@@ -6,6 +6,7 @@ import type { ModuleMemberOrigin, ReferenceFact, ReferenceResolutionServices, Re
 import type { CanonicalModuleTarget, NamespaceBinding } from "./reference-fact-module-helpers.ts";
 import { externalTarget, importDeclarationOf, originFromTarget, projectTarget, requiresResolvedSource } from "./reference-fact-module-helpers.ts";
 import { overloadHome } from "./reference-fact-overload.ts";
+import { sameFileMergedExportOrigin } from "./reference-fact-same-file-merge.ts";
 import type { ModuleState } from "./reference-fact-state.ts";
 import {
   appendTrace,
@@ -367,6 +368,10 @@ function moduleOriginFromMember(node: MorphNode, target: ModuleState, services: 
   }
   if (namespace.reason !== "unsupported") {
     return namespace;
+  }
+  const merged = sameFileMergedExportOrigin(services.unwrapExpression(read.value.receiver), target);
+  if (merged !== undefined) {
+    return merged.kind === "unresolved" ? merged : appendMemberPath(merged, read.value.name);
   }
   const importedObject = resolveInternal(read.value.receiver, target, services);
   return importedObject.kind === "unresolved" ? importedObject : appendMemberPath(importedObject, read.value.name);

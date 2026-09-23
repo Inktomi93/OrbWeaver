@@ -28,6 +28,10 @@ const REQUIRED_KEYS = ["kind", "status", "updated"] as const;
  *  its ORIGINAL number (D86 is one), so an ADR file inside the window is legal. */
 const RESERVED = { lo: FIRST_RESERVED_RULING, hi: LAST_RESERVED_RULING } as const;
 
+/** The legacy top-level entries of `docs/`, kept until each migrates. SHRINK-ONLY and two-sided: a row
+ *  whose entry is gone is itself a finding, so the list cannot outlive what it exempts. */
+export const LEGACY_ROOTS: readonly string[] = ["architecture", "design", "history", "reviews"];
+
 interface KindRule {
   readonly sections: readonly string[];
   readonly cap: number;
