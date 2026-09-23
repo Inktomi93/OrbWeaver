@@ -177,7 +177,7 @@ test("a saved row's failed list names the failure and retries into the list, kee
   const reload = trpcHold();
   await stubWith(page, () => {
     reads += 1;
-    return reads === 1 ? { listed: false, models: [], reason: "openrouter.ai answered 500." } : reload;
+    return reads === 1 ? { listed: false, reason: "openrouter.ai answered 500." } : reload;
   });
   await mount(<ConnectionsAuthoringStory width={870} />);
   const dialog = await openAddModel(page, OPENROUTER_NAME, /Add another model on this key/, KEY_TITLE);

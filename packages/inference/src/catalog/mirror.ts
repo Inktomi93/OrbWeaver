@@ -6,8 +6,10 @@
 // capability flags are stable for far longer than a day, and a 1h TTL once expired the mirror long before
 // the daily refresh re-warmed it, so a restarted process silently lost every advertised capability.
 
-import { errorMessage } from "@orb/kit/error-message";
 import { z } from "zod";
+import { scrubbedReason } from "../backends/kit/model-listing.ts";
+import type { ProviderScrubSet } from "../contract/errors.ts";
+import type { MirrorWarm } from "../contract/runtime.ts";
 import type { SnapshotStore, SpanAttrs } from "../deps.ts";
 
 const MS_PER_WEEK = 604_800_000;
@@ -22,14 +24,13 @@ export interface MirrorDeps {
 export interface Mirror<T> {
   readonly get: () => T | null;
   /** Warm when cold: the snapshot first, then `fetch`; persists a fresh fetch. Returns the mirror's value
-   *  after the attempt (`null` when both arms failed — the caller degrades, never throws). */
-  readonly warm: (fetch: () => Promise<T>) => Promise<T | null>;
+   *  after the attempt, or why the live fetch failed, scrubbed of `secrets` (the ones `fetch` dials with).
+   *  Never a throw: the resolve path degrades on `ok: false`, and the model-list read reports the reason. A
+   *  warm that coalesces onto one in flight shares that warm's answer, reason included. */
+  readonly warm: (fetch: () => Promise<T>, secrets: ProviderScrubSet) => Promise<MirrorWarm<T>>;
   readonly seed: (value: T, at: number) => void;
   /** Drop the in-memory copy AND skip the snapshot on the next warm — `catalogs.refresh` (a forced live fetch). */
   readonly invalidate: () => void;
-  /** Why the last warm came back empty (the fetch's own message), or `null` once a warm succeeds. The turn
-   *  path ignores it and degrades; the pane's catalog read shows it, so a failed list is not read as empty. */
-  readonly failure: () => string | null;
 }
 
 const snapshotSchema = z.object({ fetchedAt: z.number(), value: z.unknown() });
@@ -43,14 +44,12 @@ export function createMirror<T>(args: {
   const { key, schema, deps } = args;
   const ttl = args.ttlMs ?? MS_PER_WEEK;
   let cache: { readonly at: number; readonly value: T } | null = null;
-  let inFlight: Promise<T | null> | null = null;
+  let inFlight: Promise<MirrorWarm<T>> | null = null;
   let skipSnapshotOnce = false;
-  let lastFailure: string | null = null;
 
   const get = (): T | null => (cache !== null && deps.now() - cache.at < ttl ? cache.value : null);
   const seed = (value: T, at: number): void => {
     cache = { at, value };
-    lastFailure = null;
   };
 
   const readSnapshot = async (): Promise<boolean> => {
@@ -70,49 +69,47 @@ export function createMirror<T>(args: {
     return true;
   };
 
-  const warmOnce = async (fetch: () => Promise<T>): Promise<T | null> => {
+  const warmOnce = async (fetch: () => Promise<T>, secrets: ProviderScrubSet): Promise<MirrorWarm<T>> => {
     try {
       const readSnapshotFirst = !skipSnapshotOnce;
       skipSnapshotOnce = false;
-      if (readSnapshotFirst && (await readSnapshot())) {
+      const snapshot = readSnapshotFirst && (await readSnapshot()) ? get() : null;
+      if (snapshot !== null) {
         deps.addSpanEvent?.("cache.warm", { cache: key, outcome: "snapshot" });
-        return get();
+        return { ok: true, value: snapshot };
       }
       const value = await fetch();
       const at = deps.now();
       seed(value, at);
       await deps.snapshotStore.write(key, JSON.stringify({ fetchedAt: at, value }));
       deps.addSpanEvent?.("cache.warm", { cache: key, outcome: "fetch" });
-      return value;
-      // @orb-waive caught-failure-ownership(err): the catalog mirror records failed span state plus a structured warning, then returns null for the marked-estimated fallback. Precedent: packages/server/src/entry/boot/local-light-prefetch.ts accepts the same warning plus degraded fallback. Ends if any of those owners disappears.
+      return { ok: true, value };
     } catch (err) {
       deps.addSpanEvent?.("cache.warm", { cache: key, outcome: "failed" });
       deps.warn({ cache: key, err }, "inference: catalog cold-warm failed — capability degrades to the marked-estimated fallback");
-      lastFailure = errorMessage(err);
-      return null;
+      return { ok: false, reason: scrubbedReason(err, secrets) };
     }
   };
 
   return {
     get,
     seed,
-    failure: (): string | null => lastFailure,
     invalidate: (): void => {
       cache = null;
       skipSnapshotOnce = true;
     },
-    warm: async (fetch): Promise<T | null> => {
+    warm: async (fetch, secrets): Promise<MirrorWarm<T>> => {
       const hit = get();
       if (hit !== null) {
         deps.addSpanEvent?.("cache.hit", { cache: key });
-        return hit;
+        return { ok: true, value: hit };
       }
       deps.addSpanEvent?.("cache.miss", { cache: key });
       if (inFlight !== null) {
         deps.addSpanEvent?.("cache.warm.coalesced", { cache: key });
         return await inFlight;
       }
-      const run = warmOnce(fetch).finally(() => {
+      const run = warmOnce(fetch, secrets).finally(() => {
         inFlight = null;
       });
       inFlight = run;

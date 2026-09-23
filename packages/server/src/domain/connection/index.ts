@@ -11,7 +11,7 @@ export type {
   ConnectionDiagnosticParams,
   ConnectionFields,
   CreateConnectionParams,
-  ListEndpointModelsParams,
+  DraftCatalogModelsParams,
   LocalLightSeedDeps,
   RefreshCatalogParams,
   ResolveChatCapabilityParams,
@@ -19,7 +19,7 @@ export type {
   SetBindingParams,
   UpdateConnectionParams,
 } from "./contract/params.ts";
-export type { BindingView, CatalogRefreshOutcome, ConnectionCapabilityView, ConnectionView, ModelListResult } from "./contract/results.ts";
+export type { BindingView, CatalogRefreshOutcome, ConnectionCapabilityView, ConnectionView } from "./contract/results.ts";
 export type { ConnectionPorts, ConnectionService, ConnectionWorkloadDeps, EndpointAdmission } from "./contract/service.ts";
 export { seedLocalLightConnections } from "./persistence/local-light-seed.ts";
 export { createConnectionPorts } from "./persistence/ports.ts";
