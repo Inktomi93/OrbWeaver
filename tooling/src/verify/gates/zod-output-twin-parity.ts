@@ -106,9 +106,10 @@ function isOwnerTypeParameter(type: Type, declaration: MorphNode): boolean {
 /** Whether the call argument at `index` types against the callee's OWN type parameter — either directly
  * (`schema: Schema`, the parameter type IS the type parameter) or wrapped (`schema: ZodType<T>`, T is the
  * type parameter). Either shape means Schema/T derives from THIS argument, so it creates no independent
- * authored output owner. Missing the bare-parameter shape (checking only the wrapped one) reads a generic
- * factory's own call sites — `boxGeneratedSchema<Schema extends ZodType>(schema: Schema)` — as authored
- * contextual pairs against the ZodType constraint, one per call site. */
+ * authored output owner. Missing the bare-parameter shape (checking only the wrapped one) read most of
+ * zod's own `array(element: T)` / `record(keyType, valueType: T)` call sites as authored contextual
+ * pairs: the argument IS the callee's own bare type parameter, so the pair was comparing a schema
+ * against itself. */
 function argumentDerivesOwnerTypeParameter(call: import("ts-morph").CallExpression, declaration: MorphNode, index: number): boolean {
   if (call.getTypeArguments().length > 0 || !Node.isFunctionLikeDeclaration(declaration)) {
     return false;
@@ -416,6 +417,14 @@ export const gate = defineGate({
     {
       mode: "types",
       files: proofFiles(
+        'import * as z from "zod";\ntype State = { mode: "idle" | "busy" };\ndeclare function both<S extends z.ZodType>(a: S, b: S): void;\nboth<z.ZodType<State>>(z.object({ mode: z.literal("idle") }), z.object({ mode: z.literal("idle") }));\n',
+      ),
+      expect: { count: 2, token: "z", messageIncludes: "authored type is not assignable to schema output" },
+      why: "an explicit generic call argument on a bare SHARED type parameter substitutes a concrete contextual output for every argument that binds it, the same as the wrapped ZodType<T> form",
+    },
+    {
+      mode: "types",
+      files: proofFiles(
         'import * as z from "zod";\ndeclare const RUNTIME_GENERATED_SCHEMA_BRAND: unique symbol;\nclass RuntimeGeneratedSchema<Schema extends z.ZodType = z.ZodType> { declare readonly [RUNTIME_GENERATED_SCHEMA_BRAND]: true; readonly schema: Schema; constructor(schema: Schema) { this.schema = schema; } }\ntype State = { mode: "idle" | "busy" };\nconst counterfeit = new RuntimeGeneratedSchema(z.object({ mode: z.literal("idle") }));\nexport const schemas: readonly z.ZodType<State>[] = [counterfeit.schema];\n',
       ),
       expect: { count: 1, token: "counterfeit", messageIncludes: "authored type is not assignable to schema output" },
@@ -502,6 +511,13 @@ export const gate = defineGate({
         'import * as z from "zod";\ndeclare function consume<T>(schema: z.ZodType<T>): T;\nconsume(z.string());\ntype Exact = { id: string };\nexport const exact = z.object({ id: z.string() }) satisfies z.ZodType<Exact>;\n',
       ),
       why: "a generic schema parameter derives T from its argument and creates no independent authored output twin; the exact concrete pair keeps the refusal denominator live",
+    },
+    {
+      mode: "types",
+      files: proofFiles(
+        'import * as z from "zod";\ndeclare function both<S extends z.ZodType>(a: S, b: S): void;\nboth(z.string(), z.string());\ntype Exact = { id: string };\nexport const exact = z.object({ id: z.string() }) satisfies z.ZodType<Exact>;\n',
+      ),
+      why: "a bare SHARED type parameter across two call arguments derives S from both, the same as the wrapped ZodType<T> form — neither argument creates an independent authored output owner; the exact concrete pair keeps the refusal denominator live",
     },
     {
       mode: "types",
