@@ -201,7 +201,7 @@ state-series path.
 **Multi-target identity:** `--pages N` opens N tabs in one BrowserContext (shared cookies, `@N` targets
 a page, shots use `-pN`), no identity claim. `--contexts N` opens isolated fixture BrowserContexts in
 owner/member roster order (`@N` targets that user, shots use `-uN`), a one-direction comparison. For
-alternating host/member choreography, use E2E with one explicit actor per human.
+alternating host/member choreography, use E2E with one explicit browser actor per human.
 
 `--cpu-throttle <n>` / `--network <slow-3g|fast-3g|slow-4g|fast-4g|offline>` apply CDP throttling to
 every page before it navigates (echoed as `throttle=cpu:4x/net:slow-4g` on the `RESULT` line). A
