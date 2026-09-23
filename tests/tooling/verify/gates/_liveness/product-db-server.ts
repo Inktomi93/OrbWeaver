@@ -159,6 +159,7 @@ export const PRODUCT_DB_SERVER_ARMS: readonly RealCorpusLivenessArm[] = [
   },
   {
     policy: noRawClock,
+    // @orb-waive test-determinism(Date.now): the overlay source proves noRawClock itself, not this test's subject; ends when that arm retires.
     overlays: [add(`${DOMAIN}/liveness-clock.ts`, "export function livenessNow(): number {\n  return Date.now();\n}\n")],
     messageIncludes: `${DOMAIN}/liveness-clock.ts`,
   },

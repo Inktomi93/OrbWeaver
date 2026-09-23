@@ -118,6 +118,7 @@ export const MULTI_ROOT_B_ARMS: readonly RealCorpusLivenessArm[] = [
   },
   {
     policy: noRawRandom,
+    // @orb-waive test-determinism(Math.random): the overlay source proves noRawRandom itself, not this test's subject; ends when that arm retires.
     overlays: [add(`${DOMAIN}/liveness-dice.ts`, "export function livenessDice(): number {\n  return Math.random();\n}\n")],
     messageIncludes: `${DOMAIN}/liveness-dice.ts`,
   },
