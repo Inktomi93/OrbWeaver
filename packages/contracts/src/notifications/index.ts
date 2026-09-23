@@ -48,7 +48,7 @@ export const AUTOMATION_NOTICE_COOLDOWN_SECONDS = 60;
  *  the chat, or every present human member EXCEPT the one whose act triggered the fire. Resolved DOMAIN-side,
  *  never client-asserted (a caller names a SELECTOR, never a user id).
  *
- *  `all_members_except_actor` is the async-table member (interaction-direction-spec §4 #2, C6): in a
+ *  `all_members_except_actor` is the async-table member: in a
  *  play-by-post room the person who just posted does not need to be told that someone posted, and a nudge that
  *  pings them anyway is the one notice that trains dismissal of the whole inbox. THE ACTOR IS THE TRIGGERING
  *  FACT'S AUTHOR (`TriggerFact.message.authorUserId`) — which is why the preset that uses it rides

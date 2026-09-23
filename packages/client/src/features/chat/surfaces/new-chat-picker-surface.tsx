@@ -13,7 +13,7 @@
 // scrolls on a short viewport. The "Start" button stays rendered but DISABLED at zero selection (teaching
 // "Pick a character to start"), so the affordance is discoverable before it is usable.
 //
-// THE START CLICK MINTS THE ROOM (chat-creation-draft-mode-replacement.md §4.1, fork F1(a)). It used to write
+// THE START CLICK MINTS THE ROOM (D166, fork F1(a)). It used to write
 // client state and hand a "draft" — a rowless room backed by a whole parallel client runtime — to the chat
 // surface. It now awaits the REAL `chat.startChat` (`useStartChat`, `#data`) and lands in the REAL room,
 // committed from frame one. Two properties of that are deliberate and load-bearing:

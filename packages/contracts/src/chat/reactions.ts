@@ -1,7 +1,7 @@
 // @orb/contracts/chat/reactions — the B6/MR0 message-reaction wire contract: the emoji VOCABULARY, the
 // grouped read projection a pill row renders, and the room's read WINDOW bound.
 //
-// THE THREE LOAD-BEARING DECISIONS (MA-2 — `docs/architecture/proposed/message-reactions-mini-spec.md`):
+// THE THREE LOAD-BEARING DECISIONS (MA-2 — `docs/plans/message-reactions/design.md`):
 //   • ANCHOR = the VARIANT (Open-Q A, ruled variant-level). Content is `message_variants`-owned (D26), so a
 //     reaction to "this reply" is a reaction to ONE swipe's text; a fresh regeneration legitimately starts
 //     empty and swiping back shows that swipe's own set. The pill row therefore keys on the row's

@@ -1,4 +1,4 @@
-// The regex MEMBER EDITOR — CONTENT for one selected script (config-rail-spec.md §2 C-7): the SAME
+// The regex MEMBER EDITOR — CONTENT for one selected script: the SAME
 // autosave form the settings pane drove, with the SAME field set, mounted in the pane instead of stacked
 // in a Dialog on top of the settings modal. The autosave status moves to the top of the pane, which is
 // where the mock puts it and where a pane-shaped editor can show it without a footer.
@@ -97,7 +97,7 @@ function RegexMemberEditorBody({
         ref={surfaceRef}
         tabIndex={-1}
       >
-        {/* THE DRILL ROW (#1747, DESIGN.md §3.4, board 05): `← Back to <library>` · the script's name · the
+        {/* THE DRILL ROW (#1747, the mock design §3.4, board 05): `← Back to <library>` · the script's name · the
             member's own verbs. The autosave readout takes the trailing cluster because it is what this
             surface has there — a STATUS, and this editor's only report that a keystroke landed.
             THE BOARD'S "Test against a sample" IS NOT BUILT AS A VERB and is deliberately not invented

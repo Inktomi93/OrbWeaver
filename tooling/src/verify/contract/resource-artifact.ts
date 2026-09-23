@@ -1,4 +1,4 @@
-// The two CANONICAL GENERATED ARTIFACTS — deliberately narrow, exactly as `resource-gate-access-patterns.md`
+// The two CANONICAL GENERATED ARTIFACTS — deliberately narrow, exactly as the ResourceHost access-pattern ruling
 // §7 specifies them, and neither reachable through any door that already ships.
 //
 // WHY `installed-package` DOES NOT COVER EITHER. Its three modes are a parsed declaration surface, a manifest

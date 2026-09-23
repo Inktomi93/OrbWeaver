@@ -1,4 +1,4 @@
-// PHASE-0 SPIKE of the instrument substrate (docs/design/1208-instrument-substrate.md §10, issue #1226).
+// PHASE-0 SPIKE of the instrument substrate (issue #1226).
 // It answers the two questions the rest of the program is built on top of, and it answers them against a
 // REAL headless Chromium over `--file` fixtures + a loopback origin — never the dev stack (§8, tooling law
 // §4.5). Both questions are about a SECOND CDP CLIENT on a browser the ONE launcher already owns

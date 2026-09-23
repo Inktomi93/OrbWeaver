@@ -5,7 +5,7 @@
 // makes every verdict downstream of it a lie.
 //
 // THERE IS NO `jsonc` SIBLING, AND THERE WILL NOT BE (frozen 2026-09-11, #1930 — reason in
-// `docs/design/gate-runtime-standardization.md` §4). Guide §4 named one; an earlier draft of this
+// `docs/law/gate-runtime-standardization.md` §4). Guide §4 named one; an earlier draft of this
 // header described it beside `json`. It was never built and is now ruled out: the whole gate corpus contains
 // exactly ONE JSONC parse (`gates/tsconfig-entry-liveness.ts:233`), so the kind would serve one gate, and the
 // `extends`-FOLDING half §11.4 asked for is already owned by the world program's shared compiler reader
@@ -13,7 +13,7 @@
 // per-config RAW include/exclude entries, not a resource kind.
 //
 // MISSING AND UNPARSEABLE ARE SEPARATE FACTS AT BOTH DOORS, and neither ever becomes `{}`.
-// `resource-gate-access-patterns.md:126` is the law: *"Missing and parse failure must be separate
+// the ResourceHost access-pattern ruling is the law: *"Missing and parse failure must be separate
 // unresolved/tool-error facts… The host must never collapse missing/unparseable into `{}`. An empty row
 // population is a refusal for the liveness family, not a clean result."* Today the consuming gates disagree
 // — some return silently, some report a finding, some throw — and unifying that is part of this door, not a

@@ -1,7 +1,6 @@
 # rpg-extraction coverage probe
 
-Throwaway spike harness behind the one-call-tools decision. Full writeup:
-[`docs/design/rpg-extraction-one-call-spike.md`](../../../docs/design/rpg-extraction-one-call-spike.md).
+Throwaway spike harness behind the one-call-tools decision. The decision it fed is D112.
 
 **Deleted 2026-08-22 (#426), per the research-zone-assessment disposition:**
 `run.ts`, `run-coverage.ts`, `native-wire-probe.ts`, `native-format-roundtrip.ts`,
@@ -11,7 +10,7 @@ self-declared `ARCHIVED 2026-08-02 — pre-R2R3 vocabulary … do NOT run agains
 superseded by `openrouter/f5-effort-translation.ts`'s more rigorous, committed answer. Recover any of
 them with `git log --diff-filter=D --oneline -- scripts/probes/rpg-extraction/<path>` →
 `git show <sha>^:scripts/probes/rpg-extraction/<path>`. Their measured value lives on in this
-directory's `docs/design/rpg-extraction-one-call-spike.md` sections + `SPEC.md` + `SPEC-coverage.md`.
+directory's `SPEC.md` + `SPEC-coverage.md`.
 
 `real-cheap-toolround.json`, `real-reliable-structured.json`, `real-narrative-turn.json`, and
 `captures.json` all carry the retired `hpDelta`/`setHp` party vocab (pre-actor-state-reshape) and lost

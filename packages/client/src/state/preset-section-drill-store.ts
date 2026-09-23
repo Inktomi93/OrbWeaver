@@ -1,4 +1,4 @@
-// The Prompt view's section DRILL axis (preset-surface-redesign.md §5.2) — which section's consolidated
+// The Prompt view's section DRILL axis — which section's consolidated
 // EDITOR the center paints, or `null` for the rack. Its own store because the state's whole job is surviving
 // a remount the component cannot: the built-in's copy-on-write retarget swaps the editor's `presetId` →
 // the keyed `PresetForm` session remounts the WHOLE editor mid-edit, and a LOCAL drill id died there,

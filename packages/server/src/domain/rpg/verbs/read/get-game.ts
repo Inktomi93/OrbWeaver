@@ -1,4 +1,4 @@
-// domain/rpg/verbs/read/get-game — getGame (rpg-design/05 §4.8). The takeover's mode read + the honest-arms
+// domain/rpg/verbs/read/get-game — getGame (docs/plans/rpg/design.md). The takeover's mode read + the honest-arms
 // delivery verdicts (`trackersReadOnly` = the model write path for this game's mode; `canPopulate` = the
 // structured writer the host born-state round needs — one resolve, both answers). Member-gated.
 

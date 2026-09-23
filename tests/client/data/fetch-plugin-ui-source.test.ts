@@ -1,4 +1,4 @@
-// data/fetch-plugin-ui-source — the Tier-C guest-source GET (plugin-ui-plane #679 U4). `fetch` is stubbed at
+// data/fetch-plugin-ui-source — the Tier-C guest-source GET. `fetch` is stubbed at
 // the global boundary (the `upload-asset.test.ts` / `safeFetch` precedent — fake at the edges, never a hand-mock
 // of the function under test).
 //

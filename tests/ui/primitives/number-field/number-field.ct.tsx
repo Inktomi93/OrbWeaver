@@ -202,7 +202,7 @@ test("a call site's own description COMPOSES with the derived bounds, never clob
   await expect(page.getByLabel("Weight")).toHaveAccessibleDescription("Between 0 and 300 In pounds");
 });
 
-// ── size="inline" — the slider's number twin (preset-surface-redesign.md §4.1/§13) ────────────────────
+// ── size="inline" — the slider's number twin ────────────────────
 // The pointer-conditional control tokens are read back FROM THE LIVE DOCUMENT (never TOKENS' static coarse
 // literal, never a hardcoded px): the whole point of the inline height is that it follows the pointer.
 function resolveSpacing(page: Page, cssVar: string): Promise<string> {

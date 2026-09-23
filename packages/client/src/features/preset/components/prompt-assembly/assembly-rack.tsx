@@ -1,4 +1,4 @@
-// AssemblyRack — the SECTION MANAGER (preset-surface-redesign.md §5.1): the request, top to bottom. One
+// AssemblyRack — the SECTION MANAGER: the request, top to bottom. One
 // `<SortableList handle>` over all sections, the `chat_history` pivot included as a real sortable item. A
 // completed drag diffs the new key order against the current one and calls `form.moveFieldValues`. Zones
 // re-derive every render from the pivot index, so dragging the pivot re-zones live. A preset with no pivot

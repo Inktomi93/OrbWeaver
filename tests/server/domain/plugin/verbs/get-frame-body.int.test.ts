@@ -1,4 +1,4 @@
-// verb: getFrameBody — the plugin-frame doorway's ONE read (plugin-ui-plane #679 U7, §6.2). Its three gates,
+// verb: getFrameBody — the plugin-frame doorway's ONE read. Its three gates,
 // each probed at the boundary it defends:
 //
 //   1. OWNERSHIP — a stranger holding a REAL pluginId learns nothing a stranger holding a fabricated one does

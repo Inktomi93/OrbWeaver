@@ -2,7 +2,7 @@
 // a full-viewport centered card OUTSIDE the app shell (the /login route is a sibling of `/`, so the
 // four-region frame never mounts here). Provides the named `@container` the login surface adapts to.
 //
-// The box now carries the BRAND SCENE (docs/history/design/login-loading-screen.md §3/§9): the settled web
+// The box now carries the BRAND SCENE: the settled web
 // behind everything (per-mode via `LoginWeaveBackdrop` — half-woven on first-run, strand-out on the
 // A9 handoff), the wordmark row above the card, the elevated card floating near the web's hub. The
 // web is pre-session chrome: deployment default theme + OS scheme only (no user theme exists yet),

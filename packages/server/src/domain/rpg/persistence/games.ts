@@ -1,4 +1,4 @@
-// domain/rpg/persistence/games — the `rpg_games` row lifecycle (rpg-design/05 §2.1). QUERIES ONLY. The game
+// domain/rpg/persistence/games — the `rpg_games` row lifecycle (docs/plans/rpg/design.md). QUERIES ONLY. The game
 // row is the TRUTH — game-ness resolves server-side by this row, always (the opaque `chats.metadata.rpg`
 // pointer is a sync SIGNAL only, written by the verb layer, W1b). `config` is parse-on-read through the
 // contract schema (a corrupt blob is a loud typed error, never a silent default — the ONE exception is the

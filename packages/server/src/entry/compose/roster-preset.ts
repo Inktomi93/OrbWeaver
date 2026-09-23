@@ -1,4 +1,4 @@
-// The roster-preset seam (D61 B6 — saved parties; build record: docs/history/design/saved-rosters-build-record.md).
+// The roster-preset seam (D61 B6 — saved parties; D170).
 // Built AFTER chat: `applyToChat` drives chat's OWN host-gated verbs (addCharacterToChat / setSeatKnobs /
 // setGroupConfig) plus chat's own `requireHost` guard — ONE authority home, wired here so the domain
 // never sideways-imports chat at runtime. The two ownership belts (member characters, anchor persona)

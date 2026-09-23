@@ -1,4 +1,4 @@
-// ui-guest-realm — THE GUEST REALM half of the Tier-C client sandbox (plugin-ui-plane #679 U4, §4.6): the
+// ui-guest-realm — THE GUEST REALM half of the Tier-C client sandbox: the
 // ambient-denial stubs, the injected seams, and everything `orb.ui(1)` hands a scripted plugin. Split out of
 // `ui-guest.worker.ts` when that file passed the client size cap; the seam is a real one rather than a line
 // count, and it is the same seam the server draws — `infra/plugin-host/realm.ts` builds the surface, and

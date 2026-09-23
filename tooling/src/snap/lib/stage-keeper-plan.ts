@@ -1,4 +1,4 @@
-// THE STAGE'S OWN IDLE TIMER, ruled purely (docs/design/1208-instrument-substrate.md §3.6, issue #1163
+// THE STAGE'S OWN IDLE TIMER, ruled purely (issue #1163
 // arm b): what ONE poll decides, how often to poll, how much time is left on a band, and the exact lines
 // the timer prints when it reaps or refuses. No I/O — ops/stage-keeper.ts observes the box and acts.
 //

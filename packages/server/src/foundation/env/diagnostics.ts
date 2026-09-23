@@ -79,7 +79,7 @@ export interface OwnerFallbackCredentialInput {
  * their fallback arm is live:
  *   • `single-user` in production, where `AUTH_FALLBACK=owner` is forced (deny is boot-fatal there): behind a
  *     same-host proxy every external request is a loopback peer, and the prod image spec leans on
- *     "/api/_debug is not exposed regardless" as a belt (containerize-prod-image-spec.md §3.1/§4). The debug
+ *     "/api/_debug is not exposed regardless" as a belt (docs/plans/containerize/design.md). The debug
  *     surface holds more than the app does — RAW PROVIDER REQUEST BODIES with WIRE_CAPTURE=on, and the
  *     literal provider REPLY bytes beside them with WIRE_CAPTURE_REPLY=on — so that belt stays. The operator of a prod box has `DEBUG_TOKEN`.
  *   • a prod BREAK-GLASS session: an operator who edited the launch environment to open the recovery door

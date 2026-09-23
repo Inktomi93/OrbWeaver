@@ -10,7 +10,7 @@
 // surface below (`PluginGrantList` + the confirm block), never a second grant screen (§4.8: consent is
 // host-only, one surface).
 //
-// THE URL ARM IS LEAK-FREE BY CONSTRUCTION (plugin-ui-plane #679 U8, seam 15). A person pastes an arbitrary
+// THE URL ARM IS LEAK-FREE BY CONSTRUCTION (U8, seam 15). A person pastes an arbitrary
 // URL, so the preview is a probe of a caller-named destination — and `previewFromUrl` can fail two ways
 // (`PluginBundleFetchError` for unreachable/refused/SSRF-blocked/non-2xx, `ManifestInvalidError` for
 // "reached it, but not a plugin"). Distinguishing those to the caller would be an SSRF ORACLE ("did my URL
@@ -92,7 +92,7 @@ function GrantSummary({ capabilities }: { readonly capabilities: readonly Plugin
   return summary === null ? null : <Text voice="label">{summary}</Text>;
 }
 
-/** The URL arm (plugin-ui-plane #679 U8, seam 15) — paste a link, PREVIEW it through the server egress guard,
+/** The URL arm (U8, seam 15) — paste a link, PREVIEW it through the server egress guard,
  *  and hand the returned manifest UP so the ONE shared consent screen renders it. It owns nothing but its own
  *  input + the leak-free failure line; the parent owns the confirm/install. `disabled` is raised while an
  *  install is in flight so a person cannot start a second fetch mid-install. */
@@ -266,7 +266,7 @@ export function PluginInstallCard(): ReactElement {
         </Text>
       ) : null}
 
-      {/* THE URL ARM — the same consent screen, from a link instead of a file (plugin-ui-plane #679 U8). The
+      {/* THE URL ARM — the same consent screen, from a link instead of a file. The
           bytes are fetched on the SERVER (through the egress guard), so nothing here uploads; the arm previews
           the manifest and hands it up to drive the ONE grant screen below. */}
       <Separator />

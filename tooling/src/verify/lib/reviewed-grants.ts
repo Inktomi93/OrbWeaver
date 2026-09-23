@@ -1,4 +1,4 @@
-// The ONE central home for typed reviewed grants (docs/design/gate-runtime-standardization.md §5).
+// The ONE central home for typed reviewed grants (docs/law/gate-runtime-standardization.md §5).
 // A row licenses exactly one `(policyId, subject, operation)` identity of one `reviewed-grant`
 // policy; `why` and `endsWhen` are mandatory; after a complete owner run over its whole declared population
 // zero consumption is STALE (a subset run reports it unjudged), and more than one matching finding is

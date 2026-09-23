@@ -1,4 +1,4 @@
-// persistence/sheets — the per-actor identity store backing the participants ∪ rows projection (rpg-design/05
+// persistence/sheets — the per-actor identity store backing the participants ∪ rows projection (docs/plans/rpg/design.md
 // §4.3). .int: real FK. NO membership shadow — a sheet is keyed by durable actor identity, created on FIRST
 // WRITE. The projection itself (participants ∪ rows, default-for-missing, retained-not-projected) is composed in
 // W1b's verb; this suite proves the persistence PRIMITIVES that make it possible, and demonstrates the

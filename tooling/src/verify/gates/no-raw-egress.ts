@@ -13,8 +13,8 @@
 // or in the inference package's `backends/` reds until someone reviews it. That is the two-sided ratchet
 // the legacy stale-zone `finalize` arm was hand-rolling, moved to the central table that owns liveness.
 //
-// WIDENED TO `@inference` 2026-09-20 (lane cb-gate-reach, the §12 EXTRACTION AUDIT of
-// `docs/design/orbweaver-inference-package.md`). THIS IS THE SECURITY-LOAD-BEARING HALF of that audit.
+// WIDENED TO `@inference` 2026-09-20 (lane cb-gate-reach, the inference EXTRACTION AUDIT).
+// THIS IS THE SECURITY-LOAD-BEARING HALF of that audit.
 // The whole of `packages/server/src/infra/providers/` — every hosted wire, every credentialed request the
 // product makes — moved to `packages/inference/src/`, a tree the `@server` root does not reach. For the
 // window between the extraction and this commit the policy ran GREEN over 1,380 admitted `@server` paths

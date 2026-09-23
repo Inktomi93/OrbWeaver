@@ -24,7 +24,7 @@ import type { AssetId, CharacterId, PersonaId, WorldBookId } from "@orb/kit/ids"
 // honest. Every member emits today; the belt guards the NEXT one (this header already plans the
 // `crew.*`/`rpg.*` grafts).
 // GREW 2026-08-14 to four: `persona.updated` + `world-info.updated` are the entity→room member-freshness
-// bridge's inputs (`docs/design/entity-room-member-freshness-bridge.md` §3.6). They have NO indexer consumer
+// bridge's inputs. They have NO indexer consumer
 // — the embeddings subscriber names them as explicit no-op cases — and exist so ONE reach engine at the
 // composition root can fan a room event for every entity kind, instead of each domain growing its own
 // chat-bus reach (which would be a sideways import).

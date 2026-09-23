@@ -1,5 +1,5 @@
 // domain/plugin/substrate/ui-host-dispatch — the per-function ARGUMENT SCHEMA + bridge call for every member of
-// `UI_PROXYABLE_HOST_FUNCTIONS` (plugin-ui-plane #679 U4, §4.6 / seam 5). This is the Tier-C mirror of what
+// `UI_PROXYABLE_HOST_FUNCTIONS` (U4, §4.6 / seam 5). This is the Tier-C mirror of what
 // `infra/plugin-host/membrane.ts` does for the SERVER guest: a name plus untrusted arguments arrive, each
 // function's own schema decides whether the arguments are a legal call, and only then does the shared
 // `PluginBridge` op run. The bridge is the SAME one a server guest's call rides — closed over the installer,

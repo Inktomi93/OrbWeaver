@@ -1,4 +1,4 @@
-// domain/rpg/chat-ops/flush — the turn-completion FLUSH (rpg-design/05 §2.4-2.5 + the delivery-model amendment
+// domain/rpg/chat-ops/flush — the turn-completion FLUSH (docs/plans/rpg/design.md + the delivery-model amendment
 // §4.6). At `onTurnCompleted` the turn's staged state + journal are written as a clone-forward snapshot keyed to
 // the COMMITTED assistant variant, born `committed=0` (the next user send's `onUserCommit` locks it in). THE
 // DELIVERY FORK picks the VEHICLE that produces this turn's delta; both funnel through ONE flush tail:

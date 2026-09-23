@@ -775,7 +775,7 @@ function previousTokenDocument(repoRoot: string, baseRef: string, diagnostics: T
  *
  *  `previousTokenDocument` shells `git merge-base` + `git show` from a repo root, which is exactly the read a
  *  gate-runtime POLICY cannot make: a final `defineGate` policy receives no root, no filesystem and no
- *  subprocess (`gate-runtime-standardization.md` §12.3), so `tokens-contract`'s conversion would have SILENTLY
+ *  subprocess (`docs/law/gate-runtime-standardization.md` §12.3), so `tokens-contract`'s conversion would have SILENTLY
  *  DROPPED the removal ratchet — half its stated subject — while every other check stayed green. Accepting the
  *  merge-base document as a value lets a caller that CAN read git (the ResourceHost provider, the same shape
  *  `tracked-files` already uses) hand it in.

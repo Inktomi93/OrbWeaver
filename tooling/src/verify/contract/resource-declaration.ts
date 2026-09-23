@@ -1,7 +1,7 @@
 // Closed, JSON-ready resource requests. Descriptors name facts; only ResourceHost owns their paths.
 //
 // New kinds require an orchestrator ruling and independent consumers; lanes cannot invent private-reader kinds.
-// Missing capabilities follow the convert-or-delete rule in `docs/design/gate-runtime-standardization.md` §4:
+// Missing capabilities follow the convert-or-delete rule in `docs/law/gate-runtime-standardization.md` §4:
 // ask with the exact read and continue independent work, preserving the existing guarantee until disposition.
 //
 // TWO INDEPENDENT PROPERTIES, each with its own predicate, because conflating them is wrong in both

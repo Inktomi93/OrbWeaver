@@ -1,4 +1,4 @@
-// AssemblyToolbar — the rack's top bar, now just **Add** (preset-surface-redesign.md §5.1): the
+// AssemblyToolbar — the rack's top bar, now just **Add**: the
 // Compose|Preview mode toggle is DELETED. The assembled preview moved WHOLE to the Prompt view's CONTEXT
 // readout (decision D2, §16 row 29), so compose is the center's only mode and a toggle with one arm is
 // chrome.

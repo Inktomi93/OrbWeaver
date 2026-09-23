@@ -1,5 +1,5 @@
-// CT: the rack's SELECT ≠ DRILL split and the drill-in's structural rules (preset-surface-redesign
-// §5.1/§5.2, audit §16 rows 18/19/21). These are properties of the COMPOSITION — no unit test of either
+// CT: the rack's SELECT ≠ DRILL split and the drill-in's structural rules (audit
+// §16 rows 18/19/21). These are properties of the COMPOSITION — no unit test of either
 // component can see them — and each one is a rule the old surface actually broke:
 //
 //   · a row CLICK used to mount the editor. It must now only SELECT (the readout is the inspect view).

@@ -24,7 +24,7 @@ const PLUGIN_MESSAGE_DEFAULT_LIMIT = 20;
 const PLUGIN_MESSAGE_MAX_LIMIT = 50;
 
 /**
- * Recent canon projected to the REDUCED plugin view (plugin-design/01 §2): id/role/authorDisplayName/
+ * Recent canon projected to the REDUCED plugin view: id/role/authorDisplayName/
  * characterId/seq/content only, oldest→newest, content capped — no economics/promptSnapshot.
  *
  * `opts.floorSeq` is the VIEWER's history floor: rows below it are pre-join for this human and are withheld

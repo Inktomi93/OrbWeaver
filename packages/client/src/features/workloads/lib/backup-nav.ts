@@ -1,4 +1,4 @@
-// The Backup & Restore group's nav entries (config-revamp-design.md §6.8) — the ONE home for both ends of
+// The Backup & Restore group's nav entries — the ONE home for both ends of
 // the anchor wiring: each contribution def spells its `nav` from these and each section body stamps
 // `configAnchorId("backup", …)` from the same constant.
 

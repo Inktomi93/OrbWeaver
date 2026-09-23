@@ -1,4 +1,4 @@
-// The preset ACTIONS view's TEMPLATE selection (preset-surface-redesign §6.1 / §16 row 23). Which action
+// The preset ACTIONS view's TEMPLATE selection. Which action
 // template the Actions readout echoes — the SELECT half of the one-list-grammar the rack rows already speak:
 // the row body SELECTS (this store; the readout resolves that template), the trailing chevron DRILLS into the
 // editor. The two acts were conflated in the Actions list only because the readout had no echo half to select

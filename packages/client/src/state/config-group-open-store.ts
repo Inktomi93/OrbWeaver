@@ -1,5 +1,5 @@
 // CONFIG GROUP DISCLOSURE — which groups are EXPANDED in the Configuration LIST, remembered per device
-// (owner ruling, 2026-08-02; every kind since the config revamp, #866 S1 — config-rail-spec C-12).
+// (owner ruling, 2026-08-02; every kind since the config revamp, #866 S1 C-12).
 //
 // WHY GROUPS START CLOSED: the LIST stacks N groups in one 330px pane, and a real library is not a
 // glance — the owner's own tag library is ~400 rows. Always-expanded (as the mocks drew it) buries every

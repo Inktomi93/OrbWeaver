@@ -3,7 +3,7 @@
 // by hand (#1723).
 //
 // ── WHY THIS EXISTS (#1723, and the defect that proved it) ───────────────────────────────────────────
-// `docs/design/mocks/config-collections/DESIGN.md` §3.1 ratified ONE band: "Two band kinds do NOT exist;
+// The approved config-collections design ratified ONE band: "Two band kinds do NOT exist;
 // the delta from a settings band is the chevron's visibility and `aria-expanded`." The tree had three
 // copies of it — the settings band and the collection band in `features/config`, and `TemplateCluster` in
 // `features/preset`, whose own header CALLED ITSELF a borrow of the config band anatomy and then did not
@@ -40,7 +40,7 @@
 // included. The ARIA landed at #1725; the paint did not.
 //
 // The fix is here rather than at a call site because `BandProps` `Omit`s `selection` (below) — no consumer
-// could ask for a selected skin — and because a second band KIND is exactly what DESIGN.md §3.1 forbids.
+// could ask for a selected skin — and because a second band KIND is exactly what the mock design §3.1 forbids.
 // So this is a STATE arm on the one band, and it takes NO new prop: the band already receives the
 // `aria-current` that says it is the location, and the paint is that attribute mirrored onto the
 // `data-selected` the ruled idiom keys on. One statement, one home, and a call site cannot get the two
@@ -97,7 +97,7 @@ export interface BandProps extends Omit<ButtonBaseProps, "children" | "intent" |
   /** A live census. `undefined` draws NOTHING — a band never fabricates a `0`, because "the number has not
    *  landed" and "there are none" are different facts and only the owning surface can tell them apart. */
   readonly count?: number;
-  /** Where the census sits. `trailing` is DESIGN.md §3.1's ratified answer and the default — in a ~290px
+  /** Where the census sits. `trailing` is the mock design §3.1's ratified answer and the default — in a ~290px
    *  LIST door the count claims the remainder while the label truncates. `label` exists for a band spanning
    *  a full CONTENT pane, where a figure parked several hundred px from the name it counts stops reading as
    *  its count. */
@@ -118,7 +118,7 @@ const CHEVRON_GLYPH = { reserved: ChevronRight, closed: ChevronRight, open: Chev
 /** One band: `[chevron] [glyph] Label … count marks`. */
 export function Band({ label, chevron, icon, count, censusAlign = "trailing", marks, className, ...rest }: BandProps): ReactElement {
   // The paint half of `aria-current` (see the header). `"true"` is the token BOTH band species state
-  // (config-list-group.tsx's row-less leaf and config-list-collection-group.tsx's library door — DESIGN.md
+  // (config-list-group.tsx's row-less leaf and config-list-collection-group.tsx's library door — the mock design
   // §3.1's owner-authorised amendment picked one token for the pane); `true` is accepted because React's
   // `aria-current` type admits the boolean and a caller writing it means the same thing. Every other value
   // in the ARIA union (`page`/`step`/`location`/…) would be a band claiming a kind this component does not

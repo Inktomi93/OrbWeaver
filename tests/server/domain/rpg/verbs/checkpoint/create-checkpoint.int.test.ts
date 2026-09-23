@@ -1,4 +1,4 @@
-// verbs/checkpoint/create-checkpoint — createCheckpoint (rpg-design/05 §4.4, §6.2). Labels the current
+// verbs/checkpoint/create-checkpoint — createCheckpoint (docs/plans/rpg/design.md). Labels the current
 // resolved snapshot; the row is asserted at persistence (assert-the-mutation-fired).
 
 import type { Db } from "@orb/db";

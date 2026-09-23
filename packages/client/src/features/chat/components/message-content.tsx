@@ -115,7 +115,7 @@ export interface MessageContentProps {
   /** The room + author this body was written in — the card-frame doorway selector (see {@link CardOrigin}).
    *  Absent (a story/preview mount with no room) ⇒ every tierB card renders the srcdoc floor. */
   readonly cardOrigin?: CardOrigin | undefined;
-  /** The COMMITTED row this body belongs to — the plugin DISPLAY-transform seam (plugin-ui-plane seam 14, U6).
+  /** The COMMITTED row this body belongs to — the plugin DISPLAY-transform seam (seam 14, U6).
    *  Absent (a ghost row, a preview, a story mount) ⇒ no transform runs, byte-identical. Present ⇒ the viewer's
    *  OWN plugins may annotate the rendered text, after macros and after DISPLAY regex, before markdown. */
   readonly pluginDisplayRow?: PluginDisplayRow | undefined;

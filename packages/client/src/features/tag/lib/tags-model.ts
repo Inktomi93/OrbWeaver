@@ -35,7 +35,7 @@ const SORT_MODE_LABELS: Record<TagSortMode, string> = {
 };
 
 /** The sort-mode Select options, derived from the canonical tuple — the DATA behind the host's control-row
- *  sort (`CollectionContribution.sort`, DESIGN.md §3.2).
+ *  sort (`CollectionContribution.sort`, the mock design §3.2).
  *
  *  `handlesAvailable` is the library-SIZE verdict, not a preference: above `COLLECTION_LARGE_GROUP`
  *  the list virtualizes and drag handles cannot exist (a windowed list has no stable drop target for an

@@ -1,4 +1,4 @@
-// swipe-consistency — THE RATIFICATION PIN (rpg-design/05 §2.5, ratification #1). Everything the context
+// swipe-consistency — THE RATIFICATION PIN (docs/plans/rpg/design.md, ratification #1). Everything the context
 // panel renders must be swipe-consistent. This suite drives the FULL W1a stack (staging → clone-forward →
 // per-variant snapshot resolution + the journal lineage projection) to prove: pool + wallet + quest state
 // written on variant A rewind when you swipe to B, and RETURN when you swipe back — because each variant's

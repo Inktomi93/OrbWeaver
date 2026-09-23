@@ -10,7 +10,7 @@
 //     hardcoded map whose value literal arm (1) cannot see because a call built it;
 // (4) a bare array literal of ≥2 distinct vocab-id STRING literals (the deleted `YOU_MODAL_IDS` shape —
 //     same drift spelled as ids rather than `{id:…}` objects, which arm (2) has zero object elements to see);
-// (5) the CHROME arm (shell-chrome-unification.md §D/§E-7) — chrome has NO id vocabulary, it is a
+// (5) the CHROME arm — chrome has NO id vocabulary, it is a
 //     contributor-style OPEN set over the CLOSED `CHROME_ZONES` axis, so the id-keyed arms cannot see it. A
 //     hand-maintained chrome list is an array of ≥2 object literals EACH carrying a `zone:` that is a
 //     CHROME_ZONES member, outside the door / the pure assembler / a co-located `*-chrome` def.

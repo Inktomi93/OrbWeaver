@@ -1,4 +1,4 @@
-// verb: reportUiCrash — the CLIENT half of the 3-strike crash policy (plugin-ui-plane #679 U4, §4.9). The
+// verb: reportUiCrash — the CLIENT half of the 3-strike crash policy. The
 // design claim this file has to make true is a single sentence: "a UI half that dies every mount auto-disables
 // like a server half that throws." So the test that matters is not "the counter went up" — it is that THREE
 // client-reported crashes reach the SAME auto-disable a throwing server handler reaches, through the same

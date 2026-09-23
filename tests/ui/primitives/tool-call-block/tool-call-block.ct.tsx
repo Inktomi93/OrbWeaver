@@ -1,5 +1,5 @@
-// CT: the tool-call-block seal — the D48 generic tool-invocation fallback block (tool-use-design/
-// 03 §4 + 05 §T7). THREE states driven ONLY by the record; arguments/result JSON.parse with a
+// CT: the tool-call-block seal — the D48 generic tool-invocation fallback block.
+// THREE states driven ONLY by the record; arguments/result JSON.parse with a
 // raw-string fallback that never blanks; native <details> collapse.
 import { ToolCallBlock } from "@orb/ui/tool-call-block";
 import { expect, test } from "@playwright/experimental-ct-react";

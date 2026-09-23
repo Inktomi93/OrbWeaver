@@ -1,4 +1,4 @@
-// substrate: imagery/identity-hash — the deterministic reuse key (imagery-design/03 §4.3). Proves the hash
+// substrate: imagery/identity-hash — the deterministic reuse key. Proves the hash
 // is stable for identical inputs and separates on each component (mode / characterId / contentHash), so an
 // edited card (new contentHash) misses and an unchanged one hits.
 

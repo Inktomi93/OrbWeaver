@@ -1,4 +1,4 @@
-// P4 — the plugin `events.on` fan-out (plugin-design/04 §P4), driven end-to-end off `handleEvent`. A plugin
+// P4 — the plugin `events.on` fan-out, driven end-to-end off `handleEvent`. A plugin
 // subscriber is a NON-RULE consumer of the resolved TriggerFact; these tests exercise the THREE load-bearing
 // gates against a real db + real membership canon (this delivers to UNTRUSTED guests):
 //   (a) cascade-depth — depth ≥ cap delivers to NObody; a depth ≥ 1 cascade fact reaches a plugin ONLY if it

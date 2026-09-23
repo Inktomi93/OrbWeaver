@@ -1,4 +1,4 @@
-// domain/rpg/substrate/readonly-axis — the honest-arms `trackersReadOnly` derivation (rpg-design/05 §4.6 + the
+// domain/rpg/substrate/readonly-axis — the honest-arms `trackersReadOnly` derivation (docs/plans/rpg/design.md + the
 // delivery-model amendment). PURE (zero I/O): given the resolved delivery MODE and the host connection's model
 // capability, decide whether the model has a WRITE PATH for this game's state. The connection RESOLVE + the game
 // config read are the composition root's (W1c wires them into the `RpgResolveTrackersReadOnly` injected op); THIS

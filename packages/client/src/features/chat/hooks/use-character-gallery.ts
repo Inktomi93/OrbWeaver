@@ -1,4 +1,4 @@
-// The per-character gallery curation mutations (G4, gallery-design §1.3) — used by the gallery modal reached
+// The per-character gallery curation mutations — used by the gallery modal reached
 // from the chat ⋯ menu's "[Character]'s Gallery" entry. Each carries its own `invalidates` refetching
 // `assets.listGallery` — gallery curation is NOT on the SSE chat bus (assets are per-user state, not chat
 // canon), so it reconciles itself (the preset-mutations precedent). The list READS are inlined at the two

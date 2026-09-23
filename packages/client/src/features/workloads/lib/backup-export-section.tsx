@@ -1,4 +1,4 @@
-// The Backup EXPORT config-section CONTRIBUTION (config-revamp-design.md §6.8) — the group's first row.
+// The Backup EXPORT config-section CONTRIBUTION — the group's first row.
 // features/workloads owns it (backup IS the workloads + portability system, §8/O3). No `owns`: a raw
 // `/api/export` download, not a setting.
 

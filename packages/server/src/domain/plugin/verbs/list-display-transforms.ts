@@ -1,5 +1,5 @@
 // verb: listDisplayTransforms — the caller's OWN enabled plugins' registered DISPLAY transforms
-// (plugin-ui-plane #679 U6, seam 14). Owner-scoped by construction, the `listSurfaces` posture: `listOwned`
+// (U6, seam 14). Owner-scoped by construction, the `listSurfaces` posture: `listOwned`
 // filters `WHERE owner_id = caller.userId`, a disabled/errored plugin has no resident instance, and no foreign
 // id is accepted anywhere — the read IS the gate.
 //

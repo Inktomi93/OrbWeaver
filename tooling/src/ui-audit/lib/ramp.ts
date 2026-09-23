@@ -1,8 +1,8 @@
-// Token-ramp bindings (the DESIGN.md-equivalent — live values from @orb/ui/tokens, never a prose
+// Token-ramp bindings (the design-doc equivalent — live values from @orb/ui/tokens, never a prose
 // mirror) + the shared alpha floor for gradient-stop trust.
 import { SNAPPED_LENGTH_BASE_PX, TOKENS } from "@orb/ui/tokens";
 
-// ── Token-ramp bindings (the DESIGN.md-equivalent — live values, never a prose mirror) ──────
+// ── Token-ramp bindings (the design-doc equivalent — live values, never a prose mirror) ──────
 export const REM_PX = 16;
 
 /** The smallest ratified type step — `text.micro` (10.5px, the UIP-103 micro-caps voice).
@@ -21,7 +21,7 @@ export const INTERACTIVE_TEXT_FLOOR_PX = 11;
  *  ramp-bound so ratified label-voice text stays legal — that clause is why this is a re-derivation
  *  rather than a constant.)
  *
- *  READ THE MAP, NEVER THE SERIALIZATION (docs/design/integer-line-boxes.md §3b/§6). `leading.*` are
+ *  READ THE MAP, NEVER THE SERIALIZATION (docs/law/integer-line-boxes.md §3b/§6). `leading.*` are
  *  px-resolving dimensions emitted as `round(up, 1rem, 1px)`, so `TOKENS["leading.label"].value` is a CSS
  *  string; `SNAPPED_LENGTH_BASE_PX` is the numeric companion generated for exactly this consumer.
  *  The previous spelling was `Number(TOKENS["leading.label"].value)` and the snapped emission turned it

@@ -15,7 +15,7 @@ import { expect, test } from "../../../support/tool-fixtures.ts";
 const CATALOG = "docs/catalog/catalog.json";
 const ADR_TREE = "docs/adr";
 const ACTIVE_DEBT = "docs/law/Core-Audits-and-Debt.md";
-const CLEARED_DEBT = "docs/architecture/history/Core-Debt-Cleared-Ledger.md";
+const CLEARED_DEBT = "docs/law/Core-Debt-Cleared-Ledger.md";
 function catalog(paths: readonly string[]): string {
   return JSON.stringify({ documents: paths.map((path) => ({ path })) });
 }

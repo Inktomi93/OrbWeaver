@@ -337,7 +337,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   });
   registerBlob(app, { assets: deps.assets, cas: deps.cas });
 
-  // The Tier-C guest-source doorway (plugin-ui-plane #679 U4). It sits beside `blob` because it is the same
+  // The Tier-C guest-source doorway. It sits beside `blob` because it is the same
   // KIND of thing — an owner-gated byte read whose response TYPE is the security property — and unlike the
   // card-frame doorway below it does NOT carry its own CSP: it serves no document, only inert bytes, so the app
   // header set (including the `nosniff` this route also restates) is exactly right for it.

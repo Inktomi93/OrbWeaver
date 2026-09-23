@@ -1,4 +1,4 @@
-// `useStartChat` — THE client seam for creating a chat (chat-creation-draft-mode-replacement.md §4.1).
+// `useStartChat` — THE client seam for creating a chat (D166).
 //
 // A chat row exists from the creation CLICK. Every launcher — the new-chat picker, the home quick-picks
 // tile, "New chat with the same characters", the character library's Start-chat — fires THIS, awaits the real

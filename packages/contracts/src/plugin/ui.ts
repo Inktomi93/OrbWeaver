@@ -1,10 +1,10 @@
-// @orb/contracts/plugin/ui — the plugin UI-surface SPEC vocabulary (#679 plugin-ui-plane U0, seam 3). The
+// @orb/contracts/plugin/ui — the plugin UI-surface SPEC vocabulary (#679U0, seam 3). The
 // closed, zod-validated declarative node tree a plugin registers through `host.ui.register` (host-v1.ts) and
 // the ONE first-party renderer in `features/plugin` maps to sealed `@orb/ui` primitives (the exhaustive
 // `Record<NodeKind, Renderer>`, built U1). A plugin composes house components as DATA — it never imports,
 // styles, or subclasses `@orb/ui`. The vocabulary deliberately CANNOT express raw HTML/CSS/className, host
 // chrome (rail/topbar/composer), a modal, focus theft, or any write channel: a node is data, and only a
-// `button`/`confirmButton` `actionId` round-trips (the impersonation walls, plugin-ui-plane §4.3/§4.8 —
+// `button`/`confirmButton` `actionId` round-trips (the impersonation walls —
 // enforced at the COMPILE tier by this closed union, so the walls are unspellable rather than merely refused).
 //
 // The bounds ARE the trust boundary: the schema is applied host-side at registration AND client-side before
@@ -31,7 +31,7 @@ import { PLUGIN_TOOL_NAME_LOCAL_MAX, PLUGIN_UI_ASSET_ENTRY_RE } from "./manifest
 // ── Vocabulary axes (closed tuples; a member is a compile-tier fact) ─────────────────────────────────────────
 
 /** Where a plugin surface may MOUNT — each rides an EXISTING door-assembled family via ONE first-party
- *  contribution owned by `features/plugin` (plugin-ui-plane §4.5).
+ *  contribution owned by `features/plugin`.
  *
  *  `message-footer` (U6, §5.4) is the ONE PER-ROW anchor: it mounts once per COMMITTED transcript row, so its
  *  cost multiplies by transcript length and it carries its own tighter bounds — {@link PLUGIN_ANCHOR_TIERS}
@@ -70,7 +70,7 @@ export type PluginSurfaceTier = (typeof PLUGIN_SURFACE_TIERS)[number];
 export const PLUGIN_GAP_TOKENS = ["tight", "field", "row", "block", "section"] as const;
 export type PluginGapToken = (typeof PLUGIN_GAP_TOKENS)[number];
 
-/** The `text` node's content voice — the three reading voices a plugin may speak (plugin-ui-plane §4.3). The
+/** The `text` node's content voice — the three reading voices a plugin may speak. The
  *  renderer maps each to the sealed `Text` primitive; a plugin cannot reach `kicker`/`datum`/`figure` (host
  *  grammar voices) — a section's name is the `section` node's `kicker`, never a raw voice. */
 export const PLUGIN_TEXT_VOICES = ["body", "gloss", "label"] as const;
@@ -208,7 +208,7 @@ export type PluginNodeKind = (typeof PLUGIN_NODE_KINDS)[number];
 
 // ── Global caps (the trust bounds; enforced at the spec ROOT) ────────────────────────────────────────────────
 
-/** The whole spec, serialized, must fit — the outermost DoS bound, 32 KiB (plugin-ui-plane §4.3). */
+/** The whole spec, serialized, must fit — the outermost DoS bound, 32 KiB. */
 export const PLUGIN_SPEC_MAX_BYTES = 32_768;
 /** Total node count across the tree. */
 export const PLUGIN_SPEC_MAX_NODES = 256;
@@ -217,7 +217,7 @@ export const PLUGIN_SPEC_MAX_DEPTH = 8;
 /** A single `text`/`markdown`/`confirmButton` body value cap, 2 KiB — measured in BYTES (the schema runs
  *  `byteBoundedString`, not `z.string().max()`, so the name and the enforcement agree for non-ASCII text). */
 export const PLUGIN_TEXT_MAX_BYTES = 2048;
-/** The rendered-row cap on `list` items, `keyValue` rows, and `select` options (plugin-ui-plane §4.3). */
+/** The rendered-row cap on `list` items, `keyValue` rows, and `select` options. */
 export const PLUGIN_ROWS_MAX = 64;
 /** The rendered-tile cap on a `grid` node (U5). Same posture as {@link PLUGIN_ROWS_MAX} and the same number: a
  *  tile costs more paint than a row, and a browse page that needs more than 64 results on screen at once needs
@@ -250,7 +250,7 @@ export const PLUGIN_FOOTER_MAX_DEPTH = 2;
  *  in the transcript, coded rather than written down. It is a TOTAL `Record<anchor, Record<tier, boolean>>` on
  *  purpose: a new {@link PLUGIN_SURFACE_TIERS} member makes EVERY anchor row a missing key and fails `tsc`, so
  *  the `ui.frame` hatch (U7, §6.2) cannot land at `message-footer` by omission — someone has to type
- *  `frame: false` here, which is exactly the decision plugin-ui-plane §4.5 says is permanent. */
+ *  `frame: false` here, which is exactly the owner-ruled permanent decision. */
 export const PLUGIN_ANCHOR_TIERS = {
   // `frame: true` — §6.1's "arbitrary-HTML settings look" row (§5.1) is HATCH-ELIGIBLE at U7: it is the
   // installer's OWN settings screen, under their own grant, and the integrated form nodes remain the
@@ -1332,7 +1332,7 @@ export function resolvePluginBoundAssetId(state: Record<string, unknown>, bindin
 
 // ── Registration metadata (U1, seam 4 — the guest's `host.ui.register` def MINUS the `onAction` handle) ───────
 
-/** A surface's `id` grammar (`host.ui.register`'s `id`; plugin-ui-plane §4.2) — unique per plugin, a bounded
+/** A surface's `id` grammar (`host.ui.register`'s `id`) — unique per plugin, a bounded
  *  programmatic identifier (the values-bag / registry key discipline), never arbitrary text. */
 export const PLUGIN_SURFACE_ID_RE = /^[a-z][a-z0-9_]{0,40}$/;
 /** The GUEST-LOCAL tool name a `tool-card` surface names (`host.tools.register`'s `name` — the grammar
@@ -1344,7 +1344,7 @@ export const PLUGIN_SURFACE_ID_RE = /^[a-z][a-z0-9_]{0,40}$/;
  *  on the raw guest input, so a name too long is refused at the guest's own `tools.register` call, never
  *  merely at the `toolName` linkage above. */
 export const PLUGIN_TOOL_NAME_RE = new RegExp(`^[a-z][a-z0-9_]{0,${PLUGIN_TOOL_NAME_LOCAL_MAX - 1}}$`);
-/** The shell label line cap (`host.ui.register`'s `title`; plugin-ui-plane §4.2). */
+/** The shell label line cap (`host.ui.register`'s `title`). */
 export const PLUGIN_SURFACE_TITLE_MAX = 80;
 
 /** The SERIALIZABLE part of a `host.ui.register` def — validated host-side at collection (the trust boundary)
@@ -1352,7 +1352,7 @@ export const PLUGIN_SURFACE_TITLE_MAX = 80;
  *  here (it is a guest function, kept as an opaque `PluginHandlerRef` on the collected
  *  {@link PluginSurfaceRegistration}); `spec` is REQUIRED for a static-tier surface to render anything, but is
  *  optional at THIS schema because a scripted-tier (U4) surface computes its tree client-side. An invalid meta
- *  is a REGISTRATION refusal (surface absent + a plugin log line), never activation-fatal (plugin-ui-plane §4.9).
+ *  is a REGISTRATION refusal (surface absent + a plugin log line), never activation-fatal.
  *
  *  `toolName` is the `tool-card` LINKAGE (U3): which of the plugin's OWN tools this card renders, named the way
  *  `host.tools.register` took it. It is a BICONDITIONAL with the anchor — a `tool-card` without a `toolName`
@@ -1772,7 +1772,7 @@ export function resolvePluginPrimaryButton(spec: PluginSurfaceSpec, anchor: Plug
   return { granted: claimants[0] ?? null, refused: claimants.slice(1) };
 }
 
-// ── The tool-card BINDING ROOT (U3, seam 7 — plugin-ui-plane §4.5's `tool-card` row) ─────────────────────────
+// ── The tool-card BINDING ROOT (U3, seam 7's `tool-card` row) ─────────────────────────
 
 /** What a `tool-card` spec's `{ $state: "…" }` paths resolve against — the persisted `ToolCallRecord` of the
  *  call being rendered, projected. It is the ONE thing a card binds: a tool card has no `host.ui.setState`

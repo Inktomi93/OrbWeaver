@@ -2,7 +2,7 @@
 // order (`ConfigSectionPartition` — plain sections in declared registry order, then the advanced-fold
 // cohort) — read off the one section registry by BOTH panes, so the map the LIST paints and the sequence
 // CONTENT renders cannot disagree (side-eye 2026-09-02 F4). One derivation, and NO group-owned half to
-// merge: a group has no `subcategories` of its own (config-revamp-design.md §6.8 — every settings-shaped
+// merge: a group has no `subcategories` of its own (every settings-shaped
 // group is a skimmer by type).
 //
 // TWO projections of that one derivation, because the consumers ask different questions. The LIST asks

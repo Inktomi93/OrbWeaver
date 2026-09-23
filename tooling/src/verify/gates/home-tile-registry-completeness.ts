@@ -1,4 +1,4 @@
-// Policy: home-tile-registry-completeness (docs/history/design/home-section-spec.md §7) — the HOME-TILE
+// Policy: home-tile-registry-completeness — the HOME-TILE
 // seam's structural walls tsc cannot see. Unlike the section/config registries there is no total door
 // `Record` to lean on: a tile is an open-ended contribution, so every wall here is this policy's.
 //
@@ -73,7 +73,7 @@ const MESSAGE =
   "a home tile is dishonest: a HomeTileContribution whose declaration or resolved definition is not " +
   "co-located at packages/client/src/features/<owner>/lib/<name>-tile.{ts,tsx}, a definition this policy " +
   "cannot resolve to an authored object literal, an unreadable or duplicate id, or a DORMANT doorway with " +
-  "an empty reason or teaser or one that also declares an action — docs/history/design/home-section-spec.md §7.";
+  "an empty reason or teaser or one that also declares an action.";
 const FIX =
   "co-locate the tile at features/<owner>/lib/<name>-tile.tsx and write it as an authored object literal; give every tile a unique id; give a dormant doorway a real reason AND a real teaser and no action (a doorway has no controls). For a deliberate exception, write an adjacent `@orb-waive home-tile-registry-completeness(<position>): <why + end condition>` — the position is the DECLARED NAME of the tile (`buddyDormantTile`), never the `reason`/`teaser`/`action` field the message names.";
 

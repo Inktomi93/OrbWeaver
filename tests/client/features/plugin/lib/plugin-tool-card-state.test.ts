@@ -1,4 +1,4 @@
-// The `tool-card` BINDING ROOT (plugin-ui-plane #679 U3): what a card's `{ $state: "…" }` paths resolve
+// The `tool-card` BINDING ROOT: what a card's `{ $state: "…" }` paths resolve
 // against. Pure, so it is pinned here rather than through a mount — the CT proves the rendered arm.
 //
 // The load-bearing property is that the projection is TOTAL over what a record can actually carry: the

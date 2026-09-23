@@ -1,4 +1,4 @@
-// transport/trpc/routers/assets — the owned-asset + gallery surface (gallery-design §1.2/§1.3). authed;
+// transport/trpc/routers/assets — the owned-asset + gallery surface. authed;
 // owner-scoped. Thin: validate with the `@orb/contracts/assets` wire schemas → `ctx.services.assets.<verb>`
 // passing the resolved `Principal` as the actor (the same actor-passing shape as the other routers). The
 // upload/blob-serve paths are NOT here — they are the non-tRPC `entry/http` registrars (multipart + byte

@@ -1,5 +1,5 @@
 // support/factories/resolved-connection — typed builders for the resolved-connection value objects tests
-// used to fabricate via `as unknown as X` (test-support-dry-punchlist §5, W1h). The point of these factories
+// used to fabricate via `as unknown as X`. The point of these factories
 // is the TYPED RETURN: a new required field on `GenerationCapability` / `Resolved` becomes a compile error
 // HERE (one place) instead of silently passing every fabricated literal.
 //

@@ -212,7 +212,7 @@ async function resolveHeaderOrFallbackPrincipal(
     // when done. There is deliberately NO ambient (off-box) recovery — that is the whole point of deny.
     // CRITICAL: STOP/BYPASS the front proxy during break-glass — a same-host proxy forwarding over 127.0.0.1
     // makes EVERY proxied (LAN/internet) request a loopback peer, so a flag left set on a live proxied box
-    // mints owner for the whole network, not just the on-box operator (containerize-prod-image-spec.md §4).
+    // mints owner for the whole network, not just the on-box operator (docs/plans/containerize/design.md).
     const userId = await sessions.ensureUser(ownerHandleForFallback(res.identity.handle));
     return await resolveFallbackPrincipal(userId);
   }

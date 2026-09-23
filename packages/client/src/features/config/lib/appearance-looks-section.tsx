@@ -1,4 +1,4 @@
-// The LOOKS config-section CONTRIBUTION (#866 S4 / #297 — config-revamp-design.md §7.3): the theme
+// The LOOKS config-section CONTRIBUTION (#866 S4 / #297): the theme
 // picker + builder, folded INTO Appearance from the retired rail-foot `theme` modal (owner ruling F-2,
 // 2026-08-30). First at the `appearance` anchor — a look is the FIRST appearance decision; everything
 // under the "Customize this look" fold rides on top of it. Claims the `theme` namespace's ONE key

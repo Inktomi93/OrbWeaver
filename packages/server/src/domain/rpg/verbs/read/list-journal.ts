@@ -1,4 +1,4 @@
-// domain/rpg/verbs/read/list-journal — listJournal (rpg-design/05 §4.8). The paged, lineage-projected journal
+// domain/rpg/verbs/read/list-journal — listJournal (docs/plans/rpg/design.md). The paged, lineage-projected journal
 // archive (a swipe changes the page's contents with zero writes — §2.5). Member-gated.
 //
 // TWO VISIBILITY BELTS, both off chat's ONE `resolveViewerVisibility` verdict (#1528):

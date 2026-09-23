@@ -1,4 +1,4 @@
-// The PERMANENT PINS for design-audit's DEVICE-PIXEL GRID family (docs/design/integer-line-boxes.md
+// The PERMANENT PINS for design-audit's DEVICE-PIXEL GRID family (docs/law/integer-line-boxes.md
 // §9-§11 — the crispness doctrine's Laws 2, 3 and 4). Three rules, one measurement: did the RESOLVED
 // raster land on the device-pixel grid.
 //

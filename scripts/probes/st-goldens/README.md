@@ -2,7 +2,7 @@
 
 > **This README describes the HARNESS. It is not a source, and several of its factual claims have been
 > measured false.** For anything about what ST or we actually put on the wire, read
-> `docs/history/design/st-message-shaping-atlas.md` — every claim there carries a MEASURED or SOURCE-PINNED
+> scripts/probes/st-goldens/ATLAS.md — every claim there carries a MEASURED or SOURCE-PINNED
 > receipt. When this file and a script disagree, the script wins.
 
 **Home: `scripts/probes/st-goldens/` — this is a PROBE HARNESS, not a test** (re-homed from
@@ -85,7 +85,7 @@ re-run overwrites exactly its own outputs.
 ### The ORB arm
 
 The in-process ORB arm (`capture-orbweaver.ts`) was deleted with the retired OpenRouter-skin seams it drove
-(`docs/design/orbweaver-inference-package.md`, "Deleted instruments"). No script in this rig produces
+("Deleted instruments"). No script in this rig produces
 `orbweaver-output/` any more; the files there are historical captures from that instrument. The sweeps stop
 after the ST arm.
 

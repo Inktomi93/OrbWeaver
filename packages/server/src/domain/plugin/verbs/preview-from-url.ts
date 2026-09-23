@@ -1,5 +1,5 @@
 // verb: previewFromUrl — fetch a bundle at a caller-supplied URL through the EGRESS GUARD and return its
-// MANIFEST for the consent screen (plugin-ui-plane #679 U8, seam 15). READ-ONLY — nothing persists, no owned
+// MANIFEST for the consent screen (U8, seam 15). READ-ONLY — nothing persists, no owned
 // row is touched. It is the primitive behind two things: "show the SAME consent screen a file install shows"
 // (the manifest carries the declared capabilities + netHosts) AND the update-version check (the client compares
 // the previewed `version` against the installed one — no server-side persistence needed).

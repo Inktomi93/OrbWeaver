@@ -176,7 +176,7 @@ test("snap rejects unknown flags and multiple routes instead of silently choosin
   expect(args.errors).toContain("expected at most one route, got 2");
 });
 
-// The stateful-session family (docs/design/1208-instrument-substrate.md §4.4, #1231): the flags parse, a
+// The stateful-session family (#1231): the flags parse, a
 // positional route is REMEMBERED as given (a session call with none drives the live page), and the
 // combinations that cannot mean anything refuse by name.
 test("session flags parse, the admin modes stand alone, and a bad TTL or name refuses before any browser boots", () => {

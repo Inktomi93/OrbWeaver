@@ -1,4 +1,4 @@
-// verb: reportUiCrash — the CLIENT half of the 3-strike crash policy (plugin-ui-plane #679 U4, §4.9). A Tier-C
+// verb: reportUiCrash — the CLIENT half of the 3-strike crash policy. A Tier-C
 // guest that blows its wall-clock deadline, fails to boot, or publishes a tree the client schema refuses is
 // terminated in the browser and its surface collapses to null; the browser then tells the server, and that fact
 // lands in the SAME `consecutive_crashes` counter a throwing server handler drives. So a plugin whose UI half

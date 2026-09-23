@@ -746,7 +746,7 @@ function expressionsRequestId(turnId: ChatTurnId): string {
   return `expr-turn:${turnId}`;
 }
 
-/** Fire-and-forget the injected expressions post-turn classify (expressions-design/02 §3): after the variant
+/** Fire-and-forget the injected expressions post-turn classify (docs/plans/expressions/design.md): after the variant
  *  commits, classify the speaker's affect and emit an ephemeral sprite-swap. Null op = expressions not wired
  *  (byte-identical no-op — the memory-trigger posture). The op swallows its own errors; `.catch` covers a
  *  synchronous throw so nothing reaches the reply path. Wrapped in its own DETACHED root (`withRequestSpan`,
@@ -800,7 +800,7 @@ function memoryRequestId(turnId: ChatTurnId): string {
   return `memory-turn:${turnId}`;
 }
 
-/** Fire-and-forget the rpg post-turn FLUSH (rpg-design/10 §R4): after the variant commits, flush the turn's
+/** Fire-and-forget the rpg post-turn FLUSH (docs/plans/rpg/design.md): after the variant commits, flush the turn's
  *  staged tool writes onto the committed variant, keyed by `turnId`. Null op = rpg not wired (byte-identical
  *  no-op). Fire-and-forget with `.catch` — a background staging flush must NEVER turn a committed reply into an
  *  abort; the reply already landed. Inert until the rpg tool registrants stage anything (R4 #2/#3).
@@ -849,7 +849,7 @@ function rpgAbortRequestId(turnId: ChatTurnId): string {
   return `rpg-turn-abort:${turnId}`;
 }
 
-/** Fire-and-forget the rpg turn-abort CLEAR (rpg-design/10 §R4 hardening a): drop the turn's staged tool
+/** Fire-and-forget the rpg turn-abort CLEAR (docs/plans/rpg/design.md hardening a): drop the turn's staged tool
  *  writes so a dead turn never flushes into the next turn on this chat. Null op = rpg not wired. Fire-and-
  *  forget — clearing staging must never mask the abort the caller is already surfacing. Wrapped in its own
  *  DETACHED root for the same reason `fireRpgTurnCompleted` is: it outlives the request.
@@ -1196,7 +1196,7 @@ function fireManagedCompaction(
   }).catch(() => undefined);
 }
 
-/** Mark the turn eligible to feed the player's queued d20 into its first skill check (rpg-design/05 §6) — only
+/** Mark the turn eligible to feed the player's queued d20 into its first skill check (docs/plans/rpg/design.md) — only
  *  when its reply directly responds to the die-bearing latest user message (chat's slot-adjacency verdict). Sync
  *  in-memory flag keyed by `turnId`; null op / non-game ⇒ no-op. A later GM/auto round is never marked, so a
  *  stale die can't re-feed. */
@@ -1451,7 +1451,7 @@ async function strikeOutOnTurnFault(ctx: ChatContext, prep: TurnPrep, fault: Tur
 /**
  * The FAULT half of the outcome ring — the row an operator actually goes looking for.
  *
- * WHY IT EXISTS (docs/design/streaming-shape-churn.md §7.5, reproduced 3/3): `captureTurnOutcome` runs only
+ * WHY IT EXISTS (reproduced 3/3): `captureTurnOutcome` runs only
  * after `runTurnPipeline` RESOLVES, so a turn that THREW could not leave a `/api/_debug/wire/outcomes` row
  * by construction. A live 110-second agent-sdk turn ended `terminalReason:"api_error"`, logged loudly to
  * pino — and left the outcome ring at `count:0` while the client got a bare 500. Every field the reader
@@ -1609,7 +1609,7 @@ function emptyGenerationMessage(result: Awaited<ReturnType<typeof runTurnPipelin
   return `the model returned no text — ${unchanged}`;
 }
 
-/** This turn's cascade depth (automation-design/03 §4): a human turn is 0; an automation/plugin-initiated turn
+/** This turn's cascade depth: a human turn is 0; an automation/plugin-initiated turn
  *  carries `parent + 1` on `prep`. Extracted so the nullish default stays OUT of `executeTurn`'s cognitive
  *  budget — the value rides the `turnAborted` event (the abort commits no reply slot to read depth back from). */
 function turnCascadeDepth(prep: TurnPrep): number {
@@ -1732,11 +1732,11 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
   const connection = prep.connection;
 
   const intent = KIND_TO_INTENT[prep.kind];
-  // This turn's OWN cascade depth (automation-design/03 §4), resolved once — a human turn is 0, an
+  // This turn's OWN cascade depth, resolved once — a human turn is 0, an
   // automation/plugin-initiated turn carries its parent+1. Rides `turnAborted` (below) so the automation
   // fact-resolver can gate the cascade without a reply slot to read `getTurnOrigin` off (there is none on abort).
   const abortDepth = turnCascadeDepth(prep);
-  // The turn's ephemeral identity (rpg-design/10 §R4) — minted once, threaded to the tool-exec frame + the rpg
+  // The turn's ephemeral identity (docs/plans/rpg/design.md) — minted once, threaded to the tool-exec frame + the rpg
   // turn-end hooks so a turn-scoped registrant correlates the turn's tool writes to its commit/abort flush.
   const turnId = ctx.newChatTurnId();
   markRpgDiceEligible(ctx, prep, turnId);
@@ -2056,13 +2056,13 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
     // be hostage to them. Itself throw-safe (see `captureTurnFault`).
     captureTurnFault(prep, err, reason, ctx.now());
     await strikeOutOnTurnFault(ctx, prep, { err, reason, generationFault });
-    // Carry the aborting turn's OWN cascade depth (automation-design/03 §4): an aborted turn commits no reply
+    // Carry the aborting turn's OWN cascade depth: an aborted turn commits no reply
     // slot, so the automation fact-resolver cannot read this back through `getTurnOrigin` — it must ride the
     // event. A depth ≥ 1 abort (this turn was itself automation-initiated) makes the `turnAborted` fact depth
     // ≥ 1, so the cascade guard suppresses non-opted `turnAborted` rules (closes the retry-on-failure self-loop).
     await deps.emit({ type: "turnAborted", chatId: prep.chatId, intent, reason, automationDepth: abortDepth });
     // CLEAR the turn's staged tool writes on every abort path (user/stale/error) so a dead turn never flushes
-    // into the next turn on this chat (rpg-design/10 §R4 hardening a).
+    // into the next turn on this chat (docs/plans/rpg/design.md hardening a).
     fireRpgTurnAborted(ctx, prep.chatId, turnId, reason);
     if (reason === "error") {
       throw err;

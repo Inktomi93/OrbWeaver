@@ -1,4 +1,4 @@
-// B3 — THE CLIENT FOLD for member-visible QUICK-REPLY CHIPS (interaction-direction-spec §3-S1, §7 row B3).
+// B3 — THE CLIENT FOLD for member-visible QUICK-REPLY CHIPS.
 //
 // The sibling to `apply-automation-bus-event.ts` (the S4 CARD fold), and deliberately its OWN file: that
 // header states plainly why the chip arm there is a no-op — "chips are B3's row, published by its OWN control

@@ -1,4 +1,4 @@
-// The BUDDY doorway — the founding DORMANT home tile (home-section-spec §3.5, owner decisions H7 + H8).
+// The BUDDY doorway — the founding DORMANT home tile (owner decisions H7 + H8).
 //
 // Buddy is PURGED-pending-return: the domain map still lists it ("the companion = the `agent` role
 // connection"), but `domain/buddy` is not in the retro tree. Omitting the tile would tell the user this

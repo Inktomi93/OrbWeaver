@@ -1,4 +1,4 @@
-// The themes-design.md §4 custom-CSS validator: WARN (not reject) on `@import`, REJECT any
+// The custom-CSS validator: WARN (not reject) on `@import`, REJECT any
 // `position: fixed`/`position: sticky` (a shell-break, not just an exfil nudge). Pure pattern-match —
 // no CSS parsing.
 
