@@ -17,9 +17,8 @@
 
 import type { JSONObject, LanguageModelV4CallOptions, SharedV4Headers, SharedV4ProviderOptions } from "@ai-sdk/provider";
 import type { GenerationCapability } from "@orb/contracts/inference";
-import { acceptsAssistantPrefill, cacheMinTokensOf } from "@orb/contracts/inference";
+import { acceptsAssistantPrefill, cacheMinTokensOf, scrubWireSchema } from "@orb/contracts/inference";
 import type { EffortLevel } from "@orb/contracts/preset";
-import { scrubWireSchema } from "@orb/kit/json-schema";
 import { estimateTokens } from "@orb/kit/tokens";
 import type { AnthropicChatRequest, ChatHistoryMessage, ChatResult } from "../../contract/chat.ts";
 import { ProviderError } from "../../contract/errors.ts";

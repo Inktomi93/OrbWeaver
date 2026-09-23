@@ -1,4 +1,4 @@
-// domain/chat/memory/build/substrate/parse — parse the summarizer output into the digest's three parts
+// domain/chat/memory/generate/substrate/parse — parse the summarizer output into the digest's three parts
 // (topic anchor · significance-filtered facts · keywords). PURE — no I/O, no state. Robust to a sloppy model:
 // a missing keywords line → no keywords; a missing anchor → the first non-empty line (or "").
 

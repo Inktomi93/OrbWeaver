@@ -75,6 +75,7 @@ export type { BindingActor, BindingStore, ConnectionStore, InferenceDeps, Infere
 // its answers BEFORE the first wire call: the `conversation` rung materializes prior thinking at the
 // history-build seam, which runs upstream of `resolveChat`. One policy home, two readers (§8.8).
 export { resolveCarryReasoning, resolveChat } from "./funnel/resolve-chat.ts";
+export { resolveSideGenSampling } from "./funnel/resolve-side-gen.ts";
 export type { ProviderRegistry } from "./registry/providers.ts";
 export type { ResolveArgs, ResolveOutcome } from "./resolve/resolve-task.ts";
 export { NoConnectionError } from "./resolve/resolve-task.ts";
@@ -83,7 +84,7 @@ export { NoConnectionError } from "./resolve/resolve-task.ts";
 export { toChatRequest } from "./roles/chat-request.ts";
 // The two non-turn chat calls behind neutral inputs: a structured-output call and a forced tool round.
 export { carriesForcedToolRound, runStructuredChat, toForcedToolRoundRequest } from "./roles/chat-rounds.ts";
-export { backgroundWorkRefusal } from "./roles/role-clients.ts";
+export { unavailableRefusal } from "./roles/role-clients.ts";
 export { runStructuredTurn } from "./roles/structured-turn.ts";
 
 const OPENROUTER_CATALOG_KEY = "catalog:openrouter";

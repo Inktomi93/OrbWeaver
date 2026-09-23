@@ -121,7 +121,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "packages/kit/src/other.ts": "export const unrelated = 1;\n",
+        "packages/contracts/src/other.ts": "export const unrelated = 1;\n",
         "packages/server/src/infra/providers/backends/newvendor/schema.ts": 'export const DROP = ["title", "default"];\n',
       },
       expect: { messageIncludes: `wire-schema-vocabulary: ${ENGINE_REL} has no ${VOCAB_CONSTS[0]} initializer` },

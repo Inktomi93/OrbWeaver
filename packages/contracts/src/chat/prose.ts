@@ -127,7 +127,7 @@ export const CHAT_PROSE_SLOTS = {
     text: DIGEST_SYSTEM_TEXT,
     macros: "none",
     requiredMacros: [],
-    // The retrieval unit's PARSE contract (`memory/build/substrate/parse`): the topic-anchor brackets and the
+    // The retrieval unit's PARSE contract (`memory/generate/substrate/parse`): the topic-anchor brackets and the
     // `keywords:` line are what the parser keys on. An override that drops either still stores — it just
     // stores an anchorless, keywordless digest — so this is a warn, exactly like every other required token.
     requiredTokens: ["[entities — scene]", "keywords:"],

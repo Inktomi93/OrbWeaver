@@ -1,9 +1,9 @@
-// @orb/kit/side-gen-posture — the pure side-gen sampling resolver. Pins the TWO-rung ladder fold:
+// funnel/resolve-side-gen — the pure side-gen sampling resolver. Pins the TWO-rung ladder fold:
 // right-to-left (floor ← preset params — the per-template override rung was deleted, owner ruling
 // 2026-08-01), absent-skips at both rungs, and the empty-floor honesty (an all-absent result is `{}`,
 // never `undefined`-valued keys — the backend default stands).
 
-import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
+import { resolveSideGenSampling } from "@orb/inference";
 import { expect, test } from "../../support/fixtures.ts";
 
 test("floor-only: a floor with no higher rung passes through verbatim", () => {

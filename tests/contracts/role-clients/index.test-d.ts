@@ -1,6 +1,7 @@
+import { scrubWireSchema } from "@orb/contracts/inference";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { Unprojected, WireReady } from "@orb/kit/json-schema";
-import { liftJsonSchema, projectJsonSchema, scrubWireSchema } from "@orb/kit/json-schema";
+import { liftJsonSchema, projectJsonSchema } from "@orb/kit/json-schema";
 import { expectTypeOf, test } from "vitest";
 import { z } from "zod";
 

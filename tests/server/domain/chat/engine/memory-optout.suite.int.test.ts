@@ -1,5 +1,5 @@
 // The D36 memory opt-out on the BUILD side — a cross-cutting property suite spanning `engine/engine.ts` +
-// `memory/build/{digests,segments}.ts` + the `TurnPrep.memoryConfig` threading (hence `.suite.int` — it
+// `memory/generate/{digests,segments}.ts` + the `TurnPrep.memoryConfig` threading (hence `.suite.int` — it
 // mirrors no single source module). .int: real libSQL + the REAL memory build wired as the composition root
 // does. TASK #54: the engine's post-turn digest build was passing NO config → `resolveCfg(undefined)` →
 // baked `mixC` ON, so a host who set `memory.enabled=false` still paid the summarizer + embed every turn
@@ -19,8 +19,8 @@ import type { ChatContext } from "../../../../../packages/server/src/domain/chat
 import type { MemoryConfig } from "../../../../../packages/server/src/domain/chat/contract/memory.ts";
 import type { TurnPrep, TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
 import { createTurnEngine } from "../../../../../packages/server/src/domain/chat/engine/engine.ts";
-import { generateDigests } from "../../../../../packages/server/src/domain/chat/memory/build/digests.ts";
-import { generateSegments } from "../../../../../packages/server/src/domain/chat/memory/build/segments.ts";
+import { generateDigests } from "../../../../../packages/server/src/domain/chat/memory/generate/digests.ts";
+import { generateSegments } from "../../../../../packages/server/src/domain/chat/memory/generate/segments.ts";
 import { loadWitnessHorizons } from "../../../../../packages/server/src/domain/chat/memory/persistence/queries.ts";
 import { recallMemory } from "../../../../../packages/server/src/domain/chat/memory/recall/recall.ts";
 import { freshDb } from "../../../../support/db.ts";

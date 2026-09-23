@@ -24,11 +24,10 @@ import {
   personas as personasTable,
 } from "@orb/db";
 import { readSeedAvatar, readSeedBackground, SEED_BACKGROUND_PLATES } from "@orb/default-content";
-import type { RoleClientsWithSignal } from "@orb/inference";
+import type { RoleClientsWithSignal, SideGenSampling } from "@orb/inference";
+import { resolveSideGenSampling } from "@orb/inference";
 import type { AssetId, CharacterHandle, PersonaId, PresetId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
-import type { SideGenSampling } from "@orb/kit/side-gen-posture";
-import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import type { AssetsContext, AssetsService } from "#domain/assets";

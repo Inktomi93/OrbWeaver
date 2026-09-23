@@ -66,7 +66,7 @@ import type { UserId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { buildActorRefIndex, extractionToStateDelta } from "../../../packages/server/src/domain/rpg/tools/apply.ts";
 import { buildLiteReminder } from "../../../packages/server/src/domain/rpg/substrate/reminder.ts";
-import { scrubWireSchema } from "@orb/kit/json-schema";
+import { scrubWireSchema } from "@orb/contracts/inference";
 
 /** The vLLM guided-decoding subset — the probe drives a local 8b on the `openai-compatible` transport. */
 function cleanJsonSchema(schema: Record<string, unknown>): Record<string, unknown> {

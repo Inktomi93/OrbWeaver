@@ -28,7 +28,7 @@
 //   • the stripped keyword set — NOT a constant here: read off `scrubWireSchema(schema, "hosted-common")`.
 //   • the optional-field ceiling 46 — OURS, measured: "Anthropic's grammar compiler refuses a schema for
 //     having too many OPTIONALS (an undocumented runtime ceiling, measured at 46)"
-//     (`@orb/kit/json-schema/wire-subset.ts`, the `strict-compatible` note).
+//     (`@orb/contracts/inference` `wire-subset.ts`, the `strict-compatible` note).
 //   • 10 optionals / 50 total anyOf variants — the OG extension's own table
 //     (`references/card-refinery/src/domain/schema/validate.ts:180-195`), kept as the ADVISORY thresholds
 //     they always were there (it warned; it never errored on them).
@@ -46,7 +46,8 @@
 // papered over here.
 
 import type { Unprojected } from "@orb/kit/json-schema";
-import { RENDER_HINT_KEY, scrubWireSchema } from "@orb/kit/json-schema";
+import { RENDER_HINT_KEY } from "@orb/kit/json-schema";
+import { scrubWireSchema } from "#inference";
 
 /** One advisory CLASS. A closed union so the editor's copy is a mapped Record and a new class cannot ship
  *  without a sentence for it (§5.5 dispatch discipline). */

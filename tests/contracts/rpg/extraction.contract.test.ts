@@ -3,6 +3,7 @@
 // transform] class the tools pin), it DERIVES from the same tool arg shapes (the shared-plane proof — a party
 // entry parses exactly like `update_party` args), and an empty object is a valid "nothing changed" extraction.
 
+import { scrubWireSchema } from "@orb/contracts/inference";
 import type { ExtractionRefs, RpgGameConfig, RpgTrackerCarrier, RpgTrackerDef } from "@orb/contracts/rpg";
 import {
   actorTrackerWriteKeys,
@@ -35,7 +36,7 @@ import {
   updatePartyArgsSchema,
   updateSceneArgsSchema,
 } from "@orb/contracts/rpg";
-import { projectJsonSchema, scrubWireSchema } from "@orb/kit/json-schema";
+import { projectJsonSchema } from "@orb/kit/json-schema";
 import { z } from "zod";
 import { expect, test } from "../../support/fixtures.ts";
 
@@ -1065,7 +1066,7 @@ test("POPULATE teaching carries the deception surface-only clause on a deception
 });
 
 // ── the WIRE-SUBSET pins, over the REAL projected schema ─────────────────────────────────────────────
-// `tests/kit/json-schema/wire-subset.test.ts` pins the ENGINE against a synthetic payload; these pin the
+// `tests/contracts/inference/wire-subset.test.ts` pins the ENGINE against a synthetic payload; these pin the
 // PRODUCT — what THIS schema actually puts on each wire after `projectJsonSchema` + `constrainExtractionSchema`.
 // No static gate can compute it (it needs zod evaluated), and the synthetic payload cannot catch it: a NEW
 // refinement in `contracts/src/rpg/tools.ts` (a `.regex()` → `pattern`, a `.length()` → `minLength`) lands a

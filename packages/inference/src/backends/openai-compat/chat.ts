@@ -8,11 +8,10 @@
 
 import type { JSONObject, LanguageModelV4CallOptions, SharedV4Headers, SharedV4ProviderOptions } from "@ai-sdk/provider";
 import type { Dialect, GenerationCapability } from "@orb/contracts/inference";
-import { acceptsAssistantPrefill, cacheMinTokensOf } from "@orb/contracts/inference";
+import { acceptsAssistantPrefill, cacheMinTokensOf, scrubWireSchema } from "@orb/contracts/inference";
 import type { EffortLevel } from "@orb/contracts/preset";
 import { errorMessage } from "@orb/kit/error-message";
 import type { JsonValue } from "@orb/kit/json";
-import { scrubWireSchema } from "@orb/kit/json-schema";
 import { estimateTokens } from "@orb/kit/tokens";
 import { z } from "zod";
 import type { ChatHistoryMessage, ChatResult, OpenAiCompatChatRequest } from "../../contract/chat.ts";

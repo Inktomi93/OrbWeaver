@@ -12,14 +12,13 @@ import { AGENT_CONTINUATION_PROMPT_STUB, createInferenceRuntime, DEFAULT_EMBED_M
 import type { AssetId, ChatId, ChatTurnId, MessageId, ModelId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { TurnMessage, TurnRequest, TurnStreamChunk } from "@orb/server/domain/chat";
-import { activePersonaIdFor, buildChatToolOps, createRunChatTurnBridge } from "@orb/server/entry/compose";
+import { activePersonaIdFor, buildChatToolOps, createRunChatTurnBridge, createTaskWindowReaders } from "@orb/server/entry/compose";
 import { describe } from "vitest";
 import { z } from "zod";
 import type { ChatToolExecFrame, ChatToolOps } from "../../../../packages/server/src/domain/chat/contract/context.ts";
 import { runTurnPipeline } from "../../../../packages/server/src/domain/chat/engine/pipeline.ts";
 import type { ToolExecutionContext, ToolUseService } from "../../../../packages/server/src/domain/tool-use/index.ts";
 import { createToolUseService } from "../../../../packages/server/src/domain/tool-use/index.ts";
-import { createTaskWindowReaders } from "../../../../packages/server/src/entry/compose/chat.ts";
 import { fakeConnection, fakeDeps, fakeModelCache, memoryStores, newUserId } from "../../../inference/_support.ts";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { principal as principalOf } from "../../../support/factories/principal.ts";
@@ -647,20 +646,34 @@ describe("tool delivery — the real tool-use service behind the neutral offer",
 });
 
 // The memory build's two window reads, over the REAL inference runtime (in-memory stores): `resolved()` reads
-// null both for "nothing bound" and for "bound, background work off", so the refusal must say which one the
-// funder hit — only the first is fixed by binding a connection.
+// null for every reason a task cannot run, so the refusal must name the first cause the availability verdict
+// reports — only "nothing bound" is fixed by binding a connection.
 describe("createTaskWindowReaders — a missing window names its cause", () => {
-  async function readersFor(bind: { readonly task: "summarize" | "embed"; readonly allowBackground: boolean } | null): Promise<{
+  interface WindowRow {
+    readonly providerId: string;
+    readonly model: string;
+    readonly baseUrl?: string;
+  }
+  /** A row per task that serves it on the fake runtime. */
+  const servingRows: Record<"summarize" | "embed", WindowRow> = {
+    summarize: { providerId: "custom-openai", model: "qwen3", baseUrl: "http://box.local:8000" },
+    embed: { providerId: "local-light", model: DEFAULT_EMBED_MODEL },
+  };
+
+  async function readersFor(
+    bind: {
+      readonly task: "summarize" | "embed";
+      readonly allowBackground: boolean;
+      readonly row?: WindowRow;
+    } | null,
+  ): Promise<{
     readonly readers: ReturnType<typeof createTaskWindowReaders>;
     readonly ownerId: UserId;
   }> {
     const stores = memoryStores();
     const ownerId = newUserId();
     if (bind !== null) {
-      const connection =
-        bind.task === "summarize"
-          ? fakeConnection({ ownerId, providerId: "custom-openai", model: "qwen3", baseUrl: "http://box.local:8000", allowBackground: bind.allowBackground })
-          : fakeConnection({ ownerId, providerId: "local-light", model: DEFAULT_EMBED_MODEL, allowBackground: bind.allowBackground });
+      const connection = fakeConnection({ ownerId, ...(bind.row ?? servingRows[bind.task]), allowBackground: bind.allowBackground });
       stores.connections.rows.set(connection.id, connection);
       stores.bindings.bind({ actorKind: "user", actorId: ownerId, task: bind.task, connectionId: connection.id });
     }
@@ -688,6 +701,17 @@ describe("createTaskWindowReaders — a missing window names its cause", () => {
       name: "NoConnectionError",
       message: expect.stringContaining("does not allow background work"),
     });
+  });
+
+  // Background work off is checked AFTER the runtime, backend and requirement checks, so a row that also fails
+  // one of those must be refused for that earlier cause, not reported as unbound.
+  test("a background-off row whose runtime is missing names the missing runtime", async () => {
+    const { readers, ownerId } = await readersFor({
+      task: "summarize",
+      allowBackground: false,
+      row: { providerId: "claude-sub", model: "claude-opus-5" },
+    });
+    await expect(readers.summarize(ownerId)).rejects.toMatchObject({ name: "NoConnectionError", message: expect.stringContaining("needs the Claude runtime") });
   });
 
   test("nothing bound still reads as nothing bound", async () => {

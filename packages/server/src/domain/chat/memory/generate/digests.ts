@@ -1,4 +1,4 @@
-// domain/chat/memory/build/digests — the digest builder. Block-summarize each complete, aged-out `blockSize`
+// domain/chat/memory/generate/digests — the digest builder. Block-summarize each complete, aged-out `blockSize`
 // block via ctx.summarize, parse the three-part unit, write the digest through ctx.embeddingsStore (the one
 // vector-write path — memory holds no cosine, no direct INSERT), then consolidate upward (fanOut tier-k
 // digests → one tier-(k+1) digest, the bounded "story so far").

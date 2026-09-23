@@ -41,7 +41,7 @@ const SAMPLING_KEYS = new Set([...UNAMBIGUOUS_SAMPLING_KEYS, ...AMBIGUOUS_SAMPLI
 
 /** The two homes that OWN side-gen floor data: the `SIDE_GEN_POSTURES` catalog and the pure ladder. A value
  *  derived from either is the sanctioned rung, not a buried constant. */
-const CATALOG_HOMES = ["/packages/contracts/src/preset/", "/packages/kit/src/side-gen-posture/"];
+const CATALOG_HOMES = ["/packages/contracts/src/preset/", "/packages/inference/src/funnel/resolve-side-gen.ts"];
 
 const MESSAGE =
   "hardcoded side-gen sampling value — a side-generation call must resolve its posture through the ladder " +
@@ -207,11 +207,11 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "packages/kit/src/side-gen-posture/floor.ts": "export const SUMMARIZE_TEMPERATURE = 0.3;\n",
+        "packages/inference/src/funnel/resolve-side-gen.ts": "export const SUMMARIZE_TEMPERATURE = 0.3;\n",
         "packages/server/src/domain/chat/memory/summarize.ts":
-          'import { SUMMARIZE_TEMPERATURE } from "../../../../../kit/src/side-gen-posture/floor.ts";\nexport const opts = { temperature: SUMMARIZE_TEMPERATURE };\n',
+          'import { SUMMARIZE_TEMPERATURE } from "../../../../../inference/src/funnel/resolve-side-gen.ts";\nexport const opts = { temperature: SUMMARIZE_TEMPERATURE };\n',
       },
-      why: "THE SECOND `CATALOG_HOMES` ENTRY, which no row exercised (w9 :262, #2046). `packages/kit/src/side-gen-posture/` is the PURE LADDER's home — the other half of the sanctioned rung beside the preset catalog — and a floor named there is data, not a buried constant. A declared list entry no row derives from is the entry a future re-home deletes silently, so each home now owns a row: dropping this one reds this row and dropping the preset one reds the `catalog-scalar.ts` row above",
+      why: "THE SECOND `CATALOG_HOMES` ENTRY, which no row exercised (w9 :262, #2046). `packages/inference/src/funnel/resolve-side-gen.ts` is the PURE LADDER's home — the other half of the sanctioned rung beside the preset catalog — and a floor named there is data, not a buried constant. A declared list entry no row derives from is the entry a future re-home deletes silently, so each home now owns a row: dropping this one reds this row and dropping the preset one reds the `catalog-scalar.ts` row above",
     },
     {
       mode: "types",

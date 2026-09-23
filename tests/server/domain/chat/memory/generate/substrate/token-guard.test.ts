@@ -9,8 +9,8 @@ import {
   fitBlockToBudget,
   MAX_SEGMENT_CHUNKS_PER_BLOCK,
   SUMMARIZER_CONTEXT_FLOOR,
-} from "../../../../../../../packages/server/src/domain/chat/memory/build/substrate/token-guard.ts";
-import { renderTranscript } from "../../../../../../../packages/server/src/domain/chat/memory/build/substrate/transcript.ts";
+} from "../../../../../../../packages/server/src/domain/chat/memory/generate/substrate/token-guard.ts";
+import { renderTranscript } from "../../../../../../../packages/server/src/domain/chat/memory/generate/substrate/transcript.ts";
 import type { MsgRow, SummarizerBudget } from "../../../../../../../packages/server/src/domain/chat/memory/types.ts";
 import { expect, test } from "../../../../../../support/fixtures.ts";
 
@@ -38,7 +38,7 @@ function row(seq: number, content: string): MsgRow {
   };
 }
 
-describe("memory/build/substrate/token-guard", () => {
+describe("memory/generate/substrate/token-guard", () => {
   test("a block that fits the budget is returned unchanged", () => {
     const rows = [row(1, "hello"), row(2, "there")];
     expect(fitBlockToBudget(rows, names, budget(32_000, 100))).toEqual(rows);
@@ -69,7 +69,7 @@ describe("memory/build/substrate/token-guard", () => {
 // THE CHUNKER (#172) — the segment counterpart of `fitBlockToBudget`, and deliberately NOT a fitter: a
 // segment is verbatim ground truth, so an over-window block is CUT INTO PIECES, never trimmed or clamped
 // ("if we are skimping out on messages that's a no go since this feeds the memory system", owner, #165).
-describe("memory/build/substrate/token-guard — chunkBlockForEmbedWindow", () => {
+describe("memory/generate/substrate/token-guard — chunkBlockForEmbedWindow", () => {
   test("a block that fits is ONE chunk carrying the whole block's span + the byte-identical transcript", () => {
     const rows = [row(1, "hello"), row(2, "there")];
     const chunks = chunkBlockForEmbedWindow(rows, names, 8192);

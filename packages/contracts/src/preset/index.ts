@@ -166,7 +166,7 @@ export const QUALITY_SAMPLING: Record<Quality, { readonly temperature?: number }
 // Every side-generation call site (arbitration, quiet generation, compaction, distillation, analysis,
 // greeting studio, /autobg, caption) used to hardcode its own `temperature`/`maxTokens` constants — a
 // buried const that the user's own generation params could never override. The ladder resolves each site's
-// posture right-to-left through `@orb/kit/side-gen-posture`:
+// posture right-to-left through `@orb/inference`'s `resolveSideGenSampling`:
 //   the caller's preset `params`  →  THIS floor.
 // There is no third rung: a per-TEMPLATE sampling override on the preset's guided actions was DELETED (owner
 // ruling 2026-08-01) — guided generations run at the preset's normal generation params like every other turn.

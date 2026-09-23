@@ -68,7 +68,7 @@ export const SEAM_PREFIXES = [
   "packages/server/src/domain/rpg/substrate/",
   "packages/server/src/domain/rpg/tools/",
   "packages/server/src/domain/chat/assembly/",
-  "packages/server/src/domain/chat/memory/build/substrate/",
+  "packages/server/src/domain/chat/memory/generate/substrate/",
   "packages/server/src/domain/imagery/substrate/",
   "packages/server/src/domain/imagery/tool/",
 ] as const;
@@ -399,7 +399,7 @@ export const gate = defineGate({
     {
       mode: "source",
       files: {
-        "packages/server/src/domain/chat/memory/build/substrate/__probe.ts":
+        "packages/server/src/domain/chat/memory/generate/substrate/__probe.ts":
           "export const JOINED = [\n" +
           '  "You distill a block of roleplay transcript",\n' +
           '  "into a compact retrieval-optimized memory unit",\n' +

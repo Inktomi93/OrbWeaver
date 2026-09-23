@@ -7,8 +7,8 @@
 //      NEGATIVE control below is the load-bearing half: a schema with no bound keywords must produce no
 //      strip advisory, or the arm is firing on something else.
 
+import { scrubWireSchema } from "@orb/contracts/inference";
 import { refinerySchemaAdvisoryOf, refinerySchemaDocumentSchema } from "@orb/contracts/refinery";
-import { scrubWireSchema } from "@orb/kit/json-schema";
 import { expect, test } from "../../support/fixtures.ts";
 
 /** A belt-legal SCORE schema carrying the well-known core plus bounds the hosted wire does not carry. */

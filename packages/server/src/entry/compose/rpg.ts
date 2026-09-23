@@ -34,7 +34,7 @@
 import { randomInt } from "node:crypto";
 import type { Principal } from "@orb/contracts/identity";
 import type { ChatApi } from "@orb/contracts/inference";
-import { coEmitsProseWithTools } from "@orb/contracts/inference";
+import { coEmitsProseWithTools, scrubWireSchema } from "@orb/contracts/inference";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
@@ -71,7 +71,7 @@ import { errorMessage } from "@orb/kit/error-message";
 import type { CharacterHandle, ChatId, ChatTurnId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, newId } from "@orb/kit/ids";
 import type { WireReady } from "@orb/kit/json-schema";
-import { projectJsonSchema, scrubWireSchema } from "@orb/kit/json-schema";
+import { projectJsonSchema } from "@orb/kit/json-schema";
 import { can } from "#domain/admin";
 import type { CharacterImportProvenance, CharacterService } from "#domain/character";
 import { CHARACTER_HANDLE_CONFLICT, CharacterOperationError } from "#domain/character";

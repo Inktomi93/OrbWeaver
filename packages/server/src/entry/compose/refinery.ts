@@ -15,10 +15,9 @@
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type { UserSettings } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
-import type { RoleClientsWithSignal } from "@orb/inference";
+import type { RoleClientsWithSignal, SideGenSampling } from "@orb/inference";
 import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
-import type { SideGenSampling } from "@orb/kit/side-gen-posture";
 import type { CharacterService } from "#domain/character";
 import { createDeleteSnapshot, createListRefineryScoreTargets, createLoadOwnedCard, createStampRefinerySignals } from "#domain/character";
 import type { RefineryService, RefineryWorkloadDeps } from "#domain/refinery";

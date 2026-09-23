@@ -55,7 +55,7 @@ export function assertStageSourceSupportsIsolation(root: string, dirty: boolean,
 
 /** rsync the CURRENT working tree (tracked + modified + untracked, `.gitignore`-filtered) into the dirty
  *  stage dir. The file LIST comes from `git ls-files` (not a naive rsync `.gitignore` filter merge — git's
- *  `!re-include` negation lines, e.g. the memory/build re-includes on an otherwise-ignored `build/`, are NOT
+ *  `!re-include` negation lines, a re-include under an otherwise-ignored directory, are NOT
  *  rsync filter syntax and get silently mis-parsed as excludes, which dropped real tracked source the first
  *  time this ran). `--delete-missing-args` removes a stage file whose source entry was deleted from the
  *  tree (a plain rename/delete); the stage's OWN gitignored node_modules/db/assets are never in the list, so

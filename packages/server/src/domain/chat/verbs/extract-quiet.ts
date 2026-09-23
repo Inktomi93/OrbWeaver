@@ -17,11 +17,11 @@
 // byte-identical to before.
 
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
+import { resolveSideGenSampling } from "@orb/inference";
 import { projectBodyForSummary } from "@orb/kit/content";
 import type { ChatId } from "@orb/kit/ids";
 import type { MacroRegistry, ProcessMacroOptions } from "@orb/kit/macro";
 import { processMacros } from "@orb/kit/macro";
-import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
 import type { ExtractQuiet, ExtractQuietDeps, ExtractQuietParams, ExtractQuietResult } from "../contract/context.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
 import { loadParticipants } from "../persistence/participants-read.ts";

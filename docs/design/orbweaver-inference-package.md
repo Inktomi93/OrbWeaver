@@ -264,7 +264,7 @@ Every site below was PURGED by this program; they are recorded as the PRE-state,
      `automation/contract/ops.ts:314` → `engine/analysis-arm.ts:469,484` builds the `ResponseFormat`) and
      `:686-694` (the PLUGIN `llm.quiet` seam with `opts.schema`, whose header `:678-684` says a non-liftable schema
      THROWS rather than silently downgrading to unconstrained). Real prose `summarize`: `chat/engine/smart-arbitrate.ts:116`,
-     `chat/memory/build/digests.ts:88,102`, `chat/verbs/extract-quiet.ts:117`, `discovery/themes/generate.ts:162`
+     `chat/memory/generate/digests.ts:88,102`, `chat/verbs/extract-quiet.ts:117`, `discovery/themes/generate.ts:162`
      (cluster naming; `ident`/`literal responseFormat` over its 4 files = 0, complete). `pnpm ast callers
      structured --in packages/server/src` = exactly the facade + the rpg bypass (scanned=1511). Refinery calls
      NO embed (`callers embed` over `domain/refinery`: not in the 7-file search set). The task must be named at
@@ -1514,7 +1514,7 @@ does not drown in knobs or grow a second implementation.
 3. **Which PURPOSE?** — for a non-chat call, one member of the closed `SIDE_GEN_POSTURES` record
    (`contracts/preset/index.ts:205`: `arbiter`, `quiet_generate`, `extract_quiet`, `compaction`,
    `schema_forge`, `greeting_studio`, `caption`, …) whose row is a sampling FLOOR (temperature, output cap)
-   that `resolveSideGenSampling` (`@orb/kit/side-gen-posture`) folds BENEATH **the preset of the principal the
+   that `resolveSideGenSampling` (`@orb/inference`) folds BENEATH **the preset of the principal the
    PURPOSE is scoped to** — the funder supplies the CONNECTION (§8.5b) and is the preset principal ONLY when
    the purpose is scoped to them. THREE scopes exist on the tree and all three stay (verify8 H4): (i) a
    CHAT-scoped posture folds beneath the ROOM HOST's preset and prose
@@ -1522,7 +1522,7 @@ does not drown in knobs or grow a second implementation.
    `chat/contract/context.ts:304-309`: "the host, not the triggering member, is the ruled principal
    (owner-decision 8, option (a)) … a chat's digests / arbiter / summary marker must not change voice depending
    on who spoke"; consumers `turn.ts:863,874`, `extract-quiet.ts:116`, `compaction.ts:115`,
-   `quiet-generate.ts:76`, `memory/build/digests.ts:287,509`, `assembly/context.ts:841`,
+   `quiet-generate.ts:76`, `memory/generate/digests.ts:287,509`, `assembly/context.ts:841`,
    `arm-executors.ts:412` and `analysis-arm.ts:540` for their PROSE); (ii) a PER-USER posture folds beneath
    the CALLER's own preset (`resolveUserPresetParams(ownerId)` — refinery `run-stage.ts:313`,
    `score-sweep.ts:125`, `preflight.ts:89`, `test-schema.ts:35`, `schema-forge.ts:99`; discovery
@@ -2062,7 +2062,7 @@ below is therefore the CONNECTION's owner only:
 | `natural` / round-robin arbitration | none | — | `engine/select-speakers.ts` | zero |
 | auto-mode rounds | `chat` per generated reply + the arbiter rule above | the frozen room host; the human starter remains `triggeredBy` | `engine/auto-mode.ts` | N replies per round — the one place a cheap default matters; the picker's per-task slots make that the host's choice |
 | extract-quiet (imagery scene keywords) | `summarize` (`verbs/extract-quiet.ts:114-117`, the `extract_quiet` side-gen posture) | the human who triggered the image | `deps.summarize` | tiny budget (320 out) |
-| memory digests / recap | `summarize` | the frozen room host, and ONLY if their row has `allowBackground` (F5) | `memory/build/digests.ts:88,102` via `role-clients.ts` | background |
+| memory digests / recap | `summarize` | the frozen room host, and ONLY if their row has `allowBackground` (F5) | `memory/generate/digests.ts:88,102` via `role-clients.ts` | background |
 | compaction + quiet-generate | `chat` — the TURN's already-resolved connection, NOT the summarizer rail (`compaction.ts:8-9` "rides the chat's OWN model via the injected `quietGenerate` … NOT the summarizer rail"; `quiet-generate.ts:4-5,77` `runChatTurn({ connection })`; `SIDE_GEN_POSTURES.quiet_generate`'s only consumer) | the frozen room host | `runCompaction({ connection })`, `quietGenerate` | no `allowBackground` gate: it is part of the turn it serves (verify7 H3 — an earlier row routed it to `summarize` and would have silently disabled compaction for a user with no summarize binding); the program KEEPS the tree's ruling |
 | greeting studio, D45 image caption | `summarize` (`assets-character.ts:349`; `imagery.ts:147` with `images: [bytes]` — a SECOND vision-summarize beside the caption lens, so it carries the same `input ∋ image` requirement) | the caller — who FUNDS and supplies the PRESET, the two coincide on a per-user side gen (§7.5-3 arm ii) | compose | per-user side gen |
 | compaction, MANUAL `compact` lever | `chat` on the chat's connection | the host — `requireHost` gates the verb, so trigger = host (`compaction.ts:260-262`, unchanged) | `compaction.ts:262` | host-only |
@@ -2743,7 +2743,7 @@ it is a SERVER-side fetch inside the F12 admission — the pane calls a `connect
       - *The admin `vllm` verbs, `VllmSupervisorPort`, `AdminEngineStatus`, the engine router procedures* are
         deleted (§4); the verbs-tier `kind.ts` and `toResolvedView` moved to `packages/server/src/domain/connection/substrate/` (the
         `domain-no-cross-verb` cruiser rule); the JSON-schema sanitizer has TWO homes today —
-        `@orb/kit/json-schema` `scrubWireSchema` (per wire mode) and the agent-sdk `sanitizeAnthropicOutputSchema`
+        `@orb/contracts/inference` `scrubWireSchema` (per wire mode) and the agent-sdk `sanitizeAnthropicOutputSchema`
         — not the `backends/kit/clean-json-schema.ts` §4 named; a merge is a follow-up.
 
       - *The CLIENT COMPILE PASS (the pre-step-9 minimum, landed 2026-09-20)*: `packages/client` typechecks

@@ -9,17 +9,16 @@
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { ResponseFormat, StructuredOptions } from "@orb/contracts/role-clients";
-import { runStructuredTurn, StructuredOutputError } from "@orb/inference";
+import { resolveSideGenSampling, runStructuredTurn, StructuredOutputError } from "@orb/inference";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
-import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
 import { z } from "zod";
+import { traceStructuredRetry } from "#foundation/observability";
 import type { DiscoveryContext } from "../context.ts";
 import type { AskCardAnswer, CharacterComparison, CharacterComparisonDeep, ComparisonNarrative } from "../contract/results.ts";
 import type { AnalyzeDeps, DiscoveryService } from "../contract/service.ts";
 import { readCharacterMessageSamples } from "../persistence/message-reads.ts";
 import { readOwnedCardFacet } from "../persistence/summary-reads.ts";
-import { traceStructuredRetry } from "../substrate/structured-retry-trace.ts";
 
 // The recent-scene grounding window for askCard — enough context to answer without dragging a whole history.
 const ASK_SAMPLE_LIMIT = 12;
