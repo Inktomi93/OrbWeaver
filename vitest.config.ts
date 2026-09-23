@@ -111,9 +111,15 @@ const TYPECHECK_PROJECTS = [
   },
 ] satisfies readonly TestProjectConfiguration[];
 
+// docs/work/0062 — every project inherits this through `extends: true`, so each one captures the working
+// tree before its own first test and re-checks it at close: a suite that writes the real tree (repo law
+// forbids it) reds naming the file instead of passing unseen.
+const WORKING_TREE_GUARD = "@orb/tooling/_shared/working-tree-guard";
+
 export function vitestConfig(runtimeOnly = false): ViteUserConfig {
   return defineConfig({
     test: {
+      globalSetup: [WORKING_TREE_GUARD],
       testTimeout: budget(5000),
       hookTimeout: budget(10_000),
       // Keep fixtures independent of the operator's .env and avoid loading live embedding providers.
