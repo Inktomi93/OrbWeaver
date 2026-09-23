@@ -1,10 +1,11 @@
 ---
 kind: work
-status: open
+status: done
 updated: 2026-09-23
 priority: P2
 area: docs
 plan: doc-migration
+evidence: 09853cd59
 ---
 
 # Turn the AST audit ledger's open findings into work items, then delete docs/reviews/ast-codebase-audit
