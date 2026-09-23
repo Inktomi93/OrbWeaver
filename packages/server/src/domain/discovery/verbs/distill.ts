@@ -29,13 +29,13 @@ import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { z } from "zod";
+import { traceStructuredRetry } from "#foundation/observability";
 import type { DiscoveryContext } from "../context.ts";
 import { CardNotDistillableError, DiscoveryNotConfiguredError, DistillFailedError } from "../contract/errors.ts";
 import type { DistillCharactersOptions } from "../contract/params.ts";
 import type { CharacterDistillation, DistillStats } from "../contract/results.ts";
 import type { DiscoveryService, DistillCharactersDeps } from "../contract/service.ts";
 import { readCardDistillTargets } from "../persistence/card-reads.ts";
-import { traceStructuredRetry } from "../substrate/structured-retry-trace.ts";
 
 /** Bind the distill pass over the DI bundle (the verb-naming factory the service composes). Projects the
  *  context's sub-deps onto the standalone {@link distillCharacters} — the workload runner reaches the same

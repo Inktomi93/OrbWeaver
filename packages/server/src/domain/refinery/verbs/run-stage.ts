@@ -54,7 +54,7 @@ import type { ModelId, RefineryRunId } from "@orb/kit/ids";
 import { estimateTokens } from "@orb/kit/tokens";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { addSpanEvent } from "#foundation/observability";
+import { addSpanEvent, traceStructuredRetry } from "#foundation/observability";
 import type { RefineryContext } from "../context.ts";
 import { RefineryOutputBudgetError, RefineryRunFailedError, RefineryStageNotReadyError } from "../contract/errors.ts";
 import type { StageEstimateSubject, StagePrompts, StageResolution } from "../contract/prompts.ts";
@@ -65,7 +65,6 @@ import { resolveStageSampling, stageBudgetMisfitOf, stageSubjectOf } from "../su
 import { buildAnalyzePrompt, buildRewritePrompt, buildScorePrompt, overlayRewrite } from "../substrate/refine-prompt.ts";
 import { buildStageParse } from "../substrate/stage-parse.ts";
 import { REFINERY_RESPONSE_FORMATS, resolveStageResolution } from "../substrate/stage-resolution.ts";
-import { traceStructuredRetry } from "../substrate/structured-retry-trace.ts";
 import { summarizerFactsOf } from "../substrate/summarizer.ts";
 
 /** The custom-score stamp pluck — the well-known core the save belt guarantees. A drifted row skips the

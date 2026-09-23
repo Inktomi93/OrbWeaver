@@ -9,12 +9,12 @@ import type { StructuredOptions } from "@orb/contracts/role-clients";
 import { resolveSideGenSampling, runStructuredTurn, StructuredOutputError } from "@orb/inference";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { liftJsonSchema, projectJsonSchema } from "@orb/kit/json-schema";
+import { traceStructuredRetry } from "#foundation/observability";
 import type { RefineryContext } from "../context.ts";
 import { RefineryRunFailedError } from "../contract/errors.ts";
 import type { RefineryService } from "../contract/service.ts";
 import { buildAnalyzePrompt, buildScorePrompt, customShapeTextOf } from "../substrate/refine-prompt.ts";
 import { buildStageParse } from "../substrate/stage-parse.ts";
-import { traceStructuredRetry } from "../substrate/structured-retry-trace.ts";
 
 export function createTestSchema(ctx: RefineryContext): RefineryService["testSchema"] {
   return async ({ principal, schema, stage, characterId }) => {
