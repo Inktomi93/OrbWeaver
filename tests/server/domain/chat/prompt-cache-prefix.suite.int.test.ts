@@ -16,7 +16,7 @@ import type { GroupOutput, TurnMessage, TurnRequest } from "../../../../packages
 import type { ChatScenario } from "../../../support/chat/index.ts";
 import { scenario, tape } from "../../../support/chat/index.ts";
 import { expect, test } from "../../../support/fixtures.ts";
-import { seedCharacter, seedParticipant, seedPersona, seedUser } from "./_support.ts";
+import { seedCharacter, seedMessage, seedParticipant, seedPersona, seedUser } from "./_support.ts";
 
 /** The history rows up to and including the row the runner pins its deepest-in-history marker on. */
 function rowsThroughMarker(req: TurnRequest): readonly TurnMessage[] {
@@ -142,5 +142,42 @@ describe("solo golden — a one-human room ships the same bytes as before the pr
       { role: "user", content: [{ type: "text", text: "my name is Alex" }] },
     ]);
     expect(second?.cacheBreakpointFromEnd).toBe(1);
+  });
+});
+
+// F8: a row's speaker label is a function of the row. A departed character's reply and an unattributed
+// (agent-seat) reply used to borrow whoever spoke on this call, so their bytes flipped per speaker.
+describe("F8 — an off-roster or unattributed reply keeps its label whoever speaks now", () => {
+  test('names "content": the departed and the unattributed rows are byte-identical across two speakers', async () => {
+    const contentPreset: ResolveForeignInputsOp = () =>
+      Promise.resolve({
+        promptConfig: { ...DEFAULT_PROMPT_CONFIG, namesBehavior: "content" },
+        personas: { anchor: { name: "Alex", description: "the user" }, active: { name: "Alex", description: "the user" } },
+        scanDepth: 6,
+        injectionTokenBudget: 0,
+      });
+    const scn = await scenario.chat(tape().reply("aria speaks").reply("kai speaks"), { characters: ["aria", "kai"], resolveForeignInputs: contentPreset });
+    const departed = await seedCharacter(scn.db, scn.host, "mara");
+    await seedMessage(scn.db, scn.chatId, 1, { role: "user", authorUserId: scn.host, content: "hi all" });
+    await seedMessage(scn.db, scn.chatId, 2, { role: "assistant", characterId: departed, content: "I was here" });
+    await seedMessage(scn.db, scn.chatId, 3, { role: "user", authorUserId: scn.host, content: "and you?" });
+    await seedMessage(scn.db, scn.chatId, 4, { role: "assistant", characterId: null, content: "agent line" });
+    await seedMessage(scn.db, scn.chatId, 5, { role: "user", authorUserId: scn.host, content: "go on" });
+
+    const [aria, kai] = scn.chars;
+    if (aria === undefined || kai === undefined) {
+      throw new Error("expected two seated characters");
+    }
+    await scn.turn.forceCharacterTurn({ principal: scn.principal(), chatId: scn.chatId, characterId: aria });
+    await scn.turn.forceCharacterTurn({ principal: scn.principal(), chatId: scn.chatId, characterId: kai });
+
+    const texts = (req: TurnRequest | undefined): readonly string[] =>
+      (req?.history ?? []).map((m) => m.content.map((p) => (p.type === "text" ? p.text : "")).join(""));
+    const first = texts(scn.requests[0]);
+    const second = texts(scn.requests[1]);
+    expect(first[1]).toBe("mara: I was here");
+    expect(first[3]).toBe("agent line");
+    // Every row above the tail (which carries this call's speaker cue) is byte-identical.
+    expect(second.slice(0, 4)).toEqual(first.slice(0, 4));
   });
 });

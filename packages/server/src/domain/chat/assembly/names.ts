@@ -102,6 +102,12 @@ function assertNeverMessageKind(kind: never): never {
   throw new Error(`applyNamesBehavior: unhandled MessageKind ${JSON.stringify(kind)}`);
 }
 
+// An unattributed canon reply (an agent seat's row) has no name of its own; borrowing the current speaker's
+// would relabel it on every call.
+function isUnattributedReply(m: { readonly role: WireRole; readonly authorName?: string | null; readonly messageId?: MessageId | undefined }): boolean {
+  return m.role === "assistant" && m.messageId !== undefined && (m.authorName ?? null) === null;
+}
+
 // Owner ruling: "none" in a room with more than one human or more than one character leaves the model unable to
 // tell who said what, so there it runs as "default". A solo room keeps a true "none". The stored preset is untouched.
 function effectiveMode(mode: NamesBehavior, room: { readonly multiCharacter: boolean; readonly multiHuman: boolean }): NamesBehavior {
@@ -147,6 +153,9 @@ export function applyNamesBehavior(
       // that question is now answered. Forwarding it would let a later squash merge stamp it onto a row that
       // contains the player's real text (the depth-1 re-frame merges the user tail INTO the injection), and
       // a wire row carrying an internal assembly flag is a field no backend asked for.
+      return { role: m.role, content: m.content, messageId: m.messageId };
+    }
+    if (isUnattributedReply(m)) {
       return { role: m.role, content: m.content, messageId: m.messageId };
     }
     const author = m.authorName ?? (m.role === "user" ? speakers.user : speakers.assistant);
