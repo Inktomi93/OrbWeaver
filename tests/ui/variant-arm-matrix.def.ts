@@ -84,6 +84,7 @@ import { checkboxVariants } from "../../packages/ui/src/primitives/checkbox/vari
 import { emptyStateVariants } from "../../packages/ui/src/primitives/empty-state/variants.ts";
 import { highlightedTextVariants } from "../../packages/ui/src/primitives/highlighted-text/variants.ts";
 import { inputVariants } from "../../packages/ui/src/primitives/input/variants.ts";
+import { kbdVariants } from "../../packages/ui/src/primitives/kbd/variants.ts";
 import { listRowVariants } from "../../packages/ui/src/primitives/list-row/variants.ts";
 import { pickerCellVariants } from "../../packages/ui/src/primitives/picker-cell/variants.ts";
 import { selectVariants } from "../../packages/ui/src/primitives/select/variants.ts";
@@ -180,6 +181,7 @@ export const VARIANT_ARM_STORY_DEFS: readonly VariantArmStoryDef[] = [
     expectText: true,
   }),
   def({ key: "input", source: "primitives/input/variants.ts", exportName: "inputVariants", tv: inputVariants, supportsDisabled: true, expectText: false }),
+  def({ key: "kbd", source: "primitives/kbd/variants.ts", exportName: "kbdVariants", tv: kbdVariants, supportsDisabled: false, expectText: true }),
   def({
     key: "list-row",
     source: "primitives/list-row/variants.ts",
