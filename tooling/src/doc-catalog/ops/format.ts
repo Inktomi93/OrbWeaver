@@ -69,11 +69,13 @@ import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { execNicedSync } from "../../_shared/proc.ts";
 import type { MarkdownNode } from "../lib/format-fidelity.ts";
 import { ambiguousTemplateLiteralRefusal, escapeDeltaRefusal, fidelityKey, overflowRefusal } from "../lib/format-fidelity.ts";
+import { DOC_TOOL_TREE_PREFIXES } from "../lib/vocab.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:docs (node tooling/src/doc-catalog/cli.ts <verb>)");
 
-/** The LIVING trees this formatter owns. Prefix-matched against repo-relative tracked paths. */
-const LIVING_TREES = ["docs/architecture/", "docs/design/", "docs/reviews/"] as const;
+/** The LIVING trees this formatter owns. Prefix-matched against repo-relative tracked paths. The `doc`
+ *  tool's trees are living by construction: every write there goes through `formatMarkdown` first. */
+const LIVING_TREES = ["docs/architecture/", "docs/design/", "docs/reviews/", ...DOC_TOOL_TREE_PREFIXES] as const;
 /** In-flight drafts inside a living tree — never auto-touched. `docs/vendor/**` is excluded by simply
  *  not being a living tree; the FROZEN trees need their own list, below, because one of them nests
  *  INSIDE a living tree and so cannot be excluded by omission. */

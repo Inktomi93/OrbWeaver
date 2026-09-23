@@ -1,73 +1,8 @@
-// The receipt/frontmatter/ratchet RULES — the pure half of the documentation control plane, driven
-// through the tool's front door with hand-built facts (no git, no tree). Relocated from
-// tests/tooling/docs-catalog.test.ts at the #393 P5 move (Core-Tooling-Law.md §4.7 mirror).
-import type { ReceiptClaim, ReceiptEntry, ReceiptFacts } from "../../../tooling/src/doc-catalog/index.ts";
-import { catalogReceipt, debtPathErrors, parseFrontmatter, validateReceiptEntry } from "../../../tooling/src/doc-catalog/index.ts";
+// The frontmatter/authority/ratchet RULES — the pure half of the legacy inventory, driven through the
+// tool's front door with hand-built rows (no git, no tree). The hash-bound attestation rules this file
+// used to pin are gone with the attestation.
+import { debtPathErrors, frontmatterErrors, migrationDebt, parseFrontmatter, validateReceiptEntry } from "../../../tooling/src/doc-catalog/index.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
-
-const HASH_LENGTH = 64;
-const COMMIT_LENGTH = 40;
-const FIRST_LINE = 1;
-const REVIEWED_RECEIPT_REQUIREMENTS = 7;
-const HASH = "a".repeat(HASH_LENGTH);
-const COMMIT = "b".repeat(COMMIT_LENGTH);
-const ANCESTOR = "c".repeat(COMMIT_LENGTH);
-const CLAIMS = [{ claim: "Current behavior", evidence: [{ kind: "code", target: "packages/example.ts:1" }] }];
-const LAW_PATH = "docs/architecture/core/Core-Laws-and-Precedents.md";
-
-function facts(overrides: Partial<ReceiptFacts> = {}): ReceiptFacts {
-  return {
-    currentSha256: HASH,
-    currentCanonicalSha256: HASH,
-    verifiedBlobCanonicalSha256: HASH,
-    verifiedBlobSha256: HASH,
-    currentReceiptSnapshotExists: false,
-    candidateTouchesReceiptPair: false,
-    candidateChangedPaths: new Set(),
-    candidateEvidencePathsDifferFromIndex: new Set(),
-    verifiedCommitExists: true,
-    verifiedCommitIsAncestor: true,
-    localEvidence: new Map([
-      ["packages/example.ts", FIRST_LINE],
-      ["tooling/src/doc-catalog/ops/tree.ts", FIRST_LINE],
-      ["tests/example.test.ts", FIRST_LINE],
-      ["tooling/src/verify/example.ts", FIRST_LINE],
-    ]),
-    lawSections: new Map([[LAW_PATH, new Map([["7", FIRST_LINE]])]]),
-    provenanceCommits: new Set([ANCESTOR]),
-    rulingAnchors: new Map([
-      ["86", FIRST_LINE],
-      ["139", FIRST_LINE],
-    ]),
-    ...overrides,
-  };
-}
-
-function reviewed(overrides: Partial<ReceiptEntry> = {}): ReceiptEntry {
-  return {
-    path: "docs/example.md",
-    assignedSha256: HASH,
-    disposition: "current",
-    authority: "current-reference",
-    fullRead: true,
-    verifiedSha256: HASH,
-    verifiedCommit: COMMIT,
-    verifiedAt: "2026-08-14",
-    evidence: ["packages/example.ts:1"],
-    claims: CLAIMS,
-    summary: "Current behavior matches the document.",
-    ...overrides,
-  };
-}
-
-function reviewedWithoutClaims(overrides: Partial<ReceiptEntry> = {}): ReceiptEntry {
-  const { claims: _claims, ...entry } = reviewed(overrides);
-  return entry;
-}
-
-function claimEvidence(kind: string, target: string): readonly ReceiptClaim[] {
-  return [{ claim: "Stable authority", evidence: [{ kind, target }] }];
-}
 
 test("frontmatter parser keeps the deliberately flat schema machine-readable", () => {
   expect(parseFrontmatter("---\nkind: law\nstatus: active\nupdated: 2026-08-14\n---\n# Law\n")).toEqual({
@@ -83,251 +18,50 @@ test("frontmatter parser rejects an unterminated or nested header instead of gue
   expect(parseFrontmatter("---\nmetadata:\n  owner: alex\n---\n").malformed).toBe(true);
 });
 
-test("a reviewed receipt requires full-read, content hash, commit, date, evidence, authority, and summary", () => {
-  expect(validateReceiptEntry(reviewed())).toEqual([]);
-  expect(
-    validateReceiptEntry(
-      reviewed({ authority: "unclassified", fullRead: false, verifiedSha256: null, verifiedCommit: null, verifiedAt: null, evidence: [], summary: "" }),
-    ),
-  ).toHaveLength(REVIEWED_RECEIPT_REQUIREMENTS);
+test("the legacy schema demands the three keys, a known kind and status, and no foreign key", () => {
+  const path = "docs/design/x.md";
+  expect(frontmatterErrors(path, parseFrontmatter("---\nkind: law\nstatus: active\nupdated: 2026-08-14\n---\n", path))).toEqual([]);
+  expect(frontmatterErrors(path, parseFrontmatter("---\nkind: bug\nstatus: doing\nlane: cb-x\n---\n", path))).toEqual([
+    `${path}: missing frontmatter key updated`,
+    `${path}: unsupported frontmatter key lane`,
+    `${path}: invalid frontmatter kind bug`,
+    `${path}: invalid frontmatter status doing`,
+  ]);
+  expect(frontmatterErrors("docs/vendor/x.md", parseFrontmatter("---\ntitle: upstream\n---\n"))).toEqual([]);
 });
 
-test("a current receipt rejects self-attestation and an unbound verification commit", () => {
-  expect(
-    validateReceiptEntry(
-      reviewed({ claims: [{ claim: "Self", evidence: [{ kind: "ruling", target: "docs/example.md:1" }] }] }),
-      facts({ verifiedCommitIsAncestor: false, localEvidence: new Map([["docs/example.md", FIRST_LINE]]), provenanceCommits: new Set() }),
-    ),
-  ).toEqual(["docs/example.md: ruling evidence target must be D<n>", "docs/example.md: verifiedCommit is not an ancestor of HEAD"]);
+test("a row is one path and one authority from the closed set", () => {
+  expect(validateReceiptEntry({ path: "docs/example.md", authority: "normative" })).toEqual([]);
+  expect(validateReceiptEntry({ path: "docs/example.md", authority: "verified" })).toEqual(["docs/example.md: invalid authority verified"]);
 });
 
-test("a reviewed receipt binds current document bytes to a durable receipt snapshot", () => {
-  expect(
-    validateReceiptEntry(
-      reviewed({ assignedSha256: "c".repeat(HASH_LENGTH) }),
-      facts({ verifiedBlobSha256: "d".repeat(HASH_LENGTH), verifiedCommitExists: false, verifiedCommitIsAncestor: false, provenanceCommits: new Set() }),
-    ),
-  ).toEqual([
-    "docs/example.md: current document and receipt do not coexist in a verified commit or the Git index",
-    "docs/example.md: verifiedCommit does not resolve to a commit",
+test("frontmatter debt is derived per category, vendor mirrors exempt from the missing arm", () => {
+  const debt = migrationDebt([
+    { path: "docs/a.md", frontmatter: { present: false, malformed: false, fields: {}, errors: [] } },
+    { path: "docs/vendor/b.md", frontmatter: { present: false, malformed: false, fields: {}, errors: [] } },
+    { path: "docs/c.md", frontmatter: { present: true, malformed: false, fields: {}, errors: ["docs/c.md: missing frontmatter key kind"] } },
+    { path: "docs/d.md", frontmatter: { present: true, malformed: true, fields: {}, errors: ["docs/d.md: no fence"] } },
   ]);
-  expect(validateReceiptEntry(reviewed(), facts({ verifiedBlobSha256: "d".repeat(HASH_LENGTH), currentReceiptSnapshotExists: true }))).toEqual([]);
-  expect(validateReceiptEntry(reviewed(), facts({ candidateTouchesReceiptPair: true }))).toEqual([
-    "docs/example.md: current document and receipt do not coexist in a verified commit or the Git index",
-  ]);
-  expect(validateReceiptEntry(reviewed(), facts({ candidateTouchesReceiptPair: true, currentReceiptSnapshotExists: true }))).toEqual([]);
-  // A genuine content change: raw AND canonical hashes both differ.
-  expect(
-    validateReceiptEntry(
-      reviewed(),
-      facts({
-        currentSha256: "d".repeat(HASH_LENGTH),
-        currentCanonicalSha256: "d".repeat(HASH_LENGTH),
-        verifiedBlobCanonicalSha256: HASH,
-        currentReceiptSnapshotExists: true,
-      }),
-    ),
-  ).toEqual(["docs/example.md: verifiedSha256 does not match the current document"]);
-  // A format-only change: raw hashes differ but canonical hashes match — the receipt survives.
-  expect(
-    validateReceiptEntry(
-      reviewed(),
-      facts({
-        currentSha256: "d".repeat(HASH_LENGTH),
-        currentCanonicalSha256: HASH,
-        verifiedBlobCanonicalSha256: HASH,
-        currentReceiptSnapshotExists: true,
-      }),
-    ),
-  ).toEqual([]);
-  expect(validateReceiptEntry(reviewed(), facts({ verifiedBlobSha256: "d".repeat(HASH_LENGTH) }))).toEqual([
-    "docs/example.md: current document and receipt do not coexist in a verified commit or the Git index",
-  ]);
-});
-
-test("an exact receipt snapshot never substitutes for a valid ancestor verification commit", () => {
-  expect(validateReceiptEntry(reviewed(), facts({ currentReceiptSnapshotExists: true, verifiedCommitExists: false }))).toEqual([
-    "docs/example.md: verifiedCommit does not resolve to a commit",
-  ]);
-  expect(validateReceiptEntry(reviewed(), facts({ currentReceiptSnapshotExists: true, verifiedCommitIsAncestor: false }))).toEqual([
-    "docs/example.md: verifiedCommit is not an ancestor of HEAD",
-  ]);
-  expect(validateReceiptEntry(reviewed({ verifiedCommit: "deadbeef" }), facts({ currentReceiptSnapshotExists: true, verifiedCommitExists: false }))).toEqual([
-    "docs/example.md: reviewed disposition requires a full git commit",
-    "docs/example.md: verifiedCommit does not resolve to a commit",
-  ]);
-});
-
-test("a candidate receipt refuses local evidence whose worktree bytes differ from the Git index", () => {
-  expect(
-    validateReceiptEntry(
-      reviewed(),
-      facts({
-        candidateTouchesReceiptPair: true,
-        currentReceiptSnapshotExists: true,
-        candidateEvidencePathsDifferFromIndex: new Set(["packages/example.ts"]),
-      }),
-    ),
-  ).toEqual(["docs/example.md: code evidence target differs from the candidate Git index: packages/example.ts:1"]);
-  expect(
-    validateReceiptEntry(
-      reviewed(),
-      facts({ candidateTouchesReceiptPair: true, currentReceiptSnapshotExists: true, candidateEvidencePathsDifferFromIndex: new Set() }),
-    ),
-  ).toEqual([]);
-});
-
-test("an unchanged receipt closes over a typed evidence target changed in the candidate index", () => {
-  expect(
-    validateReceiptEntry(
-      reviewed(),
-      facts({
-        candidateChangedPaths: new Set(["packages/example.ts"]),
-        candidateEvidencePathsDifferFromIndex: new Set(["packages/example.ts"]),
-      }),
-    ),
-  ).toEqual(["docs/example.md: code evidence target differs from the candidate Git index: packages/example.ts:1"]);
-  expect(
-    validateReceiptEntry(reviewed(), facts({ candidateChangedPaths: new Set(["packages/example.ts"]), candidateEvidencePathsDifferFromIndex: new Set() })),
-  ).toEqual([]);
-});
-
-test("an unrelated candidate change does not reject an unstaged evidence target", () => {
-  expect(
-    validateReceiptEntry(
-      reviewed(),
-      facts({ candidateChangedPaths: new Set(["packages/unrelated.ts"]), candidateEvidencePathsDifferFromIndex: new Set(["packages/example.ts"]) }),
-    ),
-  ).toEqual([]);
-});
-
-test("a candidate receipt refuses local evidence when Git cannot establish the worktree-index delta", () => {
-  expect(
-    validateReceiptEntry(
-      reviewed(),
-      facts({ candidateTouchesReceiptPair: true, currentReceiptSnapshotExists: true, candidateEvidencePathsDifferFromIndex: null }),
-    ),
-  ).toEqual(["docs/example.md: cannot establish candidate Git index consistency for code evidence: packages/example.ts:1"]);
-});
-
-test("typed claim evidence resolves its role-specific local targets", () => {
-  expect(
-    validateReceiptEntry(
-      reviewed({
-        claims: [
-          {
-            claim: "The behavior is implemented and covered.",
-            evidence: [
-              { kind: "code", target: "packages/example.ts:1" },
-              { kind: "code", target: "tooling/src/doc-catalog/ops/tree.ts:1" },
-              { kind: "test", target: "tests/example.test.ts:1" },
-              { kind: "gate", target: "tooling/src/verify/example.ts:1" },
-              { kind: "ruling", target: "D139" },
-              { kind: "law", target: `${LAW_PATH} §7` },
-              { kind: "issue", target: "#52" },
-              { kind: "upstream", target: "https://example.com/source" },
-              { kind: "provenance", target: `git:${ANCESTOR}` },
-            ],
-          },
-        ],
-      }),
-      facts(),
-    ),
-  ).toEqual([]);
-});
-
-test("stable law and ruling targets survive line movement", () => {
-  const claims = [
-    {
-      claim: "Stable authority",
-      evidence: [
-        { kind: "law", target: `${LAW_PATH} §7` },
-        { kind: "ruling", target: "D139" },
-      ],
-    },
-  ];
-  expect(validateReceiptEntry(reviewed({ claims }), facts())).toEqual([]);
-  expect(validateReceiptEntry(reviewed({ claims }), facts({ localEvidence: new Map([[LAW_PATH, FIRST_LINE]]) }))).toEqual([]);
-});
-
-test("stable authority targets reject missing, duplicate, malformed, and wrong-kind anchors", () => {
-  expect(validateReceiptEntry(reviewed({ claims: claimEvidence("ruling", "D86") }), facts())).toEqual([]);
-  expect(validateReceiptEntry(reviewed({ claims: claimEvidence("ruling", "D142") }), facts())).toEqual([
-    "docs/example.md: ruling evidence target does not resolve: D142",
-  ]);
-  expect(validateReceiptEntry(reviewed({ claims: claimEvidence("ruling", "D139") }), facts({ rulingAnchors: new Map([["139", 2]]) }))).toEqual([
-    "docs/example.md: ruling evidence target is ambiguous: D139",
-  ]);
-  expect(validateReceiptEntry(reviewed({ claims: claimEvidence("ruling", "D079") }), facts())).toEqual([
-    "docs/example.md: ruling evidence target must be D<n>",
-  ]);
-  expect(validateReceiptEntry(reviewed({ claims: claimEvidence("ruling", "D80") }), facts())).toEqual([
-    "docs/example.md: ruling evidence target is reserved: D80",
-  ]);
-  expect(validateReceiptEntry(reviewed({ claims: claimEvidence("law", `${LAW_PATH} §8`) }), facts())).toEqual([
-    `docs/example.md: law evidence target does not resolve: ${LAW_PATH} §8`,
-  ]);
-  expect(
-    validateReceiptEntry(reviewed({ claims: claimEvidence("law", `${LAW_PATH} §7`) }), facts({ lawSections: new Map([[LAW_PATH, new Map([["7", 2]])]]) })),
-  ).toEqual([`docs/example.md: law evidence target is ambiguous: ${LAW_PATH} §7`]);
-  expect(validateReceiptEntry(reviewed({ claims: claimEvidence("law", "D139") }), facts())).toEqual([
-    "docs/example.md: law evidence target must be current-law-path §<section>",
-  ]);
-  expect(validateReceiptEntry(reviewed({ claims: claimEvidence("ruling", `${LAW_PATH} §7`) }), facts())).toEqual([
-    "docs/example.md: ruling evidence target must be D<n>",
-  ]);
-});
-
-test("archive and vendor lifecycle attestations do not impersonate current claim review", () => {
-  expect(validateReceiptEntry(reviewedWithoutClaims({ disposition: "archive", authority: "historical" }))).toEqual([]);
-  expect(validateReceiptEntry(reviewedWithoutClaims({ disposition: "vendor-snapshot", authority: "vendor" }))).toEqual([]);
-  expect(validateReceiptEntry(reviewedWithoutClaims({ disposition: "generated-artifact", authority: "generated" }))).toEqual([]);
-});
-
-test("a pending receipt cannot impersonate completed review evidence", () => {
-  expect(
-    validateReceiptEntry(
-      reviewed({
-        disposition: "pending",
-        authority: "unclassified",
-        fullRead: false,
-        verifiedSha256: null,
-        verifiedCommit: null,
-        verifiedAt: null,
-        evidence: [],
-        summary: "",
-      }),
-    ),
-  ).toEqual([]);
-  expect(validateReceiptEntry(reviewed({ disposition: "pending" }))).toContain("docs/example.md: pending receipt must not claim review evidence");
+  expect(debt).toEqual({ missingFrontmatter: ["docs/a.md"], invalidFrontmatter: ["docs/c.md", "docs/d.md"], malformedFrontmatter: ["docs/d.md"] });
 });
 
 test("the debt ratchet rejects substitution even when the total count stays flat", () => {
-  const oldDebt = { pending: ["docs/old.md"], missingFrontmatter: [], invalidFrontmatter: [], malformedFrontmatter: [] };
-  const substituted = { pending: ["docs/new.md"], missingFrontmatter: [], invalidFrontmatter: [], malformedFrontmatter: [] };
+  const oldDebt = { missingFrontmatter: ["docs/old.md"], invalidFrontmatter: [], malformedFrontmatter: [] };
+  const substituted = { missingFrontmatter: ["docs/new.md"], invalidFrontmatter: [], malformedFrontmatter: [] };
   expect(debtPathErrors(oldDebt, oldDebt)).toEqual([]);
   expect(debtPathErrors(substituted, oldDebt)).toEqual([
-    "pending: new debt path docs/new.md is not in the ratchet allowance",
-    "pending: stale debt path docs/old.md remains in the ratchet allowance",
+    "missingFrontmatter: new debt path docs/new.md is not in the ratchet allowance",
+    "missingFrontmatter: stale debt path docs/old.md remains in the ratchet allowance",
   ]);
 });
 
-test("the debt ratchet rejects stale allowances in every debt category", () => {
-  const current = { pending: [], missingFrontmatter: [], invalidFrontmatter: [], malformedFrontmatter: [] };
-  const stale = {
-    pending: ["docs/pending.md"],
-    missingFrontmatter: ["docs/missing.md"],
-    invalidFrontmatter: ["docs/invalid.md"],
-    malformedFrontmatter: ["docs/malformed.md"],
-  };
+test("the debt ratchet rejects stale allowances in every debt category, and a count-only state is refused", () => {
+  const current = { missingFrontmatter: [], invalidFrontmatter: [], malformedFrontmatter: [] };
+  const stale = { missingFrontmatter: ["docs/missing.md"], invalidFrontmatter: ["docs/invalid.md"], malformedFrontmatter: ["docs/malformed.md"] };
   expect(debtPathErrors(current, stale)).toEqual([
-    "pending: stale debt path docs/pending.md remains in the ratchet allowance",
     "missingFrontmatter: stale debt path docs/missing.md remains in the ratchet allowance",
     "invalidFrontmatter: stale debt path docs/invalid.md remains in the ratchet allowance",
     "malformedFrontmatter: stale debt path docs/malformed.md remains in the ratchet allowance",
   ]);
-});
-
-test("a newly tracked document reports a missing receipt instead of crashing catalog rendering", () => {
-  expect(catalogReceipt(undefined, HASH)).toEqual({ receipt: null, receiptCurrent: false });
+  expect(debtPathErrors(current, undefined)).toEqual(["docs/catalog/state.json: legacy count-only state must be upgraded with pnpm doc-catalog:ratchet"]);
 });

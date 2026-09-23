@@ -1,24 +1,34 @@
-// The instruction-layer text rules as pure functions (string in, findings out), so the whole check is
-// unit-testable without a tree. The charter they enforce is `.claude/rules/writing.md`; the filesystem
-// walk that feeds them is `ops/instructions.ts`.
+// The writing-charter text rules as pure functions (string in, findings out), so every checker that
+// applies `.claude/rules/writing.md` is unit-testable without a tree. Two importers share them — the
+// instruction-layer walk in `agent-sync/ops/instructions.ts` and the docs walk in `doc/ops/check.ts` —
+// which is what homes them on this floor (Core-Tooling-Law.md §2.4: a module joins by importer census).
 //
-// WHAT IS NOT PROSE: a fenced code block, an inline code span and an owner-voice section. Code and path
-// literals quote the codebase exactly, and the owner's own words are exempt from the plain style. They
-// are blanked to spaces (newlines kept) so a finding still reports its real line.
+// WHAT IS NOT PROSE: a frontmatter block, a fenced code block, an inline code span, a markdown link TARGET
+// and an owner-voice section. Frontmatter is data (its `updated:` is the one sanctioned date), code and
+// path literals quote the codebase exactly, a link target is a path, and the owner's own words are exempt
+// from the plain style. They are blanked to spaces (newlines kept) so a finding still reports its real line.
 
 const FENCE_PATTERN = /^\s*(```|~~~)/u;
+const FRONTMATTER_FENCE = "---";
 const INLINE_CODE_PATTERN = /(`+)([\s\S]*?[^`])\1(?!`)/gu;
 const OWNER_VOICE_OPEN = "<!-- owner-voice -->";
 const OWNER_VOICE_CLOSE = "<!-- /owner-voice -->";
 const MARKDOWN_LINK_PATTERN = /\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/gu;
+/** The `(target)` half of a markdown link, matched on its own so `proseFindings` can blank it: an
+ *  archived plan's folder carries a date in its path, and a path is not prose. */
+const LINK_TARGET_PATTERN = /\]\(([^)\s]+)(?:\s+"[^"]*")?\)/gu;
 
-/** History markers and house slang the charter bans from prose. Each pattern names what it catches. */
+/** History markers and house slang the charter bans from prose (rules 1 and 4). Each pattern names what it catches. */
 const HISTORY_RULES: readonly { readonly label: string; readonly pattern: RegExp }[] = [
   { label: "a date", pattern: /\b(?:19|20)\d{2}-\d{2}-\d{2}\b/u },
   { label: "an issue or PR number", pattern: /(?<![\w&/#])#\d+\b/u },
   { label: '"used to"', pattern: /(?<!\b(?:is|are|be|been|being|get|gets|got)\s)\bused to\b/iu },
   { label: '"retired"', pattern: /\bretired\b/iu },
 ];
+
+/** Rule 2: an inventory count in prose — a number followed by one of the nouns the charter names. A
+ *  budget ("under 200 lines") is a rule value, not an inventory, so `lines` is deliberately not here. */
+const COUNT_RULE = { label: "an inventory count", pattern: /\b\d[\d,]* (?:files|tests|rules|lessons|workers|gates|docs|documents)\b/iu };
 
 /** The banned house words (`.claude/rules/writing.md` rule 4). A word the `AGENTS.md` glossary defines is
  *  allowed, so the glossary, not this list, decides what counts as house vocabulary. */
@@ -33,7 +43,13 @@ export function proseOnly(source: string): string {
   const out: string[] = [];
   let inFence = false;
   let inOwnerVoice = false;
-  for (const line of source.split("\n")) {
+  let inFrontmatter = source.startsWith(`${FRONTMATTER_FENCE}\n`);
+  for (const [index, line] of source.split("\n").entries()) {
+    if (inFrontmatter) {
+      inFrontmatter = index === 0 || line !== FRONTMATTER_FENCE;
+      out.push(blank(line));
+      continue;
+    }
     if (line.includes(OWNER_VOICE_OPEN)) {
       inOwnerVoice = true;
     }
@@ -79,17 +95,18 @@ function wordPattern(word: string): RegExp {
   return new RegExp(`\\b${escaped}(?:s|es)?\\b`, "iu");
 }
 
-/** Every history marker and banned word in the prose of one file, as `path:line: what` strings. */
+/** Every history marker, inventory count and banned word in the prose of one file, as `path:line: what` strings. */
 export function proseFindings(relPath: string, source: string, allowed: ReadonlySet<string>): readonly string[] {
   const banned = BANNED_INSTRUCTION_WORDS.filter((word) => !allowed.has(word)).map((word) => ({
     label: `banned word "${word}"`,
     pattern: wordPattern(word),
   }));
-  const rules = [...HISTORY_RULES, ...banned];
+  const rules = [...HISTORY_RULES, COUNT_RULE, ...banned];
   const findings: string[] = [];
   proseOnly(source)
     .split("\n")
-    .forEach((line, index) => {
+    .forEach((raw, index) => {
+      const line = raw.replace(LINK_TARGET_PATTERN, (match) => `](${blank(match.slice(2, -1))})`);
       for (const rule of rules) {
         const match = rule.pattern.exec(line);
         if (match !== null) {

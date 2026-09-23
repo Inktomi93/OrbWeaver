@@ -1,18 +1,21 @@
 // The instruction-layer check that `pnpm check:agents` runs beside the Codex mirror check. It keeps the
 // always-on text small and every instruction file inside the charter in `.claude/rules/writing.md`:
 //   1. `AGENTS.md`, its `@` imports and every rule without list-form `paths:` stay under the line budget;
-//   2. `AGENTS.md` is the one always-on file: a root `CLAUDE.md` is a second copy;
+//   2. `AGENTS.md` is the one always-on file: a root twin named for Claude Code is a second copy;
 //   3. every `.claude/rules/*.md` has list-form `paths:` frontmatter, and `AGENTS.md` lists it with
 //      exactly those globs (Codex has no path-scoped loading, so that list is how it finds a rule);
-//   4. no history marker or banned word in prose (`lib/instruction-text.ts` owns the rules);
-//   5. every relative markdown link and backticked repository path resolves.
-// Each check takes the repository root, so the tests run it on planted trees.
+//   4. no history marker, inventory count or banned word in prose (`_shared/prose-rules.ts` owns the rules);
+//   5. every relative markdown link and backticked repository path resolves (`_shared/prose-references.ts`).
+// The docs tree has its own walk in `doc/ops/check.ts`, run from the same `--check` door. Each check takes
+// the repository root, so the tests run it on planted trees.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { docFileCount, docLayerProblems } from "#doc";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { referenceProblems } from "../../_shared/prose-references.ts";
+import { glossaryWords, lineCount, proseFindings } from "../../_shared/prose-rules.ts";
 import type { RulePaths } from "../contract/types.ts";
 import { parseRulePaths } from "../lib/frontmatter.ts";
-import { backtickedRepoPaths, glossaryWords, lineCount, markdownLinkTargets, proseFindings } from "../lib/instruction-text.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:agents");
 
@@ -160,21 +163,6 @@ function ruleListProblems(root: string): readonly string[] {
   return problems;
 }
 
-function referenceProblems(root: string, rel: string, source: string): readonly string[] {
-  const problems: string[] = [];
-  for (const { line, target } of markdownLinkTargets(source)) {
-    if (target !== "" && !existsSync(join(root, dirname(rel), target))) {
-      problems.push(`${rel}:${line}: link target does not exist: ${target}`);
-    }
-  }
-  for (const { line, path } of backtickedRepoPaths(source)) {
-    if (!existsSync(join(root, path))) {
-      problems.push(`${rel}:${line}: path does not exist: ${path}`);
-    }
-  }
-  return problems;
-}
-
 /** Every way the instruction layer breaks the charter, as operator-readable lines. Empty = clean. */
 export function instructionLayerProblems(root: string): readonly string[] {
   const allowed = glossaryWords(readAlwaysOn(root));
@@ -188,4 +176,14 @@ export function instructionLayerProblems(root: string): readonly string[] {
 /** How many files the check read, for the check's own summary line. A zero is a broken walk. */
 export function instructionFileCount(root: string): number {
   return instructionFiles(root).length;
+}
+
+/** The whole `--check` verdict: the instruction layer plus the governed docs tree (`doc/ops/check.ts`),
+ *  one list so a red in either reads the same way. */
+export function checkedLayerProblems(root: string): readonly string[] {
+  return [...instructionLayerProblems(root), ...docLayerProblems(root)];
+}
+
+export function checkedDocCount(root: string): number {
+  return docFileCount(root);
 }

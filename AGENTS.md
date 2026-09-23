@@ -151,7 +151,7 @@ without a path are in that folder.
 | An `@orb/ui` primitive | `ui-package-design.md`, `UI-Primitives-and-Reuse.md` §13.7–§13.8 |
 | Types, unions, dispatch | `Spine-TypeScript-and-Patterns.md` |
 | A ledger decision | `Documentation-Law.md` "Ledger-entry style", then write it in `Core-Path-Registry.md` |
-| A doc | `Documentation-Law.md`, `Core-Docs-Formatting-Law.md` |
+| A doc | `.claude/rules/writing.md`, `.claude/rules/docs.md` (`pnpm doc help` for the verbs) |
 | An instruction file or a code comment | `.claude/rules/writing.md` |
 | Which word names a concept | `docs/design/vocabulary-map.md` |
 | Where a concept lives | `docs/architecture/core/AGENTS.md` §6 (domain map), `Core-0-Architecture-and-Structure.md` §6 (partitioning) |
@@ -193,4 +193,4 @@ without a path are in that folder.
 - `.claude/rules/tooling.md`: `tooling/src/**`, `tests/tooling/**`, `biome.json`, `eslint.config.js`, `.dependency-cruiser.cjs`, `knip.ts`, `lefthook.yml`, `tsconfig*.json`, `scripts/vitest-supervised.mjs`
 - `.claude/rules/ui-and-client.md`: `packages/ui/src/**`, `packages/client/src/**`
 - `.claude/rules/verify-and-gates.md`: `tooling/src/verify/**`, `tests/tooling/verify/**`
-- `.claude/rules/writing.md`: `.claude/**`, `AGENTS.md`
+- `.claude/rules/writing.md`: `.claude/**`, `AGENTS.md`, `docs/**`
