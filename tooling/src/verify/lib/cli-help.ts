@@ -37,7 +37,7 @@ export const VERB_HELP: Readonly<Record<VerifyVerb, string>> = {
   "asset-refs": "usage: node tooling/src/verify/cli.ts asset-refs\n  Reconciles every live FK→assets.id column against the asset-ref classification registry.",
   "orphan-ratchet": "usage: node tooling/src/verify/cli.ts orphan-ratchet [--update]\n  The orphan-export ratchet; --update rewrites its committed baseline.",
   "boot-chunk":
-    "usage: node tooling/src/verify/cli.ts boot-chunk\n  Builds the client, measures its boot chunk against the committed ceiling, and checks that the emitted html links the app stylesheet.",
+    "usage: node tooling/src/verify/cli.ts boot-chunk\n  Builds the client, measures its boot chunk against the committed ceiling, checks that the emitted html links the app stylesheet, and checks that no emitted chunk carries a DEV-only client instrument.",
   "ledgers-fresh":
     "usage: node tooling/src/verify/cli.ts ledgers-fresh\n  Reds when a committed single-writer ledger (the caught-failure census and its siblings) differs from a fresh derivation. Writes nothing; names the differing rows and the regen command.",
   "ledger-claims": LEDGER_CLAIMS_HELP,
@@ -48,6 +48,8 @@ export const VERB_HELP: Readonly<Record<VerifyVerb, string>> = {
   "config-snapshot": CONFIG_SNAPSHOT_HELP,
   "biome-rule-liveness":
     "usage: node tooling/src/verify/cli.ts biome-rule-liveness\n  Reds when a biome.json rule-off grant suppresses NOTHING — it strips the rule-off grants from a copy of the config, runs biome over the granted files, and names the grants that fired nowhere. Refuses (exit 2) on any report it cannot trust; a bare zero is never a verdict.",
+  "knip-negative-liveness":
+    "usage: node tooling/src/verify/cli.ts knip-negative-liveness\n  Reds when a LITERAL negative entry/project/ignore pattern in knip.ts names a path that is not a tracked file. Wildcard negations are out of scope. An unreadable index is exit 2.",
   "typecheck-plan": TYPECHECK_PLAN_HELP,
   typecheck: TYPECHECK_HELP,
   "instrument-affected":

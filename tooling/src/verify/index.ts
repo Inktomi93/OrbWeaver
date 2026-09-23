@@ -176,6 +176,7 @@ export { deriveSnapFlagsIndexMarkdown, generateSnapFlagsIndex, SNAP_FLAGS_INDEX_
 export { deriveTypeConfigFiles, generateTypeConfigs } from "./ops/gen/type-configs.ts";
 export type { InstrumentAffectedSelection } from "./ops/instrument-affected.ts";
 export { runInstrumentAffected, selectAffectedInstrumentTests } from "./ops/instrument-affected.ts";
+export { runKnipNegativeLiveness } from "./ops/knip-negative-liveness.ts";
 export { judgeLedgerClaims, LEDGER_CLAIMS_HELP, ledgerRowStates, parseClaimCommits, runLedgerClaims } from "./ops/ledger-claims.ts";
 export {
   censusDrift,

@@ -1,7 +1,14 @@
 // The writing-charter text rules on strings: what counts as prose, what the history and word rules
 // catch, what the glossary allows, and which spans are checked as repository paths. Every negative case
 // sits beside a positive control that proves the same rule fires on the planted spelling.
-import { backtickedRepoPaths, glossaryWords, markdownLinkTargets, proseFindings, proseOnly } from "../../../tooling/src/_shared/prose-rules.ts";
+import {
+  backtickedRelativePaths,
+  backtickedRepoPaths,
+  glossaryWords,
+  markdownLinkTargets,
+  proseFindings,
+  proseOnly,
+} from "../../../tooling/src/_shared/prose-rules.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
 const NONE: ReadonlySet<string> = new Set();
@@ -110,5 +117,20 @@ test("backticked repository paths are collected; globs, placeholders, commands a
     { line: 1, path: "tooling/src/a.ts" },
     { line: 1, path: "docs/b.md" },
     { line: 1, path: ".claude/rules" },
+  ]);
+});
+
+test("backticked relative paths are collected with their suffixes removed; an ellipsis and a bare name are not", () => {
+  const source = [
+    "Read `../design/x.md#part`, `./a.ts:12` and `../../law/`.",
+    "Skip `...`, `../*/x.md`, `a.md` and `../<pkg>/x.ts`.",
+    "```",
+    "`../in/fence.md`",
+    "```",
+  ].join("\n");
+  expect(backtickedRelativePaths(source)).toEqual([
+    { line: 1, path: "../design/x.md" },
+    { line: 1, path: "./a.ts" },
+    { line: 1, path: "../../law" },
   ]);
 });

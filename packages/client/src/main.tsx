@@ -40,9 +40,12 @@ import { routeResolution, router } from "./routes/router.tsx";
 import "./styles/index.ts";
 
 // EVERY dev-only instrument install, behind the literal import.meta.env.DEV the bundler constant-folds —
-// so none of these modules (nor anything only they reach) lands in the production output at all. Both are
-// dynamic imports rather than static ones for the same reason: a static import would put the graph back in
-// the entry chunk in dev, and — for the agent handles — in prod too.
+// so the instruments (the long-task tracer and the agent handles) and anything only they reach land in no
+// production chunk at all. `compose/config-sections.ts` is the exception: it is production code that
+// `compose/authed-app.tsx` imports into its lazy chunk, loaded here early only for agent navigation.
+// `pnpm check:boot-chunk` holds this against the real build (`DEV_ONLY_INSTRUMENTS`). All three are dynamic
+// imports rather than static ones for the same reason: a static import would put the graph back in the entry
+// chunk in dev, and — for the agent handles — in prod too.
 //
 // THE AGENT HANDLES ARE HERE, NOT AT THE END OF THIS FILE (#433). `installAgentDebugHandle` always no-op'd
 // outside dev, but its three implementations were BUILT at that call site — so `agent-nav`/`agent-seed`/
