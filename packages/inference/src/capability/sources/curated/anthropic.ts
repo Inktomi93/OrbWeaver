@@ -89,10 +89,9 @@ export const anthropicRows = [
     generation: {
       reasoning: {
         // Thinking CANNOT be disabled at any effort (Opus 5 allows it at `high` or below): `{type:"disabled"}` and a
-        // `budget_tokens` form both 400, so the funnel clamps an off/absent effort UP with `reasoning_mandatory_clamp`.
-        // Effort is the only depth control, and the model's own default is `medium` (Opus 5's is `high`).
+        // `budget_tokens` form both 400, so the funnel clamps an explicit `none` UP with `reasoning_mandatory_clamp`.
+        // Effort is the only depth control; an unset effort takes the house default (`ADAPTIVE_DEFAULT_EFFORT`).
         mandatory: true,
-        defaultEffort: "medium",
       },
       // Forced `tool_choice` (`any` / `tool`) 400s on this model; Opus 5 accepts both.
       // A `tools` cell restates `parallel`: a sub-fact alone is refused at parse (the cell means "accepts tools[]").
@@ -104,7 +103,7 @@ export const anthropicRows = [
     evidence: {
       tier: "curated",
       dated: "2026-09-22",
-      cite: 'live 2026-09-22 direct claude-opus-5-5: thinking.type disabled -> 400 "not supported for this model" (req_011CfKDSu4dFAHQSAt8Sttn6); tool_choice any -> 400 (req_011CfKDSuxTCH6PtrxUkqCvf); OpenRouter anthropic/claude-opus-5.5 tool_choice required -> upstream 400 (req_011CfKDWYL4K21BXuXPJ4eKU). Default effort medium per Anthropic model-migration docs',
+      cite: 'live 2026-09-22 direct claude-opus-5-5: thinking.type disabled -> 400 "not supported for this model" (req_011CfKDSu4dFAHQSAt8Sttn6); tool_choice any -> 400 (req_011CfKDSuxTCH6PtrxUkqCvf); OpenRouter anthropic/claude-opus-5.5 tool_choice required -> upstream 400 (req_011CfKDWYL4K21BXuXPJ4eKU)',
     },
   },
   {

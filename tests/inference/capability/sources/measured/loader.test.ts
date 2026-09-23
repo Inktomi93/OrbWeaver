@@ -75,13 +75,72 @@ function viaOpenRouter(model: string, supportedParameters: readonly string[], fa
   return out.capability.generation;
 }
 
-test("measuredRows matches per (model × provider): the OR opus-5 / opus-4.8 rows reach only their ids on the openrouter route", () => {
-  expect(measuredRows({ model: "anthropic/claude-opus-5", ...OR_ROUTE })).toHaveLength(1);
-  expect(measuredRows({ model: "anthropic/claude-opus-4.8", ...OR_ROUTE })).toHaveLength(1);
-  // The same ids on the DIRECT wire, and a sibling id on the OR route, get nothing — the whole point of the matcher.
+test("measuredRows matches per (model × provider): each OR row reaches only its ids on the openrouter route", () => {
+  const stated = (model: string): string[] => measuredRows({ model, ...OR_ROUTE }).flatMap((row) => Object.keys(row.generation ?? {}));
+  expect(stated("anthropic/claude-opus-5")).toEqual(["sampling", "reasoning"]);
+  expect(stated("anthropic/claude-opus-4.8")).toEqual(["sampling", "reasoning"]);
+  expect(stated("anthropic/claude-fable-5")).toEqual(["reasoning"]);
+  // The same ids on the DIRECT wire, and a non-adaptive sibling on the OR route, get nothing — the whole point of the matcher.
   expect(measuredRows({ model: "claude-opus-5", ...DIRECT_ANTHROPIC })).toEqual([]);
   expect(measuredRows({ model: "anthropic/claude-haiku-4.5", ...OR_ROUTE })).toEqual([]);
-  expect(measuredRows({ model: "anthropic/claude-fable-5", ...OR_ROUTE })).toEqual([]);
+});
+
+// ── the default effort on the OpenRouter route ───────────────────────────────────────────────────────────
+// The catalog's reasoning objects, verbatim from the live catalog (2026-09-23). OR's catalog carries no thinking
+// type, so the advertised tier spells every one `effort`; the measured row restores `adaptive` for the Claude ids
+// whose upstream echo shows adaptive thinking, and the house default effort follows the capability, not the route.
+
+function orReasoningEntry(id: string, reasoning: NonNullable<ModelCatalogEntry["reasoning"]>): ModelCatalogEntry {
+  return { ...orEntry(id, OPUS5_ADVERTISED), reasoning };
+}
+
+function viaOpenRouterCatalog(entry: ModelCatalogEntry, family: "anthropic" | "openai" | "google"): GenerationCapability {
+  const query = { model: entry.id, ...OR_ROUTE };
+  const out = synthesizeCapability("generation", family, {
+    curated: curatedRows(query),
+    advertised: advertisedFromOpenRouter(entry),
+    measured: measuredRows(query),
+  });
+  if (out.capability.kind !== "generation") {
+    throw new Error("expected a generation capability");
+  }
+  return out.capability.generation;
+}
+
+const CLAUDE_LADDER = ["max", "xhigh", "high", "medium", "low"];
+
+test("OR Claude with nothing set runs adaptive at high, even where the catalog says off by default (opus-4.8)", () => {
+  for (const entry of [
+    orReasoningEntry("anthropic/claude-opus-4.8", { mandatory: false, defaultEnabled: false, supportedEfforts: CLAUDE_LADDER, defaultEffort: "high" }),
+    orReasoningEntry("anthropic/claude-opus-5", { mandatory: false, defaultEnabled: true, supportedEfforts: CLAUDE_LADDER, defaultEffort: "high" }),
+    orReasoningEntry("anthropic/claude-fable-5.1", { mandatory: true, supportedEfforts: CLAUDE_LADDER, defaultEffort: "high" }),
+  ]) {
+    const gen = viaOpenRouterCatalog(entry, "anthropic");
+    expect(resolveChat({}, gen).reasoning, entry.id).toMatchObject({ mode: "adaptive", enabled: true, effort: "high" });
+  }
+});
+
+test("OR OpenAI / Gemini keep the catalog's own default: gpt-5.4-mini stays off, gemini-3.5-flash stays at medium", () => {
+  const gpt = viaOpenRouterCatalog(
+    orReasoningEntry("openai/gpt-5.4-mini", {
+      mandatory: false,
+      defaultEnabled: false,
+      supportedEfforts: ["xhigh", "high", "medium", "low", "none"],
+      defaultEffort: "medium",
+    }),
+    "openai",
+  );
+  expect(resolveChat({}, gpt).reasoning).toMatchObject({ mode: "effort", enabled: false });
+  const gemini = viaOpenRouterCatalog(
+    orReasoningEntry("google/gemini-3.5-flash", {
+      mandatory: true,
+      defaultEnabled: true,
+      supportedEfforts: ["high", "medium", "low", "minimal"],
+      defaultEffort: "medium",
+    }),
+    "google",
+  );
+  expect(resolveChat({}, gemini).reasoning).toMatchObject({ mode: "effort", enabled: true, effort: "medium" });
 });
 
 test("B3: anthropic/claude-opus-5 via OpenRouter resolves an EMPTY sampling set although OR advertises temperature", () => {

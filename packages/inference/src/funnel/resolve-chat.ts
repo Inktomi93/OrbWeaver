@@ -13,6 +13,7 @@ import { acceptsMidConversationSystem, EFFORT_LEVELS, reasoningReplayOf } from "
 import type { CarryReasoning, UserIntent } from "@orb/contracts/preset";
 import { CARRY_REASONING_DEFAULT, QUALITY_EFFORT, QUALITY_LEVELS, QUALITY_SAMPLING } from "@orb/contracts/preset";
 import type { DynamicContextChannel, ResolvedChatKnobs, ResolvedReasoning, ResolvedSampling, ResolvedWarning } from "../contract/resolve.ts";
+import { ADAPTIVE_DEFAULT_EFFORT } from "../contract/resolve.ts";
 
 const EFFORT_OFF = "none";
 const ADAPTIVE_BUDGET_WARNING = "reasoning budget ignored: adaptive model takes effort only (an explicit budget 400s the model)";
@@ -56,9 +57,10 @@ function resolveFlag<T>(label: AdjustedKnob, value: T | undefined, supported: bo
   return value;
 }
 
-// Effort-default precedence: explicit user > quality-derived > the model's OWN advertised `defaultEffort` >
-// house default (none). The model default only fills the gap when the user picked neither an effort nor a
-// quality, and never on an off-by-default model.
+// Effort-default precedence: explicit user > quality-derived > the house default for a model that supports
+// adaptive thinking > the catalog-advertised default for any other model (OpenAI/Gemini reasoning on OpenRouter)
+// > none. The house default keys on the adaptive capability alone, never on a model family, so it is the same on
+// every route; the advertised default never fills an off-by-default model.
 function effectiveEffort(params: UserIntent, capability: GenerationCapability): UserIntent["effort"] {
   if (params.effort !== undefined) {
     return params.effort;
@@ -66,7 +68,11 @@ function effectiveEffort(params: UserIntent, capability: GenerationCapability): 
   if (params.quality !== undefined) {
     return QUALITY_EFFORT[params.quality];
   }
-  return capability.reasoning.defaultEnabled === false ? undefined : capability.reasoning.defaultEffort;
+  const r = capability.reasoning;
+  if (r.mode === "adaptive") {
+    return ADAPTIVE_DEFAULT_EFFORT;
+  }
+  return r.defaultEnabled === false ? undefined : r.defaultEffort;
 }
 
 // The lowest-effort member of the model's list by the canonical `EFFORT_LEVELS` order (OR reports

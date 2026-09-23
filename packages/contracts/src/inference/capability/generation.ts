@@ -84,6 +84,9 @@ export const reasoningCapabilitySchema = z.object({
   displayModes: z.array(reasoningDisplayModeSchema).optional(),
   /** Reasoning cannot be disabled — an `effort:'none'` intent is CLAMPED up at the funnel, never a 400. */
   mandatory: z.boolean().optional(),
+  /** The catalog's own default (OpenRouter `default_enabled` / `default_effort`). It fills an unset effort only
+   *  on a NON-adaptive model; an adaptive model takes the house default instead (`ADAPTIVE_DEFAULT_EFFORT`,
+   *  `@orb/inference`'s resolve contract). */
   defaultEnabled: z.boolean().optional(),
   defaultEffort: effortLevelSchema.optional(),
   /** What a REPLAYED prior reasoning block may carry on this wire (§8.8). Rides `EVIDENCE_TIERS` like every
