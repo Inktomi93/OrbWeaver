@@ -789,7 +789,7 @@ function turnCarriesTools(args: RunTurnPipelineArgs): boolean {
 
 // Tools ride only when names were gather-contributed AND the ops are wired AND capability.tools declares
 // support — attached-but-unsupported drops them (runs tool-less) and flags tools_unsupported. A tool-less
-// request carries no tools field. The offer is BACKEND-NEUTRAL (`docs/design/inference-tool-delivery.md`): the
+// request carries no tools field. The offer is BACKEND-NEUTRAL (D177): the
 // resolved set as definitions, the round ceiling, and ONE `execute` callback over the ONE execute path.
 // `@orb/inference` decides the delivery: an array wire declares them in `tools[]` and hands the calls back for
 // `runRecurseLoop` to execute; the Agent SDK mounts them as an MCP server, owns the loop, and calls `execute` per

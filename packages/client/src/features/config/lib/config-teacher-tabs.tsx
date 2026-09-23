@@ -1,4 +1,4 @@
-// The TEACHER's tab list (config-revamp-design.md §3.5/§7.2, #866 S3) — About · Applies · Learn on the
+// The TEACHER's tab list (#866 S3) — About · Applies · Learn on the
 // #860 bracket's FOOT rail, ids namespaced `config.*` (the `rpg.*` posture: `contextTab` stays an opaque
 // shared string; this file is where the spelling lives).
 //

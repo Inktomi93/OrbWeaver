@@ -1040,7 +1040,7 @@ test("PROSE GEOMETRY — the box scrolls at its cap, the refusal stays on screen
   await expect(status).not.toContainText("Not saved");
 });
 
-// ── THE {{note}} CARRIER REFUSAL (owner ruling 2026-08-08, option C of note-token-intent-history.md) ───
+// ── THE {{note}} CARRIER REFUSAL (owner ruling 2026-08-08, option C of) ───
 // `{{note}}` carries the injection's ENTIRE payload: `spliceProseTokens` is a replace, so a frame override
 // that dropped it ships `[Note from user: ]` with the host's note gone. That is now a WRITE REFUSAL, and this
 // is the rendered half — the same three-signal shape the over-cap regime above wears, because a save that

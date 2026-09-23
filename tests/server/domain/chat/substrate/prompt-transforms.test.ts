@@ -136,7 +136,7 @@ test("register is idempotent by id (a re-register replaces) and unregister remov
   expect(await reg.apply("user_input", CHAT, "x", {})).toEqual({ aborted: false, text: "x" });
 });
 
-// ── The TYPED ABORT (plugin-ui-plane §5.14, U6) — the outcome that is NOT the D53 skip ───────────────────────
+// ── The TYPED ABORT — the outcome that is NOT the D53 skip ───────────────────────
 // A skip means "this transform did not run, keep the draft and keep the turn"; an abort means "this transform
 // ran and says the turn must not happen". Collapsing them would make a hung transform indistinguishable from a
 // deliberate refusal, which is the one confusion this shape exists to prevent.

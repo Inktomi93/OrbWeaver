@@ -1,4 +1,4 @@
-// §4 #7 — THE CLOCK'S METER (B9, interaction-direction-spec §7.3 B9): the room-facing half of the
+// §4 #7 — THE CLOCK'S METER: the room-facing half of the
 // `clockFires` preset. The preset's R1 counts a fill up one step per beat and publishes the threshold it
 // fills TO; this renders that pair as a `SegmentedClock` beside the transcript, so a "clock fires when full"
 // room shows its countdown filling in place instead of only the arm's result when it lands.

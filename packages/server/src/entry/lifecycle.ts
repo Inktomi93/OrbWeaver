@@ -197,7 +197,7 @@ function scheduleInterval(fn: () => void, ms: number): () => void {
  *  oversight. This route consults no `AUTH_FALLBACK`: widening it would make the knob admit an
  *  un-credentialed owner-PASSWORD claim on a box whose operator set `AUTH_FALLBACK=deny`, which is the one
  *  property the knob promises it cannot do. A containerized local deploy sets `LOCAL_INITIAL_PASSWORD`
- *  instead (containerize-prod-image-spec.md §3.2 — already its documented state). */
+ *  instead (docs/plans/containerize/design.md — already its documented state). */
 function buildLocalAuthDeps(sessions: SessionsService): {
   authenticate: LocalAuthenticator;
   firstRun: FirstRunRouteDeps;

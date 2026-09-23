@@ -1,4 +1,4 @@
-// Tier-4 contract home for the COLLECTION contributor seam (config-rail-spec.md §2 · stickler review
+// Tier-4 contract home for the COLLECTION contributor seam (stickler review
 // 2026-08-03 §4) — the ELEVENTH contributor family: one object LIBRARY
 // (tags · regex scripts · later world-info) contributed to the Configuration workspace by its owning
 // feature. It binds NO state-owned vocabulary (kind ids are host-opaque strings, member ids are opaque at
@@ -22,7 +22,7 @@
 // ROOM-TIER BOUNDARY: every collection here is a USER-TIER library. Room-tier overrides (a per-chat preset
 // binding, per-chat injections) never ride this seam — they stay on the chat context panel's machinery.
 //
-// IDENTITY LIVES ON THE GROUP (config-revamp-design.md §3.1, #866 S1 — owner fork F-1 closed the tuple): a
+// IDENTITY LIVES ON THE GROUP (#866 S1 — owner fork F-1 closed the tuple): a
 // collection is the `collection` BODY of a `ConfigGroupDefinition`, so `id · label · icon · order · blurb`
 // lifted onto that state-owned base (`blurb` IS the group's `description`) and this contract keeps only what
 // the library DOES. It stays tier 4 because it still binds no state vocabulary: member ids are opaque at the

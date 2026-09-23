@@ -331,7 +331,7 @@ export interface EditMessageParams extends MessageScopedParams {
 
 /**
  * `applyProseRewrite` — HOST-only. Lands an automation prose audit's CONFIRMED rewrite of one reply
- * (interaction-direction-spec §7 C3), as a NEW VARIANT of the audited slot, selected.
+ * as a NEW VARIANT of the audited slot, selected.
  *
  * WHY IT IS ITS OWN VERB and not an arm of `editMessage`, which also writes caller text: the two differ on
  * every axis that decides whether a machine may be given the door.

@@ -1,4 +1,4 @@
-// image-detail-body CT (interaction-direction-spec.md §7 B5) — the lightbox. The provenance strip shows
+// image-detail-body CT — the lightbox. The provenance strip shows
 // readProvenance data; Set-as-background resolves the asset (assets.resolveBlobRefs) and writes the ONE
 // applier (chat.setChatBackground) with the resolved hash/mime; Edit hands off to the edit body on the same
 // asset (the mini-host swaps bodies off openModal).

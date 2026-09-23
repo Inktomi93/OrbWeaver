@@ -4,7 +4,7 @@
 // continuation stub (a history with no trailing USER row — continue-mode, or a transcript ending in tool
 // results), and the tail join must match the backend comparator's user-run joiner. These pins moved here
 // VERBATIM from the compose bridge suite when the split moved into @orb/inference
-// (docs/design/inference-tool-delivery.md); the assertions are unchanged.
+// (D177); the assertions are unchanged.
 
 import type { ChatHistoryMessage } from "@orb/inference";
 import { AGENT_CONTINUATION_PROMPT_STUB, AGENT_PROMPT_TAIL_JOINER } from "@orb/inference";

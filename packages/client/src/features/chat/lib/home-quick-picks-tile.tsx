@@ -39,7 +39,7 @@ const QUICK_PICKS_SKELETON_ROWS = 6;
  *  `lh`, so each one moves the box twice per row: `--leading-title` went from the ratio `1.35` to
  *  `round(1.375rem, 1px)` (the name, `voice="promoted"` `lines={2}`), and the `prose` modifier went from
  *  `leading-body` (`1.55`) to the newly minted `leading-label-relaxed`, `round(1.25rem, 1px)` (the pitch,
- *  `lines={2}`). Whole-pixel line boxes are the POINT of that pass (docs/design/integer-line-boxes.md), so
+ *  `lines={2}`). Whole-pixel line boxes are the POINT of that pass (docs/law/integer-line-boxes.md), so
  *  the settled box is the correct one and the declaration is what was stale. Taken the way this note
  *  demands, from the `#177` CT's own printed table: `chat.quickPicks  reserved 414.00  settled 416.00`
  *  (the tile box; the band above the body is a constant 40px, so the BODY reading is 374 → 376). */

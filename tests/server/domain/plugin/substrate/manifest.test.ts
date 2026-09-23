@@ -63,7 +63,7 @@ describe("parseBundle — strict entry allow-list (traversal impossible by const
   });
 });
 
-describe("parseBundle — the OPTIONAL third entry (plugin-ui-plane #679 U4)", () => {
+describe("parseBundle — the OPTIONAL third entry (U4)", () => {
   const uiManifest = { ...VALID_MANIFEST, capabilities: ["chat.read", "ui.surface"], uiEntry: "ui.js" };
   const uiSource = "orb.ui(1).render('panel', { kind: 'text', value: 'hi' });";
 

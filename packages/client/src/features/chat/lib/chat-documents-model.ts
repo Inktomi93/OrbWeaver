@@ -1,7 +1,7 @@
 // The per-chat DOCUMENTS rack's pure model — the D85 visibility write's set arithmetic, the source-chip
 // vocabulary, the detachability test, and the picker's offer set. Zero I/O, zero React: every value is a
 // function of what the rack already fetched, so the section stays thin and these rules are unit-tested in
-// isolation (databank-surface-spec §9).
+// isolation.
 //
 // WHY THIS FEATURE OWNS IT: chat, not databank. `features/chat/lib/databank-settings-section.tsx` is the
 // landed precedent — "chat owns the {{databank}} slot's consumption, so it lands here" — and per-chat

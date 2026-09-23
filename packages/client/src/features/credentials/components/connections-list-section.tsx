@@ -1,6 +1,6 @@
 // The CONNECTIONS section (Settings → Connections) — the user's connection rows: label · provider · model ·
 // key, the Model roles each row may serve, the background switch, and a row MENU carrying §5.3a's
-// no-defaults survivability actions. Owns its own `QueryBoundary` (config-revamp-design.md §6.8 — one
+// no-defaults survivability actions. Owns its own `QueryBoundary` (one
 // contributed section per read).
 //
 // THE BADGE RAIL SITS OUTSIDE THE ROW BODY, ON PURPOSE. `ListRow`'s `leading`/`markers`/`subtitleLead` all

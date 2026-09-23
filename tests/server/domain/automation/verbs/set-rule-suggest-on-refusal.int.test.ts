@@ -1,4 +1,4 @@
-// verb: setRuleSuggestOnRefusal — RULED F4's per-rule OPT-OUT (interaction-direction-spec row B4).
+// verb: setRuleSuggestOnRefusal — RULED F4's per-rule OPT-OUT.
 //
 // What these pins hold, and why each one is not a tautology:
 //   · the column DEFAULTS ON, so landing the knob changed nothing for any rule that already exists — the

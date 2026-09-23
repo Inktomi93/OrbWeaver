@@ -1,4 +1,4 @@
-// The world-info MEMBER EDITOR — CONTENT for one selected book (config-rail-spec.md §2 C-7). The SAME
+// The world-info MEMBER EDITOR — CONTENT for one selected book. The SAME
 // two-level editor the rail section's CONTENT mounted, unchanged: the book view (header + entry list + New
 // entry) and, when an entry is selected, the full-fidelity entry editor drilled in the same region. Only its
 // HOST moved — it is a collection's `detail` now, not a section's `content`.

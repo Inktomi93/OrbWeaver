@@ -19,14 +19,7 @@ export interface AbsentByDesignCitation {
 }
 
 /** A committed doc cite for a generated path whose absence is the expected clean-checkout state. */
-export const GITIGNORED_ABSENT: Readonly<Record<string, AbsentByDesignCitation>> = {
-  "packages/client/dist": {
-    why:
-      "the client build output is present only after a build and is ignored by the literal `dist/` rule; " +
-      "docs/design/containerize-build-plan.md quotes the matching .dockerignore entry. Ends when that plan stops citing the output.",
-    cite: ".dockerignore",
-  },
-};
+export const GITIGNORED_ABSENT: Readonly<Record<string, AbsentByDesignCitation>> = {};
 
 type CatalogDoc = Readonly<Record<string, unknown>>;
 

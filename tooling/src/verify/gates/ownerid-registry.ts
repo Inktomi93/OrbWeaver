@@ -88,7 +88,7 @@ export const OWNERID_CLASSIFICATIONS: Readonly<Record<string, OwnershipClassific
   owner_stats: { why: "D23 parentless per-user aggregate" },
   stats_canon_versions: { why: "D23 parentless per-user aggregate — monotonic rebuild ownership token" },
   automation_owner_budgets: {
-    why: "D23 parentless per-user aggregate + D46 — C5's owner-GLOBAL fire-rate ceiling: the scope belt for chat-less rules, which no chat can key. The owner IS the scope here — the row has no parent to derive one from — so the stamp is the identity, not a redundant denormalization (interaction-direction-spec §3-S3)",
+    why: "D23 parentless per-user aggregate + D46 — C5's owner-GLOBAL fire-rate ceiling: the scope belt for chat-less rules, which no chat can key. The owner IS the scope here — the row has no parent to derive one from — so the stamp is the identity, not a redundant denormalization",
   },
   daily_stats: { why: "D23 parentless per-user aggregate (×day)" },
   embed_generations: {

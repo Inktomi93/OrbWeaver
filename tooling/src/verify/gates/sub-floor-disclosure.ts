@@ -1,4 +1,4 @@
-// Policy: sub-floor-disclosure (#884 C2; docs/design/885-884-boundary-reservation-and-touch-floor.md §2).
+// Policy: sub-floor-disclosure (#884 C2).
 // The collapsible trigger's default is `control` (the pointer-conditional `--spacing-control-sm` floor);
 // `size="text"` is the SUB-FLOOR opt-out for a disclosure in running content, and every mount of it owes a
 // reasoned waiver — the recurring defect this closes was the floor arm silently not taken (the this-chat

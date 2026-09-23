@@ -46,7 +46,7 @@ export const CHOICE_WAIT_FOR_TURN = "Wait for the current reply to finish, then 
 /** A choice button in a surface with no send capability (a preview / read-only mount). */
 export const CHOICE_NEEDS_LIVE_CHAT = "Open the chat to pick a choice";
 
-// S1 — the in-chat CONTROL band (interaction-direction-spec.md §3-S1). Its `send` arm reuses
+// S1 — the in-chat CONTROL band. Its `send` arm reuses
 // CHOICE_WAIT_FOR_TURN above (the same fact, the same words: a turn is in flight, pick when it settles);
 // these two are the copy the band adds. `compose` needs none — it is never disabled.
 
@@ -95,7 +95,7 @@ export const CONTROL_CHIPS_COLLAPSE = "Show fewer";
  *  the disclosure alone — so what it reveals is the WHOLE row rather than the remainder past the display
  *  cap, and the `+N more` grammar would be naming the wrong number. Reads as the pair of
  *  {@link CONTROL_CHIPS_COLLAPSE} ("Show N controls" / "Show fewer"), the same verb-led disclosure register
- *  the Characters pane's `More filters` / `Fewer filters` uses (docs/design/vocabulary-map.md). */
+ *  the Characters pane's `More filters` / `Fewer filters` uses (docs/law/vocabulary-map.md). */
 export function controlStripNotice(count: number): string {
   return `Show ${String(count)} ${count === 1 ? "control" : "controls"}`;
 }

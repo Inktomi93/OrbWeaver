@@ -199,7 +199,7 @@ export type ChatDocumentVisibility = z.infer<typeof chatDocumentVisibilitySchema
 /** Empty ⇒ nothing hidden; the widened union is retrieved in full (the off path). */
 export const DEFAULT_CHAT_DOCUMENT_VISIBILITY: ChatDocumentVisibility = { hidden: [] };
 
-// ── WHY a document is active in a chat (D-2, databank-surface-spec §11) ──────────────────────────────────
+// ── WHY a document is active in a chat ──────────────────────────────────
 // The D85 union is THREE junction reads (`databank/persistence/scope.ts`): every present human member's
 // GLOBAL documents ∪ the chat's directly-attached documents ∪ the present roster characters' documents. The
 // resolver ran all three separately and then threw the provenance away, so the panel could say a document

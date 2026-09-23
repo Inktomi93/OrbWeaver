@@ -7,8 +7,8 @@ updated: 2026-09-13
 # Authoring a final structural policy
 
 This is the mechanism-first guide for `defineGate`. Start with the
-[reading router](../../../../docs/design/gate-runtime-read-first.md), then the standing contract in
-[gate-runtime-standardization.md](../../../../docs/design/gate-runtime-standardization.md) and the relevant source
+[reading router](../../../../docs/law/gate-runtime-read-first.md), then the standing contract in
+[gate-runtime-standardization.md](../../../../docs/law/gate-runtime-standardization.md) and the relevant source
 headers. The standing contract governs; this guide connects authoring decisions to their implementation and proof.
 
 The legacy guide's descriptor fields, private exemptions, fixture ritual and exemplar
@@ -208,8 +208,7 @@ owes evidence: a value passed through a variable remains a carrier; do not inher
 
 A real-corpus virtual-overlay liveness control and the conversion differential are separate from declared conformance.
 The differential compares old and new findings, populations and tool errors over the same bytes, classifies each change,
-and records per-arm coverage after a split. An empty real-corpus result alone proves no bite. See standing law §6 and the
-[playbook](../../../../docs/design/gate-runtime-orchestrator-playbook.md) for the complete proof ownership and sequence.
+and records per-arm coverage after a split. An empty real-corpus result alone proves no bite. See standing law §6 for the complete proof ownership and sequence.
 
 ## 6. Harness and fixture boundaries
 
@@ -257,8 +256,7 @@ positive at the exact line with its reason. Never run a tree-wide fix-all; the l
 
 ## 8. Verification and its limits
 
-Use the [playbook's verification section](../../../../docs/design/gate-runtime-orchestrator-playbook.md#6-coordinated-verification-and-serialization)
-and lane-standing facts for command selection and shared-host serialization. Preserve declared conformance, family
+Use the lane-standing facts for command selection and shared-host serialization. Preserve declared conformance, family
 controls, per-policy structure delta, population counts, authority consumption and withholding evidence. Run the affected
 native programs selected by generated world/config intent. Read completed results, including errors and withheld owners;
 a zero exit from an uninvoked library is not evidence. Use the verifier CLI, never execute an `ops/*.ts` library as a command.

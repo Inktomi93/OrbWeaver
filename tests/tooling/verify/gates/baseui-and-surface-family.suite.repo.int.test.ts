@@ -290,7 +290,7 @@ describe("§4.5 — the baseui-read ledger consumers all refuse, and the phase d
     });
 
     test(`${policy.id}: an EMPTY ledger withholds too — the THIRD json status, and it is not "missing"`, ({ scratch }) => {
-      // `resource-policy-contract.md` §3.6 asks one pin per declared resource per REACHABLE non-ready
+      // `docs/law/resource-policy-contract.md` §3.6 asks one pin per declared resource per REACHABLE non-ready
       // status, and `empty` is a distinct `json` fact by that document's own §2 table: the reader answers
       // `missing` for an absent path and `empty` for a zero-byte one (`ops/resource-reader.ts#read`
       // returns `unavailable("empty", …)` on `value.length === 0`, BEFORE the parser is reached, so this

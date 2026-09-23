@@ -269,7 +269,7 @@ test("an empty selected intersection is not-applicable and missing source popula
 // resource population` on a fact whose paths outran the narrowed set — a TOOL ERROR on the ordinary
 // `--changed` path, measured on both `baseui-derives-not-respells` siblings at `028e278ee`. A RUNNING owner
 // now receives its COMPLETE declared resource population; the fixture reads both, as obligation 1 of
-// `docs/design/resource-policy-contract.md` requires of every resource policy.
+// `docs/law/resource-policy-contract.md` requires of every resource policy.
 test("resource identities join requested selection and resource-only findings are file-anchored", () => {
   const project = projectOf({ "packages/server/src/unrelated.ts": "export const unrelated = true;\n" });
   let seenResources: readonly string[] = [];

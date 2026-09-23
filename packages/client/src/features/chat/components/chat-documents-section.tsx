@@ -1,5 +1,4 @@
 // The per-chat DOCUMENTS rack — "what feeds this room", and the D85 host visibility toggle
-// (databank-surface-spec §3.2/§6.3; the workboard item this lane exists to close).
 //
 // ONE COMPONENT, TWO DATA SHAPES, NO SEPARATE MEMBER MODE (`no-separate-reduced-modes`).
 // `databank.listActiveForChat` is member-readable by design — the active documents are ROOM-PUBLIC prompt

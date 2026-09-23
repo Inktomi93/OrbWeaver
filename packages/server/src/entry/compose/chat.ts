@@ -221,11 +221,11 @@ export interface ChatComposeInput {
   /** The injected rpg turn ops (rpg-design/05 §0) — OPTIONAL; absent wires `ChatContext.rpg` to null
    *  (byte-identical no-op). Built at the composition root over the rpg service + its standalone gather op. */
   readonly rpg?: ChatContext["rpg"] | undefined;
-  /** FOREIGN S2 teaching contributions (interaction-direction-spec §3-S2) — OPTIONAL; absent wires the
+  /** FOREIGN S2 teaching contributions — OPTIONAL; absent wires the
    *  registry to chat's own contribution alone (byte-identical no-op, the `rpg`/`expressions` precedent).
    *  Chat's own contributor is ALWAYS present, which is why the ctx field itself is not nullable. */
   readonly teaching?: ChatContext["teaching"] | undefined;
-  /** The per-turn PLUGIN-MACRO resolve (plugin-ui-plane §5.15, U6) — OPTIONAL; absent wires
+  /** The per-turn PLUGIN-MACRO resolve — OPTIONAL; absent wires
    *  `ChatContext.pluginMacros` to null (byte-identical no-op, the `rpg`/`expressions` precedent). Minted at the
    *  composition root as the plugin-macro registry's `resolveForTurn`, so chat and the plugin plane share ONE
    *  registry without either importing the other. */
@@ -397,7 +397,7 @@ function outOfBandChunks(events: readonly ChatEvent[]): TurnStreamChunk[] {
 
 /** The domain {@link TurnRequest} → the BACKEND-NEUTRAL {@link ChatTurnInput}. No wire branch lives here: how
  *  the history and the tools reach a backend (Agent SDK seed frames + an MCP server, or a history array + a
- *  `tools[]` declaration) is `@orb/inference`'s `toChatRequest` (`docs/design/inference-tool-delivery.md`). What
+ *  `tools[]` declaration) is `@orb/inference`'s `toChatRequest` (D177). What
  *  stays is this seam's own concern — the deployment's cache-depth FLOOR, layered onto SHAPE's depth. */
 function chatTurnInputOf(args: {
   readonly req: TurnRequest;
@@ -1316,7 +1316,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // Null ⇒ rpg not wired (byte-identical no-op — the `expressions`/`tools` precedent). The 5 injected rpg
     // turn ops fire at GATHER / preset-resolve / send-commit / turn-end.
     rpg: input.rpg ?? null,
-    // The S2 teaching registry (interaction-direction-spec §3-S2): chat's OWN contribution (the rpg-gather
+    // The S2 teaching registry: chat's OWN contribution (the rpg-gather
     // projection, order 0) plus whatever later rows wire in (C1's automation guidance is the next one).
     // Absent input ⇒ chat's alone ⇒ byte-identical, and the registry is never null so a game turn's state
     // block can never be silently dropped by a forgotten wiring.

@@ -161,8 +161,8 @@ export function DiscoverHitRow({ hit, rank }: { readonly hit: DiscoverHit; reado
  *  THE DOOR'S RECEDING INK IS STATED HERE, not by the `ghost` intent (#1249, 2026-09-02 — the #1141/#1244
  *  fork, third instance). P2-2 ruled this room reads as a DOOR and not as the section heading it used to
  *  look like: "left-aligned, muted, arrowed", and it got the muted half for free while `Button`'s `ghost`
- *  intent painted `text-muted-foreground`. 242bfaecb (#969,
- *  `docs/design/theme-pivot-foreground-contract.md`) flipped every transparent intent to `text-current` so a
+ *  intent painted `text-muted-foreground`. 242bfaecb (#969)
+ *  flipped every transparent intent to `text-current` so a
  *  transparent action inherits its host surface's paired ink — correct, and untouched here — and the door's
  *  own box went back to the body ink the ruling exists to keep it off (its CT's "is not painted in the body
  *  ink that made it read as a heading" went red on main).

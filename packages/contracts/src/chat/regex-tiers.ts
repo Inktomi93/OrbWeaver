@@ -134,7 +134,7 @@ export interface RegexTierGroupView {
    *
    * WHY IT IS OPTIONAL AND WHY ONLY ONE ARM EVER FILLS IT. Three of the four keys already carry their own
    * identity: `global` and `chat` ARE their words (`Everywhere` / `This chat` — a fixed vocabulary the
-   * client owns, `docs/design/vocabulary-map.md`), and `character:<id>` carries the seat id, which the
+   * client owns, `docs/law/vocabulary-map.md`), and `character:<id>` carries the seat id, which the
    * section resolves by an EXACT id match against the roster it already holds (`chat.getChat`). The bare
    * word `preset` carries nothing — and the only preset name a client can reach is the VIEWER's active one
    * (`chat-context-band.tsx`), which is NOT the preset this room assembles whenever the rpg GM redirect

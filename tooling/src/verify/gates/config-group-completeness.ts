@@ -1,11 +1,11 @@
-// Policy: config-group-completeness (client-architecture-lockdown.md §8 / §16 G4 · config-revamp-design.md
+// Policy: config-group-completeness (client-architecture-lockdown.md §8 / §16 G4 
 // §3.1 + §6.8) — the config-group registry's structural walls tsc cannot see. tsc forces the door Record
 // total over CONFIG_GROUP_IDS and (§6.8) types every non-collection group as a SKIMMER, so the arms the type
 // system owns are not here. What is here:
 //   CO-LOCATION — a `ConfigGroupDefinition` lives only in `features/*/lib/*-group.{ts,tsx}`, and a
 //     `CollectionContribution` only in `features/*/lib/*-collection.{ts,tsx}`;
 //   DUPLICATE ID — two group definitions claiming one id is a shadow def that rots green;
-//   LIFECYCLE-IS-DATA (config-rail-spec.md §3, D121-D) — a collection's `create` is `{label, useRun}` and a
+//   LIFECYCLE-IS-DATA — a collection's `create` is `{label, useRun}` and a
 //     declared `importFile` is `{label, accept, useRun}`: the HOST draws both affordances in its own chrome
 //     grammar, so the body declares data and never a rendered node;
 //   ORPHAN BODY — a co-located `CollectionContribution` no group's `body.collection` references is dead wire
@@ -64,7 +64,7 @@ const MESSAGE =
   "features/<owner>/lib/<id>-{group,collection}.{ts,tsx} home, a definition this policy cannot resolve to an authored " +
   "object literal, a duplicate group id, a collection whose `create`/`importFile` is not host-drawable DATA, a " +
   "collection body no group registers, or the config content host importing a feature's internals — " +
-  "client-architecture-lockdown.md §8 / config-revamp-design.md §6.8.";
+  "client-architecture-lockdown.md §8.";
 const FIX =
   "co-locate each definition and write it as an authored object literal; declare `create: { label, useRun }` and `importFile: { label, accept, useRun }` as data; register every collection body through its group's `body.collection`; read bodies off the registries in the host instead of importing a feature. For a deliberate exception, write an adjacent `@orb-waive config-group-completeness(<position>): <why + end condition>` — the position is the DECLARED NAME of the group or collection (`xCollection`), and on the host-import arm it is the keyword `import` that opens the offending declaration.";
 
@@ -326,7 +326,7 @@ export const gate = defineGate({
           'import type { ConfigGroupDefinition } from "../../../state/config-group-registry.ts";\nimport { xCollection } from "./x-collection.tsx";\nexport const xGroup: ConfigGroupDefinition = { id: "x", body: { collection: xCollection } };\n',
       },
       expect: { count: 1, token: "xCollection", messageIncludes: "lifecycle is not data" },
-      why: "a RENDERED `create` — the host draws the affordance in its own chrome grammar, so a body that renders one puts a second create grammar in the LIST (config-rail-spec.md §3)",
+      why: "a RENDERED `create` — the host draws the affordance in its own chrome grammar, so a body that renders one puts a second create grammar in the LIST",
     },
     {
       mode: "types",

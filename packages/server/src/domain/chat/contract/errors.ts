@@ -115,7 +115,7 @@ export const CHAT_OP_CODES = {
    *  canon untouched. Two codes rather than one because they tell a host two different stories about their
    *  own room, and "which thing moved" is exactly what makes a refusal actionable. */
   rewriteStale: "rewrite_stale",
-  /** A registered D50 prompt transform DELIBERATELY aborted the generation (plugin-ui-plane §5.14) — an
+  /** A registered D50 prompt transform DELIBERATELY aborted the generation — an
    *  automation `transform_draft` rule or a plugin returned `{abort}` instead of a draft. Deliberately NOT the
    *  D53 skip: a broken/slow transform is skipped silently and the turn proceeds, while this is a transform
    *  saying the turn must not happen, and the author is owed the difference. The reason string travels in the

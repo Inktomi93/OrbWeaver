@@ -231,7 +231,7 @@ export const TABLE_SCOPING_ROWS: readonly ScopingRow[] = [
   {
     table: "automation_rule_state",
     scope: "parent",
-    why: "S5 (C1) the run_analysis arm's plot state — scope derives ruleId → automation_rules (ownerId, chatId); D23-clean, no member/plugin read surface (interaction-direction-spec §3-S5.2).",
+    why: "S5 (C1) the run_analysis arm's plot state — scope derives ruleId → automation_rules (ownerId, chatId); D23-clean, no member/plugin read surface.",
   },
   {
     table: "message_reactions",

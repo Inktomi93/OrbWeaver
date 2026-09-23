@@ -4,7 +4,7 @@
 // table's row 3 prices the work queue by its defect-row count, and the reconciliation compares that same
 // count against the verifier report each section came from.
 //
-// WHY THESE CLAIMS NEEDED A READER AT ALL. `gate-runtime-read-first.md`'s cost table is a BUDGET a cold
+// WHY THESE CLAIMS NEEDED A READER AT ALL. `docs/law/gate-runtime-read-first.md`'s cost table is a BUDGET a cold
 // session commits to before it reads anything, and on 2026-09-12 **all eight of its sizes were stale** —
 // the law 139→180, the runbook 78→116, the roster 281→356, and the work queue by nearly SEVEN TIMES,
 // 25 KB against an actual 172. A 7x understatement in the one table whose entire purpose is telling a

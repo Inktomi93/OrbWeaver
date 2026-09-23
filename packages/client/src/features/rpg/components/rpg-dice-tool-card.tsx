@@ -1,5 +1,5 @@
-// rpg-dice-tool-card — what a `roll_dice` tool call looks like in the transcript (interaction-direction-spec.md
-// §7 row B8, "result = a tool-renderers contribution in-thread"). The IN-THREAD half of B8's checks: the roll
+// rpg-dice-tool-card — what a `roll_dice` tool call looks like in the transcript
+// (row B8, "result = a tool-renderers contribution in-thread"). The IN-THREAD half of B8's checks: the roll
 // is CANON (the `ToolCallRecord` on the committed variant IS the stamp — `contracts/rpg/tools.ts`), and this
 // draws it as a legible roll rather than the generic JSON block. rpg raises it; chat mounts it blind through
 // the `tool-renderers` registry; neither imports the other (the §6c residency rule).

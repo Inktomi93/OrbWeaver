@@ -32,7 +32,7 @@ export interface BuildTurnUserMacrosArgs {
   /** The GAME's authored macro defs (`rpg_games.config.userMacros`, via `ChatRpgOps.resolveUserMacros`) +
    *  the game's chat id. Absent ⇒ a non-game chat (byte-identical to preset-only). */
   readonly game?: UserMacroDefGroup | undefined;
-  /** The turn AUTHOR's PLUGIN macros (plugin-ui-plane §5.15, U6), already resolved to values by the plugin
+  /** The turn AUTHOR's PLUGIN macros, already resolved to values by the plugin
    *  plane (`ChatContext.pluginMacros`). A THIRD authoring home, and the only one whose names are HOST-assigned
    *  (`plugin_<slug'>_<name>`), which is why it needs no shadow policy: it cannot collide with a builtin, and a
    *  preset/game def that deliberately spells the same name simply wins by registering first. Absent ⇒ a chat

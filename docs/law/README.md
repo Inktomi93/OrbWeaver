@@ -26,8 +26,12 @@ The locked principles are the first section of Core-0, the enforcement catalog i
 | [Orbweaver — SillyTavern Feature-Gap Register](Core-ST-Feature-Gap-Register.md) | active |
 | [`@orb/tooling` — tooling-tree law](Core-Tooling-Law.md) | active |
 | [Docs and work items](docs-and-work.md) | active |
+| [Gate-runtime read first](gate-runtime-read-first.md) | active |
+| [Gate-runtime standardization law](gate-runtime-standardization.md) | active |
+| [Integer line boxes — the crispness doctrine (Law 1: the crisp type scale; Laws 2-4: §9-§12)](integer-line-boxes.md) | active |
 | [Knowledge cluster — the producer → store → consumer boundary](Knowledge-Cluster.md) | active |
 | [Motion & Animation Guide](motion-and-animation-guide.md) | active |
+| \[The resource-policy contract — what a closed-ResourceHost policy OWES (#2011, [gate-runtime-standardization.md](gate-runtime-standardization.md) §2 resource plane)]\(resource-policy-contract.md) | active |
 | [Orbweaver — Spine: Config, Settings, and Serialization](Spine-Config-and-Serialization.md) | active |
 | [Orbweaver — Spine: Identity, Auth, and Permission](Spine-Identity-and-Auth.md) | active |
 | [Orbweaver — Spine: Testing](Spine-Testing.md) | active |
@@ -45,3 +49,4 @@ The locked principles are the first section of Core-0, the enforcement catalog i
 | [UI-Primitives-and-Reuse](UI-Primitives-and-Reuse.md) | active |
 | [UI-Theming-and-Content](UI-Theming-and-Content.md) | active |
 | [Unified Verification Design](UNIFIED-VERIFICATION-DESIGN.md) | active |
+| [THE VOCABULARY MAP — one concept, one word](vocabulary-map.md) | active |

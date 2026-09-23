@@ -5,8 +5,7 @@
 // Raw JS in a template literal (no backticks / dollar-brace — see
 // _shared/browser.ts for why a string, not a function). Provenance + attribution: ops/walker.ts.
 // Composed by ops/hover.ts, NOT by COLLECT_SAMPLES_JS: this pass has a Node-side CDP round trip in
-// the middle of it. The shared predicate/vocabulary segment is ops/walker/state-paint.ts; the design
-// (mechanisms, classification, polarity) is docs/design/state-paint-census.md.
+// the middle of it. The shared predicate/vocabulary segment is ops/walker/state-paint.ts.
 //
 // THE PREFILTER IS THIS FILE'S; the round-trip argument behind it is stated once, in ops/hover.ts's
 // header. Keep only rules whose selector carries a `:hover` pseudo (UNESCAPED: Tailwind mints class

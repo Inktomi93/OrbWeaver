@@ -1,4 +1,4 @@
-// The EXTENSIONS rail section as ONE co-located definition (client-architecture-lockdown.md §6a; plugin-ui-plane
+// The EXTENSIONS rail section as ONE co-located definition (client-architecture-lockdown.md §6a 
 // #679 U5, §4.5b, seam 16) — the platform's full-page home, and the TENTH `SECTION_IDS` member.
 //
 // ONE RAIL ENTRY FOR THE PLATFORM, NEVER ONE PER PLUGIN (§4.5b). Two reasons, and both are load-bearing: rail

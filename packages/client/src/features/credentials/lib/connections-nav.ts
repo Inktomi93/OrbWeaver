@@ -1,7 +1,7 @@
 // The Connections group's nav entries — the ONE home for both ends of the anchor wiring (the
 // `workloads-jobs-nav.ts` precedent): each contribution def spells its `nav` from these and each section
 // body stamps `configAnchorId("connections", …)` from the same constant. The group is a `sections` skimmer
-// (config-revamp-design.md §6.8) — these three ARE its rows: the user's connection rows first (the unit every
+// — these three ARE its rows: the user's connection rows first (the unit every
 // role references), Model roles, then the saved-key reuse view (inference program §5.3a).
 
 import type { ConfigSubcategory } from "#state";

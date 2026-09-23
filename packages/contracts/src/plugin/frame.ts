@@ -1,5 +1,5 @@
 // @orb/contracts/plugin/frame — the wire for the PLUGIN-FRAME DOORWAY and the frame's postMessage BRIDGE
-// (plugin-ui-plane #679 U7, seam 13). Two separate boundaries live here because both are crossed by the same
+// (U7, seam 13). Two separate boundaries live here because both are crossed by the same
 // untrusted document and neither may be spelled twice:
 //
 //   1. THE DOORWAY (client ↔ server, HTTP). `POST /api/plugin-frame` mints a per-user handle for one registered

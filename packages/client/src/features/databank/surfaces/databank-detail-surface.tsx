@@ -1,4 +1,4 @@
-// The Databank CONTENT pane — the open document's detail (databank-surface-spec §6.2), or the teaching
+// The Databank CONTENT pane — the open document's detail, or the teaching
 // welcome when nothing is selected (an empty CONTENT pane reads as unbuilt: empty states are load-bearing),
 // or — on an EMPTY bank with the LIST on screen — nothing at all, because there the list's own empty state
 // owns the first step and the only Add door (#434; `DatabankWelcome`'s note states the whole rule).

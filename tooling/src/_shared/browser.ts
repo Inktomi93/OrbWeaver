@@ -246,7 +246,7 @@ export async function launchProbeSession(opts: ProbeLaunchOptions): Promise<Prob
 }
 
 /** ATTACH to a browser another connection owns — a stateful-session daemon's, over its debugging endpoint
- *  (docs/design/1208-instrument-substrate.md §3.4) — the ONE attach site (policy `tooling-browser-door`,
+ *  — the ONE attach site (policy `tooling-browser-door`,
  *  reviewed grant `browser-attach`). The returned session is shape-identical to a launched one so every consumer is oblivious, with
  *  two deliberate differences: its context is `owned: false` (a disconnect is not a takeover — the owner's
  *  page survives `closeProbeSession`; the phase-0 spike's `second.close()` receipt), and the owner's shims

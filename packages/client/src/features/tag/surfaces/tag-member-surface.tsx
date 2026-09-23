@@ -1,4 +1,4 @@
-// The tag MEMBER EDITOR — CONTENT for one selected tag (config-rail-spec.md §2 C-7 / fork F-11 arm (a)).
+// The tag MEMBER EDITOR — CONTENT for one selected tag (C-7 / fork F-11 arm (a)).
 //
 // This is the other half of the row split: every EDITING control that used to be crammed into the 330px
 // settings row lives here, at full width, with room for its label — rename · both colour pickers · folder

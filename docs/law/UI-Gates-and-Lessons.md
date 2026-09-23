@@ -314,7 +314,7 @@ The 2026-06 re-verification write-up is the archaeology record; the standing dec
 
 ## 12. Authoring a gate
 
-Use `docs/design/gate-runtime-read-first.md` for the reading order and
+Use `docs/law/gate-runtime-read-first.md` for the reading order and
 `tooling/src/verify/gates/GATE-AUTHORING.md` for final contract, coupled sites, central authority and proof ownership.
 Scaffold with one of the noninteractive family forms in `GATE-AUTHORING.md` §0; bare `pnpm gate:new <name>` refuses.
 Verify the actual generated shape against the standing contract.

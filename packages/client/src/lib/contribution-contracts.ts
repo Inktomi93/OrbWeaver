@@ -62,7 +62,7 @@ export type ChatSurfaceContribution =
 
 // ── The "This chat" tab's SECTION seam (§6c — the THIRTEENTH contributor family) ───────────────────────
 // The §6c families above graft a whole TAB (`contextTabs`), the whole PANE (`regions`), or a spot in the
-// transcript (surface anchors). None of them could express what the interaction-direction-spec §7 B2 IA
+// transcript (surface anchors). None of them could express what the B2 IA
 // asks for: ONE MORE SECTION inside an existing tab body — automation's Rules beside Injections /
 // Documents / Host controls in "This chat". Chat's `CommittedSettingsTab` is a chat-feature component and
 // `client-features-no-cross` forbids it importing automation's surface at runtime, so the IA was
@@ -107,7 +107,7 @@ interface ChatSettingsHostControlsContribution {
  *  their own state at every call site with zero casts. */
 export type ChatSettingsSectionContribution = ChatSettingsHostControlsContribution;
 
-// ── S1: the in-chat CONTROL seam (interaction-direction-spec.md §3-S1) ────────────────────────────────
+// ── S1: the in-chat CONTROL seam ────────────────────────────────
 // ONE registry + behavior contract for TRANSIENT interactive controls near the transcript/composer — the
 // generalization of the click/consume contract `choice-send-provider.tsx` already spells for the `:::choices`
 // fence (own `useSendMessage`, busy from the shared turn phase, a compose default the reader can edit).
@@ -414,7 +414,7 @@ export interface PaletteCommandRow {
  *  is fixed vocabulary (its rows are known at door-assembly and it can never fan), while a source produces its
  *  rows from LIVE data inside its own fiber, so the count and content change with the caller's own state. That
  *  is what turns each plugin-registered command into its OWN first-class, searchable palette row rather than a
- *  single `/plugin <slug> <cmd>` sub-dispatch (plugin-ui-plane #679 U8, §4.5/§5 row 9).
+ *  single `/plugin <slug> <cmd>` sub-dispatch.
  *
  *  `useRows` is a HOOK — the host renders each source as its own component so the hook lives in its own fiber
  *  (never a hooks-in-a-loop at the palette). It runs unconditionally; an empty return renders no group, so a

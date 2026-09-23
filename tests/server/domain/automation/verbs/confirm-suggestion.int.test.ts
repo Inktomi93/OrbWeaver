@@ -1,4 +1,4 @@
-// S4 — THE AUTHORITY MATRIX (interaction-direction-spec §3-S4 + the §7 acceptance matrix). Every row here is
+// S4 — THE AUTHORITY MATRIX (+ the §7 acceptance matrix). Every row here is
 // a rule the spec states in prose; the point of the suite is that the prose is now mechanical.
 //
 //   the ask is RAISED, not run      — a confirm-first arm stashes at fire time; the op never fires

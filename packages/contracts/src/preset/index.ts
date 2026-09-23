@@ -113,7 +113,7 @@ const claudeEnvSchema = z.record(z.string(), z.string().nullable()).superRefine(
   }
 });
 /** The cap on an authored TURN-INJECTION TEMPLATE — the ONE number for that whole class (owner ruling
- *  2026-08-08, option 2 of `docs/design/parked-options-tag-contract.md` §2). Two schemas wear it and they are
+ *  2026-08-08, option 2). Two schemas wear it and they are
  *  the same kind of thing: a `formatStrings` slot and a `guidedActions.*.prompt` are both macro-carrying text
  *  spliced into a turn. It supersedes the old `MAX_FORMAT_STRING_LENGTH` (same value, renamed rather than aliased —
  *  a second spelling of one cap is the drift this constant exists to prevent), and the guided prompt was
@@ -863,7 +863,7 @@ interface FormatCarrierToken {
  *  everywhere in this schema.
  *
  *  THE LINE IS "DELETES CONTENT", NOT "IS A FORMAT STRING" (owner ruling 2026-08-08, option C of
- *  `docs/design/note-token-intent-history.md` — this clause previously read "DELIBERATELY DISTINCT from
+ *  this clause previously read "DELIBERATELY DISTINCT from
  *  PROSE-1's `requiredMacros`", which was true of the `requiredMacros` set as it then stood and false of
  *  `{{note}}`). A carrier is any token whose absence deletes the payload, wherever it is stored: the two
  *  injection note frames are carriers too and refuse alongside these, from `PROSE_CARRIER_TOKENS` beside the
@@ -2323,8 +2323,8 @@ export interface ProseCarrierToken {
   readonly token: string;
 }
 
-/** PROSE CARRIER slots — the write guard's SECOND enumeration (owner ruling 2026-08-08, option C of
- *  `docs/design/note-token-intent-history.md`). The two injection note frames carry `{{note}}`, which is the
+/** PROSE CARRIER slots — the write guard's SECOND enumeration (owner ruling 2026-08-08,
+ *  option C). The two injection note frames carry `{{note}}`, which is the
  *  injection's ENTIRE payload: `spliceProseTokens` is a replace, so an override that drops the token matches
  *  nothing and the frame ships as an empty wrapper (`[Note from user: ]`) with the author's note gone. That is
  *  byte-for-byte the `{{entry}}` failure the 2026-08-02 carrier ruling refuses, so these refuse with it.

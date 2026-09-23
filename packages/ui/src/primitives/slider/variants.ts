@@ -37,7 +37,7 @@ export const sliderVariants = tv({
       // THE KNOB'S CENTERING IS LAYOUT, NOT A RESTING TRANSFORM (#1187, design-audit `off-grid-transform`
       // P3 on settings:chat-behavior --mobile). Base UI positions each thumb with an INLINE
       // `inset-inline-start: <pct>%; top: 50%; translate: -50% -50%` (slider/thumb/SliderThumb.js) — a
-      // transform that is live at REST, which integer-line-boxes.md §9 Law 2 refuses: a transformed box is
+      // transform that is live at REST, which docs/law/integer-line-boxes.md §9 Law 2 refuses: a transformed box is
       // composited from its own raster at whatever sub-pixel offset it resolves to, instead of being
       // snapped by the paint. The rule's own prescribed repair is "express rest geometry as layout
       // instead", and that is exactly this: the SAME half-a-thumb, spent as margin.

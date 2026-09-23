@@ -37,7 +37,7 @@ states is not enforced. Detail: `Core-0-Architecture-and-Structure.md` §2–§3
 
 Root `AGENTS.md` "Where code goes" owns the placement table. The full outcome table and the partitioning
 rule are in `Core-0-Architecture-and-Structure.md` §6. Look up which word names a concept in
-`../design/vocabulary-map.md`; never decide it locally.
+`docs/law/vocabulary-map.md`; never decide it locally.
 
 ## 4. Build and verify
 
@@ -129,7 +129,7 @@ exports map has one entry, so no domain can reach a backend.
 | The tooling tree above the packages | `Core-0-Architecture-and-Structure.md` §9, then `Core-Tooling-Law.md`, `../../scripts/README.md` |
 | The decision ledger | `../adr/README.md` (one decision per file) |
 | Active gates | `Core-Enforcement-Active-Gates.md` |
-| Writing a gate | `../design/gate-runtime-read-first.md`, then `../../tooling/src/verify/gates/GATE-AUTHORING.md` |
+| Writing a gate | `docs/law/gate-runtime-read-first.md`, then `../../tooling/src/verify/gates/GATE-AUTHORING.md` |
 | Writing a ui-audit rule | `../../tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md` |
 | Planning and checklists | `Core-Planning-and-Checklists.md` |
 | Verification design and report layout | `UNIFIED-VERIFICATION-DESIGN.md` |
@@ -139,7 +139,7 @@ exports map has one entry, so no domain can reach a backend.
 | Legacy migration and SillyTavern parity | `Core-Legacy-Migration-and-Gaps.md`, `Core-SillyTavern-Feature-Map.md` |
 | Open debt | `Core-Audits-and-Debt.md` |
 | Docs and comments | `.claude/rules/writing.md`, `.claude/rules/comments.md`, `.claude/rules/docs.md` |
-| Which word names a concept | `../design/vocabulary-map.md` |
+| Which word names a concept | `docs/law/vocabulary-map.md` |
 | Mission | `../Mission.md` |
 
 ## L. Lane discipline

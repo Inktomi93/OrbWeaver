@@ -90,7 +90,7 @@ describe("resolveOwnerFallbackCredential", () => {
     // This holds for EVERY mode, `single-user` included: prod single-user is forced to AUTH_FALLBACK=owner
     // (deny is boot-fatal there), so it is exactly the box where a proxied caller would otherwise inherit
     // the diagnostics surface — which holds more than the app does (raw provider request bodies). The prod
-    // image spec leans on that belt (containerize-prod-image-spec.md §3.1/§4), and a break-glass session is
+    // image spec leans on that belt (docs/plans/containerize/design.md), and a break-glass session is
     // refused for the same reason: whoever opened that door holds DEBUG_TOKEN.
     expect(credential({ nodeEnv: "production" })).toBe(false);
   });

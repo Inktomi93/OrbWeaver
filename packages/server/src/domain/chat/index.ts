@@ -9,7 +9,7 @@ export type { ChatContext, ChatServiceDeps } from "./context.ts";
 // its structural gather result (rpg-design/05 §0). `ChatContext.rpg` binds a real value only when domain/rpg
 // lands (chat.ts `input.rpg`); until then the field is null and the names have no by-name consumer, so the
 // door keeps the seam reachable (the rpg-facing `GetMembership`/`PostNarratorMessage` precedent).
-// The S2 teaching seam (interaction-direction-spec §3-S2) ships its types on this same door:
+// The S2 teaching seam ships its types on this same door:
 // `ChatTeachingRegistry` is what the composition root assembles onto `ChatContext.teaching`, and
 // `TeachingContribution`/`TeachingContext`/`TeachingCollection`/`TeachingKnobs` are the shape every later
 // contributing domain implements against.

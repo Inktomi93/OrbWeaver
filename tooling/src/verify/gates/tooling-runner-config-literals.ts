@@ -60,7 +60,7 @@ const REGISTRY_PORTS: ReadonlySet<number> = new Set([...RESERVED_PORT_NUMBERS, .
 const CONFIGS: readonly ExactResourceId[] = ["vitest-config", "playwright-config", "playwright-ct-config"];
 
 const MESSAGE =
-  "a runner-config literal outside its one home — a root runner config (vitest.config.ts, playwright.config.ts, playwright-ct.config.ts) spells a WALL CLOCK as a numeric timeout literal instead of `budget(<base>)` (_shared/load-budget.ts), or a TCP PORT as a number instead of a `_shared/ports.ts` row; these are the clocks that cost the most and the port every CT run binds, and they sit where no source population reaches (docs/law/Core-Tooling-Law.md §4.4; docs/design/1208-instrument-substrate.md §3.6/§7.1).";
+  "a runner-config literal outside its one home — a root runner config (vitest.config.ts, playwright.config.ts, playwright-ct.config.ts) spells a WALL CLOCK as a numeric timeout literal instead of `budget(<base>)` (_shared/load-budget.ts), or a TCP PORT as a number instead of a `_shared/ports.ts` row; these are the clocks that cost the most and the port every CT run binds, and they sit where no source population reaches (docs/law/Core-Tooling-Law.md §4.4).";
 const CLOCK_MESSAGE =
   "a fixed wall clock in a root runner config — derive it with `budget(<X>_BASE_MS)` from @orb/tooling/_shared/load-budget, as the other clocks in these configs already are.";
 const PORT_MESSAGE =

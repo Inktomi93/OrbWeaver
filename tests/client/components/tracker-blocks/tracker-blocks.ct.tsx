@@ -8,7 +8,7 @@
 //     are exhaustively pinned;
 //   • the commit FIRES with the parsed value (assert-the-mutation-fired — not just the UI reaction).
 // The trailing CONVERGENCE block assembles the kit into the mockup-v2 block regions and screenshots them
-// (via ctSnapPath, into THIS run's own slot — docs/design/1208-instrument-substrate.md §3.7) — the
+// (via ctSnapPath, into THIS run's own slot) — the
 // structure/density/hierarchy receipt against the committed mockup.
 import { AddRow, AmbientStrip, BeatLine, GoalLine, HintEditor, MeterRow, NpcCard, StatCell, TrackerChip } from "@orb/client/components";
 import { RPG_WEATHER_TYPES } from "@orb/contracts/rpg";

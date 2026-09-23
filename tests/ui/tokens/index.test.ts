@@ -35,7 +35,7 @@ test("every SNAPPED --leading-* var spells round(up, …) — the #1160 leading-
   for (const line of leadingLines) {
     expect(
       line,
-      `${line.trim()} must snap up (LEADING_FLOOR, docs/design/integer-line-boxes.md §3b) — round(nearest) can round a box below the authored ratio`,
+      `${line.trim()} must snap up (LEADING_FLOOR, docs/law/integer-line-boxes.md §3b) — round(nearest) can round a box below the authored ratio`,
     ).toMatch(/round\(up,/u);
   }
 });

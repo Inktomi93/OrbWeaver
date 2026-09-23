@@ -35,7 +35,7 @@ scenario.errors []
 scenario.perCheckpointLoad {"loaded":{"cpu":4,"network":"slow-4g"},"default":{"cpu":1,"network":null},"errors":[]}
 ```
 
-The governing contract explicitly says scenario checkpoints are session calls and assigns boot-only versus call fields (`docs/design/1208-instrument-substrate.md:64`, `docs/design/1208-instrument-substrate.md:114`). Verdict: **KEEP** the affected flags, but repair one authoritative partition and refuse every field in the wrong lifecycle. Do not invent scenario-only aliases.
+The governing contract explicitly says scenario checkpoints are session calls and assigns boot-only versus call fields (``). Verdict: **KEEP** the affected flags, but repair one authoritative partition and refuse every field in the wrong lifecycle. Do not invent scenario-only aliases.
 
 ### P1 — a later stateful-session call silently ignores `--no-failure-evidence`
 
@@ -51,7 +51,7 @@ session.noFailureEvidence.refused []
 session.noFailureEvidence.inherited true
 ```
 
-The design lists `--no-failure-evidence` among boot-only settings (`docs/design/1208-instrument-substrate.md:120`); the inheritance path is `tooling/src/snap/lib/session-plan.ts:184`. Verdict: **KEEP**, but reject it on later session calls just like the other boot-only flags.
+The design lists `--no-failure-evidence` among boot-only settings (`); the inheritance path is `tooling/src/snap/lib/session-plan.ts:184`. Verdict: **KEEP**, but reject it on later session calls just like the other boot-only flags.
 
 ### P2 — `--session-export <name> --out <base>` is documented but `--out` never reaches the exporter
 
@@ -355,7 +355,7 @@ None of `--choose-files`, `--pick-files`, `--upload-directory`, `--file-dialog`,
 
 ## Verified clean
 
-- Read the authority chain in full: root `AGENTS.md`, `.claude/agent-doctrine.md`, `docs/law/Constitution.md`, `Core-Laws-and-Precedents.md`, relevant core architecture/tooling/documentation law, imported browser/tooling/lane/orchestration rules, and `docs/design/1208-instrument-substrate.md`.
+- Read the authority chain in full: root `AGENTS.md`, `.claude/agent-doctrine.md`, `docs/law/Constitution.md`, `Core-Laws-and-Precedents.md`, relevant core architecture/tooling/documentation law, imported browser/tooling/lane/orchestration rules.
 - Read the normal parser, all flag registries/classes/handlers, stage/session flag modules, every registered arm module, arm/help/type contracts, session-plan partition, scenario preparation/catalog/runtime, matrix contract/runtime, shared instrument argv/browser environment/appearance/panel/theme owners, report query/rendering, session admin/daemon/evidence, contexts and materialization paths, plus relevant parser/session/matrix/CLI tests.
 - Re-derived 116 normal flags from executable registries (115 public descriptors plus internal `--session-daemon`) and 13 reader spellings from raw-argv dispatch. `pnpm snap --help` now prints the generated complete grammar block, so a new public handler receives one authoritative row without relying on incidental prose.
 - Ran the minted post-repair acceptance and focused behavioral suites:

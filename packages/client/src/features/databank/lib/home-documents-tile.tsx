@@ -1,4 +1,4 @@
-// Databank's HOME tile contribution (databank-surface-spec D-7 — "recent documents + an ingest-health
+// Databank's HOME tile contribution (D-7 — "recent documents + an ingest-health
 // line", the rider the spec attached to the D-0 library-home fork precisely because it holds either way:
 // the bank is reachable from the front door whether the library is a rail section or a folded family).
 //

@@ -87,7 +87,7 @@ Above the tiers: `routes/` composes features (never the reverse — `client-feat
 
 **Tier-placement rule:** a domain-aware composite needed by ≥2 features belongs in `components/`, never duplicated per-feature — §13.0's bar (3+ AND changing together) decides *when* to hoist; two features sharing decides *where* (tier 2, not a feature, not `@orb/ui` — ui stays parts-only per the `components/index.ts` header ruling). `jscpd` (tsx scanned, 5% threshold) is the standing tripwire; the hoist itself is review R2.
 
-**What IS a feature (ENFORCED under O2):** a feature dir earns its existence by owning ≥1 registered definition — a rail section, a modal, a settings pane, a chrome widget, or (since the config rail's R1) a config COLLECTION. The O2 gate `feature-owns-definition` is LIVE: a feature dir owns a co-located `lib/*-{section,modal,pane,chrome,collection}.tsx` or it is deleted. No exemptions. (`collection` joined for the migration that took tags/regex out of the settings modal: their whole product surface is a member LIBRARY contributed to the Configuration workspace, so they own a `*-collection.tsx` and no pane — see `docs/design/config-rail-spec.md`.)
+**What IS a feature (ENFORCED under O2):** a feature dir earns its existence by owning ≥1 registered definition — a rail section, a modal, a settings pane, a chrome widget, or (since the config rail's R1) a config COLLECTION. The O2 gate `feature-owns-definition` is LIVE: a feature dir owns a co-located `lib/*-{section,modal,pane,chrome,collection}.tsx` or it is deleted. No exemptions. (`collection` joined for the migration that took tags/regex out of the settings modal: their whole product surface is a member LIBRARY contributed to the Configuration workspace, so they own a `*-collection.tsx` and no pane.)
 
 ## 4. The paint law — who may write CSS, and WHY
 
@@ -212,8 +212,7 @@ one as enforcement, and never promote a row here without its gate, floor, or tes
   at `packages/client/src/lib/appearance-invariant-manifest.ts`. Route mode is the only R1–R7 verdict
   owner; scenario mode publishes `not-applicable: scenario-owned-drive` rather than counterfeiting one.
   \#976's exact settled-subject and requested/resolved/actual theme accounting and #977's
-  requested/applied/actual browser identity are its trustworthy inputs. The full contract, the rejected
-  alternatives, and the cold graduation receipts live in `docs/design/953-appearance-invariant-matrix.md`.
+  requested/applied/actual browser identity are its trustworthy inputs.
 
 Runtime-assembled class strings remain outside static proof. Their named backstop is the rendered side-eye sweep. That is a named boundary, not permission to widen the set.
 
@@ -448,10 +447,10 @@ What legitimately stays on the `/` route (`app-root.tsx`) after M1/M4: the `useU
 
 ## 8. The settings host + pane registry
 
-> **RE-KEYED by the config revamp (#866 S1 — `docs/design/config-revamp-design.md` §3.1 + §6.8).** The pane registry is the config-GROUP registry: `state/config-group-registry.ts` (`ConfigGroupDefinition`, total over `CONFIG_GROUP_IDS` in `state/config-group-ids.ts`, four shelves `CONFIG_SHELVES` = User · App · Collections · Extensions); the settings MODAL retired into the `config` SECTION (host: `features/config`, LIST + CONTENT, rail foot); the body union is `sections | collection | placeholder` — every non-collection group is a `sections` SKIMMER over the D120 contribution seam (`state/config-section-registry.ts`; NO `surface` arm, NO group-owned `subcategories` — the persona, plugins, connections, automation and backup surfaces all decomposed into `ConfigSectionContribution`s); the four collections are `collection` groups whose body is their `CollectionContribution`; `openSettingsTo(category, sub)` + `goToCollection(kind)` are ONE verb `openConfigTo(group, sub?, setting?)` (`state/config-nav-store.ts`); G4 is `config-group-completeness`. The text below is the M6.1 record, kept as the WHY — read its retired spellings through this note.
+> **RE-KEYED by the config revamp (#866 S1).** The pane registry is the config-GROUP registry: `state/config-group-registry.ts` (`ConfigGroupDefinition`, total over `CONFIG_GROUP_IDS` in `state/config-group-ids.ts`, four shelves `CONFIG_SHELVES` = User · App · Collections · Extensions); the settings MODAL retired into the `config` SECTION (host: `features/config`, LIST + CONTENT, rail foot); the body union is `sections | collection | placeholder` — every non-collection group is a `sections` SKIMMER over the D120 contribution seam (`state/config-section-registry.ts`; NO `surface` arm, NO group-owned `subcategories` — the persona, plugins, connections, automation and backup surfaces all decomposed into `ConfigSectionContribution`s); the four collections are `collection` groups whose body is their `CollectionContribution`; `openSettingsTo(category, sub)` + `goToCollection(kind)` are ONE verb `openConfigTo(group, sub?, setting?)` (`state/config-nav-store.ts`); G4 is `config-group-completeness`. The text below is the M6.1 record, kept as the WHY — read its retired spellings through this note.
 >
 > **The block below is ILLUSTRATIVE, not copyable — the law is the header of
-> `client/src/state/config-group-registry.ts` (§15a); the `body` union is the config-revamp-design §3.1/§6.8 shape.**
+> `client/src/state/config-group-registry.ts` (§15a).**
 
 ```ts
 // state/settings-pane-registry.ts — the section/modal move repeated (M6.1 ruling; §5 rules 5+6)

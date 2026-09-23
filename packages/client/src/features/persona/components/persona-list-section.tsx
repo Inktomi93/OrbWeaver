@@ -1,4 +1,4 @@
-// The Personas group's LIST section (config-revamp-design.md §6.8.2) — the config mount of the SAME
+// The Personas group's LIST section — the config mount of the SAME
 // `PersonaList` the rail popover and the You sheet compose (one home, three mounts — F3 is not reopened,
 // and "Settings › Personas contains no personas" (side-eye 2026-08-03 P2) stays closed). ONLY this mount
 // stamps the `your-personas` anchor, because an id stamped inside the shared component would be duplicated

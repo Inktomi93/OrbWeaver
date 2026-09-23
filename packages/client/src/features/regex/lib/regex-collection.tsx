@@ -1,4 +1,4 @@
-// The REGEX SCRIPTS collection contribution (config-rail-spec.md · review §4) — the `collection` body of the
+// The REGEX SCRIPTS collection contribution — the `collection` body of the
 // `regex` config group (`regex-group.tsx` carries the library's identity since the config revamp #866 S1),
 // consumed BLIND by `features/config`.
 //

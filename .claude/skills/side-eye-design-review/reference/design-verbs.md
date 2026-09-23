@@ -1,7 +1,7 @@
 # The design-verb vocabulary
 
 Adapted from impeccable's commands (Apache-2.0); triage and attribution in
-`docs/design/impeccable-adoption.md`. A shared vocabulary so a review can prescribe in one word and a
+`tooling/src/ui-audit/IMPECCABLE-ADOPTION.md`. A shared vocabulary so a review can prescribe in one word and a
 fix inherits an exact, law-bound meaning. Each verb binds to SKILL.md's law and instruments, never a
 license to invent values. A report using one of these verbs names the target surfaces and the evidence
 that will prove the verb landed. Prescription grammar: `<verb>: <targets> — <evidence>`. A verb with no

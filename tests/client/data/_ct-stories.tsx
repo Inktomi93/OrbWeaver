@@ -1137,7 +1137,7 @@ export function HuskReaperStory(): ReactElement {
   );
 }
 
-// ── The plugin DISPLAY-transform seam (plugin-ui-plane #679 U6, seam 14) ──────────────────────────────────
+// ── The plugin DISPLAY-transform seam (U6, seam 14) ──────────────────────────────────
 // `usePluginDisplayText` is the last step of the row render: it takes what the house pipeline produced and
 // hands back what the viewer's own plugins made of it. Its two load-bearing properties are BOTH about cost
 // and silence, so the story renders the ANSWER and the `.ct.tsx` drives the DATA:

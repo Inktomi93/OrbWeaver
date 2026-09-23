@@ -1,5 +1,5 @@
-// The Databank CONTEXT arm — "where this document fires" for the open document (databank-surface-spec §6,
-// the `library.html` activation panel). Three blocks:
+// The Databank CONTEXT arm — "where this document fires" for the open document (the
+// activation panel). Three blocks:
 //
 //   EVERYWHERE  — the ONE write this panel owns. Global attach is OWNER authority, so it lives on the
 //                 document; per-chat attach is HOST authority and lives in the chat panel. The write lives
