@@ -6,7 +6,7 @@
 
 import type { CharacterCard } from "@orb/contracts/character";
 import type { AssemblePersona, ChatListCursor, MemberCardVisibility } from "@orb/contracts/chat";
-import { characterRegexTierKey } from "@orb/contracts/chat";
+import { characterRegexTierKey, SHAPE_BREAKPOINT_DECISIONS } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { GenerationCapability, ProviderId } from "@orb/contracts/inference";
 import type { PromptConfig } from "@orb/contracts/preset";
@@ -2367,7 +2367,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     // Row COUNTS per stage, no content bytes — the content-free projection (PD-132).
     expect(trace.stageCounts.withTail).toBe(2);
     expect(typeof trace.squashMerges).toBe("number");
-    expect(["placed", "no-stable-prefix", "in-prefix-injection-or-squash", "second-volatile-tail"]).toContain(trace.breakpointDecision);
+    expect(SHAPE_BREAKPOINT_DECISIONS).toContain(trace.breakpointDecision);
     // No content leaks: the whole trace serializes to counts/flags/decisions, never the seeded message bodies.
     expect(JSON.stringify(trace)).not.toContain("hey there");
 
