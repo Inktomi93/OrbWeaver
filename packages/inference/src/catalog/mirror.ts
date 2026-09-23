@@ -6,6 +6,7 @@
 // capability flags are stable for far longer than a day, and a 1h TTL once expired the mirror long before
 // the daily refresh re-warmed it, so a restarted process silently lost every advertised capability.
 
+import { errorMessage } from "@orb/kit/error-message";
 import { z } from "zod";
 import type { SnapshotStore, SpanAttrs } from "../deps.ts";
 
@@ -26,6 +27,9 @@ export interface Mirror<T> {
   readonly seed: (value: T, at: number) => void;
   /** Drop the in-memory copy AND skip the snapshot on the next warm — `catalogs.refresh` (a forced live fetch). */
   readonly invalidate: () => void;
+  /** Why the last warm came back empty (the fetch's own message), or `null` once a warm succeeds. The turn
+   *  path ignores it and degrades; the pane's catalog read shows it, so a failed list is not read as empty. */
+  readonly failure: () => string | null;
 }
 
 const snapshotSchema = z.object({ fetchedAt: z.number(), value: z.unknown() });
@@ -41,10 +45,12 @@ export function createMirror<T>(args: {
   let cache: { readonly at: number; readonly value: T } | null = null;
   let inFlight: Promise<T | null> | null = null;
   let skipSnapshotOnce = false;
+  let lastFailure: string | null = null;
 
   const get = (): T | null => (cache !== null && deps.now() - cache.at < ttl ? cache.value : null);
   const seed = (value: T, at: number): void => {
     cache = { at, value };
+    lastFailure = null;
   };
 
   const readSnapshot = async (): Promise<boolean> => {
@@ -82,6 +88,7 @@ export function createMirror<T>(args: {
     } catch (err) {
       deps.addSpanEvent?.("cache.warm", { cache: key, outcome: "failed" });
       deps.warn({ cache: key, err }, "inference: catalog cold-warm failed — capability degrades to the marked-estimated fallback");
+      lastFailure = errorMessage(err);
       return null;
     }
   };
@@ -89,6 +96,7 @@ export function createMirror<T>(args: {
   return {
     get,
     seed,
+    failure: (): string | null => lastFailure,
     invalidate: (): void => {
       cache = null;
       skipSnapshotOnce = true;

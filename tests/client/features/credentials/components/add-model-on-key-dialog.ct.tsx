@@ -19,6 +19,7 @@ import type { ConnectionRow } from "../_connection-fixtures.ts";
 import {
   AUTHORING_ARMS,
   catalogEntry,
+  catalogOf,
   connectionRow,
   credentialRow,
   dialogNamed,
@@ -31,11 +32,14 @@ import { ConnectionsAuthoringStory } from "../_ct-stories.tsx";
 const KEY_TITLE = "Add another model on this key";
 const OPENROUTER_ROW = connectionRow();
 const OPENROUTER_NAME = "OpenRouter · Claude Opus 5 · anthropic/claude-opus-5";
-const OPENROUTER_CATALOG = [
+const OPENROUTER_MODELS = [
   catalogEntry("anthropic/claude-opus-5", "Claude Opus 5"),
   catalogEntry("anthropic/claude-sonnet-5", "Claude Sonnet 5"),
   catalogEntry("qwen/qwen3-32b"),
+  // The row a fuzzy scorer matched to "gpt-6" (side-eye P1): "g…p…t" across "GPTQ".
+  catalogEntry("meta-llama/llama-3-70b-gptq-4bit-v0.6", "Llama 3 70B GPTQ v0.6"),
 ];
+const OPENROUTER_CATALOG = catalogOf(OPENROUTER_MODELS);
 const LOCAL_ROW = connectionRow({
   id: "user_connection_ctauthor0002",
   label: "Built-in (this device) · Xenova/bge-small-en-v1.5",
@@ -140,7 +144,7 @@ test("a built-in row's catalog is closed: no typed id is offered, and an empty l
   const emptyLocal = connectionRow({ ...LOCAL_ROW, id: "user_connection_ctauthor0005", label: "Spare built-in" });
   await stubWith(
     page,
-    (input) => (input.connectionId === LOCAL_ROW.id ? [catalogEntry("Xenova/bge-small-en-v1.5"), catalogEntry("Xenova/ms-marco-MiniLM-L-6-v2")] : []),
+    (input) => catalogOf(input.connectionId === LOCAL_ROW.id ? [catalogEntry("Xenova/bge-small-en-v1.5"), catalogEntry("Xenova/ms-marco-MiniLM-L-6-v2")] : []),
     [LOCAL_ROW, emptyLocal],
   );
   await mount(<ConnectionsAuthoringStory width={870} />);
@@ -154,9 +158,106 @@ test("a built-in row's catalog is closed: no typed id is offered, and an empty l
 
   const empty = await openAddModel(page, "Spare built-in · Xenova/bge-small-en-v1.5", /Add another built-in model/, "Add another built-in model");
   await expect(
-    empty.getByText("Built-in (this device) listed no models. This provider only runs models from its list, so there is nothing to type instead."),
+    empty.getByText(
+      "Couldn't list Built-in (this device)'s models — the provider listed no models. This provider only runs models from its list, so there is nothing to type instead.",
+    ),
   ).toBeVisible();
   await expect(empty.getByRole("textbox", { name: "Model" })).toHaveCount(0);
+});
+
+// A LIST THAT FAILS is not an empty list: the server answers `listed: false` with the fetch's own reason, and
+// the retry re-reads it (side-eye P2: an HTTP 500 used to read "listed no models" with no way to try again).
+test("a saved row's failed list names the failure and retries into the list", async ({ mount, page }) => {
+  let reads = 0;
+  await stubWith(page, () => {
+    reads += 1;
+    return reads === 1 ? { listed: false, models: [], reason: "openrouter.ai answered 500." } : OPENROUTER_CATALOG;
+  });
+  await mount(<ConnectionsAuthoringStory width={870} />);
+  const dialog = await openAddModel(page, OPENROUTER_NAME, /Add another model on this key/, KEY_TITLE);
+  await expect(dialog.getByRole("textbox", { name: "Model" })).toHaveAccessibleDescription(
+    "Couldn't list OpenRouter's models — openrouter.ai answered 500. Type the id; it'll be sent as-is.",
+  );
+  await dialog.getByRole("button", { name: "Try the list again" }).click();
+  await expect(dialog.getByRole("option")).toHaveCount(OPENROUTER_MODELS.length);
+});
+
+// ENTER NEVER SAVES A LOOSE MATCH (side-eye P1). The fuzzy search still SHOWS the "…gptq…v0.6" row for "gpt-6"
+// — a typo should still find its model — but nothing is highlighted, so Enter takes the typed option instead
+// of saving that row as listed. A result that contains what was typed is highlighted, and Enter picks it.
+test("Enter on a loose fuzzy match takes the typed id; Enter on a real match picks that row", async ({ mount, page }) => {
+  const trpc = await stubWith(page, OPENROUTER_CATALOG);
+  await mount(<ConnectionsAuthoringStory width={870} />);
+  const dialog = await openAddModel(page, OPENROUTER_NAME, /Add another model on this key/, KEY_TITLE);
+  const search = dialog.getByRole("combobox", { name: "Search OpenRouter models" });
+  await search.fill("gpt-6");
+  await expect(dialog.getByRole("option", { name: /GPTQ/ })).toBeVisible();
+  await expect(dialog.locator('[role="option"][aria-selected="true"]')).toHaveCount(0);
+  await page.keyboard.press("Enter");
+  await expect(dialog.getByRole("status").filter({ hasText: "Picked:" })).toHaveText(
+    "Picked: gpt-6 — This model id wasn't in OpenRouter's list. It'll be sent as-is; if the server doesn't have it, turns will fail.",
+  );
+  await search.fill("gptq");
+  await expect(dialog.locator('[role="option"][aria-selected="true"]')).toHaveCount(1);
+  await page.keyboard.press("Enter");
+  await expect(dialog.getByRole("status").filter({ hasText: "Picked:" })).toHaveText("Picked: Llama 3 70B GPTQ v0.6 (meta-llama/llama-3-70b-gptq-4bit-v0.6)");
+  await expect.poll(() => trpc.count("connection.create")).toBe(0);
+});
+
+// THE PORTED LIST: sectioned by provider, the device-local Recent group heads it once something was picked,
+// and the Vision/Tools chips narrow a catalog that states capabilities.
+test("the list is sectioned by provider, remembers recent picks, and narrows by capability chips", async ({ mount, page }) => {
+  await stubWith(
+    page,
+    catalogOf([
+      catalogEntry("anthropic/claude-opus-5", "Claude Opus 5"),
+      { ...catalogEntry("anthropic/claude-sonnet-5", "Claude Sonnet 5"), inputModalities: ["text", "image"], supportedParameters: ["tools"] },
+      { ...catalogEntry("openai/gpt-5", "GPT-5"), supportedParameters: ["tools"] },
+    ]),
+  );
+  await mount(<ConnectionsAuthoringStory width={870} />);
+  const dialog = await openAddModel(page, OPENROUTER_NAME, /Add another model on this key/, KEY_TITLE);
+  await expect(dialog.getByText("Anthropic", { exact: true })).toBeVisible();
+  await expect(dialog.getByText("OpenAI", { exact: true })).toBeVisible();
+
+  await dialog.getByRole("button", { name: "Vision" }).click();
+  await expect(dialog.getByRole("option")).toHaveCount(1);
+  await expect(dialog.getByRole("option", { name: /Claude Sonnet 5/ })).toBeVisible();
+  await dialog.getByRole("button", { name: "Vision" }).click();
+
+  await dialog.getByRole("option", { name: /GPT-5/ }).click();
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(dialog).toBeHidden();
+  const again = await openAddModel(page, OPENROUTER_NAME, /Add another model on this key/, KEY_TITLE);
+  await expect(again.getByText("Recent", { exact: true })).toBeVisible();
+  await expect(again.getByRole("option", { name: /GPT-5/ })).toHaveCount(2);
+});
+
+// NOTHING IS HIGHLIGHTED AT REST (side-eye P2): cmdk's first-row auto-select read as a pick nobody made.
+// The dialog opens with the caret in the search box, the listbox named for whose list it is, and the saved
+// row's own model marked.
+test("the dialog opens on the search box with no row highlighted, and marks the saved row's own model", async ({ mount, page }) => {
+  await stubWith(page, OPENROUTER_CATALOG);
+  await mount(<ConnectionsAuthoringStory width={870} />);
+  const dialog = await openAddModel(page, OPENROUTER_NAME, /Add another model on this key/, KEY_TITLE);
+  await expect(dialog.getByRole("combobox", { name: "Search OpenRouter models" })).toBeFocused();
+  await expect(dialog.getByRole("listbox", { name: "Models on OpenRouter" })).toBeVisible();
+  await expect(dialog.locator('[role="option"][aria-selected="true"]')).toHaveCount(0);
+  await expect(dialog.getByRole("option", { name: /Claude Opus 5/ })).toContainText("Already added");
+  // The first arrow key hands the highlight to cmdk.
+  await page.keyboard.press("ArrowDown");
+  await expect(dialog.locator('[role="option"][aria-selected="true"]')).toHaveCount(1);
+});
+
+test("an invalid submit leaves focus on the search box, marked invalid and described by the error", async ({ mount, page }) => {
+  await stubWith(page, OPENROUTER_CATALOG);
+  await mount(<ConnectionsAuthoringStory width={870} />);
+  const dialog = await openAddModel(page, OPENROUTER_NAME, /Add another model on this key/, KEY_TITLE);
+  await dialog.getByRole("button", { name: "Add connection" }).click();
+  const search = dialog.getByRole("combobox", { name: "Search OpenRouter models" });
+  await expect(search).toHaveAttribute("aria-invalid", "true");
+  await expect(search).toHaveAccessibleDescription("Pick a model or type its id.");
+  await expect(search).toBeFocused();
 });
 
 // ── the picker's states, at the two settings-body widths and a phone ──────────────────────────────────
@@ -176,16 +277,22 @@ for (const { arm, width, device } of AUTHORING_ARMS) {
       // No "no match" line while nothing has arrived.
       await expect(dialog.getByText(/No listed model matches/)).toHaveCount(0);
       await expectInsideViewport(page, dialog);
+      // The skeleton is really drawn (cmdk's wrapper once collapsed it to 0px), and no "0 results" is spoken.
+      const skeleton = await dialog.locator('[data-slot="model-picker-skeleton"]').boundingBox();
+      expect(skeleton?.width ?? 0).toBeGreaterThan(0);
+      await expect(dialog.getByRole("status").filter({ hasText: /result/ })).toHaveCount(0);
       catalog.release(OPENROUTER_CATALOG);
-      await expect(dialog.getByRole("option")).toHaveCount(OPENROUTER_CATALOG.length);
+      await expect(dialog.getByRole("option")).toHaveCount(OPENROUTER_MODELS.length);
     });
 
-    test(`${arm}: empty — a provider that lists nothing is typed, with the consequence spelled out`, async ({ mount, page }) => {
-      const trpc = await stubWith(page, []);
+    test(`${arm}: empty — a provider that lists nothing is typed, with the consequence spelled out and a retry`, async ({ mount, page }) => {
+      const trpc = await stubWith(page, catalogOf([]));
       await mount(<ConnectionsAuthoringStory width={width} />);
       const dialog = await openAddModel(page, OPENROUTER_NAME, /Add another model on this key/, KEY_TITLE);
       const model = dialog.getByRole("textbox", { name: "Model" });
-      await expect(model).toHaveAccessibleDescription("OpenRouter listed no models. Type the id; it'll be sent as-is.");
+      await expect(model).toHaveAccessibleDescription("Couldn't list OpenRouter's models — the provider listed no models. Type the id; it'll be sent as-is.");
+      await expect(model).toHaveAttribute("placeholder", "e.g. anthropic/claude-opus-5");
+      await expect(dialog.getByRole("button", { name: "Try the list again" })).toBeVisible();
       await expectInsideViewport(page, dialog);
       await model.fill("openai/gpt-6");
       await dialog.getByRole("button", { name: "Add connection" }).click();
@@ -206,7 +313,7 @@ for (const { arm, width, device } of AUTHORING_ARMS) {
       );
       await expectInsideViewport(page, dialog);
       await dialog.getByRole("button", { name: "Try the list again" }).click();
-      await expect(dialog.getByRole("option")).toHaveCount(OPENROUTER_CATALOG.length);
+      await expect(dialog.getByRole("option")).toHaveCount(OPENROUTER_MODELS.length);
     });
 
     test(`${arm}: typed fallback — an id the list lacks is offered by name and saved unlisted, with §5.3a's sentence`, async ({ mount, page }) => {

@@ -8,6 +8,8 @@ import type { AddConnectionFormValues } from "../../../../../packages/client/src
 import {
   ADD_CONNECTION_DEFAULTS,
   draftModelReason,
+  modelIdExample,
+  submitFailureSentence,
   validateAddConnection,
 } from "../../../../../packages/client/src/features/credentials/lib/add-connection-form-model.ts";
 import { addModelActionLabel } from "../../../../../packages/client/src/features/credentials/lib/add-model-on-key-form-model.ts";
@@ -39,4 +41,28 @@ test("a hosted draft's typed-model reason points at the saved-key action by its 
   expect(draftModelReason(builtin("claude-sub"))).toContain("as Claude subscription spells it");
   expect(draftModelReason(builtin("local-light"))).toContain(`“${addModelActionLabel("builtin")}”`);
   expect(draftModelReason(builtin("vllm"))).toBe("Type the model id your server serves, or list them from the URL above.");
+});
+
+test("a failed submit is one sentence: with a saved key it names the row (or says it is unnamed); without one, nothing was saved", () => {
+  expect(submitFailureSentence({ heldKeyLabel: "work", reason: "the provider refused the model id." })).toBe(
+    "Your key was saved as “work” in Saved keys, but the connection wasn't created — the provider refused the model id. Adding again reuses the saved key. If you cancel, the key stays in Saved keys.",
+  );
+  expect(submitFailureSentence({ heldKeyLabel: null, reason: "boom" })).toBe(
+    "Your key (unnamed) was saved in Saved keys, but the connection wasn't created — boom. Adding again reuses the saved key. If you cancel, the key stays in Saved keys.",
+  );
+  expect(submitFailureSentence({ heldKeyLabel: undefined, reason: "boom." })).toBe("Nothing was saved — boom.");
+});
+
+test("the typed-id example is in each provider's own spelling", () => {
+  expect(BUILTIN_PROVIDERS.map((provider) => [provider.id, modelIdExample(provider)])).toEqual([
+    ["openrouter", "e.g. anthropic/claude-opus-5"],
+    ["anthropic", "e.g. claude-opus-5"],
+    ["claude-sub", "e.g. opus"],
+    ["openai", "e.g. gpt-5"],
+    ["vllm", "e.g. Qwen/Qwen3-32B"],
+    ["lm-studio", "e.g. Qwen/Qwen3-32B"],
+    ["ollama", "e.g. Qwen/Qwen3-32B"],
+    ["custom-openai", "e.g. Qwen/Qwen3-32B"],
+    ["local-light", "e.g. Xenova/bge-small-en-v1.5"],
+  ]);
 });

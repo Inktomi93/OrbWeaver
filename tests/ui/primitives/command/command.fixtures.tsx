@@ -3,12 +3,38 @@
 // DerivedItemsStory proves the real consumer pattern — a parent that re-renders and passes a
 // freshly-mapped array of CommandItems (the R7 "collection-prop" acceptance shape, adapted to
 // cmdk's children-based API: items keyed + valued by id, not inferred from textContent).
-import { Command, CommandAuxiliaryButton, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandStatus } from "@orb/ui/command";
+import {
+  Command,
+  CommandAuxiliaryButton,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandLoading,
+  CommandStatus,
+} from "@orb/ui/command";
 import type { ReactElement } from "react";
 import { useState } from "react";
 
 const FILES = ["report.md", "readme.md", "notes.txt"];
 const ACTIONS = ["Create file", "Delete file"];
+
+/** A loading list whose child is a block that asks for the full width — the skeleton-row shape. */
+export function LoadingListStory(): ReactElement {
+  return (
+    <div style={{ width: 320 }}>
+      <Command label="Loading">
+        <CommandInput aria-label="Search" disabled={true} />
+        <CommandList>
+          <CommandLoading label="Loading rows…">
+            <div data-testid="loading-child" style={{ height: 8, width: "100%" }} />
+          </CommandLoading>
+        </CommandList>
+      </Command>
+    </div>
+  );
+}
 
 export function CommandPaletteStory(): ReactElement {
   const [selected, setSelected] = useState("");

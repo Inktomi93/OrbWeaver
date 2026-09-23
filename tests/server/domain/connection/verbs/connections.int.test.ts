@@ -6,9 +6,9 @@
 // FIELD-WISE patch (an absent key is NOT overwritten), and the PD-139a embed-space trigger's exact condition.
 
 import type { Principal } from "@orb/contracts/identity";
+import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
 import type { UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { CONNECTION_OP_CODES } from "@orb/server/domain/connection";
 import { endpointAdmission, publishPrivateEndpointAllowlist } from "@orb/server/infra/network";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";

@@ -10,10 +10,10 @@
 // `declared` patch can move it without touching `model`, and an unrelated `declared` edit moves nothing.
 
 import type { ConnectionApi, ProviderDef, UserConnection } from "@orb/contracts/inference";
-import { connectionTasks, modelIdSchema } from "@orb/contracts/inference";
+import { CONNECTION_OP_CODES, connectionTasks, modelIdSchema } from "@orb/contracts/inference";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { ModelId, UserConnectionId, UserId } from "@orb/kit/ids";
-import { CONNECTION_OP_CODES, ConnectionNotFoundError } from "../contract/errors.ts";
+import { ConnectionNotFoundError } from "../contract/errors.ts";
 import type { CreateConnectionParams, UpdateConnectionParams } from "../contract/params.ts";
 import type { ConnectionView, EmbedSpaces } from "../contract/results.ts";
 import type { ConnectionContext, ConnectionService } from "../contract/service.ts";

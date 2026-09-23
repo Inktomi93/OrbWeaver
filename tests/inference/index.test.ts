@@ -228,7 +228,8 @@ test("catalogs.models: the builtin strategy lists the curated local-light rows w
   if (connection === undefined) {
     throw new Error("seeded row missing");
   }
-  const models = await runtime.catalogs.models({ connection, principal: s.alice });
+  const { models, failure } = await runtime.catalogs.models({ connection, principal: s.alice });
+  expect(failure).toBeNull();
   expect(models.map((m) => m.id)).toContain(DEFAULT_EMBED_MODEL);
   expect(models.find((m) => m.id === DEFAULT_EMBED_MODEL)?.kind).toBe("embedding");
   expect(models.find((m) => m.id === DEFAULT_RERANK_MODEL)?.kind).toBe("rerank");
@@ -309,7 +310,7 @@ test("POSITIVE CONTROL — the collapse did not blunt the fence: the owner still
   if (row === undefined) {
     throw new Error("seeded row missing");
   }
-  expect((await runtime.catalogs.models({ connection: row, principal: s.alice })).length).toBeGreaterThan(0);
+  expect((await runtime.catalogs.models({ connection: row, principal: s.alice })).models.length).toBeGreaterThan(0);
   // And `forbidden` still means what it meant — the row cannot serve the task. The two live readers of that
   // kind (`resolve/availability.ts`, `entry/compose/rpg.ts`) sit on THIS arm, never on the owner fence.
   s.stores.bindings.bind({ actorKind: "user", actorId: s.aliceId, task: "rerank", connectionId: ids.embed });

@@ -4,9 +4,9 @@
 // would have already made the request it was there to prevent), and a failed/empty dial is the typed-id
 // FALLBACK — `{ listed: false, reason }` — never a throw.
 
+import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
 import type { UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { CONNECTION_OP_CODES } from "@orb/server/domain/connection";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -76,10 +76,36 @@ describe("catalogModels", () => {
     const owner = await seedOwner(db);
     const other = await seedOwner(db, "user_b");
     const row = await h.svc.create({ principal: owner.principal, providerId: BYO_PROVIDER, credentialId: null, baseUrl: BYO_BASE_URL, model: "qwen3" });
-    const models = await h.svc.catalogModels({ principal: owner.principal, connectionId: row.id });
-    expect(models.map((entry) => entry.id)).toEqual(["qwen3", "qwen3-next"]);
+    const result = await h.svc.catalogModels({ principal: owner.principal, connectionId: row.id });
+    expect(result.listed).toBe(true);
+    expect(result.models.map((entry) => entry.id)).toEqual(["qwen3", "qwen3-next"]);
+    expect(result.reason).toBeNull();
     await expect(h.svc.catalogModels({ principal: other.principal, connectionId: row.id })).rejects.toMatchObject({
       code: CONNECTION_OP_CODES.notFound,
+    });
+  });
+
+  test("a saved row whose list FAILS answers `listed: false` with the fetch's reason, not an empty list", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db, { routes: [{ match: "/models", status: 500, json: { error: "boom" } }] });
+    const owner = await seedOwner(db);
+    const row = await h.svc.create({ principal: owner.principal, providerId: BYO_PROVIDER, credentialId: null, baseUrl: BYO_BASE_URL, model: "qwen3" });
+    const result = await h.svc.catalogModels({ principal: owner.principal, connectionId: row.id });
+    expect(result.listed).toBe(false);
+    expect(result.models).toEqual([]);
+    expect(result.reason).not.toBeNull();
+    expect(result.reason).not.toBe("the provider listed no models");
+  });
+
+  test("a saved row whose list is EMPTY says so, distinct from a failure", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db, { routes: [{ match: "/models", json: { data: [] } }] });
+    const owner = await seedOwner(db);
+    const row = await h.svc.create({ principal: owner.principal, providerId: BYO_PROVIDER, credentialId: null, baseUrl: BYO_BASE_URL, model: "qwen3" });
+    expect(await h.svc.catalogModels({ principal: owner.principal, connectionId: row.id })).toEqual({
+      listed: false,
+      models: [],
+      reason: "the provider listed no models",
     });
   });
 
@@ -94,9 +120,9 @@ describe("catalogModels", () => {
       baseUrl: null,
       model: "jinaai/jina-clip-v2",
     });
-    const models = await h.svc.catalogModels({ principal: owner.principal, connectionId: row.id });
-    expect(models.length).toBeGreaterThan(0);
-    expect(models.map((entry) => entry.id)).toContain("jinaai/jina-clip-v2");
+    const result = await h.svc.catalogModels({ principal: owner.principal, connectionId: row.id });
+    expect(result.listed).toBe(true);
+    expect(result.models.map((entry) => entry.id)).toContain("jinaai/jina-clip-v2");
     expect(h.requests, "the builtin strategy must not dial anything").toEqual([]);
   });
 });

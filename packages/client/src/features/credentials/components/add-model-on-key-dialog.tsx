@@ -21,17 +21,17 @@ import { touchedFieldError } from "#forms/editor";
 import { notify } from "#lib";
 import { useAddModelOnKeyForm } from "../hooks/use-add-model-on-key-form.ts";
 import { useCreateConnection } from "../hooks/use-connections-mutations.ts";
-import { CONNECTION_FORM_COPY } from "../lib/add-connection-form-model.ts";
+import { CONNECTION_FORM_COPY, modelIdExample } from "../lib/add-connection-form-model.ts";
 import type { AddModelOnKeyFormValues, addModelScope } from "../lib/add-model-on-key-form-model.ts";
 import { addModelActionGloss, addModelActionLabel } from "../lib/add-model-on-key-form-model.ts";
 import { connectionHost } from "../lib/connections-model.ts";
-import { failedCatalogSource, isListedModel, typedModelAllowed } from "../lib/model-catalog-model.ts";
-import type { ModelCatalogPickerProps } from "./model-catalog-picker.tsx";
-import { ModelCatalogPicker } from "./model-catalog-picker.tsx";
+import { failedCatalogSource, isListedModel, modelListSource, typedModelAllowed } from "../lib/model-picker-model.ts";
+import type { ModelPickerProps } from "./model-picker.tsx";
+import { ModelPicker } from "./model-picker.tsx";
 
 type ConnectionListItem = inferOutput<Trpc["connection"]["list"]>[number];
 type AddModelScope = NonNullable<ReturnType<typeof addModelScope>>;
-type ModelCatalogSource = ModelCatalogPickerProps["source"];
+type ModelCatalogSource = ModelPickerProps["source"];
 
 export interface AddModelOnKeyDialogProps {
   readonly open: boolean;
@@ -70,8 +70,8 @@ function AddModelOnKeyBody({
   const catalogKey = trpc.connection.catalogModels.queryKey({ connectionId: connection.id });
 
   const save = async (values: AddModelOnKeyFormValues): Promise<AddModelOnKeyFormValues> => {
-    const models = queryClient.getQueryData(catalogKey);
-    const source: ModelCatalogSource = models === undefined ? { status: "loading" } : { status: "listed", models };
+    const catalog = queryClient.getQueryData(catalogKey);
+    const source: ModelCatalogSource = catalog === undefined ? { status: "loading" } : modelListSource(catalog, null);
     const label = values.label.trim();
     await createConnection.mutateAsync({
       providerId: connection.providerId,
@@ -103,17 +103,20 @@ function AddModelOnKeyBody({
         <Stack gap="block">
           <form.AppField name="model">
             {(field): ReactElement => {
-              const picker: Omit<ModelCatalogPickerProps, "source"> = {
+              const picker: Omit<ModelPickerProps, "source"> = {
+                currentModel: connection.model,
                 error: touchedFieldError(field.state.meta),
                 listOwner,
                 onValueChange: field.handleChange,
+                placeholder: modelIdExample(provider),
+                recentKey: provider.id,
                 typedAllowed: typedModelAllowed(provider),
                 value: field.state.value,
               };
               return (
                 <QueryBoundary
-                  fallback={<ModelCatalogPicker {...picker} source={{ status: "loading" }} />}
-                  renderError={(error, retry): ReactElement => <ModelCatalogPicker {...picker} source={failedCatalogSource(error, retry)} />}
+                  fallback={<ModelPicker {...picker} source={{ status: "loading" }} />}
+                  renderError={(error, retry): ReactElement => <ModelPicker {...picker} source={failedCatalogSource(error, retry)} />}
                 >
                   <SavedCatalogPicker connectionId={connection.id} picker={picker} trpc={trpc} />
                 </QueryBoundary>
@@ -140,17 +143,19 @@ function AddModelOnKeyBody({
   );
 }
 
-/** The saved row's catalog, read through the one catalog door. `retry: false`: a failed dial is the typed
- *  arm with its own "Try the list again", not three silent re-dials behind a skeleton. */
+/** The saved row's catalog, read through the one catalog door. `retry: false`: a failed or empty list is the
+ *  typed arm with its own "Try the list again", not three silent re-dials behind a skeleton. */
 function SavedCatalogPicker({
   connectionId,
   picker,
   trpc,
 }: {
   readonly connectionId: ConnectionListItem["id"];
-  readonly picker: Omit<ModelCatalogPickerProps, "source">;
+  readonly picker: Omit<ModelPickerProps, "source">;
   readonly trpc: Trpc;
 }): ReactElement {
-  const { data: models } = useSuspenseQuery({ ...trpc.connection.catalogModels.queryOptions({ connectionId }), retry: false });
-  return <ModelCatalogPicker {...picker} source={{ status: "listed", models }} />;
+  const catalog = useSuspenseQuery({ ...trpc.connection.catalogModels.queryOptions({ connectionId }), retry: false });
+  // `refetch` resolves with the query's own state (a failed read lands in `catalog`, not a rejection).
+  const retry = (): void => void catalog.refetch();
+  return <ModelPicker {...picker} source={catalog.isRefetching ? { status: "loading" } : modelListSource(catalog.data, retry)} />;
 }
