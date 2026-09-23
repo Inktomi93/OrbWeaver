@@ -1,7 +1,8 @@
 // Policy: real-corpus-liveness-manifest — the two-sided §6.3 liveness-pin enforcement manifest (#2149).
 // Every final policy owes one real-corpus liveness pin (standing law §6.3): a virtual overlay on the loaded
 // Project driven through `runPolicyPass` and asserting a report, declared as `RealCorpusLivenessArm` data
-// in a family test. Until this policy, the obligation was review-only. Now it is mechanically censused:
+// in a `tests/tooling/verify/gates/_liveness/<chunk>.ts` file. Until this policy, the obligation was
+// review-only. Now it is mechanically censused:
 //
 //   SIDE A — a final policy in the roster has NO liveness pin anywhere in the test corpus.
 //   SIDE B — a liveness pin references a policy ID that does NOT exist in the roster.
@@ -13,10 +14,18 @@
 // HOW IT READS THE DATA. Gate modules under `tooling/src/verify/gates/` are recognized by an `import` of
 // `defineGate` from a specifier containing `contract/policy` followed by a `defineGate(...)` call — the same
 // identity test the family uses at syntax tier. The policy ID equals the filename by loader contract.
-// Liveness pins live in test files under `tests/tooling/verify/gates/` that import BOTH a gate module's
-// `gate` export AND `RealCorpusLivenessArm` or one of its assertion helpers from
-// `tests/support/real-corpus-liveness`. In such a file, every `PropertyAssignment` named `policy` whose
-// initializer is one of the tracked gate imports counts as a pin for that policy ID.
+// Liveness pins live in the ONE arm home, `tests/tooling/verify/gates/_liveness/`, in files that import BOTH
+// a gate module's `gate` export AND the `tests/support/real-corpus-liveness` vocabulary. In such a file,
+// every `PropertyAssignment` named `policy` whose initializer is one of the tracked gate imports counts as a
+// pin for that policy ID.
+//
+// WHY THE HOME IS A DIRECTORY AND NOT "ANY TEST" (docs/work/0043). The owner ruling made liveness ONE runner
+// (`real-corpus-liveness-family.suite.repo.int.test.ts`) that collects arm data from `_liveness/<chunk>.ts`
+// and loads verify's corpus once. An arm declared inline in a family test is data that runner never
+// reads, so crediting it would count a pin that runs nowhere. The census could instead follow the runner's
+// import graph, but that is a second reader for a fact knip already enforces: a `_liveness/` chunk the
+// runner does not import is an unused file. So the census is keyed on the home path, and the path is the
+// whole rule.
 //
 // FAMILY `real-corpus-liveness-manifest` — a declared SINGLETON. Its subject is the cross-reference between
 // the gate roster and the liveness-arm vocabulary in family tests, which no existing shared reader serves.
@@ -37,7 +46,7 @@ import { importsModuleExport, moduleMemberReference, referencesModuleExport } fr
 
 const GATES_DIR = "tooling/src/verify/gates/";
 const PROOF_DIR = "tooling/src/verify/gates/_proof/";
-const TESTS_DIR = "tests/";
+const LIVENESS_HOME = "tests/tooling/verify/gates/_liveness/";
 const LIVENESS_SPECIFIER = "real-corpus-liveness";
 const TS_SUFFIX_LEN = 3; // ".ts".length
 const DEFINE_GATE = "defineGate";
@@ -136,7 +145,7 @@ function reportMissingPins(ctx: GatePolicyContext, roster: ReadonlyMap<string, {
     if (!pinned.has(id)) {
       ctx.report.file(path, {
         line: 1,
-        message: `Policy "${id}" has no real-corpus liveness pin — add a RealCorpusLivenessArm in a family test. (tooling/src/verify/gates/GATE-AUTHORING.md)`,
+        message: `Policy "${id}" has no real-corpus liveness pin — add a RealCorpusLivenessArm to a ${LIVENESS_HOME}<chunk>.ts file. (tooling/src/verify/gates/GATE-AUTHORING.md)`,
       });
     }
   }
@@ -162,14 +171,14 @@ function reportDanglingPins(
 // ── Policy definition ─────────────────────────────────────────────────────────────────────────────────────
 
 const MESSAGE =
-  "Every final policy owes a real-corpus liveness pin: a RealCorpusLivenessArm declaration in a family " +
-  "test that runs the policy against the repository's own source via runPolicyPass with a virtual overlay " +
-  "and asserts a report (standing law §6.3). (tooling/src/verify/gates/GATE-AUTHORING.md)";
+  `Every final policy owes a real-corpus liveness pin: a RealCorpusLivenessArm declared in ${LIVENESS_HOME}<chunk>.ts, ` +
+  "which the one liveness runner runs against the repository's own source via runPolicyPass with a virtual " +
+  "overlay, asserting a report (standing law §6.3). (tooling/src/verify/gates/GATE-AUTHORING.md)";
 
 const FIX =
-  "Add a RealCorpusLivenessArm for this policy in the appropriate family test (either " +
-  "real-corpus-liveness-family.suite.repo.int.test.ts or the policy's own family test), then run the test to " +
-  "prove the arm fires.";
+  `Add a RealCorpusLivenessArm for this policy to a ${LIVENESS_HOME}<chunk>.ts file that ` +
+  "real-corpus-liveness-family.suite.repo.int.test.ts imports, then run that suite to prove the arm fires in " +
+  "both directions. An arm declared inline in a family test is not collected by the runner and does not count.";
 
 const POLICY_CONTRACT_STUB = `export function ${DEFINE_GATE}<const Policy>(policy: Policy): Policy {\n  return policy;\n}\n`;
 
@@ -203,7 +212,7 @@ export const gate = defineGate({
   workItem: 42,
   population: {
     in: ["@tooling", "@tests"],
-    under: ["tooling/src/verify/gates/**", "tests/tooling/verify/gates/**"],
+    under: ["tooling/src/verify/gates/**", "tests/tooling/verify/gates/_liveness/**"],
     notUnder: ["tooling/src/verify/gates/_proof/**"],
   },
   analysis: "syntax",
@@ -287,8 +296,8 @@ export const gate = defineGate({
           return;
         }
 
-        // Test file: scan imports (visitors handle property assignments)
-        if (path.startsWith(TESTS_DIR)) {
+        // Arm-home file: scan imports (visitors handle property assignments)
+        if (path.startsWith(LIVENESS_HOME)) {
           const analysis = analyzeTestImports(sourceFile);
           if (analysis.isLivenessFile && analysis.importsAnyGateModule) {
             testAnalyses.set(sourceFile, analysis);
@@ -331,11 +340,21 @@ export const gate = defineGate({
         "tooling/src/verify/contract/policy.ts": POLICY_CONTRACT_STUB,
         // A valid gate module so the roster is non-empty (zero-member receipt is refused as a tool error)
         "tooling/src/verify/gates/probe-roster-anchor.ts": probeGate("probe-roster-anchor"),
-        "tests/tooling/verify/gates/probe-dangling.test.ts": probeTestFile("dangling", "../../../../tooling/src/verify/gates/nonexistent-policy.ts"),
+        "tests/tooling/verify/gates/_liveness/probe-dangling.ts": probeTestFile("dangling", "../../../../../tooling/src/verify/gates/nonexistent-policy.ts"),
       },
       // count: 2 — one for the dangling pin (Side B) and one for the anchor with no pin (Side A)
       expect: { count: 2, messageIncludes: "does not exist in the roster" },
       why: "Side B: a liveness pin referencing a non-existent policy must be reported",
+    },
+    {
+      mode: "source",
+      files: {
+        "tooling/src/verify/contract/policy.ts": POLICY_CONTRACT_STUB,
+        "tooling/src/verify/gates/probe-inline.ts": probeGate("probe-inline"),
+        "tests/tooling/verify/gates/probe-inline-family.test.ts": probeTestFile("inline", "../../../../tooling/src/verify/gates/probe-inline.ts"),
+      },
+      expect: { count: 1, messageIncludes: 'Policy "probe-inline" has no real-corpus liveness pin' },
+      why: "an arm declared INLINE in a family test is not a pin: the one runner collects arms only from the _liveness/ home, so this arm runs nowhere and the policy stays unpinned",
     },
   ],
   mustPass: [
@@ -344,7 +363,7 @@ export const gate = defineGate({
       files: {
         "tooling/src/verify/contract/policy.ts": POLICY_CONTRACT_STUB,
         "tooling/src/verify/gates/probe-matched.ts": probeGate("probe-matched"),
-        "tests/tooling/verify/gates/probe-matched-liveness.test.ts": probeTestFile("matched", "../../../../tooling/src/verify/gates/probe-matched.ts"),
+        "tests/tooling/verify/gates/_liveness/probe-matched.ts": probeTestFile("matched", "../../../../../tooling/src/verify/gates/probe-matched.ts"),
       },
       why: "A policy with a matching liveness pin must pass cleanly",
     },

@@ -23,3 +23,11 @@ Fixture proof rows prove a policy's logic but not that it reads the real tree. A
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+Chunk 1 (lane cb-pins, 2026-09-23). The one runner (item 0043's ruling) is
+`tests/tooling/verify/gates/real-corpus-liveness-family.suite.repo.int.test.ts` over
+`tests/support/real-corpus-liveness.ts`; arms are data in `tests/tooling/verify/gates/_liveness/*.ts`. The ten
+earlier pins moved onto it, and the 37 unpinned policies whose population is exactly `@client` gained arms
+(`_liveness/client-app.ts`). All 47 arms pass both directions, and a planted dead control is refused. No
+policy in the chunk was blind on the real tree. `real-corpus-liveness-manifest`: 341 unpinned before, 304
+after (`pnpm check:structure --check real-corpus-liveness-manifest`).
