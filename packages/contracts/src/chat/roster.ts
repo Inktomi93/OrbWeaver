@@ -5,15 +5,16 @@
 // carried appearance (the true-solo composition both takeovers gate on). The
 // LIFECYCLE logic is `domain/chat`; these are just the wire shapes.
 
-import type { AssetId, CharacterId, ChatId, ChatInviteId, ChatParticipantId, Handle, PersonaId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, ChatParticipantId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import type { ParticipantRole } from "#identity";
 import { PARTICIPANT_ROLES } from "#identity";
 import type { CardEmbeddableTheme, ThemeBackground, ThemeOverride } from "#theme";
-import { cardEmbeddableSubset } from "#theme";
+import { cardEmbeddableSubset, themeBackgroundSchema, themeOverrideSchema } from "#theme";
 import type { MemberCardVisibility } from "./metadata.ts";
 import type { ParticipantKind } from "./participants.ts";
+import { participantKindSchema } from "./participants.ts";
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // THE UNIFIED-ROSTER WIRE (D16) — the participant roster, the membership-gated member card (D22), invites,
@@ -151,6 +152,12 @@ export interface RenderPolicy {
    *  (the load itself is the tracking-pixel/exfil — D44 §12.3). */
   readonly forbidExternalMedia: boolean;
 }
+
+/** The strict runtime twin of {@link RenderPolicy} — a nested member of {@link participantViewSchema}. */
+export const renderPolicySchema = z.strictObject({
+  htmlTrust: z.enum(HTML_TRUST_STEPS),
+  forbidExternalMedia: z.boolean(),
+}) satisfies z.ZodType<RenderPolicy>;
 
 /** The DEPLOYMENT tier as the resolver takes it. Deliberately NOT a {@link HtmlTrustStep}: the two rungs
  *  have two DIFFERENT app-tier semantics (a default vs a ceiling — see {@link resolveRenderPolicy}), and
@@ -297,6 +304,34 @@ export interface ParticipantView {
    *  in the app-shell background resolver. */
   backgroundOverride?: ThemeBackground | null;
 }
+
+/** The strict runtime twin of {@link ParticipantView}, used as a tRPC output parser (the invite join results
+ *  carry the joiner's row and the room roster). An unexpected key fails the parse. The three carried blobs
+ *  reuse their own lenient read schemas (`themeOverrideSchema`, `themeBackgroundSchema`): those heal a stored
+ *  legacy value and strip an unknown key rather than failing, so a stale card blob cannot fail a join after the
+ *  participant insert has committed, and still cannot put an extra key on the wire. */
+export const participantViewSchema = z.strictObject({
+  id: typeIdSchema(ID_PREFIX.chatParticipant),
+  chatId: typeIdSchema(ID_PREFIX.chat),
+  kind: participantKindSchema,
+  userId: brandedId<UserId>().nullable(),
+  characterId: typeIdSchema(ID_PREFIX.character).nullable(),
+  role: participantRoleSchema,
+  activePersonaId: typeIdSchema(ID_PREFIX.persona).nullable(),
+  talkativeness: z.number(),
+  disabled: z.boolean(),
+  joinedAt: z.number(),
+  joinSeq: z.number(),
+  leftSeq: z.number().nullable(),
+  joinHistoryVisibility: joinHistoryVisibilitySchema,
+  displayName: z.string(),
+  handle: brandedId<Handle>().nullable(),
+  avatarAssetId: typeIdSchema(ID_PREFIX.asset).nullable(),
+  avatarHash: z.string().nullable(),
+  renderPolicy: renderPolicySchema.exactOptional(),
+  themeOverride: themeOverrideSchema.nullable().exactOptional(),
+  backgroundOverride: themeBackgroundSchema.nullable().exactOptional(),
+}) satisfies z.ZodType<ParticipantView>;
 
 /** One character seat's carried APPEARANCE — the card-authored look a room may take over (the theme half,
  *  D44 §12.1, and the background half, BG-C). Deliberately the MINIMAL projection: it is the most a
@@ -580,26 +615,43 @@ export const acceptInviteSchema = z.object({
 export type AcceptInviteInput = z.infer<typeof acceptInviteSchema>;
 
 /** The preview-then-confirm result — deliberately MINIMAL: room name / host handle / member COUNT / mode
- *  label ONLY. NO roster identities, NO history (Part III §2 — those replay from `joinSeq` AFTER accept). */
-export interface InvitePreview {
-  chatId: ChatId;
-  roomName: string;
-  hostHandle: Handle;
-  memberCount: number;
+ *  label ONLY. NO roster identities, NO history (Part III §2 — those replay from `joinSeq` AFTER accept).
+ *  STRICT, and the `invites.previewInvite` output parser: the caller is not a member yet, so any extra key
+ *  (a roster, an id list) fails the call instead of reaching them. */
+export const invitePreviewSchema = z.strictObject({
+  chatId: typeIdSchema(ID_PREFIX.chat),
+  roomName: z.string(),
+  hostHandle: brandedId<Handle>(),
+  memberCount: z.number().int().nonnegative(),
   /** A human-readable mode label (e.g. the output × policy summary) — never the raw config. */
-  modeLabel: string;
-}
+  modeLabel: z.string(),
+});
+export type InvitePreview = z.infer<typeof invitePreviewSchema>;
 
 /** An invite as the host manages it. NEVER carries the token (raw or hashed) — a leak would let anyone
- *  redeem. `remainingUses` is `maxUses` minus redemptions (null = unlimited). */
-export interface InviteView {
-  id: ChatInviteId;
-  chatId: ChatId;
-  status: InviteStatus;
-  maxUses: number | null;
-  remainingUses: number | null;
-  expiresAt: number | null;
+ *  redeem. `remainingUses` is `maxUses` minus redemptions (null = unlimited). STRICT: the output parser of
+ *  `invites.listInvites` and the `invite` half of `invites.createInvite`, so a spread row carrying the
+ *  peppered `tokenHash` fails the call. */
+export const inviteViewSchema = z.strictObject({
+  id: typeIdSchema(ID_PREFIX.chatInvite),
+  chatId: typeIdSchema(ID_PREFIX.chat),
+  status: inviteStatusSchema,
+  maxUses: z.number().nullable(),
+  remainingUses: z.number().nullable(),
+  expiresAt: z.number().nullable(),
   /** The targeted user when created by handle; null for an open share-link. */
-  invitedUserId: UserId | null;
-  createdAt: number;
-}
+  invitedUserId: brandedId<UserId>().nullable(),
+  createdAt: z.number(),
+});
+export type InviteView = z.infer<typeof inviteViewSchema>;
+
+/** `createInvite` — the persisted invite plus the raw token, returned exactly once for the `/join/:token`
+ *  link. The token is stored hashed and never appears in an {@link InviteView}. STRICT at both levels and the
+ *  procedure's output parser: `token` is the one secret this result may carry, and any sibling key fails the
+ *  call. `token` carries the same floor the redeem/preview inputs demand, so the link it builds is one those
+ *  inputs accept. */
+export const createInviteResultSchema = z.strictObject({
+  invite: inviteViewSchema,
+  token: z.string().min(INVITE_TOKEN_MIN),
+});
+export type CreateInviteResult = z.infer<typeof createInviteResultSchema>;
