@@ -6,15 +6,15 @@ import { openJsonParityFact } from "../lib/open-json-parity-fact.ts";
 import { drizzleSchemaFact } from "../lib/schema-fact.ts";
 
 const MESSAGE =
-  "messageVariants.metadata has a named reasoning_duration reader but no proven live-turn writer; issue #184 owns the product decision and repair. (tooling/src/verify/gates/GATE-AUTHORING.md)";
-const FIX = "resolve #184 by stamping reasoning_duration on live turns or sourcing the statistic from a typed first-class column.";
+  "messageVariants.metadata has a named reasoning_duration reader but no proven live-turn writer; work item 64 owns the product decision and repair. (tooling/src/verify/gates/GATE-AUTHORING.md)";
+const FIX = "resolve work item 64 by stamping reasoning_duration on live turns or sourcing the statistic from a typed first-class column.";
 
 export const gate = defineGate({
   id: "open-json-column-key-parity-deferred",
   family: "open-json-column-key-parity",
   authority: "hard",
   severity: "warning",
-  workItem: 184,
+  workItem: 64,
   population: { in: ["@db", "@server"], under: ["packages/db/src/schema/**", "packages/server/src/**"] },
   analysis: "types",
   execution: "entire-population",
@@ -46,7 +46,7 @@ export const gate = defineGate({
           "export async function read(db) { return db.all(sql`select json_extract(v.metadata, '$.reasoning_duration') from message_variants v`); }\n",
       },
       expect: { count: 1 },
-      why: "the live unresolved #184 seam remains visible as a warning with explicit issue authority",
+      why: "the live unresolved reasoning-duration seam remains visible as a warning owned by work item 64",
     },
   ],
   mustPass: [

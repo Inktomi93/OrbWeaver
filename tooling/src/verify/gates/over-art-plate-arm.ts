@@ -67,8 +67,8 @@
 // THE OWNER IS #2326 SINCE 2026-09-13, AND THE POINTER HAS NOW ROTTED TWICE — which is why the flip condition
 // below is stated as a COUNT and never as a date. #626 closed under the debt (`17a495fb8` repointed to #2024);
 // #2024 then closed the same day on the REPOINT RECEIPT while all four surfaces were still firing, so the debt
-// again had no live owner. #2070's barrier (`lib/workitem-liveness.ts`) is what MEASURES this now: it asks the
-// board whether this number is open and reds when it is not. THE FLIP CONDITION WAS MET AND TAKEN (owner,
+// again had no live owner. `warning-workitem-liveness` is what MEASURES this now: it holds a warning's
+// `workItem` against its `docs/work` item and reds when that item is done or missing. THE FLIP CONDITION WAS MET AND TAKEN (owner,
 // 2026-09-19): #2389 gave all four subjects their `--color-reading-plate` light arm, the effective count on
 // the real corpus read ZERO (`reports/check-structure.json`), and this commit raised `severity` to `"error"` and
 // deleted `workItem`. AUTHORITY STAYS `"ordinary"`, not the `"hard"` the condition first spelled: #1171's

@@ -10,7 +10,7 @@
 /** A GFM alignment rule: the `| - | - |` line that makes the row above it a HEADER. */
 const ALIGNMENT_RULE = /^\|[\s:|-]+\|\s*$/;
 
-export interface MarkdownTableRow {
+interface MarkdownTableRow {
   readonly cells: readonly string[];
   /** 1-based, absolute in the document. */
   readonly line: number;
