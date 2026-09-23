@@ -209,6 +209,20 @@ generate against the same parent?).
 
 7. **The `db-structure` barrel gate.** A schema file missing from `schema/index.ts` silently drops its tables from `typeof schema` and from migrations. The gate enforces the re-export AND the producer-mapping split.
 
+8. **Concurrent creation: the unique constraint decides the race.** Let a UNIQUE or primary-key constraint decide which writer creates one logical unit of work. Do not pre-check. Do not add a reservation or lease table.
+
+   - Commit the whole unit in one `db.batch`, so a losing writer leaves no partial rows.
+   - Classify a failure with `isConstraintViolation` from `@orb/db/kit`.
+   - Treat a violation as a lost race only when a re-read explains it. For an import, the winner's claim row is now visible (`commitImportCandidate`). For a canon append, the head has reached the attempted seq (`commitCanonAppend`).
+   - Rethrow every other failure. This includes a unique violation that the re-read does not explain.
+   - After a lost race, use the winner's result, or re-allocate and rebuild the attempt with new ids.
+   - Never re-run work that is already paid for, such as a provider call.
+   - Bound any re-allocation loop. Repeated loss means a defect elsewhere, not contention.
+
+   A reservation table is rejected because a crash can leave an ownerless pending claim. Cleaning that up needs leases and reaping that these operations do not otherwise need.
+
+   Homes: `packages/db/src/kit/db-errors.ts`, `packages/server/src/domain/chat/persistence/canon-write.ts`, `packages/server/src/domain/chat/persistence/import-write.ts`.
+
 ## Invariants
 
 1. **`db` imports only `kit` + `contracts`.** *(resolve-time physics; dep-cruiser `db-cake`.)*
