@@ -137,7 +137,7 @@ It starts vLLM on the live ports and stops engines it does not own.
 
 ## Reading router
 
-Find your task and read those docs in full. Read nothing else from `docs/architecture/core/`. Doc names
+Find your task and read those docs in full. Read nothing else from `docs/law/`. Doc names
 without a path are in that folder.
 
 | Task | Read |
@@ -155,9 +155,9 @@ without a path are in that folder.
 | An instruction file | `.claude/rules/writing.md` |
 | A code comment | `.claude/rules/comments.md` |
 | Which word names a concept | `docs/design/vocabulary-map.md` |
-| Where a concept lives | `docs/architecture/core/AGENTS.md` §6 (domain map), `Core-0-Architecture-and-Structure.md` §6 (partitioning) |
+| Where a concept lives | `docs/law/Constitution.md` §6 (domain map), `Core-0-Architecture-and-Structure.md` §6 (partitioning) |
 | A parked design set | `docs/architecture/proposed/INDEX.md` |
-| Why the codebase has this shape | `docs/Mission.md`, `docs/architecture/core/AGENTS.md` §1 (doctrine) |
+| Why the codebase has this shape | `docs/Mission.md`, `docs/law/Constitution.md` §1 (doctrine) |
 
 ## Glossary
 

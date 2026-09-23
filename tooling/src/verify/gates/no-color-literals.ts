@@ -81,7 +81,7 @@ const MESSAGE_POLICY =
 const MESSAGE_NON_TOKEN =
   "named non-token color class (bg-black/bg-white/…-black/…-white) — D43 / UI-Gates-and-Lessons.md §11.4: use a theme token; for overlays use bg-backdrop (a bg-black/50 scrim is invisible on a true-black theme).";
 const MESSAGE_HEX =
-  "arbitrary hex color class (…-[#rrggbb]) — use a design token from theme.css (bg-card, text-foreground, text-success, text-destructive, etc.). Theme switching breaks with literal hex. See docs/architecture/core/UI-Architecture-and-Layout.md.";
+  "arbitrary hex color class (…-[#rrggbb]) — use a design token from theme.css (bg-card, text-foreground, text-success, text-destructive, etc.). Theme switching breaks with literal hex. See docs/law/UI-Architecture-and-Layout.md.";
 const MESSAGE_PALETTE =
   "Tailwind PALETTE-scale color class (e.g. text-red-500 / bg-blue-300) — D43 / UI-Architecture-and-Layout.md: a hardcoded palette scale bypasses the theme; use a semantic token (text-destructive, text-success, bg-primary, border-border, …). Theme switching + a true-black theme both break with a fixed palette step.";
 

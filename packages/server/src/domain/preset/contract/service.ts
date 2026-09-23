@@ -1,7 +1,7 @@
 // The typed API surface: PresetContext (the DI bundle) and PresetService. preset is a leaf user-scoped CRUD
 // feature and gates by `ownerId === userId` — no injected guard. Its ONE cross-feature port is the chat-role
 // CAPABILITY read (`resolveEffective`): the type is declared here, the runtime op is wired at the composition
-// root, so preset never imports `connection` (the sideways-import ban, AGENTS §2).
+// root, so preset never imports `connection` (the sideways-import ban, Constitution.md §2).
 
 import type { Principal } from "@orb/contracts/identity";
 import type { ResolvedConnectionView } from "@orb/contracts/inference";

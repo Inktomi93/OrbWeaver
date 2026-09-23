@@ -1,5 +1,5 @@
 // The shape lib/spelling-twins.ts returns. Homed here because the five-slot template puts every exported
-// shape in contract/ (docs/architecture/core/Core-Tooling-Law.md §2.5) and `no-inline-types` enforces it.
+// shape in contract/ (docs/law/Core-Tooling-Law.md §2.5) and `no-inline-types` enforces it.
 
 /** A gate fixture RESPELLED into the two spellings that escape a naive detector (#1506). Each arm is
  *  `undefined` when the fixture carries nothing of that shape to respell — a REFUSAL the caller counts and

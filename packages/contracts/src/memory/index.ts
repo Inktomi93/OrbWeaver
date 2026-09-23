@@ -1,5 +1,5 @@
-// AI-native seam reservations — the v2 "synthesize, don't just retrieve" apex (core/Knowledge-Cluster.md §9,
-// core/Core-Planning-and-Checklists.md, DECISIONS-LEDGER §5). Typed NOW with ZERO behavior so trackers / clips /
+// AI-native seam reservations — the v2 "synthesize, don't just retrieve" apex (docs/law/Knowledge-Cluster.md §9,
+// docs/law/Core-Planning-and-Checklists.md, DECISIONS-LEDGER §5). Typed NOW with ZERO behavior so trackers / clips /
 // world-state stay ADDITIVE when built (v2) — never a schema fight. The full Clip shape + persistence
 // land with the feature; these are the union axes that must exist up front. Self-registering `as const`
 // tuples = the canonical home for each axis (no-inline-union-redecl); the type AND the Zod schema both
@@ -16,7 +16,7 @@ export type ClipKind = (typeof CLIP_KINDS)[number];
 /** @public pre-built memory surface — schema twin of `CLIP_KINDS`. */
 export const clipKindSchema = z.enum(CLIP_KINDS) satisfies z.ZodType<ClipKind>;
 
-/** Provenance of a clip. A `'user'` clip is NEVER auto-deleted (core/Knowledge-Cluster.md §9). */
+/** Provenance of a clip. A `'user'` clip is NEVER auto-deleted (docs/law/Knowledge-Cluster.md §9). */
 export const CLIP_SOURCE_KINDS = ["user", "synthesized", "promoted"] as const;
 /** @public pre-built memory surface — provenance vocabulary (Knowledge-Cluster.md S9). */
 export type ClipSourceKind = (typeof CLIP_SOURCE_KINDS)[number];

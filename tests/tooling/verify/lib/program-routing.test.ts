@@ -83,7 +83,7 @@ test("ambient and inherited tsconfig edits select every native dependent program
 test("non-TypeScript inputs are explicit not-applicable results", ({ repoRoot }) => {
   const plan = planTypecheckPrograms(
     repoRoot,
-    [present("packages/ui/src/styles/globals.css"), present("tests/kit/cel/cel-goldens.json"), present("docs/architecture/core/Core-Tooling-Law.md")],
+    [present("packages/ui/src/styles/globals.css"), present("tests/kit/cel/cel-goldens.json"), present("docs/law/Core-Tooling-Law.md")],
     "primary",
   );
   expect(plan.programs).toEqual([]);

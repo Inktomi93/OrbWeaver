@@ -48,13 +48,13 @@ const POST_CONVERSION_GRANT_IDS: ReadonlySet<string> = new Set([
   // never one of the 22 rows the legacy tables carried across.
   "dangling-ref-citations:sanctioned-homes",
 ]);
-const DIFFERENTIAL_ANCHOR = "docs/architecture/core/__dangling_refs_differential_anchor.md";
+const DIFFERENTIAL_ANCHOR = "docs/law/__dangling_refs_differential_anchor.md";
 const DIFFERENTIAL_PACKAGE_ANCHOR = "packages/kit/src/__dangling_refs_differential_anchor.ts";
 const DIFFERENTIAL_TOOLING_ANCHOR = "tooling/src/__dangling_refs_differential_anchor.ts";
 const FINAL_RESOURCE_FLOOR = {
   [DIFFERENTIAL_ANCHOR]: "---\nkind: law\n---\n\nDifferential resource anchor.\n",
   "docs/catalog/catalog.json":
-    '{"documents":[{"path":"docs/architecture/core/__dangling_refs_differential_anchor.md","lane":"core","frontmatter":{"fields":{"status":"active"}},"receipt":{"authority":"normative"}}]}\n',
+    '{"documents":[{"path":"docs/law/__dangling_refs_differential_anchor.md","lane":"core","frontmatter":{"fields":{"status":"active"}},"receipt":{"authority":"normative"}}]}\n',
   ".gitignore": "dist/\n",
   [DIFFERENTIAL_PACKAGE_ANCHOR]: "export const DANGLING_REFS_DIFFERENTIAL_ANCHOR = true;\n",
   [DIFFERENTIAL_TOOLING_ANCHOR]: "export const danglingRefsDifferentialAnchor = true;\n",
@@ -83,14 +83,14 @@ function gitignoreNames(repoRoot: string, path: string): boolean {
     .some((line) => wanted.has(line));
 }
 
-const ISOLATED_LAW = "docs/architecture/core/__dangling_refs_isolated_law__.md";
+const ISOLATED_LAW = "docs/law/__dangling_refs_isolated_law__.md";
 const ISOLATED_DESIGN = "docs/design/__dangling_refs_isolated_design__.md";
 
 /** A SELF-CONTAINED derived corpus for this gate, at the same RELATIVE paths the real tree uses (#2332).
  *
  *  It exists because every arm below asks a question about the gate's RESOLUTION — is a gitignored path a
  *  phantom, is `tooling/src/verify/gates/GATE-AUTHORING.md` inside the citation net, is `history/**` outside it — and every one of
- *  those is answered against `root`. What it deliberately does NOT carry is `core/AGENTS.md` and the rest of
+ *  those is answered against `root`. What it deliberately does NOT carry is `docs/law/Constitution.md` and the rest of
  *  the living corpus: their cites resolve against the real tree, so importing them would report thousands of
  *  phantoms that say nothing about the arm. Each assertion below therefore FILTERS to its own subject, and
  *  the whole-gate-clean claim stays where it belongs — on the real-tree read above. */
@@ -350,7 +350,7 @@ describe("dangling-refs — the derived corpus reaches living law outside docs/ 
 // That aggregate cannot name the MECHANISM, which is why these two arms exist: the same probe symbol,
 // spelled once in a grant-table SIBLING and once in an ordinary module, must produce opposite verdicts.
 const FENCE_PROBE_SYMBOL = "ORB_FENCE_PROBE";
-const FENCE_PROBE_DOC = "docs/architecture/core/__p2397_fence_probe__.md";
+const FENCE_PROBE_DOC = "docs/law/__p2397_fence_probe__.md";
 const FENCE_PROBE_GRANT_SIBLING = "tooling/src/verify/lib/reviewed-grants-p2397-fence-probe.ts";
 const FENCE_PROBE_ORDINARY = "tooling/src/verify/lib/__p2397_ordinary_probe__.ts";
 /** The grant row's shape, reduced to what the fence is about: the subject spelled as a string literal. */

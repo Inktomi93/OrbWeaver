@@ -1,5 +1,5 @@
 // ast's programmatic front door — what tests, the push-tier orphan ratchet and sibling tools import;
-// the cli fronts this surface. One tool, one API (docs/architecture/core/Core-Tooling-Law.md §2.5). The pure
+// the cli fronts this surface. One tool, one API (docs/law/Core-Tooling-Law.md §2.5). The pure
 // collectors are exported so the ratchet judges the SAME candidate sets the verbs print (one
 // definition of "orphan"/"swallowed"/…, never a parallel one).
 export type {

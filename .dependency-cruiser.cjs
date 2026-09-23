@@ -14,7 +14,7 @@
  * the tooling/src/<tool>/ slot rules) is inside that reach. Cross-package `@orb/*` imports resolve through
  * the workspace into `packages/<pkg>/src/...`, so the path regexes below match resolved edges.
  * Authoritative rule sources: Core-0-Architecture-and-Structure.md (the cake, the server tier order, the
- * 8-slot feature template), the Tier-* docs under docs/architecture/core/, and AGENTS.md §6 (the domain
+ * 8-slot feature template), the Tier-* docs under docs/law/, and Constitution.md §6 (the domain
  * map). Each rule's own `comment` carries its citation.
  *
  * HOUSE STYLE (from neo, kept): generic-over-enumerated (one capture-group rule auto-covers future
@@ -559,7 +559,7 @@ module.exports = {
     {
       name: "domain-no-cross-feature",
       comment:
-        "Domain features stay independent: a module in domain/<a>/ must not import another feature's internals at RUNTIME. There is NO domain/_shared in orbweaver (principle #3) — cross-feature primitives are @orb/kit, cross-feature services are their own feature. TYPE-ONLY imports across features ARE allowed (a verb declaring the SHAPE of an injected cross-feature op — wired at the composition root). (Core-0-Architecture-and-Structure.md §4; AGENTS.md §6 domain map.)",
+        "Domain features stay independent: a module in domain/<a>/ must not import another feature's internals at RUNTIME. There is NO domain/_shared in orbweaver (principle #3) — cross-feature primitives are @orb/kit, cross-feature services are their own feature. TYPE-ONLY imports across features ARE allowed (a verb declaring the SHAPE of an injected cross-feature op — wired at the composition root). (Core-0-Architecture-and-Structure.md §4; Constitution.md §6 domain map.)",
       severity: "error",
       from: { path: `${SRV}domain/([^/]+)/` },
       to: {
@@ -709,7 +709,7 @@ module.exports = {
     {
       name: "stats-no-vector-tables",
       comment:
-        "stats is ECONOMICS (tokens/cost/cache/timing) — it touches ZERO vector tables. discovery is SEMANTICS (themes/hubness/facets). The line is type-enforced: domain/stats must not import the embeddings vector schema. (AGENTS.md §6 domain map, stats vs discovery; Knowledge-Cluster.md invariant 5.) LIVE since db/schema/embeddings landed (was a forward rule; regex-liveness verified 2026-08-03).",
+        "stats is ECONOMICS (tokens/cost/cache/timing) — it touches ZERO vector tables. discovery is SEMANTICS (themes/hubness/facets). The line is type-enforced: domain/stats must not import the embeddings vector schema. (Constitution.md §6 domain map, stats vs discovery; Knowledge-Cluster.md invariant 5.) LIVE since db/schema/embeddings landed (was a forward rule; regex-liveness verified 2026-08-03).",
       severity: "error",
       from: { path: `${SRV}domain/stats/` },
       to: { path: `${DB}schema/embeddings` },
@@ -721,7 +721,7 @@ module.exports = {
     // (scripts/check/gates/) which matches the named table symbols at the ImportSpecifier level — the
     // same mechanism vector-scope-derived/no-direct-users-read use for barrel-resolved table seals.
 
-    // ════════════════════ @orb/tooling — the tool fleet ABOVE the cake (docs/architecture/core/Core-Tooling-Law.md §4.6) ════════════════════
+    // ════════════════════ @orb/tooling — the tool fleet ABOVE the cake (docs/law/Core-Tooling-Law.md §4.6) ════════════════════
     {
       name: "packages-no-tooling",
       comment:

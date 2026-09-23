@@ -1,7 +1,7 @@
 // support/factories/chat — the membership-scoped `chats` row (D18: NO ownerId — a bare chat is valid
 // with just its own id; authority is the host PARTICIPANT). `X` is the SELECT row. Relations are ids by
 // default; roster rows are EXPLICIT opt-ins per the factory contract (`seedChat(db, { withHost: true })`
-// — the exact sanctioned shape in core/Spine-Testing.md §4): `withHost` seeds a user + a `role:'host'`
+// — the exact sanctioned shape in docs/law/Spine-Testing.md §4): `withHost` seeds a user + a `role:'host'`
 // human membership, `withCharacter` seeds a card + a `role:'member'` character membership. The opt-in
 // ids ride back on the returned row (`hostUserId` / `characterId`) so tests can act as the host.
 

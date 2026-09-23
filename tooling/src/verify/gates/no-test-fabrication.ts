@@ -1,4 +1,4 @@
-// Policy: no-test-fabrication (core/Spine-Testing.md §5) — tests may not erase a contract with `X as any`,
+// Policy: no-test-fabrication (docs/law/Spine-Testing.md §5) — tests may not erase a contract with `X as any`,
 // fabricate typed entities with `X as unknown as Y`, or assert an object/array literal `as Y`. Every
 // spelling survives a receiving contract gaining or renaming a required field; use a typed factory,
 // `satisfies`, or an explicit unknown/raw validation boundary instead.

@@ -48,7 +48,7 @@ const FIX_HINT =
   "emit the forward migration the schema edit owes (post-launch policy — the baseline is FROZEN and is " +
   "never regenerated): `pnpm --filter @orb/db exec drizzle-kit generate --name <what-changed>` with the " +
   "migrations dir untouched, READ the emitted SQL, then biome-format the meta files. See " +
-  'docs/architecture/core/Tier-1-DB.md §"Regime 2".';
+  'docs/law/Tier-1-DB.md §"Regime 2".';
 
 function normalize(statement: string): string {
   return statement.replace(WS_RE, " ").replace(TRAILING_SEMI_RE, "").trim();

@@ -153,7 +153,7 @@ const TABLE_OWNERS: Readonly<Record<string, OwnershipRuling>> = {
 const BULK_READERS: Readonly<Record<string, { readonly why: string }>> = {
   discovery: {
     why:
-      "library-analytics (AGENTS §6 domain map): themes / duplicates / hubness / distillation are computed BY " +
+      "library-analytics (Constitution.md §6 domain map): themes / duplicates / hubness / distillation are computed BY " +
       "reading other domains' rows in bulk — Tier-1-DB.md §Cross-tier composition puts discovery in the same " +
       "bulk read-only posture as search on the vector tables. Its verbs' own headers state the owner scope " +
       "derives via a `characters` join because `character_summaries` keeps no ownerId. Ends the day discovery's " +
@@ -193,7 +193,7 @@ const FIX =
 const readMessage = (table: string): string =>
   `cross-domain READ of \`${table}\` outside \`persistence/\` — this table is imported by a domain that does ` +
   "not own it. A domain touches its OWN tables directly and reaches another domain's DATA through an " +
-  "injected op (AGENTS §2). Tier-1-DB.md §'Cross-tier composition': `persistence/` is the sanctioned home " +
+  "injected op (Constitution.md §2). Tier-1-DB.md §'Cross-tier composition': `persistence/` is the sanctioned home " +
   "for reusable cross-domain reads. " +
   FIX;
 
@@ -205,7 +205,7 @@ const writeMessage = (table: string): string =>
 
 const MESSAGE =
   "a domain touches its OWN tables directly and reaches another domain's DATA through an injected op " +
-  "(AGENTS §2: cross-feature dependency is never a sideways import). Tier-1-DB.md §'Cross-tier composition': " +
+  "(Constitution.md §2: cross-feature dependency is never a sideways import). Tier-1-DB.md §'Cross-tier composition': " +
   "`persistence/` is the home for reusable READ helpers and cross-domain ownership checks; verbs/substrate/" +
   "subsystems write their own domain's tables. The ownership map is derived from `packages/db/src/schema/" +
   "<domain>.ts` (producer-names-the-schema) via the shared `drizzle-schema` fact.";

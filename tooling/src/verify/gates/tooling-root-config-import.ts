@@ -1,4 +1,4 @@
-// Policy: tooling-root-config-import (docs/architecture/core/Core-Tooling-Law.md §4.2) — a tooling module that
+// Policy: tooling-root-config-import (docs/law/Core-Tooling-Law.md §4.2) — a tooling module that
 // imports OUTSIDE the tooling tree by relative path. Cross-package needs go through `@orb/*` package
 // specifiers; a repo-root CONFIG whose data would otherwise be re-spelled requires an exact reviewed grant.
 // Prodonly derives runtime entries from package manifests and tool conventions; knip.ts stays analysis-only.
@@ -47,7 +47,7 @@ const OPERATION = "root-config-import";
 const MESSAGE =
   "a tooling module imports outside the tree by relative path — cross-package needs go through @orb/* package " +
   "specifiers; a repo-root CONFIG read whose data would otherwise be re-spelled is licensed by an exact reviewed " +
-  "grant naming the consumer and the config (docs/architecture/core/Core-Tooling-Law.md §4.2).";
+  "grant naming the consumer and the config (docs/law/Core-Tooling-Law.md §4.2).";
 const FIX =
   "use an @orb/* specifier for anything outside tooling/, or record an exact reviewed grant `(consumer, root-config-import:<config>)` for a one-home config read.";
 

@@ -1,4 +1,4 @@
-// The composed test (core/Spine-Testing.md §4) — `test.extend` over beforeEach. Import `test`/`expect`
+// The composed test (docs/law/Spine-Testing.md §4) — `test.extend` over beforeEach. Import `test`/`expect`
 // from HERE, never vitest (gate: test-fixture-imports). Fixtures are lazy — a fixture only constructs if
 // a test destructures it:
 //   clock / ids     — the determinism seams (frozen clock + seeded ids).

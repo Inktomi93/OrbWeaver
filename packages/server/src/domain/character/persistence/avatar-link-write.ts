@@ -8,7 +8,7 @@
 //
 // It moved here from `assets/persistence/maintenance.ts` (2026-08-02), which is where it was WRITTEN from
 // but not where it BELONGS: `characters` is character's table, and a cross-domain write routes through the
-// owning domain's persistence helper + an injected op (Tier-1-DB.md §"Cross-tier composition"; AGENTS §2).
+// owning domain's persistence helper + an injected op (Tier-1-DB.md §"Cross-tier composition"; Constitution.md §2).
 // Assets keeps the READ half (`loadAvatarBackfillCandidates`) — `persistence/` is the sanctioned home for a
 // cross-domain read, and the candidate scan is assets' own sweep.
 //

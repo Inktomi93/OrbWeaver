@@ -1,6 +1,6 @@
 // domain/chat/memory/recall/window — the §3a SECOND guard: the token-driven recall WINDOW-FILTER. PURE.
 //
-// The two guards are DISTINCT (core/Knowledge-Cluster.md §3a — do not conflate):
+// The two guards are DISTINCT (docs/law/Knowledge-Cluster.md §3a — do not conflate):
 //   • BUILD-PROTECT (`verbatimWindow`, a FIXED small message count, e.g. 8): the build cutoff `maxSeq −
 //     verbatimWindow` — only fully-aged-out blocks are digested, aggressively + with NO gap. A budget-INDEPENDENT
 //     constant; its job is "never forget a block that scrolled past the protect zone".

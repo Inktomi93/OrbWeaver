@@ -1,4 +1,4 @@
-// tests/support/db — freshDb (core/Spine-Testing.md §2): a libSQL `:memory:` db per call for the `.int` lane.
+// tests/support/db — freshDb (docs/law/Spine-Testing.md §2): a libSQL `:memory:` db per call for the `.int` lane.
 // freshDb PUSHES the LIVE schema (it diffs `@orb/db/schema` against an empty snapshot via drizzle-kit's
 // programmatic API and applies the resulting CREATE statements over the real createDb handle), so a slice
 // test always runs against the current schema regardless of whether `0000_baseline.sql` has been

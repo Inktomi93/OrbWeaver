@@ -2,7 +2,7 @@
 // chats · messages · message_variants · message_assets · message_reactions · chat_participants ·
 // chat_invites · pending_turns · chat_events ·
 // chat_stream_events · chat_injections · chat_locks · chat_import_claims · chat_handoff_resumptions. Built
-// WHOLE (no feature-phasing — ledger D16); the authoritative spec is `core/Tier-1-DB.md`.
+// WHOLE (no feature-phasing — ledger D16); the authoritative spec is `docs/law/Tier-1-DB.md`.
 //
 // THE LOAD-BEARING DECISIONS encoded here:
 //   • D18 — chats are MEMBERSHIP-scoped: there is NO `chats.ownerId`. Authority is the host participant

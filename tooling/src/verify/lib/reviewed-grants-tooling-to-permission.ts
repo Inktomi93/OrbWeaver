@@ -218,7 +218,7 @@ export const REVIEWED_GRANTS_TOOLING_TO_PERMISSION: readonly ReviewedGateGrant[]
     policyId: "tsconfig-entry-liveness",
     subject: "scripts/**/*.cts",
     operation: "tsconfig-glob-entry",
-    why: "the Node world root declares EVERY authored TypeScript dialect before its first `scripts` .cts file, so a future authored file cannot be silently unowned by any program (docs/architecture/core/Core-Tooling-Law.md).",
+    why: "the Node world root declares EVERY authored TypeScript dialect before its first `scripts` .cts file, so a future authored file cannot be silently unowned by any program (docs/law/Core-Tooling-Law.md).",
     endsWhen: "the first scripts/**/*.cts source lands — the glob acquires a member, the finding disappears and this row is consumed zero times.",
   },
   {
@@ -226,7 +226,7 @@ export const REVIEWED_GRANTS_TOOLING_TO_PERMISSION: readonly ReviewedGateGrant[]
     policyId: "tsconfig-entry-liveness",
     subject: "scripts/**/*.mts",
     operation: "tsconfig-glob-entry",
-    why: "the same pre-declaration, for the `.mts` dialect: the Node world root owns every authored dialect under scripts/ before the first file of that dialect exists (docs/architecture/core/Core-Tooling-Law.md).",
+    why: "the same pre-declaration, for the `.mts` dialect: the Node world root owns every authored dialect under scripts/ before the first file of that dialect exists (docs/law/Core-Tooling-Law.md).",
     endsWhen: "the first scripts/**/*.mts source lands.",
   },
   {
@@ -234,7 +234,7 @@ export const REVIEWED_GRANTS_TOOLING_TO_PERMISSION: readonly ReviewedGateGrant[]
     policyId: "tsconfig-entry-liveness",
     subject: "scripts/**/*.tsx",
     operation: "tsconfig-glob-entry",
-    why: "the BROWSER world root declares TSX scripts before its first member so a future authored file cannot be silently unowned — the DOM half of the same pre-declaration (docs/architecture/core/Core-Tooling-Law.md).",
+    why: "the BROWSER world root declares TSX scripts before its first member so a future authored file cannot be silently unowned — the DOM half of the same pre-declaration (docs/law/Core-Tooling-Law.md).",
     endsWhen: "the first scripts/**/*.tsx source lands.",
   },
   {
@@ -251,7 +251,7 @@ export const REVIEWED_GRANTS_TOOLING_TO_PERMISSION: readonly ReviewedGateGrant[]
     policyId: "tsconfig-entry-liveness",
     subject: "tests/**/*.cts",
     operation: "tsconfig-glob-entry",
-    why: "the Node world root's dialect pre-declaration for the test tree, identical in kind to its scripts siblings (docs/architecture/core/Core-Tooling-Law.md).",
+    why: "the Node world root's dialect pre-declaration for the test tree, identical in kind to its scripts siblings (docs/law/Core-Tooling-Law.md).",
     endsWhen: "the first tests/**/*.cts source lands.",
   },
   {

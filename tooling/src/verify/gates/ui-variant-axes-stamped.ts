@@ -1,4 +1,4 @@
-// Policy: ui-variant-axes-stamped (docs/architecture/core/Core-Enforcement-Active-Gates.md) — an @orb/ui
+// Policy: ui-variant-axes-stamped (docs/law/Core-Enforcement-Active-Gates.md) — an @orb/ui
 // `tv()` recipe that declares a STAMPED axis (variant/size/intent/tone) must reach the DOM through the
 // stamp seam, so the rendered element says which authored ARM it is (#1080, owner ruling 2026-09-02).
 // A1 unstamped recipe · A2 unreadable `tv()` config (FAIL-CLOSED) · A3 duplicate recipe NAME (the

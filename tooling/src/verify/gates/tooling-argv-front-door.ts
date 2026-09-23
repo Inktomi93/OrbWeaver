@@ -1,4 +1,4 @@
-// Policy: tooling-argv-front-door (docs/architecture/core/Core-Tooling-Law.md §4.9) — the OPERATOR'S ARGV enters
+// Policy: tooling-argv-front-door (docs/law/Core-Tooling-Law.md §4.9) — the OPERATOR'S ARGV enters
 // a tooling program at exactly ONE place and flows DOWN as a `readonly string[]` parameter. A `process.argv`
 // read is legal only in a tool's `cli.ts` — derived by SHAPE (`tooling/src/<tool>/cli.ts`), so a cli.ts that
 // moves reds at its new path — or in a censused ENTRY: the node half a `.sh` execs, which has no cli.ts by
@@ -79,9 +79,9 @@ const ARGV_MEMBER = "argv";
 const OPERATION = "process-argv-read";
 
 const MESSAGE =
-  "a second argv reader — the operator's argv enters a tooling program at ONE place (the tool's cli.ts, or a reviewed bash-fronted entry) and flows DOWN as a `readonly string[]` parameter. An ops/lib/contract module reading the GLOBAL argv makes its behaviour depend on how the process was started: it cannot be driven at its own seam, it silently re-admits flags the front door refused, and two callers of the same helper get different answers (docs/architecture/core/Core-Tooling-Law.md §2.5/§4.9).";
+  "a second argv reader — the operator's argv enters a tooling program at ONE place (the tool's cli.ts, or a reviewed bash-fronted entry) and flows DOWN as a `readonly string[]` parameter. An ops/lib/contract module reading the GLOBAL argv makes its behaviour depend on how the process was started: it cannot be driven at its own seam, it silently re-admits flags the front door refused, and two callers of the same helper get different answers (docs/law/Core-Tooling-Law.md §2.5/§4.9).";
 const UNREADABLE =
-  "a member read spelled like process.argv whose receiver the shared readers cannot place, so whether it is the operator's argv CANNOT be established. Reported rather than passed: the spelling alone is not the identity. Give the receiver a readable binding, or take argv as a parameter (docs/architecture/core/Core-Tooling-Law.md §2.5/§4.9).";
+  "a member read spelled like process.argv whose receiver the shared readers cannot place, so whether it is the operator's argv CANNOT be established. Reported rather than passed: the spelling alone is not the identity. Give the receiver a readable binding, or take argv as a parameter (docs/law/Core-Tooling-Law.md §2.5/§4.9).";
 const FIX =
   "take `argv: readonly string[]` as a parameter and let the cli.ts pass `process.argv.slice(2)` down — the strict grammar stays in the tool's own parse module. A bash-fronted node half that IS the program takes an exact reviewed grant `(file, process-argv-read)`.";
 

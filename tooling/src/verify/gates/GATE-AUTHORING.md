@@ -77,7 +77,7 @@ reporting semantics; legacy `report(node)`/`report(finding)`, line-adjacent igno
 ## 2. Coupled authoring and conversion sites
 
 A final policy needs its module, declared proofs, applicable family tests and accurate
-[active catalog row](../../../../docs/architecture/core/Core-Enforcement-Active-Gates.md). The loader is the registry;
+[active catalog row](../../../../docs/law/Core-Enforcement-Active-Gates.md). The loader is the registry;
 do not add a hand-maintained registration list or count. New scripts or tiers are separate registry changes only when
 there is a real new entry point. The legacy fixture-planting anti-drift ritual a final policy never joined is gone
 entirely (#2176 Phase F): a policy's bite is its declared rows on `structure:policy-conformance`.
@@ -116,7 +116,7 @@ Read [TS-MORPH-CAPABILITIES.md](TS-MORPH-CAPABILITIES.md) before choosing a raw 
 [NODE-26-FILESYSTEM-CAPABILITIES.md](NODE-26-FILESYSTEM-CAPABILITIES.md) before changing a filesystem-owning instrument.
 Final policy authors use the admitted shared surface. World/config ownership and generated TypeScript program selection
 remain in [.claude/rules/tooling.md](../../../../.claude/rules/tooling.md) and
-[Core-Tooling-Law.md](../../../../docs/architecture/core/Core-Tooling-Law.md); a root-tsconfig check cannot replace them.
+[Core-Tooling-Law.md](../../../../docs/law/Core-Tooling-Law.md); a root-tsconfig check cannot replace them.
 
 ## 4. Authority, liveness and completeness
 

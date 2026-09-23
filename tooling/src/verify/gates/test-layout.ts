@@ -1,4 +1,4 @@
-// Policy: test-layout (core/Core-0-Architecture-and-Structure.md §5 / core/Spine-Testing.md) — the central
+// Policy: test-layout (docs/law/Core-0-Architecture-and-Structure.md §5 / docs/law/Spine-Testing.md) — the central
 // test mirror. Every test under `tests/` must prefix-swap to a real source file:
 // `tests/<pkg>/<path>.<kind>` ↔ `packages/<pkg>/src/<path>.<ext>`, and `tests/tooling/<dir>/<path>.<kind>`
 // ↔ `tooling/src/<dir>/<path>.ts` (`Core-Tooling-Law.md` §4.7). Suite kinds are cross-cutting and
@@ -138,7 +138,7 @@ const PKGS: ReadonlySet<string> = new Set(PACKAGE_NAMES);
 const MIRROR_MIN_SEGS = 3;
 
 const MESSAGE =
-  "a test under tests/ has the wrong home — module tests prefix-swap to packages/<pkg>/src/<path>, while native .spec.ts belongs only under tests/e2e. See core/Core-0-Architecture-and-Structure.md §5.";
+  "a test under tests/ has the wrong home — module tests prefix-swap to packages/<pkg>/src/<path>, while native .spec.ts belongs only under tests/e2e. See docs/law/Core-0-Architecture-and-Structure.md §5.";
 
 interface Finding {
   readonly file: string;
@@ -192,7 +192,7 @@ function toolingViolationFor(
   }
   return {
     file: `tests/${rel}`,
-    message: `mirror miss — no source for ${tooling.sourceRoot}/${sub}/${base}.ts (a tooling test prefix-swaps to its tool's module — docs/architecture/core/Core-Tooling-Law.md §4.7)`,
+    message: `mirror miss — no source for ${tooling.sourceRoot}/${sub}/${base}.ts (a tooling test prefix-swaps to its tool's module — docs/law/Core-Tooling-Law.md §4.7)`,
   };
 }
 

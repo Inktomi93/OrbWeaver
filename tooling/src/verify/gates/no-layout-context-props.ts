@@ -21,7 +21,7 @@ import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 
 const MESSAGE =
-  "layout-context prop (compact/inDrawer/isSheet/density) — the container model replaces these: the surface queries @container (axis 1), density is the data-density attribute axis. See core/UI-Architecture-and-Layout.md §4/§4b.";
+  "layout-context prop (compact/inDrawer/isSheet/density) — the container model replaces these: the surface queries @container (axis 1), density is the data-density attribute axis. See docs/law/UI-Architecture-and-Layout.md §4/§4b.";
 
 const BANNED_PROPS = new Set(["compact", "inDrawer", "isSheet", "density"]);
 

@@ -1,4 +1,4 @@
-// `verify` — the ONE argv front door for the whole verification system (docs/architecture/core/Core-Tooling-Law.md
+// `verify` — the ONE argv front door for the whole verification system (docs/law/Core-Tooling-Law.md
 // §2.5/§2.6). Twelve pnpm rows point HERE, each naming a verb; nothing points into ops/, so there is exactly
 // one argv parse and one exit-honesty runner for the harness that judges everything else.
 //

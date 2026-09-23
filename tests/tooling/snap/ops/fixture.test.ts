@@ -2,7 +2,7 @@
 // (tooling/src/snap/ops/fixture.ts) — no curl, no stack: the flag > env > offset-pair-default precedence,
 // the derived server PORT the `/proc` env-pin check needs, and the roster/handle refusals. The live
 // detection (`fixtureStatus`) and the login door talk to a running fixture and are proven against it, not
-// here (this file's home is tests/tooling/ per core/Spine-Testing.md §2 — a test of a scripts/ tool).
+// here (this file's home is tests/tooling/ per docs/law/Spine-Testing.md §2 — a test of a scripts/ tool).
 //
 // WHY the precedence is worth pinning: the bug this module was fixed for was an override
 // (SNAP_FIXTURE_SERVER_URL) that existed but reached NEITHER the health probe nor the browser's base URL.

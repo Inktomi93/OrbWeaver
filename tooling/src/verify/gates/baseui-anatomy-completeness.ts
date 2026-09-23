@@ -112,7 +112,7 @@ const MESSAGE =
 const FIX =
   `render the part in its seal, or regenerate the ledger (\`${GEN}\`) and re-rule the row — \`sealed-away\` ` +
   "with a reason that says what would end it. Keep the human half in " +
-  "docs/architecture/core/ui-package-design.md keyed on the same `Component.Part` string.";
+  "docs/law/ui-package-design.md keyed on the same `Component.Part` string.";
 
 const CLAIMED_NOT_RENDERED = (key: string): string =>
   `the ledger rules \`${key}\` "exposed", but no @orb/ui seal renders it. Either render it, or re-rule the ` +

@@ -474,7 +474,7 @@ export const gate = defineGate({
         // proof map and a test's planted tree name doc paths that MUST NOT exist. They are string
         // literals, so scoping to comments excludes them structurally rather than by allowlist.
         "packages/kit/src/fixture.ts":
-          'export const example = { files: { "docs/example.md": "x", "docs/architecture/core/__probe.md": "y" } };\nexport const p = "docs/design/never-existed.md";\n',
+          'export const example = { files: { "docs/example.md": "x", "docs/law/__probe.md": "y" } };\nexport const p = "docs/design/never-existed.md";\n',
       },
       why: "THE DECLARED LIMIT and the row that dies without the comment projection: a fixture/example doc path in a STRING LITERAL is not a cite — 24 of the 28 dangling paths the #873 census found are exactly this, and comment-scoping excludes them with no allowlist",
     },
@@ -587,10 +587,10 @@ export const gate = defineGate({
       files: {
         "knip.ts": "export const config = 1;\n",
         // gate-scope-D: a short relative path that resolves via SUFFIX match against a real tracked doc.
-        "docs/architecture/core/Real-Relpath.md": "---\nkind: law\n---\n\nplanted.\n",
-        "packages/kit/src/relpath-ok.ts": "// See core/Real-Relpath.md for the rule.\nexport const x = 1;\n",
+        "docs/law/Real-Relpath.md": "---\nkind: law\n---\n\nplanted.\n",
+        "packages/kit/src/relpath-ok.ts": "// See law/Real-Relpath.md for the rule.\nexport const x = 1;\n",
       },
-      why: "gate-scope-D: a short relative path (`core/Real-Relpath.md`) resolves via suffix match against `docs/architecture/core/Real-Relpath.md` — no false flag",
+      why: "gate-scope-D: a short relative path (`law/Real-Relpath.md`) resolves via suffix match against `docs/law/Real-Relpath.md` — no false flag",
     },
     {
       mode: "resource",

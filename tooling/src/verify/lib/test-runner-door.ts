@@ -11,7 +11,7 @@ import type { ImportDeclaration, Node as MorphNode, SourceFile } from "ts-morph"
 import { Node, SyntaxKind } from "ts-morph";
 import type { FixtureDoor } from "../contract/test-runner-door.ts";
 
-/** The runner packages a test may never enter directly (core/Spine-Testing.md §4). */
+/** The runner packages a test may never enter directly (docs/law/Spine-Testing.md §4). */
 const TEST_RUNNER_MODULES: ReadonlySet<string> = new Set(["vitest", "@playwright/test"]);
 
 /** The composed-fixture names the doctrine is about. */

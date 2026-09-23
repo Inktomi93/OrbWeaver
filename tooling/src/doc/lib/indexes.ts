@@ -25,12 +25,12 @@ const RESERVED_WINDOW = `D${String(FIRST_RESERVED_RULING)}–D${String(LAST_RESE
 const ADR_INDEX_PREAMBLE =
   "On any conflict a decision here wins over every other doc. Cite one as a bare `D<n>`; the number is the file number and never changes. " +
   `${RESERVED_WINDOW} are reserved for main-era rulings that rolled back while the code obeying them survived: such a number is re-minted with its original number and meaning, and a new decision is never minted into the window.\n\n`;
-/** Where standing law lives until each legacy doc moves here, folded in from the retired ledger index doc.
- *  Named in words, not paths: every planted tree renders this index, and a legacy path it cannot hold would
- *  read as a dead reference. */
+/** Where the standing law's anchors are, folded in from the retired ledger index doc. Named in words, not
+ *  paths: every planted tree renders this index, and a path a planted tree cannot hold would read as a dead
+ *  reference. */
 const LAW_INDEX_PREAMBLE =
-  "Until a law doc moves here, standing law is the legacy core set: the locked principles are the first section of Core-0, " +
-  "the enforcement catalog is the active-gates doc, and decisions are the ADR tree beside this one.\n\n";
+  "The locked principles are the first section of Core-0, the enforcement catalog is the active-gates doc, " +
+  "and decisions are the ADR tree beside this one.\n\n";
 
 function head(title: string, note: string): string {
   return `${renderFrontmatter(GENERATED_FIELDS)}\n# ${title}\n\n${NOTE}; ${note}\n\n`;
@@ -88,7 +88,7 @@ export function renderAdrIndex(adrs: readonly DocSummary[]): string {
 
 export function renderLawIndex(laws: readonly DocSummary[]): string {
   const rows = laws.toSorted((left, right) => left.path.localeCompare(right.path)).map((law) => `| [${law.title}](${basenameOf(law.path)}) | ${law.status} |`);
-  return `${head("Law", "a law doc moves here from the legacy tree with its citers, never by hand.")}${LAW_INDEX_PREAMBLE}| Law | Status |\n| - | - |\n${rows.join("\n")}\n`;
+  return `${head("Law", "one row per law doc; change the doc, never this file.")}${LAW_INDEX_PREAMBLE}| Law | Status |\n| - | - |\n${rows.join("\n")}\n`;
 }
 
 export function renderPlanIndex(plans: readonly DocSummary[]): string {
