@@ -4,9 +4,11 @@
 // rate-limit gate, and drive the real `appRouter` through `createCaller` — exercising the real middleware
 // ladder + router wiring without a db or HTTP. (No determinism seam needed: transport reads no clock.)
 
+import type { CreateInviteResult, InvitePreview, RedeemInviteResult } from "@orb/contracts/chat";
+import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
 import type { Principal, UserRole } from "@orb/contracts/identity";
 import type { Handle, SessionId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { Context, PresenceRegistry, RateLimitGate, Services, SocketRegistry } from "@orb/server/transport/trpc";
 import { createCaller, createSocketRegistry } from "@orb/server/transport/trpc";
 
@@ -96,4 +98,93 @@ export function makeContext(parts: {
 /** The server-side caller through the full middleware ladder. */
 export function caller(ctx: Context): ReturnType<typeof createCaller> {
   return createCaller(ctx);
+}
+
+/** Well-formed results for the invite verbs whose procedures carry a strict output parser
+ *  (`createInvite`, `previewInvite`, `redeemInvite`/`acceptInvite`, `listInvites`). A fabricated result
+ *  fails those parsers, so a test that only needs the procedure to REACH its verb returns one of these. */
+export interface InviteResults {
+  readonly inviteView: CreateInviteResult["invite"];
+  readonly created: CreateInviteResult;
+  readonly preview: InvitePreview;
+  readonly joinerRow: RedeemInviteResult["participant"];
+  readonly redeemed: RedeemInviteResult;
+}
+
+const INVITE_FIXTURE_AT = 1_750_000_000_000;
+
+/** Fresh minted ids per call; `joiner` is the member the join results seat. */
+export function inviteResults(joiner: UserId): InviteResults {
+  const chatId = mintTypeId(ID_PREFIX.chat);
+  const inviteView: CreateInviteResult["invite"] = {
+    id: mintTypeId(ID_PREFIX.chatInvite),
+    chatId,
+    status: "pending",
+    maxUses: 1,
+    remainingUses: 1,
+    expiresAt: INVITE_FIXTURE_AT + 1,
+    invitedUserId: null,
+    createdAt: INVITE_FIXTURE_AT,
+  };
+  const joinerRow: RedeemInviteResult["participant"] = {
+    id: mintTypeId(ID_PREFIX.chatParticipant),
+    chatId,
+    kind: "human",
+    userId: joiner,
+    characterId: null,
+    role: "member",
+    activePersonaId: mintTypeId(ID_PREFIX.persona),
+    talkativeness: 0.5,
+    disabled: false,
+    joinedAt: INVITE_FIXTURE_AT,
+    joinSeq: 12,
+    leftSeq: null,
+    joinHistoryVisibility: "from-join",
+    displayName: "Joiner",
+    handle: castId<Handle>("joiner"),
+    avatarAssetId: null,
+    avatarHash: null,
+    renderPolicy: { htmlTrust: "untrusted", forbidExternalMedia: true },
+    themeOverride: null,
+    backgroundOverride: null,
+  };
+  return {
+    inviteView,
+    created: { invite: inviteView, token: "raw-invite-token-returned-exactly-once-7Qx2" },
+    preview: { chatId, roomName: "The Ruins", hostHandle: castId<Handle>("host"), memberCount: 2, modeLabel: "per-speaker · natural" },
+    joinerRow,
+    redeemed: {
+      chat: {
+        id: chatId,
+        title: "The Ruins",
+        starred: false,
+        archived: false,
+        temporary: false,
+        parentChatId: null,
+        forkedAt: null,
+        anchorPersonaId: null,
+        participants: [joinerRow],
+        viewerActivePersonaId: joinerRow.activePersonaId,
+        viewerIsHost: false,
+        viewerUserId: joiner,
+        pendingHostUserId: null,
+        group: DEFAULT_GROUP_CONFIG,
+        roomOverrides: DEFAULT_ROOM_OVERRIDES,
+        toolRecurseLimit: null,
+        hostDisplayScripts: false,
+        offerChoices: null,
+        charactersCanReact: null,
+        reactionsEnabled: null,
+        background: null,
+        rpg: null,
+        opening: null,
+        compactSummary: null,
+        compactedAtSeq: null,
+        createdAt: INVITE_FIXTURE_AT,
+        updatedAt: INVITE_FIXTURE_AT,
+        identities: [{ kind: "character", id: mintTypeId(ID_PREFIX.character), name: "Aria", avatarHash: null }],
+      },
+      participant: joinerRow,
+    },
+  };
 }

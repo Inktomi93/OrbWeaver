@@ -1,5 +1,5 @@
 import type { AuthMode, Principal, ResolvedIdentity, UserRole } from "@orb/contracts/identity";
-import { AUTH_MODES, authModeSchema, USER_ROLES, userRoleSchema } from "@orb/contracts/identity";
+import { AUTH_MODES, authModeSchema, USER_ROLES, userRoleSchema, viewerViewSchema } from "@orb/contracts/identity";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "../../support/fixtures.ts";
@@ -104,4 +104,20 @@ test("ResolvedIdentity is the pre-row shape and carries NO userId (invariant #3)
     email: null,
   };
   expect(singleUser.externalId).toBeNull();
+});
+
+// `sessions.me` parses its projection through this schema. STRICT: the projection is three fields, and a
+// refactor that spreads the Principal would carry `externalId` (the SSO subject) and `via` to the browser.
+test("viewerViewSchema admits the three-field projection and refuses a spread Principal", () => {
+  const view = { userId: SAMPLE_USER_ID, handle: SAMPLE_HANDLE, globalRole: "admin" as const };
+  expect(viewerViewSchema.parse(view)).toEqual(view);
+
+  const spread = { ...view, externalId: SAMPLE_EXTERNAL_ID, via: "cookie" };
+  const refused = viewerViewSchema.safeParse(spread);
+  expect(refused.success).toBe(false);
+  expect(refused.error?.issues).toEqual([expect.objectContaining({ code: "unrecognized_keys", keys: ["externalId", "via"] })]);
+  // The issue names the keys and never echoes the refused value.
+  expect(JSON.stringify(refused.error?.issues)).not.toContain(SAMPLE_EXTERNAL_ID);
+
+  expect(viewerViewSchema.safeParse({ ...view, globalRole: "host" }).success).toBe(false);
 });
