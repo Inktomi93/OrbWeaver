@@ -1,4 +1,4 @@
-// The ONE transport EventEmitter home (client-architecture-lockdown.md §13/§16 G10). chat/user/notifications
+// The ONE transport EventEmitter home (client-architecture-state-and-gates.md §13/§16 G10). chat/user/notifications
 // hand-rolled identical machinery three times — module-scope EventEmitter + setMaxListeners(0) + a per-key
 // channel string + on(emitter, channel, {signal}) + the untyped-args unwrap generator. This mint is that
 // machinery, once. Durability (chat/notifications' durable-first INSERT) stays PER-BUS POLICY, composed

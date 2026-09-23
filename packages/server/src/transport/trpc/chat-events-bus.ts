@@ -1,7 +1,7 @@
 // The per-chat live fan-out the multiplexed socket's `chat` ROOM tails. The chat domain owns the durable
 // half (the chat_events INSERT + the replayChatEvents/chatEventBounds member-gated reads); the per-chat
 // live channel is transport state. Rides `defineBusChannel` WITH the firehose opt-in (the buddy-observer
-// chat source) — the ONE bus needing it (client-architecture-lockdown.md §13/§16 G10).
+// chat source) — the ONE bus needing it (client-architecture-state-and-gates.md §13/§16 G10).
 //
 // Durable-first / fan-out-second: entry wraps the domain bus emit so the chat_events row (which assigns
 // the per-chat seq) always commits before the live publish, so a dead bus path never loses an event.

@@ -1,4 +1,4 @@
-// Gate: sanctioned-css-homes (client-architecture-lockdown.md §4 + §16 G14) — the paint law's path-closed
+// Gate: sanctioned-css-homes (client-architecture-lockdown.md §4 + client-architecture-state-and-gates.md §16 G14) — the paint law's path-closed
 // backstop. Every repository-owned product stylesheet under packages/** must be one of the five
 // authored/generated CSS homes; the DTCG token source completes the six-home set. TWO-SIDED: an extra CSS
 // path is RED, and so is a sanctioned home that is missing or is not a regular file.

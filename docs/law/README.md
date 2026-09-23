@@ -13,10 +13,12 @@ The locked principles are the first section of Core-0, the enforcement catalog i
 | - | - |
 | [Chat macro/persona resolution — the one home](Chat-Macro-Resolution.md) | active |
 | [Client Architecture Lockdown](client-architecture-lockdown.md) | active |
+| [Client architecture: state, data, error handling, sync spine and the gate spec](client-architecture-state-and-gates.md) | active |
 | [Orbweaver constitution](Constitution.md) | active |
 | [Orbweaver — structure & enforcement (the constitution)](Core-0-Architecture-and-Structure.md) | active |
 | [Orbweaver — Enforcement Registry: Active Gates](Core-Enforcement-Active-Gates.md) | active |
 | [`@orb/tooling` — tooling-tree law](Core-Tooling-Law.md) | active |
+| [Core tooling: census hazards and the move playbook](core-tooling-move-playbook.md) | active |
 | [Docs and work items](docs-and-work.md) | active |
 | [Gate-runtime read first](gate-runtime-read-first.md) | active |
 | [Gate-runtime standardization law](gate-runtime-standardization.md) | active |
@@ -35,6 +37,7 @@ The locked principles are the first section of Core-0, the enforcement catalog i
 | [Orbweaver — `transport` (trpc · jobs): the thin drivers at the request edge](Tier-4-Transport.md) | active |
 | [Orbweaver — `entry`: the composition root](Tier-5-Entry.md) | active |
 | [UI-Architecture-and-Layout](UI-Architecture-and-Layout.md) | active |
+| [UI-Architecture-and-Layout: state and the stack (keep/dump)](ui-architecture-state-and-stack.md) | active |
 | [UI density law — the assignment law for the token scales](UI-Density-Law.md) | active |
 | [UI-Gates-and-Lessons](UI-Gates-and-Lessons.md) | active |
 | [`@orb/ui` — the package design (structure · factories · seals · tokens)](ui-package-design.md) | active |

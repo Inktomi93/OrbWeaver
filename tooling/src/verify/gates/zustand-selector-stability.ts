@@ -82,7 +82,7 @@ const ZUSTAND = "zustand";
 const ZUSTAND_HOOK_TYPE = "UseBoundStore";
 
 const MESSAGE =
-  "zustand selector returns a fresh object/array literal — under v5's Object.is this re-renders forever (useSyncExternalStore loop). Select a stored ref, use a frozen module-constant default, or wrap in useShallow (UI-Architecture-and-Layout.md §5).";
+  "zustand selector returns a fresh object/array literal — under v5's Object.is this re-renders forever (useSyncExternalStore loop). Select a stored ref, use a frozen module-constant default, or wrap in useShallow (ui-architecture-state-and-stack.md §5).";
 const UNREADABLE = `${MESSAGE} This callee's TYPE has no name the checker can give, so whether it is a store hook CANNOT be established — reported rather than passed.`;
 
 type HookVerdict = "store" | "other" | "unreadable";

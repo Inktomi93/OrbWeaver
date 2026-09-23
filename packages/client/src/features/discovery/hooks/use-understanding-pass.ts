@@ -3,7 +3,7 @@
 // WHY DISCOVERY OWNS THIS AND NOT features/workloads. The pass is two `workloads` runs, but "read my library"
 // is a DISCOVERY intent — the user is on Corpus, the panels that fill are Corpus panels, and Settings → Jobs
 // is a generic runs console that happens to be where those rows also show up. Cross-feature server data has
-// exactly one channel (client-architecture-lockdown §12 / D43(3): "the router IS the cross-feature contract"),
+// exactly one channel (client-architecture-state-and-gates §12 / D43(3): "the router IS the cross-feature contract"),
 // so this reads and writes `trpc.workloads.*` directly and imports nothing from features/workloads.
 //
 // THE CHAIN IS THE ENGINE'S, NOT A CLIENT LOOP. Each row is enqueued with `dependsOn: [previousId]`, which

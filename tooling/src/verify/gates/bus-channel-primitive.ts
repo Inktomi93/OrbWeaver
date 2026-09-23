@@ -1,4 +1,4 @@
-// Policy: bus-channel-primitive (client-architecture-lockdown.md §13/§16 G10) — `defineBusChannel`
+// Policy: bus-channel-primitive (client-architecture-state-and-gates.md §13/§16 G10) — `defineBusChannel`
 // (transport/trpc/bus-channel.ts) is the ONE transport EventEmitter home. chat/user/notifications used to
 // hand-roll `new EventEmitter()` + `setMaxListeners(0)` + a channel-key fn + `on(emitter, channel, {signal})`
 // three times over (M9); a fourth bus reaching for a bespoke emitter instead of the mint is the same drift
@@ -57,7 +57,7 @@ const EVENTS_DOORS: readonly string[] = ["node:events", "events"];
 
 const MESSAGE =
   "`new EventEmitter()` under packages/server/src/transport/ outside the mint — defineBusChannel " +
-  "(transport/trpc/bus-channel.ts, client-architecture-lockdown.md §13/§16 G10) is the ONE transport " +
+  "(transport/trpc/bus-channel.ts, client-architecture-state-and-gates.md §13/§16 G10) is the ONE transport " +
   "EventEmitter home; a bespoke emitter re-introduces the machinery M9 unified. Buddy's domain-minted " +
   "replay-buffer bus is out of scope (O4).";
 const FIX = "route the bus through defineBusChannel (transport/trpc/bus-channel.ts) instead of a bespoke `new EventEmitter()`.";

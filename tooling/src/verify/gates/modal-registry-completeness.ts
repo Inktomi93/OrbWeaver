@@ -1,4 +1,4 @@
-// Policy: modal-registry-completeness (client-architecture-lockdown.md §6d / §16 G13) — the modal
+// Policy: modal-registry-completeness (client-architecture-lockdown.md §6d / client-architecture-state-and-gates.md §16 G13) — the modal
 // registry's structural walls tsc cannot see. tsc forces the door Record total over MODAL_SLOT_IDS; this
 // adds CO-LOCATION, DUPLICATE ID, the DECLARED-PLANNED honesty rule, the mobile-tab SINGLETON placement,
 // the `surface` REACHABILITY rule (§E-7), and the anti-god-map ban on a route re-forming a `modals` map.

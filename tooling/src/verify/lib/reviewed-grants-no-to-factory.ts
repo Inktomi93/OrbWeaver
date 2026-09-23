@@ -303,7 +303,7 @@ export const REVIEWED_GRANTS_NO_TO_FACTORY: readonly ReviewedGateGrant[] = [
     policyId: "route-imports-no-feature",
     subject: "packages/client/src/routes/app-root.tsx",
     operation: "feature-front-door-import:#features/chat",
-    why: "the sanctioned composition route assembles the chat feature's contributor registries at the door (client-architecture-lockdown.md §12 row 5); the assembly is the door's job by construction.",
+    why: "the sanctioned composition route assembles the chat feature's contributor registries at the door (client-architecture-state-and-gates.md §12 row 5); the assembly is the door's job by construction.",
     endsWhen: "chat's contributor registries are assembled by the shell from registered contributions instead of at the route.",
   },
   {

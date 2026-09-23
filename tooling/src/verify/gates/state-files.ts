@@ -1,4 +1,4 @@
-// Policy: state-files (UI-Architecture-and-Layout.md §5, §2.1 `state/`) — the gated-Zustand discipline
+// Policy: state-files (ui-architecture-state-and-stack.md §5, §2.1 `state/`) — the gated-Zustand discipline
 // for `packages/client/src/state/*.ts` (the FLAT store tier, direct children only). Three arms:
 // ONE-MINT-PER-FILE (a second store-minting call in one file is the grab-bag smell), the FIELD CAP (past
 // 10 top-level fields a store is doing multiple jobs), and NO-EXPORTED-HANDLE (callers go through
@@ -58,16 +58,16 @@ const MESSAGE =
   "the minted store handle is exported (never expose raw set/getState across a module boundary — export " +
   "intent-named actions + narrow read hooks instead), more than one store-minting call sits in one file " +
   `(one store per file), or a store initializer declares more than ${MAX_FIELDS} top-level fields (a store ` +
-  "doing multiple jobs — split it) (UI-Architecture-and-Layout.md §5).";
+  "doing multiple jobs — split it) (ui-architecture-state-and-stack.md §5).";
 const FIX =
   "one store-minting call per file, ≤" +
   `${MAX_FIELDS} top-level fields, and never export the raw handle — expose intent-named actions + narrow read hooks. A deliberate occurrence waives with \`@orb-waive state-files(<position>): <reason + end condition>\`, and the position differs BY ARM because each arm anchors on its own authored node: the SECOND mint's callee name (\`create\`, \`createGatedStore\`, …) for one-mint-per-file; the initializer object literal's first authored token (its first field name) for the field cap; and the EXPORTED DECLARATION'S NAME (\`useX\`) for the exported handle.`;
 
 const MINT_COUNT_MESSAGE =
-  "a second store-minting call in one file — one store per file (create/createStore/createGatedStore/createEntityDraftStore); split them (UI-Architecture-and-Layout.md §5).";
-const FIELD_CAP_MESSAGE = `a state store initializer declares more than ${MAX_FIELDS} top-level fields — the store is doing multiple jobs; split it (UI-Architecture-and-Layout.md §5).`;
+  "a second store-minting call in one file — one store per file (create/createStore/createGatedStore/createEntityDraftStore); split them (ui-architecture-state-and-stack.md §5).";
+const FIELD_CAP_MESSAGE = `a state store initializer declares more than ${MAX_FIELDS} top-level fields — the store is doing multiple jobs; split it (ui-architecture-state-and-stack.md §5).`;
 const HANDLE_MESSAGE =
-  "the minted store handle is exported — never expose raw set/getState across a module boundary; export intent-named actions + narrow read hooks instead (UI-Architecture-and-Layout.md §5).";
+  "the minted store handle is exported — never expose raw set/getState across a module boundary; export intent-named actions + narrow read hooks instead (ui-architecture-state-and-stack.md §5).";
 
 /** The leftmost identifier name of a CallExpression's callee — `create<T>()` → "create",
  *  `createGatedStore(...)` → "createGatedStore". A wrapped application `create<T>()(...)` has a
