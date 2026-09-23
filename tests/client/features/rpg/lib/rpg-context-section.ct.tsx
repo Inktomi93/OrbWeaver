@@ -2167,6 +2167,10 @@ test("the Game tab toggles immersive HTML, and the interactivity sub-toggle is D
   await cards.click();
   await expect.poll(() => trpc.count("rpg.updateConfig"), { intervals: [50, 100, 200] }).toBe(1);
   await expect.poll(() => trpc.lastInput("rpg.updateConfig")).toMatchObject({ patch: { immersiveHtml: true } });
+  // The keep-last-X knob appears with its teaching parent, and its help says the window stubs in chunks.
+  await expect(
+    component.getByText("This many of the newest cards always stay in full. Older cards collapse to a one-line stub, this many at a time.", { exact: false }),
+  ).toBeVisible();
 
   // With the teaching on, the sub-toggle becomes reachable and writes its own arm of the same patch.
   await expect(interactive).toBeEnabled();
