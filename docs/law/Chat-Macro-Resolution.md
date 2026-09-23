@@ -126,8 +126,8 @@ are NOT history — they keep the two-persona doctrine (`context.ts`: `pinnedPer
 - **pinnedPersona** — the chat-open anchor (host-designated in multi-human), FROZEN. CARD-section `{{user}}`
   AND the null-stamp fallback for history rows (a greeting / AI line / legacy row — ruling A: the anchor is a
   chat invariant, so the model and every human agree; never the per-viewer active persona).
-- **activePersona** — the TRIGGERING human's persona (whose turn drives the assemble — bound via
-  `triggerPersonaId`, not `personaIds[0]`). Prompt-config-section `{{user}}` only.
+- **activePersona** — the TRIGGERING human's persona (whose turn drives the assemble — see "Who drives a
+  turn" below; never `personaIds[0]`). Prompt-config-section `{{user}}` only.
 - **row `personaId`** — the per-message author stamp. HISTORY/message `{{user}}` when set. Changed ONLY by
   reattribution — a live persona switch never silently relabels old lines.
 
@@ -135,6 +135,22 @@ are NOT history — they keep the two-persona doctrine (`context.ts`: `pinnedPer
 narrator row's `{{char}}` (`characterId === null`) is the room's CHARACTERS — the joined names in a
 multi-character room (== `{{group}}`), the one character in solo. Gated on the SIZE of that set
 (`length > 1`), never an `isGroup` flag (D16).
+
+## 4a. Who drives a turn
+
+- `TurnTrigger` (`packages/server/src/domain/chat/contract/foreign.ts`) names the human who drives the turn. It is a discriminated union, never a nullable id.
+- `{ kind: "human" }` carries the user and the persona on their seat, which may be null. `activePersona` is that persona, or the kit floor when the seat holds none. This case never falls back to the chat anchor.
+- `{ kind: "none" }` means no human drives the turn: a deferred drain, an automation turn, a preview or a host read. `activePersona` is the chat anchor.
+- Every caller states its case. Do not add an absent case. A fallback such as the first present human changes when someone joins, and a host read could show one member's persona to another.
+- `activePersonaIdFor` (`packages/server/src/entry/compose/chat.ts`) is the one dispatch.
+
+## 4b. The author name on a user history row
+
+- The model sees an author name on each user row. It comes from the row's own `personaId` stamp through the chat identity producer, never from the current active persona.
+- A row with no usable stamp takes this turn's `{{user}}` name only when its `authorUserId` equals the trigger's user. Every other unstamped row gets `DEFAULT_PERSONA_NAME`. An unknown author or a `none` trigger also gets it.
+- Reason: the turn's `{{user}}` belongs to one human, so borrowing it for another member's row tells the model that human wrote the line.
+- The client applies the same rule on screen. `resolveUserAttribution` (`packages/client/src/features/chat/lib/attribution.ts`) borrows the viewer's persona only for the viewer's own row. Name nobody rather than name the wrong person.
+- Home: `userRowAuthorName` (`packages/server/src/domain/chat/assembly/shape.ts`).
 
 ## 5. Reattribution (the only writer of a stamp)
 
