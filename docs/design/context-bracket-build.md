@@ -164,7 +164,7 @@ chip's class by accident) and the #846 CT seats the notifications bell before me
 | CTs: `app-shell/components/context-tabs-panel.ct.tsx` (rewritten) · `context-region-host.ct.tsx`→`context-bracket.ct.tsx` · `section-context-host.ct.tsx` · `app-shell/_ct-stories.tsx` · `app-shell/surfaces/app-shell.ct.tsx` (+the #846 pins) · `rpg/lib/rpg-context-section.ct.tsx` (slot names, #112 selectors, spend, selected state, coarse kicker) · `chat/lib/chats-section.ct.tsx` (38 `tab`→cell sites + the band pins) · `character/lib/characters-section.ct.tsx` + `character-chats-projection-shell.ct.tsx` (role only — source under `features/character` is fenced) · `tests/client/lib/registry-contracts.dom.test.ts` · e2e `support/chat-room.ts` + `group-chat.spec.ts` (role) | |
 | `tests/support/browser/ct-data-providers.tsx` | no change (regions registry shape unchanged) |
 | docs: `Context-Panel-Program.md` §4.1/§4.2 · `Core-Path-Registry.md` (D119 absorbed + the new row) · `client-architecture-lockdown.md` §6b/§6c/§4-band clause · this file | |
-| ledger: `docs/reviews/caught-failure-ownership/population.json` | regen in-worktree (a CT file is renamed). The test-baseline manifest was the other half and is DELETED (#2217) |
+| ledger: `tooling/src/verify/gates/caught-failure-ownership.population.json` | regen in-worktree (a CT file is renamed). The test-baseline manifest was the other half and is DELETED (#2217) |
 
 ## 5. Test plan
 

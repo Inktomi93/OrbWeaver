@@ -1,0 +1,3119 @@
+{
+  "gate": "caught-failure-ownership",
+  "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
+  "totals": {
+    "sites": 620,
+    "reported": 0,
+    "byVerdict": {
+      "deliberate-absorb": 620,
+      "unproven": 0
+    },
+    "byGrammar": {
+      "default": 164,
+      "empty": 311,
+      "promise": 145
+    }
+  },
+  "rows": [
+    {
+      "siteId": "packages/client/src/agent-nav/index.ts::queryClient.fetchQuery::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a fetch failure is indistinguishable from an invalid id here — both collapse to the honest \"not found\" the caller already handles. Ends if this arm stops sharing its miss path with the invalid-id case."
+    },
+    {
+      "siteId": "packages/client/src/agent-nav/index.ts::queryClient.fetchQuery::2",
+      "verdict": "deliberate-absorb",
+      "reason": "the rejection is converted into an explicit `ok:false` NavResult the caller consumes as the verdict. Ends if this arm stops returning the failure as a NavResult."
+    },
+    {
+      "siteId": "packages/client/src/agent-nav/index.ts::queryClient.fetchQuery::3",
+      "verdict": "deliberate-absorb",
+      "reason": "a fetch failure is indistinguishable from an invalid id — the id arm falls through to the honest name-search arm below, same as resolveDirectChatId. Ends if this arm stops sharing its miss path with the invalid-id case."
+    },
+    {
+      "siteId": "packages/client/src/agent-nav/index.ts::queryClient.fetchQuery::4",
+      "verdict": "deliberate-absorb",
+      "reason": "the rejection is converted into an explicit `ok:false` NavResult the caller consumes as the verdict. Ends if this arm stops returning the failure as a NavResult."
+    },
+    {
+      "siteId": "packages/client/src/agent-seed/retry-attempt.ts::flight.promise::1",
+      "verdict": "deliberate-absorb",
+      "reason": "both arms only release the inFlight pointer for bookkeeping; the rejection itself propagates through the returned `flight.promise`, which the caller awaits. Ends if `run` stops returning `flight.promise` to its caller."
+    },
+    {
+      "siteId": "packages/client/src/agent-seed/retry-attempt.ts::Promise.resolve::1",
+      "verdict": "deliberate-absorb",
+      "reason": "feeds the deferred's resolve/reject, which settles `result.promise` — the same object as the returned `flight.promise` the caller awaits. Ends if `result`/`flight.promise` stop being the same object."
+    },
+    {
+      "siteId": "packages/client/src/components/regex-script-picker.tsx::toggle::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the selected mutation's own errorToast surfaces the failure. Ends if the mutation stops wiring an errorToast."
+    },
+    {
+      "siteId": "packages/client/src/data/auth-bootstrap.ts::res.json::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a malformed/absent error body degrades to the empty object, and the subsequent `??` falls back to a generic status-line message — the throw always happens. Ends if the fallback message is removed."
+    },
+    {
+      "siteId": "packages/client/src/data/auth-bootstrap.ts::res.json::2",
+      "verdict": "deliberate-absorb",
+      "reason": "a malformed/absent error body degrades to the empty object, and the subsequent `??` falls back to a generic status-line message — the throw always happens. Ends if the fallback message is removed."
+    },
+    {
+      "siteId": "packages/client/src/data/auth-bootstrap.ts::res.json::3",
+      "verdict": "deliberate-absorb",
+      "reason": "`res.ok` already confirmed the response succeeded; a malformed/absent body is a best-effort optional read that degrades to the documented null fallback (non-oidc / no end-session endpoint). Ends if endSessionUrl becomes a required field."
+    },
+    {
+      "siteId": "packages/client/src/data/bus/room-registry.ts::transport.detach::1",
+      "verdict": "deliberate-absorb",
+      "reason": "best-effort teardown of an already-retiring room — the server-side cell ages out on its own if this never lands. Ends if detach failure must block the retire."
+    },
+    {
+      "siteId": "packages/client/src/data/bus/room-registry.ts::wire.attach::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the rejection drives the retry ladder, which eventually reports via reportAnnounceFailure to every subscriber's onError. Ends if retryAnnounce stops chaining to reportAnnounceFailure."
+    },
+    {
+      "siteId": "packages/client/src/data/http-error.ts::response.text::1",
+      "verdict": "deliberate-absorb",
+      "reason": "documented degrade — a malformed/absent body loses only the message suffix; the function still throws with the status line. Ends if the thrown Error needs the body to be meaningful."
+    },
+    {
+      "siteId": "packages/client/src/data/invalidation.ts::deps.queryClient.invalidateQueries::1",
+      "verdict": "deliberate-absorb",
+      "reason": "refetch failures surface on the queries' own error state; consume the aggregate Promise here."
+    },
+    {
+      "siteId": "packages/client/src/data/session-freshness.ts::deps.probe::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a rejection means unreachable, not signed out (see the interface doc) — the reject arm deliberately leaves the clock alone so the next visible edge retries. Ends if unreachable must be distinguished from signed-out here."
+    },
+    {
+      "siteId": "packages/client/src/data/session-resume.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "storage refused (private mode / disabled) — the bounce still works, it just lands on the landing view. Ends if the resume target becomes required for the bounce to work."
+    },
+    {
+      "siteId": "packages/client/src/data/session-resume.ts::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "storage access refused — the resume target degrades to null (the landing view), same as no snapshot ever written. Ends if the resume target becomes required."
+    },
+    {
+      "siteId": "packages/client/src/data/session-resume.ts::catch::3",
+      "verdict": "deliberate-absorb",
+      "reason": "a corrupt blob is discarded, never trusted (#11 autosave doctrine) — degrades to null, same as no snapshot."
+    },
+    {
+      "siteId": "packages/client/src/data/stale-session.ts::fetchAuthConfig::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a null config falls through every mode branch to the ladder's fail-closed `signOut()` floor at the end of the function. Ends if a branch after this stops reaching signOut()."
+    },
+    {
+      "siteId": "packages/client/src/data/stale-session.ts::fetchAuthMe::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the server is unreachable, not the session dead (see the comment below) — the tab is left exactly as it is and the next real edge re-enters the ladder. Ends if unreachable must be distinguished from dead here."
+    },
+    {
+      "siteId": "packages/client/src/data/stale-session.ts::fetchAuthMe::2",
+      "verdict": "deliberate-absorb",
+      "reason": "a null/unauthenticated read falls through to the ladder's fail-closed `signOut()` floor at the end of the function. Ends if this branch stops reaching signOut()."
+    },
+    {
+      "siteId": "packages/client/src/data/use-card-frame.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "documented in the JSDoc above — any failure resolves to undefined and the caller renders the floor. Ends if the floor stops being an acceptable fallback UI."
+    },
+    {
+      "siteId": "packages/client/src/data/use-card-frame.ts::pending::1",
+      "verdict": "deliberate-absorb",
+      "reason": "mintCardFrame's own catch already collapsed any failure to `undefined`; the reject arm here only exists for symmetry and sets the same render-floor state as the resolve arm. Ends if mintCardFrame stops swallowing its own failures."
+    },
+    {
+      "siteId": "packages/client/src/data/use-plugin-frame.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "documented in the JSDoc above — any failure resolves to undefined and the caller renders nothing. Ends if rendering nothing stops being an acceptable fallback."
+    },
+    {
+      "siteId": "packages/client/src/data/use-plugin-frame.ts::pending::1",
+      "verdict": "deliberate-absorb",
+      "reason": "mintPluginFrame's own catch already collapsed any failure to `undefined`; the reject arm here only exists for symmetry and sets the same render-floor state as the resolve arm. Ends if mintPluginFrame stops swallowing its own failures."
+    },
+    {
+      "siteId": "packages/client/src/data/use-session-recovery.ts::bindDurableLocalToUser::1",
+      "verdict": "deliberate-absorb",
+      "reason": "rejection records failedBind; AppRoot renders Retry while durable writes remain gated. Ends if AppRoot stops owning failedBind."
+    },
+    {
+      "siteId": "packages/client/src/features/app-shell/hooks/use-is-mobile-viewport.ts::document.fonts.ready::1",
+      "verdict": "deliberate-absorb",
+      "reason": "fonts.ready never rejecting in practice, and the"
+    },
+    {
+      "siteId": "packages/client/src/features/app-shell/lib/bug-report-capture.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the FAILURE is already owned and surfaced — the caller returns `{ok:false}` and the button's status line renders `HTTP <status> from <route>` either way. This try only asks whether the body ADDS a named arm; a non-JSON error page (proxy 502, HTML) is the expected miss, and `null` means \"say only what is true\". Ends if a refusal body ever becomes required rather than additive."
+    },
+    {
+      "siteId": "packages/client/src/features/auth/lib/route-guards.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a thrown read returns null after the retry window"
+    },
+    {
+      "siteId": "packages/client/src/features/character/components/character-actions-menu.tsx::openRefinery::1",
+      "verdict": "deliberate-absorb",
+      "reason": "useOpenRefinery's own errorToast surfaces the failure; a failed open just leaves the actor on this menu. Ends if useOpenRefinery drops its errorToast."
+    },
+    {
+      "siteId": "packages/client/src/features/character/lib/character-chat-intents.ts::startChat::1",
+      "verdict": "deliberate-absorb",
+      "reason": "useStartChat's mutation carries"
+    },
+    {
+      "siteId": "packages/client/src/features/character/surfaces/character-library-surface.tsx::startChat::1",
+      "verdict": "deliberate-absorb",
+      "reason": "useStartChat's mutation carries"
+    },
+    {
+      "siteId": "packages/client/src/features/chat/components/chat-documents-section.tsx::Promise.all::1",
+      "verdict": "deliberate-absorb",
+      "reason": "each TanStack Query observer owns its rejection in `settings.isError`/`preset.isError`; this event only starts the paired retry. Ends if either refetch stops updating query error state."
+    },
+    {
+      "siteId": "packages/client/src/features/chat/components/chat-documents-section.tsx::visibilityChainRef.current::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the chain's own catch, never the mutation's — `useSetChatDocumentVisibility` still runs its errorToast and its optimistic `onError` rollback untouched. It exists so ONE rejected write cannot wedge the queue for every later toggle. Ends if that mutation stops wiring an errorToast."
+    },
+    {
+      "siteId": "packages/client/src/features/chat/components/chat-list-row-menu.tsx::actions.remove::1",
+      "verdict": "deliberate-absorb",
+      "reason": "useDeleteChat carries"
+    },
+    {
+      "siteId": "packages/client/src/features/chat/components/home-quick-picks-tile-body.tsx::startChat::1",
+      "verdict": "deliberate-absorb",
+      "reason": "useStartChat's mutation carries"
+    },
+    {
+      "siteId": "packages/client/src/features/chat/components/message-actions-row.tsx::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the fork mutation's sticky error + global errorToast already surfaced the failure. Ends if the mutation drops its errorToast."
+    },
+    {
+      "siteId": "packages/client/src/features/chat/components/message-edit-textarea.tsx::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "useEditMessageMutation carries errorToast \"Couldn't save that edit.\" — the toast is the surface; staying in edit mode preserves the draft. Ends if the mutation drops its errorToast."
+    },
+    {
+      "siteId": "packages/client/src/features/chat/components/message-edit-textarea.tsx::save::1",
+      "verdict": "deliberate-absorb",
+      "reason": "save() already catches the mutation's own"
+    },
+    {
+      "siteId": "packages/client/src/features/chat/hooks/use-guided-actions.ts::streamImpersonation::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the .catch below explicitly"
+    },
+    {
+      "siteId": "packages/client/src/features/chat/lib/join-token.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a malformed percent-encoding falls back to"
+    },
+    {
+      "siteId": "packages/client/src/features/chat/surfaces/new-chat-picker-surface.tsx::startChat::1",
+      "verdict": "deliberate-absorb",
+      "reason": "useStartChat's mutation carries"
+    },
+    {
+      "siteId": "packages/client/src/features/credentials/lib/connection-editor-model.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a PARSE PROBE, not an operation — \"this text is not JSON\""
+    },
+    {
+      "siteId": "packages/client/src/features/discovery/hooks/use-understanding-pass.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "useStartUnderstandingRun carries"
+    },
+    {
+      "siteId": "packages/client/src/features/imagery/components/image-detail-body.tsx::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the header comment above explains — the"
+    },
+    {
+      "siteId": "packages/client/src/features/imagery/components/image-edit-body.tsx::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the comment above explains — this catch"
+    },
+    {
+      "siteId": "packages/client/src/features/notifications/components/notification-inbox-row.tsx::work::1",
+      "verdict": "deliberate-absorb",
+      "reason": "every `work` this wraps (accept/decline/"
+    },
+    {
+      "siteId": "packages/client/src/features/persona/components/persona-list.tsx::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "createEntityMutation's own errorToast already surfaced the failure — nothing to expand. Ends if useCreatePersona drops its errorToast."
+    },
+    {
+      "siteId": "packages/client/src/features/plugin/components/plugin-distribute-section.tsx::distribute.mutateAsync::1",
+      "verdict": "deliberate-absorb",
+      "reason": "useDistributePlugin carries"
+    },
+    {
+      "siteId": "packages/client/src/features/plugin/components/plugin-distribute-section.tsx::withdraw.mutateAsync::1",
+      "verdict": "deliberate-absorb",
+      "reason": "useWithdrawPlugin carries"
+    },
+    {
+      "siteId": "packages/client/src/features/plugin/components/plugin-frame.tsx::hostCall::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a rejection replies with the generic"
+    },
+    {
+      "siteId": "packages/client/src/features/plugin/components/plugin-install-card.tsx::previewFromUrl.mutateAsync::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the rejection is caught below and sets a"
+    },
+    {
+      "siteId": "packages/client/src/features/plugin/components/plugin-install-card.tsx::settled::1",
+      "verdict": "deliberate-absorb",
+      "reason": "both useInstallPlugin and useInstallPluginFromUrl"
+    },
+    {
+      "siteId": "packages/client/src/features/plugin/components/plugin-row-leaves.tsx::applyUpgrade::1",
+      "verdict": "deliberate-absorb",
+      "reason": "applyUpgrade already"
+    },
+    {
+      "siteId": "packages/client/src/features/plugin/components/plugin-row-leaves.tsx::check.mutateAsync::1",
+      "verdict": "deliberate-absorb",
+      "reason": "useCheckForUpdates carries"
+    },
+    {
+      "siteId": "packages/client/src/features/plugin/components/plugin-row-leaves.tsx::runCheck::1",
+      "verdict": "deliberate-absorb",
+      "reason": "runCheck already catches its own"
+    },
+    {
+      "siteId": "packages/client/src/features/plugin/components/plugin-row-leaves.tsx::upgrade.mutateAsync::1",
+      "verdict": "deliberate-absorb",
+      "reason": "both upgrade mutations carry"
+    },
+    {
+      "siteId": "packages/client/src/features/plugin/components/plugin-row.tsx::upgrade.mutateAsync::1",
+      "verdict": "deliberate-absorb",
+      "reason": "useUpgradePlugin carries"
+    },
+    {
+      "siteId": "packages/client/src/features/plugin/components/plugin-scripted-surface.tsx::boot::1",
+      "verdict": "deliberate-absorb",
+      "reason": "\"FAILURE IS SILENCE (§4.9)\" is the file header's"
+    },
+    {
+      "siteId": "packages/client/src/features/plugin/components/plugin-surface-renderer.tsx::mutateAsync::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the comment above explains — the"
+    },
+    {
+      "siteId": "packages/client/src/features/plugin/components/snippet-console.tsx::runSnippet.mutateAsync::1",
+      "verdict": "deliberate-absorb",
+      "reason": "useRunSnippet carries"
+    },
+    {
+      "siteId": "packages/client/src/features/plugin/hooks/use-plugin-commands.ts::mutateAsync::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the comment below explains — the"
+    },
+    {
+      "siteId": "packages/client/src/features/plugin/lib/plugin-tool-card-state.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the doc comment above explains — a plugin returning legitimate prose must render as prose, not an empty node; the raw string is the provenance-faithful fallback the binding root renders, not a swallow. Ends if the binding root stops accepting a raw-string fallback."
+    },
+    {
+      "siteId": "packages/client/src/features/plugin/lib/ui-guest/plugin-ui-guest-host.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a malformed tree kills the guest with a named"
+    },
+    {
+      "siteId": "packages/client/src/features/plugin/lib/ui-guest/plugin-ui-guest-host.ts::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the failure is relayed back to the guest as a"
+    },
+    {
+      "siteId": "packages/client/src/features/plugin/lib/ui-guest/plugin-ui-guest-host.ts::handleHostCall::1",
+      "verdict": "deliberate-absorb",
+      "reason": "handleHostCall already catches its"
+    },
+    {
+      "siteId": "packages/client/src/features/plugin/lib/ui-guest/ui-guest-realm.ts::deferred.settled::1",
+      "verdict": "deliberate-absorb",
+      "reason": "both settle arms run the SAME pump(ctx) —"
+    },
+    {
+      "siteId": "packages/client/src/features/plugin/lib/ui-guest/ui-guest-realm.ts::deferred.settled::2",
+      "verdict": "deliberate-absorb",
+      "reason": "both settle arms run the SAME pump(ctx) —"
+    },
+    {
+      "siteId": "packages/client/src/features/plugin/lib/ui-guest/ui-guest.worker.ts::boot::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the failure message is posted back as a"
+    },
+    {
+      "siteId": "packages/client/src/features/plugin/lib/ui-guest/ui-guest.worker.ts::deliver::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the failure message is posted back as a"
+    },
+    {
+      "siteId": "packages/client/src/features/plugin/lib/ui-guest/ui-guest.worker.ts::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the failure message is returned to the caller"
+    },
+    {
+      "siteId": "packages/client/src/features/preset/components/params-limits.tsx::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the doc comment above explains — an unparseable"
+    },
+    {
+      "siteId": "packages/client/src/features/preset/components/preset-import-dialog.tsx::text::1",
+      "verdict": "deliberate-absorb",
+      "reason": "every failure arm here — the read, the JSON"
+    },
+    {
+      "siteId": "packages/client/src/features/preset/hooks/use-preset-autosave.ts::run::1",
+      "verdict": "deliberate-absorb",
+      "reason": "this .catch only resets the internal chain —"
+    },
+    {
+      "siteId": "packages/client/src/features/refinery/components/refinery-start-pane.tsx::openRefinery::1",
+      "verdict": "deliberate-absorb",
+      "reason": "useOpenRefinery's own errorToast"
+    },
+    {
+      "siteId": "packages/client/src/features/refinery/components/refusal-note.tsx::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a non-JSON message is rendered verbatim by the"
+    },
+    {
+      "siteId": "packages/client/src/features/refinery/components/schema-editor-dialog.tsx::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "null is the caller's own \"not parsing yet\""
+    },
+    {
+      "siteId": "packages/client/src/features/refinery/surfaces/refinery-list-surface.tsx::openRefinery::1",
+      "verdict": "deliberate-absorb",
+      "reason": "useOpenRefinery's own errorToast"
+    },
+    {
+      "siteId": "packages/client/src/features/roster-preset/components/roster-picker.tsx::startChat::1",
+      "verdict": "deliberate-absorb",
+      "reason": "startChat and apply.mutateAsync each carry their own errorToast (use-start-chat.ts, useApplyRosterPreset); the swallow only silences the unhandled-rejection warning, and the picked roster survives for retry. Ends if either mutation stops owning its failure copy."
+    },
+    {
+      "siteId": "packages/client/src/features/roster-preset/surfaces/roster-member-surface.tsx::startChat::1",
+      "verdict": "deliberate-absorb",
+      "reason": "startChat and apply.mutateAsync each carry their own errorToast (use-start-chat.ts, useApplyRosterPreset); the swallow only silences the unhandled-rejection warning. Ends if either mutation stops owning its failure copy."
+    },
+    {
+      "siteId": "packages/client/src/features/rpg/components/rpg-dice-tool-card.tsx::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a roll_dice result is provenance-faithful; a malformed blob is the renderer's own fall-back-to-generic decision (a tool call is CANON — the record is never dropped, it renders in the generic ToolCallBlock below), so the parse leaves `json` unset for the schema to reject, never a swallow. Ends if the caller stops rendering the generic block on a null parse."
+    },
+    {
+      "siteId": "packages/client/src/features/rpg/components/rpg-game-tab.tsx::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the failed mutation's own errorToast already"
+    },
+    {
+      "siteId": "packages/client/src/features/rpg/components/rpg-game-tab.tsx::onResync::1",
+      "verdict": "deliberate-absorb",
+      "reason": "onResync already catches its own"
+    },
+    {
+      "siteId": "packages/client/src/features/rpg/components/rpg-populate-control.tsx::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the failed mutation's own errorToast already"
+    },
+    {
+      "siteId": "packages/client/src/features/rpg/components/rpg-populate-control.tsx::onFill::1",
+      "verdict": "deliberate-absorb",
+      "reason": "onFill already catches its own"
+    },
+    {
+      "siteId": "packages/client/src/features/user-admin/components/admin-link-sso-dialog.tsx::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the comment below explains — the sticky"
+    },
+    {
+      "siteId": "packages/client/src/features/user-admin/components/admin-reset-password-dialog.tsx::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the comment below explains — the sticky"
+    },
+    {
+      "siteId": "packages/client/src/features/workloads/components/bundle-workload-tracker.tsx::query::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the rejection drives the bounded retry above and"
+    },
+    {
+      "siteId": "packages/client/src/features/workloads/hooks/use-library-import.ts::importBundle::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the .catch below calls fail(), which"
+    },
+    {
+      "siteId": "packages/client/src/features/workloads/hooks/use-library-import.ts::importCharacters::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the .catch below calls fail(), which"
+    },
+    {
+      "siteId": "packages/client/src/features/workloads/hooks/use-library-import.ts::importTree::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the .catch below calls fail(), which sets"
+    },
+    {
+      "siteId": "packages/client/src/forms/editor/bound-fields/avatar-upload-field.tsx::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the failure surfaces as the `uploadError` state the field renders. Ends if uploadError stops being rendered."
+    },
+    {
+      "siteId": "packages/client/src/forms/editor/create-autosave-entity-form.tsx::form.handleSubmit::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the injected save's own errorToast surfaces the failure and the draft mirror holds the edit for retry. Ends if the injected save stops wiring an errorToast."
+    },
+    {
+      "siteId": "packages/client/src/forms/editor/create-autosave-entity-form.tsx::form.handleSubmit::2",
+      "verdict": "deliberate-absorb",
+      "reason": "same swallow as the debounce driver above — the injected save's own errorToast surfaces the failure and the draft mirror holds the edit for retry. Ends if the injected save stops wiring an errorToast."
+    },
+    {
+      "siteId": "packages/client/src/forms/editor/create-autosave-entity-form.tsx::form.handleSubmit::3",
+      "verdict": "deliberate-absorb",
+      "reason": "explicit user retry — same swallow as the debounce driver, the injected save's own errorToast surfaces the failure. Ends if the injected save stops wiring an errorToast."
+    },
+    {
+      "siteId": "packages/client/src/lib/app-ready-signal.ts::appReady::1",
+      "verdict": "deliberate-absorb",
+      "reason": "both arms only unsubscribe this listener; `appReady`'s own settlement is owned by whichever caller awaits it elsewhere. Ends if this becomes the sole reader of `appReady`."
+    },
+    {
+      "siteId": "packages/client/src/lib/app-ready-signal.ts::appReady::2",
+      "verdict": "deliberate-absorb",
+      "reason": "both arms only unsubscribe this listener; `appReady`'s own settlement is owned by whichever caller awaits it elsewhere. Ends if this becomes the sole reader of `appReady`."
+    },
+    {
+      "siteId": "packages/client/src/lib/app-ready-signal.ts::appReady::3",
+      "verdict": "deliberate-absorb",
+      "reason": "both arms only unsubscribe this listener; `appReady`'s own settlement is owned by whichever caller awaits it elsewhere. Ends if this becomes the sole reader of `appReady`."
+    },
+    {
+      "siteId": "packages/client/src/lib/console-error-ring.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "an unstringifiable console argument degrades to a"
+    },
+    {
+      "siteId": "packages/client/src/lib/error-boundary.tsx::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the report path must never compound the crash it exists to report — there is no surface left to report a failed report to. Ends if onError gets its own independent error surface."
+    },
+    {
+      "siteId": "packages/client/src/lib/long-task-tracer.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a non-URL string degrades to the raw url as the log-line label — cosmetic formatting only. Ends if the caller needs a validated URL rather than a display label."
+    },
+    {
+      "siteId": "packages/client/src/lib/perf-marks.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a missing start mark must never surface as an app-code throw — best-effort instrumentation only. Ends if perf marks become load-bearing for app logic."
+    },
+    {
+      "siteId": "packages/client/src/lib/perf-marks.ts::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "best-effort instrumentation only — see perfMeasure above. Ends if perf marks become load-bearing for app logic."
+    },
+    {
+      "siteId": "packages/client/src/lib/probe-mode.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "storage access refused degrades to the safe default (not probe mode) — probe mode is opt-in instrumentation, never required for correct rendering. Ends if probe mode becomes load-bearing."
+    },
+    {
+      "siteId": "packages/client/src/lib/trpc-devlog.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a value that can't stringify (a cycle, a BigInt) degrades to a placeholder log label — dev logging only, never a data path. Ends if this output feeds anything besides a dev log line."
+    },
+    {
+      "siteId": "packages/client/src/lib/view-transition.ts::settled::1",
+      "verdict": "deliberate-absorb",
+      "reason": "only AbortError is absorbed as the platform's skipped-transition outcome; every other rejection is rethrown on the microtask error surface. Ends if callers begin awaiting settlement."
+    },
+    {
+      "siteId": "packages/client/src/main.tsx::trpcClient.clientError.mutate::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a failed error report must never itself throw — there is nowhere left to report that to. Ends if reportClientError gets its own independent error surface."
+    },
+    {
+      "siteId": "packages/client/src/state/durable-local.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "refused browser storage has no durable bytes to isolate; null selects the storage-less legacy namespace. Ends if the boot hint becomes authoritative."
+    },
+    {
+      "siteId": "packages/client/src/state/durable-local.ts::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "refused storage costs only the no-flash boot hint; the verified bind still owns isolation. Ends if the hint becomes authoritative."
+    },
+    {
+      "siteId": "packages/client/src/state/durable-local.ts::catch::3",
+      "verdict": "deliberate-absorb",
+      "reason": "refused storage cannot hold legacy blobs or the pending pointer; module memory retains the owner for this page. Ends if storage refusal can coexist with readable durable blobs."
+    },
+    {
+      "siteId": "packages/client/src/state/durable-local.ts::catch::4",
+      "verdict": "deliberate-absorb",
+      "reason": "a stale pending pointer only causes one safe target rehydrate on a later bind. Ends if adoption stops being idempotent."
+    },
+    {
+      "siteId": "packages/client/src/state/durable-local.ts::run::1",
+      "verdict": "deliberate-absorb",
+      "reason": "bindTail recovers only the serialization queue; the original run is returned and rejects to AppRoot's visible retry boundary. Ends if callers receive bindTail instead of run."
+    },
+    {
+      "siteId": "packages/contracts/src/preset/index.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "ST mirror — JSON.parse of custom_stopping_strings"
+    },
+    {
+      "siteId": "packages/contracts/src/rpg/extraction.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "errors-as-data — a malformed tool call is"
+    },
+    {
+      "siteId": "packages/db/src/client/index.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the QUESTION this function asks IS \"does this"
+    },
+    {
+      "siteId": "packages/db/src/client/index.ts::client.execute::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the rollback is best-effort BY DESIGN —"
+    },
+    {
+      "siteId": "packages/default-content/src/index.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "optional-read-as-absent — a missing/unreadable"
+    },
+    {
+      "siteId": "packages/default-content/src/index.ts::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "optional-read-as-absent — the header states the"
+    },
+    {
+      "siteId": "packages/default-content/src/index.ts::catch::3",
+      "verdict": "deliberate-absorb",
+      "reason": "optional-read-as-absent — a missing/unreadable shipped"
+    },
+    {
+      "siteId": "packages/inference/src/backends/agent-sdk/agent-runner.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "this optional control-channel diagnostic degrades to `undefined`; the turn result remains authoritative. Precedent: packages/client/src/lib/perf-marks.ts accepts the same best-effort diagnostic loss. Ends if MCP health becomes required for correctness."
+    },
+    {
+      "siteId": "packages/inference/src/backends/agent-sdk/catalog.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "account identity is an optional verify diagnostic and `undefined` is its documented miss result. Precedent: packages/client/src/lib/perf-marks.ts accepts the same best-effort diagnostic loss. Ends if account identity becomes part of the auth verdict."
+    },
+    {
+      "siteId": "packages/inference/src/backends/agent-sdk/catalog.ts::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "bounded best-effort teardown is owned by the warning log; the model-discovery result or primary failure remains authoritative. Precedent: the gate mustPass fixture packages/server/src/infra/probe/cleanup.ts proves the same bounded teardown absorber. Ends if the warning disappears."
+    },
+    {
+      "siteId": "packages/inference/src/backends/agent-sdk/executable.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a MODULE-RESOLUTION miss IS the answer — the wire is unbuilt (the"
+    },
+    {
+      "siteId": "packages/inference/src/backends/agent-sdk/runner.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "context fill is an optional bounded diagnostic and `undefined` omits only that sidecar. Precedent: packages/client/src/lib/perf-marks.ts accepts the same best-effort diagnostic loss. Ends if the probe starts governing the turn result."
+    },
+    {
+      "siteId": "packages/inference/src/backends/agent-sdk/session/frames.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "malformed model-emitted arguments become `null`, which toSdkBlock maps to an empty object so the tool pair remains wire-valid. Precedent: the gate mustPass fixture packages/server/src/infra/auth/parser.ts proves the same fail-closed parse default. Ends if null loses that owner."
+    },
+    {
+      "siteId": "packages/inference/src/backends/agent-sdk/session/store.ts::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "this best-effort persistence failure is owned by the injected warning log; the in-memory session remains authoritative. Precedent: the gate mustPass fixture packages/server/src/domain/probe/logged.ts proves the same contextual warning owner. Ends if the warning or cache owner disappears."
+    },
+    {
+      "siteId": "packages/inference/src/backends/agent-sdk/session/store.ts::err::2",
+      "verdict": "deliberate-absorb",
+      "reason": "this best-effort persistence failure is owned by the injected warning log; the in-memory session remains authoritative. Precedent: the gate mustPass fixture packages/server/src/domain/probe/logged.ts proves the same contextual warning owner. Ends if the warning or cache owner disappears."
+    },
+    {
+      "siteId": "packages/inference/src/backends/agent-sdk/terminal-tools.ts::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the error is converted into the returned `unliftable` refusal, so callers mount no partial terminal-tool surface. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if that all-or-nothing refusal changes."
+    },
+    {
+      "siteId": "packages/inference/src/backends/agent-sdk/turn-input.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "CLASSIFIER, not a failure — \"does this model-emitted blob parse to an object\" is the question, and `false` IS the answer (the pair degrades to announced text, which the caller renders). Reporting it would raise a user-facing error for a turn that runs correctly. Ends if this ever gates something other than the structural-vs-text choice."
+    },
+    {
+      "siteId": "packages/inference/src/backends/anthropic-messages/index.ts::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "credential probes own failures as typed revoked/unreachable health with a sanitized reason. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if the returned health stops carrying that disposition."
+    },
+    {
+      "siteId": "packages/inference/src/backends/anthropic-messages/index.ts::listModels::1",
+      "verdict": "deliberate-absorb",
+      "reason": "optional model discovery owns refusal as `listed:false`; generation remains usable with an explicit model. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if callers require a successful catalog."
+    },
+    {
+      "siteId": "packages/inference/src/backends/kit/error-classify.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "malformed provider prose fails closed to `null`, which cannot be classified as a moderation block. Precedent: the gate mustPass fixture packages/server/src/infra/auth/parser.ts proves the same fail-closed parse default. Ends if null can begin authorizing a more specific classification."
+    },
+    {
+      "siteId": "packages/inference/src/backends/kit/retry.ts::raw::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the caught value is retained in lastError and either rethrown unchanged or followed by a span-recorded retry. Precedent: the gate mustFlag fixture packages/server/src/domain/probe/opaque-rethrow-helper.ts documents the same real but syntactically opaque propagation. Ends if either terminal propagation path disappears."
+    },
+    {
+      "siteId": "packages/inference/src/backends/local-light/model-cache.ts::created::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the rejection arm deletes the failed single-flight entry, while every awaiting caller still receives the original rejection. Precedent: the gate mustFlag fixture packages/server/src/domain/probe/opaque-rethrow-helper.ts documents the same real but syntactically opaque propagation. Ends if either behavior changes."
+    },
+    {
+      "siteId": "packages/inference/src/backends/local-light/prefetch.ts::preload::1",
+      "verdict": "deliberate-absorb",
+      "reason": "speculative prefetch owns failure through a warning and published `failed` state; first use retains the lazy load path. Precedent: packages/server/src/entry/boot/local-light-prefetch.ts accepts the same warning plus lazy-path fallback. Ends if prefetch becomes required."
+    },
+    {
+      "siteId": "packages/inference/src/backends/openai-compat/diagnostics.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "optional model discovery owns refusal as `listed:false`; generation remains usable with an explicit model. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if callers require a successful catalog."
+    },
+    {
+      "siteId": "packages/inference/src/backends/openai-compat/diagnostics.ts::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "credential probes own failures as typed revoked/unreachable health with a sanitized reason. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if the returned health stops carrying that disposition."
+    },
+    {
+      "siteId": "packages/inference/src/backends/openai-compat/diagnostics.ts::readBodyPreview::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a preview read failure degrades to an explicit empty preview while status and headers remain inspectable. Precedent: the gate mustPass fixture tooling/src/probe/unproven-outcome.ts proves the same degraded inspection result. Ends if preview bytes become authoritative."
+    },
+    {
+      "siteId": "packages/inference/src/backends/openai-compat/reachability.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "every probe failure is owned by the returned `down` state; reachability is advisory and never authorizes a request. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if callers need the failure cause."
+    },
+    {
+      "siteId": "packages/inference/src/backends/openai-compat/reachability.ts::fetch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "wake POST failure falls through to the bounded probe loop, whose final false is the wake verdict. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if the following loop stops deciding success or timeout."
+    },
+    {
+      "siteId": "packages/inference/src/backends/v4/fetch.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "malformed SDK body bytes disable shaping and capture while the original request still travels unchanged. Precedent: the gate mustPass fixture packages/server/src/infra/auth/parser.ts proves the same fail-closed parse default. Ends if null starts authorizing transformed output."
+    },
+    {
+      "siteId": "packages/inference/src/backends/v4/fetch.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the read failure is retained in `tearDown`; callers either rethrow it or deliberately keep partial capture bytes. Precedent: the gate mustPass fixture tooling/src/probe/unproven-outcome.ts proves the same carried failure-as-data owner. Ends if CappedRead stops carrying the error."
+    },
+    {
+      "siteId": "packages/inference/src/backends/v4/fetch.ts::readCappedStream::1",
+      "verdict": "deliberate-absorb",
+      "reason": "both settlement arms emit the capture row; the reader currently carries teardown instead of rejecting. Precedent: packages/client/src/lib/app-ready-signal.ts accepts the same both-arms terminal settlement owner. Ends if either arm stops emitting."
+    },
+    {
+      "siteId": "packages/inference/src/backends/v4/prompt.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "malformed model-emitted arguments remain the raw string, preserving the model's bytes instead of dropping the tool call. Precedent: the gate mustPass fixture packages/server/src/infra/auth/parser.ts proves the same fail-closed parse default. Ends if raw stops being serialized."
+    },
+    {
+      "siteId": "packages/inference/src/catalog/mirror.ts::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the catalog mirror records failed span state plus a structured warning, then returns null for the marked-estimated fallback. Precedent: packages/server/src/entry/boot/local-light-prefetch.ts accepts the same warning plus degraded fallback. Ends if any of those owners disappears."
+    },
+    {
+      "siteId": "packages/inference/src/registry/providers.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a synchronous store refusal becomes `read`'s rejection and is rethrown from the ordered publication below. Ends if the `!listed.ok` arm stops throwing `listed.error`."
+    },
+    {
+      "siteId": "packages/inference/src/registry/providers.ts::publication::1",
+      "verdict": "deliberate-absorb",
+      "reason": "callers receive and own `publication`; this sibling chain only advances the serialization tail after either verdict. Ends if the returned promise stops carrying the rejection."
+    },
+    {
+      "siteId": "packages/inference/src/registry/providers.ts::read::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the rejection is retained as the `ok:false` snapshot and rethrown inside `publishInOrder`; it is never treated as an empty provider list. Ends if the `!listed.ok` arm stops throwing."
+    },
+    {
+      "siteId": "packages/inference/src/roles/role-clients.ts::Promise.resolve::1",
+      "verdict": "deliberate-absorb",
+      "reason": "strike-out is a passenger side effect; its failure is warning-logged and the provider's original error is rethrown. Precedent: packages/server/src/entry/import/run-profile-import.ts accepts the same passenger-side-effect failure while preserving the primary owner. Ends if either owner changes."
+    },
+    {
+      "siteId": "packages/inference/src/roles/structured-turn.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "null flows to extractJsonObject's null →"
+    },
+    {
+      "siteId": "packages/kit/src/cel/index.ts::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "documented contract \"parseCel never throws\" —"
+    },
+    {
+      "siteId": "packages/kit/src/ids/index.ts::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "zod transform pattern — fromString's throw is"
+    },
+    {
+      "siteId": "packages/kit/src/json-schema/lift.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "documented — the caller (liftString) turns"
+    },
+    {
+      "siteId": "packages/kit/src/macro/evaluator.ts::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "documented fail-open policy below — consumed"
+    },
+    {
+      "siteId": "packages/kit/src/macro/evaluator.ts::err::2",
+      "verdict": "deliberate-absorb",
+      "reason": "same fail-open policy as evalKnownCall — consumed"
+    },
+    {
+      "siteId": "packages/kit/src/macro/registry.ts::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "documented — macros never throw into assembly;"
+    },
+    {
+      "siteId": "packages/kit/src/png-card-chunk/index.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "documented — this module's shared fail-soft"
+    },
+    {
+      "siteId": "packages/kit/src/png-card-chunk/index.ts::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "documented — falls back to the original string"
+    },
+    {
+      "siteId": "packages/kit/src/png-card-chunk/index.ts::catch::3",
+      "verdict": "deliberate-absorb",
+      "reason": "documented — corrupt zlib payload returns"
+    },
+    {
+      "siteId": "packages/kit/src/png-card-chunk/index.ts::writer.close::1",
+      "verdict": "deliberate-absorb",
+      "reason": "same reasoning as the write above — the"
+    },
+    {
+      "siteId": "packages/kit/src/png-card-chunk/index.ts::writer.write::1",
+      "verdict": "deliberate-absorb",
+      "reason": "documented above — the reader is the sole"
+    },
+    {
+      "siteId": "packages/kit/src/regex/index.ts::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "documented in the JSDoc above — caught and"
+    },
+    {
+      "siteId": "packages/kit/src/time/index.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "documented — no [IANA/Zone] annotation falls"
+    },
+    {
+      "siteId": "packages/kit/src/time/index.ts::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "documented in the function's JSDoc — null"
+    },
+    {
+      "siteId": "packages/kit/src/time/index.ts::catch::3",
+      "verdict": "deliberate-absorb",
+      "reason": "documented — null on an invalid/impossible"
+    },
+    {
+      "siteId": "packages/kit/src/time/index.ts::catch::4",
+      "verdict": "deliberate-absorb",
+      "reason": "documented in the JSDoc — null when the"
+    },
+    {
+      "siteId": "packages/kit/src/time/index.ts::catch::5",
+      "verdict": "deliberate-absorb",
+      "reason": "documented in the JSDoc — null when the"
+    },
+    {
+      "siteId": "packages/kit/src/world-info/index.ts::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "documented — null reported via"
+    },
+    {
+      "siteId": "packages/kit/src/world-info/index.ts::err::2",
+      "verdict": "deliberate-absorb",
+      "reason": "documented above (#710) — a throw is"
+    },
+    {
+      "siteId": "packages/server/src/domain/admin/guard.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "FAIL-CLOSED — the ONE `can()` kernel's refusal"
+    },
+    {
+      "siteId": "packages/server/src/domain/assets/substrate/mime.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "FAIL-CLOSED — a `TextDecoder` decode failure means"
+    },
+    {
+      "siteId": "packages/server/src/domain/automation/engine/prompt-transforms.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "DELIBERATE ABSORBER, the enabled index's twin"
+    },
+    {
+      "siteId": "packages/server/src/domain/automation/substrate/authority.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "FAIL-CLOSED — the ONE `can()` kernel's refusal"
+    },
+    {
+      "siteId": "packages/server/src/domain/automation/substrate/enabled-index.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "DELIBERATE ABSORBER. The owner is the STALE"
+    },
+    {
+      "siteId": "packages/server/src/domain/automation/substrate/plugin-subscribers.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "FAIL-CLOSED — a raced delete / a bad id / any"
+    },
+    {
+      "siteId": "packages/server/src/domain/automation/substrate/serial-lanes.ts::run::1",
+      "verdict": "deliberate-absorb",
+      "reason": "this swallow LOSES NOTHING — the rejection it"
+    },
+    {
+      "siteId": "packages/server/src/domain/automation/substrate/serial-lanes.ts::tail::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the lane sweep is bookkeeping over an in-RAM Map — a Map delete with nothing to trace and no caller to inform, deliberately detached so it cannot delay or fail the caller's own result. Ends if the sweep ever performs I/O or has an outcome a caller could act on."
+    },
+    {
+      "siteId": "packages/server/src/domain/automation/verbs/confirm-suggestion.ts::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "errors-as-data — the file header states the contract:"
+    },
+    {
+      "siteId": "packages/server/src/domain/automation/verbs/resolve-stream-authority.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "FAIL-CLOSED to the narrower `member` tier — a"
+    },
+    {
+      "siteId": "packages/server/src/domain/character/persistence/card.ts::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the ONE absorbed arm is a LOST RACE, and it is"
+    },
+    {
+      "siteId": "packages/server/src/domain/character/seeder/seed.ts::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "narrow rethrow — only a handle-conflict"
+    },
+    {
+      "siteId": "packages/server/src/domain/character/verbs/bulk-add-card-tag.ts::failed::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the owner IS this per-item result —"
+    },
+    {
+      "siteId": "packages/server/src/domain/character/verbs/bulk-remove-card-tag.ts::failed::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the owner IS this per-item result —"
+    },
+    {
+      "siteId": "packages/server/src/domain/chat/bus.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the ground-truth probe failing means the db is"
+    },
+    {
+      "siteId": "packages/server/src/domain/chat/bus.ts::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "the probe failing means the db is unwell — the"
+    },
+    {
+      "siteId": "packages/server/src/domain/chat/bus.ts::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "`err` is handed to `handleAppendFailure`, which"
+    },
+    {
+      "siteId": "packages/server/src/domain/chat/bus.ts::err::2",
+      "verdict": "deliberate-absorb",
+      "reason": "same FLAG[emit-is-total] contract as `emit`"
+    },
+    {
+      "siteId": "packages/server/src/domain/chat/engine/engine.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "`deps.emit` is the chat bus, which already"
+    },
+    {
+      "siteId": "packages/server/src/domain/chat/engine/engine.ts::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "a failed WARNING emit must not mask `memErr` — the build failure the outer catch rethrows below is what the span must record, and it already reached the log. Ends if the emit ever becomes retryable (then it owns its own reporting)."
+    },
+    {
+      "siteId": "packages/server/src/domain/chat/engine/engine.ts::deltaErr::1",
+      "verdict": "deliberate-absorb",
+      "reason": "explicitly classified below — a `deltaErr` equal"
+    },
+    {
+      "siteId": "packages/server/src/domain/chat/engine/engine.ts::releasedBody::1",
+      "verdict": "deliberate-absorb",
+      "reason": "this is not a second dispatch — it is the SAME promise the race above returns, and whichever arm won already delivered its outcome (the body's own value, or the barrier's `aborted` throw). Nothing here is invisible: the turn body traces itself, and the only work still pending is the holder-scoped `releaseLock`. Ends if the release moves off this promise."
+    },
+    {
+      "siteId": "packages/server/src/domain/chat/engine/smart-arbitrate.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "classified below by signal state — a settled"
+    },
+    {
+      "siteId": "packages/server/src/domain/chat/memory/generate/digests.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a batch rejection falls back to ISOLATED"
+    },
+    {
+      "siteId": "packages/server/src/domain/chat/memory/generate/digests.ts::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "reported via `onItemError(i, err)` (the"
+    },
+    {
+      "siteId": "packages/server/src/domain/chat/substrate/prompt-transforms.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "D53 — a throw resolves to SKIP exactly like a"
+    },
+    {
+      "siteId": "packages/server/src/domain/chat/verbs/claim-chat.ts::incumbent::1",
+      "verdict": "deliberate-absorb",
+      "reason": "retried, not swallowed — a failed"
+    },
+    {
+      "siteId": "packages/server/src/domain/chat/verbs/turn.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "documented above — non-fatal, mirrors neo: the"
+    },
+    {
+      "siteId": "packages/server/src/domain/chat/verbs/turn.ts::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "fully classified below — a permanent verdict"
+    },
+    {
+      "siteId": "packages/server/src/domain/chat/verbs/turn.ts::run::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the fault has NOWHERE to go — this generator"
+    },
+    {
+      "siteId": "packages/server/src/domain/connection/substrate/embed-space.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a refused resolve IS the \"no space\" answer this comparison"
+    },
+    {
+      "siteId": "packages/server/src/domain/connection/verbs/bindings.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a resolve REFUSAL is the readout's other arm — the availability"
+    },
+    {
+      "siteId": "packages/server/src/domain/databank/ingest/index.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "bookkeeping — the accumulator records this document's failure (`acc.addFailure`), surfaced to the caller via `acc.result()`; the pass continues so one bad document never aborts the batch. Ends if `addFailure` stops being read by the returned result."
+    },
+    {
+      "siteId": "packages/server/src/domain/databank/verbs/scrape/scrape-youtube.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "client-input — a non-URL string just means \"no"
+    },
+    {
+      "siteId": "packages/server/src/domain/discovery/verbs/analyze.ts::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "narrow rethrow — only a validation failure"
+    },
+    {
+      "siteId": "packages/server/src/domain/discovery/verbs/analyze.ts::err::2",
+      "verdict": "deliberate-absorb",
+      "reason": "narrow rethrow — only a validation failure"
+    },
+    {
+      "siteId": "packages/server/src/domain/discovery/verbs/distill.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "bookkeeping — the header states the contract:"
+    },
+    {
+      "siteId": "packages/server/src/domain/import/loader/collect.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "`rethrowInfraFailure` escalates any real infra"
+    },
+    {
+      "siteId": "packages/server/src/domain/import/loader/collect.ts::error::2",
+      "verdict": "deliberate-absorb",
+      "reason": "`rethrowInfraFailure` escalates real infra"
+    },
+    {
+      "siteId": "packages/server/src/domain/import/loader/collect.ts::error::3",
+      "verdict": "deliberate-absorb",
+      "reason": "`rethrowInfraFailure` escalates real infra"
+    },
+    {
+      "siteId": "packages/server/src/domain/import/loader/collect.ts::error::4",
+      "verdict": "deliberate-absorb",
+      "reason": "`rethrowInfraFailure` escalates real infra"
+    },
+    {
+      "siteId": "packages/server/src/domain/import/loader/collect.ts::error::5",
+      "verdict": "deliberate-absorb",
+      "reason": "`rethrowInfraFailure` escalates real infra"
+    },
+    {
+      "siteId": "packages/server/src/domain/import/loader/collect.ts::error::6",
+      "verdict": "deliberate-absorb",
+      "reason": "`rethrowInfraFailure` escalates real infra"
+    },
+    {
+      "siteId": "packages/server/src/domain/import/loader/collect.ts::error::7",
+      "verdict": "deliberate-absorb",
+      "reason": "`rethrowInfraFailure` escalates real infra"
+    },
+    {
+      "siteId": "packages/server/src/domain/import/loader/collect.ts::error::8",
+      "verdict": "deliberate-absorb",
+      "reason": "`rethrowInfraFailure` escalates real infra"
+    },
+    {
+      "siteId": "packages/server/src/domain/import/substrate/card.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "pure `JSON.parse` over untrusted import text —"
+    },
+    {
+      "siteId": "packages/server/src/domain/import/substrate/group.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "pure `JSON.parse` over untrusted import"
+    },
+    {
+      "siteId": "packages/server/src/domain/import/substrate/preset.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "pure `JSON.parse` over untrusted upload"
+    },
+    {
+      "siteId": "packages/server/src/domain/import/substrate/world.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "pure `JSON.parse` over untrusted upload"
+    },
+    {
+      "siteId": "packages/server/src/domain/import/verbs/import-presets.ts::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "bookkeeping — the failure is recorded into"
+    },
+    {
+      "siteId": "packages/server/src/domain/import/workload-contributions.ts::lstat::1",
+      "verdict": "deliberate-absorb",
+      "reason": "both arms of this stat converge on \"remove nothing\" — an absent path has nothing to delete, and an unreadable one is a path this belt can no longer vouch for. It runs in a `finally` whose loud half already fired at compute time (`resolveStagedPath` throws the escape), and a genuine fs fault re-surfaces on the next run's read of the same tree. Ends if this rm becomes the only proof a staged tree was removed."
+    },
+    {
+      "siteId": "packages/server/src/domain/plugin/activation/activate.ts::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the refusal becomes the returned activation error string; createActivate persists it as `plugins.lastError` and returns `{ok:false,error}`. Ends if that caller stops recording and returning this detail."
+    },
+    {
+      "siteId": "packages/server/src/domain/plugin/substrate/plugin-macros.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "documented above — a throw, a rejected invoke,"
+    },
+    {
+      "siteId": "packages/server/src/domain/plugin/verbs/transform-for-display.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "documented above — `null` covers EVERY failure"
+    },
+    {
+      "siteId": "packages/server/src/domain/refinery/persistence/queries.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "self-heal — a lift failure means the stored custom schema no longer parses; `healedRun` emits the `HEAL_EVENT` span (observable) and the row reads as absent rather than crashing the run view. Ends if the heal event stops being read anywhere."
+    },
+    {
+      "siteId": "packages/server/src/domain/refinery/substrate/schema-forge.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "bookkeeping — documented above: a malformed"
+    },
+    {
+      "siteId": "packages/server/src/domain/refinery/verbs/score-sweep.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "bookkeeping — documented above: `null` is the"
+    },
+    {
+      "siteId": "packages/server/src/domain/rpg/chat-ops/gather.ts::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "reported via `ctx.onFoldBuildFailed` (loud,"
+    },
+    {
+      "siteId": "packages/server/src/domain/rpg/flush-barrier.ts::flush::1",
+      "verdict": "deliberate-absorb",
+      "reason": "`run`'s OWN error handling owns and logs"
+    },
+    {
+      "siteId": "packages/server/src/domain/rpg/persistence/portability-write.ts::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "only the ONE known unique/primary-key race"
+    },
+    {
+      "siteId": "packages/server/src/domain/rpg/snapshot-edit.ts::next::1",
+      "verdict": "deliberate-absorb",
+      "reason": "`settled` only feeds the chain-tail bookkeeping"
+    },
+    {
+      "siteId": "packages/server/src/domain/rpg/snapshot-edit.ts::previous::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a rejected `previous` link is absorbed only"
+    },
+    {
+      "siteId": "packages/server/src/domain/rpg/substrate/delta.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "§2.7.4 D79-heal DEFENSIVE arm (comment below) —"
+    },
+    {
+      "siteId": "packages/server/src/domain/search/substrate/space.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "same leak-free collapse ownership as entry/http/plugin-frame.ts — by-id resolution fails closed and the public require*Space boundary turns null into a named SearchError. Ends if null can leave this module without that refusal."
+    },
+    {
+      "siteId": "packages/server/src/domain/sessions/verbs/revoke.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the DOCUMENTED degrade above — the session is already revoked when this runs, so a failed open costs only the end-session redirect (the URL goes out bare, as it did before #141) and never the logout itself. The one reachable cause is a rotated SESSION_SECRET. Ends if the end-session hint becomes required for a correct logout."
+    },
+    {
+      "siteId": "packages/server/src/domain/settings/context.ts::next::1",
+      "verdict": "deliberate-absorb",
+      "reason": "scaffolding only — `settled` exists so a"
+    },
+    {
+      "siteId": "packages/server/src/domain/settings/context.ts::prev::1",
+      "verdict": "deliberate-absorb",
+      "reason": "propagated — `next` is what this function"
+    },
+    {
+      "siteId": "packages/server/src/domain/settings/persistence/heal-legacy-background-pins.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "an unreadable row is #471's territory, not"
+    },
+    {
+      "siteId": "packages/server/src/domain/settings/verbs/add-external-background.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "safe floor — a display NAME derivation only; any"
+    },
+    {
+      "siteId": "packages/server/src/domain/settings/verbs/app-settings.ts::run::1",
+      "verdict": "deliberate-absorb",
+      "reason": "scaffolding only — the trailing comment states"
+    },
+    {
+      "siteId": "packages/server/src/domain/settings/verbs/app-settings.ts::writeChain::1",
+      "verdict": "deliberate-absorb",
+      "reason": "propagated — `run` is what this function"
+    },
+    {
+      "siteId": "packages/server/src/domain/tool-use/verbs/execute-tool-calls.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "client-input — the model's own tool-call"
+    },
+    {
+      "siteId": "packages/server/src/domain/tool-use/verbs/register.ts::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "errors-as-data — a thrown handler failure"
+    },
+    {
+      "siteId": "packages/server/src/domain/workloads/engine/runner.ts::contribution::1",
+      "verdict": "deliberate-absorb",
+      "reason": "`outcome` already carries the"
+    },
+    {
+      "siteId": "packages/server/src/domain/workloads/engine/runner.ts::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "converts a SYNCHRONOUS throw into a rejected"
+    },
+    {
+      "siteId": "packages/server/src/domain/workloads/engine/runner.ts::err::2",
+      "verdict": "deliberate-absorb",
+      "reason": "fully classified below into `outcome` (LeaseFailure"
+    },
+    {
+      "siteId": "packages/server/src/domain/workloads/engine/runner.ts::err::3",
+      "verdict": "deliberate-absorb",
+      "reason": "reclassifies `outcome` to failure, consumed by the"
+    },
+    {
+      "siteId": "packages/server/src/domain/workloads/engine/runner.ts::err::4",
+      "verdict": "deliberate-absorb",
+      "reason": "a finalize-success failure is reclassified and"
+    },
+    {
+      "siteId": "packages/server/src/domain/workloads/engine/runner.ts::next::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the reject handler classifies + owns the"
+    },
+    {
+      "siteId": "packages/server/src/domain/workloads/persistence/queries.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "documented above — a params-schema failure"
+    },
+    {
+      "siteId": "packages/server/src/domain/workloads/verbs/start.ts::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the ONE absorbed failure is the single-active"
+    },
+    {
+      "siteId": "packages/server/src/entry/auth/seam.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a cookie value that fails to percent-decode is not a session token, and `null` here means exactly \"no cookie session\" — the caller's unauthenticated path. A client-supplied malformed header is not an operator event. Ends if a malformed cookie should be distinguished from an absent one."
+    },
+    {
+      "siteId": "packages/server/src/entry/boot/local-light-prefetch.ts::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "DELIBERATE fail-closed. The owner of a resolver failure is the REQUEST that hits it — this is a speculative pre-warm asking a question it is allowed not to get an answer to, and the only consequence of `null` here is that the box keeps the lazy path it had before this file existed. `no-connection` is the ordinary answer; anything else is surfaced as a structured log naming the task + reason. Ends if the prefetch ever becomes required for correctness rather than latency."
+    },
+    {
+      "siteId": "packages/server/src/entry/compose/automation-plugin.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "FAIL-CLOSED — documented above: a refusal"
+    },
+    {
+      "siteId": "packages/server/src/entry/compose/automation-plugin.ts::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "FAIL-CLOSED — documented above: a"
+    },
+    {
+      "siteId": "packages/server/src/entry/compose/automation-plugin.ts::catch::3",
+      "verdict": "deliberate-absorb",
+      "reason": "FAIL-CLOSED — documented above: `[]` if"
+    },
+    {
+      "siteId": "packages/server/src/entry/compose/automation-plugin.ts::catch::4",
+      "verdict": "deliberate-absorb",
+      "reason": "FAIL-CLOSED — documented above: any"
+    },
+    {
+      "siteId": "packages/server/src/entry/compose/chat.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "FAIL-CLOSED — documented above: a gone card fail-closes to `[]` rather than throwing into the member-card read. Ends if a gone card needs to surface distinctly from an infra failure."
+    },
+    {
+      "siteId": "packages/server/src/entry/compose/chat.ts::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "FAIL-CLOSED — the comment block above states"
+    },
+    {
+      "siteId": "packages/server/src/entry/compose/chat.ts::catch::3",
+      "verdict": "deliberate-absorb",
+      "reason": "optional-read-as-absent — a persona/handle"
+    },
+    {
+      "siteId": "packages/server/src/entry/compose/chat.ts::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "narrow rethrow — documented below: only a"
+    },
+    {
+      "siteId": "packages/server/src/entry/compose/chat.ts::runChatTurn::1",
+      "verdict": "deliberate-absorb",
+      "reason": "propagated — the rejection reaches"
+    },
+    {
+      "siteId": "packages/server/src/entry/compose/emit-chat-changed.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "best-effort — documented below: a failed roster"
+    },
+    {
+      "siteId": "packages/server/src/entry/compose/inline-reply-image.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "an attacker-influenceable provider image URL whose every belt"
+    },
+    {
+      "siteId": "packages/server/src/entry/compose/rpg.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "client-input — the docstring states the"
+    },
+    {
+      "siteId": "packages/server/src/entry/compose/rpg.ts::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "errors-as-data — documented above: a failed"
+    },
+    {
+      "siteId": "packages/server/src/entry/compose/rpg.ts::err::2",
+      "verdict": "deliberate-absorb",
+      "reason": "errors-as-data — the structured arm's twin: a"
+    },
+    {
+      "siteId": "packages/server/src/entry/http/auth-routes.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "`null` is the DOCUMENTED degraded arm this function's JSDoc above describes — an unreachable IdP discovery means we send no end-session param and the user lands on our own `/login` instead of the IdP's logged-out page. The LOCAL logout has already happened either way, so this can only cost a redirect, never a session. Ends if end-session becomes required for correct logout."
+    },
+    {
+      "siteId": "packages/server/src/entry/http/blob.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a LEAK-FREE COLLAPSE, stated in this function's own JSDoc — a torn CAS entry and a foreign/missing blob must return the identical 404, or the response distinguishes \"exists but unreadable\" from \"not yours\" and becomes an existence oracle. The ownership gate above already ran. Ends if torn-blob repair gains an operator surface that can be told apart from a miss."
+    },
+    {
+      "siteId": "packages/server/src/entry/http/card-frame.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a LEAK-FREE COLLAPSE to the SAFE FLOOR, stated in the comment below — a non-participant throwing out of the membership gate and an unknown character must land on the identical restrictive policy, or the frame's permissiveness reveals chat membership. Every failure arm here tightens, never widens. Ends if the floor stops being the safe posture."
+    },
+    {
+      "siteId": "packages/server/src/entry/http/card-frame.ts::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "the CLIENT is the owner and the 400 is the surface — an unparseable request body is the caller's error, answered with `invalid JSON body`, exactly as the schema-parse failure two lines below is. A malformed inbound payload is not an operator event. Ends if body decoding gains a server-side fault worth distinguishing from bad input."
+    },
+    {
+      "siteId": "packages/server/src/entry/http/import-tree.ts::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "propagated — the HTTP entry boundary's own error"
+    },
+    {
+      "siteId": "packages/server/src/entry/http/plugin-frame.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "client-input — a malformed JSON body answers the caller a leak-free 400, the standard HTTP body-parse refusal. Ends if this stops being an entry-point body parse."
+    },
+    {
+      "siteId": "packages/server/src/entry/http/plugin-frame.ts::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "leak-free collapse — documented below: a foreign/unknown pluginId, \"no such surface\", and \"grant revoked\" all answer the SAME NOT_FOUND, the card-frame doorway's fail-closed posture. Ends if a caller needs to distinguish those causes."
+    },
+    {
+      "siteId": "packages/server/src/entry/http/plugin-ui.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "leak-free collapse — documented below: every domain refusal (foreign plugin, torn CAS entry, unparseable bundle) collapses to ONE NOT_FOUND, the same containment `blob.ts` gives a torn blob. Ends if a caller needs to distinguish those causes."
+    },
+    {
+      "siteId": "packages/server/src/entry/import/run-bundle-import.ts::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "bookkeeping — the failure is recorded as an"
+    },
+    {
+      "siteId": "packages/server/src/entry/import/run-profile-dir-import.ts::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "bookkeeping — the failure is recorded into"
+    },
+    {
+      "siteId": "packages/server/src/entry/import/run-profile-dir-import.ts::err::2",
+      "verdict": "deliberate-absorb",
+      "reason": "bookkeeping — the failure is recorded into"
+    },
+    {
+      "siteId": "packages/server/src/entry/import/run-profile-dir-import.ts::err::3",
+      "verdict": "deliberate-absorb",
+      "reason": "bookkeeping — the failure is recorded into"
+    },
+    {
+      "siteId": "packages/server/src/entry/import/run-profile-import.ts::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "bookkeeping — the failure is recorded into"
+    },
+    {
+      "siteId": "packages/server/src/foundation/env/index.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a missing .env is a normal deploy state —"
+    },
+    {
+      "siteId": "packages/server/src/foundation/observability/debug/bug-report.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "git being absent, or the cwd not being a"
+    },
+    {
+      "siteId": "packages/server/src/foundation/observability/debug/log-ring-read.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "null is consumed by every caller as \"skip this"
+    },
+    {
+      "siteId": "packages/server/src/foundation/observability/debug/routes.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a malformed body is a 400 the caller sees, and"
+    },
+    {
+      "siteId": "packages/server/src/foundation/observability/debug/routes.ts::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "documented below — a checker error falls"
+    },
+    {
+      "siteId": "packages/server/src/foundation/observability/debug/wire-capture.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "documented — an unserializable body is not"
+    },
+    {
+      "siteId": "packages/server/src/foundation/observability/debug/wire-capture.ts::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "documented — first write of a fresh"
+    },
+    {
+      "siteId": "packages/server/src/foundation/observability/debug/wire-capture.ts::spillChain::1",
+      "verdict": "deliberate-absorb",
+      "reason": "documented above the spillChain"
+    },
+    {
+      "siteId": "packages/server/src/foundation/version/index.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "\"this file did not answer\" IS the result here — it becomes"
+    },
+    {
+      "siteId": "packages/server/src/foundation/version/index.ts::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "a manifest that is not JSON degrades to the `unknown`"
+    },
+    {
+      "siteId": "packages/server/src/foundation/version/index.ts::catch::3",
+      "verdict": "deliberate-absorb",
+      "reason": "a stamp that is not JSON is INDISTINGUISHABLE from an"
+    },
+    {
+      "siteId": "packages/server/src/infra/auth/config.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a malformed OIDC_ISSUER yields an EMPTY allowlist, which this function's own contract makes FAIL-CLOSED at the resolver — no trusted key source means the signed path is refused, and `jwks_rejected(off-allowlist)` is the operator-visible surface. Widening on a bad URL would be the dangerous arm. Ends if the allowlist stops being fail-closed when empty."
+    },
+    {
+      "siteId": "packages/server/src/infra/auth/password.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "FAIL-CLOSED — an undecodable stored hash returns `false` from verify(), which is the same answer as a wrong password, so a malformed row can never authenticate. Distinguishing the two for the caller would be a credential oracle. Ends if verify() gains a typed \"stored credential is corrupt\" arm for an operator surface."
+    },
+    {
+      "siteId": "packages/server/src/infra/crypto/key.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a non-decodable key is INDISTINGUISHABLE from a wrong-length one here, and both must reach the same null — the 32-byte check below is the validator and the file header states the contract (degrade to a DISABLED box, never throw at boot). Ends if decode gains a failure the caller must report separately."
+    },
+    {
+      "siteId": "packages/server/src/infra/crypto/key.ts::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "FAIL-CLOSED at boot by design — any filesystem fault (permission, read-only, corrupt keyfile) returns null so `createSecretBox(null)` yields a DISABLED box rather than a partial crypto state that could overwrite the only decryption recovery path. The operator sees it as credentials being unavailable, never as silent re-keying. Ends if boot gains a channel that can refuse startup on a crypto fault."
+    },
+    {
+      "siteId": "packages/server/src/infra/extraction/loaders/pdf.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a PDF metadata read failure collapses to \"no title\" — no credential/auth/crypto path, the title is derived display-only content, so a malformed info dict can never fail extraction or leak. Ends if getMetadata()'s result ever gates a security decision."
+    },
+    {
+      "siteId": "packages/server/src/infra/network/egress.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a malformed OIDC_ISSUER URL is simply NOT added to the egress allowlist — the restrictive direction that never widens egress; env refinement already rejects a malformed issuer in oidc mode, so this only fires harmlessly in non-oidc mode. Ends if the allowlist ever becomes a denylist."
+    },
+    {
+      "siteId": "packages/server/src/infra/network/egress.ts::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "an attacker-influenceable provider image URL where every failure (SSRF egress-block, non-2xx, byte-cap, network) collapses to null and the caller drops the image; the SSRF block is already securityEvent'd at the connector before this catch, so returning null never opens egress or loses the event. Ends if a block reaches here un-logged."
+    },
+    {
+      "siteId": "packages/server/src/infra/plugin-host/membrane.ts::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "guest-supplied command metadata that fails to dump/validate is REFUSED registration (onRun handle disposed, warn logged) — a malformed untrusted plugin def can never register a live command, the fail-closed direction. Ends if a dump/parse failure ever returns a live command instead of ctx.undefined."
+    },
+    {
+      "siteId": "packages/server/src/infra/plugin-host/membrane.ts::Promise.race::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the GUEST owns it — the rejection arm below reaches `deferred.reject(err)`, preserving the Error's NAME so a plugin can feature-detect by type. The one path that DROPS is the `!ctx.alive` guard, and dropping there is required: the guest promise this would settle no longer exists, so touching the disposed context is a use-after-free that escapes as an unhandled rejection. Ends if a disposed context gains a safe late-failure sink."
+    },
+    {
+      "siteId": "packages/server/src/infra/plugin-host/membrane.ts::running::1",
+      "verdict": "deliberate-absorb",
+      "reason": "BOOKKEEPING ONLY — this chain exists so teardown can await in-flight work, and both arms deliberately do the same thing (exactly one release per acquisition, so the counter cannot drift). The REJECTION of `running` is owned by the sibling race chain below, which routes it to `deferred.reject` and thence to the guest. Ends if this chain becomes the only reader of `running`."
+    },
+    {
+      "siteId": "packages/server/src/infra/plugin-host/port.ts::run::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the comment above is the contract — the tail is a `void`-typed BARRIER that must never reject, or one deadlined invoke wedges the chain for every later one. Both arms do the identical bookkeeping on purpose, and the caller still gets the real outcome from `return await run` on the next line. Ends if the tail becomes the only reader of `run`."
+    },
+    {
+      "siteId": "packages/server/src/infra/storage/cas.ts::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "only ENOENT is absorbed (a concurrent GC removed the dedup target → fall through and write fresh); every other utimes error is re-thrown, so a permission/I/O fault never silently passes. Ends if the non-ENOENT re-throw is removed."
+    },
+    {
+      "siteId": "packages/server/src/infra/storage/cas.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the ONLY absorbed arm is `isDirSyncUnsupported` — a filesystem CAPABILITY statement, not a fault — and its owner is the operator, told once per process by the structured warn below (the latch is deliberate: on an unsupporting mount every write hits this, and a per-write line would bury the notice it is trying to deliver). Every other errno RE-THROWS on the line above, so a real I/O or permission fault still rejects the put. Owner ruling 2026-09-19, #2410. Ends if the dir-entry fsync becomes required for correctness rather than crash-durability, or if the notice gains a caller-visible result."
+    },
+    {
+      "siteId": "packages/server/src/infra/storage/variant-cache.ts::Promise.resolve::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a best-effort variant-cache read where a miss, unreadable file, OR a rejected path-validation (unsafe owner / invalid hash throws INSIDE the .then, before any readFile) all collapse to undefined → recompute; no unvalidated path is ever read, and miss/error are indistinguishable → same recompute, so it cannot become a cross-owner read or existence oracle (path is owner-scoped). Ends if readFile runs on an unvalidated path."
+    },
+    {
+      "siteId": "packages/server/src/kit/serde/chat/index.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "null flows through asTyped(…, schema) at"
+    },
+    {
+      "siteId": "packages/server/src/kit/serde/lib/index.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "typed refusal — returns a PortableParse"
+    },
+    {
+      "siteId": "packages/server/src/kit/serde/lib/index.ts::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "typed refusal — returns a PortableParse"
+    },
+    {
+      "siteId": "packages/server/src/transport/rate-limit.ts::where::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a best-effort expiry GC that runs on EVERY rate-limited request — giving it its own detached root would push one extra trace bucket per request through a 500-entry ring and evict the real traces. A failed sweep is self-healing (the next request re-runs it) and cannot affect the verdict above. Ends if the sweep ever moves off the per-request path (a scheduled job would get its own root)."
+    },
+    {
+      "siteId": "packages/server/src/transport/trpc/stream/socket.ts::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "documented below — a non-abort failure is"
+    },
+    {
+      "siteId": "packages/server/src/transport/trpc/subscriptions.ts::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "documented above — a modelled error becomes a"
+    },
+    {
+      "siteId": "packages/showcase-plugins/src/index.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "optional-read-as-absent — the header states the"
+    },
+    {
+      "siteId": "packages/showcase-plugins/src/index.ts::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "optional-read-as-absent — a bundle with no"
+    },
+    {
+      "siteId": "packages/showcase-plugins/src/index.ts::catch::3",
+      "verdict": "deliberate-absorb",
+      "reason": "optional-read-as-absent — SCOPED to the read"
+    },
+    {
+      "siteId": "packages/showcase-plugins/src/index.ts::catch::4",
+      "verdict": "deliberate-absorb",
+      "reason": "optional-read-as-absent — \"this package ships"
+    },
+    {
+      "siteId": "packages/ui/src/content/message-media/message-media.tsx::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "display-only fallback — a malformed url yields"
+    },
+    {
+      "siteId": "packages/ui/src/markdown/policy.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "fail-closed security gate, documented below"
+    },
+    {
+      "siteId": "packages/ui/src/markdown/shiki-plugin.ts::highlightAsync::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the unfired callback is the"
+    },
+    {
+      "siteId": "packages/ui/src/primitives/background-video/background-video.tsx::video.play::1",
+      "verdict": "deliberate-absorb",
+      "reason": "documented above — a rejected play() on a"
+    },
+    {
+      "siteId": "packages/ui/src/primitives/tool-call-block/tool-call-block.tsx::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "documented above — on failure returns the raw"
+    },
+    {
+      "siteId": "tooling/src/_shared/appearance-flags.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "appearance JSON parse returns null so the caller emits its option-specific refusal; no theme is applied. Ends if parse failure stops being a refusal."
+    },
+    {
+      "siteId": "tooling/src/_shared/appearance.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a malformed optional device hint is replaced by the requested probe axes; the app re-validates the result through appearanceSettingsSchema. Ends if the hint becomes authoritative."
+    },
+    {
+      "siteId": "tooling/src/_shared/appearance.ts::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "an opaque-origin bootstrap page has no localStorage; the settings-response shim remains authoritative after navigation. Ends if the boot hint becomes the authoritative appearance source."
+    },
+    {
+      "siteId": "tooling/src/_shared/appearance.ts::catch::3",
+      "verdict": "deliberate-absorb",
+      "reason": "an unreadable optional appearance snapshot is represented as absent and the caller rebuilds from the live page. Ends if this snapshot becomes authoritative."
+    },
+    {
+      "siteId": "tooling/src/_shared/appearance.ts::catch::4",
+      "verdict": "deliberate-absorb",
+      "reason": "an unreadable optional theme catalog entry is represented as absent and the caller reports the missing theme. Ends if absence stops reaching the operator."
+    },
+    {
+      "siteId": "tooling/src/_shared/appearance.ts::catch::5",
+      "verdict": "deliberate-absorb",
+      "reason": "the primary route failure is owned by the awaited fallback route, whose own rejection propagates to the command. Ends if fallback becomes fire-and-forget."
+    },
+    {
+      "siteId": "tooling/src/_shared/appearance.ts::e::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the list-themes command emits the read failure through warn before returning no catalog. Ends if the warning stops carrying the failure."
+    },
+    {
+      "siteId": "tooling/src/_shared/artifact-pointer.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "an absent or unreadable `.published` manifest is the UNKNOWN answer to \"how many aliases did this run publish?\", and `null` is that answer — deliberately distinct from the `0` a run that finished and published nothing writes. Both are returned to the one caller, which acts on the difference. Ends if a caller starts needing to know WHY the manifest was unreadable."
+    },
+    {
+      "siteId": "tooling/src/_shared/artifact-pointer.ts::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "a slot removed by a concurrent publisher's prune between the directory listing and this stat is the expected racing case (the same one ./artifacts.ts `slotMtime` answers with a value), and `null` is the answer its one caller acts on — the slot is dropped from the census, because a slot that is gone has no instant. Ends if a vanished slot must be distinguished from an unreadable one."
+    },
+    {
+      "siteId": "tooling/src/_shared/artifact-pointer.ts::catch::3",
+      "verdict": "deliberate-absorb",
+      "reason": "this IS an existence predicate — the throw is the `absent` answer, one of the three values the caller switches on, and it becomes the operator-visible `absent` pointer state (which `check:show --stage` turns into a refusal naming the command to run). Ends if the caller starts needing WHY the alias is unreadable."
+    },
+    {
+      "siteId": "tooling/src/_shared/artifact-pointer.ts::catch::4",
+      "verdict": "deliberate-absorb",
+      "reason": "there is no alias to stat — the `state` field, computed from `aliasKind` above, has already told the reader that, so a publish instant of `null` is the consistent answer rather than a swallowed failure. Ends if `publishedAt` becomes readable independently of `state`."
+    },
+    {
+      "siteId": "tooling/src/_shared/artifact-pointer.ts::catch::5",
+      "verdict": "deliberate-absorb",
+      "reason": "no `reports/runs/` directory means no instrument has ever run on this checkout — an empty instrument list is the truthful census, and the caller turns a resulting empty inventory into an explicit NOTHING TO MEASURE refusal rather than a clean zero. Ends if an unreadable runs directory must be refused here."
+    },
+    {
+      "siteId": "tooling/src/_shared/artifact-pointer.ts::catch::6",
+      "verdict": "deliberate-absorb",
+      "reason": "no `reports/` directory at all — the same honest zero as `readdirSafe`, and the same caller refuses on it (`pointerView` raises NOTHING TO MEASURE, exit 3), so the empty list is never rendered as \"nothing is stale\". Ends if this stops being the only caller."
+    },
+    {
+      "siteId": "tooling/src/_shared/artifacts.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a missing `.git` entry means this root is not a checkout at all (a planted fixture tree), which is a legitimate NAME, not a failure — the fallback IS the answer and it is returned to the caller. Ends if a non-checkout root must be refused instead of named."
+    },
+    {
+      "siteId": "tooling/src/_shared/artifacts.ts::catch::10",
+      "verdict": "deliberate-absorb",
+      "reason": "a slot removed by a CONCURRENT publisher's prune between the listing and this stat is the expected racing case, and `null` is the answer its one caller acts on — the row is dropped, because a slot that is already gone is nothing to prune. Ends if the caller starts needing to distinguish a vanished slot from an unreadable one (a permission error worth reporting)."
+    },
+    {
+      "siteId": "tooling/src/_shared/artifacts.ts::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "an absent or unparseable in-flight marker means \"this slot is not in flight\" — the ONLY question this reader asks — and `null` is that answer at every call site (the racing census, the prune filter, the abandoned-run scan). Ends if any caller starts treating null as \"in flight\"."
+    },
+    {
+      "siteId": "tooling/src/_shared/artifacts.ts::catch::3",
+      "verdict": "deliberate-absorb",
+      "reason": "no runs directory yet means this instrument has never run here — an empty list is the truthful census, and every caller (racing, prune, abandoned) reads it as \"no other slots\". Ends if a missing directory must be created or refused here rather than by openRunSlot."
+    },
+    {
+      "siteId": "tooling/src/_shared/artifacts.ts::catch::4",
+      "verdict": "deliberate-absorb",
+      "reason": "the pre-clean of a leftover temp link from an earlier crashed publish; ENOENT is the normal case, and a real failure surfaces immediately at the symlinkSync below (EEXIST), which is NOT caught. Ends if the symlink call is made tolerant of an existing path."
+    },
+    {
+      "siteId": "tooling/src/_shared/artifacts.ts::catch::5",
+      "verdict": "deliberate-absorb",
+      "reason": "nothing at the alias yet (the first publish) or a concurrent publisher removed it — both mean \"no stale REAL file to clear\", and the renameSync below still lands the pointer atomically and DOES throw if it cannot. Ends if the rename stops being the load-bearing step."
+    },
+    {
+      "siteId": "tooling/src/_shared/artifacts.ts::catch::6",
+      "verdict": "deliberate-absorb",
+      "reason": "the marker is already gone when a run publishes twice (the supervisor's single-project arm) — the post-condition \"this slot is no longer in flight\" holds either way. Ends if publishing twice must become an error."
+    },
+    {
+      "siteId": "tooling/src/_shared/artifacts.ts::catch::7",
+      "verdict": "deliberate-absorb",
+      "reason": "an absent or unparseable manifest means \"this slot published nothing a pointer could still resolve into\" — the ONE question the retention reader asks — and the empty list is that answer at its single call site. Ends if a caller starts needing to distinguish \"never published\" from \"manifest lost\"."
+    },
+    {
+      "siteId": "tooling/src/_shared/artifacts.ts::catch::8",
+      "verdict": "deliberate-absorb",
+      "reason": "a removed or replaced alias is the NEGATIVE answer to \"does this pointer still resolve into that slot?\" — null is that answer at the one call site (the retention filter). Ends if the caller starts acting on WHY the alias is unreadable."
+    },
+    {
+      "siteId": "tooling/src/_shared/artifacts.ts::catch::9",
+      "verdict": "deliberate-absorb",
+      "reason": "this IS an existence predicate — the throw is the negative answer and is returned as `false` to the one caller (publishRunSlot's \"did the run write this artifact?\" check). Ends if the caller starts needing WHY the path is unreadable."
+    },
+    {
+      "siteId": "tooling/src/_shared/browser-capture.ts::wire::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the event has no awaiter; setup rejection is retained in pageErrors, which makes Snap's verdict red. Ends if pageErrors stops contributing to the verdict."
+    },
+    {
+      "siteId": "tooling/src/_shared/browser-diagnostics.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "unsupported experimental Audits becomes an explicit instrument-limit diagnostic; Log capture remains live. Ends if the limit record stops carrying the caught detail."
+    },
+    {
+      "siteId": "tooling/src/_shared/browser-network.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a failed or timed-out CDP request-body read is retained as an explicit unavailableReason and serialized as a HAR omission. Ends if the reason stops reaching the HAR."
+    },
+    {
+      "siteId": "tooling/src/_shared/browser-network.ts::error::2",
+      "verdict": "deliberate-absorb",
+      "reason": "a failed or timed-out CDP response-body read is retained as timeout/evicted/failed and serialized as a HAR omission. Ends if the reason stops reaching the HAR."
+    },
+    {
+      "siteId": "tooling/src/_shared/browser-network.ts::pending::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the original promise remains in controller.pending and networkRecordsForPages awaits it, so rejection still propagates; this continuation only releases retention state on either terminal. Ends if pending stops being awaited or this continuation owns the verdict."
+    },
+    {
+      "siteId": "tooling/src/_shared/browser-request-url.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "an unparsable page-controlled URL becomes the branded explicit omission instead of leaking raw credentials/path/query bytes. Ends if the fallback stops being the only returned value."
+    },
+    {
+      "siteId": "tooling/src/_shared/browser.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "closeProbeSessionAfterError is typed Promise<never> — it always rethrows the primary error (wrapped with any cleanup failure), never returns. Ends if that function stops rethrowing unconditionally."
+    },
+    {
+      "siteId": "tooling/src/_shared/browser.ts::error::2",
+      "verdict": "deliberate-absorb",
+      "reason": "collected into failures[] which the two checks below rethrow as-is or as an AggregateError — never silently dropped. Ends if the failures array stops being surfaced after this block."
+    },
+    {
+      "siteId": "tooling/src/_shared/compiler-source-filename-overlay.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "native ts.sys.readDirectory treats an unreadable"
+    },
+    {
+      "siteId": "tooling/src/_shared/compiler-source-filename-overlay.ts::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "native ts.sys directory reads skip dangling"
+    },
+    {
+      "siteId": "tooling/src/_shared/debugging-endpoint.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the file exists only after Chrome binds its ephemeral endpoint; the bounded loop owns the race and throws below when its budget expires. Ends if exhaustion stops throwing."
+    },
+    {
+      "siteId": "tooling/src/_shared/devtools-runtime.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "cleanup failures are retained in `failures` and surfaced together as the terminal AggregateError below. Ends if the aggregate throw is removed."
+    },
+    {
+      "siteId": "tooling/src/_shared/devtools-runtime.ts::error::2",
+      "verdict": "deliberate-absorb",
+      "reason": "cleanup failures are retained in `failures` and surfaced together as the terminal AggregateError below. Ends if the aggregate throw is removed."
+    },
+    {
+      "siteId": "tooling/src/_shared/devtools-runtime.ts::rm::1",
+      "verdict": "deliberate-absorb",
+      "reason": "initialization cleanup joins the original failure in the AggregateError below. Ends if cleanup errors stop being appended or the aggregate throw is removed."
+    },
+    {
+      "siteId": "tooling/src/_shared/devtools-runtime.ts::server.close::1",
+      "verdict": "deliberate-absorb",
+      "reason": "initialization cleanup joins the original failure in the AggregateError below. Ends if cleanup errors stop being appended or the aggregate throw is removed."
+    },
+    {
+      "siteId": "tooling/src/_shared/entrypoint.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a deleted or virtual argv[1] fails to resolve; the caller's own doc says exactly that case is expected, so falling back to the input verbatim is the correct optional-read-as-absent behavior, not a lost failure. Ends if a resolve failure here starts meaning something other than \"no real path\"."
+    },
+    {
+      "siteId": "tooling/src/_shared/load-budget-cgroup.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "ABSENCE IS THE ANSWER — a cgroup path that does not exist (v1, or a host without the controller) or is unreadable under this uid means exactly \"no ceiling is declared here\", the same verdict `cpu.max` spells `max`. Ends if this reader ever needs to tell \"unbounded\" from \"could not ask\"; the absence then becomes a value and this catch becomes a branch."
+    },
+    {
+      "siteId": "tooling/src/_shared/nav.ts::page.evaluate::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a best-effort readiness ping before the real bridge call two lines below — any genuine failure (no bridge, mid-navigation) is caught by the surrounding try and returned as ok:false with the message. Ends if this becomes the only readiness signal checked."
+    },
+    {
+      "siteId": "tooling/src/_shared/panel-flags.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "panel-preset JSON parse returns null so the caller emits its option-specific refusal; no nav action is queued. Ends if parse failure stops being a refusal."
+    },
+    {
+      "siteId": "tooling/src/_shared/proc.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "ESRCH is the desired teardown end state; every other signal error is rethrown. Ends if callers require proof that the signal landed."
+    },
+    {
+      "siteId": "tooling/src/_shared/proc.ts::error::2",
+      "verdict": "deliberate-absorb",
+      "reason": "ESRCH or an observed child exit makes kill idempotent; every still-live signal failure rethrows. Ends if child exit fields stop being authoritative."
+    },
+    {
+      "siteId": "tooling/src/_shared/proc.ts::settle::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the handler OWNS the failure by putting it in the transcript this door returns (`[proc] teardown failed: …`) and settling the run as a TOOL ERROR (code null) — nothing is dropped, and the promise MUST settle here or the door written to end a hang becomes one. Ends if the handler stops resolving or stops naming the error."
+    },
+    {
+      "siteId": "tooling/src/_shared/rated-theme-fixture.ts::cleanupError::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the cleanup failure is preserved beside the primary failure in the thrown AggregateError below; the matrix command prints that terminal error and exits toolError. Ends if either failure stops propagating."
+    },
+    {
+      "siteId": "tooling/src/_shared/run-marker.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a pid that exits mid-scan (or another user's) answers null, which every caller reads as \"not provably mine\" and therefore DO NOT SIGNAL. Ends if null ever authorizes a signal."
+    },
+    {
+      "siteId": "tooling/src/_shared/run-marker.ts::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "an unreadable /proc/<pid>/status ends the ancestor walk, which can only make the exclusion set SMALLER-BUT-SAFE — the walk starts at THIS process, whose own status is always readable. Ends if the walk is ever used to select targets rather than exclude them."
+    },
+    {
+      "siteId": "tooling/src/_shared/run-marker.ts::catch::3",
+      "verdict": "deliberate-absorb",
+      "reason": "`kill(pid, 0)` ASKS a question and throws to answer \"no\" — the throw IS the ESRCH answer, exactly as _shared/run-retention.ts's pidAlive states it. Ends if this needs to tell EPERM from ESRCH."
+    },
+    {
+      "siteId": "tooling/src/_shared/run-marker.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "ESRCH is the DESIRED end state of a teardown signal (the process left between the scan and the signal); every other signal error rethrows. Ends if a caller starts requiring proof that a specific signal landed."
+    },
+    {
+      "siteId": "tooling/src/_shared/run-retention.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "ESRCH from a signal-0 probe IS the answer — the pid is gone — and `false` is that answer at every call site (the racing census, the prune filter, the abandoned-run scan, the session registry's daemon liveness). Ends if this needs to distinguish EPERM (a live pid this user may not signal) from ESRCH."
+    },
+    {
+      "siteId": "tooling/src/_shared/run-retention.ts::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "no ledger yet means this instrument has pruned nothing here — the empty list is that answer at both call sites (the bounded rewrite, and the reader answering a citation). Ends if a caller must distinguish \"never pruned\" from \"ledger unreadable\"."
+    },
+    {
+      "siteId": "tooling/src/_shared/run-retention.ts::catch::3",
+      "verdict": "deliberate-absorb",
+      "reason": "bookkeeping ABOUT a deletion that already happened — the run's own verdict has been published and must not be lost to a ledger write, and the next publish re-appends its own rows. Ends if a reader starts requiring the ledger to be complete rather than best-effort."
+    },
+    {
+      "siteId": "tooling/src/_shared/run-tool.ts::e::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the exit-contract's own door — UsageError writes ARG ERROR and escalates misuse, anything else routes through crashExit which writes stderr, escalates toolError and hard-exits. Ends if a branch here stops writing stderr or escalating."
+    },
+    {
+      "siteId": "tooling/src/_shared/scoped-run-paths.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "an operand the runner would treat as a regex may not BE one; the substring fallback below is the runners' own degradation, and refusing here would refuse a filter the runner itself accepts. Ends if the preflight ever needs to refuse an unparseable pattern outright."
+    },
+    {
+      "siteId": "tooling/src/_shared/upload.ts::chooserPromise::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the target click already failed and is rethrown below; drain the paired chooser promise so its later timeout cannot become an unhandled secondary failure. Ends if the chooser result is consumed here or the click error stops being rethrown."
+    },
+    {
+      "siteId": "tooling/src/_shared/upload.ts::evaluate::1",
+      "verdict": "deliberate-absorb",
+      "reason": "this best-effort type probe converts a detached/unreadable target into \"not a direct input\" and deliberately delegates to the descendant/chooser arms below; those interactions surface the actionable target failure. Ends if this catch stops feeding that fallback or a failure can exit clean without either arm running."
+    },
+    {
+      "siteId": "tooling/src/ast/cli.ts::e::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the verb's thrown error is mapped to a typed exit code via mapKnownError, not dropped — the return value is main()'s own contract, propagated to the process exit code. Ends if mapKnownError stops covering a real error class and silently returns clean."
+    },
+    {
+      "siteId": "tooling/src/ast/ops/symbols.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "TypeScript intentionally probes nonexistent module candidates; an unreadable candidate is `undefined` so resolution continues. Ends if this callback reads an already-proven-existing path."
+    },
+    {
+      "siteId": "tooling/src/bug-reports/lib/read.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "an absent directory IS the answer here — it"
+    },
+    {
+      "siteId": "tooling/src/bug-reports/lib/read.ts::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "the null is consumed as an `unreadable` ROW in"
+    },
+    {
+      "siteId": "tooling/src/bug-reports/lib/read.ts::catch::3",
+      "verdict": "deliberate-absorb",
+      "reason": "a missing companion degrades the SHOW output to"
+    },
+    {
+      "siteId": "tooling/src/codemod/lib/apply-project.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "ENOENT is already-clean; other cleanup failures are retained and warned below while applyProject rethrows the original failure. Ends if those failures stop being surfaced."
+    },
+    {
+      "siteId": "tooling/src/codemod/lib/diagnostics.ts::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "an unwritable /tmp falls back to printing the whole buffer plus an explicit warning banner naming the failure — the comment above states the intent directly (\"better noisy than silent loss\"). Ends if the fallback stops printing the warning."
+    },
+    {
+      "siteId": "tooling/src/codemod/lib/plans.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "ENOENT/ENOTDIR means this entry is absent and the caller continues to an existing ancestor; other failures throw. Ends if false is treated as a containment verdict."
+    },
+    {
+      "siteId": "tooling/src/codemod/lib/program-consumers.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "an unresolvable or escaping compiler probe is"
+    },
+    {
+      "siteId": "tooling/src/cpu-profile/ops/boot-trace.ts::cleanup::1",
+      "verdict": "deliberate-absorb",
+      "reason": "start-failure cleanup: pushed to failures[] and re-thrown via startCleanupError at L231; the start error is the primary owner"
+    },
+    {
+      "siteId": "tooling/src/cpu-profile/ops/boot-trace.ts::cleanup::2",
+      "verdict": "deliberate-absorb",
+      "reason": "start-failure cleanup: pushed to failures[] and re-thrown via startCleanupError at L231; the start error is the primary owner"
+    },
+    {
+      "siteId": "tooling/src/cpu-profile/ops/boot-trace.ts::cleanupObserver::1",
+      "verdict": "deliberate-absorb",
+      "reason": "terminal cleanup after trace stop: warn() prints the exact failure text; the owning Snap session closes the browser next"
+    },
+    {
+      "siteId": "tooling/src/cpu-profile/ops/boot-trace.ts::detach::1",
+      "verdict": "deliberate-absorb",
+      "reason": "detach is terminal cleanup after trace stop/abort; warn prints the exact failure and the owning Snap session still closes the browser. Ends if this warning or the following session close disappears."
+    },
+    {
+      "siteId": "tooling/src/cpu-profile/ops/boot-trace.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "error-collection cleanup: pushed to failures[] and re-thrown as AggregateError at L148-152; partial-trace evidence is preserved"
+    },
+    {
+      "siteId": "tooling/src/cpu-profile/ops/boot-trace.ts::error::2",
+      "verdict": "deliberate-absorb",
+      "reason": "error-collection cleanup: pushed to failures[] and re-thrown as AggregateError at L148-152; partial-trace evidence is preserved"
+    },
+    {
+      "siteId": "tooling/src/cpu-profile/ops/boot-trace.ts::error::3",
+      "verdict": "deliberate-absorb",
+      "reason": "CDP cleanup error-collection: pushed to failures[] and re-thrown as AggregateError at L197-199; observer disposal is terminal"
+    },
+    {
+      "siteId": "tooling/src/cpu-profile/ops/boot-trace.ts::error::4",
+      "verdict": "deliberate-absorb",
+      "reason": "CDP cleanup error-collection: pushed to failures[] and re-thrown as AggregateError at L197-199; observer disposal is terminal"
+    },
+    {
+      "siteId": "tooling/src/cpu-profile/ops/boot-trace.ts::error::5",
+      "verdict": "deliberate-absorb",
+      "reason": "trace-start recovery: re-thrown at L233 after cleanup collects secondary failures; start error is the primary owner"
+    },
+    {
+      "siteId": "tooling/src/cpu-profile/ops/boot-trace.ts::stopTrace::1",
+      "verdict": "deliberate-absorb",
+      "reason": "warn receives the caught cleanup error and prints it as BOOT TRACE CLEANUP; the surrounding session close remains the terminal cleanup owner. Ends if this warning stops carrying the failure or session close stops following this block."
+    },
+    {
+      "siteId": "tooling/src/model-ab/lib/verify.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the function's whole job is to return a verdict string or null — a JSON.parse failure IS one of the verdicts (\"arguments not valid JSON\"), not a swallowed failure. Ends if the return type stops being read as the probe's verdict."
+    },
+    {
+      "siteId": "tooling/src/model-ab/lib/verify.ts::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "same verdict-string contract as parseToolArguments above — a parse failure returns the verdict \"content is not the schema JSON\" rather than swallowing it. Ends if the return type stops being read as the probe's verdict."
+    },
+    {
+      "siteId": "tooling/src/model-ab/ops/probe.ts::res.json::1",
+      "verdict": "deliberate-absorb",
+      "reason": "res.ok/status are read independently of json — a non-JSON error body just means the `message` field falls back to empty in the failure branch below; the HTTP failure itself is never lost. Ends if the ok/status path starts depending on json having parsed."
+    },
+    {
+      "siteId": "tooling/src/model-ab/ops/serve.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a failed health poll advances to the bounded retry whose timeout or process exit is the operator verdict. Ends if one poll becomes terminal."
+    },
+    {
+      "siteId": "tooling/src/model-ab/ops/serve.ts::e::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the boot failure is warned and returned as an explicit failed variant row with error text. Ends if callers stop publishing that row."
+    },
+    {
+      "siteId": "tooling/src/motion-audit/lib/verdicts.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "an unparseable sourceURL falls back to the raw string, which the pathname.includes() checks below just won't match — degrading to \"unknown\" attribution rather than throwing, consistent with this function's documented \"veto, not proof\" contract. Ends if callers start requiring pathname to be a real URL path."
+    },
+    {
+      "siteId": "tooling/src/motion-audit/ops/drive.ts::e::1",
+      "verdict": "deliberate-absorb",
+      "reason": "prepare-click failure is printed as STEP FAILED and null prevents measurement from claiming a click. Ends if null can produce a clean verdict."
+    },
+    {
+      "siteId": "tooling/src/motion-audit/ops/trace.ts::e::1",
+      "verdict": "deliberate-absorb",
+      "reason": "sets stepFailed, which is returned in the AuditData the caller reads as part of the verdict, and prints STEP FAILED — not dropped. Ends if stepFailed stops being read from the returned AuditData."
+    },
+    {
+      "siteId": "tooling/src/motion-audit/ops/trace.ts::page.evaluate::1",
+      "verdict": "deliberate-absorb",
+      "reason": "best-effort cleanup unpausing an in-page flag in a finally block — the page may already be closed/navigated by the time this runs, and there is nothing further downstream that could act on this failure. Ends if this flag gates behavior a later step depends on."
+    },
+    {
+      "siteId": "tooling/src/mutation-probe/ops/probe.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the readable:false verdict IS the return contract — the JSDoc above states this distinguishes \"the report was not there\" from \"the suite named no failing test\", so a read/parse failure is reported through the return value, not swallowed. Ends if a caller starts treating readable:false the same as readable:true."
+    },
+    {
+      "siteId": "tooling/src/render-trace/ops/fire.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a connection-refused/fetch failure during boot polling is expected while the server isn't listening yet — the loop retries until deadlineMs, then throws its own timeout error below. Ends if this stops eventually throwing on deadline."
+    },
+    {
+      "siteId": "tooling/src/render-trace/ops/fire.ts::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "best-effort teardown of a scratch tempDir on process exit — force:true already tolerates a missing path, and there is no caller left to hand a failure to at this point. Ends if this tempDir starts holding anything a later step depends on existing/not-existing."
+    },
+    {
+      "siteId": "tooling/src/review-mirror/ops/generate.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "pushed into the errors[] array returned to the caller as part of the mirror result, not dropped. Ends if the errors array stops being surfaced in the return value."
+    },
+    {
+      "siteId": "tooling/src/seed/ops/demo.ts::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the JSDoc above states the intent directly — a best-effort seeded turn where the greeting transcript is already committed, so an offline-model failure is logged with the honest limitation and the demo db stays valid. Ends if the failure stops being logged."
+    },
+    {
+      "siteId": "tooling/src/seed/ops/demo.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the message is warned to the operator and the function returns EXIT.toolError — propagated through both channels, not dropped. Ends if either the warn or the return code is removed."
+    },
+    {
+      "siteId": "tooling/src/snap/lib/browser-evidence-redaction.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a hostile diagnostic getter becomes an explicit unreadable marker; its thrown value may contain a page secret and cannot cross the disk boundary. Ends if unreadableValue stops recording the failure."
+    },
+    {
+      "siteId": "tooling/src/snap/lib/browser-evidence-redaction.ts::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "hostile outer diagnostic getters fail closed to one generic record; caught content may contain a page secret and is intentionally neither logged nor returned. Ends if fallback stops being the terminal disk-safe result."
+    },
+    {
+      "siteId": "tooling/src/snap/lib/browser-evidence-redaction.ts::catch::3",
+      "verdict": "deliberate-absorb",
+      "reason": "a hostile diagnostic collection fails closed to an empty batch with an unreadable receipt; caught content may contain a page secret and is not surfaced. Ends if the receipt stops owning the failure."
+    },
+    {
+      "siteId": "tooling/src/snap/lib/browser-evidence-redaction.ts::catch::4",
+      "verdict": "deliberate-absorb",
+      "reason": "hostile captured-console getters fail closed to a generic explicit omission; thrown content may contain a page secret and is not surfaced. Ends if the fallback stops being disk-safe."
+    },
+    {
+      "siteId": "tooling/src/snap/lib/browser-evidence-redaction.ts::catch::5",
+      "verdict": "deliberate-absorb",
+      "reason": "hostile request-summary getters fail closed to a generic omission; thrown content may contain a page secret and is not surfaced. Ends if the fallback stops being disk-safe."
+    },
+    {
+      "siteId": "tooling/src/snap/lib/cascade-source.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "malformed or unsupported source URLs fail closed to `opaque`, which never counts as a repository declaration. Ends if opaque sources become trusted or satisfy the nonzero repository population."
+    },
+    {
+      "siteId": "tooling/src/snap/lib/har-redaction.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "malformed form encoding is the negative parse result; the body caller turns null into an explicit malformed-form omission and never exposes the decoder error. Ends if null stops producing that omission."
+    },
+    {
+      "siteId": "tooling/src/snap/lib/har-redaction.ts::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "a hostile property getter becomes an explicit unreadable event plus [OMITTED]; the caught error can contain the secret and must never cross this disk-safety boundary. Ends if either marker or receipt is removed."
+    },
+    {
+      "siteId": "tooling/src/snap/lib/har-redaction.ts::catch::3",
+      "verdict": "deliberate-absorb",
+      "reason": "invalid JSON becomes a typed malformed-json omission; parser messages are intentionally discarded because future runtimes may quote secret-bearing input. Ends if the omission stops owning the failure."
+    },
+    {
+      "siteId": "tooling/src/snap/lib/har-redaction.ts::catch::4",
+      "verdict": "deliberate-absorb",
+      "reason": "a hostile proxy/getter at the outer trust boundary fails closed to one generic unreadable receipt; the caught value may itself contain a secret and is never logged or serialized. Ends if fallback stops being the terminal safe result."
+    },
+    {
+      "siteId": "tooling/src/snap/lib/heap-devtools.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "ENOENT means the official worker emitted no problem report; every other read/parse failure rethrows. Ends if the error-code check or rethrow is removed."
+    },
+    {
+      "siteId": "tooling/src/snap/lib/rate-posture.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "this one acceleration-read failure is preserved in accelerationError; ratePostureDisposition reads it first and withholds every rate verdict with the original message. Ends if accelerationError stops feeding that withholding branch or any rate consumer can publish a verdict after this catch."
+    },
+    {
+      "siteId": "tooling/src/snap/lib/react-profile-trace.ts::capture.cdp.detach::1",
+      "verdict": "deliberate-absorb",
+      "reason": "Tracing.end is the terminal browser-side cleanup owner; the caught measurement/retry detail above is retained for the operator. Ends if stopTrace stops sending Tracing.end before detach."
+    },
+    {
+      "siteId": "tooling/src/snap/lib/react-profile-trace.ts::cdp.detach::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a failed trace start owns no later measurement; detaching is best-effort and the caught start error is returned as the operator-visible track limit. Ends if this catch stops returning the start error."
+    },
+    {
+      "siteId": "tooling/src/snap/lib/react-profile-trace.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the caught trace failure is returned as traceError, filed in the profile artifact and printed as `track limit`; Fiber evidence remains independently valid. Ends if stopTrace stops returning the caught detail or reportReactProfile stops printing traceError."
+    },
+    {
+      "siteId": "tooling/src/snap/lib/run-bundle-files.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a missing/corrupt optional .inflight marker deliberately falls through to the slot birthtime, the documented lower-fidelity provenance source. Ends if birthtime is no longer recorded in run.json."
+    },
+    {
+      "siteId": "tooling/src/snap/lib/run-bundle-files.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "unreadable bytes make source identity explicitly unknown with the exact failed field; no sentinel digest may masquerade as reproducible content. Ends if this catch stops returning that failure."
+    },
+    {
+      "siteId": "tooling/src/snap/lib/run-finding-analyzers.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "composite display owns parser drift by persisting a malformed-evidence finding; the strict detailed reader still refuses the source artifact. Ends if malformedFinding stops retaining the caught error."
+    },
+    {
+      "siteId": "tooling/src/snap/lib/run-finding-analyzers.ts::error::2",
+      "verdict": "deliberate-absorb",
+      "reason": "composite display owns parser drift by persisting a malformed-evidence finding; the strict detailed reader still refuses the source artifact. Ends if malformedFinding stops retaining the caught error."
+    },
+    {
+      "siteId": "tooling/src/snap/lib/run-finding-analyzers.ts::error::3",
+      "verdict": "deliberate-absorb",
+      "reason": "composite display owns parser drift by persisting a malformed-evidence finding; the strict detailed reader still refuses the source artifact. Ends if malformedFinding stops retaining the caught error."
+    },
+    {
+      "siteId": "tooling/src/snap/lib/run-finding-browser.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "composite display owns parser drift by persisting a malformed-evidence finding; the strict detailed reader still refuses the source artifact. Ends if malformedFinding stops retaining the caught error."
+    },
+    {
+      "siteId": "tooling/src/snap/lib/run-finding-browser.ts::error::2",
+      "verdict": "deliberate-absorb",
+      "reason": "composite display owns parser drift by persisting a malformed-evidence finding; the strict detailed reader still refuses the source artifact. Ends if malformedFinding stops retaining the caught error."
+    },
+    {
+      "siteId": "tooling/src/snap/lib/session-wire.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a malformed line IS the negative answer both readers return — the daemon refuses the request as a protocol error and the client treats the row as unreadable; `null` is that answer at every call site. Ends if a caller starts needing WHY the bytes did not parse."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/appearance-density-persistence.ts::mutation::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the DEFUSED rejection is the response wait, whose failure is meaningless once the click that should have caused it failed — the click's error is re-thrown on the next line and owns the outcome. Ends if the wait stops being started before the click."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/appearance-surface-drive.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the failure is CONVERTED, never swallowed — a bare `Timeout 5000ms exceeded` reached the matrix loop as an unattributed throw and the drive reported NO VERDICT with nothing naming which row, surface or subject was missing (#1104). Ends when the wait stops being able to fail."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/assert.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "captured as an ERROR outcome line pushed into the returned outcomes array, which the caller counts as failed and reports. Ends if the outcomes array stops being read."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/assert.ts::visibleLocators::1",
+      "verdict": "deliberate-absorb",
+      "reason": "probe-whose-failure-is-its-return-value — a locator failure converts to an empty population and so to pass=false, which the very next line reports as ASSERT visible … FAIL. Ends if that FAIL line stops being printed/read."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/boot-trace.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "failure is printed by report(), publishes boot-trace=REFUSED, and forces exit 2 below. Ends if any of those three owners stop reading failure."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/boot-trace.ts::error::2",
+      "verdict": "deliberate-absorb",
+      "reason": "failure is printed by report(), publishes boot-trace=REFUSED, and forces exit 2 below. Ends if any of those three owners stop reading failure."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/boot-trace.ts::error::3",
+      "verdict": "deliberate-absorb",
+      "reason": "failure is printed by report(), publishes boot-trace=REFUSED, and forces exit 2 below. Ends if any of those three owners stop reading failure."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/cascade.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the catch returns a terminal instrument-error receipt consumed by Snap's verdict and artifact, including one error row per requested query. Ends if this result stops driving the verdict."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/contrast.ts::evaluate::1",
+      "verdict": "deliberate-absorb",
+      "reason": "best-effort cleanup — a torn-down page must never fail the contrast verdict already computed. Ends if the trailing comment's rationale stops holding."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/cpu-profile.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "failure is printed by report(), publishes cpu-profile=REFUSED, and forces exit 2 below. Ends if any of those three owners stop reading failure."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/cpu-profile.ts::error::2",
+      "verdict": "deliberate-absorb",
+      "reason": "failure is printed by report(), publishes cpu-profile=REFUSED, and forces exit 2 below. Ends if any of those three owners stop reading failure."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/cpu-profile.ts::error::3",
+      "verdict": "deliberate-absorb",
+      "reason": "failure is printed by report(), publishes cpu-profile=REFUSED, and forces exit 2 below. Ends if any of those three owners stop reading failure."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/eval.ts::e::1",
+      "verdict": "deliberate-absorb",
+      "reason": "captured into the EvalOutcome as `failed: true` + an \"EVAL ERROR\" text, pushed into `results` and returned to the caller that prints/counts it. Ends if `failed`/`text` stop being read from the outcome."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/heap.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a failed capture may create no file; the primary error is retained by runHeapPage and exits 2. Ends if the caller stops preserving/printing that primary error."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/heap.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "every caught capture failure enters errors, prints HEAP REFUSED, persists on CaptureOutcome, and forces page-arm exit 2. Ends if any one of those owners stops reading errors."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/heap.ts::error::2",
+      "verdict": "deliberate-absorb",
+      "reason": "every caught comparison failure enters errors, prints HEAP REFUSED, persists on CaptureOutcome, and forces page-arm exit 2. Ends if any one of those owners stops reading errors."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/heap.ts::error::3",
+      "verdict": "deliberate-absorb",
+      "reason": "every caught retainer failure enters errors, prints HEAP REFUSED, persists on CaptureOutcome, and forces page-arm exit 2. Ends if any one of those owners stops reading errors."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/heap.ts::error::4",
+      "verdict": "deliberate-absorb",
+      "reason": "the caught grammar detail enters Args.errors and the CLI refuses before browser work. Ends if parseSnapArgs stops surfacing Args.errors."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/heap.ts::error::5",
+      "verdict": "deliberate-absorb",
+      "reason": "the caught grammar detail enters Args.errors and the CLI refuses before browser work. Ends if parseSnapArgs stops surfacing Args.errors."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/heap.ts::error::6",
+      "verdict": "deliberate-absorb",
+      "reason": "the caught grammar detail enters Args.errors and the CLI refuses before browser work. Ends if parseSnapArgs stops surfacing Args.errors."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/lighthouse.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the bounded retry loop OWNS this failure — a connection refused before Chrome binds its listener is the normal first tick, and exhaustion throws the named error below. Ends if exhaustion stops throwing."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/map.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the browser read failure is retained in"
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/map.ts::error::2",
+      "verdict": "deliberate-absorb",
+      "reason": "the capabilities shape failure becomes"
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/map.ts::error::3",
+      "verdict": "deliberate-absorb",
+      "reason": "the shell shape failure becomes"
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/map.ts::locator.count::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a malformed/non-unique candidate returns"
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/map.ts::locator.isEnabled::1",
+      "verdict": "deliberate-absorb",
+      "reason": "failed enabled proof is false;"
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/map.ts::locator.isVisible::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a failed visibility probe is false;"
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/motion.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "this optional appearance cross-check is null in ordinary non-app fixtures; rated matrix cells consume the same contract through their mandatory matrix receipt. Ends if applicationMotion becomes a verdict input outside that matrix receipt."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/motion.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the caught measurement failure becomes a named evidence gap, printed as REFUSED and forced to exit 2 by the arm. Ends if the returned gaps stop feeding report/pairs/exit."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/perf.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "optional-read-as-absent — perf evidence is a nice-to-have from window.__orb, null on any failure (old build, dev-only bridge absent) and the caller treats null as \"no perf evidence\", never a failure. Ends if a caller starts requiring perf evidence to be present."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/profile.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the caught page read becomes a hookInstalled:false evidence row; profileGaps prints it and forces exit 2. Ends if missingPage stops carrying the caught detail or profileGaps stops refusing it."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/profile.ts::error::2",
+      "verdict": "deliberate-absorb",
+      "reason": "the caught install failure is returned in errors; profileGaps prints it and forces exit 2. Ends if the error stops entering this return or gaps stop voting."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/profile.ts::error::3",
+      "verdict": "deliberate-absorb",
+      "reason": "the caught call-window mark failure is returned in errors; profileGaps prints it and forces exit 2 rather than mixing prior commits into this call. Ends if the detail stops entering this return or gaps stop voting."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/shot.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "documented best-effort optimisation — a torn context makes the shot one frame stale, never absent, per the trailing comment. Ends if the shot stops happening regardless of this failure."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/capture.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "best-effort fallback shot after the nav already failed — the RESULT line's navError still reports the real failure. Ends if the comment's \"still lands\" claim stops holding."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/capture.ts::e::1",
+      "verdict": "deliberate-absorb",
+      "reason": "captured into outcome.navError, which the caller counts into the verdict's navigation total and prints as NAV ERROR. Ends if navError stops being read."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/contrast-edge.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a mid-retry attempt is deliberately absorbed — the loop tries again; only the LAST attempt below owns the failure with a discriminated `ok: false` return. Ends if SHOT_ATTEMPTS drops to 1 (no retry left to absorb into)."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/contrast-fill.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a mid-retry attempt is deliberately absorbed — the loop tries again; only the LAST attempt below owns the failure with a discriminated `ok: false` return. Ends if SHOT_ATTEMPTS drops to 1 (no retry left to absorb into)."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/design-audit-walk.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a selector the browser refuses to parse is reported as matches=-1, which the arm prints as UNPROVEN and counts as non-unique — the failure IS the published value. Ends if -1 stops being read as \"not proven\"."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/design-audit-walk.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the walk throwing is an INSTRUMENT failure, returned as walkError and turned into walkFailureGap (exit 2) by the caller. Ends if walkError stops reaching the gap ladder."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/drive.ts::e::1",
+      "verdict": "deliberate-absorb",
+      "reason": "printed as STEP FAILED and returned as a count the caller sums into stepFailures, the verdict the run reads. Ends if stepFailures stops being read."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/drive.ts::e::2",
+      "verdict": "deliberate-absorb",
+      "reason": "printed as NAV FAILED and returned as a count the caller sums into navFailures, the verdict the run reads. Ends if navFailures stops being read."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/drive.ts::page.evaluate::1",
+      "verdict": "deliberate-absorb",
+      "reason": "probe-whose-failure-is-its-return-value — a build without the __orb bridge, or a probe that throws, returns null and the caller \"makes no claim rather than a false one\" (doc comment above). Ends if a caller starts trusting null as a positive settle."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/drive.ts::page.evaluate::2",
+      "verdict": "deliberate-absorb",
+      "reason": "a fire-and-forget readiness ping whose result is discarded — the very next line's evaluate() runs regardless and its failure IS caught by this try, reported as NAV FAILED. Ends if the next evaluate stops being what reports real failures."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/drive.ts::page.waitForLoadState::1",
+      "verdict": "deliberate-absorb",
+      "reason": "bounded best-effort settle — a chatty stream must never block the shot, per the trailing comment. Ends if the timeout bound is removed."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/drive.ts::retryErr::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the retry's own failure is printed as STEP FAILED (after churn retry) and returned as the same counted failure the outer catch would have produced. Ends if that count stops being read."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/drive.ts::waitFor::1",
+      "verdict": "deliberate-absorb",
+      "reason": "failure IS the return value — converts to attached=false, which becomes the \"absent\" readiness arm fed into UNSETTLED_REASON and reported as navError below. Ends if that reporting chain is removed."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/drive.ts::waitFor::2",
+      "verdict": "deliberate-absorb",
+      "reason": "gracefully bounded per the comment above — a stuck/absent flag falls through, and any real problem still surfaces via the nav evaluate() below, caught by the try beneath. Ends if that fallthrough evaluate stops being what catches real failures."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/filmstrip-capture.ts::stopProtocol::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the timeout callback has no awaiter; stopProtocol memoizes the original promise and stop() awaits it, then returns the rejection as typed cleanup evidence. Ends if stop() stops awaiting that memoized promise."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/fixture.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "documented fail-safe floor — keeps the default port, and the status probe below refuses loudly on the same bad URL with a readable reason (see the doc comment above). Ends if that downstream refusal is removed."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/fixture.ts::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "fail-closed floor — a parse failure returns null, and fixtureStatus() below turns any null into `{ up: false, reason: \"… unreachable\" }`, never a silent pass. Ends if that fail-closed mapping is removed."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/guards.ts::e::1",
+      "verdict": "deliberate-absorb",
+      "reason": "printed as STAGE ERROR and returned as exit code 1, which the CLI process exits with. Ends if that exit code stops being surfaced."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/heap-capture.ts::detachError::1",
+      "verdict": "deliberate-absorb",
+      "reason": "detach failure is retained in cleanup and combined after stream settlement; the arm never closes the owner context. Ends if cleanup stops reaching combineCaptureFailures."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/heap-capture.ts::disableError::1",
+      "verdict": "deliberate-absorb",
+      "reason": "disable failure is retained in cleanup and combined after stream settlement. Ends if cleanup stops reaching combineCaptureFailures."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/heap-capture.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the primary capture failure is retained and combineCaptureFailures always rethrows it after cleanup, alone or inside the AggregateError with the cleanup failures. Ends if combineCaptureFailures stops throwing the retained primary."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/heap-capture.ts::streamError::1",
+      "verdict": "deliberate-absorb",
+      "reason": "stream failure is retained in cleanup and combined with the CDP failures. Ends if cleanup stops reaching combineCaptureFailures."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/materialize-devtools.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "any escape from the request handler is recorded in `failures`, destroys the response, and aborts materialization after discovery. Ends if the shared failure receipt stops gating installation."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/materialize-devtools.ts::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "Chrome creates this file only after binding the ephemeral endpoint; the bounded retry loop owns the race and throws when its budget expires. Ends if exhaustion stops throwing."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/materialize-devtools.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "each failed attempt is retained as `lastError`; retry exhaustion throws it with the asset path below. Ends if exhaustion stops throwing the retained detail."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/materialize-devtools.ts::error::2",
+      "verdict": "deliberate-absorb",
+      "reason": "request failures enter the shared `failures` receipt, return HTTP 502, and abort materialization after discovery. Ends if the post-discovery failures check is removed."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/matrix.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "every lifecycle/discovery/planning failure is printed as INSTRUMENT ERROR and returned as EXIT.toolError below; cleanup still runs. Ends if this catch stops terminating the command."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/matrix.ts::error::2",
+      "verdict": "deliberate-absorb",
+      "reason": "cleanup failure is printed to the operator and forces EXIT.toolError below. Ends if cleanup is delegated to an owner that returns its own verdict."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/request-ring.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "sizes=null plus the caught reason on"
+    },
+    {
+      "siteId": "tooling/src/snap/ops/request-ring.ts::error::2",
+      "verdict": "deliberate-absorb",
+      "reason": "#reject persists the explicit read-error"
+    },
+    {
+      "siteId": "tooling/src/snap/ops/run-report-render.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a PRESENT-but-unreadable values artifact is an instrument defect, printed as EVAL REFUSED and never as an empty value set; the strict index reader above still owns the run's verdict. Ends if that refusal line disappears."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/run-report.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a neighbouring run's corruption is not this report's verdict — the subject index is read by the strict door in printSnapReport, and a skipped neighbour only means no delta row. Ends if this reader becomes the only read of those files."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/run-report.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "this is the browser-free reader's terminal owner; it prints RUN INDEX REFUSED and returns tool-error for every resolution/validation/artifact failure. Ends if either output or exit vote disappears."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/run-report.ts::error::2",
+      "verdict": "deliberate-absorb",
+      "reason": "list mode retains path+reason in `invalid` and `printSnapReports` emits the bounded aggregate; the strict single-index reader remains the detailed refusal door. Ends if either retention or aggregate output disappears."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/session-admin.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a live pid whose socket does not answer is REPORTED from its row with the \"not answering\" mark the caller prints — the read degrades to the evidence it has, it never hides the session. Ends if a silent daemon must become a hard error."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/session-admin.ts::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "a daemon that does not answer its close is REAPED below (group signal + marker settle) and the reap's receipt is printed — the failure path is the louder one. Ends if the reap stops being unconditional after a refused close."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/session-call-watchdog.ts::cdp.send::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the reload below is the second cancellation path and the watchdog reports the original timeout to the caller. Ends if reload stops following this bounded acknowledgement wait."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/session-call-watchdog.ts::Promise.resolve::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the rejection is retained in the discriminated work outcome and the rejected arm below rethrows the original binding; timeout recovery also awaits this owned outcome. Ends if the rejected arm stops propagating the original failure."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/session-call-watchdog.ts::session.page.reload::1",
+      "verdict": "deliberate-absorb",
+      "reason": "reload is best-effort cancellation after the timeout already owns the caller-visible error; the next-call survival gate detects a context that failed to recover. Ends if the timeout stops being reported or the survival gate is removed."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/session-call-watchdog.ts::then::1",
+      "verdict": "deliberate-absorb",
+      "reason": "failed injected or browser cancellation becomes `false`, which makes `recovered` false and throws TerminalSessionCallError; the daemon then emits DEAD/toolError, records terminalReason, tears down, and kills its owned process group. Ends if false stops forcing terminal teardown."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/session-client.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a refused or absent socket IS the negative answer of a readiness poll — the caller keeps polling until the daemon answers, exits, or the boot budget names the failure. Ends if the poll stops bounding the wait."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/session-client.ts::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "the log does not exist until the daemon's first write — an absent file is \"nothing to relay yet\" (the offset is handed back unchanged) and the poll reads again next tick. Ends if a missing log must be reported instead."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/session-client.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a daemon that vanished mid-call is reported as SESSION DEAD (or SESSION ERROR with the reason) and the call exits toolError — the failure is the printed verdict. Ends if that exit code stops being surfaced."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/session-daemon-request.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the failure is printed to the caller as SESSION CALL ERROR and the request's `done` carries toolError — the caller's exit IS the report; the daemon stays up by design (a session survives a failed call, §7.1). Ends if the done event stops carrying the exit."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/session-daemon-request.ts::work::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a timer/signal boundary has no caller to carry an exit code, so the daemon log IS the report; the `closed` latch is already released by shutdown's `finally`, so the process leaves regardless. Ends if shutdown stops releasing the latch unconditionally."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/session-daemon.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a browser that fails to close is logged and the teardown proceeds to the registry half — the row + socket must go regardless, or the session reads as live forever. Ends if a failed browser close must abort the teardown."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/session-daemon.ts::readSessionRequestLine::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the failure is reported to the caller as SESSION SERVE ERROR and the request's `done` carries toolError — the caller's exit IS the report, and the daemon stays up (a session survives a failed call, §7.1). Ends if the done event stops carrying the exit."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/session-registry.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "an unreadable reservation cannot hold capacity; the lock owner removes that exact file below before returning false. Ends if malformed reservations must block acquisition instead of being reclaimed."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/session-registry.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "only EEXIST is the expected lock-contention signal and it retries after a bounded poll; every other mkdir failure rethrows. Ends if the lock stops being represented by exclusive directory creation."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/stage-marker.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "optional-read-as-absent — a truncated/garbage legacy marker is treated as \"no legacy stage\", which is the same clean-rebuild path a missing one takes. Ends if a legacy marker ever carries state the table cannot re-derive."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/stage-marker.ts::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "optional-read-as-absent — a truncated/garbage table (a killed mid-write) is treated as \"no stages\", which triggers the same clean-allocate path an ABSENT table takes, legacy migration included; the operator sees the empty census on the next `--stage-status`. Ends if the sweep/status readers stop tolerating an empty table."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/stage-marker.ts::catch::3",
+      "verdict": "deliberate-absorb",
+      "reason": "optional-read-as-absent — an unreadable holder file means \"I cannot identify the holder\", which the age check below then judges. Ends if a lock ever carries state beyond its holder pid."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/stage-marker.ts::catch::4",
+      "verdict": "deliberate-absorb",
+      "reason": "the rename target is already gone — someone"
+    },
+    {
+      "siteId": "tooling/src/snap/ops/stage-marker.ts::catch::5",
+      "verdict": "deliberate-absorb",
+      "reason": "EEXIST is the mutex's SUCCESS-of-the-other-caller signal, not a failure — the loop below judges the holder and either waits or breaks it. Ends if mkdir stops being the lock primitive."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/stage-reap-log.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "optional-read-as-absent — a truncated/garbage ledger reads as \"no reaps recorded\", which is the same line a fresh checkout prints; nothing decides anything on this file. Ends if any verdict starts reading it back."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/stage-source.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "documented degraded-but-non-fatal floor — the stage renders without avatars/cards rather than aborting the stage build, per the trailing comment. Ends if a caller starts requiring assetsDir to exist."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/stage-status.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "best-effort cleanup per the comment above — the row (cleared unconditionally below) is the actual deliverable of this branch, not the dir removal. Ends if the row clear stops happening unconditionally."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/stage-teardown.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "documented best-effort evidence copy — the doc comment above states the teardown must proceed regardless of it, and the OWNER of the failure is the printed teardown line, which says \"No stack log was found to preserve\" rather than naming a path it does not have. Ends if a caller starts requiring the copy to have happened."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/watch.ts::page.screenshot::1",
+      "verdict": "deliberate-absorb",
+      "reason": "captured into shotError on the returned tick, which report.ts prints as FAILED and run.ts counts into the verdict. Ends if that count/print stops being read."
+    },
+    {
+      "siteId": "tooling/src/stack/lib/dev-process-identity.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "malformed identity JSON returns null and recordedDevStackVerdict refuses the existing file. Ends if null can authorize a signal."
+    },
+    {
+      "siteId": "tooling/src/stack/lib/dev-process-identity.ts::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "an unreadable identity returns null and the existing-path check produces a manual-cleanup refusal. Ends if null can authorize a signal."
+    },
+    {
+      "siteId": "tooling/src/stack/lib/dev-process-identity.ts::catch::3",
+      "verdict": "deliberate-absorb",
+      "reason": "an unreadable /proc/<pid>/environ returns null, which adoptDevStackGroup treats as UNMARKED — the fail-closed direction, so it can never authorize a signal. Ends if null ever contributes to an adoptable verdict."
+    },
+    {
+      "siteId": "tooling/src/stack/lib/dev-process-identity.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "ESRCH means the adopted group exited between the census and the signal — the desired end state; every other signal failure rethrows. Ends if callers require proof the signal landed."
+    },
+    {
+      "siteId": "tooling/src/stack/lib/engine-fleet/fleet-control.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a POST /sleep failure returns false (engine not slept) — a local loopback engine-lifecycle op, no auth/credential; false is the conservative \"did not sleep\". Ends if this call reaches a non-loopback target."
+    },
+    {
+      "siteId": "tooling/src/stack/lib/engine-fleet/fleet-control.ts::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "a /metrics scrape failure returns null (\"can't tell\"), and isEngineIdle/advanceAutoSleep treat null as never-idle — the conservative direction (never auto-sleeps a busy engine); local engine, no auth/credential. Ends if null ever admits an auto-sleep."
+    },
+    {
+      "siteId": "tooling/src/stack/lib/engine-fleet/fleet-control.ts::catch::3",
+      "verdict": "deliberate-absorb",
+      "reason": "a /metrics capacity scrape failure returns null (absent, never a fabricated healthy snapshot); local engine observability, no auth/credential. Ends if null is read as a healthy snapshot."
+    },
+    {
+      "siteId": "tooling/src/stack/lib/engine-fleet/fleet-control.ts::catch::4",
+      "verdict": "deliberate-absorb",
+      "reason": "an /is_sleeping probe failure returns null (\"could not measure\"); local engine state read, no auth/credential — null disarms the auto-sleep timer (never sleeps on missing data). Ends if null ever admits an auto-sleep."
+    },
+    {
+      "siteId": "tooling/src/stack/lib/engine-fleet/fleet-control.ts::catch::5",
+      "verdict": "deliberate-absorb",
+      "reason": "a POST /wake_up failure returns false (engine did not wake); local engine-lifecycle op, no auth/credential. Ends if this call reaches a non-loopback target."
+    },
+    {
+      "siteId": "tooling/src/stack/lib/engine-fleet/fleet-control.ts::catch::6",
+      "verdict": "deliberate-absorb",
+      "reason": "a failed `ss` listing yields \"\" and the caller answers null (pid unknown) — a read-only local socket listing for a status display, no auth/credential/network. Ends if the pid this feeds ever authorizes a signal."
+    },
+    {
+      "siteId": "tooling/src/stack/lib/engine-fleet/gpu.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a GPU-presence probe (nvidia-smi -L) that throws returns false (no usable GPU) — a local hardware probe, no auth/credential/network. Ends if GPU presence ever gates a security decision."
+    },
+    {
+      "siteId": "tooling/src/stack/lib/engine-fleet/gpu.ts::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "a GPU-count probe failure returns 0 (no GPU/driver); local hardware probe, no auth/credential/network. Ends if the count ever gates a security decision."
+    },
+    {
+      "siteId": "tooling/src/stack/lib/engine-fleet/proc-observe.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "an unreadable /proc process entry returns null, and verifyEngineLaunchIdentity treats null as absent/refused — NEVER \"owned\", so an unreadable process can never authorize the negative-PGID kill; fail-closed. Ends if null ever yields an \"owned\" verdict."
+    },
+    {
+      "siteId": "tooling/src/stack/lib/engine-fleet/proc-observe.ts::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "an unreadable /proc/<pid>/environ returns null, which adoptEngineGroup treats as UNMARKED — the fail-closed direction, so it can never authorize a signal. Ends if null ever contributes to an adoptable verdict."
+    },
+    {
+      "siteId": "tooling/src/stack/lib/engine-fleet/process-identity.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a malformed engine-identity file parses to null (no launch record), so no negative-PGID signal can be authorized against it — the fail-closed direction. Ends if a null record ever authorizes a signal."
+    },
+    {
+      "siteId": "tooling/src/stack/lib/engine-fleet/process-identity.ts::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "an unreadable engine-identity file returns null (no launch record); no signal can be authorized without a matching record — fail-closed. Ends if a null read ever authorizes a signal."
+    },
+    {
+      "siteId": "tooling/src/stack/lib/engine-fleet/process-identity.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the kill failure is classified into a typed verdict (ESRCH → absent, else → refused) AFTER ownership was already verified \"owned\" above — propagated as a verdict, and no unverified signal is ever sent. Ends if the kill precedes ownership verification."
+    },
+    {
+      "siteId": "tooling/src/stack/lib/engine-fleet/process-identity.ts::error::2",
+      "verdict": "deliberate-absorb",
+      "reason": "ESRCH means the adopted group exited between the census and the signal — the desired end state; every other signal failure rethrows. Ends if callers require proof the signal landed."
+    },
+    {
+      "siteId": "tooling/src/stack/lib/engine-fleet/spawn-engine.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a git-common-dir resolution failure falls back to the repo root (the documented non-worktree default); local path derivation, no auth/credential/network. Ends if the resolved root ever crosses a trust boundary."
+    },
+    {
+      "siteId": "tooling/src/stack/lib/engine-fleet/wake-budget.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a failed nvidia-smi query yields \"\" (no facts), and the caller REFUSES the wake on missing facts rather than assuming headroom — a local hardware probe, no auth/credential/network. Ends if a GPU fact ever gates a security decision."
+    },
+    {
+      "siteId": "tooling/src/stack/lib/port-health.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "connection refusal is the only absent verdict; every other rejection becomes an unproven result that launchOneEngine refuses before headroom or spawn. Ends if unproven can authorize launch."
+    },
+    {
+      "siteId": "tooling/src/stack/lib/prod-record.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "malformed pidfile JSON returns null and identity classification refuses any unproven live process. Ends if null can authorize a signal."
+    },
+    {
+      "siteId": "tooling/src/stack/lib/spawn-lock.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "ENOENT alone is the racing-release state and the following exclusive create decides ownership; other reads throw. Ends if no retry follows."
+    },
+    {
+      "siteId": "tooling/src/stack/lib/spawn-lock.ts::error::2",
+      "verdict": "deliberate-absorb",
+      "reason": "ENOENT alone means another launcher won the unlink race; the next exclusive create decides ownership. Ends if no retry follows."
+    },
+    {
+      "siteId": "tooling/src/stack/lib/spawn-lock.ts::error::3",
+      "verdict": "deliberate-absorb",
+      "reason": "ENOENT is idempotent release; every other unlink failure is rethrown. Ends if release gains an ownership-transfer acknowledgement."
+    },
+    {
+      "siteId": "tooling/src/stack/ops/dev-identity-entry.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "ENOENT means the already-absent identity file needs no deletion; every other unlink failure surfaces and prevents a cleared verdict. Ends if another absence code is supported."
+    },
+    {
+      "siteId": "tooling/src/stack/ops/engines-ctl.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a failed engine identity probe returns false and the caller refuses control of that process. Ends if false can authorize a signal."
+    },
+    {
+      "siteId": "tooling/src/stack/ops/engines-ctl.ts::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "an unreadable OS user identity falls back to a fixed label (\"unknown\") for a HUMAN-READABLE receipt on a marker file, never an authorization decision. Ends if the fallback ever gates a signal."
+    },
+    {
+      "siteId": "tooling/src/stack/ops/prod-down.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "ESRCH alone means the verified pid vanished before SIGTERM; every other signal error is rethrown. Ends if signal classification changes."
+    },
+    {
+      "siteId": "tooling/src/stack/ops/prod-down.ts::error::2",
+      "verdict": "deliberate-absorb",
+      "reason": "ESRCH alone means the verified group vanished before SIGKILL; every other signal error is rethrown. Ends if signal classification changes."
+    },
+    {
+      "siteId": "tooling/src/stack/ops/prod-state.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "health fetch failure is the explicit unhealthy observation consumed by identity classification. Ends if unhealthy can authorize ownership."
+    },
+    {
+      "siteId": "tooling/src/stack/ops/prod-state.ts::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "credential-free debug probe failure returns unknown posture, which prevents token-bearing identity claims. Ends if unknown can authorize control."
+    },
+    {
+      "siteId": "tooling/src/stack/ops/prod-support.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "an unreadable optional log tail returns empty and status still reports the log path. Ends if log content becomes a control verdict."
+    },
+    {
+      "siteId": "tooling/src/stack/ops/prod-support.ts::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "an unreadable optional log renders the explicit no-log sentinel to the operator. Ends if missing logs become a clean shutdown claim."
+    },
+    {
+      "siteId": "tooling/src/stack/ops/prod-support.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "ENOENT alone permits minting a first debug token; every existing-token read failure is rethrown. Ends if token rotation becomes explicit."
+    },
+    {
+      "siteId": "tooling/src/stack/ops/prod-support.ts::error::2",
+      "verdict": "deliberate-absorb",
+      "reason": "ENOENT alone is idempotent pidfile cleanup; every other unlink failure is rethrown. Ends if cleanup gains a separate operator result."
+    },
+    {
+      "siteId": "tooling/src/stack/ops/served-probe.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "probe JSON parse failure returns null and the caller reports the service as unverified. Ends if null can satisfy the served probe."
+    },
+    {
+      "siteId": "tooling/src/stack/ops/served-probe.ts::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "probe request failure returns null and the caller reports the service as unreachable. Ends if null can satisfy the served probe."
+    },
+    {
+      "siteId": "tooling/src/ui-audit/ops/hover.ts::e::1",
+      "verdict": "deliberate-absorb",
+      "reason": "printed as `HOVER REFUSED <why>`, RETURNED as a `broke` outcome, and RENDERED AS EXIT.toolError by run.ts — propagated through both the message and the exit code, so a forced-state pass that failed reddens the audit's verdict rather than being absorbed. END CONDITION: the run reports `hover-contrast` NO VERDICT and exits 2."
+    },
+    {
+      "siteId": "tooling/src/verify/gates/depcruise-grant-liveness.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "an unparseable pattern matches nothing, so it"
+    },
+    {
+      "siteId": "tooling/src/verify/gates/devtools-frontend-assets.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "every adjudicator failure is converted into this policy's asset-contract finding, which is the D950 ruling — an unprovable vendored closure IS the violation, not a broken checker. Ends if this catch stops reporting the failure detail."
+    },
+    {
+      "siteId": "tooling/src/verify/lib/biome-rule-liveness.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "EPERM alone means a LIVE process this UID may not signal — still alive, still not ours to sweep; every other errno (ESRCH, a malformed pid) means the owner is gone and its probe is ours to clear. Ends if the probe name stops carrying its owner's pid."
+    },
+    {
+      "siteId": "tooling/src/verify/lib/bus-payload-fact-resolve.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the failure IS owned and surfaced — tuple-read THROWS to say \"I cannot establish this vocabulary\", and the empty set returned here makes `literalUnionMembers` answer undefined, which makes `readIndexedAccess` answer `unprovable`, which REFUSES `unsupported-shape:MappedType` at the member. Converting it to a D16 finding rather than an exit-2 tool error is the ruling in this module's header: an unprovable bus shape is the violation, not a broken checker. Ends if this return value stops feeding a fail-closed refusal."
+    },
+    {
+      "siteId": "tooling/src/verify/lib/config-snapshot.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "readConfigSnapshot turns undefined into an explicit unreadable result that the liveness gate reports. Ends if malformed JSON can produce an ok snapshot."
+    },
+    {
+      "siteId": "tooling/src/verify/lib/config-snapshot.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "native-config parse error: surfaced as a structured tool-error diagnostic in the config-snapshot report; the broken config is excluded from the snapshot"
+    },
+    {
+      "siteId": "tooling/src/verify/lib/ct-runner-lock.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the FAILURE IS THE VERDICT — an unreadable lockfile is DEBRIS, and `null` is how this reader says so to its one caller, which then STEALS the lock and PRINTS that it did. Surfacing it any other way wedges the tree on a half-written file. Ends if a caller starts reading `null` as \"someone holds this\"."
+    },
+    {
+      "siteId": "tooling/src/verify/lib/ct-runner-lock.ts::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "`kill(pid, 0)` ASKS A QUESTION and throws to answer \"no\" — the throw IS the ESRCH answer, not a lost failure, and the caller acts on the boolean by stealing the lock and saying so out loud. Ends if this ever needs to distinguish EPERM (a live foreign pid) from ESRCH, which would make the throw carry two answers."
+    },
+    {
+      "siteId": "tooling/src/verify/lib/ct-runner-lock.ts::catch::3",
+      "verdict": "deliberate-absorb",
+      "reason": "the EEXIST throw IS \"the lock is held\" — this catch is the arm that reads the holder and either REFUSES loudly (`kind: \"busy\"`; the caller prints the refusal and exits 2) or steals a dead holder's lock with a printed note. Every path out of it is owned and visible. Ends if this stops re-deciding and starts swallowing."
+    },
+    {
+      "siteId": "tooling/src/verify/lib/history.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "documented non-critical telemetry — a torn/partial line is skipped, never failing the run whose actual verdict lives elsewhere, per the doc comment above. Ends if history entries start being load-bearing for a verdict."
+    },
+    {
+      "siteId": "tooling/src/verify/lib/history.ts::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "printed via warn() — documented non-critical telemetry per the doc comment above (Never throws); a lost timing record never fails the run itself. Ends if a caller starts treating history writes as load-bearing."
+    },
+    {
+      "siteId": "tooling/src/verify/lib/host-slots.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the FAILURE IS THE VERDICT — an unreadable or half-written slot file is DEBRIS, and `null` is how this reader says so to its one caller, which then STEALS the slot and PRINTS that it did. Any other surfacing wedges the box on a torn write. Ends if a caller starts reading `null` as \"someone holds this\"."
+    },
+    {
+      "siteId": "tooling/src/verify/lib/host-slots.ts::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "`kill(pid, 0)` ASKS A QUESTION and throws to answer \"no\" — the throw IS the ESRCH answer, not a lost failure, and the caller acts on the boolean by stealing the slot and saying so out loud. Ends if this ever needs to distinguish EPERM from ESRCH."
+    },
+    {
+      "siteId": "tooling/src/verify/lib/host-slots.ts::catch::3",
+      "verdict": "deliberate-absorb",
+      "reason": "the EEXIST throw IS \"this slot is taken\" — the catch arm reads the holder and either moves to the next slot (live) or STEALS the slot with a printed note (dead). Every path out of it is owned and visible. Ends if this stops re-deciding and starts swallowing."
+    },
+    {
+      "siteId": "tooling/src/verify/lib/policy-pass-resolve.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "fact population resolution: on failure the fact gets an empty population and the run continues; downstream gates see EMPTY_POPULATION, not silence"
+    },
+    {
+      "siteId": "tooling/src/verify/lib/policy-pass-resolve.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "policy population resolution: markIncomplete converts error to a structured PolicyToolError; the run reports tool-error status with EMPTY_POPULATION"
+    },
+    {
+      "siteId": "tooling/src/verify/lib/policy-pass-resolve.ts::error::2",
+      "verdict": "deliberate-absorb",
+      "reason": "fact population resolution: markFactIncomplete converts error to a structured FactToolError; the run reports tool-error status with EMPTY_POPULATION"
+    },
+    {
+      "siteId": "tooling/src/verify/lib/policy-pass-types.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "gate evaluation guard: markIncomplete converts error to a structured PolicyToolError with phase and message; the gate run reports tool-error status"
+    },
+    {
+      "siteId": "tooling/src/verify/lib/policy-pass-types.ts::error::2",
+      "verdict": "deliberate-absorb",
+      "reason": "fact evaluation guard: markFactIncomplete converts error to a structured FactToolError with phase and message; the fact run reports tool-error status"
+    },
+    {
+      "siteId": "tooling/src/verify/lib/policy-repo-inventory.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "A confirmed standalone non-Git root deliberately falls through to the explicit workspace-sourced inventory receipt below; repository probe failures and every failure in a real worktree still propagate. Ends if this arm can swallow a real Git error or the fallback stops recording its distinct workspace authority."
+    },
+    {
+      "siteId": "tooling/src/verify/lib/resource-declaration.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "Acquisition failure is retained by owner so pure planning refuses and the structure-bound planner can let the dispatcher emit its canonical incomplete owner row and withheld authority. Ends if the failure map no longer drives both refusal paths."
+    },
+    {
+      "siteId": "tooling/src/verify/lib/schema-fact.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "drizzle schema parse error: surfaced as a structured tool-error in the schema-fact report; the broken schema is excluded from the fact census"
+    },
+    {
+      "siteId": "tooling/src/verify/lib/schema-fact.ts::error::2",
+      "verdict": "deliberate-absorb",
+      "reason": "drizzle column parse error: surfaced as a structured tool-error in the schema-fact report; the broken column is excluded from the fact census"
+    },
+    {
+      "siteId": "tooling/src/verify/lib/schema-fact.ts::error::3",
+      "verdict": "deliberate-absorb",
+      "reason": "FK resolution error: surfaced as a structured tool-error in the schema-fact report; the broken FK is excluded from the fact census"
+    },
+    {
+      "siteId": "tooling/src/verify/lib/show-stage.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "an absent or unparseable artifact at this path is the NEGATIVE answer the two callers each own with a DIFFERENT operator-visible refusal — the pointer door raises \"the evidence is broken, not merely absent\" (exit 2) and the `--run` door raises \"that slot holds no readable verify.json\" (exit 3). Returning the failure here would collapse those two into one text. Ends if both callers ever want the same refusal."
+    },
+    {
+      "siteId": "tooling/src/verify/lib/show-stage.ts::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "the failure is SURFACED, not swallowed — the catch returns an operator-visible red line naming the unreadable log and exits 2 (broken evidence), which is the whole point of this reader refusing rather than printing an empty view. Ends if the returned lines stop carrying the toolError exit."
+    },
+    {
+      "siteId": "tooling/src/verify/ops/asset-refs-coverage.ts::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "printed as TOOL ERROR and routed through EXIT.toolError per the exit-contract — a schema/registry import or reader failure is a BROKEN CHECKER, never a verdict. Ends if that exit code stops being surfaced."
+    },
+    {
+      "siteId": "tooling/src/verify/ops/boot-chunk-ratchet.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "documented on the next line — an unreadable/absent dir is the same UNMEASURABLE class as zero matches, and `entry === undefined` below routes it to the `unmeasurable()` verdict, never a pass. Ends if that unmeasurable() routing is removed."
+    },
+    {
+      "siteId": "tooling/src/verify/ops/boot-chunk-ratchet.ts::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "captured and routed to the `unmeasurable()` verdict on the next line, never a pass. Ends if that unmeasurable() routing is removed."
+    },
+    {
+      "siteId": "tooling/src/verify/ops/boot-chunk-ratchet.ts::catch::3",
+      "verdict": "deliberate-absorb",
+      "reason": "captured and routed to the `unmeasurable()` verdict on the next line, never a pass. Ends if that unmeasurable() routing is removed."
+    },
+    {
+      "siteId": "tooling/src/verify/ops/ct-unfed-ratchet.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "documented above — an unreadable file is a separate failure playwright already reports; treating it as \"owing nothing\" avoids inventing a duplicate, noisy refusal. Ends if playwright stops being the thing that surfaces unreadable-file failures."
+    },
+    {
+      "siteId": "tooling/src/verify/ops/db-baseline-parity.ts::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "printed via noticeLine — this is a Never-throws/never-gates forecast function per the doc comment above, and the notice itself says \"could not read\", never claiming safety. Ends if this forecast starts gating the run's exit code."
+    },
+    {
+      "siteId": "tooling/src/verify/ops/db-baseline-parity.ts::err::2",
+      "verdict": "deliberate-absorb",
+      "reason": "printed as TOOL ERROR and routed through EXIT.toolError, per the exit-contract §3.3 comment below. Ends if that exit code stops being surfaced."
+    },
+    {
+      "siteId": "tooling/src/verify/ops/orphan-export-ratchet.ts::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "printed as TOOL ERROR and routed through EXIT.toolError, per the exit-contract §3.3 comment below. Ends if that exit code stops being surfaced."
+    },
+    {
+      "siteId": "tooling/src/verify/ops/policy-conformance.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "proof-row evaluation: error surfaces as a structured PolicyToolError in the conformance report; the run exits with tool-error status"
+    },
+    {
+      "siteId": "tooling/src/verify/ops/policy-conformance.ts::error::2",
+      "verdict": "deliberate-absorb",
+      "reason": "proof-row evaluation: error surfaces as a structured PolicyToolError in the conformance report; the run exits with tool-error status"
+    },
+    {
+      "siteId": "tooling/src/verify/ops/policy-conformance.ts::error::3",
+      "verdict": "deliberate-absorb",
+      "reason": "proof-row evaluation: error surfaces as a structured PolicyToolError in the conformance report; the run exits with tool-error status"
+    },
+    {
+      "siteId": "tooling/src/verify/ops/resource-config.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "native config resolution: error surfaces as a structured tool-error diagnostic; the broken config is excluded from the resource set"
+    },
+    {
+      "siteId": "tooling/src/verify/ops/resource-config.ts::error::2",
+      "verdict": "deliberate-absorb",
+      "reason": "native config resolution: error surfaces as a structured tool-error diagnostic; the broken config is excluded from the resource set"
+    },
+    {
+      "siteId": "tooling/src/verify/ops/resource-host.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "resource-host resolution: error surfaces as a structured tool-error in the resource-host report; the broken host is excluded from the resource set"
+    },
+    {
+      "siteId": "tooling/src/verify/ops/resource-index.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "resource-index resolution: error surfaces as a structured tool-error in the resource-index report; the broken index is excluded"
+    },
+    {
+      "siteId": "tooling/src/verify/ops/resource-installed.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "installed-resource resolution: error surfaces as a structured tool-error; the broken resource is excluded from the installed set"
+    },
+    {
+      "siteId": "tooling/src/verify/ops/resource-path.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "resource-path stat error: ENOENT is the expected missing-file signal; all other errors re-throw at L71"
+    },
+    {
+      "siteId": "tooling/src/verify/ops/resource-path.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "resource-path resolution: error surfaces as a structured tool-error; the broken path is excluded from the resource set"
+    },
+    {
+      "siteId": "tooling/src/verify/ops/resource-path.ts::error::2",
+      "verdict": "deliberate-absorb",
+      "reason": "resource-path resolution: error surfaces as a structured tool-error; the broken path is excluded from the resource set"
+    },
+    {
+      "siteId": "tooling/src/verify/ops/resource-reader.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "resource file read: error surfaces as a structured tool-error in the reader report; the unreadable file is excluded from the authored set"
+    },
+    {
+      "siteId": "tooling/src/verify/ops/resource-reader.ts::error::2",
+      "verdict": "deliberate-absorb",
+      "reason": "resource file read: error surfaces as a structured tool-error in the reader report; the unreadable file is excluded from the authored set"
+    },
+    {
+      "siteId": "tooling/src/verify/ops/resource-reader.ts::error::3",
+      "verdict": "deliberate-absorb",
+      "reason": "resource file read: error surfaces as a structured tool-error in the reader report; the unreadable file is excluded from the authored set"
+    },
+    {
+      "siteId": "tooling/src/verify/ops/resource-reader.ts::error::4",
+      "verdict": "deliberate-absorb",
+      "reason": "resource file read: error surfaces as a structured tool-error in the reader report; the unreadable file is excluded from the authored set"
+    },
+    {
+      "siteId": "tooling/src/verify/ops/resource-reader.ts::error::5",
+      "verdict": "deliberate-absorb",
+      "reason": "resource file read: error surfaces as a structured tool-error in the reader report; the unreadable file is excluded from the authored set"
+    },
+    {
+      "siteId": "tooling/src/verify/ops/tests-type-membership.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "nativeRootSets propagates this failed observation and runTestsTypeMembership returns tool-error exit 2. Ends if malformed native output can produce a membership verdict."
+    },
+    {
+      "siteId": "tooling/src/verify/ops/typecheck.ts::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "stored as a tool-error result; runTypecheck prints its diagnostic and returns exit 2. Ends if failed child results stop affecting the command verdict."
+    },
+    {
+      "siteId": "tooling/src/wire-tap/ops/trpc.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a non-JSON response body just prints the raw text as-is (the comment states this directly) — the response body itself is never lost, only the pretty-print step is skipped. Ends if the raw text stops being printed on this path."
+    },
+    {
+      "siteId": "tooling/src/workboard/ops/gh.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "only used to make an already-thrown rate-limit error message more specific — a failed probe of the reset time just falls back to a vaguer but still-actionable phrase in that same message, it never suppresses the real rate-limit failure itself. Ends if this return value starts being used outside a message string."
+    },
+    {
+      "siteId": "tooling/src/workboard/ops/project.ts::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the comment states the intent directly — a missing or corrupt cache file falls through to fetchProjectContext() below, which is the real source of truth; the cache is purely an optimization. Ends if this stops falling through to the cold fetch."
+    }
+  ]
+}

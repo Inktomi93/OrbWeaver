@@ -490,15 +490,16 @@ Change `ctWorkers` and every dependent ceiling moves with it. The runner still p
   SAME comparator `tests/tooling/verify/ops/db-baseline-parity.int.test.ts` calls (one home, two callers).
 - **`ledgers:fresh`** (#817 — `tooling/src/verify/ops/ledgers-fresh.ts`) — every
   committed SINGLE-WRITER output vs a fresh derivation of itself, the oldest being
-  `docs/reviews/caught-failure-ownership/population.json` (the caught-failure census — every row carries the
-  `line`/`markerLine` of a site, so ANY merge that inserts lines above one re-stales it). The test-baseline
+  `tooling/src/verify/gates/caught-failure-ownership.population.json` (the caught-failure census — its rows
+  once carried the `line`/`markerLine` of a site, so ANY merge that inserted lines above one re-staled it;
+  since work item 0009 a row is only `siteId`/`verdict`/`reason` and a line move is not drift). The test-baseline
   manifest was the second and was DELETED with `monotonic-tests` (#2217). The census already had a freshness
   check, but it was a
   VITEST suite, so `pnpm check` stayed GREEN while main sat red on the next whole node run and regeneration
   was an unscheduled orchestrator barrier ritual — three re-lines in one night (2026-08-30: the #799 merge
   shifted `plugin-frame.ts` +5 and re-staled the census twenty minutes after the first regen). It runs the
   SAME derivations the regenerators run (one home each; GATE-AUTHORING §4.8's single-writer door keeps the
-  WRITE) and writes nothing, printing the exact differing rows (`line 111 → 106`) and the repair action last,
+  WRITE) and writes nothing, printing the exact differing rows (`gone <siteId>`) and the repair action last,
   so the fix survives into `failureExcerpt`. Generated outputs name their baseline writer; authored parity
   rows name the hand correction instead. The cheap derivations are milliseconds; the caught-failure census
   builds the whole-repo ts-morph project, measured 19.7s wall on the

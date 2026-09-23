@@ -11,7 +11,7 @@ plan: doc-migration
 
 ## What
 
-Rework `docs/reviews/caught-failure-ownership/population.json` so the committed rows carry only the human judgment keyed by `siteId` (`verdict`, `reason`) and none of `line`, `column`, `markerLine` or `snippet`; `tooling/src/verify/ops/gen/caught-failure-population.ts` derives the coordinates at read time from the shared reader `tooling/src/verify/lib/caught-failure.ts`, and `tooling/src/verify/gates/caught-failure-ownership.ts` joins on `siteId`. Move the file beside its reader under `tooling/src/verify/gates/` (the `baseui-surface.manifest.json` precedent) and re-point the `ledgers:fresh` derivation. A `siteId` whose site is gone is a finding (two-sided), never a silent drop.
+Rework the caught-failure census (formerly under docs/reviews, now `tooling/src/verify/gates/caught-failure-ownership.population.json`) so the committed rows carry only the human judgment keyed by `siteId` (`verdict`, `reason`) and none of `line`, `column`, `markerLine` or `snippet`; `tooling/src/verify/ops/gen/caught-failure-population.ts` derives the coordinates at read time from the shared reader `tooling/src/verify/lib/caught-failure.ts`, and `tooling/src/verify/gates/caught-failure-ownership.ts` joins on `siteId`. Move the file beside its reader under `tooling/src/verify/gates/` (the `baseui-surface.manifest.json` precedent) and re-point the `ledgers:fresh` derivation. A `siteId` whose site is gone is a finding (two-sided), never a silent drop.
 
 ## Why
 

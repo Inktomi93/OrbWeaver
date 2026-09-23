@@ -1,7 +1,7 @@
 // The PERMANENT PIN for the `ledgers:fresh` stage (#817). What it defends, and why each arm exists:
 //
 //   RED-FIRST, on the UNMODIFIED source: a stale committed ledger was invisible to `pnpm check`. At HEAD
-//   the ONLY consumer of docs/reviews/caught-failure-ownership/population.json was
+//   the ONLY consumer of the caught-failure census (then docs/reviews/caught-failure-ownership/population.json) was
 //   tests/tooling/verify/gates/caught-failure-ownership.repo.int.test.ts — a `.repo.int.test.ts`, i.e. the
 //   `integration` vitest project, which `pnpm check` never runs (it is the STATIC tier). So main could sit
 //   re-staled by a merge for hours with a green commit bar, three times in one night (2026-08-30).
@@ -12,15 +12,16 @@
 //   ls-files, milliseconds) as the real-tree green + the blindness control.
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
-import type { CaughtFailurePopulation, CaughtFailureRow } from "@orb/tooling/verify";
+import type { CaughtFailureJudgment, CaughtFailurePopulation } from "@orb/tooling/verify";
 import {
   BASELINE_HELP,
   censusDrift,
   classRollupDrift,
   committedOtherClassCensus,
   deferredRosterDrift,
+  deriveCaughtFailurePopulation,
   deriveClassRollup,
   deriveReadFirstCosts,
   deriveSnapFlagsIndexMarkdown,
@@ -28,6 +29,7 @@ import {
   ledgerReport,
   ledgerSectionDrift,
   ledgerSections,
+  POPULATION_REL,
   READ_FIRST_REL,
   REGISTRY,
   readFirstCostsDrift,
@@ -42,67 +44,44 @@ import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const STAGE = "ledgers:fresh";
 
-function row(overrides: Partial<CaughtFailureRow> = {}): CaughtFailureRow {
-  return {
-    siteId: "packages/server/src/x.ts::empty:catch::1",
-    path: "packages/server/src/x.ts",
-    line: 41,
-    column: 3,
-    grammar: "empty",
-    position: "empty:catch",
-    ordinal: 1,
-    snippet: "} catch {",
-    verdict: "unproven",
-    reason: null,
-    markerLine: null,
-    ...overrides,
-  };
+function row(overrides: Partial<CaughtFailureJudgment> = {}): CaughtFailureJudgment {
+  return { siteId: "packages/server/src/x.ts::catch::1", verdict: "unproven", reason: null, ...overrides };
 }
 
-function census(rows: readonly CaughtFailureRow[]): CaughtFailurePopulation {
-  const byGrammar: Record<string, number> = {};
-  for (const r of rows) {
-    byGrammar[r.grammar] = (byGrammar[r.grammar] ?? 0) + 1;
-  }
+function census(rows: readonly CaughtFailureJudgment[]): CaughtFailurePopulation {
+  const unproven = rows.filter((r) => r.verdict === "unproven").length;
   return {
     gate: "caught-failure-ownership",
     generatedBy: "tooling/src/verify/ops/gen/caught-failure-population.ts",
     totals: {
       sites: rows.length,
-      reported: rows.filter((r) => r.verdict === "unproven").length,
-      byVerdict: { "deliberate-absorb": 0, unproven: rows.filter((r) => r.verdict === "unproven").length },
-      byGrammar,
+      reported: unproven,
+      byVerdict: { "deliberate-absorb": rows.length - unproven, unproven },
+      byGrammar: { default: 0, empty: rows.length, promise: 0 },
     },
     rows,
   };
 }
 
-test("a census row whose site MOVED reds, naming the row and both line numbers", () => {
-  // The exact failure mode: a merge inserted five lines above the marker, so the site is the same site and
-  // only `line` moved. A comparison by identity-set alone would call this "one gone, one new" and bury the
-  // cause; the stage must say `line 41 → 46` on the row that moved.
-  const result = censusDrift(census([row()]), census([row({ line: 46 })]));
+test("a census row whose JUDGMENT changed reds, naming the row and both values", () => {
+  // A marker added or removed above a site flips its verdict and reason while its `siteId` stays put. A
+  // comparison by identity-set alone would call this fresh; the stage must name the field on the row.
+  const committed = row();
+  const result = censusDrift(census([committed]), census([{ ...committed, verdict: "deliberate-absorb", reason: "the door" }]));
 
-  expect(result.drift).toHaveLength(1);
-  expect(result.drift[0]).toContain("packages/server/src/x.ts::empty:catch::1");
-  expect(result.drift[0]).toContain("line 41 → 46");
+  expect(result.drift).toHaveLength(2);
+  expect(result.drift[0]).toContain("packages/server/src/x.ts::catch::1");
+  expect(result.drift[0]).toContain('verdict "unproven" → "deliberate-absorb"');
   expect(result.regen).toContain("baseline caught-failure-population");
 });
 
-test("a marker line shift reds too — markerLine is the other line-number-coupled field", () => {
-  const committed = row({ verdict: "deliberate-absorb", reason: "the door", markerLine: 39 });
-  const drift = censusDrift(census([committed]), census([{ ...committed, markerLine: 44 }])).drift;
-
-  expect(drift.join("\n")).toContain("markerLine 39 → 44");
-});
-
 test("a site that appeared and a site that vanished are BOTH drift, and are distinguished", () => {
-  const committed = census([row(), row({ siteId: "a::empty:catch::1", path: "a" })]);
-  const derived = census([row(), row({ siteId: "b::empty:catch::1", path: "b" })]);
+  const committed = census([row(), row({ siteId: "a::catch::1" })]);
+  const derived = census([row(), row({ siteId: "b::catch::1" })]);
 
   const drift = censusDrift(committed, derived).drift.join("\n");
-  expect(drift).toContain("gone   a::empty:catch::1");
-  expect(drift).toContain("new    b::empty:catch::1");
+  expect(drift).toContain("gone   a::catch::1");
+  expect(drift).toContain("new    b::catch::1");
 });
 
 test("an unchanged census is FRESH — the green arm cannot be a test that always passes", () => {
@@ -121,11 +100,8 @@ test("a derivation that comes back EMPTY is a TOOL ERROR (exit 2), never a fresh
   // instrument: a bare zero means "I could not measure", never "there is nothing there".
   const root = mkdtempSync(join(tmpdir(), "orb-ledgers-fresh-"));
   try {
-    mkdirSync(join(root, "docs", "reviews", "caught-failure-ownership"), { recursive: true });
-    writeFileSync(
-      join(root, "docs", "reviews", "caught-failure-ownership", "population.json"),
-      JSON.stringify({ gate: "x", generatedBy: "x", totals: {}, rows: [] }),
-    );
+    mkdirSync(join(root, dirname(POPULATION_REL)), { recursive: true });
+    writeFileSync(join(root, POPULATION_REL), JSON.stringify({ gate: "x", generatedBy: "x", totals: {}, rows: [] }));
     execFixtureGit(root, ["init", "-q"]);
 
     const check = LEDGER_CHECKS["caught-failure-population"];
@@ -134,6 +110,45 @@ test("a derivation that comes back EMPTY is a TOOL ERROR (exit 2), never a fresh
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+// ── the census over a planted tree: a line move is not drift, a vanished site is (work item 0009) ──
+
+const SITE_PATH = "packages/server/src/probe/absorb.ts";
+const SITE_SOURCE = "export function absorb(): void {\n  try {\n    risky();\n  } catch {}\n}\n";
+const SITE_ID = `${SITE_PATH}::catch::1`;
+/** A second site on both sides, so a tree whose planted site vanished still derives rows: an EMPTY
+ *  derivation is the stage's blindness refusal (exit 2), which would hide the `gone` verdict under test. */
+const KEEP = { "packages/server/src/probe/keep.ts": "export function keep(): void {\n  try {\n    risky();\n  } catch {}\n}\n" };
+type PlantTree = (files: Readonly<Record<string, string>>) => Promise<string>;
+
+/** The census derived from a planted tree holding `committedFrom`, committed into a SECOND planted tree
+ *  whose live source is `live`. Two roots, because a ts-morph Project built over a reused path can serve the
+ *  earlier snapshot. */
+async function plantCensus(plantedTree: PlantTree, committedFrom: string, live: string): Promise<string> {
+  const committed = deriveCaughtFailurePopulation(await plantedTree({ ...KEEP, [SITE_PATH]: committedFrom }));
+  expect(committed.rows, "control: both planted sites are census rows").toHaveLength(2);
+  return plantedTree({ ...KEEP, [SITE_PATH]: live, [POPULATION_REL]: `${JSON.stringify(committed, null, 2)}\n` });
+}
+
+function censusCheck(root: string): number | Promise<number> {
+  const check = LEDGER_CHECKS["caught-failure-population"];
+  if (check === undefined) {
+    throw new Error("the caught-failure-population freshness check is not registered");
+  }
+  return check(root);
+}
+
+test("a line inserted ABOVE a census site leaves the census fresh — the committed rows carry no coordinate", async ({ plantedTree }) => {
+  const root = await plantCensus(plantedTree, SITE_SOURCE, `// a new line above the site\n${SITE_SOURCE}`);
+  expect(await censusCheck(root)).toBe(0);
+});
+
+test("a census site that VANISHED reds, naming its siteId", async ({ plantedTree }) => {
+  const root = await plantCensus(plantedTree, SITE_SOURCE, "export const NO_SITE = 1;\n");
+  const committed = JSON.parse(readFileSync(join(root, POPULATION_REL), "utf8")) as CaughtFailurePopulation;
+  expect(censusDrift(committed, deriveCaughtFailurePopulation(root)).drift.join("\n")).toContain(`gone   ${SITE_ID}`);
+  expect(await censusCheck(root)).toBe(1);
 });
 
 // ── the registry contract: complete populations at whole tiers and selected-path triggers ──
@@ -158,7 +173,7 @@ test("a stale ledger never suppresses its sibling's verdict from the same run", 
   ]).join("\n");
 
   expect(lines).toContain("STALE  docs/a-stale-ledger.json");
-  expect(lines).toContain("fresh  docs/reviews/caught-failure-ownership/population.json");
+  expect(lines).toContain(`fresh  ${POPULATION_REL}`);
 });
 
 test("baseline help derives every available freshness kind from the dispatch registry", () => {

@@ -4,10 +4,12 @@
 //
 // ── WHY THIS IS A SHARED READER AND NOT A GATE-PRIVATE ONE (#1584, census blocker at
 //    docs/reviews/gate-runtime/uncovered-gate-conversion-census.md:182: "must split reusable failure facts")
-// TWO consumers read the SAME producer, and that is the whole point: `gates/caught-failure-ownership.ts`
-// reports from it, and `ops/gen/caught-failure-population.ts` derives the durable census at
-// docs/reviews/caught-failure-ownership/population.json from it. Two readers of one population is exactly
-// how an artifact and a gate silently disagree, so there is ONE classifier and both call it.
+// THREE consumers read the SAME producer, and that is the whole point: `gates/caught-failure-ownership.ts`
+// reports from it, `ops/gen/caught-failure-population.ts` derives the durable census at
+// tooling/src/verify/gates/caught-failure-ownership.population.json from it, and
+// `gates/caught-failure-ownership-health.ts` joins that census back to the tree on `siteId`. Several readers
+// of one population is exactly how an artifact and a gate silently disagree, so there is ONE classifier, ONE
+// site identity (`keyCaughtFailureSites`) and ONE corpus (`CAUGHT_FAILURE_POPULATION`), and all of them call it.
 //
 // ── THE SPLIT (#1584 tooling-size) ──────────────────────────────────────────────────────────────────────
 // The classifier grew past the 450-line cap and now lives in five siblings by responsibility: -core.ts (AST
@@ -15,7 +17,7 @@
 // failure-shaped, and the explicit governed-sink recognizers), -scope.ts (framework provenance and the
 // statement-level `hasExplicitOwner` block walk), -handler.ts (catch/promise-handler verdicts), -promise.ts
 // (recognizing a rejection-handler invocation in every spelling). This file keeps only the ARMS
-// (`catchClauseSite`/`promiseAbsorberSite`) and the anchor/site assembly the two consumers actually import.
+// (`catchClauseSite`/`promiseAbsorberSite`) and the anchor/site assembly and identity its consumers import.
 //
 // ── THE ARMS ────────────────────────────────────────────────────────────────────────────────────────────
 //   promise   a `.catch(h)` / `.then(_, h)` — in ANY spelling: dot or bracket key (literal,
@@ -70,8 +72,8 @@
 // ── DECLARED LIMITS ─────────────────────────────────────────────────────────────────────────────────────
 // A dynamically-keyed rejection link is unreadable, not assumed · zod's `.catch()` combinator is schema
 // construction, not a promise · a rethrow or owner routed through an opaque helper is invisible to a
-// syntactic reader. The POPULATION fence (which files carry a failure contract at all) is the consuming
-// policy's declaration, not this reader's.
+// syntactic reader. The POPULATION fence (which files carry a failure contract at all) is declared once at
+// the foot of this file, because two policies and the census generator must walk the same corpus.
 //
 // Descendant reads here are bounded SUBTREE analysis of a delivered node plus same-file binding identity —
 // the shared-reader layer's own job (gate-runtime-standardization.md §3: "binding identity, static-value
@@ -339,3 +341,41 @@ export function caughtFailureReviewSites(sf: SourceFile): readonly CaughtFailure
   }
   return sites.toSorted((left, right) => left.node.getStart() - right.node.getStart());
 }
+
+/** The ONE spelling of a site's move-stable identity: path, the exact reported position, and the 1-based
+ *  occurrence of that (path, position) pair in file order. No coordinate enters it, so a line inserted above
+ *  a site leaves its id — and the committed census row keyed on it — untouched. */
+function caughtFailureSiteId(path: string, position: string, ordinal: number): string {
+  return `${path}::${position}::${ordinal}`;
+}
+
+/** One site with its identity, or with `siteId: undefined` when the classifier derived no anchor — such a
+ *  site has no position to key on, and each consumer refuses it in its own terms rather than inventing one. */
+interface KeyedCaughtFailureSite {
+  readonly site: CaughtFailureSite;
+  readonly siteId: string | undefined;
+  readonly ordinal: number;
+}
+
+/** Key ONE file's sites. Sorted by source position here rather than trusted from the caller, because the
+ *  ordinal is an occurrence count in FILE ORDER and the two consumers collect their sites differently: the
+ *  census walks the file, the health policy receives dispatcher-delivered nodes. */
+export function keyCaughtFailureSites(path: string, sites: readonly CaughtFailureSite[]): readonly KeyedCaughtFailureSite[] {
+  const ordinals = new Map<string, number>();
+  return sites
+    .toSorted((left, right) => left.node.getStart() - right.node.getStart())
+    .map((site) => {
+      if (site.anchor === undefined) {
+        return { site, siteId: undefined, ordinal: 0 };
+      }
+      const ordinal = (ordinals.get(site.anchor.token) ?? 0) + 1;
+      ordinals.set(site.anchor.token, ordinal);
+      return { site, siteId: caughtFailureSiteId(path, site.anchor.token, ordinal), ordinal };
+    });
+}
+
+/** The corpus that carries a failure contract: every shipped product package plus `tooling/src`. Homed here,
+ *  not in either policy, because the ordinary occurrence policy, its hard census-join sibling and the census
+ *  generator must walk the SAME files — a census over a different corpus reads every missing file's sites as
+ *  `gone`. The port history of this expression is in the `caught-failure-ownership` policy header. */
+export const CAUGHT_FAILURE_POPULATION = ["@product", "@tooling"] as const;
