@@ -1,5 +1,5 @@
-// @orb/contracts/rpg/tracker — THE tracked-field unification (`docs/design/tracked-field-unification.md`
-// §5, owner-approved 2026-07-31; noun = TRACKER). ONE def replaces the four names the panel used to carry for
+// @orb/contracts/rpg/tracker — THE tracked-field unification (D113,
+// owner-approved 2026-07-31; noun = TRACKER). ONE def replaces the four names the panel used to carry for
 // the same concept — pool (`sheet.poolDefs`), meter/npc field (`features.castFields`), band orb
 // (`features.pinnedOrbs`), HUD widget (the dropped `rpg_hud_widgets` table). They were never siblings; they
 // were ONE def read along four AXES:

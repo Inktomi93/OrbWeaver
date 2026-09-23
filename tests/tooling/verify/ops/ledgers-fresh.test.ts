@@ -251,14 +251,14 @@ test("a planted stale flag index reds naming the regen command", () => {
  *  one genuinely-waiting row — plus a DROPPED table below it whose rows have the identical shape. */
 function deferredRosterRoot(landedMarked: boolean): string {
   const root = mkdtempSync(join(tmpdir(), "orb-deferred-roster-"));
-  // The roster's home is `docs/architecture/history/`, which is where the write below actually lands —
-  // the fixture used to create `core/` and then ENOENT on the write it was built to make.
-  mkdirSync(join(root, "docs/architecture/history"), { recursive: true });
+  // The roster's home is `docs/law/`, which is where the write below actually lands; the directory must
+  // exist or the write ENOENTs.
+  mkdirSync(join(root, "docs/law"), { recursive: true });
   mkdirSync(join(root, "tooling/src/verify/gates"), { recursive: true });
   writeFileSync(join(root, "tooling/src/verify/gates/landed-gate.ts"), "export const gate = 1;\n");
   writeFileSync(join(root, "tooling/src/verify/gates/marked-gate.ts"), "export const gate = 1;\n");
   writeFileSync(
-    join(root, "docs/architecture/history/Core-Enforcement-Deferred-Dropped.md"),
+    join(root, "docs/law/Core-Enforcement-Deferred-Dropped.md"),
     [
       "## Deferred backlog — neo gates not yet ported, with activation trigger",
       "",

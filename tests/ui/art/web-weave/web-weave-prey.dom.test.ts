@@ -1,4 +1,4 @@
-// The prey response (docs/history/design/weave-lab-upgrades.md §2) — the five-state machine, driven the way
+// The prey response — the five-state machine, driven the way
 // the loop drives it: a synthetic list of disturbances against a fixed frame clock, no pointer, no rAF.
 //
 // The behaviours that matter (and the ones a naive cursor-follower gets wrong):

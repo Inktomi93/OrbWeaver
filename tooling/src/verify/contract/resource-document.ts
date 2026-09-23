@@ -106,7 +106,7 @@ export const LEDGER_DEFINITIONS = {
    *  reading half of it is how a live id reads as an orphan cite (`gates/pd-citation-integrity.ts:15-19`). */
   "core-audits-debt": {
     nature: "markdown",
-    paths: ["docs/law/Core-Audits-and-Debt.md", "docs/architecture/history/Core-Debt-Cleared-Ledger.md"],
+    paths: ["docs/law/Core-Audits-and-Debt.md", "docs/law/Core-Debt-Cleared-Ledger.md"],
   },
   /** The enforcement roster `enforcement-registry-parity` reconciles the descriptor corpus against. */
   "gate-enforcement-roster": { nature: "markdown", paths: ["docs/law/Core-Enforcement-Active-Gates.md"] },

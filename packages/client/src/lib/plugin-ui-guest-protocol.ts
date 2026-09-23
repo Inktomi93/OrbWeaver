@@ -1,5 +1,5 @@
-// plugin-ui-guest-protocol — the main-thread ↔ Web Worker WIRE for the Tier-C client guest (plugin-ui-plane
-// #679 U4, §4.6). Two closed message unions and the budget constants, in one module both sides import, so the
+// plugin-ui-guest-protocol — the main-thread ↔ Web Worker WIRE for the Tier-C client guest.
+// Two closed message unions and the budget constants, in one module both sides import, so the
 // worker and its host cannot drift: a new message kind fails `tsc` at the exhaustive dispatch on the other side.
 //
 // IT LIVES IN `client/src/lib`, NOT in `features/plugin/`, and that is the type-home law rather than taste

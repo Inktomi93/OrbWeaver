@@ -1,4 +1,4 @@
-// The Theme entity/input schemas (themes-design §3.2): caps, trims, the two derived flags. The override
+// The Theme entity/input schemas: caps, trims, the two derived flags. The override
 // wire clamp's own suite mirrors override.ts (test-presence).
 
 import { createThemeInputSchema, THEME_NAME_MAX, themeSchema } from "@orb/contracts/theme";

@@ -1,4 +1,4 @@
-// The CLIENT half of the plugin-frame doorway (plugin-ui-plane #679 U7): mint a routed frame URL for ONE
+// The CLIENT half of the plugin-frame doorway: mint a routed frame URL for ONE
 // registered `frame`-tier surface, so it renders as a DOCUMENT WITH ITS OWN CSP. Raw fetch, not tRPC — the route
 // is a Hono handler serving an HTML document (`entry/http/plugin-frame.ts`).
 //

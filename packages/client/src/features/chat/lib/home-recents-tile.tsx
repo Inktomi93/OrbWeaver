@@ -1,4 +1,4 @@
-// Chat's "Pick up where you left off" HOME tile contribution (home-section-spec §3.3). One file + one
+// Chat's "Pick up where you left off" HOME tile contribution. One file + one
 // array member at the main.tsx door is the ENTIRE cost of putting chat's recents on home; home is never
 // edited and never imports chat.
 //

@@ -1,4 +1,4 @@
-// CT: the ⌘K SETTINGS source (config-revamp-design.md §3.3/§6.4, #866 S2) — the SAME static index the LIST
+// CT: the ⌘K SETTINGS source (#866 S2) — the SAME static index the LIST
 // search derives, contributed to the command palette. Drives the production path: the door-bound group
 // registry → `configPaletteSource.useRows` → cmdk rows under the "Settings" heading → a picked row runs
 // `openConfigTo` (the deep link the host lands). Asserted at the STORE ACTION through the nav probe's

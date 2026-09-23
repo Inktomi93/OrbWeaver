@@ -1,4 +1,4 @@
-// The readout's binding CONTROL (preset-surface-redesign §7.1 / D8) — the chip that names what the readout
+// The readout's binding CONTROL — the chip that names what the readout
 // is resolving against. Its state (and the rationale for auto-binding at all) lives in
 // `hooks/use-readout-binding.ts`; this file is the one drawing of it.
 //

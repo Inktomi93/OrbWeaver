@@ -45,7 +45,7 @@ function RosterLibraryRow({
       selected={selected}
       // THE CENSUS IS THE SUBTITLE, NOT A TITLE-LINE MARKER (#1838 — the tag rows' #1824 twin). It rode
       // `markers`, the title line's TRAILING slot, so at CONTENT-pane width the count docked at the row's
-      // right edge several hundred px from the name it counts. DESIGN.md §3.3 draws the roster subtitle as
+      // right edge several hundred px from the name it counts. the mock design §3.3 draws the roster subtitle as
       // "members · rules"; `rosterScent` is that string and its one home, and the member-name gloss that
       // used to be the whole subtitle survives as its tail. Both slots ride `aria-describedby`, so the
       // spoken row is one sentence now rather than two.

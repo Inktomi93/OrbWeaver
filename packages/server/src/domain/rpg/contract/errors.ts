@@ -1,4 +1,4 @@
-// domain/rpg/contract/errors — the rpg substrate's typed errors (rpg-design/05). Extends the kit
+// domain/rpg/contract/errors — the rpg substrate's typed errors (docs/plans/rpg/design.md). Extends the kit
 // domain-error taxonomy so the transport boundary maps them. W1a needs `RpgStateCorruptError` for the
 // parse-on-read belt (a schema-invalid persisted JSON blob is surfaced LOUDLY, never defaulted away into a
 // poisoned tracker — the constitution's no-swallow rule); `RpgModeUnbuiltError` is the PHASE refusal
@@ -7,14 +7,14 @@
 import { DomainOperationError } from "@orb/kit/errors";
 
 /** A persisted rpg JSON column failed re-validation through its `@orb/contracts/rpg` schema on read. Never a
- *  silent default — a corrupt tracker row is a loud typed error the caller surfaces (rpg-design/05 §0). */
+ *  silent default — a corrupt tracker row is a loud typed error the caller surfaces (docs/plans/rpg/design.md). */
 export class RpgStateCorruptError extends DomainOperationError {
   constructor(table: string, id: string, detail: string) {
     super("rpg_state_corrupt", `${table} ${id}: ${detail}`);
   }
 }
 
-/** `createGame(mode:"full")` — the honest-arms PHASE refusal (rpg-design/05 §2.2). Full is unbuilt; the
+/** `createGame(mode:"full")` — the honest-arms PHASE refusal (docs/plans/rpg/design.md). Full is unbuilt; the
  *  refusal NAMES the graft, never pretends full doesn't exist. */
 export class RpgModeUnbuiltError extends DomainOperationError {
   constructor() {

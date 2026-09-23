@@ -1,5 +1,5 @@
 // @instrument-proof: a planted `label-content-name-mismatch` node — the exact axe finding the retired
-// chrome-devtools MCP produced and snap could not (docs/design/1195-devtools-mcp-retirement.md §1) — must
+// chrome-devtools MCP produced and snap could not — must
 // be REPORTED BY NAME with its selector and must RED the run; the clean twin must print
 // `failed-audits=0` over a non-zero audited count and exit 0, so the arm cannot be an always-red.
 //

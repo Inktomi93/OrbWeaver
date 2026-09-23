@@ -1,4 +1,4 @@
-// The Personas group's NOTIFICATIONS section (config-revamp-design.md §6.8.2) — the one peripheral per-user
+// The Personas group's NOTIFICATIONS section — the one peripheral per-user
 // persona pref: the "notify me when my persona changes in a chat" switch. A contributed, anchored section
 // like every other settings knob (D120); the this-chat section reads the SAME key to decide whether its
 // switch/restamp confirmations toast. Owns its own boundary — a slow settings read never blanks the list

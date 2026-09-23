@@ -1,4 +1,4 @@
-// persistence: imagery/queries — the ONE `imagery_generations` writer (imagery-design/03 §4.1). Proves the
+// persistence: imagery/queries — the ONE `imagery_generations` writer. Proves the
 // INSERT lands a well-formed provenance row against the real schema (the FK to `assets`, the mode CHECK, the
 // nullable free-mode columns left at their defaults).
 

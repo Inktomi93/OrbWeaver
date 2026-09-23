@@ -2,7 +2,7 @@
 // founding/negative shapes, symbol-identity edge cases, and the fail-closed unresolved-origin/cycle arms
 // are proven once through the policy's own `mustFlag`/`mustPass` rows via `verifyPolicyProofs` below. This
 // file keeps only what an isolated in-memory fixture cannot show: the world-classification table itself,
-// and the REAL-CORPUS carry-forward guarantee (gate-runtime-standardization.md, "Browser contracts require
+// and the REAL-CORPUS carry-forward guarantee (docs/law/gate-runtime-standardization.md, "Browser contracts require
 // the real DOM world") — that the current whole Node-intent test census has zero browser-contract findings
 // and zero unresolved relevant origins. The legacy version of this file ran the OLD `runPass`/`GateDescriptor`
 // dispatcher directly; the successor is `runPolicyPass` over the same real `getWorkspace()` project, with no

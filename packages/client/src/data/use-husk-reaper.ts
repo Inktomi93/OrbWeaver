@@ -1,4 +1,4 @@
-// `useHuskReaper` — the nav-away arm of husk GC (chat-creation-draft-mode-replacement.md §4.6, fork F3).
+// `useHuskReaper` — the nav-away arm of husk GC (D166).
 //
 // A chat row exists from the creation click, so leaving a room you just made and never used leaves an
 // unclaimed HUSK behind. The client tells the server about it on the way out; the server decides. Mounted

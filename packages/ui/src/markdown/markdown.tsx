@@ -124,7 +124,7 @@ export function Markdown({ trust, mode, children, className, colorQuotes = false
   // heavy lazy engine (a resource-abuse surface), so it's passed only for trusted content. KaTeX
   // stays for both tiers — rehype-katex defaults trust:false, so it's math-only and inert.
   const mermaidProp = untrusted ? {} : { mermaid: MARKDOWN_MERMAID_OPTIONS };
-  // #42 word-reveal fade (docs/history/design/streaming-reveal-42.md): our reveal plugin replaces Streamdown's
+  // #42 word-reveal fade (D168): our reveal plugin replaces Streamdown's
   // `animated` arm (that knob was DEAD — its `streamdown/styles.css` was never imported — and its
   // duration-0 re-render machinery snaps every fade at this app's commit cadence). UNTRUSTED-streaming
   // only: passing a custom `rehypePlugins` array would defeat the identity-gated `allowedTags` schema

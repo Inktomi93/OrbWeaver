@@ -129,7 +129,6 @@ test("scaffold output and CLI help route to the final policy guide", { timeout: 
   await expect(created).toExitWith(0);
   await expect(help).toExitWith(0);
   expect(created.stdout).toContain("tooling/src/verify/gates/GATE-AUTHORING.md` is the final policy guide");
-  expect(created.stdout).toContain("gate-authoring-legacy-2026-09-13.md");
   expect(created.stdout).not.toContain("bump the");
   expect(help.stdout).toContain("final defineGate policy");
 });

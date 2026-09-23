@@ -1,15 +1,7 @@
 // The governed-tree rules on hand-built snapshots: each failure class beside the clean control that
 // proves the same walk passes. No tree, no git — `docProblems` is pure over a `DocTree`.
 import type { DocTree, GovernedDoc } from "../../../../tooling/src/doc/index.ts";
-import {
-  adrTemplate,
-  docProblems,
-  expectedGeneratedFiles,
-  itemTemplate,
-  LEGACY_ROOTS,
-  nextFreeRulingId,
-  planTemplate,
-} from "../../../../tooling/src/doc/index.ts";
+import { adrTemplate, docProblems, expectedGeneratedFiles, itemTemplate, nextFreeRulingId, planTemplate } from "../../../../tooling/src/doc/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const TODAY = "2026-09-23";
@@ -30,7 +22,7 @@ function tree(docs: Readonly<Record<string, string>>, overrides: Partial<DocTree
   const generated: GovernedDoc[] = [...expectedGeneratedFiles(authored)].map(([path, source]) => ({ path, source }));
   const all = [...authored, ...generated];
   return {
-    root: [...LEGACY_ROOTS, "adr", "plans", "work", "law", "Mission.md", "catalog"].map((name) => ({ name, directory: !name.endsWith(".md") })),
+    root: ["adr", "plans", "work", "law", "Mission.md", "catalog"].map((name) => ({ name, directory: !name.endsWith(".md") })),
     docs: all,
     files: all.map((doc) => doc.path),
     evidenceOnMain: new Set([ON_MAIN]),
@@ -49,12 +41,12 @@ test("a tree whose generated files match a fresh render is clean", () => {
   expect(docProblems(tree(CLEAN))).toEqual([]);
 });
 
-test("an unknown top-level folder and a vanished legacy row are both findings (two-sided)", () => {
+test("an unknown top-level folder is a finding", () => {
   const snapshot = tree(CLEAN);
-  const root = [...snapshot.root.filter((entry) => entry.name !== "history"), { name: "notes", directory: true }];
-  const problems = docProblems({ ...snapshot, root });
-  expect(problems.some((line) => line.startsWith("docs/notes: not a docs home"))).toBe(true);
-  expect(problems.some((line) => line.startsWith("docs/history: named by LEGACY_ROOTS"))).toBe(true);
+  const root = [...snapshot.root, { name: "notes", directory: true }];
+  expect(docProblems({ ...snapshot, root })).toEqual([
+    "docs/notes: not a docs home — put a decision under docs/adr/, a program under docs/plans/, an item under docs/work/, law under docs/law/",
+  ]);
 });
 
 test("a stale generated index is a finding that names the regenerating command", () => {
@@ -171,7 +163,7 @@ test("an orphan tasks.md, a nested item folder and a non-markdown file under a g
 
 test("the doc tool's kinds and states never widen the legacy catalog's vocabulary", async () => {
   const { frontmatterErrors, parseFrontmatter } = await import("../../../../tooling/src/doc-catalog/index.ts");
-  const legacy = "docs/design/x.md";
+  const legacy = "docs/x.md";
   expect(frontmatterErrors(legacy, parseFrontmatter("---\nkind: bug\nstatus: doing\nupdated: 2026-09-23\nlane: cb-x\n---\n", legacy))).toEqual([
     `${legacy}: unsupported frontmatter key lane`,
     `${legacy}: invalid frontmatter kind bug`,

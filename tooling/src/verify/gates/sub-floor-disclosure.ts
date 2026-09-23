@@ -1,10 +1,10 @@
-// Policy: sub-floor-disclosure (#884 C2; docs/design/885-884-boundary-reservation-and-touch-floor.md §2).
+// Policy: sub-floor-disclosure (#884 C2).
 // The collapsible trigger's default is `control` (the pointer-conditional `--spacing-control-sm` floor);
 // `size="text"` is the SUB-FLOOR opt-out for a disclosure in running content, and every mount of it owes a
 // reasoned waiver — the recurring defect this closes was the floor arm silently not taken (the this-chat
 // 411×40 collapsible; #850's class).
 //
-// THE SPLIT (docs/history/gate-runtime-worked-cases-2026-09.md §"Mixed-hook arity amendments", #1950): the legacy descriptor carried the per-file occurrence (arm A), a
+// THE SPLIT (#1950): the legacy descriptor carried the per-file occurrence (arm A), a
 // gate-owned two-sided marker grammar (`@sub-floor-ok`, arm B) and a whole-tree vocabulary tripwire (arm C).
 // Arm A is this policy — ordinary, `selected-files`. Arm B RETIRES into the central `@orb-waive` engine:
 // malformed, stale and over-broad markers are central reconciliation alarms, never a gate's own findings.

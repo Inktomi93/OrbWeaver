@@ -1,4 +1,4 @@
-// plugin-surface-shell — the impersonation WALL (plugin-ui-plane #679 U1, §4.8). EVERY plugin surface renders
+// plugin-surface-shell — the impersonation WALL. EVERY plugin surface renders
 // inside this first-party chrome: the plugin's name + an identifying glyph, at every anchor, no opt-out. A
 // plugin composes house components INSIDE a labelled container that names its author, so it can imitate nothing
 // the label does not immediately contradict — the same trust story as a chat message. The surface body is a
@@ -17,7 +17,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { testId } from "#lib";
 
-/** The shell's two CHROME SCALES — one wall, two shapes (plugin-ui-plane §4.8 + §5.4). `panel` is the boxed
+/** The shell's two CHROME SCALES — one wall, two shapes. `panel` is the boxed
  *  attribution card every room-level anchor uses. `inline` is the TRANSCRIPT shape: the same glyph + name +
  *  title, on one line, with no box — because a `message-footer` surface mounts once per COMMITTED ROW, and a
  *  bordered card under every message is chrome the transcript cannot carry. The attribution itself is NOT

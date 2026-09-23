@@ -1,4 +1,4 @@
-// THE GREETING MALLEABILITY WINDOW (chat-creation-draft-mode-replacement.md §4.8, fork F6 — R3).
+// THE GREETING MALLEABILITY WINDOW (D166).
 //
 // A `.suite.` because the invariant is not one verb's: the WINDOW is opened by `startChat` (which seeds the
 // greeting rows) and closed by `send` (whose `freezeGreetingVolatiles` bakes them), while the STEP is

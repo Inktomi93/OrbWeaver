@@ -4,7 +4,7 @@
 // construction (a scratch parser over one string, the installed `.d.ts` surface, a proof mini-project).
 // Comment posture: comment-SAFE (node kinds only).
 //
-// AUTHORITY IS reviewed-grant (docs/history/gate-runtime-worked-cases-2026-09.md §"Mixed-hook arity amendments", #1950 group 4): the legacy carried TWO exemption tables — the
+// AUTHORITY IS reviewed-grant (#1950 group 4): the legacy carried TWO exemption tables — the
 // `HOMES` row for the loader and the seven-row `PROJECT_SITES` census — and both are recurring repository
 // PERMISSIONS with a stated end condition, which is the reviewed-grant shape. They are exact
 // `(subject, ts-morph-project-construction)` rows in `lib/reviewed-grants.ts`, and the legacy two-sided stale

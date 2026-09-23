@@ -12,8 +12,8 @@
 // `PRODUCT_MEMBERSHIP` below are the separate, tsc-enforced half — which roots `@authored` and `@product`
 // MEAN (#1980, #2488).
 //
-// A SHARED GLOB STRING DOES NOT ESTABLISH SHARED SEMANTICS (`docs/history/type-worlds-program-2026-09-10.md`
-// line 84), and `@packages` is this repo's instance of that law. It is an explicit SIX-root list — an honest
+// A SHARED GLOB STRING DOES NOT ESTABLISH SHARED SEMANTICS
+// (`docs/law/Spine-TypeScript-and-Patterns.md` §10), and `@packages` is this repo's instance of that law. It is an explicit SIX-root list — an honest
 // recording of "the roots the policies declaring it were authored against" — but most of its declarers mean
 // "the authored code the product is built from", and those two answers diverged the day `@inference` became
 // its own root (`146f71cd5`). Sixteen policies declared the string; the set never widened and announced
@@ -127,7 +127,7 @@ export type ProductMembership = { readonly product: true } | { readonly product:
  *  and the constitution's test tiers draw it again (the PRODUCT node tests vs the INSTRUMENT battery). It is
  *  deliberately NOT `@runtime`: `@inference`'s own row above glosses that package as "the provider runtime",
  *  so a set named for one of its members would not identify its subject
- *  (`docs/history/type-worlds-program-2026-09-10.md` line 82).
+ *  (`docs/law/Spine-TypeScript-and-Patterns.md` §10).
  *
  *  EXHAUSTIVE over `PopulationRoot` by the `satisfies` below, so the enforcer is tsc (constitution §2, the type
  *  2): a new root that is not classified here fails with a missing-property error naming the root, exactly as

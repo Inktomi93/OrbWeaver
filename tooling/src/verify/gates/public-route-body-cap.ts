@@ -50,14 +50,13 @@ import {
 
 const MESSAGE =
   "a mutating non-tRPC public route reads request-body data without a structural byte-cap proxy — an " +
-  "unauthenticated or authenticated caller can force unbounded buffering/work at the HTTP trust edge. " +
-  "See docs/history/design/issue-712-gate-family.md";
+  "unauthenticated or authenticated caller can force unbounded buffering/work at the HTTP trust edge. Caps: packages/server/src/entry/app.ts";
 const FIX =
   "put `bodyLimit({ maxSize: ... })` or the house `bodyCap(...)` before the handler; streaming bundle " +
   "intake may use the exact incremental `stageCapped(..., *_MAX_*_BYTES)` arm. A deliberate exception " +
   "waives with `@orb-waive public-route-body-cap(<method>): <reason + end condition>` — the reported " +
   "position is always the route's own method name (`post`/`put`/`patch`/`delete`), the literal text the " +
-  "report passes explicitly at the call's own offset. See docs/history/design/issue-712-gate-family.md";
+  "report passes explicitly at the call's own offset.";
 
 export const gate = defineGate({
   id: "public-route-body-cap",

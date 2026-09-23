@@ -1,5 +1,5 @@
-// preset-editor-view store CT — the preset editor's VIEW axis (preset-surface-redesign.md §7 mechanics,
-// §16 row 10). A CT rather than a unit test because the store's only read surface is the reactive
+// preset-editor-view store CT — the preset editor's VIEW axis.
+// A CT rather than a unit test because the store's only read surface is the reactive
 // `usePresetEditorView` hook (useSyncExternalStore needs a real browser render — the
 // preset-selection-store.ct.tsx posture; no non-reactive snapshot escape hatch exists and adding one would
 // be API surface no consumer needs).

@@ -46,7 +46,7 @@ const BUNDLES_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "bundles
  *  (scene-chips), room mechanics over chat variables (story-clocks), the ui.frame escape hatch
  *  (pocket-arcade), spend pipeline — quiet LLM + imagery (keepsake-camera), and the hub browser flagship
  *  (card-atlas). Adding a tenth is this tuple plus its bundle directory; nothing else is per-plugin. The
- *  set's design + coverage matrix: `docs/design/plugin-showcase-set.md` (#774).
+ *  set's design + coverage matrix: (#774).
  *
  *  The VERSIONS are deliberately NOT spelled here — a version twin beside the manifests is a second home that
  *  goes stale the first time someone bumps one and not the other. `readShowcaseManifest` reads them from the
@@ -127,7 +127,7 @@ async function readBundleAssets(slug: string): Promise<{ path: string; bytes: Ui
 }
 
 /** Pack a showcase bundle's source directory into the installable bundle: a zip of `manifest.json` +
- *  `main.js`, PLUS `ui.js` when the bundle ships a Tier-C client guest (plugin-ui-plane #679 U4) — the shape
+ *  `main.js`, PLUS `ui.js` when the bundle ships a Tier-C client guest — the shape
  *  `parseBundle` admits. `null` when this package ships no such slug, so a missing bundle skips ONE seed
  *  instead of failing the whole seed.
  *

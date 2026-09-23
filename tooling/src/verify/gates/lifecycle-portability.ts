@@ -144,8 +144,8 @@ const NON_PORTABLE_CANON: Readonly<Record<string, NonPortableRow>> = {
     classification: "DEFERRED",
     why:
       "#26 (D61 B6) — saved parties are owner-authored library artifacts (the tag/theme class, so PORTABLE in spirit), but v1 shipped " +
-      "without a portable kind by the program doc's own scope (saved-rosters-design.md §7 names no portability; build record " +
-      "docs/history/design/saved-rosters-build-record.md). A party is a name + FKs into the owner's character library, so a portable kind must " +
+      "without a portable kind by the program doc's own scope (saved-rosters-design.md §7 names no portability; D170). " +
+      "A party is a name + FKs into the owner's character library, so a portable kind must " +
       "resolve members by the characters the bundle also carries. Ends when `roster-preset` registers a PORTABLE_KINDS member " +
       "(serde + verbs + descriptor + import-order slot AFTER characters + round-trip pin).",
   },
@@ -344,8 +344,7 @@ const MESSAGE =
   "the lifecycle/portability registry is incomplete — every owner-stamped canon family must be CARRIED by a " +
   "portable kind or CLASSIFIED non-portable with a reason, and every declared single-entity door must name a " +
   "proc/route that exists. This is the F1 killer: `documents` was owned canon for months while a full-account " +
-  "backup silently dropped the whole databank library, because nothing tied PORTABLE_KINDS to the schema " +
-  "(docs/architecture/history/export-import-portability.md).";
+  'backup silently dropped the whole databank library, because nothing tied PORTABLE_KINDS to the schema. See Spine-Config-and-Serialization.md §"Serialization / serde core".';
 
 const FIX =
   "for a MISSING family: either register the kind (serde + owning-domain export/import verbs + a descriptor at " +
@@ -354,7 +353,7 @@ const FIX =
   "the exemption. For a dangling DOOR cite: fix the cite, or replace the DoorSpec with a `{ ruled }` cell saying " +
   "why the family has no door. Never delete the row to go green.";
 
-const DOC_POINTER = "docs/architecture/history/export-import-portability.md";
+const DOC_POINTER = "docs/law/Spine-Config-and-Serialization.md";
 const STALE_NON_PORTABLE =
   "NON_PORTABLE_CANON row names a table the schema no longer declares (ratchet down) — delete the row in tooling/src/verify/gates/lifecycle-portability.ts: ";
 const STALE_CARRIED =

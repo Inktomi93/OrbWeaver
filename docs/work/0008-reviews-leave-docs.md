@@ -11,13 +11,13 @@ plan: doc-migration
 
 ## What
 
-Done (cb-docsout): the historical reviews subtree under `docs/history/` is gone entirely. docs/reviews/
+Done (cb-docsout): the historical reviews subtree under docs/history/ is gone entirely. docs/reviews/
 is deleted down to three survivors, each a real dependency this pass proved, not archived output:
 
 - docs/reviews/gate-runtime/ — live tool input, not a report. tooling/src/verify/ops/gen/read-first-costs.ts
   and tooling/src/verify/ops/ledgers-fresh-rollup.ts list this directory's files at runtime (the
   refutation ledger, the family-conversion and audit-wave records, the ResourceHost access-pattern ruling, …)
-  to price `docs/design/gate-runtime-read-first.md`'s read-list and to cross-check citations for
+  to price `docs/law/gate-runtime-read-first.md`'s read-list and to cross-check citations for
   `pnpm check:ledgers-fresh`. It is the working set of the live gate-runtime cutover program, so its real
   home is a new gate-runtime plan folder under `docs/plans/` (a plan, not a review folder) rather than
   beside its reader under `tooling/src/verify/` — only the files those two tools actually enumerate are
@@ -49,7 +49,7 @@ vendored-docs item.
 
 ## Done when
 
-The historical reviews subtree under `docs/history/` is gone (done). docs/reviews/ holds only the
+The historical reviews subtree under docs/history/ is gone (done). docs/reviews/ holds only the
 three named survivors, each on its own path to leaving: the audit's findings land as work items and the
 tree is deleted; gate-runtime moves into its own plan folder with its two readers re-pointed, then
 archives when the program finishes; the caught-failure-ownership one belongs to its own item. A sweep for

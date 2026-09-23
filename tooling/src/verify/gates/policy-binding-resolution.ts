@@ -75,7 +75,7 @@ function isBindingResolutionMember(name: string): name is BindingResolutionMembe
 }
 
 const MESSAGE =
-  "a FINAL policy module resolves a binding or an origin LOCALLY (gate-runtime-standardization.md §3, owner ruling #2097): `getDefinitionNodes()`, " +
+  "a FINAL policy module resolves a binding or an origin LOCALLY (docs/law/gate-runtime-standardization.md §3, owner ruling #2097): `getDefinitionNodes()`, " +
   "`findReferences()`, `Symbol#getDeclarations()`, `getAliasedSymbol()` and their twins inside a gate module are the private-reader shape one member at a " +
   "time — a weaker re-derivation of what the shared readers answer once for every policy, with alias, re-export, namespace and destructuring " +
   "resolution, write and cycle refusals, and a fail-closed verdict. Read through `_shared/reference-fact.ts` (`resolveStableExpression`, " +

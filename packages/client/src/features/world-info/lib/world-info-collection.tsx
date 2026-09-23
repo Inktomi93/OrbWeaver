@@ -1,4 +1,4 @@
-// The WORLD INFO collection contribution (config-rail-spec.md R2 · review §4) — the `collection` body of the
+// The WORLD INFO collection contribution — the `collection` body of the
 // `worldInfo` config group (`world-info-group.tsx` carries the library's identity since the config revamp
 // #866 S1), consumed BLIND by `features/config`.
 //

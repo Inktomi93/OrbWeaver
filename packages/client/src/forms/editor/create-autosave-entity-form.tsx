@@ -1,4 +1,4 @@
-// createAutosaveEntityForm — the session-boundary autosave factory (autosave-form-doctrine.md §1–§6,
+// createAutosaveEntityForm — the session-boundary autosave factory (D78,
 // D78; SEAL landed 2026-07-16). The ONE way a feature mounts an autosave form: `const XForm =
 // createAutosaveEntityForm<TValues>(config)` at module scope, then `<XForm entityId serverValues save>
 // {(session) => …}</XForm>`. The factory OWNS identity, reseed, the teardown flush, the baseline, and the

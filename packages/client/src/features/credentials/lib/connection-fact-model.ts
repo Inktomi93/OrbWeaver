@@ -15,7 +15,7 @@
 //     (`domain/connection/contract/results.ts::ConnectionCapabilityView`); there is no per-field provenance and
 //     no baseline-without-`declared` anywhere on the wire, and the synthesis that would produce one is
 //     node-only. The mock's "reported by the server" / "measured on the first turn" / "your override — the
-//     server reported 4,096" are MOCK INVENTION, not §5.3a copy (DESIGN.md §4's inventory lists no capability
+//     server reported 4,096" are MOCK INVENTION, not §5.3a copy (the mock design §4's inventory lists no capability
 //     source string), so they are NOT rendered: a fabricated number is the worst thing a diagnostics surface
 //     can carry. The rows say only what is true, and `capabilityFactRows` takes the missing fact as an
 //     OPTIONAL `baseline` parameter — #2478 wires `CapabilityRead.baseline` into it and the restatement turns

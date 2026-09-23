@@ -1,7 +1,7 @@
 // React development-renderer evidence for snap's --react-profile arm. The browser half is deliberately a
 // minimal global-hook collector, not the React DevTools backend/frontend: React already hands the hook
 // the Fiber root at every commit, and the agent-readable contract is a bounded read-only projection of
-// that graph. docs/design/1208-instrument-substrate.md §10.5 owns the capability/omission census.
+// that graph. owns the capability/omission census.
 import type { EvidenceWindowId } from "../../_shared/artifact-scope.ts";
 import type {
   RankedReactComponent,

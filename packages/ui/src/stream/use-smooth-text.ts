@@ -10,7 +10,7 @@ const BACKLOG_DRAIN_PER_SEC = 3; // exponential catch-up factor (drains ~95% of 
 // #42: commits land ~12×/s so each reveals a 1-3 word batch whose 220ms `[data-orb-reveal]` fade
 // (markdown seal) overlaps the next batch's — fades BRIDGE the commit gaps (the Claude-app feel)
 // while the per-commit whole-text re-parse work drops ~2.5× vs the old 30ms tick (measured 79
-// over-budget region:content commits per turn at 30ms — docs/history/design/streaming-reveal-42.md §1 D4).
+// over-budget region:content commits per turn at 30ms — D168 D4).
 const MIN_TICK_MS = 85;
 const MAX_FRAME_DT_SEC = 0.25; // clamp tab-suspend gaps (a background/minimized tab's huge dt)
 const MS_PER_SEC = 1000;

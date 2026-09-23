@@ -188,7 +188,7 @@ const GATING_STAGES: readonly StageDef[] = [
     group: "structure",
     tiers: STATIC,
     argv: ["pnpm", "check:policy-conformance"],
-    // THE WHOLE-CORPUS CONFORMANCE STAGE (#1941, gate-runtime-standardization.md §6.6): every final
+    // THE WHOLE-CORPUS CONFORMANCE STAGE (#1941, docs/law/gate-runtime-standardization.md §6.6): every final
     // defineGate policy's own mustFlag/mustPass rows through the production dispatcher, on every `pnpm check`.
     // Before it, a converted policy's rows ran only where a committed family test imported the module — and
     // 21 of 163 were imported by none. Our OWN 0/1/2/3-speaking op (ops/policy-conformance-stage.ts): a failed

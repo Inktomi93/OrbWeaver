@@ -1,4 +1,4 @@
-// ShellTopbar LIST-PANE CAPABILITY CT (home-section-spec §4.4 / owner decision H3, arm L-b) — the shell
+// ShellTopbar LIST-PANE CAPABILITY CT (owner decision) — the shell
 // learned that a section can declare it HAS NO list pane. What this pins is the defect it exists to
 // prevent: on such a section the topbar must render NO list toggle at all, so the app's front door can
 // never open a panel reading "Home list — this surface isn't wired yet". Every other section is untouched.

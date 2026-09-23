@@ -1,8 +1,7 @@
 // CT: the LIBRARY — a collection's CONTENT landing (`config-collection-landing.tsx`), driven through the
 // real config host over the real registries.
 //
-// It owns three things the surface acquired when the owner moved the member rows out of the LIST (#1725,
-// `docs/design/mocks/config-collections/DESIGN.md`):
+// It owns three things the surface acquired when the owner moved the member rows out of the LIST (#1725):
 //
 //  1. §5.4 — THE WINDOW'S BOUND IS THE PANE. `COLLECTION_WINDOW_MAX_HEIGHT` was a flat `max-h-96` (384px)
 //     because three collapsible bands shared one LIST scroll column; with the library in its own pane the
@@ -30,7 +29,7 @@ import { ConfigHostStory } from "../_ct-stories.tsx";
 
 /** The CONTENT pane — the box whose height the windowed arm now inherits. */
 const CONTENT_PANE = '[data-slot="config-content"]';
-/** The library's control row (DESIGN.md §3.2). */
+/** The library's control row (the mock design §3.2). */
 const CONTROL_ROW = '[data-slot="collection-control-row"]';
 /** The sealed `VirtualList`'s own scroll element — the box the re-bind is about. */
 const VIRTUAL_SCROLLER = '[data-slot="virtual-list-scroll"]';

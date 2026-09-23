@@ -1,4 +1,4 @@
-// The PRIVATE plugin-event bus (plugin-ui-plane §5a, U8) — the forgery wall, red where the wall is the point.
+// The PRIVATE plugin-event bus — the forgery wall, red where the wall is the point.
 // This suite pins the three walls the design names as absolute:
 //   1. CROSS-USER ISOLATION — an emit for installer A never reaches installer B's subscriber, even on an
 //      identically-named channel.

@@ -1,4 +1,4 @@
-// The imagery quiet-extraction shaper (imagery-design/02 §2), homed in chat because it needs chat's TWO
+// The imagery quiet-extraction shaper, homed in chat because it needs chat's TWO
 // things: a bounded recent-history window and the ONE MacroContext ({{char}}/{{user}} resolution). A STANDALONE
 // factory (not a ChatContext op) built at compose from db + summarize + getCard. It resolves the mode
 // template's macros against the subject/roster card, frames the recent canon as

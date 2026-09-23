@@ -5,7 +5,7 @@
 // actions with no wand/panel home. Delete cascades hard, through an AlertDialog confirm, never an
 // undo-toast.
 //
-// ONE MENU, NO PHASES (chat-creation-draft-mode-replacement.md §4.1, R1). This menu used to render twice:
+// ONE MENU, NO PHASES (D166). This menu used to render twice:
 // a `committed={false}` DRAFT rendered the IDENTICAL item set with rename/delete/select-messages DISABLED
 // and a hover reason naming the unlock ("send the first message"), because those actions need a server row
 // the room did not have. The room has one from the creation click, so every item is simply available and the

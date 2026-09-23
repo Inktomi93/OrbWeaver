@@ -1,4 +1,4 @@
-// verb: import (W-worldinfo; export-import-portability.md §1) — the STANDALONE world-info-book import: parse
+// verb: import (W-worldinfo) — the STANDALONE world-info-book import: parse
 // an untrusted `worlds/*.json` upload via the ONE standalone serde core (`#kit/serde/world-info`
 // `parseWorldBookFile`) → the canonical `BulkImportLorebookInput` → the UNATTACHED owned write
 // (`createImportStandaloneLorebook`, injected on the context). The book lands with NO attachment (the user

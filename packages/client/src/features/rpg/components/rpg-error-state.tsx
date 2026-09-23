@@ -1,4 +1,4 @@
-// The rpg takeover's CONSOLIDATED read-error region (Context-Panel-Program §4.4; UI-Arch §4.3 rule 1). The
+// The rpg takeover's CONSOLIDATED read-error region (UI-Arch §4.3 rule 1). The
 // takeover suspends on TWO seams — the header BAND (`RpgHeaderBand`) and the active game-tab BODY
 // (`RpgGameTabBody`) — each behind its own boundary. A failed read used to surface as TWO fragmented,
 // unannounced blocks ("Couldn't load this." + "Couldn't load status.") with bare retry links, while the panel's

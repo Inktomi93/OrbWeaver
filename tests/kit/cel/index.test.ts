@@ -1,4 +1,4 @@
-// The CEL seam (@orb/kit/cel — automation-design/02 §1-3): the committed golden vector suite plus the
+// The CEL seam (@orb/kit/cel): the committed golden vector suite plus the
 // parse-time cap, the runtime-error posture, and the determinism guarantee that makes testRule replays
 // exact. One evaluator, two roles (rule predicates + the {{expr}} macro).
 

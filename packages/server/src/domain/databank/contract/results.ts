@@ -38,7 +38,7 @@ export interface ListDocumentsResult {
   readonly totalCount: number;
 }
 
-/** The `{{databank}}` gather op's return (DB6, databank-design/07 §2). Never empty — an empty retrieval /
+/** The `{{databank}}` gather op's return. Never empty — an empty retrieval /
  *  bankless scope / budget-drops-everything all return `null` (the no-op contract, so the assembled turn is
  *  byte-identical to a non-databank deploy). `text` is the reading-order-restored chunks joined per §3;
  *  `hits` are id-only provenance refs (never re-rendered into the prompt); `tokensEstimated` uses the same

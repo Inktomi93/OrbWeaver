@@ -2,7 +2,7 @@
 // landing state, threaded explicitly from the composition point, so forgetting the branch is a tsc error,
 // not a runtime surprise. Never reintroduce an ambient "active chat" global.
 //
-// THE `draft` ARM IS GONE (chat-creation-draft-mode-replacement.md §4.1, R1). A chat row now exists from the
+// THE `draft` ARM IS GONE (D166). A chat row now exists from the
 // creation CLICK — `chat.startChat` runs in the picker, and the room mounts committed from frame one — so a
 // rowless "chat that exists only in the composer" is unrepresentable. What used to be a draft is a HUSK: a
 // real row with `started_at IS NULL`, hidden from the chats list by a server lens and reaped if it is never

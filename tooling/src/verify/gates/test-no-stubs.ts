@@ -14,7 +14,7 @@
 // (the CROSS-FILE LEAK CONTROL mustFlag row below proves the guard, with a planted-break receipt: a
 // shared-list `evaluate` reads that row as 0 findings).
 //
-// THE ROW'S `files` PATHS ARE POPULATION COORDINATES, NOT LOCATIONS (gate-runtime-standardization.md
+// THE ROW'S `files` PATHS ARE POPULATION COORDINATES, NOT LOCATIONS (docs/law/gate-runtime-standardization.md
 // §4.8). `mode: "source"` fixtures are created in memory under a synthetic root and never written to
 // disk; this gate's `@tests` population admits them only because their paths sit under `tests/`. Move
 // the ASSERTION file out of `tests/` and the policy stops seeing it — the stub still flags, the row

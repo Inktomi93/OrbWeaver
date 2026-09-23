@@ -5,7 +5,7 @@
 //
 // The HOST is env-declared (VLLM_ENGINE_HOST), default loopback: bare-metal and the all-in-one container
 // run the fleet in the same network namespace. A slim app-only deployment pointing at an EXTERNAL engine
-// (profile-2/D2, docs/design/containerize-prod-image-spec.md §3.6) relocates the host; the egress
+// (profile-2/D2, docs/plans/containerize/design.md) relocates the host; the egress
 // internal-backend allowlist (infra/network/egress.ts) reads the SAME env key so the two can never drift.
 
 import type { VLLM_ENGINES } from "./engines.ts";

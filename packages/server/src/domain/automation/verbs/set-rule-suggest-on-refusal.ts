@@ -1,4 +1,4 @@
-// verb: setRuleSuggestOnRefusal — RULED F4's PER-RULE OPT-OUT (interaction-direction-spec row B4, the one
+// verb: setRuleSuggestOnRefusal — RULED F4's PER-RULE OPT-OUT (row B4, the one
 // B-series arm that shipped after the rest). Flips whether a RATE REFUSAL of this rule still offers the host
 // the "run it now?" invitation. Host-only, via the same `requireRuleAuthority` chokepoint every rule-scoped
 // verb takes (a stranger collapses to a leak-free NOT_FOUND before the write).

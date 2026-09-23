@@ -1,7 +1,7 @@
 // The operator contract is large prose, not parser machinery. Keeping it outside ops/parse.ts gives the
 // validator headroom while still deriving every advertised vocabulary from its owning constants.
 //
-// EVERY ARM'S BLOCK IS DERIVED (`armHelp`, docs/design/1208-instrument-substrate.md §6). `ArmDef.help` is
+// EVERY ARM'S BLOCK IS DERIVED (`armHelp`). `ArmDef.help` is
 // a REQUIRED member, so an arm cannot ship without its operator row, and the row lives beside the flags it
 // documents rather than in a list that drifts away from them — `--no-deadcss` had no help row at all for
 // its whole life, and nothing could have caught that while this file was hand-maintained. `armHelp` THROWS
@@ -161,7 +161,7 @@ Developer harness inputs:
   pnpm snap --eval 'window.__orb?.rings()'             discover retained evidence rings
   pnpm snap --eval 'window.__orb?.nav.capabilities()'  discover SPA navigation targets and methods
 
-Stateful sessions (ONE browser per lane, kept between calls — docs/design/1208-instrument-substrate.md):
+Stateful sessions (ONE browser per lane, kept between calls):
   --session <name> [where] [environment] [app settings] <route>   boot + first call: a full-priority daemon holds
                           the browser (headless; --vnc to watch) behind <main>/.cache/snap-session/<name>.sock
   --session <name> [--goto …|--click …|--eval …|--text|--map|--contrast …]   later calls drive the LIVE

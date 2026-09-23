@@ -1,5 +1,5 @@
 // WHERE AN e2e-LOCAL STORY SHOT LANDS (#1201) — this file's remaining job, now that CT specs have moved
-// off it (docs/design/1208-instrument-substrate.md §3.7).
+// off it.
 //
 // THE DEFECT THIS CLOSED. CT stories and local e2e specs used to write their eyeball shots to
 // `reports/snaps/<name>.png`, the SNAP instrument's published pointer. Since #1164 that path is a symlink

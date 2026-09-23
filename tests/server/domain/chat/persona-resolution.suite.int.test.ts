@@ -1,5 +1,5 @@
-// persona-resolution — the INVARIANT SUITE for the persona {{user}}/{{persona}} resolution model
-// (FINAL-Persona-and-Immersive-Chat-Visuals.md Part A). Cross-cutting (buildAssembleContext + assemblePrompt +
+// persona-resolution — the INVARIANT SUITE for the persona {{user}}/{{persona}} resolution model.
+// Cross-cutting (buildAssembleContext + assemblePrompt +
 // renderHistoryMacros + the chat-lifecycle/roster verbs) — mirror-exempt (`.suite.int.test.ts`), same class as
 // `solo-byte-identical.suite.int.test.ts`. This file does NOT re-litigate ground already pinned elsewhere — it
 // adds the pieces that were missing:

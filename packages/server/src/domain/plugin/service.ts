@@ -104,7 +104,7 @@ export function createPluginService(ctx: PluginContext, distribution: PluginDist
     applyDistributedPlugins: createApplyDistributedPlugins(ctx, fanout),
     getLog: createGetPluginLog(ctx, registry),
     runSnippet: createRunSnippet(ctx),
-    // The UI-surface read side (plugin-ui-plane #679 U1): listSurfaces + invokeUiAction drive the SAME resident
+    // The UI-surface read side: listSurfaces + invokeUiAction drive the SAME resident
     // registry the lifecycle owns; getSurfaceState reads the shared surface-state plane off the context.
     listSurfaces: createListSurfaces(ctx, registry),
     getSurfaceState: createGetSurfaceState(ctx),

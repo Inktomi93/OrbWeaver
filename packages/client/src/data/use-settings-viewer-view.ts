@@ -3,7 +3,7 @@
 // projection they consume is state-owned (`#state` cannot import `#data`'s `Viewer` — `client-state-below-
 // data` has no type-only exemption). The DERIVATION homes here, in `#data`, so the settings shell (nav +
 // search) and every host pane's surface (render) run the SAME predicate off ONE cached read instead of
-// re-spelling `globalRole === "owner" || "admin"` per surface. `isOwner` (config-revamp-design.md §6.8)
+// re-spelling `globalRole === "owner" || "admin"` per surface. `isOwner`
 // gates the host-Claude probe section the same way.
 //
 // A non-suspense probe deliberately: `when` gating must never block a pane from painting — an unresolved

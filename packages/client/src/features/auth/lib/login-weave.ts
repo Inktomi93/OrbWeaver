@@ -1,4 +1,4 @@
-// The per-mode WEB-STATE map behind the login card (docs/history/design/login-loading-screen.md §3/§9.5) —
+// The per-mode WEB-STATE map behind the login card —
 // pure (config + search in, weave spec out) so the backdrop and the surface can never disagree on
 // which arm the user is in, and the mapping is unit-assertable without a browser. Notable arms:
 //   · local first-run → the deliberately HALF-WOVEN web (radii done, no capture spiral —

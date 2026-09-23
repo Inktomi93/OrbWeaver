@@ -147,7 +147,7 @@ const RESOURCE_GUARD_HOME = "/tooling/src/verify/lib/resource-declaration.ts";
 const RESOURCE_HOST_MEMBER = "resources";
 
 const MESSAGE =
-  "a final policy module carries something the final contract forbids (gate-runtime-standardization.md §2, §3): " +
+  "a final policy module carries something the final contract forbids (docs/law/gate-runtime-standardization.md §2, §3): " +
   'an inert `ext: ["ts","tsx"]`, a ts-morph walk / gate-owned Project / module state / baseline ledger / legacy ' +
   "field, a `node:fs` import, or an unguarded resource-host read. The `ext` token names E1; a `[code]` suffix names the " +
   "`lib/gate-contract.ts` code; an `import` token names the filesystem door; a `resources` token names E4.";
@@ -334,7 +334,11 @@ function judgeModule(ctx: GatePolicyContext, { sourceFile, path, registration, i
     ctx.report.node(ext, Node.isPropertyAssignment(ext) ? { token: "ext", offset: 0, message: EXT_MESSAGE } : { message: EXT_MESSAGE });
   }
   for (const finding of inspectGateContract([sourceFile], rootOf(sourceFile, path)).findings) {
-    ctx.report.file(path, { line: finding.line, column: finding.column, message: `${finding.detail} [${finding.code}] — gate-runtime-standardization.md §2.` });
+    ctx.report.file(path, {
+      line: finding.line,
+      column: finding.column,
+      message: `${finding.detail} [${finding.code}] — docs/law/gate-runtime-standardization.md §2.`,
+    });
   }
   for (const door of ioDoors) {
     ctx.report.node(door, { message: FS_MESSAGE });

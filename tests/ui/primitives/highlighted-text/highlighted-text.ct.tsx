@@ -67,7 +67,7 @@ test("the mark wears the highlight token pair, not a raw color", async ({ mount 
   await expect(mark).toHaveCSS("color", resolvedTokenColor("color.highlight-foreground"));
 });
 
-// The `skin` axis (preset-surface-redesign.md §13) — the resolved-TEMPLATE readout is machine text, not
+// The `skin` axis — the resolved-TEMPLATE readout is machine text, not
 // prose. Asserted by resolved type + color so a token move can't leave a stale-green class assertion.
 test("skin=code renders the runs as mono muted machine text; the default stays body-voice prose", async ({ mount, page }) => {
   await mount(

@@ -1,5 +1,5 @@
 // verb: scrapeWeb (DB7) — fetch a web page over the compose-bound ANY_HOST safeFetch guard, extract its html,
-// then the SAME §2 canon pipeline as upload (databank-design/06 §5). The fetch rides a STUBBED `fetchUrl` op (no
+// then the SAME §2 canon pipeline as upload. The fetch rides a STUBBED `fetchUrl` op (no
 // live network — the harness mock returns canned bytes or rejects). Load-bearing:
 //   · the round-trip: fetched html → CAS blob + documents row stamped origin 'web'/sourceUrl/mime → ingest QUEUED
 //   · the name derives from the page <title>, with a hostname+path FALLBACK when there is none

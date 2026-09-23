@@ -172,7 +172,7 @@ where host and member take turns acting belongs in E2E with two explicit browser
 ## Static mock: same ruler, no stack
 
 ```bash
-pnpm snap --file docs/design/mocks/config-rail/workspace.html --wide --contrast 'h1' --text
+pnpm snap --file reports/mocks/<name>.html --wide --contrast 'h1' --text
 ```
 
 `--click`/`--fill` work (mocks with real controls are drivable); nav flags refuse — a static file

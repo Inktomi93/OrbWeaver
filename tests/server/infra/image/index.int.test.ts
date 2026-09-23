@@ -152,7 +152,7 @@ describe("banner crop (width + height + fit:'cover')", () => {
   });
 });
 
-// §3.1 sliceGrid + §4.2 matteFlood — the sprite-sheet byte ops against REAL sharp (expressions-design/03).
+// §3.1 sliceGrid + §4.2 matteFlood — the sprite-sheet byte ops against REAL sharp (docs/plans/expressions/design.md).
 // A 4×2 marker sheet (each 100×100 cell a distinct red value = its row-major index) proves cell count,
 // exact floor dims, AND reading order; a #DDDDDD-surround cell proves the flood mattes corners to alpha-0.
 const CELL = 100;

@@ -23,7 +23,7 @@ NOT owned: business logic (verbs/ownership/dispatch → `server`); the vector wr
 
 > **A schema file is named for the domain that PRODUCES/OWNS its rows, never for a consumer.**
 
-A consumer-named schema file hides its real producer (the port-from-neo antipattern; the enumerated cases are in `history/tier-1-2-archaeology-record.md`). Enforcement: compile-time (the schema file IS the type source — a move forces every importer) + the `db-structure` gate (asserts `schema/<feature>.ts` maps to a producing domain and the barrel re-exports every file; satellite tables map to their producer, e.g. `gallery` → `domain/assets`, `sdk-session` → the agent-sdk backend).
+A consumer-named schema file hides its real producer (the port-from-neo antipattern). Enforcement: compile-time (the schema file IS the type source — a move forces every importer) + the `db-structure` gate (asserts `schema/<feature>.ts` maps to a producing domain and the barrel re-exports every file; satellite tables map to their producer, e.g. `gallery` → `domain/assets`, `sdk-session` → the agent-sdk backend).
 
 ## Cross-tier composition (who reads `db`)
 
@@ -123,7 +123,7 @@ reds (regime 2, step 5).
 
 Enforcement of that regime was the `baseline-single-migration` gate (exactly one `.sql`, exactly one
 journal entry) and its runtime twin `DB_LAUNCHED` in `entry/boot/migrate.ts`. The gate is DELETED (its row
-is in `../architecture/history/Core-Enforcement-Deferred-Dropped.md` §"Retired"); the constant is `true`.
+is in `docs/law/Core-Enforcement-Deferred-Dropped.md` §"Retired"); the constant is `true`.
 
 ### Regime 2 — POST-LAUNCH (TODAY, since 2026-09-18): forward-only incremental migrations
 

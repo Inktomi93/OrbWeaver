@@ -1,5 +1,5 @@
 // The SWAY FIELD — the ambient breath every layer rides, and the one place a drawn point is moved from
-// where the geometry put it (weave-lab-upgrades.md §1; motion-fixes §4b). Split from
+// where the geometry put it. Split from
 // web-weave-render.ts under the component-size-ui cap, and the right home besides: it sits directly on
 // top of the physics module and below every painter.
 //

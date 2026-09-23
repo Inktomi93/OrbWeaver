@@ -159,8 +159,8 @@ export const gate = defineGate({
   family: "sole-env-reader",
   authority: "reviewed-grant",
   severity: "error",
-  // `@inference` ADDED 2026-09-20 (lane cb-gate-reach, the §12 EXTRACTION AUDIT of
-  // `docs/design/orbweaver-inference-package.md`). ~104 source files left `packages/server/src/infra/providers/`
+  // `@inference` ADDED 2026-09-20 (lane cb-gate-reach, the inference EXTRACTION AUDIT).
+  // ~104 source files left `packages/server/src/infra/providers/`
   // for the new `@orb/inference` workspace package, and every `@server`-scoped policy stopped judging them the
   // day they moved, silently. This policy's subject is live here: `@orb/inference` is node-only and receives its environment as
   // `deps.env`, so `foundation/env` remains the ONE reader and a `process.env` inside the package is exactly the

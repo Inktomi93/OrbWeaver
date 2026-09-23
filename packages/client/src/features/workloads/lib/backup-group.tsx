@@ -1,4 +1,4 @@
-// The Backup & Restore config group (client-architecture-lockdown.md §8 · config-revamp-design.md §6.8) —
+// The Backup & Restore config group (client-architecture-lockdown.md §8) —
 // a `sections` SKIMMER on the user shelf. Owned by features/workloads — the M6.2 de-god move LANDED (O3 as
 // ratified: import/export is the workloads engine's, "backup has no feature" of its own). Its two rows are
 // the contributions beside this file (`backup-export-section.tsx` · `backup-import-section.tsx`).

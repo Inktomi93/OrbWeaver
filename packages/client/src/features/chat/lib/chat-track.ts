@@ -17,7 +17,7 @@
 // column) — the track owns PLACEMENT, the measure owns LINE LENGTH (the #97 ratification, untouched).
 //
 // THE CENTRING IS NOT `mx-auto` ANY MORE, AND THAT IS A CRISPNESS FIX, NOT A LAYOUT ONE (#1362, Law 3 of
-// docs/design/integer-line-boxes.md). `margin-inline: auto` splits the leftover width in HALF, so an ODD
+// docs/law/integer-line-boxes.md). `margin-inline: auto` splits the leftover width in HALF, so an ODD
 // remainder puts the whole track — and every promoted layer inside it — on a half pixel. Measured on the
 // isolated stage at 1280x800, `--width-shell-content` resolving `clamp(46.125rem, 60dvw, 100dvw)` = 768px
 // inside an 893px content pane: remainder 125, half 62.5, track left 437.5, i.e. `left -0.500 device px`

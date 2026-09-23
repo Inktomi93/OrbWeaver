@@ -1,4 +1,4 @@
-// verb: getUiBundle — the SOURCE of a plugin's Tier-C client guest (plugin-ui-plane #679 U4, seam 8). The
+// verb: getUiBundle — the SOURCE of a plugin's Tier-C client guest (U4, seam 8). The
 // browser worker `evalCode`s whatever this returns, so the questions worth asking are all about WHO gets bytes
 // and WHERE they came from:
 //

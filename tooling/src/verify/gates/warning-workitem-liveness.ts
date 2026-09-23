@@ -32,7 +32,7 @@ const DONE_STATE = "done";
 const WORK_TREE = "docs/work";
 
 const MESSAGE =
-  "a warning policy's workItem must name a docs/work item that is not done — the item owns the warning debt, and a done or missing item leaves the debt with no owner (docs/design/gate-runtime-standardization.md §5).";
+  "a warning policy's workItem must name a docs/work item that is not done — the item owns the warning debt, and a done or missing item leaves the debt with no owner (docs/law/gate-runtime-standardization.md §5).";
 const FIX =
   "file the owning item with `pnpm doc item` and put its id in workItem, or point workItem at the live item that now owns the debt; if the debt is paid, flip the policy to severity error and delete workItem.";
 

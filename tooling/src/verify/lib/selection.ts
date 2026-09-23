@@ -29,8 +29,7 @@ function isDepcruisePath(path: string): boolean {
 // set): the architecture corpus plus the four trees the `doc` tool governs (`doc-catalog/lib/vocab.ts`
 // DOC_TOOL_TREES). Spelled here because a `#doc-catalog` import would chain-load the formatter into every
 // selection.
-const DOCS_MD_RE = /^docs\/(?:architecture|adr|plans|work|law)\/.*\.md$/u;
-const DOCS_PROPOSED_RE = /^docs\/architecture\/proposed\//u;
+const DOCS_MD_RE = /^docs\/(?:adr|plans|work|law)\/.*\.md$/u;
 const SCOPE_GLOB_TAIL_RE = /\/\*\*$/u;
 const TRAILING_SLASH_RE = /\/+$/u;
 
@@ -62,7 +61,7 @@ function deriveViews(
     // view below still drives tsconfig/graph/structure/deletion semantics.
     eslintPaths: filterPaths(existingPaths, (p) => ESLINT_RE.test(p) || isNodeToolSource(p)),
     depcruisePaths: filterPaths(existingPaths, isDepcruisePath),
-    docsPaths: filterPaths(existingPaths, (p) => DOCS_MD_RE.test(p) && !DOCS_PROPOSED_RE.test(p)),
+    docsPaths: filterPaths(existingPaths, (p) => DOCS_MD_RE.test(p)),
     tsconfigs: typecheck.programs,
     ct: ctView(paths, root),
   };

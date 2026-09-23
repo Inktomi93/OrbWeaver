@@ -1,4 +1,4 @@
-// Gate: settings-section-anchored (derive-modernization-audit.md §W5 item 9 — the G4 arm). A
+// Gate: settings-section-anchored. A
 // heading-bearing `<Section>` in a contributed config section is a nav target: the config host's scroll-spy
 // + the search jump to it by its `configAnchorId(group, sub)` DOM id (the settings-era `settingsAnchorId`,
 // re-keyed by the config revamp #866 S1). A heading-bearing Section with NO `id` attribute is INVISIBLE to
@@ -68,7 +68,7 @@ function hasAttr(el: JsxOpeningElement | JsxSelfClosingElement, name: string): b
 const MESSAGE =
   "heading-bearing <Section> in a contributed config section with no `id` — an anchored section must " +
   "stamp `id={configAnchorId(group, sub)}` (the sub is its contribution's `nav.id`) or it is " +
-  "invisible to the config scroll-spy + search (derive-modernization-audit.md §W5).";
+  "invisible to the config scroll-spy + search. Registry: packages/client/src/state/config-group-registry.ts";
 
 export const gate = defineGate({
   id: "settings-section-anchored",

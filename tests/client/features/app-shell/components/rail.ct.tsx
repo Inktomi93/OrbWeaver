@@ -27,7 +27,7 @@ test("renders every section + footer action as a named button; active = aria-cur
   await expect(rail.getByRole("button", { name: "Corpus" })).not.toHaveAttribute("aria-current");
 });
 
-// ── The BRAND cell as home's affordance (home-section-spec §4.1) ───────────────────────────────────
+// ── The BRAND cell as home's affordance ───────────────────────────────────
 // The glyph used to be a decorative `aria-hidden` div. It is now a REAL named button, derived from the
 // `rail.brand` chrome entry the HOME section declares — app-shell still never spells a section id.
 

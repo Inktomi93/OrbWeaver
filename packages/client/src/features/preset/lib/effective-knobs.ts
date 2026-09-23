@@ -1,4 +1,4 @@
-// The params deck's GHOST model (preset-surface-redesign.md §4.1/§4.2/§4.3) — the pure half that turns the
+// The params deck's GHOST model — the pure half that turns the
 // server's effective profile into what a KnobRow renders when a knob is left INHERITED.
 //
 // The values here are the funnel's own (`preset.resolveEffective`, D5) — the exact `resolveChat(params,

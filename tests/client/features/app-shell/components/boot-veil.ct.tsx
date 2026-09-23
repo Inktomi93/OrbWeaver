@@ -1,5 +1,5 @@
-// CT: the boot veil's LOAD-GATED exit (features/app-shell/components/boot-veil.tsx — docs/design/
-// login-loading-screen.md §9.3, owner tweak 3). The exit is driven by the REAL readiness seam
+// CT: the boot veil's LOAD-GATED exit (features/app-shell/components/boot-veil.tsx;
+// owner tweak). The exit is driven by the REAL readiness seam
 // (`data-app-ready` on <html> — installAppReadySignal's stamp), never a timer, so the CT drives that
 // exact attribute:
 //   • while the attribute is ABSENT the veil is up, weaving, captioned;

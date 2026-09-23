@@ -1,10 +1,10 @@
-// The chrome-registry contract (shell-chrome-unification.md §A) — a shell chrome affordance as ONE
+// The chrome-registry contract — a shell chrome affordance as ONE
 // `ChromeEntry`, assembled at the door (main.tsx) via `assembleChrome` → `createContributorRegistry`. A
 // chrome entry comes from ONE of three sources, expressed by its `behavior` union (§E-2, the crux): a rail
 // SECTION (derived from `SectionDefinition.rail`), a MODAL trigger (derived from `ModalDefinition.trigger`),
 // or a live feature-owned WIDGET a static icon can't express (the bell, the shell's own toggles). Widget
 // bodies render a lens (`"bar"` = the always-mounted bar DOM, `"sheet"` = the You-sheet projection) — both
-// lenses have a consumer (N1 slice shipped, `history/shell-chrome-unification.md`). All four zones are
+// lenses have a consumer (N1 slice shipped). All four zones are
 // consumed: `rail.brand`/`rail.nav`/`rail.end` by `features/app-shell/components/rail.tsx`, `topbar.trail`
 // by the shell header, and the sheet lens by `features/app-shell/components/you-sheet.tsx`.
 

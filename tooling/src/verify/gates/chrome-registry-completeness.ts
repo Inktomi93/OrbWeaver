@@ -1,4 +1,4 @@
-// Policy: chrome-registry-completeness (shell-chrome-unification.md §A/§D) — the chrome registry's
+// Policy: chrome-registry-completeness — the chrome registry's
 // structural walls tsc cannot see (a `ChromeEntry` is a plain object literal, not a total door Record).
 // CO-LOCATION at `features/<owner>/lib/<id>-chrome.{ts,tsx}`, DUPLICATE ID across definitions, the ZONE
 // arm (a zone outside `CHROME_ZONES` renders nowhere, because no consumer reads an unknown zone string),
@@ -50,8 +50,7 @@ const MOBILE_FIELD = "mobile";
 const MESSAGE =
   "a chrome widget is dishonest: a ChromeEntry whose declaration or resolved definition is not co-located at " +
   "packages/client/src/features/<owner>/lib/<id>-chrome.{ts,tsx}, a definition this policy cannot resolve to an authored " +
-  `object literal, an unreadable or duplicate id, a zone outside ${ZONE_TUPLE}, or a rail.* widget missing \`${MOBILE_FIELD}\` ` +
-  "— shell-chrome-unification.md §A/§D.";
+  `object literal, an unreadable or duplicate id, a zone outside ${ZONE_TUPLE}, or a rail.* widget missing \`${MOBILE_FIELD}\`.`;
 const FIX =
   'co-locate the definition at features/<owner>/lib/<id>-chrome.tsx and write it as an authored object literal; give every ChromeEntry a unique id; use a real CHROME_ZONES member; declare `mobile` on every rail.* widget (topbar.* may declare it too — the You sheet projects "sheet"-curated trail widgets). For a deliberate exception, write an adjacent `@orb-waive chrome-registry-completeness(<position>): <why + end condition>` — the position is the DECLARED NAME of the widget (`railChrome`), never the zone or the `mobile` field the message names.';
 

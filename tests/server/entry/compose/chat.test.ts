@@ -175,7 +175,7 @@ describe("createRunChatTurnBridge — the runner-warning carry", () => {
     expect(chunks.filter((c) => c.kind === "warning")).toHaveLength(2);
   });
 
-  // The DENOMINATOR carry (docs/design/streaming-shape-churn.md §7.5's phantom cost bug). `tokensOut` is a
+  // The DENOMINATOR carry ('s phantom cost bug). `tokensOut` is a
   // SUM over the turn's model calls; `maxOutputTokens` is the PER-CALL ceiling. A live 4-call turn reported
   // `tokensOut:8192` against `maxOutputTokens:2048` and read as a backend ignoring the output cap — it was
   // a missing unit, not an ignored cap. The bridge is where the count crosses (`numTurns` → `modelCalls`),
@@ -424,8 +424,8 @@ describe("createRunChatTurnBridge — the runner-warning carry", () => {
 });
 
 // ── Tool delivery through the REAL tool-use service, driven the way the Agent SDK drives it ─────────────────
-// The chat turn offers its tools backend-neutrally and `@orb/inference` mounts them (docs/design/
-// inference-tool-delivery.md). These pins run the REAL pipeline, the REAL bridge, the REAL `toChatRequest` and
+// The chat turn offers its tools backend-neutrally and `@orb/inference` mounts them
+// (D177). These pins run the REAL pipeline, the REAL bridge, the REAL `toChatRequest` and
 // the REAL `ToolUseService`; the only stand-in is the runner, which plays the Agent SDK by calling the mounted
 // MCP server over JSON-RPC (tests/support/mcp-in-memory.ts) — so the server's own argument validation and its
 // throw-to-`isError` conversion are on the path, exactly as in production.

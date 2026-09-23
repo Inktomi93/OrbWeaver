@@ -1,5 +1,5 @@
 // verb: listDisplayTransforms — the caller's OWN enabled plugins' registered DISPLAY transforms
-// (plugin-ui-plane #679 U6, seam 14). Owner-scoped by the `listOwned` read + the per-caller resident lookup:
+// (U6, seam 14). Owner-scoped by the `listOwned` read + the per-caller resident lookup:
 // a stranger's transforms are never in the result, and a disabled plugin (no resident) contributes none.
 //
 // ITS ONE JOB IS THE BYTE-IDENTITY GATE, which is why it is a verb of its own rather than a field on

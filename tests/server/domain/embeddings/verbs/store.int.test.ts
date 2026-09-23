@@ -560,7 +560,7 @@ describe("store — the chat-block digest lens", () => {
   });
 });
 
-describe("store — chunk (document_chunks, the 5th arm — databank-design/05 §2)", () => {
+describe("store — chunk (document_chunks, the 5th arm)", () => {
   test("writes a row with the FK/idx/span/hash/(model,dim) tag; re-store same content ⇒ noop, no re-embed", async () => {
     const db = await freshDb();
     const h = makeStoreHarness(db);

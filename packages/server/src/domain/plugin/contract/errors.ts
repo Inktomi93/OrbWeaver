@@ -18,7 +18,7 @@ export class ManifestInvalidError extends DomainOperationError {
   }
 }
 
-/** A URL install/upgrade/preview could not FETCH the bundle bytes (plugin-ui-plane #679 U8, seam 15 —
+/** A URL install/upgrade/preview could not FETCH the bundle bytes (U8, seam 15 —
  *  `installFromUrl`/`upgradeFromUrl`/`previewFromUrl`). It is deliberately ONE generic, LEAK-FREE error for
  *  EVERY fetch failure — an SSRF block (the URL resolved to a private/reserved address), a scheme/redirect
  *  refusal, a non-2xx, or a network error — and that is the security property, not laziness: `safeFetch`'s own
@@ -41,7 +41,7 @@ export class PluginBundleFetchError extends DomainOperationError {
 }
 
 /** A one-click `upgradeFromStoredUrl` on a plugin that has NO remembered source URL — a file (`upload`-origin)
- *  install (plugin-ui-plane #679 U8 2b). DISTINCT from `PluginNotFoundError`: the plugin exists and is the
+ *  install (U8 2b). DISTINCT from `PluginNotFoundError`: the plugin exists and is the
  *  caller's own; what is absent is a URL to re-fetch from, and the honest answer is "this one was installed from a
  *  file — upload a new bundle to update it", not "not found". Thrown AFTER the owner-scoped load (so it never
  *  leaks across tenants — a stranger gets NOT_FOUND first) and BEFORE any fetch. Maps to BAD_REQUEST. */

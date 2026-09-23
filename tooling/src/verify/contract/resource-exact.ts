@@ -20,8 +20,6 @@
 /** Closed exact-file identities. A gate may not supply a path; adding an id is a contract edit with a
  *  named consumer. */
 export const EXACT_RESOURCE_PATHS = {
-  /** `dangling-refs`: the literal ignore rules that justify absent-by-design path citations. */
-  gitignore: ".gitignore",
   /** `playwright-css-topology`: the production CSS front door and its two entry modules. */
   "client-entry": "packages/client/src/main.tsx",
   "client-css-entry": "packages/client/src/styles/index.ts",

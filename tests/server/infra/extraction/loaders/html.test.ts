@@ -1,4 +1,4 @@
-// infra/extraction/loaders/html — the html-to-text loader (databank-design/04 §2). Asserts the noise
+// infra/extraction/loaders/html — the html-to-text loader. Asserts the noise
 // stripping (script/style/head/nav/footer), links → text, headings NOT uppercased (no case folding), and the
 // `<title>` extraction (trimmed / absent).
 

@@ -180,8 +180,8 @@ export async function finishSnapContext(context: ProbeContext, failed: boolean, 
 
 type LaunchExtras = Partial<Pick<ProbeLaunchOptions, "pages" | "contexts" | "contextCookies" | "cookieDomain">> & {
   readonly requireCascadeRuntime?: boolean;
-  /** A stateful session's browser publishes its debugging endpoint (docs/design/1208-instrument-substrate.md
-   *  §3.4 — the sibling attach door). The cascade runtime's profile already does; a plain session gets the
+  /** A stateful session's browser publishes its debugging endpoint (the
+   *  sibling attach door). The cascade runtime's profile already does; a plain session gets the
    *  bare debugging profile, so no second launch shape exists. */
   readonly debuggingEndpoint?: boolean;
 };

@@ -45,7 +45,7 @@
 // the fail-open shape §4.6 exists to catch, and its own `mustPass[3]` enshrined it. The ledger is now a
 // DECLARED `json:baseui-manifest` resource, so `resolveResourceDeclarations` throws at the POPULATION phase
 // on missing/empty/unparseable and this policy is WITHHELD — exit 2, "this run is not a verdict", never a
-// green zero (`resource-policy-contract.md` §4). The family `runPolicyPass` drives retain the complete
+// green zero (`docs/law/resource-policy-contract.md` §4). The family `runPolicyPass` drives retain the complete
 // runtime outcome beyond refusal-text matching: missing, unparseable, and empty ledgers each produce a
 // population-phase tool error, leave the owner incomplete with zero effective findings, and withhold this
 // policy; the healthy twin pins the `json:baseui-manifest` receipt with `unresolved: 0` (proof law §6.3).

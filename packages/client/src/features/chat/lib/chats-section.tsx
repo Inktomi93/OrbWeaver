@@ -3,7 +3,7 @@
 // CONTEXT is minted via `defineContextTabs<ChatContextState>` (§6b) over the room projection;
 // `useChatContextState` pairs with the tabs so `S` never crosses the shell seam. The tabs used to carry a
 // DRAFT twin per body (a rowless room wrote a client draft-config store instead of the verbs) — gone with
-// draft mode (chat-creation-draft-mode-replacement.md §4.1, R1): one body per tab, one set of verbs. `makeChatsSection` takes its five contributor
+// draft mode (D166): one body per tab, one set of verbs. `makeChatsSection` takes its five contributor
 // seams as ONE named-field bundle (§12 row 5, gate `section-factory-contribution-bundle`) — context tabs
 // (§6c) + REGION claims (HUD-1 §3.2) + surface anchors + tool renderers + the "This chat" SECTION seam
 // (#616) — so rpg/agents/automation graft at the door without importing chat. The bundle is exactly why

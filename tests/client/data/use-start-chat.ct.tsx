@@ -1,4 +1,4 @@
-// CT: `useStartChat` — the ONE client creation seam (chat-creation-draft-mode-replacement.md §4.1, R1).
+// CT: `useStartChat` — the ONE client creation seam (D166).
 //
 // Every launcher in the app — the new-chat picker, the home quick-picks tile, "New chat with the same characters",
 // the character library's Chat-with CTA — fires THIS. Its three jobs are each pinned below, because each is

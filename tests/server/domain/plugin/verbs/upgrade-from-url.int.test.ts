@@ -1,4 +1,4 @@
-// verb test: upgradeFromUrl (plugin-ui-plane #679 U8, seam 15 — the never-silent update mechanism). Fetch a NEW
+// verb test: upgradeFromUrl (U8, seam 15 — the never-silent update mechanism). Fetch a NEW
 // bundle through the EGRESS GUARD, then upgrade the OWNED plugin through the existing `upgrade` verb. The walls
 // this file pins, red-first where the wall is the point:
 //   - NEVER-SILENT-UPDATE (#615's re-consent wall, unchanged): a reach-WIDENING bundle lands the row DISABLED

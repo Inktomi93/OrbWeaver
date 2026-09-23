@@ -1,4 +1,4 @@
-// domain/rpg/verbs/game/update-config — updateConfig (rpg-design/05 §4.4). The ONE config write door: the
+// domain/rpg/verbs/game/update-config — updateConfig (docs/plans/rpg/design.md). The ONE config write door: the
 // profile mutability matrix (§2.3), the `steeringNote`, and the `gmPresetId` + `extractionMode` KNOBS (§4.11 #1
 // + the delivery-model amendment). Host-gated.
 //

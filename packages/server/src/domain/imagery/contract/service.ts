@@ -76,7 +76,7 @@ interface ImageEditInput {
 /** The text→image request the domain hands the sealed executor. Free mode fills the credential/model/prompt/
  *  negativePrompt/size/n fields; `edit` rides B3/editImage (I4). `systemPrompt` is the optional prepend.
  *  Structural over contract/kit types (no `#infra`) — the widened twin of the infra `ImageGenerateRequest`
- *  (imagery-design/01 §4; two spellings of one request must not drift). */
+ *  (two spellings of one request must not drift). */
 export interface ImageGenerateRequest {
   /** The RESOLVED `generateImage` connection — the runtime dispatches on its wire; credential rides inside. */
   readonly connection: Resolved<"generateImage">;
@@ -91,7 +91,7 @@ export interface ImageGenerateRequest {
   /** A hint (same posture as `n`) — passed where the wire supports it. */
   readonly size?: { readonly width: number; readonly height: number } | undefined;
   readonly edit?: ImageEditInput | undefined;
-  /** The resolved model capability the runner's edit-strip belt reads (imagery-design/03 §1): an `edit` payload
+  /** The resolved model capability the runner's edit-strip belt reads: an `edit` payload
    *  whose model lacks `input.imageEdit` is stripped + warned, never sent. The domain resolves this at every
    *  verb (the same model the edit gate reads), so it is REQUIRED here — a request build that omits it fails
    *  `tsc`, closing the "belt strips every edit because capability was never forwarded" seam. The widened twin
@@ -168,8 +168,8 @@ export interface ImageryContext {
    *  `readOwnedAssetBytes` (EC-B). Throws assets' not-found on non-owned; imagery does not re-gate. */
   readonly readAsset: (caller: Principal, assetId: AssetId) => Promise<{ readonly bytes: Uint8Array; readonly mime: string }>;
 
-  /** `character.get` — the card (avatar lookup, B3) PLUS the row's `contentHash` the identity hash reads
-   *  (I3, imagery-design/03 §4.3). `CharacterDetail` satisfies this at compose; imagery never imports the
+  /** `character.get` — the card (avatar lookup, B3) PLUS the row's `contentHash` the identity hash reads.
+   * `CharacterDetail` satisfies this at compose; imagery never imports the
    *  character DOMAIN view (`CharacterCard` carries no `contentHash` — it lives on the flat row). */
   readonly getCard: (caller: Principal, characterId: CharacterId) => Promise<ImageryCard>;
   readonly recordStats: (delta: StatsDelta) => Promise<void>;

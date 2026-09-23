@@ -12,8 +12,7 @@ The motion law (promoted proposed/ → core/ under D66). How motion is built in 
 and one easing curve** — never a React animation hook, never a second easing curve. §1 is the Base UI
 mechanics an agent needs to add motion; §2 the taxonomy → token map; §3 the house principles
 (numbering is stable — code cites `guide §3.7`/`§3.9`); §4 the motion inventory (what's built,
-where, and what was deliberately left out). The pre-build gap analysis and the inspiration
-synthesis behind §3 are frozen in `../architecture/history/motion-guide-archaeology-record.md`.
+where, and what was deliberately left out).
 
 ## 1. Base UI animation mechanics cheat-sheet
 
@@ -274,8 +273,7 @@ loading→content cross-fade was considered and decided-against (§4.2 item 5).
 ## 3. House principles
 
 Numbering is STABLE — code comments cite `guide §3.7` and `guide §3.9` by number; keep all ten
-in order. The sourced synthesis and design-writing quotes behind these live in
-`../architecture/history/motion-guide-archaeology-record.md`.
+in order.
 
 1. **Exit matters as much as entrance.** Entrance-only motion is the #1 tell of unfinished
    work. Any enter animation wants a paired exit — UNLESS there is no honest exit phase to
@@ -447,8 +445,7 @@ unqualified.
 ### 4.2 The motion inventory (what's built, where; item numbers are stable)
 
 Item 1's number is cited from code (`use-enter-motion.ts` → `guide §4.2 item 1`) — keep the
-ordering. Every item is BUILT or DECIDED-AGAINST; the reference code sketches that once lived
-here are frozen in `../architecture/history/motion-guide-archaeology-record.md`.
+ordering. Every item is BUILT or DECIDED-AGAINST.
 
 **1. List-item enter (chat transcript).** BUILT (enter) / DECIDED-AGAINST (exit). The chat
 list is a TanStack virtualizer (`@orb/ui/message-list`) whose rows mount/unmount on every
@@ -511,7 +508,7 @@ siblings) carry `transition-colors duration-(--motion-fast) ease-out-expo`.
 
 **10. Streamed-word reveal fade (chat ghost row).** BUILT (#42, owner-ordered 2026-08-09 —
 supersedes the old §4.3 "don't animate streaming text" bullet; design + measurements:
-`docs/history/design/streaming-reveal-42.md`). Each newly revealed word of a streaming message fades in
+D168). Each newly revealed word of a streaming message fades in
 (opacity-only keyframe `orb-word-reveal`, `--motion-base` + `--ease-out-expo`, `fill both`) via the
 markdown seal's own rehype plugin (`ui/src/markdown/reveal-plugin.ts` → `[data-orb-reveal]` spans in
 `ui/src/styles/globals.css`). Fade progress is anchored to the word's REVEAL TIME through a negative
