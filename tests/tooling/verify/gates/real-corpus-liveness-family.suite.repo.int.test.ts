@@ -38,8 +38,9 @@ import { CLIENT_ARMS } from "./_liveness/client.ts";
 import { CLIENT_APP_ARMS } from "./_liveness/client-app.ts";
 import { SERVER_ARMS } from "./_liveness/server.ts";
 import { TESTS_ARMS } from "./_liveness/tests.ts";
+import { TOOLING_ARMS } from "./_liveness/tooling.ts";
 
-const CHUNKS = { client: CLIENT_ARMS, clientApp: CLIENT_APP_ARMS, server: SERVER_ARMS, tests: TESTS_ARMS } as const;
+const CHUNKS = { client: CLIENT_ARMS, clientApp: CLIENT_APP_ARMS, server: SERVER_ARMS, tests: TESTS_ARMS, tooling: TOOLING_ARMS } as const;
 const ARMS: readonly RealCorpusLivenessArm[] = Object.values(CHUNKS).flat();
 
 // Quiet-box ceilings, each ~2.5x the slowest measured case above; `scaledBudget` stretches them under
