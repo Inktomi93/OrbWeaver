@@ -165,7 +165,7 @@ export type DocCommand =
   | { readonly kind: "remove"; readonly targets: readonly string[] }
   | { readonly kind: "set"; readonly ids: readonly number[]; readonly patch: ItemPatch }
   | { readonly kind: "land"; readonly ids: readonly number[]; readonly evidence: string }
-  | { readonly kind: "land-merged" }
+  | { readonly kind: "land-merged"; readonly headMerge: boolean }
   | { readonly kind: "index" }
   | { readonly kind: "review"; readonly patterns: readonly string[] }
   | { readonly kind: "due"; readonly patterns: readonly string[] }

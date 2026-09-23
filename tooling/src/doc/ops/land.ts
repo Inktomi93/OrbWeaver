@@ -116,15 +116,20 @@ export function landItems(ids: readonly number[], evidence: string, repoRoot = r
   return { written, refusals: [], skipped };
 }
 
-/** The post-merge door. On `main`, read the `Closes:` trailers of the commits the merge brought in and
- *  land those ids with the merge commit as evidence. Anywhere else, or with no trailer, it does nothing
- *  and says nothing. ALL-OR-NOTHING: an id that is neither on the tree nor landed in git refuses the whole
- *  trailer set before any write, and the refusal names the by-hand landing for the ids that do exist. */
-export function landMerged(repoRoot = root, date = today()): LandOutcome {
+/** The post-merge (and post-commit) door. On `main`, read the `Closes:` trailers of the commits the merge
+ *  brought in and land those ids with the merge commit as evidence. Anywhere else, or with no trailer, it
+ *  does nothing and says nothing. `headMerge` picks the range by which hook fired it, never by HEAD's
+ *  shape (`mergedCommits`, tooling/src/doc/ops/tree.ts): post-merge always passes `false` (`ORIG_HEAD..HEAD`)
+ *  and post-commit always passes `true` (`HEAD^1..HEAD`) — a fast-forward onto a branch whose tip is
+ *  already a merge commit still fires post-merge, and reading `HEAD^1..HEAD` there would drop every id on
+ *  the first-parent side. ALL-OR-NOTHING: an id that is neither on the tree nor landed in git refuses the
+ *  whole trailer set before any write, and the refusal names the by-hand landing for the ids that do
+ *  exist. */
+export function landMerged(repoRoot = root, date = today(), headMerge = false): LandOutcome {
   if (!isMainBranch(repoRoot)) {
     return { written: [], refusals: [], skipped: [] };
   }
-  const ids = [...new Set(mergedCommits(repoRoot).flatMap((commit) => closesTrailer(commit.message)))];
+  const ids = [...new Set(mergedCommits(repoRoot, headMerge).flatMap((commit) => closesTrailer(commit.message)))];
   const head = headCommit(repoRoot);
   if (ids.length === 0 || head === null) {
     return { written: [], refusals: [], skipped: [] };
