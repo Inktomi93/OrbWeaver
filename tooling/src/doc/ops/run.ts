@@ -11,7 +11,7 @@ import { archive } from "./archive.ts";
 import { drift, overview } from "./board.ts";
 import { regenerateIndexes } from "./indexes.ts";
 import type { WriteOutcome } from "./items.ts";
-import { landItems, landMerged, newItem, setItems } from "./items.ts";
+import { landItems, landMerged, newItem, newItemsFrom, setItems } from "./items.ts";
 import { newAdr, newPlan } from "./new.ts";
 import { due, review } from "./review.ts";
 import { setStatus } from "./status.ts";
@@ -54,14 +54,13 @@ export function runDocCommand(command: DocCommand): ExitCode {
       print(USAGE);
       return EXIT.clean;
     case "new-adr":
-      return report("new adr", newAdr(command.slug, command.title));
+      return report("new adr", newAdr(command));
     case "new-plan":
-      return report("new plan", newPlan(command.slug, command.title));
+      return report("new plan", newPlan(command));
     case "item":
-      return report(
-        "item",
-        newItem({ title: command.title, kind: command.itemKind, priority: command.priority, area: command.area, plan: command.plan, lane: command.lane }),
-      );
+      return report("item", newItem(command.input));
+    case "item-batch":
+      return report("item", newItemsFrom(command.from));
     case "status":
       return report("status", setStatus({ status: command.status, paths: command.paths, by: command.by }));
     case "set":

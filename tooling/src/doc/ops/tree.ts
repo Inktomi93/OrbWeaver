@@ -84,14 +84,18 @@ export function readDocTree(repoRoot = root): DocTree {
   };
 }
 
-/** Write a document through the repo's own formatter so a minted or rewritten file is born canonical.
- *  A formatter REFUSAL (a defect in the prose the tool did not touch) writes the bytes as given — the
+/** A document as the repo's own formatter writes it, so a minted or rewritten file is born canonical.
+ *  A formatter REFUSAL (a defect in the prose the tool did not touch) keeps the bytes as given — the
  *  format check reports the defect by name; losing the structural write would hide it. */
-export function writeDoc(path: string, source: string, repoRoot = root): void {
+export function formattedDoc(source: string): string {
   const { output, refusal } = formatMarkdown(source);
+  return refusal === null ? output : source;
+}
+
+export function writeDoc(path: string, source: string, repoRoot = root): void {
   const abs = join(repoRoot, path);
   mkdirSync(dirname(abs), { recursive: true });
-  writeFileSync(abs, refusal === null ? output : source);
+  writeFileSync(abs, formattedDoc(source));
 }
 
 /** Every tracked TEXT file's path, for the literal path rewrite `archive` does. */
