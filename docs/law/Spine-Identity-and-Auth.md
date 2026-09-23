@@ -135,6 +135,28 @@ The human principal's presentation identity (map: `Constitution.md` §6):
 
 There is NO `chats.personaId` second home.
 
+### Persona pointers: user level and chat level
+
+The chat-level table above has two user-level partners in settings `seeds`:
+
+| Pointer | Home | Meaning |
+| - | - | - |
+| default | `seeds.defaultPersonaId` | the user's home identity, marked as the pinned persona in the persona list |
+| current | `seeds.currentPersonaId` | who the user plays as when a new chat starts |
+
+Neither user-level pointer is read live inside a chat. `startChat` resolves the founding anchor once, in this order (`domain/chat/verbs/start-chat.ts::resolveFoundingAnchor`):
+
+1. The explicit `anchorPersonaId`, which the caller must own.
+2. The one persona connected to a solo founding character.
+3. `current`.
+4. `default`.
+
+The result seeds `chats.anchorPersonaId` and the host seat's `chat_participants.activePersonaId`. A later change to `current` or `default` affects only chats founded after it.
+
+The client resolves "playing as" with `current`, then `default`, then the first owned persona (`packages/client/src/features/persona/lib/persona-current.ts`).
+
+Keep all five pointers apart. The common persona defect reads one pointer where another is meant. `Chat-Macro-Resolution.md` §3 and §4 own which pointer each `{{user}}` context reads. ADR 0153 owns who may change this resolution order.
+
 ## Client session freshness
 
 **→ [`client-architecture-lockdown.md`](client-architecture-lockdown.md) §10a/§12 row 12/§13 rule 7** —
