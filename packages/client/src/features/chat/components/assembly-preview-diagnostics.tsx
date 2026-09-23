@@ -164,7 +164,6 @@ const BREAKPOINT_LABELS: Record<ShapeBreakpointDecision, string> = {
   placed: "Placed",
   "no-stable-prefix": "No stable prefix",
   "in-prefix-injection-or-squash": "Prefix injection / squash",
-  "second-volatile-tail": "Second volatile tail",
 };
 
 /** The content-free SHAPE trace (PD-132): how the canon shaped into the wire history — per-stage row counts,

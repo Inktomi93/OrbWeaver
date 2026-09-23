@@ -122,10 +122,9 @@ interface ShapeOutput {
   /** The depth, in role groups from the end, of the last stable row for the runner to pin `cache_control` on
    *  (see {@link computeHistoryBreakpoint}), or undefined. */
   cacheBreakpointFromEnd: number | undefined;
-  /** WHY that offset is present or absent — decided HERE, by the code that made the call, and carried out
-   *  verbatim for `assembly/trace` to project. It used to be RE-DERIVED from stage row counts, which cannot
-   *  see a depth ≥ 2 injection abort (that arm ADDS a row, so the counts look like an appended tail) and so
-   *  reported "second-volatile-tail" for a deep injection — the one abort cause a host can actually fix. */
+  /** WHY that depth is present or absent — decided HERE, by the code that made the call, and carried out
+   *  verbatim for `assembly/trace` to project. Stage row counts cannot see why a pin moved or vanished, so the
+   *  trace never re-derives it. */
   breakpointDecision: ShapeBreakpointDecision;
   /** Per-stage snapshots — the host/admin trace + differential-oracle diff surface. */
   stages: {
@@ -186,16 +185,12 @@ const NO_STABLE_PREFIX: BreakpointOutcome = { offsetFromEnd: undefined, decision
  *  nothing above it can be pinned. One label, because it is one fix for a host: something is rewriting the
  *  bytes the cache would have pinned. */
 const PREFIX_DISRUPTED: BreakpointOutcome = { offsetFromEnd: undefined, decision: "in-prefix-injection-or-squash" };
-/** A nudge/continuation appended a SECOND volatile tail, so the round has no stable last message. */
-const SECOND_VOLATILE_TAIL: BreakpointOutcome = { offsetFromEnd: undefined, decision: "second-volatile-tail" };
 
 /** One row on its way to the wire: the row, where it came from (an index into the name-stamped rows, or `null`
  *  for SHAPE's own user tail), and why it folded, if a system row did. */
 interface DeliveryEntry {
   row: WireRow;
   readonly origin: number | null;
-  /** The cache may pin this row: it repeats byte for byte on the next turn (see {@link stableRows}). */
-  readonly stable: boolean;
   folded?: ShapeFoldReason;
 }
 
@@ -296,8 +291,8 @@ function trailingFold(lastRole: DeliveredRole | undefined, opts: DeliveryOptions
   return placement === "slot" && lastRole !== "user" && !cued ? "slot" : undefined;
 }
 
-function deliverSystemRows(rows: readonly WireRow[], stable: readonly boolean[], opts: DeliveryOptions): Delivery {
-  const entries: DeliveryEntry[] = rows.map((row, index) => ({ row, origin: index, stable: stable[index] === true }));
+function deliverSystemRows(rows: readonly WireRow[], opts: DeliveryOptions): Delivery {
+  const entries: DeliveryEntry[] = rows.map((row, index) => ({ row, origin: index }));
   const lastNonSystem = entries.findLastIndex((entry) => isLive(entry) && entry.row.role !== "system");
   foldMidArrayRuns(entries, lastNonSystem, opts);
 
@@ -315,7 +310,7 @@ function deliverSystemRows(rows: readonly WireRow[], stable: readonly boolean[],
   if (tailUser === null) {
     return { entries, tailUser };
   }
-  const tail: DeliveryEntry = { row: { role: "user", content: tailUser }, origin: null, stable: false };
+  const tail: DeliveryEntry = { row: { role: "user", content: tailUser }, origin: null };
   const keptTrailing = trailingReason === undefined ? trailing[0] : undefined;
   const at = keptTrailing === undefined ? entries.length : entries.indexOf(keptTrailing);
   return { entries: [...entries.slice(0, at), tail, ...entries.slice(at)], tailUser };
@@ -508,10 +503,9 @@ export function shape(input: ShapeInput): ShapeOutput {
   const level = clampRoleHandling(input.roleHandlingFloor ?? TURNS_FLOOR.roleHandlingFloor, input.roleHandling);
   const merges = level !== "none";
 
-  // Rows [0, stableCount) in withTail are the committed prefix the cache may pin; the last row is this turn's
-  // volatile row. The splice re-roles a depth-1 assistant injection that would merge into the last of them.
-  const stableCount = withTail.length - 1;
-  const prefixBoundaryLen = stableCount >= 1 ? stableCount : undefined;
+  // The splice re-roles a depth-1 assistant injection that would merge into the last committed row before this
+  // turn's own row (the last row of `withTail`).
+  const prefixBoundaryLen = withTail.length > 1 ? withTail.length - 1 : undefined;
 
   const runSquash = <T extends { role: DeliveredRole; content: string; name?: string }>(rows: readonly T[]): T[] =>
     merges ? squashSameRole(rows) : rows.filter((r) => r.content.trim().length > 0);
@@ -533,8 +527,8 @@ export function shape(input: ShapeInput): ShapeOutput {
   const named = runSquash(namedInput);
 
   // A multi-speaker round's group nudge, or the continuation cue for a turn that would otherwise end on the
-  // model's own reply, rides as SHAPE's user tail — a second volatile tail, so the breakpoint aborts for it.
-  const delivery = deliverSystemRows(namedInput, stableRows(withTail, stableCount, injected), {
+  // model's own reply, rides as SHAPE's user tail.
+  const delivery = deliverSystemRows(namedInput, {
     level,
     midConversationSystem: input.midConversationSystem === true,
     historySystemRows: input.historySystemRows === true,
@@ -544,15 +538,22 @@ export function shape(input: ShapeInput): ShapeOutput {
   });
   const deliveredRows = delivery.entries.map((entry) => entry.row);
   const history = runSquash(deliveredRows);
-  const historyStable = squashRunsFor(deliveredRows, merges).map((run) => run.every((index) => delivery.entries[index]?.stable === true));
 
-  const breakpoint =
-    delivery.tailUser !== null
-      ? SECOND_VOLATILE_TAIL
-      : computeHistoryBreakpoint(
-          history.map((row, index) => ({ role: row.role, stable: historyStable[index] === true })),
-          stableCount >= 1,
-        );
+  // The committed prefix the cache may pin: every canon row before this turn's own row. A turn with no row of its
+  // own (a round, a forced turn) whose only new row is SHAPE's cue has a fully committed canon, so the cue is the
+  // only volatile row and the pin is the last canon row before it.
+  const stableCount = withTail.length - (input.appendUserTurn === null && delivery.tailUser !== null ? 0 : 1);
+  const stable = stableRows(withTail, stableCount, injected);
+  const historyStable = squashRunsFor(deliveredRows, merges).map((run) =>
+    run.every((index) => {
+      const origin = delivery.entries[index]?.origin;
+      return origin !== null && origin !== undefined && stable[origin] === true;
+    }),
+  );
+  const breakpoint = computeHistoryBreakpoint(
+    history.map((row, index) => ({ role: row.role, stable: historyStable[index] === true })),
+    stableCount >= 1,
+  );
 
   // The content-free DELIVERED-row trace (`ShapeTrace.rows`) — order, role, voice, provenance, size, fold.
   const delivered = traceDeliveredRows({ injected, namedInput, delivery, history, merges });

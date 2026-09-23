@@ -350,7 +350,7 @@ export interface AssemblyBudgetPreview {
 /** Why SHAPE did/didn't place the §8 cache breakpoint — the abort taxonomy, content-free. Declared ONCE as
  *  a tuple and DERIVED (no inline-union re-spell; §5.5). The server builder (`chat/assembly/trace.ts`) labels
  *  the outcome; the host inspector renders it. */
-export const SHAPE_BREAKPOINT_DECISIONS = ["placed", "no-stable-prefix", "in-prefix-injection-or-squash", "second-volatile-tail"] as const;
+export const SHAPE_BREAKPOINT_DECISIONS = ["placed", "no-stable-prefix", "in-prefix-injection-or-squash"] as const;
 export type ShapeBreakpointDecision = (typeof SHAPE_BREAKPOINT_DECISIONS)[number];
 
 /** WHERE one delivered wire row's bytes came from — the provenance axis of {@link ShapeTraceRow}. Declared

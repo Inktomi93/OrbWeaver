@@ -117,10 +117,11 @@ describe("shape — the breakpoint", () => {
     ]);
   });
 
-  test("ABORT #3: a group nudge appends a second volatile tail → undefined", () => {
+  // Owner ruling: a cued round pins the last canon row before the cue, so the cue is the only volatile row.
+  test("a group cue on a sent turn joins the volatile turn; the pin stays on the reply before it", () => {
     const out = shape(soloInput({ groupNudge: "[Write the next reply only as Aria.]" }));
-    expect(out.cacheBreakpointFromEnd).toBeUndefined();
-    expect(out.breakpointDecision).toBe("second-volatile-tail");
+    expect(out.breakpointDecision).toBe("placed");
+    expect(pinnedRow(out)?.content).toBe("a1 tip");
   });
 
   test("first turn (no stable prefix) → undefined", () => {
@@ -129,7 +130,7 @@ describe("shape — the breakpoint", () => {
     expect(out.breakpointDecision).toBe("no-stable-prefix");
   });
 
-  test("narrator force round (ends on assistant → CONTINUATION_NUDGE) → undefined + a user tail", () => {
+  test("narrator force round (ends on assistant → CONTINUATION_NUDGE) → the last reply is pinned + a user tail", () => {
     const out = shape(
       soloInput({
         canon: SOLO_CANON,
@@ -138,7 +139,8 @@ describe("shape — the breakpoint", () => {
         cardScope: "merged",
       }),
     );
-    expect(out.cacheBreakpointFromEnd).toBeUndefined();
+    // The canon is committed to its last row; the cue is the only volatile row.
+    expect(pinnedRow(out)?.content).toBe("a1 tip");
     expect(out.history.at(-1)).toEqual({ role: "user", content: "[Continue the conversation.]" });
   });
 
@@ -1317,6 +1319,54 @@ describe("shape — the new-chat marker opens the history as a bare user row", (
   });
 });
 
+// ── CUED ROUNDS pin the last canon row before the cue (owner ruling) ───────────────────────────────────────
+// A group round cue, a narrator cue and the continuation cue used to make every such round a "second volatile
+// tail" with no history breakpoint at all, so group and narrator rooms billed the whole history every round
+// (SHAPING-MATRIX §8 defect 3). The canon before SHAPE's own cue is committed, so the cue is the only volatile
+// row.
+describe("shape — a cued round pins the last canon row before the cue", () => {
+  const roundCanon = [
+    { role: "assistant" as const, content: "g", authorName: "Aria", characterId: ARIA },
+    { role: "user" as const, content: "u1", authorName: "User" },
+    { role: "assistant" as const, content: "a1", authorName: "Aria", characterId: ARIA },
+  ];
+
+  test("a group round cue", () => {
+    const out = shape(soloInput({ canon: roundCanon, appendUserTurn: null, groupNudge: "[Write the next reply only as Kai.]" }));
+    expect(out.history.at(-1)).toEqual({ role: "user", content: "[Write the next reply only as Kai.]" });
+    expect(out.breakpointDecision).toBe("placed");
+    expect(pinnedRow(out)?.content).toBe("a1");
+  });
+
+  test("a narrator cue", () => {
+    const out = shape(soloInput({ canon: roundCanon, appendUserTurn: null, output: "narrator", groupNudge: "[Continue the scene.]" }));
+    expect(pinnedRow(out)?.content).toBe("a1");
+  });
+
+  test("the continuation cue on a forced turn", () => {
+    const out = shape(soloInput({ canon: roundCanon, appendUserTurn: null }));
+    expect(out.history.at(-1)).toEqual({ role: "user", content: "[Continue the conversation.]" });
+    expect(pinnedRow(out)?.content).toBe("a1");
+  });
+
+  test("the second speaker of a round pins the first speaker's committed reply", () => {
+    const afterFirst = [
+      ...roundCanon,
+      { role: "user" as const, content: "u2", authorName: "User" },
+      { role: "assistant" as const, content: "first", authorName: "Kai", characterId: KAI },
+    ];
+    const out = shape(soloInput({ canon: afterFirst, appendUserTurn: null, groupNudge: "[Write the next reply only as Aria.]" }));
+    expect(pinnedRow(out)?.content).toBe("Kai: first");
+  });
+
+  test("the first speaker of a round: the sent turn merges with the cue, so the pin is the reply before it", () => {
+    const sent = [...roundCanon, { role: "user" as const, content: "u2", authorName: "User" }];
+    const out = shape(soloInput({ canon: sent, appendUserTurn: null, groupNudge: "[Write the next reply only as Kai.]" }));
+    expect(out.history.at(-1)?.content).toBe("u2\n\n[Write the next reply only as Kai.]");
+    expect(pinnedRow(out)?.content).toBe("a1");
+  });
+});
+
 // ── ROLES FOLLOW THE AUTHOR: the level × turn-shape × injection matrix (owner ruling) ─────────────────────
 // A system-role injection keeps its author's position and stays a `system` row only where the level and the
 // model take it in that slot; otherwise it folds into user text with a reason. The model here is the measured
@@ -1373,15 +1423,15 @@ describe("shape — system rows by level × turn × injection", () => {
       { "d0 system then user": ["AUAUAU", ["level"]], "d0 user then system": ["AUAUAU", ["level"]], "d4 system": ["AUAUAU", ["level"]] },
     ),
   };
-  /** The row the cache pins on a send: the reply before the new turn, or — with the depth-4 note — the user row
-   *  above the note when it stays a system row, and the greeting when it folds into that user row. A cued round
-   *  pins nothing yet. */
-  const expectedPin = (level: RoleHandling, turn: TurnName, injection: InjectionName): string | undefined => {
-    if (turn === "round" || turn === "narrator") {
-      return;
-    }
+  /** The row the cache pins: the last reply before this turn's rows, or — with the depth-4 note — the row above
+   *  it. On a send the note lands under u1 (the pin is u1, or the greeting when the note folds into u1); on a
+   *  cued round it lands under the greeting. */
+  const expectedPin = (level: RoleHandling, turn: TurnName, injection: InjectionName): string => {
     if (injection !== "d4 system") {
       return "a2";
+    }
+    if (turn === "round" || turn === "narrator") {
+      return "g";
     }
     return SYSTEM_ROW_PLACEMENT[level] === "fold" ? "g" : "u1";
   };
@@ -1406,6 +1456,7 @@ describe("shape — system rows by level × turn × injection", () => {
           expect(out.history.map((row) => roleLetter[row.role]).join("")).toBe(roles);
           expect(out.stages.delivered.flatMap((row) => (row.folded === undefined ? [] : [row.folded]))).toStrictEqual(folds);
           // The cache pin: the last stable row above every injection and every row this turn wrote.
+          expect(out.breakpointDecision).toBe("placed");
           expect(pinnedRow(out)?.content).toBe(expectedPin(level, turn, injection));
           // Every turn's last non-system row is a user row: SHAPE's cue never lands after a kept system row.
           expect(out.history.findLast((row) => row.role !== "system")?.role).toBe("user");
