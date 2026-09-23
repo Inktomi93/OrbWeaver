@@ -46,7 +46,8 @@ test("set takes a leading run of ids, the state last, and only the flags it was 
     patch: { state: "blocked", blocked: "on 1", priority: null },
   });
   expect(parseDocCommand(["land", "3", "--evidence", "abc"])).toEqual({ kind: "land", ids: [3], evidence: "abc" });
-  expect(parseDocCommand(["land", "--merged"])).toEqual({ kind: "land-merged" });
+  expect(parseDocCommand(["land", "--merged"])).toEqual({ kind: "land-merged", headMerge: false });
+  expect(parseDocCommand(["land", "--merged", "--head-merge"])).toEqual({ kind: "land-merged", headMerge: true });
   expect(parseDocCommand(["status", "superseded", "docs/adr/0001-a.md", "--by", "docs/adr/0002-b.md"])).toEqual({
     kind: "status",
     status: "superseded",
@@ -97,6 +98,8 @@ test("misuse is a UsageError: an unknown verb, a bad slug, a missing required fl
     ["set", "1", "--kind", "adr"],
     ["remove"],
     ["remove", "3", "--force"],
+    ["land", "--merged", "--bogus"],
+    ["land", "--merged", "--head-merge", "extra"],
     ["archive", "p"],
     ["new", "law", "Not A Slug"],
     ["new", "law", "x", "--context", "an ADR flag"],

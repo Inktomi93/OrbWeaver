@@ -129,8 +129,11 @@ post-checkout:
 # THE GAP git LEAVES: a merge finished by a separate `git commit` — `--no-ff --no-commit` + `git commit`,
 # or a conflict resolved the same way — runs NO post-merge hook; git only fires post-commit for it. The
 # post-commit command below covers that gap: it is a no-op unless HEAD itself is a merge commit (a second
-# parent), so an ordinary feature commit never touches it, and `land --merged` reads `HEAD^1..HEAD` for a
-# merge commit instead of the post-merge-only `ORIG_HEAD..HEAD` (mergedCommits, tooling/src/doc/ops/tree.ts).
+# parent), so an ordinary feature commit never touches it. It passes `--head-merge`, which reads
+# `HEAD^1..HEAD` instead of post-merge's `ORIG_HEAD..HEAD` (mergedCommits, tooling/src/doc/ops/tree.ts) —
+# the range is picked by WHICH HOOK FIRED, never by HEAD's shape: a fast-forward onto a branch whose tip is
+# already a merge commit still fires post-merge (not post-commit), and `HEAD^1..HEAD` there would see only
+# that merge's second-parent side and drop every id the fast-forward carried in on the first-parent side.
 # landItems is idempotent — an already-landed id is skipped — so the rare case where both hooks would fire
 # for the same merge costs nothing.
 post-merge:
@@ -143,7 +146,7 @@ post-merge:
 post-commit:
   commands:
     land-merged-commit:
-      run: if git rev-parse --verify -q HEAD^2 >/dev/null; then node tooling/src/doc/cli.ts land --merged; fi
+      run: if git rev-parse --verify -q HEAD^2 >/dev/null; then node tooling/src/doc/cli.ts land --merged --head-merge; fi
       env:
         NO_COLOR: "1"
 
