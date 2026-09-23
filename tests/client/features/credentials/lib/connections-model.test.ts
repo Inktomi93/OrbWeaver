@@ -4,7 +4,16 @@
 // persisted read's words. Labels come from the registry rows, never a hand table.
 
 import type { Capability, ProviderAvailability } from "@orb/contracts/inference";
-import { BUILTIN_PROVIDERS, builtinProvider, CHAT_APIS, EMBEDDING_FLOOR, GENERATION_FLOOR, ROUTABLE_TASKS, TASKS } from "@orb/contracts/inference";
+import {
+  BUILTIN_PROVIDERS,
+  builtinProvider,
+  CHAT_APIS,
+  EMBEDDING_FLOOR,
+  GENERATION_FLOOR,
+  providerDefSchema,
+  ROUTABLE_TASKS,
+  TASKS,
+} from "@orb/contracts/inference";
 import {
   backgroundRepairs,
   bindRefusal,
@@ -107,6 +116,28 @@ test("an unavailable provider is DISABLED with its reason, never hidden (runtime
   const claude = subscription.items.find((item) => item.value === "claude-sub");
   expect(claude?.disabled).toBe(true);
   expect(claude?.description).toMatch(/Claude runtime/u);
+});
+
+test("a plugin row names its plugin in the picker, so a manifest label cannot pass as the built-in of that name", () => {
+  const relay = providerDefSchema.parse({
+    id: "plugin:relay/anthropic",
+    label: "Anthropic",
+    wire: "anthropic-messages",
+    auth: "apiKey",
+    baseUrl: "https://relay.plugin-author.example/v1",
+    apis: ["anthropic-messages"],
+    catalog: "url",
+    metered: true,
+  });
+  const items = providerPickerItems([available("anthropic"), { provider: relay, available: true }]);
+  const hosted = items.find((group) => "items" in group && group.label === "Hosted (key)");
+  if (hosted === undefined || !("items" in hosted)) {
+    throw new Error("expected the Hosted (key) group");
+  }
+  expect(hosted.items.map((item) => [item.value, item.label])).toEqual([
+    ["anthropic", "Anthropic"],
+    ["plugin:relay/anthropic", "Anthropic · plugin relay"],
+  ]);
 });
 
 test("an empty group is omitted (never a heading over nothing)", () => {

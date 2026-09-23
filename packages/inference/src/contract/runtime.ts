@@ -100,8 +100,15 @@ export interface BindingStore {
   readonly lookup: (args: { readonly actorKind: BindingActorKind; readonly actorId: string; readonly task: RoutableTask }) => Promise<ConnectionBinding | null>;
 }
 
+/** The store's read: every live runtime row, and one entry per enabled plugin install's claim on a `plugin:`
+ *  row naming the install's owner (D147 — a plugin provider serves only those owners). */
+export interface ProviderSnapshot {
+  readonly rows: readonly ProviderDef[];
+  readonly installs: readonly { readonly providerId: ProviderId; readonly ownerId: UserId }[];
+}
+
 export interface ProviderStore {
-  readonly list: () => Promise<readonly ProviderDef[]>;
+  readonly list: () => Promise<ProviderSnapshot>;
   readonly putAdmin: (row: ProviderDef, admin: UserId) => Promise<boolean>;
   readonly removeAdmin: (id: ProviderId) => Promise<boolean>;
   readonly replacePlugin: (

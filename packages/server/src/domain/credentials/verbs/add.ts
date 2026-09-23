@@ -25,7 +25,7 @@ export function createAdd(ctx: CredentialContext): CredentialsService["add"] {
     if (!ctx.box.enabled) {
       throw new DomainOperationError(CREDENTIALS_OP_CODES.disabled, "Per-user credential storage is disabled (no CREDENTIALS_KEY configured).");
     }
-    const registeredProvider = ctx.findProvider(params.provider);
+    const registeredProvider = ctx.findProvider(params.provider, ownerId);
     if (registeredProvider === undefined) {
       throw new DomainOperationError(CREDENTIALS_OP_CODES.providerUnknown, `"${params.provider}" is not a registered provider.`);
     }

@@ -39,7 +39,7 @@ async function storedActorFor(ctx: ConnectionContext, userId: UserId, actor: Bin
 
 /** The tasks this row may be bound to — provider × the model's kind. */
 function servableTasks(ctx: ConnectionContext, row: UserConnection): readonly RoutableTask[] {
-  const provider = ctx.runtime.providers.registry.get(row.providerId);
+  const provider = ctx.runtime.providers.registry.get(row.providerId, row.ownerId);
   if (provider === undefined) {
     return [];
   }

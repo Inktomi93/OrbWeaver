@@ -1,9 +1,9 @@
 // verbs: catalogModels · draftCatalogModels · refreshCatalog — delegations to the runtime's ONE catalog read
 // (`runtime.catalogs.models`, a draft-shaped read). The door's job is the refusals, judged BEFORE any dial by the
-// same substrate `create` uses: the provider is registered, an endpoint draft names an admitted server (the F12
-// admission; the SSRF guard judges the dial itself), and a named credential is the caller's. A dial that fails
-// or lists nothing is `listed: false` with its reason, never a throw and never an empty success — the pane
-// offers the typed-id fallback and says why (§7.4).
+// same substrate `create` uses: the provider is one the caller may use, an endpoint draft names an admitted
+// server (the F12 admission; the SSRF guard judges the dial itself), and a named credential is the caller's. A
+// dial that fails or lists nothing is `listed: false` with its reason, never a throw and never an empty success
+// — the pane offers the typed-id fallback and says why (§7.4).
 //   • `draftCatalogModels` — the add dialog, before the row exists: the provider being authored, its saved
 //     credential or raw key, and an endpoint row's own server. The provider id is the one the key was sealed
 //     under, so a re-list by a saved credential opens it (a probe judged under another id cannot decrypt).
@@ -22,9 +22,11 @@ function createCatalogModels(ctx: ConnectionContext): ConnectionService["catalog
     if (row === null) {
       throw new ConnectionNotFoundError(params.connectionId);
     }
+    // A saved row is re-judged, not trusted: it may name a plugin provider the owner no longer holds enabled.
+    const provider = requireProvider(ctx, row.ownerId, row.providerId);
     return ctx.runtime.catalogs.models({
       principal: params.principal,
-      providerId: row.providerId,
+      providerId: provider.id,
       secret: { credentialId: row.credentialId },
       baseUrl: row.baseUrl,
       headers: row.transport?.headers,
@@ -35,7 +37,7 @@ function createCatalogModels(ctx: ConnectionContext): ConnectionService["catalog
 /** A named credential is gated even when a raw key rides beside it, so naming a stranger's id is always refused. */
 function createDraftCatalogModels(ctx: ConnectionContext): ConnectionService["draftCatalogModels"] {
   return async (params): Promise<ModelListing> => {
-    const provider = requireProvider(ctx, params.providerId);
+    const provider = requireProvider(ctx, params.principal.userId, params.providerId);
     const baseUrl = params.baseUrl ?? null;
     const credentialId = params.credentialId ?? null;
     requireBaseUrl(ctx, provider, baseUrl);

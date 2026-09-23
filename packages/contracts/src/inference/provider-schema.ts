@@ -35,6 +35,13 @@ export function pluginNameOfProviderId(id: string): string | undefined {
   return PLUGIN_PROVIDER_ID.exec(id)?.[1];
 }
 
+/** The name a person sees for a provider row. A plugin row carries its plugin's name, so a manifest label
+ *  such as "Anthropic" never reads as the built-in row of that name. */
+export function providerDisplayLabel(provider: { readonly id: string; readonly label: string }): string {
+  const plugin = pluginNameOfProviderId(provider.id);
+  return plugin === undefined ? provider.label : `${provider.label} · plugin ${plugin}`;
+}
+
 /** WHICH TRANSPORT PACKAGE speaks the `openai-compat` wire — nothing else. A server's quirks are `features`. */
 export const DIALECTS = ["openai-compatible", "openrouter"] as const;
 export type Dialect = (typeof DIALECTS)[number];

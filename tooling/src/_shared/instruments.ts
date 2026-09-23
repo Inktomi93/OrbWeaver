@@ -17,6 +17,7 @@ export const INSTRUMENT_TOOLS = [
   "mutation-probe",
   "mutation-arid",
   "review-mirror",
+  "cache-check",
 ] as const;
 
 /** @public — the member union. */

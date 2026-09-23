@@ -3,18 +3,26 @@
 // so a runtime row can never inherit another id's sealed credentials by AAD. Rows persist in `provider_rows`;
 // a connection on a not-yet-activated plugin provider reads `no-connection` until activation, never a parse
 // error.
+// SCOPE (D147): every read names its viewer. A `plugin:` row answers only a viewer who owns an enabled install
+// contributing it; any other viewer gets the same `undefined` an unregistered id gets. The namespace is the
+// discriminant because both write doors pin it: an admin row may not take a `plugin:` id and a built-in row
+// is refused one by schema. A plugin row with no known installer answers nobody.
 
 import type { ProviderDef, ProviderId } from "@orb/contracts/inference";
 import { BUILTIN_PROVIDERS, isPluginProviderId, pluginNameOfProviderId, providerDefSchema } from "@orb/contracts/inference";
-import type { PluginId } from "@orb/kit/ids";
+import type { PluginId, UserId } from "@orb/kit/ids";
 import { z } from "zod";
 import { ProviderError } from "../contract/errors.ts";
-import type { ProviderOrigin } from "../contract/runtime.ts";
+import type { ProviderOrigin, ProviderSnapshot } from "../contract/runtime.ts";
 import type { ProviderStore } from "../deps.ts";
 
 export interface ProviderRegistry {
-  readonly get: (id: string) => ProviderDef | undefined;
-  readonly list: () => readonly ProviderDef[];
+  /** The row `viewer` may use: a built-in or admin row, or a plugin row one of `viewer`'s enabled installs contributes. */
+  readonly get: (id: string, viewer: UserId) => ProviderDef | undefined;
+  /** Every row `viewer` may use, under the same rule as {@link ProviderRegistry.get}. */
+  readonly list: (viewer: UserId) => readonly ProviderDef[];
+  /** A deployment-wide row (built-in or admin) for a principal-free operator path. Never a plugin row. */
+  readonly deploymentRow: (id: string) => ProviderDef | undefined;
   /** Refuses a built-in id, a plugin row whose namespace is not its own plugin's, and a malformed row. */
   readonly register: (row: unknown, origin: ProviderOrigin) => Promise<ProviderDef>;
   readonly drop: (id: ProviderId) => Promise<void>;
@@ -26,10 +34,31 @@ export interface ProviderRegistry {
   readonly refresh: () => Promise<void>;
 }
 
+function installersByProvider(snapshot: ProviderSnapshot): Map<string, ReadonlySet<UserId>> {
+  const byProvider = new Map<string, Set<UserId>>();
+  for (const install of snapshot.installs) {
+    const owners = byProvider.get(install.providerId) ?? new Set<UserId>();
+    owners.add(install.ownerId);
+    byProvider.set(install.providerId, owners);
+  }
+  return byProvider;
+}
+
+function replaceEntries<V>(target: Map<string, V>, next: ReadonlyMap<string, V>): void {
+  target.clear();
+  for (const [key, value] of next) {
+    target.set(key, value);
+  }
+}
+
 export async function createProviderRegistry(store: ProviderStore): Promise<ProviderRegistry> {
   const builtins = new Map<string, ProviderDef>(BUILTIN_PROVIDERS.map((row) => [row.id, row]));
   const runtime = new Map<string, ProviderDef>();
+  const installers = new Map<string, ReadonlySet<UserId>>();
   let publicationTail: Promise<void> = Promise.resolve();
+
+  const usableBy = (row: ProviderDef, viewer: UserId): boolean => !isPluginProviderId(row.id) || (installers.get(row.id)?.has(viewer) ?? false);
+  const rowOf = (id: string): ProviderDef | undefined => builtins.get(id) ?? runtime.get(id);
 
   const publishInOrder = <T>(publish: () => Promise<T> | T): Promise<T> => {
     const publication = publicationTail.then(publish);
@@ -45,7 +74,7 @@ export async function createProviderRegistry(store: ProviderStore): Promise<Prov
     // Start the read at invocation time, but publish snapshots in invocation order. Two plugin installs can
     // contribute the same immutable ProviderId, so their per-plugin lifecycle lanes do not order the final
     // removal against an older one-contributor read.
-    let read: Promise<readonly ProviderDef[]>;
+    let read: Promise<ProviderSnapshot>;
     try {
       read = store.list();
       // @orb-waive caught-failure-ownership(error): a synchronous store refusal becomes `read`'s rejection and is rethrown from the ordered publication below. Ends if the `!listed.ok` arm stops throwing `listed.error`.
@@ -54,7 +83,7 @@ export async function createProviderRegistry(store: ProviderStore): Promise<Prov
     }
     // @orb-waive caught-failure-ownership(read): the rejection is retained as the `ok:false` snapshot and rethrown inside `publishInOrder`; it is never treated as an empty provider list. Ends if the `!listed.ok` arm stops throwing.
     const snapshot = read.then(
-      (rows) => ({ ok: true as const, rows }),
+      (value) => ({ ok: true as const, value }),
       (error: unknown) => ({ ok: false as const, error }),
     );
     return publishInOrder(async () => {
@@ -62,16 +91,8 @@ export async function createProviderRegistry(store: ProviderStore): Promise<Prov
       if (!listed.ok) {
         throw listed.error;
       }
-      const next = new Map<string, ProviderDef>();
-      for (const row of listed.rows) {
-        if (!builtins.has(row.id)) {
-          next.set(row.id, row);
-        }
-      }
-      runtime.clear();
-      for (const [id, row] of next) {
-        runtime.set(id, row);
-      }
+      replaceEntries(runtime, new Map(listed.value.rows.filter((row) => !builtins.has(row.id)).map((row) => [row.id, row])));
+      replaceEntries(installers, installersByProvider(listed.value));
     });
   };
   await refresh();
@@ -133,8 +154,15 @@ export async function createProviderRegistry(store: ProviderStore): Promise<Prov
   };
 
   return {
-    get: (id) => builtins.get(id) ?? runtime.get(id),
-    list: () => [...builtins.values(), ...runtime.values()],
+    get: (id, viewer): ProviderDef | undefined => {
+      const row = rowOf(id);
+      return row !== undefined && usableBy(row, viewer) ? row : undefined;
+    },
+    list: (viewer) => [...builtins.values(), ...runtime.values()].filter((row) => usableBy(row, viewer)),
+    deploymentRow: (id): ProviderDef | undefined => {
+      const row = rowOf(id);
+      return row === undefined || isPluginProviderId(row.id) ? undefined : row;
+    },
     register: async (raw, origin): Promise<ProviderDef> => {
       const row = parseRow(raw);
       if (builtins.has(row.id)) {

@@ -9,6 +9,7 @@ import type { Db } from "@orb/db";
 import { pluginProviderContributions, plugins, providerRows } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
+import type { ProviderSnapshot } from "@orb/inference";
 import type { PluginId, UserId } from "@orb/kit/ids";
 import { and, eq, exists, inArray, notExists, notInArray, or } from "drizzle-orm";
 import { conflictingProviderDefinition, indexProviderDefinitions, providerDefinitionHash } from "../substrate/provider-definitions.ts";
@@ -74,19 +75,26 @@ async function reconcileInactivePluginRows(db: Db): Promise<void> {
 }
 
 /** A live plugin row must have at least one contribution from an enabled plugin. The explicit status join is
- * also a fail-closed read belt if reconciliation is interrupted before it commits. */
-export async function listProviderRows(db: Db): Promise<readonly ProviderDef[]> {
+ * also a fail-closed read belt if reconciliation is interrupted before it commits. `installs` is the same join
+ * projected to each contributing install's OWNER: the registry serves a plugin row to exactly those users
+ * (D147), so ownership comes from `plugins.owner_id` through the contribution FK, never from a caller. */
+export async function listProviderRows(db: Db): Promise<ProviderSnapshot> {
   await reconcileInactivePluginRows(db);
+  const enabledContribution = and(eq(plugins.id, pluginProviderContributions.pluginId), eq(plugins.status, "enabled"));
   const contributed = db
     .select({ providerId: pluginProviderContributions.providerId })
     .from(pluginProviderContributions)
-    .innerJoin(plugins, and(eq(plugins.id, pluginProviderContributions.pluginId), eq(plugins.status, "enabled")))
+    .innerJoin(plugins, enabledContribution)
     .where(eq(pluginProviderContributions.providerId, providerRows.id));
   const rows = await db
     .select()
     .from(providerRows)
     .where(or(eq(providerRows.originKind, "admin"), exists(contributed)));
-  return rows.map(toProviderDef);
+  const installs = await db
+    .selectDistinct({ providerId: pluginProviderContributions.providerId, ownerId: plugins.ownerId })
+    .from(pluginProviderContributions)
+    .innerJoin(plugins, enabledContribution);
+  return { rows: rows.map(toProviderDef), installs };
 }
 
 /** Admin rows may update admin rows, but can never adopt a plugin-contributed id. */
