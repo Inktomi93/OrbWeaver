@@ -226,4 +226,12 @@ export const gate = defineGate({
       why: "no backticked file paths in the ledger text means no findings — a clean ledger stays clean",
     },
   ],
+  mustRefuse: [
+    {
+      mode: "resource",
+      files: { "packages/server/src/domain/chat/verbs/read.ts": "export const x = 1;\n" },
+      expect: { messageIncludes: "ledger:d-ledger is" },
+      why: "THE SUPPLY REFUSAL (law §6.3): mustPass[2] minus the ledger. With no `docs/adr` entry the `d-ledger` resource is not ready, so the owner refuses at the population phase instead of reporting zero dead cites over a ledger it never read",
+    },
+  ],
 });

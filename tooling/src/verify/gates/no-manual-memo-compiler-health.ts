@@ -1,5 +1,10 @@
 // Policy: no-manual-memo-compiler-health — the virtualized UI grants end when React Compiler stops
 // denylisting @tanstack/react-virtual. The installed bundle comes through the closed ResourceHost door.
+//
+// FAMILY: a declared SINGLETON since #0038 (it was filed under `react-origin`). That family's shared reader is
+// `lib/react-origin.ts` — the canonical identity of a React export at a call or import site. This policy reads
+// no source file: its subject is a token in the installed React Compiler bundle, the end condition the two
+// `no-manual-memo` reviewed grants name in their `endsWhen`. No React-export reader can answer that question.
 import { defineGate } from "../contract/policy.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
 
@@ -14,7 +19,7 @@ const COMPILER_PACKAGE = '{"name":"babel-plugin-react-compiler","version":"1.0.0
 
 export const gate = defineGate({
   id: "no-manual-memo-compiler-health",
-  family: "react-origin",
+  family: "no-manual-memo-compiler-health",
   authority: "hard",
   severity: "error",
   population: { in: ["@tooling"], under: [SELF] },

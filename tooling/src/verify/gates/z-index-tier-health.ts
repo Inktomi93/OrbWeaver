@@ -73,4 +73,15 @@ export const gate = defineGate({
       why: "LEGACY mustPass[4], hard half: both homes and the governed vocabulary are healthy",
     },
   ],
+  mustRefuse: [
+    {
+      mode: "resource",
+      files: {
+        "packages/ui/src/layout/x.ts": "export const l = 1;",
+        "packages/ui/src/markdown/x.ts": "export const m = 1;",
+      },
+      expect: { messageIncludes: "json:tokens is missing" },
+      why: "THE SUPPLY REFUSAL (law §6.3): mustPass[0] minus the token vault. The `tokens` JSON resource is missing, so the dispatcher withholds this owner at the population phase and the vocabulary arm never compares an absent token set against Z_TOKEN_NAMES — neither as drift nor as clean",
+    },
+  ],
 });

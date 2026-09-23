@@ -18,7 +18,9 @@
 // (a blind detector is not an occurrence anyone may waive) and `entire-population` (its verdict is
 // "does this tree contain any `infiniteQueryOptions` call at all", which cannot compose over a subset).
 // Keeping it here would have forced the whole module to `entire-population`, which over-declares: this
-// policy's per-call-site verdict composes over any selection.
+// policy's per-call-site verdict composes over any selection. Both recognise the subject through ONE reader,
+// `lib/infinite-query-factory.ts#isInfiniteQueryFactoryCall`, so the tripwire counts exactly the calls this
+// policy judges.
 //
 // POPULATION PORT: BYTE-IDENTICAL. Legacy `scanRoot: (p) => p.includes("packages/client/src/")` is exactly
 // the `@client` root (`packages/client/src/`).
@@ -83,8 +85,8 @@ import { Node, SyntaxKind } from "ts-morph";
 import { resolveStableExpression } from "../../_shared/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { unwrapExpression } from "../lib/ast-read.ts";
+import { isInfiniteQueryFactoryCall } from "../lib/infinite-query-factory.ts";
 
-const INFINITE_FACTORY = "infiniteQueryOptions";
 const MAX_PAGES = "maxPages";
 const PREVIOUS_PARAM = "getPreviousPageParam";
 const UNDEFINED = "undefined";
@@ -210,16 +212,12 @@ export const gate = defineGate({
         {
           kinds: [SyntaxKind.CallExpression],
           visit: (node): void => {
-            if (!Node.isCallExpression(node)) {
-              return;
-            }
-            const callee = node.getExpression();
-            if (!Node.isPropertyAccessExpression(callee)) {
-              return;
-            }
-            if (callee.getName() === INFINITE_FACTORY) {
+            if (isInfiniteQueryFactoryCall(node)) {
               factories.push(node);
-            } else if (LENS_METHODS.has(callee.getName())) {
+              return;
+            }
+            const callee = Node.isCallExpression(node) ? node.getExpression() : undefined;
+            if (callee !== undefined && Node.isPropertyAccessExpression(callee) && LENS_METHODS.has(callee.getName())) {
               lensedFiles.add(ctx.relativePath(node.getSourceFile()));
             }
           },

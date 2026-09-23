@@ -2,12 +2,17 @@
 // exemption. The excluded feature directory must still EXIST; an exemption naming a feature that is gone has
 // stopped exempting anything and would silently un-scan the name the day someone reuses it.
 //
-// FAMILY `surface-composition`, and this is a SPLIT rather than an arm of its sibling. `surface-in-a-container`
-// is `ordinary` — its finding anchors on a surface's exported component and an author can waive one. This
-// verdict is an ABSENCE claim about an exact PATH: it has no node, therefore no position, therefore no
-// ordinary door by construction (guide §2.1's authored-coordinate rule: *"re-anchor on authored text, or split to
-// `hard`"*), and there is nothing a site-local waiver could correctly say about a directory that is not
-// there. One authority per descriptor (§12.1) makes that a separate policy id under the shared family string.
+// A SEPARATE POLICY from `surface-in-a-container`, not an arm of it. That policy is `ordinary` — its finding
+// anchors on a surface's exported component and an author can waive one. This verdict is an ABSENCE claim
+// about an exact PATH: it has no node, therefore no position, therefore no ordinary door by construction
+// (guide §2.1's authored-coordinate rule: *"re-anchor on authored text, or split to `hard`"*), and there is
+// nothing a site-local waiver could correctly say about a directory that is not there.
+//
+// FAMILY: a declared SINGLETON since #0038 (it was filed under `surface-composition`). That family's shared
+// reader is `lib/surface-composition.ts` — what a surface FILE does (arrival focus, structural root, layout
+// container, exported component). This policy reads no surface file at all: its subject is whether one feature
+// DIRECTORY exists in the authored client-feature tree, so no reader of the family's could serve it, and a
+// constant shared only to satisfy `policy-family-readers` would prove a spelling rather than a family.
 //
 // SUCCESSOR PROOF for the retired legacy arm (§4.6). LEGACY at 854c81c80, `surface-in-a-container.ts:131-143`:
 // a `STALE_PREFIX` finding reported at the GATE'S OWN SOURCE FILE when a `SHELL_EXEMPT` name had no feature
@@ -76,7 +81,7 @@ const SHELL = { "packages/client/src/features/app-shell/surfaces/app-shell.tsx":
 
 export const gate = defineGate({
   id: "surface-in-a-container-health",
-  family: "surface-composition",
+  family: "surface-in-a-container-health",
   authority: "hard",
   severity: "error",
   population: {
