@@ -440,7 +440,7 @@ test("the revealed arm and an ordinary clipped box still fire text-overflow — 
 // The rule fired on `scrollWidth > clientWidth` alone and minted a P1 against the topbar chat title —
 // `overflow:hidden; text-overflow:ellipsis; white-space:nowrap`, scrollWidth 201 / clientWidth 116 — i.e.
 // against the house's own correct truncation idiom, on a surface where it would have fired on every
-// truncating label (docs/reviews/side-eye/2026-08-30-this-chat-cls.md §6 retraction 6 / §9-I1). Both
+// truncating label (2026-08-30 §6 retraction 6 / §9-I1). Both
 // directions are pinned here: the silences AND the bare clip that must still fire, because a rule that
 // only learns to shut up is a deleted rule.
 test("a truncation that PAINTS its ellipsis is not a finding — on the node or on the clipping ancestor", async ({ mount, page }) => {

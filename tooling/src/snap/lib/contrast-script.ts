@@ -6,7 +6,7 @@
 // THE BACKDROP RESOLVER IS NOT SPELLED HERE ANY MORE (#1325). This file used to carry its own DOM-ANCESTOR
 // walk, and its own comment named the gap: "GENERIC GAP not covered: any app that paints a fixed sibling
 // over the body without this signal would still fool the root-base trust". REPRODUCED 2026-09-04
-// (docs/reviews/stickler/2026-09-04-snap-ui-audit-capability-census.md §2.1): white text over a
+// (2026-09-04 §2.1): white text over a
 // `position:fixed; z-index:-1; background:#fff` band read **21.00:1 PASS** through `--contrast`, 1.00:1
 // through `--contrast-pixel`, and P1 through design-audit. The walker's resolver answers it GENERICALLY —
 // it censuses every fixed/absolute CONTENTLESS painted layer and vetoes a base one of them sits over — so

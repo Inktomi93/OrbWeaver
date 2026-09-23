@@ -441,7 +441,7 @@
 
 /* ── A DRAWER'S LAST ROW CLEARS THE HOME INDICATOR (#1869) ────────────────────────────────────────────
  * Base UI's own bottom-sheet demos pad the popup with `calc(… + env(safe-area-inset-bottom, 0px) + …)` in
- * five separate places (docs/vendor/base-ui/components/drawer.md:528, 924, 2171, 2559, 4759). Our sealed
+ * five separate places (https://base-ui.com/react/components/drawer). Our sealed
  * drawer carried none: `drawer/variants.ts`'s `content` slot is a bare `p-section`, so on any device with a
  * home indicator the sheet's final row sat inside the gesture band.
  *

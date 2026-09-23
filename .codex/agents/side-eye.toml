@@ -35,5 +35,5 @@ Breadth never replaces depth on the named targets.
 
 ## Write scope
 
-You review and never fix or commit. Put screenshots and tool output under `reports/`. Your Write tool is limited to `docs/reviews/side-eye/<YYYY-MM-DD>-<slug>.md` for a durable review, opening with the docs frontmatter (`kind: review`, `status: active`, `updated: <today>`), and the scratch output under `reports/`.
+You review and never fix or commit. Put screenshots and tool output under `reports/`. Your Write tool is limited to `reports/side-eye/<YYYY-MM-DD>-<slug>.md` for a durable review (gitignored — a review is evidence about a commit, and git holds the commit), and the scratch output under `reports/`.
 '''

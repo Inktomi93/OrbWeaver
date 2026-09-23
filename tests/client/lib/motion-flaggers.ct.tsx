@@ -360,7 +360,7 @@ function colourTransitionStarts(page: Page): Promise<number> {
 // PERMANENT PIN for the §3.7 interactive-state colour carve-out (owner ruling 2026-08-22, #456). The
 // flagger was accusing RATIFIED behaviour — the core Card primitive's `hover:bg-accent` printed
 // `[anim] … backgroundColor … OVER BUDGET` on every interactive-card hover, app-wide
-// (docs/history/reviews/side-eye/2026-08-22-rail-home.md P3-2). A lying instrument's fix owes a pin that REDs
+// (2026-08-22 P3-2). A lying instrument's fix owes a pin that REDs
 // forever in BOTH directions, so this test carries its own positive control: the identical `:hover`
 // driving `width` must still fire. Silence alone would pass on a channel that had simply gone dead.
 test("a :hover colour transition is NOT flagged while the same :hover driving width still is (§3.7 carve-out)", async ({ mount, page }) => {

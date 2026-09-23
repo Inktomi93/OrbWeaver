@@ -11,7 +11,7 @@ Tasks #22 (Base-UI data-attribute state paint) and #24 (escaped-selector fix). L
 ## The defect class
 
 Base UI (the app's only interactive-primitive vendor) expresses interactive state as JS-driven
-`data-*` attributes, never as CSS `:hover`/`:active` (docs/vendor/base-ui/handbook/styling.md — the
+`data-*` attributes, never as CSS `:hover`/`:active` (<https://base-ui.com/react/handbook/styling> — the
 full mechanism catalogue was independently re-derived and verified 2026-09-01). Three design-audit
 walker sites scan stylesheet TEXT for the literal `:hover` and therefore cannot see that paint:
 

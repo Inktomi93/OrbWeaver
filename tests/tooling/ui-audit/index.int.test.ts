@@ -1135,7 +1135,7 @@ test("custom light and dark requests prove catalog source, inline carrier, and e
 // ── the two collision families a whole mobile review fell through (#816) ────────────────────────────
 
 // @instrument-absence-proof: MEASURED 2026-08-29 on the saved-casts picker at `--mobile`
-// (docs/reviews/side-eye/2026-08-29-saved-casts-rules.md §3 P1-1 / §9): `design-audit --mobile` censused
+// (2026-08-29 §3 P1-1 / §9): `design-audit --mobile` censused
 // 420 nodes, reached 21 controls and returned ZERO P0/P1/P2 over a cast NAME rendered at 0px with a 57px
 // natural width, and a "2 rules" badge overlapping the Start button by 48px whose own centre hit-tests to
 // that button. `snap --expect-no-overflow [role=dialog]` passed too — the collision is INSIDE the dialog.
@@ -1185,7 +1185,7 @@ auditRuleTest(
 // @instrument-proof: the `text-overflow` rule fired on `scrollWidth > clientWidth` ALONE, so it minted a
 // P1 against the topbar chat title — `overflow:hidden; text-overflow:ellipsis; white-space:nowrap`,
 // scrollWidth 201 / clientWidth 116 — i.e. against the house's own correct truncation idiom, and would
-// have fired on every truncating label in the app (docs/reviews/side-eye/2026-08-30-this-chat-cls.md §6
+// have fired on every truncating label in the app (2026-08-30 §6
 // retraction 6 / §9-I1). All three arms drive the REAL cli: the bare clip must still RED (a rule that
 // only learns to shut up is a deleted rule), and each affordance must silence it.
 

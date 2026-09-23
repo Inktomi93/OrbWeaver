@@ -10,7 +10,7 @@
 //
 // TWO MECHANISMS, ONE QUESTION. CSS `:hover` is a pseudo-class only CDP can force; Base UI — the
 // app's only interactive-primitive vendor — never uses it for its own state, setting JS-driven
-// `data-*` attributes instead (docs/vendor/base-ui/handbook/styling.md), which page JS can force
+// `data-*` attributes instead (https://base-ui.com/react/handbook/styling), which page JS can force
 // with a synchronous setAttribute/read/restore. Both spell "paint this element differently while an
 // interaction state holds", and a census that sees only one of them publishes FALSE
 // `excluded(noHoverPaint)` claims for the other (the pre-2026-09-01 state of hover-walker.ts).

@@ -3,8 +3,7 @@
 Throwaway spike harness behind the one-call-tools decision. Full writeup:
 [`docs/design/rpg-extraction-one-call-spike.md`](../../../docs/design/rpg-extraction-one-call-spike.md).
 
-**Deleted 2026-08-22 (#426), per the disposition in
-[`docs/history/reviews/tooling/2026-08-22-research-zone-assessment.md`](../../../docs/history/reviews/tooling/2026-08-22-research-zone-assessment.md):**
+**Deleted 2026-08-22 (#426), per the research-zone-assessment disposition:**
 `run.ts`, `run-coverage.ts`, `native-wire-probe.ts`, `native-format-roundtrip.ts`,
 `effort-ladder-native-vs-or.ts`, `effort-reasoning-probe.ts`, `replay-toolround.ts` — four were
 self-declared `ARCHIVED 2026-08-02 — pre-R2R3 vocabulary … do NOT run against the current contracts`

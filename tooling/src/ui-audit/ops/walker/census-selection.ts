@@ -22,7 +22,7 @@
 // A COMPONENT PART IS NOT A CHOICE (#1150) — the same ruling, the same shape of correction, one layer
 // down. Base UI publishes its state vocabulary on EVERY PART of a component, not only on the root that
 // owns the decision: `Radio.Indicator` republishes the root's `data-checked`/`data-unchecked`
-// (docs/vendor/base-ui/components/radio.md, Root :433 vs Indicator :492) and its `keepMounted` defaults
+// (https://base-ui.com/react/components/radio, the Root vs. Indicator data-attribute tables) and its `keepMounted` defaults
 // to FALSE, so the indicator EXISTS ONLY WHILE CHECKED and can never have an unselected twin. Measured on
 // the live Settings -> Appearance: the two `[data-slot=radio-group-picker-item-check]` spans formed a
 // 2-selected/0-unselected cohort and withheld `unmatchedSelected`, which made EVERY Config design-audit

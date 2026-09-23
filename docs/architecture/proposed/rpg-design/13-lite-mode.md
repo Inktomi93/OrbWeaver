@@ -21,14 +21,14 @@ updated: 2026-07-17
 > `db60bd82` · the six straggler tail rows + RPG-CONSOLE-COMMIT `c469b9ca`. Any mid-build STATUS voice
 > in this file ("IN FLIGHT / NOT BUILT / uncommitted / not yet complete / stub runner / R5 has NOT
 > started") is PRE-graduation and SUPERSEDED — the CODE (`packages/{contracts,server,client}/src/**/rpg**`)
-> wins on every detail. Frozen historical record. §Status's "NOTHING in this doc is built" is superseded — L0/L1 landed the lite vertical (MODE\_POLICY.lite, buildLiteReminder, the lite client).
+> wins on every detail. Frozen historical record. §Status's "NOTHING in this doc is built" is superseded — L0/L1 landed the lite vertical (MODE_POLICY.lite, buildLiteReminder, the lite client).
 
 > **Status: COMMITTED (D86, 2026-07-17 — amends D58) — prescriptive design; the ledger D-entry wins
 > on any conflict.** NOTHING in this doc is built (2026-07-17): it lands as the L0–L3 chunks (10 §L).
 > **\[SUPERSEDED — AS-BUILT D101: the lite tier IS built — L0 `3f6a57b2` + L1 `db60bd82` (server) +
 > L2/L3 in the wave-6 client close `4f5073ec`/`c469b9ca`.]**
 > The design record with every weighed alternative: `docs/history/design/rpg-lite-and-full-cohesion-game-plan.md`;
-> the prior-art evidence: `docs/history/reviews/misc/marinara-st-extension-lite-mode.md` (the Marinara ST
+> the prior-art evidence: the Marinara ST extension research (the Marinara ST
 > *extension* — schema-as-data trackers + the steering line; distinct from the marinara RPG corpus
 > docs 01–12 mined). This doc is AUTHORITATIVE for the mode axis and lite semantics; the stat-profile
 > SCHEMA is 03 §1.2/§4.1, its engine consumption is 04 §2/§10 — this doc consumes both, never

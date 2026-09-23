@@ -26,7 +26,7 @@
 //
 // ── THE LIST PANE'S VOICE BUDGET (#1169, owner ruling 2026-09-05 "receipt + full convergence") ──────────
 // This is the ONE home for it, for every element the Settings LIST draws. Measured across the four LIST
-// panes on 2026-09-05 (docs/reviews/misc/2026-09-05-config-list-pane-divergence.md §7): config's pane spoke
+// panes on 2026-09-05 (2026-09-05 §7): config's pane spoke
 // FOUR `data-voice` registers where chats speaks two, characters one and presets none. The set is not the
 // defect — this pane genuinely has four kinds of thing to say — but nobody had ever judged WHICH job each
 // voice holds, and two of them were doing a job that is not a voice at all. The budget, one job each:

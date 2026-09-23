@@ -191,7 +191,7 @@ export type { FontCensusInput, FontFaceInput, TextStyleInput } from "./samples-t
 // ── Text overflow (impeccable `text-overflow` — the walker measured the spill) ──
 // THE POPULATION IS "TRUNCATED WITH NO AFFORDANCE" (#825), never `scrollWidth > clientWidth`. The raw
 // form is the shape of every CORRECTLY truncating label in the app and minted a P1 against the topbar
-// chat title (docs/reviews/side-eye/2026-08-30-this-chat-cls.md §6 retraction 6). The walker silences a
+// chat title (2026-08-30 §6 retraction 6). The walker silences a
 // spill whose nearest clipping ancestor-or-self computes `text-overflow: ellipsis`, or that carries the
 // full string in a `title`/`aria-label` within four levels — so anything that reaches here is text the
 // reader can neither see nor recover.

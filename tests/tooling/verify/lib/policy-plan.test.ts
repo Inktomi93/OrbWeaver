@@ -838,10 +838,7 @@ test.describe("final policy planner", () => {
   // THE REALITY ARM for the owner ruling the five synthetic scope rows above prove against a fixture
   // corpus: the final AST/compiler population is `.ts`/`.tsx` ONLY, and a compiler-owned module script
   // must not reach a policy's source population. The receipt is the 2026-09-05 resource-layout-size
-  // inventory under `docs/reviews/stickler/`, where a real `.mts` once landed in both
-  // `declaredSourcePaths` and `effectiveSourcePaths`. (The filename is deliberately NOT spelled across
-  // a line break: `dangling-doc-cite` is hard/no-waiver and reads a wrapped path's TAIL fragment as a
-  // citation in its own right, so a wrapped doc path reds on a document that resolves perfectly.)
+  // inventory, where a real `.mts` once landed in both `declaredSourcePaths` and `effectiveSourcePaths`.
   //
   // ITS SUBJECT IS DERIVED, because the hardcoded one ROTTED. This arm used to name
   // `tests/server/infra/providers/backends/local-light/fixtures/orphan-survival-child.mts` by literal;

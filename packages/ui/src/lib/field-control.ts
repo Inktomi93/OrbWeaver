@@ -26,8 +26,8 @@ export const FIELD_CONTROL_BOX = "w-full min-w-0 rounded-control border border-i
 // `.shell-grid`), so the sideways motion could only ever have been zoom panning.
 //
 // TWO WRONGER SHAPES WERE BUILT FIRST AND THE TREE REFUSED BOTH — keep them refused:
-//   1. `any-pointer-coarse:text-base` right here, which is Base UI's own spelling (51 occurrences in
-//      docs/vendor/base-ui). `no-raw-typography-in-features` reds `text-base`: it is TAILWIND's default
+//   1. `any-pointer-coarse:text-base` right here, which is Base UI's own spelling (throughout its component
+//      docs, https://base-ui.com/react/components). `no-raw-typography-in-features` reds `text-base`: it is TAILWIND's default
 //      scale, not this system's vocabulary. A vendor's example className is not a licence to import their
 //      type scale. It ALSO could not have worked — `styles/tiers.css` is unlayered, so
 //      `[data-surface-tier] [data-slot="input-root"]` at (0,2,0) out-ranks any `@layer utilities` rule for

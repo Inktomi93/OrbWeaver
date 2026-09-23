@@ -1632,7 +1632,7 @@ test("P1-3 a starred row shows its ★ at rest on the TITLE LINE, and it yields 
 });
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────
-// THE 2026-08-22 SIDE-EYE PASS (rail sweep 4/10, docs/history/reviews/side-eye/2026-08-22-rail-characters.md).
+// THE 2026-08-22 SIDE-EYE PASS (rail sweep 4/10, 2026-08-22).
 // #491 the reachability P1s · #492 the accname P1 · #493 the honesty P2s. Every pin below is a rendered
 // tree or a rendered geometry, at the docked LIST width, on the shapes the review measured.
 

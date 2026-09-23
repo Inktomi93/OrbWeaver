@@ -137,4 +137,4 @@ Strict TS7 checks use two explicit-root scratch configurations: eight production
 
 Scoped Biome and ESLint pass on the changed source/test files. The configured dependency-cruiser run, rooted at the eight reader/contract files, cruises nine modules and 27 dependencies with zero errors, warnings, or informational findings. Its complete JSON is `/tmp/gate-shared-semantic-readers/depcruise-final.json`. Every production file is within the tooling size cap; the module-origin reader is exactly 450 lines.
 
-The independent [cold review](../stickler/2026-09-05-shared-semantic-readers.md) records the repaired missing-module doors, reverse alias writes, global-carrier write symmetry, canonical export collisions, and shared method-effect closure. It also records the declared limits; none of these receipts credits a gate conversion or closes #1584.
+The independent cold review (2026-09-05) records the repaired missing-module doors, reverse alias writes, global-carrier write symmetry, canonical export collisions, and shared method-effect closure. It also records the declared limits; none of these receipts credits a gate conversion or closes #1584.

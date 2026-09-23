@@ -90,7 +90,7 @@ const MESSAGE =
   "`data-*` attribute on that very element. That is a second source of truth for one fact: Base UI holds " +
   "`data-open` through the closing animation while a React boolean flips on the first event, so the two " +
   "disagree exactly when a transition is on screen. Base UI's state surface is documented per part " +
-  "(docs/vendor/base-ui/handbook/styling.md) and this policy reads it from the committed surface ledger, not a list.";
+  "(https://base-ui.com/react/handbook/styling) and this policy reads it from the committed surface ledger, not a list.";
 
 const FIX =
   "delete the parallel state and style off the attribute Base UI stamps: `data-[open]:…` on the element " +

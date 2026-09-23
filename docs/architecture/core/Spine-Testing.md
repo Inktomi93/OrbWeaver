@@ -263,8 +263,7 @@ overrides mutation testing requires — mutants violate all three by constructio
 `tsconfigFile` string while the compiler opens the *resolved* path, so the lookup misses and it falls back
 to the strict on-disk config. Unpatched, the whole `if (cond)` → `if (false)` mutant class is disqualified
 via TS7027 and leaves the score. Measured on one file, 47 mutants: stock native 57.89 in 9m41s; patched
-native **66.67 in 2m50s**; classic **66.67 in 3m17s** — same verdict, slightly faster. Full four-arm
-receipts live in `docs/reviews/mutation-config-calibration.md`.
+native **66.67 in 2m50s**; classic **66.67 in 3m17s** — same verdict, slightly faster.
 
 **An ARID mutant is not a test failure.** `tooling/src/mutation-arid/` (a `PluginKind.Ignore` plugin,
 wired through `ignorers: ["arid"]` in BOTH configs) drops two families that are unkillable BY DESIGN:

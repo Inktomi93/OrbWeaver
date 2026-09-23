@@ -126,7 +126,7 @@ test("a cohort that is genuinely one-sided ACROSS those wrappers is still withhe
  *  Appearance settings surface: Base UI's `Radio.Root` renders AS `PickerCell` through `render`, so ONE
  *  span carries `role=radio` + `aria-checked` + `data-checked`/`data-unchecked`, and the CHECKED cell alone
  *  mounts `Radio.Indicator` — a role-less span that republishes `data-checked` and whose `keepMounted`
- *  defaults to false (docs/vendor/base-ui/components/radio.md :492), so it can never have an unselected
+ *  defaults to false (https://base-ui.com/react/components/radio), so it can never have an unselected
  *  twin. Measured live: those indicators formed a 2-selected/0-unselected cohort and withheld
  *  `unmatchedSelected`, turning every Config audit into a NO VERDICT.
  *

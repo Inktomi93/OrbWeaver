@@ -67,7 +67,7 @@ const BUILD_TIMEOUT_MS_BASE = 300_000;
 const BUILD_TIMEOUT_MS = budget(BUILD_TIMEOUT_MS_BASE);
 
 // ── the ceiling ───────────────────────────────────────────────────────────────────────────────────────
-// CALIBRATION (the `docs/reviews/mutation-config-calibration.md` discipline: measured value, headroom,
+// CALIBRATION (the discipline: measured value, headroom,
 // re-calibrate conditions — never a bare number).
 //
 // MEASURED 2026-08-22 on the #460 lane tree (branch base 70e7c398c): dist/assets/index-CMvWBNPJ.js =
