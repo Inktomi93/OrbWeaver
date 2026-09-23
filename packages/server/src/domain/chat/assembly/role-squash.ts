@@ -6,32 +6,19 @@
 // and greet-all seeds every founding character's greeting as adjacent assistant rows — distinct-character
 // adjacency is normal group output, not an edge case.
 //
-// Extra fields on the FIRST of a same-role run are preserved (later entries' extras are dropped). The
-// `completion` names-behavior carries the speaker in an out-of-band `name` field, which a merge cannot
-// preserve — so two adjacent rows with distinct `name` fields are left un-merged.
+// Extra fields on the FIRST of a same-role run are preserved (later entries' extras are dropped), except the
+// canon `messageId`: a merged row carries the first one in its run, so a spliced injection at the head of a run
+// (the new-chat marker above the first user turn, a folded note) never hides the stored row it merged into. The
+// wire conversion reads that id for the row's attachments, card spans and carried reasoning. The `completion`
+// names-behavior carries the speaker in an out-of-band `name` field, which a merge cannot preserve — so two
+// adjacent rows with distinct `name` fields are left un-merged.
 
-import type { RoleHandling } from "@orb/contracts/inference";
+import type { MessageId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
-
-const ROLE_HANDLING_RANK: Record<RoleHandling, number> = {
-  none: 0,
-  merge: 1,
-  "semi-strict": 2,
-  strict: 3,
-};
-
-/** The effective strategy = `max(floor, knob)` under the strictness ordering. An unset knob defaults to the
- *  floor; an unset floor defaults to `strict`. */
-export function clampRoleHandling(floor: RoleHandling | undefined, knob: RoleHandling | undefined): RoleHandling {
-  const floorRank = ROLE_HANDLING_RANK[floor ?? "strict"];
-  const knobRank = knob === undefined ? floorRank : ROLE_HANDLING_RANK[knob];
-  const winner = Math.max(floorRank, knobRank);
-  return (Object.keys(ROLE_HANDLING_RANK) as RoleHandling[]).find((k) => ROLE_HANDLING_RANK[k] === winner) as RoleHandling;
-}
 
 /** The separator merged rows are joined with. Matches ST's SERVER-side `mergeMessages` (`'\n\n'`), not its
  *  client pass — see the `INJECT-NAMED-AS-PLAYER` note in `docs/history/dogfood-tracking-2026-08-08.md`. */
-const MERGE_SEPARATOR = "\n\n";
+export const MERGE_SEPARATOR = "\n\n";
 
 /**
  * The adjacency RUNS the squash forms over `history`: one entry per DELIVERED row, listing the INPUT INDICES
@@ -66,7 +53,7 @@ export function squashRuns<T extends { role: MessageRole; content: string; name?
  *  fields; merged-in rows contribute only their content. Two adjacent rows carrying distinct completion
  *  `name` fields are not merged. `system` rows (capability-kept depth-0 injections) merge only with each
  *  other — a system row never folds into a user/assistant neighbor. */
-export function squashSameRole<T extends { role: MessageRole; content: string; name?: string }>(history: readonly T[]): T[] {
+export function squashSameRole<T extends { role: MessageRole; content: string; name?: string; messageId?: MessageId | undefined }>(history: readonly T[]): T[] {
   const result: T[] = [];
   for (const run of squashRuns(history)) {
     const rows = run.flatMap((index) => history[index] ?? []);
@@ -74,7 +61,12 @@ export function squashSameRole<T extends { role: MessageRole; content: string; n
     if (head === undefined) {
       continue;
     }
-    result.push(rows.length === 1 ? head : { ...head, content: rows.map((row) => row.content).join(MERGE_SEPARATOR) });
+    if (rows.length === 1) {
+      result.push(head);
+      continue;
+    }
+    const messageId = rows.find((row) => row.messageId !== undefined)?.messageId;
+    result.push({ ...head, content: rows.map((row) => row.content).join(MERGE_SEPARATOR), ...(messageId === undefined ? {} : { messageId }) });
   }
   return result;
 }

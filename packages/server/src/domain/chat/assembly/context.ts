@@ -17,7 +17,7 @@ import type {
 } from "@orb/contracts/chat";
 import { speakerKey } from "@orb/contracts/chat";
 import type { GenerationType, PromptConfig } from "@orb/contracts/preset";
-import { DEFAULT_FORMAT_STRINGS, DEFAULT_GUIDED_ACTIONS, PRESET_FORMAT_SLOT_IDS, REWRITE_TOGGLES } from "@orb/contracts/preset";
+import { DEFAULT_GUIDED_ACTIONS, PRESET_FORMAT_SLOT_IDS, REWRITE_TOGGLES } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { composeProse, legacyProseOverrides, resolveProseText, resolveSteerFragments } from "@orb/contracts/prose";
 import type { RegexScriptRow } from "@orb/contracts/regex";
@@ -579,27 +579,24 @@ function resolveGuidedSteer(base: AssembleContext, input: BuildAssembleContextIn
   return { candidates: [guidedInjectionCandidate(resolved, placement.role, config.depth)] };
 }
 
-/** G9 — the history-START boundary (`formatStrings.newChatMarker`; ST `new_chat_prompt`, §6.5 census).
- *  BLANK/absent ⇒ NO candidate, which is byte-identical to every pre-G9 turn (the shipped slot default is
- *  blank). Set ⇒ ONE system-role injection at {@link BEFORE_HISTORY_DEPTH}: the splice clamps that to the
- *  history length, so it lands ABOVE the first canon row — and, like every other non-tail system injection,
- *  it demotes to the visible `[Note from system: …]` framing on a model with no mid-conversation system
- *  channel. `ignoreBudget` because a boundary marker silently dropped by the budget pass is exactly the
- *  silent break this slot exists to make visible; it is one line of text. */
+/** G9 — the history-START boundary (`formatStrings.newChatMarker`; ST `new_chat_prompt`, §6.5 census). ONE
+ *  USER-role injection at {@link BEFORE_HISTORY_DEPTH}: the splice clamps that to the history length, so it lands
+ *  ABOVE the first canon row, and a greeting-first chat opens on a user row on every route. The role is fixed,
+ *  as in SillyTavern; only the text is the preset's (blank inherits the shipped slot, like every format string).
+ *  `ignoreBudget` because a boundary marker silently dropped by the budget pass is exactly the silent break this
+ *  slot exists to prevent; it is one line of text. */
 function newChatMarkerCandidate(base: AssembleContext, input: BuildAssembleContextInput): InjectionCandidate[] {
-  // Read straight off the preset (no PROSE-1 resolver rung): this key ships NO default bytes — blank IS the
-  // shipped behavior — so there is no slot to fall back to (`contracts/preset/prose.ts` states why).
-  const template = input.promptConfig.formatStrings?.newChatMarker ?? DEFAULT_FORMAT_STRINGS.newChatMarker;
-  if (template.trim().length === 0) {
-    return [];
-  }
+  const template = resolveProseText(
+    PRESET_FORMAT_SLOT_IDS.newChatMarker,
+    legacyProseOverrides(PRESET_FORMAT_SLOT_IDS.newChatMarker, input.promptConfig.formatStrings?.newChatMarker),
+  );
   const content = renderMacros(template, base, base.activePersona, { registry: input.macroRegistry }).trim();
   if (content.length === 0) {
     return [];
   }
   return [
     {
-      injection: { position: "in_chat", depth: BEFORE_HISTORY_DEPTH, role: "system", content, origin: "new-chat-marker" },
+      injection: { position: "in_chat", depth: BEFORE_HISTORY_DEPTH, role: "user", content, origin: "new-chat-marker" },
       tokens: estimateTokens(content),
       ignoreBudget: true,
       priority: OPERATOR_PRIORITY,

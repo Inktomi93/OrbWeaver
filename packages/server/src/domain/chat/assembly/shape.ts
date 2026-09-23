@@ -1,7 +1,14 @@
 // domain/chat/assembly/shape — the SHAPE substrate: the per-runner, per-speaker transform turning
 // (canon history, injections, speaker, params) into the final WIRE history + the cache breakpoint offset.
-// Order: scope-to-speaker → splice in_chat by depth → name-stamp → squash same-role → continuation nudge.
-// Name-stamp runs before the final squash so adjacent distinct-character rows keep every speaker's label.
+// Order: scope-to-speaker → splice in_chat by depth → name-stamp → deliver system rows + place the user tail →
+// squash same-role. Name-stamp runs before the squash so adjacent distinct-character rows keep every
+// speaker's label.
+//
+// ROLES FOLLOW THE AUTHOR (owner ruling). Every injection keeps the role and position its author chose; SHAPE
+// never reorders one. A system-role row stays a real `system` row only where the turn's message-handling level
+// and the model take it in that slot, and folds into user text in its neutral frame otherwise
+// ({@link deliverSystemRows}). SHAPE's own user tail (the group or continuation cue) is placed so the rows
+// around it stay legal: before a trailing system run, never after it.
 
 import type {
   AssembleContext,
@@ -11,34 +18,36 @@ import type {
   MessageKindPolicy,
   MessageView,
   ShapeBreakpointDecision,
+  ShapeFoldReason,
   ShapeRowSource,
   ShapeTraceRow,
 } from "@orb/contracts/chat";
 import { MESSAGE_KIND_POLICY } from "@orb/contracts/chat";
-import type { RoleHandling } from "@orb/contracts/inference";
+import type { RoleHandling, SystemRowPlacement } from "@orb/contracts/inference";
+import { clampRoleHandling, SYSTEM_ROW_PLACEMENT, TURNS_FLOOR } from "@orb/contracts/inference";
 import type { NamesBehavior } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { resolveProseText } from "@orb/contracts/prose";
+import { cacheDepthCovering } from "@orb/inference";
 import type { CharacterId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { speakerTagsToPlain } from "@orb/kit/speaker-label";
 import type { PromptHistoryRegexEnv } from "../contract/regex.ts";
 import type { HistoryMacroNames } from "../contract/results.ts";
 import { applyPromptHistoryRegex } from "./history-regex.ts";
-import { spliceInChatInjections } from "./injections.ts";
+import { frameInjection, spliceInChatInjections } from "./injections.ts";
 import { renderHistoryMacros } from "./macros.ts";
 import { applyNamesBehavior } from "./names.ts";
-import { clampRoleHandling, squashRuns, squashSameRole } from "./role-squash.ts";
+import { MERGE_SEPARATOR, squashRuns, squashSameRole } from "./role-squash.ts";
 import { hasMultipleCharacters } from "./speaker-stamp.ts";
 
 /** The CANON wire-history role axis (derive-don't-respell the non-system subset; canon rows are never
  *  system — `toShapeCanon` drops them). */
 type WireRole = "user" | "assistant";
 
-/** The DELIVERED wire-row role axis: canon roles plus the capability-gated `system` the INJECTION SPLICE can
- *  emit at the tail (`turns.midConversationSystem`) or mid-array (`turns.historySystemRows`) — see
- *  `assembly/injections`. The splice is the ONLY producer of a delivered `system` row: a CANON row never
- *  takes one (owner ruling 2026-08-18 — see {@link shape}'s narrator note). */
+/** The DELIVERED wire-row role axis: canon roles plus the `system` row an injection keeps where
+ *  {@link deliverSystemRows} lets it. An injection is the ONLY producer of a delivered `system` row: a CANON row
+ *  never takes one (owner ruling 2026-08-18 — see {@link shape}'s narrator note). */
 type DeliveredRole = WireRole | "system";
 
 /** One loaded canon row SHAPE consumes (from `persistence/queries.loadCanonHistory`, already sanitized).
@@ -86,29 +95,18 @@ interface ShapeInput {
   /** Model accepts a delivered trailing-assistant message as response prefill: `true` ⇒ deliver verbatim
    *  (no continuation nudge); `false` (default) ⇒ nudge a trailing-assistant to a user tail. */
   assistantPrefill?: boolean;
-  /** The resolved `turns.midConversationSystem`: `true` ⇒ a depth-0 in_chat system injection delivers as a
-   *  REAL system wire row (the model honors a tail system-authority channel); `false`/absent (the
-   *  `TURNS_FLOOR` safe default) ⇒ it demotes to the visible `[Note from system: …]` user note. */
+  /** The resolved `turns.midConversationSystem`: the model takes a system run that ENDS the history. Absent ⇒
+   *  the `TURNS_FLOOR` fail-closed default: a trailing run folds (`tail`). */
   midConversationSystem?: boolean;
-  /** The resolved `turns.historySystemRows` (read through `acceptsHistorySystemRows`) — the MEASURED
-   *  mid-array-system fact, with exactly ONE reader in this transform: the depth \> 0 arm of the injection
-   *  splice, where an author's note / depth-N world-info entry rides at its depth as a real `system` row
-   *  instead of demoting to `[Note from system: …]`. `false`/absent (the `TURNS_FLOOR` fail-closed default,
-   *  i.e. every wire but vLLM) ⇒ it demotes, byte-identically to before that arm existed. A SIBLING of
-   *  {@link midConversationSystem}, never the same bit — that one is wire-tested for the depth-0 TAIL and
-   *  this is mid-history (contract field docs).
-   *
-   *  IT HAD A SECOND READER UNTIL 2026-08-18 — the D129(B) delivered-role dispatch, which shipped a
-   *  `narrator`-kind CANON row as a wire `system` row on a measured model. The OWNER RULED THAT OUT that day,
-   *  verbatim: "if you mean group chat narration mode then that is the wrong behavior." Group narration is
-   *  ONE generation voicing all the seated characters — the assistant's own output voice, not the operator channel — so
-   *  narrator rows deliver as `assistant` on EVERY wire, measured or not. The measurement itself is HONORED
-   *  and untouched (the vLLM cell stands, and this splice arm is exactly what it was measured for); what was
-   *  wrong was routing canon PURPOSE through a wire-PLACEMENT capability. */
+  /** The resolved `turns.historySystemRows` (read through `acceptsHistorySystemRows`): the model takes a system
+   *  run INSIDE the history. A sibling of {@link midConversationSystem}, never the same bit: one wire can take
+   *  the tail and refuse mid-array. Absent ⇒ a mid-array run folds (`mid-array`). It gates injections only: a
+   *  `narrator`-kind CANON row delivers as `assistant` on every wire (owner ruling — group narration is the
+   *  assistant's own voice, not the operator channel). */
   historySystemRows?: boolean;
-  /** The user role-handling knob (from preset `params.advanced.roleHandling`); clamped against the floor. */
+  /** The preset message-handling knob (`params.advanced.roleHandling`); clamped against the floor. */
   roleHandling?: RoleHandling | undefined;
-  /** The model/wire adjacent-same-role floor. Unset ⇒ `strict`. SHAPE runs the stricter of floor + knob. */
+  /** The model's message-handling floor. Unset ⇒ `strict`. SHAPE runs the stricter of floor + knob. */
   roleHandlingFloor?: RoleHandling | undefined;
   /** The user `squashSystemMessages` knob (from preset `params.advanced.squashSystemMessages`): `true` ⇒
    *  merge consecutive system-note runs before they convert to user rows. Orthogonal to `roleHandling`. */
@@ -116,18 +114,27 @@ interface ShapeInput {
   /** The room host's PROSE-1 overrides (`assembleContext.prose`) — the two injection note frames. Absent ⇒
    *  the shipped frames, byte-identical. */
   prose?: ProseOverrides | undefined;
+  /** Whether a row body converts to an empty wire row, which the conversion then drops
+   *  (`substrate/wire-history` convertsToEmptyWireRow). Such a row is no neighbour when a system row's slot is
+   *  judged. Required, so no caller judges slots against rows the wire never delivers. */
+  convertsToEmptyWireRow: (content: string) => boolean;
 }
 
 interface ShapeOutput {
   /** The final delivered wire history (post-nudge, pre engine fit-pass). */
   history: WireRow[];
-  /** Offset-from-end of the last stable message for the runner to pin `cache_control` on, or undefined. */
+  /** The depth, in role groups from the end, of the last stable row for the runner to pin `cache_control` on
+   *  (see {@link computeHistoryBreakpoint}), or undefined. */
   cacheBreakpointFromEnd: number | undefined;
-  /** WHY that offset is present or absent — decided HERE, by the code that made the call, and carried out
-   *  verbatim for `assembly/trace` to project. It used to be RE-DERIVED from stage row counts, which cannot
-   *  see a depth ≥ 2 injection abort (that arm ADDS a row, so the counts look like an appended tail) and so
-   *  reported "second-volatile-tail" for a deep injection — the one abort cause a host can actually fix. */
+  /** WHY that depth is present or absent — decided HERE, by the code that made the call, and carried out
+   *  verbatim for `assembly/trace` to project. Stage row counts cannot see why a pin moved or vanished, so the
+   *  trace never re-derives it. */
   breakpointDecision: ShapeBreakpointDecision;
+  /** The new-chat marker SHAPE placed at the top of `history`, or null when the turn has none. `mergeSeparator`
+   *  is the squash separator when this turn's level merges the marker into an adjacent user row, else null. The
+   *  history fit trims the oldest rows first, so it places the marker again at the head of the rows it keeps
+   *  (`substrate/wire-history` keepNewChatMarkerAtHead). */
+  newChatMarker: { readonly content: string; readonly mergeSeparator: string | null } | null;
   /** Per-stage snapshots — the host/admin trace + differential-oracle diff surface. */
   stages: {
     multiCharacter: boolean;
@@ -175,10 +182,7 @@ function scopeHistoryToTarget(canon: readonly CanonRow[], targetId: CharacterId)
   });
 }
 
-// Offset-from-end of the last stable history message for the runner to pin `cache_control` on (the runner
-// places a rolling pair from it). Must count from the SQUASHED prefix length, not raw stableCount — group
-// canon can merge adjacent same-role rows inside the prefix, shrinking it.
-/** The breakpoint call: the offset (absent ⇒ no breakpoint) PLUS the reason, which is the whole point of
+/** The breakpoint call: the depth (absent ⇒ no breakpoint) PLUS the reason, which is the whole point of
  *  returning a record rather than a bare number — only the code that aborts knows WHY it aborted. */
 interface BreakpointOutcome {
   readonly offsetFromEnd: number | undefined;
@@ -186,55 +190,178 @@ interface BreakpointOutcome {
 }
 
 const NO_STABLE_PREFIX: BreakpointOutcome = { offsetFromEnd: undefined, decision: "no-stable-prefix" };
-/** Every abort whose cause is something INSIDE the cached prefix — a depth ≥ 2 splice, a boundary-folding
- *  merge, or a squash that collapsed the prefix. One label, because they are one fix for a host: something is
- *  rewriting bytes the cache would have pinned. */
+/** The very first delivered row is volatile (an injection landed on it, or this turn's row merged into it), so
+ *  nothing above it can be pinned. One label, because it is one fix for a host: something is rewriting the
+ *  bytes the cache would have pinned. */
 const PREFIX_DISRUPTED: BreakpointOutcome = { offsetFromEnd: undefined, decision: "in-prefix-injection-or-squash" };
-/** A nudge/continuation appended a SECOND volatile tail, so the round has no stable last message. */
-const SECOND_VOLATILE_TAIL: BreakpointOutcome = { offsetFromEnd: undefined, decision: "second-volatile-tail" };
 
-/** @internal — exported for the off-by-one unit test. `scopedFold`: an egocentric scoped round's merged
- *  rows are derived per-turn (target can change mid-round) so a collapsed scoped prefix has no stable
- *  breakpoint; group-canon merges are committed messages, so they do. */
+/** One row on its way to the wire: the row, where it came from (an index into the name-stamped rows, or `null`
+ *  for SHAPE's own user tail), and why it folded, if a system row did. */
+interface DeliveryEntry {
+  row: WireRow;
+  readonly origin: number | null;
+  folded?: ShapeFoldReason;
+}
+
+/** The pre-squash delivered list and the user tail SHAPE placed in it. */
+interface Delivery {
+  readonly entries: readonly DeliveryEntry[];
+  readonly tailUser: string | null;
+}
+
+function isLive(entry: DeliveryEntry): boolean {
+  return entry.row.content.trim().length > 0;
+}
+
+/** Fold a system row into user text in its neutral frame. */
+function foldEntry(entry: DeliveryEntry, reason: ShapeFoldReason, prose: ProseOverrides | undefined): void {
+  entry.row = { role: "user", content: frameInjection("user", entry.row.content, "system", prose ?? {}) };
+  entry.folded = reason;
+}
+
+/** The role of the nearest non-system row in `entries` (walked in the order given) that reaches the wire, or
+ *  undefined. A row that converts to nothing is dropped after SHAPE, so it is never the neighbour. */
+function nearestRole(entries: readonly DeliveryEntry[], convertsToEmpty: (content: string) => boolean): DeliveredRole | undefined {
+  return entries.find((entry) => isLive(entry) && entry.row.role !== "system" && !convertsToEmpty(entry.row.content))?.row.role;
+}
+
+/** Why a run INSIDE the history folds, or null when it stays a system row. The legal slot (`slotted`): the
+ *  row before is a user row and the row after is an assistant row. */
+function midArrayFold(
+  placement: SystemRowPlacement,
+  beforeRole: DeliveredRole | undefined,
+  afterRole: DeliveredRole | undefined,
+  historySystemRows: boolean,
+): ShapeFoldReason | null {
+  if (placement === "fold") {
+    return "level";
+  }
+  if (placement === "slot" && !(beforeRole === "user" && afterRole === "assistant")) {
+    return "slot";
+  }
+  return historySystemRows ? null : "mid-array";
+}
+
+/**
+ * THE DELIVERY RULE for system-role rows, and the placement of SHAPE's own user tail. A system run is a maximal
+ * run of adjacent system rows; each run keeps its author's position and either stays a real `system` row or
+ * folds into user text:
+ *
+ *   • the level folds every system row (`semi-strict`, `strict`) ⇒ `level`;
+ *   • a TRAILING run (it ends the history) needs `turns.midConversationSystem` ⇒ else `tail`. SHAPE's user tail,
+ *     when the turn needs one, goes BEFORE a kept trailing run, so the run follows a user row and ends the array
+ *     (the direct Anthropic wire refuses `[…assistant, system, user]`). Under `slotted` a kept trailing run that
+ *     still follows an assistant row (a prefill turn) is out of its slot ⇒ `slot`;
+ *   • a run INSIDE the history needs `turns.historySystemRows` ⇒ else `mid-array`; under `slotted` it must also
+ *     sit between a user row and an assistant row ⇒ else `slot`.
+ *
+ * OpenRouter turns a system row in an illegal slot into bare, unframed user text without a signal, so the fold
+ * happens here first, in its neutral frame.
+ */
+/** The options {@link deliverSystemRows} and its steps read. */
+interface DeliveryOptions {
+  readonly level: RoleHandling;
+  readonly midConversationSystem: boolean;
+  readonly historySystemRows: boolean;
+  readonly groupNudge: string | null;
+  readonly assistantPrefill: boolean;
+  readonly prose: ProseOverrides | undefined;
+  readonly convertsToEmptyWireRow: (content: string) => boolean;
+}
+
+/** Fold every run INSIDE the history that the level or the model does not take. Every verdict is taken before
+ *  any row folds, so a folded row never becomes the user neighbour that makes the next row look legal. */
+function foldMidArrayRuns(entries: readonly DeliveryEntry[], lastNonSystem: number, opts: DeliveryOptions): void {
+  const placement = SYSTEM_ROW_PLACEMENT[opts.level];
+  const reasons = entries.map((entry, index): ShapeFoldReason | null => {
+    if (index >= lastNonSystem || entry.row.role !== "system" || !isLive(entry)) {
+      return null;
+    }
+    const before = nearestRole(entries.slice(0, index).toReversed(), opts.convertsToEmptyWireRow);
+    const after = nearestRole(entries.slice(index + 1), opts.convertsToEmptyWireRow);
+    return midArrayFold(placement, before, after, opts.historySystemRows);
+  });
+  entries.forEach((entry, index) => {
+    const reason = reasons[index];
+    if (reason !== null && reason !== undefined) {
+      foldEntry(entry, reason, opts.prose);
+    }
+  });
+}
+
+/** Why the TRAILING run folds, or undefined when it stays. SHAPE's user tail goes before a kept run, so under
+ *  `slotted` the run is out of its slot only when no user row can precede it (a prefill turn ending on the
+ *  model's own reply). */
+function trailingFold(lastRole: DeliveredRole | undefined, opts: DeliveryOptions): ShapeFoldReason | undefined {
+  const placement = SYSTEM_ROW_PLACEMENT[opts.level];
+  if (placement === "fold") {
+    return "level";
+  }
+  if (!opts.midConversationSystem) {
+    return "tail";
+  }
+  const cued = opts.groupNudge !== null || ((lastRole === undefined || lastRole === "assistant") && !opts.assistantPrefill);
+  return placement === "slot" && lastRole !== "user" && !cued ? "slot" : undefined;
+}
+
+function deliverSystemRows(rows: readonly WireRow[], opts: DeliveryOptions): Delivery {
+  const entries: DeliveryEntry[] = rows.map((row, index) => ({ row, origin: index }));
+  const lastNonSystem = entries.findLastIndex((entry) => isLive(entry) && entry.row.role !== "system");
+  foldMidArrayRuns(entries, lastNonSystem, opts);
+
+  const trailing = entries.slice(lastNonSystem + 1).filter((entry) => entry.row.role === "system" && isLive(entry));
+  const trailingReason = trailing.length === 0 ? undefined : trailingFold(entries[lastNonSystem]?.row.role, opts);
+  if (trailingReason !== undefined) {
+    for (const entry of trailing) {
+      foldEntry(entry, trailingReason, opts.prose);
+    }
+  }
+
+  const lastDelivered = entries.findLast((entry) => isLive(entry) && entry.row.role !== "system");
+  const endsOnAssistant = lastDelivered === undefined || lastDelivered.row.role === "assistant";
+  const tailUser = opts.groupNudge ?? (endsOnAssistant && !opts.assistantPrefill ? continuationNudge(opts.prose) : null);
+  if (tailUser === null) {
+    return { entries, tailUser };
+  }
+  const tail: DeliveryEntry = { row: { role: "user", content: tailUser }, origin: null };
+  const keptTrailing = trailingReason === undefined ? trailing[0] : undefined;
+  const at = keptTrailing === undefined ? entries.length : entries.indexOf(keptTrailing);
+  return { entries: [...entries.slice(0, at), tail, ...entries.slice(at)], tailUser };
+}
+
+/** Which spliced rows repeat byte for byte on the next turn, so the cache may pin them: the committed canon
+ *  before this turn's volatile row, and an injection anchored above the first canon row (the new-chat marker).
+ *  Every other injection is volatile: a depth-N row moves as the history grows. Index-aligned with `injected`. */
+function stableRows(
+  withTail: readonly object[],
+  stableCount: number,
+  injected: readonly ({ readonly role: DeliveredRole; readonly content: string } | { readonly anchored?: true })[],
+): boolean[] {
+  const committed = new Set<object>(withTail.slice(0, stableCount));
+  return injected.map((row) => committed.has(row) || "anchored" in row);
+}
+
+/**
+ * THE HISTORY BREAKPOINT — the depth the runner pins its `cache_control` pair at, counted in role groups from the
+ * end exactly as the runner counts it (`@orb/inference` `cacheDepthCovering`/`rowIndexAtCacheDepth`, where a
+ * system row is transparent). The pin sits on the last row of the leading stable run: above the deepest
+ * injection and above any row a volatile row merged into. A depth-N note therefore moves the pin up instead of
+ * removing it, so the history above the note is read from the cache every turn.
+ *
+ * `delivered` is the final delivered history with each row's stability (a merged row is stable only when every
+ * row in it is). @internal — exported for the unit test.
+ */
 export function computeHistoryBreakpoint(
-  withTail: readonly { role: DeliveredRole; content: string }[],
-  injected: readonly { role: DeliveredRole; content: string }[],
-  finalHistory: readonly { role: DeliveredRole; content: string }[],
-  opts: {
-    readonly injections: readonly { position: string; depth: number }[] | undefined;
-    readonly scopedFold?: boolean;
-    /** Whether the effective strategy merges adjacent same-role rows (`false` ⇒ pass-through). */
-    readonly merges?: boolean;
-  },
+  delivered: readonly { readonly role: DeliveredRole; readonly stable: boolean }[],
+  hasStablePrefix: boolean,
 ): BreakpointOutcome {
-  const { injections, scopedFold = false, merges = true } = opts;
-  const stableCount = withTail.length - 1;
-  if (stableCount < 1) {
+  if (!hasStablePrefix) {
     return NO_STABLE_PREFIX;
   }
-  // A depth ≥ 2 in_chat injection splices INSIDE the stable prefix, mutating cached bytes → abort.
-  if ((injections ?? []).some((i) => i.position === "in_chat" && i.depth >= 2)) {
-    return PREFIX_DISRUPTED;
-  }
-  // If the last stable message shares a role with the one right after it, a merge would fold the
-  // boundary and change its bytes → abort (moot under `none`, which never merges).
-  const boundary = injected[stableCount - 1];
-  const next = injected[stableCount];
-  if (merges && boundary !== undefined && next !== undefined && boundary.role === next.role) {
-    return PREFIX_DISRUPTED;
-  }
-  // The last stable message is the tail of the SQUASHED stable prefix — group canon can merge adjacent
-  // same-role rounds inside it, so count from the squashed length, not raw stableCount.
-  const squashedPrefixLen = merges
-    ? squashSameRole(withTail.slice(0, stableCount)).length
-    : withTail.slice(0, stableCount).filter((r) => r.content.trim().length > 0).length;
-  // An egocentric scoped fold derives its merged rows per-turn (target can change mid-round), so a
-  // collapsed scoped prefix has no stable breakpoint; group-canon merges are committed, so they do.
-  if (scopedFold && squashedPrefixLen < stableCount) {
-    return PREFIX_DISRUPTED;
-  }
-  const offsetFromEnd = finalHistory.length - squashedPrefixLen;
-  if (offsetFromEnd < 1) {
+  const firstVolatile = delivered.findIndex((row) => !row.stable);
+  const pinLimit = (firstVolatile === -1 ? delivered.length : firstVolatile) - 1;
+  const offsetFromEnd = cacheDepthCovering(delivered, pinLimit);
+  if (offsetFromEnd === undefined || offsetFromEnd < 1) {
     return PREFIX_DISRUPTED;
   }
   return { offsetFromEnd, decision: "placed" };
@@ -250,6 +377,8 @@ interface RowFacts {
   readonly name?: string;
   /** The contributing canon row's DECLARED purpose; absent for an assembled row (no slot, no purpose). */
   readonly kind?: MessageKind;
+  /** Why a system-role row folded into this one, if one did. */
+  readonly folded?: ShapeFoldReason;
 }
 
 /** Collapse a delivered row's contributing rows into one fact. Uniform provenance ⇒ that arm; MIXED ⇒
@@ -260,10 +389,12 @@ function mergeRowFacts(parts: readonly RowFacts[]): RowFacts {
   const source = collapseSources(parts);
   const name = parts.find((part) => part.name !== undefined)?.name;
   const kind = parts.find((part) => part.kind !== undefined)?.kind;
+  const folded = parts.find((part) => part.folded !== undefined)?.folded;
   return {
     source,
     ...(name === undefined ? {} : { name }),
     ...(kind === undefined ? {} : { kind }),
+    ...(folded === undefined ? {} : { folded }),
   };
 }
 
@@ -306,33 +437,32 @@ function squashRunsFor<T extends { role: DeliveredRole; content: string; name?: 
 }
 
 /** Project the DELIVERED wire history onto the content-free `ShapeTrace.rows` — the block-order/role/voice
- *  datum a host previously reconstructed by hand from wire captures. Walks the same TWO squash passes SHAPE
- *  ran (name-stamp squash, then the nudge-tail squash), as index runs, so each delivered row's facts are the
- *  union of the rows that actually became it — which is what makes a `merged` verdict provable rather than
- *  guessed. */
+ *  datum a host previously reconstructed by hand from wire captures. Walks the same squash SHAPE ran over the
+ *  delivery list, as index runs, so each delivered row's facts are the union of the rows that actually became
+ *  it — which is what makes a `merged` verdict and a fold reason provable rather than guessed. */
 function traceDeliveredRows(args: {
   readonly injected: readonly (CanonRow | { role: DeliveredRole; content: string })[];
   readonly namedInput: readonly WireRow[];
-  readonly named: readonly WireRow[];
+  readonly delivery: Delivery;
   readonly history: readonly WireRow[];
-  /** The appended group/continuation nudge, or `null` when the history needed no tail. */
-  readonly tailUser: string | null;
   readonly merges: boolean;
 }): ShapeTraceRow[] {
   const preSquash = preSquashRowFacts(args.namedInput, args.injected);
-  const namedFacts = squashRunsFor(args.namedInput, args.merges).map((run) => mergeRowFacts(run.flatMap((index) => preSquash[index] ?? [])));
-  // The nudge is assembly's own row, so it enters the second pass with `assembled` provenance of its own.
-  const stage: readonly RowFacts[] = args.tailUser === null ? namedFacts : [...namedFacts, { source: "assembled" }];
-  const historyRuns =
-    args.tailUser === null
-      ? args.named.map((_, index) => [index])
-      : squashRunsFor([...args.named, { role: "user" as const, content: args.tailUser }], args.merges);
-  return historyRuns.flatMap((run, index): ShapeTraceRow[] => {
+  // SHAPE's own user tail is assembly's own row, so it carries `assembled` provenance of its own.
+  const entryFacts = args.delivery.entries.map((entry): RowFacts => {
+    const base: RowFacts = entry.origin === null ? { source: "assembled" } : (preSquash[entry.origin] ?? { source: "assembled" });
+    return entry.folded === undefined ? base : { ...base, folded: entry.folded };
+  });
+  const runs = squashRunsFor(
+    args.delivery.entries.map((entry) => entry.row),
+    args.merges,
+  );
+  return runs.flatMap((run, index): ShapeTraceRow[] => {
     const row = args.history[index];
     if (row === undefined) {
       return [];
     }
-    const facts = mergeRowFacts(run.flatMap((source) => stage[source] ?? []));
+    const facts = mergeRowFacts(run.flatMap((source) => entryFacts[source] ?? []));
     return [
       {
         role: row.role,
@@ -340,6 +470,7 @@ function traceDeliveredRows(args: {
         source: facts.source,
         ...(facts.kind === undefined ? {} : { kind: facts.kind }),
         chars: row.content.length,
+        ...(facts.folded === undefined ? {} : { folded: facts.folded }),
       },
     ];
   });
@@ -380,28 +511,26 @@ export function shape(input: ShapeInput): ShapeOutput {
   // re-roling happens at this build (see the delivered-role note above the transform).
   const withTail: CanonRow[] = input.appendUserTurn !== null ? [...scopedCanon, { role: "user", content: input.appendUserTurn }] : [...scopedCanon];
 
-  // Effective role-handling strategy: the stricter of the model floor + the user knob, clamped here
-  // (where the merge physically happens). `none` skips merging; every other strategy squashes.
-  const strategy = clampRoleHandling(input.roleHandlingFloor, input.roleHandling);
-  const merges = strategy !== "none";
+  // The turn's message-handling level: the stricter of the model floor + the preset knob. `none` skips merging;
+  // every other level squashes. The level also decides where a system row may stay one (`deliverSystemRows`).
+  const level = clampRoleHandling(input.roleHandlingFloor ?? TURNS_FLOOR.roleHandlingFloor, input.roleHandling);
+  const merges = level !== "none";
 
-  // Rows [0, prefixBoundaryLen) in withTail are the committed cached prefix. Undefined when there's no
-  // stable prefix, or a depth≥2 injection already mutates it.
-  const stableCount = withTail.length - 1;
-  const prefixDisrupted = (input.injections ?? []).some((i) => i.position === "in_chat" && i.depth >= 2);
-  const prefixBoundaryLen = stableCount >= 1 && !prefixDisrupted ? stableCount : undefined;
+  // The splice re-roles a depth-1 assistant injection that would merge into the last committed row before this
+  // turn's own row (the last row of `withTail`).
+  const prefixBoundaryLen = withTail.length > 1 ? withTail.length - 1 : undefined;
 
   const runSquash = <T extends { role: DeliveredRole; content: string; name?: string }>(rows: readonly T[]): T[] =>
     merges ? squashSameRole(rows) : rows.filter((r) => r.content.trim().length > 0);
 
-  // 2. splice in_chat by depth → 3. name-stamp → 4. squash same-role.
-  // Name-stamp runs before the final squash so adjacent distinct-character rows keep each speaker's
-  // label inside a merged block instead of collapsing under the first author's name. The reported
-  // `squashed` stage stays the pre-name squash (labels are role-adjacency-neutral annotations).
+  // 2. splice in_chat by depth (every system injection stays a bare system row at its author's position) →
+  // 3. name-stamp → 4. deliver system rows + place the user tail → 5. squash same-role.
+  // Name-stamp runs before the squash so adjacent distinct-character rows keep each speaker's label inside a
+  // merged block instead of collapsing under the first author's name. The reported `squashed`/`named` stages
+  // are the pre-delivery squashes (labels are role-adjacency-neutral annotations).
   const injected = spliceInChatInjections(withTail, input.injections, resolveContent, {
     allowAssistantPrefill: input.assistantPrefill === true,
-    allowMidConversationSystem: input.midConversationSystem === true,
-    allowHistorySystemRows: input.historySystemRows === true,
+    keepSystemRows: true,
     prefixBoundaryLen,
     squashSystemMessages: input.squashSystemMessages === true,
     prose: input.prose,
@@ -410,36 +539,45 @@ export function shape(input: ShapeInput): ShapeOutput {
   const namedInput = applyNamesBehavior(injected, input.namesBehavior, input.speakers, { multiCharacter, mergesAdjacent: merges });
   const named = runSquash(namedInput);
 
-  // 5. group/continuation nudge: a multi-speaker round's nudge rides as a trailing user message; a
-  // force/auto/empty-opening round that would otherwise end on assistant gets CONTINUATION_NUDGE. Either
-  // is a second volatile tail → the breakpoint aborts for the round.
-  const nudge = input.groupNudge;
-  // A capability-kept trailing SYSTEM row is neither prefill nor a user turn — the ends-on-user invariant
-  // reads the last NON-SYSTEM row, so a canon ending on assistant still gets its user tail (appended after
-  // the system row; on the agent-sdk arm the system rows fold out of the prompt tail into the hook channel).
-  const lastNonSystem = named.findLast((r) => r.role !== "system");
-  const endsOnAssistant = lastNonSystem === undefined || lastNonSystem.role === "assistant";
-  const needsContinuation = endsOnAssistant && input.assistantPrefill !== true;
-  const tailUser = nudge ?? (needsContinuation ? continuationNudge(input.prose) : null);
-  const history = tailUser !== null ? runSquash([...named, { role: "user", content: tailUser }]) : named;
+  // A multi-speaker round's group nudge, or the continuation cue for a turn that would otherwise end on the
+  // model's own reply, rides as SHAPE's user tail.
+  const delivery = deliverSystemRows(namedInput, {
+    level,
+    midConversationSystem: input.midConversationSystem === true,
+    historySystemRows: input.historySystemRows === true,
+    groupNudge: input.groupNudge,
+    assistantPrefill: input.assistantPrefill === true,
+    prose: input.prose,
+    convertsToEmptyWireRow: input.convertsToEmptyWireRow,
+  });
+  const deliveredRows = delivery.entries.map((entry) => entry.row);
+  const history = runSquash(deliveredRows);
 
-  // Computed on the nudge-free stages (an appended tail is a second volatile tail → abort).
-  const breakpoint =
-    tailUser !== null
-      ? SECOND_VOLATILE_TAIL
-      : computeHistoryBreakpoint(withTail, injected, named, {
-          injections: input.injections,
-          scopedFold: input.output === "per-speaker" && input.cardScope === "scoped" && input.scopedTargetId !== null,
-          merges,
-        });
+  // The committed prefix the cache may pin: every canon row before this turn's own row. A turn with no row of its
+  // own (a round, a forced turn) whose only new row is SHAPE's cue has a fully committed canon, so the cue is the
+  // only volatile row and the pin is the last canon row before it.
+  const stableCount = withTail.length - (input.appendUserTurn === null && delivery.tailUser !== null ? 0 : 1);
+  const stable = stableRows(withTail, stableCount, injected);
+  const historyStable = squashRunsFor(deliveredRows, merges).map((run) =>
+    run.every((index) => {
+      const origin = delivery.entries[index]?.origin;
+      return origin !== null && origin !== undefined && stable[origin] === true;
+    }),
+  );
+  const breakpoint = computeHistoryBreakpoint(
+    history.map((row, index) => ({ role: row.role, stable: historyStable[index] === true })),
+    stableCount >= 1,
+  );
 
-  // The content-free DELIVERED-row trace (`ShapeTrace.rows`) — order, role, voice, provenance, size.
-  const delivered = traceDeliveredRows({ injected, namedInput, named, history, tailUser, merges });
+  // The content-free DELIVERED-row trace (`ShapeTrace.rows`) — order, role, voice, provenance, size, fold.
+  const delivered = traceDeliveredRows({ injected, namedInput, delivery, history, merges });
+  const marker = injected.find((row) => "newChatMarker" in row);
 
   return {
     history,
     cacheBreakpointFromEnd: breakpoint.offsetFromEnd,
     breakpointDecision: breakpoint.decision,
+    newChatMarker: marker === undefined ? null : { content: marker.content, mergeSeparator: merges ? MERGE_SEPARATOR : null },
     stages: { multiCharacter, withTail, injected, squashed, named, delivered },
   };
 }

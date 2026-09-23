@@ -50,12 +50,6 @@ export interface ParamsLimitsProps {
   readonly effective: EffectiveProfileRow | undefined;
 }
 
-const DYNAMIC_CONTEXT_ITEMS: SelectItems<string> = [
-  { value: "", label: "Auto (model-appropriate)" },
-  { value: "system", label: "Join into the cached system prompt" },
-  { value: "hook", label: "Deliver at the message tail (cache-safe)" },
-];
-
 export function ParamsLimits({ form, capability, effective }: ParamsLimitsProps): ReactElement {
   return (
     <>
@@ -277,22 +271,6 @@ function AdvancedCluster({ form }: { readonly form: AppForm }): ReactElement {
                 {(parallel): ReactElement => (
                   <Field hint="Let the model emit several tool calls in one turn." label="Parallel tool calls">
                     <Switch checked={parallel} onCheckedChange={(on): void => form.setFieldValue("params.advanced.parallelToolCalls", on ? true : undefined)} />
-                  </Field>
-                )}
-              </form.Subscribe>
-            </SettingTrackRow>
-            <SettingTrackRow>
-              <form.Subscribe selector={(state): string | undefined => state.values.params.advanced?.dynamicContext}>
-                {(dynamicContext): ReactElement => (
-                  <Field hint="Where the per-turn system half is delivered on the wire." label="Dynamic-context delivery">
-                    <Select
-                      aria-label="Dynamic-context delivery"
-                      items={DYNAMIC_CONTEXT_ITEMS}
-                      onValueChange={(next): void =>
-                        form.setFieldValue("params.advanced.dynamicContext", next === "system" || next === "hook" ? next : undefined)
-                      }
-                      value={dynamicContext ?? ""}
-                    />
                   </Field>
                 )}
               </form.Subscribe>

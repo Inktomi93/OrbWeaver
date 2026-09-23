@@ -147,6 +147,20 @@ export const PRESET_PROSE_SLOTS = {
     title: "World-info entry format",
     fires: "Wraps every injected world-info entry.",
   },
+  "preset.format.newChatMarker": {
+    id: "preset.format.newChatMarker",
+    home: "preset",
+    version: 1,
+    // SillyTavern's `new_chat_prompt`, text and role alike: the opening USER row of every history, spliced above
+    // the first canon row. A greeting-first chat therefore opens on a user message on every route (OpenRouter
+    // otherwise hoists a leading assistant greeting into `system`).
+    text: "[Start a new chat]",
+    macros: "full",
+    requiredMacros: [],
+    requiredTokens: [],
+    title: "New-chat marker",
+    fires: "Opens every chat's history as a user message, above the first row.",
+  },
   "preset.compaction.instructions": {
     id: "preset.compaction.instructions",
     home: "preset",
@@ -432,10 +446,7 @@ export const PRESET_FORMAT_SLOT_IDS = {
   impersonateNudge: "preset.format.impersonateNudge",
   responseNudge: "preset.format.responseNudge",
   wiFormat: "preset.format.wiFormat",
-  // `formatStrings.newChatMarker` (G9) is deliberately NOT here: a PROSE-1 slot is AUTHORED BYTES (the
-  // registry's own invariant is that no slot ships empty text), and this field's shipped default is BLANK —
-  // "no boundary marker" is the product behavior, not a default sentence someone wrote. It becomes a slot the
-  // day it ships bytes.
+  newChatMarker: "preset.format.newChatMarker",
 } as const satisfies Record<string, ProseSlotId>;
 
 /** The compaction-steering slot id. A single slot (not a keyed family like guided/format), so a plain const

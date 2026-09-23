@@ -238,7 +238,9 @@ async function capturedBody(midConversationSystem: boolean): Promise<Record<stri
     providerId: "claude-sub",
     model,
     capability: generationCapability({
-      turns: { assistantPrefill: false, midConversationSystem, historySystemRows: false, roleHandlingFloor: "strict", explicitPromptCache: true },
+      // `slotted` is agent-sdk opus-4-8's curated floor: a level that folds every system row keeps the dynamic
+      // half in the system block whatever the model takes.
+      turns: { assistantPrefill: false, midConversationSystem, historySystemRows: false, roleHandlingFloor: "slotted", explicitPromptCache: true },
     }),
   });
   const sessions = new SessionCache(quietLog);

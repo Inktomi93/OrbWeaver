@@ -13,6 +13,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import {
   MessageHandlingNoFloorStory,
   MessageHandlingPendingCapabilityStory,
+  MessageHandlingSlottedFloorStory,
   MessageHandlingStrictFloorStory,
   MessageHandlingStrictFloorUnsetStory,
 } from "./_message-handling-stories.tsx";
@@ -38,6 +39,15 @@ test("a FLOORLESS model says nothing about a floor — no note, no clamp badge (
   await expect(component.getByRole("combobox", { name: "Adjacent-role merging" })).toBeVisible();
   await expect(component.getByText(NOTE)).toHaveCount(0);
   await expect(component.getByText(CLAMP_BADGE)).toHaveCount(0);
+});
+
+// `slotted` is a model-only rung: the note names it, and the knob offers only the user levels above it.
+test("a slotted-floor model names its floor and offers only Semi-strict and Strict", async ({ mount, page }) => {
+  const component = await mount(<MessageHandlingSlottedFloorStory />);
+  await expect(component.getByText("This model enforces at least Slotted — stricter always wins.")).toBeVisible();
+  await component.getByRole("combobox", { name: "Adjacent-role merging" }).click();
+  const options = page.getByRole("option");
+  await expect(options).toHaveText([/Model default/, /Semi-strict/, /^Strict/]);
 });
 
 test("a pending capability read makes no floor claim either", async ({ mount }) => {

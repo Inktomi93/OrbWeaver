@@ -89,7 +89,8 @@ export function effectiveProviderRouting<T extends OpenRouterRouting>(
 // raw wire-array offsets (findings §5). Two facts force that unit:
 //
 //  1. The producer counts conversation. `chat/assembly/shape.ts:computeHistoryBreakpoint` derives the depth
-//     over CANON rows, whose role axis is a two-arm `user|assistant` union — a `tool` row cannot exist there.
+//     over the delivered history with THIS file's counter (`cacheDepthCovering`) — a `tool` row cannot exist
+//     there.
 //  2. The wire array does not. Every `tool` row (and the assistant row carrying its calls) is appended AFTER
 //     assembly by `chat/engine/pipeline.ts:runRecurseLoop`, which re-sends the SAME depth it was given. One
 //     recursion depth of N parallel calls adds N+1 array rows but only TWO role groups — so an array-offset
@@ -102,15 +103,14 @@ export function effectiveProviderRouting<T extends OpenRouterRouting>(
 // `cachingAtDepthForOpenRouterClaude` (`prompt-converters.js`), which has no tool rows in that flow and so
 // never had this decision to make; the ST reference is a floor, not a golden.
 //
-// System rows DO consume no depth (ST parity, and a system injection is not a conversational turn) — skipping
-// them can only move a breakpoint DEEPER into the already-stable prefix, never shallower, so it is safe
-// against `shape.ts`'s array-counted number by monotonicity.
+// System rows DO consume no depth (ST parity, and a system injection is not a conversational turn); SHAPE counts
+// with the same rule, so a system row it delivers moves neither number.
 //
 // ST's PREFILL skip is deliberately NOT adopted. ST anchors depth 0 on the last real conversational message;
 // OUR depth 0 is the volatile tail whatever its role, because that is what `computeHistoryBreakpoint` counts
 // (`stableCount = withTail.length - 1` — the tail is index 0 even when it is an `assistantPrefill` row).
 // Re-anchoring here would shift every depth by one group against its own producer. The prefill is never a
-// target anyway: `computeHistoryBreakpoint` returns `undefined` below offset 1, and the admin depth knob can
+// target anyway: `computeHistoryBreakpoint` returns `undefined` below depth 1, and the admin depth knob can
 // only raise the depth, so the placer is never asked for depth 0.
 
 /** One delivered wire row as the breakpoint placer sees it. */
@@ -134,14 +134,16 @@ export interface CacheBreakpointPlacement {
 const TOOL_DEPTH_TRANSPARENT_ROLE = "system";
 
 /** The wire-array index of the NEWEST row at conversational depth `wanted`, or undefined when the history
- *  is not that deep. Depth 0 is the newest role group; each role SWITCH walking backwards opens the next. */
-function indexAtDepth(rows: readonly CacheBreakpointRow[], wanted: number): number | undefined {
+ *  is not that deep. Depth 0 is the newest role group; each role SWITCH walking backwards opens the next. The
+ *  ONE counter of the depth axis: SHAPE (`chat/assembly/shape.ts`) computes the depth it hands the runner with
+ *  it, and the placer below resolves that depth with it, so the two cannot count differently. */
+export function rowIndexAtCacheDepth(rows: readonly { readonly role: string; readonly toolExchange?: boolean }[], wanted: number): number | undefined {
   let depth = 0;
   let previousRole = "";
   let found: number | undefined;
   for (let i = rows.length - 1; i >= 0 && found === undefined; i -= 1) {
     const row = rows[i];
-    if (row === undefined || row.toolExchange || row.role === TOOL_DEPTH_TRANSPARENT_ROLE) {
+    if (row === undefined || row.toolExchange === true || row.role === TOOL_DEPTH_TRANSPARENT_ROLE) {
       continue;
     }
     if (row.role !== previousRole) {
@@ -154,6 +156,21 @@ function indexAtDepth(rows: readonly CacheBreakpointRow[], wanted: number): numb
     }
   }
   return found;
+}
+
+/** The shallowest depth whose newest row sits at or before `index`: the depth that pins row `index` itself when
+ *  it ends its role group, else the nearest group that ends above it. Undefined when no depth does (a negative
+ *  `index`, or a history too short). */
+export function cacheDepthCovering(rows: readonly { readonly role: string; readonly toolExchange?: boolean }[], index: number): number | undefined {
+  let covering: number | undefined;
+  let at: number | undefined = index < 0 ? undefined : rows.length;
+  for (let depth = 0; at !== undefined && covering === undefined; depth += 1) {
+    at = rowIndexAtCacheDepth(rows, depth);
+    if (at !== undefined && at <= index) {
+      covering = depth;
+    }
+  }
+  return covering;
 }
 
 // Returns the pair of placements at depths `depth` and `depth+2` whose cumulative prefix clears the
@@ -172,7 +189,7 @@ export function computeCacheBreakpointPlacements(args: {
   const { rows, systemStaticTokens, depthFromEnd, cacheMinTokens } = args;
   const placed: CacheBreakpointPlacement[] = [];
   for (const depth of [depthFromEnd, depthFromEnd + 2]) {
-    const index = indexAtDepth(rows, depth);
+    const index = rowIndexAtCacheDepth(rows, depth);
     if (index === undefined) {
       // The REQUESTED depth (never the deeper leg, which runs off the front on every short-but-cacheable
       // room and would make this line noise) is deeper than the conversation: nothing is placed, so caching

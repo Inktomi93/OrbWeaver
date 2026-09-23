@@ -4,6 +4,11 @@
 
 import type { CapabilityOverrideInput } from "@orb/contracts/inference";
 
+/** The Claude ids measured to take a `system` row inside `messages` (matrix §7, handling (b)): a tail row and a
+ *  legal mid-array row both return 200 on the direct wire. Anchored so an unmeasured sibling (a point release, a
+ *  dated snapshot) stays on the fail-closed family cell. haiku-4-5 is absent: it 400s any system row. */
+const SYSTEM_ROW_MODELS = "^(anthropic/)?claude[-/](opus-5([-.]5)?|fable-5([-.]1)?|sonnet-5|opus-4[-.]8)$";
+
 export const anthropicRows = [
   {
     match: {
@@ -344,12 +349,13 @@ export const anthropicRows = [
     generation: {
       turns: {
         midConversationSystem: true,
+        roleHandlingFloor: "slotted",
       },
     },
     evidence: {
       tier: "curated",
-      dated: "2026-09-19",
-      cite: "turns.ts anthropicMidConvSystem: wire-tested, only Opus 4.8 on the anthropic-cli shape",
+      dated: "2026-09-23",
+      cite: "turns.ts anthropicMidConvSystem: wire-tested, only Opus 4.8 on the anthropic-cli shape; the tail row rides the hook (obeyed 2/2, chat_01m36759qtf689cr8ptn0bps6c). Floor slotted so the level keeps it (SHAPING-MATRIX §3, §5)",
     },
   },
   {
@@ -369,6 +375,58 @@ export const anthropicRows = [
       tier: "curated",
       dated: "2026-09-19",
       cite: "§8.7 mutually-exclusive knobs on the direct wire (a RESTRICTION, compatible with D68 fail-closed — no ranges ship until a dated measured/anthropic.ts entry); clearAt = @ai-sdk/anthropic's mid-conversation-system-clear-at-2026-08-21 beta (convert-to-anthropic-prompt.ts:242-262)",
+    },
+  },
+  {
+    match: {
+      model: SYSTEM_ROW_MODELS,
+      wire: "anthropic-messages",
+    },
+    generation: {
+      turns: {
+        midConversationSystem: true,
+        historySystemRows: true,
+        roleHandlingFloor: "slotted",
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-23",
+      cite: "SHAPING-MATRIX §7 handling (b), direct, n=3 per cell: a tail system row and a legal-slot [u,S,a] row return 200 on opus-5 (req_011CfKhAEdeEh6hy5HbSgemF…), opus-5-5 (req_011CfKhJ4rzXWr39mUEhXSKo…), fable-5 (req_011CfKhJ4omUcAHiNHB3tvWb…), fable-5-1 (req_011CfKhJ4omHQU8PuX1mRUEn…), sonnet-5 (req_011CfKhYub3yrLNLnBRDfNb4…), opus-4-8 (req_011CfKhYuVMPxhZ1UbNk9JiX…); an illegal [a,S,u] slot 400s (req_011CfKZSZSFUfW1Jdarpf5Cb), so the floor is slotted. haiku-4-5 400s any system row (req_011CfKhZ8ALv97q91yH4eqep) and is not on this row",
+    },
+  },
+  {
+    match: {
+      model: SYSTEM_ROW_MODELS,
+      provider: "openrouter",
+    },
+    generation: {
+      turns: {
+        midConversationSystem: true,
+        historySystemRows: true,
+        roleHandlingFloor: "slotted",
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-23",
+      cite: "SHAPING-MATRIX §7: OpenRouter keeps a legal-slot system row as a `system` message in place (gen-1790135915-ad0nXVocOBSoE6gyplfQ, gen-1790135918-wkRaFfoNuh31C0pxEMFf) and folds an illegal one into bare user text with no signal (gen-1790135916-nTEe5GaIsluqhqHSU4sW), so the floor is slotted",
+    },
+  },
+  {
+    match: {
+      model: "^(anthropic/)?claude[-/]opus-5$",
+      provider: "openrouter",
+    },
+    generation: {
+      turns: {
+        historySystemRows: false,
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-23",
+      cite: "owner ruling on the SHAPING-MATRIX follow-up: opus-5 fails a mid-array system row on OpenRouter; the tail row stands",
     },
   },
   {

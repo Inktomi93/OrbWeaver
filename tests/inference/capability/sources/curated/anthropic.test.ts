@@ -339,3 +339,51 @@ test("prefixBound: stated for opus-5-5 and the 5.1 point releases, not for the i
     expect(direct(model).reasoning.prefixBound, model).toBeUndefined();
   }
 });
+
+// ── The system-row facts and the message-handling floor, per route and model (SHAPING-MATRIX §5, §7) ─────────
+// A system row stays a `system` row only where the model takes it in that slot: the tail
+// (`midConversationSystem`) and mid-array (`historySystemRows`) are measured separately, and a model that takes
+// either only in its legal slot floors at the model-only `slotted` level. Unmeasured ids keep the fail-closed
+// family cell.
+
+const AGENT_SDK = { providerId: castId<ProviderId>("claude-sub"), wire: "agent-sdk", api: "agent-sdk" } as const;
+
+function turnsOn(route: typeof DIRECT | typeof OPENROUTER | typeof AGENT_SDK, model: string): readonly [boolean, boolean, string] {
+  const out = synthesizeCapability("generation", "anthropic", { curated: curatedRows({ model, ...route }) });
+  if (out.capability.kind !== "generation") {
+    throw new Error("expected a generation capability");
+  }
+  const turns = out.capability.generation.turns;
+  return [turns?.midConversationSystem === true, turns?.historySystemRows === true, turns?.roleHandlingFloor ?? "unset"];
+}
+
+test("the measured Claude ids take a system row at the tail and mid-array on the direct wire, and floor at slotted", () => {
+  for (const model of ["claude-opus-5", "claude-opus-5-5", "claude-fable-5", "claude-fable-5-1", "claude-sonnet-5", "claude-opus-4-8"]) {
+    expect(turnsOn(DIRECT, model), model).toStrictEqual([true, true, "slotted"]);
+  }
+});
+
+test("haiku-4-5 400s any system row, and an unmeasured id stays fail-closed", () => {
+  for (const model of ["claude-haiku-4-5", "claude-opus-4-7", "claude-sonnet-4-6", "claude-mythos-5", "claude-fable-5-2"]) {
+    expect(turnsOn(DIRECT, model), model).toStrictEqual([false, false, "strict"]);
+  }
+});
+
+test("OpenRouter matches the direct wire, except opus-5 takes no mid-array system row", () => {
+  for (const model of [
+    "anthropic/claude-opus-5.5",
+    "anthropic/claude-fable-5",
+    "anthropic/claude-fable-5.1",
+    "anthropic/claude-sonnet-5",
+    "anthropic/claude-opus-4.8",
+  ]) {
+    expect(turnsOn(OPENROUTER, model), model).toStrictEqual([true, true, "slotted"]);
+  }
+  expect(turnsOn(OPENROUTER, "anthropic/claude-opus-5")).toStrictEqual([true, false, "slotted"]);
+  expect(turnsOn(OPENROUTER, "anthropic/claude-haiku-4.5")).toStrictEqual([false, false, "strict"]);
+});
+
+test("agent-sdk keeps opus-4-8's tail system row for the hook and nothing mid-array", () => {
+  expect(turnsOn(AGENT_SDK, "claude-opus-4-8")).toStrictEqual([true, false, "slotted"]);
+  expect(turnsOn(AGENT_SDK, "claude-sonnet-5")).toStrictEqual([false, false, "strict"]);
+});

@@ -1,8 +1,9 @@
-// SHAPE shaper: squashSameRole (the chat design doc Part II §3 rule 6 — Anthropic adjacent-same-role defense) +
-// clampRoleHandling (D66-C, W6 — the SHAPE floor-clamp: effective = stricter of the model floor + user knob).
-import type { RoleHandling } from "@orb/contracts/inference";
+// SHAPE shaper: squashSameRole (the chat design doc Part II §3 rule 6 — Anthropic adjacent-same-role defense). The
+// floor clamp is a contracts read now (`tests/contracts/inference/capability/reads.contract.test.ts`).
+import type { MessageId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { clampRoleHandling, squashSameRole } from "../../../../../packages/server/src/domain/chat/assembly/role-squash.ts";
+import { squashSameRole } from "../../../../../packages/server/src/domain/chat/assembly/role-squash.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("squashSameRole", () => {
@@ -43,6 +44,19 @@ describe("squashSameRole", () => {
     ).toEqual([{ role: "user", content: "first line\n\nsecond line", authorName: "User" }]);
   });
 
+  // A spliced injection heads the run it merges into (the new-chat marker above the first user turn), and the
+  // wire conversion finds the stored row's attachments and card spans by `messageId`. The head's other extras
+  // still win; only the stored identity is taken from the first row that has one.
+  test("a merged row keeps the stored messageId even when an injection heads the run", () => {
+    const stored = castId<MessageId>("message_u1");
+    expect(
+      squashSameRole([
+        { role: "user" as const, content: "[Start a new chat]", speakerless: true },
+        { role: "user" as const, content: "u1", messageId: stored },
+      ]),
+    ).toEqual([{ role: "user", content: "[Start a new chat]\n\nu1", speakerless: true, messageId: stored }]);
+  });
+
   test("a three-run collapses to one (the egocentric scoped fold)", () => {
     expect(
       squashSameRole([
@@ -55,45 +69,6 @@ describe("squashSameRole", () => {
       { role: "user", content: "Aria: greeting\n\nu1\n\nAria: Aria replies" },
       { role: "assistant", content: "Kai replies" },
     ]);
-  });
-});
-
-// D66-C (W6): the SHAPE floor-clamp — effective strategy = the STRICTER of the model floor + the user knob
-// (`none < merge < semi-strict < strict`). The user may go STRICTER than the wire requires, never looser.
-describe("clampRoleHandling (the SHAPE floor-clamp, every (floor, knob) pair)", () => {
-  const values: readonly RoleHandling[] = ["none", "merge", "semi-strict", "strict"];
-  const rank: Record<RoleHandling, number> = { none: 0, merge: 1, "semi-strict": 2, strict: 3 };
-
-  test("returns the stricter (higher-rank) of floor + knob across every pair", () => {
-    for (const floor of values) {
-      for (const knob of values) {
-        const expected = rank[floor] >= rank[knob] ? floor : knob;
-        expect(clampRoleHandling(floor, knob)).toBe(expected);
-      }
-    }
-  });
-
-  test("an unset knob falls to the floor (per value)", () => {
-    for (const floor of values) {
-      expect(clampRoleHandling(floor, undefined)).toBe(floor);
-    }
-  });
-
-  test("an unset floor defaults to strict (TURNS_FLOOR) — the conservative today-behavior", () => {
-    expect(clampRoleHandling(undefined, undefined)).toBe("strict");
-    // A user knob can never go LOOSER than the strict default floor.
-    expect(clampRoleHandling(undefined, "none")).toBe("strict");
-    expect(clampRoleHandling(undefined, "merge")).toBe("strict");
-  });
-
-  test("the user may go STRICTER than a loose floor", () => {
-    expect(clampRoleHandling("none", "strict")).toBe("strict");
-    expect(clampRoleHandling("merge", "semi-strict")).toBe("semi-strict");
-  });
-
-  test("the user can NEVER go looser than the floor (a none knob on a strict floor stays strict)", () => {
-    expect(clampRoleHandling("strict", "none")).toBe("strict");
-    expect(clampRoleHandling("semi-strict", "merge")).toBe("semi-strict");
   });
 });
 

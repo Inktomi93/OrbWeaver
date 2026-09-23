@@ -65,12 +65,10 @@ test("every registry def renders — including the two slots that had no editor 
   // G5 + G9: neither had a client-side editor before, and neither is named anywhere in the view's code.
   await expect(probe.getByRole("button", { name: "Response nudge", exact: true })).toBeVisible();
   await expect(probe.getByRole("button", { name: "New-chat marker", exact: true })).toBeVisible();
-  // A slot shipping NO default bytes says so rather than ghosting a lie — in the DRILL-IN, which is the
-  // template text's editing home. The row's mono preview cell that used to carry it is DELETED (side-eye
-  // F-7): 152px of every row spent on the text's THIRD home, clipping on all six sampled rows and reading
-  // identically on five of them, while the column that discriminates (the fires gloss) starved.
+  // The new-chat marker ships SillyTavern's `[Start a new chat]`; the default preset stores those bytes, so the
+  // DRILL-IN (the template text's editing home) opens on them.
   await probe.getByRole("button", { name: "Edit New-chat marker" }).click();
-  await expect(probe.getByPlaceholder("Blank — nothing is emitted until you write something here.")).toBeVisible();
+  await expect(probe.getByRole("textbox", { name: "Template" })).toHaveValue("[Start a new chat]");
 });
 
 test("F-7 — the row carries NO template preview cell; the template text has two homes, not three", async ({ mount }) => {

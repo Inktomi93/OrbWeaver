@@ -24,7 +24,11 @@ import {
   resolveNudgeText as resolveNudgeTextImpl,
 } from "../assembly/macros.ts";
 import { shape, toShapeCanon as toShapeCanonImpl } from "../assembly/shape.ts";
-import { shapeContextForSpeaker as shapeContextForSpeakerImpl } from "../assembly/speaker-card.ts";
+import {
+  shapeContextForSpeaker as shapeContextForSpeakerImpl,
+  speakerCue as speakerCueImpl,
+  voiceContextForSpeaker as voiceContextForSpeakerImpl,
+} from "../assembly/speaker-card.ts";
 import { buildShapeTrace as buildShapeTraceImpl } from "../assembly/trace.ts";
 import { buildTurnUserMacros as buildTurnUserMacrosImpl } from "../assembly/user-macros.ts";
 import { loadCharacterCardLore as loadCharacterCardLoreImpl } from "../assembly/world-info/pool.ts";
@@ -67,6 +71,18 @@ export function buildShapeTrace(...args: Parameters<typeof buildShapeTraceImpl>)
  *  `narrator` (D60). The legal `engine/ → assembly/` bridge. */
 export function shapeContextForSpeaker(...args: Parameters<typeof shapeContextForSpeakerImpl>): ReturnType<typeof shapeContextForSpeakerImpl> {
   return shapeContextForSpeakerImpl(...args);
+}
+
+/** WHO SPEAKS this turn, for every pass but the system block (macros, regex legs, receive). The legal
+ *  `engine/ → assembly/` bridge. */
+export function voiceContextForSpeaker(...args: Parameters<typeof voiceContextForSpeakerImpl>): ReturnType<typeof voiceContextForSpeakerImpl> {
+  return voiceContextForSpeakerImpl(...args);
+}
+
+/** The speaker cue a turn carries when its round sent none and its system block does not name the speaker. The
+ *  legal `engine/ → assembly/` and `verbs/ → assembly/` bridge. */
+export function speakerCue(...args: Parameters<typeof speakerCueImpl>): ReturnType<typeof speakerCueImpl> {
+  return speakerCueImpl(...args);
 }
 
 /** Build the turn-stage `MacroContext` for regex find/replace templates (the RECEIVE AI_OUTPUT/REASONING

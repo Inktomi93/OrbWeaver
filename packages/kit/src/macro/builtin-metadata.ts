@@ -40,7 +40,7 @@ export const BUILTIN_MACRO_METADATA = {
   charname: meta("charName", "identity", "The active character's name (alias of char).", { aliases: ["char"] }),
   user: meta("user", "identity", "The active persona (user) name.", { aliases: ["userName"] }),
   username: meta("userName", "identity", "The active persona name (alias of user).", { aliases: ["user"] }),
-  persona: meta("persona", "identity", "The active persona name."),
+  persona: meta("persona", "identity", "The active persona's description, with its own macros resolved."),
   scenario: meta("scenario", "identity", "The scenario text for the chat.", { aliases: ["charScenario"] }),
   group: meta("group", "identity", "Every character in the room (including muted), comma-joined.", { aliases: ["charIfNotGroup"] }),
   charifnotgroup: meta("charIfNotGroup", "identity", "Every character in the room, comma-joined (char for a solo chat).", { aliases: ["group"] }),

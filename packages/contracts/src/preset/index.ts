@@ -17,7 +17,7 @@ import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import type { RegexPlacement } from "@orb/kit/regex";
 import { z } from "zod";
 import type { EffortLevel as ModelEffortLevel } from "#inference";
-import { EFFORT_LEVELS as MODEL_EFFORT_LEVELS, roleHandlingSchema, VERBOSITY_LEVELS } from "#inference";
+import { EFFORT_LEVELS as MODEL_EFFORT_LEVELS, userRoleHandlingSchema, VERBOSITY_LEVELS } from "#inference";
 import type { ProseOverrides, ProseSlotId } from "#prose-slot";
 import { hasProseToken, proseOverridesSchema } from "#prose-slot";
 import type { VersionedParseIssue } from "#versioned-config";
@@ -427,16 +427,14 @@ export const userIntentSchema = z.strictObject({
   advanced: z
     .object({
       claudeEnv: claudeEnvSchema.optional(),
-      // Where the volatile per-turn system-prompt half is delivered: "system" joins it into the cached
-      // system-prompt string; "hook" delivers it at the message tail (cache-safe). Absent ⇒ the funnel
-      // picks "hook" iff the model honors mid-conversation system, else "system".
-      dynamicContext: z.enum(["system", "hook"]).optional(),
       // Merge CONSECUTIVE system-note runs before they convert to `user` rows — orthogonal to the
       // adjacent-same-role merge below (roleHandling). Absent ⇒ no pre-merge.
       squashSystemMessages: z.boolean().optional(),
-      // Adjacent-same-role (user|assistant) merge strategy — user-authoring intent, clamped against the
-      // model's `capability.turns.roleHandlingFloor` at the SHAPE splice (user may go stricter, never looser).
-      roleHandling: roleHandlingSchema.optional(),
+      // The message-handling level (`ROLE_HANDLING` minus the model-only levels): same-role merging and where a
+      // system row may sit. Clamped against the model's `turns.roleHandlingFloor` (a preset may go stricter,
+      // never looser). The level also picks the per-turn system half's channel: the message tail where the turn
+      // keeps system rows and the model takes one there, else the system block (`resolveDynamicContext`).
+      roleHandling: userRoleHandlingSchema.optional(),
       // Whether the model may emit SEVERAL tool calls in one turn (OpenRouter `parallel_tool_calls`).
       // Rides the wire only when the request carries tools + the model is tool-capable. Absent ⇒ the
       // provider default (parallel allowed).
@@ -842,11 +840,8 @@ export const DEFAULT_FORMAT_STRINGS = {
   responseNudge: PRESET_PROSE_SLOTS["preset.format.responseNudge"].text,
   wiFormat: PRESET_PROSE_SLOTS["preset.format.wiFormat"].text,
   /** The history-START boundary (ST `new_chat_prompt`/`new_group_chat_prompt` — ONE key covers both; we have
-   *  no chat/group split). BLANK by design, which is exactly today's behavior: the assembler emits nothing
-   *  until a preset sets it (`assembly/context.ts` newChatMarkerCandidate). Spelled here rather than read
-   *  from a PROSE-1 slot precisely BECAUSE it is blank — a slot is authored bytes (no slot may ship empty
-   *  text), and "no boundary marker" is a product behavior, not a sentence someone wrote. */
-  newChatMarker: "",
+   *  no chat/group split). Always a user row (`assembly/context.ts` newChatMarkerCandidate). */
+  newChatMarker: PRESET_PROSE_SLOTS["preset.format.newChatMarker"].text,
 } as const;
 
 /** The editable/importable format-string vocabulary, DERIVED from the one literal above (never re-spelled —
@@ -974,12 +969,8 @@ export interface TemplateDef {
    *  click, and the editable trigger vocabulary lives exclusively in the section drill-in (§5.0). */
   readonly fires: string;
   readonly caps: readonly TemplateCapability[];
-  /** The ghost's byte source — the PROSE-1 one-home for every default (`./prose`). `undefined` ⇒ this slot
-   *  ships NO default bytes (`newChatMarker`: blank means the feature is off until the host writes it), so
-   *  its editor ghosts nothing. A prose slot is authored bytes; an empty one is not a slot. Spelled
-   *  `| undefined` (and written explicitly on that one row) so the property exists on EVERY def — a reader
-   *  walking the table never has to narrow before asking for it. */
-  readonly defaultSlot?: ProseSlotId | undefined;
+  /** The ghost's byte source — the PROSE-1 one-home for every default (`./prose`). */
+  readonly defaultSlot: ProseSlotId;
   /** The Actions-list SUB-CLUSTER this row renders under ({@link TEMPLATE_CLUSTERS}) — declared on every
    *  `extract` row and on nothing else, a pairing the type system cannot state (the kind and the cluster are
    *  two independent fields), so it is enforced two-sidedly by the registry contract test instead: an
@@ -1254,14 +1245,12 @@ export const TEMPLATE_DEFS = [
     id: "newChatMarker",
     kind: "format",
     label: "New-chat marker",
-    fires: "Marks where the conversation starts, at the top of the history",
+    fires: "Opens the conversation as a user message, at the top of the history",
     caps: [],
-    // No prose slot: blank by design — nothing is emitted until the host writes a marker, and a PROSE-1
-    // slot is authored bytes (no slot may ship empty text).
-    defaultSlot: undefined,
+    defaultSlot: "preset.format.newChatMarker",
   },
   // ── THE TURN-WIRE FRAMINGS (owner ruling 2026-08-07) ──────────────────────────────────────────────────
-  // The three wrappers assembly puts AROUND content on the way to the model. They are `format`, not `nudge`:
+  // The wrappers assembly puts AROUND content on the way to the model. They are `format`, not `nudge`:
   // a nudge is prose fired by an ACTION with nothing to steer it; these fire on the shape of the WIRE (a
   // demoted system row, an operator note, a history that would end on the model's own reply). Their id is a
   // PROSE-1 slot id, so their storage is `prose[<id>].text` — the third form path.
@@ -1269,7 +1258,7 @@ export const TEMPLATE_DEFS = [
     id: "chat.injection.systemNote",
     kind: "format",
     label: "System-note frame",
-    fires: "A system-role injection the model can't take as a real system row",
+    fires: "A system-role injection the turn folds into user text",
     caps: [{ kind: "tokens", tokens: ["{{note}}"] }],
     defaultSlot: "chat.injection.systemNote",
   },
@@ -1277,9 +1266,17 @@ export const TEMPLATE_DEFS = [
     id: "chat.injection.userNote",
     kind: "format",
     label: "User-note frame",
-    fires: "Every user-role injection — author's note, host steering, a re-framed injection",
+    fires: "Every user-role injection — author's note, host steering",
     caps: [{ kind: "tokens", tokens: ["{{note}}"] }],
     defaultSlot: "chat.injection.userNote",
+  },
+  {
+    id: "chat.injection.assistantNote",
+    kind: "format",
+    label: "Assistant-note frame",
+    fires: "An assistant-role injection just above the tail, re-roled to user text",
+    caps: [{ kind: "tokens", tokens: ["{{note}}"] }],
+    defaultSlot: "chat.injection.assistantNote",
   },
   {
     id: "chat.assembly.continuationNudge",
@@ -1298,18 +1295,10 @@ export const TEMPLATE_DEFS = [
   // multi-character round. The `{{name}}`/`{{names}}` are PRE-SUBSTITUTION tokens the assembler splices per
   // member — the editor offers them as chips and lints their absence; `speakerTags` carries no macro token.
   {
-    id: "chat.group.alsoPresent",
-    kind: "group",
-    label: "Co-speaker heading",
-    fires: "A merged group turn — opens each other present member's card block",
-    caps: [{ kind: "tokens", tokens: ["{{name}}"] }],
-    defaultSlot: "chat.group.alsoPresent",
-  },
-  {
     id: "chat.group.characterHeading",
     kind: "group",
     label: "Character heading",
-    fires: "A narrator round — opens each character's card block beside the primary",
+    fires: "A merged or narrator group turn — opens each character's card block beside the primary",
     caps: [{ kind: "tokens", tokens: ["{{name}}"] }],
     defaultSlot: "chat.group.characterHeading",
   },
@@ -2004,9 +1993,11 @@ export const DEFAULT_MARKER_TEMPLATES: Record<TemplatedMarker, string> = {
   // deliberately unframed, and PROSE-1's own census leaves this template un-slotted (row 52) precisely
   // because the per-section `template` override IS its edit path.
   // THIS entry is the PER-SPEAKER/SOLO text — the mode-aware pick is made where the default RESOLVES
-  // (`assembly/assemble.ts` templateFor), never re-derived here; see the narrator sibling below.
+  // (`assembly/assemble.ts` templateFor), never re-derived here; see the narrator sibling below. It names no
+  // single perspective (owner ruling): in a group room `{{char}}` binds the whole roster and the round cue names
+  // the speaker, and a solo or group-of-one turn reads the same bytes.
   ["main_prompt"]:
-    "You are {{char}} in an immersive, ongoing roleplay with {{user}}. Stay in character; write {{char}}'s perspective only. " +
+    "You are {{char}} in an immersive, ongoing roleplay with {{user}}. Stay in character. " +
     "Address {{user}} in the second person; use their name only when it is one they have chosen for themselves.",
   ["post_history"]: "",
   ["char_description"]: macro("description"),
@@ -2024,17 +2015,13 @@ export const DEFAULT_MARKER_TEMPLATES: Record<TemplatedMarker, string> = {
 };
 
 /** The NARRATOR-turn `main_prompt` default — the sibling of `DEFAULT_MARKER_TEMPLATES.main_prompt`, not a
- *  replacement for it. A narrator round is ONE generation voicing the WHOLE cast, so the shipped
- *  per-speaker framing (`You are {{char}} … write {{char}}'s perspective only`) arrives at the model as a
- *  self-contradiction: the 2026-08-07 live drive read "write Charlotte, JFC's perspective only" on a turn
- *  that had to produce both. `{{char}}` binds to the JOINED cast on that arm (`assembly/macros`
- *  charForSpeaker), which is exactly what `voicing {{char}}` wants and what `{{char}}'s perspective only`
- *  cannot survive.
+ *  replacement for it. A narrator round is ONE generation voicing the WHOLE cast and the world around them,
+ *  which the per-speaker framing (`You are {{char}} … Stay in character.`) does not say. `{{char}}` binds to the
+ *  JOINED cast on that arm (`assembly/macros` charForSpeaker), which is exactly what `voicing {{char}}` wants.
  *
  *  WHICH text a turn gets is decided ONCE, where the default resolves (`assembly/assemble.ts` templateFor,
- *  keyed on `speaker.kind === "multi-voice"` — the same axis `memberHeadingSlot` already selects the co-speaker
- *  card frame on). There is deliberately NO second resolution home and NO mode-keyed record here: this file
- *  owns the BYTES, the assembler owns the pick.
+ *  keyed on the speaker arm). There is deliberately NO second resolution home and NO mode-keyed record here:
+ *  this file owns the BYTES, the assembler owns the pick.
  *
  *  The ADDRESS clause is byte-identical to the per-speaker default's, on purpose (owner ruling 2026-08-02 —
  *  see the comment above): the vocative defect is a property of `{{user}}`, not of the turn's mode.

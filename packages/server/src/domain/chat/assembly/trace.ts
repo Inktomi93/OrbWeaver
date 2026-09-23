@@ -39,12 +39,9 @@ interface ShapeStages {
 /**
  * Build the content-free SHAPE trace from shape()'s stage snapshots + its breakpoint call.
  *
- * `breakpointDecision` is CARRIED, never re-derived. It used to be reconstructed here from stage row counts,
- * and that reconstruction was wrong for one whole arm: a depth ≥ 2 `in_chat` injection aborts the breakpoint
- * while ADDING a row, so `named.length < withTail.length` reads false and the deep injection was reported as
- * "second-volatile-tail" — pointing a host at a nudge that does not exist and away from the injection that
- * actually cost them the cache. `shape()` now returns the decision the aborting branch made
- * (`assembly/shape` computeHistoryBreakpoint), so the label cannot disagree with the call.
+ * `breakpointDecision` is CARRIED, never re-derived: stage row counts cannot see why a pin moved or vanished, so
+ * `shape()` returns the decision its own branch made (`assembly/shape` computeHistoryBreakpoint), and the label
+ * cannot disagree with the call.
  */
 export function buildShapeTrace(stages: ShapeStages, cacheBreakpointFromEnd: number | undefined, breakpointDecision: ShapeBreakpointDecision): ShapeTrace {
   const squashMerges = stages.injected.length - stages.squashed.length;

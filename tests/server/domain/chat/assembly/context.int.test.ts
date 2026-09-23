@@ -613,6 +613,11 @@ function ctxWithCards(byId: Record<string, CharacterCard>): ChatContext {
 }
 /** The in_chat notes filtered by role != undefined would be ambiguous; select by known content instead. */
 
+/** The turn's injections minus the new-chat marker, which rides every turn (G9). */
+function besidesMarker(injections: readonly ChatInjection[] | undefined): readonly ChatInjection[] {
+  return (injections ?? []).filter((i) => i.origin !== "new-chat-marker");
+}
+
 describe("buildAssembleContext — character depthPrompt (Character's Note @ Depth)", () => {
   test("a solo character's non-empty note injects exactly once as in_chat at its depth/role", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
@@ -634,7 +639,7 @@ describe("buildAssembleContext — character depthPrompt (Character's Note @ Dep
     const ctx = ctxWithCard(cardWithNote("Aria", null));
     const out = await buildAssembleContext(ctx, inputOf(chatId, host, [charId]));
 
-    expect(out.chatInjections ?? []).toHaveLength(0);
+    expect(besidesMarker(out.chatInjections)).toHaveLength(0);
     expect(out.authorsNoteSource).toBeUndefined();
   });
 
@@ -645,7 +650,7 @@ describe("buildAssembleContext — character depthPrompt (Character's Note @ Dep
     const ctx = ctxWithCard(cardWithNote("Aria", { prompt: "   ", depth: 4, role: "system" }));
     const out = await buildAssembleContext(ctx, inputOf(chatId, host, [charId]));
 
-    expect(out.chatInjections ?? []).toHaveLength(0);
+    expect(besidesMarker(out.chatInjections)).toHaveLength(0);
     expect(out.authorsNoteSource).toBeUndefined();
   });
 
@@ -707,12 +712,12 @@ describe("buildAssembleContext — character depthPrompt (Character's Note @ Dep
     const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
-    // role:user so the spliced content stays verbatim (system would be [Note from system: …]-framed).
+    // role:user so the spliced content stays verbatim (system would be [Take the following into special consideration: …]-framed).
     const ctx = ctxWithCard(cardWithNote("Aria", { prompt: "Aria stays cryptic.", depth: 2, role: "user" }));
     const built = await buildAssembleContext(ctx, inputOf(chatId, host, [charId]));
 
     const history = [1, 2, 3, 4, 5].map((n) => ({ role: "user" as const, content: `m${n}` }));
-    const spliced = spliceInChatInjections(history, built.chatInjections);
+    const spliced = spliceInChatInjections(history, besidesMarker(built.chatInjections));
     // depth 2 → inserted 2 slots from the tail (index length-2 = 3 in the original 5-msg history).
     expect(spliced).toHaveLength(6);
     expect(spliced.findIndex((m) => m.content.includes("Aria stays cryptic."))).toBe(3);
@@ -744,7 +749,7 @@ describe("buildAssembleContext — character depthPrompt (Character's Note @ Dep
     // Same room, same note, DEFAULT preset: the shipped frame, byte-for-byte.
     const plain = await buildAssembleContext(ctx, inputOf(chatId, host, [charId]));
     const plainFramed = spliceInChatInjections(history, plain.chatInjections, undefined, { prose: plain.prose });
-    expect(plainFramed.map((r) => r.content)).toContain("[Note from system: Keep it terse.]");
+    expect(plainFramed.map((r) => r.content)).toContain("[Take the following into special consideration: Keep it terse.]");
   });
 
   test("D66-B: assistant@depth-0 is ACCEPTED at the WRITE boundary; safety moved to the SHAPE delivery gate", () => {
@@ -1323,7 +1328,7 @@ describe("buildAssembleContext — persona description placement (FINAL-Persona 
       personas: { anchor: null, active },
     });
 
-    expect(out.chatInjections ?? []).toEqual([]);
+    expect(besidesMarker(out.chatInjections)).toEqual([]);
     // {{persona}} still resolves off the SAME AssemblePersona (macros.test.ts pins the macro-layer half).
     expect(out.activePersona?.description).toBe("a wandering scholar");
     // in_prompt ⇒ the marker EMITS the description (the prompt slot).
@@ -1346,7 +1351,7 @@ describe("buildAssembleContext — persona description placement (FINAL-Persona 
       personas: { anchor: null, active },
     });
 
-    expect(out.chatInjections ?? []).toEqual([]);
+    expect(besidesMarker(out.chatInjections)).toEqual([]);
     expect(out.personaMarkerActive).toBe(false);
   });
 
@@ -1362,7 +1367,7 @@ describe("buildAssembleContext — persona description placement (FINAL-Persona 
       personas: { anchor: null, active },
     });
 
-    expect(out.chatInjections ?? []).toEqual([]);
+    expect(besidesMarker(out.chatInjections)).toEqual([]);
     expect(out.personaMarkerActive).toBe(true);
   });
 
@@ -1433,7 +1438,7 @@ describe("buildAssembleContext — the BOTH-PERSONAS context rule on a swap (FIN
     // The solo invariant: the anchor adds NOTHING when it is the active persona.
     expect(noSwap.chatInjections).toEqual(solo.chatInjections);
     expect(noSwap.personaMarkerActive).toBe(solo.personaMarkerActive);
-    expect((noSwap.chatInjections ?? []).length).toBe(1);
+    expect(besidesMarker(noSwap.chatInjections).length).toBe(1);
   });
 
   test("swap: ACTIVE injects per its own config (in_chat), ANCHOR injects in card-context (in_static, framed)", async () => {
@@ -1614,17 +1619,21 @@ describe("buildAssembleContext — guided delivery depth (G10)", () => {
   });
 });
 
-// ── G9: the new-chat boundary marker (`formatStrings.newChatMarker`) ───────────────────────────────
+// ── G9: the new-chat boundary marker (`formatStrings.newChatMarker`; ST `new_chat_prompt`) ─────────────────
+// Owner ruling: the marker ships ON as `[Start a new chat]` and is always a USER row at the top of the history, so
+// a greeting-first chat opens on a user row on every route. The text is editable; the role is not.
 describe("buildAssembleContext — the new-chat marker (G9)", () => {
-  test("BLANK (the shipped default) emits NOTHING — byte-identical to every pre-G9 turn", async () => {
+  test("the shipped default emits one USER injection at the TOP of the history", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     const out = await buildAssembleContext(ctxWithCard(cardOf("Aria")), inputOf(chatId, host, [charId]));
-    expect(out.chatInjections?.some((i) => i.origin === "new-chat-marker")).toBe(false);
+    const markers = out.chatInjections?.filter((i) => i.origin === "new-chat-marker") ?? [];
+    // MAX_SAFE_INTEGER is "the top of the history" — the SHAPE splice clamps it to the history length.
+    expect(markers).toMatchObject([{ position: "in_chat", depth: Number.MAX_SAFE_INTEGER, role: "user", content: "[Start a new chat]" }]);
   });
 
-  test("SET: one system injection at the TOP of the history, with its macros resolved", async () => {
+  test("SET: the preset's own text, macros resolved, still a user row", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
@@ -1633,12 +1642,11 @@ describe("buildAssembleContext — the new-chat marker (G9)", () => {
       promptConfig: { ...DEFAULT_PROMPT_CONFIG, formatStrings: { newChatMarker: "[Start of the chat with {{char}}.]" } },
     });
     const marker = out.chatInjections?.find((i) => i.origin === "new-chat-marker");
-    // MAX_SAFE_INTEGER is "the top of the history" — the SHAPE splice clamps it to the history length.
-    expect(marker).toMatchObject({ position: "in_chat", depth: Number.MAX_SAFE_INTEGER, role: "system" });
+    expect(marker).toMatchObject({ position: "in_chat", depth: Number.MAX_SAFE_INTEGER, role: "user" });
     expect(marker?.content).toBe("[Start of the chat with Aria.]");
   });
 
-  test("a marker that resolves to whitespace emits nothing (no dangling scaffold)", async () => {
+  test("a BLANK stored marker inherits the shipped text (format strings are blank-means-default)", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
@@ -1646,7 +1654,7 @@ describe("buildAssembleContext — the new-chat marker (G9)", () => {
       ...inputOf(chatId, host, [charId]),
       promptConfig: { ...DEFAULT_PROMPT_CONFIG, formatStrings: { newChatMarker: "   " } },
     });
-    expect(out.chatInjections?.some((i) => i.origin === "new-chat-marker")).toBe(false);
+    expect(out.chatInjections?.find((i) => i.origin === "new-chat-marker")?.content).toBe("[Start a new chat]");
   });
 });
 
