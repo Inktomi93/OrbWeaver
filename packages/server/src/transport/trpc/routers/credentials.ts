@@ -10,9 +10,10 @@
 // at the domain (the id is half the AAD — an unknown id would seal a key nothing can open).
 //
 // OUTPUT: `list` and `add` parse their result through the strict `credentialViewSchema`. The domain projection
-// already drops every secret column; the parser is the second guard. An extra key fails the call as an
-// INTERNAL_SERVER_ERROR, which the ladder logs with the key names (never the values) and the formatter
-// answers with its fixed unclassified-fault message.
+// already drops every secret column; the parser is the second guard. A refused result fails the call as an
+// INTERNAL_SERVER_ERROR, and the formatter answers with its fixed unclassified-fault message. The ladder logs
+// the parse issues: paths, key names and fixed messages, never a value (zod omits input from its issues, and
+// `typeIdSchema` emits a fixed message rather than the id library's echo of the rejected value).
 
 import { credentialViewSchema, providerMetadataSchema } from "@orb/contracts/credentials";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";

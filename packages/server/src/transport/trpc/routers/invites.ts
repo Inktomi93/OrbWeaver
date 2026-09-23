@@ -21,9 +21,10 @@
 // OUTPUT: every procedure that returns data parses it through a strict canonical schema from
 // `@orb/contracts/chat`: `createInviteResultSchema` (the invite view plus the ONE raw token, nothing beside it),
 // `invitePreviewSchema` (the pre-membership preview, no roster), `redeemInviteResultSchema` (the joined
-// member's `ChatDetail` + own roster row), and `inviteViewSchema` for the host's list. An extra key fails the
-// call as an INTERNAL_SERVER_ERROR; the ladder logs the key names (never values) and the formatter answers
-// with its fixed unclassified-fault message.
+// member's `ChatDetail` + own roster row), and `inviteViewSchema` for the host's list. A refused result fails
+// the call as an INTERNAL_SERVER_ERROR, and the formatter answers with its fixed unclassified-fault message.
+// The ladder logs the parse issues: paths, key names and fixed messages, never a value (zod omits input from
+// its issues, and `typeIdSchema` emits a fixed message rather than the id library's echo of the value).
 
 import {
   acceptInviteSchema,

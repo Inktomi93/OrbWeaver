@@ -24,6 +24,21 @@ test("typeIdSchema accepts a matching prefix and rejects a mismatched one", () =
   expect(schema.safeParse("not-a-typeid").success).toBe(false);
 });
 
+// A rejected id's issue message reaches the server log (a failed tRPC output parse logs its ZodError), so it
+// must never echo the value: a producer bug that maps a secret into an id field would otherwise print the
+// secret. typeid-js's own messages echo it on three paths — a prefix mismatch (up to the last `_`), a prefix
+// with invalid characters, and an empty prefix (the whole value).
+test("typeIdSchema's issue message never echoes the rejected value", () => {
+  const schema = typeIdSchema(ID_PREFIX.persona);
+  const secretShaped = ["sk_live_secretkey_01jz0000000000000000000000", "sk-live-9f2c4d1e_01jz0000000000000000000000", "_sk-live-plaintext-key-4d1e"];
+  for (const value of secretShaped) {
+    const result = schema.safeParse(value);
+    expect(result.success).toBe(false);
+    expect(result.error?.issues.map((issue) => issue.message)).toEqual(["Invalid persona id"]);
+    expect(JSON.stringify(result.error?.issues)).not.toContain("sk");
+  }
+});
+
 test("brandedId accepts only non-empty strings", () => {
   const schema = brandedId<ChatId>();
   expect(schema.safeParse("").success).toBe(false);
