@@ -83,7 +83,7 @@ export { NoConnectionError } from "./resolve/resolve-task.ts";
 export { toChatRequest } from "./roles/chat-request.ts";
 // The two non-turn chat calls behind neutral inputs: a structured-output call and a forced tool round.
 export { carriesForcedToolRound, runStructuredChat, toForcedToolRoundRequest } from "./roles/chat-rounds.ts";
-export { backgroundWorkRefusal } from "./roles/role-clients.ts";
+export { unavailableRefusal } from "./roles/role-clients.ts";
 export { runStructuredTurn } from "./roles/structured-turn.ts";
 
 const OPENROUTER_CATALOG_KEY = "catalog:openrouter";
