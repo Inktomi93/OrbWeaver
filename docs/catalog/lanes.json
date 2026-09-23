@@ -14,10 +14,6 @@
       "patterns": ["docs/design/**/*.md"]
     },
     {
-      "id": "reviews",
-      "patterns": ["docs/reviews/**/*.md"]
-    },
-    {
       "id": "root-operational",
       "patterns": ["docs/*.md"]
     },
