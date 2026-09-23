@@ -26,7 +26,7 @@ export interface WriteOutcome {
   readonly skipped?: readonly string[];
 }
 
-export interface LandOutcome extends WriteOutcome {
+interface LandOutcome extends WriteOutcome {
   readonly skipped: readonly string[];
 }
 

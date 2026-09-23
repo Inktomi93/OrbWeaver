@@ -5,19 +5,18 @@
 // single-commit form.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { DOC_TOOL_TREES } from "#doc-catalog";
+import { CORE_PATH_REGISTRY_PATH, DOC_TOOL_TREES } from "#doc-catalog";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Ruling, RulingRange } from "../contract/types.ts";
 import { adrSlug, parseRegistry, renderAdr, withoutRulings } from "../lib/ledger.ts";
 import { numberedName } from "../lib/names.ts";
-import { REGISTRY_PATH } from "../lib/rules.ts";
 import { regenerateIndexes } from "./indexes.ts";
 import type { WriteOutcome } from "./items.ts";
 import { root, today, writeDoc } from "./tree.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm doc migrate-ledger --range <a-b|all> [--apply]");
 
-export interface MigrationPlan {
+interface MigrationPlan {
   readonly writes: readonly { readonly ruling: Ruling; readonly path: string }[];
   readonly refusals: readonly string[];
 }
@@ -25,7 +24,7 @@ export interface MigrationPlan {
 /** What the batch would do, from the registry's own text. Pure over the source so a test plants one. */
 export function planMigration(source: string, range: RulingRange | "all", existingAdrs: ReadonlySet<string>): MigrationPlan {
   const parsed = parseRegistry(source);
-  const refusals = parsed.duplicates.map((id) => `D${String(id)}: anchored more than once in ${REGISTRY_PATH} — merge the rows before migrating`);
+  const refusals = parsed.duplicates.map((id) => `D${String(id)}: anchored more than once in ${CORE_PATH_REGISTRY_PATH} — merge the rows before migrating`);
   const selected = parsed.rulings.filter((ruling) => range === "all" || (ruling.id >= range.lo && ruling.id <= range.hi));
   if (selected.length === 0) {
     refusals.push(`no ruling in range ${range === "all" ? "all" : `${String(range.lo)}-${String(range.hi)}`}`);
@@ -45,9 +44,9 @@ export function migrateLedger(
   repoRoot = root,
   date = today(),
 ): WriteOutcome & { readonly planned: readonly string[] } {
-  const abs = join(repoRoot, REGISTRY_PATH);
+  const abs = join(repoRoot, CORE_PATH_REGISTRY_PATH);
   if (!existsSync(abs)) {
-    return { written: [], refusals: [`${REGISTRY_PATH}: gone — the ledger has migrated`], planned: [] };
+    return { written: [], refusals: [`${CORE_PATH_REGISTRY_PATH}: gone — the ledger has migrated`], planned: [] };
   }
   const source = readFileSync(abs, "utf8");
   const existing = new Set(readdirAdrs(repoRoot));
@@ -59,8 +58,8 @@ export function migrateLedger(
   for (const write of plan.writes) {
     writeDoc(write.path, renderAdr(write.ruling, date), repoRoot);
   }
-  writeDoc(REGISTRY_PATH, withoutRulings(source, new Set(plan.writes.map((write) => write.ruling.id))), repoRoot);
-  return { written: [...plan.writes.map((write) => write.path), REGISTRY_PATH, ...regenerateIndexes(repoRoot)], refusals: [], planned };
+  writeDoc(CORE_PATH_REGISTRY_PATH, withoutRulings(source, new Set(plan.writes.map((write) => write.ruling.id))), repoRoot);
+  return { written: [...plan.writes.map((write) => write.path), CORE_PATH_REGISTRY_PATH, ...regenerateIndexes(repoRoot)], refusals: [], planned };
 }
 
 function readdirAdrs(repoRoot: string): readonly string[] {

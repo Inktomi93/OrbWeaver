@@ -5,6 +5,7 @@
 // docs come from `_shared/prose-rules.ts` and are composed there, not here.
 import {
   ADR_KIND,
+  CORE_PATH_REGISTRY_PATH,
   DATE_RE,
   DOC_TOOL_TREES,
   FIRST_RESERVED_RULING,
@@ -29,8 +30,10 @@ const PLAN_CAP = 49_152;
 const ITEM_CAP = 4096;
 const LAW_CAP = 49_152;
 const MISSION_PATH = "docs/Mission.md";
-export const REGISTRY_PATH = "docs/architecture/core/Core-Path-Registry.md";
 const CATALOG_DIR = "catalog";
+/** Every phrasing of the registry's next-free statement — "Next free number is D165+", "Next free number
+ *  for a genuinely new ruling is **D159+**" — so two of them cannot coexist unseen. */
+const NEXT_FREE_STATEMENT_RE = /Next free number\b[^\n.]*?\bis \**D(\d+)\+/gu;
 const INDEX_KIND = "index";
 const ARCHIVED = "archived";
 const ARCHIVE_FOLDER_RE = /^\d{4}-\d{2}-\d{2}-[a-z0-9]+(?:-[a-z0-9]+)*$/u;
@@ -299,17 +302,27 @@ export function nextFreeRulingId(registryIds: ReadonlySet<number>, adrIdList: re
   return next >= RESERVED.lo && next <= RESERVED.hi ? RESERVED.hi + 1 : next;
 }
 
+/** The numbers every next-free statement in the registry's text announces, in file order. */
+export function nextFreeStatements(source: string): readonly number[] {
+  return [...source.matchAll(NEXT_FREE_STATEMENT_RE)].map((match) => Number(match[1]));
+}
+
 function nextFreeNoteProblems(tree: DocTree): readonly string[] {
-  if (tree.nextFreeNote === null) {
+  const [note, ...extra] = tree.nextFreeNotes;
+  if (note === undefined) {
     return [];
+  }
+  if (extra.length > 0) {
+    const all = tree.nextFreeNotes.map((n) => `D${String(n)}+`).join(", ");
+    return [`${CORE_PATH_REGISTRY_PATH}: two next-free notes (${all}) — keep the one that is right`];
   }
   const expected = nextFreeRulingId(
     tree.registryIds,
     adrIds(tree).flatMap(({ id }) => (id === null ? [] : [id])),
   );
-  return tree.nextFreeNote === expected
+  return note === expected
     ? []
-    : [`${REGISTRY_PATH}: the next-free note says D${String(tree.nextFreeNote)}+ but the next free id is D${String(expected)} — edit the note`];
+    : [`${CORE_PATH_REGISTRY_PATH}: the next-free note says D${String(note)}+ but the next free id is D${String(expected)} — edit the note`];
 }
 
 function itemProblems(tree: DocTree): readonly string[] {

@@ -1,7 +1,15 @@
 // The governed-tree rules on hand-built snapshots: each failure class beside the clean control that
 // proves the same walk passes. No tree, no git — `docProblems` is pure over a `DocTree`.
 import type { DocTree, GovernedDoc } from "../../../../tooling/src/doc/index.ts";
-import { adrTemplate, docProblems, expectedGeneratedFiles, itemTemplate, LEGACY_ROOTS, planTemplate } from "../../../../tooling/src/doc/index.ts";
+import {
+  adrTemplate,
+  docProblems,
+  expectedGeneratedFiles,
+  itemTemplate,
+  LEGACY_ROOTS,
+  nextFreeStatements,
+  planTemplate,
+} from "../../../../tooling/src/doc/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const TODAY = "2026-09-23";
@@ -26,7 +34,7 @@ function tree(docs: Readonly<Record<string, string>>, overrides: Partial<DocTree
     docs: all,
     files: all.map((doc) => doc.path),
     registryIds: new Set([1, 163]),
-    nextFreeNote: 165,
+    nextFreeNotes: [165],
     evidenceOnMain: new Set([ON_MAIN]),
     ...overrides,
   };
@@ -111,11 +119,23 @@ test("an ADR id must be unique, unreserved and not still anchored in the legacy 
 });
 
 test("the registry's next-free note must be one past the highest id across the registry and the ADR tree", () => {
-  const stale = tree(CLEAN, { nextFreeNote: 163 });
+  const stale = tree(CLEAN, { nextFreeNotes: [163] });
   expect(docProblems(stale)).toEqual([
     "docs/architecture/core/Core-Path-Registry.md: the next-free note says D163+ but the next free id is D165 — edit the note",
   ]);
-  expect(docProblems(tree(CLEAN, { nextFreeNote: null }))).toEqual([]);
+  expect(docProblems(tree(CLEAN, { nextFreeNotes: [] }))).toEqual([]);
+});
+
+test("two next-free statements cannot coexist, and the reader catches every phrasing of one", () => {
+  const twice = tree(CLEAN, { nextFreeNotes: [159, 165] });
+  expect(docProblems(twice)).toEqual(["docs/architecture/core/Core-Path-Registry.md: two next-free notes (D159+, D165+) — keep the one that is right"]);
+  const registry = [
+    "Next free number for a genuinely new ruling is **D159+** (D86 was RE-MINTED as a live anchor).",
+    "**Next free number is D165+ (the ADR tree holds the rest).**",
+    "The next free slot in the drawer is not a D number.",
+  ].join(" ");
+  expect(nextFreeStatements(registry)).toEqual([159, 165]);
+  expect(nextFreeStatements("# bare\n")).toEqual([]);
 });
 
 test("two work items sharing one id is a finding, and so is done evidence that is not on main", () => {

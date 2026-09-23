@@ -12,9 +12,14 @@ const ON_RE = /^on (\d+)$/u;
 /** `wake path <repo path>` (met when the path exists) or `wake gone <repo path>` (met when it does not).
  *  The path is repository-relative and may not climb out; nothing here is ever executed. */
 const WAKE_RE = /^wake (path|gone) ([^\s/][^\s]*)$/u;
-/** A full commit id. The shape is judged here; `rules.ts` proves it reachable from `main` through the
- *  `evidenceOnMain` facts the tree walk resolves with git. */
+/** A commit id. The shape is judged here — and by `ops/tree.ts` BEFORE a doc-supplied value reaches a
+ *  version-control argv, so `--help` can never become a flag; `rules.ts` proves the id reachable from
+ *  `main` through the `evidenceOnMain` facts the tree walk resolves. */
 const COMMIT_RE = /^[a-f0-9]{7,40}$/u;
+
+export function isCommitId(value: string): boolean {
+  return COMMIT_RE.test(value);
+}
 const BLOCKER_GRAMMAR = "blocked: owner | on <id> | wake path <repo path> | wake gone <repo path>";
 
 export function isItemKind(value: string | undefined): value is ItemKind {
@@ -104,7 +109,7 @@ function stateProblem(item: WorkItem, known: ReadonlySet<number>): string | null
   if (item.state === "blocked") {
     return blockedProblem(item, known);
   }
-  if (item.state === "done" && (item.evidence === null || !COMMIT_RE.test(item.evidence))) {
+  if (item.state === "done" && (item.evidence === null || !isCommitId(item.evidence))) {
     return "a done item carries its evidence commit: pnpm doc land <id> --evidence <sha>";
   }
   return null;

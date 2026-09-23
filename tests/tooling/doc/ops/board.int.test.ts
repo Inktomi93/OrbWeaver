@@ -33,6 +33,13 @@ test("land refuses evidence that is not on main and lands with evidence that is"
   const bogus = landItems([1], "0123456789abcdef0123456789abcdef01234567", root, TODAY);
   expect(bogus.written).toEqual([]);
   expect(bogus.refusals[0]).toContain("not a commit reachable from main");
+  // A doc-supplied value is judged by SHAPE before git sees it: `--help` is a git flag, not a commit,
+  // and `HEAD` is a ref the doc has no business naming as evidence.
+  for (const flag of ["--help", "HEAD", "--output=/tmp/x"]) {
+    const refused = landItems([1], flag, root, TODAY);
+    expect(refused.written).toEqual([]);
+    expect(refused.refusals[0]).toContain("not a commit reachable from main");
+  }
   const landed = landItems([1], head, root, TODAY);
   expect(landed.refusals).toEqual([]);
   expect(readFileSync(join(root, "docs/work/0001-a.md"), "utf8")).toContain(`status: done\nupdated: 2026-09-23\nevidence: ${head}\n`);

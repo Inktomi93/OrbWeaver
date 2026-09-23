@@ -1,6 +1,6 @@
 // The legacy registry reader: both row shapes parse to one ruling shape, a duplicate anchor is named, the
-// reserved range comes from the registry's own note, and removing rulings leaves the rest byte-intact.
-import { adrSlug, parseRegistry, renderAdr, reservedRange, withoutRulings } from "../../../../tooling/src/doc/index.ts";
+// registry's note is not a data source, and removing rulings leaves the rest byte-intact.
+import { adrSlug, parseRegistry, renderAdr, withoutRulings } from "../../../../tooling/src/doc/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const REGISTRY = [
@@ -48,13 +48,11 @@ test("bullet rows and heading sections parse to the same ruling shape, in file o
   expect(parsed.rulings[3]?.body).toContain("A stable anchor may accompany it.");
   expect(parsed.rulings[3]?.body).toContain("D142");
   expect(parsed.duplicates).toEqual([]);
-  expect(parsed.reserved).toEqual({ lo: 79, hi: 105 });
 });
 
-test("a duplicate anchor is reported, and a registry with no note has no reserved range", () => {
+test("a duplicate anchor is reported", () => {
   const twice = `${REGISTRY}\n## D1-D2\n\n- **D1** — again.\n`;
   expect(parseRegistry(twice).duplicates).toEqual([1]);
-  expect(reservedRange("# bare\n")).toBeNull();
 });
 
 test("the ADR slug derives from the title and falls back to the id", () => {

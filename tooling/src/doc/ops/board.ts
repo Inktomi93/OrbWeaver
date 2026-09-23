@@ -31,7 +31,7 @@ function ordered(items: readonly WorkItem[]): readonly WorkItem[] {
   });
 }
 
-export function overviewLines(items: readonly WorkItem[]): readonly string[] {
+function overviewLines(items: readonly WorkItem[]): readonly string[] {
   const lines: string[] = [];
   for (const state of STATES) {
     const bucket = ordered(items.filter((item) => item.state === state));
