@@ -1,4 +1,4 @@
-// transport/trpc/routers/imagery — the client-facing surface of the imagery LEAF (imagery-design/04 §8).
+// transport/trpc/routers/imagery — the client-facing surface of the imagery LEAF.
 // These three verbs do NOT post to chat (that stays `chat.generateImage`, which owns message authorship);
 // they are the direct imagery ops the I5 client consumes: the studio's img2img/edit (`editImage`), the
 // preview-before-spend surface (`extractPrompt`), and the gallery-detail + regenerate provenance read
@@ -15,18 +15,18 @@ import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc.ts";
 
-// The edit instruction cap mirrors the generation prompt cap (imagery-design/02 §7 — the verbatim edit
+// The edit instruction cap mirrors the generation prompt cap (the verbatim edit
 // instruction rides the same 2000-char ceiling as a resolved prompt).
 const MAX_INSTRUCTION_CHARS = 2000;
 const MIN_IMAGE_COUNT = 1;
 const MAX_IMAGE_COUNT = 4;
 
-// The extraction modes (`free` has nothing to extract — imagery-design/02 §2); derived from the contract
+// The extraction modes (`free` has nothing to extract); derived from the contract
 // tuple via `.exclude`, never re-spelled (`no-inline-union-redecl`).
 const extractionModeSchema = promptTemplateModeSchema.exclude(["free"]);
 
 export const imageryRouter = t.router({
-  // The img2img/edit studio (imagery-design/02 §4): edit an OWNED asset by instruction. Only the owned-asset
+  // The img2img/edit studio: edit an OWNED asset by instruction. Only the owned-asset
   // source arm is exposed on the wire — an uploaded source rides `uploadAsset` first (→ an id), never bytes
   // over tRPC (the SSRF/size posture, doc 04 §7). Throws `ImageEditUnsupportedError` (→ BAD_REQUEST) when the
   // resolved generateImage model lacks `input.imageEdit` — the client shows the capability refusal.

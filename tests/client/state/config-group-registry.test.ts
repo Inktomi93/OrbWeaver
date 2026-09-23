@@ -1,7 +1,7 @@
 // `configAnchorId` + the group-body narrowings (state/config-group-registry.ts) — the DOM anchor-id
 // derivation every config section shares (the LIST's scroll-spy prefix and the deep-link jump read the same
 // function), and the `collection` narrowing the host's welcome, mobile teaching, context routing and
-// selection title all read (config-revamp-design.md §3.1 / §6.8).
+// selection title all read.
 
 import type { ConfigGroupDefinition } from "@orb/client/state";
 import { configAnchorId, isCollectionGroup, rendersOwnBody } from "@orb/client/state";

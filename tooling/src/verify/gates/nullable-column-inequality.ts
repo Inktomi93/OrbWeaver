@@ -101,7 +101,7 @@ const RECOGNIZED = new Set([...Object.keys(COLUMN_ARG_COUNT), ...NULL_GUARD_FNS]
  *  every local alias a direct `drizzle-orm*` import binds to them, and the `<ns>.<name>` form of every
  *  namespace import of that module.
  *
- *  WHY A PREFILTER AT ALL (the id-brand lane's measured lesson, id-brand-family-1584.md): resolving a
+ *  WHY A PREFILTER AT ALL (the id-brand lane's measured lesson, the id-brand family's #1584 conversion record): resolving a
  *  canonical module origin on EVERY CallExpression in a 6,112-file population does not finish in ten
  *  minutes. The index is built once per source, from that source's OWN import declarations, and only a
  *  spelling it contains pays for the full origin resolution — which still runs, so a SHADOWED local of a

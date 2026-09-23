@@ -1,5 +1,5 @@
 // "Add another model on this key" (inference program §5.3a, the second no-defaults survivability action;
-// `docs/design/mocks/connections/list.html` Board B). Opened from a saved connection's row menu, it pre-fills
+// the connections list mock, Board B). Opened from a saved connection's row menu, it pre-fills
 // everything the new row shares with that one — provider, credential, and for an endpoint row its URL, api and
 // transport — and lands on the model picker. The catalog is the saved row's own `connection.catalogModels`:
 // the new row reads the same key against the same provider, so that list is exactly what the key can reach.

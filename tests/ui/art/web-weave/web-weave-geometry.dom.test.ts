@@ -1,4 +1,4 @@
-// The web-weave geometry (docs/history/design/login-loading-screen.md §1/§9.8) — the pure half's contract:
+// The web-weave geometry — the pure half's contract:
 //   • DETERMINISM — the same seed weaves byte-identical geometry (the CT-assertable-web promise);
 //     a different seed genuinely varies it (the jitter is live, not decorative).
 //   • CHOREOGRAPHY — the real orb-weaver build order holds as data: bridge → drop → frame → radii →

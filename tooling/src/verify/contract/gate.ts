@@ -9,7 +9,7 @@
 //
 // THE FILENAME IS LOAD-BEARING AND IS NOT A LEFTOVER. `gates/policy-legacy-imports.ts` keys ARM A on
 // `contract/gate.ts` as a FORBIDDEN IMPORT HOME (a gate module receives no grant table,
-// gate-runtime-standardization.md §12.5) and ARM D on the EXACT path
+// docs/law/gate-runtime-standardization.md §12.5) and ARM D on the EXACT path
 // `/tooling/src/verify/contract/gate.ts` as the type identity of `ExemptionTable`/`ExemptionRow`. Moving
 // these two declarations would retire that arm's real-tree subject, which is enforcement, not tidiness —
 // so the ruling survives and its INPUT changed: the home stays, the descriptor went.

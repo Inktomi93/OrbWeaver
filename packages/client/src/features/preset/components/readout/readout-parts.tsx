@@ -1,4 +1,4 @@
-// The CONTEXT readout's shared PARTS (preset-surface-redesign.md §7). Every panel is built from the same
+// The CONTEXT readout's shared PARTS. Every panel is built from the same
 // three atoms so six panels read as one instrument rather than six drawings:
 //
 //   DatumRow   — `label · value ⟨provenance⟩`, the mock's `.drow`: label voice left, datum voice right.

@@ -1,4 +1,4 @@
-// op: getPendingUserText (rpg-design/05 §6) — the rpg-facing pending-user-text read (the AI GM turn's queued
+// op: getPendingUserText (docs/plans/rpg/design.md) — the rpg-facing pending-user-text read (the AI GM turn's queued
 // dice feed-forward), against a real libSQL db. Proves: the LATEST user-role message's selected-variant content
 // wins (never a later assistant/narrator line), an empty chat is `null`, and a message with no user line is null.
 

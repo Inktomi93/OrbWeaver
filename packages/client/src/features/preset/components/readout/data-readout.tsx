@@ -1,4 +1,4 @@
-// The DATA view's CONTEXT readout (preset-surface-redesign.md §7): per-variable / per-macro REFERENCE
+// The DATA view's CONTEXT readout: per-variable / per-macro REFERENCE
 // COUNTS within this preset — which sections, templates, nudges and macro bodies write `{{name}}`.
 //
 // Informs: "is this safe to rename or delete, and where do I look first?" A reference to a SECTION is a

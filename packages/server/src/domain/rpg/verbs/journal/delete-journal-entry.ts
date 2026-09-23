@@ -1,4 +1,4 @@
-// domain/rpg/verbs/journal/delete-journal-entry — deleteJournalEntry (rpg-design/05 §4.4). Host-gated,
+// domain/rpg/verbs/journal/delete-journal-entry — deleteJournalEntry (docs/plans/rpg/design.md). Host-gated,
 // game-scoped (a foreign game's entry id → leak-free NOT-FOUND, the cross-tenant IDOR belt).
 
 import { DomainNotFoundError } from "@orb/kit/errors";

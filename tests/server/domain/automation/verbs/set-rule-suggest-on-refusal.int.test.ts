@@ -1,4 +1,4 @@
-// verb: setRuleSuggestOnRefusal — RULED F4's per-rule OPT-OUT (interaction-direction-spec row B4).
+// verb: setRuleSuggestOnRefusal — RULED F4's per-rule OPT-OUT.
 //
 // What these pins hold, and why each one is not a tautology:
 //   · the column DEFAULTS ON, so landing the knob changed nothing for any rule that already exists — the
@@ -9,7 +9,7 @@
 //   · the flip does NOT clear the MINT PROVENANCE. This is the reason the verb exists at all: `updateRule`
 //     always nulls `rule_preset_id`/`rule_preset_knobs` (the B10 biconditional), so had this preference been
 //     folded into the PUT, toggling it would have cost a host the saved-cast lineage
-//     (`saved-rosters-build-record.md` §6.1) they never touched. Without this assertion nothing in the tree
+//     (D170) they never touched. Without this assertion nothing in the tree
 //     would notice that regression.
 
 import { expect, test } from "../../../../support/fixtures.ts";

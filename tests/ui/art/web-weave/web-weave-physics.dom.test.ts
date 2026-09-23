@@ -1,4 +1,4 @@
-// The silk's physics (docs/history/design/weave-lab-upgrades.md §1) — the formulas, asserted as the BEHAVIOUR
+// The silk's physics — the formulas, asserted as the BEHAVIOUR
 // they are supposed to produce rather than as re-spelled arithmetic:
 //   • a pluck RINGS (oscillates), FADES (in time), CARRIES (in distance) and DIES (a hard life);
 //   • the ring TRAVELS — a point further along the silk peaks later than the strike;

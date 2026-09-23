@@ -48,7 +48,7 @@
 //   • `docs/reviews/research/**` and `docs/history/reviews/stickler/**` — frozen historical snapshots, not
 //     live law; not ts-morph project files either (`DEFAULT_GLOBS` is `.ts`/`.tsx` only).
 //
-// Docs updated OUTSIDE this script (not ts-morph project files): `docs/design/vocabulary-map.md` row 155
+// Docs updated OUTSIDE this script (not ts-morph project files): `docs/law/vocabulary-map.md` row 155
 // (LANDED) and the two D122 mentions.
 //
 // Preview:  NODE_OPTIONS=--max-old-space-size=16384 node scripts/codemods/rename-roster-tail.ts

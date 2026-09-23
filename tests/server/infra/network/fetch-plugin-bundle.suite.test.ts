@@ -1,4 +1,4 @@
-// fetchPluginBundle — the URL-INSTALL egress fetch (plugin-ui-plane #679 U8, seam 15; the security-review
+// fetchPluginBundle — the URL-INSTALL egress fetch (U8, seam 15; the security-review
 // subject). It is a thin wrapper over `safeFetch(url, { allowedHosts: ANY_HOST, maxBytes: 1 MiB })`, so the full
 // SSRF matrix (redirects, allowlist, userinfo smuggling, deadlines) is already pinned in
 // `safefetch-selfenforcing.suite.test.ts`. What THIS suite pins is the security-load-bearing claim specific to

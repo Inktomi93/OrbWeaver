@@ -5,11 +5,11 @@
 // docks at the row's right edge. In the 307px LIST column that was merely tight; #1725 moved these rows
 // into the 990px CONTENT pane and it became the same defect the tag rows carried — a name whose own count
 // sits several hundred px away stops reading as that name's count (side-eye 2026-09-06 measured the twin
-// at 84–86% ink-to-ink void). DESIGN.md §3.3 draws the roster subtitle as "members · rules"; `rosterScent`
+// at 84–86% ink-to-ink void). the mock design §3.3 draws the roster subtitle as "members · rules"; `rosterScent`
 // is that string.
 //
 // WHAT IS PINNED, AND WHY EACH ARM EXISTS:
-//   · the WIDTH MATRIX (DESIGN.md §5 obligation 6) at all three `INK_VOID_WIDTHS` — a point measurement
+//   · the WIDTH MATRIX (the mock design §5 obligation 6) at all three `INK_VOID_WIDTHS` — a point measurement
 //     never proves a range property, and this exact defect reads 48% at the narrow end and 86% at the wide
 //     one, so either end alone would have been a false verdict about the other. The measurement is a
 //     `Range` over the glyph runs, never a bounding box: a row title is `min-w-0 flex-1 truncate`, so its
@@ -80,7 +80,7 @@ function stub(page: Page, rosters: readonly RosterPresetSummary[] = ROSTERS): Pr
   });
 }
 
-// ── The width matrix DESIGN.md §5 obligation 6 owes every collection row ─────────────────────────────
+// ── The width matrix the mock design §5 obligation 6 owes every collection row ─────────────────────────────
 for (const width of INK_VOID_WIDTHS) {
   test(`#1838: a roster row's ink-to-ink void stays inside the bar at ${String(width)}px`, async ({ mount, page }) => {
     await stub(page);

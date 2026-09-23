@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
   <title>orbweaver</title>
-  <!-- The orbweaver mark, direction A "Open Orb" (docs/history/design/login-loading-screen.md §8 — owner-ruled
-       2026-08-09; source frozen at docs/history/design/mocks/login-loading/orb-favicon-a.svg). This is the
+  <!-- The orbweaver mark, direction A "Open Orb" (D173 — owner-ruled
+       2026-08-09). This is the
        16px CUT: 6 spokes + 1.7 open turns at fatter strokes — never the display mark scaled down.
        Hearth ember (oklch(0.72 0.175 52) ≈ #ec9145) hardcoded: a tab icon cannot inherit a page
        color. Stroke-only on transparent so it reads on light AND dark tab bars. -->

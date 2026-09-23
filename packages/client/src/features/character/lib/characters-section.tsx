@@ -12,8 +12,8 @@
 // imports chat, chat never imports character, and `client-features-no-cross` keeps enforcing it.
 //
 // THE LIST PANE NEVER SWAPS (#501, owner ruling 2026-08-22 — "library stays docked"). It used to be MODAL:
-// selecting somebody replaced the library with her chats (`list-pane-projection-proposal.md` §10 D2, the
-// unconditional arm — which that doc itself records as a design RECOMMENDATION, never an owner-ruled ledger
+// selecting somebody replaced the library with her chats (the
+// unconditional arm — a design RECOMMENDATION, never an owner-ruled ledger
 // entry, and whose priced cost was exactly "you can't browse the library while editing her"). On the owner's
 // 327-character library that price came due: the section whose whole job is browsing a big library lost the
 // library on every pick, so "look at the next one" cost a back-chevron trip (side-eye 2026-08-22

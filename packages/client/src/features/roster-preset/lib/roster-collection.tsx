@@ -1,5 +1,5 @@
 // The roster collection — B10's library-management surface, a Configuration-section
-// `CollectionContribution` (the tag/regex/world-info door array; interaction-direction-spec.md B10:
+// `CollectionContribution` (the tag/regex/world-info door array B10:
 // "library management: a Configuration-section CollectionContribution"). The rows scan the saved-roster
 // library; the mounted member editor renames/describes/starts; authoring stays BY EXAMPLE through the
 // saved-rosters modal (create opens that door — a from-scratch form would be a second composer for an

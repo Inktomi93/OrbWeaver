@@ -289,5 +289,5 @@ export function reviewedGrantWitnessFailure(policy: GatePolicy): string | null {
   }
   return policy.mustFlag.some((proof) => proof.grant !== undefined)
     ? null
-    : `descriptor.mustFlag carries no grant identity witness, and ${JSON.stringify(policy.id)} is a reviewed-grant policy — nothing proves its emitted (subject, operation) can bind a central grant row (#2189, gate-runtime-standardization.md §4.3). Add \`grant: { subject, operation }\` to the mustFlag row whose finding carries the identity a grant would name.`;
+    : `descriptor.mustFlag carries no grant identity witness, and ${JSON.stringify(policy.id)} is a reviewed-grant policy — nothing proves its emitted (subject, operation) can bind a central grant row (#2189, docs/law/gate-runtime-standardization.md §4.3). Add \`grant: { subject, operation }\` to the mustFlag row whose finding carries the identity a grant would name.`;
 }

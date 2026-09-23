@@ -1,4 +1,4 @@
-// plugin-ui-guest-host — the MAIN-THREAD half of the Tier-C guest (plugin-ui-plane #679 U4, §4.6/§4.9). It
+// plugin-ui-guest-host — the MAIN-THREAD half of the Tier-C guest. It
 // owns the worker: spawn, boot, deliver events, relay host calls, and — the part that matters most — KILL.
 //
 // THE WALL-CLOCK DEADLINE IS THIS FILE'S REASON TO EXIST (the D46 review's P1-A lesson, inherited from birth).

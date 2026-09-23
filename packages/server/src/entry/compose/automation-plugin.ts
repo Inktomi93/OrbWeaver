@@ -138,7 +138,7 @@ export interface AutomationPluginComposeDeps {
   readonly sessions: Pick<SessionsService, "loadUserById">;
   /** The per-FUNDER role-client binder (§8.5b): a rule spends its AUTHOR's rows, a plugin its INSTALLER's. */
   readonly roleClientsFor: (funderUserId: UserId) => Promise<RoleClientsWithSignal>;
-  /** The process-wide PLUGIN-MACRO registry (plugin-ui-plane §5.15, U6) — minted at the composition ROOT and
+  /** The process-wide PLUGIN-MACRO registry — minted at the composition ROOT and
    *  handed to BOTH this plane (which writes it at activation) and chat's compose (which reads it per turn as
    *  `ChatContext.pluginMacros`). Minted there rather than here purely because chat composes FIRST: one shared
    *  instance and no late bind, which is the shape the S4 store had to work around. */
@@ -482,15 +482,15 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     assetEgress: createPluginRateFloor(now, { capability: "net.fetchAsset", limit: PLUGIN_ASSET_EGRESS_PER_HOUR }),
     quietLlm: createPluginRateFloor(now, { capability: "llm.quiet", limit: PLUGIN_QUIET_LLM_PER_HOUR }),
   };
-  // The UI-surface STATE plane (plugin-ui-plane #679 U1) — ONE per process, shared by the `ui.setState` write
+  // The UI-surface STATE plane — ONE per process, shared by the `ui.setState` write
   // op below, the `getSurfaceState` read verb (via `ctx.surfaceState`), and the deactivate sweep. Respawn wipes.
   const pluginSurfaceState = createPluginSurfaceStateStore();
-  // The PRIVATE plugin-event bus (plugin-ui-plane §5a, U8) — ONE per process, installer-scoped, shared by the
+  // The PRIVATE plugin-event bus — ONE per process, installer-scoped, shared by the
   // `pubsub.emit` write op below + the `subscribePubsub` registrar. It has NO domain/chat-bus sink: the forgery
   // wall is that this instance is the only thing an emit can reach, and it only ever fans out to resident sibling
   // handlers. Respawn wipes (an event is transient; durable state is the plugin's own `storage.kv`).
   const pluginEventBus = createPluginEventBus();
-  // The UI OUTBOX (plugin-ui-plane #679 U5) — the surface-state plane's sibling: ONE per process, shared by the
+  // The UI OUTBOX — the surface-state plane's sibling: ONE per process, shared by the
   // `ui.toast`/`ui.openDialog` write ops below, the two invoke verbs that DRAIN it (via `ctx.uiOutbox`), and the
   // deactivate sweep. Its `now` is the same injected clock every other belt reads, so a suite advances the toast
   // cooldown rather than sleeping through it.
@@ -675,7 +675,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     // NOT a new `SIDE_GEN_KINDS` member: this IS a quiet generation, and minting a parallel posture would add
     // a coupled tuple site to say the same thing.
     //
-    // THE U6 WIDENING (plugin-ui-plane §5.16/§5.32) LANDS HERE AND ONLY HERE, because this is the one tier that
+    // THE U6 WIDENING LANDS HERE AND ONLY HERE, because this is the one tier that
     // holds both resolutions the guest's raw bag needs: the ONE projection rule (`liftJsonSchema` →
     // `projectJsonSchema`, D79 — so a guest can never hand a wire an unprojected schema) and the OWNER-GATED
     // asset read (`readOwnedAssetBytes` under the installer's own Principal — so `imageAssetIds` can only ever

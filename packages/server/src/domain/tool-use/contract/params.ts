@@ -37,7 +37,7 @@ export interface ToolExecutionContext {
   /** `null` on non-chat consumers. */
   readonly chatId: ChatId | null;
   /** The turn's ephemeral identity (chat GATHER→loop), threaded so a turn-scoped registrant (rpg's staging
-   *  accumulator, rpg-design/10 §R4) correlates a turn's tool writes to its commit/abort flush. `null` on a
+   *  accumulator, docs/plans/rpg/design.md) correlates a turn's tool writes to its commit/abort flush. `null` on a
    *  non-chat consumer (buddy). Inert until the rpg tool registrants land (R4 #2/#3). */
   readonly turnId: ChatTurnId | null;
   /** The caller's loaded membership, fed to can() for `scope:"chat"` ceilings. `null` when `chatId` is
@@ -73,7 +73,7 @@ export interface ToolDefinition<A = unknown> {
 /** The batch the loop hands execute (assembled by the stream reducer — the infra shape, one home). */
 export type ToolCallBatch = readonly ToolCallInput[];
 
-/** A RUNTIME plugin-tool registration (D48 source (b); plugin-design PL-A). Distinct from the compose-time
+/** A RUNTIME plugin-tool registration (D48 source (b) PL-A). Distinct from the compose-time
  *  `ToolDefinition` in three ways the landed shape forced: the args schema arrives as raw JSON Schema
  *  from an untrusted GUEST (lifted host-side to zod via `@orb/kit/json-schema` `liftJsonSchema` — PL-B; a
  *  guest cannot author zod); the ceiling runs as the INSTALLING principal, not the turn caller (PL-C); and

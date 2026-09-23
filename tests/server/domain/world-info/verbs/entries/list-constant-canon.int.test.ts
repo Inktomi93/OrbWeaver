@@ -1,4 +1,4 @@
-// verb: listConstantCanon — a chat's CONSTANT ("always"-scope) lorebook canon (rpg-design/06 §4; the rpg
+// verb: listConstantCanon — a chat's CONSTANT ("always"-scope) lorebook canon (docs/plans/rpg/design.md; the rpg
 // crew's world-gen input). Load-bearing: only ENABLED always-scope entries of the chat's ATTACHED books
 // project (keyword-scoped and disabled entries are excluded; an unattached book contributes nothing);
 // priority DESC ordering; the projection is title+content only (lean pre-play canon, room-public — the

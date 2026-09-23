@@ -1,6 +1,6 @@
-// WebSpinner — THE loader (owner ruling 2026-08-09: ONE loader system, no legacy pair; docs/design/
-// login-loading-screen.md §2/§4.2/§9). The brand glyph with a slow orb rotation (--motion-ambient)
-// and — since weave-lab-upgrades.md §4 — a WEAVE loop on its spiral (--motion-shimmer): the silk
+// WebSpinner — THE loader (owner ruling 2026-08-09: ONE loader system, no legacy pair;
+// D173). The brand glyph with a slow orb rotation (--motion-ambient)
+// and a WEAVE loop on its spiral (--motion-shimmer): the silk
 // draws out from the hub, holds, then pays out, forever. The loader IS a web being spun, which is the
 // same story as the hero weave told in one glyph, NOT the hero weave shrunk (that is
 // `@orb/ui/web-weave`).

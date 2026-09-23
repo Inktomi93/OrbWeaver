@@ -1,4 +1,4 @@
-// verb: runRuleNow — R7 (interaction-direction-spec §6 R7). The host runs ONE rule NOW.
+// verb: runRuleNow — R7. The host runs ONE rule NOW.
 //
 // What this suite is really pinning is the GATE LINE, because that line is the whole argument of the verb:
 // a manual run lifts the two WHETHER-TO-FIRE-BY-ITSELF gates (the fire-rate cap, the CEL predicate) and

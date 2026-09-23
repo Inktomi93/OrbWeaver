@@ -1,5 +1,5 @@
 // Mirror test for @orb/server/kit/serde/user-settings — the ONE orb-native user-settings-backup serde AND the
-// SECRETS FENCE (export-import-portability.md R3). Pins: the build envelope, the parse resilience (foreign/
+// SECRETS FENCE. Pins: the build envelope, the parse resilience (foreign/
 // absent schemaKind → null, non-JSON → null), the R7 merge-only-present semantics (a crafted non-allowlisted
 // key never travels), the build -> parse -> build ROUND-TRIP identity, and — the load-bearing security pin —
 // that a settings blob carrying secret-adjacent fields (routing/credential source, seed ids) EXPORTS WITHOUT

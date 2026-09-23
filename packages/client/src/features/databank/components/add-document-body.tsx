@@ -1,7 +1,7 @@
 // The "Add document" dialog — all three ingestion paths in ONE FormDialog, with a local mode toggle
 // (Upload · Paste · Link) swapping the body through a `Record<AddMode, ReactElement>` dispatch so a new mode
 // fails tsc (§5.5). Carried in SHAPE from `legacy-main:components/add-document-dialog.tsx`
-// (databank-surface-spec §2.1 — "the three-mode toggle + the conditional caption-language field is right"),
+// ("the three-mode toggle + the conditional caption-language field is right"),
 // with the two named corrections the spec files against it:
 //
 //  · THE UPLOAD CAP IS DERIVED, NEVER A LITERAL (§2.2). Legacy spelled `MAX_UPLOAD_BYTES = 20_971_520`,

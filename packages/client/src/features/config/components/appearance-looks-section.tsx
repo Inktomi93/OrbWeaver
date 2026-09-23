@@ -1,4 +1,4 @@
-// The LOOKS appearance SECTION (#866 S4 / #297 — config-revamp-design.md §7.3, as amended by the owner's
+// The LOOKS appearance SECTION (#866 S4 / #297, as amended by the owner's
 // 2026-08-30 ruling): ONE COLLECTION, ONE CARD SHAPE. Verbatim: *"i dont want to separate our themes from
 // a user's, that's clunky — one spot for themes, they all should have same shape."* That supersedes §7.3's
 // three tiers — the shipped looks as fixed CARDS over "Your themes" as `ListRow`s — which rendered one

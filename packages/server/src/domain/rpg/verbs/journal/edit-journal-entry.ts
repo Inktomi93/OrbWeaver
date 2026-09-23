@@ -1,4 +1,4 @@
-// domain/rpg/verbs/journal/edit-journal-entry — editJournalEntry (rpg-design/05 §4.4). Host-gated, game-scoped
+// domain/rpg/verbs/journal/edit-journal-entry — editJournalEntry (docs/plans/rpg/design.md). Host-gated, game-scoped
 // (an entry id from another game → leak-free NOT-FOUND, the cross-tenant IDOR belt). Reaches MODEL entries too
 // (the recovery path the lineage projection makes safe).
 

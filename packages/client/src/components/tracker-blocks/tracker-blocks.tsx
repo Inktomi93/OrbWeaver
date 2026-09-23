@@ -1,4 +1,4 @@
-// The tracker BLOCK KIT (Context-Panel-Program §3.2) — ONE shared component family, seven blocks,
+// The tracker BLOCK KIT — ONE shared component family, seven blocks,
 // specced as shared from birth (the §3.1 rung table: the CP-3 Trackers tab and the CP-4 takeover both
 // consume it). Client-shared composites over @orb/ui (the ConfirmDialog/LibraryRow homing precedent —
 // NOT @orb/ui itself; ui stays parts-only). Every block:

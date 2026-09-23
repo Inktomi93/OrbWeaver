@@ -1,4 +1,4 @@
-// @orb/kit/json-schema — the JSON-Schema → zod LIFT (D79 / plugin-design PL-B), pure + isomorphic, the
+// @orb/kit/json-schema — the JSON-Schema → zod LIFT (D79), pure + isomorphic, the
 // INVERSE direction of `projectJsonSchema`. A plugin GUEST (untrusted external author) supplies a raw JSON
 // Schema for its tool args and cannot author zod; the ONE tool registry is zod-first, so the guest schema is
 // lifted into zod here and the wire `parameters` is DERIVED back through the SAME `projectJsonSchema` (one

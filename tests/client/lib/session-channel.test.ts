@@ -1,4 +1,4 @@
-// The cross-tab session channel + its Web-Locks single-flight (staleness-and-session-freshness.md §4.3).
+// The cross-tab session channel + its Web-Locks single-flight.
 // Both primitives are stubbed with DETERMINISTIC fakes rather than exercised for real: the property under
 // test is the protocol (who runs, who follows, what is trusted off the wire), and a real BroadcastChannel
 // in a node lane tests the platform, not this module.

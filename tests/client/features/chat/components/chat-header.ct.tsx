@@ -2,7 +2,7 @@
 // path over the stubbed network (routeTrpc): `chat.getChat` supplies the roster the entry counts. The ⋯
 // options menu (and its server-resolved host gate) moved to the COMPOSER — see composer-chat-options.ct.tsx.
 //
-// The members entry ALWAYS renders (every chat has a roster — Context-Panel-Program CP-1 owner ruling
+// The members entry ALWAYS renders (every chat has a roster CP-1 owner ruling
 // 2026-07-25) and it counts PRESENT participants (humans + cast, `leftSeq === null`); a departed seat is
 // excluded. It ALWAYS opens the Members context tab: the solo-chat roster POPOVER this file used to pin was
 // deleted with the Members tab's size gate (#162, owner-ruled 2026-08-18) — one roster surface, every room.

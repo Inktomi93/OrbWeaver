@@ -1,4 +1,4 @@
-// S1 — THE MOUNT (interaction-direction-spec.md §3-S1): ONE `above-composer` `ChatSurfaceContribution`
+// S1 — THE MOUNT: ONE `above-composer` `ChatSurfaceContribution`
 // consuming the door-assembled control-source registry. Every transient control near the transcript —
 // B3's rule chips, B4's confirm cards and rate-refusal invitations, B8's dice ask, C2/C3's suggestion
 // cards — reaches the room through this one contribution and nothing else, which is what makes the one

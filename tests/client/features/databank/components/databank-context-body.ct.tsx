@@ -1,4 +1,4 @@
-// CT: the Databank CONTEXT arm — the activation panel. What it pins (databank-surface-spec §6):
+// CT: the Databank CONTEXT arm — the activation panel. What it pins:
 //
 //   · with nothing open it renders the SECTION's own no-selection copy, not the generic "Details / select
 //     something" filler the F-12 sweep deleted. A `single` context body is mounted unconditionally by the

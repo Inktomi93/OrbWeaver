@@ -6,7 +6,7 @@
 // a brand-new chat wore the viewer's default chrome and re-skinned itself the instant the first message
 // created the row.
 //
-// IT IS ONE ARM NOW (chat-creation-draft-mode-replacement.md §4.1, R1). The fix used to be a second,
+// IT IS ONE ARM NOW (D166). The fix used to be a second,
 // draft-phase resolver over the founding CARDS, because the room had no row until the first send. The room
 // has a row from the creation CLICK, and `useStartChat` SEEDS `chat.getChat` from `startChat`'s own response
 // — so the roster this reads is warm on the room's first frame, with zero extra reads. The card-reading arm

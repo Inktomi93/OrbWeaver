@@ -1,4 +1,4 @@
-// The stale-session RECOVERY LADDER (#23b, extended per staleness-and-session-freshness.md §4.4). What
+// The stale-session RECOVERY LADDER (#23b, extended per). What
 // this file pins is the RUNG each verdict lands on, and — the part that is the whole point of the redesign
 // — that rung 0 does NOT navigate. The old belt's only behavior was `location.assign("/login")`, which
 // threw away the query cache, the open chat and every draft to fix a cookie.

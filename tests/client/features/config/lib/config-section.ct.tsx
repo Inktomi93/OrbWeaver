@@ -1,5 +1,5 @@
 // CT: the config section's MOBILE BACK STACK — `config-section.tsx`'s `makeSelectionSeam`, driven through
-// the production `AppShell` at a phone (#1747, DESIGN.md §2 boards p1–p4: "one screen at a time; Back pops
+// the production `AppShell` at a phone (#1747, the mock design §2 boards p1–p4: "one screen at a time; Back pops
 // one rung").
 //
 // WHY THIS FILE EXISTS AT ALL. The seam declares a THREE-rung stack — world-info ENTRY, then the open
@@ -36,7 +36,7 @@ import { ConfigMobileShellStory } from "../_ct-stories.tsx";
 /** The shell's mobile way back — `Back to ${activeSectionLabel}`, and the config section's label is
  *  "Settings". Present ⇔ something is pushed over the LIST (`use-shell-layout.ts`'s `backToList`). */
 const SHELL_BACK = "Back to Settings";
-/** The library's control row (DESIGN.md §3.2) — the tell that CONTENT is showing the LIBRARY. */
+/** The library's control row (the mock design §3.2) — the tell that CONTENT is showing the LIBRARY. */
 const CONTROL_ROW = '[data-slot="collection-control-row"]';
 /** The member's drill row (§3.4). At the PHONE regime it must NOT be drawn (boards p3/p4: the topbar
  *  carries `←` and the name), so on this file's mounts its count is the assertion, not the locator. */

@@ -8,8 +8,8 @@
 // SELECTED values live (a theme file is one of five saved palettes; `power_user` is what ST was rendering).
 //
 // FOURTEEN KEYS, EACH WITH AN EXACT ORB SEAT — nothing is invented. A `power_user` key with no orb field is
-// NOT patched and is classified in `docs/history/design/st-import-plane-classification.md` (all 135 observed keys,
-// with the reason each does or does not travel). Two are INVERTED (ST states the negative), two are enum
+// NOT patched.
+// Two are INVERTED (ST states the negative), two are enum
 // re-spellings, and one ST value (RECTANGULAR avatars) needs two orb fields because orb splits avatar SHAPE
 // from avatar ASPECT.
 //

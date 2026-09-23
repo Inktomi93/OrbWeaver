@@ -1,5 +1,5 @@
 // domain/plugin/substrate/ui-host-call-gate — the per-plugin CONCURRENCY belt on `plugin.uiHostCall`
-// (plugin-ui-plane #679 U4, §9 "flood"; the D46 P2-F "from birth" lesson).
+// (U4, §9 "flood"; the D46 P2-F "from birth" lesson).
 //
 // The three properties a counter-belt can get wrong, each pinned: the ceiling actually bites; the scope is the
 // PLUGIN (one plugin's flood must not starve a sibling); and the release is IDEMPOTENT — the server-side

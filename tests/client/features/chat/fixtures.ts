@@ -149,7 +149,7 @@ export const CHAT_AMBIENT_ROUTES: TrpcRoutes<
   // transcript CT should see the same doors production defaults to). A CT whose SUBJECT is reactions
   // overrides it after the spread (message-reactions.ct.tsx does exactly that).
   "chat.listReactions": { reactionsEnabled: true, groups: [] },
-  // The plugin DISPLAY-transform gate (plugin-ui-plane seam 14, U6) — read once per room by every committed
+  // The plugin DISPLAY-transform gate (seam 14, U6) — read once per room by every committed
   // row's `MessageContent`. EMPTY is the honest default (a fresh viewer has no plugins), and an empty ARRAY
   // exercises the real gate path (`hasTransforms === false` ⇒ zero per-row calls) where `null` would only
   // exercise the defensive arm.

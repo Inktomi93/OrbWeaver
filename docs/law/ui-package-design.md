@@ -17,8 +17,7 @@ updated: 2026-09-18
 > inventory with homes/signatures/obligations. **For anything built, the code is the doc**
 > (`packages/ui/src` + the CT suite) — this doc carries only the cross-cutting WHY. Code file headers
 > cite these §-numbers as spec provenance: the numbering is load-bearing, never renumber, never move
-> this file. The structural contract graduated to `docs/law/UI-Primitives-and-Reuse.md` §13.7–§13.9. The
-> build journey + resolved deltas: `../architecture/history/ui-package-design-archaeology-record.md`.
+> this file. The structural contract graduated to `docs/law/UI-Primitives-and-Reuse.md` §13.7–§13.9.
 
 ## 1. Position in the cake + the physics
 
@@ -84,7 +83,7 @@ packages/ui/
       labeled-chart-frame/ # the shared label/empty-state chart frame — layout only, NOT an ECharts
                         #   seal; exported ./labeled-chart-frame
       meter/            # Meter (linear/arc/bipolar + milestones/dangerBelow) + SegmentedClock —
-                        #   plain CSS/SVG, NOT the chart lib (D52/D58; rpg-design/11 §2); exported ./meter
+                        #   plain CSS/SVG, NOT the chart lib (D52/D58; docs/plans/rpg/design.md); exported ./meter
     markdown/           # seals Streamdown — TWO trust policies (UI-Gates §11.6)
                         #   + math.ts (KaTeX) + shiki-plugin.ts (Shiki code highlight —
                         #   Streamdown 2.5 dropped its bundled Shiki) + mermaid.tsx (token-styled Mermaid
@@ -219,7 +218,7 @@ factories are inventoried here because this package is their substrate and their
 | `tv()` variant configs (per primitive) | `variants.ts` per §5 | tokens-only classes; union-typed variants; slots for multi-part | CT: variant renders; `tsc`: bad variant fails `test:types` |
 | `createVirtualList` seal → `<VirtualList>` | `{ count, getItemKey (REQUIRED, id-based), estimateSize, overscan?, lanes?, rangeExtractor?, renderItem }` | `directDomUpdates: true` + `containerRef` (Compiler fix, 3.14+); `useFlushSync: false` (React 19); the unbounded-window tripwire as a **thrown error** (not a warn); `measureElement` + `data-index` wiring; `directDomUpdatesMode: 'position'` for iframe/portal rows | CT: renders windowed; tripwire throws on unbounded parent; scroll updates ≤2 re-renders (the upstream E2E assertion) |
 | `<MessageList>` seal (chat) | adds `anchorTo:'end'`, `followOnAppend`, `isAtEnd`/`scrollToEnd` ("jump to latest"), no-recycle window for Tier-B iframe rows (the `keepMounted` predicate — PD-119 DONE) | stick-to-bottom-without-yank; prepend stability (id keys); hoisted row state | CT: append-while-pinned follows; scrolled-up reader never yanked |
-| `<Meter kind>` + `<SegmentedClock>` | `Meter: { kind: 'linear'\|'arc'\|'bipolar', value, max?, milestones?: number[], dangerBelow?: number, label }` · `SegmentedClock: { segments: int ≥2, filled, size?, completed? }` | hand-rolled ARIA (`role="meter"` + value semantics) — ONE rendering mechanism across kinds (Base UI's Meter is linear-DOM-shaped; arc/bipolar need SVG); `dangerBelow` swaps the danger INTENT token (never a color calc); bipolar is center-origin −/+ | CT: 0/partial/full/completed clock; bipolar ticks; danger token swap; ARIA values (rpg-design/11 §13 — the fixtures come from `RpgHudView`-SHAPED plain objects, no contracts import) |
+| `<Meter kind>` + `<SegmentedClock>` | `Meter: { kind: 'linear'\|'arc'\|'bipolar', value, max?, milestones?: number[], dangerBelow?: number, label }` · `SegmentedClock: { segments: int ≥2, filled, size?, completed? }` | hand-rolled ARIA (`role="meter"` + value semantics) — ONE rendering mechanism across kinds (Base UI's Meter is linear-DOM-shaped; arc/bipolar need SVG); `dangerBelow` swaps the danger INTENT token (never a color calc); bipolar is center-origin −/+ | CT: 0/partial/full/completed clock; bipolar ticks; danger token swap; ARIA values (docs/plans/rpg/design.md — the fixtures come from `RpgHudView`-SHAPED plain objects, no contracts import) |
 | `@orb/ui/markdown` (Streamdown seal) | `<Markdown trust="trusted"\|"untrusted">` | the TWO trust policies (§11.6), built against the VERIFIED Streamdown 2.5 API — `allowedElements`/`disallowedElements` + `urlTransform` (the docs-assumed `allowedImagePrefixes`/`allowDataImages` API does NOT exist — recorded delta, §10): `trusted` = Streamdown's permissive defaults (rehype-sanitize + rehype-harden) plus the D44 §12.2 Tier-A element allowlist; `untrusted` = the Tier-A allowlist MINUS `img` + the `untrustedUrlTransform` protocol/host gate (`http`/`https`/`mailto` only, `data:` blocked); `remark-gfm {singleTilde:false}`; the `shiki-plugin.ts` `CodeHighlighterPlugin` supplied via `plugins.code` (Streamdown 2.5 ships no bundled Shiki); error-boundary around lazy CodeBlock/Mermaid (#343); large-block guard (#195) | CT: `<script>` stripped; `on*` stripped; data-URI image blocked under `untrusted`; `~10~20°C` not struck through |
 | `<ThemeScope>` | `{ tokens: ThemeScopeTokens, children }` — ui-local Zod-clamped subset (D44 §12.1) | values parsed+clamped at the boundary (colors must parse as colors — reject `url()`/`expression()`; dims snap to token scale; font from allowlist); applies ONLY scoped CSS custom props on a wrapper; NEVER raw style passthrough (gate `theme-override-only-via-scope`) | CT: hostile values (`url(//x)`, `expression(...)`, `;injection`) are rejected/dropped; legal overrides land as `--token` custom props on the scope node only |
 | `<MessageMedia>` | `{ src: { kind:'asset', url } \| { kind:'external', url }, media: 'image'\|'audio'\|'video', alt, dims?, allowExternal: boolean }` | asset-vs-external dispatch; `forbidExternalMedia`-style click-to-load placeholder when `!allowExternal`; **autoplay FORCED OFF + `controls` required on untrusted A/V (non-overridable)**; lazy-load; aspect reservation (no layout shift); broken-media fallback; lightbox hook | CT: external img does NOT hit the network un-gated (placeholder first); untrusted `<video>` has `controls` and never `autoplay`; aspect box reserved pre-load |
@@ -296,13 +295,12 @@ entry importing `@orb/ui/styles/globals.css` so token utilities resolve in-brows
 Built green-to-commit per chunk in waves 0 (scaffold) → 1 (pure primitives) → 2 (security trio +
 markdown) → 3 (the display/form gap), then the un-parked carve-out (message-list · stream · command ·
 sortable · charts · macro-textarea + the carve-out set) and the §6.2 client factories. All done
-(2026-07). The wave contents + checkpoints: `../architecture/history/ui-package-design-archaeology-record.md`.
+(2026-07).
 Standing bar for any NEW primitive is §13, not this wave list.
 
 ## 10. Recorded deltas (live WHYs; the resolved list is history)
 
-The build's decision-level deltas were resolved and moved to
-`../architecture/history/ui-package-design-archaeology-record.md`. Two WHYs stay live because they still constrain
+The build's decision-level deltas are resolved. Two WHYs stay live because they still constrain
 the code:
 
 - **`Meter` is a HYBRID over Base UI's `meter`:** `Meter.Root` supplies the a11y shell (`role="meter"`
@@ -327,8 +325,7 @@ ui-side belts: the cake/seal rules of §8; the `no-raw-value` token family widen
 
 - `tv()` arms; `design-token-parity` is SUPERSEDED-BY-CONSTRUCTION (the §4 codegen + freshness test);
   `touch-target-floor` is ◐ PARTIAL (token floor test-locked; the per-pointer per-component check rides
-  the design-audit probe, D62 P1). The dated 2026-07-02 coverage audit ("nothing wired is dark") is
-  `../architecture/history/ui-package-design-archaeology-record.md`.
+  the design-audit probe, D62 P1).
 
 ## 12. Neo-parity primitive coverage — DONE
 
@@ -340,7 +337,7 @@ referenced by ≥1 committed design; domain components live in `client/features`
 pattern (chat-crew 07) is a FEATURE over `@orb/ui/diff`, not a ui primitive; `weave-glyph` is
 app-level (`client/src/components/weave-glyph.tsx`, §13.9) and enters through the `#components`
 public door. The derivation table + the deliberately-excluded
-list (`resizable`/`sheet`/`label`/…) are in `../architecture/history/ui-package-design-archaeology-record.md`.
+list (`resizable`/`sheet`/`label`/…) are in git history.
 
 ## 13. Primitive authoring rules (the recurring-mistake gates — BINDING)
 

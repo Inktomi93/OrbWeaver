@@ -1,4 +1,4 @@
-// The Connections MODEL-ROLES config-section CONTRIBUTION (config-revamp-design.md §6.8) — the group's
+// The Connections MODEL-ROLES config-section CONTRIBUTION — the group's
 // second row. No `owns`: a role pick is a `connection_bindings` row written by `connection.setBinding`,
 // not a settings-blob key (the `routing` section left the blob with the inference program, step 4).
 

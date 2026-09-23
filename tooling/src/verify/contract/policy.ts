@@ -160,7 +160,7 @@ interface ErrorGatePolicy extends GatePolicyBase {
 
 interface WarningGatePolicy extends GatePolicyBase {
   readonly severity: Extract<GateSeverity, "warning">;
-  /** Positive GitHub issue number owning the warning debt. */
+  /** The id of the `docs/work` item owning the warning debt; `warning-workitem-liveness` holds it live. */
   readonly workItem: number;
 }
 

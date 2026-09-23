@@ -46,7 +46,7 @@ const MARKER_SOURCE: Record<Marker, AssemblySource> = {
   ["memory"]: "steering",
   // Retrieved document context accounts with the other derived/recalled context, not as `cards` or
   // `world-info`: it is neither a roster member's bytes nor keyed lore (Knowledge-Cluster — databank is
-  // document RAG). Same bucket as `{{memory}}`, the slot it is modelled on (databank-design/07 §3).
+  // document RAG). Same bucket as `{{memory}}`, the slot it is modelled on.
   ["databank"]: "steering",
   ["guided_instruction"]: "steering",
   ["chat_history"]: "history",

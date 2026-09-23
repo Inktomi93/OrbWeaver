@@ -1,4 +1,4 @@
-// persistence/games — the `rpg_games` row lifecycle (rpg-design/05 §2.1). .int: real FK. Create/read (by id
+// persistence/games — the `rpg_games` row lifecycle (docs/plans/rpg/design.md). .int: real FK. Create/read (by id
 // + by chat — game-ness resolves here) + config-patch + the config parse-on-read belt.
 
 import type { Db } from "@orb/db";

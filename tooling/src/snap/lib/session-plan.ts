@@ -1,4 +1,4 @@
-// The session substrate's PURE core (docs/design/1208-instrument-substrate.md §3.3–§3.5 + §10.1), the
+// The session substrate's PURE core, the
 // sibling of lib/stage-plan.ts: the flag PARTITION every browser-lifetime consumer shares (a scenario's
 // checkpoints and a session's calls — ONE table, promoted here from ops/scenario.ts), the registry paths,
 // access/sweep verdicts, limits, and parse-time session rows. Printable refusals live in

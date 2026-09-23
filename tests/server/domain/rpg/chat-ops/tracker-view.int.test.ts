@@ -1,4 +1,4 @@
-// tests/server/domain/rpg/chat-ops/tracker-view — the SHARED tracker-view projection (rpg-design/05 §4.8), the
+// tests/server/domain/rpg/chat-ops/tracker-view — the SHARED tracker-view projection (docs/plans/rpg/design.md), the
 // one the `getTrackerView` verb AND the gather both read. A principal-free build over a resolved game: participants ∪
 // sheets (a sheetless participant actor renders the default sheet), the resolved snapshot's volatile, `trackersReadOnly`
 // passed through. The verb's member-gate + the swipe-consistency are covered by their own suites; this pins the

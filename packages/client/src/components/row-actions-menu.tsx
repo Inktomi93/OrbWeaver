@@ -79,7 +79,7 @@ export interface RowActionsMenuProps {
 // This composite IS the demoted-actions door: every consumer puts it at the quiet end of a row whose primary
 // action sits beside it, and side-eye #621's ruling for exactly such a row is "three affordances at three
 // weights". It got the recession for free while `Button`'s `ghost` intent painted `text-muted-foreground`;
-// 242bfaecb (#969, `docs/design/theme-pivot-foreground-contract.md`) flipped every transparent intent to
+// 242bfaecb (#969) flipped every transparent intent to
 // `text-current` so a transparent action inherits its host's paired ink, and the two weights collapsed onto
 // one colour — the automation rule row's Test and its ⋯ measured IDENTICAL, which is the pin #621 minted to
 // stop that exact reading.

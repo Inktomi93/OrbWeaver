@@ -1,5 +1,5 @@
 // THE CONNECTION EDITOR — §5.3a's four disclosure tiers over ONE saved connection (inference program step 9,
-// built from the step-3b mock `docs/design/mocks/connections/editor.html`). §5.3a's schemas imply ~40 leaf
+// built from the step-3b mock). §5.3a's schemas imply ~40 leaf
 // fields on one endpoint form; a pane that rendered them flat would mirror SillyTavern's API drawer in a zod
 // costume. So: Essential and Purpose OPEN, Advanced and Diagnostics COLLAPSED behind a count badge of
 // non-default overrides, and a user who has touched nothing sees FOUR fields — provider, the key-or-URL,
@@ -7,11 +7,11 @@
 // is width-independent.
 //
 // THE TIERS ARE `@orb/ui/collapsible`, WHICH IS THE WHOLE A11Y ANSWER. The mock draws `.tierhead` as a
-// `div` with `cursor: pointer` — no `aria-expanded`, no button role, no keyboard operation — and DESIGN.md
+// `div` with `cursor: pointer` — no `aria-expanded`, no button role, no keyboard operation — and the mock design
 // §5.2 names it "the single most likely thing to be copied verbatim". Base UI's Collapsible gives the button
 // role, `aria-expanded`, `aria-controls` and Space/Enter for free; nothing here hand-rolls a disclosure.
 //
-// WIDTH ADAPTATION IS `@container`, NOT `@media` — the mock declares ZERO of either and DESIGN.md §5.1 leaves
+// WIDTH ADAPTATION IS `@container`, NOT `@media` — the mock declares ZERO of either and the mock design §5.1 leaves
 // the mechanism explicitly undecided, so it is decided HERE: the editor's root is the named container and
 // every reflow keys off the container's `lg` step (512px). The settings body is 870 with the context panel
 // closed and 486 with it open, and a media query cannot tell those apart — the viewport is identical.
@@ -308,7 +308,7 @@ function EditorTier({
 }
 
 /** §5.3a's `declared_overrides_measured` sentence, in its SECOND home. A tier with nothing in it shows NO
- *  badge — a `0` badge is a number you have to read to learn nothing (DESIGN.md §2.4). */
+ *  badge — a `0` badge is a number you have to read to learn nothing (the mock design §2.4). */
 function overrideBadge(count: number): string | undefined {
   return count === 0 ? undefined : `${String(count)} ${count === 1 ? "field" : "fields"} overridden`;
 }

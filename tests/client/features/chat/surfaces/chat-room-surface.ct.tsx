@@ -724,7 +724,7 @@ test("COMMITTED: the SAME card resolves the SAME room accent through the roster 
 
 /** The add-member door's accessible name, in both phases ("Add a character"). */
 
-// ── THE GREETING WINDOW (chat-creation-draft-mode-replacement.md §4.8 / fork F6, R3) ────────────────
+// ── THE GREETING WINDOW (D166) ────────────────
 //
 // A seeded greeting is REAL CANON from the creation click (R1), and it stays malleable until the first user
 // turn freezes it (`freezeGreetingVolatiles`, verbs/turn.ts). Stepping it among the card's alternates was a

@@ -1,5 +1,5 @@
 // domain/character/persistence/refinery-ops — the character-owned ops the refinery domain consumes
-// (R1 — docs/history/design/refinery-r0.md §9.3), the `avatar-link-write.ts` worked-example class: cross-domain
+// (R1), the `avatar-link-write.ts` worked-example class: cross-domain
 // access routes through the OWNING domain's persistence factory + an injected op, so `characters.*` keeps
 // exactly one writer and the card projection (`cardOf` + its parse seams) keeps exactly one home.
 //

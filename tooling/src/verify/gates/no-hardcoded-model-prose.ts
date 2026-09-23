@@ -1,4 +1,4 @@
-// Policy: no-hardcoded-model-prose — PROSE-1 §7 (docs/history/design/prose-1-spec.md): at a PROMPT-ASSEMBLY
+// Policy: no-hardcoded-model-prose — PROSE-1 §7 (D132): at a PROMPT-ASSEMBLY
 // SEAM, model-facing prose (≥12 words with a lowercase run; +-chains/array-joins/template statics
 // aggregated) is authored ONLY in a prose CATALOG — everywhere else it is a slot that escaped the registry
 // (the disease that let a hardcoded nudge ride every turn for a campaign). ARM A: seam literals, flat (the
@@ -102,7 +102,7 @@ const ERROR_NAME_RE = /Error$/u;
 const MESSAGE =
   "model-facing prose hardcoded at a prompt-assembly seam — every string whose bytes reach a model is a " +
   "PROSE-1 slot (a shipped default in a contracts prose catalog + resolveProse), not a constant; a hardcoded " +
-  "seam string is invisible to hosts and to the registry (docs/history/design/prose-1-spec.md §7). Author it as a " +
+  "seam string is invisible to hosts and to the registry (D132). Author it as a " +
   "slot row in the domain's prose catalog (packages/contracts/src/*/prose.ts) and resolve it at the seam.";
 const FIX =
   "move the bytes into the owning domain's prose catalog as a slot row and call resolveProse/resolveProseText " +
@@ -112,7 +112,7 @@ const FIX =
   "the report passes explicitly at that word's own offset.";
 const DEAD_MESSAGE =
   "DEAD catalog prose — authored, referenced by nothing (no in-file use, no importer): the RPG_STATE_TRACKING_GUIDE " +
-  "class, docs/history/design/prose-1-spec.md §2 row 27. Wire it into a slot row or delete it.";
+  "class, D132. Wire it into a slot row or delete it.";
 
 function isSeam(rel: string): boolean {
   if (CATALOG_SET.has(rel)) {

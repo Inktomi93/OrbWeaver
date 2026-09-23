@@ -7,7 +7,7 @@
 //
 // IT IS ONE ARM NOW, AND THESE PINS SAY SO. The fix used to be a second, draft-phase resolver over the
 // founding CARDS; the room has had a row from the creation CLICK since
-// `chat-creation-draft-mode-replacement.md` §4.1 R1, and `useStartChat` seeds `chat.getChat` from
+// D166 R1, and `useStartChat` seeds `chat.getChat` from
 // `startChat`'s own response. The card-reading arm and `useDraftCastCards` are DELETED — the hook reads one
 // gated `chat.getChat` and nothing else (`packages/client/src/data/use-carried-appearance.ts`). Two pins
 // this header used to advertise (a draft projecting founding cards; a partially-loaded cast reading

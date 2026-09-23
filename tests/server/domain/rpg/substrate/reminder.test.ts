@@ -1,4 +1,4 @@
-// tests/server/domain/rpg/substrate/reminder — the lite steering-injection assembler (rpg-design/05 §4.7).
+// tests/server/domain/rpg/substrate/reminder — the lite steering-injection assembler (docs/plans/rpg/design.md).
 // Pure string-building, so a unit test over hand-built tracker views: the state block per entity, the versioned
 // license, and `steeringNote` LAST. The char turn is tool-less (owner ruling 2026-07-27) — the reminder carries
 // NO tool-update guidance (that checklist lives in the tool round's prompt, entry/compose/rpg.ts).

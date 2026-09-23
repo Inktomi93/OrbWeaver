@@ -131,7 +131,7 @@ describe("CSRF gate (cookie-authed mutations only)", () => {
   });
 });
 
-// ── THE SILENT 500 (docs/design/streaming-shape-churn.md §7.5) ──────────────────────────────────────────
+// ── THE SILENT 500 ──────────────────────────────────────────
 //
 // A live turn threw a provider fault, tRPC serialised it as an INTERNAL_SERVER_ERROR, and the whole ladder
 // logged NOTHING of its own: `classifyDomainError` returned null, `domainErrorMiddleware` just returned the

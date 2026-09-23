@@ -1,4 +1,4 @@
-// The Saved-rosters modal body (RP2 — docs/history/design/saved-rosters-build-record.md §3): the owner's roster
+// The Saved-rosters modal body: the owner's roster
 // library with the three affordance families the program doc's §6 sketches, in ONE surface:
 //   · per row — START a chat from the roster (members in position order + the anchor persona through the
 //     REAL `useStartChat`, then the `applyToChat` polish call for knobs + config: two calls is CORRECT,
@@ -17,7 +17,7 @@
 // the room the apply mutated.
 //
 // THE WORD IS `roster`, AND IT IS NOT A LOCAL CHOICE (#1650). This family named a saved RosterPresetSummary
-// value `cast` in ~60 places, which is neither of the two concepts that word can mean: docs/design/vocabulary-map.md
+// value `cast` in ~60 places, which is neither of the two concepts that word can mean: docs/law/vocabulary-map.md
 // row 4 gives `character` to the seated characters in a room and row 46 gives Roster / `rosterPreset` to this
 // saved template, "CONFORMING, never renamed". A value of that type is a `roster` here and in every sibling
 // module; look the word up in the map rather than off a neighbour before re-opening it.
@@ -336,7 +336,7 @@ export function RosterPicker(): ReactElement {
 
   // THE LIBRARY LEADS, THE SAVE DOOR FOLLOWS (side-eye P3-1). The door into this surface is the Members
   // toolbar's "Saved rosters…" — an APPLY verb — and it opened onto a name field, so a host who came to add
-  // was met with a form for the opposite action. The label is the spec's own (interaction-direction-spec B10),
+  // was met with a form for the opposite action. The label is the spec's own,
   // so the ORDER moves rather than the word: the rosters you can add are what a "Saved rosters…" click owes
   // you, and saving the current room stays one glance below (it is authoring, not the errand).
   return (

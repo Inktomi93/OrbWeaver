@@ -1,4 +1,4 @@
-// The EXTENSIONS section's drill selection (plugin-ui-plane #679 U5, §4.5b) — which registered `ui.page`
+// The EXTENSIONS section's drill selection — which registered `ui.page`
 // surface the CONTENT pane is showing. Minted through the ONE sanctioned door (`createDrillSelectionStore`,
 // G27) and homed centrally like every other per-section drill, so the section definition can publish its
 // `SectionSelection` seam (the shell's mobile ONE-SHELL rule + its back affordance read it) without a feature

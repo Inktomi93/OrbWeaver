@@ -6,7 +6,7 @@ updated: 2026-09-13
 
 # ts-morph capabilities for Orb gate authors
 
-This is the API-selection companion to [GATE-AUTHORING.md](GATE-AUTHORING.md) and the destination runtime in [gate-runtime-standardization.md](../../../../docs/design/gate-runtime-standardization.md). Read it before writing a new AST reader or shared fact. Filesystem-backed tooling also reads [NODE-26-FILESYSTEM-CAPABILITIES.md](NODE-26-FILESYSTEM-CAPABILITIES.md). The installed authority is `ts-morph@28.0.0` over `typescript@6.0.3`; re-audit this reference when either version changes.
+This is the API-selection companion to [GATE-AUTHORING.md](GATE-AUTHORING.md) and the destination runtime in [gate-runtime-standardization.md](../../../../docs/law/gate-runtime-standardization.md). Read it before writing a new AST reader or shared fact. Filesystem-backed tooling also reads [NODE-26-FILESYSTEM-CAPABILITIES.md](NODE-26-FILESYSTEM-CAPABILITIES.md). The installed authority is `ts-morph@28.0.0` over `typescript@6.0.3`; re-audit this reference when either version changes.
 
 Upstream references: [AST navigation](https://ts-morph.com/navigation/), [types](https://ts-morph.com/details/types), [type checker](https://ts-morph.com/navigation/type-checker), [source files](https://ts-morph.com/details/source-files), [project population](https://ts-morph.com/setup/adding-source-files), and the installed declaration surface at `node_modules/ts-morph/lib/ts-morph.d.ts`. The declarations win when the website is incomplete.
 
@@ -125,7 +125,7 @@ Rules:
 - `getResolvedSignature()` proves overload selection and parameter types, but it is expensive. First reduce to a lossless structural or declaration-derived candidate set, then cache the result by call `compilerNode` for this invocation.
 - Assignability answers shape compatibility. It cannot prove that a callable came from the canonical injected door or module; combine it with declaration origin.
 
-The bus incident that established these rules is recorded in `docs/reviews/gate-runtime/bus-family-1584.md`: alias-only resolution lost `memoryRecall`, while resolving every server call took minutes and several GiB.
+The bus incident that established these rules came from the bus family's #1584 conversion: alias-only resolution lost `memoryRecall`, while resolving every server call took minutes and several GiB.
 
 ## Authored values are not types
 

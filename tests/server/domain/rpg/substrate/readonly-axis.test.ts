@@ -1,5 +1,5 @@
 // tests/server/domain/rpg/substrate/readonly-axis — the honest-arms `trackersReadOnly` derivation
-// (rpg-design/05 §4.6). Pure: the resolved mode + the connection capability → whether the model has a write
+// (docs/plans/rpg/design.md). Pure: the resolved mode + the connection capability → whether the model has a write
 // path. Both surviving modes need tools; the structured write path (the resync + the agent-sdk degrade) is
 // keyed by capability alone (`hasStructuredWriter`). NO silent downgrade.
 

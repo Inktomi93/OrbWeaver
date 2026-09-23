@@ -1,4 +1,4 @@
-// CT: the S1 in-chat CONTROL band (interaction-direction-spec.md §3-S1) — THE MOUNT MATRIX.
+// CT: the S1 in-chat CONTROL band — THE MOUNT MATRIX.
 //
 // Every row drives the PRODUCTION path: a `chat-controls` source registry → the real
 // `makeChatControlsContribution` → the chat-surface registry → the real `ChatRoomSurface`'s

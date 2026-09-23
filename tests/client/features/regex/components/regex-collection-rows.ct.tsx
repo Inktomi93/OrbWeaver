@@ -129,7 +129,7 @@ test("the kebab Delete confirms with the cascade, then fires removeScript", asyn
   await expect.poll(() => trpc.lastInput("regex.removeScript"), { intervals: [20, 50, 100] }).toEqual({ scriptId: STRIP["id"] });
 });
 
-// IMPORT MOVED FROM THE BAND TO THE LIBRARY'S OVERFLOW (#1725, DESIGN.md §3.2) — D121-D's `band=Import`
+// IMPORT MOVED FROM THE BAND TO THE LIBRARY'S OVERFLOW (#1725, the mock design §3.2) — D121-D's `band=Import`
 // anatomy survives with a changed address, and the door is never a bare button: it is the kebab's first
 // item, beside whatever library-level verbs the contribution declares.
 test("the library's overflow carries the import door, named for what it takes", async ({ mount, page }) => {

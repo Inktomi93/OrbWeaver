@@ -72,7 +72,7 @@ export function killPidGroup(pid: number | undefined, signal: NodeJS.Signals): v
   }
 }
 
-/** The default child ceiling, LOAD-SCALED through the one policy (#1232, docs/design/1208-instrument-substrate.md
+/** The default child ceiling, LOAD-SCALED through the one policy (#1232
  *  §7.1): 120s is the QUIET-BOX base, and a caller that names no ceiling gets it stretched by the box's
  *  contention rather than killed at a number written for an idle machine. Evaluated per CALL (not at module
  *  load) because a long-lived process spawns children across changing load. */

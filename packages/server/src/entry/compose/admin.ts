@@ -149,7 +149,7 @@ export function buildAdmin(deps: AdminComposeDeps): AdminComposeResult {
     },
   });
 
-  // The ONE tool-use registry (process-lifetime; tool-use-design/01 §3) — built here, before its registrants
+  // The ONE tool-use registry (process-lifetime; D48) — built here, before its registrants
   // and consumers (chat below reads the same instance). Buddy is the first registrant: its curated tools
   // register ONCE (owner read from the exec context per turn, never a compose-time closure), and its `ask`
   // resolves them per turn through the SAME registry, projecting via toToolDefinitions (T5).

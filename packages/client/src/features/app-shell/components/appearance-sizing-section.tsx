@@ -83,7 +83,7 @@ function SizingBody({ sectionId, session }: { readonly sectionId: string; readon
       heading={APPEARANCE_SIZING_SUBCATEGORY.label}
       id={configAnchorId("appearance", APPEARANCE_SIZING_SUBCATEGORY.id)}
     >
-      {/* THE TEACHER LAW (#866 S3, config-revamp-design.md §7.2): a row is label + control — the per-row
+      {/* THE TEACHER LAW (#866 S3): a row is label + control — the per-row
           prose re-homed into each leaf's `teach` (the context pane renders it for the focused row). The
           scope is the SAME nav const the contribution registers, so a row can never publish an address its
           section does not own. */}

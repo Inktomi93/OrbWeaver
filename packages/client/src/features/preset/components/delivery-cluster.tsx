@@ -1,4 +1,4 @@
-// DeliveryCluster — the ONE delivery grammar (preset-surface-redesign.md §13, the owner's one-home charge
+// DeliveryCluster — the ONE delivery grammar (the owner's one-home charge
 // made literal): role BESIDE depth, serving BOTH drill-ins — a prompt SECTION's (§5.2) and a guided
 // TEMPLATE's (§6.1). Round-3 ruling, verbatim: "depth goes near whatever role it goes in as" — depth is a
 // DELIVERY property, so it sits with the role it rides, while ORDER (the within-depth tiebreak) stays in
