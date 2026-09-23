@@ -916,11 +916,12 @@ const FORMAT_STRING_CARRIER_TOKENS = [{ key: "wiFormat", token: "{{entry}}" }] a
 // than more `teach` rows because the two groups fire on different CALLS (the character turn vs the state
 // round) and a host tuning one has no reason to read the other.
 // `group` (added 2026-08-08 with the F4 re-home) is the wire framings a GROUP round puts around content — the
-// co-speaker card headings and the per-speaker/narrator round nudges + speaker-tag instruction. Its own kind
-// rather than more `format` rows for the exact reason `teach` is: the kicker is what tells a preset author
-// "these seven only do anything on a MULTI-character round"; folding them into Format would bury group
-// vocabulary under the New-chat marker with nothing on screen saying so. Like `format`/`nudge` they fire on
-// the shape of the WIRE (a merged/narrator round), never on a user action.
+// co-speaker card headings, the per-speaker/narrator round nudges + speaker-tag instruction, and the person
+// heading over each other present human's persona. Its own kind rather than more `format` rows for the exact
+// reason `teach` is: the kicker is what tells a preset author "these only do anything in a room of several
+// characters or several humans"; folding them into Format would bury group vocabulary under the New-chat
+// marker with nothing on screen saying so. Like `format`/`nudge` they fire on the shape of the WIRE (a
+// merged/narrator round, a multi-human room), never on a user action.
 export const TEMPLATE_KINDS = ["steer", "voice", "studio", "format", "nudge", "group", "teach", "extract"] as const satisfies readonly string[];
 export type TemplateKind = (typeof TEMPLATE_KINDS)[number];
 
@@ -1286,12 +1287,13 @@ export const TEMPLATE_DEFS = [
     defaultSlot: "chat.assembly.continuationNudge",
   },
   // ── THE GROUP-ROUND FRAMINGS (F4 re-home, owner ruling 2026-08-08 — D132(B) amendment) ─────────────────────
-  // The seven `chat.group.*` slots the MULTI-character round puts around content: the merged/narrator co-speaker
-  // card headings and the per-speaker/narrator round nudges + the speaker-tag instruction. Re-homed user →
+  // The `chat.group.*` slots a group room puts around content: the merged/narrator co-speaker card headings,
+  // the per-speaker/narrator round nudges + the speaker-tag instruction, and the person heading of a
+  // multi-human room's people block. Re-homed user →
   // preset by the F4 ruling arm (a) — they resolve during the turn's own context build where the preset IS in
   // scope, so their storage is `promptConfig.prose` and each ghosts its own slot's bytes (`defaultSlot === id`).
-  // `group` kind (not `format`) so the "Group rounds" kicker tells a preset author these only fire on a
-  // multi-character round. The `{{name}}`/`{{names}}` are PRE-SUBSTITUTION tokens the assembler splices per
+  // `group` kind (not `format`) so the "Group rounds" kicker tells a preset author these only fire in a
+  // group room. The `{{name}}`/`{{names}}` are PRE-SUBSTITUTION tokens the assembler splices per
   // member — the editor offers them as chips and lints their absence; `speakerTags` carries no macro token.
   {
     id: "chat.group.characterHeading",
@@ -1316,6 +1318,14 @@ export const TEMPLATE_DEFS = [
     fires: "A merged group turn — heads each present member's example dialogue",
     caps: [{ kind: "tokens", tokens: ["{{name}}"] }],
     defaultSlot: "chat.group.exampleHeading",
+  },
+  {
+    id: "chat.group.personaHeading",
+    kind: "group",
+    label: "Person heading",
+    fires: "A room with more than one human — heads each other present human's persona",
+    caps: [{ kind: "tokens", tokens: ["{{name}}"] }],
+    defaultSlot: "chat.group.personaHeading",
   },
   {
     id: "chat.group.roundNudge",

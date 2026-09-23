@@ -15,15 +15,16 @@ test("requireProvider returns a registered provider and throws providerUnknown o
   const h = await makeHarness(db);
   const owner = await seedOwner(db);
   expect(requireProvider(h.ctx, owner.userId, "openrouter")).toMatchObject({ id: "openrouter" });
-  expect(() => requireProvider(h.ctx, owner.userId, "no-such-provider")).toThrowError(expect.objectContaining({ code: CONNECTION_OP_CODES.providerUnknown }));
+  expect(() => requireProvider(h.ctx, owner.userId, "no-such-provider")).toThrow(expect.objectContaining({ code: CONNECTION_OP_CODES.providerUnknown }));
 });
 
-test("requireBaseUrl refuses a fixed-endpoint provider carrying a base URL, and passes it with none", () => {
-  const provider = { auth: "apiKey" as const, label: "OpenRouter" } as Parameters<typeof requireBaseUrl>[1];
-  expect(() => requireBaseUrl({} as Parameters<typeof requireBaseUrl>[0], provider, "http://example.test/v1")).toThrowError(
-    expect.objectContaining({ code: CONNECTION_OP_CODES.baseUrlShape }),
-  );
-  expect(() => requireBaseUrl({} as Parameters<typeof requireBaseUrl>[0], provider, null)).not.toThrow();
+test("requireBaseUrl refuses a fixed-endpoint provider carrying a base URL, and passes it with none", async () => {
+  const db = await freshDb();
+  const h = await makeHarness(db);
+  const owner = await seedOwner(db);
+  const provider = requireProvider(h.ctx, owner.userId, "openrouter");
+  expect(() => requireBaseUrl(h.ctx, provider, "http://example.test/v1")).toThrow(expect.objectContaining({ code: CONNECTION_OP_CODES.baseUrlShape }));
+  expect(() => requireBaseUrl(h.ctx, provider, null)).not.toThrow();
 });
 
 test("requireBaseUrl on an endpoint provider requires a URL and admits or refuses it by the deployment's rule", async () => {
@@ -34,9 +35,9 @@ test("requireBaseUrl on an endpoint provider requires a URL and admits or refuse
   const admitted = await makeHarness(db, { admission: () => "admitted" });
   const provider = requireProvider(admitted.ctx, owner.userId, BYO_PROVIDER);
 
-  expect(() => requireBaseUrl(admitted.ctx, provider, null)).toThrowError(expect.objectContaining({ code: CONNECTION_OP_CODES.baseUrlShape }));
-  expect(() => requireBaseUrl(invalid.ctx, provider, "ftp://example.test")).toThrowError(expect.objectContaining({ code: CONNECTION_OP_CODES.baseUrlInvalid }));
-  expect(() => requireBaseUrl(refused.ctx, provider, BYO_BASE_URL)).toThrowError(expect.objectContaining({ code: CONNECTION_OP_CODES.baseUrlRefused }));
+  expect(() => requireBaseUrl(admitted.ctx, provider, null)).toThrow(expect.objectContaining({ code: CONNECTION_OP_CODES.baseUrlShape }));
+  expect(() => requireBaseUrl(invalid.ctx, provider, "ftp://example.test")).toThrow(expect.objectContaining({ code: CONNECTION_OP_CODES.baseUrlInvalid }));
+  expect(() => requireBaseUrl(refused.ctx, provider, BYO_BASE_URL)).toThrow(expect.objectContaining({ code: CONNECTION_OP_CODES.baseUrlRefused }));
   expect(() => requireBaseUrl(admitted.ctx, provider, BYO_BASE_URL)).not.toThrow();
 });
 

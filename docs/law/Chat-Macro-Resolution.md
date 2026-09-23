@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-08-30
+updated: 2026-09-23
 ---
 
 # Chat macro/persona resolution — the one home
@@ -103,7 +103,7 @@ resolveRowMacros(
   tags are opaque to the macro parser (disjoint token set) — they pass through for the separate
   `speakerTagsToPlain` pass.
 
-## 3. The five contexts (who resolves what)
+## 3. The contexts (who resolves what)
 
 | Context | Home | `{{user}}` subject | `{{char}}` subject |
 | - | - | - | - |
@@ -111,23 +111,26 @@ resolveRowMacros(
 | **ASSEMBLE** (model) | server `toShapeCanon` → the atom | row `personaId`; null-stamp → the ANCHOR | row `characterId`; null (human/narrator) → the CHARACTERS |
 | **SEND** | stores RAW; stamps `personaId` (PD-100) | — | — |
 | CARD sections | server `assemble.ts` | `ctx.pinnedPersona` (anchor, FROZEN at open) | the section's character |
-| prompt-config sections | server `assemble.ts` | `ctx.activePersona` = the TRIGGERING human's persona | the section's character |
+| prompt-config sections | server `assemble.ts` | `ctx.activePersona` = the anchor human's current seat persona (the presser's on an impersonate draft, D122) | the section's character |
+| people block (the `persona` marker's headed entries, one per other present human) | server `assemble.ts` | that entry's own persona (`ctx.people`) | the turn's speaker |
 
 DISPLAY and ASSEMBLE resolve history identically (same atom + same producer semantics) ⇒ **viewer ==
 model by construction** — including the null-stamp fallback, which is the chat ANCHOR (a chat invariant,
 never the per-viewer active persona; ruling A), so a greeting / AI line addresses one persona for the model
 and every human. A human-authored row's `{{char}}` is the room's CHARACTERS (ruling B). Card and prompt-config sections
 are NOT history — they keep the two-persona doctrine (`context.ts`: `pinnedPersona = anchor ?? active`;
-`activePersona` = the triggerer's persona), the prompt-config `active` bound to whose turn it is (not
-`personaIds[0]`).
+`activePersona` = the anchor human's seat persona), so who presses send never changes the prompt-config
+`{{user}}` (not `personaIds[0]`).
 
 ## 4. The three persona axes (do not conflate)
 
 - **pinnedPersona** — the chat-open anchor (host-designated in multi-human), FROZEN. CARD-section `{{user}}`
   AND the null-stamp fallback for history rows (a greeting / AI line / legacy row — ruling A: the anchor is a
   chat invariant, so the model and every human agree; never the per-viewer active persona).
-- **activePersona** — the TRIGGERING human's persona (whose turn drives the assemble — see "Who drives a
-  turn" below; never `personaIds[0]`). Prompt-config-section `{{user}}` only.
+- **activePersona** — the anchor human's current seat persona on every turn but impersonate; the presser's
+  on an impersonate draft (D122; `voicePersonaFor` in `entry/compose/chat.ts` — never `personaIds[0]`).
+  Prompt-config-section `{{user}}` only. Every other present human's persona rides the people block
+  (`ctx.people`) under its own heading.
 - **row `personaId`** — the per-message author stamp. HISTORY/message `{{user}}` when set. Changed ONLY by
   reattribution — a live persona switch never silently relabels old lines.
 

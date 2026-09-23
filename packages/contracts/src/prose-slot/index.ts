@@ -120,6 +120,7 @@ export const PROSE_SLOT_IDS = [
   "chat.group.characterHeading",
   "chat.group.scenarioHeading",
   "chat.group.exampleHeading",
+  "chat.group.personaHeading",
   "chat.group.roundNudge",
   "chat.group.narratorNudge",
   "chat.group.speakerTags",
