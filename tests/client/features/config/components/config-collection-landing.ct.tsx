@@ -309,7 +309,7 @@ test("drilling into a member gets a Back to the library, and the member is named
 
   const header = content.locator('[data-slot="config-drill-header"]');
   await expect(header.getByRole("button", { name: "Back to Tags" })).toBeVisible();
-  // NO LIFECYCLE CHROME IN A DRILLED HEADER (D121(D), #271) — Delete stays on the row's kebab.
+  // NO LIFECYCLE CHROME IN A DRILLED HEADER (D212, #271) — Delete stays on the row's kebab.
   await expect(header.getByRole("button", { name: /Delete/ })).toHaveCount(0);
   // EXACTLY ONE HEADING NAMES THE MEMBER, and since #1747 it is IN THIS ROW — the board's single row, made
   // real. The count assertion is the older half of the pin and it survives verbatim: a host heading over
@@ -346,7 +346,7 @@ test("the drill row carries the member's own verbs beside its name (board 06)", 
   await expect(header.getByRole("button", { name: "Edit details" })).toBeVisible();
   await expect(header.getByRole("button", { name: "Backfill titles" })).toBeVisible();
   await expect(header.getByRole("button", { name: "New entry" })).toBeVisible();
-  // Still no lifecycle chrome in a drilled header (D121(D), #271) — the row's kebab owns Delete.
+  // Still no lifecycle chrome in a drilled header (D212, #271) — the row's kebab owns Delete.
   await expect(header.getByRole("button", { name: /Delete/ })).toHaveCount(0);
   // And the name is stated ONCE on the whole pane, exactly as the tags pin above requires.
   await expect(content.getByRole("heading", { name: BOOK.name })).toHaveCount(1);

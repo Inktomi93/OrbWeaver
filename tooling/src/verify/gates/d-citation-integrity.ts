@@ -14,7 +14,7 @@
 // reader that judges, and a range read from prose reds every reserved citation on a rephrase.
 //
 // FAMILY: `text-citation`, the shared reader `lib/text-cite-scan.ts#scanTextCitations`, with
-// `pd-citation-integrity` and `dangling-doc-cite`.
+// `dangling-doc-cite`.
 //
 // POPULATION PORT (legacy SHA `50088b39b`, verified byte-identical to HEAD at conversion) — AND THE HALF
 // THAT NEVER RAN. The legacy `inScope` admitted `packages/**` `.ts`/`.tsx` OR `docs/law/**`
@@ -74,7 +74,7 @@ const ADR_ID_RE = /^(\d+)-/u;
 /** The reserved window, inclusive (header). */
 const RESERVED_RULINGS = { lo: 79, hi: 105 } as const;
 /** A bare `D<n>` citation. The non-`P`/non-word/non-hyphen left boundary is the measured false-positive
- *  control: it excludes `PD-<n>` (the sibling namespace `pd-citation-integrity` owns) and any
+ *  control: it excludes `PD-<n>` (the owner-decision ledger's own citation namespace) and any
  *  `<word>D<n>` substring while still matching `D79`, `(D79`, ` D79`, `,D79`. The trailing `(?!\+)` is
  *  the range-announcement fence (header). */
 const CITE_RE = /(?<![A-Za-z0-9-])(D\d+)\b(?!\+)/gu;
