@@ -205,3 +205,52 @@ test("outputCapField: max_completion_tokens renames the SDK's max_tokens; absent
   // Pure: the SDK's object is untouched.
   expect(capped["max_tokens"]).toBe(100);
 });
+
+// Rule 9 on a row with no text to carry the marker: an assistant tool-call row has `content: null`, and an empty
+// text block cannot hold `cache_control`. OpenRouter drops a message-level marker there
+// (gen-1790145899-YEYx8CfmJdExgPTOB9u4) and forwards the same marker on the preceding user text part
+// (gen-1790145901-ZwS0tawK8pqSw284khqj), so the breakpoint moves to the nearest earlier row with text — a shorter
+// prefix of the same history, still a valid cache entry.
+const CC = { type: "ephemeral", ttl: "1h" };
+
+test("rule 9: a marker on a text-less tool-call row moves to the nearest earlier text part", () => {
+  const raw = {
+    model: "anthropic/claude-sonnet-5",
+    messages: [
+      { role: "system", content: [{ type: "text", text: "You are Mara.", cache_control: CC }] },
+      { role: "user", content: "What is the tide?" },
+      {
+        role: "assistant",
+        content: null,
+        tool_calls: [{ id: "call_1", type: "function", function: { name: "get_tide", arguments: "{}" } }],
+        cache_control: CC,
+      },
+      { role: "tool", tool_call_id: "call_1", content: "High tide at 6." },
+      { role: "user", content: "And tomorrow?" },
+    ],
+  };
+  const messages = recordsAt(shapeOutboundBody(raw, args({ dialect: "openrouter" })), "messages");
+  for (const message of messages) {
+    expect(message, String(message["role"])).not.toHaveProperty("cache_control");
+  }
+  expect(messages[1]).toEqual({ role: "user", content: [{ type: "text", text: "What is the tide?", cache_control: CC }] });
+  expect(messages[2]).toMatchObject({ role: "assistant", content: null });
+});
+
+test("rule 9: a moved marker never doubles up on a row that already carries one", () => {
+  const raw = {
+    model: "anthropic/claude-sonnet-5",
+    messages: [
+      { role: "user", content: [{ type: "text", text: "What is the tide?", cache_control: CC }] },
+      {
+        role: "assistant",
+        content: null,
+        tool_calls: [{ id: "call_1", type: "function", function: { name: "get_tide", arguments: "{}" } }],
+        cache_control: CC,
+      },
+    ],
+  };
+  const messages = recordsAt(shapeOutboundBody(raw, args({ dialect: "openrouter" })), "messages");
+  expect(JSON.stringify(messages).split("cache_control").length - 1).toBe(1);
+  expect(messages[1]).not.toHaveProperty("cache_control");
+});

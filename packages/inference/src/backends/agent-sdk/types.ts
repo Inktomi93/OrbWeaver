@@ -7,6 +7,7 @@ import type { ChatId, ModelId } from "@orb/kit/ids";
 import type { SessionEntryWriter } from "../../contract/agent.ts";
 import type { WireCaptureSink } from "../../contract/backend.ts";
 import type { ContextUsage } from "../../contract/chat.ts";
+import type { ProviderScrubSet } from "../../contract/errors.ts";
 import type { ChatDeltaEvent, ChatEvent } from "../../contract/events.ts";
 import type { AgentSdkSessionId } from "../../contract/identity.ts";
 import type { SpawnIdentity } from "../../contract/runtime.ts";
@@ -71,4 +72,7 @@ export interface TurnStreamContext {
   /** What the spawned runtime was told for effort (`ChatResult.appliedEffort`): `none` when thinking was disabled,
    *  the SDK effort word when one was set, `null` when neither (the runtime's own default — unrecorded). */
   readonly appliedEffort: EffortLevel | null;
+  /** Every credential literal this spawn ran under. A failure's runtime text is scrubbed against it before it
+   *  becomes a `ProviderError` message, which `invalid` shows to the user. */
+  readonly secrets: ProviderScrubSet;
 }

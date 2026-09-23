@@ -74,31 +74,44 @@ function isCanonicalRuntimeGeneratedSchemaBrand(node: MorphNode): boolean {
   );
 }
 
+/** Whether `type` (or, for an intersection, one of its constituents) itself declares the canonical
+ * unique-symbol brand as a member — the brand can live directly on a class (the pre-#2d68e7b type
+ * shape) or on a type-literal intersected onto a plain carrier class (the current
+ * `RuntimeGeneratedSchemaBox<Schema> & { readonly [BRAND]: true }` shape; a `declare` computed class
+ * field cannot survive Playwright's bundled Babel transform, so the brand moved off the class). Walking
+ * the receiver's TYPE rather than the `.schema` member's owning class covers both. */
+function typeCarriesCanonicalBrand(type: Type): boolean {
+  const constituents = type.isIntersection() ? type.getIntersectionTypes() : [type];
+  return constituents.some((constituent) =>
+    constituent.getProperties().some((property) =>
+      property.getDeclarations().some((declaration) => {
+        if (!(Node.isPropertySignature(declaration) || Node.isPropertyDeclaration(declaration))) {
+          return false;
+        }
+        const name = declaration.getNameNode();
+        if (!Node.isComputedPropertyName(name)) {
+          return false;
+        }
+        return name.getExpression().getSymbol()?.getDeclarations().some(isCanonicalRuntimeGeneratedSchemaBrand) === true;
+      }),
+    ),
+  );
+}
+
 /** A contextual `ZodType<any | unknown>` is truthful only when the value comes through the canonical
- * runtime-generated-schema container. Resolve both the `schema` property declaration and its nominal
- * unique-symbol brand; a same-named structural wrapper, a bare member, or an authored schema stays visible. */
+ * runtime-generated-schema container. Resolve the `schema` property declaration and, from the receiver's
+ * own type, its nominal unique-symbol brand; a same-named structural wrapper, a bare member, or an
+ * authored schema stays visible. */
 function isCanonicalRuntimeGeneratedSchemaMember(rawExpression: Expression): boolean {
   const expression = unwrapSchemaExpression(rawExpression);
   if (!Node.isPropertyAccessExpression(expression)) {
     return false;
   }
   const memberDeclarations = expression.getNameNode().getSymbol()?.getDeclarations() ?? [];
-  return memberDeclarations.some((memberDeclaration) => {
-    if (!Node.isPropertyDeclaration(memberDeclaration)) {
-      return false;
-    }
-    const owner = memberDeclaration.getFirstAncestor(Node.isClassDeclaration);
-    if (owner === undefined) {
-      return false;
-    }
-    return owner.getProperties().some((property) => {
-      const name = property.getNameNode();
-      if (!Node.isComputedPropertyName(name)) {
-        return false;
-      }
-      return name.getExpression().getSymbol()?.getDeclarations().some(isCanonicalRuntimeGeneratedSchemaBrand) === true;
-    });
-  });
+  if (!memberDeclarations.some((memberDeclaration) => Node.isPropertyDeclaration(memberDeclaration))) {
+    return false;
+  }
+  return typeCarriesCanonicalBrand(expression.getExpression().getType());
 }
 
 function pairWithTarget(target: Type, rawSchema: Expression, carrier: MorphNode, erasedTarget: "unresolved" | "ignore"): ZodOutputTwinRead {
