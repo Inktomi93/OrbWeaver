@@ -1,10 +1,11 @@
 ---
 kind: work
-status: open
+status: done
 updated: 2026-09-23
 priority: P2
 area: docs
 plan: doc-migration
+evidence: 220991d39
 ---
 
 # Vendored docs leave git
