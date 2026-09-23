@@ -24,6 +24,7 @@ import {
 import { resolveProseText } from "@orb/contracts/prose";
 import type { Db } from "@orb/db";
 import { createNamesOnlyRegistry, processMacros } from "@orb/kit/macro";
+import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { resolveSegmentAnchor, segmentSnippet } from "@orb/kit/speaker-label";
 import type { ChatTeachingRegistry, TeachingCollection, TeachingContext, TeachingContribution } from "./contract/context.ts";
 import { listAttributionReactions, loadPresentCharacterNames } from "./persistence/reactions.ts";
@@ -73,18 +74,12 @@ const rpgGatherProjection: TeachingContribution = {
  *  for the slot. */
 const CHOICES_TEACH_SLOT_ID = "rpg.reminder.cyoaTeach" as const;
 const CHOICES_NAMES_REGISTRY = createNamesOnlyRegistry();
-/** The `{{user}}` floor when the turn has no active persona. Bound to the literal rpg's gather uses
- *  (`domain/rpg/chat-ops/gather.ts:126` — `steerIdentity.user ?? "User"`), NOT `@orb/kit/persona`'s
- *  `DEFAULT_PERSONA_NAME` ("Traveler"): the requirement here is byte-identity with the OTHER arm resolving
- *  this same slot, and a different floor would make a personaless turn's override render two different
- *  strings — which is precisely the containment miss below. If rpg's floor ever moves, this moves with it. */
-const CHOICES_USER_FLOOR = "User";
 function resolveChoicesTeach(tctx: TeachingContext): string {
   const text = resolveProseText(CHOICES_TEACH_SLOT_ID, tctx.prose);
   if (!text.includes("{{")) {
     return text;
   }
-  const macros = { char: tctx.identity.char, user: tctx.identity.user ?? CHOICES_USER_FLOOR, persona: "", scenario: "", env: {} };
+  const macros = { char: tctx.identity.char, user: tctx.identity.user ?? DEFAULT_PERSONA_NAME, persona: "", scenario: "", env: {} };
   return processMacros(text, macros, CHOICES_NAMES_REGISTRY);
 }
 

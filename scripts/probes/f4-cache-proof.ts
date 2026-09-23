@@ -168,7 +168,7 @@ async function runArm(arm: Arm): Promise<TurnRecord[]> {
         character: { name: "Aria", description: "a bold knight" },
         promptConfig: DEFAULT_PROMPT_CONFIG,
         activePersona: { name: "Alex", description: "the user" },
-        triggerUserId: HUMAN,
+        activePersonaUserId: HUMAN,
         recentMessages: [],
         chatInjections: [marker],
       },
