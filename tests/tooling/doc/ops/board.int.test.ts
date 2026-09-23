@@ -3,7 +3,7 @@
 // drift reads the tree's facts.
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { execFixtureGit } from "../../../../tooling/src/_shared/git-fixture.ts";
+import { execFixtureGit, runFixtureGit } from "../../../../tooling/src/_shared/git-fixture.ts";
 import { drift, driftFacts, landItems, landMerged, newItem, newPlan, overview, setStatus } from "../../../../tooling/src/doc/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
@@ -113,6 +113,83 @@ test("land --merged lands the Closes ids of the merged commits with the merge co
   // Off main, or with no trailer, the door is silent.
   git(root, "checkout", "-q", "lane");
   expect(landMerged(root, TODAY)).toEqual({ written: [], refusals: [], skipped: [] });
+});
+
+test("land --merged lands a Closes trailer through a merge commit `git merge` commits itself (--no-ff)", async ({ plantedTree }) => {
+  const root = await repo(plantedTree);
+  newItem({ title: "A", kind: "work", priority: null, area: null, plan: null, lane: null }, root, TODAY);
+  commitAll(root, "chore(work): items");
+  git(root, "checkout", "-qb", "lane");
+  writeFileSync(join(root, "lane.txt"), "lane work\n");
+  commitAll(root, "feat(x): first\n\nCloses: 1\nCo-Authored-By: t <t@example.invalid>");
+  git(root, "checkout", "-q", "main");
+  git(root, "merge", "-q", "--no-ff", "-m", "Merge lane", "lane");
+  const merge = git(root, "rev-parse", "HEAD");
+  const outcome = landMerged(root, TODAY);
+  expect(outcome.refusals).toEqual([]);
+  expect(existsSync(join(root, "docs/work/0001-a.md"))).toBe(false);
+  expect(git(root, "log", "-1", "--format=%b")).toContain(`0001 A\n  evidence: ${merge}\n`);
+});
+
+test("land --merged lands a Closes trailer through a merge finished by a separate `git commit` (--no-ff --no-commit, the post-commit door)", async ({
+  plantedTree,
+}) => {
+  const root = await repo(plantedTree);
+  newItem({ title: "A", kind: "work", priority: null, area: null, plan: null, lane: null }, root, TODAY);
+  commitAll(root, "chore(work): items");
+  git(root, "checkout", "-qb", "lane");
+  writeFileSync(join(root, "lane.txt"), "lane work\n");
+  commitAll(root, "feat(x): first\n\nCloses: 1\nCo-Authored-By: t <t@example.invalid>");
+  git(root, "checkout", "-q", "main");
+  git(root, "merge", "-q", "--no-ff", "--no-commit", "lane");
+  const merge = commitAll(root, "Merge lane (manual commit)");
+  const outcome = landMerged(root, TODAY);
+  expect(outcome.refusals).toEqual([]);
+  expect(existsSync(join(root, "docs/work/0001-a.md"))).toBe(false);
+  expect(git(root, "log", "-1", "--format=%b")).toContain(`0001 A\n  evidence: ${merge}\n`);
+});
+
+test("land --merged lands a Closes trailer through a conflicted merge resolved by hand (the post-commit door)", async ({ plantedTree }) => {
+  const root = await repo(plantedTree);
+  newItem({ title: "A", kind: "work", priority: null, area: null, plan: null, lane: null }, root, TODAY);
+  commitAll(root, "chore(work): items");
+  git(root, "checkout", "-qb", "lane");
+  writeFileSync(join(root, "README.md"), "# lane\n");
+  commitAll(root, "feat(x): first\n\nCloses: 1\nCo-Authored-By: t <t@example.invalid>");
+  git(root, "checkout", "-q", "main");
+  writeFileSync(join(root, "README.md"), "# main\n");
+  commitAll(root, "chore: main readme");
+  // The two branches touch the same line, so `git merge` stops with a conflict rather than committing —
+  // exactly the shape a plain `execFixtureGit` (throws on any nonzero exit) cannot express.
+  const conflicted = runFixtureGit(root, [...IDENTITY, "merge", "-q", "lane"]);
+  expect(conflicted.status).not.toBe(0);
+  writeFileSync(join(root, "README.md"), "# resolved\n");
+  git(root, "add", "-A");
+  const merge = commitAll(root, "Merge lane (conflict resolved)");
+  const outcome = landMerged(root, TODAY);
+  expect(outcome.refusals).toEqual([]);
+  expect(existsSync(join(root, "docs/work/0001-a.md"))).toBe(false);
+  expect(git(root, "log", "-1", "--format=%b")).toContain(`0001 A\n  evidence: ${merge}\n`);
+});
+
+test("land --merged reads a merge commit's own second parent, not a stale ORIG_HEAD, for a merge finished by a separate `git commit`", async ({
+  plantedTree,
+}) => {
+  const root = await repo(plantedTree);
+  newItem({ title: "A", kind: "work", priority: null, area: null, plan: null, lane: null }, root, TODAY);
+  commitAll(root, "chore(work): items");
+  git(root, "checkout", "-qb", "lane");
+  writeFileSync(join(root, "lane.txt"), "lane work\n");
+  commitAll(root, "feat(x): first\n\nCloses: 1\nCo-Authored-By: t <t@example.invalid>");
+  git(root, "checkout", "-q", "main");
+  git(root, "merge", "-q", "--no-ff", "--no-commit", "lane");
+  commitAll(root, "Merge lane (manual commit)");
+  // Simulate ORIG_HEAD going stale by the time the hook that made this commit gets around to reading it —
+  // point it at HEAD itself, so the OLD `ORIG_HEAD..HEAD` range would be empty and land nothing.
+  git(root, "update-ref", "ORIG_HEAD", "HEAD");
+  const outcome = landMerged(root, TODAY);
+  expect(outcome.refusals).toEqual([]);
+  expect(existsSync(join(root, "docs/work/0001-a.md"))).toBe(false);
 });
 
 test("land --merged is all-or-nothing: an unknown id in a Closes trailer refuses the whole batch and writes nothing (F5)", async ({ plantedTree }) => {
