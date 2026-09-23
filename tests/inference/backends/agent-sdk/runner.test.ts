@@ -7,13 +7,16 @@
 // runtime will never serve.
 
 import { modelIdSchema } from "@orb/contracts/inference";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createAgentSdkLog } from "../../../../packages/inference/src/backends/agent-sdk/log.ts";
 import { consumeTurnStream, runChatTurn } from "../../../../packages/inference/src/backends/agent-sdk/runner.ts";
+import { NO_SAVED_TOTALS } from "../../../../packages/inference/src/backends/agent-sdk/session/frames.ts";
 import { SessionCache } from "../../../../packages/inference/src/backends/agent-sdk/session/store.ts";
 import type { AgentSdkDeps, TurnStreamContext } from "../../../../packages/inference/src/backends/agent-sdk/types.ts";
 import { passthroughImageNormalizer } from "../../../../packages/inference/src/backends/kit/image-normalize.ts";
 import { resolvedScrubSet } from "../../../../packages/inference/src/backends/kit/sanitize.ts";
 import { ProviderError } from "../../../../packages/inference/src/contract/errors.ts";
+import { agentSdkSessionIdSchema } from "../../../../packages/inference/src/contract/identity.ts";
 import type { InferenceLog } from "../../../../packages/inference/src/deps.ts";
 import { cacheHitRate } from "../../../../packages/server/src/domain/stats/substrate/rates.ts";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -39,6 +42,7 @@ function ctx(model: string): TurnStreamContext {
     model: modelIdSchema.parse(model),
     providerId: "claude-sub",
     resumed: false,
+    savedTotals: NO_SAVED_TOTALS,
     now: () => 0,
     appliedEffort: null,
     secrets: resolvedScrubSet({ credential: { secret: TOKEN }, transport: null }),
@@ -256,6 +260,52 @@ test("a resumed turn records this turn's tokens, with tokensIn as the whole prom
   expect(turn.usage.cacheWriteTokens).toBe(RESUMED_TURN.cacheWrite);
   // The stats plane's cache-hit share for this subscription row.
   expect(cacheHitRate(turn.usage.cacheReadTokens, turn.usage.cacheWriteTokens, turn.usage.tokensIn ?? 0)).toBeLessThanOrEqual(1);
+});
+
+// The live session's first turn cost 0.0049 and the runtime saved that total in the transcript; the resumed
+// turn's result then reported 0.0110, the session so far. The turn's own cost is the difference.
+const SAVED_COST = 0.0049;
+const SESSION_COST = 0.011;
+
+test("a resumed turn records its own cost: the session total less what the transcript saved", async () => {
+  const connection = fakeResolved({ task: "chat", providerId: "claude-sub", model: "claude-sonnet-5", capability: generationCapability() });
+  const chatId = mintTypeId(ID_PREFIX.chat);
+  const sessions = new SessionCache(quietLog);
+  const sessionId = agentSdkSessionIdSchema.parse(SESSION_ID);
+  sessions.record(chatId, connection.connectionId, sessionId);
+  await sessions.store.append({ projectKey: "orbweaver", sessionId }, [
+    { type: "cost-state", sessionId, modelUsage: { "claude-sonnet-5": { costUSD: SAVED_COST, webSearchRequests: 0 } } },
+  ]);
+  const deps: AgentSdkDeps = {
+    now: () => 0,
+    log: quietLog,
+    // @orb-waive no-test-fabrication(unknown): the SDK `query` seam returns its own `Query` object; the reducer only iterates it, so a generator over captured-shape frames is the honest double. Ends if the SDK exports a query fake.
+    query: (() => resumedTurn()) as unknown as AgentSdkDeps["query"],
+    sessionStore: sessions.store,
+    normalizeImageBytes: passthroughImageNormalizer,
+    scheduleTimeout: () => () => undefined,
+    summarizeConcurrency: () => 1,
+    debug: false,
+    childEnv: () => ({}),
+  };
+  const turn = await runChatTurn(
+    { api: "agent-sdk", connection, chatId, params: {}, systemPrompt: { static: "You are Mara.", dynamic: "" }, prompt: "Any ships?" },
+    deps,
+    sessions,
+    createAgentSdkLog(quietLog, "claude-sub"),
+  );
+  expect(turn.usage.costUsd).toBeCloseTo(SESSION_COST - SAVED_COST, 10);
+  expect(turn.usage.costProvenance).toBe("estimated");
+});
+
+test("a resumed turn whose saved total is unreadable records its cost as unrecorded, never the session total", async () => {
+  const turn = await consumeTurnStream(
+    resumedTurn(),
+    { ...ctx("claude-sonnet-5"), resumed: true, savedTotals: null },
+    createAgentSdkLog(quietLog, "claude-sub"),
+  );
+  expect(turn.usage.costUsd).toBeNull();
+  expect(turn.usage.costProvenance).toBe("unrecorded");
 });
 
 test("a result with an empty usage records no billed tokens rather than a zero", async () => {

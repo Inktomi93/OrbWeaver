@@ -18,6 +18,7 @@ import type {
 import type { ChatUsage } from "@orb/contracts/inference";
 import type { ChatId } from "@orb/kit/ids";
 import { secondsToMs } from "@orb/kit/time";
+import type { AgentSdkSessionTotals } from "../../contract/agent.ts";
 import type { AgentSdkChatRequest, ChatResult, ContextUsage, ToolCallInput } from "../../contract/chat.ts";
 import { normalizeFinishReason } from "../../contract/chat.ts";
 import type { ProviderScrubSet } from "../../contract/errors.ts";
@@ -34,6 +35,7 @@ import { resolvedScrubSet, sanitizeApiError } from "../kit/sanitize.ts";
 import type { AgentSdkLog } from "./log.ts";
 import { toSdkOutputFormat } from "./output-schema.ts";
 import type { SeededSessionDecision, SessionCache } from "./session/index.ts";
+import { NO_SAVED_TOTALS } from "./session/index.ts";
 import { isTerminalToolCall, terminalToolOptions, toTerminalCall } from "./terminal-tools.ts";
 import {
   buildSystemPrompt,
@@ -155,7 +157,7 @@ export async function runChatTurn(req: AgentSdkChatRequest, deps: AgentSdkDeps, 
     droppedWarnings: gen.warnings.map((w) => ({ code: w.code, message: w.message })),
   });
   const { systemPrompt, dynamicHook } = routeDynamicContext(req, gen.turnId, log);
-  const { resume, disposition } = await resolveResume(req, sessions);
+  const { resume, disposition, savedTotals } = await resolveResume(req, sessions);
   logSessionDecision(req.chatId, resume, disposition, log);
 
   const stderrTail = new StderrTail();
@@ -190,6 +192,7 @@ export async function runChatTurn(req: AgentSdkChatRequest, deps: AgentSdkDeps, 
       model: connection.model,
       providerId: connection.providerId,
       resumed: resume !== undefined,
+      savedTotals,
       disposition,
       now: deps.now,
       expectStructured: req.responseFormat !== undefined,
@@ -268,10 +271,20 @@ function routeDynamicContext(
   return { systemPrompt: buildSystemPrompt({ static: req.systemPrompt.static, dynamic: "" }), dynamicHook: dynamicContextOptions(req.systemPrompt.dynamic) };
 }
 
-async function resolveResume(
-  req: AgentSdkChatRequest,
-  sessions: SessionCache,
-): Promise<{ resume: AgentSdkSessionId | undefined; disposition: SeededSessionDecision["disposition"] }> {
+interface ResumeDecision {
+  readonly resume: AgentSdkSessionId | undefined;
+  readonly disposition: SeededSessionDecision["disposition"];
+  readonly savedTotals: AgentSdkSessionTotals | null;
+}
+
+async function resolveResume(req: AgentSdkChatRequest, sessions: SessionCache): Promise<ResumeDecision> {
+  const decided = await resolveResumeId(req, sessions);
+  // Read before the spawn: the runtime appends this turn's own `cost-state` entry to the same transcript.
+  const savedTotals = decided.resume !== undefined ? await sessions.savedTotals(decided.resume) : NO_SAVED_TOTALS;
+  return { ...decided, savedTotals };
+}
+
+async function resolveResumeId(req: AgentSdkChatRequest, sessions: SessionCache): Promise<Omit<ResumeDecision, "savedTotals">> {
   if (req.chatId === undefined) {
     return { resume: undefined, disposition: "fresh" };
   }
@@ -773,9 +786,8 @@ function handleAuthStatus(acc: TurnAccumulator, message: Narrow<"auth_status">):
   acc.log.warn({ isAuthenticating: message.isAuthenticating, authError: message.error }, "agent-sdk: auth status change");
 }
 
-// Tokens come from the result's `usage`, never from `modelUsage`: a resumed or forked session's `modelUsage`
-// continues from the totals its transcript saved, so on every turn after the first it reports the whole
-// session. `usage` covers only this turn's main loop, which is every call a tool-less orb turn makes.
+// Tokens come from the result's `usage`, never from `modelUsage`: a resumed session's `modelUsage` continues
+// from the totals its transcript saved, so on every turn after the first it reports the whole session. `usage` covers only this turn's main loop, which is every call a tool-less orb turn makes.
 // `input_tokens` is the UNCACHED part only; the normalized `tokensIn` is the whole prompt, as on every wire.
 // A crash or startup-error result can carry an empty `usage`, so it is read through a Partial view: an absent
 // billed count stays null, an absent cache count is 0.
@@ -791,13 +803,20 @@ function accumulateTurnTokens(acc: TurnAccumulator, usage: Partial<Narrow<"resul
 function accumulateUsage(acc: TurnAccumulator, message: Narrow<"result">): void {
   accumulateTurnTokens(acc, message.usage);
   for (const [model, modelUsage] of Object.entries(message.modelUsage)) {
-    // Known gap: `costUSD` and `webSearchRequests` are session totals on a resumed or forked turn (see
-    // `accumulateTurnTokens`) and have no per-turn field; a per-turn figure needs the session's previous total.
     acc.usageAcc.costUsd = (acc.usageAcc.costUsd ?? 0) + modelUsage.costUSD;
     acc.meta.webSearchRequests += modelUsage.webSearchRequests;
     acc.meta.modelUsage[model] = { inputTokens: modelUsage.inputTokens, outputTokens: modelUsage.outputTokens, costUsd: modelUsage.costUSD };
     acc.usageAcc.contextWindow = Math.max(acc.usageAcc.contextWindow ?? 0, acc.ctx.configuredMaxContextTokens ?? modelUsage.contextWindow);
     acc.usageAcc.maxOutputTokens = Math.max(acc.usageAcc.maxOutputTokens ?? 0, acc.ctx.configuredMaxOutputTokens ?? modelUsage.maxOutputTokens);
+  }
+  // `costUSD` and `webSearchRequests` have no per-turn field: on a resumed turn they continue from the totals the
+  // transcript saved, so this turn's own spend is the difference. An unreadable saved total leaves it unrecorded.
+  const saved = acc.ctx.savedTotals;
+  if (saved === null) {
+    acc.usageAcc.costUsd = null;
+  } else {
+    acc.usageAcc.costUsd = acc.usageAcc.costUsd === null ? null : acc.usageAcc.costUsd - saved.costUsd;
+    acc.meta.webSearchRequests -= saved.webSearchRequests;
   }
   // The SDK types `usage.cache_creation` as required, but it's absent when no prompt-cache write occurred —
   // read through a Partial view so the absence is a typed fact, not a dead guard.
