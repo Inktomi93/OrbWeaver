@@ -1,4 +1,4 @@
-// Policy: context-definition-shape (client-architecture-lockdown.md §6b / §16 G3, D119) —
+// Policy: context-definition-shape (client-architecture-lockdown.md §6b / client-architecture-state-and-gates.md §16 G3, D119) —
 // post-M3, the OCCURRENCE walls around the `defineContextTabs<S>` and `defineContextRegion` mints
 // (`lib/registry-contracts.ts`). SIX arms, each a per-file verdict about one authored node:
 //   1. a hand-rolled `{ kind: "tabs", useResolved }` object literal outside the mint's own file — a
@@ -85,11 +85,11 @@ const HAND_ROLLED_TABS_MESSAGE =
 const DEAD_MINT_MESSAGE =
   "`defineContextTabs` called with `tabs: []` and no `contributors` — a dead mint with no reachable content " +
   "(an intentional contributors-only mint MUST pass a `contributors` registry) — " +
-  "client-architecture-lockdown.md §16 G3.";
+  "client-architecture-state-and-gates.md §16 G3.";
 const NO_TYPE_ARG_MESSAGE =
   "a `defineContextTabs` call has no explicit type argument — O5 requires the projection type be SPELLED " +
   "(`<CharacterContextState>` / `<void>`), never inferred from `useContextState` (an inline/anonymous return " +
-  "would leak an unpublished shape) — client-architecture-lockdown.md §16 G3.";
+  "would leak an unpublished shape) — client-architecture-state-and-gates.md §16 G3.";
 const BODIES_MESSAGE =
   'a "bodies" member/attribute shaped `Record<string, ReactNode>` — the CONTEXT_SLOTS↔bodies split the mint ' +
   "killed structurally (tab id + label + when + body are ONE object; a route-injected bodies map can silently " +
@@ -102,7 +102,7 @@ function strictProjectionMessage(siteName: string, text: string): string {
   return (
     `${siteName}'s type argument "${text}" is not \`void\` and not an identifier resolving to a type EXPORTED ` +
     "from `lib/registry-contracts.ts` (O5 strict/publication) — publish the real projection type there rather " +
-    "than an inline literal/index-signature/any/unknown escape — client-architecture-lockdown.md §16 G3."
+    "than an inline literal/index-signature/any/unknown escape — client-architecture-state-and-gates.md §16 G3."
   );
 }
 

@@ -1,4 +1,4 @@
-// Policy: no-parallel-section-map (client-architecture-lockdown.md §5 rule 4 / §16 G2) — the composition
+// Policy: no-parallel-section-map (client-architecture-lockdown.md §5 rule 4 / client-architecture-state-and-gates.md §16 G2) — the composition
 // bug was a section (or modal, config group, chrome widget) smeared across parallel static maps no gate
 // forced to agree. Five shapes are RED outside the sanctioned homes:
 //
@@ -130,7 +130,7 @@ const MESSAGE =
   "SectionIds, ModalSlotIds or ConfigGroupIds, or an array of ≥2 CHROME_ZONES-zoned chrome entries, is a " +
   "parallel section/modal/config-group/chrome map — the composition-drift bug. Derive from the registry, " +
   "never re-declare. Homes: the vocabulary tuple, the main.tsx/compose door, the *-section/*-modal/*-group/" +
-  "*-chrome definition files (client-architecture-lockdown.md §5 rule 4 / §16 G2).";
+  "*-chrome definition files (client-architecture-lockdown.md §5 rule 4 / client-architecture-state-and-gates.md §16 G2).";
 const FIX =
   'delete the map and read the registry (registry.get(id) / registry.list()), or move it into the vocabulary\'s own sanctioned home. For a deliberate exception, write an adjacent `@orb-waive no-parallel-section-map(<position>): <why + end condition>` — the position is the DISCRIMINATING MEMBER this policy reports, which is the first vocabulary key of an object map (`chats`), the first covered `id`/zone string literal WITH its quotes (`"chats"`, `"rail.nav"`) for an array, and the DECLARED NAME for a `Record<…>`-annotated declaration.';
 

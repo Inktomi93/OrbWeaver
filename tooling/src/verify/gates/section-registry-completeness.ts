@@ -1,4 +1,4 @@
-// Policy: section-registry-completeness (client-architecture-lockdown.md §6 / §16 G1) — the section
+// Policy: section-registry-completeness (client-architecture-lockdown.md §6 / client-architecture-state-and-gates.md §16 G1) — the section
 // registry's structural walls tsc cannot see. tsc forces the door Record total over SECTION_IDS; this adds
 // CO-LOCATION, the DECLARED-PLANNED discipline (O1), DUPLICATE ID, and the anti-god-map ban on a route
 // re-forming a `sections` object-literal map.

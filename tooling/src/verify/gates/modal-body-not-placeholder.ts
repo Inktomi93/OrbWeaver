@@ -1,4 +1,4 @@
-// Policy: modal-body-not-placeholder (client-architecture-lockdown.md §6d / §16 G13) — a ModalDefinition
+// Policy: modal-body-not-placeholder (client-architecture-lockdown.md §6d / client-architecture-state-and-gates.md §16 G13) — a ModalDefinition
 // whose FUNCTION-arm `body` renders `<SectionPlaceholder>` is RED. An unbuilt modal uses the
 // DECLARED-PLANNED arm (`body: { planned: "<reason>" }`); a placeholder-rendering function body is the
 // silent-sparkle anti-pattern, and it is unspellable.
