@@ -26,4 +26,5 @@ The command list and stage table live in `AGENTS.md`. This file covers gate auth
 12. `ts-morph` `Type#getProperty` returns `undefined` on a union receiver, including one an optional chain produces. Unwrap with `getNonNullableType` and iterate constituents.
 13. Key a gate's cache on the run pass, not on a `ts-morph` `Project` object. A reused `Project` can serve a stale snapshot from an earlier example.
 14. A census or baseline generator walks the gate's own file set. Do not use `lib/harness.ts`'s `getProject`; it deliberately excludes `tooling/src`.
-15. A fix for a gate or instrument caught lying ships planted controls in both directions, a loud refusal in place of a clean zero, and a red-first regression test that separates the fixed false positive from any newly visible finding.
+15. Flip a warning-tier gate to blocking in the commit that brings its count to zero. A held flip lets the count climb back.
+16. A fix for a gate or instrument caught lying ships planted controls in both directions, a loud refusal in place of a clean zero, and a red-first regression test that separates the fixed false positive from any newly visible finding.
