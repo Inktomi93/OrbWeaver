@@ -9,7 +9,9 @@
 // `responseMap` (PD-13).
 
 import type { UserCredentialId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
+import { providerIdSchema } from "#inference";
 
 // Dispatch axis: every member needs a resolver arm + an infra/providers runner (tsc's assertNever
 // red-flags a gap). `@orb/contracts/connection` re-exports this verbatim (under its own name).
@@ -60,6 +62,27 @@ export type CredentialHealth =
  *  answered is the exact product lie the honest `unchecked` health arm already exists to prevent. */
 export const CRED_REVOKED_REASONS = ["auth_failed", "unreachable", "user"] as const;
 export type CredRevokedReason = (typeof CRED_REVOKED_REASONS)[number];
+
+/** The credential read-model the `credentials.list`/`credentials.add` procedures return. It never carries a
+ *  secret column (`ciphertext`/`iv`/`tag`) or the plaintext key; `toCredentialView` in the credentials domain
+ *  is its only producer. STRICT, and installed as those procedures' tRPC output parser: an extra key fails the
+ *  call as an internal error instead of reaching the browser or being stripped without a trace. */
+export const credentialViewSchema = z.strictObject({
+  id: typeIdSchema(ID_PREFIX.userCredential),
+  /** The provider REGISTRY id the key was sealed for (half the AAD). */
+  provider: providerIdSchema,
+  /** Nullable at the column; add always writes one (default "default"). */
+  label: z.string().nullable(),
+  revokedAt: z.number().nullable(),
+  /** WHY it was revoked, so the Connections pane can say which of the three things happened instead of a
+   *  bare Revoked chip. Non-null exactly when `revokedAt` is (both are written in one statement and cleared
+   *  together) — a null here on a revoked row means a writer bypassed `setRevokedById`, and the surface
+   *  renders NOTHING rather than guessing a cause. */
+  revokedReason: z.enum(CRED_REVOKED_REASONS).nullable(),
+  createdAt: z.number(),
+  updatedAt: z.number(),
+});
+export type CredentialView = z.infer<typeof credentialViewSchema>;
 
 // Phantom `unique symbol` brand: an arbitrary `{ source, ... }` literal can't satisfy it, so the ONLY
 // way to produce a `ResolvedCredential` is the domain `resolve.ts` factory's encapsulated cast.
