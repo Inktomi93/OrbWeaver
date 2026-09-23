@@ -51,6 +51,9 @@ import type { RealCorpusLivenessArm, RealCorpusOverlay } from "../../../../suppo
 const CHAT_LIB = "packages/client/src/features/chat/lib";
 const CHAT_COMPONENTS = "packages/client/src/features/chat/components";
 
+/** Every add arm here shares ONE overlaid pass with the others, so each definition carries its OWN id and
+ *  copy: two arms minting the same id would make each other's registry policies report a duplicate, and
+ *  the runner's entanglement detector would send both to a solo pass. */
 function add(path: string, source: string): RealCorpusOverlay {
   return { kind: "add", path, source };
 }
@@ -67,7 +70,7 @@ export const CLIENT_APP_ARMS: readonly RealCorpusLivenessArm[] = [
     overlays: [
       add(
         `${CHAT_LIB}/liveness-not-a-chrome-file.ts`,
-        'import type { ChromeEntry } from "#state";\nexport const livenessChrome: ChromeEntry = { id: "liveness", label: "Liveness", zone: "topbar.trail", behavior: { kind: "modal", modalId: "settings" } };\n',
+        'import type { ChromeEntry } from "#state";\nexport const livenessChrome: ChromeEntry = { id: "liveness-chrome", label: "Liveness", zone: "topbar.trail", behavior: { kind: "modal", modalId: "settings" } };\n',
       ),
     ],
     messageIncludes: "Not co-located",
@@ -89,7 +92,7 @@ export const CLIENT_APP_ARMS: readonly RealCorpusLivenessArm[] = [
     overlays: [
       add(
         `${CHAT_LIB}/liveness-not-a-group-file.ts`,
-        'import type { ConfigGroupDefinition } from "#state";\nexport const livenessGroup: ConfigGroupDefinition = { id: "liveness" };\n',
+        'import type { ConfigGroupDefinition } from "#state";\nexport const livenessGroup: ConfigGroupDefinition = { id: "liveness-group" };\n',
       ),
     ],
     messageIncludes: "Not co-located",
@@ -131,7 +134,7 @@ export const CLIENT_APP_ARMS: readonly RealCorpusLivenessArm[] = [
     overlays: [
       add(
         `${CHAT_LIB}/liveness-not-a-tile-file.ts`,
-        'import type { HomeTileContribution } from "#state";\nexport const livenessTile: HomeTileContribution = { id: "liveness", body: () => null };\n',
+        'import type { HomeTileContribution } from "#state";\nexport const livenessTile: HomeTileContribution = { id: "liveness-tile", body: () => null };\n',
       ),
     ],
     messageIncludes: "Not co-located",
@@ -153,7 +156,7 @@ export const CLIENT_APP_ARMS: readonly RealCorpusLivenessArm[] = [
     overlays: [
       add(
         `${CHAT_LIB}/liveness-not-a-modal-file.ts`,
-        'import type { ModalDefinition } from "#state";\nexport const livenessModal: ModalDefinition = { id: "liveness", body: { planned: "liveness" } };\n',
+        'import type { ModalDefinition } from "#state";\nexport const livenessModal: ModalDefinition = { id: "liveness-stray-modal", body: { planned: "liveness" } };\n',
       ),
     ],
     messageIncludes: "Not co-located",
@@ -337,7 +340,7 @@ export const CLIENT_APP_ARMS: readonly RealCorpusLivenessArm[] = [
     overlays: [
       add(
         `${CHAT_LIB}/liveness-factory-section.tsx`,
-        'import type { ContributorRegistry } from "#lib";\nimport type { SectionDefinition } from "#state";\nexport function makeLivenessSection(contextTabs: ContributorRegistry<{ readonly id: string }>, regions: ContributorRegistry<{ readonly id: string }>): SectionDefinition {\n  void contextTabs;\n  void regions;\n  return { id: "liveness", placeholder: { title: "Liveness", description: "A liveness probe." } };\n}\n',
+        'import type { ContributorRegistry } from "#lib";\nimport type { SectionDefinition } from "#state";\nexport function makeLivenessSection(contextTabs: ContributorRegistry<{ readonly id: string }>, regions: ContributorRegistry<{ readonly id: string }>): SectionDefinition {\n  void contextTabs;\n  void regions;\n  return { id: "liveness-factory", placeholder: { title: "Liveness factory", description: "A factory liveness probe." } };\n}\n',
       ),
     ],
     messageIncludes: "ContributorRegistry parameters",
@@ -347,7 +350,7 @@ export const CLIENT_APP_ARMS: readonly RealCorpusLivenessArm[] = [
     overlays: [
       add(
         `${CHAT_LIB}/liveness-not-a-section-file.ts`,
-        'import type { SectionDefinition } from "#state";\nexport const livenessSection: SectionDefinition = { id: "liveness", placeholder: { title: "Liveness", description: "A liveness probe." } };\n',
+        'import type { SectionDefinition } from "#state";\nexport const livenessSection: SectionDefinition = { id: "liveness-stray", placeholder: { title: "Liveness stray", description: "A stray liveness probe." } };\n',
       ),
     ],
     messageIncludes: "Not co-located",
