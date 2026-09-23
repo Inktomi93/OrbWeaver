@@ -121,7 +121,7 @@ test("every direct-client-mechanism grant names a slot operation on the client g
   expect(rows.every(({ subject }) => subject === CLIENT_GLOBALS)).toBe(true);
 });
 
-/** THE CONSUMER COUNT, HELD TWO-SIDED — #2305, `v-css-family-2026-09-13.md` ledger row 5.
+/** THE CONSUMER COUNT, HELD TWO-SIDED — #2305, the 2026-09-13 CSS-family verifier review ledger row 5.
  *
  *  Four prose homes said the `css-hook-provenance` fact had FIVE consumers by counting the FAMILY: both
  *  `-health` siblings declare `facts: []` and never call `ctx.fact`, so the real number is THREE. A prose

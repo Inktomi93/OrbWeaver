@@ -6,7 +6,7 @@
 // ── FAMILY ──────────────────────────────────────────────────────────────────────────────────────────────
 // `caught-failure-ownership`, on the shared reader `lib/caught-failure.ts`
 // (`catchClauseSite` / `promiseAbsorberSite` / `caughtFailureReviewSites`). That extraction IS the census
-// blocker this conversion answers (uncovered-gate-conversion-census.md:182 — "must split reusable failure
+// blocker this conversion answers (the gate conversion census— "must split reusable failure
 // facts"): the reader's consumers are this policy, `ops/gen/caught-failure-population.ts`, which derives the
 // durable review record at tooling/src/verify/gates/caught-failure-ownership.population.json, and the hard
 // sibling `caught-failure-ownership-health`, which joins that record to the tree on `siteId`. One producer,

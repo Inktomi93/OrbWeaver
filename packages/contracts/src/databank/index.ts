@@ -65,9 +65,7 @@ export const INGEST_PHASES = ["empty", "indexing", "embedding", "ready", "stalle
  *  reports every `case` of an exhaustive switch over the `z.infer` alias as
  *  `lint/suspicious/noUnnecessaryConditions` "unreachable", while the tuple-derived alias lints clean (probe
  *  from untracked files under `packages/contracts/src/` and `packages/server/src/`, never /tmp where zod does
- *  not resolve; recorded in
- *  `docs/work/0033-retract-the-stale-biome-inference-rationale-on-the.md`). The `satisfies` below is a
- *  ONE-WAY assignability check; the `zod-output-twin-parity` gate is what proves the schema output and this
+ *  not resolve). The `satisfies` below is a ONE-WAY assignability check; the `zod-output-twin-parity` gate is what proves the schema output and this
  *  type are exactly equal. */
 export type IngestPhase = (typeof INGEST_PHASES)[number];
 

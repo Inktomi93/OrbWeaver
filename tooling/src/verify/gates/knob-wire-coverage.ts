@@ -11,7 +11,7 @@
 //
 // AUTHORITY = `reviewed-grant`, SEVERITY = `error`, and THE RECORDED SPLIT ARITY OF 2 IS AMENDED TO 1
 // (law §2: "a ruled split arity is a claim about the current predicates"). The census
-// (docs/reviews/gate-runtime/v-authority-census-2026-09-12.md:109) recorded "2 (sanctioned doorway ·
+// (the 2026-09-12 authority census) recorded "2 (sanctioned doorway ·
 // warning debt)". DOORWAY-vs-DEFERRED is a DISPOSITION axis, not a predicate axis: the five DEFERRED rows
 // scattered across arms A(2)/B(2)/B2(1) and the one DOORWAY row sat in F-write, so a split on that line
 // would put the same member set and the same predicate in two policies and DOUBLE-REPORT every unwired

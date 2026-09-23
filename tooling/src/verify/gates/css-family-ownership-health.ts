@@ -18,7 +18,7 @@
 // half a count was doing.
 //
 // THIS PARAGRAPH ITSELF CLAIMED A DERIVATION FOR ONE LEG TOO LONG (#2305,
-// `v-css-family-2026-09-13.md` ledger row 4). It said the three surviving seams were derived from declared
+// the 2026-09-13 CSS-family verifier review ledger row 4). It said the three surviving seams were derived from declared
 // vocabularies and stated "written exactly once"; only `density` was a genuine
 // `DECLARED_SET.size * DECLARED_SET.size`, while `blur` and `colorization` multiplied a declared set by a
 // LITERAL naming no vocabulary — so a third legitimate `:root` carrier, changing nothing declared anywhere,
@@ -134,7 +134,7 @@ export const gate = defineGate({
       expect: { count: 1, messageIncludes: "runtime writer seam colorization never writes --color-sidebar-border" },
       why:
         "THE THIRD SEAM'S MEMBER SET, and it had NO ROW AT ALL until #2305 " +
-        "(`v-css-unit-2-2026-09-13.md` ledger row 1). Density is held by `mustFlag[3]` and blur by " +
+        "(the CSS unit-2 verifier review ledger row 1). Density is held by `mustFlag[3]` and blur by " +
         "`mustFlag[4]`; colorization was held by nothing, so EMPTYING its declared vocabulary — silently " +
         "disabling that seam's entire catch — was invisible to every declared row: cut b06 killed ZERO rows " +
         "before this one existed and kills exactly THIS ONE now, while a BOGUS EXTRA member (cut b07) reds " +
@@ -188,7 +188,7 @@ export const gate = defineGate({
       },
       why:
         "THE COUNT-RATCHET DISCRIMINATOR, and its ARITHMETIC IS THE POINT (#2305, " +
-        "`v-css-unit-2-2026-09-13.md` ledger row 2). `CLIENT_BLUR_FILL.size` is 2, so the retired " +
+        "the CSS unit-2 verifier review ledger row 2). `CLIENT_BLUR_FILL.size` is 2, so the retired " +
         "expectation was `size * 2` = FOUR DECLARATIONS, and the retired arm was " +
         "`if (actual !== expected) report(…)`. `BLUR_SEAM_COMPLETE` ships ONE carrier writing 2 " +
         "declarations, so this row must reach THREE carriers / SIX declarations to sit on the wrong side of " +
