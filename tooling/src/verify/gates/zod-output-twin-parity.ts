@@ -15,7 +15,7 @@
 import type { Expression, Node as MorphNode, Type } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
-import type { ZodOutputTwinRead } from "../lib/zod-output-twin.ts";
+import type { ZodOutputTwinRead } from "../contract/zod-output-twin.ts";
 import { readAnnotatedZodOutputTwin, readContextualZodOutputTwin, readExpressionZodOutputTwin, zodTypeReferenceIdentity } from "../lib/zod-output-twin.ts";
 
 const MESSAGE =
