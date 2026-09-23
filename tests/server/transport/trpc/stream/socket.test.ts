@@ -11,8 +11,8 @@
 
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { StreamDataFrame, StreamFrame } from "@orb/contracts/stream";
-import type { ChatId, SessionId, SocketId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import type { SessionId, SocketId, UserId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { ChatService } from "@orb/server/domain/chat";
 import type { SocketRegistry } from "@orb/server/transport/trpc";
 import { createSocketRegistry, FRAME_QUEUE_CAPACITY, publishChatEvent } from "@orb/server/transport/trpc";
@@ -21,6 +21,17 @@ import { describe } from "vitest";
 import { createChatEventSeqGuard } from "../../../../../packages/client/src/data/bus/chat-event-seq-guard.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../_support.ts";
+
+// MINTED, never readable literals: these ids cross `typeIdSchema` tRPC inputs, which validate the TypeID suffix.
+const ID = {
+  chatCursorDelivery: mintTypeId(ID_PREFIX.chat),
+  chatShedTerminal: mintTypeId(ID_PREFIX.chat),
+  chatParkSkip: mintTypeId(ID_PREFIX.chat),
+  chatReconnectBarrier: mintTypeId(ID_PREFIX.chat),
+  chatOverlap: mintTypeId(ID_PREFIX.chat),
+  chatLiveonlyBarrier: mintTypeId(ID_PREFIX.chat),
+  chatEvictSession: mintTypeId(ID_PREFIX.chat),
+} as const;
 
 const MEMBER = castId<UserId>("user_member");
 
@@ -48,7 +59,7 @@ const SYNTHETIC_TYPES: ReadonlySet<ChatBusEvent["type"]> = new Set<ChatBusEvent[
 
 describe("the room cursor counts DELIVERED frames, never enqueued ones", () => {
   test("three rows enqueued, ONE pulled → the cell cursor is the pulled one (the shed/disconnect fence)", async () => {
-    const chatId = castId<ChatId>("chat_cursor_delivery");
+    const chatId = ID.chatCursorDelivery;
     const sockets: SocketRegistry = createSocketRegistry(() => 0);
     const socketId = nextSocket();
     const ctx = makeContext({
@@ -91,7 +102,7 @@ describe("a `lag` shed heals itself — the stranded-terminal class", () => {
     // `turnCompleted`. The chat-stream store clears a slot ONLY on a terminal, so losing it strands the slot
     // and the composer's Stop sticks forever (the seq-guard's own P1). Pre-fold this healed on reconnect via
     // `Last-Event-ID`; the fold has to heal it without one.
-    const chatId = castId<ChatId>("chat_shed_terminal");
+    const chatId = ID.chatShedTerminal;
     // A durable log longer than the queue: N deltas then the terminal. The fake replays it the way the real
     // verb does — every row after the cursor, in seq order.
     const rows: { readonly seq: number; readonly event: ChatBusEvent }[] = [];
@@ -172,7 +183,7 @@ describe("a `lag` shed heals itself — the stranded-terminal class", () => {
     // "a pump already exists", every row shed in that window would be orphaned — the running pump's own
     // high-water mark has passed them, and the one thing that re-reads them just no-op'd. The resume is
     // therefore unconditional, and the park fires on EVERY shed rather than once per notice.
-    const chatId = castId<ChatId>("chat_park_skip");
+    const chatId = ID.chatParkSkip;
     const rows: { readonly seq: number; readonly event: ChatBusEvent }[] = [];
     const total = FRAME_QUEUE_CAPACITY + 60;
     for (let i = 1; i <= total; i++) {
@@ -226,7 +237,7 @@ describe("a `lag` shed heals itself — the stranded-terminal class", () => {
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 describe("a reconnect resumes from the CLIENT's mark, not the server's delivered cursor", () => {
   test("rows lost in flight (terminal included) are re-delivered AND applied after the re-announce", async () => {
-    const chatId = castId<ChatId>("chat_reconnect_barrier");
+    const chatId = ID.chatReconnectBarrier;
     // The durable log. Rows 1-3 reach the client; 4 (delta) + 5 (turnCompleted) are yielded into the dying
     // socket and never arrive; row 6 is another member's write, landing while this client is offline.
     const log: { readonly seq: number; readonly event: ChatBusEvent }[] = [
@@ -320,7 +331,7 @@ describe("a reconnect resumes from the CLIENT's mark, not the server's delivered
     //   • the zombie must stop producing (eviction), or it keeps advancing shared cursors into a dead pipe;
     //   • the zombie's eventual teardown must touch NOTHING — a cleared listener silences every room on the
     //     live socket, and a dark+timestamped cell is reap-eligible WHILE it is serving.
-    const chatId = castId<ChatId>("chat_overlap");
+    const chatId = ID.chatOverlap;
     const log: { readonly seq: number; readonly event: ChatBusEvent }[] = [
       { seq: 1, event: { type: "delta", chatId, slotSeq: 1, delta: { chatId, kind: "text", text: "a" }, memberText: null } },
       { seq: 2, event: { type: "delta", chatId, slotSeq: 1, delta: { chatId, kind: "text", text: "b" }, memberText: null } },
@@ -399,7 +410,7 @@ describe("a reconnect resumes from the CLIENT's mark, not the server's delivered
     // The barrier costs a round trip of freshness, so it is spent only where it buys something. `rpg`/`user`
     // carry no durable cursor: their recovery is the client's blanket invalidate, which a delay would only
     // postpone.
-    const chatId = castId<ChatId>("chat_liveonly_barrier");
+    const chatId = ID.chatLiveonlyBarrier;
     const sockets: SocketRegistry = createSocketRegistry(() => 0);
     const socketId = nextSocket();
     const ctx = makeContext({
@@ -430,7 +441,7 @@ describe("a reconnect resumes from the CLIENT's mark, not the server's delivered
 // streaming. Before this, a revoked cookie left the socket running for the life of the connection.
 describe("session eviction ends the live socket (W7a)", () => {
   test("evicting ONE session completes that socket's generator and leaves the sibling device's live", async () => {
-    const chatId = castId<ChatId>("chat_evict_session");
+    const chatId = ID.chatEvictSession;
     const sockets: SocketRegistry = createSocketRegistry(() => 0);
     const phoneSession = castId<SessionId>("sess_phone");
     const deskSession = castId<SessionId>("sess_desktop");

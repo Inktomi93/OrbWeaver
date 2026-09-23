@@ -6,7 +6,7 @@
 // through the real ladder via `createCaller`. Host authority + leak-free collapse are the domain guard's
 // job (proven in the cross-tenant sweep + the automation domain tests), not re-tested here.
 
-import type { AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
+import type { AutomationRuleId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { AutomationService, RuleView } from "@orb/server/domain/automation";
 import type { Context } from "@orb/server/transport/trpc";
@@ -14,15 +14,20 @@ import { describe, vi } from "vitest";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../_support.ts";
 
+// MINTED, never readable literals: these ids cross `typeIdSchema` tRPC inputs, which validate the TypeID suffix.
+const ID = {
+  chat1: mintTypeId(ID_PREFIX.chat),
+} as const;
+
 const OWNER = castId<UserId>("user_owner");
-const CHAT = castId<ChatId>("chat_1");
+const CHAT = ID.chat1;
 
 function ctxWith(automation: Partial<AutomationService>): Context {
   return makeContext({ auth: principal("user", { userId: OWNER }), services: { automation } });
 }
 
 const RULE: RuleView = {
-  id: castId<AutomationRuleId>("automationrule_1"),
+  id: mintTypeId(ID_PREFIX.automationRule),
   chatId: CHAT,
   name: "Greet",
   description: null,

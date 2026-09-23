@@ -3,18 +3,24 @@
 // `ctx.services.persona.setActivePersona` with `principal = ctx.auth` (the verb owns the host-or-self
 // gate + the owner-scoped persona existence check). Driven through the real ladder via `createCaller`.
 
-import type { ChatId, PersonaId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import type { UserId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { PersonaService } from "@orb/server/domain/persona";
 import type { Context } from "@orb/server/transport/trpc";
 import { describe, vi } from "vitest";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../_support.ts";
 
+// MINTED, never readable literals: these ids cross `typeIdSchema` tRPC inputs, which validate the TypeID suffix.
+const ID = {
+  chat1: mintTypeId(ID_PREFIX.chat),
+  persona1: mintTypeId(ID_PREFIX.persona),
+} as const;
+
 const ACTOR = castId<UserId>("user_actor");
 const TARGET = castId<UserId>("user_target");
-const CHAT = castId<ChatId>("chat_1");
-const PERSONA = castId<PersonaId>("persona_1");
+const CHAT = ID.chat1;
+const PERSONA = ID.persona1;
 
 function ctxWith(persona: Partial<PersonaService>): Context {
   return makeContext({ auth: principal("user", { userId: ACTOR }), services: { persona } });

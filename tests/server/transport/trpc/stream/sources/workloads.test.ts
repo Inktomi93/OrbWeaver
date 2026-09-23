@@ -24,7 +24,7 @@ import type { StreamFrame } from "@orb/contracts/stream";
 import type { WorkloadEvent } from "@orb/contracts/workloads";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { SocketId, UserId, WorkloadId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { WorkloadRowAnyKind, WorkloadService } from "@orb/server/domain/workloads";
 import { emitWorkloadEvent } from "@orb/server/domain/workloads";
 import type { Context } from "@orb/server/transport/trpc";
@@ -37,11 +37,11 @@ const OWNER = castId<UserId>("user_workload_owner");
 const STRANGER = castId<UserId>("user_workload_stranger");
 
 /** A FRESH run id (and socket) per test. The progress bus — emitter AND 60s ring — is process-local and
- *  keyed by workloadId, so a shared id would let one test's ring replay into the next test's pump. */
+ *  keyed by workloadId, so a shared id would let one test's ring replay into the next test's pump. The run
+ *  id is MINTED: the attach ref's `workloadId` is a `typeIdSchema` input. */
 let seq = 0;
 function nextRun(): WorkloadId {
-  seq += 1;
-  return castId<WorkloadId>(`workload_room_${String(seq)}`);
+  return mintTypeId(ID_PREFIX.workload);
 }
 function nextSocket(): SocketId {
   seq += 1;

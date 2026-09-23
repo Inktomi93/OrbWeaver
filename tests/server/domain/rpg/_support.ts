@@ -662,7 +662,8 @@ export async function seedLiteGame(
   > = {},
   key = "a",
 ): Promise<SeededLiteGame> {
-  const chatId = await seedChat(db, key);
+  // A MINTED chat id: callers parse it through the rpg wire schemas, which validate the TypeID suffix.
+  const chatId = await seedChat(db, key, { id: mintTypeId(ID_PREFIX.chat) });
   const h = makeRpgService(db, over);
   h.fakes.membership.set("user_host", "host");
   const { gameId } = await h.service.createGame({ principal: principal(castId<Handle>("host")), chatId, mode: "lite" });
