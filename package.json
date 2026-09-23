@@ -50,6 +50,7 @@
     "check:ledgers-fresh": "node tooling/src/verify/cli.ts ledgers-fresh",
     "check:ledger-claims": "node tooling/src/verify/cli.ts ledger-claims",
     "check:biome-rule-liveness": "node tooling/src/verify/cli.ts biome-rule-liveness",
+    "check:knip-negative-liveness": "node tooling/src/verify/cli.ts knip-negative-liveness",
     "check:respell": "node tooling/src/ast/cli.ts respell",
     "check:swallowed": "node tooling/src/ast/cli.ts swallowed",
     "check:typeonly": "node tooling/src/ast/cli.ts typeonly-alive",

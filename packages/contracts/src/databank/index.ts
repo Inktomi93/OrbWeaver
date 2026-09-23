@@ -60,10 +60,15 @@ export const DATABANK_LIST_DEFAULT_LIMIT = 100;
 // one tuple and measure the stall against this one threshold.
 export const INGEST_PHASES = ["empty", "indexing", "embedding", "ready", "stalled"] as const;
 
-/** Derived from the TUPLE, not `z.infer` of the schema below (the `CharacterListSort` spelling). Both give
- *  tsc the same type, but biome's type service cannot see through the inference and marks every `case` of a
- *  switch over the inferred alias UNREACHABLE — which is how a phase dispatch reds a gate that is right about
- *  everything else. */
+/** Derived from the TUPLE, not `z.infer` of the schema below (the `CharacterListSort` spelling): the
+ *  vocabulary's type face lives at the tuple, its one home. Both give tsc the same type, but Biome 2.5.1 still
+ *  reports every `case` of an exhaustive switch over the `z.infer` alias as
+ *  `lint/suspicious/noUnnecessaryConditions` "unreachable", while the tuple-derived alias lints clean (probe
+ *  from untracked files under `packages/contracts/src/` and `packages/server/src/`, never /tmp where zod does
+ *  not resolve; recorded in
+ *  `docs/work/0033-retract-the-stale-biome-inference-rationale-on-the.md`). The `satisfies` below is a
+ *  ONE-WAY assignability check; the `zod-output-twin-parity` gate is what proves the schema output and this
+ *  type are exactly equal. */
 export type IngestPhase = (typeof INGEST_PHASES)[number];
 
 export const ingestPhaseSchema = z.enum(INGEST_PHASES) satisfies z.ZodType<IngestPhase>;

@@ -12,7 +12,7 @@ plan: doc-migration
 ## What
 
 Make the `check:agents` path check resolve a relative path written in a code span, such as
-`../design/x.md`, against the file that contains it. Red when the target does not exist.
+`../design/<name>.md`, against the file that contains it. Red when the target does not exist.
 
 ## Why
 
