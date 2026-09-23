@@ -12,7 +12,7 @@ import type { MacroRegistry } from "@orb/kit/macro";
 import { describe } from "vitest";
 import { assemblePrompt, assemblePromptWithSlices, previewSection } from "../../../../../packages/server/src/domain/chat/assembly/assemble.ts";
 import { BEFORE_HISTORY_DEPTH } from "../../../../../packages/server/src/domain/chat/assembly/injections.ts";
-import { rosterSpeakerCue, shapeContextForSpeaker } from "../../../../../packages/server/src/domain/chat/assembly/speaker-card.ts";
+import { shapeContextForSpeaker, speakerCue, voiceContextForSpeaker } from "../../../../../packages/server/src/domain/chat/assembly/speaker-card.ts";
 import { buildTurnUserMacros } from "../../../../../packages/server/src/domain/chat/assembly/user-macros.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
@@ -467,7 +467,7 @@ describe("assemblePrompt — the factory main_prompt default is MODE-AWARE (narr
     const layout = shapeContextForSpeaker(room, { ref: ariaRef, output: "per-speaker", cardScope: "merged" });
     expect(layout.speaker?.kind).toBe("roster");
     expect(assemblePrompt(factoryMain(), layout).static).toBe(assemblePrompt(factoryMain(), solo).static);
-    expect(rosterSpeakerCue(layout, "Aria")).toBeNull();
+    expect(speakerCue(layout, voiceContextForSpeaker(room, { ref: ariaRef, output: "per-speaker", cardScope: "merged" }))).toBeNull();
   });
 
   test("a PER-SPEAKER scoped turn keeps the speaker's own character framing", () => {

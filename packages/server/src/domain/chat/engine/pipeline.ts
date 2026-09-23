@@ -73,9 +73,9 @@ import {
   buildTurnMacroContext,
   fitHistory,
   materializeOutputReserve,
-  rosterSpeakerCue,
   shapeContextForSpeaker,
   shapeTurn,
+  speakerCue,
   toShapeCanon,
   voiceContextForSpeaker,
 } from "../substrate/assembly-access.ts";
@@ -608,7 +608,8 @@ function speakerContexts(args: RunTurnPipelineArgs): {
   }
   const speaker = { ref: args.shape.speakerRef, output: args.shape.output, cardScope: args.shape.cardScope };
   const layout = shapeContextForSpeaker(args.assembleContext, speaker);
-  return { layout, voice: voiceContextForSpeaker(args.assembleContext, speaker), cue: args.groupNudge ?? rosterSpeakerCue(layout, args.shape.speakerName) };
+  const voice = voiceContextForSpeaker(args.assembleContext, speaker);
+  return { layout, voice, cue: args.groupNudge ?? speakerCue(layout, voice) };
 }
 
 /** Executes one single-speaker turn: BUILD → SHAPE → FIT → REQUEST → REDUCE. Pure orchestration of

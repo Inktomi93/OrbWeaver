@@ -233,8 +233,7 @@ export const CHAT_PROSE_SLOTS = {
     requiredMacros: ["{{name}}"],
     requiredTokens: [],
     title: "Group round speaker nudge",
-    fires:
-      "Every speaker of a MULTI-speaker group round, and every per-speaker merged turn in a room of more than one character (its system block names no speaker).",
+    fires: "Every speaker of a MULTI-speaker group round, and any other turn whose system prompt does not name the speaking character.",
   },
   "chat.group.narratorNudge": {
     id: "chat.group.narratorNudge",

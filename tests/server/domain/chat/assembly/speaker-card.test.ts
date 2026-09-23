@@ -9,7 +9,7 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { rosterSpeakerCue, shapeContextForSpeaker, voiceContextForSpeaker } from "../../../../../packages/server/src/domain/chat/assembly/speaker-card.ts";
+import { shapeContextForSpeaker, speakerCue, voiceContextForSpeaker } from "../../../../../packages/server/src/domain/chat/assembly/speaker-card.ts";
 import { CHAT_OP_CODES } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
@@ -42,11 +42,14 @@ describe("shapeContextForSpeaker — per-speaker card selection", () => {
   });
 
   test("merged: the round cue names the speaker, because the layout does not", () => {
-    const layout = shapeContextForSpeaker(ctx(), { ref: charRef("bran"), output: "per-speaker", cardScope: "merged" });
-    expect(rosterSpeakerCue(layout, "Bran")).toContain("Write the next reply only as Bran.");
+    const bran = { ref: charRef("bran"), output: "per-speaker", cardScope: "merged" } as const;
+    expect(speakerCue(shapeContextForSpeaker(ctx(), bran), voiceContextForSpeaker(ctx(), bran))).toContain("Write the next reply only as Bran.");
     // A scoped layout names its own speaker, so it needs no cue.
-    const scoped = shapeContextForSpeaker(ctx(), { ref: charRef("bran"), output: "per-speaker", cardScope: "scoped" });
-    expect(rosterSpeakerCue(scoped, "Bran")).toBeNull();
+    const scoped = { ...bran, cardScope: "scoped" } as const;
+    expect(speakerCue(shapeContextForSpeaker(ctx(), scoped), voiceContextForSpeaker(ctx(), scoped))).toBeNull();
+    // A narrator layout is its own voice: every seated character, joined, on both.
+    const narrator = { ...bran, output: "narrator" } as const;
+    expect(speakerCue(shapeContextForSpeaker(ctx(), narrator), voiceContextForSpeaker(ctx(), narrator))).toBeNull();
   });
 
   test("the VOICE of a merged turn is still its own speaker: `{{char}}` outside the system block binds Bran", () => {
