@@ -5,6 +5,7 @@
 // undefined divergence, and the no-if(isGroup) solo-byte-identical contract.
 import type { AssembleContext, ChatInjection, MessageView } from "@orb/contracts/chat";
 import type { RoleHandling } from "@orb/contracts/inference";
+import { ROLE_HANDLING } from "@orb/contracts/inference";
 import type { NamesBehavior } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { proseOverridesSchema } from "@orb/contracts/prose";
@@ -453,7 +454,7 @@ describe("shape — midConversationSystem gates the depth-0 system-injection del
   const sysInj = inChat({ role: "system", content: "GM note" });
 
   test("capable: the injection rides as a REAL trailing system row; the breakpoint still pins (offset counts it)", () => {
-    const out = shape(soloInput({ injections: [sysInj], midConversationSystem: true }));
+    const out = shape(soloInput({ injections: [sysInj], midConversationSystem: true, roleHandlingFloor: "slotted" }));
     expect(out.history.at(-1)).toEqual({ role: "system", content: "GM note" });
     expect(out.history.at(-2)).toEqual({ role: "user", content: "u2 volatile" });
     // The stable prefix is untouched (depth 0 lands after the volatile tail): squashed prefix 3 of 5 rows.
@@ -466,14 +467,16 @@ describe("shape — midConversationSystem gates the depth-0 system-injection del
     expect(out.history.at(-1)?.content).toBe("u2 volatile\n\n[Take the following into special consideration: GM note]");
   });
 
-  test("capable + no user tail on an assistant-final canon: the CONTINUATION_NUDGE still lands (ends-on-user reads past system rows)", () => {
-    const out = shape(soloInput({ appendUserTurn: null, injections: [sysInj], midConversationSystem: true }));
-    expect(out.history.at(-1)).toEqual({ role: "user", content: "[Continue the conversation.]" });
-    expect(out.history.at(-2)).toEqual({ role: "system", content: "GM note" });
+  // The direct Anthropic wire refuses `[…assistant, system, user]`: SHAPE's own cue goes BEFORE the kept system
+  // row, so the row follows a user row and ends the array.
+  test("capable + an assistant-final canon: the continuation cue lands BEFORE the kept system row", () => {
+    const out = shape(soloInput({ appendUserTurn: null, injections: [sysInj], midConversationSystem: true, roleHandlingFloor: "slotted" }));
+    expect(out.history.at(-2)).toEqual({ role: "user", content: "[Continue the conversation.]" });
+    expect(out.history.at(-1)).toEqual({ role: "system", content: "GM note" });
   });
 
   test("capable: the names pass never labels the system row (namesBehavior content)", () => {
-    const out = shape(soloInput({ injections: [sysInj], midConversationSystem: true, namesBehavior: "content" }));
+    const out = shape(soloInput({ injections: [sysInj], midConversationSystem: true, roleHandlingFloor: "slotted", namesBehavior: "content" }));
     expect(out.history.at(-1)).toEqual({ role: "system", content: "GM note" });
   });
 });
@@ -489,7 +492,7 @@ describe("shape — historySystemRows also gates a DEPTH>0 system injection (aut
   const deepSys = inChat({ depth: 2, role: "system", content: "GM note" });
 
   test("measured wire: the note rides as a REAL system row at its depth, un-framed and un-merged", () => {
-    const out = shape(soloInput({ injections: [deepSys], historySystemRows: true }));
+    const out = shape(soloInput({ injections: [deepSys], historySystemRows: true, roleHandlingFloor: "slotted" }));
     const row = out.history.find((r) => r.role === "system");
     expect(row?.content).toBe("GM note");
     // Depth 2 = two positions back from the tail (canon: greeting, u1, a1 tip, +u2 volatile).
@@ -507,13 +510,14 @@ describe("shape — historySystemRows also gates a DEPTH>0 system injection (aut
   });
 
   test("the TAIL arm is still its own bit: midConversationSystem alone does NOT promote a depth>0 row (D69)", () => {
-    const out = shape(soloInput({ injections: [deepSys], midConversationSystem: true }));
+    const out = shape(soloInput({ injections: [deepSys], midConversationSystem: true, roleHandlingFloor: "slotted" }));
     expect(out.history.some((r) => r.role === "system")).toBe(false);
+    expect(out.stages.delivered.find((row) => row.folded !== undefined)?.folded).toBe("mid-array");
   });
 
   test("a mid-history system row is never speaker-labelled, on any names mode", () => {
     for (const namesBehavior of ["content", "completion", "default"] as const) {
-      const out = shape(soloInput({ injections: [deepSys], historySystemRows: true, namesBehavior }));
+      const out = shape(soloInput({ injections: [deepSys], historySystemRows: true, roleHandlingFloor: "slotted", namesBehavior }));
       const row = out.history.find((r) => r.role === "system");
       expect(row?.content).toBe("GM note");
       expect(row?.name).toBeUndefined();
@@ -981,6 +985,7 @@ describe("shape — the delivered-row trace", () => {
         canon: STORED_CANON.slice(0, 2),
         appendUserTurn: null,
         midConversationSystem: true,
+        roleHandlingFloor: "slotted",
         injections: [inChat({ depth: 0, role: "system", content: "operator channel" })],
       }),
     );
@@ -1170,10 +1175,12 @@ describe("shape — a NARRATOR row delivers ASSISTANT on every wire (owner rulin
         appendUserTurn: null,
         injections: [inChat({ role: "system", content: "GM note" })],
         midConversationSystem: true,
+        roleHandlingFloor: "slotted",
       }),
     );
-    expect(out.history.some((r) => r.role === "system")).toBe(true);
-    expect(out.history.at(-1)?.role).toBe("user");
+    // The cue lands before the kept system row, so the last NON-system row is the user cue.
+    expect(out.history.at(-1)?.role).toBe("system");
+    expect(out.history.at(-2)?.role).toBe("user");
   });
 
   test("a `comment` row is still DROPPED on a measured wire — no capability resurrects one", () => {
@@ -1250,5 +1257,113 @@ describe("shape — the new-chat marker opens the history as a bare user row", (
   test("no greeting: the marker joins the first user turn", () => {
     const out = shape(soloInput({ canon: [], appendUserTurn: "hello", injections: [marker] }));
     expect(out.history).toEqual([{ role: "user", content: "[Start a new chat]\n\nhello" }]);
+  });
+});
+
+// ── ROLES FOLLOW THE AUTHOR: the level × turn-shape × injection matrix (owner ruling) ─────────────────────
+// A system-role injection keeps its author's position and stays a `system` row only where the level and the
+// model take it in that slot; otherwise it folds into user text with a reason. The model here is the measured
+// Claude shape (both system facts true), so every fold below is the LEVEL's or the SLOT's doing. SHAPE's own
+// cue (group or narrator nudge) goes before a kept trailing system run, never after it.
+describe("shape — system rows by level × turn × injection", () => {
+  const canon = [
+    { role: "assistant" as const, content: "g", authorName: "Aria", characterId: ARIA },
+    { role: "user" as const, content: "u1", authorName: "User" },
+    { role: "assistant" as const, content: "a1", authorName: "Aria", characterId: ARIA },
+    { role: "user" as const, content: "u2", authorName: "User" },
+    { role: "assistant" as const, content: "a2", authorName: "Aria", characterId: ARIA },
+  ];
+  const turns = {
+    send: { appendUserTurn: "u3", groupNudge: null, output: "per-speaker" as const },
+    continue: { appendUserTurn: "[OOC: continue]", groupNudge: null, output: "per-speaker" as const },
+    round: { appendUserTurn: null, groupNudge: "[Write the next reply only as Aria.]", output: "per-speaker" as const },
+    narrator: { appendUserTurn: null, groupNudge: "[Continue the scene.]", output: "narrator" as const },
+  };
+  const injections = {
+    "d0 system then user": [inChat({ role: "system", content: "SYS", order: 1 }), inChat({ role: "user", content: "USR", order: 2 })],
+    "d0 user then system": [inChat({ role: "user", content: "USR", order: 1 }), inChat({ role: "system", content: "SYS", order: 2 })],
+    "d4 system": [inChat({ role: "system", content: "SYS", depth: 4 })],
+  };
+  type TurnName = keyof typeof turns;
+  type InjectionName = keyof typeof injections;
+  // Expected delivered roles (A/U/S) and the fold reasons, per level class. `none` and `merge` place system rows
+  // anywhere (they differ only in merging); `semi-strict` and `strict` fold every one.
+  type MatrixCell = readonly [roles: string, folds: readonly string[]];
+  const perSpeakerLike = (
+    cells: Record<InjectionName, MatrixCell>,
+    rounds: Record<InjectionName, MatrixCell>,
+  ): Record<TurnName, Record<InjectionName, MatrixCell>> => ({
+    send: cells,
+    continue: cells,
+    round: rounds,
+    narrator: rounds,
+  });
+  const expected: Record<"none" | "merge" | "slotted" | "folds", Record<TurnName, Record<InjectionName, MatrixCell>>> = {
+    none: perSpeakerLike(
+      { "d0 system then user": ["AUAUAUSU", []], "d0 user then system": ["AUAUAUUS", []], "d4 system": ["AUSAUAU", []] },
+      { "d0 system then user": ["AUAUASUU", []], "d0 user then system": ["AUAUAUUS", []], "d4 system": ["ASUAUAU", []] },
+    ),
+    merge: perSpeakerLike(
+      { "d0 system then user": ["AUAUAUSU", []], "d0 user then system": ["AUAUAUS", []], "d4 system": ["AUSAUAU", []] },
+      { "d0 system then user": ["AUAUASU", []], "d0 user then system": ["AUAUAUS", []], "d4 system": ["ASUAUAU", []] },
+    ),
+    slotted: perSpeakerLike(
+      { "d0 system then user": ["AUAUAU", ["slot"]], "d0 user then system": ["AUAUAUS", []], "d4 system": ["AUSAUAU", []] },
+      { "d0 system then user": ["AUAUAU", ["slot"]], "d0 user then system": ["AUAUAUS", []], "d4 system": ["AUAUAU", ["slot"]] },
+    ),
+    folds: perSpeakerLike(
+      { "d0 system then user": ["AUAUAU", ["level"]], "d0 user then system": ["AUAUAU", ["level"]], "d4 system": ["AUAUAU", ["level"]] },
+      { "d0 system then user": ["AUAUAU", ["level"]], "d0 user then system": ["AUAUAU", ["level"]], "d4 system": ["AUAUAU", ["level"]] },
+    ),
+  };
+  const levelClass: Record<RoleHandling, keyof typeof expected> = { none: "none", merge: "merge", slotted: "slotted", "semi-strict": "folds", strict: "folds" };
+  const roleLetter = { assistant: "A", user: "U", system: "S" } as const;
+
+  for (const level of ROLE_HANDLING) {
+    for (const turn of Object.keys(turns) as TurnName[]) {
+      for (const injection of Object.keys(injections) as InjectionName[]) {
+        test(`${level} · ${turn} · ${injection}`, () => {
+          const out = shape(
+            soloInput({
+              canon,
+              ...turns[turn],
+              injections: injections[injection],
+              midConversationSystem: true,
+              historySystemRows: true,
+              roleHandlingFloor: level,
+            }),
+          );
+          const [roles, folds] = expected[levelClass[level]][turn][injection];
+          expect(out.history.map((row) => roleLetter[row.role]).join("")).toBe(roles);
+          expect(out.stages.delivered.flatMap((row) => (row.folded === undefined ? [] : [row.folded]))).toStrictEqual(folds);
+          // Every turn's last non-system row is a user row: SHAPE's cue never lands after a kept system row.
+          expect(out.history.findLast((row) => row.role !== "system")?.role).toBe("user");
+        });
+      }
+    }
+  }
+
+  test("a slotted turn never delivers a system row right after an assistant row", () => {
+    for (const turn of Object.keys(turns) as TurnName[]) {
+      for (const injection of Object.keys(injections) as InjectionName[]) {
+        const [roles] = expected.slotted[turn][injection];
+        expect(roles, `${turn} · ${injection}`).not.toMatch(/AS/);
+      }
+    }
+  });
+
+  test("the fold frame is the neutral system frame, and a folded row never wears a speaker label", () => {
+    const out = shape(
+      soloInput({
+        canon,
+        ...turns.round,
+        injections: injections["d4 system"],
+        namesBehavior: "content",
+        midConversationSystem: true,
+        historySystemRows: true,
+        roleHandlingFloor: "slotted",
+      }),
+    );
+    expect(out.history[1]?.content).toBe("[Take the following into special consideration: SYS]\n\nUser: u1");
   });
 });

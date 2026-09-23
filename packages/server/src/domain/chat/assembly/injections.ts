@@ -20,10 +20,9 @@ import type { MessageRole } from "@orb/kit/message-role";
  *  it), beside the clamp that gives it meaning. */
 export const BEFORE_HISTORY_DEPTH = Number.MAX_SAFE_INTEGER;
 
-/** The wire role a delivered history row can take. `system` appears only where the resolved model declares
- *  the bit for that DEPTH's channel — `turns.midConversationSystem` at depth 0 (the tail authority row),
- *  `turns.historySystemRows` beyond it (a mid-array row); every other system injection is converted to
- *  user-with-framing here. */
+/** The wire role a spliced history row can take. `system` appears only when the caller keeps system rows
+ *  (SHAPE, which then decides per slot whether each run stays a system row or folds); every other caller gets
+ *  each system injection folded to user text here. */
 type WireRole = MessageRole;
 
 /** The author roles an injection can be re-roled FROM when it reaches the wire as user text. */
@@ -88,19 +87,15 @@ function squashSystemNotes(sorted: readonly { inj: ChatInjection; depth: number 
   return out;
 }
 
-/** The splice's per-entry role decision — the ONE demote-vs-deliver rule. A system injection keeps its REAL
- *  system role on the channel its DEPTH names, each gated by its OWN measured capability bit: depth 0 is the
- *  tail channel (`midConversationSystem`), depth \> 0 is a mid-array row (`historySystemRows`). Un-gated, a
- *  system injection demotes to user with the visible `chat.injection.systemNote` framing (`originalRole` drives
- *  it); `wouldMutatePrefix` re-frames a prefix-adjacent assistant injection to a user note. */
+/** The splice's per-entry role decision. A system injection stays a bare `system` row when the caller keeps
+ *  system rows, and folds to user text in the `chat.injection.systemNote` frame otherwise; `wouldMutatePrefix`
+ *  re-roles a prefix-adjacent assistant injection to user text in its own neutral frame. */
 function resolveSpliceRole(
   inj: ChatInjection,
-  depth: number,
   wouldMutatePrefix: boolean,
-  allow: { readonly midConversationSystem: boolean; readonly historySystemRows: boolean },
+  keepSystemRows: boolean,
 ): { effectiveRole: WireRole; originalRole: ReRoledInjection | undefined } {
-  const keepSystem = inj.role === "system" && (depth === 0 ? allow.midConversationSystem : allow.historySystemRows);
-  const demoteSystem = inj.role === "system" && !keepSystem;
+  const demoteSystem = inj.role === "system" && !keepSystemRows;
   const reRoled = demoteSystem || wouldMutatePrefix;
   return {
     effectiveRole: reRoled ? "user" : inj.role,
@@ -122,16 +117,11 @@ function isPromptTailInjection(inj: ChatInjection): boolean {
  * history length. We sort descending (deepest first) and splice from `length - depth`, so each splice
  * lands at the correct distance from the original tail. Equal depths keep array order (stable sort).
  *
- * Role coverage: user + assistant splice in directly. role="system" + position="in_chat" is CAPABILITY-
- * GATED (never a blanket rule — silent conversion is the anti-pattern), on TWO sibling bits, one per
- * channel: a depth-0 injection is the TAIL system-authority channel (`turns.midConversationSystem` ⇒
- * `allowMidConversationSystem`; it sits AFTER the volatile tail, outside the cached stable prefix, so the
- * delivery is cache-neutral), and a depth \> 0 injection is a MID-ARRAY row (`turns.historySystemRows` ⇒
- * `allowHistorySystemRows` — the measured fact, first filled by the vLLM arm 2026-08-18). Either way the
- * delivered row is bare content in the real `system` role. A system injection whose channel bit is
- * absent/false converts to role=user with the VISIBLE `chat.injection.systemNote` framing (the reader sees it
- * is a system note). The downstream squash merges a converted user-role injection into an adjacent user
- * turn; a real system row merges only with another system row.
+ * Role coverage: user + assistant splice in directly. role="system" + position="in_chat" keeps its role and its
+ * position: with `keepSystemRows` it splices as a bare `system` row and SHAPE decides per slot whether the run
+ * stays a system row (`assembly/shape` deliverSystemRows); without it (every other caller) it folds to user
+ * text in the `chat.injection.systemNote` frame. The downstream squash merges a folded row into an adjacent
+ * user turn; a real system row merges only with another system row.
  */
 export function spliceInChatInjections<T extends { role: WireRole; content: string }>(
   history: readonly T[],
@@ -151,24 +141,10 @@ export function spliceInChatInjections<T extends { role: WireRole; content: stri
      *  rewrite bytes inside the cached prefix → re-framed to a user operator note instead. Absent ⇒ no
      *  re-frame. */
     prefixBoundaryLen?: number | undefined;
-    /** The resolved `turns.midConversationSystem`. `true` ⇒ the model honors a mid-conversation (tail)
-     *  system-authority channel: a DEPTH-0 system injection delivers as a real `system` wire row (bare
-     *  content, no note framing). `false`/absent (the `TURNS_FLOOR` safe default) ⇒ the depth-0 system
-     *  injection demotes to the visible `chat.injection.systemNote` user row — exactly the pre-capability
-     *  behavior. This bit answers for the TAIL ONLY; depth \> 0 is {@link allowHistorySystemRows}. */
-    allowMidConversationSystem?: boolean;
-    /** The resolved `turns.historySystemRows` (read through `acceptsHistorySystemRows`) — the MEASURED
-     *  mid-array fact, and the gate for a DEPTH \> 0 system injection: the author's note (ST's default depth
-     *  4) and a depth-N world-info entry are the real producers of one. `true` ⇒ the note rides at its depth
-     *  as a real `system` row; `false`/absent (fail-closed, every unmeasured wire) ⇒ it demotes to the
-     *  `chat.injection.systemNote` user row, byte-identically to before this arm existed.
-     *
-     *  A SIBLING of {@link allowMidConversationSystem}, never a second reader of it (D69): that bit is
-     *  wire-tested for the tail, this one for mid-array placement, and one is not evidence of the other.
-     *  The stable-prefix worry the old depth-only rule carried is answered where it belongs — a depth ≥ 2
-     *  injection of ANY role already aborts the cache breakpoint (`shape::computeHistoryBreakpoint`), so no
-     *  cached bytes are pinned across it either way. */
-    allowHistorySystemRows?: boolean;
+    /** `true` ⇒ every system injection splices as a bare `system` row at its own position, and the caller
+     *  (SHAPE) decides per slot whether each run stays one. `false`/absent ⇒ it folds to user text in the
+     *  `chat.injection.systemNote` frame here. */
+    keepSystemRows?: boolean;
     /** `params.advanced.squashSystemMessages`. `true` ⇒ merge CONSECUTIVE same-depth system-role
      *  injections into ONE note BEFORE the system→user framing, so a run delivers a single
      *  `chat.injection.systemNote` row instead of several. System notes are injection-origin (a canon row is
@@ -215,10 +191,7 @@ export function spliceInChatInjections<T extends { role: WireRole; content: stri
     // canon row. When that row is also assistant, keeping the injection assistant-role would fold it into
     // the cached prefix → re-frame it to a user note.
     const wouldMutatePrefix = inj.role === "assistant" && depth === 1 && stableTailRole === "assistant";
-    const { effectiveRole, originalRole } = resolveSpliceRole(inj, depth, wouldMutatePrefix, {
-      midConversationSystem: opts.allowMidConversationSystem === true,
-      historySystemRows: opts.allowHistorySystemRows === true,
-    });
+    const { effectiveRole, originalRole } = resolveSpliceRole(inj, wouldMutatePrefix, opts.keepSystemRows === true);
     // The new-chat marker is the conversation's own opening line (ST `new_chat_prompt`), not an operator note,
     // so it takes no note frame.
     const framed =

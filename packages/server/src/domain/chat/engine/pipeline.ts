@@ -644,14 +644,12 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     // roleHandling is the preset's user-intent knob (per-turn override wins via the fold); SHAPE clamps it
     // against the model's roleHandlingFloor.
     assistantPrefill: prefillHonored,
-    // midConversationSystem gates the depth-0 system-injection delivery: a declaring model gets a REAL
-    // system wire row; the TURNS_FLOOR default demotes to the visible `chat.injection.systemNote` user note.
+    // The two measured system-row facts SHAPE's delivery rule reads (`assembly/shape` deliverSystemRows): a run
+    // that ends the history needs `midConversationSystem`, a run inside it `historySystemRows`; the level
+    // decides whether a legal slot is also required. Read through the contract helpers — never a second
+    // spelling of the capability field. Neither touches narrator canon rows (owner ruling: group narration is
+    // the assistant's own voice).
     midConversationSystem: acceptsMidConversationSystem(generationOf(args.connection)),
-    // historySystemRows gates the DEPTH>0 system-injection delivery: on a MEASURED mid-array-system model an
-    // author's note / depth-N world-info entry rides at its depth as a real system row; unmeasured ⇒ it
-    // demotes to the visible `chat.injection.systemNote` user note. Read through the contract helper — never a
-    // second spelling of the capability field. It does NOT touch narrator canon rows: the D129(B) delivery
-    // that also read this bit was owner-ruled out 2026-08-18 (group narration is the assistant's own voice).
     historySystemRows: acceptsHistorySystemRows(generationOf(args.connection)),
     roleHandling: effectiveIntent.advanced?.roleHandling,
     roleHandlingFloor: roleHandlingFloorOf(generationOf(args.connection)),

@@ -161,34 +161,33 @@ describe("spliceInChatInjections", () => {
   });
 });
 
-describe("spliceInChatInjections — allowMidConversationSystem (turns.midConversationSystem)", () => {
-  test("allowed: a depth-0 system injection delivers as a REAL system row (bare content, no note framing)", () => {
-    const out = spliceInChatInjections(HIST, [inj({ depth: 0, role: "system", content: "sys" })], (c) => c, { allowMidConversationSystem: true });
-    expect(out.at(-1)).toEqual({ role: "system", content: "sys", speakerless: true });
+// `keepSystemRows` is SHAPE's mode: every system injection keeps its role and its position, at any depth, and
+// SHAPE decides per slot whether the run stays a system row. Every other caller gets the fold here.
+describe("spliceInChatInjections — keepSystemRows (SHAPE decides the slot)", () => {
+  test("kept: a system injection at ANY depth splices as a bare system row at its author's position", () => {
+    const tail = spliceInChatInjections(HIST, [inj({ depth: 0, role: "system", content: "sys" })], (c) => c, { keepSystemRows: true });
+    expect(tail.at(-1)).toEqual({ role: "system", content: "sys", speakerless: true });
+    const deep = spliceInChatInjections(HIST, [inj({ depth: 1, role: "system", content: "sys" })], (c) => c, { keepSystemRows: true });
+    expect(deep[HIST.length - 1]).toEqual({ role: "system", content: "sys", speakerless: true });
   });
 
-  test("allowed: depth > 0 STILL demotes (the wire-tested channel is tail-only; never a mid-history system row)", () => {
-    const out = spliceInChatInjections(HIST, [inj({ depth: 1, role: "system", content: "sys" })], (c) => c, { allowMidConversationSystem: true });
-    expect(out[HIST.length - 1]).toEqual({ role: "user", content: "[Take the following into special consideration: sys]", speakerless: true });
-  });
-
-  test("absent/false: the demote path is byte-identical to the pre-capability behavior (regression pin)", () => {
+  test("absent/false: the fold path is byte-identical (regression pin)", () => {
     const off = spliceInChatInjections(HIST, [inj({ depth: 0, role: "system", content: "sys" })]);
-    const explicitOff = spliceInChatInjections(HIST, [inj({ depth: 0, role: "system", content: "sys" })], (c) => c, { allowMidConversationSystem: false });
+    const explicitOff = spliceInChatInjections(HIST, [inj({ depth: 0, role: "system", content: "sys" })], (c) => c, { keepSystemRows: false });
     expect(off.at(-1)).toEqual({ role: "user", content: "[Take the following into special consideration: sys]", speakerless: true });
     expect(explicitOff).toEqual(off);
   });
 
-  test("allowed + squashSystemMessages: a depth-0 run merges to ONE bare system row (blank-line join)", () => {
+  test("kept + squashSystemMessages: a same-depth run merges to ONE bare system row (blank-line join)", () => {
     const out = spliceInChatInjections(HIST, [inj({ depth: 0, role: "system", content: "a" }), inj({ depth: 0, role: "system", content: "b" })], (c) => c, {
-      allowMidConversationSystem: true,
+      keepSystemRows: true,
       squashSystemMessages: true,
     });
     expect(out.at(-1)).toEqual({ role: "system", content: "a\n\nb", speakerless: true });
   });
 
-  test("allowed: user injections keep their [Note from user:] framing (only the system axis changes)", () => {
-    const out = spliceInChatInjections(HIST, [inj({ depth: 0, role: "user", content: "u" })], (c) => c, { allowMidConversationSystem: true });
+  test("kept: user injections keep their [Note from user:] framing (only the system axis changes)", () => {
+    const out = spliceInChatInjections(HIST, [inj({ depth: 0, role: "user", content: "u" })], (c) => c, { keepSystemRows: true });
     expect(out.at(-1)).toEqual({ role: "user", content: "[Note from user: u]", speakerless: true });
   });
 
