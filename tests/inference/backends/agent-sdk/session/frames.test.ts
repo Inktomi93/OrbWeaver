@@ -1,14 +1,15 @@
 import { NO_SAVED_TOTALS, savedSessionTotals } from "../../../../../packages/inference/src/backends/agent-sdk/session/frames.ts";
+import type { AgentSdkSessionId } from "../../../../../packages/inference/src/contract/identity.ts";
 import { agentSdkSessionIdSchema } from "../../../../../packages/inference/src/contract/identity.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 type SessionStoreEntry = Parameters<typeof savedSessionTotals>[0][number];
 
 const SESSION = agentSdkSessionIdSchema.parse("1d9ddf80-17e0-4aa7-84c8-44143db4d63c");
-const OTHER = "80cb475f-17e0-4aa7-84c8-44143db4d63c";
+const OTHER = agentSdkSessionIdSchema.parse("80cb475f-17e0-4aa7-84c8-44143db4d63c");
 
 // The runtime's own `cost-state` transcript entry, trimmed to the fields the reader parses.
-function costState(sessionId: string, costUSD: number, webSearchRequests = 0): SessionStoreEntry {
+function costState(sessionId: AgentSdkSessionId, costUSD: number, webSearchRequests = 0): SessionStoreEntry {
   return { type: "cost-state", sessionId, totalCostUSD: costUSD, modelUsage: { "claude-sonnet-5": { costUSD, webSearchRequests, inputTokens: 1 } } };
 }
 
