@@ -104,14 +104,14 @@ export const plugins = sqliteTable(
     index("plugins_bundle_asset_idx").on(t.bundleAssetId),
     check("plugins_status_check", sql.raw(`status in (${STATUS_CHECK_LIST})`)),
     check("plugins_origin_check", sql.raw(`origin in (${ORIGIN_CHECK_LIST})`)),
-    // origin ⟺ source_url, at the physics tier (constitution §2.2 — push the invariant up the ladder; a
+    // origin ⟺ source_url, at the physics tier (constitution §2 — push the invariant up the ladder; a
     // coupling that lives only in the verbs' comments is a wish). `upload` is the ONE origin with no remembered
     // URL; every non-upload origin (today `url`, tomorrow a `catalog` fetcher) MUST carry one, because the whole
     // point of a non-upload origin is the source the update-check re-fetches. Written against `= 'upload'` rather
     // than `<> 'url'` so a future URL-bearing member inherits the constraint by construction — the only thing
     // that ever needs re-stating is which origins are URL-less, and there is exactly one.
     check("plugins_source_url_check", sql.raw("(origin = 'upload' and source_url is null) or (origin <> 'upload' and source_url is not null)")),
-    // The delta's lockstep with the flag, at the physics tier (constitution §2.2 — push enforcement up the
+    // The delta's lockstep with the flag, at the physics tier (constitution §2 — push enforcement up the
     // ladder; a lifecycle that lives only in the verbs' comments is a wish). A settled row cannot carry a
     // "New" mark for an ask nobody is being asked about. `json_array_length` rather than a `= '[]'` string
     // compare so the constraint holds for any JSON spelling of empty, not just the one drizzle emits today.
@@ -252,7 +252,7 @@ export const pluginAssets = sqliteTable(
     // lookup would full-scan without its own leading index (`fk-columns-indexed`).
     index("plugin_assets_asset_idx").on(t.assetId),
     // The path is either the "runtime fetch" sentinel or a real bundle entry — never free text. At the
-    // physics tier (constitution §2.2) because a writer that stamped an arbitrary string here would put a
+    // physics tier (constitution §2) because a writer that stamped an arbitrary string here would put a
     // guest-influenced key into the ONE column a UI node resolves against.
     check("plugin_assets_bundle_path_check", sql.raw(`bundle_path = '' or bundle_path like '${PLUGIN_UI_ASSETS_DIR}%'`)),
   ],

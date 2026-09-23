@@ -55,7 +55,7 @@ const MEMBERS_WITHOUT_A_ROOT: readonly ExclusionRow[] = [
 const ROOTS_WITHOUT_A_MEMBER: readonly ExclusionRow[] = [
   {
     key: "@tests",
-    why: "`tests/` is the CENTRAL test mirror (constitution §0.2), a top-level authored tree owned by no package: its members prefix-swap INTO the packages rather than living in one.",
+    why: '`tests/` is the CENTRAL test mirror (CLAUDE.md "Test layout"), a top-level authored tree owned by no package: its members prefix-swap INTO the packages rather than living in one.',
   },
   {
     key: "@scripts",

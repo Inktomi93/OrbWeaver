@@ -49,7 +49,8 @@ export const WALKER_CENSUS_DECOR = `  // ── nested cards (card-like = (shado
   }
   // AN INTERACTIVE ISLAND IS NOT A NESTED CARD (2026-08-16 — 26/26 findings on home were this shape).
   // Chrome-diet CD1 SANCTIONS border+radius+bg on interactive islands and elevated surfaces
-  // (.claude/skills/side-eye-design-review/reference/design-context.md:38; the density spec's own words:
+  // (UI-Density-Law.md §3.2 and the "Chrome diet" line of
+  // .claude/skills/side-eye-design-review/reference/design-context.md; the density spec's own words:
   // "a grid cell IS an interactive island", docs/architecture/core/UI-Density-Law.md:134). So a button/link/
   // input/[role=button] carrying a border and a radius inside a card is the house style, not a defect.
   // The rule keeps its real target: a decorative CARD PANEL nested inside another card panel.

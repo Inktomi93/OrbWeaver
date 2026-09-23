@@ -1,7 +1,7 @@
 // `ROOM_SOURCES` — the per-channel dispatch table for the multiplexed socket (SSE-1 §4.2). The SHAPE each
 // entry satisfies lives in `room-source.ts` (the cycle-free seam; see its header).
 //
-// EXHAUSTIVENESS IS TIER 2, NOT A GATE (constitution §2.2 — push it up the ladder): the mapped-type Record
+// EXHAUSTIVENESS IS TIER 2, NOT A GATE (constitution §2 — push it up the ladder): the mapped-type Record
 // below is total over `StreamChannel`, so a channel added to `@orb/contracts/stream` fails `tsc` HERE. The
 // `RUNNERS` gold standard (`domain/workloads/substrate/dispatch.ts`) is the shape being mirrored, including
 // its ONE contained two-cast bridge (`roomSourceFor`) where the static per-channel guarantee meets a

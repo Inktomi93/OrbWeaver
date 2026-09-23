@@ -1,7 +1,7 @@
 // domain/plugin/contract/ops — the injected op bundle the MEMBRANE's host functions call + the
 // runtime registrar seams activation hands collected registrations to. This file TYPES these; compose builds the
 // bodies (the host-fn wiring + the registry plumbing). Cross-feature op SHAPES are REUSED not
-// re-spelled where the shape matches (core/AGENTS.md §5.4 one-home): `worldInfo`/`notifications`/
+// re-spelled where the shape matches (CLAUDE.md "Type homes and unions"): `worldInfo`/`notifications`/
 // `applyVariableOps` are the SAME injected types `domain/automation` already declares — a plugin write
 // rides the exact seam an automation action does. `imagery` DIVERGES (declared here): the membrane returns the
 // primary image's `{assetId}`, not automation's cost-summary — compose binds it to the `{assetId}`

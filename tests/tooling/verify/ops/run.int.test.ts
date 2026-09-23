@@ -1027,7 +1027,7 @@ test("browser:ct scopedArgv: skip-empty on no CT surface; the one-slot CT launch
 // `passWithNoTests` was flipped to false in 2026-07-03 so "a lane whose include glob matches NOTHING …
 // FAILS instead of passing"), and that ruling SURVIVES — its INPUT changed. PD-115 judges an ASSERTED
 // selector (a config include glob asserts a fileset); this argv's selector is always the DERIVED
-// `--changed` one, which AGENTS.md §4 and ops/scoped.ts's `emptyScopeNotice` already rule CLEAN when
+// `--changed` one, which CLAUDE.md "Verification tiers" and ops/scoped.ts's `emptyScopeNotice` already rule CLEAN when
 // empty. PD-115's own class stays guarded: `tests:execution-membership` REDs a runner view matching ZERO
 // files at the STATIC tier, and every whole-scope `pnpm test` still runs at `passWithNoTests: false`.
 

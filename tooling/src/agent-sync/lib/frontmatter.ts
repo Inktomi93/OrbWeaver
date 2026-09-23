@@ -2,9 +2,11 @@
 // contract is unit-testable without a tree. Deliberately a one-line-per-key mini-parser rather than a
 // YAML dep: the agent frontmatter grammar is fixed (scalars, JSON strings, flat `[a, b]` lists) and a
 // full YAML reader would silently ACCEPT shapes the Codex renderer cannot express.
-import type { ClaudeAgent } from "../contract/types.ts";
+import type { ClaudeAgent, RulePaths } from "../contract/types.ts";
 
 const FRONTMATTER_PATTERN = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/u;
+const RULE_FRONTMATTER_PATTERN = /^---\n([\s\S]*?)\n---(?:\n|$)/u;
+const LIST_ITEM_PATTERN = /^\s+-\s+(.+)$/u;
 const QUOTE_EDGES = /^['"]|['"]$/gu;
 
 function requiredString(record: Readonly<Record<string, unknown>>, key: string, filename: string): string {
@@ -39,6 +41,32 @@ export function parseFrontmatter(source: string, filename: string): Readonly<Rec
     }
   }
   return record;
+}
+
+/** Read a rule file's `paths:` key. Rule frontmatter is YAML list form (`paths:` then `  - "glob"`
+ *  lines), which the one-line agent parser above cannot express. */
+export function parseRulePaths(source: string): RulePaths {
+  const frontmatter = RULE_FRONTMATTER_PATTERN.exec(source)?.[1];
+  if (frontmatter === undefined) {
+    return { kind: "missing" };
+  }
+  const lines = frontmatter.split("\n");
+  const keyIndex = lines.findIndex((line) => /^paths\s*:/u.test(line));
+  if (keyIndex < 0) {
+    return { kind: "missing" };
+  }
+  if ((lines[keyIndex] ?? "").replace(/^paths\s*:/u, "").trim() !== "") {
+    return { kind: "inline" };
+  }
+  const globs: string[] = [];
+  for (const line of lines.slice(keyIndex + 1)) {
+    const item = LIST_ITEM_PATTERN.exec(line)?.[1];
+    if (item === undefined) {
+      break;
+    }
+    globs.push(item.trim().replace(QUOTE_EDGES, ""));
+  }
+  return globs.length === 0 ? { kind: "missing" } : { kind: "list", globs };
 }
 
 export function parseClaudeAgent(filename: string, source: string): ClaudeAgent {

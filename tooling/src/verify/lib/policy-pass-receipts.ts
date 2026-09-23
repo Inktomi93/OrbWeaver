@@ -170,8 +170,8 @@ interface OrdinaryWaiverAcquisition {
  *  WHY THE AUTHORITY FILTER: only an `ordinary` policy has a waiver door, so only an ordinary owner's
  *  population can demand a text carrier. Demanding one from every completed owner killed both HARD
  *  `native-config` grant-liveness policies at repository scope (#1947, measured 2026-09-11): that kind's
- *  population is deliberately the whole authored transaction, one member of which is the tracked symlink
- *  `.codex/agent-doctrine.md` that `ops/resource-reader.ts` refuses BY DESIGN — so the pass threw after
+ *  population is deliberately the whole authored transaction, which can hold a tracked Markdown symlink
+ *  that `ops/resource-reader.ts` refuses BY DESIGN — so the pass threw after
  *  ~4s while both policies' isolated proofs read green, and every later policy on the kind inherited it.
  *  The TypeScript half stays unfiltered: those carriers are already-parsed SourceFiles costing no I/O, and
  *  narrowing them would drop the malformed/unknown-policy marker alarms they are the only source of. */

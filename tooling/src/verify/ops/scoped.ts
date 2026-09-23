@@ -254,7 +254,7 @@ function runScopedPolicyPass(policies: readonly GatePolicy[], base: ProjectConte
 
 /** The EMPTY-SCOPE notice (#1185). ONE home so the pin reads the tool's own words. A scoped run over zero
  *  files is not a clean bill of health: every gate prints `✓ scanned 0/0` and the run exits 0, which at
- *  the lane gate door reads as "my slice passed" (.claude/rules/gates-and-tooling.md: a bare zero is
+ *  the lane gate door reads as "my slice passed" (a bare zero is
  *  "I couldn't measure", never "it isn't there").
  *
  *  THE SELECTOR DECIDES THE EXIT CODE, and the split is deliberate (stated fork, #1185):

@@ -218,7 +218,7 @@ function isPushedWarning(object: ObjectLiteralExpression, call: CallExpression):
  *  from "this object is produced inside a callback that call happens to take". */
 function callInSameScope(object: MorphNode): CallExpression | undefined {
   // ONE TAIL RETURN, the house idiom for `T | undefined` under `noImplicitReturns` + biome's
-  // `noUselessUndefined` (.claude/rules/gates-and-tooling.md): an accumulator satisfies both without
+  // `noUselessUndefined` (.claude/rules/tooling.md): an accumulator satisfies both without
   // suppressing either. The loop stops by clearing `node`, never by an early `return;`.
   let node: MorphNode | undefined = object.getParent();
   let found: CallExpression | undefined;

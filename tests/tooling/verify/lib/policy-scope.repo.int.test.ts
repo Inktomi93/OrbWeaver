@@ -10,5 +10,5 @@ test("the real workspace maps @orb/tooling without a hard-coded package path tab
   expect(tooling.currentPaths).toContain("tooling/package.json");
   expect(tooling.programs.find((program) => program.id === "tooling/tsconfig.json")?.files).toContain("tooling/src/verify/lib/selection.ts");
   expect(tooling.programs.find((program) => program.id === "tooling/tsconfig.json")?.configPaths).toContain("tooling/tsconfig.json");
-  expect(readPolicyRepositoryInventory(repoRoot).paths).toEqual(expect.arrayContaining([".agents/skills", ".codex/agent-doctrine.md", ".codex/hooks"]));
+  expect(readPolicyRepositoryInventory(repoRoot).paths).toEqual(expect.arrayContaining([".agents/skills", ".codex/hooks"]));
 });

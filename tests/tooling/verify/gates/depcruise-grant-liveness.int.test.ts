@@ -19,7 +19,7 @@
 //
 // THE REAL-ROOT ARM IS BACK (#1947, 2026-09-11) — the full reconstruction is in the twin header at
 // `eslint-grant-liveness.int.test.ts`. In short: the #1932 lane's measurement and diagnosis were right (the
-// whole-inventory `native-config` population contains the tracked symlink `.codex/agent-doctrine.md`, which
+// whole-inventory `native-config` population then held a tracked Markdown symlink, which
 // `ops/resource-reader.ts` refuses by design), but its RULING that no `native-config` policy can run at
 // repository scope was a defect in `lib/policy-pass.ts`: it demanded an ordinary-waiver text carrier from
 // EVERY completed owner, including HARD owners, which have no waiver door and can demand none. The old

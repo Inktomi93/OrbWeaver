@@ -223,7 +223,7 @@ export interface OwnerBudgetView {
 /** Which tuple members are LIVE (wired to a handler). `createRule`/`updateRule` refuse a reserved
  *  trigger with `AutomationReservedTriggerError` (a typed, user-visible refusal — not a silent no-op).
  *  A mapped-type `Record` over BOTH trigger tuples: a new tuple member without a liveness entry is a
- *  `tsc` error (the workloads RUNNERS gold standard — core/AGENTS.md §5.5). */
+ *  `tsc` error (the workloads RUNNERS gold standard — Spine-TypeScript-and-Patterns.md "String-union dispatch discipline"). */
 export const LIVE_TRIGGERS = {
   // chat bus — v1 wired
   chatOpened: true,
@@ -268,7 +268,7 @@ export const LIVE_TRIGGERS = {
  *  automation can DO without this tuple growing per contributor. The union member is FIRST-PARTY and
  *  `tsc`-forced like every other member; the open-world contributor name rides INSIDE its payload
  *  (`run_tool.name`). Adding an open arm — a `type: string` escape, a `plugin_*` wildcard member — is the
- *  banned move: it defeats every exhaustive dispatch downstream (core/AGENTS.md §5.5). */
+ *  banned move: it defeats every exhaustive dispatch downstream (Spine-TypeScript-and-Patterns.md "String-union dispatch discipline"). */
 /** C5 — the SCOPE an arm needs from the rule that carries it. A rule is `chatId: ChatId | null` and NULL
  *  means owner-global (`db/schema/automation.ts`), so half the arm surface has no room to act in. */
 export const AUTOMATION_ARM_SCOPES = ["chat-required", "chat-independent"] as const;

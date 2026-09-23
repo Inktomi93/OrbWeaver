@@ -352,7 +352,7 @@ function renameFnLocalSymbols(targets: typeof FN_LOCAL_RENAMES): Plan {
 /** Comment/JSDoc/string-literal mentions the language service cannot reach — every line that would otherwise
  *  become a DEAD CITE of a symbol/local renamed above, addressed as exact one-line strings so a near-miss
  *  THROWS instead of silently skipping (the rpg precedent's honesty mechanism for a prose-enforced
- *  vocabulary rule, constitution §3). */
+ *  vocabulary rule, constitution §6). */
 const COMMENT_FIXES: ReadonlyArray<{ readonly file: string; readonly from: string; readonly to: string }> = [
   // ── persona domain (8 files, 21 mentions — the lane's own census) ──────────────────────────────────
   {

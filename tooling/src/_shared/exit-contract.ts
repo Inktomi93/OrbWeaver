@@ -1,4 +1,4 @@
-// The house tool exit contract (AGENTS.md §4 — the verify harness's hard contract, spoken fleet-wide):
+// The house tool exit contract (CLAUDE.md "Verification tiers" — the verify harness's hard contract, spoken fleet-wide):
 // 0 clean · 1 violations · 2 tool-broke (the run is NOT a verdict) · 3 misuse (bad args).
 export const EXIT = {
   clean: 0,

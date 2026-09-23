@@ -5,7 +5,7 @@
 // WHY `kit` AND NOT `contracts`, even though this crosses server→client: the block is also a FIELD of
 // `BugReportRecord` (`@orb/kit/bug-report`), whose own header states why that record is homed here — its
 // writer (`@orb/server`) and its reader (`@orb/tooling`) sit at opposite ends of the cake. A `contracts`
-// home would force `kit → contracts`, an upward import, which the constitution (§2.1) makes automatically
+// home would force `kit → contracts`, an upward import, which the constitution (§2) makes automatically
 // wrong. `kit` is one of the four sanctioned type homes; `contracts`, `db`, `server` and `client` all import
 // it DOWNWARD, so one home serves the tRPC wire, the bug bundle and the `/healthz` body without a respell.
 //

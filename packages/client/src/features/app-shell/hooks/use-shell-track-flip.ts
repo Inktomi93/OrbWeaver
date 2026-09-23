@@ -59,7 +59,7 @@ import { motionIsReduced } from "#lib";
 import type { PanelMode, PanelName } from "#state";
 
 /** The two attribute names each track owns. A mapped `Record` over `PanelName`, so the day a third shell
- *  track exists this is a tsc error rather than a forgotten string (constitution §5.5). `in` = the track
+ *  track exists this is a tsc error rather than a forgotten string (Spine-TypeScript-and-Patterns.md "String-union dispatch discipline"). `in` = the track
  *  opened (content pushed), `out` = it closed.
  *
  *  `as const satisfies` RATHER THAN AN ANNOTATION, and that is the gate's requirement rather than style:

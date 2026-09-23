@@ -31,14 +31,14 @@ const INTRO = `# Every snap flag, one line each (generated from the executable f
 
 ${GENERATED_HEADER}
 
-\`pnpm snap --help\` is the CONTRACT (400+ lines, generated from the executable registry). This file is the
-index a cold agent reads ONCE so it never has to scroll that help: every accepted flag, what it does, what
-it refuses to combine with lives in the help block's own prose. When the two disagree the help wins;
-regenerate this file with \`${REGEN_COMMAND}\`.
+\`pnpm snap --help\` prints the full contract, generated from the executable registry. This file is the
+short index: every accepted flag and what it does. What a flag refuses to combine with is in the help
+prose. When the two disagree, the help wins. Regenerate this file with
+\`${REGEN_COMMAND}\`.
 
 Shape legend: \`[@N]\` = page/context-targetable (\`--click@1\`); \`[x]\` optional value; \`<x>\` required value.
 Exit codes everywhere: \`0\` clean · \`1\` red (a finding, a failed assertion, a failed step, a console error)
-· \`2\` REFUSAL / tool error (the instrument could not measure — never a product verdict) · \`3\` misuse (your
+· \`2\` refused or tool error (the instrument could not measure — never a product verdict) · \`3\` misuse (your
 argv is wrong; nothing ran; the \`ARG ERROR\` line names the fix).`;
 
 /** `--flag <shape>` — the same shape rendering `snapFlagGrammarHelp()` uses, so the row and the printed
@@ -80,7 +80,11 @@ interface StaticIndexRow {
  *  follows, while `ledgers:fresh` owns the separate question of whether the COMMITTED file was
  *  regenerated. */
 export const SNAP_FLAGS_INDEX_STATIC_ROWS: readonly StaticIndexRow[] = [
-  { cell: "`[route]` positional", summary: "the app route to load — not a flag; the app has TWO url routes (`/`, `/login`)" },
+  {
+    cell: "`[route]` positional",
+    summary:
+      "the app route to load — not a flag; the browser URL only ever settles at `/` or `/login`; `/$section` is a deep-link alias that redirects to `/` before render",
+  },
   {
     cell: "`--report <run.json path\\|run-id\\|latest>`",
     summary: "replay one immutable run index (`lib/run-report-query.ts` intercepts this before the flag registry)",
@@ -88,7 +92,7 @@ export const SNAP_FLAGS_INDEX_STATIC_ROWS: readonly StaticIndexRow[] = [
   { cell: "`--reports`", summary: "list every indexed run across registered worktrees" },
 ];
 
-const STATIC_TAIL = `## Read back (browser-free — parsed OUTSIDE the flag registry, see this file's header)
+const STATIC_TAIL = `## Read back (browser-free — parsed outside the flag registry, see this file's header)
 
 | Flag | What it does |
 | - | - |

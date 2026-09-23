@@ -29,7 +29,7 @@ import tailwindcss from "@tailwindcss/vite";
 // THE CT WALL CLOCKS, LOAD-SCALED (#1232, docs/design/1208-instrument-substrate.md section 7.1). All three
 // were Playwright DEFAULTS this config pinned NOWHERE — which is how "at loadavg 170 the CT default times
 // out every test at `mount()` on pure contention, ZERO signal, indistinguishable from a real red"
-// (.claude/rules/browser-and-instruments.md) became a standing fact instead of a fixed defect. The literals
+// (.claude/rules/browser-tests.md) became a standing fact instead of a fixed defect. The literals
 // are the QUIET-BOX bases (Playwright's own numbers), so a quiet run is byte-identical to before; a
 // contended one stretches by the box's per-core contention through the ONE policy, capped at
 // ORB_BUDGET_CEILING_MS so a genuinely wedged mount still surfaces. Read ONCE at config load.
@@ -110,7 +110,7 @@ export default defineConfig({
   fullyParallel: true,
   // WORKERS ARE PINNED, and the value IS the load-safety rule — not a tuning preference (#766).
   // Playwright's DEFAULT is CPU/2 = 12 workers on this 24-core box, each one a Chromium. The safe value
-  // used to live ONLY as a hand-typed `--workers=2` in .claude/rules/lane-standing-facts.md, so one
+  // used to live ONLY as a hand-typed `--workers=2` in a lane rule file, so one
   // forgotten flag reproduced the very failure that fact documents: at high load the CT default times out
   // every test at `mount()` on pure contention — ZERO signal, indistinguishable from a real red — while
   // the capped run came back green in 53s. `pnpm test` composes `pnpm test:ct --retries=2` with no worker

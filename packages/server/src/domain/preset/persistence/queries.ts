@@ -191,7 +191,7 @@ export async function updatePresetRow(db: Db, id: PresetId, userId: UserId, patc
  *  `DEFAULT_PROMPT_CONFIG` and the import verb's parsed backup file. Same owner scoping as
  *  {@link updatePresetRow}; RETURNS the row (undefined when nothing matched).
  *
- *  SEPARATE FROM `updatePresetRow` ON PURPOSE (#1026, constitution §3 "one folder, two jobs = split"): the
+ *  SEPARATE FROM `updatePresetRow` ON PURPOSE (#1026, Core-0-Architecture-and-Structure.md §6 "one folder, two jobs = split"): the
  *  #471 guard's premise is that the write DESCENDS FROM A READ of the row it replaces, and neither of these
  *  callers reads it. Guarding them would refuse a reset/import over a corrupt preset — the user's own
  *  explicit repair, and the affordance the guarded editor path tells them to reach for — while preventing

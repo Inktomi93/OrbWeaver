@@ -115,7 +115,7 @@ build-or-disposition question under standing law §4, not permission for a local
 Read [TS-MORPH-CAPABILITIES.md](TS-MORPH-CAPABILITIES.md) before choosing a raw API, and
 [NODE-26-FILESYSTEM-CAPABILITIES.md](NODE-26-FILESYSTEM-CAPABILITIES.md) before changing a filesystem-owning instrument.
 Final policy authors use the admitted shared surface. World/config ownership and generated TypeScript program selection
-remain in [.claude/rules/gates-and-tooling.md](../../../../.claude/rules/gates-and-tooling.md) and
+remain in [.claude/rules/tooling.md](../../../../.claude/rules/tooling.md) and
 [Core-Tooling-Law.md](../../../../docs/architecture/core/Core-Tooling-Law.md); a root-tsconfig check cannot replace them.
 
 ## 4. Authority, liveness and completeness
@@ -321,6 +321,6 @@ no recreation of stale virtual paths, and comparison of actual findings across s
 rather than comparison of pass/fail alone. Preserve those controls when changing their runtime owner.
 
 Likewise, do not collapse native worlds/configs into a synthetic root program or generate permission from violations.
-The [world/config law](../../../../.claude/rules/gates-and-tooling.md) distinguishes generated TypeScript intent from
+The [world/config law](../../../../.claude/rules/tooling.md) distinguishes generated TypeScript intent from
 hand-authored, liveness-gated native configuration. This guide changes the authoring route; it retires none of those
 world, config, fixture-isolation or conservation guarantees.

@@ -5,8 +5,8 @@
 // `callback-provenance-family.suite.test.ts` — so `tooling/src/verify/gates/<id>.ts` prefix-swaps to a
 // path that does not exist while the policy's §4.2/§4.5 proofs sit one directory over. That is not an
 // accident to be fixed by renaming: a family's proofs belong in ONE file, which by construction cannot be
-// named after each of its members. `.claude/rules/gates-and-tooling.md` already states the rule for
-// humans ("grep the gate ID as a STRING, never the filename"); this is that rule with a machine behind it.
+// named after each of its members. `.claude/rules/verify-and-gates.md` already states the rule for
+// humans ("find a gate's family test by grepping its id"); this is that rule with a machine behind it.
 //
 // THE SEARCH IS DELIBERATELY DUMB — a quoted-ID substring over the spec's own text. It over-selects (a
 // spec that merely MENTIONS a policy in a comment is selected) and that direction is the safe one: the

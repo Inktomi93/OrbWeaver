@@ -142,7 +142,7 @@ export function slowdownLines(previous: RunHistoryEntry | undefined, advisories:
 // PART 2 WAS RULED, NOT INVENTED HERE (claude-b, 2026-09-12): the battery runs ONCE PER MERGE TRAIN at the
 // quiescent barrier — not on `push`, not nightly — capping unobserved red at one train. That ruling is
 // recorded in the orchestrator playbook's owed-at-barrier list, and until now it lived ONLY there. A law
-// that lives only in prose is a wish (constitution §2.3): nothing on the machine could say how long it had
+// that lives only in prose is a wish (constitution §2): nothing on the machine could say how long it had
 // actually been, which is the same blindness one layer up.
 //
 // SO THE CADENCE BECOMES A READING, NOT AN ENFORCEMENT. The ruling assigns the barrier runner, while this

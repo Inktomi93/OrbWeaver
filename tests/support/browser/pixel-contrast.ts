@@ -6,7 +6,7 @@
 // a photo, or a control on a fully transparent ancestor chain, both report a class list that says nothing
 // about the pixel a reader looks at (#674's band read `rgba(0, 0, 0, 0)` all the way up while measuring
 // 1.01:1). `snap --contrast --contrast-pixel` answers that on the LIVE app — but `:5173` serves MAIN, so a
-// worktree lane's rendered proof has to come from the CT browser (§L.6), which is also the only place a
+// worktree lane's rendered proof has to come from the CT browser (the lane skill, "Rendered proof"), which is also the only place a
 // lane can choose the WORST-CASE art rather than whatever wallpaper the dev account happens to carry.
 //
 // IT IS NOT A SECOND ALGORITHM. The ring geometry (`ringBackdrop`), the WCAG kernel (`contrastRatio`) and
