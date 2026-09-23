@@ -1,5 +1,5 @@
 ---
-kind: decision
+kind: work
 status: blocked
 updated: 2026-09-23
 priority: P1
@@ -7,7 +7,7 @@ area: rpg
 blocked: owner
 ---
 
-# Decide whether spatial world maps become a program
+# Spatial world maps program
 
 ## What
 
