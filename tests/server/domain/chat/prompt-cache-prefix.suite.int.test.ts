@@ -4,22 +4,27 @@
 
 import type { CharacterCard } from "@orb/contracts/character";
 import type { AssemblePersona } from "@orb/contracts/chat";
-import type { NamesBehavior } from "@orb/contracts/preset";
+import type { ProviderId } from "@orb/contracts/inference";
+import type { NamesBehavior, PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { chatParticipants, chats } from "@orb/db";
+import type { Resolved } from "@orb/inference";
 import { rowIndexAtCacheDepth } from "@orb/inference";
-import type { Handle, PersonaId, UserId } from "@orb/kit/ids";
+import type { Handle, ModelId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createTurnPersonaResolver } from "@orb/server/entry/compose";
 import { and, eq } from "drizzle-orm";
 import { describe } from "vitest";
+import { curatedRows } from "../../../../packages/inference/src/capability/sources/curated/loader.ts";
+import { synthesizeCapability } from "../../../../packages/inference/src/capability/synthesize.ts";
 import type { ResolveForeignInputsOp } from "../../../../packages/server/src/domain/chat/contract/foreign.ts";
 import type { GroupOutput, TurnMessage, TurnRequest } from "../../../../packages/server/src/domain/chat/contract/results.ts";
 import { loadPersonasForOwners } from "../../../../packages/server/src/domain/persona/persistence/queries.ts";
 import type { ChatScenario } from "../../../support/chat/index.ts";
 import { scenario, tape } from "../../../support/chat/index.ts";
 import { freshDb } from "../../../support/db.ts";
+import { makeResolved } from "../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { seedCharacter, seedMessage, seedParticipant, seedPersona, seedUser } from "./_support.ts";
 
@@ -339,5 +344,102 @@ describe("F3 — the system block speaks for the anchor human, whoever presses s
 
     expect(requestAt(scn, 0).prompt.static).toContain("roleplay with Alice");
     expect(requestAt(scn, 1).prompt.static).toContain("roleplay with Bob");
+  });
+});
+
+/** A direct-wire connection whose capability is the REAL curated fold for `model`, so SHAPE reads the same
+ *  `turns` facts a production turn on that model reads. */
+function curatedAnthropic(model: string): Resolved<"chat"> {
+  const { capability } = synthesizeCapability("generation", "anthropic", {
+    curated: curatedRows({ model, providerId: castId<ProviderId>("anthropic"), wire: "anthropic-messages", api: "anthropic-messages" }),
+  });
+  return makeResolved({ providerId: "anthropic", capability, model: castId<ModelId>(model) });
+}
+
+const PER_TURN_NOTE = "[PER-TURN NOTE]";
+const DEPTH_TWO_NOTE = "[DEPTH-2 NOTE]";
+const BELOW_HISTORY_NOTE = "[BELOW-HISTORY NOTE]";
+
+/** The default preset plus three system-role literals: a trigger-gated (per-turn) one above Chat History, one
+ *  injected at depth 2, and one listed below Chat History. */
+function placementPreset(roleHandling: "strict" | undefined): PromptConfig {
+  const perTurn: PromptSection = {
+    type: "literal",
+    id: "per-turn",
+    name: "per-turn",
+    role: "system",
+    enabled: true,
+    content: PER_TURN_NOTE,
+    trigger: ["normal"],
+  };
+  const atDepth: PromptSection = {
+    type: "literal",
+    id: "at-depth",
+    name: "at-depth",
+    role: "system",
+    enabled: true,
+    content: DEPTH_TWO_NOTE,
+    inject: { depth: 2 },
+  };
+  const below: PromptSection = { type: "literal", id: "below", name: "below", role: "system", enabled: true, content: BELOW_HISTORY_NOTE };
+  const pivot = DEFAULT_PROMPT_CONFIG.sections.findIndex((s) => s.type === "marker" && s.marker === "chat_history");
+  const sections = [...DEFAULT_PROMPT_CONFIG.sections.slice(0, pivot), perTurn, atDepth, ...DEFAULT_PROMPT_CONFIG.sections.slice(pivot), below];
+  return {
+    ...DEFAULT_PROMPT_CONFIG,
+    sections,
+    params: roleHandling === undefined ? DEFAULT_PROMPT_CONFIG.params : { ...DEFAULT_PROMPT_CONFIG.params, advanced: { roleHandling } },
+  };
+}
+
+/** One send over a four-row history on `model`, returning the captured request. */
+async function placementTurn(model: string, roleHandling: "strict" | undefined): Promise<TurnRequest> {
+  const preset = placementPreset(roleHandling);
+  const scn = await scenario.chat(tape().reply("r"), { promptConfig: preset, connection: curatedAnthropic(model) });
+  await seedMessage(scn.db, scn.chatId, 1, { role: "user", authorUserId: scn.host, content: "u1" });
+  await seedMessage(scn.db, scn.chatId, 2, { role: "assistant", characterId: scn.chars[0] ?? null, content: "a1" });
+  await seedMessage(scn.db, scn.chatId, 3, { role: "user", authorUserId: scn.host, content: "u2" });
+  await seedMessage(scn.db, scn.chatId, 4, { role: "assistant", characterId: scn.chars[0] ?? null, content: "a2" });
+  await scn.send("u3");
+  return requestAt(scn, 0);
+}
+
+function rowText(m: TurnMessage): string {
+  return m.content.map((p) => (p.type === "text" ? p.text : "")).join("");
+}
+
+// The owner's placement ruling (SillyTavern parity): every section stays where the prompt order puts it. A
+// per-turn section above Chat History is system-region content on every model; a system row at depth N or below
+// Chat History stays a real system row where the model and level take one, and folds to user in place otherwise.
+describe("F5 — sections stay at their prompt position; only a fold level changes a system row's role", () => {
+  test("a mid-conversation-system model keeps the depth-2 and below-history rows as system rows in place", async () => {
+    const req = await placementTurn("claude-opus-5", undefined);
+    const roles = req.history.map((m) => m.role);
+    const texts = req.history.map(rowText);
+    expect(req.prompt.dynamic).toContain(PER_TURN_NOTE);
+    expect(texts.some((t) => t.includes(PER_TURN_NOTE))).toBe(false);
+    const depthRow = texts.indexOf(DEPTH_TWO_NOTE);
+    expect(roles[depthRow]).toBe("system");
+    expect([texts[depthRow - 1], texts[depthRow + 1]]).toEqual(["u2", "a2"]);
+    expect(req.history.at(-1)).toEqual({ role: "system", content: [{ type: "text", text: BELOW_HISTORY_NOTE }] });
+  });
+
+  test("an older model and a strict preset fold the same rows into user text at the same place", async () => {
+    for (const [model, level] of [
+      ["claude-haiku-4-5", undefined],
+      ["claude-opus-5", "strict"],
+    ] as const) {
+      const req = await placementTurn(model, level);
+      const texts = req.history.map(rowText);
+      expect(
+        req.history.some((m) => m.role === "system"),
+        `${model} ${String(level)}`,
+      ).toBe(false);
+      expect(req.prompt.dynamic).toContain(PER_TURN_NOTE);
+      const depthRow = texts.findIndex((t) => t.includes(DEPTH_TWO_NOTE));
+      expect(req.history[depthRow]?.role).toBe("user");
+      expect(texts[depthRow + 1]).toBe("a2");
+      expect(texts.at(-1)).toContain(BELOW_HISTORY_NOTE);
+      expect(req.history.at(-1)?.role).toBe("user");
+    }
   });
 });

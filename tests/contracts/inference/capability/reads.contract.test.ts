@@ -1,7 +1,6 @@
 // contracts/inference/capability/reads — the message-handling ladder's reads: the strictness order, the
 // floor clamp every turn runs, and the levels the preset knob may offer on a model. One home for the rank:
-// SHAPE, the funnel's dynamic-context channel and the client's knob all read these, so a level added to
-// `ROLE_HANDLING` moves all three at once.
+// SHAPE and the client's knob both read these, so a level added to `ROLE_HANDLING` moves both at once.
 
 import type { RoleHandling } from "@orb/contracts/inference";
 import {
@@ -9,7 +8,7 @@ import {
   GENERATION_FLOOR,
   isStricterRoleHandling,
   ROLE_HANDLING,
-  roleHandlingOf,
+  roleHandlingFloorOf,
   USER_ROLE_HANDLING,
   userRoleHandlingOptions,
 } from "@orb/contracts/inference";
@@ -41,8 +40,8 @@ describe("clampRoleHandling — the stricter of the model floor and the preset k
   });
 
   test("an unmeasured model runs the fail-closed floor, whatever the knob asks", () => {
-    expect(roleHandlingOf(GENERATION_FLOOR, "none")).toBe("strict");
-    expect(roleHandlingOf({ ...GENERATION_FLOOR, turns: undefined }, undefined)).toBe("strict");
+    expect(clampRoleHandling(roleHandlingFloorOf(GENERATION_FLOOR), "none")).toBe("strict");
+    expect(clampRoleHandling(roleHandlingFloorOf({ ...GENERATION_FLOOR, turns: undefined }), undefined)).toBe("strict");
   });
 });
 

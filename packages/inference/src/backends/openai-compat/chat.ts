@@ -521,7 +521,6 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
   const anthropicRoute = dialect === "openrouter" && isAnthropicModel(connection);
   const plan = buildWirePlan({
     systemPrompt: req.systemPrompt,
-    dynamicContextChannel: knobs.dynamicContextChannel,
     history: req.history,
     rowOptions: rowOptionsFor(dialect),
     splitSystem: anthropicRoute,
