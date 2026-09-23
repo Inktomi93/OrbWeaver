@@ -62,6 +62,13 @@ export interface NewDocInput<F extends string> {
   readonly content?: SectionContent<F>;
 }
 
+/** One document write judged by the pre-write check: `from` is where the doc lives now, `doc` where and
+ *  what it will be (a different path is a rename). */
+export interface DocEdit {
+  readonly from: string;
+  readonly doc: GovernedDoc;
+}
+
 /** A parsed work item. Optional fields are `null` when absent; the state's companions are checked by
  *  `lib/items.ts#itemShapeProblems`, never at parse. */
 export interface WorkItem {
@@ -81,9 +88,12 @@ export interface WorkItem {
   readonly reviewed: string | null;
 }
 
-/** The fields a transition may set. `null` clears a field; `undefined` leaves it alone. */
+/** The fields a transition may set. `null` clears a field; `undefined` leaves it alone. `kind` and `title`
+ *  are never cleared; a new title renames the item's file. */
 export interface ItemPatch {
   readonly state?: ItemState;
+  readonly kind?: ItemKind;
+  readonly title?: string;
   readonly priority?: string | null;
   readonly area?: string | null;
   readonly lane?: string | null;
@@ -128,7 +138,8 @@ export type DocCommand =
   | { readonly kind: "new-plan"; readonly slug: string; readonly title: string | null; readonly content: SectionContent<PlanSectionFlag> }
   | { readonly kind: "item"; readonly input: NewItemInput }
   | { readonly kind: "item-batch"; readonly from: string }
-  | { readonly kind: "status"; readonly status: string; readonly paths: readonly string[]; readonly by: string | null }
+  | { readonly kind: "status"; readonly status: string; readonly paths: readonly string[]; readonly by: string | null; readonly docKind: string | null }
+  | { readonly kind: "remove"; readonly ids: readonly number[] }
   | { readonly kind: "set"; readonly ids: readonly number[]; readonly patch: ItemPatch }
   | { readonly kind: "land"; readonly ids: readonly number[]; readonly evidence: string }
   | { readonly kind: "land-merged" }

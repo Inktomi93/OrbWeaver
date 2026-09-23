@@ -13,6 +13,7 @@ import { regenerateIndexes } from "./indexes.ts";
 import type { WriteOutcome } from "./items.ts";
 import { landItems, landMerged, newItem, newItemsFrom, setItems } from "./items.ts";
 import { newAdr, newPlan } from "./new.ts";
+import { removeItems } from "./remove.ts";
 import { due, review } from "./review.ts";
 import { setStatus } from "./status.ts";
 
@@ -62,9 +63,11 @@ export function runDocCommand(command: DocCommand): ExitCode {
     case "item-batch":
       return report("item", newItemsFrom(command.from));
     case "status":
-      return report("status", setStatus({ status: command.status, paths: command.paths, by: command.by }));
+      return report("status", setStatus({ status: command.status, paths: command.paths, by: command.by, docKind: command.docKind }));
     case "set":
       return report("set", setItems(command.ids, command.patch));
+    case "remove":
+      return report("remove", removeItems(command.ids));
     case "land":
       return report("land", landItems(command.ids, command.evidence));
     case "land-merged":

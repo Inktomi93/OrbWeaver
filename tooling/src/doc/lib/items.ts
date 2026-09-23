@@ -5,7 +5,7 @@
 import { z } from "zod";
 import { DATE_RE, DOC_TOOL_TREES, ITEM_KINDS, ITEM_STATES } from "#doc-catalog";
 import type { Blocker, ItemKind, ItemPatch, ItemSectionFlag, ItemState, NewItemInput, WorkItem } from "../contract/types.ts";
-import { splitDocument, titleOf, withFields } from "./frontmatter-write.ts";
+import { splitDocument, titleOf, withFields, withTitle } from "./frontmatter-write.ts";
 import { basenameOf, parseNumberedName } from "./names.ts";
 import { ITEM_SECTIONS, sectionFlags } from "./templates.ts";
 
@@ -129,6 +129,9 @@ export function itemShapeProblems(item: WorkItem, known: ReadonlySet<number>): r
  *  that belong to the states left behind, so a `blocked` reason never survives into `doing`. */
 export function applyPatch(source: string, item: WorkItem, patch: ItemPatch, today: string): string {
   const next: Record<string, string | null> = { updated: today };
+  if (patch.kind !== undefined) {
+    next["kind"] = patch.kind;
+  }
   const state = patch.state ?? item.state;
   if (patch.state !== undefined) {
     next["status"] = patch.state;
@@ -148,7 +151,8 @@ export function applyPatch(source: string, item: WorkItem, patch: ItemPatch, tod
       next[key] = value;
     }
   }
-  return withFields(source, next);
+  const patched = withFields(source, next);
+  return patch.title === undefined ? patched : withTitle(patched, patch.title);
 }
 
 export function nextItemId(items: readonly WorkItem[]): number {

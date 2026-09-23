@@ -1,6 +1,6 @@
 // The write verbs on planted trees: what each writes, the indexes it regenerates, and the refusal that
 // writes nothing. A suite because the verbs share one planted shape and each proves a different door.
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { UsageError } from "../../../../tooling/src/_shared/run-tool.ts";
 import {
@@ -128,21 +128,27 @@ test("index deletes a plan's tasks.md once its last item leaves the plan (F11)",
 test("archive moves a finished plan and its done items into the dated archive folder and rewrites the old path everywhere tracked", async ({ plantedTree }) => {
   const root = await plantedTree({ "packages/kit/src/x.ts": "// See docs/plans/p/design.md for the shape.\nexport const x = 1;\n" });
   const { execFixtureGit } = await import("../../../../tooling/src/_shared/git-fixture.ts");
-  execFixtureGit(root, ["init", "-q"]);
+  execFixtureGit(root, ["init", "-q", "-b", "main"]);
   execFixtureGit(root, ["add", "-A"]);
   newPlan({ slug: "p", title: "P" }, root, TODAY);
   newItem({ title: "Task", kind: "work", priority: null, area: null, plan: "p", lane: null }, root, TODAY);
   execFixtureGit(root, ["add", "-A"]);
+  execFixtureGit(root, ["-c", "user.name=Doc Test", "-c", "user.email=doc@example.invalid", "commit", "-qm", "chore: base"]);
+  const head = execFixtureGit(root, ["rev-parse", "HEAD"]).trim();
   const open = archive(["p"], root, TODAY);
   expect(open.written).toEqual([]);
   expect(open.refusals).toEqual(["docs/work/0001-task.md: open, and a plan archives only when every item is done"]);
-  setItems([1], { state: "done", evidence: "abc1234" }, root, TODAY);
+  // The evidence is judged like a written item's: a commit that is not on main refuses.
+  expect(setItems([1], { state: "done", evidence: "abc1234" }, root, TODAY).refusals).toEqual([
+    "docs/work/0001-task.md: evidence abc1234 is not a commit on main — pnpm doc land <id> --evidence <sha> names one",
+  ]);
+  expect(setItems([1], { state: "done", evidence: head }, root, TODAY).refusals).toEqual([]);
   const done = archive(["p"], root, TODAY);
   expect(done.refusals).toEqual([]);
   expect(existsSync(join(root, "docs/plans/p"))).toBe(false);
   expect(read(root, "docs/plans/archive/2026-09-23-p/design.md")).toContain("status: archived\n");
   expect(existsSync(join(root, "docs/plans/archive/2026-09-23-p/0001-task.md"))).toBe(true);
-  expect(read(root, "docs/plans/archive/2026-09-23-p/tasks.md")).toContain("- [x] [0001](0001-task.md) triage Task `p` (abc1234)\n");
+  expect(read(root, "docs/plans/archive/2026-09-23-p/tasks.md")).toContain(`- [x] [0001](0001-task.md) triage Task \`p\` (${head.slice(0, 12)})\n`);
   expect(read(root, "packages/kit/src/x.ts")).toBe("// See docs/plans/archive/2026-09-23-p/design.md for the shape.\nexport const x = 1;\n");
   expect(read(root, "docs/plans/README.md")).toContain("| [P](archive/2026-09-23-p/design.md) | archived |");
   expect(archive(["ghost"], root, TODAY).refusals).toEqual(["docs/plans/ghost/: no such plan"]);
@@ -240,4 +246,64 @@ test("new adr and new plan write the section text they are given, and refuse tex
   expect(dirty.written).toEqual([]);
   expect(dirty.refusals).toEqual(['docs/adr/0002-two.md:15: an issue or PR number ("#12")']);
   expect(existsSync(join(root, "docs/adr/0002-two.md"))).toBe(false);
+});
+
+test("set changes an item's kind and clears its plan, which drops the plan's tasks.md", async ({ plantedTree }) => {
+  const root = await plantedTree({});
+  newPlan({ slug: "p", title: "P" }, root, TODAY);
+  newItem({ title: "Parked", kind: "decision", ...OPEN, plan: "p" }, root, TODAY);
+  const outcome = setItems([1], { kind: "work", plan: null }, root, "2026-09-24");
+  expect(outcome.refusals).toEqual([]);
+  expect(read(root, "docs/work/0001-parked.md")).toContain("---\nkind: work\nstatus: open\nupdated: 2026-09-24\n---\n\n# Parked\n");
+  expect(existsSync(join(root, "docs/plans/p/tasks.md"))).toBe(false);
+});
+
+test("set --title renames the file and rewrites every reference to it, and leaves a same-named file in another folder alone", async ({ plantedTree }) => {
+  const root = await plantedTree({});
+  newAdr({ slug: "old-name", title: "An unrelated decision" }, root, TODAY);
+  newItem({ title: "Old name", kind: "work", ...OPEN }, root, TODAY);
+  newItem(
+    { title: "Follower", kind: "work", ...OPEN, content: { what: "Follows [the first](0001-old-name.md) and [its twin](./0001-old-name.md)." } },
+    root,
+    TODAY,
+  );
+  newItem({ title: "Citer", kind: "work", ...OPEN, content: { what: "Cites `docs/work/0001-old-name.md`, not `docs/adr/0001-old-name.md`." } }, root, TODAY);
+  const outcome = setItems([1], { title: "New name" }, root, TODAY);
+  expect(outcome.refusals).toEqual([]);
+  expect(outcome.written).toEqual(
+    expect.arrayContaining(["docs/work/0001-new-name.md", "docs/work/0001-old-name.md", "docs/work/0002-follower.md", "docs/work/0003-citer.md"]),
+  );
+  expect(existsSync(join(root, "docs/work/0001-old-name.md"))).toBe(false);
+  expect(read(root, "docs/work/0001-new-name.md")).toContain("\n# New name\n");
+  expect(read(root, "docs/work/0002-follower.md")).toContain("Follows [the first](0001-new-name.md) and [its twin](./0001-new-name.md).");
+  expect(read(root, "docs/work/0003-citer.md")).toContain("Cites `docs/work/0001-new-name.md`, not `docs/adr/0001-old-name.md`.");
+  expect(read(root, "docs/work/README.md")).toContain("[0001](0001-new-name.md)");
+});
+
+test("set refuses an edit that introduces a finding, but not one that keeps a finding the item already had", async ({ plantedTree }) => {
+  const root = await plantedTree({});
+  newItem({ title: "Old prose", kind: "work", ...OPEN }, root, TODAY);
+  const path = "docs/work/0001-old-prose.md";
+  writeFileSync(join(root, path), read(root, path).replace("The change, in a sentence.", "This used to work."));
+  const renamed = setItems([1], { title: "Tighten the belt" }, root, TODAY);
+  expect(renamed.written).toEqual([]);
+  expect(renamed.refusals).toEqual(['docs/work/0001-tighten-the-belt.md:7: banned word "belt" ("belt")']);
+  expect(existsSync(join(root, path))).toBe(true);
+  expect(setItems([1], { title: "   " }, root, TODAY).refusals).toEqual(['"   ": a title needs at least one word']);
+  const moved = setItems([1], { state: "doing", lane: "cb-x" }, root, TODAY);
+  expect(moved.refusals).toEqual([]);
+  expect(read(root, path)).toContain("status: doing\n");
+});
+
+test("status --kind sets the kind of a law doc, and refuses a kind its path does not take", async ({ plantedTree }) => {
+  const root = await plantedTree({ "docs/law/Rules.md": "---\nkind: reference\nstatus: active\nupdated: 2026-01-01\n---\n\n# Rules\n\nThe rules.\n" });
+  const wrong = setStatus({ status: "active", paths: ["docs/law/Rules.md"], by: null, docKind: "adr" }, root, TODAY);
+  expect(wrong.written).toEqual([]);
+  expect(wrong.refusals).toEqual([
+    "docs/law/Rules.md: kind adr is not allowed here; this path takes law",
+    ...["Context", "Decision", "Consequences", "Alternatives rejected"].map((section) => `docs/law/Rules.md: missing required section ## ${section}`),
+  ]);
+  const fixed = setStatus({ status: "active", paths: ["docs/law/Rules.md"], by: null, docKind: "law" }, root, TODAY);
+  expect(fixed.refusals).toEqual([]);
+  expect(read(root, "docs/law/Rules.md")).toContain("---\nkind: law\nstatus: active\nupdated: 2026-09-23\n---\n");
 });
