@@ -5,7 +5,7 @@
 #   1. the CPU ceiling line (`cpu-fence.sh`) and the core.hooksPath repair;
 #   2. the account identity and the bridge inbox it owns;
 #   3. the first actions: the bridge plugin state, the skill load, the notes to read;
-#   4. the newest bridge note, the worktree count and main's dirty state;
+#   4. the worktree count and main's dirty state;
 #   5. a warning when the orchestrator's MEMORY.md nears the harness's truncation cap.
 # Keep it fast (<10s) and well under 8KB. It writes nothing except the core.hooksPath repair.
 set -uo pipefail
@@ -74,12 +74,14 @@ echo "!!! IDENTITY: you are ${WHO} (by ${IDENT_SRC}; config dir ${CFG_DIR}). YOU
 # FIRST ACTIONS sit directly under identity so a truncated output still delivers them. The hook cannot
 # call tools; these are orders for the session.
 if [ -x "$HOME/.claude/skills/bridge/bin/claude-bridge" ]; then
-  echo "!!! FIRST ACTIONS, in order: (1) BRIDGE PLUGIN: it watches ~/.claude/bridge/${INBOX}/ from session start. Each new note arrives as a 'bridge: new note N' event — do not start an inotifywait Monitor on it. Send, ack and list with claude-bridge (the bridge skill)."
+  # The bridge plugin's own SessionStart hook prints this account's newest SELF note in full and lists the
+  # other unacked notes, so this hook does not repeat them.
+  echo "!!! FIRST ACTIONS, in order: (1) BRIDGE: the 'bridge:' block from the bridge plugin holds your own note from your last session and your unacked notes. Act on them, then claude-bridge ack N. New notes arrive as 'bridge: new note N' events; do not start an inotifywait Monitor."
 else
   echo "!!! FIRST ACTIONS, in order: (1) BRIDGE PLUGIN MISSING (~/.claude/skills/bridge): nothing watches the inbox; tell the owner; read the inbox at every merge window."
 fi
 echo "    (2) LOAD THE orchestrator SKILL (Skill tool) and follow its first actions before any lane, merge, bridge note or worktree action. A compaction summary carries a digest of it, and a digest fails on command detail."
-echo "    (3) READ IN FULL (cat), never the 2KB head printed below: ~/.claude/bridge/SESSIONS.md, then EVERY unacked note in ~/.claude/bridge/${INBOX}/ (ls it first). A SELF-prefixed note is your own compact map: act on it, THEN ack by mv into done/. Read the scratch dispatch map too if the line below found it."
+echo "    (3) READ IN FULL (cat): ~/.claude/bridge/SESSIONS.md, each unacked note the bridge block lists, and the scratch dispatch map if the line below found it."
 echo "    (4) Honor every MERGE HOLD / sequencing line in the notes; resume live lanes by SendMessage to their agentIds, NEVER respawn."
 if [ "$WHO" = "claude-b" ]; then
   echo "    (5) ROLE: you are the second LANE DRIVER on your own account — you write ONLY claim --lane cb-<x>, file --ready, and file --kind decision + needs-owner; primary does every other transition, every fold, every memory write. If no unacked assignment note is in your inbox, write a QUESTION note to primary asking for your lanes (state a DEFAULT + deadline), pre-derive the default set while waiting, and fill to 3 lanes of your own. Owner-word items: ask in chat ONCE and tell primary 'asked in chat — do not re-ask'."
@@ -99,21 +101,7 @@ if [ -n "$SID" ] && [ -f "$SCRATCH_MAP" ]; then
     /usr/bin/grep -v '^[[:space:]]*$' "$SCRATCH_MAP" | tail -2 | cut -c1-200
   fi
 else
-  echo "--- scratch dispatch map: none for this session (fresh session, or purged) — the bridge note below is the digest"
-fi
-
-# THE NEWEST BRIDGE NOTE (agentIds, merge order, holds). Both accounts park dispatch maps in to-primary/,
-# so the newest note is scanned across both dirs and labeled; the unacked count is YOUR inbox only.
-NEWEST_NOTE=$(ls -t ~/.claude/bridge/to-primary/*.md ~/.claude/bridge/to-b/*.md 2>/dev/null | head -1)
-if [ -n "${NEWEST_NOTE:-}" ]; then
-  NOTE_LABEL="${NEWEST_NOTE#"$HOME"/.claude/bridge/}"
-  echo "--- newest bridge note (${NOTE_LABEL}) — READ THIS BEFORE TOUCHING LANES OR MERGES:"
-  head -c 2000 "$NEWEST_NOTE"
-  echo
-  UNACKED=$(ls ~/.claude/bridge/${INBOX}/*.md 2>/dev/null | /usr/bin/grep -cv "${NEWEST_NOTE##*/}" || true)
-  [ "${UNACKED:-0}" -gt 0 ] && echo "(+$UNACKED unacked note(s) in ~/.claude/bridge/${INBOX}/ — YOUR inbox; ack by MOVE into done/)"
-else
-  echo "--- bridge (to-primary/ and to-b/): both empty"
+  echo "--- scratch dispatch map: none for this session (fresh session, or purged) — your SELF note in the bridge block is the digest"
 fi
 
 # POINTERS (each one line; the content is re-derivable on demand).
