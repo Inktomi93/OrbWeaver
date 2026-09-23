@@ -1,6 +1,6 @@
 # OpenRouter provider probes
 
-Seven standing wire probes against the OpenRouter chat-completions surface (`anthropic/claude-sonnet-5`,
+Eight standing wire probes against the OpenRouter chat-completions surface (`anthropic/claude-sonnet-5`,
 Anthropic pinned with `allow_fallbacks:false`). Verdicts + recommendations: [`RESULTS.md`](RESULTS.md).
 Raw evidence: `results/<probe>.jsonl` — one row per arm, append-only, JSONL so a partial run is still
 readable. Subject docs: `docs/history/design/openrouter-provider-findings.md` ·
@@ -15,6 +15,7 @@ readable. Subject docs: `docs/history/design/openrouter-provider-findings.md` ·
 | `or5b` | is the cache breakpoint invariant across a within-turn tool exchange (the §5 fix)? | $0.09 |
 | `or7` | is replaying a reasoning block a hard 400? | $0.02 |
 | `or7b` | is dropping reasoning still safe on a multi-hop tool chain? | $0.06 |
+| `or8` | which layout of adjacent same-role rows keeps the prior call's cache entry readable? (both wires; needs `ANTHROPIC_PROBE_KEY` or `ANTHROPIC_API_KEY`) | $0.04 OR + ~$0.04 native |
 
 ```sh
 node scripts/probes/openrouter/run.ts                 # the batch (skips probes with a completed run)
