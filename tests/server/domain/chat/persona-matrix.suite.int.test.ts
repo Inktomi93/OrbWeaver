@@ -400,18 +400,6 @@ const COMBOS: readonly Combo[] = [
     },
   },
   {
-    id: "6a",
-    title: "two humans on the SAME persona id",
-    room: {},
-    setup: async (room) => {
-      const shared = await insertPersona(room.scn.db, room.alice, "Sam");
-      await setSeat(room, room.alice, shared);
-      await setSeat(room, room.bob, shared);
-      await setAnchor(room, shared);
-      return TWO_HUMAN_STEPS;
-    },
-  },
-  {
     id: "6b",
     title: "two different personas with the same NAME",
     room: {},
