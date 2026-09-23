@@ -41,7 +41,7 @@ function unlanded(facts: DriftFacts): readonly string[] {
     }
     if (pending.length > 0) {
       lines.push(
-        `main commit ${commit.sha} closes ${pending.map(String).join(", ")} but the item is still on the tree (a conflict-resolved merge runs no post-merge hook) — pnpm doc land ${pending.map(String).join(" ")} --evidence ${commit.sha}`,
+        `main commit ${commit.sha} closes ${pending.map(String).join(", ")} but the item is still on the tree (the merge ran without the landing hooks) — pnpm doc land ${pending.map(String).join(" ")} --evidence ${commit.sha}`,
       );
     }
   }
