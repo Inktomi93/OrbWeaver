@@ -19,7 +19,7 @@ import type { Db } from "@orb/db";
 import { characterPersonas, chatParticipants, personas, users } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import type { ChatDeltaEvent, ChatEvent, ChatRequest, ChatResult, ChatTurnInput, Resolved, RoleClientsWithSignal } from "@orb/inference";
-import { backgroundWorkRefusal, NoConnectionError, toChatRequest } from "@orb/inference";
+import { NoConnectionError, toChatRequest, unavailableRefusal } from "@orb/inference";
 import type { AssetId, ChatId, Handle, PersonaId, PresetId, TypeIdOf, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
@@ -330,7 +330,7 @@ function memorySegmentReceipts(rows: readonly EmbeddingSegmentRow[], results: Aw
  * D152: an in-turn tool therefore executes under the HOST Principal — there is no per-speaker authority
  * swap at this seam, so attaching a mutating tool to a non-human speak turn is zero-human host authority.
  *
- * Exported so the compose pins drive THIS adapter rather than a hand mirror of it.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
 export function buildChatToolOps(toolUse: ToolUseService, resolveHostPrincipal: (userId: UserId) => Promise<Principal>): ChatToolOps {
   // biome-ignore lint/suspicious/noExplicitAny: the opaque ChatToolSet round-trip (see the header note).
@@ -584,19 +584,19 @@ export function createRunChatTurnBridge(deps: {
 
 /** The two model-window FACTS memory reads off the funder's role clients (§7.5-1b): the summarize model's window
  *  sizes the digest token guard; the embed model's input cap bounds a segment. A task with no window is
- *  `NoConnectionError` — the honest refusal, never a default window. Exported so its pins drive this reader. */
+ *  `NoConnectionError` — the honest refusal, never a default window.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export function createTaskWindowReaders(deps: {
   readonly roleClientsFor: (funderUserId: UserId) => Promise<Pick<RoleClientsWithSignal, "resolved">>;
   readonly availability: ConnectionService["availability"];
   readonly resolveHostPrincipal: (userId: UserId) => Promise<Principal>;
 }): { readonly summarize: (funderUserId: UserId) => Promise<number>; readonly embed: (funderUserId: UserId) => Promise<number> } {
-  // `resolved()` reads null both when nothing is bound and when the bound row has background work off; only
-  // binding a connection fixes the first, so the refusal names the one the funder hit.
+  // `resolved()` reads null for every reason the task cannot run; the availability verdict names the first one,
+  // so the funder is told what to fix instead of always "nothing is bound".
   const refusalFor = async (funderUserId: UserId, task: "summarize" | "embed"): Promise<NoConnectionError> => {
     const verdict = await deps.availability({ task, principal: await deps.resolveHostPrincipal(funderUserId) });
-    return !verdict.available && verdict.cause === "background-refused"
-      ? backgroundWorkRefusal(task)
-      : new NoConnectionError(`no ${task} connection is bound for this user — bind one in Connections`);
+    return unavailableRefusal(task, verdict.available ? "no-connection" : verdict.cause);
   };
   return {
     summarize: async (funderUserId): Promise<number> => {
@@ -605,7 +605,7 @@ export function createTaskWindowReaders(deps: {
         throw await refusalFor(funderUserId, "summarize");
       }
       if (resolved.capability.kind !== "generation") {
-        throw new NoConnectionError("no summarize connection is bound for this user — bind one in Connections");
+        throw unavailableRefusal("summarize", "requirement-unmet");
       }
       return resolved.capability.generation.context.window;
     },
@@ -615,7 +615,7 @@ export function createTaskWindowReaders(deps: {
         throw await refusalFor(funderUserId, "embed");
       }
       if (resolved.capability.kind !== "embedding") {
-        throw new NoConnectionError("no embed connection is bound for this user — bind one in Connections");
+        throw unavailableRefusal("embed", "requirement-unmet");
       }
       return resolved.capability.embedding.maxInputTokens;
     },

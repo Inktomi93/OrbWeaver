@@ -13,8 +13,8 @@
 import type { AssembledPrompt } from "@orb/contracts/chat";
 import type { UserIntent } from "@orb/contracts/preset";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
-import type { SideGenSampling } from "@orb/kit/side-gen-posture";
-import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
+import type { SideGenSampling } from "@orb/inference";
+import { resolveSideGenSampling } from "@orb/inference";
 import type { QuietGenerate, QuietGenerateDeps, QuietGenerateParams } from "../contract/context.ts";
 import type { TurnMessage } from "../contract/results.ts";
 

@@ -17,13 +17,11 @@ import { resolveImageryCaption, resolveImageryTemplate } from "@orb/contracts/se
 import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
-import type { ProviderExecutor, Resolved, RoleClientsWithSignal } from "@orb/inference";
-import { generationOf } from "@orb/inference";
+import type { ProviderExecutor, Resolved, RoleClientsWithSignal, SideGenSampling } from "@orb/inference";
+import { generationOf, resolveSideGenSampling } from "@orb/inference";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
-import type { SideGenSampling } from "@orb/kit/side-gen-posture";
-import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
 import type { AssetsService } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
 import type { ChatUserMacroDefs, ResolveViewerVisibility } from "#domain/chat";

@@ -1,13 +1,12 @@
-// @orb/kit/side-gen-posture — the PURE resolver for a side-generation call's sampling posture.
+// The PURE resolver for a side-generation call's sampling posture.
 //
 // Every side-generation call site (arbitration, quiet generation, compaction, distillation, analysis,
 // greeting studio, /autobg, caption) resolves its sampling through ONE ladder instead of a hardcoded const:
 //
 //   the caller's preset `params`  →  a floor default (data)
 //
-// TWO rungs, no third: a per-template sampling override on the preset's guided actions was DELETED (owner
-// ruling 2026-08-01) — a guided generation runs at the preset's normal params like every other turn. The
-// preset params are the ONE user-owned rung; the floor is per-site data.
+// TWO rungs, no third: a guided generation runs at the preset's normal params like every other turn. The
+// preset params are the ONE user-owned rung; the floor is per-site data (`SIDE_GEN_POSTURES`).
 //
 // This leaf owns only the FOLD — no I/O, no domain, no knowledge of WHICH preset a site reads (the server
 // resolves that and hands the params in). The fold is right-to-left with absent-skips: a knob present in the
@@ -20,13 +19,7 @@
 // The output vocabulary is `userIntentSchema`'s (`maxOutputTokens`, not `maxTokens`), which the summarize
 // role's `SummarizeOptions` also speaks, so a resolved posture is passed to it as-is.
 
-/** One rung / the resolved result — the three knobs the ladder folds. Each optional; absent = "defer / the
- *  runner default stands". A superset object (e.g. a full `UserIntent`) satisfies this structurally. */
-export interface SideGenSampling {
-  readonly temperature?: number | undefined;
-  readonly topP?: number | undefined;
-  readonly maxOutputTokens?: number | undefined;
-}
+import type { SideGenSampling } from "../contract/side-gen.ts";
 
 /** Fold one field: the higher rung wins when present, else the accumulated lower value. */
 function pick(higher: number | undefined, lower: number | undefined): number | undefined {

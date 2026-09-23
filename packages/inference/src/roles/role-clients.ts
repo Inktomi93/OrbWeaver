@@ -6,7 +6,7 @@
 // getters: model, capability and connection id in one object, read live.
 
 import type { Principal } from "@orb/contracts/identity";
-import type { Task } from "@orb/contracts/inference";
+import type { Task, UnavailableCause } from "@orb/contracts/inference";
 import { acceptsForcedToolChoice, canFund } from "@orb/contracts/inference";
 import type { EmbedResult, ImageEmbedResult, RerankResult, SummarizeResult } from "@orb/contracts/providers";
 import type { ImageEmbedInput, RerankDocument, RerankQuery, ResponseFormat, SummarizeInput } from "@orb/contracts/role-clients";
@@ -15,7 +15,7 @@ import type { ProviderExecutor } from "../contract/backend.ts";
 import { ProviderError } from "../contract/errors.ts";
 import type { ResolvedEmbedKnobs } from "../contract/resolve.ts";
 import type { Resolved } from "../contract/resolved.ts";
-import type { EmbedRequest, RoleClientsWithSignal, SideGenSampling, StructuredCallOptions, SummarizeCallOptions } from "../contract/roles.ts";
+import type { EmbedRequest, RoleClientsWithSignal, StructuredCallOptions, SummarizeCallOptions, TaskSampling } from "../contract/roles.ts";
 import type { RoleClientsFor } from "../contract/runtime.ts";
 import type { BindingActor, InferenceDeps } from "../deps.ts";
 import { resolveEmbed } from "../funnel/resolve-embed.ts";
@@ -28,7 +28,7 @@ type DeriveTask = (typeof DERIVE_TASKS)[number];
 
 /** The caller's options onto the backend request. The role surface speaks `maxOutputTokens` (the posture
  *  vocabulary); the backend request keeps `maxTokens`, so this is the one place the name changes. */
-function samplerFields(opts: SummarizeCallOptions | undefined): SideGenSampling {
+function samplerFields(opts: SummarizeCallOptions | undefined): TaskSampling {
   return {
     ...(opts?.maxOutputTokens !== undefined ? { maxTokens: opts.maxOutputTokens } : {}),
     ...(opts?.temperature !== undefined ? { temperature: opts.temperature } : {}),
@@ -76,10 +76,21 @@ function resolveVehicle(format: ResponseFormat, deployment: ReturnType<Inference
   return { ...format, vehicle: facts.structured ? "response-format" : "forced-tool" };
 }
 
-/** The refusal a background task meets on a row whose owner turned background work off. One home, so a caller
- *  that learns the cause another way tells the user the same thing the role call does. */
-export function backgroundWorkRefusal(task: Task): NoConnectionError {
-  return new NoConnectionError(`the connection bound for "${task}" does not allow background work — enable it in Connections`);
+/** What the user is told per availability cause — a mapped Record, so a new `UNAVAILABLE_CAUSES` member fails
+ *  `tsc` here. */
+const REFUSAL_TEXT: Record<UnavailableCause, (task: Task) => string> = {
+  "no-connection": (task) => `no ${task} connection is bound for this user — bind one in Connections`,
+  "endpoint-unreachable": (task) => `the connection bound for "${task}" is unreachable right now`,
+  "runtime-missing": (task) => `the connection bound for "${task}" needs the Claude runtime, which is not installed on this server`,
+  "background-refused": (task) => `the connection bound for "${task}" does not allow background work — enable it in Connections`,
+  "requirement-unmet": (task) => `the model bound for "${task}" cannot do this task — pick another in Connections`,
+  unavailable: (task) => `the connection bound for "${task}" uses a backend this server does not run`,
+};
+
+/** The refusal for a task that cannot run, named by its availability cause. One home, so a caller that learns
+ *  the cause from the availability verdict tells the user the same thing the role call does. */
+export function unavailableRefusal(task: Task, cause: UnavailableCause): NoConnectionError {
+  return new NoConnectionError(REFUSAL_TEXT[cause](task));
 }
 
 function providerFailureOf(err: unknown): ProviderError | null {
@@ -142,7 +153,7 @@ export function createRoleClientsFor(args: {
       // The owner's per-row consent to unattended spend: a background task on a row that withholds it runs
       // nothing, and reads as the same "nothing ran" class as no binding (the callers' existing degrade).
       if (!canFund(resolved, task)) {
-        throw backgroundWorkRefusal(task);
+        throw unavailableRefusal(task, "background-refused");
       }
       return resolved as Resolved<T>;
     };

@@ -7,10 +7,10 @@
 
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { characters, refineryRuns } from "@orb/db";
+import type { SideGenSampling } from "@orb/inference";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { Handle, RefinerySessionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { SideGenSampling } from "@orb/kit/side-gen-posture";
 import { RefineryOutputBudgetError, RefineryRunFailedError, RefineryStageNotReadyError } from "@orb/server/domain/refinery";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../../../support/db.ts";

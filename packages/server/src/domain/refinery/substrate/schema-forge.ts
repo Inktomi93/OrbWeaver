@@ -27,6 +27,7 @@
 // THE THREE ARMS are the owner's "we should have options" (2026-08-09). Dispatched through an exhaustive
 // Record — a new `RefineryForgeArm` without a runner is a tsc error (§5.5).
 
+import { dropNullValues } from "@orb/contracts/inference";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { resolveProseText } from "@orb/contracts/prose";
@@ -41,16 +42,14 @@ import {
   transpileForgeDesign,
 } from "@orb/contracts/refinery";
 import type { RoleClients, StructuredOptions, SummarizeOptions } from "@orb/contracts/role-clients";
-import { runStructuredTurn, StructuredOutputError } from "@orb/inference";
+import { resolveSideGenSampling, runStructuredTurn, StructuredOutputError } from "@orb/inference";
 import type { UserId } from "@orb/kit/ids";
-import { dropNullValues, projectJsonSchema } from "@orb/kit/json-schema";
-import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
+import { projectJsonSchema } from "@orb/kit/json-schema";
 import { z } from "zod";
-import { addSpanEvent } from "#foundation/observability";
+import { addSpanEvent, traceStructuredRetry } from "#foundation/observability";
 import type { RefineryContext } from "../context.ts";
 import type { ForgeTurnArgs } from "../contract/prompts.ts";
 import type { SchemaForgeResult } from "../contract/results.ts";
-import { traceStructuredRetry } from "./structured-retry-trace.ts";
 
 /** The `{{core}}` splice per stage — what the WELL-KNOWN CORE is, stated as a fact the author does not
  *  author. The transpiler injects the node itself, so this text exists to stop the model spending a field

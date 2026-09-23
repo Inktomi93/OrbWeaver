@@ -36,8 +36,8 @@ import {
   storeTier0,
   summarizeConsolidationBatch,
   summarizeDigestBatch,
-} from "../memory/build/digests.ts";
-import { collectSegments, storeSegments } from "../memory/build/segments.ts";
+} from "../memory/generate/digests.ts";
+import { collectSegments, storeSegments } from "../memory/generate/segments.ts";
 import { loadWitnessHorizons } from "../memory/persistence/queries.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { classifyParticipant } from "../persistence/participant.ts";

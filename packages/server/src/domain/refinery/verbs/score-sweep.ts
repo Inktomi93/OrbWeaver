@@ -38,19 +38,18 @@ import type { RefineryScorePayload, RefineryScoreSweepResult, RefinerySelection 
 import { REFINERY_STAGE_PAYLOADS } from "@orb/contracts/refinery";
 import type { RoleClients, StructuredOptions } from "@orb/contracts/role-clients";
 import type { ReportProgress } from "@orb/contracts/workloads";
+import type { SideGenSampling } from "@orb/inference";
 import { runStructuredTurn } from "@orb/inference";
 import type { UserId } from "@orb/kit/ids";
-import type { SideGenSampling } from "@orb/kit/side-gen-posture";
 import { estimateTokens } from "@orb/kit/tokens";
 import type { RefineryScoreTarget } from "#domain/character";
-import { getLog } from "#foundation/observability";
+import { getLog, traceStructuredRetry } from "#foundation/observability";
 import type { ScoreSweepOptions } from "../contract/params.ts";
 import type { StageEstimateSubject } from "../contract/prompts.ts";
 import type { RefineryWorkloadDeps, ScoreSweep } from "../contract/service.ts";
 import { outputEstimateOf, resolveStageSampling } from "../substrate/output-budget.ts";
 import { buildScorePrompt, defaultSelectionOf } from "../substrate/refine-prompt.ts";
 import { REFINERY_RESPONSE_FORMATS } from "../substrate/stage-resolution.ts";
-import { traceStructuredRetry } from "../substrate/structured-retry-trace.ts";
 import { summarizerFactsOf } from "../substrate/summarizer.ts";
 
 /** The sweep's score MODE, recorded as a default rather than a knob: a library pass is TRIAGE — it keeps

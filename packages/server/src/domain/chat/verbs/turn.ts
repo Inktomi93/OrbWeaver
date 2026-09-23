@@ -24,9 +24,9 @@ import { PRESET_FORMAT_SLOT_IDS, SIDE_GEN_POSTURES } from "@orb/contracts/preset
 import { composeProse, legacyProseOverrides, resolveProseText } from "@orb/contracts/prose";
 import { batchMany, isConstraintViolation } from "@orb/db/kit";
 import type { Resolved, WireTool } from "@orb/inference";
+import { resolveSideGenSampling } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId, MessageId, PendingTurnId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MacroFreeze, MacroRegistry, UserMacroDef } from "@orb/kit/macro";
-import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
 import { foreignLabelStops } from "@orb/kit/speaker-label";
 import { getLog, withRequestSpan } from "#foundation/observability";
 import type { ChatContext } from "../context.ts";

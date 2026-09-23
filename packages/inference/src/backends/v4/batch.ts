@@ -11,7 +11,7 @@ import type { ImageInput, ResponseFormat } from "@orb/contracts/role-clients";
 import { ProviderError } from "../../contract/errors.ts";
 import type { ResolvedWarning } from "../../contract/resolve.ts";
 import type { Resolved } from "../../contract/resolved.ts";
-import type { SideGenSampling, StructuredRequest, SummarizeRequest, SummarizeRequestItem } from "../../contract/roles.ts";
+import type { StructuredRequest, SummarizeRequest, SummarizeRequestItem, TaskSampling } from "../../contract/roles.ts";
 import type { InferenceLog } from "../../deps.ts";
 import { providerErrorFromHttp } from "../kit/error-classify.ts";
 import type { NormalizeImageBytes } from "../kit/image-normalize.ts";
@@ -36,7 +36,7 @@ export interface BatchRequest {
   readonly task: "summarize" | "structured";
   readonly inputs: readonly SummarizeRequestItem[];
   readonly responseFormat: ResponseFormat | undefined;
-  readonly sampling: SideGenSampling;
+  readonly sampling: TaskSampling;
   readonly signal: AbortSignal | undefined;
 }
 

@@ -10,7 +10,7 @@ import { chatDigests, embedGenerations, userConnections } from "@orb/db";
 import type { CharacterId, EmbedGenerationId, Handle, UserConnectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
-import { generateDigests } from "../../../../../packages/server/src/domain/chat/memory/build/digests.ts";
+import { generateDigests } from "../../../../../packages/server/src/domain/chat/memory/generate/digests.ts";
 import { recallMemory } from "../../../../../packages/server/src/domain/chat/memory/recall/recall.ts";
 import { resolveGroupBucketCharacterId } from "../../../../../packages/server/src/domain/chat/substrate/group-bucket.ts";
 import { freshDb } from "../../../../support/db.ts";

@@ -1,4 +1,4 @@
-// domain/chat/memory/build/substrate/prompts — pins the PROSE-1 S1 contract: the digest/consolidation
+// domain/chat/memory/generate/substrate/prompts — pins the PROSE-1 S1 contract: the digest/consolidation
 // system prompts are SLOTS resolved against the caller's ProseOverrides (an empty override ⇒ the shipped
 // default, byte-identical to pre-PROSE-1), and the structural (non-slot) literals — the transcript label,
 // the numbered-facet join — are this module's own composition, never authorable.
@@ -9,7 +9,7 @@ import {
   consolidationUserPrompt,
   digestSystemPrompt,
   digestUserPrompt,
-} from "../../../../../../../packages/server/src/domain/chat/memory/build/substrate/prompts.ts";
+} from "../../../../../../../packages/server/src/domain/chat/memory/generate/substrate/prompts.ts";
 import { expect, test } from "../../../../../../support/fixtures.ts";
 
 describe("digest prompts", () => {

@@ -13,7 +13,7 @@
 // The capture is PER-CALL state (build a fresh parse per run) — a module-cached capture would pool one
 // call's payload onto another's (the per-turn-sink lesson).
 
-import { dropNullValues } from "@orb/kit/json-schema";
+import { dropNullValues } from "@orb/contracts/inference";
 import { z } from "zod";
 import type { StageParse } from "../contract/prompts.ts";
 

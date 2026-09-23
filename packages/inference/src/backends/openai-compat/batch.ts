@@ -13,9 +13,9 @@
 
 import type { JSONObject, LanguageModelV4CallOptions, LanguageModelV4GenerateResult } from "@ai-sdk/provider";
 import type { GenerationCapability } from "@orb/contracts/inference";
+import { scrubWireSchema } from "@orb/contracts/inference";
 import type { SummarizeResult } from "@orb/contracts/providers";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
-import { scrubWireSchema } from "@orb/kit/json-schema";
 import type { WireTool } from "../../contract/chat.ts";
 import { ProviderError } from "../../contract/errors.ts";
 import type { ResolvedWarning } from "../../contract/resolve.ts";

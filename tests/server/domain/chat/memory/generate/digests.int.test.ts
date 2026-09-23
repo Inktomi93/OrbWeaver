@@ -8,9 +8,9 @@ import type { RowMacroNameContext } from "@orb/kit/macro";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import type { EmbeddingsStoreOp, StoreDigestParams } from "../../../../../../packages/server/src/domain/chat/contract/context.ts";
-import { generateDigests } from "../../../../../../packages/server/src/domain/chat/memory/build/digests.ts";
-import { consolidationSystemPrompt } from "../../../../../../packages/server/src/domain/chat/memory/build/substrate/prompts.ts";
-import { blockHash } from "../../../../../../packages/server/src/domain/chat/memory/build/substrate/transcript.ts";
+import { generateDigests } from "../../../../../../packages/server/src/domain/chat/memory/generate/digests.ts";
+import { consolidationSystemPrompt } from "../../../../../../packages/server/src/domain/chat/memory/generate/substrate/prompts.ts";
+import { blockHash } from "../../../../../../packages/server/src/domain/chat/memory/generate/substrate/transcript.ts";
 import { loadDigestsForScope, loadWitnessHorizons } from "../../../../../../packages/server/src/domain/chat/memory/persistence/queries.ts";
 import type { MemoryLogEntry, MsgRow } from "../../../../../../packages/server/src/domain/chat/memory/types.ts";
 import { freshDb } from "../../../../../support/db.ts";
@@ -73,7 +73,7 @@ function upsertingStore(database: Db): { store: EmbeddingsStoreOp; digests: Stor
   return { store, digests };
 }
 
-describe("memory/build/digests", () => {
+describe("memory/generate/digests", () => {
   test("digests each complete aged-out block via the summarizer + stores the facets through embeddings.store", async () => {
     const chatId = await seedChat(db, "a");
     await seedTurns(db, chatId, aria, 4);
@@ -492,7 +492,7 @@ describe("memory/build/digests", () => {
   });
 });
 
-describe("memory/build/digests — adversarial (self-heal re-digest, tiering, token-guard, trigger discipline)", () => {
+describe("memory/generate/digests — adversarial (self-heal re-digest, tiering, token-guard, trigger discipline)", () => {
   test("a fresh chat does ZERO work: the summarize + embed fakes are NEVER touched (inv 10)", async () => {
     const chatId = await seedChat(db, "fresh");
     await seedTurns(db, chatId, aria, 2); // all inside the verbatim window → nothing aged out

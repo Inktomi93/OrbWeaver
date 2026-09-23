@@ -26,13 +26,12 @@ import { PLUGIN_ASSET_READ_MAX_BYTES, pluginToolWireName } from "@orb/contracts/
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import type { ImageInput, ResponseFormat } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
-import type { RoleClientsWithSignal } from "@orb/inference";
+import type { RoleClientsWithSignal, SideGenSampling } from "@orb/inference";
+import { resolveSideGenSampling } from "@orb/inference";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { AssetId, CharacterId, ChatId, PluginId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { liftJsonSchema, projectJsonSchema } from "@orb/kit/json-schema";
-import type { SideGenSampling } from "@orb/kit/side-gen-posture";
-import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
 import { packShowcaseBundle, readShowcaseManifest, SHOWCASE_PLUGIN_SLUGS } from "@orb/showcase-plugins";
 import type { AdminService } from "#domain/admin";
 import { can } from "#domain/admin";

@@ -19,7 +19,7 @@ import type {
   RefineryStage,
 } from "@orb/contracts/refinery";
 import type { ResponseFormat, RoleClients, SummarizeOptions } from "@orb/contracts/role-clients";
-import type { SideGenSampling } from "@orb/kit/side-gen-posture";
+import type { SideGenSampling } from "@orb/inference";
 import type { z } from "zod";
 
 /** One stage call's parse seam (built fresh per run — the capture is per-call state). */
