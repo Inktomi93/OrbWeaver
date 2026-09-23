@@ -3,7 +3,7 @@
 // `createCharacterSchema` at the flatten seam, not by a parallel import wire schema.
 //
 // SCOPE (this slice): the SillyTavern character-card path only. `ImportChatsInput` / `ImportPersonaInput`
-// (`history/export-import-portability.md` §5, PD-77) are the chats/personas waves — they need the chat-writer + the persona normalizer,
+// are the chats/personas waves — they need the chat-writer + the persona normalizer,
 // which are not built here.
 
 import type { CharacterHandle, PluginId } from "@orb/kit/ids";
@@ -24,7 +24,7 @@ export interface ImportCardInput {
 }
 
 /** `importCharacter` input — one ST card → one canonical character (this slice). The embedded chats/
- *  lorebook (the full importCharacter — `history/export-import-portability.md` §5) are the chats wave; here it is the card alone. */
+ *  lorebook (the full importCharacter) are the chats wave; here it is the card alone. */
 export interface ImportCharacterInput {
   readonly card: ImportCardInput;
 }

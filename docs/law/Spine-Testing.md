@@ -156,7 +156,7 @@ tested.
 ## 6. The "what to test" obligations, gathered
 
 - **The ~150 "preserve exactly" esoterica** (`Core-Planning-and-Checklists.md §C2`) — each load-bearing behavior becomes a named test at its mirror. Headliners: the GCM AAD byte-string `${userId}|${provider}`, the ZWSP in `neutralizeMacros`, the PNG dual-chunk + CRC, the vLLM death-couple pipe-watchdog, `storedVersion`-beats-probe, the last-owner / owner-immutability guard (D17), `deepMergeRequestBody` Layer-2 defense, every `ASSUMES(single-replica)`.
-- ~~**The differential oracle**~~ — RIPPED OUT 2026-08-22 (#428, owner: "we exceeded neo a while ago"). The `.parity` lane, its driver and its captured neo reference are gone; git preserves them, and the campaign record is `../architecture/history/neo-orb-parity-audit.md`. Nothing is measured against neo any more.
+- ~~**The differential oracle**~~ — RIPPED OUT 2026-08-22 (#428, owner: "we exceeded neo a while ago"). The `.parity` lane, its driver and its captured neo reference are gone; git preserves them. Nothing is measured against neo any more.
 - **Memory's chat-scoped semantics** — a "could silently regress" surface the oracle never covered either (memory is a rewrite, not a port). Each → a named `.int.test.ts` at the memory mirror.
 - **Serde round-trip** — import → export → reimport hash-identical, a `.contract.test` invariant on the one serde core (`docs/law/Spine-Config-and-Serialization.md` §7.3).
 

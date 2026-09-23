@@ -1,4 +1,4 @@
-// Policy: registry-context-via-mint (derive-modernization-audit.md §W3, G26 — the registry-context mint
+// Policy: registry-context-via-mint (the registry-context mint
 // sealed). The four registries (section/modal/settings-pane/chrome) share one byte-identical
 // context+read-hook+provider trio over a `Registry`/`ContributorRegistry` value, and
 // `createRegistryContext` IS that trio. A hand-rolled `createContext<XRegistry | null>(null)` anywhere else
@@ -53,7 +53,7 @@ const MAX_ALIAS_HOPS = 8;
 const MESSAGE =
   "a `createContext` typed over a registry lives outside the createRegistryContext mint — a hand-rolled " +
   "registry context+provider trio drifts from the ONE shape. Use `createRegistryContext<R>(name)` from " +
-  "`#lib` (packages/client/src/lib/create-registry-context.tsx). (derive-modernization-audit.md §W3 G26; " +
+  "`#lib` (packages/client/src/lib/create-registry-context.tsx). (" +
   "D72 — a machine ships WITH its seal.)";
 const UNREADABLE =
   "this call is spelled like React's `createContext` but the shared readers cannot place its binding, so whether it is the context constructor CANNOT be established. Reported rather than passed: the spelling alone is not the identity. (tooling/src/verify/gates/GATE-AUTHORING.md)";

@@ -1,8 +1,7 @@
-// Gate: no-form-state-in-useeffect (UI-Lib-TanStack-Form.md) — `useEffect` reading `form.state.values` /
+// Gate: no-form-state-in-useeffect — `useEffect` reading `form.state.values` /
 // `form.store` in its dep array is the pre-listener anti-pattern: re-renders the whole component on every
 // keystroke and can clobber unsaved typing on a refetch. Use form-level `listeners.onChange` with
-// `onChangeDebounceMs`, or `form.Subscribe` for UI-only reactivity (docs/architecture/history/
-// UI-Lib-TanStack-Form.md).
+// `onChangeDebounceMs`, or `form.Subscribe` for UI-only reactivity .
 //
 // THE SUBJECT IS THE READ, NOT ITS SPELLING (#1506): `form.state.values` and `form["state"]["values"]` are
 // the same dependency and the same defect, so the member chain is read through `lib/symbol-reference.ts`
@@ -109,7 +108,7 @@ function isInUseEffectDeps(node: Node): boolean {
 }
 
 const MESSAGE =
-  "`useEffect` reading `form.state.values` / `form.store` in its dep array is the pre-listener anti-pattern: re-renders the whole component on every keystroke and can clobber unsaved typing on a refetch. Use form-level `listeners.onChange` with `onChangeDebounceMs` (see docs/architecture/history/UI-Lib-TanStack-Form.md, listeners) — it knows which field changed and runs in the form lifecycle, not the render cycle. For UI-only reactivity, use `form.Subscribe` (same doc, Subscribe).";
+  "`useEffect` reading `form.state.values` / `form.store` in its dep array is the pre-listener anti-pattern: re-renders the whole component on every keystroke and can clobber unsaved typing on a refetch. Use form-level `listeners.onChange` with `onChangeDebounceMs` — it knows which field changed and runs in the form lifecycle, not the render cycle. For UI-only reactivity, use `form.Subscribe` (same doc, Subscribe).";
 
 export const gate = defineGate({
   id: "no-form-state-in-useeffect",

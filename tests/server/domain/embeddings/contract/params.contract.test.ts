@@ -6,7 +6,7 @@
 // The PD-34 `StoreParams` arms (DigestStoreParams / SegmentStoreParams) are PURE TS interfaces — there is
 // no zod schema to parse through, so their write shape is already `tsc`-enforced at every real producer;
 // a runtime "build a literal, assert its own fields back" block would be a tautology (no production call in
-// the loop) with zero coverage `tsc` doesn't already give. Removed 2026-07-10 (test-quality-review §7 R8).
+// the loop) with zero coverage `tsc` doesn't already give. Removed 2026-07-10.
 
 import { IMAGE_LENSES } from "@orb/contracts/embeddings";
 import type { SourceKind, SourceLens } from "../../../../../packages/server/src/domain/embeddings/contract/params.ts";

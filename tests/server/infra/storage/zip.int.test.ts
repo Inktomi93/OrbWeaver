@@ -1,5 +1,5 @@
 // infra/storage/zip — the untrusted-archive belt battery + the pack/extract round-trip (the security
-// integration lane for the portability delivery core, export-import-portability.md §3). The happy-path
+// integration lane for the portability delivery core). The happy-path
 // tests pin that packZip → extractZip round-trips bytes + paths; the ADVERSARIAL tests hand-craft each
 // attack (zip-slip, zip-bomb ratio, lying header, disallowed method, ZIP64, oversize, encrypted, too many
 // entries) and assert the whole archive is REJECTED with the right cause — never a partial extraction.

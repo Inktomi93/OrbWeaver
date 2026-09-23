@@ -318,7 +318,7 @@ const modals = createRegistry("modals", MODAL_SLOT_IDS, {
   savedRosters: savedRostersModal,
 });
 
-// The ONE chrome assembly (shell-chrome-unification.md §A/§D/§E-2, G8): `assembleChrome` DERIVES the rail
+// The ONE chrome assembly: `assembleChrome` DERIVES the rail
 // section + mapped modal-trigger entries and combines them with the feature-owned WIDGET entries into one
 // dupe-checked, zone-validated, canonically-ordered list; `createContributorRegistry` (the door mint, G8)
 // wraps it. An OPEN registry (CHROME_ZONES is the closed axis, entries are growth) delivered as a context

@@ -314,7 +314,7 @@ catalog:
   "@vitejs/plugin-react": ^6.0.3
 
   # --- client tooling: the ESLint gate + the @orb/client vite build (versions verified vs the live
-  #     registry 2026-07-02; setup + rule enumeration + pin reasons in proposed/client-tooling-setup.md) ---
+  #     registry 2026-07-02) ---
   # ESLint 10 is the NARROW supplement to biome (biome owns format + 400+ correctness rules): only the
   # rules biome can't do — react-hooks + React-Compiler diagnostics, TanStack Query/Router discipline,
   # tailwind compiled-class validation. Config: eslint.config.js (explicit-rules-only, no `recommended`).
@@ -364,9 +364,9 @@ catalog:
   # production stack, used MINIMALLY (~3 hand-written code-based routes: / · /login · /admin/*).
   # 1.170.17 is <24h-blocked; ^1.170.16 is the latest mature (caret adopts newer once mature).
   # NB: the FILE-BASED codegen (@tanstack/router-plugin + @tanstack/router-cli + routeTree.gen.ts) is
-  # DELIBERATELY DROPPED (UI-Arch §6.1, UI-Lib-TanStack-Router.md B#3/B#4): hand-written code-based
+  # DELIBERATELY DROPPED (UI-Arch §6.1): hand-written code-based
   # tree; type-safety = inference + one `declare module { Register }`, not codegen. The vite build does
-  # NOT wire tanstackRouter(). See proposed/client-tooling-setup.md §4.
+  # NOT wire tanstackRouter().
   "@tanstack/react-router": ^1.170.16
 # There is deliberately NO `esbuild@^0.25.0` override here any more (dropped 2026-08-07). It existed to
 # force "vite/vitest's bundled esbuild" up to 0.28.1 so the es2025 target would not be rejected — and the

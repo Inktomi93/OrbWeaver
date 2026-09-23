@@ -149,8 +149,7 @@ How tool configuration is derived:
 
 The coupling an import-graph CANNOT see: runtime branching on string-union "kind" keys. Without a
 canonical home an axis gets re-spelled inline at every dispatch site, so adding one variant turns into a
-scavenger hunt across dozens of files — the neo-tavern pain that motivated this rule, quantified per-axis
-in `../architecture/history/spine-typescript-archaeology-record.md`.
+scavenger hunt across dozens of files — the neo-tavern pain that motivated this rule.
 
 **The GOLD STANDARD to copy:** `workloads.kind` dispatches through `WorkloadContributions:
 { readonly [K in WorkloadKind]: WorkloadContribution<K> }`, asserted exhaustive + duplicate-free by

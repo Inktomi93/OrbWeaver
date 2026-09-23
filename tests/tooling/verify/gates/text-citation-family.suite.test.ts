@@ -27,12 +27,11 @@ test("the text-citation family keeps its two-sided proofs", () => {
  *  refusal, which exists where the runtime cannot see the hole: a citer corpus whose derivation resolved
  *  nothing is "I could not judge", not "the tree is clean". The complete-run pins hold the receipt pair,
  *  so a declaration that stopped being consumed reads as a missing receipt here rather than a quiet pass. */
-const DOCS_ROOT = "docs/architecture";
 const LAW_ROOT = "docs/law";
 const D_ADR = "docs/adr/0001-an-entry.md";
 const D_ADR_TEXT = "# An entry\n";
 const PD_ACTIVE = `${LAW_ROOT}/Core-Audits-and-Debt.md`;
-const PD_CLEARED = `${DOCS_ROOT}/history/Core-Debt-Cleared-Ledger.md`;
+const PD_CLEARED = `${LAW_ROOT}/Core-Debt-Cleared-Ledger.md`;
 const ANCHOR_TEXT = "export const anchor = 1;\n";
 
 /** Materialize the fixture the way `ops/policy-conformance.ts#runResourceExample` does — on DISK and in

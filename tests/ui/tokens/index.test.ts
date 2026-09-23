@@ -237,7 +237,7 @@ const LIGHT_DARK_TOKENS = [
 ] as const;
 
 // highlight + its foreground are POLARITY-INDEPENDENT (a text-mark BACKGROUND, never text) — the former
-// light-dark(X,X) no-op was collapsed to a single plain oklch (derive-modernization-audit §W6). They are
+// light-dark(X,X) no-op was collapsed to a single plain oklch. They are
 // deliberately NOT light-dark() like the 4 divergent intents above.
 const INTENT_PLAIN_TOKENS = ["color.highlight", "color.highlight-foreground"] as const;
 

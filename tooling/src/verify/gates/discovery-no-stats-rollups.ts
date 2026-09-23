@@ -1,4 +1,4 @@
-// stats-discovery-seam.md / Knowledge-Cluster.md §7 #7: discovery is SEMANTICS and computes NO usage
+// Knowledge-Cluster.md §7 #7: discovery is SEMANTICS and computes NO usage
 // rollup — the four stats rollup tables are stats' alone, and economics reach discovery ONLY as the
 // injected pre-aggregated ops. A dep-cruiser rule cannot hold this line (every `@orb/db` import resolves to
 // the barrel), so the seal is the TABLE'S DECLARATION HOME read through the shared module-origin reader: a
@@ -38,7 +38,7 @@ const STATS_ROLLUP_HOME: SealedHome = {
 
 const MESSAGE =
   "the stats rollup tables (ownerStats / characterStats / dailyStats / modelStats) are stats' alone — " +
-  "discovery is SEMANTICS and computes no usage rollup (stats-discovery-seam.md; Knowledge-Cluster.md §7 #7). " +
+  "discovery is SEMANTICS and computes no usage rollup (Knowledge-Cluster.md §7 #7). " +
   "Economics reach discovery ONLY through the injected pre-aggregated stats ops.";
 
 const FIX =

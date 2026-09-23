@@ -1,5 +1,5 @@
 // domain/world-info/contract/export — the standalone world-info-book EXPORT op: its DI bundle + op type +
-// result. Part of the uniform portability template (export-import-portability.md §1, W-worldinfo): the
+// result. Part of the uniform portability template (W-worldinfo): the
 // per-book primitive the delivery-core registry descriptor composes into its `exportAll` stream. PURE-READ +
 // serde: it reads the owner's `world_books` row + `world_entries` → the canonical `BulkImportLorebookInput`
 // and emits the portable `worlds/*.json` file via `#kit/serde/world-info` `buildWorldBookFile`. Owner-scoped

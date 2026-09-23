@@ -49,7 +49,7 @@ Wire schemas DERIVE from contract tuples (`z.enum(WORKLOAD_STATUSES)`, `chatApiS
 
 ## Esoteric / load-bearing
 
-1. **The rate-limit injectable `now()` clock seam.** The limiter's ONLY impurity: without it, rapid attempts straddling a fixed-window boundary split across two buckets and the N+1th never trips. Tests pin time through the seam. *(origin incident: `history/tier-4-5-archaeology-record.md`.)*
+1. **The rate-limit injectable `now()` clock seam.** The limiter's ONLY impurity: without it, rapid attempts straddling a fixed-window boundary split across two buckets and the N+1th never trips. Tests pin time through the seam. *(origin incident: .)*
 
 2. **The DB-backed limiter (multi-replica-correct).** Replaces per-process memory limiters (N× the cap under N replicas). Bucket key `scope:id:windowStart` (fixed window); the lazy sweep is a `LIKE 'scope:%'` prefix range scan on the PK, run best-effort on both outcomes; the atomic `INSERT … ON CONFLICT DO UPDATE … RETURNING count` avoids the SELECT-then-UPDATE race. The reference pattern for replacing an `ASSUMES(single-replica)` store with a shared one.
 

@@ -56,7 +56,7 @@ const REGEN_TYPE_CONFIGS = "pnpm exec node tooling/src/verify/cli.ts baseline ty
 const REGEN_READ_FIRST_COSTS = "pnpm exec node tooling/src/verify/cli.ts baseline read-first-costs";
 
 const GATES_DIR = "tooling/src/verify/gates";
-const DEFERRED_ROSTER_REL = "docs/architecture/history/Core-Enforcement-Deferred-Dropped.md";
+const DEFERRED_ROSTER_REL = "docs/law/Core-Enforcement-Deferred-Dropped.md";
 /** A trigger cell that has ALREADY been adjudicated. Caps are the document's own convention for a resolved
  *  row, and the words are its own vocabulary — not a grammar invented here. */
 const RESOLVED_TRIGGER = /\b(PROMOTED|DROPPED|SUPERSEDED|UPGRADED|RETIRED)\b/;
@@ -196,7 +196,7 @@ export function readFirstCostsDrift(root: string): LedgerFreshness {
 
 /** THE DEFERRED ROSTER HALF, held against the tree (#2008).
  *
- *  `Core-Enforcement-Deferred-Dropped.md` lists neo gates "not yet ported, with activation trigger". It is
+ *  `docs/law/Core-Enforcement-Deferred-Dropped.md` lists neo gates "not yet ported, with activation trigger". It is
  *  ONE-SIDED: a row turns into a lie the moment its trigger fires and the gate lands, and nothing noticed.
  *  Measured 2026-09-12: 8 of the 28 rows name a gate that is LIVE, and FIVE of those still read as
  *  not-yet-ported — `assets-single-writer`, `suppressions`, `bus-payload-allowlist`, `dangling-refs`,

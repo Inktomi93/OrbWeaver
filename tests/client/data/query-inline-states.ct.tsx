@@ -1,4 +1,4 @@
-// CT: `<QueryInlineStates>` (derive-modernization-audit §W4) — the non-suspense pending/error/empty
+// CT: `<QueryInlineStates>` — the non-suspense pending/error/empty
 // status line: pending + empty render in `muted`, error in `destructive`, and a successful non-empty
 // read renders nothing (the caller's list shows beneath).
 import { QueryInlineStates } from "@orb/client/data";
