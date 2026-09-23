@@ -28,6 +28,7 @@ import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";
 import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts";
+import { symbolDeclarations, symbolIdentity, ultimateSymbol } from "../lib/symbol-declarations.ts";
 import {
   ownReturnExpressions,
   readAnnotatedZodOutputTwin,
@@ -55,9 +56,9 @@ export declare function object<const Shape extends Readonly<Record<string, ZodTy
 `;
 
 const MESSAGE =
-  "an exported Zod schema has no semantic output owner. Derive its public output with z.infer/z.output, bind an intentional authored ZodType<T> twin (checked by zod-output-twin-parity), expose it through a parameterized schema factory, or record an evidence-backed schema-only boundary in the central reviewed-grant table.";
+  "an exported Zod schema has no semantic output owner. Derive its public output with z.infer/z.output, bind an intentional authored ZodType<T> twin (checked by zod-output-twin-parity), expose it through a parameterized schema factory, or record an evidence-backed schema-only boundary in the central reviewed-grant table. (tooling/src/verify/gates/zod-output-twin-parity.ts)";
 const UNREADABLE =
-  "an exported Zod schema candidate could not be resolved to a readable canonical declaration or output type. The ownership census refuses unreadable exports rather than treating them as absent.";
+  "an exported Zod schema candidate could not be resolved to a readable canonical declaration or output type. The ownership census refuses unreadable exports rather than treating them as absent. (tooling/src/verify/gates/zod-export-membership.ts)";
 const FIX =
   "add a semantic output owner; for a deliberately schema-only public boundary add one central reviewed grant whose subject is this canonical declaration path and whose operation is the reported schema-only-export key.";
 
@@ -91,21 +92,13 @@ function normalizedPath(node: MorphNode): string {
 }
 
 function declaredByZod(type: Type): boolean {
-  const declarations = type.getSymbol()?.getDeclarations() ?? [];
+  const declarations = symbolDeclarations(type.getSymbol());
   return declarations.some((declaration) => normalizedPath(declaration).includes(ZOD_PACKAGE_SEGMENT));
 }
 
 function readableZodSchema(type: Type): boolean {
   const output = type.getProperty("_output");
   return output !== undefined && declaredByZod(type);
-}
-
-function ultimateSymbol(symbol: MorphSymbol | undefined): MorphSymbol | undefined {
-  return symbol?.getAliasedSymbol() ?? symbol;
-}
-
-function symbolIdentity(symbol: MorphSymbol | undefined): object | undefined {
-  return ultimateSymbol(symbol)?.compilerSymbol;
 }
 
 function addExportIdentity(identities: Set<object>, symbol: MorphSymbol | undefined): void {
@@ -120,7 +113,7 @@ function exportedSymbolIdentities(files: readonly import("ts-morph").SourceFile[
   for (const sourceFile of files) {
     for (const exported of sourceFile.getExportSymbols()) {
       addExportIdentity(identities, exported);
-      for (const declaration of exported.getDeclarations()) {
+      for (const declaration of symbolDeclarations(exported)) {
         if (Node.isExportSpecifier(declaration)) {
           addExportIdentity(identities, declaration.getLocalTargetSymbol());
         }
@@ -226,7 +219,7 @@ function objectPropertyInitializer(expression: Expression, propertyName: string,
 
 function declaredAliasInitializer(symbol: MorphSymbol | undefined): Expression | undefined {
   let resolved: Expression | undefined;
-  for (const declaration of ultimateSymbol(symbol)?.getDeclarations() ?? []) {
+  for (const declaration of symbolDeclarations(ultimateSymbol(symbol))) {
     if (Node.isVariableDeclaration(declaration) || (Node.isPropertyDeclaration(declaration) && declaration.isStatic())) {
       const initializer = declaration.getInitializer();
       if (initializer !== undefined) {
@@ -417,7 +410,8 @@ function aggregateSchemaCandidates(declaration: SchemaDeclaration): readonly Sch
 
 function callableReturnType(declaration: FunctionDeclaration | VariableDeclaration): Type | undefined {
   if (Node.isFunctionDeclaration(declaration)) {
-    const signatures = declaration.getSymbol()?.getDeclarations().filter(Node.isFunctionDeclaration) ?? [declaration];
+    const symbol = declaration.getSymbol();
+    const signatures = symbol === undefined ? [declaration] : symbolDeclarations(symbol).filter(Node.isFunctionDeclaration);
     for (const signature of signatures) {
       const returnType = signature.getReturnType();
       if (readableZodSchema(returnType)) {
@@ -432,7 +426,8 @@ function callableReturnType(declaration: FunctionDeclaration | VariableDeclarati
 
 function factoryDeclarations(declaration: FunctionDeclaration | VariableDeclaration): readonly MorphNode[] {
   if (Node.isFunctionDeclaration(declaration)) {
-    return declaration.getSymbol()?.getDeclarations().filter(Node.isFunctionDeclaration) ?? [declaration];
+    const symbol = declaration.getSymbol();
+    return symbol === undefined ? [declaration] : symbolDeclarations(symbol).filter(Node.isFunctionDeclaration);
   }
   const initializer = declaration.getInitializer();
   return initializer !== undefined && (Node.isArrowFunction(initializer) || Node.isFunctionExpression(initializer)) ? [initializer] : [];
@@ -542,7 +537,7 @@ function zodDerivedTarget(typeNode: TypeReferenceNode): object | undefined {
   if (utility === undefined || !["infer", "output"].includes(utility.getName())) {
     return;
   }
-  if (!utility.getDeclarations().some((declaration) => normalizedPath(declaration).includes(ZOD_PACKAGE_SEGMENT))) {
+  if (!symbolDeclarations(utility).some((declaration) => normalizedPath(declaration).includes(ZOD_PACKAGE_SEGMENT))) {
     return;
   }
   const argument = typeNode.getTypeArguments()[0];
