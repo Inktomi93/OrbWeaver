@@ -38,7 +38,7 @@ The work items under `docs/work/` carrying `plan: doc-migration` hold each task'
 
 | Site | Which task |
 | - | - |
-| `docs/architecture/core/Core-Path-Registry.md`, `docs/architecture/core/Core-Laws-and-Precedents.md` | ledger split |
+| `docs/adr/` (the ledger split wrote one decision per file and deleted the registry and its index doc) | ledger split |
 | `tooling/src/verify/contract/resource-document.ts` (the ledger resource), `tooling/src/verify/gates/d-citation-integrity.ts` | ledger split |
 | `docs/architecture/core/*.md`, `AGENTS.md`, `.claude/rules/*.md`, `.claude/skills/**` (path citations) | law move |
 | `tooling/src/verify/lib/dangling-ref-corpus.ts`, `tooling/src/verify/lib/dangling-ref-citations.ts`, `tooling/src/verify/lib/selection.ts` | law move |

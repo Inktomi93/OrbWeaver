@@ -63,7 +63,7 @@ const RESOLUTION_PREFIXES = [
 
 const MESSAGE =
   "a backticked file path in a D-ledger entry does not resolve on the tree — the file was renamed or " +
-  "deleted but the ledger still directs readers to it. See Core-Path-Registry.md";
+  "deleted but the ledger still directs readers to it. The ledger is one decision per file, indexed by docs/adr/README.md.";
 
 /** The whole remedy, on the descriptor AND on every finding: the repair first, then the door for the one
  *  class the repair does not fit. The door spells the exact carrier comment and the exact position
@@ -138,12 +138,12 @@ export const gate = defineGate({
   analysis: "resource",
   execution: "entire-population",
   facts: [],
-  resources: [{ kind: "ledger", id: "core-path-registry" }, { kind: "tracked-files" }],
+  resources: [{ kind: "ledger", id: "d-ledger" }, { kind: "tracked-files" }],
   message: MESSAGE,
   fix: FIX,
   create: (ctx) => ({
     evaluate: () => {
-      const ledger = readyResourceValue(ctx.resources.ledger("core-path-registry"));
+      const ledger = readyResourceValue(ctx.resources.ledger("d-ledger"));
       const tracked = readyResourceValue(ctx.resources.trackedFiles()).repoPaths;
       const trackedSet = new Set(tracked);
       // Build a suffix index for domain-relative path resolution
@@ -186,7 +186,7 @@ export const gate = defineGate({
     {
       mode: "resource",
       files: {
-        "docs/architecture/core/Core-Path-Registry.md": "- **D1** — `domain/chat/verbs/nonexistent-file.ts` is the home for chat reads.\n",
+        "docs/adr/0001-an-entry.md": "- **D1** — `domain/chat/verbs/nonexistent-file.ts` is the home for chat reads.\n",
       },
       expect: { count: 1, token: "domain/chat/verbs/nonexistent-file.ts" },
       why: "the founding defect: a backticked file path in a D-entry that names a file not on the tree — the exact rot class this gate exists to catch",
@@ -194,7 +194,7 @@ export const gate = defineGate({
     {
       mode: "resource",
       files: {
-        "docs/architecture/core/Core-Path-Registry.md": "- **D2** — See `packages/server/src/domain/deleted/service.ts` for the implementation.\n",
+        "docs/adr/0001-an-entry.md": "- **D2** — See `packages/server/src/domain/deleted/service.ts` for the implementation.\n",
       },
       expect: { count: 1, token: "packages/server/src/domain/deleted/service.ts" },
       why: "a fully-qualified packages/ path that does not exist on the tree — the typical shape after a domain delete or rename",
@@ -204,7 +204,7 @@ export const gate = defineGate({
     {
       mode: "resource",
       files: {
-        "docs/architecture/core/Core-Path-Registry.md":
+        "docs/adr/0001-an-entry.md":
           "<!-- @orb-waive ledger-symbol-liveness(domain/chat/verbs/illustrative-only.ts): an illustrative path in the entry's own prose, never a file on the tree. Ends if the entry cites a real home. -->\n" +
           "- **D1** — a read verb shaped like `domain/chat/verbs/illustrative-only.ts` owns the chat read.\n",
       },
@@ -213,15 +213,14 @@ export const gate = defineGate({
     {
       mode: "resource",
       files: {
-        "docs/architecture/core/Core-Path-Registry.md":
-          "- **D1** — `domain/chat` is the chat domain home.\n- **D2** — the `can()` kernel is the one permission site.\n",
+        "docs/adr/0001-an-entry.md": "- **D1** — `domain/chat` is the chat domain home.\n- **D2** — the `can()` kernel is the one permission site.\n",
       },
       why: "backticked text without a `/` and extension is not a file path and must not trigger — `can()` is a function call, `domain/chat` has no extension",
     },
     {
       mode: "resource",
       files: {
-        "docs/architecture/core/Core-Path-Registry.md": "- **D1** — entry.\n",
+        "docs/adr/0001-an-entry.md": "- **D1** — entry.\n",
         "packages/server/src/domain/chat/verbs/read.ts": "export const x = 1;\n",
       },
       why: "no backticked file paths in the ledger text means no findings — a clean ledger stays clean",

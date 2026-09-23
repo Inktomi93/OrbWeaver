@@ -1,4 +1,4 @@
-// Policy: no-rejected-cors-proxy (Core-Path-Registry.md D61 / B5a) — the `corsproxy.io` half of the old
+// Policy: no-rejected-cors-proxy (D61 / B5a) — the `corsproxy.io` half of the old
 // `no-raw-egress` module, split off because its AUTHORITY is different. Routing egress through the
 // named-rejected third-party CORS proxy was decided against in D61; there is no home that may do it and
 // no occurrence that could earn a marker, so the policy is HARD and carries no suppression door at all.
@@ -55,7 +55,7 @@ const STRING_KINDS: readonly SyntaxKind[] = [
 const MESSAGE =
   "`corsproxy.io` spelled in server source — the NAMED-REJECTED third-party CORS proxy (D61 B5a). Egress " +
   "never routes through it: a third party would see every URL, header and body the server sends. See " +
-  "Core-Path-Registry.md D61 (B5a).";
+  "docs/adr/0061-d61.md (B5a).";
 const FIX = "delete the proxy host; route the request through `safeFetch` (infra/network) directly to the real origin.";
 
 /** The TemplateHead proof row's fixture source. It must carry a real interpolation, so the placeholder

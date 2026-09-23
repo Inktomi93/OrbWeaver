@@ -49,7 +49,7 @@
 //     live law; not ts-morph project files either (`DEFAULT_GLOBS` is `.ts`/`.tsx` only).
 //
 // Docs updated OUTSIDE this script (not ts-morph project files): `docs/design/vocabulary-map.md` row 155
-// (LANDED) and the two `docs/architecture/core/Core-Path-Registry.md` D122 mentions.
+// (LANDED) and the two D122 mentions.
 //
 // Preview:  NODE_OPTIONS=--max-old-space-size=16384 node scripts/codemods/rename-roster-tail.ts
 // Apply:    NODE_OPTIONS=--max-old-space-size=16384 node scripts/codemods/rename-roster-tail.ts --apply

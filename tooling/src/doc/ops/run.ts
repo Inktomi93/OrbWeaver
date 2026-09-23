@@ -49,18 +49,6 @@ function runDue(patterns: readonly string[]): ExitCode {
   return EXIT.clean;
 }
 
-function runMigrate(command: Extract<DocCommand, { kind: "migrate-ledger" }>): ExitCode {
-  const outcome = migrateLedger(command.range, command.apply);
-  for (const line of outcome.planned) {
-    print(line);
-  }
-  if (!command.apply && outcome.refusals.length === 0) {
-    print(`doc migrate-ledger — dry run; ${String(outcome.planned.length)} ruling(s) would move (add --apply)`);
-    return EXIT.clean;
-  }
-  return report("migrate-ledger", outcome);
-}
-
 export function runDocCommand(command: DocCommand): ExitCode {
   switch (command.kind) {
     case "help":
@@ -102,7 +90,7 @@ export function runDocCommand(command: DocCommand): ExitCode {
       }
       return EXIT.clean;
     case "migrate-ledger":
-      return runMigrate(command);
+      return report("migrate-ledger", migrateLedger());
     default:
       return assertNever(command);
   }

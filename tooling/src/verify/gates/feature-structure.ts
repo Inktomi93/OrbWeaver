@@ -5,7 +5,7 @@
 // is a structural fact, not a syntax one.
 //
 // Documented exceptions to "only index/service/context at root":
-// - `guard.ts` is a ratified, cross-domain 9th slot (Core-Laws-and-Precedents.md "Committed decisions" —
+// - `guard.ts` is a ratified, cross-domain 9th slot (the committed identity decisions —
 //   the `can()` authority seam: `requireAdmin` lives in `domain/admin/guard.ts`). It's an I/O-touching,
 //   non-verb gate primitive — can't live in zero-I/O `substrate/`, isn't a verb. Allowed at ANY domain root.
 // - `workload-contributions.ts` is the ratified, cross-domain 10th slot (the workloads junk-drawer exit):
@@ -51,8 +51,8 @@ const REQUIRED_FILES = ["index.ts", "service.ts", "context.ts"] as const;
 const REQUIRED_DIRS = ["contract", "verbs"] as const;
 
 /** Cross-domain ratified root slots, allowed at ANY domain root:
- *  - `guard.ts` — the ratified `can()` authority-seam pattern (Core-Laws-and-Precedents.md,
- *    Identity/auth/permission "Committed decisions").
+ *  - `guard.ts` — the ratified `can()` authority-seam pattern
+ *    (`Spine-Identity-and-Auth.md`).
  *  - `teaching-contribution.ts` — the ONE home of a domain's S2 MODEL-TEACHING contributions (the
  *    teaching seam's exit: domains DECLARE what the model is told it can do + which registry tools attach,
  *    one chat-side collector folds them onto the single injection channel). A compose-built factory over

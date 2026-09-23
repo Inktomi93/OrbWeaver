@@ -150,7 +150,7 @@
               },
               {
                 "group": ["@orb/contracts/sessions", "@orb/contracts/sessions/**"],
-                "message": "D12 (the contract namespace is `session` singular; there is no `sessions`). The ledger killed this specifier by name — a reintroduction is banned; drop it or contest the D-cite in Core-Laws-and-Precedents.md. Pinned by tests/tooling/verify/lib/ledger-banned-shapes.int.test.ts."
+                "message": "D12 (the contract namespace is `session` singular; there is no `sessions`). The ledger killed this specifier by name — a reintroduction is banned; drop it or contest the D-cite in its docs/adr/ decision. Pinned by tests/tooling/verify/lib/ledger-banned-shapes.int.test.ts."
               },
               {
                 "group": ["dotenv", "dotenv/**", "dotenv-expand", "dotenv-expand/**"],

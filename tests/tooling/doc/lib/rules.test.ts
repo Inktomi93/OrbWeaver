@@ -7,7 +7,7 @@ import {
   expectedGeneratedFiles,
   itemTemplate,
   LEGACY_ROOTS,
-  nextFreeStatements,
+  nextFreeRulingId,
   planTemplate,
 } from "../../../../tooling/src/doc/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -33,8 +33,6 @@ function tree(docs: Readonly<Record<string, string>>, overrides: Partial<DocTree
     root: [...LEGACY_ROOTS, "adr", "plans", "work", "law", "Mission.md", "catalog"].map((name) => ({ name, directory: !name.endsWith(".md") })),
     docs: all,
     files: all.map((doc) => doc.path),
-    registryIds: new Set([1, 163]),
-    nextFreeNotes: [165],
     evidenceOnMain: new Set([ON_MAIN]),
     ...overrides,
   };
@@ -107,35 +105,22 @@ test("a plan needs its own folder with a design, and an archived plan is dated a
   expect(docProblems(archived)).toEqual([]);
 });
 
-test("an ADR id must be unique, unreserved and not still anchored in the legacy registry", () => {
+test("an ADR id must be unique and numbered; a re-minted reserved id is legal", () => {
   const twin = tree({ ...CLEAN, "docs/adr/0164-other.md": adrTemplate("Other", TODAY) });
   expect(docProblems(twin)).toContain(`docs/adr/0164-other.md: id 164 is already ${ADR}`);
-  const anchored = tree({ ...CLEAN, "docs/adr/0163-schema.md": adrTemplate("Schema", TODAY) });
-  expect(docProblems(anchored).some((line) => line.includes("id 163 is still anchored in the legacy registry"))).toBe(true);
-  const reserved = tree({ ...CLEAN, "docs/adr/0080-main-era.md": adrTemplate("Main era", TODAY) });
-  expect(docProblems(reserved)).toContain("docs/adr/0080-main-era.md: id 80 is inside the reserved range D79–D105");
+  // D86 is a main-era ruling re-minted with its original number inside the reserved window.
+  const reminted = tree({ ...CLEAN, "docs/adr/0086-main-era.md": adrTemplate("Main era", TODAY) });
+  expect(docProblems(reminted)).toEqual([]);
   const named = tree({ ...CLEAN, "docs/adr/notes.md": adrTemplate("Notes", TODAY) });
   expect(docProblems(named)).toContain("docs/adr/notes.md: an ADR file is NNNN-<slug>.md — mint one with pnpm doc new adr <slug>");
 });
 
-test("the registry's next-free note must be one past the highest id across the registry and the ADR tree", () => {
-  const stale = tree(CLEAN, { nextFreeNotes: [163] });
-  expect(docProblems(stale)).toEqual([
-    "docs/architecture/core/Core-Path-Registry.md: the next-free note says D163+ but the next free id is D165 — edit the note",
-  ]);
-  expect(docProblems(tree(CLEAN, { nextFreeNotes: [] }))).toEqual([]);
-});
-
-test("two next-free statements cannot coexist, and the reader catches every phrasing of one", () => {
-  const twice = tree(CLEAN, { nextFreeNotes: [159, 165] });
-  expect(docProblems(twice)).toEqual(["docs/architecture/core/Core-Path-Registry.md: two next-free notes (D159+, D165+) — keep the one that is right"]);
-  const registry = [
-    "Next free number for a genuinely new ruling is **D159+** (D86 was RE-MINTED as a live anchor).",
-    "**Next free number is D165+ (the ADR tree holds the rest).**",
-    "The next free slot in the drawer is not a D number.",
-  ].join(" ");
-  expect(nextFreeStatements(registry)).toEqual([159, 165]);
-  expect(nextFreeStatements("# bare\n")).toEqual([]);
+test("the next free id is one past the highest ADR and never lands in the reserved window", () => {
+  expect(nextFreeRulingId([1, 163, 164])).toBe(165);
+  expect(nextFreeRulingId([1, 78])).toBe(106);
+  // A re-minted reserved id below the ceiling does not pull the next id into the window.
+  expect(nextFreeRulingId([78, 86])).toBe(106);
+  expect(nextFreeRulingId([])).toBe(1);
 });
 
 test("two work items sharing one id is a finding, and so is done evidence that is not on main", () => {

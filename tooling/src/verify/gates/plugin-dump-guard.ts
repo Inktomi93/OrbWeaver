@@ -1,4 +1,4 @@
-// Policy: plugin-dump-guard (Core-Path-Registry.md D46; the plugin-host guest-traversal boundary,
+// Policy: plugin-dump-guard (D46; the plugin-host guest-traversal boundary,
 // docs/history/design/issue-712-gate-family.md) — guest-controlled values cross the QuickJS membrane only
 // through the canonical helper, and that helper's ITERATIVE handle guard must run BEFORE the
 // materialization. `ctx.dump` walks the guest structure on the HOST stack, so an unguarded deep object

@@ -1,10 +1,10 @@
 // Everything that TOUCHES the tree or git for the doc tool: the governed-docs walk, document reads and
-// formatted writes, the registry facts, and the git facts the pure rules judge. Every reader takes
+// formatted writes, and the git facts the pure rules judge. Every reader takes
 // the repository root so the tests drive it on a planted tree; git-dependent readers fail soft to an
 // empty fact, never to a throw, because a missing branch is a drift finding and not a tool crash.
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { CORE_PATH_REGISTRY_PATH, DOC_TOOL_TREE_PREFIXES, formatMarkdown, stableRulingAnchors } from "#doc-catalog";
+import { DOC_TOOL_TREE_PREFIXES, formatMarkdown } from "#doc-catalog";
 import { REPO_ROOT } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { runNicedSync } from "../../_shared/proc.ts";
@@ -12,7 +12,6 @@ import { inheritedProcessEnv } from "../../_shared/process-env.ts";
 import type { DocsRootEntry, DocTree, GovernedDoc } from "../contract/types.ts";
 import { allItems } from "../lib/generated.ts";
 import { isCommitId } from "../lib/items.ts";
-import { nextFreeStatements } from "../lib/rules.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm doc <verb>");
 
@@ -74,15 +73,6 @@ function docsRoot(repoRoot: string): readonly DocsRootEntry[] {
   return readdirSync(abs, { withFileTypes: true }).map((entry) => ({ name: entry.name, directory: entry.isDirectory() }));
 }
 
-/** The registry's anchored ids and its next-free statements, or empty when the legacy registry is gone. */
-export function registryFacts(repoRoot = root): Pick<DocTree, "registryIds" | "nextFreeNotes"> {
-  const abs = join(repoRoot, CORE_PATH_REGISTRY_PATH);
-  if (!existsSync(abs)) {
-    return { registryIds: new Set(), nextFreeNotes: [] };
-  }
-  return { registryIds: new Set([...stableRulingAnchors(repoRoot).keys()].map(Number)), nextFreeNotes: nextFreeStatements(readFileSync(abs, "utf8")) };
-}
-
 export function readDocTree(repoRoot = root): DocTree {
   const docs = governedPaths(repoRoot).map((path) => readDoc(path, repoRoot));
   const evidence = new Set(allItems(docs).flatMap((item) => (item.state === "done" && item.evidence !== null ? [item.evidence] : [])));
@@ -90,7 +80,6 @@ export function readDocTree(repoRoot = root): DocTree {
     root: docsRoot(repoRoot),
     docs,
     files: governedFiles(repoRoot),
-    ...registryFacts(repoRoot),
     evidenceOnMain: new Set([...evidence].filter((sha) => commitOnMain(sha, repoRoot))),
   };
 }

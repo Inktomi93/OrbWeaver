@@ -1,4 +1,4 @@
-// Policy: warning-code-coverage (Core-Path-Registry.md D41) — the emit-coverage ratchet for two warning-code
+// Policy: warning-code-coverage (D41) — the emit-coverage ratchet for two warning-code
 // vocabularies. A declared-never-emitted code is silently dead wire, which D41 bans.
 //
 // TWO CHANNELS, TWO INDEPENDENT DENOMINATORS, never summed: `WARNING_CODES`
@@ -107,8 +107,7 @@ const CHANNELS: readonly Channel[] = [
 ];
 
 const MESSAGE =
-  "a warning-code tuple member has NO emit site — a declared-never-emitted warning code is silently dead " +
-  "(D41 bans speculative codes). See Core-Path-Registry.md D41.";
+  "a warning-code tuple member has NO emit site — a declared-never-emitted warning code is silently dead (D41 bans speculative codes). See docs/adr/0041-d41.md.";
 const FIX =
   "wire the executable emit site in the channel's scope, or delete the code. For a deliberate exception, write an adjacent `@orb-waive warning-code-coverage(<position>): <why + end condition>` — the finding is anchored on the TUPLE MEMBER, so the position is the quoted literal INCLUDING its quotes (`\"never_emitted\"`), and the marker goes on the line above the tuple's own declaration.";
 

@@ -72,8 +72,7 @@ import { deferralsFor } from "../lib/bus-deferred-member.ts";
 import { busDefinitionFact } from "../lib/bus-definition-fact.ts";
 import { busProducerFact } from "../lib/bus-fact.ts";
 
-const MESSAGE =
-  "declared bus member has NO server emit site — a declared-never-emitted bus member is silently dead wire (D50; Core-Laws-and-Precedents.md §7 D50).";
+const MESSAGE = "declared bus member has NO server emit site — a declared-never-emitted bus member is silently dead wire (docs/adr/0050-d50.md).";
 
 const identityKey = ({ path, exportName }: BusDeclarationIdentity): string => `${path}#${exportName}`;
 

@@ -1,4 +1,4 @@
-// doc's shapes: the governed-tree snapshot the pure rules judge, the parsed ledger ruling, the work item,
+// doc's shapes: the governed-tree snapshot the pure rules judge, the work item,
 // and the closed command union the cli dispatches on. A new verb is a new arm here plus its handler.
 import type { ITEM_KINDS, ITEM_STATES } from "#doc-catalog";
 
@@ -17,38 +17,14 @@ export interface DocsRootEntry {
   readonly directory: boolean;
 }
 
-/** A D-number window, as `migrate-ledger --range` reads one. */
-export interface RulingRange {
-  readonly lo: number;
-  readonly hi: number;
-}
-
 /** Everything the pure rules read, resolved once per run by `ops/tree.ts`. */
 export interface DocTree {
   readonly root: readonly DocsRootEntry[];
   readonly docs: readonly GovernedDoc[];
   /** EVERY file under the governed trees, markdown or not, so a stray or a nested file is judged. */
   readonly files: readonly string[];
-  /** D numbers anchored in the legacy registry (both row shapes). */
-  readonly registryIds: ReadonlySet<number>;
-  /** Every number a "Next free number … is D<n>+" statement in the registry announces, in file order;
-   *  empty without one, and more than one is itself a finding. */
-  readonly nextFreeNotes: readonly number[];
   /** The `evidence` commits of done items that git proves reachable from `main`. */
   readonly evidenceOnMain: ReadonlySet<string>;
-}
-
-/** One ledger ruling as the splitter reads it. `body` is the ruling's markdown after its anchor. */
-export interface Ruling {
-  readonly id: number;
-  readonly title: string;
-  readonly body: string;
-  readonly shape: "bullet" | "section";
-}
-
-export interface RegistryParse {
-  readonly rulings: readonly Ruling[];
-  readonly duplicates: readonly number[];
 }
 
 /** The closed blocker vocabulary. A wake condition names a repository path and the presence that wakes
@@ -141,4 +117,4 @@ export type DocCommand =
   | { readonly kind: "due"; readonly patterns: readonly string[] }
   | { readonly kind: "overview" }
   | { readonly kind: "drift" }
-  | { readonly kind: "migrate-ledger"; readonly range: RulingRange | "all"; readonly apply: boolean };
+  | { readonly kind: "migrate-ledger" };
