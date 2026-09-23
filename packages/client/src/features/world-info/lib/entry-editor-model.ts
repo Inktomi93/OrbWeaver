@@ -25,7 +25,7 @@ export interface EntryFormValues {
   readonly ignoreBudget: boolean;
   /** auto (derive from keys) · always (force, ignore keys) · keyword (force, needs a key match). */
   readonly scopeMode: EntryScopeMode;
-  /** Which WI anchor bucket an always-scope, system-half entry joins (ST worldInfoBefore/After). */
+  /** Which WI anchor bucket a system-half entry joins (ST worldInfoBefore/After), always-scope or keyword. */
   readonly position: EntryPosition;
   /** Opt in to at-depth injection (splice into the chat history instead of the system half). */
   readonly injectEnabled: boolean;

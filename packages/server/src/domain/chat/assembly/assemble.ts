@@ -820,6 +820,21 @@ function scanStaticBusters(section: PromptSection, ctx: AssembleContext, busters
   }
 }
 
+/** Keyword-fired lore anchored at a world-info marker joins the per-turn half at the marker's place in the
+ *  prompt order, so it sits among the other per-turn sections where the preset author put the anchor. */
+function pushAnchoredKeywordLore(section: PromptSection, env: BuildEnv, acc: WalkAccum): void {
+  if (section.type !== "marker" || (section.marker !== "world_info_before" && section.marker !== "world_info_after")) {
+    return;
+  }
+  const lore = (section.marker === "world_info_before" ? env.ctx.worldInfoBeforeDynamic : env.ctx.worldInfoAfterDynamic)?.trim() ?? "";
+  if (lore.length === 0) {
+    return;
+  }
+  acc.dynamicParts.push(lore);
+  env.trace.dynamicSections.push(section.id);
+  pushSlices({ section, rendered: lore, env, acc, delivery: "system-half" });
+}
+
 /** Deliver ONE section: after-history injection (depth !== null) OR system-block (static/dynamic). */
 function walkSection(section: PromptSection, idx: number, env: BuildEnv, acc: WalkAccum): void {
   const depth = injectionDepthFor(section, idx, env.pivotIndex);
@@ -827,6 +842,7 @@ function walkSection(section: PromptSection, idx: number, env: BuildEnv, acc: Wa
     pushAfterHistory(section, depth, env, acc);
     return;
   }
+  pushAnchoredKeywordLore(section, env, acc);
   const dynamic = isSectionDynamic(section);
   if (!dynamic) {
     scanStaticBusters(section, env.ctx, acc.cacheBusters, env.registry);
