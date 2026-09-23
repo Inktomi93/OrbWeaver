@@ -106,6 +106,9 @@ export interface ChatScenarioOptions {
   /** The host's turn-behavior arm (FOREIGN — `UserSettings.chat`; PD-146). Default all-off ⇒ no custom
    *  stops, no auto-continue, no auto-swipe (byte-identical to today). */
   readonly chatBehavior?: ChatBehaviorInputs;
+  /** The resolved connection every turn runs on (its capability's `turns` facts drive SHAPE's system-row
+   *  delivery). Default the keyless test endpoint. */
+  readonly connection?: Resolved<"chat">;
   /** Capture each wire `TurnRequest` before the tape replays (feeds `assertStaticPrefixStable`). */
   readonly onRequest?: (req: TurnRequest) => void;
   /** A REAL bus emit to run BESIDE the in-memory `events` recorder (e.g. `createChatBus(ctx).emit`) — for the
@@ -264,7 +267,7 @@ async function buildChatScenario(script: Tape, options: ChatScenarioOptions): Pr
     emit,
     prng: seededPrng(),
     delay: () => Promise.resolve(),
-    resolveConnection: () => Promise.resolve(connectionOf()),
+    resolveConnection: () => Promise.resolve(options.connection ?? connectionOf()),
     resolveForeignInputs,
     // The REAL claim chokepoint (R0), not a stub: a turn driven through this harness claims its room exactly
     // as production does, so every suite riding the scenario covers the send/generate claim arms for free.

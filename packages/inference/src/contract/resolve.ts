@@ -62,11 +62,6 @@ export const WARNING_CODES = [
 ] as const;
 export type WarningCode = (typeof WARNING_CODES)[number];
 
-// Where the volatile dynamic system-prompt half rides: joined into the cached system string, or a
-// mid-conversation-system channel at the message tail (cache-safe) on a model that honors it.
-export const DYNAMIC_CONTEXT_CHANNELS = ["system-block", "message-tail"] as const;
-export type DynamicContextChannel = (typeof DYNAMIC_CONTEXT_CHANNELS)[number];
-
 /** The house default effort (owner ruling): a turn whose caller set neither an effort nor a quality runs a model
  *  that supports adaptive thinking (`reasoning.mode: "adaptive"`) at this effort, on every route. It outranks any
  *  model- or catalog-stated default; an explicit caller value, `none` included, always wins. */
@@ -123,7 +118,6 @@ export interface ResolvedChatKnobs {
    *  the policy has one home. The chat engine reads the same answer through `resolveCarryReasoning`. */
   readonly carryReasoning: CarryReasoning;
   readonly sampling: ResolvedSampling;
-  readonly dynamicContextChannel: DynamicContextChannel;
   readonly maxOutputTokens?: number | undefined;
   readonly verbosity?: Verbosity | undefined;
   /** Emit `modalities: ["text","image"]` on the wire — the preset asked (`replyMedia: text+image`) AND the

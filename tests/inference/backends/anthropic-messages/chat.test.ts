@@ -465,6 +465,23 @@ test("byte-equality: the FULL request body for a minimal deterministic turn — 
   });
 });
 
+// The per-turn system half sits in the system region, where the prompt order put it, on every model: a model
+// that takes mid-conversation system rows (opus-5) and one that refuses them (haiku-4-5) get the same `system[]`,
+// and neither moves the half below the history. The static block keeps the cache marker.
+test("the per-turn system half stays in system[] on a mid-conversation-system model and an older model alike", async () => {
+  for (const model of ["claude-opus-5", "claude-haiku-4-5"]) {
+    const { body } = await recordedTurn(
+      turnRequest({ connection: curatedConnection(model), tools: undefined, systemPrompt: { static: "STATIC", dynamic: "DYNAMIC" } }),
+      anthropicTextStream("ok"),
+    );
+    expect(body?.body["system"], model).toEqual([
+      { type: "text", text: "STATIC", cache_control: { type: "ephemeral", ttl: "1h" } },
+      { type: "text", text: "DYNAMIC" },
+    ]);
+    expect(JSON.stringify(body?.body["messages"]), model).not.toContain("DYNAMIC");
+  }
+});
+
 // ── preserved thinking on the prefix-bound models ────────────────────────────────────────────────────────
 // With `carryReasoning: "conversation"`, prior thinking rides back over a prefix the next turn can change (the
 // dynamic system block, window trimming). On a prefix-bound model a stale block is a 400 for new accounts unless
