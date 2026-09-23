@@ -9,7 +9,7 @@ import type { CharacterCard } from "@orb/contracts/character";
 import type { Db } from "@orb/db";
 import { characters, chatParticipants } from "@orb/db";
 import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { loadParticipants } from "../../../../../packages/server/src/domain/chat/persistence/participants-read.ts";
@@ -41,8 +41,8 @@ beforeEach(async () => {
 describe("chat.removeCharacterFromChat — the symmetric drop, driven through the real router + roster service", () => {
   test("the host removes a present character seat — leftSeq-stamped out of the roster read-model", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
-    const characterId = await seedCharacter(db, host, "aria");
-    const chatId: ChatId = await seedChat(db, "room");
+    const characterId = await seedCharacter(db, host, "aria", { id: mintTypeId(ID_PREFIX.character) });
+    const chatId: ChatId = await seedChat(db, "room", { id: mintTypeId(ID_PREFIX.chat) });
     await seedParticipant(db, { chatId, key: "room_h", userId: host, role: "host" });
 
     const roster = createParticipants(makeChatContext(db, { getCard: ownedCard(db) }), {
@@ -72,8 +72,8 @@ describe("chat.removeCharacterFromChat — the symmetric drop, driven through th
   test("a plain member caller is rejected — the seat stays present, unstamped", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const member = await seedUser(db, castId<Handle>("member"));
-    const characterId = await seedCharacter(db, host, "aria");
-    const chatId: ChatId = await seedChat(db, "room");
+    const characterId = await seedCharacter(db, host, "aria", { id: mintTypeId(ID_PREFIX.character) });
+    const chatId: ChatId = await seedChat(db, "room", { id: mintTypeId(ID_PREFIX.chat) });
     await seedParticipant(db, { chatId, key: "room_h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "room_m", userId: member, role: "member" });
 

@@ -18,8 +18,8 @@
 
 import type { RpgBusEvent } from "@orb/contracts/rpg";
 import type { StreamFrame } from "@orb/contracts/stream";
-import type { ChatId, SocketId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import type { SocketId, UserId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { ChatService } from "@orb/server/domain/chat";
 import { ChatNotFoundError } from "@orb/server/domain/chat";
 import { publishRpgEvent } from "@orb/server/domain/rpg";
@@ -29,8 +29,13 @@ import { describe, vi } from "vitest";
 import { expect, test } from "../../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../../_support.ts";
 
+// MINTED, never readable literals: these ids cross `typeIdSchema` tRPC inputs, which validate the TypeID suffix.
+const ID = {
+  chatRpg1: mintTypeId(ID_PREFIX.chat),
+} as const;
+
 const MEMBER = castId<UserId>("user_rpg_member");
-const CHAT = castId<ChatId>("chat_rpg_1");
+const CHAT = ID.chatRpg1;
 /** The unclamped attach probe a member resolves (`chat.chatEventBounds`). This room reads only its SUCCESS,
  *  never its fields: an rpg event carries no canon anchor, so there is no floor arm here. */
 const BOUNDS = { minSeq: 1, maxSeq: 3, historyFloorSeq: 0, viewerIsHost: false, reasoningHostOnly: false };
