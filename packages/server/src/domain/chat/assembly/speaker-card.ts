@@ -2,7 +2,10 @@
 // Given the ONE immutable turn ctx (the full resolved `characters` + its index-aligned
 // `speakerRefs` identities) and what this turn VOICES, pick the rendered character section
 // (`ctx.character`/`speaker`) and the co-speakers:
-//   • per-speaker × merged (default) → co-speakers = the OTHER present characters (the "[Also present — X]" block renders them).
+//   • per-speaker × merged (default) → ONE fixed roster layout for every speaker: the primary is the character
+//                                      section and every other member a co-speaker, in roster order, on the `roster`
+//                                      arm. The system block names no speaker, so the whole room shares one cache
+//                                      entry; the round cue names who speaks ({@link speakerCue}).
 //   • per-speaker × scoped           → co-speakers = [] (own card only; best isolation).
 //   • narrator                       → ONE call voices ALL the seated characters: the primary is the character section, EVERY
 //                                      other present member is a co-speaker, and `speaker` is the `multi-voice` arm, which
@@ -13,8 +16,8 @@
 // WHY NARRATOR NEEDS ITS OWN ARM: a narrator round's speaker is the SYNTHETIC
 // group character, which by construction is NOT in `speakerRefs` — without this arm it would fall through
 // the `idx === -1` guard below and assemble as if it were a SOLO turn for the primary (a system row naming
-// only the primary, opening "write <primary>'s perspective only" on a turn that voices all the seated characters, with
-// the model nonetheless attempting all the seated characters from a nudge naming names it was never given a card for). The
+// only the primary on a turn that voices all the seated characters, with the model nonetheless attempting all the
+// seated characters from a nudge naming names it was never given a card for). The
 // `-1` guard stays, but it is a REFUSAL now, not a fallback (#1462): a genuinely off-roster speaker on a
 // PER-SPEAKER round is a wiring gap, and keeping the primary answered it by shipping the wrong character's
 // card under the asked-for speaker's name. Narrator does not reach it at all.
@@ -25,7 +28,9 @@
 
 import type { AssembleCharacter, AssembleContext, GroupConfig, SpeakerRef } from "@orb/contracts/chat";
 import { speakerKey } from "@orb/contracts/chat";
+import { resolveProseText } from "@orb/contracts/prose";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
+import { charForSpeaker } from "./macros.ts";
 
 /** The output axis — what ONE generation voices. Derived, never re-spelled (spine §5.5). */
 type GroupOutput = GroupConfig["output"];
@@ -54,8 +59,8 @@ function shapeContextForMultiVoice(ctx: AssembleContext, characters: readonly As
   };
 }
 
-/** PER-SPEAKER: the named speaker's card becomes the character section; `cardScope` selects the breadth of
- *  the co-speakers merged in beside it.
+/** PER-SPEAKER: `scoped` makes the named speaker's card the whole character section; `merged` renders the fixed
+ *  roster layout instead (the same cards in the same order for every speaker).
  *
  *  AN OFF-ROSTER REF IS REFUSED, not absorbed (#1462). This used to `return ctx` — "keep the primary, never
  *  crash" — which is not a degrade but a WRONG ANSWER: the round still runs, the model is handed the PRIMARY's
@@ -63,13 +68,8 @@ function shapeContextForMultiVoice(ctx: AssembleContext, characters: readonly As
  *  whose card read came back empty (`assembly/context` drops those ids from `speakerRefs`) hits exactly this
  *  path, so it is reachable, not theoretical. Refusing surfaces the wiring gap where it happens instead of
  *  shipping one character's prose under another's name (D41 no-silent-degrade). */
-function shapeContextForSingle(
-  ctx: AssembleContext,
-  characters: readonly AssembleCharacter[],
-  speakerRefs: readonly SpeakerRef[],
-  speaker: { readonly ref: SpeakerRef; readonly cardScope: CardScope },
-): AssembleContext {
-  const key = speakerKey(speaker.ref);
+function speakerIndex(speakerRefs: readonly SpeakerRef[], ref: SpeakerRef): number {
+  const key = speakerKey(ref);
   const idx = speakerRefs.findIndex((m) => speakerKey(m) === key);
   if (idx === -1) {
     throw new ChatOperationError(
@@ -77,14 +77,58 @@ function shapeContextForSingle(
       `shapeContextForSpeaker: per-speaker round asked for ${key}, which is not among this turn's resolved speakers`,
     );
   }
+  return idx;
+}
+
+function shapeContextForSingle(
+  ctx: AssembleContext,
+  characters: readonly AssembleCharacter[],
+  speakerRefs: readonly SpeakerRef[],
+  speaker: { readonly ref: SpeakerRef; readonly cardScope: CardScope },
+): AssembleContext {
+  const idx = speakerIndex(speakerRefs, speaker.ref);
+  if (speaker.cardScope === "merged") {
+    // A pure function of the roster, with no size branch (D16): a room of one collapses to today's single card, no
+    // co-speaker block, and `{{char}}` = that one name. `speakerIndex` above already proved the roster non-empty.
+    const primary = characters[0] ?? ctx.character;
+    return {
+      ...ctx,
+      character: primary,
+      speaker: { kind: "roster", members: [...characters], active: primary },
+      coSpeakers: characters.slice(1),
+    };
+  }
   const active = characters[idx] ?? ctx.character;
-  const others = characters.filter((_, i) => i !== idx);
   return {
     ...ctx,
     character: active,
     speaker: { kind: "single", character: active },
-    coSpeakers: speaker.cardScope === "merged" ? others : [],
+    coSpeakers: [],
   };
+}
+
+/** WHO SPEAKS this turn, for everything but the system block: the history macros, the regex legs and the receive
+ *  pass read `{{char}}` off this ctx, so a per-speaker turn binds its own speaker even when its system block is
+ *  the roster layout. Narrator is the one layout that IS its voice (one call voices every member). */
+export function voiceContextForSpeaker(
+  ctx: AssembleContext,
+  speaker: { readonly ref: SpeakerRef; readonly output: GroupOutput; readonly cardScope: CardScope },
+): AssembleContext {
+  const { speakerRefs, characters } = ctx;
+  if (speakerRefs === undefined || characters === undefined || speaker.output === "narrator") {
+    return shapeContextForSpeaker(ctx, speaker);
+  }
+  const active = characters[speakerIndex(speakerRefs, speaker.ref)] ?? ctx.character;
+  return { ...ctx, character: active, speaker: { kind: "single", character: active }, coSpeakers: [] };
+}
+
+/** The speaker cue a turn carries when its round sent none (a single-speaker round, a regenerate): emitted exactly
+ *  when the system block's `{{char}}` (the layout) is not the speaking character's (the voice), so the block does
+ *  not name who speaks. A roster of one binds the same name on both, so a solo turn gets no cue and stays
+ *  byte-identical; a scoped or narrator layout is its own voice. */
+export function speakerCue(layout: AssembleContext, voice: AssembleContext): string | null {
+  const speaker = charForSpeaker(voice);
+  return charForSpeaker(layout) === speaker ? null : resolveProseText("chat.group.roundNudge", layout.prose ?? {}, { name: speaker });
 }
 
 function assertNeverGroupOutput(output: never): never {

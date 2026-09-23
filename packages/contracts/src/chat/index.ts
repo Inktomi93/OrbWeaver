@@ -53,6 +53,7 @@ export type {
   SectionPreview,
   SentPrompt,
   ShapeBreakpointDecision,
+  ShapeFoldReason,
   ShapeRowSource,
   ShapeTrace,
   ShapeTraceRow,
@@ -66,6 +67,7 @@ export {
   MEMORY_RECALL_REJECTS_SHOWN,
   MEMORY_RECALL_VERDICTS,
   SHAPE_BREAKPOINT_DECISIONS,
+  SHAPE_FOLD_REASONS,
   SHAPE_ROW_SOURCES,
   sentPromptSchema,
 } from "./assemble.ts";

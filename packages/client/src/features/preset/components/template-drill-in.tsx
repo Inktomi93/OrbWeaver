@@ -104,7 +104,7 @@ export function TemplateDrillIn({ form, row, onBack }: TemplateDrillInProps): Re
  *  accessible name moves to `aria-label` — the datum reaches AT, the eye stops reading it twice. */
 function TemplateBody({ form, row }: { readonly form: PresetForm; readonly row: TemplateRow }): ReactElement {
   const { def, guidedKind, proseSlotId, factoryDefault } = row;
-  const placeholder = factoryDefault === "" ? "Blank — nothing is emitted until you write something here." : factoryDefault;
+  const placeholder = factoryDefault;
   const label = "Template";
   if (proseSlotId !== undefined) {
     return <ProseTemplateBody form={form} label={label} placeholder={placeholder} slotId={proseSlotId} />;

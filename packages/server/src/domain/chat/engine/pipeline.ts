@@ -75,9 +75,11 @@ import {
   materializeOutputReserve,
   shapeContextForSpeaker,
   shapeTurn,
+  speakerCue,
   toShapeCanon,
+  voiceContextForSpeaker,
 } from "../substrate/assembly-access.ts";
-import { buildWireHistory, dropEmptyWireRows, wireCostRows } from "../substrate/wire-history.ts";
+import { buildWireHistory, convertsToEmptyWireRow, dropEmptyWireRows, keepNewChatMarkerAtHead, wireCostRows } from "../substrate/wire-history.ts";
 
 /** What `runTurnPipeline` consumes — the immutable assemble ctx + the loaded canon + the resolved connection
  *  + the turn axes. Stays UNEXPORTED (`no-inline-types`: an exported type belongs in `contract/`, and this is
@@ -569,11 +571,10 @@ async function applyDynamicTransform(args: RunTurnPipelineArgs, built: Assembled
  *  Shipping both tells the model to do two incompatible things with the same turn end, and ST refuses the
  *  combination outright rather than find out what a given provider does with it.
  *
- *  Not hypothetical: `turns.assistantPrefill` is true for `anthropic/claude-opus-4-5`, `claude-haiku-4-5` and
- *  (since 2026-08-19) the local vLLM arm, and a FOLDED rpg game attaches 6 terminal tools to the character
- *  turn — so those models shipped prefill+tools together on every game turn until this gate. Both tool
- *  channels count: `attachedToolNames` (the executed/recursed set) and `terminalTools` (the R1 folded set,
- *  attached `tool_choice:"auto"` and never recursed). */
+ *  Not hypothetical: `turns.assistantPrefill` is true for the local vLLM arm, and a FOLDED rpg game attaches
+ *  terminal tools to the character turn — so that model shipped prefill+tools together on every game turn
+ *  until this gate. Both tool channels count: `attachedToolNames` (the executed/recursed set) and
+ *  `terminalTools` (the R1 folded set, attached `tool_choice:"auto"` and never recursed). */
 function honorsAssistantPrefill(args: RunTurnPipelineArgs): boolean {
   return acceptsAssistantPrefill(generationOf(args.connection)) && !turnCarriesTools(args);
 }
@@ -592,20 +593,29 @@ function shapeTail(args: RunTurnPipelineArgs, prefillHonored: boolean): string |
   return args.appendUserTurn ?? null;
 }
 
+/** The turn's two card-section shapes and its round cue. `layout` is what the system block renders (the named
+ *  speaker's card under per-speaker scoped, the whole roster in fixed order under per-speaker merged and narrator);
+ *  `voice` is who speaks, which every other pass reads `{{char}}` off. A roster-layout turn names its speaker only
+ *  in the cue, so it always carries one: the round's own, or the per-speaker cue a single-speaker round or a
+ *  regenerate lacks. Absent `shape` falls back to the single-speaker core, byte-identical. */
+function speakerContexts(args: RunTurnPipelineArgs): {
+  readonly layout: ReturnType<typeof shapeContextForSpeaker>;
+  readonly voice: ReturnType<typeof voiceContextForSpeaker>;
+  readonly cue: string | null;
+} {
+  if (args.shape === undefined) {
+    return { layout: args.assembleContext, voice: args.assembleContext, cue: args.groupNudge ?? null };
+  }
+  const speaker = { ref: args.shape.speakerRef, output: args.shape.output, cardScope: args.shape.cardScope };
+  const layout = shapeContextForSpeaker(args.assembleContext, speaker);
+  const voice = voiceContextForSpeaker(args.assembleContext, speaker);
+  return { layout, voice, cue: args.groupNudge ?? speakerCue(layout, voice) };
+}
+
 /** Executes one single-speaker turn: BUILD → SHAPE → FIT → REQUEST → REDUCE. Pure orchestration of
  *  injected ops; persists nothing. */
 export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPipelineResult> {
-  // Card-section shape: picks this turn's card(s) + co-speakers off the immutable ctx — the named speaker's
-  // under `per-speaker`, ALL the seated characters' under `narrator`. Absent falls back to the single-speaker core,
-  // byte-identical.
-  const ctx =
-    args.shape !== undefined
-      ? shapeContextForSpeaker(args.assembleContext, {
-          ref: args.shape.speakerRef,
-          output: args.shape.output,
-          cardScope: args.shape.cardScope,
-        })
-      : args.assembleContext;
+  const { layout, voice: ctx, cue } = speakerContexts(args);
 
   // FOLD (PD-148) — the effective generation params: the preset's `params` is the BASE, the per-turn
   // `UserIntent` overrides field-wise, and the host's custom stops (PD-146) join the merged stop set. This is
@@ -619,7 +629,7 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
 
   // BUILD — the system-prompt halves + the after-history (in_chat) section splices — then the D50
   // `assembled_dynamic` PromptTransform point: rewrite the dynamic half only (static is untransformable).
-  const assembled = await applyDynamicTransform(args, buildPrompt(ctx.promptConfig, ctx, args.macroRegistry));
+  const assembled = await applyDynamicTransform(args, buildPrompt(layout.promptConfig, layout, args.macroRegistry));
 
   // SHAPE — the wire history + the cache breakpoint.
   const inChatInjections: ChatInjection[] = [...(ctx.chatInjections ?? []).filter((i) => i.position === "in_chat"), ...assembled.afterHistory];
@@ -640,24 +650,23 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     scopedTargetId: args.shape?.scopedTargetId ?? null,
     namesBehavior: ctx.promptConfig.namesBehavior ?? DEFAULT_NAMES_BEHAVIOR,
     speakers,
-    groupNudge: args.groupNudge ?? null,
+    groupNudge: cue,
     // roleHandling is the preset's user-intent knob (per-turn override wins via the fold); SHAPE clamps it
     // against the model's roleHandlingFloor.
     assistantPrefill: prefillHonored,
-    // midConversationSystem gates the depth-0 system-injection delivery: a declaring model gets a REAL
-    // system wire row; the TURNS_FLOOR default demotes to the visible `[Note from system: …]` user note.
+    // The two measured system-row facts SHAPE's delivery rule reads (`assembly/shape` deliverSystemRows): a run
+    // that ends the history needs `midConversationSystem`, a run inside it `historySystemRows`; the level
+    // decides whether a legal slot is also required. Read through the contract helpers — never a second
+    // spelling of the capability field. Neither touches narrator canon rows (owner ruling: group narration is
+    // the assistant's own voice).
     midConversationSystem: acceptsMidConversationSystem(generationOf(args.connection)),
-    // historySystemRows gates the DEPTH>0 system-injection delivery: on a MEASURED mid-array-system model an
-    // author's note / depth-N world-info entry rides at its depth as a real system row; unmeasured ⇒ it
-    // demotes to the visible `[Note from system: …]` user note. Read through the contract helper — never a
-    // second spelling of the capability field. It does NOT touch narrator canon rows: the D129(B) delivery
-    // that also read this bit was owner-ruled out 2026-08-18 (group narration is the assistant's own voice).
     historySystemRows: acceptsHistorySystemRows(generationOf(args.connection)),
     roleHandling: effectiveIntent.advanced?.roleHandling,
     roleHandlingFloor: roleHandlingFloorOf(generationOf(args.connection)),
     squashSystemMessages: effectiveIntent.advanced?.squashSystemMessages,
     // The room host's note frames (PROSE-1) rode onto the ctx at build; SHAPE frames the spliced injections.
     prose: ctx.prose,
+    convertsToEmptyWireRow,
   });
 
   // REQUEST (conversion half) — the one seam where the shaped string body becomes content-parts (§3.5, the WIRE plane of the
@@ -701,9 +710,11 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
   const fitted = fitHistory(wireCostRows(converted), budget);
   // The fit's contract is "drop the OLDEST `droppedCount` rows", so the same slice recovers the kept wire
   // rows without re-deriving anything — one conversion, one ordering, no parallel bookkeeping to drift.
-  // …and the empty-row drop re-anchors the §8 breakpoint with it: it is an OFFSET FROM THE END, which the
-  // fit's front-trim preserves for free and a mid-array drop does not (#1543 — see `shiftBreakpoint`).
-  const { kept, cacheBreakpointFromEnd } = dropEmptyWireRows(converted.slice(fitted.droppedCount), shaped.cacheBreakpointFromEnd);
+  // …and the empty-row drop re-anchors the §8 breakpoint with it: it is a DEPTH from the end, which the fit's
+  // front-trim preserves for free and a mid-array drop does not (#1543 — see `shiftBreakpoint`).
+  const { kept: nonEmpty, cacheBreakpointFromEnd } = dropEmptyWireRows(converted.slice(fitted.droppedCount), shaped.cacheBreakpointFromEnd);
+  // The new-chat marker opens whatever history the fit kept, so it goes back on after the trim.
+  const kept = keepNewChatMarkerAtHead(nonEmpty, fitted.droppedCount, shaped.newChatMarker);
   const history = kept.map((w) => w.row);
   // Total context consumption for the managed-compaction trigger: kept history + system + reserved output.
   // `fitted.usedTokens` is now the WIRE cost, so this is what the request actually weighs.

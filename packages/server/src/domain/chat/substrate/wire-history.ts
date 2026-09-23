@@ -23,6 +23,7 @@
 // the `assembly-access.ts` DI seam this directory already owns.
 
 import type { ChatContentPart, ChatReasoningPart, MessageView } from "@orb/contracts/chat";
+import { cacheDepthCovering, rowIndexAtCacheDepth } from "@orb/inference";
 import type { ContentImageRef, ContentSpan, ContentSpanKind } from "@orb/kit/content";
 import { cardWireStub, tokenizeContent } from "@orb/kit/content";
 import type { AssetId, MessageId } from "@orb/kit/ids";
@@ -241,6 +242,36 @@ function spanToWirePart(span: ContentSpan, env: WirePartsEnv, row: WireRowFacts)
   return Promise.resolve(handler(span, env, row));
 }
 
+/** Which spans convert to NOTHING — the `null` arms of {@link WIRE_PART_HANDLERS}, answered before the
+ *  conversion runs, because SHAPE judges a system row's slot by the rows the wire will deliver. Every other
+ *  class always leaves a part: an image resolves, drops to its alt placeholder, or collapses to its marker.
+ *  Keyed by span kind like the handlers, and pinned to them by the pipeline binding test. */
+const SPAN_CONVERTS_TO_NOTHING: { readonly [K in ContentSpanKind]: (span: SpanOfKind<K>) => boolean } = {
+  text: (span) => span.text.length === 0,
+  choices: () => true,
+  hidden: () => false,
+  "unknown-directive": () => false,
+  card: () => false,
+  image: () => false,
+};
+
+function spanConvertsToNothing(span: ContentSpan): boolean {
+  // The same per-member narrowing loss as `spanToWirePart`'s dynamic key lookup.
+  const check = SPAN_CONVERTS_TO_NOTHING[span.kind] as (checked: ContentSpan) => boolean;
+  return check(span);
+}
+
+/** A shaped row body that converts to an empty wire row, so {@link dropEmptyWireRows} removes it. SHAPE reads
+ *  this to skip such a row when it judges a system row's neighbours (`assembly/shape` deliverSystemRows). */
+export function convertsToEmptyWireRow(content: string): boolean {
+  return tokenizeContent(content, { committed: true }).every(spanConvertsToNothing);
+}
+
+/** Test-only seam: the empty-conversion table is bound to the handlers span kind by span kind.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
+export const __spanConvertsToNothingForTest = spanConvertsToNothing;
+
 /** Test-only seam: the CONTENT_CLASS_POLICY/dispatch binding test calls the real dispatch directly (no
  *  reason to reassemble a full turn to exercise one span → wire-part rule).
  * @public Test-anchored module surface; focused tests pin this production-local behavior.
@@ -451,33 +482,66 @@ export function dropEmptyWireRows(
   cacheBreakpointFromEnd: number | undefined,
 ): { kept: WireRow[]; cacheBreakpointFromEnd: number | null } {
   const lastIdx = built.length - 1;
-  const kept = built.filter((wire, i) => i === lastIdx || !isEmptyWireRow(wire));
-  return { kept, cacheBreakpointFromEnd: shiftBreakpoint(cacheBreakpointFromEnd, built, kept.length) };
+  const keeps = built.map((wire, i) => i === lastIdx || !isEmptyWireRow(wire));
+  const kept = built.filter((_, i) => keeps[i] === true);
+  return { kept, cacheBreakpointFromEnd: shiftBreakpoint(cacheBreakpointFromEnd, built, keeps, kept) };
+}
+
+/** The new-chat marker SHAPE placed, derived from `shapeTurn` like {@link ShapedHistoryRow}. */
+type NewChatMarker = ReturnType<typeof shapeTurn>["newChatMarker"];
+
+/** Place SHAPE's new-chat marker at the head of the rows the history fit KEPT. The marker marks the start of
+ *  whatever history is delivered, but it is the oldest row, so the fit trims it first. With nothing trimmed the
+ *  rows already open on it. Otherwise it opens the first kept row when that row is a user row and the turn's
+ *  level merges (SHAPE's own squash separator), and rides as its own user row above it in every other case.
+ *  A row added at the head leaves every cache depth below it unchanged: depths count from the end. */
+export function keepNewChatMarkerAtHead(kept: readonly WireRow[], droppedCount: number, marker: NewChatMarker): WireRow[] {
+  if (marker === null || droppedCount === 0) {
+    return [...kept];
+  }
+  const [head, ...rest] = kept;
+  if (head !== undefined && head.row.role === "user" && marker.mergeSeparator !== null) {
+    const lead = `${marker.content}${marker.mergeSeparator}`;
+    const [first, ...parts] = head.row.content;
+    const content: ChatContentPart[] =
+      first?.type === "text" ? [{ type: "text", text: lead + first.text }, ...parts] : [{ type: "text", text: lead }, ...head.row.content];
+    return [{ ...head, row: { ...head.row, content }, costRow: { ...head.costRow, content: lead + head.costRow.content } }, ...rest];
+  }
+  const row: TurnMessage = { role: "user", content: [{ type: "text", text: marker.content }] };
+  return [{ row, costRow: { role: "user", content: marker.content, messageId: undefined }, imageDropped: false, videoDropped: false }, ...kept];
 }
 
 /** Re-anchor the §8 cache breakpoint after a MID-ARRAY drop (#1543).
  *
- *  The breakpoint is an OFFSET FROM THE END (`shape.ts` computes it as `length − stablePrefixLength`, and
- *  the runner counts back from the tail of the body it writes). That representation is what lets the FIT
- *  trim the front for free — a front-drop shortens the array and the prefix by the same amount. A drop from
- *  anywhere else does NOT commute with it: removing an empty choices row from inside the last
- *  `offsetFromEnd` rows shortens the array without shortening the stable prefix, so the same offset now
- *  points one row EARLIER and the breakpoint lands on bytes that are not the boundary SHAPE measured —
- *  silently re-billing the cached prefix on exactly the expensive turns the breakpoint exists for.
- *
- *  So the offset is recomputed from the invariant it actually encodes: the stable PREFIX LENGTH
- *  (`before − offset`) is what the drop may or may not have shortened, and the new offset is
- *  `after − (the prefix as it now stands)`. A drop inside the prefix leaves the offset alone; a drop after
- *  it shrinks the offset by one per row. `< 1` means the whole tail was dropped away — `shape.ts` refuses
- *  that same case, so it resolves to NO breakpoint rather than to a placement nobody measured. */
-function shiftBreakpoint(cacheBreakpointFromEnd: number | undefined, before: readonly WireRow[], afterLength: number): number | null {
+ *  The breakpoint is a DEPTH in role groups from the end (`@orb/inference` `rowIndexAtCacheDepth`, the counter
+ *  SHAPE and the runner share). The fit's front-trim leaves it alone for free; a drop from anywhere else can
+ *  merge two role groups (an emptied assistant row between two user rows) or remove the pinned row itself, so
+ *  the depth is resolved to the row it pins, that row is carried across the drop (or the nearest kept row above
+ *  it, when the drop took it), and the depth is recomputed on the kept rows. `null` ⇒ nothing is left to pin —
+ *  `shape.ts` refuses that same case, so it resolves to NO breakpoint rather than to a placement nobody
+ *  measured. */
+function shiftBreakpoint(
+  cacheBreakpointFromEnd: number | undefined,
+  before: readonly WireRow[],
+  keeps: readonly boolean[],
+  kept: readonly WireRow[],
+): number | null {
   if (cacheBreakpointFromEnd === undefined) {
     return null;
   }
-  const prefixLength = before.length - cacheBreakpointFromEnd;
-  const droppedFromPrefix = before.slice(0, prefixLength).filter(isEmptyWireRow).length;
-  const shifted = afterLength - (prefixLength - droppedFromPrefix);
-  return shifted >= 1 ? shifted : null;
+  const pinned = rowIndexAtCacheDepth(
+    before.map((wire) => wire.row),
+    cacheBreakpointFromEnd,
+  );
+  if (pinned === undefined) {
+    return null;
+  }
+  const keptAtOrAbove = keeps.slice(0, pinned + 1).filter(Boolean).length - 1;
+  const shifted = cacheDepthCovering(
+    kept.map((wire) => wire.row),
+    keptAtOrAbove,
+  );
+  return shifted !== undefined && shifted >= 1 ? shifted : null;
 }
 
 /** The ROWS THE FIT PRICES — the single spelling of the fit's input (#1540). Both callers hand

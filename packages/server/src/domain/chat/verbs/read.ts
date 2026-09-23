@@ -149,7 +149,9 @@ import {
   renderMacros,
   shapeContextForSpeaker,
   shapeTurn,
+  speakerCue,
   toShapeCanon,
+  voiceContextForSpeaker,
 } from "../substrate/assembly-access.ts";
 import { clampMemberCard, isBelowHistoryFloor, NO_HISTORY_FLOOR, resolveCardVisibility, resolveHistoryFloorSeq } from "../substrate/auth/index.ts";
 import { toChatDetail } from "../substrate/chat-detail.ts";
@@ -158,7 +160,7 @@ import { hostUserIdOf } from "../substrate/participants-host.ts";
 import { onlinePersonaIdsOf, presentAndEnabledHumanUserIdsOf } from "../substrate/participants-humans.ts";
 import { regexAllowOf, resolveRegexTiers } from "../substrate/regex-tier.ts";
 import { collectTeaching, resolveTeachingKnobs } from "../substrate/teaching.ts";
-import { buildWireHistory, wireCostRows } from "../substrate/wire-history.ts";
+import { buildWireHistory, convertsToEmptyWireRow, wireCostRows } from "../substrate/wire-history.ts";
 
 /** The per-chat DECEPTION-active verdict for the member reasoning-strip (§3.6): `true` ⇒ a non-host viewer loses
  *  the whole reasoning channel for this game. Resolved through the injected `ChatRpgOps.resolveReasoningHostOnly`
@@ -1065,6 +1067,12 @@ function previewPromptHistoryEnv(ctx: ChatContext, assembleContext: AssembleCont
   };
 }
 
+/** Who speaks in a preview: the primary, as {@link buildPreviewContext} shaped the layout for it. */
+function previewVoice(layout: AssembleContext, output: PreviewInputs["group"]["output"]): AssembleContext {
+  const primary = layout.speakerRefs?.[0];
+  return primary === undefined ? layout : voiceContextForSpeaker(layout, { ref: primary, output, cardScope: "merged" });
+}
+
 async function shapeNextTurn(
   ctx: ChatContext,
   args: {
@@ -1094,13 +1102,14 @@ async function shapeNextTurn(
     scopedTargetId: null,
     namesBehavior: assembleContext.promptConfig.namesBehavior ?? DEFAULT_NAMES_BEHAVIOR,
     speakers: { user: assembleContext.activePersona?.name ?? DEFAULT_PERSONA_NAME, assistant: assembleContext.character.name },
-    groupNudge: null,
+    // The preview voices the primary's turn, with the cue a turn carries when its system block names no speaker.
+    groupNudge: speakerCue(assembleContext, previewVoice(assembleContext, inputs.group.output)),
     assistantPrefill: turns?.assistantPrefill === true,
+    convertsToEmptyWireRow,
+    // The same two system-row facts the turn reads. The preview must show the SAME delivery the wire carries —
+    // this read is what a host debugs the prompt with, so a divergence would make the trace lie about the role
+    // sequence and the fold reasons.
     midConversationSystem: turns?.midConversationSystem === true,
-    // The mid-array system-injection gate (an author's note / depth-N WI entry rides at its depth instead of
-    // demoting to `[Note from system: …]`). The preview must show the SAME delivery the wire carries — this
-    // read is what a host debugs the prompt with, so a divergence would make the trace lie about the role
-    // sequence. It no longer touches narrator rows: that D129(B) delivery was owner-ruled out 2026-08-18.
     historySystemRows: turns?.historySystemRows === true,
     roleHandling: assembleContext.promptConfig.params.advanced?.roleHandling,
     roleHandlingFloor: turns?.roleHandlingFloor,

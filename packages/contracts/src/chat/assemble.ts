@@ -350,7 +350,7 @@ export interface AssemblyBudgetPreview {
 /** Why SHAPE did/didn't place the §8 cache breakpoint — the abort taxonomy, content-free. Declared ONCE as
  *  a tuple and DERIVED (no inline-union re-spell; §5.5). The server builder (`chat/assembly/trace.ts`) labels
  *  the outcome; the host inspector renders it. */
-export const SHAPE_BREAKPOINT_DECISIONS = ["placed", "no-stable-prefix", "in-prefix-injection-or-squash", "second-volatile-tail"] as const;
+export const SHAPE_BREAKPOINT_DECISIONS = ["placed", "no-stable-prefix", "in-prefix-injection-or-squash"] as const;
 export type ShapeBreakpointDecision = (typeof SHAPE_BREAKPOINT_DECISIONS)[number];
 
 /** WHERE one delivered wire row's bytes came from — the provenance axis of {@link ShapeTraceRow}. Declared
@@ -368,6 +368,18 @@ export type ShapeBreakpointDecision = (typeof SHAPE_BREAKPOINT_DECISIONS)[number
  *                   demoted system note absorbed into the player's turn) and calling it canon would hide it. */
 export const SHAPE_ROW_SOURCES = ["canon", "assembled", "merged"] as const;
 export type ShapeRowSource = (typeof SHAPE_ROW_SOURCES)[number];
+
+/** WHY a system-role row reached the wire as user text instead of a real `system` row — the fold axis of
+ *  {@link ShapeTraceRow}:
+ *   • `level`     — the turn's message-handling level folds every system row (`semi-strict`, `strict`);
+ *   • `slot`      — the level keeps a system run only in its legal slot, and this run sat outside it (the row
+ *                   before is not a user row, or the row after is not an assistant row);
+ *   • `tail`      — the run ended the history, and the model takes no system row there
+ *                   (`turns.midConversationSystem`);
+ *   • `mid-array` — the run sat inside the history, and the model takes no system row there
+ *                   (`turns.historySystemRows`). */
+export const SHAPE_FOLD_REASONS = ["level", "slot", "tail", "mid-array"] as const;
+export type ShapeFoldReason = (typeof SHAPE_FOLD_REASONS)[number];
 
 /** ONE DELIVERED WIRE ROW, content-FREE (`ShapeTrace.rows`) — the ordered projection of the history the model
  *  actually receives. The stage COUNTS beside it say how many rows each stage held; this says WHICH rows, in
@@ -391,6 +403,8 @@ export interface ShapeTraceRow {
   kind?: MessageKind;
   /** The delivered content's LENGTH in characters. A size, not a sample. */
   chars: number;
+  /** Present ⇒ a system-role row folded into this user row, and why. A merged row reports its first fold. */
+  folded?: ShapeFoldReason;
 }
 
 /** The content-free SHAPE-stage trace (`buildShapeTrace`) — the debug projection of how a turn's canon was
@@ -409,8 +423,9 @@ export interface ShapeTrace {
   /** Adjacent same-role merges the squash performed (a non-zero count flags a boundary the breakpoint math
    *  must be conservative around). */
   squashMerges: number;
-  /** Offset-from-end of the pinned cache breakpoint; ABSENT when none was placed (the `placed` decision
-   *  carries it, every other decision omits it). */
+  /** The pinned cache breakpoint's DEPTH, in role groups from the end (the runner's own counter, where a system
+   *  row is transparent); ABSENT when none was placed (the `placed` decision carries it, every other decision
+   *  omits it). */
   cacheBreakpointFromEnd?: number;
   breakpointDecision: ShapeBreakpointDecision;
   /** The DELIVERED wire history in order (post-nudge, pre-fit), one entry per row. The block-order/role datum
@@ -538,17 +553,22 @@ export interface AssembleContext {
    *  the `{{group}}`-family macros never list agent seats (an agent voices via the seated characters, but is not a name in
    *  these lists). Absent ⇒ falls back to the full seated CHARACTER set (the macro layer re-derives it). */
   unmutedCharacters?: AssembleCharacter[];
-  /** Who is generating: `single` (per-speaker, `{{char}}` = that character) vs `multi-voice` (narrator, `{{char}}`
-   *  = all the seated characters, joined). Solo is always `single`. PRODUCED by the card shape
+  /** Who is generating, and so what the system block names: `single` (a scoped turn, `{{char}}` = that
+   *  character), `multi-voice` (narrator: one call voices all the seated characters) or `roster` (a per-speaker
+   *  merged turn: one call voices ONE member, but the system block is the whole roster in fixed order and names no
+   *  speaker — the round cue does). On both roster arms `{{char}}` = all the seated characters, joined, so a room
+   *  of one binds that one name. Solo is always `single`. PRODUCED by the card shape
    *  (`assembly/speaker-card`), which dispatches on the round's `output` axis — a narrator round's authoring
    *  speaker is the SYNTHETIC group character and is deliberately NOT in `speakerRefs`, so this arm can never
    *  be derived from the ref. `active` is the member whose card fills the character section (the primary);
    *  the rest ride as `coSpeakers`. */
-  speaker?: { kind: "single"; character: AssembleCharacter } | { kind: "multi-voice"; members: AssembleCharacter[]; active: AssembleCharacter };
-  /** Other present characters whose cards merge into THIS turn's character section — the OTHER members under
-   *  `cardScope: "merged"`, and every non-primary member under a NARRATOR round (one call voices them all, so
-   *  it needs them all). The frame each block opens with differs by arm (`assembly/assemble` memberHeadingSlot):
-   *  a merged turn's co-speakers are bystanders, a narrator turn's are its voices. */
+  speaker?:
+    | { kind: "single"; character: AssembleCharacter }
+    | { kind: "multi-voice"; members: AssembleCharacter[]; active: AssembleCharacter }
+    | { kind: "roster"; members: AssembleCharacter[]; active: AssembleCharacter };
+  /** Other present characters whose cards merge into THIS turn's character section — every non-primary member
+   *  under a `roster` or NARRATOR layout, in roster order. Each block opens with the `chat.group.characterHeading`
+   *  frame. */
   coSpeakers?: AssembleCharacter[] | undefined;
   /** The turn's model-facing prose overrides (PROSE-1 §4.3) — the ROOM HOST's user-tier blob and the
    *  resolved PRESET's blob, composed by home at `buildAssembleContext` (`composeProse`; disjoint by the

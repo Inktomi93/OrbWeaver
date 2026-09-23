@@ -26,7 +26,7 @@ function stages(overrides: Partial<Parameters<typeof buildShapeTrace>[0]> = {}):
 
 describe("buildShapeTrace — the breakpointDecision is carried, never re-derived", () => {
   test("every decision reaches the trace verbatim, whatever the stage row counts say", () => {
-    // The stages here are the shape a re-derivation would have read as "second-volatile-tail" every time.
+    // The stages here are the shape a count-based re-derivation would have mislabelled every time.
     for (const decision of SHAPE_BREAKPOINT_DECISIONS) {
       expect(buildShapeTrace(stages(), undefined, decision).breakpointDecision).toBe(decision);
     }
@@ -41,11 +41,11 @@ describe("buildShapeTrace — the breakpointDecision is carried, never re-derive
   test("collapsed stage counts do NOT re-label a carried decision", () => {
     const collapsed = stages({ withTail: [{ role: "user" }, { role: "assistant" }, { role: "user" }], named: [{ role: "user" }, { role: "assistant" }] });
     // The old ladder read exactly this as `in-prefix-injection-or-squash`; the call said otherwise.
-    expect(buildShapeTrace(collapsed, undefined, "second-volatile-tail").breakpointDecision).toBe("second-volatile-tail");
+    expect(buildShapeTrace(collapsed, undefined, "no-stable-prefix").breakpointDecision).toBe("no-stable-prefix");
   });
 
   test("squashMerges is injected.length − squashed.length, and rows pass through verbatim", () => {
-    const decision: ShapeBreakpointDecision = "second-volatile-tail";
+    const decision: ShapeBreakpointDecision = "no-stable-prefix";
     const trace = buildShapeTrace(
       stages({ injected: [{ role: "user" }, { role: "assistant" }, { role: "user" }], squashed: [{ role: "user" }, { role: "assistant" }] }),
       undefined,

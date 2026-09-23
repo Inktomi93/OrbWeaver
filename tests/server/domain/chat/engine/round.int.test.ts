@@ -139,7 +139,9 @@ describe("driveRound — per-speaker round (ONE ctx, N speakers, per-speaker loc
     expect(history.every((m) => m.role === "assistant")).toBe(true);
   });
 
-  test("per-speaker card section: each speaker renders THEIR OWN card as primary + the other as co-speaker (§7)", async () => {
+  // Owner ruling (the stable merged layout): every speaker of a merged round sends the SAME roster system block,
+  // and the round cue is the one place that names who speaks.
+  test("per-speaker merged: every speaker sends the same roster block, and each cue names its own speaker", async () => {
     const chatId = await seedChat(db, "cards");
     const requests: TurnRequest[] = [];
     await driveRound({
@@ -156,10 +158,12 @@ describe("driveRound — per-speaker round (ONE ctx, N speakers, per-speaker loc
     });
     expect(requests).toHaveLength(2);
     const prompt = (r: TurnRequest): string => `${r.prompt.static}\n${r.prompt.dynamic}`;
-    // Aria's turn: Aria is primary; Bran is the co-speaker ("[Also present — Bran]").
-    expect(prompt(requests[0] as TurnRequest)).toContain("Also present — Bran");
-    // Bran's turn: the primary SWAPPED per speaker — Aria is now the co-speaker.
-    expect(prompt(requests[1] as TurnRequest)).toContain("Also present — Aria");
+    // Both turns: Aria (the roster's first) is primary and Bran rides as a co-speaker, whoever speaks.
+    expect(prompt(requests[0] as TurnRequest)).toContain("[Character — Bran]");
+    expect(prompt(requests[1] as TurnRequest)).toBe(prompt(requests[0] as TurnRequest));
+    const lastRow = (r: TurnRequest): string => JSON.stringify(r.history.at(-1)?.content);
+    expect(lastRow(requests[0] as TurnRequest)).toContain("Write the next reply only as Aria.");
+    expect(lastRow(requests[1] as TurnRequest)).toContain("Write the next reply only as Bran.");
   });
 
   test("ONE immutable ctx: every speaker's request shares the same built system block", async () => {

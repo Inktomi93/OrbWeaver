@@ -6,7 +6,7 @@
 
 import type { CharacterCard } from "@orb/contracts/character";
 import type { AssemblePersona, ChatListCursor, MemberCardVisibility } from "@orb/contracts/chat";
-import { characterRegexTierKey } from "@orb/contracts/chat";
+import { characterRegexTierKey, SHAPE_BREAKPOINT_DECISIONS } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { GenerationCapability, ProviderId } from "@orb/contracts/inference";
 import type { PromptConfig } from "@orb/contracts/preset";
@@ -74,7 +74,8 @@ const SINGLE_SPEAKER_FRAMING = /You are (Aria|Kai) in an immersive/;
  *  fails loudly if the verb's number moves, instead of silently testing a bound that no longer exists. */
 const CHAT_LIST_PAGE_CEILING = 100;
 
-const JOINED_CHARACTERS_ANYWHERE = /(You are (Aria, Kai|Kai, Aria)|voicing (Aria, Kai|Kai, Aria))/;
+/** The per-speaker MERGED default: the single default text with `{{char}}` bound to the whole roster. */
+const ROSTER_FRAMING = /You are (Aria, Kai|Kai, Aria) in an immersive/;
 
 let db: Db;
 let loadParticipantViews: ReturnType<typeof makeLoadParticipantViews>;
@@ -1638,7 +1639,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     expect(prompt.static).not.toContain("[Also present —");
   });
 
-  test("FENCE: a PER-SPEAKER room preview is byte-unchanged — single {{char}} + [Also present —]", async () => {
+  test("a PER-SPEAKER merged room previews the fixed roster layout — joined {{char}} + [Character —]", async () => {
     const me = await seedUser(db, castId<Handle>("ps_host"));
     const chatId = await seedChat(db, "ps", { metadata: { group: { output: "per-speaker", policy: "natural" } } });
     const ariaId = await seedCharacter(db, me, "aria");
@@ -1657,15 +1658,13 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     });
     const { prompt } = await createRead(ctx, makeDeps()).previewAssembly({ principal: principal(me), chatId });
 
-    // Per-speaker is the shipped shape: one speaker voiced, `{{char}}` bound to that ONE primary, the rest
-    // framed as bystanders. Threading the real output axis must leave this arm identical.
-    expect(prompt.static).toMatch(SINGLE_SPEAKER_FRAMING);
-    expect(prompt.static).not.toMatch(JOINED_CHARACTERS_ANYWHERE);
-    expect(prompt.static).toContain("[Also present — ");
-    // The mirror of the narrator arm's own fence. This used to read `not.toContain("[Cast —")` — the narrator
-    // heading's PRE-v2 bytes, which no default has produced since 2026-08-30, so the fence was vacuously true
-    // and would not have caught a per-speaker preview taking the narrator framing (#1738).
-    expect(prompt.static).not.toContain("[Character — ");
+    // Owner ruling: a merged room's system block is the whole roster for every speaker and names none — the
+    // single default binds `{{char}}` to the joined names, and every non-primary card rides as "[Character — X]".
+    expect(prompt.static).toMatch(ROSTER_FRAMING);
+    expect(prompt.static).not.toMatch(SINGLE_SPEAKER_FRAMING);
+    expect(prompt.static).not.toMatch(JOINED_CHARACTERS_FRAMING); // never the narrator's framing either
+    expect(prompt.static).toContain("[Character — ");
+    expect(prompt.static).not.toContain("[Also present —");
   });
 
   test("the budget ceiling is the CONNECTED model's window; an unknown window says so (owner bug, D41)", async () => {
@@ -2367,7 +2366,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     // Row COUNTS per stage, no content bytes — the content-free projection (PD-132).
     expect(trace.stageCounts.withTail).toBe(2);
     expect(typeof trace.squashMerges).toBe("number");
-    expect(["placed", "no-stable-prefix", "in-prefix-injection-or-squash", "second-volatile-tail"]).toContain(trace.breakpointDecision);
+    expect(SHAPE_BREAKPOINT_DECISIONS).toContain(trace.breakpointDecision);
     // No content leaks: the whole trace serializes to counts/flags/decisions, never the seeded message bodies.
     expect(JSON.stringify(trace)).not.toContain("hey there");
 

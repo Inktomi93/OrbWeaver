@@ -8,7 +8,7 @@
 //
 // Host-only by inheritance: it renders data from the two `requireHost` reads the panel already made.
 
-import type { AssembleTrace, ShapeBreakpointDecision, ShapeRowSource, ShapeTrace, ShapeTraceRow } from "@orb/contracts/chat";
+import type { AssembleTrace, ShapeBreakpointDecision, ShapeFoldReason, ShapeRowSource, ShapeTrace, ShapeTraceRow } from "@orb/contracts/chat";
 import { groupThousands } from "@orb/kit/strings";
 import { Badge } from "@orb/ui/badge";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
@@ -164,7 +164,6 @@ const BREAKPOINT_LABELS: Record<ShapeBreakpointDecision, string> = {
   placed: "Placed",
   "no-stable-prefix": "No stable prefix",
   "in-prefix-injection-or-squash": "Prefix injection / squash",
-  "second-volatile-tail": "Second volatile tail",
 };
 
 /** The content-free SHAPE trace (PD-132): how the canon shaped into the wire history — per-stage row counts,
@@ -215,6 +214,15 @@ const ROW_SOURCE_BADGED: Record<ShapeRowSource, boolean> = {
   canon: false,
   assembled: true,
   merged: true,
+};
+
+/** Why a system note reached the model as user text, one clause per `ShapeFoldReason` — a mapped-type Record,
+ *  so a widened axis fails `tsc` here. */
+const FOLD_REASON_LABEL: Record<ShapeFoldReason, string> = {
+  level: "system note folded: the message-handling level folds them",
+  slot: "system note folded: no legal slot for a system message here",
+  tail: "system note folded: the model takes no trailing system message",
+  "mid-array": "system note folded: the model takes no system message mid-history",
 };
 
 /** The provenance VOCABULARY, defined where it is read. Three bare words in a trailing gloss ("canon",
@@ -292,7 +300,10 @@ function WireRowLine({ row }: { readonly row: NumberedWireRow }): ReactElement {
   const voice = row.name === undefined ? `${row.role}${purpose}` : `${row.role} · ${row.name}${purpose}`;
   return (
     <Row align="baseline" data-slot="wire-row-trace" gap="block" justify="between" role="listitem">
-      <Text voice="datum">{`${row.ordinal}. ${voice}`}</Text>
+      <Stack gap="row">
+        <Text voice="datum">{`${row.ordinal}. ${voice}`}</Text>
+        {row.folded === undefined ? null : <Text voice="gloss">{FOLD_REASON_LABEL[row.folded]}</Text>}
+      </Stack>
       <Row align="baseline" className="shrink-0" gap="field">
         {ROW_SOURCE_BADGED[row.source] ? (
           <Badge intent="info" size="sm">

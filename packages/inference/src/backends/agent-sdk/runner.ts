@@ -257,9 +257,10 @@ function routeDynamicContext(
   log: AgentSdkLog,
 ): { systemPrompt: string | undefined; dynamicHook: Pick<Options, "hooks"> } {
   const generation = req.connection.capability.kind === "generation" ? req.connection.capability.generation : undefined;
-  const channel = generation === undefined ? "system-block" : resolveDynamicContext(req.params, generation, []);
+  const channel = generation === undefined ? "system-block" : resolveDynamicContext(req.params, generation);
   const midConvCapable = generation?.turns?.midConversationSystem ?? false;
-  const demoted = req.params.advanced?.dynamicContext === "hook" && !midConvCapable;
+  // The model takes a tail system row but the turn's message-handling level folds it into the system block.
+  const demoted = midConvCapable && channel === "system-block";
   log.channel({ turnId, channel, midConvCapable, demoted });
   if (channel === "system-block") {
     return { systemPrompt: buildSystemPrompt(req.systemPrompt), dynamicHook: {} };

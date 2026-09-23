@@ -64,6 +64,7 @@ export const PROSE_SLOT_IDS = [
   "preset.format.impersonateNudge",
   "preset.format.responseNudge",
   "preset.format.wiFormat",
+  "preset.format.newChatMarker",
   // ── per-PRESET: the compaction steering (census 49) — ADAPTED like guided/format: the override is the
   //    pre-PROSE-1 `promptConfig.compaction.instructions` field, not a `promptConfig.prose` row. ──
   "preset.compaction.instructions",
@@ -116,7 +117,6 @@ export const PROSE_SLOT_IDS = [
   //    F4 ruling arm (a) + the D132(B) amendment (2026-08-08). They resolve during the MAIN turn's context
   //    build where the preset IS in scope (`composeProse` at `assembly/context`), so `promptConfig.prose` is
   //    their storage and each has a Templates-tab `group`-kind row. ──
-  "chat.group.alsoPresent",
   "chat.group.characterHeading",
   "chat.group.scenarioHeading",
   "chat.group.exampleHeading",
@@ -127,6 +127,7 @@ export const PROSE_SLOT_IDS = [
   //    presets"). Authored in the preset Templates tab, stored in `promptConfig.prose`. ──
   "chat.injection.systemNote",
   "chat.injection.userNote",
+  "chat.injection.assistantNote",
   "chat.assembly.continuationNudge",
   // ── per-USER: the prose-less-completion recovery ask (dogfood EMPTYGEN-REASONING) ──
   "chat.recovery.narrativeContinuation",

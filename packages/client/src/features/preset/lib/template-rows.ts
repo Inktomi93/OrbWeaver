@@ -23,8 +23,7 @@ export interface TemplateRow {
   /** The THIRD form path (2026-08-07): a turn-wire framing, stored as `prose[<id>]` — a `{text, baseVersion}`
    *  record rather than a bare string, so its write re-stamps the version the edit was authored against. */
   readonly proseSlotId: ProseSlotId | undefined;
-  /** The PROSE-1 default bytes this row ghosts. `""` where the slot ships none (`newChatMarker`: blank
-   *  IS the shipped behavior, so there is nothing to ghost — the row says "off" instead of lying). */
+  /** The PROSE-1 default bytes this row ghosts. */
   readonly factoryDefault: string;
 }
 
@@ -178,12 +177,11 @@ export const TEMPLATE_KIND_FIRE_TIME: Record<TemplateKind, string> = {
 
 /** The ONE place a def's id becomes a form shape. */
 function templateRow(def: TemplateDef): TemplateRow {
-  const slot = def.defaultSlot;
   return {
     def,
     guidedKind: isGuidedActionKind(def.id) ? def.id : undefined,
     proseSlotId: isPresetProseSlotId(def.id) ? def.id : undefined,
-    factoryDefault: slot === undefined ? "" : PROSE_SLOTS[slot].text,
+    factoryDefault: PROSE_SLOTS[def.defaultSlot].text,
   };
 }
 
@@ -295,12 +293,8 @@ export function isCustomized(value: string | undefined, factoryDefault: string):
   return text.trim() !== "" && text !== factoryDefault;
 }
 
-/** The row's one-line mono preview: the author's text when they wrote one, else the ghosted default —
- *  and, where the slot ships no bytes at all, the honest "(blank — off)". */
+/** The row's one-line mono preview: the author's text when they wrote one, else the ghosted default. */
 export function templatePreview(value: string | undefined, factoryDefault: string): string {
   const text = value ?? "";
-  if (text.trim() !== "") {
-    return text;
-  }
-  return factoryDefault === "" ? "(blank — off)" : factoryDefault;
+  return text.trim() === "" ? factoryDefault : text;
 }

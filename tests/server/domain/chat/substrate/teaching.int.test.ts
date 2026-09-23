@@ -123,7 +123,9 @@ async function mergedInjections(args: {
     },
     foreignOf(),
   );
-  return out.chatInjections ?? [];
+  // The new-chat marker rides every turn (G9, pinned in `assembly/context.int.test.ts`); these pins are about
+  // the teaching contributions and the host rows.
+  return (out.chatInjections ?? []).filter((i) => i.origin !== "new-chat-marker");
 }
 
 function ctxOf(extra: ChatTeachingRegistry = []): ChatContext {

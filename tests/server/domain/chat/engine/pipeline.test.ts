@@ -16,6 +16,7 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { executeRegexScripts } from "@orb/kit/regex";
 import { getLog } from "@orb/server/foundation/observability";
 import { describe, vi } from "vitest";
+import { BEFORE_HISTORY_DEPTH } from "../../../../../packages/server/src/domain/chat/assembly/injections.ts";
 import { buildTurnUserMacros } from "../../../../../packages/server/src/domain/chat/assembly/user-macros.ts";
 import type { ChatToolOps, RunChatTurnOp } from "../../../../../packages/server/src/domain/chat/contract/context.ts";
 import { CHAT_OP_CODES, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
@@ -24,7 +25,7 @@ import { runTurnPipeline } from "../../../../../packages/server/src/domain/chat/
 // The span→wire-part dispatch moved to `substrate/wire-history.ts` with the rest of CONVERT (#1540): the read
 // verb's previews must price the SAME converted rows this pipeline prices, so the conversion is no longer an
 // engine-private step. The behaviour under test is unchanged — the pipeline still runs it, in the same place.
-import { __spanToWirePartForTest } from "../../../../../packages/server/src/domain/chat/substrate/wire-history.ts";
+import { __spanConvertsToNothingForTest, __spanToWirePartForTest } from "../../../../../packages/server/src/domain/chat/substrate/wire-history.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { makeCapability, makeGenerationCapability, makeResolved } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -519,6 +520,56 @@ describe("runTurnPipeline — request shaping + fit", () => {
     expect(result.droppedCount).toBeGreaterThan(0);
   });
 
+  // The new-chat marker marks the start of whatever history is delivered. It is the oldest row, so the fit
+  // trimmed it first and the delivered history opened mid-conversation with no marker.
+  describe("the new-chat marker survives the window fit", () => {
+    const marker: ChatInjection = { position: "in_chat", depth: BEFORE_HISTORY_DEPTH, role: "user", content: "[Start a new chat]", origin: "new-chat-marker" };
+    const text = (m: TurnRequest["history"][number] | undefined): string => (m?.content ?? []).map((p) => (p.type === "text" ? p.text : "")).join("");
+    const slottedWithin = (window: number): typeof CONNECTION => ({
+      ...CONNECTION,
+      capability: makeCapability(
+        makeGenerationCapability({
+          ...CAPABILITY,
+          context: { window },
+          turns: { assistantPrefill: false, midConversationSystem: true, historySystemRows: true, roleHandlingFloor: "slotted", explicitPromptCache: true },
+        }),
+      ),
+    });
+    const slotted = slottedWithin(400);
+
+    test("an over-budget chat still opens on the marker, and the breakpoint is placed", async () => {
+      // Greeting-first, ends on a user row: the first kept row after the trim is an assistant row.
+      const canon = Array.from({ length: 21 }, (_, i) => rowOf(i % 2 === 0 ? "assistant" : "user", `turn ${i} with several words to spend a few tokens`));
+      const result = await runTurnPipeline(baseArgs({ canon, connection: slotted, assembleContext: ctxOf({ chatInjections: [marker] }) }).args);
+      expect(result.droppedCount).toBeGreaterThan(0);
+      expect(result.request.history[0]?.role).toBe("user");
+      expect(text(result.request.history[0])).toBe("[Start a new chat]");
+      expect(result.request.history.filter((m) => text(m).includes("[Start a new chat]"))).toHaveLength(1);
+      expect(typeof result.request.cacheBreakpointFromEnd).toBe("number");
+    });
+
+    test("when the first kept row is a user row, the marker opens it", async () => {
+      const canon = Array.from({ length: 21 }, (_, i) => rowOf(i % 2 === 0 ? "user" : "assistant", `turn ${i} with several words to spend a few tokens`));
+      const result = await runTurnPipeline(baseArgs({ canon, connection: slotted, assembleContext: ctxOf({ chatInjections: [marker] }) }).args);
+      expect(result.droppedCount).toBeGreaterThan(0);
+      expect(result.request.history[0]?.role).toBe("user");
+      // Merged into that row with SHAPE's squash separator, never a second user row above it.
+      expect(text(result.request.history[0])).toMatch(/^\[Start a new chat\]\n\nturn \d+ /);
+      expect(result.request.history.filter((m) => text(m).includes("[Start a new chat]"))).toHaveLength(1);
+    });
+
+    test("a depth-4 note on a 3-row chat lands below the marker, and the breakpoint is placed", async () => {
+      const note: ChatInjection = { position: "in_chat", depth: 4, role: "system", content: "Author's note." };
+      const canon = [rowOf("assistant", "greeting"), userRow("u1"), rowOf("assistant", "a1"), userRow("u2")];
+      const result = await runTurnPipeline(
+        baseArgs({ canon, connection: slottedWithin(200_000), assembleContext: ctxOf({ chatInjections: [note, marker] }) }).args,
+      );
+      expect(result.droppedCount).toBe(0);
+      expect(text(result.request.history[0])).toBe("[Start a new chat]");
+      expect(typeof result.request.cacheBreakpointFromEnd).toBe("number");
+    });
+  });
+
   test("the fit stamps contextBoundaryMessageId at the earliest KEPT id-bearing turn (previewFit parity anchor)", async () => {
     // Id-bearing rows so the boundary is a concrete message id (not null) — the SAME stamp previewFit must
     // reproduce over the same canon+capability. `toShapeCanon` reads the MessageView's `id` onto the shaped
@@ -1001,7 +1052,7 @@ describe("runTurnPipeline — roleHandling is the PRESET knob, clamped at SHAPE"
 
 // BUILD-QUEUE #3: the `squashSystemMessages` PROMPT knob (`params.advanced`, ST-imported from
 // `squash_system_messages`) is now a live SHAPE reader — consecutive system-note runs merge into ONE
-// `[Note from system: …]` bracket BEFORE the system→user framing, orthogonal to `roleHandling`. Two
+// `[Take the following into special consideration: …]` bracket BEFORE the system→user framing, orthogonal to `roleHandling`. Two
 // adjacent depth-0 system injections are the observable: ON ⇒ ONE bracket (merge-before-convert), OFF ⇒
 // TWO brackets even though the strict floor still row-merges them (the distinction proves the KNOB, not
 // the role-squash, drove the fold). A broken re-thread would read a now-absent field → default OFF →
@@ -1015,7 +1066,7 @@ describe("runTurnPipeline — squashSystemMessages is the PRESET knob, folded at
     ...DEFAULT_PROMPT_CONFIG,
     params: { ...DEFAULT_PROMPT_CONFIG.params, advanced: { squashSystemMessages } },
   });
-  const systemBrackets = (req: TurnRequest): number => (historyText(req).match(/\[Note from system:/g) ?? []).length;
+  const systemBrackets = (req: TurnRequest): number => (historyText(req).match(/\[Take the following into special consideration:/g) ?? []).length;
 
   test("preset squashSystemMessages:true ⇒ the two system notes fold into ONE bracket (preset value reached SHAPE)", async () => {
     const { args } = baseArgs({
@@ -1023,7 +1074,7 @@ describe("runTurnPipeline — squashSystemMessages is the PRESET knob, folded at
     });
     const result = await runTurnPipeline(args);
     expect(systemBrackets(result.request)).toBe(1);
-    expect(historyText(result.request)).toContain("[Note from system: sys-alpha\n\nsys-beta]");
+    expect(historyText(result.request)).toContain("[Take the following into special consideration: sys-alpha\n\nsys-beta]");
   });
 
   test("preset squashSystemMessages absent ⇒ the notes stay as TWO separate brackets (byte-identical to today)", async () => {
@@ -1515,6 +1566,27 @@ describe("runTurnPipeline — RECEIVE per-speaker canon clean (F1)", () => {
     });
     const result = await runTurnPipeline(args);
     expect(result.content).toBe("I attack the goblin and take cover.");
+  });
+
+  // Owner ruling (the stable merged layout): every speaker of a merged room sends the SAME system block, so the
+  // room writes one cache entry instead of one per speaker, and the round cue is the only place the speaker is
+  // named — so a turn whose round sent no cue (one speaker, a regenerate) still carries one.
+  test("merged: Kai's and Aria's turns send byte-identical system blocks, and each cue names its own speaker", async () => {
+    const run = async (speakerName: string, characterId: CharacterId): Promise<TurnRequest> => {
+      const { args } = baseArgs({
+        runChatTurn: finalTurn("ok"),
+        assembleContext: groupCtx(),
+        shape: { ...perSpeaker, speakerName, speakerRef: { kind: "character", characterId } },
+      });
+      return (await runTurnPipeline(args)).request;
+    };
+    const kai = await run("Kai", KAI);
+    const aria = await run("Aria", ARIA);
+    expect(aria.prompt.static).toBe(kai.prompt.static);
+    expect(kai.prompt.static).toContain("[Character — Aria]");
+    expect(kai.prompt.static).not.toContain("[Also present");
+    expect(historyText(kai)).toContain("[Write the next reply only as Kai.");
+    expect(historyText(aria)).toContain("[Write the next reply only as Aria.");
   });
 
   // IMP-1 layer 2b — an impersonate draft is the USER's line, so "self" is the PERSONA and EVERY CHARACTER is
@@ -2160,6 +2232,31 @@ describe("runTurnPipeline — the §3 content-class wire plane", () => {
     expect(result.request.history.map((m) => m.content)).toContainEqual([{ type: "text", text: "You run." }]);
   });
 
+  // SHAPE judges a system row's slot by its neighbours; a neighbour that converts to nothing on the wire is not
+  // one. The choices-only assistant row is dropped after SHAPE, so a note kept between it and a user row would
+  // reach the direct wire as `[user, system, user]`.
+  test("a system note is judged against the rows the wire delivers — a choices-only neighbour does not count", async () => {
+    const choicesOnly = ":::choices\n1. Enter the crypt\n2. Flee\n:::";
+    const canon = [rowOf("assistant", "You stand at the gate."), userRow("I look around."), rowOf("assistant", choicesOnly), userRow("I flee.")];
+    const note: ChatInjection = { position: "in_chat", depth: 2, role: "system", content: "Author's note: keep it tense." };
+    const { args } = baseArgs({
+      canon,
+      connection: {
+        ...CONNECTION,
+        capability: makeCapability({
+          ...CAPABILITY,
+          turns: { assistantPrefill: false, midConversationSystem: true, historySystemRows: true, roleHandlingFloor: "slotted", explicitPromptCache: false },
+        }),
+      },
+      assembleContext: ctxOf({ chatInjections: [note] }),
+    });
+    const history = (await runTurnPipeline(args)).request.history;
+    const text = (m: TurnRequest["history"][number]): string => m.content.map((p) => (p.type === "text" ? p.text : "")).join("");
+    const slots = history.flatMap((m, i) => (m.role === "system" ? [`${history[i - 1]?.role}>${history[i + 1]?.role}`] : []));
+    expect(slots.filter((slot) => slot !== "user>assistant")).toEqual([]);
+    expect(history.some((m) => text(m).includes("Author's note: keep it tense."))).toBe(true);
+  });
+
   // #1543 — GREEN BEFORE THE FIX, and the label is the finding. The §8 breakpoint is an OFFSET FROM THE
   // END, so a mid-array drop CAN in principle move it off the row SHAPE measured. On this path it cannot:
   // `computeHistoryBreakpoint` sets `stableCount = withTail.length - 1`, so the stable prefix is everything
@@ -2698,6 +2795,22 @@ describe("spanToWirePart — CONTENT_CLASS_POLICY binding", () => {
     expect(part).toBeNull();
   });
 
+  test("the empty-conversion table SHAPE reads agrees with the dispatch, span kind by span kind", async () => {
+    const spans: ContentSpan[] = [
+      { kind: "text", text: "hello" },
+      { kind: "text", text: "" },
+      { kind: "choices", options: ["Go north"], raw: ":::choices\nGo north\n:::" },
+      { kind: "hidden", tag: "lie", attrs: {}, raw: "<lie>x</lie>" },
+      { kind: "unknown-directive", raw: "<gmnote>n</gmnote>" },
+      { kind: "card", title: "T", body: "…", origin: "fence", raw: ':::card title="T"\n…\n:::' },
+      { kind: "image", alt: "a cat", ref: { kind: "external", url: "https://example.test/cat.png" } },
+    ];
+    for (const span of spans) {
+      const part = await __spanToWirePartForTest(span, wireEnv, wireRow);
+      expect({ kind: span.kind, empty: __spanConvertsToNothingForTest(span) }).toEqual({ kind: span.kind, empty: part === null });
+    }
+  });
+
   test('wire:"stub" (card) collapses OUTSIDE the keep-last-X window', async () => {
     expect(CONTENT_CLASS_POLICY.card.wire).toBe("stub");
     const cardSpan = { kind: "card" as const, title: "The Ledger", body: "…", origin: "fence" as const, raw: ':::card title="The Ledger"\n…\n:::' };
@@ -2826,7 +2939,7 @@ describe("runTurnPipeline — narrator round assembly", () => {
     expect(result.content).toBe("<<JFC>>");
   });
 
-  test("a PER-SPEAKER round is untouched — the speaker's own card is primary, the other is a co-speaker", async () => {
+  test("a PER-SPEAKER merged round renders the roster layout — the joined {{char}}, every card, no speaker named", async () => {
     const { args } = baseArgs({
       assembleContext: narratorCtx(),
       shape: {
@@ -2838,8 +2951,8 @@ describe("runTurnPipeline — narrator round assembly", () => {
       },
     });
     const system = (await runTurnPipeline(args)).request.prompt.static;
-    expect(system).toContain("You are JFC in an immersive");
-    expect(system).toContain("[Also present — Charlotte]");
+    expect(system).toContain("You are Charlotte, JFC in an immersive");
+    expect(system).toContain("[Character — JFC]");
     // Card binding is unchanged on this arm: each card still says "me", and always did.
     expect(system).toContain("JFC is a foul-mouthed mechanic");
     expect(system).toContain("Charlotte is a tired archivist");

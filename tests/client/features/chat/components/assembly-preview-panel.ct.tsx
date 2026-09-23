@@ -120,7 +120,8 @@ const SHAPE_TRACE_ROWS = [
   // Without the purpose on the line this row reads as a bare "assistant", indistinguishable from a defect.
   { role: "assistant" as const, source: "canon" as const, kind: "narrator" as const, chars: 640 },
   { role: "user" as const, name: "Alex", source: "assembled" as const, chars: 3037 },
-  { role: "user" as const, name: "Alex", source: "merged" as const, chars: 212 },
+  // A merged row a system note folded into — it names WHY the note did not ride as a system message.
+  { role: "user" as const, name: "Alex", source: "merged" as const, chars: 212, folded: "slot" as const },
   { role: "system" as const, source: "assembled" as const, chars: 96 },
 ];
 
@@ -465,6 +466,9 @@ test("the diagnostics drawer lists the DELIVERED wire rows in order, with role �
 
   // A squash that folded an assembled row into a canon turn reports as MERGED — never silently as canon.
   await expect(rows.nth(3)).toContainText("merged");
+  // A folded system note says why it rode as user text; a row with no fold says nothing about one.
+  await expect(rows.nth(3)).toContainText("system note folded: no legal slot for a system message here");
+  await expect(rows.nth(0)).not.toContainText("folded");
   // A canon row says so, so "assembled" is a positive claim rather than the absence of a badge.
   await expect(rows.nth(0)).toContainText("canon");
 });

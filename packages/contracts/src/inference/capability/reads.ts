@@ -7,8 +7,8 @@ import type { Modality } from "../modalities.ts";
 import type { CapabilityRequirement } from "../tasks.ts";
 import type { Capability } from "./capability.ts";
 import type { EmbeddingCapability } from "./embedding.ts";
-import type { GenerationCapability, ReasoningReplayMode, RoleHandling } from "./generation.ts";
-import { CACHE_MIN_FLOOR, REASONING_REPLAY_FLOOR, TURNS_FLOOR } from "./generation.ts";
+import type { GenerationCapability, ReasoningReplayMode, RoleHandling, UserRoleHandling } from "./generation.ts";
+import { CACHE_MIN_FLOOR, REASONING_REPLAY_FLOOR, ROLE_HANDLING, TURNS_FLOOR, USER_ROLE_HANDLING } from "./generation.ts";
 import type { RerankCapability } from "./rerank.ts";
 
 /** Does this generation model accept/produce a modality on the named side? */
@@ -76,6 +76,26 @@ export function acceptsMidConversationSystem(capability: GenerationCapability): 
 
 export function roleHandlingFloorOf(capability: GenerationCapability): RoleHandling {
   return capability.turns?.roleHandlingFloor ?? TURNS_FLOOR.roleHandlingFloor;
+}
+
+/** Is `level` stricter than `than`? The tuple order of {@link ROLE_HANDLING} is the strictness order. */
+export function isStricterRoleHandling(level: RoleHandling, than: RoleHandling): boolean {
+  return ROLE_HANDLING.indexOf(level) > ROLE_HANDLING.indexOf(than);
+}
+
+/** The level a turn runs: the stricter of the model floor and the preset knob. An unset knob runs the floor. */
+export function clampRoleHandling(floor: RoleHandling, knob: RoleHandling | undefined): RoleHandling {
+  return knob !== undefined && isStricterRoleHandling(knob, floor) ? knob : floor;
+}
+
+/** The level a turn on this model runs for the preset knob `knob`. */
+export function roleHandlingOf(capability: GenerationCapability, knob: RoleHandling | undefined): RoleHandling {
+  return clampRoleHandling(roleHandlingFloorOf(capability), knob);
+}
+
+/** The preset-knob levels a model with this floor can actually run: the user levels at or above it. */
+export function userRoleHandlingOptions(floor: RoleHandling): readonly UserRoleHandling[] {
+  return USER_ROLE_HANDLING.filter((level) => !isStricterRoleHandling(floor, level));
 }
 
 export function cacheMinTokensOf(capability: GenerationCapability): number {

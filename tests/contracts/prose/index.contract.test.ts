@@ -238,7 +238,7 @@ test("the S1 cohort ships under the app-tier posture: home=user, macros=none (a 
 // template literal the server used to author inline.
 const S1B_FROZEN_RENDERS: readonly { readonly id: ProseSlotId; readonly tokens: Record<string, string>; readonly rendered: string }[] = [
   // packages/server/src/domain/chat/assembly/assemble.ts — renderCoSpeakerBlock's three headings
-  { id: "chat.group.alsoPresent", tokens: { name: "Niko" }, rendered: "[Also present — Niko]" },
+  { id: "chat.group.characterHeading", tokens: { name: "Niko" }, rendered: "[Character — Niko]" },
   { id: "chat.group.scenarioHeading", tokens: { name: "Niko" }, rendered: "[Niko's scenario]" },
   { id: "chat.group.exampleHeading", tokens: { name: "Niko" }, rendered: "[Niko's example dialogue]" },
   // packages/server/src/domain/chat/engine/round.ts — buildSpeakerPrep's multi-speaker fence. v2 keeps the
@@ -260,8 +260,13 @@ const S1B_FROZEN_RENDERS: readonly { readonly id: ProseSlotId; readonly tokens: 
       "narration in between. Never write lines or actions for the user.]",
   },
   // packages/server/src/domain/chat/assembly/injections.ts — frameInjection's two note frames
-  { id: "chat.injection.systemNote", tokens: { note: "stay in scene" }, rendered: "[Note from system: stay in scene]" },
+  { id: "chat.injection.systemNote", tokens: { note: "stay in scene" }, rendered: "[Take the following into special consideration: stay in scene]" },
   { id: "chat.injection.userNote", tokens: { note: "stay in scene" }, rendered: "[Note from user: stay in scene]" },
+  {
+    id: "chat.injection.assistantNote",
+    tokens: { note: "stay in scene" },
+    rendered: "[Take the following into special consideration for your next message: stay in scene]",
+  },
 ];
 
 test("S1b framing slots render, unset, to the exact bytes their inline template literals produced", () => {
@@ -421,11 +426,11 @@ test("an override that DROPS the token loses the value it carried — the docume
 test("a `$&`/`$1` inside a substituted value is LITERAL — the replacement is a function, not a pattern", () => {
   // A character name or an injection body is user data; `String.replace`'s `$` patterns would silently
   // duplicate the frame's own bytes into the prompt.
-  expect(resolveProseText("chat.group.alsoPresent", {}, { name: "$& $1 $$" })).toBe("[Also present — $& $1 $$]");
+  expect(resolveProseText("chat.group.characterHeading", {}, { name: "$& $1 $$" })).toBe("[Character — $& $1 $$]");
 });
 
 test("omitting `tokens` ships the text verbatim — every token-free slot and every legacy caller is untouched", () => {
-  expect(resolveProseText("chat.group.alsoPresent", {})).toBe("[Also present — {{name}}]");
+  expect(resolveProseText("chat.group.characterHeading", {})).toBe("[Character — {{name}}]");
   expect(resolveProseText("chat.arbiter.system", {}, { name: "Niko" })).toBe(PROSE_SLOTS["chat.arbiter.system"].text);
 });
 
@@ -498,7 +503,6 @@ test('PRESET_PROSE_SLOT_IDS is every `home:"preset"` slot whose override is stor
     "preset.greetingTransform.heHim",
     "preset.greetingTransform.sheHer",
     "preset.greetingTransform.theyThem",
-    "chat.group.alsoPresent",
     "chat.group.characterHeading",
     "chat.group.scenarioHeading",
     "chat.group.exampleHeading",
@@ -507,6 +511,7 @@ test('PRESET_PROSE_SLOT_IDS is every `home:"preset"` slot whose override is stor
     "chat.group.speakerTags",
     "chat.injection.systemNote",
     "chat.injection.userNote",
+    "chat.injection.assistantNote",
     "chat.assembly.continuationNudge",
     "rpg.reminder.steeringLicense",
     "rpg.reminder.deceptionTeach",

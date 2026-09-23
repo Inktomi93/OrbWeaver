@@ -16,7 +16,7 @@
 //   • per-PRESET (owner ruling 2026-08-07, verbatim: "templates need to have one home in presets not
 //     scattered between that and settings or hiding in code"): the TURN-WIRE FRAMINGS — the two injection note
 //     frames, the continuation cue, and (F4 re-home, 2026-08-08, ruling arm (a) + D132(B) amendment) the seven
-//     GROUP-ROUND FRAMINGS: the merged/narrator co-speaker headings (`alsoPresent`/`characterHeading`/
+//     GROUP-ROUND FRAMINGS: the co-speaker headings (`characterHeading`/
 //     `scenarioHeading`/`exampleHeading`), the per-speaker and narrator round nudges (`roundNudge`/
 //     `narratorNudge`), and the speaker-tag instruction (`speakerTags`). Storage `promptConfig.prose`; authored
 //     in the preset Templates tab beside every other template. Decision 8 is NOT reversed by this: it answers
@@ -158,29 +158,14 @@ export const CHAT_PROSE_SLOTS = {
     title: "Memory consolidation lead-in",
     fires: "Heads the consolidation user prompt, above the numbered child digests.",
   },
-  "chat.group.alsoPresent": {
-    id: "chat.group.alsoPresent",
-    home: "preset",
-    version: 1,
-    // The co-speaker card block's opening frame. The member's rendered description/personality follows on
-    // the next line — that half is card data, never authorable here.
-    text: "[Also present — {{name}}]",
-    macros: "none",
-    requiredMacros: ["{{name}}"],
-    requiredTokens: [],
-    title: "Merged co-speaker heading",
-    fires: 'A `cardScope:"merged"` group turn, once per other present character.',
-  },
   "chat.group.characterHeading": {
     id: "chat.group.characterHeading",
     home: "preset",
     version: 2,
-    // The NARRATOR twin of `alsoPresent`, and a separate slot rather than a re-version of it for one reason:
-    // the two frames say opposite things. On a per-speaker merged turn the other members ARE bystanders —
-    // the model voices one of them and must not drift into the rest. On a NARRATOR turn the same cards are
-    // the voices this single call is being asked to speak, so framing them as "also present" contradicts the
-    // round's own nudge ("voicing the present characters (…)"). Re-versioning `alsoPresent` would also have
-    // invalidated every host's existing merged override for a change that does not concern merged turns.
+    // The heading over every roster member's card beside the primary, on both roster layouts: a narrator round
+    // and a per-speaker merged turn. The merged turn's `[Also present — X]` frame is retired (owner ruling): its
+    // system block is now the same roster for every speaker, so no card is framed as a bystander, and the round
+    // cue names who speaks.
     //
     // v2 is a VOCABULARY fix on the `chat.arbiter.system` v2 / `chat.group.speakerTags` v2 precedent, not a
     // behavior change: #901 Fork 1 retired "cast" for the room's seated characters, and this heading spent it.
@@ -206,8 +191,8 @@ export const CHAT_PROSE_SLOTS = {
     macros: "none",
     requiredMacros: ["{{name}}"],
     requiredTokens: [],
-    title: "Narrator character heading",
-    fires: "A narrator round, once per character whose card rides beside the primary.",
+    title: "Character heading",
+    fires: "A narrator round or a per-speaker merged turn, once per character whose card rides beside the primary.",
   },
   "chat.group.scenarioHeading": {
     id: "chat.group.scenarioHeading",
@@ -248,7 +233,7 @@ export const CHAT_PROSE_SLOTS = {
     requiredMacros: ["{{name}}"],
     requiredTokens: [],
     title: "Group round speaker nudge",
-    fires: "Every speaker of a MULTI-speaker group round (a solo/one-speaker round sends no nudge).",
+    fires: "Every speaker of a MULTI-speaker group round, and any other turn whose system prompt does not name the speaking character.",
   },
   "chat.group.narratorNudge": {
     id: "chat.group.narratorNudge",
@@ -298,15 +283,16 @@ export const CHAT_PROSE_SLOTS = {
   "chat.injection.systemNote": {
     id: "chat.injection.systemNote",
     home: "preset",
-    version: 1,
-    // A system-authority injection the resolved model cannot take as a real system row demotes to a USER
-    // row wearing this frame — the framing IS the demotion's honesty (the reader sees it is a system note).
-    text: "[Note from system: {{note}}]",
+    version: 2,
+    // A system-role injection the turn cannot deliver as a real system row folds into USER text wearing this
+    // frame. v2 drops the speaker label (owner ruling): a bracketed instruction in the Guided Generations style
+    // reads as direction without claiming a speaker. No "next message": the row can sit several turns back.
+    text: "[Take the following into special consideration: {{note}}]",
     macros: "none",
     requiredMacros: ["{{note}}"],
     requiredTokens: [],
-    title: "Demoted system-note frame",
-    fires: "Any system-role injection the model can't deliver as a real system row (the TURNS_FLOOR default).",
+    title: "Folded system-note frame",
+    fires: "Any system-role injection the turn folds into user text instead of a real system row.",
   },
   "chat.injection.userNote": {
     id: "chat.injection.userNote",
@@ -319,7 +305,21 @@ export const CHAT_PROSE_SLOTS = {
     requiredMacros: ["{{note}}"],
     requiredTokens: [],
     title: "User-note frame",
-    fires: "Every user-role injection — author's note, host steering, a prefix-adjacent re-framed injection.",
+    fires: "Every user-role injection — author's note, host steering.",
+  },
+  "chat.injection.assistantNote": {
+    id: "chat.injection.assistantNote",
+    home: "preset",
+    version: 1,
+    // An assistant-role injection just above the tail re-roles to USER text so it never merges into the model's
+    // last committed reply (the cached prefix). The frame names no speaker: the line is not the user's words.
+    // Modelled on Guided Generations' `[Take the following into special consideration for your next message: …]`.
+    text: "[Take the following into special consideration for your next message: {{note}}]",
+    macros: "none",
+    requiredMacros: ["{{note}}"],
+    requiredTokens: [],
+    title: "Re-roled assistant-note frame",
+    fires: "An assistant-role injection just above the tail, re-roled to user text to keep the cached reply intact.",
   },
   "chat.assembly.continuationNudge": {
     id: "chat.assembly.continuationNudge",
