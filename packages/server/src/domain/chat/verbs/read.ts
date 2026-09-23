@@ -147,10 +147,11 @@ import {
   previewActionText,
   previewSection,
   renderMacros,
-  rosterSpeakerCue,
   shapeContextForSpeaker,
   shapeTurn,
+  speakerCue,
   toShapeCanon,
+  voiceContextForSpeaker,
 } from "../substrate/assembly-access.ts";
 import { clampMemberCard, isBelowHistoryFloor, NO_HISTORY_FLOOR, resolveCardVisibility, resolveHistoryFloorSeq } from "../substrate/auth/index.ts";
 import { toChatDetail } from "../substrate/chat-detail.ts";
@@ -1066,6 +1067,12 @@ function previewPromptHistoryEnv(ctx: ChatContext, assembleContext: AssembleCont
   };
 }
 
+/** Who speaks in a preview: the primary, as {@link buildPreviewContext} shaped the layout for it. */
+function previewVoice(layout: AssembleContext, output: PreviewInputs["group"]["output"]): AssembleContext {
+  const primary = layout.speakerRefs?.[0];
+  return primary === undefined ? layout : voiceContextForSpeaker(layout, { ref: primary, output, cardScope: "merged" });
+}
+
 async function shapeNextTurn(
   ctx: ChatContext,
   args: {
@@ -1095,8 +1102,8 @@ async function shapeNextTurn(
     scopedTargetId: null,
     namesBehavior: assembleContext.promptConfig.namesBehavior ?? DEFAULT_NAMES_BEHAVIOR,
     speakers: { user: assembleContext.activePersona?.name ?? DEFAULT_PERSONA_NAME, assistant: assembleContext.character.name },
-    // A roster-layout room previews the primary's turn with the cue that names it, exactly as the turn carries it.
-    groupNudge: rosterSpeakerCue(assembleContext, assembleContext.character.name),
+    // The preview voices the primary's turn, with the cue a turn carries when its system block names no speaker.
+    groupNudge: speakerCue(assembleContext, previewVoice(assembleContext, inputs.group.output)),
     assistantPrefill: turns?.assistantPrefill === true,
     convertsToEmptyWireRow,
     // The same two system-row facts the turn reads. The preview must show the SAME delivery the wire carries —

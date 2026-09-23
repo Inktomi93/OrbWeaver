@@ -25,8 +25,8 @@ import {
 } from "../assembly/macros.ts";
 import { shape, toShapeCanon as toShapeCanonImpl } from "../assembly/shape.ts";
 import {
-  rosterSpeakerCue as rosterSpeakerCueImpl,
   shapeContextForSpeaker as shapeContextForSpeakerImpl,
+  speakerCue as speakerCueImpl,
   voiceContextForSpeaker as voiceContextForSpeakerImpl,
 } from "../assembly/speaker-card.ts";
 import { buildShapeTrace as buildShapeTraceImpl } from "../assembly/trace.ts";
@@ -79,10 +79,10 @@ export function voiceContextForSpeaker(...args: Parameters<typeof voiceContextFo
   return voiceContextForSpeakerImpl(...args);
 }
 
-/** The round cue a roster-layout turn carries when its round sent none (its system block names no speaker). The
+/** The speaker cue a turn carries when its round sent none and its system block does not name the speaker. The
  *  legal `engine/ → assembly/` and `verbs/ → assembly/` bridge. */
-export function rosterSpeakerCue(...args: Parameters<typeof rosterSpeakerCueImpl>): ReturnType<typeof rosterSpeakerCueImpl> {
-  return rosterSpeakerCueImpl(...args);
+export function speakerCue(...args: Parameters<typeof speakerCueImpl>): ReturnType<typeof speakerCueImpl> {
+  return speakerCueImpl(...args);
 }
 
 /** Build the turn-stage `MacroContext` for regex find/replace templates (the RECEIVE AI_OUTPUT/REASONING

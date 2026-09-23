@@ -5,7 +5,7 @@
 //   • per-speaker × merged (default) → ONE fixed roster layout for every speaker: the primary is the character
 //                                      section and every other member a co-speaker, in roster order, on the `roster`
 //                                      arm. The system block names no speaker, so the whole room shares one cache
-//                                      entry; the round cue names who speaks ({@link rosterSpeakerCue}).
+//                                      entry; the round cue names who speaks ({@link speakerCue}).
 //   • per-speaker × scoped           → co-speakers = [] (own card only; best isolation).
 //   • narrator                       → ONE call voices ALL the seated characters: the primary is the character section, EVERY
 //                                      other present member is a co-speaker, and `speaker` is the `multi-voice` arm, which
@@ -30,6 +30,7 @@ import type { AssembleCharacter, AssembleContext, GroupConfig, SpeakerRef } from
 import { speakerKey } from "@orb/contracts/chat";
 import { resolveProseText } from "@orb/contracts/prose";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
+import { charForSpeaker } from "./macros.ts";
 
 /** The output axis — what ONE generation voices. Derived, never re-spelled (spine §5.5). */
 type GroupOutput = GroupConfig["output"];
@@ -121,13 +122,13 @@ export function voiceContextForSpeaker(
   return { ...ctx, character: active, speaker: { kind: "single", character: active }, coSpeakers: [] };
 }
 
-/** The round cue a `roster`-layout turn carries when its round sent none (a single-speaker round, a regenerate):
- *  its system block carries every co-speaker's card and names no speaker, so this line is the only place the model
- *  learns who speaks. Keyed on the layout's own data — a roster of one has no co-speaker cards and gets no cue, so
- *  a solo turn stays byte-identical; a scoped or narrator layout names its speaker itself. */
-export function rosterSpeakerCue(ctx: AssembleContext, speakerName: string): string | null {
-  const hasCoSpeakers = (ctx.coSpeakers ?? []).length > 0;
-  return ctx.speaker?.kind === "roster" && hasCoSpeakers ? resolveProseText("chat.group.roundNudge", ctx.prose ?? {}, { name: speakerName }) : null;
+/** The speaker cue a turn carries when its round sent none (a single-speaker round, a regenerate): emitted exactly
+ *  when the system block's `{{char}}` (the layout) is not the speaking character's (the voice), so the block does
+ *  not name who speaks. A roster of one binds the same name on both, so a solo turn gets no cue and stays
+ *  byte-identical; a scoped or narrator layout is its own voice. */
+export function speakerCue(layout: AssembleContext, voice: AssembleContext): string | null {
+  const speaker = charForSpeaker(voice);
+  return charForSpeaker(layout) === speaker ? null : resolveProseText("chat.group.roundNudge", layout.prose ?? {}, { name: speaker });
 }
 
 function assertNeverGroupOutput(output: never): never {
