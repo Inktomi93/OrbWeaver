@@ -32,10 +32,10 @@ function setIf<K extends keyof ProcessMacroOptions>(target: ProcessMacroOptions,
   }
 }
 
-/** The `{{char}}` binding for a turn: the single character name, or the joined member names under a `multi-voice`
- *  speaker (narrator mode). A room of one collapses to that one name (no `if(isGroup)`). */
+/** The `{{char}}` binding for a turn: the single character name, or the joined member names under a roster arm
+ *  (`multi-voice` narrator, or a `roster` merged turn). A room of one collapses to that one name (no `if(isGroup)`). */
 function charForSpeaker(ctx: AssembleContext): string {
-  if (ctx.speaker?.kind === "multi-voice") {
+  if (ctx.speaker?.kind === "multi-voice" || ctx.speaker?.kind === "roster") {
     return ctx.speaker.members.map((m) => m.name).join(", ");
   }
   return ctx.character.name;

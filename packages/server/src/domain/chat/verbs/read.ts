@@ -147,6 +147,7 @@ import {
   previewActionText,
   previewSection,
   renderMacros,
+  rosterSpeakerCue,
   shapeContextForSpeaker,
   shapeTurn,
   toShapeCanon,
@@ -1094,7 +1095,8 @@ async function shapeNextTurn(
     scopedTargetId: null,
     namesBehavior: assembleContext.promptConfig.namesBehavior ?? DEFAULT_NAMES_BEHAVIOR,
     speakers: { user: assembleContext.activePersona?.name ?? DEFAULT_PERSONA_NAME, assistant: assembleContext.character.name },
-    groupNudge: null,
+    // A roster-layout room previews the primary's turn with the cue that names it, exactly as the turn carries it.
+    groupNudge: rosterSpeakerCue(assembleContext, assembleContext.character.name),
     assistantPrefill: turns?.assistantPrefill === true,
     // The same two system-row facts the turn reads. The preview must show the SAME delivery the wire carries —
     // this read is what a host debugs the prompt with, so a divergence would make the trace lie about the role

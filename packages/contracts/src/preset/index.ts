@@ -1295,18 +1295,10 @@ export const TEMPLATE_DEFS = [
   // multi-character round. The `{{name}}`/`{{names}}` are PRE-SUBSTITUTION tokens the assembler splices per
   // member — the editor offers them as chips and lints their absence; `speakerTags` carries no macro token.
   {
-    id: "chat.group.alsoPresent",
-    kind: "group",
-    label: "Co-speaker heading",
-    fires: "A merged group turn — opens each other present member's card block",
-    caps: [{ kind: "tokens", tokens: ["{{name}}"] }],
-    defaultSlot: "chat.group.alsoPresent",
-  },
-  {
     id: "chat.group.characterHeading",
     kind: "group",
     label: "Character heading",
-    fires: "A narrator round — opens each character's card block beside the primary",
+    fires: "A merged or narrator group turn — opens each character's card block beside the primary",
     caps: [{ kind: "tokens", tokens: ["{{name}}"] }],
     defaultSlot: "chat.group.characterHeading",
   },
@@ -2029,9 +2021,8 @@ export const DEFAULT_MARKER_TEMPLATES: Record<TemplatedMarker, string> = {
  *  cannot survive.
  *
  *  WHICH text a turn gets is decided ONCE, where the default resolves (`assembly/assemble.ts` templateFor,
- *  keyed on `speaker.kind === "multi-voice"` — the same axis `memberHeadingSlot` already selects the co-speaker
- *  card frame on). There is deliberately NO second resolution home and NO mode-keyed record here: this file
- *  owns the BYTES, the assembler owns the pick.
+ *  keyed on the speaker arm). There is deliberately NO second resolution home and NO mode-keyed record here:
+ *  this file owns the BYTES, the assembler owns the pick.
  *
  *  The ADDRESS clause is byte-identical to the per-speaker default's, on purpose (owner ruling 2026-08-02 —
  *  see the comment above): the vocative defect is a property of `{{user}}`, not of the turn's mode.
@@ -2041,6 +2032,17 @@ export const DEFAULT_MARKER_TEMPLATES: Record<TemplatedMarker, string> = {
 export const NARRATOR_MAIN_PROMPT_TEMPLATE =
   "You are the narrator of an immersive, ongoing roleplay with {{user}}, voicing {{char}} and the world around them. " +
   "Give each speaking character a distinct, consistent voice. " +
+  "Address {{user}} in the second person; use their name only when it is one they have chosen for themselves.";
+
+/** The PER-SPEAKER MERGED `main_prompt` default — the third sibling. A merged room's system block is the whole
+ *  roster in one fixed order for every speaker (owner ruling), so one cache entry serves the room; the speaker is
+ *  named only in the round cue (`chat.group.roundNudge`). `{{char}}` binds to the joined roster on that arm, so
+ *  the per-speaker default (`write {{char}}'s perspective only`) cannot be used. The ADDRESS clause is
+ *  byte-identical to its siblings'. The pick is made where the default resolves (`assembly/assemble.ts`
+ *  templateFor, keyed on `speaker.kind === "roster"`). */
+export const ROSTER_MAIN_PROMPT_TEMPLATE =
+  "You are playing {{char}} in an immersive, ongoing roleplay with {{user}}. " +
+  "Write each reply as the one character the latest instruction names, in that character's voice and perspective only. " +
   "Address {{user}} in the second person; use their name only when it is one they have chosen for themselves.";
 
 // ChoiceBlock — preset-author-declared named variables (POV/tense/style); the macro engine exposes
