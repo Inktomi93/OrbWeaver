@@ -1346,6 +1346,77 @@ test("an incomplete ordinary owner withholds stale liveness but not malformed ac
   expect(result.authority.authorityAlarms).toHaveLength(1);
 });
 
+// A selected-files owner under a proper-subset request completes over its effective population only, so a
+// central grant whose finding lives outside that subset is unconsumed without being stale. The subset run
+// must name such grants as unjudged; the whole-population run keeps the stale verdict.
+test("a subset run names out-of-scope reviewed grants unjudged while the whole run still judges them stale", () => {
+  const client = (file: string): string => `packages/client/src/${file}`;
+  const reviewed = policy("subset-reviewed", {
+    authority: "reviewed-grant",
+    create: (ctx) => ({
+      visitors: [
+        {
+          kinds: [SyntaxKind.VariableDeclaration],
+          visit: (node) => ctx.report.node(node, { subject: ctx.relativePath(node.getSourceFile()), operation: "read" }),
+        },
+      ],
+    }),
+    mustFlag: [
+      {
+        mode: "source",
+        files: { [client("proof.ts")]: "export const planted = true;\n" },
+        grant: { subject: client("proof.ts"), operation: "read" },
+        why: "the node finding binds the central grant by its file subject",
+      },
+    ],
+  });
+  const grant = (file: string): PolicyPassInput["reviewedGrants"][number] => ({
+    id: `grant:${file}`,
+    policyId: reviewed.id,
+    subject: client(file),
+    operation: "read",
+    why: "fixture",
+    endsWhen: "the read disappears",
+  });
+  const reviewedGrants = [grant("inside.ts"), grant("outside.ts")];
+  const requestedPaths = [client("inside.ts"), client("ungranted.ts")];
+  const tree = (outside: string, inside = "export const inside = 1;\n"): Project =>
+    projectOf({ [client("inside.ts")]: inside, [client("outside.ts")]: outside, [client("ungranted.ts")]: "export const ungranted = 1;\n" });
+  const live = tree("export const outside = 1;\n");
+  const dead = tree("export {};\n");
+  const grantIds = (result: PolicyPassResult): readonly string[] => result.authority.grantedFindings.map(({ grantId }) => grantId);
+  const effectiveFiles = (result: PolicyPassResult): readonly string[] => result.authority.effectiveFindings.map(({ file }) => file);
+
+  const whole = run([reviewed], live, { reviewedGrants });
+  expect(grantIds(whole)).toEqual(["grant:inside.ts", "grant:outside.ts"]);
+  expect(whole.authority.authorityAlarms).toEqual([]);
+
+  // The fixed false positive: the live outside grant was reported stale by every subset run.
+  const subset = run([reviewed], live, { reviewedGrants, requestedPaths });
+  expect(subset.policies[0]?.owner).toEqual({ status: "success", population: "complete" });
+  expect(grantIds(subset)).toEqual(["grant:inside.ts"]);
+  expect(subset.authority.authorityAlarms).toEqual([]);
+  expect(whole.authority.unjudgedReviewedGrants).toEqual([]);
+  expect(subset.authority.unjudgedReviewedGrants).toEqual([{ policyId: reviewed.id, grantId: "grant:outside.ts" }]);
+  // Findings are untouched by the fix: the in-scope ungranted finding stays effective and blocking.
+  expect(effectiveFiles(subset)).toEqual([client("ungranted.ts")]);
+  expect(subset.authority.verdict.blocking).toBe(1);
+
+  // Planted control, whole direction: a grant with no finding left is still stale on the whole run.
+  const wholeDead = run([reviewed], dead, { reviewedGrants });
+  expect(wholeDead.authority.authorityAlarms).toMatchObject([{ kind: "stale-reviewed-grant", grantId: "grant:outside.ts" }]);
+  expect(wholeDead.authority.unjudgedReviewedGrants).toEqual([]);
+
+  // The subset cannot tell the dead grant from the live one, so it answers "unjudged", never a clean zero.
+  const subsetDead = run([reviewed], dead, { reviewedGrants, requestedPaths });
+  expect(subsetDead.authority.authorityAlarms).toEqual([]);
+  expect(subsetDead.authority.unjudgedReviewedGrants).toEqual([{ policyId: reviewed.id, grantId: "grant:outside.ts" }]);
+
+  // Planted control, subset direction: two matches inside the subset are over-broad whatever lies outside it.
+  const doubled = run([reviewed], tree("export const outside = 1;\n", "export const a = 1;\nexport const b = 2;\n"), { reviewedGrants, requestedPaths });
+  expect(doubled.authority.authorityAlarms).toMatchObject([{ kind: "over-broad-reviewed-grant", grantId: "grant:inside.ts", count: 2 }]);
+});
+
 test("result ordering and timing receipt shape are deterministic", () => {
   const project = projectOf({
     "packages/client/src/b.ts": "export const b = 1;\n",

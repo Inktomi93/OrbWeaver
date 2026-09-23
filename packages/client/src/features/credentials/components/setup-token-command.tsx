@@ -16,7 +16,7 @@ import { useState } from "react";
 import { CLAUDE_SETUP_TOKEN_COMMAND } from "../lib/add-connection-form-model.ts";
 
 /** The copy button's states; the status line speaks each one. */
-export const COPY_OUTCOMES = ["idle", "copied", "failed"] as const;
+const COPY_OUTCOMES = ["idle", "copied", "failed"] as const;
 type CopyOutcome = (typeof COPY_OUTCOMES)[number];
 
 const COPY_OUTCOME_COPY: Record<CopyOutcome, string> = {
