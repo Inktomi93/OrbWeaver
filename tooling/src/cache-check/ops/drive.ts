@@ -1,12 +1,13 @@
-// One case on the stage: create its characters and chat, run its steps through orb's real chat verbs, and
-// read each provider call's usage off the assistant rows the verbs return. It registers every row it creates for removal.
+// One room on the stage: create its characters and chat, write the shared prefix once, run each case's steps
+// through orb's real chat verbs, and read each provider call's usage off the assistant rows the verbs return.
+// It registers every row it creates for removal.
 import { errorMessage } from "@orb/kit/error-message";
 import type { AppRouter } from "@orb/server/transport/trpc";
 import { createTRPCClient, httpLink } from "@trpc/client";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { CasePlan, Measure, ProbeStep } from "../contract/plan.ts";
-import type { CallUsage, CaseRun, OrbApi } from "../contract/types.ts";
-import { REPLY_MAX_TOKENS, ROOMS } from "../lib/fixture.ts";
+import type { Measure, ProbeStep, RoomRun } from "../contract/plan.ts";
+import type { CallUsage, CaseRun, OrbApi, RoomCaseResult, RoomResult } from "../contract/types.ts";
+import { CASE_PLANS, REPLY_MAX_TOKENS, ROOMS } from "../lib/fixture.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm cache:check");
 
@@ -72,34 +73,59 @@ async function lastReplyId(api: OrbApi, chatId: ChatId): Promise<MessageView["id
   return last.id;
 }
 
-async function runStep(api: OrbApi, chatId: ChatId, step: ProbeStep): Promise<CaseRun> {
+const NO_RUN: CaseRun = { calls: [], replyCosts: [] };
+
+type TurnStep = Extract<ProbeStep, { kind: "send" | "continue" | "generate" }>;
+
+async function runTurn(api: OrbApi, chatId: ChatId, step: TurnStep): Promise<TurnOutcome> {
   const intent = { maxOutputTokens: REPLY_MAX_TOKENS };
+  if (step.kind === "send") {
+    return await api.chat.send.mutate({ chatId, content: step.content, intent });
+  }
+  if (step.kind === "continue") {
+    return await api.chat.continueTurn.mutate({ chatId, messageId: await lastReplyId(api, chatId), intent });
+  }
+  return await api.chat.generate.mutate({ chatId, intent });
+}
+
+async function runStep(api: OrbApi, chatId: ChatId, step: ProbeStep): Promise<CaseRun> {
   if (step.kind === "note") {
     await api.chat.setChatInjection.mutate({ chatId, position: "in_chat", depth: step.depth, role: "system", content: step.content });
-    return { calls: [], replyCosts: [] };
+    return NO_RUN;
   }
-  const outcome =
-    step.kind === "send"
-      ? await api.chat.send.mutate({ chatId, content: step.content, intent })
-      : await api.chat.continueTurn.mutate({ chatId, messageId: await lastReplyId(api, chatId), intent });
+  if (step.kind === "commit") {
+    await api.chat.commitMessage.mutate({ chatId, content: step.content });
+    return NO_RUN;
+  }
+  const outcome = await runTurn(api, chatId, step);
   if (outcome.aborted) {
     throw new Error(`the ${step.kind} turn aborted (${outcome.abortReason ?? "no reason"})`);
   }
   const replies = outcome.messages.filter((m) => m.role === "assistant");
+  // A generate only answers the prefix, so any reply count serves; a send or continue must match the plan.
   const expected = step.kind === "send" ? (step.speakers ?? 1) : 1;
-  if (replies.length !== expected) {
-    throw new Error(`the ${step.kind} turn produced ${replies.length} replies; the plan needs ${expected}`);
+  if (step.kind === "generate" ? replies.length === 0 : replies.length !== expected) {
+    throw new Error(`the ${step.kind} turn produced ${replies.length} replies; the plan needs ${step.kind === "generate" ? "one or more" : expected}`);
   }
   return { calls: measuredCalls(replies, step.measure), replyCosts: replies.map((m) => m.costUsd) };
 }
 
+async function runSteps(api: OrbApi, chatId: ChatId, steps: readonly ProbeStep[]): Promise<CaseRun> {
+  const calls: CallUsage[] = [];
+  const replyCosts: (number | null)[] = [];
+  for (const step of steps) {
+    const ran = await runStep(api, chatId, step);
+    calls.push(...ran.calls);
+    replyCosts.push(...ran.replyCosts);
+  }
+  return { calls, replyCosts };
+}
+
 type CharacterId = Awaited<ReturnType<OrbApi["character"]["create"]["mutate"]>>["id"];
 
-/** Run one case plan in a fresh chat on the currently bound chat connection. Every row it creates is
- *  registered on `rows`; the caller releases them. `tag` keeps its handles unique. */
-export async function runCasePlan(api: OrbApi, plan: CasePlan, probe: { readonly tag: string; readonly rows: ProbeRows }): Promise<CaseRun> {
+async function openRoom(api: OrbApi, roomRun: RoomRun, probe: { readonly tag: string; readonly rows: ProbeRows }): Promise<ChatId> {
   const { tag, rows } = probe;
-  const room = ROOMS[plan.room];
+  const room = ROOMS[roomRun.room];
   const characterIds: CharacterId[] = [];
   for (const card of room.cards) {
     const created = await api.character.create.mutate({
@@ -121,12 +147,33 @@ export async function runCasePlan(api: OrbApi, plan: CasePlan, probe: { readonly
   if (room.group !== null) {
     await api.chat.setGroupConfig.mutate({ chatId, config: room.group });
   }
-  const calls: CallUsage[] = [];
-  const replyCosts: (number | null)[] = [];
-  for (const step of plan.steps) {
-    const ran = await runStep(api, chatId, step);
-    calls.push(...ran.calls);
-    replyCosts.push(...ran.replyCosts);
+  return chatId;
+}
+
+/** Run a room's cases in one chat on the currently bound chat connection, after writing its prefix once. Every
+ *  row it creates is registered on `rows`; the caller releases them. `tag` keeps its handles unique. A failed
+ *  step fails its own case and the room goes on to the next; a failed prefix fails every case in the room. */
+export async function runRoom(api: OrbApi, roomRun: RoomRun, probe: { readonly tag: string; readonly rows: ProbeRows }): Promise<RoomResult> {
+  let chatId: ChatId;
+  let prefix: CaseRun;
+  // @orb-waive caught-failure-ownership(error): a failed room opening becomes an ERROR line for every case in the room, and those lines make the run exit as a tool error.
+  try {
+    chatId = await openRoom(api, roomRun, probe);
+    prefix = await runSteps(api, chatId, ROOMS[roomRun.room].prefixSteps);
+  } catch (error) {
+    return { prefixCosts: [], cases: roomRun.cases.map((c) => ({ case: c, error: `the room's prefix failed: ${errorMessage(error)}` })) };
   }
-  return { calls, replyCosts };
+  const cases: RoomCaseResult[] = [];
+  let opening = prefix.calls;
+  for (const c of roomRun.cases) {
+    // @orb-waive caught-failure-ownership(error): a failed step becomes this case's ERROR line with its message, and the ERROR line makes the run exit as a tool error.
+    try {
+      const run = await runSteps(api, chatId, CASE_PLANS[c].steps);
+      cases.push({ case: c, run: { calls: [...opening, ...run.calls], replyCosts: run.replyCosts } });
+      opening = [];
+    } catch (error) {
+      cases.push({ case: c, error: errorMessage(error) });
+    }
+  }
+  return { prefixCosts: prefix.replyCosts, cases };
 }
