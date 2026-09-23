@@ -1,24 +1,37 @@
-// The work-item verbs: mint (`item`, `item --from`), transition (`set`), land (`land`, `land --merged`).
-// Every verb takes a list, validates only the FINAL shape of each item, writes the item files as
-// whole-block rewrites and regenerates the indexes once. A refusal writes nothing — a batch is
-// all-or-nothing so a half-landed list can never be mistaken for a landed one. A mint judges its new files
-// with the docs check itself (`pendingDocProblems`: shape, sections, caps, writing rules, references)
-// before the first byte lands.
-import { existsSync, readFileSync } from "node:fs";
+// The work-item verbs: mint (`item`, `item --from`), transition and edit (`set`), land (`land`,
+// `land --merged`). Every verb takes a list, validates only the FINAL shape of each item, writes the item
+// files as whole-block rewrites and regenerates the indexes once. A refusal writes nothing — a batch is
+// all-or-nothing so a half-landed list can never be mistaken for a landed one. Every write is judged by
+// the docs check itself (shape, sections, caps, writing rules, references) before the first byte lands:
+// a mint through `pendingDocProblems`, an edit through `introducedDocProblems`.
+import { existsSync, readFileSync, rmSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
 import { DOC_TOOL_TREES } from "#doc-catalog";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { UsageError } from "../../_shared/run-tool.ts";
-import type { GovernedDoc, ItemPatch, ItemState, NewItemInput, WorkItem } from "../contract/types.ts";
+import type { DocEdit, GovernedDoc, ItemPatch, ItemState, NewItemInput, WorkItem } from "../contract/types.ts";
 import { closesTrailer } from "../lib/drift.ts";
 import { allItems } from "../lib/generated.ts";
 import { DESIGN_FILE } from "../lib/indexes.ts";
-import { applyPatch, itemShapeProblems, nextItemId, parseItem, parseItemBatch } from "../lib/items.ts";
-import { ID_WIDTH, numberedName, slugify } from "../lib/names.ts";
+import { applyPatch, nextItemId, parseItemBatch } from "../lib/items.ts";
+import { folderOf, ID_WIDTH, numberedName, referencePatterns, slugify } from "../lib/names.ts";
 import { itemTemplate } from "../lib/templates.ts";
-import { pendingDocProblems } from "./check.ts";
+import { introducedDocProblems, pendingDocProblems } from "./check.ts";
 import { regenerateIndexes } from "./indexes.ts";
-import { commitOnMain, commitPaths, formattedDoc, governedPaths, headCommit, isMainBranch, mergedCommits, readDoc, root, today, writeDoc } from "./tree.ts";
+import {
+  commitOnMain,
+  commitPaths,
+  formattedDoc,
+  governedPaths,
+  headCommit,
+  isMainBranch,
+  mergedCommits,
+  readDoc,
+  rewriteTextFiles,
+  root,
+  today,
+  writeDoc,
+} from "./tree.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm doc <item|set|land>");
 
@@ -126,31 +139,68 @@ export function newItemsFrom(from: string, repoRoot = root, date = today()): Wri
   return newItems(batch.items, repoRoot, date);
 }
 
+/** Point every reference to the doc at `from` at `to` instead: the folder-qualified name anywhere, the
+ *  bare name inside the doc's own folder. Returns the files it changed. */
+function rewriteReferences(from: string, to: string, repoRoot: string): readonly string[] {
+  const { anywhere, sameFolder } = referencePatterns(from);
+  const [toParent = "", toName = ""] = to.split("/").slice(-2);
+  const folder = folderOf(from);
+  return rewriteTextFiles((path, source) => {
+    const qualified = source.replace(anywhere, () => `${toParent}/${toName}`);
+    return path.startsWith(folder) && !path.slice(folder.length).includes("/") ? qualified.replace(sameFolder, () => toName) : qualified;
+  }, repoRoot);
+}
+
+/** The edit one patch makes to one item: its patched text, at a new path when the title changes. */
+function itemEdit(item: WorkItem, patch: ItemPatch, repoRoot: string, date: string): DocEdit | string {
+  const source = formattedDoc(applyPatch(readDoc(item.path, repoRoot).source, item, patch, date));
+  if (patch.title === undefined) {
+    return { from: item.path, doc: { path: item.path, source } };
+  }
+  const slug = slugify(patch.title);
+  if (slug === "") {
+    return `"${patch.title}": a title needs at least one word`;
+  }
+  const path = `${folderOf(item.path)}${numberedName(item.id, slug)}`;
+  if (path !== item.path && existsSync(join(repoRoot, path))) {
+    return `${path}: exists`;
+  }
+  return { from: item.path, doc: { path, source } };
+}
+
 /** Apply one patch to N items. Each item's final shape is judged against the tree AFTER the patch, so a
- *  `blocked on 12` naming an item that exists passes and one naming nothing refuses. */
+ *  `blocked on 12` naming an item that exists passes and one naming nothing refuses. A new title renames
+ *  the file and rewrites every reference to the old name. */
 export function setItems(ids: readonly number[], patch: ItemPatch, repoRoot = root, date = today()): WriteOutcome {
-  const items = loadItems(repoRoot);
-  const byId = new Map(items.map((item) => [item.id, item] as const));
-  const known = new Set(items.map((item) => item.id));
+  const byId = new Map(loadItems(repoRoot).map((item) => [item.id, item] as const));
   const refusals = ids.filter((id) => !byId.has(id)).map((id) => `${String(id)}: no such item under ${DOC_TOOL_TREES.work} — pnpm doc overview lists them`);
-  const writes: { readonly path: string; readonly source: string }[] = [];
+  const edits: DocEdit[] = [];
   for (const id of ids) {
     const item = byId.get(id);
-    if (item === undefined) {
-      continue;
+    const edit = item === undefined ? null : itemEdit(item, patch, repoRoot, date);
+    if (typeof edit === "string") {
+      refusals.push(edit);
+    } else if (edit !== null) {
+      edits.push(edit);
     }
-    const source = applyPatch(readDoc(item.path, repoRoot).source, item, patch, date);
-    const next = parseItem(item.path, source);
-    refusals.push(...(next === null ? [`${item.path}: the patched item did not parse`] : itemShapeProblems(next, known)));
-    writes.push({ path: item.path, source });
   }
   if (refusals.length > 0) {
     return { written: [], refusals };
   }
-  for (const write of writes) {
-    writeDoc(write.path, write.source, repoRoot);
+  const problems = introducedDocProblems(edits, repoRoot);
+  if (problems.length > 0) {
+    return { written: [], refusals: problems };
   }
-  return { written: [...writes.map((write) => write.path), ...regenerateIndexes(repoRoot)], refusals: [] };
+  const written: string[] = [];
+  for (const { from, doc } of edits) {
+    writeDoc(doc.path, doc.source, repoRoot);
+    written.push(doc.path);
+    if (from !== doc.path) {
+      rmSync(join(repoRoot, from));
+      written.push(from, ...rewriteReferences(from, doc.path, repoRoot));
+    }
+  }
+  return { written: [...new Set([...written, ...regenerateIndexes(repoRoot)])], refusals: [] };
 }
 
 const SHORT_SHA = 12;
