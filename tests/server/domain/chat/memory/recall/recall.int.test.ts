@@ -5,7 +5,7 @@ import type { CharacterId, ChatId, Handle, MessageId, UserId } from "@orb/kit/id
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import { generateDigests } from "../../../../../../packages/server/src/domain/chat/memory/build/digests.ts";
+import { generateDigests } from "../../../../../../packages/server/src/domain/chat/memory/generate/digests.ts";
 import { loadWitnessHorizons } from "../../../../../../packages/server/src/domain/chat/memory/persistence/queries.ts";
 import { recallMemory } from "../../../../../../packages/server/src/domain/chat/memory/recall/recall.ts";
 import type { MemoryLogEntry } from "../../../../../../packages/server/src/domain/chat/memory/types.ts";

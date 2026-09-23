@@ -4,7 +4,7 @@
 // digest inside a surfaced higher-tier span is never also surfaced (the greedy walk advances past it). The
 // protected tip is never surfaced — digests only exist for aged-out blocks.
 //
-// Indexing (matches build/digests.ts): a tier-k digest at blockIdx j covers tier-0 range
+// Indexing (matches generate/digests.ts): a tier-k digest at blockIdx j covers tier-0 range
 // [j·fanOutᵏ, (j+1)·fanOutᵏ − 1].
 
 import type { BlockKey } from "@orb/contracts/search";
@@ -18,7 +18,7 @@ function tierSpan(fanOut: number, tier: number): number {
 }
 
 /** The tier-0 blockIdx range a tier-`k` digest at `blockIdx` covers: `[blockIdx·fanOutᵏ, (blockIdx+1)·fanOutᵏ − 1]`
- *  (the file-header indexing, matching `build/digests.ts` consolidation). Tier 0 is the identity range. */
+ *  (the file-header indexing, matching `generate/digests.ts` consolidation). Tier 0 is the identity range. */
 function tier0RangeOf(fanOut: number, tier: number, blockIdx: number): { readonly startIdx: number; readonly endIdx: number } {
   const span = tierSpan(fanOut, tier);
   return { startIdx: blockIdx * span, endIdx: (blockIdx + 1) * span - 1 };

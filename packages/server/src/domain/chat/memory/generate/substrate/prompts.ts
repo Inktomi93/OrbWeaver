@@ -1,4 +1,4 @@
-// domain/chat/memory/build/substrate/prompts — the summarizer prompt BUILDERS (the ST-summarizer replacement,
+// domain/chat/memory/generate/substrate/prompts — the summarizer prompt BUILDERS (the ST-summarizer replacement,
 // §2b). The digest prompt enforces the THREE mandatory parts (topic anchor `[entities — scene]` · significance-
 // filtered facts · 15–30 concrete keywords); the consolidation prompt is the tiering DELTA prompt ("here are
 // prior consolidations — synthesize the arc, do NOT repeat them"). PURE builders — no I/O, no state.

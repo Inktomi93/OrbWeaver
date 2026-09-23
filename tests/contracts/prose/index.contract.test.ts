@@ -180,7 +180,7 @@ const S1_FROZEN_DEFAULTS: Readonly<Partial<Record<ProseSlotId, string>>> = {
     "You are a precise conversation summarizer. Produce a faithful, compact summary of the roleplay so far " +
     "that preserves the key facts, character states, decisions, locations, and unresolved threads. Do not " +
     "invent details and do not add commentary — output only the summary.",
-  // packages/server/src/domain/chat/memory/build/substrate/prompts.ts — DIGEST_SYSTEM_PROMPT
+  // packages/server/src/domain/chat/memory/generate/substrate/prompts.ts — DIGEST_SYSTEM_PROMPT
   "chat.memory.digestSystem": [
     "You distill a block of roleplay transcript into a retrieval-optimized memory unit.",
     "Output EXACTLY three parts, in order:",
