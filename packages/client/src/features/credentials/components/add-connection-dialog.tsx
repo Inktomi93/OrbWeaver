@@ -1,11 +1,12 @@
 // The "Add a connection" dialog (inference program §5.3a, the Essential tier): provider (grouped picker from
-// `providers.available`) · key pasted inline or the server URL · model (listed from the endpoint's
-// `/v1/models` server-side, typed fallback with its copy) · the `api` control only when the provider lists
-// more than one · the background switch. The key is minted into a credential row FIRST (label = the
-// connection's), then the connection row references it; `credentials.add` seals it at rest and no read ever
-// echoes it. The Advanced/Diagnostics tiers (declared · features · extras · transport) are step 9's.
+// `providers.available`) · key pasted inline or the server URL · model (the model picker; an endpoint lists
+// its `/v1/models` server-side, a hosted or built-in draft has no catalog read and types the id) · the `api`
+// control only when the provider lists more than one · the background switch. The key is minted into a
+// credential row FIRST (label = the connection's), then the connection row references it; `credentials.add`
+// seals it at rest and no read ever echoes it. The Advanced/Diagnostics tiers live in the editor.
 
 import type { ProviderDef } from "@orb/contracts/inference";
+import { errorMessage } from "@orb/kit/error-message";
 import { Button } from "@orb/ui/button";
 import { DialogClose } from "@orb/ui/dialog";
 import { EmptyState } from "@orb/ui/empty-state";
@@ -15,16 +16,24 @@ import type { SelectItems } from "@orb/ui/select";
 import { WebSpinner } from "@orb/ui/spinner";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
+import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { FormDialog, QueryBoundary } from "#components";
 import type { Invalidation, Trpc } from "#data";
+import { touchedFieldError } from "#forms/editor";
 import { notify } from "#lib";
 import { useAddConnectionForm } from "../hooks/use-add-connection-form.ts";
 import { useAddCredential, useCreateConnection, useListEndpointModels } from "../hooks/use-connections-mutations.ts";
 import type { AddConnectionFormValues } from "../lib/add-connection-form-model.ts";
-import { acceptsKey, needsBaseUrl, needsKey } from "../lib/add-connection-form-model.ts";
-import { CHAT_API_LABELS, providerPickerItems, showsApiControl } from "../lib/connections-model.ts";
+import { acceptsKey, CONNECTION_FORM_COPY, draftModelReason, needsBaseUrl, needsKey } from "../lib/add-connection-form-model.ts";
+import { CHAT_API_LABELS, connectionHost, providerPickerItems, showsApiControl } from "../lib/connections-model.ts";
+import { endpointListSource, isListedModel, typedModelAllowed } from "../lib/model-catalog-model.ts";
+import type { ModelCatalogPickerProps } from "./model-catalog-picker.tsx";
+import { ModelCatalogPicker } from "./model-catalog-picker.tsx";
+
+type CredentialView = inferOutput<Trpc["credentials"]["add"]>;
+type ModelCatalogSource = ModelCatalogPickerProps["source"];
 
 export interface AddConnectionDialogProps {
   readonly open: boolean;
@@ -92,36 +101,78 @@ interface FormBodyProps {
   readonly providerOf: (id: string) => ProviderDef | undefined;
 }
 
+/** One endpoint list answer, and the draft it is an answer ABOUT (#1502: a verdict must carry the inputs it
+ *  was taken for, so an edited URL retires it in the same commit). */
+interface EndpointListing {
+  readonly forDraft: string;
+  readonly source: ModelCatalogSource;
+}
+
+function draftKeyOf(baseUrl: string, keyValue: string): string {
+  return JSON.stringify([baseUrl.trim(), keyValue.trim()]);
+}
+
+type CreateConnectionInput = inferInput<Trpc["connection"]["create"]>;
+
+/** The `connection.create` input for a submitted draft. No secret rides it: the key is referenced by id. */
+function connectionInput(args: {
+  readonly provider: ProviderDef;
+  readonly values: AddConnectionFormValues;
+  readonly credentialId: CredentialView["id"] | null;
+  readonly modelListed: boolean;
+}): CreateConnectionInput {
+  const { provider, values } = args;
+  const label = values.label.trim();
+  return {
+    providerId: provider.id,
+    credentialId: args.credentialId,
+    baseUrl: needsBaseUrl(provider) ? values.baseUrl.trim() : null,
+    model: values.model.trim(),
+    ...(label !== "" ? { label } : {}),
+    ...(values.api === "auto" ? {} : { api: values.api as ProviderDef["apis"][number] }),
+    allowBackground: values.allowBackground,
+    modelListed: args.modelListed,
+  };
+}
+
 function AddConnectionFormBody({ trpc, invalidation, onDone, pickerItems, providerOf }: FormBodyProps): ReactElement {
   const deps = { trpc, invalidation };
   const addCredential = useAddCredential(deps);
   const createConnection = useCreateConnection(deps);
+  const [listing, setListing] = useState<EndpointListing | null>(null);
+
+  /** The model picker's source for the current draft: the endpoint's list when one was read FOR this draft,
+   *  otherwise the typed arm with the provider's reason. */
+  const modelSourceFor = (provider: ProviderDef, values: Pick<AddConnectionFormValues, "baseUrl" | "key">): ModelCatalogSource => {
+    if (needsBaseUrl(provider) && listing !== null && listing.forDraft === draftKeyOf(values.baseUrl, values.key)) {
+      return listing.source;
+    }
+    return { status: "unlisted", reason: draftModelReason(provider) };
+  };
+
+  /** The credential for this submit: a mint of the pasted key (with the connection's label, §5.3a Essential
+   *  tier), else none. */
+  const credentialFor = async (provider: ProviderDef, values: AddConnectionFormValues): Promise<CredentialView | null> => {
+    const key = values.key.trim();
+    if (key === "" || !acceptsKey(provider)) {
+      return null;
+    }
+    const label = values.label.trim();
+    return await addCredential.mutateAsync({ provider: provider.id, key, ...(label !== "" ? { label } : {}) });
+  };
 
   const save = async (values: AddConnectionFormValues): Promise<AddConnectionFormValues> => {
     const provider = providerOf(values.providerId);
     if (provider === undefined) {
       return values;
     }
-    const label = values.label.trim();
-    const key = values.key.trim();
-    // The credential row is minted BEHIND the connection with the connection's label (§5.3a Essential tier).
-    const credential =
-      key !== "" && acceptsKey(provider) ? await addCredential.mutateAsync({ provider: provider.id, key, ...(label !== "" ? { label } : {}) }) : null;
-    await createConnection.mutateAsync({
-      providerId: provider.id,
-      credentialId: credential?.id ?? null,
-      baseUrl: needsBaseUrl(provider) ? values.baseUrl.trim() : null,
-      model: values.model.trim(),
-      ...(label !== "" ? { label } : {}),
-      ...(values.api === "auto" ? {} : { api: values.api as ProviderDef["apis"][number] }),
-      allowBackground: values.allowBackground,
-      modelListed: listedModels.some((entry) => entry.value === values.model.trim()),
-    });
+    const modelListed = isListedModel(modelSourceFor(provider, values), values.model);
+    const credential = await credentialFor(provider, values);
+    await createConnection.mutateAsync(connectionInput({ provider, values, credentialId: credential?.id ?? null, modelListed }));
     onDone();
     return values;
   };
 
-  const [listedModels, setListedModels] = useState<readonly ListedModel[]>([]);
   const { form } = useAddConnectionForm({ entityId: "add-connection", serverValues: undefined, save });
 
   return (
@@ -130,7 +181,7 @@ function AddConnectionFormBody({ trpc, invalidation, onDone, pickerItems, provid
         onSubmit={(event): void => {
           event.preventDefault();
           event.stopPropagation();
-          form.handleSubmit().catch(() => notify.error("Couldn't submit the connection."));
+          form.handleSubmit().catch((err: unknown) => notify.error({ title: CONNECTION_FORM_COPY.submitFailed, description: errorMessage(err) }));
         }}
       >
         <Stack gap="block">
@@ -142,17 +193,17 @@ function AddConnectionFormBody({ trpc, invalidation, onDone, pickerItems, provid
             {(field): ReactElement => <field.SelectField label="Provider" items={pickerItems} placeholder="Pick a provider" />}
           </form.AppField>
 
-          <form.Subscribe selector={(state): string => state.values.providerId}>
-            {(providerId): ReactElement | null => {
-              const provider = providerOf(providerId);
+          <form.Subscribe selector={(state): AddConnectionFormValues => state.values}>
+            {(values): ReactElement | null => {
+              const provider = providerOf(values.providerId);
               return provider === undefined ? null : (
                 <ProviderFields
                   form={form}
                   provider={provider}
                   trpc={trpc}
                   invalidation={invalidation}
-                  listedModels={listedModels}
-                  onListed={setListedModels}
+                  modelSource={modelSourceFor(provider, values)}
+                  onListing={setListing}
                 />
               );
             }}
@@ -162,7 +213,7 @@ function AddConnectionFormBody({ trpc, invalidation, onDone, pickerItems, provid
 
           <Row gap="field" justify="end">
             <DialogClose render={<Button intent="ghost">Cancel</Button>} />
-            <form.SubmitButton>Add connection</form.SubmitButton>
+            <form.SubmitButton>{CONNECTION_FORM_COPY.submit}</form.SubmitButton>
           </Row>
         </Stack>
       </form>
@@ -171,23 +222,19 @@ function AddConnectionFormBody({ trpc, invalidation, onDone, pickerItems, provid
 }
 
 type AddConnectionForm = ReturnType<typeof useAddConnectionForm>["form"];
-interface ListedModel {
-  readonly label: string;
-  readonly value: string;
-}
 
 interface ProviderFieldsProps {
   readonly form: AddConnectionForm;
   readonly provider: ProviderDef;
   readonly trpc: Trpc;
   readonly invalidation: Invalidation;
-  readonly listedModels: readonly ListedModel[];
-  readonly onListed: (models: readonly ListedModel[]) => void;
+  readonly modelSource: ModelCatalogSource;
+  readonly onListing: (listing: EndpointListing) => void;
 }
 
-/** The fields that depend on the PICKED provider's auth kind: URL and/or key, the model (listed or typed),
- *  the api control only when the row lists more than one, label and the background switch. */
-function ProviderFields({ form, provider, trpc, invalidation, listedModels, onListed }: ProviderFieldsProps): ReactElement {
+/** The fields that depend on the PICKED provider's auth kind: URL and/or key, the model, the api control only
+ *  when the row lists more than one, label and the background switch. */
+function ProviderFields({ form, provider, trpc, invalidation, modelSource, onListing }: ProviderFieldsProps): ReactElement {
   return (
     <>
       {needsBaseUrl(provider) ? (
@@ -202,37 +249,25 @@ function ProviderFields({ form, provider, trpc, invalidation, listedModels, onLi
           )}
         </form.AppField>
       ) : null}
-      {acceptsKey(provider) ? (
-        <form.AppField name="key">
-          {(field): ReactElement => (
-            <field.TextField
-              label={keyLabel(provider)}
-              {...(provider.auth === "oauthToken"
-                ? { description: "Run `claude setup-token` on the machine you use Claude Code on and paste the result." }
-                : {})}
-              placeholder={provider.auth === "oauthToken" ? "Paste the token" : "Paste your API key"}
-              type="password"
-              revealable={true}
-              autoComplete="off"
-            />
-          )}
-        </form.AppField>
-      ) : null}
+      <KeyField form={form} provider={provider} />
       {needsBaseUrl(provider) ? (
         <form.Subscribe selector={(state): { readonly baseUrl: string; readonly key: string } => ({ baseUrl: state.values.baseUrl, key: state.values.key })}>
           {(draft): ReactElement => (
-            <EndpointModelsCheck trpc={trpc} invalidation={invalidation} baseUrl={draft.baseUrl} keyValue={draft.key} onListed={onListed} />
+            <EndpointModelsCheck trpc={trpc} invalidation={invalidation} baseUrl={draft.baseUrl} keyValue={draft.key} onListing={onListing} />
           )}
         </form.Subscribe>
       ) : null}
       <form.AppField name="model">
-        {(field): ReactElement =>
-          listedModels.length > 0 ? (
-            <field.SelectField label="Model" items={listedModels} placeholder="Pick a model" />
-          ) : (
-            <field.TextField label="Model" hint={modelHint(provider)} placeholder="e.g. anthropic/claude-opus-5" autoComplete="off" />
-          )
-        }
+        {(field): ReactElement => (
+          <ModelCatalogPicker
+            error={touchedFieldError(field.state.meta)}
+            listOwner={listOwnerOf(provider, form.state.values.baseUrl)}
+            onValueChange={field.handleChange}
+            source={modelSource}
+            typedAllowed={typedModelAllowed(provider)}
+            value={field.state.value}
+          />
+        )}
       </form.AppField>
       {showsApiControl(provider) ? (
         <form.AppField name="api">
@@ -246,15 +281,34 @@ function ProviderFields({ form, provider, trpc, invalidation, listedModels, onLi
       ) : null}
       <form.AppField name="label">
         {(field): ReactElement => (
-          <field.TextField label="Label" hint="Optional — defaults to “provider · model”." placeholder={`${provider.label} · …`} autoComplete="off" />
+          <field.TextField label="Label" hint={CONNECTION_FORM_COPY.labelHint} placeholder={`${provider.label} · …`} autoComplete="off" />
         )}
       </form.AppField>
       <form.AppField name="allowBackground">
-        {(field): ReactElement => (
-          <field.SwitchField label="Allow background work" description="Let summaries, captions and memory digests run on this connection unattended." />
-        )}
+        {(field): ReactElement => <field.SwitchField label={CONNECTION_FORM_COPY.backgroundLabel} description={CONNECTION_FORM_COPY.backgroundDescription} />}
       </form.AppField>
     </>
+  );
+}
+
+/** The key step: the paste field, when the provider takes a key. */
+function KeyField({ form, provider }: { readonly form: AddConnectionForm; readonly provider: ProviderDef }): ReactElement | null {
+  if (!acceptsKey(provider)) {
+    return null;
+  }
+  return (
+    <form.AppField name="key">
+      {(field): ReactElement => (
+        <field.TextField
+          label={keyLabel(provider)}
+          {...(provider.auth === "oauthToken" ? { description: "Run `claude setup-token` on the machine you use Claude Code on and paste the result." } : {})}
+          placeholder={provider.auth === "oauthToken" ? "Paste the token" : "Paste your API key"}
+          type="password"
+          revealable={true}
+          autoComplete="off"
+        />
+      )}
+    </form.AppField>
   );
 }
 
@@ -265,76 +319,48 @@ function keyLabel(provider: ProviderDef): string {
   return needsKey(provider) ? "API key" : "API key (optional)";
 }
 
-function modelHint(provider: ProviderDef): string {
-  if (provider.auth === "endpoint") {
-    return "Type the model id your server serves, or list them from the URL above.";
-  }
-  return `The model id as ${provider.label} spells it.`;
-}
-
-/** One list answer, and the draft it is an answer ABOUT (#1502: a verdict must carry the inputs it was
- *  taken for, so an edited URL retires it in the same commit). */
-interface ListVerdict {
-  readonly forDraft: string;
-  readonly count: number;
-  readonly reason: string | null;
-}
-
-function draftKeyOf(baseUrl: string, keyValue: string): string {
-  return JSON.stringify([baseUrl.trim(), keyValue.trim()]);
+/** Whose list the picker reads, in the user's words: an endpoint's host once a URL is typed, else the
+ *  provider's label. */
+function listOwnerOf(provider: ProviderDef, baseUrl: string): string {
+  return (needsBaseUrl(provider) ? connectionHost(baseUrl.trim() === "" ? null : baseUrl.trim()) : null) ?? provider.label;
 }
 
 /** The server-side `GET <baseUrl>/v1/models` for the draft (§7.4) — advisory, never blocks submit; an empty
- *  or failed list is the typed-id arm with its reason (`modelListed: false` on save). */
+ *  or failed list is the picker's typed arm with its reason (`modelListed: false` on save). */
 function EndpointModelsCheck({
   trpc,
   invalidation,
   baseUrl,
   keyValue,
-  onListed,
+  onListing,
 }: {
   readonly trpc: Trpc;
   readonly invalidation: Invalidation;
   readonly baseUrl: string;
   readonly keyValue: string;
-  readonly onListed: (models: readonly ListedModel[]) => void;
+  readonly onListing: (listing: EndpointListing) => void;
 }): ReactElement {
   const list = useListEndpointModels({ trpc, invalidation });
-  const [verdict, setVerdict] = useState<ListVerdict | null>(null);
-  const currentDraftKey = draftKeyOf(baseUrl, keyValue);
 
   const runCheck = (): void => {
     const draftBaseUrl = baseUrl.trim();
     if (draftBaseUrl === "") {
       return;
     }
-    const forDraft = currentDraftKey;
+    const forDraft = draftKeyOf(baseUrl, keyValue);
     const key = keyValue.trim();
+    onListing({ forDraft, source: { status: "loading" } });
     void list
       .mutateAsync({ baseUrl: draftBaseUrl, ...(key !== "" ? { key } : {}) })
-      .then((result): void => {
-        setVerdict({ forDraft, count: result.models.length, reason: result.reason });
-        onListed(result.models.map((entry) => ({ label: entry.name === entry.id ? entry.id : `${entry.name} (${entry.id})`, value: entry.id })));
-      })
-      .catch((): void => {
-        setVerdict({ forDraft, count: 0, reason: "the server refused the request" });
-        onListed([]);
-      });
+      .then((result): void => onListing({ forDraft, source: endpointListSource(result) }))
+      .catch((err: unknown): void => onListing({ forDraft, source: { status: "failed", reason: errorMessage(err), retry: runCheck } }));
   };
 
-  const shown = verdict !== null && verdict.forDraft === currentDraftKey ? verdict : null;
   return (
-    <Row gap="field" align="center" className="flex-wrap">
+    <Row gap="field" align="center">
       <Button intent="secondary" size="sm" disabled={baseUrl.trim() === "" || list.isPending} onClick={runCheck}>
         List models
       </Button>
-      {shown === null ? null : (
-        <Text voice="gloss" className={shown.count > 0 ? "text-success" : "text-warning"} data-slot="connection-list-verdict">
-          {shown.count > 0
-            ? `${shown.count} model${shown.count === 1 ? "" : "s"} listed`
-            : `Couldn't list models — ${shown.reason ?? "no answer"}. Type the id; it'll be sent as-is.`}
-        </Text>
-      )}
     </Row>
   );
 }
