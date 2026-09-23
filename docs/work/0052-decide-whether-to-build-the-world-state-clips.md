@@ -1,14 +1,17 @@
 ---
 kind: decision
-status: open
+status: blocked
 updated: 2026-09-23
 priority: P2
 area: server
+blocked: owner
 ---
 
 # Decide whether to build the world-state, clips and trackers memory layer
 
 ## What
+
+Owner ruling: this program stays parked and stays valid. It is not a decision to resolve now. Do not close or drop it. It wakes when the owner un-parks the program.
 
 `docs/architecture/proposed/world-state-clips-trackers-spec.md` designs a memory layer beside the digest
 memory. Clips are durable, typed memory statements. Trackers are named state slots that update in place.

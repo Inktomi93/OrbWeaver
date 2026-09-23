@@ -1,14 +1,17 @@
 ---
 kind: decision
-status: open
+status: blocked
 updated: 2026-09-23
 priority: P1
 area: server
+blocked: owner
 ---
 
 # Decide whether the agent-principal program is rebuilt or its design set is deleted
 
 ## What
+
+Owner ruling: this program stays parked and stays valid. It is not a decision to resolve now. Do not close or drop it. It wakes when the owner un-parks the program.
 
 The design set in `docs/architecture/proposed/agent-principal-design/` describes agents as principals: a
 mint, participant attribution, a capability ceiling and seats. The tree keeps only the dormant `kind` and
