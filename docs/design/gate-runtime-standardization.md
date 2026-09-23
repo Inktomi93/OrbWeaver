@@ -205,8 +205,8 @@ look live or stale.
 
 Authority and severity are independent. `hard` + `warning` is valid only for an owner-authorized,
 time-bounded transition whose findings must remain unsuppressible; `ordinary` + `warning` is valid only
-when an actual waiver door is intended. Every warning carries a positive live `workItem`. Hard warning
-findings remain effective and cannot be waived or granted. Warning findings contribute zero to the shipped
+when an actual waiver door is intended. Every warning carries a `workItem` naming a `docs/work` item that is
+not done (`warning-workitem-liveness`). Hard warning findings remain effective and cannot be waived or granted. Warning findings contribute zero to the shipped
 default blocking count and become blocking when `--fail-on-warnings` is selected; ordinary and
 reviewed-grant findings retain the suppression door their authority declares.
 
