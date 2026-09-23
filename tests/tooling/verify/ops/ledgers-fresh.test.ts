@@ -116,7 +116,7 @@ test("a derivation that comes back EMPTY is a TOOL ERROR (exit 2), never a fresh
 
 const SITE_PATH = "packages/server/src/probe/absorb.ts";
 const SITE_SOURCE = "export function absorb(): void {\n  try {\n    risky();\n  } catch {}\n}\n";
-const SITE_ID = `${SITE_PATH}::catch::1`;
+const SITE_ID = `${SITE_PATH}::absorb::catch::1`;
 /** A second site on both sides, so a tree whose planted site vanished still derives rows: an EMPTY
  *  derivation is the stage's blindness refusal (exit 2), which would hide the `gone` verdict under test. */
 const KEEP = { "packages/server/src/probe/keep.ts": "export function keep(): void {\n  try {\n    risky();\n  } catch {}\n}\n" };
@@ -149,6 +149,30 @@ test("a census site that VANISHED reds, naming its siteId", async ({ plantedTree
   const committed = JSON.parse(readFileSync(join(root, POPULATION_REL), "utf8")) as CaughtFailurePopulation;
   expect(censusDrift(committed, deriveCaughtFailurePopulation(root)).drift.join("\n")).toContain(`gone   ${SITE_ID}`);
   expect(await censusCheck(root)).toBe(1);
+});
+
+test("a same-token catch inserted in a DIFFERENT function above re-keys nothing — only the new site is drift", async ({ plantedTree }) => {
+  // The ordinal counts same-token sites per enclosing declaration, not per file: a new `catch` in `before`
+  // must not shift `absorb`'s `::catch::1` to `::catch::2`, which would read as one site gone and two new.
+  const before = "export function before(): void {\n  try {\n    risky();\n  } catch {}\n}\n";
+  const root = await plantCensus(plantedTree, SITE_SOURCE, `${before}${SITE_SOURCE}`);
+  const committed = JSON.parse(readFileSync(join(root, POPULATION_REL), "utf8")) as CaughtFailurePopulation;
+  const rows = censusDrift(committed, deriveCaughtFailurePopulation(root)).drift.filter((line) => !line.startsWith("totals"));
+  expect(rows).toHaveLength(1);
+  expect(rows[0]).toMatch(/^new {4}packages\/server\/src\/probe\/absorb\.ts::before::catch::1 /u);
+});
+
+test("a waiver reason that wraps onto continuation comment lines is recorded WHOLE", async ({ plantedTree }) => {
+  const waived =
+    "export function absorb(): void {\n" +
+    "  // @orb-waive caught-failure-ownership(catch): documented — the caller turns\n" +
+    "  // null into a typed refusal. Ends if the caller\n" +
+    "  // stops checking for null.\n" +
+    "  try {\n    risky();\n  } catch {}\n}\n";
+  const waivedCensus = deriveCaughtFailurePopulation(await plantedTree({ [SITE_PATH]: waived }));
+  expect(waivedCensus.rows.map((r) => r.reason)).toEqual([
+    "documented — the caller turns null into a typed refusal. Ends if the caller stops checking for null.",
+  ]);
 });
 
 // ── the registry contract: complete populations at whole tiers and selected-path triggers ──

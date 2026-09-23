@@ -31,7 +31,8 @@ import type { CoordinatedGateFinding } from "../../contract/gate-authority.ts";
 import type { OrdinaryWaiverSource } from "../../contract/ordinary-waiver-source.ts";
 import { JSON_RESOURCE_PATHS } from "../../contract/resource-json.ts";
 import { gate } from "../../gates/caught-failure-ownership.ts";
-import { caughtFailureReviewSites, keyCaughtFailureSites } from "../../lib/caught-failure.ts";
+import { caughtFailureReviewSites } from "../../lib/caught-failure.ts";
+import { keyCaughtFailureSites } from "../../lib/caught-failure-identity.ts";
 import { createOrdinaryWaiverEngine } from "../../lib/ordinary-waiver.ts";
 import { compilePopulation } from "../../lib/population-resolver.ts";
 // NOT `harness.ts`'s `getProject` — MEASURED 2026-08-28: its fileset is deliberately narrower than
@@ -77,19 +78,41 @@ function derivedSites(sf: SourceFile, path: string): readonly DerivedSite[] {
   });
 }
 
-/** The reason text out of a marker the ENGINE already validated. `waiverId` is `<path>:<line>:<column>` of
- *  the marker comment, and the grammar puts the reason after the first `):` on that line. */
+/** A `//` continuation line and its body. */
+const LINE_COMMENT = /^\s*\/\/(.*)$/u;
+/** A comment body that starts something else — another marker or a tool directive — ends the reason. */
+const REASON_STOP = /^(?:@|biome-ignore|eslint-|prettier-ignore)/u;
+
+/** The reason text out of a marker the ENGINE already validated, WHOLE. `waiverId` is
+ *  `<path>:<line>:<column>` of the marker comment, and the grammar puts the reason after the first `):` on
+ *  that line. The engine reads only that line, but authors wrap a long reason onto following `//` lines, and
+ *  the census promises the full reason verbatim: the consecutive non-empty `//` lines after a `//` marker are
+ *  its continuation, joined with single spaces, up to a blank comment line, another marker or directive, or
+ *  code. Before this the census recorded "documented — the caller (liftString) turns" and dropped the rest. */
 function waiverReason(sf: SourceFile, markerLine: number): string {
-  const line = sf.getFullText().split(/\r?\n/u)[markerLine - 1] ?? "";
-  const at = line.indexOf("):");
-  const reason =
+  const lines = sf.getFullText().split(/\r?\n/u);
+  const first = lines[markerLine - 1] ?? "";
+  const at = first.indexOf("):");
+  const parts = [
     at === -1
       ? ""
-      : line
+      : first
           .slice(at + 2)
           .replace(/\*\/\s*$/u, "")
-          .trim();
-  if (reason.length === 0) {
+          .trim(),
+  ];
+  // A block-comment marker closes on its own line; only a `//` marker can wrap onto continuation lines.
+  if (LINE_COMMENT.test(first)) {
+    for (const line of lines.slice(markerLine)) {
+      const body = LINE_COMMENT.exec(line)?.[1]?.trim();
+      if (body === undefined || body.length === 0 || REASON_STOP.test(body)) {
+        break;
+      }
+      parts.push(body);
+    }
+  }
+  const reason = parts.join(" ").trim();
+  if (parts[0]?.length === 0 || reason.length === 0) {
     throw new Error(
       `caught-failure-population: the central waiver engine honoured a marker at line ${markerLine} whose reason this reader ` +
         "could not lift. The census cannot record a reason it did not read — re-derive the read in " +

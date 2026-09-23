@@ -14,8 +14,9 @@
 // The committed row is `{ siteId, verdict, reason }`. A line inserted above a site moves no id, so this
 // policy stays green through every such edit — which is the whole point of keying on `siteId` rather than
 // on the `line`/`markerLine` the file used to carry (it was touched by about one commit in eleven for that
-// alone). The site identity is `lib/caught-failure.ts#keyCaughtFailureSites`, the same function the census
-// generator keys with, so the two can never spell an id differently.
+// alone). The site identity is `lib/caught-failure-identity.ts#keyCaughtFailureSites`, the same function the
+// census generator keys with, so the two can never spell an id differently. Its ordinal is scoped to the
+// enclosing declaration, so a same-token catch added in another function re-keys nothing here either.
 //
 // ── WHAT THIS POLICY DOES NOT JUDGE ─────────────────────────────────────────────────────────────────────
 // The VERDICT and REASON columns. Whether a marker waives a site is the central ordinary-waiver engine's
@@ -27,13 +28,14 @@ import { defineGate } from "../contract/policy.ts";
 import type { JsonValue } from "../contract/resource-json.ts";
 import { JSON_RESOURCE_PATHS } from "../contract/resource-json.ts";
 import type { CaughtFailureSite } from "../lib/caught-failure.ts";
-import { CAUGHT_FAILURE_POPULATION, catchClauseSite, keyCaughtFailureSites, promiseAbsorberSite } from "../lib/caught-failure.ts";
+import { CAUGHT_FAILURE_POPULATION, catchClauseSite, promiseAbsorberSite } from "../lib/caught-failure.ts";
+import { keyCaughtFailureSites } from "../lib/caught-failure-identity.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
 
 const POPULATION_PATH = JSON_RESOURCE_PATHS["caught-failure-population"];
 const REGEN = "pnpm exec node tooling/src/verify/cli.ts baseline caught-failure-population";
 
-const MESSAGE = `the committed caught-failure census (${POPULATION_PATH}) and the tree disagree about which sites exist. The census is keyed by \`siteId\` (path::position::ordinal), and every committed id must name a live site and every live site must have a row. (tooling/src/verify/ops/gen/caught-failure-population.ts)`;
+const MESSAGE = `the committed caught-failure census (${POPULATION_PATH}) and the tree disagree about which sites exist. The census is keyed by \`siteId\` (path::declaration::position::ordinal), and every committed id must name a live site and every live site must have a row. (tooling/src/verify/ops/gen/caught-failure-population.ts)`;
 
 const FIX = `regenerate the census (\`${REGEN}\`) and commit it, or hand-edit only your own row: a new site gets \`{ "siteId", "verdict", "reason" }\`, a removed site's row is deleted. A line inserted above a site never needs either.`;
 
@@ -108,7 +110,7 @@ function join(ctx: GatePolicyContext, committedIds: readonly string[], live: Rea
 
 // ── self-proof substrate ────────────────────────────────────────────────────────────────────────────
 const SITE_PATH = "packages/server/src/domain/probe/absorb.ts";
-const SITE_ID = `${SITE_PATH}::catch::1`;
+const SITE_ID = `${SITE_PATH}::absorb::catch::1`;
 const SITE = "export function absorb(): void {\n  try { risky(); } catch {}\n}\n";
 const ANCHOR = { "packages/server/src/domain/probe/clean.ts": "export const CLEAN = 1;\n" };
 const census = (...siteIds: readonly string[]): Readonly<Record<string, string>> => ({
@@ -162,6 +164,15 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "resource",
+      files: {
+        ...census(`${SITE_PATH}::absorb::catch::1`),
+        [SITE_PATH]: `export function before(): void {\n  try { risky(); } catch {}\n}\n${SITE}`,
+      },
+      expect: { count: 1, messageIncludes: `caught-failure site \`${SITE_PATH}::before::catch::1\` has no census row` },
+      why: "THE ID IS SCOPED TO ITS DECLARATION: a same-token catch inserted in a DIFFERENT function above the recorded one is the only finding. Under the retired per-FILE ordinal the new `before` catch took `::catch::1`, so the recorded row silently named a different site and handed it the verdict, while `absorb` re-keyed to `::catch::2`",
+    },
+    {
+      mode: "resource",
       files: { ...census(SITE_ID), ...ANCHOR },
       expect: { count: 1, messageIncludes: `census row \`${SITE_ID}\` names a site that is no longer on the tree` },
       why: "THE FOUNDING CASE, and the direction the census used to lose silently: the site was deleted and its row stayed. The finding is NAMED BY THE ID, because the committed row carries no coordinate to cite; the clean in-population file is the anchor that keeps the fixture a finding rather than an empty-population refusal",
@@ -175,8 +186,8 @@ export const gate = defineGate({
     {
       mode: "resource",
       files: { ...census(SITE_ID), [SITE_PATH]: "export function absorb(): void {\n  try { risky(); } catch {}\n  try { risky(); } catch {}\n}\n" },
-      expect: { count: 1, messageIncludes: `\`${SITE_PATH}::catch::2\` has no census row` },
-      why: "MULTIPLICITY is part of the identity: a second bindingless catch in the same file is `::catch::2`, not a duplicate of the recorded `::catch::1`. A join on (path, position) alone would call this tree agreeing",
+      expect: { count: 1, messageIncludes: `\`${SITE_PATH}::absorb::catch::2\` has no census row` },
+      why: "MULTIPLICITY is part of the identity: a second bindingless catch in the same function is `::absorb::catch::2`, not a duplicate of the recorded `::absorb::catch::1`. A join on (path, position) alone would call this tree agreeing",
     },
     {
       mode: "resource",
