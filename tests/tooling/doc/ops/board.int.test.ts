@@ -255,6 +255,36 @@ test("drift reads the repository: a stale doing item and an unlanded Closes trai
   ]);
 });
 
+test("drift reports a Closes trailer buried deeper than a fixed recent-commit window would reach", async ({ plantedTree }) => {
+  const root = await repo(plantedTree);
+  newItem({ title: "A", kind: "work", priority: null, area: null, plan: null, lane: null }, root, TODAY);
+  commitAll(root, "chore(work): items");
+  writeFileSync(join(root, "main.txt"), "main work\n");
+  const closer = commitAll(root, "fix(x): closes a\n\nCloses: 1\nCo-Authored-By: t <t@example.invalid>");
+  // A merge train longer than any fixed recent-commit window a scan-by-count could pick — the closer must
+  // still surface. 205 filler commits is comfortably past a 200-commit window.
+  for (let i = 0; i < 205; i += 1) {
+    git(root, "commit", "--allow-empty", "-qm", `chore(x): filler ${String(i)}`);
+  }
+  expect(drift(root)).toEqual([
+    `main commit ${closer} closes 1 but the item is still on the tree (the merge ran without the landing hooks) — pnpm doc land 1 --evidence ${closer}`,
+  ]);
+});
+
+test("drift stays silent on a Closes trailer whose item already landed (deleted), even deep in a long history", async ({ plantedTree }) => {
+  const root = await repo(plantedTree);
+  newItem({ title: "A", kind: "work", priority: null, area: null, plan: null, lane: null }, root, TODAY);
+  commitAll(root, "chore(work): items");
+  writeFileSync(join(root, "main.txt"), "main work\n");
+  const closer = commitAll(root, "fix(x): closes a\n\nCloses: 1\nCo-Authored-By: t <t@example.invalid>");
+  expect(landItems([1], closer, root, TODAY).refusals).toEqual([]);
+  expect(existsSync(join(root, "docs/work/0001-a.md"))).toBe(false);
+  for (let i = 0; i < 205; i += 1) {
+    git(root, "commit", "--allow-empty", "-qm", `chore(x): filler ${String(i)}`);
+  }
+  expect(drift(root)).toEqual([]);
+});
+
 test("drift resolves wake conditions against the tree, never a shell: a present path and a gone path each wake", async ({ plantedTree }) => {
   const root = await repo(plantedTree);
   newItem({ title: "A", kind: "work", priority: null, area: null, plan: null, lane: null }, root, TODAY);
