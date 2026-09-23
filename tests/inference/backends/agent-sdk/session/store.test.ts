@@ -4,6 +4,7 @@ import type { SeedTurn } from "../../../../../packages/inference/src/backends/ag
 import { GREETING_USER_STUB, sessionMatchesSeed } from "../../../../../packages/inference/src/backends/agent-sdk/session/frames.ts";
 import type { SeededSessionDecision } from "../../../../../packages/inference/src/backends/agent-sdk/session/store.ts";
 import { SessionCache } from "../../../../../packages/inference/src/backends/agent-sdk/session/store.ts";
+import type { SessionEntryWriter } from "../../../../../packages/inference/src/contract/agent.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const log = {
@@ -92,4 +93,68 @@ test("a send after a regenerate still resumes the regenerated lineage", async ()
 
   const { decision } = await runTurn(cache, ids, [...afterOne, text("user", "u2"), text("assistant", "a2-swipe")], { prompt: "u3", reply: "a3" });
   expect(decision.disposition).toBe("resumed");
+});
+
+// ── two funders in one room ─────────────────────────────────────────────────────────────────────────────
+// A shared room can bill alternate turns to two subscription connections. Each connection runs its own
+// lineage, and the `session_entries` primary seat for `(chat, connection)` follows the lineage it runs on.
+
+interface WriterCall {
+  readonly op: "insert" | "update";
+  readonly connectionId: UserConnectionId;
+  readonly sdkSessionId: string;
+}
+
+function recordingWriter(calls: WriterCall[]): SessionEntryWriter {
+  return {
+    insert: (entry): Promise<void> => {
+      calls.push({ op: "insert", connectionId: entry.connectionId, sdkSessionId: entry.sdkSessionId });
+      return Promise.resolve();
+    },
+    update: (entry): Promise<void> => {
+      calls.push({ op: "update", connectionId: entry.connectionId, sdkSessionId: entry.sdkSessionId });
+      return Promise.resolve();
+    },
+  };
+}
+
+test("two connections alternating in one chat each resume their own warm session", async () => {
+  const calls: WriterCall[] = [];
+  const cache = new SessionCache(log, undefined, recordingWriter(calls));
+  const chat = mintTypeId(ID_PREFIX.chat);
+  const funderA = { chat, connection: mintTypeId(ID_PREFIX.userConnection) };
+  const funderB = { chat, connection: mintTypeId(ID_PREFIX.userConnection) };
+  const greeting = [text("assistant", "Mara looks up.")];
+
+  const a1 = await runTurn(cache, funderA, greeting, { prompt: "u1", reply: "a1" });
+  const b1 = await runTurn(cache, funderB, greeting, { prompt: "u1", reply: "a1" });
+  const afterOne = [...greeting, text("user", "u1"), text("assistant", "a1")];
+  const a2 = await runTurn(cache, funderA, afterOne, { prompt: "u2", reply: "a2" });
+  const b2 = await runTurn(cache, funderB, afterOne, { prompt: "u2", reply: "a2" });
+
+  expect(a1.decision.sessionId).not.toBe(b1.decision.sessionId);
+  expect([a2.decision, b2.decision]).toEqual([
+    { sessionId: a1.decision.sessionId, disposition: "resumed" },
+    { sessionId: b1.decision.sessionId, disposition: "resumed" },
+  ]);
+  expect(calls).toEqual([
+    { op: "insert", connectionId: funderA.connection, sdkSessionId: a1.decision.sessionId },
+    { op: "insert", connectionId: funderB.connection, sdkSessionId: b1.decision.sessionId },
+  ]);
+});
+
+test("a swipe back onto an earlier lineage persists it, so the primary seat follows the live lineage", async () => {
+  const calls: WriterCall[] = [];
+  const cache = new SessionCache(log, undefined, recordingWriter(calls));
+  const ids = chatIds();
+  const greeting = [text("assistant", "Mara looks up.")];
+  const branchA = [...greeting, text("user", "u1"), text("assistant", "a1")];
+  const branchB = [...greeting, text("user", "u1"), text("assistant", "a1-swipe")];
+
+  const first = await cache.ensureSeededSession(ids.chat, ids.connection, branchA);
+  const forked = await cache.ensureSeededSession(ids.chat, ids.connection, branchB);
+  const back = await cache.ensureSeededSession(ids.chat, ids.connection, branchA);
+
+  expect([first.disposition, forked.disposition, back]).toEqual(["seeded", "forked", { sessionId: first.sessionId, disposition: "readopted" }]);
+  expect(calls.at(-1)).toEqual({ op: "update", connectionId: ids.connection, sdkSessionId: first.sessionId });
 });
