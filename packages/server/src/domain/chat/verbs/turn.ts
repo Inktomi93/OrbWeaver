@@ -339,17 +339,17 @@ interface BuiltTurnContext {
   /** The round-level recall inputs staged for the engine's per-speaker witnessed re-run (D6); `null` when
    *  there is no character to key on (memory off / an empty roster) ⇒ the engine keeps round-level `memory`. */
   readonly memoryRecall: MemoryRecallInputs | null;
-  /** The host's resolved turn-behavior arm (PD-146) — the custom stops the prep threads onto the request
+  /** The host's resolved turn-behavior arm — the custom stops the prep threads onto the request
    *  + the auto-continue/auto-swipe knobs the send post-round hook gates on. Defaulted to all-off. */
   readonly chatBehavior: ChatBehaviorInputs;
-  /** The tool names a game turn's GATHER contributed (rpg-design/05 §1) — threaded onto the round base →
+  /** The tool names a game turn's GATHER contributed (docs/plans/rpg/design.md) — threaded onto the round base →
    *  `TurnPrep.attachedToolNames` (the pipeline resolves them against the tool-use registry). Empty for a
    *  non-game turn (byte-identical); empty until the rpg tool registry lands (R4 #2/#3) even for a game. */
   readonly attachedToolNames: readonly string[];
   /** The TERMINAL wire tools a game turn's GATHER contributed (R1 — the folded state extraction), threaded
    *  onto the PERSISTING lifecycle's prep only. `undefined` for a non-game / non-folded turn (byte-identical). */
   readonly terminalTools: readonly WireTool[] | undefined;
-  /** rpg-design/05 §6 slot-adjacency (threaded onto `TurnPrep` → the engine marks the turn dice-eligible after
+  /** docs/plans/rpg/design.md slot-adjacency (threaded onto `TurnPrep` → the engine marks the turn dice-eligible after
    *  minting `turnId`). False for a non-game / ineligible turn (byte-identical). */
   readonly respondsToLatestUserTurn: boolean;
   /** The per-turn user-macro registry (WAVE MU) — closures, threaded onto every `TurnPrep.macroRegistry`
@@ -609,7 +609,7 @@ async function buildTurnContext(
      *  human states `{kind:"none"}`. */
     readonly trigger: TurnTrigger;
     readonly pendingUserText?: string | undefined;
-    /** rpg-design/05 §6 slot-adjacency: is this turn (re)generating the assistant slot that DIRECTLY responds
+    /** docs/plans/rpg/design.md slot-adjacency: is this turn (re)generating the assistant slot that DIRECTLY responds
      *  to the latest user message (send / deferred-drain / swipe-of-that-slot)? Drives the rpg dice feed-forward
      *  flag + eligibility so a later GM/auto round never re-feeds a stale die. Absent ⇒ false (ineligible). */
     readonly respondsToLatestUserTurn?: boolean | undefined;
@@ -637,7 +637,7 @@ async function buildTurnContext(
   /** SEND sink — when present and host-tier scripts resolve, writes the post-regex user text for the verb to persist. */
   out?: SendRegexSink,
 ): Promise<BuiltTurnContext> {
-  // The GM-voice preset REDIRECT early hop (rpg-design/02 §1.1 #1) — resolved BEFORE the foreign preset read so
+  // The GM-voice preset REDIRECT early hop (docs/plans/rpg/design.md) — resolved BEFORE the foreign preset read so
   // a game turn assembles the game's gmPresetId instead of the host default. Null op / non-game ⇒ null ⇒ absent
   // ⇒ the host default (byte-identical). It rides the FOREIGN-inputs args (the established turn-knob seam).
   const presetOverride = ctx.rpg !== null ? await ctx.rpg.resolvePresetOverride(args.chatId) : null;
@@ -652,7 +652,7 @@ async function buildTurnContext(
     voice: VOICE_FOR_KIND[args.kind],
     ...(presetOverride !== null ? { presetOverride } : {}),
   });
-  // A game turn's GATHER (rpg-design/05 §1): the 8 rpg macros + the depth-0 reminder injection + the tool
+  // A game turn's GATHER (docs/plans/rpg/design.md): the 8 rpg macros + the depth-0 reminder injection + the tool
   // names to attach. Null op / non-game ⇒ null ⇒ a byte-identical non-game turn (no macros, no injection, no tools).
   // The host `steeringNote`'s identity-macro binding, both computed CHAT-SIDE (chat owns identity resolution):
   //   `{{user}}` = `foreign.personas.active?.name` — the turn's voice persona (NOT the pinned anchor; a
@@ -1264,14 +1264,14 @@ async function assertPersonaOwnedIfExplicit(ctx: ChatContext, principalUserId: U
   }
 }
 
-// ── PD-146 post-round auto-behaviors (server home for the schema-real UserSettings.chat auto-* knobs) ──
+// ── Post-round auto-behaviors (server home for the schema-real UserSettings.chat auto-* knobs) ──
 // neo honors these CLIENT-side (use-chat-verbs) by re-issuing continue/swipe after the send resolves; orb is
 // server-authoritative, so the send verb runs them in-band and joins the follow-up rows onto its outcome.
 // continueOnSend has NO arm here — it is a purely CLIENT behavior (the composer calls chat.continueTurn on an
 // empty send; verified against neo, whose continueOnSend lives only in use-pref-sections/the composer). Its
 // server-read field stays inert BY DESIGN.
 
-// The bound on each auto-behavior is now the host's PD-146 knob (`UserSettings.chat.autoContinueRounds` /
+// The bound on each auto-behavior is now the host's knob (`UserSettings.chat.autoContinueRounds` /
 // `autoSwipe.maxRetries`, default 1 — the neo-parity ONE-follow-up floor, byte-identical), threaded via
 // `ChatBehaviorInputs` and read in the loops below. A model that keeps hitting the length cap wants a bigger
 // `maxOutputTokens`, and one that keeps producing rejects wants a different prompt — the ceiling (5) caps a
@@ -1362,7 +1362,7 @@ async function runAutoContinue(auto: AutoBehaviorDeps, frame: AutoFrame, tip: Me
 }
 
 /**
- * The PD-146 post-round auto-behaviors, run at the verb level AFTER the engine released its per-chat lock
+ * The post-round auto-behaviors, run at the verb level AFTER the engine released its per-chat lock
  * (each follow-up re-acquires it fresh): auto-swipe takes PRECEDENCE over auto-continue — they are mutually
  * exclusive (a too-short reply isn't a length-capped one). Returns the committed follow-up rows oldest-first,
  * so the send joins them onto its outcome. Gated on the host's settings — all-off ⇒ [] ⇒ byte-identical.
@@ -1393,7 +1393,7 @@ async function runAutoBehaviors(
 
 /** Joins the AI round's outcome to the just-committed user row into the send's `TurnOutcome`. A round that
  *  aborted mid-flight (caller cancel / lock-stale) returns the aborted truth with the rows that landed before
- *  it — NO PD-146 follow-up on a cancelled round (`runAutoBehaviors` short-circuits on the aborted signal
+ *  it — NO follow-up on a cancelled round (`runAutoBehaviors` short-circuits on the aborted signal
  *  anyway; this makes the intent explicit and carries the abort reason). Otherwise runs the host's post-round
  *  auto-behaviors and joins their rows. */
 async function assembleSendResult(
@@ -1414,7 +1414,7 @@ async function assembleSendResult(
       ...(args.round.abortReason !== undefined ? { abortReason: args.round.abortReason } : {}),
     };
   }
-  // PD-146 post-round auto-behaviors: auto-swipe (too-short/blacklisted reply) takes precedence over
+  // Post-round auto-behaviors: auto-swipe (too-short/blacklisted reply) takes precedence over
   // auto-continue (length-capped reply) — a reply can't be both. Gated on the host's settings (all-off ⇒ no
   // follow-up, byte-identical), bounded, abort-aware; every follow-up row joins the send's result.
   const followUps = await runAutoBehaviors(auto, {
@@ -1438,7 +1438,7 @@ function rpgUserCommitRequestId(messageId: MessageId): string {
   return `rpg-user-commit:${messageId}`;
 }
 
-/** Fire-and-forget the rpg SEND-path COMMIT (rpg-design/05 §0): after the user row lands, lock in the prior
+/** Fire-and-forget the rpg SEND-path COMMIT (docs/plans/rpg/design.md): after the user row lands, lock in the prior
  *  assistant turn's snapshot the user was replying to (+ consume queued dice). Null op = non-rpg chat
  *  (byte-identical no-op); fire-and-forget so a background snapshot-commit never blocks or fails the send.
  *  Wrapped in its own DETACHED root (`withRequestSpan`) for the same reason the engine's rpg round is: it
@@ -1528,7 +1528,7 @@ async function commitUserTurn(
       // biome-ignore lint/nursery/useNullishCoalescing: `??` would coalesce an EXPLICIT null into the active persona — only an omitted (undefined) param falls back (mirrors the row-stamp expression below).
       trigger: humanTrigger(principal.userId, personaId !== undefined ? personaId : membership.activePersonaId),
       pendingUserText: content,
-      // A send's AI response directly responds to the just-committed user message (rpg-design/05 §6): the
+      // A send's AI response directly responds to the just-committed user message (docs/plans/rpg/design.md): the
       // player's queued d20 feeds its first skill check. Always true for a send.
       respondsToLatestUserTurn: true,
       guided,
@@ -1571,7 +1571,7 @@ async function commitUserTurn(
 }
 
 /** `send` — persist the user message, build the one immutable assemble ctx, arbitrate the responders, drive
- *  the round, then (if autoMode) chain AI→AI, then (PD-146) run the host's post-round auto-behaviors.
+ *  the round, then (if autoMode) chain AI→AI, then run the host's post-round auto-behaviors.
  *  Member-gated; AI turns run as the host. */
 function createSend(ctx: ChatContext, deps: TurnDeps, auto: AutoBehaviorDeps): ChatService["send"] {
   return async ({ principal, chatId, content, personaId, attachmentAssetIds, intent, guided }: SendParams): Promise<TurnOutcome> => {
@@ -1772,10 +1772,10 @@ interface TurnBase {
   /** The round-level recall inputs for the engine's per-speaker witnessed re-run (D6); threaded onto each
    *  auxiliary prep. `null` ⇒ no per-speaker recall (round-level `memory` stands). */
   readonly memoryRecall: MemoryRecallInputs | null;
-  /** The host's resolved turn-behavior arm (PD-146) — the custom stops each auxiliary prep threads onto
+  /** The host's resolved turn-behavior arm — the custom stops each auxiliary prep threads onto
    *  the request. Defaulted to all-off. */
   readonly chatBehavior: ChatBehaviorInputs;
-  /** A game turn's gather-contributed tool names (rpg-design/05 §1) — threaded onto each auxiliary prep's
+  /** A game turn's gather-contributed tool names (docs/plans/rpg/design.md) — threaded onto each auxiliary prep's
    *  `attachedToolNames`. Empty for a non-game turn / until the rpg registry lands (byte-identical). */
   readonly attachedToolNames: readonly string[];
   /** A game turn's gather-contributed TERMINAL tools (R1) — threaded onto each PERSISTING auxiliary prep
@@ -1784,7 +1784,7 @@ interface TurnBase {
   /** The M2 card wire knob (parity-plus §3.5) — threaded onto each auxiliary prep. `undefined` for a non-game
    *  turn (no window — every stored card rides whole); a game contributes a number, `0` = every card stubs. */
   readonly cardKeepLastX: number | undefined;
-  /** rpg-design/05 §6 slot-adjacency: does this auxiliary turn's slot directly respond to the latest user
+  /** docs/plans/rpg/design.md slot-adjacency: does this auxiliary turn's slot directly respond to the latest user
    *  message (only `swipe` of the die-response can — the rest are false)? Threaded onto the prep. */
   readonly respondsToLatestUserTurn: boolean;
   /** The per-turn user-macro registry (WAVE MU) — threaded onto the aux prep's `macroRegistry`; `null` ⇒ no
@@ -1816,7 +1816,7 @@ async function resolveTurnBase(
      *  a turn with no live triggering human states `{kind:"none"}` (the retired absent arm bound
      *  `personaIds[0]`, a presence-order-arbitrary bystander). */
     readonly trigger: TurnTrigger;
-    /** rpg-design/05 §6 slot-adjacency verdict (only `swipe` of the die-response passes true). Default false. */
+    /** docs/plans/rpg/design.md slot-adjacency verdict (only `swipe` of the die-response passes true). Default false. */
     readonly respondsToLatestUserTurn?: boolean | undefined;
     /** The slot this turn REGENERATES (swipe only — `continue` extends the slot and reads through it). VER-1b. */
     readonly regenSlotMessageId?: MessageId | undefined;
@@ -2001,7 +2001,7 @@ function createSwipe(ctx: ChatContext, deps: TurnDeps): ChatService["swipe"] {
     if (target === undefined || target.role !== "assistant") {
       throw new ChatNotFoundError(chatId);
     }
-    // rpg-design/05 §6: a swipe re-feeds the SAME queued d20 ONLY when it regenerates the slot that directly
+    // docs/plans/rpg/design.md: a swipe re-feeds the SAME queued d20 ONLY when it regenerates the slot that directly
     // responds to the die-bearing latest user message (no swipe-fishing for a better roll; a swipe of an older
     // slot, or after a later reply landed, is ineligible).
     const respondsToLatestUserTurn = await loadIsReplyToLatestUserMessage(ctx.db, chatId, messageId);
@@ -2466,7 +2466,7 @@ async function runDeferredRound(
     anchorPersonaId: chat.anchorPersonaId,
     // No live triggering human at drain — {{user}} binds to the chat anchor, not a presence-order human.
     trigger: { kind: "none" },
-    // A deferred drain is the FIRST AI response to the offline-host's committed user send (rpg-design/05 §6) —
+    // A deferred drain is the FIRST AI response to the offline-host's committed user send (docs/plans/rpg/design.md) —
     // it directly responds to that user message, so its queued d20 still feeds (the die wasn't lost to the defer).
     respondsToLatestUserTurn: true,
     // The Ruling-B host `{{char}}` (joined candidate names / solo single) for the rpg steeringNote render (chat owns it).
@@ -2569,7 +2569,7 @@ function createDrainDeferredTurns(ctx: ChatContext, deps: TurnDeps): ChatService
   };
 }
 
-// ── requestTurn — the NON-HUMAN turn seam (automation-design/03 §4 / 05 §AC-B) ──
+// ── requestTurn — the NON-HUMAN turn seam ──
 
 /**
  * `requestTurn` — run an autonomous chat turn on behalf of a NON-HUMAN initiator (an automation rule / a
@@ -2683,7 +2683,7 @@ export function createRequestTurn(ctx: ChatContext, deps: TurnDeps): RequestTurn
  *  internal (injected into `startChat`, not on `ChatService`); the engine path is a `kind:"opening"` runTurn
  *  with the opening instruction on `appendUserTurn`. */
 export function createTurn(ctx: ChatContext, deps: TurnDeps): TurnVerbs {
-  // Built once so `send`'s PD-146 post-round auto-behaviors re-enter the SAME swipe/continue verbs the
+  // Built once so `send`'s post-round auto-behaviors re-enter the SAME swipe/continue verbs the
   // service exposes (one home; the follow-ups clear every belt exactly like a manual swipe/continue).
   const swipe = createSwipe(ctx, deps);
   const continueTurn = createContinueTurn(ctx, deps);

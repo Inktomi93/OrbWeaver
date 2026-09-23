@@ -1,4 +1,4 @@
-// CT: the two CHAT anchors of the plugin UI plane (plugin-ui-plane #679 U2, seam 7) over the REAL tRPC path
+// CT: the two CHAT anchors of the plugin UI plane (U2, seam 7) over the REAL tRPC path
 // with a stubbed network. Both subjects are the PRODUCTION contributions the door assembles
 // (`pluginChatFlankSurface` / `pluginChatSettingsSection`), never a test double, so what is pinned is the path
 // a person actually gets: `plugin.listSurfaces` → the anchor fan-out → the first-party labelled shell.

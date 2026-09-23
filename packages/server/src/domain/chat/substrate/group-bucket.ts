@@ -6,7 +6,7 @@
 // hand-rolled `castId<CharacterId>(\`__group__${chatId}\`)`, killing group memory silently).
 //
 // Both digest-BUILD sites resolve the key HERE — the engine's post-turn trigger (`engine.ts §3a`) and the
-// PD-41 corpus backfill (`backfill.ts`). The resolve is find-or-mint (idempotent via
+// corpus backfill (`backfill.ts`). The resolve is find-or-mint (idempotent via
 // `ctx.mintSyntheticGroupCharacter`), so a merged-mode group that never minted a narrator author still gets a
 // stable, distinct shared bucket. RECALL keys the same bucket via `ctx.findSyntheticGroupCharacter`
 // (assemble-gather) — a READ must never mint; by the time recall surfaces anything a build has already minted

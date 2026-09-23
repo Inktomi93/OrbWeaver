@@ -5,7 +5,7 @@
 // owner-addressed `plugin-disabled` (`domain/plugin/activation/crash-policy.ts`), the owner-GLOBAL
 // `automation-notice` (`domain/automation/engine/dispatch.ts`, `chatId: null`) and now
 // `plugins-awaiting-consent` (#1041) are all deliverable on a single-user box and all swallowed there by the
-// PD-106 multi-human refusal on the router + the socket room. That is a stated gap (#1627), not a fit. (agent-seat-request/crew-proposal were purged-domain members; the agents feature grafts here if
+// multi-human refusal on the router + the socket room. That is a stated gap (#1627), not a fit. (agent-seat-request/crew-proposal were purged-domain members; the agents feature grafts here if
 // it returns.)
 // `recipientUserId` is mandatory on every variant. Credentials/secrets/baseUrls are TYPE-LEVEL
 // unrepresentable: every `z.object` member strips unknown keys — no `.loose()`, no `z.unknown()`.
@@ -48,7 +48,7 @@ export const AUTOMATION_NOTICE_COOLDOWN_SECONDS = 60;
  *  the chat, or every present human member EXCEPT the one whose act triggered the fire. Resolved DOMAIN-side,
  *  never client-asserted (a caller names a SELECTOR, never a user id).
  *
- *  `all_members_except_actor` is the async-table member (interaction-direction-spec §4 #2, C6): in a
+ *  `all_members_except_actor` is the async-table member: in a
  *  play-by-post room the person who just posted does not need to be told that someone posted, and a nudge that
  *  pings them anyway is the one notice that trains dismissal of the whole inbox. THE ACTOR IS THE TRIGGERING
  *  FACT'S AUTHOR (`TriggerFact.message.authorUserId`) — which is why the preset that uses it rides

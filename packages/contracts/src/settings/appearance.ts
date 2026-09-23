@@ -76,7 +76,7 @@ export type BlurSurface = (typeof BLUR_SURFACES)[number];
 // default; a user may still opt it in, and an explicitly-stored `[]` is a real opt-out that survives.
 export const DEFAULT_BLUR_SURFACES: readonly BlurSurface[] = ["panels", "composer", "modals"];
 
-// `asset` = an own-upload background (PD-131): the picked file is stored as a `background` AssetKind and
+// `asset` = an own-upload background: the picked file is stored as a `background` AssetKind and
 // pinned here by `backgroundAssetId` (GC-rooted via the settings live-source scan) + `backgroundAssetHash`
 // (the immutable content hash the SYNC `resolveBackgroundUrl` builds `blobUrl(hash)` from — id↔hash is
 // fixed for a content-addressed asset, so storing both is denormalized-but-never-stale). The source-kind
@@ -150,7 +150,7 @@ export const appearanceSettingsSchema = z
     chatStyle: z.enum(THEME_CHAT_STYLES).catch("bubble").default("bubble"),
     showTimestamps: z.boolean().catch(true).default(true),
     showGenerationTimer: z.boolean().catch(false).default(false),
-    // PD-137 — reveal a quiet per-message settled-cost affordance (a paid upstream OpenRouter call, fired
+    // Reveal a quiet per-message settled-cost affordance (a paid upstream OpenRouter call, fired
     // on-demand per message, never on load). Default OFF (opt-in, like the other diagnostic chips).
     showGenerationCost: z.boolean().catch(false).default(false),
     showTokenCount: z.boolean().catch(false).default(false),

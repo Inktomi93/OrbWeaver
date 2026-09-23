@@ -1,4 +1,4 @@
-// CT: the ACTIONS view derives EVERYTHING from `TEMPLATE_DEFS` (preset-surface-redesign §6.1/§6.6) and
+// CT: the ACTIONS view derives EVERYTHING from `TEMPLATE_DEFS` and
 // carries the §16 row-31 ABSENCE. Each case pins a rule the old 8-card grid broke or could not express:
 //
 //   · the previously EDITOR-LESS `responseNudge` (G5) and the new `newChatMarker` (G9) appear with no
@@ -251,7 +251,7 @@ test("the list is a FIXED ENUM — no toggle, no grip, no Add anywhere (§16 row
   await expect(probe.getByRole("button", { name: ADD_CONTROL_RE })).toHaveCount(0);
 });
 
-// ── THE IA (docs/history/design/actions-tab-information-architecture.md) — bands, filter, labels, the fork ────────
+// ── THE IA — bands, filter, labels, the fork ────────
 
 test("IA — the extract clusters mount COLLAPSED; the band is the map and one click discloses", async ({ mount }) => {
   const probe = await mount(<ActionsStory />);

@@ -3,7 +3,7 @@
 // hub-adjust → joint rerank across lenses (mode mixC) → block-level dedupe → content-hash collapse (after
 // rank, before any k-cap). Owner-derived via characters.ownerId, never chats.ownerId/chat_participants.
 // A segment forms a BlockKey only by matching a tier-0 digest of the same (chatId, blockIdx); unmatched
-// verbatim is dropped. FLAG[PD-35]: a segment-only block (no digest yet) is not surfaced by corpus.
+// verbatim is dropped: a segment-only block (no digest yet) is not surfaced by corpus (docs/work/0122).
 
 import type { BlockKey } from "@orb/contracts/search";
 import type { SearchContext } from "../context.ts";

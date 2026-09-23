@@ -383,7 +383,7 @@ test("a zone vocabulary that stops resolving withholds the chrome verdict instea
 
 // ---------------------------------------------------------------------------------------------------
 // §4.5 refusal pins for the two registry-family policies whose denominators were sound but UNPINNED
-// (v-audit-wave2-2026-09-12.md D6). Both are INVENTED rows, so each carries a planted-break receipt in
+// (gate-runtime audit wave 2 D6). Both are INVENTED rows, so each carries a planted-break receipt in
 // the landing commit: the module's receipt call was cut in a `cp`-backed copy and the pin went RED.
 // ---------------------------------------------------------------------------------------------------
 

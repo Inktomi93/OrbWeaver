@@ -1,5 +1,5 @@
-// verb: createFromText — origin 'text' (ST Notepad): no bytes, no extraction; the passed `text` IS the canon
-// (databank-design/06 §2). `sourceAssetId` is NULL (nothing to re-extract from — its `extractedText` is the
+// verb: createFromText — origin 'text' (ST Notepad): no bytes, no extraction; the passed `text` IS the canon.
+// `sourceAssetId` is NULL (nothing to re-extract from — its `extractedText` is the
 // only source, which is fine), `extractorVersion` is "none" (excluded from re-extract sweeps), `importHash`
 // is the sha-256 of the UTF-8 text (same `(ownerId, importHash)` re-paste dedup semantics as a re-upload).
 // Then the SAME step 5–7 as upload: documents row → enqueue `databank-ingest` → report the ingest outcome

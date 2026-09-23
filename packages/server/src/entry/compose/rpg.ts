@@ -1,4 +1,4 @@
-// Composition seam for the rpg domain (rpg-design/05 §4.10, the LITE vertical). Owns no business logic — it
+// Composition seam for the rpg domain (docs/plans/rpg/design.md, the LITE vertical). Owns no business logic — it
 // assembles the `RpgContext` DI bundle (db-scoped persistence + injected clock/id-mints/dice-CSPRNG + the five
 // injected cross-feature ops + the bus emit + the structured `runExtraction` impl) over the already-built
 // sibling front doors, builds the `RpgService`, returns the `ChatRpgOps` object chat receives by injection (the

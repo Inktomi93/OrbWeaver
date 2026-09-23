@@ -14,7 +14,7 @@
 // FAMILY `ui-variant-axes-stamped` — the shared reader is `lib/variant-axis-stamp.ts` (`declaredAxes`,
 // `stampDoorRecipeName`, `readStampedAxes`, `stampDoorPresent`, `recipeKey`). Arm A5 of the legacy
 // descriptor — the axis-VOCABULARY blindness tripwire — SPLIT OUT to `ui-variant-axes-stamped-health`
-// (docs/history/gate-runtime-worked-cases-2026-09.md §"Mixed-hook arity amendments", #1950), because its population differs: the tripwire's subject is EXACTLY the axis home,
+// (#1950), because its population differs: the tripwire's subject is EXACTLY the axis home,
 // while the three arms here need the whole `@ui` corpus (consumption lives in a SIBLING file). The ruled
 // row said "hard recipe/duplicate/blindness POLICIES"; A1, A2 and A3 differ on NO axis — same authority,
 // severity, execution and population — so §3's smallest-complete-contract rule and the same lane's §3.3
@@ -60,7 +60,7 @@ import { defineGate } from "../contract/policy.ts";
 import { AXIS_HOME_REL, declaredAxes, readStampedAxes, recipeKey, stampDoorRecipeName, UI_SRC } from "../lib/variant-axis-stamp.ts";
 
 const MESSAGE =
-  "@orb/ui variant-axis stamp (#1080): a `tv()` recipe declaring a stamped axis (variant/size/intent/tone) " +
+  "@orb/ui variant-axis stamp: a `tv()` recipe declaring a stamped axis (variant/size/intent/tone) " +
   "must emit that axis as a `data-*` attribute, or two different authored arms of one primitive in one home " +
   "collapse into ONE ui-audit authored decision — one repair row where two decisions exist. Also RED: a " +
   "`tv()` config this gate cannot read (its axes are unknowable, so its compliance is too), and two recipes " +

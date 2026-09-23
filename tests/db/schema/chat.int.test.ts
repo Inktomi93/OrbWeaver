@@ -156,7 +156,7 @@ test("chats variableValues (read-seam map) + import provenance round-trip", asyn
   expect(row?.importHash).toBe("sha256-of-import-bytes");
 });
 
-test("the standalone (out-of-turn) variable delta log round-trips (automation-design/03 §1.1)", async () => {
+test("the standalone (out-of-turn) variable delta log round-trips", async () => {
   const db = await freshDb();
   const chatId = castId<ChatId>("chat_standalone_deltas");
   const standaloneVariableDeltas = [{ seq: 2, delta: [{ op: "set" as const, key: "mood", value: "calm" }] }];
@@ -165,7 +165,7 @@ test("the standalone (out-of-turn) variable delta log round-trips (automation-de
   expect(row?.standaloneVariableDeltas).toEqual(standaloneVariableDeltas);
 });
 
-test("the initiator CHECK rejects an out-of-tuple value (messages_initiator_check; automation-design/03 §4)", async () => {
+test("the initiator CHECK rejects an out-of-tuple value (messages_initiator_check)", async () => {
   const db = await freshDb();
   const chatId = await seedChat(db, { id: "chat_initiator_check" });
   let caught: unknown;
@@ -373,7 +373,7 @@ test("message_variants toolCalls (ToolCallRecord[] json) + apiErrorStatus round-
   const messageId = castId<MessageId>("message_genrec");
   await db.insert(messages).values({ id: messageId, chatId, seq: 1, role: "assistant" });
   const variantId = castId<MessageVariantId>("message_variant_genrec");
-  // A failed generation: an HTTP status diagnostics signal + the D48 tool-call records (PD-54 retype — the
+  // A failed generation: an HTTP status diagnostics signal + the D48 tool-call records (retype — the
   // column is now `.$type<readonly ToolCallRecord[]>()`; the driver round-trips the DTO shape).
   const apiErrorStatus = 429;
   const toolCalls: readonly ToolCallRecord[] = [

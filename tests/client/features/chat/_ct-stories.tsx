@@ -34,7 +34,7 @@ import { HomeSurface } from "@orb/client/features/home";
 // #618 — the shell-level detail modal the room-image click opens; imported through the SAME front door the
 // providers use, never a relative path (a relative import gets a different React context instance).
 import { ImageDetailBody, ImageEditBody } from "@orb/client/features/imagery";
-// B8 (interaction-direction-spec §7): the REAL rpg dice ASK source + in-thread RESULT renderer, through the
+// B8: the REAL rpg dice ASK source + in-thread RESULT renderer, through the
 // same front door the providers use (a relative import gets a different React context instance).
 import { rpgDiceAskSource, rpgDiceToolRenderer } from "@orb/client/features/rpg";
 import type {
@@ -654,7 +654,7 @@ interface MessageEditTextareaStoryInnerProps {
   readonly message: MessageView;
 }
 
-/** Drives the external edit-draft store (PD-119) so the textarea mounts already "in edit mode" —
+/** Drives the external edit-draft store so the textarea mounts already "in edit mode" —
  *  the same store `<MessageActionsRow>`'s Edit button flips in the real row. */
 function MessageEditTextareaStoryInner({ message }: MessageEditTextareaStoryInnerProps): ReactElement {
   useEffect(() => {
@@ -990,7 +990,7 @@ export interface ReasoningAnchorStoryProps {
 
 /** The reasoning disclosure ABOVE an answer-prose sibling, reproducing the ghost row's layout
  *  (`<ReasoningBlock>` over `<GhostBubbleBody>`) so a CT can measure the prose's top RELATIVE to the row
- *  across the auto-collapse — the `streaming-shape-churn.md` §8 metric (`firstBlock.top − row.top`). The
+ *  across the auto-collapse — the shape-churn metric (`firstBlock.top − row.top`). The
  *  `data-testid` anchors give the geometry probe stable handles. */
 export function ReasoningAnchorStory({ reasoning, thinking, autoCollapse, showProse }: ReasoningAnchorStoryProps): ReactElement {
   return (
@@ -1356,7 +1356,7 @@ export function MessageListStoppingStory(): ReactElement {
 export interface ComposerStoryProps {
   /** The tail turn role — `"assistant"` (+ `tailAssistantMessageId`) makes continue-on-empty eligible. */
   readonly tailRole?: MessageRole | null;
-  /** The tail assistant message id continue-on-empty targets (PD-146). */
+  /** The tail assistant message id continue-on-empty targets. */
   readonly tailAssistantMessageId?: MessageId | null;
 }
 
@@ -1795,7 +1795,7 @@ export function TemporaryNewChatPickerStory(): ReactElement {
   );
 }
 
-/** CREATE-ON-START-CLICK (chat-creation-draft-mode-replacement.md §4.1): the picker AND the chats
+/** CREATE-ON-START-CLICK (D166): the picker AND the chats
  *  section's real CONTENT in one mount, so a Start click can be followed all the way into the room it
  *  lands in. The room arrives through the REAL registry path (`registry.get("chats").content()`), so what
  *  the CT drives is the production composition, not a hand-wired surface. */
@@ -1942,7 +1942,7 @@ function ChatDeletedDriver(): ReactElement {
   );
 }
 
-/** The chat room in its GREETING WINDOW (chat-creation-draft-mode-replacement.md §4.8 / F6, R3): a room
+/** The chat room in its GREETING WINDOW (D166): a room
  *  whose canon is seeded greetings and whose first user turn has not happened yet. That window is what makes
  *  a greeting steppable among its card's alternates — after the first user turn `freezeGreetingVolatiles`
  *  bakes it and the server refuses. Same harness as the plain room story; the `.ct.tsx` supplies the canon
@@ -3106,7 +3106,7 @@ export function RoomImageDetailStory({ reservedSrc }: RoomImageDetailStoryProps)
   );
 }
 
-// ── Metadata / cost stories (WS3, PD-137) ─────────────────────────────────────────────────────────
+// ── Metadata / cost stories (WS3) ─────────────────────────────────────────────────────────────────
 
 const FROZEN_META_AT = 1_750_000_000_000;
 
@@ -3140,7 +3140,7 @@ export function MessageMetadataRowStory({
   );
 }
 
-/** `MessageCostReadout` in isolation — the PD-137 paid-fetch gate. The story supplies the WHOLE settleable
+/** `MessageCostReadout` in isolation — the paid-fetch gate. The story supplies the WHOLE settleable
  *  triple (`generationId` + `connectionId` + an openrouter-dialect `provider`), because the readout renders
  *  nothing unless all three hold; the `.ct.tsx` routes (or withholds) `connection.generationCost` to drive the
  *  reveal → loading → settled / error labels, and asserts the fetch fires ONLY after the click. `provider` is
@@ -3511,7 +3511,7 @@ function ChatsSelectionTitleProbe(): ReactElement {
   return <p data-testid="selection-title">{title ?? "(null)"}</p>;
 }
 
-// ── S1: the in-chat CONTROL band (interaction-direction-spec.md §3-S1) ─────────────────────────────
+// ── S1: the in-chat CONTROL band ─────────────────────────────
 // The seam mounted EXACTLY as the door mounts it: a `chat-controls` source registry → the real
 // `makeChatControlsContribution` → the chat-surface registry → the real `ChatRoomSurface`'s
 // `above-composer` anchor. `source="none"` is the ACCEPTANCE arm (zero sources ⇒ the room renders with no
@@ -3785,7 +3785,7 @@ export function ChatControlsStory({ source = "fake", fixture = "chips", worstArt
   );
 }
 
-// ── B3: the REAL automation quick-reply CHIP source, wired the door's way (interaction-direction-spec §7 B3)
+// ── B3: the REAL automation quick-reply CHIP source, wired the door's way
 // The band CT above proves the SEAM with a synthetic source; this story proves the FIRST REAL member-visible
 // consumer — `automationQuickReplySource` from `features/automation`, appended to the `chat-controls` registry
 // exactly as `authed-app.tsx` does it, then rendered blind through the one `above-composer` mount. Its chips
@@ -3806,7 +3806,7 @@ export function AutomationChipsStory(): ReactElement {
   );
 }
 
-// ── C3: the REAL automation SUGGESTION-CARD source, wired the door's way (interaction-direction-spec §7 C3)
+// ── C3: the REAL automation SUGGESTION-CARD source, wired the door's way
 // The twin of the chips story one seam over: `automationSuggestionSource` from `features/automation`, in the
 // SAME registry `authed-app.tsx` builds, rendered blind through the one `above-composer` mount. Its card comes
 // from a hand-fired `suggestionRaised` frame carrying C3's rewrite DETAIL, so this is the end-to-end proof
@@ -3825,7 +3825,7 @@ export function AutomationSuggestionCardStory(): ReactElement {
   );
 }
 
-// ── B8: the REAL rpg dice ASK source, wired the door's way (interaction-direction-spec §7 B8) ──────────────
+// ── B8: the REAL rpg dice ASK source, wired the door's way ──────────────
 // The GAME-ARM twin of the automation chips story: `rpgDiceAskSource` from `features/rpg`, in the SAME registry
 // `authed-app.tsx` builds, rendered blind through the one `above-composer` mount. The source gates on
 // `isRpgEngaged` off `chat.getChat.rpg`, so the CT presents an ENGAGED pointer to open it (a plain chat gets no
@@ -3845,7 +3845,7 @@ export function RpgDiceAskStory(): ReactElement {
   );
 }
 
-// ── B8: the REAL rpg in-thread dice RESULT renderer (interaction-direction-spec §7 B8) ─────────────────────
+// ── B8: the REAL rpg in-thread dice RESULT renderer ─────────────────────
 // The `tool-renderers` half: `rpgDiceToolRenderer` claims the exact `roll_dice` wire name, and `MessageToolCalls`
 // (chat's real tool-block seam) resolves it for a persisted `roll_dice` `ToolCallRecord`. The registry is built
 // HERE (post-mount, in the browser) because a registry instance does NOT survive the Playwright CT prop wire —

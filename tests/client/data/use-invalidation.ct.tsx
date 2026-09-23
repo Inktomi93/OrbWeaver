@@ -1,4 +1,4 @@
-// useInvalidation CT (data/use-invalidation.ts, PD-124) — proves the hoisted hook wires the LIVE
+// useInvalidation CT (data/use-invalidation.ts) — proves the hoisted hook wires the LIVE
 // `useTRPC()`/`useQueryClient()` context into `createInvalidation` end-to-end (never a hand-built
 // `{ queryClient, trpc }` pair — the exact seam `invalidation.test.ts` already pins in isolation;
 // this CT is what proves the CONTEXT WIRING, the part a pure unit test can't reach). The mounted

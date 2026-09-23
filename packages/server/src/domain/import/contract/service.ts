@@ -1,7 +1,5 @@
 // domain/import/contract/service — typed API surface: ImportContext (DI bundle) + ImportService
 // (verb interface) + the injected cross-feature op types the composition root wires at the root.
-// FLAG[PD-43]: CreateImportedCharacter/FindCharacterByImportHash need character to expose a
-// provenance-accepting create + an (ownerId, importHash) lookup; neither exists yet.
 
 import type { AttachedBookRef, CreateCharacterInput } from "@orb/contracts/character";
 import type { BulkImportChatInput, BulkImportChatsResult } from "@orb/contracts/chat";
@@ -37,7 +35,7 @@ export type CreateImportedCharacter = (args: {
 /** Re-import dedup oracle: id of the caller's existing character carrying `importHash`, or null. */
 export type FindCharacterByImportHash = (args: { readonly ownerId: UserId; readonly importHash: string }) => Promise<CharacterId | null>;
 
-/** Per-owner handle EXISTENCE oracle for `freeHandle`'s collision-suffix loop (#1470 replaced the PD-108
+/** Per-owner handle EXISTENCE oracle for `freeHandle`'s collision-suffix loop (#1470 replaced the earlier
  *  handle-MATCH re-import this op originally backed — "never dedupe by name": a byte-new card whose
  *  name-slug collides gets a numeric-suffixed handle, a NEW character, never an edit of the existing one).
  *  Fires only after `FindCharacterByImportHash` misses (a byte-identical re-import is the cheaper path). */
@@ -66,7 +64,7 @@ type BulkImportLorebookOp = (args: {
  *  keeps the pre-#1598 behavior of whatever `importLorebook` that same composition supplied. */
 type HasPrimaryBookOp = (args: { readonly ownerId: UserId; readonly characterId: CharacterId }) => Promise<boolean>;
 
-/** World-info-owned re-link op for a portable card's carried attached-book references (PD-144); optional —
+/** World-info-owned re-link op for a portable card's carried attached-book references; optional —
  *  the card-only upload path omits it. Links only ids the importer OWNS, returns linked/skipped counts. */
 type LinkCarriedBooksOp = (args: {
   readonly ownerId: UserId;
@@ -167,7 +165,7 @@ export interface ImportContext {
 export interface ImportService {
   /** Imports one ST character card; idempotent by importHash (a byte-identical re-import RECONCILES its
    *  overlay planes, #1470). A byte-new card that collides on handle disambiguates via `freeHandle`
-   *  (`emily` → `emily-2`) instead of matching by name — #1470 replaced the earlier PD-108 handle-match
+   *  (`emily` → `emily-2`) instead of matching by name — #1470 replaced the earlier handle-match
    *  edit-in-place with this "never dedupe by name" rule, so a re-import never routes to an update. */
   readonly importCharacter: (input: ImportCharacterInput) => Promise<ImportCharacterResult>;
   /** THE RESTORE DOOR (#1598, owner ruling 2026-09-05). Re-asserts a card file's EMBEDDED lorebook over the

@@ -10,7 +10,7 @@ Canonical doc for spine §7.4 (types & schemas) and §7.5 (string-union dispatch
 
 ## Types & schemas — one home, one direction, no inline (spine §7.4)
 
-The rule: **one home per shape, derived by who needs it; flows DOWN only.** (Neo's failure mode: the home was ambiguous, so shapes duplicated and inline types sprouted everywhere.)
+The rule: **one home per shape, derived by who needs it; flows DOWN only.** An ambiguous home lets a shape duplicate and inline types sprout at every call site.
 
 | Shape kind | Home | Consumers (down only) |
 | - | - | - |
@@ -56,6 +56,7 @@ A string axis is an `as const` tuple; its union is **derived**, never re-spelled
 - **`readonly` by default** on contract surfaces (`readonly T[]`); assignment is one-way, safe.
 - **`Record<LiteralUnion,V>` over index signatures** (index sigs force bracket access under `noPropertyAccessFromIndexSignature` + lose key safety); **`Map` for open/dynamic keys** (`.get()` is `V | undefined`, matching `noUncheckedIndexedAccess`).
 - **`?` vs `| undefined` are NOT interchangeable under `exactOptionalPropertyTypes`**: `x?: T` = may be **absent** (can't pass explicit `undefined`); `x: T | undefined` = must be **present**, may be undefined. Choose by intent — default `?` for genuinely-absent fields.
+- **Make a field required and nullable (`x: T | null`) when a reader would take its absence as a default.** Every producer then states the value, even as `null`. Example: `ChatResult.appliedEffort` in `packages/inference/src/contract/chat.ts`. As an optional field, an absent value would read as the requested effort.
 - **`interface` for hand-authored object shapes, `type` for unions/aliases** — but in practice most domain models are `z.infer<typeof schema>` (a `type`). `interface extends` over `&` for composition (`extends` errors on conflicts; `&` silently → `never`).
 - **Banned habits:** `any` ⚙️ (use `unknown` + narrow — `catch` is already `unknown`) · non-null `!` ⚙️ (`noNonNullAssertion`; use a guard / `?? throw`) · `as` assertions by review (prefer `satisfies`/narrowing/zod; ID casts hard-gated by the `no-loose-id-cast`/`no-mint-via-cast` gates); `as any as T` is a hard no.
 - **`@total-typescript/ts-reset` is on** — one root `reset.d.ts` pulled into every package's compilation via `tsconfig.base.json`'s `include` (`${configDir}/../../reset.d.ts`). It hardens dishonest built-ins: `JSON.parse()` / `Response.json()` return `unknown` (you MUST narrow — pairs with the zod-at-the-boundary rule), `[].filter(Boolean)` strips `null`/`undefined` from the result type, `Array.includes`/`Set.has` widen correctly. Write code expecting these stricter signatures. Declaration-only, zero runtime cost. Its sibling `platform.d.ts` rides the same mechanism for the opposite job — declaring runtime surfaces the lib is MISSING (§9).
@@ -100,37 +101,73 @@ From the handbook's `.d.ts` do's-and-don'ts — worth enforcing even though we a
 
 ## 9. Platform primitives — the ADOPT / CONSIDER / AVOID register
 
-**The platform is node 26 / V8 14.6, and the modern spelling is THE spelling** (owner-ruled posture, `../history/design/node-26-adoption-program.md`). This register is not "adopt when convenient": a hand-rolled equivalent of anything in ADOPT is a defect, and the burn-down that removed the existing ones is that program's W3/W4. Typing floor: `tsconfig.base.json` carries `lib: ["es2025", "esnext.disposable"]` and the repo-root `platform.d.ts` declares the V8 14.6 surfaces TypeScript's libs do not ship yet (`Map`/`WeakMap.getOrInsert(Computed)`, `Error.isError`, `Iterator.concat`) — delete a block there when the lib catches up; the duplicate-declaration error IS the reminder.
+**The platform is node 26 / V8 14.6, and the modern spelling is THE spelling** (owner-ruled posture). This register is not "adopt when convenient": a hand-rolled equivalent of anything in ADOPT is a defect. Typing floor: `tsconfig.base.json` carries `lib: ["es2025", "esnext.disposable"]` and the repo-root `platform.d.ts` declares the V8 14.6 surfaces TypeScript's libs do not ship yet (`Map`/`WeakMap.getOrInsert(Computed)`, `Error.isError`, `Iterator.concat`) — delete a block there when the lib catches up; the duplicate-declaration error IS the reminder.
 
 **ADOPT.** `node:timers/promises` `setTimeout` (never `new Promise` + `setTimeout` sleeps) · `x.toSorted(fn)` (never `[...x].sort(fn)`) · Set algebra `union`/`intersection`/`difference`/`isSubsetOf` · `Object.groupBy` / `Map.groupBy` · `Promise.withResolvers` · `Map.getOrInsert` / `getOrInsertComputed` · `RegExp.escape` — never a hand-rolled `escapeRegExp`; the program's W4 deletes the kit one and its consumers · `Error.isError` at unknown-boundaries — specifically the `kit/error-message` seam, so ~50 consumers inherit cross-realm correctness · `.at(-1)` · `findLast` · `Array.fromAsync` (accumulate-then-return only) · Iterator helpers when the chain is iterator-terminal · `using` / `await using` for every disposal-shaped resource ⚙️ (biome `useDisposables`) · `AbortSignal.timeout` / `AbortSignal.any` per the rubric below · `structuredClone` · `util.parseEnv`.
 
-**CONSIDER.** `getOrInsertComputed` vs plain `getOrInsert` — the computed arm only when the factory has cost or effects · Iterator helpers on a sort-terminal chain: the sort materializes anyway, so convert only a filter/map prefix that drops a real intermediate array, else keep · get-or-set shapes whose SET path differs from the GET path (TTL, eviction) stay hand-written.
+**CONSIDER.** `getOrInsertComputed` vs plain `getOrInsert` — use the computed form only when the factory has cost or effects · Iterator helpers on a sort-terminal chain: the sort materializes anyway, so convert only a filter/map prefix that drops a real intermediate array, else keep · get-or-set shapes whose SET path differs from the GET path (TTL, eviction) stay hand-written.
 
 **AVOID.**
 
 - `node:sqlite` — sync-only, and the libSQL PRAGMA/transaction knowledge in `db/client/index.ts` is driver-specific and hard-won; a swap re-derives it for a worse concurrency model.
 - Web Storage APIs in node.
 - Hand-rolled sleeps, regex escapes, deferred-promise captures, and set algebra — the modern spelling exists for each, above.
-- `Date.parse` hand-rolls where the `kit/time` seam exists. (luxon still backs that seam; Temporal is blocked on Safari — `node-26-adoption-program.md` §6, the ONE deferral, and it carries its trigger.)
+- `Date.parse` hand-rolls where the `kit/time` seam exists. (luxon still backs that seam; Temporal is blocked on Safari, the ONE deferral, and it carries its trigger.)
 
 **Abort rubric** (per site, not blanket): a pure timeout race → `AbortSignal.timeout` on the operation · merging an external signal with an internal one → `AbortSignal.any([...])` · a forward that runs real CLEANUP on abort → keep the listener and say why inline · a deadline that must not hold the process open → keep a manual `setTimeout(...).unref()` composed via `AbortSignal.any` (`infra/network/egress.ts` is the sanctioned archetype — `AbortSignal.timeout` cannot unref; a declared platform limitation, not our debt).
 
 **Not our realm:** the QuickJS membrane's guest values are `ctx.dump()` products, not `Error` instances of any realm — `Error.isError` is WRONG there, and its deferreds are `ctx.newPromise()`, not `Promise.withResolvers` candidates.
 
+## 10. Compiler worlds and derived tool configuration
+
+Every authored TypeScript file has an intended world (ISO, Node or DOM) and exactly one primary compiler program. The facts have one home each:
+
+| Fact | Home |
+| - | - |
+| Intended world and primary owner | `tooling/src/_shared/project-worlds.ts` |
+| Test kinds, compiler intent and mirror rules | `tooling/src/_shared/test-kinds.ts` |
+| Generated world templates and runnable configs | `tooling/src/_shared/type-config-intent.ts` |
+| Compiler roots, references and inherited inputs | `tooling/src/verify/lib/policy-program-membership.ts` |
+| Native import closures and the membership report | `tooling/src/verify/ops/tests-type-membership.ts` |
+| File-to-program routing for the hook and scoped verification | `tooling/src/verify/ops/typecheck-plan.ts` |
+
+Why the worlds are separate programs:
+
+- Being in some program does not prove the file is in the right one, and a correct root does not prove its import closure fits the world. The membership stage (`pnpm check:type-ownership`) checks roots, closures and ambient sets against intent, and rejects Node declarations in an ISO program and DOM libraries in an ISO or Node program.
+- `types: []` stops automatic ambient inclusion only. An imported declaration can still add Node globals, so ISO acceptance reads the actual declaration closure.
+- A Node compile cannot prove a browser contract. React ships fallback DOM declarations that make distinct element, event and ref types look the same, so those contracts need the DOM world.
+- A barrel front door such as `#lib`, `#state` or `@orb/ui/lib` must not import a DOM module into a Node-safe closure. Move the DOM half to its owning feature or primitive; never add a generic browser barrel.
+
+How tool configuration is derived:
+
+- Generate only the fields TypeScript forces a child config to restate; hand-author the intent. `node tooling/src/verify/cli.ts baseline type-configs --check` proves the generated configs are fresh.
+- Vitest, Playwright, ESLint, dependency-cruiser, Knip, CPD and Stryker read the shared world, test-kind and population facts. A shared glob string does not prove shared meaning; compare each tool's native resolved population with the intended facts.
+- A native-config check that cannot follow a moved or generated selector refuses or reads the effective config through the tool's own loader (`node tooling/src/verify/cli.ts config-snapshot vitest <config>`). It never passes silently.
+- Keep cheap intent data apart from expensive observations, and never add a second compiler parser in a config or a codemod.
+- Compiler world, executor, test purpose and resource needs are separate axes. A long test is not a serial test, and a browser type check runs no browser.
+
 ## String-union dispatch discipline (spine §7.5)
 
 The coupling an import-graph CANNOT see: runtime branching on string-union "kind" keys. Without a
-canonical home an axis gets re-spelled inline at every dispatch site, so adding one variant turns into a
-scavenger hunt across dozens of files — the neo-tavern pain that motivated this rule, quantified per-axis
-in `../architecture/history/spine-typescript-archaeology-record.md`.
+canonical home an axis gets re-spelled inline at every dispatch site, so adding one variant means finding
+and updating every dispatch site by hand.
 
-**The GOLD STANDARD to copy:** `workloads.kind` dispatches through `WorkloadContributions:
-{ readonly [K in WorkloadKind]: WorkloadContribution<K> }`, asserted exhaustive + duplicate-free by
-`keyByKind` at the compose door (`entry/compose/workload-contributions.ts`, D117 — the former
-`substrate/dispatch.ts` `RUNNERS` hub is deleted) — a **mapped-type Record**, so a missing kind is
-a hard compile error. `routing.api`/`source` runner switches use typed-return / `assertNever`.
+**The pattern to copy:** `workloads.kind` dispatches through `WorkloadContributions:
+{ readonly [K in WorkloadKind]: WorkloadContribution<K> }`, asserted exhaustive and duplicate-free by
+`keyByKind` at the compose door (`entry/compose/workload-contributions.ts`, D117) — a **mapped-type
+Record**, so a missing kind is a hard compile error. `routing.api`/`source` runner switches use
+typed-return / `assertNever`.
 
 **The rule:** every axis has (a) ONE importable canonical union/tuple (no inline re-spelling — gated),
 and (b) a mapped-type Record or exhaustive `assertNever` dispatch (a new member fails the build).
 Orbweaver's axes are born this shape (`MESSAGE_ROLES`, `USER_ROLES`, `AUTH_MODES` + `MODE_RESOLVERS`, `WorkloadKind` + `WorkloadContributions`, …). Gates: **`no-inline-union-redecl` + `exhaustive-dispatch`**
 (`Core-0-Architecture-and-Structure.md §7`; catalog: `Core-Enforcement-Active-Gates.md`).
+
+**Coincident axes still get two tuples.** Two axes whose members happen to coincide (for example a
+contracts-side tuple and its `@orb/ui` counterpart) each get their own `as const` tuple; neither derives
+from the other. The coincidence is exactly what breaks the day one axis grows and the other does not. A
+contracts-to-ui pair is forced apart by the package cake regardless (`@orb/ui` depends only on
+`@orb/kit`, so it cannot import the `@orb/contracts` half at resolve time even if it wanted to derive
+from it). `no-inline-union-redecl` flags an inline union or a `z.enum([…])` re-spelling a canonical
+tuple; it does not flag a second, independent tuple with the same members
+(`docs/adr/0220-rejected-neo-and-report-only-gates.md` records why that case was rejected).

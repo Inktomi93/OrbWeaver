@@ -135,7 +135,7 @@ export interface AdminHarness {
    *  is WHOSE channel: admin is the one producer whose write lands on somebody else's row, so an emit to the
    *  acting admin instead of the target would announce a grant to everyone except its recipient. */
   readonly userEvents: { userId: UserId; event: UserBusEvent }[];
-  /** The recorded inline-embed port calls (PD-90); embeds resolve `true` unless `setEmbedOwned(false)`. */
+  /** The recorded inline-embed port calls; embeds resolve `true` unless `setEmbedOwned(false)`. */
   readonly embedded: { principal: Principal; characterId: CharacterId }[];
   /** Flip the fake embed port's ownership answer (false = not-owned/missing → the verb's not-found). */
   readonly setEmbedOwned: (owned: boolean) => void;

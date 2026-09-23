@@ -1,4 +1,4 @@
-// verb: invokeUiAction — the Tier-S guest-action round-trip (plugin-ui-plane #679 U1, §4.4). The AUTHORITY
+// verb: invokeUiAction — the Tier-S guest-action round-trip. The AUTHORITY
 // GATE is the whole story (it takes a foreign pluginId): owner-scope → residence → surface+handler. The
 // success arm re-enters the surface's `onAction` through the resident's crash-policy'd invoke with one
 // `{actionId, values, chat}` object; the fakePort rejects invoke (that path is the composed-real runtime), so

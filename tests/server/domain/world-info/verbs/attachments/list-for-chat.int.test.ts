@@ -1,4 +1,4 @@
-// verb: listForChat (PD-30) — the room's attached books under the INJECTED member gate. Load-bearing:
+// verb: listForChat — the room's attached books under the INJECTED member gate. Load-bearing:
 // room-PUBLIC (not owner-filtered — another member's attached book is visible; the pool assembles against
 // it either way); newest first; role null; a guard rejection propagates (a non-member never sees the list).
 

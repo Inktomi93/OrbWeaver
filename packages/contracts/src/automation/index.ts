@@ -432,7 +432,7 @@ export const QUICK_REPLY_MODES = ["send", "compose"] as const;
 export type QuickReplyMode = (typeof QUICK_REPLY_MODES)[number];
 
 /** S4 — the arms that COST something to run: a model call the rule author funds. The machine-readable spend
- *  set the fire-rate REFUSAL path reads (interaction-direction-spec §3-S4 / RULED F4: a `budget_refused` on a
+ *  set the fire-rate REFUSAL path reads (RULED F4: a `budget_refused` on a
  *  rule carrying one of these raises the "rate-capped — run it now?" invitation, ON by default). Until now the
  *  class existed only as the words "SPEND-classed" in two arm comments. The tuple is exact-as-built, never
  *  forward-declared: `run_tool` joined at C4 and `run_analysis` at C1, each riding its own landing.
@@ -454,7 +454,7 @@ export type SpendArmType = (typeof SPEND_ARM_TYPES)[number];
 /** S4 — the CONFIRM-FIRST flag, carried by the four SUGGESTIBLE arms and by nothing else (the shape IS the
  *  vocabulary: `SuggestibleArmType` below is derived from which arms carry it, so the two can never drift).
  *  `true` ⇒ at fire time the arm STASHES a pending suggestion instead of acting, and a HOST confirm executes
- *  the stored arm (interaction-direction-spec §3-S4).
+ *  the stored arm.
  *
  *  WHY IT LIVES ON THE ARM AND NOT ON THE RULE: the stored record's executable half is ONE arm
  *  (`resolvedArm`), so the arm is the unit whose posture this describes; and `automation_rules` carries no
@@ -779,7 +779,7 @@ export interface AutomationCelEnv {
 // `@orb/contracts/plugin`'s `PluginSuggestedAct`). One store, one card surface, one host answer: a second
 // proposal system would mean a second TTL, a second sweep and two places to look.
 //
-// TWO classes, and the difference is what the pending record can hold (interaction-direction-spec §3-S4):
+// TWO classes, and the difference is what the pending record can hold:
 //   • `confirm`    — a confirm-first ARM stashed its resolved self at fire time (after predicate + env), so
 //                    the confirm executes THAT arm, in the author's frame, exactly as it would have run.
 //   • `invitation` — a `budget_refused` fires BEFORE the predicate and before any env exists
@@ -890,7 +890,7 @@ export type AutomationBusEvent =
    *  optimistically (the mount's per-call `onSuccess`), but the host's OTHER tabs/devices have no query and no
    *  replay behind this live-only room, so without this member their card sat dead until TTL (30 min). §3-S4
    *  originally ruled ONE new host-only member (`suggestionRaised`); this retirement twin is the one-line spec
-   *  delta recorded in interaction-direction-spec §3-S4. */
+   *  delta recorded. */
   | { type: "suggestionResolved"; chatId: ChatId; suggestionId: AutomationSuggestionId }
   | { type: "ruleFired"; chatId: ChatId; ruleId: AutomationRuleId }
   | { type: "ruleErrored"; chatId: ChatId; ruleId: AutomationRuleId }

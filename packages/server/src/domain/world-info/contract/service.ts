@@ -133,7 +133,7 @@ export interface WorldInfoService {
   /** Room-public, not owner-filtered — the room's pool is what every member's turns assemble against. */
   readonly listForChat: (params: ListForChatParams) => Promise<BookAttachmentView[]>;
 
-  /** The SHARED machine-writer bulk upsert (chat-crew-design/02 §7; CC-D). Upserts entries by (bookId,
+  /** The SHARED machine-writer bulk upsert (D59). Upserts entries by (bookId,
    *  title), owner-gated on the book; NEVER overwrites a human-curated entry (the stored
    *  `metadata.provenance.contentHash` guard). Injected into the D46 automation writer (and any future
    *  machine keeper) — the ONE
@@ -141,7 +141,7 @@ export interface WorldInfoService {
   readonly upsertEntries: (params: UpsertEntriesParams) => Promise<UpsertEntriesResult>;
   /** The lean per-book entry index a machine writer reads to build its merge prompt + count against a cap. */
   readonly listEntryIndex: (params: ListEntryIndexParams) => Promise<readonly LoreEntryIndexRow[]>;
-  /** A chat's CONSTANT ("always"-scope) lorebook canon (rpg-design/06 §4) — the pre-play world truth a
+  /** A chat's CONSTANT ("always"-scope) lorebook canon (docs/plans/rpg/design.md) — the pre-play world truth a
    *  producer reads. Principal-less: room-public prompt content (the caller gated membership upstream). */
   readonly listConstantCanon: (params: ListConstantCanonParams) => Promise<readonly LoreConstantCanonRow[]>;
 }

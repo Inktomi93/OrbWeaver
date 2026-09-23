@@ -1,5 +1,5 @@
-// domain/refinery/persistence/queries — all read access for the feature. OWNERSHIP IS DERIVED (D23 —
-// docs/history/design/refinery-r0.md §3.1): every session read JOINS `characters` and carries the owner predicate
+// domain/refinery/persistence/queries — all read access for the feature. OWNERSHIP IS DERIVED
+// (D23): every session read JOINS `characters` and carries the owner predicate
 // IN THE WHERE (never a post-filter; the `ensureCharacterOwned` shape — reading the characters schema is
 // the sanctioned cross-table read, security pass §3.E). A run is reachable ONLY through its session's
 // join — a run id alone never resolves a payload.

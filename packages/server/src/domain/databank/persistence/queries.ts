@@ -250,7 +250,7 @@ export async function loadMetaByIds(db: Db, ids: readonly DocumentId[]): Promise
   return ids.map((id) => rows.find((r) => r.id === id)).filter((r): r is DocumentMetaRow => r !== undefined);
 }
 
-/** The caller's GLOBAL document ids (databank-surface-spec D-1) — the library row's `Everywhere` state, as
+/** The caller's GLOBAL document ids — the library row's `Everywhere` state, as
  *  ONE read instead of a `listAttachments` per row. Owner-scoped on the junction's own `ownerId` column (the
  *  scope subject, D23), so a document another user made global is unreachable here. */
 export async function listGlobalDocumentIds(db: Db, ownerId: UserId): Promise<DocumentId[]> {

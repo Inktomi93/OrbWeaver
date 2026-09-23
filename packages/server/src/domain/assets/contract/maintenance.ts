@@ -1,5 +1,5 @@
-// domain/assets/contract/maintenance — the param/result vocabulary for the maintenance/DR wave (PD-26 +
-// PD-84): `backfillAvatars` · `collectGarbage` · `reapIfOrphan` · `fsck` · `rebuildFromTree`. These types are
+// domain/assets/contract/maintenance — the param/result vocabulary for the maintenance/DR wave:
+// `backfillAvatars` · `collectGarbage` · `reapIfOrphan` · `fsck` · `rebuildFromTree`. These types are
 // DOMAIN-INTERNAL (§7.4 one type home): the ONLY consumers are the CLI/ops scripts + the workload runners
 // (no client, no wire), so they live HERE and NOT in `@orb/contracts` — the front door (`index.ts`) does not
 // re-export them (a CLI/workload imports the service type directly). The verbs join `AssetsService` in
@@ -90,7 +90,7 @@ export interface FsckResult {
   readonly orphanBlobs: number;
 }
 
-// ── rebuildFromTree (DR — PD-84) ─────────────────────────────────────────────────────────────────────────
+// ── rebuildFromTree (DR) ─────────────────────────────────────────────────────────────────────────────────
 
 /** `rebuildFromTree` options — `signal` aborts the walk-and-hash disaster-recovery pass. */
 export interface RebuildOptions {

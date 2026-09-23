@@ -1,4 +1,4 @@
-// The own-upload background control (PD-131). Reuses the avatar-upload MECHANISM — `<FileDropzone>` picker
+// The own-upload background control. Reuses the avatar-upload MECHANISM — `<FileDropzone>` picker
 // + `<Avatar>` preview + the ONE `useUploadAsset` seam (bound to the `background` AssetKind) — but hands the
 // caller a whole `BackgroundLibraryEntry` (BG-D) rather than the bare `StoredAsset`: the appearance form
 // appends it to `appearance.backgroundLibrary` AND selects it live (assetId — GC roots by it · assetHash —

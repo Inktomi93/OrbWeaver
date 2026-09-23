@@ -1,4 +1,4 @@
-// CT: `useHuskReaper` — the nav-away arm of husk GC (chat-creation-draft-mode-replacement.md §4.6, F3).
+// CT: `useHuskReaper` — the nav-away arm of husk GC (D166).
 //
 // A chat row exists from the creation click, so a user who starts a room and immediately leaves has minted
 // a row nobody claimed. This hook, mounted ONCE at the app root, turns the active-chat store's

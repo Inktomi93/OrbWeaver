@@ -1,4 +1,4 @@
-// Policy: section-factory-contribution-bundle (client-architecture-lockdown.md §12 row 5) — the WALL under
+// Policy: section-factory-contribution-bundle (client-architecture-state-and-gates.md §12 row 5) — the WALL under
 // the §12 row-5 tripwire, which shipped as prose ("≥2 foreign panes ⇒ mint a contribution seam instead")
 // with an Enforced-by column no gate could honor: `client-features-no-cross` forces the door, it cannot
 // COUNT what arrives through it. Two arms over a `SectionDefinition`-returning factory:
@@ -58,7 +58,7 @@ const FACTORY_POPULATION = "SectionDefinition factory";
 const MESSAGE =
   "a section factory grew a positional contributor signature: more than one `ContributorRegistry` parameter (collapse " +
   "them into ONE named-field bundle) or more than one callable render-prop parameter (two foreign panes means minting a " +
-  "contribution seam). See client-architecture-lockdown.md §12 row 5.";
+  "contribution seam). See client-architecture-state-and-gates.md §12 row 5.";
 const FIX =
   "bundle the registries into one named-field parameter (`make<X>Section({ contextTabs, surfaces, … })`); " +
   "for a second foreign pane, mint a contributor registry and assemble it at the main.tsx door. A " +

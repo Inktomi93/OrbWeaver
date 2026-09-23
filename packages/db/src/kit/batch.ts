@@ -3,7 +3,7 @@
 // match that tuple without help, which is why the previous codebase had ~59 inline `as BatchItem` casts on the chat
 // send path. These helpers centralize the ONE cast: build a plain array of statements, hand it to
 // `batchMany`. A db-layer primitive — it bridges `Parameters<Db["batch"]>`, a drizzle type, so it cannot
-// be `@orb/kit`-pure. (Core-Legacy-Migration-and-Gaps.md §3.)
+// be `@orb/kit`-pure. (Core-0-Architecture-and-Structure.md §2, kit-purity.)
 //
 // TRANSACTION MODE — why every batch rides `BEGIN DEFERRED`, and why that is NOT a choice made here.
 // A raw `@libsql/client` batch takes a second `TransactionMode` arg (`Sqlite3Client.batch(stmts, mode)`,
@@ -14,7 +14,7 @@
 // `Parameters<Db["batch"]>` is therefore a 1-tuple and {@link batchMany} returns the ONLY argument that
 // exists — there is no mode to thread. Reaching the arg would mean bypassing drizzle
 // (`$client.batch(rawStmts, "write")`), which forfeits the typed `BatchResponse<T>` rows that
-// {@link AwaitableBatchStmt} and the PD-24 co-statement seam are built on and re-implements drizzle's
+// {@link AwaitableBatchStmt} and the co-statement seam are built on and re-implements drizzle's
 // per-query prepare + `mapResult` inside @orb/db. Not worth it — the window it would close is:
 // DEFERRED takes no lock at BEGIN, so a batch that READS before it writes must upgrade its snapshot, and
 // if another writer committed in between SQLite fails it with SQLITE_BUSY_SNAPSHOT — which `busy_timeout`
@@ -37,7 +37,7 @@ export type BatchStmt = DbBatchInput[number];
  * AND directly awaitable to its concrete RETURNING rows `TResult` — the honest type of a drizzle query
  * builder handed to a caller UNEXECUTED yet also runnable standalone. `BatchStmt` alone erases the
  * builder's thenability + result (drizzle types a batch item as the tag-only `RunnableQuery`, so a bare
- * `await` of it trips `await-thenable`); this names the dual nature the PD-24 seam relies on
+ * `await` of it trips `await-thenable`); this names the dual nature the seam relies on
  * (markUserLeftStatement/setPendingHostStatement/buildInsertNotification: awaited inline OR handed to a
  * batch). `BatchStmt` itself stays the erased multi-table batch-INPUT type — modelling thenability THERE
  * would lie for the heterogeneous-array case.

@@ -1,4 +1,4 @@
-// verb: resolveTools — the per-turn READ surface (tool-use-design/01 §4): resolve caller-supplied
+// verb: resolveTools — the per-turn READ surface (D48): resolve caller-supplied
 // names against the registry into the opaque ordered set both projections and execute accept.
 // Resolving ONCE per turn, then projecting + executing against the SAME set, guarantees the tools the
 // model saw are exactly the tools that can run. Unknown name = THROWN `ToolNotFoundError` — at attach

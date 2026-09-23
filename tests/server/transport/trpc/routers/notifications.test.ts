@@ -91,7 +91,7 @@ describe("notifications.presence — the disclosure boundary", () => {
 
 // ── #1627 — THE INBOX CRUD TRIO IS NO LONGER MULTI-HUMAN GATED ─────────────────────────────────────────
 //
-// PD-106's belt covered the whole router because every notification SOURCE was multi-human (invite / kick /
+// The belt covered the whole router because every notification SOURCE was multi-human (invite / kick /
 // host-handoff). That premise is dead on this tree: `plugin-disabled` (the crash policy notifying the
 // INSTALLING OWNER — `domain/plugin/activation/crash-policy.ts`) and `automation-notice` (the auto-disable
 // notice to the rule AUTHOR, including the owner-GLOBAL lane that has no chat at all —

@@ -12,7 +12,7 @@
 // This module owns the ENGINE + the typed dispatch seam + the arm dispatcher. Reserved arms never reach here
 // (createRule refuses them); the v1-unwired arms return a typed refusal.
 //
-// S4 (interaction-direction-spec §3-S4) touches this sequence in exactly two places, both narrow:
+// S4 touches this sequence in exactly two places, both narrow:
 //   • the fire-rate refusal raises the RULED-F4 INVITATION (`inviteOnRefusal`) — it must live at that gate
 //     because `budget_refused` is decided BEFORE the predicate and before the env exists, which is the whole
 //     reason the invitation carries a rule reference instead of a rendered arm;

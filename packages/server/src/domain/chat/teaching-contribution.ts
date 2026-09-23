@@ -127,7 +127,7 @@ const EMPTY_COLLECTION: TeachingCollection = { injections: [], toolNames: [] };
 // Marinara's clever half, on this codebase's rails: recent reactions are narrated INTO the next turn's
 // prompt so the model can acknowledge them — the engagement payoff that makes a reaction steer the story.
 // The mechanism is deliberately NOT the mini-spec's per-message inline splice: §3-S2's convergence law puts
-// ALL prose steering on the ONE ChatInjection channel (PD-63 single placement), and a second
+// ALL prose steering on the ONE ChatInjection channel (single placement), and a second
 // prompt-mutation plane beside it is exactly what the S2 seam exists to prevent. One depth-0 `in_chat`
 // system injection carries every note; the model correlates by the quoted text.
 //

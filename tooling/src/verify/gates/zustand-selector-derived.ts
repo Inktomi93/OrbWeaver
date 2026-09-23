@@ -1,7 +1,7 @@
 // Zustand v5 dropped v4's implicit shallow equality, so a selector that DERIVES a fresh object/array
 // every render never satisfies `Object.is` and spins `useSyncExternalStore` forever unless the selector is
 // wrapped in `useShallow(...)`. RUNTIME-only, no compile signal — hence a policy
-// (UI-Lib-Zustand.md §A/§C-1, UI-Gates-and-Lessons.md §7/§11.5).
+// (UI-Gates-and-Lessons.md §7/§11.5).
 //
 // THE DEEP HALF OF A TWO-LAYER BELT. `zustand-selector-stability` judges the NARROW case — a concise arrow
 // body that IS an object/array literal — through the store hook's resolved TYPE. This policy judges the
@@ -90,7 +90,7 @@ const OBJECT_GLOBAL = "Object";
 const PASSTHROUGH_OPERATORS: ReadonlySet<string> = new Set(["??", "||", "&&"]);
 
 const MESSAGE =
-  "zustand selector returns a fresh object/array (or an Object.keys/values/entries / array-rebuilding derivation) — under v5's Object.is default (no implicit shallow compare) this spins useSyncExternalStore forever. Wrap the selector in useShallow(...), narrow it to a single field, or return a frozen module constant (UI-Lib-Zustand.md §A/§C-1, UI-Gates-and-Lessons.md §7/§11.5).";
+  "zustand selector returns a fresh object/array (or an Object.keys/values/entries / array-rebuilding derivation) — under v5's Object.is default (no implicit shallow compare) this spins useSyncExternalStore forever. Wrap the selector in useShallow(...), narrow it to a single field, or return a frozen module constant (UI-Gates-and-Lessons.md §7/§11.5).";
 
 type InlineFunction = ArrowFunction | FunctionExpression;
 

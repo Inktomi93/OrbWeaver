@@ -1,4 +1,4 @@
-// The Data readout's reference scan (preset-surface-redesign §7). What is worth pinning here is NOT
+// The Data readout's reference scan. What is worth pinning here is NOT
 // "it finds {{pov}}" — it is the two ways a naive scan lies to the user:
 //   · a PREFIX match ({{povish}}) counted as a reference would make a rename look unsafe when it is;
 //   · a FILTERED/ARGUMENT form ({{pov:upper}}, {{pov arg}}) missed would make it look safe when it is not.

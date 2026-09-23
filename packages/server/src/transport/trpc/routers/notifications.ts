@@ -1,9 +1,9 @@
-// transport/trpc/routers/notifications — the per-user durable inbox CRUD surface (PD-23;
-// docs/law/Tier-4-Transport.md §"per-user notifications subscription"). The verbs delegate to the
+// transport/trpc/routers/notifications — the per-user durable inbox CRUD surface
+// (docs/law/Tier-4-Transport.md §"per-user notifications subscription"). The verbs delegate to the
 // `notifications` domain (caller-scoped — every read/write is scoped to `principal.userId` inside the
 // verb).
 //
-// THE INBOX TRIO IS `authedProcedure` (#1627, 2026-09-05 — PD-106's ruling survives, its INPUT changed).
+// THE INBOX TRIO IS `authedProcedure` (#1627 — the prior ruling survives, its INPUT changed).
 // The whole router rode `multiHumanProcedure` because every notification SOURCE was multi-human
 // (invite/kick/host-handoff delivery), so a deployment that cannot seat a second human (single-user, or
 // local with the `localMultiUser` AppSetting off — the B4 axis) refused the inbox as NOT_FOUND. Single-human sources
@@ -25,9 +25,9 @@
 // The live inbox stream used to live here as `notifications`. It FOLDED into the multiplexed socket at
 // SSE-1 S3: it is now the `notifications` ROOM (`transport/trpc/stream/sources/notifications.ts`), carrying
 // the same durable-first resume (live listener first, `list`-paged replay of `seq > cursor`, then live). The
-// PD-106 belt travelled with it onto that room's `authorizeAttach` and came OFF there with #1627 for the same
+// belt travelled with it onto that room's `authorizeAttach` and came OFF there with #1627 for the same
 // reason it came off here — the room is `authedProcedure` reachable and self-scoped by `principal.userId`. The
-// PD-70 presence ref-count and the host-return `drainDeferredTurns` edge moved to the socket with it
+// presence ref-count and the host-return `drainDeferredTurns` edge moved to the socket with it
 // (`routers/stream.ts`, spec §5.6 — owner-ruled §14.4).
 //
 // `presence` (#1039) is the DISCLOSURE half of that same ref-count, and it homes here because presence was

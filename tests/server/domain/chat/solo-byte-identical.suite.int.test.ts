@@ -1,4 +1,4 @@
-// PD-116 gate 7 — the D16 SOLO-BYTE-IDENTICAL property suite (cross-cutting, mirror-exempt).
+// Gate 7 — the D16 SOLO-BYTE-IDENTICAL property suite (cross-cutting, mirror-exempt).
 // D16: solo is not a mode — a solo chat IS a group of one, and the group machinery must be a
 // structural NO-OP at one character (no `if (isGroup)` anywhere — the active no-if-is-group grit is the
 // static half; THIS suite is the behavioral half). Two identically-shaped chats drive ONE round each

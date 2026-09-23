@@ -14,8 +14,8 @@
 // primary yet, the embedded book is CONTENT-matched against the owner's existing library BEFORE minting
 // (`substrate/book-dedup`, the regex `planCardLift` shape). A match LINKS this character to the existing
 // world_books row (a fresh primary character_books attach); no book is duplicated. Only a genuinely new
-// book mints a fresh row + entries. This is the FALLBACK channel — the reference channel (`linkCarriedBooks`,
-// PD-144) resolves first and, when it links, the caller skips the embedded book entirely. One db.batch per
+// book mints a fresh row + entries. This is the FALLBACK channel — the reference channel (`linkCarriedBooks`)
+// resolves first and, when it links, the caller skips the embedded book entirely. One db.batch per
 // book; db.transaction() is banned (the :memory: trap).
 
 import type { BulkImportLorebookInput, BulkImportLorebookResult } from "@orb/contracts/world-info";

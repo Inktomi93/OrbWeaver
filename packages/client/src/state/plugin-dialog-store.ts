@@ -1,4 +1,4 @@
-// The plugin-DIALOG intent store (plugin-ui-plane #679 U5, §4.5a) — the payload channel for the ONE
+// The plugin-DIALOG intent store — the payload channel for the ONE
 // `pluginDialog` modal slot, the imagery-store posture applied to the plugin plane: a round-trip's OUTCOME sets
 // the subject and opens the slot, the modal body reads it, and the def's `onClose` clears it.
 //

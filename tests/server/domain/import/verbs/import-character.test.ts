@@ -165,7 +165,7 @@ describe("importCharacter", () => {
     expect(result.skippedOverlays[0]).toContain("restore door");
   });
 
-  // ── PD-144 — carried attached-book references ───────────────────────────────────────────────────────
+  // ── carried attached-book references ─────────────────────────────────────────────────────────────────
 
   const bookA = castId<WorldBookId>("world_book_0000000000000000000000000a");
   const bookB = castId<WorldBookId>("world_book_0000000000000000000000000b");

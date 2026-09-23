@@ -1,4 +1,4 @@
-// The GREETING WINDOW — the pure half of the seeded-greeting step (chat-creation-draft-mode-replacement.md
+// The GREETING WINDOW — the pure half of the seeded-greeting step (D166
 // §4.8 / fork F6, R3).
 //
 // A seeded greeting is real canon from the creation click (R1) and stays malleable until the room's FIRST

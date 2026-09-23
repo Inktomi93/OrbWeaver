@@ -131,7 +131,7 @@ function scripted(content: string, finishReason?: NormalizedFinishReason): ChatC
     })();
 }
 
-/** One scripted generation the reply-tape yields in order (PD-146 auto-behaviors run a follow-up turn, so a
+/** One scripted generation the reply-tape yields in order (auto-behaviors run a follow-up turn, so a
  *  send fires ≥2 `runChatTurn` calls that must reply distinctly). */
 interface ScriptedReply {
   readonly content: string;
@@ -189,10 +189,10 @@ function harness(
     /** Override the disabled-account gate (default = everyone enabled; the containment test disables a
      *  member). */
     resolveUserEnabled?: ChatContext["resolveUserEnabled"];
-    /** A per-call reply sequence (PD-146 auto-behavior pins: the send fires a follow-up turn). Each
+    /** A per-call reply sequence (auto-behavior pins: the send fires a follow-up turn). Each
      *  `runChatTurn` call yields the next reply; the last repeats once exhausted. Overrides `content`. */
     replyTape?: readonly ScriptedReply[];
-    /** The host's PD-146 turn-behavior arm (custom stops + auto-continue/auto-swipe). Default all-off. */
+    /** The host's turn-behavior arm (custom stops + auto-continue/auto-swipe). Default all-off. */
     chatBehavior?: ChatBehaviorInputs;
     /** Override the round PRNG (default `seededPrng()`). The WAVE MU delivery pins seed distinct draws across
      *  chats to prove a NEW turn draws FRESH (a different pool pick), independent of a prior turn's frozen draw. */
@@ -612,7 +612,7 @@ describe("send — user-row seq collision retry (U1: the seq TOCTOU is allocated
   });
 });
 
-describe("send — presence character-gating (PD-70)", () => {
+describe("send — presence character-gating", () => {
   /** Seed a host + an away member (each with a persona) + one character; return the ids + persona ids. */
   async function seedTwoHumanRoom(): Promise<{
     host: UserId;
@@ -743,7 +743,7 @@ describe("send — presence character-gating (PD-70)", () => {
   });
 });
 
-describe("send / impersonate — persona attribution fallback (PD-100)", () => {
+describe("send / impersonate — persona attribution fallback", () => {
   /** Seed a solo room whose host carries an ACTIVE persona (+ a spare persona for the explicit-wins arm). */
   async function seedPersonaRoom(): Promise<{
     host: UserId;
@@ -1208,7 +1208,7 @@ describe("send — auto-mode AI→AI chain", () => {
   });
 });
 
-describe("send — PD-146 custom stopping strings + auto-behaviors", () => {
+describe("send — custom stopping strings + auto-behaviors", () => {
   const behaviorOff: ChatBehaviorInputs = {
     autoContinue: false,
     autoContinueRounds: 1,
@@ -1745,7 +1745,7 @@ describe("send / drainDeferredTurns — host-offline defer + reclaim (D16 / Part
   });
 });
 
-describe("send — a solo room drives exactly ONE speaker (PD-95: the deleted simpleSend was byte-identical)", () => {
+describe("send — a solo room drives exactly ONE speaker (the deleted simpleSend was byte-identical)", () => {
   test("commits the user row + one assistant for the primary character", async () => {
     const { host, chatId, chars, names } = await seedRoom("natural", ["aria"]);
     const h = harness(db, names);
@@ -2068,7 +2068,7 @@ function stateRoundCancellingRpg(record: { chatId: ChatId; userId: UserId }[], c
   } as unknown as NonNullable<ChatContext["rpg"]>;
 }
 
-describe("guided steer routing (the chat design doc §6, PD-63)", () => {
+describe("guided steer routing (the chat design doc §6)", () => {
   test("send threads the guided steer into the assembled prompt (system-marker default; {{input}} spliced)", async () => {
     const { host, chatId, names } = await seedRoom("list", ["aria"]);
     const requests: unknown[] = [];
@@ -2428,7 +2428,7 @@ describe("generate — LOCK-FREE (runs concurrent with a held send lock)", () =>
     // A locked round path (send → the engine acquires the per-speaker lock) YIELDS the round (§6 — a
     // human send interleaved): the user row commits, the speaker turn is refused by the lock, driveRound
     // stops with what committed so far. (The deleted simpleSend hit the engine directly and REJECTED
-    // `locked` — the round path's yield is the production behavior; PD-95.)
+    // `locked` — the round path's yield is the production behavior.)
     const locked = await h.turn.send({ principal: principal(host), chatId, content: "blocked" });
     expect(locked.messages).toHaveLength(1);
     expect(locked.messages[0]?.role).toBe("user");
@@ -2660,7 +2660,7 @@ describe("storage stays RAW (D51) — macros in message content are never resolv
   });
 });
 
-// The non-human turn seam (automation-design/03 §4 / 05 §AC-B) — the walls, none optional. requestTurn is
+// The non-human turn seam — the walls, none optional. requestTurn is
 // principal-free: the funding host is resolved from the room and the responsible human remains the initiator.
 // No infinite cascade, no cross-tenant trigger. The
 // budget and consent walls were retired with their belts (§14 F11/F13), so two of the original four remain.

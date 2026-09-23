@@ -1,4 +1,4 @@
-// Integration: PD-40 composed views (CONTENT-only) — home (coverage + top themes + dup counts) + themeDetail
+// Integration: composed views (CONTENT-only) — home (coverage + top themes + dup counts) + themeDetail
 // (cluster + story-time timeline + member characters). Owner-scoped (audit #1).
 
 import type { Db } from "@orb/db";

@@ -69,7 +69,7 @@ export const PROSE_SLOT_IDS = [
   //    pre-PROSE-1 `promptConfig.compaction.instructions` field, not a `promptConfig.prose` row. ──
   "preset.compaction.instructions",
   // ── per-PRESET: the Rewrite modal's toggle fragments (census 53-59) — the templating fork ruled ARM B
-  //    (owner, 2026-08-09, `docs/history/design/templating-fork-rows-53-73.md`): the fragment BYTES are prose slots
+  //    (owner, 2026-08-09, D172): the fragment BYTES are prose slots
   //    resolved SERVER-side at the seam that already holds the preset blob, and the wire carries only the
   //    toggle KINDS. NOT legacy-adapted: their storage is `promptConfig.prose`, so each has a Templates-tab
   //    row. `macros:"none"` (PROSE-1 §6.1): a fragment is composed INTO the steer that becomes `{{input}}`
@@ -153,7 +153,7 @@ export const PROSE_SLOT_IDS = [
   "discovery.compare.system",
   "discovery.ask.system",
   "discovery.distill.system",
-  // ── per-USER: the refinery pipeline prompts (R1 — docs/history/design/refinery-r0.md §9.7): four stage-SYSTEM
+  // ── per-USER: the refinery pipeline prompts: four stage-SYSTEM
   //    slots (`refine` = the refinement-rewrite system) + the eight F4 (stage × mode) instruction bodies.
   //    All `macros:"none"` BY LAW (belt 5 by-construction): refinery prompts never enter the macro engine,
   //    so card-text `{{…}}` rides to the model verbatim and applied rewrites keep their macros intact. ──
@@ -242,8 +242,8 @@ export const PROSE_SLOT_IDS = [
   "rpg.extract.refs.closing",
   "rpg.extract.userPrompt.latestBeatLabel",
   "rpg.extract.tool.rollDice",
-  // ── per-PRESET: the POPULATE round's own prose (the populate census rows 1-7,
-  //    `docs/history/design/prose-1-populate-census.md`). Its own `rpg.populate.*` group rather than more
+  // ── per-PRESET: the POPULATE round's own prose (the populate census rows 1-7).
+  //    Its own `rpg.populate.*` group rather than more
   //    `rpg.extract.*` rows because the two fire on DIFFERENT CALLS — the extraction cohort rides every state
   //    round of every turn, this one rides the host's ONE born-state click over a card — so a host tuning the
   //    card read has no reason to read the turn-loop teaching. Same posture as the extraction cohort

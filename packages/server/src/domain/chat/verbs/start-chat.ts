@@ -12,7 +12,7 @@
 // Absent policy resolves by roster size (1 ⇒ first-message, >1 ⇒ greet-all, 0 ⇒ none). `generate` is NOT a
 // creation-time arm (the wire schema excludes it, `transport/trpc/routers/chat.ts`'s `startChatSchema`) —
 // "guide the opening" is an ordinary post-creation `chat.generate` action against the real room now
-// (chat-creation-draft-mode-replacement.md §4.4/R2 retired the fused generated-opening +
+// (D166 retired the fused generated-opening +
 // `openingFailure` degrade apparatus (START-1) along with the rest of the creation-time draft carry:
 // R1 made every client caller create the real room before mounting, so a creation-fused generation and
 // its "the room committed but the opening failed" DATA outcome were unreachable product surface).
@@ -25,7 +25,7 @@
 //
 // FLAG[chatOpened]: `startChat` emits only `chatCreated`. `chatOpened` is NOT a domain emit — it is
 // synthesized per-subscription at the participant stream-attach (transport/trpc/routers/chat.ts's
-// `chatEventStream`, PD-134): a local per-viewer yield, never published on the bus, never logged to
+// `chatEventStream`): a local per-viewer yield, never published on the bus, never logged to
 // `chat_events`. This verb deliberately stays silent on it (the marker guarding against a stray emit here).
 //
 // R0 §4.2: `startChat` mints a HUSK (`chats.startedAt IS NULL`) and never claims it — creation alone is

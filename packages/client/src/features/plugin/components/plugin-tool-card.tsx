@@ -1,4 +1,4 @@
-// plugin-tool-card — what a PLUGIN's tool call looks like in the transcript (plugin-ui-plane #679 U3, §4.5's
+// plugin-tool-card — what a PLUGIN's tool call looks like in the transcript (U3, §4.5's
 // tool-card row; closes the recorded A2-F5 renderer gap). Until now a plugin could put a tool in front of the
 // model but had no way to draw its result: the client tool-renderer registry is first-party and
 // door-assembled, so every plugin tool landed in the generic `ToolCallBlock` — the oracle-deck's own README
@@ -24,6 +24,7 @@ import { ToolCallBlock } from "@orb/ui/tool-call-block";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
+import { useActiveChatId } from "#state";
 import { toolCardState } from "../lib/plugin-tool-card-state.ts";
 import { PluginFrame } from "./plugin-frame.tsx";
 import { PluginSurfaceRenderer } from "./plugin-surface-renderer.tsx";
@@ -42,6 +43,11 @@ export function PluginToolCard({ record }: PluginToolCardProps): ReactElement {
   // or failed) takes the same arm as "no card registered": the generic block.
   const { data: surfaces } = useQuery(trpc.plugin.listSurfaces.queryOptions());
   const { data: plugins } = useQuery(trpc.plugin.list.queryOptions());
+  // The room a frame card's chat-scoped host calls go to. The renderer contract hands a card only its record,
+  // but a card renders only inside the open thread (`ChatContent` keys the room by the active chat's id), so
+  // the active chat IS this card's chat, the `message-media-block` precedent. The server still re-checks that
+  // the caller can read it.
+  const chatId = useActiveChatId();
 
   // `toolWireName` is the SERVER's projection of `plugin_<slug'>_<toolName>` (the one mint lives in contracts;
   // the client never re-derives the namespacing rule). A surface only carries it at the `tool-card` anchor.
@@ -61,6 +67,7 @@ export function PluginToolCard({ record }: PluginToolCardProps): ReactElement {
   if (surface.tier === "frame") {
     return (
       <PluginFrame
+        chatId={chatId ?? undefined}
         fallback={<ToolCallBlock record={record} />}
         pluginId={surface.pluginId}
         pluginName={pluginName}

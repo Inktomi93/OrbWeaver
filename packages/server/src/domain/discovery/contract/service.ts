@@ -122,7 +122,7 @@ export interface ComputeChatDuplicatesDeps {
   readonly newDuplicateChatPairId: () => DuplicateChatPairId;
 }
 
-/** The tier-0 blockIdx range a tier-`k` digest covers — the memory tier-grid seam (PD-39). The fanOut math
+/** The tier-0 blockIdx range a tier-`k` digest covers — the memory tier-grid seam. The fanOut math
  *  stays ONE-HOMED in chat/memory (`resolveTier0Range`); discovery receives the resolver bound over the live
  *  memory config at the entry root and never spells `fanOut` itself. Tier 0 is the identity range. */
 export type Tier0RangeOp = (tier: number, blockIdx: number) => { readonly startIdx: number; readonly endIdx: number };
@@ -201,7 +201,7 @@ export interface DiscoveryContext {
   readonly newKeywordCooccurrenceId: () => KeywordCooccurrenceId;
   readonly newCharacterKeywordProfileId: () => CharacterKeywordProfileId;
   readonly newDuplicateChatPairId: () => DuplicateChatPairId;
-  /** The memory tier-grid seam (PD-39) — `chat/memory.resolveTier0Range` bound over the live
+  /** The memory tier-grid seam — `chat/memory.resolveTier0Range` bound over the live
    *  `AppSettings.memoryDefaults` at the entry root; powers the tier-k `msgMidAt` backfill arm. */
   readonly tier0RangeOf: Tier0RangeOp;
   /** The cross-domain `similar` seam — search's `similarCharacters`, narrowed to {@link DossierNeighbor} and

@@ -246,7 +246,7 @@ describe("assembly/user-macros — preset + game defs (owner ruling #20 / the 20
   });
 });
 
-// ── The THIRD definition home: PLUGIN macros (plugin-ui-plane §5.15, U6) ──────────────────────────────────
+// ── The THIRD definition home: PLUGIN macros ──────────────────────────────────
 // A plugin macro is a RESOLVED VALUE (the plugin plane invoked its guest once, under the assembly deadline)
 // handed to this builder as an ordinary `UserMacroDef` with a literal body. These pins own the two things the
 // builder decides about that home: that a plugin macro SUBSTITUTES (the owner's U6 test, at the engine), and

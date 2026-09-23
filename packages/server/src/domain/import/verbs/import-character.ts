@@ -2,7 +2,7 @@
 // file → byte-identical dedup (the ONLY dedup: the same FILE, never a name) → flatten+validate → mint a FREE
 // per-owner handle (a name-slug collision suffixes the HANDLE only, never the display name — two distinct
 // "Emily" cards are two characters) → create fresh with provenance + CAS-store avatar → attach tags → re-link
-// carried attached-book references (PD-144), else carry the embedded lorebook clone (the fallback when no
+// carried attached-book references, else carry the embedded lorebook clone (the fallback when no
 // reference resolves on this install, and only into a FREE primary seat — #1598). All cross-feature ops are
 // injected via context.ts — import never reads a db table directly.
 //
@@ -66,7 +66,7 @@ async function attachCardTags(ctx: ImportContext, characterId: CharacterId, tags
   }
 }
 
-/** PD-144: re-link the carried attached-book references (owned-source gated in the op). No-op — 0/0 — when
+/** Re-link the carried attached-book references (owned-source gated in the op). No-op — 0/0 — when
  *  the op is unwired (card-only slice) or the card carries none. */
 function relinkCarriedBooks(
   ctx: ImportContext,

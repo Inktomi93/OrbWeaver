@@ -288,7 +288,7 @@ export function qualityFindings(samples: RawSamples): FamilyCheckResult {
   runArray(state, () => truncated.findings);
   runArray(state, () => overhangs.findings);
   runArray(state, () => paddingLeaks.findings);
-  // The device-pixel grid CAUSE arms (docs/design/integer-line-boxes.md §9-§10, crispness Laws 2-3). Rung 4
+  // The device-pixel grid CAUSE arms (docs/law/integer-line-boxes.md §9-§10, crispness Laws 2-3). Rung 4
   // rather than rung 2 because both repeat by AUTHORED DECISION: one promoted `tv()` slot lands off-grid on
   // every row it renders, and filing that per row buries the single fix under its own blast radius.
   const promotedLayers = decisionPopulationFindings("promoted-layer-offset", samples.promotedLayerOffsets ?? [], checkPromotedLayerOffset, {
@@ -379,7 +379,7 @@ export function typographyFindings(samples: RawSamples): FamilyCheckResult {
     populationAccounting[rule] = partitioned.accounting;
     runArray(state, () => partitioned.findings);
   }
-  // The Law-4 runtime backstop (docs/design/integer-line-boxes.md §11). Same rung and same key as the two
+  // The Law-4 runtime backstop (docs/law/integer-line-boxes.md §11). Same rung and same key as the two
   // type-floor rules above: a blurred voice is a property of the COMPONENT, not of each render.
   const offGridText = decisionPopulationFindings("off-grid-text", samples.offGridTexts ?? [], checkOffGridText, {
     decisionKey: authoredDecisionKey,

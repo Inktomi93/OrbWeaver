@@ -3,7 +3,7 @@
 // The defect this file pins was a FALSE CLEAN with a successful owner: a changed-mode request naming only a
 // declared RESOURCE scheduled its policy, visited zero source files, and reported clean. Its twin was a TOOL
 // ERROR: a request naming only a SOURCE withdrew the resource the same policy declares, so the read that
-// obligation 1 of `docs/design/resource-policy-contract.md` requires came back `is undeclared`. Both were
+// obligation 1 of `docs/law/resource-policy-contract.md` requires came back `is undeclared`. Both were
 // measured on the two live `baseui-derives-not-respells` siblings; the production control for them lives in
 // `tests/tooling/verify/gates/baseui-and-surface-family.suite.repo.int.test.ts` under "§2309".
 //

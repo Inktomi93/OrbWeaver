@@ -1,4 +1,4 @@
-// The config-group contract (client-architecture-lockdown.md §8 · config-revamp-design.md §3.1) — the
+// The config-group contract (client-architecture-lockdown.md §8) — the
 // section/modal registry move applied to the unified Configuration workspace: ONE co-located definition
 // per group, assembled at the door (`compose/authed-app.tsx`) into a registry total over
 // `CONFIG_GROUP_IDS`, and handed to `makeConfigSection(groups)` by factory (the home-tiles precedent —
@@ -12,7 +12,7 @@
 // seam that used to share this file lives in `config-section-registry.ts`; the key partition in
 // `config-section-partition.ts` (both split out for the component-size cap, not for architecture).
 //
-// EVERY NON-COLLECTION GROUP IS A SKIMMER BY TYPE (config-revamp-design.md §6.8, owner ruling 2026-08-30):
+// EVERY NON-COLLECTION GROUP IS A SKIMMER BY TYPE:
 // the `surface` body arm and the group's own `subcategories` map are GONE. A group's parts are
 // `ConfigSectionContribution`s at its anchor and nothing else — the host derives the LIST rows, the search
 // index, the scroll-spy targets and the render from ONE registry, so a LIST row can never point at an
@@ -29,8 +29,8 @@ import type { ReactNode } from "react";
 import type { CollectionContribution, Registry } from "#lib";
 import type { ConfigGroupId, ConfigShelf } from "./config-group-ids.ts";
 
-/** A reference to another KNOB — the teacher's "Related" link vocabulary (VS Code's `#other.setting#`,
- *  config-revamp-design.md §3.5). The host resolves it into an `openConfigTo` door; a ref that resolves to
+/** A reference to another KNOB — the teacher's "Related" link vocabulary (VS Code's
+ *  `#other.setting#`). The host resolves it into an `openConfigTo` door; a ref that resolves to
  *  nothing is RED at the compose door (`assertTeachHonesty` — owner rider R-TEACH).
  *
  *  `setting` is REQUIRED, which is the wall (#1101): a ref without one resolves to a door labelled with its
@@ -43,7 +43,7 @@ export interface ConfigSettingRef {
 }
 
 /** What the context pane TEACHES about a setting (or a section) — contribution DATA the host renders
- *  (config-revamp-design.md §3.5/§7.2, #866 S3). The row itself stays label + control (the teacher law);
+ *  (#866 S3). The row itself stays label + control (the teacher law);
  *  the prose lives here. */
 export interface SettingTeach {
   /** The definition — one short paragraph, plain language. Never empty (R-TEACH honesty arm). */
@@ -140,8 +140,8 @@ export interface SettingsViewerView {
   readonly isOwner: boolean;
 }
 
-/** One dynamic search row a group contributes at runtime (a collection's members, the persona names —
- *  config-revamp-design.md §3.3). `subId` names the anchor a hit lands on for a non-member row; a
+/** One dynamic search row a group contributes at runtime (a collection's members, the persona names).
+ *  `subId` names the anchor a hit lands on for a non-member row; a
  *  `memberId` row opens that member instead. */
 export interface ConfigSearchRow {
   readonly id: string;
@@ -151,7 +151,7 @@ export interface ConfigSearchRow {
   readonly memberId?: string;
 }
 
-/** What a group RENDERS (config-revamp-design.md §3.1 as amended by §6.8) — an honest three-arm union:
+/** What a group RENDERS (as amended by §6.8) — an honest three-arm union:
  *  - `sections` — a pure SKIMMER: the group has no body of its own; the host renders the sections
  *    contributed at its anchor, and its LIST rows DERIVE from them (D120). Every settings-shaped group
  *    (nine of them) is this arm.
@@ -163,7 +163,7 @@ export interface ConfigSearchRow {
  *  §6.8: it was the old nav map beside the new one, in five groups.
  *
  *  THE PLACEHOLDER ARM HAS ZERO PRODUCTION OCCUPANTS TODAY (#1713, re-derived 2026-09-05 —
- *  config-revamp-design.md §8.2 ruling 3): `automation` graduated to a real surface at `cb8026bfc` and no group literal on
+ *   ruling 3): `automation` graduated to a real surface at `cb8026bfc` and no group literal on
  *  the tree declares `{ placeholder: true }`. Kept as live declared intent, not speculative dead code — its
  *  ONLY subject is the synthetic `placeholderConfigGroups` registry (`tests/support/browser/ct-config-groups.ts`)
  *  `config-group-placeholder.ct.tsx` mounts, standing in for the next unbuilt group. Retire the arm only if
@@ -189,11 +189,11 @@ export interface ConfigGroupBase {
    *  consumer supplies" inversion). ONE predicate, three consumers: LIST, search and render. Absent =
    *  always visible. */
   readonly when?: (viewer: SettingsViewerView) => boolean;
-  /** DYNAMIC search rows (config-revamp-design.md §3.3): a HOOK the host renders in its own fiber per
+  /** DYNAMIC search rows: a HOOK the host renders in its own fiber per
    *  group — a collection's members over the same cache-first list query its roster already loaded, the
    *  persona names. Called unconditionally over the door-frozen registry (the `useCount` discipline). */
   readonly useSearchRows?: () => readonly ConfigSearchRow[];
-  /** The group's ADVANCED FOLD (#297's explicit custom arm — config-revamp-design.md §7.3): sections
+  /** The group's ADVANCED FOLD (#297's explicit custom arm): sections
    *  contributed with `advanced: true` render inside ONE collapsed-by-default disclosure the host draws
    *  with this label. `caption` is a RENDER (a component may read its own data — Appearance's names the
    *  current look), never a hook the host would have to call conditionally. Declaring a fold with zero

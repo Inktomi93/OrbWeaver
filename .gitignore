@@ -40,8 +40,7 @@ coverage/
 # mutation-probe's crash-recovery marker: it carries a PRISTINE source body and only exists while a
 # probe is mid-plant. Committing one would be committing a half-finished experiment's state.
 /.mutation-probe-active.json
-# Root-anchored: ignores the tool-output dir at repo root only, NOT the tracked
-# architecture docs in docs/architecture/reports/ (the ledger, ENFORCEMENT, etc.).
+# Root-anchored: ignores the tool-output dir at repo root only.
 /reports/
 .stryker-tmp/
 # Stryker's per-worker setup files leak to the repo root (the mutation runner); generated + transient,

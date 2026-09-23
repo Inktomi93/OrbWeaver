@@ -93,20 +93,11 @@ export const REVIEWED_GRANTS_ASSETS_TO_HOME: readonly ReviewedGateGrant[] = [
     endsWhen: "the module stops writing assets or calling storeBlob, or the CAS boundary moves to a different exact module.",
   },
   {
-    id: "biome-grant-liveness:catalog-tmp",
-    policyId: "biome-grant-liveness",
-    subject: "docs/catalog/catalog.tmp.*.json",
-    operation: "biome-glob-grant",
-    why: "absent at rest BY DESIGN and never tracked: the doc-catalog's biome round-trip writes docs/catalog/catalog.tmp.<runId>.json, formats it through the binary, and rm's it in a `finally` — the run identity in the name is what stops two concurrent catalog runs from formatting each other's file (#1029), and the files.maxSize grant must PRE-EXIST the write. Producer: tooling/src/doc-catalog/ops/tree.ts. This ONE row replaces the pair the retired tables carried, whose own comment asked to 'collapse the pair the day one table can express both' (#2021).",
-    endsWhen:
-      "the catalog serializer stops formatting through a temp file — the glob then matches nothing anybody wrote, the finding disappears and this row is consumed zero times.",
-  },
-  {
     id: "bound-field-via-hook:use-bound-field",
     policyId: "bound-field-via-hook",
     subject: "packages/client/src/forms/editor/bound-fields/use-bound-field.ts",
     operation: "raw-field-context-read",
-    why: "`useBoundField` IS the one home for the bound-field wiring (derive-modernization-audit.md §W3 G28): it reads the raw form context once, normalizes the touch-gated error, and assembles the `<Field>` prop bundle every bound field then shares. The seal cannot be built without the read it seals.",
+    why: "`useBoundField` IS the one home for the bound-field wiring: it reads the raw form context once, normalizes the touch-gated error, and assembles the `<Field>` prop bundle every bound field then shares. The seal cannot be built without the read it seals.",
     endsWhen:
       "the bound-field bundle is assembled from something other than the raw `useFieldContext` — at which point this file stops making the read and the row goes stale on its own.",
   },
@@ -115,7 +106,7 @@ export const REVIEWED_GRANTS_ASSETS_TO_HOME: readonly ReviewedGateGrant[] = [
     policyId: "bus-channel-primitive",
     subject: "packages/server/src/transport/trpc/bus-channel.ts",
     operation: "event-emitter-construction",
-    why: "`defineBusChannel`'s own module — the emitter it wraps is constructed HERE, which is the entire point of the mint (M9, client-architecture-lockdown.md §13/§16 G10).",
+    why: "`defineBusChannel`'s own module — the emitter it wraps is constructed HERE, which is the entire point of the mint (M9, client-architecture-state-and-gates.md §13/§16 G10).",
     endsWhen:
       "the mint moves or stops wrapping a node EventEmitter; the row is then consumed zero times and reds at its dead subject, which is the rename tripwire the legacy SANCTIONED_HOMES table owned by hand.",
   },
@@ -231,7 +222,7 @@ export const REVIEWED_GRANTS_ASSETS_TO_HOME: readonly ReviewedGateGrant[] = [
     policyId: "config-anchor-in-registry",
     subject: "packages/client/src/features/config/hooks/use-config-scroll-spy.ts",
     operation: "config-anchor-stamp",
-    why: "the config content pane's scroll-spy hook READS anchors rather than painting one: it derives the active group's anchor prefix to drive the spy (the WHEN half split out of `surfaces/config-content-surface.tsx` on main, #1632 train 81; the grant moved with the reader, which is exactly the liveness this row is keyed on). It owns no config row and must not be registered as one (config-revamp-design.md §6.8.3).",
+    why: "the config content pane's scroll-spy hook READS anchors rather than painting one: it derives the active group's anchor prefix to drive the spy (the WHEN half split out of `surfaces/config-content-surface.tsx` on main, #1632 train 81; the grant moved with the reader, which is exactly the liveness this row is keyed on). It owns no config row and must not be registered as one.",
     endsWhen: "the spy's prefix is supplied by the registry itself instead of recomputed at the reader.",
   },
   {

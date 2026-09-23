@@ -12,7 +12,7 @@ const THINKING_LABEL = /Thinking/u;
 const THOUGHT_LABEL = /Thought for/u;
 
 // A tall trace, so an UNfixed (animated) collapse displaces the prose by hundreds of px — the
-// `streaming-shape-churn.md` §8 fling was 350–677px. Newline-joined so the untrusted markdown seal
+//  fling was 350–677px. Newline-joined so the untrusted markdown seal
 // renders many block paragraphs (real height, not one wrapped line).
 const TALL_REASONING = Array.from({ length: 40 }, (_, i) => `Reasoning step ${i}: a full sentence of trace text to give the panel real height.`).join("\n\n");
 
@@ -42,7 +42,7 @@ test("reveals the growing reasoning trace as markdown while thinking", async ({ 
 });
 
 test("smoothStream off: the full reasoning trace is revealed instantly, unpaced, while thinking", async ({ mount }) => {
-  // PD-146 — with `chat.smoothStream` off the reasoning block must NOT pace the reveal (useSmoothText is a
+  // With `chat.smoothStream` off the reasoning block must NOT pace the reveal (useSmoothText is a
   // strict passthrough when disabled); the whole trace is present on the first render even mid-thinking.
   const full = "The complete reasoning trace shown all at once with no pacing whatsoever";
   const component = await mount(<ReasoningBlockStory reasoning={full} thinking={true} smoothStream={false} />);
@@ -50,7 +50,7 @@ test("smoothStream off: the full reasoning trace is revealed instantly, unpaced,
 });
 
 test("smoothStream on: the reveal is paced (not instant), then completes as the pacer drains", async ({ mount, page }) => {
-  // PD-146 — with `chat.smoothStream` on the reveal is routed through useSmoothText (rAF pacer). Unlike the
+  // With `chat.smoothStream` on the reveal is routed through useSmoothText (rAF pacer). Unlike the
   // off case it is NOT a passthrough: at mount `shown=0`, so the full trace is absent until frames advance;
   // once enough animation time passes the pacer drains and the whole trace lands.
   await page.clock.install();

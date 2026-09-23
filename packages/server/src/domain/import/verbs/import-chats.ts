@@ -1,4 +1,4 @@
-// verb: importChats (PD-77, wired) — attaches loose ST chat `.jsonl` files to an EXISTING owned character
+// verb: importChats — attaches loose ST chat `.jsonl` files to an EXISTING owned character
 // (chosen explicitly; ST chat headers don't reliably carry the character name). Translates each parsed
 // chat to `BulkImportChatInput` and delegates the write to the injected `bulkImportChats` op.
 
@@ -31,7 +31,7 @@ export function createImportChats(ctx: ImportContext): ImportService["importChat
       chats,
     });
 
-    // PD-78 (wired): a chat canon-write always OFFERS the downstream index sweep — the workloads door decides
+    // (wired): a chat canon-write always OFFERS the downstream index sweep — the workloads door decides
     // whether it is admissible (#156: memory off ⇒ refused, and the report says so rather than claiming a run).
     const backfillEnqueued = counts.realConversationWritten && (await profile.enqueueBackfill({ ownerId }));
 

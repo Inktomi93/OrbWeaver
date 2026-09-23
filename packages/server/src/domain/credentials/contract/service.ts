@@ -39,7 +39,7 @@ export interface CredentialContext {
    *  install contributing it, D147), or undefined. `add` uses the row's branded id directly: the id is half the
    *  AAD, so membership validation and branding must be one operation. */
   readonly findProvider: (providerId: string, viewer: UserId) => ProviderDef | undefined;
-  /** The db-bound best-effort `logAudit`, wired at the composition root (PD-142). Every credential mutation
+  /** The db-bound best-effort `logAudit`, wired at the composition root. Every credential mutation
    *  writes a durable `audit_logs` row IN ADDITION TO the ephemeral `securityEvent`/`emitUserEvent` — a leaked
    *  or rotated key must leave a persistent forensic trail, not just a pino line that ages out. Best-effort:
    *  the audit channel never breaks the primary mutation (see `foundation/observability/audit.ts`). */

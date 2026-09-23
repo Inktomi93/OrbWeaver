@@ -119,7 +119,7 @@ describe("reapIfOrphan", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const stored = await svc.store({ principal: principal(owner), bytes: pngBytes(21), kind: "background", mime: PNG });
     // The ONLY liveness signal is the appearance JSON pin — no FK column. The FK-only targeted reap missed this
-    // pre-existing (PD-131) live-source too, so the same regression pin covers both JSON sources.
+    // pre-existing live-source too, so the same regression pin covers both JSON sources.
     await db.insert(userSettings).values({
       userId: owner,
       config: {

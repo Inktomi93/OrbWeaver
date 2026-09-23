@@ -3,8 +3,7 @@
 Eight standing wire probes against the OpenRouter chat-completions surface (`anthropic/claude-sonnet-5`,
 Anthropic pinned with `allow_fallbacks:false`). Verdicts + recommendations: [`RESULTS.md`](RESULTS.md).
 Raw evidence: `results/<probe>.jsonl` — one row per arm, append-only, JSONL so a partial run is still
-readable. Subject docs: `docs/history/design/openrouter-provider-findings.md` ·
-`docs/design/rpg-extraction-one-call-spike.md` §7.
+readable. Subject docs: D174.
 
 | probe | question | ~cost |
 |---|---|---|

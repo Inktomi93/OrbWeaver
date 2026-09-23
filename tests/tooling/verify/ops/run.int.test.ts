@@ -475,7 +475,6 @@ test("the static tier is EXACTLY the known ordered stage set (the pre-commit `pn
     "imports:depcruise",
     "deps:knip",
     "docs:format",
-    "docs:catalog",
     // #1967: the AFFECTED subset of the instrument battery. `tests:tooling` stays `--full`-only (#1842 was
     // right about 71 CPU-minutes of recertification), but everything a declared proof row CANNOT express —
     // the §4.2 identity arm, the central grant table's boundaries, the §4.5 refusal and receipt pins — ran
@@ -610,18 +609,6 @@ test(
   // policy, and the seam is also the door that refuses a mis-spelled `ORB_BOX_LOAD` in a worker (#1666).
   scaledBudget(20_000),
 );
-
-test("docs:catalog changed scope covers all Markdown and its own control files", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {
-  const design = resolveSelection({ kind: "file", paths: ["docs/history/design/staleness-and-session-freshness.md"] });
-  expect(stage("docs:format").scopedArgv?.(design)).toBe("skip-empty");
-  expect(stage("docs:catalog").scopedArgv?.(design)).toEqual(["pnpm", "check:doc-catalog"]);
-
-  const control = resolveSelection({ kind: "file", paths: ["docs/catalog/lanes.json"] });
-  expect(stage("docs:catalog").scopedArgv?.(control)).toEqual(["pnpm", "check:doc-catalog"]);
-
-  const sourceOnly = resolveSelection({ kind: "file", paths: ["packages/server/src/index.ts"] });
-  expect(stage("docs:catalog").scopedArgv?.(sourceOnly)).toBe("skip-empty");
-});
 
 test("resolveSelection: a DELETED path lints clean — dropped from the tool file-lists, KEPT in paths + its tsconfig", {
   timeout: AFFECTED_PLAN_TIMEOUT,
@@ -804,8 +791,8 @@ test("types:native per --package runs every imported consumer exactly once", { t
 // unclassified"; "a policy's proofs are its own fixtures, not a property of any changed file".
 // `scopedArgv === undefined` was the PROXY for that ruling, not the ruling.
 //
-// #2277 gives eight of them a PATH TRIGGER, plus `docs:catalog` whose original this generalises
-// (../../../../tooling/src/verify/lib/registry-triggers.ts): at a
+// #2277 gives eight of them a PATH TRIGGER (../../../../tooling/src/verify/lib/registry-triggers.ts,
+// which also carried the retired `docs:catalog` stage's own bespoke version of this mechanism): at a
 // scoped tier they now run their OWN WHOLE `argv` when the selection touches the paths that can change
 // their verdict, and `skip-empty` when it does not. The trigger changes WHEN a stage runs and never WHAT
 // it reads — so the ruling is untouched and the proxy is obsolete.
@@ -1025,12 +1012,12 @@ test("browser:ct scopedArgv: skip-empty on no CT surface; the one-slot CT launch
 // nothing on a clean tree; the repo's `vitest.config.ts` sets `passWithNoTests: false`, so vitest prints
 // "No test files found, exiting with code 1" and `asViolations` scores that digit as VIOLATIONS. §L tells
 // lanes to commit and then report receipts, so the door reds exactly when a lane is told to walk it.
-// THE FIX is `--passWithNoTests` on the SCOPED argv alone. It reopens PD-115 (Core-Debt-Cleared-Ledger:
-// `passWithNoTests` was flipped to false in 2026-07-03 so "a lane whose include glob matches NOTHING …
-// FAILS instead of passing"), and that ruling SURVIVES — its INPUT changed. PD-115 judges an ASSERTED
+// THE FIX is `--passWithNoTests` on the SCOPED argv alone. `vitest.config.ts:134` sets `passWithNoTests: false`
+// repo-wide so a lane whose include glob matches NOTHING (a typo'd pattern, a moved tree) FAILS instead of
+// passing, and that ruling SURVIVES here — its INPUT changed. It judges an ASSERTED
 // selector (a config include glob asserts a fileset); this argv's selector is always the DERIVED
 // `--changed` one, which AGENTS.md "Verification tiers" and ops/scoped.ts's `emptyScopeNotice` already rule CLEAN when
-// empty. PD-115's own class stays guarded: `tests:execution-membership` REDs a runner view matching ZERO
+// empty. The asserted-selector class stays guarded: `tests:execution-membership` REDs a runner view matching ZERO
 // files at the STATIC tier, and every whole-scope `pnpm test` still runs at `passWithNoTests: false`.
 
 test("tests:node scopedArgv: git changes stay derived, while explicit source/test/folder/package subjects reach Vitest", {
@@ -1055,7 +1042,8 @@ test("tests:node scopedArgv: git changes stay derived, while explicit source/tes
   const packageSelection = resolveSelection({ kind: "package", name: "server" });
   expect(stage("tests:node").scopedArgv?.(packageSelection)).toEqual(["pnpm", "test:scoped", "tests/server"]);
   // The OTHER half of the ruling: the WHOLE-scope argv asserts the whole suite, where zero test files means
-  // the runner broke. It must never carry the flag — that is what keeps PD-115 alive where it applies.
+  // the runner broke. It must never carry the flag — that is what keeps the asserted-selector ruling alive
+  // where it applies.
   expect(stage("tests:node").argv).toEqual(["pnpm", "test:node"]);
   expect(stage("tests:node").argv).not.toContain("--passWithNoTests");
 });

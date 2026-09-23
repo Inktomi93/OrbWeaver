@@ -1,4 +1,4 @@
-// tests/server/domain/rpg/chat-ops/gather — the game turn's GATHER (rpg-design/05 §4.6-4.7 + the owner ruling
+// tests/server/domain/rpg/chat-ops/gather — the game turn's GATHER (docs/plans/rpg/design.md + the owner ruling
 // 2026-07-27). Drives the real `gatherTurnContext` through the harness's `chatOps`: a non-game chat is
 // byte-identical null; a game contributes the depth-0 reminder injection. The gather NEVER returns REGISTRY
 // tools (`tools: []` in every mode — a registry tool would be executed and recursed on) and the reminder never

@@ -1,7 +1,7 @@
 // verb: get — one owned character by id (owner-scoped). Throws `CharacterNotFoundError` when it doesn't
 // exist OR isn't the caller's — the two collapse into one answer (no foreign-existence leak). A read: no
 // audit, no emit. Owner-only (viewing ≠ owning — a member reads a roster card through chat's D22 clamp,
-// `domain/chat/substrate/auth/clamp.ts` `clampMemberCard`, the ONE level-clamp surface — PD-111).
+// `domain/chat/substrate/auth/clamp.ts` `clampMemberCard`, the ONE level-clamp surface).
 
 import type { CharacterContext } from "../context.ts";
 import { CharacterNotFoundError } from "../contract/errors.ts";

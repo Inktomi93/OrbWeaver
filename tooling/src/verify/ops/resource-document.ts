@@ -20,8 +20,7 @@ import type {
   MarkdownHeading,
   MarkdownLink,
 } from "../contract/resource-document.ts";
-import { DOCUMENT_CATALOG_PATH, DOCUMENT_CORPUS_ROOT, LEDGER_DEFINITIONS } from "../contract/resource-document.ts";
-import type { JsonValue } from "../contract/resource-json.ts";
+import { DOCUMENT_CORPUS_ROOT, LEDGER_DEFINITIONS } from "../contract/resource-document.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:structure");
 
@@ -99,38 +98,7 @@ function treeMembersWithSuffix(reader: ResourceReader, root: string, suffix: str
   return { status: "ready", value: paths.toSorted((left, right) => left.localeCompare(right)), paths: tree.paths, members: paths.length };
 }
 
-/** Read one field out of parsed JSON without asserting a shape the catalog has not been checked to have.
- *  `Reflect.get` rather than an index because a `readonly JsonValue[]` does not narrow out of the union. */
-function fieldOf(value: unknown, key: string): unknown {
-  return typeof value === "object" && value !== null ? Reflect.get(value, key) : undefined;
-}
-
-function catalogPaths(reader: ResourceReader): ResourceLoad<ReadonlySet<string>> {
-  const loaded = reader.read(DOCUMENT_CATALOG_PATH);
-  if (loaded.status !== "ready") {
-    return { status: loaded.status, paths: loaded.paths, members: 0, reason: `the living-document catalog is unavailable: ${loaded.reason}` };
-  }
-  let parsed: JsonValue;
-  try {
-    parsed = JSON.parse(loaded.value) as JsonValue;
-  } catch (error) {
-    return {
-      status: "unresolved",
-      paths: loaded.paths,
-      members: 0,
-      reason: `the living-document catalog did not parse as strict JSON: ${error instanceof Error ? error.message : String(error)}`,
-    };
-  }
-  const rows = fieldOf(parsed, "documents");
-  if (!Array.isArray(rows)) {
-    return { status: "malformed", paths: loaded.paths, members: 0, reason: "the living-document catalog has no documents array" };
-  }
-  const listed = rows.map((row) => fieldOf(row, "path")).filter((path): path is string => typeof path === "string");
-  return { status: "ready", value: new Set(listed), paths: loaded.paths, members: listed.length };
-}
-
-/** The corpus door. A member the reader refuses becomes a ROW; the CATALOG failing refuses the whole fact,
- *  because a catalog that did not load would make `unlisted` a lie about every document in the tree. */
+/** The corpus door. A member the reader refuses becomes a ROW, never a silent drop. */
 export function loadDocumentIndex(reader: ResourceReader): ResourceLoad<DocumentIndex> {
   const corpus = treeMembersWithSuffix(reader, DOCUMENT_CORPUS_ROOT, ".md");
   if (corpus.status !== "ready") {
@@ -141,29 +109,19 @@ export function loadDocumentIndex(reader: ResourceReader): ResourceLoad<Document
       reason: `the living-document corpus ${DOCUMENT_CORPUS_ROOT} is unavailable: ${corpus.reason}`,
     };
   }
-  const catalog = catalogPaths(reader);
-  if (catalog.status !== "ready") {
-    return catalog;
-  }
   const documents: DocumentFacts[] = [];
   const refusals: DocumentRefusal[] = [];
   for (const path of corpus.value) {
     const text = reader.read(path);
     if (text.status === "ready") {
-      documents.push(Object.freeze({ ...readMarkdownFacts(path, text.value), catalog: catalog.value.has(path) ? "listed" : "unlisted" }));
+      documents.push(Object.freeze(readMarkdownFacts(path, text.value)));
     } else {
       refusals.push(Object.freeze({ path, status: text.status, reason: text.reason }));
     }
   }
-  const present = new Set(corpus.value);
-  const catalogMisses = [...catalog.value].filter((path) => !present.has(path)).toSorted((left, right) => left.localeCompare(right));
-  const value: DocumentIndex = {
-    documents: Object.freeze(documents),
-    refusals: Object.freeze(refusals),
-    catalogMisses: Object.freeze(catalogMisses),
-  };
+  const value: DocumentIndex = { documents: Object.freeze(documents), refusals: Object.freeze(refusals) };
   // `members` is the denominator WALKED — every corpus member, served or refused — never the ones that read.
-  return { status: "ready", value, paths: [...corpus.value, DOCUMENT_CATALOG_PATH], members: documents.length + refusals.length };
+  return { status: "ready", value, paths: corpus.value, members: documents.length + refusals.length };
 }
 
 function ledgerMarkdown(reader: ResourceReader, id: LedgerId, paths: readonly string[]): ResourceLoad<LedgerFacts> {
@@ -171,7 +129,7 @@ function ledgerMarkdown(reader: ResourceReader, id: LedgerId, paths: readonly st
   for (const path of paths) {
     const text = reader.read(path);
     // A NAMED registry member that is absent or unreadable REFUSES: every judgment built on a half-read
-    // registry is inverted, not merely incomplete (`resource-gate-access-patterns.md` §5).
+    // registry is inverted, not merely incomplete (the ResourceHost access-pattern ruling §5).
     if (text.status !== "ready") {
       return { status: text.status, paths, members: documents.length, reason: `ledger ${id} member ${path} is unavailable: ${text.reason}` };
     }
@@ -197,9 +155,6 @@ export function loadLedger(reader: ResourceReader, id: LedgerId): ResourceLoad<L
     return { status: "unresolved", paths: [], members: 0, reason: `unknown ledger id: ${String(id)}` };
   }
   const definition: LedgerDefinition = LEDGER_DEFINITIONS[id];
-  if ("paths" in definition) {
-    return ledgerMarkdown(reader, id, definition.paths);
-  }
   const members = treeLedgerMembers(reader, definition.tree, definition.member);
   if (members.status !== "ready") {
     return { status: members.status, paths: members.paths, members: 0, reason: `ledger ${id} tree ${definition.tree} is unavailable: ${members.reason}` };

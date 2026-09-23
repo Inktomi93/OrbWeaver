@@ -1,5 +1,5 @@
 // The Characters CONTEXT pane's HEAD BAND — the open character's identity in the context bracket's band slot
-// (#860, owner-ruled 2026-08-30; the mock is `docs/design/mocks/context-bracket/Character.dc.html`): the
+// (#860, owner-ruled 2026-08-30, D150): the
 // portrait beside the NAME over the handle line, then three chips — Own look · N chats · N tokens. It is fed
 // through the section's `defineContextTabs` `header` slot (`characters-section.tsx`); the six-cell meta rail
 // (Overview · Chats · Links · Look · History · Trust) sits at the pane's foot, named "Character".

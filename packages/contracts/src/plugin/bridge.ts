@@ -154,7 +154,7 @@ export interface PluginBridge {
    *  so a check that awaited before recording would let a burst straight through the gap). Returns raw text;
    *  the guest never sees cost (cost VISIBILITY rides the stats domain off the generation itself). */
   readonly llm: {
-    /** `opts` is the U6 widening (plugin-ui-plane §5.16/§5.32) travelling as inert JSON-safe data: a RAW
+    /** `opts` is the U6 widening travelling as inert JSON-safe data: a RAW
      *  structured-output schema the DOMAIN lifts + projects (a guest can never hand a wire an unprojected
      *  schema — D79) and asset ids the DOMAIN resolves to bytes under the INSTALLER's own ownership gate.
      *  Infra performs neither resolution: it holds no principal and no CAS, which is exactly why both arms
@@ -206,7 +206,7 @@ export interface PluginBridge {
    *  (stamped as the emit `source`) + the injected bus sink (`publishAutomationEvent`, composed UP — infra never
    *  imports transport). Transient (no row): the chips are ephemeral display strings. */
   readonly surfaceQuickReply: (chatId: ChatId, choices: readonly { readonly label: string; readonly sendText: string }[]) => Promise<void>;
-  /** Publish a UI surface's STATE (`host.ui.setState`, capability ui.surface — plugin-ui-plane #679 U1). The
+  /** Publish a UI surface's STATE (`host.ui.setState`, capability ui.surface U1). The
    *  membrane passes the guest-named `surfaceId` + the whole replacement state as JSON-safe data; the domain
    *  builder closes over the `pluginId` + installer, writes the per-`(pluginId, surfaceId)` in-memory state row
    *  (the S4-suggestion-store precedent — respawn wipes; durable state is the plugin's own `storage.kv` job) and
@@ -232,7 +232,7 @@ export interface PluginBridge {
     readonly openDialog: (surfaceId: string) => Promise<void>;
   };
   /** Ingest a text document into the installer's OWN databank (`host.databank.ingest`, capability
-   *  `databank.ingest` — plugin-ui-plane #679 U8 seam 15). The domain builder closes the INSTALLER over the op
+   *  `databank.ingest` U8 seam 15). The domain builder closes the INSTALLER over the op
    *  (owner-scoped by construction — a guest names only the document), writes canon through databank's
    *  `createFromText` and returns the new document id. NO chat scope + NO host authority, the `storage`/`llm`
    *  posture: a library write is the installer's own reach, not room state. Authority-agnostic like every bridge
@@ -242,7 +242,7 @@ export interface PluginBridge {
     readonly ingest: (doc: { readonly name: string; readonly text: string }) => Promise<{ readonly documentId: string }>;
   };
   /** Ingest a V2/V3 character card object into the installer's OWN library (`host.character.ingest`, capability
-   *  `character.ingest` — plugin-ui-plane #679 U8 seam 17). The domain builder closes the installer over the op,
+   *  `character.ingest` U8 seam 17). The domain builder closes the installer over the op,
    *  serializes the guest card to JSON bytes and runs the SAME `importCharacter` funnel a file upload takes (the
    *  ContentChanged-emitting path — the indexer auto-runs), returning the new character id + whether it was
    *  freshly created (a byte-identical re-ingest deduplicates). Same owner-scoped, no-chat, no-host posture as
@@ -281,7 +281,7 @@ export interface PluginBridge {
     // @orb-waive brand-in-name-position(characterId): the plugin SANDBOX wire DTO — an untrusted guest's JSON string, owner-scope-gated by the persistence predicate, never branded here. Ends if the bridge starts parsing to brands at the membrane.
     readonly getCardData: (characterId: string) => Promise<Record<string, unknown> | null>;
   };
-  /** Publish a PRIVATE plugin event (`host.pubsub.emit`, capability `plugin_events` — plugin-ui-plane §5a). The
+  /** Publish a PRIVATE plugin event (`host.pubsub.emit`, capability `plugin_events`). The
    *  domain builder closes over the INSTALLER + the emitter's own manifest SLUG (both un-forgeable — a guest
    *  supplies only `name` + `data`), and the op publishes on the installer-scoped resident plugin-event bus. It
    *  NEVER touches a domain/chat bus and the delivered payload is `{name, data}`, never a `TriggerFact` — the

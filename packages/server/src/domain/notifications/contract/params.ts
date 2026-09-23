@@ -10,7 +10,7 @@ interface NotificationActorParams {
   readonly principal: Principal;
 }
 
-/** coStatements is the PD-24 tx seam: producer statements committed in one db.batch WITH the notification
+/** coStatements is the tx seam: producer statements committed in one db.batch WITH the notification
  *  insert (record owns the commit; the producer must not pre-execute them). Absent → plain insert. */
 export interface RecordParams {
   readonly event: NotificationEvent;

@@ -1,4 +1,4 @@
-// verb: similarCharacters — "more like this character" seed-vector top-k over the card space (PD-35).
+// verb: similarCharacters — "more like this character" seed-vector top-k over the card space. See docs/work/0122.
 // Asserts against a real db + a scripted role-clients bundle: the scan seeds from the STORED card vector (no
 // re-embed — the fake embedder is never consulted), excludes the seed itself, ranks by CSLS, enriches like
 // findCharacters, and — THE LOAD-BEARING CASE — REFUSES a cross-tenant seed (a foreign/unknown seed id

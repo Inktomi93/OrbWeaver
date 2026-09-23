@@ -75,7 +75,7 @@ describe("onCharacterUpdated — a flag edit triggers ZERO embed work (owner rul
   // Belt 1 (the emit-site discriminator): `character.updated` fires on EVERY card write, but the emit site
   // stamps `contentChanged`. A star/archive/theme toggle is contentChanged=false → the indexer skips ENTIRELY,
   // NEVER reading canon or touching the store — so a never-embedded card that gets starred does NOT drag in the
-  // embed backend (and its model-load crash window). Backfill belongs to content events + the PD-53 sweep.
+  // embed backend (and its model-load crash window). Backfill belongs to content events + the bulk sweep.
   test("a flag-only edit (contentChanged=false) never embeds — even a NEVER-embedded card", async () => {
     const db = await freshDb();
     const storeH = makeStoreHarness(db);

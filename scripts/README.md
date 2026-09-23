@@ -32,7 +32,7 @@
 | path | why |
 | - | - |
 | `probes/st-goldens/` | the SillyTavern parity rig; carries a gitignored captured runtime, fenced in biome/knip/stryker/tsconfig by its own path |
-| `probes/rpg-extraction/` | the RPG structured-extraction probe rig — durable value is `docs/design/rpg-extraction-one-call-spike.md` + committed `SPEC*.md` verdicts, **not** a results artifact (its `out*/` dirs are gitignored) |
+| `probes/rpg-extraction/` | the RPG structured-extraction probe rig — durable value is the committed `SPEC*.md` verdicts, **not** a results artifact (its `out*/` dirs are gitignored) |
 | `probes/impersonate/` | the impersonation-quality rig with committed `RESULTS.md` + `results.jsonl` |
 | `probes/openrouter/` | seven standing OpenRouter wire probes with committed `RESULTS.md` + `results/*.jsonl` |
 
@@ -73,11 +73,11 @@ more rigorous, committed answer): `run.ts`, `run-coverage.ts`, `native-wire-prob
 `native-format-roundtrip.ts`, `effort-ladder-native-vs-or.ts`, `effort-reasoning-probe.ts`,
 `replay-toolround.ts`. Recover any of them with `git log --diff-filter=D --oneline -- scripts/probes/rpg-extraction/<path>`
 → `git show <sha>^:scripts/probes/rpg-extraction/<path>`. Their value is preserved in
-`docs/design/rpg-extraction-one-call-spike.md` (§2–§4) + `SPEC.md` + `SPEC-coverage.md`.
+`SPEC.md` + `SPEC-coverage.md`.
 
 The three tracked capture JSONs those harnesses read — `real-cheap-toolround.json`,
 `real-reliable-structured.json`, `real-narrative-turn.json` — are KEPT despite losing every reader
-in this tree: `docs/design/rpg-extraction-one-call-spike.md:1255-1256` still cites them by name as
+in this tree: they are
 the frozen wire-shape record behind the spike's findings. They are a standing evidence artifact, not
 live fixtures — do not treat their presence as a signal that a harness still runs them.
 

@@ -1,4 +1,4 @@
-// .int tests for schema/gallery (D49 #2 / PD-55 — the curated per-character media layer). Real libSQL
+// .int tests for schema/gallery (D49 #2 — the curated per-character media layer). Real libSQL
 // :memory: via freshDb (FK PRAGMA ON). Covers the constraint semantics no other test pins: the
 // `unique(assetId, subjectCharacterId)` with NULL-distinct subjects (duplicate un-charactered adds stay
 // possible; a duplicate WITH the same subject is rejected); `subjectCharacterId SET NULL` survival on a

@@ -14,7 +14,7 @@
 // reader that judges, and a range read from prose reds every reserved citation on a rephrase.
 //
 // FAMILY: `text-citation`, the shared reader `lib/text-cite-scan.ts#scanTextCitations`, with
-// `pd-citation-integrity` and `dangling-doc-cite`.
+// `dangling-doc-cite`.
 //
 // POPULATION PORT (legacy SHA `50088b39b`, verified byte-identical to HEAD at conversion) — AND THE HALF
 // THAT NEVER RAN. The legacy `inScope` admitted `packages/**` `.ts`/`.tsx` OR `docs/law/**`
@@ -45,7 +45,7 @@
 // WHERE A BROKEN RESOURCE REFUSES — not here. A declared resource that comes back
 // missing/empty/unresolved/malformed makes `resolveResourceDeclarations` (`lib/resource-declaration.ts`)
 // THROW during the POPULATION phase and the receipt phase withholds every consumer, both before
-// `create`/`evaluate` run (guide §3's acquisition-refusal rule, `docs/design/resource-policy-contract.md` §4). The ADR tree
+// `create`/`evaluate` run (guide §3's acquisition-refusal rule, `docs/law/resource-policy-contract.md` §4). The ADR tree
 // is a `ledger` and NOT a `documents` member because it is an IDENTITY: with it absent — or holding no
 // decision at all — every judgment here is INVERTED rather than merely uncertain, so it must refuse the
 // whole run (`contract/resource-document.ts`). The citer corpus is the other door on purpose — a corpus
@@ -65,8 +65,8 @@ import type { MarkdownDocument } from "../contract/resource-document.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
 import { scanTextCitations } from "../lib/text-cite-scan.ts";
 
-/** The doc trees whose prose is judged: the core law set and the ADR tree itself. `history/**` is outside
- *  on purpose — archaeology legitimately cites dead and renumbered entries (`mustPass[5]`). */
+/** The doc trees whose prose is judged: the core law set and the ADR tree itself. `docs/reviews/**` is
+ *  outside on purpose — a dated review legitimately cites dead and renumbered entries (`mustPass[5]`). */
 const CITER_DOC_TREES = ["docs/law/", "docs/adr/"] as const;
 /** The number an ADR file name carries (`0086-<slug>.md` → 86). The ledger door serves members only, so
  *  this reads the id; it does not judge the grammar. */
@@ -74,7 +74,7 @@ const ADR_ID_RE = /^(\d+)-/u;
 /** The reserved window, inclusive (header). */
 const RESERVED_RULINGS = { lo: 79, hi: 105 } as const;
 /** A bare `D<n>` citation. The non-`P`/non-word/non-hyphen left boundary is the measured false-positive
- *  control: it excludes `PD-<n>` (the sibling namespace `pd-citation-integrity` owns) and any
+ *  control: it excludes `PD-<n>` (the owner-decision ledger's own citation namespace) and any
  *  `<word>D<n>` substring while still matching `D79`, `(D79`, ` D79`, `,D79`. The trailing `(?!\+)` is
  *  the range-announcement fence (header). */
 const CITE_RE = /(?<![A-Za-z0-9-])(D\d+)\b(?!\+)/gu;
@@ -263,10 +263,10 @@ export const gate = defineGate({
       mode: "resource",
       files: {
         "docs/adr/0001-an-entry.md": "# An entry\n",
-        "docs/architecture/history/Archaeology.md": "---\nkind: history\n---\n\nMain-era D777 and D888 are cited here as archaeology.\n",
+        "docs/reviews/Archaeology.md": "---\nkind: review\n---\n\nMain-era D777 and D888 are cited here as archaeology.\n",
         "packages/contracts/src/ok.ts": "// per D1 — minted.\nexport const x = 1;\n",
       },
-      why: "THE NARROWING ROW for the citer-tree prefixes: `history/**` legitimately cites dead and renumbered entries, so widening the corpus filter to the whole docs tree reds this row",
+      why: "THE NARROWING ROW for the citer-tree prefixes: a dated review legitimately cites dead and renumbered entries, so widening the corpus filter to the whole docs tree reds this row",
     },
   ],
 });

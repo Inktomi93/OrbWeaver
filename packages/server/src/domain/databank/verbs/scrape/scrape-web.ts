@@ -1,5 +1,5 @@
 // verb: scrapeWeb — fetch a web page over the self-enforcing safeFetch egress guard, then the SAME §2 canon tail
-// as upload (`substrate/scrape-canon`: importHash → CAS → documents row → enqueue ingest) (databank-design/06 §5).
+// as upload (`substrate/scrape-canon`: importHash → CAS → documents row → enqueue ingest).
 // databank adds ZERO SSRF guard logic: `ctx.fetchUrl` is the compose-bound ANY_HOST safeFetch port — https-only,
 // private-range denial, per-hop re-validation all ride the injected op. A refused OR failed fetch (the op throws)
 // collapses to ONE leak-free `ScrapeFailedError` (BAD_REQUEST) — the reason + any resolved private address stay

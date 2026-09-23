@@ -93,7 +93,7 @@ function hoverDecline(input: HoverContrastInput, minRatio: number): HoverOutcome
   return restAlreadyFails(input, minRatio) ? { kind: "excluded", reason: "restAlreadyFails" } : { kind: "measurable", over: input.hoverBackdrop.color };
 }
 
-// TWO MECHANISMS, ONE RULE ID (docs/design/state-paint-census.md): `stateAttr` names the Base UI
+// TWO MECHANISMS, ONE RULE ID: `stateAttr` names the Base UI
 // state attribute the pass forced instead of `:hover`; the finding text says which state the reader
 // must reproduce, because "while the pointer is on it" sends them chasing a :hover rule that does
 // not exist for an attribute-painted row.

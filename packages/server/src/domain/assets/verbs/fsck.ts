@@ -1,4 +1,4 @@
-// verb: fsck — READ-ONLY integrity report over the whole asset store (PD-26). Three faults:
+// verb: fsck — READ-ONLY integrity report over the whole asset store. Three faults:
 //   • danglingRows — an index row whose blob is missing (`!cas.exists`). The drop-row-BEFORE-blob ordering
 //     makes this never-supposed-to-happen; a non-zero count means an out-of-band row insert or a lost blob.
 //   • corruptBlobs — a PRESENT blob whose bytes no longer hash to their name (`cas.verify` re-hash mismatch)

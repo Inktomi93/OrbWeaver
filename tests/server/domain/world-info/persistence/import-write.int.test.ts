@@ -1,4 +1,4 @@
-// Mirror int-test for domain/world-info/persistence/createBulkImportLorebook (Option B; W1; PD-77) — the
+// Mirror int-test for domain/world-info/persistence/createBulkImportLorebook (Option B; W1) — the
 // world-info-OWNED lorebook bulk-import WRITE over a real db: `world_books` + `world_entries` + the PRIMARY
 // `character_books` attach, D28 replace-on-reimport (the primary slot is the replace key — no provenance
 // column), and the ownership precondition. Input is the canonical `BulkImportLorebookInput`

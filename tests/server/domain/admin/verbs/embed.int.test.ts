@@ -1,4 +1,4 @@
-// verb: embedCharacterCard (PD-90) — the admin-gated inline single-card embed. Proves: the requireAdmin
+// verb: embedCharacterCard — the admin-gated inline single-card embed. Proves: the requireAdmin
 // gate (a plain user is refused BEFORE the port is touched), the leak-free not-found when the composed
 // port reports not-owned/missing (`false`), and the happy path (port called with the caller's principal +
 // the target id, then audited).

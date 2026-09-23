@@ -1,4 +1,4 @@
-// The OWNER-FALLBACK PEER-SET posture (`AUTH_FALLBACK_TRUSTED_PEERS`, PROPOSED — containerize-prod-image-spec
+// The OWNER-FALLBACK PEER-SET posture (`AUTH_FALLBACK_TRUSTED_PEERS`, PROPOSED — docs/plans/containerize/design.md
 // §3.1 arm (b)). Pure, so this is the whole model's test surface: the CSV parse that every reader shares, the
 // resolved posture, and the standing boot WARNING.
 //

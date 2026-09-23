@@ -45,7 +45,7 @@ export interface StoreParams extends AssetsActorParams {
   /** Verify the claimed mime against the magic bytes (invariant #6 — the upload boundary passes `true`).
    *  Omitted/`false` for trusted non-HTTP callers (DR rebuild, future import backfill). */
   readonly enforceMagic?: boolean;
-  /** PD-94 — the hard cap on the byte length accepted into the CAS. Rejected BEFORE the blob is written
+  /** The hard cap on the byte length accepted into the CAS. Rejected BEFORE the blob is written
    *  (the store's own belt, over and above the HTTP route's body cap). Omitted = no store-level cap (trusted
    *  callers whose input is already bounded). The asset-bearing upload/import paths pass it. */
   readonly maxBytes?: number;
@@ -64,7 +64,7 @@ export interface ResolveVariantParams extends AssetsActorParams {
    *  before any cache/transform — `kind` selects the ladder. */
   readonly width: number;
   /** Which ladder/crop to produce. `icon` is the existing width-only, any-aspect ladder; `portrait` is the
-   *  2:3 smart-cropped ladder (`FINAL-Persona-and-Immersive-Chat-Visuals.md` §B.4). Required — the blob
+   *  2:3 smart-cropped ladder. Required — the blob
    *  route always resolves it explicitly from `?v=`, so no caller silently falls through to the wrong
    *  ladder. */
   readonly kind: VariantKind;

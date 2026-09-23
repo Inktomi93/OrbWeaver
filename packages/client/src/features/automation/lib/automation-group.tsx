@@ -1,9 +1,9 @@
-// The Automation config group (client-architecture-lockdown.md §8 · config-revamp-design.md §6.8) — the
+// The Automation config group (client-architecture-lockdown.md §8) — the
 // OWNER-GLOBAL rules surface as a `sections` SKIMMER on the app shelf.
 //
 // It was `{ placeholder: true }`, the DECLARED-PLANNED arm, and its own header said what it was waiting for:
 // "this one becomes the OWNER-GLOBAL rules surface when C5's global lane lands". C5 landed, so it is that
-// surface — list + picker + the owner rate ceiling (interaction-direction-spec §7 C5), as the two
+// surface — list + picker + the owner rate ceiling, as the two
 // contributions beside this file (`automation-library-rules-section.tsx` · `automation-budget-section.tsx`).
 // A group belongs to the feature whose surface it is, which is why this definition lives in
 // `features/automation` and not in `features/config` (the config HOST, which owns no group of its own).

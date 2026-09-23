@@ -134,7 +134,7 @@ describe("parseChatMetadata", () => {
     });
   });
 
-  test("RPG: the opaque {gameId} pointer round-trips (the foreign-schema sync signal, rpg-design/05 §2.1)", () => {
+  test("RPG: the opaque {gameId} pointer round-trips (the foreign-schema sync signal, docs/plans/rpg/design.md)", () => {
     const gameId = mintTypeId(ID_PREFIX.rpgGame);
     // `engaged` heals to `true` via the schema default (#40 front-door toggle mirror — a pre-toggle pointer
     // with no `engaged` field reads ENGAGED, mirroring `chatRpgPointerSchema`'s `.default(true)`).

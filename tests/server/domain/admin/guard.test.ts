@@ -78,7 +78,7 @@ describe("requireOwner (owner-only)", () => {
   });
 });
 
-// The CHAT resource arm (PD-1) — a PURE verdict over the roster chat feeds in (admin reads no chat db). The
+// The CHAT resource arm — a PURE verdict over the roster chat feeds in (admin reads no chat db). The
 // global role is irrelevant to the chat resource axis; the authority signal is the roster's `host|member`.
 describe("can({kind:'chat', membership}) — the resource-role arm", () => {
   const member = pr("user");

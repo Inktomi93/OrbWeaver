@@ -1,5 +1,5 @@
 // `ON SCREEN` — the last group of the room's Regex section, and the display leg's own roster
-// (`docs/design/mocks/regex-section/DESIGN.md` §3, the `ON SCREEN` row; v2 change (b)).
+// (the `ON SCREEN` row; v2 change (b)).
 //
 // IT IS NOT A TIER, AND THAT IS THE POINT. The display leg is ATTACHMENT-BLIND by the 2026-08-02 O-4 ruling:
 // what runs on YOUR transcript is your whole library ∩ `DISPLAY`, plus the host's broadcast set when the host

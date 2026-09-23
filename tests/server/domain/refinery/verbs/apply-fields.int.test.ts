@@ -138,7 +138,7 @@ test("the greeting-index assert runs against the LIVE card: an index deleted sin
 });
 
 // ── THE EMPTYING ARM (owner overrule 2026-08-08: "they can fill it therefore they can empty it";
-//    design docs/history/design/refinery-schema-renderer.md §15). Every test here drives the WHOLE chain —
+//    design D171). Every test here drives the WHOLE chain —
 //    tape payload → contract parse → run row → apply verb → `character.update` → the read-back card —
 //    because the schema accepting `cleared:true` proves nothing about what lands in canon. ─────────────
 

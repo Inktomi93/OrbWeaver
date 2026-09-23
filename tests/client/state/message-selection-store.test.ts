@@ -1,6 +1,6 @@
-// The bulk message-selection store (ux-flow-revamp J6): presence-in-map IS selection, keyed by message
+// The bulk message-selection store: presence-in-map IS selection, keyed by message
 // id — the external-store discipline `@orb/ui/message-list`'s windowed virtualizer requires (an
-// off-screen row's checkbox state held in local `useState` would drop on scroll-back, PD-119). Exercised
+// off-screen row's checkbox state held in local `useState` would drop on scroll-back). Exercised
 // through the non-hook `readSelectedMessageIds` snapshot (the reactive hooks need a React render — the
 // `message-edit-draft.test.ts` / `chat-stream.test.ts` posture).
 

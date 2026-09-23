@@ -267,7 +267,7 @@ for (const { scale, blockOffsetPx } of FRACTIONAL_ROOT_SCALES) {
 // ── #1684 (design-audit `off-grid-transform`, P3): THE RESTING KNOB LANDS ON WHOLE DEVICE PIXELS, IN
 // BOTH REST POSITIONS AND AT BOTH POINTER CLASSES.
 //
-// The rule judges the raster an element's REST transform produces (integer-line-boxes.md §9), and it fired
+// The rule judges the raster an element's REST transform produces (docs/law/integer-line-boxes.md §9), and it fired
 // on `span[data-slot=switch-thumb]` at `--appearance-preset reading` (fontScale 1.25) with "translate: 20px
 // … lands top 0.484 / left 0.000 device px off the grid at DPR 1". Half of that fraction was this control's:
 // the pre-#1684 knob was a fourth independently belted token, so `items-center` halved an ODD

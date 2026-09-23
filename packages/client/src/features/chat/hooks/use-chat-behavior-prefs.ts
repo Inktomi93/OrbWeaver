@@ -1,4 +1,4 @@
-// `useChatBehaviorPrefs` — the client-honored knobs from the synced `UserSettings.chat` blob (PD-146):
+// `useChatBehaviorPrefs` — the client-honored knobs from the synced `UserSettings.chat` blob:
 // the composer's `enterSends`/`continueOnSend` send semantics + the streaming ghost's `smoothStream`/
 // `smoothStreamCps` pacing. Read as a plain query with a fallback to the contract defaults (never
 // suspends/throws; chat reads `trpc.settings.*` directly, §11.0). Shares the `getUserSettings` cache with

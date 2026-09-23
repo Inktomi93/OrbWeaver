@@ -1,5 +1,5 @@
 // `CONFIG_GROUP_IDS` / `CONFIG_SHELVES` (state/config-group-ids.ts) — the ONE closed config-group vocabulary
-// (config-revamp-design.md §3.1; owner fork F-1: the collections join the tuple) and the four LIST shelves
+// (owner fork F-1: the collections join the tuple) and the four LIST shelves
 // (User · App · Collections · Extensions — never "You": that word is the mobile sheet's, owner correction
 // 2026-08-30). Pins the membership the door's total `Record` and every deep link are typed against.
 

@@ -4,14 +4,14 @@
 // "k but tag list under in list is kinda a no go that needs to move into content when clicking onto tags,
 // same thing for regex and world info is what im trying to say right now its mixed and looks weird" · "so
 // that means content will need to be redesigned for those interfaces to properly be consistent" · on the
-// approved canvas: "redesign approved it can be built to spec but must match the mockups". The spec is
-// `docs/design/mocks/config-collections/DESIGN.md`; this file builds its §3.1.
+// approved canvas: "redesign approved it can be built to spec but must match the mockups". This file builds
+// the approved band.
 //
 // So the LIST stopped mixing two row species. It used to hold the band, the host's count-driven filter box,
 // the contribution's member rows and a zero-member sentence; all four of those are the CONTENT library's now
 // (`config-collection-landing.tsx`). What is left here is the DOOR — and a door is one Button.
 //
-// TWO BAND KINDS NO LONGER EXIST (DESIGN.md §3.1). The populated/empty split was a split about DISCLOSURE:
+// TWO BAND KINDS NO LONGER EXIST (the mock design §3.1). The populated/empty split was a split about DISCLOSURE:
 // one arm had rows to unfold and the other did not, so one was a disclosure and the other a bare selection.
 // With no rows in this pane at all, both arms are the same act — SELECT — and population decides only what
 // CONTENT draws when the reader arrives. `CollectionMemberBand` + `CollectionEmptyBand` are therefore one
@@ -37,15 +37,15 @@
 //  · #1211's "a library that says nothing about being empty reads as a feature that was never built". Its
 //    COPY half survives verbatim and its ADDRESS changed: the sentence is `emptyText` on the CONTENT landing
 //    (F5 arm A, board 07), and the band still states the honest `0` beside it.
-//  · D121(D) `band=Import` and the band's create `+`. Both were band chrome because the band was the
+//  · D212 `band=Import` and the band's create `+`. Both were band chrome because the band was the
 //    library's only chrome in this workspace. The library has a pane now, so they move to its control row
-//    (DESIGN.md §3.2) — one home each, in the pane the reader is looking at. The C-2 no-aggregate-primary
+//    (the mock design §3.2) — one home each, in the pane the reader is looking at. The C-2 no-aggregate-primary
 //    ruling is untouched; only the address changed.
 //  · The VOICE BUDGET is the pane's, not per-species (#1714) — `interactiveKicker` names this band because a
 //    band is a control that names a region, `datum` is its mono count. Its ONE home is
 //    `config-list-group.tsx`'s header and it governs this file.
 //
-// `aria-current` IS `"true"`, NOT DESIGN.md §3.1's `"location"` — a deliberate, stated deviation. The
+// `aria-current` IS `"true"`, NOT the mock design §3.1's `"location"` — a deliberate, stated deviation. The
 // settings band beside it (`config-list-group.tsx`) says `"true"`, and one pane announcing its two band
 // kinds with two different tokens is precisely the drift #1714 spent a lane removing. The token is not a
 // visible property, so "must match the mockups" is not at stake; if the owner wants `location`, it is a
@@ -100,7 +100,7 @@ export function CollectionListGroup({ group, active, bandRef }: CollectionListGr
         // `aria-expanded` either, and the empty gutter is what keeps this band's glyph in the same column as
         // every settings sibling's (`Band`'s header owns the mechanism).
         chevron="reserved"
-        // THE CENSUS RIDES THE TRAILING EDGE (DESIGN.md §3.1): the label truncates and the count must not, so
+        // THE CENSUS RIDES THE TRAILING EDGE (the mock design §3.1): the label truncates and the count must not, so
         // the count is what claims the remainder. `undefined` draws nothing at all — the band never fabricates
         // a `0`, and the LANDING owns the failure half (#1546).
         {...(count === undefined ? {} : { count })}

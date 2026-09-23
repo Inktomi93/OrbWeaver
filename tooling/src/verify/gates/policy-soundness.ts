@@ -64,8 +64,7 @@
 // closed member vocabulary in dotted, optional, string-subscript, destructured and `.bind` positions. NOT
 // followed, by that module's declared limits (`gate-modernization.ts` `importHopReadsTypes`): a namespace or
 // default import, a non-relative or unloaded specifier, a second hop, and a computed subscript. §5b criteria 2 and 5 and the §4.1 narrowing cut are
-// judgment or mutation and stay with the reading lanes (family record:
-// docs/reviews/gate-runtime/policy-soundness-family-1584.md).
+// judgment or mutation and stay with the reading lanes (the family's #1584 conversion record).
 //
 // IDENTITY: a module is judged only when its `gate` initializer's callee resolves by IMPORT ORIGIN to
 // `contract/policy.ts` — a legacy descriptor object and a local `defineGate` lookalike are out of scope
@@ -148,7 +147,7 @@ const RESOURCE_GUARD_HOME = "/tooling/src/verify/lib/resource-declaration.ts";
 const RESOURCE_HOST_MEMBER = "resources";
 
 const MESSAGE =
-  "a final policy module carries something the final contract forbids (gate-runtime-standardization.md §2, §3): " +
+  "a final policy module carries something the final contract forbids (docs/law/gate-runtime-standardization.md §2, §3): " +
   'an inert `ext: ["ts","tsx"]`, a ts-morph walk / gate-owned Project / module state / baseline ledger / legacy ' +
   "field, a `node:fs` import, or an unguarded resource-host read. The `ext` token names E1; a `[code]` suffix names the " +
   "`lib/gate-contract.ts` code; an `import` token names the filesystem door; a `resources` token names E4.";
@@ -335,7 +334,11 @@ function judgeModule(ctx: GatePolicyContext, { sourceFile, path, registration, i
     ctx.report.node(ext, Node.isPropertyAssignment(ext) ? { token: "ext", offset: 0, message: EXT_MESSAGE } : { message: EXT_MESSAGE });
   }
   for (const finding of inspectGateContract([sourceFile], rootOf(sourceFile, path)).findings) {
-    ctx.report.file(path, { line: finding.line, column: finding.column, message: `${finding.detail} [${finding.code}] — gate-runtime-standardization.md §2.` });
+    ctx.report.file(path, {
+      line: finding.line,
+      column: finding.column,
+      message: `${finding.detail} [${finding.code}] — docs/law/gate-runtime-standardization.md §2.`,
+    });
   }
   for (const door of ioDoors) {
     ctx.report.node(door, { message: FS_MESSAGE });

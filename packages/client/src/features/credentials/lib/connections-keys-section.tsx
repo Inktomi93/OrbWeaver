@@ -1,4 +1,4 @@
-// The Connections SAVED-KEYS config-section CONTRIBUTION (config-revamp-design.md §6.8) — the credential
+// The Connections SAVED-KEYS config-section CONTRIBUTION — the credential
 // library as the group's last row. No `owns`: credential verbs, not settings.
 
 import type { ConfigSectionContribution } from "#state";

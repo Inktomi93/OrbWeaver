@@ -1,4 +1,4 @@
-// The session DAEMON (docs/design/1208-instrument-substrate.md §3.2–§3.5, §3.7–§3.8, §10.1): the process
+// The session DAEMON: the process
 // behind `pnpm snap --session <name>`. Entered as the cli verb `--session-daemon <name>` (argv enters in
 // cli.ts only; the client spawns it through _shared/proc.ts `spawnFullPriorityChild` — own process group,
 // stdio a log file beside the socket). It boots the session's stage through the unchanged `configureStage`,

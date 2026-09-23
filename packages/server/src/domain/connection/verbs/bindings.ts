@@ -3,7 +3,7 @@
 // row must be the caller's, and the actor (a rule, a plugin) must be the caller's too. Two more write-time
 // refusals the pane surfaces INLINE (§5.3a): a `spend: "background"` task on a row whose `allowBackground` is
 // off (`canFund`, F5 — resolve re-checks because the flag can flip after the binding is written), and a task
-// the row's kind cannot serve (`connectionTasks`). PD-139a (§10-4): re-pointing `embed`/`imageEmbed` re-raises
+// the row's kind cannot serve (`connectionTasks`). (§10-4) re-pointing `embed`/`imageEmbed` re-raises
 // the purge+reindex trigger.
 
 import type { ConnectionBinding, RoutableTask, UserConnection } from "@orb/contracts/inference";

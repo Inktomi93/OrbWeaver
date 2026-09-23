@@ -123,7 +123,7 @@ function buildDuplicateDoorFinding(key: string, homes: readonly ActionDoorInput[
       value: `${homes.length}x ${role} "${name}"`,
       message: `the same action is offered from ${homes.length} structurally distinct places on one plane — a ${role} named "${name}" at ${at.join(
         " AND ",
-      )}${omitted}. One verb wants one home per plane (the more-than-one-home IA class, docs/law/client-architecture-lockdown.md §13); if a second door is ruled UX, add a DUPLICATE_DOOR_ALLOWANCES row in tooling/src/ui-audit/lib/checks-duplicate-door.ts carrying the ruling that granted it`,
+      )}${omitted}. One verb wants one home per plane (the more-than-one-home IA class, docs/law/client-architecture-state-and-gates.md §13); if a second door is ruled UX, add a DUPLICATE_DOOR_ALLOWANCES row in tooling/src/ui-audit/lib/checks-duplicate-door.ts carrying the ruling that granted it`,
       origin: "orbweaver",
       representatives: at,
       population: { affected: homes.length, judged: homes.length, capped: groupCapped },

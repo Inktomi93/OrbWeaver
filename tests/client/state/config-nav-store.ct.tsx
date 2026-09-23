@@ -1,4 +1,4 @@
-// config-nav store CT — the Settings section's GROUP NAVIGATION (config-revamp-design.md §3.2/§6.2, #866
+// config-nav store CT — the Settings section's GROUP NAVIGATION (#866
 // S1). A CT, not a unit test, because every read surface is a reactive hook (useSyncExternalStore needs a
 // real browser — the config-selection-store posture).
 //

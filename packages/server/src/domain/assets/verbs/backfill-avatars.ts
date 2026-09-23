@@ -1,5 +1,5 @@
 // verb: backfillAvatars — the workload-driven (re)link of staged card PNGs to the flat `characters` row
-// (PD-26, D28 — no version table). For each staged card: store its bytes through `storeBlob` (the single
+// (D28 — no version table). For each staged card: store its bytes through `storeBlob` (the single
 // coherence writer) — but ONLY when the card's own content hash matches its recorded `importHash` (the
 // whole-file sha-256 the import path stamped on the flat row; a mismatch is a wrong/corrupt staging file,
 // counted `mismatched`, never stored and never linked) — then link `characters.avatarAssetId` to it. Stores

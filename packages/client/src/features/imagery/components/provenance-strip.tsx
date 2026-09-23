@@ -1,4 +1,4 @@
-// The lightbox's provenance detail strip (interaction-direction-spec.md §7 B5) — `imagery.readProvenance`
+// The lightbox's provenance detail strip — `imagery.readProvenance`
 // over the viewed asset. Owner-scoped by construction (the verb joins through `assets.ownerId`); a stranger
 // or a non-generated image reads `null`, which is a first-class DATA state ("no details"), never an error.
 // The three honest arms are all load-bearing: pending → skeleton, error → a retryable line, null/loaded →

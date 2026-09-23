@@ -1,4 +1,4 @@
-// CT: the plugin TOOL-CARD anchor (plugin-ui-plane #679 U3, seam 7 — closes the recorded A2-F5 gap) over the
+// CT: the plugin TOOL-CARD anchor (U3, seam 7 — closes the recorded A2-F5 gap) over the
 // REAL tRPC path with a stubbed network. The subject is chat's own `MessageToolCalls` fed the door's REAL
 // `toolRenderers` registry, so what is pinned is the production path: a persisted `ToolCallRecord` → the ONE
 // `plugin_`-namespace claim → `plugin.listSurfaces` → the first-party labelled shell.

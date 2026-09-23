@@ -62,14 +62,14 @@ tests/
 
 ## 3. Determinism + mock doctrine
 
-**Determinism — no wall-clock, no randomness in a test or factory.** The frozen clock is a plain injected DI object (`support/clock.ts`: `createFrozenClock(startMs?)` returns `{ now, advance, frozenAt }` — `now()` reads a mutable counter, `advance(ms)` moves it, `frozenAt` is the fixed start; `FROZEN_AT_MS` is the shared epoch every factory stamps rows from). It is NOT global-timer interception — there is no Luxon `Settings.now`, no `vi.useFakeTimers`; the composition root takes `now` as a dep exactly like production (`docs/law/Tier-5-Entry.md`), so tests exercise the real injection seam rather than a monkey-patched global. Seeded ids come the same way (`support/ids.ts`, counter-backed). Ambient `Date.now()`/`Math.random()`/unseeded `typeid()` under `tests/` is RED (gate: `test-determinism`); a test needing time to move calls `advance()`, never a real timer. (The one `vi.useFakeTimers` this doctrine ever sanctioned ON ITS MERITS was the agent-sdk idle-timeout unit test, whose SUBJECT is a real `setTimeout` window the production code owns and no injected clock can drive. That test was DELETED with its source tree in the 2026-09-19 `@orb/inference` extraction and has no successor — `packages/inference/src/backends/kit/idle-timeout.ts` is unpinned, and a re-pinned one earns the same sanction. Every `@orb-waive test-determinism(vi.useFakeTimers)` marker on the tree today carries the LEGACY reason instead, not this one: `tests/tooling/cpu-profile/boot-trace.suite.int.test.ts` and `tests/client/data/bus/room-registry.test.ts`, each ending when it adopts the frozen clock. §6 does not carry this sanction and never did. Every OTHER bound is armed through an injected TIMER seam — the house `ScheduleOp` shape `(fn, ms) => cancel`, e.g. `WorkloadRunnerDeps.scheduleInterval`, `AgentSdkDeps.scheduleTimeout`, `createRpgFlushBarrier`'s third argument — and a test trips it by hand with `support/clock.ts`'s `createManualTimer`, never by replacing the global clock.)
+**Determinism — no wall-clock, no randomness in a test or factory.** The frozen clock is a plain injected DI object (`support/clock.ts`: `createFrozenClock(startMs?)` returns `{ now, advance, frozenAt }` — `now()` reads a mutable counter, `advance(ms)` moves it, `frozenAt` is the fixed start; `FROZEN_AT_MS` is the shared epoch every factory stamps rows from). It is NOT global-timer interception — there is no Luxon `Settings.now`, no `vi.useFakeTimers`; the composition root takes `now` as a dep exactly like production (`docs/law/Tier-5-Entry.md`), so tests exercise the real injection seam rather than a monkey-patched global. Seeded ids come the same way (`support/ids.ts`, counter-backed). Ambient `Date.now()`/`Math.random()`/unseeded `typeid()` under `tests/` is RED (gate: `test-determinism`); a test needing time to move calls `advance()`, never a real timer. The one `vi.useFakeTimers` this doctrine sanctions is a test whose SUBJECT is a real `setTimeout` window the production code owns, that no injected clock can drive: `packages/inference/src/backends/kit/idle-timeout.ts` is unpinned, and a re-pinned one earns the same sanction. Every `@orb-waive test-determinism(vi.useFakeTimers)` marker on the tree today carries the legacy reason instead, not this one: `tests/tooling/cpu-profile/boot-trace.suite.int.test.ts` and `tests/client/data/bus/room-registry.test.ts`, each ending when it adopts the frozen clock. §6 carries no such sanction. Every other timer bound is driven through an injected TIMER seam — the house `ScheduleOp` shape `(fn, ms) => cancel`, e.g. `WorkloadRunnerDeps.scheduleInterval`, `AgentSdkDeps.scheduleTimeout`, `createRpgFlushBarrier`'s third argument — and a test trips it by hand with `support/clock.ts`'s `createManualTimer`, never by replacing the global clock.
 
 **Non-vacuity control — prove the guard path FIRES before trusting a negative assert.** A test whose whole point is "X is refused / dropped / blocked" is worthless if the setup silently never reached the guard — the negative assertion passes vacuously. The pattern: a POSITIVE control in the same test (or its sibling) that drives the guarded path to its allowed outcome under the same wiring, so a mis-wired fixture fails the control instead of green-washing the refusal. Exemplars: `db-batch-atomicity.suite` (proves the batch COMMITS before proving a mid-batch failure rolls the whole thing back) and `touch-target-floor.suite` (proves a compliant target PASSES before asserting an undersized one is flagged). Reach for a control whenever the assertion is an absence.
 
 **Mock doctrine — fake at the edges, inject at the root, never mock an internal module.**
 
 - **DB:** real libSQL `:memory:` for `.int` (`freshDb`). Never mocked — the point of the cake is that persistence is real, cheap, in-process.
-- **The model / provider:** the only true external I/O — faked at the `runChatTurn` seam, never below it. Tests script it with the TAPE fixture (`tests/support/chat/tape.ts`): `tape()` lists ordered role responses and `scriptedRunner(tape)` presents them as the injected `RunChatTurnOp`, dequeuing FIFO per turn (a group round drives N entries). Under-scripting throws a LOUD exhaustion error, never a silent cycle; a rate-limit/error surfaces as a thrown `ProviderError` (assert with `toThrowProviderError(kind)` — the field lives on the provider `ChatResult` below this seam). The production analogue is the RUNNER_OVERRIDE seam (~~`infra/providers/scripted-override.ts`~~, cycles by design) — *(PHANTOM-REF — no such file exists on the tree; truth-audit 2026-08-03. Its one named consumer, the neo parity oracle, was ripped out 2026-08-22 (#428). Left as the design record if the replay seam is rebuilt.)* Provider request *shape* is pinned by `.contract` tests; *behavior* is scripted.
+- **The model / provider:** the only true external I/O — faked at the `runChatTurn` seam, never below it. Tests script it with the TAPE fixture (`tests/support/chat/tape.ts`): `tape()` lists ordered role responses and `scriptedRunner(tape)` presents them as the injected `RunChatTurnOp`, dequeuing FIFO per turn (a group round drives N entries). Under-scripting throws a LOUD exhaustion error, never a silent cycle; a rate-limit/error surfaces as a thrown `ProviderError` (assert with `toThrowProviderError(kind)` — the field lives on the provider `ChatResult` below this seam). The production analogue is the RUNNER_OVERRIDE seam (~~`infra/providers/scripted-override.ts`~~, cycles by design); no such file exists on the tree, and the reference stays as the design record if the replay seam is rebuilt. Provider request *shape* is pinned by `.contract` tests; *behavior* is scripted.
 - **Cross-feature deps:** inject a fake at the composition root, never `vi.mock()` a sibling module. If a collaborator needs stubbing and isn't an injected port, the test just surfaced a design smell.
 
 `vi.mock` of an internal module is gated (`test-mock-doctrine`); its only legitimate use is an unavoidable third-party node edge, justified in a comment.
@@ -96,30 +96,25 @@ tests/
 | every `contract/*.ts` exporting a zod schema | a `.contract.test.ts` (parse + round-trip) |
 | every `persistence/*.ts` | a `.int.test.ts` against `freshDb` (queries are only "correct" against a real db) |
 | **every OTHER `domain/**` file with runtime logic** — `substrate/`, a named subsystem (`engine/`, `assembly/`, `memory/`, `themes/`…), `guard.ts`, a sanctioned feature-root singleton, a `contract/` file carrying real logic | a `.test.ts` or `.int.test.ts` |
-| infra/foundation files with runtime logic | a `.test.ts` or `.int.test.ts` (security belts, adapters, dispatchers) |
+| infra/foundation files with runtime logic | a `.test.ts` or `.int.test.ts` (security checks, adapters, dispatchers) |
 | **every `entry/**` + `transport/**` file with runtime logic** — a boot step, a composition seam, an HTTP registrar, a job driver, a bus, a ladder primitive | a `.test.ts` or `.int.test.ts` |
 | **every `@orb/inference` runtime source** | an exact registered runtime mirror, or the governed cross-cutting suite for its semantic subsystem |
 
-The domain arm is DEMAND-BY-DEFAULT (#767, 2026-08-28): it was an enumerated slot list, the template outgrew
-it, and 127 files with runtime logic — 54 in `substrate/`, the second-largest slot in the tree — sat outside
-the demand with no violation and no exemption record. The demand is now the RESIDUAL, so a slot the template
-grows is demanded the day it appears. **The residual population that widening exposed is CLOSED, and the
-ratchet that held it is retired (#2062, 2026-09-12):** the baseline, its single writer and its `pnpm debt`
-row are deleted, and the policy carries no ledger of any kind. Its last two rows were neither burned down
-nor waived — both subjects were pure spread-forwarding DI bridges, the shape the `entry/`/`transport/` arm
-below has always exempted because the behaviour is the target's and is demanded THERE, and the only test
-expressible over one either asserts that a forwarder forwards (the §5 tautology) or mocks an internal module
-(§3, banned). The exemption was widened to cover them by SHAPE, so there is no row to rot: a forwarder that
-grows a guard, a second statement or a computed argument is demanded again the day it does, which the
-policy's own `mustPass[15]` / `mustFlag[17]` hold from both sides.
+The domain surface above is demand-by-default: every slot the template grows is demanded the day it
+appears. There is no enumerated slot list and no ledger or baseline of any kind to maintain.
 
-The `entry/` + `transport/` TIER arm (#773, 2026-08-30) is the same widening applied to the two tiers the old
-demand never reached: 94 of their files carry runtime logic, 65 were already tested and merely undemanded, and
-the residual included the opaque frame-handle store — a SECURITY primitive whose owner check is the whole
-no-existence-leak property — with no test at all. Its exemption is derived from what the tier law says these
-tiers may contain (`docs/law/Tier-5-Entry.md` invariant 1: "`entry/` owns no business logic — only wiring/boot/
-HTTP-edge"; `docs/law/Tier-4-Transport.md`: a router is "validate → call the verb → map the error, zero business
-logic"), so WIRING is exempt and behavior is not.
+A pure spread-forwarding DI bridge is exempt by SHAPE — the same shape the `entry/`/`transport/` exemption
+below covers — because the behavior belongs to its target and is demanded there, and the only test
+expressible over one either asserts that a forwarder forwards (the §5 tautology) or mocks an internal
+module (§3, banned). A forwarder that grows a guard, a second statement, or a computed argument loses the
+exemption and is demanded again, which the policy's `mustPass[15]` / `mustFlag[17]` hold from both sides.
+
+The `entry/` and `transport/` tiers get the same demand-by-default treatment: every file with runtime
+logic in either tier is demanded, including the opaque frame-handle store — a security primitive whose
+owner check is the whole no-existence-leak property. The exemption is derived from what the tier law
+allows these tiers to contain (`docs/law/Tier-5-Entry.md` invariant 1: "`entry/` owns no business logic —
+only wiring/boot/HTTP-edge"; `docs/law/Tier-4-Transport.md`: a router is "validate → call the verb → map
+the error, zero business logic"), so wiring is exempt and behavior is not.
 
 Exempt by nature — all detected on SHAPE, never a path list, so a file that grows logic loses the exemption:
 `index.ts` barrels, the zero-logic `service.ts` composition root and `context.ts` DI bundle at a feature root,
@@ -129,7 +124,7 @@ tRPC router shell (a `router({…})` binding is no callable export, so it is exe
 PASS-THROUGH wiring file — every exported callable's body reducing to ONE expression that is a delegating
 call, a DI-bundle object literal over its own parameters, or a factory returning one of those. A second
 statement, a branch (including a ternary), or a computed argument is behavior and stays demanded. Browser
-lanes are not generally presence-gated. The deliberate exception is the standing #883
+lanes are not generally presence-gated. The deliberate exception is the standing
 `worst-legal-art-contrast.suite.ct.tsx`: `test-presence-client` requires that one cross-cutting rendered floor
 because deleting it restores a known blind class across every theme polarity at once.
 
@@ -155,8 +150,8 @@ tested.
 
 ## 6. The "what to test" obligations, gathered
 
-- **The ~150 "preserve exactly" esoterica** (`Core-Planning-and-Checklists.md §C2`) — each load-bearing behavior becomes a named test at its mirror. Headliners: the GCM AAD byte-string `${userId}|${provider}`, the ZWSP in `neutralizeMacros`, the PNG dual-chunk + CRC, the vLLM death-couple pipe-watchdog, `storedVersion`-beats-probe, the last-owner / owner-immutability guard (D17), `deepMergeRequestBody` Layer-2 defense, every `ASSUMES(single-replica)`.
-- ~~**The differential oracle**~~ — RIPPED OUT 2026-08-22 (#428, owner: "we exceeded neo a while ago"). The `.parity` lane, its driver and its captured neo reference are gone; git preserves them, and the campaign record is `../architecture/history/neo-orb-parity-audit.md`. Nothing is measured against neo any more.
+- **The "preserve exactly" esoterica** — each critical behavior becomes a named test at its mirror. Headliners: the GCM AAD byte-string `${userId}|${provider}`, the ZWSP in `neutralizeMacros`, the PNG dual-chunk + CRC, the vLLM death-couple pipe-watchdog, `storedVersion`-beats-probe, the last-owner / owner-immutability guard (D17), `deepMergeRequestBody` Layer-2 defense, every `ASSUMES(single-replica)`.
+- There is no differential oracle. Nothing on the tree is measured against neo.
 - **Memory's chat-scoped semantics** — a "could silently regress" surface the oracle never covered either (memory is a rewrite, not a port). Each → a named `.int.test.ts` at the memory mirror.
 - **Serde round-trip** — import → export → reimport hash-identical, a `.contract.test` invariant on the one serde core (`docs/law/Spine-Config-and-Serialization.md` §7.3).
 
@@ -217,8 +212,8 @@ Vitest browser-mode is FORBIDDEN — cold-cache dep-discovery *hangs*. Two Playw
   request count is not a browser-side settle.
 
 - **A stub at the seam under test is a tautology.** A fixed-array responder passes every FILTER test while
-  the filter is wrong: a CT proving a server-side lens uses an INPUT-AWARE responder (it filters/sorts by
-  the request it received) so a lens that ignores its input goes red. Whatever a CT fakes, something else
+  the filter is wrong: a CT proving server-side filtering uses an INPUT-AWARE responder (it filters/sorts by
+  the request it received) so filtering that ignores its input goes red. Whatever a CT fakes, something else
   (an `.int` test through the real verb, or a live drive) owns that seam's truth.
 
 - **A source-neuter "bite proof" lies for a bare `@orb/*` import** — vite's `optimizeDeps` serves a
@@ -271,14 +266,12 @@ wired through `ignorers: ["arid"]` in BOTH configs) drops two families that are 
 1. **Observability sinks** — string-literal mutants whose only destination is a trace recorder,
    trace-collection append, trace assignment, trace-carrying payload object, or a logger call. The "fix"
    would be a test pinning a debug label byte-for-byte, i.e. the tautology this doc bans.
-2. **Compile-time-unreachable arms** — every mutant inside a `default:` case (or block) that declares a
-   `never`-typed binding. `tsc` has already proved the arm cannot execute, so no test can reach it; the
+2. **Compile-time-unreachable branches** — every mutant inside a `default:` case (or block) that declares a
+   `never`-typed binding. `tsc` has already proved the branch cannot execute, so no test can reach it; the
    exhaustive-dispatch discipline (`Spine-TypeScript-and-Patterns.md`) puts one in EVERY dispatch site,
-   which makes this dead weight under every score computed over a dispatching file. Measured 2026-08-26
-   with `pnpm mutation:probe` on `domain/admin/guard.ts`: 6 of its 8 planted survivors were exactly this
-   — 25% of that file's denominator.
+   which makes this dead weight under every score computed over a dispatching file.
 
-Family 2 matches the ARM node, so Stryker's whole-subtree ignore is the point; family 1 matches the leaf,
+Family 2 matches the unreachable-branch node, so Stryker's whole-subtree ignore is the point; family 1 matches the leaf,
 because matching the enclosing call would swallow real mutants among its arguments. The predicate is
 STRUCTURAL — there is no in-source annotation an author can add to silence their own mutant — and it is
 bite-proved in BOTH directions by `tests/tooling/mutation-arid/`. Adding or removing it CHANGES THE
@@ -286,20 +279,20 @@ DENOMINATOR, so it is part of the gate's calibration, never a cosmetic: `pnpm mu
 prints the ignored count per reason, and a change in that count means `break` must be re-measured.
 
 **A reported survivor is not ground truth either.** `pnpm mutation:probe <report.json> <source-rel>` plants
-each reported mutant and runs the source's mirror suite, naming the tests that kill it. Measured 2026-08-22
-over `assemble.ts`, 184 of 230 reported survivors were already killed by tests on the tree — perTest
-coverage credits module-load-scope mutants to whichever unrelated test loaded the module first. Adjudicate
-before writing kill-tests for a survivor list.
+each reported mutant and runs the source's mirror suite, naming the tests that kill it. perTest coverage
+credits module-load-scope mutants to whichever unrelated test loaded the module first, so a reported
+survivor list can include mutants already killed by tests on the tree. Adjudicate before writing
+kill-tests for a survivor list.
 
 **The gate's `mutate` list is frozen to its calibrated set; new candidates enter the EXPLORATORY config as
 sentinels** (`stryker.config.js` — currently the runtime-string-key and shipped-inversion classes: chat
 stats-delta, stats rebuild-from-canon, chat canon-write, chat memory recall). Promoting a sentinel into the
 gate requires a fresh calibration run, because `break` is bound to the measured set.
 
-## Esoterica (load-bearing)
+## Esoterica (must-preserve facts)
 
 - The fixture is the composed *production* wiring with the model scripted — tests exercise the real injection graph, not a parallel test-only assembly. A divergence between test and prod wiring is a bug.
 - **`isolate: true` for all Node projects** (the Vitest default): each test file receives a fresh module graph. Root mock/global/environment cleanup remains inherited by every project. Database integration fixtures own their in-memory databases; resource isolation is what makes parallel execution correct.
-- Repository-resource tests declare that requirement through their registered kind rather than a hand-maintained filename roster. `vitest.config.ts` derives the `repository` execution group from that data and serializes its files after the ordinary groups. Other integration tests remain parallel under the shared capacity profile. The dependency-cruiser battery uses an isolated scratch corpus. The former separate browser-drive shard is retired: its appearance/theme suites assert structural state and pass concurrently in tooling.
-- **Timeout scaling and measurement validity differ.** `scaledBudget` stretches completion deadlines. `labelRateLoad` records a measured arm as `load-suspect` when contention prevents judging its threshold; the measurement still runs and its number remains available. The supervisor surfaces the task metadata. A wider deadline cannot make a dropped-frame percentage valid, and a browser dependency alone does not make an assertion a measured-rate test.
+- Repository-resource tests declare that requirement through their registered kind rather than a hand-maintained filename roster. `vitest.config.ts` derives the `repository` execution group from that data and serializes its files after the ordinary groups. Other integration tests remain parallel under the shared capacity profile. The dependency-cruiser battery uses an isolated scratch corpus. Appearance/theme suites assert structural state and pass concurrently in tooling.
+- **Timeout scaling and measurement validity differ.** `scaledBudget` stretches completion deadlines. `labelRateLoad` flags a measured test as `load-suspect` when contention prevents judging its threshold; the measurement still runs and its number remains available. The supervisor surfaces the task metadata. A wider deadline cannot make a dropped-frame percentage valid, and a browser dependency alone does not make an assertion a measured-rate test.
 - Determinism is a *correctness* property: the frozen clock is what makes the rolling-pair breakpoint and memory-recall ordering assertions stable turn-to-turn.

@@ -1,4 +1,4 @@
-// Integration: PD-22/PD-40 economics-composed insights (the stats↔discovery seam Tier 3) — forgottenGems
+// Integration: economics-composed insights (the stats↔discovery seam Tier 3) — forgottenGems
 // (semantic volume/recency ranking + injected per-character economics) + modelRouting (distilled genre ×
 // per-(character, model) economics). The harness wires the REAL stats economics reads over the same db, so
 // this exercises the true composition (not a mocked op).

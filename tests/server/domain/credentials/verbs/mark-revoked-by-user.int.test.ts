@@ -17,7 +17,7 @@ describe("markRevokedByUser", () => {
     expect(rows[0]?.revokedAt).not.toBeNull();
   });
 
-  test("audits credential.markRevokedByUser attributed to the owner (default reason) (PD-142)", async () => {
+  test("audits credential.markRevokedByUser attributed to the owner (default reason)", async () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const { svc, owner, cred } = await seedCredential(db, h);

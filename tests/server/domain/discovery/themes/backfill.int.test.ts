@@ -1,4 +1,4 @@
-// Integration: the msgMidAt backfill (PD-39) — stamps `digest_theme_assignments.msgMidAt` with the
+// Integration: the msgMidAt backfill — stamps `digest_theme_assignments.msgMidAt` with the
 // position-median message createdAt of a digest's seq-span. Proofs: exact median for tier-0 (via the 1:1
 // segment span); tier-k via the injected memory tier-grid fold (covered tier-0 blocks → whole-arc span);
 // a tier-k digest with NO covered verbatim block stays null; idempotent; owner-scoped.

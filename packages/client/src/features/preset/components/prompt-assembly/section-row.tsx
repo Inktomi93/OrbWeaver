@@ -1,4 +1,4 @@
-// SectionRow — one rack row (preset-surface-redesign.md §5.1, drawn first-class in
+// SectionRow — one rack row (drawn first-class in
 // `mocks/preset-redesign/prompt-rack.html`). The ST prompt-manager anatomy on our grammar: drag GRIP (the
 // SortableList's own handle, rendered by the list) · zone-hued type GLYPH · NAME button · only-when-set
 // cue badges · the ~token estimate · the enable Switch · the drill CHEVRON.

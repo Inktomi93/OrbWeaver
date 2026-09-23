@@ -1,6 +1,6 @@
 // Unit: the Chat & message handling section's FORM projection (features/chat/lib/
 // chat-behavior-message-handling-model) — the autoSwipe flatten + the newline-text ↔ string[] mapping the
-// section's two list fields ride on (PD-146; re-homed to chat by SET-SEAMS stage 2).
+// section's two list fields ride on (re-homed to chat by SET-SEAMS stage 2).
 
 import type { ChatSettings } from "@orb/contracts/settings";
 import { DEFAULT_CHAT_SETTINGS } from "@orb/contracts/settings";

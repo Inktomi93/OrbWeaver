@@ -1,5 +1,5 @@
-// infra/extraction/normalize.ts — the §2 normalization pipeline every loader's raw output passes through
-// (databank-design/04 §2). Pure string→string: the UTF-8 decode already happened in the loader (the text
+// infra/extraction/normalize.ts — the §2 normalization pipeline every loader's raw output passes through.
+// Pure string→string: the UTF-8 decode already happened in the loader (the text
 // family decodes STRICT — invalid bytes throw there and the dispatch wraps them as ExtractionFailedError).
 // Here: strip a leading BOM, CRLF/lone-CR → `\n`, unicode NFC, collapse 3+ blank lines to one. NO trimming
 // inside lines, NO case folding — the extracted text is canon.

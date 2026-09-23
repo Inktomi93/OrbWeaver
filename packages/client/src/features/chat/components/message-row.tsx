@@ -69,7 +69,7 @@ export interface MessageRowProps {
   readonly onChatForked?: ((chatId: ChatId) => void) | undefined;
   /** Present ⇒ this row is a SEEDED GREETING still inside its malleability window: the swipe slot pages the
    *  card's alternates through `chat.setSeededGreeting` instead of the row's own generated variants
-   *  (chat-creation-draft-mode-replacement.md §4.8/F6). Absent ⇒ the ordinary variant strip. */
+   *  (D166). Absent ⇒ the ordinary variant strip. */
   readonly greeting?: GreetingBinding | undefined;
   readonly autoFixMarkdown?: boolean | undefined;
   /** D121-E/F1: the VIEWER's own enabled DISPLAY-placement scripts, resolved ONCE by the list surface
@@ -90,7 +90,7 @@ export interface MessageRowProps {
   /** True for the one row that is the "last-in-context" boundary; renders a quiet divider above it. */
   readonly contextBoundary?: boolean;
   /** The present-tense fit budget label ("N of M used · R reserved") shown on the boundary divider when the
-   *  previewFit query has resolved; absent ⇒ the bare "In context from here" line (PD-#7). */
+   *  previewFit query has resolved; absent ⇒ the bare "In context from here" line. */
   readonly contextBoundaryLabel?: string | undefined;
   /** The LINEAR-tier compaction summary covering the span ABOVE the boundary (previewFit `compactSummary`),
    *  or null. Non-null ⇒ the divider reports older messages are compacted into a summary + offers a peek at

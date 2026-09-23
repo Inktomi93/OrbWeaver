@@ -1,4 +1,4 @@
-// @orb/kit/custom-parameters — the Layer-2 prototype-pollution defense. PD-101: proves
+// @orb/kit/custom-parameters — the Layer-2 prototype-pollution defense. Proves
 // `deepMergeRequestBody` cannot be used to pollute `Object.prototype` via a `__proto__`/`constructor`/
 // `prototype` key at ANY nesting depth, on EITHER side of the merge, while legitimate nested keys still
 // merge (the defense-in-depth requirement — no behavior change for valid input).
@@ -7,7 +7,7 @@ import { deepMergeRequestBody } from "@orb/kit/custom-parameters";
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 
-describe("deepMergeRequestBody — prototype-pollution defense (PD-101 Layer 2)", () => {
+describe("deepMergeRequestBody — prototype-pollution defense (Layer 2)", () => {
   test("a top-level __proto__ on the patch does not pollute Object.prototype", () => {
     const base = { model: "m" };
     const patch = JSON.parse('{"__proto__": {"polluted": true}}') as Record<string, unknown>;

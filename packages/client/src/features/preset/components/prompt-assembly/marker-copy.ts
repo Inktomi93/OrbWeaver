@@ -3,7 +3,7 @@
 // production. `label` names the rack row/drill-in header; `oneLiner` explains the marker; `subtitle` is
 // the terser rack-row source hint.
 //
-// CARRIER_ATTRIBUTION (preset-surface-redesign §5.2) is the second map: a PLAIN marker carries no
+// CARRIER_ATTRIBUTION is the second map: a PLAIN marker carries no
 // `template` field in the schema — that absence IS the carrier distinction — so its drill-in body slot
 // renders a SOURCE-ATTRIBUTION panel instead of a textarea, naming where the substance flows from and
 // (where one exists) the library that manages it. Keyed off the derived plain-marker union, so a new

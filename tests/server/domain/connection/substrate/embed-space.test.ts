@@ -1,4 +1,4 @@
-// substrate: the PD-139a TRIGGER'S CONDITION (§10-4) — `vectorSpacesOf` snapshots what `(model[@dtype])`
+// substrate: the embed-space TRIGGER'S CONDITION (§10-4) — `vectorSpacesOf` snapshots what `(model[@dtype])`
 // space each vector task resolves to, and `spacesDiffer` decides whether a connection write just stranded a
 // corpus. The purge+reindex it gates is DESTRUCTIVE and expensive, so BOTH failure directions are defects:
 // a missed change leaves vectors readable in a geometry nothing queries any more, while a false positive

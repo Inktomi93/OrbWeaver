@@ -96,7 +96,7 @@ export function buildWorldInfo(deps: WorldInfoComposeDeps): WorldInfoComposeResu
     // composition can write the embedded book without being able to check whether that would replace a book
     // the owner has since edited.
     hasPrimaryBook: createHasPrimaryBook({ db }),
-    // PD-144: re-link a portable card's carried attached-book references (owned-source gated); the
+    // re-link a portable card's carried attached-book references (owned-source gated); the
     // persistence-factory twin of the duplicate carry, db + clock only.
     linkCarriedBooks: createLinkCarriedBooks({ db, now }),
   };

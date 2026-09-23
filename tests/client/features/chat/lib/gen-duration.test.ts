@@ -1,4 +1,4 @@
-// Unit: the generation-duration derivation for the PD-130 `showGenerationTimer` metadata readout
+// Unit: the generation-duration derivation for the `showGenerationTimer` metadata readout
 // (features/chat/lib/gen-duration). Pins the both-bounds-present-and-ordered guard (matching the stats
 // gen-time axis) and the sub-second-`ms` / else-`N.Ns` label formatting.
 

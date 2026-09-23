@@ -1,4 +1,4 @@
-// S1 — THE control-source consumer mechanism (interaction-direction-spec.md §3-S1): one hook, one host.
+// S1 — THE control-source consumer mechanism: one hook, one host.
 // It reads the door-assembled `chat-controls` registry, yields the invisible per-source MOUNTS (each
 // publishes its live control list from its OWN fiber, so a source's hooks — a bus subscription, a store
 // read, a mutation — never run in a loop at the host), and returns the collected controls in door order.

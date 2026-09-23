@@ -1,4 +1,4 @@
-// MemberDrillHeader — the ONE drill row a drilled-in member surface draws (#1747, DESIGN.md §3.4, boards
+// MemberDrillHeader — the ONE drill row a drilled-in member surface draws (#1747, the mock design §3.4, boards
 // 03/05/06): `← Back to <library>` · the member's NAME · the member's OWN verbs, on one row.
 //
 // WHY THE MEMBER SURFACE OWNS IT AND THE HOST DOES NOT (the #1725 commit-3 delta this closes). The host
@@ -14,7 +14,7 @@
 // ruling survives — its INPUT changed: the host now draws a Back-only row as the boundary's FALLBACK and its
 // error arm, so exactly one of the two paints at any moment and the exit is never absent.
 //
-// NO LIFECYCLE CHROME (D121(D), #271): Delete stays on the row's kebab, in every collection. `actions` is
+// NO LIFECYCLE CHROME (D212, #271): Delete stays on the row's kebab, in every collection. `actions` is
 // for the member's own verbs (world info: Edit details · Backfill · New entry; rosters: Start chat) — the
 // fork "the kebab is off-screen while drilled" is answered by the Back on this row.
 //
@@ -54,7 +54,7 @@ export interface MemberDrillHeaderProps {
   readonly actions?: ReactNode;
 }
 
-/** `[← Back to <library>] <name> <meta> … <verbs>` — one row (DESIGN.md §3.4), and NOTHING but the verbs at
+/** `[← Back to <library>] <name> <meta> … <verbs>` — one row (the mock design §3.4), and NOTHING but the verbs at
  *  the phone regime (boards p1–p4; owner-relayed ruling 2026-09-05). */
 export function MemberDrillHeader({ back, title, meta, actions }: MemberDrillHeaderProps): ReactElement {
   // The shell's PUBLISHED regime, read from `#state` — never a matchMedia of our own (`no-raw-matchmedia`

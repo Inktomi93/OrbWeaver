@@ -7,7 +7,7 @@
  *  (D86 resolution-discriminant precedent — the bundle-validate funnel stays source-agnostic; a new origin is
  *  just another byte source, never a re-shape or a second install path):
  *    - `"upload"` — a file the installer handed over (or an admin fan-out's bytes); has NO remembered URL.
- *    - `"url"` — fetched from an installer-supplied URL through the egress guard (plugin-ui-plane #679 U8 2b).
+ *    - `"url"` — fetched from an installer-supplied URL through the egress guard (U8 2b).
  *      The row records the URL it came from (`plugins.source_url`) so the auto update-check + one-click upgrade
  *      can re-fetch it re-paste-free. This is the honest origin the 2a placeholder deferred: 2a recorded a URL
  *      install as `"upload"` while the source-agnostic funnel was the only thing built; 2b makes it truthful.

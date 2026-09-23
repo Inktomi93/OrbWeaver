@@ -56,7 +56,7 @@ export interface ImageAdmissionVerdict {
   readonly height: number | null;
 }
 
-/** PD-139(b): rows reclaimed from the OLD embed space by the chat-memory purge — one count per model-keyed
+/** Rows reclaimed from the OLD embed space by the chat-memory purge — one count per model-keyed
  *  chat-memory vector table. */
 export interface PurgeMemoryVectorsResult {
   readonly segments: number;
@@ -70,13 +70,13 @@ export interface PruneMemoryBlocksResult {
   readonly rowsDeleted: number;
 }
 
-/** databank-design/05 §2.4 — rows deleted by the reindex-shrink prune (shrunk tail + retired-space rows). */
+/** rows deleted by the reindex-shrink prune (shrunk tail + retired-space rows). */
 export interface PruneDocumentChunksResult {
   readonly rowsDeleted: number;
 }
 
-/** PD-139(c): rows reclaimed from the OLD embed space by the document-chunk purge — the databank arm of the
- *  PD-104 model-change reclaim, mirroring {@link PurgeMemoryVectorsResult}. */
+/** Rows reclaimed from the OLD embed space by the document-chunk purge — the databank arm of
+ *  the model-change reclaim, mirroring {@link PurgeMemoryVectorsResult}. */
 export interface PurgeDocumentVectorsResult {
   readonly chunks: number;
 }

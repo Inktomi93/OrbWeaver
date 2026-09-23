@@ -1,4 +1,4 @@
-// .int tests for the A6 arm executors (automation-design/03; 05 §A6). Each LIVE arm renders its templates
+// .int tests for the A6 arm executors. Each LIVE arm renders its templates
 // then dispatches through the injected `AutomationOps` (captured here) — we assert the op call + args, the
 // world-info attachment/cap guards, and the typed refusals for the v1-unwired + reserved arms. Real libSQL for
 // the arms that read canon (global vars, book attachment, present members). (The per-day spend ceilings were

@@ -54,7 +54,7 @@ export interface ImportWorldBookOutcome {
 /** Never throws for a malformed file — returns \{ ok:false, error \}. */
 export type ImportWorldBook = (args: { readonly ownerId: UserId; readonly bytes: Uint8Array }) => Promise<ImportWorldBookOutcome>;
 
-// ── the character.duplicate CARRY (PD-141) ─────────────────────────────────────────
+// ── the character.duplicate CARRY ─────────────────────────────────────────
 
 /** db + clock only: the carry copies character_books rows verbatim, no id-minting or audit. */
 export interface WorldInfoDuplicateCarryContext {
@@ -75,7 +75,7 @@ export type CopyCharacterBooks = (args: {
   readonly toCharacterId: CharacterId;
 }) => Promise<void>;
 
-// ── the character IMPORT re-link (PD-144) ──────────────────────────────────────────
+// ── the character IMPORT re-link ─────────────────────────────────────────────────────
 
 /** linked/skipped counts for the import report — `skipped` counts references whose id has no book the
  *  importer OWNS on this install (absent or foreign — the cross-tenant-leak guard). */
@@ -84,7 +84,7 @@ export interface LinkCarriedBooksResult {
   readonly skipped: number;
 }
 
-/** PD-144: re-link a portable card's carried attached-book REFERENCES on import — the portability twin of
+/** Re-link a portable card's carried attached-book REFERENCES on import — the portability twin of
  *  {@link CopyCharacterBooks}. Each ref links ONLY when a book with that id EXISTS and is OWNED by `ownerId`
  *  (the owned-source gate — a carried id must never link a book the importer can't access); the rest skip
  *  and are reported. Fresh character_books rows, roles preserved, PK-collision-safe (onConflictDoNothing —

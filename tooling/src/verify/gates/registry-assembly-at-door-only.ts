@@ -1,4 +1,4 @@
-// Policy: registry-assembly-at-door-only (client-architecture-lockdown.md §16 G8, §5/§7) — a registry is
+// Policy: registry-assembly-at-door-only (client-architecture-state-and-gates.md §16 G8, client-architecture-lockdown.md §5/§7) — a registry is
 // ASSEMBLED at the composition root. `createRegistry` / `createContributorRegistry` may be CALLED only in
 // `main.tsx` or a `compose/` module it imports; a call anywhere else is a feature or lib smuggling in its
 // own private assembly, which reintroduces the import-order nondeterminism the one-door rule removes.
@@ -56,7 +56,7 @@ const FACTORY_POPULATION = "registry factories";
 const MESSAGE =
   "createRegistry()/createContributorRegistry() may be CALLED only at the composition root (main.tsx) or " +
   "in any compose/ module — every other call site is a private assembly outside the ONE " +
-  "registration door (client-architecture-lockdown.md §5/§7/§16 G8).";
+  "registration door (client-architecture-lockdown.md §5/§7/client-architecture-state-and-gates.md §16 G8).";
 const UNREADABLE =
   "this call is spelled like a registry mint but the shared readers cannot place the callee's declaration, so whether it enters through the registry home CANNOT be established. Reported rather than passed: a door an unreadable barrel can walk through is not a door.";
 const FIX =

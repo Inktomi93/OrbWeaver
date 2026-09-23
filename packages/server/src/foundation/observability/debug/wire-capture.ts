@@ -44,7 +44,7 @@
 // correlation in every runner for the same data the engine already holds.
 //
 // THE FAULT ARM IS THE ROW A READER ACTUALLY HUNTS (added 2026-08-14 after a live 110s agent-sdk turn died
-// as an HTTP 500 with EVERY debug surface blank — `docs/design/streaming-shape-churn.md` §7.5, reproduced
+// as an HTTP 500 with EVERY debug surface blank, reproduced
 // 3/3). Until then the recorder ran only after `runTurnPipeline` resolved, so a THROWN turn could not leave
 // a row BY CONSTRUCTION: the one comment claiming a "REFUSED turn still leaves the record that explains it"
 // was true for a refusal and false for a FAULT. `disposition` is the discriminator that separates them.
@@ -220,8 +220,8 @@ export interface WireOutcome {
    *  LOAD-BEARING FOR READING `tokensOut`, and the reason this field exists: `tokensOut` is the SUM over
    *  every call in the turn, while `maxOutputTokens` is the PER-CALL ceiling. Without the denominator a
    *  four-call turn reads as `tokensOut:8192` against `maxOutputTokens:2048` and looks exactly like a
-   *  backend ignoring the output cap — the misread that put a phantom cost bug on the board
-   *  (`docs/design/streaming-shape-churn.md` §7.5). The cap is honored per call; the row was missing its
+   *  backend ignoring the output cap — the misread that put a phantom cost bug on the board.
+   * The cap is honored per call; the row was missing its
    *  unit. */
   readonly modelCalls: number | null;
   readonly reasoningEffort: string | null;

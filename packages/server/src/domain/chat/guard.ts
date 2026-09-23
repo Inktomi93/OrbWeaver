@@ -9,7 +9,7 @@
 // `substrate/` (zero-I/O). Feature-root files are exempt from the substrate-below-verbs / subsystem-seam
 // rules, and a domain root file may reach `persistence/` + `substrate/` directly.
 //
-// PD-1 — RESOLVED: the DECISION routes through the injected `can()` seam (`substrate/auth/decide`). This guard
+// RESOLVED: the DECISION routes through the injected `can()` seam (`substrate/auth/decide`). This guard
 // LOADS the caller's membership (`loadMemberChat` — chat's own data) and feeds the roster to `ctx.can`; the
 // `role === 'host'` verdict lives in admin's `can()`, never here (spine #6). `can` is injected on `ChatContext`
 // (wired at the entry composition root) — chat NEVER imports admin (`domain-no-cross-feature`).

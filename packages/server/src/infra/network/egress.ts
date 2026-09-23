@@ -775,13 +775,13 @@ export async function fetchWebDocument(url: string): Promise<Uint8Array> {
   return await res.bytes();
 }
 
-/** The plugin-bundle fetch cap (plugin-ui-plane #679 U8, seam 15) — the "ship one file, ≤ 1 MiB" rule the
+/** The plugin-bundle fetch cap (U8, seam 15) — the "ship one file, ≤ 1 MiB" rule the
  *  `domain/plugin` unzip funnel ALSO enforces (its own `MAX_BUNDLE_BYTES`). Bounding the DOWNLOAD here refuses an
  *  over-cap bundle at the WIRE, before `parseBundle` allocates — defense in depth on the same number (a lower
  *  cap than `fetchWebDocument`'s 5 MB: a plugin bundle is one small pre-bundled script + a tiny manifest). */
 const PLUGIN_BUNDLE_FETCH_MAX_BYTES = 1_048_576;
 
-// The URL-INSTALL bundle fetch (plugin-ui-plane #679 U8, seam 15 — the security-review subject). The SAME
+// The URL-INSTALL bundle fetch (U8, seam 15 — the security-review subject). The SAME
 // arbitrary-URL/ANY_HOST class as fetchWebDocument (no host pin, because the installer names an arbitrary URL;
 // https-only + per-hop private-range/IP-literal denial + the redirect budget STILL run — the SSRF wall), the
 // compose-bound op the domain's `ctx.fetchBundle` is wired to. It is the ONLY egress a URL install performs, and

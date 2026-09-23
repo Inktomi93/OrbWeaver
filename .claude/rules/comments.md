@@ -61,6 +61,6 @@ Exported API uses `/** */` TSDoc; a non-exported helper uses `//`. The `tsdoc/sy
 
 ## Markers and doc citations
 
-- `FLAG[PD-<n>]` marks tracked debt. It needs a row in `docs/law/Core-Audits-and-Debt.md`; the `pd-citation-integrity` gate checks both sides.
 - `FLAG[<name>]` marks a deliberate design. Do not remove it.
+- Tracked debt is a `docs/work` item, not a comment marker. File it there and cite the item id or path.
 - A doc path in a comment must name a doc that exists; the `dangling-doc-cite` gate checks it. Move a doc and repoint its citers in the same commit.

@@ -374,7 +374,7 @@ describe("persistence/queries — stream-log / bus-log replay + cursors", () => 
   });
 });
 
-describe("loadTurnOrigin — the turn origin stamped on a reply slot (automation-design/03 §4)", () => {
+describe("loadTurnOrigin — the turn origin stamped on a reply slot", () => {
   test("a default (human) slot reads back initiator 'human' / depth 0", async () => {
     const chatId = await seedChat(db, "origin-human");
     const { messageId } = await seedMessage(db, chatId, 1, { content: "hi" });

@@ -144,7 +144,7 @@ export interface TurnRequest {
    *  (`applyReceiveTransforms`) stays for every shape and wire the middleware cannot express, and no-ops
    *  when the wire already produced a reasoning channel. */
   readonly reasoningTags?: { readonly prefix: string; readonly suffix: string } | undefined;
-  /** The tools this turn offers, BACKEND-NEUTRAL (`docs/design/inference-tool-delivery.md`): the executable set
+  /** The tools this turn offers, BACKEND-NEUTRAL (D177): the executable set
    *  as definitions + the ONE `execute` callback the pipeline binds to `executeToolCalls`, and the TERMINAL (D112
    *  R1) declarations. How they reach the wire — an MCP server the SDK loops over, or a `tools[]` array the
    *  pipeline's own recurse loop answers — is `@orb/inference`'s `toChatRequest` decision, never this domain's.
@@ -261,7 +261,7 @@ export interface TurnEconomics {
    *
    *  Its job is to make `tokensOut` READABLE: `tokensOut` is the SUM across those calls while
    *  `maxOutputTokens` is the PER-CALL ceiling, so without the denominator a multi-call turn looks like a
-   *  backend ignoring the output cap (`docs/design/streaming-shape-churn.md` §7.5). Consumed by the
+   *  backend ignoring the output cap. Consumed by the
    *  wire-outcome debug ring; absent/null on a runner that reports none. */
   readonly modelCalls?: number | null;
   readonly reasoningEffort?: EffortLevel | null;
@@ -271,7 +271,7 @@ export interface TurnEconomics {
   readonly finishReason?: NormalizedFinishReason | null;
   readonly stopReason?: string | null;
   readonly terminalReason?: string | null;
-  /** The upstream OpenRouter generation handle (`gen-…`) this turn billed under — the PD-137 cost key,
+  /** The upstream OpenRouter generation handle (`gen-…`) this turn billed under — the cost key,
    *  folded onto the variant. Absent/null on a backend that doesn't surface one (agent-sdk / responses). */
   readonly generationId?: string | null;
   /** The wire-opaque facts the normalized fields above cannot carry, ALREADY narrowed by the runtime to the
@@ -326,7 +326,7 @@ export interface TurnPrep {
   readonly automationDepth?: number | undefined;
   readonly kind: TurnKind;
   readonly intent: UserIntent;
-  /** The host's `UserSettings.chat.customStoppingStrings` (PD-146), merged into the generation request's
+  /** The host's `UserSettings.chat.customStoppingStrings`, merged into the generation request's
    *  stop set at the pipeline REQUEST seam (never mutating `intent`). Absent/empty ⇒ the request stop is
    *  exactly `intent.stop` — byte-identical to a host who never set custom stops. */
   readonly extraStopSequences?: readonly string[] | undefined;
@@ -377,7 +377,7 @@ export interface TurnPrep {
    *  nothing, so every stored card rides the wire whole); `0` ⇒ keep none, every history card collapses to its
    *  stub (an rpg game's own default); `n` ⇒ the newest n ride whole. */
   readonly cardKeepLastX?: number | undefined;
-  /** rpg-design/05 §6 slot-adjacency verdict: is this turn (re)generating the assistant slot that DIRECTLY
+  /** docs/plans/rpg/design.md slot-adjacency verdict: is this turn (re)generating the assistant slot that DIRECTLY
    *  responds to the latest user message? The engine marks the turn dice-eligible (`ctx.rpg.markDicePreRollEligible`)
    *  after minting `turnId` when true, so the player's queued d20 feeds the FIRST skill check of a send /
    *  deferred-drain / swipe-of-that-slot but never a later GM/auto/arbiter round. Absent ⇒ false (ineligible). */
@@ -431,7 +431,7 @@ export interface GeneratedText {
   readonly aborted: boolean;
 }
 
-/** The PRINCIPAL-FREE non-human turn op (automation-design/03 §4 / 05 §AC-B). Built once at the chat
+/** The PRINCIPAL-FREE non-human turn op. Built once at the chat
  *  composition root over the same turn deps the human verbs use, then handed to automation's `trigger_turn`
  *  arm + the plugin membrane's `turn.trigger`. Homed here (not on the verb file) per `no-inline-types` — the
  *  op shape is contract surface. See {@link RequestTurnParams} for the four walls it enforces. */
@@ -462,7 +462,7 @@ export interface DrainReport {
 /** `startChat` — the lazily-created chat (+ roster) and the seeded opening, if any. `opening` is null when
  *  the resolved policy seeded no greeting (`none`, or a founding character with no card greeting). The
  *  `generate` opening + its `openingFailure` DEGRADED-NOT-BROKEN apparatus (START-1) retired with the
- *  creation-time draft carry (chat-creation-draft-mode-replacement.md §4.4/R2) — "guide the opening" is
+ *  creation-time draft carry (D166) — "guide the opening" is
  *  now an ordinary post-creation turn against the real room, so a failed generation is just a failed
  *  turn with the standard toast, never data on a successful `startChat`. */
 export interface StartChatResult {

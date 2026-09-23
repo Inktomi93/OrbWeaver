@@ -2,7 +2,7 @@
 // the per-node verdicts for fire-and-forget work whose failure is invisible.
 //
 // TWO INDEPENDENT CONSUMERS, which is what makes this a shared reader rather than one policy's private
-// machinery wearing a `lib/` address (gate-runtime-standardization.md §7 item 7): `gates/detached-work-traced.ts`
+// machinery wearing a `lib/` address (docs/law/gate-runtime-standardization.md §7 item 7): `gates/detached-work-traced.ts`
 // (the ordinary occurrence policy, A1+A2) and `gates/detached-work-traced-health.ts` (the hard blindness
 // tripwire, A4) both derive the opener vocabulary, and the split exists because the two arms differ in
 // AUTHORITY — §12.1 allows exactly one authority per descriptor.

@@ -13,8 +13,8 @@ import process from "node:process";
 import { budget } from "../../_shared/load-budget.ts";
 
 // The BASE consts are exported (not just their derived ceilings) so a load-scaling pin can drive the
-// SAME numbers this module actually uses through an injected reader (T14/T15, docs/design/
-// 1208-instrument-substrate.md §7.1) instead of re-declaring them and risking drift.
+// SAME numbers this module actually uses through an injected reader (T14/T15)
+// instead of re-declaring them and risking drift.
 export const NAV_BASE_MS = 15_000;
 export const NAV_TIMEOUT_MS = budget(NAV_BASE_MS);
 export const WAIT_SELECTOR_BASE_MS = 10_000;

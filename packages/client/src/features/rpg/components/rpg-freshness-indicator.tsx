@@ -1,4 +1,4 @@
-// The takeover's STATE-FRESHNESS indicator (Context-Panel-Program §4.5 — the 2026-07-27 owner ruling:
+// The takeover's STATE-FRESHNESS indicator (the 2026-07-27 owner ruling:
 // a post-commit round's transient lag is ACCEPTED as long as an indicator surfaces it — visibility doctrine
 // applied to freshness; nothing silently pretends the tracker is live when it isn't). A pure, calm hint —
 // TEXT is the datum (the tracker-kit a11y model: the animated pulse is aria-hidden, the accessible content

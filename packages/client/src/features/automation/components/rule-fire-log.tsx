@@ -1,4 +1,4 @@
-// B2 — the per-rule FIRE LOG (interaction-direction-spec §7 B2): the host-only "why didn't my rule fire"
+// B2 — the per-rule FIRE LOG: the host-only "why didn't my rule fire"
 // surface. `automation.listFires` is newest-first; each row names its OUTCOME (the fire terminal), WHY that
 // terminal happened, and when — so a rule that keeps NOT firing shows a run of `predicate_false`/
 // `budget_refused` rather than silence. Host-only by construction — the whole Rules section mounts only for

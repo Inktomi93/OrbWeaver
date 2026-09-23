@@ -1,7 +1,7 @@
 // ui-audit in-page walker — segment: THE PAGE'S OWN FRAME versus the viewport it is being judged at.
 //
 // WHAT THIS EXISTS FOR, MEASURED (2026-09-20, lane cb-audit-viewport, the three step-3b Connections
-// mocks). `pnpm snap --file docs/design/mocks/connections/model-roles.html --design-audit --mobile`
+// mocks). `pnpm snap --file <connections mock> --design-audit --mobile`
 // emitted 24 P1 `text-overflow` rows and exited 1; the SAME document at `--viewport 1400x1000` emitted
 // zero and exited 0. Nothing in the rule was mismeasuring — every one of those 24 spills is a true
 // `scrollWidth > clientWidth` read of the pixels that were on the screen.

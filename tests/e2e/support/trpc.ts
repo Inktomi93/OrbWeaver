@@ -295,7 +295,7 @@ export function getActivePresetConfig(chatId: ChatId): Promise<ActivePresetConfi
   return trpcQuery<ActivePresetConfig>("chat.getActivePresetConfig", { chatId });
 }
 
-/** The content-free SHAPE trace (PD-132) — per-stage ROW COUNTS (never content). `named` = rows the name-stamp
+/** The content-free SHAPE trace — per-stage ROW COUNTS (never content). `named` = rows the name-stamp
  *  pass touched; `injected` = post-injection row count. The harness asserts these counts move with the config
  *  (an injection at depth bumps `injected`; a names mode bumps `named`). Subset of the `ShapeTrace` view. */
 export interface ShapeTraceView {

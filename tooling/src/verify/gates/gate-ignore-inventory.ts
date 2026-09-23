@@ -11,7 +11,7 @@ import { defineGate } from "../contract/policy.ts";
 import { GATE_IGNORE_POPULATION, gateIgnoreFact, readGateIgnoreFacts } from "../lib/gate-ignore-fact.ts";
 
 const MESSAGE =
-  "a retired `@orb-gate-ignore` marker remains in authored source. It cannot bind a final policy and reads like protection it no longer provides. (tooling/src/verify/gates/GATE-AUTHORING.md)";
+  "a dead `@orb-gate-ignore` marker remains in authored source. It cannot bind a final policy and reads like protection it no longer provides. (tooling/src/verify/gates/GATE-AUTHORING.md)";
 const FIX =
   "delete the legacy marker. If the occurrence is still permitted, use the final owner's exact `@orb-waive` spelling or add a reviewed grant through the central table, according to that policy's authority.";
 

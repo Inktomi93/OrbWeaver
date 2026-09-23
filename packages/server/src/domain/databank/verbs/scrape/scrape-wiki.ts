@@ -1,5 +1,5 @@
 // verb: scrapeWiki (DB8) — fetch a MediaWiki article's plain-text extract over the SAME ANY_HOST safeFetch guard
-// as scrapeWeb, then the §2 canon tail (`substrate/scrape-canon`) (databank-design/06 §5). The API endpoint is
+// as scrapeWeb, then the §2 canon tail (`substrate/scrape-canon`). The API endpoint is
 // DERIVED from the article URL's own host (`https://<host>/w/api.php`), so any MediaWiki wiki — Wikipedia, a
 // Fandom host, a self-hosted wiki — rides one verb (the ST `fandom` scraper is a MediaWiki host, doc 06 §5). The
 // query is `action=query&prop=extracts&explaintext&titles=<Article>&format=json`: MediaWiki returns the article

@@ -289,15 +289,11 @@ export const messageSlotSchema = z.object({
 });
 export type MessageSlot = z.infer<typeof messageSlotSchema>;
 
-/** ONE model-emitted tool exchange, persisted on `message_variants.toolCalls` (D48; tool-use-design/03 §3).
+/** ONE model-emitted tool exchange, persisted on `message_variants.toolCalls` (D48).
  *  The client's ONLY tool read surface (chips render from this — never body-parse). Schema-first so the DB
  *  read seam parses with `toolCallRecordSchema` (never a cast — the `parseProviderMetadata` pattern). `result`
  *  is ALWAYS a JSON document when non-null (execute's one stringify site) so chips `JSON.parse` unconditionally;
- *  `result: null` ⇔ recorded-but-unexecuted (recurse-limit hit); `isError` is authoritative for error styling.
- *  FLAG[PD-54]: this DTO + the `message_variants.toolCalls` retype are the schema-leaf slice of T1 — landed so
- *  the born-compliant column is typed while the baseline window is open. The rest of T1 (the `HISTORY_ROLES`
- *  `tool` role, tool-call/tool-result `ChatContentPart` members, `tools`/`toolChoice`/`responseFormat` request
- *  fields, the `CHAT_WARNING_CODES` tool codes) + the domain-owned recurse loop remain (registry: PD-54 ready). */
+ *  `result: null` ⇔ recorded-but-unexecuted (recurse-limit hit); `isError` is authoritative for error styling. */
 /** ONE recorded runtime variable mutation (D46) — the read-parse boundary for `message_variants.variable_delta`.
  *  A discriminated union on `op` MIRRORING the kit {@link VarOp} (`set`/`add` carry a string `value`; `inc`/`dec`/
  *  `delete` don't). The db column is `$type<readonly VarOp[]>`; every read parses through {@link variableDeltaSchema}
@@ -400,12 +396,12 @@ export const macroFreezeRecordSchema = z.array(macroFreezeSchema);
 export type MacroFreezeRecord = z.infer<typeof macroFreezeRecordSchema>;
 
 export const toolCallRecordSchema = z.object({
-  // @orb-waive no-raw-id(toolCallId): PROVIDER-emitted opaque tool-call handle (OpenAI `call_…`/Anthropic id) — never an orbweaver-minted brand; provenance-faithful, joins a tool-call to its result on the wire (tool-use-design/03 §3 types it `string`).
+  // @orb-waive no-raw-id(toolCallId): PROVIDER-emitted opaque tool-call handle (OpenAI `call_…`/Anthropic id) — never an orbweaver-minted brand; provenance-faithful, joins a tool-call to its result on the wire (D48 types it `string`).
   toolCallId: z.string(),
   name: z.string(),
   /** RAW model-emitted JSON string (provenance-faithful; parsed once, at execute). */
   arguments: z.string(),
-  /** JSON document serialized by execute; `null` = not executed (recurse-limit — tool-use-design/03 §2.2). */
+  /** JSON document serialized by execute; `null` = not executed (recurse-limit — D48). */
   result: z.string().nullable(),
   isError: z.boolean(),
   /** `null` when unexecuted; else the execute duration (injected clock). */
@@ -472,17 +468,17 @@ export interface MessageView {
   ttftMs: number | null;
   /** Generation-window bounds (epoch-ms) for this swipe — the wall time the turn engine began/finished
    *  the model call. Both null on a non-generated row (user/system/draft-greeting). `gf − gs` (when both
-   *  present and ordered) is the generation duration the `showGenerationTimer` chip reads (PD-130). */
+   *  present and ordered) is the generation duration the `showGenerationTimer` chip reads. */
   genStartedAt: number | null;
   genFinishedAt: number | null;
   /** The upstream generation handle (OpenRouter's `gen-…`) this shown swipe billed under — the key a quiet
-   *  per-message cost readout settles with via `connection.generationCost` (PD-137), resolved against
+   *  per-message cost readout settles with via `connection.generationCost`, resolved against
    *  `connectionId`. Null where the transport reports none (agent-sdk / endpoint rows / user/system rows). */
   generationId: string | null;
   /** WHICH of the funder's connection rows generated this swipe (inference program §5.3b) — SET NULL after the
    *  row is deleted, so attribution outlives the connection. Null on user-authored rows, imports and edits. */
   connectionId: UserConnectionId | null;
-  /** The selected variant's persisted tool exchanges (D48; tool-use-design/03 §3–4), in emission/execution
+  /** The selected variant's persisted tool exchanges (D48), in emission/execution
    *  order — the client's ONLY tool read surface (chips render from this; NEVER body-parse). Empty on every
    *  non-tool turn. Parsed with `toolCallRecordSchema` at the DB read seam (never cast); the wire shape is a
    *  plain array (`[]` = no calls), so a client maps it unconditionally through the `TOOL_RENDERERS` seam. */
