@@ -68,7 +68,7 @@ const SAME_FILE_OVERLOADS =
   "export function pick(value: string): string;\nexport function pick(value: number): number;\nexport function pick(value: unknown): unknown { return value; }\n";
 const USE_PICK = 'import { pick } from "./api.ts";\nexport const value = pick;\n';
 /** A package door with types, so a BARE specifier really resolves to the planted `.d.ts`. The virtual
- *  conformance project cannot reach a real installed `node_modules` overload set (schema-fact-family-1584.md),
+ *  conformance project cannot reach a real installed `node_modules` overload set (the schema-fact family's #1584 conversion record),
  *  so the shape is planted; the `project` canonical below IS the control that the plant resolved — an
  *  unresolvable door answers `external-door` and would prove nothing about declaration counting. */
 const VENDOR_PACKAGE = '{"name":"vendor","version":"1.0.0","types":"index.d.ts"}';

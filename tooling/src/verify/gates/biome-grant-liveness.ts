@@ -15,7 +15,7 @@
 //
 // AUTHORITY — and this is a DELIBERATE divergence from the two siblings that converted first (#2021).
 // `depcruise-grant-liveness` and `eslint-grant-liveness` landed 2026-09-11 as `authority: "hard"` carrying
-// gate-local `ExemptionTable`s. `exception-authority-census.md:96-100` classifies all four external-config
+// gate-local `ExemptionTable`s. the gate-runtime exception-authority census classifies all four external-config
 // grant families as REVIEWED GRANTS, and §12.5 forbids a gate-owned exemption grammar outright, so this
 // pair carries the census's disposition: the table is gone and its rows are exact
 // `(policy, subject, operation)` rows in `lib/reviewed-grants.ts`. The siblings are the PRE-#1922 state, not

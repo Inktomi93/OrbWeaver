@@ -18,7 +18,7 @@
 // Re-derived by grepping each of the nine ids as a STRING across `tests/tooling/verify/` — the rule that a
 // family test often lives under the WAVE's name rather than the gate's — exactly one still had none:
 // `no-array-literal-querykey`. Its two hits were a suppression-grammar fixture in
-// `verify/lib/suppression-directive.test.ts` and this lane's own Tier-3 roster test, neither of which
+// `verify/lib/suppression-directive.test.ts` and the #2000 Tier-3 roster test, neither of which
 // drives the policy. It lands HERE rather than in a new file because it is the same fact that grouped the
 // other six: an ORDINARY policy with a singleton `family:` and nowhere for its §4.2 arm to live.
 //
@@ -37,9 +37,8 @@
 // nothing to refuse about. §4.6 (the conversion differential): its "landing-commit evidence, not standing
 // law" clause was RETIRED by #2000 deliverable 3 (`2084c403e`) — evidence may no longer vanish. Three of
 // the seven (`baseui-render-prop-composition`, `no-external-media-without-gate`,
-// `no-array-literal-querykey`) are on the Tier-3 CLOSE-BY-RULE roster, whose membership test, receipts and
-// stated limits live in `tier3-close-by-rule.suite.test.ts`; the other four are not, and their differentials are
-// open #2000 work rather than something this file claims.
+// `no-array-literal-querykey`) were on the #2000 Tier-3 CLOSE-BY-RULE roster; the other four were not, and their
+// differentials are #2000 work rather than something this file claims.
 import type { SourceFile } from "ts-morph";
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";

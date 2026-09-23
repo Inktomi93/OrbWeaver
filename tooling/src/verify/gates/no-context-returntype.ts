@@ -15,7 +15,7 @@
 // makeCtx>` where `Reflected<F> = ReturnType<F>` lives elsewhere) is not reported here — the reflection is
 // authored in the OTHER file, and this policy's population is the context.ts bundle.
 //
-// #1999 — TWO §4.1 CUTS DOCUMENTED, NEITHER OWES A ROW (v-audit-wave6-2026-09-12.md, cut ledger D1/D2):
+// #1999 — TWO §4.1 CUTS DOCUMENTED, NEITHER OWES A ROW (gate-runtime audit wave 6, cut ledger D1/D2):
 //   · MUTUALLY REDUNDANT — the spelling filter (`node.getText() !== UTILITY`, :51) and the resolved-origin
 //     identity check (`origin.value.globalName === UTILITY`, :56) each individually pin the same subject;
 //     cutting either ALONE stays clean because the sibling still catches it. Only the CLUSTER cut of both
