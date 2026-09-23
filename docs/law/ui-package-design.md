@@ -285,19 +285,6 @@ CT tests assert the CONTAINMENT properties, not just rendering:
 `tests/client`) and the real `ctViteConfig` (react plugin + `@tailwindcss/vite` + a CT-side css
 entry importing `@orb/ui/styles/globals.css` so token utilities resolve in-browser).
 
-## 8b. The PREBUILT seal contract
-
-A sealed primitive with no consumer yet carries a `PREBUILT[for:<doc>]` header naming the doc that
-describes its future consumer. Delete the marker in the same edit that lands the consumer. A `PREBUILT`
-whose cited doc is missing or deleted is a documentation defect — fix it at the next audit of this table.
-
-Open seals today:
-
-| Seal | Cited consumer | Header lives at |
-| - | - | - |
-| `stream/stream-text.tsx` | no named feature — sanctioned convenience wrapper over `useSmoothText`+`StreamShimmer` for a future plain-text streaming surface (§6.3.1) | `packages/ui/src/stream/stream-text.tsx` |
-| `primitives/status-chip` | workloads/automation run-status chips (statuses mirror run lifecycle) | `packages/ui/src/primitives/status-chip/status-chip.tsx` |
-
 ## 9. Build order
 
 Standing bar for any new primitive is §13, not a wave history.

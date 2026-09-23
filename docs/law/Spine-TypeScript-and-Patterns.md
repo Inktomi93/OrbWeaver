@@ -169,5 +169,5 @@ from the other. The coincidence is exactly what breaks the day one axis grows an
 contracts-to-ui pair is forced apart by the package cake regardless (`@orb/ui` depends only on
 `@orb/kit`, so it cannot import the `@orb/contracts` half at resolve time even if it wanted to derive
 from it). `no-inline-union-redecl` flags an inline union or a `z.enum([…])` re-spelling a canonical
-tuple; it does not flag a second, independent tuple with the same members (docs/adr/0220 records why
-that arm was rejected).
+tuple; it does not flag a second, independent tuple with the same members
+(`docs/adr/0220-rejected-neo-and-report-only-gates.md` records why that case was rejected).

@@ -118,10 +118,10 @@ rule: two lanes each generating `000N` off the same parent is the concurrent-gen
 `pnpm check:drizzle-kit` reds (step 5 below).
 
 No gate checks that a program is actually eligible for this exception. The `baseline-single-migration`
-gate that once did (exactly one `.sql`, exactly one journal entry) was retired when the launch flip fired
-(ADR 0157). `DB_LAUNCHED` in `entry/boot/migrate.ts` is the constant `true`, so it does not gate
-eligibility either. Using this procedure on a program that is not genuinely pre-launch is a judgment
-call the tooling will not catch.
+gate that once did (exactly one `.sql`, exactly one journal entry) is gone: its sunset clause fired with
+the launch flip (`docs/adr/0157-pre-launch-there-is-no-legacy-a-schema.md`). `DB_LAUNCHED` in
+`entry/boot/migrate.ts` is the constant `true`, so it does not gate eligibility either. Using this
+procedure on a program that is not genuinely pre-launch is a judgment call the tooling will not catch.
 
 ### Regime 2 — forward-only incremental migrations
 
