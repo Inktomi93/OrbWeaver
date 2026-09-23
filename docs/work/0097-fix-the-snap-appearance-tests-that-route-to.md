@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: done
 updated: 2026-09-23
 priority: P2
 area: tooling
+evidence: 24ce0df93
 ---
 
 # Fix the snap appearance tests that route to an unknown section
