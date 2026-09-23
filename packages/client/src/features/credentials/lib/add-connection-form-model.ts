@@ -4,9 +4,10 @@
 // connection (its label copied from the connection's) and never read back. Floors mirror the domain's
 // write-seam refusals as teaching; the verb stays the enforcement floor.
 
-import type { ProviderAuth, ProviderDef } from "@orb/contracts/inference";
+import type { ProviderAuth, ProviderDef, Wire } from "@orb/contracts/inference";
+import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
 import { addModelActionLabel } from "./add-model-on-key-form-model.ts";
-import { MODEL_REQUIRED_MESSAGE } from "./model-catalog-model.ts";
+import { clauseOf, MODEL_REQUIRED_MESSAGE } from "./model-picker-model.ts";
 
 /** The command the Claude-subscription step asks the user to run (§5.3a: "a copyable `claude setup-token`"). */
 export const CLAUDE_SETUP_TOKEN_COMMAND = "claude setup-token";
@@ -77,6 +78,23 @@ export function draftModelReason(provider: ProviderDef): string {
   return DRAFT_MODEL_REASONS[provider.auth](provider);
 }
 
+/** A model id in the provider's own spelling, for the typed field's placeholder. Keyed by the wire (and the
+ *  OpenRouter dialect, whose ids carry a vendor prefix), because a provider is a data row, never a code
+ *  entry; an endpoint row serves whatever its owner loaded, so it shows the shape of a hub id. */
+const WIRE_MODEL_EXAMPLES: Record<Wire, string> = {
+  "openai-compat": "gpt-5",
+  "anthropic-messages": "claude-opus-5",
+  "agent-sdk": "opus",
+  "local-light": "Xenova/bge-small-en-v1.5",
+};
+
+export function modelIdExample(provider: Pick<ProviderDef, "auth" | "dialect" | "wire">): string {
+  if (provider.auth === "endpoint") {
+    return "e.g. Qwen/Qwen3-32B";
+  }
+  return `e.g. ${provider.dialect === "openrouter" ? "anthropic/claude-opus-5" : WIRE_MODEL_EXAMPLES[provider.wire]}`;
+}
+
 /** The plain-function field validator — provider picked, secret present where the auth kind needs one, a
  *  URL on an endpoint row, and a model (never defaulted). Reads the DERIVED `auth` value, never a registry. */
 export function validateAddConnection(value: AddConnectionFormValues): { fields: Record<string, string> } | undefined {
@@ -105,3 +123,28 @@ export const CONNECTION_FORM_COPY = {
   submit: "Add connection",
   submitFailed: "Couldn't submit the connection.",
 } as const;
+
+/** The draft an endpoint list answer is ABOUT (#1502: a verdict must carry the inputs it was taken for, so an
+ *  edited URL or key retires it in the same commit). */
+export function draftKeyOf(baseUrl: string, keyValue: string): string {
+  return JSON.stringify([baseUrl.trim(), keyValue.trim()]);
+}
+
+/** The refusals that are about the Server URL itself — they land on that field, where the fix is typed. */
+export const URL_REFUSAL_CODES: ReadonlySet<string> = new Set([CONNECTION_OP_CODES.baseUrlInvalid, CONNECTION_OP_CODES.baseUrlRefused]);
+
+/** The saved key as the dialog names it: its Saved-keys label, or "unnamed" when it has none. */
+export function savedKeyName(label: string | null): string {
+  return label === null ? "Key saved (unnamed)" : `Key saved as “${label}”`;
+}
+
+/** The one inline sentence for a failed submit. With a key minted it says the key IS saved (and as which
+ *  Saved-keys row), the connection is NOT, and what the two exits do; with none, that nothing was saved. */
+export function submitFailureSentence(args: { readonly heldKeyLabel: string | null | undefined; readonly reason: string }): string {
+  const reason = clauseOf(args.reason);
+  if (args.heldKeyLabel === undefined) {
+    return `Nothing was saved — ${reason}.`;
+  }
+  const key = args.heldKeyLabel === null ? "Your key (unnamed) was saved in Saved keys" : `Your key was saved as “${args.heldKeyLabel}” in Saved keys`;
+  return `${key}, but the connection wasn't created — ${reason}. Adding again reuses the saved key. If you cancel, the key stays in Saved keys.`;
+}

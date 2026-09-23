@@ -7,7 +7,7 @@
 // sibling runtime.
 
 import type { Principal } from "@orb/contracts/identity";
-import type { ConnectionBinding, ModelCatalogEntry, ResolvedConnectionView, SendAvailability } from "@orb/contracts/inference";
+import type { ConnectionBinding, ResolvedConnectionView, SendAvailability } from "@orb/contracts/inference";
 import type { AccountCredits, EndpointInspection, GenerationCost, VerifyAuthResult } from "@orb/contracts/providers";
 import type { Db } from "@orb/db";
 import type { BindingStore, ConnectionStore, InferenceRuntime, ProviderRegistry, ProviderStore, ResolveOutcome, SnapshotStore } from "@orb/inference";
@@ -42,7 +42,7 @@ import type {
   ConnectionCapabilityView,
   ConnectionView,
   CredentialHealth,
-  EndpointModelsResult,
+  ModelListResult,
   ProviderAvailability,
 } from "./results.ts";
 
@@ -103,8 +103,8 @@ export interface ConnectionService {
   readonly useForEverything: (params: UseForEverythingParams) => Promise<readonly ConnectionBinding[]>;
 
   // ── catalogs
-  readonly catalogModels: (params: CatalogModelsParams) => Promise<readonly ModelCatalogEntry[]>;
-  readonly listEndpointModels: (params: ListEndpointModelsParams) => Promise<EndpointModelsResult>;
+  readonly catalogModels: (params: CatalogModelsParams) => Promise<ModelListResult>;
+  readonly listEndpointModels: (params: ListEndpointModelsParams) => Promise<ModelListResult>;
   readonly refreshCatalog: (params: RefreshCatalogParams) => Promise<CatalogRefreshOutcome>;
 
   // ── diagnostics (every one against ONE of the caller's rows)

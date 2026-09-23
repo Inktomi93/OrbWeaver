@@ -8,6 +8,7 @@
 // copy (no clipboard permission, an insecure origin) says so and points at the text beside the button.
 
 import { Button } from "@orb/ui/button";
+import { Kbd } from "@orb/ui/kbd";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
@@ -32,16 +33,17 @@ export function SetupTokenCommand(): ReactElement {
   };
   return (
     <Stack data-slot="setup-token-command" gap="tight">
-      <Text voice="gloss">Run this on the machine you use Claude Code on, then paste what it prints.</Text>
+      <Text className="max-w-(--reading-measure-prose)" prose={true} voice="gloss">
+        Run this on the machine you use Claude Code on, then paste what it prints.
+      </Text>
       <Row align="center" gap="field">
-        <Text as="span" voice="datumMono">
-          {CLAUDE_SETUP_TOKEN_COMMAND}
-        </Text>
+        {/* A command the user types: `<kbd>` is its element, and the chip marks where it starts and ends. */}
+        <Kbd>{CLAUDE_SETUP_TOKEN_COMMAND}</Kbd>
         <Button aria-label={`Copy the command ${CLAUDE_SETUP_TOKEN_COMMAND}`} intent="secondary" onClick={copy} size="sm">
           Copy
         </Button>
       </Row>
-      <Text className={outcome === "failed" ? "text-warning" : undefined} role="status" voice="gloss">
+      <Text className={outcome === "failed" ? "text-warning" : undefined} prose={true} role="status" voice="gloss">
         {COPY_OUTCOME_COPY[outcome]}
       </Text>
     </Stack>

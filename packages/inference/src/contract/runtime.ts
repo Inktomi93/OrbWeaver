@@ -3,7 +3,7 @@
 
 import type { ResolvedSecret } from "@orb/contracts/credentials";
 import type { Principal } from "@orb/contracts/identity";
-import type { BindingActorKind, ConnectionBinding, ProviderDef, ProviderId, RoutableTask, UserConnection } from "@orb/contracts/inference";
+import type { BindingActorKind, ConnectionBinding, ModelCatalogEntry, ProviderDef, ProviderId, RoutableTask, UserConnection } from "@orb/contracts/inference";
 import type { StructuredOutputVehicle } from "@orb/contracts/role-clients";
 import type { AutomationRuleId, PluginId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { z } from "zod";
@@ -54,6 +54,13 @@ export type ReachabilityProbe = (args: {
 
 const endpointModelSchema = z.object({ id: z.string(), contextLength: z.number().nullable() });
 export type EndpointModel = z.infer<typeof endpointModelSchema>;
+
+/** One `catalogs.models` read: the rows the provider listed, and — when a `url` list came back empty because
+ *  its fetch failed — the fetch's own reason, so the pane can tell a failed list from an empty one. */
+export interface CatalogRead {
+  readonly models: readonly ModelCatalogEntry[];
+  readonly failure: string | null;
+}
 export const endpointModelsSchema = z.array(endpointModelSchema) satisfies z.ZodType<EndpointModel[]>;
 
 export type RoleClientsFor = (funder: Principal, actor?: BindingActor) => RoleClientsWithSignal;

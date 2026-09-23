@@ -33,7 +33,7 @@ import type { ProviderExecutor } from "./contract/backend.ts";
 import type { ProviderDiagnostics } from "./contract/diagnostics.ts";
 import { ProviderError } from "./contract/errors.ts";
 import type { ResolvedChatKnobs, ResolvedEmbedKnobs } from "./contract/resolve.ts";
-import type { EndpointModel, ProviderOrigin, RoleClientsFor } from "./contract/runtime.ts";
+import type { CatalogRead, EndpointModel, ProviderOrigin, RoleClientsFor } from "./contract/runtime.ts";
 import { endpointModelsSchema } from "./contract/runtime.ts";
 import type { InferenceDeps } from "./deps.ts";
 import { resolveChat } from "./funnel/resolve-chat.ts";
@@ -70,7 +70,7 @@ export { localLightEmbedSpaceTag } from "./backends/local-light/model-cache.ts";
 export { curatedKind } from "./capability/sources/curated/loader.ts";
 export * from "./contract/index.ts";
 export type { ResolvedWarning } from "./contract/resolve.ts";
-export type { ProviderOrigin, RoleClientsFor } from "./contract/runtime.ts";
+export type { CatalogRead, ProviderOrigin, RoleClientsFor } from "./contract/runtime.ts";
 export type { BindingActor, BindingStore, ConnectionStore, InferenceDeps, InferenceLog, ProviderStore, SnapshotStore, SpanFn } from "./deps.ts";
 // `resolveCarryReasoning` is exported BESIDE the whole funnel because the chat engine needs exactly one of
 // its answers BEFORE the first wire call: the `conversation` rung materializes prior thinking at the
@@ -117,8 +117,9 @@ export interface InferenceRuntime {
   readonly catalogs: {
     /** What a connection's provider can pick — strategy = `PROVIDER.catalog`: `url` reads the provider's
      *  fixed list (OpenRouter's enriched catalog, the daemon's aliases) or the CONNECTION's own `/v1/models`;
-     *  `builtin` lists the curated rows. An empty list is the pane's typed-id fallback (§7.4). */
-    readonly models: (args: { readonly connection: UserConnection; readonly principal: Principal }) => Promise<readonly ModelCatalogEntry[]>;
+     *  `builtin` lists the curated rows. `failure` says why a `url` list came back empty (a failed fetch),
+     *  `null` when the list was read — an empty read list is the pane's typed-id fallback (§7.4). */
+    readonly models: (args: { readonly connection: UserConnection; readonly principal: Principal }) => Promise<CatalogRead>;
     /** The pane's SERVER-SIDE `GET <baseUrl>/v1/models` for an endpoint row being AUTHORED (no row yet): a
      *  saved credential (by id, the caller's) or a raw draft key; the deployment's egress guard judges the dial. */
     readonly endpoint: (args: {
@@ -171,6 +172,12 @@ function catalogEntryOf(id: string, contextLength: number | null): ModelCatalogE
     maxCompletionTokens: null,
     reasoning: null,
   };
+}
+
+/** A mirror's current list as a catalog read: its rows when warm, else nothing plus why the warm failed. */
+function mirrorRead<T>(mirror: Mirror<T>, entries: (value: T) => readonly ModelCatalogEntry[]): CatalogRead {
+  const value = mirror.get();
+  return value === null ? { models: [], failure: mirror.failure() ?? "the model list did not answer" } : { models: entries(value), failure: null };
 }
 
 function builtinCatalog(provider: ProviderDef): readonly ModelCatalogEntry[] {
@@ -292,30 +299,34 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
     return connection;
   };
 
-  const catalogModels = async (args: { readonly connection: UserConnection; readonly principal: Principal }): Promise<readonly ModelCatalogEntry[]> => {
+  const catalogModels = async (args: { readonly connection: UserConnection; readonly principal: Principal }): Promise<CatalogRead> => {
     const { connection, principal } = args;
     requireOwned(connection, principal);
     const provider = requireProvider(registry, connection.providerId);
     if (provider.catalog === "builtin") {
-      return builtinCatalog(provider);
+      return { models: builtinCatalog(provider), failure: null };
     }
     if (provider.dialect === "openrouter") {
       await warmOpenRouter();
-      return openRouterCatalog.get() ?? [];
+      return mirrorRead(openRouterCatalog, (rows) => rows);
     }
     const credential = await deps.resolveCredential({ credentialId: connection.credentialId, ownerId: connection.ownerId, providerId: provider.id });
     if (provider.wire === "agent-sdk") {
       await warmAgentSdk(connection);
-      return (agentSdkCatalog.get() ?? []).map((row) => ({ ...catalogEntryOf(row.alias, null), name: row.displayName }));
+      return mirrorRead(agentSdkCatalog, (rows) => rows.map((row) => ({ ...catalogEntryOf(row.alias, null), name: row.displayName })));
     }
     if (provider.wire === "anthropic-messages") {
-      // No mirror: the anthropic backend's `listModels` is a plain authenticated read the pane calls directly.
+      // No mirror: the anthropic backend's `listModels` is a plain authenticated read the pane calls directly,
+      // and it answers `listed: false` for any refusal (its own header), so an unlisted answer is a failure.
       const resolved = await resolveTask(ctx, { task: "chat", principal, connectionId: connection.id });
-      return (await diagnostics.listModels({ connection: resolved.resolved })).models;
+      const answer = await diagnostics.listModels({ connection: resolved.resolved });
+      return { models: answer.models, failure: answer.listed ? null : `${provider.label} did not answer its model list` };
     }
     await warmEndpoint(connection, provider, credential.secret);
     const baseUrl = provider.baseUrl ?? connection.baseUrl;
-    return baseUrl === null ? [] : (endpointModels(baseUrl).get() ?? []).map((row) => catalogEntryOf(row.id, row.contextLength));
+    return baseUrl === null
+      ? { models: [], failure: null }
+      : mirrorRead(endpointModels(baseUrl), (rows) => rows.map((row) => catalogEntryOf(row.id, row.contextLength)));
   };
 
   return {

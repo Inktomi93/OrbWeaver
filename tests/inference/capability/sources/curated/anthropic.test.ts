@@ -46,6 +46,7 @@ function emptyMirror<T>(): Mirror<T> {
     warm: () => Promise.resolve(null),
     seed: () => undefined,
     invalidate: () => undefined,
+    failure: () => null,
   };
 }
 
@@ -55,6 +56,7 @@ function fixedMirror<T>(value: T): Mirror<T> {
     warm: () => Promise.resolve(value),
     seed: () => undefined,
     invalidate: () => undefined,
+    failure: () => null,
   };
 }
 

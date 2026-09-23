@@ -9,6 +9,9 @@
 // write then fails, the credential row exists and the dialog says so in words: where the key went, what failed,
 // and what cancelling leaves behind. The pasted secret is cleared from the form the moment its row exists, the
 // provider is locked to that row's provider, and the next submit writes only the connection.
+//
+// EVERY SUBMIT FAILURE IS STATED ONCE, INLINE (`AddConnectionFailure`). The dialog's mutations carry no toast;
+// a refusal of the Server URL itself lands on that field instead.
 
 import type { ProviderDef } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
@@ -27,19 +30,33 @@ import { useState } from "react";
 import { FormDialog, QueryBoundary } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { touchedFieldError } from "#forms/editor";
-import { notify } from "#lib";
+import { trpcErrorReason } from "#lib";
 import { useAddConnectionForm } from "../hooks/use-add-connection-form.ts";
-import { useAddCredential, useCreateConnection, useListEndpointModels } from "../hooks/use-connections-mutations.ts";
+import { useAddCredentialOwned, useCreateConnectionOwned } from "../hooks/use-connections-mutations.ts";
 import type { AddConnectionFormValues } from "../lib/add-connection-form-model.ts";
-import { acceptsKey, CONNECTION_FORM_COPY, draftModelReason, needsBaseUrl, needsKey } from "../lib/add-connection-form-model.ts";
+import {
+  acceptsKey,
+  CONNECTION_FORM_COPY,
+  draftKeyOf,
+  draftModelReason,
+  modelIdExample,
+  needsBaseUrl,
+  needsKey,
+  savedKeyName,
+  submitFailureSentence,
+  URL_REFUSAL_CODES,
+} from "../lib/add-connection-form-model.ts";
 import { CHAT_API_LABELS, connectionHost, providerPickerItems, showsApiControl } from "../lib/connections-model.ts";
-import { endpointListSource, isListedModel, typedModelAllowed } from "../lib/model-catalog-model.ts";
-import type { ModelCatalogPickerProps } from "./model-catalog-picker.tsx";
-import { ModelCatalogPicker } from "./model-catalog-picker.tsx";
+import { isListedModel, typedModelAllowed } from "../lib/model-picker-model.ts";
+import { AddConnectionFailure } from "./add-connection-failure.tsx";
+import type { EndpointListing } from "./endpoint-models-check.tsx";
+import { EndpointModelsCheck } from "./endpoint-models-check.tsx";
+import type { ModelPickerProps } from "./model-picker.tsx";
+import { ModelPicker } from "./model-picker.tsx";
 import { SetupTokenCommand } from "./setup-token-command.tsx";
 
 type CredentialView = inferOutput<Trpc["credentials"]["add"]>;
-type ModelCatalogSource = ModelCatalogPickerProps["source"];
+type ModelCatalogSource = ModelPickerProps["source"];
 
 export interface AddConnectionDialogProps {
   readonly open: boolean;
@@ -107,23 +124,6 @@ interface FormBodyProps {
   readonly providerOf: (id: string) => ProviderDef | undefined;
 }
 
-/** One endpoint list answer, and the draft it is an answer ABOUT (#1502: a verdict must carry the inputs it
- *  was taken for, so an edited URL retires it in the same commit). */
-interface EndpointListing {
-  readonly forDraft: string;
-  readonly source: ModelCatalogSource;
-}
-
-/** The credential this dialog minted before the connection write failed, with that failure's words. */
-interface HeldCredential {
-  readonly credential: CredentialView;
-  readonly failure: string;
-}
-
-function draftKeyOf(baseUrl: string, keyValue: string): string {
-  return JSON.stringify([baseUrl.trim(), keyValue.trim()]);
-}
-
 type CreateConnectionInput = inferInput<Trpc["connection"]["create"]>;
 
 /** The `connection.create` input for a submitted draft. No secret rides it: the key is referenced by id. */
@@ -149,10 +149,12 @@ function connectionInput(args: {
 
 function AddConnectionFormBody({ trpc, invalidation, onDone, pickerItems, providerOf }: FormBodyProps): ReactElement {
   const deps = { trpc, invalidation };
-  const addCredential = useAddCredential(deps);
-  const createConnection = useCreateConnection(deps);
+  const addCredential = useAddCredentialOwned(deps);
+  const createConnection = useCreateConnectionOwned(deps);
   const [listing, setListing] = useState<EndpointListing | null>(null);
-  const [held, setHeld] = useState<HeldCredential | null>(null);
+  const [held, setHeld] = useState<CredentialView | null>(null);
+  // The failed submit's error itself (a caught value), stated once inline by `AddConnectionFailure`.
+  const [submitFailure, setSubmitFailure] = useState<{ readonly error: unknown } | null>(null);
 
   /** The model picker's source for the current draft: the endpoint's list when one was read FOR this draft,
    *  otherwise the typed arm with the provider's reason. */
@@ -163,12 +165,17 @@ function AddConnectionFormBody({ trpc, invalidation, onDone, pickerItems, provid
     return { status: "unlisted", reason: draftModelReason(provider) };
   };
 
+  /** A refusal of the Server URL itself goes on that field, where it is fixed; editing the URL clears it. */
+  const markUrlRefused = (message: string | undefined): void => {
+    form.setFieldMeta("baseUrl", (prev) => ({ ...prev, isTouched: true, errorMap: { ...prev.errorMap, onServer: message } }));
+  };
+
   /** The credential for this submit: the row an earlier attempt already minted, else a fresh mint of the
    *  pasted key (with the connection's label, §5.3a Essential tier), else none. */
   const credentialFor = async (provider: ProviderDef, values: AddConnectionFormValues): Promise<CredentialView | null> => {
     const key = values.key.trim();
     if (held !== null || key === "" || !acceptsKey(provider)) {
-      return held?.credential ?? null;
+      return held;
     }
     const label = values.label.trim();
     const credential = await addCredential.mutateAsync({ provider: provider.id, key, ...(label !== "" ? { label } : {}) });
@@ -180,6 +187,7 @@ function AddConnectionFormBody({ trpc, invalidation, onDone, pickerItems, provid
     setListing((current) => (current !== null && current.forDraft === mintedDraft ? { ...current, forDraft: draftKeyOf(values.baseUrl, "") } : current));
     form.setFieldValue("key", "");
     form.setFieldValue("keyHeld", true);
+    setHeld(credential);
     return credential;
   };
 
@@ -188,14 +196,15 @@ function AddConnectionFormBody({ trpc, invalidation, onDone, pickerItems, provid
     if (provider === undefined) {
       return values;
     }
+    setSubmitFailure(null);
     // Read before the mint: the mint clears the key, which is half of the endpoint listing's draft key.
     const modelListed = isListedModel(modelSourceFor(provider, values), values.model);
     const credential = await credentialFor(provider, values);
     try {
       await createConnection.mutateAsync(connectionInput({ provider, values, credentialId: credential?.id ?? null, modelListed }));
     } catch (err) {
-      if (credential !== null) {
-        setHeld({ credential, failure: errorMessage(err) });
+      if (URL_REFUSAL_CODES.has(trpcErrorReason(err))) {
+        markUrlRefused(errorMessage(err));
       }
       throw err;
     }
@@ -211,7 +220,7 @@ function AddConnectionFormBody({ trpc, invalidation, onDone, pickerItems, provid
         onSubmit={(event): void => {
           event.preventDefault();
           event.stopPropagation();
-          form.handleSubmit().catch((err: unknown) => notify.error({ title: CONNECTION_FORM_COPY.submitFailed, description: errorMessage(err) }));
+          form.handleSubmit().catch((err: unknown) => setSubmitFailure({ error: err }));
         }}
       >
         <Stack gap="block">
@@ -235,14 +244,19 @@ function AddConnectionFormBody({ trpc, invalidation, onDone, pickerItems, provid
                   held={held}
                   modelSource={modelSourceFor(provider, values)}
                   onListing={setListing}
+                  onUrlRefusal={markUrlRefused}
                 />
               );
             }}
           </form.Subscribe>
 
-          {held === null ? null : <PartialFailureNotice held={held} />}
-
           <Text voice="gloss">Stored securely on this deployment; the key is sent only to the provider you chose.</Text>
+
+          {submitFailure === null ? null : (
+            <AddConnectionFailure
+              sentence={submitFailureSentence({ heldKeyLabel: held === null ? undefined : held.label, reason: errorMessage(submitFailure.error) })}
+            />
+          )}
 
           <Row gap="field" justify="end">
             <DialogClose render={<Button intent="ghost">Cancel</Button>} />
@@ -254,17 +268,6 @@ function AddConnectionFormBody({ trpc, invalidation, onDone, pickerItems, provid
   );
 }
 
-/** The honest partial-failure line: the key IS saved (and where), the connection is NOT, and what the two
- *  exits do. */
-function PartialFailureNotice({ held }: { readonly held: HeldCredential }): ReactElement {
-  return (
-    <Text className="text-destructive" data-slot="add-connection-partial-failure" role="alert" voice="gloss">
-      Your key was saved as “{heldKeyLabel(held)}” in Saved keys, but the connection wasn't created — {held.failure}. Adding again reuses the saved key. If you
-      cancel, the key stays in Saved keys.
-    </Text>
-  );
-}
-
 type AddConnectionForm = ReturnType<typeof useAddConnectionForm>["form"];
 
 interface ProviderFieldsProps {
@@ -272,18 +275,19 @@ interface ProviderFieldsProps {
   readonly provider: ProviderDef;
   readonly trpc: Trpc;
   readonly invalidation: Invalidation;
-  readonly held: HeldCredential | null;
+  readonly held: CredentialView | null;
   readonly modelSource: ModelCatalogSource;
   readonly onListing: (listing: EndpointListing) => void;
+  readonly onUrlRefusal: (message: string | undefined) => void;
 }
 
 /** The fields that depend on the PICKED provider's auth kind: URL and/or key, the model, the api control only
  *  when the row lists more than one, label and the background switch. */
-function ProviderFields({ form, provider, trpc, invalidation, held, modelSource, onListing }: ProviderFieldsProps): ReactElement {
+function ProviderFields({ form, provider, trpc, invalidation, held, modelSource, onListing, onUrlRefusal }: ProviderFieldsProps): ReactElement {
   return (
     <>
       {needsBaseUrl(provider) ? (
-        <form.AppField name="baseUrl">
+        <form.AppField name="baseUrl" listeners={{ onChange: (): void => onUrlRefusal(undefined) }}>
           {(field): ReactElement => (
             <field.TextField
               label="Server URL"
@@ -299,16 +303,26 @@ function ProviderFields({ form, provider, trpc, invalidation, held, modelSource,
       {needsBaseUrl(provider) ? (
         <form.Subscribe selector={(state): { readonly baseUrl: string; readonly key: string } => ({ baseUrl: state.values.baseUrl, key: state.values.key })}>
           {(draft): ReactElement => (
-            <EndpointModelsCheck trpc={trpc} invalidation={invalidation} baseUrl={draft.baseUrl} keyValue={draft.key} onListing={onListing} />
+            <EndpointModelsCheck
+              baseUrl={draft.baseUrl}
+              heldCredentialId={held?.id ?? null}
+              invalidation={invalidation}
+              keyValue={draft.key}
+              onListing={onListing}
+              onUrlRefusal={onUrlRefusal}
+              trpc={trpc}
+            />
           )}
         </form.Subscribe>
       ) : null}
       <form.AppField name="model">
         {(field): ReactElement => (
-          <ModelCatalogPicker
+          <ModelPicker
             error={touchedFieldError(field.state.meta)}
             listOwner={listOwnerOf(provider, form.state.values.baseUrl)}
             onValueChange={field.handleChange}
+            placeholder={modelIdExample(provider)}
+            recentKey={provider.id}
             source={modelSource}
             typedAllowed={typedModelAllowed(provider)}
             value={field.state.value}
@@ -345,12 +359,12 @@ function KeyField({
 }: {
   readonly form: AddConnectionForm;
   readonly provider: ProviderDef;
-  readonly held: HeldCredential | null;
+  readonly held: CredentialView | null;
 }): ReactElement | null {
   if (held !== null) {
     return (
-      <Text data-slot="add-connection-key-held" voice="gloss">
-        Key saved as “{heldKeyLabel(held)}”. It won't be shown again.
+      <Text data-slot="add-connection-key-held" prose={true} voice="gloss">
+        {savedKeyName(held.label)}. It won't be shown again.
       </Text>
     );
   }
@@ -372,11 +386,6 @@ function KeyField({
   );
 }
 
-/** The saved row's label as Saved keys shows it (an unlabelled row is the provider's default slot). */
-function heldKeyLabel(held: HeldCredential): string {
-  return held.credential.label ?? "default";
-}
-
 function keyLabel(provider: ProviderDef): string {
   if (provider.auth === "oauthToken") {
     return "Setup token";
@@ -388,46 +397,4 @@ function keyLabel(provider: ProviderDef): string {
  *  provider's label. */
 function listOwnerOf(provider: ProviderDef, baseUrl: string): string {
   return (needsBaseUrl(provider) ? connectionHost(baseUrl.trim() === "" ? null : baseUrl.trim()) : null) ?? provider.label;
-}
-
-/** The server-side `GET <baseUrl>/v1/models` for the draft (§7.4) — advisory, never blocks submit; an empty
- *  or failed list is the picker's typed arm with its reason (`modelListed: false` on save). */
-function EndpointModelsCheck({
-  trpc,
-  invalidation,
-  baseUrl,
-  keyValue,
-  onListing,
-}: {
-  readonly trpc: Trpc;
-  readonly invalidation: Invalidation;
-  readonly baseUrl: string;
-  readonly keyValue: string;
-  readonly onListing: (listing: EndpointListing) => void;
-}): ReactElement {
-  const list = useListEndpointModels({ trpc, invalidation });
-
-  const runCheck = (): void => {
-    const draftBaseUrl = baseUrl.trim();
-    if (draftBaseUrl === "") {
-      return;
-    }
-    const forDraft = draftKeyOf(baseUrl, keyValue);
-    const key = keyValue.trim();
-    onListing({ forDraft, source: { status: "loading" } });
-    void list
-      .mutateAsync({ baseUrl: draftBaseUrl, ...(key !== "" ? { key } : {}) })
-      .then((result): void => onListing({ forDraft, source: endpointListSource(result) }))
-      .catch((err: unknown): void => onListing({ forDraft, source: { status: "failed", reason: errorMessage(err), retry: runCheck } }))
-      // The answer now lives in the listing; drop the mutation's retained variables, which carry the draft key.
-      .finally(list.clearError);
-  };
-
-  return (
-    <Row gap="field" align="center">
-      <Button intent="secondary" size="sm" disabled={baseUrl.trim() === "" || list.isPending} onClick={runCheck}>
-        List models
-      </Button>
-    </Row>
-  );
 }

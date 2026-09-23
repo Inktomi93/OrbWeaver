@@ -9,6 +9,7 @@ import type { CharacterId } from "@orb/kit/ids";
 import type { inferInput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
+import { trpcErrorReason } from "#lib";
 
 /** Accept a suggestion. `busDriven` covers the pending read; the explicit `character.get` invalidate surfaces the new accepted chip. */
 export const useAcceptSuggestion = createEntityMutation<inferInput<Trpc["tag"]["attachTag"]>, unknown>({
@@ -30,15 +31,6 @@ export const useRejectSuggestion = createEntityMutation<inferInput<Trpc["tag"]["
 const SUGGEST_RETRY_COPY = "Couldn't generate tag suggestions — try again.";
 const SUGGEST_NOT_DISTILLABLE_COPY = "Nothing to summarize yet — add a description to this card, then suggest tags.";
 
-/** The refusal reason off a tRPC error's `data.reason` (the formatter's honest domain code), else "".
- *  Mirrors `turn-abort-notice`'s reader — the client keys on the structured wire field, never message text. */
-function suggestFailureReason(error: unknown): string {
-  const data = typeof error === "object" && error !== null && "data" in error ? (error as { data: unknown }).data : null;
-  return typeof data === "object" && data !== null && "reason" in data && typeof (data as { reason: unknown }).reason === "string"
-    ? (data as { reason: string }).reason
-    : "";
-}
-
 /** Run the on-demand distill producer for one card. Explicitly invalidates the pending read — the staging
  *  chokepoint emits no user-bus event.
  *
@@ -51,5 +43,5 @@ function suggestFailureReason(error: unknown): string {
 export const useSuggestCharacterTags = createEntityMutation<inferInput<Trpc["discovery"]["suggestCharacterTags"]>, unknown>({
   options: (trpc) => trpc.discovery.suggestCharacterTags.mutationOptions(),
   invalidates: (trpc, vars) => [trpc.tag.listPendingSuggestions.queryFilter({ characterId: vars.characterId })],
-  errorToast: (error) => (suggestFailureReason(error) === CARD_NOT_DISTILLABLE_REASON ? SUGGEST_NOT_DISTILLABLE_COPY : SUGGEST_RETRY_COPY),
+  errorToast: (error) => (trpcErrorReason(error) === CARD_NOT_DISTILLABLE_REASON ? SUGGEST_NOT_DISTILLABLE_COPY : SUGGEST_RETRY_COPY),
 });

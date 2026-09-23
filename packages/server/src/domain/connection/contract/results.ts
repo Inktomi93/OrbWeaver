@@ -44,7 +44,9 @@ export interface BindingView {
   readonly unavailableCause: UnavailableCause | null;
 }
 
-export interface EndpointModelsResult {
+/** A model-list read for the pane — a saved row's catalog (`catalogModels`) or an endpoint draft's
+ *  (`listEndpointModels`). `listed: false` carries WHY: the provider listed nothing, or the read failed. */
+export interface ModelListResult {
   readonly listed: boolean;
   readonly models: readonly ModelCatalogEntry[];
   /** WHY the list came back empty when it did — the pane's copy for the typed-id fallback. */

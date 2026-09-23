@@ -150,9 +150,15 @@ test("a keyed endpoint's partial-failure retry keeps the list and saves the list
   await submit(dialog);
 
   await expect(dialog.getByRole("alert").filter({ hasText: "Your key was saved as" })).toBeVisible();
-  await expect(dialog.getByRole("option")).toHaveCount(2);
+  // Both listed rows are still offered (the pick also heads the device-local Recent group).
+  await expect(dialog.getByRole("option", { name: "Qwen/Qwen3-32B" })).toHaveCount(1);
+  await expect(dialog.getByRole("option", { name: "Qwen/Qwen3-8B" }).first()).toBeVisible();
   await expect(dialog.getByRole("status").filter({ hasText: "Picked:" })).toHaveText("Picked: Qwen/Qwen3-8B");
   await expect(component.getByTestId("held-secrets")).toHaveText("0");
+  // A re-list now names the SAVED key by id — dialing without it would be a 401 read as "no models".
+  await dialog.getByRole("button", { name: "List models" }).click();
+  await expect.poll(() => trpc.lastInput("connection.listEndpointModels")).toEqual({ baseUrl: VLLM_URL, credentialId: "user_credential_ctminted001" });
+  await expect(dialog.getByRole("option", { name: "Qwen/Qwen3-32B" })).toHaveCount(1);
 
   await submit(dialog);
   await expect(dialog).toBeHidden();
@@ -175,6 +181,35 @@ test("a keyed endpoint add with its list read leaves no key in any mutation", as
   await expect(dialog).toBeHidden();
   await expect(component.getByTestId("held-secrets")).toHaveText("0");
   await expect.poll(() => page.content()).not.toContain(SECRET);
+});
+
+// A REFUSAL OF THE URL ITSELF lands on the Server URL field (side-eye P1), stated once inline — no toast —
+// and editing the URL clears it.
+test("a refused Server URL is an error on that field, and editing the URL clears it", async ({ mount, page }) => {
+  await stubConnectionsPane(page, {
+    createConnection: trpcError({
+      code: "BAD_REQUEST",
+      reason: "connection_base_url_refused",
+      message: '"10.0.0.5:8000" is a private address this deployment does not admit.',
+    }),
+  });
+  await mount(<ConnectionsAuthoringStory width={870} />);
+  const dialog = await openAddDialog(page);
+  await pickProvider(page, dialog, "vLLM");
+  const url = dialog.getByLabel("Server URL", { exact: true });
+  await url.fill("http://10.0.0.5:8000/v1");
+  await dialog.getByRole("textbox", { name: "Model" }).fill("Qwen/Qwen3-8B");
+  await submit(dialog);
+
+  await expect(url).toHaveAttribute("aria-invalid", "true");
+  await expect(dialog.getByText('"10.0.0.5:8000" is a private address this deployment does not admit.', { exact: true })).toBeVisible();
+  // One inline statement of the failure, with the doubled period stripped.
+  await expect(dialog.locator('[data-slot="add-connection-failure"]')).toHaveCount(1);
+  await expect(dialog.locator('[data-slot="add-connection-failure"]')).toHaveText(
+    'Nothing was saved — "10.0.0.5:8000" is a private address this deployment does not admit.',
+  );
+  await url.fill("http://127.0.0.1:8000/v1");
+  await expect(url).not.toHaveAttribute("aria-invalid", "true");
 });
 
 // ── every built-in provider ─────────────────────────────────────────────────────────────────────────────
@@ -392,13 +427,23 @@ for (const { arm, width, device } of AUTHORING_ARMS) {
 
       await pickProvider(page, dialog, "vLLM");
       await dialog.getByLabel("Server URL", { exact: true }).fill(VLLM_URL);
-      await dialog.getByRole("button", { name: "List models" }).click();
+      const list = dialog.getByRole("button", { name: "List models" });
+      await list.click();
       await listing.requested;
       await expect(dialog.getByRole("progressbar", { name: "Loading 127.0.0.1:8000 models…" })).toBeVisible();
       await expect(dialog.getByRole("combobox", { name: "Search 127.0.0.1:8000 models" })).toBeDisabled();
+      // Pending, the button stays focusable (aria-disabled) instead of dropping focus to the document.
+      await expect(list).toHaveAttribute("aria-disabled", "true");
+      await expect(list).toBeFocused();
+      // The skeleton rows are drawn at the list's width, and no "0 results" is announced while loading.
+      const skeleton = await dialog.locator('[data-slot="model-picker-skeleton"]').boundingBox();
+      expect(skeleton?.width ?? 0).toBeGreaterThan(0);
+      await expect(dialog.getByRole("status").filter({ hasText: /result/ })).toHaveCount(0);
       await expectInsideViewport(page, dialog);
       listing.release({ listed: true, models: [catalogEntry("Qwen/Qwen3-32B")], reason: null });
       await expect(dialog.getByRole("option", { name: "Qwen/Qwen3-32B" })).toBeVisible();
+      // …and the caret moves to the search box the list arrived with.
+      await expect(dialog.getByRole("combobox", { name: "Search 127.0.0.1:8000 models" })).toBeFocused();
     });
 
     test(`${arm}: empty — the pane teaches the add, and an endpoint that lists nothing is typed`, async ({ mount, page }) => {
@@ -435,6 +480,8 @@ for (const { arm, width, device } of AUTHORING_ARMS) {
       await submit(dialog);
       const notice = dialog.getByRole("alert").filter({ hasText: "Your key was saved as" });
       await expect(notice).toContainText("but the connection wasn't created — the provider refused the model id.");
+      // Stated once, inline — the dialog's mutations raise no toast behind the scrim.
+      await expect(dialog.locator('[data-slot="add-connection-failure"]')).toHaveCount(1);
       await notice.scrollIntoViewIfNeeded();
       await expect(notice).toBeInViewport();
       await expect(dialog.getByRole("button", { name: "Add connection" })).toBeEnabled();
@@ -461,6 +508,8 @@ for (const { arm, width, device } of AUTHORING_ARMS) {
       await expect(model).toHaveAccessibleDescription(
         "Type the model id as Anthropic spells it. Once the connection is added, “Add another model on this key” in its menu lists the models the key can use.",
       );
+      // The example is in the provider's own spelling, not one id for every provider.
+      await expect(model).toHaveAttribute("placeholder", "e.g. claude-opus-5");
       await expectInsideViewport(page, dialog);
       await dialog.getByLabel("API key", { exact: true }).fill("sk-ant-ct");
       await model.fill("claude-opus-5");

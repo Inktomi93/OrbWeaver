@@ -15,7 +15,14 @@ import { routeTrpc } from "../../../support/node/route-trpc.ts";
 
 export type ConnectionRow = TrpcWireOutput<"connection.list">[number];
 export type CredentialRow = TrpcWireOutput<"credentials.list">[number];
-export type CatalogEntry = TrpcWireOutput<"connection.catalogModels">[number];
+export type CatalogRead = TrpcWireOutput<"connection.catalogModels">;
+export type CatalogEntry = CatalogRead["models"][number];
+
+/** The list-or-reason answer `catalogModels` gives for these rows — `listed: false` with the server's own
+ *  "listed no models" reason when there are none. */
+export function catalogOf(models: readonly CatalogEntry[]): CatalogRead {
+  return models.length > 0 ? { listed: true, models, reason: null } : { listed: false, models: [], reason: "the provider listed no models" };
+}
 type BindingView = TrpcWireOutput<"connection.listBindings">[number];
 type AvailabilityRow = TrpcWireOutput<"connection.providersAvailable">[number];
 
@@ -144,7 +151,7 @@ export async function stubConnectionsPane(page: Page, opts: PaneStubOptions = {}
     "credentials.storageStatus": opts.storageStatus ?? { enabled: opts.storageEnabled ?? true },
     "credentials.add": opts.addCredential ?? mintCredential,
     "connection.create": opts.createConnection ?? createConnection,
-    "connection.catalogModels": opts.catalogModels ?? [],
+    "connection.catalogModels": opts.catalogModels ?? catalogOf([]),
     "connection.listEndpointModels": opts.listEndpointModels ?? { listed: false, models: [], reason: "the endpoint listed no models" },
     "connection.useForEverything": [],
   });

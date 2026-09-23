@@ -20,6 +20,7 @@
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
 import "../../support/composed-real.ts";
 import type { ProviderId } from "@orb/contracts/inference";
+import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
 import {
   assets,
   characterDocuments,
@@ -59,7 +60,6 @@ import type {
 } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { AutomationService } from "@orb/server/domain/automation";
-import { CONNECTION_OP_CODES } from "@orb/server/domain/connection";
 import { appRouter } from "@orb/server/transport/trpc";
 import { strToU8, zipSync } from "fflate";
 import { describe } from "vitest";

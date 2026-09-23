@@ -5,7 +5,7 @@
 // its key. This file holds the action's copy, which rows offer it, and the dialog's form values.
 
 import type { ProviderAuth } from "@orb/contracts/inference";
-import { MODEL_REQUIRED_MESSAGE } from "./model-catalog-model.ts";
+import { MODEL_REQUIRED_MESSAGE } from "./model-picker-model.ts";
 
 /** What the new connection shares with the row it was opened from. The row's own key is the §5.3a case; an
  *  endpoint row with no key shares its server, and a built-in row shares nothing but the provider. */

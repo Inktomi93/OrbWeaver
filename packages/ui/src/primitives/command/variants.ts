@@ -45,7 +45,9 @@ export const commandVariants = tv({
     groupHeading: "px-row py-field text-label leading-label text-muted-foreground",
     item: "orb-skip-offscreen flex min-h-control-sm cursor-default items-center gap-row rounded-control px-row text-body leading-body outline-none select-none data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground",
     separator: "my-field border-t border-border",
-    loading: "flex items-center justify-center py-block text-body leading-body text-muted-foreground",
+    // A COLUMN, so its child STRETCHES: cmdk wraps the children in an unstyled aria-hidden div, and in a
+    // centered row that div shrinks to its content — skeleton bars sized `w-full` then measure 0px wide.
+    loading: "flex flex-col justify-center py-block text-center text-body leading-body text-muted-foreground",
     // The SR live region (mirrors autocomplete's `status` slot) — visually collapsed, must stay
     // mounted (only its text changes) so a screen reader keeps hearing count updates.
     status: "sr-only",
@@ -56,6 +58,8 @@ export const commandVariants = tv({
       // A stable compact viewport keeps filtering from moving its containing dialog without reserving
       // the giant empty cavity the old full-height palette left behind.
       compact: { list: "h-48 [&_[cmdk-list-sizer]]:h-full" },
+      // Sized to its rows up to the compact step: a three-model list is three rows tall, not a 192px box.
+      capped: { list: "max-h-48" },
     },
   },
   defaultVariants: { listSize: "content" },

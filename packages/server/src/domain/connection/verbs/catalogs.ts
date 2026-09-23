@@ -1,24 +1,29 @@
 // verbs: catalogModels · listEndpointModels · refreshCatalog — delegations to the runtime's catalogs. The
 // pane-facing one is `listEndpointModels`: the SERVER-SIDE `GET <baseUrl>/v1/models` for an endpoint row being
 // authored (a browser cannot reach a user's loopback box, §7.4), judged by the F12 admission BEFORE the dial
-// and riding the SSRF guard on it. An empty or failed list is the typed-id fallback with its reason, never a
-// throw — the row is saved `modelListed: false` and the pane says why.
+// and riding the SSRF guard on it. Both pane-facing reads (`catalogModels` for a saved row, `listEndpointModels`
+// for a draft) answer the same list-or-reason shape: an empty or failed list is the typed-id fallback with its
+// reason, never a throw, so the pane can tell "listed nothing" from "the list failed" and offer a retry.
 
-import type { ModelCatalogEntry } from "@orb/contracts/inference";
+import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import { DomainOperationError } from "@orb/kit/errors";
-import { CONNECTION_OP_CODES, ConnectionNotFoundError } from "../contract/errors.ts";
-import type { CatalogRefreshOutcome, EndpointModelsResult } from "../contract/results.ts";
+import { ConnectionNotFoundError } from "../contract/errors.ts";
+import type { CatalogRefreshOutcome, ModelListResult } from "../contract/results.ts";
 import type { ConnectionContext, ConnectionService } from "../contract/service.ts";
 import { fetchOwnedConnection } from "../persistence/connections.ts";
 
 function createCatalogModels(ctx: ConnectionContext): ConnectionService["catalogModels"] {
-  return async (params): Promise<readonly ModelCatalogEntry[]> => {
+  return async (params): Promise<ModelListResult> => {
     const row = await fetchOwnedConnection(ctx.db, params.principal.userId, params.connectionId);
     if (row === null) {
       throw new ConnectionNotFoundError(params.connectionId);
     }
-    return ctx.runtime.catalogs.models({ connection: row, principal: params.principal });
+    const read = await ctx.runtime.catalogs.models({ connection: row, principal: params.principal });
+    if (read.models.length > 0) {
+      return { listed: true, models: read.models, reason: null };
+    }
+    return { listed: false, models: [], reason: read.failure ?? "the provider listed no models" };
   };
 }
 
@@ -40,7 +45,7 @@ async function admitEndpointDraft(ctx: ConnectionContext, params: Parameters<Con
 }
 
 function createListEndpointModels(ctx: ConnectionContext): ConnectionService["listEndpointModels"] {
-  return async (params): Promise<EndpointModelsResult> => {
+  return async (params): Promise<ModelListResult> => {
     await admitEndpointDraft(ctx, params);
     try {
       const models = await ctx.runtime.catalogs.endpoint({
