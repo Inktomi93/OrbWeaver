@@ -59,9 +59,11 @@ export const useListEndpointModels = createEntityMutation<inferInput<Trpc["conne
   errorToast: "Couldn't list that server's models.",
 });
 
-/** Add a provider key (plaintext key in, redacted row out). */
+/** Add a provider key (plaintext key in, redacted row out). `gcTime: 0`: the mutation cache keeps a settled
+ *  mutation's VARIABLES — here the plaintext key — for the default five minutes after its form unmounts, so
+ *  this one is dropped the moment nothing observes it. */
 export const useAddCredential = createEntityMutation<inferInput<Trpc["credentials"]["add"]>, CredentialView>({
-  options: (trpc) => trpc.credentials.add.mutationOptions(),
+  options: (trpc) => ({ ...trpc.credentials.add.mutationOptions(), gcTime: 0 }),
   invalidates: (trpc) => [trpc.credentials.list.pathFilter()],
   errorToast: "Couldn't save that key — check the value and try again.",
 });
