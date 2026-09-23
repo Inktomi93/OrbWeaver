@@ -152,6 +152,6 @@ export const connectionRouter = t.router({
     .input(z.object({ connectionId }))
     .mutation(({ ctx, input, signal }) => ctx.services.connection.inspectEndpoint({ principal: ctx.auth, connectionId: input.connectionId, signal })),
 
-  // ── providers: what the picker may offer (every registry row with its wire's build state, §5.3a)
+  // ── providers: what the picker may offer the caller (every row it may use, with its wire's build state, §5.3a)
   providersAvailable: authedProcedure.query(({ ctx }) => ctx.services.connection.providersAvailable({ principal: ctx.auth })),
 });
