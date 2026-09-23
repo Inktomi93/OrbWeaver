@@ -19,9 +19,11 @@ migrate under `docs/plans/doc-migration/design.md`; do not add a file to them.
 
 Every structural change goes through `pnpm doc` (run `pnpm doc help` for the verbs): minting, status
 and supersession, work-item transitions and landing, archiving, `review`, and the generated indexes
-(`README.md` in each home, a plan's `tasks.md`). Never edit a generated file or a frontmatter block by
-hand. `pnpm check:agents` reds a stale index, a missing section, a size cap, a dead link or path, and a
-writing-rule finding; its message names the fixing command.
+(`README.md` in each home, a plan's `tasks.md`). A mint takes its section text and state as flags
+(`item` takes `--what --why --done --lane --blocked`, or `--from <file.json>` for a batch; `new adr|plan`
+take a flag per section) and refuses text the check would red. Never edit a generated file or a
+frontmatter block by hand. `pnpm check:agents` reds a stale index, a missing section, a size cap, a
+dead link or path, and a writing-rule finding; its message names the fixing command.
 
 ## Frontmatter
 

@@ -2,16 +2,21 @@
 // a UsageError so the cli maps it to exit 3 (misuse). Every list-taking verb reads a leading run of ids
 // or paths, so `set 12 14 17 done` is one call.
 import { UsageError } from "../../_shared/run-tool.ts";
-import type { DocCommand, ItemPatch } from "../contract/types.ts";
+import type { DocCommand, ItemPatch, SectionContent } from "../contract/types.ts";
 import { isItemKind, isItemState } from "./items.ts";
 import { isSlug } from "./names.ts";
+import { ADR_SECTIONS, ITEM_SECTIONS, PLAN_SECTIONS, sectionFlags } from "./templates.ts";
 
 const ID_RE = /^\d+$/u;
 
 export const USAGE = [
   "usage: pnpm doc <verb> …",
-  "  new adr <slug> [--title <t>]        new plan <slug> [--title <t>]",
-  "  item <title> --kind bug|work|decision|tooling [--priority P0..P3] [--area a] [--plan slug] [--lane x]",
+  "  new adr <slug> [--title <t>] [--context <text>] [--decision <text>] [--consequences <text>] [--alternatives <text>]",
+  "  new plan <slug> [--title <t>] [--goal <text>] [--shape <text>] [--rejected <text>] [--coupled <text>] [--test-plan <text>]",
+  "  item <title> --kind bug|work|decision|tooling [--priority P0..P3] [--area a] [--plan slug] [--lane x | --blocked <reason>]",
+  "       [--what <text>] [--why <text>] [--done <text>]",
+  "  item --from <file.json>             a JSON array of items (title, kind, priority, area, plan, lane, blocked,",
+  "                                      what, why, done), written all-or-nothing",
   "  status <status> <path…> [--by <path>]",
   "  set <id…> <open|doing|blocked|done> [--lane x] [--blocked <reason>] [--priority P] [--area a] [--plan s] [--reviewed x] [--evidence sha]",
   "  land <id…> --evidence <sha>       land --merged",
@@ -78,19 +83,57 @@ function slugArg(value: string | undefined, verb: string): string {
   return value;
 }
 
+function contentFlagNames(flags: readonly string[]): readonly string[] {
+  return flags.map((flag) => `--${flag}`);
+}
+
+/** The section text a mint carries: `--<flag> <text>` per content flag the kind's template declares. */
+function parseContent<F extends string>(args: readonly string[], flags: readonly F[]): SectionContent<F> {
+  const content: { [K in F]?: string } = {};
+  for (const flag of flags) {
+    const value = flagValue(args, `--${flag}`);
+    if (value !== null) {
+      content[flag] = value;
+    }
+  }
+  return content;
+}
+
+const ADR_FLAGS = sectionFlags(ADR_SECTIONS);
+const PLAN_FLAGS = sectionFlags(PLAN_SECTIONS);
+const ITEM_CONTENT_FLAGS = sectionFlags(ITEM_SECTIONS);
+
 function parseNew(args: readonly string[]): DocCommand {
   const [kind, slug, ...rest] = args;
-  refuseUnknownFlags(rest, ["--title"], "new");
   if (kind !== "adr" && kind !== "plan") {
     throw new UsageError(`new takes adr or plan\n${USAGE}`);
   }
-  return { kind: kind === "adr" ? "new-adr" : "new-plan", slug: slugArg(slug, "new"), title: flagValue(rest, "--title") };
+  const title = flagValue(rest, "--title");
+  if (kind === "adr") {
+    refuseUnknownFlags(rest, ["--title", ...contentFlagNames(ADR_FLAGS)], "new adr");
+    return { kind: "new-adr", slug: slugArg(slug, "new"), title, content: parseContent(rest, ADR_FLAGS) };
+  }
+  refuseUnknownFlags(rest, ["--title", ...contentFlagNames(PLAN_FLAGS)], "new plan");
+  return { kind: "new-plan", slug: slugArg(slug, "new"), title, content: parseContent(rest, PLAN_FLAGS) };
 }
 
-const ITEM_FLAGS = ["--kind", "--priority", "--area", "--plan", "--lane"];
+const FROM_FLAG = "--from";
+const ITEM_FLAGS = ["--kind", "--priority", "--area", "--plan", "--lane", "--blocked", ...contentFlagNames(ITEM_CONTENT_FLAGS), FROM_FLAG];
+
+/** `item --from <file>` stands alone: every field of every item lives in the file. */
+function parseItemBatch(args: readonly string[]): DocCommand {
+  const from = requiredFlag(args, FROM_FLAG);
+  if (args.length !== 2) {
+    throw new UsageError(`item ${FROM_FLAG} takes no title and no other flag — every field lives in the file\n${USAGE}`);
+  }
+  return { kind: "item-batch", from };
+}
 
 function parseItem(args: readonly string[]): DocCommand {
   refuseUnknownFlags(args, ITEM_FLAGS, "item");
+  if (args.includes(FROM_FLAG)) {
+    return parseItemBatch(args);
+  }
   const title = positionals(args, ITEM_FLAGS).join(" ").trim();
   if (title === "") {
     throw new UsageError(`item takes a title\n${USAGE}`);
@@ -101,12 +144,16 @@ function parseItem(args: readonly string[]): DocCommand {
   }
   return {
     kind: "item",
-    title,
-    itemKind,
-    priority: flagValue(args, "--priority"),
-    area: flagValue(args, "--area"),
-    plan: flagValue(args, "--plan"),
-    lane: flagValue(args, "--lane"),
+    input: {
+      title,
+      kind: itemKind,
+      priority: flagValue(args, "--priority"),
+      area: flagValue(args, "--area"),
+      plan: flagValue(args, "--plan"),
+      lane: flagValue(args, "--lane"),
+      blocked: flagValue(args, "--blocked"),
+      content: parseContent(args, ITEM_CONTENT_FLAGS),
+    },
   };
 }
 
