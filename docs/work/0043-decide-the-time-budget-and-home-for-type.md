@@ -39,3 +39,16 @@ that same project. Verify has one compiler world with one lazy type graph, so th
 first chunk carries 23 `analysis: "types"` pins, 24 of the 47 in all. Measured at 47 pins: a baseline of
 about 46 to 69 seconds, a `types` pin of about 6 to 26 seconds, and 240 to 460 seconds for the whole file.
 The file stays in the `repository` project inside `--full` with per-test budgets.
+
+Later measurements, lane cb-pins, 2026-09-23:
+
+- **Batching:** the overlaid passes are batched. Add pins share one pass, and each finding is attributed by
+  policy and path. At 47 pins, back to back at loadavg 5 to 8, the per-pin plan took 142 seconds and the
+  batched plan took 54.
+- **Scoped baseline:** the baseline now measures only pins whose silence is not structural. At 109 pins and
+  loadavg 27 to 36, it took 153 seconds instead of 290.
+- **Whole file at 109 pins:** detached at `c2f212f2b` with loadavg 34 rising to 48, 117 tests passed in 697
+  seconds of test time (718 seconds wall). The baseline took 151 seconds, the overlaid passes 449, and the
+  controls 94.
+- **Owner ruling:** the liveness suite stays one serial file inside `--full`, with no parallel project. It
+  stays in the `repository` project, with per-test budgets set from these measurements.
