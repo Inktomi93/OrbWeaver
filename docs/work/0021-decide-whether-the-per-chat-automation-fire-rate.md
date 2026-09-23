@@ -12,6 +12,9 @@ area: server
 
 The per-chat fire-rate cap plane has no route and no client. AutomationService.getBudgets and setBudgets, selectBudgetView, the upsert in packages/server/src/domain/automation/persistence/budgets.ts, the verbs get-budgets.ts and set-budgets.ts, and the BudgetView contract in packages/contracts/src/automation/index.ts are exercised only by their own integration tests. The fire-time check in persistence/fires.ts still reads automation_budgets, so every chat is held to the default ceiling and no host can view or change it. Only the owner-wide plane (getOwnerBudgets/setOwnerBudgets, OwnerBudgetView) is routed and rendered in settings.
 
+Owner ruling: outcome (b). Delete the per-chat plane and keep a fixed default. The owner-wide cap in
+settings stays.
+
 ## Why
 
 The per-chat cap is a live runtime limit that no user can reach. Either chat hosts need a way to tune it, or it should collapse to a fixed default and the unreachable read/write plumbing and its contract type should go. Leaving it as is ships a contracts type with no boundary crossing and a service API with no caller.

@@ -11,6 +11,7 @@ area: client
 ## What
 
 Hosted providers in the add-connection dialog (packages/client/src/features/credentials/components/add-connection-dialog.tsx, ProviderFields) only get a typed Model text field. The only model list the dialog knows how to fetch is the base-URL endpoint list. Four pieces of work:
+
 1. Add a connection-door read that lists a hosted provider's models for an unsaved draft, identified by provider plus a draft key or a saved credential id. The existing catalogModels read needs a saved connection id, so it cannot serve the dialog.
 2. Drive the dialog's Model field from that read, the same way the saved-connection editor does (connection-editor-essential.tsx): a non-retrying query, a visible loading state, a searchable list, and a typed-id field when the list is empty or the read fails.
 3. Add an "Add another model on this key" action to the saved-key view. It opens the dialog with the provider and credential already filled in, shows no secret, and puts focus on the model picker.
