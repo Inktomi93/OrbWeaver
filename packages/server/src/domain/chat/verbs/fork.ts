@@ -14,7 +14,7 @@
 // `rawContent`/`macroFreezes`, added by the identity spine). The classification law
 // lives on `forkVariantValues`: a column readable ONLY through a HOST-GATED surface does not survive the fork.
 //
-// Copied: the chat row's behavior (title/metadata/anchor/variables), the character roster the forker owns
+// Copied: the chat row's behavior (title/metadata/anchor/variables/user-macro picks), the character roster the forker owns
 // (an owner forking their own chat keeps all), the canon (whole, even a dropped character's prior lines),
 // the injections. Reset: `parentChatId`/`forkedAt`/timestamps/`starred`/`archived`; the host becomes the
 // forker. Other human participants are NOT copied (a fresh `chat_participants` insert is invite/host-action
@@ -48,6 +48,7 @@ import {
   loadChatInjections,
   loadChatRow,
   loadMessageSlots,
+  loadStoredUserMacroValues,
   loadStoredVariables,
   loadVariableDeltas,
   loadVariantsByMessageIds,
@@ -606,8 +607,9 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
     // `loadVariableDeltas` is the ACTIVITY plane (seq-stamped variable ops, zero canon bytes — see the
     // `chat-viewer-plane-canon-reads` gate header), read UNFLOORED on purpose: the floored fork's baseline is a
     // fold of the whole chain, and folding is what strips the pre-floor history down to present state.
-    const [variables, slots, injections, sourceParticipants, chainDeltas] = await Promise.all([
+    const [variables, userMacroValues, slots, injections, sourceParticipants, chainDeltas] = await Promise.all([
       loadStoredVariables(ctx.db, chatId),
+      loadStoredUserMacroValues(ctx.db, chatId),
       loadMessageSlots(ctx.db, chatId, throughSeq, historyFloorSeq),
       loadChatInjections(ctx.db, chatId),
       loadParticipants(ctx.db, chatId),
@@ -710,6 +712,9 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
           variableValues: variables,
           runtimeVariables: Object.keys(forkRuntimeCache).length > 0 ? forkRuntimeCache : null,
           standaloneVariableDeltas: forkStandaloneDeltas.length > 0 ? forkStandaloneDeltas : null,
+          // The parent's user-macro picks carry the same as ChoiceBlock picks (D46/D169): a fork continues
+          // the same setup, member-readable in the source room, so it copies verbatim (no strip applies).
+          userMacroValues,
           createdAt: now,
           updatedAt: now,
         }),
