@@ -63,6 +63,7 @@ test("the typed-id example is in each provider's own spelling", () => {
     ["lm-studio", "e.g. Qwen/Qwen3-32B"],
     ["ollama", "e.g. Qwen/Qwen3-32B"],
     ["custom-openai", "e.g. Qwen/Qwen3-32B"],
-    ["local-light", "e.g. Xenova/bge-small-en-v1.5"],
+    // A closed catalog's example is a model it runs — the seeded encoder, not an id the runtime refuses.
+    ["local-light", "e.g. jinaai/jina-clip-v2"],
   ]);
 });

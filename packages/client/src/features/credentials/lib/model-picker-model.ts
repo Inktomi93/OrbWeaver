@@ -58,18 +58,22 @@ export const MODEL_PICKER_RENDER_CAP = 50;
 
 const MILLION = 1_000_000;
 const THOUSAND = 1000;
+const KIBI = 1024;
 const PRICE_FRACTION_DIGITS = 2;
 
-/** Format a context length as a compact human string (200000 → "200K", 1_000_000 → "1M"). */
+/** Format a context length as a compact human string. A power-of-two window is counted in binary units, the
+ *  way the model card states it (32768 → "32K", 131072 → "128K"); a round decimal one in decimal units
+ *  (200000 → "200K", 1_000_000 → "1M"). */
 export function formatContextLength(contextLength: number | null): string | null {
   if (contextLength === null || contextLength <= 0) {
     return null;
   }
-  if (contextLength >= MILLION) {
-    return `${trimZeros(contextLength / MILLION)}M`;
+  const unit = contextLength % KIBI === 0 ? KIBI : THOUSAND;
+  if (contextLength >= unit * unit) {
+    return `${trimZeros(contextLength / (unit * unit))}M`;
   }
-  if (contextLength >= THOUSAND) {
-    return `${trimZeros(contextLength / THOUSAND)}K`;
+  if (contextLength >= unit) {
+    return `${trimZeros(contextLength / unit)}K`;
   }
   return String(contextLength);
 }
@@ -122,9 +126,10 @@ export function filterByChips<T extends PickerEntry>(entries: readonly T[], chip
 
 /** One provider/vendor section of the picker list. */
 export interface ModelGroup<T> {
-  /** The bucket key: an id's vendor prefix (lowercased), or `""` for a slash-less id. */
+  /** The bucket key: an id's vendor prefix (lowercased), `""` for a slash-less id, or the flat list's key. */
   readonly key: string;
-  readonly heading: string;
+  /** `null` for the one headless section of a list whose vendors each hold a single model. */
+  readonly heading: string | null;
   readonly entries: readonly T[];
 }
 
@@ -137,13 +142,20 @@ export interface GroupedModels<T> {
 /** The bucket key for a slash-less id (agent-sdk aliases, a hosted provider's bare ids, an endpoint's names). */
 const UNPREFIXED_GROUP_KEY = "";
 
-/** The floor of rows a rendered group gets, so a many-vendor catalog still shows a readable slice of many. */
+/** The key of the single headless section a list without a multi-model vendor renders as. */
+const FLAT_GROUP_KEY = "flat";
+
+/** The floor of rows an admitted group gets, so a many-vendor catalog shows a readable slice of each. */
 const MIN_GROUP_ROWS = 3;
 
-/** Vendor slugs whose display name isn't their title-cased slug (measured against the live OR catalog). */
+/** Vendor slugs whose display name is not the prefix as the ids spell it (measured against the live OR
+ *  catalog and the Hugging Face org names an endpoint serves). */
 const VENDOR_LABELS: Record<string, string> = {
   ai21: "AI21",
+  anthropic: "Anthropic",
   deepseek: "DeepSeek",
+  "deepseek-ai": "DeepSeek",
+  google: "Google",
   inclusionai: "InclusionAI",
   "meta-llama": "Meta",
   minimax: "MiniMax",
@@ -152,6 +164,7 @@ const VENDOR_LABELS: Record<string, string> = {
   nvidia: "NVIDIA",
   openai: "OpenAI",
   openrouter: "OpenRouter",
+  qwen: "Qwen",
   "x-ai": "xAI",
   "z-ai": "Z.AI",
 };
@@ -159,26 +172,19 @@ const VENDOR_LABELS: Record<string, string> = {
 /** Vendors that lead the section order — the majors by catalog weight, Anthropic first. */
 const VENDOR_PRIORITY: readonly string[] = ["anthropic", "openai", "google", "x-ai", "deepseek", "qwen", "mistralai", "meta-llama"];
 
-const SLUG_SEPARATORS = /[-_]/;
-
-/** The vendor bucket an id belongs to — the prefix before the first "/", else the unprefixed bucket. */
-function vendorKeyOf(id: string): string {
+/** The vendor prefix as an id spells it — the text before the first "/", or `""` for a slash-less id. */
+function vendorPrefixOf(id: string): string {
   const slash = id.indexOf("/");
-  return slash > 0 ? id.slice(0, slash).toLowerCase() : UNPREFIXED_GROUP_KEY;
+  return slash > 0 ? id.slice(0, slash) : UNPREFIXED_GROUP_KEY;
 }
 
-function titleCaseSlug(slug: string): string {
-  return slug
-    .split(SLUG_SEPARATORS)
-    .map((word) => (word === "" ? word : `${word.charAt(0).toUpperCase()}${word.slice(1)}`))
-    .join(" ");
-}
-
-function headingFor(key: string, unprefixedHeading: string): string {
+/** A known vendor's display name, else the prefix exactly as the group's first id spells it. A title-cased
+ *  slug invents a spelling no vendor uses ("deepseek-ai" is not "Deepseek Ai"). */
+function headingFor(key: string, firstId: string, unprefixedHeading: string): string {
   if (key === UNPREFIXED_GROUP_KEY) {
     return unprefixedHeading;
   }
-  return VENDOR_LABELS[key] ?? titleCaseSlug(key);
+  return VENDOR_LABELS[key] ?? vendorPrefixOf(firstId);
 }
 
 function priorityOf(key: string): number {
@@ -186,19 +192,86 @@ function priorityOf(key: string): number {
   return index === -1 ? VENDOR_PRIORITY.length : index;
 }
 
-/** An entry the user typed verbatim — it must survive the cap, whichever group it lands in. */
-function isExactMatch(entry: PickerEntry, needle: string): boolean {
+/** Whether an entry IS what was typed — its id or its name, whole, case-folded. The one match strong enough
+ *  for Enter to take without the user moving to it, and the row the cap never hides. */
+export function isExactMatch(entry: Pick<PickerEntry, "id" | "label">, query: string): boolean {
+  const needle = query.trim().toLowerCase();
   return needle !== "" && (entry.id.toLowerCase() === needle || entry.label.toLowerCase() === needle);
+}
+
+/** Whether a catalog is worth sectioning by vendor: some vendor holds two or more of its models. Decided on
+ *  the whole catalog, never a search result, so typing never flips the list between sectioned and flat. */
+export function hasMultiModelVendor(entries: readonly Pick<PickerEntry, "id">[]): boolean {
+  const seen = new Set<string>();
+  return entries.some((entry) => {
+    const key = vendorPrefixOf(entry.id).toLowerCase();
+    if (seen.has(key)) {
+      return true;
+    }
+    seen.add(key);
+    return false;
+  });
+}
+
+interface RankedSection<T> {
+  readonly key: string;
+  readonly heading: string | null;
+  readonly ordered: readonly T[];
+  readonly hasExact: boolean;
+}
+
+/** Which sections are trimmed whole before any is cut short: single-row ones, from the lowest rank up, until
+ *  the rest fits the cap. */
+function trimmedSingles(lengths: readonly number[], cap: number): readonly boolean[] {
+  const trimmed = lengths.map(() => false);
+  let wanted = lengths.reduce((sum, length) => sum + length, 0);
+  for (let index = lengths.length - 1; index >= 0 && wanted > cap; index -= 1) {
+    if (lengths[index] === 1) {
+      trimmed[index] = true;
+      wanted -= 1;
+    }
+  }
+  return trimmed;
+}
+
+/** Rows per section under the cap. Single-row sections are trimmed first ({@link trimmedSingles}); then the
+ *  rest, in rank order, are admitted with their floor while the budget holds, and what is left is dealt out
+ *  one row per admitted section per round. Headings never count against the cap. */
+function allotRows(lengths: readonly number[], cap: number): readonly number[] {
+  const trimmed = trimmedSingles(lengths, cap);
+  const takes = lengths.map(() => 0);
+  const admitted: number[] = [];
+  let left = cap;
+  for (const [index, length] of lengths.entries()) {
+    const floor = Math.min(MIN_GROUP_ROWS, length);
+    if (trimmed[index] === true) {
+      continue;
+    }
+    if (floor > left) {
+      break;
+    }
+    admitted.push(index);
+    takes[index] = floor;
+    left -= floor;
+  }
+  const open = (index: number): boolean => (takes[index] ?? 0) < (lengths[index] ?? 0);
+  while (left > 0 && admitted.some(open)) {
+    for (const index of admitted.filter(open).slice(0, left)) {
+      takes[index] = (takes[index] ?? 0) + 1;
+      left -= 1;
+    }
+  }
+  return takes;
 }
 
 /**
  * Bucket the (already chip-filtered and searched) pool into provider sections and apply the render cap.
  *
- * Section order: the group holding an exact query match · the selected model's group · the
- * {@link VENDOR_PRIORITY} majors · then alphabetical. The cap is a budget spent ACROSS groups with a
- * per-group ceiling, so no single vendor eats the list; a group that gets no budget is dropped whole and
- * counts into `overflow`. Exact matches are hoisted to the front of their group AND float that group
- * first, so the row the user typed is never the row the cap hides.
+ * Section order: the group holding an exact query match · the {@link VENDOR_PRIORITY} majors · then by
+ * heading. The order never depends on the pick, so picking a row moves nothing. An unsectioned catalog
+ * ({@link hasMultiModelVendor}) is one headless section: a heading per row is noise. The cap
+ * ({@link allotRows}) counts rows only. Exact matches lead their section, and a pinned row — the pick, or the
+ * model already on the row the picker adds beside — is rendered even when the cap would hide it.
  */
 export function groupModelEntries<T extends PickerEntry>(
   entries: readonly T[],
@@ -206,17 +279,19 @@ export function groupModelEntries<T extends PickerEntry>(
     /** The heading a slash-less id's group carries — whose list it is (a provider label or a host). */
     readonly unprefixedHeading: string;
     readonly query: string;
-    /** The currently-selected model id ("" = unset) — its vendor group sorts above the priority order. */
-    readonly selectedId: string;
+    /** Ids the cap never hides (`""` entries are ignored). */
+    readonly pinnedIds: readonly string[];
+    /** Whether to section by vendor at all — {@link hasMultiModelVendor} over the whole catalog. */
+    readonly sectioned: boolean;
     readonly cap?: number;
   },
 ): GroupedModels<T> {
   const cap = options.cap ?? MODEL_PICKER_RENDER_CAP;
-  const needle = options.query.trim().toLowerCase();
+  const pinned = new Set(options.pinnedIds.filter((id) => id !== ""));
 
   const buckets = new Map<string, T[]>();
   for (const entry of entries) {
-    const key = vendorKeyOf(entry.id);
+    const key = vendorPrefixOf(entry.id).toLowerCase();
     const bucket = buckets.get(key);
     if (bucket === undefined) {
       buckets.set(key, [entry]);
@@ -225,37 +300,35 @@ export function groupModelEntries<T extends PickerEntry>(
     }
   }
 
-  const selectedKey = options.selectedId === "" ? null : vendorKeyOf(options.selectedId);
-  const ranked = [...buckets].map(([key, bucket]) => {
-    const exact = bucket.filter((entry) => isExactMatch(entry, needle));
-    const rest = bucket.filter((entry) => !isExactMatch(entry, needle));
-    return { key, heading: headingFor(key, options.unprefixedHeading), ordered: [...exact, ...rest], hasExact: exact.length > 0 };
+  const ranked: RankedSection<T>[] = [...buckets].map(([key, bucket]) => {
+    const exact = bucket.filter((entry) => isExactMatch(entry, options.query));
+    const rest = bucket.filter((entry) => !isExactMatch(entry, options.query));
+    return { key, heading: headingFor(key, bucket[0]?.id ?? "", options.unprefixedHeading), ordered: [...exact, ...rest], hasExact: exact.length > 0 };
   });
   ranked.sort((a, b) => {
     if (a.hasExact !== b.hasExact) {
       return a.hasExact ? -1 : 1;
     }
-    const aSelected = a.key === selectedKey;
-    const bSelected = b.key === selectedKey;
-    if (aSelected !== bSelected) {
-      return aSelected ? -1 : 1;
-    }
     const byPriority = priorityOf(a.key) - priorityOf(b.key);
-    return byPriority === 0 ? a.heading.localeCompare(b.heading) : byPriority;
+    return byPriority === 0 ? (a.heading ?? "").localeCompare(b.heading ?? "") : byPriority;
   });
 
-  const perGroupCap = Math.max(MIN_GROUP_ROWS, Math.floor(cap / Math.max(1, ranked.length)));
-  const groups: ModelGroup<T>[] = [];
-  let budget = cap;
-  for (const group of ranked) {
-    if (budget <= 0) {
-      break;
-    }
-    const take = Math.min(group.ordered.length, perGroupCap, budget);
-    groups.push({ key: group.key, heading: group.heading, entries: group.ordered.slice(0, take) });
-    budget -= take;
-  }
-  return { groups, overflow: entries.length - (cap - budget) };
+  const sections: readonly RankedSection<T>[] = options.sectioned
+    ? ranked
+    : [{ key: FLAT_GROUP_KEY, heading: null, ordered: ranked.flatMap((section) => section.ordered), hasExact: false }];
+  const takes = allotRows(
+    sections.map((section) => section.ordered.length),
+    cap,
+  );
+  const groups = sections
+    .map((section, index) => ({
+      key: section.key,
+      heading: section.heading,
+      entries: section.ordered.filter((entry, position) => position < (takes[index] ?? 0) || pinned.has(entry.id)),
+    }))
+    .filter((group) => group.entries.length > 0);
+  const rendered = groups.reduce((sum, group) => sum + group.entries.length, 0);
+  return { groups, overflow: entries.length - rendered };
 }
 
 /** Resolve the Recent-group entries: MRU ids mapped to live pool entries, only when the query is empty. */
@@ -268,16 +341,6 @@ export function resolveRecentEntries<T extends PickerEntry>(
     return [];
   }
   return recentIds.map((id) => poolById.get(id)).filter((entry): entry is T => entry !== undefined);
-}
-
-// ── Enter's floor ─────────────────────────────────────────────────────────────────────────────────────
-
-/** Whether a search result is strong enough for Enter to commit it without the user having moved to it: its
- *  id or label CONTAINS what was typed. The fuzzy search keeps showing looser matches — a typo still finds
- *  its model — but Enter never saves one ("gpt-6" once saved an unrelated "…gptq…v0.6" row as listed). */
-export function isStrongMatch(entry: Pick<PickerEntry, "id" | "label">, query: string): boolean {
-  const needle = query.trim().toLowerCase();
-  return needle !== "" && (entry.id.toLowerCase().includes(needle) || entry.label.toLowerCase().includes(needle));
 }
 
 // ── the source, the policy and the arms ───────────────────────────────────────────────────────────────
@@ -299,11 +362,15 @@ export function isListedModel(source: ModelCatalogSource, modelId: string): bool
   return source.status === "listed" && id !== "" && source.models.some((entry) => entry.id === id);
 }
 
+/** Whitespace inside a typed term: a search of several words, never a model id. */
+const INNER_WHITESPACE = /\s/u;
+
 /** The id the explicit "use as typed" option would write, or `null` when it is not offered: policy forbids
- *  it, nothing is typed, or the typed text already IS a listed id (the list row is the honest choice). */
+ *  it, nothing is typed, the term has a space in it (a multi-word search, not an id), or the typed text
+ *  already IS a listed id (the list row is the honest choice). */
 export function typedOption(args: { readonly term: string; readonly models: readonly { readonly id: string }[]; readonly allowed: boolean }): string | null {
   const id = args.term.trim();
-  if (!args.allowed || id === "" || args.models.some((entry) => entry.id === id)) {
+  if (!args.allowed || id === "" || INNER_WHITESPACE.test(id) || args.models.some((entry) => entry.id === id)) {
     return null;
   }
   return id;

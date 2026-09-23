@@ -5,7 +5,7 @@
 // write-seam refusals as teaching; the verb stays the enforcement floor.
 
 import type { ProviderAuth, ProviderDef, Wire } from "@orb/contracts/inference";
-import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
+import { CONNECTION_OP_CODES, LOCAL_LIGHT_SEED_ROWS } from "@orb/contracts/inference";
 import { addModelActionLabel } from "./add-model-on-key-form-model.ts";
 import { clauseOf, MODEL_REQUIRED_MESSAGE } from "./model-picker-model.ts";
 
@@ -85,7 +85,8 @@ const WIRE_MODEL_EXAMPLES: Record<Wire, string> = {
   "openai-compat": "gpt-5",
   "anthropic-messages": "claude-opus-5",
   "agent-sdk": "opus",
-  "local-light": "Xenova/bge-small-en-v1.5",
+  // A builtin catalog is closed, so its example is a model it actually runs: the seeded encoder's id.
+  "local-light": LOCAL_LIGHT_SEED_ROWS[0].model,
 };
 
 export function modelIdExample(provider: Pick<ProviderDef, "auth" | "dialect" | "wire">): string {
@@ -130,10 +131,15 @@ export function draftKeyOf(baseUrl: string, keyValue: string): string {
   return JSON.stringify([baseUrl.trim(), keyValue.trim()]);
 }
 
+/** Whether two drafts are the same, field for field — a failure statement stands only for the draft it failed. */
+export function sameFormValues(a: AddConnectionFormValues, b: AddConnectionFormValues): boolean {
+  return (Object.keys(a) as (keyof AddConnectionFormValues)[]).every((field) => a[field] === b[field]);
+}
+
 /** The refusals that are about the Server URL itself — they land on that field, where the fix is typed. */
 export const URL_REFUSAL_CODES: ReadonlySet<string> = new Set([CONNECTION_OP_CODES.baseUrlInvalid, CONNECTION_OP_CODES.baseUrlRefused]);
 
-/** The saved key as the dialog names it: its Saved-keys label, or "unnamed" when it has none. */
+/** The saved key as the dialog names it: the label the user gave it, or "unnamed" when they gave none. */
 export function savedKeyName(label: string | null): string {
   return label === null ? "Key saved (unnamed)" : `Key saved as “${label}”`;
 }

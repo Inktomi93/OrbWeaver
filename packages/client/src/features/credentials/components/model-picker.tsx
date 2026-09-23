@@ -3,6 +3,8 @@
 // with the search through `@orb/ui/fuzzy-search` (never minisearch or cmdk's own filter — dep-cruiser
 // `ui-satellite-seals`), the list sectioned by provider (`groupModelEntries`) under the device-local Recent
 // MRU, the Vision/Tools chips where the catalog states capabilities, and the render cap spent across sections.
+// A model joins Recent when its connection is SAVED (`pushRecentModel` in the dialogs), never on a pick, so
+// picking a row neither reorders the list nor shows the row twice; a Recent row is left out of its section.
 //
 // WHAT CHANGED IN THE PORT. The catalog is an INPUT with four states (`model-picker-model.ts`), not a
 // per-source query this file owns, so the saved-key path, the endpoint draft and any later draft read feed one
@@ -12,8 +14,12 @@
 // did not list.
 //
 // ENTER NEVER SAVES A LOOSE MATCH. The fuzzy search keeps showing near misses — a typo still finds its model —
-// but the highlight follows cmdk only once the user moves through the list, or for a result whose id or name
-// contains what was typed (`isStrongMatch`). With no such result, Enter takes the typed option.
+// but the highlight follows cmdk only once the user moves through the list, or for the result whose id or
+// name IS what was typed (`isExactMatch`). With none, nothing is highlighted and Enter takes the typed option,
+// which is never offered for a term with a space in it (a multi-word search, not an id).
+//
+// A RETRY KEEPS ITS BUTTON. "Try the list again" stays mounted and busy while the list reloads, so focus
+// stays on it; the list replaces it only once it lands.
 //
 // THE PICKED VALUE IS SPOKEN BELOW THE LIST, NOT BY THE ROW. cmdk's `aria-selected` is its roving highlight,
 // not the chosen value; the chosen row carries a badge and the status line names the pick in words (with
@@ -42,12 +48,13 @@ import { Toggle } from "@orb/ui/toggle";
 import { ToggleGroup } from "@orb/ui/toggle-group";
 import type { KeyboardEvent, PointerEvent, ReactElement } from "react";
 import { useDeferredValue, useEffect, useId, useRef, useState } from "react";
-import { pushRecentModel, useRecentModels } from "#state";
+import { useRecentModels } from "#state";
 import type { isListedModel, ModelPickerView, PickerEntry } from "../lib/model-picker-model.ts";
 import {
   filterByChips,
   groupModelEntries,
-  isStrongMatch,
+  hasMultiModelVendor,
+  isExactMatch,
   modelPickerView,
   offersCapabilityChips,
   pickerEntryOf,
@@ -97,7 +104,33 @@ export interface ModelPickerProps {
 
 export function ModelPicker(props: ModelPickerProps): ReactElement {
   const view = modelPickerView(props.source, { listOwner: props.listOwner, typedAllowed: props.typedAllowed });
-  return view.notice === null ? <ListedPicker {...props} models={view.models} /> : <TypedModelField {...props} notice={view.notice} view={view} />;
+  // The failed arm a retry was pressed on, held until the reload it started has answered. A caller may move
+  // the source to "loading" a render after the press (a query refetch notifies on its own schedule), so the
+  // hold ends only once a load was seen and is over.
+  const [retrying, setRetrying] = useState<{ readonly view: ModelPickerView; readonly loadSeen: boolean } | null>(null);
+  const loading = props.source.status === "loading";
+  if (retrying !== null && loading && !retrying.loadSeen) {
+    setRetrying({ view: retrying.view, loadSeen: true });
+  }
+  if (retrying !== null && !loading && retrying.loadSeen) {
+    setRetrying(null);
+  }
+  if (retrying !== null && retrying.view.notice !== null && (loading || !retrying.loadSeen)) {
+    return <TypedModelField {...props} busy={true} notice={retrying.view.notice} onRetry={null} view={retrying.view} />;
+  }
+  const retry = view.retry;
+  const onRetry =
+    retry === null
+      ? null
+      : (): void => {
+          setRetrying({ view, loadSeen: false });
+          retry();
+        };
+  return view.notice === null ? (
+    <ListedPicker {...props} models={view.models} />
+  ) : (
+    <TypedModelField {...props} busy={false} notice={view.notice} onRetry={onRetry} view={view} />
+  );
 }
 
 /** The searchable list. `models: null` is the loading arm: the same frame with skeleton rows in it, so the
@@ -119,12 +152,12 @@ function ListedPicker(props: ModelPickerProps & { readonly models: readonly Mode
   // keydown that set `navigated`, before the state is visible to this render's closures.
   const navigatingRef = useRef(false);
   const recentIds = useRecentModels(recentKey);
-  const view = usePickerView({ models, term, chips, recentIds, value, listOwner });
+  const view = usePickerView({ models, term, chips, recentIds, pinnedIds: [value, props.currentModel ?? ""], listOwner });
   const typed = models === null ? null : typedOption({ term, models, allowed: typedAllowed });
   const listReady = models !== null;
-  // Until the user moves through the list, the highlight is ours: the first row that CONTAINS what was typed,
-  // or nothing — so Enter picks a real match or falls through to the typed option, never a loose one.
-  const activeValue = navigated ? highlight : (view.groups.flatMap((group) => group.entries).find((entry) => isStrongMatch(entry, term))?.id ?? "");
+  // Until the user moves through the list, the highlight is ours: the row that IS what was typed, or nothing —
+  // so Enter picks that row or falls through to the typed option, never a loose or arbitrary one.
+  const activeValue = navigated ? highlight : (view.groups.flatMap((group) => group.entries).find((entry) => isExactMatch(entry, term))?.id ?? "");
   const noRowValue = reassertions % 2 === 0 ? NO_ROW_VALUES[0] : NO_ROW_VALUES[1];
   const commandValue = activeValue === "" ? noRowValue : activeValue;
 
@@ -136,11 +169,6 @@ function ListedPicker(props: ModelPickerProps & { readonly models: readonly Mode
       document.getElementById(pickerId)?.querySelector<HTMLInputElement>("input[cmdk-input]")?.focus();
     }
   }, [listReady, pickerId]);
-
-  const commit = (id: string): void => {
-    onValueChange(id);
-    pushRecentModel(recentKey, id);
-  };
 
   // A pointer the user MOVES over the list hands it the highlight. Chromium also fires a zero-movement
   // pointermove when the list renders under a still cursor; that one is not the user choosing a row.
@@ -180,7 +208,7 @@ function ListedPicker(props: ModelPickerProps & { readonly models: readonly Mode
     event.preventDefault();
     const picked = activeValue === "" ? typed : modelIdOf(activeValue);
     if (picked !== null) {
-      commit(picked);
+      onValueChange(picked);
     }
   };
 
@@ -211,7 +239,7 @@ function ListedPicker(props: ModelPickerProps & { readonly models: readonly Mode
             </ToggleGroup>
           </Row>
         ) : null}
-        <CommandList label={`Models on ${listOwner}`} listSize="capped" onPointerMove={onPointerMove}>
+        <CommandList label={`Models on ${listOwner}`} listSize="compact" onPointerMove={onPointerMove}>
           {models === null ? (
             <CommandLoading label={`Loading ${listOwner} models…`}>
               <Stack data-slot="model-picker-skeleton" gap="field" padding="row">
@@ -227,16 +255,16 @@ function ListedPicker(props: ModelPickerProps & { readonly models: readonly Mode
               {view.recentEntries.length > 0 ? (
                 <CommandGroup heading="Recent">
                   {view.recentEntries.map((entry) => (
-                    <CommandItem key={`recent-${entry.id}`} onSelect={(): void => commit(entry.id)} value={`${RECENT_VALUE_PREFIX}${entry.id}`}>
+                    <CommandItem key={`recent-${entry.id}`} onSelect={(): void => onValueChange(entry.id)} value={`${RECENT_VALUE_PREFIX}${entry.id}`}>
                       <ModelPickerRow current={entry.id === props.currentModel} entry={entry} picked={entry.id === value} />
                     </CommandItem>
                   ))}
                 </CommandGroup>
               ) : null}
               {view.groups.map((group) => (
-                <CommandGroup heading={group.heading} key={group.key}>
+                <CommandGroup heading={group.heading ?? undefined} key={group.key}>
                   {group.entries.map((entry) => (
-                    <CommandItem key={entry.id} onSelect={(): void => commit(entry.id)} value={entry.id}>
+                    <CommandItem key={entry.id} onSelect={(): void => onValueChange(entry.id)} value={entry.id}>
                       <ModelPickerRow current={entry.id === props.currentModel} entry={entry} picked={entry.id === value} />
                     </CommandItem>
                   ))}
@@ -254,7 +282,7 @@ function ListedPicker(props: ModelPickerProps & { readonly models: readonly Mode
         ) : null}
         {typed === null ? null : (
           <Row gap="field" padding="row">
-            <CommandAuxiliaryButton intent="secondary" onClick={(): void => commit(typed)} size="sm">
+            <CommandAuxiliaryButton intent="secondary" onClick={(): void => onValueChange(typed)} size="sm">
               Use “{typed}” as typed
             </CommandAuxiliaryButton>
           </Row>
@@ -265,13 +293,15 @@ function ListedPicker(props: ModelPickerProps & { readonly models: readonly Mode
   );
 }
 
-/** The derived render view — pool → chip-filter → fuzzy-search → provider groups + cap, plus the Recent group. */
+/** The derived render view — pool → chip-filter → fuzzy-search → provider groups + cap, plus the Recent group,
+ *  whose rows are left out of their sections so no model is listed twice. */
 function usePickerView(args: {
   readonly models: readonly ModelCatalogEntry[] | null;
   readonly term: string;
   readonly chips: readonly string[];
   readonly recentIds: readonly string[];
-  readonly value: string;
+  /** The ids the cap never hides: the pick and the model already on the saved row. */
+  readonly pinnedIds: readonly string[];
   readonly listOwner: string;
 }): {
   readonly groups: ReturnType<typeof groupModelEntries<PickerEntry>>["groups"];
@@ -287,13 +317,13 @@ function usePickerView(args: {
   const deferredQuery = useDeferredValue(args.term);
   const matched = useFuzzySearch(chipFiltered, deferredQuery, { fields: ["label", "id"] });
   const searched = deferredQuery.trim() === "" ? chipFiltered : matched;
-  const grouped = groupModelEntries(searched, { unprefixedHeading: args.listOwner, query: deferredQuery, selectedId: args.value });
-  return {
-    groups: grouped.groups,
-    overflow: grouped.overflow,
-    recentEntries: resolveRecentEntries(args.recentIds, poolById, args.term.trim() === ""),
-    showChips,
-  };
+  const recentEntries = resolveRecentEntries(args.recentIds, poolById, args.term.trim() === "");
+  const inRecent = new Set(recentEntries.map((entry) => entry.id));
+  const grouped = groupModelEntries(
+    searched.filter((entry) => !inRecent.has(entry.id)),
+    { unprefixedHeading: args.listOwner, query: deferredQuery, pinnedIds: args.pinnedIds, sectioned: hasMultiModelVendor(pool) },
+  );
+  return { groups: grouped.groups, overflow: grouped.overflow, recentEntries, showChips };
 }
 
 /** The status line under the list: what is picked, in words, or the field's error when nothing is. */
@@ -340,7 +370,8 @@ function PickedLine({
 }
 
 /** The typed arm: no list to pick from (empty, failed, or none read). When policy forbids a typed id, it
- *  says why nothing can be picked and offers only the retry. */
+ *  says why nothing can be picked and offers only the retry, which stays mounted and `busy` while the list
+ *  reloads. */
 function TypedModelField({
   value,
   onValueChange,
@@ -348,14 +379,21 @@ function TypedModelField({
   notice,
   view,
   placeholder,
-}: ModelPickerProps & { readonly notice: string; readonly view: ModelPickerView }): ReactElement {
+  busy,
+  onRetry,
+}: ModelPickerProps & {
+  readonly notice: string;
+  readonly view: ModelPickerView;
+  readonly busy: boolean;
+  readonly onRetry: (() => void) | null;
+}): ReactElement {
   const errorId = useId();
   return (
     <Stack gap="tight">
       {view.typingOffered ? (
         <Field
           description={
-            <Text as="span" className={view.warns ? "text-warning" : undefined} data-slot="model-picker-notice" voice="gloss">
+            <Text as="span" className={view.warns ? "text-warning" : undefined} data-slot="model-picker-notice" prose={true} voice="gloss">
               {notice}
             </Text>
           }
@@ -386,7 +424,7 @@ function TypedModelField({
       )}
       {view.retry === null ? null : (
         <Row gap="field">
-          <Button intent="secondary" onClick={view.retry} size="sm">
+          <Button intent="secondary" loading={busy} onClick={onRetry ?? undefined} size="sm">
             Try the list again
           </Button>
         </Row>

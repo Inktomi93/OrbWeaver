@@ -58,8 +58,6 @@ export const commandVariants = tv({
       // A stable compact viewport keeps filtering from moving its containing dialog without reserving
       // the giant empty cavity the old full-height palette left behind.
       compact: { list: "h-48 [&_[cmdk-list-sizer]]:h-full" },
-      // Sized to its rows up to the compact step: a three-model list is three rows tall, not a 192px box.
-      capped: { list: "max-h-48" },
     },
   },
   defaultVariants: { listSize: "content" },

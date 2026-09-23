@@ -6,7 +6,8 @@
 //   • A FULL ADD IS TWO WRITES IN ORDER — `credentials.add`, then `connection.create` naming the key by id — and
 //     nothing holds the secret afterwards: not the DOM, not the form, not the mutation cache.
 //   • A PARTIAL FAILURE IS HONEST. The key was saved and the connection was not: the dialog says both, clears the
-//     secret, locks the provider, and the retry writes only the connection.
+//     secret, locks the provider, and the retry writes only the connection. The statement takes focus, is on
+//     screen on a phone, and is withdrawn at the first edit.
 //   • EVERY BUILT-IN PROVIDER gets the fields its auth kind needs and a complete add.
 //   • THE SUBSCRIPTION STEP'S COMMAND is copyable by keyboard, with an accessible name and a spoken result.
 //   • THE PERSONAS: OpenRouter in one pass then "use for everything"; the subscription row refused inline by
@@ -16,6 +17,7 @@
 
 import type { ProviderAuth } from "@orb/contracts/inference";
 import { BUILTIN_PROVIDERS } from "@orb/contracts/inference";
+import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import type { TrpcResponder } from "../../../../support/node/route-trpc.ts";
@@ -38,6 +40,9 @@ const ADD_TITLE = "Add a connection";
 const SECRET = "sk-or-ct-0123456789abcdef";
 const OPUS = "anthropic/claude-opus-5";
 const VLLM_URL = "http://127.0.0.1:8000/v1";
+// Type steps are authored in rem; computed font-size resolves to px at the 16px root.
+const ROOT_PX = 16;
+const pxOf = (token: "text.label" | "text.code"): string => `${Number.parseFloat(TOKENS[token].value) * ROOT_PX}px`;
 
 async function openAddDialog(page: Page): Promise<Locator> {
   await page.getByRole("button", { name: "Add connection" }).first().click();
@@ -109,13 +114,14 @@ test("a partial failure says the key IS saved and the connection is NOT, and the
   await dialog.getByRole("textbox", { name: "Model" }).fill(OPUS);
   await submit(dialog);
 
-  const notice = dialog.getByRole("alert").filter({ hasText: "Your key was saved as" });
+  const notice = dialog.getByRole("alert").filter({ hasText: "was saved in Saved keys" });
+  // No label was typed, so the key is unnamed — whatever default the server files it under.
   await expect(notice).toHaveText(
-    "Your key was saved as “default” in Saved keys, but the connection wasn't created — the provider refused the model id. Adding again reuses the saved key. If you cancel, the key stays in Saved keys.",
+    "Your key (unnamed) was saved in Saved keys, but the connection wasn't created — the provider refused the model id. Adding again reuses the saved key. If you cancel, the key stays in Saved keys.",
   );
   // Secret-free from the moment the row exists: the paste field is gone, replaced by the saved row's name.
   await expect(dialog.getByLabel("API key", { exact: true })).toHaveCount(0);
-  await expect(dialog.getByText("Key saved as “default”. It won't be shown again.")).toBeVisible();
+  await expect(dialog.getByText("Key saved (unnamed). It won't be shown again.")).toBeVisible();
   await expect.poll(() => page.content()).not.toContain(SECRET);
   // …and no mutation still carries it while the notice is open: the mint's retained variables are dropped.
   await expect(component.getByTestId("held-secrets")).toHaveText("0");
@@ -149,10 +155,10 @@ test("a keyed endpoint's partial-failure retry keeps the list and saves the list
   await dialog.getByRole("option", { name: "Qwen/Qwen3-8B" }).click();
   await submit(dialog);
 
-  await expect(dialog.getByRole("alert").filter({ hasText: "Your key was saved as" })).toBeVisible();
-  // Both listed rows are still offered (the pick also heads the device-local Recent group).
+  await expect(dialog.getByRole("alert").filter({ hasText: "was saved in Saved keys" })).toBeVisible();
+  // Both listed rows are still offered, once each: nothing was saved, so nothing joined Recent.
   await expect(dialog.getByRole("option", { name: "Qwen/Qwen3-32B" })).toHaveCount(1);
-  await expect(dialog.getByRole("option", { name: "Qwen/Qwen3-8B" }).first()).toBeVisible();
+  await expect(dialog.getByRole("option", { name: "Qwen/Qwen3-8B" })).toHaveCount(1);
   await expect(dialog.getByRole("status").filter({ hasText: "Picked:" })).toHaveText("Picked: Qwen/Qwen3-8B");
   await expect(component.getByTestId("held-secrets")).toHaveText("0");
   // A re-list now names the SAVED key by id — dialing without it would be a 401 read as "no models".
@@ -183,6 +189,41 @@ test("a keyed endpoint add with its list read leaves no key in any mutation", as
   await expect.poll(() => page.content()).not.toContain(SECRET);
 });
 
+// A FAILED MINT keeps the key in the field for the user to fix — and nowhere else: the mint mutation drops
+// its retained variables on the throw path as well as on success.
+test("a failed key mint leaves the key in the field only, and says nothing was saved", async ({ mount, page }) => {
+  await stubConnectionsPane(page, { addCredential: trpcError({ code: "BAD_REQUEST", message: "bad key" }) });
+  const component = await mount(<ConnectionsAuthoringStory width={870} />);
+  const dialog = await openAddDialog(page);
+  await pickProvider(page, dialog, "OpenRouter");
+  await dialog.getByLabel("API key", { exact: true }).fill(SECRET);
+  await dialog.getByRole("textbox", { name: "Model" }).fill(OPUS);
+  await submit(dialog);
+  await expect(dialog.locator('[data-slot="add-connection-failure"]')).toHaveText("Nothing was saved — bad key.");
+  await expect(dialog.getByLabel("API key", { exact: true })).toHaveValue(SECRET);
+  await expect(component.getByTestId("held-secrets")).toHaveText("0");
+});
+
+// THE STATEMENT IS ABOUT THE DRAFT THAT WAS SUBMITTED. It takes focus when it appears (the submit may have gone
+// disabled under the caret), and the first edit withdraws it — a reason for the old draft is wrong for the new.
+test("a failure statement takes focus, names the label the user typed, and is withdrawn at the first edit", async ({ mount, page }) => {
+  await stubConnectionsPane(page, { createConnection: failFirstCreate() });
+  await mount(<ConnectionsAuthoringStory width={870} />);
+  const dialog = await openAddDialog(page);
+  await pickProvider(page, dialog, "OpenRouter");
+  await dialog.getByLabel("API key", { exact: true }).fill(SECRET);
+  await dialog.getByRole("textbox", { name: "Model" }).fill(OPUS);
+  await dialog.getByRole("textbox", { name: "Label" }).fill("work");
+  await submit(dialog);
+  const failure = dialog.locator('[data-slot="add-connection-failure"]');
+  await expect(failure).toContainText("Your key was saved as “work” in Saved keys");
+  await expect(failure).toBeFocused();
+  await dialog.getByRole("textbox", { name: "Model" }).fill("anthropic/claude-sonnet-5");
+  await expect(failure).toHaveCount(0);
+  // The saved key is still named and still reused: only the stale reason went away.
+  await expect(dialog.getByText("Key saved as “work”. It won't be shown again.")).toBeVisible();
+});
+
 // A REFUSAL OF THE URL ITSELF lands on the Server URL field (side-eye P1), stated once inline — no toast —
 // and editing the URL clears it.
 test("a refused Server URL is an error on that field, and editing the URL clears it", async ({ mount, page }) => {
@@ -208,8 +249,12 @@ test("a refused Server URL is an error on that field, and editing the URL clears
   await expect(dialog.locator('[data-slot="add-connection-failure"]')).toHaveText(
     'Nothing was saved — "10.0.0.5:8000" is a private address this deployment does not admit.',
   );
+  // The refused URL disables the submit under the caret; focus goes to the statement, never the document.
+  await expect(dialog.getByRole("button", { name: "Add connection" })).toBeDisabled();
+  await expect(dialog.locator('[data-slot="add-connection-failure"]')).toBeFocused();
   await url.fill("http://127.0.0.1:8000/v1");
   await expect(url).not.toHaveAttribute("aria-invalid", "true");
+  await expect(dialog.locator('[data-slot="add-connection-failure"]')).toHaveCount(0);
 });
 
 // ── every built-in provider ─────────────────────────────────────────────────────────────────────────────
@@ -267,6 +312,37 @@ for (const add of PROVIDER_ADDS) {
   });
 }
 
+// ── touch targets ───────────────────────────────────────────────────────────────────────────────────────
+
+test.describe("on a touch screen", () => {
+  test.use(AUTHORING_ARMS[2].device);
+
+  // The show-key toggle draws a small glyph box; its hit area is the touch-target pseudo around it. Probe the
+  // hit area itself: a point 21px from the glyph's centre, on every side, still lands on the toggle.
+  test("the show-key toggle takes a tap 44px wide around its glyph", async ({ mount, page }) => {
+    await stubConnectionsPane(page);
+    await mount(<ConnectionsAuthoringStory width={390} />);
+    const dialog = await openAddDialog(page);
+    await pickProvider(page, dialog, "OpenRouter");
+    const reveal = dialog.getByRole("button", { name: "Show key" });
+    await reveal.scrollIntoViewIfNeeded();
+    const reach = 21;
+    const hits = (): Promise<boolean[]> =>
+      reveal.evaluate((element, offset) => {
+        const box = element.getBoundingClientRect();
+        const x = box.left + box.width / 2;
+        const y = box.top + box.height / 2;
+        return [
+          [x - offset, y],
+          [x + offset, y],
+          [x, y - offset],
+          [x, y + offset],
+        ].map(([px, py]) => element.contains(document.elementFromPoint(px ?? 0, py ?? 0)));
+      }, reach);
+    await expect.poll(hits).toEqual([true, true, true, true]);
+  });
+});
+
 // ── the subscription step's command ─────────────────────────────────────────────────────────────────────
 
 test.describe("the setup-token command", () => {
@@ -279,7 +355,8 @@ test.describe("the setup-token command", () => {
     await pickProvider(page, dialog, "Claude subscription");
 
     await expect(dialog.getByText("Run this on the machine you use Claude Code on, then paste what it prints.")).toBeVisible();
-    await expect(dialog.getByText("claude setup-token", { exact: true })).toBeVisible();
+    // The command is read inside a sentence, so it is set at the sentence's size, not the micro key-hint step.
+    await expect(dialog.getByText("claude setup-token", { exact: true })).toHaveCSS("font-size", pxOf("text.code"));
     const copy = dialog.getByRole("button", { name: "Copy the command claude setup-token" });
     await copy.focus();
     await page.keyboard.press("Enter");
@@ -352,9 +429,12 @@ test("an endpoint lists its models and the pick is saved as listed; a failed lis
   await dialog.getByLabel("Server URL", { exact: true }).fill(VLLM_URL);
   await dialog.getByRole("button", { name: "List models" }).click();
 
-  // Keyboard pick: the search box takes the caret, arrows rove, Enter picks.
+  // Keyboard pick: the search box takes the caret, arrows rove, Enter picks. "8B" is part of an id, not an
+  // id, so nothing is highlighted until the arrow.
   const search = dialog.getByRole("combobox", { name: "Search 127.0.0.1:8000 models" });
   await search.fill("8B");
+  await expect(dialog.locator('[role="option"][aria-selected="true"]')).toHaveCount(0);
+  await page.keyboard.press("ArrowDown");
   await page.keyboard.press("Enter");
   await expect(dialog.getByRole("status").filter({ hasText: "Picked:" })).toHaveText("Picked: Qwen/Qwen3-8B");
   await submit(dialog);
@@ -381,11 +461,11 @@ test("the built-in provider refuses a typed id in the add dialog and points at i
     connections: [
       connectionRow({
         id: "user_connection_ctauthor0002",
-        label: "Built-in (this device) · Xenova/bge-small-en-v1.5",
+        label: "Built-in (this device) · jinaai/jina-clip-v2",
         providerId: "local-light",
         providerLabel: "Built-in (this device)",
         credentialId: null,
-        model: "Xenova/bge-small-en-v1.5",
+        model: "jinaai/jina-clip-v2",
         tasks: ["embed"],
       }),
     ],
@@ -406,7 +486,7 @@ test("the built-in provider refuses a typed id in the add dialog and points at i
   await dialog.getByRole("button", { name: "Cancel" }).click();
   await expect(dialog).toBeHidden();
 
-  await openRowMenu(page, "Built-in (this device) · Xenova/bge-small-en-v1.5");
+  await openRowMenu(page, "Built-in (this device) · jinaai/jina-clip-v2");
   await expect(page.getByRole("menuitem", { name: /Add another built-in model/ })).toBeVisible();
 });
 
@@ -478,11 +558,12 @@ for (const { arm, width, device } of AUTHORING_ARMS) {
       await dialog.getByLabel("API key", { exact: true }).fill("sk-ct-openai");
       await dialog.getByRole("textbox", { name: "Model" }).fill("gpt-6");
       await submit(dialog);
-      const notice = dialog.getByRole("alert").filter({ hasText: "Your key was saved as" });
+      const notice = dialog.getByRole("alert").filter({ hasText: "was saved in Saved keys" });
       await expect(notice).toContainText("but the connection wasn't created — the provider refused the model id.");
       // Stated once, inline — the dialog's mutations raise no toast behind the scrim.
       await expect(dialog.locator('[data-slot="add-connection-failure"]')).toHaveCount(1);
-      await notice.scrollIntoViewIfNeeded();
+      // It takes focus, which brings it on screen — on a phone it lands below the fold otherwise.
+      await expect(notice).toBeFocused();
       await expect(notice).toBeInViewport();
       await expect(dialog.getByRole("button", { name: "Add connection" })).toBeEnabled();
       await expectInsideViewport(page, dialog);
@@ -510,6 +591,8 @@ for (const { arm, width, device } of AUTHORING_ARMS) {
       );
       // The example is in the provider's own spelling, not one id for every provider.
       await expect(model).toHaveAttribute("placeholder", "e.g. claude-opus-5");
+      // The notice is sentences, so it is set at the prose step, not the 10.5px gloss step.
+      await expect(dialog.locator('[data-slot="model-picker-notice"]')).toHaveCSS("font-size", pxOf("text.label"));
       await expectInsideViewport(page, dialog);
       await dialog.getByLabel("API key", { exact: true }).fill("sk-ant-ct");
       await model.fill("claude-opus-5");

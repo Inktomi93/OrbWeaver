@@ -19,6 +19,7 @@ import { FormDialog, QueryBoundary } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { touchedFieldError } from "#forms/editor";
 import { notify } from "#lib";
+import { pushRecentModel } from "#state";
 import { useAddModelOnKeyForm } from "../hooks/use-add-model-on-key-form.ts";
 import { useCreateConnection } from "../hooks/use-connections-mutations.ts";
 import { CONNECTION_FORM_COPY, modelIdExample } from "../lib/add-connection-form-model.ts";
@@ -73,6 +74,7 @@ function AddModelOnKeyBody({
     const catalog = queryClient.getQueryData(catalogKey);
     const source: ModelCatalogSource = catalog === undefined ? { status: "loading" } : modelListSource(catalog, null);
     const label = values.label.trim();
+    const modelListed = isListedModel(source, values.model);
     await createConnection.mutateAsync({
       providerId: connection.providerId,
       credentialId: connection.credentialId,
@@ -82,8 +84,12 @@ function AddModelOnKeyBody({
       model: values.model.trim(),
       ...(label !== "" ? { label } : {}),
       allowBackground: values.allowBackground,
-      modelListed: isListedModel(source, values.model),
+      modelListed,
     });
+    // Recent holds models a connection was SAVED with, from the list; a pick alone never reorders the list.
+    if (modelListed) {
+      pushRecentModel(provider.id, values.model.trim());
+    }
     onDone();
     return values;
   };

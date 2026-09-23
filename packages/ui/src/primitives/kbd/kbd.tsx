@@ -11,8 +11,10 @@ export interface KbdProps extends ComponentProps<"kbd">, VariantProps<typeof kbd
  * Mono + micro-caps on the accent surface; inert (no interactive state). Compose one key per chip —
  * `<Kbd>⌘</Kbd><Kbd>K</Kbd>` — or a whole combo as one — `<Kbd>⌘K</Kbd>`; the copy is the caller's.
  *
+ * `size="command"` sets a whole typed command at the code step, for a command shown inside prose.
+ *
  * Usage: `<Kbd>⌘K</Kbd>` · `<span className="flex gap-field"><Kbd>⌘</Kbd><Kbd>K</Kbd></span>`
  */
-export function Kbd({ className, ...props }: KbdProps): ReactElement {
-  return <kbd data-slot="kbd" {...props} className={cn(kbdVariants(), className)} />;
+export function Kbd({ className, size, ...props }: KbdProps): ReactElement {
+  return <kbd data-slot="kbd" {...props} className={cn(kbdVariants({ size }), className)} />;
 }
