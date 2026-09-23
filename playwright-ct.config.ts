@@ -108,7 +108,7 @@ export default defineConfig({
   // docs/work/0062 — the working-tree guard: captures `git status` + a content hash of every dirty path
   // before the first component mounts, and its returned teardown reds the run (naming the path) if a CT
   // wrote into the real checkout instead of its own harness/temp state.
-  globalSetup: path.resolve(import.meta.dirname, "tooling/src/_shared/working-tree-guard.ts"),
+  globalSetup: "./tooling/src/_shared/working-tree-guard.ts",
   testMatch: CT_TEST_MATCH,
   outputDir: "reports/ct-results",
   fullyParallel: true,

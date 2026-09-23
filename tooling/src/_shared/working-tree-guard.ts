@@ -120,7 +120,6 @@ export function assertWorkingTreeUnchanged(root: string, before: WorkingTreeSnap
   }
 }
 
-// biome-ignore lint/style/noDefaultExport: config loader — Vitest and Playwright globalSetup both resolve this module by its default export.
 export default function workingTreeGuard(): () => void {
   const root = repoRoot();
   const before = captureWorkingTree(root);
