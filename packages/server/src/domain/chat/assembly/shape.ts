@@ -70,6 +70,9 @@ interface CanonRow {
   characterId?: CharacterId | null;
   messageId?: MessageId | undefined;
   kind?: MessageKind | undefined;
+  /** A depth-scoped `PROMPT_HISTORY` script can still rewrite this row on a later turn (`assembly/history-regex`),
+   *  so the cache never pins it. */
+  depthVolatile?: true | undefined;
 }
 
 /** A name-stamped wire row (the SHAPE output row). */
@@ -185,6 +188,7 @@ function scopeHistoryToTarget(canon: readonly CanonRow[], targetId: CharacterId)
         // Purpose survives the fold: the WIRE role changed, the row did not stop being what it is (D129's
         // three orthogonal axes — the fold moves DELIVERY, never PURPOSE).
         kind: m.kind,
+        depthVolatile: m.depthVolatile,
       };
     }
     return m;
@@ -340,13 +344,14 @@ function deliverSystemRows(rows: readonly WireRow[], opts: DeliveryOptions): Del
 
 /** Which spliced rows repeat byte for byte on the next turn, so the cache may pin them: the committed canon
  *  before this turn's volatile row, and an injection anchored above the first canon row (the new-chat marker).
- *  Every other injection is volatile: a depth-N row moves as the history grows. Index-aligned with `injected`. */
+ *  Every other injection is volatile: a depth-N row moves as the history grows. So is a canon row inside a
+ *  depth-scoped regex window, whose bytes change as it moves. Index-aligned with `injected`. */
 function stableRows(
-  withTail: readonly object[],
+  withTail: readonly CanonRow[],
   stableCount: number,
   injected: readonly ({ readonly role: DeliveredRole; readonly content: string } | { readonly anchored?: true })[],
 ): boolean[] {
-  const committed = new Set<object>(withTail.slice(0, stableCount));
+  const committed = new Set<object>(withTail.slice(0, stableCount).filter((row) => row.depthVolatile !== true));
   return injected.map((row) => committed.has(row) || "anchored" in row);
 }
 
