@@ -22,7 +22,7 @@ import { defineGate } from "../contract/policy.ts";
 const FORBIDDEN = "callerUserId";
 
 const MESSAGE =
-  "`callerUserId` is forbidden (D19): the caller is `Principal.userId`; use `triggeredBy` for attribution/abort, `funderUserId` for the funded connection/credentials, or `runAsUserId` for assembly/tools. Never route the caller's id into credential or settings resolution. See docs/adr/0019-d19.md.";
+  "`callerUserId` is forbidden (D19): the caller is `Principal.userId`; use `triggeredBy` for attribution/abort, `funderUserId` for the funded connection/credentials, or `runAsUserId` for assembly/tools. Never route the caller's id into credential or settings resolution. See docs/adr/0019-turn-identity-has-three-distinct-concepts.md.";
 export const gate = defineGate({
   id: "no-caller-user-id",
   family: "no-caller-user-id",

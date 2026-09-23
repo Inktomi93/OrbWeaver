@@ -50,7 +50,7 @@ const ID_COLUMN_BUILDERS: ReadonlySet<string> = new Set(["text", "integer"]);
 const MESSAGE =
   "an id-shaped column (its JS key ends `Id`) carries NO `.references()` FK — a soft ref is banned: " +
   "boundaries are physics, FK-enforced (D24). Add the FK, or, if the referent is genuinely not an " +
-  "orbweaver row, take an exact reviewed grant naming the table.column pair. See docs/adr/0024-d24.md.";
+  "orbweaver row, take an exact reviewed grant naming the table.column pair. See docs/adr/0024-no-polymorphic-association-tables.md.";
 const UNREADABLE = MESSAGE;
 const FIX = "add the `.references(() => target.id)` FK; a genuinely non-relational id column takes an exact reviewed grant with its D-cite.";
 

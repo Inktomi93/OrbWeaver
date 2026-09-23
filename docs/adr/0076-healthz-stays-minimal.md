@@ -1,0 +1,23 @@
+---
+kind: adr
+status: active
+updated: 2026-09-23
+---
+
+# Healthz stays minimal
+
+## Context
+
+Not recorded in the ledger row.
+
+## Decision
+
+**`/healthz` stays minimal `{status}` (+ shutdown/key-mismatch reason); operational detail lives behind auth.** neo's health route carried a version + vLLM-engine-status + runnerOverride rider on an UNAUTHENTICATED endpoint — fingerprinting fodder, and orchestrator probes (docker healthcheck, k8s, uptime monitors) want a status code, not a payload. Orbweaver's split is deliberate: `/healthz` = liveness/readiness only; version/engines/runnerOverride = the auth-gated `/api/_debug/info`. If the client ever needs live engine status for UI, expose it as an `adminProcedure` query over the engine-status registry — never widen healthz. Do not re-flag the missing rider as a parity gap.
+
+## Consequences
+
+Not recorded in the ledger row.
+
+## Alternatives rejected
+
+Not recorded in the ledger row.

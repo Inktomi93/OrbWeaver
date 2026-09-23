@@ -197,8 +197,6 @@ const VERBS: ReadonlyMap<string, Parser> = new Map<string, Parser>([
   ["index", (tail): DocCommand => parseBare("index", tail)],
   ["overview", (tail): DocCommand => parseBare("overview", tail)],
   ["drift", (tail): DocCommand => parseBare("drift", tail)],
-  // Retired: any arguments reach the refusal (`ops/migrate-ledger.ts`), which names the verb that replaced it.
-  ["migrate-ledger", (): DocCommand => ({ kind: "migrate-ledger" })],
 ]);
 
 export function parseDocCommand(argv: readonly string[]): DocCommand {

@@ -76,7 +76,7 @@ export const gate = defineGate({
   facts: [knobWireFact],
   resources: [],
   message:
-    'a declared knob is wired to nothing — an `EffectiveAppConfig` field with no type-keyed server read, a `USER_SETTINGS_SECTIONS` member with no `section:"x"` write, an `appSettingsSchema` key absent from every admin write surface, a settings schema leaf nothing reads, a `DEFAULT_FORMAT_STRINGS` key no server behavior reads, or a `chatMetadataSchema` field with no write verb or no reader. Each finding anchors on the member\'s own authored name node in its contract, and its reviewed identity is (member subject, arm operation). Wire the missing half, or add a cited central reviewed grant. docs/adr/0107-d107.md.',
+    'a declared knob is wired to nothing — an `EffectiveAppConfig` field with no type-keyed server read, a `USER_SETTINGS_SECTIONS` member with no `section:"x"` write, an `appSettingsSchema` key absent from every admin write surface, a settings schema leaf nothing reads, a `DEFAULT_FORMAT_STRINGS` key no server behavior reads, or a `chatMetadataSchema` field with no write verb or no reader. Each finding anchors on the member\'s own authored name node in its contract, and its reviewed identity is (member subject, arm operation). Wire the missing half, or add a cited central reviewed grant. docs/adr/0107-declared-knob-wired-or-cited-as-dormant.md.',
   fix: "wire the consumer/writer the finding names, or add a row to tooling/src/verify/lib/reviewed-grants.ts keyed on policyId `knob-wire-coverage`, the reported subject and the reported operation, with `why` and `endsWhen`; central liveness reds the row the moment the wire lands or the member disappears.",
   create: (ctx) => ({
     evaluate: () => {

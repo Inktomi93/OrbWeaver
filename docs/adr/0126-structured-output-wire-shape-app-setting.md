@@ -1,0 +1,23 @@
+---
+kind: adr
+status: active
+updated: 2026-09-23
+---
+
+# The structured-output wire shape is an app setting
+
+## Context
+
+Not recorded in the ledger row.
+
+## Decision
+
+*The structured-output wire shape is an AppSettings capability.* WHICH JSON-Schema shape a schema-constrained request puts on the wire (`as-projected` — optionals stay optional; `strict-compatible` — every property `required`, each optional as `anyOf:[T,{"type":"null"}]`) is the DEPLOYMENT's answer, homed as `AppSettings.structuredOutputShape` → `EffectiveAppConfig.structuredOutputShape` (nature (b), `Spine-Config-and-Serialization.md` §"Settings / config": born-in-DB floor `as-projected`, DB override wins, no env var), edited at **Settings › Admin › Structured output** and read PER CALL by the request builder (`entry/compose/rpg.ts`, a thunk off `getEffectiveConfig()`) so a flip governs the next request with no restart. It was a source-level `const EXTRACTION_STRICT_WIRE = false` — a capability reachable only by editing and redeploying, which is a **dead switch** (D107) whatever its comment says. **NOT per-connection:** the per-WIRE keyword subset is already decided at each backend's request-build site (D93 — `scrubWireSchema`'s four modes); `domain/connection` owns provider SELECTION, and `runner`/`family` stay sealed inside infra, so a per-vendor shape knob would put wire vocabulary in a domain that must not know it. **A string union, not a boolean** — the axis is "which shape", and the two documented walls it clears (OpenAI strict's "all fields must be required"; Anthropic's undocumented ceiling on the NUMBER of optionals) are discovered per provider at runtime, so a third shape must be able to land without renaming the knob. **The default STANDS** (`as-projected`): the reshape costs one explicit `null` per unset field and reads worse to a small local model, and the A/B is the owner's. Semantics are shape-invariant — `null ≡ absent` is imposed at the parse boundary (`dropNullValues`), so omit-means-keep survives either arm. **Rider (copy law):** a knob whose whole reason for existing is a symptom the reader is mid-incident with owes ALWAYS-VISIBLE teaching copy naming that symptom — `SettingRow`'s `hint` is hover-only chrome and cannot carry it; and an option label must be measured against the `Select` trigger's fixed 200px, not just written.
+
+## Consequences
+
+Not recorded in the ledger row.
+
+## Alternatives rejected
+
+Not recorded in the ledger row.

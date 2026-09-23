@@ -55,7 +55,7 @@ const STRING_KINDS: readonly SyntaxKind[] = [
 const MESSAGE =
   "`corsproxy.io` spelled in server source — the NAMED-REJECTED third-party CORS proxy (D61 B5a). Egress " +
   "never routes through it: a third party would see every URL, header and body the server sends. See " +
-  "docs/adr/0061-d61.md (B5a).";
+  "docs/adr/0061-marinara-borrow-dispositions.md (B5a).";
 const FIX = "delete the proxy host; route the request through `safeFetch` (infra/network) directly to the real origin.";
 
 /** The TemplateHead proof row's fixture source. It must carry a real interpolation, so the placeholder

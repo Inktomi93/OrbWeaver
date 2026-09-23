@@ -1,0 +1,23 @@
+---
+kind: adr
+status: active
+updated: 2026-09-23
+---
+
+# Image variant transforms are infra behind an injected op
+
+## Context
+
+Not recorded in the ledger row.
+
+## Decision
+
+Image variant transform = `infra/image` (`sharp` adapter behind an `imageTransform` op, injected into `domain/assets/verbs/resolve-variant.ts`). Width-snap is domain policy; `sharp` is infra I/O.
+
+## Consequences
+
+Not recorded in the ledger row.
+
+## Alternatives rejected
+
+Not recorded in the ledger row.
