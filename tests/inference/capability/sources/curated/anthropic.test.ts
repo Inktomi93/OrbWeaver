@@ -275,14 +275,21 @@ test("no Claude route claims assistant prefill: a continue by prefill returns no
 // behind the subscription reports the same 1M window (claude-opus-5 session d382e036-cf6b-4ce1-a4dc-69e94550e014).
 const CURRENT_CLAUDE = ["claude-opus-5", "claude-opus-5-5", "claude-opus-4-8", "claude-opus-4-7", "claude-fable-5", "claude-fable-5-1", "claude-sonnet-5"];
 
-test("limits: every current Claude id states a 1M window and a 128k output cap; haiku-4-5 states 200k and 64k", () => {
+// The agent-sdk runtime is spawned with `CLAUDE_CODE_DISABLE_1M_CONTEXT=1` (`backends/agent-sdk/env.ts`), and with it
+// the runtime reports a 200k window (claude-opus-5 session 00e4fcde-278d-4b8a-b81b-bd1d38275462,
+// claude-sonnet-5 4080457f-12cb-43c4-8084-af4da34fe705; without the pin 1M: 9d89eb4f-05b1-4d1f-85c2-b8baafb194f5).
+// The capability states what that route serves, so orb never trims history against a window the runtime refuses.
+test("limits: every current Claude id states a 1M window (200k on the pinned agent-sdk runtime) and a 128k output cap", () => {
   for (const model of CURRENT_CLAUDE) {
-    for (const route of [DIRECT, AGENT_SDK_ROUTE]) {
+    for (const [route, window] of [
+      [DIRECT, 1_000_000],
+      [AGENT_SDK_ROUTE, 200_000],
+    ] as const) {
       const out = synthesizeCapability("generation", "anthropic", { curated: curatedRows({ model, ...route }) });
       if (out.capability.kind !== "generation") {
         throw new Error("expected a generation capability");
       }
-      expect(out.capability.generation.context, `${route.wire} ${model}`).toEqual({ window: 1_000_000 });
+      expect(out.capability.generation.context, `${route.wire} ${model}`).toEqual({ window });
       expect(out.capability.generation.output.maxTokens.max, `${route.wire} ${model}`).toBe(128_000);
     }
   }
