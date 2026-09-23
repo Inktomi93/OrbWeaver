@@ -20,6 +20,7 @@ import {
   importStChatCompletionPreset,
   MAX_INJECTION_TEMPLATE_LENGTH,
   NARRATOR_MAIN_PROMPT_TEMPLATE,
+  PRESET_FORMAT_SLOT_IDS,
   PRESET_SCHEMA_KIND,
   PROMPT_CONFIG_SCHEMA_VERSION,
   PROMPT_LANE_STEPS,
@@ -1058,9 +1059,8 @@ test("every TemplateDef points at a REAL prose slot, and its kind is a declared 
   // guided row still points into `PRESET_PROSE_SLOTS`, a framing row into its own `chat.*` table row.
   const unresolvedSlots = TEMPLATE_DEFS.filter((def) => def.defaultSlot !== undefined && PROSE_SLOTS[def.defaultSlot] === undefined);
   expect(unresolvedSlots).toStrictEqual([]);
-  // `newChatMarker` is the ONE def allowed to carry no slot: it ships blank, and a PROSE-1 slot is authored
-  // bytes. Any other slot-less def would be a default nobody can see.
-  expect(TEMPLATE_DEFS.filter((def) => def.defaultSlot === undefined).map((def) => def.id)).toStrictEqual(["newChatMarker"]);
+  // Every def ghosts real bytes: a slot-less def would be a default nobody can see.
+  expect(TEMPLATE_DEF_BY_ID.newChatMarker.defaultSlot).toBe("preset.format.newChatMarker");
   expect(TEMPLATE_DEFS.filter((def) => !TEMPLATE_KINDS.includes(def.kind))).toStrictEqual([]);
   expect(TEMPLATE_DEFS.filter((def) => def.label.length === 0 || def.fires.length === 0)).toStrictEqual([]);
 });
@@ -1111,10 +1111,11 @@ test("G10: an explicit guided `depth` survives the parse and is bounded", () => 
   expect(guidedActionConfigSchema.safeParse({ prompt: "x", depth: -1 }).success).toBe(false);
 });
 
-// ── G9: newChatMarker ships BLANK, so nothing changes until a preset sets it ───────────────────────
-test("G9: newChatMarker's shipped default is blank (byte-identical to the pre-G9 assembler behavior)", () => {
-  expect(DEFAULT_FORMAT_STRINGS.newChatMarker).toBe("");
-  expect(DEFAULT_PROMPT_CONFIG.formatStrings?.newChatMarker).toBe("");
+// ── G9: newChatMarker ships ON as SillyTavern's `new_chat_prompt` text (owner ruling) ─────────────────────
+test("G9: newChatMarker's shipped default is `[Start a new chat]`, read from its PROSE-1 slot", () => {
+  expect(DEFAULT_FORMAT_STRINGS.newChatMarker).toBe("[Start a new chat]");
+  expect(DEFAULT_PROMPT_CONFIG.formatStrings?.newChatMarker).toBe("[Start a new chat]");
+  expect(PRESET_FORMAT_SLOT_IDS.newChatMarker).toBe("preset.format.newChatMarker");
 });
 
 test("G9: a stored blob predating the key parses, and the key stays absent (never invented on read)", () => {

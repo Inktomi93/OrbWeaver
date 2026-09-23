@@ -44,6 +44,10 @@
       "version": 1,
       "sha256": "eee65f3e08de9cb55308fa46b25f2a3049186e91054979400cae68591be54717"
     },
+    "preset.format.newChatMarker": {
+      "version": 1,
+      "sha256": "cdd83c3fed3ab4e8c9102ff2437d7a1212e5a5f38f30e11341e0bf16bbe231f9"
+    },
     "preset.compaction.instructions": {
       "version": 1,
       "sha256": "654c5781f7283f10fc8fc24b664b7fbc5871ebdf40ef84f4d4c6b5caff62794c"

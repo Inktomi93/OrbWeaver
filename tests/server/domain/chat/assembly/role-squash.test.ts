@@ -1,6 +1,8 @@
 // SHAPE shaper: squashSameRole (the chat design doc Part II §3 rule 6 — Anthropic adjacent-same-role defense) +
 // clampRoleHandling (D66-C, W6 — the SHAPE floor-clamp: effective = stricter of the model floor + user knob).
 import type { RoleHandling } from "@orb/contracts/inference";
+import type { MessageId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { clampRoleHandling, squashSameRole } from "../../../../../packages/server/src/domain/chat/assembly/role-squash.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -41,6 +43,19 @@ describe("squashSameRole", () => {
         { role: "user" as const, content: "second line" },
       ]),
     ).toEqual([{ role: "user", content: "first line\n\nsecond line", authorName: "User" }]);
+  });
+
+  // A spliced injection heads the run it merges into (the new-chat marker above the first user turn), and the
+  // wire conversion finds the stored row's attachments and card spans by `messageId`. The head's other extras
+  // still win; only the stored identity is taken from the first row that has one.
+  test("a merged row keeps the stored messageId even when an injection heads the run", () => {
+    const stored = castId<MessageId>("message_u1");
+    expect(
+      squashSameRole([
+        { role: "user" as const, content: "[Start a new chat]", speakerless: true },
+        { role: "user" as const, content: "u1", messageId: stored },
+      ]),
+    ).toEqual([{ role: "user", content: "[Start a new chat]\n\nu1", speakerless: true, messageId: stored }]);
   });
 
   test("a three-run collapses to one (the egocentric scoped fold)", () => {

@@ -64,6 +64,7 @@ export const PROSE_SLOT_IDS = [
   "preset.format.impersonateNudge",
   "preset.format.responseNudge",
   "preset.format.wiFormat",
+  "preset.format.newChatMarker",
   // ── per-PRESET: the compaction steering (census 49) — ADAPTED like guided/format: the override is the
   //    pre-PROSE-1 `promptConfig.compaction.instructions` field, not a `promptConfig.prose` row. ──
   "preset.compaction.instructions",

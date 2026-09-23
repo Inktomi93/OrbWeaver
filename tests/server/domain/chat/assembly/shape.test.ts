@@ -13,6 +13,7 @@ import { castId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { describe } from "vitest";
+import { BEFORE_HISTORY_DEPTH } from "../../../../../packages/server/src/domain/chat/assembly/injections.ts";
 import { computeHistoryBreakpoint, shape, toShapeCanon } from "../../../../../packages/server/src/domain/chat/assembly/shape.ts";
 import type { HistoryMacroNames } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -1224,5 +1225,30 @@ describe("applyNamesBehavior — the LABEL policy is the row's kind (a narrator 
       }),
     );
     expect(out.history.find((r) => r.role === "assistant")?.content).toBe("Group: one voice");
+  });
+});
+
+// The new-chat marker (ST `new_chat_prompt`) is the conversation's opening USER row, delivered bare at the top of
+// the history — so a greeting-first chat opens on a user row on every route (owner ruling). It is not an operator
+// note, so it takes no note frame.
+describe("shape — the new-chat marker opens the history as a bare user row", () => {
+  const marker = inChat({ depth: BEFORE_HISTORY_DEPTH, role: "user", content: "[Start a new chat]", origin: "new-chat-marker" });
+
+  test("greeting-first send: the marker, then the greeting, then the sent turn", () => {
+    const canon = [
+      { role: "assistant" as const, content: "greeting", authorName: "Aria", characterId: ARIA },
+      { role: "user" as const, content: "hello", authorName: "User" },
+    ];
+    const out = shape(soloInput({ canon, appendUserTurn: null, injections: [marker] }));
+    expect(out.history).toEqual([
+      { role: "user", content: "[Start a new chat]" },
+      { role: "assistant", content: "greeting" },
+      { role: "user", content: "hello" },
+    ]);
+  });
+
+  test("no greeting: the marker joins the first user turn", () => {
+    const out = shape(soloInput({ canon: [], appendUserTurn: "hello", injections: [marker] }));
+    expect(out.history).toEqual([{ role: "user", content: "[Start a new chat]\n\nhello" }]);
   });
 });
