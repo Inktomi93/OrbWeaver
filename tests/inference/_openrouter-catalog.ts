@@ -33,7 +33,7 @@ function openAiRow(id: string, canonicalSlug: string): Record<string, unknown> {
   };
 }
 
-export const OPENROUTER_CHAT_ROWS: readonly Record<string, unknown>[] = [
+const OPENROUTER_CHAT_ROWS: readonly Record<string, unknown>[] = [
   claudeRow("anthropic/claude-fable-5.1", "anthropic/claude-fable-5.1-20260831", { reasoning: MANDATORY_REASONING }),
   claudeRow("anthropic/claude-fable-5.1:batch", "anthropic/claude-fable-5.1-20260831", { reasoning: MANDATORY_REASONING }),
   claudeRow("anthropic/claude-opus-5.5", "anthropic/claude-opus-5.5-20260921", { reasoning: MANDATORY_REASONING }),
