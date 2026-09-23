@@ -2,15 +2,15 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 624,
+    "sites": 627,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 624,
+      "deliberate-absorb": 627,
       "unproven": 0
     },
     "byGrammar": {
       "default": 163,
-      "empty": 316,
+      "empty": 319,
       "promise": 145
     }
   },
@@ -1926,6 +1926,21 @@
       "reason": "a missing companion degrades the SHOW output to \"the bundle is at <path>\" rather than failing the lookup — the JSON is the evidence, the md is the index card. Ends if the show formatter stops handling a null digest."
     },
     {
+      "siteId": "tooling/src/cache-check/ops/drive.ts::ProbeRows.release::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "every teardown failure is returned to the run, which prints it and exits as a tool error; one failure must not strand the rows after it."
+    },
+    {
+      "siteId": "tooling/src/cache-check/ops/drive.ts::runRoom::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a failed room opening becomes an ERROR line for every case in the room, and those lines make the run exit as a tool error."
+    },
+    {
+      "siteId": "tooling/src/cache-check/ops/drive.ts::runRoom::error::2",
+      "verdict": "deliberate-absorb",
+      "reason": "a failed step becomes this case's ERROR line with its message, and the ERROR line makes the run exit as a tool error."
+    },
+    {
       "siteId": "tooling/src/codemod/lib/apply-project.ts::cleanupCreatedFileParents::error::1",
       "verdict": "deliberate-absorb",
       "reason": "ENOENT is already-clean; other cleanup failures are retained and warned below while applyProject rethrows the original failure. Ends if those failures stop being surfaced."
@@ -2386,16 +2401,6 @@
       "reason": "the walk throwing is an INSTRUMENT failure, returned as walkError and turned into walkFailureGap (exit 2) by the caller. Ends if walkError stops reaching the gap ladder."
     },
     {
-      "siteId": "tooling/src/snap/ops/drive.ts::appReadiness::page.evaluate::1",
-      "verdict": "deliberate-absorb",
-      "reason": "probe-whose-failure-is-its-return-value — a build without the __orb-free declare, or a probe that throws, reads null and falls through to the ordinary ladder below. Ends if a caller starts trusting null as \"not not-found\"."
-    },
-    {
-      "siteId": "tooling/src/snap/ops/drive.ts::appReadiness::waitFor::1",
-      "verdict": "deliberate-absorb",
-      "reason": "failure IS the return value — converts to attached=false, which becomes the \"absent\" readiness arm fed into UNSETTLED_REASON and reported as navError below. Ends if that reporting chain is removed."
-    },
-    {
       "siteId": "tooling/src/snap/ops/drive-actions.ts::driveNav::e::1",
       "verdict": "deliberate-absorb",
       "reason": "printed as NAV FAILED and returned as a count the caller sums into navFailures, the verdict the run reads. Ends if navFailures stops being read."
@@ -2419,6 +2424,16 @@
       "siteId": "tooling/src/snap/ops/drive-actions.ts::driveStep::retryErr::1",
       "verdict": "deliberate-absorb",
       "reason": "the retry's own failure is printed as STEP FAILED (after churn retry) and returned as the same counted failure the outer catch would have produced. Ends if that count stops being read."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/drive.ts::appReadiness::page.evaluate::1",
+      "verdict": "deliberate-absorb",
+      "reason": "probe-whose-failure-is-its-return-value — a build without the __orb-free declare, or a probe that throws, reads null and falls through to the ordinary ladder below. Ends if a caller starts trusting null as \"not not-found\"."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/drive.ts::appReadiness::waitFor::1",
+      "verdict": "deliberate-absorb",
+      "reason": "failure IS the return value — converts to attached=false, which becomes the \"absent\" readiness arm fed into UNSETTLED_REASON and reported as navError below. Ends if that reporting chain is removed."
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::everReadAnything::page.evaluate::1",
