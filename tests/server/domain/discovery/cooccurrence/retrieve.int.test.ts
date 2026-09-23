@@ -1,4 +1,4 @@
-// Integration: PD-40 cooccurrence reads — topKeywords / cooccurringKeywords / characterKeywords over the
+// Integration: cooccurrence reads — topKeywords / cooccurringKeywords / characterKeywords over the
 // rollup tables (seeded directly; the compute has its own test). Proofs: owner-scoping (audit #1), the
 // canonical-pair "other side" resolution, and the minCount/limit knobs.
 

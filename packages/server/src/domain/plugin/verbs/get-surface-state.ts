@@ -1,4 +1,4 @@
-// verb: getSurfaceState — one owned surface's published state (plugin-ui-plane #679 U1; the room dimension is
+// verb: getSurfaceState — one owned surface's published state (U1; the room dimension is
 // row 777). TWO gates, and they answer two different questions:
 //
 //  1. OWNER SCOPE — the `getById(db, caller.userId, pluginId)` load IS the gate for the PLUGIN (a foreign

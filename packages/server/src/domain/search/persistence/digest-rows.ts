@@ -31,7 +31,7 @@ interface NearestDigestsParams {
   readonly ownerId?: UserId | undefined;
   readonly scopedCharacterId?: CharacterId | undefined;
   /** By-character cross-chat scope: scoped-producer OR present-as-speaker (the chat_digest_speakers
-   *  OR-branch, PD-38). Owner-belt still applies via the characters join. */
+   *  OR-branch). Owner-belt still applies via the characters join. */
   readonly speakerCharacterId?: CharacterId | undefined;
   readonly candidates?: readonly BlockKey[] | undefined;
   readonly limit: number;

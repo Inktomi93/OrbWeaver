@@ -3,7 +3,7 @@
 // THE SUPPRESSOR IS GONE (#2176 Phase F, 2026-09-14). Both suppression arms — `findGateIgnore`, which walked
 // a reported node's leading trivia, and `findGateIgnoreAtLine`, which bound line-adjacently for the
 // `Finding` overload — lived in the legacy dispatcher (`lib/pass.ts`) and died with it, because a final
-// policy has no inline door at all (gate-runtime-standardization.md §12.5: authority plus the central
+// policy has no inline door at all (docs/law/gate-runtime-standardization.md §12.5: authority plus the central
 // `@orb-waive` engine own every escape). What survives is the AUDIT side: `lib/gate-ignore-fact.ts`
 // publishes every residual marker as a fact and the `gate-ignore-inventory` policy reds it, so the retired
 // vocabulary cannot sit in the tree LOOKING like protection. The mention fence stays beside the recognizer
@@ -19,7 +19,7 @@ import type { GateIgnoreMarker } from "../contract/gate-ignore-marker.ts";
  *  attempted marker — `judgeGateIgnore` then judges it. A marker the recognizer missed would be invisible
  *  to `gate-ignore-inventory`, which is the policy that reds every residual one.
  *
- *  THE MENTION FENCE (docs/history/design/gate-ignore-mention-fence.md): a marker IS a `//` comment whose own
+ *  THE MENTION FENCE: a marker IS a `//` comment whose own
  *  text begins with the vocabulary. Marker-shaped text anywhere else — inside a string/template/JSX/regex
  *  literal, or embedded LATER in a comment's text (a backtick quotation in prose, a JSDoc example) — is a
  *  MENTION of the grammar, never a use of it. The scanner counts only comment-OPENER matches, so gate

@@ -16,7 +16,7 @@ import { z } from "zod";
 
 // `human`/`character` are the only live kinds post-rollback (2026-07-25 purge). `agent` (a first-class
 // userId-backed AND AI-driven principal, D60) and `observer` (the Narrative Director seam — watches +
-// proposes, never acts, unseatable) were purged with the agent-principal build; PD-17 tracks the rebuild —
+// proposes, never acts, unseatable) were purged with the agent-principal build; docs/work/0048 tracks the rebuild —
 // no `chat.seatAgent`/`requestAgentSeat` verb exists today. The rebuild grafts both kinds back onto this
 // tuple if the agent-principal design set returns.
 export const PARTICIPANT_KINDS = ["human", "character"] as const;

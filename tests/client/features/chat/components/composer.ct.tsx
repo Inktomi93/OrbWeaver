@@ -1059,7 +1059,7 @@ test("the wand is disabled while a Send is in flight (clear-on-commit reopened t
   await expect(response).toBeDisabled();
 });
 
-// ── PD-146: enterSends ─────────────────────────────────────────────────────────────────────────────────
+// ── enterSends ─────────────────────────────────────────────────────────────────────────────────────────
 test("enterSends OFF: Enter inserts a newline (no send); ⌘/Ctrl+Enter sends", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
@@ -1111,7 +1111,7 @@ for (const [enterSends, hint] of [
   });
 }
 
-// ── PD-146: continue-on-empty (continueOnSend) ───────────────────────────────────────────────────────────
+// ── continue-on-empty (continueOnSend) ───────────────────────────────────────────────────────────────────
 test("continueOnSend: an empty Send on an assistant tail fires chat.continueTurn on that message", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,

@@ -1,4 +1,4 @@
-// CT: B8 — the REAL rpg dice-ASK control source, end-to-end (interaction-direction-spec §7 row B8). Mirrors
+// CT: B8 — the REAL rpg dice-ASK control source, end-to-end. Mirrors
 // its source `packages/client/src/features/rpg/lib/dice-ask-source.tsx`.
 //
 // The band CT proves the S1 SEAM with a synthetic source; this proves the GAME-ARM consumer: `rpgDiceAskSource`

@@ -1,4 +1,4 @@
-// verbs/game/create-game — createGame (rpg-design/05 §4.4, §6.2). Pins the knob default-identity (`gmPresetId`
+// verbs/game/create-game — createGame (docs/plans/rpg/design.md). Pins the knob default-identity (`gmPresetId`
 // NULL, `extractionMode` "folded"), the `createGame("full")` → RpgModeUnbuilt PHASE refusal, the
 // pointer-fired-once assertion, and the authority arms — all asserted at the ROW (assert-the-mutation-fired).
 

@@ -1,5 +1,5 @@
 // The "Elsewhere in the house" home tile — the ONE tile home itself owns, because it is SHELL-DERIVED
-// content with no other owner (home-section-spec §3.4). Its pills are derived from the section registry
+// content with no other owner. Its pills are derived from the section registry
 // by `SectionJumpRail`; this file is only the contribution the door assembles.
 //
 // It sits in the HEARTH column (2026-08-16, #102): the doors OUT of the rooms belong under the rooms,

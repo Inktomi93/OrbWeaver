@@ -4,7 +4,7 @@ import type { SessionsContext, SessionsService } from "../contract/service.ts";
 import { selectForProvisionById } from "../persistence/users.ts";
 
 // Resolve a bare `users` row id → its live principal-fields (role/handle/externalId/enabled), or `null` for
-// an unknown id. The frozen-host → `Principal` bridge (PD-73): chat's D19 cross-feature ops carry only the
+// an unknown id. The frozen-host → `Principal` bridge: chat's D19 cross-feature ops carry only the
 // frozen host `UserId`, and the D17 role-sensitive ops (the max-pro-sub owner-gate) must key on the host's
 // REAL `users.role` — sessions is the sanctioned `users` reader (the no-direct-users-read chokepoint), so
 // this read homes here instead of an entry-local table reach.

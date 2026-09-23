@@ -1,5 +1,5 @@
 // EXACT named files — the door for a policy whose subject is one specific authored file rather than a tree,
-// a config grammar, or a parsed data document (`resource-gate-access-patterns.md` §1).
+// a config grammar, or a parsed data document (the ResourceHost access-pattern ruling §1).
 //
 // WHY IT IS NOT `authoredText`. The demand door reads only what some OTHER declaration already admitted, so
 // a policy whose whole subject is `playwright/index.tsx` would have to declare a TREE it does not judge in
@@ -20,8 +20,6 @@
 /** Closed exact-file identities. A gate may not supply a path; adding an id is a contract edit with a
  *  named consumer. */
 export const EXACT_RESOURCE_PATHS = {
-  /** `dangling-refs`: the literal ignore rules that justify absent-by-design path citations. */
-  gitignore: ".gitignore",
   /** `playwright-css-topology`: the production CSS front door and its two entry modules. */
   "client-entry": "packages/client/src/main.tsx",
   "client-css-entry": "packages/client/src/styles/index.ts",

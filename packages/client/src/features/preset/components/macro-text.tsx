@@ -23,7 +23,7 @@
 // reference is a NOUN INSIDE A SENTENCE, and the surface's job here is to show what the model receives — a
 // full-saturation `bg-info` lozenge every few words turns a paragraph into a field of blue and out-shouts
 // the wire text it annotates. The quiet arm is the mock's own `.tok` treatment (a ~15% info tint + the info
-// hue as TEXT — docs/history/design/mocks/preset-redesign/context-readouts.html:73), and it is the same 15%-tint +
+// hue as TEXT), and it is the same 15%-tint +
 // hue-text grammar the rack's glyph discs already wear, so the surface speaks ONE muted-info dialect. The
 // PALETTE is untouched by design (owner ruling): `--color-info` stays blue; only the pill's weight moves.
 // Pinned by computed color in tests/client/features/preset/components/macro-text.ct.tsx.

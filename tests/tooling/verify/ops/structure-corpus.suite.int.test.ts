@@ -1,4 +1,4 @@
-// THE CORPUS PROOF (docs/design/gate-runtime-standardization.md §1) at the production door: `cli.ts structure`
+// THE CORPUS PROOF (docs/law/gate-runtime-standardization.md §1) at the production door: `cli.ts structure`
 // spawned over planted roots whose gates dir holds real policies as RE-EXPORT SHIMS
 // (`baseui-render-prop-composition` ordinary, `no-raw-matchmedia` reviewed-grant, `verify-registry-parity`
 // hard/resource). A shim imports the real module by absolute file URL, so the object the door runs IS the

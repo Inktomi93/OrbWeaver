@@ -1,5 +1,5 @@
-// CT story module for THE PROMPT VIEW — the rack + its consolidated section drill-in
-// (preset-surface-redesign §5.1/§5.2). A CT only mounts from a NON-test module (Spine-Testing §7).
+// CT story module for THE PROMPT VIEW — the rack + its consolidated section drill-in.
+// A CT only mounts from a NON-test module (Spine-Testing §7).
 //
 // This is the REAL surface, not a harness of it: `PresetStructureTabs tab="prompt"` mounted through the
 // session BOUNDARY over a save spy. That is what makes the assertions load-bearing — SELECT ≠ DRILL, the

@@ -3,7 +3,7 @@
 // a move, or a registry that stops being an object literal of string rows turns BOTH of its liveness arms
 // into a no-op that reports ✓ forever. This policy reds that instead.
 //
-// Split from the legacy descriptor (docs/history/gate-runtime-worked-cases-2026-09.md §"Mixed-hook arity amendments", #1950): the liveness arms are per-occurrence ORDINARY
+// Split from the legacy descriptor (#1950): the liveness arms are per-occurrence ORDINARY
 // verdicts an author may waive; this is a whole-tree HARD verdict about ONE file that must never carry a
 // suppression door — a marker here would restore exactly the no-op it exists to catch. One authority per
 // policy.

@@ -1,4 +1,4 @@
-// verb: getFrameBody — the DOCUMENT BYTES of one owned `frame`-tier surface (plugin-ui-plane #679 U7, §6.2).
+// verb: getFrameBody — the DOCUMENT BYTES of one owned `frame`-tier surface.
 // The plugin-frame doorway (`entry/http/plugin-frame.ts`) calls this and nothing else does; the bytes never
 // enter a projected wire shape (`listSurfaces` returns `PluginSurfaceView`, which extends the registration META
 // and not the registration — the body deliberately lives on the latter).

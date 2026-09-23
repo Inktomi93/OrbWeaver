@@ -5,7 +5,7 @@
 // embedModel), a required dep the entry root wires at boot. search reads the vector tables directly via
 // @orb/db (allowed by design — it's the bulk reader) and never calls embeddings verbs.
 //
-// The unified `search(UnifiedSearchParams)` verb is a DISPATCH over the sibling verbs (PD-38, verbs/search.ts):
+// The unified `search(UnifiedSearchParams)` verb is a DISPATCH over the sibling verbs (verbs/search.ts):
 // it adds one genuinely new capability — the by-character cross-chat digest scan via the
 // chat_digest_speakers OR-branch — and otherwise delegates.
 
@@ -43,7 +43,7 @@ import type {
   UnifiedSearchResult,
 } from "./results.ts";
 
-/** The databank scope-junction resolver, INJECTED into search at compose (DB5, databank-design/05 §3.2).
+/** The databank scope-junction resolver, INJECTED into search at compose.
  *  The union SQL has ONE home in `domain/databank` (`persistence/scope.ts`) — search never re-implements
  *  it, so when host-only widens to membership-gated ONE file changes and search is untouched. */
 export type ResolveActiveDocumentIdsOp = (scope: { readonly chatId: ChatId } | { readonly ownerId: UserId }) => Promise<readonly DocumentId[]>;

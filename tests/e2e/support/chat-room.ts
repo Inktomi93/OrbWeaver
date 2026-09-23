@@ -312,7 +312,7 @@ export async function openDetailPanel(page: Page): Promise<void> {
   if ((await show.count()) > 0) {
     await show.first().click();
   }
-  // The panel is the context BRACKET in every room (#860, Context-Panel-Program §4.2): the "Chat" meta rail
+  // The panel is the context BRACKET in every room (#860): the "Chat" meta rail
   // — a TOOLBAR of buttons carrying `aria-current` (#112) — pinned to the pane's foot, plus the "Game state"
   // rail above the viewport on a game chat. The "Chat" rail is what means "the panel is open" for a plain
   // chat and a game chat alike.

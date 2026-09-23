@@ -1,7 +1,7 @@
 // verb: rebuildFromTree — disaster recovery. Load-bearing assertions:
 //   • an ORPHAN BLOB gets a fresh index row (the `kind` stamped, the mime sniffed from the bytes).
 //   • a blob that ALREADY has a row is counted `existing`, not re-created.
-//   • rebuild does NOT emit `asset.created` (FLAG[PD-84] — the embeddings content_hash sweep re-covers it).
+//   • rebuild does NOT emit `asset.created` — the embeddings content_hash sweep re-covers it.
 
 import { assets } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
@@ -34,7 +34,7 @@ describe("rebuildFromTree", () => {
     expect(rows[0]?.kind).toBe("avatar");
     expect(rows[0]?.mime).toBe(PNG);
     expect(rows[0]?.ownerId).toBe(owner);
-    // DR does NOT emit — the embeddings content_hash catch-up sweep re-covers vectors (FLAG[PD-84]).
+    // DR does NOT emit — the embeddings content_hash catch-up sweep re-covers vectors.
     expect(h.emitted).toHaveLength(0);
   });
 

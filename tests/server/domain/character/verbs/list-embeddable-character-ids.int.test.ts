@@ -1,4 +1,4 @@
-// verb: listEmbeddableCharacterIds — the PD-53 bulk embed pass's UN-PRINCIPAL enumeration read (D20).
+// verb: listEmbeddableCharacterIds — the bulk embed pass's UN-PRINCIPAL enumeration read (D20).
 // Load-bearing: it spans ALL owners (the sweep is a trusted SYSTEM consumer — no owner scope), and it
 // excludes synthetic group buckets at the source (they carry no real card text and are never embedded).
 

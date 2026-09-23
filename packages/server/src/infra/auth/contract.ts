@@ -21,7 +21,7 @@ export interface AuthConfig {
   /** Mandatory source gate for the unsigned path: empty means fail-closed. */
   forwardTrustedProxies: readonly string[];
   /** `AUTH_FALLBACK_TRUSTED_PEERS` — the opt-in CIDR ranges admitted to the un-credentialed owner fallback IN
-   *  ADDITION to loopback (containerize-prod-image-spec.md §3.1 arm (b); the rule, the hazard and the boot
+   *  ADDITION to loopback (docs/plans/containerize/design.md arm (b); the rule, the hazard and the boot
    *  warning live in `foundation/env/fallback-peers.ts`). EMPTY IS THE DEFAULT and is byte-identical to the
    *  loopback-only gate #298 f2 established. Distinct from `forwardTrustedProxies`, which gates who may
    *  ASSERT an identity in a header; this one gates who IS the owner without asserting anything. */

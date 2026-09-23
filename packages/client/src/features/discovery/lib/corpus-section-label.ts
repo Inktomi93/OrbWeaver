@@ -4,5 +4,5 @@
 // title. The `characters-section-label.ts` precedent (#1670): the third reader is what turns two hand-copied
 // literals into a defect.
 
-/** What every surface calls this section (`vocabulary-map.md` renames nothing here — `Corpus` is the word). */
+/** What every surface calls this section (`docs/law/vocabulary-map.md` renames nothing here — `Corpus` is the word). */
 export const CORPUS_SECTION_LABEL = "Corpus";

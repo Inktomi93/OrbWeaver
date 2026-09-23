@@ -1,4 +1,4 @@
-// presence-registry (PD-70) — the SSE ref-count that derives server-side liveness (the chat design doc Part III §4).
+// presence-registry — the SSE ref-count that derives server-side liveness (the chat design doc Part III §4).
 // Pins the two behaviors that make presence trustworthy for cast-gating: (1) the per-user ref-count over
 // device connections (online until the LAST device disconnects), and (2) the grace-window debounce (a brief
 // disconnect/reconnect never flickers a participant offline mid-round). Time is the INJECTED clock — the

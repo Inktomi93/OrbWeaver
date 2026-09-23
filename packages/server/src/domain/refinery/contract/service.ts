@@ -3,7 +3,7 @@
 // and the apply write are all CHARACTER ops injected at the entry root (F6 — character stays the only
 // writer; the shapes arrive type-only through character's front door, Constitution.md §2). Ownership derives
 // through the character join on every read/write (D23 — no `fetchOwned` on refinery tables, no ownerId
-// column to scope by; docs/history/design/refinery-r0.md §3.1 / security pass §3.E).
+// column to scope by).
 
 import type { Principal } from "@orb/contracts/identity";
 import type { ProseOverrides } from "@orb/contracts/prose";

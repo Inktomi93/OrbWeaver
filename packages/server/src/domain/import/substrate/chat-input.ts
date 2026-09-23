@@ -131,7 +131,7 @@ function toMessageInput(
 //
 // orb has its own author's note: a `chat_injections` row. ST's note is one slot plus four recorded knobs, and
 // the importer used to ignore all four — `import-write.ts` hardcoded the HOUSE REGISTER ("near enough to
-// steer, far enough not to dominate": `in_chat`, depth 4, `system`; chat-crew-design/04) onto every imported
+// steer, far enough not to dominate": `in_chat`, depth 4, `system`; D59) onto every imported
 // note. That ruling is about orb-AUTHORED notes; applying it to a note whose author already SAID where it
 // goes is a misattribution of placement, so the recorded value wins and the house register becomes the
 // fallback. This is a conversion INTO orb's model: no ST knob mints a new orb placement concept.

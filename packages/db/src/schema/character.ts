@@ -6,7 +6,7 @@
 // single-owned / `fetchOwned`).
 //
 // Card content rides FLAT on the row (D28): the typed promotions `depthPrompt` (the shared `{depth, role?}`
-// directive + note), `extensions` (residual `data.extensions.*` vendor keys), `residualData` (PD-127 —
+// directive + note), `extensions` (residual `data.extensions.*` vendor keys), `residualData` (the
 // residual TOP-LEVEL `data.*` keys, `extensions`'s sibling), and `refinery` (derived pipeline signals) are
 // JSON columns read through the `@orb/db/kit` parse-seam. `greetings` is an ALWAYS-A-LIST column (default
 // `[]`, never null — the parseStringArray asymmetry). `importHash` (sha-256 of the whole imported file,
@@ -77,7 +77,7 @@ export const characters = sqliteTable(
     // global selected theme). Mirrors `trustHtml`'s tri-state-override shape, but the "value" here is a
     // JSON blob, not a boolean. Resolution (`character override > global selected theme > default`) is a
     // CLIENT-side `<ThemeScope>` NESTING concern (scoped CSS custom properties cascade) — this column
-    // carries only the RAW override; chat assembly threads it through unmerged (themes-design.md §1: zero
+    // carries only the RAW override; chat assembly threads it through unmerged (zero
     // cross-feature `themes`-table read from chat).
     themeOverride: text("theme_override", { mode: "json" }).$type<ThemeOverride>(),
     // BG-C §12.1 twin of `theme_override` — the per-character carried BACKGROUND source (nullable JSON blob:
@@ -125,7 +125,7 @@ export const characters = sqliteTable(
     modificationDate: integer("modification_date"),
     // Residual `data.extensions` MINUS the promoted-to-column fields — genuinely-unknown vendor extras only.
     extensions: text("extensions", { mode: "json" }).$type<Record<string, unknown>>(),
-    // Residual TOP-LEVEL `data.*` keys MINUS the promoted-to-column fields (PD-127) — the sibling of
+    // Residual TOP-LEVEL `data.*` keys MINUS the promoted-to-column fields — the sibling of
     // `extensions` above, scoped to `data.*` instead of `data.extensions.*`. Genuinely-UNKNOWN vendor keys
     // only: the known ST-V3 fields (`nickname`/`source`/`creation_date`/`modification_date`) are now typed
     // columns above. `creator_notes_multilingual` HAS no column and rides here verbatim (#266 D-1) — it also

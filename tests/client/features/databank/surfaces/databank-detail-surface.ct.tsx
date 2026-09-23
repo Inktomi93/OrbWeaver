@@ -1,4 +1,4 @@
-// CT: the Databank CONTENT pane over the stubbed network. What it pins (databank-surface-spec §6.2):
+// CT: the Databank CONTENT pane over the stubbed network. What it pins:
 //
 //   · the no-selection arm TEACHES what the bank is — an empty CONTENT pane reads as unbuilt;
 //   · the selection handoff: the row you clicked is the document the pane paints;

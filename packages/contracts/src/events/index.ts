@@ -24,7 +24,7 @@ import type { AssetId, CharacterId, PersonaId, WorldBookId } from "@orb/kit/ids"
 // honest. Every member emits today; the belt guards the NEXT one (this header already plans the
 // `crew.*`/`rpg.*` grafts).
 // GREW 2026-08-14 to four: `persona.updated` + `world-info.updated` are the entity→room member-freshness
-// bridge's inputs (`docs/design/entity-room-member-freshness-bridge.md` §3.6). They have NO indexer consumer
+// bridge's inputs. They have NO indexer consumer
 // — the embeddings subscriber names them as explicit no-op cases — and exist so ONE reach engine at the
 // composition root can fan a room event for every entity kind, instead of each domain growing its own
 // chat-bus reach (which would be a sideways import).
@@ -40,7 +40,7 @@ export type DomainEventType = (typeof DOMAIN_EVENT_TYPES)[number];
  *  `contentChanged` discriminates a real CONTENT write (create/import/restore, or an `update` that changed a
  *  card field) from an identity-FLAG-only edit (star/archive/trustHtml/theme — `card-merge.ts:flagEdits`): the
  *  embeddings indexer re-embeds ONLY when `contentChanged` is true, so toggling a star never touches the model
- *  (owner ruling — starring is not a content change, backfill belongs to content events + the PD-53 sweep). The
+ *  (owner ruling — starring is not a content change, backfill belongs to content events + the bulk sweep). The
  *  field is ADDITIVE: the multi-human chat-bus fan (`emit-character-updated.ts`) ignores it and fires on EVERY
  *  edit (a co-member's open room must hear a theme/flag change too — a different consumer with a different need). */
 export interface CharacterUpdatedEvent {

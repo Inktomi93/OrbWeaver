@@ -1,6 +1,6 @@
 // The Configuration section's `useSelectionTitle` — the mobile pushed frame's topbar names what is OPEN
 // (side-eye P2): the open MEMBER by its own name, else the ACTIVE GROUP (a pushed settings group names
-// itself in the back row — config-revamp-design.md §3.6), never the section.
+// itself in the back row), never the section.
 //
 // A member's name comes from the owning collection's `useMemberTitle` seam (cache-first, the census's
 // discipline); a collection that declares none falls back to its group's `label`, which is honest ("Tags")

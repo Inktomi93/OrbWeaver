@@ -135,7 +135,7 @@ describe("the chat room — durable delta replay over a real reads-slice (the #1
     // the pump calls), through the full middleware ladder.
     const read = createRead(ctx, readDeps());
     const iterator = await openChatRoom(read, host, chatId, 0);
-    // PD-134: `chatOpened` synthesizes first at attach (seq = the resume cursor 0, non-advancing); no
+    // `chatOpened` synthesizes first at attach (seq = the resume cursor 0, non-advancing); no
     // `historyTruncated` (cursor 0 is not < minSeq(1) - 1). Then the durable head replays.
     const opened = await iterator.next();
     const a = await iterator.next();

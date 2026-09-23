@@ -3,7 +3,7 @@
 // cap. Pure data + guards only; the store owns all state.
 
 /** The rail's navigable sections. `home` leads: it is the landing section (its rail affordance is the
- *  brand glyph, `rail.brand` — home-section-spec §4.1), and the tuple order IS the rail/mobile-bar order.
+ *  brand glyph, `rail.brand`), and the tuple order IS the rail/mobile-bar order.
  *  EDITING THIS TUPLE: walk the ten coupled sites in client-architecture-lockdown.md §6a (the SECTION_IDS
  *  playbook) — tsc carries only the door Record; the sanitizers, agent-nav vocabulary, CT mirror, mobile
  *  curation and placeholder copy are each a separate hand edit.
@@ -12,7 +12,7 @@
  *  `config`: it is a library you author into, and the order reads config → the two libraries → refinery.
  *
  *  `extensions` sits DIRECTLY AFTER `config`, and the placement is the decision the tuple order forces you to
- *  make (plugin-ui-plane §4.5b recommends "beside `config`"): an extension page is a thing you configured the
+ *  make (recommends "beside `config`"): an extension page is a thing you configured the
  *  app to have, so it reads as the neighbour of the Configuration workspace rather than as a library you author
  *  into. It leads the `authoring` run so the libraries stay adjacent to each other. */
 export const SECTION_IDS = ["home", "chats", "characters", "corpus", "config", "extensions", "databank", "presets", "refinery", "analytics"] as const;

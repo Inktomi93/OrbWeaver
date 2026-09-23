@@ -3,7 +3,7 @@
 // and the ACTOR (a rule, a plugin) must be the caller's too. Beside it: the two write-time refusals the pane
 // surfaces inline (a background task on a row with `allowBackground` off; a task the row's kind cannot
 // serve), the upsert's re-point-in-place (never a second row), `useForEverything`'s SKIP-not-refuse rule for
-// background tasks, the per-ROUTABLE-task readout `listBindings` always returns, and the PD-139a trigger.
+// background tasks, the per-ROUTABLE-task readout `listBindings` always returns, and the embed-space trigger.
 
 import { CONNECTION_OP_CODES, ROUTABLE_TASKS } from "@orb/contracts/inference";
 import type { AutomationRuleId, PluginId, UserConnectionId } from "@orb/kit/ids";

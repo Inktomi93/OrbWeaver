@@ -12,7 +12,7 @@
 // member withholds the whole tool verdict, one such subject turned the entire run into a NO VERDICT.
 //
 // IT WAS A LOTTERY, WHICH IS WHY IT HAD TO BE FIXED AND NOT DOCUMENTED. `snap --file
-// docs/design/mocks/connections/editor.html --design-audit --viewport 1400x1000` exited 2 naming
+// <connections editor mock> --design-audit --viewport 1400x1000` exited 2 naming
 // `span.fk centre=143,1000 rect=57,991..229,1009 hit-test-null`; the SAME file at `--viewport 1400x2400`
 // exited 0 with `unaskable=0`. Nothing about the drawing changed — a taller viewport put a different
 // element on the fold. Any page can draw that ticket, and a no-verdict nobody investigates is worse than

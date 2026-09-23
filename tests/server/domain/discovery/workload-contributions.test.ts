@@ -125,7 +125,7 @@ describe("compute-themes", () => {
     expect(discovery.computeThemes).toHaveBeenCalledWith({ ownerId: OWNER_ID, funderUserId: OWNER_ID, k: 12 });
   });
 
-  test("uses the user's computeThemesK knob when no per-run k is supplied (PD-75)", async () => {
+  test("uses the user's computeThemesK knob when no per-run k is supplied", async () => {
     const { discovery, contributions } = build(withKnobs({ computeThemesK: 7 }));
     await contributions[0].run(ctx, {}, vi.fn(), sig());
     expect(discovery.computeThemes).toHaveBeenCalledWith({ ownerId: OWNER_ID, funderUserId: OWNER_ID, k: 7 });

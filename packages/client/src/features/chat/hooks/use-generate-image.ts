@@ -8,7 +8,7 @@ import type { PromptTemplateMode } from "@orb/contracts/imagery";
 import type { ChatId } from "@orb/kit/ids";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 
-// Base free-mode only — the composer never drives the Phase-7 extraction/edit modes (PD-93, parked).
+// Base free-mode only — extraction and edit modes are driven through the /imagine slash command and its modal (imagery feature), not through this composer hook.
 const FREE_MODE: PromptTemplateMode = "free";
 
 interface GenerateImageVars {

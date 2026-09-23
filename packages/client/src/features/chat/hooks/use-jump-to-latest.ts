@@ -5,7 +5,7 @@
 // separate renders, so the raw delta formula can dip through 0 mid-settle and self-hide over a
 // genuinely-unread reply.
 //
-// `pinActive` (PD-147 pin-prompt): while the just-sent prompt is pinned to the viewport top and its
+// `pinActive` (pin-prompt): while the just-sent prompt is pinned to the viewport top and its
 // reply streams below, the primitive arms a ~viewport-tall bottom spacer (paddingEnd). Raw
 // scrollHeight-scrollTop-clientHeight then counts that void, so distance-from-bottom stays > threshold
 // even though the newest content is on-screen — a false "N new". The surface knows the pin is armed

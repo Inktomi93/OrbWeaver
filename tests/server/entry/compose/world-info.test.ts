@@ -99,7 +99,7 @@ describe("buildWorldInfo — the seam's five products are distinct and complete"
 
     expect(Object.keys(built).sort()).toStrictEqual(["worldInfo", "importWorldInfo", "bulkImportChats", "bulkImportPersonas", "resolveOwnerPrincipal"].sort());
     expect(typeof built.importWorldInfo.importLorebook).toBe("function");
-    // PD-144: the carried-book RE-LINK is a separate port from the lorebook write — collapsing the two
+    // the carried-book RE-LINK is a separate port from the lorebook write — collapsing the two
     // would make a portable card's attached-book references clone rows instead of re-linking them.
     expect(typeof built.importWorldInfo.linkCarriedBooks).toBe("function");
     expect(built.importWorldInfo.importLorebook).not.toBe(built.importWorldInfo.linkCarriedBooks);

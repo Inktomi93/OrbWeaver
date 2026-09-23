@@ -1,4 +1,4 @@
-// persistence: resolveActiveDocumentIds — the ONE junction-union home (databank-design/05 §3.2), D85
+// persistence: resolveActiveDocumentIds — the ONE junction-union home, D85
 // MEMBERSHIP-WIDENED. The flagship no-leak assertion (gate 8), widened to two members BOTH attaching:
 //   (a) an attached member's docs DO surface for every member's turn (the membership union — global widened
 //       from host-only to every present member);

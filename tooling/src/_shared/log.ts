@@ -1,7 +1,7 @@
 // The output CHANNELS. `warn` is the stderr channel — stdout is reserved for tool PAYLOAD (artifacts.ts
 // `print` / RESULT lines), so warnings/progress must never interleave with it (`tail -1` / `grep ^RESULT`
 // parse stdout). `installOutputSink` is the ONE tee a stateful-session daemon installs around the request
-// it is serving (docs/design/1208-instrument-substrate.md §10.1): every `print`/`warn` still reaches this
+// it is serving: every `print`/`warn` still reaches this
 // process's own stdout/stderr (the daemon's log file) AND the sink, in order, so the client can print the
 // stream verbatim and keep the RESULT line last on ITS stdout. One sink at a time — a daemon serves one
 // request at a time, and a second install is a programming error, never a silent replacement.

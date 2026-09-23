@@ -40,8 +40,8 @@ beforeEach(() => {
  *  because each printed the run's absolute index path TWICE. The rows are unchanged; their citations
  *  are now the run id the reader can hand straight back to `--report`.
  *
- *  WHAT THE BUDGET MEASURES (ruled here, #1556 + #1675; recorded in
- *  docs/design/1208-instrument-substrate.md §10.11): the AGENT-READABLE BODY — every line whose length is
+ *  WHAT THE BUDGET MEASURES (ruled here, #1556 + #1675):
+ *  the AGENT-READABLE BODY — every line whose length is
  *  a function of THIS run's own arms and findings. The two PROVENANCE lines below are excluded, because
  *  their length is a function of HOW MANY OTHER RUNS happen to be live on this checkout, which is a
  *  property of the box and not of snap's output contract: co-scheduled with another snap-spawning suite, a

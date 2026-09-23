@@ -1,4 +1,4 @@
-// The Rosters config group (config-revamp-design.md §3.1, owner fork F-1) — B10's saved-roster library as a
+// The Rosters config group (owner fork F-1) — B10's saved-roster library as a
 // `collection` group on the collections shelf; its `CollectionContribution` (`roster-collection.tsx`) rides
 // the body arm verbatim. `order: 40` keeps it after world-info, where the door array had it.
 

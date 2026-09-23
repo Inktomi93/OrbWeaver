@@ -1,6 +1,6 @@
 // persistence/theme-queries — the `themes` table db layer (queries only). Asserts the owned ∪ seed read
 // union, the `fetchOwned`-scoped write predicate (a seed's NULL owner never matches — the un-mutability
-// invariant, themes-design.md §2.1), the `(ownerId, name)` unique-constraint classification, and the
+// invariant), the `(ownerId, name)` unique-constraint classification, and the
 // idempotent + non-clobbering seed upsert.
 
 import type { ThemeOverride } from "@orb/contracts/theme";

@@ -21,7 +21,7 @@
 //     MUST NOT null it (the neo reset-in-3-places bug). It is nullable + never defaulted by a store.
 //   • The `(model, dim)` space tag on every row — `search`/`memory` compare ONLY within one space; the
 //     same model on different backends is the same space (free switch), a different model/dim is its own
-//     space (re-index workload). PD-104: ALL FIVE producers key their idempotent upsert ON `model`
+//     space (re-index workload). ALL FIVE producers key their idempotent upsert ON `model`
 //     (character/image/document_chunks always did; chat_segments/chat_digests were fixed to match — they
 //     used to OMIT model and overwrite the old space in place, an inconsistency with the orphaning
 //     character/image tables). So a model change is uniformly PURGE + REINDEX: the new space is written
@@ -307,7 +307,7 @@ export const chatDigests = sqliteTable(
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
-    // The idempotent-upsert key — the scope bucket PLUS `model` (PD-104): every one of the 5 vector
+    // The idempotent-upsert key — the scope bucket PLUS `model`: every one of the 5 vector
     // producers keys its upsert ON `model`, so a `(model, dim)` change writes a NEW space additively
     // (never an in-place overwrite of the old space, never an inconsistent orphan). The old space is
     // retired by the promotion transaction (`space-state.ts` `retiredVectorStatements`). Dropping
@@ -380,7 +380,7 @@ export const chatSegments = sqliteTable(
   (t) => [
     // One verbatim segment per (chat, block, CHUNK, model) — the idempotent-upsert key. `chunk_idx` joined
     // the key with #172 (a block over the embed window becomes N chunks, never a truncated row). `model` is
-    // in the key (PD-104) so a `(model, dim)` change writes a NEW space additively rather than overwriting
+    // in the key so a `(model, dim)` change writes a NEW space additively rather than overwriting
     // the old one in place; the old space is reclaimed by the purge+reindex path. Uniform with all 5 producers.
     uniqueIndex("chat_segments_chat_block_chunk_unique").on(t.chatId, t.blockIdx, t.chunkIdx, t.generationId),
     index("chat_segments_generation_idx").on(t.generationId),
@@ -484,7 +484,7 @@ export const documentChunks = sqliteTable(
 //
 // KEYED BY assetId ALONE (its PK), MODEL-AGNOSTIC: the verdict is about the immutable CAS bytes (an assetId
 // maps to fixed bytes — a degenerate image is degenerate under every embed model), so — unlike the vector
-// tables — it carries NO `(model, dim)` space tag and SURVIVES a PD-104 model change / purge+reindex (the
+// tables — it carries NO `(model, dim)` space tag and SURVIVES a model change / purge+reindex (the
 // asset stays below the floor). NO ownerId (D20 — scope derives via `assets.ownerId`); CASCADE on asset
 // delete drops the skip with its asset. `reason` derives IMAGE_SKIP_REASONS (D34 — the same promote-to-
 // contracts-so-db-can-derive rule as `image_embeddings.lens`) + a tuple-built CHECK; `width`/`height` are
@@ -522,7 +522,7 @@ export const imageIndexSkips = sqliteTable(
 // answer to "has this owner's corpus actually finished moving into the space their binding resolves to?"
 //
 // WHY IT EXISTS. A binding change re-points the READ side at the new space instantly while the corpus is
-// still in the old one, so retrieval answers empty until four independent sweeps finish — and the PD-104
+// still in the old one, so retrieval answers empty until four independent sweeps finish — and the
 // purge, whose predicate is `model != <the live space>`, would meanwhile reclaim the live corpus. Rows here
 // are written ONLY at a sweep's completed, non-aborted terminal, so "the space the last completed sweep
 // wrote" is a fact about work that actually happened rather than about a settings row someone edited.

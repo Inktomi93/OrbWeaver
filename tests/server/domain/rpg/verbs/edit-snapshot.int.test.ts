@@ -1,4 +1,4 @@
-// verbs/snapshot — editSnapshot (rpg-design/05 §4.4, §6.2). The hand-edit door: writes volatile state,
+// verbs/snapshot — editSnapshot (docs/plans/rpg/design.md). The hand-edit door: writes volatile state,
 // AUTO-LOCKS touched fields (manual-edit-wins), and — for a turnless game (no snapshot rows, the no-born-seed
 // ruling) — mints a fresh narrator slot to hold the first committed snapshot. Mutations asserted at the
 // resolved snapshot row (assert-the-mutation-fired).

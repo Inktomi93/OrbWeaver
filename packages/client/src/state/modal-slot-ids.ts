@@ -16,7 +16,7 @@
  *  `reauth` is the one slot NO human opens: the session-recovery ladder does (§4.4 rung 1), which is
  *  precisely why it needs a slot — a modal that must appear over ANY surface, from a `data/` seam that
  *  cannot import a feature, has nowhere else to live. */
-// The `imagine`/`imageDetail`/`imageEdit` slots (interaction-direction-spec.md §7 B5) are CONTENT-triggered
+// The `imagine`/`imageDetail`/`imageEdit` slots are CONTENT-triggered
 // registry modals owned by `features/imagery` — opened by a `#state` action (openImagine / openImageDetail /
 // openImageEdit) that carries WHICH image through the imagery-store, the newChat precedent. They live at the
 // shell so they outlive a virtualized message row's unmount; `openModal` is transient, so no persist migrate.
@@ -39,8 +39,8 @@ export const MODAL_SLOT_IDS = [
   "imagine",
   "imageDetail",
   "imageEdit",
-  // `pluginDialog` is the ONE house modal shell a plugin's `dialog` surface renders inside (plugin-ui-plane
-  // #679 U5, §4.5a) — the imagery precedent exactly: a CONTENT-triggered slot opened by a `#state` action
+  // `pluginDialog` is the ONE house modal shell a plugin's `dialog` surface renders inside
+  // — the imagery precedent exactly: a CONTENT-triggered slot opened by a `#state` action
   // (`openPluginDialog`) that carries WHICH (plugin, surface) through the plugin-dialog store, never a chrome
   // affordance. ONE slot for the platform, never one per plugin: the shell owns the modal grammar, the plugin
   // supplies only the attributed title and the DSL body.

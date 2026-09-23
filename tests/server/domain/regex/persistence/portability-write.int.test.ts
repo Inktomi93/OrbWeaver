@@ -226,7 +226,7 @@ describe("card RE-EMBED", () => {
     const out = await createExportCardScripts({ db })({ ownerId: owner, characterId });
 
     expect(out.scripts.map((s) => s.name)).toEqual(["a", "b"]);
-    // The reference list is the same-install re-link channel (the PD-144 twin).
+    // The reference list is the same-install re-link channel (the attached-book twin).
     expect(out.carried).toEqual([a, b]);
   });
 

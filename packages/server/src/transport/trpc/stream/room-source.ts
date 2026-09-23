@@ -22,7 +22,7 @@ export interface RoomArgs<C extends StreamChannel> {
   readonly services: Services;
   /**
    * The deployment's multi-human capability (`Context.multiHumanCapable`), threaded as DATA — the seam a
-   * per-ROOM PD-106 belt is written against, because the socket itself is `authedProcedure` by design (a
+   * per-ROOM belt is written against, because the socket itself is `authedProcedure` by design (a
    * single-user deployment must still get its user/chat/rpg rooms) so a belt that would be procedure
    * middleware has to become an attach verdict instead. Threaded rather than re-derived: the request seam
    * already resolved it once (`transport/trpc/context.ts`).

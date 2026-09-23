@@ -1,4 +1,4 @@
-// RingGauge — a DECORATIVE ring gauge (the OSRS pool-orb idiom, Context-Panel-Program §4.5): a full
+// RingGauge — a DECORATIVE ring gauge (the OSRS pool-orb idiom): a full
 // circle whose filled arc = `value/max`, the value glyph inside, an optional label + `value/max`
 // readout below. The `<svg>` is `aria-hidden`; the accessible datum is a visually-hidden
 // `label value/max` line (§4.9 — "orbs carry visually-hidden `label value/max`"; bars/rings are never

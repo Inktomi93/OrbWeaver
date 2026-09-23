@@ -1,4 +1,4 @@
-// Contract home for the HOME-TILE contributor seam (home-section-spec §3.1, owner decision H10) — the
+// Contract home for the HOME-TILE contributor seam — the
 // shapes home and every tile-raising feature both need without either importing the other.
 //
 // IT MOVED FROM `lib/` (tier 4) TO `state/` — under H10's OWN test, not against it. H10 put it in tier 4
@@ -28,7 +28,7 @@ import type { SectionId } from "./section-ids.ts";
 export const HOME_TILE_REGIONS = ["masthead", "hearth", "shelf"] as const;
 export type HomeTileRegion = (typeof HOME_TILE_REGIONS)[number];
 
-/** What a DORMANT home tile must say to earn its pixels (home-section-spec §3.5). A doorway is not an
+/** What a DORMANT home tile must say to earn its pixels. A doorway is not an
  *  IOU: it names what must land first AND what the thing will be, and it never fakes a spinner, a
  *  skeleton, or a disabled button. */
 export interface DormantDoorway {
@@ -47,7 +47,7 @@ export interface DormantDoorway {
   readonly teaser: string;
 }
 
-/** A feature-contributed HOME tile (home-section-spec §3.1) — the SIXTH application of the contributor
+/** A feature-contributed HOME tile — the SIXTH application of the contributor
  *  primitive. HOME renders the FRAME (kicker header + icon + one optional trailing action + the card +
  *  the per-tile QueryBoundary); the contribution supplies only its own body. A feature raises a tile,
  *  home skims it — home imports ZERO features (`client-features-no-cross`), so "put some future stuff on

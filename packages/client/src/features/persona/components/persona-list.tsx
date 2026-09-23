@@ -1,5 +1,5 @@
 // The persona LIST — the band (name + New + Import) and the rows with their inline editors — extracted from
-// the panel surface so ONE component serves all three mounts (config-revamp-design.md §6.8.2): the desktop
+// the panel surface so ONE component serves all three mounts: the desktop
 // rail popover and the mobile You sheet compose it inside `PersonaPanelSurface`; the Personas config group
 // renders it as the `your-personas` section's body. The editing model is unchanged: a row expands its own
 // editor in place (the EDITOR is a search leaf of this section, never a section of its own). All server

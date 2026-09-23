@@ -1,4 +1,4 @@
-// domain/search/verbs/search — the unified search() DISPATCH (PD-38). One omnibox call (query + target +
+// domain/search/verbs/search — the unified search() DISPATCH. One omnibox call (query + target +
 // scope) fans out to the sibling retrieval verbs and wraps each in the `UnifiedSearchResult` discriminated
 // union. It is a dispatcher, NOT a new engine: every branch delegates to an existing verb — except the ONE
 // genuinely new capability, the by-character cross-chat digest scan, which needs the `chat_digest_speakers`

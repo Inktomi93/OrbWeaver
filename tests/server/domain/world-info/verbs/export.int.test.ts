@@ -1,4 +1,4 @@
-// Mirror int-test for domain/world-info/verbs/createExport (W-worldinfo; export-import-portability.md §1) —
+// Mirror int-test for domain/world-info/verbs/createExport (W-worldinfo) —
 // the STANDALONE world-info-book export over a real db: read an owned `world_books` row + its `world_entries`
 // → the canonical shape → the portable `worlds/*.json` file. Asserts the owner gate (foreign/absent → null),
 // the priority order + the null-keys restore, and that the emitted bytes re-parse to the canonical shape

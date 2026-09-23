@@ -10,7 +10,7 @@
 // semantic, so a re-encoded identical script must still match. Re-importing a card pack is the norm, and
 // always-new would breed hundreds of identical rows.
 //
-// CARRIED REFERENCES WIN OVER CONTENT (PD-144's shape), and they win TOTALLY: if any reference resolves,
+// CARRIED REFERENCES WIN OVER CONTENT, and they win TOTALLY: if any reference resolves,
 // the by-value payload is skipped entirely rather than merely content-checked (see `planCardLift`). That is
 // what makes a same-install re-import produce exactly zero duplicate rows even when a script was EDITED
 // after the export. The content rule is the FOREIGN-card fallback, where no reference can resolve.

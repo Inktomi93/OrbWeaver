@@ -1,4 +1,4 @@
-// verb: embedAssets — the PD-53 bulk IMAGE catch-up sweep. Load-bearing assertions:
+// verb: embedAssets — the bulk IMAGE catch-up sweep. Load-bearing assertions:
 //   • a fresh sweep embeds BOTH lenses per asset (raw + captioned rows land; ONE summarize per asset);
 //   • RESUMABILITY + the caption ECONOMY: a rerun's hash pre-check skips a current asset BEFORE the
 //     expensive summarize/imageEmbed calls ever run (zero extra role calls — the whole point of the

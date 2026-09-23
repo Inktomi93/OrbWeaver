@@ -1,12 +1,12 @@
 // The `notifications` ROOM on the multiplexed socket (SSE-1 S3) — the per-user durable inbox, MOVED here
-// with its generator from `routers/notifications.ts::notifications` (PD-23). The cases came with it,
+// with its generator from `routers/notifications.ts::notifications`. The cases came with it,
 // unchanged in what they assert; only the wire moved: the durable resume cursor rides `frame.seq` instead of
 // the tracked envelope id, which is now a per-socket ordinal.
 //
 // Load-bearing, and all three are properties the deleted procedure had:
 //   • DURABLE-FIRST RESUME — a cursor replays the inbox rows with `seq > cursor`, ASCENDING, before the live
 //     bus; a CURSOR-LESS attach replays nothing (the client already loaded `list`).
-//   • AUTHED IS THE WHOLE GATE (#1627). The room carried the PD-106 multi-human belt on its `authorizeAttach`
+//   • AUTHED IS THE WHOLE GATE (#1627). The room carried the multi-human belt on its `authorizeAttach`
 //     until single-human notification sources landed; the belt is off, `stream.attach` stays `authedProcedure`,
 //     and the per-user scope is structural (the channel key IS `principal.userId`). See the describe below.
 //   • A THROWN DOMAIN ERROR IS TYPED, NEVER A RAW 500 — what `withSubscriptionErrors` gave the whole stream
@@ -190,7 +190,7 @@ describe("the notifications room — durable-first resume", () => {
   });
 });
 
-// ── #1627 — THE PD-106 BELT IS OFF THIS ROOM. ─────────────────────────────────────────────────────────
+// ── #1627 — THE BELT IS OFF THIS ROOM. ─────────────────────────────────────────────────────────
 // The belt covered the inbox because every notification SOURCE was multi-human (invite/kick/host-handoff).
 // Two live sources refute that on this tree — `plugin-disabled` (the crash policy → the installing owner)
 // and `automation-notice` (auto-disable → the rule author, incl. the chat-less owner-global lane) — so a

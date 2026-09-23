@@ -1,5 +1,5 @@
-// `parseConfigQuery` + friends (lib/config-search-tokens.ts) — the Settings search's typed `@` grammar
-// (config-revamp-design.md §3.3): the token table, the malformed spellings (surfaced as UNKNOWN, never
+// `parseConfigQuery` + friends (lib/config-search-tokens.ts) — the Settings search's typed `@` grammar:
+// the token table, the malformed spellings (surfaced as UNKNOWN, never
 // silently searched as text), the partial-token detector the `@` menu keys on, and the literal-substring
 // highlight ranges. Pure logic → a browser-free unit test (Spine-Testing.md §7).
 

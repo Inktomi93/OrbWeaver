@@ -1,4 +1,4 @@
-// plugin-scripted-surface — the MOUNT for a Tier-C surface (plugin-ui-plane #679 U4, §4.6). It is the seam
+// plugin-scripted-surface — the MOUNT for a Tier-C surface. It is the seam
 // between React and the worker guest: fetch the `ui.js` bytes, start a guest lazily, hold whatever tree the
 // guest last published, and route interactions back INTO it.
 //
@@ -24,7 +24,8 @@ import type { PluginCapability, PluginSurfaceAnchor, PluginSurfaceSpec } from "@
 import type { ChatId, PluginId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
-import { fetchPluginUiSource, useInvalidation, useTRPC, useTRPCClient } from "#data";
+import { fetchPluginUiSource, useInvalidation, useTRPC } from "#data";
+import { usePluginHostCall } from "../hooks/use-plugin-host-call.ts";
 import { useReportUiCrash } from "../lib/plugin-mutations.ts";
 import type { PluginUiGuest } from "../lib/ui-guest/plugin-ui-guest-host.ts";
 import { PluginSurfaceRenderer } from "./plugin-surface-renderer.tsx";
@@ -50,10 +51,8 @@ export function PluginScriptedSurface({ pluginId, anchor, surfaceId, surfaceIds,
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const reportCrash = useReportUiCrash({ trpc, invalidation });
-  // The IMPERATIVE client: a host call is driven by the GUEST, not by a render, so it has no query key, no
-  // cache entry and nothing to invalidate — `useMutation` would be the wrong instrument for a call whose result
-  // goes straight back into an interpreter.
-  const client = useTRPCClient();
+  // The shared relay, bound to THIS mount's plugin and room (`use-plugin-host-call.ts`).
+  const hostCall = usePluginHostCall(pluginId, chatId);
   const [tree, setTree] = useState<PluginSurfaceSpec | null>(null);
   const guestRef = useRef<PluginUiGuest | null>(null);
 
@@ -69,9 +68,9 @@ export function PluginScriptedSurface({ pluginId, anchor, surfaceId, surfaceIds,
   const surfaceIdsKey = surfaceIds.join(",");
   // The per-render handles the boot's CALLBACKS need, read through a ref so they are not boot dependencies.
   // Written in an EFFECT, never during render (the refs-render ban).
-  const latest = useRef({ reportCrash, client, chatId });
+  const latest = useRef({ reportCrash, hostCall });
   useEffect(() => {
-    latest.current = { reportCrash, client, chatId };
+    latest.current = { reportCrash, hostCall };
   });
 
   useEffect(() => {
@@ -106,19 +105,11 @@ export function PluginScriptedSurface({ pluginId, anchor, surfaceId, surfaceIds,
             // Guest log lines ride the plugin's own runtime log surface (#627). Deliberately NOT the browser
             // console: an untrusted guest must not be able to write into the host's diagnostic channel.
           },
-          onHostCall: async (fn, argsJson): Promise<string> => {
-            // THE ONE WIRE. Everything the guest can reach goes through this proc, and the SERVER re-gates it
-            // per call (owner scope, the closed proxyable tuple, the stored grant, room membership). Nothing is
-            // decided here — the client's view of its own grants is display-only by design.
-            const now = latest.current;
-            const result = await now.client.plugin.uiHostCall.mutate({
-              pluginId,
-              fn,
-              argsJson,
-              ...(now.chatId === undefined ? {} : { chatId: now.chatId }),
-            });
-            return result.resultJson;
-          },
+          // THE ONE WIRE. Everything the guest can reach goes through this proc, and the SERVER re-gates it per
+          // call (owner scope, the closed proxyable tuple, the stored grant, room membership). Nothing is decided
+          // here; the client's view of its own grants is display-only by design. Read off the ref so a call
+          // always goes out under the CURRENT room.
+          onHostCall: (fn, argsJson): Promise<string> => latest.current.hostCall(fn, argsJson),
         },
       });
     };

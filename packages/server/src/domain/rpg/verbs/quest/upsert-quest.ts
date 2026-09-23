@@ -1,4 +1,4 @@
-// domain/rpg/verbs/quest/upsert-quest — upsertQuest (rpg-design/05 §4.4). The HAND arm of the quest plane.
+// domain/rpg/verbs/quest/upsert-quest — upsertQuest (docs/plans/rpg/design.md). The HAND arm of the quest plane.
 // Post-ratification (§2.5), quests live IN the snapshot state (a `quests` array), so a hand quest edit is a
 // snapshot edit: it rides the shared `applyHandEdit` (clone-forward-safe write + auto-lock) with a per-quest
 // lock path `quests.<id>`. Host-gated (shared plane).

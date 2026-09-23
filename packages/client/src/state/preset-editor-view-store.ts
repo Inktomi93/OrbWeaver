@@ -1,4 +1,4 @@
-// The preset editor's VIEW axis (preset-surface-redesign.md §7 "Mechanics", §16 row 10). The five flat
+// The preset editor's VIEW axis ("Mechanics", §16 row 10). The five flat
 // views (Params · Prompt · Actions · Data · Transforms) are SECTION STATE, not local `Tabs` state, because
 // the CONTEXT panel projects per-view: the eye follows the hand. The ONE writer is the editor's tab strip;
 // every other region READS (`usePresetEditorView`) and never sets it — the `contextTab`-seam posture (a

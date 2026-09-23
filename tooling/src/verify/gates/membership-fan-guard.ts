@@ -1,4 +1,4 @@
-// Gate: membership-fan-guard (client-architecture-lockdown.md §13 law 2/§16 G12) — chat is the
+// Gate: membership-fan-guard (client-architecture-state-and-gates.md §13 law 2/§16 G12) — chat is the
 // MEMBERSHIP-scoped domain (D16/D18): state visible to more than one member must fan to every present
 // member's channel, never to a single actor. `emitUserEvent` is the per-PERSON, actor-only emit (the
 // injected op every single-owner domain verb closes over) — under `domain/chat/**` it is banned outright;
@@ -21,7 +21,7 @@ import { defineGate } from "../contract/policy.ts";
 const FORBIDDEN = "emitUserEvent";
 
 const MESSAGE =
-  "`emitUserEvent` identifier under domain/chat/** — chat is MEMBERSHIP-scoped (D16/D18): member-visible state rides the member-fan op (`emitChatChanged`) or the chat bus, never an actor-only channel that could silently exclude a co-member (client-architecture-lockdown.md §13 law 2/§16 G12).";
+  "`emitUserEvent` identifier under domain/chat/** — chat is MEMBERSHIP-scoped (D16/D18): member-visible state rides the member-fan op (`emitChatChanged`) or the chat bus, never an actor-only channel that could silently exclude a co-member (client-architecture-state-and-gates.md §13 law 2/§16 G12).";
 
 export const gate = defineGate({
   id: "membership-fan-guard",

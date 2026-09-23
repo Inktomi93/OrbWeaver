@@ -351,7 +351,7 @@ function createReapHusk(ctx: ChatContext, emitLive: EmitChatEventLive): ChatServ
 
 /** `reapTemporaryChats` — the TTL BELT. Bulk-deletes the caller's expired rooms of BOTH ephemeral classes,
  *  each past the TTL and each hosted by the caller:
- *    • `temporary` (PD-65 ⑧) — born ephemeral, hidden from the list always.
+ *    • `temporary` (⑧) — born ephemeral, hidden from the list always.
  *    • HUSKS (R0 §4.6) — `started_at IS NULL`, plus the no-other-human belt. This is the arm that catches
  *      what nav-away cannot: a crash, a tab kill, a closed laptop. A temporary husk qualifies under both and
  *      reaps on whichever cutoff fires first — the arms are a UNION, not a conjunction.

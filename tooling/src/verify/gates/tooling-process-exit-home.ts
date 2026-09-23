@@ -4,7 +4,7 @@
 // drops unflushed stdout mid-report AND dodges the runner's exit classification. Comment posture:
 // comment-SAFE (node kinds only).
 //
-// AUTHORITY IS reviewed-grant (docs/history/gate-runtime-worked-cases-2026-09.md §"Mixed-hook arity amendments", #1950 group 4): the legacy `HOMES` row for run-tool.ts is a
+// AUTHORITY IS reviewed-grant (#1950 group 4): the legacy `HOMES` row for run-tool.ts is a
 // recurring repository PERMISSION — one exact row, `(run-tool.ts, process-exit)`; the legacy stale sweep is
 // central grant liveness.
 //

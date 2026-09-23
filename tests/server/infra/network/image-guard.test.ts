@@ -1,5 +1,5 @@
 // infra/network/image-guard — isAllowedImageBuffer: the POLICY guard over the pure byte-facts sniff, on
-// REMOTE image bytes (hub-browse-design/01 §3, G6). Pins the five typed rejection reasons + the pass path;
+// REMOTE image bytes. Pins the five typed rejection reasons + the pass path;
 // the load-bearing cases are the classic 200-status HTML error page (not-image) and the S4 dimension bomb
 // (a tiny valid PNG whose IHDR claims 30000×30000 → dimensions-exceeded, never reaching sharp).
 

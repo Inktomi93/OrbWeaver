@@ -1,4 +1,4 @@
-// verb: confirmSuggestion — S4's HOST YES (interaction-direction-spec §3-S4). Host-gated, take-once, and
+// verb: confirmSuggestion — S4's HOST YES. Host-gated, take-once, and
 // re-checked at the moment of execution rather than at the moment of asking.
 //
 // THE IDENTITY LAW, which is the whole point of the verb and the thing most likely to be "simplified" later:

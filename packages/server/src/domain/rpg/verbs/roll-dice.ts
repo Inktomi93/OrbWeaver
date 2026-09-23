@@ -1,4 +1,4 @@
-// domain/rpg/verbs/roll-dice — rollDice (rpg-design/05 §4.4). Server CSPRNG, BAKE-ONCE: rolled exactly once here
+// domain/rpg/verbs/roll-dice — rollDice (docs/plans/rpg/design.md). Server CSPRNG, BAKE-ONCE: rolled exactly once here
 // (via the injected `randomInt`), the result returned for the composer stamp the client inserts. A
 // client-supplied seed is NEVER honored (the security ruling — seed-replay is rejected by having no seed
 // input at all). Zero durable state. Member-gated. Notation is `NdM(+/-K)?` (e.g. `2d6+3`, `d20`, `4d8-1`).

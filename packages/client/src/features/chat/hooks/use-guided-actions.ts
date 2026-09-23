@@ -2,7 +2,7 @@
 // tail-assistant target is resolved via a separate query on the same listMessages key the surface already
 // reads — one shared cache entry, not a second round-trip.
 //
-// THE DRAFT ARMS ARE GONE (chat-creation-draft-mode-replacement.md §4.4, R1). Every wand action used to
+// THE DRAFT ARMS ARE GONE (D166). Every wand action used to
 // carry a second shape for a rowless room: "Guide the opening" was `chat.startChat` with `opening:"generate"`
 // forced (a CREATION call wearing a turn's clothes), and impersonate-on-a-draft force-committed the room
 // first because the server cannot assemble impersonation context without a chat row. A chat row exists from

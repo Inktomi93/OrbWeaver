@@ -26,7 +26,7 @@
 // owns comment/trivia reading). DECLARED LIMIT: only `*.ct.tsx` and the enumerated mutable-read APIs are
 // judged.
 //
-// FAMILY DECISION (gate-runtime-standardization.md): singleton family. This gate's identity check
+// FAMILY DECISION (docs/law/gate-runtime-standardization.md): singleton family. This gate's identity check
 // (`readsMutableAsync`/matcher classification) is a private AST predicate with no sibling consumer among
 // the other three gates in this migration lane — `ct-poll-schedule-and-paint` and `ct-story-single-import`
 // each implement their own unrelated predicate over the same CT file class, and neither imports anything

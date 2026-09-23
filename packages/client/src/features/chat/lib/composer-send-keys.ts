@@ -1,4 +1,4 @@
-// `shouldSendOnEnter` — the composer's Enter-key send decision (PD-146 enterSends), pure + DOM-free so it
+// `shouldSendOnEnter` — the composer's Enter-key send decision (enterSends), pure + DOM-free so it
 // gets a `.test.ts` not a CT (Spine-Testing.md §7). Mirrors neo's semantics:
 //   • enterSends ON  → plain Enter sends; ⌘/Ctrl+Enter also sends; Shift+Enter is a newline.
 //   • enterSends OFF → Enter is a newline; ⌘/Ctrl+Enter sends; Shift+Enter is a newline.

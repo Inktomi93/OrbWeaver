@@ -1047,7 +1047,7 @@ describe("shape — the delivered-row trace", () => {
   });
 
   test("INJECT-NAMED-AS-PLAYER's tell: a demoted system note folded into the player's turn reports MERGED", () => {
-    // The live shape from `docs/history/dogfood-tracking-2026-08-08.md`: a backend without mid-conversation system support demotes a
+    // The live shape: a backend without mid-conversation system support demotes a
     // depth-0 system injection to a user note, and the same-role squash folds it into the player's own turn.
     // The delivered row is then ONE user row whose bytes are half the player's and half the game's — which a
     // stage count cannot show and which reporting the head's `canon` provenance would actively hide.

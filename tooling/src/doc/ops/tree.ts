@@ -4,14 +4,16 @@
 // empty fact, never to a throw, because a missing branch is a drift finding and not a tool crash.
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { DOC_TOOL_TREE_PREFIXES, formatMarkdown } from "#doc-catalog";
 import { REPO_ROOT } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { runNicedSync } from "../../_shared/proc.ts";
 import { inheritedProcessEnv } from "../../_shared/process-env.ts";
 import type { DocsRootEntry, DocTree, GovernedDoc } from "../contract/types.ts";
+import { DOC_TOOL_TREE_PREFIXES, DOC_TOOL_TREES } from "../contract/vocab.ts";
 import { allItems } from "../lib/generated.ts";
 import { isCommitId } from "../lib/items.ts";
+import { padId } from "../lib/names.ts";
+import { formatMarkdown } from "./format.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm doc <verb>");
 
@@ -138,9 +140,15 @@ export function headCommit(repoRoot = root): string | null {
   return git(repoRoot, ["rev-parse", "HEAD"])?.trim() ?? null;
 }
 
-/** The commits a merge just brought in: `ORIG_HEAD..HEAD`, oldest first. Empty when git cannot say. */
-export function mergedCommits(repoRoot = root): readonly { readonly sha: string; readonly message: string }[] {
-  return commitList(repoRoot, ["ORIG_HEAD..HEAD"]);
+/** The commits a merge just brought in, oldest first. The range is picked by which hook is asking, never
+ *  by HEAD's shape: `headMerge` (post-commit, the door for a merge finished by a separate `git commit` —
+ *  `--no-commit` or a conflict resolution) reads `HEAD^1..HEAD`, the merge commit's own second-parent
+ *  range. Its absence (post-merge) reads `ORIG_HEAD..HEAD`. Shape is not a safe proxy for which hook fired:
+ *  a fast-forward onto a branch whose TIP already is a merge commit still fires post-merge, and
+ *  `HEAD^1..HEAD` there would see only that merge's second-parent side and drop every id the fast-forward
+ *  carried in on the first-parent side. Empty when git cannot say. */
+export function mergedCommits(repoRoot = root, headMerge = false): readonly { readonly sha: string; readonly message: string }[] {
+  return commitList(repoRoot, [headMerge ? "HEAD^1..HEAD" : "ORIG_HEAD..HEAD"]);
 }
 
 /** Recent `main` commits with their full messages, newest first. */
@@ -196,9 +204,27 @@ export function pathExists(path: string, repoRoot = root): boolean {
  *  process environment for PATH and git identity; the standing exception spelling (`LEFTHOOK_EXCLUDE=check`)
  *  is what lets a hook's commit skip the whole-tree check and keep the message contract. */
 export function commitPaths(paths: readonly string[], message: string, repoRoot = root): boolean {
-  if (git(repoRoot, ["add", "--", ...paths]) === null) {
+  // A deleted path is staged as a removal, and it joins the pathspec only when HEAD tracks it: a pathspec
+  // naming a file git never knew fails the whole commit.
+  const present = paths.filter((path) => existsSync(join(repoRoot, path)));
+  const gone = paths.filter((path) => !existsSync(join(repoRoot, path)));
+  if (present.length > 0 && git(repoRoot, ["add", "--", ...present]) === null) {
     return false;
   }
+  if (gone.length > 0 && git(repoRoot, ["rm", "-q", "--cached", "--ignore-unmatch", "--", ...gone]) === null) {
+    return false;
+  }
+  const tracked = gone.length === 0 ? "" : (git(repoRoot, ["ls-tree", "-r", "--name-only", "HEAD", "--", ...gone]) ?? "");
+  const pathspec = [...present, ...tracked.split("\n").filter((path) => path !== "")];
+  if (pathspec.length === 0) {
+    return true;
+  }
   const env = inheritedProcessEnv({ ["LEFTHOOK_EXCLUDE"]: "check" });
-  return runNicedSync("git", ["commit", "-q", "-m", message, "--", ...paths], { cwd: repoRoot, env }).status === 0;
+  return runNicedSync("git", ["commit", "-q", "-m", message, "--", ...pathspec], { cwd: repoRoot, env }).status === 0;
+}
+
+/** The commit that deleted item `id`'s file — its landing — or null when git has none. */
+export function landedCommit(id: number, repoRoot = root): string | null {
+  const out = git(repoRoot, ["log", "-1", "--format=%H", "--diff-filter=D", "--", `:(glob)${DOC_TOOL_TREES.work}${padId(id)}-*.md`])?.trim() ?? "";
+  return out === "" ? null : out;
 }

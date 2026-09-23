@@ -281,7 +281,7 @@ test("the real door's settings-section claims partition cleanly against DEFAULT_
   expect(() => assertSettingsKeyPartition(realDoorSections(), DEFAULT_USER_SETTINGS)).not.toThrow();
 });
 
-// R-TEACH's DERIVED-POPULATION arm (#866 S3, config-revamp-design.md §7.0): iterate the REAL registry's
+// R-TEACH's DERIVED-POPULATION arm (#866 S3): iterate the REAL registry's
 // leaves — never a hand list — and prove every one resolves an honest teach or a stated opt-out. The
 // planted per-arm RED fixtures live in `config-teach.test.ts`; this is the sweep over the population.
 test("every declared leaf of the real door carries an honest teach or a stated opt-out", () => {

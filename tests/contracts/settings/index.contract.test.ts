@@ -107,7 +107,7 @@ test("v4→v5 AppSettings lift is a no-op passthrough — structuredOutputShape 
 });
 
 test("v7→v8 AppSettings lift drops memoryDefaults.recencyBias and carries EVERY other key forward (#321)", () => {
-  // #321 / PD-35 — the recencyBias knob is REMOVED (owner ruling 2026-08-22, after his own 2026-08-20 probe
+  // docs/work/0122 — the recencyBias knob is REMOVED (owner ruling, after his own probe
   // measured no recall gain on the real corpus). This is the FIRST AppSettings lift that DELETES a field, so
   // it is also the one that has to prove it is not the #461 incident class: a lift that quietly drops sections
   // destroys an admin's overrides permanently. Every sibling section AND every sibling memoryDefaults knob is
@@ -336,9 +336,9 @@ test("USER_SETTINGS_SECTIONS includes prose — the PROSE-1 S2 editor's door, la
   expect(merged.prose["chat.compaction.system"]).toBeUndefined();
 });
 
-// ── chat (PD-146) — the client-honored send/continue/stream behavior namespace ──
+// ── chat — the client-honored send/continue/stream behavior namespace ──
 
-test("UserSettings.chat reads the PD-146 defaults from an empty blob (Enter sends, smooth-stream ON)", () => {
+test("UserSettings.chat reads the defaults from an empty blob (Enter sends, smooth-stream ON)", () => {
   const parsed = parseUserSettings({});
   expect(parsed.chat.enterSends).toBe(true);
   expect(parsed.chat.continueOnSend).toBe(true);
@@ -373,7 +373,7 @@ test("UserSettings.chat.reasoningAutoCollapse defaults ON (today's behavior) and
   expect(parseUserSettings({ schemaVersion: USER_SETTINGS_SCHEMA_VERSION, chat: { reasoningAutoCollapse: "nope" } }).chat.reasoningAutoCollapse).toBe(true);
 });
 
-test("UserSettings.chat.streamScrollMode defaults to follow (byte-identical) and accepts pin-prompt (PD-147)", () => {
+test("UserSettings.chat.streamScrollMode defaults to follow (byte-identical) and accepts pin-prompt", () => {
   expect(parseUserSettings({}).chat.streamScrollMode).toBe("follow");
   expect(DEFAULT_USER_SETTINGS.chat.streamScrollMode).toBe("follow");
   expect(STREAM_SCROLL_MODES).toEqual(["follow", "pin-prompt"]);

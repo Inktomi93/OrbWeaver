@@ -66,7 +66,7 @@ interface ChatRow {
   title: string | null;
   starred: boolean;
   archived: boolean;
-  /** ST "Temporary Chat" (PD-65) — hidden from `listMemberChats`, swept once past the host's TTL. */
+  /** ST "Temporary Chat" — hidden from `listMemberChats`, swept once past the host's TTL. */
   temporary: boolean;
   parentChatId: ChatId | null;
   forkedAt: number | null;
@@ -155,7 +155,7 @@ const reasoningPartsSchema = chatReasoningPartSchema.array();
 // The `messageViewSelection` row → `MessageView`: every scalar column mirrors the view 1:1; the sole
 // re-map is the `toolCalls` JSON blob, safeParsed with `toolCallRecordSchema` (the `variableDelta` read
 // seam pattern — a malformed/absent blob degrades to `[]`, never throws, never a cast). The client's ONLY
-// tool read surface (tool-use-design/03 §3–4).
+// tool read surface (D48).
 function toMessageView(
   row: Omit<MessageView, "toolCalls" | "hasContinuation"> & { toolCalls: readonly ToolCallRecord[] | null; hasContinuation: number },
 ): MessageView {
@@ -566,7 +566,7 @@ export async function loadMaxMessageSeq(db: Db, chatId: ChatId): Promise<number>
 }
 
 /** The text of the latest user-role message's selected variant, or `null` (no user line yet). The rpg
- *  `skill_check` re-reads this server-side to feed the player's queued d20 (rpg-design/05 §6) — the pending
+ *  `skill_check` re-reads this server-side to feed the player's queued d20 (docs/plans/rpg/design.md) — the pending
  *  user text the AI GM turn is responding to. `role='user'` scopes it to human sends (never a narrator/assistant
  *  line); newest by `seq`. */
 export async function loadPendingUserText(db: Db, chatId: ChatId): Promise<string | null> {
@@ -580,7 +580,7 @@ export async function loadPendingUserText(db: Db, chatId: ChatId): Promise<strin
   return rows.at(0)?.text ?? null;
 }
 
-/** Slot-adjacency for the rpg dice feed-forward (rpg-design/05 §6): does the `targetMessageId` slot DIRECTLY
+/** Slot-adjacency for the rpg dice feed-forward (docs/plans/rpg/design.md): does the `targetMessageId` slot DIRECTLY
  *  respond to the latest user message — i.e. is it the FIRST message after the latest user-role message (nothing
  *  committed between them)? True for a swipe/regen of the die-response; false for a swipe of an older slot or when
  *  a later assistant turn already sits after the die. `false` when the chat has no user message or no such slot. */

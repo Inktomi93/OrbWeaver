@@ -130,7 +130,7 @@ test("P0#1 (settle race): live→false ONE commit before the canon bump must NOT
   await expect(pillButton).toHaveAccessibleName("Jump to latest, 2 new messages");
 });
 
-test("PD-147: an armed pin-prompt pin suppresses the false pill (spacer void ≠ scrolled away)", async ({ mount }) => {
+test("an armed pin-prompt pin suppresses the false pill (spacer void ≠ scrolled away)", async ({ mount }) => {
   const component = await mount(<JumpToLatestRegressionStory />);
   const scroll = component.locator('[data-slot="message-list-scroll"]');
   await expect(scroll).toBeVisible();

@@ -3,7 +3,7 @@
 // (force bypasses it); cooperative abort between items, every completed item durable + idempotent; an embed
 // failure propagates so the rerun resumes.
 //
-// PD-104 — this is the REINDEX half of purge+reindex. After a full BULK sweep re-embeds every card into the
+// This is the REINDEX half of purge+reindex. After a full BULK sweep re-embeds every card into the
 // box's active `(model, dim)` space, it PURGES `character_embeddings` rows left in any OTHER space (an
 // old-model change strands them; the uniform `(characterId, model)` upsert key means the new space was
 // written additively beside the old, never overwriting it). The purge is PER OWNER (vector tasks are
@@ -72,7 +72,7 @@ export function createEmbedCorpus(ctx: EmbeddingsContext, deps: { readonly store
         skipped += 1;
       }
     }
-    // PD-104 purge (reclaim each touched owner's old space) — only after a complete sweep, never on abort.
+    // Purge (reclaim each touched owner's old space) — only after a complete sweep, never on abort.
     // A no-op for an owner whose embed binding did not change since the last index.
     if (!signal.aborted) {
       await completeCardSweep(ctx, ownerId, receipts);

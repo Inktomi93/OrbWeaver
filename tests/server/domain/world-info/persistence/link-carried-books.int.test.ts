@@ -1,4 +1,4 @@
-// Mirror int-test for domain/world-info/persistence/createLinkCarriedBooks (PD-144) — the world-info-OWNED
+// Mirror int-test for domain/world-info/persistence/createLinkCarriedBooks — the world-info-OWNED
 // character_books RE-LINK that character IMPORT consumes as an injected op. REFERENCE-carry over a real db:
 // a carried `{worldBookId, role}` links ONLY when a world_book with that id EXISTS and is OWNED by the
 // importing user (the owned-source gate — the cross-tenant-leak guard); an absent/foreign id is skipped and

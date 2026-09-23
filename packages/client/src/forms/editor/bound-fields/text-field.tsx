@@ -1,6 +1,6 @@
 // Bound text field — `useBoundField<string>()` + the `<Field>`-wrapped `<Input>`. CONTROLLED
 // (`value=`, never `defaultValue=`) ALWAYS: an uncontrolled input ignores `form.reset(saved)` and
-// reseeds, silently breaking the save/discard/reseed lifecycle (UI-Lib-TanStack-Form.md §9 — the
+// reseeds, silently breaking the save/discard/reseed lifecycle (the
 // ui-libraries example's `defaultValue` binding is the documented trap, INVERTED here on purpose).
 
 import { Button } from "@orb/ui/button";

@@ -12,13 +12,7 @@ import { loadDocumentIndex, loadLedger, readMarkdownFacts } from "../../../../to
 import { createResourceReader } from "../../../../tooling/src/verify/ops/resource-reader.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
-const CATALOG = "docs/catalog/catalog.json";
 const ADR_TREE = "docs/adr";
-const ACTIVE_DEBT = "docs/law/Core-Audits-and-Debt.md";
-const CLEARED_DEBT = "docs/architecture/history/Core-Debt-Cleared-Ledger.md";
-function catalog(paths: readonly string[]): string {
-  return JSON.stringify({ documents: paths.map((path) => ({ path })) });
-}
 
 function documents(scratch: string, overlay: Readonly<Record<string, string | null>>): ResourceLoad<DocumentIndex> {
   return loadDocumentIndex(createResourceReader({ root: scratch, overlay }));
@@ -40,51 +34,15 @@ test("a fenced heading and a fenced link are SAMPLE TEXT, not facts", () => {
   expect(facts.links.map((link) => link.target)).not.toContain("docs/never.md");
 });
 
-test("catalog membership is a STATUS on every document, and an unlisted doc is not a refusal", ({ scratch }) => {
-  const index = documents(scratch, {
-    "docs/Mission.md": "# Mission\n",
-    "docs/rogue.md": "# Rogue\n",
-    [CATALOG]: catalog(["docs/Mission.md"]),
-  });
+test("every readable corpus member is served, sorted by path, with no separate census to fail against", ({ scratch }) => {
+  const index = documents(scratch, { "docs/Mission.md": "# Mission\n", "docs/rogue.md": "# Rogue\n" });
   if (index.status !== "ready") {
     throw new Error(`fixture corpus failed: ${index.reason}`);
   }
 
-  expect(index.value.documents.map((document) => [document.path, document.catalog])).toEqual([
-    ["docs/Mission.md", "listed"],
-    ["docs/rogue.md", "unlisted"],
-  ]);
-  // The door reports the liveness FACT; whether an unlisted document is a defect is the catalog policy's
-  // ruling, and turning it into a host refusal would withhold the very policy whose job is to report it.
-  expect(index.value.catalogMisses).toEqual([]);
+  expect(index.value.documents.map((document) => document.path)).toEqual(["docs/Mission.md", "docs/rogue.md"]);
   expect(index.value.refusals).toEqual([]);
   expect(index.members).toBe(2);
-});
-
-test("a catalog row naming an absent document is a MISS row, and a broken catalog refuses everything", ({ scratch }) => {
-  const missed = documents(scratch, { "docs/Mission.md": "# Mission\n", [CATALOG]: catalog(["docs/Mission.md", "docs/vanished.md"]) });
-  expect(missed.status === "ready" ? missed.value.catalogMisses : []).toEqual(["docs/vanished.md"]);
-
-  // The control in the other direction: without a catalog there IS no `unlisted`, so every document's
-  // status would be a lie. The whole fact refuses rather than defaulting.
-  const noCatalog = documents(scratch, { "docs/Mission.md": "# Mission\n" });
-  expect(noCatalog.status).toBe("missing");
-  const broken = documents(scratch, { "docs/Mission.md": "# Mission\n", [CATALOG]: "{oops" });
-  expect(broken.status).toBe("unresolved");
-  const shapeless = documents(scratch, { "docs/Mission.md": "# Mission\n", [CATALOG]: "{}" });
-  expect(shapeless.status).toBe("malformed");
-});
-
-test("the two halves of the PD registry are ONE identity — half of it refuses", ({ scratch }) => {
-  const whole = ledger(scratch, { [ACTIVE_DEBT]: "| PD-1 | a |\n", [CLEARED_DEBT]: "| PD-2 | b |\n" }, "core-audits-debt");
-  expect(whole.status).toBe("ready");
-  expect(whole.status === "ready" ? whole.value.documents.map((document) => document.path) : []).toEqual([ACTIVE_DEBT, CLEARED_DEBT]);
-
-  // The planted control: drop the CLEARED half and the fact refuses. A door that served the active half
-  // alone would make every cleared PD id read as an orphan cite — a mass red with no defect behind it.
-  const half = ledger(scratch, { [ACTIVE_DEBT]: "| PD-1 | a |\n" }, "core-audits-debt");
-  expect(half.status).toBe("missing");
-  expect(half.status === "ready" ? "" : half.reason).toContain(CLEARED_DEBT);
 });
 
 test("a TREE ledger serves exactly its grammar members: the index, a slugless name and a nested file are not decisions", ({ scratch }) => {

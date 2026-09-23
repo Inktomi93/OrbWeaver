@@ -7,10 +7,10 @@
 // never a silent write.
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { UsageError } from "../../_shared/run-tool.ts";
+import { generateActiveGatesIndex } from "./gen/active-gates-index.ts";
 import { generateBaseuiSurface } from "./gen/baseui-surface.ts";
 import { generateCaughtFailurePopulation } from "./gen/caught-failure-population.ts";
 import { generateProseBaseline } from "./gen/prose.ts";
-import { generateReadFirstCosts } from "./gen/read-first-costs.ts";
 import { generateSnapFlagsIndex } from "./gen/snap-flags-index.ts";
 import { generateThemeCss, THEME_BASELINE } from "./gen/theme-css.ts";
 import { generateTypeConfigs } from "./gen/type-configs.ts";
@@ -21,6 +21,7 @@ refuseDirectInvocation(import.meta.url, "pnpm exec node tooling/src/verify/cli.t
 /** The committed baselines this tool is the SINGLE writer of. A `Record` rather than a switch: a new
  *  baseline generator is a row, and tsc requires the row to exist before the kind can be spelled. */
 const BASELINES: Readonly<Record<string, (root: string) => number | Promise<number>>> = {
+  "active-gates-index": generateActiveGatesIndex,
   "baseui-surface": generateBaseuiSurface,
   // NOT a ratchet: a derived REVIEW RECORD no gate reads (#751). It rides the same single-writer door so
   // the census cannot be hand-edited into agreement with itself.
@@ -30,10 +31,6 @@ const BASELINES: Readonly<Record<string, (root: string) => number | Promise<numb
   // ratified row to an exact reviewed grant in `lib/reviewed-grants.ts`. There is no derivable number left
   // for a single writer to own in either case.
   prose: generateProseBaseline,
-  // A generated COLUMN inside a hand-authored document, not a generated file: the read-first table's SIZE
-  // cells are derived and its Read/Stop-rule prose is authored, joined by the row id. #2017 — every one of
-  // those eight numbers was stale at once, the work queue by 7x.
-  "read-first-costs": generateReadFirstCosts,
   "snap-flags-index": generateSnapFlagsIndex,
   "type-configs": generateTypeConfigs,
   [THEME_BASELINE]: generateThemeCss,

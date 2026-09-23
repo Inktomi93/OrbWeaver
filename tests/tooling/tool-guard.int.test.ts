@@ -305,14 +305,14 @@ const ROWS: Row[] = [
   ["deny", "git-destructive", "git checkout-index -af"],
   // read-only forms PASS — a deny here would be a lie about destruction
   ["pass", null, "git stash list 2>/dev/null"],
-  ["pass", null, "git restore --staged docs/retro-workboard.md"],
+  ["pass", null, "git restore --staged docs/retro-notes.md"],
   ["pass", null, "git checkout -b feature/x"],
   ["pass", null, "git checkout-index -- some/new-file.ts"],
   ["pass", null, "git checkout main"],
   // ...and they keep passing WITH a global option — the widening must not eat the read-only arms,
   // the branch-switch arm, or any non-destructive subcommand whose ARGUMENTS mention a banned word.
   ["pass", null, "git -C /abs/wt stash list"],
-  ["pass", null, "git -C /abs/wt restore --staged docs/retro-workboard.md"],
+  ["pass", null, "git -C /abs/wt restore --staged docs/retro-notes.md"],
   ["pass", null, "git -C /abs/wt checkout main"],
   ["pass", null, "git -C /abs/wt checkout -b wt/lane-x"],
   ["pass", null, "git -C /abs/wt log --oneline -5 -- .claude/hooks"],

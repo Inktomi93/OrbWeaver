@@ -1,4 +1,4 @@
-// The Personas group's nav entries (config-revamp-design.md §6.8.2) — the ONE `ConfigSubcategory` per
+// The Personas group's nav entries — the ONE `ConfigSubcategory` per
 // registered section, shared by the contribution def and the section body's anchor stamp (the
 // workloads-jobs-nav precedent), so a LIST row can never address an anchor no section renders.
 //

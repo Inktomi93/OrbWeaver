@@ -831,8 +831,14 @@ interface PluginHostV1 {
      *  person initiated (a spontaneous modal is unspellable). An unknown id is dropped. */
     openDialog: (surfaceId: string) => Promise<void>;
     /** THE ESCAPE HATCH — your own document (html + css, verbatim) in an isolated frame: opaque origin, no
-     *  network, no host calls, ≤ 64 000/16 000 chars, ≤ 8 frames. Anchors: settings, chat-flank, tool-card.
-     *  See the pocket-arcade example. capability: ui.frame */
+     *  network, ≤ 64 000/16 000 chars, ≤ 8 frames. Anchors: settings, chat-flank, tool-card.
+     *  There is no `orb` inside a frame. It reaches the host by
+     *  `parent.postMessage({ orbPluginFrameCall: { callId, fn, args } }, "*")`, where `fn` is one of the
+     *  functions `ui.host` proxies for a scripted surface, `args` is a positional array, and the call is
+     *  re-gated against this plugin's grants. The answer arrives as `{ orbPluginFrameResult: { callId, ok,
+     *  value } }` or, on any refusal, `{ callId, ok: false, error: "refused" }`, with at most 4 calls in flight.
+     *  Frame code must check that `event.source === parent` before obeying a received message, because other
+     *  frames on the same page can post to it. See the pocket-arcade example. capability: ui.frame */
     registerFrame: (def: { id: string; anchor: PluginSurfaceAnchor; title: string; html: string; css?: string }) => void;
   };
 }

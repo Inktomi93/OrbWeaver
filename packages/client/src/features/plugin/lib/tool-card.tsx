@@ -1,4 +1,4 @@
-// The plugin plane's TOOL-RENDERER contribution (plugin-ui-plane #679 U3, seam 7) — the door-side half of the
+// The plugin plane's TOOL-RENDERER contribution (U3, seam 7) — the door-side half of the
 // `tool-card` anchor. ONE fixed first-party member of chat's `toolRenderers` registry, claiming the
 // `plugin_` NAMESPACE rather than a name: which plugin tools exist depends on who installed what, so a
 // per-name contribution would mean the composition root growing per plugin — the one-assembly law (G8) says

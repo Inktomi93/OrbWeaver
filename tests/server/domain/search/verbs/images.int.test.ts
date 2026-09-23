@@ -1,4 +1,4 @@
-// verb: images — cross-modal text→image retrieval (PD-36). Asserts the W3 cross-modal behaviours against a
+// verb: images — cross-modal text→image retrieval. Asserts the W3 cross-modal behaviours against a
 // real db + a scripted role-clients bundle: text→image ranking by RAW cosine distance, owner-scoping (via
 // assets.ownerId), lens gating (only the requested lens is scanned), caption rerank reordering, the empty-
 // query SearchError, and — THE LOAD-BEARING INVARIANT — that a hub-score-dominant outlier does NOT outrank a

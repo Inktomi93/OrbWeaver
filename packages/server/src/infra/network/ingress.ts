@@ -1,4 +1,4 @@
-// Ingress IP-allowlist belt (PD-91). PD-52 anti-spoof rule: XFF is honored ONLY when the connection peer
+// Ingress IP-allowlist belt. Anti-spoof rule: XFF is honored ONLY when the connection peer
 // is loopback/private or explicitly trusted (`FORWARD_AUTH_TRUSTED_PROXIES`) — an untrusted client can
 // never spoof its IP via XFF. Reads env once at module init; sealed executor, never @orb/db or a domain.
 
@@ -21,11 +21,11 @@ export function parseAllowlist(raw: string | undefined): readonly string[] {
     .filter((entry) => entry.length > 0);
 }
 
-/** XFF-trusting proxy set — built once at module init (PD-52: never rebuilt per request). */
+/** XFF-trusting proxy set — built once at module init (never rebuilt per request). */
 const TRUSTED_PROXIES = parseAllowlist(env.FORWARD_AUTH_TRUSTED_PROXIES);
 
 /** Pure peer-vs-XFF precedence: leftmost XFF hop wins only when the peer is trusted; untrusted peer's
- *  XFF is ignored (spoof-proof, PD-52). */
+ *  XFF is ignored (spoof-proof). */
 export function resolveClientIp(args: {
   readonly peer: string | undefined;
   readonly forwarded: string | undefined;

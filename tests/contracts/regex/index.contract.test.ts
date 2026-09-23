@@ -239,7 +239,7 @@ test("the orb string-placement dialect still parses unchanged beside the ST nume
   expect(parsed.name).toBe(FULL_ROW.name);
 });
 
-// ── The kit↔contracts satisfies-seam (Core-Legacy-Migration-and-Gaps.md §6) ───────────────
+// ── The kit↔contracts satisfies-seam ───────────────────────────────────
 // The pure executor in `@orb/kit/regex` reads a structural `RegexScriptInput`; kit may not import
 // contracts, so the persisted row must `satisfies RegexScriptInput` FROM HERE. A field drift
 // (rename/retype/widen) makes this assignment tsc-red — that is the whole point of the seam.

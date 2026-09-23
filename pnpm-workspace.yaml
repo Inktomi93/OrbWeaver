@@ -53,8 +53,8 @@ catalog:
   "@playwright/experimental-ct-react": ^1.61.1
   # --- rendered instruments ---
   # lighthouse: the audit ENGINE the retired chrome-devtools MCP wrapped (#1195/#1198). WHY THE DEPENDENCY
-  # IS WORTH IT (every dependency is a liability): the census in docs/design/1195-devtools-mcp-retirement.md
-  # §1 counted 41 `lighthouse_audit` MCP calls in 14 days and it was the ONLY MCP tool producing findings
+  # IS WORTH IT (every dependency is a liability): the retirement census
+  # counted 41 `lighthouse_audit` MCP calls in 14 days and it was the ONLY MCP tool producing findings
   # snap could not — axe's `label-content-name-mismatch` (3 nodes on the plugins pane) and `target-size`.
   # Owning the engine retires a whole MCP server for one dev-only @orb/tooling dep that ships to nobody.
   # The caret is deliberate but NOT free: snap reads audit ids and the `details.items[].node.selector`
@@ -148,7 +148,7 @@ catalog:
   luxon: ^3.7.2
   "@types/luxon": ^3.7.2
   # @marcbachmann/cel-js: the CEL expression evaluator (isomorphic, pure — no node:*) behind the
-  # @orb/kit/cel seam; automation predicates + {{expr}} (automation-design/02 §1). Bundled types.
+  # @orb/kit/cel seam; automation predicates + {{expr}}. Bundled types.
   "@marcbachmann/cel-js": ^8.0.0
   # --- db ---
   drizzle-orm: ^0.45.2
@@ -223,11 +223,11 @@ catalog:
   # @huggingface/transformers: the in-process local-light tier (transformers.js/ONNX, CPU+CUDA) — the
   # "any box" embed/rerank/imageEmbed path (D39). Pulls onnxruntime-node (native; allowBuilds-approved).
   "@huggingface/transformers": ^4.3.0
-  # --- infra/extraction (databank DB3 — databank-design/04) ---
+  # --- infra/extraction (databank) ---
   pdfjs-dist: ^6.2.108
   html-to-text: ^10.0.0
   "@types/html-to-text": ^9.0.4
-  # --- infra/plugin-host (plugin-design/04 P1 — the QuickJS-ng WASM sandbox) ---
+  # --- infra/plugin-host (P1 — the QuickJS-ng WASM sandbox) ---
   quickjs-emscripten-core: ^0.32.0
   "@jitl/quickjs-ng-wasmfile-release-sync": ^0.32.0
   fflate: ^0.8.3
@@ -298,7 +298,7 @@ catalog:
   minisearch: ^7.2.0
   # toPlainText: markdown→plaintext previews via the same unified pipeline as Streamdown (D54).
   remark: ^15.0.1
-  # docs formatter (tooling/src/doc-catalog/ops/format.ts): frontmatter passthrough + compact GFM tables
+  # docs formatter (tooling/src/doc/ops/format.ts): frontmatter passthrough + compact GFM tables
   # (tablePipeAlign:false) — the style is .claude/rules/writing.md §Markdown.
   "remark-frontmatter": ^5.0.0
   "remark-gfm": ^4.0.1
@@ -314,7 +314,7 @@ catalog:
   "@vitejs/plugin-react": ^6.0.3
 
   # --- client tooling: the ESLint gate + the @orb/client vite build (versions verified vs the live
-  #     registry 2026-07-02; setup + rule enumeration + pin reasons in proposed/client-tooling-setup.md) ---
+  #     registry 2026-07-02) ---
   # ESLint 10 is the NARROW supplement to biome (biome owns format + 400+ correctness rules): only the
   # rules biome can't do — react-hooks + React-Compiler diagnostics, TanStack Query/Router discipline,
   # tailwind compiled-class validation. Config: eslint.config.js (explicit-rules-only, no `recommended`).
@@ -364,9 +364,9 @@ catalog:
   # production stack, used MINIMALLY (~3 hand-written code-based routes: / · /login · /admin/*).
   # 1.170.17 is <24h-blocked; ^1.170.16 is the latest mature (caret adopts newer once mature).
   # NB: the FILE-BASED codegen (@tanstack/router-plugin + @tanstack/router-cli + routeTree.gen.ts) is
-  # DELIBERATELY DROPPED (UI-Arch §6.1, UI-Lib-TanStack-Router.md B#3/B#4): hand-written code-based
+  # DELIBERATELY DROPPED (UI-Arch §6.1): hand-written code-based
   # tree; type-safety = inference + one `declare module { Register }`, not codegen. The vite build does
-  # NOT wire tanstackRouter(). See proposed/client-tooling-setup.md §4.
+  # NOT wire tanstackRouter().
   "@tanstack/react-router": ^1.170.16
 # There is deliberately NO `esbuild@^0.25.0` override here any more (dropped 2026-08-07). It existed to
 # force "vite/vitest's bundled esbuild" up to 0.28.1 so the es2025 target would not be rejected — and the

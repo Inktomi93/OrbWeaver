@@ -2,7 +2,7 @@
 // (the shipped bug passed the id where a hash was expected, dropping every asset image); (2) the D21
 // reference-check — an asset resolves only if its owner is the turn HOST or a PRESENT participant of the
 // referencing chat (a group member's own upload renders; a stranger's asset is refused), NOT a bare
-// hash→any-owner oracle (PD-107); (3) the #317 MEDIA-KIND classification — `video/*` and gif (kit
+// hash→any-owner oracle; (3) the #317 MEDIA-KIND classification — `video/*` and gif (kit
 // `isAnimated`, which reads every gif as animated) classify `video`, every other image `image`.
 
 import type { ContentImageRef } from "@orb/kit/content";

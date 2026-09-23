@@ -1,4 +1,4 @@
-// Mirror int-test for domain/world-info/verbs/createImport (W-worldinfo; export-import-portability.md §1) —
+// Mirror int-test for domain/world-info/verbs/createImport (W-worldinfo) —
 // the STANDALONE world-info-book import over a real db: parse an untrusted `worlds/*.json` upload → the
 // canonical shape → the UNATTACHED owned write (dedup on `(ownerId, name)`, R6). Wires the real
 // `createImportStandaloneLorebook` write op behind the verb. Asserts: a fresh book lands unattached

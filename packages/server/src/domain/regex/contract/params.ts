@@ -1,7 +1,7 @@
 // domain/regex/contract/params — every verb's *Params, declared ONCE. Every verb carries the resolved
 // principal; ownership scopes off principal.userId, never a users read. The CHAT scope's authority is the
 // injected chat-guard ops (requireChatHost for attach/detach, requireChatMember for list) — regex never
-// reads the chat roster itself (the world-info PD-30 precedent).
+// reads the chat roster itself (the world-info precedent).
 
 import type { Principal } from "@orb/contracts/identity";
 import type { CreateRegexScriptInput, RegexAttachScope, UpdateRegexScriptInput } from "@orb/contracts/regex";

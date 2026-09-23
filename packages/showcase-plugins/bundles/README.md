@@ -276,7 +276,7 @@ chips' claimed-before-spent cooldown. Claim a budget BEFORE you spend it — two
 
 * **No host DOM, ever.** The declarative plane + the frame hatch ARE the UI story.
 * **No arbitrary pixels in the vocabulary** — that is what `ui.frame` is for, behind its own consent line
-  (and with no network and no host calls inside; pocket-arcade shows the honest shape). A surface expressible
+  (and with no network inside; its host calls ride `postMessage`, see pocket-arcade). A surface expressible
   in the vocabulary must ship in the vocabulary.
 * **No remote images.** An `image`/tile cover is an asset in the installer's own CAS — a URL is unspellable.
 * **No stable room identity in a tool handler** (the handle is per-invocation; key tool state per install).

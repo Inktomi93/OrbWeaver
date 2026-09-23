@@ -176,12 +176,12 @@ export interface GhostMessageRowProps {
    *  trust, external-media verdict and frame delivery stay pinned at the stream floor. Absent ⇒ `tierA`, the
    *  same fail-closed value the resolver returns for a mount with no roster. */
   readonly cardTier?: CardTrust | undefined;
-  /** PD-146 — the `UserSettings.chat.smoothStream` pref: pace the reveal. The PREF ships ON (owner ruling
+  /** The `UserSettings.chat.smoothStream` pref: pace the reveal. The PREF ships ON (owner ruling
    *  2026-08-09 — the #42 word fade rides `mode="streaming"` in BOTH modes, so this is pure pacing); the
    *  prop's own fallback stays OFF because an ABSENT prop means "this mount never resolved the pref", not
    *  "the user wants pacing" — the contract keeps the ONE home of the default. */
   readonly smoothStream?: boolean | undefined;
-  /** PD-146 — the `UserSettings.chat.smoothStreamCps` pref: the trickle floor when `smoothStream` is on. */
+  /** The `UserSettings.chat.smoothStreamCps` pref: the trickle floor when `smoothStream` is on. */
   readonly smoothStreamCps?: number | undefined;
   /** The `UserSettings.chat.reasoningAutoCollapse` pref: fold the live reasoning trace on the first answer
    *  token (default ON). Absent ⇒ ON. */

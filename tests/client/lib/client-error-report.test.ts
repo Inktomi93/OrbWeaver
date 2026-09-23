@@ -1,4 +1,4 @@
-// `buildClientErrorPayload` — the pure PD-58 wire-payload builder. `url` is injected (never read from
+// `buildClientErrorPayload` — the pure wire-payload builder. `url` is injected (never read from
 // `globalThis.location` internally — see the file header), so this is plain-data-in/plain-data-out and
 // needs no DOM/jsdom to test under the node unit lane.
 

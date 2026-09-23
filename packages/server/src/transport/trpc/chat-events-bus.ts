@@ -1,7 +1,7 @@
 // The per-chat live fan-out the multiplexed socket's `chat` ROOM tails. The chat domain owns the durable
 // half (the chat_events INSERT + the replayChatEvents/chatEventBounds member-gated reads); the per-chat
 // live channel is transport state. Rides `defineBusChannel` WITH the firehose opt-in (the buddy-observer
-// chat source) — the ONE bus needing it (client-architecture-lockdown.md §13/§16 G10).
+// chat source) — the ONE bus needing it (client-architecture-state-and-gates.md §13/§16 G10).
 //
 // Durable-first / fan-out-second: entry wraps the domain bus emit so the chat_events row (which assigns
 // the per-chat seq) always commits before the live publish, so a dead bus path never loses an event.
@@ -25,8 +25,8 @@ const channelFor = (chatId: ChatId): string => `chat:${chatId}`;
 
 /** One live-bus entry — the durable per-chat cursor + the room-public event.
  *
- *  TWO ARMS, and the pairing is PHYSICS rather than convention (the entity→room bridge's live-only lane,
- *  `docs/design/entity-room-member-freshness-bridge.md` §3.4):
+ *  TWO ARMS, and the pairing is PHYSICS rather than convention (the entity→room bridge's live-only
+ *  lane):
  *    • `seq: number` — the durable arm. The entry was appended to `chat_events` first and this IS its replay
  *      cursor, so the pump dedups on it and the socket cell advances the room's resume cursor from it.
  *    • `seq: null`   — the LIVE-ONLY arm. No `chat_events` row exists, so there is no cursor to carry and

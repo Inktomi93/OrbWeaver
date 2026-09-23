@@ -427,7 +427,7 @@ export function fakeRecallResult(text: string): MemoryRecallResult {
 }
 
 /**
- * Build a full `ChatContext` for the verb int-tests — the REAL db + the REAL admin `can()` (the PD-1 unified
+ * Build a full `ChatContext` for the verb int-tests — the REAL db + the REAL admin `can()` (the unified
  * seam, wired as the root will) + a frozen clock + deterministic id minters. Every cross-feature op defaults
  * to a throwing stub (an accidental reach fails loudly), overridable per test (`getCard`/`emitNotification`
  * are the ones these verbs touch). The chat bus `emit` is NOT a ctx field (chat's own collaborator) — tests
@@ -535,7 +535,7 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     // (env.VLLM_EMBED_MAX_MODEL_LEN) so a test block only trips the skip when it is genuinely huge.
     embedContextTokens: () => Promise.resolve(8192),
     memorySummarizer: {},
-    // The emit-op CONTRACT (PD-24): the op OWNS the commit of the producer's co-statements (the verb hands
+    // The emit-op CONTRACT: the op OWNS the commit of the producer's co-statements (the verb hands
     // them UNEXECUTED). The default fake honors that half (executes them; drops the event) so a membership
     // transition still lands; a test that asserts events overrides with a recorder that does the same.
     emitNotification: async (_event, coStatements) => {
@@ -543,7 +543,7 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
         await db.batch(batchMany(coStatements as BatchStmt[]));
       }
     },
-    // Default = everyone ONLINE (loadRoom presence-gates the persona set every turn — PD-70). This keeps the
+    // Default = everyone ONLINE (loadRoom presence-gates the persona set every turn). This keeps the
     // no-multi-human-presence tests byte-identical (no persona drops); a presence-gating test overrides with a
     // fake that returns `online:false` for the away member.
     readPresence: (userId) => Promise.resolve({ userId, online: true, lastSeenAt: null }),
@@ -567,7 +567,7 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     // B7 — the verb-time reaction defaults (the shipped posture: plane ON, react tool OFF). A toggle test
     // that wants a different host default overrides this op, the `resolveForeignInputs` pattern.
     readReactionDefaults: () => Promise.resolve({ charactersCanReact: false, reactionsEnabled: true }),
-    // Default = null ⇒ no PromptTransform registrar wired (byte-identical no-op — automation-design/04 §6). A
+    // Default = null ⇒ no PromptTransform registrar wired (byte-identical no-op). A
     // transform test overrides with a `createPromptTransformRegistry(...).apply`.
     promptTransforms: null,
     resolveHandle: notStubbed,

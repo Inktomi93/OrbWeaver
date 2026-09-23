@@ -1,4 +1,4 @@
-// domain/rpg/verbs/journal/add-journal-entry — addJournalEntry (rpg-design/05 §4.4). A hand journal entry:
+// domain/rpg/verbs/journal/add-journal-entry — addJournalEntry (docs/plans/rpg/design.md). A hand journal entry:
 // stamps `variantId: NULL` (every-lineage room truth, §2.5) with no `sourceMessageId`. Host-gated. The MODEL
 // arm (staged → flushed stamped with the committed variant) is the turn-flush path, W1b-integration.
 

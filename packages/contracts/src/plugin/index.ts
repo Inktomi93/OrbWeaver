@@ -10,7 +10,7 @@
  *  BAD_REQUEST rather than an unbounded log fetch (the #45 class). */
 export const PLUGIN_LOG_LIST_MAX_LIMIT = 500;
 
-/** The `plugin.transformForDisplay` input CEILING (plugin-ui-plane seam 14, U6) — the longest rendered row a
+/** The `plugin.transformForDisplay` input CEILING (seam 14, U6) — the longest rendered row a
  *  viewer's client may submit for display transformation, enforced at the transport trust boundary. It is
  *  generous against real prose (a very long message is a few thousand characters) and it exists because the
  *  round-trip is PER ROW: without it a transcript render is an unbounded upload per visible message. A row over

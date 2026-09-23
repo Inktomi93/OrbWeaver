@@ -1,4 +1,4 @@
-// Mirror int-test for domain/world-info/persistence/createCopyCharacterBooks (PD-141) — the world-info-OWNED
+// Mirror int-test for domain/world-info/persistence/createCopyCharacterBooks — the world-info-OWNED
 // character_books CARRY that character.duplicate consumes as an injected op. REFERENCE-carry over a real db:
 // the SAME world_books are re-pointed at the new character id (fresh junction rows, roles preserved); the
 // books themselves are NEVER cloned; the source's own junctions are untouched; zero attachments = no-op.

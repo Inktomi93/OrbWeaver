@@ -1,5 +1,5 @@
 // db.batch atomicity — the "a libsql/drizzle upgrade silently degrades batch atomicity" regression class.
-// A `db.batch([...])` is the ONE primitive the PD-24 canon-write co-statements ride (the emit-op hands the
+// A `db.batch([...])` is the ONE primitive the canon-write co-statements ride (the emit-op hands the
 // producer UNEXECUTED co-statements, then commits them as ONE batch — _support.ts's `emitNotification`
 // default: `db.batch(batchMany(coStatements))`). The whole contract is ALL-OR-NOTHING: if a later statement
 // violates a UNIQUE constraint, the earlier statements MUST roll back. Nothing else in the suite pins this —
@@ -33,7 +33,7 @@ function userRow(id: string, handle: Handle): typeof users.$inferInsert {
   };
 }
 
-describe("db.batch atomicity — a UNIQUE violation mid-batch lands ZERO rows (PD-24 co-statement class)", () => {
+describe("db.batch atomicity — a UNIQUE violation mid-batch lands ZERO rows (co-statement class)", () => {
   test("the positive control: a valid two-statement batch commits BOTH rows", async () => {
     const db = await freshDb();
 

@@ -1,7 +1,7 @@
 // CT: the notifications chrome entry's VISIBILITY — what the topbar trail paints, and WHEN.
 //
 // #1627 RETIRED THE GATE THIS FILE WAS BORN FOR. The entry used to hide the bell unless the deployment was
-// multi-human capable (PD-106: every notification SOURCE was invite/kick/host-handoff), and #476 then spent a
+// multi-human capable (every notification SOURCE was invite/kick/host-handoff), and #476 then spent a
 // device-local boot hint on making that gate answer in the first frame instead of mounting the bell INTO the
 // trail 90ms late. Both premises are gone: `plugin-disabled` (a plugin the crash policy auto-disabled) and
 // `automation-notice` (a rule that auto-disabled itself) write durable rows on a single-user deployment, and

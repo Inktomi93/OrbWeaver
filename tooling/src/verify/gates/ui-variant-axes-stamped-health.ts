@@ -5,7 +5,7 @@
 // exporting the door, the derivation is empty and the recipe policy reports OK over every unstamped recipe
 // on the tree. This policy reds that instead.
 //
-// Split from the legacy descriptor (docs/history/gate-runtime-worked-cases-2026-09.md §"Mixed-hook arity amendments", #1950). The ruled row says "hard recipe/duplicate/
+// Split from the legacy descriptor (#1950). The ruled row says "hard recipe/duplicate/
 // blindness policies"; A1/A2/A3 differ on no axis and stayed together, while THIS arm differs on
 // POPULATION — its subject is exactly one file, and the others need the whole `@ui` corpus — which is the
 // axis §3 says a split is owed on.

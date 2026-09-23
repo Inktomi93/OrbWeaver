@@ -32,7 +32,7 @@ import { propertyAssignmentName } from "../lib/property-assignment-name.ts";
 const UNAMBIGUOUS_SAMPLING_KEYS = new Set(["temperature", "maxOutputTokens", "topP"]);
 /** `maxTokens` is SHARED VOCABULARY: it is the summarize seam's output cap AND the canon-window budget
  *  `ResolveCanonWindow` takes (`chat/contract/context.ts`). Which word names which concept is not decided
- *  here (Constitution.md §3 → docs/design/vocabulary-map.md), so the policy asks the OBJECT to corroborate:
+ *  here (Constitution.md §3 → docs/law/vocabulary-map.md), so the policy asks the OBJECT to corroborate:
  *  `maxTokens` is a sampling knob when its own literal also carries an unambiguous one. A lone
  *  `{ maxTokens }` is a DECLARED LIMIT with its row — the live `rpg/verbs/game/resync-from-story.ts`
  *  transcript budget is exactly that shape, and accusing it would be a confident false positive. */

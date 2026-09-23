@@ -12,7 +12,7 @@ plan: doc-migration
 
 ## What
 
-Delete `tooling/src/workboard/` and `tests/tooling/workboard/`, the `work:item` script in `package.json`, the tool's row in the roster of `docs/law/Core-Tooling-Law.md`, and every `pnpm work:item` spelling in `.claude/rules/*.md`, `.claude/skills/**`, `.claude/hooks/session-onboard.sh` and `AGENTS.md`, replacing each with the `pnpm doc` verb that does the job (`item`, `set`, `land`, `overview`, `drift`). The GitHub issue templates under `.github/ISSUE_TEMPLATE/` and `tests/tooling/issue-form-guidance-integrity.test.ts` go with it unless the owner keeps GitHub issues for outside reports.
+Delete the board tool and its test tree, the `work:item` script in `package.json`, the tool's row in the roster of `docs/law/Core-Tooling-Law.md`, and every `pnpm work:item` spelling in `.claude/rules/*.md`, `.claude/skills/**`, `.claude/hooks/session-onboard.sh` and `AGENTS.md`, replacing each with the `pnpm doc` verb that does the job (`item`, `set`, `land`, `overview`, `drift`). The GitHub issue templates under `.github/ISSUE_TEMPLATE/` and `tests/tooling/issue-form-guidance-integrity.test.ts` go with it unless the owner keeps GitHub issues for outside reports.
 
 ## Why
 

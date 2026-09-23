@@ -143,11 +143,11 @@ export interface MembraneRuntime {
    *  budget, and unregisters on deactivate. Infra cannot import that domain registry (the cake) — it only
    *  collects; the band + apply-under-budget + unregister live domain-side. */
   readonly collectTransform: (reg: { readonly name: string; readonly point: TransformPoint }, handler: QuickJSHandle) => void;
-  /** Collect a DISPLAY transform registration (plugin-ui-plane seam 14) — the sibling of `collectTransform`
+  /** Collect a DISPLAY transform registration (seam 14) — the sibling of `collectTransform`
    *  with NO external registrar: like a surface, it is read directly off the resident instance by the display
    *  round-trip verb and re-entered through the port's `invoke`. Infra only collects + keeps the handle alive. */
   readonly collectDisplayTransform: (reg: { readonly name: string }, handler: QuickJSHandle) => void;
-  /** Collect a MACRO registration (plugin-ui-plane §5.15). Infra collects the guest-LOCAL name; the DOMAIN
+  /** Collect a MACRO registration. Infra collects the guest-LOCAL name; the DOMAIN
    *  namespaces it `plugin_<slug'>_<name>` from the re-validated manifest at activation, for the same reason it
    *  namespaces a tool: the slug is host knowledge and a guest must not be able to name its own prefix. */
   readonly collectMacro: (reg: { readonly name: string; readonly description: string }, handler: QuickJSHandle) => void;
@@ -159,19 +159,19 @@ export interface MembraneRuntime {
    *  the membrane never bypasses the automation-side delivery gates. `type` is validated to the closed Tier-1
    *  taxonomy at THIS boundary (a garbage type is refused at collection, never a dead subscription). */
   readonly collectEvent: (reg: { readonly type: ChatTriggerType | DomainTriggerType }, handler: QuickJSHandle) => void;
-  /** Collect a PRIVATE plugin-event subscription (`host.pubsub.on`, plugin-ui-plane §5a) — the `collectEvent`
+  /** Collect a PRIVATE plugin-event subscription (`host.pubsub.on`) — the `collectEvent`
    *  mirror, one plane over. The guest handler HANDLE is kept alive; the DOMAIN wires each onto the
    *  INSTALLER-scoped resident plugin-event bus at activation (`subscribePubsub`), never the automation fan-out.
    *  `emitterSlug`/`name` are validated to bounded grammars at THIS boundary (an unbounded coordinate is an
    *  unbounded bus-map key). */
   readonly collectPubsub: (reg: { readonly emitterSlug: string; readonly name: string }, handler: QuickJSHandle) => void;
-  /** Collect a UI surface registration — the SYNC activation-time mirror of `collectTool` (plugin-ui-plane #679
-   *  U1, seam 4). `meta` is the ALREADY-VALIDATED serializable descriptor (`setUi` ran the zod schema — the host
+  /** Collect a UI surface registration — the SYNC activation-time mirror of `collectTool`
+   *  (U1, seam 4). `meta` is the ALREADY-VALIDATED serializable descriptor (`setUi` ran the zod schema — the host
    *  trust boundary); `onAction` is the guest handler HANDLE the Sandbox keeps alive keyed by a minted ref (`null`
    *  = a display-only surface). Unlike tools/transforms/events a surface needs NO external registrar: it is read
    *  directly off the resident instance by `plugin.listSurfaces` and re-entered by `plugin.invokeUiAction`. */
   readonly collectSurface: (meta: PluginSurfaceRegistrationMeta, onAction: QuickJSHandle | null, frame?: PluginFrameBody) => void;
-  /** Collect a UI COMMAND registration — the `collectSurface` mirror (plugin-ui-plane #679 U5, §4.5). `meta` is
+  /** Collect a UI COMMAND registration — the `collectSurface` mirror. `meta` is
    *  the ALREADY-VALIDATED serializable descriptor; `onRun` is the guest handler HANDLE the Sandbox keeps alive
    *  keyed by a minted ref, and it is NON-NULL by construction (a command with nothing to run is a dead menu
    *  row, not a display-only affordance — the membrane refuses one softly before ever calling this). Like a
@@ -180,7 +180,7 @@ export interface MembraneRuntime {
   readonly collectCommand: (meta: PluginCommandRegistrationMeta, onRun: QuickJSHandle) => void;
   /** Append a WARN line to the instance's log ring (drained into the invocation outcome / runtime ring). The ONE
    *  soft-diagnostic seam: `ui.register` uses it to record a refused surface WITHOUT throwing — an invalid surface
-   *  spec must not be activation-fatal (a plugin's tools/chips outlive its stale panel, plugin-ui-plane §4.9). */
+   *  spec must not be activation-fatal (a plugin's tools/chips outlive its stale panel). */
   readonly logWarn: (message: string) => void;
   /** The manifest-declared `net.fetch` allowlist (the SSRF wall). Threaded as plain-string DATA from
    *  the validated manifest (`netHosts`); NEVER `ANY_HOST`, NEVER guest-supplied. Empty ⇒ every fetch is
@@ -475,7 +475,7 @@ function parseFrameBody(ctx: QuickJSContext, defHandle: QuickJSHandle): FrameBod
   }
 }
 
-/** `ui.registerFrame(def)` — the U7 ESCAPE HATCH's door (plugin-ui-plane §6.2). capability: **`ui.frame`**.
+/** `ui.registerFrame(def)` — the U7 ESCAPE HATCH's door. capability: **`ui.frame`**.
  *
  *  Three things make it a different door rather than an argument:
  *   1. THE CAPABILITY. A frame runs the plugin's own code in an isolated document and can beacon over WebRTC
@@ -1179,7 +1179,7 @@ function setLlm(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRu
   ctx.setProp(surface, "llm", llm);
 }
 
-/** databank.ingest — capability databank.ingest (plugin-ui-plane §5.33/seam 15). Ingest a text document into
+/** databank.ingest — capability databank.ingest (seam 15). Ingest a text document into
  *  the INSTALLER's OWN databank. NO chat scope + NO host authority — deliberately, the `storage`/`llm` posture:
  *  a library write is the installer's own reach, not room state, so gating on `canWrite` would claim a
  *  protection it does not provide. The installer is closed over DOMAIN-side (the bridge), so a guest supplies
@@ -1203,7 +1203,7 @@ function setDatabank(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membr
   ctx.setProp(surface, "databank", databank);
 }
 
-/** character.ingest — capability character.ingest (plugin-ui-plane §5 row 20 / seam 17). Ingest a V2/V3
+/** character.ingest — capability character.ingest (seam 17). Ingest a V2/V3
  *  character CARD (a plain JSON object) into the INSTALLER's OWN library through the ContentChanged-emitting
  *  import funnel. Same owner-scoped, no-chat, no-host posture as {@link setDatabank}. The guest supplies the raw
  *  card object; the domain serializes + validates it through `parseCardJson`, so a non-object arg (an array /
@@ -1288,7 +1288,7 @@ function setCharacter(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
   ctx.setProp(surface, "character", character);
 }
 
-/** Project the guest-supplied `llm.quiet` options bag (U6 — plugin-ui-plane §5.16/§5.32) to the JSON-safe
+/** Project the guest-supplied `llm.quiet` options bag to the JSON-safe
  *  `PluginQuietOptions` shape. The whole function is the fail-safe projection posture `buildTurnHints` and
  *  `buildQuickReplyChoices` already use: a malformed arm is DROPPED (the call proceeds as a plain quiet
  *  generation) rather than coerced or thrown — a guest typo must not turn a working call into an error, and a
@@ -1449,7 +1449,7 @@ function setTransforms(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Mem
   ctx.setProp(surface, "transforms", transforms);
 }
 
-/** macros.register — SYNC, activation-time, the macro mirror of `tools.register` (plugin-ui-plane §5.15).
+/** macros.register — SYNC, activation-time, the macro mirror of `tools.register`.
  *  Collects `{name, description}` + the guest `resolve` HANDLE; the DOMAIN namespaces the name and resolves the
  *  handler ONCE per turn into that turn's macro registry. Capability-gated `chat.transform` through the SAME
  *  uniform gate. Infra assigns no name and evaluates nothing — it only collects, exactly as it does for tools. */
@@ -1518,7 +1518,7 @@ function setEvents(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membran
   ctx.setProp(surface, "events", events);
 }
 
-/** THE PRIVATE PLUGIN-EVENT PLANE (`host.pubsub`, plugin-ui-plane §5a). `on` is a SYNC resident subscription
+/** THE PRIVATE PLUGIN-EVENT PLANE (`host.pubsub`). `on` is a SYNC resident subscription
  *  (the `events.on` mirror — collected + wired to the INSTALLER-scoped bus at activation, never the automation
  *  fan-out); `emit` is an ASYNC runtime publish. Both gate `plugin_events`. The forgery wall's boundary half is
  *  HERE: the channel coordinates are validated COLON-FREE — `name` against `PLUGIN_PUBSUB_NAME_RE`, and (for `on`)

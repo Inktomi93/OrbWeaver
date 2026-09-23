@@ -180,7 +180,7 @@ export const PRESET_PROSE_SLOTS = {
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // THE ONE-CLICK STEER VOCABULARY (PROSE-1 census 53-73) — the templating fork, ruled ARM B by the owner
-// (2026-08-09; `docs/history/design/templating-fork-rows-53-73.md`). The 21 fragment strings the Rewrite modal and
+// (2026-08-09; D172). The 21 fragment strings the Rewrite modal and
 // the greeting studio compose into a steer used to be `as const` DATA on the two catalogs in `./index.ts`
 // and were joined IN THE BROWSER. Now they are slots: the bytes live here, the composition runs SERVER-side
 // at the two seams that already hold the preset's prose blob, and the wire carries only the picked KINDS

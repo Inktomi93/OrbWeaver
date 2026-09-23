@@ -34,7 +34,7 @@ import { z } from "zod";
 // ── the canonical shape (NAME-level; the serde owns its wire shape, server/kit type-home-exempt) ──────────
 
 /** RAG/analytics relevance class of a parsed chat (the `classify` output). Import EVERYTHING, but the
- *  memory-backfill (PD-78) enqueues over `real_conversation` chats ONLY. `greeting_only` = no user turn;
+ *  memory-backfill enqueues over `real_conversation` chats ONLY. `greeting_only` = no user turn;
  *  `all_empty_msgs` = system-only rows (blank rows are stripped or swipe-promoted at parse); `header_only` = no message lines at all. */
 export const CHAT_BUCKETS = ["header_only", "all_empty_msgs", "greeting_only", "real_conversation"] as const;
 export type ChatBucket = (typeof CHAT_BUCKETS)[number];
@@ -61,7 +61,7 @@ export interface ParsedVariant {
   readonly metadata: VariantMetadata | null;
 }
 
-/** Provenance for an AGENT-authored assistant row (D60 self-attribution; PD-17). An agent principal voices
+/** Provenance for an AGENT-authored assistant row (D60 self-attribution; docs/work/0048). An agent principal voices
  *  with NO character card, so the only honest speaker source is the agent's own identity. This carries ONLY
  *  what a shared export may reveal: the agent's DISPLAY `name` + its `sourceKind` label (e.g. `"buddy"`).
  *  Deliberately NOT here: the owner (the agent `handle` embeds `ownerUserId` — never read), the soul
@@ -77,7 +77,7 @@ export interface ParsedAgentAuthor {
  *  the authoring persona for a user row — export RESOLVES it from ids before build; parse READS it off the
  *  line; import does NOT use it for attribution (it re-resolves via `personaByUserName`). `variants` is the
  *  multi-swipe pool (empty on the parse side when ≤1 real generation); `activeVariantIdx` is `swipe_id`
- *  remapped onto the surviving pool. `agentAuthor` is present ONLY on an agent-authored assistant row (PD-17);
+ *  remapped onto the surviving pool. `agentAuthor` is present ONLY on an agent-authored assistant row (D60);
  *  absent for every human + character-voiced turn (so those export byte-identically). On IMPORT the field
  *  round-trips through the serde but the import DOMAIN never re-links it to a local agent principal — a
  *  foreign install has no matching agent, so the label stays provenance-only and no local agent is fabricated. */
@@ -161,7 +161,7 @@ export interface ParsedScriptInject {
 
 /** One parsed/serializable ST chat. `createDate` is the FILENAME date first (survives ST re-save/migration),
  *  then the header `create_date`, then null. `parentRef` is the normalized `chat_metadata.main_chat` (the
- *  branch edge; falls back to the filename lineage). `bucket` is the memory-backfill gate (PD-78).
+ *  branch edge; falls back to the filename lineage). `bucket` is the memory-backfill gate.
  *  `sourceMetadata` is the full `chat_metadata` (lossless sidecar; null on the build side). */
 export interface ParsedChat {
   readonly characterName: string;
@@ -246,7 +246,7 @@ const rawExtraSchema = z
 
 const rawSwipeInfoSchema = z.object({ extra: z.unknown(), gen_started: z.unknown(), gen_finished: z.unknown() }).partial().loose();
 
-// The orb-specific agent-provenance sidecar (PD-17). Only `name`/`source_kind` are modelled; `.loose()` keeps
+// The orb-specific agent-provenance sidecar (D60). Only `name`/`source_kind` are modelled; `.loose()` keeps
 // (but never emits) any foreign residue. A non-object → null (skip), same as every other wire view here.
 const rawAgentAuthorSchema = z.object({ name: z.unknown(), source_kind: z.unknown() }).partial().loose();
 
@@ -571,7 +571,7 @@ function tokenColumns(tokenCount: number | null, role: MessageRole): { tokensIn:
     : { tokensIn: tokenCount, tokensOut: null, tokenProvenance: "measured" };
 }
 
-/** Coerce the `agent_author` sidecar → provenance, or null when absent/blank (PD-17). Both fields must be
+/** Coerce the `agent_author` sidecar → provenance, or null when absent/blank (D60). Both fields must be
  *  non-empty strings — a partial/garbage sidecar degrades to "no provenance" (the row exports as a plain
  *  assistant line), never a fabricated half-identity. */
 function parseAgentAuthor(v: unknown): ParsedAgentAuthor | null {
@@ -748,8 +748,8 @@ function buildVariants(args: {
   return { variants, activeVariantIdx: newActive >= 0 ? newActive : null };
 }
 
-/** Classify a chat into the 4 buckets: import everything, but embed/analyze only `real_conversation`
- *  (PD-78). `greeting_only` = no user turn; `all_empty_msgs` = system-only rows (parseMessageLine never
+/** Classify a chat into the 4 buckets: import everything, but embed/analyze only `real_conversation`,
+ *  the memory-backfill gate. `greeting_only` = no user turn; `all_empty_msgs` = system-only rows (parseMessageLine never
  *  emits a blank non-system row — stripped or swipe-promoted); `header_only` = no lines. */
 export function classifyChat(messages: readonly ParsedChatMessage[]): ChatBucket {
   if (messages.length === 0) {
@@ -1028,7 +1028,7 @@ function buildMessageLine(m: ParsedChatMessage, chatCreateDate: number | null, z
     extra: buildExtra(m),
     gen_started: m.genStarted,
     gen_finished: m.genFinished,
-    // PD-17 provenance sidecar — emitted ONLY for an agent-authored row, so every human/character turn
+    // D60 provenance sidecar — emitted ONLY for an agent-authored row, so every human/character turn
     // stays byte-identical. NO owner id, NO soul prompt: just the agent's display name + its source kind.
     ...(m.agentAuthor !== undefined ? { agent_author: { name: m.agentAuthor.name, source_kind: m.agentAuthor.sourceKind } } : {}),
     ...buildSwipeFields(m),

@@ -1,4 +1,4 @@
-// CT: plugin-registered commands as FIRST-CLASS command-palette rows (plugin-ui-plane #679 U8, §4.5/§5 row 9).
+// CT: plugin-registered commands as FIRST-CLASS command-palette rows.
 // Drives the production path — `plugin.listCommands` (the caller's OWN granted-and-enabled plugins' commands)
 // → the U8 `pluginCommandPaletteSource` fanned through the real palette-source registry → cmdk rows — and the
 // dispatch half: a picked row runs `plugin.invokeUiCommand` (the SAME guest-handler round-trip the `/plugin`

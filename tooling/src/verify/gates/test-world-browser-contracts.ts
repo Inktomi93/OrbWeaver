@@ -1,7 +1,7 @@
 // Gate: test-world-browser-contracts — a Node-intent test/helper cannot compile only because React's
 // global.d.ts supplies empty DOM interfaces, nor consume browser-authored UI/client contracts.
 //
-// CARRY-FORWARD (gate-runtime-standardization.md, "World-program changes that must survive cutover" —
+// CARRY-FORWARD (docs/law/gate-runtime-standardization.md, "World-program changes that must survive cutover" —
 // "Browser contracts require the real DOM world"): canonical browser components, aliases, and React DOM
 // contracts still reject in Node-intent tests; pure data, ReactNode, and genuine Node globals stay legal;
 // the unreadable-origin refusal is preserved verbatim (an unreadable relevant import still throws a tool

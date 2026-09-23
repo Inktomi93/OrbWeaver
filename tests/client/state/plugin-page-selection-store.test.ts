@@ -1,4 +1,4 @@
-// The EXTENSIONS drill-key seam (plugin-ui-plane #679 U5, §4.5b). The key is minted once and then stays
+// The EXTENSIONS drill-key seam. The key is minted once and then stays
 // opaque: the switcher, content pane, and mobile title resolve pages through exact key equality.
 
 import type { PluginPageKey } from "@orb/client/state";

@@ -47,7 +47,7 @@ export function mirrorDraft<TValues extends object>(
 // trigger; a local deep-equal is equally sanctioned — kept local so the forms layer takes no new
 // dependency). The autosave boundary's save driver compares live `state.values` against the last-saved
 // snapshot with it: form values are mapper outputs (a FRESH object every render), so an `Object.is`
-// baseline compare always reads "changed" (footgun #6, UI-Lib-TanStack-Form). Form values are JSON-shaped
+// baseline compare always reads "changed". Form values are JSON-shaped
 // by construction — the contracts that back them are zod objects of strings/numbers/booleans/arrays/nested
 // objects, no Dates/Maps/Sets/functions — so a recursive structural walk is a complete equality for them.
 /** Structural deep-equality for JSON-shaped form values (the forms layer's ONE deep-equal, see header). */

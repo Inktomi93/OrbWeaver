@@ -1,8 +1,8 @@
 // The CONTEXT Relations tab — the character's cross-entity links: Linked World Books
 // (worldInfo.attach/detach/listForCharacter) + Connected Personas (persona.connect/disconnect/
 // listConnectedToCharacter). Each is a RelationManagerSection (tier-2): an inline summary list + an add-picker
-// Dialog. All writes are IMMEDIATE (never the CONTENT save-bar). NO chat-lore control here (PD-30 — CHAT-scoped
-// book attachment is the Chats lane's concern).
+// Dialog. All writes are IMMEDIATE (never the CONTENT save-bar). NO chat-lore control here — CHAT-scoped
+// book attachment is the Chats lane's concern.
 
 import type { CharacterId, PersonaId, WorldBookId } from "@orb/kit/ids";
 import { Section, Stack } from "@orb/ui/layout";

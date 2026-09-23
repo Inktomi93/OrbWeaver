@@ -6,7 +6,7 @@ import { AppFailureSurface } from "#lib";
 // UPGRADE PATH (task #15 — the data layer): swap createRootRoute() for
 // createRootRouteWithContext<{ queryClient; trpc; auth }>() and forward those singletons from the
 // composition root at the RouterProvider seam — that context is the home for the beforeLoad auth gate on
-// `/` + /login (UI-Lib-TanStack-Router.md steal-list #1/#2). Not wired now: none of those singletons
+// `/` + /login. Not wired now: none of those singletons
 // exist yet, and the doctrine forbids constructing them here — the router context only ever FORWARDS.
 
 function NotFound(): ReactElement {

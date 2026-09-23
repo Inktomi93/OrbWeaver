@@ -51,7 +51,7 @@ import type { ConfigSectionContribution } from "#state";
 import { assertSettingsKeyPartition, assertTeachHonesty } from "#state";
 
 export const configSections = createContributorRegistry<ConfigSectionContribution>("config-sections", [
-  // personas ← the persona surface's FRAME as three sections (config-revamp-design.md §6.8.2): the notify
+  // personas ← the persona surface's FRAME as three sections: the notify
   // switch, the roster (the same component the rail popover and the You sheet render — the editor is its
   // search leaf), the this-chat picker (the pinned row is its leaf). Owner-sacred editing model untouched.
   personaNotificationsSection,

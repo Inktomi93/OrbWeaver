@@ -143,7 +143,7 @@ describe("importChatBundle (routed through the importChatFile door)", () => {
     expect(input.messages[1]?.characterId).toBe(ARIA);
     // The orb-only variant economics ride too (`tokensIn` has no ST spelling at all).
     expect(input.messages[1]?.variants[0]?.tokensIn).toBe(90);
-    // PD-78: a user turn + an assistant turn with text IS a real conversation → the backfill enqueues.
+    // A user turn + an assistant turn with text IS a real conversation → the backfill enqueues.
     expect(input.isRealConversation).toBe(true);
     expect(h.backfills).toEqual([{ ownerId: OWNER }]);
   });

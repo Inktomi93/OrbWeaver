@@ -1,4 +1,4 @@
-// The Looks section's nav entry (#866 S4 / #297 apply-not-mode — config-revamp-design.md §7.3): the ONE
+// The Looks section's nav entry (#866 S4 / #297 apply-not-mode): the ONE
 // `ConfigSubcategory` shared by the contribution def and the section body's `<Section>` anchor stamp. The
 // theme fold: the picker + the builder LEFT the retired rail-foot `theme` modal and live here, first in
 // the Appearance group.

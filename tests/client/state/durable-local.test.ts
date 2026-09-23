@@ -1,4 +1,4 @@
-// The per-user durable-local namespace (staleness-and-session-freshness.md §4.2.1, owner fork F1). The
+// The per-user durable-local namespace (D138). The
 // defect it closes: every `orb:*` blob was per-ORIGIN, so view state, tag filters and composer PROSE
 // survived an identity change that no event could ever invalidate — the reload-resistant half of the
 // reported repro, and the reason deleting localStorage by hand was the only cure.

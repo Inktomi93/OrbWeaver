@@ -1,6 +1,6 @@
 // The per-user live fan-out the notifications subscription tails. The notifications domain owns the
 // durable half (the record INSERT + the list cursor by seq); the per-user live bus is transport state.
-// Rides `defineBusChannel` with NO firehose opt-in (client-architecture-lockdown.md §13/§16 G10).
+// Rides `defineBusChannel` with NO firehose opt-in (client-architecture-state-and-gates.md §13/§16 G10).
 //
 // Durable-first / fan-out-second: entry composes EmitNotification so record (the durable INSERT, which
 // assigns seq) always runs before publishNotification, so a dead bus path never loses an event. Durability

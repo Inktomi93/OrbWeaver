@@ -1,4 +1,4 @@
-// plugin-frame — the EMBEDDER side of the U7 escape hatch (plugin-ui-plane #679, §6.2, seam 13). It mints a
+// plugin-frame — the EMBEDDER side of the U7 escape hatch (seam 13). It mints a
 // routed document for one `frame`-tier surface, embeds it through the sealed `@orb/ui` `SandboxFrame`, and owns
 // the PARSE + BUDGET + RELAY of everything the frame says over the postMessage bridge.
 //
@@ -26,38 +26,41 @@
 // resolved off the caller's own rows). Nothing here decides authorization; it decides only what is worth
 // relaying at all.
 //
-// ── THE U4 INTEGRATION SEAM, STATED PRECISELY ────────────────────────────────────────────────────────────────
-// `hostCall` is the relay to `plugin.uiHostCall` — U4's proc, NOT on main at the time this landed. The prop is
-// OPTIONAL and its absence is a REFUSAL, not a stub: every call is answered with the same one-word refusal the
-// server gives for an unproxyable fn or a missing grant. That is production behaviour, not scaffolding — a frame
-// whose plugin holds no proxyable grants gets exactly this answer after U4 lands too, and fail-closed is the
-// correct default for a channel whose relay is unavailable. Wiring U4 is passing this prop at the anchor arms;
-// nothing else here changes.
+// ── THE RELAY, AND WHY THE FRAME OWNS IT ────────────────────────────────────────────────────────────────────
+// A relayed call goes to `plugin.uiHostCall` through `usePluginHostCall`, the same relay the scripted tier uses
+// (#106: a frame gets the same server-gated host access as a scripted surface). The relay is bound HERE, to this
+// mount's `pluginId` and `chatId`, and is not a prop. The server's owner-scope rung admits EVERY plugin the
+// signed-in person installed, so it cannot tell which of their plugins a message came from. The binding of this
+// frame's window to this plugin's id is the one control that stops a frame from spending a sibling plugin's
+// grants, and it holds only if nothing in the message can choose the id: `parsePluginFrameCall` keeps `callId`,
+// `fn` and `args` and drops everything else, and the relay takes no id per call. Owning it here also means no
+// anchor can mount a frame without its relay or with another plugin's, the same way no anchor can mount one
+// without its attribution shell.
+//
+// A frame whose plugin holds no proxyable grant still gets the one-word refusal for every call, from the server.
 
 import type { PluginFrameCall } from "@orb/contracts/plugin";
 import { PLUGIN_FRAME_CALL_REFUSED, PLUGIN_FRAME_CALLS_IN_FLIGHT_MAX, parsePluginFrameCall, pluginFrameResultMessage } from "@orb/contracts/plugin";
-import type { PluginId } from "@orb/kit/ids";
+import type { ChatId, PluginId } from "@orb/kit/ids";
 import { SandboxFrame, useSandboxTheme } from "@orb/ui/sandbox-frame";
 import type { ReactElement } from "react";
 import { useRef } from "react";
 import { usePluginFrameSrc } from "#data";
+import { usePluginHostCall } from "../hooks/use-plugin-host-call.ts";
 import { PluginSurfaceShell } from "./plugin-surface-shell.tsx";
-
-/** Relay one host call to `plugin.uiHostCall` (U4). Resolves to the call's value, or REJECTS — a rejection is
- *  answered to the frame with the one-word refusal, never with the reason. Local to this feature (U4 wires it
- *  in at the anchor arms); not a cross-boundary type, so it stays unexported per the type-home rule. */
-type PluginFrameHostCall = (call: { readonly pluginId: PluginId; readonly fn: string; readonly args: unknown }) => Promise<unknown>;
 
 export interface PluginFrameProps {
   readonly pluginId: PluginId;
+  /** The room this frame is mounted in, when its anchor has one (a chat anchor or a transcript tool card). The
+   *  relay scopes chat-scoped host calls to it; absent, those calls are refused server-side for want of a room.
+   *  The frame itself can never name a room. */
+  readonly chatId?: ChatId | undefined;
   /** The `host.ui.registerFrame` surface id — half of the mint selector. */
   readonly surfaceId: string;
   /** The owning plugin's display name — the attribution line. Required: see the shell note below. */
   readonly pluginName: string;
   /** The surface's own title (`host.ui.registerFrame`'s `title`). */
   readonly title: string;
-  /** The relay to `plugin.uiHostCall`. Absent ⇒ every host call is refused (see the header). */
-  readonly hostCall?: PluginFrameHostCall | undefined;
   /** Which shell chrome to draw the frame inside — forwarded verbatim to {@link PluginSurfaceShell} (#787).
    *  DEFAULT `panel`, the room/settings/tool-card/dialog scale. A `page`-anchored frame passes `page` so the
    *  §9 pinned attribution band wraps it: a full-page frame is arbitrary HTML at the biggest impersonation
@@ -83,8 +86,9 @@ export interface PluginFrameProps {
  * resolved (or cannot), which is precisely the "broken frame in the room" §4.9 forbids. Returning the fallback
  * for the whole thing — chrome included — is what makes "renders nothing" true.
  */
-export function PluginFrame({ pluginId, surfaceId, pluginName, title, hostCall, fallback = null, scale = "panel" }: PluginFrameProps): ReactElement | null {
+export function PluginFrame({ pluginId, chatId, surfaceId, pluginName, title, fallback = null, scale = "panel" }: PluginFrameProps): ReactElement | null {
   const inFlight = useRef(0);
+  const hostCall = usePluginHostCall(pluginId, chatId);
   const { themeTokens, styleTokens, fontFamily } = useSandboxTheme();
   const src = usePluginFrameSrc({ pluginId, surfaceId, styleTokens, themeTokens, fontFamily });
 
@@ -99,16 +103,20 @@ export function PluginFrame({ pluginId, surfaceId, pluginName, title, hostCall, 
       return;
     }
     const refuse = (): void => reply(pluginFrameResultMessage({ callId: call.callId, ok: false, error: PLUGIN_FRAME_CALL_REFUSED }));
-    // CHECK 3 — the in-flight budget. Over it (or with no relay wired), the call is refused, not queued.
-    if (hostCall === undefined || inFlight.current >= PLUGIN_FRAME_CALLS_IN_FLIGHT_MAX) {
+    // CHECK 3 — the in-flight budget. Over it, the call is refused, not queued.
+    if (inFlight.current >= PLUGIN_FRAME_CALLS_IN_FLIGHT_MAX) {
       refuse();
       return;
     }
     inFlight.current += 1;
-    // @orb-waive caught-failure-ownership(hostCall): a rejection replies with the generic
+    // The wire carries arguments as a JSON document, positional like the scripted guest's. An absent or null
+    // `args` is a no-argument call. Encoding runs inside the promise, so an unencodable value (a cycle, a
+    // BigInt) becomes a refusal rather than a throw out of the message listener.
+    const relay = async (): Promise<unknown> => JSON.parse(await hostCall(call.fn, JSON.stringify(call.args ?? []))) as unknown;
+    // @orb-waive caught-failure-ownership(relay): a rejection replies with the generic
     // `refuse()` message by design (the contract's own note — the reason is an oracle a hostile document
     // does not get for free). Ends if the refusal reply is ever dropped.
-    hostCall({ pluginId, fn: call.fn, args: call.args })
+    relay()
       .then(
         (value) => reply(pluginFrameResultMessage({ callId: call.callId, ok: true, value })),
         // The refusal carries no reason: the difference between "you lack that grant" and "no such function"

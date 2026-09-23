@@ -1,5 +1,5 @@
 // The Configuration rail section as ONE co-located definition (lockdown §6a) — the unified SETTINGS
-// workspace (config-revamp-design.md, #866 S1): its LIST is the four-shelf map of every config GROUP with
+// workspace (#866 S1): its LIST is the four-shelf map of every config GROUP with
 // the settings shell's scroll-spy, its CONTENT is the active group's body or the open member's own editor,
 // its CONTEXT is that collection's own arm (the teacher lands at S3).
 //
@@ -13,7 +13,7 @@
 // surface IS now that it holds the settings, and `zone: "rail.end"` puts the button where the retired
 // settings-modal gear sat — derived by `assembleChrome` from this one declaration, ordered `(order, id)`
 // among the foot's modal triggers and the persona widget. `icon: Settings` (the gear) is honest again: the
-// config-rail-spec C-9 ban existed only to keep the workspace from being mistaken for the modal's trigger,
+//  C-9 ban existed only to keep the workspace from being mistaken for the modal's trigger,
 // and the modal is gone.
 //
 // `mobile: "sheet"` (F-13): reached through You, like every other authoring section — the four-tab bottom

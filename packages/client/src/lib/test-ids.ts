@@ -24,7 +24,7 @@ export const TEST_IDS = {
   firstRunError: "first-run-error",
   accountSurface: "account-surface",
   accountLogout: "account-logout",
-  // The rung-1 in-app re-auth modal body (staleness-and-session-freshness §4.4) — the affordance that
+  // The rung-1 in-app re-auth modal body — the affordance that
   // proves a dead LOCAL session recovers WITHOUT a navigation.
   reauthSurface: "reauth-surface",
   firstRunPersonaDialog: "first-run-persona-dialog",
@@ -216,7 +216,7 @@ export const TEST_IDS = {
    *  rather than a sentence that copy edits will move. */
   refinerySchemaAdvisory: "refinery-schema-advisory",
   roomActivityLog: "room-activity-log",
-  /** The PAGE-SCALE plugin attribution band (plugin-ui-plane #679 U5, §9) — the pinned header a full-page
+  /** The PAGE-SCALE plugin attribution band — the pinned header a full-page
    *  plugin surface can never opt out of. It is a typed id rather than a text selector on purpose: the band IS
    *  the impersonation wall for the biggest canvas in the design, so its presence must be assertable
    *  independently of whatever copy the plugin happens to put beside it. */

@@ -1,4 +1,4 @@
-// .int test for schema/rpg (the W0 6-table lite substrate floor, rpg-design/05 §4.2): the test-mirror (db
+// .int test for schema/rpg (the W0 6-table lite substrate floor, docs/plans/rpg/design.md): the test-mirror (db
 // enum === contracts tuple, no re-spell), a config/snapshot JSON round-trip, the mode/status/sheet-XOR/
 // journal-type CHECK guards, the chat→game CASCADE authority chain (D23 — no ownerId), the variant→snapshot
 // UNIQUE + CASCADE (the swipe-rewind key), the variant→journal CASCADE (dead-swipe entry cleanup), and the

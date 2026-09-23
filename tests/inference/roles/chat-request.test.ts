@@ -1,5 +1,5 @@
 // roles/chat-request — `toChatRequest`, the ONE projection from the backend-neutral chat turn onto the request
-// arm the connection's api reads (docs/design/inference-tool-delivery.md). Pins both deliveries of the same
+// arm the connection's api reads (D177). Pins both deliveries of the same
 // neutral tools: an ARRAY wire declares them in `tools[]` (executable first, terminal after, `toolChoice: auto`)
 // and never calls `execute`; the AGENT SDK mounts the executable set as an in-process MCP server whose handlers
 // synthesize `mcp_<name>_<n>` call ids and run `execute`, and carries the terminal set on its own channel. Also

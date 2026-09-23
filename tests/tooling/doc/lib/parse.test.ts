@@ -46,13 +46,15 @@ test("set takes a leading run of ids, the state last, and only the flags it was 
     patch: { state: "blocked", blocked: "on 1", priority: null },
   });
   expect(parseDocCommand(["land", "3", "--evidence", "abc"])).toEqual({ kind: "land", ids: [3], evidence: "abc" });
-  expect(parseDocCommand(["land", "--merged"])).toEqual({ kind: "land-merged" });
+  expect(parseDocCommand(["land", "--merged"])).toEqual({ kind: "land-merged", headMerge: false });
+  expect(parseDocCommand(["land", "--merged", "--head-merge"])).toEqual({ kind: "land-merged", headMerge: true });
   expect(parseDocCommand(["status", "superseded", "docs/adr/0001-a.md", "--by", "docs/adr/0002-b.md"])).toEqual({
     kind: "status",
     status: "superseded",
     paths: ["docs/adr/0001-a.md"],
     by: "docs/adr/0002-b.md",
     docKind: null,
+    blocked: null,
   });
   expect(parseDocCommand(["status", "active", "docs/law/x.md", "--kind", "law"])).toEqual({
     kind: "status",
@@ -60,10 +62,20 @@ test("set takes a leading run of ids, the state last, and only the flags it was 
     paths: ["docs/law/x.md"],
     by: null,
     docKind: "law",
+    blocked: null,
   });
+  expect(parseDocCommand(["status", "parked", "docs/plans/p/design.md", "--blocked", "wake path x"])).toEqual({
+    kind: "status",
+    status: "parked",
+    paths: ["docs/plans/p/design.md"],
+    by: null,
+    docKind: null,
+    blocked: "wake path x",
+  });
+  expect(parseDocCommand(["new", "law", "review-rules", "--title", "Review rules"])).toEqual({ kind: "new-law", slug: "review-rules", title: "Review rules" });
   expect(parseDocCommand(["set", "3", "--kind", "work", "--plan", "none"])).toEqual({ kind: "set", ids: [3], patch: { kind: "work", plan: null } });
   expect(parseDocCommand(["set", "3", "open", "--title", "A new title"])).toEqual({ kind: "set", ids: [3], patch: { state: "open", title: "A new title" } });
-  expect(parseDocCommand(["remove", "3", "4"])).toEqual({ kind: "remove", ids: [3, 4] });
+  expect(parseDocCommand(["remove", "3", "docs/adr/0001-a.md"])).toEqual({ kind: "remove", targets: ["3", "docs/adr/0001-a.md"] });
   expect(parseDocCommand(["review", "docs/law/*.md"])).toEqual({ kind: "review", patterns: ["docs/law/*.md"] });
   expect(parseDocCommand(["due"])).toEqual({ kind: "due", patterns: [] });
   expect(parseDocCommand([])).toEqual({ kind: "help" });
@@ -85,7 +97,12 @@ test("misuse is a UsageError: an unknown verb, a bad slug, a missing required fl
     ["set", "1", "2", "--title", "One title for two items"],
     ["set", "1", "--kind", "adr"],
     ["remove"],
-    ["remove", "x"],
+    ["remove", "3", "--force"],
+    ["land", "--merged", "--bogus"],
+    ["land", "--merged", "--head-merge", "extra"],
+    ["archive", "p"],
+    ["new", "law", "Not A Slug"],
+    ["new", "law", "x", "--context", "an ADR flag"],
   ]) {
     expect(() => parseDocCommand(argv)).toThrow(UsageError);
   }

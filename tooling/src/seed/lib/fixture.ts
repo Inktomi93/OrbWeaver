@@ -16,7 +16,7 @@ export const DEMO_DOCUMENT_NAME = "Loom lore (databank demo)";
 export const DEMO_PRESET_NAME = "Demo balanced preset";
 export const DEMO_TAG_NAME = "demo";
 
-/** The flagship trio the group demo seats (docs/history/design/default-character-roster.md, "The Ashen Spire"). */
+/** The flagship trio the group demo seats ("The Ashen Spire"). */
 export const GROUP_CAST_HANDLES = ["sabine", "calamity", "morgatha"] as const;
 export const GROUP_CAST_SIZE = GROUP_CAST_HANDLES.length;
 

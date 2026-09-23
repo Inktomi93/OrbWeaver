@@ -122,7 +122,7 @@ describe("add", () => {
     expect(view).not.toHaveProperty("hasMetadata");
   });
 
-  test("a fresh insert audits credential.add (rotated:false) attributed to the owner (PD-142)", async () => {
+  test("a fresh insert audits credential.add (rotated:false) attributed to the owner", async () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createCredentialsService(h.ctx);
@@ -133,7 +133,7 @@ describe("add", () => {
     expect(audit?.entry.metadata).toMatchObject({ provider: "openrouter", rotated: false });
   });
 
-  test("a rotation audits credential.add (rotated:true) on the same row (PD-142)", async () => {
+  test("a rotation audits credential.add (rotated:true) on the same row", async () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createCredentialsService(h.ctx);

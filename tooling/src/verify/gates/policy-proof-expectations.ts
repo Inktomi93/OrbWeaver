@@ -88,7 +88,7 @@ import { familyFixture, finalProbeModule, HARD_TRUNK } from "./_proof/policy-sou
 const SELF = "tooling/src/verify/gates/policy-proof-expectations.ts";
 
 const MESSAGE =
-  "a `mustFlag` proof row is under-specified (gate-runtime-standardization.md §6.1): it carries no `expect.count` (the only " +
+  "a `mustFlag` proof row is under-specified (docs/law/gate-runtime-standardization.md §6.1): it carries no `expect.count` (the only " +
   "field the conformance runner compares exactly — without it the row passes on the WRONG node and on N findings where one " +
   "was meant), or its `messageIncludes` discriminates nothing, or the row is not a statically readable object literal. " +
   "A `countFrom` token: the row DECLARES a registry-driven count, and the declaration is not exact — the named driver does not resolve in " +
@@ -104,14 +104,14 @@ const SHARED_MESSAGE =
   'row is about from its sibling (the `"not"`-matches-both-arms shape). Pick a substring only the intended message carries.';
 const UNREADABLE_INCLUDES_MESSAGE =
   "`expect.messageIncludes` is present but not statically readable — the source reader cannot check this discriminator. " +
-  "Use an exact static string or the shared reader's supported immutable derivation (gate-runtime-standardization.md §6.1).";
+  "Use an exact static string or the shared reader's supported immutable derivation (docs/law/gate-runtime-standardization.md §6.1).";
 const COUNT_FROM_UNRESOLVED_MESSAGE =
   "`expect.countFrom` names a driver this module declares NOWHERE at module scope — the declared exemption names nothing, so the row is " +
   "back to asserting only `at least one finding` while wearing an exemption's clothes. Name the module-level constant (or import) whose " +
-  "cardinality actually drives the count (#2001, gate-runtime-standardization.md §6.1).";
+  "cardinality actually drives the count (#2001, docs/law/gate-runtime-standardization.md §6.1).";
 const COUNT_FROM_BARE_MESSAGE =
   "`expect.countFrom` replaces `count` but this row carries NO other identity field — `token`, `line` or `messageIncludes` — so it asserts " +
-  "nothing at all, which is strictly worse than the literal it replaces. A registry-driven row still names WHICH node or WHICH arm (#2001, gate-runtime-standardization.md §6.1).";
+  "nothing at all, which is strictly worse than the literal it replaces. A registry-driven row still names WHICH node or WHICH arm (#2001, docs/law/gate-runtime-standardization.md §6.1).";
 const UNREADABLE_ROW_MESSAGE =
   "a proof row is not a statically readable object literal — §12.1 requires every self-proof row to declare its fixture explicitly; " +
   "a row assembled at runtime cannot be checked for `expect.count` by any reader.";
@@ -254,13 +254,13 @@ function judgeRow(ctx: GatePolicyContext, row: ObjectLiteralExpression, census: 
     ctx.report.node(includes, {
       token: "messageIncludes",
       offset: 0,
-      message: `${TAUTOLOGY_MESSAGE} — gate-runtime-standardization.md §6.1.`,
+      message: `${TAUTOLOGY_MESSAGE} — docs/law/gate-runtime-standardization.md §6.1.`,
     });
   } else if (verdict === "shared") {
     ctx.report.node(includes, {
       token: "messageIncludes",
       offset: 0,
-      message: `${SHARED_MESSAGE} — gate-runtime-standardization.md §6.1.`,
+      message: `${SHARED_MESSAGE} — docs/law/gate-runtime-standardization.md §6.1.`,
     });
   }
 }
@@ -268,7 +268,7 @@ function judgeRow(ctx: GatePolicyContext, row: ObjectLiteralExpression, census: 
 function judgeModule(ctx: GatePolicyContext, descriptor: ObjectLiteralExpression, walk: ModuleWalk, sourceFile: SourceFile): void {
   const rows = proofRowsOf(descriptorValue(descriptor, "mustFlag"));
   for (const node of rows.unreadable) {
-    ctx.report.node(node, { message: `${UNREADABLE_ROW_MESSAGE} — gate-runtime-standardization.md §6.1.` });
+    ctx.report.node(node, { message: `${UNREADABLE_ROW_MESSAGE} — docs/law/gate-runtime-standardization.md §6.1.` });
   }
   const census = messageCensus(descriptor, walk);
   for (const row of rows.rows) {

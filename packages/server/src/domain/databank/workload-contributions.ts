@@ -62,7 +62,7 @@ export function createDatabankWorkloadContributions(deps: DatabankWorkloadDeps):
           message: `databank-reindex: ${result.documents} docs, ${result.chunksUpserted} written, ${result.chunksPruned} pruned, ${result.reExtracted} re-extracted`,
         });
         // THE PASS'S TERMINAL — record the `documents` scope's completion for the generations this pass
-        // opened, and (PD-139(c)) reclaim the chunks stranded in any OTHER embed space once cards, memory and
+        // opened, and reclaim the chunks stranded in any OTHER embed space once cards, memory and
         // documents all name the same target generation. The DELETE lives in embeddings/persistence (the ONE
         // vector write path) — this is the injected op, never a db reach.
         //

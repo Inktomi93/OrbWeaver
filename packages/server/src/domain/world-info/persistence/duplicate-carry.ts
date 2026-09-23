@@ -1,5 +1,5 @@
 // domain/world-info/persistence/duplicate-carry — the world-info-owned character_books CARRY for
-// character.duplicate (PD-141). A named exception to "persistence is queries only": the character domain
+// character.duplicate. A named exception to "persistence is queries only": the character domain
 // never writes character_books itself (world-info owns that junction, D28), so the duplicate verb consumes
 // this as an INJECTED op wired at the compose root.
 //
@@ -11,7 +11,7 @@
 // OWNED-SOURCE GATE (`ownerId`) — TWO ENDS, both re-checked here rather than inherited from `duplicate`'s
 // discipline. An injected op is a DOMAIN BOUNDARY: its signature is the only promise the next call site or
 // the next wiring inherits, and a carry that re-points arbitrary attachments would hand a stranger's lore to
-// whoever named the ids. The portability twin (`link-carried-books`, PD-144) carries the same two gates.
+// whoever named the ids. The portability twin (`link-carried-books`) carries the same two gates.
 //   • CHARACTERS: both ids must be the caller's own (`bothOwned`) — a foreign source or target carries
 //     nothing at all.
 //   • BOOKS (#1516): the source's junction rows may point at world_books owned by SOMEONE ELSE

@@ -1,4 +1,4 @@
-// persistence/snapshots — the resolution ladder + clone-forward + committed lifecycle (rpg-design/05 §2.4)
+// persistence/snapshots — the resolution ladder + clone-forward + committed lifecycle (docs/plans/rpg/design.md)
 // AND the D124 TWO-ARM law: a snapshot is variant-keyed IFF a turn flush produced it; every other write is a
 // message-less HAND row ordered by `asOfMessageId`. .int: real libSQL, real FK + CHECK enforcement over
 // messages/message_variants/rpg_snapshots. The ladder is the swipe-rewind mechanism's core — each rung is

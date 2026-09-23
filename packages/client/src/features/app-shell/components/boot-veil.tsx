@@ -1,5 +1,5 @@
-// BootVeil — the app's boot loading screen: the brand web woven live under a dissolving veil
-// (docs/history/design/login-loading-screen.md §1/§4.3/§9). Mounted ONCE from main.tsx above the router
+// BootVeil — the app's boot loading screen: the brand web woven live under a dissolving veil.
+// Mounted ONCE from main.tsx above the router
 // (app-splash is app-shell chrome, §13.9) so it covers route resolution, code, and the initial reads.
 //
 // THE EXIT IS LOAD-GATED (owner tweak 3, §9.3): the veil watches `data-app-ready` on <html> — the one
@@ -48,8 +48,7 @@
 // `fixed inset-0` layer, twice per boot — the enter beat and the dissolve — with the rAF-driven
 // `<WebWeave>` repainting underneath it the whole time. A blur is PAINT: it cannot be a compositor-only
 // animation and stay a blur, so the review's "make the veil entry compositor-only" has no arm that
-// preserves the design (the dissolve's opacity+blur is the ST hideOverlay quality the owner approved,
-// login-loading-screen.md §9.4 tweak 1).
+// preserves the design (the dissolve's opacity+blur is the ST hideOverlay quality the owner approved).
 // PRICED, so the trade is not a guess — a standalone control on this box (a fullscreen layer over 300
 // per-frame-transformed strands, same 14px→none / 360ms beat, with and without the filter):
 // steady-state frames 17ms WITHOUT the filter vs 25-28ms WITH it, and NEITHER arm produced a >50ms

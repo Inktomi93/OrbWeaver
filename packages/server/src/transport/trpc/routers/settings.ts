@@ -78,7 +78,7 @@ export const settingsRouter = t.router({
     .input(z.object({ key: z.string().min(1), value: jsonValueSchema }))
     .mutation(({ ctx, input }) => ctx.services.settings.setGlobalSetting(input.key, input.value)),
 
-  // Themes library (themes-design.md §4) — owner-scoped by `principal.userId`; reads resolve owned ∪
+  // Themes library — owner-scoped by `principal.userId`; reads resolve owned ∪
   // seeds, writes go through `fetchOwned` (seeds are un-mutable by construction).
   listThemes: authedProcedure.query(({ ctx }) => ctx.services.settings.listThemes({ principal: ctx.auth })),
 

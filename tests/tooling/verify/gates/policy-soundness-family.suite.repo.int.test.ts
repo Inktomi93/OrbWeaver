@@ -1,5 +1,5 @@
 // Conformance entry for the `policy-soundness` family (#1971, #2111) — the final policies that enforce the
-// mechanizable half of gate-runtime-standardization.md §7 over the gate corpus itself. Every declared row runs
+// mechanizable half of docs/law/gate-runtime-standardization.md §7 over the gate corpus itself. Every declared row runs
 // through the production dispatcher on an isolated population (`verifyPolicyProofs`). The family pins add
 // the BLINDNESS refusal's withheld-owner and seeing-twin assertions, the fixture-specifier resolution
 // control, and the REAL-corpus control — a meta-policy

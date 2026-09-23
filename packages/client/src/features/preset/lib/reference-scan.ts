@@ -1,4 +1,4 @@
-// The Data view's REFERENCE SCAN (preset-surface-redesign.md §7) — pure, node-safe. For each variable
+// The Data view's REFERENCE SCAN — pure, node-safe. For each variable
 // (ChoiceBlock) and user macro this preset declares, WHERE inside this same preset is `{{name}}` written?
 //
 // The decision it informs: "is this safe to rename or delete, and where do I look first?" — which is

@@ -309,7 +309,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // neither may import `domain/connection`.
   const seedUserConnections = createLocalLightUserSeed({ db, now });
   const sessions = createSessionsService({ db, now, sessionSecret: deps.sessionSecret, seedUserConnections });
-  // PD-139(a) RE-RAISED (§10-4): a connection/binding write that changes an owner's embed or imageEmbed SPACE
+  // A connection/binding write that changes an owner's embed or imageEmbed SPACE
   // must enqueue the purge+reindex. `workloads` is built far below (the search-discovery seam), so this holder
   // is late-bound after it exists; the connection ctx derefs it at request time (a pane write), never during
   // boot. Until then it is an inert no-op.
@@ -542,7 +542,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     pluginOwnedBy: async (pluginId, userId) => (await fetchOwned(db, plugins, pluginId, userId)) !== undefined,
     endpointAdmission,
     recordProbeOutcome: credentials.recordProbeOutcome,
-    // PD-139(a) re-raised (§10-4) — the late-bound holder above, derefed at request time.
+    // The late-bound holder above, derefed at request time.
     onEmbedSpaceChanged: () => enqueueEmbedReindex(),
   };
   const connection = createConnectionService(connectionCtx);
@@ -680,7 +680,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   });
   const { embeddings, indexer, persona, resolvePersonasForParticipants, presetCtx, preset, stats, search, discovery, notifications, workloads } =
     searchDiscovery;
-  // PD-139(a): bind the embed-model-change → bulk purge+reindex enqueue now that `workloads` exists.
+  // Bind the embed-model-change → bulk purge+reindex enqueue now that `workloads` exists.
   enqueueEmbedReindex = searchDiscovery.enqueueEmbedReindex;
 
   // ── the refinery seam (R1) — the card-refinery pipeline over the summarize rung. Needs `character`
@@ -763,7 +763,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // The host's REAL principal by userId — shared by chat compose and rpg's lite capability resolve (a game turn
   // runs as the host, D19).
   const resolveHostPrincipal = resolveFunderPrincipal;
-  // FORWARD-REF (rpg-design/05 §4.10): chat's turn hooks call rpg's `ChatRpgOps`, but rpg builds AFTER chat
+  // FORWARD-REF (docs/plans/rpg/design.md): chat's turn hooks call rpg's `ChatRpgOps`, but rpg builds AFTER chat
   // (chat's `rpgChatOps` is rpg's dep). The delegate below forwards to a late-bound holder bound SYNCHRONOUSLY
   // once rpg composes, a few lines down (the agents-delegate precedent) — no request can run before then, so the
   // holder is always live at call time (a null read would be a compose-order bug, hence the throw).
@@ -798,7 +798,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // holding a bounded number of already-built objects — and an observability lens that first requires a
   // restart with a flag set does not answer "why did memory surface that".
   const recallRecorder = createMemoryRecallRecorder({ now });
-  // The PLUGIN-MACRO registry (plugin-ui-plane §5.15, U6) — ONE process-wide instance, minted HERE rather than
+  // The PLUGIN-MACRO registry — ONE process-wide instance, minted HERE rather than
   // inside the plugin plane because chat composes FIRST and both sides need the same object: chat reads it per
   // turn (`ChatContext.pluginMacros`), the plugin plane writes it at activation. Minting it at the shared root
   // is what keeps this out of the late-bind shape the S4 confirmed-act runner had to take.

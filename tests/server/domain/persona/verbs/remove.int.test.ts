@@ -1,6 +1,6 @@
 // verb: remove — owner-scoped delete. Load-bearing: the junction CASCADEs (a connected persona's
 // character_personas rows vanish with it); a not-owned/missing target throws (no cross-user delete); a
-// real delete audits; the caller's LAST persona is refused (`last_persona` — the PD-100 always-one belt).
+// real delete audits; the caller's LAST persona is refused (`last_persona` — the always-one belt).
 
 import type { LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import { characterPersonas, personas } from "@orb/db";

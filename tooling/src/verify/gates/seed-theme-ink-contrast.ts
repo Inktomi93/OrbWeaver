@@ -25,8 +25,8 @@
 // A DECLARED HYBRID (§12.4: "a hybrid's dual role is explicit and receipted"):
 //   RESOURCE half — `product-css`, for `theme.css`. There is no `theme-css` `exact-file` id and the kind
 //   vocabulary is FROZEN, so the smallest CLOSED id admits all five product sheets where this policy reads
-//   one. That is the `ui-exports-map-complete` / resource-policy-contract §5 alt-D precedent, recorded here
-//   so a later reader does not "fix" it by minting an id.
+//   one. That is the `ui-exports-map-complete` precedent recorded in
+//   `docs/adr/0221-resource-policy-contract-rejected-alternatives.md`, so a later reader does not "fix" it by minting an id.
 //   COMPILER half — `population: { in: ["@client", "@ui"] }`, the ink census. The legacy `INK_SOURCES`
 //   filter was `packages/ui/src/` + `packages/client/src/`, which is `@ui` + `@client` byte for byte
 //   (`contract/population.ts#POPULATION_ROOTS`), so the port is lossless and `carrierPath`'s hand-rolled
@@ -44,7 +44,7 @@
 // ledger verdict, not a site an author may absolve") — which is TRUE and survives: there is no marker door
 // here and an author cannot absolve anything inline. But the module also carried
 // `DECORATIVE_STROKE_CARRIERS`, a NINE-ROW `ExemptionTable`, and §12.5 bans a gate-owned exemption grammar
-// outright. `exception-authority-census.md:124` classifies those rows by name — "9 decorative-stroke
+// outright. the gate-runtime exception-authority census classifies those rows by name — "9 decorative-stroke
 // GRANTS" — so they migrate to `lib/reviewed-grants.ts` and the policy's authority follows its exception
 // mechanism. The ruling survives; its INPUT changed: an AUTHOR still cannot absorb a contrast failure, and
 // a REVIEWER now must, in one central table with a mandatory `why` and `endsWhen`.

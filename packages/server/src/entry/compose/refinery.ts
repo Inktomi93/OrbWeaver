@@ -1,4 +1,4 @@
-// entry/compose/refinery — the refinery seam (R1 — docs/history/design/refinery-r0.md §9.3). Assembles the
+// entry/compose/refinery — the refinery seam. Assembles the
 // RefineryContext: db + the injected clock/id determinism seam + the per-funder role-client binder + the
 // caller-scoped prose/preset resolvers (the distill rung, verbatim) + the CHARACTER ops — three
 // persistence factories (card read, signal stamp, and the #1551 snapshot retraction; `characters.*` keeps

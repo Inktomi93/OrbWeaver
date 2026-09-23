@@ -426,7 +426,7 @@ const envSchema = z
     // loopback curl); it unlocks the boot guard but does NOT itself enable the fallback — set AUTH_FALLBACK=owner
     // too. Revert both when recovery is done. Lifecycle logs a loud SECURITY warning while it is on.
     AUTH_BREAK_GLASS: envBool(false),
-    // PROPOSED (containerize-prod-image-spec.md §3.1 arm (b)) — the documented, NON-DEFAULT opt-in that widens
+    // PROPOSED (docs/plans/containerize/design.md arm (b)) — the documented, NON-DEFAULT opt-in that widens
     // the owner fallback's peer set beyond loopback: a comma CIDR list (v4/v6) whose peers are admitted IN
     // ADDITION to loopback. Unset (the default) is byte-identical to the loopback-only rule. It exists because
     // a container's published port never delivers a loopback peer, so `single-user` — whose ONLY credential is
@@ -608,7 +608,7 @@ const envSchema = z
     // (foreground). The discriminator bites on every real prod path even more cleanly than before; a second
     // flag would only be a source of disagreement. The one residual (a bare
     // hand-rolled `node entry/index.ts` that omits NODE_ENV, behind a loopback proxy, with default owner) is
-    // ACCEPTED defense-in-depth risk, documented (containerize-prod-image-spec.md §4), not guarded — the
+    // ACCEPTED defense-in-depth risk, documented (docs/plans/containerize/design.md), not guarded — the
     // supported launchers all set it, and #301 makes the effective mode/fallback legible per launch.
     //
     // #2406: this reads the DECLARED value, and that is the whole safety argument for the conditional
@@ -636,7 +636,7 @@ const envSchema = z
     // `AUTH_FALLBACK_TRUSTED_PEERS` is launch-only for the same reason with a different consequence — each
     // key carries its own operator sentence, and a third knob is a row, not a second copy of this block.
     refuseLaunchOnlyEnvFileKeys(ctx);
-    // THE WIDENED FALLBACK PEER SET × BREAK-GLASS (PROPOSED — containerize-prod-image-spec.md §3.1 arm (b)).
+    // THE WIDENED FALLBACK PEER SET × BREAK-GLASS (PROPOSED — docs/plans/containerize/design.md arm (b)).
     // Same fail-fast family as the blocks above, and the one combination the widening may never enter.
     // `AUTH_BREAK_GLASS=true` exists to unlock ONE thing: a brief, on-box, proxy-off recovery session in an
     // otherwise-fatal prod SSO deploy (§4 Break-glass). `AUTH_FALLBACK_TRUSTED_PEERS` widens exactly the

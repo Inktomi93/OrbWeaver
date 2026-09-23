@@ -1,5 +1,5 @@
 // characterCreateChrome — the Characters pane's PRIMARY, as a registered `topbar.trail` widget on a phone
-// (shell-chrome-unification.md §A; owner ruling 2026-09-05, #1669 arm A).
+// (owner ruling 2026-09-05, #1669 arm A).
 //
 // WHY A SECTION'S ACTION IS SHELL CHROME AT ALL. Measured on an isolated stage at 430×740 DPR3 coarse: the
 // first character row started at y=280 of a 740px phone — 37.8% of the screen spent before the thing the

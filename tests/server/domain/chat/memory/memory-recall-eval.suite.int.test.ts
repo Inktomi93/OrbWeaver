@@ -382,7 +382,7 @@ describe("recall knobs — each proven by a control that FLIPS the outcome (#311
 });
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
-// #321 / PD-35 — the experimental recencyBias boost that used to be pinned HERE was REMOVED with the knob
+// #321 / docs/work/0122 — the experimental recencyBias boost that used to be pinned HERE was REMOVED with the knob
 // (owner ruling 2026-08-22). The probe it existed to enable ran on the real corpus 2026-08-20 and found no
 // human-relevance gain — same final top three at every bias in mixC, and a NET LOSS at a smaller retrieveK —
 // so recall ordering is pure CSLS relevance again and there is no recency axis left to pin. The graded-boost
