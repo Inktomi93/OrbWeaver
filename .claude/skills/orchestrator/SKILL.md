@@ -223,7 +223,8 @@ the primary merges.
 Cross-account messages go through `~/.claude/bridge/`. `~/.claude/bridge/PROTOCOL.md` owns the
 format, numbering, and message kinds. Read it before you write a note.
 
-- Write each note in one shot. The inbox Monitor fires on every write.
-- Read your own inbox, and keep a Monitor on it. Write notes to the other account's inbox.
+- Write each note in one shot. The bridge plugin delivers a `bridge: new note N` event for every write to
+  your inbox.
+- Send with `claude-bridge send` (the bridge skill). It numbers the note under the lock.
 - Ack a note by moving it into its inbox's `done/`.
 - Keep lane-state notes in the session scratchpad, not in a bridge inbox.
