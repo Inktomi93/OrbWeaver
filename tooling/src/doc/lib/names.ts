@@ -48,9 +48,9 @@ function escapeRegExp(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
 }
 
-/** How a text file refers to the doc at `path`: by its parent folder and file name anywhere
- *  (`work/0012-x.md`, which every relative or repository path to it ends with), or by the bare file name
- *  inside its own folder (`0012-x.md`, `./0012-x.md`), where a name under another folder is not it. */
+/** How a text file refers to the doc at `path`: by its parent folder and file name anywhere (every
+ *  relative or repository path to it ends with that pair), or by the bare file name, with or without a
+ *  leading `./`, inside its own folder, where a name under another folder is not it. */
 export function referencePatterns(path: string): { readonly anywhere: RegExp; readonly sameFolder: RegExp } {
   const parts = path.split("/");
   const name = escapeRegExp(parts.at(-1) ?? "");
