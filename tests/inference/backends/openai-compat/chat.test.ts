@@ -590,3 +590,31 @@ test("#2575 (controls): Opus 5 on OpenRouter and a vLLM-shaped endpoint keep the
     expect(named[0]?.body["tool_choice"], connection.model).toMatchObject({ type: "function", function: { name: "get_weather" } });
   }
 });
+
+// ── the default effort on the OpenRouter wire ────────────────────────────────────────────────────────────
+// A bare `reasoning.effort` turns Claude reasoning on: OpenRouter sends adaptive thinking upstream with the word as
+// `output_config.effort` (echo gen-1790141847-svcaPqDtmlhF34sxweVp: `{effort: "high"}` alone → thinking adaptive,
+// output_config.effort high). A `reasoning.max_tokens` would switch a 4.6 model to budget thinking, and a body
+// `verbosity` also writes `output_config.effort` and wins over the reasoning effort. So a turn with nothing set
+// must carry exactly `{effort: "high"}`, never `max_tokens`, never `verbosity`.
+test("OR Claude with no effort set sends reasoning {effort: high} — no max_tokens, no verbosity", async () => {
+  for (const params of [{}, { verbosity: "low" }, { thinkingBudgetTokens: 4000 }] satisfies UserIntent[]) {
+    for (const model of ["anthropic/claude-opus-5", "anthropic/claude-fable-5.1", "anthropic/claude-opus-4.8"]) {
+      const body = await sentBody(orRequest({ connection: orCuratedConnection(model), tools: undefined, params }));
+      expect(body["reasoning"], `${model} ${JSON.stringify(params)}`).toEqual({ effort: "high" });
+      expect(body, `${model} ${JSON.stringify(params)}`).not.toHaveProperty("verbosity");
+    }
+  }
+});
+
+test("OR non-adaptive reasoning keeps its bytes: an effort-mode model sends the bare effort word", async () => {
+  const connection = fakeResolved({
+    task: "chat",
+    providerId: "openrouter",
+    model: "google/gemini-3.5-flash",
+    capability: generationCapability({ reasoning: { mode: "effort", enabled: true, effortLevels: ["low", "medium", "high"], defaultEffort: "medium" } }),
+    secret: fakeApiKeySecret("sk-or-not-a-real-key"),
+  });
+  const body = await sentBody(orRequest({ connection, tools: undefined, params: {} }));
+  expect(body["reasoning"]).toEqual({ effort: "medium" });
+});

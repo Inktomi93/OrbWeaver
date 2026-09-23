@@ -187,22 +187,41 @@ const REJECTS_FORCED_TOOL = [
   { providerId: "anthropic", model: "claude-opus-5-5" },
 ] as const;
 
-test("#2575: Opus 5.5 is MANDATORY — reasoning off resolves enabled at the lowest level, and the unset default is `medium`", () => {
+test("#2575: Opus 5.5 is MANDATORY — reasoning off resolves enabled at the lowest level, and the unset default is the house `high`", () => {
   const gen = direct("claude-opus-5-5");
-  expect(gen.reasoning).toMatchObject({ mode: "adaptive", enabled: true, mandatory: true, defaultEffort: "medium" });
+  expect(gen.reasoning).toMatchObject({ mode: "adaptive", enabled: true, mandatory: true });
   const off = resolveChat({ effort: "none" }, gen);
   expect(off.reasoning).toMatchObject({ enabled: true, effort: "low" });
   expect(off.warnings.map((w) => [w.code, w.appliedEffort])).toEqual([["reasoning_mandatory_clamp", "low"]]);
-  // No explicit effort and no quality ⇒ the model's own advertised default, with no clamp to report.
+  // No explicit effort and no quality ⇒ the house default, with no clamp to report.
   const unset = resolveChat({}, gen);
-  expect(unset.reasoning).toMatchObject({ enabled: true, effort: "medium" });
+  expect(unset.reasoning).toMatchObject({ enabled: true, effort: "high" });
   expect(unset.warnings).toEqual([]);
   // The opus-5 facts it shares still reach it (the 5.5 row refines, never replaces).
   expect(gen.sampling.temperature).toBeUndefined();
   expect(gen.context).toMatchObject({ supports1M: true });
   // PLANTED CONTROL: Opus 5 itself stays switchable — effort `none` still turns thinking OFF there.
   expect(resolveChat({ effort: "none" }, direct("claude-opus-5")).reasoning.enabled).toBe(false);
-  expect(direct("claude-opus-5").reasoning.defaultEffort).toBeUndefined();
+});
+
+const AGENT_SDK_ROUTE = { providerId: castId<ProviderId>("claude-sub"), wire: "agent-sdk", api: "agent-sdk" } as const;
+
+// Owner ruling: no effort set ⇒ adaptive thinking at `high` wherever the model supports adaptive thinking. The
+// matrix measured the same preset sending thinking disabled on direct opus-5 and opus-4-8
+// (req_011CfKgrsFJ9ypUKNm5nkoM3, req_011CfKhGDcJ7WwS7aovrVdrd), the mandatory clamp's `low` on direct fable
+// (req_011CfKh2z379oimcJwSMD7tv) and `medium` on direct opus-5-5 (req_011CfKgwSXtiHfLLnEeLzaST).
+test("no effort set ⇒ adaptive thinking at high on the direct and agent-sdk routes for every adaptive Claude id", () => {
+  for (const model of ["claude-opus-5", "claude-opus-5-5", "claude-opus-4-8", "claude-fable-5", "claude-fable-5-1"]) {
+    for (const route of [DIRECT, AGENT_SDK_ROUTE]) {
+      const out = synthesizeCapability("generation", "anthropic", { curated: curatedRows({ model, ...route }) });
+      if (out.capability.kind !== "generation") {
+        throw new Error("expected a generation capability");
+      }
+      const knobs = resolveChat({}, out.capability.generation);
+      expect(knobs.reasoning, `${route.wire} ${model}`).toMatchObject({ mode: "adaptive", enabled: true, effort: "high" });
+      expect(knobs.warnings, `${route.wire} ${model}`).toEqual([]);
+    }
+  }
 });
 
 test("#2575: a deployment-forced structured call on a forced-tool-rejecting model rides response-format instead", async () => {
