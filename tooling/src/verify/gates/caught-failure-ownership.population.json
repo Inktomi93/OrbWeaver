@@ -771,9 +771,9 @@
       "reason": "documented contract \"parseCel never throws\" — any parse error is returned as CelParseError data, consumed by every caller as the error arm of the union. Ends if a caller stops handling the CelParseError arm."
     },
     {
-      "siteId": "packages/kit/src/ids/index.ts::typeIdSchema::err::1",
+      "siteId": "packages/kit/src/ids/index.ts::typeIdSchema::catch::1",
       "verdict": "deliberate-absorb",
-      "reason": "zod transform pattern — fromString's throw is caught and converted to ctx.addIssue + z.NEVER, zod's own consumption channel for a failed transform. Ends if the transform stops routing the caught error through ctx.addIssue."
+      "reason": "zod transform pattern — fromString's throw is caught and converted to ctx.addIssue + z.NEVER, zod's own consumption channel for a failed transform. Ends if the transform stops routing the caught failure through ctx.addIssue."
     },
     {
       "siteId": "packages/kit/src/json-schema/lift.ts::compilePattern::catch::1",
