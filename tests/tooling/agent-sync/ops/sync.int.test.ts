@@ -3,7 +3,7 @@
 // tests/tooling/codex-agent-config.int.test.ts at the #393 P5 move (Core-Tooling-Law.md §4.7 mirror).
 import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync } from "node:fs";
 import { join, relative } from "node:path";
-import { codexAgentSyncProblems, parseClaudeAgent, parseRulePaths, ROLE_MODELS, RULE_GUIDANCE_PATTERN } from "../../../../tooling/src/agent-sync/index.ts";
+import { codexAgentSyncProblems, parseClaudeAgent, parseRulePaths, ROLE_MODELS, ruleListLine } from "../../../../tooling/src/agent-sync/index.ts";
 import { formatMarkdown } from "../../../../tooling/src/doc-catalog/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
@@ -22,21 +22,23 @@ test("lowercase Codex configuration stays synced to the Claude-owned agent sourc
   expectClaudeOwnedLink(join(ROOT, ".agents", "skills"), ".claude/skills");
   expect(codexAgentSyncProblems()).toEqual([]);
 
+  // AGENTS.md is the one always-on file for both hosts. Codex expands no `@` import, so the Codex
+  // pointers must be written into the file itself.
+  expect(existsSync(join(ROOT, "CLAUDE.md"))).toBe(false);
   const projectInstructions = readFileSync(join(ROOT, "AGENTS.md"), "utf8");
-  expect(projectInstructions).toContain("Read `CLAUDE.md` in full");
   expect(projectInstructions).toContain("read `.claude/skills/lane/SKILL.md` in full");
+  expect(projectInstructions).toContain("read `.claude/skills/orchestrator/SKILL.md`");
   expect(projectInstructions).toContain('with `fork_turns="none"`');
   expect(projectInstructions).not.toMatch(/^@/mu);
 
-  // Every rule appears in the generated block with its exact globs, read from the rule's own frontmatter.
-  const block = RULE_GUIDANCE_PATTERN.exec(projectInstructions)?.[0] ?? "";
+  // Every rule appears in the hand-written list with its exact globs, read from the rule's own frontmatter.
   const ruleFiles = readdirSync(join(ROOT, ".claude", "rules")).filter((name) => name.endsWith(".md"));
   expect(ruleFiles.length).toBeGreaterThan(0);
   for (const ruleName of ruleFiles) {
-    const paths = parseRulePaths(readFileSync(join(ROOT, ".claude", "rules", ruleName), "utf8"));
+    const rel = `.claude/rules/${ruleName}`;
+    const paths = parseRulePaths(readFileSync(join(ROOT, rel), "utf8"));
     expect(paths.kind).toBe("list");
-    const globs = paths.kind === "list" ? paths.globs.map((glob) => `\`${glob}\``).join(", ") : "";
-    expect(block).toContain(`- \`.claude/rules/${ruleName}\`: ${globs}`);
+    expect(projectInstructions.split("\n")).toContain(ruleListLine(rel, paths));
   }
 
   // The Codex mirror registers NO hooks, and that is a RULING, not an oversight — owner, 2026-09-11:
@@ -78,22 +80,13 @@ test("lowercase Codex configuration stays synced to the Claude-owned agent sourc
   expect(claudeHookConfig).toContain("/.claude/hooks/worktree-remove.sh");
 });
 
-test("the generated rule-guidance block is CANONICAL markdown, so both stages can be green at once", () => {
-  // A CROSS-TOOL invariant, and it needs a cross-tool pin: `AGENTS.md` is written by this generator AND
-  // owned by the docs formatter (class 3 of the #2144 widening). They enforce each other's opposite —
-  // `check:agents` requires the generator's exact bytes, `check:docs` requires canonical markdown — so if
-  // the emitted block is not already canonical, the two stages CANNOT both be green and the only escapes
-  // are fencing the file out of one door (which is what #2173 had to do, at the cost of leaving its
-  // hand-authored lines unchecked) or hand-editing generated output (which the next sync overwrites).
-  //
-  // #2175 removed the deadlock by making the GENERATOR emit the two blank lines at the marker seams. This
-  // asserts the property rather than the two lines: any future edit to `renderedRuleGuidance()` that
-  // emits non-canonical markdown fails HERE, at the generator, instead of surfacing as an unexplainable
-  // red in a docs lane that has never heard of `agents:sync`.
+test("root AGENTS.md is canonical markdown, so check:agents and check:docs can both be green", () => {
+  // Two enforced stages read this file: `check:agents` checks its rule list and budget, and `check:docs`
+  // owns its bytes (class 3 of the formatter). A non-canonical edit reds the docs stage, so this pins
+  // the property at the file both tools share.
   const projectInstructions = readFileSync(join(ROOT, "AGENTS.md"), "utf8");
   const { output, refusal } = formatMarkdown(projectInstructions);
 
   expect(refusal).toBeNull();
   expect(output).toBe(projectInstructions);
-  expect(codexAgentSyncProblems()).toEqual([]);
 });

@@ -7,7 +7,7 @@
 // machine-checks the PRODUCER side — a member can be declared, replay-guarded/reduced, and never emitted
 // (silently dead wire). Each bus's thin gate supplied a `BusCoverageSpec`; THIS module owned the ONE
 // reconcile so a new bus was a spec, not a third
-// copy of the belt logic (derive, not re-declare — CLAUDE.md "Build the full shape" /
+// copy of the belt logic (derive, not re-declare — AGENTS.md "Posture" /
 // lock-the-extensible-shape). Two shapes of `*_EVENT_TYPES` belt are supported: an object literal
 // (`{ delta: true, … } satisfies Record<X["type"], true>` — chat/user) and an array literal
 // (`[…] as const satisfies readonly X["type"][]` — the domain-event/RPG twins).

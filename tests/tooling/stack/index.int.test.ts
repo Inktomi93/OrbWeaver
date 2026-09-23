@@ -350,7 +350,7 @@ test("clear-absent still REFUSES when a survivor really outlived the leader (#11
 //
 // NO HARDWARE IS TOUCHED HERE. `ENGINES_START_PROBE=1` is the shell twin of engines.ts's
 // `ENGINES_DISPATCH_PROBE` (see tests/tooling/stack/ops/engines.int.test.ts and the standing ban in
-// CLAUDE.md "Engines"): it skips the venv bootstrap, the reconcile AND the spawn, and
+// AGENTS.md "Engines"): it skips the venv bootstrap, the reconcile AND the spawn, and
 // runs ONLY the wait/verdict loop against whatever `VLLM_*_PORT` names — here, three throwaway http
 // servers. `ENGINES_BOOT_TIMEOUT=0` makes the deadline deterministic: the wait loop never iterates, so
 // every arm below measures the VERDICT the deadline produces, not a race against a timer.

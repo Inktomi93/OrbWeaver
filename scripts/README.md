@@ -10,7 +10,7 @@
 ## The zone's rules
 
 - **KISS/YAGNI apply here and only here.** The constitution suspends them for the architecture
-  (`CLAUDE.md` "Build the full shape"); this tree is the named exception — a probe is allowed to be a
+  (`AGENTS.md` "Posture"); this tree is the named exception — a probe is allowed to be a
   400-line straight line with hardcoded paths.
 - **No five-slot template, no tooling size cap, no tooling front-door gate.** Those gates scan
   `tooling/src/`. The configured Biome relaxations do not remove compiler ownership or the typed

@@ -2,7 +2,7 @@
 // §3). A browser tab holds ONE `stream.connect` EventSource; every live room it cares about (the per-user
 // entity bus, a chat's message bus, a game's rpg bus, …) rides that one socket as typed FRAMES, attached and
 // detached through two ordinary batched mutations. Cross-boundary wire shape ⇒ it homes here, not in
-// `transport/` (CLAUDE.md "Type homes and unions").
+// `transport/` (AGENTS.md "Type homes and unions").
 //
 // THE NESTING RULE (§3.2) — three vocabularies, zero collisions, zero rename tax. The frame union does NOT
 // flatten the per-bus event unions: the OUTER discriminant is `channel`, and each arm carries its bus event

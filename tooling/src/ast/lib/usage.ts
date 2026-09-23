@@ -268,7 +268,7 @@ export const USAGE = [
   "  SWALLOWED-ONLY (may be load-bearing THROUGH the swallowing API) · TAGGED-KEEP (a `@public` marker) ·",
   "  TOOL-ANCHORED (reached only from tooling/scripts) · TEST-ANCHORED (reached only from tests) · CANDIDATE",
   '  (nothing reaches it). "Unwired ≠ worthless"',
-  '  (CLAUDE.md "Build the full shape") — the verdict is a human\'s, never a delete signal. A name with several declarations',
+  '  (AGENTS.md "Posture") — the verdict is a human\'s, never a delete signal. A name with several declarations',
   "  (a collision) is classified once per declaration.",
   "",
   "rot (CANDIDATE lens, run on demand) = the five rot collectors — orphans / testonly / chains /",

@@ -14,7 +14,7 @@
 // undimmed strip at the edge of every overlay. `absolute` beds the backdrop in the document instead, and
 // `min-h-dvh` is what makes that box tall enough to be worth bedding.
 //
-// HOME: the mirror (`packages/ui/src/lib/scrim.ts` -> `tests/ui/lib/scrim.test.ts`, CLAUDE.md "Test layout").
+// HOME: the mirror (`packages/ui/src/lib/scrim.ts` -> `tests/ui/lib/scrim.test.ts`, AGENTS.md "Test layout").
 // scrim.ts's header pointed at `tests/ui/styles/css-structure.suite.test.ts` instead; that file's subject
 // is raw CSS TEXT in stylesheets, and `SCRIM_BASE` is a TypeScript constant, so the pointer named the
 // wrong home. It is retired in the same commit as this file.

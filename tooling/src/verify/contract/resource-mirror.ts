@@ -26,7 +26,7 @@
  *  of the tree that carries it, which is why `tooling-test` can take its tests out of the one `tests` tree
  *  without claiming the other packages' mirrors as its own. */
 export const MIRROR_FAMILY_DEFINITIONS = {
-  /** `tests/<pkg>/<path>` ↔ `packages/<pkg>/src/<path>` (CLAUDE.md "Test layout" / `Spine-Testing.md`). */
+  /** `tests/<pkg>/<path>` ↔ `packages/<pkg>/src/<path>` (AGENTS.md "Test layout" / `Spine-Testing.md`). */
   "package-test": { sourceTree: "packages", sourceRoot: "packages", testTree: "tests", testRoot: "tests" },
   /** `tests/tooling/<dir>/<path>` ↔ `tooling/src/<dir>/<path>` (`Core-Tooling-Law.md` §4.7). */
   "tooling-test": { sourceTree: "tooling-slot", sourceRoot: "tooling/src", testTree: "tests", testRoot: "tests/tooling" },

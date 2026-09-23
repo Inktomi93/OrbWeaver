@@ -58,7 +58,7 @@ export const TEST_LANE_STAGES: readonly StageDef[] = [
     // PD-115, 2026-07-03). That ruling SURVIVES; its INPUT changed. PD-115 judges an ASSERTED selector — a
     // lane's config include glob, which asserts a fileset — while this argv's selector is always the
     // DERIVED one (`--changed`), and derived-empty is CLEAN by the same asymmetry ops/scoped.ts's
-    // `emptyScopeNotice` already draws (CLAUDE.md "Verification tiers": an asserted selector resolving to zero is exit 2,
+    // `emptyScopeNotice` already draws (AGENTS.md "Verification tiers": an asserted selector resolving to zero is exit 2,
     // a derived one resolving to zero is an ordinary state). PD-115's own class stays guarded without this
     // door: `tests:execution-membership` REDs a runner view matching ZERO files at the STATIC tier, and
     // every whole-scope `pnpm test` still runs under `passWithNoTests: false`.

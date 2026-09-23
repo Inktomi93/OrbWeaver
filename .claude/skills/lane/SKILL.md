@@ -10,7 +10,7 @@ A lane is a subagent that works one area in its own worktree. These rules bind e
 
 ## Start
 
-- Do not re-read `CLAUDE.md`; it is already loaded.
+- Do not re-read `AGENTS.md`; it is already loaded.
 - Read the router row for your task, the path rules that load for your files, and the header of every file you touch.
 - Treat a brief's mechanism claims, and any list in a doc, as hypotheses. The brief's symptom and rulings bind.
 - Before you build a mechanism, check whether it already exists under another name.

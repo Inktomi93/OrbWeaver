@@ -39,7 +39,7 @@
 // ONE THING THE CONSUMER OWES, because the vehicle is `verify --changed` and that run PUBLISHES a `latest`
 // pointer: **READ THE SLOT THE RUN PRINTED, never `reports/verify.json`.** Concurrent runs do NOT void each
 // other's verdicts — each writes inside its own `reports/runs/verify/<slot>/` and publishes the pointer
-// atomically at completion (CLAUDE.md "Read the harness artifacts", #1029) — so what races is the POINTER, and the hazard is a
+// atomically at completion (AGENTS.md "Read the harness artifacts", #1029) — so what races is the POINTER, and the hazard is a
 // reader who takes the alias and assumes it is theirs. The standing "a lane does not run the front door"
 // rule is about WHOLE-TREE runs (`check:structure`, `pnpm check`, the `.repo.int` planters, which also
 // MUTATE the tree); it is stricter than the design for a scoped run, and this is the one home saying so
