@@ -12,6 +12,7 @@ export type {
 } from "./autosave-contract.ts";
 export type { AutosaveStatusProps } from "./autosave-status.tsx";
 export { AutosaveStatus } from "./autosave-status.tsx";
+export { touchedFieldError } from "./bound-fields/field-error.ts";
 export type { CappedFieldCounterProps } from "./capped-field.tsx";
 export { CappedFieldCounter } from "./capped-field.tsx";
 export { useFieldContext, useFormContext } from "./contexts.ts";

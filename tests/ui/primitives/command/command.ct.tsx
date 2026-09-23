@@ -5,7 +5,17 @@ import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from "@
 import { SNAPPED_LENGTH_BASE_PX, TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { AuxiliaryControlStory, CommandPaletteStory, DerivedItemsStory, LongCommandListStory } from "./command.fixtures.tsx";
+import { AuxiliaryControlStory, CommandPaletteStory, DerivedItemsStory, LoadingListStory, LongCommandListStory } from "./command.fixtures.tsx";
+
+// cmdk wraps CommandLoading's children in an unstyled div; in a centered ROW that div shrank to its content,
+// so a full-width skeleton bar measured 0px. The column slot stretches it to the list's width.
+test("a CommandLoading child that asks for the full width gets it", async ({ mount, page }) => {
+  await mount(<LoadingListStory />);
+  await expect(page.getByRole("progressbar", { name: "Loading rows…" })).toBeVisible();
+  const child = await page.getByTestId("loading-child").boundingBox();
+  const list = await page.getByRole("listbox").boundingBox();
+  expect(child?.width ?? 0).toBeGreaterThan((list?.width ?? 0) / 2);
+});
 
 test("typing filters the item list", async ({ mount, page }) => {
   await mount(<CommandPaletteStory />);

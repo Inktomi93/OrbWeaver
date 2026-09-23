@@ -43,7 +43,7 @@ const FABLE_IDS = [
 function emptyMirror<T>(): Mirror<T> {
   return {
     get: () => null,
-    warm: () => Promise.resolve(null),
+    warm: () => Promise.resolve({ ok: false, reason: "tests/inference: an empty mirror has nothing to warm" }),
     seed: () => undefined,
     invalidate: () => undefined,
   };
@@ -52,7 +52,7 @@ function emptyMirror<T>(): Mirror<T> {
 function fixedMirror<T>(value: T): Mirror<T> {
   return {
     get: () => value,
-    warm: () => Promise.resolve(value),
+    warm: () => Promise.resolve({ ok: true, value }),
     seed: () => undefined,
     invalidate: () => undefined,
   };

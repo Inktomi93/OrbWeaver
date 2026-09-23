@@ -19,6 +19,7 @@
 
 import type { TurnAbortReason } from "@orb/contracts/chat";
 import { TURN_ABORTED_OP_CODE, TURN_LOCKED_OP_CODE } from "@orb/contracts/chat";
+import { trpcErrorReason } from "./trpc-error-reason.ts";
 
 /** The honest stale-abort copy — plain user language, no lock vocabulary. States what happened (another
  *  session took over) AND the resulting state (nothing partial was saved) so the user isn't left guessing. */
@@ -44,15 +45,6 @@ function assertNeverReason(reason: never): null {
   throw new Error(`turnAbortNotice: unhandled TurnAbortReason ${JSON.stringify(reason)}`);
 }
 
-/** The refusal reason off a tRPC error's `data.reason` (the formatter's honest domain code), else "".
- *  Mirrors the `agent-seat` reader — the client keys on the structured wire field, never message text. */
-function reasonOf(error: unknown): string {
-  const data = typeof error === "object" && error !== null && "data" in error ? (error as { data: unknown }).data : null;
-  return typeof data === "object" && data !== null && "reason" in data && typeof (data as { reason: unknown }).reason === "string"
-    ? (data as { reason: string }).reason
-    : "";
-}
-
 /** `true` when a turn-mutation error is the loud `aborted` lifecycle reject (a stale lock killed the awaited
  *  turn) — the toast is suppressed so the bus notice is the single stale surface. Narrow: any other code / a
  *  codeless network error is NOT silenced (a real fault still toasts). Exported for the OTHER decision that
@@ -60,7 +52,7 @@ function reasonOf(error: unknown): string {
  *  EXCEPT this one (an abort is a user stop, not a lost steer — `use-guided-actions.ts` perFire). The toast
  *  decision itself routes through `turnMutationToast` below, never this predicate directly. */
 export function isSilencedTurnAbort(error: unknown): boolean {
-  return reasonOf(error) === TURN_ABORTED_OP_CODE;
+  return trpcErrorReason(error) === TURN_ABORTED_OP_CODE;
 }
 
 /** The honest copy for a CONTENTION refusal (`locked` — the per-chat turn lock is held, engine
@@ -84,7 +76,7 @@ export function turnMutationToast(error: unknown, fallback: string): string | nu
   if (isSilencedTurnAbort(error)) {
     return null;
   }
-  if (reasonOf(error) === TURN_LOCKED_OP_CODE) {
+  if (trpcErrorReason(error) === TURN_LOCKED_OP_CODE) {
     return TURN_LOCKED_COPY;
   }
   return fallback;

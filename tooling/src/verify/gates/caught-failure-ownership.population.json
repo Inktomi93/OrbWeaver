@@ -2,16 +2,16 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 620,
+    "sites": 621,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 620,
+      "deliberate-absorb": 621,
       "unproven": 0
     },
     "byGrammar": {
-      "default": 164,
-      "empty": 311,
-      "promise": 145
+      "default": 163,
+      "empty": 314,
+      "promise": 144
     }
   },
   "rows": [
@@ -631,6 +631,11 @@
       "reason": "a MODULE-RESOLUTION miss IS the answer — the wire is unbuilt (the registry's `needs` predicate names it), not a failure to report. Ends if the SDK grows a second install shape."
     },
     {
+      "siteId": "packages/inference/src/backends/agent-sdk/index.ts::createAgentSdkBackend.listModels::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "optional model discovery owns refusal as `listed:false` with the scrubbed reason; generation remains usable with an explicit model. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if callers require a successful catalog."
+    },
+    {
       "siteId": "packages/inference/src/backends/agent-sdk/runner.ts::probeContextUsage::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "context fill is an optional bounded diagnostic and `undefined` omits only that sidecar. Precedent: packages/client/src/lib/perf-marks.ts accepts the same best-effort diagnostic loss. Ends if the probe starts governing the turn result."
@@ -661,9 +666,9 @@
       "reason": "CLASSIFIER, not a failure — \"does this model-emitted blob parse to an object\" is the question, and `false` IS the answer (the pair degrades to announced text, which the caller renders). Reporting it would raise a user-facing error for a turn that runs correctly. Ends if this ever gates something other than the structural-vs-text choice."
     },
     {
-      "siteId": "packages/inference/src/backends/anthropic-messages/index.ts::createAnthropicBackend.listModels::listModels::1",
+      "siteId": "packages/inference/src/backends/anthropic-messages/index.ts::listAnthropicModels::err::1",
       "verdict": "deliberate-absorb",
-      "reason": "optional model discovery owns refusal as `listed:false`; generation remains usable with an explicit model. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if callers require a successful catalog."
+      "reason": "optional model discovery owns refusal as `listed:false` with the scrubbed reason; generation remains usable with an explicit model. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if callers require a successful catalog."
     },
     {
       "siteId": "packages/inference/src/backends/anthropic-messages/index.ts::probe::err::1",
@@ -696,9 +701,9 @@
       "reason": "a preview read failure degrades to an explicit empty preview while status and headers remain inspectable. Precedent: the gate mustPass fixture tooling/src/probe/unproven-outcome.ts proves the same degraded inspection result. Ends if preview bytes become authoritative."
     },
     {
-      "siteId": "packages/inference/src/backends/openai-compat/diagnostics.ts::listOpenAiCompatModels::catch::1",
+      "siteId": "packages/inference/src/backends/openai-compat/diagnostics.ts::listOpenAiCompatModels::err::1",
       "verdict": "deliberate-absorb",
-      "reason": "optional model discovery owns refusal as `listed:false`; generation remains usable with an explicit model. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if callers require a successful catalog."
+      "reason": "optional model discovery owns refusal as `listed:false` with the scrubbed reason; generation remains usable with an explicit model. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if callers require a successful catalog."
     },
     {
       "siteId": "packages/inference/src/backends/openai-compat/diagnostics.ts::probeOpenAiCompat::err::1",
@@ -736,9 +741,9 @@
       "reason": "malformed model-emitted arguments remain the raw string, preserving the model's bytes instead of dropping the tool call. Precedent: the gate mustPass fixture packages/server/src/infra/auth/parser.ts proves the same fail-closed parse default. Ends if raw stops being serialized."
     },
     {
-      "siteId": "packages/inference/src/catalog/mirror.ts::createMirror.warmOnce::err::1",
+      "siteId": "packages/inference/src/catalog/listing.ts::createCatalogListing.endpointListing::err::1",
       "verdict": "deliberate-absorb",
-      "reason": "the catalog mirror records failed span state plus a structured warning, then returns null for the marked-estimated fallback. Precedent: packages/server/src/entry/boot/local-light-prefetch.ts accepts the same warning plus degraded fallback. Ends if any of those owners disappears."
+      "reason": "optional model discovery owns refusal as `listed:false` with the scrubbed reason; the pane offers a typed id. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if callers require a successful catalog."
     },
     {
       "siteId": "packages/inference/src/registry/providers.ts::createProviderRegistry.publishInOrder::publication::1",

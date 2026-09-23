@@ -82,3 +82,31 @@ export const connectionBindingSchema = z.object({
   connectionId: typeIdSchema(ID_PREFIX.userConnection).nullable(),
 });
 export type ConnectionBinding = z.infer<typeof connectionBindingSchema>;
+
+/** The connection verbs' refusal codes, carried on a tRPC error's `data.reason`. Here rather than in the
+ *  server domain because the client keys on them (a URL refusal lands on the Server URL field). Every
+ *  refusal is a bad WRITE or a missing row — HTTP 400-shaped — except `notFound`, which collapses not-owned
+ *  and not-found on purpose so a 404 never leaks that a row exists for someone else. */
+export const CONNECTION_OP_CODES = {
+  notFound: "connection_not_found",
+  /** The `providerId` is not in the registry (built-ins ∪ runtime rows). */
+  providerUnknown: "connection_provider_unknown",
+  /** The `api` is not one the provider row lists (coherence is DATA, §7.3). */
+  apiIncoherent: "connection_api_incoherent",
+  /** An `auth: endpoint` provider needs a `baseUrl`; a hosted provider must not carry one. */
+  baseUrlShape: "connection_base_url_shape",
+  /** The `baseUrl` did not parse as an http(s) URL. */
+  baseUrlInvalid: "connection_base_url_invalid",
+  /** The `baseUrl` resolves to a private/loopback host the deployment allowlist does not admit (F12). */
+  baseUrlRefused: "connection_base_url_refused",
+  /** A `builtin` catalog is the closed set the in-process runtime can load; the model id is not in it. */
+  modelNotInCatalog: "connection_model_not_in_catalog",
+  /** The named credential is not the caller's (or does not exist — collapsed, no existence oracle). */
+  credentialForeign: "connection_credential_foreign",
+  /** The task's `spend` is `background` and the row's `allowBackground` is off (`canFund`, F5). */
+  backgroundRefused: "connection_background_refused",
+  /** The binding's actor (a rule, a plugin) is not the caller's. */
+  actorForeign: "connection_actor_foreign",
+  /** The row cannot serve the task (`connectionTasks` — one connection = one model = one kind). */
+  taskUnservable: "connection_task_unservable",
+} as const;

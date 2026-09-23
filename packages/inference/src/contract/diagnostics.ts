@@ -5,7 +5,7 @@
 // transport's plain fetches (§8.2), reached through the same door.
 
 import type { CredentialHealth } from "@orb/contracts/credentials";
-import type { ModelCatalogEntry } from "@orb/contracts/inference";
+import type { ModelListing } from "@orb/contracts/inference";
 import type { AccountCredits, EndpointInspection, GenerationCost, VerifyAuthResult } from "@orb/contracts/providers";
 import type { Resolved } from "./resolved.ts";
 
@@ -30,14 +30,17 @@ export type InspectRequest = DiagnosticRequestCommon;
 /** The subscription auth verify — a tiny SDK turn under THIS user's claude-sub row. */
 export type VerifyAuthRequest = DiagnosticRequestCommon;
 
-/** The connection's model list by the provider's `catalog` strategy: `GET <baseUrl>/v1/models` (+ the
- *  OR-shaped enrichment where the dialect says so), the daemon's `supportedModels()`, or the builtin
- *  bundle. A failed/empty list is `{ listed: false }` — the pane offers a typed id and says why. */
-export interface ListModelsRequest extends DiagnosticRequestCommon {}
+/** What a model-list read needs from a connection: which wire and provider, whose credential, which server.
+ *  Narrower than `Resolved` on purpose — a DRAFT (no row, no model, no capability yet) lists through the same
+ *  backend method, so the request never carries fields a draft would have to invent. */
+export type CatalogTarget = Pick<Resolved, "wire" | "ownerId" | "providerId" | "provider" | "baseUrl" | "credential" | "transport">;
 
-export interface ListModelsResult {
-  readonly listed: boolean;
-  readonly models: readonly ModelCatalogEntry[];
+/** The connection's model list by the provider's `catalog` strategy: `GET <baseUrl>/v1/models` (+ the
+ *  OR-shaped enrichment where the dialect says so) or the daemon's `supportedModels()`. A failed or empty
+ *  list is `{ listed: false, reason }` — the pane offers a typed id and says why. */
+export interface ListModelsRequest {
+  readonly connection: CatalogTarget;
+  readonly signal?: AbortSignal | undefined;
 }
 
 export interface ProviderDiagnostics {
@@ -46,5 +49,5 @@ export interface ProviderDiagnostics {
   readonly generationCost: (req: GenerationCostRequest) => Promise<GenerationCost>;
   readonly inspect: (req: InspectRequest) => Promise<EndpointInspection>;
   readonly verifyAuth: (req: VerifyAuthRequest) => Promise<VerifyAuthResult>;
-  readonly listModels: (req: ListModelsRequest) => Promise<ListModelsResult>;
+  readonly listModels: (req: ListModelsRequest) => Promise<ModelListing>;
 }

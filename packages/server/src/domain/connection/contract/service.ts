@@ -7,7 +7,7 @@
 // sibling runtime.
 
 import type { Principal } from "@orb/contracts/identity";
-import type { ConnectionBinding, ModelCatalogEntry, ResolvedConnectionView, SendAvailability } from "@orb/contracts/inference";
+import type { ConnectionBinding, ModelListing, ResolvedConnectionView, SendAvailability } from "@orb/contracts/inference";
 import type { AccountCredits, EndpointInspection, GenerationCost, VerifyAuthResult } from "@orb/contracts/providers";
 import type { Db } from "@orb/db";
 import type { BindingStore, ConnectionStore, InferenceRuntime, ProviderRegistry, ProviderStore, ResolveOutcome, SnapshotStore } from "@orb/inference";
@@ -18,13 +18,13 @@ import type {
   CatalogModelsParams,
   ConnectionDiagnosticParams,
   CreateConnectionParams,
+  DraftCatalogModelsParams,
   DropPluginProvidersParams,
   DropProviderParams,
   GenerationCostParams,
   GetConnectionParams,
   ListBindingsParams,
   ListConnectionsParams,
-  ListEndpointModelsParams,
   ProvidersAvailableParams,
   RefreshCatalogParams,
   RegisterPluginProvidersParams,
@@ -36,15 +36,7 @@ import type {
   UpdateConnectionParams,
   UseForEverythingParams,
 } from "./params.ts";
-import type {
-  BindingView,
-  CatalogRefreshOutcome,
-  ConnectionCapabilityView,
-  ConnectionView,
-  CredentialHealth,
-  EndpointModelsResult,
-  ProviderAvailability,
-} from "./results.ts";
+import type { BindingView, CatalogRefreshOutcome, ConnectionCapabilityView, ConnectionView, CredentialHealth, ProviderAvailability } from "./results.ts";
 
 /** The F12 admission verdict for an endpoint `baseUrl` at WRITE time (the fetch guard re-judges at connect):
  *  `public` = not a private address (the SSRF guard judges it as any host); `admitted` = private and on the
@@ -103,8 +95,8 @@ export interface ConnectionService {
   readonly useForEverything: (params: UseForEverythingParams) => Promise<readonly ConnectionBinding[]>;
 
   // ── catalogs
-  readonly catalogModels: (params: CatalogModelsParams) => Promise<readonly ModelCatalogEntry[]>;
-  readonly listEndpointModels: (params: ListEndpointModelsParams) => Promise<EndpointModelsResult>;
+  readonly catalogModels: (params: CatalogModelsParams) => Promise<ModelListing>;
+  readonly draftCatalogModels: (params: DraftCatalogModelsParams) => Promise<ModelListing>;
   readonly refreshCatalog: (params: RefreshCatalogParams) => Promise<CatalogRefreshOutcome>;
 
   // ── diagnostics (every one against ONE of the caller's rows)
