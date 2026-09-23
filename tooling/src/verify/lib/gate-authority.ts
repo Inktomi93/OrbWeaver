@@ -8,12 +8,15 @@ import type {
   GateAuthorityBatchResult,
   GateAuthorityToolError,
   GateOwnerCompletion,
+  GateOwnerCoverage,
   GateOwnerResult,
   GrantedGateFinding,
   RawGateFinding,
   SelectedGatePolicy,
+  UnjudgedReviewedGrant,
   WaivedGateFinding,
 } from "../contract/gate-authority.ts";
+import { GATE_OWNER_COVERAGES } from "../contract/gate-authority.ts";
 import type { ValidatedReviewedGrants } from "./gate-authority-validation.ts";
 import { isGateAuthority, isGateAuthorityIdentity, isGateSeverity, reviewedGrantIdentity, validateReviewedGrants } from "./gate-authority-validation.ts";
 import { createOrdinaryWaiverEngine } from "./ordinary-waiver.ts";
@@ -164,7 +167,7 @@ function validateFinding({ policy, finding, findingIndex, population, errors }: 
   return valid;
 }
 function validateResult(policy: SelectedGatePolicy, result: GateOwnerResult, errors: GateAuthorityToolError[]): readonly CoordinatedGateFinding[] | null {
-  if (!(isGateAuthorityIdentity(result.policyId) && isValidCompletion(result.owner))) {
+  if (!(isGateAuthorityIdentity(result.policyId) && isValidCompletion(result.owner) && (GATE_OWNER_COVERAGES as readonly string[]).includes(result.coverage))) {
     errors.push({ kind: "invalid-owner-result", policyId: policy.id, message: `owner result is malformed for ${policy.id}` });
     return null;
   }
@@ -237,11 +240,17 @@ interface CoordinationState {
   readonly grantCounts: Map<string, number>;
   readonly completedOrdinary: Set<string>;
   readonly completedReviewed: Set<string>;
+  readonly subsetReviewed: Set<string>;
   readonly toolErrors: GateAuthorityToolError[];
   readonly withheld: Set<string>;
 }
-function processReviewed(policy: SelectedGatePolicy, findings: readonly CoordinatedGateFinding[], state: CoordinationState): void {
+const COVERAGE_JUDGES_STALE: Readonly<Record<GateOwnerCoverage, boolean>> = { whole: true, subset: false };
+
+function processReviewed(policy: SelectedGatePolicy, result: GateOwnerResult, findings: readonly CoordinatedGateFinding[], state: CoordinationState): void {
   state.completedReviewed.add(policy.id);
+  if (!COVERAGE_JUDGES_STALE[result.coverage]) {
+    state.subsetReviewed.add(policy.id);
+  }
   const candidatesByGrant = new Map<string, { readonly grant: ValidatedReviewedGrants["grants"][number]; readonly findings: CoordinatedGateFinding[] }>();
   for (const finding of findings) {
     const grant = state.grants.byIdentity.get(
@@ -293,7 +302,7 @@ function processPolicy(policy: SelectedGatePolicy, state: CoordinationState): vo
     return;
   }
 
-  processReviewed(policy, findings, state);
+  processReviewed(policy, result, findings, state);
 }
 function processOrdinary(state: CoordinationState): ReturnType<ReturnType<typeof createOrdinaryWaiverEngine>["reconcile"]> {
   const engine = createOrdinaryWaiverEngine({ sources: state.input.ordinaryWaiverSources, knownPolicies: [...state.knownPolicies.values()] });
@@ -313,12 +322,22 @@ function processOrdinary(state: CoordinationState): ReturnType<ReturnType<typeof
   return engine.reconcile({ completedPolicyIds: [...state.completedOrdinary].toSorted(), match: matched });
 }
 
-function reconcileAuthority(state: CoordinationState, ordinaryAlarms: readonly GateAuthorityAlarm[]): readonly GateAuthorityAlarm[] {
+interface GrantReconciliation {
+  readonly alarms: readonly GateAuthorityAlarm[];
+  readonly unjudged: readonly UnjudgedReviewedGrant[];
+}
+
+// Over-broad is judged on any complete owner: two matches inside a subset are two matches on the whole tree.
+// Stale is judged only on whole coverage; a subset owner names its unconsumed grants unjudged instead.
+function reconcileAuthority(state: CoordinationState, ordinaryAlarms: readonly GateAuthorityAlarm[]): GrantReconciliation {
   const alarms: GateAuthorityAlarm[] = [];
+  const unjudged: UnjudgedReviewedGrant[] = [];
   alarms.push(...ordinaryAlarms);
   for (const grant of state.grants.grants) {
     const count = state.grantCounts.get(grant.id) ?? 0;
-    if (state.completedReviewed.has(grant.policyId) && count === 0) {
+    if (state.completedReviewed.has(grant.policyId) && count === 0 && state.subsetReviewed.has(grant.policyId)) {
+      unjudged.push({ policyId: grant.policyId, grantId: grant.id });
+    } else if (state.completedReviewed.has(grant.policyId) && count === 0) {
       alarms.push({
         kind: "stale-reviewed-grant",
         policyId: grant.policyId,
@@ -339,7 +358,10 @@ function reconcileAuthority(state: CoordinationState, ordinaryAlarms: readonly G
       });
     }
   }
-  return alarms.toSorted(alarmOrder);
+  return {
+    alarms: alarms.toSorted(alarmOrder),
+    unjudged: unjudged.toSorted((left, right) => left.policyId.localeCompare(right.policyId) || left.grantId.localeCompare(right.grantId)),
+  };
 }
 
 export function coordinateGateAuthority(input: GateAuthorityBatchInput): GateAuthorityBatchResult {
@@ -363,6 +385,7 @@ export function coordinateGateAuthority(input: GateAuthorityBatchInput): GateAut
   const grantCounts = new Map(grants.grants.map(({ id }) => [id, 0]));
   const completedOrdinary = new Set<string>();
   const completedReviewed = new Set<string>();
+  const subsetReviewed = new Set<string>();
   const state: CoordinationState = {
     input,
     knownPolicies,
@@ -376,6 +399,7 @@ export function coordinateGateAuthority(input: GateAuthorityBatchInput): GateAut
     grantCounts,
     completedOrdinary,
     completedReviewed,
+    subsetReviewed,
     toolErrors,
     withheld,
   };
@@ -387,13 +411,14 @@ export function coordinateGateAuthority(input: GateAuthorityBatchInput): GateAut
   const sortedEffective = effectiveFindings.toSorted(findingOrder);
   const errors = sortedEffective.filter(({ severity }) => severity === "error").length;
   const warnings = sortedEffective.length - errors;
-  const authorityAlarms = reconcileAuthority(state, ordinaryAlarms);
+  const { alarms: authorityAlarms, unjudged: unjudgedReviewedGrants } = reconcileAuthority(state, ordinaryAlarms);
   const alarmErrors = authorityAlarms.length;
   return {
     effectiveFindings: sortedEffective,
     waivedFindings: waivedFindings.toSorted((left, right) => findingOrder(left.finding, right.finding) || left.waiverId.localeCompare(right.waiverId)),
     grantedFindings: grantedFindings.toSorted((left, right) => findingOrder(left.finding, right.finding) || left.grantId.localeCompare(right.grantId)),
     authorityAlarms,
+    unjudgedReviewedGrants,
     toolErrors: toolErrors.toSorted(toolErrorOrder),
     withheldPolicyIds: [...withheld].filter(isGateAuthorityIdentity).toSorted(),
     ordinaryConsumption: toConsumption(ordinaryCounts),

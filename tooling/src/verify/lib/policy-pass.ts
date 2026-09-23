@@ -6,7 +6,15 @@ import type { GateFactToolError, PolicyFactValueRegistry, PolicyPassInput, Polic
 import { GATE_FACT_PHASES, POLICY_PHASES } from "../contract/policy-pass.ts";
 import { createResourceHost } from "../ops/resource-host.ts";
 import { coordinateGateAuthority } from "./gate-authority.ts";
-import { evaluateRuns, factResult, finishFactRuns, ordinaryWaiverAcquisition, ownerResult, withholdFactDependents } from "./policy-pass-receipts.ts";
+import {
+  authorityOwnerResult,
+  evaluateRuns,
+  factResult,
+  finishFactRuns,
+  ordinaryWaiverAcquisition,
+  ownerResult,
+  withholdFactDependents,
+} from "./policy-pass-receipts.ts";
 import {
   assertInvocationPolicies,
   assertOwnerPlans,
@@ -65,12 +73,7 @@ export function runPolicyPass(input: PolicyPassInput): PolicyPassResult {
     knownPolicies: input.knownPolicies.map(({ id, authority: policyAuthority, severity }) => ({ id, authority: policyAuthority, severity })),
     selectedPolicies: input.policies.map(({ id, authority: policyAuthority, severity }) => ({ id, authority: policyAuthority, severity })),
     ordinaryWaiverSources: waiverCarriers.sources,
-    ownerResults: policies.map(({ id, population, owner, findings }) => ({
-      policyId: id,
-      populationFiles: [...new Set([...population.effectiveSourcePaths, ...population.effectiveResourcePaths])].toSorted(),
-      owner,
-      findings,
-    })),
+    ownerResults: policies.map(authorityOwnerResult),
     reviewedGrants: input.reviewedGrants,
     failOnWarnings: input.failOnWarnings,
   });
