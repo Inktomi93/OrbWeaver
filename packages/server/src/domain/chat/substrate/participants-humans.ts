@@ -64,6 +64,12 @@ export async function presentAndEnabledHumanUserIdsOf(ctx: ChatContext, particip
   return present.filter((_userId, i) => isBackingUserEnabled("human", enabled[i] ?? false));
 }
 
+/** Does the room seat more than one present human? The multi-human names rule (`assembly/names`) reads this,
+ *  so the turn and every preview must answer it from the same consent set. PURE. */
+export function seatsMultipleHumans(presentHumanUserIds: readonly UserId[]): boolean {
+  return presentHumanUserIds.length > 1;
+}
+
 /** The seat fields the ACTIVE-PERSONA lens needs on top of {@link HumanSeat} — again structural, so a raw
  *  `chat_participants` row passes unchanged. */
 interface PersonaSeat extends HumanSeat {

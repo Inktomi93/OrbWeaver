@@ -157,7 +157,7 @@ import { clampMemberCard, isBelowHistoryFloor, NO_HISTORY_FLOOR, resolveCardVisi
 import { toChatDetail } from "../substrate/chat-detail.ts";
 import { projectViewForMember, scrubChatEventReplayForMember, scrubStreamReplayForMember, viewerReadsHidden } from "../substrate/member-visibility.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
-import { onlinePersonaIdsOf, presentAndEnabledHumanUserIdsOf } from "../substrate/participants-humans.ts";
+import { onlinePersonaIdsOf, presentAndEnabledHumanUserIdsOf, seatsMultipleHumans } from "../substrate/participants-humans.ts";
 import { regexAllowOf, resolveRegexTiers } from "../substrate/regex-tier.ts";
 import { collectTeaching, resolveTeachingKnobs } from "../substrate/teaching.ts";
 import { buildWireHistory, convertsToEmptyWireRow, fitWireHistory } from "../substrate/wire-history.ts";
@@ -232,6 +232,8 @@ interface PreviewInputs {
   readonly api: Resolved<"chat">["api"];
   readonly characterIds: readonly CharacterId[];
   readonly personaIds: readonly PersonaId[];
+  /** The room seats more than one present human — the SHAPE name-stamp's multi-human rule. */
+  readonly multiHuman: boolean;
   /** The room's effective GroupConfig — its `output` axis is the ONE the SHAPE peek resolves, so a preview
    *  renders the SAME seated-characters/per-speaker shape the next turn will (`TurnSpeakerShape.output`), never a pinned
    *  guess. A narrator room previews its joined-seated-characters `{{char}}` + `[Character — …]` framing; per-speaker is
@@ -490,6 +492,7 @@ async function resolvePreviewInputs(
     api: connection.api,
     characterIds,
     personaIds,
+    multiHuman: seatsMultipleHumans(previewPresentHumanUserIds),
     group,
     // The SAME row `group` came off — an absent row is a metadata-less room (⇒ every knob inherits).
     metadata: chatRow?.metadata ?? {},
@@ -635,6 +638,7 @@ async function buildPreviewContext(
       // null-stamp guard needs that identity or the preview would floor the host's own unstamped rows
       // while the real turn borrows for them.
       triggerUserId: inputs.hostUserId,
+      multiHuman: inputs.multiHuman,
       ...gather.fields,
       ...(opts.guided !== undefined ? { guided: opts.guided } : {}),
       // The preview render registry (WAVE MU) — absent ⇒ the pure build's singleton fallback (byte-identical).
@@ -1102,6 +1106,7 @@ async function shapeNextTurn(
     scopedTargetId: null,
     namesBehavior: assembleContext.promptConfig.namesBehavior ?? DEFAULT_NAMES_BEHAVIOR,
     speakers: { user: assembleContext.activePersona?.name ?? DEFAULT_PERSONA_NAME, assistant: assembleContext.character.name },
+    multiHuman: assembleContext.multiHuman === true,
     // The preview voices the primary's turn, with the cue a turn carries when its system block names no speaker.
     groupNudge: speakerCue(assembleContext, previewVoice(assembleContext, inputs.group.output)),
     assistantPrefill: turns?.assistantPrefill === true,

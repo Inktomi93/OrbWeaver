@@ -91,7 +91,7 @@ import { buildTurnUserMacros, freezeVolatileMacros, resolveNudgeText } from "../
 import { commitHostFencedWrite } from "../substrate/host-fenced-write.ts";
 import { projectViewReturnForViewer, stripMessagesForViewer, viewerReadsHidden } from "../substrate/member-visibility.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
-import { onlinePersonaIdsOf, presentAndEnabledHumanUserIdsOf } from "../substrate/participants-humans.ts";
+import { onlinePersonaIdsOf, presentAndEnabledHumanUserIdsOf, seatsMultipleHumans } from "../substrate/participants-humans.ts";
 import { userMessageDelta } from "../substrate/stats-delta.ts";
 import { collectTeaching, resolveTeachingKnobs } from "../substrate/teaching.ts";
 import { driveRoundVia, resolveMentionsVia, resolveTurnIdentityVia, runAutoModeVia, selectSpeakersVia, smartArbitrateVia } from "../substrate/turn-access.ts";
@@ -709,6 +709,7 @@ async function buildTurnContext(
       // may borrow this turn's `{{user}}` only when it is that human's OWN row (see `toShapeCanon`). `none`
       // ⇒ null ⇒ no row borrows it (the union has no third arm).
       triggerUserId: args.trigger.kind === "human" ? args.trigger.userId : null,
+      multiHuman: seatsMultipleHumans(args.presentHumanUserIds),
       generationType: GENERATION_TYPE_FOR_KIND[args.kind],
       prng: deps.prng,
       ...(args.pendingUserText !== undefined ? { pendingUserText: args.pendingUserText } : {}),

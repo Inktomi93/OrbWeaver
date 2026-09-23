@@ -326,6 +326,8 @@ export async function gatherAssembleContext(
     /** The live human driving this turn — the identity behind `speakers.user`, carried onto the built ctx for
      *  SHAPE's null-stamp guard (`AssembleContext.triggerUserId`). Absent/null ⇒ fail closed. */
     readonly triggerUserId?: UserId | null | undefined;
+    /** The room seats more than one present human — carried onto the built ctx for SHAPE's name-stamp. */
+    readonly multiHuman?: boolean | undefined;
     readonly pendingUserText?: string | undefined;
     /** The one-turn typed steer — threaded to the BUILD, which resolves the action template once and
      *  delivers it via its placement. */
@@ -471,6 +473,7 @@ export async function gatherAssembleContext(
       personas: foreign.personas,
       // Threaded RAW — `buildAssembleContext` owns the `?? null` floor (one home for the fail-closed default).
       triggerUserId: args.triggerUserId,
+      multiHuman: args.multiHuman,
       recentMessages,
       // The chat's own injection ROWS + the S2 teaching collection's injections; nothing teaching ⇒ unchanged.
       // The teaching half arrives PRE-STAMPED (each contribution owns its `origin`, e.g. chat's rpg projection

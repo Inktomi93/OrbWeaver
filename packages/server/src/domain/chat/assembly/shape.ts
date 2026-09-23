@@ -89,6 +89,9 @@ interface ShapeInput {
   scopedTargetId: CharacterId | null;
   namesBehavior: NamesBehavior;
   speakers: { user: string; assistant: string };
+  /** The room seats more than one present human (`AssembleContext.multiHuman`) — the name-stamp labels every
+   *  canon user row. Absent ⇒ a solo room. */
+  multiHuman?: boolean | undefined;
   /** The group nudge (`[Write the next reply only as X.]`), set only on a multi-speaker round. */
   groupNudge: string | null;
   resolveContent?: (content: string) => string;
@@ -536,7 +539,11 @@ export function shape(input: ShapeInput): ShapeOutput {
     prose: input.prose,
   });
   const squashed = runSquash(injected);
-  const namedInput = applyNamesBehavior(injected, input.namesBehavior, input.speakers, { multiCharacter, mergesAdjacent: merges });
+  const namedInput = applyNamesBehavior(injected, input.namesBehavior, input.speakers, {
+    multiCharacter,
+    multiHuman: input.multiHuman === true,
+    mergesAdjacent: merges,
+  });
   const named = runSquash(namedInput);
 
   // A multi-speaker round's group nudge, or the continuation cue for a turn that would otherwise end on the

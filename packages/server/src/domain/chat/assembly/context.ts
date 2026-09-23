@@ -321,6 +321,8 @@ interface BuildAssembleContextInput {
   /** The live human `personas.active` belongs to — carried onto the ctx for SHAPE's null-stamp guard
    *  (`AssembleContext.triggerUserId`). Absent (drain/auto/preview/hand-built) ⇒ null ⇒ fail closed. */
   readonly triggerUserId?: UserId | null | undefined;
+  /** The room seats more than one present human (`AssembleContext.multiHuman`). Absent ⇒ solo. */
+  readonly multiHuman?: boolean | undefined;
   readonly roomOverrides?: RoomOverrides | undefined;
   readonly recentMessages: readonly string[];
   readonly lastMessage?: string | undefined;
@@ -443,6 +445,7 @@ function buildBaseContext(
     generationType: input.generationType ?? "normal",
   };
   setIf(base, "roomOverrides", input.roomOverrides);
+  setIf(base, "multiHuman", input.multiHuman);
   setIf(base, "lastMessage", input.lastMessage);
   setIf(base, "lastUserMessage", input.lastUserMessage);
   setIf(base, "lastCharMessage", input.lastCharMessage);
