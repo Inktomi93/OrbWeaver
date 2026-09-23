@@ -15,6 +15,13 @@ test("a refused write exits 1 and writes nothing", async ({ runCli }) => {
   expect(res.stdout).toBe("");
 });
 
+test("item --from a file that does not exist is misuse and writes nothing", async ({ runCli }) => {
+  const res = await runCli("doc", ["item", "--from", "tests/tooling/doc/no-such-batch.json"]);
+  await expect(res).toExitWith(3);
+  expect(res.stderr).toContain("no such file");
+  expect(res.stdout).toBe("");
+});
+
 test("the read verbs exit 0 on the real tree, and help is 0", async ({ runCli }) => {
   await expect(await runCli("doc", ["help"])).toExitWith(0);
   const overview = await runCli("doc", ["overview"]);

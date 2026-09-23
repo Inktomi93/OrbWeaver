@@ -44,7 +44,7 @@ several ids or paths, so one call can change a batch.
 | - | - |
 | Record a decision | `pnpm doc new adr <slug> --title "<t>"` |
 | Start a program | `pnpm doc new plan <slug> --title "<t>"` |
-| File work | `pnpm doc item "<title>" --kind bug\|work\|decision\|tooling --priority P0..P3 --area <a> [--plan <slug>]` |
+| File work | `pnpm doc item "<title>" --kind bug\|work\|decision\|tooling --priority P0..P3 --area <a> [--plan <slug>] [--lane <branch>\|--blocked <reason>] --what <text> --why <text> --done <text>`, or a batch with `pnpm doc item --from <file.json>` |
 | Supersede an ADR | `pnpm doc status superseded <old> --by <new>` |
 | Change item state | `pnpm doc set <id…> open\|doing\|blocked\|done [--lane <branch>] [--blocked <reason>]` |
 | Land items by hand | `pnpm doc land <id…> --evidence <sha>` |
