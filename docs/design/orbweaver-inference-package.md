@@ -1514,7 +1514,7 @@ does not drown in knobs or grow a second implementation.
 3. **Which PURPOSE?** — for a non-chat call, one member of the closed `SIDE_GEN_POSTURES` record
    (`contracts/preset/index.ts:205`: `arbiter`, `quiet_generate`, `extract_quiet`, `compaction`,
    `schema_forge`, `greeting_studio`, `caption`, …) whose row is a sampling FLOOR (temperature, output cap)
-   that `resolveSideGenSampling` (`@orb/kit/side-gen-posture`) folds BENEATH **the preset of the principal the
+   that `resolveSideGenSampling` (`@orb/inference`) folds BENEATH **the preset of the principal the
    PURPOSE is scoped to** — the funder supplies the CONNECTION (§8.5b) and is the preset principal ONLY when
    the purpose is scoped to them. THREE scopes exist on the tree and all three stay (verify8 H4): (i) a
    CHAT-scoped posture folds beneath the ROOM HOST's preset and prose

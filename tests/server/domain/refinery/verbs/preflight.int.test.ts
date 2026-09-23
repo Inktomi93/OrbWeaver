@@ -5,10 +5,10 @@
 // never about blessing a magic constant.
 
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
+import type { SideGenSampling } from "@orb/inference";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { RefinerySessionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { SideGenSampling } from "@orb/kit/side-gen-posture";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeRefineryHarness, principal, seedOwnedCharacter, seedUser } from "../_support.ts";

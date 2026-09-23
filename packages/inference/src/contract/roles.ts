@@ -62,7 +62,7 @@ export interface SummarizeRequestItem {
 
 /** The per-item sampling a summarize/structured call carries — the side-gen posture folded beneath the
  *  purpose-scoped preset (§7.5-3), already resolved. */
-export interface SideGenSampling {
+export interface TaskSampling {
   readonly maxTokens?: number | undefined;
   readonly temperature?: number | undefined;
   readonly topP?: number | undefined;
@@ -75,12 +75,12 @@ export interface SideGenSampling {
 
 /** SUMMARIZE IS SUMMARIZATION — a prose task. Schema-constrained generation is the DISTINCT `structured`
  *  task (owner ruling 2026-07-27); this request carries NO `responseFormat`, by type. */
-export interface SummarizeRequest extends TaskRequestCommon<"summarize">, SideGenSampling {
+export interface SummarizeRequest extends TaskRequestCommon<"summarize">, TaskSampling {
   readonly inputs: readonly SummarizeRequestItem[];
 }
 
 /** The one-shot SCHEMA-CONSTRAINED primitive. Same batch shape as summarize; `responseFormat` REQUIRED. */
-export interface StructuredRequest extends TaskRequestCommon<"structured">, SideGenSampling {
+export interface StructuredRequest extends TaskRequestCommon<"structured">, TaskSampling {
   readonly inputs: readonly SummarizeRequestItem[];
   readonly responseFormat: ResponseFormat;
 }

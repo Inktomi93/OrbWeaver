@@ -37,6 +37,7 @@ import type {
   ProviderErrorKind,
   Resolved,
   RoleClientsWithSignal,
+  SideGenSampling,
   SummarizeResult,
   ToolCallInput,
   WireTool,
@@ -69,7 +70,6 @@ import type {
 import type { UserMacroDef } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { RegexReplacer } from "@orb/kit/regex";
-import type { SideGenSampling } from "@orb/kit/side-gen-posture";
 import type { ResolveRegexSources } from "#domain/regex";
 import type { AuditEntry } from "#foundation/observability";
 import type { ActiveTurns } from "./active-turns.ts";
