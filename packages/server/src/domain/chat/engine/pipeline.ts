@@ -71,7 +71,6 @@ import {
   buildHistoryBudget,
   buildPrompt,
   buildTurnMacroContext,
-  fitHistory,
   materializeOutputReserve,
   shapeContextForSpeaker,
   shapeTurn,
@@ -79,7 +78,7 @@ import {
   toShapeCanon,
   voiceContextForSpeaker,
 } from "../substrate/assembly-access.ts";
-import { buildWireHistory, convertsToEmptyWireRow, dropEmptyWireRows, keepNewChatMarkerAtHead, wireCostRows } from "../substrate/wire-history.ts";
+import { buildWireHistory, convertsToEmptyWireRow, dropEmptyWireRows, fitWireHistory } from "../substrate/wire-history.ts";
 
 /** What `runTurnPipeline` consumes — the immutable assemble ctx + the loaded canon + the resolved connection
  *  + the turn axes. Stays UNEXPORTED (`no-inline-types`: an exported type belongs in `contract/`, and this is
@@ -707,14 +706,11 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
   // previews run this same pair through the same substrate module (#1540) — one conversion, one cost rule.
   const systemTokens = estimateTokens([assembled.static, assembled.dynamic].join("\n\n"));
   const budget = fitBudget(args, effectiveIntent, systemTokens);
-  const fitted = fitHistory(wireCostRows(converted), budget);
-  // The fit's contract is "drop the OLDEST `droppedCount` rows", so the same slice recovers the kept wire
-  // rows without re-deriving anything — one conversion, one ordering, no parallel bookkeeping to drift.
-  // …and the empty-row drop re-anchors the §8 breakpoint with it: it is a DEPTH from the end, which the fit's
-  // front-trim preserves for free and a mid-array drop does not (#1543 — see `shiftBreakpoint`).
-  const { kept: nonEmpty, cacheBreakpointFromEnd } = dropEmptyWireRows(converted.slice(fitted.droppedCount), shaped.cacheBreakpointFromEnd);
-  // The new-chat marker opens whatever history the fit kept, so it goes back on after the trim.
-  const kept = keepNewChatMarkerAtHead(nonEmpty, fitted.droppedCount, shaped.newChatMarker);
+  // The fit keeps the newest rows and places the new-chat marker at their head (one home with the previews).
+  const { fitted, kept: fitKept } = fitWireHistory(converted, budget, shaped.newChatMarker);
+  // The empty-row drop re-anchors the §8 breakpoint: it is a DEPTH from the end, which the fit's front-trim and
+  // the marker's head row preserve for free and a mid-array drop does not (#1543 — see `shiftBreakpoint`).
+  const { kept, cacheBreakpointFromEnd } = dropEmptyWireRows(fitKept, shaped.cacheBreakpointFromEnd);
   const history = kept.map((w) => w.row);
   // Total context consumption for the managed-compaction trigger: kept history + system + reserved output.
   // `fitted.usedTokens` is now the WIRE cost, so this is what the request actually weighs.

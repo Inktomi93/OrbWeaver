@@ -29,6 +29,7 @@ import { cardWireStub, tokenizeContent } from "@orb/kit/content";
 import type { AssetId, MessageId } from "@orb/kit/ids";
 import type { ResolvedMediaRef, TurnMessage } from "../contract/results.ts";
 import type { shapeTurn } from "./assembly-access.ts";
+import { fitHistory, historyTurnTokens } from "./assembly-access.ts";
 
 /** A media-only row whose every part drops must not collapse to an empty text part — the runner's
  *  empty-row wire filter would delete it, ending the delivered history on the prior assistant row (then
@@ -490,25 +491,45 @@ export function dropEmptyWireRows(
 /** The new-chat marker SHAPE placed, derived from `shapeTurn` like {@link ShapedHistoryRow}. */
 type NewChatMarker = ReturnType<typeof shapeTurn>["newChatMarker"];
 
-/** Place SHAPE's new-chat marker at the head of the rows the history fit KEPT. The marker marks the start of
- *  whatever history is delivered, but it is the oldest row, so the fit trims it first. With nothing trimmed the
- *  rows already open on it. Otherwise it opens the first kept row when that row is a user row and the turn's
- *  level merges (SHAPE's own squash separator), and rides as its own user row above it in every other case.
- *  A row added at the head leaves every cache depth below it unchanged: depths count from the end. */
-export function keepNewChatMarkerAtHead(kept: readonly WireRow[], droppedCount: number, marker: NewChatMarker): WireRow[] {
-  if (marker === null || droppedCount === 0) {
-    return [...kept];
-  }
-  const [head, ...rest] = kept;
+/** Place SHAPE's new-chat marker at the head of the rows the history fit KEPT. It opens the first row that reaches
+ *  the wire when that row is a user row and the turn's level merges (SHAPE's own squash separator); a leading row
+ *  that converts to nothing is skipped, because {@link dropEmptyWireRows} removes it next. In every other case the
+ *  marker rides as its own user row. A row added at the head leaves every cache depth below it unchanged: depths
+ *  count from the end. */
+function withNewChatMarkerAtHead(kept: readonly WireRow[], marker: NonNullable<NewChatMarker>): WireRow[] {
+  const at = kept.findIndex((wire) => !isEmptyWireRow(wire));
+  const head = kept[at];
   if (head !== undefined && head.row.role === "user" && marker.mergeSeparator !== null) {
     const lead = `${marker.content}${marker.mergeSeparator}`;
     const [first, ...parts] = head.row.content;
     const content: ChatContentPart[] =
       first?.type === "text" ? [{ type: "text", text: lead + first.text }, ...parts] : [{ type: "text", text: lead }, ...head.row.content];
-    return [{ ...head, row: { ...head.row, content }, costRow: { ...head.costRow, content: lead + head.costRow.content } }, ...rest];
+    const merged: WireRow = { ...head, row: { ...head.row, content }, costRow: { ...head.costRow, content: lead + head.costRow.content } };
+    return kept.map((wire, index) => (index === at ? merged : wire));
   }
   const row: TurnMessage = { role: "user", content: [{ type: "text", text: marker.content }] };
   return [{ row, costRow: { role: "user", content: marker.content, messageId: undefined }, imageDropped: false, videoDropped: false }, ...kept];
+}
+
+/** THE FIT over the converted rows — the one home both the turn pipeline and the read previews call, so the wire
+ *  and the preview keep the same rows and report the same cost. The fit drops the OLDEST rows, and the new-chat
+ *  marker is the oldest row, so a trimmed history reserves the marker's own row before it trims and then places
+ *  the marker at the head of what it kept (`kept`, the rows the wire sends; `fitted.history`, their cost rows).
+ *  `fitted.usedTokens` prices the rows as delivered, marker included. */
+export function fitWireHistory(
+  converted: readonly WireRow[],
+  budget: Parameters<typeof fitHistory>[1],
+  marker: NewChatMarker,
+): { readonly fitted: ReturnType<typeof fitHistory>; readonly kept: WireRow[] } {
+  const fitted = fitHistory(wireCostRows(converted), budget);
+  if (marker === null || fitted.droppedCount === 0) {
+    return { fitted, kept: converted.slice(fitted.droppedCount) };
+  }
+  const reserve = historyTurnTokens({ content: marker.content });
+  const trimmed = fitHistory(wireCostRows(converted), { ...budget, systemTokens: budget.systemTokens + reserve });
+  const kept = withNewChatMarkerAtHead(converted.slice(trimmed.droppedCount), marker);
+  const history = wireCostRows(kept);
+  return { fitted: { ...trimmed, history, usedTokens: history.reduce((sum, row) => sum + historyTurnTokens(row), 0) }, kept };
 }
 
 /** Re-anchor the §8 cache breakpoint after a MID-ARRAY drop (#1543).

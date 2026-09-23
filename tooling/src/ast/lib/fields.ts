@@ -46,7 +46,7 @@ import { isTestPath } from "./root.ts";
 //     live field (8 hits). The fence is now the DECLARATION NODE's span, not its file.
 //   • ELEMENT-ACCESS writes (`out["creation_date"] = …`) are producers — the read side already counted
 //     `x["k"]`, and the asymmetry was the bug.
-//   • A JSX `name="chatWidthPct"` / `setFieldValue("params.advanced.dynamicContext", …)` string IS the
+//   • A JSX `name="chatWidthPct"` / `setFieldValue("params.advanced.roleHandling", …)` string IS the
 //     TanStack Form write path (17 hits). The banner named only the template-literal spelling of it.
 //   • A `.default()` on the field's OWN chain makes the schema its own producer (`chunkParams`).
 //   • A COMPUTED key whose expression is a string const (`{ [ATTACHED_BOOKS_WIRE_KEY]: refs }`) resolves
@@ -134,7 +134,7 @@ export function contractFieldsOf(sf: SourceFile): ContractField[] {
   return out;
 }
 
-/** Credit a form-field PATH (`params.advanced.dynamicContext`, `sections[3].name`) as a producer of every
+/** Credit a form-field PATH (`params.advanced.roleHandling`, `sections[3].name`) as a producer of every
  *  segment it names — the leaf is the field, and the parents are fields of their own owners. */
 function addFieldPath(path: string, out: Set<string>): void {
   for (const segment of path.replace(PATH_INDEX_RE, "").split(".")) {
@@ -159,7 +159,7 @@ function jsxStringAttrValue(attr: JsxAttribute): string | undefined {
 }
 
 /** The TanStack Form write path, which no property-key index can see: a `name="chatWidthPct"` JSX attribute
- *  and a `setFieldValue("params.advanced.dynamicContext", v)` call BOTH populate the named field. 17 of the
+ *  and a `setFieldValue("params.advanced.roleHandling", v)` call BOTH populate the named field. 17 of the
  *  #210 triage's 70 hits were exactly this, all of them fully live. */
 function formFieldNamesOf(sf: SourceFile, out: Set<string>): void {
   for (const attr of sf.getDescendantsOfKind(SyntaxKind.JsxAttribute)) {

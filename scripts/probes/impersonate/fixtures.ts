@@ -11,7 +11,7 @@
 
 import type { AssembleCharacter, AssemblePersona } from "@orb/contracts/chat";
 import type { NamesBehavior, PromptSection } from "@orb/contracts/preset";
-import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import { DEFAULT_MARKER_TEMPLATES, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 
@@ -68,14 +68,11 @@ const MARA: AssembleCharacter = {
   personality: "Chatty, distractible, secretly frightened.",
 };
 
-/** The `main_prompt` template used when a fixture doesn't override it (the shipped default's own text). */
-export const DEFAULT_MAIN_PROMPT = "You are {{char}} in an immersive, ongoing roleplay with {{user}}. Stay in character; write {{char}}'s perspective only.";
-
 /** DEFAULT_PROMPT_CONFIG with the fixture's names behavior + optional main-prompt override + optional
  *  extra sections. The section ORDER and every other marker stay exactly as shipped. */
 export function configFor(fx: ImpersonateFixture): typeof DEFAULT_PROMPT_CONFIG {
   const sections: PromptSection[] = DEFAULT_PROMPT_CONFIG.sections.map((s) =>
-    s.type === "marker" && s.marker === "main_prompt" ? { ...s, template: fx.mainPrompt ?? DEFAULT_MAIN_PROMPT } : s,
+    s.type === "marker" && s.marker === "main_prompt" ? { ...s, template: fx.mainPrompt ?? DEFAULT_MARKER_TEMPLATES.main_prompt } : s,
   );
   return { ...DEFAULT_PROMPT_CONFIG, sections, namesBehavior: fx.namesBehavior };
 }

@@ -14,6 +14,7 @@ import { buildAssemblyBudget as buildAssemblyBudgetImpl } from "../assembly/budg
 import {
   buildHistoryBudget as buildHistoryBudgetImpl,
   fitHistoryToWindow,
+  historyTurnTokens as historyTurnTokensImpl,
   materializeOutputReserve as materializeOutputReserveImpl,
 } from "../assembly/history-budget.ts";
 import {
@@ -144,6 +145,11 @@ export function previewSection(...args: Parameters<typeof previewSectionImpl>): 
 /** FIT: the §8 history-budget tail (drop oldest turns to fit the window; offset-from-end survives). */
 export function fitHistory(...args: Parameters<typeof fitHistoryToWindow>): ReturnType<typeof fitHistoryToWindow> {
   return fitHistoryToWindow(...args);
+}
+
+/** FIT (cost): what one history row costs the fit — the one cost rule. */
+export function historyTurnTokens(...args: Parameters<typeof historyTurnTokensImpl>): ReturnType<typeof historyTurnTokensImpl> {
+  return historyTurnTokensImpl(...args);
 }
 
 /** FIT (budget): the ONE `HistoryBudget` derivation (window/soft-cap/output-reserve/system) both the engine

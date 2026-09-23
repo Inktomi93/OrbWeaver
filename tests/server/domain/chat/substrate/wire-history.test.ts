@@ -14,7 +14,7 @@ import type { ContentImageRef } from "@orb/kit/content";
 import type { AssetId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { estimateTokens } from "@orb/kit/tokens";
-import { buildWireHistory, dropEmptyWireRows, wireCostRows } from "../../../../../packages/server/src/domain/chat/substrate/wire-history.ts";
+import { buildWireHistory, dropEmptyWireRows, fitWireHistory, wireCostRows } from "../../../../../packages/server/src/domain/chat/substrate/wire-history.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 type ShapedRow = Parameters<typeof buildWireHistory>[1][number];
@@ -301,4 +301,41 @@ test("dropping an emptied row between two user rows keeps the pin on the same st
     );
     expect(at === undefined ? undefined : kept[at]?.row.content, `depth ${depth}`).toEqual([{ type: "text", text: pinnedText }]);
   }
+});
+
+// The new-chat marker is the oldest row, so the fit trims it first. The turn and the previews both fit through
+// `fitWireHistory`, so the rows the wire sends and the cost the preview reports include the marker again.
+const MARKER = "[Start a new chat]";
+const MERGING_MARKER = { content: MARKER, mergeSeparator: "\n\n" };
+const markerHistory = (turns: number): ShapedRow[] => [
+  row("user", MARKER),
+  ...Array.from({ length: turns }, (_, i) => row(i % 2 === 0 ? "assistant" : "user", `turn ${i} with several words to spend a few tokens`, `message_fit_${i}`)),
+];
+const TIGHT_BUDGET = { windowTokens: 300, reserveOutputTokens: 50, systemTokens: 20 };
+const rowCost = (content: string): number => estimateTokens(content) + 4;
+
+test("a trimmed history opens on the marker, and the fit's cost counts it", async () => {
+  const converted = await buildWireHistory(env, markerHistory(20));
+  const { fitted, kept } = fitWireHistory(converted, TIGHT_BUDGET, MERGING_MARKER);
+  expect(fitted.droppedCount).toBeGreaterThan(0);
+  expect(kept[0]?.costRow.content.startsWith(`${MARKER}\n\n`)).toBe(true);
+  expect(fitted.history.map((r) => r.content)).toEqual(kept.map((w) => w.costRow.content));
+  expect(fitted.usedTokens).toBe(fitted.history.reduce((sum, r) => sum + rowCost(r.content), 0));
+  // The marker's row was reserved before the trim, so the re-headed history still fits the ceiling.
+  expect(fitted.usedTokens).toBeLessThanOrEqual(TIGHT_BUDGET.windowTokens - TIGHT_BUDGET.systemTokens - TIGHT_BUDGET.reserveOutputTokens);
+});
+
+test("when the first kept row is an assistant row, the marker rides as its own user row", async () => {
+  const converted = await buildWireHistory(env, markerHistory(19));
+  const { fitted, kept } = fitWireHistory(converted, TIGHT_BUDGET, MERGING_MARKER);
+  expect(fitted.droppedCount).toBeGreaterThan(0);
+  expect(kept[0]?.row).toEqual({ role: "user", content: [{ type: "text", text: MARKER }] });
+  expect(kept.slice(0, 2).map((wire) => wire.row.role)).toEqual(["user", "assistant"]);
+});
+
+test("an untrimmed history is left exactly as SHAPE delivered it", async () => {
+  const converted = await buildWireHistory(env, markerHistory(20));
+  const { fitted, kept } = fitWireHistory(converted, { ...TIGHT_BUDGET, windowTokens: 100_000 }, MERGING_MARKER);
+  expect(fitted.droppedCount).toBe(0);
+  expect(kept).toEqual(converted);
 });
