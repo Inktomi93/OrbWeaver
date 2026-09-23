@@ -34,6 +34,34 @@ export type Blocker =
   | { readonly kind: "on"; readonly id: number }
   | { readonly kind: "wake"; readonly presence: "path" | "gone"; readonly path: string };
 
+/** The content flags per minted kind: one per section an author fills at mint time, spelled `--<flag>` on
+ *  the command line and `<flag>` in a `--from` batch file. `lib/templates.ts` binds each to its section. */
+export type ItemSectionFlag = "what" | "why" | "done";
+export type AdrSectionFlag = "context" | "decision" | "consequences" | "alternatives";
+export type PlanSectionFlag = "goal" | "shape" | "rejected" | "coupled" | "test-plan";
+
+/** The authored text per section. An absent section keeps its template prompt. */
+export type SectionContent<F extends string> = { readonly [K in F]?: string };
+
+/** One item to mint. `lane` makes it `doing`, `blocked` makes it `blocked`, neither leaves it `open`. */
+export interface NewItemInput {
+  readonly title: string;
+  readonly kind: ItemKind;
+  readonly priority: string | null;
+  readonly area: string | null;
+  readonly plan: string | null;
+  readonly lane: string | null;
+  readonly blocked?: string | null;
+  readonly content?: SectionContent<ItemSectionFlag>;
+}
+
+/** One ADR or plan to mint; a null title derives from the slug. */
+export interface NewDocInput<F extends string> {
+  readonly slug: string;
+  readonly title: string | null;
+  readonly content?: SectionContent<F>;
+}
+
 /** A parsed work item. Optional fields are `null` when absent; the state's companions are checked by
  *  `lib/items.ts#itemShapeProblems`, never at parse. */
 export interface WorkItem {
@@ -96,17 +124,10 @@ export interface DriftFacts {
 
 export type DocCommand =
   | { readonly kind: "help" }
-  | { readonly kind: "new-adr"; readonly slug: string; readonly title: string | null }
-  | { readonly kind: "new-plan"; readonly slug: string; readonly title: string | null }
-  | {
-      readonly kind: "item";
-      readonly title: string;
-      readonly itemKind: ItemKind;
-      readonly priority: string | null;
-      readonly area: string | null;
-      readonly plan: string | null;
-      readonly lane: string | null;
-    }
+  | { readonly kind: "new-adr"; readonly slug: string; readonly title: string | null; readonly content: SectionContent<AdrSectionFlag> }
+  | { readonly kind: "new-plan"; readonly slug: string; readonly title: string | null; readonly content: SectionContent<PlanSectionFlag> }
+  | { readonly kind: "item"; readonly input: NewItemInput }
+  | { readonly kind: "item-batch"; readonly from: string }
   | { readonly kind: "status"; readonly status: string; readonly paths: readonly string[]; readonly by: string | null }
   | { readonly kind: "set"; readonly ids: readonly number[]; readonly patch: ItemPatch }
   | { readonly kind: "land"; readonly ids: readonly number[]; readonly evidence: string }
