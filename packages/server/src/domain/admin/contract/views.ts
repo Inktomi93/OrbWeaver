@@ -1,6 +1,7 @@
 // domain/admin/contract/views — admin read-models, consumed by the client via tRPC inference, not a deep
 // import — so they stay here, not in @orb/contracts.
-// FLAG[PD-2]: promote AdminUserView to @orb/contracts/identity iff the client ever deep-imports the shape.
+// FLAG[admin-view-stays-local]: AdminUserView stays here rather than @orb/contracts/identity — promote it
+// only if the client ever deep-imports the shape instead of reading it through tRPC inference.
 
 import type { UserKind, UserRole } from "@orb/contracts/identity";
 import type { ExternalId, Handle, SessionId, UserId } from "@orb/kit/ids";
@@ -18,7 +19,7 @@ export interface AdminUserView {
   readonly updatedAt: number;
 }
 
-// FLAG[PD-6]: when domain/sessions lands its canonical session view, reconcile this port view against it.
+// Reconciled against domain/sessions' canonical SessionView (packages/contracts/src/session/index.ts).
 export interface SessionAdminView {
   readonly id: SessionId;
   readonly userId: UserId;

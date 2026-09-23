@@ -48,11 +48,6 @@ const REGEN_CENSUS = "pnpm exec node tooling/src/verify/cli.ts baseline caught-f
 const REGEN_SNAP_FLAGS_INDEX = "pnpm exec node tooling/src/verify/cli.ts baseline snap-flags-index";
 const REGEN_TYPE_CONFIGS = "pnpm exec node tooling/src/verify/cli.ts baseline type-configs";
 
-const GATES_DIR = "tooling/src/verify/gates";
-const DEFERRED_ROSTER_REL = "docs/law/Core-Enforcement-Deferred-Dropped.md";
-/** A trigger cell that has ALREADY been adjudicated. Caps are the document's own convention for a resolved
- *  row, and the words are its own vocabulary — not a grammar invented here. */
-const RESOLVED_TRIGGER = /\b(PROMOTED|DROPPED|SUPERSEDED|UPGRADED|RETIRED)\b/;
 /** How many drift lines to print before summarising the tail. A re-line after a big merge moves dozens of
  *  rows; the reader needs enough to recognise the shape, not the whole diff (the file is the diff). */
 const MAX_DRIFT_LINES = 40;
@@ -186,50 +181,13 @@ export function typeConfigsDrift(root: string): LedgerFreshness {
   };
 }
 
-/** THE DEFERRED ROSTER HALF, held against the tree (#2008).
- *
- *  `docs/law/Core-Enforcement-Deferred-Dropped.md` lists neo gates "not yet ported, with activation trigger". It is
- *  ONE-SIDED: a row turns into a lie the moment its trigger fires and the gate lands, and nothing noticed.
- *  Measured 2026-09-12: 8 of the 28 rows name a gate that is LIVE, and FIVE of those still read as
- *  not-yet-ported — `assets-single-writer`, `suppressions`, `bus-payload-allowlist`, `dangling-refs`,
- *  `fetch-fn-in-features`. Same class as the refusal that outlived its blocker, one document over.
- *
- *  THE REVERSE DIRECTION IS NOT HELD, and naming it is the point. A row marked PROMOTED whose gate is NOT a
- *  module is not necessarily wrong: `dead-code` was promoted into the `deps:knip` STAGE under a different
- *  id, and where a promotion landed is prose in the trigger cell, not a census. A tripwire that guessed at
- *  it would fire on the one honest row and prove nothing. */
-export function deferredRosterDrift(root: string): LedgerFreshness {
-  // SCOPED TO THE DEFERRED TABLE, not to the file: the same document carries the PREBUILT seals and the
-  // DROPPED list, whose rows have the identical shape. Counting those would inflate the denominator, and a
-  // denominator nobody can check is how a census stops being a measurement.
-  const lines = readFileSync(join(root, DEFERRED_ROSTER_REL), "utf8").split("\n");
-  const start = lines.findIndex((line) => line.startsWith("## Deferred backlog"));
-  const end = lines.findIndex((line, index) => index > start && start !== -1 && line.startsWith("#") && !line.startsWith("## Deferred backlog"));
-  const rows = (start === -1 ? [] : lines.slice(start, end === -1 ? lines.length : end)).filter((line) => /^\| `[a-z0-9-]+`/.test(line));
-  const drift = rows.flatMap((line) => {
-    const id = /^\| `([a-z0-9-]+)`/.exec(line)?.[1];
-    const landed = id !== undefined && existsSync(join(root, `${GATES_DIR}/${id}.ts`));
-    return landed && !RESOLVED_TRIGGER.test(line)
-      ? [
-          `fired  ${DEFERRED_ROSTER_REL}: \`${id}\` reads as not-yet-ported and ${GATES_DIR}/${id}.ts is on the tree — mark the row PROMOTED with where it landed, or delete it`,
-        ]
-      : [];
-  });
-  return {
-    ledger: `${DEFERRED_ROSTER_REL} (${rows.length} deferred rows; the PROMOTED-but-absent direction is prose and is NOT held)`,
-    regen: "edit the deferred row: a trigger that FIRED says PROMOTED / DROPPED / SUPERSEDED and names where the rule now lives",
-    derived: rows.length,
-    drift,
-  };
-}
-
 /** Every output is derived even when a sibling reports drift. A failed derivation throws to the CLI
  * tool-error boundary; it never supplies a freshness verdict. */
 export async function ledgerFreshness(root: string): Promise<readonly LedgerFreshness[]> {
   const census = censusDrift(readCommitted<CaughtFailurePopulation>(root, POPULATION_REL), deriveCaughtFailurePopulation(root));
   const snapFlagsIndex = snapFlagsIndexDrift(root);
   const typeConfigs = typeConfigsDrift(root);
-  return [census, snapFlagsIndex, typeConfigs, await themeCssDrift(root), await activeGatesIndexDrift(root), deferredRosterDrift(root)];
+  return [census, snapFlagsIndex, typeConfigs, await themeCssDrift(root), await activeGatesIndexDrift(root)];
 }
 
 /** A derivation that came back EMPTY is blindness, not cleanliness: a broken `scanRoot`, a `git ls-files`

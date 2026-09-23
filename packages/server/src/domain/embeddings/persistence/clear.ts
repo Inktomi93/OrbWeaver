@@ -14,14 +14,13 @@ function assertNever(value: never): never {
   throw new Error(`clearVectorTable: unhandled vector table ${String(value)}`);
 }
 
-// FLAG[PD-104]: DEAD — `clearVectorTable` (the whole-table wipe) has ZERO runtime consumers (test-only,
-// PD-103-style). The OLD-space reclaim it was kept beside is no longer here: the model-scoped
-// `purgeStaleVectors` was deleted with the generation cutover (#2496), because promotion now retires
-// every non-active generation inside ONE transaction (`persistence/space-state.ts`
-// `retiredVectorStatements`) — `generation_id` is NOT NULL on all five vector tables, so a `!= active`
-// delete reaches every row the model-scoped predicate used to. Delete this + the `clearTable`
-// verb/param/service-method + their tests once file-removal tooling is in hand (this pass is
-// Edit-only). Registry row: Core-Audits-and-Debt.md PD-104.
+// FLAG[dead-clear-vector-table]: DEAD — `clearVectorTable` (the whole-table wipe) has ZERO runtime
+// consumers (test-only). The OLD-space reclaim it was kept beside is no longer here: the model-scoped
+// `purgeStaleVectors` was deleted with the generation cutover, because promotion now retires every
+// non-active generation inside ONE transaction (`persistence/space-state.ts` `retiredVectorStatements`)
+// — `generation_id` is NOT NULL on all five vector tables, so a `!= active` delete reaches every row the
+// model-scoped predicate used to. Delete this + the `clearTable` verb/param/service-method + their tests
+// once file-removal tooling is in hand (this pass is Edit-only).
 /** Dispatch is assertNever-exhaustive over {@link VectorTable} — a new table fails tsc until its arm lands. */
 export async function clearVectorTable(db: Db, table: VectorTable): Promise<void> {
   switch (table) {

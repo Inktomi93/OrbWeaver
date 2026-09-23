@@ -1,7 +1,5 @@
 // domain/import/contract/service — typed API surface: ImportContext (DI bundle) + ImportService
 // (verb interface) + the injected cross-feature op types the composition root wires at the root.
-// FLAG[PD-43]: CreateImportedCharacter/FindCharacterByImportHash need character to expose a
-// provenance-accepting create + an (ownerId, importHash) lookup; neither exists yet.
 
 import type { AttachedBookRef, CreateCharacterInput } from "@orb/contracts/character";
 import type { BulkImportChatInput, BulkImportChatsResult } from "@orb/contracts/chat";

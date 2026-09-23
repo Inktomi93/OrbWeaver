@@ -1,6 +1,6 @@
 // Consumer: the refinery review surfaces (`DiffView` in accept-review.tsx and context-tabs.tsx) — the
 // PREBUILT marker was deleted when the section it was sealed for (refinery/compare, D62 §4.1) landed,
-// per the W6 contract (docs/law/Core-Enforcement-Deferred-Dropped.md §PREBUILT), the same self-cleaning shape
+// per the W6 contract (UI-Gates-and-Lessons.md §9b), the same self-cleaning shape
 // SegmentedClock and Meter took.
 import type { Change } from "diff";
 import { diffChars, diffLines, diffWords } from "diff";

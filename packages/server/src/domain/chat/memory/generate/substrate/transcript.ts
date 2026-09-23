@@ -56,9 +56,10 @@ export function speakerLabel(row: MsgRow, macroNames: RowMacroNameContext): stri
     return macroNames.characterNamesById.get(row.characterId)?.name ?? row.characterId;
   }
   if (row.authorUserId !== null) {
-    // A human post OR an agent-authored assistant row (D60 — both userId-backed, characterId NULL). FLAG[PD-17]:
-    // an agent should label as its SOUL name here (summarizer input quality), not the generic "User"; the name
-    // source is `resolveAgentSpeaker` (doc 04 §5), which is AP3 — so the name map would need an agent arm then.
+    // A human post OR an agent-authored assistant row (D60 — both userId-backed, characterId NULL). An agent
+    // should label as its SOUL name here (summarizer input quality), not the generic "User"; the name
+    // source is `resolveAgentSpeaker` (doc 04 §5), which is AP3 (docs/work/0048) — so the name map would
+    // need an agent arm then.
     // The HASH is unaffected (blockHash folds the stable userId — rename-robust either way); this is label-only.
     return USER_LABEL;
   }

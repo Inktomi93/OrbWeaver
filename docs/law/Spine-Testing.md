@@ -150,7 +150,7 @@ tested.
 
 ## 6. The "what to test" obligations, gathered
 
-- **The "preserve exactly" esoterica** (`Core-Planning-and-Checklists.md §C2`) — each critical behavior becomes a named test at its mirror. Headliners: the GCM AAD byte-string `${userId}|${provider}`, the ZWSP in `neutralizeMacros`, the PNG dual-chunk + CRC, the vLLM death-couple pipe-watchdog, `storedVersion`-beats-probe, the last-owner / owner-immutability guard (D17), `deepMergeRequestBody` Layer-2 defense, every `ASSUMES(single-replica)`.
+- **The "preserve exactly" esoterica** — each critical behavior becomes a named test at its mirror. Headliners: the GCM AAD byte-string `${userId}|${provider}`, the ZWSP in `neutralizeMacros`, the PNG dual-chunk + CRC, the vLLM death-couple pipe-watchdog, `storedVersion`-beats-probe, the last-owner / owner-immutability guard (D17), `deepMergeRequestBody` Layer-2 defense, every `ASSUMES(single-replica)`.
 - There is no differential oracle. Nothing on the tree is measured against neo.
 - **Memory's chat-scoped semantics** — a "could silently regress" surface the oracle never covered either (memory is a rewrite, not a port). Each → a named `.int.test.ts` at the memory mirror.
 - **Serde round-trip** — import → export → reimport hash-identical, a `.contract.test` invariant on the one serde core (`docs/law/Spine-Config-and-Serialization.md` §7.3).

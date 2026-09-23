@@ -18,7 +18,6 @@ import type { CaughtFailureJudgment, CaughtFailurePopulation } from "@orb/toolin
 import {
   BASELINE_HELP,
   censusDrift,
-  deferredRosterDrift,
   deriveCaughtFailurePopulation,
   deriveSnapFlagsIndexMarkdown,
   LEDGER_CHECKS,
@@ -245,66 +244,4 @@ test("a planted stale flag index reds naming the regen command", () => {
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
-});
-
-/** A temp repo whose deferred roster carries one landed-but-unmarked row, one landed-and-marked row, and
- *  one genuinely-waiting row — plus a DROPPED table below it whose rows have the identical shape. */
-function deferredRosterRoot(landedMarked: boolean): string {
-  const root = mkdtempSync(join(tmpdir(), "orb-deferred-roster-"));
-  // The roster's home is `docs/law/`, which is where the write below actually lands; the directory must
-  // exist or the write ENOENTs.
-  mkdirSync(join(root, "docs/law"), { recursive: true });
-  mkdirSync(join(root, "tooling/src/verify/gates"), { recursive: true });
-  writeFileSync(join(root, "tooling/src/verify/gates/landed-gate.ts"), "export const gate = 1;\n");
-  writeFileSync(join(root, "tooling/src/verify/gates/marked-gate.ts"), "export const gate = 1;\n");
-  writeFileSync(
-    join(root, "docs/law/Core-Enforcement-Deferred-Dropped.md"),
-    [
-      "## Deferred backlog — neo gates not yet ported, with activation trigger",
-      "",
-      "| Gate | What it does | Activates when |",
-      "| - | - | - |",
-      `| \`landed-gate\` | a thing | ${landedMarked ? "PROMOTED — it landed" : "the domain is built"} |`,
-      "| `marked-gate` | another | PROMOTED — it landed |",
-      "| `waiting-gate` | a third | the domain is built |",
-      "",
-      "### Dropped (do not port)",
-      "",
-      "| neo gate | Why N/A |",
-      "| - | - |",
-      "| `landed-gate` | a row of the SAME shape, outside the deferred table |",
-      "",
-    ].join("\n"),
-  );
-  return root;
-}
-
-test("a deferred row whose gate has LANDED is named — the one-sided half made two-sided (#2008)", () => {
-  const root = deferredRosterRoot(false);
-  try {
-    const result = deferredRosterDrift(root);
-    expect(result.drift).toHaveLength(1);
-    expect(result.drift[0]).toContain("`landed-gate` reads as not-yet-ported");
-    // THE DENOMINATOR IS THE DEFERRED TABLE, not the file: the DROPPED table below carries a row of the
-    // same shape and the same id, and counting it would inflate the census that justifies the green.
-    expect(result.derived).toBe(3);
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
-});
-
-test("a deferred row that already says PROMOTED is not re-accused", () => {
-  const root = deferredRosterRoot(true);
-  try {
-    expect(deferredRosterDrift(root).drift).toEqual([]);
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
-});
-
-test("the committed deferred roster has no row whose gate has quietly landed", ({ repoRoot }) => {
-  const result = deferredRosterDrift(repoRoot);
-  expect(result.drift).toEqual([]);
-  // Five rows were stale when this arm was written; a zero denominator would print the same clean green.
-  expect(result.derived).toBeGreaterThan(20);
 });

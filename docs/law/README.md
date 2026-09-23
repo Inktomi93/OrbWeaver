@@ -15,15 +15,7 @@ The locked principles are the first section of Core-0, the enforcement catalog i
 | [Client Architecture Lockdown](client-architecture-lockdown.md) | active |
 | [Orbweaver constitution](Constitution.md) | active |
 | [Orbweaver — structure & enforcement (the constitution)](Core-0-Architecture-and-Structure.md) | active |
-| [Audits-and-Debt (live: Promotion / Relocation Debt Registry)](Core-Audits-and-Debt.md) | active |
-| [Orbweaver — Cleared Debt Ledger (closed PD flags)](Core-Debt-Cleared-Ledger.md) | active |
 | [Orbweaver — Enforcement Registry: Active Gates](Core-Enforcement-Active-Gates.md) | active |
-| [Orbweaver — Enforcement Registry: Deferred + Dropped](Core-Enforcement-Deferred-Dropped.md) | active |
-| [Legacy-Migration-and-Gaps — split index](Core-Legacy-Migration-and-Gaps.md) | active |
-| [Planning-and-Checklists](Core-Planning-and-Checklists.md) | active |
-| [Orbweaver — Shared-Dissolution: the kit-purity law + surviving invariants](Core-Shared-Dissolution.md) | active |
-| [Core — SillyTavern Feature Slot Map (the one clear reference)](Core-SillyTavern-Feature-Map.md) | active |
-| [Orbweaver — SillyTavern Feature-Gap Register](Core-ST-Feature-Gap-Register.md) | active |
 | [`@orb/tooling` — tooling-tree law](Core-Tooling-Law.md) | active |
 | [Docs and work items](docs-and-work.md) | active |
 | [Gate-runtime read first](gate-runtime-read-first.md) | active |
@@ -31,7 +23,7 @@ The locked principles are the first section of Core-0, the enforcement catalog i
 | [Integer line boxes — the crispness doctrine (Law 1: the crisp type scale; Laws 2-4: §9-§12)](integer-line-boxes.md) | active |
 | [Knowledge cluster — the producer → store → consumer boundary](Knowledge-Cluster.md) | active |
 | [Motion & Animation Guide](motion-and-animation-guide.md) | active |
-| \[The resource-policy contract — what a closed-ResourceHost policy OWES (#2011, [gate-runtime-standardization.md](gate-runtime-standardization.md) §2 resource plane)]\(resource-policy-contract.md) | active |
+| [The resource-policy contract — what a closed-ResourceHost policy OWES](resource-policy-contract.md) | active |
 | [Orbweaver — Spine: Config, Settings, and Serialization](Spine-Config-and-Serialization.md) | active |
 | [Orbweaver — Spine: Identity, Auth, and Permission](Spine-Identity-and-Auth.md) | active |
 | [Orbweaver — Spine: Testing](Spine-Testing.md) | active |
