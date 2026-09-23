@@ -1,4 +1,4 @@
-// verb: generateImage — the explicit image-generation surface (imagery-design/04 §2.1). Thin: gate → the
+// verb: generateImage — the explicit image-generation surface. Thin: gate → the
 // injected `imagery.generatePicture` op → persist ONE caller-authored message whose body is a STRING with n
 // `![alt](asset:<id>)` refs (D51 — a message body is stored as a STRING; render blocks are PARSED at render,
 // never stored) → emit `messageCommitted` → return the view. Authorship is the INITIATING principal (§2.2 —
@@ -24,7 +24,7 @@ const GENERATED_IMAGE_ALT = "generated image";
 
 /** Chat OWNS its bus warning vocabulary: it maps imagery's native warning codes onto its own `ChatWarningCode`
  *  (the turnAbortNotice precedent — a foreign domain never dictates chat's bus codes). An unmapped imagery code
- *  is dropped rather than emitted as an unknown code. The imagery drop code (imagery-design/03 §2):
+ *  is dropped rather than emitted as an unknown code. The imagery drop code:
  *  `image_edit_dropped` = the whole edit strip. The code is spelled identically across the two vocabularies —
  *  a match against this compile-checked `ChatWarningCode` subset yields the chat code (no re-spell).
  *

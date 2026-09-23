@@ -1,4 +1,4 @@
-// `GET /api/plugin-ui/:pluginId` — the Tier-C guest-source doorway (plugin-ui-plane #679 U4, §4.6 / seam 8).
+// `GET /api/plugin-ui/:pluginId` — the Tier-C guest-source doorway (U4, §4.6 / seam 8).
 //
 // THE MIME PIN IS THE POINT OF THIS FILE, and it is not decoration. Plugin `ui.js` is the most obviously
 // executable payload this app serves, and the app's own prod CSP grants `script-src 'self'` — so a same-origin

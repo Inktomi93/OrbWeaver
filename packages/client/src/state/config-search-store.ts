@@ -1,4 +1,4 @@
-// The Settings search's LIVE state (config-revamp-design.md §3.3/§6.4, #866 S2): the query the input holds
+// The Settings search's LIVE state (#866 S2): the query the input holds
 // and the LAST SELECTED match. Its own store (not the nav store) because the two facts have different
 // lifetimes: navigation survives a cleared search, and a query survives a navigation the reader made by
 // clicking a LIST row instead of a hit. Not persisted — a search is a moment, not a preference.

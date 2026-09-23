@@ -1,7 +1,7 @@
 // The isolated-stage shapes (--isolated/--dirty): ports, paths, the shared BAND TABLE (#108 → #1276), and
 // the access/staleness/health/allocation verdict vocabularies.
 //
-// THE TABLE, NOT A MARKER (docs/design/1208-instrument-substrate.md §3.6). Until #1276 there was ONE row —
+// THE TABLE, NOT A MARKER. Until #1276 there was ONE row —
 // `active.json` — because there was one band, so two lanes wanting a stage was a refusal by construction
 // (four lanes blocked in one afternoon, 2026-09-02). A `StageRow` is now ONE row of
 // `<main>/.cache/snap-stage/bands.json`, keyed by its band index in `_shared/ports.ts`'s `STAGE_BANDS`, and

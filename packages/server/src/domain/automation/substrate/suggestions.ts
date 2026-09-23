@@ -1,5 +1,5 @@
-// domain/automation/substrate/suggestions — S4's pending-ask STORE + the suggestible-arm SUMMARY table
-// (interaction-direction-spec §3-S4). One per-process instance, created at the composition root and injected
+// domain/automation/substrate/suggestions — S4's pending-ask STORE + the suggestible-arm SUMMARY table.
+// One per-process instance, created at the composition root and injected
 // on the `AutomationContext` beside the enabled-rule index (`ASSUMES(single-replica)`).
 //
 // TWO INDEXES, one truth: `byId` holds the records, `bySlot` maps `(chatId, source)` → the id currently

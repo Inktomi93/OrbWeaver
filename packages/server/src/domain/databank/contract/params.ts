@@ -164,7 +164,7 @@ export interface ListActiveForChatParams extends DatabankActorParams {
   readonly chatId: ChatId;
 }
 
-// ── the chat GATHER op (DB6, databank-design/07 §2) ───────────────────────────────────────────────────
+// ── the chat GATHER op ───────────────────────────────────────────────────
 /** The `{{databank}}` slot's retrieval request, built by chat's GATHER and passed through the compose-injected
  *  op. No `principal`: the turn is already membership-authorized upstream, and scope resolves by CHAT inside
  *  `search.documents` (host-only v1). `queryText` is chat-built (pending + last-2 turns); `tokenBudget` is the

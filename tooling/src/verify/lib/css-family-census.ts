@@ -59,16 +59,15 @@ const SOURCE_OWNERS = [
 ] as const;
 
 // THE FIVE PER-SHEET DECLARATION COUNTS AND THE AGGREGATE TOTAL ARE RETIRED (#2181, 2026-09-12). This
-// EXECUTES a recorded disposition rather than minting one: `exception-authority-census.md:178` reads
+// EXECUTES a recorded disposition rather than minting one: the gate-runtime exception-authority census reads
 // "CSS `EXPECTED_DIRECT_THEME_DECLARATIONS` is generated-output parity; the five per-file declaration
 // counts and aggregate total are current-population counts and retire", and §12.5 names that file as the
 // dispositions home. A count over N subjects can never become a strictly-1:1 reviewed grant.
 //
-// THE ~140 LINES OF MINT RATIONALE THEY CARRIED ARE MOVED, NEVER DELETED, to
-// `docs/design/951-css-family-semantic-provenance.md` §7 — the counts were current-population, but the
-// reasoning (the crown-gold 1.41-1.71:1 measurement behind `--color-accolade`, the iOS 16px field floor
-// and why `text.body` got no coarse arm, the 48 unpassable findings that forced the
-// `--color-selection-quiet` pair) is design record nobody could reconstruct from the stylesheets.
+// THE MINT RATIONALE THEY CARRIED is in version-control history with the retired counts. Its standing
+// reasons, which nobody could reconstruct from the stylesheets: the crown-gold 1.41-1.71:1 measurement
+// behind `--color-accolade`, the iOS 16px field floor and why `text.body` got no coarse arm, and the 48
+// unpassable findings that forced the `--color-selection-quiet` pair.
 //
 export const MESSAGE =
   "a declaration is inside a sanctioned CSS path but belongs to another semantic family (#951 / client-architecture-lockdown.md §4.3): legal path is not responsibility";

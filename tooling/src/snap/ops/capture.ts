@@ -2,7 +2,7 @@
 // settled-surface evidence (dead CSS, aria, trailing evals, contrast, map, assertions, perf) and then the
 // pixels. Failures never abort (the PNG still lands).
 //
-// THERE IS NO PER-ARM BRANCH HERE ANY MORE (docs/design/1208-instrument-substrate.md §6). This file used
+// THERE IS NO PER-ARM BRANCH HERE ANY MORE. This file used
 // to carry one `if` per capability, which is what made adding an arm a four-file edit and what let the
 // pass order drift away from the roster. Now it walks `pageArms()`: each row answers `enabled(ctx)` for
 // itself and writes its own slice of the outcome, and `ARMS` IS the pass order, so a new arm runs where
@@ -23,7 +23,8 @@ import { EVAL_ARM } from "./arms/eval.ts";
 import type { RunArms } from "./arms/registry.ts";
 import { pageArms } from "./arms/registry.ts";
 import { SHOT_ARM } from "./arms/shot.ts";
-import { driveActions, navigate, settlePage, splitTrailingEvals } from "./drive.ts";
+import { navigate, settlePage } from "./drive.ts";
+import { driveActions, splitTrailingEvals } from "./drive-actions.ts";
 import { awaitThemeStamp } from "./theme-stamp.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");

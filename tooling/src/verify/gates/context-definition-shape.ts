@@ -1,4 +1,4 @@
-// Policy: context-definition-shape (client-architecture-lockdown.md §6b / §16 G3, hud-home-spec §8) —
+// Policy: context-definition-shape (client-architecture-lockdown.md §6b / §16 G3, D119) —
 // post-M3, the OCCURRENCE walls around the `defineContextTabs<S>` and `defineContextRegion` mints
 // (`lib/registry-contracts.ts`). SIX arms, each a per-file verdict about one authored node:
 //   1. a hand-rolled `{ kind: "tabs", useResolved }` object literal outside the mint's own file — a
@@ -11,7 +11,7 @@
 //      and a call with NO explicit type argument at all (inference leaks an unpublished shape);
 //   4. the dead CONTEXT_SLOTS↔bodies split resurrected — a `bodies: Record<string, ReactNode>`-shaped JSX
 //      attribute or interface/type member;
-//   5. a hand-rolled `{ claims, band }` region def outside the mint's own file (hud-home-spec §8; the
+//   5. a hand-rolled `{ claims, band }` region def outside the mint's own file (D119; the
 //      claim is a HEAD-BAND claim since the context bracket, #860);
 //   7. no feature paints shell chrome — the live `shell-panel-header` class literal under `features/**`
 //      outside `features/app-shell/**`.
@@ -63,7 +63,7 @@ import { resolveTypeIdentityOrigin } from "../lib/type-member-origin.ts";
 
 export const FEATURES_RE = /\/packages\/client\/src\/features\//u;
 export const APP_SHELL_RE = /\/packages\/client\/src\/features\/app-shell\//u;
-/** The live shell-chrome class vocabulary a feature may not paint (hud-home-spec §3.6 fence 2). */
+/** The live shell-chrome class vocabulary a feature may not paint (D119 fence 2). */
 export const SHELL_CHROME_CLASSES = ["shell-panel-header"] as const;
 
 const BODIES_RECORD_RE = /^(?:readonly\s+)?(?:Partial<\s*)?Record<\s*string\s*,\s*ReactNode\s*>>?$/u;
@@ -72,7 +72,7 @@ const CONTEXT_TAB_DEF = "ContextTabDef";
 
 const MESSAGE =
   "a CONTEXT-definition shape violates the mint's walls (client-architecture-lockdown.md §6b · " +
-  'hud-home-spec §8): a hand-rolled `{kind:"tabs",useResolved}` or `{claims,band}` outside the mint, a ' +
+  'D119): a hand-rolled `{kind:"tabs",useResolved}` or `{claims,band}` outside the mint, a ' +
   "zero-tab mint with no contributors, a non-strict `S`, a resurrected `bodies: Record<string, ReactNode>` " +
   "split, or a feature painting shell chrome.";
 const FIX =
@@ -96,7 +96,7 @@ const BODIES_MESSAGE =
   "miss an entry) — client-architecture-lockdown.md §6b.";
 const HAND_ROLLED_REGION_MESSAGE =
   "a hand-rolled `{ claims, band }` region def outside `lib/registry-contracts.ts` — a `ContextRegionDef` is " +
-  "minted ONLY by `defineContextRegion` (the one spelled home the single-claimant arm counts) — hud-home-spec §8.";
+  "minted ONLY by `defineContextRegion` (the one spelled home the single-claimant arm counts) — D119.";
 
 function strictProjectionMessage(siteName: string, text: string): string {
   return (
@@ -110,7 +110,7 @@ function shellChromeMessage(token: string): string {
   return (
     `the shell-chrome class \`${token}\` in a feature outside \`features/app-shell/**\` — a feature never paints ` +
     "the shell's band; a pane claimant composes its own chrome from `@orb/ui` primitives + token utilities " +
-    "(hud-home-spec §3.6 fence 2)."
+    "(D119 fence 2)."
   );
 }
 

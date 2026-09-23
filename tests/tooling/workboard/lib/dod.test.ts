@@ -1,4 +1,4 @@
-// The pure half of the Definition-of-Done engine (#923; docs/design/work-item-dod.md): fence
+// The pure half of the Definition-of-Done engine (#923): fence
 // build/extract/upsert, the pairing stamp, and the mint-time spelling guards. The CRLF pins are the
 // load-bearing ones — GitHub returns issue bodies with \r\n, so a stamp computed over \n that failed to
 // normalize at read time would false-mismatch EVERY close and the whole gate would read as rot.

@@ -5,7 +5,7 @@
 // WHY IT IS A TILE AND NOT SOMETHING HOME OWNS: the sentence is about YOUR ROOMS, and `client-features-
 // no-cross` makes an `import … from "#features/chat"` in home RED. The only alternatives were a static
 // "Home" (the chrome this pass deletes) or home reaching for `trpc.chat` itself, which would move chat's
-// data AND intent into the host — the exact thing home-section-spec §3.3 homes here instead.
+// data AND intent into the host — the exact thing the tile ownership rule homes here instead.
 //
 // It carries NO `action` and NO `icon` in the frame: the masthead region is deliberately chrome-less (see
 // `HomeTileRegion`), so `icon` here is only what the ⌘K/registry surfaces would show if they ever list a

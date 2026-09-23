@@ -1,4 +1,4 @@
-// The imagery INTENT store (D70 client commons; interaction-direction-spec.md §7 B5) — the payload channel
+// The imagery INTENT store (D70 client commons B5) — the payload channel
 // for the three content-triggered imagery modals (imagine · imageDetail · imageEdit), the newChatIntent
 // posture applied to imagery: a launcher sets the subject + opens the modal slot, the modal body reads it,
 // and the def's onClose clears it. The modals live at the shell (so they survive a virtualized message

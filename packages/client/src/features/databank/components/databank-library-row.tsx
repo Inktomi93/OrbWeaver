@@ -1,6 +1,6 @@
 // One document row in the Databank LIST — a shared `LibraryRow` (§13.2 entity row → RowActionsMenu).
 // Clicking it opens the document in CONTENT. The §12.2 trailing grammar, spent exactly as
-// databank-surface-spec §6.1 rules it:
+//  rules it:
 //
 //   state toggle → EVERYWHERE (the global attach). The one boolean a user scans a document list for, and
 //                  OWNER authority, so it belongs on the document — per-chat attach is HOST authority and

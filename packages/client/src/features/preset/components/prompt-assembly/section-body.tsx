@@ -1,4 +1,4 @@
-// The section drill-in's BODY slot, branching by section KIND (preset-surface-redesign.md §5.2). The
+// The section drill-in's BODY slot, branching by section KIND. The
 // schema branch is the authority — a PLAIN marker carries no `template` field, and that absence IS the
 // carrier distinction; no flag is invented:
 //

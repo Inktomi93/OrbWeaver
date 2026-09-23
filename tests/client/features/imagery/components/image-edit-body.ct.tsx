@@ -1,4 +1,4 @@
-// image-edit-body CT (interaction-direction-spec.md §7 B5) — img2img. An instruction drives
+// image-edit-body CT — img2img. An instruction drives
 // imagery.editImage with the source asset + instruction; on success the modal hands off to the detail body on
 // the freshly-edited asset (proven by the detail body's Set-as-background action appearing).
 

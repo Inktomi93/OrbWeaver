@@ -1,12 +1,11 @@
 // THE CONTEXT BRACKET — the ONE column every `kind:"tabs"` CONTEXT pane renders (owner-ruled 2026-08-30, #860:
-// "the RPG room's head-and-foot split is the INTENDED shape of the context panel"; the mock is
-// `docs/design/mocks/context-bracket/`). It is the rpg HUD's column (`rpg-hud.tsx`, HUD-1 §7, 2026-08-01)
+// "the RPG room's head-and-foot split is the INTENDED shape of the context panel"; D150). It is the rpg HUD's column (`rpg-hud.tsx`, HUD-1 §7, 2026-08-01)
 // moved into the shell tier and made universal: a normal room, a game room and a character all wear it, and
 // there is no second renderer left for the strip to fork through (#845 measured the fork; this ends it).
 //
 // THE COLUMN, top to bottom: HEAD BAND (flex-none — the artifact's identity: a room's title + chips, the
 // Waystone, a character's portrait; ONE slot, three contents, never a second head) → TOP RAIL (flex-none, the
-// `strip:"game"` state tabs — present only when one resolved: APPLICABILITY, Context-Panel-Program §4.1) →
+// `strip:"game"` state tabs — present only when one resolved: APPLICABILITY) →
 // VIEWPORT (`flex-initial` = `flex: 0 1 auto` + min-h-0 + scroll) → GROUND (`flex-1`, the residual span) →
 // FOOT RAIL (flex-none, the `strip:"meta"` tabs, pinned to the pane's foot — owner decision 6, universal).
 //

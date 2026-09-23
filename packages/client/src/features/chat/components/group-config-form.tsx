@@ -68,7 +68,7 @@ interface GroupConfigFormProps {
 // the boundary OWNS the entity key: it keys its private Session by `entityId`, so a chat switch with the
 // Group tab open (this editor mounts under `ContextTabsPanel`, which keys by TAB id only) is a full
 // teardown/remount seeded from the new chat's config. Wrong key placement is unspellable — the lane-h
-// wrapper-split that hand-keyed `GroupConfigFormBody` is superseded (autosave-form-doctrine.md §1, §8).
+// wrapper-split that hand-keyed `GroupConfigFormBody` is superseded (D78).
 // No module `config.save` (the persist fn closes over the live tRPC client, unreachable here) — the
 // SURFACE supplies it per-instance. No draft mirror: the immediate-commit chat law persists the whole
 // config within the debounce window, so the server row IS the crash mirror (the room-overrides precedent).

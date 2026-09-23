@@ -1,5 +1,5 @@
 // domain/automation/contract/analysis — the `run_analysis` arm's INTERNAL shapes (S5,
-// interaction-direction-spec §3-S5; the honest carrier of the purged crew director's think-first pass —
+// the honest carrier of the purged crew director's think-first pass —
 // semantics carried from a whole-file read of `legacy-main:.../crew/{contract,members}/director.ts`, never
 // string-ported). Three planes live here, each with its enforcer:
 //

@@ -5,7 +5,7 @@
 //
 // ═══ THE CHROME LEFT THIS COMPONENT (#1725) ══════════════════════════════════════════════════════════
 // The sort SELECT and the "Prune unused" BUTTON used to be drawn here, and they are the config host's
-// control row now (`tagCollection.sort` / `.actions`, DESIGN.md §3.2). Both write store functions, so this
+// control row now (`tagCollection.sort` / `.actions`, the mock design §3.2). Both write store functions, so this
 // file drives those functions through the story's buttons and asserts what the ROWS do with them; the host
 // half — that a Select and a kebab item exist, are absent for the libraries that declare neither, and write
 // exactly these values — is pinned in `tests/client/features/config/components/config-collection-landing.ct.tsx`.
@@ -294,7 +294,7 @@ test("the WINDOWED roster paints a scroll cue while there is more below, and dro
 });
 
 // ── #1824 · THE WIDTH MATRIX THE ROW ANATOMY WAS OWED ────────────────────────────────────────────────
-// DESIGN.md §5 obligation 6: "Rows at pane width carry more air than at 307px — the width matrix (both
+// The mock design §5 obligation 6: "Rows at pane width carry more air than at 307px — the width matrix (both
 // ends + the crossover, both pointers) is owed before the row anatomy is called converged", and the mock
 // review set the bar at an ink-to-ink void ≤ 25%. It was never landed, and #1725 moved these rows from a
 // 307px LIST column into a 990px CONTENT pane unchanged. Measured on the live surface 2026-09-06:
@@ -308,13 +308,13 @@ test("the WINDOWED roster paints a scroll cue while there is more below, and dro
 // `getBoundingClientRect` census reports a 6px gap and a clean row (the retracted first pass did exactly
 // that). Only `Range.selectNodeContents(textNode).getBoundingClientRect()` sees where the glyphs are.
 //
-// THE FIX IS A PLACEMENT, NOT A CAP. Board 02 and DESIGN.md §3.3 both put a tag's usage in the row's
+// THE FIX IS A PLACEMENT, NOT A CAP. Board 02 and the mock design §3.3 both put a tag's usage in the row's
 // SUBTITLE ("on 12 things" under the name); the build parked it in `markers`, the TITLE line's trailing
 // edge, which is the 848px hole. Every other collection row (regex scent, world-info bookScent, roster
 // members, databank, preset) already carries a subtitle — tags was the one that did not.
 
 // The three widths and the 25% bar are the CT kit's (`support/browser/ink-void.ts`) since #1838, because
-// DESIGN.md §5.6 owes this matrix to EVERY collection row and the roster rows now take the same one.
+// The mock design §5.6 owes this matrix to EVERY collection row and the roster rows now take the same one.
 for (const width of INK_VOID_WIDTHS) {
   test(`#1824: a tag row's ink-to-ink void stays inside the 25% bar at ${String(width)}px`, async ({ mount, page }) => {
     await stub(page, THREE);

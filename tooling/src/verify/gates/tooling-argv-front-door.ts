@@ -7,7 +7,7 @@
 // cannot be driven at its own seam, it silently re-admits flags the front door refused, and two callers of
 // the same helper get different answers. Comment posture: comment-SAFE (node kinds only).
 //
-// AUTHORITY IS reviewed-grant — TWO policies, not the three docs/history/gate-runtime-worked-cases-2026-09.md §"Mixed-hook arity amendments" first ruled (refuted on the tree and
+// AUTHORITY IS reviewed-grant — TWO policies, not the three the first ruling named (refuted on the tree and
 // approved by the orchestrator, 2026-09-12, #1950). The legacy descriptor had ONE predicate (a non-cli
 // `process.argv` read) and one exemption table (`ARGV_ENTRIES`, six rows); an ordinary policy and a
 // reviewed-grant policy over that predicate would both report every non-cli read unless one partitioned by

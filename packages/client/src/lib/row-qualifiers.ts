@@ -46,7 +46,7 @@ export function rowActionsName(subject: string): string {
  * The accessible name of a row's INLINE chat door — `Chat with <subject>`.
  *
  * The dual-purpose resume-or-new CTA on a character row (`character-card.tsx`), and the one door the e2e
- * exemplar path drives. Its word is ruled by `docs/design/vocabulary-map.md` row "Re-entering a room that
+ * exemplar path drives. Its word is ruled by `docs/law/vocabulary-map.md` row "Re-entering a room that
  * already exists": **Resume** names re-entering a ROOM, and this affordance names a PERSON, so it keeps
  * `Chat with <character>` rather than the room verb — a door that says Resume and mints a room is the
  * `duplicate-action-door` finding that row was written for.

@@ -41,20 +41,30 @@ import { withActiveQuerySpace } from "../../../../packages/server/src/domain/sea
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import type { ConnectionHarness } from "../connection/_support.ts";
-import { makeHarness, seedOwner } from "../connection/_support.ts";
+import { BYO_BASE_URL, BYO_PROVIDER, makeHarness, seedOwner } from "../connection/_support.ts";
 import type { StoreHarnessSources } from "./_support.ts";
 import { makeStoreHarness, seedCharacter, seedDocument } from "./_support.ts";
 
 const LOCAL_LIGHT = castId<ProviderId>("local-light");
 /** The curated local-light encoder — the row `entry/boot/seed-local-light.ts` seeds on every fresh box. */
 const ENCODER = "jinaai/jina-clip-v2";
-/** A SECOND encoder the owner re-binds to mid-drive. The model id differs, so the `(model[@dtype])` space
- *  differs; the dtype matches the deployment's served precision so the backend's stamp and the read side's
- *  derivation agree about the NEW space exactly as they do about the old one (§10-2). */
-const SECOND_ENCODER = "jinaai/jina-clip-v2-q4";
-const SECOND_ENCODER_DTYPE = "q8";
+/** A SECOND encoder the owner re-binds to mid-drive, served by their own OpenAI-compatible endpoint. The
+ *  builtin local-light catalog is closed (`requireCatalogModel`), so a swapped encoder is an endpoint row,
+ *  whose `url` catalog admits the id; the model id differs, so the `(model[@dtype])` space differs. */
+const SECOND_ENCODER = "Qwen/Qwen3-VL-Embedding-2B";
 const CARD_TEXT = "a seeded card, embedded through the real local-light connection";
 const CHUNK_TEXT = "a seeded document slice";
+
+/** The endpoint's canned OpenAI-dialect embeddings answer: one vector per POST, which fits the one-card corpus
+ *  the transition drive re-embeds. */
+const SECOND_ENCODER_ROUTE = {
+  match: `${BYO_BASE_URL}/embeddings`,
+  json: {
+    object: "list",
+    data: [{ object: "embedding", index: 0, embedding: Array.from({ length: EMBED_SPACE_DIMS }, (_value, i) => ((i % 7) + 1) / 10) }],
+    model: SECOND_ENCODER,
+  },
+};
 
 /** A non-degenerate query vector at the deployment width — cosine needs a non-zero magnitude. */
 function queryVector(): Float32Array {
@@ -78,7 +88,11 @@ interface Drive {
 /** The whole graph one drive needs: a real runtime over a real db, an owner holding a bound `local-light`
  *  encoder connection, and an embeddings service whose role clients come from THAT runtime. */
 async function driveOwnerWithBoundEncoder(db: Db, sources: StoreHarnessSources = {}, localLightEmbedDtype?: string): Promise<Drive> {
-  const harness = await makeHarness(db, { localLight: true, ...(localLightEmbedDtype === undefined ? {} : { localLightEmbedDtype }) });
+  const harness = await makeHarness(db, {
+    localLight: true,
+    routes: [SECOND_ENCODER_ROUTE],
+    ...(localLightEmbedDtype === undefined ? {} : { localLightEmbedDtype }),
+  });
   const { userId, principal } = await seedOwner(db, "user_roundtrip");
   const connection = await harness.svc.create({
     principal,
@@ -311,20 +325,19 @@ describe("the embed space round trip — write tag === read tag (§10-2)", () =>
       characterId,
     ]);
 
-    // ── STEP 2: the space MOVES under a real connection write. `declared.embedding.dtype` is the top
-    // evidence tier (§6.2), so this is a user re-declaring their own box's precision — the same class of
-    // change as re-pointing the binding, and it moves the `(model[@dtype])` tag without touching `model`.
+    // ── STEP 2: the space MOVES under real connection writes: the owner adds an endpoint encoder and
+    // re-points the `embed` binding at it, which moves the `(model[@dtype])` tag.
     const second = await drive.harness.svc.create({
       principal: drive.principal,
-      providerId: LOCAL_LIGHT,
+      providerId: BYO_PROVIDER,
       model: SECOND_ENCODER,
-      baseUrl: null,
+      baseUrl: BYO_BASE_URL,
       credentialId: null,
       allowBackground: true,
       // `declared` is the TOP evidence tier (§6.2) — the user telling us what their own box serves. It is
-      // what makes a model the shipped catalog has never heard of pickable, which is exactly the shape of
-      // "I swapped my encoder" that this whole transition exists for.
-      declared: { kind: "embedding", embedding: { dims: EMBED_SPACE_DIMS, dtype: SECOND_ENCODER_DTYPE, input: ["text", "image"] } },
+      // what makes an endpoint model the curated rows have never heard of an encoder, which is exactly the
+      // shape of "I swapped my encoder" that this whole transition exists for.
+      declared: { kind: "embedding", embedding: { dims: EMBED_SPACE_DIMS, input: ["text", "image"] } },
     });
     await drive.harness.svc.setBinding({ principal: drive.principal, task: "embed", connectionId: second.id });
     const newTag = await requireTaskModel(drive.ctx, drive.userId, "embed");
@@ -370,12 +383,12 @@ describe("the embed space round trip — write tag === read tag (§10-2)", () =>
 
     const second = await drive.harness.svc.create({
       principal: drive.principal,
-      providerId: LOCAL_LIGHT,
+      providerId: BYO_PROVIDER,
       model: SECOND_ENCODER,
-      baseUrl: null,
+      baseUrl: BYO_BASE_URL,
       credentialId: null,
       allowBackground: true,
-      declared: { kind: "embedding", embedding: { dims: EMBED_SPACE_DIMS, dtype: SECOND_ENCODER_DTYPE, input: ["text", "image"] } },
+      declared: { kind: "embedding", embedding: { dims: EMBED_SPACE_DIMS, input: ["text", "image"] } },
     });
     await drive.harness.svc.setBinding({ principal: drive.principal, task: "embed", connectionId: second.id });
 

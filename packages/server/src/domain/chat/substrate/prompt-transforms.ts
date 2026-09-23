@@ -1,4 +1,4 @@
-// domain/chat/substrate/prompt-transforms — the D50 PromptTransform registrar (automation-design/04 §6). The
+// domain/chat/substrate/prompt-transforms — the D50 PromptTransform registrar. The
 // ONE synchronous hook onto the turn pipeline: an ordered, bounded transform over a turn's DRAFT text,
 // applied at exactly two fixed points (`user_input` in SEND, `assembled_dynamic` at end of BUILD). Automation's
 // `transform_draft` rules register/deregister here as they enable/disable; the plugin host registers a

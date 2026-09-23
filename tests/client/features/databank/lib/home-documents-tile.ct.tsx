@@ -1,4 +1,4 @@
-// CT: databank's HOME tile (databank-surface-spec D-7 — "recent documents + an ingest-health line"),
+// CT: databank's HOME tile (D-7 — "recent documents + an ingest-health line"),
 // mounted through the REAL `HomeSurface` over the REAL data layer (routeTrpc-stubbed `databank.list`).
 //
 // What this pins, beyond "it renders":

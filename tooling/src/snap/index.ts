@@ -117,10 +117,10 @@ export { NETWORK_PROFILES, NO_CPU_THROTTLE, parseNetworkProfile, throttleResultV
 // (and so cli.ts enters through THIS door, per the front-door gate).
 // `auditSettledPage` is the liftable core: a Playwright page + a debugging port, no snap session; the
 // request ring is its twin (one Playwright page, bounded lifetime state). The ring lives in ops/ because
-// it is installed before any run arm exists (docs/design/1208-instrument-substrate.md §6.2).
+// it is installed before any run arm exists.
 export { auditSettledPage } from "./ops/arms/lighthouse.ts";
 export { resolveContextsMode, snapContexts } from "./ops/contexts.ts";
-export { splitTrailingEvals } from "./ops/drive.ts";
+export { splitTrailingEvals } from "./ops/drive-actions.ts";
 export { resolveFixtureTarget } from "./ops/fixture.ts";
 export type { SnapFlagDescriptor } from "./ops/flag-grammar.ts";
 export { SNAP_FLAG_GROUP_ORDER, snapFlagDescriptors } from "./ops/flag-grammar.ts";
@@ -142,7 +142,7 @@ export { completeSnapRun } from "./ops/run-bundle.ts";
 export { listSnapRunIndices, printSnapReport, printSnapReports, readSnapRunIndex, resolveSnapRunIndex } from "./ops/run-report.ts";
 export { parseScenarioSpec, runScenarioDetailed, snapScenario } from "./ops/scenario.ts";
 export { prepareScenario } from "./ops/scenario-prepare.ts";
-// The stateful-session substrate (docs/design/1208-instrument-substrate.md §10.1): the admin verbs, the
+// The stateful-session substrate: the admin verbs, the
 // client (boot + call + export), and the daemon's own entry — all three dispatched by cli.ts.
 export { runSessionAdmin } from "./ops/session-admin.ts";
 export { runSessionCall } from "./ops/session-client.ts";

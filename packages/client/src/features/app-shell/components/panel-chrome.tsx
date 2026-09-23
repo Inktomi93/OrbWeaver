@@ -2,14 +2,14 @@
 // `data-panel-mode` drives the clamp-overlay (docked in-flow · overlay float · collapsed off-screen)
 // entirely in shell.css — no width math in JS.
 //
-// The `.shell-panel-header` band ALWAYS renders (D66 A1, ui-cohesion-north-star §4 N1): both panels carry
+// The `.shell-panel-header` band ALWAYS renders: both panels carry
 // a chrome-row-tall band on the one shared horizon, even when a panel supplies no `header` content —
 // the band is the BASELINE (the LIST surface's title/action move INTO it at N2). `header` content is an
 // optional slot the band wraps.
 //
 // In its DOCKED and COLLAPSED modes neither panel supplies a collapse control here — the CONTEXT panel's
 // open/close affordance is the registered `contextToggleChrome` topbar widget (the ONE detail-panel close
-// control, shell-chrome-unification.md §A); the LIST panel's is the topbar's intrinsic list toggle.
+// control); the LIST panel's is the topbar's intrinsic list toggle.
 //
 // A COLLAPSED BODY IS DEFERRED PAST THE BOOT COMMIT, AND ITS MOUNT DOES NOT RIDE THE OPEN'S CLICK FRAME
 // (#895) — see `bodyMounted` below for the measurement that split those into two different requirements.

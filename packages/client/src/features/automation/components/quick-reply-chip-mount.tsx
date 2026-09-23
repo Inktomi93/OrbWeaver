@@ -1,4 +1,4 @@
-// B3 — THE QUICK-REPLY CHIP SOURCE (interaction-direction-spec §3-S1 + §7 row B3): automation's SECOND
+// B3 — THE QUICK-REPLY CHIP SOURCE: automation's SECOND
 // control source for chat's one above-composer band, and the first MEMBER-visible one. The S4 card source
 // (`suggestion-card-mount.tsx`) is its sibling; this is the chips half the card fold's header reserves.
 //

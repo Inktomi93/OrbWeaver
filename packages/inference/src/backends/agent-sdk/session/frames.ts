@@ -5,6 +5,8 @@
 import { createHash } from "node:crypto";
 import type { SessionStoreEntry } from "@anthropic-ai/claude-agent-sdk";
 import type { ChatId, UserConnectionId } from "@orb/kit/ids";
+import { z } from "zod";
+import type { AgentSdkSessionTotals } from "../../../contract/agent.ts";
 import type { AgentSeedBlock, AgentSeedTurn } from "../../../contract/chat.ts";
 import { AGENT_PROMPT_TAIL_JOINER } from "../../../contract/chat.ts";
 import type { AgentSdkSessionId } from "../../../contract/identity.ts";
@@ -334,4 +336,36 @@ function seedBody(seed: readonly SeedTurn[]): string {
 // the stored value to detect a diverged lineage without loading the session's own transcript.
 export function canonHashOf(seed: readonly SeedTurn[]): string {
   return createHash("sha256").update(seedBody(seed)).digest("hex");
+}
+
+// The runtime writes a `cost-state` entry into the transcript after each turn and, on resume, continues the
+// next result's `modelUsage` and `total_cost_usd` from the latest one for that session.
+const COST_STATE_ENTRY = "cost-state";
+const costStateEntrySchema = z.object({
+  type: z.literal(COST_STATE_ENTRY),
+  sessionId: agentSdkSessionIdSchema,
+  modelUsage: z.record(z.string(), z.object({ costUSD: z.number(), webSearchRequests: z.number() })),
+});
+
+/** No saved spend: a seeded or forked transcript, and every fresh session. */
+export const NO_SAVED_TOTALS: AgentSdkSessionTotals = { costUsd: 0, webSearchRequests: 0 };
+
+/** The spend totals the transcript saved for `sessionId`, which the runtime carries into the next result.
+ *  Null when a `cost-state` entry for the session is present but unreadable: the turn's own spend is then
+ *  unknowable, never the session total. */
+export function savedSessionTotals(entries: readonly SessionStoreEntry[], sessionId: AgentSdkSessionId): AgentSdkSessionTotals | null {
+  let totals: AgentSdkSessionTotals | null = NO_SAVED_TOTALS;
+  for (const entry of entries) {
+    if (entry.type !== COST_STATE_ENTRY || entry["sessionId"] !== sessionId) {
+      continue;
+    }
+    const parsed = costStateEntrySchema.safeParse(entry);
+    totals = parsed.success
+      ? Object.values(parsed.data.modelUsage).reduce(
+          (sum, usage) => ({ costUsd: sum.costUsd + usage.costUSD, webSearchRequests: sum.webSearchRequests + usage.webSearchRequests }),
+          NO_SAVED_TOTALS,
+        )
+      : null;
+  }
+  return totals;
 }

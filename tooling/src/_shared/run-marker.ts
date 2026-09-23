@@ -20,8 +20,8 @@
 // here asks both files.
 //
 // SCOPED BY THE VALUE, NEVER BY THE PROGRAM NAME. `pkill -f chrome-headless` would kill a SIBLING LANE's
-// CT fleet — the exact class of harm this exists to prevent (and the standing "never pkill by name" rule,
-// docs/architecture/history/agent-doctrine-accretion-2026-08.md §10). Every sweep here signals only pids
+// CT fleet — the exact class of harm this exists to prevent (and the standing "never pkill by name"
+// rule). Every sweep here signals only pids
 // whose environ carries the caller's own marker, minus this process and its own ancestors.
 //
 // TWO SWEEPS, because a run can end two ways:

@@ -1,4 +1,4 @@
-// plugin-tool-card-state — the PURE projection a `tool-card` spec binds against (plugin-ui-plane #679 U3,
+// plugin-tool-card-state — the PURE projection a `tool-card` spec binds against (U3,
 // §4.5's tool-card row). A card is per-CALL, so its binding root is the persisted `ToolCallRecord` of the call
 // being rendered — never `host.ui.setState`'s published plane, which is per-(plugin, surface) and would make
 // every historical call in a transcript repaint with the plugin's latest reading.

@@ -1,4 +1,4 @@
-// ui-audit sample shapes — the DEVICE-PIXEL GRID family (docs/design/integer-line-boxes.md §9-§11, the
+// ui-audit sample shapes — the DEVICE-PIXEL GRID family (docs/law/integer-line-boxes.md §9-§11, the
 // crispness doctrine's Laws 2-4). Separate from samples-populations.ts because RawSamples' join is already
 // at the tooling-size boundary, and separate from samples-layout.ts because these are RESOLVED-PIXEL
 // landings, not rendered-layout relations.

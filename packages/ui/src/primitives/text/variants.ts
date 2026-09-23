@@ -2,7 +2,7 @@ import { tv } from "#lib";
 
 // Shared by both <Text> and <Heading>. `weight` rides Tailwind's built-in font-weight utilities — no
 // DTCG weight token exists today. `code` rides `leading-label-relaxed` — the 13px continuous-reading box
-// (docs/design/integer-line-boxes.md: leadings are fixed integer line boxes, never unitless ratios).
+// (docs/law/integer-line-boxes.md: leadings are fixed integer line boxes, never unitless ratios).
 export const textVariants = tv({
   base: "font-sans",
   variants: {

@@ -1,4 +1,4 @@
-// Contract tests for @orb/contracts/plugin/ui (#679 plugin-ui-plane U0, seam 3): the declarative surface-spec
+// Contract tests for @orb/contracts/plugin/ui (#679U0, seam 3): the declarative surface-spec
 // vocabulary, through U5 (seam 16). The closed axes (the six anchors incl. `page`/`dialog`; tiers; the 20 node
 // kinds), the zod gate at the
 // node and SPEC-root levels (the global node/depth/byte caps that a per-node schema can never see), the
@@ -197,7 +197,7 @@ test("every proxyable fn names a capability — the re-gate has something to che
   }
 });
 
-// ── U7: the `ui.frame` ESCAPE HATCH (plugin-ui-plane §6.2, seam 13) ───────────────────────────────────────────
+// ── U7: the `ui.frame` ESCAPE HATCH (seam 13) ───────────────────────────────────────────
 // Three walls live in this file, and each one exists because the alternative is a silent widening: which ANCHORS
 // admit a frame, which HOST FUNCTION may mint one (hence which capability, hence which consent line), and what a
 // frame body may weigh.
@@ -575,7 +575,7 @@ test("PLUGIN_FOOTER_NODE_KIND_ALLOWED is TOTAL over the node vocabulary — a ne
   }
 });
 
-// ── U3: the `tool-card` LINKAGE (plugin-ui-plane §4.5's tool-card row) ────────────────────────────────────
+// ── U3: the `tool-card` LINKAGE ('s tool-card row) ────────────────────────────────────
 // A card names WHICH tool it draws, and the name it uses is the plugin's OWN (`host.tools.register`'s), never
 // the namespaced wire name. The two halves below are the same registration refusal (§4.9): a stale linkage
 // costs the generic tool block and a log line, never the plugin's activation.

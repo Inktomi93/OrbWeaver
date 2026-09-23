@@ -1,4 +1,4 @@
-// The "Pick up where you left off" HOME tile body — chat-owned (home-section-spec §3.3): the tile belongs
+// The "Pick up where you left off" HOME tile body — chat-owned: the tile belongs
 // to the feature that owns the DATA and the INTENT, never to the host. Same `trpc.chat.listChats` query
 // key as the chats pane, so there is one truth and `chatsChanged` freshness comes free, and the same
 // `ChatSummaryRow` anatomy the pane and the character-chats projection render.

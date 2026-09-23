@@ -79,7 +79,7 @@ const SEED_COVERED = new Set<string>(["color.backdrop"]);
 //     custom theme keeps the gold, the active arm follows color-scheme exactly as destructive/success do.
 //   • sidebar-primary: an unused reserved alias of `primary` (0 consumers — the rail active state reads
 //     `--color-primary` directly). No chrome renders it, so nothing to theme.
-//   • track-1..6: the D71 track ramp (Context-Panel-Program §4.8) — a categorical ramp for
+//   • track-1..6: the D71 track ramp — a categorical ramp for
 //     pool/meter/clock FILLS, keyed by definition order for stable per-category color, meaning never
 //     rides color alone. STATIC (semantic, not palette-tracking) like chart-*, but since #697 it is
 //     POLARITY-AWARE `light-dark()` like the divergent intents above, NOT a plain value: the gauge FILL

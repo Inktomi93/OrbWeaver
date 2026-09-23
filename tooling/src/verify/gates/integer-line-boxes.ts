@@ -1,4 +1,4 @@
-// Gate: integer-line-boxes (docs/design/integer-line-boxes.md) — every line box resolves to INTEGER px at
+// Gate: integer-line-boxes (docs/law/integer-line-boxes.md) — every line box resolves to INTEGER px at
 // the 16px root; a fractional box walks baselines off the device-pixel grid under promoted layers.
 // ARM T: `leading.*` AND `spacing.*` tokens are snapped integer dimensions at the 16px root, including a
 // spacing token's `orb.pointerFine` override · ARM P: every class-borne text step pairs an
@@ -77,7 +77,7 @@ import { walkStaticClassExpressions } from "../lib/static-class-expression.ts";
 const MESSAGE =
   "A line box off the integer-px grid (or a leading outside the token vocabulary) — fractional boxes walk " +
   "baselines off the device-pixel grid under promoted layers, which is the measured config-panel blur. " +
-  "Leadings are fixed integer line boxes emitted as round(<rem>, 1px); see docs/design/integer-line-boxes.md.";
+  "Leadings are fixed integer line boxes emitted as round(<rem>, 1px); see docs/law/integer-line-boxes.md.";
 const FIX =
   "Pair every text-<step> with a leading-<step> from packages/ui/src/tokens/tokens.json (never Tailwind's " +
   "unitless core scale), author leading AND spacing tokens as snapped integer-px rem dimensions — including " +
@@ -150,7 +150,7 @@ function readLeadingToken(name: string, node: { readonly [key: string]: JsonValu
       out.problems.push({
         group: "leading",
         name,
-        message: "leading.none must stay the number 1 (box = the paired font-size) — docs/design/integer-line-boxes.md",
+        message: "leading.none must stay the number 1 (box = the paired font-size) — docs/law/integer-line-boxes.md",
       });
       return;
     }
@@ -175,14 +175,14 @@ function readLeadingToken(name: string, node: { readonly [key: string]: JsonValu
   }
   const px = dimensionPx(node["$value"]);
   if (px === undefined) {
-    out.problems.push({ group: "leading", name, message: `leading.${name} has an unreadable dimension value — docs/design/integer-line-boxes.md` });
+    out.problems.push({ group: "leading", name, message: `leading.${name} has an unreadable dimension value — docs/law/integer-line-boxes.md` });
     return;
   }
   if (Math.abs(px - Math.round(px)) > INTEGER_EPSILON) {
     out.problems.push({
       group: "leading",
       name,
-      message: `leading.${name} resolves ${String(px)}px at the 16px root — fractional line box; author an integer (docs/design/integer-line-boxes.md)`,
+      message: `leading.${name} resolves ${String(px)}px at the 16px root — fractional line box; author an integer (docs/law/integer-line-boxes.md)`,
     });
     return;
   }
@@ -207,7 +207,7 @@ function readSpacingToken(name: string, node: { readonly [key: string]: JsonValu
     problems.push({
       group: "spacing",
       name,
-      message: `spacing.${name} is not a dimension — a spacing step must be a belted dimension, never a ratio or a raw number (docs/design/integer-line-boxes.md)`,
+      message: `spacing.${name} is not a dimension — a spacing step must be a belted dimension, never a ratio or a raw number (docs/law/integer-line-boxes.md)`,
     });
     return;
   }
@@ -215,20 +215,20 @@ function readSpacingToken(name: string, node: { readonly [key: string]: JsonValu
     problems.push({
       group: "spacing",
       name,
-      message: `spacing.${name} lacks $extensions orb.output kind "snapped" — without the round(<rem>, 1px) belt the continuous --font-scale slider un-grids the step (docs/design/integer-line-boxes.md)`,
+      message: `spacing.${name} lacks $extensions orb.output kind "snapped" — without the round(<rem>, 1px) belt the continuous --font-scale slider un-grids the step (docs/law/integer-line-boxes.md)`,
     });
     return;
   }
   const px = dimensionPx(node["$value"]);
   if (px === undefined) {
-    problems.push({ group: "spacing", name, message: `spacing.${name} has an unreadable dimension value (docs/design/integer-line-boxes.md)` });
+    problems.push({ group: "spacing", name, message: `spacing.${name} has an unreadable dimension value (docs/law/integer-line-boxes.md)` });
     return;
   }
   if (Math.abs(px - Math.round(px)) > INTEGER_EPSILON) {
     problems.push({
       group: "spacing",
       name,
-      message: `spacing.${name} resolves ${String(px)}px at the 16px root — a fractional authored step, which round(up) silently GROWS at the default scale; author an integer (docs/design/integer-line-boxes.md)`,
+      message: `spacing.${name} resolves ${String(px)}px at the 16px root — a fractional authored step, which round(up) silently GROWS at the default scale; author an integer (docs/law/integer-line-boxes.md)`,
     });
     return;
   }
@@ -244,14 +244,14 @@ function readPointerFineArm(name: string, node: { readonly [key: string]: JsonVa
   }
   const finePx = dimensionPx(fine);
   if (finePx === undefined) {
-    problems.push({ group: "spacing", name, message: `spacing.${name} has an unreadable orb.pointerFine dimension value (docs/design/integer-line-boxes.md)` });
+    problems.push({ group: "spacing", name, message: `spacing.${name} has an unreadable orb.pointerFine dimension value (docs/law/integer-line-boxes.md)` });
     return;
   }
   if (Math.abs(finePx - Math.round(finePx)) > INTEGER_EPSILON) {
     problems.push({
       group: "spacing",
       name,
-      message: `spacing.${name} resolves ${String(finePx)}px on a fine pointer at the 16px root — the override rides the same snapped belt and owes the same integer (docs/design/integer-line-boxes.md)`,
+      message: `spacing.${name} resolves ${String(finePx)}px on a fine pointer at the 16px root — the override rides the same snapped belt and owes the same integer (docs/law/integer-line-boxes.md)`,
     });
   }
 }
@@ -607,7 +607,7 @@ export const gate = defineGate({
       for (const problem of scale.problems) {
         ctx.report.file(TOKENS_JSON_REL, {
           ...tokenKeyPosition(vaultText.text, problem.group, problem.name),
-          message: `${problem.message} (docs/design/integer-line-boxes.md)`,
+          message: `${problem.message} (docs/law/integer-line-boxes.md)`,
         });
       }
       const walked = walkStaticClassExpressions(ctx.files);

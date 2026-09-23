@@ -131,3 +131,13 @@ test("a FAIL line names every judged pair beneath it; a SKIPPED line prints its 
   expect(lines[1]).toContain("pair 1: read=0 write=0 prev-prompt=18584 ratio=0.000 prev=msg_a id=msg_b");
   expect(formatOutcome(outcome("SKIPPED"))).toEqual(["SKIPPED agent-sdk  solo      planted"]);
 });
+
+test("a known FAIL names its cause on the line and still fails the run", () => {
+  const fail = judge([call("message_a", LIVE_PROMPT, 0), call("message_b", LIVE_PROMPT, 0)]);
+  if (!("worst" in fail)) {
+    throw new Error("a measured case must carry its pairs");
+  }
+  const known: CaseOutcome = { route: "agent-sdk", case: "group", ...fail, knownCause: "item 0150: forks" };
+  expect(formatOutcome(known)[0]).toContain('known-cause="item 0150: forks"');
+  expect(exitFor([known], 0)).toBe(EXIT.violations);
+});

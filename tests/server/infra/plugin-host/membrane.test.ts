@@ -1218,7 +1218,7 @@ describe("attachMembrane — llm.quiet (SPEND, class 1: writes nothing)", () => 
   });
 });
 
-describe("host.ui — declarative surface registration + state publish (plugin-ui-plane #679 U1)", () => {
+describe("host.ui — declarative surface registration + state publish (U1)", () => {
   const uiGrants: readonly PluginCapability[] = ["ui.surface"];
 
   test("host.ui.register collects a VALIDATED surface (id/anchor/title/tier/spec) + keeps the onAction handle", async () => {
@@ -1589,7 +1589,7 @@ describe("host.ui — declarative surface registration + state publish (plugin-u
   });
 });
 
-describe("host.ui.registerFrame — the U7 escape hatch's door (plugin-ui-plane §6.2, seam 13)", () => {
+describe("host.ui.registerFrame — the U7 escape hatch's door (seam 13)", () => {
   const frameDef = `id: "board", anchor: "chat-flank", title: "Chess", html: "<canvas></canvas><script>go()</script>"`;
 
   test("a granted registerFrame collects tier:'frame' meta + the body SEPARATELY — the bytes never enter the meta", async () => {

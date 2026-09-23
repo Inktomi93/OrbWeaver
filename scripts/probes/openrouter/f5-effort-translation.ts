@@ -1,7 +1,7 @@
 // F5 — how does OpenRouter translate `reasoning:{effort}`, and is native thinking depth reachable at all
 // on this wire?
 //
-// Prior measurement (openrouter-provider-findings §6): OR delivers 3-6x less thinking than the native
+// Prior measurement: OR delivers 3-6x less thinking than the native
 // Messages API at the same nominal effort; OR's `high` thinks less than native's `medium`. That scoped
 // every effort-based conclusion, but left the actionable question open: is the cap a TRANSLATION artifact
 // we can route around, or a ceiling? Two candidate levers, both measured here:

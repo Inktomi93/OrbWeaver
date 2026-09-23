@@ -1,4 +1,4 @@
-// The "Plugins" chrome MENU — the wand (plugin-ui-plane #679 U5, §4.5; ST parity row 3, "top-bar / wand-menu
+// The "Plugins" chrome MENU — the wand (U5, §4.5; ST parity row 3, "top-bar / wand-menu
 // buttons"). ONE house menu listing every command the caller's granted-and-enabled plugins registered, grouped
 // by plugin.
 //

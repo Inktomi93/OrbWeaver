@@ -1,7 +1,7 @@
 // Conformance entry for the ORDINARY CLIENT-AND-CT wave (#1584): five legacy `GateDescriptor` modules
 // converted into SEVEN final policies. They are grouped here by CONVERSION WAVE and nothing else — the
 // header says so plainly rather than inventing a shared theme, because §5b.4 of
-// docs/design/gate-runtime-standardization.md is explicit that a theme is not a family. Three real
+// docs/law/gate-runtime-standardization.md is explicit that a theme is not a family. Three real
 // families are represented:
 //
 //   editor-form-factory        — form-factory-for-multifield · no-form-reset-in-autosave ·

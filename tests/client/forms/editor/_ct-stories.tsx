@@ -1,7 +1,7 @@
 // `_ct-stories.tsx` — the forms-mirror CT story module (docs/law/Spine-Testing.md §7: CT only mounts from a
 // NON-test module). Holds the stories the sibling CTs mount: the shared `AutosaveStatus` affordance, the
 // button-gated `createSavedEntityForm` draft-mirror scenarios, and the D78 session-boundary
-// `createAutosaveEntityForm` regressions (CT-1..6, autosave-form-doctrine.md §10 — see the divider below).
+// `createAutosaveEntityForm` regressions (CT-1..6, D78 — see the divider below).
 // No <CtDataProviders> here because the form factories need no Query/tRPC — each is a pure form +
 // Zustand-draft closure. The observation convention throughout: a SEPARATE sibling reads the same draft
 // slot through the REACTIVE `useDraft` hook and serializes it into a testid `<output>` — reactive so an
@@ -239,7 +239,7 @@ export function SavedDraftUnmountFlushStory(): ReactElement {
 }
 
 // =============================================================================================
-// D78 SESSION-BOUNDARY stories (autosave-form-doctrine.md §10 CT-1..6) — mount the REAL boundary
+// D78 SESSION-BOUNDARY stories (CT-1..6) — mount the REAL boundary
 // (createAutosaveEntityForm) over a save SPY. The spy is a reactive draft-store channel (the
 // established observation pattern above): each save records a monotonically-numbered entry
 // `{ id: entityId, text: value.text }` under a per-call key, plus a running count — so a CT can pin

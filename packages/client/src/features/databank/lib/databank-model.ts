@@ -2,8 +2,8 @@
 // ingest phase, and the stall hint. Zero I/O, zero React: every value is a function of a `DocumentView`, so
 // the surfaces stay thin and these rules are unit-tested in isolation.
 //
-// PORTED hunk-by-hunk from `legacy-main:features/databank/lib/databank-model.ts` (databank-surface-spec §2.1
-// — "the best thing in the tree"), with ONE deliberate logic addition and zero deletions:
+// PORTED hunk-by-hunk from `legacy-main:features/databank/lib/databank-model.ts` ("the best thing in the
+// tree"), with ONE deliberate logic addition and zero deletions:
 //
 //   §6.1's PHASE-CHIP RULING — `showsPhaseChip` is new. Legacy rendered a phase Badge on EVERY row, `Ready`
 //   included; at the real 320px pane floor a `Ready` chip on six of seven rows is chrome carrying zero

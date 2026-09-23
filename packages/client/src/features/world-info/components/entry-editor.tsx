@@ -10,7 +10,7 @@
 // This matters HERE specifically — the book's entry list mounts many entries and the surface swaps the
 // `entry` prop on the SAME `EntryEditor` instance (no route/component remount), so without the boundary the
 // frozen FormApi would survive an entry switch and one keystroke could autosave entry A's fields into entry
-// B (the F1 class, autosave-form-doctrine.md §1/§8). Autosave everywhere (D66 A4 / north-star §7): no
+// B (the F1 class, D78). Autosave everywhere (D66 A4 / north-star §7): no
 // Save/Discard — the header carries the shared AutosaveStatus (Saved / Saving… / Save failed — Retry) where
 // Save used to be. The required title/content (`min(1)`) never spam rejects: the boundary's driver gates on
 // `form.state.isValid`, so a half-typed field simply doesn't autosave until it's valid.

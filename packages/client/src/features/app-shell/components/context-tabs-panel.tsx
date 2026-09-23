@@ -3,7 +3,7 @@
 // tabs, band and actions. Domain-agnostic: every tab's `node` is pre-rendered by the host's `useResolved`
 // hook; a new domain grafts a context tab inside its OWN section definition, never here.
 //
-// ONE COLUMN, EVERY PANE (owner-ruled 2026-08-30, #860 — `docs/design/mocks/context-bracket/DESIGN.md`).
+// ONE COLUMN, EVERY PANE (owner-ruled 2026-08-30, #860, D150).
 // SUPERSEDES the "ONE STRIP, ALWAYS" this header carried since HUD-1 §5.1: the generic pane used to render a
 // single top strip labelled "Detail" (a `tablist` of `tab`s, `flex-1` panels, the shell.css `.ctx-tab-strip`),
 // while a CLAIMED pane rendered the rpg HUD's head-and-foot bracket — the SAME resolved chat tabs at y=56 as

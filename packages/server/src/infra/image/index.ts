@@ -61,7 +61,7 @@ export interface ImageInfo {
   height: number;
 }
 
-/** A row-major cell grid over a sprite sheet — `cols × rows` equal cells (expressions-design/03 §3.1). */
+/** A row-major cell grid over a sprite sheet — `cols × rows` equal cells (docs/plans/expressions/design.md). */
 export interface SpriteGridOptions {
   readonly cols: number;
   readonly rows: number;
@@ -76,12 +76,12 @@ export interface ImageAdapter {
   /** Decode just the header to report format + dimensions. Rejects (throws) on non-image bytes — the
    *  validation seam for an upload that must be a real raster image. */
   probe: (bytes: Uint8Array) => Promise<ImageInfo>;
-  /** Slice a grid sprite sheet into row-major PNG cells (expressions-design/03 §3.1). Each cell is
+  /** Slice a grid sprite sheet into row-major PNG cells (docs/plans/expressions/design.md). Each cell is
    *  `floor(w/cols) × floor(h/rows)`, extracted left-to-right then top-to-bottom (cell `i` binds to
    *  `labels[i]`). Returns exactly `cols*rows` cells; the sheet's right/bottom remainder (from the floor) is
    *  dropped. Rejects non-images. */
   sliceGrid: (bytes: Uint8Array, opts: SpriteGridOptions) => Promise<readonly Uint8Array[]>;
-  /** Corner-sampled flood-fill matte → transparent PNG (expressions-design/03 §4.2). Deterministic, no ML —
+  /** Corner-sampled flood-fill matte → transparent PNG (docs/plans/expressions/design.md). Deterministic, no ML —
    *  the zero-setup matte fallback. Decodes to raw RGBA, floods the background to alpha-0
    *  (`@orb/server/kit/image-matte`), re-encodes PNG. Rejects non-images. */
   matteFlood: (bytes: Uint8Array, opts: { tolerance: number }) => Promise<Uint8Array>;

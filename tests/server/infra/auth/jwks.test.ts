@@ -11,7 +11,7 @@ import { expect, test } from "../../../support/fixtures.ts";
 // dispatch/policy tests (modes/forward-header.test.ts) use a FAKE verifier; THIS file exercises the REAL
 // jose crypto: jwksFor's fail-closed point (3) (bad-JSON / non-https / off-allowlist) + createForwardJwtVerifier's
 // fail-closed point (5) (jwtVerify throws → null), plus the untested-until-now issuer-mismatch /
-// audience-mismatch / alg-confusion rejections (test-quality-review §"untested area").
+// audience-mismatch / alg-confusion rejections.
 
 const ALLOW = ["idp.example.com"] as const;
 

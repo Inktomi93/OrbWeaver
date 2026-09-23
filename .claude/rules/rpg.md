@@ -27,4 +27,4 @@ paths:
 
 Game words (`party`, `npcs`, `quest`, `encounter`) stay inside this domain. An rpg surface names a
 chat concept with the chat word: look up which word names which concept in
-`docs/design/vocabulary-map.md`.
+`docs/law/vocabulary-map.md`.

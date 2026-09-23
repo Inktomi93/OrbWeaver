@@ -78,8 +78,8 @@ export function headerCopy(section: PromptSection): { readonly label: string; re
  *  override-lock cluster. */
 export const OVERRIDABLE_MARKERS: readonly MarkerType[] = ["main_prompt", "post_history"];
 
-/** The conversation PIVOT — `chat_history`. It can be neither deleted, disabled, nor silenced
- *  (preset-surface-redesign §5.1/§5.2): a preset whose pivot is off is an assembly with nowhere to splice
+/** The conversation PIVOT — `chat_history`. It can be neither deleted, disabled, nor silenced:
+ *  a preset whose pivot is off is an assembly with nowhere to splice
  *  the conversation, which is the exact state the missing-pivot warning exists to prevent. */
 export function isPivotSection(section: PromptSection): boolean {
   return section.type === "marker" && section.marker === "chat_history";

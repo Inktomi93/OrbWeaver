@@ -1,5 +1,5 @@
 // CT: the CONTEXT BRACKET as every tabs pane renders it (context-tabs-panel.tsx → context-bracket.tsx →
-// context-rail.tsx). Owner-ruled 2026-08-30 (#860, `docs/design/mocks/context-bracket/DESIGN.md`): the
+// context-rail.tsx). Owner-ruled 2026-08-30 (#860, D150): the
 // panel is ONE column — head band → optional state rail → viewport → ground → META RAIL PINNED TO THE FOOT —
 // in a normal room, a game room and a character alike. The generic pane used to be a different renderer
 // (a `tablist "Detail"` of `tab`s at the HEAD, `aria-disabled` locked tabs, `flex-1` panels, the shell.css
@@ -20,7 +20,7 @@ import { ContextDefaultTabStory, ContextTabStatesStory, ContextTabStripStory } f
 
 const TAB_NAMES = ["Members", "Settings", "Preview", "Injections"] as const;
 
-/** The mock's phone cell floor (DESIGN.md "cells 52px"); the token step the cell takes is `control-lg`
+/** The mock's phone cell floor (the mock design "cells 52px"); the token step the cell takes is `control-lg`
  *  (56px at coarse) — the first step at or above it. */
 const COARSE_CELL_FLOOR_PX = 52;
 const TRANSPARENT = "rgba(0, 0, 0, 0)";

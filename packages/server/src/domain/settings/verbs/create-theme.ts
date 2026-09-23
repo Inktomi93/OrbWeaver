@@ -1,6 +1,6 @@
 // verb: createTheme — write a new OWNED theme from scratch (the §13.4 editor's "new blank theme" path,
 // alongside `duplicateTheme`). Runs `themeOverrideSchema.parse` + the shared css-validator at the write
-// boundary (themes-design.md §4); a taken `(ownerId, name)` is TOCTOU-safe (insert optimistically, classify
+// boundary; a taken `(ownerId, name)` is TOCTOU-safe (insert optimistically, classify
 // the constraint violation — the `tag.create` precedent), never a phantom pre-SELECT.
 
 import { themeOverrideSchema } from "@orb/contracts/theme";

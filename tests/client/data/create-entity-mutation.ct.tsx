@@ -1,5 +1,5 @@
 // createEntityMutation CT — the canonical 4-phase optimistic flow + the lightweight variables-render
-// mode (UI-Primitives §13.1; blueprint: UI-Lib-TanStack-Query.md §2/§3), exercised against a REAL
+// mode (UI-Primitives §13.1), exercised against a REAL
 // `trpc.tag.createTag.mutationOptions()` + `trpc.tag.listTags.queryOptions()` pair (never a
 // hand-mock — a mock mutationFn would hide the exact variance the factory's `context.client`
 // callback-arg contract depends on). Four properties pinned:

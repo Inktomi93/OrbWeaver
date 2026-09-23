@@ -1,5 +1,5 @@
 // domain/plugin/substrate/surface-state — the in-memory per-(pluginId, surfaceId, chatId?) UI-surface STATE
-// plane (plugin-ui-plane #679 U1; the chatId dimension is row 777). `host.ui.setState` writes it (through the
+// plane (U1; the chatId dimension is row 777). `host.ui.setState` writes it (through the
 // bridge → the compose op); `plugin.getSurfaceState` reads it (the U1 read verb). The S4-suggestion-store
 // precedent: process-wide, ONE per service, `ASSUMES(single-replica)`, and RESPAWN WIPES — durable state is the
 // plugin's own `storage.kv` job, never this. Keyed by pluginId AND surfaceId AND the optional chatId, so one
@@ -20,7 +20,7 @@ import { getLog } from "#foundation/observability";
 import type { PluginHostOps } from "../contract/ops.ts";
 import type { PluginSurfaceStateStore } from "../contract/service.ts";
 
-/** The serialized-size ceiling on ONE surface's published state (plugin-ui-plane §4.2: "≤ 16 KiB JSON;
+/** The serialized-size ceiling on ONE surface's published state ("≤ 16 KiB JSON;
  *  replaces whole"). Over cap is a REFUSAL (the membrane surfaces it to the guest as a rejected promise),
  *  never a silent truncation of a state object whose shape the renderer binds by path. */
 const SURFACE_STATE_MAX_BYTES = 16_384;

@@ -149,7 +149,7 @@ export interface EmbeddingsService {
    *  reclaims a retired embed SPACE — this one reclaims blocks that canon itself dropped. memory calls it at
    *  the end of every build pass; an ordinary pass deletes nothing. */
   readonly pruneMemoryBlocks: (params: PruneMemoryBlocksParams) => Promise<PruneMemoryBlocksResult>;
-  /** databank-design/05 §2.4 — the reindex-shrink seam. After the ingest upserts a document's current chunks,
+  /** the reindex-shrink seam. After the ingest upserts a document's current chunks,
    *  this deletes the strays (shrunk tail `chunkIdx >= keepCount` + retired-space `model != model`), scoped to
    *  the one document. databank never touches `document_chunks` directly (single-write-path invariant). */
   readonly pruneDocumentChunks: (params: PruneDocumentChunksParams) => Promise<PruneDocumentChunksResult>;

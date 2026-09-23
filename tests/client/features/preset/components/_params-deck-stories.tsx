@@ -1,4 +1,4 @@
-// CT story module for the PARAMS DECK (preset-surface-redesign.md §4). A CT only mounts from a NON-test
+// CT story module for the PARAMS DECK. A CT only mounts from a NON-test
 // module (Spine-Testing §7). Every story wires the REAL deck through the SAME `createAutosaveEntityForm`
 // session BOUNDARY the production editor mounts it under (the §14.1 form-factory mandate — production-
 // faithful, not a lighter double) over a real save spy.

@@ -42,7 +42,7 @@ export type FocusStateCandidate = (typeof FOCUS_STATE_SPACE)[number];
  *  state a visitor lands on, and the DRIVEN state an argv-ordered action queue puts it in. They are
  *  different populations, not a detail of one — Characters' library toolbar carries two toggles that are
  *  both OFF at rest, so `selection-idiom` has no selected twin to judge there and #987 withholds it
- *  (docs/design/983-984-ui-audit-population-semantics.md :208), while ONE `--click` on "Select multiple"
+ *  (the settlement contract in `ops/walker/RULE-AUTHORING.md`), while ONE `--click` on "Select multiple"
  *  gives the same cohort its twin and the rule reaches a verdict. The owner's #1059 ruling keeps BOTH:
  *  the bare run still measures rest and still withholds, and the driven run is the twin's source.
  *  So the regime a run measured is DECLARED here, in the same accounting the panel/focus axes already

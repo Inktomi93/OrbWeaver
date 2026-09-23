@@ -1,4 +1,4 @@
-// verbs/sheet — patchSheet (rpg-design/05 §4.4, §6.2). MA-4 patch semantics (omit preserves; a null maxHp is a
+// verbs/sheet — patchSheet (docs/plans/rpg/design.md). MA-4 patch semantics (omit preserves; a null maxHp is a
 // real clear) + attribute-key ∈ profile-vocabulary + range enforcement. Row-on-first-write. Mutations asserted
 // at the persisted row (assert-the-mutation-fired).
 //

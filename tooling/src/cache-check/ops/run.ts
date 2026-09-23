@@ -1,17 +1,17 @@
 // The run: boot the stage, then for each route bind one probe connection as the chat connection, run every
 // selected case on it, print one line per case, and restore the binding and remove every probe row.
 import { cacheMinTokensOf } from "@orb/contracts/inference";
-import { errorMessage } from "@orb/kit/error-message";
 import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { printVerdict } from "../../_shared/evidence.ts";
 import { warn } from "../../_shared/log.ts";
+import type { RoomRun } from "../contract/plan.ts";
 import type { CacheCase, CacheRoute, CaseOutcome, EnvFile, OrbApi, RouteRefusal, RouteSpec } from "../contract/types.ts";
 import { parseCacheCheckArgs } from "../lib/argv.ts";
-import { CASE_PLANS } from "../lib/fixture.ts";
+import { roomRuns } from "../lib/fixture.ts";
 import { missingCredential, ROUTE_SPECS } from "../lib/routes.ts";
 import { CACHE_READ_FLOOR, formatOutcome, formatSpend, judgeCase, runVerdict } from "../lib/verdict.ts";
-import { connectOrb, PROBE_PREFIX, ProbeRows, runCasePlan } from "./drive.ts";
+import { connectOrb, PROBE_PREFIX, ProbeRows, runRoom } from "./drive.ts";
 import { bootStage, probeKey, readMainEnv } from "./stage.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm cache:check");
@@ -71,20 +71,23 @@ async function prepareRoute(api: OrbApi, spec: RouteSpec, key: string | null, ro
   return { kind: "ready", cacheMinTokens: cacheMinTokensOf(capability.generation) };
 }
 
-async function runCase(
+async function judgeRoom(
   api: OrbApi,
   prep: Extract<RoutePrep, { kind: "ready" }>,
-  key: { route: CacheRoute; case: CacheCase },
-  probe: { runId: string; rows: ProbeRows; replyCosts: (number | null)[] },
-): Promise<CaseOutcome> {
-  try {
-    const ran = await runCasePlan(api, CASE_PLANS[key.case], { tag: `${probe.runId}-${key.route}-${key.case}`, rows: probe.rows });
-    probe.replyCosts.push(...ran.replyCosts);
-    return { ...key, ...judgeCase({ calls: ran.calls, floor: CACHE_READ_FLOOR, cacheMinTokens: prep.cacheMinTokens }) };
-  } catch (error) {
-    const reason = errorMessage(error);
-    return { ...key, verdict: "ERROR", reason };
-  }
+  key: { readonly route: CacheRoute; readonly roomRun: RoomRun },
+  probe: { readonly tag: string; readonly rows: ProbeRows; readonly replyCosts: (number | null)[] },
+): Promise<CaseOutcome[]> {
+  const { route, roomRun } = key;
+  const result = await runRoom(api, roomRun, { tag: probe.tag, rows: probe.rows });
+  probe.replyCosts.push(...result.prefixCosts);
+  return result.cases.map((r): CaseOutcome => {
+    if ("error" in r) {
+      return { route, case: r.case, verdict: "ERROR", reason: r.error };
+    }
+    probe.replyCosts.push(...r.run.replyCosts);
+    const judged = judgeCase({ calls: r.run.calls, floor: CACHE_READ_FLOOR, cacheMinTokens: prep.cacheMinTokens });
+    return "worst" in judged ? { route, case: r.case, ...judged, knownCause: ROUTE_SPECS[route].knownFailures[r.case] } : { route, case: r.case, ...judged };
+  });
 }
 
 async function runRoute(
@@ -99,15 +102,17 @@ async function runRoute(
   const replyCosts: (number | null)[] = [];
   try {
     const prep = await prepareRoute(api, spec, probeKey(spec.credentialEnv, ctx.mainEnv), rows);
-    for (const c of cases) {
-      const outcome =
+    for (const roomRun of roomRuns(cases)) {
+      const judged =
         prep.kind === "ready"
-          ? await runCase(api, prep, { route, case: c }, { runId: ctx.runId, rows, replyCosts })
-          : { route, case: c, verdict: prep.verdict, reason: prep.reason };
-      for (const line of formatOutcome(outcome)) {
-        print(line);
+          ? await judgeRoom(api, prep, { route, roomRun }, { tag: `${ctx.runId}-${route}-${roomRun.room}`, rows, replyCosts })
+          : roomRun.cases.map((c): CaseOutcome => ({ route, case: c, verdict: prep.verdict, reason: prep.reason }));
+      for (const outcome of judged) {
+        for (const line of formatOutcome(outcome)) {
+          print(line);
+        }
+        outcomes.push(outcome);
       }
-      outcomes.push(outcome);
     }
     if (replyCosts.length > 0) {
       print(formatSpend(route, replyCosts));

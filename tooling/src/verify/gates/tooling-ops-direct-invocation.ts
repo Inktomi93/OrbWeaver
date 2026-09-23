@@ -1,10 +1,10 @@
 // Policy: tooling-ops-direct-invocation (#509/#527) — an `ops/**` module is a LIBRARY, and a library RUN as
-// a program loads, executes nothing and exits 0: a bare zero that reads as "clean" (docs/history/gate-authoring-legacy-2026-09-13.md §8
-// prescribed exactly that spelling for months, and pnpm printed its own ✓ lines over the silence). Every
+// a program loads, executes nothing and exits 0: a bare zero that reads as "clean" (the legacy
+// gate-authoring guide prescribed exactly that spelling for months, and pnpm printed its own ✓ lines over the silence). Every
 // tooling/src/<tool>/ops/** module must call the refusal at MODULE SCOPE, or BE a program (a module-scope
 // call to the one entry runner — stack.sh's node halves). Posture: comment-SAFE (statement nodes only).
 //
-// ONE HARD POLICY (docs/history/gate-runtime-worked-cases-2026-09.md §"Mixed-hook arity amendments", #1950). Every finding is an ABSENCE — no module-scope guard statement — so
+// ONE HARD POLICY (#1950). Every finding is an ABSENCE — no module-scope guard statement — so
 // there is no node to anchor a waiver on and no ordinary door by construction; the legacy findings were
 // line 0/column 0 and unmarkable for the same reason. The escape from this policy is BEING an entry, never
 // a suppression. The legacy §4.6 blindness arm (a home whose export no longer derives) is not a finding any

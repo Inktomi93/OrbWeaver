@@ -4,7 +4,7 @@
 // registry, no route wrapper.
 //
 // It used to carry a separate `sessionKey` because a draft→committed promotion had to NOT remount mid-first-
-// turn. A chat row exists from the creation click now (chat-creation-draft-mode-replacement.md §4.1), so
+// turn. A chat row exists from the creation click now (D166), so
 // there is no promotion left to survive and the key is simply the id.
 
 import type { ChatWarning, TurnAbortReason } from "@orb/contracts/chat";

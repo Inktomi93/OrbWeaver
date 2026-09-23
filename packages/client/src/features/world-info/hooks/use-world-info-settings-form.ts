@@ -1,5 +1,5 @@
 // The world-info settings-section autosave form, mounted through the D78 session boundary at module scope —
-// the boundary OWNS the (constant) entity key (autosave-form-doctrine.md §1/§8, D78 L4). `defaultValues` is
+// the boundary OWNS the (constant) entity key (D78 L4). `defaultValues` is
 // a type-level fallback: the surface renders inside a QueryBoundary after getUserSettings resolves, so the
 // server values always fully override these seeds.
 

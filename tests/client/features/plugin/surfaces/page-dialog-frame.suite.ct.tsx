@@ -1,4 +1,4 @@
-// CT: the U7 escape hatch at the PAGE and DIALOG anchors (plugin-ui-plane #679 §6.2 / #787). U7 wired the frame
+// CT: the U7 escape hatch at the PAGE and DIALOG anchors (#787). U7 wired the frame
 // mount for chat-flank/settings/tool-card and left `page`/`dialog` at `frame: false` as a conservative U5×U7
 // default; #787 is the deliberate decision that default named — the client mount now exists at both anchors, so
 // `PLUGIN_ANCHOR_TIERS` admits the frame tier there. What only a real browser can prove, and what this file owns:

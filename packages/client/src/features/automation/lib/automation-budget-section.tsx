@@ -1,4 +1,4 @@
-// The Automation RATE-LIMIT config-section CONTRIBUTION (config-revamp-design.md §6.8) — the owner ceiling
+// The Automation RATE-LIMIT config-section CONTRIBUTION — the owner ceiling
 // every chat-less rule counts against, as the Automation group's second row. No `owns`: the belt lives in
 // `automation_owner_budgets` (`setOwnerBudgets`), not in a settings tier.
 

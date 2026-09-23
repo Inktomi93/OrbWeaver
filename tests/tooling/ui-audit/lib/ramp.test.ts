@@ -6,7 +6,7 @@ import { checkTextStyle } from "../../../../tooling/src/ui-audit/lib/checks-typo
 import { INTERACTIVE_TEXT_FLOOR_PX, LEADING_FLOOR, RAMP_FONT_FACES, TEXT_MICRO_PX } from "../../../../tooling/src/ui-audit/lib/ramp.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
-// ── THE COUPLING THIS EXISTS FOR (docs/design/integer-line-boxes.md §3b/§6) ──────────────────────────
+// ── THE COUPLING THIS EXISTS FOR (docs/law/integer-line-boxes.md §3b/§6) ──────────────────────────
 // `leading.*` becomes a px-resolving DIMENSION emitted as `round(up, 1rem, 1px)`, so `TOKENS[path].value`
 // stops being a number and `Number(...)` of it is NaN. §6 routes the re-derivation
 // (`SNAPPED_LENGTH_BASE_PX["leading.label"] / (parseFloat(TOKENS["text.label"].value) * REM_PX)`

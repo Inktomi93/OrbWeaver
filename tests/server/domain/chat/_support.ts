@@ -567,7 +567,7 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     // B7 — the verb-time reaction defaults (the shipped posture: plane ON, react tool OFF). A toggle test
     // that wants a different host default overrides this op, the `resolveForeignInputs` pattern.
     readReactionDefaults: () => Promise.resolve({ charactersCanReact: false, reactionsEnabled: true }),
-    // Default = null ⇒ no PromptTransform registrar wired (byte-identical no-op — automation-design/04 §6). A
+    // Default = null ⇒ no PromptTransform registrar wired (byte-identical no-op). A
     // transform test overrides with a `createPromptTransformRegistry(...).apply`.
     promptTransforms: null,
     resolveHandle: notStubbed,

@@ -1,4 +1,4 @@
-// staging — the Option-A accumulator (rpg-design/05 §2.4). Pure unit (in-memory singleton, no db).
+// staging — the Option-A accumulator (docs/plans/rpg/design.md). Pure unit (in-memory singleton, no db).
 // Proves: read-through (tool 2 sees tool 1, incl. a quest created then flipped in one turn), take/flush,
 // abort clears EVERYTHING (the dead-turn-never-flushes pin), and two concurrent turns on one chat do NOT
 // share a bucket (the ChatTurnId keying pin — the load-bearing correctness invariant).

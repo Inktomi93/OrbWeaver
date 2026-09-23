@@ -1,4 +1,4 @@
-// domain/rpg/chat-ops/tracker-view — the SHARED tracker-view projection (rpg-design/05 §4.8). Resolves the
+// domain/rpg/chat-ops/tracker-view — the SHARED tracker-view projection (docs/plans/rpg/design.md). Resolves the
 // CURRENT snapshot — or, for a REGEN turn, the state as of before the regenerated slot (VER-1b, the one
 // `regenSlotMessageId` arm) — (or the synthesized default for a turnless game) and projects participants ∪ sheets (§4.3) against
 // the injected participants into the `RpgTrackerView` the CP client renders AND the gather's steering reminder reads.

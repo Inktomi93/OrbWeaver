@@ -1,4 +1,4 @@
-// The Actions view's ROW MODEL (preset-surface-redesign.md §6.1/§6.6) — pure, node-safe. Everything the
+// The Actions view's ROW MODEL — pure, node-safe. Everything the
 // list and the drill-in render is DERIVED from `TEMPLATE_DEFS` (the contracts registry): the groups, the
 // row copy, the kind badge, the ghost bytes, and which capability fields the editor offers.
 //

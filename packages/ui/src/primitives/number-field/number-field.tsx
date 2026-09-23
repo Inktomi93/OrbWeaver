@@ -86,7 +86,7 @@ export interface NumberFieldProps extends NumberFieldRootProps, VariantProps<typ
  * `numeric` and narrows it per-platform (iOS drops to `text` when `min` allows negatives, whose soft
  * keyboard has no minus key), so an override would break negative entry on iOS.
  *
- * `size="inline"` is the slider's number twin (preset-surface-redesign.md §4.1): a compact mono cell that
+ * `size="inline"` is the slider's number twin: a compact mono cell that
  * OMITS the Increment/Decrement parts (R2's sanctioned omission — a knob row's coarse steps are the slider
  * beside it, and two stepper buttons per row would triple a seven-row deck's control count). Nothing is
  * lost: ArrowUp/ArrowDown on the input still step, `scrubLabel` still drags, and the derived bounds

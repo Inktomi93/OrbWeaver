@@ -1,4 +1,4 @@
-// verbs/journal/delete-journal-entry — deleteJournalEntry (rpg-design/05 §4.4, §6.2). Host-gated, game-scoped.
+// verbs/journal/delete-journal-entry — deleteJournalEntry (docs/plans/rpg/design.md). Host-gated, game-scoped.
 // Asserted at the lineage-projected read (the entry is gone).
 
 import type { Db } from "@orb/db";

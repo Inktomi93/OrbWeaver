@@ -2,7 +2,7 @@
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { fitHistoryToWindow } from "../../../../../packages/server/src/domain/chat/assembly/history-budget.ts";
+import { fitHistoryToWindow, HISTORY_TRIM_CHUNK_FRACTION, historyTurnTokens } from "../../../../../packages/server/src/domain/chat/assembly/history-budget.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const turn = (content: string): { role: "user"; content: string } => ({ role: "user", content });
@@ -79,5 +79,44 @@ describe("fitHistoryToWindow", () => {
     });
     expect(wide.droppedCount).toBe(0);
     expect(capped.droppedCount).toBeGreaterThan(0);
+  });
+
+  // The prompt cache is an exact prefix, so the trim snaps to a chunk grid instead of dropping one row per turn.
+  describe("the chunked trim", () => {
+    const budget = { windowTokens: 2000, reserveOutputTokens: 200, systemTokens: 300 };
+    const room = budget.windowTokens - budget.systemTokens - budget.reserveOutputTokens - 64;
+    const chunk = Math.round(HISTORY_TRIM_CHUNK_FRACTION * (budget.windowTokens - budget.reserveOutputTokens));
+    // Uneven row sizes, so a chunk boundary rarely falls exactly on a row start.
+    const rows = Array.from({ length: 240 }, (_, i) => turn(`${i} `.concat("w".repeat(20 + ((i * 37) % 120)))));
+    const starts = rows.reduce<number[]>((acc, row) => [...acc, (acc.at(-1) ?? 0) + historyTurnTokens(row)], [0]);
+    const startOf = (index: number): number => starts[index] ?? Number.NaN;
+    // The oracle: the fewest oldest rows whose removal fits the room.
+    const minimalCut = (length: number): number => {
+      let cut = 0;
+      while (startOf(length) - startOf(cut) > room) {
+        cut += 1;
+      }
+      return cut;
+    };
+    const fits = Array.from({ length: rows.length }, (_, i) => fitHistoryToWindow(rows.slice(0, i + 1), budget));
+
+    test("every trim fits the room and drops at most one chunk beyond the minimal cut", () => {
+      const violations = fits.flatMap((fit, i) => {
+        const minimal = minimalCut(i + 1);
+        const extra = startOf(fit.droppedCount) - startOf(minimal);
+        const lastExtraRow = fit.droppedCount > minimal ? historyTurnTokens(rows[fit.droppedCount - 1] ?? turn("")) : 0;
+        return fit.usedTokens <= room && fit.droppedCount >= minimal && extra < chunk + lastExtraRow ? [] : [{ length: i + 1, minimal, cut: fit.droppedCount }];
+      });
+      expect(violations).toEqual([]);
+    });
+
+    test("the cut never moves back as the history grows, and moves once per chunk of growth", () => {
+      const cuts = fits.map((fit) => fit.droppedCount).filter((cut) => cut > 0);
+      expect(cuts.filter((cut, i) => i > 0 && cut < (cuts[i - 1] ?? 0))).toEqual([]);
+      const moves = cuts.filter((cut, i) => i > 0 && cut !== cuts[i - 1]).length;
+      const trimmedGrowth = startOf(rows.length) - startOf(fits.findIndex((fit) => fit.droppedCount > 0) + 1);
+      expect(moves).toBeGreaterThan(0);
+      expect(moves).toBeLessThanOrEqual(Math.ceil(trimmedGrowth / chunk));
+    });
   });
 });

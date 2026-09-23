@@ -717,7 +717,7 @@ function markVerdict(node: Element): Record<string, unknown> {
     // cannot be right on all three grounds this button sits on (see the variant's note).
     corner: dot.y + dot.h <= glyph.y + glyph.h / 2 && dot.x >= glyph.x + glyph.w / 2,
     // REST-STATE RASTER: at DPR 1 every edge of the circle lands on a device pixel
-    // (docs/design/integer-line-boxes.md). The DPR is asserted below, never assumed.
+    // (docs/law/integer-line-boxes.md). The DPR is asserted below, never assumed.
     dpr: window.devicePixelRatio,
     onGrid: [dot.x, dot.y, dot.w, dot.h].every((v) => Number.isInteger(v)),
     boxes: { dot, button, glyph },
@@ -762,7 +762,7 @@ test.describe("the unread mark (#1798)", () => {
   // GEOMETRY, at BOTH pointer sizes — the button's own box is pointer-conditional (`--spacing-control-md`
   // plus `.shell-topbar-icon-btn`'s coarse touch floor), so "the dot is inside the control and out of the
   // glyph's way" is two different measurements, not one. Integer device px at DPR 1 is the rest-state
-  // raster requirement (docs/design/integer-line-boxes.md): a fractional box resamples the circle's edge
+  // raster requirement (docs/law/integer-line-boxes.md): a fractional box resamples the circle's edge
   // for the element's whole life.
   for (const pointer of [
     { name: "a fine pointer", use: { viewport: { width: 900, height: 600 }, hasTouch: false } },

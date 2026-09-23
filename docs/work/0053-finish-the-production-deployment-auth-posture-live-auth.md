@@ -5,6 +5,7 @@ updated: 2026-09-23
 priority: P2
 area: infra
 blocked: owner
+plan: containerize
 ---
 
 # Finish the production deployment: auth posture, live auth-mode proof and a security review
@@ -29,7 +30,7 @@ security review.
 ## Done when
 
 A running container passes a live login in each supported auth mode. The security review is in `docs/`,
-and its findings are fixed or filed. `docs/design/containerize-prod-image-spec.md` matches the shipped
+and its findings are fixed or filed. `docs/plans/containerize/design.md` matches the shipped
 surface.
 
 ## Evidence

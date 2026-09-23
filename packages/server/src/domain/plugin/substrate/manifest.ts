@@ -7,7 +7,7 @@
 //
 // Unzip hardening is NON-optional: (a) STRICT ENTRY ALLOW-LIST
 // — a bundle is `manifest.json` + `main.js`, plus the OPTIONAL `ui.js` (the Tier-C client guest,
-// plugin-ui-plane #679 U4 §4.6) and the OPTIONAL `ui/assets/<name>` image entries (#820 seam 11); any
+//  U4 §4.6) and the OPTIONAL `ui/assets/<name>` image entries (#820 seam 11); any
 // extra/unknown/traversal entry name is a refusal, so path traversal is impossible by construction (three
 // exact names plus ONE anchored, flat, alphanumeric-led pattern — all four spellings are the ONE home in
 // `@orb/contracts/plugin` rather than literals that could drift out of step with the manifest schema); (b)
@@ -338,13 +338,13 @@ export function isVersionDowngrade(candidate: string, installed: string): boolea
 }
 
 /** True when a REMOTE version is strictly newer than the INSTALLED one — the auto update-check's verdict
- *  (plugin-ui-plane #679 U8 2b, `checkForUpdates`). The exact complement of a downgrade is NOT this (equal
+ *  (U8 2b, `checkForUpdates`). The exact complement of a downgrade is NOT this (equal
  *  versions are neither), so it is its own predicate: an equal remote is `up-to-date`, not `update-available`. */
 export function isVersionNewer(remote: string, installed: string): boolean {
   return compareSemver(remote, installed) > 0;
 }
 
-/** The OTHER half of the URL-install funnel (plugin-ui-plane #679 U8, seam 15): fetch a bundle's bytes through
+/** The OTHER half of the URL-install funnel (U8, seam 15): fetch a bundle's bytes through
  *  the injected egress-guarded fetch (`ctx.fetchBundle` → `infra/network`'s `fetchPluginBundle` — `safeFetch`
  *  ANY_HOST: https-only, per-hop private-range/IP-literal denial, redirect budget, byte cap), then hand them to
  *  `parseBundle`. The two-line body is a SECURITY choke: it collapses EVERY fetch failure — an SSRF block, a

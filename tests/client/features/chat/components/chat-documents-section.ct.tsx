@@ -1,4 +1,4 @@
-// CT: the per-chat DOCUMENTS rack (chat-documents-section.tsx, databank-surface-spec S2) — the D85
+// CT: the per-chat DOCUMENTS rack (chat-documents-section.tsx S2) — the D85
 // visibility toggle's first live surface.
 //
 // WHAT IS PINNED, and why each one is a defect that shipped once or would have:

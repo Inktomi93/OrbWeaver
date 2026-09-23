@@ -22,7 +22,7 @@ export const ROSTER_COLLECTION_ID = "rosterPreset";
  *  84–86% on the tag rows (side-eye 2026-09-06, #1824's twin). `markers` is for rest-visible STATUS
  *  (Active / Global / a built-in lock) — a badge that earns the title line. A census is not a status: it
  *  is the quantity the NAME is counted by, and a figure parked several hundred px from that name stops
- *  reading as its count. DESIGN.md §3.3 draws the roster subtitle as exactly this — "rosters: members ·
+ *  reading as its count. the mock design §3.3 draws the roster subtitle as exactly this — "rosters: members ·
  *  rules".
  *
  *  THE NAME GLOSS SURVIVES, AS THE TAIL. It was the whole subtitle before, and it is what the file's own

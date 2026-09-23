@@ -1,4 +1,4 @@
-// CT: the U7 escape hatch's EMBEDDER (plugin-ui-plane #679 §6.2, seam 13) — the half of the trust boundary that
+// CT: the U7 escape hatch's EMBEDDER (seam 13) — the half of the trust boundary that
 // only a real browser can prove. Three things live here and nowhere else:
 //
 //   1. THE SANDBOX ATTRIBUTE AS RENDERED. `sandbox="allow-scripts"` with no `allow-same-origin` is the belt

@@ -1,5 +1,5 @@
-// The guided-template / nudge DRILL-IN — a template's ONE editing home (preset-surface-redesign.md §6.1,
-// audit §16 row 23). The round-4 inline accordion is DEAD (owner: "that's a no-two-homes thing"): template
+// The guided-template / nudge DRILL-IN — a template's ONE editing home (audit
+// §16 row 23). The round-4 inline accordion is DEAD (owner: "that's a no-two-homes thing"): template
 // rows speak the §5.0 ONE-LIST-GRAMMAR exactly as rack rows do — the name selects, the chevron drills, and
 // every editor is a drill-in with a back row. Same SHAPE as the section drill-in, fewer clusters.
 //
@@ -233,8 +233,8 @@ function ProseTemplateBody({
  *  the wrapper with the injection's content gone, which is the one mistake an author cannot see in the field
  *  itself.
  *
- *  THE WARNING IS NOW THE FRONT HALF OF A REFUSAL, not the whole answer (owner ruling 2026-08-08, option C of
- *  `docs/design/note-token-intent-history.md`). This comment used to say the missing-`{{note}}` chip stays a
+ *  THE WARNING IS NOW THE FRONT HALF OF A REFUSAL, not the whole answer (owner ruling 2026-08-08,
+ *  option C). This comment used to say the missing-`{{note}}` chip stays a
  *  warning "deliberately unlike `FORMAT_STRING_CARRIER_TOKENS`" — the ruling resolved that: `{{note}}` deletes
  *  content exactly as `{{entry}}` does, so `promptConfigWriteSchema` REFUSES a non-blank note-frame override
  *  that dropped it (`PROSE_CARRIER_TOKENS`). The chip is still the right thing to draw here — it is what tells

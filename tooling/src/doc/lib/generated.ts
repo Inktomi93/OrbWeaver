@@ -42,12 +42,10 @@ function canonical(source: string): string {
   return refusal === null ? output : source;
 }
 
-/** Every item on the tree: under `docs/work/` or moved into an archived plan folder. */
+/** Every item on the tree: the numbered files under `docs/work/`. */
 export function allItems(docs: readonly GovernedDoc[]): readonly WorkItem[] {
   return docs.flatMap((doc) => {
-    const inWork = doc.path.startsWith(DOC_TOOL_TREES.work);
-    const inArchive = planSlugOf(doc.path) !== null && doc.path.includes("/archive/");
-    if (!(inWork || inArchive) || parseNumberedName(basenameOf(doc.path)) === null) {
+    if (!doc.path.startsWith(DOC_TOOL_TREES.work) || parseNumberedName(basenameOf(doc.path)) === null) {
       return [];
     }
     const item = parseItem(doc.path, doc.source);

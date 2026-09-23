@@ -18,7 +18,7 @@
 // default — not a determined laundering setup.
 //
 // THE LOOPBACK ARM IS DELIBERATELY NOT BELTED. A same-host proxy forwarding over 127.0.0.1 is a RECORDED,
-// ACCEPTED shape (containerize-prod-image-spec.md §4 topology (b), fenced by the prod SSO boot-fatal), and
+// ACCEPTED shape (docs/plans/containerize/design.md topology (b), fenced by the prod SSO boot-fatal), and
 // the dev stack's own vite proxy sets `X-Forwarded-For` on every request it relays to the app — belting the
 // loopback arm here would silently log the dev owner out of their own box. Changing that is a ruling, not a
 // tightening.

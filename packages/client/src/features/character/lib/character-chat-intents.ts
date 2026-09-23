@@ -2,7 +2,7 @@
 // they are shared writers now — "New chat" is fired by the hero AND by the chats pane's empty state, and
 // "N chats ›" reveals the CONTEXT tab that holds her history rather than jumping to the Chats section.
 //
-// `useStartChatWithCharacter` IS A HOOK NOW (chat-creation-draft-mode-replacement.md §4.1, R1). It used to be
+// `useStartChatWithCharacter` IS A HOOK NOW (D166). It used to be
 // a plain store write: `startNewChat({characterIds})` handed the chat surface a rowless DRAFT and the row
 // appeared at the first send. Creation is a real `chat.startChat` call, so the intent rides the ONE shared
 // creation seam in `#data` (`useStartChat` — a feature may never import another feature, and `#state` cannot

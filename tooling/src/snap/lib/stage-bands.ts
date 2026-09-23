@@ -1,4 +1,4 @@
-// THE BAND TABLE's pure derivations (docs/design/1208-instrument-substrate.md §3.6, issue #1276): the
+// THE BAND TABLE's pure derivations (issue #1276): the
 // owner-ruled limits, the strand rule with its live-session fence, the ALLOCATOR that hands a lane its own
 // band, the exhaustion refusal, and the three-probe health verdict. No I/O — ops/stage-marker.ts reads and
 // writes the table, ops/stage-probe.ts observes the box, ops/stage.ts orchestrates. Split from

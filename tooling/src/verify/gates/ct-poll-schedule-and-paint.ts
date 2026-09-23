@@ -7,7 +7,7 @@
 // identifier declared outside module scope or imported is unresolvable, and a computed `intervals` value is
 // invisible — each owns a mustPass row.
 //
-// FAMILY DECISION (gate-runtime-standardization.md): this module SPLITS into two policies sharing one
+// FAMILY DECISION (docs/law/gate-runtime-standardization.md): this module SPLITS into two policies sharing one
 // family, `ct-poll-schedule-and-paint`. Both consume the EXACT SAME computation — `barrierNames`,
 // `isFreshSchedule`/`isMotionPoll`/`isUntrustedTrigger`, and the founding-file counters below — so they are
 // a real shared-reader family, not a filename-prefix coincidence:

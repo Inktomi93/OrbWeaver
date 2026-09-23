@@ -1,4 +1,4 @@
-// @orb/contracts/rpg/tracker — THE tracked-field unification (`docs/design/tracked-field-unification.md` §5).
+// @orb/contracts/rpg/tracker — THE tracked-field unification.
 // Pins the shapes the whole lane rests on: the def's axes + defaults, the TOTAL value (whose `max` is the
 // PER-CARRIER ceiling OVERRIDE — owner amendment 2026-07-31: the def's max is the DEFAULT, and the old drift
 // class is killed by the anti-drift write rule `resolveTrackerMaxOverride`, not by absence), the ONE ceiling

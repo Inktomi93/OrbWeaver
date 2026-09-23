@@ -1,4 +1,4 @@
-// <WebSpinner> CT — the ONE loader system's contract (docs/history/design/login-loading-screen.md §9.10):
+// <WebSpinner> CT — the ONE loader system's contract:
 //   • a role=status live region carrying the accessible label (same seal as the legacy Spinner);
 //   • the sm/md/lg px table MATCHES the legacy Spinner's ICON table (16/20/24) — the parity that
 //     makes the follow-up Loader2 swap call-shape identical;

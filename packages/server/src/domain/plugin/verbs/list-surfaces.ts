@@ -1,4 +1,4 @@
-// verb: listSurfaces — the caller's OWN enabled plugins' registered UI surfaces (plugin-ui-plane #679 U1).
+// verb: listSurfaces — the caller's OWN enabled plugins' registered UI surfaces.
 // Owner-scoped by construction: `listOwned` filters `WHERE owner_id = caller.userId`, so the loop only ever
 // consults the caller's own rows and a surface can only reach the result if the caller OWNS the plugin — the
 // SAME "the read is the gate" posture as `listPlugins`, no foreign id anywhere. A disabled/errored plugin has

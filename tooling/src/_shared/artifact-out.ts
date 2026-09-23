@@ -179,7 +179,7 @@ export async function registerInstrumentArtifact(kind: string, path: string, met
 }
 
 export interface InstrumentRunOptions {
-  /** The explicit-slot form (docs/design/1208-instrument-substrate.md §3.7): adopt a slot dir another
+  /** The explicit-slot form: adopt a slot dir another
    *  process opened instead of opening one. The session daemon's per-call shape. */
   readonly slotDir?: string;
   /** A tool-owned terminal writer that runs after `main` settles but before the slot is published. This

@@ -3,30 +3,16 @@ import type { JsonValue } from "../contract/resource-json.ts";
 import type { AuthoredTextCorpus } from "../contract/resource-text.ts";
 
 const LAW_AUTHORITIES: ReadonlySet<string> = new Set(["normative", "current-reference", "operational"]);
-const DESIGN_AUTHORITY = "design";
 const LIVING_STATUS = "active";
-const PARKED_SET_LANE = "architecture-proposed";
-const LINK_SCAN_DIRS: readonly string[] = ["docs/law", "docs/architecture/proposed"];
+const LINK_SCAN_DIRS: readonly string[] = ["docs/law"];
+/** Live program designs: each plan's `design.md`. A finished plan is deleted, so every one present is living. */
+const PLANS_DIR = "docs/plans";
+const PLAN_DESIGN_FILE = "design.md";
 /** The D-ledger (`docs/adr/`) is law and sits outside the catalog, so it is admitted by directory. */
 const AUDIT_SCAN_DIRS: readonly string[] = ["docs/law", "docs/adr"];
 
 export const CATALOG_REL = "docs/catalog/catalog.json";
 export const LAW_OUTSIDE_DOCS: readonly string[] = ["tooling/src/verify/gates/GATE-AUTHORING.md", "tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md"];
-
-export interface AbsentByDesignCitation {
-  readonly why: string;
-  readonly cite: string;
-}
-
-/** A committed doc cite for a generated path whose absence is the expected clean-checkout state. */
-export const GITIGNORED_ABSENT: Readonly<Record<string, AbsentByDesignCitation>> = {
-  "packages/client/dist": {
-    why:
-      "the client build output is present only after a build and is ignored by the literal `dist/` rule; " +
-      "docs/design/containerize-build-plan.md quotes the matching .dockerignore entry. Ends when that plan stops citing the output.",
-    cite: ".dockerignore",
-  },
-};
 
 type CatalogDoc = Readonly<Record<string, unknown>>;
 
@@ -59,43 +45,31 @@ function catalogDoc(value: unknown): CatalogDoc | undefined {
   return recordOf(value);
 }
 
-function catalogClass(doc: CatalogDoc, available: ReadonlySet<string>): "law" | "design" | undefined {
+function isLivingLaw(doc: CatalogDoc, available: ReadonlySet<string>): boolean {
   const path = typeof doc["path"] === "string" ? doc["path"] : undefined;
   const receipt = recordOf(doc["receipt"]);
   const authority = typeof receipt?.["authority"] === "string" ? receipt["authority"] : undefined;
-  if (path === undefined || authority === undefined || fieldOf(doc, "status") !== LIVING_STATUS || !available.has(path)) {
-    return;
-  }
-  if (LAW_AUTHORITIES.has(authority)) {
-    return "law";
-  }
-  return authority === DESIGN_AUTHORITY && doc["lane"] !== PARKED_SET_LANE ? "design" : undefined;
+  return path !== undefined && authority !== undefined && fieldOf(doc, "status") === LIVING_STATUS && available.has(path) && LAW_AUTHORITIES.has(authority);
 }
 
-function catalogued(value: JsonValue, available: ReadonlySet<string>): { readonly law: readonly string[]; readonly design: readonly string[] } {
+function cataloguedLaw(value: JsonValue, available: ReadonlySet<string>): readonly string[] {
   const docs = typeof value === "object" && value !== null && !Array.isArray(value) ? Reflect.get(value, "documents") : undefined;
   if (!Array.isArray(docs)) {
     throw new Error(`${CATALOG_REL} must contain a documents array`);
   }
   const law: string[] = [];
-  const design: string[] = [];
   for (const raw of docs) {
     const doc = catalogDoc(raw);
-    if (doc === undefined || typeof doc["path"] !== "string") {
-      continue;
-    }
-    const kind = catalogClass(doc, available);
-    if (kind === "law") {
+    if (doc !== undefined && typeof doc["path"] === "string" && isLivingLaw(doc, available)) {
       law.push(doc["path"]);
-    } else if (kind === "design") {
-      design.push(doc["path"]);
     }
   }
-  return { law, design };
+  return law;
 }
 
 export function danglingRefCorpora(value: JsonValue, docPaths: readonly string[], outside: readonly string[]): DanglingRefCorpora {
-  const { law, design } = catalogued(value, new Set(docPaths));
+  const law = cataloguedLaw(value, new Set(docPaths));
+  const design = inDirectories(docPaths, [PLANS_DIR]).filter((path) => path.endsWith(`/${PLAN_DESIGN_FILE}`));
   const symbols = [...new Set([...inDirectories(docPaths, AUDIT_SCAN_DIRS), ...law, ...outside])].toSorted();
   const audit = [...new Set([...symbols, ...design])].toSorted();
   const links = [...new Set([...inDirectories(docPaths, LINK_SCAN_DIRS), ...audit])].toSorted();
@@ -107,7 +81,7 @@ export function danglingRefCorpora(value: JsonValue, docPaths: readonly string[]
     design: design.length,
     lawOutsideDocs: outside.length,
     lawOutsideDocsMissing: LAW_OUTSIDE_DOCS.filter((path) => !outside.includes(path)),
-    catalogued: law.length + design.length,
+    catalogued: law.length,
   };
 }
 

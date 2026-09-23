@@ -1,4 +1,4 @@
-// verb: importGallery (export-import-portability.md §1) — ONE portable gallery file → the owner's gallery_items
+// verb: importGallery — ONE portable gallery file → the owner's gallery_items
 // curation rows. Covers: the export -> wipe -> import ROUND-TRIP (rows reconstruct, subject re-linked by
 // HANDLE to this box's character id), the un-charactered FALLBACK (a handle with no matching character imports
 // null), IDEMPOTENCY (re-import writes zero dupes — including the NULL-subject case SQLite's unique index

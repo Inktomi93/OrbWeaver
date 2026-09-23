@@ -63,7 +63,7 @@ interface MessageScopedParams extends ChatScopedParams {
 }
 
 /** `startChat` — lazy chat+roster creation, greeting seeding, CREATION-INTENT inputs only
- *  (chat-creation-draft-mode-replacement.md §4.1/R2). The former nine-field "draft carry"
+ *  (D166). The former nine-field "draft carry"
  *  (seedGreetings/rosterOverrides/groupConfig/roomOverrides/guided, plus the `generate` opening arm) is
  *  GONE — R1 made every client caller create the real room before mounting, so post-create roster tuning,
  *  group config, room overrides and greeting edits ride their own already-built verbs
@@ -132,7 +132,7 @@ export interface PreviewAssemblyParams extends ChatScopedParams {
 /** `getActivePresetConfig` — the resolved PromptConfig the chat assembles against. */
 export interface GetActivePresetConfigParams extends ChatScopedParams {}
 
-/** `previewActionTemplates` (D8 / preset-surface-redesign §7.1) — every ACTION template of ONE preset,
+/** `previewActionTemplates` — every ACTION template of ONE preset,
  *  resolved against THIS chat. `presetId` is the editor's OVERRIDE: assemble this room as if that preset were
  *  active, so the preset editor can show a real resolution for a preset the chat has not adopted. It rides the
  *  landed `ResolveForeignInputsOp.presetOverride` seam (the rpg GM-voice redirect's), which resolves
@@ -272,7 +272,7 @@ export interface ForceCharacterTurnParams extends ChatScopedParams {
 }
 
 /**
- * `requestTurn` — the NON-HUMAN turn seam (automation-design/03 §4 / 05 §AC-B). PRINCIPAL-FREE by design: it
+ * `requestTurn` — the NON-HUMAN turn seam. PRINCIPAL-FREE by design: it
  * is NOT on `ChatService` and never routed — it is an injected op the composition root hands automation's
  * `trigger_turn` arm and the Tier-2 plugin membrane's `turn.trigger` host-fn. The verb resolves the funding
  * host from the room itself (never a caller-supplied id), gates the initiator's membership, threads the origin
@@ -290,7 +290,7 @@ export interface RequestTurnParams {
    *  must be a PRESENT participant (else a leak-free NOT_FOUND). The room's frozen host funds and runs the
    *  turn. */
   readonly triggeredBy: UserId;
-  /** The parent depth + 1 (automation-design/03 §4). Stamped on the reply slot so the reply's events resolve
+  /** The parent depth + 1. Stamped on the reply slot so the reply's events resolve
    *  their cascade depth; the verb REFUSES a value past `AUTOMATION_DEPTH_HARD_CAP` (the plugin-path belt —
    *  automation's dispatch gate already bounds its own path). */
   readonly automationDepth: number;
@@ -314,7 +314,7 @@ export interface GenerateImageParams extends ChatScopedParams {
   readonly mode: PromptTemplateMode;
   readonly prompt?: string | undefined;
   readonly n?: number | undefined;
-  /** The semantic size preset (imagery-design/02 §6) — forwarded to `imagery.generatePicture`; when absent
+  /** The semantic size preset — forwarded to `imagery.generatePicture`; when absent
    *  the leaf uses `defaultSizeFor(mode)`. The I5 mode picker surfaces it. */
   readonly size?: SizePresetName | undefined;
 }
@@ -331,7 +331,7 @@ export interface EditMessageParams extends MessageScopedParams {
 
 /**
  * `applyProseRewrite` — HOST-only. Lands an automation prose audit's CONFIRMED rewrite of one reply
- * (interaction-direction-spec §7 C3), as a NEW VARIANT of the audited slot, selected.
+ * as a NEW VARIANT of the audited slot, selected.
  *
  * WHY IT IS ITS OWN VERB and not an arm of `editMessage`, which also writes caller text: the two differ on
  * every axis that decides whether a machine may be given the door.
@@ -360,7 +360,7 @@ export interface ApplyProseRewriteParams extends MessageScopedParams {
  * `setSeededGreeting` — steps a seeded greeting row onto another of its character card's alternates.
  *
  * IT CARRIES AN INDEX, NOT TEXT (a deliberate divergence from the design doc's parenthetical
- * `{chatId, messageId, text}` sketch — chat-creation-draft-mode-replacement.md §4.8, whose RULING is
+ * `{chatId, messageId, text}` sketch — D166, whose RULING is
  * "replaces a seeded greeting row's content with another card alternate"). With text, this host-gated verb
  * would be a second arbitrary content-write door standing beside `editMessage`'s author-or-host one, and
  * "another card alternate" would be a client-side promise. With an INDEX, the server resolves the bytes from
@@ -550,7 +550,7 @@ export interface AddCharacterToChatParams extends ChatScopedParams {
 
 /** `removeCharacterFromChat` — leftSeq-stamps a character seat out of the roster (host-only). The symmetric
  *  drop for {@link AddCharacterToChatParams}; the only server consumer today is rpg's scene-cast prune
- *  (rpg-design/07 §2.2, injected). */
+ *  (docs/plans/rpg/design.md, injected). */
 export interface RemoveCharacterFromChatParams extends ChatScopedParams {
   readonly characterId: CharacterId;
 }
@@ -594,8 +594,8 @@ type RegexAllowLever =
    *  lever and never has to send back a map it might have raced. */
   | { readonly kind: "tier"; readonly tier: RegexTierKey; readonly enabled: boolean };
 
-/** `setRegexAllow` — host-only write of ONE of the room's regex levers (#1742,
- *  `docs/design/mocks/regex-section/DESIGN.md` §3). Host authority for the `setOfferChoices` reason and not
+/** `setRegexAllow` — host-only write of ONE of the room's regex levers (#1742).
+ *  Host authority for the `setOfferChoices` reason and not
  *  the display-scripts one: these levers govern PROMPT CONTENT for everyone in the room (they decide which
  *  scripts the shared assembly runs), so they are room state, never a viewer preference. Returns the stored
  *  post-write allow so the caller's optimistic state and the server's blob can never disagree. */

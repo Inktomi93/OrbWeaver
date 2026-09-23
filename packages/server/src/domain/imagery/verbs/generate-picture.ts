@@ -151,7 +151,7 @@ async function reuseGate(
 }
 
 /** The hash written to the generation's provenance: the internal subject-character gate's hash wins (portrait
- *  modes own reuse); else, in `free` mode ONLY, an external consumer's precomputed hash (rpg-design/08 §2 — the
+ *  modes own reuse); else, in `free` mode ONLY, an external consumer's precomputed hash (docs/plans/rpg/design.md — the
  *  additive passthrough letting a non-character consumer's OWN reuse gate short-circuit via `readProvenance`);
  *  null everywhere else (the additive-only guarantee — free/scenario/edit without a hash stay byte-identical). */
 function provenanceHash(gateHash: string | null, p: GeneratePictureParams): string | null {
