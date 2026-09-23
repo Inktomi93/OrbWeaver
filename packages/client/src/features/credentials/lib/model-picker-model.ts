@@ -356,9 +356,10 @@ export function typedModelAllowed(provider: Pick<ProviderDef, "catalog">): boole
   return provider.catalog === "url";
 }
 
-/** Whether `modelId` came from the source's list — the connection's `modelListed` on save. */
-export function isListedModel(source: ModelCatalogSource, modelId: string): boolean {
-  const id = modelId.trim();
+/** Whether the raw typed text came from the source's list — the connection's `modelListed` on save. Takes
+ *  unvalidated form text, not a minted id (the picker mints `ModelId` only once a value is picked). */
+export function isListedModel(source: ModelCatalogSource, typedText: string): boolean {
+  const id = typedText.trim();
   return source.status === "listed" && id !== "" && source.models.some((entry) => entry.id === id);
 }
 
