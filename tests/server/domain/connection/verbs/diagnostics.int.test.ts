@@ -5,7 +5,7 @@
 // (the credentials domain has nothing to revoke); (3) the endpoint inspector hands back the SHAPED request
 // with its headers REDACTED, because "test endpoint" must never be the surface that echoes the key back.
 
-import { CONNECTION_OP_CODES } from "@orb/server/domain/connection";
+import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

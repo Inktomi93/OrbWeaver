@@ -1,10 +1,11 @@
 ---
 kind: tooling
-status: open
+status: done
 updated: 2026-09-23
 priority: P2
 area: verify
 plan: doc-migration
+evidence: 9c5541d75857ea6cf8205f825ca90f5434b6b164
 ---
 
 # A relative path inside a code span is checked by no gate

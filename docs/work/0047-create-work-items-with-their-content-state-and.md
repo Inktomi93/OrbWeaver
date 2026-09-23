@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
+status: done
 updated: 2026-09-23
 priority: P2
 area: tooling
+evidence: 8e3a28269aee5e8f5ace80e2a692570d6b694c7b
 ---
 
 # Create work items with their content, state and batch in one call

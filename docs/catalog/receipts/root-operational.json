@@ -5,22 +5,6 @@
     {
       "path": "docs/Mission.md",
       "authority": "normative"
-    },
-    {
-      "path": "docs/Qwen_Offline_Investigation.md",
-      "authority": "historical"
-    },
-    {
-      "path": "docs/barrel-star-reexport-residue.md",
-      "authority": "historical"
-    },
-    {
-      "path": "docs/client-smalls-lane.md",
-      "authority": "historical"
-    },
-    {
-      "path": "docs/retro-workboard.md",
-      "authority": "operational"
     }
   ]
 }

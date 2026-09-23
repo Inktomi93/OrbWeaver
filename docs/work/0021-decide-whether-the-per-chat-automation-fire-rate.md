@@ -1,9 +1,10 @@
 ---
 kind: decision
-status: open
+status: done
 updated: 2026-09-23
 priority: P3
 area: server
+evidence: a79f854739ffa16563a24b74071ff05bfcfbeae7
 ---
 
 # Decide whether the per-chat automation fire-rate cap gets a host surface or is removed

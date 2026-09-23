@@ -14,7 +14,7 @@ import type { CredRevokedReason } from "@orb/contracts/credentials";
 import type { ProviderId } from "@orb/contracts/inference";
 import type { UserConnectionId, UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutationState, useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { ConnectionEditor } from "../../../../packages/client/src/features/credentials/components/connection-editor.tsx";
 import { CredentialKeyRow } from "../../../../packages/client/src/features/credentials/components/credential-key-row.tsx";
@@ -277,6 +277,28 @@ export function ConnectionsPaneWideStory(): ReactElement {
  *  pane against a room. No copy is cut here: a row gloss WRAPS, and the F20 sentence is never dropped. */
 export function ConnectionsPaneNarrowStory(): ReactElement {
   return connectionsPaneAtWidth(486);
+}
+
+/** Every cached mutation's variables that carry a `key` field — i.e. a plaintext secret still held in memory
+ *  by the mutation cache. Rendered as a count so the add-flow CTs can assert the secret is gone after an add. */
+function SecretProbe(): ReactElement {
+  const held = useMutationState({
+    select: (mutation) => mutation.state.variables,
+  }).filter((variables) => typeof variables === "object" && variables !== null && "key" in variables);
+  return <p data-testid="held-secrets">{held.length}</p>;
+}
+
+/** The pane as connection AUTHORING sees it: the production sections at a settings-body width (870, 486, or a
+ *  phone's 390 paired with a touch viewport in the spec), plus the secret probe above. */
+export function ConnectionsAuthoringStory({ width }: { readonly width: number }): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ overflow: "visible", width }}>
+        <CtConfigGroupBody anchor="connections" sections={connectionsSections} />
+        <SecretProbe />
+      </div>
+    </CtDataProviders>
+  );
 }
 
 /** THE CONNECTION EDITOR at the same two load-bearing widths. Mounted DIRECTLY rather than through the

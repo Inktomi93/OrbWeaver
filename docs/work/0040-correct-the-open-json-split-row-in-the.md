@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
+status: done
 updated: 2026-09-23
 priority: P3
 area: docs
+evidence: 5f1987b6a2c8feafb3e259a427a40699820ef8ec
 ---
 
 # Correct the open-json split row in the tooling-size design doc

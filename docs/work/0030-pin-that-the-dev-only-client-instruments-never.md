@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
+status: done
 updated: 2026-09-23
 priority: P3
 area: verify
+evidence: f1557e038f0a9e05d8fac2544ff3dfa12f074925
 ---
 
 # Pin that the DEV-only client instruments never reach the production bundle

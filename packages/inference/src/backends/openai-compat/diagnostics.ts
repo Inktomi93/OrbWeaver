@@ -5,24 +5,18 @@
 // redacted request + raw (scrubbed, over-read-then-cut, #1820) response back, never a throw.
 
 import type { CredentialHealth } from "@orb/contracts/credentials";
-import type { ModelCatalogEntry } from "@orb/contracts/inference";
+import type { ModelCatalogEntry, ModelListing } from "@orb/contracts/inference";
 import type { AccountCredits, EndpointInspection, GenerationCost } from "@orb/contracts/providers";
 import { errorMessage } from "@orb/kit/error-message";
 import { z } from "zod";
 import { fetchEndpointModels } from "../../catalog/endpoint.ts";
 import { fetchOpenRouterCatalog } from "../../catalog/openrouter.ts";
-import type {
-  AccountCreditsRequest,
-  GenerationCostRequest,
-  InspectRequest,
-  ListModelsRequest,
-  ListModelsResult,
-  ProbeRequest,
-} from "../../contract/diagnostics.ts";
+import type { AccountCreditsRequest, GenerationCostRequest, InspectRequest, ListModelsRequest, ProbeRequest } from "../../contract/diagnostics.ts";
 import type { ProviderScrubSet } from "../../contract/errors.ts";
 import { ProviderError } from "../../contract/errors.ts";
 import type { Resolved } from "../../contract/resolved.ts";
 import { authHeaders, fetchJson, openAiPath } from "../kit/fetch-json.ts";
+import { bareCatalogEntry, failedListing, listingOf } from "../kit/model-listing.ts";
 import { applyIncludeExclude, redactHeaders, redactSecretsFromText, secretScrubOverhang } from "../kit/openai-body.ts";
 import { resolvedScrubSet, sanitizeApiError } from "../kit/sanitize.ts";
 
@@ -48,7 +42,7 @@ const generationSchema = z
   })
   .loose();
 
-function requireBaseUrl(connection: Resolved, label: string): string {
+function requireBaseUrl(connection: Pick<Resolved, "baseUrl">, label: string): string {
   if (connection.baseUrl === null) {
     throw new ProviderError({ kind: "invalid", retryable: false, message: `${label}: the connection carries no base URL` });
   }
@@ -121,10 +115,11 @@ export async function openRouterGenerationCost(req: GenerationCostRequest, deps:
 }
 
 /** The model list by the row's dialect: the enriched openrouter catalog, else the `/v1/models` ids. A failed
- *  or empty list is `{ listed: false }` — the pane offers a typed id and says why. */
-export async function listOpenAiCompatModels(req: ListModelsRequest, deps: DiagnosticsDeps): Promise<ListModelsResult> {
+ *  or empty list is `{ listed: false, reason }` — the pane offers a typed id and says why. */
+export async function listOpenAiCompatModels(req: ListModelsRequest, deps: DiagnosticsDeps): Promise<ModelListing> {
   const { connection } = req;
   const baseUrl = requireBaseUrl(connection, "list models");
+  const secrets = resolvedScrubSet(connection);
   try {
     const models: ModelCatalogEntry[] =
       connection.provider.dialect === "openrouter"
@@ -135,27 +130,14 @@ export async function listOpenAiCompatModels(req: ListModelsRequest, deps: Diagn
               baseUrl,
               secret: connection.credential.secret,
               headers: connection.transport?.headers,
-              secrets: resolvedScrubSet(connection),
+              secrets,
               ...(req.signal !== undefined ? { signal: req.signal } : {}),
             })
-          ).map((row) => ({
-            id: row.id,
-            name: row.id,
-            contextLength: row.contextLength,
-            promptPrice: null,
-            completionPrice: null,
-            cacheReadPrice: null,
-            cacheWritePrice: null,
-            inputModalities: [],
-            outputModalities: [],
-            supportedParameters: [],
-            maxCompletionTokens: null,
-            reasoning: null,
-          }));
-    return { listed: models.length > 0, models };
-    // @orb-waive caught-failure-ownership(catch): optional model discovery owns refusal as `listed:false`; generation remains usable with an explicit model. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if callers require a successful catalog.
-  } catch {
-    return { listed: false, models: [] };
+          ).map((row) => bareCatalogEntry(row));
+    return listingOf(models);
+    // @orb-waive caught-failure-ownership(err): optional model discovery owns refusal as `listed:false` with the scrubbed reason; generation remains usable with an explicit model. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if callers require a successful catalog.
+  } catch (err) {
+    return failedListing(err, secrets);
   }
 }
 

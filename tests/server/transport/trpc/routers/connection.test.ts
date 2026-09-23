@@ -2,9 +2,10 @@
 // the canonical `ConnectionRef` property schema: malformed and wrong-prefix strings stop at tRPC before a
 // domain verb can read, dial or write. `setBinding(null)` remains the deliberate clear-binding arm.
 
-import type { ConnectionBinding } from "@orb/contracts/inference";
+import type { ConnectionBinding, ModelListing } from "@orb/contracts/inference";
+import { modelCatalogEntrySchema } from "@orb/contracts/inference";
 import type { VerifyAuthResult } from "@orb/contracts/providers";
-import type { UserConnectionId, UserId } from "@orb/kit/ids";
+import type { UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { ConnectionService } from "@orb/server/domain/connection";
 import type { Context } from "@orb/server/transport/trpc";
@@ -160,5 +161,80 @@ describe("connection.verifyAuth — output boundary", () => {
 
     expect(result).toEqual(validResult);
     expect(result).not.toHaveProperty("apiKey");
+  });
+});
+
+describe("connection.draftCatalogModels — the pre-row model list", () => {
+  const credentialId = mintTypeId(ID_PREFIX.userCredential);
+  const listed: ModelListing = {
+    listed: true,
+    models: [
+      modelCatalogEntrySchema.parse({
+        id: "claude-opus-5",
+        name: "Claude Opus 5",
+        contextLength: null,
+        promptPrice: null,
+        completionPrice: null,
+        cacheReadPrice: null,
+        cacheWritePrice: null,
+        inputModalities: [],
+        supportedParameters: [],
+      }),
+    ],
+  };
+
+  test("hands the verb the caller's principal and the draft, and returns the listing", async () => {
+    const draftCatalogModels = vi.fn<ConnectionService["draftCatalogModels"]>(async () => listed);
+
+    await expect(caller(ctxWith({ draftCatalogModels })).connection.draftCatalogModels({ providerId: "anthropic", credentialId })).resolves.toEqual(listed);
+    expect(draftCatalogModels).toHaveBeenCalledWith({ principal: expect.objectContaining({ userId: OWNER }), providerId: "anthropic", credentialId });
+  });
+
+  test("a failed dial crosses the wire as listed:false with its reason, not as an empty list", async () => {
+    const failed: ModelListing = { listed: false, reason: "anthropic models: HTTP 500" };
+    const draftCatalogModels = vi.fn<ConnectionService["draftCatalogModels"]>(async () => failed);
+
+    await expect(caller(ctxWith({ draftCatalogModels })).connection.draftCatalogModels({ providerId: "anthropic" })).resolves.toEqual(failed);
+  });
+
+  test("a wrong-prefix credential id stops at the wire, before the verb", async () => {
+    const draftCatalogModels = vi.fn<ConnectionService["draftCatalogModels"]>();
+
+    await expect(
+      caller(ctxWith({ draftCatalogModels })).connection.draftCatalogModels({
+        providerId: "anthropic",
+        credentialId: castId<UserCredentialId>(mintTypeId(ID_PREFIX.chat)),
+      }),
+    ).rejects.toThrow();
+    expect(draftCatalogModels).not.toHaveBeenCalled();
+  });
+
+  test("a raw draft key and an endpoint's own server reach the verb as sent", async () => {
+    const draftCatalogModels = vi.fn<ConnectionService["draftCatalogModels"]>(async () => listed);
+
+    await caller(ctxWith({ draftCatalogModels })).connection.draftCatalogModels({ providerId: "vllm", baseUrl: "http://127.0.0.1:8000/v1", key: "sk-typed" });
+    expect(draftCatalogModels).toHaveBeenCalledWith({
+      principal: expect.objectContaining({ userId: OWNER }),
+      providerId: "vllm",
+      baseUrl: "http://127.0.0.1:8000/v1",
+      key: "sk-typed",
+    });
+  });
+
+  test("a listing without its reason fails output validation instead of reaching the client as an empty list", async () => {
+    const ctx = ctxWith({ draftCatalogModels: vi.fn<ConnectionService["draftCatalogModels"]>() });
+    Object.defineProperty(ctx.services.connection, "draftCatalogModels", { value: () => Promise.resolve({ listed: false, models: [] }) });
+
+    await expect(caller(ctx).connection.draftCatalogModels({ providerId: "anthropic" })).rejects.toThrow("Output validation failed");
+  });
+});
+
+// The saved-row read answers the SAME listing shape as the draft read: one schema is the output of both.
+describe("connection.catalogModels — output boundary", () => {
+  test("a listing without its reason fails output validation instead of reaching the client as an empty list", async () => {
+    const ctx = ctxWith({ catalogModels: vi.fn<ConnectionService["catalogModels"]>() });
+    Object.defineProperty(ctx.services.connection, "catalogModels", { value: () => Promise.resolve({ listed: false, models: [] }) });
+
+    await expect(caller(ctx).connection.catalogModels({ connectionId: VALID_CONNECTION_ID })).rejects.toThrow("Output validation failed");
   });
 });

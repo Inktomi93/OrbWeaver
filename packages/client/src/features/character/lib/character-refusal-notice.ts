@@ -17,14 +17,7 @@
 
 import type { CharacterBulkTagResult } from "@orb/contracts/character";
 import { CHARACTER_HANDLE_CONFLICT_OP_CODE, CHARACTER_HANDLE_RESERVED_OP_CODE, CHARACTER_STALE_BASIS_OP_CODE } from "@orb/contracts/character";
-
-/** The refusal reason off a tRPC error's `data.reason`, else `""`. The `turn-abort-notice.ts` reader. */
-function reasonOf(error: unknown): string {
-  const data = typeof error === "object" && error !== null && "data" in error ? (error as { data: unknown }).data : null;
-  return typeof data === "object" && data !== null && "reason" in data && typeof (data as { reason: unknown }).reason === "string"
-    ? (data as { reason: string }).reason
-    : "";
-}
+import { trpcErrorReason } from "#lib";
 
 /** The honest copy for a per-owner handle collision. Names the CAUSE in the user's own vocabulary (the name
  *  they typed, not the derived handle they never saw) and the one next step. The refusal is total — nothing
@@ -63,7 +56,7 @@ export function characterMutationToast(error: unknown, fallback: string): string
  * toast and the field line therefore quote ONE string, never two spellings of one refusal.
  */
 export function characterRefusalCopy(error: unknown): string | null {
-  switch (reasonOf(error)) {
+  switch (trpcErrorReason(error)) {
     case CHARACTER_HANDLE_CONFLICT_OP_CODE:
       return CHARACTER_HANDLE_CONFLICT_COPY;
     case CHARACTER_HANDLE_RESERVED_OP_CODE:

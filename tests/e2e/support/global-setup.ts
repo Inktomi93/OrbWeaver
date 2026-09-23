@@ -27,6 +27,7 @@
 
 import { execFileSync } from "node:child_process";
 import process from "node:process";
+import type { ModelListing } from "@orb/contracts/inference";
 import type { CharacterHandle, CharacterId } from "@orb/kit/ids";
 import type { Browser } from "@playwright/test";
 import { chromium, devices } from "@playwright/test";
@@ -37,6 +38,7 @@ import {
   E2E_LOCAL_ENGINE_BASE_URL,
   E2E_LOCAL_ENGINE_FALLBACK_MODEL,
   E2E_LOCAL_ENGINE_LABEL,
+  E2E_LOCAL_ENGINE_PROVIDER,
   LOCAL_MEMBER,
   LOCAL_OWNER,
   MODE_PROJECTS,
@@ -118,14 +120,6 @@ interface SeededConnection {
   readonly label: string;
 }
 
-/** `connection.listEndpointModels`'s result — the server-side `GET <baseUrl>/v1/models` the pane calls while
- *  a row is being authored. It NEVER throws (a failed dial comes back `listed: false` + a reason), so the
- *  seed can branch on it instead of guarding it. */
-interface EndpointModels {
-  readonly listed: boolean;
-  readonly models: readonly { readonly id: string }[];
-}
-
 /** The row to author, with its model resolved the way the PANE resolves one (§7.4): ask the endpoint's own
  *  `/v1/models` server-side, take the first id it lists, else write the declared fallback with
  *  `modelListed: false` — the product's typed-id arm, not a fabrication. The non-live suite is model-free and
@@ -133,16 +127,20 @@ interface EndpointModels {
  *  against a down fleet fails on its own turn, where it belongs. Called ONLY when the row is missing, so a
  *  re-run against a surviving DB costs no dial. */
 async function engineConnectionInput(baseUrl: string): Promise<NewConnection> {
-  const listing = await mutation<EndpointModels>(baseUrl, "connection.listEndpointModels", { baseUrl: E2E_LOCAL_ENGINE_BASE_URL });
-  const first = listing.models[0];
-  const listed = listing.listed && first !== undefined;
+  // `connection.draftCatalogModels` NEVER throws for a failed dial (it comes back `listed: false` + a reason), so
+  // the seed branches on it instead of guarding it.
+  const listing = await mutation<ModelListing>(baseUrl, "connection.draftCatalogModels", {
+    providerId: E2E_LOCAL_ENGINE_PROVIDER,
+    baseUrl: E2E_LOCAL_ENGINE_BASE_URL,
+  });
+  const first = listing.listed ? listing.models[0] : undefined;
   return {
     label: E2E_LOCAL_ENGINE_LABEL,
-    providerId: "vllm",
+    providerId: E2E_LOCAL_ENGINE_PROVIDER,
     credentialId: null,
     baseUrl: E2E_LOCAL_ENGINE_BASE_URL,
-    model: listed && first !== undefined ? first.id : E2E_LOCAL_ENGINE_FALLBACK_MODEL,
-    modelListed: listed,
+    model: first?.id ?? E2E_LOCAL_ENGINE_FALLBACK_MODEL,
+    modelListed: first !== undefined,
     // `summarize` is `spend: "background"`; without this the binding below is refused inline (`canFund`, F5).
     allowBackground: true,
   };

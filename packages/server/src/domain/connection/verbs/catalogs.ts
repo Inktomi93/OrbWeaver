@@ -1,61 +1,52 @@
-// verbs: catalogModels · listEndpointModels · refreshCatalog — delegations to the runtime's catalogs. The
-// pane-facing one is `listEndpointModels`: the SERVER-SIDE `GET <baseUrl>/v1/models` for an endpoint row being
-// authored (a browser cannot reach a user's loopback box, §7.4), judged by the F12 admission BEFORE the dial
-// and riding the SSRF guard on it. An empty or failed list is the typed-id fallback with its reason, never a
-// throw — the row is saved `modelListed: false` and the pane says why.
+// verbs: catalogModels · draftCatalogModels · refreshCatalog — delegations to the runtime's ONE catalog read
+// (`runtime.catalogs.models`, a draft-shaped read). The door's job is the refusals, judged BEFORE any dial by the
+// same substrate `create` uses: the provider is registered, an endpoint draft names an admitted server (the F12
+// admission; the SSRF guard judges the dial itself), and a named credential is the caller's. A dial that fails
+// or lists nothing is `listed: false` with its reason, never a throw and never an empty success — the pane
+// offers the typed-id fallback and says why (§7.4).
+//   • `draftCatalogModels` — the add dialog, before the row exists: the provider being authored, its saved
+//     credential or raw key, and an endpoint row's own server. The provider id is the one the key was sealed
+//     under, so a re-list by a saved credential opens it (a probe judged under another id cannot decrypt).
+//   • `catalogModels` — a saved row, read through the same draft built from the row.
 
-import type { ModelCatalogEntry } from "@orb/contracts/inference";
-import { errorMessage } from "@orb/kit/error-message";
-import { DomainOperationError } from "@orb/kit/errors";
-import { CONNECTION_OP_CODES, ConnectionNotFoundError } from "../contract/errors.ts";
-import type { CatalogRefreshOutcome, EndpointModelsResult } from "../contract/results.ts";
+import type { ModelListing } from "@orb/contracts/inference";
+import { ConnectionNotFoundError } from "../contract/errors.ts";
+import type { CatalogRefreshOutcome } from "../contract/results.ts";
 import type { ConnectionContext, ConnectionService } from "../contract/service.ts";
 import { fetchOwnedConnection } from "../persistence/connections.ts";
+import { requireBaseUrl, requireCredential, requireProvider } from "../substrate/admission.ts";
 
 function createCatalogModels(ctx: ConnectionContext): ConnectionService["catalogModels"] {
-  return async (params): Promise<readonly ModelCatalogEntry[]> => {
+  return async (params): Promise<ModelListing> => {
     const row = await fetchOwnedConnection(ctx.db, params.principal.userId, params.connectionId);
     if (row === null) {
       throw new ConnectionNotFoundError(params.connectionId);
     }
-    return ctx.runtime.catalogs.models({ connection: row, principal: params.principal });
+    return ctx.runtime.catalogs.models({
+      principal: params.principal,
+      providerId: row.providerId,
+      secret: { credentialId: row.credentialId },
+      baseUrl: row.baseUrl,
+      headers: row.transport?.headers,
+    });
   };
 }
 
-/** The F12 admission belt + the credential-ownership belt a DRAFT endpoint dial passes before any fetch. */
-async function admitEndpointDraft(ctx: ConnectionContext, params: Parameters<ConnectionService["listEndpointModels"]>[0]): Promise<void> {
-  const admission = ctx.endpointAdmission(params.baseUrl);
-  if (admission === "invalid") {
-    throw new DomainOperationError(CONNECTION_OP_CODES.baseUrlInvalid, `"${params.baseUrl}" is not an http(s) URL.`);
-  }
-  if (admission === "refused") {
-    throw new DomainOperationError(
-      CONNECTION_OP_CODES.baseUrlRefused,
-      `"${new URL(params.baseUrl).host}" is a private address this deployment does not admit.`,
-    );
-  }
-  if (params.credentialId !== undefined && !(await ctx.credentialOwned(params.principal.userId, params.credentialId))) {
-    throw new DomainOperationError(CONNECTION_OP_CODES.credentialForeign, `credential ${params.credentialId} is not yours.`);
-  }
-}
-
-function createListEndpointModels(ctx: ConnectionContext): ConnectionService["listEndpointModels"] {
-  return async (params): Promise<EndpointModelsResult> => {
-    await admitEndpointDraft(ctx, params);
-    try {
-      const models = await ctx.runtime.catalogs.endpoint({
-        baseUrl: params.baseUrl,
-        ownerId: params.principal.userId,
-        ...(params.credentialId !== undefined ? { credentialId: params.credentialId } : {}),
-        ...(params.key !== undefined ? { key: params.key } : {}),
-        ...(params.headers !== undefined ? { headers: params.headers } : {}),
-      });
-      return models.length === 0 ? { listed: false, models, reason: "the endpoint listed no models" } : { listed: true, models, reason: null };
-    } catch (err) {
-      // The dial failing is the pane's typed-id arm, not an error: the message is provider-scrubbed by the
-      // runtime's fetch seam before it reaches here.
-      return { listed: false, models: [], reason: errorMessage(err) };
-    }
+/** A named credential is gated even when a raw key rides beside it, so naming a stranger's id is always refused. */
+function createDraftCatalogModels(ctx: ConnectionContext): ConnectionService["draftCatalogModels"] {
+  return async (params): Promise<ModelListing> => {
+    const provider = requireProvider(ctx, params.providerId);
+    const baseUrl = params.baseUrl ?? null;
+    const credentialId = params.credentialId ?? null;
+    requireBaseUrl(ctx, provider, baseUrl);
+    await requireCredential(ctx, params.principal.userId, credentialId);
+    return ctx.runtime.catalogs.models({
+      principal: params.principal,
+      providerId: provider.id,
+      secret: params.key !== undefined ? { key: params.key } : { credentialId },
+      baseUrl,
+      ...(params.headers !== undefined ? { headers: params.headers } : {}),
+    });
   };
 }
 
@@ -64,13 +55,13 @@ function createRefreshCatalog(ctx: ConnectionContext): ConnectionService["refres
 }
 
 /** The slice of `ConnectionService` this grouped file owns. */
-type CatalogVerbs = Pick<ConnectionService, "catalogModels" | "listEndpointModels" | "refreshCatalog">;
+type CatalogVerbs = Pick<ConnectionService, "catalogModels" | "draftCatalogModels" | "refreshCatalog">;
 
 /** The catalog verb bundle (`verb-naming`: one factory named for the file). */
 export function createCatalogs(ctx: ConnectionContext): CatalogVerbs {
   return {
     catalogModels: createCatalogModels(ctx),
-    listEndpointModels: createListEndpointModels(ctx),
+    draftCatalogModels: createDraftCatalogModels(ctx),
     refreshCatalog: createRefreshCatalog(ctx),
   };
 }

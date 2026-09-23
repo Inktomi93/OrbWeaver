@@ -5,10 +5,9 @@
 // serve), the upsert's re-point-in-place (never a second row), `useForEverything`'s SKIP-not-refuse rule for
 // background tasks, the per-ROUTABLE-task readout `listBindings` always returns, and the PD-139a trigger.
 
-import { ROUTABLE_TASKS } from "@orb/contracts/inference";
+import { CONNECTION_OP_CODES, ROUTABLE_TASKS } from "@orb/contracts/inference";
 import type { AutomationRuleId, PluginId, UserConnectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { CONNECTION_OP_CODES } from "@orb/server/domain/connection";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
