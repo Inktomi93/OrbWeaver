@@ -79,7 +79,7 @@ test("fresh helper TSX roots compile in their declared worlds while ISO rejects 
   expect(ownersOf("tests/support/browser/view.tsx")).toEqual(["tsconfig.tests-dom.json"]);
 
   symlinkSync(join(repoRoot, "node_modules"), join(scratch, "node_modules"), "dir");
-  const ts7 = join(repoRoot, "scripts/ts7.cjs");
+  const ts7 = join(repoRoot, "scripts/ts7.ts");
   const compile = (config: string): ReturnType<typeof runNicedSync> =>
     runNicedSync(process.execPath, [ts7, "--noEmit", "--pretty", "false", "-p", config], { cwd: scratch });
   for (const config of ["tsconfig.tests-iso.json", "tsconfig.json", "tsconfig.tests-dom.json"]) {
@@ -113,20 +113,20 @@ test("native NodeNext rejects extensionless imports and the node world rejects D
     join(scratch, "tsconfig.probe.json"),
     JSON.stringify({ extends: "./tsconfig.world-node.json", compilerOptions: { types: [] }, files: ["probe.mts"] }),
   );
-  const result = runNicedSync(process.execPath, [join(repoRoot, "scripts/ts7.cjs"), "--noEmit", "--pretty", "false", "-p", "tsconfig.probe.json"], {
+  const result = runNicedSync(process.execPath, [join(repoRoot, "scripts/ts7.ts"), "--noEmit", "--pretty", "false", "-p", "tsconfig.probe.json"], {
     cwd: scratch,
   });
   expect(result.status).toBe(1);
   expect(result.stdout).toContain("TS2307: Cannot find module './value'");
 
   writeFileSync(join(scratch, "probe.mts"), 'import type { Value } from "./value.mts";\nexport const title: Value = "ok";\n');
-  const extensionful = runNicedSync(process.execPath, [join(repoRoot, "scripts/ts7.cjs"), "--noEmit", "--pretty", "false", "-p", "tsconfig.probe.json"], {
+  const extensionful = runNicedSync(process.execPath, [join(repoRoot, "scripts/ts7.ts"), "--noEmit", "--pretty", "false", "-p", "tsconfig.probe.json"], {
     cwd: scratch,
   });
   expect(extensionful).toMatchObject({ status: 0, stdout: "", stderr: "" });
 
   writeFileSync(join(scratch, "probe.mts"), "export const title = document.title;\n");
-  const wrongWorld = runNicedSync(process.execPath, [join(repoRoot, "scripts/ts7.cjs"), "--noEmit", "--pretty", "false", "-p", "tsconfig.probe.json"], {
+  const wrongWorld = runNicedSync(process.execPath, [join(repoRoot, "scripts/ts7.ts"), "--noEmit", "--pretty", "false", "-p", "tsconfig.probe.json"], {
     cwd: scratch,
   });
   expect(wrongWorld.status).toBe(1);

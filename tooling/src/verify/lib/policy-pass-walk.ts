@@ -143,8 +143,8 @@ export function walkRuns({ runs, factRuns, sourceFiles, errors, factControl }: W
   for (const [path, sourceFile] of [...sourceFiles]
     .filter(([candidate]) => relevantPaths.has(candidate))
     .toSorted(([left], [right]) => left.localeCompare(right))) {
-    const fileRuns = runs.filter((run) => run.owner.status === "success" && run.effectivePathSet.has(path));
-    const fileFactRuns = factRuns.filter((run) => run.status === "success" && run.effectivePathSet.has(path));
+    const fileRuns = runs.filter((run) => run.owner.status === "success" && run.effectiveSourcePathSet.has(path));
+    const fileFactRuns = factRuns.filter((run) => run.status === "success" && run.effectiveSourcePathSet.has(path));
     for (const run of fileRuns) {
       if (run.hooks?.visitFile !== undefined) {
         guard(run, "visitFile", errors, () => run.hooks?.visitFile?.(sourceFile));

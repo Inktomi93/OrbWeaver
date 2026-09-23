@@ -244,10 +244,11 @@ test("the worktree and st-goldens fences ignore exactly their own trees (#2281, 
   // config `files:` surface reads IGNORED for a reason that has nothing to do with the ignores array. Under
   // this config EVERY `.ts` under `scripts/` is in that state (`scripts/dev/stack.ts` included, measured
   // 2026-09-13), so a `.ts` control here would be green before the fence, green after it, and green under an
-  // over-broad fence too — a control that cannot fail. The rig's `write-v2-png.cjs` is the one tracked file
-  // it actually admits, which makes it the only honest subject for "the fence did not swallow the rig".
+  // over-broad fence too — a control that cannot fail. The rig's one tracked `.cjs` (`write-v2-png`) became
+  // TypeScript in work item 0036, so the subject is now a `.cjs` path at the same coordinate: `isPathIgnored`
+  // answers from the config alone, and a script there would be admitted unless the fence swallowed the rig.
   expect(
-    await ignored("scripts/probes/st-goldens/write-v2-png.cjs"),
+    await ignored("scripts/probes/st-goldens/rig-helper.cjs"),
     "the rig's own tracked script stays linted — an ignore spelled st-goldens/** would swallow it",
   ).toBe(false);
   expect(await ignored("scripts/probes/other-probe/run.js"), "the fence is scoped to the rig's runtime, not to scripts/probes").toBe(false);

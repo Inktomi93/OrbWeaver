@@ -63,7 +63,7 @@ const config = {
       ignoreBinaries: ["orb-nonexistent-binary-xyz-123", "orb-fake-probe-bin"],
       // pino-pretty is spawned as a BINARY by tooling/src/stack/dev.sh (the dev-log pretty-pipe), never imported —
       // invisible to import analysis. It's a root devDependency because the dev script lives at the repo root.
-      // ts7 (npm:typescript@7) is resolved by PATH STRING in scripts/ts7.cjs (node_modules/ts7/bin/tsc) —
+      // ts7 (npm:typescript@7) is resolved by PATH STRING in scripts/ts7.ts (node_modules/ts7/bin/tsc) —
       // invisible to import analysis.
       // @typescript/native (npm:typescript@7) is imported by stryker's typescript-checker itself when
       // experimentalNativePreview is on (its loader imports `@typescript/native/unstable/sync`) — a
@@ -159,5 +159,5 @@ const config = {
   },
 } satisfies KnipConfig;
 
-// biome-ignore lint/style/noDefaultExport: knip's config loader requires the default export.
+// knip's config loader requires the default export; biome.json's config-file block admits it for this file.
 export default config;

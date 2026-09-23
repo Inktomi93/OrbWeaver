@@ -192,7 +192,7 @@ without a path are in that folder.
 - `.claude/rules/rpg.md`: `packages/server/src/domain/rpg/**`, `packages/client/src/features/rpg/**`
 - `.claude/rules/server-edge.md`: `packages/server/src/entry/**`, `packages/server/src/transport/**`, `packages/server/src/foundation/**`, `packages/server/src/infra/auth/**`, `packages/server/src/infra/network/**`, `tests/server/transport/**`
 - `.claude/rules/server.md`: `packages/server/src/**`, `tests/server/**`
-- `.claude/rules/tooling.md`: `tooling/src/**`, `tests/tooling/**`, `biome.json`, `eslint.config.js`, `.dependency-cruiser.cjs`, `knip.ts`, `lefthook.yml`, `tsconfig*.json`, `scripts/vitest-supervised.mjs`
+- `.claude/rules/tooling.md`: `tooling/src/**`, `tests/tooling/**`, `biome.json`, `eslint.config.js`, `.dependency-cruiser.cjs`, `knip.ts`, `lefthook.yml`, `tsconfig*.json`, `scripts/vitest-supervised.ts`
 - `.claude/rules/ui-and-client.md`: `packages/ui/src/**`, `packages/client/src/**`
 - `.claude/rules/verify-and-gates.md`: `tooling/src/verify/**`, `tests/tooling/verify/**`
 - `.claude/rules/writing.md`: `.claude/**`, `AGENTS.md`, `docs/**`
