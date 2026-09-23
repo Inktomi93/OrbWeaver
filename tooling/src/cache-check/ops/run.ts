@@ -80,7 +80,8 @@ async function runCase(
   try {
     const ran = await runCasePlan(api, CASE_PLANS[key.case], { tag: `${probe.runId}-${key.route}-${key.case}`, rows: probe.rows });
     probe.replyCosts.push(...ran.replyCosts);
-    return { ...key, ...judgeCase({ calls: ran.calls, floor: CACHE_READ_FLOOR, cacheMinTokens: prep.cacheMinTokens }) };
+    const judged = judgeCase({ calls: ran.calls, floor: CACHE_READ_FLOOR, cacheMinTokens: prep.cacheMinTokens });
+    return "worst" in judged ? { ...key, ...judged, knownCause: ROUTE_SPECS[key.route].knownFailures[key.case] } : { ...key, ...judged };
   } catch (error) {
     const reason = errorMessage(error);
     return { ...key, verdict: "ERROR", reason };

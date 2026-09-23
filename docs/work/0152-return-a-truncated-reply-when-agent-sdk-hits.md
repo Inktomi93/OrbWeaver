@@ -22,4 +22,4 @@ agent-sdk returns the truncated reply with a max_output finish reason and no con
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The bundled Claude Code runtime (0.3.280) sets `max_tokens` from `CLAUDE_CODE_MAX_OUTPUT_TOKENS`, which orb already passes as the user's cap. On a `max_tokens` stop it continues the reply up to three times. The limit is a constant in the query loop, and no env variable or option changes it. So a capped agent-sdk reply still costs the continuation calls; that difference is a documented capability fact in the header of `packages/inference/src/backends/agent-sdk/runner.ts`. A reply that ends inside the continuations completes normally and runs past the cap: live, a 400-token cap gave a 1464-token reply with finish `stop`. A reply that does not end is now returned as a truncated reply with finish reason `length`, instead of a `max_output` error. Both carry `outputCapReached` in the claude-sub metadata. A capped turn that spent every call on thinking wrote no text and stays a `max_output` error. The runner tests pin each case. The UI does not surface `outputCapReached` yet.
