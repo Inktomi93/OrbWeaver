@@ -99,7 +99,7 @@ export function writeDoc(path: string, source: string, repoRoot = root): void {
 }
 
 /** Every tracked TEXT file's path, for the path rewrites `archive` and a retitling `set` do. */
-export function trackedTextFiles(repoRoot = root): readonly string[] {
+function trackedTextFiles(repoRoot = root): readonly string[] {
   const out = git(repoRoot, ["ls-files", "-z"]);
   return out === null ? [] : out.split("\0").filter((path) => path !== "" && /\.(?:md|ts|tsx|js|cjs|mjs|json|yaml|yml|sh)$/u.test(path));
 }
