@@ -293,12 +293,8 @@ export function isCustomized(value: string | undefined, factoryDefault: string):
   return text.trim() !== "" && text !== factoryDefault;
 }
 
-/** The row's one-line mono preview: the author's text when they wrote one, else the ghosted default —
- *  and, where the slot ships no bytes at all, the honest "(blank — off)". */
+/** The row's one-line mono preview: the author's text when they wrote one, else the ghosted default. */
 export function templatePreview(value: string | undefined, factoryDefault: string): string {
   const text = value ?? "";
-  if (text.trim() !== "") {
-    return text;
-  }
-  return factoryDefault === "" ? "(blank — off)" : factoryDefault;
+  return text.trim() === "" ? factoryDefault : text;
 }
