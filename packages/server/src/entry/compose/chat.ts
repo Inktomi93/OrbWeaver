@@ -19,7 +19,7 @@ import type { Db } from "@orb/db";
 import { characterPersonas, chatParticipants, personas, users } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import type { ChatDeltaEvent, ChatEvent, ChatRequest, ChatResult, ChatTurnInput, Resolved, RoleClientsWithSignal } from "@orb/inference";
-import { NoConnectionError, toChatRequest } from "@orb/inference";
+import { backgroundWorkRefusal, NoConnectionError, toChatRequest } from "@orb/inference";
 import type { AssetId, ChatId, Handle, PersonaId, PresetId, TypeIdOf, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
@@ -329,8 +329,10 @@ function memorySegmentReceipts(rows: readonly EmbeddingSegmentRow[], results: Aw
  *
  * D152: an in-turn tool therefore executes under the HOST Principal — there is no per-speaker authority
  * swap at this seam, so attaching a mutating tool to a non-human speak turn is zero-human host authority.
+ *
+ * Exported so the compose pins drive THIS adapter rather than a hand mirror of it.
  */
-function buildChatToolOps(toolUse: ToolUseService, resolveHostPrincipal: (userId: UserId) => Promise<Principal>): ChatToolOps {
+export function buildChatToolOps(toolUse: ToolUseService, resolveHostPrincipal: (userId: UserId) => Promise<Principal>): ChatToolOps {
   // biome-ignore lint/suspicious/noExplicitAny: the opaque ChatToolSet round-trip (see the header note).
   const asResolvedSet = (set: ChatToolSet): ResolvedToolSet => set as any as ResolvedToolSet;
   return {
@@ -580,6 +582,46 @@ export function createRunChatTurnBridge(deps: {
   };
 }
 
+/** The two model-window FACTS memory reads off the funder's role clients (§7.5-1b): the summarize model's window
+ *  sizes the digest token guard; the embed model's input cap bounds a segment. A task with no window is
+ *  `NoConnectionError` — the honest refusal, never a default window. Exported so its pins drive this reader. */
+export function createTaskWindowReaders(deps: {
+  readonly roleClientsFor: (funderUserId: UserId) => Promise<Pick<RoleClientsWithSignal, "resolved">>;
+  readonly availability: ConnectionService["availability"];
+  readonly resolveHostPrincipal: (userId: UserId) => Promise<Principal>;
+}): { readonly summarize: (funderUserId: UserId) => Promise<number>; readonly embed: (funderUserId: UserId) => Promise<number> } {
+  // `resolved()` reads null both when nothing is bound and when the bound row has background work off; only
+  // binding a connection fixes the first, so the refusal names the one the funder hit.
+  const refusalFor = async (funderUserId: UserId, task: "summarize" | "embed"): Promise<NoConnectionError> => {
+    const verdict = await deps.availability({ task, principal: await deps.resolveHostPrincipal(funderUserId) });
+    return !verdict.available && verdict.cause === "background-refused"
+      ? backgroundWorkRefusal(task)
+      : new NoConnectionError(`no ${task} connection is bound for this user — bind one in Connections`);
+  };
+  return {
+    summarize: async (funderUserId): Promise<number> => {
+      const resolved = await (await deps.roleClientsFor(funderUserId)).resolved("summarize");
+      if (resolved === null) {
+        throw await refusalFor(funderUserId, "summarize");
+      }
+      if (resolved.capability.kind !== "generation") {
+        throw new NoConnectionError("no summarize connection is bound for this user — bind one in Connections");
+      }
+      return resolved.capability.generation.context.window;
+    },
+    embed: async (funderUserId): Promise<number> => {
+      const resolved = await (await deps.roleClientsFor(funderUserId)).resolved("embed");
+      if (resolved === null) {
+        throw await refusalFor(funderUserId, "embed");
+      }
+      if (resolved.capability.kind !== "embedding") {
+        throw new NoConnectionError("no embed connection is bound for this user — bind one in Connections");
+      }
+      return resolved.capability.embedding.maxInputTokens;
+    },
+  };
+}
+
 /**
  * Construct the chat `ChatService` + its bus, wiring every {@link ChatContext} op + {@link ChatServiceDeps}
  * collaborator. Returns the service AND the bus emit.
@@ -613,25 +655,11 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     });
     return resolved as Resolved<"chat">;
   };
-  // The funder's role-client bundle, with the two summarize-slot FACTS memory reads off it (§7.5-1b): the
-  // model's window sizes the digest token guard; the embed model's input cap bounds a segment. A funder with
-  // no binding for the task is `NoConnectionError` — the honest refusal, never a default window.
-  const summarizeWindowFor = async (funderUserId: UserId): Promise<number> => {
-    const resolved = await (await input.roleClientsFor(funderUserId)).resolved("summarize");
-    const window = resolved?.capability.kind === "generation" ? resolved.capability.generation.context.window : null;
-    if (window === null) {
-      throw new NoConnectionError("no summarize connection is bound for this user — bind one in Connections");
-    }
-    return window;
-  };
-  const embedWindowFor = async (funderUserId: UserId): Promise<number> => {
-    const resolved = await (await input.roleClientsFor(funderUserId)).resolved("embed");
-    const window = resolved?.capability.kind === "embedding" ? resolved.capability.embedding.maxInputTokens : null;
-    if (window === null) {
-      throw new NoConnectionError("no embed connection is bound for this user — bind one in Connections");
-    }
-    return window;
-  };
+  const taskWindows = createTaskWindowReaders({
+    roleClientsFor: input.roleClientsFor,
+    availability: input.connection.availability,
+    resolveHostPrincipal: realHostPrincipal,
+  });
 
   // The host's active preset config, given its already-loaded default preset id. A stale/unowned/missing id
   // degrades to the system default. Shared by resolveForeignInputs + resolvePromptVariables so resolution
@@ -1026,11 +1054,11 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // Every summarize call names its FUNDER (§8.5b): the arbiter and extract-quiet spend the round's trigger,
     // the digests the trigger under `allowBackground` — never a box owner's bundle.
     summarize: async (funderUserId, ...args) => (await input.roleClientsFor(funderUserId)).summarize(...args),
-    summarizerContextTokens: summarizeWindowFor,
+    summarizerContextTokens: taskWindows.summarize,
     // The embed model's input cap off the resolved EMBEDDING capability (was the vLLM launch window) — the
     // SAME fact the transport's belt clamp reads, so the segment build's skip boundary and the wire's
     // last-resort cut can't disagree.
-    embedContextTokens: embedWindowFor,
+    embedContextTokens: taskWindows.embed,
     memorySummarizer: input.settings.getEffectiveConfig().memorySummarizer,
     // record INSERTs the row (assigning seq) THEN the persisted view is published onto the live bus —
     // a dead bus path never loses an event (subscriptions replay from the table by seq).

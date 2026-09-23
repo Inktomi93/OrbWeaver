@@ -65,8 +65,8 @@ import {
 } from "@orb/contracts/rpg";
 import type { StructuredOutputShape } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
-import type { ChatResult, ProviderExecutor, Resolved } from "@orb/inference";
-import { generationOf, NoConnectionError, ProviderError } from "@orb/inference";
+import type { ChatResult, ForcedToolRoundInput, ProviderExecutor, Resolved } from "@orb/inference";
+import { carriesForcedToolRound, generationOf, NoConnectionError, ProviderError, runStructuredChat, toForcedToolRoundRequest } from "@orb/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import type { CharacterHandle, ChatId, ChatTurnId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, newId } from "@orb/kit/ids";
@@ -139,8 +139,8 @@ const EXTRACTION_RESPONSE_FORMATS: Readonly<Record<StructuredOutputShape, (schem
   "strict-compatible": (schema) => ({ name: EXTRACTION_SCHEMA_NAME, schema: scrubWireSchema(schema, "strict-compatible").schema, strict: true }),
 };
 
-/** The extraction call's `ResponseFormat`, in whichever wire shape the deployment selected. ONE home, so the
- *  two arms (`extractViaChat` / `extractViaStructured`) can never disagree about what was sent. Resolved
+/** The extraction call's `ResponseFormat`, in whichever wire shape the deployment selected. ONE home, so no
+ *  backend's request can disagree with another's about what was sent. Resolved
  *  PER CALL (not captured at compose time) so an admin flip governs the very next extraction — the
  *  `getEffectiveConfig` cache is rebuilt on every admin write. */
 function extractionResponseFormat(deps: RpgComposeDeps, schema: WireReady): ResponseFormat {
@@ -169,10 +169,8 @@ export interface RpgComposeDeps {
    *  populate), each under the ACTING user's own chat binding (§8.4-3). The in-turn state ROUNDS re-resolve
    *  NOTHING — they ride the character turn's already-resolved `input.turnConnection` threaded from the engine. */
   readonly connection: Pick<ConnectionService, "resolve">;
-  /** The extraction rides the `structured` role on the array/vLLM backends (the one-shot schema-constrained
-   *  PRIMITIVE — owner ruling 2026-07-27, split from summarize) AND `runChatTurn` (the SDK outputFormat path)
-   *  when the host connection is `agent-sdk` — the metered-sub credential firewall stays intact (D17), the
-   *  chat role gates `max-pro-sub` behind owner consent (funded by the host, inherited from the character turn). */
+  /** The executor the state rounds call through `@orb/inference`'s neutral round helpers, which pick the method
+   *  per backend (`runStructuredChat`, `toForcedToolRoundRequest`). */
   readonly executor: Pick<ProviderExecutor, "structured" | "runChatTurn">;
   /** The host's REAL `Principal` by userId — the READ-side `trackersReadOnly` pill resolves the room connection
    *  as the host (D19). The state rounds no longer need it (they ride the threaded turn connection). */
@@ -491,13 +489,7 @@ function buildExtractionUserPrompt(
   return extractionUserPrompt({ story, stateJson: json, lockedPathsLine, beat, prose });
 }
 
-/** Emit the extraction JSON TEXT for a `agent-sdk` host connection via the CHAT role's structured-output
- *  path (`responseFormat` → the SDK `outputFormat: json_schema`), NOT the summarize dispatcher (whose
- *  firewall excludes the metered sub, intentionally). A READ-ONLY structured emission: NO tools / MCP
- *  server mounted (extraction never mutates through a tool turn). The chat role gates `max-pro-sub` behind
- *  owner consent — the host funds this turn, so consent is the host's (§4.6 / D17). Depends on
- */
-/** The resolved per-call inputs both extraction arms consume — the CHARACTER turn's resolved connection + its
+/** The resolved per-call inputs every structured extraction consumes — the CHARACTER turn's resolved connection + its
  *  enforced consent verdict + the prompts + the ref-constrained response schema (R1). Bundled to keep each arm
  *  under the param-count gate. `conn` comes from `input.turnConnection` — never a re-resolve (stickler F1). */
 interface ExtractCtx {
@@ -520,38 +512,18 @@ interface ExtractCtx {
   readonly signal: AbortSignal | undefined;
 }
 
-async function extractViaChat(deps: RpgComposeDeps, ctx: ExtractCtx): Promise<string> {
-  const result = await deps.executor.runChatTurn({
-    api: "agent-sdk",
-    chatId: ctx.chatId,
+/** Emit the extraction JSON TEXT: a READ-ONLY structured emission (no tools mounted — extraction never mutates
+ *  through a tool turn) on the CHARACTER turn's own row, never a re-resolve. Which executor method serves the
+ *  connection's backend is `@orb/inference`'s choice; the format rides untouched, so no vehicle is asked for. */
+function extractStructured(deps: RpgComposeDeps, ctx: ExtractCtx): Promise<string> {
+  return runStructuredChat(deps.executor, {
     connection: ctx.conn,
-    params: {},
-    systemPrompt: { static: ctx.systemPrompt, dynamic: "" },
-    prompt: ctx.userPrompt,
+    chatId: ctx.chatId,
+    systemPrompt: ctx.systemPrompt,
+    userPrompt: ctx.userPrompt,
     responseFormat: extractionResponseFormat(deps, ctx.schema),
     signal: ctx.signal,
   });
-  return result.reply;
-}
-
-/** Emit the extraction JSON TEXT for a NON-agent-sdk host connection (vLLM backend / OpenRouter
- *  chat-completions|responses) via the `structured` dispatcher — the one-shot schema-constrained generation
- *  PRIMITIVE (owner ruling 2026-07-27: rpg extraction summarizes NOTHING; it rides `structured`, not
- *  `summarize`). Its firewall serves openrouter|vllm, same as before. */
-async function extractViaStructured(deps: RpgComposeDeps, ctx: ExtractCtx): Promise<string> {
-  // NO `chatId` here, and it is not an omission: the `structured` ROLE is chatless by contract (its request
-  // shape has no chatId, and its surfaces stamp the capture `chatId: undefined` — a role serves probes and
-  // batch work that belong to no chat). So this arm's capture is correlatable by backend + time only; the
-  // chatId key rides the two vehicles whose request shape carries one (`runChatTurn` — the tool round and
-  // the agent-sdk degrade above).
-  const result = await deps.executor.structured({
-    // The CHARACTER TURN's row re-tagged for the `structured` task (§7.5-1a: never a re-resolve).
-    connection: { ...ctx.conn, task: "structured" },
-    inputs: [{ systemPrompt: ctx.systemPrompt, userPrompt: ctx.userPrompt }],
-    responseFormat: extractionResponseFormat(deps, ctx.schema),
-    signal: ctx.signal,
-  });
-  return result.items.at(0)?.text ?? "";
 }
 
 /** A resolve that ended in NO row / an unservable row — the pill and the two host doors degrade on it (readonly,
@@ -728,11 +700,11 @@ function refEnumerationLines(inputs: PromptInputs): string {
 }
 
 /** Build the STRUCTURED-OUTPUT extraction op (§4.6). No longer a delivery mode of its own (the `reliable` knob
- *  was deleted 2026-08-01 — owner ruling): it is the vehicle `runToolRound` degrades to on an agent-sdk wire (no
- *  wire `tools[]`) and the vehicle the host resync drives. Rides the CHARACTER turn's ALREADY-RESOLVED connection +
+ *  was deleted 2026-08-01 — owner ruling): it is the vehicle `runToolRound` degrades to on a connection that
+ *  cannot carry a forced tool round, and the vehicle the host resync drives. Rides the CHARACTER turn's ALREADY-RESOLVED connection +
  *  consent verdict (`input.turnConnection` — stickler F1: never a re-resolve of the host's global default, never
- *  a force-stamped consent), reads the beat, drives ONE structured-output call ROUTED BY API (agent-sdk → the
- *  chat structured-output path; every other api → the `structured` dispatcher), and folds the parsed extraction
+ *  a force-stamped consent), reads the beat, drives ONE structured-output call (`@orb/inference`'s
+ *  `runStructuredChat` picks the executor method per backend), and folds the parsed extraction
  *  into an `RpgStateDelta`. On any backend throw / parse failure it returns an EMPTY delta (the byte-identical
  *  non-writing turn — a broken extraction never corrupts canon, the errors-as-data posture).
  *
@@ -779,7 +751,7 @@ function buildRunExtraction(deps: RpgComposeDeps): RpgRunExtraction {
     // extraction never corrupts state (returns the empty delta), but the throw is made observable by the
     // `logger.warn` below (the diagnosis that surfaced the fix). Ends if the warn log is removed.
     try {
-      text = conn.api === "agent-sdk" ? await extractViaChat(deps, ctx) : await extractViaStructured(deps, ctx);
+      text = await extractStructured(deps, ctx);
     } catch (err) {
       // A CANCEL is not a FAILURE. Reading the signal (not the error's shape) is what keeps the two apart: the
       // thrown value differs per backend, and misfiling a user's Stop as `rpg.extraction.failed` would put a
@@ -790,7 +762,7 @@ function buildRunExtraction(deps: RpgComposeDeps): RpgRunExtraction {
       }
       logger.warn({ event: "rpg.extraction.failed", chatId, model: conn.model, api: conn.api, err }, "rpg structured extraction failed");
       // The tool round's twin (#1468 item 2) — and NOT an optional half of it: `runToolRound` DEGRADES to this
-      // vehicle on every agent-sdk wire, so a failure arm that stayed silent here would leave that whole class
+      // vehicle on every connection with no forced tool round, so a failure arm that stayed silent here would leave that whole class
       // of connection with the defect the tool round just lost.
       return { ...empty, failure: roundFailure(err) };
     }
@@ -1057,8 +1029,8 @@ function safeJson(text: string): unknown {
 // ref-enum-constrained args (R1) + `tool_choice:"required"` (LIVE-VERIFIED: vLLM hermes/Qwen3 + OpenRouter
 // both emit PARALLEL calls on a change beat + a single `no_changes` on a quiet one). No prose expected. The
 // parsed calls fold to the SAME `RpgStateDelta` the structured arm produces (the shared-plane proof). Portable across
-// the ARRAY wires (chat-completions/responses); an agent-sdk host connection has no wire `tools[]`, so it
-// routes through the SAME structured-output extraction (identical delta by the shared-plane proof — the
+// the connections that carry a forced tool round (`carriesForcedToolRound`); any other connection routes through
+// the SAME structured-output extraction (identical delta by the shared-plane proof — the
 // honest degrade, capability-keyed: cheap needs `capability.tools`, absent ⇒ readonly upstream).
 
 /** The tool-round system prompt — state-focused, aggressive about tool use (no prose to lose). Composes the
@@ -1176,42 +1148,25 @@ function needsInventoryAudit(baseState: RpgSnapshotState, transcript: readonly R
   );
 }
 
-type ToolRoundRequest = Exclude<Parameters<ProviderExecutor["runChatTurn"]>[0], { readonly api: "agent-sdk" }>;
-
-/** The ARRAY-wire api of a resolved chat row (every wire but the stateful agent-sdk carries `tools[]`). A
- *  chat-task resolve always carries an api (`null` is the non-chat kinds'), so a miss is a program error. */
-function arrayWireApiOf(conn: Resolved<"chat">): ToolRoundRequest["api"] {
-  if (conn.api === null || conn.api === "agent-sdk") {
-    throw new ProviderError({ kind: "invalid", retryable: false, message: `rpg tool round: connection ${conn.connectionId} has no array-wire api` });
-  }
-  return conn.api;
-}
-
 /** Run the selective inventory pass without making the primary round own a second provider-error branch. */
 async function runInventoryAudit(args: {
   readonly deps: RpgComposeDeps;
-  readonly chatId: ChatId;
-  readonly request: ToolRoundRequest;
+  readonly round: ForcedToolRoundInput;
   readonly prose: ProseOverrides;
-  readonly tools: ToolRoundRequest["tools"];
+  readonly tools: ForcedToolRoundInput["tools"];
   readonly turnId: ChatTurnId;
 }): Promise<readonly RpgToolCall[]> {
-  const { chatId } = args;
+  const { chatId, connection } = args.round;
   try {
-    const audit = await args.deps.executor.runChatTurn({
-      ...args.request,
-      systemPrompt: { static: resolveProseText("rpg.extract.plane.inventory", args.prose), dynamic: "" },
-      tools: args.tools,
-    });
-    logToolRoundUsage({ chatId, api: args.request.api, pass: "inventory-audit", result: audit });
+    const audit = await args.deps.executor.runChatTurn(
+      toForcedToolRoundRequest({ ...args.round, systemPrompt: resolveProseText("rpg.extract.plane.inventory", args.prose), tools: args.tools }),
+    );
+    logToolRoundUsage({ chatId, api: connection.api, pass: "inventory-audit", result: audit });
     const calls = audit.toolCalls ?? [];
     args.deps.trace?.({ phase: "tool", chatId, turnId: args.turnId, vehicle: "cheap inventory audit", calls: recordToolCalls(calls) });
     return calls;
   } catch (err) {
-    logger.warn(
-      { event: "rpg.inventory-audit.failed", chatId, model: args.request.connection.model, api: args.request.api, err },
-      "rpg inventory audit failed",
-    );
+    logger.warn({ event: "rpg.inventory-audit.failed", chatId, model: connection.model, api: connection.api, err }, "rpg inventory audit failed");
     return [];
   }
 }
@@ -1219,13 +1174,13 @@ async function runInventoryAudit(args: {
 /** Build the cheap-mode `runToolRound` op — the parallel-tool-call state round (the sibling of
  *  `runExtraction`). Rides the CHARACTER turn's ALREADY-RESOLVED connection + consent verdict
  *  (`input.turnConnection` — stickler F1: no re-resolve, no force-stamped consent); the vehicle is wire tools +
- *  `required`. On an agent-sdk host (no wire tools) it degrades to the structured extraction (identical delta,
- *  shared-plane). On any backend throw / no calls it returns the EMPTY delta (errors-as-data — never corrupts
- *  canon).
+ *  `required`. On a connection that cannot carry a forced tool round it degrades to the structured extraction
+ *  (identical delta, shared-plane). On any backend throw / no calls it returns the EMPTY delta (errors-as-data —
+ *  never corrupts canon).
  *
  *  State-round economics: same posture as `runExtraction` (no `ToolCallRecord`, no stats delta — see spec §10.1a). This vehicle rides the
  *  CHAT role, so no backend emits a per-item usage log for it; `logToolRoundUsage` is its economics record (`rpg.toolround.usage`), which
- *  is what makes §10.1a's "recorded in the provider-observability plane" true here. The degraded agent-sdk arm rides `runExtraction`'s
+ *  is what makes §10.1a's "recorded in the provider-observability plane" true here. The degraded arm rides `runExtraction`'s
  *  per-item record instead. */
 function buildRunToolRound(deps: RpgComposeDeps): RpgRunToolRound {
   const extract = buildRunExtraction(deps);
@@ -1233,9 +1188,9 @@ function buildRunToolRound(deps: RpgComposeDeps): RpgRunToolRound {
     const { chatId, turnId, baseState, turnConnection, reconcile, signal } = input;
     const empty = { statePatch: {}, journal: [] };
     const conn = turnConnection.connection;
-    // agent-sdk has no wire tools[]; the shared-plane proof lets it ride the SAME structured extraction (which
+    // No forced round on this backend: the shared-plane proof lets it ride the SAME structured extraction (which
     // runs its own pre-flight cancel check, so the degrade inherits cancellation identically).
-    if (conn.api === "agent-sdk") {
+    if (!carriesForcedToolRound(conn)) {
       return extract(input);
     }
     // CANCELLED BEFORE THE CALL — no ref resolve, no model call, no spend (the structured arm's posture).
@@ -1254,31 +1209,22 @@ function buildRunToolRound(deps: RpgComposeDeps): RpgRunToolRound {
       },
     ];
     const wireTools = buildToolRoundWireTools(refs, config, prose);
-    const request = {
-      api: arrayWireApiOf(conn),
-      chatId,
+    const round: ForcedToolRoundInput = {
       connection: conn,
-      params: {},
-      systemPrompt: { static: toolRoundSystem(inputs), dynamic: "" },
+      // The wire-capture correlation key (see `ExtractCtx.chatId`): without it the one round that writes the state
+      // records anonymously in `/api/_debug/wire/captures?chatId=`.
+      chatId,
+      systemPrompt: toolRoundSystem(inputs),
       history,
       tools: wireTools,
-      toolChoice: { mode: "required" as const },
       signal,
-    } satisfies ToolRoundRequest;
+    };
     let calls: readonly RpgToolCall[];
     // @orb-waive caught-failure-ownership(err): errors-as-data — the structured arm's twin: a
     // CANCEL is read off the signal (not the error shape) and returns `empty`; any other failure is observed
     // via `logger.warn` below. Ends if the warn log is removed.
     try {
-      const result = await deps.executor.runChatTurn({
-        ...request,
-        // The wire-capture correlation key (see `ExtractCtx.chatId`). Without it this round — the ONE vehicle
-        // that carries the state tools on its own request — records ANONYMOUSLY, so
-        // `/api/_debug/wire/captures?chatId=` shows the character turns and nothing of the round that actually
-        // wrote the state. Measured on the live spill before this landed.
-        // The character turn's enforced consent verdict, inherited (never force-stamped `true` — F1). Non-sub
-        // backends ignore it; a max-pro-sub round only ever runs because the character turn already consented.
-      });
+      const result = await deps.executor.runChatTurn(toForcedToolRoundRequest(round));
       // The round's economics record — §10.1a's claim, made true on the vehicle that had no emitter.
       logToolRoundUsage({ chatId, api: conn.api, pass: "primary", result });
       calls = result.toolCalls ?? [];
@@ -1298,7 +1244,7 @@ function buildRunToolRound(deps: RpgComposeDeps): RpgRunToolRound {
     deps.trace?.({ phase: "tool", chatId, turnId, vehicle: "cheap tool round", calls: recordToolCalls(calls) });
     if (needsInventoryAudit(baseState, turnConnection.transcript, calls)) {
       const auditTools = wireTools.filter((tool) => tool.name === "update_inventory" || tool.name === RPG_NO_CHANGES_TOOL);
-      calls = [...calls, ...(await runInventoryAudit({ deps, chatId, request, prose, tools: auditTools, turnId }))];
+      calls = [...calls, ...(await runInventoryAudit({ deps, round, prose, tools: auditTools, turnId }))];
     }
     // Fold the parallel tool calls → an RpgExtraction → the SAME state delta the structured arm produces (`no_changes`
     // and any unknown tool contribute nothing — the quiet-turn no-op). A call the fold threw away is NAMED, the
@@ -1444,9 +1390,9 @@ const RESYNC_FAILED_REASON = "the model call failed, so nothing was rebuilt:";
 // `extractionToStateDelta`). Sharing the definitions is safe; mutating the in-turn round to serve a host
 // button is not, and was ruled out explicitly.
 //
-// The STRUCTURED arm survives as the degrade, unchanged: an agent-sdk host connection carries no wire
-// `tools[]` (the terminal-tools channel is a CHAT-pipeline mount, not a state-round vehicle), so it still
-// rides `extractViaChat` with the projected schema. Same delta either way — the shared-plane proof.
+// The STRUCTURED arm survives as the degrade, unchanged: a connection that cannot carry a forced tool round
+// (`carriesForcedToolRound` — the terminal-tools channel is a CHAT-pipeline mount, not a state-round vehicle)
+// rides the structured extraction with the projected schema. Same delta either way — the shared-plane proof.
 
 /** The resync's TOOL-ROUND arm: one state-only turn, the 7 per-plane tools, `tool_choice:"required"`. Errors
  *  are DATA (the RESYNC-OR grammar): a throw becomes the host's sentence, never a silent empty rebuild. */
@@ -1454,31 +1400,29 @@ async function resyncViaToolRound(
   deps: RpgComposeDeps,
   args: {
     readonly chatId: ChatId;
+    /** A connection that carries a forced tool round (`carriesForcedToolRound`); any other takes the structured
+     *  degrade instead. */
     readonly conn: Resolved<"chat">;
-    /** The resolved connection's api, NARROWED to the array wires — an agent-sdk connection carries no wire
-     *  `tools[]` and never reaches this arm (it takes the structured degrade instead). */
-    readonly api: Exclude<ChatApi, "agent-sdk">;
     readonly baseState: RpgSnapshotState;
     readonly inputs: PromptInputs;
     readonly userPrompt: string;
   },
 ): Promise<{ readonly ok: true; readonly delta: RpgStateDelta } | { readonly ok: false; readonly reason: string }> {
-  const { chatId, conn, api, baseState, inputs, userPrompt } = args;
+  const { chatId, conn, baseState, inputs, userPrompt } = args;
   const { refs, config, prose } = inputs;
   let calls: readonly RpgToolCall[];
   try {
-    const result = await deps.executor.runChatTurn({
-      api,
-      // Same correlation key as the in-turn round (see `ExtractCtx.chatId`) — a host-clicked resync is exactly
-      // the moment an operator is reading the wire ring for that chat.
-      chatId,
-      connection: conn,
-      params: {},
-      systemPrompt: { static: toolRoundSystem(inputs), dynamic: "" },
-      history: [{ role: "user", content: [{ type: "text", text: userPrompt }] }],
-      tools: buildToolRoundWireTools(refs, config, prose),
-      toolChoice: { mode: "required" },
-    });
+    const result = await deps.executor.runChatTurn(
+      toForcedToolRoundRequest({
+        connection: conn,
+        // Same correlation key as the in-turn round (see `ExtractCtx.chatId`) — a host-clicked resync is exactly
+        // the moment an operator is reading the wire ring for that chat.
+        chatId,
+        systemPrompt: toolRoundSystem(inputs),
+        history: [{ role: "user", content: [{ type: "text", text: userPrompt }] }],
+        tools: buildToolRoundWireTools(refs, config, prose),
+      }),
+    );
     logToolRoundUsage({ chatId, api: conn.api, pass: "resync", result });
     calls = result.toolCalls ?? [];
   } catch (err) {
@@ -1533,9 +1477,9 @@ function buildRunResyncExtraction(deps: RpgComposeDeps): RpgContext["runResyncEx
     // NO WRITE PATH AT ALL ⇒ no rebuild (the resync's OWN capability gate — it is not a per-turn delivery mode,
     // so it keys on the capability directly, mirroring the flush's F2 posture: a resync on a manual-steering
     // connection would predictably fail and, on hosted creds, cost real spend). TWO vehicles satisfy it now:
-    // wire tools (the catch-up round) or the structured writer (the agent-sdk degrade).
-    const toolWire = conn.api !== "agent-sdk" && hasToolWriter(generationOf(conn)) ? conn.api : null;
-    if (toolWire === null && !hasStructuredWriter(generationOf(conn))) {
+    // wire tools (the catch-up round) or the structured writer (the degrade where no forced round is carried).
+    const toolRound = carriesForcedToolRound(conn) && hasToolWriter(generationOf(conn));
+    if (!(toolRound || hasStructuredWriter(generationOf(conn)))) {
       logger.warn({ event: "rpg.resync.readonly", chatId, model: conn.model, api: conn.api }, "rpg resync: connection has no state writer — no rebuild");
       return { ok: false, reason: RESYNC_READONLY_REASON };
     }
@@ -1552,7 +1496,7 @@ function buildRunResyncExtraction(deps: RpgComposeDeps): RpgContext["runResyncEx
     const inputs: PromptInputs = { config: resyncConfig, refs, playerDisplayName, reconcile: true, prose };
     const userPrompt = buildExtractionUserPrompt(transcript, baseState, resyncConfig, prose);
     const args = { chatId, conn, baseState, inputs, userPrompt };
-    return toolWire !== null ? await resyncViaToolRound(deps, { ...args, api: toolWire }) : await resyncViaStructured(deps, args);
+    return toolRound ? await resyncViaToolRound(deps, args) : await resyncViaStructured(deps, args);
   };
 }
 
@@ -1582,7 +1526,7 @@ async function resyncViaStructured(
   };
   let text: string;
   try {
-    text = conn.api === "agent-sdk" ? await extractViaChat(deps, ctx) : await extractViaStructured(deps, ctx);
+    text = await extractStructured(deps, ctx);
   } catch (err) {
     logger.warn({ event: "rpg.resync.failed", chatId, model: conn.model, api: conn.api, err }, "rpg resync extraction failed");
     // THE HOST HEARS IT. This catch used to return an empty delta, which the verb reported as "nothing to
@@ -1736,7 +1680,7 @@ function buildRunPopulateExtraction(deps: RpgComposeDeps): RpgContext["runPopula
     };
     let text: string;
     try {
-      text = conn.api === "agent-sdk" ? await extractViaChat(deps, ctx) : await extractViaStructured(deps, ctx);
+      text = await extractStructured(deps, ctx);
     } catch (err) {
       logger.warn({ event: "rpg.populate.failed", chatId, model: conn.model, api: conn.api, err }, "rpg populate round failed");
       // THE HOST HEARS IT (POPLOUD — the resync's catch verbatim). This used to return an empty delta, which

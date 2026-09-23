@@ -206,6 +206,35 @@ export type ChatTurnInput = ChatRequestCommon & {
   readonly reasoningTags?: { readonly prefix: string; readonly suffix: string } | undefined;
 };
 
+/**
+ * A one-shot SCHEMA-CONSTRAINED generation on a CHAT connection, whatever its wire: the caller hands over the two
+ * prompts and the response format, and `runStructuredChat` (`roles/chat-rounds.ts`) picks the executor method the
+ * connection's backend serves it with. The format passes through untouched — no vehicle is resolved for it.
+ */
+export interface StructuredChatInput {
+  readonly connection: Resolved<"chat">;
+  /** The wire-capture correlation key; only the backends whose request carries a chat id stamp it. */
+  readonly chatId: ChatId;
+  readonly systemPrompt: string;
+  readonly userPrompt: string;
+  readonly responseFormat: ResponseFormat;
+  readonly signal: AbortSignal | undefined;
+}
+
+/**
+ * A state-only TOOL ROUND on a CHAT connection: one request whose model MUST answer with tool calls
+ * (`toolChoice: required`), no prose expected. `toForcedToolRoundRequest` (`roles/chat-rounds.ts`) projects it; a
+ * backend with no wire `tools[]` cannot carry it, which `carriesForcedToolRound` answers before the caller builds one.
+ */
+export interface ForcedToolRoundInput {
+  readonly connection: Resolved<"chat">;
+  readonly chatId: ChatId;
+  readonly systemPrompt: string;
+  readonly history: readonly ChatHistoryMessage[];
+  readonly tools: readonly WireTool[];
+  readonly signal?: AbortSignal | undefined;
+}
+
 export type AgentSdkChatRequest = ChatRequest & { readonly api: "agent-sdk" };
 export type OpenAiCompatChatRequest = ChatRequest & { readonly api: "chat-completions" };
 export type AnthropicChatRequest = ChatRequest & { readonly api: "anthropic-messages" };
