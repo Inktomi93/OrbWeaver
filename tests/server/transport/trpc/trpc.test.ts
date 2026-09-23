@@ -12,8 +12,8 @@
 import "../../../support/composed-real.ts";
 import { ProviderError, providerErrorFromHttp, resolvedScrubSet } from "@orb/inference";
 import { DomainOperationError, DomainRateLimitError } from "@orb/kit/errors";
-import type { CharacterId, ChatId, ChatInviteId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import type { UserId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { AdminService } from "@orb/server/domain/admin";
 import type { ChatService } from "@orb/server/domain/chat";
 import type { PersonaService } from "@orb/server/domain/persona";
@@ -25,6 +25,13 @@ import type { Mock } from "vitest";
 import { describe, vi } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 import { caller, denyRateLimit, inertPresence, makeContext, principal } from "./_support.ts";
+
+// MINTED, never readable literals: these ids cross `typeIdSchema` tRPC inputs, which validate the TypeID suffix.
+const ID = {
+  chat1: mintTypeId(ID_PREFIX.chat),
+  character1: mintTypeId(ID_PREFIX.character),
+  chatInvite1: mintTypeId(ID_PREFIX.chatInvite),
+} as const;
 
 describe("authedProcedure", () => {
   test("rejects an anonymous caller with UNAUTHORIZED", async () => {
@@ -198,8 +205,8 @@ describe("the injected rate-limit gate", () => {
   });
 });
 
-const chatId = castId<ChatId>("chat_1");
-const inviteId = castId<ChatInviteId>("chatinvite_1");
+const chatId = ID.chat1;
+const inviteId = ID.chatInvite1;
 const kickTarget = castId<UserId>("user_target");
 
 /** One documented single-user-refused surface (Tier-4 §"multi-human surface"). `probe` proves the
@@ -322,7 +329,7 @@ describe("multiHumanProcedure — the multi-human capability 404 belt (PD-106 / 
     await caller(ctx).chat.startChat({ characterIds: [] });
     await caller(ctx).chat.addCharacterToChat({
       chatId,
-      characterId: castId<CharacterId>("character_1"),
+      characterId: ID.character1,
     });
     expect(startChat).toHaveBeenCalledTimes(1);
     expect(addCharacterToChat).toHaveBeenCalledTimes(1);

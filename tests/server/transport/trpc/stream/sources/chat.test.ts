@@ -17,7 +17,7 @@
 import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
 import type { StreamDataFrame, StreamFrame } from "@orb/contracts/stream";
 import type { ChatId, SocketId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { ChatService } from "@orb/server/domain/chat";
 import { ChatNotFoundError } from "@orb/server/domain/chat";
 import type { Context } from "@orb/server/transport/trpc";
@@ -26,8 +26,18 @@ import { describe, vi } from "vitest";
 import { expect, test } from "../../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../../_support.ts";
 
+// MINTED, never readable literals: these ids cross `typeIdSchema` tRPC inputs, which validate the TypeID suffix.
+const ID = {
+  chat1: mintTypeId(ID_PREFIX.chat),
+  message1: mintTypeId(ID_PREFIX.message),
+  messageVariant1: mintTypeId(ID_PREFIX.messageVariant),
+  chatLiveClamp: mintTypeId(ID_PREFIX.chat),
+  chatDeception: mintTypeId(ID_PREFIX.chat),
+  chatPlain: mintTypeId(ID_PREFIX.chat),
+} as const;
+
 const MEMBER = castId<UserId>("user_member");
-const CHAT = castId<ChatId>("chat_1");
+const CHAT = ID.chat1;
 // `historyFloorSeq: 0` = the UNCLAMPED probe (a host / a `full` member / any born-here seat) — the arm every
 // pre-D16 assertion in this file was written against, so the clamp is provably invisible to it.
 const BOUNDS = { minSeq: 1, maxSeq: 3, historyFloorSeq: 0, viewerIsHost: false, reasoningHostOnly: false };
@@ -372,7 +382,7 @@ describe("the chat room — synthesized attach/resume events (PD-134/PD-135)", (
 
 // A minimal MessageView fixture — this test only proves the wire-through, not the view shape.
 const MESSAGE: MessageView = {
-  id: castId<MessageView["id"]>("message_1"),
+  id: ID.message1,
   chatId: CHAT,
   seq: 1,
   role: "assistant",
@@ -383,7 +393,7 @@ const MESSAGE: MessageView = {
   excludedFromPrompt: false,
   createdAt: 0,
   editedAt: null,
-  selectedVariantId: castId<MessageView["selectedVariantId"]>("message_variant_1"),
+  selectedVariantId: ID.messageVariant1,
   selectedVariantIdx: 0,
   variantCount: 1,
   hasContinuation: false,
@@ -422,7 +432,7 @@ const MESSAGE: MessageView = {
 // the sibling `chat.int.test.ts`.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 describe("the chat room — the D16 join-history clamp on the LIVE fan-out", () => {
-  const LiveChat = castId<ChatId>("chat_live_clamp");
+  const LiveChat = ID.chatLiveClamp;
 
   /** A canon-mutation event carrying a `MessageView` at `seq` — the payload class the clamp decides on. A
    *  POST-join edit of a PRE-join row rides a HIGH durable seq with a LOW view seq, which is exactly why the
@@ -561,8 +571,8 @@ describe("the chat room — the D16 join-history clamp on the LIVE fan-out", () 
 // anything cached in the socket cell.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 describe("§5.5 two rooms on one socket — the per-room verdict, and the producer stamp forwarded verbatim", () => {
-  const DeceptionChat = castId<ChatId>("chat_deception");
-  const PlainChat = castId<ChatId>("chat_plain");
+  const DeceptionChat = ID.chatDeception;
+  const PlainChat = ID.chatPlain;
 
   /** The member-gated probe, per chat: the deception room resolves `reasoningHostOnly` TRUE, the plain room
    *  FALSE. Both are MEMBER views (never host) — the only axis that differs is the game's deception verdict. */

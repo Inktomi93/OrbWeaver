@@ -1,24 +1,13 @@
 // Canonical ZodType declaration identity and exact OUTPUT parity for hand-authored schema/type twins.
 // Input is deliberately absent from this reader: defaults, coercions, preprocessors and transforms may
 // widen or narrow accepted input while preserving the output contract a twin promises.
-import type { Expression, Node as MorphNode, PropertyDeclaration, Type, TypeNode, VariableDeclaration } from "ts-morph";
-import { Node } from "ts-morph";
+import type { Expression, Node as MorphNode, Symbol as MorphSymbol, PropertyDeclaration, Type, TypeNode, VariableDeclaration } from "ts-morph";
+import { Node, SyntaxKind } from "ts-morph";
+import type { ZodOutputTwinRead } from "../contract/zod-output-twin.ts";
 
 const ZOD_PACKAGE_SEGMENT = "/node_modules/zod/";
 const RUNTIME_GENERATED_SCHEMA_SOURCE = "/packages/kit/src/json-schema/lift.ts";
 const RUNTIME_GENERATED_SCHEMA_BRAND = "RUNTIME_GENERATED_SCHEMA_BRAND";
-
-export type ZodOutputTwinRead =
-  | { readonly kind: "none" }
-  | { readonly kind: "unresolved"; readonly carrier: MorphNode; readonly reason: string }
-  | {
-      readonly kind: "pair";
-      readonly carrier: MorphNode;
-      readonly target: Type;
-      readonly output: Type;
-      readonly outputToTarget: boolean;
-      readonly targetToOutput: boolean;
-    };
 
 function canonicalZodType(type: Type): boolean {
   const symbol = type.getSymbol();
@@ -254,13 +243,40 @@ export function readContextualZodOutputTwin(expression: Expression, carrier: Mor
   if (unwrapSchemaExpression(expression).getType().getProperty("_output") === undefined) {
     return { kind: "none" };
   }
-  const contextualReader = (expression as Expression & { readonly getContextualType?: () => Type }).getContextualType;
-  if (contextualReader === undefined) {
-    return { kind: "unresolved", carrier, reason: "the schema expression exposes no readable contextual type" };
-  }
-  const contextual = contextualReader.call(expression);
+  const contextual = expression.getContextualType();
   if (contextual === undefined || !canonicalZodType(contextual) || isGenericSchemaPassThrough(expression, contextual)) {
     return { kind: "none" };
   }
   return pairWithTarget(contextual, expression, carrier, "unresolved");
+}
+
+/** The expressions a function-like node returns from ITS OWN body: an expression body is its single return,
+ *  and a nested function's returns are excluded. The family's schema-factory reader classifies these. */
+export function ownReturnExpressions(node: MorphNode): readonly Expression[] {
+  if (!(Node.isFunctionDeclaration(node) || Node.isArrowFunction(node) || Node.isFunctionExpression(node))) {
+    return [];
+  }
+  const body = node.getBody();
+  if (body === undefined) {
+    return [];
+  }
+  if (Node.isExpression(body)) {
+    return [body];
+  }
+  return body
+    .getDescendantsOfKind(SyntaxKind.ReturnStatement)
+    .filter((statement) => statement.getFirstAncestor(Node.isFunctionLikeDeclaration) === node)
+    .flatMap((statement) => {
+      const expression = statement.getExpression();
+      return expression === undefined ? [] : [expression];
+    });
+}
+
+/** The symbols the identifiers inside a type node resolve to. The schema-factory reader asks whether a
+ *  factory's return contract names one of the factory's own parameters or type parameters. */
+export function typeNodeIdentifierSymbols(typeNode: TypeNode): readonly MorphSymbol[] {
+  return typeNode.getDescendantsOfKind(SyntaxKind.Identifier).flatMap((identifier) => {
+    const symbol = identifier.getSymbol();
+    return symbol === undefined ? [] : [symbol];
+  });
 }

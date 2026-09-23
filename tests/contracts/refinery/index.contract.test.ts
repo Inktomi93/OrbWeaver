@@ -84,7 +84,7 @@ test("payloadSchemaFor preserves fixed-stage and embedded-custom schema inferenc
     schemaVersion: 1,
     schema: { type: "object", properties: { note: { type: "string" } } },
   });
-  expectTypeOf(custom).toMatchTypeOf<z.ZodObject>();
+  expectTypeOf(custom).toExtend<z.ZodObject>();
   expect(custom.safeParse({ note: "kept verbatim" }).success).toBe(true);
 });
 

@@ -49,7 +49,6 @@ import type { ProseOverrides } from "@orb/contracts/prose";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import { runStructuredTurn, StructuredOutputError } from "@orb/inference";
-import { projectJsonSchema } from "@orb/kit/json-schema";
 import type { VarOp } from "@orb/kit/macro";
 import { neutralizeMacros, setVarKey } from "@orb/kit/macro";
 import { sha256Hex } from "@orb/server/kit/content-hash";
@@ -72,6 +71,7 @@ import {
   ANALYSIS_SETTLED_SLICE_MAX,
   buildAnalysisPayloadSchema,
   mergeAnalysisState,
+  projectAnalysisWireSchema,
 } from "../contract/analysis.ts";
 import type { ArmExecutorDeps, ArmOutcome, ChatScopedDispatchFrame } from "../contract/ops.ts";
 import { latestAuditableReply, listAnalysisWindow, maxVisibleSeq } from "../persistence/canon-reads.ts";
@@ -457,8 +457,8 @@ async function readPassInputs(deps: ArmExecutorDeps, action: RunAnalysisAction, 
  *  seeds the watermark at 0, and seq numbering starts at 1, so 0 is "no pass has covered anything"). */
 const NO_SETTLED_WATERMARK = 0;
 
-/** Run the model pass (ONE bounded retry — `runStructuredTurn`) and validate through the SAME composed zod
- *  the wire schema projects from: the two halves of the needle wall are one composition. Throws on the
+/** Run the model pass (ONE bounded retry — `runStructuredTurn`) and validate through the payload zod, whose
+ *  input half IS the projected wire object: the two halves of the needle wall are one composition. Throws on the
  *  second failure — the caller maps it to a typed `arm_error`. */
 function runModelPass(
   deps: ArmExecutorDeps,
@@ -466,7 +466,7 @@ function runModelPass(
   args: { readonly routes: AnalysisRoutes; readonly systemPrompt: string; readonly userPrompt: string },
 ): Promise<AnalysisPayload> {
   const payloadSchema = buildAnalysisPayloadSchema(args.routes);
-  const responseFormat: ResponseFormat = { name: RESPONSE_FORMAT_NAME, schema: projectJsonSchema(payloadSchema) };
+  const responseFormat: ResponseFormat = { name: RESPONSE_FORMAT_NAME, schema: projectAnalysisWireSchema(args.routes) };
   return runStructuredTurn<AnalysisPayload>({
     payloadSchema,
     run: (correction) =>

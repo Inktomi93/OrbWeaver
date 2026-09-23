@@ -9,17 +9,31 @@
 
 import type { ChatBusEvent, ChatIdentity, MessageView } from "@orb/contracts/chat";
 import { CHAT_LIST_MAX_LIMIT, DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
-import type { CharacterId, ChatId, ChatInjectionId, ChatParticipantId, MessageVariantId, PresetId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import type { UserId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { ChatService } from "@orb/server/domain/chat";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "@orb/server/domain/chat";
 import { describe, vi } from "vitest";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../_support.ts";
 
+// MINTED, never readable literals: these ids cross `typeIdSchema` tRPC inputs, which validate the TypeID suffix.
+const ID = {
+  chat1: mintTypeId(ID_PREFIX.chat),
+  message1: mintTypeId(ID_PREFIX.message),
+  messageVariant1: mintTypeId(ID_PREFIX.messageVariant),
+  messageVariant2: mintTypeId(ID_PREFIX.messageVariant),
+  messageVariantOtherSlot: mintTypeId(ID_PREFIX.messageVariant),
+  chatForked1: mintTypeId(ID_PREFIX.chat),
+  presetBound: mintTypeId(ID_PREFIX.preset),
+  chatInjection1: mintTypeId(ID_PREFIX.chatInjection),
+  characterAria: mintTypeId(ID_PREFIX.character),
+  chatParticipant1: mintTypeId(ID_PREFIX.chatParticipant),
+} as const;
+
 const MEMBER = castId<UserId>("user_member");
 const NON_MEMBER = castId<UserId>("user_non_member");
-const CHAT = castId<ChatId>("chat_1");
+const CHAT = ID.chat1;
 
 // Unwrap a yielded subscription value — `tracked()` yields `[id, data, symbol]`; data is at index 1.
 function dataOf(yielded: unknown): ChatBusEvent {
@@ -29,7 +43,7 @@ function dataOf(yielded: unknown): ChatBusEvent {
 
 // A minimal MessageView fixture — the router test only proves the wire-through, not the view shape.
 const MESSAGE: MessageView = {
-  id: castId<MessageView["id"]>("message_1"),
+  id: ID.message1,
   chatId: CHAT,
   seq: 1,
   role: "assistant",
@@ -40,7 +54,7 @@ const MESSAGE: MessageView = {
   excludedFromPrompt: false,
   createdAt: 0,
   editedAt: null,
-  selectedVariantId: castId<MessageView["selectedVariantId"]>("message_variant_1"),
+  selectedVariantId: ID.messageVariant1,
   selectedVariantIdx: 0,
   variantCount: 1,
   hasContinuation: false,
@@ -212,8 +226,8 @@ describe("chat.listMessages — the paged canon read (D26), member-gated", () =>
 describe("chat.listMessageVariants — the swipe strip's step-target resolver (D26 full sibling set)", () => {
   test("a thin pass-through: chatId/messageId reach the verb with the resolved Principal", async () => {
     const variants = [
-      { variantId: castId<MessageVariantId>("message_variant_1"), idx: 0 },
-      { variantId: castId<MessageVariantId>("message_variant_2"), idx: 1 },
+      { variantId: ID.messageVariant1, idx: 0 },
+      { variantId: ID.messageVariant2, idx: 1 },
     ];
     const listMessageVariants = vi.fn<ChatService["listMessageVariants"]>(async () => variants);
     const ctx = makeContext({
@@ -247,7 +261,7 @@ describe("chat.listMessageVariants — the swipe strip's step-target resolver (D
 
 describe("chat.selectVariant — the swipe strip's step-BACK verb (task #19 wire-through)", () => {
   test("a thin pass-through: chatId/messageId/variantId reach the verb with the resolved Principal", async () => {
-    const variantId = castId<MessageVariantId>("message_variant_2");
+    const variantId = ID.messageVariant2;
     const selectVariant = vi.fn<ChatService["selectVariant"]>(async () => MESSAGE);
     const ctx = makeContext({
       auth: principal("user", { userId: MEMBER }),
@@ -270,7 +284,7 @@ describe("chat.selectVariant — the swipe strip's step-BACK verb (task #19 wire
   });
 
   test("a sibling-ownership miss (a variantId from a DIFFERENT slot) surfaces the verb's leak-free NOT_FOUND", async () => {
-    const variantId = castId<MessageVariantId>("message_variant_other_slot");
+    const variantId = ID.messageVariantOtherSlot;
     const selectVariant = vi.fn<ChatService["selectVariant"]>().mockRejectedValue(new ChatNotFoundError(CHAT));
     const ctx = makeContext({
       auth: principal("user", { userId: MEMBER }),
@@ -664,7 +678,7 @@ describe("chat.deleteMessages — the bulk delete verb (chat-surface lane wire-t
 });
 
 describe("chat.forkChat — the deep-copy-into-a-new-chat verb (chat-surface lane wire-through)", () => {
-  const ForkedChat = castId<ChatId>("chat_forked_1");
+  const ForkedChat = ID.chatForked1;
   // A minimal ChatDetail literal — this router test only proves the wire-through, not the view shape
   // (the same posture the file-header MESSAGE fixture takes).
   const ForkResult: Awaited<ReturnType<ChatService["forkChat"]>> = {
@@ -874,11 +888,11 @@ describe("chat.previewAssembly — the assembled-prompt preview + trace (task #2
     const previewAssembly = vi.fn<ChatService["previewAssembly"]>(async () => Preview);
     const ctx = makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: { previewAssembly } } });
 
-    await caller(ctx).chat.previewAssembly({ chatId: CHAT, presetOverride: castId<PresetId>("preset_bound") });
+    await caller(ctx).chat.previewAssembly({ chatId: CHAT, presetOverride: ID.presetBound });
     expect(previewAssembly).toHaveBeenLastCalledWith({
       principal: expect.objectContaining({ userId: MEMBER }),
       chatId: CHAT,
-      presetOverride: "preset_bound",
+      presetOverride: ID.presetBound,
     });
 
     // Omitted ⇒ the key never reaches the verb, so every pre-existing caller assembles the room's OWN preset.
@@ -942,7 +956,7 @@ describe("chat.getShapeTrace — the content-free SHAPE trace (PD-132, host-only
 });
 
 describe("chat.setChatInjection / listChatInjections / deleteChatInjection — the manual-injections CRUD (task #28 wire-through)", () => {
-  const InjectionId = castId<ChatInjectionId>("chat_injection_1");
+  const InjectionId = ID.chatInjection1;
   const InjectionView: Awaited<ReturnType<ChatService["listChatInjections"]>>[number] = {
     id: InjectionId,
     position: "in_chat",
@@ -1069,12 +1083,12 @@ describe("chat.setChatInjection / listChatInjections / deleteChatInjection — t
 // host-gated via substrate/auth/matrix.ts, but never exposed on this router (the same MISSING-API shape
 // the #28 cluster was in). Thin pass-throughs; the leak-free NOT_FOUND collapse is the verb's own gate.
 
-const CHARACTER = castId<CharacterId>("character_aria");
+const CHARACTER = ID.characterAria;
 
 // A minimal ParticipantView the knob setter returns — only the mutated field is asserted; the rest is
 // the shape's filler (the same posture the MESSAGE/ForkResult fixtures take).
 const PARTICIPANT: Awaited<ReturnType<ChatService["setSeatKnobs"]>> = {
-  id: castId<ChatParticipantId>("chat_participant_1"),
+  id: ID.chatParticipant1,
   chatId: CHAT,
   kind: "character",
   userId: null,
@@ -1093,7 +1107,7 @@ const PARTICIPANT: Awaited<ReturnType<ChatService["setSeatKnobs"]>> = {
   avatarHash: null,
 };
 
-const PARTICIPANT_ID = castId<ChatParticipantId>("chat_participant_1");
+const PARTICIPANT_ID = ID.chatParticipant1;
 
 describe("chat.setSeatKnobs — the ONE participantId-keyed AI-seat knob setter (D80 wire-through, host-only)", () => {
   test("a thin pass-through: chatId/participantId/patch reach the verb with the resolved Principal", async () => {
@@ -1381,7 +1395,7 @@ describe("chat.startChat — CREATION-INTENT inputs only (R2)", () => {
 
     await expect(
       caller(ctx).chat.startChat({
-        characterIds: [castId<CharacterId>("character_aria")],
+        characterIds: [ID.characterAria],
         // biome-ignore lint/suspicious/noExplicitAny: deliberately off-schema — "generate" is a creation-fused turn, retired by R2.
         // @orb-waive no-test-fabrication(any): deliberate retired opening value proves the creation boundary refuses it before the verb; ends when the caller accepts unknown input directly.
         opening: "generate" as any,
@@ -1395,11 +1409,11 @@ describe("chat.startChat — CREATION-INTENT inputs only (R2)", () => {
     const startChat = vi.fn<ChatService["startChat"]>(async () => ({ chat: { id: CHAT } }) as unknown as Awaited<ReturnType<ChatService["startChat"]>>);
     const ctx = makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: { startChat } } });
 
-    await caller(ctx).chat.startChat({ characterIds: [castId<CharacterId>("character_aria")], opening: "greet-all" });
+    await caller(ctx).chat.startChat({ characterIds: [ID.characterAria], opening: "greet-all" });
 
     expect(startChat).toHaveBeenCalledWith({
       principal: expect.objectContaining({ userId: MEMBER }),
-      characterIds: [castId<CharacterId>("character_aria")],
+      characterIds: [ID.characterAria],
       opening: "greet-all",
     });
   });
