@@ -373,6 +373,56 @@ test("byte-equality (openrouter dialect): the FULL request body for a minimal de
   });
 });
 
+// OpenRouter forwards `cache_control` to Anthropic only from a CONTENT PART. A marker at message level on
+// string content is dropped upstream, so the history is never cached (measured: gen-1790134941-TdEvy3D9exFNfO6cf830
+// sent breakpoints on two assistant rows and read only the system block; the content-part A/B read the history,
+// gen-1790135929 vs gen-1790135933). The provider converter spells an assistant row as a string with a
+// message-level marker, and history breakpoints at depth d and d+2 land on assistant rows in an ordinary chat.
+test("OR Anthropic history breakpoints ride the content part, never the message", async () => {
+  const connection = fakeResolved({
+    task: "chat",
+    providerId: "openrouter",
+    model: "anthropic/claude-sonnet-5",
+    capability: generationCapability({
+      turns: {
+        assistantPrefill: false,
+        midConversationSystem: false,
+        historySystemRows: false,
+        roleHandlingFloor: "strict",
+        explicitPromptCache: true,
+        cacheMinTokens: 1,
+      },
+    }),
+    secret: fakeApiKeySecret("sk-or-not-a-real-key"),
+  });
+  const text = (value: string): [{ type: "text"; text: string }] => [{ type: "text", text: value }];
+  const body = await sentBody(
+    orRequest({
+      connection,
+      tools: undefined,
+      cacheBreakpointDepth: 1,
+      history: [
+        { role: "assistant", content: text("Greeting.") },
+        { role: "user", content: text("u1") },
+        { role: "assistant", content: text("a1") },
+        { role: "user", content: text("u2") },
+        { role: "assistant", content: text("a2") },
+        { role: "user", content: text("u3") },
+      ],
+    }),
+  );
+  const messages = body["messages"] as Record<string, unknown>[];
+  for (const message of messages) {
+    expect(message, `${String(message["role"])} row carries a message-level marker`).not.toHaveProperty("cache_control");
+  }
+  const marked = messages.flatMap((message, index) =>
+    Array.isArray(message["content"]) && (message["content"] as Record<string, unknown>[]).some((part) => part["cache_control"] !== undefined) ? [index] : [],
+  );
+  // system (0) plus depth 1 (a2, index 5) and depth 3 (a1, index 3).
+  expect(marked).toEqual([0, 3, 5]);
+  expect(messages[5]).toEqual({ role: "assistant", content: [{ type: "text", text: "a2", cache_control: { type: "ephemeral", ttl: "1h" } }] });
+});
+
 test("C3: `web_search_options` rides when declared, and the body carries nothing when it is not", async () => {
   const withOptions = await sentBody(orRequest({ tools: undefined, connection: extrasConnection({ web_search_options: { max_results: 5, engine: "exa" } }) }));
   expect(withOptions["web_search_options"]).toMatchObject({ max_results: 5, engine: "exa" });
@@ -539,4 +589,60 @@ test("#2575 (controls): Opus 5 on OpenRouter and a vLLM-shaped endpoint keep the
     await runOpenAiCompatChatTurn(orRequest({ connection, toolChoice: FORCED[1] }), turnDeps(scriptedSseFetch([openAiTextStream("ok")], named)));
     expect(named[0]?.body["tool_choice"], connection.model).toMatchObject({ type: "function", function: { name: "get_weather" } });
   }
+});
+
+// ── the default effort on the OpenRouter wire ────────────────────────────────────────────────────────────
+// A bare `reasoning.effort` turns Claude reasoning on: OpenRouter sends adaptive thinking upstream with the word as
+// `output_config.effort` (echo gen-1790141847-svcaPqDtmlhF34sxweVp: `{effort: "high"}` alone → thinking adaptive,
+// output_config.effort high). A `reasoning.max_tokens` would switch a 4.6 model to budget thinking, and a body
+// `verbosity` also writes `output_config.effort` and wins over the reasoning effort. So a turn with nothing set
+// must carry exactly `{effort: "high"}`, never `max_tokens`, never `verbosity`.
+test("OR Claude with no effort set sends reasoning {effort: high} — no max_tokens, no verbosity", async () => {
+  for (const params of [{}, { verbosity: "low" }, { thinkingBudgetTokens: 4000 }] satisfies UserIntent[]) {
+    for (const model of ["anthropic/claude-opus-5", "anthropic/claude-fable-5.1", "anthropic/claude-opus-4.8"]) {
+      const body = await sentBody(orRequest({ connection: orCuratedConnection(model), tools: undefined, params }));
+      expect(body["reasoning"], `${model} ${JSON.stringify(params)}`).toEqual({ effort: "high" });
+      expect(body, `${model} ${JSON.stringify(params)}`).not.toHaveProperty("verbosity");
+    }
+  }
+});
+
+test("OR non-adaptive reasoning keeps its bytes: an effort-mode model sends the bare effort word", async () => {
+  const connection = fakeResolved({
+    task: "chat",
+    providerId: "openrouter",
+    model: "google/gemini-3.5-flash",
+    capability: generationCapability({ reasoning: { mode: "effort", enabled: true, effortLevels: ["low", "medium", "high"], defaultEffort: "medium" } }),
+    secret: fakeApiKeySecret("sk-or-not-a-real-key"),
+  });
+  const body = await sentBody(orRequest({ connection, tools: undefined, params: {} }));
+  expect(body["reasoning"]).toEqual({ effort: "medium" });
+});
+
+// OpenRouter's own `reasoning.effort` takes `max` and forwards it upstream verbatim (audit echo: effort "max" →
+// output_config.effort "max"); only the V4 vocabulary lacks the word. The funnel has already refused a level
+// the model does not list, so the openrouter spelling passes the resolved word through.
+// `max` was measured upstream only on the adaptive Claude ids. An OpenAI or Gemini row whose catalog lists every
+// level (or none, which folds to every level) keeps the V4 mapping it always had: `max` goes out as `xhigh`.
+test("OR non-adaptive reasoning keeps `max` → `xhigh`, byte for byte", async () => {
+  for (const [model, reasoning] of [
+    ["openai/gpt-5.4", { mode: "effort", enabled: true, effortLevels: ["minimal", "low", "medium", "high", "xhigh", "max"] }],
+    ["openai/gpt-5.6-sol", { mode: "effort", enabled: true, effortLevels: ["low", "medium", "high", "xhigh", "max"] }],
+    ["google/gemini-3.5-flash", { mode: "effort", enabled: true, effortLevels: ["minimal", "low", "medium", "high", "xhigh", "max"] }],
+  ] as const) {
+    const connection = fakeResolved({
+      task: "chat",
+      providerId: "openrouter",
+      model,
+      capability: generationCapability({ reasoning: { ...reasoning, effortLevels: [...reasoning.effortLevels] } }),
+      secret: fakeApiKeySecret("sk-or-not-a-real-key"),
+    });
+    const body = await sentBody(orRequest({ connection, tools: undefined, params: { effort: "max" } }));
+    expect(body["reasoning"], model).toEqual({ effort: "xhigh" });
+  }
+});
+
+test("OR Claude effort `max` reaches the wire as `max`, not `xhigh`", async () => {
+  const body = await sentBody(orRequest({ connection: orCuratedConnection("anthropic/claude-opus-5"), tools: undefined, params: { effort: "max" } }));
+  expect(body["reasoning"]).toEqual({ effort: "max" });
 });
