@@ -46,3 +46,9 @@ in `_liveness/tooling-and-authored.ts`. None was blind on the real tree. A `gran
 client sheet's recipes taken away they must go stale. A planted control that leaves the recipes in place is
 refused. The baseline pass now measures only the arms whose silence is not structural.
 `real-corpus-liveness-manifest`: 271 unpinned before, 244 after.
+
+Chunk 4 (lane cb-pins). The 30 unpinned policies whose population is `@server` alone gained pins in
+`_liveness/server-app.ts`. None was blind on the real tree. `plugin-dump-guard` judges only the membrane
+module, so its pin rewrites that module. `verb-naming` also reports every other verbs-directory pin in the
+shared pass, so the entanglement check proves it alone. `real-corpus-liveness-manifest`: 244 unpinned before,
+214 after.
