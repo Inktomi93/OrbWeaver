@@ -33,8 +33,9 @@ export type CaughtFailureArm = (typeof CAUGHT_FAILURE_ARMS)[number];
 
 /** One COMMITTED census row: the judgment a site resolves to, keyed by its move-stable identity. */
 export interface CaughtFailureJudgment {
-  /** Stable across line moves: path + reported position + the nth occurrence of that pair in the file
-   *  (`lib/caught-failure.ts#caughtFailureSiteId` is its one spelling). */
+  /** Stable across line moves: the path, the enclosing declaration, the reported position and the 1-based
+   *  occurrence of that position within that declaration, joined by `::`. Its one spelling is
+   *  `lib/caught-failure-identity.ts#keyCaughtFailureSites`. */
   readonly siteId: string;
   readonly verdict: CaughtFailureVerdict;
   /** The FULL reason out of the `@orb-waive` marker the central engine bound to this site, verbatim — null
@@ -53,7 +54,7 @@ export interface CaughtFailureRow extends CaughtFailureJudgment {
   readonly grammar: CaughtFailureArm;
   /** The exact token the finding reports and a marker must name. */
   readonly position: string;
-  /** Multiplicity: the 1-based occurrence of (path, position) in file order. */
+  /** Multiplicity: the 1-based occurrence of this position within its enclosing declaration. */
   readonly ordinal: number;
   readonly snippet: string;
   readonly markerLine: number | null;
