@@ -298,15 +298,16 @@ export const CHAT_PROSE_SLOTS = {
   "chat.injection.systemNote": {
     id: "chat.injection.systemNote",
     home: "preset",
-    version: 1,
-    // A system-authority injection the resolved model cannot take as a real system row demotes to a USER
-    // row wearing this frame — the framing IS the demotion's honesty (the reader sees it is a system note).
-    text: "[Note from system: {{note}}]",
+    version: 2,
+    // A system-role injection the turn cannot deliver as a real system row folds into USER text wearing this
+    // frame. v2 drops the speaker label (owner ruling): a bracketed instruction in the Guided Generations style
+    // reads as direction without claiming a speaker. No "next message": the row can sit several turns back.
+    text: "[Take the following into special consideration: {{note}}]",
     macros: "none",
     requiredMacros: ["{{note}}"],
     requiredTokens: [],
-    title: "Demoted system-note frame",
-    fires: "Any system-role injection the model can't deliver as a real system row (the TURNS_FLOOR default).",
+    title: "Folded system-note frame",
+    fires: "Any system-role injection the turn folds into user text instead of a real system row.",
   },
   "chat.injection.userNote": {
     id: "chat.injection.userNote",
@@ -319,7 +320,21 @@ export const CHAT_PROSE_SLOTS = {
     requiredMacros: ["{{note}}"],
     requiredTokens: [],
     title: "User-note frame",
-    fires: "Every user-role injection — author's note, host steering, a prefix-adjacent re-framed injection.",
+    fires: "Every user-role injection — author's note, host steering.",
+  },
+  "chat.injection.assistantNote": {
+    id: "chat.injection.assistantNote",
+    home: "preset",
+    version: 1,
+    // An assistant-role injection just above the tail re-roles to USER text so it never merges into the model's
+    // last committed reply (the cached prefix). The frame names no speaker: the line is not the user's words.
+    // Modelled on Guided Generations' `[Take the following into special consideration for your next message: …]`.
+    text: "[Take the following into special consideration for your next message: {{note}}]",
+    macros: "none",
+    requiredMacros: ["{{note}}"],
+    requiredTokens: [],
+    title: "Re-roled assistant-note frame",
+    fires: "An assistant-role injection just above the tail, re-roled to user text to keep the cached reply intact.",
   },
   "chat.assembly.continuationNudge": {
     id: "chat.assembly.continuationNudge",

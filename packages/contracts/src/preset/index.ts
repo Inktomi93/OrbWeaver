@@ -1252,7 +1252,7 @@ export const TEMPLATE_DEFS = [
     defaultSlot: "preset.format.newChatMarker",
   },
   // ── THE TURN-WIRE FRAMINGS (owner ruling 2026-08-07) ──────────────────────────────────────────────────
-  // The three wrappers assembly puts AROUND content on the way to the model. They are `format`, not `nudge`:
+  // The wrappers assembly puts AROUND content on the way to the model. They are `format`, not `nudge`:
   // a nudge is prose fired by an ACTION with nothing to steer it; these fire on the shape of the WIRE (a
   // demoted system row, an operator note, a history that would end on the model's own reply). Their id is a
   // PROSE-1 slot id, so their storage is `prose[<id>].text` — the third form path.
@@ -1260,7 +1260,7 @@ export const TEMPLATE_DEFS = [
     id: "chat.injection.systemNote",
     kind: "format",
     label: "System-note frame",
-    fires: "A system-role injection the model can't take as a real system row",
+    fires: "A system-role injection the turn folds into user text",
     caps: [{ kind: "tokens", tokens: ["{{note}}"] }],
     defaultSlot: "chat.injection.systemNote",
   },
@@ -1268,9 +1268,17 @@ export const TEMPLATE_DEFS = [
     id: "chat.injection.userNote",
     kind: "format",
     label: "User-note frame",
-    fires: "Every user-role injection — author's note, host steering, a re-framed injection",
+    fires: "Every user-role injection — author's note, host steering",
     caps: [{ kind: "tokens", tokens: ["{{note}}"] }],
     defaultSlot: "chat.injection.userNote",
+  },
+  {
+    id: "chat.injection.assistantNote",
+    kind: "format",
+    label: "Assistant-note frame",
+    fires: "An assistant-role injection just above the tail, re-roled to user text",
+    caps: [{ kind: "tokens", tokens: ["{{note}}"] }],
+    defaultSlot: "chat.injection.assistantNote",
   },
   {
     id: "chat.assembly.continuationNudge",

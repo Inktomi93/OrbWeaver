@@ -128,6 +128,7 @@ export const PROSE_SLOT_IDS = [
   //    presets"). Authored in the preset Templates tab, stored in `promptConfig.prose`. ──
   "chat.injection.systemNote",
   "chat.injection.userNote",
+  "chat.injection.assistantNote",
   "chat.assembly.continuationNudge",
   // ── per-USER: the prose-less-completion recovery ask (dogfood EMPTYGEN-REASONING) ──
   "chat.recovery.narrativeContinuation",

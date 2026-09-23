@@ -1098,7 +1098,7 @@ async function shapeNextTurn(
     assistantPrefill: turns?.assistantPrefill === true,
     midConversationSystem: turns?.midConversationSystem === true,
     // The mid-array system-injection gate (an author's note / depth-N WI entry rides at its depth instead of
-    // demoting to `[Note from system: …]`). The preview must show the SAME delivery the wire carries — this
+    // demoting to `chat.injection.systemNote`). The preview must show the SAME delivery the wire carries — this
     // read is what a host debugs the prompt with, so a divergence would make the trace lie about the role
     // sequence. It no longer touches narrator rows: that D129(B) delivery was owner-ruled out 2026-08-18.
     historySystemRows: turns?.historySystemRows === true,

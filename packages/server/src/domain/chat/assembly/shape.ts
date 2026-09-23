@@ -88,12 +88,12 @@ interface ShapeInput {
   assistantPrefill?: boolean;
   /** The resolved `turns.midConversationSystem`: `true` ⇒ a depth-0 in_chat system injection delivers as a
    *  REAL system wire row (the model honors a tail system-authority channel); `false`/absent (the
-   *  `TURNS_FLOOR` safe default) ⇒ it demotes to the visible `[Note from system: …]` user note. */
+   *  `TURNS_FLOOR` safe default) ⇒ it demotes to the visible `chat.injection.systemNote` user note. */
   midConversationSystem?: boolean;
   /** The resolved `turns.historySystemRows` (read through `acceptsHistorySystemRows`) — the MEASURED
    *  mid-array-system fact, with exactly ONE reader in this transform: the depth \> 0 arm of the injection
    *  splice, where an author's note / depth-N world-info entry rides at its depth as a real `system` row
-   *  instead of demoting to `[Note from system: …]`. `false`/absent (the `TURNS_FLOOR` fail-closed default,
+   *  instead of demoting to `chat.injection.systemNote`. `false`/absent (the `TURNS_FLOOR` fail-closed default,
    *  i.e. every wire but vLLM) ⇒ it demotes, byte-identically to before that arm existed. A SIBLING of
    *  {@link midConversationSystem}, never the same bit — that one is wire-tested for the depth-0 TAIL and
    *  this is mid-history (contract field docs).

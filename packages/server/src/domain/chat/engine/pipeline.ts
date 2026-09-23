@@ -645,11 +645,11 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     // against the model's roleHandlingFloor.
     assistantPrefill: prefillHonored,
     // midConversationSystem gates the depth-0 system-injection delivery: a declaring model gets a REAL
-    // system wire row; the TURNS_FLOOR default demotes to the visible `[Note from system: …]` user note.
+    // system wire row; the TURNS_FLOOR default demotes to the visible `chat.injection.systemNote` user note.
     midConversationSystem: acceptsMidConversationSystem(generationOf(args.connection)),
     // historySystemRows gates the DEPTH>0 system-injection delivery: on a MEASURED mid-array-system model an
     // author's note / depth-N world-info entry rides at its depth as a real system row; unmeasured ⇒ it
-    // demotes to the visible `[Note from system: …]` user note. Read through the contract helper — never a
+    // demotes to the visible `chat.injection.systemNote` user note. Read through the contract helper — never a
     // second spelling of the capability field. It does NOT touch narrator canon rows: the D129(B) delivery
     // that also read this bit was owner-ruled out 2026-08-18 (group narration is the assistant's own voice).
     historySystemRows: acceptsHistorySystemRows(generationOf(args.connection)),

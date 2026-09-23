@@ -22,9 +22,11 @@ const inj = (over: Partial<ChatInjection>): ChatInjection => ({
 });
 
 describe("frameInjection", () => {
-  test("user → [Note from user: …]; system→user keeps the original-role framing; assistant/system bare", () => {
+  test("user → [Note from user: …]; a re-roled system or assistant row takes its neutral frame; assistant/system bare", () => {
     expect(frameInjection("user", "hi")).toBe("[Note from user: hi]");
-    expect(frameInjection("user", "hi", "system")).toBe("[Note from system: hi]");
+    expect(frameInjection("user", "hi", "system")).toBe("[Take the following into special consideration: hi]");
+    // The re-roled assistant injection carries no speaker label: it is not the user's words (owner ruling).
+    expect(frameInjection("user", "hi", "assistant")).toBe("[Take the following into special consideration for your next message: hi]");
     expect(frameInjection("assistant", "hi")).toBe("hi");
     expect(frameInjection("system", "hi")).toBe("hi");
   });
@@ -82,9 +84,9 @@ describe("spliceInChatInjections", () => {
     expect(out[HIST.length - 1]).toEqual({ role: "assistant", content: "cont", speakerless: true });
   });
 
-  test("role=system + in_chat auto-converts to user with [Note from system: …] framing", () => {
+  test("role=system + in_chat auto-converts to user with [Take the following into special consideration: …] framing", () => {
     const out = spliceInChatInjections(HIST, [inj({ depth: 0, role: "system", content: "sys" })]);
-    expect(out.at(-1)).toEqual({ role: "user", content: "[Note from system: sys]", speakerless: true });
+    expect(out.at(-1)).toEqual({ role: "user", content: "[Take the following into special consideration: sys]", speakerless: true });
   });
 
   test("co-located injections splice by order ASC — LOWER order lands higher/top (ST parity)", () => {
@@ -109,14 +111,14 @@ describe("spliceInChatInjections", () => {
       (c) => c,
       { squashSystemMessages: true },
     );
-    // Merge-BEFORE-convert: one `[Note from system: …]` bracket carrying both notes, not two.
-    expect(out.at(-1)).toEqual({ role: "user", content: "[Note from system: sys-a\n\nsys-b]", speakerless: true });
-    expect(out.filter((m) => m.content.includes("[Note from system:"))).toHaveLength(1);
+    // Merge-BEFORE-convert: one `[Take the following into special consideration: …]` bracket carrying both notes, not two.
+    expect(out.at(-1)).toEqual({ role: "user", content: "[Take the following into special consideration: sys-a\n\nsys-b]", speakerless: true });
+    expect(out.filter((m) => m.content.includes("[Take the following into special consideration:"))).toHaveLength(1);
   });
 
   test("squashSystemMessages OFF (default): system notes stay SEPARATE (each its own bracket)", () => {
     const out = spliceInChatInjections(HIST, [inj({ depth: 0, role: "system", content: "sys-a" }), inj({ depth: 0, role: "system", content: "sys-b" })]);
-    expect(out.filter((m) => m.content.includes("[Note from system:"))).toHaveLength(2);
+    expect(out.filter((m) => m.content.includes("[Take the following into special consideration:"))).toHaveLength(2);
   });
 
   test("squashSystemMessages: a non-system note between two system notes BREAKS the run (order-adjacency)", () => {
@@ -131,7 +133,7 @@ describe("spliceInChatInjections", () => {
       (c) => c,
       { squashSystemMessages: true },
     );
-    expect(out.filter((m) => m.content.includes("[Note from system:"))).toHaveLength(2);
+    expect(out.filter((m) => m.content.includes("[Take the following into special consideration:"))).toHaveLength(2);
   });
 
   test("squashSystemMessages: DIFFERENT depths never merge (non-adjacent in the delivered array)", () => {
@@ -141,7 +143,7 @@ describe("spliceInChatInjections", () => {
       (c) => c,
       { squashSystemMessages: true },
     );
-    expect(out.filter((m) => m.content.includes("[Note from system:"))).toHaveLength(2);
+    expect(out.filter((m) => m.content.includes("[Take the following into special consideration:"))).toHaveLength(2);
   });
 
   test("generic: canon rows keep their extra fields through the splice (name-stamp depends on it)", () => {
@@ -167,13 +169,13 @@ describe("spliceInChatInjections — allowMidConversationSystem (turns.midConver
 
   test("allowed: depth > 0 STILL demotes (the wire-tested channel is tail-only; never a mid-history system row)", () => {
     const out = spliceInChatInjections(HIST, [inj({ depth: 1, role: "system", content: "sys" })], (c) => c, { allowMidConversationSystem: true });
-    expect(out[HIST.length - 1]).toEqual({ role: "user", content: "[Note from system: sys]", speakerless: true });
+    expect(out[HIST.length - 1]).toEqual({ role: "user", content: "[Take the following into special consideration: sys]", speakerless: true });
   });
 
   test("absent/false: the demote path is byte-identical to the pre-capability behavior (regression pin)", () => {
     const off = spliceInChatInjections(HIST, [inj({ depth: 0, role: "system", content: "sys" })]);
     const explicitOff = spliceInChatInjections(HIST, [inj({ depth: 0, role: "system", content: "sys" })], (c) => c, { allowMidConversationSystem: false });
-    expect(off.at(-1)).toEqual({ role: "user", content: "[Note from system: sys]", speakerless: true });
+    expect(off.at(-1)).toEqual({ role: "user", content: "[Take the following into special consideration: sys]", speakerless: true });
     expect(explicitOff).toEqual(off);
   });
 

@@ -979,7 +979,7 @@ function assembleWithSlices(
 
   // The `in_chat` injections never touch the system halves (SHAPE splices them into history), but they ARE
   // part of what the model reads next turn — the rpg state block rides exactly this channel. Account them
-  // here, at their pre-splice content: the splice's role framing (`[Note from system: …]`) adds a handful of
+  // here, at their pre-splice content: the splice's role framing (`chat.injection.systemNote`) adds a handful of
   // tokens the estimate doesn't chase (advisory by construction, like every count on this surface). NOT
   // post-processed: the ASSEMBLE pass runs on the two joined SYSTEM halves only, and these bytes never join
   // one — they go to the SHAPE splice verbatim.
