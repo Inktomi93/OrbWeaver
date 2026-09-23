@@ -34,7 +34,7 @@ const BOUNDARY_HOME: ProjectHomeDeclaration = { path: "packages/client/src/compo
 const BATTERY_HOME: ProjectHomeDeclaration = { path: "packages/client/src/data/query-error-state.tsx", names: ["QueryErrorState"] };
 
 const MESSAGE =
-  "a hand-rolled `renderError` arm on QueryBoundary — the read-error surface is `QueryErrorState` " +
+  "a hand-rolled `renderError` prop on QueryBoundary — the read-error surface is `QueryErrorState` " +
   "(`Couldn't load <label>.` plus a real refetch Retry), and QueryBoundary DEFAULTS to it. Render " +
   "`renderError={(_error, retry) => <QueryErrorState label=… onRetry={retry} />}` or drop the prop " +
   "(D72 — a machine ships WITH its seal). Home: packages/client/src/data/query-error-state.tsx";

@@ -47,7 +47,7 @@ import { defineGate } from "../contract/policy.ts";
 import { busDefinitionFact } from "../lib/bus-definition-fact.ts";
 
 const MESSAGE =
-  "belted bus union has NO consumer belt — neither a mapped-type total map over the union in packages/client/src (data/invalidation.ts for the global buses, or the bus's own stream hook) nor a server-side exhaustive dispatch. A belt with no consumer ratchets producers only, and members reach nobody.";
+  "a bus union has NO consumer coverage — neither a mapped-type total map over the union in packages/client/src (data/invalidation.ts for the global buses, or the bus's own stream hook) nor a server-side exhaustive dispatch. A belt with no consumer ratchets producers only, and members reach nobody.";
 
 export const gate = defineGate({
   id: "bus-consumer-belt",

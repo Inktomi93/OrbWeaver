@@ -60,7 +60,7 @@ import { defineGate } from "../contract/policy.ts";
 import { AXIS_HOME_REL, declaredAxes, readStampedAxes, recipeKey, stampDoorRecipeName, UI_SRC } from "../lib/variant-axis-stamp.ts";
 
 const MESSAGE =
-  "@orb/ui variant-axis stamp (#1080): a `tv()` recipe declaring a stamped axis (variant/size/intent/tone) " +
+  "@orb/ui variant-axis stamp: a `tv()` recipe declaring a stamped axis (variant/size/intent/tone) " +
   "must emit that axis as a `data-*` attribute, or two different authored arms of one primitive in one home " +
   "collapse into ONE ui-audit authored decision — one repair row where two decisions exist. Also RED: a " +
   "`tv()` config this gate cannot read (its axes are unknowable, so its compliance is too), and two recipes " +
