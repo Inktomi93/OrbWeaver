@@ -12,14 +12,13 @@ import { AGENT_CONTINUATION_PROMPT_STUB, createInferenceRuntime, DEFAULT_EMBED_M
 import type { AssetId, ChatId, ChatTurnId, MessageId, ModelId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { TurnMessage, TurnRequest, TurnStreamChunk } from "@orb/server/domain/chat";
-import { activePersonaIdFor, buildChatToolOps, createRunChatTurnBridge } from "@orb/server/entry/compose";
+import { activePersonaIdFor, buildChatToolOps, createRunChatTurnBridge, createTaskWindowReaders } from "@orb/server/entry/compose";
 import { describe } from "vitest";
 import { z } from "zod";
 import type { ChatToolExecFrame, ChatToolOps } from "../../../../packages/server/src/domain/chat/contract/context.ts";
 import { runTurnPipeline } from "../../../../packages/server/src/domain/chat/engine/pipeline.ts";
 import type { ToolExecutionContext, ToolUseService } from "../../../../packages/server/src/domain/tool-use/index.ts";
 import { createToolUseService } from "../../../../packages/server/src/domain/tool-use/index.ts";
-import { createTaskWindowReaders } from "../../../../packages/server/src/entry/compose/chat.ts";
 import { fakeConnection, fakeDeps, fakeModelCache, memoryStores, newUserId } from "../../../inference/_support.ts";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { principal as principalOf } from "../../../support/factories/principal.ts";
