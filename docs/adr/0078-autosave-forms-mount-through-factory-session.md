@@ -8,7 +8,7 @@ updated: 2026-09-23
 
 ## Context
 
-Not recorded in the ledger row.
+TanStack form-core's `FormApi.update` reseeds `defaultValues` only while the form is untouched. After one edit, a form that receives another entity's values keeps the old ones. A per-field `onFieldUnmount` flush guarded by `isValid && !isDefaultValue` stays true after any edit, because nothing re-baselines after a save. A remount that resets the form fires that flush and writes the pre-reset values back over the reset.
 
 ## Decision
 
@@ -16,8 +16,13 @@ Not recorded in the ledger row.
 
 ## Consequences
 
-Not recorded in the ledger row.
+- An entity switch or `reseed()` remounts the form and the consumer body. Tabs, scroll and drill-ins reset with it.
+- Every guard compares against the last saved values, so a form is clean right after a save.
+- Structural array edits save through the store subscription. Call sites add no manual flush.
 
 ## Alternatives rejected
 
-Not recorded in the ledger row.
+- Swap TanStack Form's `formId`. `useForm` builds a new `FormApi` and `useField` rebinds, but nothing unmounts. Consumer UI state keeps the old entity's context, and no teardown point exists for the pending-edit flush.
+- Pass live `defaultValues` and rely on the form-core reseed. It skips a touched form, so a dirty form keeps the previous entity's values. The clean-echo reseed still uses this path, where the form is clean.
+- Document a consumer `key` contract and add a gate. A static gate cannot prove that the component owning the hook is keyed by the same `entityId`.
+- Keep a per-field unmount flush. The form-level debounce already outlives every field, and the flush guard wrote stale values back.

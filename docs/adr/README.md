@@ -162,3 +162,14 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D175 | [Test setup stays inline; per-domain fixture families are not built](0175-test-setup-stays-inline.md) | active |
 | D176 | [HOME tiles keep a static order; no conditional promotion](0176-home-tiles-keep-a-static-order.md) | active |
 | D177 | [Inference owns tool and history delivery; the server owns which tools act](0177-inference-owns-tool-and-history-delivery.md) | active |
+| D179 | [No gate forces Field.Control wrapping or namespaced Base UI type imports](0179-no-gate-forces-field-control-or-namespaced-base-ui-imports.md) | active |
+| D180 | [Video input is its own content part](0180-video-input-is-its-own-content-part.md) | active |
+| D181 | [Semantic invariants and write atomicity stay review work, not gates](0181-semantic-invariants-and-write-atomicity-stay-review-work.md) | active |
+| D182 | [Snap heap evidence uses the pinned DevTools parser](0182-snap-heap-evidence-uses-the-pinned-devtools-parser.md) | active |
+| D183 | [Snap run facts are typed per check at compile time](0183-snap-run-facts-are-typed-per-check-at-compile-time.md) | active |
+| D184 | [Snap records motion as PNG contact sheets, not video](0184-snap-records-motion-as-png-contact-sheets-not-video.md) | active |
+| D185 | [Presets stay a standalone rail section](0185-presets-stay-a-standalone-rail-section.md) | active |
+| D186 | [A video background plays as native video](0186-a-video-background-plays-as-native-video.md) | active |
+| D187 | [The token vault is validated DTCG with a CSS-values extension](0187-the-token-vault-is-validated-dtcg-with-a-css-values-extension.md) | active |
+| D188 | [Background automation and plugins never write a message](0188-background-automation-and-plugins-never-write-a-message.md) | active |
+| D189 | [RPG quests ride the snapshot and the journal is a variant-aware table](0189-rpg-quests-ride-the-snapshot-and-the-journal-is-variant-aware.md) | active |
