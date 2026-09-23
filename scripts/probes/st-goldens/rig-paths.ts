@@ -17,7 +17,7 @@ export const ST_OUTPUT_DIR = path.join(DATA_ROOT, "output");
 export const ORB_OUTPUT_DIR = path.join(DATA_ROOT, "orbweaver-output");
 export const ST_RUNTIME_DIR = path.join(DATA_ROOT, "sillytavern-runtime");
 
-/** The canonical chat inputs. The ORB arm reads THESE, never the ST runtime's copy: ST rewrites its chat
- *  files as it generates, and the sweeps run the ORB arm last — so a runtime read replays whatever ST left
+/** The canonical chat inputs `build-fixtures.ts` seeds the ST runtime from. Read THESE, never the ST
+ *  runtime's copy: ST rewrites its chat files as it generates — so a runtime read replays whatever ST left
  *  behind (measured: a 65-line seed truncated to one greeting, which collapsed 44 captures into one). */
 export const SEED_CHATS_DIR = path.resolve(RIG_DIR, "../../../packages/default-content/demo-chats");

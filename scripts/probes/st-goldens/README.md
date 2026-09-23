@@ -56,13 +56,12 @@ scripts/probes/st-goldens/
   build-fixtures.ts           # writes ST V2 character PNGs + demo chats INTO the runtime
   write-v2-png.cjs            # the V2 tEXt-chunk PNG writer build-fixtures.ts loads
   generate-goldens.ts         # ST arm: boots ST, sets config, intercepts, captures
-  capture-orbweaver.ts        # ORB arm: replays the fixture through our real turn engine
   compare-runner.ts           # diffs the two captures: structure AND identity-bearing bytes
   run-demo-goldens.sh         # 16-combo post-processing/squash/prefill sweep
   run-demo-complex.sh         # depth-injection + per-model tool-calling sweep
   fixtures/<id>.json          # test case: provider, character, messages, model (GITIGNORED — emitted)
   output/<id>.json            # captured ST payload (GITIGNORED)
-  orbweaver-output/<model>_<id>.json  # captured Orbweaver payload (GITIGNORED)
+  orbweaver-output/<model>_<id>.json  # historical Orbweaver payloads; no producer (see "The ORB arm") (GITIGNORED)
   sillytavern-runtime/        # ST install (GITIGNORED, ~500MB, managed separately)
     data/default-user/
       settings.json           # ← patched before each run
@@ -82,6 +81,31 @@ sweeps every fixture on disk, so a `rm -rf output orbweaver-output` at the top o
 other sweep's arm. That is not hypothetical: it is how the 16-combo ST captures were lost while their ORB
 counterparts survived in file-count only, as 44 copies of a single capture. Ids are the filenames, so a
 re-run overwrites exactly its own outputs.
+
+### The ORB arm
+
+The in-process ORB arm (`capture-orbweaver.ts`) was deleted with the retired OpenRouter-skin seams it drove
+(`docs/design/orbweaver-inference-package.md`, "Deleted instruments"). No script in this rig produces
+`orbweaver-output/` any more; the files there are historical captures from that instrument. The sweeps stop
+after the ST arm.
+
+To capture what Orbweaver sends for the same conversation, drive a turn on the dev server with
+`WIRE_CAPTURE=on` and read `/api/_debug/wire/captures?chatId=<id>`. That is the real turn path, and on an
+OpenRouter connection with `extras: {"debug": {"echo_upstream_body": true}}` plus `WIRE_CAPTURE_REPLY=on` the
+capture also holds OpenRouter's echo of the upstream body.
+
+### Runtime version
+
+`sillytavern-runtime/` is SillyTavern 1.18.0. It predates the Claude 5 and Fable model rules (the
+`isClaude5Model` / `noPrefillModel` / adaptive-thinking branches in `src/endpoints/backends/chat-completions.js`
+of 1.19.0), and its model list (`public/index.html`) has no Claude 5 or Fable id. A Claude 5 capture needs a
+1.19 runtime; with this one, the model-mismatch check in `generate-goldens.ts` is what reports a reverted
+model. Every capture in `output/` is a Claude 3.x wire.
+
+1.18.0 and 1.19.0 declare the same `dependencies`, so a 1.19 runtime can reuse this one's `node_modules/`:
+copy a 1.19 source tree without `.git/`, `node_modules/` and `data/` to `<root>/sillytavern-runtime/`, copy
+this runtime's `data/` and `config.yaml` next to it, symlink `node_modules/`, then run `build-fixtures.ts` and
+`generate-goldens.ts` with `ST_GOLDENS_DATA_ROOT=<root>`. That captured a `claude-opus-5` wire.
 
 ### How ST routing works
 
@@ -175,13 +199,11 @@ node scripts/probes/st-goldens/build-fixtures.ts
 # 1. ST arm — capture what SillyTavern sends for one fixture
 node scripts/probes/st-goldens/generate-goldens.ts basic_turn
 
-# 2. ORB arm — capture what we send for every claude fixture on disk
-node scripts/probes/st-goldens/capture-orbweaver.ts
-
-# 3. Diff them
+# 2. ORB arm — no script; see "The ORB arm" above. compare-runner.ts still reads orbweaver-output/, whose
+#    files are all historical; it marks a pair [stale] only when the two arms are >6h apart.
 node scripts/probes/st-goldens/compare-runner.ts
 
-# …or run a whole sweep (writes its own fixtures, then does all four steps):
+# …or run a whole ST sweep (writes its own fixtures, then captures each one):
 scripts/probes/st-goldens/run-demo-goldens.sh
 scripts/probes/st-goldens/run-demo-complex.sh
 ```
@@ -295,13 +317,13 @@ marker-guarded) so OpenRouter traffic also routes to the mock server.
 - [x] **`serviceWorkers: 'block'`** — handled. Still good practice in Playwright, even though we use a backend mock server now.
 - [x] **Character activation confirmed working** — Yes, the Playwright `el.click()` triggers the character activation properly.
 - [x] **ST-side capture** — Successfully intercepts and outputs to `output/<id>.json`.
-- [x] **Orbweaver-side capture** — BUILT: `capture-orbweaver.ts` drives the REAL turn engine
-      (`driveRound`) behind a wire-capturing OpenRouter backend and writes
-      `orbweaver-output/<model>_<id>.json`. It does NOT POST to a running server — it replays
-      in-process against a `freshDb()`, so no stack has to be up.
-- [x] **Comparison runner** — BUILT: `compare-runner.ts` normalizes ST's Anthropic-shaped tools +
-      leading fake-user message to our OpenAI shape, then diffs key-sorted structure with `content`
-      blanked (prose differs by construction; SHAPE + ordering is the parity claim).
+- [ ] **Orbweaver-side capture** — REMOVED. `capture-orbweaver.ts` is deleted (see "The ORB arm"); the
+      ORB side comes from the dev server's wire capture.
+- [x] **Comparison runner** — BUILT: `compare-runner.ts` diffs the identity-bearing bytes per message
+      (role, name field, inline label, block count, `\n\n` and block joins) plus system placement,
+      sampling keys and tools. It reads `orbweaver-output/`, which has no producer now.
+- [ ] **Claude 5 runtime** — `sillytavern-runtime/` is 1.18.0 and cannot capture a Claude 5 wire (see
+      "Runtime version").
 - [x] **Sweep accumulation** — the destructive `rm -rf` is gone from both sweep shells.
 - [x] **Depth-injection ST capture** — `run-demo-complex.sh` wrote that fixture but never captured it.
 - [x] **Fixture-key alignment** — the sweeps' `names_behavior` / `prompt_post_processing` spellings are now

@@ -27,7 +27,8 @@ type StCapture = {
   readonly captured_at?: string;
   readonly model?: string;
 };
-/** `capture-orbweaver.ts`'s output — the raw outbound body, no envelope. */
+/** An `orbweaver-output/` file — the raw outbound body, no envelope. Its producer (`capture-orbweaver.ts`) is
+ *  deleted, so every file here is historical (README "The ORB arm"). */
 type OrbCapture = WirePayload;
 
 /** ST's per-model sampling vocabulary vs ours. Compared as a normalized pair, never key-by-key: the two
