@@ -306,7 +306,9 @@ test("HOST CALLS — a message naming a sibling plugin's id cannot borrow that p
   await expect(frameResult(frame, "inside")).toHaveText(refused("inside"));
   await expect(frameResult(frame, "beside")).toHaveText(refused("beside"));
   // Exactly two calls, both under Chess's id, so a relay that sent nothing at all cannot pass as "no escalation".
-  await expect.poll(() => recorder.inputs("plugin.uiHostCall").map((input) => (input as { readonly pluginId: string }).pluginId)).toEqual([CHESS_ID, CHESS_ID]);
+  await expect
+    .poll(() => recorder.inputs("plugin.uiHostCall").map((input) => (input as { readonly pluginId: PluginId }).pluginId))
+    .toEqual([CHESS_ID, CHESS_ID]);
 });
 
 test("HOST CALLS — a tool-card frame's chat-scoped call goes out scoped to the transcript's room", async ({ mount, page }) => {
