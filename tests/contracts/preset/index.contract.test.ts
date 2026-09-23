@@ -103,7 +103,8 @@ test("the two main_prompt defaults differ ONLY in the perspective framing — th
   // The narrator text carries the joined cast as its VOICES, never as one perspective to write.
   expect(NARRATOR_MAIN_PROMPT_TEMPLATE).toContain("{{char}}");
   expect(NARRATOR_MAIN_PROMPT_TEMPLATE).not.toContain("perspective only");
-  expect(DEFAULT_MARKER_TEMPLATES.main_prompt).toContain("perspective only");
+  // Owner ruling: the per-speaker text names no single perspective either — the round cue names the speaker.
+  expect(DEFAULT_MARKER_TEMPLATES.main_prompt).not.toContain("perspective only");
 });
 
 test("parsePromptConfig degrades a non-object / malformed blob to DEFAULT_PROMPT_CONFIG (lenient)", () => {

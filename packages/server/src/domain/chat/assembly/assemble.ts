@@ -83,9 +83,8 @@ type TemplatedMarkerSection = Extract<MarkerSection, { marker: keyof typeof DEFA
  * The template for a templated marker — caller override wins, else the shipped default framing.
  *
  * The `main_prompt` DEFAULT is MODE-AWARE, and this is its ONE resolution home. A narrator round is one
- * generation voicing all the seated characters, so the per-speaker default — `You are {{char}} … write {{char}}'s perspective only`,
- * with `{{char}}` bound to the JOINED member names on that arm — instructs the model to do something the round
- * cannot do (a live drive once read it back as "write Charlotte, JFC's perspective only"). A per-speaker merged
+ * generation voicing all the seated characters and the world around them, which the per-speaker default does
+ * not say, so it takes the narrator sibling (`{{char}}` bound to the JOINED member names). A per-speaker merged
  * turn's system block is the whole roster for every speaker: it keeps the single default with `{{char}}` bound to
  * the roster, so a room of one reads the same bytes it always did. Keyed on the speaker arm: the SHAPE already
  * decided what this turn voices, so nothing here re-derives it from `cardScope`/`isGroup`.
