@@ -1,5 +1,5 @@
 // One-shot codemod for #906 / #914 (vocabulary-map row 149, ratified as Fork 3 of
-// `docs/reviews/stickler/2026-08-30-vocab-unification.md`): rpg's scene-only extra is an **npc**, so its
+// 2026-08-30): rpg's scene-only extra is an **npc**, so its
 // actor-ref arm becomes `{kind:"npc", npcKey}` and `actorRefKey` projects `npc:<slug>`. The reserved
 // cross-game library arm was renamed off the bare word FIRST (commit 1 of this lane — `libraryNpc`), which
 // is what freed it.

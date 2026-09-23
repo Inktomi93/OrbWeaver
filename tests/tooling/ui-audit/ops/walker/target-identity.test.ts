@@ -6,7 +6,7 @@
 // and this one fails in the SILENT direction: an axis @orb/ui stamps but the walker never reads simply
 // folds two authored decisions back into one population row, with a run that still looks clean. That
 // collapse is exactly the F8 defect this vocabulary was armed for
-// (docs/reviews/stickler/2026-09-02-uiaudit-orbui-mechanism-audit.md).
+// (2026-09-02).
 //
 // So both sides are DERIVED and compared: `STAMPED_VARIANT_AXES` (packages/ui/src/lib/variant-attrs.ts —
 // the ONE home of what the primitives emit) against the array parsed out of the walker string. The parser

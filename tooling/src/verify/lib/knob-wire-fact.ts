@@ -116,7 +116,7 @@ function runBelt(belt: Belt, into: KnobWireCandidate[]): number {
 function assertMemberSourcePresent(memberCount: number, anchor: string, source: string, corpora: Corpora): void {
   if (memberCount === 0 && corpora.identifiers.has(anchor)) {
     throw new Error(
-      `knob-wire-coverage: the ${anchor} companion anchor is present but the ${source} member source is not — it was renamed away, so the belt would go vacuous-green. Re-point the member source in tooling/src/verify/lib/knob-wire-fact.ts (path-keyed-gates-die-on-rename; Core-Path-Registry.md D107).`,
+      `knob-wire-coverage: the ${anchor} companion anchor is present but the ${source} member source is not — it was renamed away, so the belt would go vacuous-green. Re-point the member source in tooling/src/verify/lib/knob-wire-fact.ts (path-keyed-gates-die-on-rename; D107).`,
     );
   }
 }

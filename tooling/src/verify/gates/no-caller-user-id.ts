@@ -1,4 +1,4 @@
-// Gate: no-caller-user-id (Core-Path-Registry.md D19 turn-identity). The caller is `Principal.userId`; a turn's
+// Gate: no-caller-user-id (D19 turn-identity). The caller is `Principal.userId`; a turn's
 // RESPONSIBLE human is `triggeredBy`, the FUNDER is `funderUserId`, and assembly/tools run as `runAsUserId`.
 // The term `callerUserId`
 // conflates caller with turn-identity (the neo bug class: the caller's id reaching `resolveCredential`/
@@ -22,7 +22,7 @@ import { defineGate } from "../contract/policy.ts";
 const FORBIDDEN = "callerUserId";
 
 const MESSAGE =
-  "`callerUserId` is forbidden (D19): the caller is `Principal.userId`; use `triggeredBy` for attribution/abort, `funderUserId` for the funded connection/credentials, or `runAsUserId` for assembly/tools. Never route the caller's id into credential or settings resolution. See Core-Path-Registry.md D19.";
+  "`callerUserId` is forbidden (D19): the caller is `Principal.userId`; use `triggeredBy` for attribution/abort, `funderUserId` for the funded connection/credentials, or `runAsUserId` for assembly/tools. Never route the caller's id into credential or settings resolution. See docs/adr/0019-turn-identity-has-three-distinct-concepts.md.";
 export const gate = defineGate({
   id: "no-caller-user-id",
   family: "no-caller-user-id",

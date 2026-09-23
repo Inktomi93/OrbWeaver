@@ -137,7 +137,7 @@ catalog:
   # entire `if (cond)` -> `if (false)` mutant class was disqualified as CompileError (TS7027) and left the
   # score's denominator, and the repeated disk fallback made the run 3x slower. The patch defaults the
   # parameter to the resolved name. Fixed, the native checker matches the classic verdict exactly at
-  # classic-or-better speed (measurements in docs/reviews/mutation-config-calibration.md). The native checker
+  # classic-or-better speed (measurements from the mutation-config calibration pass). The native checker
   # also needs the `@typescript/native` -> npm:typescript@7 alias in the ROOT devDependencies (its loader
   # imports `@typescript/native/unstable/sync`; the alias its own error message recommends is never read).
   # The two patches + the four pins + that alias move TOGETHER on any bump, and the planted control below
@@ -423,7 +423,7 @@ overrides:
   # CT's vite is PINNED, not merely inherited. @playwright/experimental-ct-core depends on `vite: ^6`, so
   # this tree deliberately carries TWO vite majors: 8 for the @orb/client build, 6 for the CT harness.
   #
-  # We tried to collapse them (spike 2026-08-07, docs/history/reviews/misc/2026-08-07-ct-vite-8-spike.md) by
+  # We tried to collapse them (spike 2026-08-07) by
   # overriding this same key to the catalog's vite 8. It BUILDS and then mounts NOTHING: 674 CT specs ran,
   # 670 reached retry2, every one failing `mount()` with a 30s timeout against a blank page, starting at
   # the very first spec. A/B'd on one file, same box, same load: vite 6 → 2 passed (27.9s); vite 8 → 2

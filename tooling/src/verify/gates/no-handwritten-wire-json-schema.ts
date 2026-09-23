@@ -1,4 +1,4 @@
-// core/Core-Path-Registry.md D79 — the T6 seal. After the structured-output unification wave there is
+// D79 — the T6 seal. After the structured-output unification wave there is
 // exactly ONE way to fill a wire `schema` field: project a zod schema through `@orb/kit/json-schema`
 // `projectJsonSchema`. A hand-authored JSON-Schema literal is the retired debt. Both reads are shared: the
 // field NAME through the member/static readers (so a computed `["schema"]` key is the same field) and the
@@ -34,7 +34,7 @@ const OBJECT_TYPE = "object";
 
 const MESSAGE =
   "a hand-authored JSON-Schema literal is passed to a wire `schema` field — after the D79 unification wave " +
-  "the ONE source of a wire schema is `projectJsonSchema` (zod → JSON Schema). Core-Path-Registry.md D79.";
+  "the ONE source of a wire schema is `projectJsonSchema` (zod → JSON Schema), exported by @orb/kit/json-schema (D79, a reserved main-era ruling).";
 
 const FIX =
   "declare a zod payload schema and project it: `schema: projectJsonSchema(payloadSchema)` — never a " +

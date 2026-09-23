@@ -6,8 +6,7 @@
 // (`tooling/src/ui-audit/ops/walker/target-identity.ts`, `TARGET_VARIANT_ATTRS`) reads exactly these four
 // attributes to tell two authored decisions apart — with zero emitters, a `size="glyph-xs"` button beside a
 // `size="lg"` button in one toolbar folded into ONE "authored target-size decision" (one repair row where
-// two decisions exist, with a muddled min–max range). The audit finding is F8 of
-// docs/reviews/stickler/2026-09-02-uiaudit-orbui-mechanism-audit.md.
+// two decisions exist, with a muddled min–max range) — audit finding F8, 2026-09-02.
 //
 // THE DERIVATION IS HERE, ONCE. A hand-written attribute spread inside a primitive is a SECOND source of
 // truth that drifts off its own recipe the first time an arm is renamed. Both doors below read the recipe's

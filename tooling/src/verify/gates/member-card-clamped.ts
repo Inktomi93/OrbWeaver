@@ -43,7 +43,7 @@ const GROUP_MESSAGE =
   "projection has ONE home — contracts/chat), a clamp symbol (clampMemberCard/resolveCardVisibility) " +
   "declared outside domain/chat/substrate/auth/ (the ONE D22 decision site), or the deleted duplicate verb " +
   "getRosterCardView resurrected in server src — a re-spelled local shape or a second clamp is exactly how " +
-  "the clamp levels diverged before (D22/PD-111 — Core-Laws-and-Precedents.md §7 D22).";
+  "the clamp levels diverged before (D22/PD-111 — D22).";
 
 /** The declared name of a clamp-symbol function/variable declaration node, else undefined. */
 function clampDeclName(node: Node): string | undefined {

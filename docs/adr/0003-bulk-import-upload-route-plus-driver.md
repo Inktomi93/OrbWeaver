@@ -1,0 +1,23 @@
+---
+kind: adr
+status: active
+updated: 2026-09-23
+---
+
+# Bulk import is an upload route plus a driver
+
+## Context
+
+Not recorded in the ledger row.
+
+## Decision
+
+Bulk import: `entry/http/upload.ts` (multipart route) delegates to `entry/import/run-profile-import.ts` (composition driver). Two responsibilities, both real.
+
+## Consequences
+
+Not recorded in the ledger row.
+
+## Alternatives rejected
+
+Not recorded in the ledger row.

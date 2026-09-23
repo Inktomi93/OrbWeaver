@@ -2,12 +2,11 @@
 // a UsageError so the cli maps it to exit 3 (misuse). Every list-taking verb reads a leading run of ids
 // or paths, so `set 12 14 17 done` is one call.
 import { UsageError } from "../../_shared/run-tool.ts";
-import type { DocCommand, ItemPatch, RulingRange } from "../contract/types.ts";
+import type { DocCommand, ItemPatch } from "../contract/types.ts";
 import { isItemKind, isItemState } from "./items.ts";
 import { isSlug } from "./names.ts";
 
 const ID_RE = /^\d+$/u;
-const RANGE_RE = /^(\d+)-(\d+)$/u;
 
 export const USAGE = [
   "usage: pnpm doc <verb> …",
@@ -17,7 +16,7 @@ export const USAGE = [
   "  set <id…> <open|doing|blocked|done> [--lane x] [--blocked <reason>] [--priority P] [--area a] [--plan s] [--reviewed x] [--evidence sha]",
   "  land <id…> --evidence <sha>       land --merged",
   "  archive <plan-slug|item-id…>      index      review <path|glob…>      due [glob…]",
-  "  overview      drift      migrate-ledger --range <a-b|all> [--apply]",
+  "  overview      drift",
 ].join("\n");
 
 function flagValue(args: readonly string[], flag: string): string | null {
@@ -163,17 +162,6 @@ function parseStatus(args: readonly string[]): DocCommand {
   return { kind: "status", status, paths, by: flagValue(args, "--by") };
 }
 
-function parseRange(value: string): RulingRange | "all" {
-  if (value === "all") {
-    return "all";
-  }
-  const match = RANGE_RE.exec(value);
-  if (match === null || Number(match[1]) > Number(match[2])) {
-    throw new UsageError("--range takes <from>-<to> or all");
-  }
-  return { lo: Number(match[1]), hi: Number(match[2]) };
-}
-
 function parseListVerb(name: "archive" | "review" | "due", args: readonly string[]): DocCommand {
   refuseUnknownFlags(args, [], name);
   if (name !== "due" && args.length === 0) {
@@ -190,11 +178,6 @@ function parseBare(name: "index" | "overview" | "drift", args: readonly string[]
     throw new UsageError(`${name} takes no arguments`);
   }
   return { kind: name };
-}
-
-function parseMigrate(tail: readonly string[]): DocCommand {
-  refuseUnknownFlags(tail, ["--range", "--apply"], "migrate-ledger");
-  return { kind: "migrate-ledger", range: parseRange(requiredFlag(tail, "--range")), apply: tail.includes("--apply") };
 }
 
 /** Verb name → parser. A verb absent here is unknown, which is misuse. */
@@ -214,7 +197,6 @@ const VERBS: ReadonlyMap<string, Parser> = new Map<string, Parser>([
   ["index", (tail): DocCommand => parseBare("index", tail)],
   ["overview", (tail): DocCommand => parseBare("overview", tail)],
   ["drift", (tail): DocCommand => parseBare("drift", tail)],
-  ["migrate-ledger", parseMigrate],
 ]);
 
 export function parseDocCommand(argv: readonly string[]): DocCommand {

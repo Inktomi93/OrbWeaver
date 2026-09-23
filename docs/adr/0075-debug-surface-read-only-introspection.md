@@ -1,0 +1,23 @@
+---
+kind: adr
+status: active
+updated: 2026-09-23
+---
+
+# The debug surface is read-only introspection
+
+## Context
+
+Not recorded in the ledger row.
+
+## Decision
+
+**The `/api/_debug` surface is READ-ONLY introspection; the neo macros/regex eval routes are by-design-out.** neo needed `POST /api/_debug/macros/eval` + `/api/_debug/regex/execute` because its engines were server-only — the client had to round-trip to preview a script. Orbweaver dissolved the constraint: the macro engine (`@orb/kit/macro`) and regex engine (`@orb/kit/regex`) are ISOMORPHIC, so the client previews with the SAME code locally — zero server/client drift, no round-trip, no mutating endpoints on the debug surface. (The server-only node:vm ReDoS watchdog wraps `applyReplace` server-side only; client preview runs the engine unwatched — the user's own browser, their own regex.) If a "validate against the server" affordance is ever wanted, it is an authed tRPC verb in the owning domain — NEVER a debug route. Do not re-flag these routes as a parity gap.
+
+## Consequences
+
+Not recorded in the ledger row.
+
+## Alternatives rejected
+
+Not recorded in the ledger row.

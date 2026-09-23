@@ -40,7 +40,7 @@ import { bannedMessage, SCHEMA_BANNED_SHAPES } from "../lib/ledger-banned-shapes
 import { DRIZZLE_SCHEMA_POPULATION, drizzleSchemaFact } from "../lib/schema-fact.ts";
 
 const MESSAGE =
-  "a ledger-REJECTED schema shape has been reintroduced — the ledger killed this table/column by name; drop it or contest the D-cite (see the row's citation in Core-Laws-and-Precedents.md).";
+  "a ledger-REJECTED schema shape has been reintroduced — the ledger killed this table/column by name; drop it or contest the D-cite in its docs/adr/ decision (every row and its cite: tooling/src/verify/lib/ledger-banned-shapes.ts).";
 const FIX = "remove the banned column (or the whole table) — the ledger row names the correct home for the concern.";
 
 /** Does this column match a column / column-pattern row? The subject is the PROPERTY name, which is the

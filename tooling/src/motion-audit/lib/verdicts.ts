@@ -181,7 +181,7 @@ function primaryFirstLoafIndexes(loafs: readonly LoafRecord[]): ReadonlySet<numb
 }
 
 /** The native LoAF invoker name for React's discrete-event dispatch (measured on the real tree, e.g.
- *  `docs/reviews/side-eye/2026-09-02-config-surface-live-drive-2.md`'s "…6ms forced style/layout inside
+ * 2026-09-02's "…6ms forced style/layout inside
  *  `dispatchDiscreteEvent`") — condition (a) below. */
 const INPUT_DISPATCH_INVOKER = "dispatchDiscreteEvent";
 

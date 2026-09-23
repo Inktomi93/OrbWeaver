@@ -28,8 +28,8 @@ test("the text-citation family keeps its two-sided proofs", () => {
  *  nothing is "I could not judge", not "the tree is clean". The complete-run pins hold the receipt pair,
  *  so a declaration that stopped being consumed reads as a missing receipt here rather than a quiet pass. */
 const DOCS_ROOT = "docs/architecture";
-const D_REGISTRY = `${DOCS_ROOT}/core/Core-Path-Registry.md`;
-const D_REGISTRY_TEXT = "- **D1** — an entry.\n> **RESERVED RANGE — D79–D105:** reserved for main-era rulings.\n";
+const D_ADR = "docs/adr/0001-an-entry.md";
+const D_ADR_TEXT = "# An entry\n";
 const PD_ACTIVE = `${DOCS_ROOT}/core/Core-Audits-and-Debt.md`;
 const PD_CLEARED = `${DOCS_ROOT}/history/Core-Debt-Cleared-Ledger.md`;
 const ANCHOR_TEXT = "export const anchor = 1;\n";
@@ -87,36 +87,50 @@ function refusal(policyId: string, phase: string, fragment: string): Record<stri
 }
 
 test("d-citation-integrity: a complete population reaches a verdict and files one receipt per declaration", ({ scratch }) => {
-  const result = pass(dCitationIntegrity, scratch, { [D_REGISTRY]: D_REGISTRY_TEXT, "packages/contracts/src/x.ts": "// per D1.\nexport const x = 1;\n" });
+  const result = pass(dCitationIntegrity, scratch, {
+    [D_ADR]: D_ADR_TEXT,
+    [`${DOCS_ROOT}/core/Law.md`]: "Cites D1.\n",
+    "packages/contracts/src/x.ts": "// per D1.\nexport const x = 1;\n",
+  });
 
   expect(result.toolErrors).toEqual([]);
   expect(result.authority.effectiveFindings).toEqual([]);
   expect(result.authority.withheldPolicyIds).toEqual([]);
   expect(result.policies.map(({ receipts }) => receipts)).toEqual([
     [
-      { kind: "population", source: "core-doc-citers", members: 1, unresolved: 0 },
+      // The citer corpus is the core law doc AND the ADR itself: the ledger is judged as a citer too.
+      { kind: "population", source: "citer-docs", members: 2, unresolved: 0 },
       { kind: "population", source: "d-ledger-documents", members: 1, unresolved: 0 },
       // `authored-text` is a DEMAND door, so its receipt is keyed by the exact subject it was asked for.
-      { kind: "resource", source: "authored-text#1", resources: 1, unresolved: 0 },
-      { kind: "resource", source: "authored-tree:docs", resources: 3, unresolved: 0 },
-      { kind: "resource", source: "ledger:core-path-registry", resources: 1, unresolved: 0 },
+      { kind: "resource", source: "authored-text#1", resources: 2, unresolved: 0 },
+      { kind: "resource", source: "authored-tree:docs", resources: 5, unresolved: 0 },
+      { kind: "resource", source: "ledger:d-ledger", resources: 1, unresolved: 0 },
     ],
   ]);
 });
 
-test("d-citation-integrity: an ABSENT registry refuses the whole run — a half-read D-ledger INVERTS every judgment", ({ scratch }) => {
+test("d-citation-integrity: an ABSENT ADR tree refuses the whole run — a half-read D-ledger INVERTS every judgment", ({ scratch }) => {
   const result = pass(dCitationIntegrity, scratch, {
-    [`${DOCS_ROOT}/core/Other.md`]: "no registry here.\n",
+    [`${DOCS_ROOT}/core/Other.md`]: "no ledger here.\n",
     "packages/contracts/src/x.ts": "// per D1.\nexport const x = 1;\n",
   });
 
-  expect(refusalShape(result)).toEqual(refusal("d-citation-integrity", "population", "resource declaration ledger:core-path-registry is missing"));
+  expect(refusalShape(result)).toEqual(refusal("d-citation-integrity", "population", "resource declaration ledger:d-ledger is missing"));
 });
 
-test("d-citation-integrity: an EMPTY registry refuses with its own status word rather than reading as zero anchors", ({ scratch }) => {
-  const result = pass(dCitationIntegrity, scratch, { [D_REGISTRY]: "", "packages/contracts/src/x.ts": "// per D1.\nexport const x = 1;\n" });
+test("d-citation-integrity: an ADR tree holding NO decision refuses as empty rather than reading as zero ids", ({ scratch }) => {
+  const result = pass(dCitationIntegrity, scratch, {
+    "docs/adr/README.md": "# Decisions\n",
+    "packages/contracts/src/x.ts": "// per D1.\nexport const x = 1;\n",
+  });
 
-  expect(refusalShape(result)).toEqual(refusal("d-citation-integrity", "population", "resource declaration ledger:core-path-registry is empty"));
+  expect(refusalShape(result)).toEqual(refusal("d-citation-integrity", "population", "resource declaration ledger:d-ledger resolved an empty fact"));
+});
+
+test("d-citation-integrity: an EMPTY decision file refuses with its own status word rather than minting silently", ({ scratch }) => {
+  const result = pass(dCitationIntegrity, scratch, { [D_ADR]: "", "packages/contracts/src/x.ts": "// per D1.\nexport const x = 1;\n" });
+
+  expect(refusalShape(result)).toEqual(refusal("d-citation-integrity", "population", "resource declaration ledger:d-ledger is empty"));
 });
 
 test("d-citation-integrity: an ABSENT docs tree refuses too — the corpus door is not privileged over the identity door", ({ scratch }) => {

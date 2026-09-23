@@ -116,7 +116,7 @@ function topLevelEqIndex(raw: string): number | null {
  *  is still exactly what this does. What the ruling assumed was that a SELECTOR never carries an `=`;
  *  an attribute selector does, so the plain first-`=` split cut `[data-testid` off from `cast-name]` and
  *  made every attribute selector unusable (paid live: a review had to tag its input through `--eval`
- *  first — docs/reviews/side-eye/2026-08-29-saved-casts-rules.md §9). Depth-aware, so both hold at once.
+ * first — 2026-08-29 §9). Depth-aware, so both hold at once.
  *
  *  THE SAME RULING, ITS INPUT CHANGED AGAIN (#826): a Playwright ENGINE prefix (`role=`, `text=`, …) is
  *  also part of the selector, so the scan steps over the `=` that ends an engine name. Consequence worth

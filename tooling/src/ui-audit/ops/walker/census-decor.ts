@@ -29,7 +29,7 @@ export const WALKER_CENSUS_DECOR = `  // ── nested cards (card-like = (shado
   // alone carry the distinction", packages/client/src/features/discovery/components/corpus-family-map.tsx)
   // was called bordered by NAME while its measured box read { t:0, r:0, b:0, l:0 } and boxShadow "none".
   // Every use of that arm anywhere in the app was a guaranteed finding: 8 of the 10 findings on the
-  // populated corpus surface (docs/reviews/side-eye/2026-08-23-rail-corpus-populated.md §3).
+  // populated corpus surface (2026-08-23 §3).
   // Splitting the class LIST into tokens would not have helped — \`-\` is a non-word character, so
   // /\\bcard\\b/ matches the token \`text-card-foreground\` on its own — and a \`[data-slot^=card]\` arm is
   // worse still: the nested arm IS a card-root, so a slot signal reinstates the identical FP. Border

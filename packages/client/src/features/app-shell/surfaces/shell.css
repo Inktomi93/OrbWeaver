@@ -640,7 +640,7 @@
  * counter — the gutterCentred/anchored axis (#1728) is a DIFFERENT, INNER question (where the reading
  * column sits inside its own row) that this outer counter does not touch.
  *
- * ── #2442 (side-eye audit 2026-09-19, docs/reviews/side-eye/2026-09-19-collapse-ux-touch-audits.md) ────
+ * ── #2442 (side-eye audit 2026-09-19, 2026-09-19) ────
  * TWO THINGS WERE WRONG WITH THE RULE THAT SHIPPED, AND BOTH WERE MEASURED ON THE LIVE STACK.
  *
  * 1. THE SELECTOR NAMED ONE CARRIER OF SIX. `[data-slot=message-row]` is not the centred box — it is one

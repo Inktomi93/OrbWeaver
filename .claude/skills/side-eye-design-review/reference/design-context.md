@@ -22,7 +22,7 @@ facts that live nowhere else. Sources outrank this file on any conflict.
 | Test ids | `packages/client/src/lib/test-ids.ts` |
 | In-page introspection manual (`__orb`) | `packages/client/src/lib/agent-tools.README.md` |
 | Client architecture law | `docs/architecture/core/client-architecture-lockdown.md` |
-| The decision ledger — cite the decision a finding breaks | `docs/architecture/core/Core-Laws-and-Precedents.md` → `Core-Path-Registry.md` |
+| The decision ledger — cite the decision a finding breaks | `docs/adr/` (one decision per file, indexed by `docs/adr/README.md`) |
 | Component tests | `tests/client/**` (e2e: `tests/e2e/**`) |
 | Server truth for a chat surface | `GET :8788/api/_debug/db/chat/:id`, `/api/_debug/db/chats`, `/api/_debug/db/characters`, `/api/_debug/errors`, `/api/_debug/db/integrity` |
 

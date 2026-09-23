@@ -68,12 +68,8 @@ export function cssVariableInventory(
   };
 }
 
-export function sameStringSet(left: ReadonlySet<string>, right: ReadonlySet<string>): boolean {
-  return left.size === right.size && [...left].every((value) => right.has(value));
-}
-
 export function vendorUse(inventory: CssVariableInventory, vendor: VendorContract): ReadonlySet<string> {
-  return new Set(inventory.references.filter((site) => vendor.documented.has(site.name)).map((site) => site.name));
+  return new Set(inventory.references.filter((site) => vendor.declared.has(site.name)).map((site) => site.name));
 }
 
 export function runtimeUse(inventory: CssVariableInventory): ReadonlySet<string> {

@@ -9,8 +9,8 @@
 // WHAT IS PINNED (#444, paid for by #439): a `nowrap justify-end` footer wider than its clipping
 // container pushes its first control past the container's LEFT edge, where it is cut. That overflow is
 // NEGATIVE, so `scrollWidth - clientWidth` — this assertion's only arm until now — reads 0, and the
-// instrument printed `PASS overflow=0x0` over the defect (receipt: docs/reviews/side-eye/
-// 2026-08-22-verify-271-334.md). The healthy twin in the same story is the false-positive fence.
+// instrument printed `PASS overflow=0x0` over the defect (receipt: 2026-08-22). The healthy twin in the
+// same story is the false-positive fence.
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { OverflowProbe } from "../../../../tooling/src/snap/contract/overflow.ts";

@@ -1,11 +1,10 @@
 // The structural rules for the governed docs tree, PURE over a `DocTree` snapshot: allowed folders,
 // per-kind frontmatter, required sections, size caps, flat trees and stray files, work-item shape and
-// id uniqueness, ADR id uniqueness, the registry's next-free note, and generated-file freshness.
+// id uniqueness, ADR id uniqueness, and generated-file freshness.
 // `pnpm check:agents` runs them (through `ops/check.ts`); the writing rules 1, 2 and 4 over the same
 // docs come from `_shared/prose-rules.ts` and are composed there, not here.
 import {
   ADR_KIND,
-  CORE_PATH_REGISTRY_PATH,
   DATE_RE,
   DOC_TOOL_TREES,
   FIRST_RESERVED_RULING,
@@ -31,15 +30,12 @@ const ITEM_CAP = 4096;
 const LAW_CAP = 49_152;
 const MISSION_PATH = "docs/Mission.md";
 const CATALOG_DIR = "catalog";
-/** Every phrasing of the registry's next-free statement — "Next free number is D165+", "Next free number
- *  for a genuinely new ruling is **D159+**" — so two of them cannot coexist unseen. */
-const NEXT_FREE_STATEMENT_RE = /Next free number\b[^\n.]*?\bis \**D(\d+)\+/gu;
 const INDEX_KIND = "index";
 const ARCHIVED = "archived";
 const ARCHIVE_FOLDER_RE = /^\d{4}-\d{2}-\d{2}-[a-z0-9]+(?:-[a-z0-9]+)*$/u;
 const REQUIRED_KEYS = ["kind", "status", "updated"] as const;
-/** The reserved D window, from the one vocabulary home rather than the registry's note, so it outlives
- *  the registry. */
+/** The reserved D window. `pnpm doc new adr` never mints into it; a main-era ruling is re-minted there with
+ *  its ORIGINAL number (D86 is one), so an ADR file inside the window is legal. */
 const RESERVED = { lo: FIRST_RESERVED_RULING, hi: LAST_RESERVED_RULING } as const;
 
 /** The legacy top-level entries of `docs/`, kept until each migrates. SHRINK-ONLY and two-sided: a row
@@ -49,7 +45,6 @@ export const LEGACY_ROOTS: readonly string[] = [
   "design",
   "history",
   "reviews",
-  "vendor",
   "retro-workboard.md",
   "Qwen_Offline_Investigation.md",
   "client-smalls-lane.md",
@@ -285,44 +280,14 @@ function adrIdProblems(tree: DocTree): readonly string[] {
       problems.push(`${path}: id ${String(id)} is already ${twin}`);
     }
     seen.set(id, path);
-    if (tree.registryIds.has(id)) {
-      problems.push(`${path}: id ${String(id)} is still anchored in the legacy registry — move the row with pnpm doc migrate-ledger, or pick the next free id`);
-    }
-    if (id >= RESERVED.lo && id <= RESERVED.hi) {
-      problems.push(`${path}: id ${String(id)} is inside the reserved range D${String(RESERVED.lo)}–D${String(RESERVED.hi)}`);
-    }
   }
   return problems;
 }
 
-/** The next free D id over both homes, skipping the reserved window — the one derivation the ADR minting
- *  verb uses and the registry's own note is checked against. */
-export function nextFreeRulingId(registryIds: ReadonlySet<number>, adrIdList: readonly number[]): number {
-  const next = Math.max(0, ...registryIds, ...adrIdList) + 1;
+/** The next free D id, skipping the reserved window — the one derivation the ADR minting verb uses. */
+export function nextFreeRulingId(adrIdList: readonly number[]): number {
+  const next = Math.max(0, ...adrIdList) + 1;
   return next >= RESERVED.lo && next <= RESERVED.hi ? RESERVED.hi + 1 : next;
-}
-
-/** The numbers every next-free statement in the registry's text announces, in file order. */
-export function nextFreeStatements(source: string): readonly number[] {
-  return [...source.matchAll(NEXT_FREE_STATEMENT_RE)].map((match) => Number(match[1]));
-}
-
-function nextFreeNoteProblems(tree: DocTree): readonly string[] {
-  const [note, ...extra] = tree.nextFreeNotes;
-  if (note === undefined) {
-    return [];
-  }
-  if (extra.length > 0) {
-    const all = tree.nextFreeNotes.map((n) => `D${String(n)}+`).join(", ");
-    return [`${CORE_PATH_REGISTRY_PATH}: two next-free notes (${all}) — keep the one that is right`];
-  }
-  const expected = nextFreeRulingId(
-    tree.registryIds,
-    adrIds(tree).flatMap(({ id }) => (id === null ? [] : [id])),
-  );
-  return note === expected
-    ? []
-    : [`${CORE_PATH_REGISTRY_PATH}: the next-free note says D${String(note)}+ but the next free id is D${String(expected)} — edit the note`];
 }
 
 function itemProblems(tree: DocTree): readonly string[] {
@@ -369,7 +334,6 @@ export function docProblems(tree: DocTree): readonly string[] {
     ...missingGenerated,
     ...planFolderProblems(tree),
     ...adrIdProblems(tree),
-    ...nextFreeNoteProblems(tree),
     ...itemProblems(tree),
   ];
 }

@@ -140,3 +140,8 @@ scratch/
 # External agent workspaces
 .lsp.json
 .qwen/
+
+# Vendored upstream doc mirrors: every reader now has a real source (npm package or upstream site), and
+# the base-ui mirror's one gate fact folds installed declarations directly
+# (docs/work/0010-vendored-docs-leave-git.md; `tooling/src/verify/contract/resource-vendor.ts`).
+/docs/vendor/

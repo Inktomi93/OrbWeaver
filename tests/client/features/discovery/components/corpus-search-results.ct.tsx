@@ -1,5 +1,5 @@
 // CT: the corpus omnibox's MEMORIES branch — the two defects the 2026-08-18 corpus forensics named as the
-// owner's "search-and-select is SUPER useful… not" (docs/reviews/misc/2026-08-18-corpus-forensics.md §2).
+// owner's "search-and-select is SUPER useful… not" (2026-08-18 §2).
 //
 // WHY THESE ASSERTIONS AND NOT THE TESTID. `data-testid="corpus-search-hit"` matched ZERO nodes in the
 // rendered DOM for this branch — `ListRow` builds its body from named props and forwards no `data-*`

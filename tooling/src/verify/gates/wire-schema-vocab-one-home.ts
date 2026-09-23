@@ -1,4 +1,4 @@
-// Policy: wire-schema-vocab-one-home (Core-Path-Registry.md D93) — a JSON-Schema keyword table
+// Policy: wire-schema-vocab-one-home (D93) — a JSON-Schema keyword table
 // belongs only in the wire-subset engine and its inverse lift reader. The vocabulary is read from the
 // engine's authored const arrays; string occurrences are collected by the dispatcher, so this policy owns
 // no project walk. The two permanent homes are exact reviewed grants. Central reconciliation therefore
@@ -14,7 +14,8 @@ const LIFT_REL = "packages/kit/src/json-schema/lift.ts";
 const VOCAB_CONSTS = WIRE_SCHEMA_VOCABULARY_NAMES;
 const TABLE_FENCE = 2;
 const OPERATION = "wire-schema-vocabulary-home";
-const MESSAGE = "a JSON-Schema wire keyword vocabulary is spelled outside the one scrub engine and its inverse lift reader (Core-Path-Registry.md D93).";
+const MESSAGE =
+  "a JSON-Schema wire keyword vocabulary is spelled outside the one scrub engine and its inverse lift reader (D93, a reserved main-era ruling; the engine is packages/contracts/src/inference/wire-subset.ts).";
 const FIX = "call scrubWireSchema with the WireSchemaMode this wire speaks; a new subset belongs as a mode in wire-subset.ts, never as a local keyword walk.";
 
 function vocabularyAnchor(nodes: readonly MorphNode[], vocabulary: ReadonlySet<string>): MorphNode | undefined {

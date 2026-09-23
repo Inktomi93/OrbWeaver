@@ -1,4 +1,4 @@
-// Policy: zod-error-issues-home (docs/history/reviews/stickler/2026-08-02-zod-leverage-audit.md §F4) — a
+// Policy: zod-error-issues-home (2026-08-02 §F4) — a
 // USER-facing refusal renders through `z.prettifyError`, which carries the PATH. Hand-flattening a
 // `ZodError`'s `issues` drops it: the old `issues[0]?.message` printed "Too small: expected string to have
 // >=1 characters" and named no field, so an operator importing a 500-section preset got a refusal that

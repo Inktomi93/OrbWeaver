@@ -41,6 +41,8 @@ export const JSON_RESOURCE_PATHS = {
   "doc-catalog": "docs/catalog/catalog.json",
   /** The Base UI family: the committed surface the installed package is adjudicated against. */
   "baseui-manifest": "tooling/src/verify/gates/baseui-surface.manifest.json",
+  /** `caught-failure-ownership-health`: the committed caught-failure census, joined to the tree on `siteId`. */
+  "caught-failure-population": "tooling/src/verify/gates/caught-failure-ownership.population.json",
 } as const;
 
 export type JsonResourceId = keyof typeof JSON_RESOURCE_PATHS;

@@ -45,8 +45,8 @@
 // `@orb-gate-ignore knob-wire-coverage` occurrences on the tree (matching the exhaustive 2026-09-12 census
 // table), so the legacy door is DEAD and nothing was translated. No nearby coordinate was manufactured.
 //
-// Full spec: docs/history/reviews/stickler/2026-07-25-knob-drift-gates.md; ruling: Core-Path-Registry.md
-// D107; Spine-Config-and-Serialization.md §"Settings / config".
+// Full spec: the knob-drift gates stickler review; ruling: D107;
+// Spine-Config-and-Serialization.md §"Settings / config".
 import { defineGate } from "../contract/policy.ts";
 import { KNOB_WIRE_OPERATIONS, knobWireFact } from "../lib/knob-wire-fact.ts";
 
@@ -56,7 +56,7 @@ const PRESET = "packages/contracts/src/preset/index.ts";
 const METADATA = "packages/server/src/domain/chat/contract/metadata.ts";
 
 const MESSAGE = (detail: string): string =>
-  `${detail} — a declared knob wired to nothing is a dead switch (an edit silently governs nothing). Wire the missing half, or add a cited row to tooling/src/verify/lib/reviewed-grants.ts keyed on this policy, the member subject and its arm operation. Spine-Config-and-Serialization.md §7.2; Core-Path-Registry.md D107.`;
+  `${detail} — a declared knob wired to nothing is a dead switch (an edit silently governs nothing). Wire the missing half, or add a cited row to tooling/src/verify/lib/reviewed-grants.ts keyed on this policy, the member subject and its arm operation. Spine-Config-and-Serialization.md §7.2; D107.`;
 
 /** A settings head every fixture that must resolve `appSettingsSchema` or a leaf carries. */
 const SETTINGS_HEAD = 'import { z } from "zod";\nexport const USER_SETTINGS_SECTIONS = [] as const;\n';
@@ -76,7 +76,7 @@ export const gate = defineGate({
   facts: [knobWireFact],
   resources: [],
   message:
-    'a declared knob is wired to nothing — an `EffectiveAppConfig` field with no type-keyed server read, a `USER_SETTINGS_SECTIONS` member with no `section:"x"` write, an `appSettingsSchema` key absent from every admin write surface, a settings schema leaf nothing reads, a `DEFAULT_FORMAT_STRINGS` key no server behavior reads, or a `chatMetadataSchema` field with no write verb or no reader. Each finding anchors on the member\'s own authored name node in its contract, and its reviewed identity is (member subject, arm operation). Wire the missing half, or add a cited central reviewed grant. Core-Path-Registry.md D107.',
+    'a declared knob is wired to nothing — an `EffectiveAppConfig` field with no type-keyed server read, a `USER_SETTINGS_SECTIONS` member with no `section:"x"` write, an `appSettingsSchema` key absent from every admin write surface, a settings schema leaf nothing reads, a `DEFAULT_FORMAT_STRINGS` key no server behavior reads, or a `chatMetadataSchema` field with no write verb or no reader. Each finding anchors on the member\'s own authored name node in its contract, and its reviewed identity is (member subject, arm operation). Wire the missing half, or add a cited central reviewed grant. docs/adr/0107-declared-knob-wired-or-cited-as-dormant.md.',
   fix: "wire the consumer/writer the finding names, or add a row to tooling/src/verify/lib/reviewed-grants.ts keyed on policyId `knob-wire-coverage`, the reported subject and the reported operation, with `why` and `endsWhen`; central liveness reds the row the moment the wire lands or the member disappears.",
   create: (ctx) => ({
     evaluate: () => {

@@ -1,0 +1,23 @@
+---
+kind: adr
+status: active
+updated: 2026-09-23
+---
+
+# Domain events are a closed union carrying ids
+
+## Context
+
+Not recorded in the ledger row.
+
+## Decision
+
+`@orb/contracts/events` is the CLOSED in-process domain-event union + the injected `EmitDomainEvent` op: a payload carries branded ids + at most non-secret routing flags (the subscriber re-reads canon by id — no event-carried trust, no secret representable); emitters never reach the bus directly; the bus instance + subscriptions wire at `entry/compose/event-bus.ts`.
+
+## Consequences
+
+Not recorded in the ledger row.
+
+## Alternatives rejected
+
+Not recorded in the ledger row.

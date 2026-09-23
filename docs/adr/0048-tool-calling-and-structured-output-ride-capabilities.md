@@ -1,0 +1,23 @@
+---
+kind: adr
+status: active
+updated: 2026-09-23
+---
+
+# Tool calling and structured output ride capabilities
+
+## Context
+
+Not recorded in the ledger row.
+
+## Decision
+
+Tool/function calling + structured output (design set parked in `../architecture/proposed/` (see `../architecture/proposed/INDEX.md`)): `ModelCapability` carries the gates (`tools?: {parallel}` · `output.structured?`). The `tool` history role lives on the provider WIRE axis (`HISTORY_ROLES`, infra contract) — NEVER in kit `MESSAGE_ROLES`; `messages.role` stays `system|user|assistant`; tool exchanges persist as `ToolCallRecord[]` on the VARIANT. Tool-call/tool-result parts extend the D45 `ChatContentPart` union. **ONE registry (`domain/tool-use`), TWO wire projections:** the agent-sdk MCP server (SDK owns its loop) and OpenAI-wire `tools[]` where the CHAT DOMAIN owns the recurse loop (infra runners only shape wire); the registry reconciles with D46's `can()` capabilities — builtin/host and plugin tools are two sources of one registry. Structured output is a separate `response_format` axis (never rides tool_choice). The domain-side capability-gate warning codes live in `CHAT_WARNING_CODES`, not the infra tuple (`tools_unsupported` landed; `structured_output_unsupported` ships WITH the structured-output loop — no code without a real emit site). FLAG\[PD-54].
+
+## Consequences
+
+Not recorded in the ledger row.
+
+## Alternatives rejected
+
+Not recorded in the ledger row.

@@ -1,5 +1,5 @@
-// Everything that TOUCHES the tree: the tracked-document read, the lane→path resolution, the registry's
-// ruling anchors, and the biome-normalised JSON writer. The pure rules (lib/) take their input from here,
+// Everything that TOUCHES the tree: the tracked-document read, the lane→path resolution, and the
+// biome-normalised JSON writer. The pure rules (lib/) take their input from here,
 // never the reverse.
 import { globSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -8,16 +8,7 @@ import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { execNicedSync } from "../../_shared/proc.ts";
 import type { Doc, Lane, LaneConfig, Receipt } from "../contract/types.ts";
 import { frontmatterErrors, parseFrontmatter } from "../lib/frontmatter.ts";
-import {
-  CATALOG_DIR,
-  CORE_PATH_REGISTRY_PATH,
-  DOC_TOOL_TREE_PREFIXES,
-  LEDGER_ENTRY_BOLD_RE,
-  LEDGER_ENTRY_HEADING_RE,
-  OUTPUT_PATH,
-  RECEIPTS_DIR,
-  VENDOR_PREFIX,
-} from "../lib/vocab.ts";
+import { CATALOG_DIR, DOC_TOOL_TREE_PREFIXES, OUTPUT_PATH, RECEIPTS_DIR } from "../lib/vocab.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:docs (node tooling/src/doc-catalog/cli.ts <verb>)");
 
@@ -72,48 +63,14 @@ function trackedDocs(repoRoot = root, isolateGitEnvironment = false): readonly s
 export function documents(repoRoot = root, isolateGitEnvironment = false): readonly Doc[] {
   return trackedDocs(repoRoot, isolateGitEnvironment).map((path) => {
     const frontmatter = parseFrontmatter(readFileSync(join(repoRoot, path), "utf8"), path);
-    const vendor = path.startsWith(VENDOR_PREFIX);
     return {
       path,
       frontmatter: {
         ...frontmatter,
-        malformed: vendor ? false : frontmatter.malformed,
         errors: frontmatterErrors(path, frontmatter),
       },
     };
   });
-}
-
-/** D-number anchors in the ledger. A `## D<n>` heading immediately followed by its own `- **D<n>` bold
- *  restatement is ONE anchor, not two — the ledger's house entry shape. The `doc` tool reads this to keep
- *  a new ADR from colliding with a row that has not migrated. */
-export function stableRulingAnchors(repoRoot = root): ReadonlyMap<string, number> {
-  const counts = new Map<string, number>();
-  let headedRuling: string | undefined;
-  let headedRulingPaired = false;
-  for (const line of readFileSync(join(repoRoot, CORE_PATH_REGISTRY_PATH), "utf8").split("\n")) {
-    const heading = LEDGER_ENTRY_HEADING_RE.exec(line)?.[1];
-    if (heading !== undefined) {
-      counts.set(heading, (counts.get(heading) ?? 0) + 1);
-      headedRuling = heading;
-      headedRulingPaired = false;
-      continue;
-    }
-    if (line.startsWith("## ")) {
-      headedRuling = undefined;
-      continue;
-    }
-    const bold = LEDGER_ENTRY_BOLD_RE.exec(line)?.[1];
-    if (bold === undefined) {
-      continue;
-    }
-    if (headedRuling === bold && !headedRulingPaired) {
-      headedRulingPaired = true;
-      continue;
-    }
-    counts.set(bold, (counts.get(bold) ?? 0) + 1);
-  }
-  return counts;
 }
 
 function pathsForLane(lane: Lane, repoRoot: string): ReadonlySet<string> {

@@ -45,13 +45,11 @@ const STREAMDOWN_PKG = "packages/ui/node_modules/streamdown";
 /** The committed Base UI surface manifest, describing an EMPTY installed surface. */
 export const EMPTY_BASE_UI_MANIFEST = '{ "version": "9.9.9", "components": {} }\n';
 
-/** The `vendor-css-surface` identity: the committed mirror WITH its version banner (an absent banner is a
- *  refusal by design — "a version comparison with an absent left side PASSES"), the installed Base UI
- *  metadata + at least one `*CssVars.d.ts`, and at least one Streamdown `dist/` bundle. `styles.css` is not
+/** The `vendor-css-surface` identity: the installed Base UI metadata + at least one `*CssVars.d.ts`, and
+ *  at least one Streamdown `dist/` bundle — no committed mirror side any more (#10). `styles.css` is not
  *  decoration: it is `streamdown`'s declared `directoryAnchor`, because the real package's `exports` map
  *  refuses `./package.json`. */
 export const VENDOR_SURFACE_FIXTURE: Readonly<Record<string, string>> = {
-  "docs/vendor/base-ui/INDEX.md": "# Base UI mirror\n\nversion 9.9.9\n",
   "packages/ui/package.json": '{ "name": "@orb/ui", "version": "0.0.0" }\n',
   [`${BASE_UI_PKG}/package.json`]: '{ "name": "@base-ui/react", "version": "9.9.9" }\n',
   [`${BASE_UI_PKG}/select/SelectCssVars.d.ts`]: "export type SelectCssVars = never;\n",

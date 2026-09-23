@@ -43,7 +43,7 @@ import { readStaticAuthoredScalar } from "../lib/static-authored-value.ts";
 
 const ENUM_KEY = "enum";
 const MESSAGE =
-  "a Drizzle column `enum` config is an INLINE ARRAY LITERAL — a db enum must derive from an imported contracts/kit tuple (or a local `as const satisfies readonly <ContractsType>[]` tuple), never a re-spelled array (D34: db never re-spells a union). See Core-Path-Registry.md D34.";
+  "a Drizzle column `enum` config is an INLINE ARRAY LITERAL — a db enum must derive from an imported contracts/kit tuple (or a local `as const satisfies readonly <ContractsType>[]` tuple), never a re-spelled array (D34: db never re-spells a union). See D34.";
 const FIX =
   'reference a named tuple (`text("kind", { enum: MESSAGE_KINDS })`) — an imported contracts/kit tuple, or a local `as const satisfies readonly <ContractsType>[]` where no contracts home exists.';
 const UNREADABLE = (column: string): string =>

@@ -5,7 +5,7 @@ This file is the always-on core for Claude Code and Codex. Area rules load by pa
 
 ## Which law wins
 
-- The ledger (`docs/architecture/core/Core-Path-Registry.md`) wins over every other doc, your instinct and a task prompt. If a prompt conflicts with it, follow the ledger and say so.
+- The D-ledger (`docs/adr/`, one decision per file) wins over every other doc, your instinct and a task prompt. If a prompt conflicts with it, follow the ledger and say so.
 - Per-domain law is the code and its file headers. Read a file's header before you change the file; it can hold a ruling that your fix would break.
 
 ## Posture
@@ -150,7 +150,7 @@ without a path are in that folder.
 | A client feature surface | the header of `UI-Architecture-and-Layout.md` (its reading order), `client-architecture-lockdown.md` |
 | An `@orb/ui` primitive | `ui-package-design.md`, `UI-Primitives-and-Reuse.md` §13.7–§13.8 |
 | Types, unions, dispatch | `Spine-TypeScript-and-Patterns.md` |
-| A ledger decision | `Documentation-Law.md` "Ledger-entry style", then write it in `Core-Path-Registry.md` |
+| A ledger decision | `Documentation-Law.md` "Ledger-entry style", then mint it with `pnpm doc new adr <slug>` |
 | A doc | `.claude/rules/writing.md`, `.claude/rules/docs.md` (`pnpm doc help` for the verbs) |
 | An instruction file or a code comment | `.claude/rules/writing.md` |
 | Which word names a concept | `docs/design/vocabulary-map.md` |

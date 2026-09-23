@@ -144,7 +144,7 @@ export interface ActionDoorInput {
 // A track control's SHAPE is an affordance: a switch reads as a switch because the track is a lane long
 // enough for the thumb to travel in. When the box collapses toward square the lane disappears and the
 // control reads as a glyph — measured live at 48x44 (aspect 1.091), which a reviewer read as a crescent
-// moon rather than a toggle (docs/history/reviews/side-eye/2026-08-22-switch-shape-and-glow-evidence.md).
+// moon rather than a toggle (2026-08-22).
 //
 // The walker censuses EVERY explicitly-roled visible element and hands the raw box over; which roles owe
 // a directional silhouette is a Node-side decision (lib/checks-a11y.ts) so the two cannot drift — a role

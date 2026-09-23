@@ -1,7 +1,7 @@
 // IMP-1 probe — DOES THE VOICE-LOCK NUDGE HOLD? (measure before building)
 //
 // ST runs TWO anti-bleed layers on impersonate (char-name stop strings + a wrong-name response DELETE —
-// `docs/history/reviews/misc/2026-08-01-st-impersonate-anatomy.md`); ours is prompt-side only (the voice-lock
+// 2026-08-01); ours is prompt-side only (the voice-lock
 // `impersonateNudge`) plus the incidental receive clean. This probe drives REAL impersonate generations
 // through the production prompt assembly (see `prompt.ts`) across 12 bleed-tempting fixtures and two arms —
 // the local vLLM 8B (weak instruction-following, where ST's second layer earns its keep) and one cheap

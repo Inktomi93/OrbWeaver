@@ -6,8 +6,8 @@
 //
 // The token is NEVER stored — only its peppered hash (`token_hash`); `hashToken` lives in
 // domain/sessions/tokens. The hash is the validate lookup key, so it is UNIQUE. `label` is reserved for
-// the future long-lived API-token surface that reuses this store (Core-Laws-and-Precedents.md: "API
-// tokens = a sessions verb").
+// the future long-lived API-token surface that reuses this store (the committed
+// identity decision: "API tokens = a sessions verb").
 //
 // `oidc_transactions` is the db-backed PKCE/state KV (core/Tier-3-Infra.md — db-backed, so it
 // is domain/sessions persistence, NOT sealed db-free infra/auth). Natural-key PK on `state` (the OAuth

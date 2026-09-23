@@ -1,7 +1,8 @@
 // The `ledgers:fresh` stage (#817) — the STATIC tripwire for committed single-writer outputs that
-// lag the tree SILENTLY, the founding one being `docs/reviews/caught-failure-ownership/population.json`
-// (every row carries the `line`/`markerLine` of a caught-failure site, so ANY merge that inserts lines
-// above one re-stales it). The test-baseline manifest was the second and was DELETED with its
+// lag the tree SILENTLY, the founding one being the caught-failure census (every row then carried the
+// `line`/`markerLine` of its site, so ANY merge that inserted lines above one re-staled it; since work item
+// 0009 the committed row is only the judgment keyed by `siteId`, and a line move is no longer drift). The
+// test-baseline manifest was the second and was DELETED with its
 // `monotonic-tests` gate (#2217, owner ruling). The census already had a freshness check — but it
 // was a VITEST suite, so `pnpm check` stayed green while main sat red on the next whole node run, and
 // regeneration was an orchestrator barrier ritual that nothing stopped from lagging again (three re-lines
@@ -36,7 +37,7 @@ import { join } from "node:path";
 import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
-import type { CaughtFailurePopulation, CaughtFailureRow } from "../contract/caught-failure.ts";
+import type { CaughtFailureJudgment, CaughtFailurePopulation } from "../contract/caught-failure.ts";
 import { THEME } from "../contract/css-family.ts";
 import type { LedgerFreshness } from "../contract/scoped.ts";
 import { readDoc } from "../lib/gate-program-docs.ts";
@@ -81,17 +82,18 @@ function stable(value: unknown): string {
   });
 }
 
-/** Field-level drift for one census row present on BOTH sides — `line 412 → 417` is the whole point of the
- *  stage, so the fields are named, never summarised as "differs". */
-function rowFieldDrift(siteId: string, committed: CaughtFailureRow, derived: CaughtFailureRow): string[] {
+/** Field-level drift for one census row present on BOTH sides — `verdict "unproven" → "deliberate-absorb"`
+ *  names what changed, never a bare "differs". */
+function rowFieldDrift(siteId: string, committed: CaughtFailureJudgment, derived: CaughtFailureJudgment): string[] {
   const keys = [...new Set([...Object.keys(committed), ...Object.keys(derived)])].sort((a, b) => a.localeCompare(b));
   const changed = keys
     .filter((k) => stable((committed as unknown as Record<string, unknown>)[k]) !== stable((derived as unknown as Record<string, unknown>)[k]))
     .map((k) => `${k} ${stable((committed as unknown as Record<string, unknown>)[k])} → ${stable((derived as unknown as Record<string, unknown>)[k])}`);
-  return changed.length === 0 ? [] : [`moved  ${siteId}: ${changed.join(", ")}`];
+  return changed.length === 0 ? [] : [`changed ${siteId}: ${changed.join(", ")}`];
 }
 
-/** The committed census vs a fresh derivation, row by row (keyed by the move-stable `siteId`). */
+/** The committed census vs a fresh derivation, row by row (keyed by the move-stable `siteId`). A vanished
+ *  site is named by its id: the committed row carries no coordinate to cite, and the id spells the path. */
 export function censusDrift(committed: CaughtFailurePopulation | undefined, derived: CaughtFailurePopulation): LedgerFreshness {
   const base = { ledger: POPULATION_REL, regen: REGEN_CENSUS, derived: derived.rows.length } as const;
   if (committed === undefined) {
@@ -103,14 +105,14 @@ export function censusDrift(committed: CaughtFailurePopulation | undefined, deri
   for (const [siteId, row] of committedRows) {
     const fresh = derivedRows.get(siteId);
     if (fresh === undefined) {
-      drift.push(`gone   ${siteId} (committed line ${row.line}) — the site is no longer on the tree`);
+      drift.push(`gone   ${siteId} — the site is no longer on the tree`);
       continue;
     }
     drift.push(...rowFieldDrift(siteId, row, fresh));
   }
   for (const [siteId, row] of derivedRows) {
     if (!committedRows.has(siteId)) {
-      drift.push(`new    ${siteId} (line ${row.line}, ${row.verdict}) — the census never recorded it`);
+      drift.push(`new    ${siteId} (${row.verdict}) — the census never recorded it`);
     }
   }
   if (stable(committed.totals) !== stable(derived.totals)) {

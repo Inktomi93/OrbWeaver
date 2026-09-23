@@ -1,4 +1,4 @@
-// Policy: no-untyped-soft-ref (Core-Path-Registry.md D24, with D37) — an id-shaped schema column carries a
+// Policy: no-untyped-soft-ref (D24, with D37) — an id-shaped schema column carries a
 // `.references()` FK. Boundaries are physics: a soft ref (an id column with no FK, kept coherent by a
 // hand-rolled sweep) is the shape D24 outlawed.
 //
@@ -50,7 +50,7 @@ const ID_COLUMN_BUILDERS: ReadonlySet<string> = new Set(["text", "integer"]);
 const MESSAGE =
   "an id-shaped column (its JS key ends `Id`) carries NO `.references()` FK — a soft ref is banned: " +
   "boundaries are physics, FK-enforced (D24). Add the FK, or, if the referent is genuinely not an " +
-  "orbweaver row, take an exact reviewed grant naming the table.column pair. See Core-Path-Registry.md D24.";
+  "orbweaver row, take an exact reviewed grant naming the table.column pair. See docs/adr/0024-no-polymorphic-association-tables.md.";
 const UNREADABLE = MESSAGE;
 const FIX = "add the `.references(() => target.id)` FK; a genuinely non-relational id column takes an exact reviewed grant with its D-cite.";
 
