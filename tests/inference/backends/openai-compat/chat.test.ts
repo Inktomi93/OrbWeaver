@@ -622,6 +622,26 @@ test("OR non-adaptive reasoning keeps its bytes: an effort-mode model sends the 
 // OpenRouter's own `reasoning.effort` takes `max` and forwards it upstream verbatim (audit echo: effort "max" →
 // output_config.effort "max"); only the V4 vocabulary lacks the word. The funnel has already refused a level
 // the model does not list, so the openrouter spelling passes the resolved word through.
+// `max` was measured upstream only on the adaptive Claude ids. An OpenAI or Gemini row whose catalog lists every
+// level (or none, which folds to every level) keeps the V4 mapping it always had: `max` goes out as `xhigh`.
+test("OR non-adaptive reasoning keeps `max` → `xhigh`, byte for byte", async () => {
+  for (const [model, reasoning] of [
+    ["openai/gpt-5.4", { mode: "effort", enabled: true, effortLevels: ["minimal", "low", "medium", "high", "xhigh", "max"] }],
+    ["openai/gpt-5.6-sol", { mode: "effort", enabled: true, effortLevels: ["low", "medium", "high", "xhigh", "max"] }],
+    ["google/gemini-3.5-flash", { mode: "effort", enabled: true, effortLevels: ["minimal", "low", "medium", "high", "xhigh", "max"] }],
+  ] as const) {
+    const connection = fakeResolved({
+      task: "chat",
+      providerId: "openrouter",
+      model,
+      capability: generationCapability({ reasoning: { ...reasoning, effortLevels: [...reasoning.effortLevels] } }),
+      secret: fakeApiKeySecret("sk-or-not-a-real-key"),
+    });
+    const body = await sentBody(orRequest({ connection, tools: undefined, params: { effort: "max" } }));
+    expect(body["reasoning"], model).toEqual({ effort: "xhigh" });
+  }
+});
+
 test("OR Claude effort `max` reaches the wire as `max`, not `xhigh`", async () => {
   const body = await sentBody(orRequest({ connection: orCuratedConnection("anthropic/claude-opus-5"), tools: undefined, params: { effort: "max" } }));
   expect(body["reasoning"]).toEqual({ effort: "max" });
