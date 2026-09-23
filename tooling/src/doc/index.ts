@@ -17,6 +17,7 @@ export type {
   SectionContent,
   WorkItem,
 } from "./contract/types.ts";
+export { ADR_SECTION_FLAGS, ITEM_SECTION_FLAGS, PLAN_SECTION_FLAGS } from "./contract/types.ts";
 export { closesTrailer, driftLines, wakeConditions } from "./lib/drift.ts";
 export type { DueDoc } from "./lib/due.ts";
 export { changesFromLog, describedDoc, dueDocs, earliestUpdated } from "./lib/due.ts";

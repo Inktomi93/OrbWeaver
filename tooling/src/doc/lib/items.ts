@@ -5,9 +5,9 @@
 import { z } from "zod";
 import { DATE_RE, DOC_TOOL_TREES, ITEM_KINDS, ITEM_STATES } from "#doc-catalog";
 import type { Blocker, ItemKind, ItemPatch, ItemSectionFlag, ItemState, NewItemInput, WorkItem } from "../contract/types.ts";
+import { ITEM_SECTION_FLAGS } from "../contract/types.ts";
 import { splitDocument, titleOf, withFields } from "./frontmatter-write.ts";
 import { basenameOf, parseNumberedName } from "./names.ts";
-import { ITEM_SECTIONS, sectionFlags } from "./templates.ts";
 
 const PRIORITY_RE = /^P[0-3]$/u;
 const AREA_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
@@ -183,7 +183,7 @@ export function parseItemBatch(json: unknown): { readonly items: readonly NewIte
   return {
     items: parsed.data.map((entry) => {
       const content: { [K in ItemSectionFlag]?: string } = {};
-      for (const flag of sectionFlags(ITEM_SECTIONS)) {
+      for (const flag of ITEM_SECTION_FLAGS) {
         const text = entry[flag];
         if (text !== undefined) {
           content[flag] = text;
