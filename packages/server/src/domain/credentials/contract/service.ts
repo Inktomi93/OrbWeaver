@@ -13,7 +13,7 @@ import type { CredentialHealth, ResolvedSecret } from "@orb/contracts/credential
 import type { ProviderDef } from "@orb/contracts/inference";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
-import type { UserCredentialId } from "@orb/kit/ids";
+import type { UserCredentialId, UserId } from "@orb/kit/ids";
 import type { AuditEntry } from "#foundation/observability";
 import type { SecretBox } from "#infra/crypto";
 import type {
@@ -35,9 +35,10 @@ export interface CredentialContext {
   readonly now: () => number;
   readonly newCredentialId: () => UserCredentialId;
   readonly box: SecretBox;
-  /** The registered provider row (built-in ∪ runtime rows), or undefined. `add` uses the row's branded id
-   *  directly: the id is half the AAD, so membership validation and branding must be one operation. */
-  readonly findProvider: (providerId: string) => ProviderDef | undefined;
+  /** The provider row `viewer` may use (built-in ∪ runtime rows; a plugin row only for the owner of an enabled
+   *  install contributing it, D147), or undefined. `add` uses the row's branded id directly: the id is half the
+   *  AAD, so membership validation and branding must be one operation. */
+  readonly findProvider: (providerId: string, viewer: UserId) => ProviderDef | undefined;
   /** The db-bound best-effort `logAudit`, wired at the composition root (PD-142). Every credential mutation
    *  writes a durable `audit_logs` row IN ADDITION TO the ephemeral `securityEvent`/`emitUserEvent` — a leaked
    *  or rotated key must leave a persistent forensic trail, not just a pino line that ages out. Best-effort:

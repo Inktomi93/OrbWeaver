@@ -8,6 +8,7 @@
 // view whose verbs are those two is not read-only. Each row's state offers exactly two NAMED actions;
 // `credential-key-row.tsx` owns which pair and why.
 
+import { providerDisplayLabel } from "@orb/contracts/inference";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, KeyRound } from "@orb/ui/icons";
 import { Section, Stack } from "@orb/ui/layout";
@@ -38,10 +39,10 @@ function SavedKeysSection(): ReactElement {
   const invalidation = useInvalidation();
   const { data: credentials } = useSuspenseQuery(trpc.credentials.list.queryOptions());
   const { data: connections } = useSuspenseQuery(trpc.connection.list.queryOptions());
-  // The registry rows are the ONE home for a provider's user-facing label (`ProviderDef.label`) — a
+  // The registry rows are the ONE home for a provider's user-facing label (`providerDisplayLabel`) — a
   // credential row carries only the registry ID, which is half an AAD and not a word for a person.
   const { data: providers } = useSuspenseQuery(trpc.connection.providersAvailable.queryOptions());
-  const providerLabels = new Map(providers.map((row) => [row.provider.id as string, row.provider.label]));
+  const providerLabels = new Map(providers.map((row) => [row.provider.id as string, providerDisplayLabel(row.provider)]));
 
   return (
     <Section divider={true} heading={CONNECTIONS_KEYS_SUBCATEGORY.label} id={configAnchorId("connections", CONNECTIONS_KEYS_SUBCATEGORY.id)}>
