@@ -6,8 +6,8 @@
 // nothing else (`docs/design/gate-runtime-standardization.md` §3).
 //
 // THIS IS NOT AN ORB WAIVER AND MUST NEVER BE ROUTED THROUGH `ordinary-waiver.ts`
-// (`docs/reviews/gate-runtime/ordinary-waiver-source-migration.md` §"Explicit non-migrations", marker kind 7:
-// *"native-tool syntax, not Orb ordinary waivers… Do NOT route these through `ordinary-waiver.ts`"*). The
+// (the gate-runtime waiver-migration manifest's explicit non-migration, marker kind 7: native-tool syntax,
+// not Orb ordinary waivers, never routed through `ordinary-waiver.ts`). The
 // central engine owns `@orb-waive <policy-id>(<position>): <reason>`, which binds to an Orb policy id and is
 // consumed exactly once; a `biome-ignore` binds to a FOREIGN rule id, is consumed by a foreign analyzer this
 // repository does not run through the gate runtime, and is DATA to us — a population two policies measure,

@@ -48,7 +48,7 @@
 // `locateFinding` could never bind an ordinary position (guide §2.1's authored-coordinate rule). The legacy engine's bare
 // `@orb-gate-ignore playwright-css-topology` door DID exist and does NOT survive the conversion; the marker
 // census that makes that free is 0 live markers (measured 2026-09-12 over 7,725 tracked source files with a
-// 1,196-hit positive control, `css-family-audit-2026-09-12.md`).
+// 1,196-hit positive control, the 2026-09-12 CSS-family audit).
 //
 // WHERE A BROKEN RESOURCE REFUSES — not here. Every declared `exact-file` id must resolve or the WHOLE fact
 // refuses (`contract/resource-exact.ts`), and a refused declaration makes `resolveResourceDeclarations`

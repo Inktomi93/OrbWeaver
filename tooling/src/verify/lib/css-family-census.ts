@@ -59,7 +59,7 @@ const SOURCE_OWNERS = [
 ] as const;
 
 // THE FIVE PER-SHEET DECLARATION COUNTS AND THE AGGREGATE TOTAL ARE RETIRED (#2181, 2026-09-12). This
-// EXECUTES a recorded disposition rather than minting one: `exception-authority-census.md:178` reads
+// EXECUTES a recorded disposition rather than minting one: the gate-runtime exception-authority census reads
 // "CSS `EXPECTED_DIRECT_THEME_DECLARATIONS` is generated-output parity; the five per-file declaration
 // counts and aggregate total are current-population counts and retire", and §12.5 names that file as the
 // dispositions home. A count over N subjects can never become a strictly-1:1 reviewed grant.

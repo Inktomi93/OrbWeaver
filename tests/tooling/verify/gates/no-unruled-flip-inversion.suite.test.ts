@@ -6,9 +6,8 @@
 //          and says nothing about `lib/reviewed-grants.ts` actually carrying the row for the ruled site.
 //          Both directions live here: the committed row licenses the real `tabs.tsx` path exactly once, and
 //          the SAME SHAPE at another path is NOT licensed (the ruling is per-site, not a blanket pass).
-//   §6.3 — REAL-CORPUS LIVENESS. Conformance rows run on virtual mini-projects, so a policy can be green on
-//          fixtures and dead on the corpus. The overlay arm plants a third FLIP site in the real `@client`
-//          tree and requires the policy to report it.
+//   §6.3 — REAL-CORPUS LIVENESS is DATA in `_liveness/client.ts` (a third FLIP site overlaid on the real
+//          `@client` tree), run by the one liveness runner over the structure run's own corpus.
 //
 // THE RULING THIS POLICY ENFORCES IS PROSE: `motion-and-animation-guide.md` §1.5 admits two sites as the
 // whole exception class. Only one of them writes a transform (the shell's push is CSS-owned), so the grant
@@ -19,12 +18,8 @@ import { gate as flip } from "../../../../tooling/src/verify/gates/no-unruled-fl
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { REVIEWED_GRANTS } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { assertRealCorpusLiveness } from "../../../support/real-corpus-liveness.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
-import { scaledBudget } from "../../_load-budget.ts";
 
-const REAL_CORPUS_BASE_MS = 300_000;
-const REPO_ROOT = new URL("../../../../", import.meta.url).pathname.replace(/\/$/u, "");
 const ROOT = "/no-unruled-flip-inversion";
 const RULED_SITE = "packages/ui/src/primitives/tabs/tabs.tsx";
 const FLIP_GRANTS = REVIEWED_GRANTS.filter((grant) => grant.policyId === flip.id);
@@ -80,18 +75,4 @@ test("§6.2 the SAME SHAPE at another path is NOT licensed — the ruling is per
   expect(authority.effectiveFindings.map((finding) => finding.subject)).toEqual([thirdMember]);
   expect(authority.grantedFindings).toEqual([]);
   expect(authority.authorityAlarms.map((alarm) => alarm.kind)).toEqual(["stale-reviewed-grant"]);
-});
-
-test("§6.3 the policy reaches a verdict on the REAL @ui + @client corpus and reports its positive control", {
-  timeout: scaledBudget(REAL_CORPUS_BASE_MS),
-}, () => {
-  const probe = "packages/client/src/features/chat/components/flip-live-probe.tsx";
-  const fired = assertRealCorpusLiveness(REPO_ROOT, {
-    policy: flip,
-    // The WHOLE declared population: narrowing below it does not measure less, it manufactures a corpus.
-    globs: ["packages/ui/src/**/*.ts", "packages/ui/src/**/*.tsx", "packages/client/src/**/*.ts", "packages/client/src/**/*.tsx"],
-    overlays: [{ kind: "add", path: probe, source: GLIDE_SOURCE }],
-    messageIncludes: "not a third member",
-  });
-  expect(fired.length, "the arm ran — a skipped arm runs zero expects and reads green").toBeGreaterThan(0);
 });

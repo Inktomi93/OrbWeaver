@@ -19,15 +19,10 @@
 // changed selection (#2304). It never passes a narrowed fileset into a derivation; that would compare
 // a census of a different tree and misreport every omitted row as stale.
 //
-// THE SUBJECT WIDENED 2026-09-12 (#2017/#2008) AND THE STAGE'S NAME NOW UNDERSELLS IT. Three of the seven
-// rows are not single-writer ledgers at all: they are HAND-AUTHORED CLAIMS IN LAW DOCS that nothing held
-// two-sided, which is the same failure shape one substrate over — a list written against a tree, and then
-// the tree moved. The read-first cost table (all EIGHT sizes stale at once, the work queue by 7x), the
-// refutation ledger's appended sections against the verifier reports they were transcribed from (nothing
-// reconciled them, so a dropped row was silent), and the deferred gate roster (five rows reading
-// "not yet ported" while their gate shipped). Two are derivations with a `baseline` writer; the third is a
-// parity check between two AUTHORED texts and deliberately has no writer — a generator there would let a
-// transcription error overwrite the evidence it got wrong. Each says so at its own function.
+// THE SUBJECT WIDENED 2026-09-12 (#2008) AND THE STAGE'S NAME NOW UNDERSELLS IT. The deferred gate roster
+// row is not a single-writer ledger at all: it is a HAND-AUTHORED CLAIM that nothing held two-sided (five
+// rows read "not yet ported" while their gate shipped), which is the same failure shape one substrate over —
+// a claim written against a tree, and then the tree moved. It has no writer: the fix is an authored edit.
 //
 // COST: the cheap derivations take milliseconds; the caught-failure census builds the whole-repo ts-morph
 // project and was ~19s on this box (2026-08-30, 408 sites). That is the price of the derivation itself,
@@ -40,20 +35,16 @@ import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import type { CaughtFailureJudgment, CaughtFailurePopulation } from "../contract/caught-failure.ts";
 import { THEME } from "../contract/css-family.ts";
 import type { LedgerFreshness } from "../contract/scoped.ts";
-import { readDoc } from "../lib/gate-program-docs.ts";
 import { deriveCaughtFailurePopulation, POPULATION_REL } from "./gen/caught-failure-population.ts";
-import { READ_FIRST_COST_ROW_IDS, READ_FIRST_REL, readFirstCostRowDrift } from "./gen/read-first-costs.ts";
 import { deriveSnapFlagsIndexMarkdown, SNAP_FLAGS_INDEX_REL } from "./gen/snap-flags-index.ts";
 import { deriveThemeCss, THEME_BASELINE, THEME_REGEN } from "./gen/theme-css.ts";
 import { deriveTypeConfigFiles } from "./gen/type-configs.ts";
-import { classRollupDrift, ledgerSectionDrift } from "./ledgers-fresh-rollup.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:ledgers-fresh");
 
 const REGEN_CENSUS = "pnpm exec node tooling/src/verify/cli.ts baseline caught-failure-population";
 const REGEN_SNAP_FLAGS_INDEX = "pnpm exec node tooling/src/verify/cli.ts baseline snap-flags-index";
 const REGEN_TYPE_CONFIGS = "pnpm exec node tooling/src/verify/cli.ts baseline type-configs";
-const REGEN_READ_FIRST_COSTS = "pnpm exec node tooling/src/verify/cli.ts baseline read-first-costs";
 
 const GATES_DIR = "tooling/src/verify/gates";
 const DEFERRED_ROSTER_REL = "docs/architecture/history/Core-Enforcement-Deferred-Dropped.md";
@@ -178,22 +169,6 @@ export function typeConfigsDrift(root: string): LedgerFreshness {
   };
 }
 
-/** The #1584 read-list table's SIZE column versus a fresh measurement — byte-for-byte over the whole
- *  document, because the derivation rewrites cells in place and a partial compare would let a rewritten row
- *  drift back. #2017: all EIGHT sizes were stale at once and the work queue was understated by 7x. */
-export function readFirstCostsDrift(root: string): LedgerFreshness {
-  const rows = readFirstCostRowDrift(root);
-  return {
-    ledger: `${READ_FIRST_REL} (SIZE column)`,
-    regen: REGEN_READ_FIRST_COSTS,
-    derived: READ_FIRST_COST_ROW_IDS.length,
-    // ONE LINE PER MOVED ROW, with both cells (#2117). A bare "the SIZE cells differ" made a regeneration
-    // on a backed-up copy the only way to learn which of the nine had moved, while every sibling row in
-    // this stage names its drifting rows.
-    drift: rows.map((row) => `row ${row.id}: ${JSON.stringify(row.committed)} → ${JSON.stringify(row.derived)}`),
-  };
-}
-
 /** THE DEFERRED ROSTER HALF, held against the tree (#2008).
  *
  *  `Core-Enforcement-Deferred-Dropped.md` lists neo gates "not yet ported, with activation trigger". It is
@@ -210,7 +185,7 @@ export function deferredRosterDrift(root: string): LedgerFreshness {
   // SCOPED TO THE DEFERRED TABLE, not to the file: the same document carries the PREBUILT seals and the
   // DROPPED list, whose rows have the identical shape. Counting those would inflate the denominator, and a
   // denominator nobody can check is how a census stops being a measurement.
-  const lines = readDoc(root, DEFERRED_ROSTER_REL).split("\n");
+  const lines = readFileSync(join(root, DEFERRED_ROSTER_REL), "utf8").split("\n");
   const start = lines.findIndex((line) => line.startsWith("## Deferred backlog"));
   const end = lines.findIndex((line, index) => index > start && start !== -1 && line.startsWith("#") && !line.startsWith("## Deferred backlog"));
   const rows = (start === -1 ? [] : lines.slice(start, end === -1 ? lines.length : end)).filter((line) => /^\| `[a-z0-9-]+`/.test(line));
@@ -237,16 +212,7 @@ export async function ledgerFreshness(root: string): Promise<readonly LedgerFres
   const census = censusDrift(readCommitted<CaughtFailurePopulation>(root, POPULATION_REL), deriveCaughtFailurePopulation(root));
   const snapFlagsIndex = snapFlagsIndexDrift(root);
   const typeConfigs = typeConfigsDrift(root);
-  return [
-    census,
-    snapFlagsIndex,
-    typeConfigs,
-    await themeCssDrift(root),
-    readFirstCostsDrift(root),
-    ledgerSectionDrift(root),
-    classRollupDrift(root),
-    deferredRosterDrift(root),
-  ];
+  return [census, snapFlagsIndex, typeConfigs, await themeCssDrift(root), deferredRosterDrift(root)];
 }
 
 /** A derivation that came back EMPTY is blindness, not cleanliness: a broken `scanRoot`, a `git ls-files`
@@ -307,10 +273,6 @@ export const LEDGER_CHECKS: Readonly<Record<string, (root: string) => number | P
   "caught-failure-population": (root) =>
     verdict([censusDrift(readCommitted<CaughtFailurePopulation>(root, POPULATION_REL), deriveCaughtFailurePopulation(root))]),
   "snap-flags-index": (root) => verdict([snapFlagsIndexDrift(root)]),
-  "read-first-costs": (root) => verdict([readFirstCostsDrift(root)]),
   "type-configs": (root) => verdict([typeConfigsDrift(root)]),
   [THEME_BASELINE]: async (root) => verdict([await themeCssDrift(root)]),
 };
-
-// biome-ignore lint/performance/noBarrelFile: re-exports preserve the original module's public API after extracting classRollupDrift and ledgerSectionDrift to ledgers-fresh-rollup.ts
-export { classRollupDrift, ledgerSectionDrift } from "./ledgers-fresh-rollup.ts";
