@@ -60,7 +60,7 @@ test("a main commit whose Closes trailer names an item still on the tree is repo
     ],
   });
   expect(driftLines(unlanded)).toEqual([
-    "main commit def closes 1 but the item is still on the tree (a conflict-resolved merge runs no post-merge hook) — pnpm doc land 1 --evidence def",
+    "main commit def closes 1 but the item is still on the tree (the merge ran without the landing hooks) — pnpm doc land 1 --evidence def",
   ]);
 });
 

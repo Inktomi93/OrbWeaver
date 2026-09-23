@@ -228,7 +228,7 @@ test("drift reads the repository: a stale doing item and an unlanded Closes trai
   expect(facts.unmergedBranches).toEqual(["wt/cb-live-docs"]);
   expect(drift(root)).toEqual([
     "2 is doing under lane cb-live with no live worktree and no unmerged branch — pnpm doc set 2 open",
-    `main commit ${closer} closes 3 but the item is still on the tree (a conflict-resolved merge runs no post-merge hook) — pnpm doc land 3 --evidence ${closer}`,
+    `main commit ${closer} closes 3 but the item is still on the tree (the merge ran without the landing hooks) — pnpm doc land 3 --evidence ${closer}`,
   ]);
 });
 
