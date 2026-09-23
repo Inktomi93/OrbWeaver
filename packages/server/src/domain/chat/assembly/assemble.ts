@@ -161,7 +161,8 @@ interface BuildEnv {
  *     or in a multi-human room whichever player the HOST anchored (`chats.anchorPersonaId`, host-only via
  *     `setChatAnchorPersona`). Resolved once in `assembly/context.ts` as `personas.anchor ?? personas.active`,
  *     so card text keeps naming the same person for everyone reading it, whoever is currently speaking.
- *   · `activePersona` — the human a PRESET's or the composer's `{{user}}` resolves to: whoever is active NOW.
+ *   · `activePersona` — the human a PRESET's `{{user}}` resolves to: the room's anchor human, with the persona
+ *     their seat holds NOW (D122 as amended; the presser only on an impersonate draft).
  * Persona pinning is OWNER-SACRED (its concept and mechanics are not a lane's to redesign). `cardOwnerCtx`
  * below rebinds only `speaker`; it must never touch either persona field, or a card starts addressing the
  * wrong human.

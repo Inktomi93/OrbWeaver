@@ -50,7 +50,7 @@ function ctxOf(over: Partial<AssembleContext> = {}): AssembleContext {
     character: { name: "Aria", description: "a bold knight" },
     promptConfig: DEFAULT_PROMPT_CONFIG,
     activePersona: { name: "Nate", description: "the user" },
-    triggerUserId: FIXTURE_HUMAN,
+    activePersonaUserId: FIXTURE_HUMAN,
     recentMessages: [],
     ...over,
   };
@@ -1179,7 +1179,7 @@ describe("runTurnPipeline — the wire name-stamp axis (F4)", () => {
     expect(historyText(result.request)).toContain("Mara: hi there");
   });
 
-  // Still true, and now for a STATED reason: the row is the TRIGGER'S OWN (`authorUserId === triggerUserId`),
+  // Still true, and now for a STATED reason: the row is the active persona owner's (`authorUserId === activePersonaUserId`),
   // which is the only case SHAPE's null-stamp guard lets borrow `speakers.user`. A null-stamp row authored by
   // someone else takes the unresolvable floor instead — pinned in `assembly/shape.test.ts`.
   test("a null-stamp user row still falls back to the active persona (byte-identical to pre-F4)", async () => {

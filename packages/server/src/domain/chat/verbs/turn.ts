@@ -35,7 +35,7 @@ import type { ArbiterCandidate, AutoModeResult, SpeakerCandidate } from "../cont
 import type { TurnUserMacros } from "../contract/assembly-macros.ts";
 import type { ChatRpgGatherResult, ClaimChatOp } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
-import type { ChatBehaviorInputs, ForeignInputs, ResolveForeignInputsOp, TurnTrigger } from "../contract/foreign.ts";
+import type { ChatBehaviorInputs, ForeignInputs, HumanSeatPersona, ResolveForeignInputsOp, TurnTrigger, TurnVoice } from "../contract/foreign.ts";
 import { DEFAULT_CHAT_BEHAVIOR } from "../contract/foreign.ts";
 import type { MemoryConfig, MemoryRecallInputs } from "../contract/memory.ts";
 import type {
@@ -91,7 +91,7 @@ import { buildTurnUserMacros, freezeVolatileMacros, resolveNudgeText } from "../
 import { commitHostFencedWrite } from "../substrate/host-fenced-write.ts";
 import { projectViewReturnForViewer, stripMessagesForViewer, viewerReadsHidden } from "../substrate/member-visibility.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
-import { onlinePersonaIdsOf, presentAndEnabledHumanUserIdsOf, seatsMultipleHumans } from "../substrate/participants-humans.ts";
+import { humanSeatPersonasOf, onlinePersonaIdsOf, presentAndEnabledHumanUserIdsOf, seatsMultipleHumans } from "../substrate/participants-humans.ts";
 import { userMessageDelta } from "../substrate/stats-delta.ts";
 import { collectTeaching, resolveTeachingKnobs } from "../substrate/teaching.ts";
 import { driveRoundVia, resolveMentionsVia, resolveTurnIdentityVia, runAutoModeVia, selectSpeakersVia, smartArbitrateVia } from "../substrate/turn-access.ts";
@@ -204,6 +204,8 @@ interface Room {
    *  `personaIds` (an OFFLINE member is still a member, and the anchor's owner is routinely offline —
    *  presence gates which persona BOOKS join the pool, never who the room may resolve an identity for). */
   readonly presentHumanUserIds: readonly UserId[];
+  /** Each consented human seat and its persona — the FOREIGN resolver's source for the anchor human's persona. */
+  readonly humanSeats: readonly HumanSeatPersona[];
 }
 
 /** The §3.6 member RETURN projection for a mutation that hands back ONE `MessageView` (undo/revert continue).
@@ -275,6 +277,7 @@ async function loadRoom(ctx: ChatContext, chatId: ChatId, frozenHostUserId?: Use
     mutedSpeakerKeys: new Set(candidates.filter((c) => c.disabled).map((c) => speakerKey(c.ref))),
     personaIds,
     presentHumanUserIds,
+    humanSeats: humanSeatPersonasOf(participants, presentHumanUserIds),
   };
 }
 
@@ -439,6 +442,20 @@ const GENERATION_TYPE_FOR_KIND: Record<TurnKind, GenerationType> = {
   impersonate: "impersonate",
 };
 
+/** Whose persona each turn kind's `{{user}}` binds ({@link TurnVoice}): every canon turn speaks for the room's
+ *  anchor human, so who pressed send never changes the cached prompt (D122 as amended); an impersonate draft is
+ *  the pressing human's own next line. */
+const VOICE_FOR_KIND: Record<TurnKind, TurnVoice> = {
+  send: "anchor",
+  generate: "anchor",
+  force: "anchor",
+  auto: "anchor",
+  opening: "anchor",
+  swipe: "anchor",
+  continue: "anchor",
+  impersonate: "trigger",
+};
+
 /** The per-turn user-macro registry build (WAVE MU delivery) + the D53 loud-degrade for a refused def.
  *  A top-level helper so its branch (rejected-log) stays OUT of `buildTurnContext`'s cognitive-complexity
  *  budget. `null` ⇒ the preset authored no user macros (the byte-identical singleton fast path).
@@ -585,10 +602,11 @@ async function buildTurnContext(
     readonly personaIds: readonly PersonaId[];
     /** The FOREIGN persona read's consent set — see {@link Room.presentHumanUserIds}. */
     readonly presentHumanUserIds: readonly UserId[];
+    readonly humanSeats: readonly HumanSeatPersona[];
     readonly anchorPersonaId: PersonaId | null;
-    /** WHO drives this turn ({@link TurnTrigger}) — binds prompt-config `{{user}}` to the speaker. REQUIRED
-     *  (the union's two arms are total; there is no absent/`personaIds[0]` third state): a
-     *  turn with no live triggering human states `{kind:"none"}` and binds the anchor. */
+    /** WHO drives this turn ({@link TurnTrigger}). It binds prompt-config `{{user}}` only on a `trigger`-voice
+     *  kind ({@link VOICE_FOR_KIND}). REQUIRED (the union's two arms are total): a turn with no live triggering
+     *  human states `{kind:"none"}`. */
     readonly trigger: TurnTrigger;
     readonly pendingUserText?: string | undefined;
     /** rpg-design/05 §6 slot-adjacency: is this turn (re)generating the assistant slot that DIRECTLY responds
@@ -629,13 +647,15 @@ async function buildTurnContext(
     model: args.model,
     anchorPersonaId: args.anchorPersonaId,
     presentHumanUserIds: args.presentHumanUserIds,
+    humanSeats: args.humanSeats,
     trigger: args.trigger,
+    voice: VOICE_FOR_KIND[args.kind],
     ...(presetOverride !== null ? { presetOverride } : {}),
   });
   // A game turn's GATHER (rpg-design/05 §1): the 8 rpg macros + the depth-0 reminder injection + the tool
   // names to attach. Null op / non-game ⇒ null ⇒ a byte-identical non-game turn (no macros, no injection, no tools).
   // The host `steeringNote`'s identity-macro binding, both computed CHAT-SIDE (chat owns identity resolution):
-  //   `{{user}}` = `foreign.personas.active?.name` — the active/triggering persona (NOT the pinned anchor; a
+  //   `{{user}}` = `foreign.personas.active?.name` — the turn's voice persona (NOT the pinned anchor; a
   //      steeringNote is a current-action steer, exactly like the guided/nudge path).
   //   `{{char}}` = `args.candidateCharForHostRow` — the Ruling-B host/null-speaker `{{char}}` (the JOINED CANDIDATE NAMES in a
   //      multi-character room, the single character in solo), so the steeringNote's `{{char}}` matches every
@@ -705,9 +725,7 @@ async function buildTurnContext(
       characterIds: args.characterIds,
       mutedSpeakerKeys: args.mutedSpeakerKeys,
       personaIds: args.personaIds,
-      // SHAPE's null-stamp guard needs the identity behind `speakers.user`: a canon row with NO persona stamp
-      // may borrow this turn's `{{user}}` only when it is that human's OWN row (see `toShapeCanon`). `none`
-      // ⇒ null ⇒ no row borrows it (the union has no third arm).
+      // The pending row's author for the recall query. `none` ⇒ null (the union has no third arm).
       triggerUserId: args.trigger.kind === "human" ? args.trigger.userId : null,
       multiHuman: seatsMultipleHumans(args.presentHumanUserIds),
       generationType: GENERATION_TYPE_FOR_KIND[args.kind],
@@ -1505,6 +1523,7 @@ async function commitUserTurn(
       mutedSpeakerKeys: room.mutedSpeakerKeys,
       personaIds: room.personaIds,
       presentHumanUserIds: room.presentHumanUserIds,
+      humanSeats: room.humanSeats,
       anchorPersonaId: membership.chat.anchorPersonaId,
       // biome-ignore lint/nursery/useNullishCoalescing: `??` would coalesce an EXPLICIT null into the active persona — only an omitted (undefined) param falls back (mirrors the row-stamp expression below).
       trigger: humanTrigger(principal.userId, personaId !== undefined ? personaId : membership.activePersonaId),
@@ -1676,6 +1695,7 @@ function createForceCharacterTurn(ctx: ChatContext, deps: TurnDeps): ChatService
           mutedSpeakerKeys: room.mutedSpeakerKeys,
           personaIds: room.personaIds,
           presentHumanUserIds: room.presentHumanUserIds,
+          humanSeats: room.humanSeats,
           anchorPersonaId: membership.chat.anchorPersonaId,
           trigger: humanTrigger(principal.userId, membership.activePersonaId),
           guided,
@@ -1840,6 +1860,7 @@ async function resolveTurnBase(
     mutedSpeakerKeys: room.mutedSpeakerKeys,
     personaIds: room.personaIds,
     presentHumanUserIds: room.presentHumanUserIds,
+    humanSeats: room.humanSeats,
     anchorPersonaId: args.anchorPersonaId,
     trigger: args.trigger,
     ...(args.respondsToLatestUserTurn !== undefined ? { respondsToLatestUserTurn: args.respondsToLatestUserTurn } : {}),
@@ -2441,6 +2462,7 @@ async function runDeferredRound(
     mutedSpeakerKeys: room.mutedSpeakerKeys,
     personaIds: room.personaIds,
     presentHumanUserIds: room.presentHumanUserIds,
+    humanSeats: room.humanSeats,
     anchorPersonaId: chat.anchorPersonaId,
     // No live triggering human at drain — {{user}} binds to the chat anchor, not a presence-order human.
     trigger: { kind: "none" },
@@ -2625,6 +2647,7 @@ export function createRequestTurn(ctx: ChatContext, deps: TurnDeps): RequestTurn
       mutedSpeakerKeys: room.mutedSpeakerKeys,
       personaIds: room.personaIds,
       presentHumanUserIds: room.presentHumanUserIds,
+      humanSeats: room.humanSeats,
       anchorPersonaId: chat.anchorPersonaId,
       // No live triggering human — {{user}} binds to the chat anchor, not a presence-order human.
       trigger: { kind: "none" },

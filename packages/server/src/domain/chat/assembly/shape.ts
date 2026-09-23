@@ -602,22 +602,22 @@ export function shape(input: ShapeInput): ShapeOutput {
  * `resolveUserAttribution`: the `authorUserId === viewerUserId` gate, "fail closed: name nobody rather than
  * name wrongly"). Everyone else gets {@link UNRESOLVED_USER_NAME}, the same word the reader sees on screen.
  *
- * Fail-closed on purpose: an UNKNOWN author or an unknown trigger (a drain/auto turn, a preview, any
- * hand-built ctx) takes the floor rather than the borrow. The one case that still borrows — the trigger's OWN
- * unstamped row — is unchanged from before this guard, and is byte-identical in a solo personaless chat where
- * `speakers.user` is already the "User" floor.
+ * The key is the human whose persona `speakers.user` is (`AssembleContext.activePersonaUserId`, the room's
+ * anchor human), never the trigger, so a row's label does not change with who pressed send. Fail-closed on
+ * purpose: an UNKNOWN author or owner (any hand-built ctx) takes the floor rather than the borrow. A solo
+ * personaless chat is byte-identical: `speakers.user` is already the "User" floor.
  */
 function userRowAuthorName(
   row: { readonly personaId: PersonaId | null; readonly authorUserId: UserId | null },
   macroNames: HistoryMacroNames,
-  triggerUserId: UserId | null,
+  activePersonaUserId: UserId | null,
 ): string | null {
   const stamped = row.personaId === null ? undefined : macroNames.personaNamesById.get(row.personaId);
   if (stamped !== undefined) {
     return stamped.name;
   }
   // No usable identity of its own (never stamped, or stamped with a since-deleted persona).
-  const ownRow = row.authorUserId !== null && row.authorUserId === triggerUserId;
+  const ownRow = row.authorUserId !== null && row.authorUserId === activePersonaUserId;
   return ownRow ? null : DEFAULT_PERSONA_NAME;
 }
 
@@ -674,7 +674,7 @@ function userShapeRow(m: MessageView, ctx: AssembleContext, macroNames: HistoryM
   return {
     role: "user",
     content: renderHistoryMacros(m.content, { characterId: m.characterId, personaId: m.personaId }, ctx, { producer: macroNames }),
-    authorName: userRowAuthorName(m, macroNames, ctx.triggerUserId ?? null),
+    authorName: userRowAuthorName(m, macroNames, ctx.activePersonaUserId ?? null),
     messageId: m.id,
     kind: m.kind,
   };

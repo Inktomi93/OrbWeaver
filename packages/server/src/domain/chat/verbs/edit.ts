@@ -100,7 +100,7 @@ import { buildTurnMacroContext, freezeVolatileMacros } from "../substrate/assemb
 import { assertAuthorOrHost } from "../substrate/auth/index.ts";
 import { projectViewReturnForViewer } from "../substrate/member-visibility.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
-import { presentAndEnabledHumanUserIdsOf } from "../substrate/participants-humans.ts";
+import { humanSeatPersonasOf, presentAndEnabledHumanUserIdsOf } from "../substrate/participants-humans.ts";
 import { regexAllowOf, resolveHostTierRegexScripts } from "../substrate/regex-tier.ts";
 import { foldChain, runtimeVariablesUpdateStatement } from "../substrate/runtime-variables.ts";
 import { canonMessageDelta, editMessageDelta, editReasoningDelta, swipeVariantDelta } from "../substrate/stats-delta.ts";
@@ -242,11 +242,11 @@ async function applyRunOnEditRegex(
     model,
     anchorPersonaId: args.anchorPersonaId,
     presentHumanUserIds,
-    // The EDITOR is the triggering human: a runOnEdit re-apply re-runs THEIR receive-tier leg on THEIR row,
-    // so `{{user}}` is theirs exactly as it was on the turn that authored it (a null seat persona floors,
-    // never borrows). Byte-identical to the retired `personaIds[0]` arm, which resolved to this same id
-    // because the list was built from this one persona.
+    humanSeats: humanSeatPersonasOf(args.participants, presentHumanUserIds),
+    // The EDITOR is the triggering human; a runOnEdit re-apply binds `{{user}}` exactly as a turn does, to
+    // the anchor human's seat persona, so the re-applied row matches the turn that authored it.
     trigger: { kind: "human", userId: args.editorUserId, personaId: args.editorPersonaId },
+    voice: "anchor",
   });
   const scripts = resolveHostTierRegexScripts({
     ...(await ctx.resolveRegexSources({ ownerId: hostUserId, presetId: foreign.presetId ?? null, characterIds, chatId })),
@@ -417,10 +417,12 @@ async function freezeSelectedVariant(
     model,
     anchorPersonaId: args.anchorPersonaId,
     presentHumanUserIds: presentHumanUserIdsForBake,
+    humanSeats: humanSeatPersonasOf(args.participants, presentHumanUserIdsForBake),
     // The SELECTOR is the triggering human — the same arm the runOnEdit re-apply passes for the editor. A
     // greeting's `{{user}}` is the ANCHOR either way (a null-stamped assistant row never borrows a live
     // seat's persona), so this binds the volatile-only pass, not the identity one.
     trigger: { kind: "human", userId: args.selectorUserId, personaId: args.selectorPersonaId },
+    voice: "anchor",
   });
   const assembleContext = await gatherAssembleContext(
     ctx,

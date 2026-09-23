@@ -31,13 +31,13 @@ import type { ChatBehaviorInputs, ResolveForeignInputsOp } from "../../../packag
 import { DEFAULT_CHAT_BEHAVIOR } from "../../../packages/server/src/domain/chat/contract/foreign.ts";
 import type { MemoryConfig } from "../../../packages/server/src/domain/chat/contract/memory.ts";
 import type { GuidedSteer } from "../../../packages/server/src/domain/chat/contract/params.ts";
-import type { GroupOutput, TurnOutcome, TurnRequest } from "../../../packages/server/src/domain/chat/contract/results.ts";
+import type { GroupOutput, RequestTurnOp, TurnOutcome, TurnRequest } from "../../../packages/server/src/domain/chat/contract/results.ts";
 import { createTurnEngine } from "../../../packages/server/src/domain/chat/engine/engine.ts";
 import { loadWitnessHorizons } from "../../../packages/server/src/domain/chat/memory/persistence/queries.ts";
 import { recallMemory } from "../../../packages/server/src/domain/chat/memory/recall/recall.ts";
 import { loadCanonHistory } from "../../../packages/server/src/domain/chat/persistence/queries.ts";
 import { createClaimChat } from "../../../packages/server/src/domain/chat/verbs/claim-chat.ts";
-import { createTurn } from "../../../packages/server/src/domain/chat/verbs/turn.ts";
+import { createRequestTurn, createTurn } from "../../../packages/server/src/domain/chat/verbs/turn.ts";
 import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser } from "../../server/domain/chat/_support.ts";
 import { freshDb } from "../db.ts";
 import { makeResolved } from "../factories/resolved-connection.ts";
@@ -149,6 +149,8 @@ export interface ChatScenario {
   readonly requests: readonly TurnRequest[];
   /** The raw turn-verb bundle (`send`/`swipe`/`continueTurn`/`impersonate`/`generate`/`forceCharacterTurn`/…). */
   readonly turn: ReturnType<typeof createTurn>;
+  /** The NON-HUMAN turn seam (automation / plugin): a turn with no triggering human, over the same deps. */
+  readonly requestTurn: RequestTurnOp;
   readonly activeTurns: ActiveTurns;
   /** A `Principal` for a seeded user (default the host) — for member/stranger arms. */
   readonly principal: (userId?: UserId) => Principal;
@@ -245,7 +247,8 @@ async function buildChatScenario(script: Tape, options: ChatScenarioOptions): Pr
   const defaultForeign: ResolveForeignInputsOp = (): ReturnType<ResolveForeignInputsOp> =>
     Promise.resolve({
       promptConfig: options.promptConfig ?? DEFAULT_PROMPT_CONFIG,
-      personas: options.personas ?? DEFAULT_PERSONAS,
+      // The host is the room's only human by default, so it owns the active persona (the anchor human).
+      personas: { ...(options.personas ?? DEFAULT_PERSONAS), activeUserId: host },
       globalRegexScripts: options.hostRegexScripts ?? [],
       scanDepth: options.scanDepth ?? 6,
       injectionTokenBudget: options.injectionTokenBudget ?? 0,
@@ -255,7 +258,7 @@ async function buildChatScenario(script: Tape, options: ChatScenarioOptions): Pr
   const resolveForeignInputs = options.resolveForeignInputs ?? defaultForeign;
 
   const activeTurns = createActiveTurns();
-  const turn = createTurn(ctx, {
+  const turnDeps: Parameters<typeof createTurn>[1] = {
     engine,
     activeTurns,
     emit,
@@ -266,7 +269,8 @@ async function buildChatScenario(script: Tape, options: ChatScenarioOptions): Pr
     // The REAL claim chokepoint (R0), not a stub: a turn driven through this harness claims its room exactly
     // as production does, so every suite riding the scenario covers the send/generate claim arms for free.
     claimChat: createClaimChat(ctx),
-  });
+  };
+  const turn = createTurn(ctx, turnDeps);
 
   return {
     db,
@@ -279,6 +283,7 @@ async function buildChatScenario(script: Tape, options: ChatScenarioOptions): Pr
     statsDeltas,
     requests,
     turn,
+    requestTurn: createRequestTurn(ctx, turnDeps),
     activeTurns,
     principal: (userId = host) => principalOf(userId),
     send: (content, sendOptions = {}) =>

@@ -957,16 +957,16 @@ describe("toShapeCanon — the null-persona-stamp guard (a row never borrows a s
     } as unknown as MessageView;
   };
 
-  /** A ctx just rich enough for `toShapeCanon`'s macro render — the host is the live trigger. */
-  const ctxFor = (triggerUserId: UserId | null): AssembleContext =>
-    // @orb-waive no-test-fabrication(unknown): slim AssembleContext double — this call path reads only character/characters/characterIds/recentMessages/promptConfig/triggerUserId. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+  /** A ctx just rich enough for `toShapeCanon`'s macro render — the host owns the active persona. */
+  const ctxFor = (activePersonaUserId: UserId | null): AssembleContext =>
+    // @orb-waive no-test-fabrication(unknown): slim AssembleContext double — this call path reads only character/characters/characterIds/recentMessages/promptConfig/activePersonaUserId. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     ({
       character: { name: "Aria", description: "" },
       characters: [],
       characterIds: [],
       recentMessages: [],
       promptConfig: DEFAULT_PROMPT_CONFIG,
-      triggerUserId,
+      activePersonaUserId,
     }) as unknown as AssembleContext;
 
   test("a member's NULL-stamped row does NOT inherit the host's persona — it takes the unresolvable floor", () => {
@@ -996,12 +996,12 @@ describe("toShapeCanon — the null-persona-stamp guard (a row never borrows a s
     expect(userLines.filter((l) => l.startsWith("Nate: "))).toHaveLength(1);
   });
 
-  test("the TRIGGER's own unstamped row still borrows this turn's {{user}} (byte-identical solo behavior)", () => {
+  test("the active persona owner's own unstamped row still borrows {{user}} (byte-identical solo behavior)", () => {
     const rows = toShapeCanon([userRow(hostUser, null, "host line")], ctxFor(hostUser), macroNames, null);
     expect(rows[0]?.authorName).toBeNull();
   });
 
-  test("an UNKNOWN trigger (drain / auto / preview / any hand-built ctx) fails CLOSED — nobody borrows", () => {
+  test("an UNKNOWN owner (any hand-built ctx) fails CLOSED — nobody borrows", () => {
     const rows = toShapeCanon([userRow(hostUser, null, "host line")], ctxFor(null), macroNames, null);
     expect(rows[0]?.authorName).toBe(DEFAULT_PERSONA_NAME);
   });
@@ -1125,7 +1125,7 @@ const KIND_CTX: AssembleContext =
     characterIds: [GROUP_ID],
     recentMessages: [],
     promptConfig: DEFAULT_PROMPT_CONFIG,
-    triggerUserId: null,
+    activePersonaUserId: null,
   } as unknown as AssembleContext;
 
 const KIND_NAMES: HistoryMacroNames = {

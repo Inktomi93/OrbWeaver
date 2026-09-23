@@ -2,19 +2,24 @@
 // pipeline and SHAPE: for calls N and N+1 of one chat, every history row up to N's cache marker is
 // byte-identical in N+1. Mirror-exempt (`.suite.int.test.ts`): it crosses verbs, assembly and the engine.
 
+import type { CharacterCard } from "@orb/contracts/character";
 import type { AssemblePersona } from "@orb/contracts/chat";
 import type { NamesBehavior } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
-import { chatParticipants } from "@orb/db";
+import type { Db } from "@orb/db";
+import { chatParticipants, chats } from "@orb/db";
 import { rowIndexAtCacheDepth } from "@orb/inference";
 import type { Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { createTurnPersonaResolver } from "@orb/server/entry/compose";
 import { and, eq } from "drizzle-orm";
 import { describe } from "vitest";
 import type { ResolveForeignInputsOp } from "../../../../packages/server/src/domain/chat/contract/foreign.ts";
 import type { GroupOutput, TurnMessage, TurnRequest } from "../../../../packages/server/src/domain/chat/contract/results.ts";
+import { loadPersonasForOwners } from "../../../../packages/server/src/domain/persona/persistence/queries.ts";
 import type { ChatScenario } from "../../../support/chat/index.ts";
 import { scenario, tape } from "../../../support/chat/index.ts";
+import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { seedCharacter, seedMessage, seedParticipant, seedPersona, seedUser } from "./_support.ts";
 
@@ -179,5 +184,160 @@ describe("F8 — an off-roster or unattributed reply keeps its label whoever spe
     expect(first[3]).toBe("agent line");
     // Every row above the tail (which carries this call's speaker cue) is byte-identical.
     expect(second.slice(0, 4)).toEqual(first.slice(0, 4));
+  });
+});
+
+/** A card whose own description reads `{{user}}` — the CARD-context probe (pinned persona). */
+function cardOf(name: string, description: string): CharacterCard {
+  return {
+    name,
+    description,
+    personality: null,
+    scenario: null,
+    greetings: [],
+    exampleMessages: null,
+    systemPrompt: null,
+    postHistoryInstructions: null,
+    depthPrompt: null,
+    creatorNotes: null,
+    creator: null,
+    cardVersion: null,
+    nickname: null,
+    source: null,
+    creationDate: null,
+    modificationDate: null,
+    regexScripts: [],
+    extensions: null,
+    residualData: null,
+    avatarAssetId: null,
+    refinery: null,
+  };
+}
+
+/** The composition root's persona binding (`createTurnPersonaResolver`) over the real consent-gated persona
+ *  read, with the default preset. */
+function composedPersonas(db: Db): ResolveForeignInputsOp {
+  const resolvePersonas = createTurnPersonaResolver(async ({ personaIds, allowedOwnerIds }) => {
+    const rows = await loadPersonasForOwners(db, [...new Set(personaIds)], [...new Set(allowedOwnerIds)]);
+    return new Map(rows.map((row) => [row.id, row]));
+  });
+  return async (args) => ({ promptConfig: DEFAULT_PROMPT_CONFIG, personas: await resolvePersonas(args), scanDepth: 6, injectionTokenBudget: 0 });
+}
+
+async function setSeatPersona(scn: ChatScenario, userId: UserId, personaId: PersonaId | null): Promise<void> {
+  await scn.db
+    .update(chatParticipants)
+    .set({ activePersonaId: personaId })
+    .where(and(eq(chatParticipants.chatId, scn.chatId), eq(chatParticipants.userId, userId)));
+}
+
+async function setAnchor(scn: ChatScenario, personaId: PersonaId | null): Promise<void> {
+  await scn.db.update(chats).set({ anchorPersonaId: personaId }).where(eq(chats.id, scn.chatId));
+}
+
+/** A room driven by the real persona binding, with `aria`'s card probing card-context `{{user}}`. */
+async function composedRoom(card: string): Promise<ChatScenario> {
+  const db = await freshDb();
+  return await scenario.chat(tape().reply("r1").reply("r2").reply("r3").reply("r4").reply("r5"), {
+    db,
+    resolveForeignInputs: composedPersonas(db),
+    ctx: { getCard: () => Promise.resolve(cardOf("aria", card)) },
+  });
+}
+
+function requestAt(scn: ChatScenario, index: number): TurnRequest {
+  const req = scn.requests[index];
+  if (req === undefined) {
+    throw new Error(`no captured call ${String(index)}`);
+  }
+  return req;
+}
+
+// F3(b): the system block's persona half comes from the room's ANCHOR human, never from whoever pressed send.
+// The owner's acceptance criterion, verbatim as a test: everything above the tail is byte-identical across
+// senders, and only the anchor-dependent bytes move when the host re-anchors.
+describe("F3 — the system block speaks for the anchor human, whoever presses send", () => {
+  test("Alice → Bob → Alice → the host re-anchors to Bob → Bob", async () => {
+    const scn = await composedRoom("{{user}} is aria's oldest friend");
+    const alice = scn.host;
+    const bob = await seedUser(scn.db, castId<Handle>("bob"));
+    const alicePersona = await seedPersona(scn.db, alice, "Alice", { description: "ALICE-DESC" });
+    const bobPersona = await seedPersona(scn.db, bob, "Bob", { description: "BOB-DESC" });
+    await setSeatPersona(scn, alice, alicePersona);
+    await seedParticipant(scn.db, { chatId: scn.chatId, key: "bob", userId: bob, role: "member", joinSeq: 9, activePersonaId: bobPersona });
+    await setAnchor(scn, alicePersona);
+
+    await scn.send("hello", { principal: scn.principal(alice) });
+    await scn.send("hey", { principal: scn.principal(bob) });
+    await scn.send("again", { principal: scn.principal(alice) });
+    await setAnchor(scn, bobPersona);
+    await scn.send("last", { principal: scn.principal(bob) });
+
+    const [first, second, third, fourth] = [0, 1, 2, 3].map((i) => requestAt(scn, i));
+    if (first === undefined || second === undefined || third === undefined || fourth === undefined) {
+      throw new Error("expected four calls");
+    }
+    // Who pressed send changes nothing above the tail.
+    expect(first.prompt.static).toContain("Alice is aria's oldest friend");
+    expect(second.prompt.static).toBe(first.prompt.static);
+    expect(third.prompt.static).toBe(first.prompt.static);
+    expect([second.prompt.dynamic, third.prompt.dynamic]).toEqual([first.prompt.dynamic, first.prompt.dynamic]);
+    expectHistoryPrefixKept(second, third);
+    // The re-anchor moves only the anchor-dependent bytes: the same block, with Bob where Alice was.
+    expect(fourth.prompt.static).not.toBe(third.prompt.static);
+    expect(fourth.prompt.static).toBe(third.prompt.static.replaceAll("ALICE-DESC", "BOB-DESC").replaceAll("Alice", "Bob"));
+    expectHistoryPrefixKept(third, fourth);
+  });
+
+  test("a human send and an auto turn in a solo room with a swapped persona share one system block", async () => {
+    const scn = await composedRoom("{{user}} is my brother");
+    const nate = await seedPersona(scn.db, scn.host, "Nate", { description: "NATE-DESC" });
+    const steve = await seedPersona(scn.db, scn.host, "Steve", { description: "STEVE-DESC" });
+    await setAnchor(scn, nate);
+    await setSeatPersona(scn, scn.host, steve);
+
+    await scn.send("hi", { principal: scn.principal() });
+    await scn.requestTurn({ chatId: scn.chatId, initiator: "automation", triggeredBy: scn.host, automationDepth: 1 });
+
+    const human = requestAt(scn, 0);
+    const auto = requestAt(scn, 1);
+    expect(auto.prompt.static).toBe(human.prompt.static);
+    // The pinned persona still splits card from preset: the card names the anchor, the preset the seat.
+    expect(human.prompt.static).toContain("Nate is my brother");
+    expect(human.prompt.static).toContain("roleplay with Steve");
+  });
+
+  test("an unstamped user row keeps its label between a human send and an auto turn (F8)", async () => {
+    const scn = await composedRoom("aria the innkeeper");
+    const nate = await seedPersona(scn.db, scn.host, "Nate", { description: "NATE-DESC" });
+    await setAnchor(scn, nate);
+    await setSeatPersona(scn, scn.host, nate);
+    await seedMessage(scn.db, scn.chatId, 1, { role: "user", authorUserId: scn.host, personaId: null, content: "an old line" });
+    await seedMessage(scn.db, scn.chatId, 2, { role: "assistant", characterId: scn.chars[0] ?? null, content: "a reply" });
+
+    await scn.send("hi", { principal: scn.principal() });
+    await scn.requestTurn({ chatId: scn.chatId, initiator: "automation", triggeredBy: scn.host, automationDepth: 1 });
+
+    expect(userTexts(requestAt(scn, 1))[0]).toBe(userTexts(requestAt(scn, 0))[0]);
+    expectHistoryPrefixKept(requestAt(scn, 0), requestAt(scn, 1));
+  });
+
+  test("an impersonate draft speaks as the human who asked for it", async () => {
+    const scn = await composedRoom("aria the innkeeper");
+    const alice = scn.host;
+    const bob = await seedUser(scn.db, castId<Handle>("bob"));
+    const alicePersona = await seedPersona(scn.db, alice, "Alice", { description: "ALICE-DESC" });
+    const bobPersona = await seedPersona(scn.db, bob, "Bob", { description: "BOB-DESC" });
+    await setSeatPersona(scn, alice, alicePersona);
+    await seedParticipant(scn.db, { chatId: scn.chatId, key: "bob", userId: bob, role: "member", joinSeq: 9, activePersonaId: bobPersona });
+    await setAnchor(scn, alicePersona);
+
+    await scn.send("hello", { principal: scn.principal(bob) });
+    for await (const _delta of scn.turn.impersonateStream({ principal: scn.principal(bob), chatId: scn.chatId })) {
+      // Drained for the captured request; the draft text is not under test.
+    }
+
+    expect(requestAt(scn, 0).prompt.static).toContain("roleplay with Alice");
+    expect(requestAt(scn, 1).prompt.static).toContain("roleplay with Bob");
   });
 });
