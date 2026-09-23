@@ -1,8 +1,8 @@
-// The frontmatter WRITER — the read half is the catalog's flat parser (`#doc-catalog` `parseFrontmatter`).
+// The frontmatter WRITER — the read half is `./frontmatter.ts#parseFrontmatter`.
 // Every structural edit the tool makes to a document is a whole-block rewrite here: split the file into
 // its block and its body, patch the fields, render the block in one canonical key order. Prose is never
 // touched, which is the whole contract ("agents write prose; the tool writes structure").
-import { parseFrontmatter } from "#doc-catalog";
+import { parseFrontmatter } from "./frontmatter.ts";
 
 const FENCE = "---";
 /** Canonical key order. Keys the order does not name follow, sorted. */

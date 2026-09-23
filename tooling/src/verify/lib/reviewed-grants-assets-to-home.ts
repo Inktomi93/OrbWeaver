@@ -93,15 +93,6 @@ export const REVIEWED_GRANTS_ASSETS_TO_HOME: readonly ReviewedGateGrant[] = [
     endsWhen: "the module stops writing assets or calling storeBlob, or the CAS boundary moves to a different exact module.",
   },
   {
-    id: "biome-grant-liveness:catalog-tmp",
-    policyId: "biome-grant-liveness",
-    subject: "docs/catalog/catalog.tmp.*.json",
-    operation: "biome-glob-grant",
-    why: "absent at rest BY DESIGN and never tracked: the doc-catalog's biome round-trip writes docs/catalog/catalog.tmp.<runId>.json, formats it through the binary, and rm's it in a `finally` — the run identity in the name is what stops two concurrent catalog runs from formatting each other's file (#1029), and the files.maxSize grant must PRE-EXIST the write. Producer: tooling/src/doc-catalog/ops/tree.ts. This ONE row replaces the pair the retired tables carried, whose own comment asked to 'collapse the pair the day one table can express both' (#2021).",
-    endsWhen:
-      "the catalog serializer stops formatting through a temp file — the glob then matches nothing anybody wrote, the finding disappears and this row is consumed zero times.",
-  },
-  {
     id: "bound-field-via-hook:use-bound-field",
     policyId: "bound-field-via-hook",
     subject: "packages/client/src/forms/editor/bound-fields/use-bound-field.ts",

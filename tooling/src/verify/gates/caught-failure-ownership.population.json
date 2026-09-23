@@ -2,10 +2,10 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 624,
+    "sites": 622,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 624,
+      "deliberate-absorb": 622,
       "unproven": 0
     },
     "byGrammar": {
@@ -3124,16 +3124,6 @@
       "siteId": "tooling/src/wire-tap/ops/trpc.ts::trpcOp::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "a non-JSON response body just prints the raw text as-is (the comment states this directly) — the response body itself is never lost, only the pretty-print step is skipped. Ends if the raw text stops being printed on this path."
-    },
-    {
-      "siteId": "tooling/src/workboard/ops/gh.ts::graphqlResetTime::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "only used to make an already-thrown rate-limit error message more specific — a failed probe of the reset time just falls back to a vaguer but still-actionable phrase in that same message, it never suppresses the real rate-limit failure itself. Ends if this return value starts being used outside a message string."
-    },
-    {
-      "siteId": "tooling/src/workboard/ops/project.ts::projectContext::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "the comment states the intent directly — a missing or corrupt cache file falls through to fetchProjectContext() below, which is the real source of truth; the cache is purely an optimization. Ends if this stops falling through to the cold fetch."
     }
   ]
 }

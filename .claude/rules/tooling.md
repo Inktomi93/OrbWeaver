@@ -61,6 +61,6 @@ and rules in the same change; never add a refusal path or alias shim.
 
 Declare `sideEffects` on every new workspace `package.json` at birth, or prod tree-shaking cannot reach
 consumers below the cake. A new `packages/*` package also needs a population root and an entry in
-`tooling/src/_shared/project-worlds.ts`, a dep-cruiser rule pair, `package.json`/`tsconfig`, a knip entry,
-and a doc-catalog entry for any doc it cites. Scope a `pnpm-workspace.yaml` override to its parent
+`tooling/src/_shared/project-worlds.ts`, a dep-cruiser rule pair, `package.json`/`tsconfig`, and a knip
+entry. Scope a `pnpm-workspace.yaml` override to its parent
 chain when a name is shared across major lines; a bare-name override collapses every instance onto one version.

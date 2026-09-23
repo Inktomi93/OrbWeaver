@@ -25,6 +25,7 @@ export const USAGE = [
   "  land <id…> --evidence <sha>       land --merged       (landing deletes the item and commits the record)",
   "  index      review <path|glob…>      due [glob…]",
   "  overview      drift",
+  "  format <--check|--write> [file…]    write/list compact markdown across the living docs trees",
 ].join("\n");
 
 function flagValue(args: readonly string[], flag: string): string | null {
@@ -260,6 +261,17 @@ function parseBare(name: "index" | "overview" | "drift", args: readonly string[]
   return { kind: name };
 }
 
+function parseFormat(args: readonly string[]): DocCommand {
+  const [mode, ...files] = args;
+  if (mode !== "--check" && mode !== "--write") {
+    throw new UsageError(`format takes --check or --write\n${USAGE}`);
+  }
+  if (files.some((file) => file.startsWith("--"))) {
+    throw new UsageError(`format takes only --check|--write and file paths\n${USAGE}`);
+  }
+  return { kind: "format", write: mode === "--write", files };
+}
+
 /** Verb name → parser. A verb absent here is unknown, which is misuse. */
 type Parser = (tail: readonly string[]) => DocCommand;
 const help: Parser = () => ({ kind: "help" });
@@ -277,6 +289,7 @@ const VERBS: ReadonlyMap<string, Parser> = new Map<string, Parser>([
   ["index", (tail): DocCommand => parseBare("index", tail)],
   ["overview", (tail): DocCommand => parseBare("overview", tail)],
   ["drift", (tail): DocCommand => parseBare("drift", tail)],
+  ["format", parseFormat],
 ]);
 
 export function parseDocCommand(argv: readonly string[]): DocCommand {

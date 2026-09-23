@@ -2349,12 +2349,6 @@
       }
     },
     {
-      "includes": ["docs/catalog/catalog.json", "docs/catalog/catalog.tmp.*.json"],
-      "files": {
-        "maxSize": 4194304
-      }
-    },
-    {
       "includes": ["packages/ui/**", "packages/client/**"],
       "linter": {
         "rules": {

@@ -29,7 +29,6 @@ import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const DOC_REL = "docs/law/Core-Enforcement-Active-Gates.md";
-const CATALOG_REL = "docs/catalog/catalog.json";
 const GATE_REL = "tooling/src/verify/gates/x.ts";
 const MESSAGE = "the exact runtime text";
 /** The message as it is SPELLED in a descriptor — a quoted literal, the default initializer under test. */
@@ -66,7 +65,6 @@ function plant(root: string, rel: string, content: string): void {
  *  so the only thing under test is the row's DESCRIPTION. */
 function plantRegistry(root: string, description: string, message = MESSAGE_LITERAL): void {
   plant(root, GATE_REL, `export const gate = { name: "x", status: "active", message: ${message} };\n`);
-  plant(root, CATALOG_REL, '{"documents":[]}\n');
   plant(root, DOC_REL, `## Layer 3 — Structural gates\n\n(1 registered gates)\n\n| \`x\` | ${description} |\n\n### Layer 3 — DORMANT structural gates\n`);
 }
 
@@ -92,7 +90,6 @@ function plantMixedRegistry(root: string, { yModule, rows, count }: MixedRegistr
   plant(root, GATE_REL, 'export const gate = { name: "x", status: "active" };\n');
   plant(root, POLICY_STUB_REL, POLICY_STUB);
   plant(root, FINAL_GATE_REL, yModule);
-  plant(root, CATALOG_REL, '{"documents":[]}\n');
   const table = rows.map((row) => `| \`${row}\` | enforces ${row} |`).join("\n");
   plant(root, DOC_REL, `## Layer 3 — Structural gates\n\n(${count} registered gates)\n\n${table}\n\n### Layer 3 — DORMANT structural gates\n`);
 }

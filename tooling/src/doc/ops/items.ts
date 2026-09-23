@@ -6,10 +6,10 @@
 // a mint through `pendingDocProblems`, an edit through `introducedDocProblems`.
 import { existsSync, readFileSync, rmSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
-import { DOC_TOOL_TREES } from "#doc-catalog";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { UsageError } from "../../_shared/run-tool.ts";
 import type { DocEdit, GovernedDoc, ItemPatch, ItemState, NewItemInput, WorkItem } from "../contract/types.ts";
+import { DOC_TOOL_TREES } from "../contract/vocab.ts";
 import { allItems } from "../lib/generated.ts";
 import { DESIGN_FILE } from "../lib/indexes.ts";
 import { applyPatch, nextItemId, parseItemBatch } from "../lib/items.ts";

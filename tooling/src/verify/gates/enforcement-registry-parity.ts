@@ -388,12 +388,10 @@ interface CarriedProof {
   readonly why: string;
 }
 
-const PROOF_CATALOG = "docs/catalog/catalog.json";
-
 function resourceProof(proof: CarriedProof): GatePolicyProof {
   return {
     mode: "resource",
-    files: { [PROOF_CATALOG]: '{"documents":[]}\n', ...proof.files },
+    files: proof.files,
     ...(proof.expect === undefined ? {} : { expect: proof.expect }),
     why: proof.why,
   };
@@ -435,7 +433,6 @@ export const gate = defineGate({
     {
       mode: "resource" as const,
       files: {
-        [PROOF_CATALOG]: '{"documents":[]}\n',
         "tooling/src/verify/gates/x.ts": 'export const gate = { name: "x", status: "active" };\n',
         "docs/law/Core-Enforcement-Active-Gates.md": "## Layer 3 — Structural gates\n\n(0 registered gates)\n\n### Layer 3 — DORMANT structural gates\n",
       },
@@ -445,7 +442,6 @@ export const gate = defineGate({
     {
       mode: "resource" as const,
       files: {
-        [PROOF_CATALOG]: '{"documents":[]}\n',
         // No active descriptors, but the ACTIVE table names `ghost` — a doc row for a gate that doesn't exist.
         "tooling/src/verify/gates/x.ts": 'export const gate = { name: "x", status: "dormant" };\n',
         "docs/law/Core-Enforcement-Active-Gates.md":
@@ -457,7 +453,6 @@ export const gate = defineGate({
     {
       mode: "resource" as const,
       files: {
-        [PROOF_CATALOG]: '{"documents":[]}\n',
         [GATE_FILE]: LEGACY_X,
         [FINAL_GATE_FILE]: FINAL_MODULE('"m"'),
         [POLICY_STUB_FILE]: POLICY_STUB,
@@ -469,7 +464,6 @@ export const gate = defineGate({
     {
       mode: "resource" as const,
       files: {
-        [PROOF_CATALOG]: '{"documents":[]}\n',
         [FINAL_GATE_FILE]: LOOKALIKE_MODULE,
         [DOC_FILE]: "## Layer 3 — Structural gates\n\n(0 registered gates)\n\n| `y` | a lookalike |\n\n### Layer 3 — DORMANT structural gates\n",
       },
@@ -479,7 +473,6 @@ export const gate = defineGate({
     {
       mode: "resource" as const,
       files: {
-        [PROOF_CATALOG]: '{"documents":[]}\n',
         [FINAL_GATE_FILE]: FINAL_MODULE('"the exact runtime text"'),
         [POLICY_STUB_FILE]: POLICY_STUB,
         [DOC_FILE]:
@@ -491,7 +484,6 @@ export const gate = defineGate({
     {
       mode: "resource" as const,
       files: {
-        [PROOF_CATALOG]: '{"documents":[]}\n',
         // A dormant descriptor `x` absent from the DORMANT table — DOC_DORMANT_MISSING.
         "tooling/src/verify/gates/x.ts": 'export const gate = { name: "x", status: "dormant" };\n',
         "docs/law/Core-Enforcement-Active-Gates.md": "## Layer 3 — Structural gates\n\n(0 registered gates)\n\n### Layer 3 — DORMANT structural gates\n",
@@ -502,7 +494,6 @@ export const gate = defineGate({
     {
       mode: "resource" as const,
       files: {
-        [PROOF_CATALOG]: '{"documents":[]}\n',
         // The DORMANT table names `phantom` with no dormant descriptor — DOC_DORMANT_ORPHAN.
         "tooling/src/verify/gates/x.ts": 'export const gate = { name: "x", status: "dormant" };\n',
         "docs/law/Core-Enforcement-Active-Gates.md":
@@ -514,7 +505,6 @@ export const gate = defineGate({
     {
       mode: "resource" as const,
       files: {
-        [PROOF_CATALOG]: '{"documents":[]}\n',
         // The ACTIVE table + descriptor agree, but the count line is wrong (says 0, one active) — COUNT mismatch.
         "tooling/src/verify/gates/x.ts": 'export const gate = { name: "x", status: "active" };\n',
         "docs/law/Core-Enforcement-Active-Gates.md":
@@ -526,7 +516,6 @@ export const gate = defineGate({
     {
       mode: "resource" as const,
       files: {
-        [PROOF_CATALOG]: '{"documents":[]}\n',
         // A SECOND core doc restating the figure. Everything else agrees, so this arm is the only red —
         // and it is spelled the way the live rot was (`**133 registered gates**`, no parentheses).
         "tooling/src/verify/gates/x.ts": 'export const gate = { name: "x", status: "active" };\n',
@@ -540,7 +529,6 @@ export const gate = defineGate({
     {
       mode: "resource" as const,
       files: {
-        [PROOF_CATALOG]: '{"documents":[]}\n',
         [GATE_FILE]: 'export const gate = { name: "x", status: "active", message: "the exact runtime text" };\n',
         [DOC_FILE]:
           "## Layer 3 — Structural gates\n\n(1 registered gates)\n\n| `x` | the DRIFTED text (@mirrors-message) |\n\n### Layer 3 — DORMANT structural gates\n",
@@ -551,7 +539,6 @@ export const gate = defineGate({
     {
       mode: "resource" as const,
       files: {
-        [PROOF_CATALOG]: '{"documents":[]}\n',
         [GATE_FILE]: 'export const gate = { name: "x", status: "active", message: "the exact runtime text" };\n',
         [DOC_FILE]: "## Layer 3 — Structural gates\n\n(1 registered gates)\n\n| `x` | the exact runtime text |\n\n### Layer 3 — DORMANT structural gates\n",
       },
@@ -561,7 +548,6 @@ export const gate = defineGate({
     {
       mode: "resource" as const,
       files: {
-        [PROOF_CATALOG]: '{"documents":[]}\n',
         [GATE_FILE]: 'export const gate = { name: "x", status: "active", message: buildMessage("x") };\n',
         [DOC_FILE]:
           "## Layer 3 — Structural gates\n\n(1 registered gates)\n\n| `x` | whatever it says (@mirrors-message) |\n\n### Layer 3 — DORMANT structural gates\n",
@@ -572,7 +558,6 @@ export const gate = defineGate({
     {
       mode: "resource" as const,
       files: {
-        [PROOF_CATALOG]: '{"documents":[]}\n',
         [GATE_FILE]: 'export const gate = { name: "x", status: "dormant", message: "the exact runtime text" };\n',
         [DOC_FILE]:
           "## Layer 3 — Structural gates\n\n(0 registered gates)\n\n### Layer 3 — DORMANT structural gates\n\n| `x` | the DRIFTED text (@mirrors-message) |\n",

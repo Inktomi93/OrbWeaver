@@ -278,7 +278,7 @@ const LIFECYCLE_DOORS: Record<PortableKind, LifecycleDoors> = {
     singleImport: { transport: "trpc", cite: "worldInfo.importFile" },
     chrome: "band+kebab",
   },
-  // RULING SUPERSEDED (owner, REGX2, 2026-08-03 — workboard I-4). Both halves used to be `{ ruled }` cells
+  // RULING SUPERSEDED (owner, REGX2, 2026-08-03 — board ruling I-4). Both halves used to be `{ ruled }` cells
   // reading "O-2 class: scripts travel embedded in the CARD they belong to (the D121-E lift) and in the
   // bundle. No evidenced demand for sharing one script standalone." / "same as export — the card IS the
   // sharing unit for a script." The owner's REGX2 ruling IS that evidenced demand, so the exemption's end

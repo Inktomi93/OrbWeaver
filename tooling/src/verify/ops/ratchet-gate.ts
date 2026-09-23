@@ -11,8 +11,6 @@
 //   • every `tests/tooling/**/*.test.ts` / `*.int.test.ts` whose BASENAME contains "ratchet", "presence",
 //     or "conformance" (case-insensitive) — the tooling package's OWN coverage/structure ratchets and their
 //     permanent gate pins. A brand-new file shaped like this is picked up automatically (no row to add).
-//   • every `tests/tooling/workboard/**` file — the workboard mirror (the Project-board contract's own
-//     round-trip suite).
 //   • every `tests/contracts/**/*.contract.test.ts` — the exact-tuple wire pins (already a suffix
 //     convention; the `.contract.test.ts` name IS the routing decision).
 //   • `EXPLICIT_INCLUDES` — a DELIBERATELY tiny hand list for ratchets that live OUTSIDE tests/tooling/**
@@ -23,7 +21,7 @@
 //     wall-clock cost, so an exclusion is an audited decision, never a silent drop.
 //
 // MEASURED (2026-08-24, this tree, `--maxWorkers=4`). WITHOUT `gate-conformance.repo.int.test.ts` (see below):
-// 4 tooling ratchet files, the workboard mirror, 71 contract pins, and the cross-tenant sweep — 87 test
+// 4 tooling ratchet files, 71 contract pins, and the cross-tenant sweep — 87 test
 // files / 990 tests in 36.97s vitest-reported duration (37.7s wall, cold `pnpm test:scoped` invocation).
 // WITH `gate-conformance.repo.int.test.ts` folded in: 56.05s vitest-reported / 67.34s wall through the full
 // `pnpm test:ratchets` door (cold node + the barrel import) under SIBLING-LANE CONTENTION — over the
@@ -56,7 +54,6 @@ refuseDirectInvocation(import.meta.url, "pnpm test:ratchets");
 
 const RATCHET_NAME_RE = /(ratchet|presence|conformance)/iu;
 const TOOLING_TESTS_PREFIX = "tests/tooling/";
-const WORKBOARD_PREFIX = "tests/tooling/workboard/";
 const CONTRACT_PIN_PREFIX = "tests/contracts/";
 const NODE_MODULES = "node_modules";
 const TESTS_DIR = "tests";
@@ -133,7 +130,7 @@ export function discoverTestFiles(root: string): readonly string[] {
 }
 
 /** Does this repo-relative path match the RATCHET convention (tooling's own ratchet/presence/conformance
- *  self-tests, the workboard mirror, or a contract exact-tuple pin)? Pure — no filesystem I/O — so a test
+ *  self-tests, or a contract exact-tuple pin)? Pure — no filesystem I/O — so a test
  *  can drive it over a synthetic candidate list without touching disk (the planted-control shape). */
 export function isRatchetShaped(relPath: string): boolean {
   const testKind = classifyTestFilename(relPath);
@@ -141,9 +138,6 @@ export function isRatchetShaped(relPath: string): boolean {
     return false;
   }
   if (relPath.startsWith(CONTRACT_PIN_PREFIX) && testKind.definition.family === "contract") {
-    return true;
-  }
-  if (relPath.startsWith(WORKBOARD_PREFIX)) {
     return true;
   }
   if (relPath.startsWith(TOOLING_TESTS_PREFIX)) {

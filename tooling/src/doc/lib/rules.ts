@@ -3,18 +3,9 @@
 // id uniqueness, a parked plan's wake condition, ADR id uniqueness, and generated-file freshness.
 // `pnpm check:agents` runs them (through `ops/check.ts`); the writing rules 1, 2 and 4 over the same
 // docs come from `_shared/prose-rules.ts` and are composed there, not here.
-import {
-  ADR_KIND,
-  DATE_RE,
-  DOC_TOOL_TREES,
-  FIRST_RESERVED_RULING,
-  ITEM_KINDS,
-  ITEM_STATES,
-  LAST_RESERVED_RULING,
-  PLAN_KIND,
-  parseFrontmatter,
-} from "#doc-catalog";
 import type { DocTree, GovernedDoc, WorkItem } from "../contract/types.ts";
+import { ADR_KIND, DATE_RE, DOC_TOOL_TREES, FIRST_RESERVED_RULING, ITEM_KINDS, ITEM_STATES, LAST_RESERVED_RULING, PLAN_KIND } from "../contract/vocab.ts";
+import { parseFrontmatter } from "./frontmatter.ts";
 import { sectionsOf, splitDocument } from "./frontmatter-write.ts";
 import { expectedGeneratedFiles } from "./generated.ts";
 import { DESIGN_FILE, isGeneratedPath, TASKS_FILE } from "./indexes.ts";
@@ -29,7 +20,6 @@ const PLAN_CAP = 49_152;
 const ITEM_CAP = 4096;
 const LAW_CAP = 49_152;
 const MISSION_PATH = "docs/Mission.md";
-const CATALOG_DIR = "catalog";
 const INDEX_KIND = "index";
 /** A plan waiting on something: it carries a `blocked` wake condition in the item blocker grammar. */
 export const PARKED = "parked";
@@ -86,7 +76,7 @@ function kindsFor(path: string): readonly string[] {
 }
 
 function rootProblems(tree: DocTree): readonly string[] {
-  const allowed = new Set([...Object.values(DOC_TOOL_TREES).map((prefix) => prefix.slice("docs/".length, -1)), basenameOf(MISSION_PATH), CATALOG_DIR]);
+  const allowed = new Set([...Object.values(DOC_TOOL_TREES).map((prefix) => prefix.slice("docs/".length, -1)), basenameOf(MISSION_PATH)]);
   return tree.root
     .filter((entry) => !allowed.has(entry.name))
     .map(
