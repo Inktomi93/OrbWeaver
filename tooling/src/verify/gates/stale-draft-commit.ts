@@ -1,22 +1,11 @@
 // A once-seeded draft compared to its moving live seed can overwrite another writer.
 // The shared visitor-fed reader preserves the legacy textual useState/if grammar,
 // including its documented dirty-flag, setter-only, constant and package limits.
+// FAMILY `draft-commit`: the diagnostic and remedy name the decision home `DRAFT_DECISION_HOME`, and
+// `stale-draft-decision-health` proves that same declaration still resolves. Both come from
+// `lib/stale-draft-read.ts`, so the health cannot guard a different path from the one findings send readers to.
 import { defineGate } from "../contract/policy.ts";
-import { createDraftCommitHooks } from "../lib/stale-draft-read.ts";
-
-const MESSAGE =
-  "a once-seeded draft is being committed under `draft !== <the live value>`. That guard exists to suppress " +
-  "a pointless write, but the live value MOVES: when a second writer lands one while the editor is open, the " +
-  "comparison passes for a reason that has nothing to do with the user and the branch writes the opened-with " +
-  "text back over what arrived. Judge the draft against WHAT IT OPENED WITH, via `resolveCommit` in " +
-  "packages/client/src/lib/edit-session.ts.";
-
-const FIX =
-  "seed an `openedFrom` snapshot beside the draft and commit through `resolveCommit(session, live)` " +
-  "(packages/client/src/lib/edit-session.ts) — it separates 'nothing typed', 'an ordinary commit', and 'two " +
-  "writers, surfaced' instead of collapsing them into one comparison. A deliberate exception is waived with " +
-  "`// @orb-waive stale-draft-commit(<position>): <reason>` above the comparison, where <position> is the " +
-  "reported draft-state variable name, e.g. `draft`.";
+import { createDraftCommitHooks, DRAFT_COMMIT_FIX, DRAFT_COMMIT_MESSAGE } from "../lib/stale-draft-read.ts";
 
 export const gate = defineGate({
   id: "stale-draft-commit",
@@ -28,8 +17,8 @@ export const gate = defineGate({
   execution: "selected-files",
   facts: [],
   resources: [],
-  message: MESSAGE,
-  fix: FIX,
+  message: DRAFT_COMMIT_MESSAGE,
+  fix: DRAFT_COMMIT_FIX,
   create: createDraftCommitHooks,
   mustFlag: [
     {

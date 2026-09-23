@@ -63,4 +63,15 @@ export const gate = defineGate({
         "the twin of mustFlag[0] — one finding, one waived, zero effective findings, zero authority alarms",
     },
   ],
+  mustRefuse: [
+    {
+      mode: "source",
+      files: {
+        [SCHEMA_FILE]: "export const appearanceSettingsSchema = z.object({ width: z.number() });",
+        [MANIFEST_FILE]: 'export const APPEARANCE_OWNER_KEYS={sizing:["width"]}; export const APPEARANCE_CARRIER_MANIFEST=undefined;',
+      },
+      expect: { messageIncludes: "APPEARANCE_CARRIER_MANIFEST is missing or not an object literal" },
+      why: "THE SUPPLY REFUSAL (law §6.3): mustPass[0] with the manifest declaration no longer an object literal. The shared appearance fact refuses, so this owner is withheld rather than reporting zero empty carriers over a manifest it could not read",
+    },
+  ],
 });

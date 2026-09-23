@@ -38,6 +38,11 @@ export const EDITOR_FORM_FACTORY_FILE = "packages/client/src/forms/editor/create
  *  strip check follows the DECLARATION while the returned-object check stays on the file that builds it. */
 export const EDITOR_FORM_CONTRACT_FILE = "packages/client/src/forms/editor/autosave-contract.ts";
 
+/** The member the autosave surface must never expose. `no-form-reset-in-autosave` arms on a call or a returned
+ *  property of this name, and `no-form-reset-in-autosave-health` proves the type home still strips exactly this
+ *  member — one declaration, so the tripwire cannot guard a different member from the one the occurrence bans. */
+export const AUTOSAVE_STRIPPED_MEMBER = "reset";
+
 /** Does this file carry an `import { <factory> }` declaration for any of `factories`?
  *
  *  An `export … from` RE-EXPORT (the `forms/editor/index.ts` barrel) is not an import declaration, so the
