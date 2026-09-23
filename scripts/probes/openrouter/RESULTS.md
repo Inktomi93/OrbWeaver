@@ -1,9 +1,9 @@
 # OpenRouter probe batch — verdicts
 
-**Run:** 2026-08-01 (F4/F4a/F5/OR-5/OR-7) · 2026-08-08 (OR-5b/OR-7b) · 2026-09-23 (OR-8, OR-9) · **Wire:** `anthropic/claude-sonnet-5`
+**Run:** 2026-08-01 (F4/F4a/F5/OR-5/OR-7) · 2026-08-08 (OR-5b/OR-7b) · 2026-09-23 (OR-8, OR-9, OR-10) · **Wire:** `anthropic/claude-sonnet-5`
 via OpenRouter (Anthropic pinned, `allow_fallbacks:false`), plus the Anthropic Messages API for F5's native
 reference arms.
-**Spend:** ~$0.20 OpenRouter + ~$0.12 Anthropic native ≈ **$0.32** (08-01) · **$0.152** OpenRouter (08-08) · **$0.104** OpenRouter + ~$0.10 Anthropic native (09-23, OR-8) · **$0.86** OpenRouter + ~$0.7 Anthropic native (09-23, OR-9).
+**Spend:** ~$0.20 OpenRouter + ~$0.12 Anthropic native ≈ **$0.32** (08-01) · **$0.152** OpenRouter (08-08) · **$0.104** OpenRouter + ~$0.10 Anthropic native (09-23, OR-8) · **$0.86** OpenRouter + ~$0.7 Anthropic native (09-23, OR-9) · **$0.07** OpenRouter + ~$0.6 Anthropic native (09-23, OR-10).
 **Raw evidence:** `results/<probe>.jsonl` — every arm's HTTP status + full usage block, append-only.
 **Sibling docs:** `docs/history/design/openrouter-provider-findings.md` (findings 1–7) ·
 `docs/design/rpg-extraction-one-call-spike.md` §7 (the F-list).
@@ -18,6 +18,7 @@ reference arms.
 | **OR-5b** | does counting depth in ROLE SWITCHES (tool exchanges transparent) remove the wasted write? | **YES — 5341 wasted cache-write tokens → 0**, and the placement is INVARIANT across a second recursion depth | the §5 fix, measured; ~$0.0027/depth recovered on a fat parallel exchange |
 | **OR-8** | which layout of ADJACENT same-role rows keeps the prior call's cache entry readable? | **one message, one text block per speaker** — squashing into ONE string reads **0**; parts, or consecutive messages (which the API and OR both fold into parts), read the whole prior entry and write only the new speaker (**57** tokens) | squash the role, not the text: SHAPE's same-role merge must keep each source row its own text block |
 | **OR-9** | with signed thinking carried on each reply, which layout of a same-role run is accepted, and which keeps the cache? | **direct: one message with thinking interleaved per reply (V1) or consecutive messages (V3) both work and read the prior entry; OpenRouter (both endpoints) 400s V1 and folds V3 into one message that keeps only the FIRST reply's thinking**; dropping earlier thinking (V2) reads **0**; a tampered signature is refused everywhere; under prefix binding (Opus 5.5, new accounts) every carried block fails because the speaker cue that preceded it was deleted, and only a kept cue (V6) is valid | keep F1; never fold reasoning-bearing rows on the openai-compat body; the carry on Opus 5.5/Fable 5.1 needs an append-only history (keep the cue), which is a design question |
+| **OR-10** | with the carry on, which placement of per-turn rows keeps every signed thinking block valid on the models that bind it (Opus 5.5, Fable 5.1)? | **deleting a speaker cue (today) and moving a depth-4 note both break binding: "error" 400s, "drop_block" drops the blocks after the edit and reads 0 cache; a turn-scoped system cue or note appended and left in place, and a speaker cue kept as an ordinary user row, stay clean with the cache growing; a turn-scoped system cue right after a reply is a placement 400; any top-level system edit drops every block** | make every per-turn row append-only: cues as kept rows, depth notes and volatile system content as turn-scoped system messages at the tail; run the carry with drop_block and alarm on drops |
 | **OR-7b** | is DROPPING reasoning still safe past ONE hop? | **YES — 3-hop chain 200/200/200 and the chain still carried a fact only a mid-chain tool result revealed** | the finding-7 deferral premise HOLDS at the shape it is actually about |
 
 ---
@@ -476,3 +477,52 @@ From the Claude thinking and preserved-thinking docs (`platform.claude.com/docs/
 2. **Do not fold reasoning-bearing rows in `openai-compat/body.ts`.** Rule 10 already refuses them, and a fold would produce V1, which OpenRouter refuses.
 3. **Record OpenRouter's thinking drop.** With the carry on, OpenRouter keeps only the first reply's thinking in a same-role run. That is a wire fact for the carry's docs, not a defect F1 can fix.
 4. **The carry on Opus 5.5 and Fable 5.1 needs an append-only history.** For new accounts this is a hard 400 today in any cued group round. The documented fixes are to keep the turn-scoped row in place (a stored cue, V6) or to send it as a turn-scoped mid-conversation system message and leave it in place. This is an owner design question.
+
+## OR-10 — the reasoning carry under prefix binding
+
+**Run:** 2026-09-23. Evidence: `results/or10.jsonl` · probe: `or10-carry-prefix-binding.ts` · models: `claude-opus-5-5` and `claude-fable-5-1` (the two that bind thinking to its prefix) · wires: Anthropic Messages direct, plus OpenRouter's `/api/v1/messages` for the pass-through check · betas `thinking-binding-controls-2026-08-01` and `mid-conversation-system-clear-at-2026-08-21` · thinking adaptive at effort high · top-level automatic caching (5m) · prefix about 900 tokens · spend **$0.07** OpenRouter (billed) + about $0.6 direct (estimated at list prices from 43k write, 49k read and 10k output tokens).
+
+The question: with the `conversation` carry on, every prior assistant turn goes back exactly as returned, thinking included. On these two models a thinking block is valid only while the system prompt, the tools and every message before it are unchanged. This account predates default enforcement, so every call opts in by setting `thinking.block_binding.prefix_mismatch_behavior`. Each scenario is a 3-to-4-call session run once with `"error"` and once with `"drop_block"`. An `"error"` session stops at its first refusal.
+
+| scenario | what moves between calls |
+| - | - |
+| S1 | group round; the speaker cue is an ordinary user row that is gone on the next call (what the product does) |
+| S2 | one speaker per user message; the cue is a turn-scoped system message (`clear_at: "next_user_message"`) left in place |
+| S2b | two speakers with no user message between; the second cue is a turn-scoped system message right after the first reply |
+| S2c | two speakers per round; each cue is an ordinary user row kept in the history |
+| S3 | author's note at depth 4 as an ordinary user row that moves every turn (what the product does); under `drop_block` this is also S5 |
+| S4 | the same note at depth 0 as a turn-scoped system message appended every turn and left in place |
+| S6 | a lore line in the top-level system prompt changes on call 3 |
+
+### Results (direct; the same on both models unless noted)
+
+| scenario | `"error"` | `"drop_block"`: dropped blocks | cache read across the session |
+| - | - | - | - |
+| S1 cue deleted | **400 on call 2** | every earlier reply's block, growing each call (call 4 drops 3 on opus) | **0 on every call** |
+| S2 cue turn-scoped | clean, 4 calls | none | grows: 923, 1056, 1149 (opus) · 923, 1373, 1444 (fable) |
+| S2b cue after a reply | **400 on call 2**: `messages.3: role 'system' must follow a 'user' message or an 'assistant' message ending in a server tool result` | same 400 | none |
+| S2c cue kept as a user row | clean, 4 calls | none | grows: 933, 1044, 1374 (opus) · 933, 1226, 1335 (fable) |
+| S3 depth-4 note moving | **400 on call 2** | only the block right after the note's new position (fable: `messages.2` on calls 2 and 3, `messages.4` on call 4) | below the note only: 893, 988, 893 (fable) |
+| S4 depth-0 turn-scoped note | clean, 4 calls | none | grows: 893, 1033, 1197 (opus) · 893, 1119, 1189 (fable) |
+| S6 system edit on call 3 | **400 on call 3** | every block in the history | **0 on call 3**, full rewrite; call 4 reads again |
+
+The binding error, verbatim: `messages.1.content.0: Invalid \`signature\` in \`thinking\` block. The block is bound to a different conversation. Remove the block, or set \`thinking.block_binding.prefix_mismatch_behavior\` to "drop_block". …`. Under `drop_block` each drop is listed in `input_transformations` as `{"type":"thinking_dropped","path":"messages.N.content.0","reason":"prefix_binding_mismatch"}`, and every such request returned 200 with a coherent reply. The model answered each puzzle correctly without its dropped reasoning. What it loses is the earlier reasoning itself, and with it the cache below the first dropped block.
+
+**The note is followed either way.** The canary ("end your reply with the word lantern") appeared in every coherent reply from call 2 on in both S3 and S4. A depth-0 turn-scoped note steers the model as well as a depth-4 row.
+
+**S2b's question about earlier cues.** The placement rule makes it moot: a system message may not follow a reply. Per the docs, a turn-scoped message renders until the next user message, so without one it would stay visible.
+
+**OpenRouter's Messages endpoint passes all of it through.** S1 and S2 on opus returned the same results: the binding 400, `input_transformations` drops, and `clear_at` accepted with the beta header. The one difference is that OpenRouter omits an empty `input_transformations` array.
+
+**Refusals.** `claude-opus-5-5` returned `stop_reason: "refusal"` on 12 of 42 direct calls and 3 of 13 OpenRouter calls, even with the neutral prompt. `claude-fable-5-1` refused on 1 of 42. A refused reply leaves that cell's cache numbers valid but its reply empty.
+
+### Recommendation (not built here)
+
+Make every per-turn row append-only on these models. Each row below replaces something the product deletes or moves today.
+
+1. **Speaker cues.** SHAPE rebuilds the cue before every assistant row whose author follows another reply, and keeps it in every later call. The cue is derived only from the stored row's author, so every call rebuilds it byte for byte. This is S2c, clean and cached. It also removes same-role adjacency from group rounds. The first speaker after a real user message may use a turn-scoped system cue (S2). A later speaker in the same round may not, because a system message cannot follow a reply (S2b).
+2. **Continue and impersonate nudges.** They have the same shape as a cue: a row SHAPE adds for one call. Keep the nudge as a stored row after the turn it produced, or send it turn-scoped where it follows a user row. A continue also rewrites the stored reply it extends. Its thinking was not measured here, so leave the carry off for that row until a probe measures it.
+3. **Depth-N injections.** A row that moves every turn is an edit. Under `drop_block` it costs the blocks after it and the cache below it on every turn. Send author's notes, world-info at depth and similar as turn-scoped system messages at depth 0 (S4). They steer the model as well, keep the cache growing, and keep every block valid.
+4. **System-region per-turn content** (fired lore, memory, the dynamic half). Any edit to the top-level system prompt drops every block and the whole cache (S6). Move the volatile part into a turn-scoped system message at the tail, following the last user message. The product already has a message-tail channel and a `clearAt` field for this. Keep the top-level system prompt static for the session.
+5. **When to set `drop_block`.** Always, on a binding model with the carry on. `"error"` turns any missed edit into a failed turn; `drop_block` turns it into lost reasoning on that turn. Record `input_transformations` and alarm on any `prefix_binding_mismatch`. After the changes above it should be zero, so a drop marks a new edit to find.
+
