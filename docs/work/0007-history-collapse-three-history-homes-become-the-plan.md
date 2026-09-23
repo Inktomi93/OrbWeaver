@@ -11,7 +11,7 @@ plan: doc-migration
 
 ## What
 
-Triage docs/history/, docs/architecture/history/ and docs/history/design/: a landed program record or a built spec becomes `docs/plans/archive/YYYY-MM-DD-<slug>/design.md` (frontmatter `plan`, status `archived`, the date from its own `updated`); a dated workboard, a cleared ledger, an audit record or a pain ledger is deleted (git holds it); a doc a live gate or ledger cites by path (`tooling/src/verify/contract/resource-document.ts` names `docs/law/Core-Debt-Cleared-Ledger.md`) moves with its citer re-pointed. Every code and doc citation of a moved or deleted file is rewritten or dropped in the same commit; the audit per-lane folders formerly nested under the historical reviews subtree went with the reviews item (`docs/work/0008-reviews-leave-docs.md`).
+Triage docs/history/, docs/architecture/history/ and docs/history/design/: a landed program record or a built spec becomes `docs/plans/archive/YYYY-MM-DD-<slug>/design.md` (frontmatter `plan`, status `archived`, the date from its own `updated`); a dated workboard, a cleared ledger, an audit record or a pain ledger is deleted (git holds it); a doc a live gate or ledger cites by path moves with its citer re-pointed. Every code and doc citation of a moved or deleted file is rewritten or dropped in the same commit; the audit per-lane folders formerly nested under the historical reviews subtree went with the reviews item (`docs/work/0008-reviews-leave-docs.md`).
 
 ## Why
 

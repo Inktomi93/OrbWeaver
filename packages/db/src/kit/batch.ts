@@ -3,7 +3,7 @@
 // match that tuple without help, which is why the previous codebase had ~59 inline `as BatchItem` casts on the chat
 // send path. These helpers centralize the ONE cast: build a plain array of statements, hand it to
 // `batchMany`. A db-layer primitive — it bridges `Parameters<Db["batch"]>`, a drizzle type, so it cannot
-// be `@orb/kit`-pure. (Core-Legacy-Migration-and-Gaps.md §3.)
+// be `@orb/kit`-pure. (Core-0-Architecture-and-Structure.md §2, kit-purity.)
 //
 // TRANSACTION MODE — why every batch rides `BEGIN DEFERRED`, and why that is NOT a choice made here.
 // A raw `@libsql/client` batch takes a second `TransactionMode` arg (`Sqlite3Client.batch(stmts, mode)`,

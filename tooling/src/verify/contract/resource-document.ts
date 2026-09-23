@@ -82,11 +82,13 @@ export interface DocumentIndex {
 export const DOCUMENT_CORPUS_ROOT = "docs";
 export const DOCUMENT_CATALOG_PATH = "docs/catalog/catalog.json";
 
-/** How a ledger names its members: a closed list of files, or a flat tree whose members are the file names
- *  matching `member` (a file outside that grammar, such as the tree's generated index, is not a member). */
-export type LedgerDefinition =
-  | { readonly nature: "markdown"; readonly paths: readonly string[] }
-  | { readonly nature: "markdown"; readonly tree: string; readonly member: RegExp };
+/** How a ledger names its members: a flat tree whose members are the file names matching `member` (a
+ *  file outside that grammar, such as the tree's generated index, is not a member). */
+export interface LedgerDefinition {
+  readonly nature: "markdown";
+  readonly tree: string;
+  readonly member: RegExp;
+}
 
 /** A numbered doc file name, `NNNN-<slug>.md`, as `pnpm doc` mints it: the number is an ADR's D id or a
  *  work item's id. A tree's generated `README.md` index is not a member. */
@@ -102,12 +104,6 @@ export const LEDGER_DEFINITIONS = {
   /** The work items: one per `docs/work/NNNN-<slug>.md`, its id the file number. `warning-workitem-liveness`
    *  holds every warning policy's `workItem` against the item's state. */
   "work-items": { nature: "markdown", tree: "docs/work", member: NUMBERED_DOC_RE },
-  /** The PD registry, ACTIVE and CLEARED halves — one identity because a PD id is active XOR cleared, and
-   *  reading half of it is how a live id reads as an orphan cite (`gates/pd-citation-integrity.ts:15-19`). */
-  "core-audits-debt": {
-    nature: "markdown",
-    paths: ["docs/law/Core-Audits-and-Debt.md", "docs/law/Core-Debt-Cleared-Ledger.md"],
-  },
 } as const satisfies Readonly<Record<string, LedgerDefinition>>;
 
 export type LedgerId = keyof typeof LEDGER_DEFINITIONS;

@@ -6,32 +6,29 @@ import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
 import { gate as dCitationIntegrity } from "../../../../tooling/src/verify/gates/d-citation-integrity.ts";
 import { gate as danglingDocCite } from "../../../../tooling/src/verify/gates/dangling-doc-cite.ts";
-import { gate as pdCitationIntegrity } from "../../../../tooling/src/verify/gates/pd-citation-integrity.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
-const policies = [dCitationIntegrity, danglingDocCite, pdCitationIntegrity] as const;
+const policies = [dCitationIntegrity, danglingDocCite] as const;
 
 test("the text-citation family keeps its two-sided proofs", () => {
   expect(verifyPolicyProofs(policies)).toEqual([]);
 });
 
-/** The complete refusal and receipt outcomes for the three text-citation policies (standing proof law §6.3).
+/** The complete refusal and receipt outcomes for the text-citation policies (standing proof law §6.3).
  *  A `mustRefuse` row can prove refusal text; these family controls additionally assert the phase, owner
  *  completeness, withheld status, absence of findings, and complete-run receipts. Two classes live here.
  *  The first is the RUNTIME's refusal — a declared resource that is missing, empty or unresolved
  *  makes `resolveResourceDeclarations` throw at the POPULATION phase, the owner is marked incomplete and
  *  WITHHELD, and no finding survives; that is what rules out "the fixture simply had nothing to find", and
- *  it is why none of the three modules owns a not-ready branch. The second is a policy's OWN in-evaluate
+ *  it is why neither module owns a not-ready branch. The second is a policy's OWN in-evaluate
  *  refusal, which exists where the runtime cannot see the hole: a citer corpus whose derivation resolved
  *  nothing is "I could not judge", not "the tree is clean". The complete-run pins hold the receipt pair,
  *  so a declaration that stopped being consumed reads as a missing receipt here rather than a quiet pass. */
 const LAW_ROOT = "docs/law";
 const D_ADR = "docs/adr/0001-an-entry.md";
 const D_ADR_TEXT = "# An entry\n";
-const PD_ACTIVE = `${LAW_ROOT}/Core-Audits-and-Debt.md`;
-const PD_CLEARED = `${LAW_ROOT}/Core-Debt-Cleared-Ledger.md`;
 const ANCHOR_TEXT = "export const anchor = 1;\n";
 
 /** Materialize the fixture the way `ops/policy-conformance.ts#runResourceExample` does — on DISK and in
@@ -143,31 +140,6 @@ test("d-citation-integrity: an ABSENT docs tree refuses too — the corpus door 
   expect(result.toolErrors.map(({ policyId, phase }) => ({ policyId, phase }))).toEqual([{ policyId: "d-citation-integrity", phase: "population" }]);
   expect(result.authority.effectiveFindings).toEqual([]);
   expect(result.authority.withheldPolicyIds).toEqual(["d-citation-integrity"]);
-});
-
-test("pd-citation-integrity: a complete population reaches a verdict and files one receipt per declaration", ({ scratch }) => {
-  const result = pass(pdCitationIntegrity, scratch, {
-    [PD_ACTIVE]: "| PD-1 | active |\n",
-    [PD_CLEARED]: "| PD-2 | cleared |\n",
-    "packages/server/src/x.ts": "// FLAG[PD-1]\nexport const x = 1;\n",
-  });
-
-  expect(result.toolErrors).toEqual([]);
-  expect(result.authority.effectiveFindings).toEqual([]);
-  expect(result.policies.map(({ receipts }) => receipts)).toEqual([
-    [
-      { kind: "population", source: "pd-registry-documents", members: 2, unresolved: 0 },
-      { kind: "resource", source: "ledger:core-audits-debt", resources: 2, unresolved: 0 },
-    ],
-  ]);
-});
-
-test("pd-citation-integrity: ONE missing ledger half refuses the whole identity — reading half a registry is how a LIVE id reads as an orphan", ({
-  scratch,
-}) => {
-  const result = pass(pdCitationIntegrity, scratch, { [PD_ACTIVE]: "| PD-1 | active |\n", "packages/server/src/x.ts": "// FLAG[PD-2]\nexport const x = 1;\n" });
-
-  expect(refusalShape(result)).toEqual(refusal("pd-citation-integrity", "population", "resource declaration ledger:core-audits-debt is missing"));
 });
 
 test("dangling-doc-cite: a complete population reaches a verdict and files one receipt per declaration", ({ scratch }) => {

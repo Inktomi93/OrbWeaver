@@ -142,6 +142,11 @@ stamp). Before flagging "missing scope" on a table or query, walk the FK chain t
 verb gate. The cross-tenant IDOR sweep (`cross-tenant-sweep.suite.int.test.ts`) proves this holds at the
 transport boundary.
 
+The `/blob/:hash` route is the sharpest instance: it resolves the caller from the session cookie and
+runs `fetchOwned` (or the roster-avatar membership exception) — it never serves on bare row existence —
+and answers with `Cache-Control: private`. This is a per-request control-flow property, so it is held
+by the behavioural suite above rather than a structural gate.
+
 ## 2c. The three layers (read this before filing a permission finding)
 
 Permission in orbweaver is three independent tiers. They compose; none substitutes for another, and a

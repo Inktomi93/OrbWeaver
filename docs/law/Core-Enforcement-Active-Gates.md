@@ -12,11 +12,18 @@ is a change to the generator's source, never a diff against the committed file.
 
 > What fails a build today, across five active layers (Biome, ts-morph structural gates,
 > dependency-cruiser, jscpd, Stryker). GritQL, the former Layer 2, is gone — do not add a plugin,
-> add a Layer-3 gate. Not-yet-active and rejected gates: `Core-Enforcement-Deferred-Dropped.md`.
+> add a Layer-3 gate. A gate proposed but not yet buildable is a `docs/work` decision item; a gate
+> proposal turned down stays as a rejected ADR (for example `docs/adr/0220`).
 
 Gates are written before the code they govern, so code is born compliant. A gate that would only
-false-fire on a placeholder tree is not missing — it is in the deferred backlog, keyed to the code that
+false-fire on a placeholder tree is not missing — it is a `docs/work` item, keyed to the code that
 makes it meaningful.
+
+A property with no gate of its matching name is not automatically a gap: ask which tier of this ladder
+already holds it before filing one. A control-flow or per-request property (an insert-then-fan-out
+ordering, an owner-scoped route) is routinely held by a behavioural suite by design, one tier below a
+structural gate, and a resolve-time or lint-time fact (the package cake, dependency-cruiser) can hold a
+property a structural gate would only restate.
 
 **Fast lane** — `pnpm check` = biome (lint+format) → eslint (doc-comment + react-surface rules) → tsc
 → test:types → check:structure (Layer 3, below) → depcruise (Layer 4). lefthook runs the full
@@ -45,7 +52,7 @@ dropping a valid `defineGate` module in that directory, nothing else to register
 `tooling/src/verify/gates/GATE-AUTHORING.md` is the authoring guide; a gate's rule and its reason live
 in its own module header, never restated here.
 
-(352 registered gates)
+(351 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -261,7 +268,6 @@ in its own module header, never restated here.
 | `owner-scoped-writes` | tenancy-scope | ordinary/error | @server | an update/delete of an ownerId-scoped… |
 | `ownerid-registry` | drizzle-schema | hard/error | @db\* | a table stamps an ownerId column but… |
 | `package-layout` | — | reviewed-grant/error | @client,@ui,@db,@contracts,@kit,@inference | a loose .ts file (not index.ts) sits… |
-| `pd-citation-integrity` | text-citation | hard/error | @authored\* | the PD-registry↔code link is broken —… |
 | `persist-partialize-and-total-migrate` | — | ordinary/error | @client\* | the mint factory's own persist()… |
 | `persisted-store-registry` | persistence-boundary | hard/error | @client | a persisted store name that is not in… |
 | `persistence-boundary` | — | reviewed-grant/error | @client | raw browser storage outside the… |

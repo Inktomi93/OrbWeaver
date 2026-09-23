@@ -14,8 +14,6 @@ import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const CATALOG = "docs/catalog/catalog.json";
 const ADR_TREE = "docs/adr";
-const ACTIVE_DEBT = "docs/law/Core-Audits-and-Debt.md";
-const CLEARED_DEBT = "docs/law/Core-Debt-Cleared-Ledger.md";
 function catalog(paths: readonly string[]): string {
   return JSON.stringify({ documents: paths.map((path) => ({ path })) });
 }
@@ -73,18 +71,6 @@ test("a catalog row naming an absent document is a MISS row, and a broken catalo
   expect(broken.status).toBe("unresolved");
   const shapeless = documents(scratch, { "docs/Mission.md": "# Mission\n", [CATALOG]: "{}" });
   expect(shapeless.status).toBe("malformed");
-});
-
-test("the two halves of the PD registry are ONE identity — half of it refuses", ({ scratch }) => {
-  const whole = ledger(scratch, { [ACTIVE_DEBT]: "| PD-1 | a |\n", [CLEARED_DEBT]: "| PD-2 | b |\n" }, "core-audits-debt");
-  expect(whole.status).toBe("ready");
-  expect(whole.status === "ready" ? whole.value.documents.map((document) => document.path) : []).toEqual([ACTIVE_DEBT, CLEARED_DEBT]);
-
-  // The planted control: drop the CLEARED half and the fact refuses. A door that served the active half
-  // alone would make every cleared PD id read as an orphan cite — a mass red with no defect behind it.
-  const half = ledger(scratch, { [ACTIVE_DEBT]: "| PD-1 | a |\n" }, "core-audits-debt");
-  expect(half.status).toBe("missing");
-  expect(half.status === "ready" ? "" : half.reason).toContain(CLEARED_DEBT);
 });
 
 test("a TREE ledger serves exactly its grammar members: the index, a slugless name and a nested file are not decisions", ({ scratch }) => {
