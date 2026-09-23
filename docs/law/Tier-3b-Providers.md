@@ -157,6 +157,7 @@ ONE fold in `EVIDENCE_TIERS` order — `declared → measured → advertised →
 9. **The funnel READS the capability and never authors it.** No capability synthesis inside any runner or the funnel; synthesis has one home. *(compile-time: `resolveChat(intent, capability)` takes the descriptor as an argument.)*
 10. **`vector-math` is `kit`, not this package.** *(resolve-time + the `kit-purity` dep-cruiser rule.)*
 11. **The isomorphic vocabulary is `@orb/contracts/inference`; `@orb/inference` is NODE-ONLY.** The browser renders the picker from contracts. *(dep-cruiser `browser-no-inference`.)*
+12. **A plugin provider row serves only the owners of the enabled installs that contribute it (D147).** The row pins its author's `baseUrl`, so every registry read names its viewer (`ProviderRegistry.get`/`list`), the store reads each contributor's owner through the contribution FK (`domain/connection/persistence/provider-rows.ts`), and the domain door refuses any other caller with `ProviderUnknownError` (`domain/connection/substrate/admission.ts`). Resolve reads as the connection's owner, so a saved row stops resolving when its owner holds no enabled contributing install. An admin distribution works through each recipient enabling their own copy. The picker names the plugin (`providerDisplayLabel`). *(test-time: `tests/server/domain/plugin/activation/provider-contributions.suite.int.test.ts`, `tests/inference/registry/providers.test.ts`, the cross-tenant sweep.)*
 
 ## 12. Known gaps (stated, not invented)
 

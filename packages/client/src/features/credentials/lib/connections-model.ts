@@ -13,7 +13,7 @@ import type {
   Task,
   UnavailableCause,
 } from "@orb/contracts/inference";
-import { bindingTaskOf, canFund, EMBED_SPACE_DIMS, requirementMet, taskDef } from "@orb/contracts/inference";
+import { bindingTaskOf, canFund, EMBED_SPACE_DIMS, providerDisplayLabel, requirementMet, taskDef } from "@orb/contracts/inference";
 import type { SelectItems, SelectOptionGroup } from "@orb/ui/select";
 
 /** ONE CLAUSE of what a Model-roles slot demands of the connection bound to it, as the row's `Needs:` rail
@@ -144,7 +144,8 @@ const AUTH_GROUP_ORDER: readonly ProviderAuth[] = ["apiKey", "endpoint", "oauthT
 
 /** `providers.available` → grouped Select items. An unavailable row (`runtime-missing` / `unavailable`)
  *  renders DISABLED with its reason as the gloss, never hidden (§5.3a: "`runtime-missing` is a cause, not a
- *  sentence a person can act on" — the reason IS the sentence). */
+ *  sentence a person can act on" — the reason IS the sentence). A plugin row names its plugin, so a manifest
+ *  label can never pass as a built-in provider. */
 export function providerPickerItems(available: readonly ProviderAvailability[]): SelectItems<string> {
   const groups: SelectOptionGroup<string>[] = [];
   for (const auth of AUTH_GROUP_ORDER) {
@@ -155,7 +156,7 @@ export function providerPickerItems(available: readonly ProviderAvailability[]):
     groups.push({
       label: AUTH_GROUP_LABELS[auth],
       items: rows.map((row) => ({
-        label: row.provider.label,
+        label: providerDisplayLabel(row.provider),
         value: row.provider.id,
         ...(row.available ? {} : { disabled: true, description: unavailableProviderCopy(row) }),
       })),

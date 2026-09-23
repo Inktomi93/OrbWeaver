@@ -153,6 +153,7 @@ export function policyReport(result: PolicyPassResult): StructurePolicyReport {
     waiverCarrierRefusals: result.waiverCarrierRefusals,
     authority: {
       alarms: result.authority.authorityAlarms,
+      unjudgedReviewedGrants: result.authority.unjudgedReviewedGrants,
       toolErrors: result.authority.toolErrors,
       withheldPolicyIds: result.authority.withheldPolicyIds,
       ordinaryConsumption: result.authority.ordinaryConsumption,

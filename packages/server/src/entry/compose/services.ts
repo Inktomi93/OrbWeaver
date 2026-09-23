@@ -394,7 +394,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     now,
     newCredentialId: minter(ID_PREFIX.userCredential),
     box: secretBox,
-    findProvider: (providerId) => runtimeRef().providers.registry.get(providerId),
+    findProvider: (providerId, viewer) => runtimeRef().providers.registry.get(providerId, viewer),
     audit,
     emitUserEvent: publishUserEvent,
   });

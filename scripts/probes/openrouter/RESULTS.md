@@ -1,9 +1,9 @@
 # OpenRouter probe batch — verdicts
 
-**Run:** 2026-08-01 (F4/F4a/F5/OR-5/OR-7) · 2026-08-08 (OR-5b/OR-7b) · **Wire:** `anthropic/claude-sonnet-5`
+**Run:** 2026-08-01 (F4/F4a/F5/OR-5/OR-7) · 2026-08-08 (OR-5b/OR-7b) · 2026-09-23 (OR-8, OR-9) · **Wire:** `anthropic/claude-sonnet-5`
 via OpenRouter (Anthropic pinned, `allow_fallbacks:false`), plus the Anthropic Messages API for F5's native
 reference arms.
-**Spend:** ~$0.20 OpenRouter + ~$0.12 Anthropic native ≈ **$0.32** (08-01) · **$0.152** OpenRouter (08-08).
+**Spend:** ~$0.20 OpenRouter + ~$0.12 Anthropic native ≈ **$0.32** (08-01) · **$0.152** OpenRouter (08-08) · **$0.104** OpenRouter + ~$0.10 Anthropic native (09-23, OR-8) · **$0.86** OpenRouter + ~$0.7 Anthropic native (09-23, OR-9).
 **Raw evidence:** `results/<probe>.jsonl` — every arm's HTTP status + full usage block, append-only.
 **Sibling docs:** `docs/history/design/openrouter-provider-findings.md` (findings 1–7) ·
 `docs/design/rpg-extraction-one-call-spike.md` §7 (the F-list).
@@ -16,6 +16,8 @@ reference arms.
 | **OR-5** | do array-offset breakpoints under-cache tool-heavy turns? | **REFUTED in the strong form** — the read still hits (3477 both ways); cost is a small wasted WRITE per depth | a real but bounded defect; fix is ~2 lines, ROI scales with tool-result size |
 | **OR-7** | is replaying a reasoning block a hard 400? | **only when the signature is missing** — verbatim 200 · unsigned **400** · ST `reasoning.encrypted` 200 · drop 200 | if reasoning is ever round-tripped, the signature must be structurally non-optional |
 | **OR-5b** | does counting depth in ROLE SWITCHES (tool exchanges transparent) remove the wasted write? | **YES — 5341 wasted cache-write tokens → 0**, and the placement is INVARIANT across a second recursion depth | the §5 fix, measured; ~$0.0027/depth recovered on a fat parallel exchange |
+| **OR-8** | which layout of ADJACENT same-role rows keeps the prior call's cache entry readable? | **one message, one text block per speaker** — squashing into ONE string reads **0**; parts, or consecutive messages (which the API and OR both fold into parts), read the whole prior entry and write only the new speaker (**57** tokens) | squash the role, not the text: SHAPE's same-role merge must keep each source row its own text block |
+| **OR-9** | with signed thinking carried on each reply, which layout of a same-role run is accepted, and which keeps the cache? | **direct: one message with thinking interleaved per reply (V1) or consecutive messages (V3) both work and read the prior entry; OpenRouter (both endpoints) 400s V1 and folds V3 into one message that keeps only the FIRST reply's thinking**; dropping earlier thinking (V2) reads **0**; a tampered signature is refused everywhere; under prefix binding (Opus 5.5, new accounts) every carried block fails because the speaker cue that preceded it was deleted, and only a kept cue (V6) is valid | keep F1; never fold reasoning-bearing rows on the openai-compat body; the carry on Opus 5.5/Fable 5.1 needs an append-only history (keep the cue), which is a design question |
 | **OR-7b** | is DROPPING reasoning still safe past ONE hop? | **YES — 3-hop chain 200/200/200 and the chain still carried a fact only a mid-chain tool result revealed** | the finding-7 deferral premise HOLDS at the shape it is actually about |
 
 ---
@@ -260,3 +262,217 @@ the chain, so the rule is per-block, not per-position.
    an empty thinking block's signature is not checked, and the arm was vacuous while looking like a
    contradiction of OR-7. The 400 reproduces only once hop 1 does REAL thinking (`reasoning_tokens: 9`).
    A replay arm now records `hasSignature` and self-declares `blocked` when there is nothing signed to send.
+
+## OR-8 — adjacent same-role rows vs the prompt-cache entry
+
+**Run:** 2026-09-23, twice. Run 1 used a ~2.1k-token prefix; run 2 used ~1.2k, just over sonnet-5's 1024 floor. Every
+variant gave the same verdict. Evidence: `results/or8.jsonl` · probe: `or8-same-role-adjacency.ts` · wires: Anthropic
+Messages direct (`claude-sonnet-5`) and OpenRouter (`anthropic/claude-sonnet-5`, Anthropic pinned, streamed with
+`debug.echo_upstream_body`) · marker `{type:"ephemeral"}` (5m) · spend **$0.104** OpenRouter (billed) + ~$0.10 direct
+(36,669 write / 14,829 read tokens over 30 calls, priced at OR's per-token rates).
+
+The defect under test: in a per-speaker group room, SHAPE's `squashSameRole` (`chat/assembly/role-squash.ts`) joins
+adjacent assistant rows into ONE string. In call 1 the marker sits on `"Mara: …"`. In call 2 that block is
+`"Mara: …\n\nWren: …"`, so the block boundary the entry ended on is gone and the read falls back to the system
+entry. The lane cache-check measured this: `msg_011CfLbSECMApXsYxJBSxnBf` wrote 3159 on Mara's row, and
+`msg_011CfLbSPpYVWa6rGmBypmGb` read 3405, system only. Here the system prompt is short and unmarked, so a miss
+reads **0**.
+
+Each variant is its own nonce'd two-call pair. P = the long user row, M/W = the two speakers, `*` = the marker. Every
+call ends on a user speaker cue, and the cue differs between the calls (`[Wren speaks next.]`, then `[Mara speaks next.]`).
+
+| variant | call 1 | call 2 |
+| - | - | - |
+| D control | `[P*, M, cue]` | `[P*, "M\n\nW", cue]` |
+| A squash (ships today) | `[P, M*, cue]` | `[P, "M\n\nW"*, cue]` |
+| A2 pair (marker also on P) | `[P*, M*, cue]` | `[P*, "M\n\nW"*, cue]` |
+| B parts | `[P, [M*], cue]` | `[P, [M, W*], cue]` (one message, two text parts) |
+| C unsquashed | `[P, M*, cue]` | `[P, M, W*, cue]` (two consecutive assistant messages) |
+| CS: C in the product spelling | as C | as C, but unmarked rows are plain strings (the OR wire after `openai-compat/body.ts` rule 9) |
+| EB / EC planted negative | as B / C | as B / C, with one byte of M changed (`lantern` → `lanterN`) |
+| N no cue | `[P, M*]` | — |
+
+### Direct (Anthropic Messages API)
+
+| variant | call | status | response id (run 2) | prompt | write | read | run 1 write / read |
+| - | - | - | - | - | - | - | - |
+| D-control | 1 | 200 | `msg_011CfLcipMyoKvKFJXQ9Bt6X` | 1275 | 1198 | 0 | 2113 / 0 |
+| D-control | 2 | 200 | `msg_011CfLciugxa2jFYaszcYB5J` | 1333 | 0 | **1198** | 0 / 2113 |
+| A-squash | 1 | 200 | `msg_011CfLcizfMYuSySL3b4Wh71` | 1275 | 1261 | 0 | 2176 / 0 |
+| A-squash | 2 | 200 | `msg_011CfLcj5hDKahTZDDc6PvKS` | 1333 | 1319 | **0** | 2234 / 0 |
+| A2-pair | 1 | 200 | `msg_011CfLcjAqXi4UgA7ATnsZ3U` | 1294 | 1280 | 0 | 2210 / 0 |
+| A2-pair | 2 | 200 | `msg_011CfLcjGJCZBAcc5SqurgPR` | 1352 | 121 | **1217** | 121 / 2147 |
+| B-parts | 1 | 200 | `msg_011CfLcjMcB5yWLbUsU8H15r` | 1275 | 1261 | 0 | 2176 / 0 |
+| B-parts | 2 | 200 | `msg_011CfLcjbw9KyRoj6JrhpsSM` | 1332 | 57 | **1261** | 57 / 2176 |
+| C-unsquashed | 1 | 200 | `msg_011CfLcjq4S4E4inABSP1cUj` | 1275 | 1261 | 0 | 2176 / 0 |
+| C-unsquashed | 2 | 200 | `msg_011CfLcjuyMeRcfkGersFZaU` | 1333 | 58 | **1261** | 58 / 2176 |
+| CS-product-spelling | 1 | 200 | `msg_011CfLckPwbn1hv4KfXMw4Ep` | 1294 | 1280 | 0 | not run |
+| CS-product-spelling | 2 | 200 | `msg_011CfLckVRW6pHBjbgioxRSu` | 1352 | 58 | **1280** | not run |
+| EB-parts-tampered | 1 | 200 | `msg_011CfLck17fpHrtZxWHNEF6D` | 1294 | 1280 | 0 | 2210 / 0 |
+| EB-parts-tampered | 2 | 200 | `msg_011CfLck7X8qfN1ox2GxYBMQ` | 1352 | 1338 | **0** | 2268 / 0 |
+| EC-unsquashed-tampered | 1 | 200 | `msg_011CfLckDts3cSFfRWkrPiBd` | 1294 | 1280 | 0 | 2210 / 0 |
+| EC-unsquashed-tampered | 2 | 200 | `msg_011CfLckJgqkcCvsvDWaoAnJ` | 1353 | 1339 | **0** | 2269 / 0 |
+| N-no-cue | 1 | **400** | — | — | — | — | 400 |
+
+### OpenRouter (Anthropic pinned)
+
+| variant | call | status | generation id (run 2) | prompt | write | read | run 1 write / read |
+| - | - | - | - | - | - | - | - |
+| D-control | 1 | 200 | `gen-1790177732-ayvrs8Ax3fOG8LT92eQ9` | 1313 | 1236 | 0 | 2181 / 0 |
+| D-control | 2 | 200 | `gen-1790177734-2lmnbYDMAJJ2E9ADwjdp` | 1371 | 0 | **1236** | 0 / 2181 |
+| A-squash | 1 | 200 | `gen-1790177736-ODO9MNNIyYWCorIF42nw` | 1313 | 1299 | 0 | 2244 / 0 |
+| A-squash | 2 | 200 | `gen-1790177737-x2RrHU8yGxMSDCN6vl8c` | 1371 | 1357 | **0** | 2302 / 0 |
+| A2-pair | 1 | 200 | `gen-1790177739-P2b9rEynlA96tCcScew3` | 1332 | 1318 | 0 | 2278 / 0 |
+| A2-pair | 2 | 200 | `gen-1790177740-n6GGtkkqdjXu6DtgRfO9` | 1390 | 121 | **1255** | 121 / 2215 |
+| B-parts | 1 | 200 | `gen-1790177742-x0EpDOUREXNngheiOtTX` | 1313 | 1299 | 0 | 2244 / 0 |
+| B-parts | 2 | 200 | `gen-1790177743-3Y2D6hLHKYu3z3w2FLSy` | 1370 | 57 | **1299** | 57 / 2244 |
+| C-unsquashed | 1 | 200 | `gen-1790177745-zrfz7wnxIESJTHzr8btr` | 1313 | 1299 | 0 | 2244 / 0 |
+| C-unsquashed | 2 | 200 | `gen-1790177746-Plh6LANYNgzdFPObzUsr` | 1370 | 57 | **1299** | 57 / 2244 |
+| CS-product-spelling | 1 | 200 | `gen-1790177754-bLzCrl379LVcQs9QtRZL` | 1332 | 1318 | 0 | not run |
+| CS-product-spelling | 2 | 200 | `gen-1790177756-RGsEkwLcMfhjWIcM2tga` | 1389 | 57 | **1318** | not run |
+| EB-parts-tampered | 1 | 200 | `gen-1790177747-fJLSolHJIhuHE8pWzqmi` | 1332 | 1318 | 0 | 2278 / 0 |
+| EB-parts-tampered | 2 | 200 | `gen-1790177749-YRBfRca9psLB2xx8Biyk` | 1390 | 1376 | **0** | 2336 / 0 |
+| EC-unsquashed-tampered | 1 | 200 | `gen-1790177750-j5VYDmZdds4aghCYts2P` | 1332 | 1318 | 0 | 2278 / 0 |
+| EC-unsquashed-tampered | 2 | 200 | `gen-1790177752-lGFC40xOyuwiU5lrWvgd` | 1390 | 1376 | **0** | 2336 / 0 |
+| N-no-cue | 1 | **400** | — | — | — | — | 400 |
+
+N-no-cue gave the same error on both wires. OR relays it with `provider_name: Anthropic`, request
+`req_011CfLcnQuhbYwBFo8fHX4UR`. Verbatim:
+
+```text
+400 invalid_request_error: This model does not support assistant message prefill. The conversation must end with a user message.
+```
+
+### What OpenRouter sends upstream
+
+These are the echoed `messages`, with long text cut to its head and length. The upstream `system` is
+`[{type:"text", text:<the system prompt>}]` on every call.
+
+```text
+A-squash call 2: one string, and the marker covers the whole joined block
+[{"role":"user","content":[{"type":"text","text":"The chronicle so far:\n[or8-openrouter-1790177732…(3136 chars)"}]},
+ {"role":"assistant","content":[{"type":"text","text":"Mara: I set the lantern on the salt-crusted tabl…(327 chars)","cache_control":{"type":"ephemeral"}}]},
+ {"role":"user","content":[{"type":"text","text":"[Mara speaks next.]"}]}]
+
+C-unsquashed call 2: we sent TWO assistant messages; OR sent ONE message with two text parts, byte-identical to B-parts call 2
+[{"role":"user","content":[{"type":"text","text":"The chronicle so far:\n[or8-openrouter-1790177732…(3136 chars)"}]},
+ {"role":"assistant","content":[{"type":"text","text":"Mara: I set the lantern on the salt-crusted tabl…(168 chars)"},
+                                {"type":"text","text":"Wren: I lean over her shoulder and squint at the…(157 chars)","cache_control":{"type":"ephemeral"}}]},
+ {"role":"user","content":[{"type":"text","text":"[Mara speaks next.]"}]}]
+
+CS call 2: an unmarked plain-string assistant message and a one-part marked one fold into the same two parts;
+user strings pass through as strings
+[{"role":"user","content":"The chronicle so far:\n[or8-openrouter-1790177732…(3155 chars)"},
+ {"role":"assistant","content":[{"type":"text","text":"Mara: I set the lantern on the salt-crusted tabl…(168 chars)"},
+                                {"type":"text","text":"Wren: I lean over her shoulder and squint at the…(157 chars)","cache_control":{"type":"ephemeral"}}]},
+ {"role":"user","content":"[Mara speaks next.]"}]
+```
+
+OpenRouter does not merge content parts, and it does not move the marker. It does fold consecutive same-role
+messages into one message, with one text part per source message. No echo carried a key or a header.
+
+### Verdict
+
+- **A (what ships) misses on both wires in both runs.** It reads 0 and writes the whole prefix again every time a
+  speaker is appended. This reproduces the lane cache-check's defect with nothing else in the prefix.
+- **B and C read the whole prior entry and write only the new speaker** (57/58 tokens), on both wires in both runs.
+  The negatives EB and EC read **0**, so the hits are real. The entry is keyed on the exact bytes of M's block, and
+  it survives only when that block keeps its boundary.
+- **C is B on the wire.** OpenRouter's echo shows the fold. The direct API accepts consecutive assistant messages
+  (200) and reads the entry the same way. Its prompt counts one token more than B (1333 against 1332), so the API
+  folds them with a separator of its own. CS shows that the product's mixed string and part spelling folds the same way.
+- **A2 (moving or doubling the marker) rescues only P.** It reads the user-row entry and writes the joined
+  assistant block again (121 tokens). A group of n adjacent speakers is written again in full on every call, so the
+  waste grows with the round.
+- **The cue is mandatory, and it changes nothing.** sonnet-5 refuses an assistant-last conversation on both wires.
+  The cue sits after the marker and differs between the two calls, and every hit above held.
+
+### Recommendation (not built here)
+
+Squash the role, not the text. Keep the adjacency rule in `squashSameRole` and its output of one message per role
+group. Change only the merge: the merged row carries each source row as its own text part (layout B) instead of
+`join(MERGE_SEPARATOR)`. Then map those parts to text blocks in both runners. Both runners already put a row's marker
+on its last part, so the marker lands on the newest speaker's block. The direct runner does this through
+`@ai-sdk/anthropic` (in its assistant case, a message-level `cacheControl` goes on the last content part). The
+OpenRouter runner does it through `openai-compat/body.ts` rule 9. The depth counter needs no change, because a role
+group is still one row.
+
+C (stop squashing adjacent assistant rows) reaches the identical upstream body today. The direct runner's
+`@ai-sdk/anthropic` `groupIntoBlocks` folds consecutive assistant messages into one message with one block per
+source part, and OpenRouter folds them the same way (see the echo above). C is the smaller code change, but it has
+two costs. It contradicts the `strict` role-handling floor Anthropic carries (`curated/anthropic.ts`; D69 homes
+role handling on the capability axis). It also makes correctness rest on two folds we do not own, and one of them
+is measured but not documented. B keeps the floor's guarantee and does not depend on the wire. Moving the marker
+(A2) is rejected, because it caches less and pays a rewrite that grows with the round.
+
+## OR-9 — signed thinking inside a same-role run
+
+**Run:** 2026-09-23. Evidence: `results/or9.jsonl` · probe: `or9-reasoning-in-same-role-runs.ts` · models: `claude-sonnet-5` and `claude-opus-5-5` · wires: Anthropic Messages direct, OpenRouter chat-completions (Anthropic pinned, streamed with `debug.echo_upstream_body`), and OpenRouter's Anthropic-compatible Messages endpoint (`/api/v1/messages`, native blocks, pinned) · thinking adaptive, display summarized · marker `{type:"ephemeral"}` (5m) · prefix about 1.3k tokens · spend **$0.86** OpenRouter (billed, including smoke runs) + ~$0.7 direct (estimated at list prices from 65k input, 22k write, 23k read and 17k output tokens).
+
+The question: the `conversation` reasoning carry puts each stored reply's own signed thinking back on its row. OR-8 settled the layout for text-only runs. Does a layout exist that the wire accepts with real signatures, and that keeps the prior call's cache entry readable?
+
+Each variant generates its own two replies on its own nonce'd prefix. G1 `[P, cueA]` gives reply A with thinking. G2 `[P, A+thA, cueB]` gives reply B with thinking. This is the production shape: the speaker cue is not kept once the speaker replies. Then a two-call pair: call 1 is the run with A, call 2 the run with A and B. Both end on a user cue that differs between the calls.
+
+| variant | call 1 run | call 2 run |
+| - | - | - |
+| V1 one message, interleaved | `[thA, A*]` | `[thA, A, thB, B*]` |
+| V2 thinking on the last reply only | `[thA, A*]` | `[A, thB, B*]` |
+| V3 consecutive messages (what F1 emits with the carry on) | `[thA, A*]` | `[thA, A] [thB, B*]` |
+| V4 no thinking (carry off) | `[A*]` | `[A, B*]` |
+| V5 thinking as text | `["<thinking>…</thinking>A"*]` | `[…A, "<thinking>…</thinking>B"*]` |
+| V6 cue kept (append-only history) | `[P, cueA, thA A*, cueB]` | `[P, cueA, thA A, cueB, thB B*, cue]` |
+| X tampered | V1 with one byte of thA's signature changed | same |
+
+On the direct wire, each Opus pair also ran with the `thinking-binding-controls-2026-08-01` beta and `prefix_mismatch_behavior: "error"`, which enforces the prefix check on any account.
+
+### Call 2: status and cache read
+
+| variant | direct sonnet-5 | direct opus-5-5 | direct opus-5-5, binding enforced | OR sonnet-5 | OR opus-5-5 | OR Messages sonnet-5 | OR Messages opus-5-5 |
+| - | - | - | - | - | - | - | - |
+| V1 | 200, read 1375 | 200, read 1431 | **400** (call 1 already) | **400** | **400** | **400** | **400** |
+| V2 | 200, read **0** | 200, read **0** | **400** | 200, read **0** | 200, read **0** | 200, read **0** | 200, read **0** |
+| V3 | 200, read 1392 | 200, read 1600 | **400** (call 1 already) | 200, read 1397 | 200, read 1367 | 200, read 1353 | 200, read 1506 |
+| V4 | 200, read 1309 | 200, read 1346 | 200, read 1445 | 200, read 1319 | 200, read 1330 | 200, read 1313 | 200, read 1330 |
+| V5 | 200, read 1366 | 200, read 1445 | 200, read 1601 | 200, read 1407 | 200, `content_filter` | 200, read 1370 | 200, read 1386 |
+| V6 | 200, read 1396 | 200, read 1555 | 200, read 1856 | 200, read 1396 | 200, read 1574 | 200, read 1459 | blocked (refusals) |
+| X | **400** | **400** | **400** | **400** | **400** | **400** | **400** |
+
+Every accepted call 2 that read the entry wrote only the new speaker (71 to 398 tokens). Replies were sane: each named the odd number and added a reason in the named speaker's voice. A cell whose reply was a classifier refusal still shows the request's cache numbers.
+
+The errors, verbatim:
+
+- **V1 on both OpenRouter endpoints:** `messages.1.content.1: \`thinking\` or \`redacted_thinking\` blocks in the latest assistant message cannot be modified. These blocks must remain as they were in the original response.`
+- **V1/V2/V3 with binding enforced (Opus 5.5):** `messages.1.content.0: Invalid \`signature\` in \`thinking\` block. The block is bound to a different conversation. Remove the block, or set \`thinking.block_binding.prefix_mismatch_behavior\` to "drop_block". Content that preceded this block when it was created is missing from this request, starting at \`messages.0.content.0\`.`
+- **X on every wire:** `messages.1.content.0: Invalid \`signature\` in \`thinking\` block`.
+
+### What OpenRouter sends upstream
+
+The chat-completions echo shows the cause of the V1 400. OpenRouter carries thinking as `reasoning_details` on the message and hoists all of it to the head of the upstream message. V1 therefore goes up as `[thA, thB, A, B*]`, and two thinking blocks from two different responses sit next to each other. The direct wire keeps our order, `[thA, A, thB, B*]`, where each thinking block precedes its own reply, and the API accepts it. OpenRouter's Messages endpoint refuses V1 with the same error, so it goes through the same conversion.
+
+V3 is accepted on OpenRouter because OpenRouter folds the two consecutive assistant messages into one message and keeps only the first reply's thinking. The echo for call 2 is `assistant: [thinking, text, text*]` on both models. B's thinking never reaches the model, and nothing says so.
+
+### Documentation read for V6 and the binding pass
+
+From the Claude thinking and preserved-thinking docs (`platform.claude.com/docs/en/build-with-claude/thinking`, `…/preserved-thinking`):
+
+- Outside tool use, omitting prior turns' thinking is allowed. Opus 4.5 and later, Sonnet 4.6 and later, and the Fable and Mythos models keep prior turns' thinking in context. Earlier models strip it.
+- Within the latest assistant message, consecutive thinking blocks must match what the model generated. This is the rule V1 breaks on OpenRouter.
+- On Opus 5.5 and Fable 5.1, a thinking block is valid only while the system prompt, the tools and every message before it are unchanged. Deleting or rewording a turn-scoped message is an edit. Accounts created on or after 2026-08-31 enforce this by default; older accounts enforce it only when `prefix_mismatch_behavior` is set. This account is older: the unenforced Opus pass returned 200.
+- Adding, moving or removing `cache_control` markers is not an edit.
+
+### Verdict
+
+- **Carry off (V4) works on every wire and model.** It is OR-8's layout B, and it is what F1 builds.
+- **Direct wire, carry on:** V1 and V3 are both accepted and both read the prior entry. The direct runner's `@ai-sdk/anthropic` `groupIntoBlocks` turns F1's consecutive rows into V1.
+- **OpenRouter, carry on:** only V3 is accepted, and OpenRouter silently drops every reply's thinking after the first in the run. V1 is a hard 400 on both endpoints.
+- **Dropping earlier thinking (V2) costs the whole cache entry:** the prefix changes at A's block, so call 2 reads 0 on every wire.
+- **Signatures are checked on every wire (X).** Thinking as plain text (V5) is accepted and caches, but it is unsigned, and it drew one `content_filter` on Opus.
+- **Under prefix binding, no same-role run with carried thinking survives.** SHAPE's per-speaker cue is not stored, so it is missing on the next call, and every thinking block after it is "bound to a different conversation". The same holds for any turn-scoped row SHAPE adds and then drops, such as the continuation cue. Only V6, which keeps the cue in the history, is accepted with enforcement on.
+- **Classifier noise (not a layout effect).** On Opus 5.5 a "group role-play" system prompt and the kit's toll-ledger filler were refused outright (`stop_reason: "refusal"`, zero output), and even the neutral prompt was refused on 28 of 50 first generations across the three wires. The refusal rate did not rise when the history carried thinking (24 of 63), so the probe reads it as prompt sensitivity.
+
+### Recommendation (not built here)
+
+1. **Keep F1 as committed.** Carry off, it gives each speaker its own block on every wire (V4). Carry on, the direct wire gets V1 through the SDK's fold, and OpenRouter gets V3.
+2. **Do not fold reasoning-bearing rows in `openai-compat/body.ts`.** Rule 10 already refuses them, and a fold would produce V1, which OpenRouter refuses.
+3. **Record OpenRouter's thinking drop.** With the carry on, OpenRouter keeps only the first reply's thinking in a same-role run. That is a wire fact for the carry's docs, not a defect F1 can fix.
+4. **The carry on Opus 5.5 and Fable 5.1 needs an append-only history.** For new accounts this is a hard 400 today in any cued group round. The documented fixes are to keep the turn-scoped row in place (a stored cue, V6) or to send it as a turn-scoped mid-conversation system message and leave it in place. This is an owner design question.

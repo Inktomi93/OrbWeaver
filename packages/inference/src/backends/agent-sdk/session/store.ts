@@ -4,11 +4,20 @@
 
 import type { SessionKey, SessionStore, SessionStoreEntry } from "@anthropic-ai/claude-agent-sdk";
 import type { ChatId, UserConnectionId } from "@orb/kit/ids";
-import type { SessionEntryWriter } from "../../../contract/agent.ts";
+import type { AgentSdkSessionTotals, SessionEntryWriter } from "../../../contract/agent.ts";
 import type { AgentSdkSessionId } from "../../../contract/identity.ts";
 import type { InferenceLog } from "../../../deps.ts";
 import type { SeedTurn } from "./frames.ts";
-import { buildSeedFrames, canonHashOf, isBranchDivergence, seedSessionId, sessionContainsSeedPrefix, sessionMatchesSeed, toSeedTurns } from "./frames.ts";
+import {
+  buildSeedFrames,
+  canonHashOf,
+  isBranchDivergence,
+  savedSessionTotals,
+  seedSessionId,
+  sessionContainsSeedPrefix,
+  sessionMatchesSeed,
+  toSeedTurns,
+} from "./frames.ts";
 
 // "" is internal-only for the main transcript's subpath — never handed back to the SDK, where "" is invalid.
 const MAIN_TRANSCRIPT_SUBPATH = "";
@@ -301,6 +310,11 @@ export class SessionCache {
     }
     this.byChatConnection.delete(cacheKey);
     return { sessionId: null, disposition: "fresh" };
+  }
+
+  /** The spend totals the session's transcript saved, which the runtime carries into its next result. */
+  async savedTotals(sessionId: AgentSdkSessionId): Promise<AgentSdkSessionTotals | null> {
+    return savedSessionTotals(await this.loadSession(sessionId), sessionId);
   }
 
   private async loadSession(sessionId: AgentSdkSessionId): Promise<SessionStoreEntry[]> {

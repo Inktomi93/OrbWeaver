@@ -1,8 +1,9 @@
 // verbs: list · get · create · update · remove — the `user_connections` WRITER (the one home; the runtime only
 // reads). Every refusal is validation at the write seam, so a stored row is coherent by construction and the
-// resolver never re-decides it: the provider is registered, the `api` is one the row lists, an endpoint row
-// carries a URL (a hosted one does not), the URL parses and passes the F12 admission, the credential is the
-// caller's, and the label is unique per owner (auto-minted `<provider> · <model>`, collision-suffixed).
+// resolver never re-decides it: the provider is one the owner may use, the `api` is one the row lists, an
+// endpoint row carries a URL (a hosted one does not), the URL parses and passes the F12 admission, the
+// credential is the caller's, and the label is unique per owner (auto-minted `<provider> · <model>`,
+// collision-suffixed).
 // PD-139a (§10-4): a write that moves one of the caller's vector SPACES re-raises the purge+reindex trigger
 // through `onEmbedSpaceChanged` — the settings-blob trigger this replaces enqueued the same workload. The
 // condition is a before/after comparison of the resolved space tags (`substrate/embed-space.ts`), NOT a
@@ -10,7 +11,7 @@
 // `declared` patch can move it without touching `model`, and an unrelated `declared` edit moves nothing.
 
 import type { ConnectionApi, ProviderDef, UserConnection } from "@orb/contracts/inference";
-import { CONNECTION_OP_CODES, connectionTasks, modelIdSchema } from "@orb/contracts/inference";
+import { CONNECTION_OP_CODES, connectionTasks, modelIdSchema, providerDisplayLabel } from "@orb/contracts/inference";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { ModelId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { ConnectionNotFoundError } from "../contract/errors.ts";
@@ -42,8 +43,8 @@ function requireModelId(raw: string): ModelId {
 
 /** A `builtin` catalog is the closed set the in-process runtime can load, so an id outside it can only be a
  *  typo; a `url` catalog can lag its provider and admits any id (saved `modelListed: false`, §7.4). */
-function requireCatalogModel(ctx: ConnectionContext, provider: ProviderDef, model: ModelId): void {
-  const closed = ctx.runtime.catalogs.builtin(provider.id);
+function requireCatalogModel(ctx: ConnectionContext, ownerId: UserId, provider: ProviderDef, model: ModelId): void {
+  const closed = ctx.runtime.catalogs.builtin(provider.id, ownerId);
   if (closed !== null && !closed.some((entry) => entry.id === model)) {
     throw new DomainOperationError(CONNECTION_OP_CODES.modelNotInCatalog, `${provider.label} does not run "${model}" — pick one of its listed models.`);
   }
@@ -57,7 +58,7 @@ function requireApi(provider: ProviderDef, api: ConnectionApi): void {
 
 /** `<provider label> · <model>`, suffixed ` (2)`, ` (3)`… until it does not collide with the owner's labels. */
 function mintLabel(provider: ProviderDef, model: string, taken: readonly string[], explicit: string | undefined): string {
-  const base = explicit?.trim() !== undefined && explicit.trim() !== "" ? explicit.trim() : `${provider.label}${LABEL_SEPARATOR}${model}`;
+  const base = explicit?.trim() !== undefined && explicit.trim() !== "" ? explicit.trim() : `${providerDisplayLabel(provider)}${LABEL_SEPARATOR}${model}`;
   if (!taken.includes(base)) {
     return base;
   }
@@ -69,11 +70,11 @@ function mintLabel(provider: ProviderDef, model: string, taken: readonly string[
 }
 
 function toView(ctx: ConnectionContext, row: UserConnection): ConnectionView {
-  const provider = ctx.runtime.providers.registry.get(row.providerId);
+  const provider = ctx.runtime.providers.registry.get(row.providerId, row.ownerId);
   const kind = row.declared?.kind ?? (provider === undefined ? undefined : curatedKindOf(row, provider)) ?? "generation";
   return {
     ...row,
-    providerLabel: provider?.label ?? row.providerId,
+    providerLabel: provider === undefined ? row.providerId : providerDisplayLabel(provider),
     tasks: provider === undefined ? [] : connectionTasks(provider, kind),
   };
 }
@@ -104,13 +105,13 @@ function createGet(ctx: ConnectionContext): ConnectionService["get"] {
 function createCreate(ctx: ConnectionContext): ConnectionService["create"] {
   return async (params: CreateConnectionParams): Promise<ConnectionView> => {
     const ownerId = params.principal.userId;
-    const provider = requireProvider(ctx, params.providerId);
+    const provider = requireProvider(ctx, ownerId, params.providerId);
     const api = params.api ?? "auto";
     requireApi(provider, api);
     requireBaseUrl(ctx, provider, params.baseUrl);
     await requireCredential(ctx, ownerId, params.credentialId);
     const model = requireModelId(params.model);
-    requireCatalogModel(ctx, provider, model);
+    requireCatalogModel(ctx, ownerId, provider, model);
     const label = mintLabel(provider, model, await listOwnedLabels(ctx.db, ownerId), params.label);
     const now = ctx.now();
     const id = ctx.newConnectionId();
@@ -147,7 +148,7 @@ async function validatedPatch(
   patch: UpdateConnectionParams["patch"],
 ): Promise<Partial<UserConnection>> {
   const providerId = patch.providerId ?? row.providerId;
-  const provider = requireProvider(ctx, providerId);
+  const provider = requireProvider(ctx, ownerId, providerId);
   const api = patch.api ?? row.api;
   requireApi(provider, api);
   const baseUrl = patch.baseUrl ?? row.baseUrl;
@@ -157,7 +158,7 @@ async function validatedPatch(
   const model = patch.model === undefined ? row.model : requireModelId(patch.model);
   // Judged only when the patch moves the model or the provider: an unrelated edit never re-decides a stored id.
   if (patch.model !== undefined || patch.providerId !== undefined) {
-    requireCatalogModel(ctx, provider, model);
+    requireCatalogModel(ctx, ownerId, provider, model);
   }
   return {
     ...(patch.label !== undefined ? { label: patch.label.trim() } : {}),

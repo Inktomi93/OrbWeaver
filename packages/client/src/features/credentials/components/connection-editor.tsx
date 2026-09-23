@@ -36,6 +36,7 @@
 // that cascade and handles none of it is worse than no control. The row says so and points at the add flow.
 
 import type { DeclaredCapability } from "@orb/contracts/inference";
+import { providerDisplayLabel } from "@orb/contracts/inference";
 import type { UserConnectionId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
@@ -99,7 +100,7 @@ function ConnectionEditorBody({ connectionId, onDone, trpc, invalidation }: Conn
   const update = useUpdateConnection({ trpc, invalidation });
 
   const provider = available.find((row) => row.provider.id === connection.providerId)?.provider;
-  const providerLabel = provider?.label ?? connection.providerId;
+  const providerLabel = provider === undefined ? connection.providerId : providerDisplayLabel(provider);
   const declared = connection.declared;
   const busy = update.isPending;
 

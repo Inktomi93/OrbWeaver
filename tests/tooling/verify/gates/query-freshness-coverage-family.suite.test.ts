@@ -6,6 +6,7 @@ import { gate as debt } from "../../../../tooling/src/verify/gates/query-freshne
 import { gate as health } from "../../../../tooling/src/verify/gates/query-freshness-coverage-health.ts";
 import { coordinateGateAuthority } from "../../../../tooling/src/verify/lib/gate-authority.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
+import { authorityOwnerResult } from "../../../../tooling/src/verify/lib/policy-pass-receipts.ts";
 import { reviewedGrantsFor } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -79,12 +80,7 @@ test("all 34 production classifications are exact central grants and #1965 remai
   expect(result.authority.reviewedGrantConsumption).toEqual(
     grants.map(({ id }) => ({ id, count: 1 })).toSorted((left, right) => left.id.localeCompare(right.id)),
   );
-  const owners: readonly GateOwnerResult[] = result.policies.map((policy) => ({
-    policyId: policy.id,
-    populationFiles: policy.population.effectiveSourcePaths,
-    owner: policy.owner,
-    findings: policy.findings,
-  }));
+  const owners: readonly GateOwnerResult[] = result.policies.map(authorityOwnerResult);
   const reconcile = (rows: readonly ReviewedGateGrant[], changed = owners): ReturnType<typeof coordinateGateAuthority> =>
     coordinateGateAuthority({
       knownPolicies: POLICIES,

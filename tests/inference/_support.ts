@@ -10,7 +10,15 @@ import type { AutomationRuleId, ModelId, PluginId, UserConnectionId, UserCredent
 import { castId, ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import type { ConnectionTransport, Resolved } from "../../packages/inference/src/contract/resolved.ts";
-import type { BindingStore, ConnectionStore, InferenceDeps, InferenceLog, ProviderStore, SnapshotStore } from "../../packages/inference/src/deps.ts";
+import type {
+  BindingStore,
+  ConnectionStore,
+  InferenceDeps,
+  InferenceLog,
+  ProviderSnapshot,
+  ProviderStore,
+  SnapshotStore,
+} from "../../packages/inference/src/deps.ts";
 
 const FROZEN_NOW = 1_700_000_000_000;
 
@@ -68,8 +76,29 @@ export interface MemoryStores {
   readonly bindings: BindingStore & {
     readonly bind: (args: { actorKind: ConnectionBinding["actorKind"]; actorId: string; task: RoutableTask; connectionId: UserConnectionId | null }) => void;
   };
-  readonly providerStore: ProviderStore & { readonly rows: Map<string, ProviderDef> };
+  /** `pluginOwners` stands in for the `plugins.owner_id` column the real store joins through: a plugin
+   *  contribution serves only its install's owner, and an install with no recorded owner serves nobody. */
+  readonly providerStore: ProviderStore & { readonly rows: Map<string, ProviderDef>; readonly pluginOwners: Map<PluginId, UserId> };
   readonly snapshotStore: SnapshotStore & { readonly entries: Map<string, string> };
+}
+
+/** The in-memory twin of `listProviderRows`: admin rows and contributed plugin rows, plus each contribution's
+ *  install owner. Shared by every fake provider store so the registry reads one snapshot shape. */
+export function memoryProviderSnapshot(args: {
+  readonly rows: ReadonlyMap<string, ProviderDef>;
+  readonly admins: ReadonlySet<string>;
+  readonly contributors: ReadonlyMap<string, ReadonlySet<PluginId>>;
+  readonly pluginOwners: ReadonlyMap<PluginId, UserId>;
+}): ProviderSnapshot {
+  const { rows, admins, contributors, pluginOwners } = args;
+  const live = [...rows.entries()].filter(([id]) => admins.has(id) || (contributors.get(id)?.size ?? 0) > 0).map(([, row]) => row);
+  const installs = [...contributors.entries()].flatMap(([providerId, plugins]) =>
+    [...plugins].flatMap((pluginId) => {
+      const ownerId = pluginOwners.get(pluginId);
+      return ownerId === undefined ? [] : [{ providerId: providerIdSchema.parse(providerId), ownerId }];
+    }),
+  );
+  return { rows: live, installs };
 }
 
 function memoryPluginConflict(args: {
@@ -102,6 +131,7 @@ export function memoryStores(): MemoryStores {
   const providerRows = new Map<string, ProviderDef>();
   const providerAdmins = new Set<string>();
   const providerContributors = new Map<string, Set<PluginId>>();
+  const pluginOwners = new Map<PluginId, UserId>();
   const entries = new Map<string, string>();
   const key = (actorKind: string, actorId: string, task: string): string => `${actorKind}|${actorId}|${task}`;
   return {
@@ -126,10 +156,8 @@ export function memoryStores(): MemoryStores {
     },
     providerStore: {
       rows: providerRows,
-      list: () =>
-        Promise.resolve(
-          [...providerRows.entries()].filter(([id]) => providerAdmins.has(id) || (providerContributors.get(id)?.size ?? 0) > 0).map(([, row]) => row),
-        ),
+      pluginOwners,
+      list: () => Promise.resolve(memoryProviderSnapshot({ rows: providerRows, admins: providerAdmins, contributors: providerContributors, pluginOwners })),
       putAdmin: (row): Promise<boolean> => {
         if ((providerContributors.get(row.id)?.size ?? 0) > 0) {
           return Promise.resolve(false);

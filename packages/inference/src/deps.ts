@@ -7,6 +7,7 @@ export type {
   ConnectionStore,
   InferenceDeps,
   InferenceLog,
+  ProviderSnapshot,
   ProviderStore,
   SnapshotStore,
   SpanAttrs,

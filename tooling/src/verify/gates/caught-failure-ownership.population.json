@@ -2396,27 +2396,27 @@
       "reason": "failure IS the return value — converts to attached=false, which becomes the \"absent\" readiness arm fed into UNSETTLED_REASON and reported as navError below. Ends if that reporting chain is removed."
     },
     {
-      "siteId": "tooling/src/snap/ops/drive.ts::driveNav::e::1",
+      "siteId": "tooling/src/snap/ops/drive-actions.ts::driveNav::e::1",
       "verdict": "deliberate-absorb",
       "reason": "printed as NAV FAILED and returned as a count the caller sums into navFailures, the verdict the run reads. Ends if navFailures stops being read."
     },
     {
-      "siteId": "tooling/src/snap/ops/drive.ts::driveNav::page.evaluate::1",
+      "siteId": "tooling/src/snap/ops/drive-actions.ts::driveNav::page.evaluate::1",
       "verdict": "deliberate-absorb",
       "reason": "a fire-and-forget readiness ping whose result is discarded — the very next line's evaluate() runs regardless and its failure IS caught by this try, reported as NAV FAILED. Ends if the next evaluate stops being what reports real failures."
     },
     {
-      "siteId": "tooling/src/snap/ops/drive.ts::driveNav::waitFor::1",
+      "siteId": "tooling/src/snap/ops/drive-actions.ts::driveNav::waitFor::1",
       "verdict": "deliberate-absorb",
       "reason": "gracefully bounded per the comment above — a stuck/absent flag falls through, and any real problem still surfaces via the nav evaluate() below, caught by the try beneath. Ends if that fallthrough evaluate stops being what catches real failures."
     },
     {
-      "siteId": "tooling/src/snap/ops/drive.ts::driveStep::e::1",
+      "siteId": "tooling/src/snap/ops/drive-actions.ts::driveStep::e::1",
       "verdict": "deliberate-absorb",
       "reason": "printed as STEP FAILED and returned as a count the caller sums into stepFailures, the verdict the run reads. Ends if stepFailures stops being read."
     },
     {
-      "siteId": "tooling/src/snap/ops/drive.ts::driveStep::retryErr::1",
+      "siteId": "tooling/src/snap/ops/drive-actions.ts::driveStep::retryErr::1",
       "verdict": "deliberate-absorb",
       "reason": "the retry's own failure is printed as STEP FAILED (after churn retry) and returned as the same counted failure the outer catch would have produced. Ends if that count stops being read."
     },

@@ -19,7 +19,7 @@ export type CatalogRead = TrpcWireOutput<"connection.catalogModels">;
 export type CatalogEntry = Extract<CatalogRead, { readonly listed: true }>["models"][number];
 
 /** The server's own reason for a list that came back empty. */
-export const NO_MODELS_LISTED = "the provider listed no models";
+const NO_MODELS_LISTED = "the provider listed no models";
 
 /** The list-or-reason answer every catalog read gives — `listed: false` with the server's own "listed no
  *  models" reason when there are none, and no model list on that branch. */
@@ -29,7 +29,7 @@ export function catalogOf(models: readonly CatalogEntry[]): CatalogRead {
 type BindingView = TrpcWireOutput<"connection.listBindings">[number];
 type AvailabilityRow = TrpcWireOutput<"connection.providersAvailable">[number];
 
-export const OWNER_ID = "user_ct_conn_author";
+const OWNER_ID = "user_ct_conn_author";
 
 /** Every built-in provider, available — the registry the server reads at boot. */
 export const ALL_AVAILABLE: readonly AvailabilityRow[] = BUILTIN_PROVIDERS.map((provider): ProviderAvailability => ({ provider, available: true }));
@@ -39,7 +39,7 @@ export const SUBSCRIPTION_RUNTIME_MISSING: readonly AvailabilityRow[] = BUILTIN_
   (provider): ProviderAvailability => (provider.id === "claude-sub" ? { provider, available: false, cause: "runtime-missing" } : { provider, available: true }),
 );
 
-export function providerLabelOf(providerId: string): string {
+function providerLabelOf(providerId: string): string {
   const provider = BUILTIN_PROVIDERS.find((row) => row.id === providerId);
   if (provider === undefined) {
     throw new Error(`no built-in provider ${providerId}`);

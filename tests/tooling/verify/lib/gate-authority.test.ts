@@ -35,7 +35,7 @@ function owner(
   findings: readonly RawGateFinding[],
   completion: GateOwnerCompletion = { status: "success", population: "complete" },
 ): GateOwnerResult {
-  return { policyId, populationFiles: findings.map(({ file }) => file), owner: completion, findings };
+  return { policyId, populationFiles: findings.map(({ file }) => file), coverage: "whole", owner: completion, findings };
 }
 
 function coordinate(overrides: Partial<GateAuthorityBatchInput> = {}): GateAuthorityBatchResult {
@@ -81,6 +81,36 @@ test("each authority uses only its own exception door and findings derive policy
   ]);
   expect(result.grantedFindings).toMatchObject([{ grantId: "grant:reviewed", finding: { policyId: "reviewed-policy", severity: "error" } }]);
   expect(result.reviewedGrantConsumption).toEqual([{ id: "grant:reviewed", count: 1 }]);
+});
+
+test("an owner result without a known coverage is refused before any grant is judged", () => {
+  const grant = {
+    id: "grant:unknown-coverage",
+    policyId: "reviewed-policy",
+    subject: "src/gone.ts",
+    operation: "read",
+    why: "fixture",
+    endsWhen: "fixture ends",
+  };
+  const live = finding("reviewed.ts", { subject: "src/live.ts", operation: "read" });
+  const coverage: string = "partial";
+  // @orb-waive no-test-fabrication(GateOwnerResult): the runtime boundary must refuse a coverage outside GATE_OWNER_COVERAGES
+  const unknownCoverage = { ...owner("reviewed-policy", [live]), coverage } as GateOwnerResult;
+  const refused = coordinate({ selectedPolicies: [POLICIES[2] as SelectedGatePolicy], ownerResults: [unknownCoverage], reviewedGrants: [grant] });
+
+  expect(refused.toolErrors).toMatchObject([{ kind: "invalid-owner-result", policyId: "reviewed-policy" }]);
+  expect(refused.withheldPolicyIds).toEqual(["reviewed-policy"]);
+  expect(refused.authorityAlarms).toEqual([]);
+  expect(refused.unjudgedReviewedGrants).toEqual([]);
+
+  const subset = coordinate({
+    selectedPolicies: [POLICIES[2] as SelectedGatePolicy],
+    ownerResults: [{ ...owner("reviewed-policy", [live]), coverage: "subset" }],
+    reviewedGrants: [grant],
+  });
+  expect(subset.toolErrors).toEqual([]);
+  expect(subset.authorityAlarms).toEqual([]);
+  expect(subset.unjudgedReviewedGrants).toEqual([{ policyId: "reviewed-policy", grantId: grant.id }]);
 });
 
 test("raw findings cannot spoof policy identity or severity", () => {

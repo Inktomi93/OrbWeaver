@@ -67,6 +67,7 @@ const EMPTY_REPORT: StructurePolicyReport = {
   waiverCarrierRefusals: [],
   authority: {
     alarms: [],
+    unjudgedReviewedGrants: [],
     toolErrors: [],
     withheldPolicyIds: [],
     ordinaryConsumption: [],
@@ -124,4 +125,26 @@ test("a PASSING policy's warning occurrences carry their own message too — the
   );
   expect(out).toContain("  ✓ probe-two-arm (1 warning(s))");
   expect(out).toContain(`      packages/client/src/a.ts:4:2  entry  [warning]  — ${ARM_A}`);
+});
+
+// A subset run cannot judge a reviewed grant whose finding lies outside the subset. The console names that
+// gap per policy instead of printing a clean zero-alarm line a reader would take for proven liveness.
+test("a subset run's unjudged reviewed grants print one NOT-judged line per policy, and a whole run prints none", () => {
+  const report: StructurePolicyReport = {
+    ...EMPTY_REPORT,
+    authority: {
+      ...EMPTY_REPORT.authority,
+      unjudgedReviewedGrants: [
+        { policyId: "density-tier", grantId: "density-tier:a" },
+        { policyId: "density-tier", grantId: "density-tier:b" },
+        { policyId: "no-manual-memo", grantId: "no-manual-memo:c" },
+      ],
+    },
+  };
+  const unjudged = renderPolicyPass([policyRow([], true)], report, [twoArmPolicy]);
+  expect(unjudged.split("\n").filter((line) => line.includes("grant liveness NOT judged"))).toEqual([
+    "  ⚠ grant liveness NOT judged density-tier: 2 reviewed grant(s) unconsumed by this subset run are neither live nor stale; the whole-tree run judges them",
+    "  ⚠ grant liveness NOT judged no-manual-memo: 1 reviewed grant(s) unconsumed by this subset run are neither live nor stale; the whole-tree run judges them",
+  ]);
+  expect(renderPolicyPass([policyRow([], true)], EMPTY_REPORT, [twoArmPolicy])).not.toContain("grant liveness NOT judged");
 });

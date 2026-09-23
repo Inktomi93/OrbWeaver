@@ -20,6 +20,7 @@ import type {
 } from "@orb/contracts/inference";
 import { agentSdkModelSchema, connectionTasks, modelCatalogEntrySchema } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
+import type { UserId } from "@orb/kit/ids";
 import { z } from "zod";
 import { NO_PROVIDER_SECRETS, resolvedScrubSet } from "./backends/kit/sanitize.ts";
 import type { LocalLightBackend } from "./backends/local-light/index.ts";
@@ -53,7 +54,7 @@ import { createRoleClientsFor } from "./roles/role-clients.ts";
 export { resolveClaudeExecutable } from "./backends/agent-sdk/executable.ts";
 export type { AgentToolResult, AgentToolSpec, SessionEntryWriter } from "./backends/agent-sdk/index.ts";
 export { createAgentToolServer } from "./backends/agent-sdk/index.ts";
-export { cacheDepthCovering, rowIndexAtCacheDepth } from "./backends/kit/cache-control.ts";
+export { cacheDepthCovering, cachesByAnthropicMarkers, rowIndexAtCacheDepth } from "./backends/kit/cache-control.ts";
 export { providerErrorFromHttp } from "./backends/kit/error-classify.ts";
 export { resolvedScrubSet } from "./backends/kit/sanitize.ts";
 export type {
@@ -72,7 +73,17 @@ export { curatedKind } from "./capability/sources/curated/loader.ts";
 export * from "./contract/index.ts";
 export type { ResolvedWarning } from "./contract/resolve.ts";
 export type { ProviderOrigin, RoleClientsFor } from "./contract/runtime.ts";
-export type { BindingActor, BindingStore, ConnectionStore, InferenceDeps, InferenceLog, ProviderStore, SnapshotStore, SpanFn } from "./deps.ts";
+export type {
+  BindingActor,
+  BindingStore,
+  ConnectionStore,
+  InferenceDeps,
+  InferenceLog,
+  ProviderSnapshot,
+  ProviderStore,
+  SnapshotStore,
+  SpanFn,
+} from "./deps.ts";
 // `resolveCarryReasoning` is exported BESIDE the whole funnel because the chat engine needs exactly one of
 // its answers BEFORE the first wire call: the `conversation` rung materializes prior thinking at the
 // history-build seam, which runs upstream of `resolveChat`. One policy home, two readers (§8.8).
@@ -122,17 +133,19 @@ export interface InferenceRuntime {
     readonly models: (draft: CatalogDraft) => Promise<ModelListing>;
     /** A `builtin` provider's closed model set (the curated rows), or `null` for a `url` provider, whose list
      *  can lag the provider and so admits a typed id. The write seam refuses an id outside a closed set. */
-    readonly builtin: (providerId: string) => readonly ModelCatalogEntry[] | null;
+    readonly builtin: (providerId: string, viewer: UserId) => readonly ModelCatalogEntry[] | null;
     /** Force a live re-fetch of a provider's mirror (the OpenRouter enrichment; the daemon catalog needs a
      *  connection and refreshes on its next `models` read after `invalidate`). Returns the mirror's entry
-     *  count when one was warmed, `null` when the strategy has no process-wide mirror. */
+     *  count when one was warmed, `null` when the strategy has no process-wide mirror. An operator path with
+     *  no principal, so it reaches deployment-wide rows only — never a plugin row. */
     readonly refresh: (providerId: string) => Promise<{ readonly models: number | null }>;
   };
   readonly diagnostics: ProviderDiagnostics;
   readonly providers: {
     readonly registry: ProviderRegistry;
-    /** What the picker may offer — every registry row with its wire's build state (§5.3a: `claude-sub`
-     *  renders disabled with `runtime-missing`). Rows a principal cannot use are still LISTED, never hidden. */
+    /** What the picker may offer `principal` — every row it may use with its wire's build state (§5.3a:
+     *  `claude-sub` renders disabled with `runtime-missing`). A row on an unbuilt wire is LISTED, never hidden;
+     *  a plugin row none of the principal's enabled installs contributes is absent (D147). */
     readonly available: (principal: Principal) => readonly ProviderAvailability[];
     readonly register: (row: unknown, origin: ProviderOrigin) => Promise<ProviderDef>;
     readonly drop: (id: ProviderDef["id"]) => Promise<void>;
@@ -144,8 +157,7 @@ export interface InferenceRuntime {
   readonly localLight: Pick<LocalLightBackend, "prefetch" | "matte" | "embedSpace">;
 }
 
-function requireProvider(registry: ProviderRegistry, providerId: string): ProviderDef {
-  const provider = registry.get(providerId);
+function requireProvider(provider: ProviderDef | undefined, providerId: string): ProviderDef {
   if (provider === undefined) {
     throw new ProviderError({ kind: "invalid", retryable: false, message: `provider "${providerId}" is not registered` });
   }
@@ -207,7 +219,7 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
   };
 
   const openRouterBaseUrl = (): string => {
-    const row = registry.get("openrouter");
+    const row = registry.deploymentRow("openrouter");
     if (row?.baseUrl === undefined) {
       throw new ProviderError({ kind: "invalid", retryable: false, message: "the openrouter provider row carries no baseUrl" });
     }
@@ -273,7 +285,7 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
     capabilities: {
       for: async ({ connectionId, principal }): Promise<CapabilityRead> => {
         const connection = await ownedConnection(connectionId, principal);
-        const provider = requireProvider(registry, connection.providerId);
+        const provider = requireProvider(registry.get(connection.providerId, connection.ownerId), connection.providerId);
         const kind = connection.declared?.kind ?? curatedKind({ model: connection.model, providerId: provider.id, wire: provider.wire }) ?? "generation";
         const tasks = connectionTasks(provider, kind);
         const task = tasks[0];
@@ -295,12 +307,12 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
     roleClientsFor,
     catalogs: {
       models: catalogModels,
-      builtin: (providerId): readonly ModelCatalogEntry[] | null => {
-        const provider = requireProvider(registry, providerId);
+      builtin: (providerId, viewer): readonly ModelCatalogEntry[] | null => {
+        const provider = requireProvider(registry.get(providerId, viewer), providerId);
         return provider.catalog === "builtin" ? builtinCatalog(provider) : null;
       },
       refresh: async (providerId): Promise<{ readonly models: number | null }> => {
-        const provider = requireProvider(registry, providerId);
+        const provider = requireProvider(registry.deploymentRow(providerId), providerId);
         if (provider.dialect === "openrouter") {
           openRouterCatalog.invalidate();
           await warmOpenRouter();
@@ -324,8 +336,8 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
     diagnostics,
     providers: {
       registry,
-      available: (): readonly ProviderAvailability[] =>
-        registry.list().map((provider) => {
+      available: (principal): readonly ProviderAvailability[] =>
+        registry.list(principal.userId).map((provider) => {
           const skipped = built.skipped.get(provider.wire);
           if (skipped === undefined) {
             return { provider, available: true };
