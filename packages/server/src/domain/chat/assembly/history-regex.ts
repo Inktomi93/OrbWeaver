@@ -30,7 +30,7 @@
 // the conversation has run. Every eviction is reported through `onScriptFailure` (already a logged warn at
 // both call sites), so the log cannot disagree with what applied.
 
-import type { RegexScriptInput } from "@orb/kit/regex";
+import type { RegexHistoryDepth, RegexScriptInput } from "@orb/kit/regex";
 import { executeRegexScripts, HISTORY_DEPTH_PLACEMENT } from "@orb/kit/regex";
 import type { PromptHistoryRegexEnv } from "../contract/regex.ts";
 
@@ -40,6 +40,17 @@ interface TextRow {
   readonly content: string;
 }
 
+const NO_WINDOW = -1;
+
+// The deepest depth at which a scope can still flip a row in or out as the history grows. Depth only grows, so a
+// row past a finite `max` stays out forever, and a row at or past `min` with no `max` stays in forever.
+function unsettledThrough(scope: RegexHistoryDepth | undefined): number {
+  if (scope === undefined) {
+    return NO_WINDOW;
+  }
+  return scope.max ?? scope.min - 1;
+}
+
 /**
  * Apply the `PROMPT_HISTORY` leg over the assembled history. `rows` are in canon order (oldest first), so a
  * row's DEPTH is its distance from the end — index `rows.length - 1` is depth 0, the newest message.
@@ -47,8 +58,14 @@ interface TextRow {
  * Returns a NEW array of NEW rows; `rows` and its elements are never mutated (the ephemerality pin asserts
  * exactly this). When no supplied script runs on this leg the ORIGINAL array is returned untouched, so a
  * chat with no history scripts is byte-identical and allocation-identical to before the leg existed.
+ *
+ * A row a depth-scoped script can still rewrite on a later turn (it will enter or leave the scope) comes back
+ * with `depthVolatile`, so SHAPE pins the prompt cache above it, as it does above a depth-N injection.
  */
-export function applyPromptHistoryRegex<T extends TextRow>(rows: readonly T[], env: PromptHistoryRegexEnv): readonly T[] {
+export function applyPromptHistoryRegex<T extends TextRow>(
+  rows: readonly T[],
+  env: PromptHistoryRegexEnv,
+): readonly (T | (T & { readonly depthVolatile: true }))[] {
   const candidates = env.scripts.filter((script) => script.enabled && script.placement.includes(HISTORY_DEPTH_PLACEMENT));
   if (candidates.length === 0 || rows.length === 0) {
     return rows;
@@ -87,5 +104,6 @@ export function applyPromptHistoryRegex<T extends TextRow>(rows: readonly T[], e
       out[index] = { ...row, content };
     }
   }
-  return out;
+  const window = Math.max(NO_WINDOW, ...candidates.map((script) => unsettledThrough(script.historyDepth)));
+  return window === NO_WINDOW ? out : out.map((row, index) => (rows.length - 1 - index <= window ? { ...row, depthVolatile: true as const } : row));
 }

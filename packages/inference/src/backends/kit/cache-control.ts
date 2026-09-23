@@ -7,6 +7,7 @@
 // `computeCacheBreakpointPlacements` is the pure positional core the openrouter runner maps onto its own
 // wire dialect; its DEPTH axis (role switches, tool exchanges transparent) is specified at that function.
 
+import type { GenerationCapability } from "@orb/contracts/inference";
 import { detectModelFamily } from "../../capability/families.ts";
 import type { Resolved } from "../../contract/resolved.ts";
 import type { ProviderLogger } from "./provider-log.ts";
@@ -66,6 +67,14 @@ const ANTHROPIC_PROVIDER_NAME = "Anthropic";
  *  and a third-party fork (`some-org/claude-fork`) never receives Anthropic-only `cache_control`. */
 export function isAnthropicModel(connection: Pick<Resolved, "factsModel">): boolean {
   return detectModelFamily(connection.factsModel) === "anthropic";
+}
+
+/** Does this connection's turn cache by explicit Anthropic block markers? The capability says explicit caching
+ *  is worth placing (`turns.explicitPromptCache`) and the resolved model is Anthropic's. Chat's SHAPE keeps the
+ *  stored rows of a same-role run apart on such a wire, and the openai-compat body folds them back into one
+ *  message of parts (`openai-compat/body.ts` rule 10); both read this one answer. */
+export function cachesByAnthropicMarkers(connection: Pick<Resolved, "factsModel">, generation: GenerationCapability): boolean {
+  return generation.turns?.explicitPromptCache === true && isAnthropicModel(connection);
 }
 
 // A caller-supplied routing always wins; otherwise pin Anthropic (order + NO fallbacks) so cache_control is

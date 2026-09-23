@@ -9,6 +9,12 @@
 // and the model take it in that slot, and folds into user text in its neutral frame otherwise
 // ({@link deliverSystemRows}). SHAPE's own user tail (the group or continuation cue) is placed so the rows
 // around it stay legal: before a trailing system run, never after it.
+//
+// A TURN THAT CACHES BY EXPLICIT BLOCK MARKERS KEEPS STORED ROWS APART (`explicitCacheMarkers`). A merging level
+// still makes each same-role run one turn, but the wire does the grouping: the direct SDK folds adjacent
+// same-role rows into one message whose blocks are the rows, and the openai-compat body folds them into one
+// message of parts. A string join would grow the block a prior call marked (the next speaker's reply lands
+// inside it) and miss the cache every round. Every other wire still joins here, where no marker can move.
 
 import type {
   AssembleContext,
@@ -64,6 +70,9 @@ interface CanonRow {
   characterId?: CharacterId | null;
   messageId?: MessageId | undefined;
   kind?: MessageKind | undefined;
+  /** A depth-scoped `PROMPT_HISTORY` script can still rewrite this row on a later turn (`assembly/history-regex`),
+   *  so the cache never pins it. */
+  depthVolatile?: true | undefined;
 }
 
 /** A name-stamped wire row (the SHAPE output row). */
@@ -108,6 +117,9 @@ interface ShapeInput {
   roleHandling?: RoleHandling | undefined;
   /** The model's message-handling floor. Unset ⇒ `strict`. SHAPE runs the stricter of floor + knob. */
   roleHandlingFloor?: RoleHandling | undefined;
+  /** The turn caches by explicit block markers (`@orb/inference` `cachesByAnthropicMarkers`): a merging level
+   *  keeps each stored row of a same-role run its own row (see the file header). Absent ⇒ the run joins. */
+  explicitCacheMarkers?: boolean | undefined;
   /** The user `squashSystemMessages` knob (from preset `params.advanced.squashSystemMessages`): `true` ⇒
    *  merge consecutive system-note runs before they convert to user rows. Orthogonal to `roleHandling`. */
   squashSystemMessages?: boolean | undefined;
@@ -176,6 +188,7 @@ function scopeHistoryToTarget(canon: readonly CanonRow[], targetId: CharacterId)
         // Purpose survives the fold: the WIRE role changed, the row did not stop being what it is (D129's
         // three orthogonal axes — the fold moves DELIVERY, never PURPOSE).
         kind: m.kind,
+        depthVolatile: m.depthVolatile,
       };
     }
     return m;
@@ -331,13 +344,14 @@ function deliverSystemRows(rows: readonly WireRow[], opts: DeliveryOptions): Del
 
 /** Which spliced rows repeat byte for byte on the next turn, so the cache may pin them: the committed canon
  *  before this turn's volatile row, and an injection anchored above the first canon row (the new-chat marker).
- *  Every other injection is volatile: a depth-N row moves as the history grows. Index-aligned with `injected`. */
+ *  Every other injection is volatile: a depth-N row moves as the history grows. So is a canon row inside a
+ *  depth-scoped regex window, whose bytes change as it moves. Index-aligned with `injected`. */
 function stableRows(
-  withTail: readonly object[],
+  withTail: readonly CanonRow[],
   stableCount: number,
   injected: readonly ({ readonly role: DeliveredRole; readonly content: string } | { readonly anchored?: true })[],
 ): boolean[] {
-  const committed = new Set<object>(withTail.slice(0, stableCount));
+  const committed = new Set<object>(withTail.slice(0, stableCount).filter((row) => row.depthVolatile !== true));
   return injected.map((row) => committed.has(row) || "anchored" in row);
 }
 
@@ -428,12 +442,22 @@ function preSquashRowFacts(namedInput: readonly WireRow[], injected: readonly (C
   });
 }
 
+/** How this turn squashes same-role runs: whether the level merges at all, and whether stored rows stay apart
+ *  inside a merged run (the file header's caching wire). */
+interface SquashMode {
+  readonly merges: boolean;
+  readonly canonApart: boolean;
+}
+
 /** The SAME grouping `runSquash` applies, as INPUT INDICES per delivered row — the delivered-row trace needs
  *  "which inputs became this row" to report a merged row's provenance. ONE rule, two readers
  *  (`role-squash::squashRuns` is what `squashSameRole` is built on), so the trace cannot drift from the wire.
  *  `merges === false` is the pass-through arm: empties drop, nothing groups. */
-function squashRunsFor<T extends { role: DeliveredRole; content: string; name?: string }>(rows: readonly T[], merges: boolean): readonly (readonly number[])[] {
-  return merges ? squashRuns(rows) : rows.flatMap((row, index) => (row.content.trim().length > 0 ? [[index]] : []));
+function squashRunsFor<T extends { role: DeliveredRole; content: string; name?: string; messageId?: MessageId | undefined }>(
+  rows: readonly T[],
+  mode: SquashMode,
+): readonly (readonly number[])[] {
+  return mode.merges ? squashRuns(rows, mode) : rows.flatMap((row, index) => (row.content.trim().length > 0 ? [[index]] : []));
 }
 
 /** Project the DELIVERED wire history onto the content-free `ShapeTrace.rows` — the block-order/role/voice
@@ -445,7 +469,7 @@ function traceDeliveredRows(args: {
   readonly namedInput: readonly WireRow[];
   readonly delivery: Delivery;
   readonly history: readonly WireRow[];
-  readonly merges: boolean;
+  readonly squash: SquashMode;
 }): ShapeTraceRow[] {
   const preSquash = preSquashRowFacts(args.namedInput, args.injected);
   // SHAPE's own user tail is assembly's own row, so it carries `assembled` provenance of its own.
@@ -455,7 +479,7 @@ function traceDeliveredRows(args: {
   });
   const runs = squashRunsFor(
     args.delivery.entries.map((entry) => entry.row),
-    args.merges,
+    args.squash,
   );
   return runs.flatMap((run, index): ShapeTraceRow[] => {
     const row = args.history[index];
@@ -515,13 +539,14 @@ export function shape(input: ShapeInput): ShapeOutput {
   // every other level squashes. The level also decides where a system row may stay one (`deliverSystemRows`).
   const level = clampRoleHandling(input.roleHandlingFloor ?? TURNS_FLOOR.roleHandlingFloor, input.roleHandling);
   const merges = level !== "none";
+  const squash: SquashMode = { merges, canonApart: input.explicitCacheMarkers === true };
 
   // The splice re-roles a depth-1 assistant injection that would merge into the last committed row before this
   // turn's own row (the last row of `withTail`).
   const prefixBoundaryLen = withTail.length > 1 ? withTail.length - 1 : undefined;
 
-  const runSquash = <T extends { role: DeliveredRole; content: string; name?: string }>(rows: readonly T[]): T[] =>
-    merges ? squashSameRole(rows) : rows.filter((r) => r.content.trim().length > 0);
+  const runSquash = <T extends { role: DeliveredRole; content: string; name?: string; messageId?: MessageId | undefined }>(rows: readonly T[]): T[] =>
+    merges ? squashSameRole(rows, squash) : rows.filter((r) => r.content.trim().length > 0);
 
   // 2. splice in_chat by depth (every system injection stays a bare system row at its author's position) →
   // 3. name-stamp → 4. deliver system rows + place the user tail → 5. squash same-role.
@@ -558,7 +583,7 @@ export function shape(input: ShapeInput): ShapeOutput {
   // only volatile row and the pin is the last canon row before it.
   const stableCount = withTail.length - (input.appendUserTurn === null && delivery.tailUser !== null ? 0 : 1);
   const stable = stableRows(withTail, stableCount, injected);
-  const historyStable = squashRunsFor(deliveredRows, merges).map((run) =>
+  const historyStable = squashRunsFor(deliveredRows, squash).map((run) =>
     run.every((index) => {
       const origin = delivery.entries[index]?.origin;
       return origin !== null && origin !== undefined && stable[origin] === true;
@@ -570,7 +595,7 @@ export function shape(input: ShapeInput): ShapeOutput {
   );
 
   // The content-free DELIVERED-row trace (`ShapeTrace.rows`) — order, role, voice, provenance, size, fold.
-  const delivered = traceDeliveredRows({ injected, namedInput, delivery, history, merges });
+  const delivered = traceDeliveredRows({ injected, namedInput, delivery, history, squash });
   const marker = injected.find((row) => "newChatMarker" in row);
 
   return {
