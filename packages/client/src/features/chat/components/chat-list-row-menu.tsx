@@ -13,7 +13,7 @@
 // FIRST because it is what "export this chat" should mean by default; `.jsonl` is the ST/share transcript
 // (both round-trip back through the band's Import); `.txt` is a read-only reading copy.
 //
-// REVERSIBILITY (DESIGN.md §9): rename/star/archive are quiet in-place edits; DELETE cascades hard
+// REVERSIBILITY (the mock design §9): rename/star/archive are quiet in-place edits; DELETE cascades hard
 // (messages/roster/events, FK) — NOT reversible — so it sits behind RowActionsMenu's ConfirmDialog
 // (never an undo-toast). Rename is a single controlled `Input` in a `Dialog` (the §13.4 "single rename
 // stays controlled + Zod" carve-out — NOT a form factory).

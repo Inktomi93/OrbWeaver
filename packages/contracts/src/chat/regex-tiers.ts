@@ -1,14 +1,14 @@
 // contracts/chat/regex-tiers — the ROOM'S REGEX TIER vocabulary: the tier KEY every per-chat allow flag and
 // every rendered lever is addressed by, the per-seat character slice the resolver consumes, and the wire view
-// of the room's effective regex (`chat.listEffectiveRegex`). The design is
-// `docs/design/mocks/regex-section/DESIGN.md` §3/§6/§7 (owner-approved 2026-09-05, #1742).
+// of the room's effective regex (`chat.listEffectiveRegex`). The design was
+// owner-approved 2026-09-05 (#1742).
 //
 // WHY THE KEY IS ONE FLAT STRING and not a structured `{scope, characterId?}`: it is the identity of a SWITCH.
 // The section draws one lever per tier, the host's per-chat allow blob stores one boolean per tier, and the
 // read hands back one group per tier — three surfaces that must agree on "which tier is this" without any of
 // them re-deriving a composite. A flat key makes the allow lookup a plain member read (`allow[key] !== false`)
 // and makes a React key, a `data-*` value and a JSON object key the SAME string. The character arm carries the
-// seat's id because a room seats several characters and each one is its own lever (`DESIGN.md` §3, the lever
+// seat's id because a room seats several characters and each one is its own lever (the mock design §3, the lever
 // strip); `characterRegexTierKey` is the ONE mint and `parseCharacterRegexTierKey` the ONE reader, so the
 // `character:` prefix is never spelled at a call site.
 //
@@ -17,7 +17,7 @@
 // {@link RegexTierAllow} is `Partial` and why {@link isRegexTierAllowed} exists rather than a `?? true` spelled
 // at each of the (server resolver, client lever, client count) readers.
 //
-// THE ALLOW DROP HAPPENS BEFORE DEDUP (`DESIGN.md` §7.1, the stickler's F2): a script attached at BOTH a
+// THE ALLOW DROP HAPPENS BEFORE DEDUP (the mock design §7.1, the stickler's F2): a script attached at BOTH a
 // disallowed tier and an allowed one must still RUN — dropping after the dedup would let the disallowed tier's
 // earlier occurrence swallow the allowed one and silently kill a script the host never switched off. The
 // resolver (`server/domain/chat/substrate/regex-tier.ts`) is the one implementation; this file owns the shapes
@@ -93,7 +93,7 @@ export function isRegexEnabledInChat(regexEnabled: boolean | undefined): boolean
 
 /**
  * ONE seated character's attached scripts. The character slice is per SEAT rather than one flat list because
- * each seat is its own tier — its own lever, its own allow flag, its own group in the section (`DESIGN.md`
+ * each seat is its own tier — its own lever, its own allow flag, its own group in the section (the mock design
  * §7.2). Flattening it (which is what `domain/regex/persistence/resolve-sources.ts` used to hand back) made
  * per-character allows unrepresentable: the resolver could no longer tell whose rows were whose.
  *
@@ -106,7 +106,7 @@ export interface CharacterRegexSlice {
 }
 
 /** ONE row inside a tier group — the section's row anatomy, resolved server-side so the client never re-unions
- *  (`DESIGN.md` §7.1). */
+ *  (the mock design §7.1). */
 export interface RegexTierRowView {
   readonly script: RegexScriptRow;
   /** The row's 0-based index WITHIN its tier — the chat tier's drag order, and every other tier's read-only
@@ -129,7 +129,7 @@ export interface RegexTierGroupView {
   readonly allowed: boolean;
   /**
    * THE IDENTITY THE TIER KEY DOES NOT CARRY (#1754) — a NAME the server resolved, which the client renders
-   * into the tier's label (`From the preset · <name>`, `DESIGN.md` §3). Absent ⇒ the client says the bare
+   * into the tier's label (`From the preset · <name>`, the mock design §3). Absent ⇒ the client says the bare
    * word (`From the preset`), never a guess.
    *
    * WHY IT IS OPTIONAL AND WHY ONLY ONE ARM EVER FILLS IT. Three of the four keys already carry their own

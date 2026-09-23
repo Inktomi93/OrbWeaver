@@ -68,7 +68,7 @@ function hasAttr(el: JsxOpeningElement | JsxSelfClosingElement, name: string): b
 const MESSAGE =
   "heading-bearing <Section> in a contributed config section with no `id` — an anchored section must " +
   "stamp `id={configAnchorId(group, sub)}` (the sub is its contribution's `nav.id`) or it is " +
-  "invisible to the config scroll-spy + search.";
+  "invisible to the config scroll-spy + search. Registry: packages/client/src/state/config-group-registry.ts";
 
 export const gate = defineGate({
   id: "settings-section-anchored",

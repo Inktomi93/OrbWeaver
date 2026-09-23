@@ -18,7 +18,7 @@ export type WeavePhase = (typeof WEAVE_PHASES)[number];
 const WEAVE_TIME_SCALE = 1.6;
 const ms = (mockMs: number): number => Math.round(mockMs * WEAVE_TIME_SCALE);
 
-/** The mock's beat BOUNDARIES (docs/history/design/mocks/login-loading/login-loading-mock.html), kept
+/** The mock's beat BOUNDARIES, kept
  *  verbatim as the provenance record — each phase runs boundary→boundary; everything below derives
  *  through the calm-down scale. */
 const MOCK_BEATS = {

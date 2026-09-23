@@ -148,9 +148,9 @@ test("#833 the doorway fold wears the sibling band (kicker register + hairline) 
 
 // ── WHAT THE REGION LISTS (#834) ───────────────────────────────────────────────────────────────────
 // B3 retired automation's doorway and left this whole region delivering ONE dateless row, so the owner
-// ruled its SUBJECT rather than its existence: it lists the committed-but-unrealized programs of
-// `docs/architecture/proposed/INDEX.md` (FUTURE + PARTIAL), buddy among them. The tuple's parity with that
-// table is a node test (`tests/client/features/home/lib/roadmap.test.ts`); what only a browser can say is
+// ruled its SUBJECT rather than its existence: it lists the committed-but-unrealized programs
+// (the open program items under `docs/work/`), buddy among them. The tuple's parity with those
+// items is a node test (`tests/client/features/home/lib/roadmap.test.ts`); what only a browser can say is
 // that the curated list REACHES the surface — one named row each, in order, behind one press, with the
 // count the band advertises equal to what opens.
 /** The shipped set, in door order: buddy's 80 leads, then the roadmap tuple's own reading order. */
@@ -416,7 +416,7 @@ test("#188 a tile band's rule is DECORATIVE — no unnamed separator stops betwe
   await expect(page.getByRole("separator")).toHaveCount(0);
 });
 
-// ── RENDERED fidelity against the mock (docs/history/design/mocks/home-section/home.html) ───────────────────
+// ── RENDERED fidelity against the mock ───────────────────
 
 test("a DORMANT doorway wears a DASHED RULE — not-built-yet, at a fraction of a dashed card's weight", async ({ mount }) => {
   // #102 moved the dashed edge from the tile's whole FRAME (a full dashed card, one per doorway) to a

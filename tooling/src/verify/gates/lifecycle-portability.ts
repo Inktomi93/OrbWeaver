@@ -344,7 +344,7 @@ const MESSAGE =
   "the lifecycle/portability registry is incomplete — every owner-stamped canon family must be CARRIED by a " +
   "portable kind or CLASSIFIED non-portable with a reason, and every declared single-entity door must name a " +
   "proc/route that exists. This is the F1 killer: `documents` was owned canon for months while a full-account " +
-  "backup silently dropped the whole databank library, because nothing tied PORTABLE_KINDS to the schema.";
+  'backup silently dropped the whole databank library, because nothing tied PORTABLE_KINDS to the schema. See Spine-Config-and-Serialization.md §"Serialization / serde core".';
 
 const FIX =
   "for a MISSING family: either register the kind (serde + owning-domain export/import verbs + a descriptor at " +

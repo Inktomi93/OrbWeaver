@@ -55,7 +55,7 @@ const DUMP_POPULATION = "membrane guest-dump sites";
 const MESSAGE =
   "a QuickJS membrane `ctx.dump` can materialize guest-controlled recursive structure without first " +
   "passing the iterative handle depth/node guard — the walk runs on the HOST stack, so an overflow " +
-  "corrupts the shared WASM runtime for every plugin in the process.";
+  "corrupts the shared WASM runtime for every plugin in the process. Home: packages/server/src/infra/plugin-host/membrane.ts";
 const FIX = `route guest values through ${HELPER}; the helper must call ${GUARD} and RETURN on its false path before its one ctx.dump.`;
 
 /** Is this call `<receiver>.dump(handle)` where `dump` is declared by the installed QuickJS package? */

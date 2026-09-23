@@ -1,8 +1,8 @@
-// Token-ramp bindings (the DESIGN.md-equivalent — live values from @orb/ui/tokens, never a prose
+// Token-ramp bindings (the design-doc equivalent — live values from @orb/ui/tokens, never a prose
 // mirror) + the shared alpha floor for gradient-stop trust.
 import { SNAPPED_LENGTH_BASE_PX, TOKENS } from "@orb/ui/tokens";
 
-// ── Token-ramp bindings (the DESIGN.md-equivalent — live values, never a prose mirror) ──────
+// ── Token-ramp bindings (the design-doc equivalent — live values, never a prose mirror) ──────
 export const REM_PX = 16;
 
 /** The smallest ratified type step — `text.micro` (10.5px, the UIP-103 micro-caps voice).

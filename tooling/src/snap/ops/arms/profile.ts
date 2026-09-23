@@ -1,6 +1,6 @@
 // `--react-profile`: React development-renderer evidence from the page Snap already owns. The hook is installed
 // in prepare() before navigation; the settled pass only reads and files it. This is deliberately not the
-// React DevTools UI/backend and never calls the injected renderer's mutation methods. 
+// React DevTools UI/backend and never calls the injected renderer's mutation methods.
 import { errorMessage } from "@orb/kit/error-message";
 import type { Page } from "@playwright/test";
 import type { EvidenceWindowId } from "../../../_shared/artifact-scope.ts";

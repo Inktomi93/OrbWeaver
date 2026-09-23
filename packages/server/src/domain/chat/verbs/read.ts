@@ -1006,8 +1006,8 @@ function createListParticipants(ctx: ChatContext, deps: ReadDeps): ChatService["
  *  `getShapeTrace` and `previewContextFit` share (no user input, no group nudge, primary speaker / merged):
  *  the same `toShapeCanon` → `shapeTurn` the pipeline runs, minus the per-speaker round machinery. Returns
  *  the loaded canon beside the shaped result (the fit's boundary resolution needs both). */
-/** `listEffectiveRegex` — WHAT REGEX RUNS IN THIS ROOM, in run order, by tier (#1742,
- *  `docs/design/mocks/regex-section/DESIGN.md` §6). The room's Regex section is its only consumer.
+/** `listEffectiveRegex` — WHAT REGEX RUNS IN THIS ROOM, in run order, by tier (#1742).
+ *  The room's Regex section is its only consumer.
  *
  *  HOST-ONLY under D19, and the gate is the shape of the answer, not a policy bolted onto it: the union
  *  resolves under the host's frozen `runAsUserId`, so three of its four tiers ARE the host's library

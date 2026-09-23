@@ -50,7 +50,7 @@ import {
 
 const MESSAGE =
   "a mutating non-tRPC public route reads request-body data without a structural byte-cap proxy — an " +
-  "unauthenticated or authenticated caller can force unbounded buffering/work at the HTTP trust edge.";
+  "unauthenticated or authenticated caller can force unbounded buffering/work at the HTTP trust edge. Caps: packages/server/src/entry/app.ts";
 const FIX =
   "put `bodyLimit({ maxSize: ... })` or the house `bodyCap(...)` before the handler; streaming bundle " +
   "intake may use the exact incremental `stageCapped(..., *_MAX_*_BYTES)` arm. A deliberate exception " +

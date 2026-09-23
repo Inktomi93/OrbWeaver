@@ -137,7 +137,7 @@ export interface PluginCommandView {
   readonly args: readonly PluginCommandArgSpec[];
 }
 
-/** One registered DISPLAY transform as the caller's client sees it (`listDisplayTransforms` 
+/** One registered DISPLAY transform as the caller's client sees it (`listDisplayTransforms`
  *  seam 14, U6). Deliberately NOT the handler and NOT the apply: this projection exists so a viewer's client can
  *  answer ONE question — "does anything transform my rows?" — and skip every per-row round-trip when the answer
  *  is no (the byte-identity-when-off law, applied to a per-row cost). `name` is the plugin's own label for it,

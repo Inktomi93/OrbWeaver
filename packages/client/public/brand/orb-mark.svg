@@ -1,7 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
   <title>orbweaver — mark (open orb)</title>
-  <!-- The DISPLAY mark, direction A (D173; source frozen at
-       docs/history/design/mocks/login-loading/orb-mark-a.svg): eight spokes + one OPEN 2.6-turn spiral +
+  <!-- The DISPLAY mark, direction A (D173): eight spokes + one OPEN 2.6-turn spiral +
        the hub + a single dew drop. This served copy is ember-stroked (a static asset can't inherit
        currentColor); the in-app mark is the WeaveGlyph component (client/src/components/weave-glyph.tsx),
        which inherits the theme. Raster brand icons in ../icons/ are generated from this file. -->

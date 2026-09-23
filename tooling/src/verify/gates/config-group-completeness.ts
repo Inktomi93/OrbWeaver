@@ -1,4 +1,4 @@
-// Policy: config-group-completeness (client-architecture-lockdown.md §8 / §16 G4 
+// Policy: config-group-completeness (client-architecture-lockdown.md §8 / §16 G4
 // §3.1 + §6.8) — the config-group registry's structural walls tsc cannot see. tsc forces the door Record
 // total over CONFIG_GROUP_IDS and (§6.8) types every non-collection group as a SKIMMER, so the arms the type
 // system owns are not here. What is here:

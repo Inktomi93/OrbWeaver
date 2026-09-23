@@ -24,7 +24,7 @@
 // writes its def AND its `when` — it can never default to permanently visible the way Applies did.
 //
 // The canvas boards' foot cells ("About · Preview · Activity") were extraction SCAFFOLD, not contract —
-// orchestrator ruling 2026-08-30 (§7.1): the boards' own head gloss and DESIGN.md's pane contract name
+// orchestrator ruling 2026-08-30 (§7.1): the boards' own head gloss and the mock design's pane contract name
 // this list.
 
 import { BookOpen, Info, MapPin } from "@orb/ui/icons";

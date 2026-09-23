@@ -52,7 +52,7 @@ const ACTION = "action";
 const EMPTY_STATE_HOME = { pathInfix: "/packages/ui/src/primitives/empty-state/", exportedNames: new Set([TAG]) };
 
 const MESSAGE =
-  "an <EmptyState> with no `action` CTA (D62 rule 1) — every empty state must " +
+  "an <EmptyState> with no `action` CTA (D62 rule 1, packages/ui/src/primitives/empty-state/empty-state.tsx) — every empty state must " +
   "offer a next-step affordance so the user is not stranded at a dead end. A state that genuinely has no " +
   "next step (the affordance lives in a sibling pane, or the dialog's own Close is the only move) takes an " +
   "`@orb-waive empty-state-has-action(EmptyState): <reason and end condition>` at the occurrence.";

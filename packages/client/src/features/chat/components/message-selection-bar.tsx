@@ -6,7 +6,7 @@
 //
 // Delete wires the ALREADY-array-capable `chat.deleteMessages` verb (the same one message-actions-row
 // calls single-message) with the whole selected set — zero server/contract change. A hard cascade → an
-// AlertDialog confirm (never an undo-toast, DESIGN.md §9); on success it leaves select mode. Settle
+// AlertDialog confirm (never an undo-toast, the mock design §9); on success it leaves select mode. Settle
 // reconciles through the central invalidation seam + the bus's `messagesDeleted` re-fold (already wired).
 //
 // THE SECOND `chat.deleteMessages` DOOR, RATIFIED (#568 — budget `chats::chat.deleteMessages: 2`). The two

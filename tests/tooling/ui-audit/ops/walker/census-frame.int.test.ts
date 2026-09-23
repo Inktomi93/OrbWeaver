@@ -3,7 +3,7 @@
 // MIRRORS `ops/walker/census-frame.ts` (the measurement) and `lib/evidence-viewport-frame.ts` (the
 // refusal). Both of those carry the full incident; what this file pins is the behaviour a reader sees.
 //
-// WHAT WAS BROKEN. `snap --file docs/design/mocks/connections/model-roles.html --design-audit --mobile`
+// WHAT WAS BROKEN. `snap --file <connections mock> --design-audit --mobile`
 // emitted 24 P1 `text-overflow` rows and exited 1 — a confident verdict — while the identical document
 // at `--viewport 1400x1000` emitted zero and exited 0. The page had been crushed: its boards declare
 // `width: 870px` and rendered at 382px/469px because they are flex items. Nothing mismeasured; the rows

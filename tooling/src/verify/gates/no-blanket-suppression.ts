@@ -23,7 +23,8 @@
 //   `/* eslint-disable */` or `/* eslint-disable <rule> */` with no later `eslint-enable` — disables to EOF;
 //   a `@ts-nocheck` comment — tsc skips the file.
 // Sanctioned and silent: line directives, a closed range around a subset of statements,
-// `eslint-disable-next-line`/`-line`, and `@ts-expect-error`/`@ts-ignore`. The same tokens inside a string
+// `eslint-disable-next-line`/`-line`, and the line-scoped TypeScript directives (`@ts-expect-error` and its
+// ignore twin). The same tokens inside a string
 // literal or mid-sentence are mentions, not directives: a directive is matched at the comment opener only.
 //
 // FINAL RESOURCE PORT (#1930/#1584). The former conversion refusal was specific to staged bytes. The

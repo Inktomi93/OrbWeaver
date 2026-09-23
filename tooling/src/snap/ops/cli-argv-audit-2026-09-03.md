@@ -35,7 +35,7 @@ scenario.errors []
 scenario.perCheckpointLoad {"loaded":{"cpu":4,"network":"slow-4g"},"default":{"cpu":1,"network":null},"errors":[]}
 ```
 
-The governing contract explicitly says scenario checkpoints are session calls and assigns boot-only versus call fields (``). Verdict: **KEEP** the affected flags, but repair one authoritative partition and refuse every field in the wrong lifecycle. Do not invent scenario-only aliases.
+The governing contract explicitly says scenario checkpoints are session calls and assigns boot-only versus call fields. Verdict: **KEEP** the affected flags, but repair one authoritative partition and refuse every field in the wrong lifecycle. Do not invent scenario-only aliases.
 
 ### P1 — a later stateful-session call silently ignores `--no-failure-evidence`
 
@@ -51,7 +51,7 @@ session.noFailureEvidence.refused []
 session.noFailureEvidence.inherited true
 ```
 
-The design lists `--no-failure-evidence` among boot-only settings (`); the inheritance path is `tooling/src/snap/lib/session-plan.ts:184`. Verdict: **KEEP**, but reject it on later session calls just like the other boot-only flags.
+The design lists `--no-failure-evidence` among boot-only settings; the inheritance path is `tooling/src/snap/lib/session-plan.ts:184`. Verdict: **KEEP**, but reject it on later session calls just like the other boot-only flags.
 
 ### P2 — `--session-export <name> --out <base>` is documented but `--out` never reaches the exporter
 

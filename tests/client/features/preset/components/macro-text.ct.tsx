@@ -1,8 +1,8 @@
 // CT: the `{{macro}}` chip's WEIGHT — crunch-list item 14 ("THE BLUE PROBLEM"). The chip shipped as a
 // full-saturation `Badge intent="info"` (solid tone by default: `bg-info` + `text-info-foreground`), so a
 // preview of what the model receives read as a run of prose interrupted by saturated blue lozenges — the
-// loud half of the blue family the mocks never paint (mock `.tok`, docs/history/design/mocks/preset-redesign/
-// context-readouts.html:73 — info-colored TEXT on a ~10% info tint, no fill, no border).
+// loud half of the blue family the mocks never paint (mock `.tok`:
+// info-colored TEXT on a ~10% info tint, no fill, no border).
 //
 // The owner ruling that bounds this fix: `--color-info` STAYS BLUE. The defect is the pill's RENDERING,
 // not the palette — so these assert the two things that had to move (the fill receded to a tint; the text

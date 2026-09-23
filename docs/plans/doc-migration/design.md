@@ -8,7 +8,7 @@ updated: 2026-09-23
 
 ## Goal
 
-Move every document that survives out of `docs/architecture/`, `docs/design/`, `docs/history/` and `docs/reviews/` into `docs/law/`, `docs/adr/`, `docs/plans/` or the plan archive under `docs/plans/`, delete what does not survive, and remove the attestation catalog and the GitHub board tool, so that `pnpm check:agents` is the one docs checker and `tooling/src/doc/lib/rules.ts` its one rule home. The vendored-doc mirrors this plan formerly named already landed a straight deletion instead of a migration (`docs/work/0010-vendored-docs-leave-git.md`) — nothing there survived to move. The ruling is `docs/adr/0164-docs-plans-adrs.md`; the design of the tool is `docs/plans/doc-system/design.md`.
+Move every document that survives out of docs/architecture/, docs/design/, docs/history/ and `docs/reviews/` into `docs/law/`, `docs/adr/`, `docs/plans/` or the plan archive under `docs/plans/`, delete what does not survive, and remove the attestation catalog and the GitHub board tool, so that `pnpm check:agents` is the one docs checker and `tooling/src/doc/lib/rules.ts` its one rule home. The vendored-doc mirrors this plan formerly named already landed a straight deletion instead of a migration (`docs/work/0010-vendored-docs-leave-git.md`) — nothing there survived to move. The ruling is `docs/adr/0164-docs-plans-adrs.md`; the design of the tool is `docs/plans/doc-system/design.md`.
 
 ## Shape
 
@@ -43,11 +43,11 @@ The work items under `docs/work/` carrying `plan: doc-migration` hold each task'
 | `docs/law/*.md`, `AGENTS.md`, `.claude/rules/*.md`, `.claude/skills/**` (path citations) | law move |
 | `tooling/src/verify/lib/dangling-ref-corpus.ts`, `tooling/src/verify/lib/dangling-ref-citations.ts`, `tooling/src/verify/lib/selection.ts` | law move |
 | `.claude/rules/writing.md`, `.claude/rules/comments.md`, `.claude/rules/docs.md` (the two legacy style laws fold in and are deleted) | writing-law merge |
-| `docs/history/**`, `docs/architecture/history/**`, `docs/history/design/**` | history collapse |
-| `docs/reviews/**`, `docs/history/reviews/**`, `.gitignore` | reviews out |
+| docs/history/**, docs/architecture/history/**, docs/history/design/\*\* | history collapse |
+| `docs/reviews/**`, docs/history/reviews/\*\*, `.gitignore` | reviews out |
 | `tooling/src/verify/gates/caught-failure-ownership.population.json`, `tooling/src/verify/gates/caught-failure-ownership.ts`, `tooling/src/verify/ops/gen/caught-failure-population.ts` | population file |
 | the vendored-doc mirrors, `docs/catalog/lanes.json`, `docs/catalog/receipts/` | vendor out (landed, `docs/work/0010-vendored-docs-leave-git.md`) |
-| `docs/design/**`, `docs/architecture/proposed/**`, `docs/architecture/proposed/INDEX.md` | design triage |
+| docs/design/**, docs/architecture/proposed/**, docs/architecture/proposed/INDEX.md | design triage |
 | `docs/catalog/**`, `tooling/src/doc-catalog/**`, `tests/tooling/doc-catalog/**`, `tooling/src/verify/lib/registry.ts` (`docs:catalog`), `tooling/src/verify/lib/registry-triggers.ts`, `package.json` | catalog removal |
 | `tooling/src/workboard/**`, `tests/tooling/workboard/**`, `.claude/skills/orchestrator/**`, `.claude/rules/*.md` (`pnpm work:item` spellings), `package.json` | board tool removal |
 

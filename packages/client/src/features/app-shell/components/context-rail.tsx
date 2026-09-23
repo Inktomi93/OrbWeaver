@@ -28,7 +28,7 @@
 // THE VOICE PASS (H2 — F6 defects 1 + 3): the rail holding the selection is the OWNING rail — it wears the
 // raised surface fill (the same fill the head band wears) and prints "NAME · SELECTION" in its kicker; the
 // other RECEDES to muted glyphs over bare ground and prints its bare name. The KICKER SITS ON TOP OF ITS
-// CELLS in both rails (DESIGN.md — the kicker names the cells beneath it; nothing renders under the cells
+// CELLS in both rails (the mock design — the kicker names the cells beneath it; nothing renders under the cells
 // but the pane's edge), and its hairline rule is the seam between the word and the cells.
 
 import { Badge } from "@orb/ui/badge";

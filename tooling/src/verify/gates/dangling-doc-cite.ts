@@ -482,7 +482,7 @@ export const gate = defineGate({
       mode: "resource",
       files: {
         "knip.ts": "export const config = 1;\n",
-        "packages/kit/src/prose.ts": "// Sweep docs/architecture/**/*.md and docs/design/<name>.md before moving.\nexport const x = 1;\n",
+        "packages/kit/src/prose.ts": "// Sweep docs/law/**/*.md and docs/plans/<name>.md before moving.\nexport const x = 1;\n",
       },
       why: "a glob and a `<placeholder>` are prose patterns — and this row is honest about WHICH fence holds it: `*` and `<` are outside DOC_TOKEN_RE's character class, so it passes with `NON_LITERAL_RE` cut. mustPass[3] is the row that dies",
     },

@@ -1,7 +1,7 @@
 // CT: the tracker BLOCK KIT — the seven blocks, both arms. The kit's
 // contracts under test:
 //   • LABEL always present + value TEXT is the datum (§3.2/§4.9) — a bare number is the named failure;
-//   • EDITABLE IN PLACE by default, but DISPLAY-AT-REST (panel-redesign DESIGN.md §12.4.1): an
+//   • EDITABLE IN PLACE by default, but DISPLAY-AT-REST (the panel-redesign mock §12.4.1): an
 //     `onEdit*` renders the value as STATIC text on a real button; the inline field appears only on
 //     CLICK, commits on blur/Enter, cancels on Escape. The READ-ONLY arm (no callback → static text)
 //     stays the honest-arms fallback — display-only is the corruption-trainer failure, so both arms
