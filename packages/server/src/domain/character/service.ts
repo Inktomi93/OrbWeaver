@@ -4,7 +4,7 @@
 // db-bound `logAudit` + the cross-feature ops `emit`/`reapAssets`/`attachCardTag`) and passed in; character
 // injects NO guard (every surface is ownership-scoped, not admin/owner-gated).
 //
-// The default-card `seeder/` subsystem (PD-32) is NOT a verb here — it's reached by ENTRY over this service's
+// The default-card `seeder/` subsystem is NOT a verb here — it's reached by ENTRY over this service's
 //   `create`/`findByHandle` verbs (`createDefaultCharacterSeeder` lives in `seeder/`, re-exported from the
 //   front door). See seeder/ + contract/seeder.ts.
 

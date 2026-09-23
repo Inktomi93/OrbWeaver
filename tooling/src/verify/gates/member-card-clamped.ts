@@ -1,7 +1,7 @@
-// Gate: member-card-clamped (ledger D22; PD-111) — a roster member's card read has ONE clamp.
+// Gate: member-card-clamped (ledger D22) — a roster member's card read has ONE clamp.
 // `MemberCardView` lives in `@orb/contracts/chat`; the only producer is chat's
-// `clampMemberCard`/`resolveCardVisibility` (domain/chat/substrate/auth/clamp.ts). PD-111 found the
-// character domain had grown a second, divergent clamp (`getRosterCardView`) — deleted, chat's canonical.
+// `clampMemberCard`/`resolveCardVisibility` (domain/chat/substrate/auth/clamp.ts). The character domain had grown
+// a second, divergent clamp (`getRosterCardView`) — deleted; chat's clamp stays canonical.
 // Three freezes: no `MemberCardView` declaration outside packages/contracts/; no clamp declaration outside domain/chat/substrate/auth/; `getRosterCardView` banned in server src.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
@@ -43,7 +43,7 @@ const GROUP_MESSAGE =
   "projection has ONE home — contracts/chat), a clamp symbol (clampMemberCard/resolveCardVisibility) " +
   "declared outside domain/chat/substrate/auth/ (the ONE D22 decision site), or the deleted duplicate verb " +
   "getRosterCardView resurrected in server src — a re-spelled local shape or a second clamp is exactly how " +
-  "the clamp levels diverged before (D22/PD-111 — D22).";
+  "the clamp levels diverged before (D22).";
 
 /** The declared name of a clamp-symbol function/variable declaration node, else undefined. */
 function clampDeclName(node: Node): string | undefined {
@@ -134,7 +134,7 @@ export const gate = defineGate({
       mode: "source",
       files: { "packages/server/src/domain/character/x.ts": "export interface MemberCardView { name: string }\n" },
       expect: { count: 1, token: VIEW_TYPE },
-      why: "a re-spelled MemberCardView outside contracts — exactly how the clamp levels diverged (PD-111)",
+      why: "a re-spelled MemberCardView outside contracts — exactly how the clamp levels diverged before",
     },
     {
       mode: "source",

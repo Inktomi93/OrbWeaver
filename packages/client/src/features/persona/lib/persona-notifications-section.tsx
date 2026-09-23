@@ -1,4 +1,4 @@
-// The persona NOTIFICATIONS config-section CONTRIBUTION (config-revamp-design.md §6.8.2) — the co-located
+// The persona NOTIFICATIONS config-section CONTRIBUTION — the co-located
 // def features/persona exports on its front door; the door assembles it into the ONE config-section
 // registry at the `personas` anchor. Claims the `persona` namespace's ONE key (SET-SEAMS §2.3), so the
 // partition covers it and the S2 `@modified` derivation can read it.

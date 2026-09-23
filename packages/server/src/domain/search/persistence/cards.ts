@@ -1,4 +1,4 @@
-// domain/search/persistence/cards — the lexical-engine card-field read (PD-37). Loads the owner's
+// domain/search/persistence/cards — the lexical-engine card-field read. Loads the owner's
 // character CARD text fields (the BM25 index corpus for `fields`/`suggest`). Queries ONLY; no business
 // logic — `substrate/field-index.ts` builds + caches the MiniSearch index over these rows.
 //

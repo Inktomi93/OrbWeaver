@@ -18,7 +18,7 @@ describe("clearRevoked", () => {
     expect(rows[0]?.revokedAt).toBeNull();
   });
 
-  test("clearing a revocation audits credential.clearRevoked attributed to the owner (PD-142)", async () => {
+  test("clearing a revocation audits credential.clearRevoked attributed to the owner", async () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const { svc, owner, cred } = await seedCredential(db, h);

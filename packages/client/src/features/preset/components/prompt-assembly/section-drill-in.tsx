@@ -1,4 +1,4 @@
-// SectionDrillIn — ONE OBJECT, ONE PLACE (preset-surface-redesign.md §5.2, F5 dead). A section used to
+// SectionDrillIn — ONE OBJECT, ONE PLACE. A section used to
 // edit in three geographies: its body in the CENTER drill-in, its placement/triggers/locks in the CONTEXT
 // inspector, its enable/reorder on the rack row. The inspector and its form bridge are DELETED; this
 // drill-in owns the WHOLE section, in the ruled order:

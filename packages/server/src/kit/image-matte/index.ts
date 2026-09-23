@@ -1,4 +1,4 @@
-// @orb/server/kit/image-matte — the pure corner-flood matte core (expressions-design/03 §4.2). Node-only-pure
+// @orb/server/kit/image-matte — the pure corner-flood matte core (docs/plans/expressions/design.md). Node-only-pure
 // (no I/O, no sharp, no domain): raw RGBA bytes in → raw RGBA bytes out with contiguous background pixels
 // driven to alpha-0. The sharp decode/encode that feeds it lives in `infra/image` (`matteFlood`); this is the
 // deterministic, weightless flood-fill so the zero-setup matte arm works on a deploy with no local-light.

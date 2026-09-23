@@ -4840,7 +4840,7 @@ test("#242 the squeeze is BOTH-DOCKED only: with the context pane collapsed the 
 /** THE PANE'S GLASS SUBJECT MOVED ONE LEVEL DOWN (#1154) — every assertion in this file is byte-identical,
  *  only the BOX it is asked of changed. `backdrop-filter` on `.shell-panel` made the whole pane one
  *  composited layer, which turns OFF per-paint baseline snapping for its entire subtree
- *  (integer-line-boxes.md Law 3/4: driven Characters measured nine off-grid text nodes, every one
+ *  (docs/law/integer-line-boxes.md Law 3/4: driven Characters measured nine off-grid text nodes, every one
  *  attributed to that aside), so both glass declarations moved onto a `::before` fill layer and the pane's
  *  own fill went transparent. A pseudo cannot be a `Locator`, so the three computed-style readers below
  *  take an optional pseudo instead — and ONLY the glass-emitting cases pass one: below the shell breakpoint
@@ -4964,7 +4964,7 @@ test("#1120 …and an OPEN pane still does — the collapsed arm's control", asy
 });
 
 // ── #1154 · THE PANE IS NOT THE PROMOTED LAYER — ITS GLASS IS, ONE BOX DOWN ────────────────────────
-// The founding defect of docs/design/integer-line-boxes.md and the reason Law 4 exists: `backdrop-filter`
+// The founding defect of docs/law/integer-line-boxes.md and the reason Law 4 exists: `backdrop-filter`
 // on `.shell-panel` rasterizes the pane ONCE at its own sub-pixel position, so per-paint baseline snapping
 // is off for every glyph inside it. Driven Characters measured `off-grid-text candidates=54 judged=33
 // affected=9` with all nine attributed to `aside.shell-panel`, and half of them are unfixable by layout —
@@ -5684,7 +5684,7 @@ test("bg-image + a non-Chats section + blur-panels: the reading backing upgrades
 
 // ── #1173 · THE READING SURFACE IS NOT THE PROMOTED LAYER EITHER ──────────────────────────────────
 // The #1154 mechanism pin, one surface over. `.shell-main` promotes (`backdrop-filter`) and it CONTAINS
-// the reading column's text, which is Law 3/4 exactly (integer-line-boxes.md §10/§11): the layer is
+// the reading column's text, which is Law 3/4 exactly (docs/law/integer-line-boxes.md §10/§11): the layer is
 // rasterized once at its own sub-pixel offset, so per-paint baseline snapping is off for every glyph in
 // the content column. It escaped #1154's own measurement only because the audited arm (Characters) carried
 // no wallpaper and this rule is gated on `[data-has-bg-image]` — the fixture below supplies exactly that.
@@ -6205,7 +6205,7 @@ for (const side of ["list", "context"] as const) {
  *  was `"none"`, which was exact while the ember was the ONLY shadow the band could carry. It no longer is:
  *  the band's bottom separator moved from `border-block-end` to a second inset stop on the same property,
  *  because `height: 3rem` PLUS a border is a 48px border box with a 47px CONTENT box and `align-items:
- *  center` then half-pixels every occupant (integer-line-boxes.md Law 4; pinned in
+ *  center` then half-pixels every occupant (docs/law/integer-line-boxes.md Law 4; pinned in
  *  tests/client/components/list-pane-header.ct.tsx). THE RULING SURVIVES — ITS INPUT CHANGED: "a floating
  *  context band drops the ember" is unchanged and still asserted; what moved is what `"none"` meant.
  *  So the stops are read by GEOMETRY, which is what distinguishes them on the pixels too — the ember is an

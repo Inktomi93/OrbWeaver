@@ -29,7 +29,7 @@ export function createRemove(ctx: CharacterContext): CharacterService["remove"] 
     const at = ctx.now();
 
     // READ the sprite assetIds before the row delete — the FK cascade wipes the bindings without returning
-    // their ids (expressions-design/01 §8). Optional op: a deploy without the expressions leaf falls back to
+    // their ids (docs/plans/expressions/design.md). Optional op: a deploy without the expressions leaf falls back to
     // the cascade + a later GC sweep. Nothing is detached here; the cascade below does that.
     const spriteAssetIds = ctx.listCharacterSpriteAssets !== undefined ? await ctx.listCharacterSpriteAssets(characterId) : [];
 

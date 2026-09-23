@@ -8,9 +8,8 @@ updated: 2026-09-23
 
 > **Why this doc exists.** Macro resolution (`{{char}}`/`{{user}}`/`{{persona}}` in message content)
 > happens in TWO places that MUST agree — server ASSEMBLE (what the model sees) and client DISPLAY
-> (what the viewer sees). With no single spec, each re-decided the persona rule and drifted. This is
-> the single source of truth: the rule, the producer, the one shared atom. A consumer that resolves a
-> chat macro any other way is the review flag. (neo's analog: `chat-resolution-pipeline.md`.)
+> (what the viewer sees). This doc is the single source of truth: the rule, the producer, the one
+> shared atom. A consumer that resolves a chat macro any other way is the review flag.
 
 ## 0. The one rule (memorize this)
 
@@ -42,13 +41,14 @@ updated: 2026-09-23
 
 ## 1. The producer (the membership-gated kind-polymorphic identity directory, D137)
 
-> **Vocabulary (owner rulings, #901, 2026-08-30 — read this before you copy a word out of this doc).**
+> **Vocabulary — read this before you copy a word out of this doc.**
 > The room's seated characters are **Characters**; the saved seats+knobs+rules template is a **Roster**.
-> The word "cast" is retired for BOTH concepts. It survives here only as the *code* spelling of the D137
-> producer (`ChatIdentity`, `loadChatIdentityProducer`, `ctx.cast`, `castKey`, `CHAT_IDENTITY_KIND_POLICY`) — issue #903
-> (vocab C2) renames that seam to **`ChatIdentity`** with the drive axis **`characters`**, and it has NOT
-> landed. So: code identifiers below are quoted as they are on the tree TODAY; the prose around them uses
-> the ruled words. Do not "restore" cast prose, and do not write the #903 names as if they exist.
+> Never write "cast" in prose for either concept. `ChatIdentity`
+> (`packages/contracts/src/chat/producers.ts`) already carries this rename in code. Other identifiers on
+> the tree still spell the old term — `loadChatIdentityProducer`, `ctx.cast`, `castKey`,
+> `CHAT_IDENTITY_KIND_POLICY` — and a pending rename moves the drive axis to `characters`. Quote code
+> identifiers exactly as they exist on the tree. Use the ruled words — Characters, Roster — in prose,
+> never "cast" and never the pending `characters` name as if it exists today.
 
 A chat read yields the identity-directory producer (`ChatIdentity[]`,
 `@orb/contracts/chat/producers.ts`) — ONE
@@ -127,9 +127,10 @@ are NOT history — they keep the two-persona doctrine (`context.ts`: `pinnedPer
 - **pinnedPersona** — the chat-open anchor (host-designated in multi-human), FROZEN. CARD-section `{{user}}`
   AND the null-stamp fallback for history rows (a greeting / AI line / legacy row — ruling A: the anchor is a
   chat invariant, so the model and every human agree; never the per-viewer active persona).
-- **activePersona** — the anchor human's current seat persona on a canon turn; the presser's on an impersonate
-  draft (D122; `voicePersonaFor` in `entry/compose/chat.ts`). Prompt-config-section `{{user}}` only. Every
-  other present human's persona rides the people block (`ctx.people`) under its own heading.
+- **activePersona** — the anchor human's current seat persona on every turn but impersonate; the presser's
+  on an impersonate draft (D122; `voicePersonaFor` in `entry/compose/chat.ts` — never `personaIds[0]`).
+  Prompt-config-section `{{user}}` only. Every other present human's persona rides the people block
+  (`ctx.people`) under its own heading.
 - **row `personaId`** — the per-message author stamp. HISTORY/message `{{user}}` when set. Changed ONLY by
   reattribution — a live persona switch never silently relabels old lines.
 
@@ -138,14 +139,30 @@ narrator row's `{{char}}` (`characterId === null`) is the room's CHARACTERS — 
 multi-character room (== `{{group}}`), the one character in solo. Gated on the SIZE of that set
 (`length > 1`), never an `isGroup` flag (D16).
 
+## 4a. Who drives a turn
+
+- `TurnTrigger` (`packages/server/src/domain/chat/contract/foreign.ts`) names the human who drives the turn. It is a discriminated union, never a nullable id.
+- `{ kind: "human" }` carries the user and the persona on their seat, which may be null. `activePersona` is that persona, or the kit floor when the seat holds none. This case never falls back to the chat anchor.
+- `{ kind: "none" }` means no human drives the turn: a deferred drain, an automation turn, a preview or a host read. `activePersona` is the chat anchor.
+- Every caller states its case. Do not add an absent case. A fallback such as the first present human changes when someone joins, and a host read could show one member's persona to another.
+- `activePersonaIdFor` (`packages/server/src/entry/compose/chat.ts`) is the one dispatch.
+
+## 4b. The author name on a user history row
+
+- The model sees an author name on each user row. It comes from the row's own `personaId` stamp through the chat identity producer, never from the current active persona.
+- A row with no usable stamp takes this turn's `{{user}}` name only when its `authorUserId` equals the trigger's user. Every other unstamped row gets `DEFAULT_PERSONA_NAME`. An unknown author or a `none` trigger also gets it.
+- Reason: the turn's `{{user}}` belongs to one human, so borrowing it for another member's row tells the model that human wrote the line.
+- The client applies the same rule on screen. `resolveUserAttribution` (`packages/client/src/features/chat/lib/attribution.ts`) borrows the viewer's persona only for the viewer's own row. Name nobody rather than name the wrong person.
+- Home: `userRowAuthorName` (`packages/server/src/domain/chat/assembly/shape.ts`).
+
 ## 5. Reattribution (the only writer of a stamp)
 
 - `reattributeMessages` (host) — re-stamps a slot's `characterId` (the `{{char}}`/speaker axis). BUILT.
 - **persona reattribution** (author-or-host; re-stamp user messages' `personaId`, per-row) — BUILT
   (`createReattributePersona`, `domain/chat/verbs/edit.ts`; `chat.reattributePersona` route; client
   `useReattributePersona` + `persona-this-chat-section.tsx`). Takes an explicit `messageIds` selection,
-  belted per row (author-or-host + persona-ownership per author) — no server bulk restamp (the former
-  `REATTRIBUTE_WINDOW` const is gone from the tree; truth-audit correction 2026-08-03). The deliberate lever to fix history attribution after a switch. Re-stamp → the
+  gated per row (author-or-host + persona-ownership per author). No server bulk restamp exists. The
+  deliberate lever to fix history attribution after a switch. Re-stamp → the
   producer re-resolves the name → BOTH consumers update; the content is never touched.
 
 ## 6. Parity is enforced, not hoped

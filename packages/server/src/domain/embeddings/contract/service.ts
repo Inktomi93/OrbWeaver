@@ -140,7 +140,7 @@ export interface EmbeddingsService {
   /** Bulk image catch-up sweep: enumerate every image asset → re-read bytes → `store` both lenses. Caption
    *  generation only runs when a lens row is stale/missing (or `force`). Same resume/abort contract. */
   readonly embedAssets: (params: EmbedPassParams) => Promise<BulkEmbedResult>;
-  /** PD-139(b): reclaim the OLD chat-memory embed space — deletes `chat_segments`/`chat_digests` rows whose
+  /** Reclaim the OLD chat-memory embed space — deletes `chat_segments`/`chat_digests` rows whose
    *  `model` differs from the active `roleClients.embedModel`. BULK-ONLY + skip-on-abort is the caller's
    *  guard (the memory-backfill runner), mirroring the embedCorpus/embedAssets purge. */
   readonly purgeMemoryVectors: (params: { readonly ownerId: UserId; readonly generation: GenerationReceipt }) => Promise<PurgeMemoryVectorsResult>;
@@ -149,7 +149,7 @@ export interface EmbeddingsService {
    *  reclaims a retired embed SPACE — this one reclaims blocks that canon itself dropped. memory calls it at
    *  the end of every build pass; an ordinary pass deletes nothing. */
   readonly pruneMemoryBlocks: (params: PruneMemoryBlocksParams) => Promise<PruneMemoryBlocksResult>;
-  /** databank-design/05 §2.4 — the reindex-shrink seam. After the ingest upserts a document's current chunks,
+  /** the reindex-shrink seam. After the ingest upserts a document's current chunks,
    *  this deletes the strays (shrunk tail `chunkIdx >= keepCount` + retired-space `model != model`), scoped to
    *  the one document. databank never touches `document_chunks` directly (single-write-path invariant). */
   readonly pruneDocumentChunks: (params: PruneDocumentChunksParams) => Promise<PruneDocumentChunksResult>;
@@ -160,7 +160,7 @@ export interface EmbeddingsService {
    *  bank-health census's passage sums. Owner-scoped, where {@link countDocumentChunks} is id-scoped (a page
    *  whose rows are already chosen). Same reason both exist at all: databank never imports the vector table. */
   readonly countDocumentChunksByOwner: (params: OwnerChunkCountsParams) => Promise<ReadonlyMap<DocumentId, number>>;
-  /** PD-139(c): reclaim the OLD document embed space — deletes `document_chunks` rows whose `model` differs
+  /** Reclaim the OLD document embed space — deletes `document_chunks` rows whose `model` differs
    *  from the active `roleClients.embedModel`. BULK-ONLY + skip-on-abort is the caller's guard (the
    *  databank-reindex runner), mirroring `purgeMemoryVectors`. */
   readonly purgeDocumentVectors: (params: { readonly ownerId: UserId; readonly generation: GenerationReceipt }) => Promise<PurgeDocumentVectorsResult>;

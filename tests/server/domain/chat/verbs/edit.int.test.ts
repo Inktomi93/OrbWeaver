@@ -1,7 +1,7 @@
 // The canon-EDIT verbs (the chat design doc Part III per-verb specs + §11 the auth matrix; D26). Proves against a real
 // libSQL db: an edit mutates the VARIANT (content/reasoning) or the SLOT (selection/hidden/seq/attribution)
 // and NEVER doubles content (the slot stays one row, variantCount unchanged); the author-or-host gate; the FK
-// cascade on delete; the emitted bus event; and the PD-110 runOnEdit regex re-apply on `editMessage`. The
+// cascade on delete; the emitted bus event; and the runOnEdit regex re-apply on `editMessage`. The
 // verbs are reached through the BUNDLE `createEdit(ctx, {emit, resolveForeignInputs})`.
 
 import type { CharacterCard } from "@orb/contracts/character";
@@ -151,7 +151,7 @@ describe("editMessage — mutate the selected variant (D26, no doubling)", () =>
   });
 });
 
-describe("editMessage — runOnEdit regex re-apply (PD-110; D53 host-tier)", () => {
+describe("editMessage — runOnEdit regex re-apply (D53 host-tier)", () => {
   /** A minimal live card (the assemble RESOLVE + the purify name read; regexScripts ride the character tier). */
   const card = (name: string, regexScripts: RegexScriptRow[] = []): CharacterCard =>
     // @orb-waive no-test-fabrication(unknown): minimal CharacterCard double (turn.int precedent, scenario.ts) — reads only name/description/regexScripts. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
@@ -401,7 +401,7 @@ describe("setMessageHidden / editReasoning / clearReasoning", () => {
     expect(view.excludedFromPrompt).toBe(true);
     const [row] = await db.select().from(messages).where(eq(messages.id, messageId));
     expect(row?.excludedFromPrompt).toBe(true);
-    // The dedicated carrier (PD-86) — not the messageEdited fallback.
+    // The dedicated carrier — not the messageEdited fallback.
     expect(emitted.at(-1)).toEqual({ type: "messageHidden", chatId, messageId, view });
   });
 

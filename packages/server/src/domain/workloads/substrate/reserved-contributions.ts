@@ -12,7 +12,7 @@ import { emptyWorkloadParams } from "@orb/contracts/workloads";
 import type { WorkloadContribution } from "../contract/contribution.ts";
 
 /**
- * `reconcile-world-state` — FLAG[PD-18], v2 (Knowledge-Cluster.md §9). The world-state reconciler's owner is
+ * `reconcile-world-state` — v2 (Knowledge-Cluster.md §9, docs/work/0052, docs/plans/world-state-clips). The world-state reconciler's owner is
  * minted with the v2 memory scope; until then it is an inert no-op returning `{ deferred: true }`, which is
  * how a caller (and the row's result JSON) tells "reserved, not built" apart from "ran, changed nothing".
  */

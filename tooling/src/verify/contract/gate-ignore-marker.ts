@@ -2,7 +2,7 @@
 // retired the legacy single-pass runtime that honoured the grammar (2026-09-14).
 //
 // The SUPPRESSOR is gone: no runtime reads a marker any more, because a final policy has no inline door
-// (authority + the central `@orb-waive` engine own every escape, gate-runtime-standardization.md §12.5).
+// (authority + the central `@orb-waive` engine own every escape, docs/law/gate-runtime-standardization.md §12.5).
 // What remains is the AUDIT: `lib/gate-ignore.ts` still recognises the grammar, `lib/gate-ignore-fact.ts`
 // publishes the sites as a fact, and the `gate-ignore-inventory` policy reds every residual marker so the
 // retired vocabulary cannot sit in the tree LOOKING like protection. This shape is that fact's payload.

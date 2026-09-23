@@ -1,7 +1,7 @@
 // The /proc OBSERVATION half of engine launch ownership — what the kernel says about a live pid, and
 // nothing else. Split out of `process-identity.ts` at the 450-line cap (policy `tooling-size`) when the
 // fleet moved into `tooling/` and joined the population that judges tool-file size; the cut is BY NATURE,
-// the move playbook's rule (Core-Tooling-Law.md §9.1): everything here is a pure read of `/proc` plus the
+// the move playbook's rule (core-tooling-move-playbook.md §9.1): everything here is a pure read of `/proc` plus the
 // marker vocabulary those reads recognise, while the DURABLE RECORD (its zod schemas, the pidfile) and
 // every SIGNAL door stay in `process-identity.ts`.
 //

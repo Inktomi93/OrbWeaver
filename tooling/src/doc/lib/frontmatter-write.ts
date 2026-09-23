@@ -1,8 +1,8 @@
-// The frontmatter WRITER — the read half is the catalog's flat parser (`#doc-catalog` `parseFrontmatter`).
+// The frontmatter WRITER — the read half is `./frontmatter.ts#parseFrontmatter`.
 // Every structural edit the tool makes to a document is a whole-block rewrite here: split the file into
 // its block and its body, patch the fields, render the block in one canonical key order. Prose is never
 // touched, which is the whole contract ("agents write prose; the tool writes structure").
-import { parseFrontmatter } from "#doc-catalog";
+import { parseFrontmatter } from "./frontmatter.ts";
 
 const FENCE = "---";
 /** Canonical key order. Keys the order does not name follow, sorted. */
@@ -76,6 +76,20 @@ export function withTitle(source: string, title: string): string {
 /** The first `# ` heading of a body, or null. */
 export function titleOf(body: string): string | null {
   return HEADING_RE.exec(body)?.[1] ?? null;
+}
+
+/** The text under one `## ` heading of a body, trimmed; empty when the section is absent. */
+export function sectionText(body: string, name: string): string {
+  const lines = body.split("\n");
+  const start = lines.findIndex((line) => line.trimEnd() === `## ${name}`);
+  if (start === -1) {
+    return "";
+  }
+  const end = lines.findIndex((line, index) => index > start && line.startsWith("## "));
+  return lines
+    .slice(start + 1, end === -1 ? undefined : end)
+    .join("\n")
+    .trim();
 }
 
 /** The `## ` headings of a body, in order. */

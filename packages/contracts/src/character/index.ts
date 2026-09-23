@@ -174,10 +174,10 @@ export const refinerySignalsSchema = z.object({
 });
 export type RefinerySignals = z.infer<typeof refinerySignalsSchema>;
 
-// PD-144: one attached world-info book REFERENCE carried on a portable card — `{worldBookId, role}` mirrors
+// one attached world-info book REFERENCE carried on a portable card — `{worldBookId, role}` mirrors
 // the `character_books` junction columns (`createdAt` is NOT carried — a re-link is a fresh attach). Books
 // are NEVER cloned/embedded through this channel: export bundles the references, import re-links each id it
-// can access on the importing install and skips the rest (the portability twin of the PD-141 duplicate carry).
+// can access on the importing install and skips the rest (the portability twin of the duplicate carry).
 export const attachedBookRefSchema = z.object({
   worldBookId: typeIdSchema(ID_PREFIX.worldBook),
   role: worldBookRoleSchema,
@@ -557,7 +557,7 @@ const characterCardV3DataSchema = z
     /** Unix-seconds authorship timestamps. */
     creation_date: z.number().optional().catch(undefined),
     modification_date: z.number().optional().catch(undefined),
-    // PD-144: orbweaver-namespaced attached-book REFERENCES (never the book content). Optional so every
+    // orbweaver-namespaced attached-book REFERENCES (never the book content). Optional so every
     // existing/foreign card stays valid; validated on the OUT boundary so a malformed ref fails loud.
     orbweaver_attached_books: z.array(attachedBookRefSchema).optional(),
   })

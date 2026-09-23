@@ -1,7 +1,7 @@
 // Conversion from e9d9fd232: shared dispatch collects imports, callbacks and returns; no private AST walk.
 // All six legacy proofs retained. The legacy lexical import/tag vocabulary and same-file alias fence
 // remain explicit limits. Composed differential, authority and population checks are deferred.
-// Gate: list-row-adoption (client-architecture-lockdown.md §14/§16 G6) — a LIST-region surface file (one
+// Gate: list-row-adoption (client-architecture-state-and-gates.md §14/§16 G6) — a LIST-region surface file (one
 // importing LibrarySurfaceShell/LibraryListLayout/createCollectionSurface) whose `.map()` callback OR
 // renderItem/renderRow prop returns interactive JSX (onClick/role/href) must root that JSX in
 // ListRow/LibraryRow/an allowlisted composite (a virtualized list's renderItem/renderRow is the same row
@@ -128,7 +128,7 @@ function jsxElementName(node: Node): string {
 }
 
 const MESSAGE =
-  "a LIST-region row render returns interactive JSX outside ListRow/LibraryRow; root the row in the shared row primitive. (client-architecture-lockdown.md §14)";
+  "a LIST-region row render returns interactive JSX outside ListRow/LibraryRow; root the row in the shared row primitive. (client-architecture-state-and-gates.md §14)";
 
 export const gate = defineGate({
   id: "list-row-adoption",

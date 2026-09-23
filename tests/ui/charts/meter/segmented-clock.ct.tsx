@@ -1,4 +1,4 @@
-// <SegmentedClock> CT — the rpg-design/11 §13 required states: 0 / partial / full / completed,
+// <SegmentedClock> CT — the docs/plans/rpg/design.md required states: 0 / partial / full / completed,
 // plus the ARIA meter values. The clock knows nothing of fronts — fixtures are plain counts.
 import { SegmentedClock } from "@orb/ui/meter";
 import { expect, test } from "@playwright/experimental-ct-react";

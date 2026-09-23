@@ -1,4 +1,4 @@
-// Policy: render-error-via-battery (derive-modernization-audit.md §W4, G29 — the read-error battery sealed).
+// Policy: render-error-via-battery (the read-error battery sealed).
 // `QueryBoundary`'s `renderError` renders the failed-read surface, and `QueryErrorState` IS that surface
 // ("Couldn't load X." plus a real refetch Retry) — QueryBoundary already DEFAULTS to it. A hand-rolled
 // `renderError={() => <Text>…</Text>}` re-grows the 28-arm drift the battery was built to end (D72).
@@ -34,10 +34,10 @@ const BOUNDARY_HOME: ProjectHomeDeclaration = { path: "packages/client/src/compo
 const BATTERY_HOME: ProjectHomeDeclaration = { path: "packages/client/src/data/query-error-state.tsx", names: ["QueryErrorState"] };
 
 const MESSAGE =
-  "a hand-rolled `renderError` arm on QueryBoundary — the read-error surface is `QueryErrorState` " +
+  "a hand-rolled `renderError` prop on QueryBoundary — the read-error surface is `QueryErrorState` " +
   "(`Couldn't load <label>.` plus a real refetch Retry), and QueryBoundary DEFAULTS to it. Render " +
   "`renderError={(_error, retry) => <QueryErrorState label=… onRetry={retry} />}` or drop the prop " +
-  "(derive-modernization-audit.md §W4 G29; D72 — a machine ships WITH its seal).";
+  "(D72 — a machine ships WITH its seal). Home: packages/client/src/data/query-error-state.tsx";
 const UNREADABLE =
   "this `renderError` arm sits on something spelled like QueryBoundary whose binding the shared readers cannot place, so whether the battery contract applies CANNOT be established. Reported rather than passed: the spelling alone is not the identity. Give the binding a readable import origin; the three-answer rule is tooling/src/verify/lib/origin-verdict.ts (#944).";
 const FIX =

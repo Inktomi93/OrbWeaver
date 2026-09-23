@@ -150,7 +150,7 @@ describe("resolveHostTierRegexScripts", () => {
   });
 });
 
-// ── #1742 — the room's own levers (`docs/design/mocks/regex-section/DESIGN.md` §3/§7) ────────────────
+// ── #1742 — the room's own levers ────────────────
 describe("resolveRegexTiers — the room's per-chat allows", () => {
   test("a tier switch removes exactly that tier's rows from the effective set, and nothing else's", () => {
     const sources: HostTierRegexSources = {

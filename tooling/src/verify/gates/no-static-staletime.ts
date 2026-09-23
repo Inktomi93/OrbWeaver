@@ -44,7 +44,7 @@ const BANNED = "static";
 const QUERY_CORE = "@tanstack/query-core";
 
 const MESSAGE =
-  "staleTime:'static' silently ignores invalidateQueries — it would disable the SSE bus→cache seam with a green check. Use Infinity (invalidation still overrides it). See UI-Lib-TanStack-Query.md §F (item 2) / UI-Architecture-and-Layout.md §6.1.";
+  "staleTime:'static' silently ignores invalidateQueries — it would disable the SSE bus→cache seam with a green check. Use Infinity (invalidation still overrides it). See ui-architecture-state-and-stack.md §6.1.";
 const UNREADABLE =
   'this `staleTime: "static"` sits in an object whose contextual type the checker cannot place, so whether it is a TanStack query-options bag — and therefore whether it disables the bus→cache seam — CANNOT be established. Reported rather than passed: the spelling alone is not the identity. (tooling/src/verify/gates/GATE-AUTHORING.md)';
 

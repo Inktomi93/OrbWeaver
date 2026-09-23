@@ -31,7 +31,7 @@ export interface AuthConfig {
   /** ST `enableDiscreetLogin` parity — TRUE ⇒ blank form (`defaultHandle` is withheld as null). */
   readonly discreetLogin: boolean;
   readonly defaultHandle: string | null;
-  /** PD-106 (B4): can this deployment seat ≥2 humans? The HONEST capability signal the multi-human
+  /** Can this deployment seat ≥2 humans? The HONEST capability signal the multi-human
    *  client surfaces (invite affordances · notifications bell · /join landing) gate on — never a
    *  probe-and-catch of a `multiHumanProcedure` NOT_FOUND. Derived server-side per request from the
    *  same `MULTI_HUMAN_CAPABLE` map the transport belt runs. */

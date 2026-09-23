@@ -346,7 +346,7 @@ interface BuildAssembleContextInput {
   /** The `{{databank}}` slot value (DB6) — reading-order-restored, budget-fitted document chunks. Absent ⇒
    *  the slot resolves empty (byte-identical to a non-databank turn). */
   readonly databank?: string | null | undefined;
-  /** The 8 rpg* data-fed macro values (rpg-design/06 §1), keyed by the RpgGatherMacros field names — a game
+  /** The 8 rpg* data-fed macro values (docs/plans/rpg/design.md), keyed by the RpgGatherMacros field names — a game
    *  turn's GATHER stages this. Absent ⇒ every rpg macro resolves empty (byte-identical non-game turn). */
   readonly rpgMacros?: Readonly<Record<string, string>> | undefined;
   // A game turn's `{{expr::…}}` CEL activation (§12) — the data-only `rpg` binding (the tracker view as a CelValue
@@ -545,7 +545,7 @@ function composeSteerInput(toggles: readonly string[] | undefined, freeText: str
  *  of vanishing, the resolved text falls back to a depth-0 system-role injection — the SAME ChatInjection
  *  channel every other steer rides (the audit's convergence design) — and flips `guidedPlacedAsInjection`
  *  so the engine emits a LOUD `guided_placed_as_injection` warning (D41; the config-editor marker chip
- *  keeps warning at author time). PD-63's one-placement rule holds: still exactly one delivery. */
+ *  keeps warning at author time). The one-placement rule holds: still exactly one delivery. */
 function resolveGuidedSteer(base: AssembleContext, input: BuildAssembleContextInput, steerInput: string): { candidates: InjectionCandidate[] } {
   const steer = input.guided;
   if (steer === undefined) {
@@ -794,7 +794,7 @@ async function runSendAuthorTransforms(
   const { draft, input, base, hostScripts, out } = args;
   const freezes: MacroFreeze[] = [];
   let text = freezeVolatileMacros(draft, base, { random: input.prng, registry: input.freezeMacroRegistry, freezes });
-  // The D50 `user_input` PromptTransform point (automation-design/04 §1.2 / §6): AFTER the macro pass,
+  // The D50 `user_input` PromptTransform point: AFTER the macro pass,
   // BEFORE the USER_INPUT regex. Rewrites the draft the WI haystack + the persisted row both see (author-
   // side transform order — D51). Null op / zero registrants ⇒ byte-identical.
   if (ctx.promptTransforms !== null) {

@@ -1,5 +1,5 @@
-// The stack's BOOT CEILINGS, load-scaled — the node half of a bash-fronted value (#1232,
-// docs/design/1208-instrument-substrate.md §7.1). `stack.sh` cannot import the shared budget policy (bash
+// The stack's BOOT CEILINGS, load-scaled — the node half of a bash-fronted value (#1232).
+// `stack.sh` cannot import the shared budget policy (bash
 // has no module system, and the last time a shell re-spelled a node fact — the vLLM port list — it polled
 // ports the fleet never bound and reported the fleet gone while it still held VRAM). So the shell READS
 // these two numbers from the same `budget()` every instrument uses, exactly as it already reads `classify`

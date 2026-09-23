@@ -37,7 +37,7 @@ export interface CorpusParams {
   readonly minScore: number;
 }
 
-/** The databank RAG lens (DB5, databank-design/05 §3). `scope` is the injected-resolver argument shape: a
+/** The databank RAG lens. `scope` is the injected-resolver argument shape: a
  *  chat turn resolves host-global ∪ chat-attached documents (host-only v1); an ad-hoc personal search is
  *  over the owner's whole bank. `k`/`minScore`/`rerank` default to ST's shipped values when the caller
  *  omits them (the verb stays total; the real caller — chat's gather, the panel — passes settings values). */
@@ -94,7 +94,7 @@ export interface SuggestParams {
   readonly limit: number;
 }
 
-// ── the unified search() dispatch (PD-38) ─────────────────────────────────────
+// ── the unified search() dispatch ─────────────────────────────────────
 
 /** WHERE a unified search runs. `owner` = the whole corpus (all the user's cards/chats); `chat` = one
  *  authorized chat (the egocentric `scopedCharacterId` is the verbatim-lens POV, required by the

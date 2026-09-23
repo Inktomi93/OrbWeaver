@@ -1,4 +1,4 @@
-// op: getMembership (rpg-design/02 §1.1 #3) — the rpg-facing narrow membership read, against a real libSQL db.
+// op: getMembership (docs/plans/rpg/design.md) — the rpg-facing narrow membership read, against a real libSQL db.
 // Proves: a present member resolves to `{ role }` (host / member), a non-member (or unknown chat) is a
 // leak-free `null` (the not-a-participant 404 rpg surfaces), and a LEFT member (leftSeq set) reads null.
 

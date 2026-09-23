@@ -182,7 +182,7 @@ export const CHAT_PROSE_SLOTS = {
     // was the last `cast` spelling left in `contracts/src/chat` — the `alsoPresent` twin, the `title` and the
     // preset Templates `label` had all said "character" since v2, and only the persisted key disagreed.
     //
-    // WHY `characterHeading` AND NOT `…Member`: `vocabulary-map.md` gives `character` for the concept this
+    // WHY `characterHeading` AND NOT `…Member`: `docs/law/vocabulary-map.md` gives `character` for the concept this
     // slot names (the seated characters the arbiter may drive) and gives **Member** to the HUMANS in a room
     // (`chat_participants.kind='human'`) — so a `Member` suffix on a character-only slot would swap one
     // crossed word for another. `Heading` is not a concept word at all; it is the suffix this slot's own group

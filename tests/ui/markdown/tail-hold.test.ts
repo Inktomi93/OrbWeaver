@@ -1,4 +1,4 @@
-// The M1 tail-hold pre-pass (docs/design/streaming-shape-churn.md §2/§3 arm 1). What matters here is
+// The M1 tail-hold pre-pass. What matters here is
 // not "does it hold" in the abstract — it is the STREAM: feeding every prefix of a real message and
 // proving (a) the held output is always a prefix of the input, so nothing can ever be corrupted, and
 // (b) the sequence of outputs never produces the block-type flip the doc measured. Deep-imports src

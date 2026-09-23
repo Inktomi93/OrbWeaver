@@ -1,4 +1,4 @@
-// Policy: placeholder-copy-registry (client-architecture-lockdown.md §6a / §16 G13) — a SectionDefinition's
+// Policy: placeholder-copy-registry (client-architecture-lockdown.md §6a / client-architecture-state-and-gates.md §16 G13) — a SectionDefinition's
 // `placeholder: { title, description }` gives every rail section its own honest "not built yet" copy. The
 // comparison is CROSS-FILE: every section's pair must be non-empty and DISTINCT (the "all sections look
 // identical" root cause).

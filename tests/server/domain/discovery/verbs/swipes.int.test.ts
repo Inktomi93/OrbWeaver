@@ -1,4 +1,4 @@
-// Integration: PD-40 swipeHotspots — one chat's assistant slots with >1 variant (the re-rolled spots), most
+// Integration: swipeHotspots — one chat's assistant slots with >1 variant (the re-rolled spots), most
 // takes first, with the SELECTED variant's content snippet. Owner-belted via characters.ownerId (a foreign
 // chat reads zero rows — no leak). Only slots with >1 variant count; single-take slots are excluded.
 

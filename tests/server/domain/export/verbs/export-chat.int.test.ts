@@ -1,4 +1,4 @@
-// verb: exportChat (PD-42) — the transcript OUT against a real db. Load-bearing pins: the D29 HOST gate
+// verb: exportChat — the transcript OUT against a real db. Load-bearing pins: the D29 HOST gate
 // (non-host / non-member / missing chat all collapse to null); the D26 mapping (content from the SELECTED
 // variant; the full variant set = the swipe array); the D28 primary-character name + anchor-persona name;
 // the parentChatId → main_chat round-trip (note_prompt is one-way now — the room author's-note override was
@@ -315,8 +315,8 @@ describe("exportChat — the declared KIND rides out with the row", () => {
   });
 });
 
-describe("exportChat — PD-17 agent-author provenance", () => {
-  test("regression: a character-voiced row carries NO agent_author key (byte-identical to pre-PD-17)", async () => {
+describe("exportChat — agent-author provenance (D60)", () => {
+  test("regression: a character-voiced row carries NO agent_author key (byte-identical to pre-sidecar output)", async () => {
     const { ctx } = makeHarness(db);
     const host = await seedUser(db, { handle: castId<Handle>("host") });
     const aria = await seedCharacter(db, { ownerId: host, name: "Aria", handle: castId<CharacterHandle>("aria") });

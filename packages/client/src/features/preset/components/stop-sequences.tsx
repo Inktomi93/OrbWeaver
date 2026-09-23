@@ -1,4 +1,4 @@
-// The stop-sequence chip list (preset-surface-redesign.md §10 G2) — `params.stop`, capability-gated on
+// The stop-sequence chip list — `params.stop`, capability-gated on
 // `sampling.stop` by its caller in params-limits.tsx. Its own module because that file reached the
 // `component-size` cap (#1770); the anatomy and the #1587/#1620 accessible-name ruling below are unchanged.
 

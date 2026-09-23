@@ -1,7 +1,7 @@
 // The stream-display SCROLL-MODE axis — `follow | pin-prompt` — shared by `@orb/ui`'s `message-list`
 // `scrollMode` prop and `@orb/contracts`'s user-settings wire schema.
 //
-// This is THE single home for the axis (PD-147). It lives in `kit` — not `contracts` — because BOTH
+// This is THE single home for the axis. It lives in `kit` — not `contracts` — because BOTH
 // consumers must reach it and `ui` may import `kit` ONLY (never `contracts`, D54): homing it in contracts
 // forces the ui prop to re-spell `"follow" | "pin-prompt"` inline, and the `no-inline-union-redecl`
 // reach-guard can only EXEMPT that re-spell (ui can't legally derive from a contracts tuple) rather than

@@ -10,7 +10,7 @@ const operationFor = (name: QueryMachineName): string => `raw-${name}-import`;
 const MESSAGE =
   "useMutation or useInfiniteQuery is imported directly from @tanstack/react-query. Every mutation rides " +
   "createEntityMutation and createCollectionSurface is the sole paginated-browse factory; an additional raw " +
-  "machine hand-rolls or skips the data belt (client-architecture-lockdown.md §14/§16 G9).";
+  "machine hand-rolls or skips the data belt (client-architecture-state-and-gates.md §14/§16 G9).";
 const FIX = "use createEntityMutation or createCollectionSurface; permanent seam homes require one exact central reviewed grant for that hook and file.";
 
 export const gate = defineGate({

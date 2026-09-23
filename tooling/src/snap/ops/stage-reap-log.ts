@@ -1,5 +1,5 @@
 // THE REAP LEDGER — `<main>/.cache/snap-stage/reaps.json`, a bounded ring of the most recent stage
-// teardowns and WHICH ARM fired (docs/design/1208-instrument-substrate.md §3.6, issue #1163).
+// teardowns and WHICH ARM fired (issue #1163).
 //
 // WHY IT EXISTS. A reaped band leaves nothing behind: the row is cleared, the dir is gone, the ports are
 // free. So "band 3 is free" and "band 3 was reaped out from under a lane forty seconds ago" are the SAME

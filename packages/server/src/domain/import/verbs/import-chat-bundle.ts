@@ -138,7 +138,7 @@ function toMessageInput(
   };
 }
 
-/** The PD-78 memory-backfill gate, the jsonl arm's `classifyChat` rule restated over the orb-native shape:
+/** The memory-backfill gate, the jsonl arm's `classifyChat` rule restated over the orb-native shape:
  *  a chat is a real conversation when it carries a SUBSTANTIVE non-system turn from BOTH sides. "Substantive"
  *  reads the SELECTED variant's text — the row's rendered content — because that is what a transcript says. */
 function isRealConversation(bundle: PortableChat): boolean {
@@ -322,7 +322,7 @@ async function writeBundle(args: {
     characterId: characterIds.primary,
     chats: [toChatInput({ bundle, characterIds, personaIdByName, filename, importHash: sha256Hex(bytes) })],
   });
-  // PD-78, the same clause `importChats` runs: a chat canon-write always OFFERS the downstream index sweep,
+  // The same clause `importChats` runs: a chat canon-write always OFFERS the downstream index sweep,
   // and the workloads door decides whether it is admissible (#156). This arm reports no enqueue flag, so the
   // verdict is simply not read here.
   if (result.realConversationWritten) {

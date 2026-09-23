@@ -32,7 +32,6 @@
 // name sweep) is contaminated by the READER's own vocabulary map.
 import { defineGate } from "../contract/policy.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
-import { isOpenJsonDeferred } from "../lib/open-json-authority.ts";
 import { openJsonParityFact } from "../lib/open-json-parity-fact.ts";
 import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts";
 import { drizzleSchemaFact } from "../lib/schema-fact.ts";
@@ -51,7 +50,6 @@ const FIX =
   "CLOSE THE TYPE: give the blob ONE named shape below both sides (packages/contracts/src/embeddings/index.ts " +
   "is the worked example — the write path builds it, the read path imports it, and tsc becomes the enforcer). " +
   "If the key is genuinely produced somewhere this reader index cannot see, make the producer's type say so. " +
-  "A DOORWAY (sanctioned open key space) / DEFERRED (tracked debt, cited) row in " +
   "Take an exact reviewed grant only for a permanent externally-authored key space.";
 
 export const gate = defineGate({
@@ -76,7 +74,7 @@ export const gate = defineGate({
       const analysis = ctx.fact(openJsonParityFact).analyze(schema.value);
       reportReviewedGrantCandidates(
         ctx.report,
-        analysis.verdict.violations.flatMap(({ hit, token }) => (isOpenJsonDeferred(token) ? [] : [{ node: hit.node, subject: token, operation: OPERATION }])),
+        analysis.verdict.violations.map(({ hit, token }) => ({ node: hit.node, subject: token, operation: OPERATION })),
         { message: MESSAGE, fix: FIX, unreadableMessage: MESSAGE },
       );
     },

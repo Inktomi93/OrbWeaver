@@ -87,7 +87,7 @@ export async function selectForValidation(db: Db, tokenHash: string): Promise<Se
     })
     .from(sessions)
     .innerJoin(users, eq(users.id, sessions.userId))
-    // FLAG[PD-17]: users.kind = 'human' — an agent principal is structurally sessionless.
+    // users.kind = 'human' — an agent principal is structurally sessionless (docs/work/0048).
     .where(and(eq(sessions.tokenHash, tokenHash), eq(users.kind, "human")))
     .limit(1);
   return rows.at(0);

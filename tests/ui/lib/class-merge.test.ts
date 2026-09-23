@@ -170,7 +170,7 @@ test.for(GOVERNED_FAMILY_AXES)("$family obeys later-wins in both argument orders
   expect(cn(second, first)).toBe(first);
 });
 
-// The two fixed-box members minted by docs/design/integer-line-boxes.md: an unregistered leading name
+// The two fixed-box members minted by docs/law/integer-line-boxes.md: an unregistered leading name
 // keeps BOTH classes and leaves the winner to stylesheet order (this file's founding defect), so each
 // new member owes its own later-wins pin the moment it joins CUSTOM_CLASS_GROUPS.
 // THE FIELD FAMILY WAS NEVER REGISTERED, AND IT SHIPPED A PLATFORM DEFECT (#2450). `font-size` and

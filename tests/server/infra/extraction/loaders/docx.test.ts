@@ -1,4 +1,4 @@
-// infra/extraction/loaders/docx — the docx loader (databank-design/04 §2). Asserts the OOXML paragraph pull:
+// infra/extraction/loaders/docx — the docx loader. Asserts the OOXML paragraph pull:
 // `<w:t>` runs concatenated per `<w:p>`, paragraphs joined `\n\n`, `<w:tab>`/`<w:br>` → whitespace, XML entities
 // decoded, and the failure modes (a non-zip / a zip missing `word/document.xml`). The fixture zips REAL OOXML.
 

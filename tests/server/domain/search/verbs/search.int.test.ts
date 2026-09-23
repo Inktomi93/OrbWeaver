@@ -1,4 +1,4 @@
-// PD-38 — the unified search() dispatch + the SearchScope by-character cross-chat OR-branch. The flagship
+// The unified search() dispatch + the SearchScope by-character cross-chat OR-branch. The flagship
 // assertion is the `chat_digest_speakers` recall-correctness capability: scoping digests by a character
 // that only SPOKE in a co-star block (never the egocentric producer) must still return that block — the
 // OR-branch is what catches it. Also pins the dispatch tagging, the owner-scope refusals, and the owner belt.

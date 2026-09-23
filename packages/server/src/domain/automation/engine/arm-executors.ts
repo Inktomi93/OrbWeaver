@@ -497,7 +497,7 @@ async function runRunTool(deps: ArmExecutorDeps, action: Extract<AutomationActio
 
 const TRANSFORM_DRAFT_REFUSAL = "transform_draft applies via the prompt-transform pipeline, not the dispatch engine";
 
-// ── S4 — the confirm-first STASH (interaction-direction-spec §3-S4) ───────────────────────────────────
+// ── S4 — the confirm-first STASH ───────────────────────────────────
 /** Hold a confirm-first arm as a pending ask instead of running it, and raise the host-only card event.
  *
  *  WHAT IS STORED, and why both halves: the ARM and the FRAME it resolved in. "Executes the STORED arm" is

@@ -2,8 +2,6 @@
 // cards — owner-scoped CRUD + the character⇄persona junction + the non-lossy createFromCharacter mint.
 // `PersonaContext` is assembled at the entry root (db + injected clock/id + db-bound `logAudit`) and passed
 // in; persona injects NO guard (every surface is ownership-scoped, not admin/owner-gated).
-//
-// See Core-Audits-and-Debt.md PD-19.
 
 import type { PersonaContext } from "./context.ts";
 import type { PersonaService } from "./contract/service.ts";

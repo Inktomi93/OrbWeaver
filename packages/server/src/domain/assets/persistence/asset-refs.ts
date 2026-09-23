@@ -6,7 +6,7 @@
 // A column missing from BOTH lists silently makes its blobs GC-eligible — the schema-introspection test
 // (asset-refs.int.test.ts) enumerates every FK-to-`assets.id` column and asserts each is classified here.
 //
-// NOT every live asset ref is an FK column: `appearance.backgroundAssetId` (PD-131) AND every entry of the
+// NOT every live asset ref is an FK column: `appearance.backgroundAssetId` AND every entry of the
 // `appearance.backgroundLibrary` array (BG-D) are pinned inside the `user_settings.config` JSON blob,
 // invisible to the FK enumeration. `selectSettingsReferencedAssetIds` is that JSON live-source — mirroring
 // `selectInlineReferencedContents` (chat-canon `asset:` refs) — and it is UNIONED into
@@ -88,7 +88,7 @@ export const ASSET_REFS: readonly AssetRef[] = [
 export const DERIVED_ASSET_COLUMNS: readonly string[] = ["image_embeddings.asset_id", "image_index_skips.asset_id"];
 
 /** The non-FK live-source: `AssetId`s pinned inside a JSON settings blob. Two sources, both under
- *  `appearance`: the single `backgroundAssetId` (PD-131 own-upload background) AND every entry's `assetId`
+ *  `appearance`: the single `backgroundAssetId` (own-upload background) AND every entry's `assetId`
  *  in the `backgroundLibrary` array (BG-D — a per-user list of dozens; the whole library must be rooted so
  *  an UNPICKED upload isn't reaped). Read via `json_extract` off every `user_settings.config`; the library
  *  array is parsed in JS (a tiny per-user list, no `json_each` table-function needed). Over-inclusion is

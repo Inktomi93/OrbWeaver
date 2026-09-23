@@ -1,4 +1,4 @@
-// domain/rpg/verbs/read/get-tracker-view — getTrackerView (rpg-design/05 §4.8). The aggregate the takeover
+// domain/rpg/verbs/read/get-tracker-view — getTrackerView (docs/plans/rpg/design.md). The aggregate the takeover
 // renders in ONE query. MEMBER-gated (`resolveMember`), then delegates to the SHARED `buildTrackerView`
 // projection (`./tracker-view` — the same projection the gather's steering reminder reads, so the panel and the
 // injection never drift). Resolves `trackersReadOnly` (the CP read-only pill) and hands it to the projection.

@@ -26,7 +26,7 @@ test("a pure .test-d.ts selection names the types project the runner attributed"
 test("a MIXED selection narrows to the UNION of the attributed projects, never to nothing", () => {
   expect(nodeConfigModeArgs(["tooling", "types-node"], "run", false)).toEqual(["--project=tooling", "--project=types-node"]);
   expect(nodeConfigModeArgs(["types-browser", "unit"], "run", false)).toEqual(["--project=types-browser", "--project=unit"]);
-  expect(nodeConfigModeArgs(["contract", "integration", "types-node", "unit"], "run", false), "the doc-catalog shape").toEqual([
+  expect(nodeConfigModeArgs(["contract", "integration", "types-node", "unit"], "run", false), "a four-project selection").toEqual([
     "--project=contract",
     "--project=integration",
     "--project=types-node",

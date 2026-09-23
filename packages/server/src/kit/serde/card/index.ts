@@ -189,7 +189,7 @@ function residualExtensions(data: RawCard): Record<string, unknown> | null {
 }
 
 // Every field with a typed home on `CharacterCard`/`ExportCardFields` — MINUS from the top-level `data.*`
-// object to isolate genuinely-unknown keys (PD-127). Kept as a Set (not destructured) because the raw
+// object to isolate genuinely-unknown keys. Kept as a Set (not destructured) because the raw
 // `data` object is typed `RawCard` (fixed shape), not a generic record.
 const PROMOTED_DATA_KEYS = new Set([
   "name",
@@ -219,14 +219,14 @@ const PROMOTED_DATA_KEYS = new Set([
   "regex_scripts",
   "tags",
   "character_book",
-  // PD-144: the attached-book references are an external junction (re-linked by id on import), not residual
+  // the attached-book references are an external junction (re-linked by id on import), not residual
   // `data.*` — keep them out of the preserved blob so they don't double-emit on a round-trip.
   ATTACHED_BOOKS_WIRE_KEY,
   // D121-E twin of the line above: the attached SCRIPT references are an external junction too.
   ATTACHED_REGEX_SCRIPTS_WIRE_KEY,
 ]);
 
-/** TOP-LEVEL `data.*` keys MINUS the ones with a typed column (PD-127 — the top-level sibling of
+/** TOP-LEVEL `data.*` keys MINUS the ones with a typed column (the top-level sibling of
  *  {@link residualExtensions}, which only covers `data.extensions.*`). The known ST-V3 `data.*` fields
  *  (`nickname`/`source`/`creation_date`/`modification_date`) are promoted OUT via {@link PROMOTED_DATA_KEYS};
  *  what remains here is genuinely-unknown vendor residue PLUS the column-less V3 fields kept verbatim
@@ -391,7 +391,7 @@ export function cardContentHash(card: CharacterCard): string {
  *  `data.group_only_greetings` on export. `tags` are the ACCEPTED `character_tags` names
  *  (pending tags are NOT serialized). The typed promotions (`creator` / `cardVersion` /
  *  `regexScripts` / `extensions` / `depthPrompt`) are read straight off the flat row — no `raw` blob.
- *  `residualData` (PD-127) is the preserved top-level `data.*` blob — re-emitted at the `data` root, backed by
+ *  `residualData` is the preserved top-level `data.*` blob — re-emitted at the `data` root, backed by
  *  the `characters.residual_data` column. Optional so an export call site with nothing to preserve (a
  *  synthesized/app-authored card) can omit it. */
 export interface ExportCardFields {
@@ -423,7 +423,7 @@ export interface ExportCardFields {
    *  `data.orbweaver_attached_regex_scripts`. Optional/absent-empty (the `attachedBooks` shape). */
   readonly attachedRegexScripts?: readonly AttachedRegexScriptRef[];
   readonly depthPrompt: CardDepthPrompt | null;
-  /** PD-144: attached world-info book REFERENCES — the OUT-emitter rides them under
+  /** Attached world-info book REFERENCES — the OUT-emitter rides them under
    *  `data.orbweaver_attached_books`. Optional/absent-empty: a card with no attached books emits no key. */
   readonly attachedBooks?: readonly AttachedBookRef[];
   /** The wire spec to EMIT (`chara_card_v2`/`chara_card_v3`). Omitted ⇒ V3 (the canonical default). Set from
@@ -666,7 +666,7 @@ export function loreEntryMetadata(entry: Record<string, unknown>): Record<string
  * is `characterCardV3Schema.parse`d so a malformed projection fails loud at the boundary, not silently on
  * the wire.
  */
-// PD-144: the namespaced attached-book-references field for the OUT wire — an empty object (no key) when the
+// the namespaced attached-book-references field for the OUT wire — an empty object (no key) when the
 // card carries none, so `buildCardV3` just spreads it.
 function attachedBooksWire(refs: readonly AttachedBookRef[] | undefined): Record<string, unknown> {
   return refs !== undefined && refs.length > 0 ? { [ATTACHED_BOOKS_WIRE_KEY]: refs } : {};
@@ -717,7 +717,7 @@ export function buildCardV3(fields: ExportCardFields, entries: ExportWorldEntry[
     ...(fields.depthPrompt ? { depth_prompt: fields.depthPrompt } : {}),
   };
   const data: Record<string, unknown> = {
-    // Preserved top-level `data.*` residuals FIRST (PD-127) — the typed keys below always win on collision.
+    // Preserved top-level `data.*` residuals FIRST — the typed keys below always win on collision.
     ...(fields.residualData ?? {}),
     name: fields.name,
     description: fields.description ?? "",

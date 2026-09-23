@@ -1,5 +1,5 @@
 // verb: scrapeWiki (DB8) — fetch a MediaWiki article's plain-text extract over the compose-bound ANY_HOST
-// safeFetch guard (endpoint derived from the article host), then the SAME §2 canon tail (databank-design/06 §5).
+// safeFetch guard (endpoint derived from the article host), then the SAME §2 canon tail.
 // The fetch rides a STUBBED `fetchUrl` op (no live network). Load-bearing:
 //   · the round-trip: API JSON → CAS blob + documents row stamped origin 'wiki'/article-URL/'text/plain' → ingest QUEUED
 //   · the API endpoint is derived from the article URL's OWN host (any MediaWiki host — Wikipedia, Fandom, self-hosted)

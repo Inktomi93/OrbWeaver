@@ -314,7 +314,7 @@ test("#1725: opening a 400-member library renders its rows in CONTENT, with the 
   await expect(content.getByRole("button", { name: "New tag" })).toBeVisible();
 });
 
-// THE COUNT GATE DIED WITH ITS PREMISE (#1725; DESIGN.md §3.2). This test asserted the OPPOSITE: a library
+// THE COUNT GATE DIED WITH ITS PREMISE (#1725; the mock design §3.2). This test asserted the OPPOSITE: a library
 // under `COLLECTION_LARGE_GROUP` drew no filter box at all. That was right while three collapsible bands
 // shared ONE list scroll column — 32px of chrome per band was worth spending only past a glance. The library
 // has its own pane now, so the box costs a shelf nothing and a reader who can filter one library can filter
@@ -361,7 +361,7 @@ test("the retired launcher landing is gone, and the nothing-active arm is the se
 // said in words that regex scripts had none, "their portable unit being the card that carries them". That
 // was the `{ ruled }` cell's reasoning, and the owner's ruling ended it. TAGS still have none, which is what
 // keeps this test load-bearing: the band must not grow a dead trigger for a collection with no door.
-// D121(D) SURVIVES WITH A CHANGED INPUT (#1725). Its ruling is `band=Import · kebab=Export`, and the band
+// D212 SURVIVES WITH A CHANGED INPUT (#1725). Its ruling is `band=Import · kebab=Export`, and the band
 // was named because in this workspace the group band WAS the collection's only chrome. The library has a
 // pane now, so Import is its control row's overflow item — one home, in the pane the reader is looking at,
 // and still never a bare button beside the primary. What the ruling actually protects is untouched: Import
@@ -675,7 +675,7 @@ test("the longest group kicker survives the docked pane's real width — no elli
 // ═══ THE MATRIX MOVED PANES WITH THE ROWS (#1725) ════════════════════════════════════════════════════
 // These four pins measured the regex row anatomy inside a 271px/307px LIST rail, because that is where the
 // rows were. The owner moved them into CONTENT, so those two ceilings stopped applying — retired by
-// DESIGN.md §3.2 ("the 30-member cliff and `COLLECTION_WINDOW_MAX_HEIGHT` existed because three bands shared
+// The mock design §3.2 ("the 30-member cliff and `COLLECTION_WINDOW_MAX_HEIGHT` existed because three bands shared
 // one LIST scroll column, and that column is gone"), which is the same decision that deleted the filter
 // gate. A selector swap would have left the numbers describing a box that no longer holds the rows.
 //

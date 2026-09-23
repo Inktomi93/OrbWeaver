@@ -1,4 +1,4 @@
-// entry/compose/chat-tools — the B7 `react` tool definition (interaction-direction-spec §7-B7a #3): the
+// entry/compose/chat-tools — the B7 `react` tool definition: the
 // FIRST tool the S2 attach axis carries onto a chat turn.
 //
 // HOMED AT THE COMPOSITION ROOT, not in `domain/chat` — and the reason is a real cycle, not taste: a

@@ -210,7 +210,7 @@ function makeErrorCtx(opts: { path?: string; method?: string; incomingId?: strin
   };
 }
 
-describe("observabilityErrorHandler (the thrown-request path, PD-118)", () => {
+describe("observabilityErrorHandler (the thrown-request path)", () => {
   test("logs ONE request.thrown error line carrying the err, and returns Hono's default 500 text", async () => {
     // pino output is silenced (LOG_LEVEL=silent) in tests; spy `logger.error` directly (the same posture
     // as client-error.test.ts). A pino child (`runInRequest`) is `Object.create(parent)`, so a child minted

@@ -9,7 +9,7 @@
 //     `assetId: undefined` arm re-resolves owner+hash at the destructive edge, so a row committed after the
 //     snapshot is never left pointing at removed bytes.
 //   • `dryRun` counts what it WOULD reclaim without deleting.
-//   • PD-131 anti-reap: a `background` asset pinned ONLY by `appearance.backgroundAssetId` in the
+//   • anti-reap: a `background` asset pinned ONLY by `appearance.backgroundAssetId` in the
 //     `user_settings.config` JSON (NO FK column) is KEPT even when old — the JSON live-source scan roots it.
 //     The inverse: once that pin is cleared (kind back to `none`), the now-unreferenced blob IS reaped past
 //     grace — proving the scan doesn't over-retain a stale value.
@@ -40,7 +40,7 @@ const MS_PER_SECOND = 1000;
 const ASSET_DELETE = /^delete from "assets"/i;
 
 /** Insert this owner's `user_settings` row with the given `appearance` overrides merged onto defaults —
- *  the JSON blob the PD-131 live-source scan reads. `undefined` `assetId` leaves the pin cleared (kind
+ *  the JSON blob the live-source scan reads. `undefined` `assetId` leaves the pin cleared (kind
  *  `none`), modelling a removed background. */
 async function seedBackgroundPin(db: Awaited<ReturnType<typeof freshDb>>, owner: UserId, assetId?: AssetId, hash?: string): Promise<void> {
   const appearance =
@@ -317,7 +317,7 @@ describe("collectGarbage", () => {
     expect(await h.ctx.cas.exists(owner, stored.hash)).toBe(true);
   });
 
-  test("keeps a background asset pinned only in appearance JSON, even when old (PD-131 anti-reap)", async () => {
+  test("keeps a background asset pinned only in appearance JSON, even when old (anti-reap)", async () => {
     const db = await freshDb();
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);

@@ -1,4 +1,4 @@
-// entry/http/export — the download registrar (PD-109). Pins: anonymous → 401 on both routes; a verb
+// entry/http/export — the download registrar. Pins: anonymous → 401 on both routes; a verb
 // `null` (not-owned/not-host, or missing — the verbs collapse these) → 404; a served card carries
 // `image/png` + a filename `Content-Disposition`; a served chat defaults to `jsonl` (`application/x-ndjson`)
 // and honors `?format=txt` (`text/plain`); an invalid `?format=` → 400 without calling the verb. Hono isn't

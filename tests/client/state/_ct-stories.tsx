@@ -428,7 +428,7 @@ const PROBE_IMAGE_URL = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAA
 /** ActiveChatStoreProbe — renders the active-chat store's read hooks as text + buttons that fire its
  *  module actions, so a CT can drive the real hook-backed store (useSyncExternalStore needs a browser).
  *
- *  THE LOAD-BEARING SEAM is now the HUSK one (chat-creation-draft-mode-replacement.md §4.6): a room
+ *  THE LOAD-BEARING SEAM is now the HUSK one (D166): a room
  *  ENTERED via `enterCreatedChat` is remembered as the reap candidate, and leaving it publishes that id to
  *  `subscribeHuskAbandoned` — unless its composer holds unsent text. The probe subscribes to the seam and
  *  prints what it heard, so a CT asserts the PUBLICATION rather than a network call the store never makes.
@@ -654,8 +654,7 @@ export function PresetSelectionProbe(): ReactElement {
   );
 }
 
-/** PresetEditorViewProbe — the preset editor's VIEW axis (preset-surface-redesign.md §7 mechanics / §16
- *  row 10). The view moved out of local `Tabs` state into section state so CONTEXT can project per-view,
+/** PresetEditorViewProbe — the preset editor's VIEW axis. The view moved out of local `Tabs` state into section state so CONTEXT can project per-view,
  *  which makes "unset reads as null" and "the writer is the only mover" real invariants rather than
  *  component detail. A CT, not a unit test: the read surface is the reactive hook (useSyncExternalStore
  *  needs a browser) — the preset-selection-store.ct.tsx posture. */
@@ -760,7 +759,7 @@ export function WorldEntrySelectionProbe(): ReactElement {
 /** ConfigSelectionProbe — the KINDED selection store (the config workspace's ONE selection across N
  *  sibling collections): select a member of one kind, select a member of ANOTHER kind, clear, and the
  *  LIST dual-write that also closes the slide-over. `openConfigTo` is the ONE deep-link intent for every
- *  kind of group (config-revamp-design.md §3.3) — for a collection it clears the selection AND switches the
+ *  kind of group — for a collection it clears the selection AND switches the
  *  rail, so the probe reads the active section too. */
 export function ConfigSelectionProbe(): ReactElement {
   const selection = useCollectionSelection();
@@ -1059,7 +1058,7 @@ function ChromeRegistryReader(): ReactElement {
  *  A CT (not a unit test) because the store's only read surface is the reactive hook (useSyncExternalStore
  *  needs a browser render).
  *
- *  The `migrate to committed` arm is GONE with `migrateComposerDraft` (chat-creation-draft-mode-replacement
+ *  The `migrate to committed` arm is GONE with `migrateComposerDraft` (D166
  *  .md §4.1, R1): a room is keyed by its real ChatId from the creation click, so there is no draftKey→ChatId
  *  scope flip left to carry text across. `read snapshot` stands in — the non-hook read the husk-reap skip
  *  uses to decide whether an abandoned room still holds unsent text. */
@@ -1447,7 +1446,7 @@ export function ListFlipCarryProbe(): ReactElement {
   );
 }
 
-/** ConfigNavProbe — drives the config NAV store (config-revamp-design.md §3.2/§6.2, #866 S1): the ONE
+/** ConfigNavProbe — drives the config NAV store (#866 S1): the ONE
  *  deep-link intent `openConfigTo(group, sub?, setting?)` for every kind of group, the LIST's band/row
  *  clicks, the spy's write, and the derived EFFECTIVE active group (an open member's kind wins over the
  *  explicitly activated group). A CT because every read surface is a reactive hook. Prints the target's

@@ -12,7 +12,7 @@
 // the latest rewrite against the ORIGINAL — never rewrite-vs-rewrite (a steered rewrite must not
 // bootstrap itself across iterations).
 //
-// THE CUSTOM ARM (R3/SF — docs/history/design/refinery-r3-build-plan.md §4): a session whose score/analyze config
+// THE CUSTOM ARM (R3/SF): a session whose score/analyze config
 // is `{kind:"custom", schemaId}` resolves the OWNED schema row PER CALL (a schema edit governs the next
 // run — the D126 discipline; a deleted schema is a leak-free NOT_FOUND), lifts it (`liftJsonSchema` — the
 // stored blob is liftable by the save belt's invariant, re-lifted defensively here), and runs the SAME

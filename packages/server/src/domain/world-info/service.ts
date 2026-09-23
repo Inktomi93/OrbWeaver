@@ -1,7 +1,7 @@
 // domain/world-info — COMPOSITION ROOT: wires the verbs over the DI bundle (zero logic). The world-info
 // store: world books + their keyword-triggered lore entries, attached at FOUR scopes (character / global /
 // persona / chat) for the per-turn chat pool to union. `WorldInfoContext` is assembled at the entry root
-// (db + injected clock/id + db-bound `audit` + the PD-30 chat seams: the `requireChatHost`/
+// (db + injected clock/id + db-bound `audit` + the chat seams: the `requireChatHost`/
 // `requireChatMember` guards wired from chat's own guard module and `emitWiEvent` wired to the chat bus's
 // durable-first emit) and passed in. Every non-chat surface is ownership-scoped off `principal.userId`
 // (a book via `worldBooks.ownerId`, an entry via its book, an attachment target via its own owner column);

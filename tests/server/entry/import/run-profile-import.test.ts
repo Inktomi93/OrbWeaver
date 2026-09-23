@@ -37,7 +37,7 @@ const noopAssets: ImportAssetPort = {
 
 // The handle-suffix disambiguation loop (`freeHandle`) is pinned at the domain level; these driver tests
 // don't exercise it — `findByHandle` always misses (#1470 dropped `ImportCharacterPort`'s `update` op
-// entirely — the earlier PD-108 handle-match edit-in-place this stub backed no longer exists).
+// entirely — the earlier handle-match edit-in-place this stub backed no longer exists).
 const noHandleMatch: Pick<ImportCharacterPort, "findByHandle"> = {
   findByHandle: (): Promise<null> => Promise.resolve(null),
 };

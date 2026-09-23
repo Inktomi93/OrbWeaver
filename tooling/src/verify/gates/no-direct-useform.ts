@@ -1,4 +1,4 @@
-// Policy: no-direct-useform (UI-Lib-TanStack-Form.md) — TanStack Form's raw mints are the shared toolkit's
+// Policy: no-direct-useform — TanStack Form's raw mints are the shared toolkit's
 // business alone. `useAppForm` (with `withForm`/`withFieldGroup`) pre-binds the @orb/ui Field components;
 // a surface that calls `useForm`/`createFormHook`/`createFormHookContexts` itself bypasses the bound fields
 // and drifts every editor surface apart.
@@ -28,7 +28,7 @@ const MESSAGE =
   "TanStack Form's raw mint is called outside the shared form toolkit — use `useAppForm` (and `withForm` / " +
   "`withFieldGroup`) from `#forms/editor`. The shared instance pre-binds the @orb/ui Field components; calling " +
   "`useForm`/`createFormHook`/`createFormHookContexts` directly bypasses the bound fields and drifts every " +
-  "editor surface apart (UI-Lib-TanStack-Form.md).";
+  "editor surface apart.";
 const UNREADABLE =
   "this call is spelled like a TanStack Form mint but the shared readers cannot place its binding, so whether it is the vendor's own export CANNOT be established. Reported rather than passed: the spelling alone is not the identity. Give the binding a readable import origin; the three-answer rule is tooling/src/verify/lib/origin-verdict.ts (#944).";
 const FIX = "build the form with `useAppForm` from #forms/editor; the shared toolkit's own mints are licensed by exact reviewed grants.";

@@ -1,4 +1,4 @@
-// verb test: checkForUpdates (plugin-ui-plane #679 U8 2b — the auto update-check ST's loader does). What it pins:
+// verb test: checkForUpdates (U8 2b — the auto update-check ST's loader does). What it pins:
 //   - a url-origin plugin whose REMOTE version is newer surfaces `update-available` + the newVersion to offer;
 //   - an equal remote is `up-to-date` (not update-available — equality is neither newer nor a downgrade);
 //   - an UNREACHABLE source (SSRF block / non-2xx / un-parseable remote) collapses to ONE leak-free arm —

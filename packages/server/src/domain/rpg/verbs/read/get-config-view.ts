@@ -1,4 +1,4 @@
-// domain/rpg/verbs/read/get-config-view — getConfigView (rpg-design/05 §4.8). The Stats & Trackers editor
+// domain/rpg/verbs/read/get-config-view — getConfigView (docs/plans/rpg/design.md). The Stats & Trackers editor
 // surface: the full `statProfile` + `steeringNote` + the `gmPresetId`/`extractionMode` knobs, plus the game's
 // authored user macros and the NAMES the active preset declares (the editor's shadow gloss — a game macro
 // shadows a preset macro of the same name at turn time). HOST-gated (never a member view — the host-read

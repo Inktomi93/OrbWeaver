@@ -64,7 +64,7 @@ export function downloadTextFile(filename: string, text: string, mime = "applica
 }
 
 /** Download a same-origin URL (the session cookie rides the GET; the server's Content-Disposition
- *  names the file). For server-streamed downloads (the PD-109 export registrar) — distinct from
+ *  names the file). For server-streamed downloads (the export registrar) — distinct from
  *  `downloadJson`, which serializes a client-side payload. */
 export function downloadUrl(href: string, filename?: string): void {
   clickAnchor(href, filename);

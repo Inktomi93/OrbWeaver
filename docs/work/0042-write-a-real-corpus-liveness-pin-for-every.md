@@ -23,3 +23,12 @@ Fixture proof rows prove a policy's logic but not that it reads the real tree. A
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+Built by lane cb-pins. One runner, `tests/tooling/verify/gates/real-corpus-liveness-family.suite.repo.int.test.ts` over `tests/support/real-corpus-liveness.ts`, with the pins as data in `tests/tooling/verify/gates/_liveness/*.ts`. Overlay kinds: `add`, `neutralise`, `remove`, `resource`, `replace`, `delete`, `edit`, plus `reportsAt` and grant-consumption pins. Every pin passes in both directions, and a planted dead control is refused for each kind. The whole file passed with every pin wired in, one serial file inside `--full` per the owner ruling in item 0043.
+
+Blind policies found and fixed: `byte-check-cast` (the shared origin reader refused drizzle's merged `sql`; fixed under item 0107) and `persistence-no-in-memory-state`'s identity verdict on augmented globals (item 0107).
+
+Still unpinned, per `pnpm check:structure --check real-corpus-liveness-manifest`:
+
+- `no-manual-memo-compiler-health`: needs an installed-package overlay (item 0145).
+- `open-json-column-key-parity-health` and `css-var-defined-health`: they count every JSON column or every product stylesheet, and no bounded overlay empties those counts.

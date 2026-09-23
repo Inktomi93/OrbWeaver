@@ -17,7 +17,7 @@ export const REVIEWED_GRANTS_NO_TO_FACTORY: readonly ReviewedGateGrant[] = [
     policyId: "no-raw-interactive-intrinsics",
     subject: "packages/client/src/features/app-shell/surfaces/app-shell.tsx",
     operation: "raw-interactive-intrinsic:button",
-    why: "the SHELL tier composes the app frame BELOW the primitive layer, which design-enforcement.md §3.2 (D62) exempts — this control is part of the frame an @orb/ui Button is rendered inside, not a feature affordance. Narrowed from the legacy DIRECTORY row: the permission is now this one file, so a second shell file hosting a raw control reds until someone reviews it.",
+    why: "the SHELL tier composes the app frame BELOW the primitive layer, which D62 exempts — this control is part of the frame an @orb/ui Button is rendered inside, not a feature affordance. Narrowed from the legacy DIRECTORY row: the permission is now this one file, so a second shell file hosting a raw control reds until someone reviews it.",
     endsWhen:
       "the shell's own control is expressible through an @orb/ui primitive without a frame cycle, or the shell moves — either way the row is consumed zero times and reds at its dead subject.",
   },
@@ -175,7 +175,7 @@ export const REVIEWED_GRANTS_NO_TO_FACTORY: readonly ReviewedGateGrant[] = [
     policyId: "no-untyped-soft-ref",
     subject: "message_variants.generationId",
     operation: "soft-reference",
-    why: "the upstream OpenRouter generation handle (`gen-…`) a variant was billed under — an EXTERNAL provider id (`connection.orGenerationCost`'s key, PD-137), not a reference to any orbweaver table (D24).",
+    why: "the upstream OpenRouter generation handle (`gen-…`) a variant was billed under — an EXTERNAL provider id (`connection.orGenerationCost`'s key), not a reference to any orbweaver table (D24).",
     endsWhen: "generation records are persisted as orbweaver rows, at which point the column can carry a real FK.",
   },
   {
@@ -271,7 +271,7 @@ export const REVIEWED_GRANTS_NO_TO_FACTORY: readonly ReviewedGateGrant[] = [
     policyId: "render-error-via-battery",
     subject: "packages/client/src/features/rpg/lib/rpg-context-section.tsx",
     operation: "custom-render-error",
-    why: "the rpg context pane needs a CONSOLIDATED, ANNOUNCED failure (Context-Panel-Program §4.4): the pane's live region reports 'Loaded chat.' on success, and `QueryErrorState` is a plain stack with no `role=\"alert\"`, so the game-tab body renders `RpgErrorState` — the pane's single announced region. One row covers both of this file's arms, because they are one licensed act at one subject.",
+    why: "the rpg context pane needs a CONSOLIDATED, ANNOUNCED failure: the pane's live region reports 'Loaded chat.' on success, and `QueryErrorState` is a plain stack with no `role=\"alert\"`, so the game-tab body renders `RpgErrorState` — the pane's single announced region. One row covers both of this file's arms, because they are one licensed act at one subject.",
     endsWhen: "the pane drops its announced-failure intent, or `QueryErrorState` gains a live region the pane can use.",
   },
   {
@@ -303,7 +303,7 @@ export const REVIEWED_GRANTS_NO_TO_FACTORY: readonly ReviewedGateGrant[] = [
     policyId: "route-imports-no-feature",
     subject: "packages/client/src/routes/app-root.tsx",
     operation: "feature-front-door-import:#features/chat",
-    why: "the sanctioned composition route assembles the chat feature's contributor registries at the door (client-architecture-lockdown.md §12 row 5); the assembly is the door's job by construction.",
+    why: "the sanctioned composition route assembles the chat feature's contributor registries at the door (client-architecture-state-and-gates.md §12 row 5); the assembly is the door's job by construction.",
     endsWhen: "chat's contributor registries are assembled by the shell from registered contributions instead of at the route.",
   },
   {
@@ -423,7 +423,7 @@ export const REVIEWED_GRANTS_NO_TO_FACTORY: readonly ReviewedGateGrant[] = [
     policyId: "selection-store-via-factory",
     subject: "packages/client/src/state/create-drill-selection-store.ts",
     operation: "raw-gated-store-mint",
-    why: "the drill FACTORY itself composes the raw `createGatedStore` door on purpose — that composition IS the seal every per-section selection store mints through (derive-modernization-audit.md §W3 G27).",
+    why: "the drill FACTORY itself composes the raw `createGatedStore` door on purpose — that composition IS the seal every per-section selection store mints through.",
     endsWhen:
       "the factory stops composing the door, or moves — either stales this row, where the legacy `/create-` FILENAME pattern would have exempted any future file with that prefix for free.",
   },
@@ -440,7 +440,7 @@ export const REVIEWED_GRANTS_NO_TO_FACTORY: readonly ReviewedGateGrant[] = [
     policyId: "selection-store-via-factory",
     subject: "packages/client/src/state/message-selection-store.ts",
     operation: "raw-gated-store-mint",
-    why: "the ONE `*-selection-store.ts` that is not a single-id drill: message selection is a bulk multi-select (presence in a Set keyed by message id, PD-119), a shape the drill factory does not model.",
+    why: "the ONE `*-selection-store.ts` that is not a single-id drill: message selection is a bulk multi-select (presence in a Set keyed by message id), a shape the drill factory does not model.",
     endsWhen: "the drill factory models bulk selection and this store migrates onto it.",
   },
 ];

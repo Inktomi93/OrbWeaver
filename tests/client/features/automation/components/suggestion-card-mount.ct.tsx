@@ -1,5 +1,5 @@
-// CT: C3 — the REAL automation SUGGESTION-CARD source rendering a prose-audit REWRITE card, end to end
-// (interaction-direction-spec §7 row C3). Mirrors its source
+// CT: C3 — the REAL automation SUGGESTION-CARD source rendering a prose-audit REWRITE card, end to end.
+// Mirrors its source
 // `packages/client/src/features/automation/components/suggestion-card-mount.tsx`.
 //
 // It is the twin of the chips CT one seam over, and it proves the half no server test can: that the host-only

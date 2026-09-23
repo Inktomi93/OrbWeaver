@@ -1,4 +1,4 @@
-// domain/stats/verbs/economics — PD-22: the two economics-projection reads (the seam's Tier 2). NOT a tRPC
+// domain/stats/verbs/economics — the two economics-projection reads (the seam's Tier 2). NOT a tRPC
 // verb — the stats router never exposes these; they are the stats-OWNED ops INJECTED into discovery at the
 // composition root (mirroring `embeddings.writeHubScores` → discovery). Each returns a NARROWED, already-
 // aggregated economics result (@orb/contracts/stats) so the consumer can never re-sum a raw economics

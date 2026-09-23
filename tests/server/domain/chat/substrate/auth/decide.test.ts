@@ -1,5 +1,5 @@
 // Pure decision-core tests (the chat design doc Part III §11). No I/O — the deciders take an already-loaded membership +
-// the INJECTED `can()` seam (PD-1: the real admin `can` is wired in, proving the unified seam — the `host`
+// the INJECTED `can()` seam (the real admin `can` is wired in, proving the unified seam — the `host`
 // verdict lives in `can()`, chat only re-expresses it as its leak-free/coded error). `assertParticipant` is the
 // leak-free PRESENCE half (a load miss → not-found), which is NOT a `can()` decision.
 import type { Principal } from "@orb/contracts/identity";

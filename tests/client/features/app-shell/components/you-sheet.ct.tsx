@@ -1,5 +1,5 @@
 // YouSheet CT — the mobile "You" sheet is a BLIND PROJECTION over the resolved chrome list
-// (shell-chrome-unification.md §E-5 / §C). Proves the two projection arms off ONE registry: a `rail.end`
+// Proves the two projection arms off ONE registry: a `rail.end`
 // WIDGET renders its own `body("sheet")` lens (called with presentation "sheet", not "bar"), and a
 // `mobile:"sheet"` overflow section renders as a "More" row. A chrome entry added once at the door thus
 // reaches the sheet with no second hand-maintained derivation.

@@ -540,7 +540,7 @@ describe("buildChatJsonl", () => {
   });
 });
 
-describe("agent_author provenance (PD-17)", () => {
+describe("agent_author provenance (D60)", () => {
   test("emitted ONLY when agentAuthor is present; absent turns carry no key", () => {
     const withAgent = JSON.parse(buildChatJsonl(pchat([pmsg({ agentAuthor: { name: "Pip", sourceKind: "buddy" } })])).split("\n")[1] ?? "") as Record<
       string,

@@ -560,7 +560,7 @@ describe("store — the chat-block digest lens", () => {
   });
 });
 
-describe("store — chunk (document_chunks, the 5th arm — databank-design/05 §2)", () => {
+describe("store — chunk (document_chunks, the 5th arm)", () => {
   test("writes a row with the FK/idx/span/hash/(model,dim) tag; re-store same content ⇒ noop, no re-embed", async () => {
     const db = await freshDb();
     const h = makeStoreHarness(db);
@@ -693,7 +693,7 @@ describe("store — a local-light dtype change is a space change (#2417)", () =>
     expect(reindexed.outcome).toBe("written");
     expect(h.roleClients.embed).toHaveBeenCalledTimes(2);
     // Additive, never overwritten in place — the retired space survives until its generation is promoted
-    // away (PD-104), exactly as a model change is.
+    // Additive, never overwritten in place — the retired space survives until its generation is promoted
     const rows = await db.select().from(characterEmbeddings).where(eq(characterEmbeddings.characterId, characterId));
     expect(rows.map((r) => r.model).toSorted()).toEqual([fp32Space, q8Space].toSorted());
   });

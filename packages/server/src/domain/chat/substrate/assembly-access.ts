@@ -62,7 +62,7 @@ export function toShapeCanon(...args: Parameters<typeof toShapeCanonImpl>): Retu
 }
 
 /** SHAPE (content-free trace): project shape()'s stage snapshots + the resolved breakpoint offset → the
- *  host/admin `ShapeTrace` (`chat.getShapeTrace`; PD-132). The legal `verbs/` → `assembly/` bridge. */
+ *  host/admin `ShapeTrace` (`chat.getShapeTrace`). The legal `verbs/` → `assembly/` bridge. */
 export function buildShapeTrace(...args: Parameters<typeof buildShapeTraceImpl>): ReturnType<typeof buildShapeTraceImpl> {
   return buildShapeTraceImpl(...args);
 }

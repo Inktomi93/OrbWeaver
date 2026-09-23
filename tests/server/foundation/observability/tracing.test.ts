@@ -54,7 +54,7 @@ describe("the libSQL client wrap", () => {
   });
 });
 
-describe("recordThrownRequest (the thrown-request trace-ring gap, PD-118)", () => {
+describe("recordThrownRequest (the thrown-request trace-ring gap)", () => {
   test("marks the active request-root error + records the exception, surviving the normal-return OK", async () => {
     // Mirrors the runtime shape: Hono's onError → recordThrownRequest runs while the root is active, then
     // `withRequestSpan` returns NORMALLY (the throw was converted to a Response below it) and would set OK.

@@ -1,5 +1,5 @@
-// config-search-tokens — the PURE grammar of the Settings search's typed `@` filters (config-revamp-design.md
-// §3.3/§6.4, VS Code's settings-search token grammar): `@modified` · `@shelf:<shelf>` · `@in:<groupId>` ·
+// config-search-tokens — the PURE grammar of the Settings search's typed `@` filters
+// (VS Code's settings-search token grammar): `@modified` · `@shelf:<shelf>` · `@in:<groupId>` ·
 // `@ext:<plugin-slug>` · `@advanced`. Tier 4 (`#lib`) on §13.9's homing rule: pure, DOM-free, one consumer
 // today (the config feature); it graduates to `@orb/kit` only when a second consumer appears. It deliberately
 // knows NO vocabulary — `shelf`/`group` are raw strings the FEATURE validates against its tuples (the lib

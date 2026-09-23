@@ -427,7 +427,7 @@ export interface BundleManifestOverrides {
   /** Raw provider payload for trust-edge refusal tests. Healthy fixtures use {@link providers}; this arm
    *  deliberately preserves the untrusted JSON shape until the production manifest parser judges it. */
   readonly rawProviders?: unknown;
-  /** DECLARE `uiEntry` in the manifest (plugin-ui-plane #679 U4). Independent of {@link makeBundle}'s `uiJs`
+  /** DECLARE `uiEntry` in the manifest. Independent of {@link makeBundle}'s `uiJs`
    *  argument ON PURPOSE: the funnel's biconditional refuses a declaration with no file AND a file with no
    *  declaration, and a fixture that could not express either half could not test either half. */
   readonly uiEntry?: boolean;

@@ -8,7 +8,7 @@
 // `publishNotification(view)`) and genuinely read back by `list`. Nothing here is a stand-in for the
 // producer: the two events below are the exact payloads the crash policy and the auto-disable path emit.
 //
-// WHY IT IS THE ROW'S SHARPEST EVIDENCE. PD-106's belt refused this whole router while the deployment could
+// WHY IT IS THE ROW'S SHARPEST EVIDENCE. The belt refused this whole router while the deployment could
 // not seat a second human, on the premise that every notification SOURCE was multi-human. Two sources
 // refute that premise ON TODAY'S TREE, and both address a SINGLE human:
 //   • `plugin-disabled` — `domain/plugin/activation/crash-policy.ts`, recipient = the INSTALLING OWNER,

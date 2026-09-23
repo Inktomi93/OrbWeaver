@@ -1,4 +1,4 @@
-// Contract tests for @orb/contracts/plugin/manifest (plugin-design P2 §1): the install-time trust edge. The
+// Contract tests for @orb/contracts/plugin/manifest: the install-time trust edge. The
 // capability axis (the pinned 15-member closed list, confirm-dialog order), the manifest matrix (every refusal
 // typed — bad slug, malformed hostVersion, bad semver, wrong entry, the netHosts ⟺ net.fetch biconditional,
 // netHosts SSRF regex, caps superset), and the OPTIONAL builtAgainst provenance block. Mirror of manifest.ts.

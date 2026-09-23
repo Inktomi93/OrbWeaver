@@ -7,15 +7,13 @@ updated: 2026-08-18
 # Knowledge cluster — the producer → store → consumer boundary
 
 > The cross-domain boundary map for the derived-data cluster: `embeddings` · `search` · `discovery` ·
-> `chat/memory` (+ the `stats` fence). BUILT — the per-domain semantics live in the code and its file
+> `chat/memory` (+ the `stats` separation). The per-domain semantics live in the code and its file
 > headers; this doc carries only the multi-domain seam no single file shows. Domain map:
 > `Constitution.md` §6; decision record: ledger D55.
 
 One substrate of embedded content, built once, stored once, read by many. It is a **pure function of
 canon** (any row deletes and rebuilds from `messages`/`characters`/`assets` alone — never a second source
-of truth), and **building it never blocks a reply** (post-commit fire-and-forget or backfill). The seam
-exists because neo-tavern had 6 hand-rolled vector-write sites across 5 tables and 4 ranking
-implementations with no owner.
+of truth), and **building it never blocks a reply** (post-commit fire-and-forget or backfill).
 
 ## Ownership
 
@@ -33,11 +31,13 @@ implementations with no owner.
    `image_embeddings` · `chat_digests` · `chat_segments` · `chat_digest_speakers` · `document_chunks` —
    the set the `vector-scope-derived` gate pins) lives in
    `embeddings/persistence/queries.ts`, reached only via `embeddings.store` / `embeddings.storeSegments`
-   (+ `writeHubScores`, inv 3). Producers (card/avatar/digest) are *lens arms* of `store`, never inserters;
-   the VERBATIM segment lens is the one BATCH arm (`storeSegments`, #172) because its producer holds the whole
-   corpus's work at once and a block over the embed window becomes N chunks — same persistence file, same hash
-   gate, same space tripwire, one embed flood instead of one awaited embed per block. `content_hash` is the
-   staleness gate: identical hash ⇒ `noop` before the embed runs.
+   (+ `writeHubScores`, inv 3). Producers (card/avatar/digest) call `store`; they never insert directly.
+   `store`'s params are discriminated by kind, and `segment` is deliberately not one of its cases:
+   `storeSegments` is the one batch path, for the verbatim segment producer, because that producer holds
+   a whole corpus's work at once and a block over the embed window becomes N chunks — same persistence
+   file, same hash gate, same space tripwire, one embed flood (one call per owner) instead of one
+   awaited embed per block. `content_hash` is the staleness gate: identical hash ⇒ `noop` before the
+   embed runs.
 2. **Two cosine access patterns, two owners — never mixed.** Top-k retrieval = `search` only (the
    `vector_distance_cos` SQL appears solely in `search/persistence/`). All-pairs in-RAM analytics =
    `discovery` only (`@orb/kit/vector-math.pairwiseCosine`). `memory` holds ZERO cosine of either kind —
@@ -60,7 +60,6 @@ Recall semantics (the 5 modes, tiered bridge, witnessing, egocentric scoping, th
 execution, trigger discipline) are carried in full by the `chat/memory` code headers
 (`recall/recall.ts` et al.) + ledger D55 — not restated here.
 
-`document_chunks` (the databank RAG table) is WRITTEN today (databank landed 2026-07-26, D107 Phase B):
-`domain/databank/ingest` stores each chunk via the injected `embeddingsStore` op, and the physical insert
-lives in `embeddings/persistence/queries.ts` — the single write path held, no carve-out needed
-(truth-audit correction 2026-08-03; this line previously said "ZERO writers today").
+`document_chunks` (the databank RAG table) is written: `domain/databank/ingest` (D107 Phase B) stores each
+chunk via the injected `embeddingsStore` op, and the physical insert lives in
+`embeddings/persistence/queries.ts` — the single write path holds, no carve-out needed.

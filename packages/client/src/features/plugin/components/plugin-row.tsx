@@ -219,7 +219,7 @@ export function PluginRow({ plugin }: PluginRowProps): ReactElement {
           renders — never silent. */}
         {plugin.updateSource === null ? null : <UpdateCheckRow plugin={plugin} />}
 
-        {/* The plugin's OWN settings surfaces (plugin-ui-plane #679 U1) — rendered inside the first-party
+        {/* The plugin's OWN settings surfaces — rendered inside the first-party
           labelled shell, per §4.5. Renders nothing when the plugin is disabled or ships no settings surface. */}
         <PluginSurfacesPanel grants={plugin.grantedCapabilities} pluginId={plugin.id} pluginName={plugin.name} />
 

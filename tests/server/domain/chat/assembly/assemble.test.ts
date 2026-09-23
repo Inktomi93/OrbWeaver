@@ -174,7 +174,7 @@ describe("assemblePrompt — section walk", () => {
   });
 
   test("databank marker lands in the DYNAMIC half (retrieval changes every turn — never the cached prefix)", () => {
-    // databank-design/07 §3: the slot is "a reserved macro slot in the DYNAMIC/CACHE-SAFE half, exactly
+    // the slot is "a reserved macro slot in the DYNAMIC/CACHE-SAFE half, exactly
     // parallel to {{memory}}" — a static placement would bust the prompt cache on every turn.
     const config = configOf([marker({ marker: "main_prompt", template: "sys" }), marker({ marker: "databank" }), marker({ marker: "chat_history" })]);
     const out = assemblePrompt(config, ctxOf({ databank: "# Ferry\nThe ferryman is Kalen." }));
@@ -192,7 +192,7 @@ describe("assemblePrompt — section walk", () => {
     test("an attached document's passage reaches the assembled prompt", () => {
       const out = assemblePrompt(DEFAULT_PROMPT_CONFIG, ctxOf({ databank: `# Ferry lore\n${passage}` }));
       expect(`${out.static}\n${out.dynamic}`).toContain(passage);
-      // The framing rides the marker's own default (databank-design/07 §3 — the wrapper prose belongs to the
+      // The framing rides the marker's own default (the wrapper prose belongs to the
       // section template, never to databank's value).
       expect(out.dynamic).toContain("Related information:");
     });
@@ -549,7 +549,7 @@ describe("assemblePrompt — ASSEMBLE post-process (collapseNewlines)", () => {
   });
 });
 
-describe("assemblePrompt — PD-140/D25: implicit compact_summary prepend", () => {
+describe("assemblePrompt — D25: implicit compact_summary prepend", () => {
   test("a preset with no compact_summary section still delivers ctx.compactSummary (stateless-runner safety net)", () => {
     const config = configOf([marker({ marker: "main_prompt", template: "sys" }), marker({ marker: "chat_history" })]);
     const out = assemblePrompt(config, ctxOf({ compactSummary: "the summary so far" }));
@@ -1362,7 +1362,7 @@ describe("assemblePrompt — section gating and placement", () => {
   });
 });
 
-// THE IMPLICIT COMPACT SUMMARY (PD-140/D25) — WHERE the synthesized section lands. Its position decides
+// THE IMPLICIT COMPACT SUMMARY (D25) — WHERE the synthesized section lands. Its position decides
 // whether a compacted chat's summary reaches a stateless runner inside the system block or after history.
 describe("assemblePrompt — implicit compact_summary placement", () => {
   test("a NULL compactSummary is inert — no crash, no synthesis", () => {
@@ -1396,7 +1396,7 @@ describe("assemblePrompt — implicit compact_summary placement", () => {
 
   // #1462 — the synthesis used to stand down for any ENABLED `compact_summary` section. A section whose
   // `trigger` excludes this turn's generation type is dropped by the walk, so "enabled" was not the question:
-  // the compacted chat's summary reached the model NOWHERE, which is the exact silent break PD-140 exists to
+  // the compacted chat's summary reached the model NOWHERE, which is the exact silent break this guarantee exists to
   // prevent.
   test("an enabled but TRIGGER-MISMATCHED compact_summary does not suppress the synthesis", () => {
     const config = configOf([

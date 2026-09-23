@@ -4,7 +4,7 @@
 // endpoint row carries a URL (a hosted one does not), the URL parses and passes the F12 admission, the
 // credential is the caller's, and the label is unique per owner (auto-minted `<provider> · <model>`,
 // collision-suffixed).
-// PD-139a (§10-4): a write that moves one of the caller's vector SPACES re-raises the purge+reindex trigger
+// (§10-4) a write that moves one of the caller's vector SPACES re-raises the purge+reindex trigger
 // through `onEmbedSpaceChanged` — the settings-blob trigger this replaces enqueued the same workload. The
 // condition is a before/after comparison of the resolved space tags (`substrate/embed-space.ts`), NOT a
 // column diff: the space is derived from the row's model AND its resolved capability, so a provider or

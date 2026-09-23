@@ -1,4 +1,4 @@
-// WebWeave — the brand web, woven live on canvas (docs/history/design/login-loading-screen.md §1/§4.1/§9).
+// WebWeave — the brand web, woven live on canvas.
 // The thin DOM half: geometry is `web-weave-geometry.ts` (pure, seeded), painting is
 // `web-weave-render.ts` (stateless painters); this file owns the clock, the canvas, the rAF loop,
 // and the TOKEN→palette resolution (canvas can't consume `var()` — the palette is resolved from

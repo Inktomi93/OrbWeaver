@@ -6,14 +6,13 @@ updated: 2026-09-19
 
 # Motion & Animation Guide
 
-The motion law (promoted proposed/ → core/ under D66). How motion is built in this app: **CSS
+This is the motion law (D66). How motion is built in this app: **CSS
 / Tailwind keyed off Base UI data-attributes and CSS vars, on three INTERACTION duration tokens
 (`fast`/`base`/`layout`) plus continuous/ambient tokens (`shimmer`/`breathe`/`precip`/`transit`/`ambient`)
 and one easing curve** — never a React animation hook, never a second easing curve. §1 is the Base UI
 mechanics an agent needs to add motion; §2 the taxonomy → token map; §3 the house principles
 (numbering is stable — code cites `guide §3.7`/`§3.9`); §4 the motion inventory (what's built,
-where, and what was deliberately left out). The pre-build gap analysis and the inspiration
-synthesis behind §3 are frozen in `../architecture/history/motion-guide-archaeology-record.md`.
+where, and what was deliberately left out).
 
 ## 1. Base UI animation mechanics cheat-sheet
 
@@ -115,28 +114,22 @@ This app's existing `OVERLAY_MOTION` fragments already made this exact call — 
 transitions + `data-starting-style:`/`data-ending-style:` Tailwind arbitrary-variant classes,
 not `@keyframes`. That's the correct default; keep it.
 
-**But the transition NAMES ITS PROPERTIES — never `transition-all` on a focusable element.**
-Both fragments were `transition-all` until 2026-08-08 and are now `transition-[opacity,scale]`.
-`outline-*` is interpolable, so `all` fades a focus ring in over the duration and a keyboard user
+**The transition NAMES ITS PROPERTIES — never `transition-all` on a focusable element.**
+`outline-*` is interpolable, so `all` fades a focus ring in over the duration; a keyboard user
 moving at speed sees a desaturated half-ring at every stop — and these popups ARE focus stops
 (Base UI's floating focus manager stamps a managed `tabindex` on any `role="dialog"` floating
-element and moves focus into it on open; measured on dialog + popover). `all` also silently
-animates the layout vars Base UI recomputes live (`--available-height`, `--anchor-width`), so a
-repositioned popup lags its anchor. Same finding as the toast root (`toast/variants.ts`) and the
-same reason Button has to name `scale`. Pinned by unpolled `transitionProperty` reads in
-`tests/ui/primitives/dialog/dialog.ct.tsx` + `tests/ui/primitives/popover/popover.ct.tsx`.
-**AMENDED 2026-09-02 (#1102) — zero `transition-all` sites remain.** #1069's amendment recorded
-"three surviving `transition-all` sites (accordion panel, collapsible panel, progress indicator)"
-as NON-focusable and safe to keep the shorthand; that count missed a fourth,
-`appearance-sizing-section.tsx`'s density live-preview, and undersold the actual failure mode —
-`transition-all` doesn't only race a focus ring, it also animates INHERITED properties the element
-never opted into (`scrollbarColor`), which the app's `[anim]` flagger convicted OVER BUDGET on the
-collapsible panel and the density preview regardless of focusability. All four now name their
-properties explicitly: `transition-[height]` (accordion panel, collapsible panel — the ratified
-\#953/#1069 lifecycle allowance, §4.2 item 3), `transition-[width,background-color]` (progress
-indicator), `transition-[gap,padding]` (density preview, `appearance-sizing-section.tsx`). The
-tabs indicator was the earlier fourth until #1069 (2026-09-02) and names `transition-[transform]`,
-for the §4.2-item-2 reason rather than the focus-ring one.
+element and moves focus into it on open; measured on dialog and popover). `all` also animates the
+layout vars Base UI recomputes live (`--available-height`, `--anchor-width`), so a repositioned
+popup lags its anchor, and it animates inherited properties the element never opted into (such as
+`scrollbarColor`). No site in this app uses `transition-all`; every transition names its
+properties: `transition-[opacity,scale]` (dialog, popover) — pinned by `transitionProperty` reads
+in `tests/ui/primitives/dialog/dialog.ct.tsx` and `tests/ui/primitives/popover/popover.ct.tsx`;
+`transition-[opacity,transform,translate]` (toast, pinned the same way in
+`tests/ui/primitives/toast/toast.ct.tsx`); `transition-[height]` (accordion panel, collapsible
+panel — the lifecycle allowance in §4.2 item 3); `transition-[width,background-color]` (progress
+indicator); `transition-[scale]` (button press feedback — the transition must name `scale`, since
+`transition-[...transform]` would not animate it); `transition-[transform]` (tabs indicator, §4.2
+item 2, pinned by `tests/ui/primitives/tabs/tabs.ct.tsx`).
 
 ### 1.3 Keeping the exit animation alive: `keepMounted`
 
@@ -197,8 +190,7 @@ library, no rAF-driven interpolation, no duration or easing computed in JS: ever
 animation interpolates over is authored in CSS from the three duration tokens and the one
 curve.
 
-**AMENDED 2026-09-02 (#1069) — the FLIP-inversion exception, which is a MEASUREMENT, not an
-animation.** The rule above bans JS from producing animation VALUES. It does not ban JS from
+**The FLIP-inversion exception is a MEASUREMENT, not an animation.** The rule above bans JS from producing animation VALUES. It does not ban JS from
 supplying the one fact CSS cannot know: *where this element was before the layout it is now
 in*. A FLIP (measure the previous box, apply the inverse, let CSS run it home) computes a
 DELTA and hands the interpolation straight back to CSS — the transition's property, duration
@@ -208,10 +200,8 @@ and curve stay on the element's own classes. Two sites, and they are the whole e
   push. JS stamps `data-<track>-flip="in|out"` for each of the two tracks (and the
   reduced-motion `data-<track>-settle` twin); every distance is composed in `shell.css` from
   the two grid tracks, and the keyframes live there too, so CSS owns even the delta.
-  **Prefer this shape whenever the distance is already a CSS value.** The file was
-  `use-list-track-flip.ts` until #2463 — renamed once it stopped being list-only (#2456 gave
-  the CONTEXT track its own arm), and renamed WITH this citation because `dangling-doc-cite`
-  is hard-no-waiver.
+  **Prefer this shape whenever the distance is already a CSS value.** Renaming this file
+  requires updating this citation in the same commit — `dangling-doc-cite` has no waiver.
 - `glideIndicator` in `packages/ui/src/primitives/tabs/tabs.tsx` — the tabs indicator glide
   (§4.2 item 2). The delta is the difference between two runtime boxes, so no CSS value
   expresses it: JS writes the inverse `transform` inline, flushes, and drops it, and the
@@ -220,12 +210,12 @@ and curve stay on the element's own classes. Two sites, and they are the whole e
 
 Anything else that reaches for JS to move pixels is a defect, not a third member: read those
 two files before writing a third, and if the delta can be spelled in CSS, the answer is the
-shell's shape. **STRUCTURAL SINCE #1089** — this list is no longer prose-only: the
-`no-unruled-flip-inversion` policy reds a transform write flushed by a forced layout read
-anywhere in `@ui`/`@client`, and the one member that writes a transform is an exact row in
-`tooling/src/verify/lib/reviewed-grants-no-unruled-flip-inversion.ts`. Amending this list and
-that table is ONE edit, never two halves. Reduced motion needs no special arm in either — the globals.css floor
-(`transition-property: none !important`) makes the inverse land instead of animate.
+shell's shape. This list is enforced, not prose-only: the `no-unruled-flip-inversion` policy reds
+a transform write flushed by a forced layout read anywhere in `@ui`/`@client`, and the one member
+that writes a transform is an exact row in
+`tooling/src/verify/lib/reviewed-grants-no-unruled-flip-inversion.ts`. Amend this list and that
+table together, in one edit. Reduced motion needs no special case in either — the globals.css
+floor (`transition-property: none !important`) makes the inverse land instead of animate.
 
 ## 2. Motion taxonomy + where-to-place-it playbook
 
@@ -274,10 +264,9 @@ loading→content cross-fade was considered and decided-against (§4.2 item 5).
 ## 3. House principles
 
 Numbering is STABLE — code comments cite `guide §3.7` and `guide §3.9` by number; keep all ten
-in order. The sourced synthesis and design-writing quotes behind these live in
-`../architecture/history/motion-guide-archaeology-record.md`.
+in order.
 
-1. **Exit matters as much as entrance.** Entrance-only motion is the #1 tell of unfinished
+1. **Exit matters as much as entrance.** Entrance-only motion is the clearest tell of unfinished
    work. Any enter animation wants a paired exit — UNLESS there is no honest exit phase to
    animate (a deleted chat row has no unmount phase; §4.2 item 1).
 
@@ -311,7 +300,7 @@ in order. The sourced synthesis and design-writing quotes behind these live in
    *measured* vars so you can transition `height` without a measure-loop, but that IS a layout
    property — scope it to occasional expand/collapse, never anything high-frequency.
 
-   **AMENDED 2026-08-22 (owner ruling, #456) — the interactive-state colour carve-out.**
+   **The interactive-state colour carve-out.**
    A **paint-only colour** transition whose trigger is an interactive STATE — `hover` / `active`
    / `focus` — is ALLOWED: `color`, `fill`, `stroke` and any `*-color` longhand
    (`background-color`, `border-*-color`, `outline-color`, …). It repaints; it never moves
@@ -324,8 +313,7 @@ in order. The sourced synthesis and design-writing quotes behind these live in
    `transition-colors` for state changes. **What forced it:** the ONE core Card primitive's
    `hover:bg-accent` (`packages/ui/src/primitives/card/variants.ts`) made the app's own `[anim]`
    flagger print `animating non-compositor backgroundColor (guide §3.7) · OVER BUDGET` on every
-   interactive-card hover, app-wide — a live instrument accusing ratified behaviour
-   (side-eye 2026-08-22, P3-2).
+   interactive-card hover, app-wide — a live instrument accusing ratified behaviour.
 
    The enforcing flagger is `packages/client/src/lib/motion-flaggers.ts` (`[anim]`), and its
    predicate is **narrower than this text by construction**: an animation event carries a
@@ -336,14 +324,18 @@ in order. The sourced synthesis and design-writing quotes behind these live in
    (`__orb.animations()`) it deliberately does not touch — are documented at that carve-out's
    own comment. Read them before treating a flagger verdict as this law's verdict.
 
-   **AMENDED 2026-09-02 (#1069) — the ratified-lifecycle allowance has ONE home.** §4.2 item 3's
-   accordion/collapsible panel height is BUILT and sanctioned by this section's own text, yet the
-   `[anim]` channel convicted it on every first open, because the allowance minted with #953 had
-   landed only on the former motion CLI's pull half of the shared vocabulary. The predicate now
-   lives in `@orb/kit/motion-allowance` and BOTH instruments read it — the push side prints the
+   **The ratified-lifecycle allowance has ONE home.** §4.2 item 3's accordion/collapsible panel
+   height is BUILT and sanctioned by this section's own text. The predicate lives in
+   `@orb/kit/motion-allowance` and BOTH instruments read it — the push side prints the
    raise without a budget verdict, the pull side keeps re-judging the raw facts under it. It
    sanctions a Base UI transition bound to one `data-starting-style`/`data-ending-style` phase,
    never the word "height": an application-authored height animation is still a §3.7 violation.
+
+   **Bake glow and blur. Never compute them on an animating element.** A live blur on an element
+   that moves or fades forces a software raster on every frame. This applies to canvas
+   `shadowBlur`, SVG `<feGaussianBlur>` and CSS `filter: blur()`. Bake the glow once into a
+   static asset — a bitmap, or a blurred path twin — and animate that asset with `transform` and
+   `opacity` only. A blur on static, non-animating content is fine.
 
 8. **When NOT to animate.** Litmus: seen 100+ times daily → don't animate (keystroke feedback,
    every row a power user scrolls past). Also: motion the user did NOT cause (another user's
@@ -356,10 +348,8 @@ in order. The sourced synthesis and design-writing quotes behind these live in
    the JS hook `usePrefersReducedMotion` degrades `useSmoothText` to full passthrough. New
    motion replicates this — no "reduced but still animated" middle ground. **Transitions are
    REMOVED, so `transitionend` never fires under reduced motion** — any component that unmounts
-   or cleans up on that event owes an explicit reduced-motion arm (`CrossfadeImage`, `WeaveVeil`,
-   `flashAnchor`). The transition floor was a `0.01ms` duration clamp until #257, where it was
-   measured turning every element in the document into `transition: all` and firing 1,064 bogus
-   `scrollbar-color` transitions per room open.
+   or cleans up on that event owes an explicit reduced-motion case (`CrossfadeImage`, `WeaveVeil`,
+   `flashAnchor`).
 
 10. **Staggering communicates grouping.** A small stagger (20–50ms/item, capped ~5-6) reads as
     "one group arriving." Never stagger removals — a deleted item leaves immediately.
@@ -380,10 +370,10 @@ View-transitions on rail-section + chat nav (`withViewTransition` +
 `packages/client/src/lib/view-transition.ts`; router `defaultViewTransition: true`) — native
 browser API, not a hand-rolled crossfade. The capture is CONTENT-ONLY, so the swap animates nothing
 about a float: an open dialog/popover keeps painting over the new content, and which floats may do that
-is the declared lifetime rule in UI-Arch §4a (`MODAL_CONTENT_LIFETIME` + `withContentSwap`, #1795) —
+is the declared lifetime rule in UI-Arch §4a (`MODAL_CONTENT_LIFETIME` + `withContentSwap`) —
 a motion question with a state answer, never a second `view-transition-name`.
 
-#### 4.1.1 Sealed Select entrance audit input (#374)
+#### 4.1.1 Sealed Select entrance audit input
 
 The 50ms blocking ceiling and unconditional style/layout rule still govern ordinary LoAFs. Clean-host
 4x controls showed that Base UI Select's normal anchored entrance/positioning work spans first and
@@ -419,18 +409,18 @@ window. Chrome cannot causally separate unrelated work inside the identical brow
 frames are a bounded owner-accepted risk, not a claim of perfect attribution. Separate frames and
 recognizably app-attributed LoAF work remain ordinary red inputs.
 
-During that measured CDP window only, Snap's motion arm asks the dev bridge to suspend the duplicate
+During that measured CDP window only, Snap's `motion arm` asks the dev bridge to suspend the duplicate
 in-page `[drop]` lifetime collector. The pause returns before CSS-event, WAAPI-target, map, and report
 work, and is always released in `finally`; ordinary dev `[drop]`, `[anim]`, LoAF/CLS, `[css]`, and
 `[space]` remain unchanged. CDP `PipelineReporter` is the dropped-frame owner inside the audit window.
 Its report is nested under `args.frame_reporter`; paired trace end events have empty `args` and are not
-frames (#389). Parser controls must use that real Chrome payload shape and retain a planted dropped-frame
+frames. Parser controls must use that real Chrome payload shape and retain a planted dropped-frame
 red outside the Select entrance.
 
-#### 4.1.2 The bounded input-dispatch layout-frame exemption (#1647, #1316's proposal)
+#### 4.1.2 The bounded input-dispatch layout-frame exemption
 
 `loaf-style-layout-count 0` is unmeetable for a click that resizes a grid track (the list-collapse
-toggle): that IS real style/layout work, and it must happen in the click's own frame. #380's
+toggle): that IS real style/layout work, and it must happen in the click's own frame. The
 context-pane ruling ("one unavoidable grid-layout LoAF") is the precedent this codifies as DATA, in
 `tooling/src/motion-audit/lib/verdicts.ts`'s `isBoundedInputDispatchLayoutFrame` (an instrument rule,
 not a gate — motion-audit has no gate half). ALL FOUR conditions must hold or the frame still counts
@@ -447,8 +437,7 @@ unqualified.
 ### 4.2 The motion inventory (what's built, where; item numbers are stable)
 
 Item 1's number is cited from code (`use-enter-motion.ts` → `guide §4.2 item 1`) — keep the
-ordering. Every item is BUILT or DECIDED-AGAINST; the reference code sketches that once lived
-here are frozen in `../architecture/history/motion-guide-archaeology-record.md`.
+ordering. Every item is BUILT or DECIDED-AGAINST.
 
 **1. List-item enter (chat transcript).** BUILT (enter) / DECIDED-AGAINST (exit). The chat
 list is a TanStack virtualizer (`@orb/ui/message-list`) whose rows mount/unmount on every
@@ -467,10 +456,8 @@ collapse §3.7 forbids animating (full reasoning in `new-arrivals.ts`'s header).
 `Tabs.Indicator`; the bar's REST box is layout off Base UI's runtime `--active-tab-left/width`
 vars, and the MOVE is a transform-only FLIP (`glideIndicator` — §1.5's exception class —
 transitioned back to identity at `--motion-base`/`ease-out-expo`).
-**MECHANISM CHANGED 2026-09-02 (#1069):** it was `transition-all` on `left`/`width` until then,
-i.e. a layout animation that relayouts the list every frame, which the app's own `[anim]`
-flagger convicted under §3.7 on the first switch of every tab surface. The obvious pure-CSS
-transform spelling is illegal here — `scaleX(width/base)` never rests at identity, so every
+A `transition-all` on `left`/`width` is a layout animation that relayouts the list every frame
+and is a §3.7 violation. The obvious pure-CSS transform spelling is illegal here — `scaleX(width/base)` never rests at identity, so every
 selected tab would be a rest state carrying a non-identity scale (`rest-transform-grid`,
 integer-line-boxes §9 Law 2) and the 2px bar's `rounded-full` caps would be permanently
 stretched. Pinned by `tests/ui/primitives/tabs/tabs.ct.tsx` (the launched property set, the
@@ -509,9 +496,8 @@ transform-only reorder, reduced-motion gated (`usePrefersReducedMotion` →
 **9. Selection/checked state.** BUILT. `checkbox/variants.ts`, `radio-group/variants.ts` (and
 siblings) carry `transition-colors duration-(--motion-fast) ease-out-expo`.
 
-**10. Streamed-word reveal fade (chat ghost row).** BUILT (#42, owner-ordered 2026-08-09 —
-supersedes the old §4.3 "don't animate streaming text" bullet; design + measurements:
-`docs/history/design/streaming-reveal-42.md`). Each newly revealed word of a streaming message fades in
+**10. Streamed-word reveal fade (chat ghost row).** BUILT (design + measurements: D168). Each
+newly revealed word of a streaming message fades in
 (opacity-only keyframe `orb-word-reveal`, `--motion-base` + `--ease-out-expo`, `fill both`) via the
 markdown seal's own rehype plugin (`ui/src/markdown/reveal-plugin.ts` → `[data-orb-reveal]` spans in
 `ui/src/styles/globals.css`). Fade progress is anchored to the word's REVEAL TIME through a negative
@@ -530,19 +516,23 @@ per-block `dir` wrapper and drops to a new line).
   spring physics for genuinely gesture-driven surfaces only (drawer swipe, drag-reorder
   release).
 - Don't animate high-frequency/hot-loop surfaces (every keystroke) — violates the "100+ times
-  daily" litmus. (The old clause here also banned animating streamed token text; the owner
-  superseded that 2026-08-09 — the streamed-word reveal fade is §4.2 item 10, and its reveal-time
-  anchoring is the technique that makes a hot-loop fade correct.)
+  daily" litmus. The streamed-word reveal fade (§4.2 item 10) is sanctioned despite being a
+  hot-loop surface: its reveal-time anchoring is the technique that makes a hot-loop fade correct.
 - Don't invent a 4th interaction duration token or a 2nd easing curve without a category that
   genuinely doesn't fit `fast`/`base`/`layout` + `ease-out-expo`. The existing 3-tier interaction
   system covers the full taxonomy in §2; continuous/ambient tokens (`shimmer`/`breathe`/`precip`/
   `transit`/`ambient`) serve loops and environmental effects and are a separate class.
+- Do not drive the streamed-word fade from the DOM with a `MutationObserver` and the Web
+  Animations API. React replaces word nodes during markdown repair, dialogue re-splitting and
+  re-blocking, and a replaced node loses its running animation. The reveal-time CSS anchor in
+  §4.2 item 10 survives that replacement and keeps the one reduced-motion path. ADR 0168 owns the
+  mechanism.
 
-## 5. The Base UI animation/styling contract (house law — #1088)
+## 5. The Base UI animation/styling contract (house law)
 
 Three binding rules that complete §1's description as enforceable law. Each names its enforcer per
-constitution §2 (a prose-only boundary is a wish). The instrument-side match tables (#1064/#1065) are
-already locked; this section is the law + gate half.
+constitution §2 (a prose-only boundary is a wish). The instrument-side match tables are locked; this
+section is the law + gate half.
 
 ### 5.1 Transitions over keyframes for lifecycle motion
 
@@ -557,9 +547,9 @@ effects, the indeterminate hairline, the stream caret), multi-step sequences (sh
 word-reveal fade (§4.2 item 10 — anchored animation-delay, a technique transitions cannot express).
 Those are the §1.2-documented exceptions: effects a transition literally cannot express.
 
-**Enforcer:** `rest-transform-grid` ARM C already classifies `@keyframes` blocks as ANIMATING (not
-rest), so a `@keyframes`-only animation passes that gate more easily than a transition — the issue's
-stated perverse incentive. The enforcement gap is that no gate currently REDs a lifecycle `@keyframes`
+**Enforcer:** `rest-transform-grid`'s transform-declaration check classifies `@keyframes` blocks as
+ANIMATING (not rest), so a `@keyframes`-only animation passes that gate more easily than a
+transition — a perverse incentive. The enforcement gap is that no gate currently REDs a lifecycle `@keyframes`
 on a Base UI popup part when a transition could express the same effect. The structural fix is a
 ui-audit rule or gate that flags `animation`/`animation-name` declarations on elements carrying
 `data-open`/`data-closed` when the animated properties (`opacity`, `transform`, `scale`) are

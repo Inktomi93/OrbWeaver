@@ -1,11 +1,15 @@
 // The read verbs over the items: `overview` (the column view, every state named with its count so an
-// empty column is a fact and not an omission) and `drift` (the orchestrator nag over resolved git facts).
+// empty column is a fact and not an omission) and `drift` (the orchestrator nag over resolved git facts,
+// the plans' lifecycle included).
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { DriftFacts, WorkItem } from "../contract/types.ts";
-import { closesTrailer, driftLines, wakeConditions } from "../lib/drift.ts";
+import type { DriftFacts, PlanState, WorkItem } from "../contract/types.ts";
+import { PLAN_KIND } from "../contract/vocab.ts";
+import { closesTrailer, driftLines, planWakeConditions, wakeConditions } from "../lib/drift.ts";
+import { splitDocument } from "../lib/frontmatter-write.ts";
+import { planSlugOf } from "../lib/indexes.ts";
 import { padId } from "../lib/names.ts";
 import { loadItems } from "./items.ts";
-import { pathExists, recentMainCommits, root, unmergedBranches, worktreeBranches } from "./tree.ts";
+import { governedPaths, pathExists, readDoc, recentMainCommits, root, unmergedBranches, worktreeBranches } from "./tree.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm doc <overview|drift>");
 
@@ -53,17 +57,30 @@ export function overview(repoRoot = root): readonly string[] {
   return overviewLines(loadItems(repoRoot));
 }
 
+/** Every plan design on the tree with the fields its lifecycle reads. */
+export function loadPlans(repoRoot = root): readonly PlanState[] {
+  return governedPaths(repoRoot).flatMap((path) => {
+    const slug = planSlugOf(path);
+    const fields = slug === null ? null : splitDocument(readDoc(path, repoRoot).source).fields;
+    if (slug === null || fields?.["kind"] !== PLAN_KIND) {
+      return [];
+    }
+    return [{ path, slug, status: fields["status"] ?? "", blocked: fields["blocked"] ?? null }];
+  });
+}
+
 export function driftFacts(repoRoot = root): DriftFacts {
   const items = loadItems(repoRoot);
+  const plans = loadPlans(repoRoot);
   // A wake condition is a tree fact (a path present or gone), never something to run.
-  const woken = new Set<number>();
-  for (const [id, condition] of wakeConditions(items)) {
-    if (pathExists(condition.path, repoRoot) === (condition.presence === "path")) {
-      woken.add(id);
-    }
-  }
+  const met = (condition: { readonly presence: "path" | "gone"; readonly path: string }): boolean =>
+    pathExists(condition.path, repoRoot) === (condition.presence === "path");
+  const woken = new Set([...wakeConditions(items)].flatMap(([id, condition]) => (met(condition) ? [id] : [])));
+  const wokenPlans = new Set([...planWakeConditions(plans)].flatMap(([slug, condition]) => (met(condition) ? [slug] : [])));
   return {
     items,
+    plans,
+    wokenPlans,
     worktreeBranches: worktreeBranches(repoRoot),
     unmergedBranches: unmergedBranches(repoRoot),
     closedOnMain: recentMainCommits(repoRoot).map((commit) => ({ sha: commit.sha, ids: closesTrailer(commit.message) })),

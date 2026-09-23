@@ -18,11 +18,11 @@ interface CorpusSweepArgs {
 export interface ChatWorkloadDeps {
   /** The memory subsystem's corpus-wide segment/digest rebuild (idempotent, hash-diff resumable). */
   readonly backfillMemory: (args: CorpusSweepArgs) => Promise<MemoryBackfillSweepCounts>;
-  /** Mint the synthetic group character for every multi-character room that lacks one (PD-41/D38). */
+  /** Mint the synthetic group character for every multi-character room that lacks one (D38). */
   readonly backfillGroupCharacters: (args: CorpusSweepArgs) => Promise<BackfillPassResult>;
   /** The memory sweep's TERMINAL: record `embed_space_state`'s `memory` completion for every space the
    *  sweep brought current and — once cards, memory AND documents all name the same target generation —
-   *  reclaim the rows stranded in an older embed space (PD-139(b)).
+   *  reclaim the rows stranded in an older embed space.
    *
    *  THE ENUMERATION SCOPE IS AN ARGUMENT, not a caller-side fence (#2517). The op enumerates exactly the
    *  scope it is handed: `null` = every corpus owner (the bulk arm), a `UserId` = that one owner. That is

@@ -89,7 +89,7 @@ export const REVIEWED_GRANTS_TOOLING_TO_PERMISSION: readonly ReviewedGateGrant[]
     policyId: "tooling-browser-door",
     subject: "tooling/src/_shared/browser.ts",
     operation: "browser-attach",
-    why: "`attachProbeSession` IS the one door onto a stateful session daemon's browser (docs/design/1208-instrument-substrate.md §3.4): the `connectOverCDP` here is the attach every consumer rides, shape-identical to a launched session (arm H of the retired plumbing gate).",
+    why: "`attachProbeSession` IS the one door onto a stateful session daemon's browser: the `connectOverCDP` here is the attach every consumer rides, shape-identical to a launched session (arm H of the retired plumbing gate).",
     endsWhen: "the attach moves out of browser.ts or the daemon stops exposing a debugging endpoint — the row is then consumed zero times and reds.",
   },
   {
@@ -153,7 +153,7 @@ export const REVIEWED_GRANTS_TOOLING_TO_PERMISSION: readonly ReviewedGateGrant[]
     policyId: "tooling-port-registry",
     subject: "tooling/src/_shared/ports.ts",
     operation: "port-literal",
-    why: "THE port registry — the one home every reserved row and stage band is declared in, and the table the policy imports to know what a port number even is (the legacy PORT_HOME row; docs/design/1208-instrument-substrate.md §3.6).",
+    why: "THE port registry — the one home every reserved row and stage band is declared in, and the table the policy imports to know what a port number even is (the legacy PORT_HOME row).",
     endsWhen: "the registry moves, or stops declaring ports — which is the day it stopped being the registry; the row is then consumed zero times and reds.",
   },
   {

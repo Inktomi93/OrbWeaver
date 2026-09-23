@@ -1,4 +1,4 @@
-// The SESSION FRESHNESS CLOCK + the visibility probe (staleness-and-session-freshness.md §4.4.1) — the
+// The SESSION FRESHNESS CLOCK + the visibility probe — the
 // sensor that closes the "stale login is silently tolerated" hole.
 //
 // WHY A SENSOR IS NEEDED AT ALL. D54 pins `staleTime: Infinity` and `refetchOnWindowFocus: false`: the bus

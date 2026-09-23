@@ -9,7 +9,7 @@
 // would mint hundreds of workspace rows nobody opened. The critique itself is therefore NOT kept — only the
 // scalar the library sorts and the dossier read. A user who wants the critique starts a session on that card.
 //
-// THE §20 CARVE-OUT, STATED (docs/history/design/refinery-schema-renderer.md §20, fork F-W1): the owner ruling is
+// THE §20 CARVE-OUT, STATED (D171): the owner ruling is
 // "no as-you-go card writes — the live character is touched ONCE, at the terminal act". That ruling is about
 // AUTHORED CONTENT. A score stamp is derived metadata ABOUT the card ("derived, not authored" —
 // `contracts/character`'s own words), and this sweep's entire purpose is stamping scores WITHOUT ever

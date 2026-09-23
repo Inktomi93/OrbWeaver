@@ -1,5 +1,5 @@
 // THE BAND CENSUS — what the box says about every band right now, and the LOCKED acquire that turns that
-// census into "this band is mine" (docs/design/1208-instrument-substrate.md §3.6, issue #1276). The pure
+// census into "this band is mine" (issue #1276). The pure
 // rules are lib/stage-bands.ts; the table I/O is ops/stage-marker.ts; the raw signals are
 // ops/stage-probe.ts. This module is the seam that reads all three, and it is the ONE place a band is
 // claimed — ops/stage.ts boots what it hands back and ops/stage-status.ts prints it.
@@ -30,7 +30,7 @@ refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
  *  is a FRESH PROCESS (the snap cli, the daemon cli, each spawned proof), so a caller that wants different
  *  knobs sets them in the environment of the CHILD and never mid-process. Same posture as the session
  *  registry's `ORB_SESSION_TTL_MIN`/`ORB_SESSION_CAP` door. */
-// biome-ignore lint/style/noProcessEnv: the two owner-ruled ambient TOOLING knobs this file owns (docs/design/1208-instrument-substrate.md §12.2 F5 — the stage half of the same pair ops/session-registry.ts reads for sessions). The env door the rule points at (packages/server/src/foundation/env) sits ABOVE @orb/tooling in the cake and cannot be imported down here.
+// biome-ignore lint/style/noProcessEnv: the two owner-ruled ambient TOOLING knobs this file owns (F5 — the stage half of the same pair ops/session-registry.ts reads for sessions). The env door the rule points at (packages/server/src/foundation/env) sits ABOVE @orb/tooling in the cake and cannot be imported down here.
 const { ORB_STAGE_TTL_MIN: TTL_MIN_ENV, ORB_STAGE_CAP: CAP_ENV } = process.env;
 
 /** The owner-ruled limits (F5), with any env-parse refusal PRINTED rather than silently defaulted — a TTL

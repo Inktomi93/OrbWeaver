@@ -1,4 +1,4 @@
-// The takeover's EDIT-in-place write verbs (Context-Panel-Program §3.2 — every block editable-in-place is
+// The takeover's EDIT-in-place write verbs (every block editable-in-place is
 // the LAW, not an option). Each is a module-scope `createEntityMutation` (§13.1 — the ONE mutation home; a
 // call site never hand-rolls `useMutation`). The rpg feature bus is LIVE-ONLY and could drop a tick, so
 // these reconcile via EXPLICIT `invalidates` on the rpg tracker read (not `busDriven`, which only routes the

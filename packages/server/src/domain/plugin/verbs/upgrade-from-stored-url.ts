@@ -1,4 +1,4 @@
-// verb: upgradeFromStoredUrl — the TRUE one-click upgrade (plugin-ui-plane #679 U8 2b). Re-fetch the bundle
+// verb: upgradeFromStoredUrl — the TRUE one-click upgrade (U8 2b). Re-fetch the bundle
 // from the URL the plugin was INSTALLED from (`plugins.source_url`, remembered by the `url`-origin install) and
 // run it through the EXISTING `upgrade` verb — so #615's re-consent wall applies UNCHANGED: `upgrade` lands the
 // row DISABLED pending re-consent whenever the new bundle WIDENS reach (a capability the prior grant never

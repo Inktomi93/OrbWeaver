@@ -45,7 +45,7 @@
 // family's four ledger consumers) and the INSTALLED doors' three (the whole package missing, `metadata`
 // unresolved, `ast` unresolved, all `[evaluate]` tool errors), beside the complete run asserting one
 // `unresolved: 0` receipt per declared resource. The path this paragraph named until 2026-09-13 —
-// `baseui-family.test.ts` — never existed on the tree (`v-conversions-11-2026-09-13.md`, board #2297).
+// `baseui-family.test.ts` — never existed on the tree (the conversions-11 verifier review, board #2297).
 //
 // BUT THE TWO REFUSALS ARRIVE AT DIFFERENT PHASES, AND THE DIFFERENCE IS NOT COSMETIC — it was MEASURED by
 // this conversion's §4.6 differential, after this header first claimed both were population-phase
@@ -59,7 +59,7 @@
 // The consequence for any resource policy, not just this one: `readyResourceValue` is an ASSERTION about a
 // broken runtime for a populated kind and a REACHABLE, load-bearing refusal for an unpopulated one. Both
 // are tool errors and neither is a finding, so the outcome is the same — but a header that calls the
-// second one unreachable is wrong, and `resource-policy-contract.md` §1/§3.2 states the guarantee without
+// second one unreachable is wrong, and `docs/law/resource-policy-contract.md` §1/§3.2 states the guarantee without
 // the carve-out.
 //
 // A READY-BUT-DEGENERATE LEDGER IS THE OTHER HALF AND IT IS A FINDING (arm E, NEW at conversion). Legacy
@@ -238,7 +238,7 @@ function judgeDispositions(report: Report, manifest: SurfaceManifest): void {
 // `packages/ui/node_modules/@base-ui/react` an importer sees. `ops/policy-conformance.ts:156-160` keeps
 // those paths OUT of the authored overlay by name, which is what makes an installed fixture legal at all.
 // Every row supplies EVERY declared resource: a row missing one is a `[population]` tool error, not a
-// finding (`resource-policy-contract.md` §3.5).
+// finding (`docs/law/resource-policy-contract.md` §3.5).
 const PKG = BASE_UI_PKG_REL;
 
 /** A minimal installed package for the self-proofs: one namespaced component with one part. The manifest
@@ -274,7 +274,7 @@ const MANIFEST_GHOST_COMPONENT = `{\n  "version": "9.9.9",\n  "components": {\n 
 /** The same installed package with a root declaring NO props, so a manifest entry carrying no props and no
  *  heritage AGREES with it. Arm D's two rows are about the manifest ROW being empty, not about drift; with
  *  the ordinary fixture the identity comparison fires too and the row would assert a count it does not
- *  mean. This is the "isolate ONE arm" rule (`resource-policy-contract.md` §3.5) paid in a fixture. */
+ *  mean. This is the "isolate ONE arm" rule (`docs/law/resource-policy-contract.md` §3.5) paid in a fixture. */
 const INSTALLED_EMPTY_ROOT: Readonly<Record<string, string>> = {
   ...INSTALLED_ONE_PART,
   [`${PKG}/select/root/SelectRoot.d.ts`]: "export interface SelectRootProps {}\n",
@@ -358,7 +358,7 @@ export const gate = defineGate({
         [MANIFEST_PATH]: manifestJson(ROOT_ENTRY("exposed", "")),
       },
       expect: { count: 1, messageIncludes: "changed shape" },
-      why: "ARM A's STATE half, and the row that dies when `part.state` is cut from `identity()`: the installed part gains a `<Part>State` key while its props, alias target and heritage are byte-identical to the manifest's. `<Part>State` is what Base UI mirrors onto the DOM as `data-*`, so it is the surface `baseui-state-data-attributes` judges seals against — a bump that moved it silently moved what that policy enforces. The legacy tuple omitted `state` entirely and this fixture was green against it. It is also the surviving owner of the aggregate attribute-NAME comparison the css-hook-provenance conversion RETIRED into this tuple (`x-css-family-unit-2026-09-13.md` deviation 3), so cutting `state` now blinds two families rather than one",
+      why: "ARM A's STATE half, and the row that dies when `part.state` is cut from `identity()`: the installed part gains a `<Part>State` key while its props, alias target and heritage are byte-identical to the manifest's. `<Part>State` is what Base UI mirrors onto the DOM as `data-*`, so it is the surface `baseui-state-data-attributes` judges seals against — a bump that moved it silently moved what that policy enforces. The legacy tuple omitted `state` entirely and this fixture was green against it. It is also the surviving owner of the aggregate attribute-NAME comparison the css-hook-provenance conversion RETIRED into this tuple (the 2026-09-13 CSS-family unit repair deviation 3), so cutting `state` now blinds two families rather than one",
     },
     {
       mode: "resource",

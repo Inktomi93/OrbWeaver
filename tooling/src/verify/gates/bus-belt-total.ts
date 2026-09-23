@@ -51,7 +51,7 @@ import { defineGate } from "../contract/policy.ts";
 import { busDefinitionFact } from "../lib/bus-definition-fact.ts";
 
 const MESSAGE =
-  "bus belt is not TOTAL over its union — a `*_EVENT_TYPES` belt that omits a declared discriminator makes every ratchet quantifying over it skip that member (the array-literal belt shape gets no totality check from tsc; only membership). (tooling/src/verify/gates/GATE-AUTHORING.md)";
+  "bus set is not TOTAL over its union — a `*_EVENT_TYPES` belt that omits a declared discriminator makes every ratchet quantifying over it skip that member (the array-literal belt shape gets no totality check from tsc; only membership). (tooling/src/verify/gates/GATE-AUTHORING.md)";
 
 export const gate = defineGate({
   id: "bus-belt-total",

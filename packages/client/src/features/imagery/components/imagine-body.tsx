@@ -1,4 +1,4 @@
-// The `imagine` modal body (interaction-direction-spec.md §7 B5) — the /imagine surface. A mode strip (free +
+// The `imagine` modal body — the /imagine surface. A mode strip (free +
 // the four extraction modes) over the seed `/imagine` parsed; for an extraction mode "Read the chat first"
 // runs `extractPrompt` and DROPS the resolved keywords into the editable prompt box, so the host sees (and can
 // edit) what the image will be built from BEFORE spending on it. A prompt, once present, is sent VERBATIM as

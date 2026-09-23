@@ -1,5 +1,5 @@
-// persona-resolution — the INVARIANT SUITE for the persona {{user}}/{{persona}} resolution model
-// (FINAL-Persona-and-Immersive-Chat-Visuals.md Part A). Cross-cutting (buildAssembleContext + assemblePrompt +
+// persona-resolution — the INVARIANT SUITE for the persona {{user}}/{{persona}} resolution model.
+// Cross-cutting (buildAssembleContext + assemblePrompt +
 // renderHistoryMacros + the chat-lifecycle/roster verbs) — mirror-exempt (`.suite.int.test.ts`), same class as
 // `solo-byte-identical.suite.int.test.ts`. This file does NOT re-litigate ground already pinned elsewhere — it
 // adds the pieces that were missing:
@@ -20,7 +20,7 @@
 //     assembly/context.int.test.ts "BOTH-PERSONAS" + "persona description placement" describes.
 //   • the chat-open seed chain (explicit > connected > current > default, every rung) — verbs/start-chat.int.test.ts.
 //   • setChatAnchorPersona host-gate / ownership / null-clears — verbs/chat-lifecycle.int.test.ts.
-//   • send-time personaId stamp (PD-100: explicit ?? active) — verbs/turn.int.test.ts.
+//   • send-time personaId stamp (explicit ?? active) — verbs/turn.int.test.ts.
 //   • reattributePersona as the sole history re-stamper — verbs/edit.int.test.ts.
 import type { CharacterCard } from "@orb/contracts/character";
 import type { ChatBusEvent } from "@orb/contracts/chat";

@@ -112,8 +112,6 @@ export { VERB_HELP } from "./lib/cli-help.ts";
 export { aggregateExit, asViolations, eslintScheme, noVerdictStages, ownScheme, producedNoVerdict } from "./lib/exit-classifiers.ts";
 export { inspectGateContract } from "./lib/gate-contract.ts";
 export { findGateIgnoreMarkersWithSpans, GATE_IGNORE_MENTION_SPAN_KINDS } from "./lib/gate-ignore.ts";
-export { ledgerSections, reportLedgerRows, strayLedgerSections } from "./lib/gate-program-docs.ts";
-export { committedClassRollup, committedOtherClassCensus, deriveClassRollup, otherCensusDrift } from "./lib/gate-program-rollup.ts";
 export { getProject } from "./lib/harness.ts";
 export {
   appendHistory,
@@ -155,7 +153,6 @@ export type { AssetRefsCoverageInput } from "./ops/asset-refs-coverage.ts";
 export { AssetRefsCoverageRefusal, compareAssetRefsCoverage, runAssetRefsCoverage } from "./ops/asset-refs-coverage.ts";
 export { BASELINE_HELP, runBaseline } from "./ops/baseline.ts";
 export { ruleLivenessReport, runBiomeRuleLiveness } from "./ops/biome-rule-liveness.ts";
-export { runBoardCitations, runControls } from "./ops/board-citations.ts";
 export { APP_STYLESHEET_SENTINELS, BOOT_CHUNK_CEILING_BYTES, measureAppStylesheet, measureBootChunk, runBootChunkRatchet } from "./ops/boot-chunk-ratchet.ts";
 export { CONFIG_SNAPSHOT_HELP, runConfigSnapshot } from "./ops/config-snapshot.ts";
 export { compareSchemaBaseline, runDbBaselineParity } from "./ops/db-baseline-parity.ts";
@@ -163,6 +160,12 @@ export type { Ledger } from "./ops/debt.ts";
 export { LEDGERS, liveAdmitted, readLedgerRows, reconcileLedgers, runDebtWalk } from "./ops/debt.ts";
 export { runEslint } from "./ops/eslint.ts";
 export { runGateContract } from "./ops/gate-contract.ts";
+export {
+  ACTIVE_GATES_INDEX_REL,
+  deriveActiveGatesIndex,
+  deriveActiveGatesIndexMarkdown,
+  generateActiveGatesIndex,
+} from "./ops/gen/active-gates-index.ts";
 export { generateBaseuiSurface } from "./ops/gen/baseui-surface.ts";
 export {
   deriveCaughtFailurePopulation,
@@ -171,22 +174,16 @@ export {
   POPULATION_REL,
 } from "./ops/gen/caught-failure-population.ts";
 export { generateProseBaseline } from "./ops/gen/prose.ts";
-export { deriveReadFirstCosts, generateReadFirstCosts, READ_FIRST_COST_ROW_IDS, READ_FIRST_REL, readFirstCostRowDrift } from "./ops/gen/read-first-costs.ts";
 export { deriveSnapFlagsIndexMarkdown, generateSnapFlagsIndex, SNAP_FLAGS_INDEX_REL } from "./ops/gen/snap-flags-index.ts";
 export { deriveTypeConfigFiles, generateTypeConfigs } from "./ops/gen/type-configs.ts";
 export type { InstrumentAffectedSelection } from "./ops/instrument-affected.ts";
 export { runInstrumentAffected, selectAffectedInstrumentTests } from "./ops/instrument-affected.ts";
 export { runKnipNegativeLiveness } from "./ops/knip-negative-liveness.ts";
-export { judgeLedgerClaims, LEDGER_CLAIMS_HELP, ledgerRowStates, parseClaimCommits, runLedgerClaims } from "./ops/ledger-claims.ts";
 export {
   censusDrift,
-  classRollupDrift,
-  deferredRosterDrift,
   LEDGER_CHECKS,
   ledgerFreshness,
   ledgerReport,
-  ledgerSectionDrift,
-  readFirstCostsDrift,
   runLedgersFresh,
   snapFlagsIndexDrift,
   typeConfigsDrift,

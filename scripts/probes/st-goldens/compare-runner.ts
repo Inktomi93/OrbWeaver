@@ -1,6 +1,6 @@
 // Diffs the two capture arms. Structure AND the identity-bearing BYTES: the classes below all live in
 // `content`, so the old blanket content mask made every one of them invisible (see
-// docs/history/design/st-message-shaping-atlas.md §Comparator masking, which defines this file's compare set).
+// scripts/probes/st-goldens/ATLAS.md masking, which defines this file's compare set).
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";

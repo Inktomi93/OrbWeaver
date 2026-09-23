@@ -1,4 +1,4 @@
-// Policy: chrome-registry-completeness (shell-chrome-unification.md §A/§D) — the chrome registry's
+// Policy: chrome-registry-completeness — the chrome registry's
 // structural walls tsc cannot see (a `ChromeEntry` is a plain object literal, not a total door Record).
 // CO-LOCATION at `features/<owner>/lib/<id>-chrome.{ts,tsx}`, DUPLICATE ID across definitions, the ZONE
 // arm (a zone outside `CHROME_ZONES` renders nowhere, because no consumer reads an unknown zone string),
@@ -50,8 +50,7 @@ const MOBILE_FIELD = "mobile";
 const MESSAGE =
   "a chrome widget is dishonest: a ChromeEntry whose declaration or resolved definition is not co-located at " +
   "packages/client/src/features/<owner>/lib/<id>-chrome.{ts,tsx}, a definition this policy cannot resolve to an authored " +
-  `object literal, an unreadable or duplicate id, a zone outside ${ZONE_TUPLE}, or a rail.* widget missing \`${MOBILE_FIELD}\` ` +
-  "— shell-chrome-unification.md §A/§D.";
+  `object literal, an unreadable or duplicate id, a zone outside ${ZONE_TUPLE}, or a rail.* widget missing \`${MOBILE_FIELD}\`.`;
 const FIX =
   'co-locate the definition at features/<owner>/lib/<id>-chrome.tsx and write it as an authored object literal; give every ChromeEntry a unique id; use a real CHROME_ZONES member; declare `mobile` on every rail.* widget (topbar.* may declare it too — the You sheet projects "sheet"-curated trail widgets). For a deliberate exception, write an adjacent `@orb-waive chrome-registry-completeness(<position>): <why + end condition>` — the position is the DECLARED NAME of the widget (`railChrome`), never the zone or the `mobile` field the message names.';
 
@@ -166,7 +165,7 @@ export const gate = defineGate({
         "packages/ui/src/chrome-entries.ts": 'export const uiChrome = { id: "x" };\n',
       },
       expect: { count: 1, token: "xChrome", messageIncludes: "Definition outside its home" },
-      why: "THE HOME READ IS TOTAL, and this row is the one that dies without it: `definition.object` is a RESOLUTION — the shared authored-value reader follows a cross-module const to its real declaration, which is routinely OUTSIDE this policy's `@client` population — and NOT only through a vendor `.d.ts`: an ordinary sibling-package import of a `@orb/ui` const, one hop outside `@client`, reproduces it (audit receipt, docs/reviews/gate-runtime/v-audit-wave2-2026-09-12.md D1). `ctx.relativePath` REFUSES any file outside the effective population (lib/policy-pass-context.ts:211-217), so asking it for a foreign object's home THREW and withheld the WHOLE policy — the exact failure that left `freeze-provenance-write-pairing` reporting nothing on every real-tree run while sitting at 0 conformance failures (2026-09-11, guide §3). The home is now read through `lib/declaration-home.ts`. AGAINST THE UNMODIFIED MODULE THIS ROW REDS AS A TOOL ERROR rather than as a missing finding, and that is not a mis-authored row: the planted out-of-population object makes `evaluate` THROW, which is the real-tree failure reproduced inside conformance. Membership in `ctx.files` is NOT the alternative — policy-pass.ts:316 intersects it with a scoped run's requested paths, so that spelling reads silently clean under every `--scope`",
+      why: "THE HOME READ IS TOTAL, and this row is the one that dies without it: `definition.object` is a RESOLUTION — the shared authored-value reader follows a cross-module const to its real declaration, which is routinely OUTSIDE this policy's `@client` population — and NOT only through a vendor `.d.ts`: an ordinary sibling-package import of a `@orb/ui` const, one hop outside `@client`, reproduces it (gate-runtime audit wave 2, finding D1). `ctx.relativePath` REFUSES any file outside the effective population (lib/policy-pass-context.ts:211-217), so asking it for a foreign object's home THREW and withheld the WHOLE policy — the exact failure that left `freeze-provenance-write-pairing` reporting nothing on every real-tree run while sitting at 0 conformance failures (2026-09-11, guide §3). The home is now read through `lib/declaration-home.ts`. AGAINST THE UNMODIFIED MODULE THIS ROW REDS AS A TOOL ERROR rather than as a missing finding, and that is not a mis-authored row: the planted out-of-population object makes `evaluate` THROW, which is the real-tree failure reproduced inside conformance. Membership in `ctx.files` is NOT the alternative — policy-pass.ts:316 intersects it with a scoped run's requested paths, so that spelling reads silently clean under every `--scope`",
     },
     {
       mode: "types",

@@ -2,7 +2,7 @@
 // useTurnPhase, never from isPending here — the send mutation's promise stays open for the whole turn, not
 // just the user row's commit.
 //
-// IT NO LONGER CREATES ANYTHING (chat-creation-draft-mode-replacement.md §4.1, R1). This hook used to carry
+// IT NO LONGER CREATES ANYTHING (D166). This hook used to carry
 // the draft→committed COMMIT PATH: a first send lazily called `chat.startChat` with a nine-field carry of
 // pre-send config (`resolveDraftCommit`), then sent into the room it had just minted. That path is gone —
 // the room exists from the creation click, so a send is a send. Two whole failure classes go with it: the

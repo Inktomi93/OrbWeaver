@@ -198,7 +198,7 @@ export function PrependableList({ initialCount, rowHeightPx, listHeightPx }: Pre
   );
 }
 
-/** Passthrough smoke (PD-119 mechanism): a custom `rangeExtractor` that always force-includes
+/** Passthrough smoke (mechanism): a custom `rangeExtractor` that always force-includes
  *  index 0 alongside the normal overscan window — proves the option reaches `useVirtualizer` on
  *  this seal too, mirroring `virtual-list`'s own `CustomRangeExtractorList`. The list is
  *  bottom-anchored by default, so index 0 sits far outside the natural viewport from the moment it
@@ -229,7 +229,7 @@ export function RangeExtractorMessageList({ itemCount }: { readonly itemCount: n
 /** A row whose ONLY state is local React state (a controlled input) — no external store. When the
  *  virtualizer unmounts this row off-screen, React destroys the state; when it remounts, the input
  *  re-initializes to empty. Keeping the row mounted (via `keepMounted`) is what preserves the typed
- *  value across a scroll-away — the exact PD-119 property. */
+ *  value across a scroll-away — the exact keep-mounted property. */
 function StatefulInputRow({ label }: { readonly label: string }): ReactElement {
   const [value, setValue] = useState("");
   return (
@@ -241,7 +241,7 @@ function StatefulInputRow({ label }: { readonly label: string }): ReactElement {
 }
 
 /**
- * The PD-119 keep-mounted proof (item-space). Index 0 renders a `StatefulInputRow` holding purely
+ * The keep-mounted proof (item-space). Index 0 renders a `StatefulInputRow` holding purely
  * local React state; the list is bottom-anchored over 200 rows, so index 0 sits far outside the
  * overscan window from mount. When `keep` is true, `keepMounted` matches item 0 and forces its index
  * into the rendered range — the row stays mounted off-screen and its typed value survives a
@@ -367,7 +367,7 @@ export function TailGrowthList({ initialCount, rowHeightPx, listHeightPx }: Appe
 }
 
 /** The measured live cadence of a streaming ghost's re-measure: ~12px of new content, ~10×/s
- *  (`docs/history/design/streaming-reveal-42.md` §D4, re-measured 2026-08-14 — step histogram 12px×8, 11px×4
+ *  (D168, re-measured 2026-08-14 — step histogram 12px×8, 11px×4
  *  over a 6s window). The fixture reproduces the GROWTH, which is what makes virtual-core's
  *  `anchorTo:"end"` reconciliation write scrollTop; nothing here fakes a scroll. */
 const STREAM_STEP_PX = 12;
@@ -453,7 +453,7 @@ interface PinPromptListProps {
 }
 
 /**
- * The PD-147 `pin-prompt` shape: a "pin" button calls the handle's `pinToIndex(pinIndex)`, scrolling that
+ * The `pin-prompt` shape: a "pin" button calls the handle's `pinToIndex(pinIndex)`, scrolling that
  * row to the viewport TOP. Pinning the LAST index exercises the bottom spacer (`paddingEnd`) — without it
  * virtual-core clamps the scroll and a near-end row cannot reach the top.
  */
@@ -465,7 +465,7 @@ export function PinPromptList({ count, rowHeightPx, listHeightPx, pinIndex, scro
       <button type="button" data-testid="pin" onClick={(): void => handleRef.current?.pinToIndex(pinIndex)}>
         pin
       </button>
-      {/* The "jump to latest" path (PD-147): an explicit scrollToEnd while pinned must abandon the pin
+      {/* The "jump to latest" path: an explicit scrollToEnd while pinned must abandon the pin
           (clear the spacer) and land on the LAST REAL row, not the trailing spacer void. */}
       <button type="button" data-testid="jump" onClick={(): void => handleRef.current?.scrollToEnd()}>
         jump
@@ -558,7 +558,7 @@ export function RovingScrollList({
 }
 
 /**
- * #1362 — the crispness invariant (integer-line-boxes.md Law 3): every row's WRITTEN `top` must be an
+ * #1362 — the crispness invariant (docs/law/integer-line-boxes.md Law 3): every row's WRITTEN `top` must be an
  * integer number of CSS pixels. `directDomUpdatesMode: "position"` makes react-virtual assign
  * `el.style.top = ${item.start}px`, and `item.start` is the running sum of paddingStart + Σ(size + gap);
  * virtual-core rounds MEASURED sizes itself, so the only fractional input is the caller's ESTIMATE — and

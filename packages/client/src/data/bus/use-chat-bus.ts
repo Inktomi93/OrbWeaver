@@ -67,7 +67,7 @@ import { useBusRoom } from "./use-bus-room.ts";
 // state, so it lives here and not in the store.
 const seqGuard = createChatEventSeqGuard();
 
-// THE DRAFT-PROMOTION REPLAY SEED IS GONE (chat-creation-draft-mode-replacement.md §4.1, R1). It read:
+// THE DRAFT-PROMOTION REPLAY SEED IS GONE (D166). It read:
 // a brand-new DRAFT mounted this hook with `chatId === null` (no room), its first send lazily created the
 // chat, and `chatId` flipped null→committed WITHIN one mount — so the fresh attach, having no resume cursor,
 // missed the head deltas the just-created turn had already written. The fix was `sinceSeq: 0` for exactly

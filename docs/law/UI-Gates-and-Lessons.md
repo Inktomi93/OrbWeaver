@@ -1,21 +1,20 @@
 ---
 kind: law
 status: active
-updated: 2026-09-13
+updated: 2026-09-23
 ---
 
 # UI-Gates-and-Lessons
 
 > **The UI enforcement law.** Decision records: D42–D44, D52, D54, D62, D66.
-> §-map + reading order: `UI-Architecture-and-Layout.md` header. The
-> war-story archaeology behind these rulings is `history/ui-gates-lessons-archaeology-record.md`.
+> §-map + reading order: `UI-Architecture-and-Layout.md` header.
 
 ## 7. The sealed gotchas — fix each ONCE, in a place a cold agent can't bypass
 
 Four cross-library footguns from neo, all rooted in libs that live OUTSIDE React's render model
 (external stores, event-based state, non-memoizable closures — which React 19 + the Compiler punish).
-neo solved each per-site; orbweaver seals each in a primitive. Row order is load-bearing (gate
-`no-form-reset-in-autosave` cites "§7 row 2").
+neo solved each per-site; orbweaver seals each in a primitive. Keep row order: the gate
+`no-form-reset-in-autosave` cites `§7 row 2`.
 
 | Footgun | Root | Sealed in |
 | - | - | - |
@@ -54,15 +53,14 @@ round.
 | A display floor ("don't show a list of one") | Gates RENDERING only. The moment the only door to a verb lives inside the gated surface it is an ACCESS rule — walk what verbs live only in there, and render the surface with an empty state that carries the door (`features/chat/lib/roster.ts` records three paid instances). |
 | A two-column layout void whose SHORT SIDE flips with viewport width | Cannot be fixed by moving content between columns. Measure BOTH ends of the width range first; the fix is structural self-balancing. |
 | A View Transition with NO `view-transition-name` | Is a frozen full-page SCREENSHOT over the live page — chrome that moves during the swap ghosts by construction. Name only what changes; the tell is `::view-transition-group(root)` computing full-viewport. |
-| `prefers-reduced-motion` | Does NOT make an animation instant — a fresh animation is held pending at `currentTime` 0 for a frame or two, so a from-value FLIP paints the full-distance corner. SKIP the FLIP under reduced motion, never shorten it. (2026-09-02, #1069: a FLIP run as a TRANSITION rather than a keyframe needs no arm of its own — the globals.css `transition-property: none !important` floor means the inverse is applied and dropped inside one task with nothing painted between. Which FLIP shapes exist, and which to reach for, is `motion-and-animation-guide.md` §1.5 — its one home.) |
+| `prefers-reduced-motion` | Does NOT make an animation instant — a fresh animation is held pending at `currentTime` 0 for a frame or two, so a from-value FLIP paints the full-distance corner. SKIP the FLIP under reduced motion, never shorten it. A FLIP run as a transition rather than a keyframe needs no handling of its own — the globals.css `transition-property: none !important` floor means the inverse JS applies is dropped inside one task with nothing painted between. Which FLIP shape to use, and where each applies, is `motion-and-animation-guide.md` §1.5 — its one home. |
 | Every 34px icon button | Becomes 44–48px at `pointer: coarse` — three of them is a third of a 320px row. The tax is an unbudgeted WIDTH cost, and a fine-pointer viewport (the default) can never see it. |
 | Feature-owned inline SVG | Paints with `currentColor` + numeric opacity attributes only: the compose-only keystone bans `className`/`style` on raw intrinsics, and CSS `var(--token)` is INERT inside an SVG presentation attribute. An accent-colored diagram forces an `@orb/ui` primitive. |
 
-## 8. The gates (physics + lint belts)
+## 8. The gates (physics + lint checks)
 
 > **Live enforcement state has ONE home:** `Core-Enforcement-Active-Gates.md` (what fails a build today,
-> all six layers) + `../architecture/history/Core-Enforcement-Deferred-Dropped.md` (the backlog + each gate's activation
-> trigger), kept honest by `enforcement-registry-parity.ts`. This § is the UI-law INDEX — the CONCEPT
+> all six layers), generated from the discovered gate roster. This § is the UI-law INDEX — the CONCEPT
 > each UI-enforcement family protects, not a status board (do not re-track live/parked/dormant here; it
 > drifts against the registry).
 
@@ -90,18 +88,18 @@ The UI enforcement families:
 - **Structural (ts-morph, `tooling/src/verify/gates/`).** The UI structural family: `ui-primitive-structure`
   (the §13.7 primitive/CT contract), `client-structure`/`feature-structure` (the §2.1 slice shape),
   `state-files` (the §5 Zustand discipline), the two selector-stability gates
-  (`zustand-selector-stability.ts` = the fast narrow literal belt; `zustand-selector-derived.ts` = the
-  full-body/second-call-shape comprehensive belt), `no-effect-on-shared-selection` (§5.1),
+  (`zustand-selector-stability.ts` is the fast narrow-literal check; `zustand-selector-derived.ts` is the
+  full-body/second-call-shape comprehensive check), `no-effect-on-shared-selection` (§5.1),
   `persistence-boundary` (§12.1), `no-interactive-role-in-features` (closes the layout-kit
   interactive-role escape hatch), `surface-a11y-focus`, the registry keystones (the
-  `modal-/section-/chrome-registry-completeness` trio — `registry-pairing` RETIRED at M4, the
-  rail↔modal bijection is structural — plus `modal-body-not-placeholder`, `placeholder-copy-registry`), and the
-  client-foundation belts (`no-array-literal-querykey`, `no-inline-invalidate-outside-seam`,
+  `modal-/section-/chrome-registry-completeness` trio — the rail derives modal affordances from the
+  registry, so the bijection is structural — plus `modal-body-not-placeholder`, `placeholder-copy-registry`), and the
+  client-foundation checks (`no-array-literal-querykey`, `no-inline-invalidate-outside-seam`,
   `bus-on-data-no-store-write`, `no-form-reset-in-autosave`, `persist-partialize-and-total-migrate`).
 - **Tests.** The token-freshness invariant (§3 derived theme) + the CT containment tests on the D44
   trio (UI-Theming-and-Content.md §12.6).
 
-**The D62 design-gate set** (specced in `history/design-enforcement.md` §3; lands WITH the D62 feature
+**The D62 design-gate set** (lands WITH the D62 feature
 lanes per §11.7): `no-raw-interactive-intrinsics` (raw `<button>/<input>/<select>/<textarea>/<a>` banned
 in `features/**` regardless of className), `no-arbitrary-tw-values` (bracket-value utilities banned in
 features AND ui), `empty-state-has-action` (§4.3 rule 1's mechanical half), CT state-coverage (every
@@ -121,6 +119,16 @@ shadcn copy-paste · Radix · the react-markdown stack · react-syntax-highlight
 routes) · `compact`/`inDrawer`/`density` layout props (container queries replace them) · per-feature
 `useVirtualizer` (the `@orb/ui/virtual-list` seal replaces it).
 
+## 9b. PREBUILT seals
+
+A consumer-less sealed primitive carries `PREBUILT[for:<doc>]`, naming the doc for its future consumer.
+Delete the marker in the same edit that lands the consumer; a `PREBUILT` whose cited doc is missing or
+deleted is a documentation defect, fixed at the next audit of this table.
+
+Open today: `packages/ui/src/stream/stream-text.tsx` (no named feature yet — a convenience wrapper for a
+future plain-text streaming surface, `ui-package-design.md` §6.3.1) and
+`packages/ui/src/primitives/status-chip/status-chip.tsx` (workloads/automation run-status chips).
+
 ## 10. Deferred forks (DEFERRED-with-a-committed-default)
 
 - **Token enforcement level** — DEFAULT: Tailwind v4 + DTCG + the gates. Deferred upgrade: Panda
@@ -132,8 +140,7 @@ routes) · `compact`/`inDrawer`/`density` layout props (container queries replac
 
 ## 11. Ratified from the full neo-client audit (ledger D43)
 
-The standing rulings from the ten-agent neo-client audit. Provenance + the bug narratives that produced
-each ruling: `history/ui-gates-lessons-archaeology-record.md`.
+The standing rulings from the ten-agent neo-client audit.
 
 ### 11.0 Why neo rotted *despite* being structured + enforced (the three root causes)
 
@@ -196,7 +203,7 @@ wave BEFORE feature agents (§11.7).
 - **`@orb/ui` charts** (`chart` + `bar-list`/`histogram`/`stat-figure` over the ECharts seal; D52) —
   INJECTS the token theme internally so omission is impossible. ECharts renders to Canvas, so the seal
   resolves DTCG tokens to concrete values (`getComputedStyle`) and re-reads on theme switch — the
-  internal theme-injection is load-bearing for theming to work at all. Plus **`@orb/ui/meter`** for 1-D
+  internal theme-injection is required for theming to work at all. Plus **`@orb/ui/meter`** for 1-D
   magnitude bars (never force these through the chart lib). Seam covers bar · line · heatmap · calendar ·
   scatter · force-graph.
 - **`@orb/ui/sortable`** — seals `@dnd-kit/react` (the modern rewrite; the legacy
@@ -235,7 +242,7 @@ per-theme `color-scheme`).
 - **Persist versioning — partly irreversible, pin first.** 9 of 11 neo stores `persist()` a non-primitive
   shape with no `version`/`migrate`; once stale blobs are in users' `localStorage` you can't migrate from
   a version line you never shipped. \*Gates `no-raw-zustand-persist` + `persist-partialize-and-total-migrate`
-  - a `STORAGE_KEYS` uniqueness registry *(PHANTOM-REF — never built; only a code-comment concept in `create-gated-store.ts`; truth-audit 2026-08-03)*.\*
+  - a STORAGE_KEYS uniqueness registry *(PHANTOM-REF — never built; only a code-comment concept in `create-gated-store.ts`)*.\*
 - **Determinism reaches the client.** Extend the server's no-`Date.now()`/`new Date()`/`Math.random()`
   rule to client render + optimistic code (seeded PRNG allowed). **Timezone pipeline:** the wire is
   ALWAYS a UTC epoch number; localization to browser-local tz happens exactly ONCE, at the display edge,
@@ -249,15 +256,15 @@ per-theme `color-scheme`).
   no compile signal). Split per-token stream fields from lifecycle fields so chrome physically cannot
   subscribe to token churn. *Gates: `zustand-selector-stability.ts` (narrow) + `zustand-selector-derived.ts`
   (full-body, both call shapes).*
-- **Registry-pairing keystone.** RAIL_SLOTS ↔ MODAL_SLOTS id-pairing was unguarded in neo (a missing body
-  shipped as "the panel won't open"). *Gate `modal-registry-completeness` (`registry-pairing` RETIRED at
-  M4 — the rail DERIVES modal affordances from the registry; the bijection is structural).*
+- **Registry-pairing keystone.** The rail/modal id-pairing is structural: the rail derives modal
+  affordances from the modal registry, so an unpaired id cannot exist. *Gate
+  `modal-registry-completeness`.*
 - **Typed test-id registry.** A `testId(...)` typed map makes a `data-testid` typo a type error. What it
   does NOT make a type error is a LIVE key whose producer was deleted: the id stays spellable, the
-  selector matches nothing, and the assertion fails late or passes falsely (the 2026-08-14 draft-cast
-  ghosts survived every scoped floor). A row lives only as long as a component stamps it — add the row
-  and its `data-testid` in the same commit, delete both together. *Gates `testid-typed-only` (spelling) +
-  `testid-liveness` (a consumer or a registry row with no producer).*
+  selector matches nothing, and the assertion fails late or passes falsely. A row lives only as long as a
+  component stamps it — add the row and its `data-testid` in the same commit, delete both together.
+  *Gates `testid-typed-only` (spelling) + `testid-liveness` (a consumer or a registry row with no
+  producer).*
 
 ### 11.6 Streamdown + untrusted content — the two-policy spec (BUILT)
 
@@ -273,7 +280,7 @@ emit exfil-shaped markup). Per-message tier resolved by `resolveRowRenderPolicy`
   HTML):** Streamdown defaults — maximum functionality.
 - **`untrusted` (the DEFAULT — LLM output / imported cards / other participants / system):** the Tier-A
   element allowlist (§12.2) MINUS `img`, plus a `urlTransform` gate (blocks `javascript:`/`data:`/off-allowlist
-  hosts), AND Mermaid withheld (a `mermaid` fence degrades to an inert code block). KaTeX kept (rehype-katex
+  hosts), AND Mermaid withheld (a `mermaid` block renders as an inert code block). KaTeX kept (rehype-katex
   `trust:false` — math-only, inert).
 
 > \[!WARNING] `img` MUST be dropped at the element level for untrusted content — NOT via `urlTransform`.
@@ -283,23 +290,21 @@ emit exfil-shaped markup). Per-message tier resolved by `resolveRowRenderPolicy`
 > surface is `allowedElements`/`disallowedElements` + `urlTransform` — the docs-assumed
 > `allowedLinkPrefixes`/`allowedImagePrefixes`/`allowDataImages` knobs do not exist.
 
-Also pinned: `remark-gfm { singleTilde:false }` (else `10~20°C` renders struck-through). The Phase-6 chat
-wiring (per-message trust selection + `MessageMedia`/`SandboxFrame` dispatch) LANDED: `message-row.tsx`
-resolves `render` via `resolveRowRenderPolicy`, `message-content.tsx` dispatches markdown/media/html-card
-per block. The `html-card` + `asset`-media arms are PRE-WIRED seams awaiting their producers (card grammar
-
-- `cardTrust`; asset resolver + composer attach). *Gates `no-untrusted-html-in-main-dom`,
-  `no-external-media-without-gate` (UI-Theming-and-Content.md §12.6).*
+Also pinned: `remark-gfm { singleTilde:false }` (else `10~20°C` renders struck-through). The chat wiring
+(per-message trust selection + `MessageMedia`/`SandboxFrame` dispatch) is in place: `message-row.tsx`
+resolves `render` via `resolveRowRenderPolicy`; `message-content.tsx` dispatches markdown/media/html-card
+per block. The `html-card` and `asset`-media paths are pre-wired, awaiting their producers (card grammar
+needs `cardTrust`; asset needs a resolver and composer attach). *Gates `no-untrusted-html-in-main-dom`,
+`no-external-media-without-gate` (UI-Theming-and-Content.md §12.6).*
 
 ### 11.7 Sequencing (born-compliant — the non-negotiable)
 
-Every §11.3 client primitive, the §11.4 feature-side gates, and all deferred UI belts ship in the
-client-foundation wave, BEFORE any feature agent runs. neo rotted in the gap between "feature shipped" and
-"gate written" — a feature that lands before its gate is enforced retroactively, the exact mess this
-architecture exists to prevent. (The `@orb/ui` half is already discharged — the primitives and their gates
-landed together.)
+Every §11.3 client primitive, the §11.4 feature-side gates, and all deferred UI gates ship in the
+client-foundation wave, before any feature agent runs. A feature that ships before its gate has the gate
+enforced on it retroactively; this ordering prevents that. (The `@orb/ui` half of this requirement is
+already discharged — the primitives and their gates landed together.)
 
-### 11.8 Stack-currency decisions (the load-bearing bets)
+### 11.8 Stack-currency decisions
 
 The 2026-06 re-verification write-up is the archaeology record; the standing decisions:
 
@@ -316,7 +321,7 @@ The 2026-06 re-verification write-up is the archaeology record; the standing dec
 
 ## 12. Authoring a gate
 
-Use `docs/design/gate-runtime-read-first.md` for the reading order and
+Use `docs/law/gate-runtime-read-first.md` for the reading order and
 `tooling/src/verify/gates/GATE-AUTHORING.md` for final contract, coupled sites, central authority and proof ownership.
 Scaffold with one of the noninteractive family forms in `GATE-AUTHORING.md` §0; bare `pnpm gate:new <name>` refuses.
 Verify the actual generated shape against the standing contract.

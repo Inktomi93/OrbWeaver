@@ -28,7 +28,7 @@ describe("CHAT_VERB_AUTHORITY — the per-verb matrix", () => {
     expect(CHAT_VERB_AUTHORITY.previewAssembly).toBe("host");
     expect(CHAT_VERB_AUTHORITY.peekPrompt).toBe("host");
     expect(CHAT_VERB_AUTHORITY.previewSection).toBe("host");
-    expect(CHAT_VERB_AUTHORITY.getShapeTrace).toBe("host"); // the content-free SHAPE inspector (PD-132)
+    expect(CHAT_VERB_AUTHORITY.getShapeTrace).toBe("host"); // the content-free SHAPE inspector
     // The two survivors on the preview path stay `member` because neither hands back rendered ctx bytes:
     // `previewContextFit` returns the boundary id + budget NUMBERS, `getActivePresetConfig` the bare preset
     // config (no assemble ctx is built). Behavioral teeth: read.int.test.ts's sweep-classification pin.

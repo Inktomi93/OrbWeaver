@@ -15,7 +15,7 @@ import {
   shorthandCandidates,
   shorthandExists,
 } from "../lib/dangling-ref-citations.ts";
-import { CATALOG_REL, danglingRefCorpora, danglingRefTextIndex, GITIGNORED_ABSENT, LAW_OUTSIDE_DOCS } from "../lib/dangling-ref-corpus.ts";
+import { ANCHOR_PATH, danglingRefCorpora, danglingRefTextIndex, LAW_OUTSIDE_DOCS } from "../lib/dangling-ref-corpus.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
 import type { ReviewedGrantFileCandidate } from "../lib/reviewed-grant-findings.ts";
 import { reportReviewedGrantFileCandidates } from "../lib/reviewed-grant-findings.ts";
@@ -32,23 +32,18 @@ const FIX =
 
 function statusIndex(ctx: GatePolicyContext, selectors: readonly string[]): PathStatusIndex {
   const demanded = [...new Set(selectors)];
-  const identities = readyResourceValue(ctx.resources.authoredPaths(demanded.length > 0 ? demanded : [CATALOG_REL])).identities;
+  const identities = readyResourceValue(ctx.resources.authoredPaths(demanded.length > 0 ? demanded : [ANCHOR_PATH])).identities;
   return new Map(identities.map((identity) => [identity.selector, identity.status]));
 }
 
 function reportCitations(ctx: GatePolicyContext, declaredNames: ReadonlySet<string>): void {
   const documentFacts = readyResourceValue(ctx.resources.documents());
-  const catalog = readyResourceValue(ctx.resources.json("doc-catalog"));
   const packageEntries = readyResourceValue(ctx.resources.authoredTree("packages"));
   const toolingEntries = readyResourceValue(ctx.resources.authoredTree("tooling"));
   const outsidePaths = LAW_OUTSIDE_DOCS.filter((path) => toolingEntries.some((entry) => entry.kind === "file" && entry.path === path));
-  const outsideText = readyResourceValue(ctx.resources.authoredText(outsidePaths.length > 0 ? outsidePaths : [CATALOG_REL]));
+  const outsideText = readyResourceValue(ctx.resources.authoredText(outsidePaths.length > 0 ? outsidePaths : [ANCHOR_PATH]));
   const texts = danglingRefTextIndex(documentFacts, outsideText);
-  const docs = danglingRefCorpora(
-    catalog.value,
-    documentFacts.documents.map((document) => document.path),
-    outsidePaths,
-  );
+  const docs = danglingRefCorpora(documentFacts.documents, outsidePaths);
   const pathScan = scanPathCitations(texts, docs.audit);
   const paths = statusIndex(
     ctx,
@@ -56,7 +51,7 @@ function reportCitations(ctx: GatePolicyContext, declaredNames: ReadonlySet<stri
   );
   const entries = [...packageEntries, ...toolingEntries];
   const pathCandidates: ReviewedGrantFileCandidate[] = pathScan.cites
-    .filter(({ ref }) => !(ref in GITIGNORED_ABSENT || shorthandExists(paths, entries, ref)))
+    .filter(({ ref }) => !shorthandExists(paths, entries, ref))
     .map(({ file, line, ref }) => ({ file, line, note: ref, subject: ref, operation: DANGLING_PATH_OPERATION }));
   const symbolCandidates: ReviewedGrantFileCandidate[] = scanSymbolCitations(texts, docs.symbols, declaredNames).map(({ file, line, ref }) => ({
     file,
@@ -83,9 +78,8 @@ function reportCitations(ctx: GatePolicyContext, declaredNames: ReadonlySet<stri
 
 const PROOF_DOC = "docs/law/__dangling_refs_resource_anchor.md";
 const PROOF_FILES = {
-  [PROOF_DOC]: "---\nkind: law\n---\n\nResource proof anchor.\n",
-  [CATALOG_REL]:
-    '{"documents":[{"path":"docs/law/__dangling_refs_resource_anchor.md","lane":"core","frontmatter":{"fields":{"status":"active"}},"receipt":{"authority":"normative"}}]}\n',
+  [PROOF_DOC]: "---\nkind: law\nstatus: active\n---\n\nResource proof anchor.\n",
+  [ANCHOR_PATH]: "---\nkind: law\nstatus: active\n---\n\nMission anchor.\n",
   ".gitignore": "dist/\n",
   "packages/kit/src/__dangling_refs_resource_anchor.ts": "export const DANGLING_REFS_RESOURCE_ANCHOR = true;\n",
   "tooling/src/__dangling_refs_resource_anchor.ts": "export const danglingRefsResourceAnchor = true;\n",
@@ -109,7 +103,6 @@ export const gate = defineGate({
   facts: [],
   resources: [
     { kind: "documents" },
-    { kind: "json", id: "doc-catalog" },
     { kind: "authored-tree", id: "packages" },
     { kind: "authored-tree", id: "tooling" },
     { kind: "authored-text" },
@@ -154,13 +147,11 @@ export const gate = defineGate({
       mode: "resource" as const,
       files: {
         ...PROOF_FILES,
-        [CATALOG_REL]:
-          '{"documents":[{"path":"docs/design/__probe6.md","lane":"design","frontmatter":{"fields":{"status":"active"}},"receipt":{"authority":"design"}}]}\n',
-        "docs/design/__probe6.md": "---\nkind: design\n---\n\nThe write boundary is `domain/__ghost_domain__/x.ts`.\n",
+        "docs/plans/__probe6/design.md": "---\nkind: plan\nstatus: active\n---\n\nThe write boundary is `domain/__ghost_domain__/x.ts`.\n",
       },
       expect: { count: 1 },
       grant: { subject: "domain/__ghost_domain__/x.ts", operation: DANGLING_PATH_OPERATION },
-      why: "LEGACY mustFlag[5]: a catalogued living design home participates in path citation integrity",
+      why: "LEGACY mustFlag[5]: a plan's design document is a living design home and participates in path citation integrity",
     },
     {
       mode: "resource" as const,
@@ -223,10 +214,8 @@ export const gate = defineGate({
     ),
     proof(
       {
-        [CATALOG_REL]:
-          '{"documents":[{"path":"docs/history/__probe8.md","lane":"history","frontmatter":{"fields":{"status":"active"}},"receipt":{"authority":"historical"}},{"path":"docs/design/__probe9.md","lane":"design","frontmatter":{"fields":{"status":"active"}},"receipt":{"authority":"design"}}]}\n',
-        "docs/history/__probe8.md": "---\nkind: history\n---\n\nIt used to live at `domain/__ghost_domain__/x.ts`.\n",
-        "docs/design/__probe9.md": "---\nkind: design\n---\n\nThe cap would be `GHOST_PROPOSED_CONST`.\n",
+        "docs/reviews/__probe8.md": "---\nkind: review\n---\n\nIt used to live at `domain/__ghost_domain__/x.ts`.\n",
+        "docs/plans/__probe9/design.md": "---\nkind: plan\nstatus: active\n---\n\nThe cap would be `GHOST_PROPOSED_CONST`.\n",
       },
       "LEGACY mustPass[7]: frozen evidence stays outside the corpus and arm 4 remains law-only",
     ),

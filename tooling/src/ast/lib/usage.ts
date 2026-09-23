@@ -26,7 +26,7 @@ export const USAGE = [
   "  pnpm ast prodonly server           FILES no production entry can reach (the knip unused-files lens)",
   "  pnpm ast cycles client             import cycles, alias-resolved — slow, exact",
   "  pnpm ast aliases packages/server   rename-bindings (X as Y / const Y = X / type Y = X)",
-  "  pnpm ast unwired                   server tRPC procedures NO client consumes (the PD-138 blind spot)",
+  "  pnpm ast unwired                   server tRPC procedures NO client consumes",
   "  pnpm ast clientgap contracts       *View/*Summary contracts the SERVER uses but the CLIENT never does",
   "  pnpm ast viewgap                   *View/*Summary FIELDS no packages/client/src file reads (the field-level clientgap)",
   "  pnpm ast swallowed db              exports alive ONLY because an `import * as` swallowed their module",

@@ -1,4 +1,4 @@
-// The plugin-DIALOG intent store (plugin-ui-plane #679 U5, §4.5a) — the payload channel for the ONE
+// The plugin-DIALOG intent store — the payload channel for the ONE
 // `pluginDialog` modal slot. Exercised through the non-hook `__readPluginDialogSubjectForTest` snapshot (the
 // reactive reader needs a React render — the `imagery-store.test.ts` posture).
 //

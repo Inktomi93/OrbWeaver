@@ -8,7 +8,7 @@
 // attrGroups, the counters) is live when these lines run — and the ORDER IS LOAD-BEARING rule from
 // ops/walker.ts applies unchanged. Raw JS in a template literal (no backticks / dollar-brace — see
 // _shared/browser.ts for why a string, not a function). Provenance + attribution: ops/walker.ts.
-// Design: docs/design/state-paint-census.md; mechanism header: ops/hover-walker.ts.
+// Mechanism header: ops/hover-walker.ts.
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { HOVER_SUBJECT_BUDGET } from "./hover-walker.ts";
 

@@ -387,7 +387,7 @@ const APP_SETTINGS_LIFTS: Record<number, (config: Record<string, unknown>) => Re
   // its born-in-DB floor (`auto`), which resolves to exactly the vehicle every request used before this
   // knob existed, so no stored blob changes meaning and no wire body moves.
   6: (config) => ({ ...config, schemaVersion: 7 }),
-  // v7→v8: `memoryDefaults.recencyBias` is REMOVED (#321 / PD-35, owner ruling 2026-08-22). Unlike every lift
+  // v7→v8: `memoryDefaults.recencyBias` is REMOVED (#321, docs/work/0122, owner ruling 2026-08-22). Unlike every lift
   // above this one it DELETES a stored field, so it is the only one that has to be written by hand rather than
   // stamped: the owner's 2026-08-20 probe measured the experimental boost on the real corpus (222-message
   // conversation, biases 0…1) and found the final top-three unchanged in mixC and actively WORSE at a smaller
@@ -437,7 +437,7 @@ const WI_TOKEN_BUDGET_MIN = 0;
 const WI_TOKEN_BUDGET_MAX = 65_536;
 const WI_TOKEN_BUDGET_DEFAULT = 1024;
 const AUTO_SWIPE_MIN_LENGTH_DEFAULT = 0;
-// PD-146 post-round auto-behavior bounds — the max follow-ups a send auto-issues. Default 1 (the neo-parity
+// Post-round auto-behavior bounds — the max follow-ups a send auto-issues. Default 1 (the neo-parity
 // ONE-follow-up floor the turn engine hard-coded as AUTO_SWIPE_MAX / AUTO_CONTINUE_MAX); the ceiling caps a
 // pathological spend (each retry is a full generation). A value outside these self-heals to the default.
 const AUTO_SWIPE_MAX_RETRIES_MIN = 1;
@@ -524,7 +524,7 @@ const databankSchema = z
   })
   .prefault({});
 
-// Stream-display scroll behavior (PD-147, client-honored — the `@orb/ui/message-list` `scrollMode` prop).
+// Stream-display scroll behavior (client-honored — the `@orb/ui/message-list` `scrollMode` prop).
 // The axis is homed in `@orb/kit/scroll-mode` (reachable by both `contracts` and the `ui` prop, which may
 // import kit ONLY); re-exported here under the settings-facing name so existing consumers keep their
 // `@orb/contracts/settings` import path (D15 front-door). The wire schema below imports the tuple DOWN.
@@ -535,7 +535,7 @@ const chatSchema = z
     // Client-honored (composer keydown): Enter sends by default; off → Enter is a newline and ⌘/Ctrl+Enter sends.
     enterSends: z.boolean().catch(true).default(true),
     autoContinue: z.boolean().catch(false).default(false),
-    // PD-146: the max auto-continue follow-ups a send issues after a length-capped reply (the bound the turn
+    // The max auto-continue follow-ups a send issues after a length-capped reply (the bound the turn
     // engine's AUTO_CONTINUE loop reads). Default 1 = the neo-parity ONE-follow-up floor (byte-identical).
     autoContinueRounds: z
       .number()
@@ -558,7 +558,7 @@ const chatSchema = z
         // refuses the WHOLE settings write (loud), deliberately, rather than silently dropping a blacklist
         // entry a swipe-time comparison still needs (lossy with no on-screen signal).
         blacklist: z.array(z.string()).default([]),
-        // PD-146: the max auto-swipe regenerations for a rejected reply (the bound the turn engine's
+        // The max auto-swipe regenerations for a rejected reply (the bound the turn engine's
         // AUTO_SWIPE loop reads). Default 1 = the neo-parity ONE-follow-up floor (byte-identical).
         maxRetries: z.number().int().min(AUTO_SWIPE_MAX_RETRIES_MIN).max(AUTO_SWIPE_MAX_RETRIES_MAX).default(AUTO_SWIPE_MAX_RETRIES_DEFAULT),
       })

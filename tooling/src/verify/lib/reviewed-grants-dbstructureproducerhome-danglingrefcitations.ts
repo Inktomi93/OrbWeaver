@@ -37,15 +37,6 @@ export const REVIEWED_GRANTS_DBSTRUCTUREPRODUCERHOME_DANGLINGREFCITATIONS: reado
     endsWhen: "the schema module gains a same-named producer domain, moves under its producer, or packages/db/src/schema/sdk-session.ts is removed.",
   },
   {
-    id: "dangling-ref-citations:account-action",
-    policyId: "dangling-ref-citations",
-    subject: "ACCOUNT_ACTION",
-    operation: "dangling-symbol-cite",
-    why: "Temporary CERD truth-audit scope split carried from the legacy dangling-refs authority table: a living architecture doc still names this purged or pre-M4 shape. The reviewed row preserves only this exact citation identity while its owning doc repair lands; it does not classify the cited code as present.",
-    endsWhen:
-      "the owning documentation repair removes, strikes, riders, or repoints `ACCOUNT_ACTION`; the grouped finding disappears and central zero-use reconciliation stales this row.",
-  },
-  {
     id: "dangling-ref-citations:anth-direct-sampling",
     policyId: "dangling-ref-citations",
     subject: "ANTH_DIRECT_SAMPLING",
@@ -53,51 +44,6 @@ export const REVIEWED_GRANTS_DBSTRUCTUREPRODUCERHOME_DANGLINGREFCITATIONS: reado
     why: "Temporary CERD truth-audit scope split carried from the legacy dangling-refs authority table: a living architecture doc still names this purged or pre-M4 shape. The reviewed row preserves only this exact citation identity while its owning doc repair lands; it does not classify the cited code as present.",
     endsWhen:
       "the owning documentation repair removes, strikes, riders, or repoints `ANTH_DIRECT_SAMPLING`; the grouped finding disappears and central zero-use reconciliation stales this row.",
-  },
-  {
-    id: "dangling-ref-citations:chat-context-slots",
-    policyId: "dangling-ref-citations",
-    subject: "CHAT_CONTEXT_SLOTS",
-    operation: "dangling-symbol-cite",
-    why: "Temporary CERD truth-audit scope split carried from the legacy dangling-refs authority table: a living architecture doc still names this purged or pre-M4 shape. The reviewed row preserves only this exact citation identity while its owning doc repair lands; it does not classify the cited code as present.",
-    endsWhen:
-      "the owning documentation repair removes, strikes, riders, or repoints `CHAT_CONTEXT_SLOTS`; the grouped finding disappears and central zero-use reconciliation stales this row.",
-  },
-  {
-    id: "dangling-ref-citations:chat-surface-slots",
-    policyId: "dangling-ref-citations",
-    subject: "CHAT_SURFACE_SLOTS",
-    operation: "dangling-symbol-cite",
-    why: "Temporary CERD truth-audit scope split carried from the legacy dangling-refs authority table: a living architecture doc still names this purged or pre-M4 shape. The reviewed row preserves only this exact citation identity while its owning doc repair lands; it does not classify the cited code as present.",
-    endsWhen:
-      "the owning documentation repair removes, strikes, riders, or repoints `CHAT_SURFACE_SLOTS`; the grouped finding disappears and central zero-use reconciliation stales this row.",
-  },
-  {
-    id: "dangling-ref-citations:command-action",
-    policyId: "dangling-ref-citations",
-    subject: "COMMAND_ACTION",
-    operation: "dangling-symbol-cite",
-    why: "Temporary CERD truth-audit scope split carried from the legacy dangling-refs authority table: a living architecture doc still names this purged or pre-M4 shape. The reviewed row preserves only this exact citation identity while its owning doc repair lands; it does not classify the cited code as present.",
-    endsWhen:
-      "the owning documentation repair removes, strikes, riders, or repoints `COMMAND_ACTION`; the grouped finding disappears and central zero-use reconciliation stales this row.",
-  },
-  {
-    id: "dangling-ref-citations:context-slots",
-    policyId: "dangling-ref-citations",
-    subject: "CONTEXT_SLOTS",
-    operation: "dangling-symbol-cite",
-    why: "Temporary CERD truth-audit scope split carried from the legacy dangling-refs authority table: a living architecture doc still names this purged or pre-M4 shape. The reviewed row preserves only this exact citation identity while its owning doc repair lands; it does not classify the cited code as present.",
-    endsWhen:
-      "the owning documentation repair removes, strikes, riders, or repoints `CONTEXT_SLOTS`; the grouped finding disappears and central zero-use reconciliation stales this row.",
-  },
-  {
-    id: "dangling-ref-citations:domain-buddy",
-    policyId: "dangling-ref-citations",
-    subject: "domain/buddy",
-    operation: "dangling-path-cite",
-    why: "Temporary CERD truth-audit scope split carried from the legacy dangling-refs authority table: a living architecture doc still names this purged or pre-M4 shape. The reviewed row preserves only this exact citation identity while its owning doc repair lands; it does not classify the cited code as present.",
-    endsWhen:
-      "the owning documentation repair removes, strikes, riders, or repoints `domain/buddy`; the grouped finding disappears and central zero-use reconciliation stales this row.",
   },
   {
     id: "dangling-ref-citations:hub-adapters",
@@ -216,22 +162,13 @@ export const REVIEWED_GRANTS_DBSTRUCTUREPRODUCERHOME_DANGLINGREFCITATIONS: reado
       "the owning documentation repair removes, strikes, riders, or repoints `@orb/tokens`; the grouped finding disappears and central zero-use reconciliation stales this row.",
   },
   {
-    id: "dangling-ref-citations:transport-buddy-bus",
+    id: "dangling-ref-citations:system-prompt-dynamic-boundary",
     policyId: "dangling-ref-citations",
-    subject: "transport/trpc/buddy-bus.ts",
-    operation: "dangling-path-cite",
-    why: "Temporary CERD truth-audit scope split carried from the legacy dangling-refs authority table: a living architecture doc still names this purged or pre-M4 shape. The reviewed row preserves only this exact citation identity while its owning doc repair lands; it does not classify the cited code as present.",
-    endsWhen:
-      "the owning documentation repair removes, strikes, riders, or repoints `transport/trpc/buddy-bus.ts`; the grouped finding disappears and central zero-use reconciliation stales this row.",
-  },
-  {
-    id: "dangling-ref-citations:you-modal-rows",
-    policyId: "dangling-ref-citations",
-    subject: "YOU_MODAL_ROWS",
+    subject: "SYSTEM_PROMPT_DYNAMIC_BOUNDARY",
     operation: "dangling-symbol-cite",
-    why: "Temporary CERD truth-audit scope split carried from the legacy dangling-refs authority table: a living architecture doc still names this purged or pre-M4 shape. The reviewed row preserves only this exact citation identity while its owning doc repair lands; it does not classify the cited code as present.",
+    why: "Tier-3b-Providers.md cites `SYSTEM_PROMPT_DYNAMIC_BOUNDARY`, an export of the external `@anthropic-ai/claude-agent-sdk` package imported by packages/inference/src/backends/agent-sdk/translate.ts. It is not a repository declaration, so the declaration index correctly cannot resolve it; this exact external symbol is the classified reviewed exception.",
     endsWhen:
-      "the owning documentation repair removes, strikes, riders, or repoints `YOU_MODAL_ROWS`; the grouped finding disappears and central zero-use reconciliation stales this row.",
+      "the doc stops citing `SYSTEM_PROMPT_DYNAMIC_BOUNDARY` or the repository defines its own symbol with that name; the finding disappears and central zero-use reconciliation stales this row.",
   },
   // THE TWO SYMBOLS THE 2026-09-13 CONVERSIONS DELETED, STILL NAMED BY LAW DOCS ON PURPOSE (#1584, #1939).
   // These are NOT the pending-doc-repair class above. The conversions deleted both gate-local tables and the
@@ -243,27 +180,18 @@ export const REVIEWED_GRANTS_DBSTRUCTUREPRODUCERHOME_DANGLINGREFCITATIONS: reado
     policyId: "dangling-ref-citations",
     subject: "ELEVATED_ALLOW",
     operation: "dangling-symbol-cite",
-    why: "`density-tier`'s gate-local 11-row directory/file PREFIX table, deleted by the 2026-09-13 authority migration that replaced it with 12 per-file `elevated-radius` reviewed grants (a strengthening: a prefix silently covered every file in a primitive directory). Core-Enforcement-Active-Gates.md:239 and UI-Density-Law.md:166 both name it to record that retirement and its direction.",
+    why: "`density-tier`'s gate-local 11-row directory/file PREFIX table, deleted by the 2026-09-13 authority migration that replaced it with 12 per-file `elevated-radius` reviewed grants (a strengthening: a prefix silently covered every file in a primitive directory). Core-Enforcement-Active-Gates.md's generated index (work item 0045) keeps a short hand-written note naming it, and UI-Density-Law.md:166 names it too, to record that retirement and its direction.",
     endsWhen:
-      "both law docs stop naming `ELEVATED_ALLOW` — i.e. the retirement paragraphs are archived out of the living docs once nobody needs to trace the prefix table to its successor grants.",
+      "both law docs stop naming `ELEVATED_ALLOW` — i.e. the retirement note is archived out of the living docs once nobody needs to trace the prefix table to its successor grants.",
   },
   {
     id: "dangling-ref-citations:exempt-procedures",
     policyId: "dangling-ref-citations",
     subject: "EXEMPT_PROCEDURES",
     operation: "dangling-symbol-cite",
-    why: "`duplicate-action-doors`' gate-local ExemptionTable (one procedure-keyed row qualifying on four planes), deleted by the 2026-09-13 authority migration that replaced it with four of the ten central door-set grants. Core-Enforcement-Active-Gates.md:294 names it twice: once to record where the exemption mechanism went, and once to state the behaviour change it caused — a new settings-section door now REDS where this table absorbed it silently (#2352).",
+    why: "`duplicate-action-doors`' gate-local ExemptionTable (one procedure-keyed row qualifying on four planes), deleted by the 2026-09-13 authority migration that replaced it with four of the ten central door-set grants. Core-Enforcement-Active-Gates.md's generated index (work item 0045) keeps a short hand-written note naming it, to record where the exemption mechanism went; the behaviour change it caused — a new settings-section door now REDS where this table absorbed it silently — is recorded in the gate's own module header (#2352).",
     endsWhen:
-      "Core-Enforcement-Active-Gates.md stops naming `EXEMPT_PROCEDURES`, which requires #2352 to land first: until the section-discriminant predicate exists, that paragraph is the only record of why a new settings section reds.",
-  },
-  {
-    id: "dangling-ref-citations:sanctioned-homes",
-    policyId: "dangling-ref-citations",
-    subject: "SANCTIONED_HOMES",
-    operation: "dangling-symbol-cite",
-    why: "the two tier-home tables (`raw-spacing-tier`, `raw-typography-tier`) were renamed `TIER_IMPLEMENTATION_HOMES` at 7b3d15bc4 (#2176) because a probe emptying them changed zero findings: scan-scope data, not an exemption ledger. The dated family conversion records (`home-client-family-1584.md`, `home-server-family-1584.md`, `v-audit-wave8-2026-09-12.md`) name the old constant as the shape they converted, which is a §6.4 receipt, not drift. Same class as the two rows above (a6740edc3).",
-    endsWhen:
-      "those three records move under docs/history/ (a dated record outside the living-doc corpus is outside this policy's population), or the sites are rewritten to name the constant without backticks — either way the row is then consumed zero times and reds stale.",
+      "Core-Enforcement-Active-Gates.md stops naming `EXEMPT_PROCEDURES`, which requires #2352 to land first: until the section-discriminant predicate exists, that note is the only record of why a new settings section reds.",
   },
   // THE #252 DUPLICATE-ACTION DOOR RULINGS (#1584, 2026-09-13). They replace
   // `duplicate-action-doors.baseline.json` (six RATIFIED count rows whose `cite` list was the real ruling) and the

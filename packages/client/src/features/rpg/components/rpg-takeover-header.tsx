@@ -149,7 +149,7 @@ function withoutHeadingEcho(location: string, heading: string): string {
 
 /** THE BAND'S FIRST LINE IS THE ROOM'S NAME, IN THE BAND'S OWN VOICE (#875 F3, side-eye 2026-08-30).
  *
- *  DESIGN.md rules the head band as "one slot, three contents — never a second head … the band owns the
+ *  The mock design rules the head band as "one slot, three contents — never a second head … the band owns the
  *  name's budget", and the chat and character bands both render an `h2` at 16px/600 with a two-line clamp.
  *  This band rendered a 13px `label` span carrying the SCENE LOCATION instead, so: a docked game room had
  *  NO heading anywhere on screen (the topbar correctly yields, #846) and `snap --aria` returned one flat
@@ -157,7 +157,7 @@ function withoutHeadingEcho(location: string, heading: string): string {
  *  band's "The Ashen Spire — the throne hall, a fire built off the draft-line…" were both on screen,
  *  disagreeing about what the room is called.
  *
- *  DESIGN.md's "Coupled sites" lists the Waystone as *Unchanged*, and it still is: the stone, the dial, the
+ *  The mock design's "Coupled sites" lists the Waystone as *Unchanged*, and it still is: the stone, the dial, the
  *  weather, the cues and the orbs are untouched. What changed is the TEXT COLUMN beside it, which the same
  *  ruling promoted into the slot whose contract is naming the artifact. Deviation recorded there. */
 function RoomName({ title }: { readonly title: string }): ReactElement {

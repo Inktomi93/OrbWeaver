@@ -187,7 +187,7 @@ export interface FakeRoleClientControls {
    *  the `kind: "text"` cross-modal path is exercised by the `images` verb. */
   readonly imageEmbedVector?: (input: string) => Float32Array<ArrayBuffer> | null;
   /** The rerank impl — default returns documents in their incoming order (descending score). Override to
-   *  script a custom reorder, or to reject with a not-supported throw (PD-11). */
+   *  script a custom reorder, or to reject with a not-supported throw. */
   readonly rerank?: RoleClients["rerank"];
   /** The WHOLE embed impl — the twin of `rerank` above, for the arms where the embed role FAILS rather than
    *  returns a vector (#1603: a side-role 401 on a key the chat connection never saw). `embedVector` cannot

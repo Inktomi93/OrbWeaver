@@ -391,7 +391,7 @@ if (host.grants.includes("ui.surface")) {
   });
 }
 
-// ── THE U5 SURFACES: a COMMAND, a PAGE, and a DIALOG (plugin-ui-plane §4.5/§4.5a/§4.5b) ────────────────────
+// ── THE U5 SURFACES: a COMMAND, a PAGE, and a DIALOG ────────────────────
 //
 // The card above is what a tool call looks like. These are what a PERSON reaches for directly, without asking
 // the model for anything:

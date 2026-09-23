@@ -1,4 +1,4 @@
-// The teach HONESTY assertion (owner rider R-TEACH, 2026-08-30 — config-revamp-design.md §7.0): teach is
+// The teach HONESTY assertion (owner rider R-TEACH, 2026-08-30): teach is
 // LOCKED to its leaf by type (`ConfigSettingLeaf.teach` is required), and this assert carries what tsc
 // cannot see — a HOLLOW declaration. Runs at the compose door beside `assertSettingsKeyPartition` (a
 // throw, not a gate approximation) over the REAL registry, so every leaf that exists is swept; the mirror

@@ -30,9 +30,8 @@
 // does; a failed notify is logged and dropped.
 //
 // WHERE IT IS VISIBLE, STATED (#1627). The row is recorded durably on every deployment AND readable on
-// every deployment. The inbox's PD-106 multi-human belt came off with #1627 (owner, 2026-09-05: "yeah the
-// notifications on single boxes probably needs to be reconsidered now that plugins and etc use them." /
-// "probably just make it consistent."): `notifications.list`/`markAllRead`/`dismiss` are `authedProcedure`,
+// every deployment. The inbox's multi-human belt came off with #1627: `notifications.list`/`markAllRead`/
+// `dismiss` are `authedProcedure`,
 // the socket's `notifications` room accepts any authed attach, and the bell's chrome entry carries no
 // capability gate — so a `single-user` box (or `local` with `localMultiUser` off) surfaces this ask exactly
 // as a multi-human one does. The belt survives only where it is genuinely about OTHER humans

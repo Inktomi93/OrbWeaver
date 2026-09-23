@@ -1,4 +1,4 @@
-// Policy: single-stream-transport (docs/history/design/sse-multiplex-spec.md §11) — a browser tab holds ONE
+// Policy: single-stream-transport (D118) — a browser tab holds ONE
 // SSE socket. `transport/trpc/routers/stream.ts` is the only home for a tRPC `.subscription(`; every other
 // router proc that wants live delivery is a ROOM on that socket (`ROOM_SOURCES`), not a second connection.
 //
@@ -54,7 +54,7 @@ const OPERATION_PREFIX = "sse-subscription";
 const MESSAGE =
   "a tRPC `.subscription(` outside transport/trpc/routers/stream.ts — a browser allows ~6 concurrent " +
   "connections per origin and every SSE subscription pins one for its lifetime, so a second always-on " +
-  "stream re-opens the starvation class the multiplex closed (sse-multiplex-spec.md §11).";
+  "stream re-opens the starvation class the multiplex closed (D118).";
 /** THE FAIL-CLOSED THIRD ANSWER (#944), a SEPARATE text rather than a `${MESSAGE} …` suffix: the unreadable
  *  arm reports the same single finding on the same node under the same `(subject, operation)` grant key as
  *  the tRPC verdict and differs ONLY in message, so a shared prefix would leave both arms unpinnable in

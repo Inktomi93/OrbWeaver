@@ -1,4 +1,4 @@
-// Policy: no-raw-interactive-intrinsics (design-enforcement.md §3.2, D62) — interactivity in a feature
+// Policy: no-raw-interactive-intrinsics — interactivity in a feature
 // comes from an `@orb/ui` primitive. A hand-rolled `<button>`, `<input>`, `<select>`, `<textarea>` or
 // `<a href>` re-implements focus rings, disabled semantics, sizing, density and touch floors by hand, and
 // does it differently every time.
@@ -46,7 +46,7 @@ const HREF = "href";
 const OPERATION = "raw-interactive-intrinsic";
 
 const MESSAGE =
-  "a raw interactive intrinsic in a feature (design-enforcement.md §3.2, D62) — interactivity in " +
+  "a raw interactive intrinsic in a feature (D62) — interactivity in " +
   "features/** comes from an @orb/ui primitive (Button, TextField, Select, TextArea, Link, …), never a " +
   "hand-rolled <button>/<input>/<select>/<textarea>/<a href>. The shell tier composes the app frame below " +
   "the primitive layer and is licensed one FILE at a time by an exact reviewed grant.";

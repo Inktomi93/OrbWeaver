@@ -1,4 +1,4 @@
-// Type-level pin for PD-102: `SearchContext.db` must be `ReadOnlyDb` (`@orb/db` — `select`/`query`
+// Type-level pin: `SearchContext.db` must be `ReadOnlyDb` (`@orb/db` — `select`/`query`
 // only), so a write call through it is a `tsc` error, not merely a behavioral convention. Runtime
 // behavior (the verbs never issue a write) is covered by the existing `.int.test.ts` siblings.
 
@@ -11,7 +11,7 @@ test("SearchContext.db exposes only select/query — every write member is absen
   expectTypeOf(ctx.db).toHaveProperty("select");
   expectTypeOf(ctx.db).toHaveProperty("query");
   // Each of these is the enforcement ITSELF: if `ReadOnlyDb` ever widens back to the full `Db`,
-  // one of these flips to a compile error (a member reappearing), catching the PD-102 regression.
+  // Each of these is the enforcement ITSELF: if `ReadOnlyDb` ever widens back to the full `Db`,
   expectTypeOf(ctx.db).not.toHaveProperty("insert");
   expectTypeOf(ctx.db).not.toHaveProperty("update");
   expectTypeOf(ctx.db).not.toHaveProperty("delete");

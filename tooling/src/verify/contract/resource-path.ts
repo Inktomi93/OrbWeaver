@@ -18,7 +18,7 @@
 //
 // THE PARTITION IS TOTAL. Every demanded selector leaves as exactly one identity, including the ones the
 // door could not decide (`unresolved`). A dropped selector would be absence, and §12.3 of
-// `docs/design/gate-runtime-standardization.md` forbids absence: unsupported input returns an unresolved
+// `docs/law/gate-runtime-standardization.md` forbids absence: unsupported input returns an unresolved
 // FACT, never a shorter list. So the enclosing `ResourceFact` is `ready` whenever selectors were supplied,
 // and per-selector failure rides the row — which is also why the door publishes no receipt-level
 // `unresolved` count: no consumer expresses its dependency through one, and a provider that receipts what

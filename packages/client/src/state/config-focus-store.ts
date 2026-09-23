@@ -1,4 +1,4 @@
-// The Settings workspace's FOCUSED-SETTING seam (config-revamp-design.md §3.5/§7.2, #866 S3) — which knob
+// The Settings workspace's FOCUSED-SETTING seam (#866 S3) — which knob
 // the reader is LOOKING AT, so the context pane can teach it. Written by the `SettingRow` frame
 // (`#components/setting-teach-row.tsx`) on focus-within, on click, and — fine pointers only, after a
 // delay — on hover (owner fork F-8: a pull revelation the reader asked for by looking; never hover-only,

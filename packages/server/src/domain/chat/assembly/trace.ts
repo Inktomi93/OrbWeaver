@@ -7,7 +7,7 @@
 // until #428 ripped it out 2026-08-22). THIS is the content-FREE projection safe to log / show in the
 // inspector — counts, roles, the squash-merge count, and the breakpoint decision + abort reason.
 //
-// CONSUMER (PD-132): the host/admin assembly inspector reads this on demand — `chat.getShapeTrace` re-runs
+// CONSUMER: the host/admin assembly inspector reads this on demand — `chat.getShapeTrace` re-runs
 // SHAPE against the current canon (`verbs/read.ts::createGetShapeTrace`, requireHost) and returns this shape,
 // rendered by the client `assembly-preview-panel`. The cross-boundary `ShapeTrace` lives in
 // `@orb/contracts/chat` (the wire home); THIS builder maps the internal SHAPE stages onto it.

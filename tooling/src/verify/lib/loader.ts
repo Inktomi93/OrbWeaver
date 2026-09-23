@@ -1,4 +1,4 @@
-// THE loader IS the registry (docs/design/gate-runtime-standardization.md §1/§5): one discovery of
+// THE loader IS the registry (docs/law/gate-runtime-standardization.md §1/§5): one discovery of
 // `tooling/src/verify/gates/*.ts`, one sequential import loop, one classification by EXACT contract
 // identity. Deterministic order: sorted repo-relative path.
 //

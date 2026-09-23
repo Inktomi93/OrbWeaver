@@ -2,7 +2,7 @@
 // instrument (`assembly-preview-panel.tsx`, its only consumer). Split out at the 450-line component cap: the
 // budget/rows half answers "where did my context go", THIS half answers "why did assembly do that" — the
 // per-field provenance (`AssembleTrace.overrideSources`), which sections fired, which world-info entries
-// activated, the content-free SHAPE projection (`ShapeTrace`, PD-132: row counts + the §8 cache-breakpoint
+// activated, the content-free SHAPE projection (`ShapeTrace`: row counts + the §8 cache-breakpoint
 // decision, no content bytes by construction), and the DELIVERED WIRE ROWS in order (see {@link WireRows} —
 // the block-order/role/voice readout that closes RPG-NO-PROMPT-DEBUG).
 //
@@ -166,7 +166,7 @@ const BREAKPOINT_LABELS: Record<ShapeBreakpointDecision, string> = {
   "in-prefix-injection-or-squash": "Prefix injection / squash",
 };
 
-/** The content-free SHAPE trace (PD-132): how the canon shaped into the wire history — per-stage row counts,
+/** The content-free SHAPE trace: how the canon shaped into the wire history — per-stage row counts,
  *  the adjacent same-role merges the squash performed, and why the §8 cache breakpoint did/didn't land. No
  *  content by construction (the server projection carries only counts + the decision). */
 function ShapeTraceSummary({ trace }: { readonly trace: ShapeTrace }): ReactElement {

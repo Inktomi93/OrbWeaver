@@ -43,7 +43,7 @@ test("ancestry is askable in both halves — a nested declaration names its encl
 /** THE STATEMENT AT-RULE FACT, with its controls in BOTH directions in one invocation (#2183). The fact
  *  exists because `closeFrame` fires on `}` and a blockless at-rule has none, so before this the parser
  *  answered `statement at-rules seen = 0` for a sheet whose whole content was `@import`s
- *  (`css-family-audit-2026-09-12.md` §(d)) and every consumer that wanted the topology owned a private
+ *  (the 2026-09-12 CSS-family audit §(d)) and every consumer that wanted the topology owned a private
  *  regex. Both controls are load-bearing: the POSITIVE — the `@media` BLOCK at-rule must still appear in
  *  `atRules` — because the build must not have moved a block at-rule into the new bucket; the NEGATIVE — an
  *  `@import` inside a comment must NOT appear — because comments are blanked before the scan and a reader

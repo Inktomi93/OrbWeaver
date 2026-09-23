@@ -1,4 +1,4 @@
-// Gate: sanctioned-css-homes (client-architecture-lockdown.md §4 + §16 G14) — the paint law's path-closed
+// Gate: sanctioned-css-homes (client-architecture-lockdown.md §4 + client-architecture-state-and-gates.md §16 G14) — the paint law's path-closed
 // backstop. Every repository-owned product stylesheet under packages/** must be one of the five
 // authored/generated CSS homes; the DTCG token source completes the six-home set. TWO-SIDED: an extra CSS
 // path is RED, and so is a sanctioned home that is missing or is not a regular file.
@@ -34,7 +34,7 @@
 // the subject is a REGISTRY decision, not a site an author may absolve. The legacy engine's bare
 // `@orb-gate-ignore sanctioned-css-homes` door DID exist and does NOT survive the conversion; the marker
 // census that makes that free is 0 live markers (measured 2026-09-12 over 7,725 tracked source files with a
-// 1,196-hit positive control, `css-family-audit-2026-09-12.md`).
+// 1,196-hit positive control, the 2026-09-12 CSS-family audit).
 //
 // WHERE A BROKEN RESOURCE REFUSES — not here. A missing/empty declared tree makes
 // `resolveResourceDeclarations` THROW at the POPULATION phase and withholds this owner before `create`

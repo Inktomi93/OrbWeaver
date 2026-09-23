@@ -7,7 +7,7 @@
 // The embed + rerank carry the digests SCOPE_INSTRUCTIONS (#330 P3) — the SAME conditioning the corpus digest
 // scan uses (`verbs/search.ts` digestScan); an instruction-aware family (Qwen3-VL) sharpens on it, a text-only
 // one drops it (the no-op-knob doctrine), so the within-chat recall path is no longer the weaker sibling.
-// NO RECENCY BOOST LIVES HERE (#321 / PD-35, owner ruling 2026-08-22). An experimental
+// NO RECENCY BOOST LIVES HERE (docs/work/0122, owner ruling 2026-08-22). An experimental
 // `relevance + recencyBias × recencyFactor` re-order shipped 2026-08-19 purely so the owner could MEASURE it;
 // his 2026-08-20 probe over the real corpus (222-message conversation, biases 0…1) returned the same final
 // top three at every bias in mixC and demonstrated HARM at a smaller retrieveK — a .626 semantic hit displaced

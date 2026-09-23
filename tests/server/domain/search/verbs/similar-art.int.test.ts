@@ -1,4 +1,4 @@
-// verb: similarArt — "more like this avatar" seed-vector top-k over the IMAGE space (PD-35). Asserts against
+// verb: similarArt — "more like this avatar" seed-vector top-k over the IMAGE space. Asserts against. See docs/work/0122.
 // a real db + a scripted role-clients bundle: image↔image ranking seeded from the character's stored avatar
 // vector (no re-embed), the seed excluded, the DEFAULT lens is the pure-visual `image-raw` portrait lens,
 // owner isolation, and — THE LOAD-BEARING CASE — a cross-tenant seed REFUSAL (a foreign seed id resolves to

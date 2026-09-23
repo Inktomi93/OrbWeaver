@@ -168,9 +168,7 @@ function pathBelongsToRequest(request: GateResourceRequest, path: string): boole
       return path.startsWith(`${DOCUMENT_CORPUS_ROOT}/`);
     case "ledger": {
       const definition: LedgerDefinition = LEDGER_DEFINITIONS[request.id];
-      return "paths" in definition
-        ? definition.paths.includes(path)
-        : path.startsWith(`${definition.tree}/`) && definition.member.test(path.slice(definition.tree.length + 1));
+      return path.startsWith(`${definition.tree}/`) && definition.member.test(path.slice(definition.tree.length + 1));
     }
     case "exact-file":
       return path === EXACT_RESOURCE_PATHS[request.id];

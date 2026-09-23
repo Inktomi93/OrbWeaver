@@ -1,4 +1,4 @@
-// The ACTIONS view's CONTEXT readout (preset-surface-redesign.md §7): the DELIVERY PATH + the RESOLVED PREVIEW.
+// The ACTIONS view's CONTEXT readout: the DELIVERY PATH + the RESOLVED PREVIEW.
 //
 // THE DELIVERY PATH IS PER-KIND (the Actions-tab IA §2.3 — UI-Arch §4.2, CONTEXT is config OF the active
 // artifact). It used to be a STANDING marker cluster: every selected row — a guided steer, a game-turn teach,

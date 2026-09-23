@@ -34,7 +34,7 @@ interface UserEventCall {
 export interface WorldInfoHarness {
   readonly ctx: WorldInfoContext;
   readonly audits: AuditCall[];
-  /** Chat-scope verbs' bus emissions (PD-30). */
+  /** Chat-scope verbs' bus emissions. */
   readonly wiEvents: Parameters<WorldInfoContext["emitWiEvent"]>[0][];
   /** The recorded user-bus `emitUserEvent` calls — assert `worldInfoChanged` fires after a durable write. */
   readonly userEvents: UserEventCall[];
@@ -45,7 +45,7 @@ export interface WorldInfoHarness {
   readonly advance: (ms: number) => void;
 }
 
-/** Overridable injected chat-guard ops (PD-30). Defaults THROW (the "not stubbed" doctrine) so a non-chat
+/** Overridable injected chat-guard ops. Defaults THROW (the "not stubbed" doctrine) so a non-chat
  *  test that accidentally reaches the chat scope fails loudly; chat-scope tests inject their own fakes. */
 interface HarnessOverrides {
   readonly requireChatHost?: WorldInfoContext["requireChatHost"];

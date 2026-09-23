@@ -1,4 +1,4 @@
-// Gate: no-off-token-radius-shadow (design-enforcement.md §3, DC8). `no-arbitrary-tw-values` only
+// Gate: no-off-token-radius-shadow. `no-arbitrary-tw-values` only
 // catches arbitrary VALUES (`rounded-[3px]`); a DEFAULT-SCALE utility (`rounded-lg`, `shadow-md`, bare
 // `shadow`) resolves against Tailwind's stock scale, not the DTCG theme's own closed radius/shadow
 // vocabulary — a verified gate blind spot (command-palette-surface.tsx shipped `rounded-lg` clean).
@@ -18,14 +18,14 @@ import { defineGate } from "../contract/policy.ts";
 import { readTailwindClassTokens } from "../lib/tailwind-class-token.ts";
 
 const MESSAGE =
-  "off-token default-scale radius/shadow utility (design-enforcement.md §3, DC8) — resolves against " +
+  "off-token default-scale radius/shadow utility (tokens: packages/ui/src/tokens/tokens.json) — resolves against " +
   "Tailwind's stock scale, not the DTCG theme: use a themed radius (rounded-base/control/card/full) " +
   "or shadow (shadow-glow/overlay/prose), per tokens.json.";
 
 /** The concrete remedy (§9.2), printed ONCE under the group header (owner rulings 2/3). */
 const FIX =
   "rounded-lg → rounded-card (or rounded-base/rounded-control/rounded-full); shadow-md → shadow-overlay " +
-  "(or shadow-glow/shadow-prose) — see tokens.json radius/shadow vocab + design-enforcement.md §3. A " +
+  "(or shadow-glow/shadow-prose) — see tokens.json radius/shadow vocab. A " +
   "deliberate off-token site is waived with `// @orb-waive no-off-token-radius-shadow(<position>): <reason>` " +
   "on a line above the offending statement, where <position> is the BARE WHITESPACE-SPLIT CLASS TOKEN WITH " +
   'NO QUOTES — `rounded-lg`, not "rounded-lg" — and INCLUDES any variant prefix — `hover:shadow-lg`, not ' +

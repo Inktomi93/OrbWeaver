@@ -60,7 +60,7 @@ export function loadedProgressLabel(loaded: number, totalCount: number | null): 
 // group's own numbers and therefore needs no derivation here.
 
 /**
- * REFERENTIAL INTEGRITY FOR THE PERSISTED FILTER (staleness-and-session-freshness.md §4.2.2, W5) — the tag
+ * REFERENTIAL INTEGRITY FOR THE PERSISTED FILTER (D138) — the tag
  * ids the owner's library actually contains, i.e. the AUTHORITY a persisted `tagFilter` entry is checked
  * against. `null` from {@link effectiveTagFilter}'s caller means the authority has not resolved yet.
  *

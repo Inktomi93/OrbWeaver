@@ -1,8 +1,8 @@
 // The FORCED-STATE pass (`hover-contrast`) — the one sample family that cannot be gathered inside
 // COLLECT_SAMPLES_JS, because Chromium exposes no way for page JS to force its own `:hover`. The only
 // door is `CSS.forcePseudoState` over CDP, which is a NODE-side round trip, so this pass sandwiches a
-// Node loop between two in-page evaluations. Since 2026-09-01 it carries BOTH state mechanisms
-// (docs/design/state-paint-census.md): the `:hover` pseudo over CDP, and Base UI's `data-*` state
+// Node loop between two in-page evaluations. Since 2026-09-01 it carries BOTH state mechanisms:
+// the `:hover` pseudo over CDP, and Base UI's `data-*` state
 // attributes forced IN PAGE (a synchronous set/read/restore needs no protocol door) — plus the
 // state-gated GLOW rows read while a subject is held, folded into the static glow census's own
 // sample families. STATED LIMIT: the `(hover: none)` early return below withholds the ATTRIBUTE

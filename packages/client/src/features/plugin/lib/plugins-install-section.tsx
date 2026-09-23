@@ -1,4 +1,4 @@
-// The Plugins ADD-A-PLUGIN config-section CONTRIBUTION (config-revamp-design.md §6.8) — the install/grant
+// The Plugins ADD-A-PLUGIN config-section CONTRIBUTION — the install/grant
 // flow as the group's second row, ahead of the admin-gated distribute section (your plugins first, the
 // deployment-wide control last — the order a person meets them in). Ungated (D147); no `owns`.
 

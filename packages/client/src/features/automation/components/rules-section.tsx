@@ -1,4 +1,4 @@
-// B2 — the "This chat" Rules SECTION (interaction-direction-spec §7 B2). The host-only surface that drives
+// B2 — the "This chat" Rules SECTION. The host-only surface that drives
 // the automation rule lifecycle FOR ONE ROOM: the rule list, the "Add a rule" preset picker, and each rule's
 // recent FIRE LOG (the "why didn't my rule fire" surface). It is a foreign feature grafting into chat's
 // "This chat" tab — it imports NO chat module and chat imports none of it (client-features-no-cross); the

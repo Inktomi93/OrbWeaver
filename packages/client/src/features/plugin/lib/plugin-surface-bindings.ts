@@ -1,5 +1,5 @@
-// plugin-surface-bindings — the PURE spec-binding vocabulary behind the plugin-surface renderer (plugin-ui-plane
-// #679 U1, §4.3). Split from plugin-surface-renderer.tsx so the renderer holds only the JSX mapping: the
+// plugin-surface-bindings — the PURE spec-binding vocabulary behind the plugin-surface
+// renderer. Split from plugin-surface-renderer.tsx so the renderer holds only the JSX mapping: the
 // $state-path reader, the bindable string/number resolvers, the form-default collector, the image-id sweep, and
 // the display-vs-form node partition. Zero React, zero I/O — every function is a pure function of its inputs
 // (an untrusted, already-schema-validated spec + the published state), which is exactly what the renderer walks.
@@ -77,7 +77,7 @@ export function numFromValues(values: Record<string, string>, name: string, fall
 }
 
 /** Does this spec bind ANY value to published state (`{ $state }`)? The SILENCE test for a room-anchored
- *  surface (plugin-ui-plane #679 U2, §4.9): a bound spec whose plugin has published nothing yet would render
+ *  surface: a bound spec whose plugin has published nothing yet would render
  *  its fallbacks — an empty meter, blank rows — as room chrome, which is exactly the "broken frame" §4.9
  *  refuses. A surface that binds nothing is PURELY STATIC and always has something to say, so it renders on
  *  sight. Pure + recursive through the shared `pluginChildNodes` seam. */

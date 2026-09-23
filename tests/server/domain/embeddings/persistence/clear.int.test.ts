@@ -1,7 +1,7 @@
 // persistence/clear — clearVectorTable (the whole-table wipe) asserts the typed DELETE FROM empties
 // exactly the named table.
 //
-// The PD-104 model-change purge (`purgeStaleVectors`) that used to be pinned here was DELETED with the
+// The model-change purge (`purgeStaleVectors`) that used to be pinned here was DELETED with the
 // generation cutover (#2496): promotion retires every non-active generation inside ONE transaction
 // (`persistence/space-state.ts` `retiredVectorStatements`), and the end-to-end invariant — old vectors
 // survive until every scope lands, then the swap completes on the new tag — is driven through real

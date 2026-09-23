@@ -15,7 +15,7 @@
 // configured → the SAMPLING/REASONING/OUTPUT clusters show the connect-a-model note; QUALITY still renders,
 // which is all these pins touch.
 //
-// Post-redesign (preset-surface-redesign.md §3/§4): the editor is ONE flat tab level and Params is the
+// Post-redesign: the editor is ONE flat tab level and Params is the
 // DEFAULT view, so these pins need no tab navigation at all; the dial is a `Select` (owner ruling O-18 —
 // the segmented strip died), so its state reads off the TRIGGER'S TEXT and its options live in a portal.
 
@@ -1040,7 +1040,7 @@ test("PROSE GEOMETRY — the box scrolls at its cap, the refusal stays on screen
   await expect(status).not.toContainText("Not saved");
 });
 
-// ── THE {{note}} CARRIER REFUSAL (owner ruling 2026-08-08, option C of note-token-intent-history.md) ───
+// ── THE {{note}} CARRIER REFUSAL (owner ruling 2026-08-08, option C of) ───
 // `{{note}}` carries the injection's ENTIRE payload: `spliceProseTokens` is a replace, so a frame override
 // that dropped it ships `[Note from user: ]` with the host's note gone. That is now a WRITE REFUSAL, and this
 // is the rendered half — the same three-signal shape the over-cap regime above wears, because a save that

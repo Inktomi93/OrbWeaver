@@ -1,5 +1,5 @@
 // THE PORT REGISTRY — the ONE home for every TCP port this repo's tooling, harnesses and runners bind
-// (docs/design/1208-instrument-substrate.md §3.6, pain P10). Before this module the box's ports were
+// (pain P10). Before this module the box's ports were
 // 47 hand-picked literals spread across tooling/src, tests/e2e/support, both playwright configs and the
 // shell launchers, with no table anywhere: picking a pair meant grepping and hoping, and the design's
 // tenth stage band would have been the fifth hand-picked pair in a row.

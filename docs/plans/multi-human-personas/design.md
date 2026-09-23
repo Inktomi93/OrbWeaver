@@ -14,7 +14,7 @@ The design builds on the in-flight voice binding (branch `wt/agent-a9589d8114298
 
 Law this plan applies: `docs/adr/0122-multi-human-persona-resolution-the-room-plane-read.md` (member persona descriptions enter the shared prompt unconditionally; the gate is the persona owner's present membership), `docs/adr/0153-the-persona-pin-active-resolution-semantics-are-owner.md` (pin and active resolution are owner-ruled; `tests/server/domain/chat/persona-resolution.suite.int.test.ts` stays byte-untouched), and `docs/law/Chat-Macro-Resolution.md` §3 and §4 (the three persona axes).
 
-Vocabulary: the humans in a room are **People** (`docs/design/vocabulary-map.md`); `roster` is reserved for the saved template. This plan calls the rendered list the **people block**. The **voice persona** is `AssembleContext.activePersona`: the anchor human's seat persona on a canon turn, the presser's on an impersonate draft. The **voice human** is the human it belongs to (`activePersonaUserId`).
+Vocabulary: the humans in a room are **People** (`docs/law/vocabulary-map.md`); `roster` is reserved for the saved template. This plan calls the rendered list the **people block**. The **voice persona** is `AssembleContext.activePersona`: the anchor human's seat persona on a canon turn, the presser's on an impersonate draft. The **voice human** is the human it belongs to (`activePersonaUserId`).
 
 ## Premises re-derived against the tree
 

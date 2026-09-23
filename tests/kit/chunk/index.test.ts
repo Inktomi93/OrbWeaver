@@ -1,5 +1,5 @@
-// @orb/kit/chunk — the pure recursive splitter. Verifies the five NORMATIVE properties (databank-design/03
-// §2): (1) lossless partition, (2) size bound, (3) contiguity, (4) determinism, (5) totality — plus the
+// @orb/kit/chunk — the pure recursive splitter. Verifies the five NORMATIVE properties:
+// (1) lossless partition, (2) size bound, (3) contiguity, (4) determinism, (5) totality — plus the
 // whole-file short-circuit, the overlap-prefix semantics, and the surrogate-pair guard at hard cuts.
 
 import type { ChunkParams, TextChunk } from "@orb/kit/chunk";

@@ -1,7 +1,7 @@
 // The "Add from your bank" PICKER (host only) — the caller's own documents, minus everything already
 // feeding this room, each one a one-shot `attachToChat`.
 //
-// IT IS A PICKER, NOT A SECOND LIST (databank-surface-spec §2.2). Legacy mounted the whole bank
+// IT IS A PICKER, NOT A SECOND LIST. Legacy mounted the whole bank
 // permanently UNDER the active list, so a globally-attached document rendered twice in one tab — once as an
 // active row, once as a read-only ON switch — and the second list grew with the bank while the first grew
 // with the room. One truth, one list; the bank appears only when you ask to add from it.

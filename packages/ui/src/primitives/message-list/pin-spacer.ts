@@ -1,4 +1,4 @@
-// Pure pin-prompt spacer math (PD-147). `pin-prompt` scroll mode pins the just-sent message to the
+// Pure pin-prompt spacer math. `pin-prompt` scroll mode pins the just-sent message to the
 // viewport TOP and holds it while the reply streams below. To let a SHORT reply still reach the top, the
 // virtualizer needs extra scrollable height below the last real row (virtual-core `paddingEnd`) — otherwise
 // the pinned row's start offset exceeds the max scroll and the row can't climb to the top. The spacer is

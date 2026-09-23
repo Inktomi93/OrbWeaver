@@ -3,7 +3,7 @@
 // (draft-loss on remount is a real papercut). The draft is ephemeral client state, never a server value —
 // chat owns the read (Composer `value`/`onChange`) + the send-clear (an empty `onChange("")`). Keyed by a
 // stable per-room SCOPE KEY — the room's `ChatId`, always, since a chat row exists from the creation click
-// (chat-creation-draft-mode-replacement.md §4.1). It used to also accept a client-minted `draftKey`, and
+// (D166). It used to also accept a client-minted `draftKey`, and
 // `migrateComposerDraft` carried the text across the draftKey→ChatId flip at commit. BOTH ARE GONE, and the
 // §2.7 collision goes with them BY CONSTRUCTION: the draftKey was a MODULE COUNTER that reset on reload while
 // this store persisted under it, so the first fresh room of a session inherited the previous session's unsent

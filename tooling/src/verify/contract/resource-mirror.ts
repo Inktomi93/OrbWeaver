@@ -7,7 +7,7 @@
 // 122,137`), which is a per-gate filesystem read with no receipt and no refusal: an absent tree tree reads
 // exactly like a tree with no members. This door replaces the READS. It does NOT own the mirror RULE — the
 // prefix swap, the kind suffixes, the exemption classes and the tooling §4.7 arm stay in the gate/lib, which
-// is what `resource-gate-access-patterns.md:107` reserves for the policy classifiers.
+// is what the ResourceHost access-pattern ruling reserves for the policy classifiers.
 //
 // IT IS DERIVED, NOT A SECOND WALK. Every member comes from `authoredTree` facts the invocation reader has
 // already cached, so declaring a mirror family costs one index build rather than a second traversal.

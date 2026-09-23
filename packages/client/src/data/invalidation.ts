@@ -208,7 +208,7 @@ const USER_BUS_FILTERS: UserBusFilterMap = {
   charactersChanged: (_e, trpc) => [trpc.character.pathFilter(), trpc.chat.getMemberCard.pathFilter(), trpc.regex.listScriptUsage.pathFilter()],
   personasChanged: (_e, trpc) => [trpc.persona.pathFilter()],
   // A preset edit changes the effective params (maxOutput/maxContext) the fit reserves against, so the
-  // transcript divider's budget must refetch too (the boundary tracks knob changes live, PD-#7) — and the
+  // transcript divider's budget must refetch too (the boundary tracks knob changes live) — and the
   // preset OWNS the prompt's section order/content, so the prompt preview is stale on the same edit.
   // `getUserMacroPicks`/`getVariablePicks` ride a preset edit too: their DECLARATIONS halves ARE the active
   // preset's `userMacros`/`variables` (adding/removing a macro input or a ChoiceBlock changes which controls
@@ -335,7 +335,7 @@ const USER_BUS_FILTERS: UserBusFilterMap = {
   // admin's reads (writer-local, per their own cited `query-freshness-coverage` entries); this member only
   // ever reaches the AFFECTED user's channel.
   identityChanged: (_e, trpc) => identityFilters(trpc),
-  // A plugin surface published new state (`host.ui.setState`, plugin-ui-plane #679 U1). PATH-invalidate the
+  // A plugin surface published new state (`host.ui.setState` U1). PATH-invalidate the
   // surface-state read — coarse by the member's own design (a `pluginId` hint the coarse map ignores): the only
   // viewer is the installer and they hold a handful of surfaces, so refetching all their `getSurfaceState`
   // entries on a poke is cheap and correct. NOT `listSurfaces` — a state change never moves the registration set

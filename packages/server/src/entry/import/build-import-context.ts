@@ -22,7 +22,7 @@ export interface ImportCharacterPort {
   readonly findByHandle: (params: { readonly ownerId: UserId; readonly handle: CharacterHandle }) => Promise<{ readonly characterId: CharacterId } | null>;
 }
 
-/** The `assets` front-door slice the driver wires the import avatar-store op to. `maxBytes` (PD-94) is the
+/** The `assets` front-door slice the driver wires the import avatar-store op to. `maxBytes` is the
  *  non-HTTP caller's zip-bomb belt — the store seam rejects an over-cap blob before the CAS write. */
 export interface ImportAssetPort {
   readonly store: (params: {
@@ -47,7 +47,7 @@ export interface ImportTagPort {
   }) => Promise<boolean>;
 }
 
-/** The `world-info` front-door slice the driver wires the embedded-lorebook import + the PD-144 attached-book
+/** The `world-info` front-door slice the driver wires the embedded-lorebook import + the attached-book
  *  re-link to. Optional: a card-only composition may omit them (embedded books / references are then skipped). */
 export interface ImportWorldInfoPort {
   readonly importLorebook: (params: {

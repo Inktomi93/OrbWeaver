@@ -26,7 +26,7 @@ import tailwindcss from "@tailwindcss/vite";
 // `#` subpath imports resolve via package.json `imports` (vite ≥6 reads them); cross-package
 // imports resolve through the workspace — no aliases needed.
 
-// THE CT WALL CLOCKS, LOAD-SCALED (#1232, docs/design/1208-instrument-substrate.md section 7.1). All three
+// THE CT WALL CLOCKS, LOAD-SCALED (#1232 section 7.1). All three
 // were Playwright DEFAULTS this config pinned NOWHERE — which is how "at loadavg 170 the CT default times
 // out every test at `mount()` on pure contention, ZERO signal, indistinguishable from a real red"
 // (.claude/rules/browser-tests.md) became a standing fact instead of a fixed defect. The literals
@@ -105,6 +105,10 @@ const ctSlot =
 
 export default defineConfig({
   testDir: "tests",
+  // docs/work/0062 — the working-tree guard: captures `git status` + a content hash of every dirty path
+  // before the first component mounts, and its returned teardown reds the run (naming the path) if a CT
+  // wrote into the real checkout instead of its own harness/temp state.
+  globalSetup: "./tooling/src/_shared/working-tree-guard.ts",
   testMatch: CT_TEST_MATCH,
   outputDir: "reports/ct-results",
   fullyParallel: true,
@@ -212,7 +216,7 @@ export default defineConfig({
       esbuild: { target: CT_ESBUILD_TARGET, tsconfigRaw: { compilerOptions: { target: CT_ESBUILD_TARGET } } },
       optimizeDeps: { esbuildOptions: { target: CT_ESBUILD_TARGET } },
       resolve: { dedupe: ["react", "react-dom"] },
-      // MODULE WORKERS (plugin-ui-plane #679 U4). vite's default `worker.format` is `iife`, and an iife worker
+      // MODULE WORKERS. vite's default `worker.format` is `iife`, and an iife worker
       // bundle CANNOT CODE-SPLIT — the Tier-C plugin guest's QuickJS variant dynamically imports its own FFI
       // module, so the CT build failed outright: "Invalid value 'iife' for option 'worker.format' — UMD and
       // IIFE output formats are not supported for code-splitting builds". `es` is also what the runtime already

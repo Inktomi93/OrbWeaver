@@ -120,18 +120,33 @@ post-checkout:
 # AUTO-LAND for the in-repo work items (docs/work/, `docs/plans/doc-system/design.md`). After a merge
 # INTO main that `git merge` itself completes (a fast-forward or a clean `--no-ff`), `pnpm doc land
 # --merged` reads the `Closes: 12, 14` trailers of the commits the merge brought in (ORIG_HEAD..HEAD),
-# marks those items done with the merge commit as evidence, regenerates the indexes and commits ONLY the
-# item files (a pathspec commit, so a sibling's staged file never rides along) under the message contract
-# (with the whole-tree check excluded, the standing exception spelling). On any other branch, or when no
-# merged commit carries a trailer, it writes and prints nothing. An unknown id in a trailer refuses the
-# whole batch and names the by-hand landing.
-# THE GAP git LEAVES: a CONFLICTED merge concluded by `git commit` runs NO post-merge hook, so nothing
-# auto-lands; the SessionStart drift nag (`pnpm doc drift`) names such a commit with its `pnpm doc land …
-# --evidence <sha>` line, and the orchestrator lands by hand. Lanes never write item state.
+# DELETES those items with the merge commit as evidence (the commit message records each one), regenerates
+# the indexes and commits ONLY those paths (a pathspec commit, so a sibling's staged file never rides
+# along) under the message contract (with the whole-tree check excluded, the standing exception
+# spelling). On any other branch, or when no merged commit carries a trailer, it writes and prints
+# nothing. An id already landed is skipped; an id neither on the tree nor landed in git refuses the whole
+# batch and names the by-hand landing.
+# THE GAP git LEAVES: a merge finished by a separate `git commit` — `--no-ff --no-commit` + `git commit`,
+# or a conflict resolved the same way — runs NO post-merge hook; git only fires post-commit for it. The
+# post-commit command below covers that gap: it is a no-op unless HEAD itself is a merge commit (a second
+# parent), so an ordinary feature commit never touches it. It passes `--head-merge`, which reads
+# `HEAD^1..HEAD` instead of post-merge's `ORIG_HEAD..HEAD` (mergedCommits, tooling/src/doc/ops/tree.ts) —
+# the range is picked by WHICH HOOK FIRED, never by HEAD's shape: a fast-forward onto a branch whose tip is
+# already a merge commit still fires post-merge (not post-commit), and `HEAD^1..HEAD` there would see only
+# that merge's second-parent side and drop every id the fast-forward carried in on the first-parent side.
+# landItems is idempotent — an already-landed id is skipped — so the rare case where both hooks would fire
+# for the same merge costs nothing.
 post-merge:
   commands:
     land-work-items:
       run: node tooling/src/doc/cli.ts land --merged
+      env:
+        NO_COLOR: "1"
+
+post-commit:
+  commands:
+    land-merged-commit:
+      run: if git rev-parse --verify -q HEAD^2 >/dev/null; then node tooling/src/doc/cli.ts land --merged --head-merge; fi
       env:
         NO_COLOR: "1"
 

@@ -23,7 +23,7 @@
 // `chat_injections.role` ← `MESSAGE_ROLES` (@orb/kit/message-role, D32); `messages.kind` ← `MESSAGE_KINDS`
 // (the row-PURPOSE axis — @orb/contracts/chat; orthogonal to role, see the table header); `chat_participants.kind` ←
 // `PARTICIPANT_KINDS` (`human`/`character` only post-rollback, 2026-07-25 purge — the DDL's `agent`/`observer`
-// kind-shape CHECK arms below are dormant rebuild doorways, not live tuple members; PD-17 tracks the graft),
+// kind-shape CHECK arms below are dormant rebuild doorways, not live tuple members; docs/work/0048 tracks the graft),
 // `.role` ← `PARTICIPANT_ROLES`, `joinHistoryVisibility` ←
 // `JOIN_HISTORY_VISIBILITIES`; `chat_invites.status` ← `INVITE_STATUSES` (all @orb/contracts/chat).
 // `chat_events.type` derives the DURABLE `ChatBusEvent` discriminant set (`CHAT_BUS_EVENT_TYPES` keys minus
@@ -66,7 +66,7 @@ import {
   TOKEN_PROVENANCES,
   TURN_INITIATORS,
 } from "@orb/contracts/chat";
-// PARTICIPANT_ROLES is one-homed in @orb/contracts/identity (the can() resource-role axis; PD-59).
+// PARTICIPANT_ROLES is one-homed in @orb/contracts/identity (the can() resource-role axis).
 import { PARTICIPANT_ROLES } from "@orb/contracts/identity";
 import type { CostDetails, NormalizedFinishReason, ProviderId } from "@orb/contracts/inference";
 import { NORMALIZED_FINISH_REASONS } from "@orb/contracts/inference";
@@ -132,7 +132,7 @@ export const chats = sqliteTable(
     // punch list item 6 rename; the RPC verb NAME `chat.star` is unchanged, only the data field).
     starred: integer("starred", { mode: "boolean" }).notNull().default(false),
     archived: integer("archived", { mode: "boolean" }).notNull().default(false),
-    // ST "Temporary Chat" (PD-65): an ephemeral room — persisted so turns can run, but HIDDEN from the
+    // ST "Temporary Chat": an ephemeral room — persisted so turns can run, but HIDDEN from the
     // recent list (`listMemberChats` excludes it) and swept by `reapTemporaryChats` once expired. Set only
     // at `startChat` (a fork is born non-temporary). Expiry is a domain TTL over `createdAt`, not a column.
     temporary: integer("temporary", { mode: "boolean" }).notNull().default(false),
@@ -503,10 +503,8 @@ export const messageVariants = sqliteTable(
     // The HTTP status of a FAILED generation (diagnostics + the retry-survivor signal alongside
     // terminalReason). Nullable — null on a clean generation.
     apiErrorStatus: integer("api_error_status"),
-    // D48 tool-call records — the model-emitted tool exchanges for this variant (tool-use-design/03 §3).
-    // FLAG[PD-54]: this DTO retype is the schema-leaf slice of T1 — born-compliant typing while the baseline
-    // window is open; the wire seams + the domain-owned recurse loop that WRITE it remain (registry: PD-54
-    // ready). Nullable JSON, parsed at the read seam with `toolCallRecordSchema` (never cast).
+    // D48 tool-call records — the model-emitted tool exchanges for this variant. Nullable JSON, parsed at
+    // the read seam with `toolCallRecordSchema` (never cast).
     toolCalls: text("tool_calls", { mode: "json" }).$type<readonly ToolCallRecord[]>(),
     // D46 runtime plane — the ordered variable ops THIS variant applied (`{{setvar}}`/`{{incvar}}`/…). The chat
     // domain folds these along the selected-variant chain (`foldVarOps`) into `chats.runtime_variables`, so a
@@ -526,7 +524,7 @@ export const messageVariants = sqliteTable(
     genStartedAt: integer("gen_started_at"),
     genFinishedAt: integer("gen_finished_at"),
     // The PROVIDER's response id for this generation — OpenRouter's `gen-…` (the key `connection.generationCost`
-    // settles the per-message cost with, PD-137) or Anthropic's `msg_…` (the support handle a request is traced
+    // settles the per-message cost with) or Anthropic's `msg_…` (the support handle a request is traced
     // by; inference audit B7). §5.3c class 4: declared-OPAQUE provenance, never compared, switched on or joined.
     // Null where the wire reports none (agent-sdk / a user-authored row). NOT an orbweaver-branded id.
     generationId: text("generation_id"),
@@ -604,9 +602,9 @@ export const messageAssets = sqliteTable(
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // chat_participants — the unified roster (D16). The per-kind SHAPE CHECK + the (chatId,userId) UNIQUE + the
 // lifecycle columns are all born at table creation. `kind` derives PARTICIPANT_KINDS (`human`/`character` live
-// post-rollback). The D60 kind-shape CHECK (agent-principal-design/02 §1) was built so an `agent` (userId-backed
+// post-rollback). The D60 kind-shape CHECK (docs/plans/agent-principals/design.md) was built so an `agent` (userId-backed
 // AND AI-driven — the thing a 2-way actor XOR could not represent) is expressible: its `agent`/`observer` SQL
-// arms are DORMANT rebuild doorways kept in the DDL for the agent-principal design set's return (PD-17), not
+// arms are DORMANT rebuild doorways kept in the DDL for the agent-principal program's return (docs/work/0048), not
 // live kinds today. `characterId` keys on identity (D28).
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
@@ -619,7 +617,7 @@ export const chatParticipants = sqliteTable(
       .notNull()
       .references(() => chats.id, { onDelete: "cascade" }),
     // human | character (live). Derives PARTICIPANT_KINDS; the DDL's `agent`/`observer` CHECK arms are
-    // dormant rebuild doorways (PD-17), not selectable values today.
+    // dormant rebuild doorways (docs/work/0048), not selectable values today.
     kind: text("kind", { enum: PARTICIPANT_KINDS }).notNull(),
     // The actor — the per-kind SHAPE CHECK below fixes which is set: human → userId, character →
     // characterId (the dormant `agent`/`observer` DDL arms would carry userId / neither, same shape rule).
@@ -676,13 +674,13 @@ export const chatParticipants = sqliteTable(
     // LEFTMOST column is the one constrained (`fk-columns-indexed` gate).
     index("chat_participants_user_idx").on(t.userId),
     index("chat_participants_active_persona_idx").on(t.activePersonaId),
-    // The per-kind SHAPE CHECK (D60; agent-principal-design/02 §1) — born at creation to REPLACE the 2-way
+    // The per-kind SHAPE CHECK (D60; docs/plans/agent-principals/design.md) — born at creation to REPLACE the 2-way
     // actor XOR once `agent` returns (userId-backed AND AI-driven — the bit a plain XOR can't carry). Only the
     // `human`/`character` arms are LIVE post-rollback (2026-07-25 purge); the `agent`/`observer` arms are
     // DORMANT rebuild doorways — no code path writes `kind='agent'`/`'observer'` today, and the DB does not
     // (and per the design would not) cross-verify `kind='agent' ⇒ users.kind='agent'` (SQLite has no
-    // cross-table CHECK) — that's the future agent-seat chokepoint's job (agent-principal-design/02 §1 —
-    // FLAG[PD-17], AP3). Kept as DDL now so the rebuild doesn't need a second migration for a known shape.
+    // cross-table CHECK) — that's the future agent-seat chokepoint's job (docs/plans/agent-principals/design.md,
+    // AP3, docs/work/0048). Kept as DDL now so the rebuild doesn't need a second migration for a known shape.
     check(
       "chat_participants_kind_shape",
       sql.raw(

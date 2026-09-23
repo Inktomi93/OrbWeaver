@@ -31,7 +31,7 @@ export interface ImportOrphanCharacterResult {
  *  existing character (a run that threw after the create leaves them missing, and the dedup key is that same
  *  row), so the counts below report what the reconcile actually landed and are NOT zero by definition on the
  *  dedup arm.
- *  PD-144: `attachedBooksLinked`/`attachedBooksSkipped` report the carried book-reference re-link — skipped
+ *  `attachedBooksLinked`/`attachedBooksSkipped` report the carried book-reference re-link — skipped
  *  counts references whose id had no book the importer owns on this install (absent/foreign), reported so a
  *  cross-install import surfaces the books that didn't travel. Both 0 for a card carrying no references. */
 export interface ImportCharacterResult {

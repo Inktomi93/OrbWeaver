@@ -1,4 +1,4 @@
-// domain/databank/ingest — the chunk→embed→prune orchestration (databank-design/06 §3), the embeddings
+// domain/databank/ingest — the chunk→embed→prune orchestration, the embeddings
 // indexer analogue. Called by the databank-ingest/reindex runners through the injected workload env;
 // idempotent end to end. The ONE core `ingestOne` both kinds share: load canon → chunk (pure @orb/kit/chunk)
 // → store each chunk via the injected `embeddingsStore` (the ONE vector write path — a matched content_hash

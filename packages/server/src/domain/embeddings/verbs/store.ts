@@ -73,7 +73,7 @@ function assertSpace(model: string, dim: number, vector: Float32Array): void {
 }
 
 /** card-text → `character_embeddings` (hash-gated; the staleness gate short-circuits before the embed —
- *  unless `force`, the PD-53 bulk re-index escape hatch that bypasses ONLY the short-circuit). */
+ *  unless `force`, the bulk re-index escape hatch that bypasses ONLY the short-circuit). */
 async function storeCardText(ctx: EmbeddingsContext, p: CardTextStoreParams): Promise<StoreResult> {
   const generation = await resolveTargetGeneration(ctx, p.ownerId, "embed");
   if (generation === null) {
@@ -136,7 +136,7 @@ async function isImageLensCurrent(
  *  in their text space instead of dropping it. Both results carry `{vectors, model}`, and the row is
  *  stamped with the PROVIDER's `model` either way (the issue-724 ruling), so the arm never invents a tag. */
 /** image-raw / image-captioned → `image_embeddings` (both lenses coexist per `(asset, model, lens)`;
- *  `force` bypasses the staleness short-circuit — PD-53 bulk re-index). */
+ *  `force` bypasses the staleness short-circuit — bulk re-index). */
 async function storeImage(ctx: EmbeddingsContext, p: ImageRawStoreParams | ImageCaptionedStoreParams): Promise<StoreResult> {
   const generation = await resolveTargetGeneration(ctx, p.ownerId, "imageEmbed", p.lens === "image-raw" ? "imageEmbed" : p.via);
   if (generation === null) {

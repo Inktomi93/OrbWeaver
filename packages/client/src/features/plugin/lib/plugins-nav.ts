@@ -1,7 +1,7 @@
 // plugins-nav — the Plugins group's nav entries, the ONE home for both ends of the anchor wiring (the
 // `workloads-jobs-nav.ts` precedent): each contribution def spells its `nav` from these, and each section body
 // stamps `configAnchorId("plugins", …)` from the same constant, so scroll-spy and search jump can never point
-// at an anchor nobody rendered. The group itself is a `sections` skimmer (config-revamp-design.md §6.8) —
+// at an anchor nobody rendered. The group itself is a `sections` skimmer —
 // these two plus the admin-gated distribute section ARE its rows.
 
 import type { ConfigSubcategory } from "#state";
