@@ -120,7 +120,7 @@ function minter<P extends string>(prefix: P): () => TypeIdOf<P> {
  *     hands a member the host's identity on the wire.
  *   • `none` (deferred drain / auto turn) → the chat ANCHOR. The anchor is the chat-invariant identity (D51
  *     rider); binding to `personaIds[0]` instead would address the prompt to a presence-order-arbitrary
- *     bystander, and falling to the kit floor would address "User" in a room whose `{{user}}` is well-defined.
+ *     bystander, and falling to the kit floor would address `DEFAULT_PERSONA_NAME` in a room whose `{{user}}` is well-defined.
  *
  * THERE IS NO ABSENT ARM (owner ruling, 2026-08-07 — the `personaIds[0]` fallback is RETIRED). It used to
  * exist for trigger-less contexts (previews, host instruments) and bound `{{user}}` to "whoever joined

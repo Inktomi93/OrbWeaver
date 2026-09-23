@@ -88,7 +88,7 @@ export type TurnVoice = (typeof TURN_VOICES)[number];
  * binds the anchor human's seat persona whoever triggered it.
  *
  *   • `{ kind: "human" }` — a live human drives this turn. Their `{{user}}` is `personaId` when their seat
- *     holds one, and the kit floor ("User") when it does not. **This arm never reaches the anchor** — a seat
+ *     holds one, and the kit floor (`DEFAULT_PERSONA_NAME`) when it does not. **This arm never reaches the anchor** — a seat
  *     the anchor-holder does not hold must not be presented to the model wearing the anchor's identity.
  *   • `{ kind: "none" }` — DELIBERATELY no triggering human (a deferred drain / an automation turn, and also
  *     every trigger-less READ: a preview, a card display, a host instrument): `{{user}}` binds to the chat
