@@ -33,7 +33,6 @@ import type { ChatEvent, RateLimitSnapshot } from "../../contract/events.ts";
 import type { AgentSdkSessionId } from "../../contract/identity.ts";
 import { agentSdkSessionIdSchema } from "../../contract/identity.ts";
 import type { ResolvedWarning } from "../../contract/resolve.ts";
-import { resolveDynamicContext } from "../../funnel/resolve-chat.ts";
 import { classifyHttpStatus } from "../kit/error-classify.ts";
 import { redactSecretsFromText } from "../kit/openai-body.ts";
 import { agentSdkVariantMetadata } from "../kit/provider-metadata.ts";
@@ -43,15 +42,7 @@ import { toSdkOutputFormat } from "./output-schema.ts";
 import type { SeededSessionDecision, SessionCache } from "./session/index.ts";
 import { NO_SAVED_TOTALS } from "./session/index.ts";
 import { isTerminalToolCall, terminalToolOptions, toTerminalCall } from "./terminal-tools.ts";
-import {
-  buildSystemPrompt,
-  disciplineOptions,
-  dynamicContextOptions,
-  hookContextOf,
-  MCP_NAMESPACE,
-  observabilityOptions,
-  toSdkGeneration,
-} from "./translate.ts";
+import { buildSystemPrompt, disciplineOptions, hookContextOf, MCP_NAMESPACE, observabilityOptions, tailSystemOptions, toSdkGeneration } from "./translate.ts";
 import type { AgentSdkDeps, TurnStreamContext } from "./types.ts";
 import { assertInitFrameShape, classifyAssistantError, classifyResultSubtype, classifyTerminalReason } from "./verify.ts";
 
@@ -165,7 +156,7 @@ export async function runChatTurn(req: AgentSdkChatRequest, deps: AgentSdkDeps, 
     turns: { ...generation.turns },
     droppedWarnings: gen.warnings.map((w) => ({ code: w.code, message: w.message })),
   });
-  const { systemPrompt, dynamicHook } = routeDynamicContext(req, gen.turnId, log);
+  const { systemPrompt, dynamicHook } = systemChannels(req);
   const { resume, disposition, savedTotals } = await resolveResume(req, sessions);
   logSessionDecision(req.chatId, resume, disposition, log);
 
@@ -224,8 +215,8 @@ export async function runChatTurn(req: AgentSdkChatRequest, deps: AgentSdkDeps, 
 }
 
 // Capture the SDK QUERY INPUT — the literal Anthropic body is built INSIDE the bundled subprocess. `hookContext`
-// is the text the `UserPromptSubmit` hook injects beside the prompt: on a hook-channel model it is where a lifted
-// system injection reaches the model, so a capture without it hides what the model was told.
+// is the text the `UserPromptSubmit` hook injects beside the prompt: it is where a lifted tail system injection
+// reaches the model, so a capture without it hides what the model was told.
 function captureAgentSdkWire(
   req: AgentSdkChatRequest,
   deps: AgentSdkDeps,
@@ -246,7 +237,7 @@ function captureAgentSdkWire(
     body: {
       prompt: req.prompt,
       systemPrompt: ctx.systemPrompt ?? null,
-      hookContext: ctx.dynamicHook.hooks === undefined ? null : hookContextOf(req.systemPrompt.dynamic),
+      hookContext: ctx.dynamicHook.hooks === undefined || req.tailSystem === undefined ? null : hookContextOf(req.tailSystem),
       model: req.connection.model,
       resumed: ctx.resume !== undefined,
       maxTokens: ctx.gen.envOverrides.maxOutputTokens ?? null,
@@ -261,23 +252,10 @@ function captureAgentSdkWire(
   });
 }
 
-/** Route the dynamic system-prompt half per the RESOLVED channel: "system-block" joins; "message-tail" sends
- *  only the static half and injects the dynamic half via a `UserPromptSubmit` hook (cache-safe). */
-function routeDynamicContext(
-  req: AgentSdkChatRequest,
-  turnId: string,
-  log: AgentSdkLog,
-): { systemPrompt: string | undefined; dynamicHook: Pick<Options, "hooks"> } {
-  const generation = req.connection.capability.kind === "generation" ? req.connection.capability.generation : undefined;
-  const channel = generation === undefined ? "system-block" : resolveDynamicContext(req.params, generation);
-  const midConvCapable = generation?.turns?.midConversationSystem ?? false;
-  // The model takes a tail system row but the turn's message-handling level folds it into the system block.
-  const demoted = midConvCapable && channel === "system-block";
-  log.channel({ turnId, channel, midConvCapable, demoted });
-  if (channel === "system-block") {
-    return { systemPrompt: buildSystemPrompt(req.systemPrompt), dynamicHook: {} };
-  }
-  return { systemPrompt: buildSystemPrompt({ static: req.systemPrompt.static, dynamic: "" }), dynamicHook: dynamicContextOptions(req.systemPrompt.dynamic) };
+/** The system-region halves join the system prompt, where the prompt order put them; the system rows below the
+ *  history ride the `UserPromptSubmit` hook beside the prompt. */
+function systemChannels(req: AgentSdkChatRequest): { systemPrompt: string | undefined; dynamicHook: Pick<Options, "hooks"> } {
+  return { systemPrompt: buildSystemPrompt(req.systemPrompt), dynamicHook: req.tailSystem === undefined ? {} : tailSystemOptions(req.tailSystem) };
 }
 
 interface ResumeDecision {

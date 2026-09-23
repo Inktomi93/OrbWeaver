@@ -8,15 +8,13 @@
 // one wire message per `tool-result` part; every other row is 1:1; an empty row is DROPPED here, before the
 // index is assigned, so the plan and the converted array agree by construction).
 //
-// The system prompt: the STATIC prefix + the DYNAMIC tail joined into the leading `system` row when the funnel
-// resolved `system-block`; under `message-tail` the dynamic half rides a TRAILING `system` row (the
-// mid-conversation channel, cache-safe — the static prefix stays cacheable). A capability-kept mid-history
-// `system` row is delivered as a real system message (legal V4 vocabulary), never coerced to `user`.
+// The system prompt: the STATIC prefix + the DYNAMIC half, both in the leading system region where the prompt
+// order put them — joined into one row, or two with `splitSystem`. A capability-kept mid-history `system` row
+// is delivered as a real system message (legal V4 vocabulary), never coerced to `user`.
 
 import type { JSONObject, LanguageModelV4FilePart, LanguageModelV4Message, LanguageModelV4Prompt, SharedV4ProviderOptions } from "@ai-sdk/provider";
 import type { ChatContentPart, ReasoningPartMeta } from "@orb/contracts/chat";
 import type { ChatHistoryMessage, HistoryRole } from "../../contract/chat.ts";
-import type { DynamicContextChannel } from "../../contract/resolve.ts";
 import { chatHistoryText } from "../kit/history.ts";
 
 const PROMPT_JOINER = "\n\n";
@@ -61,15 +59,14 @@ interface PlanRow {
 
 export interface BuildPromptArgs {
   readonly systemPrompt: { readonly static: string; readonly dynamic: string };
-  readonly dynamicContextChannel: DynamicContextChannel;
   readonly history: readonly ChatHistoryMessage[];
   /** The `providerOptions` key the wire's converter reads per message (`openaiCompatible` / `openrouter` /
    *  `anthropic`) and a builder for a row's options from its `wireMeta` — the anthropic wire forwards
    *  `clearAt`/`effort`; the openai-compat wires forward nothing. */
   readonly rowOptions?: ((row: ChatHistoryMessage) => SharedV4ProviderOptions | undefined) | undefined;
-  /** Deliver the static prefix and the dynamic tail as TWO leading system rows (the openrouter transport on an
-   *  Anthropic model: the static row takes the cache breakpoint, the volatile tail stays outside it). Only
-   *  meaningful under `system-block`; under `message-tail` the tail already rides its own row. */
+  /** Deliver the static prefix and the dynamic half as TWO leading system rows (an Anthropic route: the static
+   *  row takes the cache breakpoint, the per-turn half stays outside it). Both stay in the system region, where
+   *  the prompt order put them. */
   readonly splitSystem?: boolean | undefined;
 }
 
@@ -251,9 +248,8 @@ export function buildWirePlan(args: BuildPromptArgs): WirePlan {
   const builder: PlanBuilder = { prompt: [], names: new Map(), assistantMedia: new Map(), rows: [] };
   const staticText = args.systemPrompt.static.trim();
   const dynamicText = args.systemPrompt.dynamic.trim();
-  const tail = args.dynamicContextChannel === "message-tail" && dynamicText.length > 0;
-  const split = args.splitSystem === true && !tail && staticText.length > 0 && dynamicText.length > 0;
-  const leading = tail || split ? staticText : joinSystemPrompt(args.systemPrompt);
+  const split = args.splitSystem === true && staticText.length > 0 && dynamicText.length > 0;
+  const leading = split ? staticText : joinSystemPrompt(args.systemPrompt);
   if (leading.length > 0) {
     pushRow(builder, { role: "system", content: leading }, { role: "system", toolExchange: false, text: leading });
   }
@@ -262,9 +258,6 @@ export function buildWirePlan(args: BuildPromptArgs): WirePlan {
   }
   for (const row of args.history) {
     pushHistoryRow(builder, row, args.rowOptions?.(row));
-  }
-  if (tail) {
-    pushRow(builder, { role: "system", content: dynamicText }, { role: "system", toolExchange: false, text: dynamicText });
   }
   const last = builder.rows.at(-1);
   return {

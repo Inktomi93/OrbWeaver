@@ -5,7 +5,6 @@ import type { ChatId } from "@orb/kit/ids";
 import type { ContextUsage } from "../../contract/chat.ts";
 import type { ProviderError } from "../../contract/errors.ts";
 import type { AgentSdkSessionId } from "../../contract/identity.ts";
-import type { DynamicContextChannel } from "../../contract/resolve.ts";
 import type { InferenceLog } from "../../deps.ts";
 import type { ProviderCapabilityLog, ProviderLogger, ProviderTurnUsage } from "../kit/provider-log.ts";
 import { providerLogger } from "../kit/provider-log.ts";
@@ -62,12 +61,6 @@ export interface AgentSdkLog {
   readonly dialog: (entry: { readonly source: "elicitation" | "user-dialog"; readonly kind: string }) => void;
   readonly summarize: (entry: { readonly items: number; readonly ok: number; readonly fail: number; readonly durationMs: number }) => void;
   readonly capability: (entry: ProviderCapabilityLog) => void;
-  readonly channel: (entry: {
-    readonly turnId: string;
-    readonly channel: DynamicContextChannel;
-    readonly midConvCapable: boolean;
-    readonly demoted: boolean;
-  }) => void;
   readonly mcp: (entry: { readonly unhealthy: boolean; readonly servers: readonly ProviderMcpServerHealth[] }) => void;
   readonly info: (fields: Record<string, unknown>, message: string) => void;
   readonly warn: (fields: Record<string, unknown>, message: string) => void;
@@ -96,7 +89,6 @@ export function createAgentSdkLog(log: InferenceLog, providerId: string): AgentS
     dialog: (entry) => base.emit("warn", "provider.dialog", { ...entry }),
     summarize: (entry) => base.emit("info", "provider.summarize", { ...entry }),
     capability: (entry) => base.capability(entry),
-    channel: (entry) => base.emit("debug", "provider.channel", { ...entry }),
     mcp: (entry) => base.emit(entry.unhealthy ? "warn" : "debug", "provider.mcp", { ...entry }),
     info: (fields, message) => log.info({ wire: WIRE, providerId, ...fields }, message),
     warn: (fields, message) => log.warn({ wire: WIRE, providerId, ...fields }, message),

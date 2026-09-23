@@ -72,6 +72,32 @@ describe("squashSameRole", () => {
   });
 });
 
+// A caching wire keeps each stored row its own block; injections and cues still join the stored row beside
+// them, so only a run of two or more stored rows splits.
+describe("squashSameRole — canonApart", () => {
+  const a = castId<MessageId>("message_a");
+  const b = castId<MessageId>("message_b");
+  const run = [
+    { role: "user" as const, content: "[Start a new chat]" },
+    { role: "user" as const, content: "Nate: in", messageId: a },
+    { role: "user" as const, content: "Joe: in too", messageId: b },
+    { role: "user" as const, content: "[Write the next reply only as Kai.]" },
+  ];
+
+  test("a second stored row opens its own row; the marker and the cue join their neighbours", () => {
+    expect(squashSameRole(run, { canonApart: true })).toEqual([
+      { role: "user", content: "[Start a new chat]\n\nNate: in", messageId: a },
+      { role: "user", content: "Joe: in too\n\n[Write the next reply only as Kai.]", messageId: b },
+    ]);
+  });
+
+  test("without it the whole run joins (the control)", () => {
+    expect(squashSameRole(run)).toEqual([
+      { role: "user", content: "[Start a new chat]\n\nNate: in\n\nJoe: in too\n\n[Write the next reply only as Kai.]", messageId: a },
+    ]);
+  });
+});
+
 describe("squashSameRole — system rows (capability-kept depth-0 injections)", () => {
   test("adjacent system rows merge; a system row never folds into a user/assistant neighbor", () => {
     expect(

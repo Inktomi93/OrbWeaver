@@ -432,8 +432,7 @@ export const userIntentSchema = z.strictObject({
       squashSystemMessages: z.boolean().optional(),
       // The message-handling level (`ROLE_HANDLING` minus the model-only levels): same-role merging and where a
       // system row may sit. Clamped against the model's `turns.roleHandlingFloor` (a preset may go stricter,
-      // never looser). The level also picks the per-turn system half's channel: the message tail where the turn
-      // keeps system rows and the model takes one there, else the system block (`resolveDynamicContext`).
+      // never looser).
       roleHandling: userRoleHandlingSchema.optional(),
       // Whether the model may emit SEVERAL tool calls in one turn (OpenRouter `parallel_tool_calls`).
       // Rides the wire only when the request carries tools + the model is tool-capable. Absent ⇒ the

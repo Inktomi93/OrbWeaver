@@ -51,7 +51,7 @@ import { composeProse, isPresetProseSlotId, resolveProseText } from "@orb/contra
 import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import type { Resolved } from "@orb/inference";
-import { generationOf, resolveCarryReasoning } from "@orb/inference";
+import { cachesByAnthropicMarkers, generationOf, resolveCarryReasoning } from "@orb/inference";
 import { projectBodyForPreview } from "@orb/kit/content";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, MessageId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
@@ -62,7 +62,7 @@ import { getLog } from "#foundation/observability";
 import type { ChatContext } from "../context.ts";
 import type { TeachingIdentity, TeachingKnobs } from "../contract/context.ts";
 import { ChatNotFoundError } from "../contract/errors.ts";
-import type { ForeignInputs, ResolveForeignInputsOp } from "../contract/foreign.ts";
+import type { ForeignInputs, HumanSeatPersona, ResolveForeignInputsOp } from "../contract/foreign.ts";
 import { DEFAULT_CHAT_BEHAVIOR } from "../contract/foreign.ts";
 import type { ChatMetadata } from "../contract/metadata.ts";
 import type {
@@ -157,7 +157,7 @@ import { clampMemberCard, isBelowHistoryFloor, NO_HISTORY_FLOOR, resolveCardVisi
 import { toChatDetail } from "../substrate/chat-detail.ts";
 import { projectViewForMember, scrubChatEventReplayForMember, scrubStreamReplayForMember, viewerReadsHidden } from "../substrate/member-visibility.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
-import { onlinePersonaIdsOf, presentAndEnabledHumanUserIdsOf } from "../substrate/participants-humans.ts";
+import { humanSeatPersonasOf, onlinePersonaIdsOf, presentAndEnabledHumanUserIdsOf, seatsMultipleHumans } from "../substrate/participants-humans.ts";
 import { regexAllowOf, resolveRegexTiers } from "../substrate/regex-tier.ts";
 import { collectTeaching, resolveTeachingKnobs } from "../substrate/teaching.ts";
 import { buildWireHistory, convertsToEmptyWireRow, fitWireHistory } from "../substrate/wire-history.ts";
@@ -227,11 +227,15 @@ interface PreviewInputs {
   /** The resolved model capability — the SHAPE-trace peek reads its `turns` cell (roleHandlingFloor /
    *  assistantPrefill) to shape faithfully. Undefined when the connection resolver omits it (a test double). */
   readonly capability: GenerationCapability | undefined;
+  /** The connection caches by explicit block markers (`cachesByAnthropicMarkers`) — SHAPE keeps stored rows apart. */
+  readonly explicitCacheMarkers: boolean;
   /** The resolved protocol axis — previewContextFit source-modes the divider boundary on it (agent-sdk → the
    *  marker coverage point; stateless → the fit boundary). */
   readonly api: Resolved<"chat">["api"];
   readonly characterIds: readonly CharacterId[];
   readonly personaIds: readonly PersonaId[];
+  /** The room seats more than one present human — the SHAPE name-stamp's multi-human rule. */
+  readonly multiHuman: boolean;
   /** The room's effective GroupConfig — its `output` axis is the ONE the SHAPE peek resolves, so a preview
    *  renders the SAME seated-characters/per-speaker shape the next turn will (`TurnSpeakerShape.output`), never a pinned
    *  guess. A narrator room previews its joined-seated-characters `{{char}}` + `[Character — …]` framing; per-speaker is
@@ -472,12 +476,11 @@ async function resolvePreviewInputs(
     model: connection.model,
     anchorPersonaId,
     presentHumanUserIds: previewPresentHumanUserIds,
-    // The host's own persona drives a preview's `{{user}}` — the preview already resolves everything else
-    // under the host. When the host holds NO chat persona the arm is `none` ⇒ the chat ANCHOR: the
-    // chat-invariant identity, deterministic, and the host's own room-level choice. It used to omit the key
-    // and inherit the `personaIds[0]` fallback, which could render ANOTHER member's persona as `{{user}}` on
-    // the host's instrument, and re-ordered itself whenever someone joined (that fallback is retired).
+    humanSeats: humanSeatPersonasOf(participants, previewPresentHumanUserIds),
+    // A preview shows the next canon turn, which binds `{{user}}` to the anchor human whoever sends it, so the
+    // trigger does not change what it renders.
     trigger: hostPersonaId !== null ? { kind: "human", userId: hostUserId, personaId: hostPersonaId } : { kind: "none" },
+    voice: "anchor",
     ...(presetOverride !== undefined ? { presetOverride } : {}),
   });
   const gameUserMacros = ctx.rpg === null ? [] : await ctx.rpg.resolveUserMacros(chatId);
@@ -487,9 +490,11 @@ async function resolvePreviewInputs(
     funderUserId: hostUserId,
     model: connection.model,
     capability: generationOf(connection),
+    explicitCacheMarkers: cachesByAnthropicMarkers(connection, generationOf(connection)),
     api: connection.api,
     characterIds,
     personaIds,
+    multiHuman: seatsMultipleHumans(previewPresentHumanUserIds),
     group,
     // The SAME row `group` came off — an absent row is a metadata-less room (⇒ every knob inherits).
     metadata: chatRow?.metadata ?? {},
@@ -635,6 +640,7 @@ async function buildPreviewContext(
       // null-stamp guard needs that identity or the preview would floor the host's own unstamped rows
       // while the real turn borrows for them.
       triggerUserId: inputs.hostUserId,
+      multiHuman: inputs.multiHuman,
       ...gather.fields,
       ...(opts.guided !== undefined ? { guided: opts.guided } : {}),
       // The preview render registry (WAVE MU) — absent ⇒ the pure build's singleton fallback (byte-identical).
@@ -886,6 +892,7 @@ function createGetMemberCard(ctx: ChatContext, deps: ReadDeps): ChatService["get
         hostUserId,
         anchorPersonaId: membership.chat.anchorPersonaId,
         presentHumanUserIds: memberCardPresentHumanUserIds,
+        humanSeats: humanSeatPersonasOf(participants, memberCardPresentHumanUserIds),
       }),
     ]);
     // PURE projection — fields above the effective level become null HERE, server-side (never sent over the
@@ -924,6 +931,7 @@ async function resolveAnchorPersona(
     readonly hostUserId: UserId;
     readonly anchorPersonaId: PersonaId | null;
     readonly presentHumanUserIds: readonly UserId[];
+    readonly humanSeats: readonly HumanSeatPersona[];
   },
 ): Promise<AssemblePersona | null> {
   const foreign = await deps.resolveForeignInputs({
@@ -932,10 +940,10 @@ async function resolveAnchorPersona(
     model: "",
     anchorPersonaId: args.anchorPersonaId,
     presentHumanUserIds: args.presentHumanUserIds,
-    // A card DISPLAY has no triggering human at all — the `none` arm, which binds the active persona to the
-    // anchor. Only `personas.anchor` is read here, so this is byte-identical to the retired absent arm (whose
-    // `personaIds[0]` was the anchor id by construction — it is the only id in the list).
+    humanSeats: args.humanSeats,
+    // A card DISPLAY has no triggering human at all. Only `personas.anchor` is read here.
     trigger: { kind: "none" },
+    voice: "anchor",
   });
   return foreign.personas.anchor;
 }
@@ -1102,6 +1110,7 @@ async function shapeNextTurn(
     scopedTargetId: null,
     namesBehavior: assembleContext.promptConfig.namesBehavior ?? DEFAULT_NAMES_BEHAVIOR,
     speakers: { user: assembleContext.activePersona?.name ?? DEFAULT_PERSONA_NAME, assistant: assembleContext.character.name },
+    multiHuman: assembleContext.multiHuman === true,
     // The preview voices the primary's turn, with the cue a turn carries when its system block names no speaker.
     groupNudge: speakerCue(assembleContext, previewVoice(assembleContext, inputs.group.output)),
     assistantPrefill: turns?.assistantPrefill === true,
@@ -1113,6 +1122,7 @@ async function shapeNextTurn(
     historySystemRows: turns?.historySystemRows === true,
     roleHandling: assembleContext.promptConfig.params.advanced?.roleHandling,
     roleHandlingFloor: turns?.roleHandlingFloor,
+    explicitCacheMarkers: inputs.explicitCacheMarkers,
     squashSystemMessages: assembleContext.promptConfig.params.advanced?.squashSystemMessages,
     prose: assembleContext.prose,
   });

@@ -107,7 +107,7 @@ function DeliveryTab({ form, capability }: { readonly form: AppForm; readonly ca
                 // THE HINT CARRIES WHAT THE OPTION LABELS USED TO (side-eye 2026-08-22 P2-5 / owner ruling
                 // O-4): the labels are mode NAMES now, so the four behaviours are spelled once, here, where
                 // they cost no width in the 200px control column the trigger renders inside.
-                hint="How speaker names are attached to each message. None never includes them; Default prefixes only on a persona switch; Content always prefixes “Name: ”; Completion sends them in the API's own `name` field."
+                hint="How speaker names are attached to each message. None leaves them out unless several humans or characters share the room; Default prefixes on a persona switch and wherever several humans or characters share the room; Content always prefixes “Name: ”; Completion sends them in the API's own `name` field."
                 items={NAMES_BEHAVIOR_ITEMS}
                 label="Speaker names"
                 placeholder={namesBehaviorLabel(DEFAULT_NAMES_BEHAVIOR)}
