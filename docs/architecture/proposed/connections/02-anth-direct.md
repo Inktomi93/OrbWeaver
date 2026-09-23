@@ -253,7 +253,7 @@ second is a FREE read — no cost. This is COMMITTED behavior, not an option.
 **The current code is a regression to fix (part 04 W3).** Today `placeHistoryCacheBreakpoint`
 (`chat-completions.ts:79-84`) places ONE block; the `shape.ts:131-133` header already SPECS the pair
 ("it pins `depth` AND `depth+2` from this single safe offset") but the runner doesn't emit it — a code
-gap AND a drifted header (a Documentation-Law defect). W3 makes the placer emit the pair and fixes the
+gap AND a drifted header (a comment-law defect). W3 makes the placer emit the pair and fixes the
 header to match.
 
 **The kit-hoisted shared placer.** The OR chat-completions runner runs the correct setup: #1 the static

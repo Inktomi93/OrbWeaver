@@ -7,7 +7,7 @@ updated: 2026-09-05
 # The regex one-place — an INFORMATION-ARCHITECTURE proposal (lane cb-regex-ia)
 
 > Lane **cb-regex-ia**, 2026-09-05. Read-only pass. Sources: `scratchpad/st-regex/STUDY.md` +
-> `{dropdown.html,index.js,engine.js}`, `docs/architecture/core/UI-Architecture-and-Layout.md`,
+> `{dropdown.html,index.js,engine.js}`, `docs/law/UI-Architecture-and-Layout.md`,
 > `docs/design/vocabulary-map.md`, `scratchpad/config-collections/DESIGN.md` (#1725, approved), and the
 > tree (every claim below carries a `path:line`). Owner steer received mid-lane: *"I'm leaning towards a
 > collapsible thing like Injections or Overrides where you can control regex applied from one spot but the

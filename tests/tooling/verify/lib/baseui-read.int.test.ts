@@ -35,7 +35,7 @@ vi.setConfig({ testTimeout: scaledBudget(20_000), hookTimeout: scaledBudget(20_0
 
 const REPO_ROOT = join(import.meta.dirname, "..", "..", "..", "..");
 // The generator is a cli VERB now (`cli.ts baseline baseui-surface`), never a runnable file — the tool
-// has ONE argv front door (docs/architecture/core/Core-Tooling-Law.md §2.5).
+// has ONE argv front door (docs/law/Core-Tooling-Law.md §2.5).
 const VERIFY_CLI = join(REPO_ROOT, "tooling", "src", "verify", "cli.ts");
 const GENERATOR_ARGV: readonly string[] = [VERIFY_CLI, "baseline", "baseui-surface"];
 

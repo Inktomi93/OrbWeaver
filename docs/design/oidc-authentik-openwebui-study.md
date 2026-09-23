@@ -168,7 +168,7 @@ Runs on **every login** when `ENABLE_OAUTH_GROUP_MANAGEMENT`. Groups are matched
 
 ## 2. Our flow, in sequence, with receipts
 
-Three tiers, one mint (`docs/architecture/core/Spine-Identity-and-Auth.md:11-32`):
+Three tiers, one mint (`docs/law/Spine-Identity-and-Auth.md:11-32`):
 VERIFICATION `infra/auth` (db-free) → RESOLUTION `domain/sessions` → CONSTRUCTION `entry/auth/seam.ts`.
 
 ### 2.1 `GET /api/auth/oidc/login` (`packages/server/src/entry/http/auth-routes.ts:296-334`)

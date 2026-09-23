@@ -355,7 +355,7 @@ None of `--choose-files`, `--pick-files`, `--upload-directory`, `--file-dialog`,
 
 ## Verified clean
 
-- Read the authority chain in full: root `AGENTS.md`, `.claude/agent-doctrine.md`, `docs/architecture/core/AGENTS.md`, `Core-Laws-and-Precedents.md`, relevant core architecture/tooling/documentation law, imported browser/tooling/lane/orchestration rules, and `docs/design/1208-instrument-substrate.md`.
+- Read the authority chain in full: root `AGENTS.md`, `.claude/agent-doctrine.md`, `docs/law/Constitution.md`, `Core-Laws-and-Precedents.md`, relevant core architecture/tooling/documentation law, imported browser/tooling/lane/orchestration rules, and `docs/design/1208-instrument-substrate.md`.
 - Read the normal parser, all flag registries/classes/handlers, stage/session flag modules, every registered arm module, arm/help/type contracts, session-plan partition, scenario preparation/catalog/runtime, matrix contract/runtime, shared instrument argv/browser environment/appearance/panel/theme owners, report query/rendering, session admin/daemon/evidence, contexts and materialization paths, plus relevant parser/session/matrix/CLI tests.
 - Re-derived 116 normal flags from executable registries (115 public descriptors plus internal `--session-daemon`) and 13 reader spellings from raw-argv dispatch. `pnpm snap --help` now prints the generated complete grammar block, so a new public handler receives one authoritative row without relying on incidental prose.
 - Ran the minted post-repair acceptance and focused behavioral suites:

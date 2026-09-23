@@ -1,4 +1,4 @@
-// transport/trpc/routers/plugin — the D46 plugin management surface (core/Tier-4-Transport.md). authed; every
+// transport/trpc/routers/plugin — the D46 plugin management surface (docs/law/Tier-4-Transport.md). authed; every
 // verb passes the resolved `Principal` as `caller` (the domain is the authoritative gate). `authedProcedure`
 // is the RIGHT floor and not a gap: plugins are USER-SCOPED (D147) — anyone installs for themselves and the
 // plugin runs under them — so the authority question is "is this row yours", which only the domain can answer

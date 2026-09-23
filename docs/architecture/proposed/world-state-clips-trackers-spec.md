@@ -17,7 +17,7 @@ updated: 2026-07-18
 > (`reports/research/marinara-delta-features.md` §1 — continuity-history merge, field locks,
 > id→name→index lock resolution) and SillyTavern (which has NO tracker/world-state system — its nearest
 > analogs are the Summarize extension and World Info; trackers are Marinara's contribution).
-> Builder prerequisite reading: `core/AGENTS.md` · `core/Knowledge-Cluster.md` · ledger D55/D58/D86/D93/D94
+> Builder prerequisite reading: `docs/law/Constitution.md` · `docs/law/Knowledge-Cluster.md` · ledger D55/D58/D86/D93/D94
 > · the live `domain/chat/memory/` code + headers. The ledger wins on any conflict.
 
 **The one-paragraph design.** The tiered digest memory remembers what was SAID (episodic, derived,

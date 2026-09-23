@@ -116,10 +116,6 @@ export interface ListRulesParams extends AutomationActorParams {
   readonly chatId: ChatId;
 }
 
-export interface GetBudgetsParams extends AutomationActorParams {
-  readonly chatId: ChatId;
-}
-
 export interface ListFiresParams extends AutomationActorParams {
   readonly ruleId: AutomationRuleId;
   readonly limit?: number;
@@ -136,13 +132,6 @@ export interface ListChatActivityParams extends AutomationActorParams {
   readonly limit?: number;
 }
 
-/** Upsert the per-chat fire-rate cap (host-editable — the loop-safety belt). An absent field keeps the DB
- *  default / current value. */
-export interface SetBudgetsParams extends AutomationActorParams {
-  readonly chatId: ChatId;
-  readonly maxFiresPerHour?: number;
-}
-
 /** C5 — the OWNER-GLOBAL lane's rule list (the Automation settings pane's read). Takes no id at all: the
  *  plane is single-owned, so the caller's own `principal.userId` IS the scope (the `listGlobalVariables`
  *  posture). There is no way to ask for someone else's lane, which is what makes the read leak-free by
@@ -153,7 +142,7 @@ export type ListOwnerRulesParams = AutomationActorParams;
 export type GetOwnerBudgetsParams = AutomationActorParams;
 
 /** C5 — upsert the caller's own owner-global fire-rate cap. An absent field keeps the DB default / current
- *  value (the `SetBudgetsParams` shape, one plane over). */
+ *  value. */
 export interface SetOwnerBudgetsParams extends AutomationActorParams {
   readonly maxFiresPerHour?: number;
 }

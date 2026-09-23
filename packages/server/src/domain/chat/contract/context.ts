@@ -172,7 +172,7 @@ type ResolveChatConnectionOp = (params: { readonly funderUserId: UserId; readonl
  *  `null` is the keyless arm (vllm/local-light/max-pro-sub own no row); the verb no-ops on it.
  *
  *  `ownerId` IS THE TENANT SCOPE, and it is on the signature because the op IS the domain boundary
- *  (`injected-op-caller-param`, AGENTS §2): an op that takes an entity id and no caller is safe only by its
+ *  (`injected-op-caller-param`, Constitution.md §2): an op that takes an entity id and no caller is safe only by its
  *  call sites' discipline, and the next wiring inherits nothing that says so. It becomes the revoke's WHERE
  *  predicate. The engine passes the turn's frozen `prep.funderUserId` — the SAME principal `resolveChat`
  *  resolved this credential under, so the two cannot disagree without a composition-root bug, and if they

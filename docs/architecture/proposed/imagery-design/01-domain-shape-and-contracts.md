@@ -202,7 +202,7 @@ discriminated split that duplicates 9 shared fields.
 
 `EditImageParams.source` takes an **owned asset or uploaded bytes, never a URL** — WHY: a
 user-supplied URL is the SSRF surface (doc 04 §7); v1 has no need. Rejected: `url` arm riding
-`safeFetch` now (the seam is staged-unwired, `core/Tier-3-Infra.md`; wiring it for a need nobody
+`safeFetch` now (the seam is staged-unwired, `docs/law/Tier-3-Infra.md`; wiring it for a need nobody
 has is a dead branch). Criterion to add: the first real remote-image edit ask — the arm then rides
 `infra/network` `safeFetch` + `isAllowedImageBuffer`-style validation (Marinara-Residue B5).
 

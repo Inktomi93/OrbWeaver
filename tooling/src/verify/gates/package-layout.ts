@@ -30,7 +30,7 @@ import { readyResourceValue } from "../lib/resource-declaration.ts";
 
 const PACKAGES = new Set(["kit", "contracts", "client", "db", "ui", "inference"]);
 const MESSAGE =
-  "a loose `.ts` file (not index.ts) sits at the root of a package's src/ — every importable module must be a DIRECTORY with an index.ts front door (core/Core-0-Architecture-and-Structure.md §7 D15).";
+  "a loose `.ts` file (not index.ts) sits at the root of a package's src/ — every importable module must be a DIRECTORY with an index.ts front door (docs/law/Core-0-Architecture-and-Structure.md §7 D15).";
 
 function looseModule(entry: ResourceTreeEntry): { readonly packageName: string; readonly file: string } | undefined {
   if (entry.kind !== "file") {

@@ -1,4 +1,4 @@
-// Notifications feature CT stories (core/Spine-Testing.md §7 — CT mounts ONLY from a non-test module).
+// Notifications feature CT stories (docs/law/Spine-Testing.md §7 — CT mounts ONLY from a non-test module).
 // The bell comes through the feature front door and wraps in the real client data layer
 // (<CtDataProviders> — Query + real tRPC over the routeTrpc-stubbed network + a scripted body for the ONE
 // multiplexed socket, registered per-test in the `.ct.tsx` via routeOrbSocket).

@@ -61,7 +61,7 @@ const SCOPE_NAMES = new Set([
 const SCOPE_TYPES = new Set(["Principal", "UserId"]);
 
 const MESSAGE =
-  "a cross-domain op takes an entity id but NO caller — the op is the domain boundary (AGENTS §2: a verb " +
+  "a cross-domain op takes an entity id but NO caller — the op is the domain boundary (Constitution.md §2: a verb " +
   "declares the op's TYPE in its contract/ and the runtime op is wired at the composition root), so the " +
   "boundary is where the scope has to be carried. An op whose signature drops the caller is safe only by its " +
   "call sites' discipline: the next call site, or the next wiring, inherits nothing that says so.";

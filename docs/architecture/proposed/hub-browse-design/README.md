@@ -16,7 +16,7 @@ updated: 2026-07-03
 
 > **Triage 2026-07-09 (dispatch board — `../README.md` §0):** READY-TO-BUILD. H1 (the egress guard) is dispatchable NOW and unblocks gallery G7 + databank DB7; H2+ follow it.
 > orbweaver law docs (AGENTS-1/2/3, `domains/import.md` (gutted — the code is the doc; git history), `domains/assets.md` (gutted — the code is the doc; git history),
-> `core/Tier-3-Infra.md`) can build the whole system. Every decision carries its WHY + the
+> `docs/law/Tier-3-Infra.md`) can build the whole system. Every decision carries its WHY + the
 > rejected alternative.
 
 ## The one-paragraph design

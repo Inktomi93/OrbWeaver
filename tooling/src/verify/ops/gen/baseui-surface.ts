@@ -2,7 +2,7 @@
 // surface manifest (GATE-AUTHORING §4.8: the generator is the only thing that writes it, the file is
 // committed). It walks the INSTALLED @base-ui/react type surface and emits every component namespace,
 // every anatomy part, and every part's own-declared prop names, each part carrying a DISPOSITION — the
-// machine half of the anatomy decision ledger (docs/architecture/core/ui-package-design.md holds the
+// machine half of the anatomy decision ledger (docs/law/ui-package-design.md holds the
 // human half, keyed on the same `Component.Part` string).
 //
 // DISPOSITIONS ARE CARRIED FORWARD, NEVER RE-DERIVED. A part already adjudicated keeps its disposition and

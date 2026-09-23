@@ -8,7 +8,7 @@ updated: 2026-08-30
 
 > **Owner-initiated 2026-07-25** ("I think this is the section I want to work on next"). Working spec
 > for the CONTEXT column; Project 1 owns its mutable work, and the law is
-> `core/UI-Architecture-and-Layout.md` §4.1–4.3 (D62/D66) + `core/client-architecture-lockdown.md`
+> `docs/law/UI-Architecture-and-Layout.md` §4.1–4.3 (D62/D66) + `docs/law/client-architecture-lockdown.md`
 > §6b (`defineContextTabs` / `ContextTabsPanel`). This doc ADDS content to the pane and re-groups its
 > tabs; it never changes the shell geometry (CONTEXT stays a fixed-width, closable, never-navigation
 > side panel — the four-region anatomy is invariant; the takeover replaces ONLY the CONTEXT pane,

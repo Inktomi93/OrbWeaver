@@ -13,19 +13,12 @@
 // module's export. There is nothing to resolve — the finding is about a declaration this file authored, and
 // its shape (a method, a function declaration, or a const bound to a function/arrow) is authored syntax.
 //
-// FAMILY `registry-assembly-at-door-only` — a two-member SPLIT family, and it shares NO `lib/` reader with
-// its sibling, deliberately: this arm resolves nothing (the subject is the NAME by law, see above) while the
-// sibling resolves a factory callee's identity. §5b.4's two shapes (a shared `lib/` reader, or a declared
-// singleton with its reason) do not cover a split, which §3's plane table sanctions as its own shape; what
-// creates it is §12.1's one-authority-one-severity-per-policy rule meeting two different populations. The
-// family STRING is what keeps the two visible as one law, and it is correct on both modules.
-// §2 REPAIR CANDIDATE (lane cb-b-header-residue, 2026-09-13; verifier cb-v-header-residue L1/L4), the text above
-// kept: measured, the two members share NO production dependency in `lib/` — `no-mutating-register-api` imports
-// nothing from `lib/`. Standardization §2 now reads "Each multi-member policy shares a canonical declaration with at
-// least one sibling" and "A singleton names why no meaningful shared dependency exists", so the "split family"
-// sanction cited here does not satisfy it. This is a family-classification repair candidate under the ledger's
-// existing owning rows (`registry-assembly-at-door-only` w5, #2005; the split-family census reading, #2187),
-// preserving §2; the family string is code and is not changed by this header note.
+// FAMILY: a declared SINGLETON since #0038, the repair the 2026-09-13 header-residue lane recorded as a
+// candidate (`registry-assembly-at-door-only` w5, #2005; #2187). It was filed under
+// `registry-assembly-at-door-only`, with which it shares no reader: this policy resolves nothing — its subject
+// is the NAME `register` by law, see above — while that one resolves a factory callee's identity to the
+// registry home. Standardization §2 requires a multi-member family to share a canonical declaration and a
+// singleton to name why none exists; this is that reason. Both still enforce client-architecture-lockdown.md §5.
 // POPULATION PORT: `@client`, whole — deliberately WITHOUT the sibling's `main.tsx`/`compose/` subtraction,
 // which is the entire reason for the split above (mustFlag[3] is that site). The `@client` root is itself a
 // narrowing and is pinned by the `@server` mustPass row, which is the only row that dies without it.
@@ -79,7 +72,7 @@ function isBannedRegisterDeclaration(node: MorphNode): boolean {
 
 export const gate = defineGate({
   id: "no-mutating-register-api",
-  family: "registry-assembly-at-door-only",
+  family: "no-mutating-register-api",
   authority: "ordinary",
   severity: "error",
   population: "@client",

@@ -1,4 +1,4 @@
-// Automation Rules-section CT stories (core/Spine-Testing.md §7 — CT mounts ONLY from a non-test module).
+// Automation Rules-section CT stories (docs/law/Spine-Testing.md §7 — CT mounts ONLY from a non-test module).
 // Exports ONLY components (a mixed component+constant export breaks playwright-ct's named-import rewrite).
 // The story wraps the REAL `RulesSection` in `<CtDataProviders>` (Query + real tRPC over the stubbed
 // network) plus the `QueryBoundary` the "This chat" tab supplies in production, so a CT exercises the real

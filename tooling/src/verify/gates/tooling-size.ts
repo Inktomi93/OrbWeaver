@@ -21,7 +21,7 @@ import { authoredLineCount } from "../lib/source-line-count.ts";
 const CAP_DEFAULT = 450;
 const CAP_CLI = 200;
 const MESSAGE =
-  "a @orb/tooling source file exceeds the hard line cap (default 450; cli.ts 200) — split into ops/ files or extract pure helpers to lib/; a monolith tool is the drawer this package exists to end (docs/architecture/core/Core-Tooling-Law.md §4.3).";
+  "a @orb/tooling source file exceeds the hard line cap (default 450; cli.ts 200) — split into ops/ files or extract pure helpers to lib/; a monolith tool is the drawer this package exists to end (docs/law/Core-Tooling-Law.md §4.3).";
 
 export const gate = defineGate({
   id: "tooling-size",
@@ -44,7 +44,7 @@ export const gate = defineGate({
         ctx.report.file(path, {
           line: cap + 1,
           column: 1,
-          message: `${lines} lines (cap ${cap}) — decompose before it grows (docs/architecture/core/Core-Tooling-Law.md §4.3)`,
+          message: `${lines} lines (cap ${cap}) — decompose before it grows (docs/law/Core-Tooling-Law.md §4.3)`,
         });
       }
     },

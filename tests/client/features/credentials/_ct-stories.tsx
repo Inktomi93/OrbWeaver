@@ -1,4 +1,4 @@
-// credentials feature CT stories (core/Spine-Testing.md §7 — CT mounts ONLY from a non-test module).
+// credentials feature CT stories (docs/law/Spine-Testing.md §7 — CT mounts ONLY from a non-test module).
 // The story reaches a feature internal the front door doesn't re-export (the settings _ct-stories.tsx
 // precedent) — CredentialKeyRow is mounted by the keys section itself, not exported standalone. The whole
 // Connections group mounts as its three CONTRIBUTED sections through the config host's own resolver

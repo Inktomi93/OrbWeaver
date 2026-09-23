@@ -1,4 +1,4 @@
-// transport/trpc/routers/regex — the regex SCRIPT LIBRARY + scope-junction surface (core/Tier-4-Transport.md).
+// transport/trpc/routers/regex — the regex SCRIPT LIBRARY + scope-junction surface (docs/law/Tier-4-Transport.md).
 // authed; owner-scoped. Thin: validate → `ctx.services.regex.<verb>` → map errors. Input shapes derive from
 // `@orb/contracts/regex` (the ONE wire home — this file re-spells nothing).
 //

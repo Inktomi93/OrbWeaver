@@ -28,7 +28,7 @@ import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
-const DOC_REL = "docs/architecture/core/Core-Enforcement-Active-Gates.md";
+const DOC_REL = "docs/law/Core-Enforcement-Active-Gates.md";
 const CATALOG_REL = "docs/catalog/catalog.json";
 const GATE_REL = "tooling/src/verify/gates/x.ts";
 const MESSAGE = "the exact runtime text";

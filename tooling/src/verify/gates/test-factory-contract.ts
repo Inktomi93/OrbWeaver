@@ -34,7 +34,7 @@ import type { FunctionDeclaration } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 
-const MESSAGE_SHARED_TAIL = " (core/Spine-Testing.md §4).";
+const MESSAGE_SHARED_TAIL = " (docs/law/Spine-Testing.md §4).";
 const MESSAGE_PURE = "a `make*` PURE builder accepts a db — a pure builder must stay db-free; persistence belongs to a `seed*` builder" + MESSAGE_SHARED_TAIL;
 const MESSAGE_PERSISTED =
   "a `seed*` PERSISTED builder has no `db` parameter — a persisted builder must take one; a db-free builder belongs under the `make*` prefix" +
@@ -66,7 +66,7 @@ export const gate = defineGate({
   facts: [],
   resources: [],
   message:
-    "a test factory violates the pure/persisted split — a `make*` pure builder must NOT accept a db, a `seed*` persisted builder MUST (core/Spine-Testing.md §4).",
+    "a test factory violates the pure/persisted split — a `make*` pure builder must NOT accept a db, a `seed*` persisted builder MUST (docs/law/Spine-Testing.md §4).",
   fix: "keep `make*` builders db-free (pure) and give `seed*` builders a `db` parameter (persisted). For a deliberate exception, write an adjacent `@orb-waive test-factory-contract(<position>): <why + end condition>` — the position is the FACTORY'S OWN NAME (`makeUser`, `seedUser`), not the `db` parameter the message names.",
   create: (ctx) => ({
     visitors: [

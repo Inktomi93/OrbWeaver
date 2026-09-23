@@ -18,7 +18,7 @@
 // push), both drained to zero rows, and their row integrity is their own tier's business. The migrated half
 // of the property — cites that moved into reviewed-grant `why`/`endsWhen` prose — is owed by #2349. DECLARED LIMIT: a `§`/`#` suffix on a cite is prose (stripped before the existence check),
 // and a D-number named inside a `why` is NOT resolved here — `d-citation-integrity` owns D-number integrity
-// over packages/** + docs/architecture/core/**, and re-spelling its registry reader here would be a second
+// over packages/** + docs/law/**, and re-spelling its registry reader here would be a second
 // home for it.
 //
 // TWO ON-DISK SHAPES, ONE READER (sniffed, never configured — a consumer that had to be TOLD the shape is a

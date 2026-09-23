@@ -1,5 +1,5 @@
 // The AppSettings floor-merge moved config resolution into the settings domain's
-// effective-config/ subsystem (core/Tier-2-Foundation.md "does NOT own"). This tier keeps only the outbound
+// effective-config/ subsystem (docs/law/Tier-2-Foundation.md "does NOT own"). This tier keeps only the outbound
 // app IDENTITY strings.
 //
 // `APP_VERSION` IS GONE (2026-09-18, the build-identity work). It read `packages/server/package.json`'s

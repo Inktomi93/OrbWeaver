@@ -12,7 +12,7 @@
 //
 // THE CLASSIFICATION REGISTRY IS NOW HERE, AND THE RULING THAT KEPT IT OUT SURVIVES — ITS INPUT CHANGED.
 // This paragraph used to read: "THE CLASSIFICATION REGISTRY ITSELF STAYS IN `gates/table-scoping-class.ts`,
-// DELIBERATELY, NOT HERE: it is RULING DATA (AGENTS §1 "ownership is INHERITED, not stamped"; D18/D20/D23)
+// DELIBERATELY, NOT HERE: it is RULING DATA (Constitution.md §1 "ownership is INHERITED, not stamped"; D18/D20/D23)
 // keyed by snake_case SQL table names, and `biome.json` turns `useNamingConvention` off for
 // `tooling/src/verify/gates/**` but NOT for `tooling/src/verify/lib/**` — moving the table here would
 // either rename 87 SQL-name keys away from the schema's own vocabulary or force a lib-wide lint carve-out

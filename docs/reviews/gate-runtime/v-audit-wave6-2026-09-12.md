@@ -268,7 +268,7 @@ know it. The disjoint-message pairs (`fetch`, `staletime`, the two React modules
 
 ### D8 — roster rows: one is stale AND inverted, two are content-free (MEDIUM)
 
-`docs/architecture/core/Core-Enforcement-Active-Gates.md`:
+`docs/law/Core-Enforcement-Active-Gates.md`:
 
 - `:289` `no-use-context` — *"Three doors, all keyed by name: a bare `useContext(…)` call, the
   `React.useContext(…)` member call, and the `useContext` ImportSpecifier."* The conversion's entire thesis

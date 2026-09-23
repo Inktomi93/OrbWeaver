@@ -194,7 +194,7 @@ table). Against the tree:
 | `Open in library` (new) | neighbours: `Open your script library` (`regex-script-picker.tsx:225`, `character-facet-inspector.tsx:175`) | new; acceptable; one spelling for the door |
 | `Show my display scripts to everyone` | shipped verbatim (`host-display-scripts-control.tsx:37`) | fine |
 | `Run regex in this chat` | new (F1 changes its scope wording) | fine, subject to F1 |
-| `From the preset · <name>` | "preset" is the generation-config word (AGENTS §6; UI-Arch §4.2 "Generation config is NOT settings — it is the Presets section") | fine |
+| `From the preset · <name>` | "preset" is the generation-config word (Constitution.md §6; UI-Arch §4.2 "Generation config is NOT settings — it is the Presets section") | fine |
 | `Undo` | `NotifyAction.label` free text | fine |
 
 ### F9 · P3 · Board 02 does not render the state its caption claims, and the mock's data is shared across frames
@@ -295,7 +295,7 @@ table). Against the tree:
 | Refusal | Basis on the tree / ledger | Verdict |
 | - | - | - |
 | ST's default-OFF consent gates | the card lift carries the card's `enabled` verbatim (`substrate/dedup.ts:49-51`) and attaches (`contract/dedup.ts:20-27`); D121-E: the library is the owner's; the F3 "saves and runs nowhere" class | **supported**. Residual owner fork O2: a characters-tier default-off would change existing rooms; if consent is ever wanted it belongs on the import path |
-| Regex Presets (named enable-sets) | "preset" = generation config only (AGENTS §6; UI-Arch §4.2); the map's precedent for a saved named set is a DIFFERENT user word (`rosterPreset` → "Roster", `vocabulary-map.md`); `bulkSetScriptsEnabled` ships (`bulk-set-enabled.ts`) | **supported**; parked with a wake condition is right |
+| Regex Presets (named enable-sets) | "preset" = generation config only (Constitution.md §6; UI-Arch §4.2); the map's precedent for a saved named set is a DIFFERENT user word (`rosterPreset` → "Roster", `vocabulary-map.md`); `bulkSetScriptsEnabled` ships (`bulk-set-enabled.ts`) | **supported**; parked with a wake condition is right |
 | Per-chat mute of an inherited script | no table (`schema/regex.ts` four junctions only); `mute` is spent (`unmutedCharacters`, map row); and — the decisive fact — a mute would be blind to the display leg exactly as the tier switch is (F1) | **supported**; "off everywhere" is honest ONLY with F1's leg split and F7's toast fact |
 | Move between tiers | no transactional verb; detach+attach half-fails into "attached nowhere" (`attach-to-chat.ts:23` appends; two round trips) | **supported** |
 | Reorder other tiers from the room | the verb PERMITS it (`apply-scope-order.ts:38-45` global gate = script ownership) | **design choice, well-reasoned** (blast radius); no ruling either way |

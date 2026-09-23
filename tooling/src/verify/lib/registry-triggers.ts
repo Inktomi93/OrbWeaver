@@ -115,6 +115,10 @@ export const WHOLE_COMMAND_PATH_TRIGGERS: Readonly<Record<string, StageTrigger>>
     paths: /./u,
     why: "the subject is biome.json's GRANT TABLE plus every path those grants name — and whether a granted rule still FIRES depends on the content of the granted file. The identity trigger is the only complete changed-path approximation, and still runs the whole command.",
   },
+  "config:knip-negative-liveness": {
+    paths: /./u,
+    why: "the subject is knip.ts's literal negations judged against the git INDEX, so deleting or renaming ANY tracked file can kill a negation that names it. No narrower pattern is complete; the stage reads one config and one index listing, so the identity trigger costs nothing.",
+  },
   "ledgers:fresh": {
     paths: /./u,
     why: "the caught-failure census is derived from a whole-repo ts-morph walk, so any source edit can add, remove or re-verdict a site; the doc ledgers add authored documents. The identity trigger is intentionally complete and runs the whole reconciler.",

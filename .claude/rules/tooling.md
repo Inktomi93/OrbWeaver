@@ -8,7 +8,7 @@ paths:
   - "knip.ts"
   - "lefthook.yml"
   - "tsconfig*.json"
-  - "scripts/vitest-supervised.mjs"
+  - "scripts/vitest-supervised.ts"
 ---
 
 # Tooling and root configs

@@ -43,3 +43,24 @@ export function basenameOf(path: string): string {
   const slash = path.lastIndexOf("/");
   return slash === -1 ? path : path.slice(slash + 1);
 }
+
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+}
+
+/** How a text file refers to the doc at `path`: by its parent folder and file name anywhere (every
+ *  relative or repository path to it ends with that pair), or by the bare file name, with or without a
+ *  leading `./`, inside its own folder, where a name under another folder is not it. */
+export function referencePatterns(path: string): { readonly anywhere: RegExp; readonly sameFolder: RegExp } {
+  const parts = path.split("/");
+  const name = escapeRegExp(parts.at(-1) ?? "");
+  const parent = escapeRegExp(parts.at(-2) ?? "");
+  return {
+    anywhere: new RegExp(`(?<![\\w-])${parent}/${name}`, "gu"),
+    sameFolder: new RegExp(`(?<![\\w-])(?<![\\w-]/)${name}`, "gu"),
+  };
+}
+
+export function folderOf(path: string): string {
+  return path.slice(0, path.lastIndexOf("/") + 1);
+}

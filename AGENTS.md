@@ -137,7 +137,7 @@ It starts vLLM on the live ports and stops engines it does not own.
 
 ## Reading router
 
-Find your task and read those docs in full. Read nothing else from `docs/architecture/core/`. Doc names
+Find your task and read those docs in full. Read nothing else from `docs/law/`. Doc names
 without a path are in that folder.
 
 | Task | Read |
@@ -150,13 +150,14 @@ without a path are in that folder.
 | A client feature surface | the header of `UI-Architecture-and-Layout.md` (its reading order), `client-architecture-lockdown.md` |
 | An `@orb/ui` primitive | `ui-package-design.md`, `UI-Primitives-and-Reuse.md` §13.7–§13.8 |
 | Types, unions, dispatch | `Spine-TypeScript-and-Patterns.md` |
-| A ledger decision | `Documentation-Law.md` "Ledger-entry style", then mint it with `pnpm doc new adr <slug>` |
+| A ledger decision | `.claude/rules/writing.md` "Decisions", then mint it with `pnpm doc new adr <slug>` |
 | A doc | `.claude/rules/writing.md`, `.claude/rules/docs.md` (`pnpm doc help` for the verbs) |
-| An instruction file or a code comment | `.claude/rules/writing.md` |
+| An instruction file | `.claude/rules/writing.md` |
+| A code comment | `.claude/rules/comments.md` |
 | Which word names a concept | `docs/design/vocabulary-map.md` |
-| Where a concept lives | `docs/architecture/core/AGENTS.md` §6 (domain map), `Core-0-Architecture-and-Structure.md` §6 (partitioning) |
+| Where a concept lives | `docs/law/Constitution.md` §6 (domain map), `Core-0-Architecture-and-Structure.md` §6 (partitioning) |
 | A parked design set | `docs/architecture/proposed/INDEX.md` |
-| Why the codebase has this shape | `docs/Mission.md`, `docs/architecture/core/AGENTS.md` §1 (doctrine) |
+| Why the codebase has this shape | `docs/Mission.md`, `docs/law/Constitution.md` §1 (doctrine) |
 
 ## Glossary
 
@@ -179,6 +180,7 @@ without a path are in that folder.
 
 - `.claude/rules/browser-tests.md`: `tests/**/*.ct.tsx`, `tests/e2e/**`, `tests/support/browser/**`, `playwright*.config.ts`
 - `.claude/rules/chat.md`: `packages/server/src/domain/chat/**`
+- `.claude/rules/comments.md`: `packages/**`, `tooling/**`, `tests/**`, `scripts/**`
 - `.claude/rules/contracts-and-kit.md`: `packages/contracts/**`, `packages/kit/**`
 - `.claude/rules/db.md`: `packages/db/**`
 - `.claude/rules/docs.md`: `docs/**`
@@ -190,7 +192,7 @@ without a path are in that folder.
 - `.claude/rules/rpg.md`: `packages/server/src/domain/rpg/**`, `packages/client/src/features/rpg/**`
 - `.claude/rules/server-edge.md`: `packages/server/src/entry/**`, `packages/server/src/transport/**`, `packages/server/src/foundation/**`, `packages/server/src/infra/auth/**`, `packages/server/src/infra/network/**`, `tests/server/transport/**`
 - `.claude/rules/server.md`: `packages/server/src/**`, `tests/server/**`
-- `.claude/rules/tooling.md`: `tooling/src/**`, `tests/tooling/**`, `biome.json`, `eslint.config.js`, `.dependency-cruiser.cjs`, `knip.ts`, `lefthook.yml`, `tsconfig*.json`, `scripts/vitest-supervised.mjs`
+- `.claude/rules/tooling.md`: `tooling/src/**`, `tests/tooling/**`, `biome.json`, `eslint.config.js`, `.dependency-cruiser.cjs`, `knip.ts`, `lefthook.yml`, `tsconfig*.json`, `scripts/vitest-supervised.ts`
 - `.claude/rules/ui-and-client.md`: `packages/ui/src/**`, `packages/client/src/**`
 - `.claude/rules/verify-and-gates.md`: `tooling/src/verify/**`, `tests/tooling/verify/**`
 - `.claude/rules/writing.md`: `.claude/**`, `AGENTS.md`, `docs/**`

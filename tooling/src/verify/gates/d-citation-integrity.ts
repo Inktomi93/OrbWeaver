@@ -17,7 +17,7 @@
 // `pd-citation-integrity` and `dangling-doc-cite`.
 //
 // POPULATION PORT (legacy SHA `50088b39b`, verified byte-identical to HEAD at conversion) — AND THE HALF
-// THAT NEVER RAN. The legacy `inScope` admitted `packages/**` `.ts`/`.tsx` OR `docs/architecture/core/**`
+// THAT NEVER RAN. The legacy `inScope` admitted `packages/**` `.ts`/`.tsx` OR `docs/law/**`
 // `.md`, and filtered `project.getSourceFiles()`. That project is `_shared/ts-workspace.ts#harnessGlobs`,
 // which globs `.ts`/`.tsx` ONLY, so **no Markdown file was ever a member and the entire core-doc arm was
 // dead code**. The conversion RESTORES it through the door the contract minted for exactly this
@@ -67,7 +67,7 @@ import { scanTextCitations } from "../lib/text-cite-scan.ts";
 
 /** The doc trees whose prose is judged: the core law set and the ADR tree itself. `history/**` is outside
  *  on purpose — archaeology legitimately cites dead and renumbered entries (`mustPass[5]`). */
-const CITER_DOC_TREES = ["docs/architecture/core/", "docs/adr/"] as const;
+const CITER_DOC_TREES = ["docs/law/", "docs/adr/"] as const;
 /** The number an ADR file name carries (`0086-<slug>.md` → 86). The ledger door serves members only, so
  *  this reads the id; it does not judge the grammar. */
 const ADR_ID_RE = /^(\d+)-/u;
@@ -174,7 +174,7 @@ export const gate = defineGate({
       mode: "resource",
       files: {
         "docs/adr/0001-an-entry.md": "# An entry\n",
-        "docs/architecture/core/Some-Law.md": "---\nkind: law\n---\n\nThe ruling is D777, which nothing minted.\n",
+        "docs/law/Some-Law.md": "---\nkind: law\n---\n\nThe ruling is D777, which nothing minted.\n",
         "packages/contracts/src/ok.ts": "// per D1 — minted.\nexport const x = 1;\n",
       },
       expect: { count: 1, line: 5, token: "D777" },
@@ -218,7 +218,7 @@ export const gate = defineGate({
         // the `entry.kind === "file"` fence it is demanded as TEXT — the reader refuses (EISDIR) and the
         // policy's own refusal turns the run into a tool error rather than a verdict.
         "docs/adr/0001-an-entry.md": "# An entry\n",
-        "docs/architecture/core/weird.md/inner.md": "no citation here.\n",
+        "docs/law/weird.md/inner.md": "no citation here.\n",
         "packages/contracts/src/ok.ts": "// per D1 — minted.\nexport const x = 1;\n",
       },
       why: 'THE NARROWING ROW for `entry.kind === "file"` in the citer filter, recorded as UNFALSIFIABLE by an earlier draft and falsified by a constructed fixture: a DIRECTORY named `*.md` exists the moment a fixture puts a file inside one',
@@ -254,7 +254,7 @@ export const gate = defineGate({
       mode: "resource",
       files: {
         "docs/adr/0001-an-entry.md": "# An entry\n",
-        "docs/architecture/core/Empty-Doc.md": "",
+        "docs/law/Empty-Doc.md": "",
         "packages/contracts/src/ok.ts": "// per D1 — minted.\nexport const x = 1;\n",
       },
       why: "an EMPTY citer doc is a verdict, not a hole: the text door refuses it as `empty`, it carries no citation to judge, and the policy must not turn that into the tool error it raises for every OTHER refusal status",

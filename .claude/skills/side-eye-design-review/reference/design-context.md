@@ -9,11 +9,11 @@ facts that live nowhere else. Sources outrank this file on any conflict.
 | Concern | Source |
 | - | - |
 | Every token (color, text, spacing, radius, motion, shadow) | `packages/ui/src/tokens/tokens.json` → generated `theme.css` and `tokens/index.ts` |
-| Density assignment law (which step goes where; tiers; the chrome diet) | `docs/architecture/core/UI-Density-Law.md` |
-| Theme pipeline (Hearth/Mocha/Light value-sets, clamp, derived chrome) | `docs/architecture/core/UI-Theming-and-Content.md` §12 |
-| Motion (duration tokens, easing, the inventory) | `docs/architecture/core/motion-and-animation-guide.md` |
-| Primitives and naming law | `docs/architecture/core/UI-Primitives-and-Reuse.md` §13 |
-| Shell geography and interaction physics | `docs/architecture/core/UI-Architecture-and-Layout.md` §4 (SKILL.md §14 is the digest) |
+| Density assignment law (which step goes where; tiers; the chrome diet) | `docs/law/UI-Density-Law.md` |
+| Theme pipeline (Hearth/Mocha/Light value-sets, clamp, derived chrome) | `docs/law/UI-Theming-and-Content.md` §12 |
+| Motion (duration tokens, easing, the inventory) | `docs/law/motion-and-animation-guide.md` |
+| Primitives and naming law | `docs/law/UI-Primitives-and-Reuse.md` §13 |
+| Shell geography and interaction physics | `docs/law/UI-Architecture-and-Layout.md` §4 (SKILL.md §14 is the digest) |
 | Global CSS (incl. the reduced-motion killer) | `packages/ui/src/styles/globals.css` |
 | `@orb/ui` primitives (the only elements features may use) | `packages/ui/src/primitives/` |
 | Shell vocabulary — section/modal/settings ids, panel modes | `packages/client/src/state/shell-store.ts` |
@@ -21,7 +21,7 @@ facts that live nowhere else. Sources outrank this file on any conflict.
 | Feature layout (per domain) | `packages/client/src/features/<domain>/` |
 | Test ids | `packages/client/src/lib/test-ids.ts` |
 | In-page introspection manual (`__orb`) | `packages/client/src/lib/agent-tools.README.md` |
-| Client architecture law | `docs/architecture/core/client-architecture-lockdown.md` |
+| Client architecture law | `docs/law/client-architecture-lockdown.md` |
 | The decision ledger — cite the decision a finding breaks | `docs/adr/` (one decision per file, indexed by `docs/adr/README.md`) |
 | Component tests | `tests/client/**` (e2e: `tests/e2e/**`) |
 | Server truth for a chat surface | `GET :8788/api/_debug/db/chat/:id`, `/api/_debug/db/chats`, `/api/_debug/db/characters`, `/api/_debug/errors`, `/api/_debug/db/integrity` |

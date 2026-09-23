@@ -283,6 +283,6 @@ deferred per-chat theme scope — the resolution order `character > global > def
 - `domains/assets.md` (gutted — the code is the doc; git history) — per-user CAS, `AssetRef`, `reapIfOrphan` pattern
 - `domains/character.md` (gutted — the code is the doc; git history) — per-character theme override + sprite-set parent
 - `domains/connection.md` (gutted — the code is the doc; git history) — classify request-shaper / `ModelCapability` for structured output gating
-- `core/Tier-3b-Providers.md` — `PROVIDER_ROLES`, `local-light` (v2 classify role template)
+- `docs/law/Tier-3b-Providers.md` — `PROVIDER_ROLES`, `local-light` (v2 classify role template)
 - `domains/chat.md` (gutted — the code is the doc; git history) — the Phase-5 per-turn hook + `ChatEvent`
 - `proposed/expression-stage/expression-stage.md` — the full evidence base (ST source audit, neo findings)

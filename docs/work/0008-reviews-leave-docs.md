@@ -24,7 +24,7 @@ is deleted down to three survivors, each a real dependency this pass proved, not
   gate input; the rest is the program's authored record. Remaining work: mint the plan folder, move the
   directory into it, re-point the two tools' path constants, and archive the plan through `pnpm doc
   archive` once the program finishes.
-- `docs/reviews/ast-codebase-audit/` — the control plane of an unfinished audit with open findings
+- the AST codebase audit folder under docs/reviews (deleted by item 0016) — the control plane of an unfinished audit with open findings
   (its running ledger and its goal file, and every file cited anywhere under the tree by repo-relative
   path — a scripted sweep of every citation caught seven that had been deleted along with the trees that
   formerly held them, restored from the pre-migration commit at their original paths). Remaining work: its

@@ -241,7 +241,7 @@ fi
       exec {type_fd}>&-
       continue
     fi
-    nice -n 10 pnpm exec node "$root/scripts/ts7.cjs" --noEmit --pretty false --checkers "$ts7_checkers" -p "$program" >"$program_out" 2>&1
+    nice -n 10 pnpm exec node "$root/scripts/ts7.ts" --noEmit --pretty false --checkers "$ts7_checkers" -p "$program" >"$program_out" 2>&1
     program_rc=$?
     if [ "$program_rc" -ne 0 ]; then
       if grep -Eq '\.(ts|tsx|mts|cts)\([0-9]+,[0-9]+\): error TS[0-9]+' "$program_out"; then

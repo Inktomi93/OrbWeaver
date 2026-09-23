@@ -1,4 +1,4 @@
-// World Info feature CT stories (core/Spine-Testing.md §7 — a CT mounts ONLY from a non-test module). World
+// World Info feature CT stories (docs/law/Spine-Testing.md §7 — a CT mounts ONLY from a non-test module). World
 // Info is a `CollectionContribution` now (R2), so its surfaces are deep-imported the way the regex/tag
 // stories deep-import theirs: the config HOST mounts them in production, and the front door exports only the
 // contribution. Every story wraps the real client data layer (<CtDataProviders> — Query + real tRPC over the

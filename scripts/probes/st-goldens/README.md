@@ -54,7 +54,7 @@ scripts/probes/st-goldens/
   README.md                   # this file — harness notes only
   rig-paths.ts                # the ONE path home; ST_GOLDENS_DATA_ROOT overrides the data root
   build-fixtures.ts           # writes ST V2 character PNGs + demo chats INTO the runtime
-  write-v2-png.cjs            # the V2 tEXt-chunk PNG writer build-fixtures.ts loads
+  write-v2-png.ts             # the V2 tEXt-chunk PNG writer build-fixtures.ts imports
   generate-goldens.ts         # ST arm: boots ST, sets config, intercepts, captures
   compare-runner.ts           # diffs the two captures: structure AND identity-bearing bytes
   run-demo-goldens.sh         # 16-combo post-processing/squash/prefill sweep

@@ -163,7 +163,7 @@ of scope for the verbs as designed. The two byte-ingress paths: (a) provider-RET
 (`GeneratedImage.url`, step 9) — provider-origin, not user input; fetched then validated by sniff
 + `enforceMagic` at store; (b) `editImage` sources — owned assets or direct uploads ONLY, no URL
 arm in v1 (doc 01 §3.2). If a user-supplied-URL source is ever added, it rides the staged
-`infra/network` `safeFetch` egress seam (`core/Tier-3-Infra.md` — SSRF/DNS-rebind allowlist) plus
+`infra/network` `safeFetch` egress seam (`docs/law/Tier-3-Infra.md` — SSRF/DNS-rebind allowlist) plus
 remote-image content validation (the Marinara-Residue B5 `isAllowedImageBuffer` posture). Cited,
 not designed here.
 

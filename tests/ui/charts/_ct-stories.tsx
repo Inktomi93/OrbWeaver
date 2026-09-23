@@ -1,4 +1,4 @@
-// CT stories for the @orb/ui chart family (core/Spine-Testing.md §7 — a CT mounts from a non-test module).
+// CT stories for the @orb/ui chart family (docs/law/Spine-Testing.md §7 — a CT mounts from a non-test module).
 //
 // WHY THESE EXIST AT ALL (measured 2026-08-19, lane analytics-charts): playwright-ct SERIALIZES the mounted
 // JSX tree across its RPC boundary, and a FUNCTION prop on a component nested inside that tree does not

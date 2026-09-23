@@ -43,7 +43,7 @@ host's private library rows — `domain/chat/contract/regex.ts:8-11`, D19).
 | **Reorder global / preset / character from the room** | the verb *permits* it (global gate is script ownership, `apply-scope-order.ts:38-45`; preset/character gate the carrier) | — | **S** to build, **do not** | **high**: a room-local gesture silently re-orders every other chat on that preset/character. One home is the library |
 | **Attach / detach at the chat tier from the room** | `regex.attachToChat` / `detachFromChat`, host-gated (`attach-to-chat.ts:14-27`, `detach-from-chat.ts:12-28`) + `RegexScriptPicker scope={{kind:"chat"}}` — **fully built, ZERO production call sites** (`pnpm ast jsx RegexScriptPicker`: 5 hits / 3 files, scanned=6958; the two prod sites are character + preset) | mount it | **S** | low. This is the single largest "already paid for" item on the board |
 | **Move a script between tiers** | no transactional verb — detach + attach, two calls; attach appends at the tier end (`attach-to-chat.ts:23`) | a `moveScopeAttachment` batch verb if wanted | **S** | medium if built as two calls: a failed second call leaves the script attached nowhere |
-| **Named enable-sets (ST "Regex Presets")** | nothing | new table `regex_script_sets` (ownerId, name, scriptIds) + apply/create/update/delete/list + router + client + a **vocabulary mint** | **L** | medium: new table (4-site landing), and "preset" is owner-loaded (generation config only, AGENTS §6) |
+| **Named enable-sets (ST "Regex Presets")** | nothing | new table `regex_script_sets` (ownerId, name, scriptIds) + apply/create/update/delete/list + router + client + a **vocabulary mint** | **L** | medium: new table (4-site landing), and "preset" is owner-loaded (generation config only, Constitution.md §6) |
 | **A member sees what the room applies** | `regex.listForChat` — member-gated, room-public, ordered (`verbs/attachments/list-for-chat.ts:11-16`) | read-only rack (the Lorebooks precedent) | **S** | low |
 | **A member's rack repaints when the host attaches** | **broken today** — `regexChanged` is a per-USER channel (`contracts/src/user-bus/index.ts:45-46`) and `attachToChat` emits only `emitUserEvent(ownerId, …)` (`attach-to-chat.ts:26`) | add `"regex"` to `ROOM_ENTITY_KINDS` (`contracts/src/chat/bus.ts:372`) — three tsc-forced sites (the tuple, `entry/compose/room-reach.ts` `ROOM_REACH`, the client `BUS_FILTERS.roomEntityChanged` Record; the belts are named at `room-reach.ts:14-19`) + an injected fan op on `RegexContext` | **M** | low mechanically; it is a **live correctness bug** today, see Q7 |
 
@@ -239,7 +239,7 @@ five router procs with sweep classification, and a client surface. **L**, and it
 that needs a migration.
 
 **The vocabulary collision is real.** "Preset" is owner-loaded: the domain map assigns `preset` to *generation
-config only* (AGENTS §6). The map's own precedent for "a saved, named, reusable set of X" is
+config only* (Constitution.md §6). The map's own precedent for "a saved, named, reusable set of X" is
 `rosterPreset` in code with a *different* user-facing word ("Roster" / "Saved rosters",
 `docs/design/vocabulary-map.md:46`). So the conforming proposal is **code `regexScriptSet`, user-facing
 "Script sets"** — but the map is the one home and it says explicitly that a concept not in the table is a

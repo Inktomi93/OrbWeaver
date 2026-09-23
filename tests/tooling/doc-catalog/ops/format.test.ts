@@ -59,7 +59,7 @@ test("SEARCH FIDELITY: a lone tilde keeps its grep hits, and a strikethrough run
 
 test("SEARCH FIDELITY: a backslash INSIDE a code span is literal content and survives untouched", ({ scratch }) => {
   // The de-escaping must never reach code. In a code span `\_` is a literal backslash-underscore (this is
-  // the exact spelling `Core-Docs-Formatting-Law.md` uses as its own example), so dropping it would BE the
+  // the exact spelling `.claude/rules/writing.md` uses as its own example), so dropping it would BE the
   // lossy edit. Running the rule in the `text` handler makes that unreachable by construction.
   const body = `${FRONTMATTER}Escapes in output (\`F32\\_BLOB\`, \`2\\*3\`) are the serializer's own.\n`;
 
@@ -201,7 +201,7 @@ test("FROZEN ARCHAEOLOGY: neither tree appears in the resolved corpus", () => {
 
   expect(targets.filter((path) => path.startsWith("docs/history/"))).toStrictEqual([]);
   expect(targets.filter((path) => path.startsWith("docs/architecture/history/"))).toStrictEqual([]);
-  expect(targets.some((path) => path.startsWith("docs/architecture/core/"))).toBe(true);
+  expect(targets.some((path) => path.startsWith("docs/law/"))).toBe(true);
 });
 
 test("WIDENING: class 2 is admitted, and only the bytes this repo does not AUTHOR are fenced", () => {
@@ -240,7 +240,7 @@ test("CLASS 3: the `@` import directive survives a REAL write, not just an empty
   // formatter removes, far from line 1) and the assertion is that the write happened AND line 1 came
   // through byte-exact. A blank line inserted above or below it would fail this too, since it pins the
   // first two lines. Same construction for `README.md`'s own first line.
-  const directive = "@docs/architecture/core/AGENTS.md";
+  const directive = "@docs/law/Constitution.md";
   const body = `${directive}\n\n# Root entry point\n\nA line with a \\~250 escape the formatter removes.\n`;
 
   const { bytes, outcome } = format(scratch, "CLAUDE-like.md", body);

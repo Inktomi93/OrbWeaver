@@ -35,7 +35,7 @@ refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
 //   ROOT 3 — a reasoned `@public`-family declaration. This lens conservatively treats the author's claim as
 //     alive; the push-tier orphan ratchet separately adjudicates whether the marker form and target are legal.
 //     It is read HERE through the ratchet's own predicate ({@link isPublicTagged}) so the grammar cannot drift.
-//   ROOT 4 — every export of `packages/ui/src`. R2 of docs/architecture/core/ui-package-design.md: a sealed
+//   ROOT 4 — every export of `packages/ui/src`. R2 of docs/law/ui-package-design.md: a sealed
 //     surface exists to be available, so "no consumer yet" is its designed state. The orphan ratchet exempts
 //     the whole package for exactly this reason; a chain lens that did not would report the entire UI tree.
 // Everything the roots transitively consume is alive. What is left is DEAD, in two shapes:

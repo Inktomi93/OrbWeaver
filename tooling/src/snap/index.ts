@@ -1,5 +1,5 @@
 // snap's programmatic front door — what tests and sibling tools import; the cli fronts this surface.
-// One tool, one API (docs/architecture/core/Core-Tooling-Law.md §2.5).
+// One tool, one API (docs/law/Core-Tooling-Law.md §2.5).
 export type { FixtureStatus, FixtureTarget, FixtureTargetOverride } from "./contract/fixture.ts";
 export type {
   HeapBrowserContextId,

@@ -100,7 +100,7 @@ export const gate = defineGate({
   facts: [],
   resources: [],
   message:
-    "ambient nondeterminism in a test (Date.now/new Date()/Math.random/randomUUID/performance.now/process.hrtime/performance.timeOrigin/vi.useFakeTimers/waitForTimeout) — inject the frozen clock + seeded ids via the fixture seam (core/Spine-Testing.md §3).",
+    "ambient nondeterminism in a test (Date.now/new Date()/Math.random/randomUUID/performance.now/process.hrtime/performance.timeOrigin/vi.useFakeTimers/waitForTimeout) — inject the frozen clock + seeded ids via the fixture seam (docs/law/Spine-Testing.md §3).",
   fix:
     "inject the frozen clock (tests/support/clock.ts) + seeded ids (tests/support/ids.ts) through the " +
     "composition seam production uses. A deliberate site (a test whose SUBJECT is elapsed real time) is " +

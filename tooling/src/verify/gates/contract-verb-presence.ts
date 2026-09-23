@@ -1,4 +1,4 @@
-// Gate: contract-verb-presence (core/Spine-Testing.md §5) — the INTERFACE-level complement to
+// Gate: contract-verb-presence (docs/law/Spine-Testing.md §5) — the INTERFACE-level complement to
 // `test-presence`'s FILE-mirror rule: it catches a method a `*Service` interface DECLARES but no test
 // ever invokes (wired into the contract with zero behavioral coverage). Enumerates every exported
 // `*Service` interface's members per `domain/<d>/contract/service.ts` and requires a boundary-anchored
@@ -17,7 +17,7 @@ const OPERATION = "missing-contract-test";
 
 const MESSAGE = (verb: string, declaredIn: string): string =>
   `${verb} (declared on ${declaredIn}) — the *Service interface declares this verb but no test in its domain tree invokes ` +
-  "it as a service method or through its `create<Verb>(` factory (core/Spine-Testing.md §5; " +
+  "it as a service method or through its `create<Verb>(` factory (docs/law/Spine-Testing.md §5; " +
   "test-support-dry-punchlist.md W1i). Add a behavioral test at tests/server/domain/ or, for a tracked " +
   "gap, a reviewed grant.";
 
@@ -35,7 +35,7 @@ export const gate = defineGate({
   facts: [contractVerbPresenceFact],
   resources: [],
   message:
-    "a *Service interface declares a verb that no test in its domain tree invokes — a wired-but-never-run verb (add a behavioral test at tests/server/domain/, or an exact central reviewed grant keyed on this verb and missing-contract-test operation). core/Spine-Testing.md §5.",
+    "a *Service interface declares a verb that no test in its domain tree invokes — a wired-but-never-run verb (add a behavioral test at tests/server/domain/, or an exact central reviewed grant keyed on this verb and missing-contract-test operation). docs/law/Spine-Testing.md §5.",
   fix: "add a behavioral test that invokes the verb (or its create<Verb>( factory) under tests/server/domain/<domain>/, or add a cited row to tooling/src/verify/lib/reviewed-grants.ts keyed on this policy, verb subject, and missing-contract-test operation.",
   create: (ctx) => ({
     evaluate: () => {

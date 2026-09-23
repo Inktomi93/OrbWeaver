@@ -1,4 +1,4 @@
-// support/factories — self-test for the factory contract (core/Spine-Testing.md §4). Proves: make* is
+// support/factories — self-test for the factory contract (docs/law/Spine-Testing.md §4). Proves: make* is
 // deterministic (stable-shape seeded ids, the shared frozen instant, shallow-merge overrides); seed*
 // lands FK-clean on an EMPTY db (the user→owned-row chain auto-seeds); explicit relation ids are reused
 // (no phantom extra rows); the chat `withX` opt-ins are explicit; and seedMessage performs the D26

@@ -1,4 +1,4 @@
-// Analytics (stats domain) CT stories (core/Spine-Testing.md §7 — CT mounts ONLY from a non-test
+// Analytics (stats domain) CT stories (docs/law/Spine-Testing.md §7 — CT mounts ONLY from a non-test
 // module). Surfaces come through the feature front door, wrapped in the real client data layer
 // (CtDataProviders — Query + real tRPC over the routeTrpc-stubbed network). The N4/P4 CONTEXT-band and
 // the N1/N2 LIST band mount through the REAL section registry (CtRealSectionRegistry) — the shell's own

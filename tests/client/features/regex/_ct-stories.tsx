@@ -1,4 +1,4 @@
-// regex feature CT stories (core/Spine-Testing.md §7 — CT mounts ONLY from a non-test module). The stories
+// regex feature CT stories (docs/law/Spine-Testing.md §7 — CT mounts ONLY from a non-test module). The stories
 // reach feature internals the front door doesn't re-export (the settings/workloads _ct-stories.tsx
 // precedent): the member editor is mounted by the CONFIG host through `regexCollection`. The DISPLAY-tier
 // story lives in the `#data` mirror beside the hook it exercises (`tests/client/data/_ct-stories.tsx`) —

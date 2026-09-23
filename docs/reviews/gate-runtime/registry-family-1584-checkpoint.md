@@ -180,7 +180,7 @@ that half is left to the integration owner.
   over 7,138 scanned files; a literal scan finds no import anywhere). It is NOT deleted here, because it
   is cited by SEVEN surfaces this lane does not own — deleting the file alone leaves dangling references.
   The full list for the fold: `tooling/src/verify/gates/GATE-AUTHORING.md:416`,
-  `docs/architecture/core/Core-Enforcement-Active-Gates.md:157`,
+  `docs/law/Core-Enforcement-Active-Gates.md:157`,
   `docs/design/pane-standardization-design.md:332`,
   the 2026-09-02 #941 semantic-denominator-closure verifier review :110,
   `docs/reviews/gate-runtime/uncovered-gate-conversion-census.md:157` and `:162`,
