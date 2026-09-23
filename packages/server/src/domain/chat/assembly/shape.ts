@@ -651,13 +651,15 @@ function compactionCoveredThroughSeq(ctx: AssembleContext): number {
  *  One field read, one answer. Byte-identical for every real narrator row, which is the only row the strip
  *  was ever for. */
 function assistantShapeRow(m: MessageView, ctx: AssembleContext, macroNames: HistoryMacroNames, nameById: ReadonlyMap<CharacterId, string>): CanonRow {
-  const authorName = m.characterId !== null ? (nameById.get(m.characterId) ?? null) : null;
+  const rosterName = m.characterId !== null ? (nameById.get(m.characterId) ?? null) : null;
+  // A departed character's row keeps its own stamped name, so its label never borrows whoever speaks now.
+  const authorName = rosterName ?? (m.characterId !== null ? (macroNames.characterNamesById.get(m.characterId)?.name ?? null) : null);
   const body = m.kind === "narrator" ? speakerTagsToPlain(m.content) : m.content;
   return {
     role: "assistant",
     content: renderHistoryMacros(body, { characterId: m.characterId, personaId: m.personaId }, ctx, {
       producer: macroNames,
-      speakerCharName: authorName ?? undefined,
+      speakerCharName: rosterName ?? undefined,
     }),
     characterId: m.characterId,
     authorName,
