@@ -3,7 +3,8 @@
 //   1. the §7.1 binding fold (no row ⇒ `no-connection`, never a born default — F2/F16);
 //   2. the connection row — it must be the FUNDER's (a binding that names a stranger's row is a domain bug,
 //      refused and recorded, never served);
-//   3. the provider row from the registry (a dropped plugin provider ⇒ `no-connection`);
+//   3. the provider row from the registry, read as the row's owner (a dropped plugin provider, or one none of
+//      the owner's enabled installs contributes ⇒ `no-connection`);
 //   4. the model's KIND: the OpenRouter catalog row → curated → the row's `declared.kind` → the task's own
 //      kind; then `connectionTasks` decides whether this row may serve the task at all;
 //   5. api coherence (data), the secret (by id, the funder's), the model id normalised (no heal);
@@ -224,9 +225,13 @@ async function resolveTaskFold(ctx: ResolverContext, args: ResolveArgs, includeB
 async function resolveTaskFold(ctx: ResolverContext, args: ResolveArgs, includeBaseline: true): Promise<CapabilityResolveOutcome>;
 async function resolveTaskFold(ctx: ResolverContext, args: ResolveArgs, includeBaseline: boolean): Promise<ResolveOutcome | CapabilityResolveOutcome> {
   const connection = await connectionFor(ctx, args);
-  const provider = ctx.registry.get(connection.providerId);
+  // Read as the connection's owner, so a row saved on a plugin provider stops resolving once none of that
+  // owner's enabled installs contributes it (D147) — the same answer as an unregistered id.
+  const provider = ctx.registry.get(connection.providerId, connection.ownerId);
   if (provider === undefined) {
-    throw new NoConnectionError(`provider "${connection.providerId}" is not registered (a plugin provider reads no-connection until its plugin activates)`);
+    throw new NoConnectionError(
+      `provider "${connection.providerId}" is not registered (a plugin provider reads no-connection unless one of the owner's enabled plugins contributes it)`,
+    );
   }
   const declared = connection.declared;
   const kind = kindOf(ctx, { task: args.task, provider, connection });
