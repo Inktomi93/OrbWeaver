@@ -197,9 +197,6 @@ export function loadLedger(reader: ResourceReader, id: LedgerId): ResourceLoad<L
     return { status: "unresolved", paths: [], members: 0, reason: `unknown ledger id: ${String(id)}` };
   }
   const definition: LedgerDefinition = LEDGER_DEFINITIONS[id];
-  if ("paths" in definition) {
-    return ledgerMarkdown(reader, id, definition.paths);
-  }
   const members = treeLedgerMembers(reader, definition.tree, definition.member);
   if (members.status !== "ready") {
     return { status: members.status, paths: members.paths, members: 0, reason: `ledger ${id} tree ${definition.tree} is unavailable: ${members.reason}` };

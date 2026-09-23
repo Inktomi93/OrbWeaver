@@ -181,7 +181,6 @@ export { runInstrumentAffected, selectAffectedInstrumentTests } from "./ops/inst
 export { runKnipNegativeLiveness } from "./ops/knip-negative-liveness.ts";
 export {
   censusDrift,
-  deferredRosterDrift,
   LEDGER_CHECKS,
   ledgerFreshness,
   ledgerReport,

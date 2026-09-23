@@ -85,7 +85,7 @@ function host(overrides: Partial<ResourceHost> = {}): ResourceHost {
     ledger: ((id: LedgerId) => {
       const definition: LedgerDefinition = LEDGER_DEFINITIONS[id];
       // A tree ledger publishes its member files; one grammar-conforming member stands for them.
-      const paths = "paths" in definition ? definition.paths : [`${definition.tree}/0001-a-decision.md`];
+      const paths = [`${definition.tree}/0001-a-decision.md`];
       return fact(`ledger:${id}`, paths, { id, nature: "markdown", documents: [] });
     }) as ResourceHost["ledger"],
     exactFiles: (ids) =>

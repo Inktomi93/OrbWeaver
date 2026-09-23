@@ -60,8 +60,7 @@ round.
 ## 8. The gates (physics + lint checks)
 
 > **Live enforcement state has ONE home:** `Core-Enforcement-Active-Gates.md` (what fails a build today,
-> all six layers) + `docs/law/Core-Enforcement-Deferred-Dropped.md` (the backlog + each gate's activation
-> trigger), kept honest by `enforcement-registry-parity.ts`. This § is the UI-law INDEX — the CONCEPT
+> all six layers), generated from the discovered gate roster. This § is the UI-law INDEX — the CONCEPT
 > each UI-enforcement family protects, not a status board (do not re-track live/parked/dormant here; it
 > drifts against the registry).
 

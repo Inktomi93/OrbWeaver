@@ -131,13 +131,12 @@ exports map has one entry, so no domain can reach a backend.
 | Active gates | `Core-Enforcement-Active-Gates.md` |
 | Writing a gate | `docs/law/gate-runtime-read-first.md`, then `../../tooling/src/verify/gates/GATE-AUTHORING.md` |
 | Writing a ui-audit rule | `../../tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md` |
-| Planning and checklists | `Core-Planning-and-Checklists.md` |
 | Verification design and report layout | `UNIFIED-VERIFICATION-DESIGN.md` |
 | Server tier law | `Tier-1-DB.md`, `Tier-2-Foundation.md`, `Tier-3-Infra.md`, `Tier-3b-Providers.md`, `Tier-4-Transport.md`, `Tier-5-Entry.md` |
 | UI law | `UI-Architecture-and-Layout.md`, `UI-Gates-and-Lessons.md`, `UI-Primitives-and-Reuse.md`, `UI-Theming-and-Content.md`, `UI-Density-Law.md`, `ui-package-design.md`, `motion-and-animation-guide.md` |
 | Client composition | `client-architecture-lockdown.md` |
-| Legacy migration and SillyTavern parity | `Core-Legacy-Migration-and-Gaps.md`, `Core-SillyTavern-Feature-Map.md` |
-| Open debt | `Core-Audits-and-Debt.md` |
+| SillyTavern parity rulings | `../adr/README.md` (D46, D47, D49) |
+| Open work | `docs/work/README.md` |
 | Docs and comments | `.claude/rules/writing.md`, `.claude/rules/comments.md`, `.claude/rules/docs.md` |
 | Which word names a concept | `docs/law/vocabulary-map.md` |
 | Mission | `../Mission.md` |

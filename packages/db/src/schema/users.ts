@@ -49,7 +49,7 @@ export const users = sqliteTable(
     passwordHash: text("password_hash"),
     // The principal-kind axis (D60). Defaults 'human' — every existing row is a valid human, no backfill. The
     // `users_agent_shape` CHECK (below) makes the agent flavor loginless/unprivileged/owned by DDL.
-    // FLAG[PD-17]: born at AP0; the ONLY writer of a non-'human' row is `provisionAgentPrincipal` (AP1).
+    // Born at AP0; the ONLY writer of a non-'human' row will be `provisionAgentPrincipal` (AP1, docs/work/0048).
     kind: text("kind", { enum: USER_KINDS }).notNull().default("human"),
     // The human responsible for an agent principal (D60). NULL for humans (CHECK-tied to `kind`). Self-FK
     // CASCADE: owner hard-delete → agent row deleted → (existing FKs) roster CASCADE + `messages.authorUserId`

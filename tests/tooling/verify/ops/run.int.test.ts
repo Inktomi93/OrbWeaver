@@ -1025,12 +1025,12 @@ test("browser:ct scopedArgv: skip-empty on no CT surface; the one-slot CT launch
 // nothing on a clean tree; the repo's `vitest.config.ts` sets `passWithNoTests: false`, so vitest prints
 // "No test files found, exiting with code 1" and `asViolations` scores that digit as VIOLATIONS. §L tells
 // lanes to commit and then report receipts, so the door reds exactly when a lane is told to walk it.
-// THE FIX is `--passWithNoTests` on the SCOPED argv alone. It reopens PD-115 (docs/law/Core-Debt-Cleared-Ledger.md:
-// `passWithNoTests` was flipped to false in 2026-07-03 so "a lane whose include glob matches NOTHING …
-// FAILS instead of passing"), and that ruling SURVIVES — its INPUT changed. PD-115 judges an ASSERTED
+// THE FIX is `--passWithNoTests` on the SCOPED argv alone. `vitest.config.ts:134` sets `passWithNoTests: false`
+// repo-wide so a lane whose include glob matches NOTHING (a typo'd pattern, a moved tree) FAILS instead of
+// passing, and that ruling SURVIVES here — its INPUT changed. It judges an ASSERTED
 // selector (a config include glob asserts a fileset); this argv's selector is always the DERIVED
 // `--changed` one, which AGENTS.md "Verification tiers" and ops/scoped.ts's `emptyScopeNotice` already rule CLEAN when
-// empty. PD-115's own class stays guarded: `tests:execution-membership` REDs a runner view matching ZERO
+// empty. The asserted-selector class stays guarded: `tests:execution-membership` REDs a runner view matching ZERO
 // files at the STATIC tier, and every whole-scope `pnpm test` still runs at `passWithNoTests: false`.
 
 test("tests:node scopedArgv: git changes stay derived, while explicit source/test/folder/package subjects reach Vitest", {
@@ -1055,7 +1055,8 @@ test("tests:node scopedArgv: git changes stay derived, while explicit source/tes
   const packageSelection = resolveSelection({ kind: "package", name: "server" });
   expect(stage("tests:node").scopedArgv?.(packageSelection)).toEqual(["pnpm", "test:scoped", "tests/server"]);
   // The OTHER half of the ruling: the WHOLE-scope argv asserts the whole suite, where zero test files means
-  // the runner broke. It must never carry the flag — that is what keeps PD-115 alive where it applies.
+  // the runner broke. It must never carry the flag — that is what keeps the asserted-selector ruling alive
+  // where it applies.
   expect(stage("tests:node").argv).toEqual(["pnpm", "test:node"]);
   expect(stage("tests:node").argv).not.toContain("--passWithNoTests");
 });

@@ -1,6 +1,6 @@
 // A segmented circle showing filled/segments — same hand-rolled ARIA mechanism as <Meter> (role="meter").
 // Consumer: the rpg quests tab (active-quest clock-ring cards) — the PREBUILT marker was deleted when it
-// landed (docs/law/Core-Enforcement-Deferred-Dropped.md §PREBUILT).
+// landed (ui-package-design.md §8b).
 import type { ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { variantAttrs } from "#lib";

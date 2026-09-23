@@ -193,3 +193,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D217 | [The message-kind dispatch fan-out is committed](0217-message-kind-dispatch-fan-out-committed.md) | active |
 | D218 | [The role verdict has one home in every tier, not just the auth seam](0218-role-verdict-one-home-every-tier.md) | active |
 | D219 | [The cast read axis is renamed to the chat identity axis](0219-cast-axis-renamed-to-identity-axis.md) | active |
+| D220 | [Rejected neo-derived and report-only enforcement proposals](0220-rejected-neo-and-report-only-gates.md) | rejected |
