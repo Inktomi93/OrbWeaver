@@ -93,6 +93,9 @@ export const reasoningCapabilitySchema = z.object({
    *  other cell, so a curated family default is overridable by a dated `measured/*` row and by the user's own
    *  `declared` block. Absent ⇒ {@link REASONING_REPLAY_FLOOR}. */
   replay: reasoningReplayModeSchema.optional(),
+  /** Replayed thinking is bound to the conversation prefix: a block whose earlier system, tools or messages
+   *  changed is refused unless the request asks the API to drop it (`drop_block`). */
+  prefixBound: z.boolean().optional(),
   supportsMaxTokens: z.boolean().optional(),
 });
 export type ReasoningCapability = z.infer<typeof reasoningCapabilitySchema>;
@@ -151,7 +154,7 @@ export const generationCapabilitySchema = z.object({
   imageReferences: z.boolean().optional(),
   /** `window` = usable context in tokens. `windowEstimated` marks a FALLBACK GUESS (cold catalog, no
    *  declared window) — the history FIT still runs against it, but a "used / window" surface must say so. */
-  context: z.object({ window: z.number(), supports1M: z.boolean().optional(), windowEstimated: z.boolean().optional() }),
+  context: z.object({ window: z.number(), windowEstimated: z.boolean().optional() }),
   /** The catalog handed a modality string the parser did not know (§5.4's unknown-value rule). */
   modalitiesEstimated: z.boolean().optional(),
   moderated: z.boolean().optional(),

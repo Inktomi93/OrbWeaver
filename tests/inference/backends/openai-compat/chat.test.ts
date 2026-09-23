@@ -618,3 +618,11 @@ test("OR non-adaptive reasoning keeps its bytes: an effort-mode model sends the 
   const body = await sentBody(orRequest({ connection, tools: undefined, params: {} }));
   expect(body["reasoning"]).toEqual({ effort: "medium" });
 });
+
+// OpenRouter's own `reasoning.effort` takes `max` and forwards it upstream verbatim (audit echo: effort "max" →
+// output_config.effort "max"); only the V4 vocabulary lacks the word. The funnel has already refused a level
+// the model does not list, so the openrouter spelling passes the resolved word through.
+test("OR Claude effort `max` reaches the wire as `max`, not `xhigh`", async () => {
+  const body = await sentBody(orRequest({ connection: orCuratedConnection("anthropic/claude-opus-5"), tools: undefined, params: { effort: "max" } }));
+  expect(body["reasoning"]).toEqual({ effort: "max" });
+});
