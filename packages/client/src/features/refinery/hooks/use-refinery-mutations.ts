@@ -40,18 +40,9 @@ import { REFINERY_OUTPUT_BUDGET_REASON, REFINERY_ROUND_IN_FLIGHT_REASON, REFINER
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
+import { trpcErrorReason } from "#lib";
 
 // ── the discriminated failure copy ──────────────────────────────────────────────────────────────────
-
-/** The refusal reason off a tRPC error's `data.reason` (the error formatter's honest domain code), else "".
- *  Mirrors `use-tag-suggestion-mutations` / `turn-abort-notice` — the client keys on the structured wire
- *  field, never message text. */
-function refineryFailureReason(error: unknown): string {
-  const data = typeof error === "object" && error !== null && "data" in error ? (error as { data: unknown }).data : null;
-  return typeof data === "object" && data !== null && "reason" in data && typeof (data as { reason: unknown }).reason === "string"
-    ? (data as { reason: string }).reason
-    : "";
-}
 
 /** The thrown value's own message, or `null` when there is nothing worth printing. */
 function refineryFailureMessage(error: unknown): string | null {
@@ -80,7 +71,7 @@ const QUOTED_REFUSAL_REASONS: ReadonlySet<string> = new Set([REFINERY_STAGE_NOT_
  * `DomainOperationError` carries a reason.
  */
 function codedRefusalAwareToast(fallback: string): (error: unknown) => string {
-  return (error): string => (QUOTED_REFUSAL_REASONS.has(refineryFailureReason(error)) ? (refineryFailureMessage(error) ?? fallback) : fallback);
+  return (error): string => (QUOTED_REFUSAL_REASONS.has(trpcErrorReason(error)) ? (refineryFailureMessage(error) ?? fallback) : fallback);
 }
 
 /** The client-owned copy for `CHARACTER_STALE_BASIS` (#1551) — belt 14's refusal (`apply-fields.ts`)
@@ -97,7 +88,7 @@ const CHARACTER_STALE_BASIS_TOAST_COPY = "This character changed elsewhere while
  *  falling through to refinery's own coded-refusal handling for everything else. */
 function applyFieldsErrorToast(fallback: string): (error: unknown) => string {
   const refineryAware = codedRefusalAwareToast(fallback);
-  return (error): string => (refineryFailureReason(error) === CHARACTER_STALE_BASIS_OP_CODE ? CHARACTER_STALE_BASIS_TOAST_COPY : refineryAware(error));
+  return (error): string => (trpcErrorReason(error) === CHARACTER_STALE_BASIS_OP_CODE ? CHARACTER_STALE_BASIS_TOAST_COPY : refineryAware(error));
 }
 
 // ── session lifecycle ───────────────────────────────────────────────────────────────────────────────

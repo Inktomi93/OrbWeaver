@@ -15,7 +15,7 @@ import { freshDb } from "../db.ts";
 import { expect, test } from "../fixtures.ts";
 import { makeAsset, makeCharacter, makeChat, makeMessage, makeUser, seedAsset, seedCharacter, seedChat, seedMessage, seedPersona, seedUser } from "./index.ts";
 
-const CHARACTER_ID_SHAPE = /^character_\d{6}$/u;
+const CHARACTER_ID_SHAPE = /^character_[0-9a-hjkmnp-tv-z]{26}$/u;
 
 describe("make* — pure, deterministic builders", () => {
   test("ids are seeded-counter shaped and distinct per call; timestamps pin to the frozen instant", () => {
@@ -24,6 +24,8 @@ describe("make* — pure, deterministic builders", () => {
     expect(a.id).toMatch(CHARACTER_ID_SHAPE);
     expect(b.id).toMatch(CHARACTER_ID_SHAPE);
     expect(a.id).not.toBe(b.id);
+    // The counter lives in the low bytes of the TypeID's uuid, so later calls sort after earlier ones.
+    expect(a.id < b.id).toBe(true);
     expect(a.createdAt).toBe(FROZEN_AT_MS);
     expect(makeUser().createdAt).toBe(FROZEN_AT_MS);
     expect(makeChat().updatedAt).toBe(FROZEN_AT_MS);

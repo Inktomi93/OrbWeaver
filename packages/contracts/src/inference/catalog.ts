@@ -42,6 +42,15 @@ export const modelCatalogEntrySchema = z.object({
 });
 export type ModelCatalogEntry = z.infer<typeof modelCatalogEntrySchema>;
 
+/** One model-list answer for a provider, saved row or draft. `listed: false` carries WHY — a failed dial and
+ *  an empty list both land here with their own reason, so a failure never reads as "listed no models". Both
+ *  branches are strict: a stray `models` on `listed: false` is a wrong answer, and it is rejected, not stripped. */
+export const modelListingSchema = z.discriminatedUnion("listed", [
+  z.strictObject({ listed: z.literal(true), models: z.array(modelCatalogEntrySchema) }),
+  z.strictObject({ listed: z.literal(false), reason: z.string() }),
+]);
+export type ModelListing = z.infer<typeof modelListingSchema>;
+
 export const agentSdkModelSchema = z.object({
   /** The alias the daemon accepts (`sonnet`/`opus`/`haiku`, or a version-only id). */
   alias: z.string(),

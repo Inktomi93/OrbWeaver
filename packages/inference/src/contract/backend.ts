@@ -5,7 +5,7 @@
 // for a method it lacks.
 
 import type { CredentialHealth } from "@orb/contracts/credentials";
-import type { Wire } from "@orb/contracts/inference";
+import type { ModelListing, Wire } from "@orb/contracts/inference";
 import type {
   AccountCredits,
   EmbedResult,
@@ -19,15 +19,7 @@ import type {
 import type { ChatId } from "@orb/kit/ids";
 import type { AgentTurnRequest } from "./agent.ts";
 import type { ChatRequest, ChatResult } from "./chat.ts";
-import type {
-  AccountCreditsRequest,
-  GenerationCostRequest,
-  InspectRequest,
-  ListModelsRequest,
-  ListModelsResult,
-  ProbeRequest,
-  VerifyAuthRequest,
-} from "./diagnostics.ts";
+import type { AccountCreditsRequest, GenerationCostRequest, InspectRequest, ListModelsRequest, ProbeRequest, VerifyAuthRequest } from "./diagnostics.ts";
 import type {
   EmbedRequest,
   ImageEmbedRequest,
@@ -56,7 +48,7 @@ export interface ProviderBackend {
   readonly generationCost?: ((req: GenerationCostRequest) => Promise<GenerationCost>) | undefined;
   readonly inspect?: ((req: InspectRequest) => Promise<EndpointInspection>) | undefined;
   readonly verifyAuth?: ((req: VerifyAuthRequest) => Promise<VerifyAuthResult>) | undefined;
-  readonly listModels?: ((req: ListModelsRequest) => Promise<ListModelsResult>) | undefined;
+  readonly listModels?: ((req: ListModelsRequest) => Promise<ModelListing>) | undefined;
 }
 
 /** The wire-capture sink — the send-boundary hook a backend calls with the FINAL request body, so the

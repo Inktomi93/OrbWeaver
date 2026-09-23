@@ -5,7 +5,7 @@
 // that an unknown catalog key does not blow the parse up — a provider adding a field must not empty the
 // picker.
 
-import { agentSdkModelSchema, EFFORT_LEVELS, modelCatalogEntrySchema } from "@orb/contracts/inference";
+import { agentSdkModelSchema, EFFORT_LEVELS, modelCatalogEntrySchema, modelListingSchema } from "@orb/contracts/inference";
 import { expect, test } from "../../support/fixtures.ts";
 
 const MINIMAL = {
@@ -63,4 +63,17 @@ test("an agent-sdk row's effort levels are the closed EFFORT_LEVELS vocabulary",
   expect(agentSdkModelSchema.parse(row).effortLevels).toEqual([...EFFORT_LEVELS]);
   expect(agentSdkModelSchema.safeParse({ ...row, effortLevels: ["none"] }).success, "`none` is the on/off axis, not an effort level").toBe(false);
   expect(agentSdkModelSchema.parse({ ...row, resolvedModel: null }).resolvedModel, "the daemon may omit the canonical id").toBeNull();
+});
+
+// A model-list answer is one of two exact shapes. A lenient branch would strip a stray key and pass a wrong
+// answer through as a right one: `listed: false` with a `models: []` beside it reads to a careless caller as
+// "listed no models" when the list failed.
+test("a listed answer carries its models and nothing else", () => {
+  expect(modelListingSchema.parse({ listed: true, models: [MINIMAL] })).toMatchObject({ listed: true, models: [{ id: MINIMAL.id }] });
+  expect(modelListingSchema.safeParse({ listed: true, models: [MINIMAL], reason: null }).success, "an extra key is refused, not stripped").toBe(false);
+});
+
+test("an unlisted answer carries its reason and no model list", () => {
+  expect(modelListingSchema.parse({ listed: false, reason: "HTTP 401" })).toEqual({ listed: false, reason: "HTTP 401" });
+  expect(modelListingSchema.safeParse({ listed: false, models: [], reason: "HTTP 401" }).success, "a stray models list is refused, not stripped").toBe(false);
 });

@@ -5,13 +5,13 @@
 // `@orb/contracts/inference`; callers import them from there directly, NOT through this door.
 
 export type { ConnectionContext } from "./context.ts";
-export { CONNECTION_OP_CODES, ConnectionNotFoundError } from "./contract/errors.ts";
+export { ConnectionNotFoundError } from "./contract/errors.ts";
 export type {
   BindingActorInput,
   ConnectionDiagnosticParams,
   ConnectionFields,
   CreateConnectionParams,
-  ListEndpointModelsParams,
+  DraftCatalogModelsParams,
   LocalLightSeedDeps,
   RefreshCatalogParams,
   ResolveChatCapabilityParams,
@@ -19,7 +19,7 @@ export type {
   SetBindingParams,
   UpdateConnectionParams,
 } from "./contract/params.ts";
-export type { BindingView, CatalogRefreshOutcome, ConnectionCapabilityView, ConnectionView, EndpointModelsResult } from "./contract/results.ts";
+export type { BindingView, CatalogRefreshOutcome, ConnectionCapabilityView, ConnectionView } from "./contract/results.ts";
 export type { ConnectionPorts, ConnectionService, ConnectionWorkloadDeps, EndpointAdmission } from "./contract/service.ts";
 export { seedLocalLightConnections } from "./persistence/local-light-seed.ts";
 export { createConnectionPorts } from "./persistence/ports.ts";
