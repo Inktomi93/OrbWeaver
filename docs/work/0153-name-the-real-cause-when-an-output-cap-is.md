@@ -14,7 +14,7 @@ On agent-sdk a capped turn that spent its whole cap on thinking and wrote no tex
 
 ## Why
 
-The copy names the wrong cause, so the user raises the wrong setting. No badge for a reply that ran past its cap: the owner removed the length-cap badge on purpose (76806c510, #1876).
+The copy names the wrong cause, so the user raises the wrong setting. No badge for a reply that ran past its cap: the owner removed the length-cap badge on purpose (76806c510).
 
 ## Done when
 
