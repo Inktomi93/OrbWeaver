@@ -134,6 +134,7 @@ import {
   loadVariantWire,
 } from "../persistence/queries.ts";
 import { gatherAssembleContext } from "../substrate/assemble-gather.ts";
+import type { fitHistory } from "../substrate/assembly-access.ts";
 import {
   buildAssemblyBudget,
   buildHistoryBudget,
@@ -142,7 +143,6 @@ import {
   buildShapeTrace,
   buildTurnMacroContext,
   buildTurnUserMacros,
-  fitHistory,
   loadCharacterCardLore,
   previewActionText,
   previewSection,
@@ -160,7 +160,7 @@ import { hostUserIdOf } from "../substrate/participants-host.ts";
 import { onlinePersonaIdsOf, presentAndEnabledHumanUserIdsOf } from "../substrate/participants-humans.ts";
 import { regexAllowOf, resolveRegexTiers } from "../substrate/regex-tier.ts";
 import { collectTeaching, resolveTeachingKnobs } from "../substrate/teaching.ts";
-import { buildWireHistory, convertsToEmptyWireRow, wireCostRows } from "../substrate/wire-history.ts";
+import { buildWireHistory, convertsToEmptyWireRow, fitWireHistory } from "../substrate/wire-history.ts";
 
 /** The per-chat DECEPTION-active verdict for the member reasoning-strip (§3.6): `true` ⇒ a non-host viewer loses
  *  the whole reasoning channel for this game. Resolved through the injected `ChatRpgOps.resolveReasoningHostOnly`
@@ -1182,7 +1182,7 @@ async function fitShapedHistory(args: {
     },
     args.shaped.history,
   );
-  return { fitted: fitHistory(wireCostRows(converted), budget), budget };
+  return { fitted: fitWireHistory(converted, budget, args.shaped.newChatMarker).fitted, budget };
 }
 
 /** Is the fit's ceiling a GUESS rather than the connected model's real window? True only when the capability's

@@ -56,7 +56,7 @@ export const anthropicRows = [
     evidence: {
       tier: "curated",
       dated: "2026-09-19",
-      cite: "domain/connection/catalog/chat-models.ts CLAUDE_CAPABILITY_FLOOR + turns.ts NON-version cells; historySystemRows UNMEASURED on every anthropic arm (turns.ts:73-81), roleHandlingFloor strict (turns.ts:90,103)",
+      cite: "domain/connection/catalog/chat-models.ts CLAUDE_CAPABILITY_FLOOR + turns.ts NON-version cells; roleHandlingFloor strict (turns.ts:90,103). midConversationSystem/historySystemRows stay false on the family cell as the fail-closed default: SHAPING-MATRIX §7 measured a tail and a legal mid-array system row at 200 on opus-5, opus-5-5, fable-5, fable-5-1, sonnet-5 and opus-4-8 (the SYSTEM_ROW_MODELS rows below), 400 on haiku-4-5 for any system row (req_011CfKhZ8ALv97q91yH4eqep), and opus-5 failing a mid-array row on OpenRouter (the OpenRouter opus-5 row below)",
     },
   },
   {

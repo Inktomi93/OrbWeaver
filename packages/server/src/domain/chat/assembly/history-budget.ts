@@ -61,6 +61,12 @@ interface FitResult {
 const PER_MESSAGE_OVERHEAD = 4;
 const SAFETY_MARGIN = 64;
 
+/** What ONE history row costs the fit: its estimated content tokens plus the per-message wire overhead. The
+ *  one cost rule; the marker re-head after a trim (`substrate/wire-history` fitWireHistory) prices with it too. */
+export function historyTurnTokens(turn: { readonly content: string }): number {
+  return estimateTokens(turn.content) + PER_MESSAGE_OVERHEAD;
+}
+
 /** The materialized output reserve — the EFFECTIVE `max_tokens` the runner sends AND the fit reserves, one
  *  value so the two can't diverge (the pipeline's `materializeMaxOutput` + `fitBudget.reserveOutputTokens`
  *  read this). Unset ⇒ the shared response-length default (NOT the model's output cap). */
@@ -98,7 +104,7 @@ export function buildHistoryBudget(args: {
  */
 export function fitHistoryToWindow(history: readonly HistoryTurn[], budget: HistoryBudget): FitResult {
   const ceiling = Math.min(budget.windowTokens ?? Number.POSITIVE_INFINITY, budget.softMaxTokens ?? Number.POSITIVE_INFINITY);
-  const cost = (t: HistoryTurn): number => estimateTokens(t.content) + PER_MESSAGE_OVERHEAD;
+  const cost = historyTurnTokens;
   // No trustworthy ceiling → don't trim (e.g. custom-openai with no knob set). Still report the full cost so
   // a preview shows honest usage even when nothing can be dropped.
   if (!Number.isFinite(ceiling)) {
