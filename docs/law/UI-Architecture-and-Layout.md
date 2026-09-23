@@ -8,7 +8,7 @@ updated: 2026-09-18
 
 > **The UI law — part of the nine-doc set split from the D42 spec** (pre-split source: a deleted `client.md`; these nine carry the D43/D44/D52/D54/D58 corrections and WIN on any conflict with any archive copy). The ledger entries (D42–D44, D52, D54) are the decision records; these docs are the expansion.
 >
-> **Reading order:** UI-Architecture-and-Layout (§0–§6) → UI-Gates-and-Lessons (§7–§11) → UI-Theming-and-Content (§12) → UI-Primitives-and-Reuse (§13) → `ui-package-design.md` (the @orb/ui package law, promoted D66) → `motion-and-animation-guide.md` (the motion law, promoted D66) → the owning Project issue and linked program doc → the five lib companions (`../architecture/history/UI-Lib-TanStack-{Query,Form,Router,Virtual}.md` · `../architecture/history/UI-Lib-Zustand.md` — evidence/provenance mines; distilled verdicts already live in the spec sections).
+> **Reading order:** UI-Architecture-and-Layout (§0–§6) → UI-Gates-and-Lessons (§7–§11) → UI-Theming-and-Content (§12) → UI-Primitives-and-Reuse (§13) → `ui-package-design.md` (the @orb/ui package law, promoted D66) → `motion-and-animation-guide.md` (the motion law, promoted D66) → the owning Project issue and linked program doc.
 >
 > **§-map (cross-doc `§N` references resolve here):** §0–§6.3.1 → `UI-Architecture-and-Layout.md` · §7–§11.8 → `UI-Gates-and-Lessons.md` · §12–§12.8 → `UI-Theming-and-Content.md` · §13–§13.10 → `UI-Primitives-and-Reuse.md`.
 >
@@ -33,7 +33,7 @@ updated: 2026-09-18
 | diff | `diff` (jsdiff — snapshot/edit-history diffs, D28) | §2 |
 | layout (Stack/Row/Section/Toolbar/Container) | `container-type` | §4 |
 | chart · bar-list · histogram · stat-figure | ECharts | §11.3 (D52) |
-| meter (`linear`/`arc`/`bipolar` + milestones/dangerBelow) + SegmentedClock | plain CSS/SVG — NOT the chart lib (D52); kinds + clock per rpg-design/11 §2 (D58) | §11.3 (D52) |
+| meter (`linear`/`arc`/`bipolar` + milestones/dangerBelow) + SegmentedClock | plain CSS/SVG — NOT the chart lib (D52); kinds + clock per docs/plans/rpg/design.md (D58) | §11.3 (D52) |
 | virtual-list (generic) + message-list (chat) + media-grid | TanStack Virtual (`directDomUpdates`) | §11.3 (D54) |
 | markdown | Streamdown (two trust policies) | §6.3 / §11.6 |
 | stream (smooth-text pacer · TTFT shimmer) | domain-free string-math | §6.3.1 |
@@ -183,7 +183,7 @@ CARD/ROW — sub-container where it must adapt independently inside a grid/list.
 
 #### 4.1 The shell — the rail + collapsible panels (D55)
 
-> **Themes are color palettes only** (§12.1) — there is NO structural mode; the rail + panels render identically under any palette. (The Claude-design seed's `Hearth`/`Loom`/`Pocket` "modes" + a VS-Code "Work mode" were cut under D62; what survived is the palette + visual grammar, folded into §3/§12.1 law — saga in `../architecture/history/ui-architecture-archaeology-record.md`.) Where any design-seed mockup and the layout below disagree, this wins.
+> **Themes are color palettes only** (§12.1) — there is NO structural mode; the rail + panels render identically under any palette. (The Claude-design seed's `Hearth`/`Loom`/`Pocket` "modes" + a VS-Code "Work mode" were cut under D62; what survived is the palette + visual grammar, folded into §3/§12.1 law.) Where any design-seed mockup and the layout below disagree, this wins.
 
 The macro layout is the **four-region shell**, realized THROUGH the §11.1 clamp-overlay so it is BOTH the "command-center" *and* the "immersive-SillyTavern" layout — **one shell, panels toggled**, not two builds. (`RegionAnchor` names three CONTAINMENT regions — LIST/CONTENT/CONTEXT; RAIL is a non-containment nav strip and hosts no surface. "Four regions" stays as the anatomy name — `client-architecture-lockdown.md` §15.)
 
@@ -195,8 +195,8 @@ DESKTOP (wide):   [ RAIL | LIST | CONTENT | CONTEXT ]
             library becoming a collection inside `config`; `databank`, the documents library, was added by
             DATABANK S1 under owner ruling D-0/Arm A — the section↔collection question that R2's demotion
             reopens is recorded, unclosed, in `features/databank/lib/databank-section.tsx`; `extensions`,
-            the ONE platform rail item for plugin pages, was added at plugin-ui-plane U5 (#679, §4.5b —
-            "beside `config`", never per-plugin), making the count TEN as of 2026-08-30);
+            the ONE platform rail item for plugin pages, sits "beside `config`", never
+            per-plugin, making the count TEN as of 2026-08-30);
             `SECTION_IDS` (`client/src/state/section-ids.ts`, re-exported by `shell-store.ts`) is the
             truth and its ORDER is the rail's:
             Home (the Weave glyph IS its affordance — the brand cell is a real named button; below 48rem
@@ -208,7 +208,7 @@ DESKTOP (wide):   [ RAIL | LIST | CONTENT | CONTEXT ]
             built from, and tags, regex scripts and world books live nowhere else since their settings
             panes and, at R2, the World Info rail section retired; Extensions follows it because an
             extension PAGE is a thing you configured the app to have rather than a library you author
-            into — ONE entry for the whole plugin platform, never one per plugin (plugin-ui-plane §4.5b:
+            into — ONE entry for the whole plugin platform, never one per plugin (per-plugin promotion means
             rail bloat plus the biggest impersonation surface in that design; per-plugin promotion is a
             recorded owner knob, not built). It ships rail-VISIBLE with a teaching empty rather than
             hidden-until-populated, because a hidden entry makes the platform undiscoverable; Databank
@@ -281,7 +281,7 @@ The shell is Discord's anatomy with different nouns; the mapping is LAW so no la
 | Chat pane | CONTENT | the artifact you're in: identity header + working surface. Doing. |
 | Members panel | CONTEXT | detail + config of CONTENT's active artifact. Closable; never navigation. |
 | Quick switcher | `command` modal (⌘K) | jump to any thread/section/create action |
-| User settings overlay | the `config` SECTION (rail foot, label "Settings"): a LIST of four shelves + CONTENT (+ CONTEXT collapsed) — `docs/design/config-revamp-design.md` §3 (#866 S1; the `settings` modal RETIRED) | USER shelf (Personas · Appearance · Chat behavior · Jobs · Backup & Restore) + APP shelf (Connections · Automation · Admin) + COLLECTIONS shelf (Tags · Regex scripts · World Info · **Rosters** — the ruled word for the saved seats+knobs+rules template, #901 Fork 2 — LANDED: the copy shipped at #902 and the collection's files, symbols, ids and locators took the conforming word at #916, so the constant is now `ROSTER_COLLECTION_ID = "rosterPreset"`) + EXTENSIONS shelf (Plugins). Every non-collection group is a `sections` SKIMMER over the D120 contribution seam (config-revamp-design.md §6.8). Generation config is NOT settings — it is the Presets section. (No Account PANE — Account is the leaf modal below.) |
+| User settings overlay | the `config` SECTION (rail foot, label "Settings"): a LIST of four shelves + CONTENT (+ CONTEXT collapsed) (the `settings` modal is gone) | USER shelf (Personas · Appearance · Chat behavior · Jobs · Backup & Restore) + APP shelf (Connections · Automation · Admin) + COLLECTIONS shelf (Tags · Regex scripts · World Info · **Rosters** — the ruled word for the saved seats+knobs+rules template, #901 Fork 2 — LANDED: the copy shipped at #902 and the collection's files, symbols, ids and locators took the conforming word at #916, so the constant is now `ROSTER_COLLECTION_ID = "rosterPreset"`) + EXTENSIONS shelf (Plugins). Every non-collection group is a `sections` SKIMMER over the D120 contribution seam. Generation config is NOT settings — it is the Presets section. (No Account PANE — Account is the leaf modal below.) |
 | Identity widget | persona `rail.end` chrome (`personaChrome`) → `account` leaf modal | the persona switcher + Account strip; the account card (handle · role · sign-out) is a leaf MODAL reached from inside Identity, NOT a settings pane (§B, You ⊃ Identity ⊃ Account) |
 
 > \[!NOTE]
@@ -299,7 +299,7 @@ Per-section grid (end-state; the D62 program builds toward it):
 | Chats | conversation rows · search · star/archive chips · `+` → new-chat picker | LANDING (hero + recents + quick-picks) | chat room (header · thread · composer) | tabs: Members(group) · Overrides · Group(host) · Preview(host) · Injections — REGISTRY-owned via `defineContextTabs` (`ContextTabsPanel`, built M3; `client-architecture-lockdown.md` §6b), not a bespoke `<Tabs>` |
 | Characters | character rows · search · `+` create/import | teaching state | detail card → editor | activity (chats with them) + actions |
 | Configuration | one COLLAPSED group per registered `CollectionContribution` (band = icon · kicker · count · optional import · create `+`); expanded groups get a count-driven filter and windowed rows. R2 added World Info: book rows scented "42 entries · attached ×3" | the welcome (a launcher card per collection) | the selected member's OWN editor, mounted (never a dialog) — for a book, its entry list + entry editor | the selected collection's own arm (a book's activation scopes), or its own `{kind:"none"}` copy |
-| Extensions | the PAGE SWITCHER: one plugin-labelled row per registered `ui.page` surface across the caller's granted-and-enabled plugins (title + the plugin's name as subtitle AND accessible-name disambiguator) — the per-plugin fan happens here, never in the rail | the teaching empty, which names WHICH emptiness (#924 — nothing installed · installed and awaiting your consent · granted but switched off · running with no page), each arm with its own next step and its own config anchor; or "pick a page" when pages exist and none is picked — all DIFFERENT facts, deliberately different copy, resolved once in `useExtensionsEmpty` so the LIST and CONTENT panes cannot disagree | the selected page inside the PAGE-SCALE plugin shell: a pinned band (plugin name · glyph · "Extension" kicker, no opt-out — plugin-ui-plane §9) above the scrollable DSL body | `{kind:"none"}` — a plugin page owns its whole CONTENT region and draws no host inspector; the context panel is host grammar |
+| Extensions | the PAGE SWITCHER: one plugin-labelled row per registered `ui.page` surface across the caller's granted-and-enabled plugins (title + the plugin's name as subtitle AND accessible-name disambiguator) — the per-plugin fan happens here, never in the rail | the teaching empty, which names WHICH emptiness (#924 — nothing installed · installed and awaiting your consent · granted but switched off · running with no page), each arm with its own next step and its own config anchor; or "pick a page" when pages exist and none is picked — all DIFFERENT facts, deliberately different copy, resolved once in `useExtensionsEmpty` so the LIST and CONTENT panes cannot disagree | the selected page inside the PAGE-SCALE plugin shell: a pinned band (plugin name · glyph · "Extension" kicker, no opt-out) above the scrollable DSL body | `{kind:"none"}` — a plugin page owns its whole CONTENT region and draws no host inspector; the context panel is host grammar |
 | Databank | document rows (name · phase chip when NOT ready · origin/size/chunks) + search; band = DATABANK · count · Add · a maintenance kebab (owner-wide reindex / re-extract) | teaching state | the document detail (Details · Maintenance · the source-text reveal) | the activation panel: Everywhere · Active in · the retrieval-knobs pointer |
 | Presets | preset rows + CRUD toolbar | teaching state | tabbed editor (Sampling · Output · Quality · Reasoning · Templates · Post-process · Compaction · Prompt) | usage/bindings (default-collapsed) |
 | Corpus | the search omnibox + target picker + results (default-docked, amended 2026-07-13) | overview home (coverage · insights · keywords) | selected character's dossier | corpus-global analysis tabs (Archetypes/Visuals/Map/Similarity/Compare) |
@@ -317,7 +317,7 @@ Per-section grid (end-state; the D62 program builds toward it):
 
 #### 4.3 Interaction & visual grammar — the ten UX rules (ledger D62)
 
-Testable law; enforcement tiering per gate lives in `UI-Gates-and-Lessons.md` §8 + `history/design-enforcement.md`. When a build instinct conflicts with a rule, the rule wins.
+Testable law; enforcement tiering per gate lives in `UI-Gates-and-Lessons.md` §8. When a build instinct conflicts with a rule, the rule wins.
 
 1. **No dead ends.** Every reachable state renders ≥1 enabled next-step affordance (empty teaches, error retries, draft offers a character).
 2. **Character-first entry.** Every "new chat" affordance goes through choosing/confirming a character; a characterless draft is an explicit "Blank chat" pick, never the default.
@@ -426,20 +426,10 @@ The tab title still tracks the active entity even with the URL pinned to `/`: re
 
 #### 6.1 TanStack — keep, with discipline
 
-> **`QueryClient` defaults (born-compliant — from the full-docs mine, `../architecture/history/UI-Lib-TanStack-Query.md`):** `staleTime: Infinity` (the SSE bus drives freshness — **NOT `'static'`**, which silently ignores `invalidateQueries`) · `gcTime: 5*60_000` · `refetchOnWindowFocus: false` (bus owns liveness) · **`refetchOnReconnect: true`** (SSE-gap catch-up — disabling it is the actual bug) · `refetchOnMount: true` · `networkMode: 'online'` · `structuralSharing: true` · `throwOnError: false` (the `<QueryBoundary>` opts in per-tree) · mutations `retry: 0` · global error toasts via `QueryCache`/`MutationCache` `onError` keyed off `meta`. **Gate-boundary note (as built):** cache surgery is gated by `client-cache-surgery-only-in-data`, whose scanRoot exempts `data/` wholesale — the legitimate `setQueryData` inside `createEntityMutation.onMutate` (`data/create-entity-mutation.ts`) cannot trip it; stream-store writes are separately gated by `chat-stream-writes-in-bus-only`. Adopt `skipToken` (kills the `castId<X>("")` sentinel). The `@tanstack/eslint-plugin-query` discipline rules are LIVE in `eslint.config.js` (dormant until client Query code lands).
->
-> **Reference companions** (`history/`, re-homed 2026-07-09 — full-read examples + deep-docs mines; the distilled verdicts are already folded into the cited spec sections, so these are evidence/provenance, not extra law):
->
-> | Companion | Fed into |
-> | - | - |
-> | `../architecture/history/UI-Lib-TanStack-Query.md` | the QueryClient defaults (above) · `createEntityMutation` · `createCollectionSurface` · `<QueryBoundary>` · §13 |
-> | `../architecture/history/UI-Lib-TanStack-Form.md` | the editor-factory six-obligation contract (§13.4) · confirms Form is React-Compiler-clean |
-> | `../architecture/history/UI-Lib-TanStack-Router.md` | the Router verdict + traps (below) |
-> | `../architecture/history/UI-Lib-TanStack-Virtual.md` | the D54 "keep TanStack Virtual" reversal (§11.8) |
-> | `../architecture/history/UI-Lib-Zustand.md` | the §5/§13.1 store conventions (frozen `EMPTY` + `useShallow`; `persist` partialize/migrate) |
+> **`QueryClient` defaults (born-compliant — from the full-docs mine):** `staleTime: Infinity` (the SSE bus drives freshness — **NOT `'static'`**, which silently ignores `invalidateQueries`) · `gcTime: 5*60_000` · `refetchOnWindowFocus: false` (bus owns liveness) · **`refetchOnReconnect: true`** (SSE-gap catch-up — disabling it is the actual bug) · `refetchOnMount: true` · `networkMode: 'online'` · `structuralSharing: true` · `throwOnError: false` (the `<QueryBoundary>` opts in per-tree) · mutations `retry: 0` · global error toasts via `QueryCache`/`MutationCache` `onError` keyed off `meta`. **Gate-boundary note (as built):** cache surgery is gated by `client-cache-surgery-only-in-data`, whose scanRoot exempts `data/` wholesale — the legitimate `setQueryData` inside `createEntityMutation.onMutate` (`data/create-entity-mutation.ts`) cannot trip it; stream-store writes are separately gated by `chat-stream-writes-in-bus-only`. Adopt `skipToken` (kills the `castId<X>("")` sentinel). The `@tanstack/eslint-plugin-query` discipline rules are LIVE in `eslint.config.js` (dormant until client Query code lands).
 
 - **Query / Form / Virtual: keep** (load-bearing; dropping = reinventing worse).
-- **Router: use it MINIMALLY** — the single-route shell means 2 routes (`/`, `/login`), BUILT hand-written in `packages/client/src/routes/`; admin is a group inside the Settings SECTION at `/`, not a standalone route. The file-based codegen plugin is DROPPED — **type-safety survives dropping it** (inference + one `declare module { Register }`, not codegen; `UI-Lib-TanStack-Router.md`). Two real traps: (1) `useBlocker` will NOT fire on the in-app editor pane-switch (a reducer state change, not a navigation) → the editor dirty-guard is **hand-rolled in-app**; (2) the router's built-in View Transitions fire only on the real URL commit (`/`↔`/login`), never on in-app section switches (same URL) → §4a's hand-rolled VT covers the in-app case. Steal-list: router-context DI (forward `queryClient`/`trpc`), `beforeLoad`+`redirect` auth gate, `lazyRouteComponent` for any heavy route added later, `createMemoryHistory` in tests, DEV-gated devtools.
+- **Router: use it MINIMALLY** — the single-route shell means 2 routes (`/`, `/login`), BUILT hand-written in `packages/client/src/routes/`; admin is a group inside the Settings SECTION at `/`, not a standalone route. The file-based codegen plugin is DROPPED — **type-safety survives dropping it** (inference + one `declare module { Register }`, not codegen). Two real traps: (1) `useBlocker` will NOT fire on the in-app editor pane-switch (a reducer state change, not a navigation) → the editor dirty-guard is **hand-rolled in-app**; (2) the router's built-in View Transitions fire only on the real URL commit (`/`↔`/login`), never on in-app section switches (same URL) → §4a's hand-rolled VT covers the in-app case. Steal-list: router-context DI (forward `queryClient`/`trpc`), `beforeLoad`+`redirect` auth gate, `lazyRouteComponent` for any heavy route added later, `createMemoryHistory` in tests, DEV-gated devtools.
 - **Form threshold rule (CORRECTED — D54; "entity editors" was under-scoped):** a **form factory** (§13) is the home for **ANY multi-field form** — trigger = **≥3 fields OR validation OR save/draft semantics**, NOT "is it an entity." Covers settings panels, connection/credential add+edit, group-chat config, room overrides, the D44 theme editor, user-admin create/edit. Only genuinely trivial inputs stay plain controlled + the same Zod schema (a 1–2-field search box, a lone toggle, a single rename). Full surface→factory map: §13.4. RHF stays banned (Compiler-incompatible; never coming back).
 
 #### 6.2 Tests

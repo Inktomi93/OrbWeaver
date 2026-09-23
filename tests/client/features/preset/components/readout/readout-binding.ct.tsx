@@ -1,5 +1,5 @@
-// CT: the readout's D8 CHAT BINDING + the Actions RESOLVED PREVIEW (preset-surface-redesign §7.1, owner
-// ruling 08-02). Three arms, one component:
+// CT: the readout's D8 CHAT BINDING + the Actions RESOLVED PREVIEW (owner
+// ruling). Three arms, one component:
 //
 //   BOUND     — a chat is open, so the readout AUTO-BINDS to it (no click, no opt-in), names it, and the
 //               Actions panel resolves the selected template through the ONE `previewActionTemplates` read.

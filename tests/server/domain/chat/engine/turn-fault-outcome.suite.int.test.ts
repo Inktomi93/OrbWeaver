@@ -1,6 +1,6 @@
 // engine/engine — THE FAULT ROW in the wire-outcome ring (`/api/_debug/wire/outcomes`).
 //
-// THE DEFECT THIS PINS (docs/design/streaming-shape-churn.md §7.5, reproduced 3/3 on a live stack): a
+// THE DEFECT THIS PINS (reproduced 3/3 on a live stack): a
 // 110-second agent-sdk turn ended `terminalReason:"api_error"`, logged loudly to pino — and the outcome ring
 // read `{"count":0}`. `recordTurnOutcome` had exactly ONE call site, AFTER `runTurnPipeline` resolves, so a
 // turn that THREW could not leave a row by construction. The one case a reader actually hunts was the one

@@ -1,5 +1,5 @@
-// C5 — the OWNER-GLOBAL ADMISSION MATRIX: which rules `substrate/validate.ts` lets onto the chat-less lane
-// (interaction-direction-spec §3-S3 + §7 C5). The schema was born for this (`automation_rules.chat_id`
+// C5 — the OWNER-GLOBAL ADMISSION MATRIX: which rules `substrate/validate.ts` lets onto the chat-less lane.
+// The schema was born for this (`automation_rules.chat_id`
 // nullable since the D46 baseline); what landed with C5 is the verb wall coming down, and the matrix is the
 // wall that replaced it — a rule that could only ever fail is never STORED (the D146-b posture applied to
 // scope).

@@ -1,4 +1,4 @@
-// CT: chat's "Temp chat" HOME tile (home-section-spec §5). Driven through the REAL `HomeSurface` over the
+// CT: chat's "Temp chat" HOME tile. Driven through the REAL `HomeSurface` over the
 // REAL data layer, so the per-tile QueryBoundary, the settings read, the mutation seam, and the topbar
 // badge are all the shipped ones.
 //

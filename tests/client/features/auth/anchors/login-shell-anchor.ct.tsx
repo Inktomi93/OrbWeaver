@@ -1,5 +1,5 @@
-// CT: the login SCENE (anchors/login-shell-anchor.tsx + the web backdrop — docs/design/
-// login-loading-screen.md §3/§9.8). The §0 container-model law made flesh: the same anchored scene
+// CT: the login SCENE (anchors/login-shell-anchor.tsx + the web backdrop).
+// The §0 container-model law made flesh: the same anchored scene
 // is proven at a PHONE-width container (390px — the class of defect a wide-viewport CT structurally
 // cannot see) AND at desktop width. What it pins:
 //   • the card + wordmark render inside the container with NO horizontal overflow at 390px;

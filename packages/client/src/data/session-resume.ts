@@ -1,4 +1,4 @@
-// The OIDC re-auth RESUME SNAPSHOT (staleness-and-session-freshness.md §4.4.2, owner fork F3 — redirect
+// The OIDC re-auth RESUME SNAPSHOT (owner ruling: redirect
 // bounce + resume snapshot, not a `prompt=none` iframe).
 //
 // Rung 1 for an `oidc` deployment is a full-page navigation to the IdP and back. Authentik holding a live

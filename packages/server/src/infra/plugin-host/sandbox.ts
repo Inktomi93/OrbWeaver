@@ -345,14 +345,14 @@ export class Sandbox implements Disposable {
     return this.state.events;
   }
 
-  /** The PRIVATE plugin-event subscriptions `main.js` collected at activation (plugin-ui-plane §5a) — the domain
+  /** The PRIVATE plugin-event subscriptions `main.js` collected at activation — the domain
    *  wires each onto the INSTALLER-scoped resident plugin-event bus (delivery + unregister), never the automation
    *  fan-out. The guest handler handles live in `handlers` (disposed at teardown alongside every other handler). */
   get collectedPubsub(): readonly PluginPubsubSubscription[] {
     return this.state.pubsub;
   }
 
-  /** The UI surfaces `main.js` registered at activation (plugin-ui-plane #679 U1) — read directly by
+  /** The UI surfaces `main.js` registered at activation — read directly by
    *  `plugin.listSurfaces`; each surface's `onAction` handle lives in `handlers` (disposed at teardown alongside
    *  tool/transform/event handlers). No external registrar: a surface is instance-resident data, not a process
    *  registry entry. */
@@ -360,7 +360,7 @@ export class Sandbox implements Disposable {
     return this.state.surfaces;
   }
 
-  /** The UI COMMANDS `main.js` registered at activation (plugin-ui-plane #679 U5) — read directly by
+  /** The UI COMMANDS `main.js` registered at activation — read directly by
    *  `plugin.listCommands` (which the `/plugin` dispatcher and the Plugins chrome menu both fan off); each
    *  command's `onRun` handle lives in `handlers` (disposed at teardown alongside every other resident handler).
    *  No external registrar, for the same reason a surface has none: a command is instance-resident data. */
@@ -368,14 +368,14 @@ export class Sandbox implements Disposable {
     return this.state.commands;
   }
 
-  /** The DISPLAY transforms `main.js` registered at activation (plugin-ui-plane seam 14) — read directly by the
+  /** The DISPLAY transforms `main.js` registered at activation (seam 14) — read directly by the
    *  display round-trip verb, like `collectedSurfaces`; each `apply` handle lives in `handlers`. No external
    *  registrar: a display transform is instance-resident data, not a process registry entry. */
   get collectedDisplayTransforms(): readonly PluginDisplayTransformRegistration[] {
     return this.state.displayTransforms;
   }
 
-  /** The macros `main.js` registered at activation (plugin-ui-plane §5.15) — the domain namespaces each name
+  /** The macros `main.js` registered at activation — the domain namespaces each name
    *  and re-enters its `resolve` handle once per turn. Names here are GUEST-LOCAL (un-namespaced): infra holds
    *  no manifest slug and never invents one. */
   get collectedMacros(): readonly PluginMacroRegistration[] {

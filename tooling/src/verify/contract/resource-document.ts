@@ -1,5 +1,5 @@
 // The living-document corpus and the NAMED registries — the two doors of the documents/ledgers family
-// (`resource-gate-access-patterns.md` §5).
+// (the ResourceHost access-pattern ruling §5).
 //
 // TWO DOORS BECAUSE THE TWO SUBJECTS FAIL DIFFERENTLY. `documents()` is a CORPUS: its subject is every
 // living Markdown document, and one unreadable member is a row inside the fact rather than a reason to
@@ -88,8 +88,9 @@ export type LedgerDefinition =
   | { readonly nature: "markdown"; readonly paths: readonly string[] }
   | { readonly nature: "markdown"; readonly tree: string; readonly member: RegExp };
 
-/** An ADR file name, `NNNN-<slug>.md`; the number is the decision's D id. */
-const ADR_FILE_RE = /^(\d{4,})-[a-z0-9]+(?:-[a-z0-9]+)*\.md$/u;
+/** A numbered doc file name, `NNNN-<slug>.md`, as `pnpm doc` mints it: the number is an ADR's D id or a
+ *  work item's id. A tree's generated `README.md` index is not a member. */
+const NUMBERED_DOC_RE = /^(\d{4,})-[a-z0-9]+(?:-[a-z0-9]+)*\.md$/u;
 
 /** Closed ledger identities. `nature` selects the member grammar, which is what makes the per-id fact type
  *  narrow without putting any consumer's ROW SCHEMA in this contract (the same line `resource-json.ts`
@@ -97,12 +98,15 @@ const ADR_FILE_RE = /^(\d{4,})-[a-z0-9]+(?:-[a-z0-9]+)*\.md$/u;
 export const LEDGER_DEFINITIONS = {
   /** The D-ledger: one decision per `docs/adr/NNNN-<slug>.md`, its id the file number.
    *  `d-citation-integrity` adjudicates every `D<n>` cite against the file names. */
-  "d-ledger": { nature: "markdown", tree: "docs/adr", member: ADR_FILE_RE },
+  "d-ledger": { nature: "markdown", tree: "docs/adr", member: NUMBERED_DOC_RE },
+  /** The work items: one per `docs/work/NNNN-<slug>.md`, its id the file number. `warning-workitem-liveness`
+   *  holds every warning policy's `workItem` against the item's state. */
+  "work-items": { nature: "markdown", tree: "docs/work", member: NUMBERED_DOC_RE },
   /** The PD registry, ACTIVE and CLEARED halves — one identity because a PD id is active XOR cleared, and
    *  reading half of it is how a live id reads as an orphan cite (`gates/pd-citation-integrity.ts:15-19`). */
   "core-audits-debt": {
     nature: "markdown",
-    paths: ["docs/law/Core-Audits-and-Debt.md", "docs/architecture/history/Core-Debt-Cleared-Ledger.md"],
+    paths: ["docs/law/Core-Audits-and-Debt.md", "docs/law/Core-Debt-Cleared-Ledger.md"],
   },
   /** The enforcement roster `enforcement-registry-parity` reconciles the descriptor corpus against. */
   "gate-enforcement-roster": { nature: "markdown", paths: ["docs/law/Core-Enforcement-Active-Gates.md"] },

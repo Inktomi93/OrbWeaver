@@ -1,4 +1,4 @@
-// CT: the Settings SEARCH (config-revamp-design.md §3.3/§6.4, #866 S2) — the typed-`@` search riding the
+// CT: the Settings SEARCH (#866 S2) — the typed-`@` search riding the
 // LIST scroller's top, over the REAL door registries (`ConfigHostStory`). Drives the production seam: the
 // static index (groups · sections · leaves), the DYNAMIC member rows (a collection's members through its own
 // `useSearchRows` fiber), the token menu, the narrowing, the marked hits, and the JUMP — a selected hit

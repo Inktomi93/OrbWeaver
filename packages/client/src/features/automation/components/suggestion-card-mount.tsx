@@ -1,4 +1,4 @@
-// S4 — THE SUGGESTION CARD SOURCE (interaction-direction-spec §3-S4 + §3-S1): automation's control source
+// S4 — THE SUGGESTION CARD SOURCE: automation's control source
 // for chat's one above-composer band. It is the FIRST client consumer the automation bus has ever had.
 //
 // It imports NO chat module and chat imports none of it — the §6c residency rule. Chat owns the MOUNT, the

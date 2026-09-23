@@ -1,4 +1,4 @@
-// §4 #16 — THE NEEDLE'S METER: the room-facing half of the needle preset (interaction-direction-spec §4 row
+// §4 #16 — THE NEEDLE'S METER: the room-facing half of the needle preset (row
 // 16 + §8's F6 exception). The preset's analysis pass scores the scene's tension into ONE chat variable; this
 // renders that score as a dial beside the transcript.
 //

@@ -4280,7 +4280,7 @@ test("a fine pointer keeps the band's satellites and the owning rail's FULL kick
   await expect(component.locator('[data-slot="context-rail-selection"]')).toBeVisible();
 });
 
-// ── The per-actor TRACKER-EXCEPTIONS editor (host grants/revokes, tracked-field-unification §5.1) ──────────
+// ── The per-actor TRACKER-EXCEPTIONS editor (host grants/revokes) ──────────
 // `sheet.trackerGrants`/`trackerRevokes` gate per-actor tracker applicability server-side and were stored,
 // gated + optimistically merged with NO client editor — so the owner's explicit-list-only ruling was a DEAD
 // LETTER (a host could not author the list). The host editor lives in the Status character takeover. These

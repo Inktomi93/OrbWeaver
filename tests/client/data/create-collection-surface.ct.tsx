@@ -1,5 +1,5 @@
-// createCollectionSurface CT — the sliding-window infinite list machine (UI-Lib-TanStack-Query.md
-// §4/§F) exercised against a REAL `trpc.notifications.list.infiniteQueryOptions(...)` call (the
+// createCollectionSurface CT — the sliding-window infinite list machine
+// exercised against a REAL `trpc.notifications.list.infiniteQueryOptions(...)` call (the
 // only router procedure shaped for cursor pagination — a hand-mock queryFn would hide the exact
 // key-type mismatch the TKey/TError fix (data/create-collection-surface.ts header) pins). Two
 // properties: the tail-fetch guard (`hasNextPage && !isFetching`) actually calls `fetchNextPage`

@@ -7,7 +7,7 @@
 // hands `chat.startChat`). It is an INTENT, not state a room carries: once the row exists there is nothing
 // left to stage, which is why nothing here mirrors a draft config any more.
 //
-// THE HUSK SEAM (chat-creation-draft-mode-replacement.md §4.6 / fork F3). A room is real from the creation
+// THE HUSK SEAM (D166). A room is real from the creation
 // click, so a user who starts one and immediately leaves has minted a row nobody claimed. `enterCreatedChat`
 // remembers exactly one such room; leaving it fires `subscribeHuskAbandoned`'s listeners with its id, and the
 // `#data` reaper turns that into a best-effort `chat.reapHusk`. THE STORE STAYS tRPC-FREE — it publishes a
@@ -169,7 +169,7 @@ export function goToLanding(): void {
  * `selectChat` alone makes the room active in a section the reader is not looking at, so the two callers
  * both spelled `selectChat(id); setActiveSection("chats")` — the same two-line intent written twice, which
  * is how one of them comes to skip the section change. One intent, one name, one home; the WORD is the
- * product's (`docs/design/vocabulary-map.md` — resume = re-enter the room you were already in, as opposed
+ * product's (`docs/law/vocabulary-map.md` — resume = re-enter the room you were already in, as opposed
  * to start, which mints one).
  */
 export function resumeChat(chatId: ChatId): void {

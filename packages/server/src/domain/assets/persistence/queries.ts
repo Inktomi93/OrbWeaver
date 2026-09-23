@@ -112,7 +112,7 @@ export async function metadataForOwnerAndHash(db: Db, ownerId: UserId, hash: str
 export async function storeBlob(db: Db, cas: Cas, input: StoreBlobInput): Promise<StoredAsset> {
   if (input.enforceMagic) {
     // The byte-signature belt now covers documents (pdf/zip/text) alongside images — dispatch on the claimed
-    // mime family (databank-design/02 §6). Throws on any mismatch before the CAS write.
+    // mime family. Throws on any mismatch before the CAS write.
     assertMagicMatches(input.bytes, input.mime);
   }
 

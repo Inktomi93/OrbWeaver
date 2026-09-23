@@ -2,7 +2,7 @@
 // arm the connection's api reads. The caller hands over a history array and its tools as definitions plus an
 // execute callback; how those reach a backend — Agent SDK seed frames, a prompt and an MCP server, or a
 // `tools[]` array on a history wire — is decided here and in the backend's own projection, never by the caller
-// (`docs/design/inference-tool-delivery.md`). `ChatRequest` and every backend are unchanged: this sits in front
+// (D177). `ChatRequest` and every backend are unchanged: this sits in front
 // of them.
 
 import type { ChatApi } from "@orb/contracts/inference";

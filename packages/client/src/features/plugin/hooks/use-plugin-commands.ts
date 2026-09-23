@@ -1,4 +1,4 @@
-// The COMMAND read + the ONE runner both consuming surfaces share (plugin-ui-plane #679 U5, §4.5): the
+// The COMMAND read + the ONE runner both consuming surfaces share: the
 // `/plugin` composer dispatch and the "Plugins" chrome menu.
 //
 // TWO SURFACES, ONE RUNNER — deliberately. The menu item and the slash line must do the identical thing

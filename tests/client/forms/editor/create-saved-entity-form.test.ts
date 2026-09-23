@@ -1,4 +1,4 @@
-// The version-locked `dontUpdateMeta` guard (UI-Lib-TanStack-Form.md §C footgun #3): the flag is
+// The version-locked `dontUpdateMeta` guard: the flag is
 // TYPED but appears in ZERO docs, and the library ships type changes as patch semver — so the
 // saved-form factory's `promote()` rides this pinned behavioral test. If an upgrade renames or
 // breaks the flag, THIS goes red before any editor silently starts flagging pristine forms dirty.

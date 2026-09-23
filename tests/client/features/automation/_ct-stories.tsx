@@ -90,7 +90,7 @@ export function RulesInThisChatTabStory({ chatId, isHost = true }: { readonly ch
   );
 }
 
-/** The Automation group's two contributed sections (config-revamp-design.md §6.8), assembled as at the
+/** The Automation group's two contributed sections, assembled as at the
  *  door and rendered through the config host's OWN resolver (`CtConfigGroupBody`). */
 const automationSections: ReturnType<typeof createContributorRegistry<ConfigSectionContribution>> = createContributorRegistry<ConfigSectionContribution>(
   "config-sections",

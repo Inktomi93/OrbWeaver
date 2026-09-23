@@ -77,7 +77,7 @@ export const characters = sqliteTable(
     // global selected theme). Mirrors `trustHtml`'s tri-state-override shape, but the "value" here is a
     // JSON blob, not a boolean. Resolution (`character override > global selected theme > default`) is a
     // CLIENT-side `<ThemeScope>` NESTING concern (scoped CSS custom properties cascade) — this column
-    // carries only the RAW override; chat assembly threads it through unmerged (themes-design.md §1: zero
+    // carries only the RAW override; chat assembly threads it through unmerged (zero
     // cross-feature `themes`-table read from chat).
     themeOverride: text("theme_override", { mode: "json" }).$type<ThemeOverride>(),
     // BG-C §12.1 twin of `theme_override` — the per-character carried BACKGROUND source (nullable JSON blob:

@@ -1,5 +1,4 @@
-// The Extensions section's CONTENT pane — the selected `ui.page` surface inside the PAGE-SCALE SHELL
-// (plugin-ui-plane #679 U5, §4.5b/§9).
+// The Extensions section's CONTENT pane — the selected `ui.page` surface inside the PAGE-SCALE SHELL.
 //
 // THE BAND IS NOT DECORATION. §9 names a full page the biggest impersonation canvas in this design: a page can
 // draw a convincing fake settings screen entirely out of house primitives, because house primitives are exactly

@@ -1,4 +1,4 @@
-// Gate: no-off-token-inline-style (design-enforcement.md §3) — the inline/imperative arm the
+// Gate: no-off-token-inline-style — the inline/imperative arm the
 // className + CSS gates can't see: a token-backed CSS property written straight onto an element via a
 // JSX `style={{...}}` literal or an imperative `.style`/`setProperty` call bypasses both. A RATCHET —
 // currently EMPTY drift surface (class lane + CSS are 100% on-token); catches the first future
@@ -37,7 +37,7 @@ import { unwrapExpression } from "../lib/ast-read.ts";
 import { readMemberAccess, readNumericConstant, readStringConstant } from "../lib/symbol-reference.ts";
 
 const MESSAGE =
-  "off-token raw-literal inline style (design-enforcement.md §3) — a token-backed CSS property " +
+  "off-token raw-literal inline style (tokens: packages/ui/src/tokens/tokens.json) — a token-backed CSS property " +
   "(radius/shadow/color/background/motion/spacing) written as a raw literal in a JSX `style={{…}}` or an " +
   "imperative `.style`/`setProperty` bypasses the className + CSS token gates: use a Tailwind token " +
   "utility, or (if inline is required) reference a `var(--…)` token, per tokens.json.";

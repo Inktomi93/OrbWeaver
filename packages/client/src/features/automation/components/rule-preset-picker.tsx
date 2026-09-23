@@ -1,4 +1,4 @@
-// B2 — the RULE preset PICKER (interaction-direction-spec §7 B2 deliverable 2). An inline popover that
+// B2 — the RULE preset PICKER (B2 deliverable 2). An inline popover that
 // lists the committed rule presets (`automation.listRulePresets`) and mints one into the chat via
 // `automation.createRuleFromPreset`. v1 knob-edit is RE-MINT (no post-mint editing), so the flow is
 // pick → set knobs → add; a minted rule is born DISABLED and appears in the list beside hand-authored ones.

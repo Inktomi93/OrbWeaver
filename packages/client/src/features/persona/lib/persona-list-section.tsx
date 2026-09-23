@@ -1,4 +1,4 @@
-// The persona LIST config-section CONTRIBUTION (config-revamp-design.md §6.8.2) — the `your-personas`
+// The persona LIST config-section CONTRIBUTION — the `your-personas`
 // section of the Personas group: the same list the rail popover and the You sheet render, anchored for the
 // LIST, the spy and the search. No `owns` claim: the list drives the persona verbs and the `seeds` identity
 // pointers (Set current / Set default) — the "CRUD surface like personas" exemption the partition header

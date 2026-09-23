@@ -1,4 +1,4 @@
-// The opaque rpg-pointer WRITE op (rpg-design/05 §3.1): merge the healed `metadata.rpg` `{gameId}` sub-blob so
+// The opaque rpg-pointer WRITE op (docs/plans/rpg/design.md): merge the healed `metadata.rpg` `{gameId}` sub-blob so
 // the client's takeover gate is a sync read off `ChatDetail` (chat never dereferences it — the truth is
 // `rpg_games`). Called ONCE by rpg's `createGame`, inside the same logical commit as the game row. STANDALONE +
 // principal-free (rpg gated host authority in createGame): the `getMembership`/`postNarratorMessage`

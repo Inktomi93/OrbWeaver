@@ -1,4 +1,4 @@
-// domain/rpg/tools — the 7 cheap-mode D48 state tool DEFINITIONS (rpg-design/05 §4.5). Registered ONCE at
+// domain/rpg/tools — the 7 cheap-mode D48 state tool DEFINITIONS (docs/plans/rpg/design.md). Registered ONCE at
 // entry/compose into the ONE `toolUse` registry (the imagery precedent, `compose/imagery.ts:163-170`; W1c-b
 // wires it — this wave authors the DEFS + a factory). Each handler CLOSES OVER the `RpgContext` (db + staging
 // accumulator + id mints) and STAGES into the `ChatTurnId` accumulator (W1a's store): resolve the game by

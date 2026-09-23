@@ -1,4 +1,4 @@
-// CT: the Tier-S plugin UI-surface render path (plugin-ui-plane #679 U1, part 3) over the REAL tRPC path with a
+// CT: the Tier-S plugin UI-surface render path (U1, part 3) over the REAL tRPC path with a
 // stubbed network. The surfaces mount INSIDE the plugin row's first-party labelled shell (§4.5/§4.8), driven by
 // `plugin.listSurfaces`; a button round-trips through `plugin.invokeUiAction`; published state arrives via
 // `plugin.getSurfaceState`. The load-bearing assertions:

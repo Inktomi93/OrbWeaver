@@ -2,7 +2,7 @@
 // the read hooks reflect each transition. Same probe posture as shell-store.ct.tsx (the store's read API is
 // hook-only, so a browser render is the way to exercise it).
 //
-// THE LOAD-BEARING SEAM is the HUSK publication (chat-creation-draft-mode-replacement.md §4.6, fork F3): a
+// THE LOAD-BEARING SEAM is the HUSK publication (D166): a
 // room this device CREATED and then left, without unsent composer text, is published to
 // `subscribeHuskAbandoned` — which is all the store does. It never calls the verb, never decides husk-ness
 // (the server re-checks `started_at IS NULL`), and never blocks the navigation it publishes during.

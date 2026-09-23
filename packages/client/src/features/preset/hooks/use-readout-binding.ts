@@ -1,4 +1,4 @@
-// The readout's CHAT BINDING state (preset-surface-redesign §7.1 / D8, owner ruling 2026-08-02).
+// The readout's CHAT BINDING state.
 //
 // WHY A BINDING EXISTS AT ALL: the preset editor is chat-independent, so identity macros have no referent
 // here and the honest editor-side answer is the TOKEN view. But identity-macro resolution is CHAT-OWNED

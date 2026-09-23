@@ -1,5 +1,5 @@
 // The modal registry as a React CONTEXT (client-architecture-lockdown.md §6d/§7) — the context/hook/
-// provider trio is the `createRegistryContext` mint (derive-modernization-audit.md §W3, G26); this file
+// provider trio is the `createRegistryContext` mint; this file
 // binds it to the modal vocabulary. Assembled ONCE at the door (main.tsx, G8), read by ModalHost.
 
 import type { Registry } from "#lib";

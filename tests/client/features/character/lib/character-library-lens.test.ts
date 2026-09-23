@@ -97,7 +97,7 @@ test("tagVocabulary: an ACTIVE hidden-on-card tag is pinned back in — known �
   expect(tagVocabulary(library, active).map((tag) => tag.name)).toEqual(["hidden", "used"]);
 });
 
-// ── W5: referential integrity for the persisted filter (staleness-and-session-freshness.md §4.2.2) ──
+// ── W5: referential integrity for the persisted filter (D138) ──
 // The owner's import repro in a pure function: a persisted include-id whose tag is gone matches zero rows
 // under the server's AND-semantics, so it empties the whole library — invisibly, and across every reload.
 

@@ -1,5 +1,5 @@
 // The settings-value path read + structural compare — the ONE derivation "modified" means anywhere in
-// config (config-revamp-design.md §3.4/§7.7): the `@modified` search axis (`use-modified-sections.ts`)
+// config: the `@modified` search axis (`use-modified-sections.ts`)
 // and the per-leaf row chrome (`use-config-leaf.ts`) both read THESE, so a row's stripe and its section's
 // `@modified` badge can never disagree about what counts as a difference. Hoisted from
 // `use-modified-sections.ts` when the row-chrome leg landed (#866, the §3.4 rider) — pure, so `#lib`.

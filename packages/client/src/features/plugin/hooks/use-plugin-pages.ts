@@ -1,4 +1,4 @@
-// The EXTENSIONS section's read (plugin-ui-plane #679 U5, §4.5b): every `page`-anchored surface across the
+// The EXTENSIONS section's read: every `page`-anchored surface across the
 // caller's granted-and-enabled plugins, joined to the plugin's own display name.
 //
 // TWO CACHE-FIRST READS, NOT ONE, and the join is here rather than on the wire: `plugin.listSurfaces` returns

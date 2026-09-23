@@ -1,4 +1,4 @@
-// <TrackBar> CT — the decorative magnitude bar (Context-Panel-Program §3.2 / §4.9). The bar's whole
+// <TrackBar> CT — the decorative magnitude bar. The bar's whole
 // job is: fill WIDTH = value/max, fill COLOR = the D71 track ramp token, and the bar is aria-hidden
 // (the datum is TEXT the consuming block renders — never the bar). Assert the computed width fraction,
 // the resolved ramp token color, and the aria-hidden contract — never a hardcoded px/hex.

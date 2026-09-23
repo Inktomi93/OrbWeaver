@@ -4,7 +4,7 @@ import { parseSpeakerSpans, resolveSegmentAnchor, segmentSnippet } from "@orb/ki
 import { expect, test } from "../../support/fixtures.ts";
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
-// SEGMENT-ANCHORING FITNESS SUITE (interaction-direction-spec §9.2 unknown #2 / B7 "MR3's first task").
+// SEGMENT-ANCHORING FITNESS SUITE (unknown #2 / B7 "MR3's first task").
 //
 // The reactions build (B6/B7) wants to anchor a human/character reaction to ONE speaker's line inside a
 // multi-speaker message — it stores a SEGMENT INDEX (the position of a `parseSpeakerSpans` span) so a

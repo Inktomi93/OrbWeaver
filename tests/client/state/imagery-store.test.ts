@@ -1,4 +1,4 @@
-// The imagery INTENT store (interaction-direction-spec.md §7 B5) — the payload channel THREE shell-level
+// The imagery INTENT store — the payload channel THREE shell-level
 // modals share (imagine · imageDetail · imageEdit). Exercised through the non-hook
 // `__readImageryIntentForTest` snapshot (the reactive readers need a React render — the
 // `steer-recovery-store.test.ts` posture).

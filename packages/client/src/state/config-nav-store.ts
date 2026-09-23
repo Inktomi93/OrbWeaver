@@ -1,4 +1,4 @@
-// The Configuration section's GROUP NAVIGATION (config-revamp-design.md §3.2/§6.2, #866 S1): which group
+// The Configuration section's GROUP NAVIGATION (#866 S1): which group
 // is active, which of its subcategories the scroll-spy has current, and the pending deep-link TARGET the
 // CONTENT host lands. It is the settings shell's `active`/`activeSub` component state re-homed where BOTH
 // panes can read it — the LIST paints the active group expanded with its spy'd row lit, and CONTENT
@@ -65,7 +65,7 @@ let nonce = 0;
 function land(group: ConfigGroupId, sub: string | null, setting: string | null, action: string): void {
   nonce += 1;
   openConfigGroup(group);
-  // A navigation resets the TEACHER's focus (config-revamp-design.md §7.2 keep-last has a group horizon:
+  // A navigation resets the TEACHER's focus (keep-last has a group horizon:
   // a lesson about a row that just left the screen would be a lie). The landed target re-focuses when it
   // names a setting.
   clearConfigFocus();

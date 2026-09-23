@@ -2,7 +2,7 @@
 // makes "did I forget the landing branch" a `tsc` error instead of a runtime surprise. Pins the builders +
 // guards behaviorally.
 //
-// THE `draft` ARM IS GONE (chat-creation-draft-mode-replacement.md §4.1, R1): a chat row exists from the
+// THE `draft` ARM IS GONE (D166): a chat row exists from the
 // creation click, so a rowless "chat that exists only in the composer" is unrepresentable. What replaced it
 // is a SERVER fact (an unclaimed husk), not a client phase — do not re-add an arm here to model it.
 

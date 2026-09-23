@@ -107,8 +107,8 @@ const tracingMiddleware = t.middleware(({ path, type, next }) =>
 // A subscription generator throws after this middleware has returned, so it bypasses this map —
 // subscriptions wrap their source in withSubscriptionErrors instead.
 //
-// IT ALSO LOGS THE UNMAPPED ONES — the other half of the silent-500 (docs/design/streaming-shape-churn.md
-// §7.5). `classifyDomainError` returning null means the throw is NOT a modelled domain outcome, so tRPC
+// IT ALSO LOGS THE UNMAPPED ONES — the other half of the silent-500.
+// `classifyDomainError` returning null means the throw is NOT a modelled domain outcome, so tRPC
 // serialises it as INTERNAL_SERVER_ERROR: a genuine fault. Nothing in the ladder logged that, so a 500 whose
 // cause never happened to log for itself (a DB fault, a bug, a provider error on a path infra did not
 // classify) reached the browser with ZERO server-side trace. Now every 500 lands in pino + the log ring +

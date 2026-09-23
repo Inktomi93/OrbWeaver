@@ -1,4 +1,4 @@
-// domain/rpg/tools/dice — the PURE dice-notation roller (rpg-design/05 §4.5). Deterministic: the injected
+// domain/rpg/tools/dice — the PURE dice-notation roller (docs/plans/rpg/design.md). Deterministic: the injected
 // `randomInt` is a scripted queue, so the faces + total pin exactly. Pins: NdM+K parsing, the [0,max)→[1,max]
 // face mapping, the modifier, the default count, and the null on unparseable / out-of-bounds notation.
 

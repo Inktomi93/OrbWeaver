@@ -1,5 +1,5 @@
 // domain/plugin/substrate/ui-host-dispatch — the per-function argument schema + bridge dispatch for every
-// `UI_PROXYABLE_HOST_FUNCTIONS` member (plugin-ui-plane #679 U4, §4.6 / seam 5). The module's runtime contract,
+// `UI_PROXYABLE_HOST_FUNCTIONS` member (U4, §4.6 / seam 5). The module's runtime contract,
 // pinned here:
 //   1. DISPATCH IS EXHAUSTIVE — every proxyable name resolves to an impl (a missing arm would throw a synchronous
 //      "not a function" TypeError, which no valid name may do). This is the runtime shadow of the compile-time

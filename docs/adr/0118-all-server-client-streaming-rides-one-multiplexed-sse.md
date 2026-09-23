@@ -8,18 +8,20 @@ updated: 2026-09-23
 
 ## Context
 
-Not recorded in the ledger row.
+Several features push server events to a tab: chat, notifications, automation and workloads. They can each run a tRPC subscription, or share one connection. tRPC offers two transports for a shared connection: SSE over the existing HTTP mount, or `wsLink` over WebSocket.
 
 ## Decision
 
 (`stream.connect` / `attach` / `detach`, `transport/trpc/routers/stream.ts`); every stream is a ROOM SOURCE at `transport/trpc/stream/sources/<name>.ts`; wire vocabulary (refs, frames, `STREAM_CHANNELS`, `roomKey`) homes in `@orb/contracts/stream`. **Classifications are LAW and runtime-pinned** (`room-sources.test.ts`): `chat` + `notifications` = resumable|lag (durable rewind); `automation` + `workloads` = ephemeral|collapse (a collapse room's replay is newest-per-type, never frame-by-frame; the durable `workloads.progress` COLUMN is the reconnect truth, not the stream). `resumable ⟺ lag` is a pinned equivalence. **Member visibility is PRODUCER-STAMPED** (`memberText` before the durable append, `domain/chat/substrate/member-visibility.ts`, gate `scrubber-home`) — every read seam stateless, fail-closed on undefined. **The resumable ordering barrier is per-CONNECTION** (`announcedFor` measured against `SocketCell.connectionSeq`; `goDark` ownership-checked; predecessor EVICTED at takeover) — per-connection state belongs to the connection EDGE, never the previous teardown (half-open TCP means server death-detection lags the client's reconnect by minutes). Client re-announce = bounded retry then a SURFACED room error (never a silent held room). Presence rides the `connect` RESOLVER edge. The **multi-human guard is a per-ROOM `authorizeAttach` verdict** — `stream.connect` is deliberately `authedProcedure` and can never carry procedure middleware (the PLACEMENT ruling; NO room carries the guard, having taken it off its one instance, the inbox, whose sources address a single human — a future multi-human room refuses at its own attach, never on the socket). Gate `single-stream-transport`: NO `.subscription(` outside `routers/stream.ts`; the exempt list is exactly **`chat.impersonateStream`** (request-scoped, gesture-initiated, teardown IS the cancel — §14 decision 2; revisit only if it becomes concurrent). DELETED procs: `sessions.streamUserEvents`, `rpg.stream`, `notifications.notifications`, `automation.stream`, `workloads.subscribe`. Measured: 1 socket/tab plain AND with a game open; +1 transiently while impersonating.
 
-Spec: [sse-multiplex-spec.md](../history/design/sse-multiplex-spec.md). Security record: the SSE chat fold review (commit `c8bdf92bf`).
+Security record: the SSE chat fold review (commit `c8bdf92bf`).
 
 ## Consequences
 
-Not recorded in the ledger row.
+- The fetch adapter, the Hono mount, cookie auth, the CSRF posture and the Caddy HTTP/2 and HTTP/3 deployment stay unchanged.
+- The transport owns its own lifecycle: the socket cell registry, reconnect, per-room cursors and room classification under `packages/server/src/transport/trpc/stream/`.
+- A silently dead socket stops every room at once. The ping and the client inactivity timeout in `packages/server/src/transport/trpc/trpc.ts` are therefore required.
 
 ## Alternatives rejected
 
-Not recorded in the ledger row.
+- tRPC `wsLink` over WebSocket. It multiplexes natively and would remove most of the cell registry, reconnect and cursor code. It adds a second auth seam at the upgrade and a second deployment concern at the proxy. It also reopens questions the request-scoped model already answers.

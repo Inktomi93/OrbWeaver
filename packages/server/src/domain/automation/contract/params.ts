@@ -78,7 +78,7 @@ export interface UpdateRuleParams extends AutomationActorParams, RuleEditablePar
 
 /** S3 — mint a preset's ordered rule SET into a chat (host-only; each rule through `createRule`). `knobs`
  *  is a PARTIAL override bag; an absent key takes its descriptor default, and an unknown key is refused.
- *  v1 has no post-mint knob edit — the edit path is delete + re-mint (interaction-direction-spec §3-S3). */
+ *  v1 has no post-mint knob edit — the edit path is delete + re-mint. */
 export interface CreateRuleFromPresetParams extends AutomationActorParams {
   /** The room to mint into, or NULL for the owner-GLOBAL lane. It must AGREE with the named preset's own
    *  declared `scope` and the verb refuses a mismatch typed — a preset's rules are written against a scope
@@ -94,7 +94,7 @@ export interface SetRuleEnabledParams extends AutomationActorParams {
   readonly enabled: boolean;
 }
 
-/** RULED F4's per-rule OPT-OUT (interaction-direction-spec row B4): whether a RATE REFUSAL of this rule
+/** RULED F4's per-rule OPT-OUT: whether a RATE REFUSAL of this rule
  *  still offers the host the "run it now?" invitation. A targeted one-column flip, shaped on
  *  {@link SetRuleEnabledParams} rather than folded into the create/update field set — `updateRule` is a PUT
  *  that CLEARS the mint provenance, and a preference toggle must not cost a host their saved-cast lineage. */

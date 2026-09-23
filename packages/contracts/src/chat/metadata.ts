@@ -297,8 +297,8 @@ export interface ChatMetadata {
    *  `{enabled:false, groups:[]}` and `toggleReaction`/the react tool refuse — hidden is not the
    *  mechanism, refused is. */
   reactionsEnabled?: boolean;
-  /** #1742 — the room's regex MASTER — the section's "Run regex in this chat" switch
-   *  (`docs/design/mocks/regex-section/DESIGN.md` §3). Absent ⇒ ON, and that default is why it is not tri-state like its `offerChoices` neighbours:
+  /** #1742 — the room's regex MASTER — the section's "Run regex in this chat" switch.
+   *  Absent ⇒ ON, and that default is why it is not tri-state like its `offerChoices` neighbours:
    *  there is no per-user "do I run regex" default to inherit — the library IS the host's default, and this
    *  key exists only so the debugger can bisect ONE room without disturbing it. `false` drops the whole
    *  host-tier union for this chat (`substrate/regex-tier.ts`); the display leg is untouched by it, because

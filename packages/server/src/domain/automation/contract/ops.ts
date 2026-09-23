@@ -522,7 +522,7 @@ export interface ArmsResult {
  *  single-arm call). */
 export type ArmDispatch = (action: AutomationAction, frame: DispatchFrame, continuation?: readonly AutomationAction[]) => Promise<ArmOutcome>;
 
-// ── S4: the pending-ask store (interaction-direction-spec §3-S4) ─────────────────────────────────────
+// ── S4: the pending-ask store ─────────────────────────────────────
 // Homed BESIDE `DispatchFrame` rather than in its own contract file for one hard reason: the stashed record
 // CONTAINS a frame, and a separate module would make `ops → suggestions → ops` a cycle the import gate reds.
 // It belongs here on the merits too — it is a per-process INJECTED SEAM, exactly like `EnabledRuleIndex` and

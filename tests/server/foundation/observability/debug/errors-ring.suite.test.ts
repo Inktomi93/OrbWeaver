@@ -1,6 +1,6 @@
 // foundation/observability/debug/routes — THE LOG-LEVEL READ FILTER, end to end through a real Hono app.
 //
-// THE DEFECT THIS PINS (docs/design/streaming-shape-churn.md §7.5, reproduced 3/3 on a live stack): a chat
+// THE DEFECT THIS PINS (reproduced 3/3 on a live stack): a chat
 // turn died with an ERROR-level `provider.error` pino line and an HTTP 500, and `/api/_debug/errors`
 // returned `{"errors":[]}`. The WRITE was never missing — pino's multistream fed `logRing` correctly. The
 // READ was structurally dead: `logger.ts` formats the level as its STRING LABEL (`"level":"error"`), and

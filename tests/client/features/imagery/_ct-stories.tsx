@@ -1,4 +1,4 @@
-// CT stories for the imagery flow (interaction-direction-spec.md §7 B5). Each story SEEDS the imagery-store
+// CT stories for the imagery flow. Each story SEEDS the imagery-store
 // (openImagine / openImageDetail / openImageEdit) in an effect, then renders a MINI-HOST that picks the modal
 // body off `useOpenModal()` — the same body-swap the real shell ModalHost does — under CtDataProviders (the
 // query + tRPC providers). So the flow runs through the real store + mutation factories over the routeTrpc-

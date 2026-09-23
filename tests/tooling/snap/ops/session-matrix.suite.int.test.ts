@@ -1,4 +1,4 @@
-// F10 (docs/design/1208-instrument-substrate.md §8/§10.4): the matrix permission is behavioral, not
+// F10: the matrix permission is behavioral, not
 // parse-only. This suite enters through the real Snap cli, boots a daemon session on a non-default loopback
 // base, then runs a scenario matrix as a later session call. Discovery and every cell must inherit that
 // binding; each cell gets a fresh context; the owner page and its storage survive after the cells close.

@@ -78,7 +78,7 @@ test("the default catalog pins the load-bearing content (macros in extraction, p
   expect(DEFAULT_CAPTION_INSTRUCTIONS.face_multimodal).toContain("Begin with: close up facial portrait,");
 });
 
-// ── IC-C mints (imagery-design/05 §IC-C) — the /imagine trigger map + the automation action-arm args ──
+// ── IC-C mints — the /imagine trigger map + the automation action-arm args ──
 
 test("MODE_TRIGGERS maps every trigger word onto a real prompt-template mode", () => {
   expect(MODE_TRIGGERS).toEqual({ you: "character", face: "face", scene: "scenario", background: "background" });

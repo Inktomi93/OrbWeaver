@@ -24,10 +24,10 @@ const ANY_CAST_MSG =
   "`X as any` in a test erases the receiving contract, so contract drift cannot fail the fixture. Use a production-derived type/factory, or an exact waiver only when invalid runtime input is the subject (Spine-Testing.md §3).";
 const DOUBLE_CAST_MSG =
   "`X as unknown as Y` double-cast in a test — fabricates a typed value that survives Y gaining/renaming a " +
-  "required field (test-support-dry-punchlist.md W1h). Use a typed factory or narrow the real value.";
+  "required field. Use a typed factory or narrow the real value (Spine-Testing.md §4).";
 const LITERAL_CAST_MSG = (typeText: string): string =>
   `object/array-literal \`as ${typeText}\` in a test — a hand-shaped literal asserted complete survives ` +
-  `${typeText} growing a field (test-support-dry-punchlist.md W1h). Use a typed factory or \`satisfies ${typeText}\`.`;
+  `${typeText} growing a field. Use a typed factory or \`satisfies ${typeText}\` (Spine-Testing.md §4).`;
 const FIX =
   "use a production-derived typed factory (makeY(overrides?)), `satisfies Y`, or an explicit unknown/raw boundary. " +
   "A deliberate invalid-input occurrence waives with `@orb-waive no-test-fabrication(<position>): <why + end condition>` " +

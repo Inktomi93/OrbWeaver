@@ -49,11 +49,11 @@ const STATIC_SUBJECTS = [
   "plugin.getLog",
 ] as const;
 
-test("the coverage, blindness, and #1965 debt owners pass all declared proofs", () => {
+test("the coverage, blindness, and listChatActivity debt owners pass all declared proofs", () => {
   expect(verifyPolicyProofs(POLICIES)).toEqual([]);
 });
 
-test("all 34 production classifications are exact central grants and #1965 remains independently visible", () => {
+test("all 34 production classifications are exact central grants and the listChatActivity debt remains independently visible", () => {
   const grants = reviewedGrantsFor(POLICIES);
   expect(grants).toHaveLength(34);
   expect(grants.map(({ subject }) => subject).toSorted()).toEqual([...STATIC_SUBJECTS].toSorted());

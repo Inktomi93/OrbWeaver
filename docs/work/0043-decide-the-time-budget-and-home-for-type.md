@@ -32,3 +32,10 @@ The ruling is recorded here, and the type-aware pins in item 0042 follow it.
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+Built by lane cb-pins. The runner loads the structure run's own corpus once (`projectCtx`, the
+harness globs) and runs a shared baseline pass over every armed policy. Each pin's overlay then runs against
+that same project. Verify has one compiler world with one lazy type graph, so the runner has the same. The
+first chunk carries 23 `analysis: "types"` pins, 24 of the 47 in all. Measured at 47 pins: a baseline of
+about 46 to 69 seconds, a `types` pin of about 6 to 26 seconds, and 240 to 460 seconds for the whole file.
+The file stays in the `repository` project inside `--full` with per-test budgets.

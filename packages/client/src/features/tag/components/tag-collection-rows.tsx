@@ -28,7 +28,7 @@
 // every payload (`listOwnedTagsWithUsage` returns `usage.total`), so this is a client comparator with zero
 // server cost.
 //
-// ═══ THE SELECT LEFT, THE COMPARATOR STAYED (#1725, DESIGN.md §3.2) ═══════════════════════════════════
+// ═══ THE SELECT LEFT, THE COMPARATOR STAYED (#1725, the mock design §3.2) ═══════════════════════════════════
 // The order CONTROL used to be drawn right here, one line above the rows. Board 02 puts it in the library's
 // control row (`filter · sort · create · overflow`), so it is declared data now — `tagCollection.sort`, drawn
 // by the host, backed by `useTagSortControl`. What could not follow it is the COMPARATOR: sorting runs over
@@ -125,7 +125,7 @@ export function TagCollectionRows({ view }: { readonly view: CollectionListView 
       {empty || !windowed ? null : (
         <VirtualList
           aria-label="Tags"
-          // THE PANE IS THE WINDOW (#1725, DESIGN.md §5.4). This was the shared `max-h-96` cap — a flat 384px
+          // THE PANE IS THE WINDOW (#1725, the mock design §5.4). This was the shared `max-h-96` cap — a flat 384px
           // that existed to stop one library pushing its sibling BANDS below the fold in the LIST's shared
           // scroll column. That column is gone, so the bound is the CONTENT pane's own `overflow-y-auto overscroll-contain` box,
           // reached by flex (`character-library-body.tsx`'s chain): the landing is `min-h-0 flex-1` in the
@@ -169,7 +169,7 @@ export function TagCollectionRows({ view }: { readonly view: CollectionListView 
         </Stack>
       )}
       {/* THE PRUNE CONFIRM, CONTROLLED — the TRIGGER moved to the host's overflow kebab (#1725: it is a
-          `CollectionContribution.actions` entry now, DESIGN.md §3.2 board 02) and the QUESTION stayed here,
+          `CollectionContribution.actions` entry now, the mock design §3.2 board 02) and the QUESTION stayed here,
           because the count and the cascade are the ROWS' knowledge and the host draws its menu blind. The
           `pruneConfirmOpen` store flag is the wire between the two fibers.
           IT STILL CONFIRMS (side-eye 2026-08-03 P2): it was a bare `prune.mutate()` on a ghost button one
@@ -246,7 +246,7 @@ function TagCollectionRow({
       // TRAILING slot — which was invisible in a 307px LIST column and became the defect the moment #1725
       // moved these rows into a 990px CONTENT pane: the name's ink ended at x=86 and its own count started
       // at x=934, an 848px hole, measured 84–86% of every row (side-eye 2026-09-06, run main-1942558, and
-      // 68/81/88% in this file's own width matrix on the pre-fix source). Board 02 and DESIGN.md §3.3 both
+      // 68/81/88% in this file's own width matrix on the pre-fix source). Board 02 and the mock design §3.3 both
       // draw it under the name ("on 12 things"), and every sibling collection row — regex's scent,
       // world-info's `bookScent`, a roster's members, databank, preset — already speaks that anatomy; the
       // tag row was the only one with no subtitle at all.

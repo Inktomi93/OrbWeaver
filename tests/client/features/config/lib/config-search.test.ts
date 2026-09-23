@@ -1,5 +1,5 @@
 // `buildConfigSearchEntries` + `filterConfigEntries` (features/config/lib/config-search.ts) — the Settings
-// search's STATIC index derivation (config-revamp-design.md §3.3/§6.4): group rows · section rows · setting
+// search's STATIC index derivation: group rows · section rows · setting
 // leaves off the ONE nav derivation, `when`-hidden groups contributing NOTHING (search sees exactly what the
 // LIST shows), the navLabel keyword parity (an abbreviation must never hide its section), and the typed
 // `@` filter semantics — including `@modified` over a planted changed key and the `@advanced` flip.

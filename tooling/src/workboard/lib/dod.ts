@@ -1,4 +1,4 @@
-// The Definition-of-Done engine — PURE (#923; docs/design/work-item-dod.md). A row's bar lives in TWO
+// The Definition-of-Done engine — PURE (#923). A row's bar lives in TWO
 // paired places: the command itself in a ```dod fenced block in the ISSUE BODY (GitHub keeps body edit
 // history — the visible trace), and a sha256 stamp of that command in the Project's DoD text field,
 // which only the red-first mint paths write. Both sides must agree before anything executes: an issue

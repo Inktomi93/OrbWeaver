@@ -134,7 +134,7 @@ export const CAPABILITY_COPY_ROWS = [
       "Draws panels and controls the app renders itself, always inside a box labelled with the plugin's name — only for you, and it can't fake the app's own screens.",
   },
   {
-    // THE CONSENT LINE IS VERBATIM FROM plugin-ui-plane §6.2 and is a CONSENT ARTIFACT, not copy to tune. It
+    // THE CONSENT LINE IS VERBATIM FROM THE OWNER-RULED DESIGN and is a CONSENT ARTIFACT, not copy to tune. It
     // names the #124 WebRTC/STUN class as a channel NO POLICY CLOSES, because that is the measured truth
     // (`@orb/kit/card-frame` residual R1: `webrtc 'block'` is unrecognized by Chromium, so it is not emitted).
     // Softening it — "runs in a secure sandbox", "isolated for your safety" — would make this the one row on the

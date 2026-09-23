@@ -1,4 +1,4 @@
-// The per-frame painters (docs/history/design/web-weave-motion-fixes.md §4) — the owner's "glitchy highlights",
+// The per-frame painters — the owner's "glitchy highlights",
 // stated as two invariants a recorded frame must hold:
 //   • ONE ALPHA PER STROKED PATH — canvas applies `globalAlpha` at stroke() time, so accumulating a
 //     multi-segment path while mutating the alpha per segment paints the WHOLE run at the last

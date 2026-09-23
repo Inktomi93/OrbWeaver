@@ -23,3 +23,19 @@ Fixture proof rows prove a policy's logic but not that it reads the real tree. A
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+Chunk 1 (lane cb-pins). The one runner (item 0043's ruling) is
+`tests/tooling/verify/gates/real-corpus-liveness-family.suite.repo.int.test.ts` over
+`tests/support/real-corpus-liveness.ts`; pins are data in `tests/tooling/verify/gates/_liveness/*.ts`. The ten
+earlier pins moved onto it, and the 37 unpinned policies whose population is exactly `@client` gained pins
+(`_liveness/client-app.ts`). All 47 pins pass both directions, and a planted dead control is refused. No
+policy in the chunk was blind on the real tree. `real-corpus-liveness-manifest`: 341 unpinned before, 304
+after (`pnpm check:structure --check real-corpus-liveness-manifest`).
+
+Chunk 2 (lane cb-pins). The 34 unpinned policies whose population is `@client` + `@ui` gained pins in
+`_liveness/frontend.ts`. All pass both directions on the batched runner. The runner gained a `resource`
+overlay for stylesheet and token-vault subjects, carried by the production reader's own overlay, and a
+planted resource control is refused. No policy in the chunk was blind on the real tree.
+`css-family-direct-client-mechanism` has no pin: its only reports are the three recipes the central grant
+table licenses, so no overlay can make it report anything new. Its liveness shows as grant consumption,
+which an arm cannot yet assert. `real-corpus-liveness-manifest`: 305 unpinned before, 271 after.

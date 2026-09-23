@@ -73,7 +73,7 @@ export function resolveRowContent(args: {
   if (args.editing) {
     // No `onSave` override: the edit lands through the committed message-edit verb. The draft-greeting
     // override (`setDraftGreeting`, a client store) died with draft mode — a seeded greeting is real canon
-    // now, so editing one IS a message edit (chat-creation-draft-mode-replacement.md §4.8, R1).
+    // now, so editing one IS a message edit (D166).
     return <MessageEditTextarea message={args.message} />;
   }
   if (args.trainParagraphs !== null) {
@@ -280,7 +280,7 @@ export function renderRowAvatar(args: {
   );
 }
 
-// TWO STRIPS, ONE SLOT (chat-creation-draft-mode-replacement.md §4.8/F6, R3). A row in the GREETING WINDOW
+// TWO STRIPS, ONE SLOT (D166). A row in the GREETING WINDOW
 // pages its character card's alternates (`GreetingSwipeStrip` → `chat.setSeededGreeting`); every other row
 // pages its own generated variants (`SwipeStrip` → selectVariant/swipe). They are different sources, different
 // verbs and different windows, so they are different components — but the same `n / m` + chevrons chrome,

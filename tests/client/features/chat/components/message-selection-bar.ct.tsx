@@ -1,4 +1,4 @@
-// CT: the bulk-message SELECTION bar (ux-flow-revamp J6). Behavior, not chrome: the bar renders ONLY while
+// CT: the bulk-message SELECTION bar. Behavior, not chrome: the bar renders ONLY while
 // the real `message-selection` store's mode is active (null otherwise); the count tracks the live selected
 // set; Delete opens a hard-cascade confirm (AlertDialog, never an undo toast); confirming fires ONE
 // `chat.deleteMessages` with the WHOLE selected id set and, on success, leaves select mode (the bar

@@ -4,6 +4,7 @@ status: open
 updated: 2026-09-23
 priority: P2
 area: server
+plan: demo-seeding
 ---
 
 # Decide whether demo data is generated through real sessions or stays a synthetic pack
@@ -11,7 +12,7 @@ area: server
 ## What
 
 The demo seeder replays committed static transcripts and a hand-written board. It generates nothing.
-`docs/design/demo-seeding-rebuild.md` prices the alternative: build each demo through the real session,
+`docs/plans/demo-seeding/design.md` prices the alternative: build each demo through the real session,
 turn and import verbs. That needs machinery outside the seeder. The owner rules one outcome:
 
 - Real. Generate the demos through the real lifecycle, so derived data and export round trips are real.

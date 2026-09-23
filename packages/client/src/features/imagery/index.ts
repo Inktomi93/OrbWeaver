@@ -1,5 +1,5 @@
 // features/imagery — front door (UI-Arch §2.1), the ONLY entry into the imagery slice (dep-cruiser
-// client-feature-front-door). The chat-facing image surface (interaction-direction-spec.md §7 B5): the
+// client-feature-front-door). The chat-facing image surface: the
 // `/imagine` slash command and the three content-triggered modals — generate (imagine, with the
 // extractPrompt preview), the lightbox detail (provenance + set-as-background), and img2img edit — all
 // assembled at `compose/authed-app.tsx` and opened from chat content via #state actions (the imagery-store),

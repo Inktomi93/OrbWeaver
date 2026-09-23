@@ -107,7 +107,7 @@ describe("updateUserSettingsSection", () => {
     expect(view.config.appearance.elevation).toBe("ramp");
   });
 
-  test("the theme section patches (themes-design.md §3.3 — selectedThemeId round-trip)", async () => {
+  test("the theme section patches (selectedThemeId round-trip)", async () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const u = await seedUser(db, { id: "user_theme" });

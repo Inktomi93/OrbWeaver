@@ -64,7 +64,7 @@ interface NamedRow {
 }
 
 /**
- * THE LABEL POLICY, BY DECLARED KIND (D129(G)) — may a canon row of this purpose take a speaker label at all?
+ * THE LABEL POLICY, BY DECLARED KIND (D217) — may a canon row of this purpose take a speaker label at all?
  * Total over `MessageKind` with an `assertNever` tail (spine §5.5). `undefined` is the SYNTHETIC row (the
  * appended user turn, a nudge — never a canon row) and takes the `standard` answer.
  *

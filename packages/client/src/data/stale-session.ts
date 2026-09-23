@@ -1,4 +1,4 @@
-// The STALE-SESSION RECOVERY LADDER (#23b, extended by staleness-and-session-freshness.md §4.4). A
+// The STALE-SESSION RECOVERY LADDER (#23b). A
 // mid-session UNAUTHORIZED means the cookie the app booted with is no longer valid — revoked/expired, or
 // (the reported case) the user row it pointed at was wiped and the browser is still holding a session for an
 // owner that no longer exists. Route `beforeLoad` guards only run at NAVIGATION, so once the authed shell is

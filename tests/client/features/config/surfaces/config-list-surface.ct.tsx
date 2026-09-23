@@ -314,7 +314,7 @@ test("#1725: opening a 400-member library renders its rows in CONTENT, with the 
   await expect(content.getByRole("button", { name: "New tag" })).toBeVisible();
 });
 
-// THE COUNT GATE DIED WITH ITS PREMISE (#1725; DESIGN.md §3.2). This test asserted the OPPOSITE: a library
+// THE COUNT GATE DIED WITH ITS PREMISE (#1725; the mock design §3.2). This test asserted the OPPOSITE: a library
 // under `COLLECTION_LARGE_GROUP` drew no filter box at all. That was right while three collapsible bands
 // shared ONE list scroll column — 32px of chrome per band was worth spending only past a glance. The library
 // has its own pane now, so the box costs a shelf nothing and a reader who can filter one library can filter
@@ -675,7 +675,7 @@ test("the longest group kicker survives the docked pane's real width — no elli
 // ═══ THE MATRIX MOVED PANES WITH THE ROWS (#1725) ════════════════════════════════════════════════════
 // These four pins measured the regex row anatomy inside a 271px/307px LIST rail, because that is where the
 // rows were. The owner moved them into CONTENT, so those two ceilings stopped applying — retired by
-// DESIGN.md §3.2 ("the 30-member cliff and `COLLECTION_WINDOW_MAX_HEIGHT` existed because three bands shared
+// The mock design §3.2 ("the 30-member cliff and `COLLECTION_WINDOW_MAX_HEIGHT` existed because three bands shared
 // one LIST scroll column, and that column is gone"), which is the same decision that deleted the filter
 // gate. A selector swap would have left the numbers describing a box that no longer holds the rows.
 //

@@ -25,7 +25,7 @@ const REQUIRED_PREFIXES: Record<Exclude<PromptTemplateMode, "free">, string> = {
 /** The composed negative for a generation (doc 02 §5–6): the resolved BASE with the user's per-request
  *  `negative` APPENDED (comma-joined), never replaced — the base is defect-suppression every generation wants.
  *  PROSE-1 census 88: the base is the `imagery.negative.base` slot (marinara's verified lists, deduped to the
- *  generic core — rpg-design/08 §2 carries the game-tuned variants verbatim; cite, don't fork), resolved by the
+ *  generic core — docs/plans/rpg/design.md carries the game-tuned variants verbatim; cite, don't fork), resolved by the
  *  caller off the requesting user's `UserSettings.prose`. Empty overrides ⇒ the shipped bytes. */
 export function composeNegative(base: string, userNegative: string | undefined): string {
   const extra = userNegative?.trim() ?? "";

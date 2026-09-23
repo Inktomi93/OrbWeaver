@@ -1,6 +1,6 @@
 // The Claude-subscription paste step's command (inference program §5.3a: "the paste step carries a copyable
 // `claude setup-token` plus 'run this on the machine you use Claude Code on'"; drawn in
-// `docs/design/mocks/connections/editor.html` Board F). The command is shown as text a user can read or select
+// the connections editor mock, Board F). The command is shown as text a user can read or select
 // by hand AND carries a real button that copies it.
 //
 // THE COPY RESULT IS SPOKEN IN PLACE. A toast is off to the side and gone in seconds; the status line under the

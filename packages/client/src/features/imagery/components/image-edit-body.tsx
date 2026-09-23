@@ -1,4 +1,4 @@
-// The `imageEdit` modal body (interaction-direction-spec.md §7 B5) — img2img over an OWNED asset. The source
+// The `imageEdit` modal body — img2img over an OWNED asset. The source
 // image, an instruction, and Generate → `imagery.editImage` (which does NOT post to chat — that stays
 // `generateImage`). On success the edited image is a fresh owned asset with its own provenance (edited:true),
 // so the modal HANDS OFF to the detail lightbox on that new asset — the loop closes: the host previews the

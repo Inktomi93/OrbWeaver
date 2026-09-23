@@ -1,4 +1,4 @@
-// The Tags config group (config-revamp-design.md §3.1, owner fork F-1: collections are members of the
+// The Tags config group (owner fork F-1: collections are members of the
 // CLOSED `CONFIG_GROUP_IDS` tuple) — the tag library's identity (label · icon · order · the welcome blurb)
 // on the group base, with its `CollectionContribution` (rows · member editor · context · create as DATA)
 // riding the `collection` body arm VERBATIM. Co-located with its owner; the door's total Record names it.

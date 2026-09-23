@@ -25,7 +25,7 @@ const BINARY = new Uint8Array([0xff, 0xfe, 0x00, 0x80, 0xc0]);
 const MISMATCH_RE = /mismatch/iu;
 
 /** The databank service over the harness ctx but with the REAL `assets.store` (real CAS + the enforceMagic
- *  sniff belt) swapped in for the default fake — the ONE seam DBK-A fixes (databank-design/02 §6). */
+ *  sniff belt) swapped in for the default fake — the ONE seam DBK-A fixes. */
 async function withRealAssetsStore(db: Db): Promise<DatabankService> {
   const assetsH = await makeAssetsHarness(db);
   onTestFinished(assetsH.cleanup);

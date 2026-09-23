@@ -376,7 +376,7 @@ describe("resolveVariant — banner ladder (kind:'banner')", () => {
   });
 });
 
-// G2 — the animated bailout (gallery-design §2): an animated source (GIF/APNG/WebP) is served verbatim,
+// G2 — the animated bailout: an animated source (GIF/APNG/WebP) is served verbatim,
 // never downscaled (sharp drops animation), and writes NO variant-cache entry.
 describe("resolveVariant — animated bailout (G2)", () => {
   test("an animated source returns the ORIGINAL bytes and never transforms", async () => {

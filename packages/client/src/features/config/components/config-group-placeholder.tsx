@@ -1,5 +1,5 @@
 // config-group-placeholder — the honest "not built yet" body for a config group whose real surface hasn't
-// landed (the `{ placeholder: true }` body arm; ux-flow-revamp J11's J10 distinct-copy discipline). A thin
+// landed (the `{ placeholder: true }` body arm; the distinct-copy discipline). A thin
 // wrap of @orb/ui's teaching EmptyState with the group's OWN copy (its `description`), so a deferred group
 // reads as "this specific thing isn't built yet", never a generic sparkle. Feature-tier (NOT app-shell's
 // SectionPlaceholder — features can't import app-shell); composed from @orb/ui only. No production group

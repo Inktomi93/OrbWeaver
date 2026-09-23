@@ -334,7 +334,7 @@ export interface AuthSessionsPort {
 }
 
 /**
- * W7a — THE SESSION-DEATH → SOCKET-DEATH EDGE, as a port (staleness-and-session-freshness.md §4.4.3).
+ * W7a — THE SESSION-DEATH → SOCKET-DEATH EDGE, as a port.
  *
  * A socket freezes its Principal at connect and lives for the connection's lifetime, so revoking the cookie
  * behind it changed nothing until the socket happened to die: a signed-out tab kept streaming. Composed HERE,

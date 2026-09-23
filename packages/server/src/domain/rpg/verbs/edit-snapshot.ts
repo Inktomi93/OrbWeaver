@@ -1,4 +1,4 @@
-// domain/rpg/verbs/edit-snapshot — editSnapshot (rpg-design/05 §4.4). The hand-edit door for the swipe-volatile
+// domain/rpg/verbs/edit-snapshot — editSnapshot (docs/plans/rpg/design.md). The hand-edit door for the swipe-volatile
 // plane: host any field; a member their own actor's volatile. Writes the CURRENT resolved snapshot in place
 // (the selected variant — swipe-consistent) via the shared `applyHandEdit` helper, AUTO-LOCKING every field
 // the patch touched (manual-edit-wins — a later model tool write can never overwrite it). The [merge-clear]

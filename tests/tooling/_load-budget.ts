@@ -1,6 +1,6 @@
 // THE VITEST SEAM of the ONE load policy (NOT a test file — no `.test` suffix, so test-layout ignores it,
 // the `_support.ts` precedent). The POLICY itself moved DOWN to `@orb/tooling/_shared/load-budget` on
-// 2026-09-02 (#1232, docs/design/1208-instrument-substrate.md §7.1): the box reading, the factor, the
+// 2026-09-02 (#1232): the box reading, the factor, the
 // wall-clock `budget()`, the rate judgment, the two markers and the kill message are shared with the
 // INSTRUMENTS, the two runner configs and the stack launcher, and a policy that lives under `tests/` can
 // serve none of them. What stays here is exactly what only vitest can use:

@@ -4,7 +4,7 @@
 // band has ONE owner, and a second claimant makes "which one wins" a declaration-order accident at the
 // seam that decides what the panel's head looks like. Arm 8: at most ONE writer of the
 // `data-context-bracket` probe attribute, so a geometry probe can never resolve to two different
-// elements, and a second column composition is exactly the fork #860 ended (hud-home-spec §8).
+// elements, and a second column composition is exactly the fork #860 ended (D119).
 //
 // WHY THESE TWO SPLIT OUT, and it is mechanism rather than taste. They are COUNT arms: the verdict is
 // "how many exist across the whole tree", which cannot compose over an arbitrary selected subset, so they
@@ -56,15 +56,15 @@ interface CountedSite {
 
 const MESSAGE =
   "the CONTEXT pane's head band has more than one writer — a SECOND `defineContextRegion(` call site, or a " +
-  `SECOND writer of the \`${REGION_ATTR}\` probe attribute (UI-Architecture-and-Layout.md, hud-home-spec §8 arms 6 and 8).`;
+  `SECOND writer of the \`${REGION_ATTR}\` probe attribute (UI-Architecture-and-Layout.md, D119 arms 6 and 8).`;
 const SECOND_MINT_MESSAGE =
-  "a SECOND `defineContextRegion(` call site — one CONTEXT pane's head band has ONE owner (hud-home-spec §8 " +
+  "a SECOND `defineContextRegion(` call site — one CONTEXT pane's head band has ONE owner (D119 " +
   "arm 6). A second claimant makes 'which one wins' a declaration-order accident at the seam that decides " +
   "what the panel's head looks like. (tooling/src/verify/gates/GATE-AUTHORING.md)";
 const SECOND_BRACKET_MESSAGE =
   `a SECOND writer of \`${REGION_ATTR}\` — the probe attribute has ONE writer (the context bracket), so a ` +
   "geometry probe can never resolve to two different elements, and a second column composition is exactly " +
-  "the fork #860 ended (hud-home-spec §8 arm 8).";
+  "the fork #860 ended (D119).";
 
 export const gate = defineGate({
   id: "context-definition-shape-health",

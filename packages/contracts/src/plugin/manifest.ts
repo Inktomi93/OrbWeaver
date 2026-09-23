@@ -47,7 +47,7 @@ export const PLUGIN_CAPABILITIES = [
   // own library" band.
   "search.query",
   "notify",
-  "ui.surface", // draw its own house-rendered panels/controls (plugin-ui-plane #679; NOT spend, NOT admin-gated — renders only for the installer)
+  "ui.surface", // draw its own house-rendered panels/controls (NOT spend, NOT admin-gated — renders only for the installer)
   // The U7 ESCAPE HATCH, and the one UI capability that is RISK class: a `frame` surface runs the plugin's OWN
   // interface code inside an isolated (opaque-origin, `default-src 'none'`, no `connect-src`) document. It reaches
   // no session, no storage, no app DOM and no sibling frame — but it CAN beacon out over WebRTC/STUN, which no CSP
@@ -58,7 +58,7 @@ export const PLUGIN_CAPABILITIES = [
   "turn.trigger", // SPEND
   "imagery.generate", // SPEND
   "llm.quiet", // SPEND — a non-canon generation on the installer's own summarize-role connection; writes NOTHING
-  // The two CANON-WRITE-INTO-YOUR-OWN-LIBRARY capabilities (plugin-ui-plane #679 U8, seams 15/17). A scraper
+  // The two CANON-WRITE-INTO-YOUR-OWN-LIBRARY capabilities (U8, seams 15/17). A scraper
   // plugin ingests into the INSTALLER's own databank / character library — owner-scoped by construction (the
   // bridge closes the installer over the write op; a guest can name no other owner), so past the grant the risk
   // is the installing user's own, exactly like `storage.kv`. They are NOT `net.fetch`/`llm.quiet`-class SPEND:
@@ -237,7 +237,7 @@ export type PluginBuiltAgainst = z.infer<typeof pluginBuiltAgainstSchema>;
 export const PLUGIN_MANIFEST_ENTRY = "manifest.json";
 /** The zip's SERVER-guest entry (`manifest.entry`) — one pre-bundled ES script, no module loader. */
 export const PLUGIN_MAIN_ENTRY = "main.js";
-/** The zip's optional CLIENT-guest entry (`manifest.uiEntry`; plugin-ui-plane #679 U4, §4.6) — the Tier-C
+/** The zip's optional CLIENT-guest entry (`manifest.uiEntry` U4, §4.6) — the Tier-C
  *  `ui.js` that runs in the browser QuickJS worker. THREE names is the whole bundle vocabulary, and the three
  *  constants are exported so the zip allow-list, the packer and the schema all derive from ONE home rather than
  *  three "ui.js" literals that can drift apart (the allow-list IS the path-traversal wall: only exact names are
@@ -351,7 +351,7 @@ export const pluginManifestSchema = z
     version: z.string().regex(PLUGIN_SEMVER_RE),
     hostVersion: z.number().int().positive(), // structural major; lifecycle parsing checks the served tuple
     entry: z.literal(PLUGIN_MAIN_ENTRY), // ONE fixed entry file in the bundle (the guest has no module loader)
-    /** The OPTIONAL Tier-C client entry (plugin-ui-plane #679 U4, §4.6). Present ⇒ the bundle carries a third
+    /** The OPTIONAL Tier-C client entry. Present ⇒ the bundle carries a third
      *  zip entry, `ui.js`, which runs in the BROWSER's QuickJS worker for the plugin's `tier:"scripted"`
      *  surfaces. Additive-optional by the 01 §3 host-evolution law: an existing two-entry bundle installs
      *  unchanged, and a guest feature-detects the plane through `grants`, never through this field.
