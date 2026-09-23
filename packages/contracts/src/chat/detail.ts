@@ -137,7 +137,9 @@ export const chatDetailSchema = z.strictObject({
   offerChoices: z.boolean().nullable(),
   charactersCanReact: z.boolean().nullable(),
   reactionsEnabled: z.boolean().nullable(),
+  // Lenient on purpose: strips and heals a stale stored blob so it cannot fail a committed join; no secrets here.
   background: themeBackgroundSchema.nullable(),
+  // Lenient on purpose: strips and heals a stale stored blob so it cannot fail a committed join; no secrets here.
   rpg: chatRpgPointerSchema.nullable(),
   opening: openingPolicySchema.nullable(),
   compactSummary: z.string().nullable(),
