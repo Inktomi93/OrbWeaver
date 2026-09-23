@@ -52,6 +52,7 @@ import { CLIENT_ARMS } from "./_liveness/client.ts";
 import { CLIENT_APP_ARMS } from "./_liveness/client-app.ts";
 import { FRONTEND_ARMS } from "./_liveness/frontend.ts";
 import { SERVER_ARMS } from "./_liveness/server.ts";
+import { SERVER_APP_ARMS } from "./_liveness/server-app.ts";
 import { TESTS_ARMS } from "./_liveness/tests.ts";
 import { TOOLING_ARMS } from "./_liveness/tooling.ts";
 import { TOOLING_AND_AUTHORED_ARMS } from "./_liveness/tooling-and-authored.ts";
@@ -61,6 +62,7 @@ const CHUNKS = {
   clientApp: CLIENT_APP_ARMS,
   frontend: FRONTEND_ARMS,
   server: SERVER_ARMS,
+  serverApp: SERVER_APP_ARMS,
   tests: TESTS_ARMS,
   tooling: TOOLING_ARMS,
   toolingAndAuthored: TOOLING_AND_AUTHORED_ARMS,
