@@ -68,7 +68,9 @@ const SAFETY_MARGIN = 64;
  *  consecutive turns pick the same cut until growth crosses the next boundary. The grid is derived from the rows
  *  and the budget alone, because the fit is stateless. The room excludes the system prompt: its dynamic half
  *  changes per turn, and a chunk that changes size moves every boundary. A module constant, not config: no
- *  user or deployment varies it. */
+ *  user or deployment varies it.
+ * @public Test-anchored module surface; the fit tests bound the extra drop by this chunk.
+ */
 export const HISTORY_TRIM_CHUNK_FRACTION = 0.1;
 
 // The chunk the cut snaps to. Stable per chat: it reads only the ceiling and the output reserve.
