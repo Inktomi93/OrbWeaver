@@ -16,7 +16,7 @@ export type {
   RenderSite,
   SurfaceManifest,
 } from "./contract/baseui.ts";
-export type { CaughtFailurePopulation, CaughtFailureRow, CaughtFailureTotals, CaughtFailureVerdict } from "./contract/caught-failure.ts";
+export type { CaughtFailureJudgment, CaughtFailurePopulation, CaughtFailureRow, CaughtFailureTotals, CaughtFailureVerdict } from "./contract/caught-failure.ts";
 export { CAUGHT_FAILURE_VERDICTS } from "./contract/caught-failure.ts";
 export type { LiveAdmission } from "./contract/debt.ts";
 export type { GateFact, GateFactContext, GateFactHooks, GateFactValue } from "./contract/fact.ts";
@@ -155,7 +155,12 @@ export { LEDGERS, liveAdmitted, readLedgerRows, reconcileLedgers, runDebtWalk } 
 export { runEslint } from "./ops/eslint.ts";
 export { runGateContract } from "./ops/gate-contract.ts";
 export { generateBaseuiSurface } from "./ops/gen/baseui-surface.ts";
-export { deriveCaughtFailurePopulation, generateCaughtFailurePopulation, POPULATION_REL } from "./ops/gen/caught-failure-population.ts";
+export {
+  deriveCaughtFailurePopulation,
+  deriveCaughtFailureSites,
+  generateCaughtFailurePopulation,
+  POPULATION_REL,
+} from "./ops/gen/caught-failure-population.ts";
 export { generateProseBaseline } from "./ops/gen/prose.ts";
 export { deriveReadFirstCosts, generateReadFirstCosts, READ_FIRST_COST_ROW_IDS, READ_FIRST_REL, readFirstCostRowDrift } from "./ops/gen/read-first-costs.ts";
 export { deriveSnapFlagsIndexMarkdown, generateSnapFlagsIndex, SNAP_FLAGS_INDEX_REL } from "./ops/gen/snap-flags-index.ts";

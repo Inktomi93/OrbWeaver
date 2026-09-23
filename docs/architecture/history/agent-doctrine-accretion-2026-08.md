@@ -768,7 +768,7 @@ have not seen its rule yet, READ IT BY PATH before you edit:
   row, or use the gate's own escape marker (line-adjacent, like `biome-ignore`).
 - **The two line-coupled ledgers now RED at `pnpm check`, not at the next whole node run** (#817,
   2026-08-30): the `ledgers:fresh` static stage re-derives
-  `docs/reviews/caught-failure-ownership/population.json` and `docs/test-baseline/manifest.json` and
+  `tooling/src/verify/gates/caught-failure-ownership.population.json` and `docs/test-baseline/manifest.json` and
   names the differing rows plus the regen command. So a lane that adds a TRACKED spec regenerates the
   manifest in its OWN worktree (`git add` the spec first — the derivation reads `git ls-files`), and a
   merge that shifts lines above a caught-failure marker is caught by the merge floor rather than hours

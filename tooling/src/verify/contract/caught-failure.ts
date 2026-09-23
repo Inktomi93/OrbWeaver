@@ -1,8 +1,15 @@
 // The shape of the caught-failure ownership CENSUS (issue #751) — the durable review record at
-// docs/reviews/caught-failure-ownership/population.json. Homed in contract/ because two modules read it:
-// the generator that derives it (ops/gen/caught-failure-population.ts) and the permanent pin that compares
-// the committed file against a fresh derivation. The census is EVIDENCE, not a ledger: no gate reads it and
-// it suppresses nothing.
+// tooling/src/verify/gates/caught-failure-ownership.population.json, beside the policies that read it. Homed in
+// contract/ because three modules read it: the generator that derives it (ops/gen/caught-failure-population.ts),
+// the `ledgers:fresh` comparator, and the permanent pin that compares the committed file against a fresh
+// derivation. The census suppresses nothing: `caught-failure-ownership-health` joins it to the tree on `siteId`
+// (two-sided), and the ordinary waiver engine alone decides what a marker waives.
+//
+// ── THE COMMITTED ROW CARRIES NO COORDINATE (work item 0009) ────────────────────────────────────────────
+// A line number in committed data stales on every insertion above it, and the census file alone was touched
+// by about one commit in eleven for that reason. So the committed row is the JUDGMENT keyed by the move-stable
+// `siteId` ({@link CaughtFailureJudgment}); the coordinates ({@link CaughtFailureRow}) are derived at read
+// time from the shared classifier and never written.
 
 /** How a site's failure is owned TODAY. ONE tuple, so a third verdict is a row here and `tsc` finds every
  *  reader — never an inline re-spelling of the members (Spine-TypeScript-and-Patterns.md §7.5).
@@ -24,26 +31,32 @@ export type CaughtFailureVerdict = (typeof CAUGHT_FAILURE_VERDICTS)[number];
 export const CAUGHT_FAILURE_ARMS = ["default", "empty", "promise"] as const;
 export type CaughtFailureArm = (typeof CAUGHT_FAILURE_ARMS)[number];
 
-export interface CaughtFailureRow {
-  /** Stable across line moves: path + reported position + the nth occurrence of that pair in the file. */
+/** One COMMITTED census row: the judgment a site resolves to, keyed by its move-stable identity. */
+export interface CaughtFailureJudgment {
+  /** Stable across line moves: the path, the enclosing declaration, the reported position and the 1-based
+   *  occurrence of that position within that declaration, joined by `::`. Its one spelling is
+   *  `lib/caught-failure-identity.ts#keyCaughtFailureSites`. */
   readonly siteId: string;
-  readonly path: string;
-  readonly line: number;
-  readonly column: number;
-  /** `promise` | `empty` | `default` — the detector arm (`CaughtFailureArm` above; it moved here from
-   *  lib/caught-failure.ts with #1988). Typed `string` on the committed row, not narrowed: the repo pin
-   *  (tests/tooling/verify/gates/caught-failure-ownership.repo.int.test.ts:71) is what asserts every row's
-   *  grammar is a live arm. */
-  readonly grammar: string;
-  /** The exact token the finding reports and a marker must name. */
-  readonly position: string;
-  /** Multiplicity: the 1-based occurrence of (path, position) in file order. */
-  readonly ordinal: number;
-  readonly snippet: string;
   readonly verdict: CaughtFailureVerdict;
   /** The FULL reason out of the `@orb-waive` marker the central engine bound to this site, verbatim — null
    *  for `unproven`. */
   readonly reason: string | null;
+}
+
+/** One LIVE site: the judgment joined with what the tree says about it at read time. Never committed —
+ *  `line`, `column`, `snippet` and `markerLine` move when a line is inserted above the site, and the rest is
+ *  already spelled by `siteId` or re-derived by the classifier. */
+export interface CaughtFailureRow extends CaughtFailureJudgment {
+  readonly path: string;
+  readonly line: number;
+  readonly column: number;
+  /** The detector arm, always a member of {@link CAUGHT_FAILURE_ARMS}. */
+  readonly grammar: CaughtFailureArm;
+  /** The exact token the finding reports and a marker must name. */
+  readonly position: string;
+  /** Multiplicity: the 1-based occurrence of this position within its enclosing declaration. */
+  readonly ordinal: number;
+  readonly snippet: string;
   readonly markerLine: number | null;
 }
 
@@ -58,5 +71,5 @@ export interface CaughtFailurePopulation {
   readonly gate: string;
   readonly generatedBy: string;
   readonly totals: CaughtFailureTotals;
-  readonly rows: readonly CaughtFailureRow[];
+  readonly rows: readonly CaughtFailureJudgment[];
 }
