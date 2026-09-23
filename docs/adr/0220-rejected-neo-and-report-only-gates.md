@@ -27,8 +27,8 @@ scratch.
   `@orb/contracts` replace it.
 - `import-alias` — neo aliased cross-layer imports because it was one package. Orbweaver's layers are
   physical packages, so the cross-layer property is now cross-package `@orb/*` physics (dependency-cruiser
-  + `not-in-package.json`) plus `no-cross` for cross-feature. The intra-package residual is cosmetic and
-  not worth a gate.
+  - `not-in-package.json`) plus `no-cross` for cross-feature. The intra-package residual is cosmetic and
+    not worth a gate.
 
 **Built, measured, then dropped — the property is refuted or already held elsewhere:**
 
