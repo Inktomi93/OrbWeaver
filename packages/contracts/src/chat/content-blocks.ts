@@ -14,7 +14,7 @@ import { z } from "zod";
 // model (`ChatHistoryMessage.content` → content-parts, D45 — what the model receives as input); the two
 // share one stored asset but are different contracts in opposite directions. Chat assembles these.
 
-export const messageMediaKindSchema = z.enum(["image", "audio", "video"]);
+const messageMediaKindSchema = z.enum(["image", "audio", "video"]);
 
 /** Tier-A = inert sanitized allowlist in the main DOM; Tier-B = sandboxed-iframe card (the card-trust tier split). */
 export const cardTrustSchema = z.enum(["tierA", "tierB"]);
@@ -22,7 +22,7 @@ export type CardTrust = z.infer<typeof cardTrustSchema>;
 
 /** Where a media block's bytes come from: an owned asset (per-user CAS, D21) or an external URL (gated by
  *  `forbidExternalMedia` at render, D44 §12.3 — never auto-loaded for untrusted content). */
-export const messageMediaSrcSchema = z.discriminatedUnion("kind", [
+const messageMediaSrcSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("asset"), assetId: typeIdSchema(ID_PREFIX.asset) }),
   z.object({ kind: z.literal("external"), url: z.string() }),
 ]);

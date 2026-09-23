@@ -88,6 +88,7 @@ export const characterMemberSpecSchema = z.object({
   position: z.number().int().nonnegative(),
   ...seatKnobsSchema.shape,
 });
+export type CharacterMemberSpec = z.infer<typeof characterMemberSpecSchema>;
 
 /** A seat the caller WANTS to exist — the ONE template/creation-time member vocabulary (D16/D61/D60). Every
  *  membership-template lifetime PROJECTS through it; nothing mints a flat characterId array beside it.
@@ -97,6 +98,7 @@ export const characterMemberSpecSchema = z.object({
  *  template cannot carry an invite's runtime preconditions); `observer` and `agent` were purged 2026-07-25
  *  (the rebuild re-adds their arms here if either domain returns) — `character` is the only live arm. */
 export const rosterMemberSpecSchema = z.discriminatedUnion("kind", [characterMemberSpecSchema]);
+export type RosterMemberSpec = z.infer<typeof rosterMemberSpecSchema>;
 
 /** The RESOLVED per-participant content-render policy (D44 §12.0/§12.3). The chat domain resolves each
  *  character's tri-state overrides against the deployment effective config at roster-build time (the ONE
