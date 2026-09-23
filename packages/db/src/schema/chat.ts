@@ -503,10 +503,8 @@ export const messageVariants = sqliteTable(
     // The HTTP status of a FAILED generation (diagnostics + the retry-survivor signal alongside
     // terminalReason). Nullable — null on a clean generation.
     apiErrorStatus: integer("api_error_status"),
-    // D48 tool-call records — the model-emitted tool exchanges for this variant.
-    // FLAG[PD-54]: this DTO retype is the schema-leaf slice of T1 — born-compliant typing while the baseline
-    // window is open; the wire seams + the domain-owned recurse loop that WRITE it remain (registry: PD-54
-    // ready). Nullable JSON, parsed at the read seam with `toolCallRecordSchema` (never cast).
+    // D48 tool-call records — the model-emitted tool exchanges for this variant. Nullable JSON, parsed at
+    // the read seam with `toolCallRecordSchema` (never cast).
     toolCalls: text("tool_calls", { mode: "json" }).$type<readonly ToolCallRecord[]>(),
     // D46 runtime plane — the ordered variable ops THIS variant applied (`{{setvar}}`/`{{incvar}}`/…). The chat
     // domain folds these along the selected-variant chain (`foldVarOps`) into `chats.runtime_variables`, so a
@@ -681,8 +679,8 @@ export const chatParticipants = sqliteTable(
     // `human`/`character` arms are LIVE post-rollback (2026-07-25 purge); the `agent`/`observer` arms are
     // DORMANT rebuild doorways — no code path writes `kind='agent'`/`'observer'` today, and the DB does not
     // (and per the design would not) cross-verify `kind='agent' ⇒ users.kind='agent'` (SQLite has no
-    // cross-table CHECK) — that's the future agent-seat chokepoint's job (docs/plans/agent-principals/design.md —
-    // FLAG[PD-17], AP3). Kept as DDL now so the rebuild doesn't need a second migration for a known shape.
+    // cross-table CHECK) — that's the future agent-seat chokepoint's job (docs/plans/agent-principals/design.md,
+    // AP3, docs/work/0048). Kept as DDL now so the rebuild doesn't need a second migration for a known shape.
     check(
       "chat_participants_kind_shape",
       sql.raw(

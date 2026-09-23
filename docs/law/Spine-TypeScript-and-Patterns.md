@@ -162,3 +162,12 @@ typed-return / `assertNever`.
 and (b) a mapped-type Record or exhaustive `assertNever` dispatch (a new member fails the build).
 Orbweaver's axes are born this shape (`MESSAGE_ROLES`, `USER_ROLES`, `AUTH_MODES` + `MODE_RESOLVERS`, `WorkloadKind` + `WorkloadContributions`, …). Gates: **`no-inline-union-redecl` + `exhaustive-dispatch`**
 (`Core-0-Architecture-and-Structure.md §7`; catalog: `Core-Enforcement-Active-Gates.md`).
+
+**Coincident axes still get two tuples.** Two axes whose members happen to coincide (for example a
+contracts-side tuple and its `@orb/ui` counterpart) each get their own `as const` tuple; neither derives
+from the other. The coincidence is exactly what breaks the day one axis grows and the other does not. A
+contracts-to-ui pair is forced apart by the package cake regardless (`@orb/ui` depends only on
+`@orb/kit`, so it cannot import the `@orb/contracts` half at resolve time even if it wanted to derive
+from it). `no-inline-union-redecl` flags an inline union or a `z.enum([…])` re-spelling a canonical
+tuple; it does not flag a second, independent tuple with the same members
+(`docs/adr/0220-rejected-neo-and-report-only-gates.md` records why that case was rejected).

@@ -1,5 +1,5 @@
 // The RESERVED kinds — registered in the tuple with no owning domain yet, so workloads carries them (they
-// carry zero domain knowledge, which is what makes that legal). `reconcile-world-state` is v2 (FLAG[PD-18],
+// carry zero domain knowledge, which is what makes that legal). `reconcile-world-state` is v2 (docs/work/0052,
 // Knowledge-Cluster.md §9): an inert no-op whose `{ deferred: true }` result is how a caller tells
 // "reserved, not built" apart from "ran, changed nothing".
 

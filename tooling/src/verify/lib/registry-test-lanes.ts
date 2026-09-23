@@ -52,14 +52,13 @@ export const TEST_LANE_STAGES: readonly StageDef[] = [
     // verified green BEFORE committing gets a RED after committing, at the exact door the lane skill tells it to walk.
     // A red meaning "there was nothing to run" either sends a lane chasing a phantom or teaches it that
     // reds from this door are ignorable.
-    // THE RULING IT REOPENS: vitest 4 DEFAULTS `passWithNoTests` to true; `vitest.config.ts` turns it OFF
-    // repo-wide — "false (PD-115): every lane … has matching files now, so a lane whose include glob
-    // matches NOTHING (a typo'd pattern, a moved tree) FAILS instead of passing" (docs/law/Core-Debt-Cleared-Ledger.md
-    // PD-115, 2026-07-03). That ruling SURVIVES; its INPUT changed. PD-115 judges an ASSERTED selector — a
-    // lane's config include glob, which asserts a fileset — while this argv's selector is always the
+    // THE RULING IT REOPENS: vitest 4 DEFAULTS `passWithNoTests` to true; `vitest.config.ts:134` turns it
+    // OFF repo-wide — every lane whose include glob matches NOTHING (a typo'd pattern, a moved tree) FAILS
+    // instead of passing. That ruling SURVIVES here too, but judges an ASSERTED selector — a lane's config
+    // include glob, which asserts a fileset — while this argv's selector is always the
     // DERIVED one (`--changed`), and derived-empty is CLEAN by the same asymmetry ops/scoped.ts's
     // `emptyScopeNotice` already draws (AGENTS.md "Verification tiers": an asserted selector resolving to zero is exit 2,
-    // a derived one resolving to zero is an ordinary state). PD-115's own class stays guarded without this
+    // a derived one resolving to zero is an ordinary state). The asserted-selector class stays guarded without this
     // door: `tests:execution-membership` REDs a runner view matching ZERO files at the STATIC tier, and
     // every whole-scope `pnpm test` still runs under `passWithNoTests: false`.
     // The flag sits BEFORE `--changed` because `--changed`'s ref value is OPTIONAL — a flag placed after it

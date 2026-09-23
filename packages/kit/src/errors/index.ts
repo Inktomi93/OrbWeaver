@@ -3,7 +3,7 @@
  * transport boundary by the domain-error middleware.
  *
  * BOOT-CRITICAL: `DomainNotFoundError` must exist before the tag / credentials /
- * character front doors re-export it (`docs/law/Core-Legacy-Migration-and-Gaps.md` §1). Lives
+ * character front doors re-export it . Lives
  * in `@orb/kit` (isomorphic — `extends Error` is the one sanctioned class shape,
  * `docs/law/Spine-TypeScript-and-Patterns.md` §6).
  */

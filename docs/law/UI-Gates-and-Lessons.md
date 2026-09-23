@@ -60,8 +60,7 @@ round.
 ## 8. The gates (physics + lint checks)
 
 > **Live enforcement state has ONE home:** `Core-Enforcement-Active-Gates.md` (what fails a build today,
-> all six layers) + `docs/law/Core-Enforcement-Deferred-Dropped.md` (the backlog + each gate's activation
-> trigger), kept honest by `enforcement-registry-parity.ts`. This § is the UI-law INDEX — the CONCEPT
+> all six layers), generated from the discovered gate roster. This § is the UI-law INDEX — the CONCEPT
 > each UI-enforcement family protects, not a status board (do not re-track live/parked/dormant here; it
 > drifts against the registry).
 
@@ -119,6 +118,16 @@ shadcn copy-paste · Radix · the react-markdown stack · react-syntax-highlight
 `this_chid` re-coupling sync effect · `@/` aliases (use `#`) · file-based Router codegen (~3 hand-written
 routes) · `compact`/`inDrawer`/`density` layout props (container queries replace them) · per-feature
 `useVirtualizer` (the `@orb/ui/virtual-list` seal replaces it).
+
+## 9b. PREBUILT seals
+
+A consumer-less sealed primitive carries `PREBUILT[for:<doc>]`, naming the doc for its future consumer.
+Delete the marker in the same edit that lands the consumer; a `PREBUILT` whose cited doc is missing or
+deleted is a documentation defect, fixed at the next audit of this table.
+
+Open today: `packages/ui/src/stream/stream-text.tsx` (no named feature yet — a convenience wrapper for a
+future plain-text streaming surface, `ui-package-design.md` §6.3.1) and
+`packages/ui/src/primitives/status-chip/status-chip.tsx` (workloads/automation run-status chips).
 
 ## 10. Deferred forks (DEFERRED-with-a-committed-default)
 
