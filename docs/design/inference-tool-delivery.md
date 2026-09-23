@@ -52,7 +52,7 @@ raised.
 | `entry/compose/chat.ts` `splitAgentHistory`, `extractTrailingSystemRows`, `agentRowText`, the seed-frame and pairing helpers | `backends/agent-sdk/turn-input.ts` |
 | `entry/compose/chat.ts` `agentSdkChatRequest`, `arrayWireChatRequest` (the per-api branch) | `roles/chat-request.ts` `toChatRequest` |
 | `domain/chat/engine/pipeline.ts` `attachTools` / `attachTerminalTools` wire branch | the neutral `tools` field; the branch is `toChatRequest`'s |
-| `domain/tool-use/verbs/project-mcp.ts` (MCP spec construction, call-id synthesis) | `backends/agent-sdk/turn-input.ts` `mountToolOffer` |
+| the tool-use MCP projection (MCP spec construction, call-id synthesis) | `backends/agent-sdk/turn-input.ts` `mountToolOffer` |
 
 ## What stays in server
 
