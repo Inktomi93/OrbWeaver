@@ -10,6 +10,7 @@ import { PROSE_SLOTS } from "@orb/contracts/prose";
 import type { Db } from "@orb/db";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { describe } from "vitest";
 import type {
   ChatRpgGatherResult,
@@ -139,15 +140,14 @@ describe("createChatTeachingContributions — the offer-choices teach", () => {
   });
 
   // The `{{user}}` FLOOR on a personaless turn. Not a style point: rpg's gather floors the same macro to
-  // "User" (`chat-ops/gather.ts:126`), so a different floor here would render two different strings from one
-  // slot and the containment check below would miss its own duplicate. Pinned so the coupling is a test, not
-  // a comment.
+  // `DEFAULT_PERSONA_NAME`, so a different floor here would render two different strings from one slot and the
+  // containment check below would miss its own duplicate. Pinned so the coupling is a test, not a comment.
   test("with no active persona, {{user}} floors to the SAME word rpg's gather floors it to", async () => {
     const prose: ProseOverrides = { "rpg.reminder.cyoaTeach": { text: "Offer {{user}} three ways.", baseVersion: 1 } };
 
     const out = await offerChoices().collect(tctxOf(null, { knobs: knobsOf({ offerChoices: true }), prose, identity: { user: undefined, char: "Aria" } }));
 
-    expect(out.injections.map((i) => i.content)).toEqual(["Offer User three ways."]);
+    expect(out.injections.map((i) => i.content)).toEqual([`Offer ${DEFAULT_PERSONA_NAME} three ways.`]);
   });
 
   // THE SUPPRESSION, at the granularity rpg actually emits (`chat-ops/gather.ts:183,206` — ONE injection whose
