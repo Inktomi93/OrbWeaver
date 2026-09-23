@@ -64,6 +64,10 @@ function dirtyPaths(root: string): string[] {
 }
 
 function hashOf(root: string, path: string): string | null {
+  // @orb-waive caught-failure-ownership(catch): the null return IS the owner-visible signal — a path git
+  // lists as dirty but that is gone by the time we hash it (deleted, or a rename's old half) means "no
+  // content", and the setup/teardown diff in diffWorkingTree() treats null distinctly from a missing key.
+  // No end condition: this is the permanent meaning of "dirty path with no bytes".
   try {
     return createHash("sha256")
       .update(readFileSync(join(root, path)))
