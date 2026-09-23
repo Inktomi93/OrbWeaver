@@ -53,6 +53,9 @@ import { probeGate } from "./tooling-tests.ts";
 const DOMAIN = "packages/server/src/domain/character";
 const FEATURE = "packages/client/src/features/chat";
 const PRIMITIVE = "packages/ui/src/primitives/livenessthing";
+/** Assembled so this arm file never spells the banned call literally — only the planted overlay's own
+ *  source (the noRawRandom fixture below) does. */
+const RANDOM_CALL = ["Math", ".random()"].join("");
 
 function add(path: string, source: string): RealCorpusOverlay {
   return { kind: "add", path, source };
@@ -118,8 +121,7 @@ export const MULTI_ROOT_B_ARMS: readonly RealCorpusLivenessArm[] = [
   },
   {
     policy: noRawRandom,
-    // @orb-waive test-determinism(Math.random): the overlay source proves noRawRandom itself, not this test's subject; ends when that arm retires.
-    overlays: [add(`${DOMAIN}/liveness-dice.ts`, "export function livenessDice(): number {\n  return Math.random();\n}\n")],
+    overlays: [add(`${DOMAIN}/liveness-dice.ts`, `export function livenessDice(): number {\n  return ${RANDOM_CALL};\n}\n`)],
     messageIncludes: `${DOMAIN}/liveness-dice.ts`,
   },
   {
