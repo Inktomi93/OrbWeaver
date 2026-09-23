@@ -69,6 +69,9 @@ const config = {
       // experimentalNativePreview is on (its loader imports `@typescript/native/unstable/sync`) — a
       // node_modules-internal consumer knip cannot see. Rides the checker patch + pin set on any bump.
       ignoreDependencies: ["pino-pretty", "ts7", "@typescript/native"],
+      // knip's Stryker plugin only globs `.js`/`.mjs`/`.cjs`/`.json` configs; naming the `.ts` configs is
+      // what lets it read `testRunner`/`checkers` and credit the runner and checker packages.
+      stryker: { config: ["stryker.config.ts", "stryker.gate.config.ts"] },
       // These imports execute inside the captured browser runtime, not against repository-relative modules.
       ignoreUnresolved: ["./scripts/openai.js", "./scripts/extensions.js", "./scripts/tool-calling.js"],
     },
