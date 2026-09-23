@@ -15,6 +15,7 @@ import type { ArmActionContext, ArmActionDisposition, ArmTapeContext } from "../
 import type { Args, DriveFailure, EvalOutcome, NavAction, SnapAction, Step } from "../contract/types.ts";
 import { HOVER_REVEAL_MS, MOUNT_SETTLE_MS, NETWORKIDLE_TIMEOUT_MS, STEP_SETTLE_MS, STEP_TIMEOUT_MS, WAIT_SELECTOR_TIMEOUT_MS } from "../lib/budgets.ts";
 import { CHURN_LINE, isContextChurn } from "../lib/eval-text.ts";
+import { READ_FAILURE_SURFACE_JS } from "../lib/failure-surface.ts";
 import { markStageBootDead } from "../lib/stage-run-binding.ts";
 import { driveBudgets } from "../lib/throttle.ts";
 import { captureEvals } from "./arms/eval.ts";
@@ -25,10 +26,13 @@ refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 /** Did the app reach a SETTLED state? `settled` = the flag went up on a real query-cache idle; `degraded` =
  *  app-ready-signal's ceiling handed the flag over with reads still running; `dataless` = the flag says settled
- *  but the app never reached its data layer at all; `absent` = it never went up. */
-const APP_READINESS = ["settled", "degraded", "dataless", "absent"] as const;
+ *  but the app never reached its data layer at all; `notFound` = the app resolved and declared its own
+ *  not-found boundary (`data-app-failure="not-found"`, `routes/__root.tsx`) — a real, deterministic render,
+ *  never a boot failure; `absent` = it never went up. */
+const APP_READINESS = ["settled", "degraded", "dataless", "notFound", "absent"] as const;
 type AppReadiness = (typeof APP_READINESS)[number];
 const WHEEL_BURST_SETTLE_MS = 30;
+const NOT_FOUND_FAILURE_KIND = "not-found";
 
 /** THE DATALESS TRIPWIRE (issue #145). `data-app-ready` claims a settle from an IDLE query cache, and an
  *  idle cache also describes an app that never got as far as its first read — which is exactly what a stage
@@ -53,6 +57,16 @@ async function appReadiness(page: Page, timeoutMs: number): Promise<AppReadiness
   if (!attached) {
     return "absent";
   }
+  // THE NOT-FOUND DISCRIMINATOR (#1837 misdiagnosis). An unknown route resolves through beforeLoad's
+  // `throw notFound()`, mounts the root's not-found boundary and settles `data-app-ready` on a cache
+  // that never got a read — the exact shape `dataless` exists to catch, but this is the app correctly
+  // saying "there is nothing here", not a boot placeholder. Checked BEFORE degraded/dataless so neither
+  // arm ever mislabels it.
+  // @orb-waive caught-failure-ownership(page.evaluate): probe-whose-failure-is-its-return-value — a build without the __orb-free declare, or a probe that throws, reads null and falls through to the ordinary ladder below. Ends if a caller starts trusting null as "not not-found".
+  const failureKind = await page.evaluate(READ_FAILURE_SURFACE_JS).catch(() => null);
+  if (failureKind === NOT_FOUND_FAILURE_KIND) {
+    return "notFound";
+  }
   if ((await flag.getAttribute("data-app-ready")) === "degraded") {
     return "degraded";
   }
@@ -70,6 +84,8 @@ const UNSETTLED_REASON: Record<Exclude<AppReadiness, "settled">, string> = {
     "data-app-ready came up DEGRADED — reads were still in flight at the client's own readiness ceiling, so the capture is mid-hydration, not the settled app. On `--isolated` the warm-up navigation has ALREADY been retried inside this run (#1837), so reaching this line there is a stage whose SECOND, warm navigation still could not settle: read the stage's stack log (preserved into this run's slot) rather than re-running.",
   dataless:
     "data-app-ready came up settled but the query cache is EMPTY — the app never reached its data layer, so this capture is a boot placeholder (the router's pending glyph), not the app. On `--isolated` the warm-up navigation has ALREADY been retried inside this run (#1837), so reaching this line there is a stage whose SECOND, warm navigation still served the placeholder: read the stage's stack log (preserved into this run's slot) rather than re-running.",
+  notFound:
+    'NOT-FOUND — the app rendered its own not-found boundary (data-app-failure="not-found") for this route. This is the app resolving cleanly and saying the route does not exist; it is NOT a boot failure, an empty query cache is expected here, and re-navigating (isolated or not) will not change the verdict. Check the route against the section vocabulary (packages/client/src/state/section-ids.ts SECTION_IDS), or drive client-state navigation instead of a URL with --goto <section>/--goto config:<group>.',
 };
 
 /** THE COLD-STAGE WARM-UP IS OURS TO PAY, NOT THE READER'S (#1142). A freshly created `--isolated` stage is
@@ -103,14 +119,17 @@ async function readinessWithColdStageWarmup(
   budgets: { readonly nav: number; readonly ready: number },
 ): Promise<{ readonly readiness: AppReadiness; readonly httpError: string | null }> {
   const first = await appReadiness(page, budgets.ready);
-  if (first === "settled" || !opts.isolated) {
+  // NOT-FOUND IS NOT COLD VITE (#1837 misdiagnosis). It is a deterministic render off a real route
+  // resolution, not a placeholder the warm-up pass could ever fix — retrying re-renders the same
+  // not-found boundary and would then mark a perfectly healthy stage BOOT-DEAD for it.
+  if (first === "settled" || first === "notFound" || !opts.isolated) {
     return { readiness: first, httpError: null };
   }
   print(`[snap-stage] the stage's first navigation came back ${first} (cold vite); re-navigating once before judging`);
   const retry = await page.goto(url, { waitUntil: "domcontentloaded", timeout: budgets.nav });
   const httpError = retry !== null && !retry.ok() ? `HTTP ${String(retry.status())}` : null;
   const readiness = await appReadiness(page, budgets.ready);
-  if (readiness !== "settled") {
+  if (readiness !== "settled" && readiness !== "notFound") {
     // A stage whose WARM navigation still cannot settle never served an app, so it is not the warm asset
     // #324 protects — it is a corpse holding a band and a process group (`lib/stage-run-binding.ts`).
     markStageBootDead(`the stage's warm-up re-navigation came back ${readiness}`);
