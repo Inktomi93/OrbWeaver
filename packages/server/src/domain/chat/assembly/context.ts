@@ -28,7 +28,7 @@ import { globalMacroRegistry } from "@orb/kit/macro";
 import type { RegexScriptInput } from "@orb/kit/regex";
 import { executeRegexScripts } from "@orb/kit/regex";
 import { estimateTokens } from "@orb/kit/tokens";
-import type { MatchEntryKeysOptions } from "@orb/kit/world-info";
+import type { EntryPosition, MatchEntryKeysOptions } from "@orb/kit/world-info";
 import { buildKeywordHaystack, matchEntryKeys } from "@orb/kit/world-info";
 import { getLog } from "#foundation/observability";
 import type { ChatContext } from "../context.ts";
@@ -62,8 +62,15 @@ function onMacroWarn(msg: string, err?: unknown): void {
   getLog().warn({ err, macroWarn: msg }, "chat: macro budget/eval trip (D53)");
 }
 
-/** A budget candidate: a rendered injection + cost + survival flag + sort priority. `bucket` routes an
- *  always-scope WI entry to a before/after anchor instead of the injection list. */
+/** Where a world-info entry sits in the system region: the before/after anchor it follows, in the static half
+ *  (an always-scope entry) or the per-turn half (a keyword-fired one). */
+interface WiBucket {
+  readonly anchor: EntryPosition;
+  readonly half: "static" | "dynamic";
+}
+
+/** A budget candidate: a rendered injection + cost + survival flag + sort priority. `bucket` routes a WI entry
+ *  to its before/after anchor instead of the injection list. */
 interface InjectionCandidate {
   injection: ChatInjection;
   tokens: number;
@@ -75,7 +82,7 @@ interface InjectionCandidate {
   /** The WI entry's keyword list (WI-origin only; [] for an always-scope entry) — surfaced in the activation
    *  trace so the host preview lists WHICH lore fired by identity + keys. Unset for user/guided candidates. */
   worldEntryKeys?: string[];
-  bucket: "before" | "after" | null;
+  bucket: WiBucket | null;
 }
 
 const OPERATOR_PRIORITY = Number.MAX_SAFE_INTEGER;
@@ -161,19 +168,21 @@ interface WiConvEnv {
   readonly matchedKeys: MatchedKey[];
 }
 
-/** Which anchor bucket an always-scope, system-half WI entry joins (null ⇒ default in_static). */
-function resolveBucket(entry: AssembleWorldEntry, args: WiConversionArgs): "before" | "after" | null {
+/** Which anchor a system-half WI entry follows, or null when the preset renders no such anchor this turn (the
+ *  entry then keeps its default half: in_static for always-scope, the in_prompt suffix for keyword). */
+function resolveBucket(entry: AssembleWorldEntry, args: WiConversionArgs, half: WiBucket["half"]): WiBucket | null {
   if (entry.position === "before" && args.hasBeforeAnchor) {
-    return "before";
+    return { anchor: "before", half };
   }
   if (entry.position === "after" && args.hasAfterAnchor) {
-    return "after";
+    return { anchor: "after", half };
   }
   return null;
 }
 
-/** Position-routes a rendered WI entry: depth-inject → in_chat; always-scope → anchor bucket (or
- *  in_static); keyword (fired) → in_prompt. */
+/** Position-routes a rendered WI entry: depth-inject → in_chat; always-scope → its anchor in the static half
+ *  (or in_static); keyword (fired) → its anchor in the per-turn half (or the in_prompt suffix), the anchor
+ *  SillyTavern places it at. The cache cost of per-turn lore at an anchor is the author's choice. */
 function wiCandidate(entry: AssembleWorldEntry, content: string, args: WiConversionArgs): InjectionCandidate {
   const meta = {
     tokens: estimateTokens(content),
@@ -195,10 +204,10 @@ function wiCandidate(entry: AssembleWorldEntry, content: string, args: WiConvers
   }
   if (entry.scope === "always") {
     const injection: ChatInjection = { position: "in_static", depth: 0, role: "system", content, origin: "world-info" };
-    return { injection, ...meta, bucket: resolveBucket(entry, args) };
+    return { injection, ...meta, bucket: resolveBucket(entry, args, "static") };
   }
   const injection: ChatInjection = { position: "in_prompt", depth: 0, role: "system", content, origin: "world-info" };
-  return { injection, ...meta, bucket: null };
+  return { injection, ...meta, bucket: resolveBucket(entry, args, "dynamic") };
 }
 
 /** The per-entry key-compile options: a V3 `use_regex` entry's keys compile as PATTERNS, and a bad pattern
@@ -318,9 +327,8 @@ interface BuildAssembleContextInput {
   readonly personaIds: readonly PersonaId[];
   readonly promptConfig: PromptConfig;
   readonly personas: ResolvedPersonas;
-  /** The live human `personas.active` belongs to — carried onto the ctx for SHAPE's null-stamp guard
-   *  (`AssembleContext.triggerUserId`). Absent (drain/auto/preview/hand-built) ⇒ null ⇒ fail closed. */
-  readonly triggerUserId?: UserId | null | undefined;
+  /** The room seats more than one present human (`AssembleContext.multiHuman`). Absent ⇒ solo. */
+  readonly multiHuman?: boolean | undefined;
   readonly roomOverrides?: RoomOverrides | undefined;
   readonly recentMessages: readonly string[];
   readonly lastMessage?: string | undefined;
@@ -430,9 +438,9 @@ function buildBaseContext(
     // never collapse to the literal "User"; a SET anchor never follows a mid-chat swap.
     pinnedPersona: input.personas.anchor ?? input.personas.active,
     activePersona: input.personas.active,
-    // WHOSE `{{user}}` this is — SHAPE's null-stamp guard (see `AssembleContext.triggerUserId`). Absent ⇒ null
-    // ⇒ fail closed (no null-stamped row borrows the name).
-    triggerUserId: input.triggerUserId ?? null,
+    // WHOSE `{{user}}` this is — SHAPE's null-stamp guard (see `AssembleContext.activePersonaUserId`). Absent ⇒
+    // null ⇒ fail closed (no null-stamped row borrows the name).
+    activePersonaUserId: input.personas.activeUserId ?? null,
     speaker: { kind: "single", character },
     recentMessages: [...input.recentMessages],
     variableValues: input.variableValues,
@@ -443,6 +451,7 @@ function buildBaseContext(
     generationType: input.generationType ?? "normal",
   };
   setIf(base, "roomOverrides", input.roomOverrides);
+  setIf(base, "multiHuman", input.multiHuman);
   setIf(base, "lastMessage", input.lastMessage);
   setIf(base, "lastUserMessage", input.lastUserMessage);
   setIf(base, "lastCharMessage", input.lastCharMessage);
@@ -468,29 +477,28 @@ function buildBaseContext(
   return base;
 }
 
-/** Routes budget-kept candidates: anchor-bucket WI → before/after parts; everything else → the
+/** Routes budget-kept candidates: anchor-bucket WI → its half's before/after parts; everything else → the
  *  injection list (system-block positions framed once, in_chat left unframed for the SHAPE splice). */
 function routeKept(
   kept: readonly InjectionCandidate[],
   prose: ProseOverrides,
 ): {
   chatInjections: ChatInjection[];
-  beforeParts: string[];
-  afterParts: string[];
+  anchored: Record<WiBucket["half"], Record<EntryPosition, string[]>>;
 } {
   const chatInjections: ChatInjection[] = [];
-  const beforeParts: string[] = [];
-  const afterParts: string[] = [];
+  const anchored: Record<WiBucket["half"], Record<EntryPosition, string[]>> = {
+    static: { before: [], after: [] },
+    dynamic: { before: [], after: [] },
+  };
   for (const c of kept) {
-    if (c.bucket === "before") {
-      beforeParts.push(c.injection.content);
-    } else if (c.bucket === "after") {
-      afterParts.push(c.injection.content);
-    } else {
+    if (c.bucket === null) {
       chatInjections.push(frameSystemInjection(c.injection, prose));
+    } else {
+      anchored[c.bucket.half][c.bucket.anchor].push(c.injection.content);
     }
   }
-  return { chatInjections, beforeParts, afterParts };
+  return { chatInjections, anchored };
 }
 
 /** The guided steer's delivery depth when the action config declares none (G10): the tail — exactly where
@@ -932,7 +940,7 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
     [...wi.candidates, ...userCandidates, ...guided.candidates, ...personaDescription, ...authorsNote.candidates, ...newChatMarkerCandidate(base, input)],
     input.injectionTokenBudget,
   );
-  const { chatInjections, beforeParts, afterParts } = routeKept(kept, prose);
+  const { chatInjections, anchored } = routeKept(kept, prose);
   // WI-origin candidates that survived the budget pass, by identity (id + keys); worldInfoActivated (engine.ts
   // bus emit + the host preview panel) reads this off wiTrace.
   const activated = kept.flatMap((c) => (c.worldEntryId !== undefined ? [{ id: c.worldEntryId, keys: c.worldEntryKeys ?? [] }] : []));
@@ -943,8 +951,10 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
     // SHAPE splice (the two note frames, the round nudge) resolve the SAME host's frames this build did.
     prose,
     chatInjections,
-    worldInfoBefore: beforeParts.join("\n"),
-    worldInfoAfter: afterParts.join("\n"),
+    worldInfoBefore: anchored.static.before.join("\n"),
+    worldInfoAfter: anchored.static.after.join("\n"),
+    ...(anchored.dynamic.before.length > 0 ? { worldInfoBeforeDynamic: anchored.dynamic.before.join("\n") } : {}),
+    ...(anchored.dynamic.after.length > 0 ? { worldInfoAfterDynamic: anchored.dynamic.after.join("\n") } : {}),
     ...(authorsNote.authorsNoteSource !== undefined ? { authorsNoteSource: authorsNote.authorsNoteSource } : {}),
     // Carries the resolved host-tier regex set onto the immutable ctx so RECEIVE applies the same set SEND used.
     ...(input.hostTierRegexScripts !== undefined ? { hostTierRegexScripts: input.hostTierRegexScripts } : {}),

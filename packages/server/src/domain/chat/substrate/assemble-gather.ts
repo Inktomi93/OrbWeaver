@@ -323,9 +323,11 @@ export async function gatherAssembleContext(
     /** The muted-seat `speakerKey`s from `loadRoom` (character + agent) — the `unmutedCharacters` producer. */
     readonly mutedSpeakerKeys?: ReadonlySet<string> | undefined;
     readonly personaIds: readonly PersonaId[];
-    /** The live human driving this turn — the identity behind `speakers.user`, carried onto the built ctx for
-     *  SHAPE's null-stamp guard (`AssembleContext.triggerUserId`). Absent/null ⇒ fail closed. */
+    /** The live human driving this turn — the author of the pending row the recall query folds in. Absent/null
+     *  ⇒ a turn with no triggering human (drain/auto). */
     readonly triggerUserId?: UserId | null | undefined;
+    /** The room seats more than one present human — carried onto the built ctx for SHAPE's name-stamp. */
+    readonly multiHuman?: boolean | undefined;
     readonly pendingUserText?: string | undefined;
     /** The one-turn typed steer — threaded to the BUILD, which resolves the action template once and
      *  delivers it via its placement. */
@@ -469,8 +471,7 @@ export async function gatherAssembleContext(
       personaIds,
       promptConfig: foreign.promptConfig,
       personas: foreign.personas,
-      // Threaded RAW — `buildAssembleContext` owns the `?? null` floor (one home for the fail-closed default).
-      triggerUserId: args.triggerUserId,
+      multiHuman: args.multiHuman,
       recentMessages,
       // The chat's own injection ROWS + the S2 teaching collection's injections; nothing teaching ⇒ unchanged.
       // The teaching half arrives PRE-STAMPED (each contribution owns its `origin`, e.g. chat's rpg projection

@@ -16,22 +16,11 @@ import { PROSE_SLOTS, resolveProseText } from "@orb/contracts/prose";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
-import {
-  characterBooks,
-  chatParticipants,
-  chats as chatsTable,
-  messages,
-  messageVariants,
-  personaBooks,
-  personas as personasTable,
-  worldBooks,
-  worldEntries,
-} from "@orb/db";
+import { characterBooks, chatParticipants, chats as chatsTable, messages, messageVariants, personaBooks, worldBooks, worldEntries } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, ChatInviteId, Handle, ModelId, PersonaId, PresetId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { resolvePersonaDescriptionPlacement } from "@orb/kit/persona";
-import { activePersonaIdFor } from "@orb/server/entry/compose";
+import { createTurnPersonaResolver, voicePersonaFor } from "@orb/server/entry/compose";
 import { and, eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
 import { createActiveTurns } from "../../../../../packages/server/src/domain/chat/active-turns.ts";
@@ -45,6 +34,7 @@ import { createChatLifecycle } from "../../../../../packages/server/src/domain/c
 // write path against the real read clamp in one room (the setter's own gates live in roster.int.test.ts).
 import { createParticipants, setParticipantActivePersona } from "../../../../../packages/server/src/domain/chat/verbs/participants.ts";
 import { createRead } from "../../../../../packages/server/src/domain/chat/verbs/read.ts";
+import { loadPersonasForOwners } from "../../../../../packages/server/src/domain/persona/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { makeGenerationCapability, makeResolved } from "../../../../support/factories/resolved-connection.ts";
@@ -1893,21 +1883,18 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
   // human's ACTIVE persona contributes NOTHING, however many past rows are still STAMPED with it (the
   // transcript keeps those names by design — that is DISPLAY resolution, not context contribution).
   //
-  // These drive the REAL resolver shape the composition root supplies (anchor ← chats.anchorPersonaId,
-  // active ← the triggering/first present human's chat_participants.activePersonaId), because the
-  // suite's default `resolveForeignInputs` fake returns fixed nulls and would prove nothing.
+  // These drive the composition root's REAL persona binding (`createTurnPersonaResolver` over the consent-gated
+  // persona read), because the suite's default `resolveForeignInputs` fake returns fixed nulls and would prove
+  // nothing.
   function personaResolvingDeps(): Partial<Parameters<typeof createRead>[1]> {
-    const load = async (personaId: PersonaId | null | undefined): Promise<AssemblePersona | null> => {
-      if (personaId === null || personaId === undefined) {
-        return null;
-      }
-      const [row] = await db.select().from(personasTable).where(eq(personasTable.id, personaId)).limit(1);
-      return row === undefined ? null : { name: row.name, description: row.description, placement: resolvePersonaDescriptionPlacement(row.metadata) };
-    };
+    const resolvePersonas = createTurnPersonaResolver(async ({ personaIds, allowedOwnerIds }) => {
+      const rows = await loadPersonasForOwners(db, [...new Set(personaIds)], [...new Set(allowedOwnerIds)]);
+      return new Map(rows.map((row) => [row.id, row]));
+    });
     return {
-      resolveForeignInputs: async ({ anchorPersonaId, trigger }) => ({
+      resolveForeignInputs: async (args) => ({
         promptConfig: DEFAULT_PROMPT_CONFIG,
-        personas: { anchor: await load(anchorPersonaId), active: await load(activePersonaIdFor({ trigger, anchorPersonaId })) },
+        personas: await resolvePersonas(args),
         globalRegexScripts: [],
         scanDepth: 6,
         injectionTokenBudget: 0,
@@ -2031,10 +2018,9 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
 
     const prompt = `${preview.prompt.static}\n${preview.prompt.dynamic}`;
     // The discriminating read is the ACTIVE binding, not the anchor's card contribution — the anchor arm is
-    // resolved separately and would appear either way. `{{user}}` in the prompt-config sections is bound by
-    // the TRIGGER arm alone, so this one string separates all three candidate behaviours: "Anchor" = the
-    // ruled `none`→anchor arm; "Bystander" = the retired `personaIds[0]` fallback; the kit floor "Traveler" =
-    // an active that resolved to nothing (which is what a test of only `not.toContain`s cannot tell apart).
+    // resolved separately and would appear either way. This one string separates the candidate behaviours:
+    // "Anchor" = the anchor human's empty seat falling back to the anchor persona they own; "Bystander" = the
+    // retired `personaIds[0]` fallback; the kit floor "Traveler" = an active that resolved to nothing.
     expect(prompt).toContain("roleplay with Anchor");
     expect(prompt).not.toContain("roleplay with Bystander");
     expect(prompt).not.toContain("roleplay with Traveler");
@@ -2332,13 +2318,16 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
       [hostPersonaId]: { name: "HostPersona", description: "HOST-PERSONA-DESC" },
       [otherPersonaId]: { name: "OtherPersona", description: "OTHER-PERSONA-DESC" },
     };
-    // Mirrors the composition root's binding rule EXACTLY (compose/chat.ts `resolveForeignInputs`), so the
-    // assertion is on the real resolution, not on a stub that agrees by construction.
+    // Binds through the composition root's own rule (compose/chat.ts `voicePersonaFor`), so the assertion is on
+    // the real resolution, not on a stub that agrees by construction.
     const deps = makeDeps({
-      resolveForeignInputs: ({ trigger }) =>
+      resolveForeignInputs: ({ trigger, voice, runAsUserId, humanSeats }) =>
         Promise.resolve({
           promptConfig: DEFAULT_PROMPT_CONFIG,
-          personas: { anchor: null, active: byId[activePersonaIdFor({ trigger, anchorPersonaId: null }) ?? ""] ?? null },
+          personas: {
+            anchor: null,
+            active: byId[voicePersonaFor({ voice, trigger, anchorPersonaId: null, anchorOwnerId: null, runAsUserId, humanSeats }).personaId ?? ""] ?? null,
+          },
           globalRegexScripts: [],
           scanDepth: 6,
           injectionTokenBudget: 0,

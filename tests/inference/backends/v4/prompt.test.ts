@@ -4,7 +4,7 @@
 //     level option, and a bare-text reasoning row with no provenance carries no `providerOptions` at all;
 //   • E4's documented "intentional" arm — `toolInput` on malformed JSON rides the RAW STRING through, which
 //     the converter then re-stringifies (double-encoded); pinned here so a future "fix" is a visible diff;
-//   • the system-prompt rung selection (`system-block` joined vs `message-tail` split vs `splitSystem`);
+//   • the system prompt: static + dynamic joined in the leading system region, or split with `splitSystem`;
 //   • `endsOnAssistant` / `toolResultErrorDropped` (A2's prefill-belt inputs) and the assistant-media /
 //     participant-name side maps `body.ts` re-attaches from (§8.0).
 //
@@ -19,31 +19,18 @@ function userRow(text: string): ChatHistoryMessage {
   return { role: "user", content: [{ type: "text", text }] };
 }
 
-test("system-block (default): static + dynamic join into ONE leading system row", () => {
+test("static + dynamic join into ONE leading system row", () => {
   const plan = buildWirePlan({
     systemPrompt: { static: "You are helpful.", dynamic: "Time: noon." },
-    dynamicContextChannel: "system-block",
     history: [userRow("hi")],
   });
   expect(plan.prompt[0]).toEqual({ role: "system", content: "You are helpful.\n\nTime: noon." });
   expect(plan.prompt).toHaveLength(2);
 });
 
-test("message-tail: the dynamic half rides a TRAILING system row instead of joining the leading one", () => {
+test("splitSystem: static and dynamic ride as TWO leading system rows (the OR/Anthropic cache split)", () => {
   const plan = buildWirePlan({
     systemPrompt: { static: "You are helpful.", dynamic: "Time: noon." },
-    dynamicContextChannel: "message-tail",
-    history: [userRow("hi")],
-  });
-  expect(plan.prompt[0]).toEqual({ role: "system", content: "You are helpful." });
-  expect(plan.prompt.at(-1)).toEqual({ role: "system", content: "Time: noon." });
-  expect(plan.prompt).toHaveLength(3);
-});
-
-test("splitSystem under system-block: static and dynamic ride as TWO leading system rows (the OR/Anthropic cache split)", () => {
-  const plan = buildWirePlan({
-    systemPrompt: { static: "You are helpful.", dynamic: "Time: noon." },
-    dynamicContextChannel: "system-block",
     splitSystem: true,
     history: [userRow("hi")],
   });
@@ -52,19 +39,18 @@ test("splitSystem under system-block: static and dynamic ride as TWO leading sys
   expect(plan.prompt).toHaveLength(3);
 });
 
-test("splitSystem is a NO-OP under message-tail (the tail already rides its own row)", () => {
+test("the dynamic half never moves below the history: the array still ends on the history's last row", () => {
   const plan = buildWirePlan({
     systemPrompt: { static: "You are helpful.", dynamic: "Time: noon." },
-    dynamicContextChannel: "message-tail",
     splitSystem: true,
     history: [userRow("hi")],
   });
-  // Exactly the message-tail shape: one leading static row, one trailing dynamic row — no THIRD system row.
+  expect(plan.prompt.at(-1)).toEqual({ role: "user", content: [{ type: "text", text: "hi" }] });
   expect(plan.prompt.filter((m) => m.role === "system")).toHaveLength(2);
 });
 
 test("an empty dynamic half emits no system row at all — never a blank string riding the wire", () => {
-  const plan = buildWirePlan({ systemPrompt: { static: "", dynamic: "" }, dynamicContextChannel: "system-block", history: [userRow("hi")] });
+  const plan = buildWirePlan({ systemPrompt: { static: "", dynamic: "" }, history: [userRow("hi")] });
   expect(plan.prompt).toEqual([{ role: "user", content: [{ type: "text", text: "hi" }] }]);
 });
 
@@ -73,7 +59,6 @@ test("an empty dynamic half emits no system row at all — never a blank string 
 test("A1: a replayed reasoning part with anthropic provenance becomes a reasoning MESSAGE PART with its OWN providerOptions", () => {
   const plan = buildWirePlan({
     systemPrompt: { static: "", dynamic: "" },
-    dynamicContextChannel: "system-block",
     history: [
       userRow("What's the weather?"),
       {
@@ -97,7 +82,6 @@ test("A1: a replayed reasoning part with anthropic provenance becomes a reasonin
 test("A1: openrouter reasoningDetails ride under the wire's snake_case key, and BOTH provenances ride together when both are known", () => {
   const plan = buildWirePlan({
     systemPrompt: { static: "", dynamic: "" },
-    dynamicContextChannel: "system-block",
     history: [
       userRow("hi"),
       {
@@ -124,7 +108,6 @@ test("A1: openrouter reasoningDetails ride under the wire's snake_case key, and 
 test("a reasoning part with NO meta at all carries no providerOptions field — never an empty object", () => {
   const plan = buildWirePlan({
     systemPrompt: { static: "", dynamic: "" },
-    dynamicContextChannel: "system-block",
     history: [
       userRow("hi"),
       {
@@ -145,7 +128,6 @@ test("a reasoning part with NO meta at all carries no providerOptions field — 
 test("a row carrying ONLY replayed reasoning (no text, no tool-call, no media) is dropped — not a turn", () => {
   const plan = buildWirePlan({
     systemPrompt: { static: "", dynamic: "" },
-    dynamicContextChannel: "system-block",
     history: [userRow("hi"), { role: "assistant", content: [{ type: "reasoning", text: "thinking", meta: { anthropic: { signature: "s" } } }] }],
   });
   expect(plan.prompt.some((m) => m.role === "assistant")).toBe(false);
@@ -156,7 +138,6 @@ test("a row carrying ONLY replayed reasoning (no text, no tool-call, no media) i
 test("E4: a malformed tool-call arguments string is NOT dropped or thrown on — it rides as the raw string", () => {
   const plan = buildWirePlan({
     systemPrompt: { static: "", dynamic: "" },
-    dynamicContextChannel: "system-block",
     history: [userRow("hi"), { role: "assistant", content: [{ type: "tool-call", toolCallId: "c1", name: "f", arguments: "{not json" }] }],
   });
   const assistant = plan.prompt.find((m) => m.role === "assistant");
@@ -166,7 +147,6 @@ test("E4: a malformed tool-call arguments string is NOT dropped or thrown on —
 test("well-formed tool-call arguments parse to a real object input", () => {
   const plan = buildWirePlan({
     systemPrompt: { static: "", dynamic: "" },
-    dynamicContextChannel: "system-block",
     history: [userRow("hi"), { role: "assistant", content: [{ type: "tool-call", toolCallId: "c1", name: "f", arguments: '{"a":1}' }] }],
   });
   const assistant = plan.prompt.find((m) => m.role === "assistant");
@@ -178,7 +158,6 @@ test("well-formed tool-call arguments parse to a real object input", () => {
 test("an assistant row's media is recorded on the plan (dropped by the converter) with the row's WIRE INDEX", () => {
   const plan = buildWirePlan({
     systemPrompt: { static: "", dynamic: "" },
-    dynamicContextChannel: "system-block",
     history: [
       userRow("draw a cat"),
       {
@@ -197,7 +176,6 @@ test("an assistant row's media is recorded on the plan (dropped by the converter
 test("a row's `name` is recorded per wire index for user/assistant rows only", () => {
   const plan = buildWirePlan({
     systemPrompt: { static: "", dynamic: "" },
-    dynamicContextChannel: "system-block",
     history: [
       { role: "user", content: [{ type: "text", text: "hi" }], name: "Alice" },
       { role: "assistant", content: [{ type: "text", text: "hello" }], name: "Bot" },
@@ -210,7 +188,6 @@ test("a row's `name` is recorded per wire index for user/assistant rows only", (
 test("a `tool` history row fans out to one wire message PER tool-result part, isError recorded on the plan row", () => {
   const plan = buildWirePlan({
     systemPrompt: { static: "", dynamic: "" },
-    dynamicContextChannel: "system-block",
     history: [
       {
         role: "tool",
@@ -230,7 +207,6 @@ test("a `tool` history row fans out to one wire message PER tool-result part, is
 test("toolResultErrorDropped is false when no history tool-result ever carried isError", () => {
   const plan = buildWirePlan({
     systemPrompt: { static: "", dynamic: "" },
-    dynamicContextChannel: "system-block",
     history: [{ role: "tool", content: [{ type: "tool-result", toolCallId: "c1", content: "ok" }] }],
   });
   expect(plan.toolResultErrorDropped).toBe(false);
@@ -239,14 +215,12 @@ test("toolResultErrorDropped is false when no history tool-result ever carried i
 test("endsOnAssistant: true only when the LAST wire row is a non-tool-exchange assistant row", () => {
   const trailing = buildWirePlan({
     systemPrompt: { static: "", dynamic: "" },
-    dynamicContextChannel: "system-block",
     history: [userRow("continue:"), { role: "assistant", content: [{ type: "text", text: "Once upon a" }] }],
   });
   expect(trailing.endsOnAssistant).toBe(true);
 
   const afterUser = buildWirePlan({
     systemPrompt: { static: "", dynamic: "" },
-    dynamicContextChannel: "system-block",
     history: [{ role: "assistant", content: [{ type: "text", text: "hi" }] }, userRow("hello")],
   });
   expect(afterUser.endsOnAssistant).toBe(false);
@@ -254,7 +228,6 @@ test("endsOnAssistant: true only when the LAST wire row is a non-tool-exchange a
   // A trailing assistant row that IS a tool exchange (a tool-call) does not count as the prefill shape.
   const toolExchange = buildWirePlan({
     systemPrompt: { static: "", dynamic: "" },
-    dynamicContextChannel: "system-block",
     history: [userRow("hi"), { role: "assistant", content: [{ type: "tool-call", toolCallId: "c1", name: "f", arguments: "{}" }] }],
   });
   expect(toolExchange.endsOnAssistant).toBe(false);
@@ -263,7 +236,6 @@ test("endsOnAssistant: true only when the LAST wire row is a non-tool-exchange a
 test("an empty user/assistant row (blank text, no other content) is dropped BEFORE indexing — plan and prompt stay aligned", () => {
   const plan = buildWirePlan({
     systemPrompt: { static: "", dynamic: "" },
-    dynamicContextChannel: "system-block",
     history: [userRow("real question"), { role: "assistant", content: [{ type: "text", text: "   " }] }, userRow("follow-up")],
   });
   expect(plan.prompt.map((m) => m.role)).toEqual(["user", "user"]);

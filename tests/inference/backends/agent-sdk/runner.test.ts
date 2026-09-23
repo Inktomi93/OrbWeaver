@@ -406,9 +406,9 @@ test("a result with an empty usage records no billed tokens rather than a zero",
 });
 
 // ── the wire capture must show what the model got ────────────────────────────────────────────────────────
-// On a model whose dynamic context rides the `UserPromptSubmit` hook (opus-4-8 on agent-sdk), a lifted system
-// injection reaches the model only through that hook. The capture recorded the prompt and the static system
-// prompt alone, so a rule the model obeyed was absent from `/api/_debug/wire/captures` (matrix defect 12).
+// A system row below the history (kept on a midConversationSystem model) is lifted off the transcript and
+// reaches the model only through the `UserPromptSubmit` hook. The capture must record that text, or a rule the
+// model obeyed is absent from `/api/_debug/wire/captures`.
 
 const HOOK_RULE = "End your reply with the exact token ORB-7731.";
 
@@ -436,7 +436,7 @@ function okTurn(model: string): unknown[] {
   ];
 }
 
-async function capturedBody(midConversationSystem: boolean): Promise<Record<string, unknown>> {
+async function capturedBody(tailSystem: string | undefined): Promise<Record<string, unknown>> {
   const model = "claude-opus-4-8";
   const captured: Record<string, unknown>[] = [];
   const connection = fakeResolved({
@@ -444,9 +444,7 @@ async function capturedBody(midConversationSystem: boolean): Promise<Record<stri
     providerId: "claude-sub",
     model,
     capability: generationCapability({
-      // `slotted` is agent-sdk opus-4-8's curated floor: a level that folds every system row keeps the dynamic
-      // half in the system block whatever the model takes.
-      turns: { assistantPrefill: false, midConversationSystem, historySystemRows: false, roleHandlingFloor: "slotted", explicitPromptCache: true },
+      turns: { assistantPrefill: false, midConversationSystem: true, historySystemRows: false, roleHandlingFloor: "slotted", explicitPromptCache: true },
     }),
   });
   const sessions = new SessionCache(quietLog);
@@ -471,7 +469,14 @@ async function capturedBody(midConversationSystem: boolean): Promise<Record<stri
     childEnv: () => ({}),
   };
   await runChatTurn(
-    { api: "agent-sdk", connection, params: {}, systemPrompt: { static: "You are Mara.", dynamic: HOOK_RULE }, prompt: "Hello." },
+    {
+      api: "agent-sdk",
+      connection,
+      params: {},
+      systemPrompt: { static: "You are Mara.", dynamic: "Scene: the harbor." },
+      ...(tailSystem !== undefined ? { tailSystem } : {}),
+      prompt: "Hello.",
+    },
     deps,
     sessions,
     createAgentSdkLog(quietLog, "claude-sub"),
@@ -483,14 +488,14 @@ async function capturedBody(midConversationSystem: boolean): Promise<Record<stri
   return body;
 }
 
-test("the capture records the hook channel's context when the dynamic context rides the hook", async () => {
-  const body = await capturedBody(true);
-  expect(body["systemPrompt"]).toBe("You are Mara.");
+test("the capture records the hook's context when a tail system row rides it, and the dynamic half stays in the system prompt", async () => {
+  const body = await capturedBody(HOOK_RULE);
+  expect(body["systemPrompt"]).toBe("You are Mara.\n\nScene: the harbor.");
   expect(body["hookContext"]).toBe(HOOK_RULE);
 });
 
-test("the capture records no hook context when the dynamic context joins the system prompt", async () => {
-  const body = await capturedBody(false);
-  expect(body["systemPrompt"]).toBe(`You are Mara.\n\n${HOOK_RULE}`);
+test("no tail system row mounts no hook, on a model that takes one too", async () => {
+  const body = await capturedBody(undefined);
+  expect(body["systemPrompt"]).toBe("You are Mara.\n\nScene: the harbor.");
   expect(body["hookContext"]).toBeNull();
 });

@@ -69,7 +69,6 @@ export type { ChatDeltaEvent, ChatEvent, RateLimitSnapshot } from "./events.ts";
 export type { AgentSdkSessionId } from "./identity.ts";
 export { agentSdkSessionIdSchema } from "./identity.ts";
 export type {
-  DynamicContextChannel,
   ResolvedChatKnobs,
   ResolvedEmbedKnobs,
   ResolvedReasoning,
@@ -77,7 +76,7 @@ export type {
   ResolvedWarning,
   WarningCode,
 } from "./resolve.ts";
-export { DYNAMIC_CONTEXT_CHANNELS, WARNING_CODES } from "./resolve.ts";
+export { WARNING_CODES } from "./resolve.ts";
 export type { ConnectionTransport, Resolved, ResponseMap } from "./resolved.ts";
 export { generationOf } from "./resolved.ts";
 export type {

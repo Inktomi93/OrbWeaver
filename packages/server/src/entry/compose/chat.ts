@@ -23,7 +23,6 @@ import { NoConnectionError, toChatRequest, unavailableRefusal } from "@orb/infer
 import type { AssetId, ChatId, Handle, PersonaId, PresetId, TypeIdOf, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
-import type { PersonaDescriptionPlacement } from "@orb/kit/persona";
 import { resolvePersonaDescriptionPlacement } from "@orb/kit/persona";
 import { and, eq, isNull } from "drizzle-orm";
 import type { AssetsService } from "#domain/assets";
@@ -37,6 +36,7 @@ import type {
   ChatToolSet,
   GetMembership,
   GetPendingUserText,
+  HumanSeatPersona,
   MemoryConfig,
   MemoryEmbedSpace,
   MemoryRecallRecorder,
@@ -46,12 +46,15 @@ import type {
   PromptTransformRegistry,
   RequestTurnOp,
   ResolveCanonWindow,
+  ResolvedPersonas,
+  ResolveForeignInputsOp,
   ResolveRpgCardCorpus,
   ResolveRpgParticipants,
   SetRpgPointer,
   TurnRequest,
   TurnStreamChunk,
   TurnTrigger,
+  TurnVoice,
 } from "#domain/chat";
 import {
   applyStandaloneVariableOps,
@@ -108,9 +111,9 @@ function minter<P extends string>(prefix: P): () => TypeIdOf<P> {
 
 /**
  * THE TRIGGER BINDING — which persona id prompt-config `{{user}}` (the assemble ctx's ACTIVE persona)
- * resolves against, dispatched exhaustively over {@link TurnTrigger} (Chat-Macro-Resolution §3–§4; the
- * union's own doc carries the arm semantics). PURE; exported for its unit pin only — not a composition
- * surface.
+ * resolves against on a `trigger`-voice turn (an impersonate draft — see {@link voicePersonaFor}), dispatched
+ * exhaustively over {@link TurnTrigger} (Chat-Macro-Resolution §3–§4; the union's own doc carries the arm
+ * semantics). PURE; exported for its unit pin only — not a composition surface.
  *
  *   • `human`  → THAT human's persona ("who's speaking right now", §A.1), and `null` when their seat holds
  *     none — the kit floor, NEVER the anchor. Borrowing the anchor here is INVITE-JOIN-NULL-PERSONA: it
@@ -144,6 +147,72 @@ export function activePersonaIdFor(args: { readonly trigger: TurnTrigger; readon
 
 function assertNeverTrigger(trigger: never): never {
   throw new Error(`activePersonaIdFor: unhandled TurnTrigger ${JSON.stringify(trigger)}`);
+}
+
+/**
+ * THE VOICE BINDING (D122 as amended) — which persona id prompt-config `{{user}}` resolves against, and whose
+ * persona it is. PURE; exported for its unit pin.
+ *
+ *   • `anchor` (every canon turn) → the anchor HUMAN's current seat persona. The anchor human owns the anchor
+ *     persona when it resolved under the consent gate, else the frozen host. Who pressed send never enters, so
+ *     the system block and every history label are byte-identical across senders. A mid-chat persona swap
+ *     still splits the two personas: the card keeps the anchor persona, the preset follows the seat. An empty
+ *     seat falls back to the anchor persona its human owns, never to another human's.
+ *   • `trigger` (an impersonate draft, the presser's own next line) → {@link activePersonaIdFor}.
+ */
+export function voicePersonaFor(args: {
+  readonly voice: TurnVoice;
+  readonly trigger: TurnTrigger;
+  readonly anchorPersonaId: PersonaId | null;
+  readonly anchorOwnerId: UserId | null;
+  readonly runAsUserId: UserId;
+  readonly humanSeats: readonly HumanSeatPersona[];
+}): { readonly personaId: PersonaId | null; readonly userId: UserId } {
+  const anchorHuman = args.anchorOwnerId ?? args.runAsUserId;
+  const voice = args.voice;
+  switch (voice) {
+    case "anchor": {
+      // An anchor human whose seat holds no persona speaks as the anchor persona they own; with no resolved
+      // anchor the frozen host's empty seat is the honest kit floor.
+      const seatPersonaId = args.humanSeats.find((seat) => seat.userId === anchorHuman)?.personaId ?? null;
+      return { personaId: seatPersonaId ?? (args.anchorOwnerId === null ? null : args.anchorPersonaId), userId: anchorHuman };
+    }
+    case "trigger":
+      return {
+        personaId: activePersonaIdFor({ trigger: args.trigger, anchorPersonaId: args.anchorPersonaId }),
+        userId: args.trigger.kind === "human" ? args.trigger.userId : anchorHuman,
+      };
+    default:
+      return assertNeverVoice(voice);
+  }
+}
+
+function assertNeverVoice(voice: never): never {
+  throw new Error(`voicePersonaFor: unhandled TurnVoice ${JSON.stringify(voice)}`);
+}
+
+/** The persona half of the FOREIGN read: one consent-gated persona read over the anchor, the trigger's persona
+ *  and every seat persona, then {@link voicePersonaFor}. The composition root's `resolveForeignInputs` is its
+ *  one production caller. */
+export function createTurnPersonaResolver(
+  resolvePersonasForParticipants: ResolvePersonasForParticipants,
+): (
+  args: Pick<Parameters<ResolveForeignInputsOp>[0], "anchorPersonaId" | "humanSeats" | "presentHumanUserIds" | "runAsUserId" | "trigger" | "voice">,
+) => Promise<ResolvedPersonas> {
+  return async (args) => {
+    const triggerPersonaId = args.trigger.kind === "human" ? args.trigger.personaId : null;
+    const resolved = await resolvePersonasForParticipants({
+      personaIds: [args.anchorPersonaId, triggerPersonaId, ...args.humanSeats.map((seat) => seat.personaId)].flatMap((id) => (id === null ? [] : [id])),
+      allowedOwnerIds: args.presentHumanUserIds,
+    });
+    const project = (personaId: PersonaId | null): ResolvedPersonas["active"] => {
+      const p = personaId === null ? undefined : resolved.get(personaId);
+      return p === undefined ? null : { name: p.name, description: p.description, placement: resolvePersonaDescriptionPlacement(p.metadata) };
+    };
+    const anchorOwnerId = args.anchorPersonaId === null ? null : (resolved.get(args.anchorPersonaId)?.ownerId ?? null);
+    const voice = voicePersonaFor({ ...args, anchorOwnerId });
+    return { anchor: project(args.anchorPersonaId), active: project(voice.personaId), activeUserId: voice.userId };
+  };
 }
 
 /** What `buildChatService` needs from the composition root — boot primitives + the already-built sibling
@@ -1327,6 +1396,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     pluginMacros: input.pluginMacros ?? null,
   };
 
+  const resolveTurnPersonas = createTurnPersonaResolver(input.resolvePersonasForParticipants);
   const chatDeps: ChatServiceDeps = {
     emit: emitChatEvent,
     emitChecked: input.emitChatEventChecked,
@@ -1340,7 +1410,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // gate here was exactly the failure verify8 H1 named.
     resolveConnection: ({ funderUserId }) => resolveChatFor(funderUserId),
     checkSendAvailability: async ({ funderUserId }) => input.connection.availability({ task: "chat", principal: await realHostPrincipal(funderUserId) }),
-    resolveForeignInputs: async ({ runAsUserId, anchorPersonaId, presentHumanUserIds, trigger, presetOverride }) => {
+    resolveForeignInputs: async ({ runAsUserId, anchorPersonaId, presentHumanUserIds, humanSeats, trigger, voice, presetOverride }) => {
       const us = await input.settings.loadUserSettings(runAsUserId);
 
       // A feature-supplied GM-voice preset REDIRECT (rpg-design/02 §1.1 #1) wins over the host's default when it
@@ -1354,31 +1424,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       // both violating FINAL-Persona §A.1 in exactly the multi-human room the D16/D18 spine exists for. The
       // persona domain's principal-less roster op resolves the room's ids in ONE gated read; chat supplies
       // the consent set (its PRESENT humans), so a departed member's persona resolves to nothing.
-      const activePersonaId = activePersonaIdFor({ trigger, anchorPersonaId });
-      const resolvedPersonas = await input.resolvePersonasForParticipants({
-        personaIds: [anchorPersonaId, activePersonaId].flatMap((id) => (id === null ? [] : [id])),
-        allowedOwnerIds: presentHumanUserIds,
-      });
-      const projectPersona = (
-        personaId: PersonaId | null,
-      ): {
-        name: string;
-        description: string;
-        placement: PersonaDescriptionPlacement;
-      } | null => {
-        const p = personaId === null ? undefined : resolvedPersonas.get(personaId);
-        return p === undefined
-          ? null
-          : {
-              name: p.name,
-              description: p.description,
-              placement: resolvePersonaDescriptionPlacement(p.metadata),
-            };
-      };
-      // anchor = the chat-open {{user}} (card-derived sections); active = prompt-config {{user}}, bound by
-      // the three-state trigger contract above.
-      const anchor = projectPersona(anchorPersonaId);
-      const active = projectPersona(activePersonaId);
+      const turnPersonas = await resolveTurnPersonas({ runAsUserId, anchorPersonaId, presentHumanUserIds, humanSeats, trigger, voice });
 
       const memoryConfig = withMemoryOptOut(us.memory.enabled === false, input.settings.getEffectiveConfig().memoryDefaults);
 
@@ -1389,7 +1435,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         // #1754 — the SAME resolution's NAME, so the room's Regex section can say WHICH preset it is showing
         // (the GM redirect's on a game chat) instead of falling back to the viewer's own active preset.
         presetName,
-        personas: { anchor, active },
+        personas: turnPersonas,
         // FLAG[timezone-per-request]: {{time}}/{{date}} use the caller's per-request browser zone; the
         // macro engine falls back to server-local until the turn request carries it.
         scanDepth: us.worldInfo.scanDepth,

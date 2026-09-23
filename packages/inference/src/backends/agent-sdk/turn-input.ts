@@ -67,10 +67,10 @@ function agentRowText(m: ChatHistoryMessage, parts: readonly HistoryPart[] = m.c
 /**
  * Lift the capability-kept `system` rows near the tail (depth-0 mid-conversation system injections — the chat
  * engine emits them only when `turns.midConversationSystem`) off the history. On this backend the honest
- * system-authority channel is the dynamic-context hook (`routeDynamicContext` "message-tail"), not a transcript
- * row: the projection joins the extracted text onto `systemPrompt.dynamic`, and the remaining history keeps a
- * clean user prompt — the volatile injection never enters the recorded transcript, so the session↔seed
- * comparator still matches next turn (resume, not reseed).
+ * system-authority channel at the tail is the `UserPromptSubmit` hook, not a transcript row: the projection
+ * carries the extracted text as `tailSystem`, and the remaining history keeps a clean user prompt — the
+ * volatile injection never enters the recorded transcript, so the session↔seed comparator still matches next
+ * turn (resume, not reseed).
  *
  * NOT strictly tail-FINAL (F3 fix): the engine appends the group/CONTINUATION nudge as a trailing USER row AFTER
  * the depth-0 system row, so the real shape is `[…canon…, system, user-nudge]` — a system row with a nudge tail
@@ -362,8 +362,9 @@ function mountToolOffer(offer: ChatToolOffer): AgentToolServer {
 
 /**
  * The neutral turn → this backend's request arm. Trailing depth-0 system rows are lifted out of the transcript
- * ({@link extractTrailingSystemRows}) and joined onto `dynamic`, because the SDK delivers mid-conversation system
- * authority through the dynamic-context hook channel rather than as history rows. The history then splits into
+ * ({@link extractTrailingSystemRows}) into `tailSystem`, because the SDK delivers mid-conversation system
+ * authority through the `UserPromptSubmit` hook rather than as history rows; the system prompt keeps only the
+ * system-region halves. The history then splits into
  * seed frames + a prompt ({@link splitAgentHistory}); the executable tools mount as an MCP server
  * ({@link mountToolOffer}) with the offer's round ceiling; the terminal tools ride their own channel, which the
  * runner mounts deny-on-use (`terminal-tools.ts`). The array-wire knobs (`cacheBreakpointDepth`,
@@ -372,10 +373,6 @@ function mountToolOffer(offer: ChatToolOffer): AgentToolServer {
 export function toAgentSdkChatRequest(input: ChatTurnInput): AgentSdkChatRequest {
   const extract = extractTrailingSystemRows(input.history);
   const split = splitAgentHistory(extract.rows);
-  const dynamic =
-    extract.systemText === null
-      ? input.systemPrompt.dynamic
-      : [input.systemPrompt.dynamic, extract.systemText].filter((s) => s.trim().length > 0).join(AGENT_PROMPT_TAIL_JOINER);
   const offer = input.tools?.offer;
   const terminal = input.tools?.terminal;
   return {
@@ -384,9 +381,8 @@ export function toAgentSdkChatRequest(input: ChatTurnInput): AgentSdkChatRequest
     // extras and capability — the runtime picks the wire off it; nothing here re-derives a routing fact.
     connection: input.connection,
     params: input.params,
-    // `dynamic` carries the extracted trailing system injections — they ride the resolved dynamic-context
-    // channel (the hook on a midConversationSystem model) as real system authority.
-    systemPrompt: { static: input.systemPrompt.static, dynamic },
+    systemPrompt: input.systemPrompt,
+    ...(extract.systemText !== null ? { tailSystem: extract.systemText } : {}),
     ...(offer !== undefined ? { toolServer: mountToolOffer(offer), toolTurnLimit: offer.turnLimit } : {}),
     // responseFormat rides the SDK's own outputFormat (json_schema) — never silently dropped.
     ...(input.responseFormat !== undefined ? { responseFormat: input.responseFormat } : {}),

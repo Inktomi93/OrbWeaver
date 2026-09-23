@@ -88,11 +88,6 @@ export function clampRoleHandling(floor: RoleHandling, knob: RoleHandling | unde
   return knob !== undefined && isStricterRoleHandling(knob, floor) ? knob : floor;
 }
 
-/** The level a turn on this model runs for the preset knob `knob`. */
-export function roleHandlingOf(capability: GenerationCapability, knob: RoleHandling | undefined): RoleHandling {
-  return clampRoleHandling(roleHandlingFloorOf(capability), knob);
-}
-
 /** The preset-knob levels a model with this floor can actually run: the user levels at or above it. */
 export function userRoleHandlingOptions(floor: RoleHandling): readonly UserRoleHandling[] {
   return USER_ROLE_HANDLING.filter((level) => !isStricterRoleHandling(floor, level));
