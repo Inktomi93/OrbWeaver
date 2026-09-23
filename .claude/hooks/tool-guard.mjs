@@ -673,8 +673,23 @@ const RG_HEAD = /^\s*(?:\S*\/)?rg\b/;
 const RG_REPLACE_MANGLE = /(?:^|\s)-r[A-Za-z]/;
 const SQLITE_HEAD = /^\s*sqlite3\b/;
 const SQLITE_SAFE_HINT = /\/tmp\/|scratchpad|:memory:|test|\.bak\b/i;
-const GIT_NO_VERIFY = /\bgit\s+(?:commit|merge)\b[^\n;|&]*--no-verify\b/;
+// The hook-bypass family — the ONE sanctioned skip is `LEFTHOOK_EXCLUDE=check git commit/merge …` (whole-tree
+// `check` only; the `commit-msg` contract still fires). Every other spelling skips hooks WHOLESALE and is
+// banned outright: `--no-verify`/`-n` on commit or merge, `-c core.hooksPath=`, `git config … core.hooksPath`
+// (setting, not reading/unsetting), and a `LEFTHOOK=0`/`LEFTHOOK=false` env prefix.
+// `-n` is git's own documented shorthand for `--no-verify` on `commit` (not `merge`, where `-n` means
+// "no diffstat") — so the `-n` arm is commit-only.
+const GIT_NO_VERIFY = /\bgit\s+(?:commit|merge)\b[^\n;|&]*--no-verify\b|\bgit\s+commit\b[^\n;|&]*(?:^|\s)-n\b/;
 const GIT_COMMIT_OR_MERGE = /\bgit\s+(?:[^\s;|&]+\s+)*?(?:commit|merge)\b/;
+// `-c core.hooksPath=<anything>` is a git GLOBAL OPTION on ANY subcommand — it retargets the hooks dir for
+// that one invocation, same effect as `--no-verify` but not caught by the commit/merge-scoped rule above.
+const GIT_C_HOOKSPATH = /\bgit\s+(?:[^\s;|&]+\s+)*?-c\s+core\.hooksPath\s*=/;
+// `git config … core.hooksPath …` — SETS the key unless it is a read (`--get*`) or an `--unset`. Captured
+// tail is everything after `config` on the stage so the read/unset check can see the whole flag set.
+const GIT_CONFIG_HOOKSPATH = /\bgit\s+(?:[^\s;|&]+\s+)*?config\b([^\n;|&]*\bcore\.hooksPath\b[^\n;|&]*)/;
+const CONFIG_HOOKSPATH_READONLY = /--get\b|--unset\b/;
+// `LEFTHOOK=0` / `LEFTHOOK=false` as an env-assignment PREFIX on a git command — lefthook's own kill switch.
+const LEFTHOOK_DISABLE = /\bLEFTHOOK=(?:0|false)\b[^\n;|&]*\bgit\b/i;
 const PROC_GIT_PUSH = /(^|\0)git\0([^\0]*\0)*push(\0|$)/;
 const GIT_ADD_ALL = /\bgit\s+add\s+(?:-A\b|--all\b|\.(?:\s|$))/;
 const GIT_PUSH = /\bgit\s+(?:[^\s;|&]+\s+)*?push\b/;
@@ -864,6 +879,8 @@ const REASONS = {
     "Piping the harness loses its exit code (the pipeline reports tail/grep's status — a red run was reported green this way) AND hangs: playwright/vite/stack/vitest descendants inherit the pipe's write end, so the reader waits for an EOF that never comes (measured: `pnpm check` piped median 64.1s vs 2.3s unpiped, 28×). Run it bare — `pnpm check` — and read the auto-written artifacts: reports/verify.json + reports/verify/<stage>.log. Same for a harness inside `$( … )` (owner ruling: the substitution form stays denied — no safe grammar exists for it): `pnpm snap`/`pnpm test:scoped` run BARE with output redirected to a file, then the file is read in a SEPARATE command.",
   harnessSwallowed:
     "`|| true` (or `; true`) after a harness command erases the failure — the tool reports success even when the gate was red. Let it exit non-zero; the failure list is already in reports/verify.json / reports/test-report.json.",
+  gitHookBypass:
+    "This skips git hooks wholesale, not just the whole-tree `check`. The one sanctioned skip is `LEFTHOOK_EXCLUDE=check git commit …` / `LEFTHOOK_EXCLUDE=check git merge …` — it excludes only the `check` command and keeps the `commit-msg` contract (`scripts/commit-msg-check.sh`) enforced. `--no-verify`/`-n`, `-c core.hooksPath=…`, `git config core.hooksPath …` (setting it) and `LEFTHOOK=0`/`LEFTHOOK=false` all disable hooks entirely and are refused. Reading the key (`git config --get core.hooksPath`) or `--unset`-ing it stays allowed.",
   gitDestructive:
     "`git stash` / `git restore` / `git checkout <path>` / `git checkout-index -f` silently destroy uncommitted work, and this tree usually carries a large uncommitted surface (doctrine ban; near-zero legitimate sightings in 133k calls). Read an old version with `git show HEAD:<path>` (redirect it to write one: `git show HEAD:<path> > <path>`); undo a probe by `rm`-ing the throwaway file; protect a risky edit with `cp <f> <f>.bak` first, then `mv <f>.bak <f>` to revert. A GLOBAL OPTION does not exempt the spelling — `git -C <worktree> checkout -- <path>` destroys exactly as much as the bare form. In an ACTIVE MERGE, `checkout --ours/--theirs <path>` is refused the same way (it discards any hand-edit already in the worktree file): take one side with `git show MERGE_HEAD:<path> > <path>` (theirs) or `git show HEAD:<path> > <path>` (ours). Read-only inspection still passes: `git stash list` / `git stash show`, and `git restore --staged <path>` (index-only, no `--worktree`).",
   biomeWrite:
@@ -936,8 +953,6 @@ const CONTEXTS = {
     "`grep -r` from a broad root does NOT respect ignore files and every package has its own node_modules — add `--exclude-dir=node_modules` (and use `/usr/bin/grep -a`; the shell's `grep` is a ugrep wrapper that skips some .ts as binary). Better: the Grep tool, or ast-grep for structure.",
   sqliteLive:
     "sqlite3 against a live-looking DB: touching a WAL database while the stack is up can corrupt it (repo memory: sqlite3-wal-danger). Stop the stack first, or read through the /api/_debug endpoints instead.",
-  noVerify:
-    "`--no-verify` is legitimate only immediately after a green gate receipt in THIS session. Lanes: prefer `LEFTHOOK_EXCLUDE=check git …` (the sanctioned spelling since 2026-09-18 — it skips only the whole-tree check and keeps the commit-msg contract) so the skip is visible and scoped.",
   gitAddAll:
     "`git add -A` / `git add .` stages everything — including sibling-lane debris and untracked scratch. Repo law is pathspec staging: `git add <paths>` and `git commit -- <paths>`. Check `git status --short` first.",
   rmRf: "`rm -rf` outside scratch/cache territory — double-check the target: uncommitted work here is unrecoverable, and git-based undo (stash/restore) is banned.",
@@ -2424,6 +2439,24 @@ function classifyCommandLine(command, blank, clauses, ctx) {
     return { decision: "deny", rule: "git-destructive", reason: REASONS.gitDestructive, contexts };
   }
 
+  // 1b. hook-bypass spellings — DENY every spelling that skips hooks wholesale; the one sanctioned skip is
+  //     `LEFTHOOK_EXCLUDE=check git commit/merge …` (excludes only the whole-tree `check`, keeps the
+  //     `commit-msg` contract). `--no-verify`/`-n` on commit/merge, a `-c core.hooksPath=` global option,
+  //     `git config core.hooksPath …` when it SETS the key, and a `LEFTHOOK=0`/`LEFTHOOK=false` env prefix
+  //     all disable hooks entirely.
+  if (GIT_NO_VERIFY.test(blank) || GIT_C_HOOKSPATH.test(blank)) {
+    return { decision: "deny", rule: "git-hook-bypass", reason: REASONS.gitHookBypass, contexts };
+  }
+  const configHooksPath = blank.match(GIT_CONFIG_HOOKSPATH);
+  if (configHooksPath && !CONFIG_HOOKSPATH_READONLY.test(configHooksPath[1])) {
+    return { decision: "deny", rule: "git-hook-bypass", reason: REASONS.gitHookBypass, contexts };
+  }
+  for (const clause of clauses) {
+    if (LEFTHOOK_DISABLE.test(blank.slice(clause.start, clause.end))) {
+      return { decision: "deny", rule: "git-hook-bypass", reason: REASONS.gitHookBypass, contexts };
+    }
+  }
+
   // 2. biome write-mode — blast radius decides (owner ruling 2026-08-03): a WHOLE-TREE fix-all is the
   //    doctrine-banned wave (DENY); a path-scoped and/or --only= single-rule rewrite is the sanctioned
   //    mechanical-migration form (WARN). `pnpm lint:fix` is `biome check --write .` by definition — DENY.
@@ -2606,9 +2639,6 @@ function classifyCommandLine(command, blank, clauses, ctx) {
     return { decision: "ask", rule: "sqlite-live", reason: REASONS.sqliteLive, contexts };
   }
   collectGrepWarn(command, blank, clauses, contexts);
-  if (GIT_NO_VERIFY.test(blank)) {
-    contexts.push(CONTEXTS.noVerify);
-  }
   if (GIT_ADD_ALL.test(blank)) {
     contexts.push(CONTEXTS.gitAddAll);
   }
