@@ -8,7 +8,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { ProviderId } from "@orb/contracts/inference";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { ChatEvent, ChatRequest, ChatResult, WarningCode } from "@orb/inference";
-import { AGENT_CONTINUATION_PROMPT_STUB } from "@orb/inference";
+import { AGENT_CONTINUATION_PROMPT_STUB, createInferenceRuntime, DEFAULT_EMBED_MODEL } from "@orb/inference";
 import type { AssetId, ChatId, ChatTurnId, MessageId, ModelId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { TurnMessage, TurnRequest, TurnStreamChunk } from "@orb/server/domain/chat";
@@ -19,7 +19,10 @@ import type { ChatToolExecFrame, ChatToolOps } from "../../../../packages/server
 import { runTurnPipeline } from "../../../../packages/server/src/domain/chat/engine/pipeline.ts";
 import type { ToolExecutionContext, ToolUseService } from "../../../../packages/server/src/domain/tool-use/index.ts";
 import { createToolUseService } from "../../../../packages/server/src/domain/tool-use/index.ts";
+import { createTaskWindowReaders } from "../../../../packages/server/src/entry/compose/chat.ts";
+import { fakeConnection, fakeDeps, fakeModelCache, memoryStores, newUserId } from "../../../inference/_support.ts";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
+import { principal as principalOf } from "../../../support/factories/principal.ts";
 import { makeCapability, makeGenerationCapability, makeResolved } from "../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import type { McpCallResult } from "../../../support/mcp-in-memory.ts";
@@ -640,5 +643,66 @@ describe("tool delivery — the real tool-use service behind the neutral offer",
     );
     expect(result.toolRecords).toEqual(direct);
     expect(runner.seen.results[0]).toEqual({ content: [{ type: "text", text: JSON.stringify({ text: "hi" }) }] });
+  });
+});
+
+// The memory build's two window reads, over the REAL inference runtime (in-memory stores): `resolved()` reads
+// null both for "nothing bound" and for "bound, background work off", so the refusal must say which one the
+// funder hit — only the first is fixed by binding a connection.
+describe("createTaskWindowReaders — a missing window names its cause", () => {
+  async function readersFor(bind: { readonly task: "summarize" | "embed"; readonly allowBackground: boolean } | null): Promise<{
+    readonly readers: ReturnType<typeof createTaskWindowReaders>;
+    readonly ownerId: UserId;
+  }> {
+    const stores = memoryStores();
+    const ownerId = newUserId();
+    if (bind !== null) {
+      const connection =
+        bind.task === "summarize"
+          ? fakeConnection({ ownerId, providerId: "custom-openai", model: "qwen3", baseUrl: "http://box.local:8000", allowBackground: bind.allowBackground })
+          : fakeConnection({ ownerId, providerId: "local-light", model: DEFAULT_EMBED_MODEL, allowBackground: bind.allowBackground });
+      stores.connections.rows.set(connection.id, connection);
+      stores.bindings.bind({ actorKind: "user", actorId: ownerId, task: bind.task, connectionId: connection.id });
+    }
+    const runtime = await createInferenceRuntime({ ...fakeDeps({ stores }), localLight: { cache: fakeModelCache() } });
+    const readers = createTaskWindowReaders({
+      roleClientsFor: (funderUserId) => Promise.resolve(runtime.roleClientsFor(principalOf(funderUserId))),
+      availability: runtime.availability,
+      resolveHostPrincipal: (userId) => Promise.resolve(principalOf(userId)),
+    });
+    return { readers, ownerId };
+  }
+
+  test("a summarize row with background work off says so — never that nothing is bound", async () => {
+    const { readers, ownerId } = await readersFor({ task: "summarize", allowBackground: false });
+    await expect(readers.summarize(ownerId)).rejects.toMatchObject({
+      name: "NoConnectionError",
+      message: expect.stringContaining("does not allow background work"),
+    });
+    await expect(readers.summarize(ownerId)).rejects.not.toMatchObject({ message: expect.stringContaining("no summarize connection is bound") });
+  });
+
+  test("an embed row with background work off says so too", async () => {
+    const { readers, ownerId } = await readersFor({ task: "embed", allowBackground: false });
+    await expect(readers.embed(ownerId)).rejects.toMatchObject({
+      name: "NoConnectionError",
+      message: expect.stringContaining("does not allow background work"),
+    });
+  });
+
+  test("nothing bound still reads as nothing bound", async () => {
+    const { readers, ownerId } = await readersFor(null);
+    await expect(readers.summarize(ownerId)).rejects.toMatchObject({
+      name: "NoConnectionError",
+      message: expect.stringContaining("no summarize connection is bound"),
+    });
+    await expect(readers.embed(ownerId)).rejects.toMatchObject({ name: "NoConnectionError", message: expect.stringContaining("no embed connection is bound") });
+  });
+
+  test("a row that allows background work yields its window", async () => {
+    const summarize = await readersFor({ task: "summarize", allowBackground: true });
+    await expect(summarize.readers.summarize(summarize.ownerId)).resolves.toBeGreaterThan(0);
+    const embed = await readersFor({ task: "embed", allowBackground: true });
+    await expect(embed.readers.embed(embed.ownerId)).resolves.toBeGreaterThan(0);
   });
 });
