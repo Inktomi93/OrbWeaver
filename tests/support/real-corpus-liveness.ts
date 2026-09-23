@@ -39,6 +39,19 @@
 // where it must be silent in its arm's scope, and once WITH it, where it must report. A one-directional arm
 // that only ever asserts a finding cannot tell a live policy from one that reports on everything.
 //
+// THE OVERLAID DIRECTION IS BATCHED, BECAUSE THE TYPE PROGRAM IS THE COST (leg 2 of docs/work/0043). Every
+// overlay invalidates the shared program, so one pass per arm rebuilt it once per arm — measured at 6-26s a
+// `types` arm, which at the full roster is most of an hour. Instead the add-only arms share ONE overlaid
+// pass: every overlay applied together, every policy run through one walker, each finding attributed by
+// (policy id, overlay path). Two rules keep a shared pass honest:
+//   · an arm that rewrites or removes a REAL file (`neutralise`/`remove`) asserts over the whole run and
+//     changes what every other policy reads, so it never shares a pass;
+//   · a policy that reports on ANOTHER member's path in the shared pass is reading that member's file, so
+//     that file may be what made it speak at its own; its batched verdict is discarded and it is proved
+//     ALONE (`entangledWith` names who it was entangled with). Two planted controls in the runner suite
+//     hold both halves: a dead arm batched beside a live one is still named dead, and an arm that can only
+//     speak BECAUSE of its batch-mate is caught by the detector and fails alone.
+//
 // AND THERE IS MORE THAN ONE KIND OF OVERLAY, WHICH IS THE PART A FIRST PASS GETS WRONG. `-health`
 // BLINDNESS TRIPWIRES on `execution: "entire-population"` fire when their SUBJECT DISAPPEARS ("no longer
 // calls", "derived ZERO entity-id type names"), so ADDING a bad file cannot make them speak — planting a
@@ -95,16 +108,34 @@ export interface RealCorpusLivenessArm {
   readonly granted?: true;
 }
 
-/** The runner's two assertions over ONE shared corpus. Heavy work is lazy: nothing loads until the first
- *  call, so declaring the runner at module scope costs a test file nothing. */
+/** What ONE arm's overlaid pass said about it, attributed by (policy id, overlay path). */
+export interface RealCorpusArmVerdict {
+  /** The messages in the arm's assertion scope. */
+  readonly messages: readonly string[];
+  /** The refusals attributable to the arm's policy (its own, its facts', and every unattributed one). */
+  readonly refusals: readonly string[];
+  /** The policy's effective findings anywhere in the pass, JSON — the diagnostic for an empty scope. */
+  readonly outOfScope: string;
+  /** The policy ids that shared the pass that produced this verdict. */
+  readonly batch: readonly string[];
+  /** Members whose file this arm's policy ALSO reported on in the shared pass, which forced the solo
+   *  re-proof this verdict came from. Empty for a verdict proved in its batch. */
+  readonly entangledWith: readonly string[];
+}
+
+/** The runner over ONE shared corpus. Heavy work is lazy: nothing loads until the first call, so declaring
+ *  the runner at module scope costs a test file nothing. */
 export interface RealCorpusLivenessRunner {
   /** EVERY arm's policy in ONE pass, as the structure run does: refusal-free, and silent in each arm's own
    *  assertion scope. The shared first direction. Returns the policy ids the pass RAN, so a caller can assert
    *  the denominator — a pass that silently dropped a policy would otherwise read as that policy's silence. */
   assertBaseline: () => readonly string[];
-  /** ONE arm's overlaid run: its overlays applied, its policy run, its verdict asserted, the corpus restored
-   *  in memory. Returns the in-scope messages. */
-  assertArm: (arm: RealCorpusLivenessArm) => readonly string[];
+  /** Every arm's overlaid verdict, from the planned batches (`planLivenessBatches`), proved ONCE and kept. */
+  proveAll: () => ReadonlyMap<string, RealCorpusArmVerdict>;
+  /** One arm's verdict out of `proveAll`. */
+  verdict: (arm: RealCorpusLivenessArm) => RealCorpusArmVerdict;
+  /** One EXPLICIT batch, proved now and not kept — the door the runner's own controls drive. */
+  proveBatch: (batch: readonly RealCorpusLivenessArm[]) => ReadonlyMap<string, RealCorpusArmVerdict>;
 }
 
 type PassResult = ReturnType<typeof runPolicyPass>;
@@ -218,6 +249,69 @@ function restoreOriginals(project: Project, originals: Originals): void {
 
 /** Open the ONE liveness runner over `arms`. A policy carries at most one arm: two arms for one id would
  *  share a baseline row and make "which control fired" ambiguous. */
+/** Can this arm share an overlaid pass? Only when every overlay ADDS a new file. A `neutralise`/`remove`
+ *  arm rewrites or takes away a REAL file every other policy in the pass also reads, and asserts over the
+ *  whole run — so anything another arm plants could land in its scope. It always runs alone. */
+function isBatchable(arm: RealCorpusLivenessArm): boolean {
+  return arm.overlays.every((overlay) => overlay.kind === "add");
+}
+
+/** Pack the arms into overlaid passes: every whole-run arm alone, the add-only arms together, a new batch
+ *  opening only when an add path would repeat (two arms cannot own one path). Declaration order is kept, so
+ *  the plan is deterministic. */
+export function planLivenessBatches(arms: readonly RealCorpusLivenessArm[]): readonly (readonly RealCorpusLivenessArm[])[] {
+  const shared: RealCorpusLivenessArm[][] = [];
+  const solo: RealCorpusLivenessArm[][] = [];
+  for (const arm of arms) {
+    if (!isBatchable(arm)) {
+      solo.push([arm]);
+      continue;
+    }
+    const paths = new Set(arm.overlays.map((overlay) => overlay.path));
+    const fits = shared.find((batch) => batch.every((member) => member.overlays.every((overlay) => !paths.has(overlay.path))));
+    if (fits === undefined) {
+      shared.push([arm]);
+    } else {
+      fits.push(arm);
+    }
+  }
+  return [...shared, ...solo];
+}
+
+/** The refusals that belong to ONE arm's policy in a shared pass. A fact refusal belongs to every policy that
+ *  reads the fact, and an authority refusal with no policy id belongs to everyone — neither may be dropped. */
+function refusalsFor(result: PassResult, arm: RealCorpusLivenessArm): readonly string[] {
+  const id = arm.policy.id;
+  const facts = new Set(arm.policy.facts.map((fact) => fact.id));
+  return [
+    ...result.toolErrors.filter((error) => error.policyId === id).map((error) => JSON.stringify(error)),
+    ...result.factErrors.filter((error) => facts.has(error.factId)).map((error) => JSON.stringify(error)),
+    ...result.authority.toolErrors.filter((error) => error.policyId === undefined || error.policyId === id).map((error) => JSON.stringify(error)),
+    ...result.authority.withheldPolicyIds.filter((withheld) => withheld === id),
+  ];
+}
+
+/** Where a policy reported in a pass, over BOTH authority channels — the entanglement detector's input. */
+function reportedPaths(result: PassResult, policyId: string): ReadonlySet<string> {
+  return new Set(
+    [...result.authority.effectiveFindings, ...result.authority.grantedFindings.map(({ finding }) => finding)]
+      .filter((finding) => finding.policyId === policyId)
+      .map((finding) => finding.file),
+  );
+}
+
+/** Assert ONE arm's verdict — the second direction, read off whichever pass proved it. Returns the in-scope
+ *  messages. */
+export function assertArmVerdict(arm: RealCorpusLivenessArm, verdict: RealCorpusArmVerdict): readonly string[] {
+  expect(verdict.refusals, `${arm.policy.id}: the OVERLAID run refused, so its verdict is not a measurement`).toEqual([]);
+  expect(
+    verdict.messages.length,
+    `${arm.policy.id} reported NOTHING for a real-corpus positive control (${arm.overlays.map((overlay) => `${overlay.kind} ${overlay.path}`).join(", ")}) — it is silent when the tree is clean AND silent when it is broken (#2149). Effective findings outside the arm's scope: ${verdict.outOfScope}`,
+  ).toBeGreaterThan(0);
+  expect(verdict.messages.join("\n"), `${arm.policy.id}: the control fired, but not with the expected verdict`).toContain(arm.messageIncludes);
+  return verdict.messages;
+}
+
 export function openRealCorpusLiveness(repoRoot: string, arms: readonly RealCorpusLivenessArm[]): RealCorpusLivenessRunner {
   const ids = arms.map((arm) => arm.policy.id);
   const duplicated = ids.filter((id, index) => ids.indexOf(id) !== index);
@@ -227,12 +321,12 @@ export function openRealCorpusLiveness(repoRoot: string, arms: readonly RealCorp
   const policies = arms.map((arm) => arm.policy);
   const reviewedGrants = reviewedGrantsFor(policies);
   let corpus: Project | undefined;
-  // Set when an arm could not put the corpus back: every later arm would then measure a tree that is not the
-  // real one, and must refuse rather than report a verdict about it.
+  // Set when a batch could not put the corpus back: every later pass would then measure a tree that is not
+  // the real one, and must refuse rather than report a verdict about it.
   let damagedBy: string | undefined;
   const project = (): Project => {
     if (damagedBy !== undefined) {
-      throw new Error(`real-corpus liveness: ${damagedBy}'s arm failed to restore the shared corpus, so no later verdict describes the real tree`);
+      throw new Error(`real-corpus liveness: the batch [${damagedBy}] failed to restore the shared corpus, so no later verdict describes the real tree`);
     }
     corpus ??= projectCtx(repoRoot).project;
     return corpus;
@@ -240,26 +334,79 @@ export function openRealCorpusLiveness(repoRoot: string, arms: readonly RealCorp
   const pass = (selected: readonly GatePolicy[]): PassResult =>
     runPolicyPass({ knownPolicies: policies, policies: selected, root: repoRoot, project: project(), reviewedGrants, failOnWarnings: false });
 
-  const proveOverlaid = (loaded: Project, arm: RealCorpusLivenessArm): readonly string[] => {
-    applyOverlays(loaded, repoRoot, arm);
-    const live = pass([arm.policy]);
-    expect(refusals(live), `${arm.policy.id}: the OVERLAID run refused, so its verdict is not a measurement`).toEqual([]);
-    const messages = inScope(live, arm);
-    const outOfScope = JSON.stringify(live.authority.effectiveFindings.map(({ file, message }) => ({ file, message })));
-    expect(
-      messages.length,
-      `${arm.policy.id} reported NOTHING for a real-corpus positive control (${arm.overlays.map((overlay) => `${overlay.kind} ${overlay.path}`).join(", ")}) — it is silent when the tree is clean AND silent when it is broken (#2149). Effective findings outside the arm's scope: ${outOfScope}`,
-    ).toBeGreaterThan(0);
-    expect(messages.join("\n"), `${arm.policy.id}: the control fired, but not with the expected verdict`).toContain(arm.messageIncludes);
-    return messages;
-  };
-  const restoreOrDamage = (loaded: Project, originals: Originals, arm: RealCorpusLivenessArm): void => {
+  const restoreOrDamage = (loaded: Project, originals: Originals, batch: readonly RealCorpusLivenessArm[]): void => {
     try {
       restoreOriginals(loaded, originals);
     } catch (error) {
-      damagedBy = arm.policy.id;
+      damagedBy = batch.map((arm) => arm.policy.id).join(", ");
       throw error;
     }
+  };
+  const overlaid = (batch: readonly RealCorpusLivenessArm[]): PassResult => {
+    const loaded = project();
+    const originals = new Map<string, string | undefined>();
+    for (const arm of batch) {
+      for (const [absolute, original] of captureOriginals(loaded, repoRoot, arm)) {
+        if (originals.has(absolute)) {
+          throw new Error(`real-corpus liveness: two arms in one batch touch ${absolute} — a path has one owner per pass`);
+        }
+        originals.set(absolute, original);
+      }
+    }
+    try {
+      for (const arm of batch) {
+        applyOverlays(loaded, repoRoot, arm);
+      }
+      return pass(batch.map((arm) => arm.policy));
+    } finally {
+      restoreOrDamage(loaded, originals, batch);
+    }
+  };
+
+  const proveBatch = (batch: readonly RealCorpusLivenessArm[]): ReadonlyMap<string, RealCorpusArmVerdict> => {
+    const result = overlaid(batch);
+    const verdicts = new Map<string, RealCorpusArmVerdict>();
+    for (const arm of batch) {
+      // THE ENTANGLEMENT DETECTOR. An arm's finding counts only at its own paths, but a policy that ALSO
+      // reported at another member's path is reading that member's file — which means the other file can be
+      // what made it speak at its own. Such an arm's batched verdict is not evidence; it is proved again ALONE.
+      const reported = reportedPaths(result, arm.policy.id);
+      const entangledWith = batch
+        .filter((other) => other !== arm && other.overlays.some((overlay) => reported.has(overlay.path)))
+        .map((other) => other.policy.id);
+      if (entangledWith.length > 0) {
+        const alone = proveBatch([arm]).get(arm.policy.id);
+        if (alone === undefined) {
+          throw new Error(`real-corpus liveness: ${arm.policy.id}'s solo re-proof produced no verdict`);
+        }
+        verdicts.set(arm.policy.id, { ...alone, entangledWith });
+        continue;
+      }
+      verdicts.set(arm.policy.id, {
+        messages: inScope(result, arm),
+        refusals: refusalsFor(result, arm),
+        outOfScope: JSON.stringify(
+          result.authority.effectiveFindings.filter((finding) => finding.policyId === arm.policy.id).map(({ file, message }) => ({ file, message })),
+        ),
+        batch: batch.map((member) => member.policy.id),
+        entangledWith: [],
+      });
+    }
+    return verdicts;
+  };
+
+  let proved: ReadonlyMap<string, RealCorpusArmVerdict> | undefined;
+  const proveAll = (): ReadonlyMap<string, RealCorpusArmVerdict> => {
+    if (proved === undefined) {
+      const all = new Map<string, RealCorpusArmVerdict>();
+      for (const batch of planLivenessBatches(arms)) {
+        for (const [id, verdict] of proveBatch(batch)) {
+          all.set(id, verdict);
+        }
+      }
+      proved = all;
+    }
+    return proved;
   };
 
   return {
@@ -270,14 +417,14 @@ export function openRealCorpusLiveness(repoRoot: string, arms: readonly RealCorp
       expect(speaking, "these policies already report in their arm's scope before any overlay, so the overlay proves nothing").toEqual({});
       return baseline.policies.map((result) => result.id);
     },
-    assertArm: (arm: RealCorpusLivenessArm): readonly string[] => {
-      const loaded = project();
-      const originals = captureOriginals(loaded, repoRoot, arm);
-      try {
-        return proveOverlaid(loaded, arm);
-      } finally {
-        restoreOrDamage(loaded, originals, arm);
+    proveAll,
+    verdict: (arm: RealCorpusLivenessArm): RealCorpusArmVerdict => {
+      const found = proveAll().get(arm.policy.id);
+      if (found === undefined) {
+        throw new Error(`real-corpus liveness: ${arm.policy.id} is not an arm this runner was opened with`);
       }
+      return found;
     },
+    proveBatch,
   };
 }
