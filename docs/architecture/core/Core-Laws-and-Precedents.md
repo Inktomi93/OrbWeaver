@@ -45,7 +45,7 @@ The full fired-vs-open table is frozen in [`../history/core-laws-archaeology-rec
 
 ## 4. Build order
 
-The ordered runbook is frozen at **`../history/Core-BUILD-PLAN.md`**. Current work state lives in GitHub Project 1; cold-start recovery is the `orchestrator` skill (`.claude/skills/orchestrator/SKILL.md`) and the SessionStart onboard hook (D140, whose `docs/retro-workboard.md` arm was retired by owner ruling 2026-08-22 — that file is `status: archived`). The scaffold order + the `@orb/contracts` internal build DAG (completed build archaeology — the edges that made `tsc` fail during scaffolding) are frozen in [`../history/core-laws-archaeology-record.md`](../history/core-laws-archaeology-record.md) §4.
+The ordered runbook is frozen at **`../history/Core-BUILD-PLAN.md`**. Current work state lives in GitHub Project 1; cold-start recovery is the `orchestrator` skill (`.claude/skills/orchestrator/SKILL.md`) and the SessionStart onboard hook (D140). The scaffold order + the `@orb/contracts` internal build DAG (completed build archaeology — the edges that made `tsc` fail during scaffolding) are frozen in [`../history/core-laws-archaeology-record.md`](../history/core-laws-archaeology-record.md) §4.
 
 ## 5. Council-driven decisions (2026-06-25 greenfield review)
 
