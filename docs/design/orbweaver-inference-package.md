@@ -936,7 +936,7 @@ metadata string, which the render proved cannot carry a destructive action (side
 "two actions" as a cap.) A credential is minted inline
 from the connection form, so the user's noun count is three (connections · model roles · presets), not four.
 
-**Inside a room.** The composer carries a quiet **"running on \<your connection · model>"** readout (the #54
+**Inside a room — NOT BUILT (owner ruling): the per-message model icon already names the model on hover, so neither the composer readout nor per-swipe attribution below ships.** The composer carries a quiet **"running on \<your connection · model>"** readout (the #54
 gate is already re-keyed to the funder at `compose/chat.ts:1575`, so the value is in hand); the transcript's
 per-swipe attribution renders from the columns step 4 adds (`message_variants.connection_id`/`provider`/
 `model`) so "who wrote this" is answerable in a mixed room; the image affordance in a shared room carries one
